@@ -25,7 +25,9 @@ const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
 const { validate, MIN_QUESTIONS, figureDensity } = require('./transcript-quiz-validator');
-const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
+const {
+  teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
+} = require('./transcript-quiz-language');
 const { SESSION_SELECT, MIN_TRANSCRIPT_CHARS } = require('./transcript-quiz-offer.service');
 const {
   TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, digestFailureReason,
@@ -120,7 +122,12 @@ function figureRequiredError({ questions, subject, attempt, maxAttempts, gradeBa
   const why = early
     ? `this is a grade 1-5 lesson (${subject || 'language'}) and every subject is drawable at that age`
     : `this ${subject} lesson is drawable`;
-  const how = early
+  // A grade 1-5 maths quiz aims for three (figureDensity): "one or two" sent
+  // the retry of a fractions lesson that had drawn nothing back with nothing.
+  const maths = early && canonicalSubject(subject) === 'maths';
+  const how = maths
+    ? 'Decide the pictures FIRST, then write at least three questions the child answers by READING a picture: What fraction of the bar is shaded? Which bar shows a fraction (bars labelled A, B, C)? What number do the sticks show? How many counters are there? A step of a procedure (a cross product, a rewritten fraction) stays text — no picture can show its answer.'
+    : early
     ? 'Decide the drawing FIRST — the thing the class counted, the word they sounded out, the clock they read, the pattern they continued — then write one or two questions the child answers by reading the picture.'
     : 'Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.';
   return `quiz: FIGURE_REQUIRED — ${why} but none of the questions carries a "figure". ${how}`;
@@ -585,7 +592,7 @@ async function renderFor(api, { questions, rows, language, teacherId, quizId }) 
  * Production drew a picture on 5.5% of maths items: the author was asked for
  * "two or three" and nothing held it to more than one. Too few is a SOFT
  * complaint (FIGURE_FEW) — refusals cost teachers quizzes — so it is answered
- * with ONE targeted "add a picture" call on the questions a picture helps most
+ * with a targeted "add a picture" call on the questions a picture helps most
  * (transcript-quiz-rewrite addPictures, the one rewrite allowed to add a
  * figure). The merged set is validated IN FULL like any rewrite; a picture
  * fault on an added question reverts that question alone. Whatever happens,
@@ -593,10 +600,22 @@ async function renderFor(api, { questions, rows, language, teacherId, quizId }) 
  * meta.soft_faults. `transcript_quiz.figure_density` records before/after on
  * every grade 1-5 maths quiz, so the rate is measurable.
  *
+ * The call may also REPLACE a question no picture can answer (a step of a
+ * procedure) with a new read-off question on the same objective; `replaced`
+ * names those, and a replacement the validator refuses is reverted to the
+ * original question like any other added picture. It asks for one picture more
+ * than the shortfall (inside the half cap), and when pictures were refused and
+ * the quiz is still short it is called ONCE more with what was refused and why
+ * (`rounds` records how many calls ran; `reverted` the questions that still
+ * have no picture after a refusal).
+ *
  * Runs after every authoring repair and BEFORE the key check and the blind
- * solve, so a stem rewritten to point at its new picture is checked like any
- * other. Never throws.
+ * solve, so a stem rewritten to point at its new picture — and a replaced
+ * question's new key — is checked like any other. Never throws.
  */
+/** The add-pictures repair runs at most this many times; the second only after refusals. */
+const DENSITY_ROUNDS = 2;
+
 async function runFigureDensity(api, {
   questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, lessonDrew, attempts,
 }) {
@@ -605,73 +624,110 @@ async function runFigureDensity(api, {
   if (!before.applies) return { record: null };
   const record = {
     before: before.figured, after: before.figured, target: before.target, n: before.n, need: before.need,
-    added: [], repaired: false, reason: null, cost_usd: 0,
+    asked: 0, added: [], replaced: [], repaired: false, reason: null, cost_usd: 0,
   };
   const finish = (out = {}) => {
     const now = measure(out.questions || questions);
     record.after = now.figured;
     record.complaint = now.complaint;
     logEvent('transcript_quiz.figure_density', {
-      quizId, before: record.before, after: record.after, target: record.target, n: record.n,
-      added: record.added, reverted: record.reverted || [], repaired: record.repaired, reason: record.reason,
+      quizId, before: record.before, after: record.after, target: record.target, n: record.n, asked: record.asked, rounds: record.rounds || 0,
+      added: record.added, replaced: record.replaced, reverted: record.reverted || [], repaired: record.repaired, reason: record.reason,
     });
     return { record, ...out };
   };
   if (!before.need) { record.reason = 'enough'; return finish(); }
 
-  let rw;
-  try {
-    rw = await api.addPictures({
-      questions, digest, language, gradeBand, lessonDrew, need: before.need, quizId,
-    });
-  } catch (err) {
-    rw = { attempted: true, indices: [], merged: null, added: [], error: err.message };
-  }
-  if (rw.error) {
-    logToFile('❌ transcript quiz: the add-pictures call failed — the quiz ships as it was', { quizId, error: rw.error }, 'error');
-  }
-  record.cost_usd = rw.costUsd || 0;
-  if (!rw.attempted) { record.reason = 'no_candidates'; return finish(); }
-  attempts.push({
-    attempt: 'add_pictures', indices: rw.indices, added: rw.added, model: rw.model || null,
-    cost_usd: rw.costUsd || null, latency_ms: rw.latencyMs || null, error: rw.error || null,
-  });
-  if (!rw.merged) { record.reason = rw.error ? 'call_failed' : 'nothing_usable'; return finish(); }
-
-  // Validated in full. A hard fault on a question the repair did NOT touch
-  // cannot come from it (the set arrived shippable), so it refuses the repair;
-  // a fault on an ADDED question reverts that one question to what it was.
   const ctx = {
     language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
   };
   const hard = (errs) => errs.filter((e) => !SOFT_FAULT.test(String(e)));
-  let added = [...rw.added];
-  let merged = rw.merged;
-  let v = validate(merged, ctx);
-  if (hard(v.errors).length) {
-    const named = new Set(hard(v.errors).map((e) => /^q(\d+):/.exec(String(e))).filter(Boolean).map((m) => Number(m[1])));
-    const stray = hard(v.errors).some((e) => { const m = /^q(\d+):/.exec(String(e)); return !m || !added.includes(Number(m[1])); });
-    record.errors = hard(v.errors).slice(0, 4).map((e) => String(e).slice(0, 160));
-    if (stray) { record.reason = 'merged_set_invalid'; return finish(); }
-    const revert = added.filter((i) => named.has(i));
-    record.reverted = revert;
-    added = added.filter((i) => !revert.includes(i));
-    if (!added.length) { record.reason = 'every_picture_failed'; return finish(); }
-    merged = merged.map((q, i) => (revert.includes(i) ? questions[i] : q));
-    v = validate(merged, ctx);
-    if (hard(v.errors).length) { record.reason = 'merged_set_invalid'; return finish(); }
-  }
-  try {
-    const drafted = toRows(quizId, v.questions);
-    const { figureUrls, cardUrls } = await renderFor(api, {
-      questions: v.questions, rows: drafted, language, teacherId, quizId,
+  const qIndex = (e) => { const m = /^q(\d+):/.exec(String(e)); return m ? Number(m[1]) : null; };
+  let current = questions;
+  let currentV = null;
+  const added = [];
+  const replaced = [];
+  const refusedEver = new Set();
+  let refused = [];
+  let failure = null;
+  record.rounds = 0;
+  // At most TWO calls, and the second only when the first had pictures refused
+  // and the quiz is still short. Live (grade 4 English) the repair bolted bars
+  // onto three method questions, all refused by FIGURE_MISMATCH, and the quiz
+  // shipped with two; told what was refused and why, a second call replaces them.
+  for (let round = 1; round <= DENSITY_ROUNDS; round += 1) {
+    const now = measure(current);
+    if (!now.need) break;
+    // ONE picture more than the shortfall, inside the half cap. Asked for exactly
+    // the shortfall, the repair left two of three live fractions quizzes one
+    // short: one of its pictures was refused and there was nothing behind it.
+    const asked = Math.max(now.need, Math.min(now.need + 1, now.room ?? now.need));
+    if (round === 1) record.asked = asked;
+    let rw;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      rw = await api.addPictures({
+        questions: current, digest, language, gradeBand, lessonDrew, need: asked, quizId, refused,
+      });
+    } catch (err) {
+      rw = { attempted: true, indices: [], merged: null, added: [], replaced: [], error: err.message };
+    }
+    if (rw.error) {
+      logToFile('❌ transcript quiz: the add-pictures call failed — the quiz ships with what it has', { quizId, round, error: rw.error }, 'error');
+    }
+    record.cost_usd = Math.round(((record.cost_usd || 0) + (rw.costUsd || 0)) * 1e6) / 1e6;
+    if (!rw.attempted) { failure = failure || 'no_candidates'; break; }
+    record.rounds = round;
+    attempts.push({
+      attempt: 'add_pictures', round, indices: rw.indices, added: rw.added, replaced: rw.replaced || [], model: rw.model || null,
+      cost_usd: rw.costUsd || null, latency_ms: rw.latencyMs || null, error: rw.error || null,
     });
-    record.added = added;
+    if (!rw.merged) { failure = failure || (rw.error ? 'call_failed' : 'nothing_usable'); break; }
+
+    // Validated in full. A hard fault on a question the repair did NOT touch
+    // cannot come from it (the set arrived shippable), so it refuses the round;
+    // a fault on an ADDED question reverts that one question to what it was.
+    let roundAdded = [...rw.added];
+    let merged = rw.merged;
+    let v = validate(merged, ctx);
+    refused = [];
+    if (hard(v.errors).length) {
+      const errs = hard(v.errors);
+      const stray = errs.some((e) => { const i = qIndex(e); return i === null || !roundAdded.includes(i); });
+      record.errors = errs.slice(0, 4).map((e) => String(e).slice(0, 160));
+      if (stray) { failure = failure || 'merged_set_invalid'; break; }
+      const named = new Set(errs.map(qIndex));
+      const revert = roundAdded.filter((i) => named.has(i));
+      refused = revert.map((i) => ({ index: i, error: String(errs.find((e) => qIndex(e) === i)).slice(0, 220) }));
+      revert.forEach((i) => refusedEver.add(i));
+      roundAdded = roundAdded.filter((i) => !revert.includes(i));
+      if (!roundAdded.length) { failure = failure || 'every_picture_failed'; continue; }
+      const entering = current;
+      merged = merged.map((q, i) => (revert.includes(i) ? entering[i] : q));
+      v = validate(merged, ctx);
+      if (hard(v.errors).length) { failure = failure || 'merged_set_invalid'; break; }
+    }
+    current = v.questions;
+    currentV = v;
+    added.push(...roundAdded);
+    // a replaced question that was reverted is the original again, not new
+    replaced.push(...(rw.replaced || []).filter((i) => roundAdded.includes(i)));
+    if (!refused.length) break;
+  }
+  record.reverted = [...refusedEver].filter((i) => !added.includes(i)).sort((a, b) => a - b);
+  if (!added.length) { record.reason = failure || 'nothing_usable'; return finish(); }
+  try {
+    const drafted = toRows(quizId, currentV.questions);
+    const { figureUrls, cardUrls } = await renderFor(api, {
+      questions: currentV.questions, rows: drafted, language, teacherId, quizId,
+    });
+    record.added = [...added].sort((a, b) => a - b);
+    record.replaced = [...replaced].sort((a, b) => a - b);
     record.repaired = true;
-    record.reason = record.reverted && record.reverted.length ? 'added_some' : 'added';
+    record.reason = refusedEver.size ? 'added_some' : 'added';
     return finish({
-      changed: true, questions: v.questions, figureUrls, cardUrls, draftedRows: drafted,
-      softFaults: v.errors.length ? v.errors : null,
+      changed: true, questions: currentV.questions, figureUrls, cardUrls, draftedRows: drafted,
+      softFaults: currentV.errors.length ? currentV.errors : null,
     });
   } catch (figErr) {
     logToFile('❌ transcript quiz: the pictures added for density could not be drawn — the quiz ships as it was', { quizId, error: figErr.message }, 'error');

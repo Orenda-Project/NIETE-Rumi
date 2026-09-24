@@ -120,6 +120,44 @@ const TYPE_DEFAULTS = {
 };
 
 /**
+ * Set on every quiz figure whatever the author wrote. The stem and the options
+ * print numerals 0-9 in every language (the contract), so a figure's numbers
+ * do too: the engine's Urdu-page default draws a fraction bar's values in Urdu
+ * digits, and on staging a remade grade 4 Urdu quiz showed "۲/۹" in the bar
+ * beside "2/9" in the stem. (numberline already draws Latin digits unless told
+ * otherwise; this keeps it that way.)
+ */
+const QUIZ_FIXED = {
+  fraction_bar: { urduDigits: false },
+  numberline: { urduDigits: false },
+};
+
+/**
+ * A bar name that only repeats the value drawn beside it is dropped, at draw
+ * time (the stored spec is untouched). The same staging figure labelled every
+ * bar twice — the value in the gutter and the same fraction as its name —
+ * because the author named each bar with its own fraction and turned the
+ * values on. With the values off (the quiz default) the name is the only label
+ * and is kept; whether it may show is the leak check's business.
+ */
+function withoutRepeatedBarNames(merged) {
+  if (canonicalType(merged.type) !== 'fraction_bar' || !Array.isArray(merged.bars)) return merged;
+  const unitMode = merged.model === 'unit' || !!merged.unitLabel;
+  const valuesShown = merged.showLabels === true || (merged.showLabels !== false && !unitMode);
+  if (!valuesShown) return merged;
+  const flat = (s) => norm(s).replace(/\s+/g, '');
+  const bars = merged.bars.map((b) => {
+    if (!b || typeof b !== 'object' || typeof b.label !== 'string' || !b.label.trim()) return b;
+    const shaded = Array.isArray(b.shaded) ? b.shaded.length : Number(b.shaded);
+    const value = b.value !== undefined && b.value !== '' ? String(b.value) : `${shaded}/${Number(b.parts)}`;
+    if (flat(b.label) !== flat(value)) return b;
+    const { label, ...rest } = b; // eslint-disable-line no-unused-vars
+    return rest;
+  });
+  return { ...merged, bars };
+}
+
+/**
  * Defaults that depend on the QUIZ LANGUAGE. A place-value mat's column heads
  * are words a child reads, so they come from the string catalog like every
  * other child-facing word (root rule 20), never from the engine's own
@@ -443,9 +481,9 @@ function renderFigureSvg(spec, language) {
     throw new FigureError('FIGURE_TYPE',
       `figure type "${spec.type}" is not allowed — use one of: ${ALLOWED_TYPES.join(', ')}`);
   }
-  const merged = {
-    ...(TYPE_DEFAULTS[type] || {}), ...languageDefaults(type, language), ...spec, type, lang: clampLanguage(language),
-  };
+  const merged = withoutRepeatedBarNames({
+    ...(TYPE_DEFAULTS[type] || {}), ...languageDefaults(type, language), ...spec, ...(QUIZ_FIXED[type] || {}), type, lang: clampLanguage(language),
+  });
   const ceiling = PHONE_FONT_SCALE[type] || 1;
   const ladder = [...new Set([ceiling, ...SCALE_LADDER])].filter((k) => k <= ceiling).sort((a, b) => b - a);
 
@@ -579,6 +617,51 @@ function unknownColourToken(spec) {
  * cannot answer "12 shared into 3" (4); a bar of 4 parts with 3 shaded cannot
  * answer "1/2". Returns a one-line reason when it cannot, else null.
  */
+/**
+ * Two options of the same AMOUNT under a part-whole picture. A fraction_bar or
+ * grid question must produce its key literally (figureMismatch: a bar of 2 in
+ * 8 answers "2/8", not "1/4"), so a second option equal in value to the key is
+ * a second right reading of the same picture — a child who reads the bar as
+ * 1/4 is right and would be told otherwise. Without a picture the same pair is
+ * a fair question ("which is in lowest terms?"), so only these two types are
+ * checked. Returns a one-line reason, else null.
+ */
+function equalAmountOptions(spec, options, correctIndex) {
+  const type = canonicalType(spec && spec.type);
+  if (type !== 'fraction_bar' && type !== 'grid') return null;
+  const raw = Array.isArray(options) ? options.map((o) => String(o == null ? '' : o)) : [];
+  const opts = raw.map(norm);
+  const ci = Number(correctIndex);
+  const same = (a, b) => a !== null && b !== null && Math.abs(a - b) < 1e-9;
+  const value = (s) => {
+    const m = /^(\d+)\s*\/\s*(\d+)$/.exec(s || '');
+    return m && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
+  };
+  const key = value(opts[ci]);
+  if (key !== null) {
+    const twin = opts.find((o, k) => k !== ci && same(value(o), key));
+    return twin ? `"${opts[ci]}" and "${twin}" are the same amount — a child who reads the picture either way is right` : null;
+  }
+  // "Which bar shows 3/6?" answered with the bars' own labels: two option bars
+  // of the same amount (1/2 and 3/6) are two right answers on the same picture
+  // (live, grade 3 Urdu, a lesson on equivalent fractions).
+  if (type !== 'fraction_bar') return null;
+  const byLabel = new Map((Array.isArray(spec.bars) ? spec.bars : [])
+    .filter((b) => b && typeof b.label === 'string' && b.label.trim())
+    .map((b) => [norm(b.label), b]));
+  if (!byLabel.size) return null;
+  const barOf = (o) => byLabel.get(o.replace(/[\u200e\u200f\u2066-\u2069]/g, '').replace(/^(bar|پٹی)\s*/, '').replace(/\s*(bar|پٹی)$/, '').trim()) || null;
+  const amount = (b) => {
+    const parts = Number(b.parts);
+    const shaded = Array.isArray(b.shaded) ? b.shaded.length : Number(b.shaded);
+    return parts > 0 && Number.isFinite(shaded) ? shaded / parts : null;
+  };
+  const keyBar = barOf(opts[ci] || '');
+  if (!keyBar) return null;
+  const k2 = opts.findIndex((o, k) => { const b = barOf(o); return k !== ci && b && b !== keyBar && same(amount(b), amount(keyBar)); });
+  return k2 >= 0 ? `${raw[ci].trim()} and ${raw[k2].trim()} show the same amount — a child who reads the picture either way is right` : null;
+}
+
 function figureMismatch(spec, options, correctIndex) {
   const type = canonicalType(spec && spec.type);
   const correct = norm((Array.isArray(options) ? options : [])[Number(correctIndex)]);
@@ -1033,6 +1116,7 @@ module.exports = {
   unknownColourToken,
   languageDefaults,
   figureMismatch,
+  equalAmountOptions,
   svgInkCount,
   figureIsRedundant,
   figureDefiningNumbers,

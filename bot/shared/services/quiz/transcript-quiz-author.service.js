@@ -60,7 +60,14 @@ function isEarlyYears(gradeBand) {
  * grade 9 chemistry quiz it would be tokens spent teaching a model shapes it
  * must not use.
  */
-function earlyYearsBlock(pictogramRoster, n) {
+function earlyYearsBlock(pictogramRoster, n, { maths = false } = {}) {
+  // A grade 1-5 MATHS class aims for at least three (the density target), so
+  // "pick the 4 the picture earns and write the rest as text" — read after a
+  // lesson taught as a method — was the line that let a fractions quiz come
+  // back with none. The cap is the same; the floor is stated beside it.
+  const halfTail = maths
+    ? `For THIS maths class that means three or four picture questions — no fewer than three, no more than ${Math.floor(n / 2)} — and the rest as text.`
+    : `Pick the ${Math.floor(n / 2)} questions the picture genuinely earns and write the rest as text.`;
   return `
 EARLY YEARS (this class is grade 1-5, so these types are open to you as well).
 A picture is worth far more to a six-year-old than to a fifteen-year-old: a child who cannot yet read a long stem can still count apples, read a clock, or see which letter is missing. Reach for one of these whenever the lesson counted, sounded out, spelled, timed, compared, sorted or continued something.
@@ -77,9 +84,25 @@ A picture is worth far more to a six-year-old than to a fifteen-year-old: a chil
 PICTOGRAM NAMES — a picture of a thing comes from this fixed set and NOTHING ELSE. NEVER INVENT A PICTOGRAM NAME: a name that is not on this list fails the question outright. The set will not have every word your lesson used. When it does not, choose a word from the lesson that IS on the list, or write that question without a figure — those are the only two options (word_blank has a third: keep it and leave "picto" out, and the letters are drawn on their own).
 ${pictogramRoster}
 Reuse the older types for a young class too: numberline for before/after and ordering, fraction_bar and grid for part-whole, geometry for naming a shape, flow or timeline for a sequence of steps.
-THE HALF RULE STILL HOLDS HERE. At most half of the ${n} questions may carry a picture — for ${n} questions that is ${Math.floor(n / 2)} at the very most. These types are easy to reach for and a quiz that draws on five of eight is thrown away whole. Pick the ${Math.floor(n / 2)} questions the picture genuinely earns and write the rest as text.
+THE HALF RULE STILL HOLDS HERE. At most half of the ${n} questions may carry a picture — for ${n} questions that is ${Math.floor(n / 2)} at the very most. These types are easy to reach for and a quiz that draws on five of eight is thrown away whole. ${halfTail}
 `;
 }
+
+/**
+ * The picture questions a grade 1-5 maths lesson HAS (fix of the live grade 4
+ * fractions case). A lesson taught as a METHOD — cross multiplication, equal
+ * denominators, carrying — gave the model no question it could see a picture
+ * for, so it wrote eight method questions and drew nothing, twice. Every recipe
+ * here passes the figure gates as written: the picture is read, never labelled
+ * with the answer, and able to produce it (FIGURE_MISMATCH).
+ */
+const EARLY_MATHS_RECIPES = `PICTURE QUESTIONS A GRADE 1-5 MATHS LESSON HAS. Even a lesson taught as a METHOD (cross multiplication, equal denominators, carrying, borrowing) rests on an idea a child can SEE, and the picture questions are about that idea:
+- FRACTIONS. One bar, some parts shaded, no label: "What fraction of the bar is shaded?" («تصویر میں پٹی کا کتنا حصہ رنگا ہوا ہے؟») — the options three fractions of DIFFERENT amounts: never 2/8 beside 1/4, because both read a bar of 2 in 8 right. Three bars labelled "A", "B", "C": "Which bar shows $\\frac{2}{3}$?" — the options "A", "B", "C", and the three bars show three DIFFERENT amounts, never 1/2 beside 3/6 (every option is on the picture, so nothing is given away; the feedback says "bar A", «پٹی A», never "option A" or «جواب A»). Two bars of the same length, unlabelled: "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?" — the stem names no fraction, so the child reads both off the picture. A grid: "What fraction of the squares are shaded?"
+- PLACE VALUE. base_ten: "What number do the sticks show?", "How many tens are there?"
+- COUNTING, ADDING, TAKING AWAY. count_objects or count_frame: "How many counters are there altogether?", "How many more apples than bananas are there?"
+- TIMES AND SHARING. count_objects with "group": "How many groups of 4 are there?"
+- ORDER. A numberline with points "A", "B", "C": "Which point is at 7?"
+- A STEP OF A PROCEDURE is a TEXT question: a cross product ("what is 2 × 5?"), a fraction rewritten over a new denominator, a carried ten, the next line of a working. No picture shows its answer, and a picture beside it is thrown away (FIGURE_MISMATCH). Write those as text, and take your picture questions from this list.`;
 
 function figureContract({ subject, gradeBand, nQuestions = DEFAULT_QUESTIONS } = {}) {
   const drawable = ['maths', 'science', 'genk', 'other'].includes(String(subject || '').toLowerCase());
@@ -98,7 +121,9 @@ function figureContract({ subject, gradeBand, nQuestions = DEFAULT_QUESTIONS } =
   // and may draw a picture that MODELS the stem's own numbers.
   const earlyMaths = early && canonicalSubject(subject) === 'maths';
   const requirement = earlyMaths
-    ? `THIS LESSON IS DRAWABLE (maths, grade 1-5). A young class learns maths through the picture — the objects, then the picture of them, then the sum — so write AT LEAST THREE picture questions of the ${nQuestions}, and never more than ${Math.floor(nQuestions / 2)}. Draw what the lesson drew: counters, tiles, bundles of sticks, fraction bars, a number line. Build each picture question AROUND its picture.`
+    ? `THIS LESSON IS DRAWABLE (maths, grade 1-5). A young class learns maths through the picture — the objects, then the picture of them, then the sum — so write AT LEAST THREE picture questions of the ${nQuestions}, and never more than ${Math.floor(nQuestions / 2)}. PLAN THE PICTURES FIRST: before you write a single question, choose three pictures from what the lesson drew — counters, tiles, bundles of sticks, fraction bars, a number line — and for each write the question a child answers by LOOKING at it (PICTURE QUESTIONS A GRADE 1-5 MATHS LESSON HAS, below). Only then write the other questions. Build each picture question AROUND its picture.
+
+${EARLY_MATHS_RECIPES}`
     : drawable || early
     ? `THIS LESSON IS DRAWABLE (${subject || 'language'}${early ? ', grade 1-5' : ''}). Write at least ONE picture question — two or three when the lesson has ${early ? 'counting, letters or sounds, spelling, the clock, money, a pattern, a sorting or matching activity, shapes, ' : ''}fractions, a number line, shapes, measurement, a graph, a circuit, a sequence of steps, parts of a cell, atoms or an equation. Build the question AROUND the picture: decide the drawing first, then ask what it shows. Zero pictures is acceptable only when nothing in the lesson can be drawn with the allowed types.`
     : `This subject (${subject || 'language'}) rarely needs a picture; leave "figure" null unless the lesson genuinely asks the child to read something off a drawing.`;
@@ -111,7 +136,9 @@ WHEN a figure is right:
   (a) the child must READ something off the picture to answer: a position, a shaded part, a shape, a plotted point, a circuit, a sequence of steps. Use "figure_role": "read_off".
   (b) the class is grade 1–5 and the question asks the child to count or compare objects. Use "figure_role": "count_compare".
 ${earlyMaths ? `  (c) THIS grade 1-5 maths class may also see a picture that MODELS the numbers the stem states — the pictorial step the lesson itself used: two fraction bars beside "which is larger, 2/3 or 3/5?", two rows of counters beside "3 + 4 = ?", bundles and sticks beside "34 + 12". Use "figure_role": "model". The stem keeps its numbers; the picture still never shows the answer — no option's text, no total, no result.
-` : ''}WHEN a figure is wrong: a definition, recall of a word or term, or decoration. If the question can be answered without looking at the picture, there is no figure.
+` : ''}${earlyMaths
+    ? 'WHEN a figure is wrong: a definition, recall of a word or term, decoration, or a step of a procedure (a cross product, a rewritten fraction, a carried ten) — no picture shows that answer. Write those as text, and write your three or four picture questions as (a)-(c) and the list above.'
+    : 'WHEN a figure is wrong: a definition, recall of a word or term, or decoration. If the question can be answered without looking at the picture, there is no figure.'}
 
 HARD RULES
 - The figure must NOT contain the answer. No option's text may appear in the picture — UNLESS every option's appears (a "which point is at −3? A / B / C" number line is fine, because naming all three gives nothing away). Do not write the fraction, the total, the percentage or the result anywhere in the spec (no "title" or "caption" that states it).
@@ -138,7 +165,7 @@ WORKED EXAMPLES (spec next to the question it serves):
 3. grid, count_compare — stem "تصویر میں کتنے خانے رنگے ہوئے ہیں؟", options ["12", "8", "20"], correct 0,
    "figure": {"type":"grid","rows":4,"cols":5,"shaded":12}
 
-${early ? earlyYearsBlock(pictogramNames().join(', '), nQuestions) : ''}
+${early ? earlyYearsBlock(pictogramNames().join(', '), nQuestions, { maths: earlyMaths }) : ''}
 ALLOWED TYPES — nothing else is accepted (${offered.join(', ')}):
 ${minimalSpecBlock(offered)}`;
 }
@@ -171,6 +198,16 @@ const LP_SUMMARY_RULE = `LESSON SUMMARY. Also return a top-level "lesson_summary
 
 TWO SHORT LINES FOR THE SHEET. Also return, in the same language and the same voice:
 - "lesson_summary_short": ONE sentence, at most 25 words — what today's lesson plans to teach, with the plan's own first example, opening the same way ("Today's lesson plans …" / «آج کے سبق میں …»). No list, no second sentence.`;
+
+/**
+ * The picture rule, restated at the END of a grade 1-5 maths prompt — the way
+ * the language rule is (languageAgain). Stated once at the top of a ~230-line
+ * picture section, it lost to the lines after it.
+ */
+function picturesAgain({ subject, gradeBand, n }) {
+  if (!(isEarlyYears(gradeBand) && canonicalSubject(subject) === 'maths')) return '';
+  return `\n\nPICTURES, AGAIN (grade 1-5 maths): no fewer than three and no more than ${Math.floor(n / 2)} of the ${n} questions carry a picture the child READS to answer — what fraction of the bar is shaded, which bar shows a fraction, what number the sticks show, how many counters there are. Choose those pictures before you write the questions; a step of a procedure stays text. A quiz of text questions only is sent back.\n`;
+}
 
 function buildAuthorPrompt({
   digest, excerpts, language, n = DEFAULT_QUESTIONS, gradeBand, previousErrors = null,
@@ -236,7 +273,7 @@ ${GENDER_NEUTRAL_RULE}
 ${RELIGIOUS_CONTENT_RULE}
 
 ${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}
-${lessonDrew ? `${lessonDrew}\n` : ''}${multiContract({ allowMulti, n })}${langAgain}${retry}
+${lessonDrew ? `${lessonDrew}\n` : ''}${multiContract({ allowMulti, n })}${langAgain}${retry}${picturesAgain({ subject: digest && digest.subject, gradeBand, n })}
 
 Return ONLY this JSON object:
 { "lesson_summary": "", "lesson_summary_short": "", "checks_summary": "",

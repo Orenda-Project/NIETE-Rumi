@@ -42,7 +42,7 @@ function languageRule(language) {
  * inside a diagram spec — the drawing engine converts TeX to Unicode and draws
  * its own stacked fractions, so TeX there prints as source.
  */
-const MATH_NOTATION_RULE = 'MATHS NOTATION (every language). Write every mathematical expression in a stem or an option as inline TeX between single dollar signs, and it is typeset on the child\'s picture card exactly as a textbook prints it: a fraction $\\frac{2}{9}$, a mixed number $2\\frac{1}{3}$, a sum or product $3 \\times 4 = 12$, a division $12 \\div 3$, a power $5^2$, a comparison $\\frac{1}{2} > \\frac{1}{3}$, a unit $5\\,\\text{cm}$. '
+const MATH_NOTATION_RULE = 'MATHS NOTATION (every language). Write every mathematical expression in a stem or an option as inline TeX between single dollar signs, and it is typeset on the child\'s picture card exactly as a textbook prints it: a fraction $\\frac{2}{9}$ — ALWAYS \\frac, so it prints stacked, number over number: never $2/3$, whose slash typesets flat on one line — a mixed number $2\\frac{1}{3}$, a sum or product $3 \\times 4 = 12$, a division $12 \\div 3$, a power $5^2$, a comparison $\\frac{1}{2} > \\frac{1}{3}$, a unit $5\\,\\text{cm}$. '
   + 'Everything else stays plain text: a bare whole number is 12, never $12$; words stay OUTSIDE the dollars, and in an Urdu quiz the Urdu sentence is outside and only the maths, with digits 0-9, is inside; "$" is never money (write Rs); only single dollars — never $$…$$, \\( \\) or \\[ \\]; chemistry stays plain (H2O, CO2), never TeX. '
   + 'The explanation and the feedback may use the same $…$ for an expression; the phone shows it as plain text (2/9). '
   + 'In the JSON you return, every backslash is doubled, as JSON requires: "$\\\\frac{2}{9}$". '

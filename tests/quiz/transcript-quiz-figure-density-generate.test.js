@@ -117,9 +117,10 @@ test('one picture of eight: ONE add-pictures call, and the quiz ships with three
   mockCreate
     .mockResolvedValueOnce(authored(eightWithOne()))
     .mockImplementationOnce(async (req) => {
-      // the repair is offered only questions without a picture, and asked for two
+      // the repair is offered only questions without a picture, and asked for the two it
+      // needs plus one spare (four of eight is still inside the half cap)
       expect(promptOf([req])).toMatch(/ADDING PICTURES/);
-      expect(promptOf([req])).toMatch(/exactly 2 of/);
+      expect(promptOf([req])).toMatch(/exactly 3 of/);
       return reply({ pictures: [
         { index: 2, figure: { type: 'count_objects', rows: [{ picto: 'counter', count: 4 }, { picto: 'counter', count: 3 }] }, figure_role: 'model' },
         { index: 3, figure: { type: 'count_objects', rows: [{ picto: 'counter', count: 5 }, { picto: 'counter', count: 3 }] }, figure_role: 'model' },
@@ -142,11 +143,14 @@ test('a picture that gives the answer away is reverted, the good one kept', asyn
       // the numberline arc lands on the answer (7) — FIGURE_LEAK
       { index: 2, figure: { type: 'numberline', from: 0, to: 10, step: 1, points: [{ at: 4 }], arcs: [{ from: 4, to: 7 }] }, figure_role: 'model' },
       { index: 3, figure: { type: 'count_objects', rows: [{ picto: 'counter', count: 5 }, { picto: 'counter', count: 3 }] }, figure_role: 'model' },
-    ] }));
+    ] }))
+    // a picture was refused and the quiz is still short, so the repair is asked once more;
+    // here the second round has nothing usable either
+    .mockResolvedValueOnce(reply({ pictures: [] }));
   const out = await Gen.process(QID);
   expect(out.ok).toBe(true);
   expect(storedRows().filter((r) => r.media && r.media.figure)).toHaveLength(2);
-  expect(densityEvents()[0]).toMatchObject({ before: 1, after: 2, repaired: true, added: [3] });
+  expect(densityEvents()[0]).toMatchObject({ before: 1, after: 2, repaired: true, added: [3], rounds: 2 });
   expect(lastMeta().figure_density.reverted).toEqual([2]);
   // still short of three: recorded as a SOFT fault, never a failure
   expect(lastMeta().soft_faults).toEqual(expect.arrayContaining([expect.stringMatching(/^FIGURE_FEW — 2\/8/)]));

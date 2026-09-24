@@ -121,8 +121,26 @@ function mathForChat(text) {
  * what a young child needs on a phone card (rendered and read at phone width,
  * bd-mg9c7.159.19). The A4 teacher PDF keeps the compact inline style.
  */
+// ── STACKED FRACTIONS ────────────────────────────────────────────────────────
+// The contract asks for `$\\frac{2}{3}$`, and a live grade 4 lesson came back
+// with `$2/3$`, `$2/3 > 3/5$` and `$4/18$` all through it: KaTeX typesets a
+// slash as a slash, so every fraction on the card was flat where a textbook
+// stacks it. A simple numeric fraction — whole numbers either side of one
+// slash — inside a maths span is rewritten to \\frac for the PICTURE only.
+// Every text path still reads "2/3" (tex-to-unicode writes \\frac that way).
+const FLAT_FRACTION = /(^|[^\d.}\\])(\d+)\s*\/\s*(\d+)(?![\d.])/g;
+
+/** `$2/3 > 3/5$` → `$\\frac{2}{3} > \\frac{3}{5}$`; prose, decimals and letters untouched. Pure. */
+function stackFractions(text) {
+  if (typeof text !== 'string' || !text.includes('/') || !text.includes('$')) return text;
+  return text.replace(SPAN, (span, inner) => {
+    if (!/\d\s*\/\s*\d/.test(inner)) return span;
+    return `$${inner.replace(FLAT_FRACTION, (m, pre, a, b) => `${pre}\\frac{${a}}{${b}}`)}$`;
+  });
+}
+
 function mathHtml(text, { prose = (s) => richNotation(esc(s)), display = false } = {}) {
-  const src = String(text == null ? '' : text);
+  const src = stackFractions(String(text == null ? '' : text));
   if (!hasTex(src)) return prose(src);
   const { rich } = require('../../../vendor/lp-v9/lib/rich');
   let out = '';
@@ -230,5 +248,5 @@ function texFaults(text) {
 }
 
 module.exports = {
-  mathToText, mathForChat, mathHtml, mathCss, usesMath, texFaults, hasTex, LRI, PDI,
+  mathToText, mathForChat, mathHtml, mathCss, usesMath, texFaults, hasTex, stackFractions, LRI, PDI,
 };
