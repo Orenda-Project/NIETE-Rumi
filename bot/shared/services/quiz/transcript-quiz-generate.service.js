@@ -27,6 +27,7 @@ const Author = require('./transcript-quiz-author.service');
 const {
   validate, MIN_QUESTIONS, figureDensity, latinNames,
 } = require('./transcript-quiz-validator');
+const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
 const {
   teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
 } = require('./transcript-quiz-language');
@@ -1422,11 +1423,12 @@ async function process(quizId, payload = {}) {
       }
       // The same question asked twice is counted on every attempt it appears
       // in, whatever else is wrong with the attempt: the author prompt is what
-      // should stop it, and this is its rate.
+      // should stop it, and this is its rate (stage "author"; what finally
+      // ships is counted again, below, as stage "shipped").
       const repeated = v.ok ? [] : v.errors.filter((e) => DUPLICATE_FAULT.test(String(e)));
       if (repeated.length) {
         logEvent('transcript_quiz.duplicate_question', {
-          quizId, after: attempt, questions: repeated.length, indices: repeated.map((e) => Number(/^q(\d+)/.exec(e)[1])),
+          quizId, stage: 'author', after: attempt, questions: repeated.length, indices: repeated.map((e) => Number(/^q(\d+)/.exec(e)[1])),
         });
       }
       // ── IN-PLACE FAULTS: REPAIRED IN PLACE, THEN SHIPPED ─────────────────
@@ -1755,6 +1757,19 @@ async function process(quizId, payload = {}) {
         quizId, quiz_source: quizSource,
         names: [...new Set(names.map((e) => /"([^"]+)"/.exec(e)[1]))],
         questions: [...new Set(names.map((e) => Number(/^q(\d+)/.exec(e)[1])))],
+      });
+    }
+    // ── THE SAME QUESTION TWICE, IN WHAT SHIPS ───────────────────────────────
+    // Counted on the set that is about to be stored, whichever step left the
+    // repeat: the author, a targeted rewrite that replaced one question with a
+    // copy of another, or a later repair. The count on author attempts alone
+    // read 0 on a quiz that shipped the same rounding question twice, written
+    // by the rewrite.
+    const shippedRepeats = duplicateQuestionErrors(questions);
+    if (shippedRepeats.length) {
+      logEvent('transcript_quiz.duplicate_question', {
+        quizId, stage: 'shipped', quiz_source: quizSource, questions: shippedRepeats.length,
+        indices: shippedRepeats.map((e) => Number(/^q(\d+)/.exec(e)[1])),
       });
     }
     const rows = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
