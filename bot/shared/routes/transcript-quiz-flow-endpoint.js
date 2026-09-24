@@ -43,6 +43,7 @@ const {
   teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, needsLanguageAsk,
 } = require('../services/quiz/transcript-quiz-language');
 const { excludeSelfTests } = require('../services/quiz/teacher-self-test');
+const { classLabel, classHeading, normaliseClasses, markLines } = require('../utils/text-format');
 const {
   TRANSCRIPT, LP_V8, lessonSessionFor, failureReasonOf, lpRemakeable,
 } = require('../services/quiz/quiz-sources');
@@ -258,17 +259,23 @@ async function loadStudents(quizId, teacherUserId) {
 }
 
 /**
- * `• Ayesha (5-A) — 7/8 (88%)`.
+ * `• Ayesha (Class 5) — 7/8 (88%)`, or `• Ayesha — 7/8 (88%)` when the whole
+ * list is one class (named once above it — see resultsText).
  *
- * A child's name and class are the one thing on this screen whose script is
- * not knowable: an Urdu name sits in an English teacher's results and vice
- * versa. Both are isolated, so the bullet, the brackets and the score stay on
- * the side of the line they belong to (language-protocol §9.2). The brackets
- * are punctuation, not copy, so they live here rather than in the catalog.
+ * The class is written the way the class report writes it (classLabel): the
+ * grade read out of what the child typed, one form in the teacher's language —
+ * never "(4)", "(grade 4)", "(۴)" line after line for one class.
+ *
+ * A child's name is the one thing on this screen whose script is not knowable:
+ * an Urdu name sits in an English teacher's results and vice versa. Name and
+ * class are isolated, so the bullet, the brackets and the score stay on the
+ * side of the line they belong to (language-protocol §9.2). The brackets are
+ * punctuation, not copy, so they live here rather than in the catalog.
  */
-function studentLine(s, language) {
+function studentLine(s, language, withClass = false) {
   const name = isolateIfMixed(s.student_name || resolveUx('tqFlowUnnamed', { language }), language);
-  const klass = s.student_class ? ` (${isolateIfMixed(s.student_class, language)})` : '';
+  const label = withClass ? classLabel(s.student_class, language) : '';
+  const klass = label ? ` (${isolateIfMixed(label, language)})` : '';
   // `8/8 (100%)` is one LEFT-TO-RIGHT atom. Un-isolated, after an Urdu name it
   // renders as `(%100) 8/8` — the per-cent sign and the brackets migrate,
   // because UAX#9 gives digits following an Arabic-class letter the Arabic
@@ -280,8 +287,18 @@ function studentLine(s, language) {
   return resolveUx('tqFlowStudentLine', { language, params: { name, klass, score } });
 }
 
-/** The live results block, in the teacher's language. */
+/**
+ * The live results block, in the teacher's language, every line opened with
+ * that language's paragraph mark (text-format markLines). The block is one
+ * Flow TextBody, laid out line by line by first strong character: a child's
+ * line has none outside its isolates, so without the mark a Latin name's line
+ * sat flush left in an Urdu list while the rest sat flush right.
+ */
 function resultsText(state, students, language, quiz = null) {
+  return markLines(resultsBody(state, students, language, quiz), resolveUx('lineDirMark', { language }));
+}
+
+function resultsBody(state, students, language, quiz = null) {
   if (state === 'making') return resolveUx('tqFlowResultsMaking', { language });
   if (state === 'failed') {
     // The transcript copy names "this lesson's recording"; an lp_v8 quiz had none.
@@ -309,10 +326,15 @@ function resultsText(state, students, language, quiz = null) {
     lines.push(resolveUx('tqFlowResultsHead', {
       language, params: { started: students.length, finished: done.length, avg },
     }));
+    // The class report's rule, from the same helpers: the class(es) the
+    // children entered are named once, under the counts; each child's line
+    // carries a class only when there is more than one.
+    const classes = normaliseClasses(done.map((s) => s.student_class));
+    if (classes.length) lines.push(classHeading(classes, language));
     lines.push('');
     lines.push(resolveUx('tqFlowEachStudent', { language }));
     const sorted = [...done].sort((a, b) => (b.mastery_percentage || 0) - (a.mastery_percentage || 0));
-    sorted.slice(0, MAX_STUDENT_LINES).forEach((s) => lines.push(studentLine(s, language)));
+    sorted.slice(0, MAX_STUDENT_LINES).forEach((s) => lines.push(studentLine(s, language, classes.length > 1)));
     if (sorted.length > MAX_STUDENT_LINES) {
       lines.push(resolveUx('tqFlowMoreStudents', { language, params: { n: sorted.length - MAX_STUDENT_LINES } }));
     }
@@ -653,7 +675,9 @@ async function stepAction(teacher, screenData) {
     });
     return lessonScreenFrom({
       teacher, session, quiz, students, language,
-      extra: { results: resolveUx('tqFlowResultsNothingToReport', { language }) },
+      extra: {
+        results: markLines(resolveUx('tqFlowResultsNothingToReport', { language }), resolveUx('lineDirMark', { language })),
+      },
     });
   }
   if (!available.includes(action)) {

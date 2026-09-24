@@ -24,7 +24,7 @@ const { LESSON_SOURCES, isLessonQuiz } = require('./quiz-sources');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
-const { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText } = require('../../utils/text-format');
+const { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText, markLines } = require('../../utils/text-format');
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { formatLessonDate , sloStatement } = require('./transcript-quiz-language');
 const { excludeSelfTests } = require('./teacher-self-test');
@@ -272,7 +272,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   }
 
   const { data: teacher } = await supabase
-    .from('users').select('phone_number, preferred_language')
+    .from('users').select('phone_number, preferred_language, name')
     .eq('id', sc.teacher_user_id).maybeSingle();
   if (!teacher?.phone_number) {
     logToFile('⚠️ video-quiz report: no teacher phone', { shareCodeId });
@@ -543,7 +543,12 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     })
     : null;
 
-  const summary = lines.filter((l) => l !== null && l !== undefined).join('\n');
+  // Plain text, laid out on the phone line by line from each line's first
+  // strong character — which in an Urdu report is the Latin "quiz" of the title
+  // and nothing at all on a Latin-named child's line. Every line opens with the
+  // document language's paragraph mark instead (text-format markLines).
+  const lineMark = resolveUx('lineDirMark', { language: contentLang });
+  const summary = markLines(lines.filter((l) => l !== null && l !== undefined).join('\n'), lineMark);
 
   // A designed report is worth it once there are results in it. On the morning
   // run for a class where nobody finished, a PDF of an empty table is worse
@@ -554,6 +559,12 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     unfinished: unfinished.map((s) => s.student_name || 'Unnamed'),
     language: contentLang, contentLanguage: contentLang, caption: CAPTION.caption,
     classes,
+    // The report is read BY the teacher, so it names them from their own
+    // record. `sc.teacher_name` is the name the CHILDREN are shown and, for a
+    // teacher with no name on record, holds the children's fallback ("آپ کے
+    // استاد" / "Your teacher") — a teacher reading that about themselves was
+    // the defect. No name -> the template prints the class alone.
+    teacherName: String((teacher && teacher.name) || '').trim(),
   });
 
   if (!sentAsPdf) {
@@ -563,7 +574,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     await WhatsAppService.sendMessage(teacher.phone_number, summary);
     if (guidance) {
       await WhatsAppService.sendMessage(teacher.phone_number,
-        `${TX.forTomorrow}\n\n${formatGuidanceText(guidance, TX)}`);
+        markLines(`${TX.forTomorrow}\n\n${formatGuidanceText(guidance, TX)}`, lineMark));
     }
   }
 
@@ -771,7 +782,7 @@ async function renderReportPdf(data) {
  */
 async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
                            started, finished, average, unfinished, classes,
-                           language, contentLanguage, caption: captionFor }) {
+                           language, contentLanguage, caption: captionFor, teacherName = '' }) {
   const fs = require('fs');
   const os = require('os');
   const path = require('path');
@@ -779,7 +790,7 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
   try {
     const buffer = await renderReportPdf({
       topic: shareCode.topic || 'Video quiz',
-      teacherName: shareCode.teacher_name,
+      teacherName,
       started, finished, average,
       students, hardest, guidance, unfinished, classes, language, contentLanguage,
       // D1 — the footer stamp is part of the DOCUMENT, so it is written in the

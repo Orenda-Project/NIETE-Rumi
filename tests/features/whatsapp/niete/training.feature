@@ -369,9 +369,21 @@ Feature: NIETE (ICT) Teacher Training
     Then the report's header names one class — "Class 4" in an English report, "جماعت 4" in an Urdu one — never "4، ۴" as if there were two
     And the list of children does not repeat the class after every name
     But when the children are in more than one class, each child's line names their class, written the same way on every line
+    And the quiz's lesson screen in /quiz follows the same rule: the class named once under the counts, and "(Class 5)" or "(جماعت 5)" beside a child only when the children are in more than one class
     # text-format parseClass/normaliseClasses/classLabel: Urdu and Arabic-Indic digits become ASCII, the grade
     # number is read out of the free text, children are grouped by it; the report template prints a roster
-    # class only when the report spans more than one class. The text fallback follows the same rule. @wip.
+    # class only when the report spans more than one class. The text fallback and the /quiz Flow lesson
+    # screen (transcript-quiz-flow-endpoint resultsText/studentLine) follow the same rule. @wip.
+
+  @e2e @quiz @wip @draft @P3
+  Scenario: The class report never calls me "your teacher"
+    Given the NIETE bot chat is open and my account has no name on record, and children have finished a class quiz I shared
+    When I ask for the report from that quiz's row in /quiz
+    Then the report's header under the topic shows the class alone, such as "جماعت 4" or "Class 4"
+    And nowhere does the report call me "آپ کے استاد" or "Your teacher"
+    But the children who open my link are still greeted with "آپ کے استاد" / "Your teacher" in place of my name
+    # video-quiz-report generate(): the header takes the teacher's own users.name; quiz_share_codes.teacher_name
+    # holds the children's fallback (tqYourTeacher) and keeps serving the join greeting. @wip.
 
   @e2e @quiz @wip @draft @P2
   Scenario: The class report and the quiz PDF do not leave pages nearly empty

@@ -151,12 +151,19 @@ describe('bd-mg9c7.48 — D6 header: no lockup, no "For", name · grade only', (
     expect(html).not.toMatch(/For <b>/);
   });
 
-  test('an empty teacherName falls back to the class-results string, not a blank "For"', () => {
+  // Superseded: an empty name used to be replaced by "Class results", which
+  // the eyebrow above already says. The report is read BY the teacher, so a
+  // teacher with no name on record reads the class alone — no filler, and never
+  // the children's "your teacher".
+  test('an empty teacherName leaves the class alone on the line, no filler and no blank "For"', () => {
     const html = renderHtml({ ...BASE, teacherName: '' });
-    expect(html).toMatch(/<div class="who">Class results/);
-    // the "who" line itself carries no name span (a roster/unfinished name
-    // span elsewhere in the document is a separate, expected thing).
-    expect(html).toMatch(/<div class="who">Class results &middot; Grade 5<\/div>/);
+    expect(html).toMatch(/<div class="who">Grade 5<\/div>/);
+    expect(html).not.toMatch(/Class results|Your teacher/);
+  });
+
+  test('no name and no class: no who-line at all, not an empty one', () => {
+    const html = renderHtml({ ...BASE, teacherName: '', grade: '', classes: [] });
+    expect(html).not.toMatch(/<div class="who">/);
   });
 
   test('an empty grade drops the " · Grade N" half entirely — no trailing separator', () => {
