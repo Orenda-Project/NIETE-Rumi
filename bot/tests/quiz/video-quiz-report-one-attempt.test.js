@@ -118,7 +118,9 @@ describe('bd-2yyry.15 — generate() counts children, not session rows', () => {
     expect(sent).toBe(true);
     const text = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
     expect(text).toContain('2 of 2 students finished.');
-    expect(text).toContain('Ayesha (4) — 6/8 (75%)');
+    // One class: named once under the title, not after each child.
+    expect(text).toContain('Class 4');
+    expect(text).toContain('Ayesha — 6/8 (75%)');
     expect(text).not.toContain('3/8');
     expect(text).toContain('Class average: *88%*');
     // q1 was wrong only in the dropped attempt: not worth reteaching.

@@ -28,7 +28,7 @@ const LP612_MAX_GRADE = 12;
 /** The template the renderer is on. Part of the R2 cache key, so bumping it
  *  misses every cached render rather than serving stale layouts — and rolling
  *  back re-serves the old ones instantly, because nothing was deleted. */
-const DEFAULT_TEMPLATE_VERSION = 'v9.6';
+const DEFAULT_TEMPLATE_VERSION = 'v9.7';
 
 /**
  * THE VERSIONS WHOSE STORED DOCUMENTS TODAY'S RENDERER IS KNOWN TO ACCEPT — newest first.
@@ -69,13 +69,19 @@ const DEFAULT_TEMPLATE_VERSION = 'v9.6';
  * happen at all: without it every lesson the operator has already tested keeps serving its CACHED
  * PDF, model answers and all, and the fix looks like it did not ship.
  *
+ * v9.7 (2026-09-24, bd-f01ob) is an ADDITION the renderer makes itself: each FBISE SLO the lesson
+ * teaches gets a Summative/Formative chip in the outcome box, looked up at render time from prod's
+ * catalogue (`fbise_slos`, an optional key both schemas now accept), and grades 6-8 say "No board
+ * exam". Stored documents do not carry the key and do not need to — so v9.6 and older re-render
+ * for zero model spend and come back with the chips.
+ *
  * AND THE ENTRY HAS TO BE HERE, not only in Railway — bd-m1k16. The served version comes from
  * `LP_612_TEMPLATE_VERSION`, and a variable moved to a version this list does not contain makes
  * `previousTemplateVersions` return [] ("no ancestry rather than a guess"), which the worker reads
  * as "nothing to reuse" and answers with a full re-author. The bump then costs a model run per
  * lesson — the exact spend this list exists to avoid. Sandbox ran that way until this entry landed.
  */
-const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.6', 'v9.5', 'v9.4', 'v9.3', 'v9.2', 'v9.1']);
+const TEMPLATE_VERSION_LINEAGE = Object.freeze(['v9.7', 'v9.6', 'v9.5', 'v9.4', 'v9.3', 'v9.2', 'v9.1']);
 
 /**
  * Which older template versions' stored documents may be re-rendered for `tv`, newest first.

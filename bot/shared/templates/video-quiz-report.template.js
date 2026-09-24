@@ -28,7 +28,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { stripEmphasis, classLabel, classHeading } = require('../utils/text-format');
+const { stripEmphasis, classLabel, classHeading, normaliseClasses } = require('../utils/text-format');
+const { wrapLatinRuns } = require('./latin-runs');
 const {
   PALETTE, FONTS, TYPE_FLOOR, TYPE_FLOOR_UR, TYPE_STEP, TYPE_STEP_UR, HEAD_SCALE, leadingAt,
   headFamily, bodyFamily, latticeSvg, dirOf,
@@ -46,6 +47,18 @@ const round1 = (n) => Math.round(n * 10) / 10;
 const HERO_H1 = round1(30 * HEAD_SCALE);        // 33.6px
 const HERO_H1_UR = round1(27 * HEAD_SCALE);     // 30.2px
 const STCHIP_N = round1(22 * (21 / 18));        // 25.7px — Latin digits, one value for both scripts
+
+// Nastaliq's own line box ("normal") is 2.48em tall — the font reserves room
+// for its deepest stacked ligatures on every line. On a ONE-LINE label (an
+// eyebrow, a stat chip's caption, a section label, "12 میں سے 10…") that
+// reserve is air, and on the Urdu report it added up to more than a page: a
+// roster row was 130px against the English 75. One-line UI text in Urdu is set
+// on this leading instead; prose that wraps keeps its reading leading.
+const UR_UI_LEADING = 1.5;
+// A chip that wraps — a long right/wrong answer, a learning goal authored as a
+// full sentence — needs more than a one-line label does, or its lines touch and
+// the last line's descenders hang out of the chip.
+const UR_CHIP_LEADING = 1.7;
 
 let _assets = null;
 
@@ -104,12 +117,11 @@ const RTL_LANGS = new Set(['ur']);
 const CHROME = {
   en: {
     eyebrow: 'Class quiz results',
-    classResults: 'Class results',
-    gradeLine: (g) => ` &middot; Grade ${esc(g)}`,
+    gradeLine: (g) => `Grade ${esc(g)}`,
     // PLAN_R5 item 6 — built by classHeading() from what the CHILDREN typed,
     // so the template only has to place it. `gradeLine` stays for the callers
     // that still pass a single `grade` and know it (the video-quiz lane).
-    classesLine: (c) => ` &middot; ${c}`,
+    classesLine: (c) => c,
     classAverage: 'Class average',
     started: 'Started', finished: 'Finished', worthReteaching: 'Worth reteaching',
     worthReteachingHeading: 'Worth reteaching &mdash; most missed',
@@ -141,9 +153,8 @@ const CHROME = {
     // group/PDF in Latin letters inside Urdu sentences. These two chrome tables
     // were the only place in the repo that had drifted off it.
     eyebrow: 'کلاس کے quiz کے نتائج',
-    classResults: 'کلاس کے نتائج',
-    gradeLine: (g) => ` &middot; جماعت ${esc(g)}`,
-    classesLine: (c) => ` &middot; ${c}`,
+    gradeLine: (g) => `جماعت ${esc(g)}`,
+    classesLine: (c) => c,
     // "کلاس اوسط" was a word-for-word calque: Urdu does not stack two nouns
     // the way English does, so it needs the linker to mean anything at all.
     classAverage: 'کلاس کا اوسط',
@@ -202,12 +213,13 @@ const GUIDANCE_LABEL_KEYS = {
  * swallowing real Urdu text. Quotes are includable because esc() (above) no
  * longer entity-escapes them.
  */
+// The Latin word class this document has always used. What joins two words
+// into ONE run ("&", "·", spaces) and how entities are kept whole lives in
+// latin-runs.js, shared with the teacher PDF so the two cannot drift.
+const LATIN_TOKEN = '[A-Za-z0-9\'’".,:;!?()%/+=*$@#\\-]';
 function wrapLatin(html, rtl) {
   if (!rtl) return html;
-  return html.split(/(<[^>]+>|&[a-zA-Z]+;|&#\d+;)/).map((seg) => (
-    seg.startsWith('<') || (seg.startsWith('&') && seg.endsWith(';'))
-  ) ? seg
-    : seg.replace(/[A-Za-z0-9][A-Za-z0-9'’".,:;!?()%/+=*$@#\-]*(?:[\s\-][A-Za-z0-9'’".,:;!?()%/+=*$@#\-]+)*/g, (m) => `<span class="ltr">${m}</span>`)).join('');
+  return wrapLatinRuns(html, { token: LATIN_TOKEN });
 }
 
 /** Progress-bar band, matching the coaching hero-report's domain-bar palette. */
@@ -248,7 +260,7 @@ function renderVideoQuizReportHtml(d) {
   // caller still passes is the fallback, never the winner: the one the PDF
   // used to print came from a digest band and read "Grade 6-8".
   const classText = classHeading(classes, contentLanguage);
-  const classTail = classText ? L(C.classesLine(classText))
+  const classPart = classText ? L(C.classesLine(classText))
     : (grade ? L(C.gradeLine(grade)) : '');
 
   const missedCards = hardest.map((h, i) => {
@@ -274,8 +286,10 @@ function renderVideoQuizReportHtml(d) {
     const slo = h.slo ? `<div ${cls('slo')}>${K(h.slo)}</div>` : '';
     return `
       <div class="moment">
-        <div class="mhead"><div class="num"><span>${i + 1}</span></div><div ${cls('m-q')}>${K(h.question_text)}</div></div>
-        <div class="mrow">${slo}<div class="mstat">${L(C.gotWrong(h.wrong, h.total))}</div></div>
+        <div class="mtop">
+          <div class="mhead"><div class="num"><span>${i + 1}</span></div><div ${cls('m-q')}>${K(h.question_text)}</div></div>
+          <div class="mrow">${slo}<div class="mstat">${L(C.gotWrong(h.wrong, h.total))}</div></div>
+        </div>
         ${chose}${why}
       </div>`;
   }).join('');
@@ -291,11 +305,27 @@ function renderVideoQuizReportHtml(d) {
     return `<span class="nm content" dir="${nrtl ? 'rtl' : 'ltr'}">${wrapLatin(esc(name), nrtl)}</span>`;
   };
 
+  // The who-line is the teacher's name, then the class. This document is read
+  // BY the teacher, so a teacher with no name on record gets the class alone:
+  // the share code's "your teacher" fallback is the CHILDREN's word for them
+  // and never reaches this line, and no filler takes the name's place (the
+  // eyebrow above already says what the document is). Neither -> no line.
+  const whoParts = [teacherName ? nameCell(teacherName) : '', classPart].filter(Boolean);
+  const whoLine = whoParts.length ? `<div class="who">${whoParts.join(' &middot; ')}</div>` : '';
+
+  // A class label on a roster row earns its line only when the class differs
+  // from row to row. When every child is in one class the hero already names
+  // it, and repeating it under each of twelve names is a second line of
+  // Nastaliq per child — a third of the roster's height — saying nothing new.
+  // When it IS printed it is written one way (classLabel), never as typed, and
+  // it sits on the name's own line (.r-name wraps it under only a long name).
+  const multiClass = normaliseClasses(students.map((s) => s.student_class)).length > 1;
   const rosterRows = students.map((s) => {
     const pct = s.mastery_percentage || 0;
+    const label = multiClass ? classLabel(s.student_class, language) : '';
     return `
       <div class="r-row">
-        <div class="r-name">${nameCell(s.student_name)}<div class="cls">${T(classLabel(s.student_class, language))}</div></div>
+        <div class="r-name">${nameCell(s.student_name)}${label ? `<div class="cls">${T(label)}</div>` : ''}</div>
         <div class="pbar"><div class="pfill ${band(pct)}" style="width:${pct}%"></div></div>
         <div class="r-score">${s.correct_answers || 0}/${s.total_questions_answered || 0} &middot; ${pct}%</div>
       </div>`;
@@ -374,19 +404,20 @@ body{background:#eef1f0;font-family:${bodyFam}}
    air inside a chip that then looks broken; the READING blocks — the question,
    the explanation, the guidance — keep it. Same argument the teacher PDF
    already makes for its option rows. */
-.r-name .content[dir="rtl"],.slo.content[dir="rtl"],.wrongpill.content[dir="rtl"],.rightpill.content[dir="rtl"]{line-height:${leadingAt(1.5)}}
+.r-name .content[dir="rtl"]{line-height:${leadingAt(1.5)}}
+.slo.content[dir="rtl"],.wrongpill.content[dir="rtl"],.rightpill.content[dir="rtl"]{line-height:${UR_CHIP_LEADING}}
 
 .hero{position:relative;min-height:230px;overflow:hidden;background:${PALETTE.slate};padding:30px 42px 26px}
 .hero .lattice{position:absolute;inset:0;width:100%;height:100%;z-index:0}
 .hero>*:not(.lattice){position:relative;z-index:1}
-.eyebrow{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.2em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700}
+.eyebrow{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.2em'};${RTL ? `line-height:${UR_UI_LEADING};` : 'text-transform:uppercase;'}color:${PALETTE.greenPale};font-weight:700}
 .hero-mark{width:46px;height:46px;object-fit:contain;flex-shrink:0;display:block}
 .eyerow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .herotop{display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px;gap:16px}
 .hero h1{font-family:${cHeadFam};font-size:${CRTL ? HERO_H1_UR : HERO_H1}px;line-height:${CRTL ? `${leadingAt(1.85)}` : '1.2'};font-weight:600;color:#fff;max-width:470px;text-align:${RTL ? 'right' : 'left'}}
 .hscore{text-align:${RTL ? 'left' : 'right'};flex-shrink:0;margin-${RTL ? 'right' : 'left'}:20px}
 .hscore .p{font-family:${FONTS.bodyLatin};font-weight:700;font-size:46px;color:#fff;letter-spacing:-.02em;line-height:1;direction:ltr}
-.hscore .s{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;color:#c6e9d5;margin-top:5px;letter-spacing:.05em;${RTL ? '' : 'text-transform:uppercase;'}}
+.hscore .s{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;color:#c6e9d5;margin-top:5px;letter-spacing:.05em;${RTL ? `line-height:${UR_UI_LEADING};` : 'text-transform:uppercase;'}}
 .who{font-family:${bodyFam};margin-top:16px;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:#e2e5ea;${RTL ? `line-height:${leadingAt(2)};` : ''}}
 /* D6 — the who-line is the name followed by the class, with no possessive
    preposition in front of it, so the NAME carries the emphasis the removed
@@ -396,10 +427,10 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .statrow{display:flex;gap:10px;margin-top:18px}
 .stchip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:9px 14px}
 .stchip .n{font-family:${FONTS.bodyLatin};font-weight:700;font-size:${STCHIP_N}px;color:#fff;direction:ltr}
-.stchip .l{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;color:${PALETTE.greenPale};${RTL ? '' : 'text-transform:uppercase;'}letter-spacing:.08em;margin-top:1px}
+.stchip .l{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;color:${PALETTE.greenPale};${RTL ? `line-height:${UR_UI_LEADING};` : 'text-transform:uppercase;'}letter-spacing:.08em;margin-top:1px}
 
 .body{padding:26px 42px 6px}
-.label{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.14em'};${RTL ? '' : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.55;font-weight:700;margin-bottom:14px;break-after:avoid;page-break-after:avoid}
+.label{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.14em'};${RTL ? `line-height:${UR_UI_LEADING};` : 'text-transform:uppercase;'}color:${PALETTE.slate};opacity:.55;font-weight:700;margin-bottom:14px;break-after:avoid;page-break-after:avoid}
 
 .moment{background:#f7f9ff;border-radius:14px;padding:18px 20px;margin-bottom:14px}
 .mhead{display:flex;gap:10px;align-items:flex-start}
@@ -408,21 +439,29 @@ body{background:#eef1f0;font-family:${bodyFam}}
 .num span{display:block;transform:rotate(-45deg)}
 .m-q{font-family:${cHeadFam};font-size:${CRTL ? TYPE_STEP_UR.headline : TYPE_STEP.headline}px;line-height:${CRTL ? `${leadingAt(1.9)}` : '1.4'};color:#26304d;font-weight:600}
 .mrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 40px 12px}
-.mstat{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:#6a748f}
+.mstat{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:#6a748f${RTL ? `;line-height:${UR_UI_LEADING}` : ''}}
 .slo{font-size:${CRTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:#1a6b42;background:${PALETTE.greenWash};border-radius:10px;display:inline-block;padding:5px 13px}
 .chose{margin:0 40px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:${CRTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px}
-.cpair{display:inline-flex;align-items:center;gap:9px}
-.lbl{font-family:${bodyFam};color:#6a748f}
-.wrongpill{background:#eceef2;color:${PALETTE.slateLight};font-weight:700;padding:4px 12px;border-radius:12px}
-.rightpill{background:${PALETTE.greenWash};color:#0f7a3d;font-weight:700;padding:4px 12px;border-radius:12px}
+/* A label and its answer are one pair. A long answer wraps INSIDE its chip;
+   the label beside it never gives up its width to it (the label used to break
+   over two lines, in both languages, next to a long answer). */
+.cpair{display:inline-flex;align-items:center;gap:9px;max-width:100%;min-width:0}
+.lbl{font-family:${bodyFam};color:#6a748f;white-space:nowrap;flex-shrink:0${RTL ? `;line-height:${UR_UI_LEADING}` : ''}}
+.wrongpill{background:#eceef2;color:${PALETTE.slateLight};font-weight:700;padding:4px 12px;border-radius:12px;min-width:0;overflow-wrap:break-word}
+.rightpill{background:${PALETTE.greenWash};color:#0f7a3d;font-weight:700;padding:4px 12px;border-radius:12px;min-width:0;overflow-wrap:break-word}
 .arrow{color:#b7bfd6}
 .why{font-family:${bodyFam};margin:10px 40px 0;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;line-height:${RTL ? `${leadingAt(1.9)}` : '1.5'};color:#374151;background:#fff;border-radius:8px;padding:11px 14px}
 
 .roster{margin-top:22px}
+/* The roster's label is the one label that can open a page. On the one-line
+   leading Nastaliq's tall strokes rise about half an em above the line box, and
+   at the top of a page that ink was painted at the foot of the page before. The
+   padding holds it inside the page it belongs to. */
+${RTL ? '.roster>.label{padding-top:10px}' : ''}
 .r-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid #eef0f6}
 .r-row:last-child{border-bottom:none}
-.r-name{width:246px;font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;font-weight:600;color:#26304d}
-.r-name .cls{font-family:${bodyFam};font-weight:400;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px}
+.r-name{width:246px;font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;font-weight:600;color:#26304d;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px}
+.r-name .cls{font-family:${bodyFam};font-weight:400;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px${RTL ? `;line-height:${UR_UI_LEADING}` : ''}}
 .pbar{flex:1;height:10px;border-radius:5px;background:#e7ebf3;overflow:hidden}
 .pfill{height:100%;border-radius:5px}
 .r-score{width:142px;text-align:${RTL ? 'left' : 'right'};font-family:${FONTS.bodyLatin};font-weight:700;font-size:${TYPE_FLOOR.body}px;color:${PALETTE.slate};direction:ltr;unicode-bidi:isolate}
@@ -457,28 +496,42 @@ body{background:#eef1f0;font-family:${bodyFam}}
    its joining, matching what .label already does elsewhere in this file). */
 .try-part{margin-top:12px;background:#fff;border-radius:12px;padding:13px 16px}
 .try-part:first-child{margin-top:0}
-.try-label{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.1em'};${RTL ? '' : 'text-transform:uppercase;'}color:#12603C;opacity:1;font-weight:700;margin-bottom:6px}
+.try-label{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;letter-spacing:${RTL ? '0' : '.1em'};${RTL ? `line-height:${UR_UI_LEADING};` : 'text-transform:uppercase;'}color:#12603C;opacity:1;font-weight:700;margin-bottom:6px}
 
-/* Print pagination. A4 is 1123px tall and this document is 2-3 pages: without
-   these, a missed-question card, a roster row or the whole guidance box
-   splits across the break (observed: the guidance header landing alone at the
-   foot of page 2 with its first sentence sliced in half at the top of page 3),
-   and the roster's own section label is orphaned under nothing. break-* is the
-   standard property; page-break-* is kept beside it because Chromium print
-   path still honours the legacy alias on some element types. */
-.moment,.try,.try-part,.unfin,.r-row{break-inside:avoid;page-break-inside:avoid}
-/* THE FOOTER MAY NOT STRAND ITSELF. When the guidance box fills a page to
-   within less than the footer's own height, the footer spilled onto a blank
-   sheet carrying a date and a monogram and nothing else, which reads as a
-   broken document rather than a finished one. break-before:avoid on the
-   footer does not work (Chromium's paged path ignores "avoid" there), so the
-   box and the footer are one indivisible tail instead: they move to the next
-   page together, and the last page is a page with content on it. If the two
-   together ever exceed a whole page Chromium breaks them anyway, which is the
-   correct degradation. */
-.tail{break-inside:avoid;page-break-inside:avoid}
+/* Print pagination. A4 is 1123px tall. What must never split is the smallest
+   thing that reads as one unit: a question with its "n of m got this wrong"
+   line (.mtop), the most-chose/correct-answer row, one explanation, one part of
+   the guidance, one roster row, the not-finished box. break-* is the standard
+   property; page-break-* is kept beside it because Chromium's print path still
+   honours the legacy alias on some element types.
 
-.foot{font-family:${bodyFam};display:flex;align-items:center;justify-content:space-between;padding:20px 42px 28px;margin-top:20px;border-top:1px solid #eef0f6;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px}
+   A whole CARD and the whole GUIDANCE BOX may break between those units. They
+   used to be indivisible too, and in Urdu — where one card runs to half a page
+   and the guidance box to two thirds of one — that meant a card that did not
+   fit jumped to the next page and left the rest of this one empty: page 1 held
+   the header and nothing else, every card started its own page, and one roster
+   row sat alone above the guidance box. A card that continues over the page is
+   still one card: box-decoration-break:clone gives each piece its own rounded
+   edge and padding. */
+.mtop,.chose,.why,.unfin,.r-row,.try-part{break-inside:avoid;page-break-inside:avoid}
+.moment,.try,.try-part{box-decoration-break:clone;-webkit-box-decoration-break:clone}
+/* Each guidance part — where they got muddled, how to reteach it, what to ask
+   — is read as one paragraph, so it never splits: the box breaks BETWEEN its
+   parts, and a part that does not fit moves whole to the next page. Split
+   between lines, a part read as three lines of one thought at the foot of a
+   page and the rest over the page (seen on staging), which is worse than the
+   green left empty above it. A part's label never leaves its text. */
+.try-label,.try .label{break-after:avoid;page-break-after:avoid}
+/* THE FOOTER MAY NOT STRAND ITSELF. When the last guidance part fills a page to
+   within less than the footer's own height, the footer spilled onto a sheet
+   carrying a date and a monogram and nothing else, which reads as a broken
+   document. The footer cannot split, and the break in front of it is avoided,
+   so the last guidance part comes over to the new page with it. Measured on
+   Chromium 148: break-before:avoid is honoured once the element after the break
+   is itself unbreakable. */
+.foot{break-inside:avoid;page-break-inside:avoid;break-before:avoid;page-break-before:avoid}
+
+.foot{font-family:${bodyFam};display:flex;align-items:center;justify-content:space-between;padding:16px 42px 22px;margin-top:14px;border-top:1px solid #eef0f6;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${PALETTE.slate};font-size:${TYPE_FLOOR.small}px;font-family:${FONTS.bodyLatin}}
 .brand .mark{width:23px;height:23px;object-fit:contain;display:block}
 .stamp[dir="ltr"]{font-family:${FONTS.bodyLatin};font-weight:600}
@@ -492,7 +545,7 @@ body{background:#eef1f0;font-family:${bodyFam}}
       <h1 class="content" dir="${cdir}">${K(topic)}</h1>
       <div class="hscore"><div class="p">${average}%</div><div class="s">${L(C.classAverage)}</div></div>
     </div>
-    <div class="who">${teacherName ? nameCell(teacherName) : L(C.classResults)}${classTail}</div>
+    ${whoLine}
     <div class="statrow">
       <div class="stchip"><div class="n">${started}</div><div class="l">${L(C.started)}</div></div>
       <div class="stchip"><div class="n">${finished}</div><div class="l">${L(C.finished)}</div></div>
@@ -511,12 +564,10 @@ body{background:#eef1f0;font-family:${bodyFam}}
     ${notFinished}
   </div>
 
-  <div class="tail">
-    ${guidanceBlock ? `<div class="trywrap">${guidanceBlock}</div>` : ''}
-    <div class="foot">
-      <div class="brand">${brandMarkImg}NIETE</div>
-      <div class="stamp content" dir="${dirOf(generatedAt) }">${wrapLatin(esc(generatedAt), dirOf(generatedAt) === 'rtl')}</div>
-    </div>
+  ${guidanceBlock ? `<div class="trywrap">${guidanceBlock}</div>` : ''}
+  <div class="foot">
+    <div class="brand">${brandMarkImg}NIETE</div>
+    <div class="stamp content" dir="${dirOf(generatedAt) }">${wrapLatin(esc(generatedAt), dirOf(generatedAt) === 'rtl')}</div>
   </div>
 
 </div>

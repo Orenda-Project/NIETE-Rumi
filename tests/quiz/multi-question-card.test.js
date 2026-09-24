@@ -18,7 +18,12 @@ const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 // Captured from the UNMODIFIED transcript-quiz-card.js (round 5, before this
 // lane's change) for these exact inputs with answerMode omitted — the
 // guarantee that every existing single-answer card is byte-for-byte untouched.
-const BASELINE_SINGLE_EN_SHA256 = '291e20461596bb99f235ed1a9417c86ab8715482daa7e58aab02e1b8f3bf9a24';
+// Re-captured once, when an equation written in prose ("2 + 2") began to be
+// typeset as one maths expression (quiz-math spanEquations): the only
+// differences from the round-5 capture are that expression and the maths
+// stylesheet it brings with it. Still the single-answer output, unchanged by
+// answerMode.
+const BASELINE_SINGLE_EN_SHA256 = '70ccaf6d56066cd7db75c35d259d627f2fc9e984e1fd7b92983a3e0ba8fde7c5';
 const BASELINE_SINGLE_UR_SHA256 = 'f83aef01dae7b9c48b253e95a9a9bf6728d6de758e21b01cb38f2f5365dc1008';
 
 const SINGLE_EN_DATA = { stem: 'What is 2 + 2?', options: ['3', '4', '5'], displayOrder: [0, 1, 2], language: 'en', questionNumber: 1, total: 5 };

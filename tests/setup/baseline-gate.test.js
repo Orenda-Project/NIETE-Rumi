@@ -30,6 +30,8 @@ const {
   parseCliArgs,
   snapshotGrowth,
   normaliseOffender,
+  needsConfirmation,
+  flakyTwiceGates,
 } = require('../baseline-gate');
 
 const ESC = String.fromCharCode(27);
@@ -530,5 +532,129 @@ describe('snapshotGrowth — a moved offender is not growth', () => {
     const before = snap(["bot/s.js:10 — x — a: 'one'"]);
     const after  = snap(["bot/s.js:12 — x — a: 'one'", "bot/s.js:20 — x — b: 'two'"]);
     expect(snapshotGrowth(before, after).grew).toBe(true);
+  });
+});
+
+/**
+ * The gate itself must judge offenders the way the growth check does.
+ *
+ * `snapshotGrowth` learned on 2026-09-04 that a guard reporting `path:line` moves an
+ * unchanged violation to a new line whenever anything above it is edited. The gate's
+ * own comparison never learned it: it compared RAW strings, so on 2026-09-23 sandbox
+ * reported 432 "new" source-hygiene offenders of which 129 were real — every PR that
+ * touched a file carrying an old ticket ref reddened the gate for everyone, which is
+ * the state that makes a gate unreadable.
+ *
+ * Normalising to a SET would swing too far the other way: `source-hygiene` reports a
+ * bare `path:line`, so a second violation in a file that already had one would
+ * normalise to the same string and vanish. So both comparisons count: an offender is
+ * new when its file (its normalised form) carries MORE violations than the baseline
+ * recorded, and the report names the raw lines that are not in the baseline verbatim,
+ * because one of them is the new one and a human needs a line number to chase.
+ */
+describe('compareSnapshots — a moved offender is not a new one', () => {
+  const snap = (offs) => ({
+    'tests/setup/source-hygiene.test.js': { failing: ['no internal refs'], offenders: offs },
+  });
+
+  it('an offender that only changed line number is clean', () => {
+    const r = compareSnapshots(snap(['bot/x.js:14']), snap(['bot/x.js:10']));
+    expect(r.newOffenders).toEqual([]);
+    expect(r.fixedOffenders).toEqual([]);
+    expect(r.clean).toBe(true);
+  });
+
+  it('a SECOND bare path:line violation in a file that already had one is still new', () => {
+    const r = compareSnapshots(snap(['bot/x.js:10', 'bot/x.js:30']), snap(['bot/x.js:10']));
+    expect(r.newOffenders).toEqual([
+      { suite: 'tests/setup/source-hygiene.test.js', offenders: ['bot/x.js:30'] },
+    ]);
+    expect(r.clean).toBe(false);
+  });
+
+  it('when every line moved AND the count grew, every unmatched line is named as a candidate', () => {
+    const r = compareSnapshots(snap(['bot/x.js:14', 'bot/x.js:31']), snap(['bot/x.js:10']));
+    expect(r.newOffenders).toEqual([
+      { suite: 'tests/setup/source-hygiene.test.js', offenders: ['bot/x.js:14', 'bot/x.js:31'] },
+    ]);
+    expect(r.clean).toBe(false);
+  });
+
+  it('a file that dropped a violation while its others moved reports a fix, not a regression', () => {
+    const r = compareSnapshots(snap(['bot/x.js:12']), snap(['bot/x.js:10', 'bot/x.js:40']));
+    expect(r.newOffenders).toEqual([]);
+    expect(r.fixedOffenders).toEqual([
+      { suite: 'tests/setup/source-hygiene.test.js', offenders: ['bot/x.js:10', 'bot/x.js:40'] },
+    ]);
+    expect(r.clean).toBe(true);
+  });
+});
+
+describe('snapshotGrowth — counts per file, so a bare path:line cannot hide', () => {
+  const snap = (offs) => ({ 'tests/setup/g.test.js': { failing: [], offenders: offs } });
+
+  it('a second bare path:line violation in a file that already had one is growth', () => {
+    const g = snapshotGrowth(snap(['bot/x.js:10']), snap(['bot/x.js:10', 'bot/x.js:30']));
+    expect(g.grew).toBe(true);
+    expect(g.addedOffenders).toEqual([{ suite: 'tests/setup/g.test.js', offenders: ['bot/x.js:30'] }]);
+  });
+});
+
+/**
+ * A suite on the Flaky list is never gated — which is right for a flake and wrong for a
+ * suite that has quietly become a deterministic failure. Both have happened: the two portal
+ * certificate suites have failed on every run since a route change on 2026-09-18, while the
+ * gate printed them, run after run, as "Flaky — inconclusive, not gating".
+ *
+ * The confirmation run already exists to separate a flake from a real failure. So a flaky-
+ * listed suite that fails in BOTH runs is reported as such. It is advisory by default (the
+ * two portal suites would otherwise redden every PR until they are fixed) and gates when
+ * BASELINE_FLAKY_TWICE=gate — the switch to flip once the list is honest again.
+ */
+describe('flaky-listed suites that fail in BOTH runs', () => {
+  const FLAKY = ['tests/training/portal-grand-quiz.test.js', 'tests/queue/sqs-cancel-by-group.test.js'];
+  const run = (suites) => Object.fromEntries(suites.map((s) => [s, { failing: ['t'], offenders: [] }]));
+
+  it('a first run whose only failures are flaky-listed still asks for the confirmation run', () => {
+    const first = compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY });
+    expect(first.clean).toBe(true);
+    expect(needsConfirmation(first)).toBe(true);
+  });
+
+  it('a clean first run with no flaky failure does not pay for a second run', () => {
+    expect(needsConfirmation(compareSnapshots({}, {}, { flaky: FLAKY }))).toBe(false);
+  });
+
+  it('names the flaky-listed suites that failed in both runs, and only those', () => {
+    const first = compareSnapshots(run(FLAKY), {}, { flaky: FLAKY });
+    const second = compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY });
+    const r = confirmRegressions(first, second);
+    expect(r.flakyTwice).toEqual([FLAKY[0]]);
+  });
+
+  it('is advisory by default — the verdict stays clean', () => {
+    const first = compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY });
+    const r = confirmRegressions(first, compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY }));
+    expect(r.clean).toBe(true);
+  });
+
+  it('gates when asked to', () => {
+    const first = compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY });
+    const r = confirmRegressions(first, compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY }),
+      { strictFlaky: true });
+    expect(r.clean).toBe(false);
+  });
+
+  it('a flaky suite that failed once and passed on the confirmation run gates nothing, even strict', () => {
+    const first = compareSnapshots(run([FLAKY[1]]), {}, { flaky: FLAKY });
+    const r = confirmRegressions(first, compareSnapshots({}, {}, { flaky: FLAKY }), { strictFlaky: true });
+    expect(r.flakyTwice).toEqual([]);
+    expect(r.clean).toBe(true);
+  });
+
+  it('reads the switch from the environment, and nothing else turns it on', () => {
+    expect(flakyTwiceGates({ BASELINE_FLAKY_TWICE: 'gate' })).toBe(true);
+    expect(flakyTwiceGates({})).toBe(false);
+    expect(flakyTwiceGates({ BASELINE_FLAKY_TWICE: 'yes' })).toBe(false);
   });
 });

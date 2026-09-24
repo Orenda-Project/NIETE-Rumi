@@ -44,10 +44,16 @@ function findJsFiles(dir) {
  * Patterns matched:
  *   .from('table_name')
  *   .from("table_name")
+ *
+ * `Buffer.from('x')` is NOT a table reference and is excluded by a lookbehind rather than
+ * by name. It used to be excluded one literal at a time through IGNORED_REFERENCES, which
+ * meant every new test fixture (`Buffer.from('png')`, `Buffer.from('jpegbytes')`, …)
+ * arrived as a "missing table" and had to be either allowlisted or left red. A Supabase
+ * query is never spelled `Buffer.from`, so excluding the receiver cannot hide a real one.
  */
 function extractTableReferences(content) {
   const tables = new Set();
-  const fromPattern = /\.from\(\s*['"]([a-z_]+)['"]\s*\)/g;
+  const fromPattern = /(?<!\bBuffer)\.from\(\s*['"]([a-z_]+)['"]\s*\)/g;
   let match;
   while ((match = fromPattern.exec(content)) !== null) {
     tables.add(match[1]);

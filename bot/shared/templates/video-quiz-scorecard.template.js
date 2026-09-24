@@ -49,6 +49,7 @@ const fs = require('fs');
 const path = require('path');
 const { PALETTE, FONTS, latticeSvg, diamondSvg, dirOf } = require('./niete-brand');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
+const { subjectLabel } = require('../services/quiz/transcript-quiz-language');
 
 let _assets = null;
 
@@ -250,9 +251,11 @@ function gaugeSvg(pct, palette) {
  * @param {number} d.correct
  * @param {number} d.total
  * @param {number} d.pct
- * @param {string} [d.subject] - printed at the foot under the stars; the
- *        grade is deliberately never printed, since a shared class link can
- *        reach a child in any year.
+ * @param {string} [d.subject] - printed at the foot under the stars, by its
+ *        NAME in the card's language (ریاضی, Mathematics) — never the stored
+ *        key ("maths"); a subject the shared mapping cannot name is left off.
+ *        The grade is deliberately never printed, since a shared class link
+ *        can reach a child in any year.
  * @param {string} [d.takerName] - omitted entirely when unknown, never
  *        rendered as a literal "undefined"/"null".
  * @param {string} [d.language] - the QUIZ's language: the child reads the card
@@ -266,7 +269,8 @@ function renderScorecardHtml(d) {
   const {
     topic = 'Quiz', correct = 0, total = 0, pct = 0, subject = '', takerName = null,
   } = d || {};
-  const language = clampLanguage((d && d.language) || 'en');
+  // clampLanguage floors a missing or unoffered language itself.
+  const language = clampLanguage(d && d.language);
   const RTL = RTL_LANGS.has(language);
   const dir = RTL ? 'rtl' : 'ltr';
   const edge = RTL ? 'right' : 'left';
@@ -283,8 +287,9 @@ function renderScorecardHtml(d) {
   const nameHtml = takerName
     ? `<div class='name content align' dir='${nameDir}'>${esc(takerName)}</div>` : '';
   const topicHtml = `<div class='topic content align' dir='${dirOf(topic)}'>${esc(topic)}</div>`;
-  const subjectHtml = subject
-    ? `<span class='subj content' dir='${dirOf(subject)}'>${esc(subject)}</span>`
+  const subjectShown = subject ? (subjectLabel(subject, language) || '') : '';
+  const subjectHtml = subjectShown
+    ? `<span class='subj content' dir='${dirOf(subjectShown)}'>${esc(subjectShown)}</span>`
     : `<span class='subj'></span>`;
   // The brand book's lattice, at the whisper density it uses behind content —
   // drawn, so it stays crisp, rather than a stretched crop of a page raster.

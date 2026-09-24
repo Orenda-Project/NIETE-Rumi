@@ -126,3 +126,60 @@ describe('V1.5.2__lp_asset_sources — niete_lp_asset_sources', () => {
     expect(same).toEqual(['V1.5.2__lp_asset_sources.sql']);
   });
 });
+
+/**
+ * A clone is bootstrapped from 00_complete-schema.sql alone (`npm run bootstrap:db` never
+ * reads migrations/), so a table that exists only in its migration is a table a fresh
+ * install does not have. The store names it through a constant, which is why the
+ * schema-completeness guard (it greps `.from('<literal>')`) could not see the gap.
+ *
+ * "Mirrored" is asserted as statement equality, not as "a table of that name exists":
+ * a reference copy that drifts from the migration (a lost NOT NULL, a different upsert
+ * key) is exactly the reference schema lying about the live one.
+ */
+describe('00_complete-schema.sql mirrors V1.5.2 exactly', () => {
+  const SCHEMA_PATH = path.join(
+    __dirname, '..', '..', 'infrastructure', 'supabase', '00_complete-schema.sql',
+  );
+
+  /** The one statement `re` matches, with `--` comments stripped and whitespace collapsed. */
+  function statement(sqlText, re) {
+    const flat = sqlText
+      .split('\n')
+      .map((l) => l.replace(/--.*$/, ''))
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .replace(/\s*([(),;])\s*/g, '$1');
+    const found = flat.match(re);
+    return found ? found[0] : null;
+  }
+
+  const TABLE_RE = /CREATE TABLE IF NOT EXISTS niete_lp_asset_sources\([^;]*\);/i;
+  const INDEX_RE = /CREATE INDEX IF NOT EXISTS idx_niete_lp_asset_sources_lesson ON niete_lp_asset_sources\(lesson_id\);/i;
+
+  let migration;
+  let schema;
+  beforeAll(() => {
+    migration = fs.readFileSync(SQL_PATH, 'utf8');
+    schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
+  });
+
+  test('the table is declared, column for column and constraint for constraint', () => {
+    const want = statement(migration, TABLE_RE);
+    expect(want).not.toBeNull();
+    expect(statement(schema, TABLE_RE)).toBe(want);
+  });
+
+  test('the lesson index is declared', () => {
+    const want = statement(migration, INDEX_RE);
+    expect(want).not.toBeNull();
+    expect(statement(schema, INDEX_RE)).toBe(want);
+  });
+
+  test('it is declared AFTER niete_lp_assets, which its primary key references', () => {
+    const parent = schema.search(/CREATE TABLE IF NOT EXISTS niete_lp_assets\s*\(/i);
+    const child = schema.search(/CREATE TABLE IF NOT EXISTS niete_lp_asset_sources\s*\(/i);
+    expect(parent).toBeGreaterThan(-1);
+    expect(child).toBeGreaterThan(parent);
+  });
+});

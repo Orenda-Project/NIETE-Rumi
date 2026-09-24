@@ -104,9 +104,11 @@ describe('register-all-flows', () => {
     // Re-armed at 19 on 2026-09-06: /quiz landed as ONE Flow (Transcript Quiz) —
     // lesson list with in-Flow paging, the lesson's own live results, and
     // generate report / resend link / make the quiz, all in one session.
-    it('exports an array of all 19 registerable flow configurations', () => {
+    // Re-armed at 20 on 2026-09-23: the child's join screen became a localized
+    // Flow (Student Join Localized), every word supplied in the quiz language.
+    it('exports an array of all 20 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(19);
+      expect(FLOW_CONFIGS).toHaveLength(20);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {

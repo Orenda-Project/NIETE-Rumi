@@ -7,7 +7,6 @@ import { resolveRole } from "../lib/leaderRole";
 import PortalLayout from "../components/PortalLayout";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
-import ScoreIndicator from "../components/ScoreIndicator";
 import type { LeaderPatchTeacher } from "../types/portal";
 
 /**
@@ -107,7 +106,9 @@ const LeaderTeachers = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      {t.lastScore != null && <ScoreIndicator percentage={t.lastScore} size="small" />}
+                      {/* the score chip is gone. The row already
+                          names the focus area, which is the actionable half of
+                          what the number stood for. */}
                       {!t.onRumi && (
                         <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">Invite</span>
                       )}

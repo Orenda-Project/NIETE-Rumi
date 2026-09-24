@@ -143,7 +143,7 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # Coordinator); it is the terminal-payload defect bd-2773, which drops every field
     # except organization. @known-fail until bd-2773 is fixed.
 
-  @e2e @flow @destructive @P1 @wip
+  @e2e @flow @destructive @P1
   Scenario: Typing the school's EMIS code on the region screen links the account to that school
     Given the NIETE bot chat is open
     And I am a fresh Pakistan test teacher on the REGION_INFO screen
@@ -155,7 +155,10 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # onto users.region. bd-z8p96. The Flow has carried the emis_code TextInput all along
     # (REGION_INFO, init_emis_code pre-fill) — verified on the PUBLISHED prod (2010172012940869)
     # and staging (1492701779552399) Flows on 2026-09-23. @destructive: writes school_id/region.
-    # @wip: not yet driven live — the build is on the bd-z8p96 branch, not on staging.
+    # DRIVEN LIVE 2026-09-24 (staging 923236172838, build 5ddb5d36): PASSES. Province "Federal" +
+    # EMIS "216" on REGION_INFO → users.school_id = IMS(I-V) G-7/1 (emis 216), users.region =
+    # "Urban-I" right after the screen submit; completion at 07:46 UTC left region at "Urban-I"
+    # (the province was NOT written back) and the bot sent the registration thanks + portal link.
 
   @e2e @flow @edge @P2
   Scenario: A non-Pakistan teacher skips the region screen

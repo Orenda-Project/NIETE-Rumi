@@ -1,26 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ChevronLeft, MessageSquare, BookOpen, FileText, Users } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { leader } from "../services/api";
 import PortalLayout from "../components/PortalLayout";
 import StatCard from "../components/StatCard";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
-import ScoreIndicator from "../components/ScoreIndicator";
 import type { LeaderTeacherDetail as Detail } from "../types/portal";
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/**
- * The x-axis tick. A custom renderer rather than recharts' default so the label is a
- * findable element, not a coordinate that only a screenshot could check.
- */
-const TrendTick = ({ x, y, payload }: any) => (
-  <text data-testid="trend-x-label" x={x} y={y + 14} textAnchor="middle" fontSize={11} fill="currentColor">
-    {payload?.value}
-  </text>
-);
 
 /**
  * Leader Portal — single teacher detail (bd-2434, NIETE port of upstream
@@ -33,24 +19,6 @@ const LeaderTeacherDetail = () => {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  // recharts needs a pixel width. ResponsiveContainer reads clientWidth, which is 0
-  // under jsdom, so the chart would render nothing in test while looking fine in a
-  // browser — defined but never actually drawn. Measuring here keeps it responsive AND
-  // renderable, and the fallback is a readable width rather than zero.
-  const chartRef = useRef<HTMLDivElement | null>(null);
-  const [chartWidth, setChartWidth] = useState(640);
-
-  useEffect(() => {
-    const el = chartRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => {
-      const w = el.clientWidth;
-      if (w > 0) setChartWidth(w);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [detail]);
-
   useEffect(() => {
     if (!id) return;
     let alive = true;
@@ -67,25 +35,6 @@ const LeaderTeacherDetail = () => {
     const d = new Date(iso);
     return isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   };
-
-  // Axis labels are formatted explicitly rather than through toLocaleDateString: the
-  // axis has room for "2 Aug" and not for a locale that decides to spell it otherwise,
-  // and a chart whose labels depend on the runtime locale is a chart whose tests depend
-  // on the runtime locale.
-  const fmtShort = (iso: string) => {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
-  };
-
-  // Oldest first, unscored observations dropped. The API returns newest-first because
-  // that is the right order for the list below; a trend has to read left to right in
-  // time. An unscored observation is skipped rather than plotted as zero — a missing
-  // score is not a bad one, and drawing it as 0% invents a collapse that never happened.
-  const trend = [...(detail?.sessions ?? [])]
-    .filter((s) => s.score != null)
-    .reverse()
-    .map((s) => ({ id: s.id, label: fmtShort(s.date), score: s.score as number }));
 
   return (
     <PortalLayout>
@@ -105,8 +54,20 @@ const LeaderTeacherDetail = () => {
                 <h1 className="text-3xl font-light">{detail.teacher.name || "Unnamed teacher"}</h1>
                 <p className="text-muted-foreground mt-1">{detail.teacher.phone}</p>
               </div>
-              {detail.stats.lastScore != null && <ScoreIndicator percentage={detail.stats.lastScore} size="large" />}
             </header>
+
+            {/* the written feedback that replaces the score. The
+                number is still computed and still on the payload; a leader
+                simply no longer reads it. This is what she reads instead. */}
+            {detail.stats.lastSummary && (
+              <section
+                data-testid="latest-feedback"
+                className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8"
+              >
+                <h2 className="text-lg font-medium mb-2">Latest feedback</h2>
+                <p className="text-muted-foreground leading-relaxed">{detail.stats.lastSummary}</p>
+              </section>
+            )}
 
             <div className="grid grid-cols-3 gap-4 mb-8">
               <StatCard title="Coaching sessions" value={detail.stats.coachingSessions} icon={MessageSquare} />
@@ -114,38 +75,10 @@ const LeaderTeacherDetail = () => {
               <StatCard title="Reading assessments" value={detail.stats.readingAssessments} icon={FileText} />
             </div>
 
-            {trend.length >= 2 && (
-              <section
-                data-testid="score-trend"
-                className="bg-white rounded-lg shadow-sm border border-border mb-8 p-6"
-              >
-                <h2 className="text-lg font-medium mb-1">Score trend</h2>
-                <p className="text-muted-foreground text-sm mb-4">
-                  {trend.length} scored observations, oldest first.
-                </p>
-                <div ref={chartRef} className="w-full overflow-x-auto">
-                  <LineChart
-                    width={chartWidth}
-                    height={200}
-                    data={trend}
-                    margin={{ top: 8, right: 16, bottom: 8, left: -16 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="label" tick={<TrendTick />} tickLine={false} />
-                    <YAxis domain={[0, 100]} unit="%" tickCount={5} />
-                    <Tooltip formatter={(v: number) => [`${v}%`, "Score"]} />
-                    <Line
-                      type="monotone"
-                      dataKey="score"
-                      strokeWidth={2}
-                      dot={{ r: 4 }}
-                      activeDot={{ r: 6 }}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </div>
-              </section>
-            )}
+            {/* the score-trend chart is gone from the leader view. It
+                plotted the very number this ticket hides, so keeping it would
+                have handed back the score as a picture. The trend still exists
+                for the teacher's own analytics, where it was never in question. */}
 
             <section className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
               <div className="p-6 pb-3">
@@ -156,14 +89,16 @@ const LeaderTeacherDetail = () => {
               ) : (
                 <ul className="divide-y divide-border">
                   {detail.sessions.map((s) => (
-                    <li key={s.id} className="flex items-center justify-between px-6 py-4">
-                      <div>
-                        <p className="font-medium">{fmtDate(s.date)}</p>
-                        {s.points != null && s.maxPoints != null && (
-                          <p className="text-muted-foreground text-sm">{s.points} / {s.maxPoints} marks</p>
-                        )}
-                      </div>
-                      {s.score != null && <ScoreIndicator percentage={s.score} size="small" />}
+                    <li key={s.id} data-testid={`session-${s.id}`} className="px-6 py-4">
+                      <p className="font-medium">{fmtDate(s.date)}</p>
+                      {/* No marks, no percentage: the written note IS the
+                          record of the visit now. A session with none says so
+                          rather than rendering a heading over nothing. */}
+                      {s.summary ? (
+                        <p className="text-muted-foreground text-sm mt-1 leading-relaxed">{s.summary}</p>
+                      ) : (
+                        <p className="text-muted-foreground text-sm mt-1 italic">No written feedback for this visit.</p>
+                      )}
                     </li>
                   ))}
                 </ul>

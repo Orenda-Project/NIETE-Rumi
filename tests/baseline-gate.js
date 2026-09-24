@@ -163,8 +163,10 @@ function compareSnapshots(now, base, opts = {}) {
     }
     const newT = missing(now[suite].failing, base[suite].failing);
     const gotT = missing(base[suite].failing, now[suite].failing);
-    const newO = missing(now[suite].offenders, base[suite].offenders);
-    const gotO = missing(base[suite].offenders, now[suite].offenders);
+    // Per violation, not per raw string: a guard that reports `path:line` moves an
+    // untouched violation whenever anything above it is edited. See offenderDelta.
+    const { added: newO, removed: gotO } =
+      offenderDelta(now[suite].offenders, base[suite].offenders);
     if (newT.length) r.newTests.push({ suite, tests: newT });
     if (gotT.length) r.fixedTests.push({ suite, tests: gotT });
     if (newO.length) r.newOffenders.push({ suite, offenders: newO });
@@ -219,7 +221,7 @@ function flakyFromBaselineDoc(md = BASELINE_MD) {
  * Returns a new result; neither input is mutated. `unconfirmed` carries what did not
  * reproduce, so a transient failure is still reported rather than silently dropped.
  */
-function confirmRegressions(first, second) {
+function confirmRegressions(first, second, opts = {}) {
   const arr = (x) => x || [];
   const secondSuites = new Set(arr(second.newSuites));
   const newSuites = arr(first.newSuites).filter((x) => secondSuites.has(x));
@@ -248,14 +250,42 @@ function confirmRegressions(first, second) {
   const [newOffenders, staleOffenders] =
     split(first.newOffenders, 'offenders', index(second.newOffenders, 'offenders'));
 
+  // A flaky-listed suite that failed in BOTH runs is behaving like a real failure. See
+  // needsConfirmation for why the second run exists even when the first looked clean.
+  const secondFlaky = new Set(arr(second.flakyFailures));
+  const flakyTwice = arr(first.flakyFailures).filter((s) => secondFlaky.has(s)).sort();
+  const strict = !!opts.strictFlaky && flakyTwice.length > 0;
+
   return {
     ...first,
     newSuites,
     newTests,
     newOffenders,
+    flakyTwice,
     unconfirmed: { newSuites: staleSuites, newTests: staleTests, newOffenders: staleOffenders },
-    clean: !newSuites.length && !newTests.length && !newOffenders.length,
+    clean: !newSuites.length && !newTests.length && !newOffenders.length && !strict,
   };
+}
+
+/**
+ * Does this first run need the confirmation run?
+ *
+ * Yes when it looks red — and ALSO when a flaky-listed suite failed. A flaky failure never
+ * gates, so without a second run there is no way to tell a flake from a suite that has
+ * started failing every time; the Flaky list then hides a deterministic red for as long as
+ * nobody reads it. The portal certificate suites were exactly that from 2026-09-18.
+ */
+function needsConfirmation(first) {
+  return !first.clean || (first.flakyFailures || []).length > 0;
+}
+
+/**
+ * Whether a flaky-listed suite that failed in BOTH runs fails the gate. Advisory by
+ * default; `BASELINE_FLAKY_TWICE=gate` makes it gate. Exactly that value and no other, so
+ * a typo cannot turn a gate on or off by accident.
+ */
+function flakyTwiceGates(env = process.env) {
+  return env.BASELINE_FLAKY_TWICE === 'gate';
 }
 
 /**
@@ -314,6 +344,48 @@ function normaliseOffender(s) {
   return String(s).replace(/^([^\s:]+):\d+/, '$1:L');
 }
 
+/**
+ * Which offenders are genuinely NEW in `now`, and which are genuinely GONE from `base`.
+ *
+ * Judged by COUNT per normalised violation, not by raw string and not by set:
+ *
+ *   - raw strings cry wolf: an untouched violation that moved from line 198 to 202 is
+ *     "new". On 2026-09-23 the gate reported 432 new source-hygiene offenders on sandbox
+ *     itself, 129 of them real, so every PR that edited a file carrying an old ref went
+ *     red for everyone and the gate stopped carrying information.
+ *   - a set of normalised strings goes blind: `source-hygiene` reports a bare
+ *     `path:line`, so a SECOND violation in a file that already had one normalises to
+ *     the same string and disappears. That is exactly the incident this gate exists for.
+ *
+ * Counting keeps both properties: a file (a normalised violation) is flagged only when
+ * it carries MORE entries than the other side, and then every raw entry that does not
+ * appear verbatim on the other side is named — one of them is the new one, and a human
+ * chasing it needs a line number. Returns sorted arrays; inputs are not mutated.
+ */
+function offenderDelta(now = [], base = []) {
+  const group = (list) => {
+    const m = new Map();
+    for (const raw of list) {
+      const k = normaliseOffender(raw);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(raw);
+    }
+    return m;
+  };
+  const beyond = (from, against) => {
+    const other = group(against);
+    const out = [];
+    for (const [k, raws] of group(from)) {
+      const theirs = other.get(k) || [];
+      if (raws.length <= theirs.length) continue;
+      const verbatim = new Set(theirs);
+      out.push(...raws.filter((x) => !verbatim.has(x)));
+    }
+    return out.sort();
+  };
+  return { added: beyond(now, base), removed: beyond(base, now) };
+}
+
 function snapshotGrowth(before, after) {
   const list = (o, k, f) => (o[k] ? o[k][f] || [] : []);
   const addedSuites = Object.keys(after).filter((s) => !(s in before)).sort();
@@ -335,17 +407,15 @@ function snapshotGrowth(before, after) {
 
   const addedTests = grown('failing', 'tests');
 
-  // Offenders are compared on their normalised form so a violation that merely moved
-  // line is not reported as new. The RAW string is what gets reported, because a human
-  // chasing the finding needs the real line number.
+  // Offenders are compared per normalised violation, by count (offenderDelta), so a
+  // violation that merely moved line is not reported as new while a second one in the
+  // same file still is. The RAW string is what gets reported, because a human chasing
+  // the finding needs the real line number.
   const addedOffenders = [];
   for (const suite of Object.keys(after)) {
     if (!(suite in before)) continue;
-    const wasRaw = list(before, suite, 'offenders');
-    const nowRaw = list(after, suite, 'offenders');
-    const wasNorm = new Set(wasRaw.map(normaliseOffender));
-    const added = nowRaw.filter((x) => !wasNorm.has(normaliseOffender(x)));
-    if (added.length) addedOffenders.push({ suite, offenders: added.sort() });
+    const { added } = offenderDelta(list(after, suite, 'offenders'), list(before, suite, 'offenders'));
+    if (added.length) addedOffenders.push({ suite, offenders: added });
   }
   addedOffenders.sort((a, b) => a.suite.localeCompare(b.suite));
   return {
@@ -426,14 +496,17 @@ function main() {
   const base = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
   const first = compareSnapshots(now, base, { flaky });
 
-  // Confirm before failing. The second run costs ~11s and happens ONLY when the first
-  // pass looks red, so the happy path is unchanged. --no-retry restores single-pass
-  // behaviour for anyone who wants the raw first verdict.
+  // Confirm before failing. The second run happens ONLY when the first pass looks red or
+  // a flaky-listed suite failed (needsConfirmation), so a fully clean run is unchanged.
+  // --no-retry restores single-pass behaviour for anyone who wants the raw first verdict.
   let r = first;
   let didConfirm = false;
-  if (!first.clean && retry) {
-    console.log('\nbaseline-gate: possible regression — confirming with a second full run.');
-    r = confirmRegressions(first, compareSnapshots(summariseRun(runJest()), base, { flaky }));
+  if (needsConfirmation(first) && retry) {
+    console.log(first.clean
+      ? '\nbaseline-gate: a flaky-listed suite failed — a second full run tells a flake from a real failure.'
+      : '\nbaseline-gate: possible regression — confirming with a second full run.');
+    r = confirmRegressions(first, compareSnapshots(summariseRun(runJest()), base, { flaky }),
+      { strictFlaky: flakyTwiceGates() });
     didConfirm = true;
   }
 
@@ -446,6 +519,10 @@ function main() {
   list('Fixed offenders:', r.fixedOffenders,
     (x) => `${x.suite} (-${x.offenders.length})`);
   list('Flaky suites failing — inconclusive, not gating:', r.flakyFailures);
+  list(flakyTwiceGates()
+    ? 'Flaky-listed suites that failed in BOTH runs — gating (BASELINE_FLAKY_TWICE=gate):'
+    : 'Flaky-listed suites that failed in BOTH runs — likely no longer flaky (advisory; '
+      + 'BASELINE_FLAKY_TWICE=gate makes this gate):', r.flakyTwice || []);
 
   if (didConfirm && r.unconfirmed) {
     const u = r.unconfirmed;
@@ -465,8 +542,10 @@ function main() {
     console.log('\nbaseline-gate: CLEAN — no new failing suite, test, or offender.');
     return;
   }
-  console.error('\nbaseline-gate: REGRESSION — the items above are new since the snapshot.');
-  console.error('  A red suite is not a licence to add to it. Fix, or justify in the PR.');
+  // stdout, like the lists above it: on stderr the verdict interleaved into the middle of
+  // the lists in CI logs, and the "Flaky — not gating" list read as part of the regression.
+  console.log('\nbaseline-gate: REGRESSION — the NEW items above' + (r.flakyTwice && r.flakyTwice.length && flakyTwiceGates() ? ', and the flaky-listed suites that failed in both runs,' : '') + ' fail the gate.');
+  console.log('  A red suite is not a licence to add to it. Fix, or justify in the PR.');
   process.exit(1);
 }
 
@@ -483,5 +562,7 @@ module.exports = {
   parseCliArgs,
   snapshotGrowth,
   normaliseOffender,
+  needsConfirmation,
+  flakyTwiceGates,
   relSuite,
 };

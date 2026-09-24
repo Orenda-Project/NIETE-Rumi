@@ -29,7 +29,9 @@ const CANON = [
   ['maths', ['maths', 'math', 'mathematics', 'riyazi', 'ریاضی', 'حساب']],
   ['science', ['science', 'general science', 'gen science', 'sci', 'سائنس']],
   ['sst', ['sst', 'social studies', 'social study', 'social science', 'pakistan studies', 'pak studies', 'معاشرتی علوم', 'مطالعہ پاکستان']],
-  ['genk', ['genk', 'gk', 'general knowledge', 'meri kitab', 'میری کتاب', 'معلومات عامہ']],
+  // 'عمومی معلومات' is the subject's own display label (SUBJECT_LABELS), so a
+  // label handed back in is recognised as the subject it names.
+  ['genk', ['genk', 'gk', 'general knowledge', 'meri kitab', 'میری کتاب', 'معلومات عامہ', 'عمومی معلومات']],
 ];
 
 function canonicalSubject(subject) {
@@ -102,6 +104,63 @@ function languageAskButtons(quizId, ruleLanguage) {
     id: `${LANGUAGE_BUTTON_PREFIX}${code}_${quizId}`,
     title: getLanguage(code).languageTitle,
   }));
+}
+
+/**
+ * THE EXAMPLES THE ASK NAMES. The ask tells the teacher what an Urdu quiz does
+ * with English terms, with an example or two — which must come from THIS lesson
+ * (a science lesson was told "fraction, numerator"). In order of preference:
+ *
+ *   1. up to two of the digest's own key_terms written in English letters and
+ *      short enough to read at a glance (a term, not a sentence), repeats
+ *      dropped;
+ *   2. when the lesson has none — no digest yet (a quiz born from a lesson
+ *      plan), or only Urdu terms — a pair that fits the SUBJECT;
+ *   3. and when neither fits, no examples at all: an example from another
+ *      subject is worse than none.
+ */
+const ASK_TERM_MAX_CODE_POINTS = 24;
+const ASK_TERM_MAX_WORDS = 3;
+const ASK_TERM_SHAPE = /^[A-Za-z][A-Za-z0-9' -]*$/;
+const ASK_TERM_FALLBACK = {
+  maths: ['fraction', 'numerator'],
+  science: ['photosynthesis', 'cell'],
+  english: ['noun', 'verb'],
+};
+
+function askTermExamples({ digest, subject } = {}) {
+  const terms = [];
+  const seen = new Set();
+  const keyTerms = digest && Array.isArray(digest.key_terms) ? digest.key_terms : [];
+  for (const k of keyTerms) {
+    const term = String((k && typeof k === 'object' ? k.term : k) || '').replace(/\s+/g, ' ').trim();
+    const usable = ASK_TERM_SHAPE.test(term)
+      && [...term].length <= ASK_TERM_MAX_CODE_POINTS
+      && term.split(' ').length <= ASK_TERM_MAX_WORDS
+      && !seen.has(term.toLowerCase());
+    if (!usable) continue;
+    seen.add(term.toLowerCase());
+    terms.push(term);
+    if (terms.length === 2) return terms;
+  }
+  if (terms.length) return terms;
+  return [...(ASK_TERM_FALLBACK[canonicalSubject(subject || (digest && digest.subject))] || [])];
+}
+
+/**
+ * The body of the quiz language ask, in the teacher's language, naming this
+ * lesson's English terms (above). Each term is a first-strong isolate so a term
+ * with a digit or a hyphen keeps its shape inside an Urdu line, and the terms
+ * are joined by the language's own list comma (`،` in Urdu).
+ *
+ * @param {{digest?: object, subject?: string}} lesson
+ * @param {string} teacherLang
+ */
+function languageAskBody(lesson, teacherLang) {
+  const terms = askTermExamples(lesson || {});
+  if (!terms.length) return resolveUx('tqAskLanguagePlain', { language: teacherLang });
+  const examples = terms.map(isolate).join(resolveUx('vqLetterSep', { language: teacherLang }));
+  return resolveUx('tqAskLanguage', { language: teacherLang, params: { examples } });
 }
 
 const UR_MONTHS = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'];
@@ -289,13 +348,61 @@ function isolate(text) {
   return `${FSI}${text}${PDI}`;
 }
 
+// Common irregular English plurals, mapped to their singular. A short list on
+// purpose: the rule only has to stop a topic being glossed with its own plural,
+// and anything missing here simply keeps its bracket, as before.
+const IRREGULAR_PLURALS = Object.freeze({
+  children: 'child', men: 'man', women: 'woman', people: 'person', feet: 'foot', teeth: 'tooth',
+  mice: 'mouse', geese: 'goose', halves: 'half', leaves: 'leaf', lives: 'life', knives: 'knife',
+  wives: 'wife', shelves: 'shelf', wolves: 'wolf', calves: 'calf', loaves: 'loaf', thieves: 'thief',
+  vertices: 'vertex', indices: 'index', matrices: 'matrix', radii: 'radius',
+});
+
+/**
+ * An English word without its trailing plural: -ies → -y, -es after s/x/z/ch/sh,
+ * otherwise a final -s that is not part of -ss, -us or -is ("class", "bus",
+ * "axis" stay whole). Non-Latin words are returned as they are.
+ */
+function singular(word) {
+  if (!/^[a-z]+$/.test(word)) return word;
+  if (IRREGULAR_PLURALS[word]) return IRREGULAR_PLURALS[word];
+  if (word.length > 4 && word.endsWith('ies')) return `${word.slice(0, -3)}y`;
+  if (word.length > 3 && /(s|x|z|ch|sh)es$/.test(word)) return word.slice(0, -2);
+  if (word.length > 3 && word.endsWith('s') && !/(ss|us|is)$/.test(word)) return word.slice(0, -1);
+  return word;
+}
+
+/**
+ * Do two topic labels name the same thing? True when they differ only in
+ * "&" versus "and" (or "اور"), punctuation, spacing, case, or an English
+ * word's plural ("Proper Fraction" / "Proper Fractions"). The digest's
+ * `topic` and `topic_as_taught` are written separately and often agree in all
+ * but that — "Comparing & ordering unlike fractions" / "Comparing and ordering
+ * unlike fractions" — and a bracket repeating the topic tells the teacher
+ * nothing. Two labels in different scripts are never the same by this test,
+ * so a translation always survives.
+ */
+function sameTopic(a, b) {
+  const norm = (s) => String(s || '').toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/(^|\s)اور(?=\s|$)/g, ' and ')
+    .replace(/[\p{P}\p{S}]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .map(singular)
+    .join(' ');
+  return norm(a) === norm(b);
+}
+
 /**
  * "Urdu lesson on *واحد اور جمع* (singular and plural)" — the one phrase the
  * offer, the hand-off and the /quiz rows all name the lesson by.
  *
  * The subject is in the TEACHER's language; the topic is the one the class
  * actually heard (the quiz language); the gloss in brackets is the teacher's
- * language and appears only when the two differ. The teacher taps "yes" on a
+ * language and appears only when it adds information — a translation, or a
+ * genuinely different name, never the same topic with "&" for "and" (sameTopic). The teacher taps "yes" on a
  * lesson they recognise, and then reads a quiz in the language their children
  * were taught in — round 1 named neither, and an English offer arriving before
  * an Urdu quiz read as two different lessons.
@@ -305,7 +412,9 @@ function lessonLabel({ digest, quizLanguage, teacherLanguage } = {}) {
   const teacherLang = clampLanguage(teacherLanguage);
   const taught = topicFor(digest, quizLang);
   const inTeacherLanguage = topicFor(digest, teacherLang);
-  const gloss = quizLang !== teacherLang && inTeacherLanguage && inTeacherLanguage !== taught
+  // The gloss is there to add information: a translation, or a genuinely
+  // different name. A near-duplicate of the topic is not shown.
+  const gloss = quizLang !== teacherLang && inTeacherLanguage && !sameTopic(inTeacherLanguage, taught)
     ? inTeacherLanguage : '';
   const subject = subjectLabel(digest && digest.subject, teacherLang);
 
@@ -327,9 +436,11 @@ function topicFor(digest, language) {
 }
 
 module.exports = {
+  isolate,
   topicFor,
   needsLanguageAsk,
   languageAskButtons,
+  languageAskBody,
   LANGUAGE_ASK_SKIPPED,
   LANGUAGE_BUTTON_PREFIX,
   lessonLabel,

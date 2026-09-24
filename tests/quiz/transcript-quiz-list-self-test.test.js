@@ -81,3 +81,34 @@ describe('countsFor excludes the teacher self-test', () => {
     expect(selectCall && selectCall[1]).toEqual(expect.stringContaining('user_id'));
   });
 });
+
+// The list's "N started · M done" and the status buttons' counts read one
+// attempt per child — the latest completed, else the latest row — exactly as
+// the class report does, and per quiz: the same child on two quizzes is a child
+// of each.
+describe('countsFor counts one attempt per child', () => {
+  const projected = (rows) => (calls) => {
+    const sel = calls.find(([m]) => m === 'select');
+    const cols = sel && typeof sel[1] === 'string' ? sel[1].split(',').map((c) => c.trim()) : null;
+    return { data: cols ? rows.map((r) => Object.fromEntries(cols.map((c) => [c, r[c]]))) : rows, error: null };
+  };
+  const r = (quizId, studentId, status, created, completed = null) => ({
+    quiz_id: quizId, user_id: null, student_id: studentId, status, created_at: created, completed_at: completed,
+  });
+
+  test('a stop-then-finish, a retake and a child on two quizzes', async () => {
+    installFrom(supabase.from, {
+      quiz_sessions: projected([
+        r(QUIZ_ID, 'st-a', 'incomplete', '2026-09-10T08:00:00Z'),
+        r(QUIZ_ID, 'st-a', 'completed', '2026-09-11T08:00:00Z', '2026-09-11T08:20:00Z'),
+        r(QUIZ_ID, 'st-b', 'completed', '2026-09-10T08:00:00Z', '2026-09-10T08:20:00Z'),
+        r(QUIZ_ID, 'st-b', 'completed', '2026-09-12T08:00:00Z', '2026-09-12T08:20:00Z'),
+        r(QUIZ_ID, 'st-c', 'in_progress', '2026-09-10T08:00:00Z'),
+        r('q2', 'st-a', 'in_progress', '2026-09-13T08:00:00Z'),
+      ]),
+    });
+    const counts = await List.countsFor([QUIZ_ID, 'q2'], TEACHER_ID);
+    expect(counts.get(QUIZ_ID)).toEqual({ started: 3, finished: 2 });
+    expect(counts.get('q2')).toEqual({ started: 1, finished: 0 });
+  });
+});

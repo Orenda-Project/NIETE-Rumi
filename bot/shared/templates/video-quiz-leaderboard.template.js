@@ -27,6 +27,7 @@ const path = require('path');
 const { PALETTE, FONTS, latticeSvg, diamondSvg, dirOf } = require('./niete-brand');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { cardPalette } = require('./video-quiz-scorecard.template');
+const { subjectLabel } = require('../services/quiz/transcript-quiz-language');
 
 const MAX_ROWS = 8;
 const TOP_NAMED = 5;          // 'top' mode: how many rows carry a name
@@ -60,17 +61,22 @@ const RTL_LANGS = new Set(['ur']);
 /**
  * Copy painted INTO the card comes from the catalog (vqClass*), in the quiz
  * language; only the ordinal word is built here, because "5th" and "پانچواں"
- * are grammar, not copy.
+ * are grammar, not copy. Urdu needs two forms of it: the DIRECT one where the
+ * ordinal stands alone ("آپ کا پانچواں نمبر") and the OBLIQUE one in front of a
+ * postposition ("مشترکہ پانچویں نمبر پر") — the tie line is the second kind.
  */
 function strings(language) {
   const ux = (key, params) => resolveUx(key, { language, params });
-  const ord = language === 'ur' ? urduOrdinal : ordinal;
+  const ur = language === 'ur';
+  const ord = ur ? (n) => urduOrdinal(n).direct : ordinal;
+  const ordBeforePostposition = ur ? (n) => urduOrdinal(n).oblique : ordinal;
   return {
     eyebrow: ux('vqClassEyebrow'),
     place: (rank, n) => ux('vqClassPlace', { place: ord(rank), n }),
-    placeTie: (rank, n) => ux('vqClassPlaceTie', { place: ord(rank), n }),
+    placeTie: (rank, n) => ux('vqClassPlaceTie', { place: ordBeforePostposition(rank), n }),
     you: ux('vqClassYou'), classAvg: ux('vqClassAvg'), yours: ux('vqClassYours'),
-    others: (n) => ux('vqClassOthers', { n }),
+    // One hidden child is singular in Urdu (کلاس کا 1 اور بچہ), several plural.
+    others: (n) => ux(Number(n) === 1 ? 'vqClassOthersOne' : 'vqClassOthers', { n }),
     finished: (n) => ux('vqClassFinished', { n }),
   };
 }
@@ -79,9 +85,31 @@ function ordinal(n) {
   const s = ['th', 'st', 'nd', 'rd']; const v = n % 100;
   return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
 }
+
+/**
+ * Urdu ordinals 1-20 as words. Masculine, agreeing with نمبر. The first four
+ * (and six) are irregular and end in ا; the rest are the number + واں.
+ */
+const URDU_ORDINAL_WORDS = {
+  1: 'پہلا', 2: 'دوسرا', 3: 'تیسرا', 4: 'چوتھا', 5: 'پانچواں', 6: 'چھٹا', 7: 'ساتواں',
+  8: 'آٹھواں', 9: 'نواں', 10: 'دسواں', 11: 'گیارہواں', 12: 'بارہواں', 13: 'تیرہواں',
+  14: 'چودہواں', 15: 'پندرہواں', 16: 'سولہواں', 17: 'سترہواں', 18: 'اٹھارہواں',
+  19: 'انیسواں', 20: 'بیسواں',
+};
+
+/**
+ * `{ direct, oblique }` for rank `n`. The oblique is DERIVED from the direct
+ * form by the one rule Urdu uses for these adjectives — a final …واں becomes
+ * …ویں, a final …ا becomes …ے — so the two can never disagree about which
+ * number they name, for any rank a class can produce. Past twenty the number
+ * is written in digits and takes the suffix: 21واں / 21ویں.
+ */
 function urduOrdinal(n) {
-  const words = { 1: 'پہلا', 2: 'دوسرا', 3: 'تیسرا', 4: 'چوتھا', 5: 'پانچواں', 6: 'چھٹا', 7: 'ساتواں', 8: 'آٹھواں', 9: 'نواں', 10: 'دسواں' };
-  return words[n] || `${n}واں`;
+  const direct = URDU_ORDINAL_WORDS[n] || `${n}واں`;
+  const oblique = direct.endsWith('واں') ? `${direct.slice(0, -'واں'.length)}ویں`
+    : direct.endsWith('ا') ? `${direct.slice(0, -1)}ے`
+      : direct;
+  return { direct, oblique };
 }
 
 /**
@@ -134,7 +162,8 @@ function renderLeaderboardHtml(d) {
   const {
     topic = 'Quiz', subject = '', className = '', rows = [], targetSessionId = null, mode = 'full',
   } = d || {};
-  const language = clampLanguage((d && d.language) || 'en');
+  // clampLanguage floors a missing or unoffered language itself.
+  const language = clampLanguage(d && d.language);
   const RTL = RTL_LANGS.has(language);
   const dir = RTL ? 'rtl' : 'ltr';
   const S = strings(language);
@@ -153,8 +182,17 @@ function renderLeaderboardHtml(d) {
     + diamondSvg({ size: 7, fill: PALETTE.greenPale, stroke: PALETTE.greenPale, width: 0, className: 'dia nuqta faint' });
 
   const placeLine = me ? (me.tied ? S.placeTie(me.rank, n) : S.place(me.rank, n)) : '';
-  const subline = [topic, className, subject].filter(Boolean)
-    .map((s) => `<span class='content' dir='${dirOf(s)}'>${esc(s)}</span>`).join(`<span class='sep'>·</span>`);
+  // The subject by its NAME in the card's language (ریاضی, Mathematics), never
+  // the stored key ("maths"). One mapping, shared with the teacher's /quiz
+  // rows; a subject it cannot name is left off rather than printed raw.
+  const subjectShown = subject ? (subjectLabel(subject, language) || '') : '';
+  // Each piece is its own box in its OWN direction, so a long English topic on
+  // an Urdu card is cut at the topic's end ("Compare and order unlike…"), not
+  // at the line's far edge, which is the topic's beginning. The topic is the
+  // piece that gives way; the class and the subject keep their words.
+  const piece = (s, cls) => `<span class='content ${cls}' dir='${dirOf(s)}'>${esc(s)}</span>`;
+  const subline = [[topic, 'topic'], [className, 'meta'], [subjectShown, 'meta']].filter(([s]) => Boolean(s))
+    .map(([s, cls]) => piece(s, cls)).join(`<span class='sep'>·</span>`);
 
   const rowHtml = shown.map((r) => {
     if (r.gap) {
@@ -193,8 +231,11 @@ function renderLeaderboardHtml(d) {
   .t1 .nuqta{flex:0 0 auto;margin-bottom:${RTL ? '5px' : '1px'}} .t1 .faint{opacity:.55}
   .logo{width:44px;height:auto;opacity:.96;display:block}
   .place{font-size:${RTL ? '30px' : '30px'};font-weight:800;line-height:${RTL ? '1.6' : '1.15'};letter-spacing:${RTL ? '0' : '-.6px'};direction:${dir};text-align:${RTL ? 'right' : 'left'}}
-  .sub{font-size:${RTL ? '19px' : '17px'};opacity:.82;direction:${dir};text-align:${RTL ? 'right' : 'left'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .sub .sep{opacity:.5;margin:0 7px}
+  .sub{font-size:${RTL ? '19px' : '17px'};opacity:.82;direction:${dir};display:flex;align-items:baseline;white-space:nowrap;overflow:hidden}
+  .sub .content{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:isolate}
+  .sub .topic{flex:0 1 auto}
+  .sub .meta{flex:0 0 auto;max-width:40%}
+  .sub .sep{flex:0 0 auto;opacity:.5;margin:0 7px}
   /* the two numbers that matter, side by side */
   .stats{display:flex;gap:12px;direction:${dir}}
   .stat{flex:1;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:9px 14px}

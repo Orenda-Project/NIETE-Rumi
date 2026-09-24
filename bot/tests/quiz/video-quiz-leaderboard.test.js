@@ -81,7 +81,7 @@ describe('the rendered card', () => {
       language: 'ur', rows, targetSessionId: 's1', mode: 'full' });
     expect(html).toContain("<div class='card' dir='rtl'>");
     expect(html).toContain(resolveUx('vqClassEyebrow', { language: 'ur' }));
-    expect(html).toContain('‏7 میں سے آپ مشترکہ پہلا نمبر پر');
+    expect(html).toContain('‏7 میں سے آپ مشترکہ پہلے نمبر پر');  // oblique before نمبر پر
   });
 
   test('a class of one still renders: rank 1 of 1, no gap row', () => {

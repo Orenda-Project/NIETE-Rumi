@@ -449,7 +449,7 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
       // parseInt -> NaN. Only an actual number may be trusted; anything else
       // falls through to inference.
       const rawOrder = String(screenData._level_order ?? '').trim();
-      // bd-60120 — `<order>.<courseId>` means "the exam for that I-SAPS module".
+      // `<order>.<courseId>` means "the exam for that I-SAPS module".
       // A plain integer is the level exam, unchanged. parseInt alone would have
       // swallowed the suffix and silently started the LEVEL exam instead.
       const scopedMatch = /^(\d+)\.(\d+)$/.exec(rawOrder);
@@ -478,8 +478,8 @@ async function handleTeacherTrainingDataExchange(userId, screen, screenData /*, 
           return errorScreen('Please open the level again and tap Take exam.');
         }
       }
-      // bd-60120 — a module exam, not the level one. Same discipline as
-      // bd-2452: the CTA is a tappable link whatever it reads, so the slot's
+      // A module exam, not the level one. Same discipline as the level
+      // exam: the CTA is a tappable link whatever it reads, so the slot's
       // own `ok` flag is what refuses it here rather than the label.
       if (examCourseId) {
         const catalog = await loadVisibleLevelsWithProgress(userId);
@@ -748,7 +748,7 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
     data: {
       level_title:    levelDisplayTitle(lvl),
       level_progress: `${doneModules}/${totalModules} modules done · ${pct}%`,
-      // bd-60120 — `level_order` is the only field on this screen that the
+      // `level_order` is the only field on this screen that the
       // server fills AND gets back in the exam CTA's payload, and it is used
       // nowhere else (verified: one occurrence in the published JSON). When
       // the teacher is inside an I-SAPS module it therefore carries the
@@ -768,9 +768,9 @@ async function buildLevelDetail(userId, levelOrder, opts = {}) {
       module_list:    await buildModuleList({
         userId, level: lvl, modules, moduleScoped, scopedCourseId,
       }),
-      // bd-60120 — drilled into an I-SAPS module, the single exam slot carries
+      // Drilled into an I-SAPS module, the single exam slot carries
       // THAT module's exam. It is free to reuse precisely because I-SAPS has no
-      // level exam (bd-60119), so nothing is displaced and no other vendor's
+      // level exam, so nothing is displaced and no other vendor's
       // level view changes.
       grand_quiz_body:      moduleExam ? moduleExam.body    : grandQuiz.body,
       grand_quiz_caption:   moduleExam ? moduleExam.caption : grandQuiz.caption,
@@ -1457,7 +1457,7 @@ async function assertCanStartExamForLevel(userId, levelId) {
 }
 
 /**
- * bd-60120 — the exam slot for ONE I-SAPS module.
+ * The exam slot for ONE I-SAPS module.
  *
  * Gathers what buildModuleExamSlot needs: the module's unit tally, how many
  * scenario MCQs and CRQ items its per-module quizzes hold, and whether the
@@ -1502,7 +1502,7 @@ async function loadModuleExamSlot(userId, levelId, courseId, modules) {
       .eq('user_id', userId).in('grand_quiz_id', ids.length ? ids : [-1]);
     const passed = (attempts || []).some(a => a.is_passed);
 
-    // bd-60167 — the MARK, so the course page can show it.
+    // The MARK, so the course page can show it.
     //
     // Her best graded attempt, not her latest: retakes are unlimited, so a
     // later weaker sitting must not overwrite a stronger one on screen. The
@@ -1528,7 +1528,7 @@ async function loadModuleExamSlot(userId, levelId, courseId, modules) {
       if (left > cooldownHoursLeft) cooldownHoursLeft = Math.ceil(left);
     }
 
-    // bd-60146 (second site) — announce the PAPER, not the bank.
+    // Second site of the same rule — announce the PAPER, not the bank.
     //
     // mcqCount/crqCount above are bank tallies, which is right for deciding
     // whether an exam exists at all and wrong for saying out loud: Module 1's
@@ -1666,7 +1666,7 @@ async function loadGrandQuizState(userId, levelId) {
     if (allDone) {
       return { badge: 'badge_quiz_passed', body: '🏆 Level complete — you have finished every session.', caption: ' ', cta: '✓ Complete' };
     }
-    // bd-60130 — a vendor with no LEVEL exam (I-SAPS assesses per module)
+    // A vendor with no LEVEL exam (I-SAPS assesses per module)
     // shows nothing here. The previous copy announced the absence, which
     // reads as something missing rather than as by design.
     return { badge: 'badge_quiz_available', ...levelExamSlotHidden() };

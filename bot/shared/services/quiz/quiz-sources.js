@@ -78,7 +78,11 @@ function lessonSessionFor(quiz) {
  */
 const LP_FAILURE_COPY = {
   source_missing: 'tqFailedLpSource',
-  digest_failed: 'tqFailedLpDigest',
+  // The slide script was found and carries no lesson to write from.
+  source_unusable: 'tqFailedLpSourceUnusable',
+  // The model gave nothing usable — empty, cut off or unparseable after its
+  // retry, or the provider refused the call. Ours, not the lesson plan's.
+  model_failed: 'tqFailedLpModel',
   validator_failed: 'tqFailedLpAuthor',
   // The key check found answers the lesson contradicts and could neither fix
   // nor drop enough of them: the questions were clear, their KEYS were wrong.
@@ -86,13 +90,22 @@ const LP_FAILURE_COPY = {
   // The blind solve disagreed with too many keys (a wrong answer, or two right
   // ones) to fix or drop and still send a quiz.
   key_disagreement: 'tqFailedLpKeyDisagreement',
+  // The generate job could not be queued: the quiz was never written. What the
+  // teacher was told at the time, repeated — not "the questions did not come out".
+  queue_failed: 'lpQuizCouldNotStart',
 };
 /**
- * The transcript counterpart. Every transcript reason still reads
- * `tqCouldNotMake` except the one that is not about the recording at all: the
- * blind solve held the quiz back because its answers were wrong or unclear.
+ * The transcript counterpart. `tqCouldNotMake` blames the recording ("the
+ * transcript didn't carry enough"), so it is sent only where that is the state
+ * or the existing claim: a transcript too short to carry a quiz
+ * (source_unusable), and questions that never validated. The two reasons that
+ * are not about the recording at all have their own sentence: the MODEL gave
+ * nothing usable (model_failed), and the blind solve held the quiz back because
+ * its answers were wrong or unclear (key_disagreement).
  */
 const TRANSCRIPT_FAILURE_COPY = {
+  model_failed: 'tqCouldNotMakeModel',
+  source_unusable: 'tqCouldNotMake',
   key_disagreement: 'tqFailedKeyDisagreement',
 };
 function failureCopyKey(reason, quizSource) {
@@ -101,6 +114,73 @@ function failureCopyKey(reason, quizSource) {
   // written copy for is still an LP failure, and "the questions did not come
   // out" is the honest general case of one.
   return LP_FAILURE_COPY[reason] || 'tqFailedLpAuthor';
+}
+
+/**
+ * The `err.code` the LP digest throws with when the slide script it was handed
+ * carries no lesson (lp-quiz-digest.service `isUsable`). It is the ONE digest
+ * failure that is the lesson plan's; every other throw out of that step is the
+ * model's or the provider's.
+ */
+const SOURCE_UNUSABLE_CODE = 'SOURCE_UNUSABLE';
+
+/**
+ * WHY the digest step stopped, from what it threw.
+ *
+ * Before this, every throw was `digest_failed` and the teacher heard that the
+ * lesson plan could not be read — true only when the plan was empty. An empty,
+ * cut-off or unparseable reply (after completeJson's one retry) or a refused
+ * call is ours, and says so (root CLAUDE.md rule 24d).
+ *
+ * @param {Error} err what the digest threw
+ * @returns {'source_unusable'|'model_failed'}
+ */
+function digestFailureReason(err) {
+  return err && err.code === SOURCE_UNUSABLE_CODE ? 'source_unusable' : 'model_failed';
+}
+
+/**
+ * The failure reason a failed quiz row carries, for a surface that repeats the
+ * failure later (/quiz). `meta.error` is the reason itself; a row written
+ * before the split carries `digest: <message>` and is read by that message —
+ * the unusable-plan throw has one fixed text, anything else was the model.
+ * A failed row with no marker failed validation (the one path that stored none).
+ *
+ * @param {object} meta `quizzes.meta`
+ * @returns {string} a reason `failureCopyKey` understands
+ */
+function failureReasonOf(meta) {
+  const error = String((meta && meta.error) || '');
+  if (!error) return 'validator_failed';
+  if (error.startsWith('digest')) {
+    return /carries no lesson to digest/.test(error) ? 'source_unusable' : 'model_failed';
+  }
+  return error;
+}
+
+/**
+ * Can a failed lp_v8 quiz be made again from /quiz?
+ *
+ * Only when trying again can come out differently. The model-side failures
+ * can: authoring is not deterministic, and a provider fault is usually gone on
+ * the next call. A plan that was missing or carried no lesson cannot — a remake
+ * would fail the same way and tell the teacher the same thing a second time.
+ * The row must still carry the lessons it is written from (a quiz whose queue
+ * write failed lost them), and remakes are capped so a quiz that keeps failing
+ * cannot be retried without end.
+ *
+ * @param {object} meta `quizzes.meta` of a failed lp_v8 row
+ * @returns {boolean}
+ */
+// queue_failed: the job never reached the queue — a transient refusal, and the
+// row now keeps its lessons (queueLpQuiz merges), so a remake can succeed.
+const LP_REMAKE_REASONS = new Set(['model_failed', 'validator_failed', 'key_conflict', 'key_disagreement', 'queue_failed']);
+const MAX_LP_REMAKES = 2;
+function lpRemakeable(meta) {
+  const m = meta || {};
+  if (!LP_REMAKE_REASONS.has(failureReasonOf(m))) return false;
+  if (!Array.isArray(m.lessons) || !m.lessons.length) return false;
+  return (Number(m.remakes) || 0) < MAX_LP_REMAKES;
 }
 
 /**
@@ -120,4 +200,5 @@ function handoffIntroKey(quizSource) {
 
 module.exports = {
   TRANSCRIPT, LP_V8, LESSON_SOURCES, isLessonQuiz, lessonSessionFor, failureCopyKey, handoffIntroKey,
+  SOURCE_UNUSABLE_CODE, digestFailureReason, failureReasonOf, lpRemakeable,
 };

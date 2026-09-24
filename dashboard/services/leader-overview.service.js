@@ -36,6 +36,16 @@ function summarizePatch(teachers, opts = {}) {
     notOnRumi: list.filter((t) => !t.onRumi).length,
     totalCoachingSessions: list.reduce((n, t) => n + (t.coachingSessions || 0), 0),
     totalLessonPlans: list.reduce((n, t) => n + (t.lessonPlans || 0), 0),
+    // the landing view is organised by feature, so every feature
+    // needs a patch-wide number and not only a per-teacher one.
+    totalAttendanceSessions: list.reduce((n, t) => n + (t.attendanceSessions || 0), 0),
+    totalTrainingModules: list.reduce((n, t) => n + (t.trainingModules || 0), 0),
+    // REACH, which is the more honest of the two figures on this view: 21
+    // registers across 19 teachers reads as a healthy school right up until you
+    // learn that one teacher took all 21. A total cannot show that; a count of
+    // who has touched the feature at all can.
+    teachersMarkingAttendance: list.filter((t) => (t.attendanceSessions || 0) > 0).length,
+    teachersInTraining: list.filter((t) => (t.trainingModules || 0) > 0).length,
     scoredTeachers: scored.length,
     avgLastScore,
     focus,

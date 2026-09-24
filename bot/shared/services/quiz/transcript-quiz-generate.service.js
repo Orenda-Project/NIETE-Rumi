@@ -24,11 +24,15 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
-const { validate, MIN_QUESTIONS } = require('./transcript-quiz-validator');
-const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
-const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
 const {
-  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey,
+  validate, MIN_QUESTIONS, figureDensity, latinNames,
+} = require('./transcript-quiz-validator');
+const {
+  teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
+} = require('./transcript-quiz-language');
+const { SESSION_SELECT, MIN_TRANSCRIPT_CHARS } = require('./transcript-quiz-offer.service');
+const {
+  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, digestFailureReason,
 } = require('./quiz-sources');
 const LpDigest = require('./lp-quiz-digest.service');
 const Store = require('./lp-asset-source.store');
@@ -120,7 +124,12 @@ function figureRequiredError({ questions, subject, attempt, maxAttempts, gradeBa
   const why = early
     ? `this is a grade 1-5 lesson (${subject || 'language'}) and every subject is drawable at that age`
     : `this ${subject} lesson is drawable`;
-  const how = early
+  // A grade 1-5 maths quiz aims for three (figureDensity): "one or two" sent
+  // the retry of a fractions lesson that had drawn nothing back with nothing.
+  const maths = early && canonicalSubject(subject) === 'maths';
+  const how = maths
+    ? 'Decide the pictures FIRST, then write at least three questions the child answers by READING a picture: What fraction of the bar is shaded? Which bar shows a fraction (bars labelled A, B, C)? What number do the sticks show? How many counters are there? A step of a procedure (a cross product, a rewritten fraction) stays text — no picture can show its answer.'
+    : early
     ? 'Decide the drawing FIRST — the thing the class counted, the word they sounded out, the clock they read, the pattern they continued — then write one or two questions the child answers by reading the picture.'
     : 'Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.';
   return `quiz: FIGURE_REQUIRED — ${why} but none of the questions carries a "figure". ${how}`;
@@ -157,7 +166,23 @@ const SOFT_FAULT = new RegExp('^('
   // no quiz (operator, 2026-09-07). Recorded in meta.soft_faults so the rate
   // stays visible instead of costing quizzes silently.
   + '|q\\d+: URDU_TEACHER_FIELDS\\b'
+  // Too few pictures in a grade 1-5 maths quiz (runFigureDensity): a quiz with
+  // one picture is still a quiz, and refusals cost teachers quizzes.
+  + '|FIGURE_FEW\\b'
   + ')');
+
+/**
+ * A verb that speaks to the child with a gender (PEDAGOGY_GENDERED_CHILD —
+ * «کون سی علامت لگائیں گے؟», «آپ … سوچ رہے ہیں»). About one production Urdu
+ * item in ten carried one. The question around it is sound, so the fault is
+ * REPAIRED IN PLACE by one targeted rewrite and then shipped whatever that
+ * leaves: never a full re-roll (a second attempt can die of something that
+ * really is fatal — the production history of this pipeline), never a dropped
+ * question, never a failed quiz, over one verb. Every occurrence that ships is
+ * recorded in meta.soft_faults and counted on transcript_quiz.child_address.
+ */
+const ADDRESS_FAULT = /^q\d+: PEDAGOGY_GENDERED_CHILD\b/;
+const addressOnly = (errors) => Array.isArray(errors) && errors.length > 0 && errors.every((e) => ADDRESS_FAULT.test(String(e)));
 const GAP_MS = 1200;
 const NUDGE_AFTER_MS = 3 * 60 * 60 * 1000;
 const LEVEL_DIFFICULTY = { recall: 2, understand: 3, apply: 4 };
@@ -294,7 +319,9 @@ async function renderFigures({ questions, language, teacherId, quizId }) {
       // The validator already drew this one; redrawing it would be a second
       // chance for the two copies to differ.
       const svg = q.figureSvg || Figure.renderFigureSvg(q.figure, language);
-      const png = await Figure.renderFigurePng(svg, language);
+      // The frame paints "Question n of N" like a question card does; the
+      // number is the row's position, which is the order the session asks in.
+      const png = await Figure.renderFigurePng(svg, language, { questionNumber: i + 1, total: questions.length });
       urls[i] = await Figure.uploadFigure({ teacherId, quizId, index: i, png });
       logEvent('transcript_quiz.figure_ready', {
         quizId, index: i, figureType: q.figure.type, bytes: png.length, latencyMs: Date.now() - startedAt,
@@ -368,7 +395,15 @@ function applyMedia(rows, questions, { figureUrls = {}, cardUrls = {}, language 
   rows.forEach((row, i) => {
     const q = questions && questions[i];
     const media = { ...(row.media || {}), language };
-    if (q && q.figure && figureUrls[i]) { media.question_image = figureUrls[i]; media.figure = q.figure; }
+    if (q && q.figure && figureUrls[i]) {
+      media.question_image = figureUrls[i];
+      media.figure = q.figure;
+      // Every figure renderFigures draws paints its own counter, so the chat
+      // body under it must not repeat it. Recorded on the row, not assumed at
+      // send time: a picture stored before the frame existed has no counter,
+      // and its question still needs the one in the body.
+      media.question_image_paints_counter = true;
+    }
     if (cardUrls[i]) media.question_card = cardUrls[i];
     row.media = media;
     // A card carries the figure inside it; the header-image pattern is for a
@@ -465,9 +500,14 @@ async function updateQuiz(quizId, patch) {
   if (error) throw new Error(`quizzes update failed: ${error.message}`);
 }
 
-async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT) {
+/**
+ * `extra` rides on the `transcript_quiz.failed` event — `step` names which pass
+ * stopped when one reason can come from two of them (`model_failed`: the digest
+ * or the author).
+ */
+async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT, extra = {}) {
   await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource), { language: lang }));
-  logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource });
+  logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource, ...extra });
 }
 
 // ─── the step ────────────────────────────────────────────────────────────────
@@ -507,6 +547,9 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
   const bad = new Set();
   let other = false;
   errors.forEach((e) => {
+    // A misaddressed question is a sound question with one wrong verb: it is
+    // shipped with the fault recorded, never dropped (see ADDRESS_FAULT).
+    if (ADDRESS_FAULT.test(e)) return;
     const m = perQuestion.exec(e);
     if (m) bad.add(Number(m[1]));
     else if (!setLevelSoft.test(e) && !SOFT_FAULT.test(e)) other = true;
@@ -543,6 +586,156 @@ async function renderFor(api, { questions, rows, language, teacherId, quizId }) 
     api.renderCards({ rows, questions, language, teacherId, quizId }),
   ]);
   return { figureUrls, cardUrls };
+}
+
+/**
+ * PICTURE DENSITY — a grade 1-5 maths quiz aims for FIGURE_TARGET pictures.
+ *
+ * Production drew a picture on 5.5% of maths items: the author was asked for
+ * "two or three" and nothing held it to more than one. Too few is a SOFT
+ * complaint (FIGURE_FEW) — refusals cost teachers quizzes — so it is answered
+ * with a targeted "add a picture" call on the questions a picture helps most
+ * (transcript-quiz-rewrite addPictures, the one rewrite allowed to add a
+ * figure). The merged set is validated IN FULL like any rewrite; a picture
+ * fault on an added question reverts that question alone. Whatever happens,
+ * the quiz ships: repaired, partly repaired, or as it was, with FIGURE_FEW in
+ * meta.soft_faults. `transcript_quiz.figure_density` records before/after on
+ * every grade 1-5 maths quiz, so the rate is measurable.
+ *
+ * The call may also REPLACE a question no picture can answer (a step of a
+ * procedure) with a new read-off question on the same objective; `replaced`
+ * names those, and a replacement the validator refuses is reverted to the
+ * original question like any other added picture. It asks for one picture more
+ * than the shortfall (inside the half cap), and when pictures were refused and
+ * the quiz is still short it is called ONCE more with what was refused and why
+ * (`rounds` records how many calls ran; `reverted` the questions that still
+ * have no picture after a refusal).
+ *
+ * Runs after every authoring repair and BEFORE the key check and the blind
+ * solve, so a stem rewritten to point at its new picture — and a replaced
+ * question's new key — is checked like any other. Never throws.
+ */
+/** The add-pictures repair runs at most this many times; the second only after refusals. */
+const DENSITY_ROUNDS = 2;
+
+async function runFigureDensity(api, {
+  questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, lessonDrew, attempts,
+}) {
+  const measure = (qs) => figureDensity(qs, { subject: digest.subject, gradeBand });
+  const before = measure(questions);
+  if (!before.applies) return { record: null };
+  const record = {
+    before: before.figured, after: before.figured, target: before.target, n: before.n, need: before.need,
+    asked: 0, added: [], replaced: [], repaired: false, reason: null, cost_usd: 0,
+  };
+  const finish = (out = {}) => {
+    const now = measure(out.questions || questions);
+    record.after = now.figured;
+    record.complaint = now.complaint;
+    logEvent('transcript_quiz.figure_density', {
+      quizId, before: record.before, after: record.after, target: record.target, n: record.n, asked: record.asked, rounds: record.rounds || 0,
+      added: record.added, replaced: record.replaced, reverted: record.reverted || [], repaired: record.repaired, reason: record.reason,
+    });
+    return { record, ...out };
+  };
+  if (!before.need) { record.reason = 'enough'; return finish(); }
+
+  const ctx = {
+    language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
+  };
+  const hard = (errs) => errs.filter((e) => !SOFT_FAULT.test(String(e)));
+  const qIndex = (e) => { const m = /^q(\d+):/.exec(String(e)); return m ? Number(m[1]) : null; };
+  let current = questions;
+  let currentV = null;
+  const added = [];
+  const replaced = [];
+  const refusedEver = new Set();
+  let refused = [];
+  let failure = null;
+  record.rounds = 0;
+  // At most TWO calls, and the second only when the first had pictures refused
+  // and the quiz is still short. Live (grade 4 English) the repair bolted bars
+  // onto three method questions, all refused by FIGURE_MISMATCH, and the quiz
+  // shipped with two; told what was refused and why, a second call replaces them.
+  for (let round = 1; round <= DENSITY_ROUNDS; round += 1) {
+    const now = measure(current);
+    if (!now.need) break;
+    // ONE picture more than the shortfall, inside the half cap. Asked for exactly
+    // the shortfall, the repair left two of three live fractions quizzes one
+    // short: one of its pictures was refused and there was nothing behind it.
+    const asked = Math.max(now.need, Math.min(now.need + 1, now.room ?? now.need));
+    if (round === 1) record.asked = asked;
+    let rw;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      rw = await api.addPictures({
+        questions: current, digest, language, gradeBand, lessonDrew, need: asked, quizId, refused,
+      });
+    } catch (err) {
+      rw = { attempted: true, indices: [], merged: null, added: [], replaced: [], error: err.message };
+    }
+    if (rw.error) {
+      logToFile('❌ transcript quiz: the add-pictures call failed — the quiz ships with what it has', { quizId, round, error: rw.error }, 'error');
+    }
+    record.cost_usd = Math.round(((record.cost_usd || 0) + (rw.costUsd || 0)) * 1e6) / 1e6;
+    if (!rw.attempted) { failure = failure || 'no_candidates'; break; }
+    record.rounds = round;
+    attempts.push({
+      attempt: 'add_pictures', round, indices: rw.indices, added: rw.added, replaced: rw.replaced || [], model: rw.model || null,
+      cost_usd: rw.costUsd || null, latency_ms: rw.latencyMs || null, error: rw.error || null,
+    });
+    if (!rw.merged) { failure = failure || (rw.error ? 'call_failed' : 'nothing_usable'); break; }
+
+    // Validated in full. A hard fault on a question the repair did NOT touch
+    // cannot come from it (the set arrived shippable), so it refuses the round;
+    // a fault on an ADDED question reverts that one question to what it was.
+    let roundAdded = [...rw.added];
+    let merged = rw.merged;
+    let v = validate(merged, ctx);
+    refused = [];
+    if (hard(v.errors).length) {
+      const errs = hard(v.errors);
+      const stray = errs.some((e) => { const i = qIndex(e); return i === null || !roundAdded.includes(i); });
+      record.errors = errs.slice(0, 4).map((e) => String(e).slice(0, 160));
+      if (stray) { failure = failure || 'merged_set_invalid'; break; }
+      const named = new Set(errs.map(qIndex));
+      const revert = roundAdded.filter((i) => named.has(i));
+      refused = revert.map((i) => ({ index: i, error: String(errs.find((e) => qIndex(e) === i)).slice(0, 220) }));
+      revert.forEach((i) => refusedEver.add(i));
+      roundAdded = roundAdded.filter((i) => !revert.includes(i));
+      if (!roundAdded.length) { failure = failure || 'every_picture_failed'; continue; }
+      const entering = current;
+      merged = merged.map((q, i) => (revert.includes(i) ? entering[i] : q));
+      v = validate(merged, ctx);
+      if (hard(v.errors).length) { failure = failure || 'merged_set_invalid'; break; }
+    }
+    current = v.questions;
+    currentV = v;
+    added.push(...roundAdded);
+    // a replaced question that was reverted is the original again, not new
+    replaced.push(...(rw.replaced || []).filter((i) => roundAdded.includes(i)));
+    if (!refused.length) break;
+  }
+  record.reverted = [...refusedEver].filter((i) => !added.includes(i)).sort((a, b) => a - b);
+  if (!added.length) { record.reason = failure || 'nothing_usable'; return finish(); }
+  try {
+    const drafted = toRows(quizId, currentV.questions);
+    const { figureUrls, cardUrls } = await renderFor(api, {
+      questions: currentV.questions, rows: drafted, language, teacherId, quizId,
+    });
+    record.added = [...added].sort((a, b) => a - b);
+    record.replaced = [...replaced].sort((a, b) => a - b);
+    record.repaired = true;
+    record.reason = refusedEver.size ? 'added_some' : 'added';
+    return finish({
+      changed: true, questions: currentV.questions, figureUrls, cardUrls, draftedRows: drafted,
+      softFaults: currentV.errors.length ? currentV.errors : null,
+    });
+  } catch (figErr) {
+    logToFile('❌ transcript quiz: the pictures added for density could not be drawn — the quiz ships as it was', { quizId, error: figErr.message }, 'error');
+    record.reason = 'render_failed';
+    return finish();
+  }
 }
 
 /**
@@ -981,41 +1174,70 @@ async function process(quizId, payload = {}) {
     }
   }
 
+  // A quiz born of a RECORDING is written from its transcript, and the offer
+  // and /quiz (list and Flow) never reach here with one shorter than
+  // MIN_TRANSCRIPT_CHARS. The contract is asserted here as well, BEFORE any
+  // model call (root rule 24c), so a transcript that cannot carry a quiz is
+  // named for what it is — source_unusable, the one failure where "the
+  // transcript didn't carry enough" is true — and never spends a digest and
+  // three authoring attempts to be reported as the model's failure.
+  if (!isLp && !(quiz.status === 'ready' && meta.step === 'ready')) {
+    const chars = String(session.transcript_text || '').length;
+    if (chars < MIN_TRANSCRIPT_CHARS) {
+      await updateQuiz(quizId, {
+        status: 'failed',
+        meta: { ...meta, step: 'failed', error: 'source_unusable', error_detail: `transcript: ${chars} chars, below ${MIN_TRANSCRIPT_CHARS}` },
+      });
+      await tellTeacherFailed(phone, teacherLang, quizId, 'source_unusable', quizSource, { step: 'source', transcriptChars: chars });
+      return { failed: true, reason: 'source_unusable' };
+    }
+  }
+
   // ── digest (already there when the offer path claimed the row; /quiz path lands here without one)
   if (!meta.digest) {
+    // The lp_v8 quiz's language is settled from the catalog subject BEFORE
+    // the digest (the digest writes its SLO statements for it), with the
+    // slide script's own language as the tie-break a transcript would give.
+    const lpLanguage = isLp
+      ? (quiz.language || quizLanguageFor(quiz.subject, slideScript && slideScript.meta && slideScript.meta.language))
+      : null;
+    // ONLY the digest call is caught here. What it throws is either the plan
+    // having no lesson in it (source_unusable) or the model/provider giving
+    // nothing usable (model_failed) — and the teacher is told which. A database
+    // error writing the result below is neither: it throws, so the queue
+    // redelivers the job, exactly as a slide-script store error does.
+    let r;
     try {
-      // The lp_v8 quiz's language is settled from the catalog subject BEFORE
-      // the digest (the digest writes its SLO statements for it), with the
-      // slide script's own language as the tie-break a transcript would give.
-      const lpLanguage = isLp
-        ? (quiz.language || quizLanguageFor(quiz.subject, slideScript && slideScript.meta && slideScript.meta.language))
-        : null;
       // The served lesson's id names the quiz from the catalog: the Urdu label
       // (topic_as_taught → quizzes.topic, the forward message, the PDF) is the
       // name on the lesson's own PDF, never the model's reading of the script.
-      const r = isLp
+      r = isLp
         ? await LpDigest.run({
           slideScript, language: lpLanguage, grade: quiz.grade, subject: quiz.subject,
           lessonId: (((quiz.meta && quiz.meta.lessons) || [])[0] || {}).lesson_id || null,
         })
         : await Digest.run({ session, user });
-      meta = { ...meta, digest: r.digest, grade: r.grade, grade_source: r.gradeSource, lp_hint: r.lpHint,
-        digest_model: r.model, cost_usd: (meta.cost_usd || 0) + (r.costUsd || 0) };
-      // The teacher's own choice, stored on the row when the language ask was
-      // answered, outranks the subject rule. The rule is what a legacy row (or
-      // a skipped ask) falls back to.
-      const language = lpLanguage || quiz.language || quizLanguageFor(r.digest.subject, session.transcript_language);
-      quiz.language = language;
-      quiz.subject = r.digest.subject;
-      quiz.topic = topicFor(r.digest, language) || quiz.topic;
-      quiz.grade = r.grade || quiz.grade;
-      await updateQuiz(quizId, { topic: quiz.topic || 'Lesson', subject: quiz.subject, language, grade: r.grade || null, meta: { ...meta, step: 'author' } });
     } catch (err) {
-      logToFile('❌ transcript quiz: digest failed in generate', { quizId, error: err.message }, 'error');
-      await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: `digest: ${err.message}` } });
-      await tellTeacherFailed(phone, teacherLang, quizId, 'digest_failed', quizSource);
-      return { failed: true, reason: 'digest_failed' };
+      const reason = digestFailureReason(err);
+      logToFile('❌ transcript quiz: digest failed in generate', { quizId, reason, code: err.code || null, error: err.message }, 'error');
+      await updateQuiz(quizId, {
+        status: 'failed',
+        meta: { ...meta, step: 'failed', error: reason, error_detail: `digest: ${err.message}` },
+      });
+      await tellTeacherFailed(phone, teacherLang, quizId, reason, quizSource, { step: 'digest' });
+      return { failed: true, reason };
     }
+    meta = { ...meta, digest: r.digest, grade: r.grade, grade_source: r.gradeSource, lp_hint: r.lpHint,
+      digest_model: r.model, cost_usd: (meta.cost_usd || 0) + (r.costUsd || 0) };
+    // The teacher's own choice, stored on the row when the language ask was
+    // answered, outranks the subject rule. The rule is what a legacy row (or
+    // a skipped ask) falls back to.
+    const language = lpLanguage || quiz.language || quizLanguageFor(r.digest.subject, session.transcript_language);
+    quiz.language = language;
+    quiz.subject = r.digest.subject;
+    quiz.topic = topicFor(r.digest, language) || quiz.topic;
+    quiz.grade = r.grade || quiz.grade;
+    await updateQuiz(quizId, { topic: quiz.topic || 'Lesson', subject: quiz.subject, language, grade: r.grade || null, meta: { ...meta, step: 'author' } });
   }
   const digest = meta.digest;
   const language = quiz.language || quizLanguageFor(digest.subject, session.transcript_language);
@@ -1036,6 +1258,14 @@ async function process(quizId, payload = {}) {
     let readyLessonSummary = null;
     const attempts = [];
     const attemptsAllowed = maxAttempts();
+    // How many author attempts came back with ANY questions to judge. Zero means
+    // the model never gave a usable reply (empty, cut off or unparseable after
+    // completeJson's retry, or a refused call) — that is model_failed, not
+    // "the questions didn't come out clear enough".
+    let authorReplies = 0;
+    // WHAT THE LESSON DREW — an lp_v8 lesson's own manipulatives (the slide
+    // script's counters, bundles and tiles), so a picture draws what the class saw.
+    const lessonDrew = isLp ? LpDigest.lessonDrewBlock(slideScript) : '';
     for (let attempt = 1; attempt <= attemptsAllowed; attempt += 1) {
       let out;
       try {
@@ -1045,13 +1275,14 @@ async function process(quizId, payload = {}) {
           // An lp_v8 quiz has no transcript: the author reads the planned
           // lesson — the same picker the digest used, so the exit MCQ and the
           // plan's gendered prose are absent here too.
-          ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript) } : {}),
+          ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript), lessonDrew } : {}),
         });
       } catch (err) {
         attempts.push({ attempt, error: err.message });
         previousErrors = [`the previous reply was not valid JSON (${err.code || err.message})`];
         continue;
       }
+      authorReplies += 1;
       lastLessonSummary = out.lessonSummary;
       lastExtras = out.extras || lastExtras;
       let v = validate(out.questions, {
@@ -1080,15 +1311,33 @@ async function process(quizId, payload = {}) {
           logEvent('transcript_quiz.teacher_fields_repaired', { quizId, after: attempt, indices: tf.indices, ok: Boolean(tf.merged) && !Rw.teacherFieldTargets(v.errors).length, remaining: v.errors.length });
         }
       }
+      // ── THE CHILD'S GENDER: REPAIRED IN PLACE, THEN SHIPPED ───────────────
+      // When the only complaints left are verbs that speak to the child with a
+      // gender, one targeted rewrite is asked to change exactly those verbs.
+      // Whatever it leaves, the quiz is not re-rolled for it: a clean repair
+      // ships from runRewrite, and otherwise THIS attempt ships as it stands,
+      // through the same picture and render checks as a clean attempt, with the
+      // faults recorded. Tried on every attempt, the last included.
+      let addressFaults = null;
+      if (!v.ok && addressOnly(v.errors)) {
+        logEvent('transcript_quiz.child_address', {
+          quizId, after: attempt, questions: v.errors.length, indices: v.errors.map((e) => Number(/^q(\d+)/.exec(e)[1])),
+        });
+        // eslint-disable-next-line no-await-in-loop
+        const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
+        if (fixed.ok) break;
+        addressFaults = v.errors;
+        v = { ...v, ok: true };
+      }
       if (v.ok) {
         const needFig = figureRequiredError({
           questions: v.questions, subject: digest.subject, attempt, maxAttempts: attemptsAllowed,
           gradeBand: digest.grade_band || meta.grade,
         });
         if (needFig) {
-          attempts[attempts.length - 1].errors = [needFig];
+          attempts[attempts.length - 1].errors = [needFig, ...(addressFaults || [])];
           logToFile('⚠️ transcript quiz: drawable lesson came back without a picture', { quizId, attempt });
-          previousErrors = [needFig];
+          previousErrors = [needFig, ...(addressFaults || [])];
           lastRejected = out.questions;
           lastErrors = [needFig];
           continue;
@@ -1111,6 +1360,11 @@ async function process(quizId, payload = {}) {
         }
         questions = v.questions;
         readyLessonSummary = out.lessonSummary;
+        if (addressFaults) {
+          meta.soft_faults = addressFaults;
+          attempts.push({ attempt: 'soft_ship', after: attempt, errors: addressFaults });
+          logEvent('transcript_quiz.shipped_with_soft_faults', { quizId, faults: addressFaults.length, kinds: ['PEDAGOGY_GENDERED_CHILD'] });
+        }
         break;
       }
       logToFile('⚠️ transcript quiz: validator rejected attempt', { quizId, attempt, errors: v.errors.slice(0, 8) });
@@ -1168,7 +1422,10 @@ async function process(quizId, payload = {}) {
             language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: rwSummary, quizId,
           })
           : null;
-        let ok = Boolean(v && v.ok);
+        // A repaired set whose only remaining complaints are verbs that speak
+        // to the child with a gender is shipped (ADDRESS_FAULT): the repair
+        // was the one attempt at them, and the rest of the set is sound.
+        let ok = Boolean(v && (v.ok || addressOnly(v.errors)));
         if (ok) {
           try {
             const drafted = toRows(quizId, v.questions);
@@ -1178,6 +1435,10 @@ async function process(quizId, payload = {}) {
             draftedRows = drafted;
             questions = v.questions;
             readyLessonSummary = rwSummary;
+            if (!v.ok) {
+              meta.soft_faults = v.errors;
+              logEvent('transcript_quiz.shipped_with_soft_faults', { quizId, faults: v.errors.length, kinds: ['PEDAGOGY_GENDERED_CHILD'] });
+            }
           } catch (figErr) {
             logToFile('⚠️ transcript quiz: the rewritten set could not be drawn', { quizId, error: figErr.message });
             ok = false;
@@ -1286,9 +1547,30 @@ async function process(quizId, payload = {}) {
     }
     meta.author_attempts = attempts;
     if (!questions) {
-      await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed' } });
-      await tellTeacherFailed(phone, teacherLang, quizId, 'validator_failed', quizSource);
-      return { failed: true, reason: 'validator_failed', attempts };
+      // The reason is persisted on the row (it was not, for validator_failed),
+      // so /quiz repeats the same sentence later instead of inferring one.
+      const reason = authorReplies === 0 ? 'model_failed' : 'validator_failed';
+      await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: reason } });
+      await tellTeacherFailed(phone, teacherLang, quizId, reason, quizSource, { step: 'author' });
+      return { failed: true, reason, attempts };
+    }
+    // ── PICTURE DENSITY (grade 1-5 maths) ────────────────────────────────────
+    // Before the key checks, so a stem rewritten for its picture is checked too.
+    const dens = await runFigureDensity(api, {
+      questions, digest, language, quizId, teacherId: quiz.teacher_id, lessonSummary: readyLessonSummary,
+      gradeBand: digest.grade_band || meta.grade, lessonDrew, attempts,
+    });
+    if (dens.record) {
+      meta.figure_density = dens.record;
+      meta.cost_usd = (meta.cost_usd || 0) + (dens.record.cost_usd || 0);
+      if (dens.changed) {
+        questions = dens.questions;
+        figureUrls = dens.figureUrls;
+        cardUrls = dens.cardUrls;
+        draftedRows = dens.draftedRows;
+        if (dens.softFaults) meta.soft_faults = dens.softFaults;
+      }
+      if (dens.record.complaint) meta.soft_faults = [...(meta.soft_faults || []), dens.record.complaint];
     }
     // ── THE KEY CHECK (lp_v8 only) ───────────────────────────────────────────
     // Every key held against the lesson it was written from, after every repair
@@ -1338,6 +1620,16 @@ async function process(quizId, payload = {}) {
       draftedRows = kv.draftedRows;
       if (kv.softFaults) meta.soft_faults = kv.softFaults;
     }
+    // ── A NAME IN ENGLISH LETTERS IN AN URDU QUIZ (recorded, never refused) ──
+    const names = latinNames(questions, { language, digest });
+    if (names.length) {
+      meta.soft_faults = [...(meta.soft_faults || []), ...names];
+      logEvent('transcript_quiz.latin_name', {
+        quizId, quiz_source: quizSource,
+        names: [...new Set(names.map((e) => /"([^"]+)"/.exec(e)[1]))],
+        questions: [...new Set(names.map((e) => Number(/^q(\d+)/.exec(e)[1])))],
+      });
+    }
     const rows = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
     const { error: insErr } = await supabase.from('quiz_questions').insert(rows);
@@ -1381,6 +1673,8 @@ module.exports = {
   failureCopyKey, tellTeacherFailed,
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
   rewriteTeacherFields: (args) => require('./transcript-quiz-rewrite').rewriteTeacherFields(args),
+  // Grade 1-5 maths only — the one rewrite that may add a picture (runFigureDensity).
+  addPictures: (args) => require('./transcript-quiz-rewrite').addPictures(args),
   // lp_v8 only — the answer-key check against the lesson (lp-quiz-key-check.service).
   checkKeys: (args) => require('./lp-quiz-key-check.service').checkKeys(args),
   // Both sources — the blind solve of every key (transcript-quiz-key-verify.service).

@@ -151,12 +151,19 @@ describe('bd-mg9c7.48 — D6 header: no lockup, no "For", name · grade only', (
     expect(html).not.toMatch(/For <b>/);
   });
 
-  test('an empty teacherName falls back to the class-results string, not a blank "For"', () => {
+  // Superseded: an empty name used to be replaced by "Class results", which
+  // the eyebrow above already says. The report is read BY the teacher, so a
+  // teacher with no name on record reads the class alone — no filler, and never
+  // the children's "your teacher".
+  test('an empty teacherName leaves the class alone on the line, no filler and no blank "For"', () => {
     const html = renderHtml({ ...BASE, teacherName: '' });
-    expect(html).toMatch(/<div class="who">Class results/);
-    // the "who" line itself carries no name span (a roster/unfinished name
-    // span elsewhere in the document is a separate, expected thing).
-    expect(html).toMatch(/<div class="who">Class results &middot; Grade 5<\/div>/);
+    expect(html).toMatch(/<div class="who">Grade 5<\/div>/);
+    expect(html).not.toMatch(/Class results|Your teacher/);
+  });
+
+  test('no name and no class: no who-line at all, not an empty one', () => {
+    const html = renderHtml({ ...BASE, teacherName: '', grade: '', classes: [] });
+    expect(html).not.toMatch(/<div class="who">/);
   });
 
   test('an empty grade drops the " · Grade N" half entirely — no trailing separator', () => {
@@ -592,23 +599,31 @@ describe('bd-mg9c7.48 — what the round-4 renders showed', () => {
   describe('the roster class label follows the document language (D1)', () => {
     test('classLabel labels the unit in Urdu for an Urdu document', () => {
       expect(classLabel('5', 'ur')).toBe('جماعت 5');
-      expect(classLabel('5', 'en')).toBe('Grade 5');
-      expect(classLabel('5')).toBe('Grade 5');           // unchanged default
+      expect(classLabel('5', 'en')).toBe('Class 5');
+      expect(classLabel('5')).toBe('Class 5');           // English by default
     });
 
-    test('a class the child already named keeps what they typed, in either language', () => {
-      expect(classLabel('Class 3', 'ur')).toBe('Class 3');
+    // Superseded: a class the child named used to keep what they typed, so one
+    // Urdu roster printed "Class 3" beside "جماعت 4". Every label is now
+    // written the document's one way.
+    test('a class the child already named is rewritten the document\'s one way, in either language', () => {
+      expect(classLabel('Class 3', 'ur')).toBe('جماعت 3');
       expect(classLabel('جماعت 4', 'ur')).toBe('جماعت 4');
-      expect(classLabel('جماعت 4', 'en')).toBe('جماعت 4');
+      expect(classLabel('جماعت 4', 'en')).toBe('Class 4');
       expect(classLabel('', 'ur')).toBe('');
     });
 
     test('the Urdu report renders the Urdu label on the roster row', () => {
+      // Two classes: with one, the hero names it and the rows carry no label.
       const html = renderHtml({
         ...BASE, language: 'ur', contentLanguage: 'ur',
-        students: [{ student_name: 'عائشہ', student_class: '5', correct_answers: 7, total_questions_answered: 8, mastery_percentage: 88 }],
+        students: [
+          { student_name: 'عائشہ', student_class: '5', correct_answers: 7, total_questions_answered: 8, mastery_percentage: 88 },
+          { student_name: 'Ali', student_class: 'Class 4', correct_answers: 5, total_questions_answered: 8, mastery_percentage: 63 },
+        ],
       });
       expect(html).toMatch(/class="cls">[^<]*جماعت/);
+      expect(html).not.toMatch(/class="cls">[^<]*Class/);
     });
   });
 
@@ -634,12 +649,17 @@ describe('bd-mg9c7.48 — what the round-4 renders showed', () => {
     const html = renderHtml(BASE);
 
     test('nothing that reads as one unit may split across a page break', () => {
-      // .try-part joined the list in round 5: each guidance part is now its own
-      // white block, and a block split from its own label reads as two things.
-      const rule = (html.match(/\.moment,\.try,\.try-part,\.unfin,\.r-row\{([^}]*)\}/) || [])[1];
+      // The unit is the smallest thing that reads as one: a question with its
+      // tally (.mtop), the chose row, one explanation, a roster row, the
+      // not-finished box, and each part of the guidance box. A whole card and
+      // the guidance box may break BETWEEN those (the printed-page tests in
+      // class-report-layout.test.js measure what that buys); a part never
+      // leaves its own label.
+      const rule = (html.match(/\.mtop,\.chose,\.why,\.unfin,\.r-row,\.try-part\{([^}]*)\}/) || [])[1];
       expect(rule).toBeTruthy();
       expect(rule).toMatch(/break-inside:avoid/);
       expect(rule).toMatch(/page-break-inside:avoid/);
+      expect(html).toMatch(/\.try-label,\.try \.label\{break-after:avoid/);
     });
 
     test('a section label may not be orphaned at the foot of a page', () => {

@@ -177,11 +177,74 @@ describe('handleListPick on an lp_v8 row', () => {
     expect(SQS.queueJob).not.toHaveBeenCalled();
   });
 
+  // The afternoon offer's yes on any subject but Urdu/Islamiyat leaves the row
+  // `offered` at `awaiting_language` until the teacher taps a language. A
+  // teacher who ignored that ask and opened /quiz later saw "Offered — tap to
+  // make", tapped, and was told "That quiz is still being made" — while nothing
+  // was queued and nothing ever would be.
+  const WAIT_ID = 'a1b2c3d4-0000-4000-8000-00000000abcd';
+  const waiting = () => lpQuiz(21, {
+    id: WAIT_ID, status: 'offered', language: null,
+    meta: { step: 'awaiting_language', awaiting_language: true, source: 'lp_offer', nudge_id: 'nudge-1', lesson_date: '2026-09-21' },
+  });
+
+  test('an lp_v8 quiz still waiting for its language re-sends the language ask — never "still being made"', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [waiting()], quiz_sessions: [] });
+    await List.handleListPick(`tq_pick_lp_${WAIT_ID}`, '923001112222', USER);
+
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalledWith('923001112222', UX_STRINGS.tqStillMaking.en);
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+    const ask = WhatsAppService.sendInteractiveButtons.mock.calls[0][1];
+    // A lesson-plan quiz has no digest yet: the maths pair names the examples.
+    expect(ask.body).toBe(UX_STRINGS.tqAskLanguage.en
+      .replace('{examples}', ['fraction', 'numerator'].map((t) => `\u2068${t}\u2069`).join(UX_STRINGS.vqLetterSep.en)));
+    // The subject rule (maths → Urdu) is the first, easy tap — as on the offer.
+    expect(ask.buttons.map((b) => b.id)).toEqual([`tq_lang_ur_${WAIT_ID}`, `tq_lang_en_${WAIT_ID}`]);
+    // Nothing is made until the teacher answers.
+    expect(SQS.queueJob).not.toHaveBeenCalled();
+    expect(writes).toEqual([]);
+  });
+
+  test('answering the re-sent ask makes it: generating in the chosen language, the LP quiz job queued', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [waiting()], quiz_sessions: [] });
+    await List.handleListPick(`tq_pick_lp_${WAIT_ID}`, '923001112222', USER);
+    const [englishButton] = WhatsAppService.sendInteractiveButtons.mock.calls[0][1].buttons
+      .filter((b) => b.id.startsWith('tq_lang_en_'));
+
+    const Offer = require('../../shared/services/quiz/transcript-quiz-offer.service');
+    await Offer.handleLanguageButton(englishButton.id, '923001112222', USER);
+
+    expect(writes).toContainEqual({
+      op: 'update', patch: expect.objectContaining({ status: 'generating', language: 'en' }),
+    });
+    expect(SQS.queueJob).toHaveBeenCalledWith(
+      WAIT_ID, 'quiz_generate', expect.objectContaining({ quizId: WAIT_ID, source: 'lp_offer' }), expect.anything(),
+    );
+  });
+
   test('a failed lp_v8 quiz names the step that stopped it, and never offers to make it from a session', async () => {
     stub({ users, coaching_sessions: [], quizzes: [lpQuiz(21, { status: 'failed', meta: { error: 'source_missing', lesson_date: '2026-09-21' } })], quiz_sessions: [] });
     await List.handleListPick('tq_pick_lp_lpq-21', '923001112222', USER);
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923001112222', UX_STRINGS.tqFailedLpSource.en);
     expect(writes).toEqual([]);
     expect(SQS.queueJob).not.toHaveBeenCalled();
+  });
+
+  // The persisted reason decides the sentence /quiz repeats: a quiz the MODEL
+  // failed is never re-described as a lesson plan that could not be read.
+  test.each([
+    ['model_failed', 'tqFailedLpModel'],
+    ['source_unusable', 'tqFailedLpSourceUnusable'],
+    ['validator_failed', 'tqFailedLpAuthor'],
+    // Rows written before the split carry `digest: <what the digest threw>`.
+    ['digest: lp_quiz.digest: empty reply from google/gemini-2.5-flash', 'tqFailedLpModel'],
+    ['digest: 429 Rate limit reached for requests', 'tqFailedLpModel'],
+    ['digest: lp digest: the slide script carries no lesson to digest', 'tqFailedLpSourceUnusable'],
+  ])('a failed lp_v8 quiz with meta.error %j repeats %s', async (error, key) => {
+    stub({ users, coaching_sessions: [], quizzes: [lpQuiz(21, { status: 'failed', meta: { error, lesson_date: '2026-09-21' } })], quiz_sessions: [] });
+    await List.handleListPick('tq_pick_lp_lpq-21', '923001112222', USER);
+    expect(UX_STRINGS[key]).toBeDefined();
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923001112222', UX_STRINGS[key].en);
+    expect(writes).toEqual([]);
   });
 });

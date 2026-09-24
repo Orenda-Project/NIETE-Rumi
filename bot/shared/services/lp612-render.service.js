@@ -42,6 +42,7 @@ const { logEvent } = require('../utils/structured-logger');
 // `require(path.join(...))` is invisible to it — a vendored file that stopped existing would
 // then reach production as a runtime crash instead of a red gate.
 const { renderDoc } = require('../../vendor/lp-v9/render_lp.js');
+const { attachFbiseSlos } = require('./lp612-fbise-tags');
 
 function renderFailed(message, extra = {}) {
   const err = new Error(message);
@@ -182,7 +183,9 @@ async function renderLessonPlan({
   try {
     fs.mkdirSync(outDir, { recursive: true });
     docPath = path.join(outDir, `${stem}.lp.json`);
-    fs.writeFileSync(docPath, JSON.stringify(lpDoc, null, 1), 'utf8');
+    // bd-f01ob: the FBISE status of each SLO is looked up here, on every render path (gate, final,
+    // overlay, reuse), so stored documents gain it on re-render without being rewritten.
+    fs.writeFileSync(docPath, JSON.stringify(attachFbiseSlos(lpDoc, segmentId), null, 1), 'utf8');
   } catch (e) {
     // A disk/permission failure preparing the temp files. Not the document's fault, and not the
     // Chromium launch below — but it must still carry `.infra: true` (bd-htueq), because a caller

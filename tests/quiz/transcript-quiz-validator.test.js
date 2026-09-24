@@ -114,7 +114,12 @@ describe('validate — Urdu', () => {
       wrong: { 1: 'پتا ہوا میں ہوتا ہے؛ مٹی کے نیچے جڑ ہوتی ہے۔', 2: 'پھول اوپر ہوتا ہے؛ مٹی کے نیچے جڑ ہوتی ہے۔' } },
     ...over,
   });
-  const urEight = () => eightGood().map((x, i) => urQ({ slo_id: x.slo_id, level: x.level, question: `${x.question} ${i}` }));
+  // The questions are Urdu too. They used to be the English placeholders of
+  // eightGood() ("q3 2"), which passed only while the script share pooled the
+  // questions with three Urdu feedback strings each; it is now taken over the
+  // questions on their own, and a quiz whose questions are English is not a
+  // proper Urdu quiz.
+  const urEight = () => eightGood().map((x, i) => urQ({ slo_id: x.slo_id, level: x.level, question: `پودے کا کون سا حصہ مٹی کے نیچے ہوتا ہے؟ ${i}` }));
 
   test('a proper Urdu quiz passes, with English technical terms allowed', () => {
     const qs = urEight(); qs[0].options = ['root', 'پتا', 'پھول'];
@@ -163,9 +168,10 @@ describe('validate — Urdu', () => {
     expect(out2.questions[0].options[0]).toBe('numerator');
   });
 
-  test('feminine-stem address is rejected', () => {
+  test('a feminine address to the child is rejected, named on its question', () => {
     const qs = urEight(); qs[0].option_feedback.correct = 'آپ سمجھ سکتی ہیں کہ جڑ نیچے ہوتی ہے۔';
-    expect(V.validate(qs, urCtx).errors.some((e) => /feminine-stem/.test(e))).toBe(true);
+    const errs = V.validate(qs, urCtx).errors;
+    expect(errs.some((e) => /^q0: PEDAGOGY_GENDERED_CHILD — option_feedback speaks to the child with a gendered verb \("آپ … سکتی ہیں"\)/.test(e))).toBe(true);
   });
 
   test('Islamiyat: a Prophet mention without ﷺ fails; with it passes', () => {

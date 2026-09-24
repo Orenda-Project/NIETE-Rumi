@@ -548,6 +548,10 @@ async function startDebrief(sessionId, from, user) {
     });
     validateGuide(result, S, lang);
     guide = result;
+    // Soft, log only: a verb that speaks to the teacher or the coach with a
+    // gender is counted on observe.gendered_address; the guide goes out as is.
+    const { noteGenderedAddress, guideFields } = require('./observe-gender-address');
+    noteGenderedAddress('debrief_guide', guideFields(guide), { sessionId, language: lang });
   } catch (err) {
     logToFile('⚠️ observe debrief: guide LLM failed/invalid — using fallback', {
       sessionId, error: err.message,
@@ -737,11 +741,15 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
  */
 async function coachFeedbackWithRepair(prompt, sessionId) {
   const { validateCoachFeedback } = require('./observe-coach-feedback');
+  // Soft, log only (observe.gendered_address): the card is returned exactly as
+  // written and never re-asked for a verb — the repair below is for shape only.
+  const { noteGenderedAddress, feedbackFields } = require('./observe-gender-address');
   const { result } = await GPT5MiniService.completeJson(prompt, {
     maxTokens: 6000, label: 'observeCoachFeedback',
   });
   try {
     validateCoachFeedback(result);
+    noteGenderedAddress('coach_feedback', feedbackFields(result), { sessionId });
     return result;
   } catch (vErr) {
     logToFile('⚠️ observe debrief: feedback failed validation — one guided repair', {
@@ -752,6 +760,7 @@ async function coachFeedbackWithRepair(prompt, sessionId) {
       maxTokens: 6000, label: 'observeCoachFeedbackRepair',
     });
     validateCoachFeedback(repaired);   // still strict — throws on a second miss
+    noteGenderedAddress('coach_feedback', feedbackFields(repaired), { sessionId, repaired: true });
     return repaired;
   }
 }

@@ -35,7 +35,7 @@ function codeOf(fn) {
 }
 
 describe('ALLOWED_TYPES', () => {
-  test('is exactly the twenty-three phone-safe types, and excludes the five that are not', () => {
+  test('is exactly the twenty-four phone-safe types, and excludes the five that are not', () => {
     // molecule joined in round 4 (PLAN_R4 D7f): it was excluded because a
     // flash model's SMILES is a gamble, and it is back only because the model
     // no longer writes one — it names a formula from a fixed dictionary and
@@ -47,13 +47,18 @@ describe('ALLOWED_TYPES', () => {
     // the AUTHOR only for a grade 1-5 lesson (CORE_TYPES / EARLY_YEARS_TYPES),
     // but they are allowed at every grade — the validator's job is to accept a
     // legal figure, not to re-litigate the grade.
+    //
+    // base_ten joined with the grade 1-5 maths pictures: a place-value mat of
+    // bundles (or flats, rods and cubes), the manipulative the slide scripts
+    // draw on nearly every place-value page.
     expect(Figure.ALLOWED_TYPES).toEqual([
       'numberline', 'fraction_bar', 'grid', 'geometry', 'graph', 'chem_equation', 'circuit',
       'free_body', 'atom', 'punnett', 'ray_diagram', 'flow', 'timeline', 'cell', 'molecule',
       'word_blank', 'count_objects', 'count_frame', 'clock', 'pattern', 'match', 'money', 'compare_size',
+      'base_ten',
     ]);
     expect(Figure.CORE_TYPES).toHaveLength(15);
-    expect(Figure.EARLY_YEARS_TYPES).toHaveLength(8);
+    expect(Figure.EARLY_YEARS_TYPES).toHaveLength(9);
     expect([...Figure.CORE_TYPES, ...Figure.EARLY_YEARS_TYPES]).toEqual(Figure.ALLOWED_TYPES);
     ['illustrative', 'labelled_figure', 'mindmap', 'panels', 'dna_helix']
       .forEach((t) => expect(Figure.ALLOWED_TYPES).not.toContain(t));
@@ -228,7 +233,10 @@ describe('figureHtml', () => {
     // nothing is fetched at render time: no remote font, stylesheet or image
     expect(html).not.toMatch(/@import/);
     expect(html).not.toMatch(/url\(\s*['"]?https?:/);
-    expect(html).not.toMatch(/<(link|script|img)\b/);
+    expect(html).not.toMatch(/<(link|script)\b/);
+    // The frame's NIETE mark is an <img>, but an inline one: every image on the
+    // page is a data: URI, so nothing is fetched.
+    [...html.matchAll(/<img\b[^>]*>/g)].forEach(([tag]) => expect(tag).toMatch(/src="data:image\/png;base64,/));
   });
 
   test('paints the NIETE tokens and a phone-width white ground', () => {

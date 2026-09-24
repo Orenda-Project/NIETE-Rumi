@@ -1160,11 +1160,13 @@ function countsScreen(state, error = '', errorSlot = null) {
     // and the full name is always spelled out in the helper line under the box.
     data[`label_${i}`] = id ? fitLabel(id) : '';
     data[`help_${i}`] = id ? `How many ${id}?` : '';
-    // Red under THIS box when the refusal is about it. A refusal about the whole
-    // paper (Seen + Unseen over the ceiling) belongs to no single box and shows
-    // only in the line above Continue.
-    data[`err_${i}`] = (id && errorSlot === i) ? error : '';
   }
+  // Red under THIS box when the refusal is about it, via the Form's
+  // `error-messages` map (box name → message). A refusal about the whole paper
+  // (Seen + Unseen over the ceiling) belongs to no single box and shows only in
+  // the line above Continue. (A TextInput-level `error-message` is rejected by
+  // Meta in this Flow version.)
+  data.error_messages = (errorSlot && picked[errorSlot - 1]) ? { [`count_${errorSlot}`]: error } : {};
   return screen('COUNTS', data);
 }
 
@@ -1178,7 +1180,7 @@ function seenCountScreen(state, error = '') {
       : `Between 1 and ${QuestionTypes.MAX_QUESTIONS}.`,
     error,
     // The screen has one box, so every refusal on it is about that box.
-    field_error: error,
+    error_messages: error ? { seen_count: error } : {},
   });
 }
 

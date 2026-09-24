@@ -33,8 +33,10 @@ const { resolveUx } = require('../../config/ux-strings');
 const FeatureIntro = require('../feature-intro.service');
 const Digest = require('./transcript-quiz-digest.service');
 const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel,
-  needsLanguageAsk, languageAskButtons } = require('./transcript-quiz-language');
-const { LP_V8 } = require('./quiz-sources');
+  needsLanguageAsk, languageAskButtons, languageAskBody } = require('./transcript-quiz-language');
+const {
+  LP_V8, lpRemakeable, failureReasonOf, digestFailureReason,
+} = require('./quiz-sources');
 
 const OFFER_YES = 'tq_yes_';
 const OFFER_NO = 'tq_no_';
@@ -205,9 +207,16 @@ async function processOffer(coachingSessionId, payload = {}) {
   try {
     result = await Digest.run({ session, user });
   } catch (err) {
-    logToFile('❌ transcript quiz: digest failed', { coachingSessionId, quizId, error: err.message }, 'error');
-    await markSkipped(quizId, 'digest_failed', { error: err.message });
-    return { skipped: 'digest_failed', quizId };
+    // Named for what happened, like the generate step's digest failure: a
+    // transcript digest has no source-side throw (the length was checked above),
+    // so this is the model or the provider — `digest_failed` said neither. The
+    // teacher was never offered this quiz, so nothing is sent to them; /quiz can
+    // still make it from the same session.
+    const reason = digestFailureReason(err);
+    logToFile('❌ transcript quiz: digest failed', { coachingSessionId, quizId, reason, code: err.code || null, error: err.message }, 'error');
+    await markSkipped(quizId, reason, { error: err.message });
+    logEvent('transcript_quiz.skipped', { coachingSessionId, quizId, reason, step: 'digest' });
+    return { skipped: reason, quizId };
   }
   const { digest, grade, gradeSource, lpHint, model, costUsd } = result;
 
@@ -340,7 +349,9 @@ async function handleOfferButton(buttonId, phone) {
       })
       .eq('id', quizId).eq('status', 'offered').select('id');
     if (!marked || !marked.length) return api.tellAlready(phone, quiz, lang);
-    await api.sendLanguageAsk(quizId, phone, lang, ruleLanguage);
+    await api.sendLanguageAsk(quizId, phone, lang, ruleLanguage, {
+      digest: quiz.meta && quiz.meta.digest, subject: quiz.subject,
+    });
     logEvent('transcript_quiz.language_asked', { quizId, userId: quiz.teacher_id, ruleLanguage, from: 'offer' });
     return true;
   }
@@ -355,10 +366,15 @@ async function tellAlready(phone, quiz, lang) {
   return true;
 }
 
-/** The ask itself — shared with /quiz, which reaches the same decision. */
-async function sendLanguageAsk(quizId, phone, teacherLang, ruleLanguage) {
+/**
+ * The ask itself — shared with /quiz and the lesson-plan offer, which reach the
+ * same decision. `lesson` ({digest, subject}) is what its examples of English
+ * terms are taken from; a caller that knows neither gets an ask naming none,
+ * never another subject's.
+ */
+async function sendLanguageAsk(quizId, phone, teacherLang, ruleLanguage, lesson = {}) {
   await WhatsAppService.sendInteractiveButtons(phone, {
-    body: resolveUx('tqAskLanguage', { language: teacherLang }),
+    body: languageAskBody(lesson, teacherLang),
     buttons: languageAskButtons(quizId, ruleLanguage),
   });
 }
@@ -420,8 +436,28 @@ async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
     await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, source: 'lp_offer' }, { delaySeconds: 0 });
   } catch (err) {
     logToFile('❌ lp quiz offer: quiz_generate could not be queued', { quizId, nudgeId, error: err.message }, 'error');
+    // MERGED into the row's meta, never a fresh object: the lessons, the class
+    // and the lesson date are what the quiz is written from and dated by. A
+    // failure that replaced them left a row /quiz could not date and nobody
+    // could ever make again.
+    const { data: current, error: readErr } = await supabase.from('quizzes')
+      .select('meta').eq('id', quizId).maybeSingle();
+    if (readErr) {
+      logToFile('❌ lp quiz offer: could not read the quiz before marking it failed', { quizId, error: readErr.message }, 'error');
+    }
+    const meta = (current && current.meta) || {};
     const { error } = await supabase.from('quizzes')
-      .update({ status: 'failed', meta: { step: 'failed', error: 'queue_failed', source: 'lp_offer', nudge_id: nudgeId } })
+      .update({
+        status: 'failed',
+        meta: {
+          ...meta,
+          step: 'failed',
+          error: 'queue_failed',
+          error_detail: `queue: ${err.message}`,
+          source: meta.source || 'lp_offer',
+          nudge_id: meta.nudge_id || nudgeId || null,
+        },
+      })
       .eq('id', quizId);
     if (error) logToFile('❌ lp quiz offer: could not mark the quiz failed', { quizId, error: error.message }, 'error');
     await say('lpQuizCouldNotStart');
@@ -429,6 +465,58 @@ async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
   }
   await say('lpQuizMaking');
   return true;
+}
+
+/**
+ * "Make it again" on a FAILED lp_v8 quiz (the /quiz Flow). failed → generating,
+ * once, then the same queue step every lp_v8 quiz goes through.
+ *
+ * Safe to re-queue: the generate step only runs a row in generating / ready /
+ * offered, and every failure write it makes keeps `meta` (the lessons, the
+ * class, the lesson date), so the remake reads what the first attempt read.
+ * The atomic `status = failed` filter is what makes a double submit a no-op —
+ * nothing below de-duplicates a quiz_generate job (its FIFO id is per call).
+ * A digest the first attempt already wrote is kept, so a quiz that failed at
+ * authoring goes straight back to authoring. The failure it replaces is kept as
+ * `previous_error`; `error` is cleared so no surface reads a stale reason off a
+ * row that is being made.
+ *
+ * @returns {Promise<boolean>} true when the remake was queued
+ */
+async function remakeLpQuiz({ quiz, phone, teacherLang, source = 'flow' }) {
+  const api = module.exports;
+  const meta = quiz.meta || {};
+  if (quiz.quiz_source !== LP_V8 || !lpRemakeable(meta)) {
+    logEvent('transcript_quiz.remake_refused', { quizId: quiz.id, reason: failureReasonOf(meta), remakes: meta.remakes || 0 });
+    return false;
+  }
+  const { error: _error, error_detail: _detail, ...kept } = meta;
+  const { data: flipped, error } = await supabase.from('quizzes')
+    .update({
+      status: 'generating',
+      meta: {
+        ...kept,
+        step: kept.digest ? 'author' : 'digest',
+        remakes: (Number(meta.remakes) || 0) + 1,
+        previous_error: meta.error || null,
+        remade_at: new Date().toISOString(),
+        remake_source: source,
+      },
+    })
+    .eq('id', quiz.id).eq('status', 'failed').select('id');
+  if (error) {
+    logToFile('❌ lp quiz remake: the failed row could not be claimed', { quizId: quiz.id, error: error.message }, 'error');
+    return false;
+  }
+  if (!flipped || !flipped.length) {
+    await api.tellAlready(phone, quiz, teacherLang);
+    return false;
+  }
+  logEvent('transcript_quiz.remade', {
+    quizId: quiz.id, userId: quiz.teacher_id, previousError: meta.error || null,
+    remakes: (Number(meta.remakes) || 0) + 1, source, quiz_source: LP_V8,
+  });
+  return api.queueLpQuiz({ quizId: quiz.id, nudgeId: meta.nudge_id, phone, language: teacherLang });
 }
 
 /**
@@ -463,6 +551,6 @@ async function handleLanguageButton(buttonId, phone, user) {
 module.exports = {
   enabled, offerMode, subjectAllowed, alreadyOffered, introVideo, introVideoShows,
   scheduleOffer, triggerEarly, processOffer, handleOfferButton, handleLanguageButton, claimRow, languageByPhone,
-  sendLanguageAsk, startGenerating, tellAlready, queueLpQuiz,
+  sendLanguageAsk, startGenerating, tellAlready, queueLpQuiz, remakeLpQuiz,
   OFFER_YES, OFFER_NO, MIN_TRANSCRIPT_CHARS, OFFER_DELAY_SECONDS, MIN_CONFIDENCE, MIN_SLOS, FEATURE_KEY, SESSION_SELECT,
 };

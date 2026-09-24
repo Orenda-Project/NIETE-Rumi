@@ -30,6 +30,8 @@ const mockState = {
   setState: jest.fn(),
   clearState: jest.fn(),
   sweepExpired: jest.fn(),
+  // The real store's ceiling: the offer's waking-hours ttl is capped at it.
+  MAX_TTL_SECONDS: 86400,
 };
 const mockWhatsApp = { sendMessage: jest.fn(), sendInteractiveButtons: jest.fn() };
 const mockSupabase = { from: jest.fn() };
@@ -45,6 +47,18 @@ const resume = require('../../bot/shared/services/conversation-resume.service');
 
 const USER = '11111111-2222-3333-4444-555555555555';
 const PHONE = '923000000000';
+
+// This suite exercises the offer itself, on the real clock. The sweep keeps the
+// quiet hours (no offer between 21:00 and 07:00 PKT), so on the real clock these
+// offers would be deferred on any night-time run. The window is lifted here and
+// owns its own suite: resume-quiet-hours.test.js.
+const QUIET_KEY = 'NUDGE_QUIET_HOURS_PKT';
+const savedQuiet = process.env[QUIET_KEY];
+beforeAll(() => { process.env[QUIET_KEY] = 'off'; });
+afterAll(() => {
+  if (savedQuiet === undefined) delete process.env[QUIET_KEY];
+  else process.env[QUIET_KEY] = savedQuiet;
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -81,6 +95,8 @@ describe('the sweeper offers an interrupted task back', () => {
       step: 'offered_resume',
       payload: expect.objectContaining({ resumeStep: 'awaiting_audio' }),
     }));
+    // With the quiet window lifted (above), six waking hours are six clock hours.
+    expect(mockState.setState.mock.calls[0][1].ttlSeconds).toBe(resume.OFFER_TTL_SECONDS);
   });
 
   it('does not offer twice — an already-offered row is skipped', async () => {

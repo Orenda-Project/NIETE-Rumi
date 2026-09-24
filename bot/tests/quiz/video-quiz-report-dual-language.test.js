@@ -218,10 +218,13 @@ describe('D1 — the footer stamp is part of the document, so it is dated in the
   });
 
   test('the roster prints the class label in the document language', async () => {
+    // Two classes, so the roster names each child's (with one class the hero
+    // names it once and the rows carry no label at all).
     stubSupabase({
       shareCode: SHARE_CODE,
       teacher: { phone_number: '923001234567', preferred_language: 'en' },
-      sessions: SESSIONS, answers: ANSWERS, questions: QUESTIONS,
+      sessions: SESSIONS.map((s, i) => (i === 1 ? { ...s, student_class: 'Class 5' } : s)),
+      answers: ANSWERS, questions: QUESTIONS,
     });
 
     await report.generate(SHARE_CODE_ID, { reason: 'scheduled' });
@@ -230,9 +233,9 @@ describe('D1 — the footer stamp is part of the document, so it is dated in the
     // The label is isolated in its own .ltr span under RTL, so match the cell
     // and then look inside it rather than assuming the text sits bare.
     const cells = html.match(/<div class="cls">[\s\S]*?<\/div>/g) || [];
-    expect(cells.length).toBeGreaterThan(0);
+    expect(cells.length).toBe(2);
     cells.forEach((cell) => {
-      expect(cell).not.toMatch(/Grade/);
+      expect(cell).not.toMatch(/Grade|Class/);
       expect(cell).toMatch(/جماعت/);
     });
   });

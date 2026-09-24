@@ -14,13 +14,15 @@
  *     → canonicalType()      is it on the phone-safe allowlist?
  *     → renderFigureSvg()    does the engine draw it, with zero label collisions?
  *     → figureLeaksAnswer()  does the picture already say the answer?
- *     → renderFigurePng()    1080px, fonts embedded, white ground
+ *     → renderFigurePng()    1080x565, fonts embedded, framed with the quiz chrome
  *     → uploadFigure()       one R2 object per question
  *     → quiz_questions.media.question_image, render_pattern 'P3'
  *
  * The child then gets ONE interactive message per question: image header, stem
  * body, three reply buttons — never a picture after the options, never a
- * picture the question does not need.
+ * picture the question does not need. The picture carries the same chrome as a
+ * question card — "Question n of N" and the NIETE mark — so a picture question
+ * looks like the rest of the quiz (see FRAME below).
  *
  * Pure and synchronous down to renderFigurePng (the engine is synchronous), so
  * the validator can run the render gate inline.
@@ -32,6 +34,7 @@ const { SIZE } = require('../../../vendor/lp-v9/diagrams/lib/tokens');
 const MANIFEST = require('../../../vendor/lp-v9/diagrams/types_manifest.json');
 const { fontCss } = require('../../../vendor/lp-v9/lib/fonts');
 const { logToFile } = require('../../utils/logger');
+const { clampLanguage } = require('../../config/ux-strings');
 const { logEvent } = require('../../utils/structured-logger');
 
 /**
@@ -61,10 +64,15 @@ const ALLOWED_TYPES = [
   // 360 segments and `word_blank` 257, against 121 for every existing drawable
   // type put together (the option-space study).
   'word_blank', 'count_objects', 'count_frame', 'clock', 'pattern', 'match', 'money', 'compare_size',
+  // Place value, drawn the way the class built it — bundles of sticks, or flats,
+  // rods and cubes. The grade 1-5 slide scripts draw it on nearly every
+  // place-value page and no other type could (a "1 hundred" or a "0 tens" is
+  // not something count_objects will draw).
+  'base_ten',
 ];
 
 /**
- * The eight above, on their own. They are offered to the AUTHOR only for a
+ * The early-years types, on their own. They are offered to the AUTHOR only for a
  * grade 1-5 lesson: a grade 9 chemistry quiz has no use for a ten-frame, and
  * every type in the prompt is tokens spent plus one more shape the model can
  * reach for wrongly. They stay on ALLOWED_TYPES for every grade, because the
@@ -72,9 +80,10 @@ const ALLOWED_TYPES = [
  */
 const EARLY_YEARS_TYPES = [
   'word_blank', 'count_objects', 'count_frame', 'clock', 'pattern', 'match', 'money', 'compare_size',
+  'base_ten',
 ];
 
-/** ALLOWED_TYPES minus the early-years eight — the 6-12 roster. */
+/** ALLOWED_TYPES minus the early-years types — the 6-12 roster. */
 const CORE_TYPES = ALLOWED_TYPES.filter((t) => !EARLY_YEARS_TYPES.includes(t));
 
 /**
@@ -110,6 +119,65 @@ const TYPE_DEFAULTS = {
   grid: { legend: '' },
 };
 
+/**
+ * Set on every quiz figure whatever the author wrote. The stem and the options
+ * print numerals 0-9 in every language (the contract), so a figure's numbers
+ * do too: the engine's Urdu-page default draws a fraction bar's values in Urdu
+ * digits, and on staging a remade grade 4 Urdu quiz showed "۲/۹" in the bar
+ * beside "2/9" in the stem. (numberline already draws Latin digits unless told
+ * otherwise; this keeps it that way.)
+ */
+const QUIZ_FIXED = {
+  fraction_bar: { urduDigits: false },
+  numberline: { urduDigits: false },
+};
+
+/**
+ * A bar name that only repeats the value drawn beside it is dropped, at draw
+ * time (the stored spec is untouched). The same staging figure labelled every
+ * bar twice — the value in the gutter and the same fraction as its name —
+ * because the author named each bar with its own fraction and turned the
+ * values on. With the values off (the quiz default) the name is the only label
+ * and is kept; whether it may show is the leak check's business.
+ */
+function withoutRepeatedBarNames(merged) {
+  if (canonicalType(merged.type) !== 'fraction_bar' || !Array.isArray(merged.bars)) return merged;
+  const unitMode = merged.model === 'unit' || !!merged.unitLabel;
+  const valuesShown = merged.showLabels === true || (merged.showLabels !== false && !unitMode);
+  if (!valuesShown) return merged;
+  const flat = (s) => norm(s).replace(/\s+/g, '');
+  const bars = merged.bars.map((b) => {
+    if (!b || typeof b !== 'object' || typeof b.label !== 'string' || !b.label.trim()) return b;
+    const shaded = Array.isArray(b.shaded) ? b.shaded.length : Number(b.shaded);
+    const value = b.value !== undefined && b.value !== '' ? String(b.value) : `${shaded}/${Number(b.parts)}`;
+    if (flat(b.label) !== flat(value)) return b;
+    const { label, ...rest } = b; // eslint-disable-line no-unused-vars
+    return rest;
+  });
+  return { ...merged, bars };
+}
+
+/**
+ * Defaults that depend on the QUIZ LANGUAGE. A place-value mat's column heads
+ * are words a child reads, so they come from the string catalog like every
+ * other child-facing word (root rule 20), never from the engine's own
+ * fallback. Anything the author sets wins; the stored spec is never changed,
+ * so the teacher PDF's re-draw injects the same heads again.
+ */
+function languageDefaults(type, language) {
+  if (type !== 'base_ten') return {};
+  const { resolveUx } = require('../../config/ux-strings');
+  const lang = clampLanguage(language);
+  return {
+    labels: {
+      thousands: resolveUx('tqPlaceThousands', { language: lang }),
+      hundreds: resolveUx('tqPlaceHundreds', { language: lang }),
+      tens: resolveUx('tqPlaceTens', { language: lang }),
+      ones: resolveUx('tqPlaceOnes', { language: lang }),
+    },
+  };
+}
+
 /** Keys whose value is a structural enum, not label text a child reads. */
 const STRUCTURAL_KEYS = new Set([
   'type', 'lang', 'kind', 'mode', 'style', 'color', 'colour', 'engine', 'layout',
@@ -132,6 +200,26 @@ const PNG_WIDTH = 1080;
 // operator's phone). A canvas of exactly that shape is never cropped; the
 // drawing is centred inside it.
 const PNG_HEIGHT = 565;
+
+/**
+ * THE FRAME. A figure that does not need a whole question card arrived as a
+ * bare white canvas with a small drawing in it — no counter, no mark, the one
+ * question in the quiz that did not look like the quiz. It now carries the
+ * card's chrome in a band across the top: the counter at the start edge, the
+ * NIETE mark at the end, over the card's lattice.
+ *
+ * The canvas stays exactly 1080x565 (the header shape above). The band lives in
+ * what used to be the top and bottom padding (36px each), so the drawing's box
+ * shrinks from 1016x493 to FIG_BOX — a height-bound drawing loses under 2% of
+ * its size, a wide one nothing. FIG_BOX is the ONE statement of that box: the
+ * label-size gate (transcript-quiz-figure-gates) measures against it, so the
+ * gate and the picture can never disagree about how big a label is drawn.
+ */
+const FRAME = { padTop: 12, band: 50, gap: 4, padBottom: 14, padX: 32 };
+const FIG_BOX = Object.freeze({
+  w: PNG_WIDTH - 2 * FRAME.padX,
+  h: PNG_HEIGHT - FRAME.padTop - FRAME.band - FRAME.gap - FRAME.padBottom,
+});
 
 /** NIETE tokens, mapped onto the engine's palette slots. No Rumi navy, no gold. */
 const NIETE_TOKENS = {
@@ -180,11 +268,16 @@ function canonicalType(name) {
   return ALLOWED_TYPES.includes(entry.type) ? entry.type : null;
 }
 
-/** The manifest's minimal spec for a type, with this lane's defaults applied. */
+/**
+ * The manifest's minimal spec for a type, with this lane's defaults applied —
+ * and its part names given this lane's names (compare_size's manifest example
+ * names its ribbons "A" and "B", which on a quiz card are option letters).
+ */
 function minimalSpecFor(type) {
   const entry = MANIFEST.types.find((m) => m.type === type);
   if (!entry) throw new FigureError('FIGURE_TYPE', `no manifest entry for "${type}"`);
-  return { ...(TYPE_DEFAULTS[type] || {}), ...entry.minimal_spec };
+  const spec = { ...(TYPE_DEFAULTS[type] || {}), ...entry.minimal_spec };
+  return relabelLetterParts({ figure: spec }).question.figure;
 }
 
 /**
@@ -337,12 +430,18 @@ const SCALE_LADDER = [2.4, 2.0, 1.6, 1.3, 1.0];
 
 const PHONE_FONT_SCALE = {
   numberline: 2.0,
-  fraction_bar: 1.0, // unsolved — a per-bar Urdu label on the circle model collides above k=1
+  // Raised from 1.0: at 1.0 a bar's name read about 7.7px on the
+  // phone. Short names (P, Q, R, a numeral) clear 2.4 with no collision; a long
+  // Urdu name or the circle model still collides above 1.0, and the ladder
+  // steps those down to where they drew before.
+  fraction_bar: 2.4,
   grid: 2.4,
   geometry: 2.0, // dialled back from the sweep's 2.4 — see the comment above
   graph: 1.0, // unsolved
   chem_equation: 2.4,
-  circuit: 1.0, // unsolved
+  // Raised from 1.0: a component's letter read about 6.9px on the
+  // phone. Short labels clear 1.6; longer ones step down on the ladder.
+  circuit: 2.0,
   free_body: 1.6, // improved, still under 10dp
   atom: 1.0, // unsolved
   punnett: 2.0, // improved, still under 10dp
@@ -369,6 +468,8 @@ const PHONE_FONT_SCALE = {
   match: 1.6,
   money: 2.4,
   compare_size: 1.6,
+  // Its column heads are the only text, drawn well clear of every piece.
+  base_ten: 1.6,
 };
 
 // ─── render ──────────────────────────────────────────────────────────────────
@@ -392,7 +493,9 @@ function renderFigureSvg(spec, language) {
     throw new FigureError('FIGURE_TYPE',
       `figure type "${spec.type}" is not allowed — use one of: ${ALLOWED_TYPES.join(', ')}`);
   }
-  const merged = { ...(TYPE_DEFAULTS[type] || {}), ...spec, type, lang: language === 'ur' ? 'ur' : 'en' };
+  const merged = withoutRepeatedBarNames({
+    ...(TYPE_DEFAULTS[type] || {}), ...languageDefaults(type, language), ...spec, ...(QUIZ_FIXED[type] || {}), type, lang: clampLanguage(language),
+  });
   const ceiling = PHONE_FONT_SCALE[type] || 1;
   const ladder = [...new Set([ceiling, ...SCALE_LADDER])].filter((k) => k <= ceiling).sort((a, b) => b - a);
 
@@ -512,7 +615,7 @@ const GEOMETRY_KEYS = {
   rightangle: ['vertex', 'a', 'b'], line: ['from', 'to'], segment: ['from', 'to'], point: ['at'],
 };
 /** Only mathematics draws shapes; every other subject that reached for geometry drew a scene. */
-const MATHS_ONLY_TYPES = new Set(['geometry']);
+const MATHS_ONLY_TYPES = new Set(['geometry', 'base_ten']);
 
 /** A colour token the page never defines paints grey (or nothing). */
 function unknownColourToken(spec) {
@@ -526,12 +629,212 @@ function unknownColourToken(spec) {
  * cannot answer "12 shared into 3" (4); a bar of 4 parts with 3 shaded cannot
  * answer "1/2". Returns a one-line reason when it cannot, else null.
  */
+// ─── part names are never the option letters ─────────────────────────────────
+
+/**
+ * The places a figure names a part the child may be asked to pick: a bar, a
+ * point, a vertex, a component, a ribbon, a row. Each entry is [holder, key].
+ */
+function partLabelSlots(spec) {
+  const out = [];
+  const each = (list, key) => (Array.isArray(list) ? list : []).forEach((x) => {
+    if (x && typeof x === 'object' && typeof x[key] === 'string') out.push([x, key]);
+  });
+  switch (canonicalType(spec && spec.type)) {
+    case 'fraction_bar': each(spec.bars, 'label'); break;
+    case 'numberline': each(spec.points, 'label'); break;
+    case 'circuit': each(spec.cells, 'label'); each(spec.components, 'label'); break;
+    case 'compare_size': each(spec.items, 'label'); each([spec.left, spec.right], 'label'); break;
+    case 'count_objects': each(spec.rows, 'label'); break;
+    case 'geometry': (Array.isArray(spec.shapes) ? spec.shapes : []).forEach((sh) => {
+      if (!sh || typeof sh !== 'object') return;
+      if (typeof sh.label === 'string') out.push([sh, 'label']);
+      if (Array.isArray(sh.labels)) sh.labels.forEach((_, k) => { if (typeof sh.labels[k] === 'string') out.push([sh.labels, k]); });
+    }); break;
+    default: break;
+  }
+  return out;
+}
+
+/** Pictures that already carry numbers (fractions, a scale, lengths, volts) name parts P, Q, R, S. */
+const LETTER_NAMED_TYPES = new Set(['fraction_bar', 'numberline', 'geometry', 'circuit']);
+const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
+const PART_LETTERS = ['P', 'Q', 'R', 'S'];
+const PART_NUMBERS = ['1', '2', '3', '4'];
+const BIDI = /[\u200e\u200f\u2066-\u2069]/g;
+const PART_NOUN_BEFORE = /(bars?|points?|rows?|ribbons?|components?|parts?|shapes?|labels?|lines?|sides?|vertex|vertices|angles?|symbols?|پٹی|پٹیوں|نقطہ|نقطے|قطار|حصہ|شکل|علامت)\s*$/i;
+
+/**
+ * Rename every standalone option letter in `text` by `map`, outside maths
+ * spans. An English "A" that opens a phrase ("A bar split into…") is an article,
+ * not a label, and is left alone. `groups` also renames runs like "AB" / "ABC"
+ * (a side, a triangle) for the lettered types.
+ */
+function renameLetters(text, map, { groups = false } = {}) {
+  if (typeof text !== 'string' || !text) return text;
+  const letters = Object.keys(map).join('');
+  const single = new RegExp(`(^|[^\\p{L}\\p{N}\\\\])([${letters}])(?=([^\\p{L}\\p{N}]|$))`, 'gu');
+  const run = new RegExp(`(^|[^\\p{L}\\p{N}\\\\])([${letters}]{2,3})(?=([^\\p{L}\\p{N}]|$))`, 'gu');
+  const outside = (chunk) => {
+    let t = chunk.replace(single, (m, pre, L, _post, offset, whole) => {
+      const after = whole.slice(offset + m.length);
+      const before = whole.slice(0, offset + pre.length);
+      // "A bar", "A fraction" is the article — unless a part noun names it ("bar A has…")
+      if (L === 'A' && /^\s+[a-z]/.test(after) && !PART_NOUN_BEFORE.test(before)) return m;
+      return `${pre}${map[L]}`;
+    });
+    if (groups) t = t.replace(run, (m, pre, word) => `${pre}${[...word].map((L) => map[L]).join('')}`);
+    return t;
+  };
+  return text.split(/(\$[^$]*\$)/).map((chunk, k) => (k % 2 ? chunk : outside(chunk))).join('');
+}
+
+/**
+ * A figure that names its parts A-D gets new names, and so does every field of
+ * the question that uses them — so the picture, the WhatsApp text, the card
+ * and the teacher's PDF, all drawn from this one question, agree. The card
+ * marks its three options A, B and C; a part called B that is option C is a
+ * child tapping the wrong letter for the right answer (staging, a circuit
+ * question). Pure: returns a new question, or the same one.
+ * @returns {{question:object, renamed:object|null}}
+ */
+function relabelLetterParts(q) {
+  if (!q || typeof q !== 'object' || !q.figure || typeof q.figure !== 'object' || Array.isArray(q.figure)) return { question: q, renamed: null };
+  const type = canonicalType(q.figure.type);
+  // «پٹی P», "Bar A", "bar 2" name the part with its noun. The label gate
+  // strips a shape word from a fraction bar and takes the whole label with it
+  // (replay, grade 4 Urdu: the options named bars P, Q, R that the picture
+  // no longer named), so the label keeps only the name.
+  if (partLabelSlots(q.figure).some(([h, k]) => bareName(h[k]) !== h[k])) {
+    const figure = JSON.parse(JSON.stringify(q.figure));
+    partLabelSlots(figure).forEach(([h, k]) => { h[k] = bareName(h[k]); });
+    q = { ...q, figure }; // eslint-disable-line no-param-reassign
+  }
+  const probe = partLabelSlots(q.figure);
+  const used = [...new Set(probe.map(([h, k]) => String(h[k]).replace(BIDI, '').trim()).filter((l) => OPTION_LETTERS.includes(l)))];
+  if (!used.length) return { question: q, renamed: null };
+  const target = LETTER_NAMED_TYPES.has(type) ? PART_LETTERS : PART_NUMBERS;
+  const map = Object.fromEntries(used.map((L) => [L, target[OPTION_LETTERS.indexOf(L)]]));
+  const figure = JSON.parse(JSON.stringify(q.figure));
+  partLabelSlots(figure).forEach(([h, k]) => {
+    const l = String(h[k]).replace(BIDI, '').trim();
+    if (map[l]) h[k] = map[l];
+  });
+  const opts = { groups: type === 'geometry' };
+  const rn = (t) => renameLetters(t, map, opts);
+  const rnMap = (o) => (o && typeof o === 'object' && !Array.isArray(o)
+    ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, rn(v)])) : o);
+  const fb = q.option_feedback && typeof q.option_feedback === 'object' ? q.option_feedback : null;
+  return {
+    renamed: map,
+    question: {
+      ...q,
+      figure,
+      question: rn(q.question),
+      options: Array.isArray(q.options) ? q.options.map(rn) : q.options,
+      explanation: rn(q.explanation),
+      selected_because: rn(q.selected_because),
+      distractor_misconceptions: rnMap(q.distractor_misconceptions),
+      ...(fb ? { option_feedback: { ...fb, correct: rn(fb.correct), wrong: rnMap(fb.wrong) } } : {}),
+    },
+  };
+}
+
+const PART_NOUN = '(?:bar|point|row|ribbon|component|part|strip|پٹی|نقطہ|قطار|حصہ)';
+const NOUN_THEN_NAME = new RegExp(`^${PART_NOUN}\\s*([A-Z]|[1-9])$`, 'i');
+const NAME_THEN_NOUN = new RegExp(`^([A-Z]|[1-9])\\s*${PART_NOUN}$`, 'i');
+
+/** "Bar P" / «پٹی P» / "P bar" → "P"; anything else unchanged. */
+function bareName(label) {
+  if (typeof label !== 'string') return label;
+  const t = label.replace(BIDI, '').trim();
+  const m = NOUN_THEN_NAME.exec(t) || NAME_THEN_NOUN.exec(t);
+  return m ? m[1].toUpperCase() : label;
+}
+
+/**
+ * Options that pick a part by name ("P", "bar Q", «پٹی 2») over a picture that
+ * names no part: the child is asked for a name that is not there. Returns the
+ * names asked for, or null.
+ */
+function unnamedParts(spec, options) {
+  if (!spec || typeof spec !== 'object' || partLabelSlots(spec).some(([h, k]) => String(h[k] || '').trim())) return null;
+  if (!['fraction_bar', 'numberline', 'circuit', 'compare_size', 'count_objects', 'geometry'].includes(canonicalType(spec.type))) return null;
+  const names = (Array.isArray(options) ? options : []).map((o) => {
+    const t = String(o || '').replace(BIDI, '').trim();
+    const m = NOUN_THEN_NAME.exec(t) || /^([P-S])$/.exec(t);
+    return m ? m[1].toUpperCase() : null;
+  });
+  const named = names.filter(Boolean);
+  return named.length >= 2 ? named : null;
+}
+
+/** Does `answer` name one of the figure's parts ("P", "bar 2", «پٹی Q»)? Then it is a pick, not a quantity. */
+function namesAPart(spec, answer) {
+  const names = new Set(partLabelSlots(spec).map(([h, k]) => norm(String(h[k]).replace(BIDI, ''))).filter(Boolean));
+  if (!names.size) return false;
+  const a = norm(String(answer || '').replace(BIDI, '')).replace(/^(bar|point|row|ribbon|پٹی|نقطہ|قطار)\s*/, '').replace(/\s*(bar|پٹی)$/, '').trim();
+  return names.has(a);
+}
+
+/**
+ * Two options of the same AMOUNT under a part-whole picture. A fraction_bar or
+ * grid question must produce its key literally (figureMismatch: a bar of 2 in
+ * 8 answers "2/8", not "1/4"), so a second option equal in value to the key is
+ * a second right reading of the same picture — a child who reads the bar as
+ * 1/4 is right and would be told otherwise. Without a picture the same pair is
+ * a fair question ("which is in lowest terms?"), so only these two types are
+ * checked. Returns a one-line reason, else null.
+ */
+function equalAmountOptions(spec, options, correctIndex) {
+  const type = canonicalType(spec && spec.type);
+  if (type !== 'fraction_bar' && type !== 'grid') return null;
+  const raw = Array.isArray(options) ? options.map((o) => String(o == null ? '' : o)) : [];
+  const opts = raw.map(norm);
+  const ci = Number(correctIndex);
+  const same = (a, b) => a !== null && b !== null && Math.abs(a - b) < 1e-9;
+  const value = (s) => {
+    const m = /^(\d+)\s*\/\s*(\d+)$/.exec(s || '');
+    return m && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
+  };
+  const key = value(opts[ci]);
+  if (key !== null) {
+    const twin = opts.find((o, k) => k !== ci && same(value(o), key));
+    return twin ? `"${opts[ci]}" and "${twin}" are the same amount — a child who reads the picture either way is right` : null;
+  }
+  // "Which bar shows 3/6?" answered with the bars' own labels: two option bars
+  // of the same amount (1/2 and 3/6) are two right answers on the same picture
+  // (live, grade 3 Urdu, a lesson on equivalent fractions).
+  if (type !== 'fraction_bar') return null;
+  const byLabel = new Map((Array.isArray(spec.bars) ? spec.bars : [])
+    .filter((b) => b && typeof b.label === 'string' && b.label.trim())
+    .map((b) => [norm(b.label), b]));
+  if (!byLabel.size) return null;
+  const barOf = (o) => byLabel.get(o.replace(/[\u200e\u200f\u2066-\u2069]/g, '').replace(/^(bar|پٹی)\s*/, '').replace(/\s*(bar|پٹی)$/, '').trim()) || null;
+  const amount = (b) => {
+    const parts = Number(b.parts);
+    const shaded = Array.isArray(b.shaded) ? b.shaded.length : Number(b.shaded);
+    return parts > 0 && Number.isFinite(shaded) ? shaded / parts : null;
+  };
+  const keyBar = barOf(opts[ci] || '');
+  if (!keyBar) return null;
+  const k2 = opts.findIndex((o, k) => { const b = barOf(o); return k !== ci && b && b !== keyBar && same(amount(b), amount(keyBar)); });
+  return k2 >= 0 ? `${raw[ci].trim()} and ${raw[k2].trim()} show the same amount — a child who reads the picture either way is right` : null;
+}
+
 function figureMismatch(spec, options, correctIndex) {
   const type = canonicalType(spec && spec.type);
   const correct = norm((Array.isArray(options) ? options : [])[Number(correctIndex)]);
   if (!correct) return null;
-  const frac = /^(\d+)\s*\/\s*(\d+)$/.exec(correct);
-  const whole = /^\d+$/.test(correct) ? Number(correct) : null;
+  // "Which bar shows 2/3?" answered "2" means bar 2, not the number two.
+  if (namesAPart(spec, correct)) return null;
+  // A key written as a sum ("3 × 5 = 15") is checked by its result: bars of
+  // 3/4 and 2/5 keyed "3 × 5 = 15" passed a replay because the key was not a
+  // bare number.
+  const eq = /=\s*(\d+(?:\s*\/\s*\d+)?)$/.exec(correct);
+  const answer = eq ? eq[1].replace(/\s+/g, '') : correct;
+  const frac = /^(\d+)\s*\/\s*(\d+)$/.exec(answer);
+  const whole = /^\d+$/.test(answer) ? Number(answer) : null;
   if (frac === null && whole === null) return null; // a word answer is not checked here
   if (type === 'fraction_bar') {
     const bars = Array.isArray(spec.bars) ? spec.bars : [];
@@ -544,6 +847,46 @@ function figureMismatch(spec, options, correctIndex) {
     if (bars.length > 1 && per.every(([p]) => p === per[0][0])) reachable.add(`${shaded}/${per[0][0]}`);
     const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
     return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (it shows ${shaded} of ${parts} parts)`;
+  }
+  if (type === 'count_objects') {
+    // Counters beside a sum they cannot show were passing as a "model": rows of
+    // 2 and 5 beside "what is 2 × 5?" (10), rows of 4, 3 and 6 beside an LCM of
+    // 12 (the fractions replays). What a counters picture CAN produce:
+    const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count }];
+    const counts = list.map((r) => Math.floor(Number(r && r.count) || 0)).filter((n) => n > 0);
+    if (!counts.length) return null;
+    const total = counts.reduce((a, b) => a + b, 0);
+    const reachable = new Set([String(total), String(counts.length)]);
+    counts.forEach((c, i) => {
+      reachable.add(String(c));
+      reachable.add(`${c}/${total}`);
+      counts.forEach((d, j) => { if (j !== i && c > d) reachable.add(String(c - d)); });
+    });
+    if (counts.length === 1) {
+      const n = counts[0];
+      const group = Math.floor(Number(spec.group) || 0);
+      if (group > 1) { // ringed into equal lots: how many lots, how many in each, what is left
+        reachable.add(String(group));
+        reachable.add(String(Math.floor(n / group)));
+        if (n % group) reachable.add(String(n % group));
+        reachable.add(`1/${Math.floor(n / group)}`);
+      }
+      const perRow = Math.floor(Number(spec.perRow) || 0) || (group > 1 ? group : Math.min(5, n));
+      reachable.add(String(perRow)); // an array: its columns and its rows
+      reachable.add(String(Math.ceil(n / perRow)));
+    }
+    const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
+    return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (it shows ${counts.join(' and ')} things)`;
+  }
+  if (type === 'base_ten') {
+    // A place-value mat answers "what number?", "how many tens?", "what is the
+    // tens worth?" and "how many pieces in all?" — and nothing else.
+    const [th, h, t, o] = ['thousands', 'hundreds', 'tens', 'ones'].map((k) => Math.max(0, Math.floor(Number(spec[k]) || 0)));
+    const value = 1000 * th + 100 * h + 10 * t + o;
+    const reachable = new Set([value, th, h, t, o, 1000 * th, 10 * t, 100 * h, th + h + t + o].map(String));
+    const shows = `${th ? `${th} thousands, ` : ''}${h} hundreds, ${t} tens and ${o} ones`;
+    return whole !== null && reachable.has(String(whole)) ? null
+      : `the picture cannot produce the answer "${correct}" (it shows ${shows})`;
   }
   if (type === 'grid') {
     const rows = Number(spec.rows) || 0; const cols = Number(spec.cols) || 0;
@@ -709,6 +1052,9 @@ function figureDefiningNumbers(spec) {
       break;
     case 'geometry': (spec.shapes || []).forEach((sh) => (sh.sides || []).forEach(fromLabel)); break;
     case 'timeline': (spec.events || []).forEach((e) => fromLabel(e && e.date)); break;
+    // The counts, not the zeros: "0" matches inside half the numbers a stem can
+    // mention, and a stem that says "no tens" states nothing the mat is made of.
+    case 'base_ten': ['thousands', 'hundreds', 'tens', 'ones'].forEach((k) => { if (Number(spec[k]) > 0) push(spec[k]); }); break;
     default: break;
   }
   return [...new Set(nums)];
@@ -868,29 +1214,66 @@ function stripStrayLabels(spec, { stem, options } = {}) {
 const tokenCss = () => Object.entries(NIETE_TOKENS).map(([k, v]) => `--${k}:${v};`).join('');
 
 /**
- * Wrap an SVG in a self-contained page sized for a phone: 1080px wide, white
+ * Wrap an SVG in a self-contained page sized for a phone: 1080x565, white
  * ground, the vendored fonts embedded as base64 (a font fetched at render time
  * is the tofu bug), and the diagram palette bound to the NIETE tokens.
+ *
+ * Framed (see FRAME): a band with "Question n of N" at the reading-start edge
+ * and the NIETE mark at the other — the question card's own counter string,
+ * mark and lattice (quiz-picture-chrome), laid out in the quiz language's
+ * direction. The DRAWING stays left-to-right whatever the language; a fraction
+ * bar is not mirrored. Without a number the band still carries the mark, so the
+ * drawing's box is the same size either way.
+ *
  * @param {string} svg
  * @param {string} language
+ * @param {{questionNumber?: number, total?: number}} [opts]
  * @returns {string} HTML
  */
-function figureHtml(svg, language) {
+function figureHtml(svg, language, { questionNumber = null, total = null } = {}) {
   const { css, missing } = fontCss({ urdu: true });
   if (missing.length) logToFile('⚠️ transcript quiz figure: font face missing', { missing });
   const ur = language === 'ur';
+  const Chrome = require('./quiz-picture-chrome');
+  const counter = questionNumber && total
+    ? `<div class="counter">${escHtml(Chrome.paintedCounter(questionNumber, total, language))}</div>`
+    : '<div class="counter"></div>';
+  const mark = Chrome.markB64() ? `<div class="mark"><img src="data:image/png;base64,${Chrome.markB64()}"></div>` : '';
+  // The question card's own counter type (26px Latin, 30px Nastaliq on the same
+  // 1080px canvas), so the two kinds of question picture print the number alike.
+  const counterFont = ur
+    ? "font-family:'Noto Nastaliq Urdu','NastaliqUrdu','Noto Naskh Arabic',serif;font-size:30px;letter-spacing:0;"
+    : "font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:26px;letter-spacing:.08em;text-transform:uppercase;";
   return `<html lang="${ur ? 'ur' : 'en'}"><head><meta charset="utf-8"><style>
 ${css}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#FFFFFF}
 .fig{${tokenCss()}
-  width:${PNG_WIDTH}px;height:${PNG_HEIGHT}px;background:#FFFFFF;padding:36px 32px;
-  display:flex;align-items:center;justify-content:center;
+  width:${PNG_WIDTH}px;height:${PNG_HEIGHT}px;background:#FFFFFF;
+  padding:${FRAME.padTop}px ${FRAME.padX}px ${FRAME.padBottom}px;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  position:relative;overflow:hidden;
   font-family:'Inter','Helvetica Neue',Arial,sans-serif;color:var(--ink);
   direction:ltr;unicode-bidi:isolate;}
 .fig svg{display:block;width:auto;height:auto;max-width:100%;max-height:100%}
+.fig svg.lattice{position:absolute;left:0;top:0;width:100%;height:100%;max-width:none;max-height:none;opacity:.07;pointer-events:none}
+.top{width:100%;height:${FRAME.band}px;margin-bottom:${FRAME.gap}px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;position:relative}
+.top[dir="rtl"]{direction:rtl}
+.counter{${counterFont}font-weight:600;color:#47BA7D;line-height:${FRAME.band}px;white-space:nowrap}
+.mark{width:${FRAME.band}px;height:${FRAME.band}px;background:#333748;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto}
+.mark img{width:${FRAME.band - 6}px;height:${FRAME.band - 6}px;display:block}
+.box{width:${FIG_BOX.w}px;height:${FIG_BOX.h}px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;position:relative}
+.box > svg{background:#FFFFFF}
 .fig [lang="ur"]{font-family:'Noto Nastaliq Urdu','Noto Naskh Arabic',serif;line-height:normal}
-</style></head><body><div class="fig">${svg}</div></body></html>`;
+</style></head><body><div class="fig">
+<svg class="lattice" viewBox="0 0 1080 1400" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#47BA7D" stroke-width="1.5">${Chrome.latticePaths()}</g></svg>
+<div class="top" dir="${ur ? 'rtl' : 'ltr'}">${counter}${mark}</div>
+<div class="box">${svg}</div>
+</div></body></html>`;
+}
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /**
@@ -899,11 +1282,12 @@ html,body{background:#FFFFFF}
  * not the slow part of a question.
  * @param {string} svg
  * @param {string} language
+ * @param {{questionNumber?: number, total?: number}} [opts] painted into the frame
  * @returns {Promise<Buffer>}
  */
-async function renderFigurePng(svg, language) {
+async function renderFigurePng(svg, language, opts = {}) {
   const { htmlToImage } = require('../../utils/html-to-pdf');
-  const png = await htmlToImage(figureHtml(svg, language), {
+  const png = await htmlToImage(figureHtml(svg, language, opts), {
     width: PNG_WIDTH, deviceScaleFactor: 1, selector: '.fig',
   });
   if (!png || !png.length) throw new FigureError('FIGURE_RENDER', 'the figure screenshot came back empty');
@@ -928,7 +1312,12 @@ module.exports = {
   CORE_TYPES,
   MATHS_ONLY_TYPES,
   unknownColourToken,
+  languageDefaults,
   figureMismatch,
+  equalAmountOptions,
+  relabelLetterParts,
+  partLabelSlots,
+  unnamedParts,
   svgInkCount,
   figureIsRedundant,
   figureDefiningNumbers,
@@ -954,5 +1343,6 @@ module.exports = {
   uploadFigure,
   PNG_WIDTH,
   PNG_HEIGHT,
+  FIG_BOX,
   R2_PREFIX,
 };

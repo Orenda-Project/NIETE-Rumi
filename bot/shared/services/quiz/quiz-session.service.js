@@ -589,18 +589,29 @@ class QuizSessionService {
       // or in_progress. The previous .in() filter could pick up an older
       // 'invited' session even when a newer 'completed' or 'cancelled' session
       // existed — making post-quiz text trigger the active-quiz nudge.
+      //
+      // ONLY THIS ENGINE'S SESSIONS (source 'roster'). Video, transcript and
+      // lesson-plan quizzes write quiz_sessions too (share_link / video_solo),
+      // run on their own engine and state, and nothing ever expires an
+      // abandoned one. Adopting them turned every later text from that phone —
+      // a child's typed "B", a teacher's "Lesson plan" tap, "/menu" — into the
+      // "tap an answer button" nudge, and the letter was never recorded
+      // (production, 14 days: 2,893 adoptions, 97% of them share_link or
+      // video_solo sessions). `source` is filtered, not selected.
       let { data: session } = await supabase
         .from('quiz_sessions')
-        .select('id, quiz_id, student_id, current_difficulty, total_questions_answered, correct_answers, status')
+        .select('id, quiz_id, student_id, current_difficulty, total_questions_answered, correct_answers, status, expires_at')
         .eq('parent_phone', withPlus)
+        .eq('source', 'roster')
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
       if (!session) {
         const fallback = await supabase
           .from('quiz_sessions')
-          .select('id, quiz_id, student_id, current_difficulty, total_questions_answered, correct_answers, status')
+          .select('id, quiz_id, student_id, current_difficulty, total_questions_answered, correct_answers, status, expires_at')
           .eq('parent_phone', noPlus)
+          .eq('source', 'roster')
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
@@ -611,6 +622,12 @@ class QuizSessionService {
       if (!['invited', 'in_progress'].includes(session.status)) {
         // Most-recent session is completed/cancelled/expired — there is no
         // active quiz for this phone. Don't resurrect older invited rows.
+        return null;
+      }
+      // Past its expiry it is not live either, whatever its status says:
+      // nothing flips a lapsed row to 'expired' on its own, so the status alone
+      // would resurrect it forever.
+      if (session.expires_at && new Date(session.expires_at).getTime() <= Date.now()) {
         return null;
       }
 
@@ -727,7 +744,10 @@ class QuizSessionService {
         return; // Silently ignore rapid-fire messages
       }
 
-      const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+      // bd-wgso2: measured, not rerouted -- same client, key and model; only the label is stripped and the spend recorded.
+      const openai = require('../llm-client').withSpendRecording(
+        new OpenAI({ apiKey: OPENAI_API_KEY }), { lane: 'openai-direct' },
+      );
 
       // build the system prompt with the quiz Q&A snapshot so
       // Rumi can answer in context. The snapshot is fetched once at
@@ -742,6 +762,7 @@ class QuizSessionService {
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
+        job: 'quiz.session',
         messages: [
           { role: 'system', content: systemPrompt },
           ...history,

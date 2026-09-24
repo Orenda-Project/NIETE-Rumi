@@ -381,10 +381,37 @@ describe('send-time re-checks — the day may have moved on since 15:00', () => 
     await expect(Offer.send(nudgeRow(), { now: SEND_AT })).rejects.toThrow(/user/i);
   });
 
-  test('a deleted teacher is a failure, not an offer — filtered in code, never named to PostgREST', async () => {
+  test('a deleted teacher is a failure, not an offer', async () => {
     install(world({ users: [teacher({ deleted_at: '2026-09-01T00:00:00Z' })] }));
     await expect(Offer.send(nudgeRow(), { now: SEND_AT })).rejects.toThrow(/user/i);
     expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+  });
+
+  test('the send-time users read filters deleted_at IS NULL in SQL, names its columns, and still sends', async () => {
+    install(world({ users: [teacher({ preferred_language: 'ur' })] }));
+    const seen = { is: [], selects: [] };
+    const real = supabase.from.getMockImplementation();
+    supabase.from.mockImplementation((table) => {
+      const chain = real(table);
+      if (table !== 'users') return chain;
+      const { is, maybeSingle } = chain;
+      let cols = '*';
+      chain.select = (c) => { cols = String(c); seen.selects.push(cols); return chain; };
+      chain.is = (col, v) => { seen.is.push([col, v]); return is(col, v); };
+      // Project a named list the way PostgREST would.
+      chain.maybeSingle = async () => {
+        const res = await maybeSingle();
+        if (cols === '*' || !res.data) return res;
+        const keep = cols.split(',').map((x) => x.trim());
+        return { ...res, data: Object.fromEntries(keep.map((k) => [k, res.data[k]])) };
+      };
+      return chain;
+    });
+    await Offer.send(nudgeRow(), { now: SEND_AT });
+    expect(seen.is).toContainEqual(['deleted_at', null]);
+    for (const cols of seen.selects) expect(cols).not.toBe('*');
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+    expect(WhatsAppService.sendInteractiveButtons.mock.calls[0][0]).toBe('923001112222');
   });
 
   test('a WhatsApp refusal is raised, never marked sent', async () => {
@@ -446,5 +473,62 @@ describe('registered with the sweeper — the claimed row is sent and marked onc
     expect(mockStore.markSkipped).toHaveBeenCalledTimes(1);
     expect(mockStore.rows[0].context.skip_reason).toBe('window_closed');
     expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+  });
+});
+
+// ── the wamid is kept (context.message_ids) ──────────────────────────────────
+//
+// `teacher_nudges.context.message_ids` exists so a delivery question ("did this
+// teacher get the 15:00 offer?") has an answer that can be matched to a status
+// webhook. It was always [] — the send answered a boolean. The send now reports
+// Meta's message id through `onMessageId` (the network boundary is the mock
+// here; the real service's side is pinned in tests/unit/whatsapp-interactive-message-id.test.js).
+
+describe('the offer keeps the WhatsApp message id it was sent as', () => {
+  const Sweeper = require('../../bot/shared/services/nudges/teacher-nudges.sweeper');
+  const reporting = (id) => async (_to, _payload, opts) => {
+    if (opts && typeof opts.onMessageId === 'function') opts.onMessageId(id);
+    return true;
+  };
+
+  beforeEach(() => { process.env.TEACHER_NUDGES_ENABLED = 'true'; });
+  afterEach(() => { delete process.env.TEACHER_NUDGES_ENABLED; });
+
+  test('one lesson (buttons): the id rides back on the outcome and is written to the row', async () => {
+    WhatsAppService.sendInteractiveButtons.mockImplementation(reporting('wamid.OFFER1'));
+    mockStore = makeStore([nudgeRow({ status: 'pending' })]);
+    install(world());
+
+    const counts = await Sweeper.runSweep({ now: SEND_AT });
+
+    expect(counts).toMatchObject({ sent: 1 });
+    expect(mockStore.markSent).toHaveBeenCalledWith('nudge-1', expect.objectContaining({ messageIds: ['wamid.OFFER1'] }));
+    expect(mockStore.rows[0].context.message_ids).toEqual(['wamid.OFFER1']);
+  });
+
+  test('more than one class (list): the list message id is kept too', async () => {
+    WhatsAppService.sendInteractiveMessage.mockImplementation(reporting('wamid.LIST1'));
+    const row = nudgeRow({
+      status: 'pending',
+      context: {
+        classes: [
+          klass(),
+          klass({ key: 'g5_urdu', grade: 5, subject: 'urdu', lessons: [lesson({ lesson_id: 'grade_5_urdu_ch1_seg1', topic: 'واحد اور جمع' })] }),
+        ],
+      },
+    });
+    mockStore = makeStore([row]);
+    install(world());
+
+    const res = await Offer.send(row, { now: SEND_AT });
+
+    expect(res).toMatchObject({ sent: true, messageIds: ['wamid.LIST1'] });
+  });
+
+  test('a send that reports no id still counts as sent — the id is telemetry, never the delivery verdict', async () => {
+    WhatsAppService.sendInteractiveButtons.mockResolvedValue(true);
+    install(world());
+    const res = await Offer.send(nudgeRow(), { now: SEND_AT });
+    expect(res).toMatchObject({ sent: true, messageIds: [] });
   });
 });

@@ -230,6 +230,34 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     }));
   });
 
+  // A child who typed STOP (or whose quiz stopped on our side) has an
+  // `incomplete` session: not finished, and not still going either. The
+  // results say which is which.
+  test('a child whose quiz stopped is listed as stopped, never as still going', async () => {
+    const { resolveUx } = require('../../shared/config/ux-strings');
+    const STOPPED = { id: 'qs-4', quiz_id: 'q-1', user_id: null, invited_by_student_id: null, student_name: 'Esha', student_class: '5-A', status: 'incomplete', total_questions_answered: 3, correct_answers: 2, mastery_percentage: null };
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: [...CHILDREN, STOPPED] });
+
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+    // Each line opens with the language's paragraph mark (text-format markLines).
+    const lines = out.data.results.split('\n').map((l) => l.replace(/^[\u200E\u200F]/, ''));
+
+    expect(lines).toContain(resolveUx('tqFlowStillGoing', { language: 'en', params: { names: 'Danish' } }));
+    expect(lines).toContain(resolveUx('tqFlowStopped', { language: 'en', params: { names: 'Esha' } }));
+    expect(out.data.results).toMatch(/2 finished/);
+  });
+
+  test('when every unfinished child stopped, there is no "still going" line at all', async () => {
+    const { resolveUx } = require('../../shared/config/ux-strings');
+    const kids = CHILDREN.map((c) => (c.id === 'qs-3' ? { ...c, status: 'incomplete' } : c));
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: kids });
+
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+
+    expect(out.data.results).not.toContain(resolveUx('tqFlowStillGoing', { language: 'en', params: { names: '' } }).trim());
+    expect(out.data.results.split('\n').map((l) => l.replace(/^[\u200E\u200F]/, ''))).toContain(resolveUx('tqFlowStopped', { language: 'en', params: { names: 'Danish' } }));
+  });
+
   test('a SENT quiz offers exactly Generate report and Resend link', async () => {
     stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: CHILDREN });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
@@ -286,6 +314,44 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     expect(out.data.actions.every((a) => a.id.startsWith('make'))).toBe(true);
   });
 
+  // WHY a recording's quiz failed, said the way the chat said it. A failure that
+  // was the MODEL's must not read as a bad recording on the lesson screen either;
+  // the rows written before the split carry `digest: <message>` and were the
+  // model's too (a recording quiz's digest has no source-side throw).
+  const { UX_STRINGS } = require('../../shared/config/ux-strings');
+  const { markLines } = require('../../shared/utils/text-format');
+  // Every results line opens with the teacher language's paragraph mark.
+  const marked = (key, lang) => markLines(UX_STRINGS[key][lang], UX_STRINGS.lineDirMark[lang]);
+  test.each([
+    ['model_failed', { error: 'model_failed' }],
+    ['a pre-split digest row', { error: 'digest: transcript_quiz.digest: empty reply from m' }],
+  ])('a FAILED quiz whose model failed (%s) says the recording was not the problem, and can still be made again', async (_label, meta) => {
+    for (const lang of ['en', 'ur']) {
+      stub({
+        users: [{ id: TEACHER, phone_number: '923001112222', preferred_language: lang }],
+        coaching_sessions: [session(1)],
+        quizzes: [{ ...SENT_QUIZ, status: 'failed', meta }], quiz_sessions: [],
+      });
+      const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+      expect(out.data.results).not.toBe(marked('tqFlowResultsFailed', lang));
+      expect(out.data.results).toBe(marked('tqFlowResultsFailedModel', lang));
+      expect(out.data.actions.length).toBeGreaterThan(0);
+      expect(out.data.actions.every((a) => a.id.startsWith('make'))).toBe(true);
+    }
+  });
+
+  test.each([
+    ['validator_failed', { error: 'validator_failed' }],
+    ['no marker (a row before any reason was stored)', {}],
+  ])('a FAILED quiz that is not the model’s (%s) keeps the existing lesson-screen line', async (_label, meta) => {
+    stub({
+      users, coaching_sessions: [session(1)],
+      quizzes: [{ ...SENT_QUIZ, status: 'failed', meta }], quiz_sessions: [],
+    });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+    expect(out.data.results).toBe(marked('tqFlowResultsFailed', 'en'));
+  });
+
   test('another teacher’s session is refused — the Flow stays on LESSONS with a message', async () => {
     stub({
       users,
@@ -308,7 +374,12 @@ describe('the actions run AFTER the response (operator item 3)', () => {
   };
 
   test('report: DONE comes back BEFORE Report.generate resolves, and force-refetches', async () => {
-    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ], quiz_sessions: [] });
+    // One child has finished: a report with nobody finished is not offered at
+    // all (see "a report is only promised when there is something to report").
+    stub({
+      users, coaching_sessions: [session(1)], quizzes: [SENT_QUIZ],
+      quiz_sessions: [{ id: 'qs-1', quiz_id: 'q-1', user_id: null, invited_by_student_id: null, student_name: 'Ayesha', status: 'completed', total_questions_answered: 8, correct_answers: 7, mastery_percentage: 88 }],
+    });
     let release;
     Report.generate.mockImplementation(() => new Promise((r) => { release = r; }));
 
@@ -380,6 +451,9 @@ describe('the actions run AFTER the response (operator item 3)', () => {
     });
     expect(out.screen).toBe('LESSON');
     expect(out.data.error_message).toBeTruthy();
+    // The refusal is drawn on a screen the Flow can render: its required
+    // chooser has something in it (Done), never an empty list.
+    expect(out.data.actions.map((x) => x.id)).toEqual(['done']);
     expect(Report.generate).not.toHaveBeenCalled();
   });
 
@@ -634,13 +708,56 @@ describe('an lp_v8 quiz in the /quiz Flow (PLAN_R8 D11)', () => {
     expect(SQSQueueService.queueJob).not.toHaveBeenCalled();
   });
 
+  // A teacher who said yes to the afternoon offer but never answered the
+  // language ask: the row waits `offered` at `awaiting_language`. The Flow gave
+  // it no action and so sent the lesson to the "still being made" wait screen,
+  // while nothing was being made.
+  const WAIT_ID = 'a1b2c3d4-0000-4000-8000-00000000abcd';
+  const WAITING = {
+    ...LP, id: WAIT_ID, status: 'offered', language: null,
+    meta: { step: 'awaiting_language', awaiting_language: true, source: 'lp_offer', nudge_id: 'nudge-1', lesson_date: '2026-08-30' },
+  };
+  const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); };
+
+  test('an lp_v8 quiz still waiting for its language opens its LESSON screen with the language choices — not the wait screen', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [WAITING], quiz_sessions: [] });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: `lp_${WAIT_ID}` });
+    expect(out.screen).toBe('LESSON');
+    // The subject rule (maths → Urdu) first, exactly as the chat ask orders it.
+    expect(out.data.actions.map((a) => a.id)).toEqual(['make_ur', 'make_en']);
+    // A planned lesson was not "taught".
+    out.data.actions.forEach((a) => expect(a.description.toLowerCase()).not.toContain('taught'));
+    expect(logEvent).not.toHaveBeenCalledWith('transcript_quiz.flow_closed', expect.objectContaining({ kind: 'wait' }));
+  });
+
+  test('choosing a language there makes it on the chat ask’s own path: generating in that language, the LP quiz job queued', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [WAITING], quiz_sessions: [] });
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
+      step: 'action', session_id: `lp_${WAIT_ID}`, quiz_id: WAIT_ID, tq_action: 'make_en',
+    });
+    expect(out.screen).toBe('SUCCESS');
+    await flush();
+    expect(writes).toContainEqual({
+      op: 'update', patch: expect.objectContaining({ status: 'generating', language: 'en' }),
+    });
+    // The LP job (source lp_offer) — never the transcript quiz's claim, which
+    // would re-label the row and queue a job for a coaching session it has not got.
+    expect(SQSQueueService.queueJob).toHaveBeenCalledTimes(1);
+    expect(SQSQueueService.queueJob).toHaveBeenCalledWith(
+      WAIT_ID, 'quiz_generate', expect.objectContaining({ quizId: WAIT_ID, source: 'lp_offer' }), expect.anything(),
+    );
+  });
+
   test('a failed lp_v8 quiz shows LP copy — never "this lesson’s recording"', async () => {
-    stub({ users, coaching_sessions: [], quizzes: [{ ...LP, status: 'failed', meta: { lesson_date: '2026-08-30', error: 'validator_failed' } }], quiz_sessions: [] });
+    // A failed row keeps the lessons it is written from (every generate failure write spreads meta).
+    stub({ users, coaching_sessions: [], quizzes: [{ ...LP, status: 'failed', meta: { lesson_date: '2026-08-30', error: 'validator_failed', lessons: [{ lesson_id: 'g4_m_ch5_s3' }] } }], quiz_sessions: [] });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 'lp_lpq-1' });
     expect(out.screen).toBe('LESSON');
     expect(out.data.results.toLowerCase()).toContain('lesson plan');
     expect(out.data.results.toLowerCase()).not.toMatch(/recording|transcript/);
-    expect(out.data.actions).toEqual([]);
+    // Never an empty chooser: the published LESSON screen's RadioButtonsGroup is
+    // `required: true` over ${data.actions}, and an empty list cannot be drawn.
+    expect(out.data.actions.map((a) => a.id)).toEqual(['remake', 'done']);
   });
 
   test('an lp_ id of another teacher’s quiz is not yours', async () => {
@@ -648,5 +765,410 @@ describe('an lp_v8 quiz in the /quiz Flow (PLAN_R8 D11)', () => {
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 'lp_lpq-1' });
     expect(out.screen).toBe('LESSONS');
     expect(out.data.error_message).toBeTruthy();
+  });
+
+  // A quiz written from a PLANNED lesson must never say the lesson was taught.
+  // The one Flow string that does ("8 questions from what you taught in this
+  // lesson", tqFlowActionMakeDesc) is endpoint data — the published Flow JSON
+  // binds the actions from ${data.actions} and carries no copy of its own — and
+  // it rides only a make_ action, which no lp_v8 lesson offers today. This walks
+  // every lp_v8 state in both languages through the real endpoint, so the day a
+  // make_ action is added for one (an awaiting-language row), the copy on it has
+  // to say planned or this goes red.
+  test.each([
+    ['offered, awaiting its language', { status: 'offered', meta: { lesson_date: '2026-08-30', step: 'awaiting_language', awaiting_language: true } }],
+    ['being written', { status: 'generating', meta: { lesson_date: '2026-08-30', step: 'author' } }],
+    ['sent', {}],
+    ['report sent', { status: 'report_sent' }],
+    ['failed (model)', { status: 'failed', meta: { lesson_date: '2026-08-30', error: 'model_failed' } }],
+  ])('no screen of an lp_v8 lesson says "taught", in either language — %s', async (_label, over) => {
+    for (const lang of ['en', 'ur']) {
+      stub({
+        users: [{ id: TEACHER, phone_number: '923001112222', preferred_language: lang }],
+        coaching_sessions: [], quizzes: [{ ...LP, ...over }], quiz_sessions: KIDS,
+      });
+      const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 'lp_lpq-1' });
+      const text = JSON.stringify(out.data);
+      expect(text).not.toMatch(/taught/i);
+      expect(text).not.toMatch(/پڑھایا/);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Staging, 23 Sep: a FAILED lp_v8 quiz, tapped in the /quiz Flow, showed
+// WhatsApp's generic "Something went wrong" on the LESSON screen while the
+// endpoint logged nothing wrong. The LESSON screen of the published Flow draws
+// a RadioButtonsGroup that is `required: true` over ${data.actions}; the
+// endpoint served that screen with `actions: []`, which the client cannot
+// render. The rule every state is held to here: a response is renderable by the
+// repo's own Flow JSON — every declared data key present with its declared
+// type, and every data-bound chooser carrying 1–20 options within Meta's caps.
+describe('every lp_v8 state renders a screen the /quiz Flow can draw', () => {
+  const FLOW = require('../../../docs/flows/transcript-quiz-flow.json');
+  const CHOOSERS = { RadioButtonsGroup: { title: 30, description: 300 }, NavigationList: null };
+  const nodesOf = (node, acc = []) => {
+    if (Array.isArray(node)) { node.forEach((n) => nodesOf(n, acc)); return acc; }
+    if (node && typeof node === 'object') { acc.push(node); Object.values(node).forEach((v) => nodesOf(v, acc)); }
+    return acc;
+  };
+  /** Would the published Flow render this data_exchange answer? */
+  function expectRenderable(out) {
+    if (out.screen === 'SUCCESS') {           // Meta's reserved endpoint-close
+      expect(out.data && out.data.extension_message_response).toBeTruthy();
+      return;
+    }
+    const screen = FLOW.screens.find((x) => x.id === out.screen);
+    expect(screen).toBeTruthy();
+    for (const [key, spec] of Object.entries(screen.data || {})) {
+      expect(`${out.screen}.${key}:${Object.prototype.hasOwnProperty.call(out.data, key)}`).toBe(`${out.screen}.${key}:true`);
+      const v = out.data[key];
+      const type = Array.isArray(v) ? 'array' : typeof v;
+      expect(`${out.screen}.${key}:${type}`).toBe(`${out.screen}.${key}:${spec.type}`);
+    }
+    for (const node of nodesOf(screen.layout)) {
+      if (!(node.type in CHOOSERS)) continue;
+      const bound = /^\$\{data\.([a-z_]+)\}$/.exec(node['data-source'] || node['list-items'] || '');
+      if (!bound) continue;
+      const items = out.data[bound[1]];
+      expect(`${out.screen}.${bound[1]} has ${items.length} option(s)`).not.toBe(`${out.screen}.${bound[1]} has 0 option(s)`);
+      expect(items.length).toBeLessThanOrEqual(20);
+      const caps = CHOOSERS[node.type];
+      for (const it of items) {
+        expect(typeof it.id).toBe('string');
+        if (caps) {
+          expect(typeof it.title).toBe('string');
+          expect(cp(it.title)).toBeLessThanOrEqual(caps.title);
+          if (it.description !== undefined) expect(cp(it.description)).toBeLessThanOrEqual(caps.description);
+        }
+      }
+    }
+  }
+
+  const LP_ID = 'a1b2c3d4-0000-4000-8000-00000000fa11';
+  const LESSONS = [{ lesson_id: 'grade_4_math_ch5_seg3', asset_id: 'a-1', version_stamp: 'v1' }];
+  const lpRow = (over = {}) => ({
+    id: LP_ID, teacher_id: TEACHER, coaching_session_id: null, quiz_source: 'lp_v8',
+    status: 'failed', topic: 'Comparing fractions', subject: 'maths', language: 'en',
+    created_at: '2026-09-23T10:00:00Z',
+    ...over,
+    meta: { lesson_date: '2026-09-24', source: 'lp_offer', nudge_id: 'nudge-1', lessons: LESSONS, ...(over.meta || {}) },
+  });
+  const lessonTap = (lang = 'en', rows = [lpRow()]) => {
+    stub({ users: [{ id: TEACHER, phone_number: '923001112222', preferred_language: lang }], coaching_sessions: [], quizzes: rows, quiz_sessions: [] });
+    return endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: `lp_${LP_ID}` });
+  };
+  const submit = (tq_action) => endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
+    step: 'action', session_id: `lp_${LP_ID}`, quiz_id: LP_ID, tq_action,
+  });
+  const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); };
+  const { UX_STRINGS } = require('../../shared/config/ux-strings');
+
+  test('a quiz that failed on the model renders: it says so honestly, and offers Make it again and Done', async () => {
+    const out = await lessonTap('en', [lpRow({ meta: { error: 'model_failed', error_detail: 'digest: empty reply' } })]);
+    expectRenderable(out);
+    expect(out.screen).toBe('LESSON');
+    expect(out.data.actions.map((a) => a.id)).toEqual(['remake', 'done']);
+    expect(out.data.results).toContain(UX_STRINGS.tqFlowResultsFailedLpModel.en);
+    expect(out.data.results).toContain(UX_STRINGS.tqFlowResultsRemakeHint.en);
+  });
+
+  test('the same, for an Urdu teacher, in Urdu', async () => {
+    const out = await lessonTap('ur', [lpRow({ meta: { error: 'model_failed' } })]);
+    expectRenderable(out);
+    expect(out.data.results).toContain(UX_STRINGS.tqFlowResultsFailedLpModel.ur);
+    expect(out.data.actions.map((a) => a.title)).toEqual([UX_STRINGS.tqFlowActionRemake.ur, UX_STRINGS.tqFlowActionDone.ur]);
+  });
+
+  test('a plan with too little lesson in it says THAT, and offers only Done — a remake would fail the same way', async () => {
+    const out = await lessonTap('en', [lpRow({ meta: { error: 'source_unusable' } })]);
+    expectRenderable(out);
+    expect(out.data.actions.map((a) => a.id)).toEqual(['done']);
+    expect(out.data.results).toContain(UX_STRINGS.tqFlowResultsFailedLpUnusable.en);
+    expect(out.data.results).not.toContain(UX_STRINGS.tqFlowResultsFailedLpModel.en);
+  });
+
+  test('Make it again flips the row failed → generating ONCE and queues the lesson-plan job; a second submit queues nothing', async () => {
+    const row = lpRow({ meta: { error: 'model_failed' } });
+    // A stateful table: the update really lands, so the second flip sees `generating`.
+    writes = [];
+    supabase.from.mockImplementation((t) => {
+      const rows = { users: [{ id: TEACHER, phone_number: '923001112222', preferred_language: 'en' }], quizzes: [row] }[t] || [];
+      const chain = makeChain(rows, writes);
+      const filters = [];
+      let patch = null;
+      const eq = chain.eq;
+      chain.eq = (f, v) => { filters.push([f, v]); return eq(f, v); };
+      const update = chain.update;
+      chain.update = (p) => { patch = p; return update(p); };
+      const then = chain.then;
+      chain.then = (res) => {
+        if (patch) {
+          const hit = rows.filter((r) => filters.every(([f, v]) => r[f] === v));
+          hit.forEach((r) => Object.assign(r, patch));
+          return res({ data: hit.map((r) => ({ id: r.id })), error: null });
+        }
+        return then(res);
+      };
+      return chain;
+    });
+
+    const first = await submit('remake');
+    expect(first.screen).toBe('SUCCESS');
+    expectRenderable(first);
+    await flush();
+    const second = await submit('remake');
+    await flush();
+
+    expect(row.status).toBe('generating');
+    expect(row.meta).toEqual(expect.objectContaining({ lessons: LESSONS, remakes: 1, previous_error: 'model_failed' }));
+    expect(row.meta.error).toBeUndefined();
+    expect(SQSQueueService.queueJob).toHaveBeenCalledTimes(1);
+    expect(SQSQueueService.queueJob).toHaveBeenCalledWith(
+      LP_ID, 'quiz_generate', expect.objectContaining({ quizId: LP_ID, source: 'lp_offer' }), expect.anything(),
+    );
+    // The second tap met a row that is no longer failed: refused on the screen, nothing queued.
+    expect(second.screen).not.toBe('SUCCESS');
+  });
+
+  test('after two remakes the quiz stops offering a third', async () => {
+    const out = await lessonTap('en', [lpRow({ meta: { error: 'validator_failed', remakes: 2 } })]);
+    expectRenderable(out);
+    expect(out.data.actions.map((a) => a.id)).toEqual(['done']);
+  });
+
+  test('Done closes the Flow and changes nothing', async () => {
+    await lessonTap('en', [lpRow({ meta: { error: 'source_unusable' } })]);
+    const out = await submit('done');
+    await flush();
+    expect(out.screen).toBe('SUCCESS');
+    expectRenderable(out);
+    expect(out.data.extension_message_response.params).toEqual({ tq_action: 'done' });
+    expect(writes).toEqual([]);
+    expect(SQSQueueService.queueJob).not.toHaveBeenCalled();
+  });
+
+  test('a stale submit on a lesson that has since lost its actions never gets an empty chooser', async () => {
+    // Opened while it waited for its language, answered the ask in chat, then Continue.
+    await lessonTap('en', [lpRow({ status: 'generating', meta: { step: 'digest' } })]);
+    const out = await submit('make_en');
+    expectRenderable(out);
+    expect(SQSQueueService.queueJob).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['offered, awaiting its language', { status: 'offered', language: null, meta: { step: 'awaiting_language', awaiting_language: true } }],
+    ['offered, not awaiting (no writer makes this)', { status: 'offered', meta: { step: 'digest' } }],
+    ['generating', { status: 'generating', meta: { step: 'author' } }],
+    ['ready (resuming at the hand-off)', { status: 'ready', meta: { step: 'ready' } }],
+    ['sent', { status: 'sent', meta: { share_code_id: 'sc-1', student_message: 'forward me' } }],
+    ['sent, never handed off', { status: 'sent' }],
+    ['report_sent', { status: 'report_sent', meta: { share_code_id: 'sc-1', student_message: 'forward me' } }],
+    ['failed — model', { status: 'failed', meta: { error: 'model_failed' } }],
+    ['failed — plan unusable', { status: 'failed', meta: { error: 'source_unusable' } }],
+    ['failed — plan missing', { status: 'failed', meta: { error: 'source_missing' } }],
+    ['failed — checks (key disagreement)', { status: 'failed', meta: { error: 'key_disagreement' } }],
+    ['failed — pre-split digest row', { status: 'failed', meta: { error: 'digest_failed', error_detail: 'digest: boom' } }],
+    ['failed — queue refused, lessons lost', { status: 'failed', meta: { error: 'queue_failed', lessons: undefined } }],
+    ['cancelled', { status: 'cancelled' }],
+    ['declined', { status: 'declined' }],
+    ['skipped', { status: 'skipped' }],
+  ])('a lesson tap on an lp_v8 quiz that is %s answers with a renderable screen, in both languages', async (_label, over) => {
+    for (const lang of ['en', 'ur']) {
+      const out = await lessonTap(lang, [lpRow(over)]);
+      expectRenderable(out);
+      expect(['LESSON', 'DONE']).toContain(out.screen);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Staging, 23 Sep: a sent lesson-plan quiz that only the teacher's own test run
+// had taken. Its lesson screen said nobody had opened it — and still offered
+// Generate report. The tap answered "Your report is on its way … in a minute or
+// two", and nothing ever came: the report service excluded the self-test and
+// declined (`video_quiz.report_suppressed {why:'nothing_completed_yet'}`), and
+// the endpoint had already promised it. The rule (root rule 24d): the screen
+// names the actual state, and a report is only promised when one will come.
+describe('a report is only promised when there is something to report', () => {
+  const { UX_STRINGS } = require('../../shared/config/ux-strings');
+  const WhatsAppService = require('../../shared/services/whatsapp.service');
+  const SENT = {
+    id: 'q-1', coaching_session_id: 's-1', teacher_id: TEACHER, quiz_source: 'transcript',
+    status: 'sent', topic: 'Electric circuits', subject: 'science', language: 'en',
+    meta: { share_code_id: 'sc-1', student_message: 'forward me' },
+  };
+  const SELF_TEST_ONLY = [
+    { id: 'qs-self', quiz_id: 'q-1', user_id: TEACHER, invited_by_student_id: null, student_name: 'Me', status: 'completed', total_questions_answered: 8, correct_answers: 8, mastery_percentage: 100 },
+  ];
+  const STARTED_ONLY = [
+    { id: 'qs-2', quiz_id: 'q-1', user_id: null, invited_by_student_id: null, student_name: 'Bilal', status: 'in_progress', total_questions_answered: 2, correct_answers: 1, mastery_percentage: null },
+  ];
+  const ONE_FINISHED = [
+    { id: 'qs-1', quiz_id: 'q-1', user_id: null, invited_by_student_id: null, student_name: 'Ayesha', status: 'completed', total_questions_answered: 8, correct_answers: 7, mastery_percentage: 88 },
+  ];
+  const tapLesson = () => endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+  const submit = (tq_action) => endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSON', {
+    step: 'action', tq_action, session_id: 's-1', quiz_id: 'q-1',
+  });
+  const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); };
+
+  test.each([
+    ['only the teacher’s own test run', SELF_TEST_ONLY],
+    ['children started, none finished', STARTED_ONLY],
+    ['nobody at all', []],
+  ])('%s: the lesson offers Resend link first and Done — never Generate report', async (_label, kids) => {
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: kids });
+    const out = await tapLesson();
+    expect(out.screen).toBe('LESSON');
+    expect(out.data.actions.map((a) => a.id)).toEqual(['link', 'done']);
+  });
+
+  test('a Generate report tap with nobody finished (a stale screen) says so honestly — never "on its way"', async () => {
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: SELF_TEST_ONLY });
+    const out = await submit('report');
+    await flush();
+    expect(out.screen).toBe('LESSON');
+    // Every results line opens with the teacher language's paragraph mark (LRM).
+    expect(out.data.results).toBe(`\u200E${UX_STRINGS.tqFlowResultsNothingToReport.en}`);
+    expect(out.data.actions.map((a) => a.id)).toEqual(['link', 'done']);
+    expect(Report.generate).not.toHaveBeenCalled();
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_refused',
+      expect.objectContaining({ reason: 'nothing_to_report' }));
+    expect(logEvent).not.toHaveBeenCalledWith('transcript_quiz.flow_closed', expect.objectContaining({ kind: 'report' }));
+  });
+
+  test('the same, for an Urdu teacher, in Urdu', async () => {
+    stub({
+      users: [{ id: TEACHER, phone_number: '923001112222', preferred_language: 'ur' }],
+      coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: SELF_TEST_ONLY,
+    });
+    const out = await submit('report');
+    expect(out.data.results).toBe(`\u200F${UX_STRINGS.tqFlowResultsNothingToReport.ur}`);
+  });
+
+  test('once one child has finished, Generate report comes first and runs', async () => {
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: ONE_FINISHED });
+    expect((await tapLesson()).data.actions.map((a) => a.id)).toEqual(['report', 'link']);
+    const out = await submit('report');
+    await flush();
+    expect(out.screen).toBe('DONE');
+    expect(Report.generate).toHaveBeenCalledWith('sc-1', { reason: 'requested', force: true });
+  });
+
+  test('if the report service still declines after the screen was answered, the teacher is told in chat', async () => {
+    stub({ users, coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: ONE_FINISHED });
+    Report.generate.mockResolvedValueOnce(false);
+    await submit('report');
+    await flush();
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923001112222', UX_STRINGS.tqNoReportYet.en);
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_done', expect.objectContaining({ action: 'report', ok: false }));
+  });
+});
+
+// A child who re-opens the class link gets a new session row (nothing blocks a
+// retake), and one who typed STOP and came back has two. /quiz read every row:
+// the child counted twice in "started", a retake counted again in "finished"
+// and in the average, and a child who stopped and then finished was listed as
+// finished AND as stopped. The class report already counts one attempt per
+// child (the latest completed, else the latest row); /quiz now counts the same.
+describe('/quiz counts one attempt per child, as the class report does', () => {
+  const { resolveUx } = require('../../shared/config/ux-strings');
+  const at = (d, h) => new Date(Date.UTC(2026, 8, d, h, 0, 0)).toISOString();
+  const quizFor = (id, sessionId, extra = {}) => ({
+    id, coaching_session_id: sessionId, teacher_id: TEACHER, quiz_source: 'transcript',
+    status: 'sent', topic: `Topic ${id}`, subject: 'science', language: 'en',
+    meta: { share_code_id: `sc-${id}`, student_message: 'forward me' }, ...extra,
+  });
+  const row = (id, quizId, studentId, name, status, extra = {}) => ({
+    id, quiz_id: quizId, user_id: null, invited_by_student_id: null, student_id: studentId,
+    student_name: name, student_class: '5-A', status,
+    total_questions_answered: 0, correct_answers: 0, mastery_percentage: null,
+    completed_at: null, created_at: at(10, 8), ...extra,
+  });
+  const done = (pct, completedDay) => ({
+    total_questions_answered: 8, correct_answers: Math.round((pct / 100) * 8), mastery_percentage: pct,
+    completed_at: at(completedDay, 9),
+  });
+  const ROWS = [
+    row('a1', 'q-1', 'st-a', 'Ayesha', 'completed', done(88, 10)),
+    row('b1', 'q-1', 'st-b', 'Bilal', 'completed', done(50, 10)),
+    row('d1', 'q-1', 'st-d', 'Danish', 'in_progress'),
+    // Esha typed STOP, re-opened the link and finished.
+    row('e1', 'q-1', 'st-e', 'Esha', 'incomplete', { created_at: at(10, 8), total_questions_answered: 3, correct_answers: 2 }),
+    row('e2', 'q-1', 'st-e', 'Esha', 'completed', { created_at: at(11, 8), ...done(75, 11) }),
+    // Farah finished, retook it and did better.
+    row('f1', 'q-1', 'st-f', 'Farah', 'completed', { created_at: at(10, 8), ...done(38, 10) }),
+    row('f2', 'q-1', 'st-f', 'Farah', 'completed', { created_at: at(12, 8), ...done(88, 12) }),
+    // The teacher's own run never counts.
+    { ...row('t1', 'q-1', null, 'QA Load Test', 'completed', done(100, 10)), user_id: TEACHER },
+    // Esha on ANOTHER lesson's quiz is a child of that quiz, not a retake of this one.
+    row('e3', 'q-2', 'st-e', 'Esha', 'in_progress'),
+  ];
+
+  /** The same stub, except quiz_sessions answers only the columns asked for —
+   *  so a collapse that needs a column the select forgot cannot pass here. */
+  function stubProjecting(tables) {
+    writes = [];
+    supabase.from.mockImplementation((t) => {
+      const chain = makeChain(tables[t] || [], writes);
+      if (t !== 'quiz_sessions') return chain;
+      let cols = null;
+      chain.select = (list) => {
+        if (typeof list === 'string' && !list.includes('*') && !list.includes('(')) {
+          cols = list.split(',').map((c) => c.trim()).filter(Boolean);
+        }
+        return chain;
+      };
+      const then = chain.then;
+      chain.then = (resolve, reject) => then((res) => resolve({
+        ...res,
+        data: cols ? res.data.map((r) => Object.fromEntries(cols.map((c) => [c, r[c]]))) : res.data,
+      }), reject);
+      return chain;
+    });
+  }
+
+  test('the lesson screen counts each child once: started, finished, the average and the lists', async () => {
+    stubProjecting({ users, coaching_sessions: [session(1)], quizzes: [quizFor('q-1', 's-1')], quiz_sessions: ROWS });
+
+    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+    // Each line opens with its own direction mark; the words are what is asserted here.
+    const lines = out.data.results.split('\n').map((l) => l.replace(/^[\u200E\u200F]/, ''));
+
+    // Ayesha 88, Bilal 50, Esha 75, Farah 88 (her latest) → 301 / 4 = 75.25
+    expect(lines[0]).toBe(resolveUx('tqFlowResultsHead', { language: 'en', params: { started: 5, finished: 4, avg: 75 } }));
+    expect(lines.filter((l) => l.startsWith('• Farah'))).toEqual([expect.stringContaining('7/8 (88%)')]);
+    // Esha finished on her second go: one finished line, and on no unfinished list.
+    expect(lines.filter((l) => l.includes('Esha'))).toEqual([expect.stringMatching(/^• Esha .*75%/)]);
+    expect(lines).toContain(resolveUx('tqFlowStillGoing', { language: 'en', params: { names: 'Danish' } }));
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_lesson', expect.objectContaining({ started: 5, finished: 4 }));
+  });
+
+  test('the lessons list counts each child once per quiz', async () => {
+    stubProjecting({
+      users,
+      coaching_sessions: [session(1), session(2)],
+      quizzes: [quizFor('q-1', 's-1'), quizFor('q-2', 's-2')],
+      quiz_sessions: ROWS,
+    });
+
+    const out = await endpoint.handleTranscriptQuizInit(TOKEN);
+    const byId = Object.fromEntries(out.data.items.map((i) => [i.id, i['main-content'].description]));
+
+    expect(byId['s-1']).toBe(resolveUx('tqFlowStatusSent', { language: 'en', params: { started: 5 } }));
+    expect(byId['s-2']).toBe(resolveUx('tqFlowStatusSent', { language: 'en', params: { started: 1 } }));
+  });
+
+  test('a sent report counts each finished child once', async () => {
+    stubProjecting({
+      users, coaching_sessions: [session(1)],
+      quizzes: [quizFor('q-1', 's-1', { status: 'report_sent' })], quiz_sessions: ROWS,
+    });
+
+    const out = await endpoint.handleTranscriptQuizInit(TOKEN);
+
+    expect(out.data.items[0]['main-content'].description)
+      .toBe(resolveUx('tqFlowStatusReport', { language: 'en', params: { finished: 4 } }));
   });
 });

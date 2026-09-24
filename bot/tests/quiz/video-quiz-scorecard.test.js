@@ -182,7 +182,8 @@ describe('bd-mg9c7.28 — the child\'s own language on her own card', () => {
     const html = renderHtml({ topic: 'Fractions', correct: 1, total: 1, pct: 100, grade: 'Grade 4', subject: 'Maths' });
     expect(html).not.toMatch(/Taleemabad/);
     expect(html).not.toMatch(/Grade 4/);
-    expect(html).toMatch(/Maths/);
+    // by its display name, never the stored key
+    expect(html).toMatch(/>Mathematics</);
   });
 });
 

@@ -479,6 +479,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The same ask, buttons (tq_lang_<code>_<quizId>) and handler as the quiz born from a recording.
     # Every subject but Urdu and Islamiyat is asked; the subject rule's language is the first button.
 
+  @e2e @quiz @language @copy @wip @draft @config-gated @P2
+  Scenario: The quiz language question gives examples of English terms that fit the lesson's subject
+    Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 5 Science lesson has arrived
+    When I tap "Make the quiz"
+    Then the bot asks which language the quiz should be in
+    And its Urdu line gives science terms as the examples of what stays in English letters, "(photosynthesis, cell)"
+    And it never gives "fraction" or "numerator" as the examples
+    # transcript-quiz-language languageAskBody: the digest's own English key terms (up to two, short) when the
+    # lesson has them — a quiz born from a recording; a subject pair when it has none — a lesson-plan quiz is
+    # asked before it is digested (maths: fraction, numerator · science: photosynthesis, cell · English: noun,
+    # verb); no examples at all for a subject with no pair. Proven for the offer, /quiz and this offer in
+    # tests/quiz/language-ask-examples.test.js and lp-quiz-language-ask.test.js. @wip until driven live.
+
   @e2e @quiz @language @wip @draft @config-gated @P2
   Scenario: Urdu and Islamiyat lessons are not asked the quiz language
     Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 4 Urdu lesson has arrived
@@ -519,6 +532,15 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # An Urdu lesson is never asked the quiz language, so no question comes between the tap and the PDF.
     # In Urdu the caption says «آپ کے سبق کا منصوبہ». A quiz written from a coaching recording keeps
     # "what you taught" — that lesson was taught.
+
+  @e2e @quiz @wip @draft @config-gated @P3
+  Scenario: The afternoon offer's WhatsApp message id is kept on its nudge row
+    Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the afternoon quiz offer arrives
+    And the teacher's lp_quiz_offer row for today is sent with the offer's WhatsApp message id in context.message_ids, not an empty list
+    # lp-quiz-offer send(): the button and list senders report Meta's id through onMessageId; the sweeper
+    # writes it with markSent. The boolean the send returns is still the delivery verdict. @wip.
 
   @e2e @quiz @wip @draft @config-gated @P2
   Scenario: No thanks is remembered

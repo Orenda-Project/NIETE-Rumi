@@ -2317,7 +2317,7 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
         course_count: 0,
         module_count: 0,
         completed_module_count: 0,
-        // bd-60152 — the card leads with certificates earned, so the count
+        // The card leads with certificates earned, so the count
         // must come from the same call that draws the card.
         certificate_count: 0,
         _pctSum: 0,
@@ -2371,7 +2371,7 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
       course_count: agg.course_count,
       module_count: agg.module_count,
       completed_module_count: agg.completed_module_count,
-      // bd-60155 — this line is why the card read "0 Certificates" for
+      // This line is why the card read "0 Certificates" for
       // everyone. The count was aggregated correctly above and then dropped
       // here: this mapper names every field it returns, so a field added to
       // the accumulator and not to this list is silently discarded. The
@@ -2699,7 +2699,7 @@ router.delete('/classes/:classId/students/:studentId', requirePortalAuth, async 
  * GET  /api/portal/training/level/:id/certificate   — is it claimable, and is one held?
  * POST /api/portal/training/level/:id/certificate   — claim it.
  *
- * bd-60152 — the "Receive Certificate" row at the end of the course list.
+ * The "Receive Certificate" row at the end of the course list.
  *
  * A teacher on a per-module-assessed level (I-SAPS) never sits a LEVEL exam, so
  * nothing on the page ever told her the level was finished or handed her the
@@ -2707,7 +2707,7 @@ router.delete('/classes/:classId/students/:studentId', requirePortalAuth, async 
  * module is done, and on tap it either says what is still outstanding or mints
  * the certificate.
  *
- * The DECISION is the bot's shared guard (bd-60145): on a level with
+ * The DECISION is the bot's shared guard: on a level with
  * per-module exams, every active one passed (operator, 2026-09-23); otherwise
  * the vendor's own rule. This route adds no rule of
  * its own; it reports what the guard already holds and asks it to issue.
@@ -2803,7 +2803,7 @@ router.post('/training/level/:id/certificate', requirePortalAuth, async (req, re
       return res.json({ success: true, issued: true, certificate: before.certificate });
     }
 
-    // bd-60170 — the programme that SCOPES THIS LEVEL, not just any active one.
+    // The programme that SCOPES THIS LEVEL, not just any active one.
     //
     // This was `.limit(1).maybeSingle()` over every active assignment. A
     // teacher on three programmes (Primary, Middle, I-SAPS pilot — a real
@@ -3303,10 +3303,10 @@ router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (r
     // WhatsApp both use.
     let certificate = null;
     if (verdict.is_passed) {
-      // bd-60145 — through the bot's GUARD, not the raw issuer.
+      // Through the bot's GUARD, not the raw issuer.
       //
       // This called issueCertificate directly the moment the attempt passed,
-      // which skips every completeness check: the portal's copy of bd-60139,
+      // which skips every completeness check: the portal's copy of the WhatsApp bug,
       // where one pass minted a certificate without asking whether the units
       // were finished or the per-module exams passed. The decision belongs to
       // the bot so that WhatsApp and the portal cannot disagree about who is
@@ -3551,7 +3551,7 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
       }
     }
 
-    // bd-60149 — does each unit have a formative assessment of its own?
+    // Does each unit have a formative assessment of its own?
     //
     // The I-SAPS list interleaves "Unit 301 / Unit 301 — Assessment", and the
     // assessment row must NOT render for a unit that has no questions: two of
@@ -3577,7 +3577,7 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
       has_questions: qMap.has(m.id),
       completed_at: completedMap.get(m.id) || null,
     }));
-    // bd-60149 — the module's own summative exam, alongside its units.
+    // The module's own summative exam, alongside its units.
     //
     // Operator decision: an unpassed module exam BLOCKS the next module, the
     // same way WhatsApp gates it. The UI cannot render that lock without the
@@ -4155,11 +4155,11 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
 
     // 8b. The level certificate, if this pass finished the level.
     //
-    // bd-60145 — no portal route certified a per-module-assessed level at all.
+    // No portal route certified a per-module-assessed level at all.
     // Certification lived only in the capstone and grand-quiz routes, both
     // LEVEL-scoped, so an I-SAPS teacher who finished every unit and every
     // module exam through the portal was certified by nothing — the same hole
-    // bd-60142 fixed on WhatsApp, one surface over.
+    // was already fixed on WhatsApp, one surface over.
     //
     // The bot's guard decides. It is cheap to ask and refuses fast when the
     // level is unfinished, and it is idempotent per (user, level), so calling
@@ -4221,7 +4221,7 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
         achieved_pct: verdict.achieved_pct,
         completed_at: completedAt,
       },
-      // null unless this pass completed the level (bd-60145).
+      // null unless this pass completed the level.
       certificate,
     });
   } catch (error) {
@@ -4733,10 +4733,10 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
     //    the service lives in the bot tree and must not load at router mount.
     let certificate = null;
     if (isPassed) {
-      // bd-60145 — through the bot's GUARD, not the raw issuer.
+      // Through the bot's GUARD, not the raw issuer.
       //
       // This called issueCertificate directly the moment the attempt passed,
-      // which skips every completeness check: the portal's copy of bd-60139,
+      // which skips every completeness check: the portal's copy of the WhatsApp bug,
       // where one pass minted a certificate without asking whether the units
       // were finished or the per-module exams passed. The decision belongs to
       // the bot so that WhatsApp and the portal cannot disagree about who is
@@ -4818,7 +4818,7 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
 /**
  * GET /api/portal/training/module/:id/exam
  *
- * bd-60149 — may this teacher sit this module's summative exam?
+ * May this teacher sit this module's summative exam?
  *
  * The portal had no concept of a module exam: `source_quiz_id` appeared
  * nowhere in this file, so an I-SAPS teacher could finish all 54 units here
@@ -4846,7 +4846,7 @@ router.get('/training/module/:id/exam', requirePortalAuth, async (req, res) => {
 /**
  * GET /api/portal/training/module/:id/exam/questions
  *
- * bd-60149 — opens (or resumes) the attempt and returns the served paper:
+ * Opens (or resumes) the attempt and returns the served paper:
  * 2 scenario MCQs + 1 written answer, seeded on the attempt id so a page
  * reload re-derives the SAME three questions rather than drawing fresh ones.
  *
@@ -4884,7 +4884,7 @@ router.get('/training/module/:id/exam/questions', requirePortalAuth, async (req,
  * POST /api/portal/training/module/:id/exam/attempts
  * Body { attempt_id, answers:[{question_id, chosen_option?, answer_text?}] }
  *
- * bd-60149 — submit the paper.
+ * Submit the paper.
  *
  * Marking happens in the bot, with the same grader WhatsApp uses, so identical
  * words earn an identical score whichever surface a teacher used.
@@ -4899,7 +4899,7 @@ router.get('/training/module/:id/exam/questions', requirePortalAuth, async (req,
  * Body { attempt_id, question_id, question_index, chosen_option?, answer_text? }
  *   -> { success, saved }
  *
- * bd-60169 — autosave one answer mid-paper.
+ * Autosave one answer mid-paper.
  *
  * Answers used to live in React state until Submit, so a closed tab, a phone
  * call or a backgrounded app lost the whole paper — including an
@@ -4934,7 +4934,7 @@ router.put('/training/module/:id/exam/draft', requirePortalAuth, async (req, res
  * GET /api/portal/training/module/:id/exam/draft?attempt_id=…
  *   -> { success, answers[] }
  *
- * bd-60169 — what she has already answered, so resuming an attempt shows her
+ * What the teacher has already answered, so resuming an attempt shows their
  * own work instead of a blank paper.
  */
 router.get('/training/module/:id/exam/draft', requirePortalAuth, async (req, res) => {

@@ -290,22 +290,29 @@ async function lessonAssetIds(assetIds) {
   return found;
 }
 
+/**
+ * The users columns the offer reads, and no others. Named rather than `*` so a
+ * build never pulls every column of every candidate, and so the schema guards can
+ * see what this path depends on. Add a field here before reading it below.
+ */
+const TEACHER_COLUMNS = 'id, school_id, region, phone_number, preferred_language, last_message_at, is_test_user';
+
 async function teachersById(userIds) {
   const byId = new Map();
   for (const part of chunks(userIds)) {
     // eslint-disable-next-line no-await-in-loop
-    // `*`, not a column list: `deleted_at` is live on some environments and not
-    // in the repo schema, and a select naming a column the table lacks makes
-    // PostgREST refuse the WHOLE read. A missing column reads as undefined here.
     const rows = await pagedRows('lp quiz offer: teachers', () => supabase
       .from('users')
-      .select('*')
+      .select(TEACHER_COLUMNS)
       .in('id', part)
-      .eq('role', 'teacher'));
+      .eq('role', 'teacher')
+      // A soft-deleted (retired) account is never a candidate. `deleted_at` is
+      // on every NIETE database (V1.4.6), so the filter runs in SQL.
+      .is('deleted_at', null));
     // `is_test_user` is filtered HERE, not with `.neq('is_test_user', true)`:
     // neq is SQL `<>`, which drops NULL rows, and the column is null for most
     // real teachers. A neq would quietly empty the cohort.
-    for (const row of rows) if (row.is_test_user !== true && !row.deleted_at) byId.set(row.id, row);
+    for (const row of rows) if (row.is_test_user !== true) byId.set(row.id, row);
   }
   return byId;
 }
@@ -550,11 +557,12 @@ function yesNoButtons(nudgeId, language) {
 
 async function teacherById(userId) {
   const { data, error } = await supabase.from('users')
-    .select('*')              // see teachersById: never name deleted_at
+    .select(TEACHER_COLUMNS)
     .eq('id', userId)
+    .is('deleted_at', null)   // a teacher retired since 15:00 is not offered
     .maybeSingle();
   if (error) throw new Error(`lp quiz offer: user read failed — ${error.message}`);
-  if (!data || !data.phone_number || data.deleted_at) {
+  if (!data || !data.phone_number) {
     throw new Error(`lp quiz offer: user ${userId} not found`);
   }
   return data;
@@ -623,6 +631,11 @@ async function send(row, { now } = {}) {
   const shape = shapeOf(classes);
   const to = user.phone_number;
   const context = { shape, class_count: classes.length, language };
+  // Meta's message id, kept on the row (context.message_ids) so "did this
+  // teacher get the offer?" can be matched to a delivery webhook. Reported by
+  // the send; the boolean it returns stays the delivery verdict.
+  const messageIds = [];
+  const sendOpts = { onMessageId: (id) => messageIds.push(id) };
   let ok;
 
   if (shape === 'list') {
@@ -650,7 +663,7 @@ async function send(row, { now } = {}) {
       }), CAPS.footer);
       context.dropped_classes = dropped;
     }
-    ok = await WhatsAppService.sendInteractiveMessage(to, list);
+    ok = await WhatsAppService.sendInteractiveMessage(to, list, sendOpts);
   } else {
     const cls = classes[0];
     const first = cls.lessons[0];
@@ -667,7 +680,7 @@ async function send(row, { now } = {}) {
     } else {
       body = resolveUx('lpQuizOfferOneUntitled', { language, params: { grade, subject } });
     }
-    ok = await WhatsAppService.sendInteractiveButtons(to, { body, buttons: yesNoButtons(row.id, language) });
+    ok = await WhatsAppService.sendInteractiveButtons(to, { body, buttons: yesNoButtons(row.id, language) }, sendOpts);
   }
 
   if (!ok) {
@@ -678,7 +691,7 @@ async function send(row, { now } = {}) {
     nudgeId: row.id, userId: row.user_id, shape, classes: classes.length,
     dropped: (context.dropped_classes || []).length, language,
   });
-  return { sent: true, messageIds: [], context };
+  return { sent: true, messageIds, context };
 }
 
 // ─── the answer ──────────────────────────────────────────────────────────────
@@ -793,7 +806,11 @@ async function accept(nudgeId, key, from, user, at) {
     // The transcript quiz's own ask and buttons (tq_lang_<code>_<quizId>); its
     // handler generates this row once the teacher answers. Nothing is queued
     // until then. The subject rule is the first, easy tap.
-    await TranscriptQuizOffer.sendLanguageAsk(quizId, from, language, quizLanguageFor(cls.subject, null));
+    // No digest yet (the author digests the planned lesson after the answer):
+    // the ask's examples fit the class's subject.
+    await TranscriptQuizOffer.sendLanguageAsk(quizId, from, language, quizLanguageFor(cls.subject, null), {
+      subject: cls.subject,
+    });
     logEvent('lp_quiz.language_asked', { nudgeId, quizId, userId: row.user_id, class: cls.key });
   } else if (!(await TranscriptQuizOffer.queueLpQuiz({ quizId, nudgeId: row.id, phone: from, language }))) {
     return true;
