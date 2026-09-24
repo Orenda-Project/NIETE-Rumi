@@ -318,6 +318,27 @@ Feature: NIETE (ICT) Teacher Training
     # lp-lesson-claim: a Redis SET NX per (teacher, lesson) around read → insert → re-read; the re-read keeps
     # the oldest row when Redis fails open. The 15:00 offer goes through the same claim. @wip.
 
+  @e2e @quiz @wip @draft @P1
+  Scenario: A lesson plan another teacher already made into a quiz comes back quickly, with my own name and link
+    Given another teacher on the same version of a lesson plan has already been sent its quiz
+    And the NIETE bot chat is open and /quiz lists that lesson plan with no quiz yet
+    When I tap that lesson plan's row
+    Then the quiz arrives with the PDF and the message to forward to the class
+    And the PDF and the forward message carry my name and my lesson date, and the link is a new one of my own
+    And the questions are the same questions the other teacher's class was sent
+    # lp-quiz-cache: key = (source, lesson id, version stamp, content hash, language); donor = the newest SENT quiz
+    # of that key with every check passed, not itself a copy. quiz_funnel.generated carries cached:true and
+    # donor_quiz_id; meta.cache_donor on the row. Pictures re-hosted under this quiz. QUIZ_LP_CACHE=off = author. @wip.
+
+  @e2e @quiz @negative @wip @draft @P2
+  Scenario: Past today's quiz limit I am told plainly and can make it tomorrow
+    Given I have already had the day's limit of quizzes made today
+    When I ask for one more quiz from /quiz
+    Then the bot says today's limit for new quizzes is reached and that it can be made tomorrow from /quiz
+    And no quiz is sent
+    # quiz-daily-cap: QUIZ_DAILY_CAP (default 10) per teacher per PKT day, both streams, counted in the generate
+    # step before any model call; failed / daily_cap; copy tqDailyCap. Needs Redis; off/0 = no cap. @wip.
+
   @e2e @quiz @wip @draft @P2
   Scenario: A child in the middle of a quiz who types "quiz" stays in the quiz
     Given a child on this phone is taking a class quiz and a question is waiting for an answer
