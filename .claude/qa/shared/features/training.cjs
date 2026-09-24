@@ -295,12 +295,18 @@ exports.run = async ({ api, rec, sleep }) => {
   // A PDF module arrives as a document card, which carries no "Next video" button, so a doc/pdf
   // item counts as a terminal state in its own right.
   const deliverPicked = async (rowText) => {
-    const pk = await api.flowPick(String(rowText).split(' \u00b7 ')[0].trim());
+    const title = String(rowText).split(' \u00b7 ')[0].trim();
+    const pk = await api.flowPick(title);
     if (!pk.ok) { api.closeFlow(); return { ok: false, err: 'PICK:' + pk.err }; }
     await api.flowClick('Close', { settleMs: 2000 });
     api.closeFlow();
     const CTA_ANY = /Take quiz|Next video|Next module|Continue|Resume|Start/i;   // a resumed check may not say "Take quiz"
-    const w = await waitFresh((x) => x.doc || x.pdf || (x.btns || []).some(b => CTA_ANY.test(b))
+    // A card with a button must be THIS module's: a late "Finished watching <previous module>?" card
+    // from the scenario before leaked into T04's window and its Take-quiz button was taken for the PDF
+    // module's card (run 20260924-1402). Documents and refusals are accepted as they are.
+    const stem = title.replace(/\u2026$/, '').slice(0, 24);
+    const w = await waitFresh((x) => x.doc || x.pdf
+                                  || ((x.btns || []).some(b => CTA_ANY.test(b)) && String(x.txt || '').includes(stem))
                                   || /Finish "|first \u2014 modules open one at a time|not part of your training|locked until/i.test(x.txt || ''), 60000);
     if (!w.ok) return { ok: false, err: 'NO_CARD', last: w.last };
     return { ok: true, card: w.hit, cta: (w.hit.btns || []).find(b => CTA_ANY.test(b)) || null, txt: w.hit.txt || '' };
