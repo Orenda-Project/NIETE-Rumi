@@ -528,6 +528,27 @@ Feature: NIETE (ICT) Teacher Training
     # video-quiz-invite handleInviteButton: vqInviteForwardThis + vqInviteMessage in the quiz language
     # (the invite's own language, else its share code's). @wip.
 
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: A child who passed an Urdu quiz to a friend hears how the friend did, in Urdu
+    Given a child sent an Urdu class quiz to a friend and has finished it themselves
+    When the friend finishes the same quiz
+    Then the first child is told in Urdu that the friend finished, with the friend's first name only
+    And both scores are shown as "<out of> میں سے <score>", and the closing line never frames it as a loss
+    # video-quiz.service finish() -> video-quiz-invite notifyInviter(session, state.language) ->
+    # buildComparison: vqCompareMessage + vqCompareBehind/Ahead/Tie in the quiz language (quiz_sessions
+    # carries no language; the session state does). English copy is byte-identical. @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: A video quiz sent to the class from an Urdu run forwards an Urdu message
+    Given I have just taken a video quiz in Urdu on my own
+    When I tap "کلاس کو بھیجیں" on the offer to send it to my class
+    Then I am told in Urdu to forward the next message to the class group
+    And the message to forward is in Urdu, names the teacher and the topic, and carries a "QUIZ-<code>" link
+    And a last message in Urdu says when the class report will arrive
+    # video-quiz-share offerShare / handleShareButton / deliverClassLink: vqShareOffer, vqShareYes/No,
+    # vqShareForwardThis, vqClassMessage, vqShareReportPromise, vqShareDeclined, vqShareLinkFailed in
+    # the run's language. English copy is byte-identical. @wip.
+
   # ══════════════════ ASSESSMENT GENERATOR — the paper she asks for ══════════════════
   # The generator is mapped to this feature (feature-map.yaml: training) because it sits
   # with the exam/quiz surfaces, but it had no scenarios until bd-60175. It is its own
