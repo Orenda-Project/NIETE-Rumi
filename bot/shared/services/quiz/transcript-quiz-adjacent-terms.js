@@ -33,6 +33,10 @@
  * (a quoted word beside its label is apposition — «'He' pronoun»); a word is a
  * single letter (spelled letters, initials).
  *
+ * One more case needs no knowledge of the left word: when the right side is a
+ * lesson term that opens with an adjective ("Proper Fraction"), a content word
+ * straight before it cannot be part of the same English phrase.
+ *
  * Measured on every Urdu class quiz on the production read replica (1,142
  * quizzes, 9,085 questions), labelled by hand: of the 73 distinct pairs it
  * flags, 69 are two separate terms (precision 0.95); estimated recall 0.83. A
@@ -156,7 +160,13 @@ function adjacentTermsIn(text, lex) {
       if (isModifier(wa)) continue;
       const leftPhrase = i > 0 && !t[i - 1].quoted && lex.pairs.has(`${norm(t[i - 1].text)} ${wa}`);
       const rightPhrase = i + 2 < t.length && !t[i + 2].quoted && lex.pairs.has(`${wb} ${norm(t[i + 2].text)}`);
-      if ((leftPhrase || lex.words.has(wa)) && (rightPhrase || lex.words.has(wb))) {
+      // A lesson term that OPENS WITH AN ADJECTIVE on the right ("Proper Fraction",
+      // "like fractions"): English never puts a noun straight before an adjective
+      // inside one phrase, so the content word on the left is a separate part of
+      // the sentence even when the quiz never uses it alone («کون سا fraction
+      // Proper Fraction ہے؟», where "fraction" only ever appears inside a term).
+      const rightOpensTerm = rightPhrase && isModifier(wb);
+      if ((leftPhrase || lex.words.has(wa) || rightOpensTerm) && (rightPhrase || lex.words.has(wb))) {
         found.push({ pair: `${a.text} ${b.text}`, left: wa, right: wb });
       }
     }
