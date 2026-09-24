@@ -52,6 +52,7 @@ from __future__ import annotations
 import re
 
 from d0_warmpeer import is_banned_move
+import d0_openpeer_adverbial as _adv
 
 _BOUNDARY = re.compile(r"(?<=[.!?۔؟:])\s+|(?<=\s)[-–—]{1,2}(?=\s)")
 
@@ -106,6 +107,8 @@ _GAP_TEXT = {
     "dropped_whole_banned": "the banned move IS the whole string; excised to nothing",
     "redirected_to_blessed_whole_class_form":
         "the banned move was the whole string; redirected to the operator's own blessed whole-class form",
+    "adverbial_addressee_removed":
+        "banned addressee phrase excised, whole-class instruction kept",
     "lead_clause_removed": "banned lead clause excised, legal remainder kept",
     "trailing_clause_removed": "banned trailing clause excised, legal remainder kept",
     "middle_clause_removed": "banned clause excised from the middle, both legal sides kept and joined",
@@ -252,7 +255,7 @@ def apply_opening_peer_talk(sections):
     """Mirrors `d0_warmitems.apply_one_strategy`'s contract: find the Opening
     section by title, mutate its `blocks` in place, return `[]` when there is
     nothing to do, else the accumulated gap-message list."""
-    gaps = []
+    gaps = _adv.apply_warmup_peer_talk(sections)
     section = next(
         (sec for sec in (sections or [])
          if re.search(r"opening", str((sec or {}).get("title") or ""), re.I)),
