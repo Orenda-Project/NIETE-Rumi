@@ -202,11 +202,24 @@ function figureDensity(questions, { subject, gradeBand } = {}) {
  * refusal (the generate service's IN_PLACE_FAULT). The line says every field
  * the name sits in, a picture's labels included, because the rewrite reads it.
  */
-function nameLexicon(digest) {
+function nameLexicon(digest, questions = []) {
   const lessonWords = new Set();
   (Array.isArray(digest && digest.examples_used) ? digest.examples_used : []).forEach((ex) => {
     (String(ex || '').match(/\b[A-Z][a-z]{2,}\b/g) || []).forEach((w) => lessonWords.add(w));
   });
+  // A word the lesson or the quiz also writes in lowercase is a WORD, not a
+  // name: a lesson plan's worked example begins "Compare: 10 is more than 9",
+  // and a replayed teacher note that wrote "Compare" went to the repair as a
+  // person. A child's name is never written in lowercase.
+  const d = digest || {};
+  const lessonText = [
+    ...(Array.isArray(d.examples_used) ? d.examples_used : []), d.topic, d.topic_as_taught,
+    ...(Array.isArray(d.slos) ? d.slos : []).flatMap((x) => [x && x.statement, x && x.statement_en]),
+    ...(Array.isArray(d.misconceptions_surfaced) ? d.misconceptions_surfaced : []),
+    ...(Array.isArray(questions) ? questions : []).map((q) => JSON.stringify(q || {})),
+  ].map((t) => (typeof t === 'string' ? t : JSON.stringify(t || '')));
+  const lowercase = new Set(lessonText.flatMap((t) => t.match(/\b[a-z]{3,}\b/g) || []));
+  lowercase.forEach((w) => lessonWords.delete(w.charAt(0).toUpperCase() + w.slice(1)));
   // A real digest stores each key term as {term, as_spoken}; read as plain
   // text it was "[object Object]" and no term was ever exempt, so a vocabulary
   // lesson's Brother, Sister, King and Queen were flagged as people.
@@ -253,7 +266,7 @@ function latinNameErrors(q, i, lex) {
  */
 function latinNames(questions, { language, digest } = {}) {
   if (language !== 'ur') return [];
-  const lex = nameLexicon(digest);
+  const lex = nameLexicon(digest, questions);
   return (Array.isArray(questions) ? questions : []).flatMap((q, i) => latinNameErrors(q, i, lex));
 }
 
@@ -456,7 +469,7 @@ function validate(rawQuestions, ctx = {}) {
   // What the lesson calls a term, and what a phrase — for URDU_ADJACENT_TERMS.
   const adjacentLex = language === 'ur' ? lessonLexicon(digest, qs) : null;
   // The lesson's names and its key terms — for URDU_NAME_LATIN.
-  const nameLex = language === 'ur' ? nameLexicon(digest) : null;
+  const nameLex = language === 'ur' ? nameLexicon(digest, qs) : null;
   if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
     errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
   }
