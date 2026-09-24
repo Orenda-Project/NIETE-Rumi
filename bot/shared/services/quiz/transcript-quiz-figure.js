@@ -787,6 +787,48 @@ function unnamedParts(spec, options) {
   return named.length >= 2 ? named : null;
 }
 
+/**
+ * A fraction-bar set whose options pick bars by name, with a bar that has no
+ * name. Replay (grade 4 Urdu): "which is an improper fraction? P / Q / R" over
+ * P 2/4, Q 3/3, an unnamed 2/2 and R 1/2 — the model drew R's 3/2 as a whole
+ * bar and a half and named only the half, so R read as 1/2 while 3/2 is
+ * improper too (a second right answer). Returns the 1-based number of the
+ * first unnamed bar, or null.
+ */
+function unnamedBarInNamedSet(spec, options) {
+  if (!spec || canonicalType(spec.type) !== 'fraction_bar' || !Array.isArray(spec.bars) || spec.bars.length < 2) return null;
+  const named = spec.bars.map((b) => Boolean(b && typeof b.label === 'string' && b.label.trim()));
+  if (!named.some(Boolean) || named.every(Boolean)) return null;
+  const picks = (Array.isArray(options) ? options : []).filter((o) => namesAPart(spec, o)).length;
+  if (picks < 2) return null;
+  return named.indexOf(false) + 1;
+}
+
+/**
+ * An improper fraction written as ONE bar — {"parts": 3, "shaded": 5} for 5/3,
+ * the spec a replay of the proper/improper fractions chapter showed the model
+ * writing — is redrawn as whole bars and a part bar (3/3 and 2/3), the way
+ * the lesson draws it. Only a picture of that one bar: a bar that is one of
+ * several (a "which bar shows 5/3?" set) cannot be split without losing which
+ * bars belong together, so it is left for FIGURE_EMPTY to refuse with the
+ * same instruction. Pure; returns the same spec when there is nothing to do.
+ */
+function expandImproperBar(spec) {
+  if (!spec || canonicalType(spec.type) !== 'fraction_bar' || !Array.isArray(spec.bars) || spec.bars.length !== 1) return spec;
+  const [bar] = spec.bars;
+  const parts = Math.round(Number(bar && bar.parts));
+  const shaded = Math.round(Number(bar && bar.shaded));
+  if (!(parts >= 2) || !(shaded > parts) || Array.isArray(bar.shaded) || shaded > parts * 5) return spec;
+  const whole = Math.floor(shaded / parts);
+  const rest = shaded - whole * parts;
+  const { label, value, ...plain } = bar; // eslint-disable-line no-unused-vars
+  const bars = [
+    ...Array.from({ length: whole }, (_, k) => ({ ...plain, parts, shaded: parts, ...(k === 0 && label ? { label } : {}) })),
+    ...(rest ? [{ ...plain, parts, shaded: rest }] : []),
+  ];
+  return { ...spec, bars };
+}
+
 /** Does `answer` name one of the figure's parts ("P", "bar 2", «پٹی Q»)? Then it is a pick, not a quantity. */
 function namesAPart(spec, answer) {
   const names = new Set(partLabelSlots(spec).map(([h, k]) => norm(String(h[k]).replace(BIDI, ''))).filter(Boolean));
@@ -955,7 +997,9 @@ function figureEmptyReason(spec) {
       const bars = Array.isArray(spec.bars) ? spec.bars : [];
       if (!bars.length) return 'a fraction bar needs at least one bar';
       if (bars.some((b) => !(Number(b.parts) >= 2))) return 'every bar needs at least 2 parts';
-      if (bars.some((b) => Number(b.shaded) < 0 || Number(b.shaded) > Number(b.parts))) return 'shaded must be between 0 and parts';
+      const over = bars.find((b) => Number(b.shaded) > Number(b.parts));
+      if (over) return `a bar has ${Number(over.shaded)} shaded of ${Number(over.parts)} parts: an improper fraction is drawn as whole bars and a part bar ({"parts":${Number(over.parts)},"shaded":${Number(over.parts)}} then {"parts":${Number(over.parts)},"shaded":${Number(over.shaded) % Number(over.parts) || Number(over.parts)}}), never one bar`;
+      if (bars.some((b) => Number(b.shaded) < 0)) return 'shaded must be between 0 and parts';
       return null;
     }
     case 'numberline':
@@ -1376,6 +1420,8 @@ module.exports = {
   relabelLetterParts,
   partLabelSlots,
   unnamedParts,
+  unnamedBarInNamedSet,
+  expandImproperBar,
   svgInkCount,
   figureIsRedundant,
   figureDefiningNumbers,
