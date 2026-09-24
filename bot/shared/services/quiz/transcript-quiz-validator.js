@@ -14,7 +14,7 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { peopleSpellings, spellQuestion } = require('./transcript-quiz-people');
+const { peopleSpellings, spellQuestion, logRedactor } = require('./transcript-quiz-people');
 const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
 
 /** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
@@ -476,6 +476,8 @@ function validate(rawQuestions, ctx = {}) {
   const adjacentLex = language === 'ur' ? lessonLexicon(digest, qs) : null;
   // The lesson's names and its key terms — for URDU_NAME_LATIN.
   const nameLex = language === 'ur' ? nameLexicon(digest, qs) : null;
+  // What a log line may not carry: the lesson's people and name candidates (D4).
+  const redactNames = logRedactor(digest, nameLexicon(digest, qs).lessonWords);
   if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) {
     errs.push(`count ${qs.length} outside ${MIN_QUESTIONS}..${MAX_QUESTIONS}${nExpected ? ` (asked for ${nExpected})` : ''}`);
   }
@@ -641,7 +643,7 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: FIGURE_TYPE — "figure" must be a spec object with a "type", not ${typeof q.figure}`);
       return;
     }
-    const { spec: cleanedFigure, stripped } = stripStrayLabels(q.figure, { stem, options: opts });
+    const { spec: cleanedFigure, stripped } = stripStrayLabels(q.figure, { stem, options: opts, redact: redactNames });
     if (stripped.length) q.figureStripped = stripped;
     // A `word_blank` whose `blanks` the author left out is not a broken
     // question — the stem it is attached to already says which letter is
@@ -819,6 +821,7 @@ function validate(rawQuestions, ctx = {}) {
 module.exports = {
   validate,
   latinNames,
+  nameLexicon,
   normaliseFeedback,
   STEM_PROMISES_PICTURE,
   FIGURE_MAX_SHARE,
