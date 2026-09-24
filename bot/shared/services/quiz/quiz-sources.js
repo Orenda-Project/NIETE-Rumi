@@ -102,8 +102,9 @@ const LP_FAILURE_COPY = {
  * gave nothing usable (model_failed); the questions we wrote never passed our
  * checks (validator_failed), or their keys contradicted the lesson
  * (key_conflict — lp_v8 only today); the blind solve held the quiz back
- * (key_disagreement). A reason nobody has written copy for is no evidence about
- * the recording either, so it falls back to the general "on my side" sentence.
+ * (key_disagreement). A session that is gone says so (session_missing). A
+ * reason nobody has written copy for is no evidence about the recording
+ * either, so it falls back to the general "on my side" sentence.
  */
 const TRANSCRIPT_FAILURE_COPY = {
   source_unusable: 'tqCouldNotMake',
@@ -111,6 +112,8 @@ const TRANSCRIPT_FAILURE_COPY = {
   validator_failed: 'tqCouldNotMakeAuthor',
   key_conflict: 'tqCouldNotMakeAuthor',
   key_disagreement: 'tqFailedKeyDisagreement',
+  // the coaching session it was to be written from is gone
+  session_missing: 'tqCouldNotMakeSessionGone',
 };
 function failureCopyKey(reason, quizSource) {
   if (quizSource !== LP_V8) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMakeModel';

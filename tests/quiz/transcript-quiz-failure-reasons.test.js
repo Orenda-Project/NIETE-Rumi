@@ -208,6 +208,8 @@ describe('failureCopyKey — a recording quiz hears "the transcript didn’t car
     ['key_conflict', 'tqCouldNotMakeAuthor'],
     // ours: the blind solve held the quiz back
     ['key_disagreement', 'tqFailedKeyDisagreement'],
+    // the lesson's recording is no longer there: said as that, never as a thin transcript
+    ['session_missing', 'tqCouldNotMakeSessionGone'],
     // a reason nobody wrote copy for is no evidence about the recording
     ['something_new', 'tqCouldNotMakeModel'],
   ])('%s → %s', (reason, key) => {
