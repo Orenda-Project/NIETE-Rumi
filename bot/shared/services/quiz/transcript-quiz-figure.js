@@ -430,7 +430,7 @@ const SCALE_LADDER = [2.4, 2.0, 1.6, 1.3, 1.0];
 
 const PHONE_FONT_SCALE = {
   numberline: 2.0,
-  // Raised from 1.0 (bd-qlpu0): at 1.0 a bar's name read about 7.7px on the
+  // Raised from 1.0: at 1.0 a bar's name read about 7.7px on the
   // phone. Short names (P, Q, R, a numeral) clear 2.4 with no collision; a long
   // Urdu name or the circle model still collides above 1.0, and the ladder
   // steps those down to where they drew before.
@@ -439,7 +439,7 @@ const PHONE_FONT_SCALE = {
   geometry: 2.0, // dialled back from the sweep's 2.4 — see the comment above
   graph: 1.0, // unsolved
   chem_equation: 2.4,
-  // Raised from 1.0 (bd-qlpu0): a component's letter read about 6.9px on the
+  // Raised from 1.0: a component's letter read about 6.9px on the
   // phone. Short labels clear 1.6; longer ones step down on the ladder.
   circuit: 2.0,
   free_body: 1.6, // improved, still under 10dp
@@ -695,7 +695,7 @@ function renameLetters(text, map, { groups = false } = {}) {
  * and the teacher's PDF, all drawn from this one question, agree. The card
  * marks its three options A, B and C; a part called B that is option C is a
  * child tapping the wrong letter for the right answer (staging, a circuit
- * question, bd-qlpu0). Pure: returns a new question, or the same one.
+ * question). Pure: returns a new question, or the same one.
  * @returns {{question:object, renamed:object|null}}
  */
 function relabelLetterParts(q) {
