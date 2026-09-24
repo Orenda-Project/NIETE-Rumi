@@ -120,6 +120,44 @@ const TYPE_DEFAULTS = {
 };
 
 /**
+ * Set on every quiz figure whatever the author wrote. The stem and the options
+ * print numerals 0-9 in every language (the contract), so a figure's numbers
+ * do too: the engine's Urdu-page default draws a fraction bar's values in Urdu
+ * digits, and on staging a remade grade 4 Urdu quiz showed "۲/۹" in the bar
+ * beside "2/9" in the stem. (numberline already draws Latin digits unless told
+ * otherwise; this keeps it that way.)
+ */
+const QUIZ_FIXED = {
+  fraction_bar: { urduDigits: false },
+  numberline: { urduDigits: false },
+};
+
+/**
+ * A bar name that only repeats the value drawn beside it is dropped, at draw
+ * time (the stored spec is untouched). The same staging figure labelled every
+ * bar twice — the value in the gutter and the same fraction as its name —
+ * because the author named each bar with its own fraction and turned the
+ * values on. With the values off (the quiz default) the name is the only label
+ * and is kept; whether it may show is the leak check's business.
+ */
+function withoutRepeatedBarNames(merged) {
+  if (canonicalType(merged.type) !== 'fraction_bar' || !Array.isArray(merged.bars)) return merged;
+  const unitMode = merged.model === 'unit' || !!merged.unitLabel;
+  const valuesShown = merged.showLabels === true || (merged.showLabels !== false && !unitMode);
+  if (!valuesShown) return merged;
+  const flat = (s) => norm(s).replace(/\s+/g, '');
+  const bars = merged.bars.map((b) => {
+    if (!b || typeof b !== 'object' || typeof b.label !== 'string' || !b.label.trim()) return b;
+    const shaded = Array.isArray(b.shaded) ? b.shaded.length : Number(b.shaded);
+    const value = b.value !== undefined && b.value !== '' ? String(b.value) : `${shaded}/${Number(b.parts)}`;
+    if (flat(b.label) !== flat(value)) return b;
+    const { label, ...rest } = b; // eslint-disable-line no-unused-vars
+    return rest;
+  });
+  return { ...merged, bars };
+}
+
+/**
  * Defaults that depend on the QUIZ LANGUAGE. A place-value mat's column heads
  * are words a child reads, so they come from the string catalog like every
  * other child-facing word (root rule 20), never from the engine's own
@@ -443,9 +481,9 @@ function renderFigureSvg(spec, language) {
     throw new FigureError('FIGURE_TYPE',
       `figure type "${spec.type}" is not allowed — use one of: ${ALLOWED_TYPES.join(', ')}`);
   }
-  const merged = {
-    ...(TYPE_DEFAULTS[type] || {}), ...languageDefaults(type, language), ...spec, type, lang: clampLanguage(language),
-  };
+  const merged = withoutRepeatedBarNames({
+    ...(TYPE_DEFAULTS[type] || {}), ...languageDefaults(type, language), ...spec, ...(QUIZ_FIXED[type] || {}), type, lang: clampLanguage(language),
+  });
   const ceiling = PHONE_FONT_SCALE[type] || 1;
   const ladder = [...new Set([ceiling, ...SCALE_LADDER])].filter((k) => k <= ceiling).sort((a, b) => b - a);
 
