@@ -237,6 +237,48 @@ exports.run = async ({ api, rec, sleep }) => {
     if (!w.ok) return { ok: false, err: 'NO_CARD', last: w.last };
     return { ok: true, card: w.hit, cta: (w.hit.btns || []).find(b => CTA_RE.test(b)) || null, txt: w.hit.txt || '' };
   };
+
+  // ── Band-aware navigation (bd-2ug2s) ────────────────────────────────
+  // pickModule above hardcodes the NIETE band, whose Level 0 ("Aspiring Teacher") is 46 video
+  // modules and ZERO PDFs — the whole reason T04 could never find one. This account is scoped to
+  // four vendors; Beacon House's English level is 43 PDFs to 12 videos. These helpers let a
+  // scenario drive ANY band without disturbing the NIETE state the module-check cluster needs.
+  const openBandPicker = async ({ vendor = 'NIETE', level = 'Level 0' } = {}) => {
+    await api.resetFlow(); await api.freshReset();
+    await api.sendWait('/training');
+    const o = await openTraining();
+    if (!o.ok) return { ok: false, err: 'FLOW:' + o.err };
+    const v = await api.flowClick(vendor, { settleMs: 2500 });
+    if (!v.ok) return { ok: false, err: 'VENDOR:' + v.err, vendor };
+    await api.flowClick('Open program', { settleMs: 3500 });
+    // Resolve the level row by PROBE, never by a guessed "Level N" label: each vendor numbers its
+    // own ladder, so Beacon House's English is not NIETE's Level 0 even though both come first.
+    const lad = await api.flowProbe();
+    const ladderRows = ((lad && lad.items) || []).map(i => (i.text || '').trim()).filter(Boolean);
+    const row = ladderRows.find(x => new RegExp(level, 'i').test(x) && !/\ud83d\udd12\s*Locked/.test(x));
+    if (!row) return { ok: false, err: 'NO_LEVEL_ROW', level, offered: ladderRows.slice(0, 8) };
+    await api.flowClick(row.split('\u2014')[0].trim(), { settleMs: 2500 });
+    await api.flowClick('Open level', { settleMs: 3500 });
+    const pk = await api.flowClick('Pick a module to watch', { settleMs: 3500 });
+    if (!pk.ok) return { ok: false, err: 'PICKER:' + pk.err, level: row };
+    const probe = await api.flowProbe();
+    return { ok: true, level: row, probe,
+             rows: ((probe && probe.items) || [])
+                     .filter(i => /\u2713\s*Passed|\u25b6\s*Next up|\ud83d\udd12\s*Locked/.test(i.text || '')) };
+  };
+  // Pick a row from an ALREADY-OPEN picker and wait for what the endpoint delivers to the chat.
+  // A PDF module arrives as a document card, which carries no "Next video" button, so a doc/pdf
+  // item counts as a terminal state in its own right.
+  const deliverPicked = async (rowText) => {
+    const pk = await api.flowPick(String(rowText).split(' \u00b7 ')[0].trim());
+    if (!pk.ok) { api.closeFlow(); return { ok: false, err: 'PICK:' + pk.err }; }
+    await api.flowClick('Close', { settleMs: 2000 });
+    api.closeFlow();
+    const w = await waitFresh((x) => x.doc || x.pdf || (x.btns || []).some(b => CTA_RE.test(b))
+                                  || /Finish "|first \u2014 modules open one at a time|not part of your training|locked until/i.test(x.txt || ''), 60000);
+    if (!w.ok) return { ok: false, err: 'NO_CARD', last: w.last };
+    return { ok: true, card: w.hit, cta: (w.hit.btns || []).find(b => CTA_RE.test(b)) || null, txt: w.hit.txt || '' };
+  };
   const letterFor = (list, optionText) => {
     const want = norm(optionText);
     const descs = list.descs || [];
@@ -424,45 +466,66 @@ exports.run = async ({ api, rec, sleep }) => {
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
-  // ══ T04 — a PDF module arrives as a DOCUMENT, not a video link ═══════════
-  // 191 of the 438 modules in this environment carry PDF media, so opening one blind is a coin
-  // toss. module-media resolves the picker's titles -> media kind (read-only), and we open one we
-  // KNOW should arrive as a document. If this account's picker offers no PDF module, that is a data
-  // fact about the account, not a product failure — say so rather than failing (bd-xub4s).
+  // ══ T04 — a PDF module arrives as a DOCUMENT, not a video link ═════════
+  // Why this needs its own navigation: the cluster above drives the NIETE band, whose Level 0 is 46
+  // video modules and 0 PDFs — so T04 read a picker that COULD NOT contain a PDF and reported
+  // "every offered row is a video" as if that were a fact about the account. It is a fact about that
+  // one band. The account is scoped to Beacon House too, whose English level is 43 PDFs to 12
+  // videos, so the PDF delivery path is reachable with NO seeding at all (bd-2ug2s).
+  // NOTE: the old code called openModule(), which is defined nowhere in this file — a latent
+  // ReferenceError the permanent BLOCKED had been hiding, since that branch never ran.
   {
     s = t();
-    // pickerRows holds ROW OBJECTS ({text, ...}), not strings — see how nextUp is built above.
-    const offered = pickerRows.slice(0, 10)
-      .map(x => (((x && x.text) || '').split(' · ')[0] || '').trim()).filter(Boolean);
-    let media = [];
-    try {
-      // The tool prints a '[niete_training_db] env=...' banner BEFORE its JSON, so slicing from the
-      // FIRST '[' parses the banner and throws — which silently emptied this array on the first run
-      // and made T04 block with no evidence behind its reason. Take the last non-empty line.
-      // api.db returns { ok, out, user } — String()ing the OBJECT yields '[object Object]',
-      // which is what actually emptied this array (not the banner). Read .out.
-      const res = api.db('module-media', offered.flatMap(x => ['--title', x])) || {};
-      const raw = String(res.out || '');
-      const last = raw.split('\n').map(l => l.trim()).filter(Boolean).pop() || '[]';
-      media = JSON.parse(last);
-    } catch (e) { media = []; }
-    const idx = media.findIndex(m => m && m.kind === 'pdf');
-    if (idx < 0) {
+    // Beacon House / COMPUTER SCIENCE is the one band on this account whose FIRST module
+    // ("What is AI") is PDF media — every other band opens on a video. That matters because the
+    // ladder is chained: the server refuses any module but the next-up one ("Finish \"X\" first —
+    // modules open one at a time"), which is exactly how the first attempt failed (bd-2ug2s).
+    const band = await openBandPicker({ vendor: 'Beacon House', level: 'Computer Science' });
+    // Keep title and ROW together: indices into a separately-filtered title array drift apart from
+    // band.rows the moment one row yields an empty title.
+    // Only UNLOCKED rows are candidates. A locked row is refused by the server however good a
+    // PDF it is, so treating every row as pickable turned a chain refusal into a bare NO_CARD.
+    const cand = band.ok
+      ? band.rows.filter(x => !/\ud83d\udd12\s*Locked/.test((x && x.text) || ''))
+          .slice(0, 10)
+          .map(x => ({ row: x, title: (((x && x.text) || '').split(' \u00b7 ')[0] || '').trim() }))
+          .filter(c => c.title)
+      : [];
+    let media = [], idx = -1;
+    if (cand.length) {
+      try {
+        // api.db returns { ok, out, user }; the tool prints a '[niete_training_db] env=...' banner
+        // before its JSON, so parse the LAST non-empty line of .out, never String(res).
+        const res = api.db('module-media', cand.flatMap(c => ['--title', c.title])) || {};
+        const last = String(res.out || '').split('\n').map(l => l.trim()).filter(Boolean).pop() || '[]';
+        media = JSON.parse(last);
+      } catch (e) { media = []; }
+      idx = media.findIndex(m => m && m.kind === 'pdf');
+    }
+    if (!band.ok) {
       rec('T04', 'A PDF module arrives as a document', 'BLOCKED',
-          { reason: 'no module in this account\'s picker resolves to PDF media — every offered row is a '
-                  + 'video, so the PDF delivery path is unreachable from here',
-            offered: offered.slice(0, 6), resolved: media.map(m => m && m.kind) }, t() - s);
+          { reason: 'could not reach the Beacon House Computer Science picker: ' + band.err,
+            level: band.level, offered: band.offered }, t() - s);
+    } else if (idx < 0) {
+      rec('T04', 'A PDF module arrives as a document', 'BLOCKED',
+          { reason: 'no UNLOCKED module in this band resolves to PDF media',
+            band: band.level, offered: cand.map(c => c.title).slice(0, 6),
+            resolved: media.map(m => m && m.kind) }, t() - s);
     } else {
-      const title = offered[idx];
-      const om = await openModule(title);
+      const title = cand[idx].title;
+      const om = await deliverPicked(cand[idx].row.text || title);
+      // The assertion is the DELIVERY FORMAT. A document card carries no "Next video" button, so
+      // requiring one (as the old code did) would have failed a correct delivery.
       rec('T04', 'A PDF module arrives as a document',
           ...(om.ok
-              ? V(!!(om.card && (om.card.pdf || om.card.doc)) && !!om.cta,
-                  { title, deliveredAs: om.card && (om.card.pdf ? 'pdf' : om.card.doc ? 'document'
-                                        : om.card.img ? 'image' : 'text-only'),
-                    hasNextButton: !!om.cta, nextButton: om.cta,
-                    media: (media[idx] || {}).media, reply: (om.txt || '').slice(0, 150) })
-              : ['BLOCKED', { reason: 'could not open the PDF module: ' + om.err, title }]), t() - s);
+              ? V(!!(om.card && (om.card.pdf || om.card.doc)),
+                  { title, band: band.level,
+                    deliveredAs: om.card && (om.card.pdf ? 'pdf' : om.card.doc ? 'document'
+                                          : om.card.img ? 'image' : 'text-only'),
+                    nextButton: om.cta, media: (media[idx] || {}).media,
+                    reply: (om.txt || '').slice(0, 150) })
+              : ['BLOCKED', { reason: 'could not open the PDF module: ' + om.err, title,
+                              band: band.level, lastSeen: om.last }]), t() - s);
     }
   }
 
