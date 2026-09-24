@@ -1723,6 +1723,12 @@ const UX_STRINGS = {
   lpQuizOfferMore: { en: 'And {n} more classes not shown here', ur: 'مزید {n} کلاسیں یہاں نہیں دکھائی گئیں' },
   lpQuizYes: { en: 'Make the quiz', ur: '‏quiz بنائیں' },
   lpQuizNo: { en: 'No thanks', ur: 'نہیں، شکریہ' },
+  // The 15:00 offer tapped for lessons that already have a quiz (made from
+  // /quiz since the offer went out). One quiz per lesson: nothing new is made.
+  lpQuizAlreadyHave: {
+    en: 'You already have a quiz for this lesson — send /quiz to see it.',
+    ur: 'اس سبق کا quiz پہلے سے موجود ہے — دیکھنے کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
   lpQuizMaking: {
     en: 'Making it now — about a minute. The quiz will arrive here with the message to forward to your class.',
     ur: '‏quiz ابھی تیار ہو رہا ہے — تقریباً ایک منٹ۔ پھر یہیں quiz اور کلاس کو آگے بھیجنے والا پیغام آئے گا۔',
@@ -1744,6 +1750,13 @@ const UX_STRINGS = {
   tqAlreadySent: {
     en: 'That quiz has already been sent — send /quiz to resend its link or get the report.',
     ur: 'وہ quiz پہلے ہی بھیجا جا چکا ہے — link دوبارہ لینے یا رپورٹ کے لیے ⁦/quiz⁩ بھیجیں۔',
+  },
+  // A lesson-plan row tapped in /quiz whose lesson can no longer be made (the
+  // list was drawn before its source changed, or the row was not theirs).
+  // Names the state: the plan, not the teacher, is why.
+  tqLpLessonUnavailable: {
+    en: 'A quiz can’t be made from that lesson plan any more. Send /quiz to see your lessons.',
+    ur: 'اس سبق کے منصوبے سے اب quiz نہیں بن سکتا۔ اپنے اسباق دیکھنے کے لیے ⁦/quiz⁩ بھیجیں۔',
   },
   tqStillMaking: {
     en: 'That quiz is still being made — it will arrive here shortly.',
@@ -1855,7 +1868,21 @@ const UX_STRINGS = {
     en: 'No lessons yet. Record a lesson for coaching first — then /quiz can turn it into a quiz for your students.',
     ur: 'ابھی کوئی سبق نہیں۔ پہلے coaching کے لیے سبق ریکارڈ کریں — پھر ⁦/quiz⁩ اسے طلبہ کے لیے quiz بنا دے گا۔',
   },
+  // Nothing to list while /quiz lists lesson plans too (QUIZ_MENU_LESSON_ROWS on):
+  // no recording long enough to quiz AND no lesson plan taken in 30 days. Names
+  // both doors; tqListEmpty stays the line for the recordings-only menu.
+  tqListEmptyPlans: {
+    en: 'No lessons yet. Once you take a lesson plan or record a lesson for coaching, /quiz can turn it into a quiz for your students.',
+    ur: 'ابھی کوئی سبق نہیں۔ سبق کا منصوبہ لینے یا coaching کے لیے سبق ریکارڈ کرنے کے بعد ⁦/quiz⁩ اسے طلبہ کے لیے quiz بنا دے گا۔',
+  },
   tqRowNoQuiz: { en: 'No quiz yet', ur: 'ابھی quiz نہیں' },
+  // WHERE a row in /quiz came from — first in the list row's description and in
+  // the Flow item's metadata line, on every row. Noun phrases, so no verb can
+  // agree with anyone. «سبق کے منصوبے» is the catalog's own phrase for a lesson
+  // plan (tqFlowActionMakeDescLp, tqHandoffIntroLp); "transcript" has no Urdu a
+  // teacher uses — what they made was a recording of their class.
+  tqRowFromLessonPlan: { en: 'From lesson plan', ur: 'سبق کے منصوبے سے' },
+  tqRowFromTranscript: { en: 'From transcript', ur: 'کلاس کی ریکارڈنگ سے' },
   tqRowOffered: { en: 'Offered — tap to make', ur: 'پیشکش — بنانے کو tap' },
   tqRowMaking: { en: 'Being made…', ur: 'تیار ہو رہا ہے…' },
   tqRowSent: { en: 'Sent · {started} started · {finished} done', ur: 'بھیجا، {started} نے شروع، {finished} مکمل' },
@@ -1979,6 +2006,12 @@ const UX_STRINGS = {
   tqFlowEmptyMeta: {
     en: 'Record a lesson for coaching, then /quiz turns it into a quiz.',
     ur: 'پہلے coaching کے لیے سبق ریکارڈ کریں، پھر ⁦/quiz⁩ اس کا quiz بنا دے گا۔',
+  },
+  // The same empty row while /quiz lists lesson plans too (QUIZ_MENU_LESSON_ROWS on).
+  tqFlowEmptyDescPlans: { en: 'Nothing here yet', ur: 'ابھی کچھ نہیں' },
+  tqFlowEmptyMetaPlans: {
+    en: 'Take a lesson plan or record a lesson, then /quiz turns it into a quiz.',
+    ur: 'سبق کا منصوبہ لیں یا سبق ریکارڈ کریں، پھر ⁦/quiz⁩ اس کا quiz بنا دے گا۔',
   },
   tqFlowNewerMeta: { en: 'Back to the {n} more recent lessons', ur: 'پچھلے {n} حالیہ اسباق پر واپس' },
 
@@ -2293,6 +2326,14 @@ const UX_STRINGS = {
   vqStopped: {
     en: 'Okay, I’ve stopped this quiz here. You can start it again later.',
     ur: 'ٹھیک ہے، یہ quiz یہیں روک دیا گیا ہے۔ اسے بعد میں دوبارہ شروع کیا جا سکتا ہے۔',
+  },
+  // "quiz" typed while a question is waiting on this handset (a child, or a
+  // teacher's phone lent to one). The quiz is kept: nothing is scored or ended,
+  // no menu is sent over the question. In the QUIZ's language. Urdu: the verb
+  // agrees with "quiz" (چل رہا ہے), the rest are imperatives — never the reader.
+  vqStillInQuiz: {
+    en: 'You’re in the middle of a quiz — tap an answer to the question above, or type its letter. Type STOP to end the quiz.',
+    ur: 'ابھی ایک quiz چل رہا ہے — اوپر والے سوال کا جواب tap کریں، یا اس کا حرف لکھیں۔ quiz ختم کرنے کے لیے STOP لکھیں۔',
   },
   vqQuizFinished: {
     en: 'That quiz has finished. Pick another video and I\'ll offer you a fresh one!',

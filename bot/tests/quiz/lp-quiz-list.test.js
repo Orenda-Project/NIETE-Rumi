@@ -92,7 +92,9 @@ describe('buildRows — the union', () => {
     expect(rows.map((r) => r.id)).toEqual(['tq_pick_s-20', 'tq_pick_lp_lpq-19', 'tq_pick_s-18']);
     const lp = rows[1];
     expect(lp.title).toMatch(/^19 Sep · /);
-    expect(lp.description).toMatch(/^Planned lesson 19 · /);
+    // Every row says where it came from, first (R11), then `topic · status`.
+    expect(lp.description).toMatch(/^From lesson plan · Planned lesson 19 · /);
+    expect(rows[0].description).toMatch(/^From transcript · /);
     rows.forEach((r) => { expect(cp(r.title)).toBeLessThanOrEqual(24); expect(cp(r.description)).toBeLessThanOrEqual(72); });
   });
 

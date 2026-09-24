@@ -123,8 +123,9 @@ describe('INIT → the LESSONS screen', () => {
     const first = out.data.items[0];
     expect(first.id).toBe('s-1');
     // The full topic is never truncated away: the NavigationList metadata slot
-    // is 80 code points, four times a WhatsApp list row's description.
-    expect(first['main-content'].metadata).toBe('Lesson topic number 1');
+    // is 80 code points, four times a WhatsApp list row's description. It
+    // follows the row's source label (R11: every row says where it came from).
+    expect(first['main-content'].metadata).toBe('From transcript · Lesson topic number 1');
     expect(first['on-click-action']).toEqual({
       name: 'data_exchange',
       payload: { step: 'lesson', session_id: 's-1' },
@@ -659,7 +660,7 @@ describe('an lp_v8 quiz in the /quiz Flow (PLAN_R8 D11)', () => {
     expect(out.data.items.map((i) => i.id)).toEqual(['s-1', 'lp_lpq-1', 's-3']);
     const item = out.data.items[1];
     expect(item['main-content'].title).toMatch(/^30 Aug · /);
-    expect(item['main-content'].metadata).toBe('Add a 3-digit and a 2-digit number');
+    expect(item['main-content'].metadata).toBe('From lesson plan · Add a 3-digit and a 2-digit number');
     expect(item['on-click-action']).toEqual({ name: 'data_exchange', payload: { step: 'lesson', session_id: 'lp_lpq-1' } });
     out.data.items.forEach((i) => {
       expect(cp(i['main-content'].title)).toBeLessThanOrEqual(endpoint.TITLE_MAX);

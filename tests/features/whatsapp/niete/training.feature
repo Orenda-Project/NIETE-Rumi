@@ -264,13 +264,74 @@ Feature: NIETE (ICT) Teacher Training
     Given the NIETE bot chat is open and a quiz was made from a lesson plan I was served on an earlier day
     And I also have a recorded coaching lesson
     When I send "/quiz"
-    Then the list shows the lesson-plan quiz as a row "<date> · <subject>" with "<topic> · <status>" beneath it
+    Then the list shows the lesson-plan quiz as a row "<date> · <subject>" with "From lesson plan · <topic> · <status>" beneath it
     And the rows are ordered newest lesson first, the lesson-plan quiz dated by the day it was planned for
     And the recorded coaching lesson is still in the list
     When I tap the lesson-plan quiz's row
     Then I am offered "Resend the link", the report, and a way back — and nothing offers to make the quiz again
     # transcript-quiz-list.service lessonItems + handleLpPick (row id tq_pick_lp_<quizId>); the /quiz Flow
     # lists it too (key lp_<quizId>) with Generate report / Resend link on its LESSON screen. @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario Outline: However I type "quiz", it opens my quiz menu
+    Given the NIETE bot chat is open and I have a recorded coaching lesson or a lesson plan from the last 30 days
+    When I send "<text>"
+    Then my /quiz menu opens — the list of my lessons — and no chat answer about quizzes comes instead
+    Examples:
+      | text         |
+      | quiz         |
+      | Quiz?        |
+      | quiz/        |
+      | / quiz       |
+      | quize        |
+      | my quizzes   |
+      | send me quiz |
+      | mera quiz    |
+      | کوئز         |
+      | کویز         |
+    # quiz-menu-request isQuizMenuRequest → the text handler's /quiz door → quiz-menu-entry openQuizMenu.
+    # Production, 14 days to 24 Sep 2026: 54 of 351 such texts reached general AI chat instead. @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: /quiz lists the lesson plans I took, says where each lesson came from, and makes nothing until I tap
+    Given the NIETE bot chat is open and I took a Grade 1-5 lesson plan today and have a recorded coaching lesson
+    And no quiz has been made from either
+    When I send "quiz"
+    Then my lessons are listed newest first, the lesson plan and the recording together
+    And the lesson plan's row says "From lesson plan" and the recording's row says "From transcript"
+    And no quiz is made by opening the list
+    When I tap the lesson plan's row
+    Then the bot asks which language the quiz should be in, or — for an Urdu or Islamiyat lesson — says it is making the quiz now
+    And the quiz arrives with the PDF and the message to forward to the class
+    When I send "/quiz" again
+    Then that lesson plan is listed once, as its quiz with its status — never a second time as a lesson to make
+    # lp-v8-lesson-provider list/start; row id tq_pick_lsn_lp_v8_<delivery id>, Flow key lsn_lp_v8_<delivery id>.
+    # Only lessons whose served version has a slide script are listed (niete_lp_asset_sources). In Urdu the
+    # labels read «سبق کے منصوبے سے» and «کلاس کی ریکارڈنگ سے». @wip.
+
+  @e2e @quiz @wip @draft @P1
+  Scenario: Tapping the same lesson plan twice makes one quiz
+    Given the NIETE bot chat is open and /quiz lists a lesson plan with no quiz yet
+    When I tap that lesson plan's row twice in quick succession
+    Then exactly one quiz is made and one "making it now" arrives
+    And the afternoon quiz offer never makes a second quiz for that lesson
+    # lp-lesson-claim: a Redis SET NX per (teacher, lesson) around read → insert → re-read; the re-read keeps
+    # the oldest row when Redis fails open. The 15:00 offer goes through the same claim. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A child in the middle of a quiz who types "quiz" stays in the quiz
+    Given a child on this phone is taking a class quiz and a question is waiting for an answer
+    When the child sends "quiz"
+    Then the bot replies, in the quiz's language, that a quiz is in progress: tap an answer above or type its letter, and STOP ends it
+    And no lesson list or menu is sent over the question, and the waiting question can still be answered
+    # quiz-menu-entry: the video-quiz state (currentQuestionId) is checked before the role. vqStillInQuiz. @wip.
+
+  @e2e @quiz @wip @draft @P3
+  Scenario: A coach who types "quiz" gets the coach menu
+    Given the NIETE bot chat is open on a coach's number
+    When I send "quiz"
+    Then the coach menu opens, and nothing tells me to record a lesson for coaching first
+    # A role that cannot self-coach has no quiz row in its menu (role-features LAYOUTS). @wip.
 
   @e2e @quiz @wip @draft @P2
   Scenario: A lesson-plan quiz still waiting for its language is asked again from /quiz, never "still being made"

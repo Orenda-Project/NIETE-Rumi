@@ -269,12 +269,15 @@ describe('every teacher-facing surface answers in her stored language', () => {
     // bd-mg9c7.63: the topic is the description's owner now (it does not fit
     // the 24-cp title), and the subject moved into the title instead.
     expect(payload.action.sections[0].rows[0].title).toContain('Mathematics');
-    expect(payload.action.sections[0].rows[0].description).toBe(`Fractions · ${en('tqRowNoQuiz')}`);
+    // …and every row now says where it came from, first (R11: "From transcript").
+    expect(payload.action.sections[0].rows[0].description).toBe(`${en('tqRowFromTranscript')} · Fractions · ${en('tqRowNoQuiz')}`);
 
     jest.clearAllMocks();
     installFrom(supabase.from, { coaching_sessions: { data: [] }, quizzes: { data: [] } });
     await List.showList(TEACHER, PHONE, null);
-    expect(WA.sendMessage.mock.calls[0][1]).toBe(en('tqListEmpty'));
+    // /quiz lists lesson plans too now (QUIZ_MENU_LESSON_ROWS on by default), so
+    // "nothing to list" names both doors; tqListEmpty is the recordings-only line.
+    expect(WA.sendMessage.mock.calls[0][1]).toBe(en('tqListEmptyPlans'));
   });
 
   test('the /quiz replies: still making, resend, report', async () => {

@@ -128,3 +128,35 @@ describe('webhook → tq_lang_ button', () => {
     expect(Offer.handleLanguageButton).not.toHaveBeenCalled();
   });
 });
+
+function listReplyBody(listId) {
+  const body = webhookBody('unused');
+  body.entry[0].changes[0].value.messages[0] = {
+    id: `wamid.${listId}`,
+    from: PHONE,
+    timestamp: String(Math.floor(Date.now() / 1000)),
+    type: 'interactive',
+    interactive: { type: 'list_reply', list_reply: { id: listId, title: 'Lesson' } },
+  };
+  return body;
+}
+
+describe('webhook → a lesson-plan row in /quiz (tq_pick_lsn_<source>_<ref>)', () => {
+  beforeEach(() => jest.resetModules());
+
+  test('the tap reaches its lesson provider through the real router: a lesson that is not the teacher\'s makes nothing', async () => {
+    mockEverythingBefore();
+    const { app } = require('../../bot/whatsapp-bot');
+    const WA = require('../../bot/shared/services/whatsapp.service');
+    const { resolveUx } = require('../../bot/shared/config/ux-strings');
+
+    await postWebhook(app, listReplyBody('tq_pick_lsn_lp_v8_33333333-3333-4333-8333-333333333333'));
+    // The ack returns before the handler finishes: let the dispatch run.
+    for (let i = 0; i < 20 && !WA.sendMessage.mock.calls.length; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 25));
+    }
+
+    expect(WA.sendMessage).toHaveBeenCalledWith(PHONE, resolveUx('tqLpLessonUnavailable', { language: 'en' }));
+  });
+});
