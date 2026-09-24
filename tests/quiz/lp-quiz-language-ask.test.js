@@ -177,6 +177,14 @@ const quizzes = () => db.tables.quizzes;
 const sentText = () => WhatsAppService.sendMessage.mock.calls.map((c) => c[1]);
 const asks = () => WhatsAppService.sendInteractiveButtons.mock.calls;
 const ux = (key, language = 'en') => resolveUx(key, { language });
+/**
+ * The ask naming two English example terms. A lesson-plan quiz has no digest
+ * when it is asked, so the pair is the one that fits the class's subject.
+ */
+const askNaming = (a, b, language = 'en') => resolveUx('tqAskLanguage', {
+  language,
+  params: { examples: [a, b].map((t) => `\u2068${t}\u2069`).join(resolveUx('vqLetterSep', { language })) },
+});
 /** The id of the button for `code` on the one ask that was sent. */
 const langButton = (code) => asks()[0][1].buttons.find((b) => b.id.startsWith(`tq_lang_${code}_`)).id;
 
@@ -219,7 +227,7 @@ describe('Make the quiz on a maths lesson asks which language the quiz is writte
     expect(asks()).toHaveLength(1);
     const [to, ask] = asks()[0];
     expect(to).toBe(PHONE);
-    expect(ask.body).toBe(ux('tqAskLanguage'));
+    expect(ask.body).toBe(askNaming('fraction', 'numerator'));
     // Maths: the subject rule (Urdu) is the first, easy tap.
     expect(ask.buttons.map((b) => b.id)).toEqual([`tq_lang_ur_${quiz.id}`, `tq_lang_en_${quiz.id}`]);
     ask.buttons.forEach((b) => expect(b.id).toMatch(LANGUAGE_BUTTON_RX));
@@ -251,7 +259,7 @@ describe('Make the quiz on a maths lesson asks which language the quiz is writte
   test('an Urdu-reading teacher is asked in Urdu and told "making it now" in Urdu; the tap on Urdu writes ur', async () => {
     install({ classes: [maths()], language: 'ur' });
     await LpOffer.handleButton(`lpquiz_yes_${NID}`, PHONE, userFor('ur'), { now: TAP_AT });
-    expect(asks()[0][1].body).toBe(ux('tqAskLanguage', 'ur'));
+    expect(asks()[0][1].body).toBe(askNaming('fraction', 'numerator', 'ur'));
 
     await TqOffer.handleLanguageButton(langButton('ur'), PHONE, userFor('ur'));
     expect(quizzes()[0].language).toBe('ur');
@@ -291,6 +299,8 @@ describe('Make the quiz on a maths lesson asks which language the quiz is writte
     expect(mockStore.rows[0].choice).toBe('class:g5_general_science');
     expect(SQSQueueService.queueJob).not.toHaveBeenCalled();
     expect(asks()[0][1].buttons.map((b) => b.id)).toEqual([`tq_lang_ur_${quiz.id}`, `tq_lang_en_${quiz.id}`]);
+    // A science lesson's ask names science terms, never "fraction, numerator".
+    expect(asks()[0][1].body).toBe(askNaming('photosynthesis', 'cell'));
   });
 
   test('an English lesson is asked, with English as the first tap', async () => {
@@ -299,6 +309,7 @@ describe('Make the quiz on a maths lesson asks which language the quiz is writte
     const quizId = quizzes()[0].id;
     expect(SQSQueueService.queueJob).not.toHaveBeenCalled();
     expect(asks()[0][1].buttons.map((b) => b.id)).toEqual([`tq_lang_en_${quizId}`, `tq_lang_ur_${quizId}`]);
+    expect(asks()[0][1].body).toBe(askNaming('noun', 'verb'));
   });
 
   test('a queue failure after the tap marks the quiz failed and says so — never "making it now"', async () => {
