@@ -649,17 +649,16 @@ describe('bd-mg9c7.48 — what the round-4 renders showed', () => {
     const html = renderHtml(BASE);
 
     test('nothing that reads as one unit may split across a page break', () => {
-      // The unit is now the smallest thing that reads as one: a question with
-      // its tally (.mtop), the chose row, one explanation, a roster row, the
-      // not-finished box. A whole card and the guidance box may break BETWEEN
-      // those (the printed-page tests in class-report-layout.test.js measure
-      // what that buys); a guidance part may break only between lines, two on
-      // each side, never away from its own label.
-      const rule = (html.match(/\.mtop,\.chose,\.why,\.unfin,\.r-row\{([^}]*)\}/) || [])[1];
+      // The unit is the smallest thing that reads as one: a question with its
+      // tally (.mtop), the chose row, one explanation, a roster row, the
+      // not-finished box, and each part of the guidance box. A whole card and
+      // the guidance box may break BETWEEN those (the printed-page tests in
+      // class-report-layout.test.js measure what that buys); a part never
+      // leaves its own label.
+      const rule = (html.match(/\.mtop,\.chose,\.why,\.unfin,\.r-row,\.try-part\{([^}]*)\}/) || [])[1];
       expect(rule).toBeTruthy();
       expect(rule).toMatch(/break-inside:avoid/);
       expect(rule).toMatch(/page-break-inside:avoid/);
-      expect(html).toMatch(/\.try-text\{orphans:2;widows:2\}/);
       expect(html).toMatch(/\.try-label,\.try \.label\{break-after:avoid/);
     });
 
