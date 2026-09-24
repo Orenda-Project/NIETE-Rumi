@@ -226,6 +226,14 @@ def board_block(board):
     raw = (board or {}).get("content")
     parts = raw if isinstance(raw, list) else [raw]
     text = "\n\n".join(p for p in parts if isinstance(p, str)).strip()
+    # g4_ch9/Science_seg1 and g5_ch9/Science_seg4 (7 board strings, bd-obv6l) carry a
+    # literal backslash+"n" where the source trace double-escaped a real newline -- it
+    # survives JSON decoding as two characters, not one, so the join above never turns it
+    # back into a line break and board_panels' blank-line regex never fires: the board
+    # panels as one blob instead of by its authored groups. Every other board's backslashes
+    # sit in ASCII art immediately before a real newline or an underscore, never before the
+    # letter n, so this replace only ever fires on the double-escaped two.
+    text = text.replace("\\n", "\n")
     if len(text) < 3:
         return None
     blk = {"type": "board", "id": "board-plan", "text": text}

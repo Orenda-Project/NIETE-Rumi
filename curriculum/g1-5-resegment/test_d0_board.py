@@ -56,6 +56,22 @@ SIDE_BY_SIDE = """\u250c\u2500\u2500\u2500\u2500\u2510      5 years later      \
 \u2502 starting time \u2502     ADD 5 years     \u2502 future time \u2502
 \u2514\u2500\u2500\u2500\u2500\u2518                        \u2514\u2500\u2500\u2500\u2500\u2518"""
 
+# Verbatim board["text"] from renders/g5_ch9/docs/Science_seg4.lp.json (board-plan,
+# sections[0]/blocks[4]) -- bd-obv6l. The source trace double-escaped every newline, so
+# it survives JSON decoding as the two characters backslash+"n", not one line break.
+DOUBLE_ESCAPED = 'INVESTIGATE FIRST\\nPREDICT \u2192 BUILD / CONNECT \u2192 OBSERVE \u2192 EXPLAIN \u2192 IMPROVE\\n\\nFOOTBRIDGE\\n[sticks side-by-side] \u2192 flat floor\\nadd sides + string / extra sticks \u2192 test light weight first\\n\\nBOOKSHELF STARTING SIZE\\n          30 cm tall\\n     \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\\n     \u2502 back:        \u2502 20 cm wide\\n     \u2502 30 cm \u00d7 20 cm\u2502\\n     \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\\nside: 30 cm \u00d7 15 cm\\nshelf/top/bottom: 20 cm \u00d7 15 cm\\n\\nLED POLARITY\\n     LED\\n      \u25cf\\nlong leg        short leg\\n   +                -\\n   |                |\\nbattery +       battery -\\n\\nSafety: Keep wires neat. Do not let wires touch. Cover connections with tape.'
+
+# Verbatim from renders/g1_ch10/docs/Maths_seg1.lp.json (board-plan, sections[0]/blocks[2])
+# -- NOT a defect. Every backslash here is triangle ASCII art sitting immediately before a
+# real newline or an underscore, never before the letter n, so it must survive unchanged.
+CIRCLE_TRIANGLE_ART = ('2-D Shape Safari\n\nRECTANGLE                 SQUARE\n+--------+                '
+                        '+----+\n|        |                |    |\n+--------+                +----+\n'
+                        '4 sides, 4 corners        4 equal sides, 4 corners\n\nCIRCLE                    '
+                        'TRIANGLE\n  (    )                    /\\\n /      \\                  /  \\\n '
+                        '\\      /                 /____\\\n  (____)                 0 sides, 0 corners'
+                        '      3 sides, 3 corners\n\nvertices = corners\nTrace the edge \u2192 count sides '
+                        '\u2192 count corners')
+
 
 def words_of(out):
     """Every WORD the parse put somewhere, in panel order then row order.
@@ -293,6 +309,43 @@ class TestBoardBlockAcceptsAListedContent(unittest.TestCase):
         for w in ("ROUND", "height", "mass", "capacity", "temperature",
                   "compare", "fits?", "measure", "number"):
             self.assertIn(w, got, w)
+
+
+class TestDoubleEscapedNewlinesAreRecovered(unittest.TestCase):
+    """bd-obv6l. g4_ch9/Science_seg1 and g5_ch9/Science_seg4 -- 7 board strings across the
+    two lessons -- carry a literal backslash+"n" where the source trace double-escaped a
+    real newline: it survives JSON decoding as two characters, not one, so the join in
+    board_block never turned it back into a line break and a teacher copying the board saw
+    the escape code. `board_panels`'s blank-line regex only matches a REAL newline, so the
+    broken board also panelled as one blob instead of by its authored groups.
+    """
+
+    def test_a_double_escaped_board_loses_the_literal_backslash_n(self):
+        blk = BD.board_block({"content": DOUBLE_ESCAPED})
+        self.assertNotIn("\\n", blk["text"])
+
+    def test_a_double_escaped_board_recovers_its_authored_line_breaks(self):
+        blk = BD.board_block({"content": DOUBLE_ESCAPED})
+        lines = blk["text"].splitlines()
+        self.assertEqual(lines[0], "INVESTIGATE FIRST")
+        self.assertTrue(lines[1].startswith("PREDICT"))
+
+    def test_a_double_escaped_board_panels_by_its_authored_groups_not_as_one_blob(self):
+        blk = BD.board_block({"content": DOUBLE_ESCAPED})
+        self.assertEqual(
+            [p.get("label") for p in blk["panels"]],
+            ["INVESTIGATE FIRST", "FOOTBRIDGE", "BOOKSHELF STARTING SIZE", "LED POLARITY", None],
+        )
+
+    def test_ascii_art_with_a_backslash_before_a_real_newline_is_untouched(self):
+        """g1_ch10/Maths_seg1's triangle -- `/\\` then a real line break, `/____\\` then an
+        underscore -- must not be mistaken for the defect above; only backslash-then-n is."""
+        blk = BD.board_block({"content": CIRCLE_TRIANGLE_ART})
+        self.assertEqual(blk["text"], CIRCLE_TRIANGLE_ART)
+
+    def test_a_listed_content_items_own_escape_is_unescaped_too(self):
+        blk = BD.board_block({"content": ["Vocabulary:", "sway\\nmove slowly"]})
+        self.assertEqual(blk["text"], "Vocabulary:\n\nsway\nmove slowly")
 
 
 if __name__ == "__main__":
