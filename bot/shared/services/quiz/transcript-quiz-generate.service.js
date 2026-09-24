@@ -617,24 +617,29 @@ async function runFigureDensity(api, {
   if (!before.applies) return { record: null };
   const record = {
     before: before.figured, after: before.figured, target: before.target, n: before.n, need: before.need,
-    added: [], replaced: [], repaired: false, reason: null, cost_usd: 0,
+    asked: 0, added: [], replaced: [], repaired: false, reason: null, cost_usd: 0,
   };
   const finish = (out = {}) => {
     const now = measure(out.questions || questions);
     record.after = now.figured;
     record.complaint = now.complaint;
     logEvent('transcript_quiz.figure_density', {
-      quizId, before: record.before, after: record.after, target: record.target, n: record.n,
+      quizId, before: record.before, after: record.after, target: record.target, n: record.n, asked: record.asked,
       added: record.added, replaced: record.replaced, reverted: record.reverted || [], repaired: record.repaired, reason: record.reason,
     });
     return { record, ...out };
   };
   if (!before.need) { record.reason = 'enough'; return finish(); }
 
+  // ONE picture more than the shortfall, inside the half cap. Asked for exactly
+  // the shortfall, the repair left two of three live fractions quizzes one
+  // short: one of its pictures was refused and there was nothing behind it.
+  const asked = Math.max(before.need, Math.min(before.need + 1, before.room ?? before.need));
+  record.asked = asked;
   let rw;
   try {
     rw = await api.addPictures({
-      questions, digest, language, gradeBand, lessonDrew, need: before.need, quizId,
+      questions, digest, language, gradeBand, lessonDrew, need: asked, quizId,
     });
   } catch (err) {
     rw = { attempted: true, indices: [], merged: null, added: [], replaced: [], error: err.message };

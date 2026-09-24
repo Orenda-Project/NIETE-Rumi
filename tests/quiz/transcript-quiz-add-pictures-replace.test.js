@@ -104,4 +104,24 @@ describe('the repair is told it may replace, and when it must', () => {
     expect(prompt).toMatch(/Which bar shows/);
     expect(prompt).toMatch(/THE OTHER QUESTIONS/);
   });
+
+  test('a replacement is held to the whole question contract, and told it is a NEW question', async () => {
+    mockCreate.mockResolvedValueOnce(reply({ pictures: [] }));
+    await Rw.addPictures({ questions: QUIZ, digest: DIGEST, language: 'ur', gradeBand: '3-5', need: 1 });
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content;
+    // live: a "replacement" kept the method question and its key (20) under a new bar, and its
+    // selected_because ran to 34 words — both refused, and the quiz stayed one picture short
+    expect(prompt).toMatch(/A REPLACEMENT IS A NEW QUESTION/);
+    expect(prompt).toMatch(/SELECTED BECAUSE[^\n]*at most 15 words/);
+    expect(prompt).toMatch(/TEACHER FIELDS/);
+    expect(prompt).toMatch(/THE CHILD HAS NO GENDER/);
+  });
+
+  test('the fraction recipes rule out two options of the same amount, and letter the bars in words', async () => {
+    mockCreate.mockResolvedValueOnce(reply({ pictures: [] }));
+    await Rw.addPictures({ questions: QUIZ, digest: DIGEST, language: 'ur', gradeBand: '3-5', need: 1 });
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content;
+    expect(prompt).toMatch(/never 2\/8 beside 1\/4/);
+    expect(prompt).toMatch(/«پٹی A»/);
+  });
 });

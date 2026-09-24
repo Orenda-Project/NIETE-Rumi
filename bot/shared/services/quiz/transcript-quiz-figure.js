@@ -579,6 +579,30 @@ function unknownColourToken(spec) {
  * cannot answer "12 shared into 3" (4); a bar of 4 parts with 3 shaded cannot
  * answer "1/2". Returns a one-line reason when it cannot, else null.
  */
+/**
+ * Two options of the same AMOUNT under a part-whole picture. A fraction_bar or
+ * grid question must produce its key literally (figureMismatch: a bar of 2 in
+ * 8 answers "2/8", not "1/4"), so a second option equal in value to the key is
+ * a second right reading of the same picture — a child who reads the bar as
+ * 1/4 is right and would be told otherwise. Without a picture the same pair is
+ * a fair question ("which is in lowest terms?"), so only these two types are
+ * checked. Returns a one-line reason, else null.
+ */
+function equalAmountOptions(spec, options, correctIndex) {
+  const type = canonicalType(spec && spec.type);
+  if (type !== 'fraction_bar' && type !== 'grid') return null;
+  const opts = (Array.isArray(options) ? options : []).map(norm);
+  const ci = Number(correctIndex);
+  const value = (s) => {
+    const m = /^(\d+)\s*\/\s*(\d+)$/.exec(s || '');
+    return m && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
+  };
+  const key = value(opts[ci]);
+  if (key === null) return null;
+  const twin = opts.find((o, k) => k !== ci && value(o) !== null && Math.abs(value(o) - key) < 1e-9);
+  return twin ? `"${opts[ci]}" and "${twin}" are the same amount — a child who reads the picture either way is right` : null;
+}
+
 function figureMismatch(spec, options, correctIndex) {
   const type = canonicalType(spec && spec.type);
   const correct = norm((Array.isArray(options) ? options : [])[Number(correctIndex)]);
@@ -1033,6 +1057,7 @@ module.exports = {
   unknownColourToken,
   languageDefaults,
   figureMismatch,
+  equalAmountOptions,
   svgInkCount,
   figureIsRedundant,
   figureDefiningNumbers,

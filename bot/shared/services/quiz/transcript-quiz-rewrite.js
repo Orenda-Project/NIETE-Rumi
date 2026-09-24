@@ -103,7 +103,7 @@ const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distr
 // production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
 // each time and the rule never was. Every other repeated fault this week was
 // answered by stating its rule in the prompt.
-const DISTINCT_OPTIONS_RULE = 'DISTINCT OPTIONS. The three options must all be different from each other — no two the same word, number or phrase, not even with different spacing or spelling. Exactly one is correct, and "correct_index" is its position (0, 1 or 2). Every option is a real, plausible answer a child might pick; never a filler, never blank.';
+const DISTINCT_OPTIONS_RULE = 'DISTINCT OPTIONS. The three options must all be different from each other — no two the same word, number or phrase, not even with different spacing or spelling, and under a picture of parts never two fractions of the same amount (2/8 and 1/4 both read a bar of 2 in 8 right). Exactly one is correct, and "correct_index" is its position (0, 1 or 2). Every option is a real, plausible answer a child might pick; never a filler, never blank.';
 const OPTIONS_FAULT = /^q\d+: (duplicate options|empty option|bad correct_index|\d+ options\b|wrong-feedback keys)/;
 const STRUCTURAL_MULTI_RULE = 'MULTI-SELECT. A "select all that apply" question (answer_mode "multi") names at least 2 and at most (options − 1) correct options in "correct_indices", and every option is at most 30 characters. If the lesson gives it only ONE right answer, write it as an ordinary single-answer question instead: 3 options, one "correct_index", no "correct_indices", no answer_mode.';
 /** The set-level line the validator writes NEXT TO its per-question PEDAGOGY_LEVEL_ABOVE lines; those lines are the targets, this one is their headline. */
@@ -576,9 +576,10 @@ function buildAddPicturePrompt({
     `TWO WAYS TO GIVE A QUESTION A PICTURE:
 1. ADD — keep the question and draw its picture. Its options, their order and its correct answer do not change — never return different ones. You write only "figure", "figure_role" and, when the question must now point at the picture, a new "question" stem in the quiz language.
 2. REPLACE — when NO picture can produce the question's answer, write a NEW question in its place. A step of a procedure is such a question: a cross product ("what is 2 × 5?"), a fraction rewritten over a new denominator, a carried ten, the next line of a working. Two fraction bars beside "what is 2 × 5?" do not show 10, and that picture is thrown away. So set "replace": true and write a whole new question on the SAME objective that the child answers by READING the picture, with "figure_role" "read_off" (or "count_compare" for counting objects) — never "model". Return every field: "question", "options" (three), "correct_index", "explanation", "selected_because", "distractor_misconceptions" and "option_feedback" (the wrong keys are ${wrongKeys}), all in the quiz language, with maths in the stem and options as TeX between single dollars ($\\frac{3}{5}$) and never in the figure. Its correct answer must be right: it is checked again, blind. Never replace q0, and do not ask what another question in the quiz already asks.`,
+    `A REPLACEMENT IS A NEW QUESTION: a new stem, new options and a new correct answer, and that answer is what the child READS off the picture — the fraction shaded, the bar that shows a fraction, the number the sticks make. Never the old question with a picture over it: its old answer ("20", "10") is still not on the picture, and it is refused again. A replacement is held to every rule below, exactly as the quiz's author was.`,
     `QUESTIONS A CHILD ANSWERS BY READING A PICTURE — reach for these when you replace:
-- A fraction: one bar, some parts shaded, no label — "What fraction of the bar is shaded?", the options three fractions. {"type":"fraction_bar","bars":[{"parts":5,"shaded":3}]}
-- Which picture shows a fraction: three bars labelled "A", "B", "C" — "Which bar shows $\\frac{2}{3}$?", the options "A", "B", "C" (every option is on the picture, so nothing is given away; in the feedback say "bar A", never "option A"). {"type":"fraction_bar","bars":[{"parts":3,"shaded":2,"label":"A"},{"parts":5,"shaded":2,"label":"B"},{"parts":4,"shaded":1,"label":"C"}]}
+- A fraction: one bar, some parts shaded, no label — "What fraction of the bar is shaded?", the options three fractions of DIFFERENT amounts: never 2/8 beside 1/4, because both read a bar of 2 in 8 right. {"type":"fraction_bar","bars":[{"parts":5,"shaded":3}]}
+- Which picture shows a fraction: three bars labelled "A", "B", "C" — "Which bar shows $\\frac{2}{3}$?", the options "A", "B", "C" (every option is on the picture, so nothing is given away; in the feedback say "bar A", «پٹی A», never "option A" or «جواب A»). {"type":"fraction_bar","bars":[{"parts":3,"shaded":2,"label":"A"},{"parts":5,"shaded":2,"label":"B"},{"parts":4,"shaded":1,"label":"C"}]}
 - Comparing: two bars of the same length, no labels — "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?", the options fractions. The stem names no fraction, so the child reads both off the picture. (A stem that names the two fractions makes it a "model" question, which is an ADD, never a replacement.)
 - Place value: {"type":"base_ten","tens":3,"ones":4} — "What number do the sticks show?" or "How many tens are there?"
 - Counting, adding, taking away: {"type":"count_objects","rows":[{"picto":"counter","count":4},{"picto":"counter","count":3}]} — "How many counters are there altogether?"
@@ -594,6 +595,13 @@ function buildAddPicturePrompt({
 - A picture of a thing comes ONLY from the pictogram names below; "counter" and "tile" are the round and square counters a maths class uses.`,
     ...(lessonDrew ? [lessonDrew] : []),
     `THE LESSON'S OBJECTIVES\n${slos.map((s) => `- ${s.id}: ${sloStatement(s, language)}`).join('\n') || '(none recorded)'}`,
+    // A replacement is a whole question, so it is held to the author's own
+    // rules — live, one kept the method question's key under a new bar and
+    // another ran its selected_because to 34 words; both were refused.
+    questionContract({ gradeBand }),
+    SELECTED_BECAUSE_RULE,
+    ...(language === 'ur' ? [TEACHER_FIELDS_RULE] : []),
+    GENDER_NEUTRAL_RULE,
     `THE TYPES — nothing else is accepted:\n${minimalSpecBlock(ADD_PICTURE_TYPES)}`,
     `PICTOGRAM NAMES: ${pictogramNames().join(', ')}`,
     `THE QUESTIONS YOU MAY GIVE A PICTURE (q is its number in the quiz):\n\n${items}`,

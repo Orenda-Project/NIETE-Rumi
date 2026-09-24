@@ -192,3 +192,28 @@ test('a replacement that gives its answer away is reverted to the original quest
   expect(densityEvents()[0]).toMatchObject({ before: 0, after: 2, added: [1, 2], replaced: [1, 2], reverted: [3] });
   expect(lastMeta().soft_faults).toEqual(expect.arrayContaining([expect.stringMatching(/^FIGURE_FEW — 2\/8/)]));
 });
+
+test('the repair is asked for one picture more than the quiz needs, so one refused picture still leaves three', async () => {
+  // Live, twice: the repair was asked for exactly the shortfall, one of its
+  // pictures was refused, and the quiz shipped one short. A spare costs nothing
+  // the half cap does not already allow (four of eight).
+  wire();
+  const leaky = { ...MORE_SHADED, figure: { ...MORE_SHADED.figure, showLabels: true } };
+  const GRID = readOff({
+    index: 4, question: 'What fraction of the squares are shaded?', options: [F(3, 10), F(7, 10), F(3, 7)], correct_index: 0,
+    figure: { type: 'grid', rows: 2, cols: 5, shaded: 3 },
+  });
+  mockCreate
+    .mockResolvedValueOnce(authored(allMethod()))
+    .mockResolvedValueOnce(authored(allMethod()))
+    .mockImplementationOnce(async (req) => {
+      expect(req.messages[0].content).toMatch(/Give exactly 4 of the questions below a picture/);
+      return reply({ pictures: [SHADED, WHICH_BAR, leaky, GRID] });
+    });
+  const out = await Gen.process(QID);
+  expect(out.ok).toBe(true);
+  expect(storedRows().filter((r) => r.media && r.media.figure)).toHaveLength(3);
+  expect(densityEvents()[0]).toMatchObject({ before: 0, after: 3, added: [1, 2, 4], replaced: [1, 2, 4], reverted: [3] });
+  expect(lastMeta().figure_density).toMatchObject({ need: 3, asked: 4 });
+  expect(lastMeta().soft_faults || []).not.toEqual(expect.arrayContaining([expect.stringMatching(/^FIGURE_FEW/)]));
+});

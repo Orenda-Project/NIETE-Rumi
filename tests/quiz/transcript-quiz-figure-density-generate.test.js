@@ -117,9 +117,10 @@ test('one picture of eight: ONE add-pictures call, and the quiz ships with three
   mockCreate
     .mockResolvedValueOnce(authored(eightWithOne()))
     .mockImplementationOnce(async (req) => {
-      // the repair is offered only questions without a picture, and asked for two
+      // the repair is offered only questions without a picture, and asked for the two it
+      // needs plus one spare (four of eight is still inside the half cap)
       expect(promptOf([req])).toMatch(/ADDING PICTURES/);
-      expect(promptOf([req])).toMatch(/exactly 2 of/);
+      expect(promptOf([req])).toMatch(/exactly 3 of/);
       return reply({ pictures: [
         { index: 2, figure: { type: 'count_objects', rows: [{ picto: 'counter', count: 4 }, { picto: 'counter', count: 3 }] }, figure_role: 'model' },
         { index: 3, figure: { type: 'count_objects', rows: [{ picto: 'counter', count: 5 }, { picto: 'counter', count: 3 }] }, figure_role: 'model' },
