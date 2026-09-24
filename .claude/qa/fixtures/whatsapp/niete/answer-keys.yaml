@@ -106,7 +106,7 @@ registration:
     variants:
       - "You're already registered, <name>! What would you like to do next?"    # :1651
       - "You're already registered, <name>! Type /menu to see what I can help you with."  # :1956
-    gate: "user.first_name"              # NOT registration_completed / registration_state
+    gate: "isRegistered(user)"           # registration_completed OR registration_state=completed OR users.name (registration-status.js)
   partial_state_ttl_seconds: 3600        # registration-endpoint.js:49 REDIS_TTL
   # Language offer on the personal-info screen is registry-driven — reuse `language.offered`
   # above rather than restating it here.
