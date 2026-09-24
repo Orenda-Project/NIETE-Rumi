@@ -716,6 +716,23 @@ Feature: NIETE (ICT) Teacher Training
     # right answer or two count at once and another answer only after a second look in another option order.
     # @wip — a class's mistake cannot be recorded on demand; proven in tests/quiz/transcript-quiz-key-truth.test.js.
 
+  @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: The quiz sheet never presents a mistake made in class as what was taught
+    Given the NIETE bot chat is open and I taught a lesson in which something was said that is not true by the subject, such as calling 4/8 not a proper fraction
+    When I say yes to the quiz for that lesson and its PDF arrives
+    Then the "What you taught" line, the "What this quiz checks" line and every question's objective describe the lesson without repeating that mistake as a fact
+    And the sheet never says that I or the class got something wrong, and carries no correction note
+    And with QUIZ_SUMMARY_TRUTH_FILTER=off the sheet is written exactly as before this change
+    # Option B (operator, 24 Sep). transcript-quiz-summary-truth: after the blind solve, one call on the verify
+    # model with nothing about the lesson checks every line the sheet prints (the one-liner, each summary sentence,
+    # the checks line, each objective in both languages), with the blind solve's notes on the keys it disagreed
+    # with as hints; a false line is replaced by a rewrite that code accepts (same script, similar length, no blame
+    # word, no gendered teacher form) or dropped; a summary is never left empty (one-liner, then a topic-only line).
+    # The digest, author and summary-rewrite prompts carry the same rule. Fail-open; recorded on meta.summary_truth
+    # (counts only in the event). Kill switch QUIZ_SUMMARY_TRUTH_FILTER (read per job; off = every prompt and the sheet
+    # as before). @wip — a class's mistake cannot be recorded on demand; proven in
+    # tests/quiz/transcript-quiz-summary-truth.test.js.
+
   @e2e @quiz @wip @draft @P1
   Scenario: A quiz made from my recording never names or asks about a child in my class
     Given the NIETE bot chat is open and I recorded a lesson in which I called on children by name and used their names in example sentences

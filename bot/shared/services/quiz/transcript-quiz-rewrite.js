@@ -63,7 +63,7 @@ const PUPIL = /^q\d+: PEDAGOGY_PUPIL_AS_SUBJECT\b/;
 const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
 const {
   languageRule, languageAgain, questionContract, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, DISTINCT_QUESTIONS_RULE,
-  GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
+  GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, SUMMARY_TRUTH_RULE, summaryTruthEnabled,
 } = require('./transcript-quiz-contract');
 
 /** At most this many questions are repaired in ONE call. More than that is the worst five by harm (rewriteTargets `partial`) or a re-roll. */
@@ -402,7 +402,7 @@ ${summaryErrors.map((e) => `    - ${e}`).join('\n')}
 
 ${planned
     ? `Write a new "lesson_summary": 2-3 sentences, in the quiz language, written TO THE TEACHER (not the child). ${LP_SUMMARY_VOICE} Do not summarise the quiz — summarise the LESSON PLAN.`
-    : 'Write a new "lesson_summary": 2-3 sentences, in the quiz language, written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.'} Keep everything the old summary got right about the lesson; change only what was rejected.`,
+    : `Write a new "lesson_summary": 2-3 sentences, in the quiz language, written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.${summaryTruthEnabled() ? ` ${SUMMARY_TRUTH_RULE}` : ''}`} Keep everything the old summary got right about the lesson; change only what was rejected.`,
   ] : [];
 
   const shape = `  { "index": ${indices[0]}, "slo_id": "${(qs[indices[0]] || {}).slo_id || 'S1'}", "level": "${(qs[indices[0]] || {}).level || 'understand'}",

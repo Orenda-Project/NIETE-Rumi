@@ -179,6 +179,37 @@ const LP_SUMMARY_VOICE = 'This lesson was PLANNED, not heard: the teacher took t
   + 'overrides the «آپ نے … پڑھایا» form the gender rule allows.';
 
 /**
+ * EVERY LINE TO THE TEACHER IS TRUE BY THE SUBJECT — the summary, the sheet's
+ * one-liner and its "what this quiz checks" line, for a quiz written from a
+ * RECORDING (and the rewrite of that summary). A recording can hold a mistake,
+ * and the summary rule asks for "what you taught… naming your own examples":
+ * a staging Proper Fraction lesson's summary said «آپ نے 3/3 اور 4/8 کی مثالیں
+ * دے کر کہا کہ یہ Proper Fraction نہیں ہیں» while the fixed quiz under it keyed
+ * the opposite. The operator's decision (option B): the sheet never presents
+ * the mistake as correct — and never corrects the teacher either. The
+ * guarantee in code is transcript-quiz-summary-truth.js; this is the writers' half.
+ */
+/**
+ * THE KILL SWITCH for all of it — the writers' rule here, the digest's SLO
+ * rule, and the check in code (transcript-quiz-generate runSummaryTruth). Read
+ * at CALL time, so flipping the variable needs no deploy. Unset or anything
+ * else = on; 'false' / '0' / 'off' / 'no' = off, and the teacher's sheet is
+ * written exactly as it was before (no rule in any prompt, no check).
+ */
+function summaryTruthEnabled() {
+  const v = String(process.env.QUIZ_SUMMARY_TRUTH_FILTER ?? '').trim().toLowerCase();
+  return !['false', '0', 'off', 'no'].includes(v);
+}
+
+const SUMMARY_TRUTH_RULE = 'EVERY LINE TO THE TEACHER IS TRUE BY THE SUBJECT. "lesson_summary", '
+  + '"lesson_summary_short" and "checks_summary" tell the teacher what the lesson covered; they never state, '
+  + 'as what was taught or as true, anything that is wrong by the subject — even when it was said in class (a '
+  + 'recording can hold a mistake: a wrong formula, a misspelling, calling 4/8 not a proper fraction). Name that '
+  + 'part of the lesson by its topic or its example without the wrong claim ("you compared 1/4, 4/8 and 2/5"), '
+  + 'or state the correct fact plainly. Never say or imply that the teacher or the class was wrong, and never '
+  + 'add a note or a correction.';
+
+/**
  * THE RETRY NOTE. Two things it does beyond quoting the validator:
  *
  *  1. it RESTATES THE QUIZ LANGUAGE FIRST. The rule is stated once at the top
@@ -240,5 +271,6 @@ const RELIGIOUS_CONTENT_RULE = "RELIGIOUS CONTENT (Islamiyat / سیرت / any me
 module.exports = {
   languageRule, questionContract, retryNote, languageAgain, MATH_NOTATION_RULE, COLUMN_SUM_RULE, PART_NAMES_RULE,
   DISTINCT_QUESTIONS_RULE,
-  SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
+  SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, SUMMARY_TRUTH_RULE, summaryTruthEnabled,
+  WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
 };
