@@ -281,13 +281,18 @@ describe('3 — a soft fault: repaired in place, and the quiz ships whatever the
     expect(logEvent.mock.calls.map((c) => c[0])).not.toContain('transcript_quiz.failed');
   });
 
-  test('more questions than one repair can take (six of eight) → no repair possible → the attempt ships, faults recorded', async () => {
+  // More than one repair takes used to mean NO repair at all (the cap refused the
+  // whole list). The worst five are asked for now, and the rest get a second
+  // batch — transcript-quiz-rewrite-overflow.test.js. Here the rewrite returns
+  // nothing usable, so there is nothing to build a second batch on.
+  test('more questions than one repair takes (six of eight) → the worst five are asked for; a rewrite with nothing usable leaves the attempt shipping, faults recorded', async () => {
     const bad = eight().map((q, i) => (i < 6 ? MASC_FEEDBACK(q) : q));
     mockCreate.mockResolvedValue(reply({ lesson_summary: SUMMARY, questions: bad }));
     wire();
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
-    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(mockCreate).toHaveBeenCalledTimes(2);          // the author, then ONE repair of five
+    expect(promptOf(mockCreate.mock.calls[1])).toContain('REWRITE THESE QUESTIONS: q0, q1, q2, q3, q4');
     expect(storedRows()).toHaveLength(8);
     expect((lastMeta().soft_faults || []).filter((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))).toHaveLength(6);
   });
@@ -357,7 +362,14 @@ describe('4 — an lp_v8 quiz: the live item as it went out is repaired in place
   ];
   const kindOf = (call) => (KIND.find(([, re]) => re.test(call.messages[0].content)) || ['other'])[0];
 
-  test('author → one in-place repair of q6 → key check on the repaired set → 8 stored, the neutral item among them', async () => {
+  // A grade 3 lesson is drawable, and its first attempt came back with no
+  // picture: that attempt is re-authored for its picture BEFORE any text is
+  // repaired. The picture retry is the picture path and runs whatever the text
+  // faults are; a repair of this attempt's words used to ship it and skip the
+  // retry, so the quiz went out with no picture (and repairing words the
+  // re-author then throws away is a wasted call). The repair runs on the
+  // attempt that comes back.
+  test('author (asked again for its picture) → one in-place repair of q6 → key check on the repaired set → 8 stored, the neutral item among them', async () => {
     const authored = F.AUTHORED.map((q, i) => (i === 6 ? GENDERED : q));
     mockCreate.mockImplementation((call) => {
       const kind = kindOf(call);
@@ -374,7 +386,9 @@ describe('4 — an lp_v8 quiz: the live item as it went out is repaired in place
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
     const kinds = mockCreate.mock.calls.map((c) => kindOf(c[0]));
-    expect(kinds.filter((k) => k === 'author')).toHaveLength(1);        // never re-rolled
+    expect(kinds.filter((k) => k === 'author')).toHaveLength(2);        // the picture retry, never a re-roll for the words
+    const second = mockCreate.mock.calls.filter((c) => kindOf(c[0]) === 'author')[1][0].messages[0].content;
+    expect(second).toContain('FIGURE_REQUIRED');
     expect(kinds.filter((k) => k === 'rewrite')).toHaveLength(1);
     const rw = mockCreate.mock.calls.find((c) => kindOf(c[0]) === 'rewrite')[0].messages[0].content;
     expect(rw).toContain('REWRITE THESE QUESTIONS: q6');
