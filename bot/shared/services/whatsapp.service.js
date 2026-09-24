@@ -1,4 +1,4 @@
-const axios = require('axios');
+const realAxios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
 const { WHATSAPP_TOKEN, PHONE_NUMBER_ID } = require('../utils/constants');
@@ -65,6 +65,99 @@ const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || 'v21.0';
 // which serves the same /<version>/<phone_number_id>/messages paths. Nothing else may change here.
 const GRAPH_API_HOST = (process.env.WHATSAPP_API_BASE || 'https://graph.facebook.com').replace(/\/+$/, '');
 const GRAPH_API_BASE = `${GRAPH_API_HOST}/${GRAPH_API_VERSION}`;
+
+// ─── Paced transports ───────────────────────────────────────────────────────
+// `fetch` and `axios` in THIS FILE are not the raw clients. Every Cloud API
+// `/messages` POST made through them goes through the send pacer
+// (whatsapp-send-pacer.js): it waits for a slot in the recipient's schedule
+// (shared by every process, so a burst to one phone is spaced out instead of
+// refused with 131056) and retries a rate-limit refusal (131056, 130429,
+// 131048) with backoff. Nothing else is retried, so a message Meta may have
+// accepted is never sent twice. Media uploads, reads and every other URL pass
+// straight through, and a retry repeats only the `/messages` POST, never the
+// upload before it.
+//
+// Wrapping the two transports once, here, instead of editing each sender means
+// every send site in this file is covered, including any added later. The raw
+// clients are resolved at CALL time, so a test's stub of global.fetch or of the
+// axios module is still what runs underneath.
+const pacer = require('./whatsapp-send-pacer');
+
+/** What a caller of a paced transport sees for a send that was never attempted. */
+function pacingRefusal(local) {
+  return {
+    status: 429,
+    data: { error: { code: `local_${local}`, message: `Not sent: ${local} by per-recipient send pacing` } },
+  };
+}
+
+const axios = {
+  get: (...args) => realAxios.get(...args),
+  post: (url, body, config) => {
+    if (!pacer.isMessagesUrl(url)) return realAxios.post(url, body, config);
+    // Created synchronously, inside the sender, so its stack names the caller.
+    const site = new Error('whatsapp send site');
+    return pacer.send({ to: body && body.to, kind: pacer.kindOf(body), site }, async () => {
+      try {
+        return { value: await realAxios.post(url, body, config), code: null };
+      } catch (error) {
+        const code = pacer.metaErrorCodeOf(error);
+        if (code === null) throw error; // no Meta verdict (network, timeout): never retried
+        return { error, code };
+      }
+    }).then((out) => {
+      if (out.local) {
+        throw Object.assign(new Error(pacingRefusal(out.local).data.error.message), {
+          response: pacingRefusal(out.local), paced: out.local,
+        });
+      }
+      return out.value;
+    });
+  },
+};
+
+/**
+ * @param {string} url
+ * @param {object} init
+ * @param {{bestEffort?: boolean}} [gate] a best-effort send (a reaction) goes only
+ *   if the recipient has room right now; it is never waited for or retried.
+ */
+function fetch(url, init, gate = {}) {
+  const rawFetch = globalThis.fetch;
+  if (!pacer.isMessagesUrl(url)) return rawFetch(url, init);
+  const site = new Error('whatsapp send site');
+  let body = null;
+  try { body = JSON.parse((init && init.body) || 'null'); } catch (_) { body = null; }
+  // A POST with no recipient (the read receipt / typing indicator) is not a
+  // message: it is not paced and never retried.
+  const to = body && body.to;
+  return pacer.send(
+    { to, kind: pacer.kindOf(body), bestEffort: Boolean(gate.bestEffort) || !to, site },
+    async () => {
+      const response = await rawFetch(url, init);
+      if (!response || response.ok !== false) return { value: response, code: null };
+      // Read Meta's verdict once, and hand the caller a response it can still read.
+      let data = null;
+      try { data = await response.json(); } catch (_) { data = null; }
+      const replay = {
+        ok: false,
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        json: async () => data,
+        text: async () => (data == null ? '' : JSON.stringify(data)),
+      };
+      return { value: replay, code: pacer.metaCodeOfBody(data) };
+    },
+  ).then((out) => {
+    if (!out.local) return out.value;
+    const refusal = pacingRefusal(out.local);
+    return {
+      ok: false, status: refusal.status, paced: out.local,
+      json: async () => refusal.data, text: async () => JSON.stringify(refusal.data),
+    };
+  });
+}
 
 /**
  * WhatsApp Service
@@ -295,6 +388,11 @@ class WhatsAppService {
    */
   static async sendReaction(to, messageId, emoji = '❤️') {
     try {
+      // A reaction is an acknowledgement, and it counts against the same
+      // per-recipient limit as the reply it acknowledges. It is BEST-EFFORT: sent
+      // only when the phone has room right now, never waited for, never retried —
+      // a late 👍 means nothing, and a skipped one leaves the budget for the reply.
+      // Both callers (the webhook ack, the training verdict) already treat it so.
       const response = await fetch(
         `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
         {
@@ -313,9 +411,13 @@ class WhatsAppService {
               emoji: emoji,
             },
           }),
-        }
+        },
+        { bestEffort: true }
       );
 
+      // Skipped by the pacer (the phone has no room): already logged as
+      // whatsapp.paced; not an error.
+      if (response.paced) return false;
       const data = await response.json();
       if (!response.ok) {
         logToFile('Error sending reaction', data);
