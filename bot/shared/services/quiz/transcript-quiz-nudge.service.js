@@ -30,6 +30,14 @@ const { excludeSelfTests } = require('./teacher-self-test');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 
 const NUDGE_BELOW = 5;
+/**
+ * How long after the link goes out the nudge falls due (before the quiet window
+ * moves it). Owned HERE, the nudge's own module: the handoff schedules the job with
+ * it and this module decides which nudges are due with it, so the two read one
+ * number. It lives here rather than in the handoff because the handoff already
+ * requires this module — the other direction would be a require cycle.
+ */
+const NUDGE_AFTER_MS = 6 * 60 * 60 * 1000;
 const PKT_OFFSET_MIN = 5 * 60;
 /** Nothing is sent to a teacher between these PKT hours. */
 const QUIET_FROM_PKT = 21;
@@ -181,7 +189,6 @@ function ownNudgeDueToday(q, now = new Date()) {
   if (!q || q.status !== 'sent' || meta.nudged_at || !meta.sent_at) return false;
   const sentMs = Date.parse(meta.sent_at);
   if (!Number.isFinite(sentMs)) return false;
-  const { NUDGE_AFTER_MS } = require('./transcript-quiz-handoff.service');
   const due = nudgeTargetUtc(new Date(sentMs + NUDGE_AFTER_MS)).getTime();
   return due <= now.getTime() && due > now.getTime() - 24 * 60 * 60 * 1000;
 }
@@ -289,6 +296,6 @@ async function process(quizId) {
 }
 
 module.exports = {
-  process, NUDGE_BELOW, nudgeTargetUtc, quietAwareDeadlineUtc, nudgeDispatch, pktDayStartIso,
+  process, NUDGE_BELOW, NUDGE_AFTER_MS, nudgeTargetUtc, quietAwareDeadlineUtc, nudgeDispatch, pktDayStartIso,
   QUIET_FROM_PKT, QUIET_TO_PKT,
 };
