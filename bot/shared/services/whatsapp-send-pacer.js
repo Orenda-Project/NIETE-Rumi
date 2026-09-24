@@ -61,8 +61,13 @@ const RESERVE_TIMEOUT_MS = 750;
 
 /**
  * One atomic reservation per call. KEYS[1] = the phone's schedule key.
- * ARGV: interval_ms, burst, max_wait_ms, mode ('wait' | 'try' | 'penalize'), penalty_ms.
- * Returns { delay_ms, granted(1|0) }. The stored value is the phone's
+ * ARGV: interval_ms, burst, max_wait_ms, mode, penalty_ms. Modes:
+ *   'wait'          reserve the next slot unless it is further out than max_wait
+ *   'try'           reserve only if the send can go right now (best-effort)
+ *   'force_if_late' always reserve; granted=2 says the slot was further out than
+ *                   max_wait, so the caller sends now instead of waiting
+ *   'penalize'      push the phone's schedule back by penalty_ms (after a 131056)
+ * Returns { delay_ms, granted (0 no | 1 yes | 2 yes, late) }. The stored value is the phone's
  * "theoretical arrival time" (TAT) in ms on Redis's clock; the key expires once
  * that time has passed, because an expired key and a TAT in the past mean the
  * same thing: the phone has its full burst again.
@@ -90,10 +95,14 @@ end
 local delay = tat - tau - now
 if delay < 0 then delay = 0 end
 if delay > 0 and mode == 'try' then return {delay, 0} end
-if delay > maxWait then return {delay, 0} end
+local granted = 1
+if delay > maxWait then
+  if mode ~= 'force_if_late' then return {delay, 0} end
+  granted = 2
+end
 local nextTat = tat + interval
 redis.call('SET', KEYS[1], nextTat, 'PX', math.ceil(nextTat - now) + 1000)
-return {delay, 1}
+return {delay, granted}
 `;
 
 /** A numeric env value, or `fallback` when unset, unparseable or below `min`. */
@@ -222,7 +231,8 @@ async function reserve(to, mode, cfg, penaltyMs = 0) {
     }
     return null;
   }
-  return { delayMs: Math.max(0, Number(res[0]) || 0), granted: Number(res[1]) === 1 };
+  const granted = Number(res[1]);
+  return { delayMs: Math.max(0, Number(res[0]) || 0), granted: granted === 1 || granted === 2, late: granted === 2 };
 }
 
 /** First backoff ≈ base, then doubling, each with up to +50% jitter. */
@@ -233,6 +243,40 @@ function backoffMs(attempt, cfg) {
 
 /** Outcomes a caller's transport wrapper turns back into its own failure shape. */
 const LOCAL = Object.freeze({ SKIPPED: 'skipped', SHED: 'shed' });
+
+/**
+ * Budgets for a send that an HTTP response is WAITING on — a WhatsApp Flow's
+ * data_exchange (Meta allows ~10 s), or the portal's password-reset call (10 s
+ * client timeout). Pacing must never hold such a send for the phone's next
+ * slot: 6 s per message once its burst is spent, up to MAX_WAIT. So:
+ *
+ *   maxWaitMs  the longest it may wait for its slot. 1500 ms: the rest of a
+ *              request (a DB read, the Graph call itself) must still fit.
+ *   ifLate     what happens when the slot is further out than that:
+ *     'skip'   not sent at all (whatsapp.paced outcome 'skipped'). For an ack
+ *              whose content follows — "🎬 Sending your video…" before the video.
+ *     'send'   sent NOW, unpaced — exactly what every send did before pacing —
+ *              and it still takes a slot, so what follows is paced behind it
+ *              (whatsapp.paced outcome 'unpaced'). For a send that IS the
+ *              deliverable: skipping it would lose the thing the user asked for.
+ *
+ * A budgeted send is never retried: the shortest backoff (~6 s) alone would
+ * blow the budget. A 131056 still pushes the phone back, so the content that
+ * follows the response backs off.
+ */
+const SYNC_BUDGET_WAIT_MS = 1500;
+const SYNC_BUDGET = Object.freeze({
+  SKIP_IF_LATE: Object.freeze({ maxWaitMs: SYNC_BUDGET_WAIT_MS, ifLate: 'skip' }),
+  SEND_IF_LATE: Object.freeze({ maxWaitMs: SYNC_BUDGET_WAIT_MS, ifLate: 'send' }),
+});
+
+/** A caller's budget, normalised; null when the send is not budgeted. */
+function budgetOf(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const maxWaitMs = Number(raw.maxWaitMs);
+  if (!Number.isFinite(maxWaitMs) || maxWaitMs < 0) return null;
+  return { maxWaitMs, ifLate: raw.ifLate === 'send' ? 'send' : 'skip' };
+}
 
 /**
  * Pace, send, and retry a rate-limit refusal.
@@ -246,17 +290,34 @@ const LOCAL = Object.freeze({ SKIPPED: 'skipped', SHED: 'shed' });
  * the un-paced call would have; or `{ local: 'skipped' | 'shed' }` when the send
  * was never attempted.
  *
- * @param {{to?: string, kind?: string, bestEffort?: boolean, site?: Error}} meta
+ * @param {{to?: string, kind?: string, bestEffort?: boolean, site?: Error,
+ *          budget?: {maxWaitMs: number, ifLate: 'skip'|'send'}}} meta
  * @param {() => Promise<{value?: *, error?: Error, code: number|null}>} attempt
  */
 async function send(meta, attempt) {
   const cfg = config();
   const m = { ...meta, kind: meta.kind || 'unknown' };
+  const budget = m.bestEffort ? null : budgetOf(m.budget);
 
-  const slot = await reserve(m.to, m.bestEffort ? 'try' : 'wait', cfg);
+  let mode = 'wait';
+  let slotCfg = cfg;
+  if (m.bestEffort) mode = 'try';
+  else if (budget) {
+    mode = budget.ifLate === 'send' ? 'force_if_late' : 'wait';
+    slotCfg = { ...cfg, maxWaitMs: Math.min(cfg.maxWaitMs, budget.maxWaitMs) };
+  }
+
+  const slot = await reserve(m.to, mode, slotCfg);
   if (slot && !slot.granted) {
     if (m.bestEffort) {
       emit('info', 'whatsapp.paced', m, { outcome: LOCAL.SKIPPED, delayMs: slot.delayMs });
+      return { local: LOCAL.SKIPPED };
+    }
+    if (budget) {
+      // 'skip': the ack is not sent, and it took no slot.
+      emit('info', 'whatsapp.paced', m, {
+        outcome: LOCAL.SKIPPED, reason: 'sync_budget', delayMs: slot.delayMs, budgetMs: budget.maxWaitMs,
+      });
       return { local: LOCAL.SKIPPED };
     }
     emit('error', 'whatsapp.rate_limited', m, {
@@ -264,7 +325,12 @@ async function send(meta, attempt) {
     });
     return { local: LOCAL.SHED };
   }
-  if (slot && slot.delayMs > 0) {
+  if (slot && slot.late) {
+    // 'send': out now, unpaced; the slot it took paces whatever follows.
+    emit('info', 'whatsapp.paced', m, {
+      outcome: 'unpaced', reason: 'sync_budget', delayMs: slot.delayMs, budgetMs: budget.maxWaitMs,
+    });
+  } else if (slot && slot.delayMs > 0) {
     if (slot.delayMs >= PACED_LOG_THRESHOLD_MS) {
       emit('info', 'whatsapp.paced', m, { outcome: 'waited', delayMs: slot.delayMs });
     }
@@ -283,6 +349,19 @@ async function send(meta, attempt) {
     if (m.bestEffort) {
       // A reaction Meta refused is not worth a retry — nor an error-level line.
       emit('warn', 'whatsapp.rate_limited', m, { code, attempt: n, delayMs: 0, gaveUp: true, bestEffort: true });
+      return settle();
+    }
+    if (budget) {
+      // No retry inside a response's budget. Push the phone back so the content
+      // that follows the response backs off; a lost deliverable is an error, a
+      // lost ack only a warning.
+      if (code === PAIR_LIMIT) {
+        // eslint-disable-next-line no-await-in-loop
+        await reserve(m.to, 'penalize', cfg, backoffMs(1, cfg));
+      }
+      emit(budget.ifLate === 'send' ? 'error' : 'warn', 'whatsapp.rate_limited', m, {
+        code, attempt: n, delayMs: 0, gaveUp: true, reason: 'sync_budget',
+      });
       return settle();
     }
     if (n >= cfg.maxAttempts) {
@@ -322,6 +401,8 @@ function metaCodeOfBody(data) {
 module.exports = {
   // whatsapp.service.js's paced transports
   send,
+  // callers whose HTTP response waits on a send (Flow endpoints, the portal)
+  SYNC_BUDGET,
   isMessagesUrl,
   kindOf,
   metaCodeOfBody,
