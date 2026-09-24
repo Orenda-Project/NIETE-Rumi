@@ -226,3 +226,19 @@ describe('QUIZ_LP612_SOURCE off', () => {
     expect((await Provider.list(T)).length).toBeGreaterThan(0);
   });
 });
+
+describe('the queue refusing the job', () => {
+  test('the quiz fails queue_failed, keeps its lesson, says it could not start — and the funnel names the 6-12 stream', async () => {
+    const SQS = require('../../bot/shared/services/queue/sqs-queue.service');
+    const { logEvent } = require('../../bot/shared/utils/structured-logger');
+    SQS.queueJob.mockRejectedValueOnce(new Error('queue down'));
+    const out = await Provider.start({ id: T, preferred_language: 'en' }, '11111111-0000-4000-8000-000000000003', { phone: PHONE });
+    expect(out.outcome).toBe('queue_failed');
+    const [quiz] = mockDb.table('quizzes');
+    expect(quiz.status).toBe('failed');
+    expect(quiz.meta).toEqual(expect.objectContaining({ error: 'queue_failed', lessons: [expect.objectContaining({ segment_id: SEGMENTS[1].segment_id })] }));
+    expect(mockSent.some((m) => m.args[0] === UX_STRINGS.lpQuizCouldNotStart.en)).toBe(true);
+    const failed = logEvent.mock.calls.find((c) => c[0] === 'quiz_funnel.generation_failed');
+    expect(failed && failed[1]).toEqual(expect.objectContaining({ source: 'lp612', reason: 'queue_failed' }));
+  });
+});
