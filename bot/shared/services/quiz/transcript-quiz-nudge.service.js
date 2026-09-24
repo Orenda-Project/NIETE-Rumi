@@ -27,6 +27,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const { teacherLanguageFor, isolate } = require('./transcript-quiz-language');
 const { excludeSelfTests } = require('./teacher-self-test');
+const { oneAttemptPerChild } = require('./one-attempt-per-child');
 
 const NUDGE_BELOW = 5;
 const PKT_OFFSET_MIN = 5 * 60;
@@ -144,11 +145,14 @@ function pktDayStartIso(now = new Date()) {
   return new Date(start - PKT_OFFSET_MIN * 60 * 1000).toISOString();
 }
 
-/** How many REAL children have started this quiz (the teacher's own run never counts). */
+/** How many REAL children have started this quiz — once each, however many
+ *  times they opened it (one attempt per child, as the class report counts);
+ *  the teacher's own run never counts. */
 async function startedFor(quizId, teacherId) {
   const { data: sessions } = await supabase.from('quiz_sessions')
-    .select('id, user_id').eq('quiz_id', quizId).is('invited_by_student_id', null);
-  return excludeSelfTests(sessions || [], teacherId).length;
+    .select('id, user_id, student_id, status, completed_at, created_at')
+    .eq('quiz_id', quizId).is('invited_by_student_id', null);
+  return oneAttemptPerChild(excludeSelfTests(sessions || [], teacherId)).length;
 }
 
 /**
