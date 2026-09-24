@@ -26,7 +26,7 @@ const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
 const { validate, MIN_QUESTIONS, figureDensity } = require('./transcript-quiz-validator');
 const { teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel } = require('./transcript-quiz-language');
-const { SESSION_SELECT } = require('./transcript-quiz-offer.service');
+const { SESSION_SELECT, MIN_TRANSCRIPT_CHARS } = require('./transcript-quiz-offer.service');
 const {
   TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, digestFailureReason,
 } = require('./quiz-sources');
@@ -1113,6 +1113,25 @@ async function process(quizId, payload = {}) {
       await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'source_missing' } });
       await tellTeacherFailed(phone, teacherLang, quizId, 'source_missing', quizSource);
       return { failed: true, reason: 'source_missing' };
+    }
+  }
+
+  // A quiz born of a RECORDING is written from its transcript, and the offer
+  // and /quiz (list and Flow) never reach here with one shorter than
+  // MIN_TRANSCRIPT_CHARS. The contract is asserted here as well, BEFORE any
+  // model call (root rule 24c), so a transcript that cannot carry a quiz is
+  // named for what it is — source_unusable, the one failure where "the
+  // transcript didn't carry enough" is true — and never spends a digest and
+  // three authoring attempts to be reported as the model's failure.
+  if (!isLp && !(quiz.status === 'ready' && meta.step === 'ready')) {
+    const chars = String(session.transcript_text || '').length;
+    if (chars < MIN_TRANSCRIPT_CHARS) {
+      await updateQuiz(quizId, {
+        status: 'failed',
+        meta: { ...meta, step: 'failed', error: 'source_unusable', error_detail: `transcript: ${chars} chars, below ${MIN_TRANSCRIPT_CHARS}` },
+      });
+      await tellTeacherFailed(phone, teacherLang, quizId, 'source_unusable', quizSource, { step: 'source', transcriptChars: chars });
+      return { failed: true, reason: 'source_unusable' };
     }
   }
 

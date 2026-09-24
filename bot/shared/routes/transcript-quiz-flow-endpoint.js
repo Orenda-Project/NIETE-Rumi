@@ -286,7 +286,10 @@ function resultsText(state, students, language, quiz = null) {
   if (state === 'failed') {
     // The transcript copy names "this lesson's recording"; an lp_v8 quiz had none.
     if (quiz?.quiz_source === LP_V8) return lpFailedResults(quiz, language);
-    return resolveUx('tqFlowResultsFailed', { language });
+    // A recording's quiz the MODEL failed says so, as the chat did
+    // (tqCouldNotMakeModel): the recording was not the problem. Every other
+    // reason keeps the line it always had; the Make choices follow either way.
+    return resolveUx(failureReasonOf(quiz?.meta) === 'model_failed' ? 'tqFlowResultsFailedModel' : 'tqFlowResultsFailed', { language });
   }
   if (state !== 'sent' && state !== 'report_sent') {
     // An lp_v8 quiz that is not waiting for its language was never made

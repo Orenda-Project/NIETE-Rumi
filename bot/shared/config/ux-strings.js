@@ -1606,6 +1606,16 @@ const UX_STRINGS = {
     en: 'I couldn’t make a good quiz from this lesson’s recording — the transcript didn’t carry enough of what was taught clearly. Try /quiz after your next lesson.',
     ur: 'اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا — transcript میں پڑھایا ہوا مواد کافی واضح نہیں تھا۔ اگلے سبق کے بعد /quiz آزمائیں۔',
   },
+  // model_failed on a quiz born of a RECORDING: the model gave nothing usable
+  // (empty, cut off or not JSON after its retry, or the provider refused the
+  // call), at the digest or the author. Ours, so it says so and says the
+  // recording was not the problem — and, unlike the lp_v8 case, /quiz CAN make
+  // this one again from the same session. The Urdu verbs agree with خرابی /
+  // quiz / مسئلہ, and بھیجیں / چنیں are imperatives: never the teacher's gender.
+  tqCouldNotMakeModel: {
+    en: 'Sorry — something went wrong on my side while writing the quiz for this lesson, so it could not be finished. The problem was not your recording. Send /quiz and pick this lesson to try again.',
+    ur: 'معذرت — اس سبق کا quiz لکھتے ہوئے میری طرف سے خرابی ہو گئی، اس لیے یہ مکمل نہیں ہو سکا۔ مسئلہ آپ کی ریکارڈنگ میں نہیں تھا۔ دوبارہ کوشش کے لیے ⁦/quiz⁩ بھیجیں اور یہی سبق چنیں۔',
+  },
   // ── the LP-born quiz's own failure reasons (PLAN_R8 §3.6) ────────────────
   // `tqCouldNotMake` above names "this lesson's recording" and "the transcript".
   // A quiz written from the lesson PLAN a teacher was served has neither, so
@@ -1880,6 +1890,13 @@ const UX_STRINGS = {
   tqFlowResultsFailed: {
     en: 'The last attempt did not produce a good quiz from this lesson’s recording. You can try again.',
     ur: 'پچھلی کوشش میں اس سبق کی ریکارڈنگ سے اچھا quiz نہیں بن سکا۔ دوبارہ کوشش کی جا سکتی ہے۔',
+  },
+  // The same failure on the /quiz Flow lesson screen when it was the MODEL's
+  // (tqCouldNotMakeModel, without the chat's "send /quiz" — the teacher is in
+  // /quiz, and the Make choices sit right under this line).
+  tqFlowResultsFailedModel: {
+    en: 'Something went wrong on my side while writing this quiz, so it could not be finished. The problem was not your recording. You can try again.',
+    ur: '‏quiz لکھتے ہوئے میری طرف سے خرابی ہو گئی، اس لیے یہ مکمل نہیں ہو سکا۔ مسئلہ آپ کی ریکارڈنگ میں نہیں تھا۔ دوبارہ کوشش کی جا سکتی ہے۔',
   },
   tqFlowEachStudent: { en: 'How each student did', ur: 'ہر طالب علم کا نتیجہ' },
   // The score is ONE left-to-right atom (digits, slash, brackets, per-cent), so
