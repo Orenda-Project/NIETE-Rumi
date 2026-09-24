@@ -549,6 +549,19 @@ Feature: NIETE (ICT) Teacher Training
     # vqShareForwardThis, vqClassMessage, vqShareReportPromise, vqShareDeclined, vqShareLinkFailed in
     # the run's language. English copy is byte-identical. @wip.
 
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: A video quiz offered in Urdu answers every tap in Urdu, even after the offer or the quiz has ended
+    Given I picked a video from the library and was offered its quiz in Urdu
+    When I tap "ابھی نہیں" on the offer
+    Then I am told in Urdu to enjoy the video
+    When I tap the offer again after it has lapsed
+    Then I am told in Urdu that the offer has ended and to pick the video again
+    And when I tap an answer on a quiz that has already finished, I am told in Urdu to pick another video
+    # video-quiz.service handleOfferButton / startSession / handleAnswer: vqOfferDeclined, vqOfferExpired,
+    # vqStartFailed, vqQuizFinished in the run's language. The two taps after the run's state is gone read the
+    # phone's last run language (videoquiz:<phone>:lang, a week), written by sendOffer and startSession — a child
+    # from a class link never saw an offer, so startSession writes it too. English copy is byte-identical. @wip.
+
   # ══════════════════ ASSESSMENT GENERATOR — the paper she asks for ══════════════════
   # The generator is mapped to this feature (feature-map.yaml: training) because it sits
   # with the exam/quiz surfaces, but it had no scenarios until bd-60175. It is its own

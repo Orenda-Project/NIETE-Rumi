@@ -2091,6 +2091,27 @@ const UX_STRINGS = {
     en: 'Sorry — I couldn’t load that quiz just now. Please try again later.',
     ur: 'معذرت — ابھی یہ quiz لوڈ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
+  // The /video quiz offer path — reached by teachers AND children from the video
+  // library. In the run's language; the two lines that fire after the run's
+  // state is gone (a lapsed offer, a tap after the quiz ended) read it from the
+  // phone's last run. Urdu verbs agree with the quiz, the offer or the video
+  // (ہو سکا، ہو چکی ہے، ملے گا), never with whoever is reading.
+  vqOfferDeclined: {
+    en: 'No problem — enjoy the video!',
+    ur: 'کوئی بات نہیں — ویڈیو دیکھنے کا لطف اٹھائیں!',
+  },
+  vqOfferExpired: {
+    en: 'That quiz offer has expired — pick the video again and I\'ll offer it fresh.',
+    ur: 'اس quiz کی پیشکش ختم ہو چکی ہے — ویڈیو دوبارہ چنیں، quiz نئے سرے سے پیش کیا جائے گا۔',
+  },
+  vqStartFailed: {
+    en: 'Sorry — I couldn\'t start that quiz. Please try again in a moment.',
+    ur: 'معذرت — ابھی یہ quiz شروع نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  },
+  vqQuizFinished: {
+    en: 'That quiz has finished. Pick another video and I\'ll offer you a fresh one!',
+    ur: 'یہ quiz ختم ہو چکا ہے۔ کوئی اور ویڈیو چنیں، اس کے ساتھ نیا quiz ملے گا!',
+  },
   vqInviteAsk: {
     en: 'Want to send this quiz to a friend?\n\nI’ll tell you how they did once they finish.',
     ur: 'یہ quiz کسی دوست کو بھیجیں؟\n\nجب وہ مکمل کر لیں تو آپ کو بتایا جائے گا کہ انہوں نے کیسا کیا۔',
