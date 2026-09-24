@@ -8,24 +8,21 @@
       "flowId": "1789313642053401",
       "name": "Assessment Generator",
       "status": "PUBLISHED",
-      "version": "7.0",
+      "version": "7.3",
       "data_api_version": "3.0",
       "kind": "endpoint",
-      "screens": 16,
+      "screens": 8,
       "terminal": [
-        "CONFIRM",
-        "PICK_DONE"
+        "CONFIRM"
       ],
       "components": [
         "CheckboxGroup",
         "Dropdown",
-        "EmbeddedLink",
         "Footer",
         "Form",
-        "NavigationList",
         "OptIn",
         "RadioButtonsGroup",
-        "TextArea",
+        "SingleColumnLayout",
         "TextBody",
         "TextCaption",
         "TextHeading",
@@ -37,9 +34,11 @@
       ],
       "problems": [],
       "validation_errors": 0,
-      "sha256": "365b27b20e9bcfc931a9ec4c19dc81f0a71a20c5819ee296e3fdec171ff88a67",
+      "sha256": "cf176e095ee23aaa596431e703e5e9c440f25272fbdcbecf8843124d15b40e11",
       "fetchedAt": "2026-09-08T06:54:18.409Z",
-      "repoCopy": "none"
+      "repoCopy": "docs/flows/assessment-gen-flow.json",
+      "source": "repo copy of the publish source — the 2026-09-08 WABA capture was v7.0 and predates the per-type count screens (bd-w3cb9.7)",
+      "refreshedAt": "2026-09-24T06:24:57Z"
     },
     {
       "envVar": "ASSESSMENT_REVIEW_FLOW_ID",

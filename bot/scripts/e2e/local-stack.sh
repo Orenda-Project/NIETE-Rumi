@@ -117,6 +117,10 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # sandbox DB is seeded; without this the bot falls to the Oxbridge fallback and lesson-plan/L03
     # fails. Overridable for a dev testing the flag-off path: LP_612_ENABLED=false bash commit-e2e.sh …
     echo "LP_612_ENABLED=${LP_612_ENABLED:-true}"
+    # The lesson/quiz list behind /quiz (transcript-quiz-list + the TRANSCRIPT_QUIZ Flow) is flag-gated
+    # at call time; with it unset /quiz falls to the old QuizOrchestrator and training T24 cannot list
+    # a lesson-plan quiz. On by default here, like LP_612_ENABLED; no other mock driver sends /quiz.
+    echo "TRANSCRIPT_QUIZ_ENABLED=${TRANSCRIPT_QUIZ_ENABLED:-true}"
     # observe capability gate (observe-gate.js:62) + the visit-picker Flow. keys/niete-local.env already
     # carries both real ids, and dotenv keeps the first value, so these are FALLBACKS for a clone whose
     # keys file lacks them — the ids match the committed flow fixtures (fixtures/flows/*.json + manifest),

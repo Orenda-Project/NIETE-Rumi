@@ -113,7 +113,9 @@ function makeMockApi(opts) {
   // The fresh-inbound reader the pipeline walkers (coaching, lesson-plan) use: everything that
   // arrived since the LAST call, with the media flags the CDP page-side reader computes.
   let freshCursor = 0;
-  const flagsOf = (i) => ({ txt: String(i.txt || '').slice(0, 600), img: !!i.img, audio: !!i.audio, doc: !!i.doc,
+  // 4000, not 600: a scenario-style grand-quiz question puts its lettered options past the 600th
+  // character, and the quiz driver matches the answer against those lines (run 1214, Q7/20 → NO_ROW_ID).
+  const flagsOf = (i) => ({ txt: String(i.txt || '').slice(0, 4000), img: !!i.img, audio: !!i.audio, doc: !!i.doc,
     pdf: !!i.pdf || /\.pdf/i.test(i.txt || ''), btns: i.btns || [], media: i.media,
     // interactive list rows, when this reply is one — the training module check is answered off these
     list: i.list || null,
@@ -247,7 +249,9 @@ function makeMockApi(opts) {
     },
     flow() { return flow; },
     async resetFlow() { const had = !!flow; flow = null; return { ok: true, note: had ? 'emulated Flow closed' : 'nothing open', attempts: 0 }; },
-    async flowProbe() { if (!flow || !flow.isOpen()) return { text: '', items: [] }; const p = flow.probe(); return { text: p.text, items: p.items.map((i) => ({ text: i.text, disabled: i.disabled, kind: i.kind })) }; },
+    // id/name/hay/value ride along: a NavigationList row's id (lp_<quizId>), a Dropdown option's field name,
+    // and the row's full text are what drivers key on; the CDP lane has them too (bd-w3cb9).
+    async flowProbe() { if (!flow || !flow.isOpen()) return { text: '', items: [] }; const p = flow.probe(); return { screen: p.screen, text: p.text, items: p.items.map((i) => ({ text: i.text, disabled: i.disabled, kind: i.kind, id: i.id, name: i.name, hay: i.hay, value: i.value })) }; },
     async flowClick(text, o2) { if (!flow || !flow.isOpen()) return noFlow(); const r = await flow.click(text, o2 || {}); if (!flow.isOpen()) flow = null; return r; },
     async flowPick(want, o2) {
       if (!flow || !flow.isOpen()) return noFlow();
@@ -276,12 +280,12 @@ function makeMockApi(opts) {
      *  assertions (LANG02/03 language + lock) are verified the same way. */
     db(action, extra) {
       trace('db ' + action);
-      const script = /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|revert-level|activate-program)$/.test(action)
+      const script = /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|seed-level-complete|seed-question-urdu|seed-isaps-exams|seed-lp-quiz|revert-level|activate-program)$/.test(action)
         ? path.join(repo, '.claude/qa/shared/niete_training_db.py')
         : path.join(repo, '.claude/qa/shared/niete_registration_db.py');
       const args = [script, action, '--env', env, '--phone', driver];
       // module-media is a READ — never hand a read a write flag (bd-xub4s).
-      if (!/^(lookup|snapshot|module-media|level-modules)$/.test(action)) args.push('--yes-write');
+      if (!/^(lookup|snapshot|module-media|level-modules|answer-key)$/.test(action)) args.push('--yes-write');   // reads never get a write flag
       if (extra) args.push(...extra);
       try {
         const out = execFileSync('python3', args, { cwd: repo, encoding: 'utf8', timeout: 60000 });

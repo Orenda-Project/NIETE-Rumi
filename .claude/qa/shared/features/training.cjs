@@ -9,6 +9,7 @@
  * Staging copy note (captured live 2026-08-31): the Teacher Training card keeps its
  * English heading but the body and CTA are Urdu — CTA is "کھولیں", not "Open".
  */
+const fs = require('fs'); const path = require('path'); const { execFileSync } = require('child_process');
 const V  = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 const VF = (op, c, ev) => op.ok ? V(c, ev) : ['BLOCKED', { harness: op.err, clicked: op.clicked, waitedMs: op.waitedMs }];
 const CARD = /Teacher Training/i;
@@ -212,10 +213,27 @@ exports.run = async ({ api, rec, sleep }) => {
   const NOT_QUITE = /Module check — not quite/;
   const PASSED = /Module check — passed/;
   const norm = (x) => String(x || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  // api.db returns { ok, out, user }; the tool prints a banner before its JSON — parse the LAST line.
+  const dbJson = (action, args) => {
+    try {
+      const r = api.db(action, args) || {};
+      const last = String(r.out || '').split('\n').map(l => l.trim()).filter(Boolean).pop() || 'null';
+      return JSON.parse(last);
+    } catch (e) { return null; }
+  };
+  // The level screen's exam row is a NavigationList item — "📝 Grand Quiz — Ready. Start your level
+  // exam." with "20 questions · 80% to pass" as its description — so a filter that drops rows containing
+  // ' · ' (right for module rows) hid it from T05/T07/T16 (runs 1117/1127). Search every item, any kind.
+  // The clickable is the EmbeddedLink bound to grand_quiz_cta — 'Start exam' when ready, '🔒 Locked',
+  // '⏳ Cooldown (Nh)' — while 'Grand Quiz — Ready…' is the TextBody above it (teacher-training-endpoint:1725).
+  const examRowOf = (probe) => (((probe && probe.items) || []).find(i => /^Start exam$|Take exam|Take the module exam|Start Grand Quiz|Cooldown|Locked after a recent|^\ud83d\udd12 Locked$/i.test(String(i.text || '').trim())) || null);
+  const isFlowQTxt = (x) => !!(x && x.flow && /:training-msq:/.test(String(x.flow.token || '')));
+  const allKeys = [];   // every module key fetched this run — T23 matches rendered questions against them
   const answerKey = (title) => {
     const r = api.db('module-answer-key', ['--title', title]);
     if (!r.ok) return { err: r.err };
-    try { return JSON.parse(String(r.out).trim().split('\n').filter(l => l.startsWith('{')).pop()); } catch (e) { return { err: 'unparseable key: ' + String(r.out).slice(0, 120) }; }
+    try { const k = JSON.parse(String(r.out).trim().split('\n').filter(l => l.startsWith('{')).pop()); if (k && k.questions) allKeys.push(k); return k; }
+    catch (e) { return { err: 'unparseable key: ' + String(r.out).slice(0, 120) }; }
   };
   // Open the Flow down to the level detail and pick a module row; the endpoint answers on the SUCCESS
   // screen and the module card (or a refusal) lands in the chat once the Flow closes.
@@ -243,13 +261,13 @@ exports.run = async ({ api, rec, sleep }) => {
   // modules and ZERO PDFs — the whole reason T04 could never find one. This account is scoped to
   // four vendors; Beacon House's English level is 43 PDFs to 12 videos. These helpers let a
   // scenario drive ANY band without disturbing the NIETE state the module-check cluster needs.
-  const openBandPicker = async ({ vendor = 'NIETE', level = 'Level 0' } = {}) => {
+  const openBandLevel = async ({ vendor = 'NIETE', level = 'Level 0' } = {}) => {
     await api.resetFlow(); await api.freshReset();
     await api.sendWait('/training');
     const o = await openTraining();
     if (!o.ok) return { ok: false, err: 'FLOW:' + o.err };
     const v = await api.flowClick(vendor, { settleMs: 2500 });
-    if (!v.ok) return { ok: false, err: 'VENDOR:' + v.err, vendor };
+    if (!v.ok) { const vp = await api.flowProbe(); return { ok: false, err: 'VENDOR:' + v.err, vendor, offered: ((vp && vp.items) || []).map(i => String(i.text || '').slice(0, 50)).slice(0, 10) }; }
     await api.flowClick('Open program', { settleMs: 3500 });
     // Resolve the level row by PROBE, never by a guessed "Level N" label: each vendor numbers its
     // own ladder, so Beacon House's English is not NIETE's Level 0 even though both come first.
@@ -259,6 +277,13 @@ exports.run = async ({ api, rec, sleep }) => {
     if (!row) return { ok: false, err: 'NO_LEVEL_ROW', level, offered: ladderRows.slice(0, 8) };
     await api.flowClick(row.split('\u2014')[0].trim(), { settleMs: 2500 });
     await api.flowClick('Open level', { settleMs: 3500 });
+    const detail = await api.flowProbe();
+    return { ok: true, level: row, detail };
+  };
+  const openBandPicker = async (band) => {
+    const lv = await openBandLevel(band);
+    if (!lv.ok) return lv;
+    const row = lv.level;
     const pk = await api.flowClick('Pick a module to watch', { settleMs: 3500 });
     if (!pk.ok) return { ok: false, err: 'PICKER:' + pk.err, level: row };
     const probe = await api.flowProbe();
@@ -274,10 +299,11 @@ exports.run = async ({ api, rec, sleep }) => {
     if (!pk.ok) { api.closeFlow(); return { ok: false, err: 'PICK:' + pk.err }; }
     await api.flowClick('Close', { settleMs: 2000 });
     api.closeFlow();
-    const w = await waitFresh((x) => x.doc || x.pdf || (x.btns || []).some(b => CTA_RE.test(b))
+    const CTA_ANY = /Take quiz|Next video|Next module|Continue|Resume|Start/i;   // a resumed check may not say "Take quiz"
+    const w = await waitFresh((x) => x.doc || x.pdf || (x.btns || []).some(b => CTA_ANY.test(b))
                                   || /Finish "|first \u2014 modules open one at a time|not part of your training|locked until/i.test(x.txt || ''), 60000);
     if (!w.ok) return { ok: false, err: 'NO_CARD', last: w.last };
-    return { ok: true, card: w.hit, cta: (w.hit.btns || []).find(b => CTA_RE.test(b)) || null, txt: w.hit.txt || '' };
+    return { ok: true, card: w.hit, cta: (w.hit.btns || []).find(b => CTA_ANY.test(b)) || null, txt: w.hit.txt || '' };
   };
   const letterFor = (list, optionText) => {
     const want = norm(optionText);
@@ -298,9 +324,11 @@ exports.run = async ({ api, rec, sleep }) => {
   // Answer the current module check end to end by polling fresh() — the start (intro → Q1) and the
   // between-question steps each have a multi-second gap that a single settled reply stops short of.
   // wrongAt = 1-based question to answer wrongly (null = all correct). Returns {first, trail, last}.
-  const rowIdForText = (q, optText) => {
+  const rowIdForText = (q, optText, idx1) => {
     const rows = (q.list && q.list.rows) || [];
     const want = norm(optText);
+    // image options: the rows carry no text, only "Option N" — answer by 1-based index
+    if (idx1 && rows.some(r => /^Option \d+$/.test(r.title || ''))) { const r = rows.find(x => x.title === 'Option ' + idx1); if (r) return r.id; }
     for (const r of rows) { const d = norm(r.description); if (d && (d === want || d.startsWith(want) || want.startsWith(d.replace(/…$/, '')))) return r.id; }
     // long options render in the body as "A. <text>" with the letter as the row title
     const m = String(q.txt || '').split('\n').map(l => l.trim()).find(l => /^[A-J]\.\s/.test(l) && norm(l.replace(/^[A-J]\.\s*/, '')).startsWith(want.slice(0, 40)));
@@ -310,16 +338,25 @@ exports.run = async ({ api, rec, sleep }) => {
   // Questions as RENDERED, collected by the module-check runs below. Declared here because T23 is
   // recorded at the end of the driver, outside the block where run1/run2 are scoped.
   let renderedQuestions = [];
-  const takeQuiz = async (key, { wrongAt = null } = {}) => {
-    const seen = [];
+  // stopAfter: answer that many questions then return (T21 resumes a half-finished check).
+  // wrongAll: answer every question wrongly (T16 fails the grand quiz on purpose).
+  // preseen: items an earlier waitFresh already pulled off fresh() (fresh() is consume-once, so a
+  // question it saw would otherwise be invisible here — runs 1117/1148 waited 90s on Q1 that way).
+  const takeQuiz = async (key, { wrongAt = null, stopAfter = null, wrongAll = false, preseen = [] } = {}) => {
+    const seen = [...(preseen || [])];
     const pull = async () => { for (const r of await api.fresh()) seen.push(r); };
-    const isQ = (x) => x.list && (x.list.rows || []).some(r => /^[A-J]$/.test(r.title || ''));
+    // Rows are letters — or "Option N" when the options are images (the bot sends the pictures first,
+    // captioned "Option 1"…, then the list; I-SAPS m1-item-1-6, run 1236).
+    const isQ = (x) => x.list && (x.list.rows || []).some(r => /^[A-J]$|^Option \d+$/.test(r.title || ''));
     // A "Select all that apply" question is NOT a list — the bot sends the training-msq FLOW, whose
     // single MSQ_QUESTION screen carries a CheckboxGroup and a "Submit answer" footer. Without this
     // the loop never recognised the question and timed out as NO_QUESTION_OR_VERDICT, which is what
     // stalled the Oxbridge drive on Q2/10 (bd-2ug2s).
     const isFlowQ = (x) => !!(x.flow && /:training-msq:/.test(String(x.flow.token || '')));
-    const isTerm = (x) => NOT_QUITE.test(x.txt || '') || PASSED.test(x.txt || '');
+    // Module checks end in "Module check — passed/not quite"; the grand quiz ends in a
+    // 🏆 Congratulations or ❌ Not this time card; a written exam opens with ✍️ Question 1.
+    const GQ_TERM = /\ud83c\udfc6 \*Congratulations|\u274c \*Not this time|You have completed every|\u270d\ufe0f \*Question 1 of/;
+    const isTerm = (x) => NOT_QUITE.test(x.txt || '') || PASSED.test(x.txt || '') || GQ_TERM.test(x.txt || '');
     const waitFor = async (pred, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { await pull(); const h = [...seen].reverse().find(pred); if (h) return h; await new Promise(r => setTimeout(r, 1200)); } return null; };
     const trail = []; let first = null; const answered = new Set();
     for (let n = 0; n < 40; n++) {
@@ -332,14 +369,18 @@ exports.run = async ({ api, rec, sleep }) => {
       const hit = await waitFor((x) => isTerm(x)
                                     || (isQ(x) && !answered.has(qKey(x)))
                                     || (isFlowQ(x) && !answered.has(String(x.flow.token))), 90000);
-      if (!hit) return { first, trail, last: { err: 'NO_QUESTION_OR_VERDICT', tail: seen.slice(-4).map(x => (x.txt || '').slice(0, 80)) } };
+      if (!hit) return { first, trail, seen, last: { err: 'NO_QUESTION_OR_VERDICT', tail: seen.slice(-4).map(x => (x.txt || '').slice(0, 80)) } };
       if (isTerm(hit)) {
+        if (GQ_TERM.test(hit.txt || '')) {
+          const v = /Congratulations|You have completed every/.test(hit.txt) ? 'passed' : /Not this time/.test(hit.txt) ? 'failed' : 'exam-started';
+          return { first, trail, seen, last: { verdict: v, txt: (hit.txt || '').slice(0, 320), btns: hit.btns || [], doc: !!(hit.doc || hit.pdf) } };
+        }
         const notQuite = NOT_QUITE.test(hit.txt);
         let btns = hit.btns || [];
         // A not-quite verdict is followed by a SEPARATE card carrying 🔄 Try again / ⏸ Pause — wait for it.
         // A PASS is followed by the NEXT module's card; do NOT poll here or we would consume it (T01).
         if (notQuite) { const t0 = Date.now(); while (Date.now() - t0 < 8000) { await pull(); const b = [...seen].reverse().find(x => (x.btns || []).some(bb => /Try again|Pause/i.test(bb))); if (b) { btns = b.btns; break; } await new Promise(r => setTimeout(r, 800)); } }
-        return { first, trail, last: { verdict: notQuite ? 'not-quite' : 'passed', txt: (hit.txt || '').slice(0, 220), btns } };
+        return { first, trail, seen, last: { verdict: notQuite ? 'not-quite' : 'passed', txt: (hit.txt || '').slice(0, 220), btns } };
       }
       if (isFlowQ(hit)) {
         answered.add(String(hit.flow.token));
@@ -353,9 +394,9 @@ exports.run = async ({ api, rec, sleep }) => {
           .replace(/\s*\(Select all that apply\)\s*$/i, '').trim();
         const entry = (key.questions || []).find(q => norm(q.q) === norm(qLine)
           || norm(q.q).startsWith(norm(qLine).slice(0, 60)) || norm(qLine).startsWith(norm(q.q).slice(0, 60)));
-        if (!entry) return { first, trail, last: { err: 'NO_KEY_ENTRY_FLOW', qLine: qLine.slice(0, 120) } };
+        if (!entry) return { first, trail, seen, last: { err: 'NO_KEY_ENTRY_FLOW', qLine: qLine.slice(0, 120) } };
         const opF = await api.openFlow('Answer', { from: hit });   // the card came via fresh(), not a send
-        if (!opF.ok) return { first, trail, last: { err: 'MSQ_FLOW_OPEN:' + opF.err, qLine: qLine.slice(0, 80) } };
+        if (!opF.ok) return { first, trail, seen, last: { err: 'MSQ_FLOW_OPEN:' + opF.err, qLine: qLine.slice(0, 80) } };
         const pr = await api.flowProbe();
         const opts = ((pr && pr.items) || []).filter(i => i.kind === 'option');
         // The checkbox rows carry ONLY a letter ("A.") — a row description is clamped to three lines
@@ -377,23 +418,27 @@ exports.run = async ({ api, rec, sleep }) => {
           const o = rowFor(letter);
           if (o) { const r = await api.flowPick(o.text, { exact: true }); if (r && r.ok) picked.push(letter); }
         }
-        if (!picked.length) return { first, trail, last: { err: 'MSQ_NO_OPTION_MATCH', qLine: qLine.slice(0, 80),
+        if (!picked.length) return { first, trail, seen, last: { err: 'MSQ_NO_OPTION_MATCH', qLine: qLine.slice(0, 80),
                                                            wanted: entry.correct, bodyLetters: bodyLetters.slice(0, 6),
                                                            offered: opts.map(o => o.text).slice(0, 8) } };
         const sub = await api.flowClick('Submit answer', { settleMs: 3000 });
         api.closeFlow();
         trail.push({ q: qNo, via: 'training-msq flow', picked, submitted: !!(sub && sub.ok) });
+        if (stopAfter && trail.length >= stopAfter) return { first, trail, seen, last: { stopped: true, after: qNo } };
         continue;
       }
       const rows = hit.list.rows; answered.add(qKey(hit));
       const head = /Q(\d+)\/(\d+)/.exec(hit.txt || ''); const qNo = head ? Number(head[1]) : n + 1; if (n === 0) first = head ? head[0] : null;
       const qLine = String(hit.txt || '').split('\n').map(l => l.trim()).find(l => l && !/^Q\d+\/\d+$/.test(l) && !/^[A-J]\.\s/.test(l) && !/required|Select all that apply|Selected:/.test(l)) || '';
-      const entry = (key.questions || []).find(q => norm(q.q) === norm(qLine) || norm(q.q).startsWith(norm(qLine).slice(0, 60)) || norm(qLine).startsWith(norm(q.q).slice(0, 60)));
-      if (!entry) return { first, trail, last: { err: 'NO_KEY_ENTRY', qLine: qLine.slice(0, 120), rows: rows.map(r => r.description || r.title) } };
+      const cands = (key.questions || []).filter(q => norm(q.q) === norm(qLine) || norm(q.q).startsWith(norm(qLine).slice(0, 60)) || norm(qLine).startsWith(norm(q.q).slice(0, 60)));
+      // Bank questions can share a stem (the rhyming-words sequence items differ only in their options):
+      // of the candidates, take the one whose correct option is actually on this screen (run 1201, Q14).
+      const entry = cands.find(q => (q.correct || []).length && q.correct.every((c, k) => rowIdForText(hit, c, (q.correct_index || [])[k]))) || cands.find(q => norm(q.q) === norm(qLine)) || cands[0];
+      if (!entry) return { first, trail, seen, last: { err: 'NO_KEY_ENTRY', qLine: qLine.slice(0, 120), rows: rows.map(r => r.description || r.title) } };
       let ids;
-      if (wrongAt === qNo) { const wrong = rows.find(r => /^[A-J]$/.test(r.title) && !entry.correct.some(c => rowIdForText(hit, c) === r.id)); ids = wrong ? [wrong.id] : []; }
-      else ids = entry.correct.map(c => rowIdForText(hit, c)).filter(Boolean);
-      if (!ids.length) return { first, trail, last: { err: 'NO_ROW_ID', qLine: qLine.slice(0, 80), rows: rows.map(r => ({ t: r.title, d: r.description })) } };
+      if (wrongAt === qNo || wrongAll) { const wrong = rows.find(r => /^[A-J]$|^Option \d+$/.test(r.title) && !entry.correct.some((c, k) => rowIdForText(hit, c, (entry.correct_index || [])[k]) === r.id)); ids = wrong ? [wrong.id] : []; }
+      else ids = entry.correct.map((c, k) => rowIdForText(hit, c, (entry.correct_index || [])[k])).filter(Boolean);
+      if (!ids.length) return { first, trail, seen, last: { err: 'NO_ROW_ID', qLine: qLine.slice(0, 80), rows: rows.map(r => ({ t: r.title, d: r.description })) } };
       for (const id of ids) { await api.tapId('list', id); await new Promise(r => setTimeout(r, 400)); }
       if (entry.multi && wrongAt !== qNo) { const done = rows.find(r => /_done$/.test(r.id) || /Done/i.test(r.title)); if (done) await api.tapId('list', done.id); }
       // T23 needs the RENDERING, not just which row was tapped: a long option is moved into the
@@ -401,11 +446,12 @@ exports.run = async ({ api, rec, sleep }) => {
       renderedQuestions.push({ q: qNo,
                    body: String(hit.txt || ''),
                    rows: rows.map(r => ({ title: r.title, desc: String(r.description || '') })) });
-      trail.push({ q: qNo, ids, wrong: wrongAt === qNo,
+      trail.push({ q: qNo, ids, wrong: wrongAt === qNo || wrongAll,
                    body: String(hit.txt || ''),
                    rows: rows.map(r => ({ title: r.title, desc: String(r.description || '') })) });
+      if (stopAfter && trail.length >= stopAfter) return { first, trail, seen, last: { stopped: true, after: qNo } };
     }
-    return { first, trail, last: { err: 'TOO_MANY_QUESTIONS' } };
+    return { first, trail, seen, last: { err: 'TOO_MANY_QUESTIONS' } };
   };
 
 
@@ -526,13 +572,6 @@ exports.run = async ({ api, rec, sleep }) => {
     const OX_LEVEL = 17;
     let seeded = [];            // hoisted: the finally below MUST be able to undo the seed
     try {
-    const dbJson = (action, args) => {
-      try {
-        const r = api.db(action, args) || {};
-        const last = String(r.out || '').split('\n').map(l => l.trim()).filter(Boolean).pop() || 'null';
-        return JSON.parse(last);
-      } catch (e) { return null; }
-    };
     const oxMods = dbJson('level-modules', ['--level', String(OX_LEVEL)]) || [];
     let band = null, card = null, run = null, cert = null, examOffered = null, title = null;
     if (oxMods.length >= 2) {
@@ -557,6 +596,23 @@ exports.run = async ({ api, rec, sleep }) => {
             run = await takeQuiz(key);
             if ((run.last || {}).verdict === 'passed') {
               cert = await waitFresh((x) => x.doc || x.pdf || /certificate|\u0633\u0631\u0679\u06cc\u0641\u06a9\u06cc\u0679/i.test(x.txt || ''), 120000);
+              // T06 — while this certificate exists (the finally below deletes it): read its code off
+              // /certificates, ask for it by code, expect the PDF document (bd-w3cb9.6).
+              const s06 = t();
+              const list = await api.sendWait('/certificates');
+              const code = (/Cert:\s*`([^`]+)`/.exec(list.txt || '') || [])[1] || null;
+              if (code) {
+                await api.freshReset();
+                await api.sendWait('/certificate ' + code);
+                const doc = await waitFresh((x) => x.doc || x.pdf || /could not find/i.test(x.txt || ''), 90000);
+                const isDoc = !!(doc.ok && (doc.hit.doc || doc.hit.pdf));
+                rec('T06', 'Asking for a certificate by its code sends the PDF',
+                    ...V(isDoc, { code, asDocument: isDoc, filename: doc.ok && doc.hit.media && doc.hit.media.filename,
+                                  reply: doc.ok ? (doc.hit.txt || '').slice(0, 120) : doc.last }), t() - s06);
+              } else {
+                rec('T06', 'Asking for a certificate by its code sends the PDF', 'BLOCKED',
+                    { reason: '/certificates listed no code to ask for', reply: (list.txt || '').slice(0, 200) }, t() - s06);
+              }
             }
           }
         }
@@ -590,6 +646,341 @@ exports.run = async ({ api, rec, sleep }) => {
     }
   }
 
+  // ══ T26 / T27 — I-SAPS: the LAST module exam certifies the level; the PDF is watermarked ═══
+  // Level 1: Novice is nine modules, each with one exam of two scenario MCQs and ONE written CRQ
+  // (isaps-crq-paper.rules), and the level certifies on a three-part composite (isaps-grading.rules).
+  // seed-isaps-exams passes eight exams and every unit quiz WITHOUT finishing a unit; the driver
+  // enters Module 1 (I-SAPS lists modules, and picking one re-enters the level screen scoped to it),
+  // sits its exam live, answers the CRQ with a fixed text so the LLM marking replays from cassette,
+  // and reads the certificate PDF's text off the mock's media store for the watermark (bd-w3cb9.3).
+  {
+    s = t();
+    const ISAPS_LEVEL = 26, LIVE_COURSE = 58;
+    const CRQ_ANSWER = 'My philosophy of teaching rests on the belief that every child can learn when the classroom is '
+      + 'safe, inclusive and purposeful. I see the teacher as a facilitator rather than a lecturer: I plan lessons around '
+      + 'clear learning objectives, connect new ideas to what pupils already know, and use questioning and group work so '
+      + 'that pupils construct understanding for themselves. I treat assessment as information for the next lesson, not '
+      + 'a verdict on the child, and I reflect after each lesson on what worked and what I would change. Ethically I model '
+      + 'fairness, respect for every family and honesty, because pupils learn as much from how I act as from what I say. '
+      + 'This links to the philosophical foundations of education: Dewey\'s learning by doing, constructivism, and the '
+      + 'view that schooling should prepare children to think for themselves and to contribute to their community.';
+    let seeded26 = null, crashed26 = null, doc = null; const ev = {}; const seen = [];
+    const collect = async (ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { for (const r of await api.fresh()) seen.push(r); if (seen.some(x => x.doc || x.pdf)) return; await sleep(1500); } };
+    try {
+      // Only niete_standard is active on the driver at run time (the suite's seed), so the vendor picker
+      // lists NIETE / Beacon House / Oxbridge and no I-SAPS (run 1201). Activate the pilot programme for
+      // this scenario; deactivated again below.
+      const act = api.db('activate-program', ['--program-key', 'niete_isaps_pilot']); ev.programActivated = !!(act && act.ok);
+      seeded26 = dbJson('seed-isaps-exams', ['--skip-course', String(LIVE_COURSE)]);
+      ev.seeded = seeded26 && { exams: seeded26.exams, units: seeded26.units, unitAnswers: seeded26.unitAnswers, live: seeded26.liveCourse && seeded26.liveCourse.title };
+      if (!seeded26) throw new Error('SEED_FAILED (api.db returned nothing — see runner.log)');
+      // api.db is execFileSync: a seed this size blocks the loop long enough for the mock's keep-alive
+      // socket to drop ("fetch failed", run 1138). Breathe, then warm the connection with retries.
+      await sleep(2000);
+      for (let k = 0; k < 4; k++) { try { await api.fresh(); break; } catch (e) { if (k === 3) throw e; await sleep(1500); } }
+      const lv = await openBandLevel({ vendor: 'I-SAPS', level: 'Novice' });
+      if (!lv.ok) { ev.vendorPicker = lv.offered; throw new Error('LEVEL:' + lv.err); }
+      ev.levelScreen = String((lv.detail && lv.detail.text) || '').slice(0, 200);
+      await api.flowClick('Pick a module to watch', { settleMs: 3000 });
+      let pr = await api.flowProbe();
+      const courseRow = (((pr.items || []).find(i => i.kind === 'option' && /^Module 1\b/.test(i.text || '')) || {}).text) || null;
+      if (!courseRow) throw new Error('NO_COURSE_ROW:' + JSON.stringify((pr.items || []).filter(i => i.kind === 'option').map(i => i.text).slice(0, 10)));
+      await api.flowPick(courseRow, { exact: true });
+      pr = await api.flowProbe(); ev.scopedScreen = String(pr.text || '').slice(0, 260);
+      const links = (pr.items || []).filter(i => i.kind === 'link'); const pool = links.length ? links : (pr.items || []).filter(i => !/ · /.test(i.text || ''));
+      const exam = pool.find(i => /Take the module exam|Module exam/i.test(i.text || ''));
+      if (!exam) throw new Error('NO_EXAM_LINK:' + JSON.stringify(pool.map(i => i.text).slice(0, 8)));
+      ev.examRow = String(exam.text).trim();
+      await api.freshReset();
+      await api.flowClick(ev.examRow, { settleMs: 3000, exact: true });
+      await api.flowClick('Close', { settleMs: 2000 }); api.closeFlow();
+      const rawK = seeded26 && seeded26.liveExam ? (dbJson('answer-key', ['--grand-quiz', String(seeded26.liveExam)]) || []) : [];
+      const key26 = { questions: rawK.map(r => ({ q: r.q, correct: [r.correct].filter(Boolean), correct_index: [r.correct_index].filter(Boolean), multi: false })) };
+      const mcq = await takeQuiz(key26, { stopAfter: 2 });
+      ev.mcq = { answered: mcq.trail.length, first: mcq.first, refusedBeforeStart: !mcq.first ? (mcq.last || {}).err : null };
+      const crq = await waitFresh((x) => /\*Q3\/3\*/.test(x.txt || '') && !x.list, 60000);
+      ev.crqPrompt = crq.ok ? (crq.hit.txt || '').slice(0, 220) : crq.last;
+      if (!crq.ok) throw new Error('NO_CRQ_PROMPT');
+      await api.freshReset();
+      await api.sendWait(CRQ_ANSWER);
+      await collect(180000);
+      const txt = seen.map(x => x.txt || '').join('\n');
+      ev.afterAnswer = seen.map(x => (x.txt || '').slice(0, 120)).filter(Boolean).slice(0, 8);
+      ev.crqScore = (/📝 \*(\d+)\/(\d+)\*/.exec(txt) || [])[0] || null;
+      ev.passedModule = /Module exam — you passed|passed this module/i.test(txt);
+      ev.completedEveryModule = /You have completed every module of Level 1: Novice\./.test(txt);
+      ev.code = (/`([A-Z0-9][A-Z0-9-]{7,})`/.exec(txt) || /\b(CERT-\d{8}-[A-Z0-9]+)\b/.exec(txt) || [])[1] || null;
+      doc = seen.find(x => x.doc || x.pdf) || null; ev.pdfDocument = !!doc; ev.filename = doc && doc.media && doc.media.filename;
+    } catch (e) { crashed26 = String((e && e.message) || e); }
+    rec('T26', 'For an I-SAPS programme passing the last module exam certifies the level, whatever units are left',
+        ...(crashed26 ? ['BLOCKED', { reason: 'threw: ' + crashed26, ...ev }]
+            : V(ev.completedEveryModule && !!ev.code && ev.pdfDocument && ev.mcq && ev.mcq.first === 'Q1/3', ev)), t() - s);
+
+    // T27 — read the certificate's text off the mock's media store
+    s = t();
+    let wm = { reason: 'no certificate document arrived from T26' };
+    if (doc && doc.media && doc.media.id) {
+      try {
+        const base = String(process.env.E2E_MOCK_URL || 'http://127.0.0.1:4010').replace(/\/+$/, '');
+        const res = await fetch(base + '/media/' + doc.media.id + '/bytes');
+        const buf = Buffer.from(await res.arrayBuffer());
+        const out = path.join(process.env.RUN_DIR || '.', 'isaps-certificate.pdf'); fs.writeFileSync(out, buf);
+        const text = execFileSync('python3', ['-c', 'import sys,pypdf;r=pypdf.PdfReader(sys.argv[1]);print("\\n".join((p.extract_text() or "") for p in r.pages))', out], { encoding: 'utf8', timeout: 60000 });
+        wm = { bytes: buf.length, pages: (text.match(/\n/g) || []).length, watermark: /NOT A REAL CERTIFICATE/.test(text), sample: text.replace(/\s+/g, ' ').slice(0, 160), saved: out,
+               productionHalf: 'not observable in the mock lane: NODE_ENV is not production, so shouldStampTestBanner stamps EVERY vendor here; the "other programmes are clean on production" rule is pinned by certificate-env.rules tests' };
+      } catch (e) { wm = { reason: 'could not read the PDF text: ' + String((e && e.message) || e).slice(0, 160) }; }
+    }
+    rec('T27', 'An I-SAPS certificate is watermarked as not real, in every environment, while it is a pilot',
+        ...(wm.watermark === undefined ? ['BLOCKED', wm] : V(wm.watermark === true, wm)), t() - s);
+    if (seeded26) { try { api.db('revert-level', ['--level', String(ISAPS_LEVEL)]); } catch (e) {} }
+    try { api.db('activate-program', ['--program-key', 'niete_isaps_pilot', '--deactivate']); } catch (e) {}
+  }
+
+  // \u2550\u2550 T24 \u2014 a quiz made from my lesson plan is listed in /quiz among my coaching lessons \u2550\u2550
+  // No path in the mock lane makes an lp_v8 quiz (it takes the 15:00 nudge sweeper and worker
+  // generation), so one sent row is seeded and deleted afterwards. /quiz is flag-gated
+  // (TRANSCRIPT_QUIZ_ENABLED, now defaulted on in local-stack.sh) and, with TRANSCRIPT_QUIZ_FLOW_ID
+  // set, answers with ONE Flow whose LESSONS list keys lesson-plan quizzes as lp_<quizId> and coaching
+  // lessons by session id \u2014 that key is the one reliable way to tell them apart (bd-w3cb9.4).
+  {
+    s = t(); let seeded24 = null; const ev = {};
+    try {
+      seeded24 = dbJson('seed-lp-quiz', []);
+      if (seeded24 && !seeded24.id) { const back = dbJson('seed-lp-quiz', ['--lookup']); if (back && back.id) seeded24.id = back.id; }
+      ev.quizId = seeded24 && seeded24.id; ev.topic = seeded24 && seeded24.topic;
+      await api.resetFlow(); await api.freshReset();
+      const q = await api.sendWait('/quiz');
+      ev.reply = (q.txt || '').slice(0, 160); ev.btns = q.btns;
+      const op = await api.openFlow('.+');
+      if (op.ok) {
+        const pr = await api.flowProbe();
+        const items = (pr.items || []).filter(i => i.kind !== 'footer');
+        // The scenario is about the LISTING: our quiz appears in the one list with the coaching lessons,
+        // keyed lp_<quizId> (the only reliable tell), showing its topic. Opening the row is not asked for
+        // — and the emulator refuses that route (ROUTING_REFUSED:LESSONS→DONE, run 1236), so it is not tried.
+        const mine = items.find(i => String(i.id || '') === 'lp_' + ev.quizId) || null;
+        const coaching = items.filter(i => i.id && !/^lp_/.test(String(i.id)));
+        Object.assign(ev, { screen: pr.screen,
+          row: mine ? { id: mine.id, text: String(mine.text || '').slice(0, 60), hay: String(mine.hay || '').replace(/\n/g, ' | ').slice(0, 140) } : null,
+          listed: !!mine, keyedAsLessonPlan: !!(mine && /^lp_/.test(String(mine.id || ''))),
+          showsTopic: !!(mine && ev.topic && String(mine.hay || '').includes(String(ev.topic))),
+          coachingLessonsAlongside: coaching.map(i => ({ id: String(i.id).slice(0, 24), text: String(i.text || '').slice(0, 40) })).slice(0, 4),
+          allRows: items.map(i => String(i.text || '').slice(0, 40)).slice(0, 8) });
+        rec('T24', 'A quiz made from my lesson plan is listed in /quiz among my coaching lessons', ...V(ev.listed && ev.keyedAsLessonPlan && ev.showsTopic, ev), t() - s);
+      } else if (q.list && q.list.rows) {
+        const rows = q.list.rows; const mine = rows.find(r => String(r.id || '') === 'tq_pick_lp_' + ev.quizId);
+        Object.assign(ev, { via: 'list', listed: !!mine, rows: rows.slice(0, 6).map(r => ({ id: r.id, title: r.title, desc: r.description })) });
+        rec('T24', 'A quiz made from my lesson plan is listed in /quiz among my coaching lessons', ...V(!!mine, ev), t() - s);
+      } else rec('T24', 'A quiz made from my lesson plan is listed in /quiz among my coaching lessons', 'BLOCKED',
+                 { reason: '/quiz produced neither a Flow card nor a list: ' + op.err, ...ev }, t() - s);
+    } finally { api.closeFlow(); if (seeded24) { try { api.db('seed-lp-quiz', ['--restore']); } catch (e) {} } }   // restore keys on meta.qa_seed, not the id
+  }
+
+  // ══ T30–T34 — the assessment generator's Seen / Unseen count screens ════════
+  // The stored fixture was the 2026-09-08 WABA capture (v7.0, one total box). The repo's publish
+  // source is v7.3 with SEEN_COUNT and COUNTS; the fixture is now that file (bd-w3cb9.7). A refusal
+  // comes back as an endpoint error on Continue — the emulator surfaces it as ENDPOINT_ERROR:<reason>
+  // and the screen does not advance, which is exactly "I stay on that screen and see the reason".
+  {
+    const SOURCE = { seen: 'Seen (from the book)', unseen: 'Unseen (outside the book)', both: 'Both Seen and Unseen' };
+    const errOf = (r) => (r && !r.ok && /^ENDPOINT_ERROR:/.test(String(r.err || ''))) ? String(r.err).replace(/^ENDPOINT_ERROR:/, '') : null;
+    const inputsOf = (pr) => ((pr && pr.items) || []).filter(i => i.kind === 'input' && i.visible !== false && String(i.text || '').trim());
+    const optionsOf = (pr) => ((pr && pr.items) || []).filter(i => i.kind === 'option');
+    // Open the generator and get to QUESTIONS with a class, a subject and a chapter chosen.
+    const assessTo = async (source) => {
+      await api.resetFlow(); await api.freshReset();
+      await api.sendWait('/assessment');
+      const op = await api.openFlow('Start|شروع');
+      if (!op.ok) return { ok: false, err: 'OPEN:' + op.err };
+      let pr = await api.flowProbe();
+      // the probe lists both dropdowns' options as plain option items — pick by text (run 1148 showed
+      // "Grade 1".."Grade 5" then "English"… with no field name on the item)
+      const grade = optionsOf(pr).find(o => /^Grade \d/.test(String(o.text || '').trim()));
+      if (!grade) return { ok: false, err: 'NO_GRADE_OPTIONS', screen: pr.screen, text: String(pr.text || '').slice(0, 200) };
+      let r = await api.flowPick(grade.text, { exact: true }); if (!r.ok) return { ok: false, err: 'GRADE:' + r.err };
+      pr = await api.flowProbe();
+      const subj = optionsOf(pr).find(o => /^(English|Maths|Mathematics|Urdu|Islamiat|General Knowledge|Science|Social Studies)$/i.test(String(o.text || '').trim()));
+      if (!subj) return { ok: false, err: 'NO_SUBJECT_OPTIONS', screen: pr.screen, options: optionsOf(pr).map(o => o.text).slice(0, 10) };
+      r = await api.flowPick(subj.text, { exact: true }); if (!r.ok) return { ok: false, err: 'SUBJECT:' + r.err };
+      r = await api.flowClick('Continue', { settleMs: 3000 }); if (!r.ok) return { ok: false, err: 'CLASS>:' + r.err };
+      pr = await api.flowProbe();
+      if (pr.screen !== 'COVERAGE') return { ok: false, err: 'NOT_AT_COVERAGE:' + pr.screen };
+      const chapter = optionsOf(pr)[0] || null;                       // the chapter checkboxes are this screen's only options
+      if (chapter) { r = await api.flowPick(chapter.text, { exact: true }); if (!r.ok) return { ok: false, err: 'CHAPTER:' + r.err }; }
+      else {
+        r = await api.flowClick('Type page numbers instead', { settleMs: 500 }); if (!r.ok) return { ok: false, err: 'PAGES_OPTIN:' + r.err };
+        r = await api.flowClick('Continue', { settleMs: 3000 }); if (!r.ok) return { ok: false, err: 'COVERAGE>PAGES:' + r.err };
+        r = await api.flowType('4-14', { field: 'page_ranges' }); if (!r.ok) return { ok: false, err: 'PAGES_TYPE:' + r.err };
+      }
+      r = await api.flowClick('Continue', { settleMs: 3000 }); if (!r.ok) return { ok: false, err: 'COVERAGE>:' + r.err };
+      pr = await api.flowProbe();
+      if (pr.screen !== 'QUESTIONS') return { ok: false, err: 'NOT_AT_QUESTIONS:' + pr.screen };
+      r = await api.flowPick(SOURCE[source], { exact: true }); if (!r.ok) return { ok: false, err: 'SOURCE:' + r.err };
+      r = await api.flowClick('Continue', { settleMs: 3000 }); if (!r.ok) return { ok: false, err: 'QUESTIONS>:' + r.err, refused: errOf(r) };
+      pr = await api.flowProbe();
+      return { ok: true, probe: pr, classPicked: grade.text + ' / ' + subj.text, chapter: chapter ? chapter.text : 'pages 4-14' };
+    };
+    const tickTypes = async (names) => { for (const n of names) { const r = await api.flowPick(n); if (!r.ok) return { ok: false, err: 'TYPE:' + r.err }; } return { ok: true }; };
+    const heading = (pr) => String((pr && pr.text) || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3).join(' | ');
+
+    // T30 — Unseen: one box per ticked type, counts kept as typed
+    s = t();
+    {
+      const a = await assessTo('unseen'); const ev = { setup: a.ok ? a.classPicked + ' · ' + a.chapter : a.err };
+      let ok = false;
+      if (a.ok) {
+        ev.afterUnseen = { screen: a.probe.screen, heading: heading(a.probe) };
+        const tk = await tickTypes(['MCQs', 'Brief Answers']);
+        let r = tk.ok ? await api.flowClick('Continue', { settleMs: 3000 }) : tk;
+        const pr = await api.flowProbe();
+        const boxes = inputsOf(pr).map(i => i.text);
+        ev.countsScreen = { screen: pr.screen, heading: heading(pr), boxes };
+        await api.flowType('10', { field: 'MCQs' }); await api.flowType('2', { field: 'Brief Answers' });
+        r = await api.flowClick('Continue', { settleMs: 3000 });
+        const cf = await api.flowProbe(); ev.recap = String(cf.text || '').slice(0, 300); ev.refused = errOf(r);
+        ok = /Unseen questions/i.test(ev.afterUnseen.heading) && a.probe.screen === 'TYPES'
+          && pr.screen === 'COUNTS' && boxes.length === 2 && /MCQ/i.test(boxes[0]) && /Brief/i.test(boxes[1])
+          && cf.screen === 'CONFIRM' && /10 MCQs, 2 Brief Answers/.test(ev.recap) && /12 in total/.test(ev.recap);
+      }
+      api.closeFlow();
+      rec('T30', 'For Unseen questions she sets how many of EACH type, not one total we split for her', ...(a.ok ? V(ok, ev) : ['BLOCKED', ev]), t() - s);
+    }
+    // T31 — a count she cannot have is refused, naming the type (Examples: nothing, 0, abc, 60)
+    s = t();
+    {
+      const a = await assessTo('unseen'); const ev = { setup: a.ok ? a.classPicked : a, examples: [] };
+      let ok = false;
+      if (a.ok) {
+        const tk = await tickTypes(['MCQs']); let r = tk.ok ? await api.flowClick('Continue', { settleMs: 3000 }) : tk;
+        let pr = await api.flowProbe(); ev.screen = pr.screen;
+        for (const value of ['', '0', 'abc', '60']) {
+          await api.flowType(value, { field: 'MCQs' });
+          r = await api.flowClick('Continue', { settleMs: 2500 });
+          pr = await api.flowProbe();
+          ev.examples.push({ value: value === '' ? 'nothing' : value, stayed: pr.screen === 'COUNTS', reason: errOf(r) });
+        }
+        ok = ev.screen === 'COUNTS' && ev.examples.length === 4 && ev.examples.every(x => x.stayed && x.reason && /MCQ/i.test(x.reason));
+      }
+      api.closeFlow();
+      rec('T31', 'A count she cannot have is refused on the screen, naming the type', ...(a.ok ? V(ok, ev) : ['BLOCKED', ev]), t() - s);
+    }
+    // T32 — Seen: one box, no type picking, recap says Seen and 12
+    s = t();
+    {
+      const a = await assessTo('seen'); const ev = { setup: a.ok ? a.classPicked : a };
+      let ok = false;
+      if (a.ok) {
+        const pr = a.probe; const boxes = inputsOf(pr).map(i => i.text);
+        ev.screen = { screen: pr.screen, heading: heading(pr), boxes, typeOptions: optionsOf(pr).length };
+        await api.flowType('12', { field: 'How many Seen?' });
+        const r = await api.flowClick('Continue', { settleMs: 3000 });
+        const cf = await api.flowProbe(); ev.recap = String(cf.text || '').slice(0, 300); ev.refused = errOf(r);
+        ok = pr.screen === 'SEEN_COUNT' && /Seen questions/i.test(ev.screen.heading) && boxes.length === 1 && optionsOf(pr).length === 0
+          && cf.screen === 'CONFIRM' && /Seen \(from the book\)/.test(ev.recap) && /12 questions/.test(ev.recap);
+      }
+      api.closeFlow();
+      rec('T32', 'Seen questions ask one thing — how many Seen', ...(a.ok ? V(ok, ev) : ['BLOCKED', ev]), t() - s);
+    }
+    // T33 — Both: Seen first on its own screen, then Unseen types and counts
+    s = t();
+    {
+      const a = await assessTo('both'); const ev = { setup: a.ok ? a.classPicked : a };
+      let ok = false;
+      if (a.ok) {
+        ev.first = { screen: a.probe.screen, heading: heading(a.probe), boxes: inputsOf(a.probe).map(i => i.text) };
+        await api.flowType('5', { field: 'How many Seen?' });
+        let r = await api.flowClick('Continue', { settleMs: 3000 });
+        let pr = await api.flowProbe(); ev.second = { screen: pr.screen, heading: heading(pr), refused: errOf(r) };
+        const tk = await tickTypes(['MCQs', 'Brief Answers']); r = tk.ok ? await api.flowClick('Continue', { settleMs: 3000 }) : tk;
+        pr = await api.flowProbe(); ev.third = { screen: pr.screen, boxes: inputsOf(pr).map(i => i.text) };
+        await api.flowType('10', { field: 'MCQs' }); await api.flowType('2', { field: 'Brief Answers' });
+        r = await api.flowClick('Continue', { settleMs: 3000 });
+        const cf = await api.flowProbe(); ev.recap = String(cf.text || '').slice(0, 300); ev.refused = errOf(r);
+        ok = ev.first.screen === 'SEEN_COUNT' && ev.second.screen === 'TYPES' && ev.third.screen === 'COUNTS'
+          && cf.screen === 'CONFIRM' && /Seen: 5 · Unseen: 10 MCQs, 2 Brief Answers · 17 in total/.test(ev.recap);
+      }
+      api.closeFlow();
+      rec('T33', 'Both asks the Seen number first, on its own screen, then the Unseen types and counts', ...(a.ok ? V(ok, ev) : ['BLOCKED', ev]), t() - s);
+    }
+    // T34 — over 50 in total: refused on the Unseen screen, saying 55 (30 Seen + 25 Unseen) and the most is 50
+    s = t();
+    {
+      const a = await assessTo('both'); const ev = { setup: a.ok ? a.classPicked : a };
+      let ok = false;
+      if (a.ok) {
+        await api.flowType('30', { field: 'How many Seen?' });
+        let r = await api.flowClick('Continue', { settleMs: 3000 }); ev.seenAccepted = !errOf(r);
+        const tk = await tickTypes(['MCQs', 'Brief Answers']); r = tk.ok ? await api.flowClick('Continue', { settleMs: 3000 }) : tk;
+        await api.flowType('15', { field: 'MCQs' }); await api.flowType('10', { field: 'Brief Answers' });
+        r = await api.flowClick('Continue', { settleMs: 3000 });
+        const pr = await api.flowProbe(); ev.stayedOn = pr.screen; ev.reason = errOf(r);
+        ok = pr.screen === 'COUNTS' && !!ev.reason && /55 questions in total/.test(ev.reason) && /30 Seen/.test(ev.reason) && /25 Unseen/.test(ev.reason) && /up to 50/.test(ev.reason);
+      }
+      api.closeFlow();
+      rec('T34', 'Going over 50 in total tells her why, where she can see it', ...(a.ok ? V(ok, ev) : ['BLOCKED', ev]), t() - s);
+    }
+  }
+
+  // ══ T16 / T05 — the NIETE grand quiz: fail → cooldown, pass → certificate ═══════
+  // Level 0 (id 1) is 46 modules; seed-level-complete marks them done in one upsert and the level
+  // screen offers "Take exam". The exam serves 20 of the bank's 62 MCQs (TALEEMABAD exam_question_cap)
+  // with the same list rows as a module check, so takeQuiz drives it off answer-key --level 1.
+  // T16 first (answer everything wrong → ❌ Not this time + 24h cooldown → a second start is refused),
+  // then revert-level clears the failed attempt and T05 passes for the certificate. Reverted in the
+  // finally so the module-check cluster starts from a fresh level next run (bd-w3cb9.2).
+  {
+    const L1 = 1;
+    const raw = dbJson('answer-key', ['--level', String(L1)]) || [];
+    const gqKey = { questions: raw.map(r => ({ q: r.q, correct: [r.correct].filter(Boolean), correct_index: [r.correct_index].filter(Boolean), multi: false })) };
+    const startExam = async () => {
+      const lv = await openBandLevel({ vendor: 'NIETE', level: 'Level 0' });
+      if (!lv.ok) return { ok: false, err: lv.err };
+      const ex = examRowOf(lv.detail);
+      if (!ex) return { ok: false, err: 'NO_EXAM_LINK', screen: String((lv.detail && lv.detail.text) || '').slice(0, 260), kinds: ((lv.detail && lv.detail.items) || []).map(i => i.kind + ':' + String(i.text || '').slice(0, 30)).slice(0, 8) };
+      await api.freshReset();
+      await api.flowClick(String(ex.text).trim(), { settleMs: 3000, exact: true });
+      await api.flowClick('Close', { settleMs: 2000 }); api.closeFlow();
+      const w = await waitFresh((x) => /Grand Quiz|try again in about|already passed|not available|Please open the level/i.test(x.txt || '') || (x.list && /Q\d+\//.test(x.txt || '')), 60000);
+      return { ok: w.ok, hit: w.hit, examRow: String(ex.text).trim(), last: w.last, seen: w.seen || [] };
+    };
+    let seededL1 = false;
+    try {
+      s = t();
+      api.db('seed-level-complete', ['--level', String(L1)]); seededL1 = true;
+      const st1 = await startExam();
+      let fail = null, retry = null;
+      if (st1.ok) { fail = await takeQuiz(gqKey, { wrongAll: true, preseen: st1.seen }); retry = await startExam(); }
+      const retryTxt = ((retry && retry.hit && retry.hit.txt) || '') + ' ' + ((retry && retry.examRow) || '');
+      rec('T16', 'Failing the level exam starts a wait before I can retry',
+          ...(st1.ok && fail
+              ? V((fail.last || {}).verdict === 'failed' && /try again in about \*?\d+ hours?|Try again in \*?\d+ hours|Locked after a recent|Cooldown/i.test(retryTxt),
+                  { answered: fail.trail.length, verdict: (fail.last || {}).verdict, failText: ((fail.last || {}).txt || '').slice(0, 200), last: (fail.last || {}).verdict ? undefined : fail.last, retry: retryTxt.slice(0, 200) })
+              : ['BLOCKED', { reason: 'exam did not start: ' + (st1.err || st1.last), screen: st1.screen, kinds: st1.kinds, key: gqKey.questions.length }]), t() - s);
+      api.db('revert-level', ['--level', String(L1)]);
+      api.db('seed-level-complete', ['--level', String(L1)]);
+      s = t();
+      const st2 = await startExam();
+      let pass = null, pdf = null, code = null;
+      if (st2.ok) {
+        pass = await takeQuiz(gqKey, { preseen: st2.seen });
+        if ((pass.last || {}).verdict === 'passed') {
+          // The certificate PDF lands half a second after the congratulations, in the same fresh() batch
+          // the quiz loop pulled (run 1225) — look in what takeQuiz saw before waiting for more.
+          const inSeen = (pass.seen || []).find(x => x.doc || x.pdf);
+          pdf = inSeen ? { ok: true, hit: inSeen } : await waitFresh((x) => x.doc || x.pdf, 120000);
+          const list = await api.sendWait('/certificates');
+          code = (/Cert:\s*`([^`]+)`/.exec(list.txt || '') || [])[1] || (/`([A-Z0-9][A-Z0-9-]{7,})`/.exec((pass.last || {}).txt || '') || [])[1] || null;
+        }
+      }
+      rec('T05', 'Finishing every module unlocks the level exam, and passing it certifies the level',
+          ...(st2.ok && pass
+              ? V((pass.last || {}).verdict === 'passed' && !!code && !!(pdf && pdf.ok),
+                  { answered: pass.trail.length, verdict: (pass.last || {}).verdict, last: (pass.last || {}).verdict ? undefined : pass.last, congratulations: ((pass.last || {}).txt || '').slice(0, 220),
+                    certificateCode: code, pdfDocument: !!(pdf && pdf.ok), filename: pdf && pdf.ok && pdf.hit.media && pdf.hit.media.filename })
+              : ['BLOCKED', { reason: 'exam did not start: ' + (st2.err || st2.last), screen: st2.screen, kinds: st2.kinds }]), t() - s);
+    } finally { if (seededL1) { try { api.db('revert-level', ['--level', String(L1)]); } catch (e) {} } }
+  }
+
   api.closeFlow();
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
@@ -602,6 +993,81 @@ exports.run = async ({ api, rec, sleep }) => {
   // videos, so the PDF delivery path is reachable with NO seeding at all (bd-2ug2s).
   // NOTE: the old code called openModule(), which is defined nowhere in this file — a latent
   // ReferenceError the permanent BLOCKED had been hiding, since that branch never ran.
+  // ══ T21 — a half-finished module check picks up where I left off ══════════
+  // Answer ONE question of the next-up NIETE module, re-open the module from the Flow, tap its
+  // button again, and the first question served must be Q2, not Q1. The check is then finished so
+  // the account is left in a clean state (bd-w3cb9.2).
+  {
+    s = t();
+    const ev = {};
+    const pk = await openBandPicker();
+    const row = pk.ok ? pk.rows.find(x => /\u25b6\s*Next up/.test((x && x.text) || '')) : null;
+    const title21 = row ? ((row.text || '').split(' \u00b7 ')[0] || '').trim() : null;
+    const key21 = title21 ? answerKey(title21) : null;
+    ev.module = title21; ev.questions = key21 && key21.questions ? key21.questions.length : 0;
+    if (row && key21 && key21.questions && key21.questions.length >= 2) {
+      const c1 = await deliverPicked(row.text);
+      if (c1.ok && c1.cta) {
+        await api.freshReset(); await api.tapAndWait(c1.cta, 60000);
+        const part = await takeQuiz(key21, { stopAfter: 1 });
+        ev.answeredBeforePause = part.trail.length; ev.firstServed = part.first;
+        const pk2 = await openBandPicker();
+        const row2 = pk2.ok ? pk2.rows.find(x => String((x && x.text) || '').startsWith(title21)) : null;
+        const c2 = row2 ? await deliverPicked(row2.text) : { ok: false, err: 'ROW_GONE' };
+        if (c2.ok && c2.cta) {
+          ev.buttonOnReopen = c2.cta;
+          await api.freshReset(); await api.tapAndWait(c2.cta, 60000);
+          // Let takeQuiz consume the resumed stream itself: a separate waitFresh here ate Q2 off
+          // fresh() and the finishing run then waited 90s for a question already on screen (run 1117).
+          const rest = await takeQuiz(key21);
+          ev.resumedAt = rest.first || null;
+          ev.finished = (rest.last || {}).verdict || rest.last;
+          rec('T21', 'A half-finished module quiz picks up where I left off',
+              ...V(!!ev.resumedAt && /^Q2\//.test(ev.resumedAt), ev), t() - s);
+        } else rec('T21', 'A half-finished module quiz picks up where I left off', 'BLOCKED', { reason: 're-open did not yield a card: ' + c2.err, ...ev }, t() - s);
+      } else rec('T21', 'A half-finished module quiz picks up where I left off', 'BLOCKED', { reason: 'module card did not open: ' + (c1.err || 'no button'), ...ev }, t() - s);
+    } else rec('T21', 'A half-finished module quiz picks up where I left off', 'BLOCKED',
+               { reason: row ? 'next-up module has fewer than 2 questions' : 'no \u25b6 Next up module in the picker', ...ev }, t() - s);
+  }
+
+  // ══ T17 — an Urdu teacher gets the Urdu question text and Urdu options ═════
+  // Precondition seeded: NO active question in this environment carries question_urdu (0 rows on
+  // 2026-09-24), so the next-up module's questions get a marker Urdu text for the duration and are
+  // restored to NULL in the finally. preferred_language flips to "ur" only AFTER the module card is
+  // open, so the Flow/card navigation above stays in English (bd-w3cb9.5).
+  {
+    s = t();
+    let seededQ = null, flipped = false; const ev = {};
+    try {
+      const pk = await openBandPicker();
+      const row = pk.ok ? pk.rows.find(x => /\u25b6\s*Next up/.test((x && x.text) || '')) : null;
+      const title17 = row ? ((row.text || '').split(' \u00b7 ')[0] || '').trim() : null;
+      const mm = title17 ? (dbJson('module-media', ['--title', title17]) || [])[0] : null;
+      ev.module = title17; ev.moduleId = mm && mm.id;
+      if (mm && mm.id) {
+        seededQ = dbJson('seed-question-urdu', ['--module', String(mm.id)]);
+        ev.seededQuestions = seededQ && seededQ.questions ? seededQ.questions.length : 0;
+        const c = await deliverPicked(row.text);
+        if (c.ok && c.cta) {
+          await api.setUser({ preferred_language: 'ur' }); flipped = true;
+          await api.freshReset(); await api.tapAndWait(c.cta, 60000);
+          const w = await waitFresh((x) => (x.list && /Q\d+\//.test(x.txt || '')) || isFlowQTxt(x), 60000);
+          const rows = (w.ok && w.hit.list && w.hit.list.rows) || [];
+          Object.assign(ev, { questionText: w.ok ? (w.hit.txt || '').slice(0, 220) : w.last,
+            urduInQuestion: !!(w.ok && /[\u0600-\u06FF]/.test(w.hit.txt || '')),
+            urduInOptions: rows.length ? rows.some(r => /[\u0600-\u06FF]/.test(r.description || '')) : null,
+            note: 'nothing in bot/shared reads question_urdu or options[].urdu (grep, 2026-09-24): a FAIL here is the product gap, not the harness' });
+          rec('T17', 'An Urdu teacher gets the Urdu question text and Urdu options',
+              ...(w.ok ? V(ev.urduInQuestion && ev.urduInOptions === true, ev) : ['BLOCKED', { reason: 'no question served after tapping the quiz button', ...ev }]), t() - s);
+        } else rec('T17', 'An Urdu teacher gets the Urdu question text and Urdu options', 'BLOCKED', { reason: 'module card did not open: ' + (c.err || 'no button'), ...ev }, t() - s);
+      } else rec('T17', 'An Urdu teacher gets the Urdu question text and Urdu options', 'BLOCKED', { reason: row ? 'could not resolve the next-up module id' : 'no \u25b6 Next up module', ...ev }, t() - s);
+    } finally {
+      if (flipped) { try { await api.setUser({ preferred_language: 'en' }); } catch (e) {} }
+      if (seededQ && seededQ.module) { try { api.db('seed-question-urdu', ['--module', String(seededQ.module), '--restore']); } catch (e) {} }
+    }
+  }
+
+  let t23run = null;
   {
     s = t();
     // Beacon House / COMPUTER SCIENCE is the one band on this account whose FIRST module
@@ -654,32 +1120,73 @@ exports.run = async ({ api, rec, sleep }) => {
                     reply: (om.txt || '').slice(0, 150) })
               : ['BLOCKED', { reason: 'could not open the PDF module: ' + om.err, title,
                               band: band.level, lastSeen: om.last }]), t() - s);
+      // T23 rides on this module: "What is AI" is the one next-up module on the account whose
+      // options include one longer than OPTION_DESC_MAX (72), so sitting its check is what puts a
+      // truncated-then-written-out row into renderedQuestions for T23 to judge (bd-w3cb9.8).
+      // The document card has no button; "📝 Take quiz" rides the follow-up ("Finished reading …?").
+      if (om.ok) {
+        const follow = (om.cta && /Take quiz/i.test(om.cta)) ? { ok: true, hit: om.card }
+          : await waitFresh((x) => (x.btns || []).some(b => /Take quiz/i.test(b)), 30000);
+        const cta23 = follow.ok ? (follow.hit.btns || []).find(b => /Take quiz/i.test(b)) : null;
+        const k23 = cta23 ? answerKey(title) : null;
+        if (cta23 && k23 && k23.questions && k23.questions.length) {
+          await api.freshReset(); await api.tapAndWait(cta23, 60000);
+          t23run = await takeQuiz(k23);
+        }
+      }
     }
   }
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T05', 'Finishing every module unlocks the level exam, and passing it certifies the level', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  // ══ T07 — Beacon House: the level exam is WRITTEN answers, not multiple choice ═══
+  // all_modules vendors sit a capstone: once every module is done the level screen offers the exam,
+  // and the bot asks "✍️ Question i of N … Reply with your answer in a few sentences". Seed every
+  // Computer Science module (the band T04 just used), open the level, tap the exam, read Q1, cancel.
+  // The seed — and T04/T23's progress on this band — is reverted in the finally (bd-w3cb9.1).
+  {
+    s = t();
+    const CS_LEVEL = 21;
+    let seeded7 = [], lv = null, examRow = null, offer = null, q1 = null, crashed7 = null;
+    try {
+      const mods = dbJson('level-modules', ['--level', String(CS_LEVEL)]) || [];
+      for (const mm of mods) { const r = api.db('seed-module-pass', ['--module', String(mm.id)]); seeded7.push({ id: mm.id, ok: !!(r && r.ok) }); await sleep(200); }
+      lv = await openBandLevel({ vendor: 'Beacon House', level: 'Computer Science' });
+      if (lv.ok) {
+        examRow = ((examRowOf(lv.detail) || {}).text || '').trim() || null;
+        if (examRow) {
+          await api.freshReset();
+          await api.flowClick(examRow, { settleMs: 3000, exact: true });
+          await api.flowClick('Close', { settleMs: 2000 }); api.closeFlow();
+          offer = await waitFresh((x) => /written questions|\u270d\ufe0f \*Question 1 of|Grand Quiz|already passed|no written exam|not available/i.test(x.txt || ''), 60000);
+          if (offer.ok && /\u270d\ufe0f \*Question 1 of/.test(offer.hit.txt || '')) q1 = offer.hit;
+          else if (offer.ok && (offer.hit.btns || []).some(b => /Start Grand Quiz/i.test(b))) {
+            await api.freshReset(); await api.tapAndWait('Start Grand Quiz', 60000);
+            const w = await waitFresh((x) => /\u270d\ufe0f \*Question 1 of/.test(x.txt || ''), 60000);
+            if (w.ok) q1 = w.hit;
+          }
+          if (q1) await api.sendWait('cancel');
+        }
+      }
+    } catch (e) { crashed7 = String((e && e.message) || e); }
+    finally { if (seeded7.length) { try { api.db('revert-level', ['--level', String(CS_LEVEL)]); } catch (e) {} } }
+    const qtxt = (q1 && q1.txt) || '';
+    const total = (/Question 1 of (\d+)/.exec(qtxt) || [])[1] || null;
+    rec('T07', 'For a Beacon House programme the level exam is written answers, not multiple choice',
+        ...(q1
+            ? V(/Reply with your answer in a few sentences/i.test(qtxt) && !(q1.list && q1.list.rows && q1.list.rows.length) && !(q1.btns || []).length,
+                { questions: total, prompt: qtxt.slice(0, 220), noOptionRows: !(q1.list && q1.list.rows && q1.list.rows.length), noButtons: !(q1.btns || []).length,
+                  pointsPerAnswer: 5, note: 'the 0\u20135 per-answer scale is the vendor default (capstone-points.rules); it shows only after LLM marking, which needs a recorded cassette' })
+            : ['BLOCKED', { reason: crashed7 ? 'threw: ' + crashed7 : !lv || !lv.ok ? 'could not open the Beacon House Computer Science level: ' + ((lv && lv.err) || 'n/a')
+                                   : !examRow ? 'no exam link on the level screen after seeding every module' : 'tapping the exam produced no written question',
+                            seededModules: seeded7.length, examRow, levelScreen: ((lv && lv.detail && lv.detail.text) || '').slice(0, 260),
+                            items: ((lv && lv.detail && lv.detail.items) || []).map(i => i.kind + ':' + String(i.text || '').slice(0, 40)).slice(0, 10),
+                            offer: offer && offer.ok ? (offer.hit.txt || '').slice(0, 200) : (offer && offer.last) }]), t() - s);
+  }
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T06', 'Asking for a certificate by its code sends the PDF', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T07', 'For a Beacon House programme the level exam is written answers, not multiple choice', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T16', 'Failing the level exam starts a wait before I can retry', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T17', 'An Urdu teacher gets the Urdu question text and Urdu options', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T21', 'A half-finished module quiz picks up where I left off', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
 
   // ══ T23 — a long option is written out in full, not truncated ════════════
   // OPTION_DESC_MAX=72: past that the option cannot live in a WhatsApp row description, so
@@ -688,74 +1195,51 @@ exports.run = async ({ api, rec, sleep }) => {
   // teacher choosing blind. Asserted on what the bot actually rendered, so it needs no DB lookup.
   {
     s = t();
+    // A long option is not truncated in its row: quiz-delivery moves it into the message body as a
+    // lettered line and leaves the row carrying the letter. So the check is: for every rendered
+    // question whose key has an option longer than OPTION_DESC_MAX (72), that option's full text is
+    // in the body, and no row description ends in an ellipsis (bd-w3cb9.8).
+    const OPTION_DESC_MAX = 72;
     const seenQs = renderedQuestions;
-    const longest = seenQs.reduce((mx, q) => Math.max(mx, ...(q.rows || []).map(r => r.desc.length)), 0);
-    const truncated = [];
+    const firstLine = (b) => String(b || '').split('\n').map(l => l.trim()).find(l => l && !/^Q\d+\/\d+$/.test(l)) || '';
+    const findEntry = (q) => { const w = norm(firstLine(q.body)); for (const k of allKeys) { const e = (k.questions || []).find(x => norm(x.q) === w || norm(x.q).startsWith(w.slice(0, 60)) || w.startsWith(norm(x.q).slice(0, 60))); if (e) return e; } return null; };
+    const judged = [];
     for (const q of seenQs) {
-      for (const r of (q.rows || [])) {
-        if (!/[…]|\.\.\.$/.test(r.desc)) continue;
-        const stem = r.desc.replace(/\s*[…]\s*$|\.\.\.$/, '').trim();
-        const inBody = stem.length > 12 && String(q.body || '').includes(stem);
-        truncated.push({ q: q.q, letter: r.title, descLen: r.desc.length, writtenOutInBody: inBody,
-                         sample: r.desc.slice(0, 60) });
+      const e = findEntry(q); const longs = ((e && e.options) || []).filter(o => [...String(o)].length > OPTION_DESC_MAX);
+      for (const o of longs) {
+        judged.push({ q: q.q, optionLen: [...String(o)].length, writtenOutInBody: String(q.body || '').includes(String(o).trim()),
+                      anyRowTruncated: (q.rows || []).some(r => /[\u2026]$|\.\.\.$/.test(r.desc || '')), option: String(o).slice(0, 70) });
       }
     }
+    const longestRow = seenQs.reduce((mx, q) => Math.max(mx, ...(q.rows || []).map(r => [...(r.desc || '')].length), 0), 0);
     rec('T23', 'A very long answer option is shown in full, not cut off',
-        ...(truncated.length
-            ? V(truncated.every(x => x.writtenOutInBody),
-                { questionsSeen: seenQs.length, truncatedRows: truncated })
-            : ['BLOCKED', { reason: 'no question served to this account carried an option long enough to be '
-                                  + 'moved out of the row description (OPTION_DESC_MAX=72), so the long-option '
-                                  + 'path was never exercised',
-                            questionsSeen: seenQs.length, longestOptionSeen: longest }]), t() - s);
+        ...(judged.length
+            ? V(judged.every(x => x.writtenOutInBody && !x.anyRowTruncated), { questionsSeen: seenQs.length, longOptions: judged })
+            : ['BLOCKED', { reason: 'none of the questions served this run has an option longer than ' + OPTION_DESC_MAX + ' code points, so the long-option path was never exercised',
+                            questionsSeen: seenQs.length, keysLoaded: allKeys.length, longestRowDescription: longestRow }]), t() - s);
   }
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T24', 'A quiz made from my lesson plan is listed in /quiz among my coaching lessons', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  // Not drivable in the mock lane — the reason below is what would have to exist first.
   rec('T25', 'The class report of a quiz made from my lesson plan carries the objectives to reteach', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+      { reason: "needs a SENT lesson-plan quiz with a share code and children who finished, then the class report: a PDF rendered by local headless Chrome whose 'For tomorrow' box calls OpenAI through a raw client outside the cassette. The objectives live inside that PDF (video-quiz-report.template's slo pill). None of that is seeded or reachable in the mock lane today (research 2026-09-24)." }, 0);
 
   // T26/T27 — I-SAPS (operator 2026-09-23). Declared unrunnable here, with the reason, not left absent.
-  rec('T26', 'For an I-SAPS programme passing the last module exam certifies the level, whatever units are left', 'BLOCKED',
-      { reason: 'needs a driver enrolled in the I-SAPS programme with 8 of 9 module exams passed; no mock-lane seed or '
-              + 'QA helper provisions an I-SAPS level. The rule is covered by tests/training/isaps-cert-module-exams-only.test.js '
-              + 'and bd-60144 (real guard, stubbed DB).' }, 0);
-  rec('T27', 'An I-SAPS certificate is watermarked as not real, in every environment, while it is a pilot', 'BLOCKED',
-      { reason: 'the watermark is drawn inside the PDF; the mock lane sees the document message, not its pages. Covered by '
-              + 'tests/training/isaps-pilot-watermark.test.js + the rendered-page test in bd-60133.' }, 0);
 
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  // Not drivable in the mock lane — the reason below is what would have to exist first.
   rec('T28', 'A maths question with fractions reaches the child as a typeset card', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+      { reason: 'needs an lp_v8 quiz GENERATED by the worker (4–5 LLM calls: digest, author, key check, blind solve), a fraction stem so quiz-notation routes it to a KaTeX card rendered by local Chrome and uploaded to R2, then a CHILD phone answering QUIZ-<code>. The mock lane seeds none of that pipeline; a seeded quiz row cannot exercise the card path.' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  // Not drivable in the mock lane — the reason below is what would have to exist first.
   rec('T29', 'A quiz never ships an answer key a blind solver disagrees with', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+      { reason: "the blind solver runs inside worker generation and a wrong key cannot be forced live (the feature file says so); pinned by tests/quiz/transcript-quiz-key-verify.test.js and transcript-quiz-generate's key_disagreement path. Not a mock-lane scenario." }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T30', 'For Unseen questions she sets how many of EACH type, not one total we split for her', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T31', 'A count she cannot have is refused on the screen, naming the type', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T32', 'Seen questions ask one thing — how many Seen', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T33', 'Both asks the Seen number first, on its own screen, then the Unseen types and counts', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T34', 'Going over 50 in total tells her why, where she can see it', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
 };
