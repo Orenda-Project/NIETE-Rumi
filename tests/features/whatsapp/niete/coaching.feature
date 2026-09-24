@@ -666,3 +666,62 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # be the second ask of the day for the same thing. teacher_nudges carries the skip and its reason,
     # so a teacher who was deliberately left alone is countable, not invisible.
     # @wip — authored with the change, driven and promoted by the sandbox E2E run.
+
+  # ═══════════ ADDED 2026-09-24 · the coaching ask and the other questions of the same day (@wip) ═══════════
+  # One open question at a time: the teacher-nudge sweeper never sends a scheduled ask while the teacher owes
+  # one of the four surveys (K-5 LP, 6-12 LP, coaching, video) a typed answer; the row goes back to pending
+  # until that ten-minute window closes (teacher_nudges.context.deferred_for, event teacher_nudges.deferred).
+  # And a classroom recording that starts a coaching session ends the "send me your recording" wait, so
+  # nothing afterwards asks for it again. Needs TEACHER_NUDGES_ENABLED + LP_COACHING_ASK_ENABLED.
+
+  @e2e @wip @draft @lp-ask @config-gated @P1
+  Scenario: The coaching ask waits while the lesson-plan survey is asking what did not work
+    Given the NIETE bot chat is open on a teacher who took their first K-5 lesson plan of the day before 14:00 PKT
+    And the "Was it useful for planning?" survey arrived and I tapped "Not really"
+    And the bot asked "What didn't work? (one line is enough)"
+    When the coaching-ask delay passes while that question is still open
+    Then no coaching ask arrives yet
+    When I type one line about what did not work
+    Then the bot thanks me for the feedback on the lesson plan
+    And the coaching ask arrives once that question's ten minutes are over
+    And my coaching_after_lp row for today shows it was held back for the lp_survey before it was sent
+    # A typed "yes" or "جی" sent while the survey question is open is saved as the lesson plan's failure
+    # reason (lp-feedback consumeReasonIfPending runs before every router), so the ask is never sent into it.
+
+  @e2e @wip @draft @lp-ask @P2
+  Scenario: The survey and the coaching ask can be answered in either order
+    Given the lesson-plan survey and the coaching ask are both on screen
+    When I tap "Record my lesson"
+    And I tap "👍 Yes, useful" on the survey
+    Then the bot asks for my recording with the WhatsApp mic
+    And the bot thanks me for the survey answer
+    And today's ask records my answer as yes and the lesson plan's feedback records it as useful
+    # Every id a teacher can hold on a lesson-plan day reaches exactly one owner in the button router
+    # (lp_feedback_, lp_used_, lp612_fb_, lp612_used_, lpask_, lpquiz_, tq_, coaching_fb_, resume_).
+
+  @e2e @wip @draft @lp-ask @P1
+  Scenario: After my recording has started coaching the bot stops waiting for a recording
+    Given I tapped "Record my lesson" on the coaching ask
+    And I sent a 20-minute recording and the bot confirmed it detected a classroom recording
+    When I type a question to the bot after my coaching report arrives
+    Then the bot answers my question
+    And the bot does not reply "Please send your classroom audio or video for AI coaching"
+    # Before the fix the six-hour AWAITING_CLASSROOM_AUDIO wait outlived the recording: on production 62% of
+    # the "Please send your classroom audio" replies went to teachers whose session had already started.
+
+  @e2e @wip @draft @lp-ask @negative @slow @P1
+  Scenario: Nobody offers to pick up a lesson that was already coached
+    Given I tapped "Record my lesson" this morning
+    And my recording was coached before six hours had passed
+    When six hours have passed since I tapped it
+    Then no "Earlier you started a classroom observation but we did not finish" message arrives
+    # The resume sweep offers an expired coaching wait back; the recording now clears that wait
+    # (coaching-session initiateSession, flow-scoped). On production 46% of the daytime coaching resume
+    # offers went to a teacher whose own session had started in the six hours before.
+
+  @e2e @wip @draft @lp-ask @slow @P2
+  Scenario: A teacher who said yes and never recorded is still offered it back
+    Given I tapped "Record my lesson" this morning
+    And I have not sent a recording
+    When six hours have passed since I tapped it
+    Then the bot asks whether to pick up the classroom observation where I left off
