@@ -377,6 +377,22 @@ Feature: NIETE (ICT) Teacher Training
     # (handleLpPick) repeats it. A model failure cannot be forced live on demand; the behaviour is proven
     # in tests/quiz/lp-quiz-failure-reasons.test.js. @wip.
 
+  @e2e @quiz @wip @draft @P2
+  Scenario: A quiz the model could not write from my coaching recording says the problem was on our side
+    Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I recorded for coaching
+    When the model gives no usable reply while that quiz is being written
+    Then the bot apologises that something went wrong on its side and says the problem was not my recording
+    And it never says the transcript didn't carry enough of what was taught
+    And it tells me I can send /quiz and pick this lesson to try again
+    And the /quiz lesson screen for that lesson says the same, and still offers to make the quiz
+    # transcript-quiz-generate: a recording's digest or author that gives nothing usable (empty, cut off or
+    # not JSON after the retry, or a refused call) is model_failed → tqCouldNotMakeModel, persisted as
+    # quizzes.meta.error; the Flow lesson screen reads it (tqFlowResultsFailedModel) above the Make choices.
+    # tqCouldNotMake ("the transcript didn't carry enough") stays for questions that never validated and for
+    # a transcript under MIN_TRANSCRIPT_CHARS (source_unusable, checked before any model call — /quiz and the
+    # offer never list one). The offer-time digest failure is skipped as model_failed and the teacher is told
+    # nothing. A model failure cannot be forced live; proven in tests/quiz/transcript-quiz-failure-reasons.test.js. @wip.
+
   @e2e @quiz @wip @draft @P1
   Scenario: A maths question with fractions reaches the child as a typeset card
     Given the NIETE bot chat is open and a class quiz was made from a maths lesson on comparing fractions

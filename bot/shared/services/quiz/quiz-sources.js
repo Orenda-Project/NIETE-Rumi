@@ -92,11 +92,17 @@ const LP_FAILURE_COPY = {
   key_disagreement: 'tqFailedLpKeyDisagreement',
 };
 /**
- * The transcript counterpart. Every transcript reason still reads
- * `tqCouldNotMake` except the one that is not about the recording at all: the
- * blind solve held the quiz back because its answers were wrong or unclear.
+ * The transcript counterpart. `tqCouldNotMake` blames the recording ("the
+ * transcript didn't carry enough"), so it is sent only where that is the state
+ * or the existing claim: a transcript too short to carry a quiz
+ * (source_unusable), and questions that never validated. The two reasons that
+ * are not about the recording at all have their own sentence: the MODEL gave
+ * nothing usable (model_failed), and the blind solve held the quiz back because
+ * its answers were wrong or unclear (key_disagreement).
  */
 const TRANSCRIPT_FAILURE_COPY = {
+  model_failed: 'tqCouldNotMakeModel',
+  source_unusable: 'tqCouldNotMake',
   key_disagreement: 'tqFailedKeyDisagreement',
 };
 function failureCopyKey(reason, quizSource) {
