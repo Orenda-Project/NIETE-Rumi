@@ -265,7 +265,10 @@ describe('the queue refusing the job', () => {
     const [quiz] = mockDb.table('quizzes');
     expect(quiz.status).toBe('failed');
     expect(quiz.meta).toEqual(expect.objectContaining({ error: 'queue_failed', lessons: [expect.objectContaining({ segment_id: SEGMENTS[1].segment_id })] }));
-    expect(mockSent.some((m) => m.args[0] === UX_STRINGS.lpQuizCouldNotStart.en)).toBe(true);
+    // A /quiz tap has no offer to promise: the quiz keeps its lesson and can be
+    // made again from /quiz, and the line says so (staging E2E, 25 Sep).
+    expect(mockSent.some((m) => m.args[0] === UX_STRINGS.lpQuizCouldNotStartRetry.en)).toBe(true);
+    expect(mockSent.some((m) => m.args[0] === UX_STRINGS.lpQuizCouldNotStart.en)).toBe(false);
     const failed = logEvent.mock.calls.find((c) => c[0] === 'quiz_funnel.generation_failed');
     expect(failed && failed[1]).toEqual(expect.objectContaining({ source: 'lp612', reason: 'queue_failed' }));
   });

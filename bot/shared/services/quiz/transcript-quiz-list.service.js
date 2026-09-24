@@ -23,6 +23,7 @@ const { teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor } = 
 const { MIN_TRANSCRIPT_CHARS, sendLanguageAsk } = require('./transcript-quiz-offer.service');
 const { isQuizMenuRequest } = require('./quiz-menu-request');
 const QuizMenuFlags = require('./quiz-menu-flags');
+const { withSourceCheck } = require('./lp-source-check');
 const Providers = require('./quiz-lesson-providers');
 // The recorded lessons' own reads and tap (the transcript lesson provider),
 // re-exported below under the names every caller already uses.
@@ -31,7 +32,7 @@ const {
   LINK_PREFIX, REPORT_PREFIX, BACK_PREFIX,
 } = require('./transcript-lesson-provider');
 const {
-  TRANSCRIPT, LP_V8, PLAN_SOURCES, isPlanQuiz, lessonSessionFor, failureCopyKey, failureReasonOf, lpRemakeable,
+  TRANSCRIPT, LP_V8, PLAN_SOURCES, isPlanQuiz, lessonSessionFor, failureCopyKey, failureReasonOf, lpRemakeable, lpRemakeableQuiz,
 } = require('./quiz-sources');
 const Funnel = require('./quiz-funnel');
 
@@ -99,7 +100,10 @@ function statusLine(quiz, language) {
   const started = quiz?.meta?.started ?? quiz?._started ?? 0;
   const finished = quiz?.meta?.finished ?? quiz?._finished ?? 0;
   switch (quizState(quiz)) {
-    case 'offered': return resolveUx('tqRowOffered', { language });
+    // An offer nobody answered, or a yes still waiting for its language: no quiz
+    // has been made, and the tap makes it (or asks the language) — the same
+    // words as a lesson with no quiz row at all, on this list and in the Flow.
+    case 'offered': return resolveUx('tqRowNoQuiz', { language });
     case 'making': return resolveUx('tqRowMaking', { language });
     case 'sent': return resolveUx('tqRowSent', { language, params: { started, finished } });
     case 'report_sent': return resolveUx('tqRowReportSent', { language, params: { finished } });
@@ -415,7 +419,10 @@ async function handleLpPick(quizId, phone, user) {
     });
     return true;
   }
-  if (state === 'failed' && lpRemakeable(quiz.meta)) {
+  // A quiz that failed because its lesson plan could not be read: read it again
+  // now (lp-source-check) — if it is there, the tap makes the quiz again.
+  if (state === 'failed') await withSourceCheck(quiz);
+  if (state === 'failed' && lpRemakeableQuiz(quiz)) {
     // The list's own promise ("tap to retry"), kept the way a failed transcript
     // row keeps it: the tap makes the quiz again. The same remake the Flow's
     // "Make it again" runs — the atomic failed → generating flip, then the one
@@ -430,7 +437,11 @@ async function handleLpPick(quizId, phone, user) {
   if (state === 'failed') {
     // The reason the generate step persisted, so the sentence repeated here is
     // the one the teacher was sent when it failed (model vs plan, never mixed).
-    await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(failureReasonOf(quiz.meta), quiz.quiz_source), { language: lang }));
+    // The teacher is in /quiz: a start failure's line says what can happen next
+    // from here, never the 15:00 offer's "the next lessons will get an offer".
+    await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(failureReasonOf(quiz.meta), quiz.quiz_source, {
+      meta: quiz.meta, channel: 'quiz_menu',
+    }), { language: lang }));
   } else {
     await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
   }
