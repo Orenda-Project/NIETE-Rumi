@@ -215,7 +215,7 @@ for f in $FEATURES; do
       reset_state after-menu;;
     registration)
       if [ "$METHOD" = mock ]; then
-        # Registration needs an UNREGISTERED driver (first_name null) so /register opens the Flow — the
+        # Registration needs an UNREGISTERED driver (no name, flags clear) so /register opens the Flow — the
         # mock lane otherwise ensures the driver registered. Un-register before, re-register after so
         # later features still see a registered account. Sandbox driver only. (operator 2026-09-15)
         python3 "$QA/niete_sandbox_driver.py" unregister --phone "$DRIVER" --yes-write >>"$LOG" 2>&1 || true
