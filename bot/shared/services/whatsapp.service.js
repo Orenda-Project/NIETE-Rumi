@@ -716,7 +716,10 @@ class WhatsAppService {
       );
 
       try { fs.unlinkSync(voicePath); } catch (_) { /* best-effort */ }
-      logToFile('Voicenote (OGG) sent successfully', { key, size: oggBuffer.length });
+      // Name only what this function holds. A reference to a variable that is not
+      // in scope here throws AFTER Meta has accepted the message, and the catch
+      // below then reports a delivered voicenote as a failure.
+      logToFile('Voicenote (OGG) sent successfully', { r2KeyOrUrl, size: oggBuffer.length });
       return true;
     } catch (error) {
       logToFile('❌ Error sending voicenote from R2 key', {
