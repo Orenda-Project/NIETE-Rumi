@@ -238,11 +238,14 @@ describe('what still happens at night', () => {
       conversation_state: null, conversation_state_expires_at: null,
     });
 
-    // Offered at 20:30 (before the window) with the six-hour offer wait: lapses 02:30.
-    await interruptedAt(atPkt(EVENING, 19, 0));
-    await tickAt(atPkt(EVENING, 20, 30));
+    // Offered at 14:50: its six waking hours end at 20:50, just before the window,
+    // so the first sweep to find it lapsed is a night tick. (An offer made later
+    // in the evening carries into the morning instead — see the next block.)
+    await interruptedAt(atPkt(EVENING, 13, 20));
+    await tickAt(atPkt(EVENING, 14, 50));
     expect(mockWhatsApp.sendInteractiveButtons).toHaveBeenCalledTimes(1);
     expect(row().conversation_state.step).toBe(Resume.OFFERED);
+    expect(row().conversation_state_expires_at).toBe(atPkt(EVENING, 20, 50).toISOString());
 
     // A flow the bot cannot name (no label), lapsed at 22:00.
     clockAt(atPkt(EVENING, 21, 0));
@@ -294,5 +297,117 @@ describe('the window is the shared, configurable one', () => {
     expect(late.offered).toBe(0);
     expect(late.deferredQuietHours).toBe(1);
     expect(mockWhatsApp.sendInteractiveButtons).not.toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The OFFER's own life counts waking hours only.
+//
+// Once asked, the offer stands for six hours, and then the next sweep closes it
+// silently ("we ask once"). Six hours of CLOCK meant an offer sent at 19:00 lapsed
+// at 01:00 while the teacher slept, so a "Pick up" tap over breakfast was told the
+// task had already been closed. The decision: the six hours are counted only
+// outside the quiet window, through the same rule (nudgeTargetUtc /
+// NUDGE_QUIET_HOURS_PKT). 19:00 → live until 11:00 next morning (2 h before 21:00,
+// 4 h after 07:00); 10:00 → lapses at 16:00, exactly as before.
+//
+// Driven end to end: the real sweep asks, real night ticks run, and the real tap
+// handler answers — "Pick up" on a live offer restores the step; on a lapsed one
+// it says the task is closed.
+// ─────────────────────────────────────────────────────────────────────────────
+const TEACHER_USER = { id: TEACHER, phone_number: PHONE, preferred_language: 'en' };
+
+/** The teacher taps a resume button at `instant`, through the real handler. */
+async function tapAt(instant, buttonId) {
+  clockAt(instant);
+  mockWhatsApp.sendMessage.mockClear();
+  const handled = await Resume.handleResumeButton(TEACHER_USER, PHONE, buttonId);
+  expect(handled).toBe(true);
+  expect(mockWhatsApp.sendMessage).toHaveBeenCalledTimes(1);
+  return mockWhatsApp.sendMessage.mock.calls[0][1];
+}
+
+/** An interrupted classroom observation, offered by the sweep at `offerAt`. */
+async function offeredAt(offerAt) {
+  await interruptedAt(new Date(offerAt.getTime() - 90 * 60 * 1000));   // step lapsed 30 min before
+  const tally = await tickAt(offerAt);
+  expect(tally.offered).toBe(1);
+  expect(row().conversation_state.step).toBe(Resume.OFFERED);
+}
+
+describe('an offer stands for six WAKING hours', () => {
+  test('sent at 19:00: the night sweeps leave it, and "Pick up" at 08:30 restores the step', async () => {
+    await offeredAt(atPkt(EVENING, 19, 0));
+
+    for (const t of [atPkt(EVENING, 21, 30), atPkt(MORNING, 1, 30), atPkt(MORNING, 6, 30), atPkt(MORNING, 7, 0), atPkt(MORNING, 8, 0)]) {
+      const tally = await tickAt(t);
+      expect(tally.expired).toBe(0);
+    }
+    expect(row().conversation_state.step).toBe(Resume.OFFERED);
+
+    const reply = await tapAt(atPkt(MORNING, 8, 30), 'resume_yes:coaching');
+
+    expect(reply).toMatch(/carrying on with your classroom observation/);
+    expect(reply).toMatch(/Send the classroom recording/);
+    expect(row().conversation_state.flow).toBe('coaching');
+    expect(row().conversation_state.step).toBe('AWAITING_CLASSROOM_AUDIO');
+    expect(mockWhatsApp.sendInteractiveButtons).toHaveBeenCalledTimes(1);   // asked once, ever
+  });
+
+  test('sent at 19:00: it lapses at 11:00 (2 h before 21:00 + 4 h after 07:00), and a tap after that is told it is closed', async () => {
+    await offeredAt(atPkt(EVENING, 19, 0));
+    expect(row().conversation_state_expires_at).toBe(atPkt(MORNING, 11, 0).toISOString());
+
+    const sweep = await tickAt(atPkt(MORNING, 11, 30));
+    expect(sweep.expired).toBe(1);
+    expect(row().conversation_state).toBeNull();
+
+    const reply = await tapAt(atPkt(MORNING, 11, 35), 'resume_yes:coaching');
+    expect(reply).toMatch(/already been closed/);
+  });
+
+  test('sent at 10:00: it still lapses at 16:00 — a daytime offer is unchanged', async () => {
+    await offeredAt(atPkt(EVENING, 10, 0));
+    expect(row().conversation_state_expires_at).toBe(atPkt(EVENING, 16, 0).toISOString());
+
+    const live = await tapAt(atPkt(EVENING, 15, 50), 'resume_yes:coaching');
+    expect(live).toMatch(/carrying on with your classroom observation/);
+  });
+
+  test('sent at 10:00: after 16:00 the sweep closes it silently and "Pick up" is told it is closed', async () => {
+    await offeredAt(atPkt(EVENING, 10, 0));
+    mockWhatsApp.sendInteractiveButtons.mockClear();
+
+    const sweep = await tickAt(atPkt(EVENING, 16, 30));
+    expect(sweep.expired).toBe(1);
+    expect(mockWhatsApp.sendInteractiveButtons).not.toHaveBeenCalled();
+
+    const reply = await tapAt(atPkt(EVENING, 16, 35), 'resume_yes:coaching');
+    expect(reply).toMatch(/already been closed/);
+  });
+
+  test('NUDGE_QUIET_HOURS_PKT=22-6: sent at 19:00, it lapses at 09:00 (3 h before 22:00 + 3 h after 06:00)', async () => {
+    process.env[KEY] = '22-6';
+    await offeredAt(atPkt(EVENING, 19, 0));
+    expect(row().conversation_state_expires_at).toBe(atPkt(MORNING, 9, 0).toISOString());
+  });
+
+  test('NUDGE_QUIET_HOURS_PKT=off: no window, so six clock hours — sent at 19:00, lapses at 01:00', async () => {
+    process.env[KEY] = 'off';
+    await offeredAt(atPkt(EVENING, 19, 0));
+    expect(row().conversation_state_expires_at).toBe(atPkt(MORNING, 1, 0).toISOString());
+  });
+
+  test('a window that leaves one waking hour a day is capped at the store\'s 24-hour ceiling, and the offer still goes', async () => {
+    // 8-7: quiet from 08:00 to 07:00, so only 07:00–08:00 is waking time. Six
+    // waking hours would take six days; the store refuses any wait over 24 hours,
+    // and a refused write would fail this offer on every tick for ever.
+    process.env[KEY] = '8-7';
+    await interruptedAt(atPkt(EVENING, 5, 30));
+    const tally = await tickAt(atPkt(EVENING, 7, 10));
+
+    expect(tally.failed).toBe(0);
+    expect(tally.offered).toBe(1);
+    expect(row().conversation_state_expires_at).toBe(atPkt(MORNING, 7, 10).toISOString());
   });
 });
