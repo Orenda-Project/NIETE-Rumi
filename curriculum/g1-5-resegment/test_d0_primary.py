@@ -430,3 +430,44 @@ def test_the_block_filter_stops_at_the_opening():
     doc = d0.to_lp_doc(enr, PT, day=1, total_days=10, topic=TOPIC)
     gp = [s for s in doc["sections"] if s["id"] == "activity"][0]
     assert "Turn to your partner" in json.dumps(gp, ensure_ascii=False), gp
+
+
+def test_a_double_escaped_worked_example_is_split_into_real_steps():
+    """g4_ch9/Science_seg1 and g5_ch9/Science_seg4 (bd-obv6l): the source trace
+    escaped its newlines twice, so `workedExample` never split and the whole
+    example printed as one run-on carrying a literal backslash-n across the
+    teacher's page. The authored numbering comes off separately -- see
+    test_authored_step_numbers_are_dropped_so_the_renderer_numbers_once."""
+    import copy
+    enr = copy.deepcopy(ENR)
+    enr["generated"]["workedExample"] = ("Textbook p. 218 pulse-rate example:\\n"
+                            "1. Count pulse beats for 30 seconds.\\n"
+                            "2. The recorded count is 48 beats.")
+    doc = d0.to_lp_doc(enr, PT, day=1, total_days=10, topic=TOPIC)
+    worked = [b for b in _blocks(doc, 1) if b.get("id") == "worked"][0]
+    assert worked["steps"] == ["Textbook p. 218 pulse-rate example:",
+                               "Count pulse beats for 30 seconds.",
+                               "The recorded count is 48 beats."]
+    # a real newline json-dumps AS backslash-n, so the check has to be on the
+    # printed strings themselves, not on the serialised doc.
+    assert not any("\\n" in st for st in worked["steps"])
+
+
+def test_authored_step_numbers_are_dropped_so_the_renderer_numbers_once():
+    """75 lessons / 539 steps printed 'A. B. Predict...' on the teacher's page:
+    the trace numbers the worked example itself AND the renderer numbers the list,
+    so every step landed with two numbers. The renderer owns the numbering, so the
+    authored one comes off here. Only a leading '<digits>. ' goes -- a step that
+    merely opens with a quantity ('3 kg of flour') keeps every character."""
+    import copy
+    enr = copy.deepcopy(ENR)
+    enr["generated"]["workedExample"] = ("Worked LED model example from pp. 219-220:\n"
+                                         "1. Predict: the LED can work.\n"
+                                         "2. Observe the LED: it has two legs.\n"
+                                         "3 kg of wire is not a step number.")
+    doc = d0.to_lp_doc(enr, PT, day=1, total_days=10, topic=TOPIC)
+    worked = [b for b in _blocks(doc, 1) if b.get("id") == "worked"][0]
+    assert worked["steps"] == ["Worked LED model example from pp. 219-220:",
+                               "Predict: the LED can work.",
+                               "Observe the LED: it has two legs.",
+                               "3 kg of wire is not a step number."]

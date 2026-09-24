@@ -26,6 +26,7 @@ that is the answer (spec/00-program.md, binding working rules).
 """
 
 from __future__ import annotations
+import re
 
 import cbriefbasics
 import d0_blocks as B
@@ -158,8 +159,20 @@ def _development(g):
     we = (g.get("workedExample") or "").strip()
     if we:
         said = B.move_lines(g.get("steps") or [])
-        steps = B.drop_lines_already_said(
-            [l.strip() for l in we.split("\n") if len(l.strip()) >= 2], said)
+        # bd-obv6l: g4_ch9/Science_seg1 and g5_ch9/Science_seg4 arrived with their
+        # newlines escaped twice, so nothing split here and the whole worked example
+        # printed as one run-on carrying a visible backslash-n across the page.
+        # Unescape only -- 538 of 1863 worked steps in the corpus already start with
+        # their own authored number and the renderer prints alongside it, so stripping
+        # numbers here would renumber ~260 lessons to fix two.
+        we = we.replace("\\n", "\n")
+        # The trace numbers the worked example AND the renderer numbers the list it
+        # prints, so 539 steps across 75 lessons read "2. 1. Predict..." on the page.
+        # The renderer owns the numbering, so the authored one comes off. A leading
+        # quantity ("3 kg of wire") has no dot and is untouched.
+        lines = [_WE_NUM.sub("", l.strip())
+                 for l in we.split("\n") if len(l.strip()) >= 2]
+        steps = B.drop_lines_already_said(lines, said)
         if steps:
             blocks.append({"type": "worked_example", "id": "worked",
                            "title": "Worked example", "steps": steps})
@@ -218,6 +231,9 @@ def _one_screen(g):
     parts = [(g.get("keyFact") or "").strip(),
              ((g.get("exitTicket") or {}).get("task") or "").strip()]
     return "\n\n".join(p for p in parts if p) or B.DESIGN_PENDING
+
+
+_WE_NUM = re.compile(r"^\d+\.\s+")
 
 
 def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
