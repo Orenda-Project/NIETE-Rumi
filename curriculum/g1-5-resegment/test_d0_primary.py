@@ -301,3 +301,132 @@ def test_a_row_that_states_both_is_taken_at_its_word():
     enr["generated"]["duration_min"] = 35
     enr["generated"]["content_min"] = 25
     assert d0.to_lp_doc(enr, PT)["period_minutes"] == 35
+
+
+# --- the Opening's one-strategy filter, wired at the d0_primary call site -----
+# bd-7k14f. OPERATOR: *"it should be just 1 not multiple strategies since opening is a
+# whole provocation on its own"* and *"teachers dont let students talk to each other,
+# that too when the class begins"*. d0_warmitems.one_strategy is unit-tested on its own;
+# these two assert it is actually CALLED here -- the defect that shipped the peer-talk
+# gate tested-but-never-invoked was exactly a missing call site, not a broken check.
+
+def _opening_warmup(doc):
+    for sec in doc["sections"]:
+        if "opening" in str(sec.get("title") or "").lower():
+            return (sec.get("warmup") or {}).get("items") or []
+    raise AssertionError("no Opening section in the built doc")
+
+
+def _with_warmup_items(items):
+    enr = json.loads(json.dumps(ENR))
+    enr["generated"]["warmUp"]["items"] = items
+    return enr
+
+
+def test_opening_warmup_peer_talk_is_filtered_at_this_call_site():
+    """The wiring test, not a re-test of the filter.
+
+    NOTE ON THE CONTRACT: one_strategy() does NOT cap the item list at one. An
+    earlier draft of this test assumed it did and failed against correct code --
+    the measured effect over all 335 corpus docs is 996 -> 938 items, a 6% trim,
+    because what it removes is BANNED PEER TALK, not surplus. The "one strategy"
+    in the name is the warm-up's named method, which d0_warmscript seats; the
+    item list is retrieval and stays as long as it is legal.
+    """
+    enr = _with_warmup_items([
+        {"class_check": "pairs",
+         "prompt": "Tell your partner one word you remember from yesterday.",
+         "expected_answer": "Varies."},
+        {"class_check": "whole-class", "prompt": "Recall one word.",
+         "expected_answer": "Varies."},
+    ])
+    kept = _opening_warmup(d0.to_lp_doc(enr, PT, day=1, total_days=10, topic=TOPIC))
+    joined = " ".join(i["q"] for i in kept)
+    assert "your partner" not in joined.lower(), kept
+    assert "Recall one word." in joined, kept
+
+
+def test_guided_practice_talk_is_untouched_by_the_opening_filter():
+    """OPERATOR: *"Guided practice should stay as is, I only asked talking to be
+    removed from opening"*. The filter takes `sections` and must find the Opening
+    by title -- if it ever walked the whole document it would strip 1,103 authored
+    strings she has decided to keep."""
+    doc = d0.to_lp_doc(ENR, PT, day=1, total_days=10, topic=TOPIC)
+    gp = [s for s in doc["sections"] if s["id"] == "activity"][0]
+    assert "warmup" not in gp
+    assert json.dumps(gp, ensure_ascii=False)  # present and non-empty
+
+
+def test_a_dropped_warmup_item_says_so_in_notes_gaps():
+    """A silent drop is how content goes missing."""
+    enr = _with_warmup_items([
+        {"class_check": "pairs",
+         "prompt": "Tell your partner one word you remember from yesterday.",
+         "expected_answer": "Varies."},
+        {"class_check": "whole-class", "prompt": "Recall one word.",
+         "expected_answer": "Varies."},
+    ])
+    doc = d0.to_lp_doc(enr, PT, day=1, total_days=10, topic=TOPIC)
+    assert any("partner" in g.lower() or "warm" in g.lower() or "item" in g.lower()
+               for g in doc["notes"]["gaps"]), doc["notes"]["gaps"]
+
+
+# --- the Opening's peer-talk filter on BLOCKS, wired at the d0_primary call site ----
+# bd-y7hst. The warm-up half of the Opening is cleaned upstream by d0_warmitems; the
+# hook half is not. Opening blocks are AUTHORED SOURCE PASSTHROUGH -- the string arrives
+# verbatim from enrichment via d0_hook.hook_blocks(), so there is no template to fix and
+# the only place to catch it is a pass-through filter at this call site. These two tests
+# assert the call exists and that its scope stops at the Opening.
+
+# Verbatim from work/g1_ch8/enr/English_seg5_grade_1_english_ch8_seg5.json. A real
+# corpus string, not a constructed one: the banned clause sits mid-sentence inside a
+# quoted Say: span, which is exactly the shape a naive sentence-level filter breaks.
+_REAL_HOOK = (
+    "Show page 103. Say: “Pinky wants to plan her bike rides for the WHOLE year "
+    "— one ride every month! Look — she only found box 1, ‘January’. "
+    "Turn to your partner: which month do you think comes right after January? "
+    "Tell them your guess and why, then we will check.”")
+
+
+def _opening_blocks_text(doc):
+    for sec in doc["sections"]:
+        if "opening" in str(sec.get("title") or "").lower():
+            return json.dumps(sec.get("blocks") or [], ensure_ascii=False)
+    raise AssertionError("no Opening section in the built doc")
+
+
+def test_opening_hook_peer_talk_is_filtered_at_this_call_site():
+    """The wiring test for d0_openingpeer, not a re-test of the filter.
+
+    OPERATOR: *"teachers dont let students talk to each other, that too when the class
+    begins"*. Measured over all 335 corpus docs, this call takes gate-10e Opening
+    defects from 190 to 5, and every one of the 5 survivors is a string that QUOTES or
+    REPORTS the textbook page, which is deliberately never rewritten.
+
+    The assertion is removal-first: the banned clause goes, both legal sides stay. A
+    filter that dropped the whole sentence would take "which month comes right after
+    January?" with it -- the provocation the lesson is built on.
+    """
+    enr = json.loads(json.dumps(ENR))
+    enr["generated"]["hookStory"] = _REAL_HOOK
+    doc = d0.to_lp_doc(enr, PT, day=1, total_days=10, topic=TOPIC)
+    opening = _opening_blocks_text(doc)
+    assert "Turn to your partner" not in opening, opening
+    # Capital W: the filter re-cases the surviving clause when the excision makes it the
+    # start of the sentence. A teacher reading "which month..." mid-page would see a typo.
+    assert "Which month do you think comes right after January" in opening, opening
+    assert any("peer-talk" in g or "partner" in g.lower() for g in doc["notes"]["gaps"]), \
+        doc["notes"]["gaps"]
+
+
+def test_the_block_filter_stops_at_the_opening():
+    """OPERATOR: *"Guided practice should stay as is, I only asked talking to be removed
+    from opening"*. The same banned string authored into the partner activity must
+    survive untouched -- the filter is scoped by section title, and a filter that walked
+    the whole document would strip 1,103 authored strings she has decided to keep.
+    """
+    enr = json.loads(json.dumps(ENR))
+    enr["generated"]["partnerActivity"]["structure"] = "Turn to your partner and compare."
+    doc = d0.to_lp_doc(enr, PT, day=1, total_days=10, topic=TOPIC)
+    gp = [s for s in doc["sections"] if s["id"] == "activity"][0]
+    assert "Turn to your partner" in json.dumps(gp, ensure_ascii=False), gp

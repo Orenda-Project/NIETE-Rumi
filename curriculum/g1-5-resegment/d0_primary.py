@@ -36,9 +36,11 @@ import d0_close
 import d0_diagram
 import d0_media
 import d0_hook
+import d0_openingpeer
 import d0_page2
 import d0_route
 import d0_routine
+import d0_warmitems
 import d0_warmscript
 
 # v9's `lp_type` is a G6-12 vocabulary and primary's is a different axis
@@ -273,10 +275,31 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
     # and you tick or fix your own"*: the positive instruction, without the prohibition
     # that lint gate 10e now enforces anyway. Same additive contract as the three above.
     warm_gaps = d0_warmscript.apply_method(sections, g.get("warmUp"))
+    # THE OPENING'S ONE STRATEGY (bd-7k14f). OPERATOR: *"it should be just 1 not
+    # multiple strategies since opening is a whole provocation on its own"*, and
+    # *"teachers dont let students talk to each other, that too when the class begins"*.
+    # Scoped to the Opening ONLY -- *"Guided practice should stay as is, I only asked
+    # talking to be removed from opening"* -- which is why this filters the section
+    # rather than the enrichment. Measured over all 335 corpus docs before wiring:
+    # 996 -> 938 items, 58 gaps, and the Opening warm-up's gate-10e defect count goes
+    # 136 -> 0. Every Urdu word list survives intact (12 lessons, 11-14 items, N -> N).
+    item_gaps = d0_warmitems.apply_one_strategy(sections)
     d0_close.seat_the_check(sections, g)
     # The halfway landmark is seated last because which section owns minute 20
     # is a fact about the whole timeline, not about any one section (bd-p4ulq).
     d0_routine.seat_the_checkpoint(sections, g)
+
+    # bd-y7hst. Opening peer-talk is AUTHORED source passthrough (it arrives via
+    # d0_hook.hook_blocks, there is no template to fix), so it is filtered here
+    # rather than emitted correctly upstream. Runs LAST, after every pass that can
+    # seat content into the Opening. Guided Practice is deliberately out of scope --
+    # the operator keeps its authored student-to-student talk. Measured over all 335
+    # corpus docs before wiring: gate-10e Opening defects 190 -> 5, and all 5
+    # survivors are strings that REPORT or QUOTE the textbook page, which are gapped
+    # and never rewritten -- a teacher who reads "work alone" then sees "with a
+    # partner" printed in the book stops trusting the plan. 0 of 132 already-clean
+    # docs are touched.
+    opening_gaps = d0_openingpeer.apply_opening_peer_talk(sections)
 
     doc = {
         "lesson_id": enr["lesson_id"].upper(),
@@ -315,7 +338,8 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
         "notes": {
             "supplied": [f"primary lp_type: {enr.get('lp_type') or 'content'}"],
             "gaps": [n for n in (g.get("notes") or []) if isinstance(n, str)]
-                    + dia_gaps + vid_gaps + crux_gaps + warm_gaps,
+                    + dia_gaps + vid_gaps + crux_gaps + warm_gaps
+                    + item_gaps + opening_gaps,
         },
         "needs_human_review": bool(enr.get("needs_human_review")),
     }
