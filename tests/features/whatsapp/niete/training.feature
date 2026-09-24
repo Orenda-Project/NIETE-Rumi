@@ -343,6 +343,19 @@ Feature: NIETE (ICT) Teacher Training
     # sessions under tqFlowStopped, apart from tqFlowStillGoing. @wip.
 
   @e2e @quiz @wip @draft @P2
+  Scenario: /quiz counts each child once, however many times they opened the quiz
+    Given a child stopped a class quiz part-way, opened the link again and finished it
+    And another child finished it, then took it again and did better
+    When I open "/quiz" and tap that lesson
+    Then each child is counted once in "started" and once in "finished", and each has one line
+    And the average uses each child's latest finished attempt
+    And the child who finished on the second go is not listed as still going or stopped
+    And the lessons list, the lesson screen, the class report and the "only N have started" nudge give the same numbers
+    # one-attempt-per-child.js oneAttemptPerChild (the class report's rule: the latest completed attempt, else
+    # the latest row, grouped by student_id), now read by transcript-quiz-list countsFor (per quiz),
+    # transcript-quiz-flow-endpoint loadStudents and the nudge's startedFor. @wip.
+
+  @e2e @quiz @wip @draft @P2
   Scenario: A lesson-plan quiz that could not be started says so, and can be made again
     Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be started (the job never reached the queue)
     When I open "/quiz" and tap that lesson
