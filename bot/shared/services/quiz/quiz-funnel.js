@@ -49,10 +49,12 @@ const STAGES = Object.freeze([
   'report_failed',       // a report that could not go out
 ]);
 
-const ID_FIELDS = ['quiz_id', 'nudge_id', 'session_id', 'share_code_id', 'teacher_id'];
+// donor_quiz_id: a `generated` quiz reused from another quiz of the same lesson version (lp-quiz-cache).
+const ID_FIELDS = ['quiz_id', 'nudge_id', 'session_id', 'share_code_id', 'teacher_id', 'donor_quiz_id'];
 const TOKEN_FIELDS = ['source', 'channel', 'choice', 'reason', 'step', 'kind', 'language'];
 const COUNT_FIELDS = ['n', 'failed', 'skipped', 'pct'];
-const BOOL_FIELDS = ['ok', 'delivered', 'pdf_sent', 'link_sent'];
+// cached: `generated` from the lesson-plan cache (no model call) rather than authored.
+const BOOL_FIELDS = ['ok', 'delivered', 'pdf_sent', 'link_sent', 'cached'];
 
 /** Every field an event may carry. Anything else is dropped. */
 const FIELDS = Object.freeze([...ID_FIELDS, ...TOKEN_FIELDS, ...COUNT_FIELDS, ...BOOL_FIELDS]);

@@ -1794,6 +1794,13 @@ const UX_STRINGS = {
   // recording was not the problem — and, unlike the lp_v8 case, /quiz CAN make
   // this one again from the same session. The Urdu verbs agree with خرابی /
   // quiz / مسئلہ, and بھیجیں / چنیں are imperatives: never the teacher's gender.
+  // daily_cap (quiz-daily-cap): the teacher reached QUIZ_DAILY_CAP quizzes made
+  // today. Nothing is wrong with the lesson or the recording; the number is not
+  // printed because it is configurable. Both streams; /quiz makes it again.
+  tqDailyCap: {
+    en: "You've reached today's limit for new quizzes, so I haven't made this one. I can make it tomorrow: send /quiz then and pick this lesson.",
+    ur: 'آج کے نئے quiz کی حد پوری ہو گئی ہے، اس لیے یہ quiz نہیں بنایا گیا۔ یہ کل بن سکتا ہے: کل ⁦/quiz⁩ بھیجیں اور یہی سبق چنیں۔',
+  },
   tqCouldNotMakeModel: {
     en: 'Sorry — something went wrong on my side while writing the quiz for this lesson, so it could not be finished. The problem was not your recording. Send /quiz and pick this lesson to try again.',
     ur: 'معذرت — اس سبق کا quiz لکھتے ہوئے میری طرف سے خرابی ہو گئی، اس لیے یہ مکمل نہیں ہو سکا۔ مسئلہ آپ کی ریکارڈنگ میں نہیں تھا۔ دوبارہ کوشش کے لیے ⁦/quiz⁩ بھیجیں اور یہی سبق چنیں۔',
