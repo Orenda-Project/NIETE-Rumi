@@ -49,6 +49,8 @@ const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 const { resolveUx } = require('../config/ux-strings');
 const StudentMode = require('./student-mode.service');
+const { isQuizMenuRequest } = require('./quiz/quiz-menu-request');
+const QuizMenuFlags = require('./quiz/quiz-menu-flags');
 
 /** A verdict is cached per handset so a child's every message does not cost six head counts. */
 const CACHE_TTL_SECS = 10 * 60;
@@ -296,6 +298,15 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
       const VideoQuizShare = require('./quiz/video-quiz-share.service');
       if (VideoQuizShare.parseShareCode(body)) return false;        // a quiz link tapped
       if (await quizInFlight(from)) return false;                   // answers, join replies, post-quiz chat
+
+      // "quiz" in any bare spelling is the child's /quiz, not a school
+      // question for the tutor: 121 of 126 children who typed it in the two
+      // weeks to 24 Sep 2026 got a chat answer instead of their quizzes.
+      if (!isCommand && QuizMenuFlags.bareTextToMenu() && isQuizMenuRequest(body)) {
+        logEvent('quiz_menu.requested', { userId: user.id || null, route: 'child_quizzes', trigger: 'ingress' });
+        await openQuizzes(from, language);
+        return true;
+      }
 
       if (body.startsWith('/')) {
         const cmd = body.split(/\s+/)[0].toLowerCase();

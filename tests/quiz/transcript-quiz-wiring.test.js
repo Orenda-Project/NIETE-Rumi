@@ -183,8 +183,11 @@ describe('routing and worker wiring', () => {
 
   test('/quiz reaches the transcript list when the flag is on, the old orchestrator otherwise', () => {
     const s = src('shared/handlers/text-message.handler.js');
-    expect(s).toMatch(/TranscriptQuizList\.isQuizCommand\(trimmedMessage\)/);
-    expect(s).toMatch(/TranscriptQuizList\.showList\(/);
+    expect(s).toMatch(/TranscriptQuizList\.isQuizCommand\(messageBody\)/);
+    // The menu itself (Flow or list, per role and quiz state) is opened by one
+    // service — tests/quiz/quiz-bare-text-routing.test.js executes it end to end.
+    expect(s).toMatch(/QuizMenuEntry\.openQuizMenu\(/);
+    expect(src('shared/services/quiz/quiz-menu-entry.service.js')).toMatch(/List\.showList\(/);
     expect(s).toMatch(/QuizOrchestrator\.initiateQuizRequest\(/);
   });
 
