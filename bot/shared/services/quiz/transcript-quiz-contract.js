@@ -43,7 +43,7 @@ function languageRule(language) {
  * its own stacked fractions, so TeX there prints as source.
  */
 /**
- * NAMING THE PARTS of a picture (bd-qlpu0). The card marks its three options
+ * NAMING THE PARTS of a picture. The card marks its three options
  * A, B and C, so a part the child picks must never be called A-D: a component
  * B that is option C is the right answer on the wrong button. Stated in the
  * contract so the author, the rewrite and the picture repair say it the same
