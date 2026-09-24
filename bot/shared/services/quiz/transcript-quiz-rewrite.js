@@ -56,9 +56,10 @@ const {
   GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
 } = require('./transcript-quiz-contract');
 
-/** At most this many questions may be repaired; more than that is a re-roll. */
+/** At most this many questions are repaired in ONE call. More than that is the worst five by harm (rewriteTargets `partial`) or a re-roll. */
 // Five, not three, since 2026-09-07: a production quiz died on FOUR length faults
-// that one small call would have fixed. Six or more is most of the set — a re-roll.
+// that one small call would have fixed. Six or more questions that need
+// RE-ASKING is most of the set — a re-roll.
 const MAX_TARGETS = 5;
 
 /**
@@ -189,13 +190,51 @@ const STRUCTURAL_CAPS_RULE = 'LENGTH. Every question STEM is at most 200 code po
 const QUIZ_LEVEL_REPAIRABLE = /^PEDAGOGY_GENDERED_TEACHER\b/;
 
 /**
- * @param {string[]} errors the validator's complaints from the LAST full attempt
- * @returns {{indices:number[], byIndex:Object<number,string[]>, summary:string[]}}
- *          `indices` and `summary` are both empty when this rejection is not one
- *          a targeted rewrite can repair
+ * WHICH FIVE, WHEN MORE THAN FIVE QUESTIONS ARE FAULTED — worst harm first.
+ *
+ * The cap used to answer "more than five" with NOTHING, so a quiz whose faults
+ * were all repairs in place (a verb that guesses the child's gender, two
+ * English terms side by side) shipped every one of them, and an attempt with a
+ * few real faults plus a handful of in-place ones was thrown away whole
+ * (production, 1–24 Sep 2026: 1 and 22 quizzes). Now the worst five are taken,
+ * and the caller gives what is left one second batch.
+ *
+ * The order is the harm to a child, worst first: a key that is not true (a
+ * child who knows the fact is marked wrong); then any other fault that stops a
+ * question shipping — a hard fault never loses its place to a question that
+ * only needs repairing in place; then a verb that guesses the child's gender,
+ * English terms that read backwards, a name in English letters; then the soft
+ * faults that ship anyway. Ties go by position.
  */
-function rewriteTargets(errors) {
-  const none = { indices: [], byIndex: {}, summary: [], names: [] };
+/** The tier of one complaint, worst first — see the order above. */
+const SOFT_ONLY = /^q\d+: (PEDAGOGY_GENDERED_TEACHER|PEDAGOGY_LEVEL_(ABOVE|MIX)|URDU_TEACHER_FIELDS)\b/;
+function tierOf(e) {
+  if (/^q\d+: KEY_[A-Z_]+\b/.test(e)) return 0;          // a key that is not true
+  if (/^q\d+: PEDAGOGY_GENDERED_CHILD\b/.test(e)) return 2;
+  if (/^q\d+: URDU_ADJACENT_TERMS\b/.test(e)) return 3;
+  if (/^q\d+: URDU_NAME_LATIN\b/.test(e)) return 4;
+  if (SOFT_ONLY.test(e)) return 5;                        // recorded and shipped anyway
+  return 1;                                               // a hard fault: it cannot ship as it is
+}
+
+/**
+ * @param {string[]} errors the validator's complaints from the LAST full attempt
+ * @param {{partial?: boolean|'in_place', prefer?: number[]}} [opts] when more
+ *   than MAX_TARGETS questions are faulted:
+ *   - no `partial` (the default): hard faults first and in-place-only questions
+ *     fill what is left; in-place complaints alone, or more than MAX_TARGETS
+ *     hard questions, are no repair;
+ *   - `partial: true`: the worst MAX_TARGETS by tier, whatever they are;
+ *   - `partial: 'in_place'`: the same, unless more than MAX_TARGETS questions
+ *     need re-asking (a key or a hard fault) — then a re-roll.
+ *   `prefer` (the questions a first batch left out) goes first within a tier.
+ * @returns {{indices:number[], byIndex:Object<number,string[]>, summary:string[], names:string[], deferred:number[]}}
+ *          `indices` and `summary` are both empty when this rejection is not one
+ *          a targeted rewrite can repair; `deferred` names the faulted
+ *          questions left for a second batch
+ */
+function rewriteTargets(errors, { partial = false, prefer = [] } = {}) {
+  const none = { indices: [], byIndex: {}, summary: [], names: [], deferred: [] };
   const list = Array.isArray(errors) ? errors.filter((e) => typeof e === 'string') : [];
   if (!list.length || list.length !== (errors || []).length) return none;
   const byIndex = {};
@@ -213,23 +252,40 @@ function rewriteTargets(errors) {
     (byIndex[i] = byIndex[i] || []).push(e);
   }
   let indices = Object.keys(byIndex).map(Number).sort((a, b) => a - b);
+  let deferred = [];
   if (indices.length > MAX_TARGETS) {
-    // Beside a hard fault, a question with only in-place complaints is the one
-    // left out: it ships as it is, with its fault recorded, and never takes a
-    // hard fault's place. (In-place complaints alone on more questions than
-    // the cap are still no repair: most of the set, shipped with its faults.)
     const inPlaceOnly = (i) => byIndex[i].every((e) => IN_PLACE.test(e));
-    const hard = indices.filter((i) => !inPlaceOnly(i));
-    if (!hard.length || hard.length > MAX_TARGETS) return none;
-    const kept = new Set([...hard, ...indices.filter(inPlaceOnly).slice(0, MAX_TARGETS - hard.length)]);
-    indices.filter((i) => !kept.has(i)).forEach((i) => { delete byIndex[i]; });
-    indices = indices.filter((i) => kept.has(i));
+    const tier = (i) => Math.min(...byIndex[i].map(tierOf));
+    if (!partial) {
+      // Beside a hard fault, a question with only in-place complaints is the one
+      // left out: it ships as it is, with its fault recorded, and never takes a
+      // hard fault's place. (In-place complaints alone on more questions than
+      // the cap are no repair here; the callers that repair them pass `partial`.)
+      const hard = indices.filter((i) => !inPlaceOnly(i));
+      if (!hard.length || hard.length > MAX_TARGETS) return none;
+      const kept = new Set([...hard, ...indices.filter(inPlaceOnly).slice(0, MAX_TARGETS - hard.length)]);
+      deferred = indices.filter((i) => !kept.has(i));
+      indices = indices.filter((i) => kept.has(i));
+    } else {
+      const reAsk = indices.filter((i) => tier(i) <= 1);
+      if (partial === 'in_place' && reAsk.length > MAX_TARGETS) return none;
+      // A second batch takes the questions the first one left out before any it
+      // already tried, within a tier: a repair that failed once is the least
+      // likely to succeed on a second identical try.
+      const waited = (i) => (prefer.includes(i) ? 0 : 1);
+      const worst = [...indices].sort((a, b) => tier(a) - tier(b) || waited(a) - waited(b) || a - b);
+      indices = worst.slice(0, MAX_TARGETS).sort((a, b) => a - b);
+      deferred = worst.slice(MAX_TARGETS).sort((a, b) => a - b);
+    }
+    deferred.forEach((i) => { delete byIndex[i]; });
   }
   if (!indices.length && !summary.length) return none;
   // Every name complained of, on any question: the spelling the repair gives
   // for one is written wherever the name is (spellNames).
   const names = [...new Set(list.map((e) => (NAME_IN.exec(e) || [])[1]).filter(Boolean))];
-  return { indices, byIndex, summary, names };
+  return {
+    indices, byIndex, summary, names, deferred,
+  };
 }
 
 /**
@@ -527,14 +583,20 @@ async function rewriteRejected({
   // written into whatever this rewrite returns, so a later repair cannot put a
   // name back into English letters.
   knownNames = null,
+  // More than MAX_TARGETS faulted questions: see rewriteTargets. The questions
+  // left out come back as `deferred`, for the caller's second batch, which
+  // passes them back as `prefer`.
+  partial = false, prefer = [],
   // quizId is accepted and ignored here on purpose: the outcome event is emitted
   // by the caller, which is the only place that knows whether the merged set
   // validated.
   quizId = null,
 }) {  // eslint-disable-line no-unused-vars
-  const targets = rewriteTargets(errors);
+  const targets = rewriteTargets(errors, { partial, prefer });
   if (!targets.indices.length && !targets.summary.length) {
-    return { attempted: false, indices: [], merged: null, replaced: [], lessonSummary: null };
+    return {
+      attempted: false, indices: [], merged: null, replaced: [], lessonSummary: null, deferred: [],
+    };
   }
   const prompt = buildRewritePrompt({
     digest, language, questions, targets, gradeBand, lessonSummary, planned,
@@ -547,6 +609,7 @@ async function rewriteRejected({
     return {
       attempted: true,
       indices: targets.indices,
+      deferred: targets.deferred,
       // A summary-only repair returns the questions UNCHANGED rather than null:
       // the caller re-validates `merged` with the new summary, and there was
       // never anything wrong with the questions.
@@ -561,7 +624,7 @@ async function rewriteRejected({
     };
   } catch (err) {
     return {
-      attempted: true, indices: targets.indices, merged: null, replaced: [], lessonSummary: null, costUsd: 0, error: err.message,
+      attempted: true, indices: targets.indices, deferred: targets.deferred, merged: null, replaced: [], lessonSummary: null, costUsd: 0, error: err.message,
     };
   }
 }

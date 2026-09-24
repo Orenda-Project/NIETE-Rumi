@@ -281,13 +281,18 @@ describe('3 — a soft fault: repaired in place, and the quiz ships whatever the
     expect(logEvent.mock.calls.map((c) => c[0])).not.toContain('transcript_quiz.failed');
   });
 
-  test('more questions than one repair can take (six of eight) → no repair possible → the attempt ships, faults recorded', async () => {
+  // More than one repair takes used to mean NO repair at all (the cap refused the
+  // whole list). The worst five are asked for now, and the rest get a second
+  // batch — transcript-quiz-rewrite-overflow.test.js. Here the rewrite returns
+  // nothing usable, so there is nothing to build a second batch on.
+  test('more questions than one repair takes (six of eight) → the worst five are asked for; a rewrite with nothing usable leaves the attempt shipping, faults recorded', async () => {
     const bad = eight().map((q, i) => (i < 6 ? MASC_FEEDBACK(q) : q));
     mockCreate.mockResolvedValue(reply({ lesson_summary: SUMMARY, questions: bad }));
     wire();
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
-    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(mockCreate).toHaveBeenCalledTimes(2);          // the author, then ONE repair of five
+    expect(promptOf(mockCreate.mock.calls[1])).toContain('REWRITE THESE QUESTIONS: q0, q1, q2, q3, q4');
     expect(storedRows()).toHaveLength(8);
     expect((lastMeta().soft_faults || []).filter((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))).toHaveLength(6);
   });

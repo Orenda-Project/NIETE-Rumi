@@ -655,6 +655,18 @@ Feature: NIETE (ICT) Teacher Training
     # tests/quiz/transcript-quiz-distinct-questions-rule.test.js.
 
   @e2e @quiz @wip @draft @P2
+  Scenario: A quiz with many questions to fix gets the worst ones fixed first, not none
+    Given the NIETE bot chat is open and the quiz for my lesson came back with more than five questions that need a fix, such as verbs that speak to the child as a boy or a girl
+    When the quiz arrives
+    Then no question speaks to the child as a boy or a girl, and no English terms sit side by side
+    And a question whose answer was defended by the class against the fact is fixed before any of those
+    # transcript-quiz-rewrite rewriteTargets `partial`: more than five faulted questions → the worst five by harm
+    # (KEY_* > PEDAGOGY_GENDERED_CHILD > URDU_ADJACENT_TERMS > URDU_NAME_LATIN > the rest), the merged set
+    # validated again, ONE second batch for what is left (REPAIR_BATCHES = 2), the questions the first left out
+    # first. More than five questions that need re-asking is still a re-roll on an early attempt. @wip — the
+    # author's faults cannot be forced on demand; proven in tests/quiz/transcript-quiz-rewrite-overflow.test.js.
+
+  @e2e @quiz @wip @draft @P2
   Scenario: A column subtraction reaches the child set out the way the textbook prints it
     Given the NIETE bot chat is open and a class quiz was made from a grade 3 maths lesson on column subtraction
     When a child opens the quiz from its link and reaches a column subtraction
