@@ -13,8 +13,9 @@
  *      place in the repair;
  *   3. the rewrite prompt carries a repair rule for it and asks for the Urdu
  *      spelling of each name, and it lists the lesson's key terms as words;
- *   4. the merge keeps the picture of a question repaired in place and writes
- *      the name in its labels the same way as the stem, so the two agree;
+ *   4. the merge swaps the name into the question as it was, picture and
+ *      all, with the spelling the model gives — the live model rewrites a
+ *      question it is told to keep — so the bar and the stem agree;
  *   5. on the generate path the name comes out «حرا» in the stem, options,
  *      explanation, feedback and teacher notes, and the bar says «حرا» too.
  */
@@ -190,45 +191,57 @@ describe('3 — the rewrite prompt', () => {
   });
 });
 
-describe('4 — the merge: the picture stays, and its label agrees with the stem', () => {
+describe('4 — the merge: a name-only repair is the same question, the name swapped', () => {
   const errs = () => validate(LATIN(), CTX).errors;
+  // The live model does not keep a question it is told to keep: replaying the
+  // grade 4 lesson, it wrote a DIFFERENT question for every question rejected
+  // only for the name. So the model gives the spelling, and the code swaps the
+  // name into the question as it was — its picture included.
+  const DRIFTED = (i) => ({ ...URDU()[i + 2], question: `حرا کی کہانی کا ایک نیا سوال (${i})`, figure: null, figure_role: null });
 
-  test('a question repaired in place keeps its picture, and the name in the bar is written as in the stem', () => {
+  test('the model\'s different question is not taken: the original stays, with the name in Urdu script, picture and all', () => {
     const targets = Rewrite.rewriteTargets(errs());
-    const q1 = { ...URDU()[1], figure: null, figure_role: null };
-    const out = Rewrite.mergeReplacements(LATIN(), { questions: [{ index: 0, ...URDU()[0] }, { index: 1, ...q1 }], names: { Hira: 'حرا' } }, targets);
+    const out = Rewrite.mergeReplacements(LATIN(), { questions: [{ index: 0, ...DRIFTED(0) }, { index: 1, ...DRIFTED(1) }], names: { Hira: 'حرا' } }, targets);
     expect(out.replaced).toEqual([0, 1]);
+    expect(out.questions[0]).toEqual(URDU()[0]);
+    expect(out.questions[1]).toEqual(URDU()[1]);
     expect(out.questions[1].figure).toEqual(BARS('حرا'));
-    expect(out.questions[1].figure_role).toBe('read_off');
-    expect(JSON.stringify(out.questions)).not.toContain('Hira');
     expect(validate(out.questions, CTX).errors).toEqual([]);
   });
 
-  test('a name the model left in English letters is written with the spelling it gave, in every Urdu field', () => {
+  test('the spelling reaches every Urdu field of every question, whether or not the model returned it', () => {
     const targets = Rewrite.rewriteTargets(errs());
-    const leftover = { ...URDU()[0], explanation: LATIN()[0].explanation, selected_because: LATIN()[0].selected_because };
-    const out = Rewrite.mergeReplacements(LATIN(), { questions: [{ index: 0, ...leftover }, { index: 1, ...URDU()[1], figure: null }], names: { Hira: 'حرا' } }, targets);
-    expect(out.questions[0].explanation).toBe(URDU()[0].explanation);
-    expect(out.questions[0].selected_because).toBe(URDU()[0].selected_because);
+    // the model returned the spelling and no questions at all
+    const out = Rewrite.mergeReplacements(LATIN(), { questions: [], names: { Hira: 'حرا' } }, targets);
+    expect(out.questions).toEqual(URDU());
     expect(JSON.stringify(out.questions)).not.toContain('Hira');
   });
 
   test('a spelling is taken only for a name that was named, and only in Urdu script', () => {
     const targets = Rewrite.rewriteTargets(errs());
-    const reply = (map) => ({ questions: [{ index: 0, ...URDU()[0] }, { index: 1, ...URDU()[1], figure: null }], names: map });
-    // Latin letters are not a spelling: the label keeps the name it had
-    expect(Rewrite.mergeReplacements(LATIN(), reply({ Hira: 'Heera' }), targets).questions[1].figure).toEqual(BARS('Hira'));
+    const reply = (map) => ({ questions: [{ index: 0, ...LATIN()[0] }, { index: 1, ...LATIN()[1], figure: null }], names: map });
+    // Latin letters are not a spelling: nothing is swapped, and the model's
+    // reply is taken like any rewrite (a text question)
+    const latin = Rewrite.mergeReplacements(LATIN(), reply({ Hira: 'Heera' }), targets);
+    expect(JSON.stringify(latin.questions)).not.toContain('Heera');
+    expect(latin.questions[1].figure).toBeNull();
     // a word nobody complained about is never rewritten
     const out = Rewrite.mergeReplacements(LATIN(), reply({ Hira: 'حرا', Fraction: 'کسر' }), targets);
     expect(out.questions[1].figure).toEqual(BARS('حرا'));
     expect(JSON.stringify(out.questions)).toContain('fraction');
+    expect(JSON.stringify(out.questions)).not.toContain('کسر');
   });
 
-  test('a question rewritten for a hard fault is still a text question (NO NEW PICTURES is unchanged)', () => {
+  test('a name beside another fault takes the model\'s rewrite, spelled; any other rewrite is still a text question', () => {
     const qs = LATIN();
-    const targets = Rewrite.rewriteTargets(['q1: FIGURE_MISMATCH — the key is not on the bars']);
-    const out = Rewrite.mergeReplacements(qs, { questions: [{ index: 1, ...URDU()[2], figure: null }] }, targets);
-    expect(out.questions[1].figure).toBeNull();
+    qs[0] = { ...qs[0], question: `${qs[0].question} آپ کیا کہیں گے؟` };
+    const targets = Rewrite.rewriteTargets(['q0: PEDAGOGY_GENDERED_CHILD — question speaks to the child with a gendered verb', ...errs()]);
+    const rewritten = { ...URDU()[0], question: 'Hira کی بوتل میں $\\frac{2}{3}$ پانی ہے اور دوست کی بوتل میں $\\frac{3}{5}$۔ کس کی بوتل میں زیادہ پانی ہے؟ بتائیں۔' };
+    const out = Rewrite.mergeReplacements(qs, { questions: [{ index: 0, ...rewritten }, { index: 1, ...DRIFTED(1) }], names: { Hira: 'حرا' } }, targets);
+    expect(out.questions[0].question).toMatch(/^حرا کی بوتل .* بتائیں۔$/);
+    expect(out.questions[1]).toEqual(URDU()[1]);
+    const hard = Rewrite.mergeReplacements(qs, { questions: [{ index: 1, ...URDU()[2], figure: null }] }, Rewrite.rewriteTargets(['q1: FIGURE_MISMATCH — the key is not on the bars']));
+    expect(hard.questions[1].figure).toBeNull();
   });
 });
 

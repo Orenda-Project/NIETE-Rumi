@@ -21,7 +21,7 @@
  * rewrite that repaired one of two rejections still ships one more question
  * than it would have.
  *
- * TWO CONTRACTS ASSERTED IN CODE, not left to the prompt (root rule 24c):
+ * THREE CONTRACTS ASSERTED IN CODE, not left to the prompt (root rule 24c):
  *   - a replacement that carries a "figure" is DISCARDED and its original is
  *     kept. The picture rules are what several of these questions failed, a
  *     replacement gets no second attempt at drawing, and silently stripping a
@@ -29,10 +29,11 @@
  *     pointing at nothing.
  *   - a replacement keeps its question's slo_id and level unless it names its
  *     own, so SLO coverage and the level mix cannot be broken by the repair.
- *   - a question repaired IN PLACE (only a gendered verb, two English terms
- *     side by side, or a name in English letters was wrong) is the same
- *     question, so it keeps the picture it HAD — never one the model drew —
- *     and a name's Urdu spelling is written into that picture's labels too.
+ *   - a question rejected ONLY for a name in English letters is not rewritten
+ *     by the model at all. The model gives the name's Urdu spelling and the
+ *     code writes it into the question as it was, picture labels included:
+ *     replayed, the model wrote a DIFFERENT question for every question it
+ *     was told to keep, which would lose a sound question and its picture.
  *
  * ROUND 6 ADDED ONE QUIZ-LEVEL FIELD: `lesson_summary`. It is the field the
  * operator caught a gendered "She" on, and it is the only quiz-level complaint
@@ -121,19 +122,19 @@ const DUPLICATE = /^q\d+: DUPLICATE_QUESTION\b/;
  * A question rejected for URDU_NAME_LATIN is a GOOD question that writes a
  * person's name from the lesson in English letters («‏Hira کی بوتل»): the Urdu
  * style rule keeps technical TERMS in English letters and the model read the
- * name as one. Repaired IN PLACE like the two above: the same question, only
- * the name changes. The model also returns the spelling it used ("names"), so
- * a picture it may not touch is labelled the same way as the stem (spellNames).
+ * name as one. Repaired IN PLACE, and more strictly than the two above: what
+ * the model gives is the name's Urdu spelling ("names"), and the code writes
+ * it into the question as it was (spellNames) — every field and the picture's
+ * labels, so the bar and the stem agree.
  */
-const NAME_LATIN_REPAIR = 'A NAME IN ENGLISH LETTERS — REPAIR IN PLACE. A question rejected for URDU_NAME_LATIN is a good question that writes a person\'s name from the lesson (the child in a word problem) in English letters. A name is not a technical term: in an Urdu quiz it is written in Urdu script — «حرا», not "Hira". Keep the SAME question: the same idea, the same options in meaning, the same correct answer, the same explanation and feedback in meaning. Change ONLY the name, to Urdu script, in every field it is in — the stem, every option, the explanation, the feedback, "selected_because" and "distractor_misconceptions" — spelled the same way every time. Technical terms stay in English letters. Also return "names": each name you changed, as it was written in English letters, with the Urdu spelling you used — { "Hira": "حرا" } — so the picture\'s labels are written the same way.';
+const NAME_LATIN_REPAIR = 'A NAME IN ENGLISH LETTERS — REPAIR IN PLACE. A question rejected for URDU_NAME_LATIN is a good question that writes a person\'s name from the lesson (the child in a word problem) in English letters. A name is not a technical term: in an Urdu quiz it is written in Urdu script — «حرا», not "Hira". Return "names": each name its complaint quotes, exactly as it is written in English letters, with its spelling in Urdu script — { "Hira": "حرا" }. That spelling is written for you into the question, its options, explanation, feedback, teacher notes and picture labels. A question rejected ONLY for this stays exactly as it is: return it unchanged. When the same question has another complaint too, fix that one as its own rule says and write the name in Urdu script there as well. Technical terms stay in English letters.';
 const NAME_LATIN = /^q\d+: URDU_NAME_LATIN\b/;
 /** "q1: URDU_NAME_LATIN — "Hira" is …" → "Hira" */
 const NAME_IN = /^q\d+: URDU_NAME_LATIN — "([^"]+)"/;
 /**
  * A complaint repaired IN PLACE: the question is sound and only some words
- * change. Such a question keeps its picture through the repair, and it is the
- * one left out when the repair is over its cap — a hard fault never loses its
- * place to it.
+ * change. Over the repair's cap, a question with only these is the one left
+ * out — a hard fault never loses its place to it.
  */
 const IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN)\b/;
 const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
@@ -302,9 +303,6 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
       ? `You are FIXING a short WhatsApp quiz written for the children who sat in ONE real lesson. ${nQ} of its ${qs.length} questions were rejected by our checks. You are writing ONE replacement for each. Every other question is good and is staying exactly as it is — do not touch it, do not return it.`
       : 'You are FIXING the LESSON SUMMARY of a short WhatsApp quiz written for the children who sat in ONE real lesson. Every question is good and is staying exactly as it is — do not touch one, do not return one. You are rewriting the summary only.');
 
-  // A question repaired in place keeps its picture (mergeReplacements); the
-  // model is told so, or "NO NEW PICTURES" reads as "the picture goes".
-  const pictured = indices.filter((i) => keepsPicture(qs[i], byIndex[i]));
   const namesAsked = indices.some((i) => (byIndex[i] || []).some((e) => NAME_LATIN.test(e)));
   const questionSections = nQ ? [
     `REWRITE THESE QUESTIONS: ${label(indices)}`,
@@ -312,7 +310,7 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     DISTINCT_QUESTIONS_RULE,
     `REJECTED — write one new question for each.\n\n${rejected}`,
     'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length, ONLY for how it speaks to the child, ONLY for two English terms side by side, or ONLY for a name in English letters — see LENGTH, THE CHILD HAS NO GENDER, TWO ENGLISH TERMS SIDE BY SIDE and A NAME IN ENGLISH LETTERS below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
-    `NO NEW PICTURES. Every replacement is a text question: leave "figure" and "figure_role" null. A replacement that carries a figure is thrown away and its rejected question is dropped from the quiz instead, so the child loses a question.${pictured.length ? ` ${label(pictured)} ${pictured.length === 1 ? 'is' : 'are'} repaired in place and keep${pictured.length === 1 ? 's' : ''} the picture ${pictured.length === 1 ? 'it has' : 'they have'}: still leave "figure" null — the picture is put back as it was.` : ''}`,
+    'NO NEW PICTURES. Every replacement is a text question: leave "figure" and "figure_role" null. A replacement that carries a figure is thrown away and its rejected question is dropped from the quiz instead, so the child loses a question.',
     questionContract({ gradeBand }),
     SELECTED_BECAUSE_RULE,
     STRUCTURAL_CAPS_RULE,
@@ -420,31 +418,32 @@ function mergeReplacements(questions, json, targets) {
     if (!String(r.question || '').trim()) return;
     chosen.set(idx, r);
   });
-  if (!chosen.size && !summary) return null;
+  // A question rejected ONLY for a name in English letters, whose every name
+  // has a usable spelling, is kept as it was: the swap below is its repair,
+  // and whatever the model wrote for it is not taken (it rewrites a question
+  // it is told to keep). Without a spelling it is an ordinary rewrite.
+  const spellings = nameSpellings(json, targets);
   const byIndex = (targets && targets.byIndex) || {};
+  const swapOnly = indices.filter((i) => {
+    const complaints = byIndex[i] || [];
+    return complaints.length > 0 && complaints.every((e) => NAME_LATIN.test(String(e)))
+      && complaints.every((e) => Boolean(spellings[(NAME_IN.exec(e) || [])[1]]));
+  });
+  if (!chosen.size && !summary && !swapOnly.length) return null;
   const merged = qs.map((q, i) => {
-    if (!chosen.has(i)) return q;
+    if (swapOnly.includes(i) || !chosen.has(i)) return q;
     const { index, ...rest } = chosen.get(i);
-    // A question repaired IN PLACE is the same question with some words
-    // changed, so it keeps the picture it had. Any other replacement is a new
-    // question, and a text one (the no-picture contract).
-    const keep = keepsPicture(q, byIndex[i]);
     return {
       ...rest,
       slo_id: rest.slo_id || q.slo_id,
       level: rest.level || q.level,
-      figure: keep ? q.figure : null,
-      figure_role: keep ? (q.figure_role ?? null) : null,
+      figure: null,
+      figure_role: null,
     };
   });
-  const out = spellNames(merged, nameSpellings(json, targets));
-  return { questions: out, replaced: [...chosen.keys()].sort((a, b) => a - b), lessonSummary: summary };
-}
-
-/** Does question `q`, rejected only for `complaints`, keep its picture through the repair? */
-function keepsPicture(q, complaints) {
-  return Boolean(q && q.figure && typeof q.figure === 'object')
-    && Array.isArray(complaints) && complaints.length > 0 && complaints.every((e) => IN_PLACE.test(String(e)));
+  const out = spellNames(merged, spellings);
+  const replaced = [...new Set([...chosen.keys(), ...swapOnly])].sort((a, b) => a - b);
+  return { questions: out, replaced, lessonSummary: summary };
 }
 
 /**
