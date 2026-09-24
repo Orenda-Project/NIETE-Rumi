@@ -27,6 +27,7 @@ const { normaliseWordBlank, wordBlankFixHint } = require('./transcript-quiz-word
 const { mathToText, texFaults } = require('./quiz-math');
 const { questionAddressForms } = require('./transcript-quiz-address');
 const { lessonLexicon, questionAdjacentTerms } = require('./transcript-quiz-adjacent-terms');
+const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -696,6 +697,10 @@ function validate(rawQuestions, ctx = {}) {
   });
 
   errs.push(...Multi.quizErrors(qs));
+  // The same question asked twice (same answer, same item, near-identical
+  // stem). Only the quiz as a whole can show it, and the complaint names the
+  // LATER copy, so the targeted rewrite replaces that one question.
+  errs.push(...duplicateQuestionErrors(qs));
 
   if (figured / qs.length > FIGURE_MAX_SHARE) {
     errs.push(`FIGURE_SHARE — ${figured}/${qs.length} questions carry a picture; at most half may`);

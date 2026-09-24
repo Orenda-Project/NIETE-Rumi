@@ -170,6 +170,10 @@ const SOFT_FAULT = new RegExp('^('
   // a sound question in an order the phone reads backwards. Repaired in place
   // (IN_PLACE_FAULT, below) and never a reason to send nothing.
   + '|q\\d+: URDU_ADJACENT_TERMS\\b'
+  // The same question asked twice in one quiz (DUPLICATE_QUESTION): the later
+  // copy is rewritten in place (IN_PLACE_FAULT, below); a quiz whose repair
+  // did not take still has seven sound questions and one repeat, and ships.
+  + '|q\\d+: DUPLICATE_QUESTION\\b'
   // Too few pictures in a grade 1-5 maths quiz (runFigureDensity): a quiz with
   // one picture is still a quiz, and refusals cost teachers quizzes.
   + '|FIGURE_FEW\\b'
@@ -195,8 +199,17 @@ const ADDRESS_FAULT = /^q\d+: PEDAGOGY_GENDERED_CHILD\b/;
  * transcript_quiz.adjacent_terms.
  */
 const ADJACENT_FAULT = /^q\d+: URDU_ADJACENT_TERMS\b/;
+/**
+ * A later question that asks what an earlier one already asks, with the same
+ * answer (DUPLICATE_QUESTION — transcript-quiz-duplicates). The earlier
+ * question is sound; the later one is replaced by the same one targeted
+ * rewrite with a different question for its slot. A repair that does not take
+ * ships the quiz with the repeat recorded rather than costing the class the
+ * quiz or a question. Counted on transcript_quiz.duplicate_question.
+ */
+const DUPLICATE_FAULT = /^q\d+: DUPLICATE_QUESTION\b/;
 /** A fault that is repaired IN PLACE and then shipped — never re-rolled, never dropped, never fatal. */
-const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}`);
+const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}`);
 const inPlaceOnly = (errors) => Array.isArray(errors) && errors.length > 0 && errors.every((e) => IN_PLACE_FAULT.test(String(e)));
 /** The codes in a list of complaints, for telemetry ("q3: URDU_ADJACENT_TERMS — …" → "URDU_ADJACENT_TERMS"). */
 const faultKinds = (errors) => [...new Set((errors || []).map((e) => String(e).replace(/^q\d+: /, '').split(/\s|—/)[0]))];
@@ -1329,10 +1342,20 @@ async function process(quizId, payload = {}) {
           logEvent('transcript_quiz.teacher_fields_repaired', { quizId, after: attempt, indices: tf.indices, ok: Boolean(tf.merged) && !Rw.teacherFieldTargets(v.errors).length, remaining: v.errors.length });
         }
       }
+      // The same question asked twice is counted on every attempt it appears
+      // in, whatever else is wrong with the attempt: the author prompt is what
+      // should stop it, and this is its rate.
+      const repeated = v.ok ? [] : v.errors.filter((e) => DUPLICATE_FAULT.test(String(e)));
+      if (repeated.length) {
+        logEvent('transcript_quiz.duplicate_question', {
+          quizId, after: attempt, questions: repeated.length, indices: repeated.map((e) => Number(/^q(\d+)/.exec(e)[1])),
+        });
+      }
       // ── IN-PLACE FAULTS: REPAIRED IN PLACE, THEN SHIPPED ─────────────────
       // When the only complaints left are verbs that speak to the child with a
-      // gender, or two English terms side by side, one targeted rewrite is
-      // asked to change exactly those words. Whatever it leaves, the quiz is
+      // gender, two English terms side by side, or a question the quiz already
+      // asked, one targeted rewrite is asked to change exactly those words (or,
+      // for the repeat, that one question). Whatever it leaves, the quiz is
       // not re-rolled for it: a clean repair ships from runRewrite, and
       // otherwise THIS attempt ships as it stands, through the same picture and
       // render checks as a clean attempt, with the faults recorded. Tried on
