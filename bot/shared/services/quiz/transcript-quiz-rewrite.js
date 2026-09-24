@@ -47,7 +47,7 @@
 const { completeJson } = require('./transcript-quiz-llm');
 const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
 const {
-  languageRule, questionContract, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
+  languageRule, languageAgain, questionContract, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
   GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
 } = require('./transcript-quiz-contract');
 
@@ -600,7 +600,8 @@ function buildAddPicturePrompt({
     // another ran its selected_because to 34 words; both were refused.
     questionContract({ gradeBand }),
     SELECTED_BECAUSE_RULE,
-    ...(language === 'ur' ? [TEACHER_FIELDS_RULE] : []),
+    // every field in the quiz language, the teacher's fields included
+    languageAgain(language).trim(),
     GENDER_NEUTRAL_RULE,
     `THE TYPES — nothing else is accepted:\n${minimalSpecBlock(ADD_PICTURE_TYPES)}`,
     `PICTOGRAM NAMES: ${pictogramNames().join(', ')}`,
