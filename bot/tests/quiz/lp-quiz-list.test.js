@@ -250,3 +250,50 @@ describe('handleListPick on an lp_v8 row', () => {
     expect(writes).toEqual([]);
   });
 });
+
+// The chat list message is still a live /quiz surface — the main menu's Quiz
+// item opens it, and on production it is shown alongside the Flow every day. A
+// FAILED lp_v8 quiz there could only repeat why it failed: the Flow offers
+// "Make it again" where a remake can come out differently (lpRemakeable), and a
+// failed TRANSCRIPT row in this same list says "tap to retry" and is made again
+// on the tap. An lp_v8 row that can be made again now does exactly that; one
+// that cannot (the plan was missing or empty, or the remakes are spent) still
+// says why and stops.
+describe('a failed lp_v8 quiz in the /quiz list message', () => {
+  const LESSONS = [{ lesson_id: 'grade_4_math_ch1_seg1', asset_id: 'a-1', version_stamp: 'v1', content_hash: 'h1' }];
+  const failed = (meta) => lpQuiz(21, {
+    status: 'failed', meta: { lesson_date: '2026-09-21', lessons: LESSONS, source: 'lp_offer', ...meta },
+  });
+
+  test('a row a remake can help reads like a failed transcript row: tap to retry', () => {
+    const { rows } = List.buildRows([], [failed({ error: 'model_failed' })], 'en');
+    expect(rows[0].description).toContain(UX_STRINGS.tqRowFailed.en);
+  });
+
+  test('a row a remake cannot help still says it did not work', () => {
+    const { rows } = List.buildRows([], [failed({ error: 'source_missing' })], 'en');
+    expect(rows[0].description).toContain(UX_STRINGS.tqRowFailedLp.en);
+    expect(rows[0].description).not.toContain(UX_STRINGS.tqRowFailed.en);
+  });
+
+  test('tapping it makes it again: failed → generating, the LP quiz job queued, the teacher told it is coming', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [failed({ error: 'model_failed' })], quiz_sessions: [] });
+    await List.handleListPick('tq_pick_lp_lpq-21', '923001112222', USER);
+    const flip = writes.find((w) => w.op === 'update');
+    expect(flip.patch).toEqual(expect.objectContaining({ status: 'generating' }));
+    expect(flip.patch.meta).toEqual(expect.objectContaining({ remakes: 1, previous_error: 'model_failed', lessons: LESSONS }));
+    expect(SQS.queueJob).toHaveBeenCalledWith(
+      'lpq-21', 'quiz_generate', expect.objectContaining({ quizId: 'lpq-21', source: 'lp_offer' }), expect.anything(),
+    );
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923001112222', UX_STRINGS.lpQuizMaking.en);
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalledWith('923001112222', UX_STRINGS.tqFailedLpModel.en);
+  });
+
+  test('a quiz whose remakes are spent is not made a third time — it says why, as before', async () => {
+    stub({ users, coaching_sessions: [], quizzes: [failed({ error: 'model_failed', remakes: 2 })], quiz_sessions: [] });
+    await List.handleListPick('tq_pick_lp_lpq-21', '923001112222', USER);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923001112222', UX_STRINGS.tqFailedLpModel.en);
+    expect(writes).toEqual([]);
+    expect(SQS.queueJob).not.toHaveBeenCalled();
+  });
+});
