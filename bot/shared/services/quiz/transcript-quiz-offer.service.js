@@ -436,8 +436,28 @@ async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
     await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, source: 'lp_offer' }, { delaySeconds: 0 });
   } catch (err) {
     logToFile('❌ lp quiz offer: quiz_generate could not be queued', { quizId, nudgeId, error: err.message }, 'error');
+    // MERGED into the row's meta, never a fresh object: the lessons, the class
+    // and the lesson date are what the quiz is written from and dated by. A
+    // failure that replaced them left a row /quiz could not date and nobody
+    // could ever make again.
+    const { data: current, error: readErr } = await supabase.from('quizzes')
+      .select('meta').eq('id', quizId).maybeSingle();
+    if (readErr) {
+      logToFile('❌ lp quiz offer: could not read the quiz before marking it failed', { quizId, error: readErr.message }, 'error');
+    }
+    const meta = (current && current.meta) || {};
     const { error } = await supabase.from('quizzes')
-      .update({ status: 'failed', meta: { step: 'failed', error: 'queue_failed', source: 'lp_offer', nudge_id: nudgeId } })
+      .update({
+        status: 'failed',
+        meta: {
+          ...meta,
+          step: 'failed',
+          error: 'queue_failed',
+          error_detail: `queue: ${err.message}`,
+          source: meta.source || 'lp_offer',
+          nudge_id: meta.nudge_id || nudgeId || null,
+        },
+      })
       .eq('id', quizId);
     if (error) logToFile('❌ lp quiz offer: could not mark the quiz failed', { quizId, error: error.message }, 'error');
     await say('lpQuizCouldNotStart');
