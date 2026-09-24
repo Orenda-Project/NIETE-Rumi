@@ -26,6 +26,11 @@
  * @param {object} opts
  * @param {string} opts.token        regex class of the characters inside a word run
  * @param {boolean} [opts.leadingParen] a run may open with "("
+ * @param {string} [opts.start]      regex class a run may START with (default: a Latin
+ *                                   letter or a digit; the coaching card starts on letters only)
+ * @param {boolean} [opts.requireLetter] leave a run with no Latin letter in it (a bare
+ *                                   score, "70", "31/40") exactly as it was — the hero
+ *                                   report's rule, so its numeric chrome never moves
  */
 const JOINER_ENTITIES = { '&amp;': '\uE000', '&middot;': '\uE001', '&#183;': '\uE002' };
 const JOINER_BACK = Object.fromEntries(Object.entries(JOINER_ENTITIES).map(([e, c]) => [c, e]));
@@ -33,7 +38,7 @@ const OPAQUE_BASE = 0xE100;
 const ENTITY = /&(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);/g;
 const JOIN = '[\\s\\u00B7\\uE000-\\uE002]';
 
-function wrapText(text, run) {
+function wrapText(text, run, requireLetter) {
   const opaque = [];
   const masked = text.replace(ENTITY, (e) => {
     if (JOINER_ENTITIES[e]) return JOINER_ENTITIES[e];
@@ -41,15 +46,17 @@ function wrapText(text, run) {
     return String.fromCharCode(OPAQUE_BASE + opaque.length - 1);
   });
   return masked
-    .replace(run, (m) => `<span class="ltr">${m}</span>`)
+    .replace(run, (m) => (requireLetter && !/[A-Za-z]/.test(m) ? m : `<span class="ltr">${m}</span>`))
     .replace(/[\uE000-\uE002]/g, (c) => JOINER_BACK[c])
     .replace(/[\uE100-\uF8FF]/g, (c) => opaque[c.charCodeAt(0) - OPAQUE_BASE]);
 }
 
-function wrapLatinRuns(html, { token, leadingParen = false }) {
-  const run = new RegExp(`${leadingParen ? '\\(?' : ''}[A-Za-z0-9]${token}*(?:${JOIN}+${token}+)*`, 'g');
+function wrapLatinRuns(html, {
+  token, leadingParen = false, start = '[A-Za-z0-9]', requireLetter = false,
+}) {
+  const run = new RegExp(`${leadingParen ? '\\(?' : ''}${start}${token}*(?:${JOIN}+${token}+)*`, 'g');
   return String(html).split(/(<[^>]+>)/)
-    .map((seg) => (seg.startsWith('<') ? seg : wrapText(seg, run)))
+    .map((seg) => (seg.startsWith('<') ? seg : wrapText(seg, run, requireLetter)))
     .join('');
 }
 
