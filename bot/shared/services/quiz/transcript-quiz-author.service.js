@@ -19,7 +19,7 @@ const { MOLECULE_DICTIONARY } = require('./transcript-quiz-figure-science');
 const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
 const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
 const {
-  languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
+  languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, DISTINCT_QUESTIONS_RULE,
   GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
 } = require('./transcript-quiz-contract');
 const { logEvent } = require('../../utils/structured-logger');
@@ -252,6 +252,7 @@ THE SLOs DRIVE THE QUESTIONS. The digest's "slos" are what these children were m
 - Levels, hard: at least 60% of the questions at or below their own SLO's "taught_level", and NEVER more than ONE level above it. On an SLO taught at "recall", "understand" is the ceiling and "apply" is not allowed. That rule wins over the line above — ${nHigher} is already what it leaves room for on this lesson.
 - Question 1 must be the easiest, so a nervous child gets one right first. EASIEST MEANS A PICK: ask the child to identify the plainest thing the lesson taught ("Which of these is a type of matter?", "ان میں سے کون سا نقشے کی ایک قسم ہے؟") — never a count of how many things were mentioned or how many kinds there are. That count is the question this slot keeps attracting, and it is thrown away every time.
 - Use the lesson's OWN examples, numbers, words, objects and stories (from "examples_used" and the excerpts) as the MATERIAL of the question. A child should recognise the class in the quiz.
+- ${DISTINCT_QUESTIONS_RULE}
 
 GOOD vs BAD — same lesson, same knowledge, and the good one is the one a child learns from:
   BAD  "How many types of matter did the teacher mention?"  3 / 2 / 4

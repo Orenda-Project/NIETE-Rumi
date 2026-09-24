@@ -13,6 +13,7 @@
  * Asserted on the prompts the model is actually sent (llm-client mocked).
  */
 
+jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 const mockCreate = jest.fn();
@@ -22,6 +23,7 @@ jest.mock('../../bot/shared/services/llm-client', () => ({
 
 const Author = require('../../bot/shared/services/quiz/transcript-quiz-author.service');
 const Rw = require('../../bot/shared/services/quiz/transcript-quiz-rewrite');
+const { figureRequiredError } = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
 
 const digest = (subject, band) => ({ subject, grade_band: band, topic: 'Lesson', slos: [{ id: 'S1', statement: 'the idea', taught_level: 'understand' }] });
 const authorPrompt = (subject, band, language = 'ur') => Author.buildAuthorPrompt({ digest: digest(subject, band), excerpts: '…', language, gradeBand: band });
@@ -43,6 +45,15 @@ describe('no prompt names a part with an option letter', () => {
     const p = mockCreate.mock.calls[0][0].messages[0].content;
     expect(p).not.toMatch(LETTER_PART);
     expect(p).toMatch(/NAMING THE PARTS/);
+  });
+});
+
+describe('the picture ask sent back to the author', () => {
+  test('a grade 1-5 maths retry (FIGURE_REQUIRED) names bars P, Q, R, never the option letters', () => {
+    const ask = figureRequiredError({ questions: [], subject: 'maths', gradeBand: '4', attempt: 1, maxAttempts: 2 });
+    expect(ask).toMatch(/FIGURE_REQUIRED/);
+    expect(ask).not.toMatch(/labelled A, B, C|\bA, B, C\b/);
+    expect(ask).toMatch(/bars P, Q, R/);
   });
 });
 
