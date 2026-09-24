@@ -250,6 +250,32 @@ def cmd_module_media(creds, a):
     print(json.dumps(out, ensure_ascii=False))
 
 
+def cmd_level_modules(creds, a):
+    """Every active module of a level, in the order the ladder opens them. Read-only.
+
+    T08 seeds all-but-the-last module of the Oxbridge level and drives the last one live. Hardcoding
+    the module ids in the driver would rot the moment the catalogue is re-imported, so the driver
+    asks for them by LEVEL (bd-2ug2s).
+    """
+    courses = sorted(
+        [c for c in (_get(creds, "training_courses",
+                          "level_id=eq.%s&select=id,title,order_index,is_active" % a.level) or [])
+         if c.get("is_active")],
+        key=lambda c: (c.get("order_index") or 0, c["id"]))
+    out = []
+    for c in courses:
+        mods = sorted(
+            [x for x in (_get(creds, "training_modules",
+                              "course_id=eq.%s&select=id,title,order_index,video_url,source_media_url,is_active" % c["id"]) or [])
+             if x.get("is_active")],
+            key=lambda x: (x.get("order_index") or 0, x["id"]))
+        for x in mods:
+            src_url = str(x.get("video_url") or x.get("source_media_url") or "")
+            out.append({"id": x["id"], "title": x.get("title"), "course": c.get("title"),
+                        "kind": "pdf" if ".pdf" in src_url.lower() else "video"})
+    print(json.dumps(out, ensure_ascii=False))
+
+
 def cmd_module_answer_key(creds, a):
     """Answer key for ONE module's check, as the driver needs it: per served question, the correct
     option TEXT(s) and canonical 1-based index(es). Resolves the module by id, or by the (possibly
@@ -373,6 +399,8 @@ def main():
     for name in ("seed-level-complete", "revert-level"):
         s = sub.add_parser(name, parents=[common]); s.add_argument("--phone", required=True); s.add_argument("--level", type=int, required=True); s.add_argument("--yes-write", action="store_true")
     mak = sub.add_parser("module-answer-key", parents=[common]); mak.add_argument("--phone"); mak.add_argument("--module", type=int); mak.add_argument("--title"); mak.add_argument("--yes-write", action="store_true")
+    lm = sub.add_parser("level-modules", parents=[common]); lm.add_argument("--level", type=int, required=True)
+    lm.add_argument("--phone")   # api.db always passes it; level-modules does not use it
     mm = sub.add_parser("module-media", parents=[common]); mm.add_argument("--title", action="append")
     mm.add_argument("--phone")   # api.db always passes it; module-media does not use it
     apg = sub.add_parser("activate-program", parents=[common]); apg.add_argument("--phone", required=True); apg.add_argument("--program-key", required=True, dest="program_key"); apg.add_argument("--yes-write", action="store_true")
@@ -382,7 +410,7 @@ def main():
     {"lookup": cmd_lookup, "answer-key": cmd_answer_key, "seed-level-complete": cmd_seed_level_complete,
      "revert-level": cmd_revert_level, "activate-program": cmd_activate_program,
      "seed-module-pass": cmd_seed_module_pass, "module-answer-key": cmd_module_answer_key,
-     "module-media": cmd_module_media}[a.cmd](creds, a)
+     "module-media": cmd_module_media, "level-modules": cmd_level_modules}[a.cmd](creds, a)
 
 if __name__ == "__main__":
     main()

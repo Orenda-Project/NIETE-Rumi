@@ -314,11 +314,24 @@ exports.run = async ({ api, rec, sleep }) => {
     const seen = [];
     const pull = async () => { for (const r of await api.fresh()) seen.push(r); };
     const isQ = (x) => x.list && (x.list.rows || []).some(r => /^[A-J]$/.test(r.title || ''));
+    // A "Select all that apply" question is NOT a list — the bot sends the training-msq FLOW, whose
+    // single MSQ_QUESTION screen carries a CheckboxGroup and a "Submit answer" footer. Without this
+    // the loop never recognised the question and timed out as NO_QUESTION_OR_VERDICT, which is what
+    // stalled the Oxbridge drive on Q2/10 (bd-2ug2s).
+    const isFlowQ = (x) => !!(x.flow && /:training-msq:/.test(String(x.flow.token || '')));
     const isTerm = (x) => NOT_QUITE.test(x.txt || '') || PASSED.test(x.txt || '');
     const waitFor = async (pred, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { await pull(); const h = [...seen].reverse().find(pred); if (h) return h; await new Promise(r => setTimeout(r, 1200)); } return null; };
     const trail = []; let first = null; const answered = new Set();
     for (let n = 0; n < 40; n++) {
-      const hit = await waitFor((x) => isTerm(x) || (isQ(x) && !answered.has(x.list.rows.map(r => r.id).join(','))), 90000);
+      // Dedupe a question on its Qn/N header, NOT on its row-id set: the options are shuffled per
+      // question, and when two consecutive questions land in the same order (1 in 24 for four
+      // options) the id set repeats and the second question is skipped as already answered — the
+      // driver then waits 90s for a question that is already on screen. Run 20260924-1038 did
+      // exactly this on Q3/3 and took T01/T12/T20 down with it (bd-2ug2s).
+      const qKey = (x) => { const h = /Q\d+\/\d+/.exec(x.txt || ''); return h ? h[0] : ((x.list && x.list.rows) || []).map(r => r.id).join(','); };
+      const hit = await waitFor((x) => isTerm(x)
+                                    || (isQ(x) && !answered.has(qKey(x)))
+                                    || (isFlowQ(x) && !answered.has(String(x.flow.token))), 90000);
       if (!hit) return { first, trail, last: { err: 'NO_QUESTION_OR_VERDICT', tail: seen.slice(-4).map(x => (x.txt || '').slice(0, 80)) } };
       if (isTerm(hit)) {
         const notQuite = NOT_QUITE.test(hit.txt);
@@ -328,7 +341,51 @@ exports.run = async ({ api, rec, sleep }) => {
         if (notQuite) { const t0 = Date.now(); while (Date.now() - t0 < 8000) { await pull(); const b = [...seen].reverse().find(x => (x.btns || []).some(bb => /Try again|Pause/i.test(bb))); if (b) { btns = b.btns; break; } await new Promise(r => setTimeout(r, 800)); } }
         return { first, trail, last: { verdict: notQuite ? 'not-quite' : 'passed', txt: (hit.txt || '').slice(0, 220), btns } };
       }
-      const rows = hit.list.rows; answered.add(rows.map(r => r.id).join(','));
+      if (isFlowQ(hit)) {
+        answered.add(String(hit.flow.token));
+        const qTxt = String(hit.txt || '');
+        const head = /Q(\d+)\/(\d+)/.exec(qTxt); const qNo = head ? Number(head[1]) : n + 1;
+        if (n === 0) first = head ? head[0] : null;
+        // The question line itself ends in "(Select all that apply)", so strip that suffix rather than
+        // skip the line — skipping it left qLine empty and matched no key entry.
+        const qLine = (qTxt.split('\n').map(l => l.trim())
+          .find(l => l && !/^Q\d+\/\d+$/.test(l) && !/^Select all that apply$|^required$/i.test(l)) || '')
+          .replace(/\s*\(Select all that apply\)\s*$/i, '').trim();
+        const entry = (key.questions || []).find(q => norm(q.q) === norm(qLine)
+          || norm(q.q).startsWith(norm(qLine).slice(0, 60)) || norm(qLine).startsWith(norm(q.q).slice(0, 60)));
+        if (!entry) return { first, trail, last: { err: 'NO_KEY_ENTRY_FLOW', qLine: qLine.slice(0, 120) } };
+        const opF = await api.openFlow('Answer', { from: hit });   // the card came via fresh(), not a send
+        if (!opF.ok) return { first, trail, last: { err: 'MSQ_FLOW_OPEN:' + opF.err, qLine: qLine.slice(0, 80) } };
+        const pr = await api.flowProbe();
+        const opts = ((pr && pr.items) || []).filter(i => i.kind === 'option');
+        // The checkbox rows carry ONLY a letter ("A.") — a row description is clamped to three lines
+        // on the device, so quiz-delivery puts the option texts in the TextBody as "A. <text>" lines
+        // (buildMsqFlowScreenData). Map the key's texts to letters through the screen body, then tick
+        // the matching row, exactly as letterFor does for the long-option list case.
+        const bodyLetters = String((pr && pr.text) || '').split('\n').map(l => l.trim())
+          .map(l => /^([A-J])[.)]\s+(.*)$/.exec(l)).filter(Boolean).map(m => ({ letter: m[1], text: m[2] }));
+        const letterFor2 = (want) => { const w = norm(want); const h = bodyLetters.find(b => norm(b.text) === w
+          || norm(b.text).startsWith(w.slice(0, 40)) || w.startsWith(norm(b.text).slice(0, 40))); return h ? h.letter : null; };
+        const rowFor = (letter) => opts.find(o => new RegExp('^' + letter + '\\b').test(String(o.text || '').trim()));
+        const correctLetters = entry.correct.map(letterFor2).filter(Boolean);
+        // wrongAt: tick one letter the key does NOT list, so a deliberate failure works here too.
+        const wants = (wrongAt === qNo)
+          ? bodyLetters.map(b => b.letter).filter(l => !correctLetters.includes(l)).slice(0, 1)
+          : correctLetters;
+        const picked = [];
+        for (const letter of wants) {
+          const o = rowFor(letter);
+          if (o) { const r = await api.flowPick(o.text, { exact: true }); if (r && r.ok) picked.push(letter); }
+        }
+        if (!picked.length) return { first, trail, last: { err: 'MSQ_NO_OPTION_MATCH', qLine: qLine.slice(0, 80),
+                                                           wanted: entry.correct, bodyLetters: bodyLetters.slice(0, 6),
+                                                           offered: opts.map(o => o.text).slice(0, 8) } };
+        const sub = await api.flowClick('Submit answer', { settleMs: 3000 });
+        api.closeFlow();
+        trail.push({ q: qNo, via: 'training-msq flow', picked, submitted: !!(sub && sub.ok) });
+        continue;
+      }
+      const rows = hit.list.rows; answered.add(qKey(hit));
       const head = /Q(\d+)\/(\d+)/.exec(hit.txt || ''); const qNo = head ? Number(head[1]) : n + 1; if (n === 0) first = head ? head[0] : null;
       const qLine = String(hit.txt || '').split('\n').map(l => l.trim()).find(l => l && !/^Q\d+\/\d+$/.test(l) && !/^[A-J]\.\s/.test(l) && !/required|Select all that apply|Selected:/.test(l)) || '';
       const entry = (key.questions || []).find(q => norm(q.q) === norm(qLine) || norm(q.q).startsWith(norm(qLine).slice(0, 60)) || norm(qLine).startsWith(norm(q.q).slice(0, 60)));
@@ -457,10 +514,81 @@ exports.run = async ({ api, rec, sleep }) => {
                : ['BLOCKED', { reason: examLabel ? 'the exam row is not 🔒 Locked in this account state (' + examLabel + ')' : 'level detail did not open', harness: o.ok ? null : o.err }]), t() - s);
   }
 
-  // T08 — different vendor entirely.
-  rec('T08', 'For an Oxbridge programme a level is certified from module scores, with no exam', 'BLOCKED',
-      { reason: 'needs a driver enrolled in an Oxbridge programme; this environment has no Oxbridge programme row '
-              + '(training_programs) to enrol into, so the certified-from-module-scores path is unreachable here.' }, 0);
+  // ══ T08 — Oxbridge: a level certified from MODULE SCORES, with no exam ═══
+  // The old BLOCKED read "this environment has no Oxbridge programme row (training_programs)".
+  // True, and beside the point: Oxbridge is a VENDOR scoped into niete_standard, and its level is a
+  // single 7-module course — exactly the shape seed-module-pass was written for and never wired to.
+  // Seed every module but the last, drive the last one LIVE so the real grading path runs, and the
+  // level must certify with no exam anywhere in the journey. Reverted at the end (bd-2ug2s).
+  {
+    s = t();
+    let crashed = null;
+    const OX_LEVEL = 17;
+    let seeded = [];            // hoisted: the finally below MUST be able to undo the seed
+    try {
+    const dbJson = (action, args) => {
+      try {
+        const r = api.db(action, args) || {};
+        const last = String(r.out || '').split('\n').map(l => l.trim()).filter(Boolean).pop() || 'null';
+        return JSON.parse(last);
+      } catch (e) { return null; }
+    };
+    const oxMods = dbJson('level-modules', ['--level', String(OX_LEVEL)]) || [];
+    let band = null, card = null, run = null, cert = null, examOffered = null, title = null;
+    if (oxMods.length >= 2) {
+      for (const mm of oxMods.slice(0, -1)) {
+        const r = api.db('seed-module-pass', ['--module', String(mm.id)]);
+        seeded.push({ id: mm.id, ok: !!(r && r.ok) });
+        await sleep(250);   // api.db is execFileSync — yield so the mock's keep-alive socket survives
+      }
+      band = await openBandPicker({ vendor: 'Oxbridge', level: 'Game-Based|Professional Training' });
+      if (band.ok) {
+        // The level screen must NOT be offering an exam — that IS the scenario.
+        examOffered = /Take exam|Ready for exam/.test((band.probe && band.probe.text) || '');
+        // With every earlier module seeded passed, the last one is the only \u25b6 Next up row.
+        const nextRow = band.rows.find(x => /\u25b6\s*Next up/.test((x && x.text) || ''));
+        if (nextRow) {
+          title = ((nextRow.text || '').split(' \u00b7 ')[0] || '').trim();
+          card = await deliverPicked(nextRow.text);
+          const key = answerKey(title);
+          if (card.ok && card.cta && key && key.questions && key.questions.length) {
+            await api.freshReset();
+            await api.tapAndWait(card.cta, 60000);
+            run = await takeQuiz(key);
+            if ((run.last || {}).verdict === 'passed') {
+              cert = await waitFresh((x) => x.doc || x.pdf || /certificate|\u0633\u0631\u0679\u06cc\u0641\u06a9\u06cc\u0679/i.test(x.txt || ''), 120000);
+            }
+          }
+        }
+      }
+    }
+    const verdict = (run && run.last && run.last.verdict) || null;
+    rec('T08', 'For an Oxbridge programme a level is certified from module scores, with no exam',
+        ...(cert
+            ? V(!!cert.ok && verdict === 'passed' && examOffered === false,
+                { module: title, seededModules: seeded.length, drivenLive: 1, verdict,
+                  examOfferedOnLevelScreen: examOffered,
+                  certificate: (cert.hit && (cert.hit.txt || '')).slice(0, 160),
+                  asDocument: !!(cert.hit && (cert.hit.doc || cert.hit.pdf)) })
+            : ['BLOCKED', { reason: !oxMods.length ? 'level-modules returned nothing for the Oxbridge level'
+                                   : !band || !band.ok ? 'could not reach the Oxbridge band: ' + ((band && band.err) || 'n/a')
+                                   : !title ? 'no \u25b6 Next up row after seeding every earlier module'
+                                   : !card || !card.ok ? 'the last module did not open: ' + ((card && card.err) || 'n/a')
+                                   : !verdict ? 'the module check produced no verdict'
+                                   : 'passed the last module but no certificate arrived within 120s',
+                            module: title, seededModules: seeded.length, verdict,
+                            examOfferedOnLevelScreen: examOffered,
+                            cta: card && card.cta, lastSeen: run && run.last }]), t() - s);
+    } catch (e) {
+      crashed = { message: String(e && e.message || e), stack: String(e && e.stack || '').split('\n').slice(0, 6) };
+      rec('T08', 'For an Oxbridge programme a level is certified from module scores, with no exam',
+          'BLOCKED', { reason: 'the Oxbridge drive threw', error: crashed }, t() - s);
+    } finally {
+      // Undo the seed whatever happened: this level's progress, certificate and attempts all go, so a
+      // re-run starts from the same place and a crash cannot leave a certified Oxbridge level behind.
+      if (seeded.length) { try { api.db('revert-level', ['--level', String(OX_LEVEL)]); } catch (e) {} }
+    }
+  }
 
   api.closeFlow();
 

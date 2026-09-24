@@ -116,7 +116,13 @@ function makeMockApi(opts) {
   const flagsOf = (i) => ({ txt: String(i.txt || '').slice(0, 600), img: !!i.img, audio: !!i.audio, doc: !!i.doc,
     pdf: !!i.pdf || /\.pdf/i.test(i.txt || ''), btns: i.btns || [], media: i.media,
     // interactive list rows, when this reply is one — the training module check is answered off these
-    list: i.list || null });
+    list: i.list || null,
+    // the Flow card, when this reply is one — a "Select all that apply" training question arrives as
+    // the training-msq Flow, not a list, and the quiz driver has to recognise it to answer it (bd-2ug2s)
+    flow: i.flow || null,
+    // the raw outbox message, so openFlow({ from: item }) can open the Flow behind a card that arrived
+    // through fresh() polling rather than through a send (the quiz loop is all polling)
+    raw: i.raw });
   const MEDIA_KIND_BY_MENU = { 'document': 'document', 'photos & videos': 'image', 'photo': 'image', 'audio': 'audio', 'video': 'video' };
   const MIME_BY_EXT = { '.m4a': 'audio/mp4', '.mp4': 'video/mp4', '.ogg': 'audio/ogg; codecs=opus', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
     '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.pdf': 'application/pdf', '.txt': 'text/plain' };
@@ -207,12 +213,15 @@ function makeMockApi(opts) {
     // ---- Flows: emulated from the stored JSON, never rendered ------------------------
     /** Open the Flow behind the last reply's card whose CTA matches `ctaPattern`. Loads the stored
      *  FLOW_JSON by the card's flow_id, INITs endpoint Flows through the encrypted transport. */
-    async openFlow(ctaPattern) {
+    async openFlow(ctaPattern, o2) {
       if (!FL) return { ok: false, err: 'MOCK_NO_FLOW_RENDER' };
-      const raw = lastReply && lastReply.raw && lastReply.raw.interactive;
+      // Default: the last reply a send/tap captured. `from` overrides it with a specific item — e.g. a
+      // Flow card the quiz loop pulled via fresh(), which lastReply never sees (bd-2ug2s).
+      const src = (o2 && o2.from) || lastReply;
+      const raw = src && src.raw && src.raw.interactive;
       const params = raw && raw.type === 'flow' && raw.action && raw.action.parameters;
       const re = new RegExp(ctaPattern, 'i');
-      if (!params || !(lastReply.btns || []).some((b) => re.test(b))) { flowStats.refused++; return { ok: false, err: 'NO_FRESH_CTA:' + ctaPattern }; }
+      if (!params || !(src.btns || []).some((b) => re.test(b))) { flowStats.refused++; return { ok: false, err: 'NO_FRESH_CTA:' + ctaPattern }; }
       const entry = flowEntryById(params.flow_id);
       if (!entry) return { ok: false, err: 'NO_STORED_FLOW:' + params.flow_id + ' (run flow-inventory.js fetch)' };
       let json; try { json = JSON.parse(fs.readFileSync(path.join(FL.dir, entry.envVar + '.json'), 'utf8')); } catch (e) { return { ok: false, err: 'FLOW_JSON_UNREADABLE:' + entry.envVar }; }
@@ -234,7 +243,7 @@ function makeMockApi(opts) {
       flow = em; flowStats.opened++; flowStats.flows.push(entry.envVar);
       const p = em.probe();
       trace('flow open ' + entry.envVar + ' screen=' + p.screen);
-      return { ok: true, clicked: (lastReply.btns || []).find((b) => re.test(b)), screen: p.screen, items: p.items.length, via: 'flow-emulator', flow: entry.envVar };
+      return { ok: true, clicked: (src.btns || []).find((b) => re.test(b)), screen: p.screen, items: p.items.length, via: 'flow-emulator', flow: entry.envVar };
     },
     flow() { return flow; },
     async resetFlow() { const had = !!flow; flow = null; return { ok: true, note: had ? 'emulated Flow closed' : 'nothing open', attempts: 0 }; },
@@ -267,12 +276,12 @@ function makeMockApi(opts) {
      *  assertions (LANG02/03 language + lock) are verified the same way. */
     db(action, extra) {
       trace('db ' + action);
-      const script = /^(lookup|answer-key|module-answer-key|module-media)$/.test(action)
+      const script = /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|revert-level|activate-program)$/.test(action)
         ? path.join(repo, '.claude/qa/shared/niete_training_db.py')
         : path.join(repo, '.claude/qa/shared/niete_registration_db.py');
       const args = [script, action, '--env', env, '--phone', driver];
       // module-media is a READ — never hand a read a write flag (bd-xub4s).
-      if (!/^(lookup|snapshot|module-media)$/.test(action)) args.push('--yes-write');
+      if (!/^(lookup|snapshot|module-media|level-modules)$/.test(action)) args.push('--yes-write');
       if (extra) args.push(...extra);
       try {
         const out = execFileSync('python3', args, { cwd: repo, encoding: 'utf8', timeout: 60000 });
