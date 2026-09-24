@@ -172,4 +172,24 @@ function classHeading(values, language = 'en') {
   return `${unit} ${classes.join(ur ? '، ' : ', ')}`;
 }
 
-module.exports = { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText };
+/**
+ * Open every line of a data-built text block with a paragraph mark.
+ *
+ * WhatsApp lays each line out from its first strong character. A line built
+ * from data — "• \u2068Ayesha\u2069 — \u20667/8 (88%)\u2069", or an Urdu title that opens on the
+ * Latin term "quiz" — has the wrong first strong character, or none outside
+ * its isolates, so it lands flush against the wrong side of an otherwise
+ * consistent block. `mark` is the document language's own (the catalog's
+ * `lineDirMark`: U+200E English, U+200F Urdu). A line that already opens with
+ * a mark is re-marked, never double-marked; a blank line stays blank.
+ */
+const DIR_MARK = /^[\u200E\u200F]+/;
+function markLines(text, mark) {
+  if (text === null || text === undefined) return text;
+  if (!mark) return String(text);
+  return String(text).split('\n')
+    .map((line) => (line.trim() === '' ? line : `${mark}${line.replace(DIR_MARK, '')}`))
+    .join('\n');
+}
+
+module.exports = { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText, markLines };

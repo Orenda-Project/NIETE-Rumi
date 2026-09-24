@@ -291,6 +291,9 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
   // the rows written before the split carry `digest: <message>` and were the
   // model's too (a recording quiz's digest has no source-side throw).
   const { UX_STRINGS } = require('../../shared/config/ux-strings');
+  const { markLines } = require('../../shared/utils/text-format');
+  // Every results line opens with the teacher language's paragraph mark.
+  const marked = (key, lang) => markLines(UX_STRINGS[key][lang], UX_STRINGS.lineDirMark[lang]);
   test.each([
     ['model_failed', { error: 'model_failed' }],
     ['a pre-split digest row', { error: 'digest: transcript_quiz.digest: empty reply from m' }],
@@ -302,8 +305,8 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
         quizzes: [{ ...SENT_QUIZ, status: 'failed', meta }], quiz_sessions: [],
       });
       const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
-      expect(out.data.results).not.toBe(UX_STRINGS.tqFlowResultsFailed[lang]);
-      expect(out.data.results).toBe(UX_STRINGS.tqFlowResultsFailedModel[lang]);
+      expect(out.data.results).not.toBe(marked('tqFlowResultsFailed', lang));
+      expect(out.data.results).toBe(marked('tqFlowResultsFailedModel', lang));
       expect(out.data.actions.length).toBeGreaterThan(0);
       expect(out.data.actions.every((a) => a.id.startsWith('make'))).toBe(true);
     }
@@ -318,7 +321,7 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
       quizzes: [{ ...SENT_QUIZ, status: 'failed', meta }], quiz_sessions: [],
     });
     const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
-    expect(out.data.results).toBe(UX_STRINGS.tqFlowResultsFailed.en);
+    expect(out.data.results).toBe(marked('tqFlowResultsFailed', 'en'));
   });
 
   test('another teacher’s session is refused — the Flow stays on LESSONS with a message', async () => {
@@ -998,7 +1001,8 @@ describe('a report is only promised when there is something to report', () => {
     const out = await submit('report');
     await flush();
     expect(out.screen).toBe('LESSON');
-    expect(out.data.results).toBe(UX_STRINGS.tqFlowResultsNothingToReport.en);
+    // Every results line opens with the teacher language's paragraph mark (LRM).
+    expect(out.data.results).toBe(`\u200E${UX_STRINGS.tqFlowResultsNothingToReport.en}`);
     expect(out.data.actions.map((a) => a.id)).toEqual(['link', 'done']);
     expect(Report.generate).not.toHaveBeenCalled();
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action_refused',
@@ -1012,7 +1016,7 @@ describe('a report is only promised when there is something to report', () => {
       coaching_sessions: [session(1)], quizzes: [SENT], quiz_sessions: SELF_TEST_ONLY,
     });
     const out = await submit('report');
-    expect(out.data.results).toBe(UX_STRINGS.tqFlowResultsNothingToReport.ur);
+    expect(out.data.results).toBe(`\u200F${UX_STRINGS.tqFlowResultsNothingToReport.ur}`);
   });
 
   test('once one child has finished, Generate report comes first and runs', async () => {

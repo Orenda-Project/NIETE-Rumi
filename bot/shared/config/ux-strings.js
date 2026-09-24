@@ -1924,6 +1924,14 @@ const UX_STRINGS = {
   // it arrives already wrapped in LRI…PDI from the endpoint — in an Urdu line
   // an un-isolated `8/8 (100%)` after an Urdu name renders as `(%100) 8/8`.
   tqFlowStudentLine: { en: '• {name}{klass} — {score}', ur: '• {name}{klass} — {score}' },
+  // The paragraph mark for a LIST of lines built from data (the /quiz results
+  // block, the class report's text fallback). A catalog string opens with its
+  // own mark where it needs one (above); a list line such as "• \u2068name\u2069 —
+  // \u2066score\u2069" cannot — its only strong characters sit inside isolates, so a
+  // phone finds none and falls back to left-to-right (Android and iOS differ on
+  // whether they look inside an isolate). text-format markLines() opens every
+  // line with this: U+200E in English, U+200F in Urdu. One code point per line.
+  lineDirMark: { en: '\u200E', ur: '\u200F' },
   tqFlowStillGoing: { en: 'Still going: {names}', ur: 'ابھی حل کر رہے ہیں: {names}' },
   tqFlowMoreStudents: { en: '…and {n} more', ur: '…اور {n} مزید' },
   tqFlowUnnamed: { en: 'Unnamed', ur: 'بےنام' },
