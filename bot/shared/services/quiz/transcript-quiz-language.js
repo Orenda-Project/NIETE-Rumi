@@ -348,9 +348,34 @@ function isolate(text) {
   return `${FSI}${text}${PDI}`;
 }
 
+// Common irregular English plurals, mapped to their singular. A short list on
+// purpose: the rule only has to stop a topic being glossed with its own plural,
+// and anything missing here simply keeps its bracket, as before.
+const IRREGULAR_PLURALS = Object.freeze({
+  children: 'child', men: 'man', women: 'woman', people: 'person', feet: 'foot', teeth: 'tooth',
+  mice: 'mouse', geese: 'goose', halves: 'half', leaves: 'leaf', lives: 'life', knives: 'knife',
+  wives: 'wife', shelves: 'shelf', wolves: 'wolf', calves: 'calf', loaves: 'loaf', thieves: 'thief',
+  vertices: 'vertex', indices: 'index', matrices: 'matrix', radii: 'radius',
+});
+
+/**
+ * An English word without its trailing plural: -ies → -y, -es after s/x/z/ch/sh,
+ * otherwise a final -s that is not part of -ss, -us or -is ("class", "bus",
+ * "axis" stay whole). Non-Latin words are returned as they are.
+ */
+function singular(word) {
+  if (!/^[a-z]+$/.test(word)) return word;
+  if (IRREGULAR_PLURALS[word]) return IRREGULAR_PLURALS[word];
+  if (word.length > 4 && word.endsWith('ies')) return `${word.slice(0, -3)}y`;
+  if (word.length > 3 && /(s|x|z|ch|sh)es$/.test(word)) return word.slice(0, -2);
+  if (word.length > 3 && word.endsWith('s') && !/(ss|us|is)$/.test(word)) return word.slice(0, -1);
+  return word;
+}
+
 /**
  * Do two topic labels name the same thing? True when they differ only in
- * "&" versus "and" (or "اور"), punctuation, spacing or case. The digest's
+ * "&" versus "and" (or "اور"), punctuation, spacing, case, or an English
+ * word's plural ("Proper Fraction" / "Proper Fractions"). The digest's
  * `topic` and `topic_as_taught` are written separately and often agree in all
  * but that — "Comparing & ordering unlike fractions" / "Comparing and ordering
  * unlike fractions" — and a bracket repeating the topic tells the teacher
@@ -363,7 +388,10 @@ function sameTopic(a, b) {
     .replace(/(^|\s)اور(?=\s|$)/g, ' and ')
     .replace(/[\p{P}\p{S}]/gu, ' ')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .split(' ')
+    .map(singular)
+    .join(' ');
   return norm(a) === norm(b);
 }
 

@@ -144,6 +144,43 @@ describe('lessonLabel — the gloss appears only when it adds information', () =
   });
 });
 
+// Staging 24 Sep: "Mathematics lesson on Proper Fraction (Proper Fractions)" — the
+// two labels differed only in a trailing plural.
+describe('lessonLabel — a singular/plural pair is not a gloss either', () => {
+  const MATHS = (topic, taught) => ({ topic, topic_as_taught: taught, subject: 'maths' });
+  const label = (topic, taught) => L.lessonLabel({ digest: MATHS(topic, taught), quizLanguage: 'ur', teacherLanguage: 'en' });
+
+  test('the live pair: "Proper Fraction" / "Proper Fractions"', () => {
+    const s = label('Proper Fractions', 'Proper Fraction');
+    expect(s).toMatch(/Proper Fraction/);
+    expect(s).not.toMatch(/\(/);
+  });
+
+  test.each([
+    ['-es', 'Adding boxes', 'Adding box'],
+    ['-ies', 'Properties of shapes', 'Property of shape'],
+    ['an irregular plural', 'Children and their families', 'Child and their family'],
+  ])('%s is the same word', (_, topic, taught) => {
+    expect(label(topic, taught)).not.toMatch(/\(/);
+  });
+
+  test('a word that only ends in s is not taken for a plural: "Class" / "Clas" still differ', () => {
+    expect(label('Class work', 'Clas work')).toMatch(/\(/);
+  });
+
+  test('a genuinely different name keeps its bracket', () => {
+    expect(label('Fractions of a whole', 'Proper Fraction')).toMatch(/\(.*Fractions of a whole.*\)/);
+  });
+
+  test('a translation keeps its bracket', () => {
+    const s = L.lessonLabel({
+      digest: { topic: 'singular and plural', topic_as_taught: 'واحد اور جمع', subject: 'urdu' },
+      quizLanguage: 'ur', teacherLanguage: 'en',
+    });
+    expect(s).toMatch(/\(.*singular and plural.*\)/);
+  });
+});
+
 describe('transliterations seen on the live cards (2026-09-05 evening)', () => {
   test('ہول / پارٹس / ٹیسٹ / سرکل are written in English letters', () => {
     const out = L.fixTransliterations('یہ ایک ہول (whole) کے پارٹس کو دکھاتا ہے، ٹیسٹ میں سرکل کی شکل');
