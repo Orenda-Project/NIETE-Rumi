@@ -464,3 +464,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And the recording is analysed as MY OWN lesson
     # The behaviour before the recording ended the wait: the six-hour Classroom Coaching intent
     # still stands, so observe-audio-router routes the second recording to self-coaching.
+  @e2e @observe @i18n @wip @draft @P2
+  Scenario: In Urdu, the observe messages never guess the coach's or the teacher's gender
+    Given the NIETE bot chat is open as a coach whose language is Urdu
+    When I register as a school leader, start an observation of a named teacher, and reach the debrief and send steps
+    Then no message addresses me with a masculine or a feminine verb form (never «رجسٹر ہو گئے», «مشاہدہ کر رہے ہیں», «بات کریں گے», «خود دیکھیں گے»)
+    And no message describes the teacher with one (never «استاد … دیکھیں گے» or «استاد … بھروسہ کرتے ہیں»)
+    And the debrief guide and the coaching card I receive describe the teacher without «استاد چاہتے ہیں» or «استاد چاہتی ہیں»
+    # observe-strings (ur): leader_registered_welcome, the visit-capture prompt, debrief_choice_body,
+    # debrief_record_instruction, send_choice_body, onboard_why — rewritten to a noun agreement, a passive or a
+    # subjunctive. The debrief-guide and coach-feedback prompts carried "refer to the teacher with the respectful
+    # plural (استاد چاہتے ہیں)"; they now carry URDU_THIRD_PERSON_RULE (config/gender-neutral-address.js), and the
+    # HOTS analysis prompt the same rule in Urdu. The model output is content-driven: assert no gendered form, never
+    # a fixed sentence. Proven in tests/language/urdu-gender-neutral-copy.test.js and
+    # bot/tests/observe/third-person-teacher.test.js. @wip.

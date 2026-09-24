@@ -350,10 +350,11 @@ function resultsBody(state, students, language, quiz = null) {
   if (state === 'failed') {
     // The transcript copy names "this lesson's recording"; an lp_v8 quiz had none.
     if (quiz?.quiz_source === LP_V8) return lpFailedResults(quiz, language);
-    // A recording's quiz the MODEL failed says so, as the chat did
-    // (tqCouldNotMakeModel): the recording was not the problem. Every other
-    // reason keeps the line it always had; the Make choices follow either way.
-    return resolveUx(failureReasonOf(quiz?.meta) === 'model_failed' ? 'tqFlowResultsFailedModel' : 'tqFlowResultsFailed', { language });
+    // A recording's quiz says why, the way the chat said it (quiz-sources
+    // TRANSCRIPT_FAILURE_COPY): the recording line only when the recording was
+    // the problem; our model, our questions or our held-back answers otherwise.
+    // The Make choices follow either way.
+    return resolveUx(TRANSCRIPT_FLOW_FAILURE_RESULT[failureReasonOf(quiz?.meta)] || 'tqFlowResultsFailedModel', { language });
   }
   if (state !== 'sent' && state !== 'report_sent') {
     // An lp_v8 quiz that is not waiting for its language was never made
@@ -401,6 +402,18 @@ function resultsBody(state, students, language, quiz = null) {
   if (stopped.length) lines.push(resolveUx('tqFlowStopped', { language, params: { names: nameList(stopped) } }));
   return lines.join('\n');
 }
+
+/**
+ * WHY a recording's quiz failed, on its lesson screen. A reason with no line of
+ * its own is ours (the general "on my side" line), never the recording's.
+ */
+const TRANSCRIPT_FLOW_FAILURE_RESULT = {
+  source_unusable: 'tqFlowResultsFailed',
+  model_failed: 'tqFlowResultsFailedModel',
+  validator_failed: 'tqFlowResultsFailedAuthor',
+  key_conflict: 'tqFlowResultsFailedAuthor',
+  key_disagreement: 'tqFlowResultsFailedKeys',
+};
 
 /**
  * WHY an lp_v8 quiz failed, said the way the chat said it (the reason split in

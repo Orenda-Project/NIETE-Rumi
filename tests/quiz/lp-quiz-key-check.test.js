@@ -384,8 +384,8 @@ describe('SOURCE ANSWERS — the lesson\'s own facts, and separately its planted
 });
 
 describe('the failure copy', () => {
-  test('key_conflict has its own LP copy; a transcript quiz never reaches it', () => {
+  test('key_conflict has its own LP copy; a transcript quiz never reaches it, and would not be told its recording failed', () => {
     expect(failureCopyKey('key_conflict', 'lp_v8')).toBe('tqFailedLpKeyConflict');
-    expect(failureCopyKey('key_conflict', 'transcript')).toBe('tqCouldNotMake');
+    expect(failureCopyKey('key_conflict', 'transcript')).toBe('tqCouldNotMakeAuthor');
   });
 });
