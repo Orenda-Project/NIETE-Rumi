@@ -130,13 +130,13 @@ async function offerShare({ phone, userId, quizId, videoId, language = 'en', ses
     quizId, videoId, userId, language, sessionId,
   }, JOIN_TTL_SECS);
 
+  // The same language the rest of this video-quiz run spoke in.
+  const lang = clampLanguage(language);
   const body = {
-    body: 'Want to send this quiz to your class?\n\n'
-      + "I'll give you one message to forward. Each child gets the quiz in their "
-      + "own chat, and you'll get their results in the morning.",
+    body: ux('vqShareOffer', lang),
     buttons: [
-      { id: SHARE_YES, title: 'Share with class' },
-      { id: SHARE_NO, title: 'Not now' },
+      { id: SHARE_YES, title: ux('vqShareYes', lang) },
+      { id: SHARE_NO, title: ux('vqShareNo', lang) },
     ],
   };
 
@@ -176,7 +176,7 @@ async function handleShareButton(buttonId, phone) {
       logEvent('video_quiz.offer_answered', {
         kind: 'share', choice: 'no', quizId: ctx?.quizId ?? null, sessionId: ctx?.sessionId ?? null,
       });
-      await WhatsAppService.sendMessage(phone, 'No problem — it will be here when you want it.');
+      await WhatsAppService.sendMessage(phone, ux('vqShareDeclined', clampLanguage(ctx && ctx.language)));
     }
     return true;
   }
@@ -197,25 +197,24 @@ async function handleShareButton(buttonId, phone) {
  * read.
  */
 async function deliverClassLink(ctx, phone) {
+  // The forwarded message is read by every child in the class, so it is in the
+  // quiz's language; the lines around it follow the same language.
+  const lang = clampLanguage(ctx && ctx.language);
   const minted = await mintCode(ctx);
   if (!minted) {
-    await WhatsAppService.sendMessage(phone,
-      "Sorry — I couldn't create the class link just now. Try again in a moment.");
+    await WhatsAppService.sendMessage(phone, ux('vqShareLinkFailed', lang));
     return true;
   }
 
   const link = `https://wa.me/${botNumber()}?text=QUIZ-${minted.code}`;
-  await WhatsAppService.sendMessage(phone,
-    'Here is your class message — forward THIS one to your class group:');
+  await WhatsAppService.sendMessage(phone, ux('vqShareForwardThis', lang));
   // Sent as its own message so forwarding it carries nothing else.
-  await WhatsAppService.sendMessage(phone,
-    `📚 *Quiz time!*\n\n${minted.teacherName} has sent you a quiz on `
-    + `*${minted.topic || 'today’s video'}*.\n\n`
-    + `Tap here to start:\n${link}\n\n`
-    + `It takes about 10 minutes. You'll need to type your name and class first.`);
-  await WhatsAppService.sendMessage(phone,
-    `You'll get a report on how your class did tomorrow morning, or as soon as `
-    + `everyone has finished.`);
+  await WhatsAppService.sendMessage(phone, ux('vqClassMessage', lang, {
+    teacher: minted.teacherName,
+    topic: minted.topic || ux('vqTodaysVideo', lang),
+    link,
+  }));
+  await WhatsAppService.sendMessage(phone, ux('vqShareReportPromise', lang));
 
   logEvent('video_quiz.share_code_minted', {
     userId: ctx.userId, quizId: ctx.quizId, code: minted.code,

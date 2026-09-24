@@ -1116,7 +1116,8 @@ async function finish(phone, state) {
       .eq('id', state.sessionId)
       .maybeSingle();
     if (session?.invited_by_student_id) {
-      await Invite.notifyInviter(session)
+      // The quiz's language — quiz_sessions carries none, the state does.
+      await Invite.notifyInviter(session, state.language)
         .catch((err) => logToFile('⚠️ inviter notify failed', { error: err.message }));
     }
     await Invite.offerInvite({
