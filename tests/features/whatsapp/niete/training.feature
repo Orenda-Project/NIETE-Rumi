@@ -556,10 +556,13 @@ Feature: NIETE (ICT) Teacher Training
     And a picture that names its parts calls them P, Q, R or 1, 2, 3 — never A, B or C, the letters of the answer buttons — in the picture, the options and the feedback alike, and those names are big enough to read on the phone
     And counters are drawn only where the child can count the answer from them, never beside a product or a common multiple they do not show
     And in an Urdu quiz a child's name from the lesson is written in Urdu script, in the question and in the picture
+    And an equation in a question, such as 7 × 4 = 28, reads in the order it was written — on the card, on my PDF and in the WhatsApp text — even inside an Urdu sentence, and never with a letter x as the times sign
     # Part names: transcript-quiz-figure relabelLetterParts, run by the validator (P/Q/R/S on bars, number
     # lines, shapes and circuits; 1/2/3/4 otherwise); fraction_bar and circuit font ceilings 2.4 / 2.0.
     # Counters: FIGURE_MISMATCH now covers count_objects. Names: NAMES ARE NOT TERMS in the Urdu style rule;
     # a name left in English letters is recorded as URDU_NAME_LATIN (soft, transcript_quiz.latin_name).
+    # Equations: quiz-math spanEquations makes an equation written in prose ("7 x 4 = 28") one maths
+    # expression — typeset in a left-to-right isolate on the card and PDF, one LRI…PDI in a WhatsApp text.
     # Author prompt: "at least three, never more than half", PLAN THE PICTURES FIRST, the read-off recipes
     # and "PICTURES, AGAIN" at the end, and figure_role "model" (grade 1-5 maths only). A step of a
     # procedure is a text question; a model picture beside one is still refused (FIGURE_MISMATCH).
