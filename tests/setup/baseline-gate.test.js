@@ -30,6 +30,8 @@ const {
   parseCliArgs,
   snapshotGrowth,
   normaliseOffender,
+  needsConfirmation,
+  flakyTwiceGates,
 } = require('../baseline-gate');
 
 const ESC = String.fromCharCode(27);
@@ -595,5 +597,64 @@ describe('snapshotGrowth — counts per file, so a bare path:line cannot hide', 
     const g = snapshotGrowth(snap(['bot/x.js:10']), snap(['bot/x.js:10', 'bot/x.js:30']));
     expect(g.grew).toBe(true);
     expect(g.addedOffenders).toEqual([{ suite: 'tests/setup/g.test.js', offenders: ['bot/x.js:30'] }]);
+  });
+});
+
+/**
+ * A suite on the Flaky list is never gated — which is right for a flake and wrong for a
+ * suite that has quietly become a deterministic failure. Both have happened: the two portal
+ * certificate suites have failed on every run since a route change on 2026-09-18, while the
+ * gate printed them, run after run, as "Flaky — inconclusive, not gating".
+ *
+ * The confirmation run already exists to separate a flake from a real failure. So a flaky-
+ * listed suite that fails in BOTH runs is reported as such. It is advisory by default (the
+ * two portal suites would otherwise redden every PR until they are fixed) and gates when
+ * BASELINE_FLAKY_TWICE=gate — the switch to flip once the list is honest again.
+ */
+describe('flaky-listed suites that fail in BOTH runs', () => {
+  const FLAKY = ['tests/training/portal-grand-quiz.test.js', 'tests/queue/sqs-cancel-by-group.test.js'];
+  const run = (suites) => Object.fromEntries(suites.map((s) => [s, { failing: ['t'], offenders: [] }]));
+
+  it('a first run whose only failures are flaky-listed still asks for the confirmation run', () => {
+    const first = compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY });
+    expect(first.clean).toBe(true);
+    expect(needsConfirmation(first)).toBe(true);
+  });
+
+  it('a clean first run with no flaky failure does not pay for a second run', () => {
+    expect(needsConfirmation(compareSnapshots({}, {}, { flaky: FLAKY }))).toBe(false);
+  });
+
+  it('names the flaky-listed suites that failed in both runs, and only those', () => {
+    const first = compareSnapshots(run(FLAKY), {}, { flaky: FLAKY });
+    const second = compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY });
+    const r = confirmRegressions(first, second);
+    expect(r.flakyTwice).toEqual([FLAKY[0]]);
+  });
+
+  it('is advisory by default — the verdict stays clean', () => {
+    const first = compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY });
+    const r = confirmRegressions(first, compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY }));
+    expect(r.clean).toBe(true);
+  });
+
+  it('gates when asked to', () => {
+    const first = compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY });
+    const r = confirmRegressions(first, compareSnapshots(run([FLAKY[0]]), {}, { flaky: FLAKY }),
+      { strictFlaky: true });
+    expect(r.clean).toBe(false);
+  });
+
+  it('a flaky suite that failed once and passed on the confirmation run gates nothing, even strict', () => {
+    const first = compareSnapshots(run([FLAKY[1]]), {}, { flaky: FLAKY });
+    const r = confirmRegressions(first, compareSnapshots({}, {}, { flaky: FLAKY }), { strictFlaky: true });
+    expect(r.flakyTwice).toEqual([]);
+    expect(r.clean).toBe(true);
+  });
+
+  it('reads the switch from the environment, and nothing else turns it on', () => {
+    expect(flakyTwiceGates({ BASELINE_FLAKY_TWICE: 'gate' })).toBe(true);
+    expect(flakyTwiceGates({})).toBe(false);
+    expect(flakyTwiceGates({ BASELINE_FLAKY_TWICE: 'yes' })).toBe(false);
   });
 });
