@@ -83,6 +83,9 @@ const SKIP_REASONS_USED = [
   'offered_today',
   'sent_today',
   'window_closed',
+  // At send time only: a cohort built late (the worker was down at 15:00, or the
+  // switch went on in the evening) is due the moment it exists.
+  'quiet_hours',
 ];
 
 // ─── flags ───────────────────────────────────────────────────────────────────
@@ -617,6 +620,11 @@ async function send(row, { now } = {}) {
   };
 
   if (!enabled()) return skip('disabled');
+  // Never at night. `prepare` builds the cohort on any tick from the send hour to
+  // midnight and books every row for the send hour, so a late build is due at once;
+  // an offer about today's lessons at 22:00 is stale, not deferred (the coaching ask
+  // keeps the same rule). The window is the shared one (NUDGE_QUIET_HOURS_PKT).
+  if (PktTime.deferQuietHours(at).getTime() !== at.getTime()) return skip('quiet_hours');
   const classes = ((row.context && row.context.classes) || []).filter((c) => c && (c.lessons || []).length);
   const lessonCount = classes.reduce((n, c) => n + c.lessons.length, 0);
   if (!lessonCount) return skip('no_lesson');

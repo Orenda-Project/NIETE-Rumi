@@ -441,3 +441,15 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # canSelfCoach is false for a coach, so a DC intent can never be declared by
     # one — the refusal above does not write the state, and the router would
     # ignore it if it somehow existed.
+
+  @e2e @observe @coaching @wip @draft @config-gated @P2
+  Scenario: A principal's second recording after their own lesson was coached is asked whose it is
+    Given the NIETE bot chat is open
+    And my role is "principal"
+    And I tapped "Classroom Coaching" on /menu and my first classroom recording started my own coaching
+    When I send a second classroom recording longer than 15 minutes the same morning
+    Then the bot asks "Whose observation is this?"
+    And "My own lesson" is one of the choices
+    # The recording now ends the Classroom Coaching wait (coaching-session initiateSession clears the
+    # teacher's coaching state), so a later recording is no longer read as the same declared intent.
+    # Before, the six-hour wait outlived the first recording and routed every later one to self-coaching.

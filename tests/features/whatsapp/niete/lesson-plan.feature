@@ -562,3 +562,25 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # and re-checked, then dropped if it still contradicts; a quiz left under six questions fails as
     # key_conflict and the teacher is told the quiz was held back — it is never sent with a wrong key.
     # The check fails open: if the checker itself errors, the quiz ships and meta.key_check.status is "error".
+
+  # ═══════════ ADDED 2026-09-24 · the afternoon offer keeps the day's other questions and the night (@wip) ═══════════
+
+  @e2e @quiz @wip @draft @config-gated @negative @P1
+  Scenario: The afternoon quiz offer is never sent at night
+    Given a teacher took a K-5 lesson plan today before 14:00 PKT
+    And the teacher-nudge sweep did not run between 15:00 and 21:00 PKT
+    When the sweep runs at 21:30 PKT and builds today's cohort
+    Then no quiz offer is sent to the teacher tonight
+    And the teacher's lp_quiz_offer row for today is skipped with the reason quiet_hours
+    # prepare() builds the cohort on any tick from the send hour to midnight and books every row for the
+    # send hour, so a late build is due at once. The likely way here is the switch going on in the evening.
+    # The window is the shared one (NUDGE_QUIET_HOURS_PKT, default 21:00–07:00).
+
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: The afternoon quiz offer waits while a lesson-plan survey question is open
+    Given a teacher took a K-5 lesson plan today before 14:00 PKT
+    And at 14:58 PKT the teacher tapped "Not really" on another lesson plan's survey and was asked what did not work
+    When the sweep reaches the send hour
+    Then the quiz offer is not sent while that question is open
+    And the quiz offer arrives once the question's ten minutes are over
+    # Same rule as the coaching ask: one open question at a time (teacher-nudges.sweeper → nudges/open-question).
