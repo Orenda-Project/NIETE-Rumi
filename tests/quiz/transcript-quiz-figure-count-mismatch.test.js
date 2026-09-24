@@ -65,3 +65,17 @@ describe('allowed: what a counters picture can show', () => {
     expect(mismatch(q(stem, options, figure, { figure_role: 'count_compare' }))).toEqual([]);
   });
 });
+
+describe('an answer written as a sum is checked by its result', () => {
+  // Second replay (grade 4 Urdu): bars of 3/4 and 2/5 beside "which product goes
+  // under 3/4?" keyed "$3 \\times 5 = 15$" passed, because the key was not a bare
+  // number. Its result is.
+  const bars = { type: 'fraction_bar', bars: [{ parts: 4, shaded: 3 }, { parts: 5, shaded: 2 }] };
+  test('bars that cannot produce 15 are refused', () => {
+    expect(mismatch(q('Which product goes under $\\frac{3}{4}$?', ['$3 \\times 5 = 15$', '$2 \\times 4 = 8$', '$3 \\times 4 = 12$'], bars))).toHaveLength(1);
+  });
+  test('counters that show 12 pass', () => {
+    const grouped = { type: 'count_objects', picto: 'counter', count: 12, group: 4 };
+    expect(mismatch(q('Which sentence matches the picture?', ['$3 \\times 4 = 12$', '$3 + 4 = 7$', '$4 \\times 4 = 16$'], grouped))).toEqual([]);
+  });
+});
