@@ -27,6 +27,7 @@ const Author = require('./transcript-quiz-author.service');
 const {
   validate, MIN_QUESTIONS, figureDensity, latinNames,
 } = require('./transcript-quiz-validator');
+const { peopleSpellings, spellText } = require('./transcript-quiz-people');
 const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
 const {
   teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
@@ -1595,7 +1596,8 @@ async function process(quizId, payload = {}) {
         if (latin.length) {
           logEvent('transcript_quiz.latin_name_found', {
             quizId, after: attempt, questions: [...new Set(indicesOf(latin))].length, indices: [...new Set(indicesOf(latin))],
-            names: [...new Set(latin.map((e) => /"([^"]+)"/.exec(e)[1]))],
+            // how many names, never the names (data standard D4: no names in logs)
+            names: new Set(latin.map((e) => /"([^"]+)"/.exec(e)[1])).size,
           });
         }
         // The picture is asked for on the first attempt of a drawable lesson
@@ -1984,7 +1986,8 @@ async function process(quizId, payload = {}) {
     if (names.length) {
       logEvent('transcript_quiz.latin_name', {
         quizId, quiz_source: quizSource,
-        names: [...new Set(names.map((e) => /"([^"]+)"/.exec(e)[1]))],
+        // how many names, never the names (data standard D4: no names in logs)
+        names: new Set(names.map((e) => /"([^"]+)"/.exec(e)[1])).size,
         questions: [...new Set(names.map((e) => Number(/^q(\d+)/.exec(e)[1])))],
       });
     }
@@ -2005,16 +2008,20 @@ async function process(quizId, payload = {}) {
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
     const { error: insErr } = await supabase.from('quiz_questions').insert(rows);
     if (insErr) throw new Error(`quiz_questions insert failed: ${insErr.message}`);
+    // The teacher's summaries are the teacher's Urdu page too: each person the
+    // digest recorded is written in the Urdu spelling there as well.
+    const spellSummary = (t) => (language === 'ur' && typeof t === 'string' && /\p{Script=Arabic}/u.test(t)
+      ? spellText(t, peopleSpellings(digest)) : t);
     meta = {
       ...meta,
       step: 'ready',
       question_count: rows.length,
       ready_at: new Date().toISOString(),
-      ...(readyLessonSummary ? { lesson_summary: readyLessonSummary } : {}),
+      ...(readyLessonSummary ? { lesson_summary: spellSummary(readyLessonSummary) } : {}),
       // bd-2yyry.7 — the sheet's two one-liners, authored alongside the summary.
-      ...(lastExtras.lesson_summary_short ? { lesson_summary_short: lastExtras.lesson_summary_short } : {}),
+      ...(lastExtras.lesson_summary_short ? { lesson_summary_short: spellSummary(lastExtras.lesson_summary_short) } : {}),
       ...(lastExtras.checks_summary
-        ? { digest: { ...(meta.digest || {}), checks_summary: lastExtras.checks_summary } } : {}),
+        ? { digest: { ...(meta.digest || {}), checks_summary: spellSummary(lastExtras.checks_summary) } } : {}),
     };
     await updateQuiz(quizId, { status: 'ready', meta });
     logEvent('transcript_quiz.ready', {
