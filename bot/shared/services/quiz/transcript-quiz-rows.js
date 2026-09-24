@@ -111,16 +111,38 @@ function normaliseTopic(topic) {
  * topic needs bidi isolation, nothing else.
  */
 function composeDescription({ topic, status }, max, { language = null } = {}) {
+  // The same rule with no label — one implementation, so the two cannot drift.
+  return composeLabelledDescription({ label: '', topic, status }, max, { language });
+}
+
+const SEP = ' · ';
+
+/**
+ * The row DESCRIPTION with its SOURCE LABEL first: `${label} · ${topic} · ${status}`.
+ *
+ * The label ("From lesson plan" / "From transcript") ALWAYS survives — it is
+ * the one thing the operator asked every row to carry. Below it the existing
+ * rule holds (composeDescription): the topic is the field's owner, so when the
+ * three do not fit 72 code points the STATUS gives, never the topic; only when
+ * the label and the topic alone overflow is the topic word-cut to fit. The
+ * label and the status are catalog strings in the row's language; only the
+ * topic can be in the other script, so only it is isolated.
+ */
+function composeLabelledDescription({ label, topic, status }, max, { language = null } = {}) {
+  const head = label ? String(label) : '';
+  const tail = status ? String(status) : '';
   const raw = normaliseTopic(topic);
-  const s = status ? String(status) : '';
-  const isolated = isolateIfMixed(raw, language);
+  const isolated = raw ? isolateIfMixed(raw, language) : '';
+  const join = (...parts) => parts.filter(Boolean).join(SEP);
+  const full = join(head, isolated, tail);
+  if (cpLen(full) <= max) return full;
+  const withoutStatus = join(head, isolated);
+  if (cpLen(withoutStatus) <= max) return withoutStatus;
   const cost = cpLen(isolated) - cpLen(raw);        // 0 or 2
-  const budget = max - cost;
-  const combined = s ? `${isolated} · ${s}` : isolated;
-  if (cpLen(combined) <= max) return combined;
-  return isolateIfMixed(truncateWords(raw, budget), language);
+  const budget = max - cpLen(join(head, 'x')) + 1 - cost;
+  return join(head, isolateIfMixed(truncateWords(raw, Math.max(1, budget)), language));
 }
 
 module.exports = {
-  truncateWords, composeTitle, composeDescription, normaliseTopic, isolateIfMixed, scriptOf,
+  truncateWords, composeTitle, composeDescription, composeLabelledDescription, normaliseTopic, isolateIfMixed, scriptOf,
 };

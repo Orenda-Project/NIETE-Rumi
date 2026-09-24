@@ -48,6 +48,8 @@ const { oneAttemptPerChild } = require('../services/quiz/one-attempt-per-child')
 const {
   TRANSCRIPT, LP_V8, lessonSessionFor, failureReasonOf, lpRemakeable,
 } = require('../services/quiz/quiz-sources');
+const Providers = require('../services/quiz/quiz-lesson-providers');
+const QuizMenuFlags = require('../services/quiz/quiz-menu-flags');
 
 /** An lp_v8 quiz's key in the Flow: it has no session id to carry. */
 const LP_KEY_PREFIX = 'lp_';
@@ -109,6 +111,21 @@ function topicOf(quiz, session, language) {
   );
 }
 
+/**
+ * The item's third line: WHERE it came from, then the topic —
+ * "From lesson plan · Place value…". The label is a catalog string in the
+ * teacher's language and always survives; the topic takes the rest of the 80
+ * code points (and only it is isolated, being the one part whose script is not
+ * the teacher's). This is the published Flow's own `metadata` field, so the
+ * label needs no Flow JSON change.
+ */
+function labelledMeta(label, topic, language) {
+  // QUIZ_MENU_SOURCE_LABELS off: the topic alone, exactly as before.
+  if (!QuizMenuFlags.sourceLabels()) return fitIsolated(topic, META_MAX, language);
+  const head = `${label} · `;
+  return `${head}${fitIsolated(topic, META_MAX - cp(head), language)}`;
+}
+
 /** The teacher behind a `<userId>:transcript-quiz:<ts>` token. */
 async function resolveTeacher(flowToken) {
   const userId = String(flowToken || '').split(':')[0];
@@ -140,8 +157,8 @@ function emptyItem(language) {
     id: EMPTY_ID,
     'main-content': {
       title: resolveUx('tqFlowEmptyTitle', { language }),
-      description: resolveUx('tqFlowEmptyDesc', { language }),
-      metadata: resolveUx('tqFlowEmptyMeta', { language }),
+      description: resolveUx(QuizMenuFlags.lessonRows() ? 'tqFlowEmptyDescPlans' : 'tqFlowEmptyDesc', { language }),
+      metadata: resolveUx(QuizMenuFlags.lessonRows() ? 'tqFlowEmptyMetaPlans' : 'tqFlowEmptyMeta', { language }),
     },
     // Tapping it just asks for page 1 again — a lesson recorded since the Flow
     // opened shows up, and nothing is a dead end.
@@ -164,8 +181,8 @@ async function lessonsScreen(teacher, page, extra = {}) {
   const p = Number.isFinite(Number(page)) && Number(page) > 0 ? Math.floor(Number(page)) : 1;
   // ONE list (PLAN_R8 D11): the recorded lessons and the lp_v8 quizzes, in the
   // one order the list message uses too — see List.lessonItems.
-  const { sessions, quizzes, counts } = await List.loadLessonPage(teacher.id, p * PER_PAGE + 1);
-  const sorted = List.lessonItems(sessions, quizzes);
+  const { sessions, quizzes, counts, lessons } = await List.loadLessonPage(teacher.id, p * PER_PAGE + 1);
+  const sorted = List.lessonItems(sessions, quizzes, lessons);
   const total = sorted.length;
   let start = (p - 1) * PER_PAGE;
   let pageNo = p;
@@ -176,7 +193,8 @@ async function lessonsScreen(teacher, page, extra = {}) {
   const slice = sorted.slice(start, start + PER_PAGE);
   if (!slice.length) return base;
 
-  const items = slice.map(({ key, session: s, quiz, date: when }) => {
+  const items = slice.map((entry) => {
+    const { key, session: s, quiz, date: when } = entry;
     const subject = subjectLabel(quiz?.subject || s.analysis_data?.subject, language);
     const date = formatLessonDate(when, language);
     return {
@@ -184,7 +202,7 @@ async function lessonsScreen(teacher, page, extra = {}) {
       'main-content': {
         title: composeTitle({ date, subject }, TITLE_MAX),
         description: truncateWords(flowStatus(quiz, language, quiz && counts.get(quiz.id)), DESC_MAX),
-        metadata: fitIsolated(topicOf(quiz, s, language), META_MAX, language),
+        metadata: labelledMeta(List.rowLabel(entry, language), topicOf(quiz, s, language), language),
       },
       'on-click-action': { name: 'data_exchange', payload: { step: 'lesson', session_id: key } },
     };
@@ -227,6 +245,26 @@ async function lessonsScreen(teacher, page, extra = {}) {
  *  teacher's: both reads are filtered on the owner, not checked afterwards. */
 async function loadLesson(teacher, sessionId) {
   if (!teacher?.id || !sessionId) return null;
+  const planned = Providers.parseLessonKey(sessionId);
+  // QUIZ_MENU_LESSON_ROWS off: a lesson key from an older screen is "not found".
+  if (planned && !QuizMenuFlags.lessonRows()) return null;
+  if (planned) {
+    // A lesson with no quiz when the list was drawn. Read afresh: it may have
+    // stopped being makeable (null → "not found"), or a quiz may have been made
+    // for it since — then the lesson IS that quiz, and every screen below reads
+    // it as one.
+    const { provider, lessonRef } = planned;
+    const lesson = provider.get ? await provider.get(teacher.id, lessonRef) : null;
+    if (!lesson) return null;
+    const quiz = provider.existingQuiz ? await provider.existingQuiz(teacher.id, lesson) : null;
+    const session = {
+      id: sessionId,
+      created_at: lesson.date,
+      analysis_data: { topic: lesson.topic, subject: lesson.subject },
+      ...(quiz ? lessonSessionFor(quiz) : {}),
+    };
+    return { session, quiz: quiz || null, lesson };
+  }
   if (String(sessionId).startsWith(LP_KEY_PREFIX)) {
     // An lp_v8 quiz: the quiz IS the lesson. Its "session" is the lesson date
     // and the key it travelled with, so every screen below reads it unchanged.
@@ -422,13 +460,13 @@ function doneAction(language) {
  * made has nothing to read yet, and it goes to the terminal "still being made"
  * screen instead (lessonScreenFrom).
  */
-function actionsFor({ state, quiz, session, language, finished = 0 }) {
+function actionsFor({ state, quiz, session, language, finished = 0, lesson = null }) {
   if (state === 'making') return [];
-  const list = baseActions({ state, quiz, session, language, finished });
+  const list = baseActions({ state, quiz, session, language, finished, lesson });
   return list.length ? list : [doneAction(language)];
 }
 
-function baseActions({ state, quiz, session, language, finished = 0 }) {
+function baseActions({ state, quiz, session, language, finished = 0, lesson = null }) {
   if (state === 'sent' || state === 'report_sent') {
     const out = [];
     // A report needs a class link to count sessions against; a resend needs the
@@ -457,6 +495,16 @@ function baseActions({ state, quiz, session, language, finished = 0 }) {
     }
     if (!canReport && out.length) out.push(doneAction(language));
     return out;
+  }
+  // A lesson plan with no quiz yet (a provider lesson): made here, on request,
+  // in the language the teacher picks — the recording's behaviour.
+  if (!quiz && lesson && lesson.source !== TRANSCRIPT) {
+    return makeActions({
+      subject: lesson.subject,
+      rule: quizLanguageFor(lesson.subject, null),
+      description: resolveUx('tqFlowActionMakeDescLp', { language }),
+      language,
+    });
   }
   // An lp_v8 quiz exists because the teacher said yes to the afternoon offer;
   // there is no coaching session to make one FROM here (PLAN_R8 §3.4). The one
@@ -503,7 +551,7 @@ function makeActions({ subject, rule, description, language }) {
   }));
 }
 
-function lessonScreenFrom({ teacher, session, quiz, students, language, extra = {} }) {
+function lessonScreenFrom({ teacher, session, quiz, students, language, extra = {}, lesson = null }) {
   const state = List.quizState(quiz);
   const counts = {
     started: students.length,
@@ -515,7 +563,7 @@ function lessonScreenFrom({ teacher, session, quiz, students, language, extra = 
   // directly below already carries started/finished/average, and the caption
   // repeating it in longer words was the same sentence twice.
   const status = flowStatus(quiz, language, counts);
-  const actions = actionsFor({ state, quiz, session, language, finished: counts.finished });
+  const actions = actionsFor({ state, quiz, session, language, finished: counts.finished, lesson });
   // The published LESSON screen draws a RadioButtonsGroup that is
   // `required: true` over ${data.actions} (literals since the chooser's
   // visible/required bindings made its value arrive empty). An empty list
@@ -616,7 +664,7 @@ async function stepLesson(teacher, screenData) {
   if (!loaded) {
     return lessonsScreen(teacher, 1, { error_message: resolveUx('tqFlowErrNotYours', { language }) });
   }
-  const { session, quiz } = loaded;
+  const { session, quiz, lesson } = loaded;
   const state = List.quizState(quiz);
   const students = (state === 'sent' || state === 'report_sent')
     ? await loadStudents(quiz.id, teacher.id) : [];
@@ -632,7 +680,7 @@ async function stepLesson(teacher, screenData) {
   // empty chooser (lessonScreenFrom holds the same line for every caller).
   // A failed lp_v8 quiz is not "still being made": it gets its LESSON screen,
   // whose results say why, with Make it again (where it can help) and Done.
-  return lessonScreenFrom({ teacher, session, quiz, students, language });
+  return lessonScreenFrom({ teacher, session, quiz, students, language, lesson });
 }
 
 async function stepAction(teacher, screenData) {
@@ -650,15 +698,15 @@ async function stepAction(teacher, screenData) {
     });
     return lessonsScreen(teacher, 1, { error_message: resolveUx('tqFlowErrNotYours', { language }) });
   }
-  const { session, quiz } = loaded;
+  const { session, quiz, lesson } = loaded;
   const state = List.quizState(quiz);
   const students = (state === 'sent' || state === 'report_sent')
     ? await loadStudents(quiz.id, teacher.id) : [];
   const finished = students.filter((s) => s.status === 'completed').length;
-  const available = actionsFor({ state, quiz, session, language, finished }).map((a) => a.id);
+  const available = actionsFor({ state, quiz, session, language, finished, lesson }).map((a) => a.id);
 
   const refuse = (key) => lessonScreenFrom({
-    teacher, session, quiz, students, language,
+    teacher, session, quiz, students, language, lesson,
     extra: { error_message: resolveUx(key, { language }) },
   });
 
@@ -686,7 +734,7 @@ async function stepAction(teacher, screenData) {
       userId: teacher.id, reason: 'nothing_to_report', quizId: quiz.id, started: students.length,
     });
     return lessonScreenFrom({
-      teacher, session, quiz, students, language,
+      teacher, session, quiz, students, language, lesson,
       extra: {
         results: markLines(resolveUx('tqFlowResultsNothingToReport', { language }), resolveUx('lineDirMark', { language })),
       },
@@ -783,16 +831,18 @@ async function stepAction(teacher, screenData) {
       });
     });
   } else {
+    // A lesson with no quiz yet — a lesson plan (`lsn_…`) or a recording (its
+    // session id): its provider claims it and makes the quiz, once, in the
+    // chosen language. The claim is what makes a second submit a no-op.
+    const planned = Providers.parseLessonKey(sessionId);
+    const provider = planned ? planned.provider : Providers.providerFor(TRANSCRIPT);
+    const lessonRef = planned ? planned.lessonRef : sessionId;
     runAfterResponse('make', quiz?.id || null, async () => {
-      const claimed = await List.claimForGeneration({
-        userId: teacherId, sessionId, session, quiz, quizLanguage: chosen, source: 'flow',
-      });
-      if (claimed.error) return false;
-      await List.enqueueGenerate(claimed.quizId, phone, language, 'flow');
-      logEvent('transcript_quiz.list_generate', {
-        userId: teacherId, quizId: claimed.quizId, from: claimed.from, source: 'flow', language: chosen,
-      });
-      return true;
+      const who = { ...teacher, id: teacherId };
+      const out = await provider.start(who, lessonRef, { phone, quizLanguage: chosen, via: 'flow' });
+      // Made already (a second submit, the other door): the chat answers with that quiz.
+      await List.answerTakenLesson(out, phone, who);
+      return Boolean(out && (out === true || ['queued', 'asked'].includes(out.outcome)));
     });
   }
   // The chat already says "making it now" (enqueueGenerate sends tqMaking), so

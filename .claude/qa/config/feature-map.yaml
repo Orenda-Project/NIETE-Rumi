@@ -109,6 +109,7 @@ features:
     - bot/shared/routes/quiz-flow-endpoint.js
     - bot/shared/routes/transcript-quiz-flow-endpoint.js      # the /quiz Flow (lp_v8 + transcript quizzes, one list)
     - bot/shared/services/quiz/**
+    - bot/shared/services/student-ingress.js                # a child's door: their quizzes, "quiz" typed mid-quiz
     - bot/shared/services/exam/**
     - bot/shared/services/exam-checker/**
     - bot/shared/handlers/exam-checker.handler.js

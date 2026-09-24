@@ -465,6 +465,15 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the quizzes row has quiz_source lp_v8, no coaching session, and meta.lessons carrying the served lesson's version
     And tapping "Make the quiz" again says the quiz is already on its way and makes no second quiz
 
+  @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: The afternoon offer never makes a second quiz for a lesson already made into a quiz from /quiz
+    Given the NIETE bot chat is open and I took one Grade 4 Urdu lesson plan today before 14:00 PKT
+    And I already made its quiz from "/quiz"
+    When the send hour passes and the teacher-nudge sweep runs
+    Then no afternoon quiz offer names that lesson
+    And if an offer for it had already arrived, tapping "Make the quiz" says I already have a quiz for this lesson and makes nothing new
+    # lp-quiz-offer: the cohort drops lessons an lp_v8 quiz covers; accept() goes through lp-lesson-claim. @wip.
+
   @e2e @quiz @language @wip @draft @config-gated @P1
   Scenario: Make the quiz on a maths lesson asks which language the quiz is written in
     Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 4 Maths lesson has arrived

@@ -219,6 +219,10 @@ function isSelectVideoButton({ buttonId, buttonPayload, buttonText } = {}) {
 // it can be tested without this module's dependency graph, and widened there to
 // match the plural (`/videos`), which used to fall through to the chat LLM.
 const { isVideoCommand } = require('./video-command');
+// A bare request for the quiz menu, in any spelling. The /quiz door and the
+// reason windows below both read it, so a quiz request is never a 👎 reason.
+const { isQuizMenuRequest } = require('../services/quiz/quiz-menu-request');
+const QuizMenuFlags = require('../services/quiz/quiz-menu-flags');
 
 
 /**
@@ -486,6 +490,14 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     }
   }
 
+  // A bare quiz request ("quiz", "quiz/", "mera quiz", «کویز») is a COMMAND,
+  // exactly as a slash command is: the reason windows below let it pass (their
+  // window stays open for the real reason) and the /quiz door further down
+  // takes it. In production two teachers' "quiz" was stored as a lesson plan's
+  // 👎 reason (14 days to 24 Sep).
+  // QUIZ_BARE_TEXT_TO_MENU off: false — the windows take whatever comes, as before.
+  const quizMenuRequest = QuizMenuFlags.bareTextToMenu() && isQuizMenuRequest(messageBody);
+
   // ============================================================
   // LP FEEDBACK — REASON CAPTURE
   // If the teacher tapped 👎 on a recent LP within the last 10 minutes,
@@ -496,7 +508,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // Coaching survey — same shape, checked first because its window is opened by a button
   // tap that is unambiguous; an open coaching window means she is answering "what could we
   // do better?" and that must not reach intent detection.
-  if (user?.id) {
+  if (user?.id && !quizMenuRequest) {
     try {
       const CoachingFeedbackService = require('../services/coaching/coaching-feedback.service');
       const tookIt = await CoachingFeedbackService.handlePendingReason(user.id, from, messageBody);
@@ -513,7 +525,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     }
   }
 
-  if (user?.id) {
+  if (user?.id && !quizMenuRequest) {
     try {
       const consumed = await LpFeedbackService.consumeReasonIfPending(user.id, from, messageBody);
       if (consumed) {
@@ -537,7 +549,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // It also has to beat the 6-12 EDIT router further down this function, which would otherwise
   // read "the activity was too long" as an instruction to rewrite the lesson — spending a model
   // call and changing her document when she was answering a question we asked her.
-  if (user?.id && messageBody) {
+  if (user?.id && messageBody && !quizMenuRequest) {
     try {
       const Lp612FeedbackService = require('../services/lp612-feedback.service');
       const consumed = await Lp612FeedbackService.consumeReasonIfPending(user.id, from, messageBody);
@@ -662,7 +674,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // on a recent video survey and is within the 10-min reason window, capture
   // this text as the reason and short-circuit. Slash commands bypass this
   // (handled inside consumeReasonIfPending).
-  if (user?.id && messageBody) {
+  if (user?.id && messageBody && !quizMenuRequest) {
     try {
       const StudentVideoFeedbackService = require('../services/student-video-feedback.service');
       const consumed = await StudentVideoFeedbackService.consumeReasonIfPending(user.id, from, messageBody);
@@ -1204,7 +1216,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   const TranscriptQuizList = require('../services/quiz/transcript-quiz-list.service');
   const TranscriptQuizOffer = require('../services/quiz/transcript-quiz-offer.service');
-  if (TranscriptQuizList.isQuizCommand(trimmedMessage)
+  if (TranscriptQuizList.isQuizCommand(messageBody)
       && !(TranscriptQuizOffer.enabled() === false && !/^\/quiz(\s|$)/i.test(trimmedMessage))) {
     logToFile('📝 /quiz command detected', { userId: user?.id, phoneNumber: from });
     if (!user) {
@@ -1215,37 +1227,19 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       );
       return;
     }
-    // Transcript quiz (flag-gated): /quiz lists the teacher's own lessons and
-    // makes a quiz from the recording — replacing the parent-quiz path that
-    // needed parents' phone numbers and produced zero quizzes on NIETE.
+    // Transcript quiz (flag-gated): /quiz — and every bare spelling of it
+    // (quiz-menu-request.js) — opens the teacher's quiz menu: their recorded
+    // lessons and lesson plans, and the quizzes made from them. WHICH menu, for
+    // whoever holds this phone (a question waiting, a child, a coach, a
+    // teacher), is decided in one place: quiz-menu-entry.service.
     if (TranscriptQuizOffer.enabled()) {
       typingController.stop();
       try {
         const responseLanguage = await getUserLanguage(user.id) || null;
-        const teacher = { ...user, preferred_language: responseLanguage || user.preferred_language };
-        // Presence-gated, read at call time like /video: with
-        // TRANSCRIPT_QUIZ_FLOW_ID set, /quiz opens ONE Flow — the lesson list,
-        // its paging, the lesson's live results and the actions all happen
-        // inside it, so the teacher never drops back to chat mid-task. Unset,
-        // /quiz sends the interactive list message exactly as before; that is
-        // the rollback lever, and both paths stay tested.
-        //
-        // A teacher with nothing to list is answered in chat: a NavigationList
-        // needs at least one item, and "no lessons yet" is not a lesson.
-        const transcriptQuizFlowId = process.env.TRANSCRIPT_QUIZ_FLOW_ID || '';
-        if (transcriptQuizFlowId && await TranscriptQuizList.hasEligibleLessons(user.id)) {
-          const uxLanguage = teacher.preferred_language;
-          await WhatsAppService.sendFlow(from, {
-            flowId: transcriptQuizFlowId,
-            header: resolveUx('tqFlowChatHeader', { language: uxLanguage }),
-            body: resolveUx('tqFlowChatBody', { language: uxLanguage }),
-            buttonText: resolveUx('tqFlowChatCta', { language: uxLanguage }),
-            flowToken: `${user.id}:transcript-quiz:${Date.now()}`,
-          });
-          logToFile('📝 sent transcript quiz flow (/quiz)', { userId: user.id });
-          return;
-        }
-        await TranscriptQuizList.showList(teacher, from, responseLanguage);
+        const QuizMenuEntry = require('../services/quiz/quiz-menu-entry.service');
+        await QuizMenuEntry.openQuizMenu({
+          user, from, language: responseLanguage, sessionId, trigger: 'text',
+        });
       } catch (error) {
         logToFile('❌ transcript quiz: /quiz list failed', { userId: user.id, error: error.message }, 'error');
       }
