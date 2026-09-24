@@ -113,7 +113,7 @@ describe('the repair is told it may replace, and when it must', () => {
     // selected_because ran to 34 words — both refused, and the quiz stayed one picture short
     expect(prompt).toMatch(/A REPLACEMENT IS A NEW QUESTION/);
     expect(prompt).toMatch(/SELECTED BECAUSE[^\n]*at most 15 words/);
-    expect(prompt).toMatch(/TEACHER FIELDS/);
+    expect(prompt).toMatch(/QUIZ LANGUAGE, AGAIN: Urdu[\s\S]*"selected_because" and "distractor_misconceptions"/);
     expect(prompt).toMatch(/THE CHILD HAS NO GENDER/);
   });
 
