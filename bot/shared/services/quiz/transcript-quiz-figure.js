@@ -831,8 +831,13 @@ function figureMismatch(spec, options, correctIndex) {
   if (!correct) return null;
   // "Which bar shows 2/3?" answered "2" means bar 2, not the number two.
   if (namesAPart(spec, correct)) return null;
-  const frac = /^(\d+)\s*\/\s*(\d+)$/.exec(correct);
-  const whole = /^\d+$/.test(correct) ? Number(correct) : null;
+  // A key written as a sum ("3 × 5 = 15") is checked by its result: bars of
+  // 3/4 and 2/5 keyed "3 × 5 = 15" passed a replay because the key was not a
+  // bare number.
+  const eq = /=\s*(\d+(?:\s*\/\s*\d+)?)$/.exec(correct);
+  const answer = eq ? eq[1].replace(/\s+/g, '') : correct;
+  const frac = /^(\d+)\s*\/\s*(\d+)$/.exec(answer);
+  const whole = /^\d+$/.test(answer) ? Number(answer) : null;
   if (frac === null && whole === null) return null; // a word answer is not checked here
   if (type === 'fraction_bar') {
     const bars = Array.isArray(spec.bars) ? spec.bars : [];
