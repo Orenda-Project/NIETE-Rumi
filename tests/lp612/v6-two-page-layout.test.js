@@ -140,3 +140,16 @@ describe('everything used while teaching stays on page 1', () => {
     expect(secsOf(teach, /^\s*class="dg\b/).sort()).toEqual(['activity', 'development']);
   });
 });
+
+describe('page 2 says what it is: teacher support, not board copy', () => {
+  // Operator, 2026-09-24, "yes" to replacing "Reference" with the v6 mockup's kicker.
+  test.each([
+    ['en', 'Teacher support · not for the board', 'Reference'],
+    ['ur', 'استاد کی معاونت · بورڈ پر نہ لکھیں', 'حوالہ جاتی مواد'],
+  ])('the support-page pill reads the v6 label (%s)', (lang, label, old) => {
+    const { support } = split(load(), lang);
+    const pill = /<span class="pill">([^<]*)<\/span>/.exec(support);
+    expect(pill && pill[1]).toBe(label);
+    expect(support).not.toContain(`<span class="pill">${old}</span>`);
+  });
+});
