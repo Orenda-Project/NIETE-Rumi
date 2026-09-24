@@ -41,6 +41,7 @@ const {
   canonicalSubject, needsLanguageAsk, quizLanguageFor, teacherLanguageFor,
 } = require('../transcript-quiz-language');
 const Deliveries = require('../../lp612-deliveries.store');
+const Funnel = require('../quiz-funnel');
 
 const SOURCE = LP612;
 const LABEL_KEY = 'tqRowFromLessonPlan';
@@ -246,7 +247,8 @@ async function claim(teacherId, item, insert) {
 
 /**
  * The teacher tapped a 6-12 lesson: make its quiz — once.
- * @returns {Promise<{outcome: 'asked'|'queued'|'queue_failed'|'already'|'unavailable', quizId?: string}>}
+ * @returns {Promise<{outcome: 'asked'|'queued'|'queue_failed'|'already'|'unavailable', quizId?: string, existing?: object|null}>}
+ *   `already` is NOT answered here — the caller answers it with `existing` (registry contract).
  */
 async function start(teacher, lessonRef, { phone, quizLanguage = null, via = 'list' } = {}) {
   const lang = teacherLanguageFor({ preferredLanguage: teacher && teacher.preferred_language });
@@ -265,23 +267,28 @@ async function start(teacher, lessonRef, { phone, quizLanguage = null, via = 'li
   const askLanguage = !quizLanguage && needsLanguageAsk(item.subject);
   const won = await claim(userId, item, () => insertQuiz(userId, item, { askLanguage, quizLanguage, via }));
   if (!won.won) {
-    if (won.existing) {
-      const List = require('../transcript-quiz-list.service');
-      await List.handleListPick(`${List.LP_PICK_PREFIX}${won.existing.id}`, phone, teacher);
-    } else {
-      await WhatsAppService.sendMessage(phone, resolveUx('tqAlreadyMaking', { language: lang }));
-    }
-    return done('already', won.existing ? won.existing.id : null);
+    // One quiz per lesson: nothing new is made and nothing is said here. The caller (the list
+    // service / the Flow) answers `already` with the quiz that exists — the same answer as a tap
+    // on that quiz's own row — so a provider never requires the list service (circular-deps).
+    const out = done('already', won.existing ? won.existing.id : null);
+    return { ...out, existing: won.existing || null };
   }
 
   const TranscriptQuizOffer = require('../transcript-quiz-offer.service');
   if (askLanguage) {
+    // The answer to the ask (tq_lang_<code>_<quizId>) is the teacher's yes; it emits `accepted`.
     await TranscriptQuizOffer.sendLanguageAsk(won.quizId, phone, lang, quizLanguageFor(item.subject, item.lesson.lang), {
       subject: item.subject,
     });
     return done('asked', won.quizId);
   }
   const queued = await TranscriptQuizOffer.queueLpQuiz({ quizId: won.quizId, nudgeId: null, phone, language: lang });
+  if (queued) {
+    // No language left to ask: the tap IS the commitment (as the K-5 lesson provider records it).
+    Funnel.emit('accepted', {
+      quiz_id: won.quizId, teacher_id: userId, source: SOURCE, channel: Funnel.channelOf(via === 'flow' ? 'flow' : 'list'),
+    });
+  }
   return done(queued ? 'queued' : 'queue_failed', won.quizId);
 }
 

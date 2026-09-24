@@ -199,6 +199,34 @@ describe('start — the tap makes the quiz, once', () => {
     expect(second).toEqual(expect.objectContaining({ outcome: 'already', quizId: first.quizId }));
   });
 
+  test('"already" is answered by the caller: the provider hands back the quiz that covers the lesson and says nothing', async () => {
+    // The registry contract: the list/Flow caller answers `already` with the existing quiz
+    // (the same answer as a tap on that quiz's own row). A provider that also answered would
+    // send the teacher two messages for one tap.
+    const first = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE });
+    const sentBefore = mockSent.length;
+    const second = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE });
+    expect(second.outcome).toBe('already');
+    expect(second.existing).toEqual(expect.objectContaining({ id: first.quizId }));
+    expect(mockSent.slice(sentBefore)).toEqual([]);
+  });
+
+  test('a tap that queues the quiz is the teacher\'s yes: the funnel records it as accepted, stream lp612', async () => {
+    const { logEvent } = require('../../bot/shared/utils/structured-logger');
+    const out = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE, via: 'flow' });
+    expect(out.outcome).toBe('queued');
+    const accepted = logEvent.mock.calls.filter((c) => c[0] === 'quiz_funnel.accepted');
+    expect(accepted).toHaveLength(1);
+    expect(accepted[0][1]).toEqual(expect.objectContaining({ quiz_id: out.quizId, source: 'lp612', channel: 'quiz_menu' }));
+  });
+
+  test('a tap that only asks the language is not yet a yes — the answer to the ask is', async () => {
+    const { logEvent } = require('../../bot/shared/utils/structured-logger');
+    const out = await Provider.start({ id: T, preferred_language: 'en' }, MATHS, { phone: PHONE, via: 'list' });
+    expect(out.outcome).toBe('asked');
+    expect(logEvent.mock.calls.filter((c) => c[0] === 'quiz_funnel.accepted')).toHaveLength(0);
+  });
+
   test('another teacher\'s lesson, a held lesson or an assessment day is not made', async () => {
     for (const ref of ['11111111-0000-4000-8000-000000000007', '11111111-0000-4000-8000-000000000005', '11111111-0000-4000-8000-000000000006']) {
       // eslint-disable-next-line no-await-in-loop
