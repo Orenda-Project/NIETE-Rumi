@@ -1358,6 +1358,53 @@ async function getActiveState(phone) {
   return redisService.get(STATE_KEY(phone));
 }
 
+/**
+ * A letter TYPED instead of tapped ("B", "b") while a question waits for its
+ * answer — the same answer the child would have tapped.
+ *
+ * The letter is the one the child SAW: position n of the options as this
+ * question was drawn (render.build reproduces the stored display order, the
+ * shuffle is seeded on the question itself), mapped back to the option's own
+ * index before it is graded. A letter the question does not offer, a question
+ * that is a set (select-all-that-apply, answered in its Flow), or no question
+ * waiting at all is not ours: false, and the message goes on to the rest of
+ * the chain.
+ *
+ * @returns {Promise<boolean>} true when the letter was taken as this question's answer
+ */
+const TYPED_LETTER_RX = /^[a-d]$/i;
+async function answerTypedLetter(phone, text) {
+  const letter = String(text || '').trim();
+  if (!TYPED_LETTER_RX.test(letter)) return false;
+  const state = await redisService.get(STATE_KEY(phone));
+  if (!state || !state.currentQuestionId) return false;
+
+  const { data: q, error } = await supabase
+    .from('quiz_questions')
+    .select(MULTI_QUESTION_COLUMNS)
+    .eq('id', state.currentQuestionId)
+    .single();
+  if (error || !q) {
+    logToFile('⚠️ video-quiz: typed letter — current question not readable', {
+      sessionId: state.sessionId, questionId: state.currentQuestionId, error: error && error.message,
+    });
+    return false;
+  }
+
+  const picker = render.build(q).find((m) => m.phase === 'interaction'
+    && (m.role === 'ask' || m.role === 'picture_flow') && m.kind !== 'multiflow');
+  if (!picker || !Array.isArray(picker.options)) return false;
+  const shown = picker.options.length;
+  const position = letter.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0);
+  if (position >= shown) return false;
+  const original = (picker.optionIndices || picker.options.map((_, i) => i))[position];
+
+  logEvent('video_quiz.typed_answer', {
+    sessionId: state.sessionId, questionId: q.id, letter: letter.toUpperCase(), position, index: original,
+  });
+  return handleAnswer(phone, render.answerId(q.id, original));
+}
+
 module.exports = {
   offerAfterVideo,
   handleOfferButton,
@@ -1375,6 +1422,7 @@ module.exports = {
   sendNextQuestion,
   writeCountersFromAnswers,
   getActiveState,
+  answerTypedLetter,
   quizForVideo,
   QUESTIONS_PER_SESSION,
   OFFER_YES,

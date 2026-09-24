@@ -241,6 +241,12 @@ async function quizInFlight(from) {
     const QuizSessionService = require('./quiz/quiz-session.service');
     if (await QuizSessionService.getActiveState(from)) return true;
     if (await QuizSessionService.getPostQuizState(from)) return true;
+    // A class-link quiz runs on the VIDEO engine, whose state is its own key —
+    // the adaptive engine above does not see it. While a question is waiting,
+    // a typed "B" is that question's answer and must reach the quiz chain.
+    const VideoQuizService = require('./quiz/video-quiz.service');
+    const video = await VideoQuizService.getActiveState(from);
+    if (video && video.currentQuestionId) return true;
     const VideoQuizShare = require('./quiz/video-quiz-share.service');
     if (await redisService.get(VideoQuizShare.JOIN_KEY(from))) return true;
   } catch (err) {

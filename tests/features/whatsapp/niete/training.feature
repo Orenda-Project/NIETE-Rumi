@@ -315,6 +315,28 @@ Feature: NIETE (ICT) Teacher Training
     # answers tqFlowResultsNothingToReport on the lesson screen, never the DONE "on its way"; a decline after
     # the screen was answered is told in chat (tqNoReportYet). @wip.
 
+  @e2e @quiz @wip @draft @P1
+  Scenario: A letter typed during a class quiz answers the question, and an unfinished quiz never takes over the chat
+    Given a child has opened a class quiz from its link and a question with lettered answers is waiting
+    When the child types "B" instead of tapping
+    Then the answer the child saw as B is recorded and the feedback and the next question arrive, exactly as for a tap
+    But when the child types a letter the question does not offer, it is not taken as an answer
+    And a teacher who started their own quiz link and never finished it can still send "/menu" or tap "Lesson plan" and get the menu or a lesson plan, never "Tap one of the answer buttons above"
+    # video-quiz.service answerTypedLetter (the letter mapped through the question's stored display order);
+    # quiz-session._recoverFromDB now recovers only its own roster sessions, never past expires_at — before,
+    # it adopted share_link / video_solo sessions (production, 14 days: 2,893 adoptions, 97% of them), and
+    # the teacher's menu taps and commands were answered with the adaptive quiz's nudge. @wip.
+
+  @e2e @quiz @wip @draft @P2
+  Scenario: A lesson-plan quiz that could not be started says so, and can be made again
+    Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be started (the job never reached the queue)
+    When I open "/quiz" and tap that lesson
+    Then the lesson screen says the quiz could not be started on the bot's side and the lesson plan was not the problem
+    And it offers "Make it again" and "Done", and "Make it again" makes the quiz
+    # transcript-quiz-offer queueLpQuiz merges the failure into the row's meta (the lessons, class and lesson
+    # date are kept); quiz-sources: queue_failed -> lpQuizCouldNotStart copy and a remakeable reason; the Flow
+    # results read tqFlowResultsFailedLpStart. @wip — a queue refusal cannot be forced live.
+
   @e2e @quiz @wip @draft @P2
   Scenario: A question that cannot be sent is skipped, and the child is scored on the questions actually asked
     Given a class quiz one of whose questions cannot be sent to a child's phone

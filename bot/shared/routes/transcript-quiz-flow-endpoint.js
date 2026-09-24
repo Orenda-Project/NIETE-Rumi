@@ -342,6 +342,7 @@ const LP_FLOW_FAILURE_RESULT = {
   validator_failed: 'tqFlowResultsFailedLpChecks',
   key_conflict: 'tqFlowResultsFailedLpChecks',
   key_disagreement: 'tqFlowResultsFailedLpChecks',
+  queue_failed: 'tqFlowResultsFailedLpStart',
 };
 function lpFailedResults(quiz, language) {
   const key = LP_FLOW_FAILURE_RESULT[failureReasonOf(quiz.meta)];

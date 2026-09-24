@@ -239,6 +239,17 @@ describe('route — a child', () => {
     expect(await Ingress.route({ message: msg('text'), messageType: 'text', messageBody: 'B', from: PHONE, user: child })).toBe(false);
   });
 
+  // The quiz a child takes from a class link runs on the VIDEO engine, whose
+  // state is its own Redis key — the adaptive engine's getActiveState no
+  // longer adopts those sessions. A typed "B" mid-quiz must still reach the
+  // quiz chain (it answers the question there), never the tutor.
+  test('a typed letter while a video / transcript / lesson-plan quiz waits on a question passes through', async () => {
+    redisService.get.mockImplementation(async (k) => (k === `videoquiz:${PHONE}:active`
+      ? { sessionId: 'vq-1', currentQuestionId: 'q-1', questionIds: ['q-1'] } : null));
+    expect(await Ingress.route({ message: msg('text'), messageType: 'text', messageBody: 'B', from: PHONE, user: child })).toBe(false);
+    expect(TextHandler.handleGeneralConversation).not.toHaveBeenCalled();
+  });
+
   test('a school question goes to the child tutor directly, with the quiz language, and is stored', async () => {
     const { storeConversation } = require('../../shared/database/bot-helpers');
     expect(await Ingress.route({ message: msg('text'), messageType: 'text', messageBody: 'what is a fraction?', from: PHONE, user: child })).toBe(true);
