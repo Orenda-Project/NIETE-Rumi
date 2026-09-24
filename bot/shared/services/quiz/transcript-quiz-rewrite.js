@@ -51,6 +51,15 @@
 
 const { completeJson } = require('./transcript-quiz-llm');
 const People = require('./transcript-quiz-people');
+const { PUPILS_RULE } = require('./transcript-quiz-pupils');
+/**
+ * A question rejected for PEDAGOGY_PUPIL_AS_SUBJECT named a child from the
+ * class, asked what a child said or did in class, or said something about a
+ * named child's behaviour. It is not repaired in place: a NEW question takes
+ * its slot, and if the new one is rejected too the question is dropped.
+ */
+const PUPIL_REPAIR = 'A CHILD FROM THE CLASS. A question rejected for PEDAGOGY_PUPIL_AS_SUBJECT made a child from the class its subject: it named the child, asked what a child said or did in class, or said something about a named child\'s behaviour. Write a NEW question on the same SLO and level about the lesson\'s idea itself — no child\'s name anywhere (question, options, explanation, feedback), nothing about what anyone said or did in class, no sentence about anyone\'s behaviour.';
+const PUPIL = /^q\d+: PEDAGOGY_PUPIL_AS_SUBJECT\b/;
 const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
 const {
   languageRule, languageAgain, questionContract, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, DISTINCT_QUESTIONS_RULE,
@@ -377,6 +386,7 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => ADJACENT_TERMS.test(e))) ? [ADJACENT_TERMS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => DUPLICATE.test(e))) ? [DUPLICATE_REPAIR] : []),
     ...(namesAsked ? [NAME_LATIN_REPAIR] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => PUPIL.test(e))) ? [PUPIL_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_CONFLICT.test(e))) ? [KEY_CONFLICT_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
@@ -419,6 +429,7 @@ ${shape} ] }
     ...summarySection,
     GENDER_NEUTRAL_RULE,
     RELIGIOUS_CONTENT_RULE,
+    PUPILS_RULE,
     // the lesson's people and the one Urdu spelling of each, up front
     ...(People.peopleRule(digest, language) ? [People.peopleRule(digest, language)] : []),
     returnBlock,
@@ -797,6 +808,7 @@ function buildAddPicturePrompt({
     // every field in the quiz language, the teacher's fields included
     languageAgain(language).trim(),
     GENDER_NEUTRAL_RULE,
+    PUPILS_RULE,
     ...(People.peopleRule(digest, language) ? [People.peopleRule(digest, language)] : []),
     `THE TYPES — nothing else is accepted:\n${minimalSpecBlock(ADD_PICTURE_TYPES)}`,
     `PICTOGRAM NAMES: ${pictogramNames().join(', ')}`,
