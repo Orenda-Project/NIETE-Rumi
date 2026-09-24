@@ -24,6 +24,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { completeJson } = require('./transcript-quiz-llm');
 const { canonicalSubject, fixTransliterations, isTransliteratedEnglishPhrase } = require('./transcript-quiz-language');
+const { normalisePeople, peopleDigestRule } = require('./transcript-quiz-people');
 
 const MAX_TRANSCRIPT_CHARS = 60000;   // p90 is 26k; a runaway transcript is cut, not refused
 
@@ -50,6 +51,7 @@ RULES
 - "key_terms": up to 8 terms; "term" is the canonical form (English technical terms in English letters), "as_spoken" is how the teacher said it.
 - "examples_used": the concrete examples, objects, numbers, sentences or stories the teacher used (these are gold for quiz questions and feedback).
 - "misconceptions_surfaced": student errors or confusions that actually appeared in the lesson, if any.
+${peopleDigestRule('the lesson')}
 - Religious content (Islamiyat / سیرت): write sacred names and honorifics exactly as spoken and in Urdu/Arabic script (اللہ، نبی کریم ﷺ، رضی اللہ عنہ) — never transliterated, never dropped.
 - THE TEACHER HAS NO GENDER. Never write "she", "he", "her", "his" or "him" about the teacher in any field — say "the teacher". In Urdu use no gendered word for the teacher (never استانی، معلمہ، استاد صاحبہ، میڈم) and no gendered verb form about the teacher (never «پڑھاتی ہیں» / «پڑھاتے ہیں»); a verb that agrees with the object («استاد نے سبق پڑھایا») says nothing about the teacher and is what to write. Never guess a child's gender either.
 
@@ -60,7 +62,8 @@ Return ONLY this JSON object:
   "slos": [ { "id": "S1", "statement": "", "statement_en": "", "statement_ur": "", "evidence_quote": "", "taught_level": "recall|understand|apply" } ],
   "key_terms": [ { "term": "", "as_spoken": "" } ],
   "examples_used": [ "" ],
-  "misconceptions_surfaced": [ "" ]
+  "misconceptions_surfaced": [ "" ],
+  "people": [ { "latin": "", "ur": "" } ]
 }
 
 TRANSCRIPT:
@@ -117,6 +120,9 @@ function normaliseDigest(raw, { storedSubject } = {}) {
     )),
     examples_used: (Array.isArray(d.examples_used) ? d.examples_used : []).map(String).filter(Boolean).slice(0, 12),
     misconceptions_surfaced: (Array.isArray(d.misconceptions_surfaced) ? d.misconceptions_surfaced : []).map(String).filter(Boolean).slice(0, 8),
+    // Each person in the lesson's material, once, with the Urdu spelling every
+    // Urdu writer and the validator use (transcript-quiz-people).
+    people: normalisePeople(d.people),
   };
   // Re-number SLO ids so the author's slo_id tags are unambiguous.
   out.slos = out.slos.map((s, i) => ({ ...s, id: `S${i + 1}` }));
