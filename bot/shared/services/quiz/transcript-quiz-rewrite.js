@@ -579,7 +579,7 @@ function buildAddPicturePrompt({
     `QUESTIONS A CHILD ANSWERS BY READING A PICTURE — reach for these when you replace:
 - A fraction: one bar, some parts shaded, no label — "What fraction of the bar is shaded?", the options three fractions. {"type":"fraction_bar","bars":[{"parts":5,"shaded":3}]}
 - Which picture shows a fraction: three bars labelled "A", "B", "C" — "Which bar shows $\\frac{2}{3}$?", the options "A", "B", "C" (every option is on the picture, so nothing is given away; in the feedback say "bar A", never "option A"). {"type":"fraction_bar","bars":[{"parts":3,"shaded":2,"label":"A"},{"parts":5,"shaded":2,"label":"B"},{"parts":4,"shaded":1,"label":"C"}]}
-- Comparing: two bars of the same length, no labels — "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?", the options fractions. The stem names no fraction, so the child reads both off the picture; never "which is larger, 2/3 or 3/5?" over an unlabelled pair.
+- Comparing: two bars of the same length, no labels — "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?", the options fractions. The stem names no fraction, so the child reads both off the picture. (A stem that names the two fractions makes it a "model" question, which is an ADD, never a replacement.)
 - Place value: {"type":"base_ten","tens":3,"ones":4} — "What number do the sticks show?" or "How many tens are there?"
 - Counting, adding, taking away: {"type":"count_objects","rows":[{"picto":"counter","count":4},{"picto":"counter","count":3}]} — "How many counters are there altogether?"
 - Sharing and times: {"type":"count_objects","picto":"counter","count":12,"group":4} — "How many groups of 4 are there?"`,
