@@ -46,10 +46,11 @@ const { excludeSelfTests } = require('../services/quiz/teacher-self-test');
 const { classLabel, classHeading, normaliseClasses, markLines } = require('../utils/text-format');
 const { oneAttemptPerChild } = require('../services/quiz/one-attempt-per-child');
 const {
-  TRANSCRIPT, PLAN_SOURCES, isPlanQuiz, lessonSessionFor, failureReasonOf, lpRemakeable,
+  TRANSCRIPT, PLAN_SOURCES, isPlanQuiz, lessonSessionFor, failureReasonOf, lpRemakeableQuiz,
 } = require('../services/quiz/quiz-sources');
 const Providers = require('../services/quiz/quiz-lesson-providers');
 const QuizMenuFlags = require('../services/quiz/quiz-menu-flags');
+const { withSourceCheck } = require('../services/quiz/lp-source-check');
 
 /** An lp_v8 quiz's key in the Flow: it has no session id to carry. */
 const LP_KEY_PREFIX = 'lp_';
@@ -96,7 +97,8 @@ function fitIsolated(text, max, language) {
 function flowStatus(quiz, language, counts) {
   const c = counts || { started: 0, finished: 0 };
   switch (List.quizState(quiz)) {
-    case 'offered': return resolveUx('tqFlowStatusOffered', { language });
+    // Nothing made yet, whatever was offered: the words of a lesson with no quiz.
+    case 'offered': return resolveUx('tqFlowStatusNone', { language });
     case 'making': return resolveUx('tqFlowStatusMaking', { language });
     case 'sent': return resolveUx('tqFlowStatusSent', { language, params: { started: c.started } });
     case 'report_sent': return resolveUx('tqFlowStatusReport', { language, params: { finished: c.finished } });
@@ -256,7 +258,7 @@ async function loadLesson(teacher, sessionId) {
     const { provider, lessonRef } = planned;
     const lesson = provider.get ? await provider.get(teacher.id, lessonRef) : null;
     if (!lesson) return null;
-    const quiz = provider.existingQuiz ? await provider.existingQuiz(teacher.id, lesson) : null;
+    const quiz = provider.existingQuiz ? await withSourceCheck(await provider.existingQuiz(teacher.id, lesson)) : null;
     const session = {
       id: sessionId,
       created_at: lesson.date,
@@ -273,6 +275,10 @@ async function loadLesson(teacher, sessionId) {
       .eq('id', String(sessionId).slice(LP_KEY_PREFIX.length)).eq('teacher_id', teacher.id)
       .in('quiz_source', PLAN_SOURCES).maybeSingle();
     if (!lpQuiz) return null;
+    // A quiz that failed because its lesson plan could not be read is offered
+    // "Make it again" only if it can be read now (lp-source-check) — the screen
+    // and the action step both load through here.
+    await withSourceCheck(lpQuiz);
     return { session: { id: sessionId, ...lessonSessionFor(lpQuiz) }, quiz: lpQuiz };
   }
   const { data: session } = await supabase.from('coaching_sessions')
@@ -428,23 +434,29 @@ const LP_FLOW_FAILURE_RESULT = {
   key_conflict: 'tqFlowResultsFailedLpChecks',
   key_disagreement: 'tqFlowResultsFailedLpChecks',
   queue_failed: 'tqFlowResultsFailedLpStart',
+  // The 6-12 source was off where the quiz is written: never started, ours.
+  source_off: 'tqFlowResultsFailedLpStart',
 };
 function lpFailedResults(quiz, language) {
-  const key = LP_FLOW_FAILURE_RESULT[failureReasonOf(quiz.meta)];
+  const reason = failureReasonOf(quiz.meta);
+  const key = LP_FLOW_FAILURE_RESULT[reason];
   if (!key) return resolveUx('tqFlowResultsFailedLp', { language });
-  const next = lpRemakeable(quiz.meta) ? 'tqFlowResultsRemakeHint' : 'tqFlowResultsNextLesson';
+  // What can happen next: made again here; for a source that is switched off,
+  // come back (it becomes "Make it again" once it is on); else the next lesson.
+  const next = lpRemakeableQuiz(quiz) ? 'tqFlowResultsRemakeHint'
+    : reason === 'source_off' ? 'tqFlowResultsLater' : 'tqFlowResultsNextLesson';
   return `${resolveUx(key, { language })}\n\n${resolveUx(next, { language })}`;
 }
 
 /**
  * A failed lp_v8 quiz: "Make it again" where trying again can come out
- * differently (lpRemakeable), and always "Done". Done is here so the lesson
+ * differently (lpRemakeableQuiz), and always "Done". Done is here so the lesson
  * screen can say WHY the quiz failed — a screen with nothing to choose cannot be
  * served at all (see lessonScreenFrom).
  */
 function lpFailedActions(quiz, language) {
   const out = [];
-  if (lpRemakeable(quiz.meta)) {
+  if (lpRemakeableQuiz(quiz)) {
     out.push({
       id: 'remake',
       title: resolveUx('tqFlowActionRemake', { language }),

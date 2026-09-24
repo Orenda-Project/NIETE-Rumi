@@ -254,6 +254,37 @@ the teacher has ever been offered before.
 | `sent` | Some offer (video or plain buttons) went out |
 | `early` | The survey answer brought this offer forward rather than the delayed job firing |
 
+## The authoring budget's events (added 2026-09-07, after the first production morning)
+
+The generate step (`transcript-quiz-generate.service.js`) makes up to
+`TRANSCRIPT_QUIZ_MAX_ATTEMPTS` full authoring attempts (default 3) and, between
+and after them, targeted repairs. Every step lands in `meta.author_attempts` on
+the `quizzes` row and emits one of these:
+
+| Event | When | Fields worth reading |
+|-------|------|----------------------|
+| `transcript_quiz.author_done` | every full attempt | `retry` (false on attempt 1), `costUsd`, `latencyMs`, `questions`, `language` |
+| `transcript_quiz.teacher_fields_repaired` | an Urdu quiz's `selected_because` / `distractor_misconceptions` came back in English and ONE fields-only call rewrote them in place — the question is never re-rolled for this. Runs after the author AND after every targeted rewrite (a rewrite writes its replacements' notes too), so it is the last repair on any set | `after` (the attempt number, or `rewrite` — then `rewrite_after` is that rewrite's own `after`), `indices`, `ok` (no teacher-field complaint remains), `remaining` (other complaints still open) |
+| `transcript_quiz.rewrite_attempted` | one targeted rewrite of up to five questions (structural, pedagogy, figure, level, gendered-child, multi-select complaints) or of the lesson summary | `after` (attempt number or `last`), `indices`, `ok`, `errors` |
+| `transcript_quiz.figure_salvage` | the last attempt failed only on a few figure/pedagogy questions and the quiz ships without them | `dropped`, `kept` |
+| `transcript_quiz.shipped_with_soft_faults` | every attempt and repair ran and the ONLY complaints left are set-level ones (`only N/M at/below taught level`, `PEDAGOGY_LEVEL_MIX`, `FIGURE_SHARE`, a question one level above the lesson) — the quiz ships and `meta.soft_faults` records them | `faults`, `kinds` |
+| `transcript_quiz.ready` | the set that will be sent | `attempts` (count of full attempts), `costUsd` |
+| `transcript_quiz.failed` | nothing usable after every attempt and repair — the teacher is told honestly | `reason` and, where one reason can come from two passes, `step` (`digest`/`author`/`source`). Reasons: `model_failed` (the model gave nothing usable — empty, cut off or not JSON after its retry, or the provider refused the call; never the lesson's fault — both sources are told so: `tqFailedLpModel` / `tqCouldNotMakeModel`), `source_unusable` (an lp_v8 slide script with no lesson in it, or a recording's transcript under `MIN_TRANSCRIPT_CHARS`, checked before any model call), `source_missing`, `validator_failed` (the model replied; the questions never validated), `key_conflict`, `key_disagreement`, `session_missing`, `teacher_missing`. The same reason is persisted as `quizzes.meta.error` (the raw digest error in `meta.error_detail`), so `/quiz` repeats the sentence the teacher was sent. Rows before this split carry `digest: <message>` instead. |
+| `transcript_quiz.skipped` (`step: digest`) | the OFFER's digest could not be written — the offer is not sent and the teacher is told nothing (`/quiz` can still make it) | `reason`: `model_failed` (was `digest_failed` before the split), persisted as `quizzes.meta.skip_reason` |
+
+Healthy is: `author_done` once or twice per quiz, a `teacher_fields_repaired` on most Urdu
+quizzes, an occasional `rewrite_attempted`, `shipped_with_soft_faults` on a minority, and
+`failed` close to zero. A rising `shipped_with_soft_faults` share means the author prompt's
+level guidance needs work, not the budget.
+
+```apl
+['niete-logs']
+| where data_json contains 'transcript_quiz.'
+| extend d = parse_json(data_json), ev = tostring(d.event)
+| where ev in ('transcript_quiz.author_done','transcript_quiz.teacher_fields_repaired','transcript_quiz.rewrite_attempted','transcript_quiz.figure_salvage','transcript_quiz.shipped_with_soft_faults','transcript_quiz.ready','transcript_quiz.failed')
+| summarize n = count() by ev
+```
+
 ## Scheduled teacher asks: `teacher_nudges.*`
 
 Two asks reach a teacher on a schedule instead of in reply to a message: the coaching
@@ -317,9 +348,9 @@ quiz_funnel.<stage>  { quiz_id, source, channel, teacher_id?, nudge_id?, session
 | `generation_failed` | every terminal failure (`tellTeacherFailed`, `teacher_missing`, `session_missing`, `queue_failed`) | `reason`, `step` | `status='failed'`, `meta.error`, **`meta.failed_at`** | `transcript_quiz.failed` |
 | `sent` | the first hand-off (`transcript-quiz-handoff`) | `pdf_sent`, `link_sent` | `status='sent'`, `meta.sent_at`, `meta.pdf_sent`, **`meta.link_sent`**, `meta.share_code_id` | `transcript_quiz.sent` (logged even when the link failed) |
 | `send_failed` | the hand-off | `reason`: `link_not_delivered` \| `mint_failed` | `meta.link_sent=false` / `meta.handoff_error='mint_failed'` | — |
-| `child_joined` | `video-quiz` `startSession` | `session_id`, `share_code_id`, `source` = the quiz's stream | `quiz_sessions` row (`created_at`, `share_code_id`), `quiz_share_codes.uses_count` | `video_quiz.session_started` (its `source` is the session engine, not the stream) |
-| `child_completed` | `video-quiz` `finish` | `session_id`, `n` (asked), `pct` | `quiz_sessions.status='completed'`, `completed_at`, `mastery_percentage` | `video_quiz.completed` |
-| `scorecard_sent` | `video-quiz` `finish` | `session_id`, `ok` (`false` = the text fallback went) | none — per child, Axiom only | `video_quiz.scorecard_sent` |
+| `child_joined` | `video-quiz` `startSession` | `session_id`, `share_code_id`, `source` = the quiz's stream, `kind: 'self_test'` when it is the teacher's own run of the class link (not a child — the watcher leaves it out) | `quiz_sessions` row (`created_at`, `share_code_id`), `quiz_share_codes.uses_count` | `video_quiz.session_started` (its `source` is the session engine, not the stream) |
+| `child_completed` | `video-quiz` `finish` | `session_id`, `n` (asked), `pct`, `kind: 'self_test'` as above | `quiz_sessions.status='completed'`, `completed_at`, `mastery_percentage` | `video_quiz.completed` |
+| `scorecard_sent` | `video-quiz` `finish` | `session_id`, `ok` (`false` = the text fallback went), `kind: 'self_test'` as above | none — per child, Axiom only | `video_quiz.scorecard_sent` |
 | `class_cards` | `video-quiz-report` `sendClassCards` (with the report, or late) | `n` sent, `failed`, `skipped` (no number / outside the 23 h window) | `quizzes.meta.class_cards[share_code_id]` = the children sent | `video_quiz.class_card_sent` / `_skipped` |
 | `report_sent` | `video-quiz-report` `generate` | `kind`: `report` \| `no_one` (nobody but the teacher took it), `n` children who finished, `reason` (`scheduled`/`requested`/`follow_up`) | `quiz_share_codes.report_sent_at`, `quizzes.status='report_sent'`, `meta.report_followups` (`quizzes.report_sent_at` is never written) | `video_quiz.report_sent` (**not** logged for `no_one` — 17.5% of reports) |
 | `report_failed` | `video-quiz-report` `generate` | `reason`: `no_teacher_phone` | — | log line only |
@@ -329,6 +360,7 @@ quiz_funnel.<stage>  { quiz_id, source, channel, teacher_id?, nudge_id?, session
 ```apl
 ['niete-logs'] | where env == 'production' | where msg startswith 'quiz_funnel.'
 | extend d = parse_json(data_json), stage = substring(msg, 12)
+| where tostring(d.kind) != 'self_test'          // the teacher's own run of the class link is not a child
 | summarize events = count(), quizzes = dcount(tostring(d.quiz_id)), children = dcount(tostring(d.session_id))
   by stage, stream = tostring(d.source)
 ```

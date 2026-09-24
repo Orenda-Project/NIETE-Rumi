@@ -34,7 +34,7 @@ const Funnel = require('./quiz-funnel');
 const { quizLanguageFor, teacherLanguageFor, canonicalSubject, formatLessonDate, topicFor, lessonLabel,
   needsLanguageAsk, languageAskButtons, languageAskBody } = require('./transcript-quiz-language');
 const {
-  LP_V8, isPlanQuiz, lpRemakeable, failureReasonOf, digestFailureReason,
+  LP_V8, isPlanQuiz, lpRemakeableQuiz, failureReasonOf, digestFailureReason, failureCopyKey,
 } = require('./quiz-sources');
 
 const OFFER_YES = 'tq_yes_';
@@ -463,19 +463,17 @@ async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
       logToFile('❌ lp quiz offer: could not read the quiz before marking it failed', { quizId, error: readErr.message }, 'error');
     }
     const meta = (current && current.meta) || {};
+    const failedMeta = {
+      ...meta,
+      step: 'failed',
+      error: 'queue_failed',
+      error_detail: `queue: ${err.message}`,
+      source: meta.source || 'lp_offer',
+      nudge_id: meta.nudge_id || nudgeId || null,
+      failed_at: new Date().toISOString(),
+    };
     const { error } = await supabase.from('quizzes')
-      .update({
-        status: 'failed',
-        meta: {
-          ...meta,
-          step: 'failed',
-          error: 'queue_failed',
-          error_detail: `queue: ${err.message}`,
-          source: meta.source || 'lp_offer',
-          nudge_id: meta.nudge_id || nudgeId || null,
-          failed_at: new Date().toISOString(),
-        },
-      })
+      .update({ status: 'failed', meta: failedMeta })
       .eq('id', quizId);
     if (error) logToFile('❌ lp quiz offer: could not mark the quiz failed', { quizId, error: error.message }, 'error');
     Funnel.emit('generation_failed', {
@@ -483,7 +481,11 @@ async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
       quiz_id: quizId, nudge_id: meta.nudge_id || nudgeId, source: (current && current.quiz_source) || LP_V8,
       channel: Funnel.channelOf(meta.source || 'lp_offer'), reason: 'queue_failed',
     });
-    await say('lpQuizCouldNotStart');
+    // What can happen next, for whichever door this came in by: made again
+    // from /quiz, or — when it cannot be — the offer's or the menu's own line
+    // (quiz-sources startFailureCopyKey). A /quiz tap was once told "the next
+    // lessons you plan will get a new offer".
+    await say(failureCopyKey('queue_failed', (current && current.quiz_source) || LP_V8, { meta: failedMeta }));
     return false;
   }
   await say('lpQuizMaking');
@@ -509,7 +511,10 @@ async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
 async function remakeLpQuiz({ quiz, phone, teacherLang, source = 'flow' }) {
   const api = module.exports;
   const meta = quiz.meta || {};
-  if (!isPlanQuiz(quiz.quiz_source) || !lpRemakeable(meta)) {
+  // lpRemakeableQuiz: a source_missing row carries the surface's fresh source
+  // check (`_sourceBack`, lp-source-check); a source_off row needs the 6-12
+  // source on here.
+  if (!isPlanQuiz(quiz.quiz_source) || !lpRemakeableQuiz(quiz)) {
     logEvent('transcript_quiz.remake_refused', { quizId: quiz.id, reason: failureReasonOf(meta), remakes: meta.remakes || 0 });
     return false;
   }

@@ -19,7 +19,9 @@
  *      agreement to something else) whose own verb — the first one after it,
  *      before the next conjunction — is a gendered present, future,
  *      progressive or perfect form: «آپ … جاتے ہیں», «آپ … دیں گے»,
- *      «آپ … کر سکتی ہیں», «آپ … سوچ رہے ہیں»;
+ *      «آپ … کر سکتی ہیں», «آپ … سوچ رہے ہیں» — or a perfective that closes
+ *      its clause with no auxiliary, «آپ … بھول گئے» (not in a field that names
+ *      the Prophet ﷺ or a companion: there it is the narrative past);
  *   2. a FUTURE form with no subject at all, when it is the child's: in a
  *      question stem («کیسے پڑھیں گے؟»), in an option — the child's own answer
  *      («آخر میں 'یں' لگائیں گے») unless the stem asked "we" or a third person —
@@ -108,6 +110,15 @@ const GENDERED_AFTER_AAP = new RegExp([
   `${NOT_UR_BEFORE}(?:چکے|چکی|چکیں) (?:ہیں|ہو|ہوں)${NOT_UR_AFTER}`,     // کر چکے ہیں
   `${NOT_UR_BEFORE}(?:گئے|گئی|گئیں|آئے|ہوئے|ہوئی|ہوئیں|بیٹھے|بیٹھی) (?:ہیں|ہو|ہوں)${NOT_UR_AFTER}`,
 ].join('|'));
+// A PERFECTIVE with no auxiliary, closing its clause: «آپ 0 کو گننا بھول گئے۔»,
+// «آپ سمجھ گئیں»، «آپ … کر چکے۔». Measured on 2,400 production Urdu items (R11):
+// the one address class the forms above missed — they know گئے / چکے / بیٹھے only
+// WITH ہیں / ہو / ہوں. A simple past, so it is read only where no honorific is in
+// the FIELD (addressForms): the narrative «… ﷺ … ۔ آپ مدینہ تشریف لے گئے» names
+// the Prophet ﷺ a sentence earlier, and that آپ is him.
+const PERFECTIVE_AFTER_AAP = new RegExp(
+  `[^\\s]+\\s+(?:گئے|گئی|گئیں|چکے|چکی|چکیں|بیٹھے|بیٹھی|بیٹھیں)(?=\\s*(?:[،,؛;:۔؟?!]|$))`,
+);
 // Words that end like a habitual participle but are a noun or an invariant
 // adjective: «آپ بہت محنتی ہیں» says nothing about gender.
 const NOT_A_PARTICIPLE = new RegExp(`${NOT_UR_BEFORE}(?:محنتی|قیمتی|گنتی|کشتی|بستی|ہستی|سستی|مستی|دوستی|جنتی|پتی|چھتی|ذاتی|وقتی|قسمتی)${NOT_UR_AFTER}`);
@@ -187,13 +198,17 @@ function hasChildAap(text) {
 }
 
 /** The first gendered verb form for an آپ at `index`, or null. */
-function aapVerb(sentence, index, len) {
+function aapVerb(sentence, index, len, { perfective = true } = {}) {
   let scope = sentence.slice(index + len);
   const cut = CONJUNCTION.exec(scope);
   if (cut) scope = scope.slice(0, cut.index);
   scope = scope.slice(0, AAP_WINDOW);
-  const hit = GENDERED_AFTER_AAP.exec(scope);
+  const gendered = GENDERED_AFTER_AAP.exec(scope);
+  const hit = gendered || (perfective ? PERFECTIVE_AFTER_AAP.exec(scope) : null);
   if (!hit) return null;
+  // A perfective after a subject of its own belongs to that subject: «آپ … آئس
+  // کریم لائے اور وہ پگھل گئی» — the ice cream melted (production, R11).
+  if (!gendered && OTHER_SUBJECT.test(scope.slice(0, hit.index))) return null;
   if (NOT_A_PARTICIPLE.test(hit[0])) return null;
   const stop = NEUTRAL_STOP.exec(scope);
   if (stop && stop.index < hit.index) return null;
@@ -240,6 +255,9 @@ function addressForms(text, { kind = 'stem', stemAddressesChild: toChild = true,
   if (kind === 'option' && stemHonorific) return [];
   const out = [];
   const fieldHasWe = WE.test(src);
+  // A field that names the Prophet ﷺ or a companion anywhere tells a narrative
+  // about them: its perfectives are theirs, never the child's.
+  const perfective = !HONORIFIC.test(src);
   const futuresToChild = kind === 'stem' ? !fieldHasWe
     : kind === 'option' ? toChild && !fieldHasWe
       : hasChildAap(src) && !fieldHasWe;
@@ -253,7 +271,7 @@ function addressForms(text, { kind = 'stem', stemAddressesChild: toChild = true,
     while ((m = AAP.exec(sentence))) {
       if (!aapIsSubject(sentence, m.index, m[0].length)) continue;
       explicit.push(m.index);
-      const verb = aapVerb(sentence, m.index, m[0].length);
+      const verb = aapVerb(sentence, m.index, m[0].length, { perfective });
       if (verb) out.push(`آپ … ${verb}`);
     }
     // 2 — a subjectless future, in a clause with no آپ of its own

@@ -195,7 +195,11 @@ describe('QUIZ_LP612_SOURCE off', () => {
     expect(r2.downloadFromR2).not.toHaveBeenCalled();
     expect(LpDigest.run).not.toHaveBeenCalled();
     expect(Author.author).not.toHaveBeenCalled();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(USER.phone_number, UX_STRINGS.lpQuizCouldNotStart.en);
+    // Never the 15:00 offer's "the next lessons you plan will get a new offer": a
+    // 6-12 quiz is only ever asked for from /quiz, and while the source is off
+    // here it cannot be made again yet — so, "try again from /quiz later".
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(USER.phone_number, UX_STRINGS.lpQuizCouldNotStartLater.en);
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalledWith(USER.phone_number, UX_STRINGS.lpQuizCouldNotStart.en);
   });
 
   test('a quiz already written (ready, resuming at the hand-off) still goes out', async () => {

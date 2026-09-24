@@ -15,7 +15,7 @@
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
 const { peopleSpellings, spellQuestion, logRedactor } = require('./transcript-quiz-people');
-const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES, singleThingNotACount, drawsEmptySet } = require('./transcript-quiz-figure');
 
 /** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
 const FRACTION_BAR_MAX_PARTS = 24;
@@ -58,9 +58,30 @@ function childAddressError(q, i) {
   const { fields, forms } = questionAddressForms(q);
   if (!forms.length) return null;
   const shown = [...new Set(forms)].slice(0, 4).map((f) => `"${f}"`).join(', ');
+  const repairs = [...new Set(forms.map(addressRepairFor).filter(Boolean))];
   return `q${i}: PEDAGOGY_GENDERED_CHILD — ${fields.join(' + ')} speak${fields.length === 1 ? 's' : ''} to the child with a gendered verb (${shown}); `
     + 'the class is boys and girls. Keep the same question and change only those verbs: the آپ-imperative or subjunctive («بتائیں»، «آپ کون سی علامت لگائیں؟»), '
-    + 'the impersonal or obligative («کون سی علامت لگانی چاہیے؟»، «کون سا لفظ استعمال ہوگا؟»), or آپ نے + a verb that agrees with its object («آپ نے … سوچا»)';
+    + 'the impersonal or obligative («کون سی علامت لگانی چاہیے؟»، «کون سا لفظ استعمال ہوگا؟»), or آپ نے + a verb that agrees with its object («آپ نے … سوچا»)'
+    + (repairs.length ? `. For the forms found here: ${repairs.join('; ')}` : '');
+}
+
+/**
+ * The neutral rewrite for the SHAPE of one flagged form. The generic advice above
+ * shows only a future or a question being made neutral; on staging (25 Sep) the
+ * last targeted rewrite fixed a future and left the modal beside it
+ * («آپ … بڑھا سکتے ہیں»), and the question shipped with it. First match wins: a
+ * modal («سکتے ہیں») also ends like a habitual.
+ */
+const ADDRESS_REPAIRS = [
+  [/سک(?:تے|تی|تیں)|سکیں/, 'a modal «آپ … حوصلہ بڑھا سکتے ہیں» / «سکتی ہیں» → the impersonal «… حوصلہ بڑھایا جا سکتا ہے» or the imperative «… حوصلہ بڑھائیں»'],
+  [/(?:^|\s)(?:رہے|رہی|رہیں)\s/, 'a progressive «آپ … سوچ رہے ہیں» / «رہی ہیں» → «شاید آپ نے … سمجھا»'],
+  [/چاہ(?:تے|تی)/, 'a wish «آپ … جاننا چاہتے ہیں» → «… جاننا ہو تو» or the imperative «… جانیں»'],
+  [/(?:گئے|گئی|گئیں|چکے|چکی|چکیں|بیٹھے|بیٹھی|بیٹھیں)/, 'a perfect «آپ … گننا بھول گئے» / «کر چکے ہیں» → the verb agrees with what was missed or done: «… گننا رہ گیا»، «آپ نے … کر لیا ہے»'],
+  [/(?:تے|تی|تیں)(?:\s|$)/, 'a habitual «آپ … کہتے ہیں» → the impersonal «… کہا جاتا ہے» or «آپ … کہیں»'],
+];
+function addressRepairFor(form) {
+  const hit = ADDRESS_REPAIRS.find(([rx]) => rx.test(String(form)));
+  return hit ? hit[1] : null;
 }
 
 /**
@@ -684,6 +705,13 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: FIGURE_EMPTY — ${empty}; give the picture something to read off, or drop it`);
       return;
     }
+    // One thing, or an empty tray, under a question that is not "how many?"
+    // (the one-goat vocabulary prompt the engine's old floor of 2 stood for).
+    const notACount = singleThingNotACount(q.figure, opts, ci, stem);
+    if (notACount) {
+      errs.push(`q${i}: FIGURE_NOT_A_COUNT — ${notACount}`);
+      return;
+    }
     // The engine draws a fraction bar of at most 24 parts (vendor fraction_bar.js
     // clamps `parts`), so a bar of 48 is drawn as 24 — a different fraction, and
     // live (grade 5 Urdu) two bars of "24" in a question with one right bar.
@@ -703,7 +731,8 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(`q${i}: ${err.code || 'FIGURE_RENDER'} — ${err.message}${hint ? `; ${hint}` : ''}`);
     }
     if (!svg) return;
-    if (svgInkCount(svg) < 3) {
+    // An empty tray (count 0) is ONE dashed outline by design: the empty set.
+    if (svgInkCount(svg) < (drawsEmptySet(q.figure) ? 1 : 3)) {
       errs.push(`q${i}: FIGURE_BLANK — the drawing paints almost nothing (the engine skipped shapes it does not know); use a shape from the minimal specs`);
       return;
     }

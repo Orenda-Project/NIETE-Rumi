@@ -117,13 +117,13 @@ exports[`round 4 — the roster the author reads is the engine manifest, limits 
   limits:
     · \`rows\` ([{picto,count,label,color}]) overrides \`picto\`/\`count\` and is the compare mode; a row's \`label\` is its NAME, never its count; a row's \`color\` (ink, accent, leaf, cool, warn, plum, clay) draws its things in that colour, so a part of a set can be seen.
     · \`group\` rings equal lots and applies to a single-row spec only — 12 with group 4 draws three rings of four.
-    · No count, total or legend is ever drawn: the child counts. At most 30 things.
+    · No count, total or legend is ever drawn: the child counts. At most 30 things; a count may be 1, and 0 draws an empty dashed tray (the empty set) — one thing or none is only the answer to how many.
     · An Urdu row is laid out right-to-left with its name on the right.
 - count_frame — A ten-frame with counters, or tally gates of five — the two ways a quantity is written before the numeral.
   required: count
   minimal: {"type":"count_frame","count":7}
   limits:
-    · \`model\` is "ten_frame" (default) or "tally". A count over 10 draws a second ten-frame; the cap is 20.
+    · \`model\` is "ten_frame" (default) or "tally". A count over 10 draws a second ten-frame; the cap is 20. A ten_frame of count 0 is an empty frame (zero); a tally needs at least 1.
     · The count is never printed — that is the question.
 - clock — An analogue clock face with correctly-geared hour and minute hands — telling the time.
   required: time

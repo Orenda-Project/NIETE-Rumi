@@ -45,8 +45,9 @@ describe('quiz-sources', () => {
     } finally {
       if (before === undefined) delete process.env.QUIZ_LP612_SOURCE; else process.env.QUIZ_LP612_SOURCE = before;
     }
-    // A quiz queued before the switch went off says it could not start — never "the questions did not come out".
-    expect(failureCopyKey('source_off', 'lp612')).toBe('lpQuizCouldNotStart');
+    // A quiz queued before the switch went off says it could not start — never "the questions did not come out",
+    // and never the 15:00 offer's "next lessons" line: only /quiz makes a 6-12 quiz, and it can be tried again later.
+    expect(failureCopyKey('source_off', 'lp612')).toBe('lpQuizCouldNotStartLater');
   });
 
   test('a 6-12 plan quiz gets the lesson-plan copy, never the recording\'s', () => {

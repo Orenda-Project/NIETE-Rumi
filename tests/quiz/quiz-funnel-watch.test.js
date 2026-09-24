@@ -114,6 +114,23 @@ describe('1 · the funnel, counted per stream from quiz_funnel rows', () => {
     }));
   });
 
+  // Staging E2E, 25 Sep: "children 2 joined → 1 finished" on a quiz ONE child
+  // took — the second join was the teacher testing their own class link.
+  test('the teacher\'s own test run (kind self_test) is not a child: not joined, not finished, no scorecard', () => {
+    const rows = [
+      sumRow('child_joined', 'lp_v8', { c: 1, q: 1, s: 1 }),
+      sumRow('child_joined', 'lp_v8', { kind: 'self_test', c: 1, q: 1, s: 1 }),
+      sumRow('child_completed', 'lp_v8', { c: 1, q: 1, s: 1 }),
+      sumRow('child_completed', 'lp_v8', { kind: 'self_test', c: 1, q: 1, s: 1 }),
+      sumRow('scorecard_sent', 'lp_v8', { ok: 'true', c: 1, s: 1 }),
+      sumRow('scorecard_sent', 'lp_v8', { ok: 'true', kind: 'self_test', c: 1, s: 1 }),
+    ];
+    expect(W.streamCounts(rows).lp).toEqual(expect.objectContaining({ joined: 1, completed: 1, scorecards: 1 }));
+    expect(W.buildSummary({
+      label: 'Last 2 h', window: W.streamCounts(rows), today: null, other: [], incidents: [], cfg: CFG,
+    })).toMatch(/children 1 joined → 1 finished/);
+  });
+
   test('a class picked from the lesson-plan list is a yes', () => {
     expect(W.streamCounts(WINDOW_ROWS).lp).toEqual(expect.objectContaining({ offers: 5, yes: 2, accepted: 2 }));
   });
@@ -200,6 +217,10 @@ describe('3 · what counts as something wrong', () => {
     expect(kinds({ reports: [joined(Q(1), 10 * H)] })).toEqual([]);
     expect(kinds({ reports: [joined(Q(1), 23 * H), reported(Q(1))] })).toEqual([]);
     expect(kinds({ reports: [joined(Q(1), 23 * H, 'video')] })).toEqual([]);
+    // Only the teacher's own test run joined: no child, so no class report is owed.
+    expect(kinds({ reports: [{ ...joined(Q(1), 23 * H), kind: 'self_test' }] })).toEqual([]);
+    // The reports query brings the kind back, so the rule can see it.
+    expect(W.aplFor({ env: 'production', dataset: 'niete-logs', now: pkt(12) }).reports).toMatch(/kind = tostring\(d\.kind\)/);
   });
 
   test('Meta rate limits: a send given up on is always an alert; retried refusals only when Meta is throttling hard', () => {

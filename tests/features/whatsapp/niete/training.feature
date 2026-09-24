@@ -337,7 +337,7 @@ Feature: NIETE (ICT) Teacher Training
   Scenario: A lesson-plan quiz still waiting for its language is asked again from /quiz, never "still being made"
     Given the NIETE bot chat is open and I said yes to the afternoon quiz offer on a maths, science or English lesson plan but never tapped a language
     When I send "/quiz"
-    Then that lesson's row says "Offered — tap to make"
+    Then that lesson's row says "No quiz yet"
     When I tap that row
     Then the bot asks again which language the quiz should be in, with an Urdu and an English button, and does not say the quiz is still being made
     When I tap "English"
@@ -399,8 +399,54 @@ Feature: NIETE (ICT) Teacher Training
     Then no 6-12 lesson without a quiz is listed
     But my sent 6-12 quiz is still listed, and Resend link and Generate report still work for it
     # quiz-sources.lp612SourceOn (read at call time): the provider lists nothing and a tap is unavailable; the
-    # generate step fails a queued lp612 quiz as source_off ("couldn't start it") and never stops one already made.
+    # generate step fails a queued lp612 quiz as source_off ("couldn't start it… try again from /quiz a little
+    # later") and never stops one already made.
     # @config-gated: needs the env var flipped on a test environment. @wip.
+
+  @e2e @quiz @config-gated @wip @draft @P2
+  Scenario: A 6-12 lesson tapped in /quiz that could not be started says so honestly, and can be made again once it can be
+    Given the NIETE bot chat is open, and the 6-12 quiz source is on where /quiz runs but off where quizzes are written
+    When I tap a 6-12 lesson in /quiz and choose the quiz language
+    Then the bot says it could not start that quiz, that the problem was on its side and not my lesson plan, and to try again from /quiz a little later
+    And it never says "the next lessons you plan will get a new offer" — I asked for this quiz from the menu, not from an offer
+    When the source is switched on where quizzes are written and I open that lesson in /quiz
+    Then the lesson screen says the quiz could not be started on the bot's side and my lesson plan was not the problem, and offers "Make it again" and "Done"
+    When I choose "Make it again" and continue
+    Then the Flow closes and the bot says it is making the quiz now, and the quiz arrives with the message to forward
+    # Staging E2E 25 Sep (quiz failed source_off: QUIZ_LP612_SOURCE was off on the service running the quiz queue).
+    # quiz-sources failureCopyKey → startFailureCopyKey: the chat line is chosen by what can happen next —
+    # lpQuizCouldNotStartRetry when lpRemakeable, lpQuizCouldNotStartLater while the source is off here,
+    # otherwise lpQuizCouldNotStart (the 15:00 offer) or lpQuizCouldNotStartMenu (a /quiz tap). lpRemakeable:
+    # source_off once lp612SourceOn() here; source_missing only when lp-source-check reads the plan again.
+    # The Flow's LP_FLOW_FAILURE_RESULT.source_off = tqFlowResultsFailedLpStart (+ tqFlowResultsLater while off).
+    # @config-gated: the switch has to be flipped on one service and not another. @wip.
+
+  @e2e @quiz @copy @wip @draft @P2
+  Scenario: The line after a quiz is sent says when the class report really comes
+    Given the NIETE bot chat is open and I made a quiz for one of my lessons from /quiz
+    When the quiz PDF and the message to forward to my class arrive
+    Then the next message says the class report comes about 12 hours after the first student starts, or at 7 in the morning if that falls at night
+    And it says that to get the report sooner I can send /quiz, pick the lesson and ask for its report
+    And it never promises the report "sooner if everyone finishes"
+    # tqReportPromise (transcript-quiz-handoff, first send). The schedule is video-quiz-report reportTargetUtc:
+    # 12 h after the first join, 22:00-07:00 PKT moved to 07:00; the early "everyone finished" send was removed
+    # (generate suppresses every follow_up), so nothing sends it sooner except the teacher's own request.
+    # vqShareReportPromise, the video lesson's class link, says the same schedule. Proven against the real
+    # scheduler in tests/quiz/report-promise-truth.test.js. @wip.
+
+  @e2e @quiz @i18n @wip @draft @P2
+  Scenario: An Urdu class quiz never guesses whether the child is a boy or a girl — "can", "are doing", "forgot" included
+    Given the NIETE bot chat is open and I made an Urdu quiz for one of my lessons
+    When a child takes it from the class link and reads every question, option, explanation and feedback line
+    Then nothing speaks to the child with a masculine or a feminine verb — no «آپ … کر سکتے ہیں», «آپ … سمجھ رہی ہیں» or «آپ … بھول گئے»
+    And the words say the same thing without a gender: «… کیا جا سکتا ہے», «شاید آپ نے … سمجھا», «… گننا رہ گیا»
+    But a story character or a thing keeps its own verb — «فاطمہ جلد ٹھیک ہوں گی»، «آئس کریم پگھل گئی»
+    # transcript-quiz-address (PEDAGOGY_GENDERED_CHILD): آپ + a gendered present/modal/progressive/future/perfect,
+    # and now a perfective with no auxiliary closing its clause («آپ … بھول گئے»), not where the field names the
+    # Prophet ﷺ or a companion, not after another subject. The validator's complaint names the neutral rewrite for
+    # each form it found (modal, progressive, wish, perfect, habitual). Staging 25 Sep: «آپ … بڑھا سکتے ہیں» was
+    # flagged, left by the last rewrite, and shipped as a recorded soft fault. Proven in
+    # tests/quiz/transcript-quiz-child-address-forms.test.js. @wip — the author's wording cannot be forced live.
 
   @e2e @quiz @i18n @wip @draft @P2
   Scenario: An Urdu quiz on a lesson plan with an English title keeps the title in reading order

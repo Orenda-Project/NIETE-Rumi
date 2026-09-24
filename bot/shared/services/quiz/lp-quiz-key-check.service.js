@@ -221,6 +221,36 @@ function keyedText(q) {
  * Written in English; the lesson and the quiz stay in their own language and
  * the quote is asked for verbatim.
  */
+/**
+ * The picture a question is answered from, as one line of text.
+ *
+ * The checker was shown the stem, the options and the key — never the picture.
+ * On a grade 1 counting lesson (sandbox replays, 24 Sep 2026) it then read
+ * "how many butterflies?" over a picture of THREE butterflies, keyed 3, as
+ * contradicting the lesson's own example of two, in 6 of 8 quizzes; the
+ * rewrite that followed dropped the picture and two quizzes shipped short. A
+ * count is spelled out ("3 × butterfly"; "0 × counter (an empty tray)"); any
+ * other picture is its spec, shortened.
+ */
+const PICTURE_MAX = 240;
+function pictureLine(figure) {
+  if (!figure || typeof figure !== 'object') return '';
+  const type = String(figure.type || 'figure');
+  if (type === 'count_objects') {
+    const rows = arr(figure.rows).length ? arr(figure.rows) : [{ picto: figure.picto, count: figure.count, label: figure.label }];
+    const one = (r) => {
+      const n = Number(r && r.count);
+      const what = String((r && r.picto) || figure.picto || 'thing');
+      const name = r && r.label ? ` «${String(r.label).trim()}»` : '';
+      return `${Number.isFinite(n) ? n : '?'} × ${what}${n === 0 ? ' (an empty tray)' : ''}${name}${figure.group > 1 ? `, ringed in groups of ${Math.floor(Number(figure.group))}` : ''}`;
+    };
+    return `count_objects — ${rows.map(one).join('; ')}`;
+  }
+  const { type: _t, lang: _l, ...rest } = figure; // eslint-disable-line no-unused-vars
+  const spec = JSON.stringify(rest);
+  return `${type} — ${[...spec].length > PICTURE_MAX ? `${[...spec].slice(0, PICTURE_MAX).join('')}…` : spec}`;
+}
+
 function buildKeyCheckPrompt({ sourceBlock, questions, indices, language }) {
   const qs = arr(questions);
   const items = indices.map((i) => {
@@ -228,8 +258,10 @@ function buildKeyCheckPrompt({ sourceBlock, questions, indices, language }) {
     const opts = arr(q.options).map((o, k) => `[${k}] ${String(o ?? '').trim()}`).join(' | ');
     const keyed = keyedIndices(q).map((k) => `[${k}] ${String(arr(q.options)[k] ?? '').trim()}`).join('; ');
     const multi = Multi.isMultiQuestion(q) ? ' (all that apply)' : '';
-    return `q${i}: ${String(q.question || '').trim()}\n  options: ${opts}\n  marked correct${multi}: ${keyed || '(none)'}`;
+    const picture = pictureLine(q.figure);
+    return `q${i}: ${String(q.question || '').trim()}\n  options: ${opts}\n  marked correct${multi}: ${keyed || '(none)'}${picture ? `\n  picture the child answers from: ${picture}` : ''}`;
   }).join('\n\n');
+  const anyPicture = indices.some((i) => pictureLine((qs[i] || {}).figure));
 
   return [
     `You are CHECKING THE ANSWER KEY of a short quiz for children, written from ONE lesson plan. For each question, decide whether the answer MARKED CORRECT agrees with what the lesson itself says. The lesson and the quiz are in ${LANG_NAME[language] || 'the lesson\'s own language'}.`,
@@ -239,7 +271,8 @@ function buildKeyCheckPrompt({ sourceBlock, questions, indices, language }) {
 - "contradicts": the marked answer disagrees with a fact or worked answer in the lesson, OR it says one of the lesson's mistakes — including a claim the lesson puts to the class to test and then corrects. Quote, word for word and in the lesson's own language, the ONE line of the lesson that shows it.
 - "consistent": the lesson supports the marked answer.
 - "unclear": the lesson says nothing that decides this question either way.
-Judge ONLY the marked answer against the LESSON. Do not re-solve the question from your own knowledge, and do not judge wording, level, style, or whether another option could also be defended. Say "contradicts" only when you can quote the line.`,
+Judge ONLY the marked answer against the LESSON. Do not re-solve the question from your own knowledge, and do not judge wording, level, style, or whether another option could also be defended. Say "contradicts" only when you can quote the line.${anyPicture ? `
+A question with a PICTURE is answered by reading that picture: the quiz draws its own example. When the marked answer is what the picture shows — the number of things drawn, the shaded part, the time on the clock — it is "consistent", even if the lesson's own example used a different number. Say "contradicts" for a picture question only when the marked answer states one of the lesson's mistakes.` : ''}`,
     `Return ONLY this JSON object, one entry per question above, "index" being the number after its q:
 { "verdicts": [ { "index": ${indices[0] ?? 0}, "verdict": "consistent|contradicts|unclear", "quote": "" } ] }`,
   ].join('\n\n');

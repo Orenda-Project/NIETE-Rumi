@@ -394,6 +394,20 @@ function orderForSession(questions) {
  * video bank; a transcript bank is ordered by `sort_order` instead — see
  * `orderForSession` above for why the two banks need different rules.
  */
+/**
+ * The teacher's own run of their class link — never a child. A share_link
+ * session carries a user id ONLY then: every child's share_link session is
+ * inserted with userId null, and the self-test passes the teacher's id
+ * (teacher-self-test.js explains the marker; the report excludes the same run).
+ * The child funnel stages say so (`kind: 'self_test'`), so the funnel watcher
+ * counts children, not the teacher checking the link. A video_solo run also
+ * carries a user id, but it has no class link and is not a class quiz at all.
+ */
+const SELF_TEST = 'self_test';
+function isSelfTestRun({ source, userId } = {}) {
+  return source === 'share_link' && Boolean(userId);
+}
+
 async function startSession({ phone, userId, quizId, videoId, language, deliveryId,
                               source = 'video_solo', studentName = null,
                               studentClass = null, shareCodeId = null,
@@ -524,7 +538,10 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
   logEvent('video_quiz.session_started', {
     sessionId: session.id, quizId, source, questions: chosen.length,
   });
-  Funnel.emit('child_joined', { quiz_id: quizId, session_id: session.id, share_code_id: shareCodeId, source: quizSource });
+  Funnel.emit('child_joined', {
+    quiz_id: quizId, session_id: session.id, share_code_id: shareCodeId, source: quizSource,
+    ...(isSelfTestRun({ source, userId }) ? { kind: SELF_TEST } : {}),
+  });
 
   // A child who arrived on a shared class link has NOT seen the
   // lesson — the teacher sent them a link, not a classroom. Send it before the
@@ -1136,8 +1153,9 @@ async function finish(phone, state) {
     skipped: (state.skippedIds || []).length,
   });
   const stream = (quizMeta && quizMeta.quiz_source) || state.quizSource;
-  Funnel.emit('child_completed', { quiz_id: state.quizId, session_id: state.sessionId, source: stream, n: total, pct });
-  Funnel.emit('scorecard_sent', { quiz_id: state.quizId, session_id: state.sessionId, source: stream, ok: Boolean(sentScorecard) });
+  const selfTest = isSelfTestRun(state) ? { kind: SELF_TEST } : {};
+  Funnel.emit('child_completed', { quiz_id: state.quizId, session_id: state.sessionId, source: stream, n: total, pct, ...selfTest });
+  Funnel.emit('scorecard_sent', { quiz_id: state.quizId, session_id: state.sessionId, source: stream, ok: Boolean(sentScorecard), ...selfTest });
 
   // A child finishing a shared quiz may be arriving AFTER their teacher's report
   // already went out. bd-mg9c7.145: the old hook here sent an early report the

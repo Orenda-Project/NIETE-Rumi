@@ -108,6 +108,9 @@ function lessonSessionFor(quiz) {
  *
  * @param {string} reason      the `transcript_quiz.failed` reason
  * @param {string} quizSource  `quizzes.quiz_source`
+ * @param {{meta?: object, channel?: string}} [opts]  the FAILED row's meta (and
+ *   'quiz_menu' when the teacher is known to be in /quiz): a start failure's
+ *   line then says what can happen next (startFailureCopyKey)
  * @returns {string} a ux-strings key
  */
 const LP_FAILURE_COPY = {
@@ -124,12 +127,14 @@ const LP_FAILURE_COPY = {
   // The blind solve disagreed with too many keys (a wrong answer, or two right
   // ones) to fix or drop and still send a quiz.
   key_disagreement: 'tqFailedLpKeyDisagreement',
-  // The generate job could not be queued: the quiz was never written. What the
-  // teacher was told at the time, repeated — not "the questions did not come out".
+  // The two START failures — the quiz was never written. With the row's meta the
+  // line is chosen by what can happen next (startFailureCopyKey); these are the
+  // lines when a caller has no meta to give.
+  // The generate job could not be queued.
   queue_failed: 'lpQuizCouldNotStart',
-  // QUIZ_LP612_SOURCE was switched off between the tap and the author: the quiz
-  // was never written, and "couldn't start it just now" is the honest sentence.
-  source_off: 'lpQuizCouldNotStart',
+  // QUIZ_LP612_SOURCE was off where the quiz is written (only a /quiz tap makes
+  // a 6-12 quiz, so never the 15:00 offer's line).
+  source_off: 'lpQuizCouldNotStartLater',
 };
 /**
  * The transcript counterpart. `tqCouldNotMake` blames the recording ("the
@@ -152,12 +157,48 @@ const TRANSCRIPT_FAILURE_COPY = {
   // the coaching session it was to be written from is gone
   session_missing: 'tqCouldNotMakeSessionGone',
 };
-function failureCopyKey(reason, quizSource) {
+function failureCopyKey(reason, quizSource, { meta = null, channel = null } = {}) {
   if (!isPlanQuiz(quizSource)) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMakeModel';
+  if (meta && START_FAILURES.has(reason)) return startFailureCopyKey(reason, meta, channel);
   // An LP quiz never falls back to the transcript copy: a reason nobody has
   // written copy for is still an LP failure, and "the questions did not come
   // out" is the honest general case of one.
   return LP_FAILURE_COPY[reason] || 'tqFailedLpAuthor';
+}
+
+/** The lesson-plan failures where the quiz was never STARTED: nothing was written. */
+const START_FAILURES = new Set(['queue_failed', 'source_off']);
+
+/**
+ * WHICH line a start failure gets — by what can happen next, not the reason
+ * alone (staging E2E, 25 Sep: a quiz tapped in /quiz that failed source_off was
+ * told "the next lessons you plan will get a new offer", a line written for the
+ * 15:00 offer).
+ *
+ *   - it can be made again from /quiz (lpRemakeable on the failed row) → Retry,
+ *     from either door: every lesson-plan quiz, any status, is listed in /quiz;
+ *   - the 6-12 source is still off here → Later (it becomes remakeable when on);
+ *   - otherwise the 15:00 offer keeps its own line, and a /quiz tap — where
+ *     there is no offer to promise — is sent to another lesson.
+ *
+ * @param {string} reason   'queue_failed' | 'source_off'
+ * @param {object} meta     the FAILED row's `quizzes.meta` (its error set)
+ * @param {string|null} channel  'quiz_menu' when the caller knows the teacher is in /quiz
+ */
+function startFailureCopyKey(reason, meta, channel) {
+  if (lpRemakeable({ ...meta, error: reason })) return 'lpQuizCouldNotStartRetry';
+  if (reason === 'source_off') return 'lpQuizCouldNotStartLater';
+  return (channel === 'quiz_menu' || askedFromMenu(meta)) ? 'lpQuizCouldNotStartMenu' : 'lpQuizCouldNotStart';
+}
+
+/**
+ * Was this quiz asked for from /quiz — a tap in the list message or the Flow, or
+ * a remake from either — rather than the 15:00 offer? Read from the row's
+ * `meta.source` (the providers write 'list' / 'flow'; the offer writes 'lp_offer').
+ */
+function askedFromMenu(meta) {
+  const m = meta || {};
+  return Boolean(m.remake_source) || m.source === 'list' || m.source === 'flow';
 }
 
 /**
@@ -218,13 +259,29 @@ function failureReasonOf(meta) {
  */
 // queue_failed: the job never reached the queue — a transient refusal, and the
 // row now keeps its lessons (queueLpQuiz merges), so a remake can succeed.
-const LP_REMAKE_REASONS = new Set(['model_failed', 'validator_failed', 'key_conflict', 'key_disagreement', 'queue_failed']);
+// source_off: the 6-12 source was switched off where the quiz is written — a
+// config state, not the lesson's; made again once QUIZ_LP612_SOURCE is on HERE.
+// source_missing: the plan could not be read. Made again only when it can be
+// read NOW — `sourceBack`, which a caller sets from lp-source-check after
+// reading the source, never assumes. Without it, a remake would fail the same
+// way and tell the teacher the same thing a second time.
+const LP_REMAKE_REASONS = new Set([
+  'model_failed', 'validator_failed', 'key_conflict', 'key_disagreement', 'queue_failed', 'source_off', 'source_missing',
+]);
 const MAX_LP_REMAKES = 2;
-function lpRemakeable(meta) {
+function lpRemakeable(meta, { sourceBack = false } = {}) {
   const m = meta || {};
-  if (!LP_REMAKE_REASONS.has(failureReasonOf(m))) return false;
+  const reason = failureReasonOf(m);
+  if (!LP_REMAKE_REASONS.has(reason)) return false;
+  if (reason === 'source_off' && !lp612SourceOn()) return false;
+  if (reason === 'source_missing' && sourceBack !== true) return false;
   if (!Array.isArray(m.lessons) || !m.lessons.length) return false;
   return (Number(m.remakes) || 0) < MAX_LP_REMAKES;
+}
+
+/** lpRemakeable for a loaded quiz row: its meta, and the source check a surface ran on it (`_sourceBack`). */
+function lpRemakeableQuiz(quiz) {
+  return Boolean(quiz) && lpRemakeable(quiz.meta, { sourceBack: quiz._sourceBack === true });
 }
 
 /**
@@ -244,5 +301,5 @@ function handoffIntroKey(quizSource) {
 
 module.exports = {
   TRANSCRIPT, LP_V8, LP612, LESSON_SOURCES, PLAN_SOURCES, isLessonQuiz, isPlanQuiz, lp612SourceOn, lessonSessionFor, failureCopyKey, handoffIntroKey,
-  SOURCE_UNUSABLE_CODE, digestFailureReason, failureReasonOf, lpRemakeable,
+  SOURCE_UNUSABLE_CODE, digestFailureReason, failureReasonOf, lpRemakeable, lpRemakeableQuiz,
 };

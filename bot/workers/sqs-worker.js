@@ -130,11 +130,16 @@ class SQSCoachingWorker {
 
     this.isRunning = true;
 
+    // The quiz queue polls in its own loop beside main/video (see _quizOwnLoop).
+    const quizLoop = SQSCoachingWorker._quizOwnLoop() ? this.runQuizLoop() : null;
+
     // Main processing loop
     while (!this.isShuttingDown) {
       try {
-        // Only fetch new jobs if we have capacity
-        const availableSlots = CONCURRENCY_PER_WORKER - this.activeJobs.size;
+        // Only fetch new jobs if we have capacity. With its own loop the quiz
+        // queue brings its own budget, so its jobs do not use these slots.
+        const availableSlots = CONCURRENCY_PER_WORKER
+          - (quizLoop ? this._activeCount((m) => m.sourceQueue !== 'quiz') : this.activeJobs.size);
 
         if (availableSlots > 0) {
           await this.processNextBatch(availableSlots);
@@ -161,6 +166,8 @@ class SQSCoachingWorker {
       }
     }
 
+    if (quizLoop) await quizLoop;
+
     // Wait for active jobs to complete during shutdown
     await this.waitForActiveJobs();
 
@@ -185,6 +192,70 @@ class SQSCoachingWorker {
     if (!raw) return new Set(['main', 'video', 'quiz']);
     const parsed = raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
     return parsed.length ? new Set(parsed) : new Set(['main', 'video', 'quiz']);
+  }
+
+  /**
+   * Does the quiz queue get its own poll loop on this replica?
+   *
+   * Only when the replica polls quiz AND another queue. In the combined poll the
+   * quiz queue had one slot and waited on Promise.all with the main queue's
+   * 20-second long poll, so with `main` idle a replica took one quiz message per
+   * ~20 s — production's flat ~1,800/h ceiling across 10 replicas — and every quiz
+   * job sat received-but-unstarted until the main poll returned. A quiz-only
+   * replica already gives the quiz queue the whole budget and keeps the one loop.
+   *
+   * QUIZ_QUEUE_OWN_LOOP=off (false/0/no) restores the combined poll exactly.
+   * Read at call time.
+   */
+  static _quizOwnLoop() {
+    const raw = String(process.env.QUIZ_QUEUE_OWN_LOOP || '').trim().toLowerCase();
+    if (raw === 'false' || raw === '0' || raw === 'off' || raw === 'no') return false;
+    const enabled = SQSCoachingWorker._enabledQueues();
+    if (!enabled.has('quiz') || !process.env.SQS_QUIZ_QUEUE_URL) return false;
+    return enabled.has('main') || (enabled.has('video') && !!process.env.SQS_VIDEO_QUEUE_URL);
+  }
+
+  /**
+   * Slots the quiz loop may hold at once, per replica (QUIZ_QUEUE_CONCURRENCY,
+   * default 6). Most quiz jobs are a re-queue that finishes in milliseconds; a
+   * generate holds a slot ~35-80 s and renders at most 3 pages at a time.
+   */
+  static _quizConcurrency() {
+    const n = parseInt(process.env.QUIZ_QUEUE_CONCURRENCY, 10);
+    return Number.isFinite(n) && n > 0 ? n : 6;
+  }
+
+  /** How many in-flight jobs match `pred(meta)`. */
+  _activeCount(pred) {
+    let n = 0;
+    for (const meta of this.activeJobs.values()) if (pred(meta || {})) n += 1;
+    return n;
+  }
+
+  /**
+   * The quiz queue's own loop: long-poll ONLY the quiz queue for as many
+   * messages as there are free quiz slots, and start each job the moment the
+   * poll returns. Runs until shutdown, beside the main loop in start().
+   */
+  async runQuizLoop() {
+    const limit = SQSCoachingWorker._quizConcurrency();
+    logToFile('Quiz queue poll loop started', { workerId: this.workerId, quizConcurrency: limit });
+    while (!this.isShuttingDown) {
+      try {
+        const free = limit - this._activeCount((m) => m.sourceQueue === 'quiz');
+        if (free > 0) {
+          const jobs = await SQSQueueService.receiveQuizJobs(Math.min(free, 10));
+          for (const job of jobs || []) {
+            job.sourceQueue = 'quiz';
+            this.processJob(job);
+          }
+        }
+        await this.sleep(POLL_INTERVAL_MS);
+      } catch (error) {
+        logToFile('❌ Error in quiz queue poll loop', { workerId: this.workerId, error: error.message }, 'error');
+        await this.sleep(1000);
+      }
+    }
   }
 
   /**
@@ -221,7 +292,8 @@ class SQSCoachingWorker {
       const hasQuizQueue = !!process.env.SQS_QUIZ_QUEUE_URL;
       const pollsMain = enabled.has('main');
       const pollsVideo = enabled.has('video') && hasVideoQueue;
-      const pollsQuiz = enabled.has('quiz') && hasQuizQueue;
+      // A quiz queue with its own loop (runQuizLoop) is not polled here.
+      const pollsQuiz = enabled.has('quiz') && hasQuizQueue && !SQSCoachingWorker._quizOwnLoop();
 
       // Slot allocation. If main is enabled it gets the bulk; dedicated queues
       // get 1 slot each. If main is NOT enabled (e.g. a video-only worker), the
