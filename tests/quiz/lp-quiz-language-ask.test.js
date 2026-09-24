@@ -323,7 +323,9 @@ describe('Make the quiz on a maths lesson asks which language the quiz is writte
 
     expect(quizzes()[0].status).toBe('failed');
     expect(quizzes()[0].meta.error).toBe('queue_failed');
-    expect(sentText()).toEqual([ux('lpQuizCouldNotStart')]);
+    // The row keeps its lesson and is listed in /quiz, where it can be made
+    // again — so the line says that, not "the next lessons will get a new offer".
+    expect(sentText()).toEqual([ux('lpQuizCouldNotStartRetry')]);
   });
 });
 

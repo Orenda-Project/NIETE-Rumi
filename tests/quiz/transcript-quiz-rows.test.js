@@ -113,7 +113,7 @@ describe('row status budgets', () => {
   // times and dropped the status ONCE — the 40-code-point English topic in an
   // Urdu row at a 99-student count. That is the designed degradation: when
   // both cannot fit, the topic owns the field.
-  const STATUS_KEYS = ['tqRowNoQuiz', 'tqRowOffered', 'tqRowMaking', 'tqRowSent', 'tqRowReportSent', 'tqRowFailed'];
+  const STATUS_KEYS = ['tqRowNoQuiz', 'tqRowMaking', 'tqRowSent', 'tqRowReportSent', 'tqRowFailed'];
   const BUDGET = 28;
 
   test.each(STATUS_KEYS)('%s renders ≤ %i code points in en and ur with 2-digit counts', (key) => {

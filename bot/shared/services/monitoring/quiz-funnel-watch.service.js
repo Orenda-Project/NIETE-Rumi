@@ -220,8 +220,10 @@ function aplFor({ env, dataset, now }) {
     children: `${P}where msg in (${inList(['child_completed', 'scorecard_sent'])}) | extend d = parse_json(data_json) `
       + `| summarize t = min(_time), oks = make_set(tostring(d.ok)) `
       + `by s = tostring(d.session_id), q = tostring(d.quiz_id), stage = ${STAGE}, source = tostring(d.source) | limit 20000`,
+    // `kind` comes back so the teacher's own test run (child_joined kind:self_test)
+    // never makes a class report "owed".
     reports: `${P}where msg in (${inList(['child_joined', 'report_sent'])}) | extend d = parse_json(data_json) `
-      + `| summarize t = min(_time) by q = tostring(d.quiz_id), stage = ${STAGE}, source = tostring(d.source) | limit 50000`,
+      + `| summarize t = min(_time) by q = tostring(d.quiz_id), stage = ${STAGE}, source = tostring(d.source), kind = tostring(d.kind) | limit 50000`,
     counters: `${P}where ${COUNTER_FILTER} | extend d = parse_json(data_json) | extend k = ${COUNTER_KEY} | where k != '' `
       + `| summarize c60 = countif(_time >= ${at(60 * MIN)}), c75 = countif(_time >= ${at(75 * MIN)}), `
       + `lag = countif(_time >= ${at(75 * MIN)} and _time < ${at(15 * MIN)}), c120 = count(), `
@@ -244,6 +246,10 @@ function aplFor({ env, dataset, now }) {
 
 // ─── counting ────────────────────────────────────────────────────────────────
 
+/** The child stages a teacher's own test run is left out of. */
+const CHILD_STAGES = new Set(['child_joined', 'child_completed', 'scorecard_sent']);
+const isSelfTestRow = (r) => Boolean(r) && r.kind === 'self_test';
+
 function blankCounts() {
   return {
     offers: 0, undelivered: 0, yes: 0, no: 0, expired: 0, accepted: 0, menu: 0, remake: 0,
@@ -258,6 +264,10 @@ function streamCounts(rows = []) {
   for (const r of rows || []) {
     const stream = streamOf(r.source);
     if (!stream) continue;
+    // The teacher testing their own class link is not a child: not joined, not
+    // finished, no child's scorecard (video-quiz isSelfTestRun). Rows logged
+    // before the marker existed carry no kind and are counted as they were.
+    if (isSelfTestRow(r) && CHILD_STAGES.has(r.stage)) continue;
     const c = out[stream];
     switch (r.stage) {
       case 'offer_made':
@@ -431,7 +441,8 @@ function findIncidents(data = {}, now = new Date(), cfg = DEFAULTS) {
   }
 
   // ── the teacher's report ────────────────────────────────────────────────
-  const reportQuiz = [...byQuiz(data.reports).values()];
+  // A join by the teacher's own test run owes nobody a class report.
+  const reportQuiz = [...byQuiz((data.reports || []).filter((r) => !isSelfTestRow(r))).values()];
   const owed = reportQuiz.filter((e) => {
     const joined = e.first.child_joined;
     return joined <= t - cfg.reportOwedH * H && joined >= t - cfg.reportLookbackH * H && !(e.first.report_sent > 0);

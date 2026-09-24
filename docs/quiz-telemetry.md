@@ -348,9 +348,9 @@ quiz_funnel.<stage>  { quiz_id, source, channel, teacher_id?, nudge_id?, session
 | `generation_failed` | every terminal failure (`tellTeacherFailed`, `teacher_missing`, `session_missing`, `queue_failed`) | `reason`, `step` | `status='failed'`, `meta.error`, **`meta.failed_at`** | `transcript_quiz.failed` |
 | `sent` | the first hand-off (`transcript-quiz-handoff`) | `pdf_sent`, `link_sent` | `status='sent'`, `meta.sent_at`, `meta.pdf_sent`, **`meta.link_sent`**, `meta.share_code_id` | `transcript_quiz.sent` (logged even when the link failed) |
 | `send_failed` | the hand-off | `reason`: `link_not_delivered` \| `mint_failed` | `meta.link_sent=false` / `meta.handoff_error='mint_failed'` | — |
-| `child_joined` | `video-quiz` `startSession` | `session_id`, `share_code_id`, `source` = the quiz's stream | `quiz_sessions` row (`created_at`, `share_code_id`), `quiz_share_codes.uses_count` | `video_quiz.session_started` (its `source` is the session engine, not the stream) |
-| `child_completed` | `video-quiz` `finish` | `session_id`, `n` (asked), `pct` | `quiz_sessions.status='completed'`, `completed_at`, `mastery_percentage` | `video_quiz.completed` |
-| `scorecard_sent` | `video-quiz` `finish` | `session_id`, `ok` (`false` = the text fallback went) | none — per child, Axiom only | `video_quiz.scorecard_sent` |
+| `child_joined` | `video-quiz` `startSession` | `session_id`, `share_code_id`, `source` = the quiz's stream, `kind: 'self_test'` when it is the teacher's own run of the class link (not a child — the watcher leaves it out) | `quiz_sessions` row (`created_at`, `share_code_id`), `quiz_share_codes.uses_count` | `video_quiz.session_started` (its `source` is the session engine, not the stream) |
+| `child_completed` | `video-quiz` `finish` | `session_id`, `n` (asked), `pct`, `kind: 'self_test'` as above | `quiz_sessions.status='completed'`, `completed_at`, `mastery_percentage` | `video_quiz.completed` |
+| `scorecard_sent` | `video-quiz` `finish` | `session_id`, `ok` (`false` = the text fallback went), `kind: 'self_test'` as above | none — per child, Axiom only | `video_quiz.scorecard_sent` |
 | `class_cards` | `video-quiz-report` `sendClassCards` (with the report, or late) | `n` sent, `failed`, `skipped` (no number / outside the 23 h window) | `quizzes.meta.class_cards[share_code_id]` = the children sent | `video_quiz.class_card_sent` / `_skipped` |
 | `report_sent` | `video-quiz-report` `generate` | `kind`: `report` \| `no_one` (nobody but the teacher took it), `n` children who finished, `reason` (`scheduled`/`requested`/`follow_up`) | `quiz_share_codes.report_sent_at`, `quizzes.status='report_sent'`, `meta.report_followups` (`quizzes.report_sent_at` is never written) | `video_quiz.report_sent` (**not** logged for `no_one` — 17.5% of reports) |
 | `report_failed` | `video-quiz-report` `generate` | `reason`: `no_teacher_phone` | — | log line only |
@@ -360,6 +360,7 @@ quiz_funnel.<stage>  { quiz_id, source, channel, teacher_id?, nudge_id?, session
 ```apl
 ['niete-logs'] | where env == 'production' | where msg startswith 'quiz_funnel.'
 | extend d = parse_json(data_json), stage = substring(msg, 12)
+| where tostring(d.kind) != 'self_test'          // the teacher's own run of the class link is not a child
 | summarize events = count(), quizzes = dcount(tostring(d.quiz_id)), children = dcount(tostring(d.session_id))
   by stage, stream = tostring(d.source)
 ```

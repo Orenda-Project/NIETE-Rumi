@@ -575,8 +575,9 @@ async function updateQuiz(quizId, patch) {
  * stopped when one reason can come from two of them (`model_failed`: the digest
  * or the author).
  */
-async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT, extra = {}) {
-  await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource), { language: lang }));
+async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT, extra = {}, failedMeta = null) {
+  // failedMeta: the row as failed, for a start failure's next-step line (quiz-sources startFailureCopyKey).
+  await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource, { meta: failedMeta }), { language: lang }));
   logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource, ...extra });
   Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason, step: extra.step });
 }
@@ -1614,8 +1615,9 @@ async function process(quizId, payload = {}) {
   // before it was switched off fails honestly ("couldn't start it"); one already
   // written (`ready`/`ready`, resuming at the hand-off) is not stopped.
   if (quizSource === LP612 && !lp612SourceOn() && !(quiz.status === 'ready' && meta.step === 'ready')) {
-    await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'source_off' } });
-    await tellTeacherFailed(phone, teacherLang, quizId, 'source_off', quizSource);
+    const failedMeta = { ...meta, step: 'failed', error: 'source_off' };
+    await updateQuiz(quizId, { status: 'failed', meta: failedMeta });
+    await tellTeacherFailed(phone, teacherLang, quizId, 'source_off', quizSource, {}, failedMeta);
     return { failed: true, reason: 'source_off' };
   }
 
