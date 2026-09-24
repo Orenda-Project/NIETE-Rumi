@@ -5982,6 +5982,17 @@ ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS debrief_status         VA
 CREATE INDEX IF NOT EXISTS idx_coaching_sessions_observer_pending
   ON coaching_sessions (observer_user_id, created_at DESC) WHERE observation_type = 'leader_observation';
 
+-- ── quiz_sessions.source: which quiz engine runs a session — from
+-- bot/database/migrations/create_video_quiz_tables.sql §5, live on every database
+-- that runs video quizzes (same definition and CHECK). 'roster' is the adaptive
+-- parent quiz; 'video_solo' / 'share_link' the video engine that runs video,
+-- transcript and lesson-plan quizzes. The adaptive engine's state recovery reads
+-- only its own ('roster') sessions. ──
+ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'roster';
+ALTER TABLE quiz_sessions DROP CONSTRAINT IF EXISTS quiz_sessions_source_check;
+ALTER TABLE quiz_sessions ADD CONSTRAINT quiz_sessions_source_check
+  CHECK (source IN ('roster', 'video_solo', 'share_link'));
+
 -- Cache reload LAST (infrastructure/CLAUDE.md): the blocks above were appended after the
 -- previous NOTIFY, and PostgREST cannot see a column it has not reloaded.
 NOTIFY pgrst, 'reload schema';
