@@ -704,6 +704,15 @@ function renameLetters(text, map, { groups = false } = {}) {
 function relabelLetterParts(q) {
   if (!q || typeof q !== 'object' || !q.figure || typeof q.figure !== 'object' || Array.isArray(q.figure)) return { question: q, renamed: null };
   const type = canonicalType(q.figure.type);
+  // «پٹی P», "Bar A", "bar 2" name the part with its noun. The label gate
+  // strips a shape word from a fraction bar and takes the whole label with it
+  // (replay, grade 4 Urdu: the options named bars P, Q, R that the picture
+  // no longer named), so the label keeps only the name.
+  if (partLabelSlots(q.figure).some(([h, k]) => bareName(h[k]) !== h[k])) {
+    const figure = JSON.parse(JSON.stringify(q.figure));
+    partLabelSlots(figure).forEach(([h, k]) => { h[k] = bareName(h[k]); });
+    q = { ...q, figure }; // eslint-disable-line no-param-reassign
+  }
   const probe = partLabelSlots(q.figure);
   const used = [...new Set(probe.map(([h, k]) => String(h[k]).replace(BIDI, '').trim()).filter((l) => OPTION_LETTERS.includes(l)))];
   if (!used.length) return { question: q, renamed: null };
@@ -732,6 +741,35 @@ function relabelLetterParts(q) {
       ...(fb ? { option_feedback: { ...fb, correct: rn(fb.correct), wrong: rnMap(fb.wrong) } } : {}),
     },
   };
+}
+
+const PART_NOUN = '(?:bar|point|row|ribbon|component|part|strip|پٹی|نقطہ|قطار|حصہ)';
+const NOUN_THEN_NAME = new RegExp(`^${PART_NOUN}\\s*([A-Z]|[1-9])$`, 'i');
+const NAME_THEN_NOUN = new RegExp(`^([A-Z]|[1-9])\\s*${PART_NOUN}$`, 'i');
+
+/** "Bar P" / «پٹی P» / "P bar" → "P"; anything else unchanged. */
+function bareName(label) {
+  if (typeof label !== 'string') return label;
+  const t = label.replace(BIDI, '').trim();
+  const m = NOUN_THEN_NAME.exec(t) || NAME_THEN_NOUN.exec(t);
+  return m ? m[1].toUpperCase() : label;
+}
+
+/**
+ * Options that pick a part by name ("P", "bar Q", «پٹی 2») over a picture that
+ * names no part: the child is asked for a name that is not there. Returns the
+ * names asked for, or null.
+ */
+function unnamedParts(spec, options) {
+  if (!spec || typeof spec !== 'object' || partLabelSlots(spec).some(([h, k]) => String(h[k] || '').trim())) return null;
+  if (!['fraction_bar', 'numberline', 'circuit', 'compare_size', 'count_objects', 'geometry'].includes(canonicalType(spec.type))) return null;
+  const names = (Array.isArray(options) ? options : []).map((o) => {
+    const t = String(o || '').replace(BIDI, '').trim();
+    const m = NOUN_THEN_NAME.exec(t) || /^([P-S])$/.exec(t);
+    return m ? m[1].toUpperCase() : null;
+  });
+  const named = names.filter(Boolean);
+  return named.length >= 2 ? named : null;
 }
 
 /** Does `answer` name one of the figure's parts ("P", "bar 2", «پٹی Q»)? Then it is a pick, not a quantity. */
@@ -1277,6 +1315,7 @@ module.exports = {
   equalAmountOptions,
   relabelLetterParts,
   partLabelSlots,
+  unnamedParts,
   svgInkCount,
   figureIsRedundant,
   figureDefiningNumbers,

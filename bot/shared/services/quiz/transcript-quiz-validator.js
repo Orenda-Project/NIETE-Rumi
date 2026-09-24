@@ -14,7 +14,7 @@
 
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
-const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, specStrings, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
+const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, specStrings, MATHS_ONLY_TYPES } = require('./transcript-quiz-figure');
 
 /** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
 const FRACTION_BAR_MAX_PARTS = 24;
@@ -639,6 +639,8 @@ function validate(rawQuestions, ctx = {}) {
     // question no picture can answer is REPLACED by the add-pictures repair
     // instead (transcript-quiz-rewrite). Counters (count_objects) are held to
     // the same rule since two slipped through beside a product and an LCM.
+    const unnamed = unnamedParts(q.figure, opts);
+    if (unnamed) errs.push(`q${i}: FIGURE_PARTS_UNNAMED — the options name parts ${unnamed.join(', ')} but the picture names none; give each part its name as its label ("P", not "bar P")`);
     const mismatch = figureMismatch(q.figure, opts, ci);
     if (mismatch) {
       errs.push(`q${i}: FIGURE_MISMATCH — ${mismatch}; draw the quantities the question is about`);

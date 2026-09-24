@@ -119,6 +119,21 @@ describe('the option letters never name a part of the picture', () => {
   });
 });
 
+describe('a part name written with its noun keeps the name', () => {
+  // Replay (grade 4 Urdu): the model named its bars «پٹی P», «پٹی Q», «پٹی R»; the
+  // label gate strips a shape word from a fraction bar and took the whole label
+  // with it, so the options named bars the picture no longer named.
+  test.each([['پٹی P', 'P'], ['Bar A', 'P'], ['bar 2', '2'], ['Q bar', 'Q']])('%s is drawn as %s', (label, name) => {
+    const q = q0(one(which({ figure: { type: 'fraction_bar', bars: [{ parts: 3, shaded: 2, label }, { parts: 5, shaded: 2, label: 'Bar R' }, { parts: 4, shaded: 1, label: 'Bar S' }] } }), { language: 'en', subject: 'maths', digest: maths() }));
+    expect(q.figure.bars[0].label).toBe(name);
+  });
+
+  test('options that name parts the picture does not name are a fault, not a silent guess', () => {
+    const v = one(which({ options: ['Bar R', 'Bar P', 'Bar Q'], figure: { type: 'fraction_bar', bars: [{ parts: 3, shaded: 2 }, { parts: 5, shaded: 2 }, { parts: 4, shaded: 1 }] } }), { language: 'en', subject: 'maths', digest: maths() });
+    expect(v.errors.filter((e) => /^q0: FIGURE_PARTS_UNNAMED/.test(e))).toHaveLength(1);
+  });
+});
+
 describe('the stored row, the picture and the card all carry the new names', () => {
   test('toRows and the drawn figure agree with the options', () => {
     const Gen = require('../../bot/shared/services/quiz/transcript-quiz-generate.service');
