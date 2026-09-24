@@ -126,6 +126,26 @@ describe('1 — the validator names it on its question, every field included', (
     expect(errs[0]).toMatch(/^q1: URDU_NAME_LATIN — "Hira" is a person's name, not a term, written in English letters in figure labels\. /);
   });
 
+  test('a capitalised word the lesson or the quiz also writes in lowercase is a word, not a name', () => {
+    // Replayed: a lesson plan's worked example begins "Compare: 10 is more
+    // than 9", and a teacher note that wrote "Compare" was sent to the repair
+    // as a person's name.
+    const plan = {
+      ...DIGEST,
+      slos: [...DIGEST.slos, { id: 'S3', statement: 'compare and order unlike fractions', taught_level: 'apply' }],
+      examples_used: ['Hira: 2/3 of her bottle vs 3/5 of her friend\'s bottle', 'Compare: 10 is more than 9', 'Step two: write each product under its fraction'],
+    };
+    const qs = URDU();
+    qs[2] = { ...qs[2], selected_because: 'سبق میں Compare والا مرحلہ' };
+    qs[3] = { ...qs[3], selected_because: 'سبق میں Step والا مرحلہ', explanation: 'ہر step میں ایک product لکھیں۔' };
+    expect(names(validate(qs, { ...CTX, digest: plan }).errors)).toEqual([]);
+    // the lesson's child is still a name
+    qs[4] = { ...qs[4], selected_because: 'سبق میں Hira کی مثال' };
+    const got = names(validate(qs, { ...CTX, digest: plan }).errors);
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatch(/^q4: URDU_NAME_LATIN — "Hira"/);
+  });
+
   test('a key term is never a name ({term, as_spoken}), and an English quiz is never checked', () => {
     const vocab = {
       ...DIGEST,
