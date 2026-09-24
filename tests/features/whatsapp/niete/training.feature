@@ -544,6 +544,20 @@ Feature: NIETE (ICT) Teacher Training
     # re-authored — that cannot be forced live; it is proven in tests/quiz/transcript-quiz-urdu-script-share.test.js.
     # Content-driven: assert that a quiz arrives and its sentences are Urdu, never a fixed question. @wip.
 
+  @e2e @quiz @wip @draft @P2
+  Scenario: In an Urdu quiz, two English terms are never written side by side
+    Given the NIETE bot chat is open and I planned a maths lesson whose terms are English, such as proper and improper fractions
+    When I say yes to a quiz for that lesson and choose اردو when asked for the quiz language
+    Then the quiz arrives, and no question, option or feedback puts two separate English terms next to each other — an Urdu word stands between them, as in «جب numerator کی قیمت denominator سے کم ہو»
+    And a two-word English term such as "improper fraction" or "cross multiplication" still reads as one phrase, left to right
+    # transcript-quiz-adjacent-terms + validator URDU_ADJACENT_TERMS: two separate English terms side by side are
+    # one left-to-right run in a right-to-left line, so a reader meets the second first and the meaning turns
+    # around («جب numerator denominator سے چھوٹا ہو»). The author and the targeted rewrite are told never to write
+    # it; the validator names it per question as a SOFT fault, repaired in place by one targeted rewrite and shipped
+    # whatever that leaves (never a re-roll, a dropped question or a failed quiz). The model's wording cannot be
+    # forced live; the behaviour is proven in tests/quiz/transcript-quiz-adjacent-terms.test.js. Content-driven:
+    # read every Urdu line of the quiz for two English words side by side that are two different things. @wip.
+
   @e2e @quiz @wip @draft @P1
   Scenario: A grade 1-5 maths quiz draws what the lesson drew, on at least three questions
     Given the NIETE bot chat is open and a class quiz was made from a grade 1-3 maths lesson plan that counted with counters

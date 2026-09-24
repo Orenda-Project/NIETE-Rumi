@@ -87,6 +87,17 @@ const CHILD_ADDRESS_RULE = 'THE CHILD HAS NO GENDER (Urdu): the class is boys an
 const COLUMN_SUM_RULE = 'COLUMN SUMS. A column addition or subtraction — the way the textbook sets it out — is ONE expression in the stem: $\\begin{array}{rr} & 452 \\\\ - & 137 \\\\ \\hline & \\end{array}$. Each number is its own row, right-aligned so the places line up; the operator (+ or -) sits alone in the first column of the last number\'s row; \\hline draws the rule; the empty row after it is the answer space. Never write the answer in it. The stem\'s words stay outside the dollars ("Subtract:", «تفریق کریں:»). In the JSON you return, every backslash is doubled, so a row break is four: "$\\\\begin{array}{rr} & 452 \\\\\\\\ - & 137 \\\\\\\\ \\\\hline & \\\\end{array}$".';
 
 /**
+ * NEVER TWO ENGLISH TERMS SIDE BY SIDE (the Urdu half of the question
+ * contract). English words written next to each other inside an Urdu sentence
+ * are laid out as ONE left-to-right run, so in «جب numerator denominator سے
+ * چھوٹا ہو» a right-to-left reader meets "denominator" first and reads the
+ * relation backwards. A single two-word term stays together — that is a
+ * phrase, and the page keeps it whole. The deterministic half is
+ * URDU_ADJACENT_TERMS in the validator (transcript-quiz-adjacent-terms.js).
+ */
+const ADJACENT_TERMS_RULE = 'NEVER TWO ENGLISH TERMS SIDE BY SIDE (Urdu). English words written next to each other in an Urdu sentence are shown as ONE left-to-right phrase, so a right-to-left reader meets the SECOND term first and the meaning turns around: «جب numerator denominator سے چھوٹا ہو» is read as the denominator being smaller. When two separate English terms meet, put an Urdu word between them, or rephrase: «جب numerator کی قیمت denominator سے کم ہو»، «Sunday کا دن Saturday کے بعد آتا ہے». A single English term of two words stays together as it is: "cross multiplication", "common denominator", "place value".';
+
+/**
  * WHAT ONE QUESTION MUST CONTAIN — shared verbatim by the author prompt and by
  * the targeted rewrite, so the two cannot drift about the shape of a question
  * the validator will accept. Changing a rule here changes it in both.
@@ -105,6 +116,7 @@ function questionContract({ gradeBand } = {}) {
 - ${PART_NAMES_RULE}
 
 STYLE RULES FOR URDU (when quiz language is Urdu): proper, well-written Urdu in Urdu script — never Roman Urdu; English technical/subject terms are written IN ENGLISH LETTERS inside the Urdu sentence (e.g. "proper fraction", "numerator", "denominator", "noun", "photosynthesis") — NEVER transliterated into Urdu script ("فیکشن", "نیومریٹر", "ڈینومینیٹر" are wrong even if the transcript spells them that way); use the SAME spelling of a term in every question; NAMES ARE NOT TERMS: a person's name from the lesson (a child in a word problem, a character in a story) is written in Urdu script, in every field and in a picture's labels (Hira → حرا, Ali → علی, Sara → سارہ), never in English letters; NEVER begin a question, explanation or feedback sentence with the English word — start with an Urdu word ("ایک fraction میں…", not "fraction میں…") because a sentence that opens with English is displayed left-to-right on the phone; simple, spoken, child-level Urdu.
+${ADJACENT_TERMS_RULE}
 ${CHILD_ADDRESS_RULE}
 STYLE RULES FOR ENGLISH: short sentences a Grade ${gradeBand || '3-5'} child in Pakistan reads comfortably; no idioms.`;
 }
