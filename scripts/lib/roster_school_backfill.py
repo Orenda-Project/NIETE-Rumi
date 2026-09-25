@@ -22,12 +22,22 @@ Output: one decision per user.
                           a principal's users.school_id also grants that school's staff-attendance
                           register, so linking one is an access decision, not a data fix
   no_roster_school        the roster rows carry no resolvable school
+  skipped_removed_by_coach  the teacher's latest roster membership action (add/remove/move, excluding
+                          this script's own rows) is a coach's 'remove'. The coach remove path clears
+                          users.school_id but leaves the deprecated leader_teachers row, so the stale
+                          roster still lists her; linking her would undo the coach's decision.
+  skipped_unlinked_before users.school_id was set once and later cleared (record_history) — someone
+                          unlinked her on purpose, through a path that may not write the roster audit.
+
+Input rows may carry `last_membership_action` and `school_id_ever_cleared`; absent means unknown-safe
+(no removal recorded).
 """
 from collections import Counter, OrderedDict
 
 DECISIONS = (
     "backfill", "already_linked", "conflict", "ambiguous",
     "skipped_probable_test", "skipped_inactive_school", "skipped_role_coach", "no_roster_school",
+    "skipped_removed_by_coach", "skipped_unlinked_before",
 )
 WRITE_DECISIONS = ("backfill",)
 
@@ -67,6 +77,13 @@ def classify_user(rows, skip_roles=None):
             return {**base, "decision": "already_linked", "reason": f"users.school_id already set; {agrees}"}
         return {**base, "decision": "conflict",
                 "reason": "users.school_id is set to a school the roster does not name; needs a human"}
+
+    if first.get("last_membership_action") == "remove":
+        return {**base, "decision": "skipped_removed_by_coach",
+                "reason": "a coach removed this teacher; the stale roster row must not undo that"}
+    if first.get("school_id_ever_cleared"):
+        return {**base, "decision": "skipped_unlinked_before",
+                "reason": "users.school_id was set and later cleared; someone unlinked her on purpose"}
 
     if skip_roles and role in skip_roles:
         return {**base, "decision": f"skipped_role_{role}",
@@ -130,4 +147,35 @@ def audit_row(decision, run_id):
             "user_id": decision["user_id"], "role": decision["role"],
             "promote_to_teacher": decision["promote_to_teacher"],
         },
+    }
+
+
+def select_undo(rows):
+    """Relinks this script made that undid a coach's removal and are still exactly as it left them.
+
+    Each row: user_id, current_school_id, target_school_id (what the run set), prior_action (the
+    latest non-backfill membership action BEFORE the run), later_action (any non-backfill membership
+    action AFTER the run, else None). Only a clean, unambiguous relink of a removed teacher is undone:
+    if the school changed since, or a coach acted on her since, a human's later decision stands."""
+    return [r for r in rows
+            if r.get("prior_action") == "remove"
+            and r.get("later_action") is None
+            and r.get("current_school_id") is not None
+            and r.get("current_school_id") == r.get("target_school_id")]
+
+
+def undo_audit_row(row, run_id):
+    """The 'remove' that reverses one wrong relink, attributed to the coach the run attributed the add to."""
+    return {
+        "action": "remove",
+        "actor_user_id": row["actor_user_id"],
+        "affected_leader_user_id": row["actor_user_id"],
+        "teacher_ext_id": row["phone_e164"],
+        "teacher_phone_e164": row["phone_e164"],
+        "teacher_name": row.get("teacher_name"),
+        "from_school_ext_id": row.get("school_ext_id"),
+        "to_school_ext_id": None,
+        "detail": {"backfill": "undo_removed_relink", "rollback_of": run_id,
+                   "target_school_id": row["target_school_id"], "user_id": row["user_id"],
+                   "reason": "the backfill re-linked a teacher a coach had removed"},
     }
