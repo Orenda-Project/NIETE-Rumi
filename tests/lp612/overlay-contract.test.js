@@ -140,9 +140,10 @@ describe('OVERLAY_MISSING — an Urdu render of an EN book must carry its toggle
 
   it('every target it counts actually resolves to a string in the document', () => {
     const d = doc();
-    const { pointerGet } = require(path.join(V, 'lib', 'overlay.js'));
+    const { pointerGet, glossSource } = require(path.join(V, 'lib', 'overlay.js'));
+    // bd-oak77.42: a derived `<board>/gloss` target's source string is the board's text.
     for (const ptr of overlayDefects.targets(d)) {
-      expect(typeof pointerGet(d, ptr)).toBe('string');
+      expect(typeof (glossSource(d, ptr) ?? pointerGet(d, ptr))).toBe('string');
     }
   });
 });

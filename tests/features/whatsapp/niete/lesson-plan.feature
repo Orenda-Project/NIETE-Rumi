@@ -216,6 +216,20 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # overlay that INTRODUCES religious content onto a document nobody flagged is refused even with
     # the honorific, because then the Urdu page would be the first anyone saw of it.
 
+  @e2e @content-driven @language @P1
+  Scenario: An Urdu 6-12 plan keeps the board in English and explains each board block in one Urdu line
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    When I complete it for a Grade 8 segment from an English-medium book
+    Then a lesson-plan PDF is delivered to the chat
+    And every board block on it is still in English, the words the class copies into their notebooks
+    And under each board block sits one Urdu line, right to left, saying what that block is for
+    # bd-oak77.42. A Grade 8 teacher asked for the lesson explained in Urdu, and the Urdu plan still
+    # handed her whole English board blocks with no word of Urdu near them. The board stays English
+    # because the book and the exam are English; the one Urdu line is for the teacher. Books whose
+    # medium is Urdu already write the board in Urdu, so they get no extra line. A reused plan
+    # missing the line is still delivered, and the top-up pass adds the line later.
+
   @e2e @negative @content-driven @P1
   Scenario: An Urdu overlay that drops the honorific is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu

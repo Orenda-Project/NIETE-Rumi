@@ -46,7 +46,7 @@
 const fs = require("fs");
 const path = require("path");
 const { validateDoc } = require("./lib/validate");
-const { frozenReason, MACHINE_KEYS } = require("./lib/overlay");
+const { frozenReason, MACHINE_KEYS, GLOSS_KEY } = require("./lib/overlay");
 const { wordCount, chemPlusDefects, fixChemPlus } = require("./lib/rich");
 const { buildHtml } = require("./lib/template");
 const { textNodes } = require("./lib/domtext");
@@ -2626,7 +2626,9 @@ const OVERLAY_MIN_COVERAGE = 0.5;
 function isInstructionProse(s) {
   if (typeof s !== "string" || s.length < 8) return false;
   const words = s.match(/[A-Za-z]{2,}/g) || [];
-  return words.length >= 2;
+  // bd-oak77.40 — a short spaced line with one real word ("textbook p.91-93") is prose too; the
+  // two-word rule alone left the materials line English on an Urdu plan. SYNC.md §3.25.
+  return words.length >= 2 || (/\s/.test(s) && /[A-Za-z]{4,}/.test(s));
 }
 
 /**
@@ -2670,8 +2672,17 @@ function overlayTargets(doc) {
           || (k === "spec" && !!v && typeof v === "object" && !Array.isArray(v) && typeof v.type === "string");
         walk(v, `${ptr}/${esc(k)}`, childSpec, disp);
       }
+      // bd-oak77.42: a board block's English text is frozen, so the Urdu page gets ONE derived
+      // line under it instead — `<block>/gloss`, which exists only in the overlay. SYNC §3.27.
+      if (glossWanted && node.type === "board" && isInstructionProse(node.text)
+        && !OVERLAY_SKIP_ROOTS.some((r) => ptr === r || ptr.startsWith(r + "/"))
+        && !frozenReason(doc, `${ptr}/${GLOSS_KEY}`)) {
+        out.push(`${ptr}/${GLOSS_KEY}`);
+      }
     }
   };
+  // An Urdu-medium book's board is already in the instruction's language: nothing to explain.
+  const glossWanted = ((doc && doc.provenance) || {}).medium !== "ur";
   walk(doc, "", false, null);
   return out;
 }
@@ -2704,7 +2715,26 @@ function overlayDefects(doc, lang, opts = {}) {
     (p) => typeof ov[p] === "string" && ov[p].trim().length > 0,
   ).length;
   const need = Math.ceil(targets.length * OVERLAY_MIN_COVERAGE);
-  if (covered >= need) return out;
+  // bd-oak77.40: objectives are checked by name, AFTER coverage and independent of it.
+  const gaps = overlayObjectiveGaps(doc);
+  const byNameDefects = gaps.length ? [{
+    code: "OVERLAY_OBJECTIVES_MISSING",
+    msg:
+      `the lesson objectives are the first thing the teacher reads, and on this Urdu render `
+      + `${gaps.length} of them would print in English. Every objectives string needs a non-blank `
+      + `Urdu entry in \`ur_overlay\`, whatever the overall coverage: ${gaps.join(", ")}.`,
+  }] : [];
+  // bd-oak77.42: the same by-name check for the Urdu line under each English board block.
+  const glossGaps = overlayBoardGlossGaps(doc);
+  if (glossGaps.length) byNameDefects.push({
+    code: "OVERLAY_BOARD_GLOSS_MISSING",
+    msg:
+      `on this Urdu render the board text stays English (it follows the exam's language), and `
+      + `${glossGaps.length} board block(s) have no Urdu line under them to explain it to the `
+      + `teacher. Each needs a non-blank one-line Urdu explanation in \`ur_overlay\` at its `
+      + `\`/gloss\` pointer: ${glossGaps.join(", ")}.`,
+  });
+  if (covered >= need) return byNameDefects;
   const missing = targets.filter((p) => typeof ov[p] !== "string").slice(0, 6);
   out.push({
     code: "OVERLAY_MISSING",
@@ -2716,7 +2746,7 @@ function overlayDefects(doc, lang, opts = {}) {
       + `under Urdu headings. Add the missing pointers, e.g. ${missing.join(", ")}. `
       + `Do NOT overlay /slo/text_verbatim, anything under /page2/exam_bank, or a \`board\` block's text.`,
   });
-  return out;
+  return out.concat(byNameDefects);
 }
 overlayDefects.targets = overlayTargets;
 overlayDefects.MIN_COVERAGE = OVERLAY_MIN_COVERAGE;
@@ -2755,11 +2785,49 @@ function overlayChromeGaps(doc) {
 }
 overlayDefects.chromeGaps = overlayChromeGaps;
 
+/**
+ * The `/objectives/*` pointers this document is OFFERED and has no non-blank Urdu string for.
+ *
+ * bd-oak77.40 — the same shape of hole as `overlayChromeGaps`: objectives are a handful of
+ * pointers out of ~90, so a plan with every objective English still clears the 50% floor. The
+ * overlay pass (through `overlayDefects`) and the worker's reuse lane both refuse on it.
+ * Derived from `overlayTargets`, so a frozen field (an SLO code) is never demanded.
+ * VENDOR DIVERGENCE (bd-oak77.40) — ours. Recorded in SYNC.md §3.25.
+ */
+function overlayObjectiveGaps(doc) {
+  if (!doc || typeof doc !== "object" || Array.isArray(doc)) return [];
+  if (((doc.provenance || {}).medium) === "ur") return [];
+  const ov = doc.ur_overlay && typeof doc.ur_overlay === "object" ? doc.ur_overlay : {};
+  return overlayTargets(doc).filter(
+    (p) => p.startsWith("/objectives/")
+      && !(typeof ov[p] === "string" && ov[p].trim().length > 0),
+  );
+}
+overlayDefects.objectiveGaps = overlayObjectiveGaps;
+
+/**
+ * The derived `<board block>/gloss` pointers this document is OFFERED and has no non-blank Urdu
+ * line for. bd-oak77.42 — mirrors `overlayObjectiveGaps`: a board gloss is one pointer per board
+ * out of ~90, so coverage alone never notices the Urdu page printing a bare English board.
+ * Refused by the overlay pass (through `overlayDefects`); deliberately NOT by the worker's reuse
+ * lane — the top-up lane backfills it on stored documents instead (SYNC §3.27).
+ * VENDOR DIVERGENCE (bd-oak77.42) — ours. Recorded in SYNC.md §3.27.
+ */
+function overlayBoardGlossGaps(doc) {
+  if (!doc || typeof doc !== "object" || Array.isArray(doc)) return [];
+  const ov = doc.ur_overlay && typeof doc.ur_overlay === "object" ? doc.ur_overlay : {};
+  return overlayTargets(doc).filter(
+    (p) => p.endsWith(`/${GLOSS_KEY}`)
+      && !(typeof ov[p] === "string" && ov[p].trim().length > 0),
+  );
+}
+overlayDefects.boardGlossGaps = overlayBoardGlossGaps;
+
 module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, moleculeFormulaDefects, specContractDefects, rayDiagramDefects,
   // Exported so the author worker's reuse lane can ask the SAME rule gate 12b asks. That lane
   // never calls `lint`, and a stored pre-shape body reached prod through it (bd-jpfww).
-  oneScreenShapeDefects, ONESCREEN_BEATS, overlayChromeGaps,
-  overlayDefects, OVERLAY_MIN_COVERAGE,
+  oneScreenShapeDefects, ONESCREEN_BEATS, overlayChromeGaps, overlayObjectiveGaps,
+  overlayBoardGlossGaps, overlayDefects, OVERLAY_MIN_COVERAGE,
   SECTION_BUDGET, SECTION_BUDGET_V9, DOC_BUDGET, DOC_BUDGET_V9, OUTCOME_BOX_V9,
   MAX_HOMEWORK_ITEMS, MAX_BOARD_WEIGHT, MAX_ACTIVITIES, PLACEHOLDERS, FOREIGN_BRANDS,
   // Exported so a test can assert the frozen set covers every enum/id field the SCHEMA declares
