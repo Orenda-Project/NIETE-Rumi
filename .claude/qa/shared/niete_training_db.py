@@ -367,6 +367,59 @@ def _restore_seeded_quizzes(creds, uid, tag, yes_write, child_prefix=None):
         out["sessions"] = len(sids)
     return out
 
+def _delete_quizzes(creds, qids, child_prefix=None):
+    out = {"quizzes": qids, "sessions": 0}
+    if not qids: return out
+    inq = "in.(%s)" % ",".join(qids)
+    sess = _get(creds, "quiz_sessions", "quiz_id=%s&select=id" % inq) or []
+    sids = [x["id"] for x in sess]
+    for i in range(0, len(sids), 60):
+        _req("DELETE", "/rest/v1/quiz_answers?session_id=in.(%s)" % ",".join(sids[i:i+60]), creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/quiz_sessions?quiz_id=%s" % inq, creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/quiz_share_codes?quiz_id=%s" % inq, creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/quiz_questions?quiz_id=%s" % inq, creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/teacher_nudges?quiz_id=%s" % inq, creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/quizzes?id=%s" % inq, creds, prefer="return=minimal")
+    if child_prefix:
+        _req("DELETE", "/rest/v1/students?phone=like.%s*" % child_prefix, creds, prefer="return=minimal")
+    out["sessions"] = len(sids)
+    return out
+
+
+def cmd_purge_run_quizzes(creds, a):
+    """Delete every quiz the DRIVER made through the real product since --since (ISO): the quizzes a
+    /quiz tap, a cache hit, a remake or a video share created during a run are not qa_seed-tagged, and
+    left behind they make the next run's lists, nudges and claims lie ("already made"). Driver-only:
+    teacher_id = the driver; share codes minted for the driver's video quizzes since then go too."""
+    uid = _uid(creds, a.phone)
+    since = a.since
+    rows = _get(creds, "quizzes", "teacher_id=eq.%s&created_at=gte.%s&select=id,quiz_source,status" % (uid, since)) or []
+    qids = [r["id"] for r in rows]
+    if not a.yes_write:
+        print(json.dumps({"dry_run": True, "would_delete": rows})); return
+    out = _delete_quizzes(creds, qids, a.child_prefix)
+    _req("DELETE", "/rest/v1/quiz_share_codes?teacher_user_id=eq.%s&created_at=gte.%s" % (uid, since), creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/video_quiz_deliveries?user_id=eq.%s&created_at=gte.%s" % (uid, since), creds, prefer="return=minimal")
+    out["sources"] = sorted(set(r["quiz_source"] for r in rows))
+    print(json.dumps(out))
+
+
+def cmd_driver_user(creds, a):
+    """Read-only, one JSON line: the driver's users row (id, name, language, role) for a driver to key on."""
+    u = _get(creds, "users", "phone_number=eq.%s&select=id,phone_number,name,preferred_language,role,language_locked" % a.phone) or [{}]
+    print(json.dumps(u[0], ensure_ascii=False))
+
+
+def cmd_quizzes_for_lesson(creds, a):
+    """Read-only: the driver's quizzes whose meta.lessons cover --lesson-id (how many quizzes one tapped
+    lesson produced: T65), newest first."""
+    uid = _uid(creds, a.phone)
+    rows = _get(creds, "quizzes", "teacher_id=eq.%s&quiz_source=in.(lp_v8,lp612)&select=id,status,language,topic,meta,created_at&order=created_at.desc&limit=40" % uid) or []
+    hit = [r for r in rows if any((l or {}).get("lesson_id") == a.lesson_id for l in ((r.get("meta") or {}).get("lessons") or []))]
+    print(json.dumps({"lesson_id": a.lesson_id, "count": len(hit), "quizzes": [{"id": r["id"], "status": r["status"], "language": r["language"], "topic": r["topic"], "created_at": r["created_at"],
+                       "cache_donor": (r.get("meta") or {}).get("cache_donor"), "error": (r.get("meta") or {}).get("error")} for r in hit]}, ensure_ascii=False))
+
+
 def cmd_seed_lp_quiz(creds, a):
     """A lesson-plan (lp_v8) quiz row in a chosen state, tagged meta.qa_seed=true so --restore deletes it
     and everything hanging off it. --state sent (default: listed, T24) | offered (awaiting its language,
@@ -382,7 +435,12 @@ def cmd_seed_lp_quiz(creds, a):
     state = getattr(a, "state", None) or "sent"
     subject = getattr(a, "subject", None) or "maths"
     lessons, topic = None, "QA seeded lesson-plan quiz"
-    if getattr(a, "lessons_from", None):
+    if getattr(a, "lesson_id", None):
+        src = _get(creds, "niete_lp_asset_sources", "lesson_id=eq.%s&select=asset_id,lesson_id,version_stamp,content_hash,t:slide_script->meta->>topic&order=ingested_at.desc&limit=1" % a.lesson_id) or []
+        if not src: sys.exit("no slide script for lesson %s" % a.lesson_id)
+        r = src[0]; lessons = [{"lesson_id": r["lesson_id"], "asset_id": r["asset_id"], "version_stamp": r["version_stamp"], "content_hash": r["content_hash"], "delivered_at": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"}]
+        topic = getattr(a, "topic", None) or r.get("t") or topic
+    elif getattr(a, "lessons_from", None):
         q = "quiz_source=eq.lp_v8&meta->lessons=not.is.null&status=in.(sent,report_sent)&subject=eq.%s&select=id,topic,grade,meta&order=created_at.desc&limit=1" % subject
         src = _get(creds, "quizzes", q) or []
         if src:
@@ -390,11 +448,11 @@ def cmd_seed_lp_quiz(creds, a):
     meta = {"source": "lp_offer", "lesson_date": today, "qa_seed": True}
     if lessons: meta["lessons"] = lessons
     if state == "offered":   status = "offered"; meta.update({"step": "awaiting_language", "awaiting_language": True})
-    elif state == "failed":  status = "failed";  meta.update({"step": "author", "error": "model_failed", "remakes": 0})
+    elif state == "failed":  status = "failed";  meta.update({"step": "author", "error": getattr(a, "error", None) or "model_failed", "remakes": 0})
     elif state == "queue_failed": status = "failed"; meta.update({"step": "queue", "error": "queue_failed", "remakes": 0})
     else:                    status = "sent";    meta.update({"step": "done"})
     body = {"teacher_id": uid, "quiz_source": "lp_v8", "coaching_session_id": None, "lesson_plan_id": None,
-            "topic": topic, "grade": "4" if lessons else "3", "subject": subject, "language": getattr(a, "language", None) or "en", "status": status,
+            "topic": topic, "grade": (re.sub(r"^grade_(\d+)_.*$", r"\1", lessons[0]["lesson_id"]) if lessons else "3"), "subject": subject, "language": getattr(a, "language", None) or "en", "status": status,
             "total_students_sent": 0, "total_students_completed": 0, "meta": meta}
     if not a.yes_write:
         print(json.dumps({"dry_run": True, "would_insert": body}, ensure_ascii=False)); return
@@ -422,6 +480,7 @@ def cmd_seed_class_quiz(creds, a):
         print(json.dumps(_restore_seeded_quizzes(creds, uid, "class", a.yes_write, a.child_prefix))); return
     lang = a.language or "en"
     topic = "QA class quiz \u2014 tens and ones" if lang == "en" else "QA \u06a9\u0644\u0627\u0633 quiz \u2014 \u062f\u06c1\u0627\u0626\u06cc \u0627\u0648\u0631 \u0627\u06a9\u0627\u0626\u06cc"
+    if getattr(a, "topic", None): topic = a.topic
     body = {"teacher_id": uid, "quiz_source": "lp_v8", "coaching_session_id": None, "lesson_plan_id": None,
             "topic": topic, "grade": "3", "subject": "maths", "language": lang, "status": "sent",
             "total_students_sent": 0, "total_students_completed": 0,
@@ -465,6 +524,78 @@ def cmd_seed_class_quiz(creds, a):
     _req("PATCH", "/rest/v1/quizzes?id=eq.%s" % qid, creds, body={"meta": body["meta"]}, prefer="return=minimal")
     print(json.dumps({"quizId": qid, "code": code, "shareCodeId": scid, "topic": topic, "language": lang,
                       "questions": len(rows), "key": [r["correct_option"] for r in rows]}, ensure_ascii=False))
+
+
+QA_LP_DOWNLOAD_CID = "qa-seed-lp-download"          # niete_lp_downloads.correlation_id — the restore key
+QA_COACHING_MARK = "QA_SEED_COACHING_SESSION"       # coaching_sessions.lesson_plan_excerpt — the restore key
+
+
+def cmd_seed_lp_download(creds, a):
+    """A lesson plan the driver took TODAY: one niete_lp_downloads row (status sent) on the newest served
+    version of --lesson-id that has a slide script, so lp-v8-lesson-provider lists it in /quiz as
+    "From lesson plan" with no quiz yet. Tagged by correlation_id so --restore deletes exactly ours."""
+    uid = _uid(creds, a.phone)
+    if a.restore:
+        if not a.yes_write: print(json.dumps({"dry_run": True})); return
+        _req("DELETE", "/rest/v1/niete_lp_downloads?user_id=eq.%s&correlation_id=eq.%s" % (uid, QA_LP_DOWNLOAD_CID), creds, prefer="return=minimal")
+        print(json.dumps({"restored": True})); return
+    lesson_id = a.lesson_id or "grade_1_maths_ch2_seg3"
+    src = _get(creds, "niete_lp_asset_sources", "lesson_id=eq.%s&select=asset_id,lesson_id,version_stamp,content_hash,t:slide_script->meta->>topic,g:slide_script->meta->>grade,s:slide_script->meta->>subject&order=ingested_at.desc&limit=1" % lesson_id) or []
+    if not src: sys.exit("no slide script for lesson %s" % lesson_id)
+    r = src[0]
+    m = re.match(r"^grade_(\d+)_([a-z]+)_ch(\d+)_seg(\d+)$", lesson_id)
+    body = {"user_id": uid, "lesson_id": r["lesson_id"], "asset_id": r["asset_id"], "version_stamp": r["version_stamp"], "content_hash": r["content_hash"],
+            "phone": a.phone, "status": "sent", "grade": str(r.get("g") or (m.group(1) if m else "1")), "subject": str(r.get("s") or (m.group(2) if m else "maths")),
+            "chapter_number": int(m.group(3)) if m else None, "segment_index": int(m.group(4)) if m else None, "correlation_id": QA_LP_DOWNLOAD_CID}
+    if not a.yes_write: print(json.dumps({"dry_run": True, "would_insert": body})); return
+    created, _ = _req("POST", "/rest/v1/niete_lp_downloads", creds, body=[body], prefer="return=representation")
+    row = (created or [{}])[0]
+    print(json.dumps({"id": row.get("id"), "lesson_id": lesson_id, "topic": r.get("t"), "grade": body["grade"], "subject": body["subject"], "asset_id": r["asset_id"]}, ensure_ascii=False))
+
+
+def cmd_seed_coaching_session(creds, a):
+    """A COMPLETED coaching session of the driver with a transcript, so /quiz lists it "From transcript"
+    and a quiz can be written from it. The transcript comes from --transcript-file (>= 1500 chars, the
+    provider's floor). Marked in lesson_plan_excerpt so --restore deletes ours and nothing else."""
+    uid = _uid(creds, a.phone)
+    if a.restore:
+        if not a.yes_write: print(json.dumps({"dry_run": True})); return
+        rows = _get(creds, "coaching_sessions", "user_id=eq.%s&lesson_plan_excerpt=eq.%s&select=id" % (uid, QA_COACHING_MARK)) or []
+        for r in rows:
+            _req("DELETE", "/rest/v1/quizzes?coaching_session_id=eq.%s" % r["id"], creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/coaching_sessions?user_id=eq.%s&lesson_plan_excerpt=eq.%s" % (uid, QA_COACHING_MARK), creds, prefer="return=minimal")
+        print(json.dumps({"restored": True, "deleted": len(rows)})); return
+    text = open(a.transcript_file, encoding="utf-8").read() if a.transcript_file else ""
+    if len(text) < 1500: sys.exit("transcript must be >= 1500 chars (got %d)" % len(text))
+    now = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    body = {"user_id": uid, "session_id": "qa-seed-%s" % uuid.uuid4().hex[:12], "status": "completed", "transcript_text": text,
+            "transcript_language": a.language, "analysis_data": {"topic": a.topic, "subject": a.subject, "framework": "fico"},
+            "lesson_plan_excerpt": QA_COACHING_MARK, "has_lesson_plan": False, "completed_at": now, "created_at": now}
+    if not a.yes_write: print(json.dumps({"dry_run": True, "chars": len(text)})); return
+    created, _ = _req("POST", "/rest/v1/coaching_sessions", creds, body=[body], prefer="return=representation")
+    row = (created or [{}])[0]
+    print(json.dumps({"id": row.get("id"), "chars": len(text), "language": a.language, "topic": a.topic}, ensure_ascii=False))
+
+
+def cmd_seed_lp612_delivery(creds, a):
+    """A Grades 6-12 lesson plan the driver received: one niete_lp612_deliveries row copying a REAL
+    delivery's render_id/segment_id/lang (so the worker's lp612-quiz-source finds the stored lp_doc).
+    surface 'qa-seed' is the restore key."""
+    uid = _uid(creds, a.phone)
+    if a.restore:
+        if not a.yes_write: print(json.dumps({"dry_run": True})); return
+        _req("DELETE", "/rest/v1/niete_lp612_deliveries?user_id=eq.%s&surface=eq.qa-seed" % uid, creds, prefer="return=minimal")
+        print(json.dumps({"restored": True})); return
+    src = _get(creds, "niete_lp612_deliveries", "segment_id=like.%s&select=render_id,segment_id,lang,template_version&order=delivered_at.desc&limit=1" % a.segment_like) or []
+    if not src: sys.exit("no lp612 delivery matching %s to copy" % a.segment_like)
+    r = src[0]
+    seg = (_get(creds, "niete_lp612_segments", "segment_id=eq.%s&select=grade,subject,menu_title,subtopic_title" % r["segment_id"]) or [{}])[0]
+    now = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    body = {"user_id": uid, "render_id": r["render_id"], "segment_id": r["segment_id"], "lang": r["lang"], "template_version": r.get("template_version"), "surface": "qa-seed", "delivered_at": now}
+    if not a.yes_write: print(json.dumps({"dry_run": True, "would_insert": body})); return
+    created, _ = _req("POST", "/rest/v1/niete_lp612_deliveries", creds, body=[body], prefer="return=representation")
+    row = (created or [{}])[0]
+    print(json.dumps({"id": row.get("id"), "segment_id": r["segment_id"], "lang": r["lang"], "grade": seg.get("grade"), "subject": seg.get("subject"), "title": seg.get("menu_title") or seg.get("subtopic_title")}, ensure_ascii=False))
 
 
 def cmd_module_answer_key(creds, a):
@@ -606,9 +737,30 @@ def main():
     slq = sub.add_parser("seed-lp-quiz", parents=[common]); slq.add_argument("--phone", required=True)
     slq.add_argument("--restore", action="store_true"); slq.add_argument("--yes-write", action="store_true"); slq.add_argument("--lookup", action="store_true")
     slq.add_argument("--state", choices=["sent","offered","failed","queue_failed"]); slq.add_argument("--lessons-from", dest="lessons_from"); slq.add_argument("--subject"); slq.add_argument("--language")
+    slq.add_argument("--error", choices=["model_failed","validator_failed","source_unusable","source_missing","key_disagreement"], help="the persisted failure reason for --state failed (T70: source_unusable reads Didn't work)")
+    slq.add_argument("--lesson-id", dest="lesson_id", help="borrow meta.lessons from THIS catalog lesson's newest asset source instead of --lessons-from auto")
+    slq.add_argument("--topic")
     qr = sub.add_parser("quiz-rows", parents=[common]); qr.add_argument("--quiz", required=True); qr.add_argument("--phone")
     scq = sub.add_parser("seed-class-quiz", parents=[common]); scq.add_argument("--phone", required=True); scq.add_argument("--language", choices=["en","ur"])
     scq.add_argument("--broken-q", action="store_true", dest="broken_q"); scq.add_argument("--restore", action="store_true"); scq.add_argument("--child-prefix", dest="child_prefix"); scq.add_argument("--yes-write", action="store_true")
+    scq.add_argument("--topic", help="the quiz title verbatim (T61 seeds Urdu-only titles)")
+    # seed-lp-download: a lesson plan the driver "took today" (niete_lp_downloads status sent, the exact served
+    # version that has a slide script) so /quiz lists it "From lesson plan" with no quiz yet (T64/T65/T67).
+    sld = sub.add_parser("seed-lp-download", parents=[common]); sld.add_argument("--phone", required=True); sld.add_argument("--lesson-id", dest="lesson_id")
+    sld.add_argument("--restore", action="store_true"); sld.add_argument("--yes-write", action="store_true")
+    # seed-coaching-session: a COMPLETED coaching session with a transcript the driver can make a quiz from
+    # (T47/T79–T83). --transcript-file holds the text (>= 1500 chars); analysis_data carries topic/subject.
+    scs = sub.add_parser("seed-coaching-session", parents=[common]); scs.add_argument("--phone", required=True); scs.add_argument("--transcript-file", dest="transcript_file")
+    scs.add_argument("--language", default="en"); scs.add_argument("--topic", default="Proper and improper fractions"); scs.add_argument("--subject", default="maths")
+    scs.add_argument("--restore", action="store_true"); scs.add_argument("--yes-write", action="store_true")
+    # seed-lp612-delivery: a Grades 6-12 lesson plan the driver received (niete_lp612_deliveries), copying a real
+    # delivery's render so the worker can read the stored lp_doc (T71–T73).
+    s6 = sub.add_parser("seed-lp612-delivery", parents=[common]); s6.add_argument("--phone", required=True); s6.add_argument("--segment-like", dest="segment_like", default="grade_8_mathematics*")
+    s6.add_argument("--restore", action="store_true"); s6.add_argument("--yes-write", action="store_true")
+    prq = sub.add_parser("purge-run-quizzes", parents=[common]); prq.add_argument("--phone", required=True); prq.add_argument("--since", required=True)
+    prq.add_argument("--child-prefix", dest="child_prefix"); prq.add_argument("--yes-write", action="store_true")
+    qfl = sub.add_parser("quizzes-for-lesson", parents=[common]); qfl.add_argument("--phone", required=True); qfl.add_argument("--lesson-id", dest="lesson_id", required=True)
+    du = sub.add_parser("driver-user", parents=[common]); du.add_argument("--phone", required=True)
     lm = sub.add_parser("level-modules", parents=[common]); lm.add_argument("--level", type=int, required=True)
     lm.add_argument("--phone")   # api.db always passes it; level-modules does not use it
     mm = sub.add_parser("module-media", parents=[common]); mm.add_argument("--title", action="append")
@@ -623,7 +775,10 @@ def main():
      "module-media": cmd_module_media, "level-modules": cmd_level_modules,
      "seed-isaps-exams": cmd_seed_isaps_exams,
      "seed-lp-quiz": cmd_seed_lp_quiz,
-     "seed-class-quiz": cmd_seed_class_quiz, "quiz-rows": cmd_quiz_rows}[a.cmd](creds, a)
+     "seed-class-quiz": cmd_seed_class_quiz, "quiz-rows": cmd_quiz_rows,
+     "seed-lp-download": cmd_seed_lp_download, "seed-coaching-session": cmd_seed_coaching_session,
+     "seed-lp612-delivery": cmd_seed_lp612_delivery, "purge-run-quizzes": cmd_purge_run_quizzes,
+     "quizzes-for-lesson": cmd_quizzes_for_lesson, "driver-user": cmd_driver_user}[a.cmd](creds, a)
 
 if __name__ == "__main__":
     main()

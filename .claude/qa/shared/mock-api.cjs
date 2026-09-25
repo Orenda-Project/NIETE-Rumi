@@ -289,12 +289,12 @@ function makeMockApi(opts) {
      *  assertions (LANG02/03 language + lock) are verified the same way. */
     db(action, extra) {
       trace('db ' + action);
-      const script = /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|seed-level-complete|seed-isaps-exams|seed-lp-quiz|seed-class-quiz|quiz-rows|revert-level|activate-program)$/.test(action)
+      const script = /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|seed-level-complete|seed-isaps-exams|seed-lp-quiz|seed-class-quiz|quiz-rows|revert-level|activate-program|seed-lp-download|seed-coaching-session|seed-lp612-delivery|purge-run-quizzes|quizzes-for-lesson|driver-user)$/.test(action)
         ? path.join(repo, '.claude/qa/shared/niete_training_db.py')
         : path.join(repo, '.claude/qa/shared/niete_registration_db.py');
       const args = [script, action, '--env', env, '--phone', driver];
       // module-media is a READ — never hand a read a write flag (bd-xub4s).
-      if (!/^(lookup|snapshot|module-media|level-modules|answer-key|quiz-rows)$/.test(action)) args.push('--yes-write');   // reads never get a write flag
+      if (!/^(lookup|snapshot|module-media|level-modules|answer-key|quiz-rows|quizzes-for-lesson|driver-user)$/.test(action)) args.push('--yes-write');   // reads never get a write flag
       if (extra) args.push(...extra);
       try {
         const out = execFileSync('python3', args, { cwd: repo, encoding: 'utf8', timeout: 60000 });

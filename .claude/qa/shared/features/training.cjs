@@ -1156,68 +1156,27 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
     await lpState('T36', 'failed', /Make it again|remake|دوبارہ/i, /went wrong on my side[^\n]*not your lesson plan|The problem was not your lesson plan/i);
     await lpState('T41', 'queue_failed', /Make it again|remake|دوبارہ/i, /could not be started on my side[^\n]*not your lesson plan/i);
 
-    // ── T52 / T53 / T62: an Urdu quiz GENERATED from the fractions lesson (one generation, three checks)
-    {
-      s = t(); let row = null;
-      try {
-        row = dbJson('seed-lp-quiz', ['--state', 'offered', '--lessons-from', 'auto', '--subject', 'maths']);
-        if (!row || !row.id || !row.lessons) throw new Error('no real maths lesson-plan quiz to borrow lesson refs from');
-        const les = await openLesson(i => String(i.id || '') === 'lp_' + row.id);
-        await api.freshReset();
-        const pick = les.ok ? await chooseAction(/make_ur|اردو|Urdu/i) : { ok: false, err: les.err };
-        const ack = await waitFresh((x) => /Making it now|making the quiz|بن رہا|couldn.t start that quiz|could not start/i.test(x.txt || ''), 60000);
-        const queueUnavailable = ack.ok && /couldn.t start that quiz|could not start/i.test(ack.hit.txt || '');
-        const seenAll = [];
-        const t0 = Date.now(); let doc = null, fwd = null;
-        while (!queueUnavailable && Date.now() - t0 < 360000 && !(doc && fwd)) { for (const x of await api.fresh()) { seenAll.push(x); if (x.doc || x.pdf) doc = x; if (/QUIZ-[A-Z0-9]{6}/.test(x.txt || '')) fwd = x; } if (/couldn.t make|could not make|went wrong/i.test(seenAll.map(x => x.txt).join(' '))) break; await sleep(3000); }
-        const after = dbJson('quiz-rows', ['--quiz', String(row.id)]) || {};
-        const qs = after.questions || [];
-        const texts = qs.flatMap(q => [q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, ...(Object.values(q.option_feedback || {}))].filter(Boolean).map(String));
-        const latinTerms = texts.flatMap(x => x.match(/[A-Za-z][A-Za-z-]{2,}/g) || []);
-        const adjacentEnglish = texts.filter(x => /[A-Za-z][A-Za-z-]+\s+[A-Za-z][A-Za-z-]+\s+[A-Za-z][A-Za-z-]+/.test(x) && !/(improper|proper|common|cross|unlike|like|mixed) (fraction|denominator|multiplication|numbers?)/i.test(x));
-        const base = { topic: row.topic, lessonsBorrowed: row.lessons, picked: pick.picked, acknowledged: ack.ok ? (ack.hit.txt || '').slice(0, 120) : false,
-                       queueUnavailable: queueUnavailable ? 'quiz_generate is enqueued on SQS directly (transcript-quiz-offer → sqs-queue.service, bd-2aetj); the mock stack has no SQS' : false,
-                       arrived: { pdf: !!doc, forward: !!fwd, caption: doc && (doc.txt || '').slice(0, 160) },
-                       status: after.quiz && after.quiz.status, error: after.quiz && after.quiz.meta && after.quiz.meta.error, questions: qs.length, language: after.quiz && after.quiz.language };
-        const madeInUrdu = !!doc && qs.length > 0 && qs.every(q => URDU.test(q.question_text || ''));
-        const ev52 = { ...base, urduQuestions: qs.filter(q => URDU.test(q.question_text || '')).length, englishTermsKept: [...new Set(latinTerms)].slice(0, 12) };
-        R('T52')(doc ? V(madeInUrdu && latinTerms.length > 0, ev52) : ['BLOCKED', { reason: 'no Urdu quiz arrived from the borrowed fractions lesson: ' + (base.status || '?') + (base.error ? ' (' + base.error + ')' : ''), ...ev52 }], t() - s);
-        const ev53 = { ...base, textsChecked: texts.length, threeEnglishInARow: adjacentEnglish.slice(0, 4) };
-        R('T53')(doc ? V(qs.length > 0 && adjacentEnglish.length === 0, ev53) : ['BLOCKED', { reason: 'no generated Urdu quiz to inspect', ...ev53 }], t() - s);
-        const cap = doc ? String(doc.txt || '') : '';
-        const topicWords = String(row.topic || '').toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w.length > 4);
-        const mentions = topicWords.length ? topicWords.filter(w => (cap.toLowerCase().match(new RegExp(w, 'g')) || []).length > 1) : [];
-        const ev62 = { caption: cap.slice(0, 200), topic: row.topic, bracket: /\(.+\)/.test(cap), duplicatedTopicWords: mentions };
-        R('T62')(doc ? V(!!cap && mentions.length === 0, ev62) : ['BLOCKED', { reason: 'no quiz PDF caption arrived to judge', ...ev62 }], t() - s);
-      } catch (e) { for (const id of ['T52', 'T53', 'T62']) if (!seenIds.has(id)) R(id)('BLOCKED', { reason: 'threw: ' + String((e && e.message) || e).slice(0, 200) }, t() - s); }
-      finally { try { api.db('seed-lp-quiz', ['--restore']); } catch (e) {} }
-    }
-
-    // ── not reachable in the mock lane — the precondition each one needs, named ─────────────
-    const NOT_HERE = {
-      T46: 'forcing "no usable reply" from the model mid-generation: the worker calls the LLM through the cassette; a recorded miss replays, it cannot be made to fail on demand. Pinned by transcript-quiz-generate tests (key_disagreement / model_failed paths).',
-      T47: 'a coaching RECORDING quiz: needs a coaching session with a long transcript on the driver plus a forced model failure — neither is seedable here.',
-      T48: 'an Urdu quiz with a PICTURE question from a maths lesson: generation must choose a figure question; no seeded lesson guarantees one. Picture rendering is pinned by bot/tests/quiz/*figure* tests.',
-      T49: 'a base-ten bundles picture: needs generation to author a place-value picture question from a tens-and-ones lesson; picture composition is pinned by quiz figure unit tests.',
-      T50: 'a thousands-column picture: same as T49 for four-digit numbers.',
-      T51: 'lesson-object counters (sweets, samosas…): same generation dependency; drawn-object choice is pinned by figure unit tests.',
-      T54: 'at least three picture questions from a counting lesson: depends on what generation authors from a specific grade 1-3 lesson; not seedable.',
-      T55: 'a column-subtraction card: needs a grade 3 subtraction lesson to generate from and the KaTeX card render; pinned by quiz-typeset-maths tests.',
-      T59: 'a VIDEO quiz taken in Urdu: needs the video library (student_videos + a delivered video) and its quiz on the driver; no video-quiz seed exists.',
-      T60: 'Urdu video-quiz offer taps after the offer lapsed: same video-quiz dependency plus a time-lapse.',
-      T61: 'the quiet-quiz reminder is a scheduled sweeper (teacher-nudges) with an "almost nobody started" rule; not triggerable from a driver.',
-    };
-    if (!seenIds.has('T46')) R('T46')('BLOCKED', { reason: NOT_HERE.T46 }, 0);
-    if (!seenIds.has('T47')) R('T47')('BLOCKED', { reason: NOT_HERE.T47 }, 0);
-    if (!seenIds.has('T48')) R('T48')('BLOCKED', { reason: NOT_HERE.T48 }, 0);
-    if (!seenIds.has('T49')) R('T49')('BLOCKED', { reason: NOT_HERE.T49 }, 0);
-    if (!seenIds.has('T50')) R('T50')('BLOCKED', { reason: NOT_HERE.T50 }, 0);
-    if (!seenIds.has('T51')) R('T51')('BLOCKED', { reason: NOT_HERE.T51 }, 0);
-    if (!seenIds.has('T54')) R('T54')('BLOCKED', { reason: NOT_HERE.T54 }, 0);
-    if (!seenIds.has('T55')) R('T55')('BLOCKED', { reason: NOT_HERE.T55 }, 0);
-    if (!seenIds.has('T59')) R('T59')('BLOCKED', { reason: NOT_HERE.T59 }, 0);
-    if (!seenIds.has('T60')) R('T60')('BLOCKED', { reason: NOT_HERE.T60 }, 0);
-    if (!seenIds.has('T61')) R('T61')('BLOCKED', { reason: NOT_HERE.T61 }, 0);
+    // ── the GENERATION cluster — T25 T28 T29 · T46–T55 T59–T62 · T63–T84 ──────────────────────
+    // Every quiz the worker writes (or refuses) from a real lesson, transcript or 6-12 plan on this
+    // stack, with the mock lane's levers (stack-control.cjs). Owns its ids; fallbacks below.
+    let genErr = null;
+    try {
+      await require('../training-quiz-gen.cjs').run({ api, R, seenIds, sleep, t, dbJson, waitFresh, child, childJoin, childAnswer, openLesson, chooseAction, clickFooter, waitOn, isChildQ, isEnd, pdfText, CHILD_PREFIX });
+    } catch (e) { genErr = String((e && e.message) || e).slice(0, 200); }
+    if (!seenIds.has('T46')) R('T46')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T47')) R('T47')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T48')) R('T48')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T49')) R('T49')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T50')) R('T50')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T51')) R('T51')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T52')) R('T52')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T53')) R('T53')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T54')) R('T54')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T55')) R('T55')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T59')) R('T59')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T60')) R('T60')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T61')) R('T61')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
+    if (!seenIds.has('T62')) R('T62')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
 
     // clean every class quiz and its children's sessions/students
     try { api.db('seed-class-quiz', ['--restore', '--child-prefix', CHILD_PREFIX]); } catch (e) {}
@@ -1430,8 +1389,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
 
   api.closeFlow();
 
-  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
-  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // ── T63–T84 are driven by the generation cluster (training-quiz-gen.cjs); these are its fallbacks.
   // ══ T04 — a PDF module arrives as a DOCUMENT, not a video link ═════════
   // Why this needs its own navigation: the cluster above drives the NIETE band, whose Level 0 is 46
   // video modules and 0 PDFs — so T04 read a picker that COULD NOT contain a PDF and reported
@@ -1630,22 +1588,16 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   }
 
 
-  // Not drivable in the mock lane — the reason below is what would have to exist first.
-  rec('T25', 'The class report of a quiz made from my lesson plan carries the objectives to reteach', 'BLOCKED',
-      { reason: "needs a SENT lesson-plan quiz with a share code and children who finished, then the class report: a PDF rendered by local headless Chrome whose 'For tomorrow' box calls OpenAI through a raw client outside the cassette. The objectives live inside that PDF (video-quiz-report.template's slo pill). None of that is seeded or reachable in the mock lane today (research 2026-09-24)." }, 0);
+  if (!seenIds.has('T25')) rec('T25', 'The class report of a quiz made from my lesson plan carries the objectives to reteach', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
   // T26/T27 — I-SAPS (operator 2026-09-23). Declared unrunnable here, with the reason, not left absent.
 
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
-  // Not drivable in the mock lane — the reason below is what would have to exist first.
-  rec('T28', 'A maths question with fractions reaches the child as a typeset card', 'BLOCKED',
-      { reason: 'needs an lp_v8 quiz GENERATED by the worker (4–5 LLM calls: digest, author, key check, blind solve), a fraction stem so quiz-notation routes it to a KaTeX card rendered by local Chrome and uploaded to R2, then a CHILD phone answering QUIZ-<code>. The mock lane seeds none of that pipeline; a seeded quiz row cannot exercise the card path.' }, 0);
+  if (!seenIds.has('T28')) rec('T28', 'A maths question with fractions reaches the child as a typeset card', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // Not drivable in the mock lane — the reason below is what would have to exist first.
-  rec('T29', 'A quiz never ships an answer key a blind solver disagrees with', 'BLOCKED',
-      { reason: "the blind solver runs inside worker generation and a wrong key cannot be forced live (the feature file says so); pinned by tests/quiz/transcript-quiz-key-verify.test.js and transcript-quiz-generate's key_disagreement path. Not a mock-lane scenario." }, 0);
+  if (!seenIds.has('T29')) rec('T29', 'A quiz never ships an answer key a blind solver disagrees with', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
 
 
@@ -1686,92 +1638,48 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T63', 'However I type "quiz", it opens my quiz menu', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T63')) rec('T63', 'However I type "quiz", it opens my quiz menu', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T64', '/quiz lists the lesson plans I took, says where each lesson came from, and makes nothing until I tap', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T64')) rec('T64', '/quiz lists the lesson plans I took, says where each lesson came from, and makes nothing until I tap', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T65', 'Tapping the same lesson plan twice makes one quiz', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T65')) rec('T65', 'Tapping the same lesson plan twice makes one quiz', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T66', 'A lesson plan another teacher already made into a quiz comes back quickly, with my own name and link', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T66')) rec('T66', 'A lesson plan another teacher already made into a quiz comes back quickly, with my own name and link', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T67', 'Past today\'s quiz limit I am told plainly and can make it tomorrow', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T67')) rec('T67', 'Past today\'s quiz limit I am told plainly and can make it tomorrow', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T68', 'A child in the middle of a quiz who types "quiz" stays in the quiz', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T68')) rec('T68', 'A child in the middle of a quiz who types "quiz" stays in the quiz', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T69', 'A coach who types "quiz" gets the coach menu', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T69')) rec('T69', 'A coach who types "quiz" gets the coach menu', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T70', 'In the /quiz list message, a lesson-plan quiz that could not be made is made again on a tap', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T70')) rec('T70', 'In the /quiz list message, a lesson-plan quiz that could not be made is made again on a tap', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T71', 'A Grades 6-12 lesson plan I received is in /quiz, and becomes a quiz only when I tap it', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T71')) rec('T71', 'A Grades 6-12 lesson plan I received is in /quiz, and becomes a quiz only when I tap it', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T72', 'With the 6-12 quiz source switched off, no 6-12 lesson is offered and a quiz already made still works', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T72')) rec('T72', 'With the 6-12 quiz source switched off, no 6-12 lesson is offered and a quiz already made still works', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T73', 'A 6-12 lesson tapped in /quiz that could not be started says so honestly, and can be made again once it can be', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T73')) rec('T73', 'A 6-12 lesson tapped in /quiz that could not be started says so honestly, and can be made again once it can be', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T74', 'The line after a quiz is sent says when the class report really comes', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T74')) rec('T74', 'The line after a quiz is sent says when the class report really comes', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T75', 'An Urdu class quiz never guesses whether the child is a boy or a girl — "can", "are doing", "forgot" included', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T75')) rec('T75', 'An Urdu class quiz never guesses whether the child is a boy or a girl — "can", "are doing", "forgot" included', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T76', 'An Urdu quiz on a lesson plan with an English title keeps the title in reading order', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T76')) rec('T76', 'An Urdu quiz on a lesson plan with an English title keeps the title in reading order', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T77', 'The class report arrives once, even when it is asked for while it is being made', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T77')) rec('T77', 'The class report arrives once, even when it is asked for while it is being made', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T78', 'After the class report, children who join late do not trigger a second automatic report', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T78')) rec('T78', 'After the class report, children who join late do not trigger a second automatic report', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T79', 'A quiz whose questions never passed our checks says the problem was on our side, and can be made again', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T79')) rec('T79', 'A quiz whose questions never passed our checks says the problem was on our side, and can be made again', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T80', 'A quiz never keys a mistake made in class as the right answer', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T80')) rec('T80', 'A quiz never keys a mistake made in class as the right answer', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T81', 'The quiz sheet never presents a mistake made in class as what was taught', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T81')) rec('T81', 'The quiz sheet never presents a mistake made in class as what was taught', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T82', 'A quiz made from my recording never names or asks about a child in my class', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T82')) rec('T82', 'A quiz made from my recording never names or asks about a child in my class', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T83', 'A lesson quiz never asks the class the same question twice', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T83')) rec('T83', 'A lesson quiz never asks the class the same question twice', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('T84', 'A quiz with many questions to fix gets the worst ones fixed first, not none', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+  if (!seenIds.has('T84')) rec('T84', 'A quiz with many questions to fix gets the worst ones fixed first, not none', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
 };

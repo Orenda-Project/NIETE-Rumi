@@ -435,11 +435,11 @@ function makeApi(c) {
      *  really unregistered?) can be verified in the same run instead of deferred to a human. */
     db(action, extra) {
       trace('db ' + action);
-      const script = /^(lookup|answer-key|module-answer-key)$/.test(action)
+      const script = /^(lookup|answer-key|module-answer-key|seed-lp-quiz|seed-class-quiz|quiz-rows|seed-lp-download|seed-coaching-session|seed-lp612-delivery|purge-run-quizzes|quizzes-for-lesson|driver-user)$/.test(action)
         ? path.join(REPO, '.claude/qa/shared/niete_training_db.py')
         : path.join(REPO, '.claude/qa/shared/niete_registration_db.py');
       const args = [script, action, '--env', ENV, '--phone', process.env.E2E_DRIVER || '923028931858'];
-      if (action !== 'lookup' && action !== 'snapshot') args.push('--yes-write');
+      if (!/^(lookup|snapshot|quiz-rows|quizzes-for-lesson|driver-user)$/.test(action)) args.push('--yes-write');
       if (extra) args.push(...extra);
       try {
         const out = execFileSync('python3', args, { cwd: REPO, encoding: 'utf8', timeout: 60000 });

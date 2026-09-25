@@ -121,6 +121,13 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # at call time; with it unset /quiz falls to the old QuizOrchestrator and training T24 cannot list
     # a lesson-plan quiz. On by default here, like LP_612_ENABLED; no other mock driver sends /quiz.
     echo "TRANSCRIPT_QUIZ_ENABLED=${TRANSCRIPT_QUIZ_ENABLED:-true}"
+    # Quizzes from Grades 6-12 lesson plans (quiz-sources.lp612SourceOn, read at call time) — on here so
+    # training T71 can list a 6-12 lesson in /quiz; the config-gated T72/T73 flip it per process with
+    # `local-stack.sh restart worker|bot <run_dir> QUIZ_LP612_SOURCE=off`.
+    echo "QUIZ_LP612_SOURCE=${QUIZ_LP612_SOURCE:-on}"
+    # Scripted vendor answers (e2e-cassette _takeFault): a driver writes rules into this file to force
+    # "no usable model reply" / "the author never passed the checks" for one generation, then empties it.
+    echo "E2E_CASSETTE_FAULTS=$run_dir/cassette-faults.json"
     # observe capability gate (observe-gate.js:62) + the visit-picker Flow. keys/niete-local.env already
     # carries both real ids, and dotenv keeps the first value, so these are FALLBACKS for a clone whose
     # keys file lacks them — the ids match the committed flow fixtures (fixtures/flows/*.json + manifest),
@@ -200,8 +207,35 @@ down() {
   log "down: $run_dir"
 }
 
+# restart <bot|worker> <run_dir> [KEY=VAL ...] — the same process again with env overrides on top of
+# the composed .env (a switch flipped on one service and not another: training T72/T73). The new pid
+# replaces the old in <run_dir>/<proc>.pid so `down` still owns it.
+restart() {
+  local proc="$1" run_dir="$2"; shift 2
+  local src="$run_dir/src"; [ -d "$src" ] || { log "restart: no $src"; exit 2; }
+  read -r mock_port bot_port redis_port worker_port <"$run_dir/ports"
+  if [ -f "$run_dir/$proc.pid" ]; then kill "$(cat "$run_dir/$proc.pid")" >/dev/null 2>&1 || true; fi
+  case "$proc" in
+    bot)
+      for i in $(seq 1 40); do lsof -ti tcp:"$bot_port" -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 0.25; done
+      ( cd "$src" && exec env "$@" node bot/whatsapp-bot.js ) >>"$run_dir/bot.log" 2>&1 &
+      echo $! >"$run_dir/bot.pid"
+      for i in $(seq 1 120); do curl -sf -m 2 "http://127.0.0.1:$bot_port/health" >/dev/null 2>&1 && break; sleep 0.5; done
+      curl -sf -m 2 "http://127.0.0.1:$bot_port/health" >/dev/null 2>&1 || { log "restart: bot not healthy on $bot_port"; exit 12; };;
+    worker)
+      for i in $(seq 1 40); do lsof -ti tcp:"$worker_port" -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 0.25; done
+      ( cd "$src" && exec env "$@" node bot/workers/sqs-worker.js ) >>"$run_dir/worker.log" 2>&1 &
+      echo $! >"$run_dir/worker.pid"
+      for i in $(seq 1 120); do curl -sf -m 2 "http://127.0.0.1:$worker_port/health" >/dev/null 2>&1 && break; sleep 0.5; done
+      curl -sf -m 2 "http://127.0.0.1:$worker_port/health" >/dev/null 2>&1 || { log "restart: worker not healthy on $worker_port"; exit 13; };;
+    *) log "restart: proc must be bot|worker"; exit 2;;
+  esac
+  log "restart: $proc with ${*:-no overrides}"
+}
+
 case "$CMD" in
   up)   up "${1:-}" "${2:-}";;
   down) down "${1:?run_dir}";;
-  *) echo "usage: local-stack.sh up <sha> <run_dir> | down <run_dir>" >&2; exit 2;;
+  restart) restart "${1:?bot|worker}" "${2:?run_dir}" "${@:3}";;
+  *) echo "usage: local-stack.sh up <sha> <run_dir> | down <run_dir> | restart bot|worker <run_dir> [KEY=VAL ...]" >&2; exit 2;;
 esac
