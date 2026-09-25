@@ -986,6 +986,9 @@ p, li, figcaption,
 .hook .q, .hook .lf, .askb .q, .askb .lf, .srq .q, .ck .q, .erq .q,
 .wu .q, .pr .q, .hw .q, .mcq .q, .exq h4, .exq .prompt,
 .exit .it > span, .vres a, .tnote, .crit, .bythe, .how, .refq{ unicode-bidi:plaintext; }
+/* bd-oak77.42 — the one Urdu line under an English board block (SYNC §3.27). */
+.gloss{ font-family:'Noto Nastaliq Urdu','Inter','Helvetica Neue',Arial,sans-serif;
+      font-size:16px; line-height:2.05; color:var(--s-quiet-ink); margin-top:2px; }
 ` : ""}`;
   return `${fonts}\n${katex}\n${scaleTypeCss(sheet, TYPE_SCALE)}`;
 }
@@ -1198,8 +1201,11 @@ function makeBlockRenderer(ctx) {
     watch_out: (b) => `<div class="blk watch"><div class="lbl">&#9888; ${esc(L.watch)}</div>
       <div class="t">${rich(b.text)}</div></div>`,
 
+    // bd-oak77.42: on an Urdu render the board text stays English; the overlay's derived
+    // `<block>/gloss` adds ONE Urdu line under it, RLM-led. English renders never print it.
     board: (b) => `<div class="blk board"><div class="lbl">${esc(L.board)}</div>
-      <div class="t">${rich(b.text)}</div></div>`,
+      <div class="t">${rich(b.text)}</div>${ctx.rtl && typeof b.gloss === "string" && b.gloss.trim()
+    ? `\n      <div class="gloss" dir="rtl" lang="ur">&#x200F;${rich(b.gloss)}</div>` : ""}</div>`,
 
     keywords: (b) => `<div class="blk"><div class="lbl g">${esc(L.keywords)}</div>
       <div class="kwrow">${b.items

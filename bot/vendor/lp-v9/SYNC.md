@@ -1211,11 +1211,43 @@ with `provenance.subject` set to the Urdu subject name when `lang` is `ur`. That
 where the template prints the subject; the stored lpDoc keeps its English name. Keep all of this at the
 next re-sync.
 
+### 3.27 An Urdu line under each English board block — `lib/overlay.js`, `lib/template.js`, `lint_lp.js` (2026-09-25, bd-oak77.42)
+
+On an Urdu render of an English-medium book a `board` block's `text` stays English: it follows the
+exam's language and `frozenReason()` still refuses it. What changes is that the Urdu page now prints
+ONE Urdu line directly under it that explains the board to the teacher. The line comes from the
+overlay pass, as a new **derived** overlay target:
+
+* **`lib/overlay.js`** — new `GLOSS_KEY` and `glossSource(doc, ptr)`. The pointer `<board block>/gloss`
+  does not exist in the stored document; `glossSource` returns the board's English text for it (and
+  `undefined` for anything else). `pointerSet` lets `applyOverlay` create `gloss` on the render clone
+  in exactly that case. `frozenReason` is unchanged, and the stored document is never rewritten, so
+  the board schema (`additionalProperties:false`, `{type,id,text}`) still validates — `renderDoc`
+  validates the raw document before `applyOverlay`.
+* **`lint_lp.js`** — `overlayTargets()` offers `<board ptr>/gloss` for every board block whose text is
+  prose (`isInstructionProse`), except in an Urdu-medium book or under a skip root/frozen pointer.
+  New `overlayBoardGlossGaps(doc)` (also `overlayDefects.boardGlossGaps`), built like
+  `overlayObjectiveGaps()` (§3.25); `overlayDefects()` adds **OVERLAY_BOARD_GLOSS_MISSING** naming the
+  pointers whenever it is non-empty, whatever the coverage. Each gloss is also one more coverage
+  target, so a document with N board blocks has N more targets than before.
+* **`lib/template.js`** — `R.board` appends `<div class="gloss" dir="rtl" lang="ur">&#x200F;…</div>`
+  inside the board atom, only when `ctx.rtl` and the gloss is non-blank. The `.gloss` rule (Nastaliq
+  stack, unitless line-height 2.05) sits in the RTL-only block, so the English stylesheet and English
+  renders stay byte-identical. No `·` is emitted.
+
+Bot side (not a vendor divergence): `lp612-author.service.js` sends the board text as the source for a
+gloss key (`buildOverlayPrompt`), keeps gloss keys through `sanitizeOverlay`, and adds brief rule 9
+("a key ending in /gloss is not a translation"). **The worker's reuse gate
+(`lp612-author.worker.js`, `chromeGaps`) deliberately does NOT refuse on gloss gaps** (operator
+decision, 2026-09-25): a stored Urdu document without glosses still re-renders, with no gloss line,
+and the top-up lane — which derives its delta from `overlayTargets()` — backfills the glosses.
+`/fbise_slos` and `page2.board_final` are out of scope. Keep all of this at the next re-sync.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
-exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) §3.20 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`), §3.21 (`types/match.js`'s `handleLetters`, `types_manifest.json`), §3.22 (`types/count_objects.js`'s row `color`, `types_manifest.json`) and §3.23 (`types/count_objects.js`'s counts of 1 and 0, `types/count_frame.js`'s empty ten-frame, `types_manifest.json`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.25 for `overlayObjectiveGaps()` and the short-prose rule, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
+exception of the four `glue` marks in `lib/template.js` recorded in §3.9 and the board-gloss changes to `lib/overlay.js` and `lib/template.js` recorded in §3.27. The `diagrams/` tree is
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) §3.20 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`), §3.21 (`types/match.js`'s `handleLetters`, `types_manifest.json`), §3.22 (`types/count_objects.js`'s row `color`, `types_manifest.json`) and §3.23 (`types/count_objects.js`'s counts of 1 and 0, `types/count_frame.js`'s empty ten-frame, `types_manifest.json`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.25 for `overlayObjectiveGaps()` and the short-prose rule, §3.27 for the derived board-gloss target and `overlayBoardGlossGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /
