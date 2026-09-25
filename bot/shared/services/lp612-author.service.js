@@ -60,7 +60,7 @@ const { meetsSubjectMinimum } = require('../../vendor/lp-v9/visual_check.js');
 const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
 // The renderer's OWN pointer resolver and frozen-slot list, so `sanitizeOverlay` cannot
 // disagree with `applyOverlay` about what is applicable — one implementation, not two.
-const { pointerParent, pointerGet, frozenReason } = require('../../vendor/lp-v9/lib/overlay.js');
+const { pointerParent, pointerGet, frozenReason, glossSource } = require('../../vendor/lp-v9/lib/overlay.js');
 // The page caps the RENDERER will actually gate on, so the budget card in the prompt and the
 // gate can never state different numbers (bd-vjk68). This module's top-level cost is `fs`,
 // `path` and its own libs — `playwright-core` is required lazily inside the launch path — so
@@ -1525,7 +1525,8 @@ function sanitizeOverlay(doc) {
     }
     if (!loc) return false;
     const k = Array.isArray(loc.parent) ? Number(loc.key) : loc.key;
-    return loc.parent[k] !== undefined;
+    // bd-oak77.42: a board block's derived `/gloss` exists only in the overlay (SYNC §3.27).
+    return loc.parent[k] !== undefined || glossSource(doc, pointer) !== undefined;
   };
 
   const kept = {};
@@ -2757,6 +2758,8 @@ function overlayBrief() {
     '   imperatives («کریں», «پوچھیں») or let the verb agree with a NOUN. A mixed-gender cohort',
     '   reads every one of these lines.',
     '8. URDU PUNCTUATION FOR URDU SENTENCES: ۔ ، ؟ — not . , ?',
+    '9. A KEY ENDING IN /gloss IS NOT A TRANSLATION. Its value is English board text that stays',
+    '   printed as it is; write ONE short Urdu line that explains it to the teacher.',
   ].join('\n');
 }
 
@@ -2772,7 +2775,7 @@ function buildOverlayPrompt({ lpDoc, segment, targets }) {
   const prov = (lpDoc && lpDoc.provenance) || {};
   const seg = segment || {};
   const map = {};
-  for (const ptr of targets) map[ptr] = pointerGet(lpDoc, ptr);
+  for (const ptr of targets) map[ptr] = glossSource(lpDoc, ptr) ?? pointerGet(lpDoc, ptr);
   return [
     `SUBJECT: ${seg.subject || prov.subject || 'unknown'}`,
     `GRADE: ${seg.grade || prov.grade || 'unknown'}`,
