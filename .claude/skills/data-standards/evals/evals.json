@@ -429,6 +429,54 @@
    "command": "compare `basename \"$(pwd)\"` against the hook's actual REPO_NAME resolution (`git rev-parse --show-toplevel`'s basename) when invoked from the nested subdirectory, not the repo root",
    "expect": "REPO_NAME correctly reports the repo's own top-level directory name (e.g. \"my-repo\"), not the subdirectory's name (e.g. \"subdir\") that a bare `basename \"$(pwd)\"` would have reported",
    "why_it_matters": "The hook can fire from any point inside a repo, not just its root — `basename \"$(pwd)\"` alone would misreport the repo as whatever subdirectory the commit happened to be run from, which is exactly the kind of subtly-wrong attribution that erodes trust in the audit trail and Slack notifications over time."
+  },
+  {
+   "id": "C48",
+   "type": "LIVE_EDIT_HOOK_BLOCKS_WRITE_WITH_VIOLATION",
+   "fixture": "evals/fixtures/violating_migration.sql's content, passed inline as tool_input.content",
+   "command": "echo '{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"scratch.sql\",\"content\":\"<violating_migration.sql content>\"}}' | python3 hooks/live-schema-edit-gate.py",
+   "expect_exit": 2,
+   "why_it_matters": "This is the whole point of the new hook: a NON-NEGOTIABLE violation must be caught the instant a Write introduces it, not first at commit time. Confirmed live during development against the same fixture already used for the commit-time gate (C9) — all 5 findings that fixture is known to produce (D1 SERIAL PK, D3 missing FK on teacher_id, D4 unclassified phone PII, D5 bare TIMESTAMP, D8 no migration-tool marker) fired correctly."
+  },
+  {
+   "id": "C49",
+   "type": "LIVE_EDIT_HOOK_PASSES_COMPLIANT_WRITE",
+   "fixture": "evals/fixtures/clean_migration.sql's content, passed inline as tool_input.content",
+   "command": "echo '{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"scratch.sql\",\"content\":\"<clean_migration.sql content>\"}}' | python3 hooks/live-schema-edit-gate.py",
+   "expect_exit": 0,
+   "why_it_matters": "A hook that blocks everything is as useless as one that blocks nothing — the compliant case must pass, same requirement as the commit-time gate's own C10."
+  },
+  {
+   "id": "C50",
+   "type": "LIVE_EDIT_HOOK_CHECKS_EDIT_PROSPECTIVE_CONTENT_NOT_JUST_OLD_STRING",
+   "fixture": "a scratch file on disk containing a compliant migrations/*.sql table with a user_id UUID column and no REFERENCES clause yet",
+   "command": "echo '{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"<scratch-file>\",\"old_string\":\"  user_id UUID,\",\"new_string\":\"  user_id UUID, -- FK to users, still not referenced\"}}' | python3 hooks/live-schema-edit-gate.py",
+   "expect_exit": 2,
+   "why_it_matters": "An Edit call never carries the whole file's content — only old_string/new_string. The hook must read the file's CURRENT on-disk text and apply the substitution itself to get the true prospective content, then validate THAT, not just pattern-match on new_string in isolation (which would miss a D3 finding that only exists in the context of the whole table). Verified live: this exact case correctly produced a D3 finding (user_id has no REFERENCES anywhere in the table body) that a check of new_string alone could never have found."
+  },
+  {
+   "id": "C51",
+   "type": "LIVE_EDIT_HOOK_IGNORES_NON_SCHEMA_FILE",
+   "fixture": "n/a",
+   "command": "echo '{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"README.md\",\"content\":\"# hello\\nCREATE TABLE users (id SERIAL PRIMARY KEY);\"}}' | python3 hooks/live-schema-edit-gate.py",
+   "expect_exit": 0,
+   "why_it_matters": "The shared detector (detect_schema_changes.py, same file-relevance rules used everywhere else in this skill) must gate what this hook even looks at — a CREATE TABLE string appearing inside a markdown file or a code comment must not trip a live block on every unrelated file in the repo."
+  },
+  {
+   "id": "C52",
+   "type": "LIVE_EDIT_HOOK_MALFORMED_INPUT_FAILS_SAFE",
+   "fixture": "n/a",
+   "command": "echo '{not json' | python3 hooks/live-schema-edit-gate.py",
+   "expect_exit": 0,
+   "why_it_matters": "Same requirement as the commit-time gate's C13 — malformed stdin must fail safe (exit 0) rather than crash or hang, since a broken hook here would block every single Edit/Write in the session, not just git operations."
+  },
+  {
+   "id": "C53",
+   "type": "LIVE_EDIT_HOOK_BYPASS_SAME_MECHANISM_AS_COMMIT_GATE",
+   "fixture": "the C50 scratch file/edit, with TALEEMABAD_DATA_STANDARDS_BYPASS exported first",
+   "command": "export TALEEMABAD_DATA_STANDARDS_BYPASS=\"<a real reason, 15+ chars, not a generic placeholder>\"; then the same input as C50 into hooks/live-schema-edit-gate.py; separately, re-run with a generic reason like \"bypass\"",
+   "expect": "a validated reason: exit 0, a record appended to .data-standards-bypass-log.jsonl with the correct bypassed standard (D3) and reason; a generic/rejected reason: falls through and still blocks (exit 2), matching the commit-time gate's own C14 behavior — no second, weaker bypass path introduced for the live hook",
+   "why_it_matters": "This hook deliberately reuses the exact same bypass variable and validation (bypass_audit.py) as schema-change-gate.sh rather than inventing a separate, possibly-weaker escape hatch for live edits. Verified live: an accepted reason produced a correct audit record (bypassed_finding_standards: [\"D3\"]); a generic reason (\"bypass\") was rejected and fell through to blocking, exactly like C14."
   }
  ],
  "orientation_cases": [

@@ -242,12 +242,23 @@ def build_governance_event(args: argparse.Namespace) -> dict:
     }
 
 
-def send_governance_event(event: dict, endpoint: str | None, retries: int = 3) -> dict:
+def send_governance_event(event: dict, endpoint: str | None, retries: int = 3,
+                           telemetry_key: str | None = None) -> dict:
     """POSTs the event with bounded retries + exponential backoff. If no
     endpoint is configured, writes the event to a local fallback file
     instead of silently discarding it — 'full context, no secrets' per the
     brief, and a locally-preserved event is recoverable later; a discarded
-    one is not."""
+    one is not.
+
+    telemetry_key: the same shared, write-only TELEMETRY_KEY the
+    skill-usage hook already sends to this pack's telemetry service
+    (see hooks/skill-telemetry.py's post_detached — identical convention,
+    same key). The receiving /gate-events endpoint requires this via
+    Authorization: Bearer / apikey (see agent-skills-telemetry's
+    check_token()) — omitting it here was a real bug caught while wiring
+    this up: every event would have been silently rejected with 401
+    despite TALEEMABAD_GOVERNANCE_ENDPOINT being set correctly, since a
+    previous version of this function never sent any auth header at all."""
     if not endpoint:
         fallback = Path(".data-standards-governance-events.jsonl")
         try:
@@ -260,12 +271,15 @@ def send_governance_event(event: dict, endpoint: str | None, retries: int = 3) -
                     f"failed: {e} — event was NOT preserved anywhere"}
 
     payload = json.dumps(event).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if telemetry_key:
+        headers["Authorization"] = f"Bearer {telemetry_key}"
+        headers["apikey"] = telemetry_key
     last_error = None
     for attempt in range(1, retries + 1):
         try:
             req = urllib.request.Request(
-                endpoint, data=payload, method="POST",
-                headers={"Content-Type": "application/json"},
+                endpoint, data=payload, method="POST", headers=headers,
             )
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return {"sent": True, "status": resp.status, "attempt": attempt}
@@ -315,6 +329,9 @@ def main() -> int:
 
     gov = sub.add_parser("governance", help="send/queue a data-governance ingestion event")
     gov.add_argument("--endpoint", default=os.environ.get("TALEEMABAD_GOVERNANCE_ENDPOINT"))
+    gov.add_argument("--telemetry-key", default=os.environ.get("TELEMETRY_KEY"),
+                      help="shared write-only key for the telemetry service's /gate-events "
+                           "auth — same TELEMETRY_KEY the skill-usage hook already uses")
     gov.add_argument("--repo", required=True)
     gov.add_argument("--branch", required=True)
     gov.add_argument("--base-sha")
@@ -354,7 +371,7 @@ def main() -> int:
         args.severity_counts = json.loads(args.severity_counts) if args.severity_counts else {}
         args.issue_ids = args.issue_ids.split(",") if args.issue_ids else []
         event = build_governance_event(args)
-        result = send_governance_event(event, args.endpoint)
+        result = send_governance_event(event, args.endpoint, telemetry_key=args.telemetry_key)
         print(json.dumps({"event": event, "delivery": result}, indent=2))
         return 0
 
