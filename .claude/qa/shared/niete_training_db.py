@@ -568,7 +568,15 @@ def cmd_seed_coaching_session(creds, a):
     text = open(a.transcript_file, encoding="utf-8").read() if a.transcript_file else ""
     if len(text) < 1500: sys.exit("transcript must be >= 1500 chars (got %d)" % len(text))
     now = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
-    body = {"user_id": uid, "session_id": "qa-seed-%s" % uuid.uuid4().hex[:12], "status": "completed", "transcript_text": text,
+    # session_id is a FK into chat_sessions: reuse the driver's own chat session (users.session_id),
+    # else the one their newest coaching session used.
+    urow = (_get(creds, "users", "id=eq.%s&select=session_id" % uid) or [{}])[0]
+    sid = urow.get("session_id")
+    if not sid:
+        prev = _get(creds, "coaching_sessions", "user_id=eq.%s&session_id=not.is.null&select=session_id&order=created_at.desc&limit=1" % uid) or []
+        sid = prev[0]["session_id"] if prev else None
+    if not sid: sys.exit("no chat session to hang the coaching session on (users.session_id empty)")
+    body = {"user_id": uid, "session_id": sid, "status": "completed", "transcript_text": text,
             "transcript_language": a.language, "analysis_data": {"topic": a.topic, "subject": a.subject, "framework": "fico"},
             "lesson_plan_excerpt": QA_COACHING_MARK, "has_lesson_plan": False, "completed_at": now, "created_at": now}
     if not a.yes_write: print(json.dumps({"dry_run": True, "chars": len(text)})); return
@@ -580,18 +588,18 @@ def cmd_seed_coaching_session(creds, a):
 def cmd_seed_lp612_delivery(creds, a):
     """A Grades 6-12 lesson plan the driver received: one niete_lp612_deliveries row copying a REAL
     delivery's render_id/segment_id/lang (so the worker's lp612-quiz-source finds the stored lp_doc).
-    surface 'qa-seed' is the restore key."""
+    Every lp612 delivery on the QA driver is ours, so --restore deletes them all."""
     uid = _uid(creds, a.phone)
     if a.restore:
         if not a.yes_write: print(json.dumps({"dry_run": True})); return
-        _req("DELETE", "/rest/v1/niete_lp612_deliveries?user_id=eq.%s&surface=eq.qa-seed" % uid, creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/niete_lp612_deliveries?user_id=eq.%s" % uid, creds, prefer="return=minimal")   # the QA driver holds no real 6-12 deliveries
         print(json.dumps({"restored": True})); return
     src = _get(creds, "niete_lp612_deliveries", "segment_id=like.%s&select=render_id,segment_id,lang,template_version&order=delivered_at.desc&limit=1" % a.segment_like) or []
     if not src: sys.exit("no lp612 delivery matching %s to copy" % a.segment_like)
     r = src[0]
     seg = (_get(creds, "niete_lp612_segments", "segment_id=eq.%s&select=grade,subject,menu_title,subtopic_title" % r["segment_id"]) or [{}])[0]
     now = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
-    body = {"user_id": uid, "render_id": r["render_id"], "segment_id": r["segment_id"], "lang": r["lang"], "template_version": r.get("template_version"), "surface": "qa-seed", "delivered_at": now}
+    body = {"user_id": uid, "render_id": r["render_id"], "segment_id": r["segment_id"], "lang": r["lang"], "template_version": r.get("template_version"), "surface": "backfill", "delivered_at": now}   # surface is CHECK-constrained; the driver's rows are all ours
     if not a.yes_write: print(json.dumps({"dry_run": True, "would_insert": body})); return
     created, _ = _req("POST", "/rest/v1/niete_lp612_deliveries", creds, body=[body], prefer="return=representation")
     row = (created or [{}])[0]

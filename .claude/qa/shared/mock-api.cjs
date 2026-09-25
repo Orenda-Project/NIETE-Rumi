@@ -46,8 +46,17 @@ function makeMockApi(opts) {
   let lastReply = null;  // newest normalized item the driver saw
   let lastBatch = [];    // ALL items from the last reply group (a list + a trailing text arrive together)
 
+  // One transient socket error must not end a 60-minute run: a fetch that fails at the network
+  // level (ECONNRESET, "fetch failed") is retried a few times before it counts (run 20260925-1051:
+  // two scenarios and the runner itself died on a single "fetch failed" each).
+  async function fetchRetry(url, init, tries = 4) {
+    for (let i = 1; ; i++) {
+      try { return await fetch(url, init); }
+      catch (e) { if (i >= tries || !/fetch failed|ECONNRESET|ECONNREFUSED|socket hang up|EPIPE/i.test(String(e && (e.cause && e.cause.message || e.message)))) throw e; await new Promise((r) => setTimeout(r, 1500 * i)); }
+    }
+  }
   async function outbox(after) {
-    const r = await fetch(`${base}/outbox?after=${after}&to=${encodeURIComponent(driver)}`);
+    const r = await fetchRetry(`${base}/outbox?after=${after}&to=${encodeURIComponent(driver)}`);
     if (!r.ok) throw new Error('HARNESS mock-api: outbox ' + r.status);
     return r.json();
   }
@@ -58,7 +67,7 @@ function makeMockApi(opts) {
     return lastBatch.slice().reverse().find((it) => it.list) || null;   // within THIS reply group only
   }
   async function inject(kind, body) {
-    const r = await fetch(`${base}/inject`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const r = await fetchRetry(`${base}/inject`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ kind, from: driver, ...body }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error('HARNESS mock-api: inject failed: ' + JSON.stringify(j).slice(0, 200));
