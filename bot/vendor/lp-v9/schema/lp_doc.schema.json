@@ -103,7 +103,7 @@
       "description": "NEVER invented. FBISE examines SLOs, not textbooks.",
       "properties": {
         "code": { "type": ["string", "null"], "description": "e.g. B-10-R-10. null when the book prints an outcome with no code — say so rather than inventing one." },
-        "text_verbatim": { "type": "string", "minLength": 10 },
+        "text_verbatim": { "type": "string", "minLength": 10, "description": "STRING ONLY, deliberately — the one authored slot bd-oyqb2 does NOT widen to an array (bd-yjmxh, 2026-09-24). It is the SLO copied VERBATIM from the curriculum: splitting one sentence across bulleted rows re-punctuates it and changes what it says, and `verbatim` is the whole contract of the field. Nothing renders it either — it appears nowhere in lib/template.js — so an array would buy no printed row and only give lint a shape to crash on." },
         "source_page": { "type": "string", "minLength": 1 },
         "cognitive_level": { "type": "string", "enum": ["K", "U", "A"] },
         "assessment_status": { "type": "string", "enum": ["Summative", "Formative", "Summative-PBA", "Internal"] },
@@ -148,7 +148,7 @@
       "required": ["outcome", "items"],
       "description": "Section O — ONE BOX (spec §2/§3). Outcome and objectives are never two stacked blocks.",
       "properties": {
-        "outcome": { "type": "string", "minLength": 10, "description": "One outcome, addressed TO the pupil: 'You can …' (Urdu 'آپ …'). lint OUTCOME_VOICE fails any other register." },
+        "outcome": { "oneOf": [ { "type": "string", "minLength": 10 }, { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 } } ], "description": "One outcome, addressed TO the pupil: 'You can …' (Urdu 'آپ …'). lint OUTCOME_VOICE fails any other register. bd-oyqb2: array form prints one row per element, same idiom as key_points.items — MEASURED mean 29.9 words -> 17.7 rows over the 335-lesson ch9-10 corpus (2026-09-24); see sloBox in lib/template.js." },
         "by_the_end": { "type": "string", "description": "The '✓ By the end you can answer…' line, naming the question type and its marks. Addressed to the pupil, the same register as outcome (lint OUTCOME_VOICE)." },
         "items": {
           "type": "array",
@@ -261,7 +261,7 @@
               "additionalProperties": false,
               "required": ["q", "a"],
               "properties": {
-                "q": { "type": "string", "minLength": 5 },
+                "q": { "oneOf": [ { "type": "string", "minLength": 5 }, { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 }, "description": "bd-oyqb2: one row per element — MEASURED mean 45.3 words over the 335-lesson ch9-10 corpus (2026-09-24)." } ] },
                 "a": { "type": "string", "minLength": 1 },
                 "ref": { "type": "string" }
               }
@@ -364,9 +364,9 @@
           "required": ["stuck", "barrier", "early"],
           "description": "D — one concrete instruction each. Never narrative.",
           "properties": {
-            "stuck": { "type": "string", "minLength": 3 },
+            "stuck": { "oneOf": [ { "type": "string", "minLength": 3 }, { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 }, "description": "bd-oyqb2: one row per element — MEASURED mean 60.5 words over the 335-lesson ch9-10 corpus (2026-09-24)." } ] },
             "barrier": { "type": "string", "minLength": 3 },
-            "early": { "type": "string", "minLength": 3 }
+            "early": { "oneOf": [ { "type": "string", "minLength": 3 }, { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 }, "description": "bd-oyqb2: one row per element — MEASURED mean 47.3 words over the 335-lesson ch9-10 corpus (2026-09-24)." } ] }
           }
         },
         "exam_bank": {
@@ -454,8 +454,10 @@
           "description": "H — DIRECT INSTRUCTION to the teacher about the observable move, drawn from THIS lesson. Never a question put to her (spec §8; lint's NO_SAY_BOX): the question half of the corner is `coaching_reflection`."
         },
         "coaching_reflection": {
-          "type": "string",
-          "minLength": 3,
+          "oneOf": [
+            { "type": "string", "minLength": 3 },
+            { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 }, "description": "bd-oyqb2: one row per element — MEASURED mean 52.0 words over the 335-lesson ch9-10 corpus (2026-09-24)." }
+          ],
           "description": "H — ONE question the teacher asks HERSELF after THIS lesson, about HER OWN practice: her class, her pupils, or what she re-teaches next. Ends in a question mark. Never a question about the subject's content (that is the pupils' question, not hers) and never generic. Ported from the K-5 coaching-corner pattern (`wrap.reflection`); gated by lint's COACHING_CORNER. The record-and-send offer that sits beside it is renderer furniture, not authored here."
         }
       }
@@ -581,7 +583,7 @@
             "type": { "const": "ask" },
             "id": { "type": "string" },
             "crux": { "$ref": "#/definitions/crux" },
-            "question": { "type": "string", "minLength": 3 },
+            "question": { "oneOf": [ { "type": "string", "minLength": 3 }, { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 }, "description": "bd-oyqb2: one row per element — MEASURED mean 80.7 words over the 335-lesson ch9-10 corpus (2026-09-24), the heaviest of the nine." } ] },
             "look_for": { "type": "string", "description": "The `Look for:` line — what a right answer sounds like (spec §3 I)." },
             "hook": { "type": "boolean", "description": "true = the lesson's provocation. Exactly one per LP, in the introduction." },
             "closed_by": { "type": "string", "description": "The `id` of the block that ANSWERS this hook. In v9 it must be development's FIRST block." }
@@ -625,7 +627,8 @@
             "items": {
               "type": "array",
               "minItems": 1,
-              "maxItems": 8,
+              "maxItems": 13,
+              "description": "MEASURED, not chosen (bd-c091j). Over the 335-lesson ch9-10 corpus built by the CURRENT document layer (/usr/bin/python3 -W ignore schema_caps.py --build, 2026-09-24): observed max 8, limit 8 — utilisation 1.00, zero headroom, identically the same failure class `key_points.items` hit at bd-bdctp (one more keyword anywhere stops every document validating). 13 is that observed max (8) with 55% headroom, the same formula the `key_points.items` cap above uses. The cap buys nothing in the renderer: `keywords` (lib/template.js:2229-2232) and `kwTable` (lib/template.js:2940-2941) both map every item with no slice, so a longer list paginates instead of clipping. It is only a guard against a runaway list. Re-measure with `schema_caps.py --build` before changing it.",
               "items": {
                 "type": "object",
                 "required": ["word", "meaning"],
@@ -706,13 +709,13 @@
             "id": { "type": "string" },
             "crux": { "$ref": "#/definitions/crux" },
             "title": { "type": "string" },
-            "prompt": { "type": "string", "description": "The question, FULLY WORDED. A page citation alone is not a question (lint's UNWORDED_Q)." },
+            "prompt": { "oneOf": [ { "type": "string" }, { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 } } ], "description": "The question, FULLY WORDED. A page citation alone is not a question (lint's UNWORDED_Q). bd-oyqb2: array form prints one row per element — MEASURED mean 69.5 words over the 335-lesson ch9-10 corpus (2026-09-24)." },
             "minutes": { "type": "integer", "minimum": 0 },
             "steps": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 2 } },
             "result": { "type": "string" }
             ,
             "turns": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/script_turn" }, "description": "VENDOR DIVERGENCE (SYNC §3.17). The script as call-and-response ROWS, one turn each. `steps` remains required: every G6-12 document carries no turns and takes the flat `<ol>` branch, so their render is unchanged by construction." },
-            "cfu": { "type": "string", "minLength": 3, "description": "VENDOR DIVERGENCE (SYNC §3.29). The check the modelling closes on — ONE question, asked before the class works alone. It prints as the last row INSIDE this box, under the label the plain `ask` block already uses, so the check sits with the work it checks instead of surfacing pages later in the conclusion. No G6-12 document carries it, and their markup is unchanged by construction." }
+            "cfu": { "oneOf": [ { "type": "string", "minLength": 3 }, { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 } } ], "description": "VENDOR DIVERGENCE (SYNC §3.29). The check the modelling closes on — ONE question, asked before the class works alone. It prints as the last row INSIDE this box, under the label the plain `ask` block already uses, so the check sits with the work it checks instead of surfacing pages later in the conclusion. No G6-12 document carries it, and their markup is unchanged by construction. bd-oyqb2: array form prints one row per element — MEASURED mean 40.7 words over the 335-lesson ch9-10 corpus (2026-09-24)." }
           },
           "required": ["type", "steps"],
           "additionalProperties": false
@@ -724,7 +727,7 @@
             "id": { "type": "string" },
             "crux": { "$ref": "#/definitions/crux" },
             "title": { "type": "string" },
-            "prompt": { "type": "string" },
+            "prompt": { "oneOf": [ { "type": "string" }, { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 } } ], "description": "bd-oyqb2: array form prints one row per element — MEASURED mean 69.5 words over the 335-lesson ch9-10 corpus (2026-09-24)." },
             "minutes": { "type": "integer", "minimum": 0 },
             "steps": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 2 } },
             "answer": { "type": "string" }

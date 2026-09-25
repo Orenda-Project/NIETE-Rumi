@@ -447,7 +447,15 @@ ${!rtl && urduScript ? `
    is how the column got down to 166px and printed "The / biological / method / —" one word per
    line on the G9 Bio plan. */
 .hero .h-col{ flex:1 1 auto; min-width:0; }
-.hero .h-title{ font-size:28.5px; font-weight:800; line-height:${rtl ? "1.7" : "1.05"}; margin-top:3px; }
+/* overflow-wrap is the same fallback .tchip below already carries, for the same reason: a topic
+   like "Position: Skill Sharpener (above/near/far/inside/straight/right)" is ONE word —
+   a solidus is not a soft wrap opportunity — so with .h-col correctly pinned at min-width:0 the
+   column does not grow and the glyphs simply painted past the page edge, unellipsised and
+   genuinely absent from the PDF (bd-rvyfd; 6 G1 documents of the ch9-10 corpus). break-word, not
+   anywhere: it fires ONLY for a word that cannot fit a line of its own, so every title that
+   already lays out correctly keeps its exact line breaks and no page can gain a line. */
+.hero .h-title{ font-size:28.5px; font-weight:800; line-height:${rtl ? "1.7" : "1.05"}; margin-top:3px;
+      overflow-wrap:break-word; }
 .hero .h-sub{ color:var(--ink-on-navy); font-size:16.5px; margin-top:2px; font-weight:500; line-height:${rtl ? "1.9" : "1.35"}; }
 /* The META COLUMN. It was flex:0 0 auto — "take your max-content width and NEVER shrink",
    and its max-content width is the CHIP ROW laid out on one line. So the board badge — an
@@ -759,6 +767,33 @@ p{ font-size:18px; }
 .kp{ margin:var(--sp-1) 0 0; padding-${start}:19px; }
 .kp li{ font-size:18px; margin:0; }
 .kp li::marker{ color:var(--navy2); }
+/* bd-oyqb2 item 4. THE ARRAY FORM'S OWN TWO DEFECTS, AND BOTH EXIST ONLY INSIDE .hook.
+   ask.question is one of the nine slots widened to string | string[], and an array there
+   renders through richRows as <ul class="kp"> -- which lands the two GLOBAL rules directly
+   above, both chosen against a white page, on the navy Opening band. So honouring the
+   operator's own *"format this better"* on the OPEN WITH THIS QUESTION block is what breaks it.
+
+   THE MARKER. --navy2 (#2A3550) on --navy (#303749) measures 1.03:1 -- the bullets are simply
+   not there. This is bd-f445i's defect exactly, a page ink reaching the band because no
+   .hook-scoped rule existed, and it is the operator's own repeated complaint: *"the font colour
+   should be different, hard to read with a dark background"*, *"Engliosh opening hook has same
+   font colour issue"*. It survived bd-f445i's sweep only because that scan walks CLASSES and
+   resolves color:, and a ::marker pseudo-element carries its own. --amber is the band's own
+   accent (.hook .lbl already prints it) and measures 5.63:1 here -- AA, and no new hex. Every
+   other ground .kp lands on is white or a pale tint, where --navy2 still measures 12.18:1, so
+   the global rule is left exactly as it is.
+
+   THE SILENT 1px. .hook .q is set one step above body and .kp li sits at body, so the array
+   form quietly shrank the loudest box on page 1 by a pixel. Changing the AUTHORED SHAPE of a
+   field must not change its type size: the list is a LAYOUT of the question, not a different
+   kind of text, so it takes the question's own size. By inherit rather than a second literal,
+   which could drift from .hook .q the next time that rule is touched. Resolved UPWARDS on
+   purpose -- her complaint about this block is that it is hard to read, not that it is loud.
+   The global .kp li is untouched at 18px = BODY_FLOOR_PX/TYPE_SCALE, so the type floor does not
+   move: every render still reports smallest body 21px. inherit carries no px and is therefore
+   invisible to scaleTypeCss, which is correct -- it inherits an ALREADY-scaled value. */
+.hook .kp li::marker{ color:var(--amber); }
+.hook .q .kp li{ font-size:inherit; }
 /* VENDOR DIVERGENCE (SYNC 3.26), bd-z4xkl -- THE BIG IDEA. A TEACH role on the surface ladder (blue), not a bespoke colour:
    it is teacher-facing explanation, the same family as ASK and SAY, and it reads as the thing
    to understand before the amber I DO model directly beneath it. */
@@ -1273,7 +1308,12 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 .band > div{ border-radius:var(--r-2); padding:8px 11px; min-width:0; }
 .band > div .lbl{ display:block; font-size:13px; font-weight:800; letter-spacing:.06em;
       text-transform:uppercase; }
-.band > div .t{ font-size:19px; line-height:1.35; font-weight:600; margin-top:2px; }
+/* The same topic is printed a second time in the TODAY card, and overflowed there too — 31px
+   against the hero's 151px on g1_ch10/Maths_seg8. Two boxes, one cause, one fallback (bd-rvyfd).
+   .band > div above already declares min-width:0, so this is the break opportunity, not the
+   constraint. */
+.band > div .t{ font-size:19px; line-height:1.35; font-weight:600; margin-top:2px;
+      overflow-wrap:break-word; }
 .band > .jrn{ background:var(--s-do); border:1px solid var(--s-do-line); }
 .band > .jrn .lbl{ color:var(--s-do-ink); }
 .band > .jrn .t{ color:var(--s-do-ink); font-weight:500; }
@@ -1972,6 +2012,26 @@ function script(b, rich, L) {
 }
 
 /**
+ * bd-oyqb2. `key_points.items` prints one `<li>` per array element (`kpItem`, `R.key_points`
+ * below); nine other slots carried the SAME kind of unbroken prose but were typed as a bare
+ * `string`, rendered as a single tag. These two helpers give any of those nine slots the
+ * IDENTICAL row-per-element markup, without new CSS: `.kp` (759-761) is reused verbatim.
+ *
+ * `richRows`: the field's existing wrapper is a <div> or a <p> it owns alone -- a <ul> is
+ * valid there. `richLines`: the wrapper also carries OTHER sibling markup (a label span, a
+ * nested answer span) that must survive, so array elements stay `<br>`-joined and fully
+ * inline instead. Both are no-ops (byte-identical to today) for a plain string.
+ */
+function richRows(val, rich) {
+  if (!Array.isArray(val)) return rich(val);
+  return `<ul class="kp">${val.map((x) => `<li>${rich(x)}</li>`).join("")}</ul>`;
+}
+function richLines(val, rich) {
+  if (!Array.isArray(val)) return rich(val);
+  return val.map((x) => rich(x)).join("<br>");
+}
+
+/**
  * VENDOR DIVERGENCE (SYNC §3.29). The check the modelling closes on.
  *
  * Operator's primary page map: *"worked example should be better formatted ending with a
@@ -1988,9 +2048,11 @@ function script(b, rich, L) {
  * today. Reusing it means the Urdu is free and the string did not change its name when it
  * changed its seat. Only `worked_example` carries `cfu` in the schema, so the `faded_example`
  * call site below can never fire.
+ *
+ * bd-oyqb2: `cfu` now accepts an array too -- `richRows`, same as `key_points`.
  */
 function cfuRow(b, rich, L) {
-  return b.cfu ? `<div class="cfu"><span class="cl">${esc(L.askPlain)}</span>${rich(b.cfu)}</div>` : "";
+  return b.cfu ? `<div class="cfu"><span class="cl">${esc(L.askPlain)}</span>${richRows(b.cfu, rich)}</div>` : "";
 }
 
 /* bd-c74u3. THE BIG IDEA'S MARK -- kie.ai's lightbulb, drawn rather than typed. `.mi` already
@@ -2176,10 +2238,10 @@ function makeBlockRenderer(ctx) {
     ask: (b) =>
       b.hook
         ? `<div class="blk hook"><div class="lbl">${esc(L.ask)}</div>
-           <div class="q">${rich(b.question)}</div>
+           <div class="q">${richRows(b.question, rich)}</div>
            ${b.look_for ? `<div class="lf"><b>${esc(L.lookFor)}:</b> ${rich(b.look_for)}</div>` : ""}</div>`
         : `<div class="blk askb"><div class="lbl">${esc(L.askPlain)}</div>
-           <div class="q">${rich(b.question)}</div>
+           <div class="q">${richRows(b.question, rich)}</div>
            ${b.look_for ? `<div class="lf"><b>${esc(L.lookFor)}:</b> ${rich(b.look_for)}</div>` : ""}</div>`,
 
     watch_out: (b) => `<div class="blk watch"><div class="lbl">&#9888; ${esc(L.watch)}</div>
@@ -2265,7 +2327,7 @@ function makeBlockRenderer(ctx) {
        body changes, and only for a document that asked for it. */
     worked_example: (b) => `<div class="blk exq">
       <span class="tag">${rich(b.title || L.worked)}</span>
-      ${b.prompt ? `<div class="prompt">${rich(b.prompt)}</div>` : ""}
+      ${b.prompt ? `<div class="prompt">${richRows(b.prompt, rich)}</div>` : ""}
       ${script(b, rich, L)}
       ${b.result ? `<div class="res">${rich(b.result)}</div>` : ""}${cfuRow(b, rich, L)}</div>`,
 
@@ -2274,7 +2336,7 @@ function makeBlockRenderer(ctx) {
        its authored separator gives one instruction per row, which is how she performs it. */
     faded_example: (b) => `<div class="blk exq we">
       <span class="tag">${rich(b.title || L.faded)}</span>
-      ${b.prompt ? `<ul class="setup">${b.prompt.split(" \u00b7 ").map((x) => `<li>${rich(x)}</li>`).join("")}</ul>` : ""}
+      ${b.prompt ? `<ul class="setup">${(Array.isArray(b.prompt) ? b.prompt : b.prompt.split(" \u00b7 ")).map((x) => `<li>${rich(x)}</li>`).join("")}</ul>` : ""}
       ${script(b, rich, L)}
       ${b.answer ? `<div class="res">${esc(L.answer)}: ${rich(b.answer)}</div>` : ""}</div>`,
 
@@ -2772,7 +2834,7 @@ function page1(doc, ctx, secIndex) {
   const O = doc.objectives;
   const sloBox = `<div class="slo">
     <div class="lbl">${esc(L.outcome)}${doc.slo.code ? ` &middot; ${rich(doc.slo.code)}` : ""}</div>
-    <p>${rich(O.outcome)}</p>
+    ${Array.isArray(O.outcome) ? richRows(O.outcome, rich) : `<p>${rich(O.outcome)}</p>`}
     ${O.by_the_end ? `<div class="bythe"><b>&#10003;</b> ${rich(O.by_the_end)}</div>` : ""}
   </div>`;
 
@@ -3227,7 +3289,7 @@ function page1(doc, ctx, secIndex) {
       }
       if (s.exit_ticket) {
         out.push({ html: `<div class="blk exit"><div class="lbl">${esc(L.exitTicket)}</div>${s.exit_ticket
-          .map((x, i) => `<div class="it"><span>${i + 1}.</span><span>${rich(x.q)} <span class="a">${AR} ${rich(x.a)}</span></span></div>`)
+          .map((x, i) => `<div class="it"><span>${i + 1}.</span><span>${richLines(x.q, rich)} <span class="a">${AR} ${rich(x.a)}</span></span></div>`)
           .join("")}</div>`, sp: 2 });
       }
       if (s.reteach_rule) {
@@ -3313,9 +3375,29 @@ function page1(doc, ctx, secIndex) {
   const exqChrome = (b) => {
     const we = b.type === "faded_example" ? " we" : "";
     const tag = `<span class="tag">${rich(b.title || (we ? L.faded : L.worked))}</span>`;
+    /* bd-oyqb2. THE TWELFTH CALL SITE, AND THE ONE THAT MATTERED MOST. `prompt` is one of the
+       nine slots widened to `string | string[]`, and both lines below were written when it
+       could only be a string. Neither degraded gracefully:
+         `we`:    `.split()` is not a function on an array -- this THREW, and it is reached by
+                  329 of the 335 rendered ch9-10 documents, every one of them a primary
+                  `faded_example` over the `turns >= 4` dispatch.
+         plain:   `rich(array)` is `String(array)` is `Array.prototype.toString()` -- elements
+                  welded by a bare comma with NO space, which eats a word boundary and breaks
+                  every end-anchored and phrase regex downstream. Silent, and exactly the defect
+                  this bead exists to kill. (No corpus document reaches it with a prompt today:
+                  all 329 prompt-bearing exqChrome blocks are `faded_example`. Latent, not live.)
+       Both take the idiom their UNSPLIT twins already use, byte for byte -- `R.faded_example`
+       splits-or-takes-the-array, `R.worked_example` goes through `richRows` -- so a split card
+       and a whole one can never print the same block two different ways. A plain string is
+       byte-identical to before through both branches.
+
+       WHICH FORM A LESSON GETS IS NOT DECIDED HERE. Operator: *"use the new readable format on
+       a page only if that lesson has spare room; leave it as-is where the lesson is already
+       full."* That is the two-pass fill gate (bd-8sfwj) in render_lp.js. This function's job is
+       to make both shapes CORRECT and leave the choice selectable above it. */
     const setup = !b.prompt ? ""
-      : we ? `<ul class="setup">${b.prompt.split(" \u00b7 ").map((x) => `<li>${rich(x)}</li>`).join("")}</ul>`
-        : `<div class="prompt">${rich(b.prompt)}</div>`;
+      : we ? `<ul class="setup">${(Array.isArray(b.prompt) ? b.prompt : b.prompt.split(" \u00b7 ")).map((x) => `<li>${rich(x)}</li>`).join("")}</ul>`
+        : `<div class="prompt">${richRows(b.prompt, rich)}</div>`;
     const tail = (we
       ? (b.answer ? `<div class="res">${esc(L.answer)}: ${rich(b.answer)}</div>` : "")
       : (b.result ? `<div class="res">${rich(b.result)}</div>` : "")) + cfuRow(b, rich, L);
@@ -3834,7 +3916,7 @@ function coachCard(doc, ctx, heading) {
   const look = P.coaching_lookfor == null ? ""
     : `<p>${isPrimary(doc) ? `<span class="lbl">${esc(L.coachLook)}</span>` : ""}${rich(P.coaching_lookfor)}</p>`;
   return `<div class="coach">${heading ? `<div class="lbl">${esc(L.p2Coach)}</div>` : ""}${look}
-    ${P.coaching_reflection ? `<p class="ask"><span class="lbl">${esc(L.coachAsk)}</span>${rich(P.coaching_reflection)}</p>` : ""}
+    ${P.coaching_reflection ? `<p class="ask"><span class="lbl">${esc(L.coachAsk)}</span>${richLines(P.coaching_reflection, rich)}</p>` : ""}
     <p class="offer">1 ${esc(L.coachOffer)} ${arrowFor(ctx)} 2 ${esc(L.coachSend)} ${arrowFor(ctx)} 3 ${esc(L.coachBack)}</p></div>`;
 }
 
@@ -3859,7 +3941,7 @@ const diffCards = (D, L) => [
   // bd-7l7ne -- a missing key means the primary prune took that card; the other two still print,
   // and `gridRows` already sizes a short row (render-law 15), so nothing downstream has to know.
   .filter(([, text]) => text != null)
-  .map(([key, text]) => `<div class="card"><span class="lbl">${esc(L[key])}</span><p>${rich(text)}</p></div>`);
+  .map(([key, text]) => `<div class="card"><span class="lbl">${esc(L[key])}</span>${Array.isArray(text) ? richRows(text, rich) : `<p>${rich(text)}</p>`}</div>`);
 
 /**
  * A labelled card group as FLOW atoms — the shape `gridRows` gives the support page, plus the

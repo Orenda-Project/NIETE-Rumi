@@ -188,8 +188,13 @@ function render(spec) {
 
   const byIndex = new Map(placed.map((p) => [p.i, p]));
   let maxY = y;
-  let minX = 0;
-  let maxX = bodyW;
+  // fitWidths() re-clamps each shrunk box to MIN_W, so a row's total width can
+  // still exceed the canvas it was fit into (the row-wrap threshold is `> 4`,
+  // so exactly 4 steps never wraps); the centred layout then spreads that
+  // overflow onto both edges. Fold every placed box's true extent in here so
+  // the canvas below is sized to what was actually drawn, not just bodyW.
+  let minX = Math.min(0, ...placed.map((p) => p.x));
+  let maxX = Math.max(bodyW, ...placed.map((p) => p.x + p.w));
 
   // branch groups, laid out under their source box
   const groups = new Map();
@@ -234,8 +239,25 @@ function render(spec) {
 
   const bodyH = maxY + 5;
 
+  // Size the canvas to what pass 1 actually drew, not the nominal bodyW: shift
+  // everything right by -minX so nothing sits left of 0, then declare a
+  // viewBox exactly as wide as the drawn extent. This fixes overflow at every
+  // step count at once (no separate >4-style wrap threshold to get right),
+  // and is a no-op whenever placed/branchBoxes already fit inside [0, bodyW]
+  // (minX stays 0, maxX stays bodyW, canvasW === bodyW).
+  const shiftX = -minX;
+  const canvasW = maxX - minX;
+  if (shiftX !== 0) {
+    placed.forEach((p) => {
+      p.x += shiftX;
+    });
+    branchBoxes.forEach((b) => {
+      b.x += shiftX;
+    });
+  }
+
   // ---------- pass 2: draw ----------
-  const svg = new Svg(bodyW, bodyH, {
+  const svg = new Svg(canvasW, bodyH, {
     title: spec.title,
     caption: spec.caption,
     source: spec.source,

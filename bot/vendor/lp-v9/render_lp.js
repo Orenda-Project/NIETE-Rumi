@@ -1052,11 +1052,75 @@ function computeBreaks(heights, capacity, contHeight = 0) {
 // installed (tests/jest.config.js). The in-page PROBE below embeds this exact function body via
 // `.toString()` rather than a hand-copied duplicate, so there is one algorithm, never two that
 // can drift apart — same pattern as `underfilledPages` (see tests/lp612/underfilled-pages-report.test.js).
-function clippedXFromElements(pageId, elements) {
+// THE DELIBERATE-ELLIPSIS EXEMPTION (bd-i8l8c). Once bd-9la73 made a clipped_x hit FAIL the
+// render, this fired on 237 of 335 documents / 1,653 element instances — and 1,653 of them were
+// the three one-line clamps this template draws on purpose (`.contstrip .ct`, `.foot .fl`,
+// `.vres a`), each carrying `white-space:nowrap; overflow:hidden; text-overflow:ellipsis` with
+// its own rationale in lib/template.js, each painting a clean ellipsis INSIDE its box with
+// nothing reaching the page edge. The cause is structural: `text-overflow:ellipsis` PAINTS a
+// marker, it does not shrink scrollWidth, so an intentionally elided run satisfies
+// `scrollWidth - clientWidth > 1` BY CONSTRUCTION and the raw predicate cannot tell it from a
+// silent slice. So exempt exactly what the CSS clamp is: computed text-overflow `ellipsis` AND
+// computed overflow-x `hidden`. Either half alone is not a clamp — an ellipsis with visible
+// overflow paints nothing, and hidden overflow WITHOUT an ellipsis is precisely the unsignalled
+// slice bd-km7vu exists to catch — so an element that clips without an ellipsis still fires.
+// bd-km7vu's own case is untouched: its signal is on the constrained ANCESTORS (`.mlist`,
+// `.rmat`, `.pad`, `.page`), none of which carries text-overflow:ellipsis anywhere in the
+// template, and re-rendering all 335 documents against `.mi{white-space:nowrap}` restored still
+// reports every one of its 545 instances with this exemption in place.
+// The style is read through an injected reader defaulting to the page's own getComputedStyle —
+// the same idiom the PROBE below already uses for fontSize and for `.pad`'s paddingBottom — so
+// this stays a DOM-free predicate with a real unit test (tests/lp612/clipped-x-detection.test.js).
+// SVG <text>/<tspan> EXCEPTION (bd-xn84e). Measured directly (not inferred): Chromium's
+// clientWidth on an SVG text node does NOT track the scale its ancestor `<svg viewBox>`
+// applies. A controlled isolate at an exact known scale factor of 2 showed clientWidth
+// landing on neither the pre-scale nor the post-scale advance width, while scrollWidth and
+// getBoundingClientRect() both correctly tracked the real post-scale pixel size. On the real
+// corpus this produced 8 false-positive CLIPPED HORIZONTALLY failures, one per diagram title
+// (e.g. g1_ch10 Maths_seg4: reported "373px wide in a 347px box") — yet a real Chromium
+// screenshot at the exact production render conditions (520x2000 viewport, deviceScaleFactor
+// 2, print media, the real embedded Inter-Bold.ttf) shows every one of those 8 titles fully
+// inside its box with visible margin on both sides, including the largest reported gap
+// (+73px). scrollWidth/clientWidth are simply not a valid signal for this element; real
+// geometry is. The real clip boundary for SVG content is the owning `<svg>`'s own edge — its
+// computed overflow-x is hidden on every diagram this template emits — so "does the text's
+// real, scaled bounding box extend past the real, scaled bounding box of the svg it's drawn
+// in" is the correct adaptation of bd-km7vu's "silent slice past a hidden-overflow box" check
+// to SVG, using the DOM API (getBoundingClientRect) that is actually reliable here.
+function clippedXFromElements(pageId, elements, styleOf) {
+  // Declared INSIDE the function, not at module scope: this function is shipped into the
+  // Playwright page via its own `.toString()` (see the `clippedX = (${clippedXFromElements
+  // .toString()})(...)` call site below) and re-evaluated as a standalone function in the
+  // browser context, which has no access to this module's outer scope. A module-level
+  // `const SVG_NS` here compiles fine in Node but throws `SVG_NS is not defined` in-page —
+  // caught by full-corpus verification (bd-xn84e), not by the unit test, since the unit test
+  // calls this function directly in Node and never goes through the toString()/page.evaluate
+  // path.
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const readStyle = styleOf ||
+    ((e) => (typeof getComputedStyle === "function" ? getComputedStyle(e) : e.style));
   const out = [];
   for (const el of elements) {
+    if (el.namespaceURI === SVG_NS && (el.tagName === "text" || el.tagName === "tspan")) {
+      const svg = el.ownerSVGElement;
+      if (!svg || typeof el.getBoundingClientRect !== "function") continue;
+      const tb = el.getBoundingClientRect();
+      const sb = svg.getBoundingClientRect();
+      if (tb.right - sb.right > 1 || sb.left - tb.left > 1) {
+        out.push({
+          page: pageId,
+          selector: String(el.className || el.tagName || '').slice(0, 80),
+          scrollWidth: Math.round(tb.width),
+          clientWidth: Math.round(sb.width),
+          text: String(el.textContent || '').trim().slice(0, 60),
+        });
+      }
+      continue;
+    }
     const sw = el.scrollWidth, cw = el.clientWidth;
     if (cw > 0 && sw - cw > 1) {
+      const st = readStyle(el) || {};
+      if (st.textOverflow === "ellipsis" && st.overflowX === "hidden") continue;
       out.push({
         page: pageId,
         selector: String(el.className || el.tagName || '').slice(0, 80),
@@ -1067,6 +1131,43 @@ function clippedXFromElements(pageId, elements) {
     }
   }
   return out;
+}
+
+/**
+ * The render's fail-or-not verdict, folded from the in-browser probe — bd-9la73.
+ *
+ * Extracted to a pure function (same two inputs the report-building code always read) so the
+ * whole verdict is directly testable without Playwright/Chrome. `clipped_x` was computed by
+ * `clippedXFromElements` above and attached to every page since bd-km7vu, but that function's
+ * own comment said so plainly: "Reporting only: this never fails the render." A page whose
+ * content was clipped HORIZONTALLY — exactly what the unfixed diagrams/types/flow.js produced —
+ * exited 0 exactly like a too-tall page must not. One problem per clipped ELEMENT, not per page:
+ * two different clipped elements on one page are two different things an author has to
+ * separately fix, the same granularity OVERFLOW already uses for offending sections.
+ */
+function problemsFromProbe(figureProblems, probe) {
+  const problems = [...figureProblems];   // an illegible or over-tall figure is a FAILURE,
+                                          // never something the renderer quietly shrinks
+  if (!probe) return problems;
+  for (const p of probe.pages) {
+    if (p.overflowPx > 1) {
+      const where = p.overflowingSections.length
+        ? p.overflowingSections.map((s) => `${s.sec} (+${s.overBy}px)`).join(", ")
+        : `last painted element: ${p.lastElement}`;
+      problems.push(`OVERFLOW on ${p.id}: content is ${p.overflowPx}px taller than the page. Offending: ${where}`);
+    }
+    for (const c of p.clipped_x || []) {
+      problems.push(`CLIPPED HORIZONTALLY on ${p.id}: "${c.selector}" is ${c.scrollWidth}px wide in a ` +
+        `${c.clientWidth}px box (+${c.scrollWidth - c.clientWidth}px past its edge). Text: "${c.text}"`);
+    }
+  }
+  if (probe.minBodyFontPx != null && probe.minBodyFontPx < BODY_FLOOR_PX) {
+    problems.push(`TYPE FLOOR: smallest body text is ${probe.minBodyFontPx}px (<${BODY_FLOOR_PX}px) — ${probe.minBodySample}`);
+  }
+  if (probe.minChipFontPx != null && probe.minChipFontPx < CHIP_FLOOR_PX) {
+    problems.push(`TYPE FLOOR: smallest chip/label is ${probe.minChipFontPx}px (<${CHIP_FLOOR_PX}px) — ${probe.minChipSample}`);
+  }
+  return problems;
 }
 
 // The in-page probe. Runs after fonts.ready; returns geometry + the smallest
@@ -1117,7 +1218,10 @@ const PROBE = `() => {
       if (!el.closest('.foot') && b > contentBottom) contentBottom = b;
     }
     // See clippedXFromElements above (bd-km7vu) — embedded by source so the in-browser scan and
-    // the unit-tested predicate never drift apart. Reporting only: this never fails the render.
+    // the unit-tested predicate never drift apart. NOT reporting only any more: bd-9la73 made a
+    // clipped element FAIL the render, and bd-i8l8c then exempted the deliberate one-line clamps
+    // (text-overflow:ellipsis + overflow-x:hidden) that were failing 237 of 335 documents for a
+    // … that paints correctly inside its own box.
     const clippedX = (${clippedXFromElements.toString()})(page.id, page.querySelectorAll('*'));
     pages.push({
       id: page.id,
@@ -1277,6 +1381,100 @@ function renderWithChromeCli(htmlPath, outPdf) {
   return { probe: null, pdfPages: pdfPageCount(fs.readFileSync(outPdf)) };
 }
 
+/* ── bd-8sfwj — THE TWO-PASS FILL GATE FOR THE bd-oyqb2 ARRAY FORM ─────────────────────────
+ * Operator, 2026-09-24: "Use the new readable format on a page only if that lesson has spare
+ * room; leave it as-is where the lesson is already full. Nothing gets longer, but the
+ * improvement is uneven — some lessons keep the dense block."
+ *
+ * SPARE ROOM IS MEASURED, NOT ESTIMATED. Rendering all 335 ch9-10 documents twice showed that a
+ * ONE-ELEMENT array — identical words, only the <ul class="kp"> chrome added — already costs 9
+ * of them a page. The cost is the chrome, not the extra rows, so no fill-percentage heuristic
+ * can stand in for the render. Sentence-splitting the six prose slots together costs 38/335
+ * (11.3%) a page; the exit ticket, measured on its own afterwards, costs another 5. Only
+ * `worked_example.prompt` is unmeasured, because 0 of the 335 carry one.
+ *
+ * THE GATE CHOOSES A FORM, NEVER A SUBSET. "dont cut anything, increase the page cap for those
+ * 14" — both branches carry every word the author wrote; the loser is re-joined, never trimmed.
+ */
+
+/* `faded_example.prompt` IS DELIBERATELY ABSENT. It is a widened slot, but its string branch
+ * already splits on " · " into the same <ul class="setup">, so both shapes are byte-identical
+ * markup — measured on 335/335 documents, 0 page changes. Gating it would spend two render
+ * passes to decide nothing, and joining it with a space would WELD a list that prints as
+ * separate rows today, making the field worse. `slo.text_verbatim` is string-only by schema. */
+const ARRAY_FORM_BLOCK_SLOTS = { ask: ["question"], worked_example: ["prompt", "cfu"] };
+
+/** Visit every gated `string | string[]` slot the document actually carries. */
+function eachArrayFormSlot(doc, fn) {
+  if (doc.objectives) fn(doc.objectives, "outcome");
+  const p2 = doc.page2;
+  if (p2) {
+    if (p2.differentiation) for (const k of ["stuck", "early"]) fn(p2.differentiation, k);
+    fn(p2, "coaching_reflection");
+  }
+  for (const sec of doc.sections || []) {
+    for (const x of sec.exit_ticket || []) fn(x, "q");
+    for (const b of sec.blocks || []) {
+      const keys = ARRAY_FORM_BLOCK_SLOTS[b.type];
+      if (keys) for (const k of keys) fn(b, k);
+    }
+  }
+}
+
+/** Is this document worth two extra render passes? 0 of the 335-document corpus are, today. */
+function hasArrayForm(doc) {
+  let found = false;
+  eachArrayFormSlot(doc, (o, k) => { if (Array.isArray(o[k])) found = true; });
+  return found;
+}
+
+/** The "as-is" form: the same words, welded back into the one paragraph the dense block prints. */
+function joinArrayForm(doc) {
+  const copy = JSON.parse(JSON.stringify(doc));
+  eachArrayFormSlot(copy, (o, k) => { if (Array.isArray(o[k])) o[k] = o[k].join(" "); });
+  return copy;
+}
+
+/**
+ * "Nothing gets longer" — read PART BY PART, because `teach` and `support` are separate caps and
+ * a total would let a teach page hide behind a support page that shrank. FEWER pages is a win,
+ * not a violation: the operator said nothing gets longer, not that nothing changes. A missing
+ * measurement is never read as permission.
+ */
+function keepArrayForm(baseline, candidate) {
+  if (!baseline || !candidate) return false;
+  for (const part of new Set(Object.keys(baseline).concat(Object.keys(candidate)))) {
+    if ((candidate[part] || 0) > (baseline[part] || 0)) return false;
+  }
+  return true;
+}
+
+/**
+ * Render one variant to a THROWAWAY html file and return its `pagesByPart`. The measurement is a
+ * real render — same template, same packer, same repagination — because that is the only thing
+ * that knows what a page costs. Returns null when there is no browser: the Chrome-CLI fallback
+ * has no probe, so there is nothing to compare, and `keepArrayForm(null, null)` then keeps the
+ * dense block rather than shipping a form nobody measured.
+ */
+async function measurePartCounts(pw, variant, ctx, tag) {
+  if (!pw) return null;
+  const opts = { lang: ctx.lang, docDir: ctx.docDir, format: ctx.format };
+  const built = buildHtml(variant, Object.assign({ probeCont: true }, opts));
+  const htmlPath = path.join(ctx.outDir, `${ctx.stem}.__gate_${tag}.html`);
+  fs.writeFileSync(htmlPath, built.html);
+  try {
+    const repaginate = {
+      capacity: built.pageContentHeight,
+      atoms: built.atoms,
+      rebuild: (breaks) => buildHtml(variant, Object.assign({ breaks }, opts)),
+    };
+    const res = await renderWithPlaywright(pw, htmlPath, null, null, false, repaginate, null, built.page);
+    return (res.probe && res.probe.pagesByPart) || null;
+  } finally {
+    try { fs.unlinkSync(htmlPath); } catch (_) { /* a throwaway that never existed is still gone */ }
+  }
+}
+
 /**
  * VENDOR DIVERGENCE (see SYNC.md, "programmatic entry"): upstream had only a CLI `main()`
  * that called `process.exit()`. A long-lived worker cannot shell into a function that kills
@@ -1307,7 +1505,9 @@ async function renderDoc(a) {
   }
 
   const lang = a.lang || raw.provenance.medium || "en";
-  const { doc, applied, errors: ovErrors } = applyOverlay(raw, lang);
+  const { doc: overlaidDoc, applied, errors: ovErrors } = applyOverlay(raw, lang);
+  // bd-8sfwj: the fill gate below may swap this for the joined form, so it is rebindable.
+  let doc = overlaidDoc;
   if (ovErrors.length) {
     const e = new Error("ur_overlay errors — refusing to render:\n  " + ovErrors.join("\n  "));
     e.code = "OVERLAY_INVALID";
@@ -1335,6 +1535,22 @@ async function renderDoc(a) {
   // the repaginating rebuild alike: the rebuild re-enters the template, so omitting it there
   // would reset the geometry to the default halfway through a two-pass render.
   const format = a.format || "phone";
+
+  // bd-8sfwj — THE TWO-PASS FILL GATE. Only a document that actually AUTHORS an array pays for
+  // it: 0 of the 335-document ch9-10 corpus do, so every one of them takes the byte-identical
+  // single-pass path below and the gate costs the corpus nothing. See the block comment above
+  // `hasArrayForm` for why the answer cannot be estimated.
+  let arrayForm = null;
+  if (hasArrayForm(doc)) {
+    const joined = joinArrayForm(doc);
+    const ctx = { lang, docDir: path.dirname(docPath), format, outDir, stem };
+    const jCounts = await measurePartCounts(pw, joined, ctx, "joined");
+    const aCounts = await measurePartCounts(pw, doc, ctx, "array");
+    const keep = keepArrayForm(jCounts, aCounts);
+    arrayForm = { gated: !keep, joined: jCounts, array: aCounts };
+    if (!keep) doc = joined;
+  }
+
   let built = buildHtml(doc, { lang, docDir: path.dirname(docPath), probeCont: !!pw, format });
   const { warnings, fontReport, pageContentHeight, hasRasterFigure } = built;
   let figureProblems = built.figureProblems || [];
@@ -1362,25 +1578,8 @@ async function renderDoc(a) {
   }
 
   // ── report ────────────────────────────────────────────────────────────────
-  const problems = [...figureProblems];   // an illegible or over-tall figure is a FAILURE,
-                                          // never something the renderer quietly shrinks
   const probe = result.probe;
-  if (probe) {
-    for (const p of probe.pages) {
-      if (p.overflowPx > 1) {
-        const where = p.overflowingSections.length
-          ? p.overflowingSections.map((s) => `${s.sec} (+${s.overBy}px)`).join(", ")
-          : `last painted element: ${p.lastElement}`;
-        problems.push(`OVERFLOW on ${p.id}: content is ${p.overflowPx}px taller than the page. Offending: ${where}`);
-      }
-    }
-    if (probe.minBodyFontPx != null && probe.minBodyFontPx < BODY_FLOOR_PX) {
-      problems.push(`TYPE FLOOR: smallest body text is ${probe.minBodyFontPx}px (<${BODY_FLOOR_PX}px) — ${probe.minBodySample}`);
-    }
-    if (probe.minChipFontPx != null && probe.minChipFontPx < CHIP_FLOOR_PX) {
-      problems.push(`TYPE FLOOR: smallest chip/label is ${probe.minChipFontPx}px (<${CHIP_FLOOR_PX}px) — ${probe.minChipSample}`);
-    }
-  }
+  const problems = problemsFromProbe(figureProblems, probe);
   const byPart = (probe && probe.pagesByPart) || {};
   // The stem is the exemption key; `pageCapsFor` looks it up itself, and it is looked up once
   // more here only so the message can say an exemption was OUTGROWN rather than merely exceeded.
@@ -1474,6 +1673,10 @@ async function renderDoc(a) {
     warnings,
     problems,
   };
+  // bd-8sfwj. Present ONLY on a document that authored an array — its absence is the record
+  // that the gate never ran, which is the true state of all 335 corpus documents today.
+  // `gated: true` means the lesson was already full and kept the dense block.
+  if (arrayForm) report.array_form = arrayForm;
   const reportPath = path.join(outDir, `${stem}.render.json`);
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
 
@@ -1528,6 +1731,7 @@ if (require.main === module) {
 // Exported for test/run_tests.js — the packer is the new core logic and needs its own cover.
 // `renderDoc` and `chromeChannel` are vendor additions (see SYNC.md).
 module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms, packAtomsGreedy,
+  hasArrayForm, joinArrayForm, keepArrayForm, measurePartCounts,
   overCapAdvice, overCapProblem,
   PAGE,
   MAX_PAGES, WARN_PAGES, MAX_PAGES_UR, WARN_PAGES_UR, pageCapsFor, isPrimary,
@@ -1536,4 +1740,4 @@ module.exports = { renderDoc, chromeChannel, computeBreaks, packAtoms, packAtoms
   absorbPlan, OVERFLOW_ABSORB_MAX_PX,
   underfilledPages, FILL_TARGET_PCT,
   BODY_FLOOR_PX, CHIP_FLOOR_PX,
-  clippedXFromElements };
+  clippedXFromElements, problemsFromProbe };

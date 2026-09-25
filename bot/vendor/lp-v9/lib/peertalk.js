@@ -274,7 +274,14 @@ function negated(text, start, end, lang) {
 
 /**
  * Every banned move an authored string ACTUALLY INSTRUCTS -- prohibitions of the same move
- * excluded. Returns `[{ name, lang, quote }]`, empty for a compliant string.
+ * excluded. Returns `[{ name, lang, quote, index, end }]`, empty for a compliant string.
+ *
+ * bd-jgddp -- `index`/`end` are the match's half-open span IN THE NORMALISED TEXT
+ * (`norm(s)`), not in the raw string: `norm` collapses whitespace and rewrites quotes, so a
+ * raw-string offset would not survive it. They exist so a CALLER can ask where the hit sits
+ * relative to the rest of the sentence -- the Opening gate uses them to tell an instruction
+ * apart from a textbook line the lesson merely quotes (lib/peertalk_attribution.js). They
+ * are additive: `quote` is unchanged and no existing caller reads them.
  */
 function peerTalkDefects(s) {
   const text = norm(s);
@@ -286,7 +293,13 @@ function peerTalkDefects(s) {
     while ((m = re.exec(text)) !== null) {
       if (m[0].length === 0) { re.lastIndex++; continue; }
       if (negated(text, m.index, m.index + m[0].length, p.lang)) continue;
-      out.push({ name: p.name, lang: p.lang, quote: text.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30).trim() });
+      out.push({
+        name: p.name,
+        lang: p.lang,
+        quote: text.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30).trim(),
+        index: m.index,
+        end: m.index + m[0].length,
+      });
       break; // one report per move per string; the author fixes the move, not each mention
     }
   }

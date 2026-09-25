@@ -300,6 +300,130 @@ function allBlocks(blocks, out = []) {
   return out;
 }
 
+// ── bd-oyqb2 string-or-array slots ──────────────────────────────────────────
+//
+// Nine authored slots now accept an ARRAY and print ONE ROW PER ELEMENT — the idiom
+// `key_points.items` has always used. Every rule that reads one of them comes through here,
+// because the two obvious readings are both wrong: `field.trim()` is a TypeError, and
+// `String(field)` is `Array#toString` — the rows welded together by a BARE COMMA with no
+// space, which is neither what the teacher reads nor the text these rules were written
+// against. (`wordCount` is `String(s).split(/\s+/)`, so the weld eats one word boundary per
+// row and silently RAISES every word ceiling by rows-1.)
+//
+//   fieldRows(v) — the printed rows: [] | [s, …], each trimmed, blank rows dropped. The array
+//                  arms carry `minLength: 3`, which admits "   ", so blank rows are real.
+//   fieldText(v) — those rows as ONE line, SPACE-joined: exactly the string the same content
+//                  would be in the one-row form. A rule reading it therefore reaches the same
+//                  verdict on both shapes and can never be the weaker reading of the array.
+//
+// WHICH ONE A RULE WANTS — the decision, not a preference:
+//   • A rule that requires the field to CONTAIN something ("it states a question", "it is not
+//     empty", "it is under N words") is about the whole field. It takes fieldText. Splitting a
+//     prompt into a setup row and a question row must stay legal, and joined text is the
+//     equivalent string, so the gate is unchanged.
+//   • A rule that PROHIBITS something in the field ("no line may be in the curriculum's
+//     voice") is about each printed ROW. It takes fieldRows. On joined text one good row
+//     launders every bad one — `addresses.test(joined)` is true if ANY row says "you" — which
+//     is how OUTCOME_VOICE came to pass the mixed-register box it exists to catch. Per row is
+//     also the reading this file has always given the same content: `objectives.items` has
+//     been checked one item at a time since bd-a8veu.3.
+function fieldRows(v) {
+  return (Array.isArray(v) ? v : [v])
+    .map((x) => (x === null || x === undefined ? "" : String(x).trim()))
+    .filter(Boolean);
+}
+const fieldText = (v) => fieldRows(v).join(" ");
+
+// ── bd-7on9p: the array→string WELD ─────────────────────────────────────────
+//
+// bd-8sfwj's two-pass FILL GATE (`render_lp.js` joinArrayForm / keepArrayForm) REJECTS the array
+// form when the bulleted rows cost the lesson a page, and re-joins the elements with a SINGLE
+// SPACE so the dense paragraph prints at its old page count. That rejection is the common path,
+// not the rare one: the gate's own corpus measurement is 38 of 335 lessons for the six prose
+// slots plus 5 more for the exit ticket — 43/335, 12.8%.
+//
+//     ["Look at the diagram", "What do you notice?"]
+//  -> "Look at the diagram What do you notice?"           <- a run-on in the teacher's hand.
+//
+// The renderer cannot repair it. "dont cut anything" means it never edits, trims or
+// re-punctuates an authored word, so it may not append the missing full stop — and `joinArrayForm`
+// is the ONLY weld route in the vendor (`lib/template.js` carries no space-join at all). So the
+// defect is caught HERE, before a teacher sees it.
+//
+// THE LAST ELEMENT IS EXEMPT, and that is the rule, not an indulgence. Nothing is welded after
+// it: its final character is the FIELD's final character in both forms, so the join cannot
+// introduce a defect there. Firing on it would be a different rule — "every field ends in a full
+// stop" — which MEASURED over the 335-lesson ch9-10 corpus would outlaw a faithful split of 6 of
+// the 2,345 gated-slot strings (0.26%) that ship today unterminated, plus 37 of 335
+// `faded_example.prompt`s. That rule is the operator's to ask for; this one is not it.
+//
+// NOT A SCHEMA `pattern`, FOR A STRUCTURAL REASON. `items` applies one constraint to EVERY
+// element and knows nothing about an array's length, so JSON Schema cannot exempt the last one.
+//
+// A colon or semicolon ends the row too: "Look at the diagram:" + "What do you notice?" welds
+// into a grammatical sentence. A COMMA does not — that is bd-oyqb2's comma splice arriving by
+// this route.
+//
+// URDU (language rule 20). ۔ U+06D4 and ؟ U+061F are terminal marks, and Urdu REVERSES the curly
+// quotes — ’’…‘‘ — so U+2018 CLOSES a quotation here, as do the guillemets « ». Measured: reading
+// U+2018/U+00BB as openers misreads 7 live Urdu strings as unterminated, which would fire this
+// rule on correct Urdu. The scan is by CODE POINT (`[...s]`), never by UTF-16 unit: 14 corpus
+// strings carry astral emoji and a unit-wise scan can land on a lone surrogate.
+const WELD_TERMINAL = /[.!?:;\u2026\u06D4\u061F\u061B]/u;
+const WELD_CLOSER = /["'\u2018\u2019\u201C\u201D\u00AB\u00BB\u2039\u203A)\]}]/u;
+
+/** Can the NEXT row be welded onto this one with a single space and still read? */
+function weldSafe(row) {
+  const cps = [...row];
+  let i = cps.length - 1;
+  while (i >= 0 && WELD_CLOSER.test(cps[i])) i--;
+  return i >= 0 && WELD_TERMINAL.test(cps[i]);
+}
+
+/** The block slots `joinArrayForm` re-joins — the mirror of render_lp.js ARRAY_FORM_BLOCK_SLOTS.
+ *  `faded_example.prompt` is a widened slot but NOT a gated one: its string branch already splits
+ *  on " · " into the same <ul>, so the gate never joins it and its rows can never weld. */
+const WELD_BLOCK_SLOTS = { ask: ["question"], worked_example: ["prompt", "cfu"] };
+
+/** Every gated `string | string[]` slot the document carries, with a JSON-Pointer-ish path.
+ *  Unlike render_lp.js's eachArrayFormSlot this DESCENDS INTO `split`, as `allBlocks` always has:
+ *  an author cannot know whether their block was nested, and a gate that stops at the top level
+ *  would simply be silent there. */
+function eachWeldSlot(doc, fn) {
+  if (doc.objectives) fn(doc.objectives, "outcome", "/objectives/outcome");
+  const p2 = doc.page2;
+  if (p2) {
+    if (p2.differentiation) for (const k of ["stuck", "early"]) fn(p2.differentiation, k, `/page2/differentiation/${k}`);
+    fn(p2, "coaching_reflection", "/page2/coaching_reflection");
+  }
+  (doc.sections || []).forEach((sec, si) => {
+    (sec.exit_ticket || []).forEach((x, xi) => fn(x, "q", `/sections/${si}/exit_ticket/${xi}/q`));
+    const walk = (blocks, at) => (blocks || []).forEach((b, bi) => {
+      if (!b) return;
+      const p = `${at}/${bi}`;
+      if (b.type === "split") { walk(b.left, `${p}/left`); walk(b.right, `${p}/right`); return; }
+      for (const k of WELD_BLOCK_SLOTS[b.type] || []) fn(b, k, `${p}/${k}`);
+    });
+    walk(sec.blocks, `/sections/${si}/blocks`);
+  });
+}
+
+/** Every element that would weld into the next one. The path carries the AUTHORED index, which is
+ *  what the author edits; blanks are dropped through `fieldRows` so the neighbours named are the
+ *  rows that actually PRINT — and that the gate actually joins. */
+function weldDefects(doc) {
+  const out = [];
+  eachWeldSlot(doc || {}, (o, k, at) => {
+    const v = o[k];
+    if (!Array.isArray(v)) return;
+    const rows = v.map((x, i) => ({ i, s: fieldRows(x)[0] || "" })).filter((r) => r.s);
+    for (let j = 0; j < rows.length - 1; j++) {
+      if (!weldSafe(rows[j].s)) out.push({ at: `${at}/${rows[j].i}`, row: rows[j].s, next: rows[j + 1].s });
+    }
+  });
+  return out;
+}
+
 /** Words in a section's v9 EXTRAS — the checkpoint, exit ticket, re-teach rule and the tagged
  *  homework items. They are printed inside the section, so they must be budgeted with it. */
 function extraWords(sec) {
@@ -308,7 +432,7 @@ function extraWords(sec) {
     n += wordCount(sec.checkpoint.question);
     n += (sec.checkpoint.mark_scheme || []).reduce((a, m) => a + wordCount(m), 0);
   }
-  for (const x of sec.exit_ticket || []) n += wordCount(x.q) + wordCount(x.a);
+  for (const x of sec.exit_ticket || []) n += wordCount(fieldText(x.q)) + wordCount(x.a);
   if (sec.reteach_rule) n += wordCount(sec.reteach_rule);
   if (sec.homework) for (const it of sec.homework.items || []) n += wordCount(it.text);
   return n;
@@ -372,6 +496,12 @@ function lint(doc, docPath, opts = {}) {
   if (!v.ok) {
     for (const e of v.errors) fail("SCHEMA", e);
     return { fails: F, warns: W, profile }; // nothing below is trustworthy on an invalid doc
+  }
+
+  // 0b — ARRAY_WELD. Unconditional: a run-on printed into a teacher's hand is not a full-profile
+  //      nicety, and the fill gate joins on every profile alike.
+  for (const d of weldDefects(doc)) {
+    fail("ARRAY_WELD", `${d.at} does not end in a terminal mark: "${d.row.slice(0, 70)}". The fill gate rejects the array form on 43 of 335 measured lessons (12.8%) and re-joins the rows with ONE SPACE, so this one prints WELDED to the next: "${d.row.slice(0, 70)} ${d.next.slice(0, 70)}". The renderer may not repair it — it never re-punctuates an authored word — so end the row yourself: . ? ! : ; or Urdu ۔ ؟`);
   }
 
   // 1 — the minutes are a promise. PACING_SUM on a v9 doc; MINUTES on the 2.0 corpus, which
@@ -467,7 +597,7 @@ function lint(doc, docPath, opts = {}) {
   } else {
     const { s, b } = hooks[0];
     if (s !== "introduction") fail("HOOK", `the hook sits in "${s}"; it belongs in the introduction.`);
-    const q = b.question.trim();
+    const q = fieldText(b.question);
     const isQuestion = /[?؟]\s*$/.test(q);
     const isCase = /\b(case|scenario|mystery|puzzle|imagine|suppose|consider)\b/i.test(q) ||
       /(کیس|معمہ|فرض کریں|تصور کریں|سوچیے)/.test(q);
@@ -1200,7 +1330,7 @@ const SAY_BOX = [
 
 function v9Gates(doc, ctx) {
   const { fail, warn, full, grade } = ctx;
-  const qs = allQuestions(doc);
+  const qs = allQuestions(doc).map((q) => ({ ...q, q: fieldText(q.q) }));
   const index = questionIndex(doc);
   const hw = sectionById(doc, "homework");
   const dev = sectionById(doc, "development");
@@ -1277,7 +1407,7 @@ function v9Gates(doc, ctx) {
   for (const s of doc.sections || []) {
     for (const b of allBlocks(s.blocks)) {
       if ((b.type === "worked_example" || b.type === "faded_example") && b.prompt) {
-        const why = unworded(b.prompt);
+        const why = unworded(fieldText(b.prompt));
         if (why) fail("UNWORDED_Q", `${s.id}: the ${b.type} prompt states no question — ${why}. A heading with a page number is a pointer; the pupil still needs the question.`);
       }
     }
@@ -1425,7 +1555,7 @@ function v9Gates(doc, ctx) {
   // it refers to her class, her pupils, or her own next move. A question that can be answered out
   // of the textbook is a content question wherever it is printed.
   if (full) {
-    const refl = String(doc.page2.coaching_reflection || "").trim();
+    const refl = fieldText(doc.page2.coaching_reflection);
     if (!refl) {
       fail("COACHING_CORNER", "the coaching corner sets no reflective question. It is the teacher's own page: name one thing from THIS lesson and ask her what happened with HER class (spec §8; K-5's `wrap.reflection`).");
     } else if (!/[?؟]\s*$/.test(refl)) {
@@ -1481,7 +1611,7 @@ function v9Gates(doc, ctx) {
     const rayLesson = [
       doc.slo && doc.slo.text_verbatim,
       doc.sequence && doc.sequence.this,
-      doc.objectives && doc.objectives.outcome,
+      doc.objectives && fieldText(doc.objectives.outcome),
       doc.objectives && doc.objectives.by_the_end,
     ].filter(Boolean).join(" \u2014 ");
     for (const { where, spec } of gSpecs) for (const d of rayDiagramDefects(spec, where, rayLesson)) fail(d.code, d.msg);
@@ -1567,7 +1697,7 @@ function v9Gates(doc, ctx) {
     {
       const O = doc.objectives || {};
       const items = O.items || [];
-      const nOutcome = wordCount(O.outcome);
+      const nOutcome = wordCount(fieldText(O.outcome));
       const nEnd = wordCount(O.by_the_end);
       if (nOutcome > OUTCOME_BOX_V9.outcome) {
         fail("OUTCOME_BOX", `the outcome sentence is ${nOutcome} words; the ceiling is ${OUTCOME_BOX_V9.outcome}. It names ONE thing the pupil can do — the detail belongs to the objectives under it.`);
@@ -1598,9 +1728,14 @@ function v9Gates(doc, ctx) {
       const medium = ((doc.provenance && doc.provenance.medium) || "en").toLowerCase();
       const addresses = SECOND_PERSON[medium] || SECOND_PERSON.en;
       const stem = VOICE_STEM[medium] || VOICE_STEM.en;
+      // PER PRINTED ROW, not per field: this is a prohibition, so a field that prints three rows
+      // is three chances to be in the wrong voice. Joined, `addresses.test` is satisfied by ANY
+      // row, so one pupil-facing row would launder the rest — which is the mixed-voice box the
+      // operator has now reported twice. `O.items` has always been read this way; so is this now.
       const impersonal = (s) => typeof s === "string" && s.trim() && !addresses.test(s);
-      if (impersonal(O.outcome)) {
-        fail("OUTCOME_VOICE", `the outcome sentence does not address the pupil: "${O.outcome.trim()}". Write it as "${stem}" — the box is read by the pupil and it speaks in one voice.`);
+      for (const row of fieldRows(O.outcome)) {
+        if (!impersonal(row)) continue;
+        fail("OUTCOME_VOICE", `the outcome sentence does not address the pupil: "${row}". Write it as "${stem}" — the box is read by the pupil and it speaks in one voice.`);
       }
       if (impersonal(O.by_the_end)) {
         fail("OUTCOME_VOICE", `the "by_the_end" ✓ line does not address the pupil: "${O.by_the_end.trim()}". Write it as "${stem}", the same voice as the outcome above it.`);
@@ -2448,7 +2583,7 @@ function overlayDefects(doc, lang, opts = {}) {
 overlayDefects.targets = overlayTargets;
 overlayDefects.MIN_COVERAGE = OVERLAY_MIN_COVERAGE;
 
-module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects, rayDiagramDefects,
+module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, fieldRows, fieldText, weldDefects, weldSafe, v9Gates, graphDefects, atomDefects, specContractDefects, rayDiagramDefects,
   // Exported so the author worker's reuse lane can ask the SAME rule gate 12b asks. That lane
   // never calls `lint`, and a stored pre-shape body reached prod through it (bd-jpfww).
   oneScreenShapeDefects, ONESCREEN_BEATS,
