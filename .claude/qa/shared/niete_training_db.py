@@ -451,8 +451,8 @@ def cmd_seed_class_quiz(creds, a):
     _req("POST", "/rest/v1/quiz_questions", creds, body=rows, prefer="return=minimal")
     import random, string
     code = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-    tn = _get(creds, "users", "id=eq.%s&select=first_name" % uid)
-    teacher_name = (tn and tn[0].get("first_name")) or "Teacher"
+    tn = _get(creds, "users", "id=eq.%s&select=name" % uid)   # NIETE users carry `name`
+    teacher_name = (tn and tn[0].get("name")) or "Teacher"
     sc, _ = _req("POST", "/rest/v1/quiz_share_codes", creds, body=[{
         "code": code, "quiz_id": qid, "teacher_user_id": uid, "video_id": None, "teacher_name": teacher_name,
         "topic": topic, "language": lang, "active": True,
@@ -460,6 +460,8 @@ def cmd_seed_class_quiz(creds, a):
         prefer="return=representation")
     scid = sc[0]["id"]
     body["meta"]["share_code_id"] = scid
+    # the "Resend link" action needs the message the link was published with (baseActions)
+    body["meta"]["student_message"] = "%s has sent you a quiz on %s. Send QUIZ-%s to start." % (teacher_name, topic, code)
     _req("PATCH", "/rest/v1/quizzes?id=eq.%s" % qid, creds, body={"meta": body["meta"]}, prefer="return=minimal")
     print(json.dumps({"quizId": qid, "code": code, "shareCodeId": scid, "topic": topic, "language": lang,
                       "questions": len(rows), "key": [r["correct_option"] for r in rows]}, ensure_ascii=False))

@@ -166,6 +166,17 @@ function createEmulator(flowJson, opts) {
     try { res = await o.transport.exchange(o.endpointUrl, req); } catch (e) { return { ok: false, err: 'ENDPOINT_FAILED:' + e.message.slice(0, 160) }; }
     if (o.onExchange) o.onExchange(req, res);
     if (res && res.data && (res.data.error || res.data.error_message)) return { ok: false, err: 'ENDPOINT_ERROR:' + (res.data.error_message || res.data.error) };
+    if (res && res.screen === 'SUCCESS' && !screensById.SUCCESS) {
+      // Meta's reserved terminal screen, answered by an endpoint whose Flow JSON defines no SUCCESS
+      // screen of its own: the client closes the Flow and sends a completion whose response_json is
+      // extension_message_response.params (the transcript-quiz LESSON answers make/remake/done this
+      // way). A Flow that DOES define SUCCESS (Settings: a Done footer) is entered like any screen.
+      const params = (res.data && res.data.extension_message_response && res.data.extension_message_response.params) || {};
+      const done = { flowId: o.flowId, flowToken: o.flowToken, name: `flow_${o.flowId}`, response_json: params };
+      st.open = false; st.log.push({ complete: params, via: 'SUCCESS' });
+      if (o.onComplete) await o.onComplete(done);
+      return { ok: true, screen: 'SUCCESS', completed: done };
+    }
     if (res && res.screen) {
       if (st.screen && routing[st.screen] && !routing[st.screen].includes(res.screen) && res.screen !== st.screen) return { ok: false, err: `ROUTING_REFUSED:${st.screen}→${res.screen}` };
       enterScreen(res.screen, res.data || {});

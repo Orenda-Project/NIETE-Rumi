@@ -237,7 +237,11 @@ function makeMockApi(opts) {
         endpointUrl: isExchange ? String(FL.botUrl || base).replace(/\/+$/, '') + endpointPath : null,
         onComplete: async (done) => {
           flowCompletionSince = (await outbox(0)).last;
-          await inject('flow', { flowId: done.flowId, response_json: done.response_json });
+          // Meta's nfm_reply response_json carries the flow_token the card was sent with; the bot routes
+          // on it (flow-response.handler reads responseJson.flow_token — the STUDENT_JOIN completion is
+          // recognised by its 'vqjoin:' prefix). Without it the join fell through to the generic
+          // "Thanks for your response!" (debug run, bd-5d294).
+          await inject('flow', { flowId: done.flowId, response_json: { ...(done.response_json || {}), flow_token: done.flowToken } });
           flowStats.completed++;
         },
       });

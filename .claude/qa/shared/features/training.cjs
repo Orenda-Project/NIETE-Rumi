@@ -851,7 +851,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
         const s = await kid.flowClick('Start the quiz|quiz شروع کریں', { settleMs: 3000 }); kid.closeFlow();
         ev.joinVia = 'flow'; ev.submit = s.ok;
       } else if (/name|نام/i.test(g.txt || '')) {
-        await kid.sendWait(name); await kid.freshReset(); await kid.sendWait(cls); ev.joinVia = 'chat';
+        const cp = await kid.sendWait(name); ev.classPrompt = (cp.txt || '').slice(0, 160); await kid.freshReset(); await kid.sendWait(cls); ev.joinVia = 'chat';
       } else if ((g.btns || []).length) {
         await kid.tapAndWait(g.btns[0], 30000); ev.joinVia = 'button:' + g.btns[0];
       }
@@ -908,10 +908,11 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       const p = await api.flowPick(a.text, { exact: true }); if (!p.ok) return { ok: false, err: 'PICK:' + p.err };
       await api.freshReset();
       const c = await api.flowClick('Continue|Next|Done|آگے', { settleMs: 3000 });
-      const done = await api.flowProbe();
+      if (!c.ok) { api.closeFlow(); return { ok: false, err: 'CONTINUE:' + c.err, picked: a.text }; }
+      const done = await api.flowProbe();   // a SUCCESS completion has already closed the Flow (screen undefined)
       if (done.screen === 'DONE') { await api.flowClick('Close|Done|بند', { settleMs: 1500 }).catch(() => null); }
       api.closeFlow();
-      return { ok: true, picked: a.text, doneScreen: done.screen, doneText: String(done.text || '').slice(0, 200) };
+      return { ok: true, picked: a.text, doneScreen: done.screen || 'SUCCESS', doneText: String(done.text || '').slice(0, 200) };
     };
     const pdfText = async (doc, name) => {
       const base = String(process.env.E2E_MOCK_URL || 'http://127.0.0.1:4010').replace(/\/+$/, '');
@@ -935,7 +936,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       s = t();
       const k1 = child(1);
       const j = await childJoin(k1, enq.code, 'Ali', 'Grade 3');
-      const ev38 = { join: { via: j.joinVia, ok: j.ok, greeting: j.greeting, err: j.err || j.last } };
+      const ev38 = { join: { via: j.joinVia, ok: j.ok, greeting: j.greeting, submit: j.submit, err: j.err || j.last, seen: (j.seen || []).map(x => (x.txt || '').slice(0, 80)).slice(0, 4) } };
       if (j.ok) {
         const a1 = await childAnswer(k1, j.q, 'B', { type: true });
         ev38.typedB = { recorded: !!(a1.next || a1.ended), feedback: a1.feedback };
@@ -1012,15 +1013,23 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       s = t();
       const k5 = child(5);
       const j5 = await childJoin(k5, urq.code, 'علی', '3');
-      const ev56 = { greeting: j5.greeting, buttons: j5.buttons, joinScreen: j5.joinScreen, joinVia: j5.joinVia, q1: j5.ok };
+      const ev56 = { greeting: j5.greeting, buttons: j5.buttons, joinScreen: j5.joinScreen, joinVia: j5.joinVia, classPrompt: j5.classPrompt, q1: j5.ok };
       ev56.urduGreeting = URDU.test(j5.greeting || ''); ev56.startButtonUrdu = (j5.buttons || []).some(b => /شروع کریں/.test(b));
-      ev56.askedInUrdu = !!(j5.joinScreen && URDU.test(j5.joinScreen.text || ''));
-      R('T56')(V(ev56.urduGreeting && ev56.startButtonUrdu && ev56.askedInUrdu && j5.ok, ev56), t() - s);
+      // STUDENT_JOIN_LOCALIZED_FLOW_ID is unset in the mock stack env, so an Urdu link joins through chat
+      // prompts (name, then class) rather than the localized Flow with its "شروع کریں" button. Judge the
+      // Urdu of whichever surface asked: greeting, name ask and class ask must all be Urdu.
+      ev56.askedInUrdu = j5.joinVia === 'flow' ? !!(j5.joinScreen && URDU.test(j5.joinScreen.text || ''))
+                        : (/نام/.test(j5.greeting || '') && URDU.test(j5.classPrompt || ''));
+      ev56.surface = j5.joinVia === 'flow' ? 'localized join Flow' : 'chat prompts (STUDENT_JOIN_LOCALIZED_FLOW_ID unset in the mock stack env)';
+      R('T56')(V(ev56.urduGreeting && ev56.askedInUrdu && j5.ok && (j5.joinVia !== 'flow' || ev56.startButtonUrdu), ev56), t() - s);
       // finish the Urdu quiz with two wrong answers (T45 wants questions worth reteaching)
-      let q = j5.q, endItem = null; for (let i = 0; q && i < 6; i++) { const a = await childAnswer(k5, q, i < 2 ? 'wrong' : KEY_TEXT[i]); if (a.ended) { endItem = a.seen; break; } q = a.next; }
-      // T57 — invite a friend, in Urdu
+      let q = j5.q, endSeen = []; for (let i = 0; q && i < 6; i++) { const a = await childAnswer(k5, q, i < 2 ? 'wrong' : KEY_TEXT[i]); if (a.ended) { endSeen = a.seen; break; } q = a.next; }
+      // T57 — invite a friend, in Urdu. The button card lands 0.2s after the scorecard, inside the batch
+      // the last answer already pulled (run 1545) — look there first, then wait.
       s = t();
-      const inviteBtn = await waitOn(k5, (x) => (x.btns || []).some(b => /دوست کو بھیجیں|Invite a friend/.test(b)), 30000);
+      const isInvite = (x) => (x.btns || []).some(b => /دوست کو بھیجیں|Invite a friend/.test(b));
+      const pre = endSeen.find(isInvite);
+      const inviteBtn = pre ? { ok: true, hit: pre } : await waitOn(k5, isInvite, 30000);
       const ev57 = { inviteOffered: inviteBtn.ok, offer: inviteBtn.ok ? (inviteBtn.hit.txt || '').slice(0, 120) : inviteBtn.last };
       let friendCode = null;
       if (inviteBtn.ok) {
@@ -1084,16 +1093,22 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
         await api.freshReset();
         const pick = les.ok ? await chooseAction(actionRe) : { ok: false, err: les.err };
         ev.picked = pick.picked; ev.done = pick.doneText;
-        const ack = await waitFresh((x) => /Making it now|making the quiz|بن رہا/i.test(x.txt || ''), 60000);
-        ev.acknowledged = ack.ok ? (ack.hit.txt || '').slice(0, 140) : ack.last;
-        const arrived = ack.ok ? await waitFresh((x) => (x.doc || x.pdf) || /QUIZ-[A-Z0-9]{6}/.test(x.txt || ''), 300000) : { ok: false };
+        const ack = await waitFresh((x) => /Making it now|making the quiz|بن رہا|couldn.t start that quiz|could not start/i.test(x.txt || ''), 60000);
+        ev.acknowledged = ack.ok ? (ack.hit.txt || '').slice(0, 160) : ack.last;
+        // The lesson-plan path enqueues quiz_generate on SQS directly (transcript-quiz-offer →
+        // sqs-queue.service) while the local stack runs BullMQ, whose driver would route it (bd-2aetj).
+        // The bot therefore answers "I couldn't start that quiz just now" — the mock lane's gap.
+        ev.queueUnavailable = ack.ok && /couldn.t start that quiz|could not start/i.test(ack.hit.txt || '');
+        const arrived = ack.ok && !ev.queueUnavailable ? await waitFresh((x) => (x.doc || x.pdf) || /QUIZ-[A-Z0-9]{6}/.test(x.txt || ''), 300000) : { ok: false };
         const after = dbJson('quiz-rows', ['--quiz', String(row.id)]) || {};
         ev.arrival = { arrived: !!arrived.ok, what: arrived.ok ? (arrived.hit.media && arrived.hit.media.filename) || (arrived.hit.txt || '').slice(0, 120) : 'not within 5 min',
                        status: after.quiz && after.quiz.status, error: after.quiz && after.quiz.meta && after.quiz.meta.error, questions: (after.questions || []).length };
-        const ok = les.ok && ev.textMatches && !!pick.ok && ack.ok && !!arrived.ok;
-        R(tid)(ok ? V(true, ev) : (les.ok && ev.textMatches && pick.ok && ack.ok
+        const ok = les.ok && ev.textMatches && !!pick.ok && ack.ok && !ev.queueUnavailable && !!arrived.ok;
+        R(tid)(ok ? V(true, ev) : (les.ok && ev.textMatches && pick.ok && ev.queueUnavailable
+                 ? ['BLOCKED', { reason: 'screen, copy and action are right; the quiz cannot be MADE here — quiz_generate is enqueued on SQS directly (transcript-quiz-offer → sqs-queue.service, bd-2aetj) and the mock stack has no SQS, so the bot replies that it could not start the quiz', ...ev }]
+                 : (les.ok && ev.textMatches && pick.ok && ack.ok
                  ? ['BLOCKED', { reason: 'the screen, the action and the acknowledgement are right; the quiz itself did not arrive — generation ' + (ev.arrival.status || '?') + (ev.arrival.error ? ' (' + ev.arrival.error + ')' : ''), ...ev }]
-                 : V(false, ev)), t() - s);
+                 : V(false, ev))), t() - s);
       } catch (e) { R(tid)('BLOCKED', { reason: 'threw: ' + String((e && e.message) || e).slice(0, 200) }, t() - s); }
       finally { try { api.db('seed-lp-quiz', ['--restore']); } catch (e) {} }
     };
@@ -1110,16 +1125,19 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
         const les = await openLesson(i => String(i.id || '') === 'lp_' + row.id);
         await api.freshReset();
         const pick = les.ok ? await chooseAction(/make_ur|اردو|Urdu/i) : { ok: false, err: les.err };
-        const ack = await waitFresh((x) => /Making it now|making the quiz|بن رہا/i.test(x.txt || ''), 60000);
+        const ack = await waitFresh((x) => /Making it now|making the quiz|بن رہا|couldn.t start that quiz|could not start/i.test(x.txt || ''), 60000);
+        const queueUnavailable = ack.ok && /couldn.t start that quiz|could not start/i.test(ack.hit.txt || '');
         const seenAll = [];
         const t0 = Date.now(); let doc = null, fwd = null;
-        while (Date.now() - t0 < 360000 && !(doc && fwd)) { for (const x of await api.fresh()) { seenAll.push(x); if (x.doc || x.pdf) doc = x; if (/QUIZ-[A-Z0-9]{6}/.test(x.txt || '')) fwd = x; } if (/couldn.t make|could not make|went wrong/i.test(seenAll.map(x => x.txt).join(' '))) break; await sleep(3000); }
+        while (!queueUnavailable && Date.now() - t0 < 360000 && !(doc && fwd)) { for (const x of await api.fresh()) { seenAll.push(x); if (x.doc || x.pdf) doc = x; if (/QUIZ-[A-Z0-9]{6}/.test(x.txt || '')) fwd = x; } if (/couldn.t make|could not make|went wrong/i.test(seenAll.map(x => x.txt).join(' '))) break; await sleep(3000); }
         const after = dbJson('quiz-rows', ['--quiz', String(row.id)]) || {};
         const qs = after.questions || [];
         const texts = qs.flatMap(q => [q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, ...(Object.values(q.option_feedback || {}))].filter(Boolean).map(String));
         const latinTerms = texts.flatMap(x => x.match(/[A-Za-z][A-Za-z-]{2,}/g) || []);
         const adjacentEnglish = texts.filter(x => /[A-Za-z][A-Za-z-]+\s+[A-Za-z][A-Za-z-]+\s+[A-Za-z][A-Za-z-]+/.test(x) && !/(improper|proper|common|cross|unlike|like|mixed) (fraction|denominator|multiplication|numbers?)/i.test(x));
-        const base = { topic: row.topic, lessonsBorrowed: row.lessons, picked: pick.picked, acknowledged: ack.ok, arrived: { pdf: !!doc, forward: !!fwd, caption: doc && (doc.txt || '').slice(0, 160) },
+        const base = { topic: row.topic, lessonsBorrowed: row.lessons, picked: pick.picked, acknowledged: ack.ok ? (ack.hit.txt || '').slice(0, 120) : false,
+                       queueUnavailable: queueUnavailable ? 'quiz_generate is enqueued on SQS directly (transcript-quiz-offer → sqs-queue.service, bd-2aetj); the mock stack has no SQS' : false,
+                       arrived: { pdf: !!doc, forward: !!fwd, caption: doc && (doc.txt || '').slice(0, 160) },
                        status: after.quiz && after.quiz.status, error: after.quiz && after.quiz.meta && after.quiz.meta.error, questions: qs.length, language: after.quiz && after.quiz.language };
         const madeInUrdu = !!doc && qs.length > 0 && qs.every(q => URDU.test(q.question_text || ''));
         const ev52 = { ...base, urduQuestions: qs.filter(q => URDU.test(q.question_text || '')).length, englishTermsKept: [...new Set(latinTerms)].slice(0, 12) };
