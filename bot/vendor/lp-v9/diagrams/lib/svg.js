@@ -511,6 +511,12 @@ class Svg {
   }
 }
 
+// THE diagram label floor, in CSS px at the A4 measure. One number feeds requiredBox's default,
+// the figure slot (lib/template.js scales it by the figure column onto the phone page), lint
+// rule 10d and the overlap sweep. At 13.5 a diagram label was the smallest type on the page
+// (bd-oak77.15).
+const MIN_LABEL_PX = 14;
+
 /**
  * The box a rendered diagram needs in order to stay readable.
  *
@@ -521,11 +527,11 @@ class Svg {
  *
  * @param {string} svg
  * @param {{minPx?:number, colPx?:number}} [o] minPx: the legibility floor
- *   (13.5 px at a 794 px page). colPx: the column width the figure will get.
+ *   (MIN_LABEL_PX at a 794 px page). colPx: the column width the figure will get.
  * @returns {{vbW,vbH,minFont,minWidthPx,minHeightPx,renderedPx,heightAt}}
  */
 function requiredBox(svg, o = {}) {
-  const minPx = o.minPx ?? 13.5;
+  const minPx = o.minPx ?? MIN_LABEL_PX;
   const m = svg.match(/viewBox="([\d.\s-]+)"/);
   if (!m) throw new Error("requiredBox: no viewBox");
   const [, , vbW, vbH] = m[1].trim().split(/\s+/).map(Number);
@@ -547,4 +553,4 @@ function requiredBox(svg, o = {}) {
   };
 }
 
-module.exports = { Svg, requiredBox, esc, n, hashId, attrs, measure, wrap, hasUrdu, urduLines, urduBoxH, textBox, checkOverlaps, elementBoxes, C, FONT, SIZE, LEADING };
+module.exports = { Svg, requiredBox, MIN_LABEL_PX, esc, n, hashId, attrs, measure, wrap, hasUrdu, urduLines, urduBoxH, textBox, checkOverlaps, elementBoxes, C, FONT, SIZE, LEADING };

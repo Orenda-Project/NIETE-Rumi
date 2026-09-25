@@ -68,8 +68,8 @@ function render(spec) {
   const SZ = {
     date: ur ? 15 : 13.5,
     label: ur ? 14 : SIZE.small,
-    detail: ur ? 13 : SIZE.tiny,
-    era: ur ? 13 : SIZE.tiny,
+    detail: ur ? 13 : SIZE.small,
+    era: ur ? 13 : SIZE.small,
   };
   const colourOf = (e, i) => e.color || SERIES[i % SERIES.length];
 

@@ -131,7 +131,7 @@ function render(spec) {
   const sz = {
     title: ur ? 15.5 : SIZE.label,
     line: ur ? 14 : SIZE.small,
-    tag: ur ? 13 : SIZE.tiny,
+    tag: ur ? 13 : SIZE.small,
   };
   const colourOf = (item, i) => item.color || SERIES[i % SERIES.length];
 

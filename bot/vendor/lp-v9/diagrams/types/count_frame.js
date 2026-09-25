@@ -19,10 +19,13 @@ const { Svg, C } = require("../lib/svg");
 const MAX = 20;
 
 function renderTenFrame(spec, count) {
-  const CELL = spec.cellSize ?? 66;
+  const frames = count > 10 ? 2 : 1;
+  // Two frames at 66 made the figure 718 wide, and a figure with no text is judged at the
+  // SIZE.small fallback: 13 * 455 / 718 = 8.24px, under the 8.74px phone floor. At 61 it is
+  // 668 wide (8.85px). One frame keeps 66 (bd-oak77.15).
+  const CELL = spec.cellSize ?? (frames > 1 ? 61 : 66);
   const PAD = 18;
   const GAP = 22; // between the two frames
-  const frames = count > 10 ? 2 : 1;
   const bodyW = PAD * 2 + frames * (5 * CELL) + (frames - 1) * GAP;
   const bodyH = PAD * 2 + 2 * CELL;
   const svg = new Svg(bodyW, bodyH, {
