@@ -1164,11 +1164,37 @@ FIGURE_BLANK ink floor is 1 for a lone empty tray). Covered by
 lesson-plan page is unaffected. Upstream still has the floor of 2; keep this at the next re-sync and offer
 it upstream with the lane's question check as the reason the engine can drop the floor.
 
+### 3.25 `lint_lp.js` — objectives are gated by name, and a short prose line is prose (2026-09-25, bd-oak77.40)
+
+An Urdu plan of an English-medium book could still print English in three places. Two of the fixes are
+here in the vendor tree:
+
+* **`overlayObjectiveGaps(doc)`** (new; also `overlayDefects.objectiveGaps`) — the `/objectives/*`
+  pointers `overlayTargets()` offers that have no non-blank Urdu string. It is built like
+  `overlayChromeGaps()` (§3.13) and for the same reason: objectives are a handful of pointers out of
+  ~90, so an overlay with every objective in English still cleared the 50% coverage floor.
+  `overlayDefects()` now adds **OVERLAY_OBJECTIVES_MISSING** whenever it is non-empty, whatever the
+  coverage. So the overlay pass throws OVERLAY_TOO_THIN (the English PDF is still delivered), and
+  `lint()` fails it at `overlayExpected`. The worker's reuse lane refuses a stored document on the same
+  function (reason `overlay_objectives_untranslated`). OVERLAY_MISSING and its coverage rule are
+  unchanged. Urdu-medium books return `[]`.
+* **`isInstructionProse()`** — a string of 8 or more characters that contains a space and one word of
+  4 or more letters is now prose, as well as any string with two or more words. Under the old rule a
+  materials line such as "textbook p.91-93" was never offered for translation. SLO codes and board
+  text, the exam bank, `/video` and the skip keys are still excluded, because they are excluded by
+  pointer and key, not by this test. This rule adds more targets, so the 50% floor is measured over a
+  slightly larger set.
+
+The third fix is bot-side and not a vendor divergence. `lp612-render.service.js` writes the doc to disk
+with `provenance.subject` set to the Urdu subject name when `lang` is `ur`. That covers the five sites
+where the template prints the subject; the stored lpDoc keeps its English name. Keep all of this at the
+next re-sync.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
 exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) §3.20 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`), §3.21 (`types/match.js`'s `handleLetters`, `types_manifest.json`), §3.22 (`types/count_objects.js`'s row `color`, `types_manifest.json`) and §3.23 (`types/count_objects.js`'s counts of 1 and 0, `types/count_frame.js`'s empty ten-frame, `types_manifest.json`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) §3.20 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`), §3.21 (`types/match.js`'s `handleLetters`, `types_manifest.json`), §3.22 (`types/count_objects.js`'s row `color`, `types_manifest.json`) and §3.23 (`types/count_objects.js`'s counts of 1 and 0, `types/count_frame.js`'s empty ten-frame, `types_manifest.json`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.25 for `overlayObjectiveGaps()` and the short-prose rule, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /

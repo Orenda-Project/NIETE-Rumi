@@ -137,7 +137,12 @@ const STORED_DOC = {
   page2: { practice: [] },
 };
 
-const STORED_DOC_UR = { ...STORED_DOC, ur_overlay: { '/one_screen': 'کیمیا کی شاخیں' } };
+// The objective is overlaid too: the reuse lane refuses a stored Urdu document whose objectives
+// would print in English (bd-oak77.40), and this fixture is a stored document that is fit to reuse.
+const STORED_DOC_UR = {
+  ...STORED_DOC,
+  ur_overlay: { '/one_screen': 'کیمیا کی شاخیں', '/objectives/0': 'شاخوں کے نام بتائیں' },
+};
 
 function seed(seg = SEGMENT) {
   mockDbResults.push({ data: { id: 'render-1', status: 'authoring', waiters: WAITERS }, error: null });

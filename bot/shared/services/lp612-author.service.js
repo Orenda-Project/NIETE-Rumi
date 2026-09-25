@@ -2911,7 +2911,7 @@ async function overlayLessonPlan({
     throw fail('OVERLAY_TOO_THIN',
       `the overlay covers ${Object.keys(kept).length} of ${targets.length} strings `
       + `(${(coverage * 100).toFixed(1)}%); the floor is ${OVERLAY_MIN_COVERAGE * 100}%. `
-      + defects[0].msg,
+      + defects.map((d) => d.msg).join(' '),   // bd-oak77.40: an objectives gap can ride with it
       { coverage });
   }
 
