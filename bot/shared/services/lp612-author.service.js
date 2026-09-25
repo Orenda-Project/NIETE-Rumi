@@ -1013,7 +1013,7 @@ titles and must NEVER appear in your output, least of all in \`sequence\`, which
 teacher reads on page 1): comes after [${segment.prev_segment_id || 'nothing'}], comes
 before [${segment.next_segment_id || 'nothing'}]. In \`sequence.previous\` and
 \`sequence.next\` write the TOPIC NAME of those lessons in the teacher's language, or
-null if you do not know it.
+null if you do not know it.${segment.prev_segment_id ? '' : '\nThis is the FIRST lesson — nothing comes before it, so `sequence.previous` MUST be null.'}
 
 ## THE SLO THIS SEGMENT CARRIES (quote it verbatim into slo.text_verbatim)
 ${segment.slo_text || '(none recorded on the segment — take one verbatim from the page-truth below)'}
@@ -1350,7 +1350,23 @@ function pageCountRepair(render) {
   return out;
 }
 
-function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted = false, stableFirst = false }) {
+/**
+ * bd-5w13w — the retry after a rejected "worse" candidate. doc/gates/notes are unchanged by a
+ * rejection, so without this the retry is byte-identical to the round that just failed. The
+ * running count makes every consecutive rejection's prompt distinct; the rejected attempt's own
+ * defects tell the model which route not to take again. Empty when nothing was rejected, so the
+ * prompt is byte-identical to before for every caller that does not pass `rejected`.
+ */
+function rejectedAttemptBlock(rejected) {
+  if (!rejected || !rejected.count) return '';
+  const fails = (rejected.fails || []).join('\n') || '(none recorded)';
+  return `=== YOUR LAST ${rejected.count} REVISION ATTEMPT(S) WERE REJECTED — TRY A DIFFERENT APPROACH ===\n`
+    + 'Each came back WORSE than the document below and was discarded, so the document below is '
+    + 'still the one to revise. Do not repeat the same edit: fix the defects by a different route. '
+    + 'The most recent rejected attempt had these defects:\n' + fails + '\n\n';
+}
+
+function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted = false, stableFirst = false, rejected = null }) {
   // ADVISORY defects are recorded, not chased (see ADVISORY_CODES). A defect the ladder will not
   // spend a round on must not spend the model's attention either: showing it under "Fix EVERY
   // listed defect" is an order to act on something we have decided does not matter.
@@ -1380,6 +1396,7 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted =
   // The relative order of everything inside the volatile block is untouched.
   const volatile_ = budgetCard(clampLanguage(lang)) + '\n' + preamble +
     (notes ? `=== THE OPERATOR'S NAMED DEFECTS — THESE OUTRANK EVERYTHING BELOW ===\n${notes}\n\n` : '') +
+    rejectedAttemptBlock(rejected) +
     (visual.length
       ? '=== THE VISUAL CONTRACT (§4b) — FIX THESE FIRST, BY ADDING A FIGURE ===\n'
         + 'These are missing PICTURES, and the fix is always to put one in — never to delete '
@@ -1615,6 +1632,14 @@ function sanitizeSequence(doc, segment = {}) {
       notes.push(`sequence.${field}: dropped an internal segment id (${seq[field]})`);
       seq[field] = null;
     }
+  }
+
+  // bd-oak77.33: a FIRST lesson has no predecessor — the corpus row says so with an explicit
+  // null/empty prev_segment_id. Anything in `previous` then is a topic the model made up, so it
+  // is dropped to null. A row that never carried the field is no evidence either way: left alone.
+  if ('prev_segment_id' in segment && !segment.prev_segment_id && seq.previous != null) {
+    notes.push(`sequence.previous: dropped a predecessor on a first lesson (${seq.previous})`);
+    seq.previous = null;
   }
 
   if (looksLikeId(seq.this)) {
@@ -2242,6 +2267,9 @@ async function authorLessonPlan({
   // three unchanged, so the NEXT round's prompt is identical to this one's) is a named,
   // queryable event instead of something only visible by diffing two ~40k-token log payloads.
   let lastRevisionPromptSha = null;
+  // bd-5w13w FIX: consecutive "worse" rejections since the last kept candidate, and the latest
+  // rejected attempt's defects — fed into buildRevisionPrompt so the retry is NOT a re-issue.
+  let rejected = { count: 0, fails: [] };
 
   /**
    * What is LEFT of the budget — bd-oak77.11.
@@ -2308,7 +2336,7 @@ async function authorLessonPlan({
 
     const fixUser = buildRevisionPrompt({
       doc, gates, originalUser: user, notes: segment.notes, lang: language, targeted: useTargetedRevision,
-      stableFirst: promptCacheOn,
+      stableFirst: promptCacheOn, rejected,
     });
 
     // bd-5w13w: fires the moment THIS round's prompt hashes identically to the last one sent —
@@ -2384,7 +2412,7 @@ async function authorLessonPlan({
             // existing full-rewrite prompt, once. Worst case this round costs one extra call.
             const fallbackUser = buildRevisionPrompt({
               doc, gates, originalUser: user, notes: segment.notes, lang: language,
-              stableFirst: promptCacheOn,
+              stableFirst: promptCacheOn, rejected,
             });
             candidate = await callWithRetry({
               system, user: fallbackUser, model: chosenModel, correlationId,
@@ -2397,7 +2425,7 @@ async function authorLessonPlan({
           notePatchRejected('unparseable_shape', why.pointers, why.errors);
           const fallbackUser = buildRevisionPrompt({
             doc, gates, originalUser: user, notes: segment.notes, lang: language,
-            stableFirst: promptCacheOn,
+            stableFirst: promptCacheOn, rejected,
           });
           candidate = await callWithRetry({
             system, user: fallbackUser, model: chosenModel, correlationId,
@@ -2444,9 +2472,11 @@ async function authorLessonPlan({
     if (notWorseVisual(g2, gates, candidate, doc)) {
       doc = candidate;
       gates = g2;
+      rejected = { count: 0, fails: [] };
       // Published the moment it is KEPT, not at the end — the end may never come (bd-0cdug).
       publish(doc, gates, spent);
     } else {
+      rejected = { count: rejected.count + 1, fails: gateFails(g2).slice(0, 10) };
       // Upstream keeps the rejected candidate on disk — "was worse" with no numbers and no
       // artefact is unreviewable. A worker has nowhere to put it, so the numbers go to the log
       // and the document itself is dropped. Then CONTINUE, not break.

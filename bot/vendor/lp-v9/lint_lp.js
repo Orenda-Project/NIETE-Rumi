@@ -991,7 +991,14 @@ function jaccard(a, b) {
 // shape there is. Same class as bd-nx6k6/SP-122 — a gate that fails CORRECT work gets
 // routed around, and every verb missing from this list costs a revision round.)
 // "|B|, B⁻¹: B = [ … ]" — is not a question, it is a heading over a hole.
-const COMMANDS = /\b(find|calculate|work out|show|prove|state|explain|describe|write|evaluate|determine|solve|list|name|define|compare|identify|sketch|draw|verify|simplify|complete|give|say|choose|which|what|why|how|when|where|who|if|given|suppose|consider|add|multiply|divide|subtract|expand|factorise|factorize|convert|measure|label|match|arrange|predict|justify|comment|balance|check|read|use|estimate|plot|select|circle|tick|underline|fill|shade|highlight|order|rank)\b/i;
+// VENDOR DIVERGENCE (bd-oak77.34, SYNC.md §3.23): the verbs from `make` to `discuss` at the end
+// of COMMANDS, the `<word> of` heading strip (HEADING_OF), and the letter-boundary guard on
+// COMMANDS_UR. All three were found by tests/lp612/unworded-q-catch-rate.test.js.
+const COMMANDS = /\b(find|calculate|work out|show|prove|state|explain|describe|write|evaluate|determine|solve|list|name|define|compare|identify|sketch|draw|verify|simplify|complete|give|say|choose|which|what|why|how|when|where|who|if|given|suppose|consider|add|multiply|divide|subtract|expand|factorise|factorize|convert|measure|label|match|arrange|predict|justify|comment|balance|check|read|use|estimate|plot|select|circle|tick|underline|fill|shade|highlight|order|rank|make|copy|rewrite|translate|classify|construct|mark|tell|interpret|analyse|analyze|summarise|summarize|outline|suggest|record|count|observe|sort|discuss)\b/i;
+// "Order of a matrix", "Use of articles", "Balance of forces": a command word followed by `of`
+// at the very start is a noun heading, not an imperative. Stripped before COMMANDS is tested,
+// so a real verb later in the string ("Order of operations: evaluate …") still frames it.
+const HEADING_OF = /^\s*[A-Za-z]+\s+of\b/;
 // An interrogative-auxiliary OPENING is a frame too: "Do two blocks … take the same time?"
 // Anchored at the start on purpose — "is"/"do" mid-sentence prove nothing.
 const AUX_OPEN = /^(do|does|did|is|are|was|were|can|could|will|would|should|has|have|had)\b/i;
@@ -1001,7 +1008,10 @@ const AUX_OPEN = /^(do|does|did|is|are|was|were|can|could|will|would|should|has|
 // costs a revision round on an Urdu-medium plan. `دیں`/`بنائیں`/`لگائیں`/`ملائیں` added
 // 2026-09-02 after the Option B fleet re-run failed "…کی ایک مثال دیں" — a correctly-worded
 // imperative — while the near-identical `دیا گیا` was already accepted.
-const COMMANDS_UR = /(کریں|کیجیے|کیجئے|بتائیں|بتائیے|لکھیں|لکھیے|کیا|کیوں|کیسے|کون|کس|کہاں|کب|اگر|دیا گیا|دیں|دیجیے|بنائیں|بنائیے|لگائیں|ملائیں|جوڑیں|چنیں|گنیں|سمجھائیں|منتخب|شمار|پڑھیں|سنیں)/;
+// Whole words only (bd-oak77.34): unanchored, `کس` matched inside کسر (fraction) and عکس, `کب`
+// inside مرکب, `دیں` inside بنیادیں — so bare Urdu headings passed as framed. `شمار` is dropped:
+// alone it is the noun of "اعداد و شمار" (statistics); its imperative "شمار کریں" is framed by کریں.
+const COMMANDS_UR = /(?<![\p{L}\p{M}])(کریں|کیجیے|کیجئے|بتائیں|بتائیے|لکھیں|لکھیے|کیا|کیوں|کیسے|کون|کس|کہاں|کب|اگر|دیا گیا|دیں|دیجیے|بنائیں|بنائیے|لگائیں|ملائیں|جوڑیں|چنیں|گنیں|سمجھائیں|منتخب|پڑھیں|سنیں)(?![\p{L}\p{M}])/u;
 function unworded(q) {
   const s = String(q ?? "").trim();
   if (!s) return "it is empty";
@@ -1017,7 +1027,7 @@ function unworded(q) {
   // and "…same time? Check using $t=…$." is framed twice over. The COLON stays end-anchored —
   // a mid-string colon is how notation headers are written, and those must keep failing.
   const framed = /[?؟]/.test(s) || /[:：]\s*$/.test(s) ||
-    COMMANDS.test(s) || COMMANDS_UR.test(s) || AUX_OPEN.test(prose);
+    COMMANDS.test(s.replace(HEADING_OF, "")) || COMMANDS_UR.test(s) || AUX_OPEN.test(prose);
   if (!framed) return `no interrogative or imperative frame — it does not tell the pupil what to DO ("${prose || s.slice(0, 40)}")`;
   if (words.length < 2) return `only ${words.length} word(s) of prose around the notation ("${prose}")`;
   // "$A^{-1}$ (p.68)" — a citation is a pointer, not a question.

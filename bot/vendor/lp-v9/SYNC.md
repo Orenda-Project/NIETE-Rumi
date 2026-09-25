@@ -1164,6 +1164,27 @@ FIGURE_BLANK ink floor is 1 for a lone empty tray). Covered by
 lesson-plan page is unaffected. Upstream still has the floor of 2; keep this at the next re-sync and offer
 it upstream with the lane's question check as the reason the engine can drop the floor.
 
+### 3.24 UNWORDED_Q catches bare headings and stops failing common verbs — `lint_lp.js` (2026-09-25)
+
+`unworded()` had no test in this repo. The first catch-rate suite
+(`tests/lp612/unworded-q-catch-rate.test.js`, bd-oak77.34) failed 16 of 49 hand-written cases. The
+fixes are all in the frame test, each marked `VENDOR DIVERGENCE (bd-oak77.34)`:
+
+* **`COMMANDS_UR` matches whole words only.** It used to match inside other words, so `کس` matched in
+  کسر and عکس, `کب` in مرکب, and `دیں` in بنیادیں, and bare Urdu headings passed as framed. The
+  alternation is now wrapped in `(?<![\p{L}\p{M}])…(?![\p{L}\p{M}])` with the `u` flag. `شمار` is
+  removed: on its own it is a noun (اعداد و شمار), and its imperative, شمار کریں, is framed by کریں.
+* **`HEADING_OF`.** A leading `<word> of` is removed before `COMMANDS` is tested, so "Order of a
+  matrix", "Use of articles" and "Balance of forces" are treated as headings. A real verb later in the
+  string still frames the question.
+* **`COMMANDS` gains 20 verbs** (make, copy, rewrite, translate, classify, construct, mark, tell,
+  interpret, analyse/analyze, summarise/summarize, outline, suggest, record, count, observe, sort,
+  discuss). Without them, questions like "Classify these animals…" and "Translate the sentence…" were
+  rejected as unworded, and each rejection cost a revision round.
+
+Upstream (`.claude/skills/curriculum-baked-lesson-plans/scripts/lp_html/lint_lp.js`) has none of this.
+Offer the same patch upstream, and keep it at the next re-sync.
+
 ### 3.25 `lint_lp.js` — objectives are gated by name, and a short prose line is prose (2026-09-25, bd-oak77.40)
 
 An Urdu plan of an English-medium book could still print English in three places. Two of the fixes are
