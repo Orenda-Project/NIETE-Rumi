@@ -230,6 +230,44 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # medium is Urdu already write the board in Urdu, so they get no extra line. A reused plan
     # missing the line is still delivered, and the top-up pass adds the line later.
 
+  @e2e @content-driven @P2
+  Scenario: Diagram labels on a 6-12 plan stay readable on a phone
+    Given the NIETE bot chat is open on a teacher whose language is English
+    And I have opened the LP Flow
+    When I complete it for a Grade 9 Chemistry segment whose plan carries a labelled diagram
+    Then a lesson-plan PDF is delivered to the chat
+    And no diagram label on it is smaller than the diagram floor, about 8.7px on the phone page
+    And a molecule figure's formula slot holds a formula, never a sentence
+    And a long warm-up label sits on its own line instead of squeezing the warm-up text
+    # bd-oak77.15 / .24 / .31. The floor is 14px on the A4 page the diagram engine draws, which the
+    # phone page scales to about 8.74px. A figure that cannot fit its labels at that size is widened
+    # or refused, never shrunk. Prose in the formula slot is moved to the name line and the linter
+    # flags it as a blocking FIGURE defect.
+
+  @e2e @content-driven @P2
+  Scenario: A worked scenario never guesses the gender of an unnamed character
+    Given the NIETE bot chat is open on a teacher whose language is English
+    And I have opened the LP Flow
+    When I complete it for a 6-12 segment whose worked example has a helper nobody names, such as "the shopkeeper"
+    Then a lesson-plan PDF is delivered to the chat
+    And that helper is given a name, or called they/them every time
+    And each learning objective the plan invents a code for gets its own code, O1, O2, O3, never a repeat
+    # bd-oak77.32. A Grade 8 plan called an unnamed lab assistant "she", then "he". The author brief's
+    # gender-neutral rule now covers unnamed characters. Separately, subjects with no curriculum SLO
+    # code invent O1-style codes, and a repeated one made homework tagged to the third objective read
+    # as untaught; the author sanitizer now renumbers a repeat and leaves the first occurrence alone.
+
+  @e2e @content-driven @P2
+  Scenario: The last lesson of a chapter names no next lesson
+    Given the NIETE bot chat is open on a teacher whose language is English
+    And I have opened the LP Flow
+    When I complete it for the last 6-12 segment of a chapter
+    Then a lesson-plan PDF is delivered to the chat
+    And the lesson strip on page 1 shows no "next" lesson
+    # bd-oak77.38, the mirror of bd-oak77.33 (a first lesson printed an invented "previous").
+    # The corpus marks a last lesson with an empty next_segment_id; the prompt tells the model
+    # sequence.next must be null and the author sanitizer drops whatever it wrote anyway.
+
   @e2e @negative @content-driven @P1
   Scenario: An Urdu overlay that drops the honorific is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu

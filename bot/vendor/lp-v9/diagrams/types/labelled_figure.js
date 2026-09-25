@@ -90,10 +90,11 @@ function render(spec) {
 
   const aspect = spec.aspect ?? (img && img.w && img.h ? img.h / img.w : 0.75);
   // Clamp the whole canvas. `renderedPx = minFont * colPx / vbW`, so a body wider
-  // than ~700 units drops the smallest label below the 13.5 px phone floor in a
-  // 750 px column. If it does not fit, the IMAGE gives way, not the type.
+  // than ~676 units drops a 13-unit label below the 8.74 px phone floor in the 455 px figure
+  // column (MIN_LABEL_PX = 14 at A4, scaled by 455/729; bd-oak77.15; upstream's A4 page uses
+  // 696). If it does not fit, the IMAGE gives way, not the type.
   const pad = 6;
-  const MAXW = spec.maxWidth ?? 700;
+  const MAXW = spec.maxWidth ?? 676;
   let imgW = spec.imageWidth ?? 380;
   imgW = Math.max(230, Math.min(imgW, MAXW - gutL - gutR - pad * 2));
   const imgH = Math.round(imgW * aspect);

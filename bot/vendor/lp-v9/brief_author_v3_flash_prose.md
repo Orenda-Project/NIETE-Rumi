@@ -992,10 +992,14 @@ marking errors named; differentiation.
   mhchem as an ionic CHARGE and prints `H₂⁺O₂` — wrong chemistry, and it renders without complaint.
   Write `\ce{2H2 + O2 -> 2H2O}`. A charge with nothing after it (`\ce{Na+}`, `\ce{Ca^2+ + 2Cl-}`) is
   correct as-is. `node lint_lp.js --fix <doc>` repairs the operator case mechanically.
+<!-- VENDOR DIVERGENCE (bd-oak77.32, 2026-09-25; SYNC.md §3.28): the unnamed-character sentence
+  below is a LOCAL-ONLY edit, not a straight re-vendor — it was not fixed upstream first. -->
 - **L6 · Gender-neutral register.** Address the teacher neutrally. In Urdu, never use gendered
   second-person verb stems for the teacher or the pupil (`آپ سوچ رہی ہوں گی` / `آپ سوچ رہے ہوں گے`) —
   use imperatives or impersonal third-person reframes. Use «ٹیچر», never «اُستانی صاحبہ». Examples
-  must name **both** girls and boys doing the actual work.
+  must name **both** girls and boys doing the actual work. An **unnamed** incidental character in
+  a worked scenario — "the lab assistant", "the shopkeeper", "the driver" — never gets a guessed
+  gender: give them a name, or use they/them for every reference to them.
 - **L1d · Never translate a language into itself.** An Urdu-medium lesson prints the teacher's line
   **once, in Urdu**. No Urdu "translation" under an Urdu line. Conversely, in an English-medium
   lesson any spoken-Urdu support line is **Roman Urdu only**.

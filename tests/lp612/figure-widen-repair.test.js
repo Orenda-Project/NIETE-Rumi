@@ -86,7 +86,7 @@ describe('the prod incident, reproduced from the real engine\'s own bytes', () =
     const box = requiredBox(SPECS.failed_ur_svg, { minPx: DIAGRAM_MIN_PX_A4, colPx: FULL_COL_A4 });
     expect(box.minFont).toBe(12);
     expect(box.renderedPx).toBe(13.25);   // the number in the prod log line, to the digit
-    expect(box.minWidthPx).toBe(743);     // and the width it asked for
+    expect(box.minWidthPx).toBe(770);     // and the width it asks for at the 14px floor (743 at 13.5)
   });
 
   test('the ENGLISH run of the SAME segment clears the floor — this was never a language defect', () => {

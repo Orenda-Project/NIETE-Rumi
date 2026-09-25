@@ -340,7 +340,7 @@ function render(spec) {
     svg.line(px, yAxis - 5, px, yAxis + 5, { stroke: C.ink, sw: 1.4 });
     svg.circle(px, yAxis, 2.6, { fill: C.ink });
     svg.text(px, yAxis + 19, txt, {
-      size: SIZE.tiny,
+      size: SIZE.small,
       weight: 700,
       anchor: "middle",
       fill: C.ink,
