@@ -121,7 +121,7 @@ async function scheduleOffer({ coachingSessionId, userId, phone, language, trans
     logEvent('transcript_quiz.skipped', { coachingSessionId, userId, reason: 'already_offered_once' });
     return false;
   }
-  const SQSQueueService = require('../queue/sqs-queue.service');
+  const SQSQueueService = require('../queue');
   await SQSQueueService.queueJob(coachingSessionId, 'quiz_offer', {
     coachingSessionId, userId, phone, language, source,
   }, { delaySeconds });
@@ -133,7 +133,7 @@ async function scheduleOffer({ coachingSessionId, userId, phone, language, trans
 async function triggerEarly(coachingSessionId) {
   if (!enabled() || !coachingSessionId) return false;
   try {
-    const SQSQueueService = require('../queue/sqs-queue.service');
+    const SQSQueueService = require('../queue');
     await SQSQueueService.queueJob(coachingSessionId, 'quiz_offer', { coachingSessionId, early: true }, { delaySeconds: 0 });
     logEvent('transcript_quiz.offer_triggered_early', { coachingSessionId });
     return true;
@@ -429,7 +429,7 @@ async function startGenerating({ quizId, quiz, phone, teacherLang, language, sou
     return true;
   }
 
-  const SQSQueueService = require('../queue/sqs-queue.service');
+  const SQSQueueService = require('../queue');
   await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: teacherLang }, { delaySeconds: 0 });
   await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: teacherLang }));
   logEvent('transcript_quiz.accepted', { quizId, userId: quiz.teacher_id, language, source });
@@ -451,7 +451,7 @@ async function queueLpQuiz({ quizId, nudgeId, phone, language }) {
     if (!ok) logToFile('❌ lp quiz offer: reply not delivered', { key }, 'error');
   };
   try {
-    const SQSQueueService = require('../queue/sqs-queue.service');
+    const SQSQueueService = require('../queue');
     await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, source: 'lp_offer' }, { delaySeconds: 0 });
   } catch (err) {
     logToFile('❌ lp quiz offer: quiz_generate could not be queued', { quizId, nudgeId, error: err.message }, 'error');

@@ -144,7 +144,7 @@ async function scheduleForShareCode(shareCodeId) {
     }
   }
   try {
-    const SQSQueueService = require('../queue/sqs-queue.service');
+    const SQSQueueService = require('../queue');
     const when = reportTargetUtc();
     const delaySeconds = Math.max(60, Math.floor((when - Date.now()) / 1000));
     await SQSQueueService.queueJob(shareCodeId, JOB_TYPE, {

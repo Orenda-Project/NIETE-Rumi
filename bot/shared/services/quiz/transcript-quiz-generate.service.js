@@ -1580,7 +1580,7 @@ async function lookUpCache(api, { quiz, quizId, language, payload, flight, quizS
   const waits = Number(payload && payload.cache_waits) || 0;
   if (lock !== 'held' || waits >= LpCache.maxCacheWaits()) return {};
   try {
-    const SQSQueueService = require('../queue/sqs-queue.service');
+    const SQSQueueService = require('../queue');
     // Re-queued, not waited for: a quiz-queue slot is one per replica, and the
     // author it would wait on takes minutes.
     await SQSQueueService.queueJob(quizId, 'quiz_generate', { ...(payload || {}), quizId, cache_waits: waits + 1 },
