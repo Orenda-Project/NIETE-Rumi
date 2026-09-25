@@ -11,10 +11,10 @@
  *
  *   1. `buildRevisionPrompt` really is byte-identical across two calls with the same inputs —
  *      the mechanism BREAKDOWN.md names.
- *   2. The ladder detects this happening to ITSELF and emits a queryable event
- *      (`lp612.author.prompt_reissued`) the moment a revision round's prompt hashes identically
- *      to the one before it — driven through the real `authorLessonPlan()` ladder with the LLM
- *      doubled at the network boundary, per root CLAUDE.md Rule 6 (never skip the call chain).
+ *   2. The ladder no longer re-issues: after a rejection it passes `rejected` ({count, fails}) to
+ *      `buildRevisionPrompt`, so the retry differs, and the `lp612.author.prompt_reissued` event
+ *      (kept as a tripwire) stays quiet — driven through the real `authorLessonPlan()` ladder with
+ *      the LLM doubled at the network boundary, per root CLAUDE.md Rule 6 (never skip the call chain).
  *
  * Also covers the sibling ask: `promptSha` / `promptChars` / `completion_tokens` /
  * `prompt_tokens` land on the existing `lp612 author LLM call` log line.
@@ -112,7 +112,10 @@ test('buildRevisionPrompt is byte-identical across two calls with the same (doc,
 // ── 2. the ladder fires the reissue event when this actually happens to it ──
 
 describe('lp612.author.prompt_reissued', () => {
-  test('fires when a rejected candidate leaves doc/gates unchanged, so the next round\'s prompt repeats', async () => {
+  // bd-5w13w FIX: a rejected "worse" candidate leaves doc/gates/notes unchanged, so the retry
+  // used to re-send the identical prompt. The ladder now tells the model its last attempt was
+  // rejected (and how many times running), so the retry differs and the re-issue event is quiet.
+  test('does NOT fire after a rejected candidate — the retry prompt now names the rejection', async () => {
     const renderCheck = jest.fn()
       .mockResolvedValueOnce([CLIPPED_A])          // round-0 gate: 1 blocking defect
       .mockResolvedValueOnce([CLIPPED_A, CLIPPED_B]) // round-1 candidate: WORSE, rejected
@@ -125,21 +128,45 @@ describe('lp612.author.prompt_reissued', () => {
       renderCheck, correlationId: 'corr-reissue',
     });
 
-    // Round 1 was rejected (worse), so round 2 climbs from the SAME (doc, gates, notes) round 1
-    // did — the exact mechanism BREAKDOWN.md names. That must be visible as a named event.
-    const events = named('lp612.author.prompt_reissued');
-    expect(events).toHaveLength(1);
-    expect(events[0][1]).toMatchObject({
-      correlationId: 'corr-reissue',
-      segmentId: 'seg-1',
-      round: 2,
-    });
-    expect(typeof events[0][1].promptSha).toBe('string');
-    expect(events[0][1].promptSha.length).toBe(12);
+    expect(named('lp612.author.prompt_reissued')).toHaveLength(0);
 
     // Sanity: the ladder actually ran the shape this test assumes (3 calls: author + 2 revisions).
     expect(create).toHaveBeenCalledTimes(3);
     expect(out.rounds).toBe(2);
+  });
+
+  test('two CONSECUTIVE rejections produce three distinct revision prompts', async () => {
+    const renderCheck = jest.fn()
+      .mockResolvedValueOnce([CLIPPED_A])            // round-0 gate
+      .mockResolvedValueOnce([CLIPPED_A, CLIPPED_B]) // round-1 candidate: WORSE, rejected
+      .mockResolvedValueOnce([CLIPPED_A, CLIPPED_B]) // round-2 candidate: WORSE again, rejected
+      .mockResolvedValueOnce([]);                    // round-3 candidate: clean, accepted
+    create.mockResolvedValue(reply(CLEAN_DOC));
+
+    await authorLessonPlan({
+      segment: SEGMENT, lang: 'en', model: 'test/model', rounds: 4,
+      renderCheck, correlationId: 'corr-twice',
+    });
+
+    const shas = proseLines('lp612 author LLM call')
+      .filter((l) => /^revision/.test(l[1].stage))
+      .map((l) => l[1].promptSha);
+    expect(shas).toHaveLength(3);
+    expect(new Set(shas).size).toBe(3);
+    expect(named('lp612.author.prompt_reissued')).toHaveLength(0);
+  });
+
+  test('buildRevisionPrompt: no `rejected` is byte-identical to before; rejected counts differ', () => {
+    const doc = JSON.parse(JSON.stringify(CLEAN_DOC));
+    const gates = { schema: [], lint: [], render: [CLIPPED_A], warns: [] };
+    const base = { doc, gates, originalUser: 'TASK', notes: null, lang: 'en' };
+    const plain = buildRevisionPrompt(base);
+    const once = buildRevisionPrompt({ ...base, rejected: { count: 1, fails: [CLIPPED_B] } });
+    const twice = buildRevisionPrompt({ ...base, rejected: { count: 2, fails: [CLIPPED_B] } });
+    expect(buildRevisionPrompt({ ...base, rejected: { count: 0, fails: [] } })).toBe(plain);
+    expect(once).not.toBe(plain);
+    expect(twice).not.toBe(once);
+    expect(once).toContain(CLIPPED_B);
   });
 
   test('does NOT fire on the very first revision round (nothing to repeat yet)', async () => {
@@ -182,7 +209,7 @@ describe('the "lp612 author LLM call" line carries promptSha/promptChars/prompt_
     expect(payload.usage).toMatchObject({ prompt_tokens: 111, completion_tokens: 222 });
   });
 
-  test('two calls with the identical (system, user) pair produce the identical promptSha', async () => {
+  test('a revision round after a rejection hashes DIFFERENTLY from the rejected round (bd-5w13w)', async () => {
     const renderCheck = jest.fn()
       .mockResolvedValueOnce([CLIPPED_A])
       .mockResolvedValueOnce([CLIPPED_A, CLIPPED_B])
@@ -198,6 +225,6 @@ describe('the "lp612 author LLM call" line carries promptSha/promptChars/prompt_
     // stage: author, revision1, revision2 (each with attempt suffix .a1)
     const revisionLines = lines.filter((l) => /^revision/.test(l[1].stage));
     expect(revisionLines).toHaveLength(2);
-    expect(revisionLines[0][1].promptSha).toBe(revisionLines[1][1].promptSha);
+    expect(revisionLines[0][1].promptSha).not.toBe(revisionLines[1][1].promptSha);
   });
 });
