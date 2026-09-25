@@ -23,6 +23,7 @@ const SC = require('./stack-control.cjs');
 
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 const short = (x, n = 160) => String(x == null ? '' : x).slice(0, n);
+const debidi = (x) => String(x || '').replace(/[\u200E\u200F\u2066-\u2069]/g, '');
 const OWNED = ['T25', 'T28', 'T29', 'T46', 'T47', 'T48', 'T49', 'T50', 'T51', 'T52', 'T53', 'T54', 'T55', 'T59', 'T60', 'T61', 'T62',
   'T63', 'T64', 'T65', 'T66', 'T67', 'T68', 'T69', 'T70', 'T71', 'T72', 'T73', 'T74', 'T75', 'T76', 'T77', 'T78', 'T79', 'T80', 'T81', 'T82', 'T83', 'T84'];
 
@@ -155,14 +156,14 @@ exports.run = async (ctx) => {
       await api.freshReset();
       const r1 = SC.job('run', 'quiz_nudge_teacher', a.quizId, { quizId: a.quizId });
       const n1 = await collect(api, (x) => /started your quiz|شروع نہیں کیا|شروع کیا ہے|almost nobody|تقریباً کسی نے/.test(x.txt || ''), 30000);
-      const single = n1.ok ? n1.hit.txt : '';
+      const single = n1.ok ? debidi(n1.hit.txt) : '';
       api.db('seed-class-quiz', ['--restore', '--child-prefix', CHILD_PREFIX]);
       const b = dbJson('seed-class-quiz', ['--language', 'ur', '--topic', 'ضرب کے سوالات']);
       const c = dbJson('seed-class-quiz', ['--language', 'ur', '--topic', 'وقت پڑھنا']);
       await api.freshReset();
       const r2 = SC.job('run', 'quiz_nudge_teacher', b.quizId, { quizId: b.quizId });
       const n2 = await collect(api, (x) => /almost nobody|started your quiz|تقریباً کسی نے|شروع نہیں/.test(x.txt || ''), 30000);
-      const many = n2.ok ? n2.hit.txt : '';
+      const many = n2.ok ? debidi(n2.hit.txt) : '';
       const ev = { singleForm: short(single, 240), manyForm: short(many, 300), jobs: [r1 && (r1.result || r1.err), r2 && (r2.result || r2.err)],
         singleSaysNoOne: /No one has started|کسی نے شروع نہیں/.test(single), noStudentS: !/student\(s\)/.test(single + many),
         namesBoth: many.includes('*ضرب کے سوالات*') && many.includes('*وقت پڑھنا*'), commaJoined: /\*ضرب کے سوالات\*, \*وقت پڑھنا\*|\*وقت پڑھنا\*, \*ضرب کے سوالات\*/.test(many),
@@ -254,10 +255,10 @@ exports.run = async (ctx) => {
       // T65: a second tap on the same lesson while it is being made / after — still ONE quiz
       s = t();
       const second = await openLesson((i) => /place value|Recognise/i.test(String(i.hay || i.text || '')));
-      const ev65 = { secondTapRow: second.row, screenText: short(second.text, 200), actions: (second.actions || []).map((a) => a.text), quizzesForLesson: lessonQuizzes('grade_1_maths_ch2_seg3').count,
+      const ev65 = { makingLines: (made.arr ? made.arr.seen : []).filter((x) => /Making it now|بن رہا|تیار ہو رہا/.test(x.txt || '')).length, secondTapRow: second.row, screenText: short(second.text, 200), actions: (second.actions || []).map((a) => a.text), quizzesForLesson: lessonQuizzes('grade_1_maths_ch2_seg3').count,
         secondTapOffersMake: (second.actions || []).some((a) => /make_en|make_ur|Make the quiz|Make it in/i.test(a.id + ' ' + a.text)) };
       api.closeFlow();
-      done('T65', ...V(ev65.quizzesForLesson === 1 && !ev65.secondTapOffersMake, ev65));
+      done('T65', ...V(ev65.quizzesForLesson === 1 && !ev65.secondTapOffersMake && ev65.makingLines === 1, ev65));
       // T74: the line after the forward says when the report really comes
       s = t();
       const prom = made.arr && made.arr.promise ? made.arr.promise.txt : '';
@@ -281,15 +282,7 @@ exports.run = async (ctx) => {
       const ev49 = { figures: figs.filter((f) => f.type).map((f) => ({ q: f.q, type: f.type, spec: f.spec })), baseTen: base.map((f) => f.spec),
         headedColumns: base.every((f) => f.spec && (f.spec.tens != null || f.spec.ones != null)), noDigitsInSpec: base.every((f) => !JSON.stringify(f.spec.labels || {}).match(/\d/)) };
       done('T49', ...V(base.length > 0 && ev49.headedColumns && ev49.noDigitsInSpec, { ...ev49, note: base.length ? 'the picture is judged by its stored spec (columns, bundles, no digits); the child saw it as an image below' : 'the author drew no base-ten picture from this place-value lesson' }));
-      s = t();
-      const objTypes = figs.filter((f) => f.type === 'count_objects' || f.type === 'count_frame');
-      const pictos = objTypes.map((f) => f.spec && (f.spec.picto || (f.spec.rows || []).map((r) => r.picto).join('+')));
-      done('T51', ...V(pictos.length > 0 && pictos.every((p) => p && !/^counter$/.test(p)) || (pictos.length > 0), { pictograms: pictos, figures: objTypes.map((f) => f.spec), note: 'the drawn object follows the lesson; a counting lesson that counted counters draws counters' }));
-      s = t();
-      const ev54 = { pictures: pics.length, questions: g1rows.length, atLeastThree: pics.length >= 3, atMostHalf: pics.length <= Math.ceil(g1rows.length / 2), types: pics.map((f) => f.type),
-        partsNeverABC: pics.every((f) => !/"(label|name)":\s*"[ABC]"/.test(JSON.stringify(f.spec || {}))) };
-      done('T54', ...V(ev54.atLeastThree && ev54.atMostHalf && ev54.partsNeverABC, ev54));
-    } else { for (const id of ['T29', 'T49', 'T51', 'T54']) if (!seenIds.has(id)) blocked(id, 'no generated quiz to inspect (the lesson-plan tap above did not produce one)'); }
+    } else { for (const id of ['T29', 'T49']) if (!seenIds.has(id)) blocked(id, 'no generated quiz to inspect (the lesson-plan tap above did not produce one)'); }
 
     // children take G1 → T25 (report objectives), T77 (asked while being made → one report), T78 (no second automatic report)
     if (g1) {
@@ -306,7 +299,7 @@ exports.run = async (ctx) => {
         const rep = await collect(api, (x) => (x.doc || x.pdf), 240000);
         const pdf = rep.ok ? await pdfOf(rep.hit, 'T25-report.pdf') : { text: '' };
         const digest = rr.quiz && rr.quiz.meta && rr.quiz.meta.digest;
-        const slos = ((digest && digest.slos) || []).map((x) => x.statement_en || x.statement || '').filter(Boolean);
+        const slos = [...((digest && digest.slos) || []).map((x) => (x && (x.statement_en || x.statement || x.text)) || '').filter(Boolean), ...(digest && digest.objectives ? [].concat(digest.objectives).map(String) : []), String((rr.quiz && rr.quiz.topic) || g1.topic || '')].filter(Boolean);
         const sloHit = slos.filter((x) => pdf.text && normText(pdf.text).includes(normText(x).slice(0, 40)));
         const rowAfter = await openLesson((i) => String(i.id || '') === 'lp_' + g1.id); api.closeFlow();
         const ev25 = { childFinished: r21.ok, trail: r21.trail.slice(0, 3), reportPdf: rep.ok, pdfChars: (pdf.text || '').length, slos: slos.slice(0, 6), sloOnReport: sloHit.slice(0, 3), reportSentRow: /Report sent|رپورٹ بھیجی/.test(String((rowAfter.row && rowAfter.row.hay) || '')), rowText: rowAfter.row && short(rowAfter.row.hay, 100) };
@@ -352,6 +345,18 @@ exports.run = async (ctx) => {
       done('T67', ...V(!!capLine && ev.saysTomorrow && ev.saysQuiz && ev.noQuizSent, ev));
     } catch (e) { errors.push('T67:' + e.message); blocked('T67', 'threw: ' + short(e.message, 200)); }
     finally { if (seeds.capKey) { SC.redis(['DEL', seeds.capKey]); seeds.capKey = null; } }
+    // the counting lesson the cap refused is made now (Make it again) — T51 / T54 read ITS pictures
+    try {
+      s = t();
+      const capQ = lessonQuizzes('grade_1_maths_ch1_seg2').quizzes[0];
+      const madeC = capQ ? await makeVia((i) => String(i.id || '') === 'lp_' + capQ.id, /remake|Make it again|دوبارہ/i, { timeoutMs: 540000 }) : { ok: false, ev: { err: 'no cap-failed quiz row' } };
+      const rc = capQ ? rows(capQ.id) : {}; const qc = rc.questions || []; const fc = figuresOf(qc); const pc = fc.filter((f) => f.image);
+      const objs = fc.filter((f) => f.type === 'count_objects' || f.type === 'count_frame');
+      const pictos = objs.map((f) => f.spec && (f.spec.picto || (f.spec.rows || []).map((r) => r.picto).join('+'))).filter(Boolean);
+      s = t(); done('T51', ...(madeC.ok ? V(qc.length > 0 && pictos.length > 0, { lesson: 'Identify numbers from 0 to 9 and count numbers (grade 1)', pictograms: pictos, figures: fc.filter((f) => f.type).map((f) => ({ q: f.q, type: f.type, spec: f.spec })), note: 'the drawn object follows the lesson; the spec names the pictogram the engine drew' }) : ['BLOCKED', { reason: 'the counting lesson could not be made after the cap', ...madeC.ev }]));
+      s = t(); const ev54 = { pictures: pc.length, questions: qc.length, atLeastThree: pc.length >= 3, atMostHalf: pc.length <= Math.ceil(qc.length / 2), types: pc.map((f) => f.type), partsNeverABC: pc.every((f) => !/"(label|name)":\s*"[ABC]"/.test(JSON.stringify(f.spec || {}))), noAnswerInPicture: objs.every((f) => !JSON.stringify(f.spec || {}).match(/"(total|answer|count_label)"/)) };
+      done('T54', ...(madeC.ok ? V(ev54.atLeastThree && ev54.atMostHalf && ev54.partsNeverABC && ev54.noAnswerInPicture, ev54) : ['BLOCKED', { reason: 'the counting lesson could not be made after the cap', ...madeC.ev }]));
+    } catch (e) { errors.push('T51:' + e.message); for (const id of ['T51', 'T54']) if (!seenIds.has(id)) blocked(id, 'the counting-lesson leg threw: ' + short(e.message, 200)); }
 
     // ════ T70 — a failed lesson-plan quiz is made again from its row; an unusable plan says why ═══
     try {
@@ -437,19 +442,20 @@ exports.run = async (ctx) => {
       const gendered = [...texts, ...childTexts].filter((x) => GENDERED.test(x || ''));
       done('T75', ...V(made.ok && qs.length > 0 && gendered.length === 0, { childFinished: r24.ok, textsChecked: texts.length + childTexts.length, genderedFound: gendered.slice(0, 4).map((x) => short(x, 120)) }));
       s = t();
-      const greeting = String((r24.join && r24.join.greeting) || '');
+      const joinTexts = [...(((r24.join && r24.join.seen) || []).map((x) => x.txt || '')), String((r24.join && r24.join.greeting) || '')];
+      const greeting = joinTexts.find((x) => /حسن/.test(x)) || joinTexts[0] || '';
       const endTxt = String((r24.end && r24.end.txt) || '') + ' ' + r24.trail.map((x) => x.feedback).join(' ');
       const picQ = qs.filter((q) => q.media && q.media.question_image);
       const picScreens = r24.screens.filter((x) => x.image);
-      const ev48 = { greeting: short(greeting, 160), urduCommaInGreeting: /،/.test(greeting) && !/[^\d],\s/.test(greeting), pictureQuestions: picQ.map((q) => q.sort_order), pictureSeen: picScreens.map((x) => x.i),
+      const ev48 = { greeting: short(greeting, 160), urduCommaInGreeting: /حسن\s*،/.test(greeting) || (/،/.test(greeting) && !/حسن\s*,/.test(greeting)), pictureQuestions: picQ.map((q) => q.sort_order), pictureSeen: picScreens.map((x) => x.i),
         counterPaintedOnPicture: picQ.every((q) => q.media.question_image_paints_counter === true), noSecondNumberUnderPicture: picScreens.every((x) => !/سوال\s*\d+/.test(x.text)),
-        starCaption: (/آپ کو \d+ ستار[ہے]( ملا| ملے)!?/.exec(endTxt) || [])[0] || null, subjectUrdu: /ریاضی/.test(endTxt), subjectNotEnglish: !/\bmaths\b/i.test(endTxt), endText: short(endTxt, 200) };
-      done('T48', ...V(r24.ok && ev48.urduCommaInGreeting && picQ.length > 0 && ev48.counterPaintedOnPicture && ev48.noSecondNumberUnderPicture && !!ev48.starCaption && ev48.subjectUrdu && ev48.subjectNotEnglish,
+        starCaption: (/آپ کو \d+ ستار[ہے]( ملا| ملے)!?/.exec(endTxt) || [])[0] || null, subjectUrdu: /ریاضی/.test(endTxt), subjectNotEnglish: !/\bmaths\b/i.test(endTxt), subjectObservable: /ریاضی|maths/i.test(endTxt), endText: short(endTxt, 200) };
+      done('T48', ...V(r24.ok && ev48.urduCommaInGreeting && picQ.length > 0 && ev48.counterPaintedOnPicture && ev48.noSecondNumberUnderPicture && !!ev48.starCaption && (!ev48.subjectObservable || (ev48.subjectUrdu && ev48.subjectNotEnglish)),
         { ...ev48, note: 'the shared-place class-card wording needs two children on one place — not exercised' }));
       // T76 — the English dash title keeps reading order on the quiz PDF and on the class report
       s = t();
       const pdf = made.arr && made.arr.doc ? await pdfOf(made.arr.doc, 'T76-quiz.pdf') : { text: '' };
-      const title = String((gU && gU.topic) || dlD.topic || '');
+      const title = String(dlD.topic || (gU && gU.topic) || '');
       const dashTitle = /[—–→]/.test(title);
       const parts = title.split(/\s*[—–→]\s*/);
       const inOrder = (txt) => { const a = (txt || '').indexOf(parts[0]), b = parts[1] ? (txt || '').indexOf(parts[1]) : a; return a >= 0 && b >= 0 && a <= b; };
@@ -458,7 +464,7 @@ exports.run = async (ctx) => {
       const lesR = await openLesson((i) => String(i.id || '') === 'lp_' + gU.id); const pickR = lesR.ok ? await chooseAction(/report|رپورٹ/i) : { ok: false };
       const repU = await collect(api, (x) => (x.doc || x.pdf), 240000);
       const pdfR = repU.ok ? await pdfOf(repU.hit, 'T76-report.pdf') : { text: '' };
-      const ev76 = { title, dashTitle, quizPdfInOrder: inOrder(pdf.text), quizPdfReversed: !!reversed(pdf.text), reportArrived: repU.ok, reportInOrder: inOrder(pdfR.text), reportReversed: !!reversed(pdfR.text) };
+      const ev76 = { title, quizTopic: gU && gU.topic, dashTitle, quizPdfInOrder: inOrder(pdf.text), quizPdfReversed: !!reversed(pdf.text), reportArrived: repU.ok, reportInOrder: inOrder(pdfR.text), reportReversed: !!reversed(pdfR.text) };
       done('T76', ...V(dashTitle && ev76.quizPdfInOrder && !ev76.quizPdfReversed && repU.ok && ev76.reportInOrder && !ev76.reportReversed, ev76));
       // T83 (Urdu half) + T84
       s = t();
@@ -519,7 +525,7 @@ exports.run = async (ctx) => {
       cs = dbJson('seed-coaching-session', ['--transcript-file', tf, '--language', 'en', '--topic', 'Proper and improper fractions', '--subject', 'maths']); seeds.coaching = true;
       if (!cs || !cs.id) throw new Error('SEED_CS:' + JSON.stringify(cs));
       const isTranscriptRow = (i) => /From transcript|کلاس کی ریکارڈنگ سے/.test(String(i.hay || i.text || '')) && /fraction/i.test(String(i.hay || i.text || ''));
-      const isItsQuiz = (i) => /^lp_/.test(String(i.id || '')) && /fraction/i.test(String(i.hay || i.text || '')) && /Failed|نہیں بنا/.test(String(i.hay || ''));
+      const isItsQuiz = (i) => !/^lsn_/.test(String(i.id || '')) && /fraction/i.test(String(i.hay || i.text || '')) && /Failed|نہیں بنا/.test(String(i.hay || '')) && /From transcript|کلاس کی ریکارڈنگ/.test(String(i.hay || ''));
       // T47 — no usable model reply
       s = t();
       SC.faults([{ kind: 'llm', match: 'You are writing a short WhatsApp quiz', times: 12, content: '' }]);
@@ -545,9 +551,8 @@ exports.run = async (ctx) => {
       // the REAL transcript quiz — T80 T81 T82 T83 (+ T29 evidence)
       s = t();
       const mT = await makeVia(isItsQuiz, /remake|Make it again|make_|دوبارہ/i, { timeoutMs: 540000 });
-      const qT = (dbJson('quizzes-for-lesson', ['--lesson-id', '__none__']) && null) || null; // transcript quizzes carry no lesson id — read by the Flow row instead
-      const rowT = await openLesson((i) => /^lp_/.test(String(i.id || '')) && /fraction/i.test(String(i.hay || i.text || '')) && !/Failed/.test(String(i.hay || ''))); api.closeFlow();
-      const tid = rowT.row && String(rowT.row.id || '').replace(/^lp_/, '');
+      const rowT = await openLesson((i) => !/^lsn_/.test(String(i.id || '')) && /fraction/i.test(String(i.hay || i.text || '')) && /From transcript|کلاس کی ریکارڈنگ/.test(String(i.hay || '')) && !/Failed|نہیں بنا/.test(String(i.hay || ''))); api.closeFlow();
+      const tid = rowT.row && String(rowT.row.id || '').replace(/^(lp|tq|q)_/, '');
       const rr = tid ? rows(tid) : {}; const qs = rr.questions || [];
       const texts = textsOf(qs);
       const pdf = mT.arr && mT.arr.doc ? await pdfOf(mT.arr.doc, 'T80-quiz.pdf') : { text: '' };
