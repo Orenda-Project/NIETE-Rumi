@@ -244,6 +244,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # or refused, never shrunk. Prose in the formula slot is moved to the name line and the linter
     # flags it as a blocking FIGURE defect.
 
+  @e2e @content-driven @P2
+  Scenario: The last lesson of a chapter names no next lesson
+    Given the NIETE bot chat is open on a teacher whose language is English
+    And I have opened the LP Flow
+    When I complete it for the last 6-12 segment of a chapter
+    Then a lesson-plan PDF is delivered to the chat
+    And the lesson strip on page 1 shows no "next" lesson
+    # bd-oak77.38, the mirror of bd-oak77.33 (a first lesson printed an invented "previous").
+    # The corpus marks a last lesson with an empty next_segment_id; the prompt tells the model
+    # sequence.next must be null and the author sanitizer drops whatever it wrote anyway.
+
   @e2e @negative @content-driven @P1
   Scenario: An Urdu overlay that drops the honorific is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu
