@@ -230,6 +230,20 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # medium is Urdu already write the board in Urdu, so they get no extra line. A reused plan
     # missing the line is still delivered, and the top-up pass adds the line later.
 
+  @e2e @content-driven @P2
+  Scenario: Diagram labels on a 6-12 plan stay readable on a phone
+    Given the NIETE bot chat is open on a teacher whose language is English
+    And I have opened the LP Flow
+    When I complete it for a Grade 9 Chemistry segment whose plan carries a labelled diagram
+    Then a lesson-plan PDF is delivered to the chat
+    And no diagram label on it is smaller than the diagram floor, about 8.7px on the phone page
+    And a molecule figure's formula slot holds a formula, never a sentence
+    And a long warm-up label sits on its own line instead of squeezing the warm-up text
+    # bd-oak77.15 / .24 / .31. The floor is 14px on the A4 page the diagram engine draws, which the
+    # phone page scales to about 8.74px. A figure that cannot fit its labels at that size is widened
+    # or refused, never shrunk. Prose in the formula slot is moved to the name line and the linter
+    # flags it as a blocking FIGURE defect.
+
   @e2e @negative @content-driven @P1
   Scenario: An Urdu overlay that drops the honorific is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu
