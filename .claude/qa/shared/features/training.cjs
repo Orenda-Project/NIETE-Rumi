@@ -850,6 +850,9 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       await kid.resetFlow(); await kid.freshReset();
       const g = await kid.sendWait('QUIZ-' + code);
       const ev = { greeting: (g.txt || '').slice(0, 220), buttons: g.btns };
+      // The teacher's OWN link is a self-test: no greeting, no name/class — "This is your own test run"
+      // then question 1 at once (run 20260925-1018). The reply we already hold IS the first question.
+      if (isChildQ(g)) return { ok: true, ...ev, joinVia: 'self-test', q: g, seen: [g], last: '' };
       if ((g.btns || []).some(b => /^Start$|شروع کریں/.test(b))) {
         const op = await kid.openFlow('^Start$|شروع کریں');
         if (!op.ok) return { ok: false, err: 'JOIN_FLOW:' + op.err, ...ev };
@@ -950,11 +953,17 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
         ev38.typedB = { recorded: !!(a1.next || a1.ended), feedback: a1.feedback };
         const a2 = a1.next ? await childAnswer(k1, a1.next, 'Z', { type: true }) : { ok: false };
         ev38.typedZ = { taken: a2.ok && a2.next && a2.next !== a1.next, feedback: (a2.feedback || '').slice(0, 120) };
-        // the teacher opens her own link, answers one, then /menu must still be the menu
-        await api.freshReset(); const tj = await childJoin(api, enq.code, 'E2E Driver', 'Grade 3');
-        if (tj.ok) await childAnswer(api, tj.q, 'A', { type: true });
-        const menu = await api.sendWait('/menu');
-        ev38.teacherMenuAfterOwnRun = { reply: (menu.txt || '').slice(0, 120), isMenu: /menu|مینو|choose|Lesson plan|Training/i.test(menu.txt || '') || (menu.btns || []).length > 0 || !!menu.list };
+        // the teacher opens her own link, answers one, then /menu must still be the menu. Her run is
+        // ended with STOP afterwards: left mid-quiz she answers every later /quiz with "You're in the
+        // middle of a quiz" and the rest of this feature dies with her (run 20260925-1018).
+        try {
+          await api.freshReset(); const tj = await childJoin(api, enq.code, 'E2E Driver', 'Grade 3');
+          ev38.teacherOwnRun = { joined: tj.ok, via: tj.joinVia, err: tj.err || (tj.ok ? null : tj.last) };
+          if (tj.ok && tj.q) await childAnswer(api, tj.q, 'A', { type: true });
+          const menu = await api.sendWait('/menu');
+          ev38.teacherMenuAfterOwnRun = { reply: (menu.txt || '').slice(0, 160), btns: menu.btns, isMenu: /menu|مینو|choose|Lesson plan|Training/i.test(menu.txt || '') || (menu.btns || []).length > 0 || !!menu.list };
+        } catch (e) { ev38.teacherOwnRun = { threw: String((e && e.message) || e).slice(0, 200) }; ev38.teacherMenuAfterOwnRun = { isMenu: false }; }
+        finally { try { await api.freshReset(); await api.sendWait('stop'); await api.sendWait('/menu'); } catch (e) {} }
         R('T38')(V(ev38.typedB.recorded && !ev38.typedZ.taken && ev38.teacherMenuAfterOwnRun.isMenu, ev38), t() - s);
         // finish k1 correctly so she counts as finished
         let q = a2.next || a1.next; for (let i = 0; q && i < 6; i++) { const a = await childAnswer(k1, q, KEY_TEXT[Math.min(i + 2, 3)]); if (a.ended) break; q = a.next; }
