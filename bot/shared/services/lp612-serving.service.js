@@ -290,7 +290,11 @@ async function tell(phone, key, lang) {
   // it. Guarding at the door makes "a surface with no phone number" unrepresentable downstream.
   if (!phone) return;
   try {
-    await WhatsAppService.sendMessage(phone, resolveUx(key, { language: lang }));
+    const copy = resolveUx(key, { language: lang });
+    const ok = await WhatsAppService.sendMessage(phone, copy);
+    // bd-oak77.20: the template key AND the resolved text she received — whatsapp.service's own
+    // send line carries only a messageId. No phone here: it is not needed to rebuild the copy.
+    if (ok) logEvent('lp612.send.sent', { kind: 'text', uxKey: key, lang: lang || null, copy });
   } catch (err) {
     logToFile('LP 6-12: could not send message', { key, error: err.message });
   }
@@ -762,7 +766,13 @@ async function deliverRender({
   const body = buildBody({ oneScreen, segment });
   if (body) {
     try {
-      await WhatsAppService.sendMessage(phone, body);
+      const ok = await WhatsAppService.sendMessage(phone, body);
+      // bd-oak77.20: the exact summary text she received, beside the ids that name the lesson.
+      if (ok) {
+        logEvent('lp612.send.sent', {
+          kind: 'body', segmentId: segment && segment.segment_id, lang, renderId, userId: userId || null, copy: body,
+        });
+      }
     } catch (err) {
       logToFile('LP 6-12: could not send lesson body', {
         segmentId: segment && segment.segment_id, error: err.message,
@@ -778,14 +788,16 @@ async function deliverRender({
   // to a successful one to everything downstream — recordDelivery ran, the feedback prompt was
   // scheduled, and the worker's per-waiter loop counted her as `delivered`. A teacher who got
   // nothing was told, on every surface, that she had been served.
+  const filename = buildFilename(segment, lang);
+  const caption = buildCaption(segment, lang, {
+    overlayDropped: overlayDropped === true,
+    renderDegraded: renderDegraded === true,
+  });
   const sent = await sendDocumentWithRetry({
     phone,
     url,
-    filename: buildFilename(segment, lang),
-    caption: buildCaption(segment, lang, {
-      overlayDropped: overlayDropped === true,
-      renderDegraded: renderDegraded === true,
-    }),
+    filename,
+    caption,
     maxAttempts: sendMaxAttempts,
     retryDelaysMs: sendRetryDelaysMs,
     deadlineAt: sendDeadlineAt,
@@ -811,6 +823,12 @@ async function deliverRender({
     // the bug this closes — is what let a failed send read as a success on every surface below.
     throw new Error(`LP 6-12: document send failed after ${sent.attempts} attempt(s): ${sent.error}`);
   }
+
+  // bd-oak77.20: the caption she received with the PDF (it carries the overlay/degraded notices).
+  logEvent('lp612.send.sent', {
+    kind: 'document', segmentId: segment && segment.segment_id, lang, renderId, userId: userId || null,
+    filename, copy: caption, attempts: sent.attempts,
+  });
 
   // AFTER the document, never before, and ONLY on a send that actually succeeded: recording is
   // for us, the PDF is for her, and a record of a lesson she never received is worse than no

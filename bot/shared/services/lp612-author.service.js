@@ -473,7 +473,13 @@ async function callLlm({ system, user, model, correlationId, stage, maxTokens, u
     usage: res.usage || null,
   });
 
-  return { text: String(text), usage: (res && res.usage) || {} };
+  return {
+    text: String(text),
+    usage: (res && res.usage) || {},
+    // bd-oak77.19: 'length' here is the difference between "the model wrote the wrong shape" and
+    // "the model was cut off mid-shape" — a rejected patch cannot be diagnosed without it.
+    finishReason: (res && res.choices && res.choices[0] && res.choices[0].finish_reason) || null,
+  };
 }
 
 /**
@@ -540,12 +546,15 @@ function modelLabel(chosenModel, usage) {
   return (usage && usage.provider_fallback_calls > 0) ? `${chosenModel}+fallback` : chosenModel;
 }
 
-async function callWithRetry({ system, user, model, correlationId, stage, usageSink, maxTokens, userCachePrefix }) {
+async function callWithRetry({ system, user, model, correlationId, stage, usageSink, maxTokens, userCachePrefix, replySink }) {
   let lastErr = null;
   for (const attempt of [1, 2]) {
     try {
-      const { text, usage } = await callLlm({ system, user, model, correlationId, stage: `${stage}.a${attempt}`, maxTokens, userCachePrefix });
+      const { text, usage, finishReason } = await callLlm({ system, user, model, correlationId, stage: `${stage}.a${attempt}`, maxTokens, userCachePrefix });
       usageSink(usage);
+      // bd-oak77.19: the raw reply of the attempt whose JSON is returned, for a caller that has
+      // to explain a reply it then rejects. Telemetry only — never read by a decision.
+      if (replySink) replySink({ text, finishReason });
       try {
         return extractJson(text);
       } catch (e) {
@@ -1203,6 +1212,31 @@ function parseTargetedReply(parsed) {
   return { mode: 'invalid' };
 }
 
+/**
+ * bd-oak77.19: WHY `parseTargetedReply` said 'invalid', as the same `{pointers, errors}` pair a
+ * rejected merge carries — so `patch_rejected` never arrives as `pointers:[] errors:[]`. The
+ * pointers are the reply's own top-level keys (what the model DID send), escaped as JSON Pointer
+ * tokens. Telemetry only: nothing decides on this.
+ */
+function describeInvalidReply(parsed) {
+  const kind = (v) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v);
+  if (kind(parsed) !== 'object') {
+    return { pointers: [], errors: [`reply must be an object with "replace" or "full", got ${kind(parsed)}`] };
+  }
+  const keys = Object.keys(parsed);
+  const pointers = keys.slice(0, 10).map((k) => `/${k.replace(/~/g, '~0').replace(/\//g, '~1')}`);
+  const errors = [];
+  for (const k of ['replace', 'full']) {
+    if (k in parsed && kind(parsed[k]) !== 'object') {
+      errors.push(`"${k}" must be an object, got ${kind(parsed[k])}`);
+    }
+  }
+  if (!errors.length) {
+    errors.push(`reply has neither "replace" nor "full" (top-level keys: ${keys.slice(0, 10).join(', ') || 'none'})`);
+  }
+  return { pointers, errors };
+}
+
 function targetedRevisionPreamble(allowedPointers) {
   return (
     'Your previous lp_doc is below, followed by every defect found by the schema validator and '
@@ -1648,6 +1682,9 @@ function applyVideo(doc, video) {
  * `meta` is optional context (correlationId/segmentId/round) for the telemetry line below — it
  * changes nothing about the gate decision, only what a schema failure can be traced back to.
  */
+/** How many schema messages `lp612.author.schema_invalid` carries (was 5, bd-oak77.19). */
+const SCHEMA_INVALID_ERRORS_LOGGED = 20;
+
 async function runGates(doc, renderCheck, meta = {}) {
   const v = validateDoc(doc);
   // The `SCHEMA:` prefix is the lint's own vocabulary for the same finding — worth matching so
@@ -1661,7 +1698,10 @@ async function runGates(doc, renderCheck, meta = {}) {
       segmentId: meta.segmentId || null,
       round: typeof meta.round === 'number' ? meta.round : null,
       errorCount: v.errors.length,
-      errors: v.errors.slice(0, 5),
+      errors: v.errors.slice(0, SCHEMA_INVALID_ERRORS_LOGGED),
+      // bd-oak77.19: the truncation, stated — `errors.length < errorCount` must never read as
+      // "these are all of them".
+      errorsOmitted: Math.max(0, v.errors.length - SCHEMA_INVALID_ERRORS_LOGGED),
     });
     return { schema: v.errors.map((e) => `SCHEMA: ${e}`), lint: [], render: [], warns: [] };
   }
@@ -2292,17 +2332,27 @@ async function authorLessonPlan({
     let pointersReplaced = 0;
     const completionTokensBefore = usage.completion_tokens;
 
+    // bd-oak77.19: the reply the targeted call actually got, so a rejection can say what it was.
+    let lastReply = null;
+    const noteReply = (r) => { lastReply = r; };
     const notePatchRejected = (reason, pointers, errors) => {
+      const replyText = lastReply ? String(lastReply.text) : '';
+      const detail = {
+        pointers: pointers.slice(0, 10),
+        errors: (errors || []).slice(0, 10),
+        replyChars: replyText.length,
+        replyPreview: replyText.slice(0, 500),
+        finishReason: (lastReply && lastReply.finishReason) || null,
+      };
       logToFile('lp612 author: targeted patch rejected — falling back to a full rewrite this round', {
-        correlationId, segmentId: segment.segment_id, round: spent, reason,
-        pointers: pointers.slice(0, 10), errors: (errors || []).slice(0, 10),
+        correlationId, segmentId: segment.segment_id, round: spent, reason, ...detail,
       }, 'warn');
       logEvent('lp612.author.patch_rejected', {
         correlationId: correlationId || null,
         segmentId: segment.segment_id || null,
         round: spent,
         reason,
-        pointers: pointers.slice(0, 10),
+        ...detail,
       });
     };
 
@@ -2317,6 +2367,7 @@ async function authorLessonPlan({
         const parsed = await callWithRetry({
           system, user: fixUser, model: chosenModel, correlationId,
           stage: `revision${spent}`, usageSink: addUsage, userCachePrefix: cachePrefix,
+          replySink: noteReply,
         });
         const shape = parseTargetedReply(parsed);
         if (shape.mode === 'full') {
@@ -2342,7 +2393,8 @@ async function authorLessonPlan({
             patchMode = 'fallback';
           }
         } else {
-          notePatchRejected('unparseable_shape', []);
+          const why = describeInvalidReply(parsed);
+          notePatchRejected('unparseable_shape', why.pointers, why.errors);
           const fallbackUser = buildRevisionPrompt({
             doc, gates, originalUser: user, notes: segment.notes, lang: language,
             stableFirst: promptCacheOn,
@@ -3175,6 +3227,7 @@ module.exports = {
   deriveAllowedPointers,
   applyReplacements,
   parseTargetedReply,
+  describeInvalidReply,
   __notWorseVisualForTests: (a, b, ad, bd) => notWorseVisual(a, b, ad, bd),
   pythonDictToJson,
   __extractJsonForTests: extractJson,

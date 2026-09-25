@@ -406,6 +406,26 @@ describe('failure is told, not swallowed', () => {
     expect(done.payload).toMatchObject({ status: 'failed', error_code: 'AUTHOR_LLM_FAILED' });
   });
 
+  // bd-oak77.20: the copy each waiter received is on the log, with its ux key; never the phone.
+  test('each waiter message lands on lp612.send.sent with its ux key and verbatim copy', async () => {
+    const err = new Error('openrouter 502');
+    err.code = 'AUTHOR_LLM_FAILED';
+    mockAuthorLessonPlan.mockRejectedValue(err);
+    mockSendMessage.mockResolvedValue(true);
+    seed();
+
+    await Worker.process(JOB);
+
+    const sent = mockLogEvent.mock.calls.filter((c) => c[0] === 'lp612.send.sent').map((c) => c[1]);
+    expect(sent).toHaveLength(2);
+    sent.forEach((e, i) => {
+      expect(e).toMatchObject({ kind: 'text', userId: TWO_WAITERS[i].user_id });
+      expect(typeof e.uxKey).toBe('string');
+      expect(e.copy).toBe(mockSendMessage.mock.calls[i][1]);
+      expect(JSON.stringify(e)).not.toContain(TWO_WAITERS[i].phone);
+    });
+  });
+
   test('a render failure is a failure too — a doc nobody can read is not a success', async () => {
     const err = new Error('chromium died');
     err.code = 'RENDER_FAILED';
