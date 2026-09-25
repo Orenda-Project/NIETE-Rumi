@@ -62,7 +62,7 @@ WITH n AS (
               WHEN length(d) = 10 THEN '92' || d
               ELSE d END AS ph
   FROM n
-), roster AS (
+), {CLEARED_CTE}roster AS (
   SELECT lt.teacher_phone_e164 AS ph, lt.teacher_name, lt.school_ext_id, lt.leader_user_id,
          coalesce(lt.school_id, ls.school_id) AS roster_school_id
   FROM leader_teachers lt
@@ -71,6 +71,11 @@ WITH n AS (
   WHERE lt.teacher_phone_e164 IS NOT NULL
 )
 SELECT u.id::text AS user_id, u.ph AS phone_e164, u.role, u.school_id::text AS current_school_id,
+       (SELECT a.action FROM leader_roster_audit a
+         WHERE a.teacher_phone_e164 = u.ph AND a.action IN ('add', 'remove', 'move')
+           AND (a.detail->>'backfill') IS NULL
+         ORDER BY a.created_at DESC LIMIT 1) AS last_membership_action,
+       {CLEARED_EXPR} AS school_id_ever_cleared,
        r.roster_school_id::text AS roster_school_id, r.school_ext_id,
        r.leader_user_id::text AS leader_user_id, coalesce(r.teacher_name, u.name) AS teacher_name,
        s.name AS school_name, s.emis, s.region,
@@ -126,11 +131,85 @@ def has_column(conn, table, col):
         return cur.fetchone() is not None
 
 
+CLEARED_CTE_SQL = """cleared AS (
+  SELECT DISTINCT h.row_id::text AS uid FROM record_history h
+  WHERE h.table_name = 'users' AND (h.old_vals->>'school_id') IS NOT NULL
+    AND (h.new_vals ? 'school_id') AND (h.new_vals->>'school_id') IS NULL
+), """
+
+
 def fetch_candidates(conn):
     deleted = "AND u.deleted_at IS NULL" if has_column(conn, "users", "deleted_at") else ""
+    has_history = has_column(conn, "record_history", "new_vals")
+    sql = (CANDIDATES_SQL.replace("{DELETED_FILTER}", deleted)
+           .replace("{CLEARED_CTE}", CLEARED_CTE_SQL if has_history else "")
+           .replace("{CLEARED_EXPR}", "EXISTS (SELECT 1 FROM cleared c WHERE c.uid = u.id::text)"
+                    if has_history else "false"))
     with conn.cursor() as cur:
-        cur.execute(CANDIDATES_SQL.replace("{DELETED_FILTER}", deleted))
+        cur.execute(sql)
         return [dict(r) for r in cur.fetchall()]
+
+
+UNDO_SQL = r"""
+WITH mine AS (
+  SELECT (a.detail->>'user_id') AS user_id, a.teacher_phone_e164 AS phone_e164, a.teacher_name,
+         a.actor_user_id::text AS actor_user_id, a.to_school_ext_id AS school_ext_id,
+         (a.detail->>'target_school_id') AS target_school_id, a.created_at AS run_at
+  FROM leader_roster_audit a
+  WHERE a.detail->>'backfill' = 'roster_school_id' AND a.detail->>'run_id' = %(run_id)s
+)
+SELECT m.user_id, m.phone_e164, m.teacher_name, m.actor_user_id, m.school_ext_id, m.target_school_id,
+       u.school_id::text AS current_school_id,
+       (SELECT b.action FROM leader_roster_audit b
+         WHERE b.teacher_phone_e164 = m.phone_e164 AND b.action IN ('add', 'remove', 'move')
+           AND (b.detail->>'backfill') IS NULL AND b.created_at < m.run_at
+         ORDER BY b.created_at DESC LIMIT 1) AS prior_action,
+       (SELECT b.action FROM leader_roster_audit b
+         WHERE b.teacher_phone_e164 = m.phone_e164 AND b.action IN ('add', 'remove', 'move')
+           AND (b.detail->>'backfill') IS NULL AND b.created_at > m.run_at
+         ORDER BY b.created_at DESC LIMIT 1) AS later_action
+FROM mine m LEFT JOIN users u ON u.id::text = m.user_id
+"""
+
+
+def undo(conn, run_id, commit, out_dir, target):
+    with conn.cursor() as cur:
+        cur.execute(UNDO_SQL, {"run_id": run_id})
+        rows = [dict(r) for r in cur.fetchall()]
+    picked = logic.select_undo(rows)
+    print(f"[{target}] undo {run_id}: {len(rows)} relinks in the run, {len(picked)} re-linked a coach-removed "
+          f"teacher and are unchanged since")
+    out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    with open(out / f"undo-{target}-{stamp}-{'commit' if commit else 'dryrun'}.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=["user_id", "phone_e164", "target_school_id", "current_school_id",
+                                          "prior_action", "later_action", "selected"])
+        w.writeheader()
+        ids = {p["user_id"] for p in picked}
+        for r in rows:
+            w.writerow({**{k: r.get(k) for k in w.fieldnames if k != "selected"}, "selected": r["user_id"] in ids})
+    if not commit:
+        conn.rollback()
+        print("DRY RUN — nothing written.")
+        return
+    with conn.cursor() as cur:
+        for p in picked:
+            cur.execute("UPDATE users SET school_id = NULL WHERE id = %s AND school_id = %s",
+                        (p["user_id"], p["target_school_id"]))
+            if cur.rowcount != 1:
+                conn.rollback()
+                raise SystemExit(f"ABORT (rolled back): user {p['user_id']} changed under us")
+        audit = [logic.undo_audit_row(p, run_id) for p in picked]
+        if audit:
+            psycopg2.extras.execute_values(
+                cur,
+                "INSERT INTO leader_roster_audit (action, actor_user_id, affected_leader_user_id, teacher_ext_id, "
+                "teacher_phone_e164, teacher_name, from_school_ext_id, to_school_ext_id, detail) VALUES %s",
+                [(a["action"], a["actor_user_id"], a["affected_leader_user_id"], a["teacher_ext_id"],
+                  a["teacher_phone_e164"], a["teacher_name"], a["from_school_ext_id"], a["to_school_ext_id"],
+                  psycopg2.extras.Json(a["detail"])) for a in audit])
+    conn.commit()
+    print(f"COMMITTED {len(picked)} undo writes + {len(picked)} leader_roster_audit 'remove' rows.")
 
 
 COLS = ["decision", "user_id", "phone_e164", "role", "current_school_id", "target_school_id",
@@ -212,6 +291,8 @@ def main():
     ap.add_argument("--skip-role", action="append", default=[], metavar="ROLE",
                     help="hold this role back (repeatable), e.g. --skip-role principal: a principal's "
                          "school_id also grants the school's staff-attendance register")
+    ap.add_argument("--undo-removed-relinks", metavar="RUN_ID", default=None,
+                    help="reverse the relinks RUN_ID made of teachers a coach had removed (unchanged since)")
     ap.add_argument("--confirm-ref", default=None, help="with --commit on prod: the prod project ref, typed out")
     a = ap.parse_args()
 
@@ -221,6 +302,9 @@ def main():
                          "after the operator's explicit go.")
 
     conn = connect(read_env(a.env_file), a.target, writable=a.commit)
+    if a.undo_removed_relinks:
+        undo(conn, a.undo_removed_relinks, a.commit, a.out, a.target)
+        return
     run_id = f"roster-school-backfill-{a.target}-{uuid.uuid4().hex[:8]}"
     rows = fetch_candidates(conn)
     decisions = logic.classify_all(rows, skip_roles=set(a.skip_role))
