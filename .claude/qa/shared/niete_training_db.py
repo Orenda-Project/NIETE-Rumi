@@ -191,7 +191,7 @@ def _get(creds, table, q):  return _req("GET", "/rest/v1/%s?%s" % (table, q), cr
 
 def cmd_lookup(creds, a):
     phone = a.phone
-    u = _get(creds, "users", "phone_number=eq.%s&select=id,phone_number,first_name,name,registration_completed,registration_state,preferred_language,language_locked,role" % phone)
+    u = _get(creds, "users", "phone_number=eq.%s&select=id,phone_number,name,registration_completed,registration_state,preferred_language,language_locked,role" % phone)
     print("USER:", json.dumps(u, ensure_ascii=False, indent=1))
     print("PROGRAMS:", json.dumps(_get(creds, "training_programs", "select=id,key,name,is_active&order=key"), ensure_ascii=False, indent=1))
     print("VENDORS:", json.dumps(_get(creds, "training_vendors", "select=id,key,name,passing_pct,unlock_logic&order=key"), ensure_ascii=False, indent=1))

@@ -30,6 +30,14 @@ const { excludeSelfTests } = require('./teacher-self-test');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 
 const NUDGE_BELOW = 5;
+/**
+ * How long after the link goes out the nudge falls due (before the quiet window
+ * moves it). Owned HERE, the nudge's own module: the handoff schedules the job with
+ * it and this module decides which nudges are due with it, so the two read one
+ * number. It lives here rather than in the handoff because the handoff already
+ * requires this module — the other direction would be a require cycle.
+ */
+const NUDGE_AFTER_MS = 6 * 60 * 60 * 1000;
 const PKT_OFFSET_MIN = 5 * 60;
 /** Nothing is sent to a teacher between these PKT hours. */
 const QUIET_FROM_PKT = 21;
@@ -166,6 +174,25 @@ function titled(topic, language) {
   return `*${isolate(text)}*`;
 }
 
+/** How far back a sent quiz is looked for when gathering nudges due today. A due
+ *  nudge was sent at least six hours ago and at most about sixteen (six waking hours
+ *  across one night); two days is slack, and the rule below does the deciding. */
+const DUE_LOOKBACK_MS = 2 * 24 * 60 * 60 * 1000;
+
+/**
+ * Has this quiz's OWN nudge fallen due within the last day? Its job was queued at
+ * first send for six hours later, pushed out of the quiet window — the same target
+ * the handoff computes. A quiz already stamped (`nudged_at`) never is.
+ */
+function ownNudgeDueToday(q, now = new Date()) {
+  const meta = q && q.meta ? q.meta : {};
+  if (!q || q.status !== 'sent' || meta.nudged_at || !meta.sent_at) return false;
+  const sentMs = Date.parse(meta.sent_at);
+  if (!Number.isFinite(sentMs)) return false;
+  const due = nudgeTargetUtc(new Date(sentMs + NUDGE_AFTER_MS)).getTime();
+  return due <= now.getTime() && due > now.getTime() - 24 * 60 * 60 * 1000;
+}
+
 /** None, one, several — "0 student(s)" is not a sentence. */
 function nudgeKeyFor(started) {
   if (started <= 0) return 'tqNudgeNone';
@@ -180,17 +207,42 @@ async function process(quizId) {
   if (quiz.status !== 'sent') return { skipped: `status_${quiz.status}` };
   if (quiz.meta?.nudged_at) return { skipped: 'already_nudged' };
 
-  const dayStart = pktDayStartIso();
-  const { data: sameDay } = await supabase.from('quizzes')
-    .select('id, topic, status, meta').eq('teacher_id', quiz.teacher_id)
-    .gte('created_at', dayStart);
-  const others = (sameDay || []).filter((q) => q.id !== quiz.id);
+  const now = new Date();
+  const dayStart = pktDayStartIso(now);
 
-  // ONE a day. A teacher already nudged today hears nothing more, whichever
-  // quiz the job was queued for.
-  if (others.some((q) => (q.meta || {}).nudged_at >= dayStart)) {
+  // ONE a day, counted on the day the teacher was NUDGED. The day a quiz was MADE
+  // is the wrong key: a quiz row is made when the quiz is offered and can be sent
+  // days later from /quiz, so several older quizzes sent in one evening all had
+  // their nudges held to the same 07:00 — and not one of them was "made today",
+  // so none could see that another had already spoken (production: up to three
+  // separate messages in seven minutes).
+  const { data: nudgedToday, error: nudgedErr } = await supabase.from('quizzes')
+    .select('id, meta').eq('teacher_id', quiz.teacher_id)
+    .gte('meta->>nudged_at', dayStart);
+  if (nudgedErr) {
+    logToFile('❌ transcript quiz nudge: could not read today\'s nudges', { quizId, error: nudgedErr.message }, 'error');
+  }
+  if ((nudgedToday || []).some((q) => q.id !== quiz.id && (q.meta || {}).nudged_at >= dayStart)) {
     return { skipped: 'teacher_nudged_today' };
   }
+
+  // The OTHER quiet lessons that ride in this message: the ones made today (as
+  // before), and the ones whose own nudge falls due today by now — those are the
+  // jobs that would otherwise each speak a few minutes after this one.
+  const since = new Date(now.getTime() - DUE_LOOKBACK_MS).toISOString();
+  const [{ data: sameDay }, { data: recentlySent }] = await Promise.all([
+    supabase.from('quizzes')
+      .select('id, topic, status, meta').eq('teacher_id', quiz.teacher_id)
+      .gte('created_at', dayStart),
+    supabase.from('quizzes')
+      .select('id, topic, status, meta').eq('teacher_id', quiz.teacher_id)
+      .eq('status', 'sent').gte('meta->>sent_at', since),
+  ]);
+  const byId = new Map();
+  for (const q of sameDay || []) byId.set(q.id, q);
+  for (const q of recentlySent || []) if (ownNudgeDueToday(q, now)) byId.set(q.id, q);
+  byId.delete(quiz.id);
+  const others = [...byId.values()];
 
   // PLAN_R5 D8 — this count decides whether a teacher is told "only N children
   // have started"; their own test run of the class link must not read as
@@ -244,6 +296,6 @@ async function process(quizId) {
 }
 
 module.exports = {
-  process, NUDGE_BELOW, nudgeTargetUtc, quietAwareDeadlineUtc, nudgeDispatch, pktDayStartIso,
+  process, NUDGE_BELOW, NUDGE_AFTER_MS, nudgeTargetUtc, quietAwareDeadlineUtc, nudgeDispatch, pktDayStartIso,
   QUIET_FROM_PKT, QUIET_TO_PKT,
 };

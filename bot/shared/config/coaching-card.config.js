@@ -48,7 +48,9 @@ const COACHING_CARD_COPY = {
     focusAreaTitle: 'آپ کی توجہ کا شعبہ',
     focusAreaMessage: '🎯 *آپ کی توجہ کا شعبہ*\n\n{action}\n\n💡 _{example}_',
     sessionCompleteLead: '✅ آپ کا کوچنگ سیشن یہاں مکمل ہو گیا ہے۔',
-    commitPrompt: 'کیا آپ اگلی کلاس میں یہ آزمانے کا عہد کریں گے؟',
+    // The subjunctive («عہد کریں؟»), never the masculine future «عہد کریں گے؟»:
+    // the teacher's gender is unknown (operator, 24 Sep).
+    commitPrompt: 'کیا اگلی کلاس میں یہ آزمانے کا عہد کریں؟',
     // WhatsApp caps a button title at 20 CODE POINTS: the old yes title was 25
     // and Meta rejected the whole interactive send, so Urdu teachers never got
     // these buttons. It also said کروں گا — the teacher speaks this button, and

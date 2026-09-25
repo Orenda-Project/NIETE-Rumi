@@ -123,8 +123,9 @@ describe('INIT → the LESSONS screen', () => {
     const first = out.data.items[0];
     expect(first.id).toBe('s-1');
     // The full topic is never truncated away: the NavigationList metadata slot
-    // is 80 code points, four times a WhatsApp list row's description.
-    expect(first['main-content'].metadata).toBe('Lesson topic number 1');
+    // is 80 code points, four times a WhatsApp list row's description. It
+    // follows the row's source label (R11: every row says where it came from).
+    expect(first['main-content'].metadata).toBe('From transcript · Lesson topic number 1');
     expect(first['on-click-action']).toEqual({
       name: 'data_exchange',
       payload: { step: 'lesson', session_id: 's-1' },
@@ -340,16 +341,52 @@ describe('a lesson tap continues the Flow with the live results (operator item 2
     }
   });
 
+  // The recording line ("did not produce a good quiz from this lesson's
+  // recording") is said ONLY when the recording was the problem. Questions that
+  // never passed our checks, answers the blind solve held back, and a reason
+  // nobody wrote copy for are ours — and each can be made again from here.
   test.each([
-    ['validator_failed', { error: 'validator_failed' }],
-    ['no marker (a row before any reason was stored)', {}],
-  ])('a FAILED quiz that is not the model’s (%s) keeps the existing lesson-screen line', async (_label, meta) => {
-    stub({
-      users, coaching_sessions: [session(1)],
-      quizzes: [{ ...SENT_QUIZ, status: 'failed', meta }], quiz_sessions: [],
-    });
-    const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
-    expect(out.data.results).toBe(marked('tqFlowResultsFailed', 'en'));
+    ['validator_failed', { error: 'validator_failed' }, 'tqFlowResultsFailedAuthor'],
+    ['no marker (a row before any reason was stored — it failed validation)', {}, 'tqFlowResultsFailedAuthor'],
+    ['key_conflict', { error: 'key_conflict' }, 'tqFlowResultsFailedAuthor'],
+    ['key_disagreement', { error: 'key_disagreement' }, 'tqFlowResultsFailedKeys'],
+    ['a reason nobody wrote copy for', { error: 'something_new' }, 'tqFlowResultsFailedModel'],
+    ['source_unusable (the recording IS the problem)', { error: 'source_unusable' }, 'tqFlowResultsFailed'],
+  ])('a FAILED recording quiz (%s) says why, in both languages, and can still be made again', async (_label, meta, key) => {
+    for (const lang of ['en', 'ur']) {
+      stub({
+        users: [{ id: TEACHER, phone_number: '923001112222', preferred_language: lang }],
+        coaching_sessions: [session(1)],
+        quizzes: [{ ...SENT_QUIZ, status: 'failed', meta }], quiz_sessions: [],
+      });
+      const out = await endpoint.handleTranscriptQuizDataExchange(TOKEN, 'LESSONS', { step: 'lesson', session_id: 's-1' });
+      expect(out.data.results).toBe(marked(key, lang));
+      if (key !== 'tqFlowResultsFailed') expect(out.data.results).not.toMatch(/recording didn|ریکارڈنگ سے اچھا quiz نہیں/);
+      expect(out.data.actions.length).toBeGreaterThan(0);
+      expect(out.data.actions.every((a) => a.id.startsWith('make'))).toBe(true);
+    }
+  });
+
+  test.each(['tqFlowResultsFailedAuthor', 'tqFlowResultsFailedKeys'])('%s is ours, offers another go, and is gender-neutral', (key) => {
+    const { genderedTeacherForms } = require('../../shared/services/quiz/transcript-quiz-pedagogy');
+    const { addressForms } = require('../../shared/services/quiz/transcript-quiz-address');
+    const { en, ur } = UX_STRINGS[key];
+    expect(en).toMatch(/make it again/i);
+    expect(ur).toMatch(/دوبارہ بنایا جا سکتا ہے/);
+    expect(en).not.toMatch(/next lesson/i);
+    for (const s of [en, ur]) {
+      expect(s).not.toMatch(/\b(she|her|hers|herself|he|him|his|himself)\b/i);
+      expect(genderedTeacherForms(s, 'ur')).toEqual([]);
+      expect(addressForms(s, { kind: 'explanation' })).toEqual([]);
+      expect(s).not.toMatch(/\{\w+\}/);
+    }
+    if (key === 'tqFlowResultsFailedAuthor') {
+      expect(en).toMatch(/not your recording/i);
+      expect(ur).toMatch(/میری طرف سے/);
+    } else {
+      expect(en).toMatch(/held back/i);
+      expect(ur).toMatch(/روک لیا گیا/);
+    }
   });
 
   test('another teacher’s session is refused — the Flow stays on LESSONS with a message', async () => {
@@ -659,7 +696,7 @@ describe('an lp_v8 quiz in the /quiz Flow (PLAN_R8 D11)', () => {
     expect(out.data.items.map((i) => i.id)).toEqual(['s-1', 'lp_lpq-1', 's-3']);
     const item = out.data.items[1];
     expect(item['main-content'].title).toMatch(/^30 Aug · /);
-    expect(item['main-content'].metadata).toBe('Add a 3-digit and a 2-digit number');
+    expect(item['main-content'].metadata).toBe('From lesson plan · Add a 3-digit and a 2-digit number');
     expect(item['on-click-action']).toEqual({ name: 'data_exchange', payload: { step: 'lesson', session_id: 'lp_lpq-1' } });
     out.data.items.forEach((i) => {
       expect(cp(i['main-content'].title)).toBeLessThanOrEqual(endpoint.TITLE_MAX);

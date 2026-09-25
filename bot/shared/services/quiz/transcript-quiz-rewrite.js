@@ -21,7 +21,7 @@
  * rewrite that repaired one of two rejections still ships one more question
  * than it would have.
  *
- * TWO CONTRACTS ASSERTED IN CODE, not left to the prompt (root rule 24c):
+ * THREE CONTRACTS ASSERTED IN CODE, not left to the prompt (root rule 24c):
  *   - a replacement that carries a "figure" is DISCARDED and its original is
  *     kept. The picture rules are what several of these questions failed, a
  *     replacement gets no second attempt at drawing, and silently stripping a
@@ -29,6 +29,11 @@
  *     pointing at nothing.
  *   - a replacement keeps its question's slo_id and level unless it names its
  *     own, so SLO coverage and the level mix cannot be broken by the repair.
+ *   - a question rejected ONLY for a name in English letters is not rewritten
+ *     by the model at all. The model gives the name's Urdu spelling and the
+ *     code writes it into the question as it was, picture labels included:
+ *     replayed, the model wrote a DIFFERENT question for every question it
+ *     was told to keep, which would lose a sound question and its picture.
  *
  * ROUND 6 ADDED ONE QUIZ-LEVEL FIELD: `lesson_summary`. It is the field the
  * operator caught a gendered "She" on, and it is the only quiz-level complaint
@@ -45,15 +50,26 @@
  */
 
 const { completeJson } = require('./transcript-quiz-llm');
+const People = require('./transcript-quiz-people');
+const { PUPILS_RULE } = require('./transcript-quiz-pupils');
+/**
+ * A question rejected for PEDAGOGY_PUPIL_AS_SUBJECT named a child from the
+ * class, asked what a child said or did in class, or said something about a
+ * named child's behaviour. It is not repaired in place: a NEW question takes
+ * its slot, and if the new one is rejected too the question is dropped.
+ */
+const PUPIL_REPAIR = 'A CHILD FROM THE CLASS. A question rejected for PEDAGOGY_PUPIL_AS_SUBJECT made a child from the class its subject: it named the child, asked what a child said or did in class, or said something about a named child\'s behaviour. Write a NEW question on the same SLO and level about the lesson\'s idea itself — no child\'s name anywhere (question, options, explanation, feedback), nothing about what anyone said or did in class, no sentence about anyone\'s behaviour.';
+const PUPIL = /^q\d+: PEDAGOGY_PUPIL_AS_SUBJECT\b/;
 const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
 const {
-  languageRule, languageAgain, questionContract, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE,
-  GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE,
+  languageRule, languageAgain, questionContract, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, DISTINCT_QUESTIONS_RULE,
+  GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, SUMMARY_TRUTH_RULE, summaryTruthEnabled,
 } = require('./transcript-quiz-contract');
 
-/** At most this many questions may be repaired; more than that is a re-roll. */
+/** At most this many questions are repaired in ONE call. More than that is the worst five by harm (rewriteTargets `partial`) or a re-roll. */
 // Five, not three, since 2026-09-07: a production quiz died on FOUR length faults
-// that one small call would have fixed. Six or more is most of the set — a re-roll.
+// that one small call would have fixed. Six or more questions that need
+// RE-ASKING is most of the set — a re-roll.
 const MAX_TARGETS = 5;
 
 /**
@@ -108,7 +124,51 @@ const CHILD_ADDRESS_REPAIR = 'THE CHILD HAS NO GENDER — REPAIR IN PLACE. A que
  */
 const ADJACENT_TERMS_REPAIR = 'TWO ENGLISH TERMS SIDE BY SIDE — REPAIR IN PLACE. A question rejected for URDU_ADJACENT_TERMS is a good question in which two SEPARATE English terms sit next to each other in an Urdu sentence; the phone shows them as one left-to-right phrase, so a child reading right to left meets the second term first and reads the meaning backwards. Keep the SAME question: the same idea, the same options in meaning, the same correct answer, the same explanation and feedback in meaning. Change ONLY the fields its complaint names: put an Urdu word between the two terms or rephrase so they do not touch — «جب numerator denominator سے چھوٹا ہو» → «جب numerator کی قیمت denominator سے کم ہو»; «Brother کا feminine noun Sister ہے» → «Brother کے لیے feminine noun کا جواب Sister ہے». A single English term of two words ("cross multiplication", "place value") is ONE term and stays together.';
 const ADJACENT_TERMS = /^q\d+: URDU_ADJACENT_TERMS\b/;
-const TEACHER_FIELDS_RULE = 'TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
+// The same question asked twice in one quiz (transcript-quiz-duplicates): the
+// earlier copy is staying, so the replacement must be a different question —
+// a new example, number or case — not the same one with its options shuffled.
+const DUPLICATE_REPAIR = 'ASKED TWICE. A question rejected for DUPLICATE_QUESTION asks what an earlier question — one that is STAYING — already asks, with the same answer, so a child would answer the same question twice. Write a NEW question for its slot: the same SLO and level, but a different example, number, word or case from the lesson, and a correct answer that is not the correct answer of any question that is staying. The same question with its options in another order, other wrong options, or a few words added to its stem is the same question, and is rejected again.';
+const DUPLICATE = /^q\d+: DUPLICATE_QUESTION\b/;
+/**
+ * A question rejected for URDU_NAME_LATIN is a GOOD question that writes a
+ * person's name from the lesson in English letters («‏Hira کی بوتل»): the Urdu
+ * style rule keeps technical TERMS in English letters and the model read the
+ * name as one. Repaired IN PLACE, and more strictly than the two above: what
+ * the model gives is the name's Urdu spelling ("names"), and the code writes
+ * it into the question as it was (spellNames) — every field and the picture's
+ * labels, so the bar and the stem agree.
+ */
+const NAME_LATIN_REPAIR = 'A NAME IN ENGLISH LETTERS — REPAIR IN PLACE. A question rejected for URDU_NAME_LATIN is a good question that writes a person\'s name from the lesson (the child in a word problem) in English letters. A name is not a technical term: in an Urdu quiz it is written in Urdu script — «حرا», not "Hira". Return "names": each name its complaint quotes, exactly as it is written in English letters, with its spelling in Urdu script — { "Hira": "حرا" }. That spelling is written for you into the question, its options, explanation, feedback, teacher notes and picture labels. A question rejected ONLY for this stays exactly as it is: return it unchanged. When the same question has another complaint too, fix that one as its own rule says and write the name in Urdu script there as well. Technical terms stay in English letters.';
+const NAME_LATIN = /^q\d+: URDU_NAME_LATIN\b/;
+/** "q1: URDU_NAME_LATIN — "Hira" is …" → "Hira" */
+const NAME_IN = /^q\d+: URDU_NAME_LATIN — "([^"]+)"/;
+/**
+ * A complaint repaired IN PLACE: the question is sound and only some words
+ * change. Over the repair's cap, a question with only these is the one left
+ * out — a hard fault never loses its place to it.
+ */
+const IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN)\b/;
+/**
+ * A question whose EVERY complaint is one of these is kept: the repair changes
+ * the words its complaints name and nothing else. Such a question is shown to
+ * the model WHOLE — explanation, feedback and the teacher's notes included —
+ * because a complaint like "question + explanation + option_feedback speak to
+ * the child with a gendered verb" names fields the model must keep, and a
+ * model shown only the stem and the options writes those fields from scratch.
+ * On sandbox (24 Sep 2026, a grade 1 Urdu maths quiz) it did exactly that: the
+ * rewritten explanation and feedback carried the same masculine verbs again,
+ * and every rewritten `selected_because` came back in English.
+ */
+const KEEP_IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN|URDU_TEACHER_FIELDS)\b/;
+/**
+ * …and its PICTURE is kept too, when every complaint is one of these. A name in
+ * English letters is left out on purpose: it has its own contract (the code
+ * swaps a valid Urdu spelling into the question as it was, picture included —
+ * `swapOnly` in mergeReplacements — and without one the reply is taken as a
+ * text question), which this does not change.
+ */
+const KEEP_PICTURE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_TEACHER_FIELDS)\b/;
+const TEACHER_FIELDS_RULE ='TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 // The model rewrote a question with two identical options three times in one
 // production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
 // each time and the rule never was. Every other repeated fault this week was
@@ -143,6 +203,13 @@ const MATH_TEX = /^q\d+: MATH_TEX\b/;
  */
 const KEY_DISAGREEMENT_RULE = 'KEY CHECK. A question rejected for KEY_DISAGREEMENT, KEY_AMBIGUOUS or KEY_NONE_CORRECT was answered by a solver who was NOT shown its answer, and the solver did not arrive at the answer marked correct. Check the fact itself before you write — the spelling, the letters of a word, the sum, the definition. Exactly one option must be correct beyond doubt (for a "select all" question, exactly the options in "correct_indices"), and "correct_index" must point at it; every other option must be clearly wrong — never the right answer in another order or other words. This is a fault where you may keep the same question: fix the options and "correct_index", and make "explanation" and "option_feedback" say the right answer.';
 const KEY_DISAGREEMENT = /^q\d+: KEY_(DISAGREEMENT|AMBIGUOUS|NONE_CORRECT)\b/;
+/**
+ * An item whose explanation sides with the class against the fact it states
+ * (transcript-quiz-key-authority): the recording's mistake was made the key.
+ * Stated only when that complaint is present.
+ */
+const KEY_BY_AUTHORITY_RULE = 'KEY BY AUTHORITY. A question rejected for KEY_BY_AUTHORITY gave, as the reason its answer is right, what was said or accepted in class — against the fact its own explanation states. A recording can hold a mistake: a teacher misspeaks, or holds a wrong idea (calls 4/8 not a proper fraction, uses an incomplete sentence as an example of a sentence). Decide the answer by the subject alone — the definition, the rule, the sum, the spelling. Exactly one option must be right by the subject and "correct_index" must point at it; if no option is, change the options. If the class\'s mistake is the point of the question, ask about the correct fact instead. This is a fault where you may keep the same question: fix the options and "correct_index", and make "explanation" and "option_feedback" give the fact as the reason — never the teacher\'s word, and never "but in class …".';
+const KEY_BY_AUTHORITY = /^q\d+: KEY_BY_AUTHORITY\b/;
 const STRUCTURAL_CAPS_RULE = 'LENGTH. Every question STEM is at most 200 code points (characters) and every OPTION at most 72 — anything longer is cut off on the phone, so write a shorter one that says the same thing. Every "selected_because" is at most 15 words. For a question rejected ONLY for length, keep the same question and shorten the text.';
 
 /**
@@ -153,13 +220,51 @@ const STRUCTURAL_CAPS_RULE = 'LENGTH. Every question STEM is at most 200 code po
 const QUIZ_LEVEL_REPAIRABLE = /^PEDAGOGY_GENDERED_TEACHER\b/;
 
 /**
- * @param {string[]} errors the validator's complaints from the LAST full attempt
- * @returns {{indices:number[], byIndex:Object<number,string[]>, summary:string[]}}
- *          `indices` and `summary` are both empty when this rejection is not one
- *          a targeted rewrite can repair
+ * WHICH FIVE, WHEN MORE THAN FIVE QUESTIONS ARE FAULTED — worst harm first.
+ *
+ * The cap used to answer "more than five" with NOTHING, so a quiz whose faults
+ * were all repairs in place (a verb that guesses the child's gender, two
+ * English terms side by side) shipped every one of them, and an attempt with a
+ * few real faults plus a handful of in-place ones was thrown away whole
+ * (production, 1–24 Sep 2026: 1 and 22 quizzes). Now the worst five are taken,
+ * and the caller gives what is left one second batch.
+ *
+ * The order is the harm to a child, worst first: a key that is not true (a
+ * child who knows the fact is marked wrong); then any other fault that stops a
+ * question shipping — a hard fault never loses its place to a question that
+ * only needs repairing in place; then a verb that guesses the child's gender,
+ * English terms that read backwards, a name in English letters; then the soft
+ * faults that ship anyway. Ties go by position.
  */
-function rewriteTargets(errors) {
-  const none = { indices: [], byIndex: {}, summary: [] };
+/** The tier of one complaint, worst first — see the order above. */
+const SOFT_ONLY = /^q\d+: (PEDAGOGY_GENDERED_TEACHER|PEDAGOGY_LEVEL_(ABOVE|MIX)|URDU_TEACHER_FIELDS)\b/;
+function tierOf(e) {
+  if (/^q\d+: KEY_[A-Z_]+\b/.test(e)) return 0;          // a key that is not true
+  if (/^q\d+: PEDAGOGY_GENDERED_CHILD\b/.test(e)) return 2;
+  if (/^q\d+: URDU_ADJACENT_TERMS\b/.test(e)) return 3;
+  if (/^q\d+: URDU_NAME_LATIN\b/.test(e)) return 4;
+  if (SOFT_ONLY.test(e)) return 5;                        // recorded and shipped anyway
+  return 1;                                               // a hard fault: it cannot ship as it is
+}
+
+/**
+ * @param {string[]} errors the validator's complaints from the LAST full attempt
+ * @param {{partial?: boolean|'in_place', prefer?: number[]}} [opts] when more
+ *   than MAX_TARGETS questions are faulted:
+ *   - no `partial` (the default): hard faults first and in-place-only questions
+ *     fill what is left; in-place complaints alone, or more than MAX_TARGETS
+ *     hard questions, are no repair;
+ *   - `partial: true`: the worst MAX_TARGETS by tier, whatever they are;
+ *   - `partial: 'in_place'`: the same, unless more than MAX_TARGETS questions
+ *     need re-asking (a key or a hard fault) — then a re-roll.
+ *   `prefer` (the questions a first batch left out) goes first within a tier.
+ * @returns {{indices:number[], byIndex:Object<number,string[]>, summary:string[], names:string[], deferred:number[]}}
+ *          `indices` and `summary` are both empty when this rejection is not one
+ *          a targeted rewrite can repair; `deferred` names the faulted
+ *          questions left for a second batch
+ */
+function rewriteTargets(errors, { partial = false, prefer = [] } = {}) {
+  const none = { indices: [], byIndex: {}, summary: [], names: [], deferred: [] };
   const list = Array.isArray(errors) ? errors.filter((e) => typeof e === 'string') : [];
   if (!list.length || list.length !== (errors || []).length) return none;
   const byIndex = {};
@@ -176,10 +281,53 @@ function rewriteTargets(errors) {
     const i = Number(m[1]);
     (byIndex[i] = byIndex[i] || []).push(e);
   }
-  const indices = Object.keys(byIndex).map(Number).sort((a, b) => a - b);
-  if (indices.length > MAX_TARGETS) return none;
+  let indices = Object.keys(byIndex).map(Number).sort((a, b) => a - b);
+  let deferred = [];
+  if (indices.length > MAX_TARGETS) {
+    const inPlaceOnly = (i) => byIndex[i].every((e) => IN_PLACE.test(e));
+    const tier = (i) => Math.min(...byIndex[i].map(tierOf));
+    if (!partial) {
+      // Beside a hard fault, a question with only in-place complaints is the one
+      // left out: it ships as it is, with its fault recorded, and never takes a
+      // hard fault's place. (In-place complaints alone on more questions than
+      // the cap are no repair here; the callers that repair them pass `partial`.)
+      const hard = indices.filter((i) => !inPlaceOnly(i));
+      if (!hard.length || hard.length > MAX_TARGETS) return none;
+      const kept = new Set([...hard, ...indices.filter(inPlaceOnly).slice(0, MAX_TARGETS - hard.length)]);
+      deferred = indices.filter((i) => !kept.has(i));
+      indices = indices.filter((i) => kept.has(i));
+    } else {
+      const reAsk = indices.filter((i) => tier(i) <= 1);
+      if (partial === 'in_place' && reAsk.length > MAX_TARGETS) return none;
+      // A second batch takes the questions the first one left out before any it
+      // already tried, within a tier: a repair that failed once is the least
+      // likely to succeed on a second identical try.
+      const waited = (i) => (prefer.includes(i) ? 0 : 1);
+      const worst = [...indices].sort((a, b) => tier(a) - tier(b) || waited(a) - waited(b) || a - b);
+      indices = worst.slice(0, MAX_TARGETS).sort((a, b) => a - b);
+      deferred = worst.slice(MAX_TARGETS).sort((a, b) => a - b);
+    }
+    deferred.forEach((i) => { delete byIndex[i]; });
+  }
   if (!indices.length && !summary.length) return none;
-  return { indices, byIndex, summary };
+  // Every name complained of, on any question: the spelling the repair gives
+  // for one is written wherever the name is (spellNames).
+  const names = [...new Set(list.map((e) => (NAME_IN.exec(e) || [])[1]).filter(Boolean))];
+  return {
+    indices, byIndex, summary, names, deferred,
+  };
+}
+
+/**
+ * A key term as the lesson said it. A real digest stores {term, as_spoken};
+ * joined as it was, every rewrite prompt listed "[object Object]" as the words
+ * used in class.
+ */
+function termWords(t) {
+  if (!t || typeof t !== 'object') return String(t ?? '').trim();
+  const term = String(t.term || '').trim();
+  const spoken = String(t.as_spoken || '').trim();
+  return spoken && spoken.toLowerCase() !== term.toLowerCase() ? `${term || spoken} («${spoken}»)` : term || spoken;
 }
 
 /** "q0, q7" */
@@ -215,18 +363,30 @@ function buildRewritePrompt({
     (digest && Array.isArray(digest.examples_used) && digest.examples_used.length)
       ? `the lesson's own examples: ${digest.examples_used.slice(0, 8).join('; ')}` : null,
     (digest && Array.isArray(digest.key_terms) && digest.key_terms.length)
-      ? `the words used in class: ${digest.key_terms.slice(0, 12).join(', ')}` : null,
+      ? `the words used in class: ${digest.key_terms.slice(0, 12).map(termWords).filter(Boolean).join(', ')}` : null,
   ].filter(Boolean).join('\n');
   const staying = qs
     .map((q, i) => (indices.includes(i) ? null : `  q${i}: ${String((q && q.question) || '').trim()}`))
     .filter(Boolean).join('\n');
+  const keeps = (i) => (byIndex[i] || []).length > 0 && (byIndex[i] || []).every((e) => KEEP_IN_PLACE.test(String(e)));
   const rejected = indices.map((i) => {
     const q = qs[i] || {};
+    const why = `  why it was rejected:\n${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
+    if (keeps(i)) {
+      // Shown whole, so the words that are NOT complained of can be returned as they are.
+      return `q${i} · slo_id "${q.slo_id || 'S?'}" · level "${q.level || 'understand'}" · REPAIR IN PLACE — this question is staying: return every field below with ONLY the words its complaints name changed, and leave "figure" out
+  question: "${String(q.question || '').trim()}"
+  options: ${optionLine(q)}   ("correct_index": ${Number(q.correct_index) || 0})
+  explanation: "${String(q.explanation || '').trim()}"
+  option_feedback: ${JSON.stringify(q.option_feedback || {})}
+  selected_because: "${String(q.selected_because || '').trim()}"
+  distractor_misconceptions: ${JSON.stringify(q.distractor_misconceptions || {})}
+${why}`;
+    }
     return `q${i} · slo_id "${q.slo_id || 'S?'}" · level "${q.level || 'understand'}"
   the question being thrown away: "${String(q.question || '').trim()}"
   its options were: ${optionLine(q)}
-  why it was rejected:
-${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
+${why}`;
   }).join('\n\n');
 
   // The sections are composed rather than written out once, because round 6
@@ -241,11 +401,13 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
       ? `You are FIXING a short WhatsApp quiz written for the children who sat in ONE real lesson. ${nQ} of its ${qs.length} questions were rejected by our checks. You are writing ONE replacement for each. Every other question is good and is staying exactly as it is — do not touch it, do not return it.`
       : 'You are FIXING the LESSON SUMMARY of a short WhatsApp quiz written for the children who sat in ONE real lesson. Every question is good and is staying exactly as it is — do not touch one, do not return one. You are rewriting the summary only.');
 
+  const namesAsked = indices.some((i) => (byIndex[i] || []).some((e) => NAME_LATIN.test(e)));
   const questionSections = nQ ? [
     `REWRITE THESE QUESTIONS: ${label(indices)}`,
     `THE QUESTIONS THAT ARE STAYING. A replacement must not ask one of these again, and must not have the same answer as one of them.\n${staying || '(none)'}`,
-    `REJECTED — write one new question for each.\n\n${rejected}`,
-    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length, ONLY for how it speaks to the child, or ONLY for two English terms side by side — see LENGTH, THE CHILD HAS NO GENDER and TWO ENGLISH TERMS SIDE BY SIDE below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
+    DISTINCT_QUESTIONS_RULE,
+    `REJECTED — write one new question for each, except a question marked REPAIR IN PLACE: return that one as it stands, with only the words its complaints name changed.\n\n${rejected}`,
+    'A RE-WORDING OF A REJECTED QUESTION IS REJECTED AGAIN (except a question rejected ONLY for length, ONLY for how it speaks to the child, ONLY for two English terms side by side, ONLY for a name in English letters, or ONLY for the language of its teacher notes — see LENGTH, THE CHILD HAS NO GENDER, TWO ENGLISH TERMS SIDE BY SIDE, A NAME IN ENGLISH LETTERS and TEACHER FIELDS below). Change WHAT is asked, not how it is phrased: same SLO, same level, same lesson material, a different question — one any child who understood the idea can answer.',
     'NO NEW PICTURES. Every replacement is a text question: leave "figure" and "figure_role" null. A replacement that carries a figure is thrown away and its rejected question is dropped from the quiz instead, so the child loses a question.',
     questionContract({ gradeBand }),
     SELECTED_BECAUSE_RULE,
@@ -254,10 +416,19 @@ ${(byIndex[i] || []).map((e) => `    - ${e}`).join('\n')}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => OPTIONS_FAULT.test(e))) ? [DISTINCT_OPTIONS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => ADJACENT_TERMS.test(e))) ? [ADJACENT_TERMS_REPAIR] : []),
-    ...(indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e))) ? [TEACHER_FIELDS_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => DUPLICATE.test(e))) ? [DUPLICATE_REPAIR] : []),
+    ...(namesAsked ? [NAME_LATIN_REPAIR] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => PUPIL.test(e))) ? [PUPIL_REPAIR] : []),
+    // EVERY replacement in an Urdu quiz writes a "selected_because" and the
+    // distractor meanings, whatever it was rejected for — so the rule is stated
+    // whenever the quiz is Urdu, not only when a complaint names those fields.
+    // Stated only for the complaint, the rewrite wrote them in English on every
+    // question it replaced (sandbox, 24 Sep 2026: 5 of 5, twice).
+    ...((language === 'ur' || indices.some((i) => (byIndex[i] || []).some((e) => /URDU_TEACHER_FIELDS/.test(e)))) ? [TEACHER_FIELDS_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_CONFLICT.test(e))) ? [KEY_CONFLICT_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_DISAGREEMENT.test(e))) ? [KEY_DISAGREEMENT_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_BY_AUTHORITY.test(e))) ? [KEY_BY_AUTHORITY_RULE] : []),
   ] : [];
 
   const summarySection = summaryErrors.length ? [
@@ -268,7 +439,7 @@ ${summaryErrors.map((e) => `    - ${e}`).join('\n')}
 
 ${planned
     ? `Write a new "lesson_summary": 2-3 sentences, in the quiz language, written TO THE TEACHER (not the child). ${LP_SUMMARY_VOICE} Do not summarise the quiz — summarise the LESSON PLAN.`
-    : 'Write a new "lesson_summary": 2-3 sentences, in the quiz language, written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.'} Keep everything the old summary got right about the lesson; change only what was rejected.`,
+    : `Write a new "lesson_summary": 2-3 sentences, in the quiz language, written TO THE TEACHER (not the child), in the SECOND PERSON — "you": say what you taught and in the order you taught it, naming your own examples and numbers from the lesson. Do not summarise the quiz — summarise the LESSON.${summaryTruthEnabled() ? ` ${SUMMARY_TRUTH_RULE}` : ''}`} Keep everything the old summary got right about the lesson; change only what was rejected.`,
   ] : [];
 
   const shape = `  { "index": ${indices[0]}, "slo_id": "${(qs[indices[0]] || {}).slo_id || 'S1'}", "level": "${(qs[indices[0]] || {}).level || 'understand'}",
@@ -279,7 +450,7 @@ ${planned
 
   const returnBlock = nQ
     ? `Return ONLY this JSON object, with exactly ${nQ} question entr${nQ === 1 ? 'y' : 'ies'}${summaryErrors.length ? ' and the new summary' : ''} and nothing else. "index" is the number after the q above, and must be one of: ${indices.join(', ')}.
-{ ${summaryErrors.length ? '"lesson_summary": "",\n  ' : ''}"questions": [
+{ ${summaryErrors.length ? '"lesson_summary": "",\n  ' : ''}${namesAsked ? '"names": { "<the name in English letters>": "<the same name in Urdu script>" },\n  ' : ''}"questions": [
 ${shape} ] }
 (In that example the correct option is index 0, so the wrong keys are "1" and "2". If correct_index is 1 the keys are "0" and "2"; if it is 2 the keys are "0" and "1".)`
     : `Return ONLY this JSON object and nothing else.
@@ -295,6 +466,9 @@ ${shape} ] }
     ...summarySection,
     GENDER_NEUTRAL_RULE,
     RELIGIOUS_CONTENT_RULE,
+    PUPILS_RULE,
+    // the lesson's people and the one Urdu spelling of each, up front
+    ...(People.peopleRule(digest, language) ? [People.peopleRule(digest, language)] : []),
     returnBlock,
   ].join('\n\n');
 }
@@ -316,7 +490,7 @@ ${shape} ] }
  * @returns {{questions:object[], replaced:number[], lessonSummary:string|null}|null}
  *          null when nothing at all was replaced
  */
-function mergeReplacements(questions, json, targets) {
+function mergeReplacements(questions, json, targets, { known = null } = {}) {
   const qs = Array.isArray(questions) ? questions : [];
   const list = Array.isArray(json && json.questions) ? json.questions : [];
   const { indices } = targets;
@@ -335,6 +509,11 @@ function mergeReplacements(questions, json, targets) {
     return summary ? { questions: qs, replaced: [], lessonSummary: summary } : null;
   }
   const chosen = new Map();
+  // A question repaired IN PLACE (every complaint KEEP_PICTURE) is the same
+  // question with some words changed: its picture stays. Everywhere else a
+  // replacement is a new, text-only question.
+  const byIndexAll = (targets && targets.byIndex) || {};
+  const keeps = (i) => (byIndexAll[i] || []).length > 0 && (byIndexAll[i] || []).every((e) => KEEP_PICTURE.test(String(e)));
   list.forEach((r, pos) => {
     if (!r || typeof r !== 'object') return;
     // A replacement that NAMES an index we did not ask about is discarded, not
@@ -347,14 +526,39 @@ function mergeReplacements(questions, json, targets) {
       ? (indices.includes(named) ? named : undefined)
       : indices[pos];
     if (idx === undefined || chosen.has(idx)) return;
-    if (r.figure) return;                       // the no-picture contract, asserted
+    // The no-picture contract, asserted — except for a question kept in place,
+    // whose ORIGINAL picture is put back below whatever the reply carries.
+    if (r.figure && !keeps(idx)) return;
     if (!String(r.question || '').trim()) return;
     chosen.set(idx, r);
   });
-  if (!chosen.size && !summary) return null;
-  const out = qs.map((q, i) => {
-    if (!chosen.has(i)) return q;
-    const { index, ...rest } = chosen.get(i);
+  // A question rejected ONLY for a name in English letters, whose every name
+  // has a usable spelling, is kept as it was: the swap below is its repair,
+  // and whatever the model wrote for it is not taken (it rewrites a question
+  // it is told to keep). Without a spelling it is an ordinary rewrite.
+  const spellings = { ...knownSpellings(known), ...nameSpellings(json, targets) };
+  const byIndex = (targets && targets.byIndex) || {};
+  const swapOnly = indices.filter((i) => {
+    const complaints = byIndex[i] || [];
+    return complaints.length > 0 && complaints.every((e) => NAME_LATIN.test(String(e)))
+      && complaints.every((e) => Boolean(spellings[(NAME_IN.exec(e) || [])[1]]));
+  });
+  if (!chosen.size && !summary && !swapOnly.length) return null;
+  const merged = qs.map((q, i) => {
+    if (swapOnly.includes(i) || !chosen.has(i)) return q;
+    const { index, figure, figure_role: role, ...rest } = chosen.get(i); // eslint-disable-line no-unused-vars
+    if (keeps(i)) {
+      // Kept in place: a field the reply left out is the field as it was, and
+      // the picture (already drawn and checked) is the original's.
+      return {
+        ...q,
+        ...rest,
+        slo_id: rest.slo_id || q.slo_id,
+        level: rest.level || q.level,
+        figure: q.figure || null,
+        figure_role: q.figure_role || null,
+      };
+    }
     return {
       ...rest,
       slo_id: rest.slo_id || q.slo_id,
@@ -363,8 +567,35 @@ function mergeReplacements(questions, json, targets) {
       figure_role: null,
     };
   });
-  return { questions: out, replaced: [...chosen.keys()].sort((a, b) => a - b), lessonSummary: summary };
+  const out = spellNames(merged, spellings);
+  const replaced = [...new Set([...chosen.keys(), ...swapOnly])].sort((a, b) => a - b);
+  return { questions: out, replaced, lessonSummary: summary, names: spellings };
 }
+
+/**
+ * The spellings this quiz has already learned (the digest's people, and what
+ * the generate step keeps across its rewrites), with the same guard as a fresh
+ * one: a name in English letters, a spelling in Urdu script with no English
+ * letter in it.
+ */
+function knownSpellings(known) {
+  return People.validSpellings(known);
+}
+
+/**
+ * The Urdu spelling the repair gave for each name that was complained of.
+ * A spelling is taken only for a name in the complaints (a model that
+ * "spells" a term is not obeyed) and only when it is Urdu script with no
+ * English letter in it.
+ */
+function nameSpellings(json, targets) {
+  const asked = new Set(Array.isArray(targets && targets.names) ? targets.names : []);
+  const given = People.validSpellings(json && json.names);
+  return Object.fromEntries(Object.entries(given).filter(([latin]) => asked.has(latin)));
+}
+
+/** Each name in its Urdu spelling across the whole quiz (transcript-quiz-people). */
+const spellNames = (questions, spellings) => People.spellNames(questions, spellings);
 
 /**
  * ONE call. Never throws: a rewrite that cannot be made is a rewrite that did
@@ -376,14 +607,24 @@ function mergeReplacements(questions, json, targets) {
  */
 async function rewriteRejected({
   questions, errors, digest, language, gradeBand = null, lessonSummary = null, planned = false,
+  // The Urdu spellings of names this quiz has already learned ({ "Hira": "حرا" }):
+  // written into whatever this rewrite returns, so a later repair cannot put a
+  // name back into English letters.
+  knownNames = null,
+  // More than MAX_TARGETS faulted questions: see rewriteTargets. The questions
+  // left out come back as `deferred`, for the caller's second batch, which
+  // passes them back as `prefer`.
+  partial = false, prefer = [],
   // quizId is accepted and ignored here on purpose: the outcome event is emitted
   // by the caller, which is the only place that knows whether the merged set
   // validated.
   quizId = null,
 }) {  // eslint-disable-line no-unused-vars
-  const targets = rewriteTargets(errors);
+  const targets = rewriteTargets(errors, { partial, prefer });
   if (!targets.indices.length && !targets.summary.length) {
-    return { attempted: false, indices: [], merged: null, replaced: [], lessonSummary: null };
+    return {
+      attempted: false, indices: [], merged: null, replaced: [], lessonSummary: null, deferred: [],
+    };
   }
   const prompt = buildRewritePrompt({
     digest, language, questions, targets, gradeBand, lessonSummary, planned,
@@ -392,23 +633,29 @@ async function rewriteRejected({
     const { json, model, costUsd, latencyMs } = await completeJson({
       prompt, maxTokens: 8000, label: 'transcript_quiz.rewrite',
     });
-    const merged = mergeReplacements(questions, json, targets);
+    // The digest's people are known from the start; a spelling the quiz has
+    // learned since is added on top.
+    const known = { ...People.peopleSpellings(digest), ...knownSpellings(knownNames) };
+    const merged = mergeReplacements(questions, json, targets, { known });
     return {
       attempted: true,
       indices: targets.indices,
+      deferred: targets.deferred,
       // A summary-only repair returns the questions UNCHANGED rather than null:
       // the caller re-validates `merged` with the new summary, and there was
       // never anything wrong with the questions.
       merged: merged ? merged.questions : null,
       replaced: merged ? merged.replaced : [],
       lessonSummary: merged ? merged.lessonSummary : null,
+      // the spellings used (known + returned), for the caller to keep
+      names: merged ? merged.names : { ...known, ...nameSpellings(json, targets) },
       model,
       costUsd,
       latencyMs,
     };
   } catch (err) {
     return {
-      attempted: true, indices: targets.indices, merged: null, replaced: [], lessonSummary: null, costUsd: 0, error: err.message,
+      attempted: true, indices: targets.indices, deferred: targets.deferred, merged: null, replaced: [], lessonSummary: null, costUsd: 0, error: err.message,
     };
   }
 }
@@ -447,6 +694,7 @@ function buildTeacherFieldsPrompt({ digest, questions, indices }) {
   return [
     'REWRITE THE TEACHER FIELDS of an Urdu quiz. The questions are fine and stay exactly as they are; ONLY two fields per question were written in the wrong language. These two fields are printed on the TEACHER\'s Urdu page and never shown to a child.',
     TEACHER_FIELDS_RULE,
+    ...(People.peopleRule(digest, 'ur') ? [People.peopleRule(digest, 'ur')] : []),
     '"selected_because": at most 15 words, in Urdu script, naming the moment of the lesson this question tests (the example, the board, the thing the class did). "distractor_misconceptions": the SAME keys as now, each value one short Urdu phrase naming the misconception a child holds when they pick that wrong option. English technical terms stay in English letters. Never a gendered word for the teacher (write «استاد نے …» or «سبق میں …»).',
     `THE LESSON'S OBJECTIVES\n${sloLines || '(none recorded)'}`,
     `THE QUESTIONS\n${items}`,
@@ -591,9 +839,11 @@ function buildAddPicturePrompt({
     `QUESTIONS A CHILD ANSWERS BY READING A PICTURE — reach for these when you replace:
 - A fraction: one bar, some parts shaded, no label — "What fraction of the bar is shaded?", the options three fractions of DIFFERENT amounts: never 2/8 beside 1/4, because both read a bar of 2 in 8 right. {"type":"fraction_bar","bars":[{"parts":5,"shaded":3}]}
 - Which picture shows a fraction: three bars named "P", "Q", "R" — "Which bar shows $\\frac{2}{3}$?", the options "P", "Q", "R", and the three bars show three DIFFERENT amounts, never 1/2 beside 3/6 (every option is on the picture, so nothing is given away; in the feedback say "bar P", «پٹی P»). {"type":"fraction_bar","bars":[{"parts":3,"shaded":2,"label":"P"},{"parts":5,"shaded":2,"label":"Q"},{"parts":4,"shaded":1,"label":"R"}]}
+- An improper fraction or a mixed number: whole bars and a part bar — 7/4 is {"parts":4,"shaded":4} then {"parts":4,"shaded":3} — never one bar with more shaded than parts, and never inside a "which bar shows" set.
 - Comparing: two bars of the same length, no labels — "Both bars are the same length. What fraction of the bar with MORE shaded is shaded?", the options fractions. The stem names no fraction, so the child reads both off the picture. (A stem that names the two fractions makes it a "model" question, which is an ADD, never a replacement.)
 - Place value: {"type":"base_ten","tens":3,"ones":4} — "What number do the sticks show?" or "How many tens are there?"
 - Counting, adding, taking away: {"type":"count_objects","rows":[{"picto":"counter","count":4},{"picto":"counter","count":3}]} — "How many counters are there altogether?"
+- A part of a set: the part is its own row that LOOKS different — {"type":"count_objects","rows":[{"picto":"pencil","count":2,"color":"warn"},{"picto":"pencil","count":3}]} — "What fraction of the pencils are coloured?"; rows that look alike cannot show a part.
 - Sharing and times: {"type":"count_objects","picto":"counter","count":12,"group":4} — "How many groups of 4 are there?"`,
     `TWO KINDS OF PICTURE:
 - "figure_role":"model" — the picture SHOWS the numbers the stem already states, the way the lesson drew them: two fraction bars beside "which is larger, 2/3 or 3/5?", two rows of counters beside "3 + 4 = ?", bundles and sticks beside "34 + 12". Keep the stem as it is.
@@ -601,7 +851,7 @@ function buildAddPicturePrompt({
     `HARD RULES — a picture that breaks one is thrown away and its question stays as it was:
 - The picture must NOT contain the answer: no option's text anywhere in it, no total, no result. A jump arc never lands on the answer; a fraction bar carries no label.
 - Labels are written in the quiz language; numerals stay 0-9. Never TeX or "$" inside a figure — its fractions are plain ("3/4"). A term may stay in English letters, but a person's name in a label is written in the quiz language (حرا کی بوتل, not Hira کی بوتل).
-- The simplest spec that shows the idea. count_objects draws 2 to 30 things; base_ten up to 20 of each place (9 thousands).
+- The simplest spec that shows the idea. count_objects draws 1 to 30 things, and 0 as an empty tray; base_ten up to 20 of each place (9 thousands).
 - Column arithmetic is never a picture.
 - A picture of a thing comes ONLY from the pictogram names below; "counter" and "tile" are the round and square counters a maths class uses.`,
     ...(lessonDrew ? [lessonDrew] : []),
@@ -614,11 +864,14 @@ function buildAddPicturePrompt({
     // every field in the quiz language, the teacher's fields included
     languageAgain(language).trim(),
     GENDER_NEUTRAL_RULE,
+    PUPILS_RULE,
+    ...(People.peopleRule(digest, language) ? [People.peopleRule(digest, language)] : []),
     `THE TYPES — nothing else is accepted:\n${minimalSpecBlock(ADD_PICTURE_TYPES)}`,
     `PICTOGRAM NAMES: ${pictogramNames().join(', ')}`,
     ...(Array.isArray(refused) && refused.length ? [`REFUSED LAST TIME — these pictures were thrown away by our checks, and their questions are as they were:\n${refused.map((r) => `- q${r.index}: ${String(r.error || '').replace(/^q\d+:\s*/, '')}`).join('\n')}\nDo not send the same picture again. A question refused because the picture cannot produce its answer (FIGURE_MISMATCH) is a step no picture shows: REPLACE it, or give another question the picture. A picture refused for giving the answer away (FIGURE_LEAK) needs its labels taken off.`] : []),
     `THE QUESTIONS YOU MAY GIVE A PICTURE (q is its number in the quiz):\n\n${items}`,
     ...(others.length ? [`THE OTHER QUESTIONS IN THE QUIZ (not yours to change — a replacement must not ask any of these again):\n${others.join('\n')}`] : []),
+    DISTINCT_QUESTIONS_RULE,
     `Return ONLY this JSON object, with exactly ${need} entr${need === 1 ? 'y' : 'ies'}, "index" being one of: ${indices.join(', ')}. An ADD entry:
 { "index": ${indices[0]}, "question": "", "figure": { "type": "count_objects", "rows": [ { "picto": "counter", "count": 3 }, { "picto": "counter", "count": 4 } ] }, "figure_role": "model" }
 (leave "question" empty to keep the stem exactly as it is). A REPLACE entry:
@@ -747,6 +1000,6 @@ module.exports = {
   pictureCandidates, buildAddPicturePrompt, mergeAddedPictures, addPictures,
   rewriteTargets, buildRewritePrompt, mergeReplacements, rewriteRejected, MAX_TARGETS, PER_QUESTION, PER_QUESTION_STRUCTURAL,
   QUIZ_LEVEL_REPAIRABLE, DISTINCT_OPTIONS_RULE, OPTIONS_FAULT, KEY_CONFLICT_RULE, KEY_CONFLICT, MATH_TEX_RULE, MATH_TEX,
-  KEY_DISAGREEMENT_RULE, KEY_DISAGREEMENT,
+  KEY_DISAGREEMENT_RULE, KEY_DISAGREEMENT, KEY_BY_AUTHORITY_RULE, KEY_BY_AUTHORITY,
   teacherFieldTargets, buildTeacherFieldsPrompt, mergeTeacherFields, rewriteTeacherFields, TEACHER_FIELDS_ONLY,
 };

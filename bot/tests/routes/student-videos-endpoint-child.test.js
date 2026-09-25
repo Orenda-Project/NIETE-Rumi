@@ -81,8 +81,11 @@ describe('SELECT_TOPIC → deliver, child token', () => {
     expect(res.screen).toBe('SUCCESS');
 
     // Pre-delivery ack resolves phone straight from the token — no supabase round trip.
+    // Budgeted: the ack is awaited inside Meta's data_exchange window, so per-recipient pacing
+    // may not hold it — past the budget it is skipped (the video follows).
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(
-      '923001234567', expect.stringContaining('Identifying Even and Odd Numbers'));
+      '923001234567', expect.stringContaining('Identifying Even and Odd Numbers'),
+      { budget: expect.objectContaining({ ifLate: 'skip' }) });
 
     await flush();
 

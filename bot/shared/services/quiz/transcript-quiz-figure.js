@@ -277,7 +277,9 @@ function minimalSpecFor(type) {
   const entry = MANIFEST.types.find((m) => m.type === type);
   if (!entry) throw new FigureError('FIGURE_TYPE', `no manifest entry for "${type}"`);
   const spec = { ...(TYPE_DEFAULTS[type] || {}), ...entry.minimal_spec };
-  return relabelLetterParts({ figure: spec }).question.figure;
+  // the quiz lane sets a match's handle letters itself; the model is not asked to
+  const { handleLetters, ...shown } = relabelLetterParts({ figure: spec }).question.figure; // eslint-disable-line no-unused-vars
+  return shown;
 }
 
 /**
@@ -580,6 +582,19 @@ function specStrings(node, key = null, out = []) {
 }
 
 /**
+ * The same spec with `fn` applied to every human-readable string (the ones
+ * specStrings reads), structural enums untouched. Pure: returns a new spec.
+ */
+function mapSpecStrings(node, fn, key = null) {
+  if (typeof node === 'string') return STRUCTURAL_KEYS.has(key) ? node : fn(node);
+  if (Array.isArray(node)) return node.map((v) => mapSpecStrings(v, fn, key));
+  if (node && typeof node === 'object') {
+    return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, mapSpecStrings(v, fn, k)]));
+  }
+  return node;
+}
+
+/**
  * Does the picture already say the answer?
  *
  * True when the correct option's text appears in the figure — UNLESS every
@@ -662,6 +677,8 @@ const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 const PART_LETTERS = ['P', 'Q', 'R', 'S'];
 const PART_NUMBERS = ['1', '2', '3', '4'];
 const BIDI = /[\u200e\u200f\u2066-\u2069]/g;
+// "A goes with 2", "A is the cat": a verb after the letter makes it a name, not the article
+const LABEL_VERB_AFTER = /^\s+(is|are|was|goes|go|has|have|and|or|with|matches|match|shows|show|sits|means|belongs|pairs|comes|stands)\b/;
 const PART_NOUN_BEFORE = /(bars?|points?|rows?|ribbons?|components?|parts?|shapes?|labels?|lines?|sides?|vertex|vertices|angles?|symbols?|پٹی|پٹیوں|نقطہ|نقطے|قطار|حصہ|شکل|علامت)\s*$/i;
 
 /**
@@ -680,7 +697,7 @@ function renameLetters(text, map, { groups = false } = {}) {
       const after = whole.slice(offset + m.length);
       const before = whole.slice(0, offset + pre.length);
       // "A bar", "A fraction" is the article — unless a part noun names it ("bar A has…")
-      if (L === 'A' && /^\s+[a-z]/.test(after) && !PART_NOUN_BEFORE.test(before)) return m;
+      if (L === 'A' && /^\s+[a-z]/.test(after) && !PART_NOUN_BEFORE.test(before) && !LABEL_VERB_AFTER.test(after)) return m;
       return `${pre}${map[L]}`;
     });
     if (groups) t = t.replace(run, (m, pre, word) => `${pre}${[...word].map((L) => map[L]).join('')}`);
@@ -710,16 +727,30 @@ function relabelLetterParts(q) {
     partLabelSlots(figure).forEach(([h, k]) => { h[k] = bareName(h[k]); });
     q = { ...q, figure }; // eslint-disable-line no-param-reassign
   }
-  const probe = partLabelSlots(q.figure);
-  const used = [...new Set(probe.map(([h, k]) => String(h[k]).replace(BIDI, '').trim()).filter((l) => OPTION_LETTERS.includes(l)))];
-  if (!used.length) return { question: q, renamed: null };
-  const target = LETTER_NAMED_TYPES.has(type) ? PART_LETTERS : PART_NUMBERS;
-  const map = Object.fromEntries(used.map((L) => [L, target[OPTION_LETTERS.indexOf(L)]]));
-  const figure = JSON.parse(JSON.stringify(q.figure));
-  partLabelSlots(figure).forEach(([h, k]) => {
-    const l = String(h[k]).replace(BIDI, '').trim();
-    if (map[l]) h[k] = map[l];
-  });
+  let map;
+  let figure;
+  if (type === 'match') {
+    // The match engine DRAWS its own handle letters down one column (A, B, C
+    // by default) and the options are pairings of them ("A-2"): the card read
+    // "A: A-2". The engine takes its letters from `handleLetters` (a NIETE
+    // divergence, vendor SYNC.md 3.21); the quiz lane always names them P, Q,
+    // R, S, and renames every A-D the question uses for the rows it has.
+    if (q.figure.handles === false) return { question: q, renamed: null };
+    const rows = Math.min(OPTION_LETTERS.length, Array.isArray(q.figure.left) ? q.figure.left.length : OPTION_LETTERS.length);
+    map = Object.fromEntries(OPTION_LETTERS.slice(0, rows).map((L, k) => [L, PART_LETTERS[k]]));
+    figure = { ...JSON.parse(JSON.stringify(q.figure)), handleLetters: [...PART_LETTERS] };
+  } else {
+    const probe = partLabelSlots(q.figure);
+    const used = [...new Set(probe.map(([h, k]) => String(h[k]).replace(BIDI, '').trim()).filter((l) => OPTION_LETTERS.includes(l)))];
+    if (!used.length) return { question: q, renamed: null };
+    const target = LETTER_NAMED_TYPES.has(type) ? PART_LETTERS : PART_NUMBERS;
+    map = Object.fromEntries(used.map((L) => [L, target[OPTION_LETTERS.indexOf(L)]]));
+    figure = JSON.parse(JSON.stringify(q.figure));
+    partLabelSlots(figure).forEach(([h, k]) => {
+      const l = String(h[k]).replace(BIDI, '').trim();
+      if (map[l]) h[k] = map[l];
+    });
+  }
   const opts = { groups: type === 'geometry' };
   const rn = (t) => renameLetters(t, map, opts);
   const rnMap = (o) => (o && typeof o === 'object' && !Array.isArray(o)
@@ -767,6 +798,48 @@ function unnamedParts(spec, options) {
   });
   const named = names.filter(Boolean);
   return named.length >= 2 ? named : null;
+}
+
+/**
+ * A fraction-bar set whose options pick bars by name, with a bar that has no
+ * name. Replay (grade 4 Urdu): "which is an improper fraction? P / Q / R" over
+ * P 2/4, Q 3/3, an unnamed 2/2 and R 1/2 — the model drew R's 3/2 as a whole
+ * bar and a half and named only the half, so R read as 1/2 while 3/2 is
+ * improper too (a second right answer). Returns the 1-based number of the
+ * first unnamed bar, or null.
+ */
+function unnamedBarInNamedSet(spec, options) {
+  if (!spec || canonicalType(spec.type) !== 'fraction_bar' || !Array.isArray(spec.bars) || spec.bars.length < 2) return null;
+  const named = spec.bars.map((b) => Boolean(b && typeof b.label === 'string' && b.label.trim()));
+  if (!named.some(Boolean) || named.every(Boolean)) return null;
+  const picks = (Array.isArray(options) ? options : []).filter((o) => namesAPart(spec, o)).length;
+  if (picks < 2) return null;
+  return named.indexOf(false) + 1;
+}
+
+/**
+ * An improper fraction written as ONE bar — {"parts": 3, "shaded": 5} for 5/3,
+ * the spec a replay of the proper/improper fractions chapter showed the model
+ * writing — is redrawn as whole bars and a part bar (3/3 and 2/3), the way
+ * the lesson draws it. Only a picture of that one bar: a bar that is one of
+ * several (a "which bar shows 5/3?" set) cannot be split without losing which
+ * bars belong together, so it is left for FIGURE_EMPTY to refuse with the
+ * same instruction. Pure; returns the same spec when there is nothing to do.
+ */
+function expandImproperBar(spec) {
+  if (!spec || canonicalType(spec.type) !== 'fraction_bar' || !Array.isArray(spec.bars) || spec.bars.length !== 1) return spec;
+  const [bar] = spec.bars;
+  const parts = Math.round(Number(bar && bar.parts));
+  const shaded = Math.round(Number(bar && bar.shaded));
+  if (!(parts >= 2) || !(shaded > parts) || Array.isArray(bar.shaded) || shaded > parts * 5) return spec;
+  const whole = Math.floor(shaded / parts);
+  const rest = shaded - whole * parts;
+  const { label, value, ...plain } = bar; // eslint-disable-line no-unused-vars
+  const bars = [
+    ...Array.from({ length: whole }, (_, k) => ({ ...plain, parts, shaded: parts, ...(k === 0 && label ? { label } : {}) })),
+    ...(rest ? [{ ...plain, parts, shaded: rest }] : []),
+  ];
+  return { ...spec, bars };
 }
 
 /** Does `answer` name one of the figure's parts ("P", "bar 2", «پٹی Q»)? Then it is a pick, not a quantity. */
@@ -822,7 +895,43 @@ function equalAmountOptions(spec, options, correctIndex) {
   return k2 >= 0 ? `${raw[ci].trim()} and ${raw[k2].trim()} show the same amount — a child who reads the picture either way is right` : null;
 }
 
-function figureMismatch(spec, options, correctIndex) {
+/** The colours a count_objects row may be drawn in (the engine's own palette tokens). */
+const NIETE_ROW_COLOURS = new Set(['ink', 'accent', 'leaf', 'cool', 'warn', 'plum', 'clay']);
+/** A stem that asks about colour or shading ("coloured", "shaded", «رنگین», «رنگے») — or a colour by name. */
+const COLOUR_WORDS = /\b(colou?r(?:ed|s)?|shaded|red|blue|green|yellow|orange|purple|pink|black|white|brown)\b|رنگ|سرخ|لال|نیل|ہر[ےی]|پیل|کال[ےی]|سفید/i;
+
+/**
+ * ONE THING, OR NONE, IS A COUNT ONLY WHEN THE CHILD IS ASKED TO COUNT IT.
+ *
+ * The drawing engine refused any count under 2 (a round-6 session drew ONE
+ * goat and asked which word the picture matched — a vocabulary prompt wearing
+ * a counting type). That floor also refused the grade 1 lesson on the numbers
+ * 0 to 4, whose own examples are one car and an empty circle, and a sandbox
+ * quiz on it failed three attempts running (24 Sep 2026). The engine now draws
+ * 1, and 0 as an empty tray (SYNC.md 3.23); the goat is refused HERE, where the
+ * question is known: a row of 0 or 1 needs a number for its key, or a stem
+ * that asks how many / which has more / which has none.
+ */
+const COUNT_ASK = /\b(how many|how much|count(?:s|ed|ing)?|number|more|fewer|less|least|most|fewest|none|zero|empty|nothing|equal)\b|کتن[اےی]|گن|تعداد|زیادہ|صفر|خالی|نہیں|عدد|برابر/i;
+function singleThingNotACount(spec, options, correctIndex, stem = '') {
+  if (canonicalType(spec && spec.type) !== 'count_objects') return null;
+  const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count, picto: spec.picto }];
+  const small = list.find((r) => r && r.count !== '' && r.count != null && Number.isFinite(Number(r.count)) && Number(r.count) < 2);
+  if (!small) return null;
+  const key = norm((Array.isArray(options) ? options : [])[Number(correctIndex)]);
+  if (/^\d+$/.test(key) || COUNT_ASK.test(String(stem || ''))) return null;
+  const what = String(small.picto || spec.picto || 'thing');
+  return `"${what}" is drawn ${Number(small.count) === 0 ? 'as an empty tray' : 'once'} but the question does not ask how many — one thing (or none) is a count only when the child counts it; to ask which WORD a picture matches, use match`;
+}
+
+/** A count_objects picture that is ONE empty tray and nothing else: sparse on purpose (SYNC.md 3.23). */
+function drawsEmptySet(spec) {
+  if (canonicalType(spec && spec.type) !== 'count_objects') return false;
+  const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count }];
+  return list.every((r) => r && r.count !== '' && r.count != null && Number(r.count) === 0);
+}
+
+function figureMismatch(spec, options, correctIndex, stem = '') {
   const type = canonicalType(spec && spec.type);
   const correct = norm((Array.isArray(options) ? options : [])[Number(correctIndex)]);
   if (!correct) return null;
@@ -852,15 +961,34 @@ function figureMismatch(spec, options, correctIndex) {
     // Counters beside a sum they cannot show were passing as a "model": rows of
     // 2 and 5 beside "what is 2 × 5?" (10), rows of 4, 3 and 6 beside an LCM of
     // 12 (the fractions replays). What a counters picture CAN produce:
-    const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count }];
-    const counts = list.map((r) => Math.floor(Number(r && r.count) || 0)).filter((n) => n > 0);
-    if (!counts.length) return null;
+    const list = Array.isArray(spec.rows) && spec.rows.length ? spec.rows : [{ count: spec.count, picto: spec.picto }];
+    const rowsIn = list.filter((r) => Math.floor(Number(r && r.count) || 0) > 0);
+    const counts = rowsIn.map((r) => Math.floor(Number(r.count)));
+    // An empty tray (an explicit count of 0, SYNC.md 3.23) produces 0 — and a
+    // picture of nothing but an empty tray produces nothing else.
+    const empties = list.filter((r) => r && r.count !== '' && r.count != null && Number(r.count) === 0).length;
+    if (!counts.length) {
+      if (!empties) return null;
+      return whole === 0 ? null : `the picture cannot produce the answer "${correct}" (it shows an empty tray — none)`;
+    }
     const total = counts.reduce((a, b) => a + b, 0);
-    const reachable = new Set([String(total), String(counts.length)]);
+    // Can the child SEE which things a row is? Only when it looks different:
+    // its own picture, its own colour, or its own name. Staging: "the set of
+    // coloured pencils" over five identical pencils in rows of 2 and 3, keyed
+    // 2/5 — the share was "reachable" and nothing in the picture was coloured.
+    const look = (r) => [String(r.picto || spec.picto || ''), String(r.color && NIETE_ROW_COLOURS.has(String(r.color)) ? r.color : 'ink'), String(r.label || '').trim()].join('|');
+    const looks = rowsIn.map(look);
+    const seen = (i) => looks.filter((l) => l === looks[i]).length === 1;
+    // A question that names a colour or a shading asks the child to find the
+    // coloured things: every row it counts must be one the child can pick out.
+    const colourAsked = COLOUR_WORDS.test(String(stem || ''));
+    // (a colour question is never answered by the number of rows)
+    const reachable = new Set([String(total), ...(colourAsked ? [] : [String(counts.length)]), ...(empties ? ['0'] : [])]);
     counts.forEach((c, i) => {
-      reachable.add(String(c));
-      reachable.add(`${c}/${total}`);
-      counts.forEach((d, j) => { if (j !== i && c > d) reachable.add(String(c - d)); });
+      const visible = seen(i);
+      if (!colourAsked || visible || counts.length === 1) reachable.add(String(c));
+      if (visible && counts.length > 1) reachable.add(`${c}/${total}`);
+      counts.forEach((d, j) => { if (j !== i && c > d && (!colourAsked || (visible && seen(j)))) reachable.add(String(c - d)); });
     });
     if (counts.length === 1) {
       const n = counts[0];
@@ -876,7 +1004,11 @@ function figureMismatch(spec, options, correctIndex) {
       reachable.add(String(Math.ceil(n / perRow)));
     }
     const key = frac ? `${Number(frac[1])}/${Number(frac[2])}` : String(whole);
-    return reachable.has(key) ? null : `the picture cannot produce the answer "${correct}" (it shows ${counts.join(' and ')} things)`;
+    if (reachable.has(key)) return null;
+    const alike = counts.length > 1 && looks.some((_, i) => !seen(i));
+    return alike || (colourAsked && counts.length === 1)
+      ? `the picture cannot produce the answer "${correct}": its things all look the same, so the child cannot see which part the question counts — give that row its own colour ("color": "warn") or its own picture`
+      : `the picture cannot produce the answer "${correct}" (it shows ${counts.join(' and ')} things)`;
   }
   if (type === 'base_ten') {
     // A place-value mat answers "what number?", "how many tens?", "what is the
@@ -937,7 +1069,9 @@ function figureEmptyReason(spec) {
       const bars = Array.isArray(spec.bars) ? spec.bars : [];
       if (!bars.length) return 'a fraction bar needs at least one bar';
       if (bars.some((b) => !(Number(b.parts) >= 2))) return 'every bar needs at least 2 parts';
-      if (bars.some((b) => Number(b.shaded) < 0 || Number(b.shaded) > Number(b.parts))) return 'shaded must be between 0 and parts';
+      const over = bars.find((b) => Number(b.shaded) > Number(b.parts));
+      if (over) return `a bar has ${Number(over.shaded)} shaded of ${Number(over.parts)} parts: an improper fraction is drawn as whole bars and a part bar ({"parts":${Number(over.parts)},"shaded":${Number(over.parts)}} then {"parts":${Number(over.parts)},"shaded":${Number(over.shaded) % Number(over.parts) || Number(over.parts)}}), never one bar`;
+      if (bars.some((b) => Number(b.shaded) < 0)) return 'shaded must be between 0 and parts';
       return null;
     }
     case 'numberline':
@@ -1117,7 +1251,47 @@ function inQuestion(tok, haystack) {
   const t = norm(tok);
   if (!t) return true;
   const esc = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|[^\\p{L}\\p{N}])${esc}([^\\p{L}\\p{N}]|$)`, 'u').test(haystack);
+  if (new RegExp(`(^|[^\\p{L}\\p{N}])${esc}([^\\p{L}\\p{N}]|$)`, 'u').test(haystack)) return true;
+  return sameNameOtherScript(t, haystack);
+}
+
+// ─── one name, two scripts ───────────────────────────────────────────────────
+// A bar named «حرا کی بوتل» under a stem that wrote "‏Hira کی بوتل" lost its
+// label: "حرا" is not "Hira" to a string match (a replay, grade 4 Urdu). A
+// person's name written in both scripts keeps the same CONSONANTS — ح ر / h r,
+// ا ح م د / (a) h m d, س ا ر ہ / s (a) r (a) — so a label word in one script
+// counts as used by the question when a word in the other script has the same
+// consonant skeleton. Vowels, the silent ع, and w/v/y (which Urdu writes with
+// و / ی, letters that are just as often vowels) are left out on both sides.
+const URDU_CONSONANT = {
+  'ب': 'b', 'پ': 'p', 'ت': 't', 'ٹ': 't', 'ط': 't', 'ث': 's', 'س': 's', 'ص': 's', 'ج': 'j', 'چ': 'c',
+  'ح': 'h', 'ہ': 'h', 'ھ': 'h', 'خ': 'x', 'د': 'd', 'ڈ': 'd', 'ذ': 'z', 'ز': 'z', 'ض': 'z', 'ظ': 'z',
+  'ژ': 'z', 'ر': 'r', 'ڑ': 'r', 'ش': 'S', 'غ': 'g', 'ف': 'f', 'ق': 'k', 'ک': 'k', 'گ': 'g', 'ل': 'l',
+  'م': 'm', 'ن': 'n', 'ں': 'n',
+};
+function urduSkeleton(word) {
+  const letters = [...String(word)].filter((ch) => /\p{Script=Arabic}/u.test(ch));
+  // a word-final ہ is the vowel "a" («سارہ» Sara), not an h
+  if (letters.length > 1 && letters[letters.length - 1] === 'ہ') letters.pop();
+  return letters.map((ch) => URDU_CONSONANT[ch] || '').join('');
+}
+function latinSkeleton(word) {
+  return String(word).toLowerCase()
+    .replace(/sh/g, 'S').replace(/kh/g, 'x').replace(/gh/g, 'g').replace(/ch/g, 'c').replace(/ph/g, 'f')
+    .replace(/q/g, 'k').replace(/[^a-zS]/g, '')
+    .replace(/[aeiouywv]/g, '')
+    .replace(/(.)\1+/g, '$1');
+}
+function sameNameOtherScript(tok, haystack) {
+  const urdu = /\p{Script=Arabic}/u.test(tok);
+  const mine = urdu ? urduSkeleton(tok).replace(/(.)\1+/g, '$1') : latinSkeleton(tok);
+  if (!mine) return false;
+  const words = String(haystack).split(/[^\p{L}]+/u).filter(Boolean);
+  return words.some((w) => {
+    const other = /\p{Script=Arabic}/u.test(w);
+    if (other === urdu) return false;
+    return (other ? urduSkeleton(w).replace(/(.)\1+/g, '$1') : latinSkeleton(w)) === mine;
+  });
 }
 
 /**
@@ -1150,7 +1324,7 @@ function judgeLabel(str, { haystack, blockShapeNames }) {
  * @param {{stem: string, options: string[]}} ctx
  * @returns {{spec: object, stripped: {key: string, value: string, reason: string}[]}}
  */
-function stripStrayLabels(spec, { stem, options } = {}) {
+function stripStrayLabels(spec, { stem, options, redact = (v) => v } = {}) {
   if (!spec || typeof spec !== 'object') return { spec, stripped: [] };
   const type = canonicalType(spec.type) || spec.type;
   const haystack = norm([stem, ...(Array.isArray(options) ? options : [])].join(' '));
@@ -1164,7 +1338,8 @@ function stripStrayLabels(spec, { stem, options } = {}) {
     const verdict = judgeLabel(value, { haystack, blockShapeNames });
     if (verdict.keep) return;
     stripped.push({ key: pathKey || key, value, reason: verdict.reason });
-    logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey || key, value, reason: verdict.reason });
+    // the label can be a person's name: the caller's redactor hashes it (D4)
+    logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey || key, value: redact(value), reason: verdict.reason });
     delete holder[key];
   };
 
@@ -1183,7 +1358,7 @@ function stripStrayLabels(spec, { stem, options } = {}) {
             if (verdict.keep) return;
             const pathKey = `bars[${i}].partLabels[${j}]`;
             stripped.push({ key: pathKey, value: pl, reason: verdict.reason });
-            logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey, value: pl, reason: verdict.reason });
+            logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey, value: redact(pl), reason: verdict.reason });
             bar.partLabels[j] = ''; // blank in place — position maps to a bar segment
           });
         }
@@ -1200,7 +1375,7 @@ function stripStrayLabels(spec, { stem, options } = {}) {
         if (verdict.keep) return;
         const pathKey = `cellText[${i}]`;
         stripped.push({ key: pathKey, value: entry[2], reason: verdict.reason });
-        logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey, value: entry[2], reason: verdict.reason });
+        logEvent('transcript_quiz.figure_label_stripped', { type, key: pathKey, value: redact(entry[2]), reason: verdict.reason });
         entry[2] = ''; // blank in place — [row, col] still address the cell
       });
     }
@@ -1307,6 +1482,8 @@ async function uploadFigure({ teacherId, quizId, index, png }) {
 }
 
 module.exports = {
+  singleThingNotACount,
+  drawsEmptySet,
   NIETE_TOKENS,
   EARLY_YEARS_TYPES,
   CORE_TYPES,
@@ -1318,6 +1495,8 @@ module.exports = {
   relabelLetterParts,
   partLabelSlots,
   unnamedParts,
+  unnamedBarInNamedSet,
+  expandImproperBar,
   svgInkCount,
   figureIsRedundant,
   figureDefiningNumbers,
@@ -1338,6 +1517,7 @@ module.exports = {
   figureLeaksAnswer,
   svgText,
   specStrings,
+  mapSpecStrings,
   figureHtml,
   renderFigurePng,
   uploadFigure,

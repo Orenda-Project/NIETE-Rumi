@@ -17,6 +17,10 @@
 //   left    [{picto:"cat"} | {text:"cat"}, …]   2-4 entries
 //   right   [{text:"بلی"} | {picto:"cat"}, …]   the same number of entries
 //   handles true (default)  A/B/C down the left, 1/2/3 down the right
+//   handleLetters ["A","B","C","D"] (default)  the letters drawn down the
+//                           lettered column — a page whose options are ALSO
+//                           lettered A/B/C (a quiz card) names them otherwise
+//                           (NIETE divergence, SYNC.md 3.21)
 //   lang    "en" | "ur"     (ur puts the lettered column on the right)
 
 const { Svg, C, SIZE, measure, hasUrdu } = require("../lib/svg");
@@ -46,6 +50,9 @@ function render(spec) {
 
   const isUr = spec.lang === "ur";
   const handles = spec.handles !== false;
+  const letters = Array.isArray(spec.handleLetters) && spec.handleLetters.length >= left.length
+    ? spec.handleLetters.map((l) => String(l))
+    : LETTERS;
   const ROW = spec.rowHeight ?? 104;
   const GAP = 14;
   const PAD = 18;
@@ -98,7 +105,7 @@ function render(spec) {
     cell(lx, lw, y, c);
     cell(rx, rw, y, right[i]);
     if (handles) {
-      svg.text(lhx + HANDLE / 2, y + ROW / 2, LETTERS[i], { size: textSize, weight: 700, anchor: "middle", baseline: "middle", fill: C.accent });
+      svg.text(lhx + HANDLE / 2, y + ROW / 2, letters[i], { size: textSize, weight: 700, anchor: "middle", baseline: "middle", fill: C.accent });
       svg.text(rhx + HANDLE / 2, y + ROW / 2, String(i + 1), { size: textSize, weight: 700, anchor: "middle", baseline: "middle", fill: C.accent });
     }
   });

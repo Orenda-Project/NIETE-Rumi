@@ -40,6 +40,25 @@ const URDU_ADDRESS_RULE = 'In Urdu, a verb spoken TO this person (آپ) carries 
   + 'the past with نے, whose verb agrees with its object and not with آپ («آپ نے بتایا»، «آپ نے بچوں سے سوال پوچھا»); '
   + 'or an impersonal or obligative form («یہ آزمایا جا سکتا ہے»، «کل یہ کرنا ہوگا»، «کس بارے میں بات کرنی ہے؟»).';
 
+/**
+ * THE THIRD-PERSON HALF — a sentence ABOUT the teacher.
+ *
+ * The observe prompts carried their own copy of this and it said the opposite:
+ * "refer to the teacher with the respectful plural (استاد چاہتے ہیں)". That is
+ * the masculine; a female teacher is «استاد چاہتی ہیں». A model told to write
+ * the first guesses "man" for every teacher it describes. The neutral forms are
+ * the same three as for آپ: a noun phrase, the past with نے (the verb agrees
+ * with its object), or an impersonal / obligative form. Every example quoted
+ * here is held to the quiz's own third-person check
+ * (services/quiz/transcript-quiz-pedagogy.js genderedTeacherForms).
+ */
+const URDU_THIRD_PERSON_RULE = 'A sentence ABOUT the teacher carries no gender either. '
+  + '«استاد چاہتے ہیں» and «استاد پڑھاتے ہیں» (the so-called respectful plural) are the MASCULINE, and '
+  + '«استاد چاہتی ہیں» / «استاد پڑھاتی ہیں» the feminine — never either. '
+  + 'Say it with a noun phrase («استاد کی خواہش ہے کہ بچے خود سوال پوچھیں»، «استاد کا سوال»); '
+  + 'the past with نے, whose verb agrees with its object («استاد نے پوچھا»، «استاد نے بچوں کو گروپ میں بٹھایا»); '
+  + 'or an impersonal or obligative form («یہ آزمایا جا سکتا ہے»، «اگلی بار یہ کرنا ہوگا»).';
+
 const GENDER_NEUTRAL_ADDRESS = `
 ═══ GENDER — NEVER ASSUME WHO IS ON THE LINE (mandatory) ═══
 - The person you are speaking to may be a man or a woman — مرد بھی ہو سکتے ہیں اور خاتون بھی.
@@ -59,4 +78,4 @@ const GENDER_NEUTRAL_ADDRESS = `
 - The English text of these instructions calls the caller "she" for brevity only. That is a
   writing convention, NOT a fact about who is calling — do not let it decide your Urdu.`;
 
-module.exports = { GENDER_NEUTRAL_ADDRESS, URDU_ADDRESS_RULE };
+module.exports = { GENDER_NEUTRAL_ADDRESS, URDU_ADDRESS_RULE, URDU_THIRD_PERSON_RULE };

@@ -25,17 +25,24 @@ const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
 const {
-  validate, MIN_QUESTIONS, figureDensity, latinNames,
+  validate, MIN_QUESTIONS, figureDensity, latinNames, nameLexicon,
 } = require('./transcript-quiz-validator');
+const { peopleSpellings, spellText, logRedactor } = require('./transcript-quiz-people');
+const { duplicateQuestionErrors, confirmsSameFact, solverDuplicateComplaint } = require('./transcript-quiz-duplicates');
 const {
   teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
 } = require('./transcript-quiz-language');
 const { SESSION_SELECT, MIN_TRANSCRIPT_CHARS } = require('./transcript-quiz-offer.service');
 const {
-  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, digestFailureReason,
+  TRANSCRIPT, LP_V8, LP612, isPlanQuiz, lp612SourceOn, lessonSessionFor, failureCopyKey, digestFailureReason,
 } = require('./quiz-sources');
 const LpDigest = require('./lp-quiz-digest.service');
+const { summaryTruthEnabled } = require('./transcript-quiz-contract');
 const Store = require('./lp-asset-source.store');
+const Funnel = require('./quiz-funnel');
+const LpCache = require('./lp-quiz-cache');
+const DailyCap = require('./quiz-daily-cap');
+const Lp612Source = require('./lp612-quiz-source');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
 const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taught, subjects_taught';
@@ -53,6 +60,21 @@ const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taugh
  */
 async function resolveLessonSource(quiz) {
   const lesson = ((quiz.meta && quiz.meta.lessons) || [])[0];
+  // A Grades 6-12 lesson: the exact stored document of the render the teacher
+  // got, adapted to the slide-script shape (lp612-quiz-source). Its reader
+  // throws on an R2 failure other than a missing object, for the same reason
+  // the K-5 store throws on a DB error: redelivery, never a permanent failure.
+  if (quiz.quiz_source === LP612) {
+    if (!lesson || !lesson.segment_id) return null;
+    try {
+      return await Lp612Source.resolveSlideScript(lesson);
+    } catch (err) {
+      logToFile('❌ lp612 quiz: lesson document lookup failed — leaving the job to be redelivered', {
+        quizId: quiz.id, segmentId: lesson.segment_id, error: err.message,
+      }, 'error');
+      throw err;
+    }
+  }
   if (!lesson || !lesson.lesson_id) return null;
   try {
     const hit = await Store.resolveSlideScript({
@@ -78,6 +100,8 @@ const N_QUESTIONS = 8;
  * costs the feature. TRANSCRIPT_QUIZ_MAX_ATTEMPTS overrides (read per call).
  */
 const MAX_ATTEMPTS = 3;
+/** Targeted-rewrite calls per repair: the worst five, then ONE more batch for what they left. */
+const REPAIR_BATCHES = 2;
 function maxAttempts() {
   // `process` is this module's exported job function, so the Node global is
   // reached through globalThis.
@@ -128,7 +152,7 @@ function figureRequiredError({ questions, subject, attempt, maxAttempts, gradeBa
   // the retry of a fractions lesson that had drawn nothing back with nothing.
   const maths = early && canonicalSubject(subject) === 'maths';
   const how = maths
-    ? 'Decide the pictures FIRST, then write at least three questions the child answers by READING a picture: What fraction of the bar is shaded? Which bar shows a fraction (bars labelled A, B, C)? What number do the sticks show? How many counters are there? A step of a procedure (a cross product, a rewritten fraction) stays text — no picture can show its answer.'
+    ? 'Decide the pictures FIRST, then write at least three questions the child answers by READING a picture: What fraction of the bar is shaded? Which bar shows a fraction (bars P, Q, R)? What number do the sticks show? How many counters are there? A step of a procedure (a cross product, a rewritten fraction) stays text — no picture can show its answer.'
     : early
     ? 'Decide the drawing FIRST — the thing the class counted, the word they sounded out, the clock they read, the pattern they continued — then write one or two questions the child answers by reading the picture.'
     : 'Decide the drawing FIRST (what the class was shown or asked to draw), then write one or two questions the child answers by reading the picture.';
@@ -170,6 +194,13 @@ const SOFT_FAULT = new RegExp('^('
   // a sound question in an order the phone reads backwards. Repaired in place
   // (IN_PLACE_FAULT, below) and never a reason to send nothing.
   + '|q\\d+: URDU_ADJACENT_TERMS\\b'
+  // The same question asked twice in one quiz (DUPLICATE_QUESTION): the later
+  // copy is rewritten in place (IN_PLACE_FAULT, below); a quiz whose repair
+  // did not take still has seven sound questions and one repeat, and ships.
+  + '|q\\d+: DUPLICATE_QUESTION\\b'
+  // A person's name in English letters in an Urdu quiz (URDU_NAME_LATIN): the
+  // same kind of fault, repaired in place (IN_PLACE_FAULT, below).
+  + '|q\\d+: URDU_NAME_LATIN\\b'
   // Too few pictures in a grade 1-5 maths quiz (runFigureDensity): a quiz with
   // one picture is still a quiz, and refusals cost teachers quizzes.
   + '|FIGURE_FEW\\b'
@@ -195,9 +226,40 @@ const ADDRESS_FAULT = /^q\d+: PEDAGOGY_GENDERED_CHILD\b/;
  * transcript_quiz.adjacent_terms.
  */
 const ADJACENT_FAULT = /^q\d+: URDU_ADJACENT_TERMS\b/;
+/**
+ * A later question that asks what an earlier one already asks, with the same
+ * answer (DUPLICATE_QUESTION — transcript-quiz-duplicates). The earlier
+ * question is sound; the later one is replaced by the same one targeted
+ * rewrite with a different question for its slot. A repair that does not take
+ * ships the quiz with the repeat recorded rather than costing the class the
+ * quiz or a question. Counted on transcript_quiz.duplicate_question.
+ */
+const DUPLICATE_FAULT = /^q\d+: DUPLICATE_QUESTION\b/;
+/**
+ * A person's name written in English letters in an Urdu quiz
+ * (URDU_NAME_LATIN — «‏Hira کی بوتل»). A name is not a term; the question is
+ * sound. Repaired in place by the same one targeted rewrite, which also gives
+ * the name's Urdu spelling so a picture's labels agree with the stem; shipped
+ * whatever that leaves; counted on transcript_quiz.latin_name_found, and what
+ * ships in English letters on transcript_quiz.latin_name.
+ */
+const NAME_FAULT = /^q\d+: URDU_NAME_LATIN\b/;
 /** A fault that is repaired IN PLACE and then shipped — never re-rolled, never dropped, never fatal. */
-const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}`);
+const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}`);
 const inPlaceOnly = (errors) => Array.isArray(errors) && errors.length > 0 && errors.every((e) => IN_PLACE_FAULT.test(String(e)));
+/**
+ * The teacher's notes on an Urdu quiz written in English (URDU_TEACHER_FIELDS).
+ * It has its OWN repair — one small call that rewrites only those two fields —
+ * and that repair runs after EVERY step that writes questions, the targeted
+ * rewrite included (repairTeacherFields in process). A set whose only faults
+ * left after it are this and the in-place ones ships from the rewrite, with the
+ * faults recorded: a note on the teacher's page is never a reason to re-roll
+ * eight sound questions (sandbox, 24 Sep 2026 — a rewrite left five English
+ * notes and nothing else; the re-rolls that followed lost the quiz).
+ */
+const TEACHER_FIELDS_FAULT = /^q\d+: URDU_TEACHER_FIELDS\b/;
+const repairedOnly = (errors) => Array.isArray(errors) && errors.length > 0
+  && errors.every((e) => IN_PLACE_FAULT.test(String(e)) || TEACHER_FIELDS_FAULT.test(String(e)));
 /** The codes in a list of complaints, for telemetry ("q3: URDU_ADJACENT_TERMS — …" → "URDU_ADJACENT_TERMS"). */
 const faultKinds = (errors) => [...new Set((errors || []).map((e) => String(e).replace(/^q\d+: /, '').split(/\s|—/)[0]))];
 const GAP_MS = 1200;
@@ -513,7 +575,13 @@ async function renderPdf({ quiz, questions, digest, teacherName, grade, lessonSu
 }
 
 async function updateQuiz(quizId, patch) {
-  const { error } = await supabase.from('quizzes').update(patch).eq('id', quizId);
+  // Every terminal failure is dated on the row, whichever step wrote it — the
+  // DB half of the funnel's generation_failed (offered_at, accepted_at,
+  // ready_at and sent_at already date the other stages).
+  const stamped = patch && patch.status === 'failed' && patch.meta && !patch.meta.failed_at
+    ? { ...patch, meta: { ...patch.meta, failed_at: new Date().toISOString() } }
+    : patch;
+  const { error } = await supabase.from('quizzes').update(stamped).eq('id', quizId);
   if (error) throw new Error(`quizzes update failed: ${error.message}`);
 }
 
@@ -522,9 +590,11 @@ async function updateQuiz(quizId, patch) {
  * stopped when one reason can come from two of them (`model_failed`: the digest
  * or the author).
  */
-async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT, extra = {}) {
-  await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource), { language: lang }));
+async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT, extra = {}, failedMeta = null) {
+  // failedMeta: the row as failed, for a start failure's next-step line (quiz-sources startFailureCopyKey).
+  await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource, { meta: failedMeta }), { language: lang }));
   logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource, ...extra });
+  Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason, step: extra.step });
 }
 
 // ─── the step ────────────────────────────────────────────────────────────────
@@ -788,7 +858,8 @@ async function runFigureDensity(api, {
  *   softFaults?:string[]|null}>}
  */
 async function runKeyCheck(api, {
-  questions, slideScript, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts,
+  questions, slideScript, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts, knownNames = null,
+  quizSource = LP_V8,
 }) {
   const KeyCheck = require('./lp-quiz-key-check.service');
   const startedAt = Date.now();
@@ -800,7 +871,7 @@ async function runKeyCheck(api, {
     record.latency_ms = Date.now() - startedAt;
     record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
     logEvent('transcript_quiz.key_check', {
-      quizId, quiz_source: LP_V8, status: record.status, model: record.model,
+      quizId, quiz_source: quizSource, status: record.status, model: record.model,
       checked: record.checked, contradicted: record.contradicted, fixed: record.fixed, dropped: record.dropped,
       unclear: record.unclear, missing: record.missing, ungrounded: record.ungrounded,
       costUsd: record.cost_usd, latencyMs: record.latency_ms,
@@ -853,7 +924,8 @@ async function runKeyCheck(api, {
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
-    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true,
+    // More than five conflicting keys: the worst five are rewritten, the rest dropped below.
+    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: true, knownNames, partial: true,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
@@ -938,6 +1010,212 @@ async function runKeyCheck(api, {
 }
 
 /**
+ * THE LAST REPAIR — for a question written AFTER the author's loop.
+ *
+ * The loop validates every set it writes and repairs its in-place faults (a
+ * verb that guesses the child's gender, two English terms side by side). The
+ * steps after it — the picture step that REPLACES a question, the key check's
+ * and the blind solve's rewrites — accept any set whose faults are soft, and no
+ * repair runs after them. On staging (24 Sep 2026) the picture step replaced q5
+ * with a picture question whose explanation read "Quotient whole", "Remainder
+ * Numerator", and it shipped that way.
+ *
+ * So, before the rows are stored: the in-place faults (the child's gender,
+ * English terms side by side, a name in English letters) of every question
+ * whose text is not one the loop settled get ONE rewrite call — the worst five
+ * (rewriteTargets `partial`). The repair may change only the text its complaint
+ * names; the picture, the key, the options' order, the objective and the level
+ * stay exactly as they were, and a change to the options is kept only if the
+ * key stays where it was. The merged set must validate with no hard fault and
+ * with fewer in-place faults, and must draw; otherwise the set is kept as it
+ * was. This pass never costs the teacher the quiz.
+ *
+ * @returns {Promise<{record:object|null, changed?:boolean, questions?:object[],
+ *   figureUrls?:object, cardUrls?:object, draftedRows?:object[], faults?:string[]}>}
+ */
+const FINAL_REPAIRABLE = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${NAME_FAULT.source}`);
+/** What a question SAYS — the text a repair would change. */
+const textSignature = (q) => JSON.stringify([q && q.question, q && q.options, q && q.explanation, q && q.option_feedback]);
+/** The fields a complaint names: «q5: URDU_ADJACENT_TERMS — explanation + option 0 put …». */
+function namedFields(complaint) {
+  const m = /—\s*(.+?)\s+(?:speaks?|puts?)\b/.exec(String(complaint));
+  return m ? m[1].split(/\s*\+\s*/).map((f) => f.trim()) : [];
+}
+/** The original question with only the named text taken from its repair — or null when the repair moved the key. */
+function textOnlyRepair(orig, repl, fields, { namesOnly = false } = {}) {
+  if (!repl || typeof repl !== 'object') return null;
+  const sameShape = Array.isArray(repl.options) && Array.isArray(orig.options) && repl.options.length === orig.options.length
+    && Number(repl.correct_index) === Number(orig.correct_index)
+    && JSON.stringify(repl.correct_indices || null) === JSON.stringify(orig.correct_indices || null);
+  // A name in English letters is not rewritten by the model: the code writes
+  // the name's Urdu spelling into the question as it was, picture labels
+  // included (spellNames) — so that question is taken whole, key unmoved.
+  if (namesOnly) return sameShape ? { ...repl, slo_id: orig.slo_id, level: orig.level } : null;
+  const out = { ...orig };
+  const has = (rx) => fields.some((f) => rx.test(f));
+  if (has(/^question$/) && String(repl.question || '').trim()) out.question = repl.question;
+  if (has(/^option \d/)) {
+    if (!sameShape) return null;
+    out.options = repl.options;
+  }
+  if (has(/^explanation$/) && String(repl.explanation || '').trim()) out.explanation = repl.explanation;
+  if (has(/^option_feedback/) && repl.option_feedback && typeof repl.option_feedback === 'object') {
+    const keys = (fb) => Object.keys((fb && fb.wrong) || {}).sort().join(',');
+    if (keys(repl.option_feedback) !== keys(orig.option_feedback)) return null;
+    out.option_feedback = repl.option_feedback;
+  }
+  return out;
+}
+
+async function runFinalSoftRepair(api, {
+  questions, settled, digest, language, quizId, teacherId, lessonSummary, gradeBand, planned, attempts, knownNames = null,
+}) {
+  const ctx = { language, subject: digest.subject, digest, quizId, lessonSummary };
+  const qIndex = (e) => Number(/^q(\d+)/.exec(String(e))[1]);
+  const before = validate(questions, { ...ctx, nExpected: questions.length });
+  const late = new Set(questions.map((q, i) => (settled.has(textSignature(q)) ? -1 : i)).filter((i) => i >= 0));
+  const faults = before.errors.filter((e) => FINAL_REPAIRABLE.test(e) && late.has(qIndex(e)));
+  if (!faults.length) return { record: null };
+  const record = {
+    status: 'unchanged', eligible: [...new Set(faults.map(qIndex))].sort((a, b) => a - b), asked: [], fixed: 0, cost_usd: 0,
+  };
+  const keep = (why) => {
+    record.reason = why;
+    record.remaining = faults.length;
+    logEvent('transcript_quiz.final_repair', { quizId, ...record });
+    return { record, faults: before.errors.filter((e) => FINAL_REPAIRABLE.test(e)) };
+  };
+  let rw;
+  try {
+    rw = await api.rewriteRejected({
+      questions, errors: faults, digest, language, gradeBand, quizId, lessonSummary, planned, partial: true, knownNames,
+    });
+  } catch (err) {
+    record.status = 'error';
+    return keep(String((err && err.message) || err).slice(0, 160));
+  }
+  record.asked = rw.indices || [];
+  record.cost_usd = Number(rw.costUsd) || 0;
+  if (!rw.attempted || !rw.merged) return keep(rw.error ? 'rewrite_failed' : 'nothing_usable');
+  const fieldsFor = (i) => [...new Set(faults.filter((e) => qIndex(e) === i).flatMap(namedFields))];
+  const namesOnly = (i) => faults.filter((e) => qIndex(e) === i).every((e) => NAME_FAULT.test(e));
+  const candidate = questions.map((q, i) => ((rw.replaced || []).includes(i)
+    ? (textOnlyRepair(q, rw.merged[i], fieldsFor(i), { namesOnly: namesOnly(i) }) || q) : q));
+  const after = validate(candidate, { ...ctx, nExpected: candidate.length });
+  const hard = after.errors.filter((e) => !SOFT_FAULT.test(String(e)));
+  const inPlaceBefore = before.errors.filter((e) => FINAL_REPAIRABLE.test(e)).length;
+  const inPlaceAfter = after.errors.filter((e) => FINAL_REPAIRABLE.test(e));
+  if (hard.length) return keep('merged_set_invalid');
+  if (inPlaceAfter.length >= inPlaceBefore) return keep('nothing_fixed');
+  let figureUrls;
+  let cardUrls;
+  let drafted;
+  try {
+    drafted = toRows(quizId, after.questions);
+    ({ figureUrls, cardUrls } = await renderFor(api, {
+      questions: after.questions, rows: drafted, language, teacherId, quizId,
+    }));
+  } catch (err) {
+    return keep('render_failed');
+  }
+  record.status = 'fixed';
+  record.fixed = inPlaceBefore - inPlaceAfter.length;
+  record.remaining = inPlaceAfter.length;
+  attempts.push({ attempt: 'final_repair', indices: record.asked, replaced: rw.replaced, errors: inPlaceAfter });
+  logEvent('transcript_quiz.final_repair', { quizId, ...record });
+  return {
+    record, changed: true, questions: after.questions, figureUrls, cardUrls, draftedRows: drafted, faults: inPlaceAfter, names: rw.names,
+  };
+}
+
+/**
+ * THE SUMMARY IS TRUE BY THE SUBJECT — a quiz written from a RECORDING.
+ *
+ * WHY. The teacher's sheet prints what the lesson covered — the one-liner, the
+ * summary, the "what this quiz checks" line, and each card's objective — all
+ * written from the recording, which can hold a mistake. On the 136 production
+ * quizzes that carried a wrong key, 27 printed the class's wrong fact on the
+ * sheet as what was taught, while the quiz under it said the opposite. The
+ * operator's decision (option B): the sheet stops asserting it; it does not
+ * correct the teacher and nothing is sent to anyone.
+ *
+ * WHAT. One call on the verify model with NOTHING about the lesson
+ * (transcript-quiz-summary-truth): a false line comes back rewritten if code
+ * accepts the rewrite, else it is dropped. Runs after the blind solve, whose
+ * notes on the keys it disagreed with (the fact by the subject — "the first
+ * step of long division is divide") ride along as hints: on the 136 production
+ * quizzes with a wrong key, the solve had already named the fact in most of the
+ * lines a context-free check alone let through. A summary left with no
+ * sentence falls back to the checked one-liner, then to a line naming only the
+ * topic — never empty (the validator requires one, and the last repair
+ * re-validates).
+ *
+ * FAIL-OPEN. A throw or an unusable reply ships the texts as authored,
+ * recorded as `meta.summary_truth.status = 'error'` and logged at error.
+ *
+ * @returns {Promise<{record:object, lessonSummary:string|null, extras:object, slos?:object[]}>}
+ */
+/**
+ * The facts the blind solve noted where it disagreed with a key — its note on
+ * every flagged item (another answer, two answers, or none right), which names
+ * the fact by the subject. Only notes: never the item, the key or a child.
+ */
+function answerCheckFindings(kvRecord) {
+  const flagged = new Set(['disagree', 'ambiguous', 'none_correct']);
+  return [...new Set(((kvRecord && kvRecord.disagreements) || [])
+    .filter((d) => d && flagged.has(d.verdict) && String(d.note || '').trim())
+    .map((d) => String(d.note).trim()))];
+}
+
+async function runSummaryTruth(api, {
+  lessonSummary, extras, digest, language, quizId, quizSource, grade = null, topic = null, hints = [],
+}) {
+  const startedAt = Date.now();
+  const record = {
+    status: 'clean', model: null, checked: 0, flagged: 0, rewritten: 0, dropped: 0, missing: 0, cost_usd: 0, lines: [],
+  };
+  const finish = (out) => {
+    record.latency_ms = Date.now() - startedAt;
+    record.cost_usd = Math.round((Number(record.cost_usd) || 0) * 1e6) / 1e6;
+    // Counts only — never a line of the summary (it can quote the lesson).
+    logEvent('transcript_quiz.summary_truth', {
+      quizId, quiz_source: quizSource, status: record.status, model: record.model, checked: record.checked,
+      flagged: record.flagged, rewritten: record.rewritten, dropped: record.dropped, missing: record.missing,
+      fallback: record.fallback || null, costUsd: record.cost_usd, latencyMs: record.latency_ms,
+    });
+    return { record, ...out };
+  };
+  let out;
+  try {
+    out = await api.checkSummaryTruth({
+      lessonSummary: lessonSummary || '', extras: extras || {}, slos: (digest && digest.slos) || [],
+      subject: digest && digest.subject, grade, hints,
+    });
+  } catch (err) {
+    record.status = 'error';
+    record.error = String((err && err.message) || err || 'unknown').slice(0, 200);
+    logToFile('❌ transcript quiz: summary truth check failed — shipping the summary as authored (fail-open)', {
+      quizId, quiz_source: quizSource, error: record.error,
+    }, 'error');
+    return finish({ lessonSummary, extras });
+  }
+  Object.assign(record, {
+    hints: Array.isArray(hints) ? hints.length : 0,
+    model: out.model || null, checked: out.checked || 0, flagged: out.flagged || 0, rewritten: out.rewritten || 0,
+    dropped: out.dropped || 0, missing: out.missing || 0, cost_usd: Number(out.costUsd) || 0, lines: out.lines || [],
+  });
+  if (out.skipped) record.status = 'skipped';
+  else if (record.flagged) record.status = 'fixed';
+  let summary = out.lessonSummary;
+  if (String(lessonSummary || '').trim() && !String(summary || '').trim()) {
+    const short = out.extras && out.extras.lesson_summary_short;
+    record.fallback = short ? 'short' : 'topic';
+    summary = short || resolveUx('tqSummaryTopicOnly', { language, params: { topic: topic || (digest && digest.topic) || '' } });
+  }
+  return finish({ lessonSummary: summary, extras: out.extras, slos: out.slos });
+}
+
+/**
  * THE BLIND SOLVE — every lesson quiz's keys, transcript and lp_v8 alike, held
  * against an independent solver's answers, after every authoring and repair step
  * (and after the lp_v8 key check) and before a single row is stored.
@@ -950,7 +1228,12 @@ async function runKeyCheck(api, {
  * and a transcript quiz has no source to check at all.
  *
  * WHAT. One LLM call (`transcript-quiz-key-verify.service`, its own stronger
- * model) answers every item without its key; code compares. An item it answers
+ * model) answers every item without its key; code compares. Then every item it
+ * did not flag is solved AGAIN with nothing about the lesson (`withLesson:
+ * false`): the summary is written from the recording and repeats a mistake made
+ * in class, and on staging it talked the solver into agreeing that 4/8 is not a
+ * proper fraction. An item the subject alone decides differently is flagged
+ * like any other (`pass: 'bare'`); `unsure` there never blocks. An item it answers
  * differently (`disagree`), finds a second correct option in (`ambiguous`) or no
  * correct option in (`none_correct`) is re-authored ONCE through the same
  * targeted rewrite every other rejected question goes through, with the
@@ -972,13 +1255,22 @@ async function runKeyCheck(api, {
  *   softFaults?:string[]|null}>}
  */
 async function runKeyVerify(api, {
-  questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, grade, quizSource, attempts,
+  questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, grade, quizSource, attempts, knownNames = null,
 }) {
   const KeyVerify = require('./transcript-quiz-key-verify.service');
   const startedAt = Date.now();
   const record = {
     status: 'clean', model: null, checked: questions.length, agreed: 0, disagreed: 0, ambiguous: 0, none_correct: 0,
     unclear: 0, missing: 0, fixed: 0, dropped: 0, cost_usd: 0, disagreements: [],
+    // The second solve, without the lesson: how many it checked, and what it found.
+    bare: {
+      status: 'skipped', checked: 0, agreed: 0, flagged: 0, unclear: 0,
+    },
+    // The questions the full solve says ask the same fact: what it named, what
+    // passed the contract in code, what the rewrite replaced, what shipped.
+    same_fact: {
+      returned: 0, confirmed: [], unconfirmed: [], fixed: [], shipped: [],
+    },
   };
   const finish = (out) => {
     record.latency_ms = Date.now() - startedAt;
@@ -988,6 +1280,9 @@ async function runKeyVerify(api, {
       checked: record.checked, agreed: record.agreed, disagreed: record.disagreed, ambiguous: record.ambiguous,
       none_correct: record.none_correct, unclear: record.unclear, missing: record.missing,
       fixed: record.fixed, dropped: record.dropped, costUsd: record.cost_usd, latencyMs: record.latency_ms,
+      bareStatus: record.bare.status, bareChecked: record.bare.checked, bareFlagged: record.bare.flagged,
+      sameFactReturned: record.same_fact.returned, sameFactConfirmed: record.same_fact.confirmed.length,
+      sameFactFixed: record.same_fact.fixed.length,
     });
     return { record, ...out };
   };
@@ -998,10 +1293,70 @@ async function runKeyVerify(api, {
     }, 'error');
     return message;
   };
-  const solve = (qs, indices = null) => api.verifyKeys({
-    questions: qs, indices, language, grade, subject: digest.subject, digest, lessonSummary, quizId,
+  const solve = (qs, indices = null, withLesson = true, again = false) => api.verifyKeys({
+    questions: qs, indices, language, grade, subject: digest.subject, digest, lessonSummary, quizId, withLesson, again,
   });
   const flagged = (v) => KeyVerify.FLAGGED.has(v.verdict);
+  /**
+   * The same items solved again WITHOUT the lesson — every one the first solve
+   * did not flag. Returns the verdicts with the second solve's flags merged in
+   * (a flag there replaces the first solve's agree/unsure), or the first
+   * solve's verdicts untouched when the second one fails (fail-open, at error).
+   *
+   * "No option is right" and "two options are right" count at once: they are
+   * what a mistake made in class leaves behind (the 4/8 item had no right
+   * answer). "Another option is right" counts only if a second look — the same
+   * items, the options in a different order — says so too: most first answers
+   * of that kind were a slip between an option's position and its text (the
+   * note said "'t' is silent" beside the position of "s").
+   *
+   * Replayed on production (read-only, 24 Sep 2026): on 631 random items from
+   * 80 quizzes it flags 7 (3 real, 2 debatable, 2 wrong; the second look
+   * removed 9 of 13 first answers of "another option"); on 162 items whose key
+   * the class had defended against the subject (1 – 24 Sep, screened from
+   * 18,664) it flags 101. The solve WITH the lesson had let such items through.
+   */
+  const withoutLesson = async (qs, verdicts, stats) => {
+    const idx = verdicts.filter((v) => !flagged(v)).map((v) => v.index);
+    if (!idx.length) return { verdicts, costUsd: 0 };
+    try {
+      const bare = await solve(qs, idx, false);
+      let costUsd = Number(bare.costUsd) || 0;
+      const byIndex = new Map(bare.verdicts.map((v) => [v.index, v]));
+      const toConfirm = bare.verdicts.filter((v) => v.verdict === 'disagree').map((v) => v.index);
+      let confirmed = new Set();
+      if (toConfirm.length) {
+        const again = await solve(qs, toConfirm, false, true);
+        costUsd += Number(again.costUsd) || 0;
+        confirmed = new Set(again.verdicts.filter(flagged).map((v) => v.index));
+        if (stats) { stats.second_look = toConfirm.length; stats.confirmed = confirmed.size; }
+      }
+      const counts = (b) => b && flagged(b) && (b.verdict !== 'disagree' || confirmed.has(b.index));
+      if (stats) {
+        stats.status = 'ok';
+        stats.checked += idx.length;
+        bare.verdicts.forEach((v) => {
+          if (counts(v)) stats.flagged += 1;
+          else if (v.verdict === 'agree') stats.agreed += 1;
+          else stats.unclear += 1;
+        });
+      }
+      return {
+        verdicts: verdicts.map((v) => {
+          const b = byIndex.get(v.index);
+          return counts(b) ? b : v;
+        }),
+        costUsd,
+      };
+    } catch (err) {
+      const message = String((err && err.message) || err || 'unknown').slice(0, 200);
+      logToFile('❌ transcript quiz: key verify without the lesson failed — keeping the solve with it (fail-open)', {
+        quizId, quiz_source: quizSource, error: message,
+      }, 'error');
+      if (stats) { stats.status = 'error'; stats.error = message; }
+      return { verdicts, costUsd: 0 };
+    }
+  };
 
   // ── 1. the solve ──────────────────────────────────────────────────────────
   let first;
@@ -1019,43 +1374,78 @@ async function runKeyVerify(api, {
   }
   record.model = first.model || null;
   record.cost_usd += Number(first.costUsd) || 0;
+  first.verdicts.forEach((v) => { if (v.missing) record.missing += 1; });
+  // ── 1b. the same items, without the lesson ────────────────────────────────
+  const second = await withoutLesson(questions, first.verdicts, record.bare);
+  record.cost_usd += second.costUsd;
+  const verdicts = second.verdicts;
   const COUNT = {
     agree: 'agreed', disagree: 'disagreed', ambiguous: 'ambiguous', none_correct: 'none_correct', unclear: 'unclear',
   };
-  first.verdicts.forEach((v) => {
+  verdicts.forEach((v) => {
     if (COUNT[v.verdict]) record[COUNT[v.verdict]] += 1;
-    if (v.missing) record.missing += 1;
   });
-  const bad = first.verdicts.filter(flagged);
-  if (!bad.length) return finish({ changed: false });
+  const bad = verdicts.filter(flagged);
+
+  // ── 1c. the same fact asked twice ─────────────────────────────────────────
+  // The full solve names the questions it reads as asking the same fact with
+  // the same answer. On its own that is right about three times in five (it
+  // pairs one template on another item, or two questions on one topic with
+  // different answers), so only a pair that ALSO passes the contract in code —
+  // the same answer, the same numbers and quoted items — is acted on: the later
+  // question joins the rewrite below with the repeat's own complaint. The rest
+  // are only logged. Never a reason to drop a question or fail the quiz.
+  const named = Array.isArray(first.sameFact) ? first.sameFact : [];
+  record.same_fact.returned = named.length;
+  named.forEach(([i, j]) => {
+    (confirmsSameFact(questions[i], questions[j]) ? record.same_fact.confirmed : record.same_fact.unconfirmed).push([i, j]);
+  });
+  const repeatAt = new Map();          // later question → the earlier one it repeats
+  record.same_fact.confirmed.forEach(([i, j]) => { if (!repeatAt.has(j)) repeatAt.set(j, i); });
+  const repeatComplaints = [...repeatAt].map(([j, i]) => solverDuplicateComplaint(questions, i, j));
+  if (named.length) {
+    logEvent('transcript_quiz.duplicate_question', {
+      quizId, stage: 'solver', quiz_source: quizSource, questions: repeatAt.size, indices: [...repeatAt.keys()],
+      confirmed: record.same_fact.confirmed, unconfirmed: record.same_fact.unconfirmed,
+    });
+  }
+  const repeatLeft = () => repeatComplaints.filter((e) => repeatAt.has(Number(/^q(\d+)/.exec(e)[1])));
+  if (!bad.length && !repeatAt.size) return finish({ changed: false });
 
   const complaints = bad.map((v) => KeyVerify.disagreementComplaint(v, questions[v.index]));
   record.disagreements = bad.map((v) => ({
     index: v.index,
     verdict: v.verdict,
+    pass: v.pass === 'bare' ? 'bare' : 'lesson',
     keyed: KeyVerify.optionText(questions[v.index], v.keyed).slice(0, 120),
     blind: KeyVerify.optionText(questions[v.index], v.blind || []).slice(0, 120),
     note: String(v.note || '').slice(0, 200),
   }));
   attempts.push({
-    attempt: 'key_verify', model: record.model, cost_usd: first.costUsd || null, latency_ms: first.latencyMs || null, errors: complaints,
+    attempt: 'key_verify', model: record.model, cost_usd: first.costUsd || null, latency_ms: first.latencyMs || null, errors: [...complaints, ...repeatComplaints],
   });
-  logToFile('⚠️ transcript quiz: a blind solver disagrees with answer keys', {
-    quizId, quiz_source: quizSource, indices: bad.map((v) => v.index), verdicts: bad.map((v) => v.verdict),
-  });
+  if (bad.length) {
+    logToFile('⚠️ transcript quiz: a blind solver disagrees with answer keys', {
+      quizId, quiz_source: quizSource, indices: bad.map((v) => v.index), verdicts: bad.map((v) => v.verdict),
+    });
+  }
 
   // ── 2. ONE targeted rewrite, with the disagreement as the complaint ────────
+  // A key that is not true outranks a repeat for the five places (rewriteTargets
+  // tiers KEY_* first); a repeat left out ships, recorded.
   const stillBad = new Set(bad.map((v) => v.index));
   let current = questions;
   let softFaults = null;
   const rw = await api.rewriteRejected({
-    questions, errors: complaints, digest, language, gradeBand, quizId, lessonSummary, planned: quizSource === LP_V8,
+    // More than five flagged keys: the worst five are rewritten, the rest dropped below.
+    questions, errors: [...complaints, ...repeatComplaints], digest, language, gradeBand, quizId, lessonSummary, planned: isPlanQuiz(quizSource), knownNames, partial: true,
   });
   if (rw.attempted) {
     record.cost_usd += Number(rw.costUsd) || 0;
     let verrs = null;
     const replacedBad = (rw.replaced || []).filter((i) => stillBad.has(i));
-    if (rw.merged && replacedBad.length) {
+    const replacedRepeat = (rw.replaced || []).filter((i) => repeatAt.has(i));
+    if (rw.merged && (replacedBad.length || replacedRepeat.length)) {
       const v = validate(rw.merged, {
         language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
       });
@@ -1063,12 +1453,17 @@ async function runKeyVerify(api, {
       // The same bar every other shipped set meets: no hard fault left.
       if (v.errors.every((e) => SOFT_FAULT.test(String(e)))) {
         let again = new Set();
-        try {
-          const re = await solve(v.questions, replacedBad);
-          record.cost_usd += Number(re.costUsd) || 0;
-          again = new Set(re.verdicts.filter(flagged).map((x) => x.index));
-        } catch (err) {
-          record.recheck_error = failOpen('re-solve', err);
+        if (replacedBad.length) {
+          try {
+            const re = await solve(v.questions, replacedBad);
+            record.cost_usd += Number(re.costUsd) || 0;
+            // A rewrite is held to both solves, as the item it replaces was.
+            const reBare = await withoutLesson(v.questions, re.verdicts, null);
+            record.cost_usd += reBare.costUsd;
+            again = new Set(reBare.verdicts.filter(flagged).map((x) => x.index));
+          } catch (err) {
+            record.recheck_error = failOpen('re-solve', err);
+          }
         }
         current = v.questions;
         softFaults = v.errors.length ? v.errors : null;
@@ -1076,6 +1471,10 @@ async function runKeyVerify(api, {
           if (again.has(i)) return;
           stillBad.delete(i);
           record.fixed += 1;
+        });
+        replacedRepeat.forEach((i) => {
+          repeatAt.delete(i);
+          record.same_fact.fixed.push(i);
         });
       }
     }
@@ -1085,8 +1484,14 @@ async function runKeyVerify(api, {
       errors: verrs || [rw.error || 'the rewrite returned no usable replacement'],
     });
     logEvent('transcript_quiz.rewrite_attempted', {
-      quizId, after: 'key_verify', indices: rw.indices, replaced: rw.replaced, ok: stillBad.size === 0, errors: verrs ? verrs.length : null,
+      quizId, after: 'key_verify', indices: rw.indices, replaced: rw.replaced, ok: stillBad.size === 0 && repeatAt.size === 0, errors: verrs ? verrs.length : null,
     });
+  }
+  // A repeat the rewrite did not replace ships, recorded (never dropped).
+  record.same_fact.shipped = [...repeatAt.keys()].sort((a, b) => a - b);
+  // Only repeats, and the rewrite changed nothing: the quiz ships as it is.
+  if (!bad.length && current === questions) {
+    return finish({ changed: false, repeatFaults: repeatLeft() });
   }
 
   // ── 3. drop what still disagrees, or fail ──────────────────────────────────
@@ -1116,13 +1521,19 @@ async function runKeyVerify(api, {
       const { figureUrls, cardUrls } = await renderFor(api, {
         questions: cand.questions, rows: drafted, language, teacherId, quizId,
       });
-      if (repairsLost) record.fixed = 0;
+      if (repairsLost) {
+        record.fixed = 0;
+        record.same_fact.fixed = [];
+        record.same_fact.shipped = [...new Set(record.same_fact.confirmed.map(([, j]) => j))].sort((a, b) => a - b);
+      }
       record.dropped = cand.dropped.length;
-      record.status = cand.dropped.length ? 'dropped' : 'fixed';
+      // keys that were all true stay 'clean'; the repeats have their own record
+      record.status = !bad.length ? 'clean' : (cand.dropped.length ? 'dropped' : 'fixed');
       record.disagreements.forEach((d) => { d.outcome = gone.includes(d.index) ? 'dropped' : 'fixed'; });
       attempts.push({ attempt: 'key_verify_result', status: record.status, dropped: cand.dropped, errors: cand.softFaults || [] });
       return finish({
         changed: true, questions: cand.questions, figureUrls, cardUrls, draftedRows: drafted, softFaults: cand.softFaults,
+        repeatFaults: repairsLost ? repeatComplaints : repeatLeft(),
       });
     } catch (figErr) {
       record.render_error = String(figErr.message || figErr).slice(0, 200);
@@ -1134,7 +1545,55 @@ async function runKeyVerify(api, {
   return finish({ failed: true });
 }
 
+/**
+ * The generate step. A wrapper only so the lesson-plan cache's author lock
+ * (lp-quiz-cache single-flight) is given back on EVERY exit — ready, failed,
+ * thrown — once the quiz it was held for has gone out or stopped.
+ */
 async function process(quizId, payload = {}) {
+  const flight = { key: null };
+  try {
+    return await processQuiz(quizId, payload, flight);
+  } finally {
+    if (flight.key) await LpCache.release(flight.key, quizId);
+  }
+}
+
+/**
+ * THE LESSON-PLAN CACHE, looked up once the served lesson has been read and
+ * before any model call (lp-quiz-cache). Returns
+ *   { hit: {donor, rows, key} }   copy the donor's quiz
+ *   { deferred: true }            another teacher is writing this lesson now:
+ *                                 the job was re-queued to look again
+ *   {}                            author it (holding the lock when one was free)
+ */
+async function lookUpCache(api, { quiz, quizId, language, payload, flight, quizSource }) {
+  const hit = await LpCache.findDonor(quiz, language, { log: logToFile });
+  if (hit) return { hit };
+  const key = LpCache.cacheKey(quiz, language);
+  if (!key) return {};
+  const lock = await LpCache.acquire(key, quizId);
+  if (lock === 'acquired') {
+    flight.key = key;
+    return {};
+  }
+  const waits = Number(payload && payload.cache_waits) || 0;
+  if (lock !== 'held' || waits >= LpCache.maxCacheWaits()) return {};
+  try {
+    const SQSQueueService = require('../queue/sqs-queue.service');
+    // Re-queued, not waited for: a quiz-queue slot is one per replica, and the
+    // author it would wait on takes minutes.
+    await SQSQueueService.queueJob(quizId, 'quiz_generate', { ...(payload || {}), quizId, cache_waits: waits + 1 },
+      { delaySeconds: LpCache.cacheWaitDelaySeconds() });
+  } catch (err) {
+    logToFile('⚠️ lp quiz cache: could not re-queue to wait for the other author — authoring now', { quizId, error: err.message });
+    return {};
+  }
+  logEvent('lp_quiz.cache_wait', { quizId, waits: waits + 1, quiz_source: quizSource });
+  return { deferred: true };
+}
+
+async function processQuiz(quizId, payload, flight) {
   const api = module.exports;
   const { data: quiz, error } = await supabase.from('quizzes')
     .select('id, teacher_id, coaching_session_id, quiz_source, topic, subject, language, status, meta, grade')
@@ -1152,7 +1611,9 @@ async function process(quizId, payload = {}) {
   // from quizzes.teacher_id and its "session" is only the lesson date, which is
   // all the hand-off ever reads from one (PLAN_R8 §3.2/§3.3).
   const quizSource = quiz.quiz_source || TRANSCRIPT;
-  const isLp = quizSource === LP_V8;
+  // Written from a lesson PLAN (K-5 lp_v8 or Grades 6-12 lp612): no recording,
+  // no coaching session — the plan is the source and nobody heard the lesson.
+  const isLp = isPlanQuiz(quizSource);
   let session;
   let user;
   if (isLp) {
@@ -1161,15 +1622,43 @@ async function process(quizId, payload = {}) {
     if (!teacher) {
       await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'teacher_missing' } });
       logEvent('transcript_quiz.failed', { quizId, reason: 'teacher_missing', quiz_source: quizSource });
+      // No number to tell: the teacher's row is gone.
+      Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason: 'teacher_missing' });
       return { failed: true, reason: 'teacher_missing' };
     }
     user = teacher;
     session = lessonSessionFor(quiz);
   } else {
-    const { data: found } = await supabase.from('coaching_sessions')
+    const { data: found, error: sessionErr } = await supabase.from('coaching_sessions')
       .select(SESSION_SELECT).eq('id', quiz.coaching_session_id).maybeSingle();
+    // A read that ERRORED is not a missing session. On 15 Sep 2026 this select
+    // still joined a column V1.4.5 had dropped: PostgREST answered with an error,
+    // `data` was null, and 22 quizzes whose sessions all existed were written
+    // `session_missing` — no event, and nothing said to a teacher already told
+    // "making it now". The error now throws, so the queue redelivers the job, as
+    // for every other database error in this step.
+    if (sessionErr) {
+      logToFile('❌ transcript quiz: coaching session read failed in generate', {
+        quizId, code: sessionErr.code || null, error: sessionErr.message,
+      }, 'error');
+      throw new Error(`transcript quiz: coaching session read failed: ${sessionErr.message}`);
+    }
     if (!found) {
+      // Really gone. A failure like every other: persisted, an event, and the
+      // teacher — who was told the quiz is being made — is told it is not.
       await updateQuiz(quizId, { status: 'failed', meta: { ...(quiz.meta || {}), step: 'failed', error: 'session_missing' } });
+      const { data: owner, error: ownerErr } = await supabase.from('users')
+        .select('phone_number, preferred_language').eq('id', quiz.teacher_id).maybeSingle();
+      // Unreadable teacher: the job's own phone still reaches them, in the floor language.
+      if (ownerErr) logToFile('⚠️ transcript quiz: teacher unreadable while failing session_missing', { quizId, error: ownerErr.message });
+      const to = payload.phone || (owner && owner.phone_number);
+      const lang = teacherLanguageFor({ preferredLanguage: owner && owner.preferred_language });
+      if (to) {
+        await tellTeacherFailed(to, lang, quizId, 'session_missing', quizSource, { step: 'session' });
+      } else {
+        logEvent('transcript_quiz.failed', { quizId, reason: 'session_missing', quiz_source: quizSource, step: 'session' });
+        Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason: 'session_missing', step: 'session' });
+      }
       return { failed: true, reason: 'session_missing' };
     }
     session = found;
@@ -1179,6 +1668,34 @@ async function process(quizId, payload = {}) {
   const teacherLang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
   const teacherName = user.name || null;
   let meta = { ...(quiz.meta || {}) };
+  // Where the quiz was born — rides on every funnel stage this step writes.
+  const funnel = { quiz_id: quizId, teacher_id: quiz.teacher_id, source: quizSource, channel: Funnel.channelOf(meta.source) };
+  // A quiz resuming at the hand-off has already been generated; only real work
+  // counts as a start. A redelivered job starts again — count distinct quiz_id.
+  if (!(quiz.status === 'ready' && meta.step === 'ready')) Funnel.emit('generation_started', funnel);
+
+  // THE KILL SWITCH (QUIZ_LP612_SOURCE): off, no 6-12 quiz is WRITTEN. One queued
+  // before it was switched off fails honestly ("couldn't start it"); one already
+  // written (`ready`/`ready`, resuming at the hand-off) is not stopped.
+  if (quizSource === LP612 && !lp612SourceOn() && !(quiz.status === 'ready' && meta.step === 'ready')) {
+    const failedMeta = { ...meta, step: 'failed', error: 'source_off' };
+    await updateQuiz(quizId, { status: 'failed', meta: failedMeta });
+    await tellTeacherFailed(phone, teacherLang, quizId, 'source_off', quizSource, {}, failedMeta);
+    return { failed: true, reason: 'source_off' };
+  }
+
+  // THE RUNAWAY GUARD (quiz-daily-cap): at most QUIZ_DAILY_CAP quizzes made per
+  // teacher per day, both streams, counted here where every path meets and before
+  // any model call. A quiz resuming at the hand-off was already counted.
+  if (!(quiz.status === 'ready' && meta.step === 'ready')) {
+    const capped = await DailyCap.claim(quiz.teacher_id, quizId);
+    if (!capped.allowed) {
+      const failedMeta = { ...meta, step: 'failed', error: 'daily_cap' };
+      await updateQuiz(quizId, { status: 'failed', meta: failedMeta });
+      await tellTeacherFailed(phone, teacherLang, quizId, 'daily_cap', quizSource, { step: 'cap', count: capped.count, limit: capped.limit }, failedMeta);
+      return { failed: true, reason: 'daily_cap' };
+    }
+  }
 
   // The slide script is needed wherever the author still has to run; a quiz
   // resuming at the hand-off (`ready`/`ready`) has its questions and does not.
@@ -1189,6 +1706,58 @@ async function process(quizId, payload = {}) {
       await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'source_missing' } });
       await tellTeacherFailed(phone, teacherLang, quizId, 'source_missing', quizSource);
       return { failed: true, reason: 'source_missing' };
+    }
+  }
+
+  // ── THE LESSON-PLAN CACHE ────────────────────────────────────────────────
+  // The same lesson version was already made into a quiz that shipped with every
+  // check passed: reuse its questions (lp-quiz-cache). Nothing teacher-specific
+  // comes with them — the share code, the PDF and the student message are made
+  // below by the hand-off, for THIS teacher. "Make it again" (meta.remakes)
+  // always authors. QUIZ_LP_CACHE=off authors every time.
+  let cachedRows = null;
+  // A remake after today's limit (daily_cap) wrote nothing to be unhappy with,
+  // so it may still be served from the cache.
+  const freshAuthor = Number(meta.remakes) > 0 && meta.previous_error !== 'daily_cap';
+  if (isLp && slideScript && LpCache.enabled() && !freshAuthor) {
+    const cacheLanguage = quiz.language || quizLanguageFor(quiz.subject, slideScript.meta && slideScript.meta.language);
+    const looked = await lookUpCache(api, {
+      quiz, quizId, language: cacheLanguage, payload, flight, quizSource,
+    });
+    if (looked.deferred) return { deferred: 'cache_wait' };
+    let rows = null;
+    if (looked.hit) {
+      try {
+        rows = await LpCache.rehostMedia(LpCache.rowsFor(quizId, looked.hit.rows), { teacherId: quiz.teacher_id, quizId });
+      } catch (err) {
+        // A picture that cannot be copied is no reason to ship a question without
+        // it, nor to fail: the quiz is authored as it would have been.
+        logToFile('⚠️ lp quiz cache: the donor pictures could not be copied — authoring instead', {
+          quizId, donorId: looked.hit.donor.id, error: err.message,
+        });
+      }
+    }
+    if (rows) {
+      const { donor, key } = looked.hit;
+      await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
+      const { error: insErr } = await supabase.from('quiz_questions').insert(rows);
+      if (insErr) throw new Error(`quiz_questions insert failed: ${insErr.message}`);
+      meta = {
+        ...meta, ...LpCache.contentMetaFrom(donor, key), step: 'ready', question_count: rows.length, ready_at: new Date().toISOString(),
+      };
+      quiz.topic = donor.topic || quiz.topic;
+      quiz.subject = donor.subject || quiz.subject;
+      quiz.grade = donor.grade || quiz.grade;
+      quiz.language = cacheLanguage;
+      quiz.status = 'ready';
+      await updateQuiz(quizId, {
+        status: 'ready', topic: quiz.topic || 'Lesson', subject: quiz.subject, grade: quiz.grade || null, language: cacheLanguage, meta,
+      });
+      cachedRows = rows;
+      logEvent('transcript_quiz.ready', {
+        quizId, questions: rows.length, language: cacheLanguage, attempts: 0, costUsd: 0, quiz_source: quizSource, cached: true, donor_quiz_id: donor.id,
+      });
+      Funnel.emit('generated', { ...funnel, n: rows.length, cached: true, donor_quiz_id: donor.id });
     }
   }
 
@@ -1229,10 +1798,14 @@ async function process(quizId, payload = {}) {
       // The served lesson's id names the quiz from the catalog: the Urdu label
       // (topic_as_taught → quizzes.topic, the forward message, the PDF) is the
       // name on the lesson's own PDF, never the model's reading of the script.
+      const served = ((quiz.meta && quiz.meta.lessons) || [])[0] || {};
       r = isLp
         ? await LpDigest.run({
           slideScript, language: lpLanguage, grade: quiz.grade, subject: quiz.subject,
-          lessonId: (((quiz.meta && quiz.meta.lessons) || [])[0] || {}).lesson_id || null,
+          lessonId: served.lesson_id || null,
+          // A 6-12 lesson is named by its own heading (the K-5 catalog cannot know it).
+          lessonName: quizSource === LP612 ? (served.title || quiz.topic || null) : null,
+          quizSource,
         })
         : await Digest.run({ session, user });
     } catch (err) {
@@ -1257,8 +1830,13 @@ async function process(quizId, payload = {}) {
     quiz.grade = r.grade || quiz.grade;
     await updateQuiz(quizId, { topic: quiz.topic || 'Lesson', subject: quiz.subject, language, grade: r.grade || null, meta: { ...meta, step: 'author' } });
   }
-  const digest = meta.digest;
+  // `let`: the summary truth check replaces its SLO statements (a new object,
+  // never an edit of the row that was read).
+  let digest = meta.digest;
   const language = quiz.language || quizLanguageFor(digest.subject, session.transcript_language);
+  // A complaint logged by the authoring loop can quote a person's name (a
+  // URDU_NAME_LATIN line, a rejected teacher note): each is logged hashed (D4).
+  const redactLog = logRedactor(digest, nameLexicon(digest).lessonWords);
 
   // ── author + validate + store
   let questions = null;
@@ -1274,6 +1852,11 @@ async function process(quizId, payload = {}) {
     let lastLessonSummary = null;
     let lastExtras = {};
     let readyLessonSummary = null;
+    // The Urdu spelling of each person's name the repair has given for this
+    // quiz ({ "Hira": "حرا" }). Every later rewrite writes the name that way
+    // too: replayed, the blind solve's rewrite put "Hira" back into a teacher
+    // note of a quiz that had already learned «حرا».
+    const nameSpellings = {};
     const attempts = [];
     const attemptsAllowed = maxAttempts();
     // How many author attempts came back with ANY questions to judge. Zero means
@@ -1313,26 +1896,27 @@ async function process(quizId, payload = {}) {
       // teacher's Urdu page and never reach a child; a fault in them is not a
       // fault in the question. One small call rewrites exactly those fields
       // (any count), and the attempt continues with whatever complaints remain.
-      const Rw = require('./transcript-quiz-rewrite');
-      if (!v.ok && Rw.teacherFieldTargets(v.errors).length) {
-        // eslint-disable-next-line no-await-in-loop
-        const tf = await api.rewriteTeacherFields({ questions: out.questions, errors: v.errors, digest, language, quizId });
-        if (tf.attempted) {
-          meta.cost_usd = (meta.cost_usd || 0) + (tf.costUsd || 0);
-          if (tf.merged) {
-            out.questions = tf.merged;
-            v = validate(tf.merged, {
-              language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: out.lessonSummary, quizId,
-            });
-          }
-          attempts.push({ attempt: 'teacher_fields', after: attempt, indices: tf.indices, replaced: tf.replaced, model: tf.model || null, cost_usd: tf.costUsd || null, latency_ms: tf.latencyMs || null, errors: tf.merged ? v.errors : [tf.error || 'the repair returned nothing usable'] });
-          logEvent('transcript_quiz.teacher_fields_repaired', { quizId, after: attempt, indices: tf.indices, ok: Boolean(tf.merged) && !Rw.teacherFieldTargets(v.errors).length, remaining: v.errors.length });
-        }
+      // eslint-disable-next-line no-await-in-loop
+      const tfAuthor = await repairTeacherFields({ questions: out.questions, v, lessonSummary: out.lessonSummary, after: attempt });
+      if (tfAuthor) {
+        out.questions = tfAuthor.questions;
+        v = tfAuthor.v;
+      }
+      // The same question asked twice is counted on every attempt it appears
+      // in, whatever else is wrong with the attempt: the author prompt is what
+      // should stop it, and this is its rate (stage "author"; what finally
+      // ships is counted again, below, as stage "shipped").
+      const repeated = v.ok ? [] : v.errors.filter((e) => DUPLICATE_FAULT.test(String(e)));
+      if (repeated.length) {
+        logEvent('transcript_quiz.duplicate_question', {
+          quizId, stage: 'author', after: attempt, questions: repeated.length, indices: repeated.map((e) => Number(/^q(\d+)/.exec(e)[1])),
+        });
       }
       // ── IN-PLACE FAULTS: REPAIRED IN PLACE, THEN SHIPPED ─────────────────
       // When the only complaints left are verbs that speak to the child with a
-      // gender, or two English terms side by side, one targeted rewrite is
-      // asked to change exactly those words. Whatever it leaves, the quiz is
+      // gender, two English terms side by side, or a question the quiz already
+      // asked, one targeted rewrite is asked to change exactly those words (or,
+      // for the repeat, that one question). Whatever it leaves, the quiz is
       // not re-rolled for it: a clean repair ships from runRewrite, and
       // otherwise THIS attempt ships as it stands, through the same picture and
       // render checks as a clean attempt, with the faults recorded. Tried on
@@ -1348,9 +1932,29 @@ async function process(quizId, payload = {}) {
         if (adjacent.length) {
           logEvent('transcript_quiz.adjacent_terms', { quizId, after: attempt, questions: adjacent.length, indices: indicesOf(adjacent) });
         }
-        // eslint-disable-next-line no-await-in-loop
-        const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
-        if (fixed.ok) break;
+        const latin = v.errors.filter((e) => NAME_FAULT.test(e));
+        if (latin.length) {
+          logEvent('transcript_quiz.latin_name_found', {
+            quizId, after: attempt, questions: [...new Set(indicesOf(latin))].length, indices: [...new Set(indicesOf(latin))],
+            // how many names, never the names (data standard D4: no names in logs)
+            names: new Set(latin.map((e) => /"([^"]+)"/.exec(e)[1])).size,
+          });
+        }
+        // The picture is asked for on the first attempt of a drawable lesson
+        // whatever the text faults are: that retry is the picture path, and a
+        // text repair that shipped this attempt used to skip it (the quiz went
+        // out with no picture). The attempt is re-authored for its picture, so
+        // repairing its words first would be thrown away: they are repaired on
+        // the attempt that comes back.
+        const needsPicture = Boolean(figureRequiredError({
+          questions: v.questions, subject: digest.subject, attempt, maxAttempts: attemptsAllowed,
+          gradeBand: digest.grade_band || meta.grade,
+        }));
+        if (!needsPicture) {
+          // eslint-disable-next-line no-await-in-loop
+          const fixed = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt, partial: 'in_place' });
+          if (fixed.ok) break;
+        }
         addressFaults = v.errors;
         v = { ...v, ok: true };
       }
@@ -1392,7 +1996,8 @@ async function process(quizId, payload = {}) {
         }
         break;
       }
-      logToFile('⚠️ transcript quiz: validator rejected attempt', { quizId, attempt, errors: v.errors.slice(0, 8) });
+      // the complaints can quote a person's name: logged with it hashed (D4)
+      logToFile('⚠️ transcript quiz: validator rejected attempt', { quizId, attempt, errors: redactLog(v.errors.slice(0, 8)) });
       previousErrors = v.errors;
       lastRejected = out.questions;
       lastErrors = v.errors;
@@ -1407,7 +2012,7 @@ async function process(quizId, payload = {}) {
       // on every attempt but the last; the last one is handled below.
       if (attempt < attemptsAllowed) {
         // eslint-disable-next-line no-await-in-loop
-        const early = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt });
+        const early = await runRewrite({ rejected: out.questions, errors: v.errors, summary: out.lessonSummary, when: attempt, partial: 'in_place' });
         if (early.ok) break;
         if (early.tried) {
           lastRewriteErrors = lastErrors;
@@ -1424,34 +2029,126 @@ async function process(quizId, payload = {}) {
     // questions; the merged set goes through the whole validator again.
     // (Skipped when the loop already rewrote exactly these complaints.)
     if (!questions && lastRejected && lastErrors && lastRewriteErrors !== lastErrors) {
-      await runRewrite({ rejected: lastRejected, errors: lastErrors, summary: lastLessonSummary, when: 'last' });
+      // The last chance: the worst five even when more need re-asking, then the salvage.
+      await runRewrite({ rejected: lastRejected, errors: lastErrors, summary: lastLessonSummary, when: 'last', partial: true });
     }
-    // ── the rewrite, shared by the loop and the post-loop fallback ───────────
-    async function runRewrite({ rejected, errors, summary, when }) {
-      const rw = await api.rewriteRejected({
-        questions: rejected, errors, digest, language,
-        gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: summary,
-        // A rejected lp_v8 summary is rewritten in the plan's voice, never "you taught".
-        planned: isLp,
+    // ── the teacher-fields repair, shared by the author loop and every rewrite ─
+    // Runs on a set whose complaints include URDU_TEACHER_FIELDS, AFTER whatever
+    // wrote that set: the author (after = the attempt number) or a targeted
+    // rewrite (after = 'rewrite', rewrite_after = that rewrite's own `after`).
+    // It used to run after the author only, so a rewrite that wrote its
+    // replacements' notes in English — which the recorded rewrites did, five of
+    // five — left the set failing on the teacher's page alone and the attempt
+    // was thrown away. Returns the repaired set and its validation, or null
+    // when there was nothing to repair or the call gave nothing usable.
+    async function repairTeacherFields({
+      questions: qs, v: before, lessonSummary, after, rewriteAfter,
+    }) {
+      const Rw = require('./transcript-quiz-rewrite');
+      if (!before || before.ok || !Rw.teacherFieldTargets(before.errors).length) return null;
+      const tf = await api.rewriteTeacherFields({ questions: qs, errors: before.errors, digest, language, quizId });
+      if (!tf.attempted) return null;
+      meta.cost_usd = (meta.cost_usd || 0) + (tf.costUsd || 0);
+      const v = tf.merged
+        ? validate(tf.merged, {
+          language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary, quizId,
+        })
+        : before;
+      attempts.push({
+        attempt: 'teacher_fields', after, ...(rewriteAfter !== undefined ? { rewrite_after: rewriteAfter } : {}),
+        indices: tf.indices, replaced: tf.replaced, model: tf.model || null, cost_usd: tf.costUsd || null, latency_ms: tf.latencyMs || null,
+        errors: tf.merged ? v.errors : [tf.error || 'the repair returned nothing usable'],
       });
-      if (!rw.attempted) return { tried: false, ok: false, errors: null };
-      {
+      logEvent('transcript_quiz.teacher_fields_repaired', {
+        quizId, after, ...(rewriteAfter !== undefined ? { rewrite_after: rewriteAfter } : {}),
+        indices: tf.indices, ok: Boolean(tf.merged) && !Rw.teacherFieldTargets(v.errors).length, remaining: v.errors.length,
+      });
+      return tf.merged ? { questions: tf.merged, v } : null;
+    }
+
+    // ── the rewrite, shared by the loop and the post-loop fallback ───────────
+    async function runRewrite({
+      rejected, errors, summary, when, partial = false,
+    }) {
+      // ONE call repairs at most five questions. When more were faulted, the
+      // worst five go first (rewriteTargets), the merged set is validated
+      // again, and whatever it still names gets ONE second batch — never a
+      // third (REPAIR_BATCHES). The second batch runs only when the first left
+      // questions out and produced a set to build on.
+      let rw = null;
+      let v = null;
+      let merged = null;              // the rewritten set, after its teacher notes are repaired
+      let rwSummary = summary;
+      let base = rejected;
+      let baseErrors = errors;
+      let prefer = [];
+      for (let batch = 1; batch <= REPAIR_BATCHES; batch += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        const next = await api.rewriteRejected({
+          questions: base, errors: baseErrors, digest, language,
+          gradeBand: digest.grade_band || meta.grade, quizId, lessonSummary: rwSummary,
+          // A rejected lp_v8 summary is rewritten in the plan's voice, never "you taught".
+          planned: isLp,
+          knownNames: nameSpellings,
+          partial,
+          prefer,
+        });
+        if (!next.attempted) {
+          if (batch === 1) return { tried: false, ok: false, errors: null };
+          break;
+        }
+        rw = next;
+        Object.assign(nameSpellings, rw.names || {});
         meta.cost_usd = (meta.cost_usd || 0) + (rw.costUsd || 0);
         // PLAN_R6 D5 — the rewrite may also return a repaired `lesson_summary`
         // (a gendered reference to the teacher is the one quiz-level complaint
         // it is asked to fix). It is the summary the merged set is VALIDATED
         // with and the one that is stored, so the two cannot disagree.
-        const rwSummary = rw.lessonSummary || summary;
-        const v = rw.merged
-          ? validate(rw.merged, {
+        rwSummary = rw.lessonSummary || rwSummary;
+        merged = rw.merged;
+        v = merged
+          ? validate(merged, {
             language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: rwSummary, quizId,
           })
           : null;
+        attempts.push({
+          attempt: 'rewrite',
+          after: when,
+          batch,
+          indices: rw.indices,
+          deferred: rw.deferred && rw.deferred.length ? rw.deferred : undefined,
+          replaced: rw.replaced,
+          model: rw.model || null,
+          cost_usd: rw.costUsd || null,
+          latency_ms: rw.latencyMs || null,
+          errors: v ? v.errors : [rw.error || 'the rewrite returned no usable replacement'],
+        });
+        // The teacher-fields repair runs LAST — after the rewrite, on what the
+        // rewrite wrote — so a replacement's English note never decides the set.
+        // eslint-disable-next-line no-await-in-loop
+        const tf = merged ? await repairTeacherFields({
+          questions: merged, v, lessonSummary: rwSummary, after: 'rewrite', rewriteAfter: when,
+        }) : null;
+        if (tf) {
+          merged = tf.questions;
+          v = tf.v;
+        }
+        const more = batch < REPAIR_BATCHES && v && !v.ok && merged && Array.isArray(rw.deferred) && rw.deferred.length > 0;
+        if (!more) break;
+        logEvent('transcript_quiz.rewrite_second_batch', {
+          quizId, after: when, first: rw.indices, deferred: rw.deferred, remaining: v.errors.length,
+        });
+        base = merged;
+        baseErrors = v.errors;
+        prefer = rw.deferred;
+      }
+      {
         // A repaired set whose only remaining complaints are in-place faults
         // (a verb that speaks to the child with a gender, two English terms
-        // side by side) is shipped (IN_PLACE_FAULT): the repair was the one
-        // attempt at them, and the rest of the set is sound.
-        let ok = Boolean(v && (v.ok || inPlaceOnly(v.errors)));
+        // side by side) or teacher notes its own repair could not put in Urdu
+        // is shipped, the faults recorded: the repair was the one attempt at
+        // them, and the rest of the set is sound.
+        let ok = Boolean(v && (v.ok || repairedOnly(v.errors)));
         if (ok) {
           try {
             const drafted = toRows(quizId, v.questions);
@@ -1473,17 +2170,7 @@ async function process(quizId, payload = {}) {
         // A rewrite that did not fully pass is still the better SALVAGE
         // candidate: it may have repaired one of two rejections, and the
         // salvage then drops one question instead of two.
-        if (!ok && rw.merged && v) rewritten = { questions: rw.merged, errors: v.errors, lessonSummary: rwSummary };
-        attempts.push({
-          attempt: 'rewrite',
-          after: when,
-          indices: rw.indices,
-          replaced: rw.replaced,
-          model: rw.model || null,
-          cost_usd: rw.costUsd || null,
-          latency_ms: rw.latencyMs || null,
-          errors: v ? v.errors : [rw.error || 'the rewrite returned no usable replacement'],
-        });
+        if (!ok && merged && v) rewritten = { questions: merged, errors: v.errors, lessonSummary: rwSummary };
         logEvent('transcript_quiz.rewrite_attempted', {
           quizId, after: when, indices: rw.indices, replaced: rw.replaced, ok, errors: v ? v.errors.length : null,
         });
@@ -1513,7 +2200,7 @@ async function process(quizId, payload = {}) {
             logEvent('transcript_quiz.salvage_refused', {
               quizId, why: salvaged.refused,
               dropped: salvaged.dropped || null,
-              errors: (salvaged.errors || []).slice(0, 6).map((e) => String(e).slice(0, 120)),
+              errors: redactLog((salvaged.errors || []).slice(0, 6).map(String)).map((e) => e.slice(0, 120)),
             });
           }
           continue;
@@ -1580,6 +2267,10 @@ async function process(quizId, payload = {}) {
       await tellTeacherFailed(phone, teacherLang, quizId, reason, quizSource, { step: 'author' });
       return { failed: true, reason, attempts };
     }
+    // What the loop settled: its questions have been validated and offered a
+    // repair. A question whose text is not in here was written later (the
+    // picture step, a key rewrite) and gets the last repair below.
+    const settled = new Set(questions.map(textSignature));
     // ── PICTURE DENSITY (grade 1-5 maths) ────────────────────────────────────
     // Before the key checks, so a stem rewritten for its picture is checked too.
     const dens = await runFigureDensity(api, {
@@ -1605,7 +2296,8 @@ async function process(quizId, payload = {}) {
     if (isLp) {
       const kc = await runKeyCheck(api, {
         questions, slideScript, digest, language, quizId, teacherId: quiz.teacher_id,
-        lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, attempts,
+        lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, attempts, knownNames: nameSpellings,
+        quizSource,
       });
       meta.key_check = kc.record;
       meta.cost_usd = (meta.cost_usd || 0) + (kc.record.cost_usd || 0);
@@ -1630,7 +2322,7 @@ async function process(quizId, payload = {}) {
     const kv = await runKeyVerify(api, {
       questions, digest, language, quizId, teacherId: quiz.teacher_id,
       lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade,
-      grade: quiz.grade || meta.grade || digest.grade_band || null, quizSource, attempts,
+      grade: quiz.grade || meta.grade || digest.grade_band || null, quizSource, attempts, knownNames: nameSpellings,
     });
     meta.key_verify = kv.record;
     meta.cost_usd = (meta.cost_usd || 0) + (kv.record.cost_usd || 0);
@@ -1646,35 +2338,106 @@ async function process(quizId, payload = {}) {
       draftedRows = kv.draftedRows;
       if (kv.softFaults) meta.soft_faults = kv.softFaults;
     }
-    // ── A NAME IN ENGLISH LETTERS IN AN URDU QUIZ (recorded, never refused) ──
+    // A question the blind solve named as a repeat that no rewrite replaced.
+    if (kv.repeatFaults && kv.repeatFaults.length) meta.soft_faults = [...(meta.soft_faults || []), ...kv.repeatFaults];
+    // ── THE SUMMARY IS TRUE BY THE SUBJECT (a recording's quiz) ──────────────
+    // After the blind solve, so the check can read what it found (see
+    // runSummaryTruth); before the last repair, which re-validates with the
+    // summary that will ship.
+    if (!isLp && summaryTruthEnabled()) {
+      const st = await runSummaryTruth(api, {
+        lessonSummary: readyLessonSummary, extras: lastExtras, digest, language, quizId, quizSource,
+        grade: quiz.grade || meta.grade || digest.grade_band || null, topic: quiz.topic,
+        hints: answerCheckFindings(kv.record),
+      });
+      meta.summary_truth = st.record;
+      meta.cost_usd = (meta.cost_usd || 0) + (st.record.cost_usd || 0);
+      readyLessonSummary = st.lessonSummary;
+      lastExtras = st.extras || lastExtras;
+      if (Array.isArray(st.slos)) {
+        digest = { ...digest, slos: st.slos };
+        meta.digest = digest;
+      }
+    }
+    // ── THE LAST REPAIR (a question written after the loop) ──────────────────
+    // After every step that can write a question, before anything is stored.
+    const fr = await runFinalSoftRepair(api, {
+      questions, settled, digest, language, quizId, teacherId: quiz.teacher_id,
+      lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, planned: isLp, attempts,
+      knownNames: nameSpellings,
+    });
+    if (fr.record) {
+      meta.final_repair = fr.record;
+      meta.cost_usd = (meta.cost_usd || 0) + (fr.record.cost_usd || 0);
+      if (fr.changed) {
+        Object.assign(nameSpellings, fr.names || {});
+        questions = fr.questions;
+        figureUrls = fr.figureUrls;
+        cardUrls = fr.cardUrls;
+        draftedRows = fr.draftedRows;
+      }
+      // The recorded in-place faults are the ones in what ships, at the indices it ships with.
+      meta.soft_faults = [...(meta.soft_faults || []).filter((e) => !FINAL_REPAIRABLE.test(String(e))), ...(fr.faults || [])];
+      if (!meta.soft_faults.length) delete meta.soft_faults;
+    }
+    // ── A NAME STILL IN ENGLISH LETTERS WHEN THE QUIZ SHIPS (recorded) ──────
+    // Repaired in place while authoring (NAME_FAULT); this records whatever the
+    // repair left, or a later step brought, once per question and name — read
+    // on the questions that ship. An earlier stage's record is replaced, not
+    // added to: a later step can replace the question it named (replayed, the
+    // picture repair did, and the record still named a question with no name).
     const names = latinNames(questions, { language, digest });
+    const stale = (meta.soft_faults || []).filter((e) => NAME_FAULT.test(String(e)));
+    if (stale.length || names.length) {
+      const rest = (meta.soft_faults || []).filter((e) => !NAME_FAULT.test(String(e)));
+      if (rest.length || names.length) meta.soft_faults = [...new Set([...rest, ...names])];
+      else delete meta.soft_faults;
+    }
     if (names.length) {
-      meta.soft_faults = [...(meta.soft_faults || []), ...names];
       logEvent('transcript_quiz.latin_name', {
         quizId, quiz_source: quizSource,
-        names: [...new Set(names.map((e) => /"([^"]+)"/.exec(e)[1]))],
+        // how many names, never the names (data standard D4: no names in logs)
+        names: new Set(names.map((e) => /"([^"]+)"/.exec(e)[1])).size,
         questions: [...new Set(names.map((e) => Number(/^q(\d+)/.exec(e)[1])))],
+      });
+    }
+    // ── THE SAME QUESTION TWICE, IN WHAT SHIPS ───────────────────────────────
+    // Counted on the set that is about to be stored, whichever step left the
+    // repeat: the author, a targeted rewrite that replaced one question with a
+    // copy of another, or a later repair. The count on author attempts alone
+    // read 0 on a quiz that shipped the same rounding question twice, written
+    // by the rewrite.
+    const shippedRepeats = duplicateQuestionErrors(questions);
+    if (shippedRepeats.length) {
+      logEvent('transcript_quiz.duplicate_question', {
+        quizId, stage: 'shipped', quiz_source: quizSource, questions: shippedRepeats.length,
+        indices: shippedRepeats.map((e) => Number(/^q(\d+)/.exec(e)[1])),
       });
     }
     const rows = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
     const { error: insErr } = await supabase.from('quiz_questions').insert(rows);
     if (insErr) throw new Error(`quiz_questions insert failed: ${insErr.message}`);
+    // The teacher's summaries are the teacher's Urdu page too: each person the
+    // digest recorded is written in the Urdu spelling there as well.
+    const spellSummary = (t) => (language === 'ur' && typeof t === 'string' && /\p{Script=Arabic}/u.test(t)
+      ? spellText(t, peopleSpellings(digest)) : t);
     meta = {
       ...meta,
       step: 'ready',
       question_count: rows.length,
       ready_at: new Date().toISOString(),
-      ...(readyLessonSummary ? { lesson_summary: readyLessonSummary } : {}),
+      ...(readyLessonSummary ? { lesson_summary: spellSummary(readyLessonSummary) } : {}),
       // bd-2yyry.7 — the sheet's two one-liners, authored alongside the summary.
-      ...(lastExtras.lesson_summary_short ? { lesson_summary_short: lastExtras.lesson_summary_short } : {}),
+      ...(lastExtras.lesson_summary_short ? { lesson_summary_short: spellSummary(lastExtras.lesson_summary_short) } : {}),
       ...(lastExtras.checks_summary
-        ? { digest: { ...(meta.digest || {}), checks_summary: lastExtras.checks_summary } } : {}),
+        ? { digest: { ...(meta.digest || {}), checks_summary: spellSummary(lastExtras.checks_summary) } } : {}),
     };
     await updateQuiz(quizId, { status: 'ready', meta });
     logEvent('transcript_quiz.ready', {
       quizId, questions: rows.length, language, attempts: attempts.length, costUsd: meta.cost_usd, quiz_source: quizSource,
     });
+    Funnel.emit('generated', { ...funnel, n: rows.length });
   }
 
   // ── hand-off (mint or reuse the share code, PDF, the three paced messages —
@@ -1683,7 +2446,8 @@ async function process(quizId, payload = {}) {
   const { data: storedQs } = await supabase.from('quiz_questions')
     .select('external_id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, distractor_misconceptions, option_feedback, media, render_pattern, sort_order')
     .eq('quiz_id', quizId).order('sort_order', { ascending: true });
-  const qRows = storedQs && storedQs.length ? storedQs : applyMedia(toRows(quizId, questions || []), questions || [], { figureUrls, cardUrls, language });
+  const qRows = storedQs && storedQs.length ? storedQs
+    : (cachedRows || applyMedia(toRows(quizId, questions || []), questions || [], { figureUrls, cardUrls, language }));
 
   const Handoff = require('./transcript-quiz-handoff.service');
   const result = await Handoff.sendHandoff(quizId, phone, {
@@ -1705,6 +2469,8 @@ module.exports = {
   checkKeys: (args) => require('./lp-quiz-key-check.service').checkKeys(args),
   // Both sources — the blind solve of every key (transcript-quiz-key-verify.service).
   verifyKeys: (args) => require('./transcript-quiz-key-verify.service').verifyKeys(args),
+  // A recording's quiz — every line the teacher's sheet prints, checked without the lesson.
+  checkSummaryTruth: (args) => require('./transcript-quiz-summary-truth').checkSummaryTruth(args),
   figureRequiredError,
   SOFT_FAULT,
   isEarlyYearsBand,

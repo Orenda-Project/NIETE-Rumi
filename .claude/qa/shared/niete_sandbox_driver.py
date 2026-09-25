@@ -64,7 +64,7 @@ def _write_users(creds, method, path, body):
 
 def lookup(creds, phone):
     try:
-        rows = _req(creds, "GET", "users?select=id,phone_number,first_name,registration_completed,registration_state,"
+        rows = _req(creds, "GET", "users?select=id,phone_number,name,registration_completed,registration_state,"
                                   "preferred_language,language_locked,conversation_state,role,country&phone_number=eq." + phone)
     except SupabaseHttpError as e:
         sys.exit(str(e))
@@ -79,10 +79,10 @@ def cmd_lookup(creds, a):
 
 def cmd_ensure(creds, a):
     row = lookup(creds, a.phone)
-    want = {"phone_number": a.phone, "first_name": "E2E Driver", "registration_completed": True,
+    want = {"phone_number": a.phone, "name": "E2E Driver", "registration_completed": True,
             "registration_state": "completed", "preferred_language": "en", "role": "teacher",
             "country": "Pakistan", "conversation_state": None}
-    if row and row.get("registration_completed") and row.get("first_name"):
+    if row and row.get("registration_completed") and row.get("name"):
         print("driver %s exists and is registered (id %s)" % (a.phone, row["id"]))
         return 0
     if not a.yes_write:
@@ -122,21 +122,22 @@ def cmd_reset_state(creds, a):
 
 
 def cmd_unregister(creds, a):
-    """Clear the driver's registration (first_name=NULL, registration_completed=false) so /register
-    opens the Flow. The registration feature's precondition — an UNREGISTERED driver — which the mock
+    """Clear the driver's registration (name=NULL, registration_completed=false, registration_state=NULL)
+    so /register opens the Flow — the three things the bot's isRegistered() reads
+    (bot/shared/utils/registration-status.js). users.name is the only name column. The registration feature's precondition — an UNREGISTERED driver — which the mock
     lane otherwise ensures away. Registration re-registers on completion; run-suite restores the driver
     with `ensure` afterwards so later features still see a registered account. Sandbox driver only."""
     row = lookup(creds, a.phone)
     if not row:
         print("driver %s does not exist — nothing to unregister" % a.phone); return 0
-    if not row.get("first_name") and not row.get("registration_completed"):
+    if not row.get("name") and not row.get("registration_completed") and row.get("registration_state") != "completed":
         print("driver %s already unregistered" % a.phone); return 0
     if not a.yes_write:
-        print("DRY RUN: would UNREGISTER driver %s (first_name=NULL) so /register opens the Flow" % a.phone); return 0
+        print("DRY RUN: would UNREGISTER driver %s (name=NULL) so /register opens the Flow" % a.phone); return 0
     _write_users(creds, "PATCH", "users?phone_number=eq." + a.phone,
-                 {"first_name": None, "registration_completed": False, "registration_state": None,
+                 {"name": None, "registration_completed": False, "registration_state": None,
                   "conversation_state": None})
-    print("driver %s UNREGISTERED (first_name cleared) — /register now opens the Flow" % a.phone)
+    print("driver %s UNREGISTERED (name cleared) — /register now opens the Flow" % a.phone)
     return 0
 
 

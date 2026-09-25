@@ -98,6 +98,18 @@ const COLUMN_SUM_RULE = 'COLUMN SUMS. A column addition or subtraction — the w
 const ADJACENT_TERMS_RULE = 'NEVER TWO ENGLISH TERMS SIDE BY SIDE (Urdu). English words written next to each other in an Urdu sentence are shown as ONE left-to-right phrase, so a right-to-left reader meets the SECOND term first and the meaning turns around: «جب numerator denominator سے چھوٹا ہو» is read as the denominator being smaller. When two separate English terms meet, put an Urdu word between them, or rephrase: «جب numerator کی قیمت denominator سے کم ہو»، «Sunday کا دن Saturday کے بعد آتا ہے». A single English term of two words stays together as it is: "cross multiplication", "common denominator", "place value".';
 
 /**
+ * EVERY QUESTION TESTS SOMETHING THE OTHERS DO NOT — stated once, here, and
+ * pasted verbatim into the author prompt, the targeted rewrite and the
+ * add-pictures repair (whose REPLACE writes a whole new question), so the
+ * three cannot drift. About one shipped class quiz in fifty asked the same
+ * question twice — the same three fractions in another order, the same answer
+ * — and nothing told the model not to. The deterministic half is
+ * DUPLICATE_QUESTION in transcript-quiz-duplicates.js, which names a repeat
+ * the model writes anyway and has it rewritten.
+ */
+const DISTINCT_QUESTIONS_RULE = 'EVERY QUESTION TESTS SOMETHING NO OTHER QUESTION TESTS. No two questions in the quiz may have the same correct answer on the same fact: the same question with its options in another order, with other wrong options, or with a few words added or changed is the SAME question, and a child would answer it twice. A question shape may be used again only with different numbers or a different item from the lesson (round 18, then round 16; the article before "kite", then before "tree"), so that its correct answer is different too. Before you return, read the questions side by side: where two test the same thing, write a question on something else in place of the later one, keeping the number of questions as it is.';
+
+/**
  * WHAT ONE QUESTION MUST CONTAIN — shared verbatim by the author prompt and by
  * the targeted rewrite, so the two cannot drift about the shape of a question
  * the validator will accept. Changing a rule here changes it in both.
@@ -106,7 +118,8 @@ function questionContract({ gradeBand } = {}) {
   return `- Exactly 3 options. One correct. The two wrong options are DISTRACTORS: each must look right to a child holding a specific, named misconception (the ones surfaced in the lesson first, then the classic ones for this topic). The two misconceptions must be different. No silly options. The three options must be different from each other.
 - Stem ≤ 160 characters; each option ≤ 60 characters (they render as tappable rows).
 - "distractor_misconceptions": for each wrong option, the confusion it catches in AT MOST 10 words, as a phrase ("counts the unshaded parts instead of the shaded"), not a sentence about the child — in the quiz language (the same language as the questions; Urdu in Urdu script with English technical terms in Latin letters).
-- "explanation": one sentence, why the correct answer is correct — tied to how the teacher explained it.
+- THE ANSWER IS TRUE BY THE SUBJECT. The correct option must be right by the subject itself — the definition, the rule, the sum, the spelling — whatever was said in class. A recording can hold a mistake (a teacher misspeaks, or calls 4/8 not a proper fraction); never make that mistake the correct answer, and never write a question whose answer is right only because the teacher said so. Ask about the correct fact instead, or leave that moment out.
+- "explanation": one sentence, why the correct answer is correct BY THE SUBJECT (the fact, the rule, the sum) — you may point to the lesson's own example, but "the teacher said so" is never the reason, and an explanation never says "…but in class …".
 - "option_feedback.correct": one warm sentence that says WHY it is right (never just "correct!" — name the idea).
 - "option_feedback.wrong": an object whose KEYS are the two indices that are NOT "correct_index" (as strings), each with one or two sentences that (a) name the confusion that option represents, in plain child language, (b) point back to the lesson's own example, (c) end with the correct idea. Never say "wrong", never scold.
 - NEVER refer to options by letter ("option B", "the answer is C") anywhere — the letters are shuffled before display.
@@ -164,6 +177,37 @@ const LP_SUMMARY_VOICE = 'This lesson was PLANNED, not heard: the teacher took t
   + 'Urdu. Never write "you taught", "you explained" or "you showed", and in Urdu never «آپ نے … پڑھایا»، '
   + '«آپ نے … سکھایا» or «آپ نے … بتایا» — each one says the lesson happened. For this field that '
   + 'overrides the «آپ نے … پڑھایا» form the gender rule allows.';
+
+/**
+ * EVERY LINE TO THE TEACHER IS TRUE BY THE SUBJECT — the summary, the sheet's
+ * one-liner and its "what this quiz checks" line, for a quiz written from a
+ * RECORDING (and the rewrite of that summary). A recording can hold a mistake,
+ * and the summary rule asks for "what you taught… naming your own examples":
+ * a staging Proper Fraction lesson's summary said «آپ نے 3/3 اور 4/8 کی مثالیں
+ * دے کر کہا کہ یہ Proper Fraction نہیں ہیں» while the fixed quiz under it keyed
+ * the opposite. The operator's decision (option B): the sheet never presents
+ * the mistake as correct — and never corrects the teacher either. The
+ * guarantee in code is transcript-quiz-summary-truth.js; this is the writers' half.
+ */
+/**
+ * THE KILL SWITCH for all of it — the writers' rule here, the digest's SLO
+ * rule, and the check in code (transcript-quiz-generate runSummaryTruth). Read
+ * at CALL time, so flipping the variable needs no deploy. Unset or anything
+ * else = on; 'false' / '0' / 'off' / 'no' = off, and the teacher's sheet is
+ * written exactly as it was before (no rule in any prompt, no check).
+ */
+function summaryTruthEnabled() {
+  const v = String(process.env.QUIZ_SUMMARY_TRUTH_FILTER ?? '').trim().toLowerCase();
+  return !['false', '0', 'off', 'no'].includes(v);
+}
+
+const SUMMARY_TRUTH_RULE = 'EVERY LINE TO THE TEACHER IS TRUE BY THE SUBJECT. "lesson_summary", '
+  + '"lesson_summary_short" and "checks_summary" tell the teacher what the lesson covered; they never state, '
+  + 'as what was taught or as true, anything that is wrong by the subject — even when it was said in class (a '
+  + 'recording can hold a mistake: a wrong formula, a misspelling, calling 4/8 not a proper fraction). Name that '
+  + 'part of the lesson by its topic or its example without the wrong claim ("you compared 1/4, 4/8 and 2/5"), '
+  + 'or state the correct fact plainly. Never say or imply that the teacher or the class was wrong, and never '
+  + 'add a note or a correction.';
 
 /**
  * THE RETRY NOTE. Two things it does beyond quoting the validator:
@@ -226,5 +270,7 @@ const RELIGIOUS_CONTENT_RULE = "RELIGIOUS CONTENT (Islamiyat / سیرت / any me
 
 module.exports = {
   languageRule, questionContract, retryNote, languageAgain, MATH_NOTATION_RULE, COLUMN_SUM_RULE, PART_NAMES_RULE,
-  SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
+  DISTINCT_QUESTIONS_RULE,
+  SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, SUMMARY_TRUTH_RULE, summaryTruthEnabled,
+  WRONG_SCRIPT_RE, DEFAULT_QUESTIONS,
 };

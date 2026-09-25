@@ -27,11 +27,45 @@ const TRANSCRIPT = 'transcript';
 const LP_V8 = 'lp_v8';
 
 /**
+ * A quiz written from a Grades 6-12 lesson plan the teacher was served — the
+ * exact document that made the PDF, read from R2 by its render's version
+ * triple (lp612-quiz-source.js). Downstream it is a lesson-PLAN quiz exactly
+ * like lp_v8: no recording, "What you planned", the lesson-plan failure copy,
+ * "Make it again".
+ */
+const LP612 = 'lp612';
+
+/**
  * Frozen: every consumer reads it, several hand it straight to PostgREST's
  * `.in()`, and one `.sort()` in a caller would reorder it for everyone in the
  * same process.
  */
-const LESSON_SOURCES = Object.freeze([TRANSCRIPT, LP_V8]);
+const LESSON_SOURCES = Object.freeze([TRANSCRIPT, LP_V8, LP612]);
+
+/**
+ * The lesson quizzes written from a lesson PLAN rather than a recording. The
+ * question every surface that used to ask "is this lp_v8?" is really asking:
+ * nobody heard this lesson, so nothing may say it was taught, and the quiz is
+ * made from a written source that can be read again.
+ */
+const PLAN_SOURCES = Object.freeze([LP_V8, LP612]);
+
+/** @param {string|null|undefined} source `quizzes.quiz_source` */
+function isPlanQuiz(source) {
+  return PLAN_SOURCES.includes(source);
+}
+
+/**
+ * THE KILL SWITCH for quizzes from Grades 6-12 lesson plans: QUIZ_LP612_SOURCE, read at call
+ * time. `on` (or `true`) = the /quiz menu lists 6-12 lessons and the generate step writes their
+ * quizzes. Anything else — unset, `off` — = no 6-12 lesson is listed and no lp612 quiz is
+ * written; a quiz already MADE keeps going (its hand-off, children, report and /quiz actions are
+ * not gated), so switching it off never strands a class mid-quiz.
+ */
+function lp612SourceOn() {
+  const v = String(process.env.QUIZ_LP612_SOURCE || '').trim().toLowerCase();
+  return v === 'on' || v === 'true';
+}
 
 /**
  * Is this quiz one of a teacher's own lessons (as opposed to a video quiz or an
@@ -74,6 +108,9 @@ function lessonSessionFor(quiz) {
  *
  * @param {string} reason      the `transcript_quiz.failed` reason
  * @param {string} quizSource  `quizzes.quiz_source`
+ * @param {{meta?: object, channel?: string}} [opts]  the FAILED row's meta (and
+ *   'quiz_menu' when the teacher is known to be in /quiz): a start failure's
+ *   line then says what can happen next (startFailureCopyKey)
  * @returns {string} a ux-strings key
  */
 const LP_FAILURE_COPY = {
@@ -90,30 +127,82 @@ const LP_FAILURE_COPY = {
   // The blind solve disagreed with too many keys (a wrong answer, or two right
   // ones) to fix or drop and still send a quiz.
   key_disagreement: 'tqFailedLpKeyDisagreement',
-  // The generate job could not be queued: the quiz was never written. What the
-  // teacher was told at the time, repeated — not "the questions did not come out".
+  // The two START failures — the quiz was never written. With the row's meta the
+  // line is chosen by what can happen next (startFailureCopyKey); these are the
+  // lines when a caller has no meta to give.
+  // The generate job could not be queued.
   queue_failed: 'lpQuizCouldNotStart',
+  // QUIZ_LP612_SOURCE was off where the quiz is written (only a /quiz tap makes
+  // a 6-12 quiz, so never the 15:00 offer's line).
+  source_off: 'lpQuizCouldNotStartLater',
+  // The teacher reached today's quiz limit (quiz-daily-cap) — nothing was written.
+  daily_cap: 'tqDailyCap',
 };
 /**
  * The transcript counterpart. `tqCouldNotMake` blames the recording ("the
- * transcript didn't carry enough"), so it is sent only where that is the state
- * or the existing claim: a transcript too short to carry a quiz
- * (source_unusable), and questions that never validated. The two reasons that
- * are not about the recording at all have their own sentence: the MODEL gave
- * nothing usable (model_failed), and the blind solve held the quiz back because
- * its answers were wrong or unclear (key_disagreement).
+ * transcript didn't carry enough"), so it is sent ONLY where that is the state:
+ * a transcript too short to carry a quiz (source_unusable), checked in code
+ * before any model call. Every other reason is ours and says so — the MODEL
+ * gave nothing usable (model_failed); the questions we wrote never passed our
+ * checks (validator_failed), or their keys contradicted the lesson
+ * (key_conflict — lp_v8 only today); the blind solve held the quiz back
+ * (key_disagreement). A session that is gone says so (session_missing). A
+ * reason nobody has written copy for is no evidence about the recording
+ * either, so it falls back to the general "on my side" sentence.
  */
 const TRANSCRIPT_FAILURE_COPY = {
-  model_failed: 'tqCouldNotMakeModel',
   source_unusable: 'tqCouldNotMake',
+  model_failed: 'tqCouldNotMakeModel',
+  validator_failed: 'tqCouldNotMakeAuthor',
+  key_conflict: 'tqCouldNotMakeAuthor',
   key_disagreement: 'tqFailedKeyDisagreement',
+  // the coaching session it was to be written from is gone
+  session_missing: 'tqCouldNotMakeSessionGone',
+  // today's quiz limit (quiz-daily-cap) — nothing was written
+  daily_cap: 'tqDailyCap',
 };
-function failureCopyKey(reason, quizSource) {
-  if (quizSource !== LP_V8) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMake';
+function failureCopyKey(reason, quizSource, { meta = null, channel = null } = {}) {
+  if (!isPlanQuiz(quizSource)) return TRANSCRIPT_FAILURE_COPY[reason] || 'tqCouldNotMakeModel';
+  if (meta && START_FAILURES.has(reason)) return startFailureCopyKey(reason, meta, channel);
   // An LP quiz never falls back to the transcript copy: a reason nobody has
   // written copy for is still an LP failure, and "the questions did not come
   // out" is the honest general case of one.
   return LP_FAILURE_COPY[reason] || 'tqFailedLpAuthor';
+}
+
+/** The lesson-plan failures where the quiz was never STARTED: nothing was written. */
+const START_FAILURES = new Set(['queue_failed', 'source_off']);
+
+/**
+ * WHICH line a start failure gets — by what can happen next, not the reason
+ * alone (staging E2E, 25 Sep: a quiz tapped in /quiz that failed source_off was
+ * told "the next lessons you plan will get a new offer", a line written for the
+ * 15:00 offer).
+ *
+ *   - it can be made again from /quiz (lpRemakeable on the failed row) → Retry,
+ *     from either door: every lesson-plan quiz, any status, is listed in /quiz;
+ *   - the 6-12 source is still off here → Later (it becomes remakeable when on);
+ *   - otherwise the 15:00 offer keeps its own line, and a /quiz tap — where
+ *     there is no offer to promise — is sent to another lesson.
+ *
+ * @param {string} reason   'queue_failed' | 'source_off'
+ * @param {object} meta     the FAILED row's `quizzes.meta` (its error set)
+ * @param {string|null} channel  'quiz_menu' when the caller knows the teacher is in /quiz
+ */
+function startFailureCopyKey(reason, meta, channel) {
+  if (lpRemakeable({ ...meta, error: reason })) return 'lpQuizCouldNotStartRetry';
+  if (reason === 'source_off') return 'lpQuizCouldNotStartLater';
+  return (channel === 'quiz_menu' || askedFromMenu(meta)) ? 'lpQuizCouldNotStartMenu' : 'lpQuizCouldNotStart';
+}
+
+/**
+ * Was this quiz asked for from /quiz — a tap in the list message or the Flow, or
+ * a remake from either — rather than the 15:00 offer? Read from the row's
+ * `meta.source` (the providers write 'list' / 'flow'; the offer writes 'lp_offer').
+ */
+function askedFromMenu(meta) {
+  const m = meta || {};
+  return Boolean(m.remake_source) || m.source === 'list' || m.source === 'flow';
 }
 
 /**
@@ -174,13 +263,31 @@ function failureReasonOf(meta) {
  */
 // queue_failed: the job never reached the queue — a transient refusal, and the
 // row now keeps its lessons (queueLpQuiz merges), so a remake can succeed.
-const LP_REMAKE_REASONS = new Set(['model_failed', 'validator_failed', 'key_conflict', 'key_disagreement', 'queue_failed']);
+// source_off: the 6-12 source was switched off where the quiz is written — a
+// config state, not the lesson's; made again once QUIZ_LP612_SOURCE is on HERE.
+// source_missing: the plan could not be read. Made again only when it can be
+// read NOW — `sourceBack`, which a caller sets from lp-source-check after
+// reading the source, never assumes. Without it, a remake would fail the same
+// way and tell the teacher the same thing a second time.
+// daily_cap: today's quiz limit (quiz-daily-cap) — made again on another day.
+const LP_REMAKE_REASONS = new Set([
+  'model_failed', 'validator_failed', 'key_conflict', 'key_disagreement', 'queue_failed', 'source_off', 'source_missing',
+  'daily_cap',
+]);
 const MAX_LP_REMAKES = 2;
-function lpRemakeable(meta) {
+function lpRemakeable(meta, { sourceBack = false } = {}) {
   const m = meta || {};
-  if (!LP_REMAKE_REASONS.has(failureReasonOf(m))) return false;
+  const reason = failureReasonOf(m);
+  if (!LP_REMAKE_REASONS.has(reason)) return false;
+  if (reason === 'source_off' && !lp612SourceOn()) return false;
+  if (reason === 'source_missing' && sourceBack !== true) return false;
   if (!Array.isArray(m.lessons) || !m.lessons.length) return false;
   return (Number(m.remakes) || 0) < MAX_LP_REMAKES;
+}
+
+/** lpRemakeable for a loaded quiz row: its meta, and the source check a surface ran on it (`_sourceBack`). */
+function lpRemakeableQuiz(quiz) {
+  return Boolean(quiz) && lpRemakeable(quiz.meta, { sourceBack: quiz._sourceBack === true });
 }
 
 /**
@@ -195,10 +302,10 @@ function lpRemakeable(meta) {
  * @returns {string} a ux-strings key
  */
 function handoffIntroKey(quizSource) {
-  return quizSource === LP_V8 ? 'tqHandoffIntroLp' : 'tqHandoffIntro';
+  return isPlanQuiz(quizSource) ? 'tqHandoffIntroLp' : 'tqHandoffIntro';
 }
 
 module.exports = {
-  TRANSCRIPT, LP_V8, LESSON_SOURCES, isLessonQuiz, lessonSessionFor, failureCopyKey, handoffIntroKey,
-  SOURCE_UNUSABLE_CODE, digestFailureReason, failureReasonOf, lpRemakeable,
+  TRANSCRIPT, LP_V8, LP612, LESSON_SOURCES, PLAN_SOURCES, isLessonQuiz, isPlanQuiz, lp612SourceOn, lessonSessionFor, failureCopyKey, handoffIntroKey,
+  SOURCE_UNUSABLE_CODE, digestFailureReason, failureReasonOf, lpRemakeable, lpRemakeableQuiz,
 };

@@ -41,10 +41,18 @@ run('the teacher quiz PDF keeps its footer with the last card', () => {
   test('no length of the last question leaves the footer alone on the last page', async () => {
     const footerOnly = [];
     let crossed = false;
+    let crossedAt = null;
     let pagesBefore = null;
-    for (let clauses = 6; clauses <= 12; clauses += 1) {
+    // The sweep finds the page boundary itself rather than pinning a window of
+    // clause counts: where the last card crosses a page depends on how tall
+    // every card above it is, and that moved when the Urdu lines were given the
+    // room Nastaliq needs (the crossing went from 8->9 clauses to 5->6). It
+    // walks on a few steps past the crossing — past the lengths where the
+    // footer used to strand — and stops well short of a last question taller
+    // than a page (~14 clauses here, over three times the longest real stem).
+    for (let clauses = 0; clauses <= 12 && !(crossed && clauses > crossedAt + 4); clauses += 1) {
       const pages = pageInk(await Gen.renderPdf(teacherPdfArgs(clauses)));
-      if (pagesBefore !== null && pages.length > pagesBefore) crossed = true;
+      if (pagesBefore !== null && pages.length > pagesBefore && !crossed) { crossed = true; crossedAt = clauses; }
       pagesBefore = pages.length;
       // A stranded footer is one line of type at the top of the sheet: its ink
       // ends about 5% of the way down. A page with the last card on it reaches

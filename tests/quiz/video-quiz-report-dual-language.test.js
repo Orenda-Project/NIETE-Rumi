@@ -60,6 +60,10 @@ describe('teacher en + quiz ur', () => {
    * transcript-quiz-teacher-template.test.js. PLAN_R6 D4 raised the body floor
    * to 21px (24.2px in Urdu); `leadingAt()` holds the absolute air between
    * Nastaliq baselines and lets the ratio fall out of it.
+   *
+   * This is the BASE stylesheet — what renders with QUIZ_URDU_SPACING_V2 off.
+   * With it on (the default) an appended block sets Urdu on the Nastaliq pitch
+   * measured from the font's ink; see bot/tests/quiz/urdu-line-spacing.test.js.
    */
   test('the RTL content rule leads with NastaliqUrdu and gives Urdu line-height', () => {
     const rule = ruleFor(html, '.content[dir="rtl"]');

@@ -2,8 +2,9 @@
 /**
  * A blind solver that agrees with every key.
  *
- * Every lesson quiz is now blind-solved once before its rows are stored (the
- * generate step's `verifyKeys` seam, transcript-quiz-key-verify.service). Suites
+ * Every lesson quiz is now blind-solved before its rows are stored — once with
+ * the lesson and once without it (the generate step's `verifyKeys` seam,
+ * transcript-quiz-key-verify.service); this agrees on both. Suites
  * whose subject is something else — the authoring budget, the rewrite, the
  * language of the teacher's page — install this on that seam, so they neither
  * reach a model for the extra call nor count it among the calls they assert on.
@@ -29,9 +30,24 @@ async function agreeWithEveryKey({ questions, indices = null }) {
   };
 }
 
-/** Install on the generate module's seam; returns the spy. */
+/**
+ * The summary truth check (a recording's quiz, transcript-quiz-summary-truth)
+ * finding nothing false: every text ships as authored. Installed beside the
+ * solver for the same reason — suites about something else neither reach a
+ * model for it nor count it. The check itself is driven through the real LLM
+ * boundary in transcript-quiz-summary-truth.test.js.
+ */
+async function nothingFalse({ lessonSummary = '', extras = {}, slos = [] }) {
+  return {
+    lessonSummary, extras: { ...extras }, slos, checked: 0, flagged: 0, rewritten: 0, dropped: 0, missing: 0, lines: [],
+    model: 'stub-truth', costUsd: 0, latencyMs: 0,
+  };
+}
+
+/** Install on the generate module's seams; returns the solver spy. */
 function installAgreeingSolver(Gen) {
+  if (typeof Gen.checkSummaryTruth === 'function') jest.spyOn(Gen, 'checkSummaryTruth').mockImplementation(nothingFalse);
   return jest.spyOn(Gen, 'verifyKeys').mockImplementation(agreeWithEveryKey);
 }
 
-module.exports = { agreeWithEveryKey, installAgreeingSolver };
+module.exports = { agreeWithEveryKey, nothingFalse, installAgreeingSolver };

@@ -208,7 +208,12 @@ describe('a video quiz sent to the class: the forwarded message is in the quiz l
       '📚 *Quiz time!*\n\nMiss Ayesha has sent you a quiz on *A Balanced Diet*.\n\n'
         + 'Tap here to start:\nhttps://wa.me/15550001111?text=QUIZ-ZX7Q2P\n\n'
         + "It takes about 10 minutes. You'll need to type your name and class first.",
-      "You'll get a report on how your class did tomorrow morning, or as soon as everyone has finished.",
+      // The one line that changed since this suite pinned the copy: it promised
+      // "tomorrow morning, or as soon as everyone has finished", and the report
+      // goes 12 hours after the first child starts (07:00 PKT at night), never
+      // early — tests/quiz/report-promise-truth.test.js checks it against the
+      // real schedule.
+      "You'll get a report on how your class did about 12 hours after the first student starts (at 7 am if that falls at night).",
     ]);
   });
 

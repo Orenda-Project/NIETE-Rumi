@@ -222,6 +222,22 @@ async function markSkipped(id, reason, extra = {}) {
   return patchRow(id, { status: STATUS.SKIPPED }, { ...extra, skip_reason: reason });
 }
 
+/**
+ * Not now. The teacher owes another question an answer (nudges/open-question), so
+ * the claimed row goes back to `pending`, due at `until`, and the next tick after
+ * that claims it again. Guarded on `status = 'sending'`: only the claim holder can
+ * hand a row back, and a row that finished in between is not revived.
+ *
+ * @returns {Promise<boolean>} false when the row could not be handed back — it then
+ *   stays `sending` and expireStuck calls it a failure, which is the honest count.
+ */
+async function defer(id, until, context = {}) {
+  return patchRow(id, { status: STATUS.PENDING, scheduled_at: iso(until) }, {
+    ...context,
+    deferred_at: nowIso(),
+  }, ['status', STATUS.SENDING]);
+}
+
 /** The send threw. The MESSAGE is stored, not the object — jsonb cannot hold a stack. */
 async function markFailed(id, error) {
   const message = error && error.message ? error.message : String(error || 'unknown');
@@ -357,6 +373,7 @@ module.exports = {
   markSent,
   markSkipped,
   markFailed,
+  defer,
   expireStuck,
   recordAnswer,
   rowsFor,

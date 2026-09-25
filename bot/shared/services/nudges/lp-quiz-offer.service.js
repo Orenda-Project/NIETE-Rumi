@@ -46,6 +46,9 @@ const { normalizeSubject, SUBJECT_NAMES_UR } = require('../../config/lp612-subje
 const { teacherLanguageFor, needsLanguageAsk, quizLanguageFor } = require('../quiz/transcript-quiz-language');
 const Catalog = require('../lp-v8-catalog.service');
 const { LP_V8 } = require('../quiz/quiz-sources');
+const Funnel = require('../quiz/quiz-funnel');
+const LessonClaim = require('../quiz/lp-lesson-claim');
+const QuizMenuFlags = require('../quiz/quiz-menu-flags');
 
 /** The `teacher_nudges.kind` this module owns. */
 const KIND = 'lp_quiz_offer';
@@ -83,6 +86,9 @@ const SKIP_REASONS_USED = [
   'offered_today',
   'sent_today',
   'window_closed',
+  // At send time only: a cohort built late (the worker was down at 15:00, or the
+  // switch went on in the evening) is due the moment it exists.
+  'quiet_hours',
 ];
 
 // ─── flags ───────────────────────────────────────────────────────────────────
@@ -351,6 +357,38 @@ async function idsWithRowToday(table, column, ids, sinceIso) {
   return found;
 }
 
+/**
+ * teacher → the catalog lessons an lp_v8 quiz of theirs already covers. A
+ * lesson made into a quiz from /quiz (or yesterday's offer) is not offered
+ * again: one quiz per lesson (lp-lesson-claim). The tap re-checks under the
+ * claim; this only keeps the offer from naming a lesson that is already done.
+ */
+async function coveredLessonsByTeacher(ids, sinceIso) {
+  const byTeacher = new Map();
+  for (const part of chunks(ids)) {
+    // eslint-disable-next-line no-await-in-loop
+    const rows = await pagedRows('lp quiz offer: covered lessons', () => supabase
+      .from('quizzes')
+      .select('teacher_id, lessons:meta->lessons')   // the slice, never the 8 KB meta
+      .in('teacher_id', part)
+      .eq('quiz_source', LP_V8)
+      .gte('created_at', sinceIso));
+    for (const row of rows) {
+      if (!byTeacher.has(row.teacher_id)) byTeacher.set(row.teacher_id, new Set());
+      LessonClaim.lessonIdsOf(row).forEach((id) => byTeacher.get(row.teacher_id).add(id));
+    }
+  }
+  return byTeacher;
+}
+
+/** The classes with every covered lesson taken out, and any class left empty dropped. */
+function withoutCovered(classes, covered) {
+  if (!covered || !covered.size) return classes;
+  return classes
+    .map((cls) => ({ ...cls, lessons: cls.lessons.filter((l) => !covered.has(l.lesson_id)) }))
+    .filter((cls) => cls.lessons.length);
+}
+
 async function coachingYesToday(ids, nudgeDate) {
   const found = new Set();
   for (const part of chunks(ids)) {
@@ -421,7 +459,12 @@ async function buildCohort({ nudgeDate, now }) {
   const offered = await idsWithRowToday('quizzes', 'teacher_id', ids, dayStart);
   const saidYes = await coachingYesToday(ids, nudgeDate);
 
-  const byTeacher = new Map(groupLessons(quizzable).map((g) => [g.userId, g.classes]));
+  // QUIZ_MENU_LESSON_ROWS off: no covered-lesson read; the cohort as it was built before.
+  const covered = !QuizMenuFlags.lessonRows() ? new Map() : await coveredLessonsByTeacher(ids, new Date(
+    PktTime.atPkt(nudgeDate, 0, 0).getTime() - WINDOW_DAYS * 86400000,
+  ).toISOString());
+  const byTeacher = new Map(groupLessons(quizzable)
+    .map((g) => [g.userId, withoutCovered(g.classes, covered.get(g.userId))]));
   const scheduledAt = PktTime.deferQuietHours(PktTime.atPkt(nudgeDate, sendHour(), sendMinute()));
 
   let inserted = 0;
@@ -617,6 +660,11 @@ async function send(row, { now } = {}) {
   };
 
   if (!enabled()) return skip('disabled');
+  // Never at night. `prepare` builds the cohort on any tick from the send hour to
+  // midnight and books every row for the send hour, so a late build is due at once;
+  // an offer about today's lessons at 22:00 is stale, not deferred (the coaching ask
+  // keeps the same rule). The window is the shared one (NUDGE_QUIET_HOURS_PKT).
+  if (PktTime.deferQuietHours(at).getTime() !== at.getTime()) return skip('quiet_hours');
   const classes = ((row.context && row.context.classes) || []).filter((c) => c && (c.lessons || []).length);
   const lessonCount = classes.reduce((n, c) => n + c.lessons.length, 0);
   if (!lessonCount) return skip('no_lesson');
@@ -683,10 +731,15 @@ async function send(row, { now } = {}) {
     ok = await WhatsAppService.sendInteractiveButtons(to, { body, buttons: yesNoButtons(row.id, language) }, sendOpts);
   }
 
+  const offerFunnel = {
+    nudge_id: row.id, teacher_id: row.user_id, source: QUIZ_SOURCE, channel: 'lp_offer', n: classes.length,
+  };
   if (!ok) {
     logToFile('❌ lp quiz offer: WhatsApp refused the offer', { nudgeId: row.id, shape }, 'error');
+    Funnel.emit('offer_made', { ...offerFunnel, delivered: false });
     throw new Error(`lp quiz offer: WhatsApp refused the ${shape} offer`);
   }
+  Funnel.emit('offer_made', { ...offerFunnel, delivered: true });
   logEvent('lp_quiz.offer_sent', {
     nudgeId: row.id, userId: row.user_id, shape, classes: classes.length,
     dropped: (context.dropped_classes || []).length, language,
@@ -757,6 +810,9 @@ async function insertQuiz(row, cls, { askLanguage = false } = {}) {
         class: { grade: cls.grade, subject: cls.subject },
         lesson_date: row.nudge_date,
         claimed_at: new Date().toISOString(),
+        // Committed now unless the language is still to be chosen — then the
+        // answer to that ask dates it (transcript-quiz-offer startGenerating).
+        ...(askLanguage ? {} : { accepted_at: new Date().toISOString() }),
       },
     })
     .select('id')
@@ -778,6 +834,9 @@ async function accept(nudgeId, key, from, user, at) {
     : null;
   if (!cls || !(cls.lessons || []).length) {
     logEvent('lp_quiz.offer_answered', { nudgeId, choice: 'expired', state });
+    Funnel.emit('offer_answered', {
+      nudge_id: nudgeId, teacher_id: user && user.id, source: QUIZ_SOURCE, channel: 'lp_offer', choice: 'expired',
+    });
     await reply(from, 'lpQuizExpired', language);
     return true;
   }
@@ -785,11 +844,42 @@ async function accept(nudgeId, key, from, user, at) {
   const choice = key ? `class:${key}` : 'yes';
   await Store.recordAnswer(row.id, { choice });
   logEvent('lp_quiz.offer_answered', { nudgeId, userId: row.user_id, choice });
+  Funnel.emit('offer_answered', { nudge_id: nudgeId, teacher_id: row.user_id, source: QUIZ_SOURCE, channel: 'lp_offer', choice });
 
   // The quiz language is the teacher's to choose, exactly as on the quiz born
   // from a recording: every subject but Urdu and Islamiyat is asked first.
   const askLanguage = needsLanguageAsk(cls.subject);
-  const quizId = await insertQuiz(row, cls, { askLanguage });
+
+  // ONE QUIZ PER LESSON, whichever door asked (lp-lesson-claim). A lesson the
+  // teacher already made a quiz for from /quiz since this offer went out is
+  // left out of the class; with nothing left, nothing new is made.
+  // QUIZ_MENU_LESSON_ROWS off: the tap inserts its own quiz with no claim, as before.
+  const claiming = QuizMenuFlags.lessonRows();
+  const since = new Date(Math.min(...cls.lessons.map((l) => new Date(l.delivered_at || row.scheduled_at).getTime()))
+    - 86400000).toISOString();
+  const taken = new Set(!claiming ? [] : (await LessonClaim.coveringQuizzes(row.user_id, cls.lessons.map((l) => l.lesson_id), { since }))
+    .flatMap((q) => LessonClaim.lessonIdsOf(q)));
+  const open = { ...cls, lessons: cls.lessons.filter((l) => !taken.has(l.lesson_id)) };
+  if (!open.lessons.length) {
+    logEvent('lp_quiz.quiz_claimed', { nudgeId, won: false, reason: 'covered', userId: row.user_id, class: cls.key });
+    await reply(from, 'lpQuizAlreadyHave', language);
+    return true;
+  }
+  const claim = !claiming
+    ? { won: true, quizId: await insertQuiz(row, open, { askLanguage }) }
+    : await LessonClaim.claimLessons({
+      teacherId: row.user_id,
+      lessonIds: open.lessons.map((l) => l.lesson_id),
+      since,
+      insert: () => insertQuiz(row, open, { askLanguage }),
+      via: 'lp_offer',
+    });
+  if (!claim.won) {
+    logEvent('lp_quiz.quiz_claimed', { nudgeId, won: false, reason: claim.reason, userId: row.user_id, class: cls.key });
+    await reply(from, claim.existing ? 'lpQuizAlreadyHave' : 'tqAlreadyMaking', language);
+    return true;
+  }
+  const { quizId } = claim;
   if (!(await Store.claimQuiz(row.id, quizId))) {
     // Another tap (or replica) claimed this offer first; its quiz is the one.
     const { error } = await supabase.from('quizzes').delete().eq('id', quizId);
@@ -814,9 +904,14 @@ async function accept(nudgeId, key, from, user, at) {
     logEvent('lp_quiz.language_asked', { nudgeId, quizId, userId: row.user_id, class: cls.key });
   } else if (!(await TranscriptQuizOffer.queueLpQuiz({ quizId, nudgeId: row.id, phone: from, language }))) {
     return true;
+  } else {
+    // Urdu / Islamiyat: no language to ask, so the yes IS the commitment.
+    Funnel.emit('accepted', {
+      quiz_id: quizId, nudge_id: row.id, teacher_id: row.user_id, source: QUIZ_SOURCE, channel: 'lp_offer',
+    });
   }
   logEvent('lp_quiz.quiz_claimed', {
-    nudgeId, quizId, won: true, userId: row.user_id, class: cls.key, lessons: cls.lessons.length, quiz_source: QUIZ_SOURCE,
+    nudgeId, quizId, won: true, userId: row.user_id, class: cls.key, lessons: open.lessons.length, quiz_source: QUIZ_SOURCE,
     awaiting_language: askLanguage,
   });
   return true;
@@ -831,11 +926,15 @@ async function decline(nudgeId, from, user, at) {
   }
   if (state !== 'open') {
     logEvent('lp_quiz.offer_answered', { nudgeId, choice: 'expired', state });
+    Funnel.emit('offer_answered', {
+      nudge_id: nudgeId, teacher_id: user && user.id, source: QUIZ_SOURCE, channel: 'lp_offer', choice: 'expired',
+    });
     await reply(from, 'lpQuizExpired', language);
     return true;
   }
   await Store.recordAnswer(row.id, { choice: 'no' });
   logEvent('lp_quiz.offer_answered', { nudgeId, userId: row.user_id, choice: 'no' });
+  Funnel.emit('offer_answered', { nudge_id: nudgeId, teacher_id: row.user_id, source: QUIZ_SOURCE, channel: 'lp_offer', choice: 'no' });
   await reply(from, 'lpQuizDeclined', language);
   return true;
 }
@@ -878,6 +977,10 @@ module.exports = {
   cutoffHour,
   pilotSectors,
   cohortRuleDate,
+  // The /quiz lesson-plan rows (quiz/lp-v8-lesson-provider) name and date a
+  // lesson exactly as this offer does.
+  catalogTopic,
+  subjectName,
   classKey,
   groupLessons,
   preChecks,

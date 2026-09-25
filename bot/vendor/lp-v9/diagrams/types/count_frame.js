@@ -11,7 +11,7 @@
 //
 // Spec
 //   model   "ten_frame" | "tally"    default ten_frame
-//   count   7                        how many counters / strokes
+//   count   7                        how many counters / strokes (a ten_frame may be 0: empty)
 //   lang    "en" | "ur"
 
 const { Svg, C } = require("../lib/svg");
@@ -78,9 +78,13 @@ function renderTally(spec, count) {
 
 function render(spec) {
   const count = Math.floor(Number(spec.count));
-  if (!Number.isFinite(count) || count < 1) throw new Error("count_frame: `count` must be at least 1");
-  if (count > MAX) throw new Error(`count_frame: ${count} is past what a frame or a tally shows a child; keep it to ${MAX}`);
   const model = spec.model === "tally" ? "tally" : "ten_frame";
+  // ZERO (NIETE divergence, SYNC.md 3.23): an empty ten-frame is how a primary
+  // class shows 0 — ten empty boxes, no counter. A tally of 0 draws nothing at
+  // all, so it is still refused, and pointed at the frame.
+  if (spec.count === "" || spec.count == null || !Number.isFinite(count) || count < 0) throw new Error("count_frame: `count` must be a whole number from 0");
+  if (count === 0 && model === "tally") throw new Error("count_frame: a tally of 0 draws nothing; show zero as an empty ten_frame (count 0)");
+  if (count > MAX) throw new Error(`count_frame: ${count} is past what a frame or a tally shows a child; keep it to ${MAX}`);
   return model === "tally" ? renderTally(spec, count) : renderTenFrame(spec, count);
 }
 
@@ -93,5 +97,6 @@ module.exports = {
     { name: "count_frame_ten_7_en", spec: { type: "count_frame", count: 7 } },
     { name: "count_frame_ten_14_ur", spec: { type: "count_frame", count: 14, lang: "ur" } },
     { name: "count_frame_tally_12_en", spec: { type: "count_frame", model: "tally", count: 12 } },
+    { name: "count_frame_ten_0_en", spec: { type: "count_frame", count: 0 } },
   ],
 };

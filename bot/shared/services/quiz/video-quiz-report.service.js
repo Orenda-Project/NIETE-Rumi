@@ -21,6 +21,7 @@
 
 const supabase = require('../../config/supabase');
 const { LESSON_SOURCES, isLessonQuiz } = require('./quiz-sources');
+const Funnel = require('./quiz-funnel');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
@@ -40,6 +41,8 @@ const { addressForms } = require('./transcript-quiz-address');
 // the Flow's lesson screen, the nudge) counts children exactly as this report does.
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { scriptOf } = require('../../templates/niete-brand');
+const crypto = require('crypto');
+const { onUnlessOff } = require('../nudges/flags');
 
 /**
  * The job-type prefix is load-bearing, not cosmetic.
@@ -101,10 +104,45 @@ function reportTargetUtc(now = new Date()) {
 }
 
 /**
+ * How long the "this code's report is scheduled" claim lives. The longest wait
+ * is a join at 10:00 PKT: +12 h lands at 22:00 and is pushed to 07:00, 21 h. The
+ * claim must outlive the chain, or a later join starts a second one.
+ */
+const SCHEDULE_CLAIM_TTL_S = 26 * 60 * 60;
+const scheduleClaimKey = (shareCodeId) => `vq:report:scheduled:${shareCodeId}`;
+
+/**
  * Schedule the report for a share code. Idempotent per code — a second call
  * (another child joining) must not queue a second report.
+ *
+ * The idempotency is a Redis claim, NOT the SQS deduplication id: queueJob only
+ * sends that id to a FIFO queue, and the quiz queue is STANDARD, so every join
+ * used to start its own 12-hour re-queue chain (a median of 6 chains per code in
+ * production, up to 92). Those chains saturated the quiz queue — teacher-tapped
+ * quizzes waited 20+ minutes behind them — and each extra chain reached
+ * generate() again after the report went out.
+ *
+ * Redis down → setNX fails open and the report is scheduled anyway: a duplicate
+ * chain is harmless, a missing report is not. VIDEO_REPORT_SCHEDULE_ONCE=off
+ * restores the per-join scheduling exactly.
  */
 async function scheduleForShareCode(shareCodeId) {
+  const once = onUnlessOff('VIDEO_REPORT_SCHEDULE_ONCE');
+  let claimed = false;
+  if (once) {
+    try {
+      const redisService = require('../cache/railway-redis.service');
+      claimed = await redisService.setNX(scheduleClaimKey(shareCodeId), String(Date.now()), SCHEDULE_CLAIM_TTL_S);
+    } catch (err) {
+      // cannot de-dup → schedule anyway (fail open, as setNX itself does)
+      logToFile('❌ video-quiz report: schedule claim failed, scheduling anyway', { shareCodeId, error: err.message }, 'error');
+      claimed = true;
+    }
+    if (!claimed) {
+      logEvent('video_quiz.report_schedule_skipped', { shareCodeId, why: 'already_scheduled' });
+      return;
+    }
+  }
   try {
     const SQSQueueService = require('../queue/sqs-queue.service');
     const when = reportTargetUtc();
@@ -125,10 +163,127 @@ async function scheduleForShareCode(shareCodeId) {
     });
     logEvent('video_quiz.report_scheduled', { shareCodeId, targetAt: when.toISOString() });
   } catch (err) {
-    logToFile('⚠️ video-quiz report scheduling failed (non-fatal)', {
+    logToFile('❌ video-quiz report scheduling failed (non-fatal)', {
       shareCodeId, error: err.message,
-    });
+    }, 'error');
+    // Nothing was queued: give the claim back so the next child's join schedules it.
+    if (claimed) {
+      try {
+        const redisService = require('../cache/railway-redis.service');
+        await redisService.delete(scheduleClaimKey(shareCodeId));
+      } catch (relErr) {
+        // the claim lapses on its TTL; until then later joins find it and queue nothing
+        logToFile('❌ video-quiz report: schedule claim not released', { shareCodeId, error: relErr.message }, 'error');
+      }
+    }
   }
+}
+
+/**
+ * The SEND is single-flight per share code, too.
+ *
+ * generate() reads report_sent_at, builds the report for 35-80 s, sends it, and
+ * only then stamps report_sent_at. Two calls that both read "not sent" both sent:
+ * the legacy per-join chains all reaching 07:00 PKT at once, an SQS redelivery, a
+ * teacher's /quiz tap while the scheduled run is mid-build. A Redis SET NX claim
+ * now holds the share code from just before the build to just after the stamp.
+ *
+ * Deliberately NOT "stamp report_sent_at first": a send that then fails would
+ * leave a report that never arrives marked as sent, and a missing report is worse
+ * than a duplicate. For the same reason the claim is given back whenever the call
+ * did not send, and Redis being down sends anyway (error-logged).
+ *
+ * The TTL is far above the slowest build; it only matters when a holder dies
+ * mid-send or its stamp failed, and then the key must outlive a whole 07:00 burst.
+ * VIDEO_REPORT_SEND_CLAIM=off restores the unguarded send exactly.
+ */
+const SEND_CLAIM_TTL_S = 15 * 60;
+const sendClaimKey = (shareCodeId) => `vq:report:sending:${shareCodeId}`;
+
+/**
+ * How long the teacher's own ask waits for a send already in flight: about twice
+ * the slowest build seen in production (80 s). Mutable for tests only.
+ */
+const _sendClaimTiming = { pollMs: 2000, forceWaitMs: 150 * 1000 };
+
+/**
+ * Take the send claim. `owned` is true only when this call really wrote the key,
+ * so a fail-open call never deletes a key that someone else may set meanwhile.
+ * @returns {Promise<{claimed: boolean, owned: boolean, token: string}>}
+ */
+async function takeSendClaim(shareCodeId) {
+  const token = `${process.pid}.${Date.now().toString(36)}.${crypto.randomBytes(6).toString('hex')}`;
+  try {
+    const redisService = require('../cache/railway-redis.service');
+    const claimed = await redisService.setNX(sendClaimKey(shareCodeId), token, SEND_CLAIM_TTL_S);
+    if (claimed && typeof redisService.isAvailable === 'function' && !redisService.isAvailable()) {
+      // setNX answers "claimed" when it has no client: nothing guards this send
+      logToFile('❌ video-quiz report: send claim unavailable (no Redis), sending unguarded', { shareCodeId }, 'error');
+      return { claimed: true, owned: false, token };
+    }
+    return { claimed, owned: claimed, token };
+  } catch (err) {
+    // cannot single-flight → send anyway (fail open, as scheduleForShareCode does)
+    logToFile('❌ video-quiz report: send claim failed, sending unguarded', { shareCodeId, error: err.message }, 'error');
+    return { claimed: true, owned: false, token };
+  }
+}
+
+/**
+ * Give the claim back — only if it is still ours. get-then-delete is not atomic;
+ * the window is the key expiring between the two calls, i.e. a call that ran past
+ * SEND_CLAIM_TTL_S, which the TTL is sized to rule out.
+ */
+async function releaseSendClaim(shareCodeId, token) {
+  try {
+    const redisService = require('../cache/railway-redis.service');
+    const current = await redisService.get(sendClaimKey(shareCodeId));
+    if (current !== null && current !== undefined && String(current) === token) {
+      await redisService.delete(sendClaimKey(shareCodeId));
+    }
+  } catch (err) {
+    // the claim lapses on its TTL; until then other callers for this code send nothing
+    logToFile('❌ video-quiz report: send claim not released', { shareCodeId, error: err.message }, 'error');
+  }
+}
+
+async function readReportSentAt(shareCodeId) {
+  const { data } = await supabase.from('quiz_share_codes')
+    .select('report_sent_at').eq('id', shareCodeId).maybeSingle();
+  return (data && data.report_sent_at) || null;
+}
+
+/**
+ * The teacher asked from /quiz while another call holds the claim. /quiz tells the
+ * teacher "no child has finished yet" on a false return, so losing the claim must
+ * never answer false here. Wait for the holder instead:
+ *   - report_sent_at moves → the report the teacher asked for just went to them;
+ *   - the key disappears unstamped (the holder failed or stood down) → take it;
+ *   - neither within forceWaitMs → send anyway: an explicit ask is never dropped.
+ * @returns {Promise<{delivered?: boolean, claim?: object}>}
+ */
+async function waitForInFlightSend(shareCodeId, sentAtBefore) {
+  const deadline = Date.now() + _sendClaimTiming.forceWaitMs;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, _sendClaimTiming.pollMs));
+    if (await readReportSentAt(shareCodeId) !== sentAtBefore) return { delivered: true };
+    const claim = await takeSendClaim(shareCodeId);
+    if (claim.claimed) return { claim };
+  }
+  logToFile('❌ video-quiz report: send claim held past the wait, sending the teacher\'s ask anyway',
+    { shareCodeId, waitedMs: _sendClaimTiming.forceWaitMs }, 'error');
+  return { claim: { claimed: true, owned: false, token: '' } };
+}
+
+/**
+ * The operator's rule (15 Sep 2026): ONE automatic report per quiz. A scheduled run
+ * on a share code whose report already went — a late join more than 26 h after the
+ * schedule claim starts a fresh chain — used to be treated as a follow-up candidate
+ * and could send a second report. VIDEO_REPORT_SCHEDULED_FOLLOWUP=on restores that.
+ */
+function scheduledFollowUpOn() {
+  const raw = String(process.env.VIDEO_REPORT_SCHEDULED_FOLLOWUP || '').trim().toLowerCase();
+  return raw === 'on' || raw === 'true' || raw === '1' || raw === 'yes';
 }
 
 /**
@@ -235,14 +390,70 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     return false;
   }
 
+  // One automatic report per quiz (see scheduledFollowUpOn): a scheduled run on a
+  // share code that already has its report sends nothing; only /quiz (force) can.
+  if (isFollowUp && !scheduledFollowUpOn()) {
+    logEvent('video_quiz.report_suppressed', {
+      shareCodeId, reason, why: 'already_reported', sentAt: sc.report_sent_at,
+    });
+    return false;
+  }
+
   const { data: teacher } = await supabase
     .from('users').select('phone_number, preferred_language, name')
     .eq('id', sc.teacher_user_id).maybeSingle();
   if (!teacher?.phone_number) {
     logToFile('⚠️ video-quiz report: no teacher phone', { shareCodeId });
+    Funnel.emit('report_failed', { quiz_id: sc.quiz_id, share_code_id: shareCodeId, reason: 'no_teacher_phone' });
     return false;
   }
 
+  if (!onUnlessOff('VIDEO_REPORT_SEND_CLAIM')) {
+    return buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp: {} });
+  }
+
+  // Single-flight: one caller builds and sends; the rest stand down (see SEND_CLAIM_TTL_S).
+  const sentAtBefore = sc.report_sent_at || null;
+  let claim = await takeSendClaim(shareCodeId);
+  if (!claim.claimed) {
+    if (!force) {
+      logEvent('video_quiz.report_suppressed', { shareCodeId, reason, why: 'send_in_progress' });
+      return false;
+    }
+    const waited = await waitForInFlightSend(shareCodeId, sentAtBefore);
+    if (waited.delivered) {
+      logEvent('video_quiz.report_suppressed', { shareCodeId, reason, why: 'send_in_progress', delivered: true });
+      return true;
+    }
+    claim = waited.claim;
+  }
+
+  const stamp = { stamped: false };
+  let sent = false;
+  try {
+    // The claim may have come free because the winner FINISHED: its stamp is then
+    // already on the row, and this call must not send the report again.
+    if (await readReportSentAt(shareCodeId) !== sentAtBefore) {
+      logEvent('video_quiz.report_suppressed', force
+        ? { shareCodeId, reason, why: 'send_in_progress', delivered: true }
+        : { shareCodeId, reason, why: 'already_reported' });
+      return force;   // the teacher's ask was answered by the report that just went to them
+    }
+    sent = await buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp });
+    return sent;
+  } finally {
+    // Kept only when a report went out but report_sent_at could not be stamped:
+    // then the key is the one thing stopping a racing chain from sending it again.
+    if (claim.owned && !(sent && !stamp.stamped)) await releaseSendClaim(shareCodeId, claim.token);
+  }
+}
+
+/**
+ * Read the class, build the report and send it. Called by generate() once every
+ * early-out has passed and (unless switched off) the send claim is held.
+ * `stamp.stamped` tells the caller whether report_sent_at really landed.
+ */
+async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp }) {
   const { data: sessions } = await supabase
     .from('quiz_sessions')
     .select('id, user_id, student_id, student_name, student_class, parent_phone, status, '
@@ -363,7 +574,14 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   if (!all.length) {
     await WhatsAppService.sendMessage(teacher.phone_number,
       resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } }));
-    await markReportSent(shareCodeId, sc.quiz_id);
+    stamp.stamped = await markReportSent(shareCodeId, sc.quiz_id);
+    // Stamped as a report, so counted as one — of its own kind. Unlogged, this
+    // branch was 17.5% of production's report stamps (189 of 1,082) and every
+    // one of them a class that never joined.
+    Funnel.emit('report_sent', {
+      quiz_id: sc.quiz_id, share_code_id: shareCodeId, source: quizRow && quizRow.quiz_source,
+      kind: 'no_one', reason, n: 0,
+    });
     return true;
   }
 
@@ -542,7 +760,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     }
   }
 
-  await markReportSent(shareCodeId, sc.quiz_id);
+  stamp.stamped = await markReportSent(shareCodeId, sc.quiz_id);
 
   // bd-2yyry.11 — the children's class cards, at the moment the teacher's
   // report goes out. Never to the teacher; once per child per quiz.
@@ -554,6 +772,10 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
     shareCodeId, quizId: sc.quiz_id, started: all.length,
     completed: done.length, average: avg, reason,
     format: sentAsPdf ? 'pdf' : 'text', hadGuidance: Boolean(guidance),
+  });
+  Funnel.emit('report_sent', {
+    quiz_id: sc.quiz_id, share_code_id: shareCodeId, source: quizRow && quizRow.quiz_source,
+    kind: 'report', reason, n: done.length,
   });
   return true;
 }
@@ -644,6 +866,9 @@ async function sendClassCards({ shareCode, quizRow, done, reason, language, clas
   const now = Date.now();
   const sentIds = [];
   let skipped = 0;
+  // For the funnel, a send that FAILED is not the same as a child left out on
+  // purpose (no number, outside the window): `skipped` below counts both.
+  let failed = 0;
 
   for (const r of rows) {
     const key = r.studentId || r.sessionId;
@@ -671,9 +896,17 @@ async function sendClassCards({ shareCode, quizRow, done, reason, language, clas
       });
     } catch (err) {
       skipped += 1;
+      failed += 1;
       logToFile('⚠️ class card: could not send to one child (continuing)', { shareCodeId: shareCode.id, error: err.message });
       logEvent('video_quiz.class_card_skipped', { shareCodeId: shareCode.id, studentId: key, why: 'error' });
     }
+  }
+
+  if (sentIds.length || skipped) {
+    Funnel.emit('class_cards', {
+      quiz_id: shareCode.quiz_id, share_code_id: shareCode.id, source: quizRow && quizRow.quiz_source,
+      n: sentIds.length, failed, skipped: skipped - failed,
+    });
   }
 
   if (sentIds.length) {
@@ -1058,12 +1291,21 @@ function formatGuidanceText(guidance, labels) {
  * nothing and the morning job should still get its turn. The cost of that
  * ordering is a possible double-send if the stamp itself fails, which is the
  * better failure — a teacher seeing one report twice beats seeing none.
+ *
+ * @returns {Promise<boolean>} whether report_sent_at landed. generate() keeps its
+ *   send claim when it did not, so a racing call cannot send the report again.
  */
 async function markReportSent(shareCodeId, quizId = null) {
+  let stamped = false;
   try {
-    await supabase.from('quiz_share_codes')
+    const { error } = await supabase.from('quiz_share_codes')
       .update({ report_sent_at: new Date().toISOString() })
       .eq('id', shareCodeId);
+    if (error) {
+      logToFile('❌ video-quiz: could not stamp report_sent_at', { shareCodeId, error: error.message }, 'error');
+      return false;
+    }
+    stamped = true;
     // A lesson quiz's /quiz row reads quizzes.status; "Report sent" is a
     // state of the quiz, not only of its share code.
     if (quizId) {
@@ -1072,10 +1314,11 @@ async function markReportSent(shareCodeId, quizId = null) {
         .eq('id', quizId).in('quiz_source', LESSON_SOURCES);
     }
   } catch (err) {
-    logToFile('⚠️ video-quiz: could not stamp report_sent_at', {
-      shareCodeId, error: err.message,
-    });
+    logToFile('❌ video-quiz: could not stamp report_sent_at', {
+      shareCodeId, stamped, error: err.message,
+    }, 'error');
   }
+  return stamped;
 }
 
 /** A wrong answer only counts as a shared misunderstanding at this share. */
@@ -1488,6 +1731,7 @@ module.exports = {
   classCardsEnabled,
   CLASS_CARD_WINDOW_MS,
   JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate,
+  _sendClaimTiming,
   hardestQuestions, reportTargetUtc, teacherFacing,
   buildGuidancePrompt, generateGuidance, formatGuidanceText, stripEmphasis, classLabel,
   classesTaught, guidanceShape, renderReportPdf,

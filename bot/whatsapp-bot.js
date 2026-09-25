@@ -2587,7 +2587,12 @@ app.post('/api/internal/send-password-reset', async (req, res) => {
     // expires in 10 minutes."); we only supply the code, twice (once as
     // the BODY variable, once as the OTP button payload so the tap-to-copy
     // button copies the same value).
+    //
+    // The portal waits for this answer and gives up after 10 s, so the send is
+    // budgeted: per-recipient pacing never holds it for the phone's next slot,
+    // and it is not retried inside the request — past the budget it goes now.
     const templateLang = clampLanguage(language);
+    const { SYNC_BUDGET } = require('./shared/services/whatsapp-send-pacer');
     const sent = await WhatsAppService.sendTemplate(
       phoneNumber,
       'portal_password_reset_niete',
@@ -2595,7 +2600,8 @@ app.post('/api/internal/send-password-reset', async (req, res) => {
       [
         { type: 'body', parameters: [{ type: 'text', text: code }] },
         { type: 'button', sub_type: 'url', index: 0, parameters: [{ type: 'text', text: code }] },
-      ]
+      ],
+      { budget: SYNC_BUDGET.SEND_IF_LATE }
     );
 
     if (sent) {

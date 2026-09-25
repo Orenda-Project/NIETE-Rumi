@@ -84,7 +84,10 @@ describe('the queue refuses a lesson-plan quiz', () => {
     expect(row.meta).toEqual(expect.objectContaining({
       step: 'failed', error: 'queue_failed', lessons: LESSONS, class: META.class, lesson_date: '2026-09-24', nudge_id: 'nudge-1', source: 'lp_offer',
     }));
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923001112222', UX_STRINGS.lpQuizCouldNotStart.en);
+    // Its lessons are kept and it is listed in /quiz, where it can be made again —
+    // so the offer's own line ("the next lessons will get a new offer") is not
+    // the whole truth any more; the line says where to try again.
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923001112222', UX_STRINGS.lpQuizCouldNotStartRetry.en);
   });
 
   test('/quiz repeats what happened — it could not be started — never "the questions did not come out clear"', () => {

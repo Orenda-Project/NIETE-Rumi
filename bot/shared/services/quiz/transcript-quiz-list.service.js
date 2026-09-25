@@ -18,33 +18,44 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
-const { composeTitle, composeDescription, normaliseTopic } = require('./transcript-quiz-rows');
-const { teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor, needsLanguageAsk } = require('./transcript-quiz-language');
+const { composeTitle, composeLabelledDescription, normaliseTopic } = require('./transcript-quiz-rows');
+const { teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor } = require('./transcript-quiz-language');
 const { MIN_TRANSCRIPT_CHARS, sendLanguageAsk } = require('./transcript-quiz-offer.service');
-const { isSelfTest } = require('./teacher-self-test');
-const { oneAttemptPerChild } = require('./one-attempt-per-child');
+const { isQuizMenuRequest } = require('./quiz-menu-request');
+const QuizMenuFlags = require('./quiz-menu-flags');
+const { withSourceCheck } = require('./lp-source-check');
+const Providers = require('./quiz-lesson-providers');
+// The recorded lessons' own reads and tap (the transcript lesson provider),
+// re-exported below under the names every caller already uses.
 const {
-  TRANSCRIPT, LP_V8, lessonSessionFor, failureCopyKey, failureReasonOf,
+  countsFor, loadEligibleSessions, enqueueGenerate, claimForGeneration, startTranscriptLesson,
+  LINK_PREFIX, REPORT_PREFIX, BACK_PREFIX,
+} = require('./transcript-lesson-provider');
+const {
+  TRANSCRIPT, LP_V8, PLAN_SOURCES, isPlanQuiz, lessonSessionFor, failureCopyKey, failureReasonOf, lpRemakeable, lpRemakeableQuiz,
 } = require('./quiz-sources');
+const Funnel = require('./quiz-funnel');
 
 const PICK_PREFIX = 'tq_pick_';
 // An lp_v8 quiz has no coaching session to pick, so its row carries the quiz.
 // It rides under PICK_PREFIX on purpose: the entry point already dispatches
 // every `tq_pick_` list reply here, so no new route is needed (Class A).
 const LP_PICK_PREFIX = `${PICK_PREFIX}lp_`;
-const LINK_PREFIX = 'tq_link_';
-const REPORT_PREFIX = 'tq_report_';
 const PAGE_PREFIX = 'tq_page_';
-const BACK_PREFIX = 'tq_back_';
 const MAX_ROWS = 10;            // WhatsApp's hard cap on total rows in one list
 const PER_PAGE = 9;             // 9 lessons + one "Older lessons…" row when there is more
 const TITLE_MAX = 24;
 const DESC_MAX = 72;
-const CHUNK = 25;                // sessions fetched per DB round-trip
-const MAX_FETCHES = 8;           // never scan more than 200 sessions for one /quiz
 const LP_QUIZ_SELECT = 'id, teacher_id, coaching_session_id, quiz_source, status, topic, subject, language, meta, created_at';
 
+/**
+ * Is this text a request for /quiz? `/quiz…` as always, and now every bare
+ * spelling a teacher types ("quiz/", "quize", "mera quiz", «کویز») — one
+ * matcher, shared with the child's door (quiz-menu-request.js).
+ */
 function isQuizCommand(text) {
+  if (QuizMenuFlags.bareTextToMenu()) return isQuizMenuRequest(text);
+  // QUIZ_BARE_TEXT_TO_MENU off: the door as it was — `/quiz…` and three exact words.
   const t = String(text || '').trim();
   if (!t) return false;
   if (/^\/quiz(\s|$)/i.test(t)) return true;
@@ -89,11 +100,20 @@ function statusLine(quiz, language) {
   const started = quiz?.meta?.started ?? quiz?._started ?? 0;
   const finished = quiz?.meta?.finished ?? quiz?._finished ?? 0;
   switch (quizState(quiz)) {
-    case 'offered': return resolveUx('tqRowOffered', { language });
+    // An offer nobody answered, or a yes still waiting for its language: no quiz
+    // has been made, and the tap makes it (or asks the language) — the same
+    // words as a lesson with no quiz row at all, on this list and in the Flow.
+    case 'offered': return resolveUx('tqRowNoQuiz', { language });
     case 'making': return resolveUx('tqRowMaking', { language });
     case 'sent': return resolveUx('tqRowSent', { language, params: { started, finished } });
     case 'report_sent': return resolveUx('tqRowReportSent', { language, params: { finished } });
-    case 'failed': return resolveUx(quiz?.quiz_source === LP_V8 ? 'tqRowFailedLp' : 'tqRowFailed', { language });
+    // "tap to retry" only where the tap DOES retry: every failed transcript row
+    // (the tap re-makes it), and an lp_v8 row a remake can still help
+    // (lpRemakeable — handleLpPick makes it again). An lp_v8 row that cannot be
+    // made again just says it did not work.
+    case 'failed': return resolveUx(
+      isPlanQuiz(quiz?.quiz_source) && !lpRemakeable(quiz.meta) ? 'tqRowFailedLp' : 'tqRowFailed', { language },
+    );
     default: return resolveUx('tqRowNoQuiz', { language });
   }
 }
@@ -124,30 +144,56 @@ function statusLine(quiz, language) {
  *
  * @returns {Array<{kind:'session'|'lp', key:string, session:object, quiz:object|null, date:string}>}
  */
-function lessonItems(sessions, quizzes) {
+function lessonItems(sessions, quizzes, lessons = []) {
   const all = quizzes || [];
-  const bySession = new Map(all.filter((q) => q.quiz_source !== LP_V8).map((q) => [q.coaching_session_id, q]));
+  const bySession = new Map(all.filter((q) => !isPlanQuiz(q.quiz_source)).map((q) => [q.coaching_session_id, q]));
   const items = (sessions || [])
     .filter((s) => String(s.transcript_text || '').length >= MIN_TRANSCRIPT_CHARS)
     .map((s) => ({ kind: 'session', key: s.id, session: s, quiz: bySession.get(s.id) || null, date: s.created_at }));
-  all.filter((q) => q.quiz_source === LP_V8).forEach((q) => {
+  all.filter((q) => isPlanQuiz(q.quiz_source)).forEach((q) => {
     const session = lessonSessionFor(q);
     items.push({
       kind: 'lp', key: `lp_${q.id}`, session, quiz: q, date: session.created_at || q.created_at,
     });
   });
+  // A lesson with NO quiz yet from a plan provider (quiz-lesson-providers):
+  // listed, made only when tapped. Its pseudo-session carries the fields every
+  // row reads (the date, the topic, the subject), so the layout is shared.
+  (lessons || []).forEach((l) => {
+    items.push({
+      kind: 'lesson',
+      key: Providers.lessonKey(l),
+      session: { created_at: l.date, analysis_data: { topic: l.topic, subject: l.subject } },
+      quiz: null,
+      date: l.date,
+      lesson: l,
+    });
+  });
   return items.sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
-function buildRows(sessions, quizzes, language, { page = 1 } = {}) {
-  const eligible = lessonItems(sessions, quizzes);
+/**
+ * WHERE a row came from, in the teacher's language: "From transcript" for a
+ * recorded lesson, "From lesson plan" for a planned one (quiz or not yet) —
+ * the provider's own label, so a new source brings its own.
+ */
+function rowLabel(item, language) {
+  let source = TRANSCRIPT;
+  if (item.kind === 'lp') source = (item.quiz && item.quiz.quiz_source) || LP_V8;
+  else if (item.kind === 'lesson') source = item.lesson.source;
+  return resolveUx(Providers.labelKeyFor(source), { language });
+}
+
+function buildRows(sessions, quizzes, language, { page = 1, lessons = [] } = {}) {
+  const eligible = lessonItems(sessions, quizzes, lessons);
   const total = eligible.length;
   const p = Number.isFinite(page) && page > 0 ? page : 1;
   const start = (p - 1) * PER_PAGE;
   const slice = eligible.slice(start, start + PER_PAGE);
   const hasMore = total > start + PER_PAGE;
 
-  const rows = slice.map(({ key, session: s, quiz, date: when }) => {
+  const rows = slice.map((item) => {
+    const { key, session: s, quiz, date: when } = item;
     const topic = quiz?.topic || s.analysis_data?.topic || resolveUx('tqLessonWord', { language });
     const subject = subjectLabel(quiz?.subject || s.analysis_data?.subject, language);
     const status = statusLine(quiz, language);
@@ -155,7 +201,10 @@ function buildRows(sessions, quizzes, language, { page = 1 } = {}) {
     return {
       id: `${PICK_PREFIX}${key}`,
       title: composeTitle({ date, subject }, TITLE_MAX),
-      description: composeDescription({ topic, status }, DESC_MAX, { language }),
+      // QUIZ_MENU_SOURCE_LABELS off: no label — `topic · status`, exactly as before.
+      description: composeLabelledDescription({
+        label: QuizMenuFlags.sourceLabels() ? rowLabel(item, language) : '', topic, status,
+      }, DESC_MAX, { language }),
     };
   });
 
@@ -178,67 +227,6 @@ function buildRows(sessions, quizzes, language, { page = 1 } = {}) {
 }
 
 /**
- * PLAN_R5 §1 D8 — `teacherUserId`, when passed, drops the teacher's own
- * self-test row from both counts. Deliberately filtered in JS, not with a
- * Postgres `.neq('user_id', teacherUserId)`: `user_id != X` evaluates to NULL
- * (not true) for every row where `user_id IS NULL`, so that filter would
- * drop every real child along with it.
- */
-async function countsFor(quizIds, teacherUserId = null) {
-  const counts = new Map();
-  if (!quizIds.length) return counts;
-  const { data } = await supabase.from('quiz_sessions')
-    .select('quiz_id, status, user_id, student_id, completed_at, created_at')
-    .in('quiz_id', quizIds).is('invited_by_student_id', null);
-  // One attempt per child, per quiz — the class report's rule: a child who
-  // re-opened the link (a retake, or after typing STOP) is one child, counted
-  // finished if any attempt finished. The same child on another quiz is a
-  // child of that quiz too.
-  const byQuiz = new Map();
-  (data || [])
-    .filter((s) => !isSelfTest(s, teacherUserId))
-    .forEach((s) => byQuiz.set(s.quiz_id, [...(byQuiz.get(s.quiz_id) || []), s]));
-  byQuiz.forEach((rows, quizId) => {
-    const children = oneAttemptPerChild(rows);
-    counts.set(quizId, {
-      started: children.length,
-      finished: children.filter((s) => s.status === 'completed').length,
-    });
-  });
-  return counts;
-}
-
-/**
- * Load enough of the teacher's eligible sessions (transcript long enough to
- * quiz) to answer for `needed` of them, fetching in CHUNK-sized round-trips
- * rather than one `.limit(25)` that could never see lesson 26 onward.
- * Returns `{ sessions, exhausted }` — `sessions` holds only the eligible
- * ones found so far; `exhausted` is true once a short batch shows the table
- * has no more rows. Never scans more than `MAX_FETCHES * CHUNK` sessions for
- * one /quiz — a runaway teacher history cannot loop this forever.
- */
-async function loadEligibleSessions(userId, needed) {
-  let sessions = [];
-  let exhausted = false;
-  for (let fetch = 0; fetch < MAX_FETCHES; fetch += 1) {
-    const offset = fetch * CHUNK;
-    const { data } = await supabase.from('coaching_sessions')
-      .select('id, created_at, transcript_text, analysis_data')
-      .eq('user_id', userId)
-      .is('observation_type', null)
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + CHUNK - 1);
-    const batch = data || [];
-    const eligible = batch.filter((s) => String(s.transcript_text || '').length >= MIN_TRANSCRIPT_CHARS);
-    sessions = sessions.concat(eligible);
-    if (batch.length < CHUNK) { exhausted = true; break; }
-    if (sessions.length >= needed) break;
-  }
-  return { sessions, exhausted };
-}
-
-/**
  * Does this teacher have anything /quiz could list?
  *
  * The Flow answers with a NavigationList, and Meta requires at least one item
@@ -251,7 +239,8 @@ async function hasEligibleLessons(userId) {
   if (!userId) return false;
   const { sessions } = await loadEligibleSessions(userId, 1);
   if (sessions.length > 0) return true;
-  return (await loadLpQuizzes(userId, 1)).length > 0;
+  if ((await loadLpQuizzes(userId, 1)).length > 0) return true;
+  return (await Providers.listPlanLessons(userId, { limit: 1 })).length > 0;
 }
 
 /**
@@ -263,7 +252,7 @@ async function loadLpQuizzes(userId, needed) {
   if (!userId) return [];
   const { data, error } = await supabase.from('quizzes')
     .select(LP_QUIZ_SELECT)
-    .eq('teacher_id', userId).eq('quiz_source', LP_V8)
+    .eq('teacher_id', userId).in('quiz_source', PLAN_SOURCES)
     .order('created_at', { ascending: false })
     .limit(Math.max(1, needed));
   if (error) logToFile('❌ transcript quiz: lp_v8 quizzes lookup failed', { userId, error: error.message }, 'error');
@@ -276,7 +265,9 @@ async function loadLpQuizzes(userId, needed) {
  * started/finished counts stamped on every sent quiz as `_started`/`_finished`.
  */
 async function loadLessonPage(userId, needed) {
-  const { sessions } = await loadEligibleSessions(userId, needed);
+  // The recorded lessons come through their provider like every other source.
+  const recorded = await Providers.providerFor(TRANSCRIPT).list(userId, { limit: needed });
+  const sessions = recorded.map((r) => r.session);
   const ids = sessions.map((s) => s.id);
   let quizzes = [];
   if (ids.length) {
@@ -291,23 +282,25 @@ async function loadLessonPage(userId, needed) {
     userId,
   );
   quizzes.forEach((q) => { const c = counts.get(q.id); if (c) { q._started = c.started; q._finished = c.finished; } });
-  return { sessions, quizzes, counts };
+  // Lessons of the plan sources with NO quiz yet — listed, never generated here.
+  const lessons = await Providers.listPlanLessons(userId, { limit: needed });
+  return { sessions, quizzes, counts, lessons };
 }
 
 async function showList(user, phone, language, page = 1) {
   const lang = teacherLanguageFor({ preferredLanguage: language || user?.preferred_language });
   const p = Number.isFinite(page) && page > 0 ? page : 1;
-  const { sessions, quizzes } = await loadLessonPage(user.id, p * PER_PAGE + 1);
+  const { sessions, quizzes, lessons } = await loadLessonPage(user.id, p * PER_PAGE + 1);
 
-  let { rows, from, to } = buildRows(sessions, quizzes, lang, { page: p });
+  let { rows, from, to } = buildRows(sessions, quizzes, lang, { page: p, lessons });
   // A stale list tapped a week later can ask for a page that no longer exists.
   // The tap means "show me more lessons", so the list is what comes back —
   // not "no lessons yet".
   if (!rows.length && p > 1) {
-    ({ rows, from, to } = buildRows(sessions, quizzes, lang, { page: 1 }));
+    ({ rows, from, to } = buildRows(sessions, quizzes, lang, { page: 1, lessons }));
   }
   if (!rows.length) {
-    await WhatsAppService.sendMessage(phone, resolveUx('tqListEmpty', { language: lang }));
+    await WhatsAppService.sendMessage(phone, resolveUx(QuizMenuFlags.lessonRows() ? 'tqListEmptyPlans' : 'tqListEmpty', { language: lang }));
     logEvent('transcript_quiz.list_empty', { userId: user.id });
     return true;
   }
@@ -319,50 +312,10 @@ async function showList(user, phone, language, page = 1) {
       sections: [{ title: resolveUx('tqListSection', { language: lang }), rows }],
     },
   });
-  logEvent('transcript_quiz.list_shown', { userId: user.id, rows: rows.length, page: p });
+  logEvent('transcript_quiz.list_shown', {
+    userId: user.id, rows: rows.length, page: p, lessonRows: rows.filter((r) => r.id.startsWith(`${PICK_PREFIX}${Providers.LESSON_KEY_PREFIX}`)).length,
+  });
   return true;
-}
-
-async function enqueueGenerate(quizId, phone, lang, source = 'list') {
-  const SQSQueueService = require('../queue/sqs-queue.service');
-  await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: lang, source }, { delaySeconds: 0 });
-  await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: lang }));
-}
-
-/**
- * Claim a lesson for generation — the ONE place a menu turns "make this one"
- * into a `generating` quizzes row, whether the tap came from the list message
- * or from the /quiz Flow. It is called only once the quiz language is settled
- * (by the subject rule, or by the teacher answering the ask); the paths that
- * still have to ASK keep their own `offered` write above.
- *
- * Returns `{ quizId, from }` or `{ error }` — never throws, never sends.
- */
-async function claimForGeneration({ userId, sessionId, session, quiz, quizLanguage, source = 'list' }) {
-  if (quiz) {
-    await supabase.from('quizzes')
-      .update({
-        status: 'generating', language: quizLanguage,
-        meta: {
-          ...(quiz.meta || {}), step: quiz.meta?.digest ? 'author' : 'digest',
-          awaiting_language: false, source, retried_at: new Date().toISOString(),
-        },
-      })
-      .eq('id', quiz.id);
-    return { quizId: quiz.id, from: quiz.status };
-  }
-  const { data: created, error } = await supabase.from('quizzes').insert({
-    teacher_id: userId, quiz_source: TRANSCRIPT, coaching_session_id: sessionId,
-    topic: session?.analysis_data?.topic || 'Lesson', subject: session?.analysis_data?.subject || null,
-    language: quizLanguage,
-    status: 'generating',
-    meta: { step: 'digest', awaiting_language: false, source, claimed_at: new Date().toISOString() },
-  }).select('id').single();
-  if (error || !created) {
-    logToFile('⚠️ transcript quiz: list claim failed', { sessionId, error: error?.message });
-    return { error: error?.message || 'claim failed' };
-  }
-  return { quizId: created.id, from: 'none' };
 }
 
 async function handleListPick(listId, phone, user) {
@@ -375,126 +328,47 @@ async function handleListPick(listId, phone, user) {
   }
   if (!listId || !listId.startsWith(PICK_PREFIX)) return false;
   if (listId.startsWith(LP_PICK_PREFIX)) return handleLpPick(listId.slice(LP_PICK_PREFIX.length), phone, user);
-  const sessionId = listId.slice(PICK_PREFIX.length);
+  // A lesson with no quiz yet, from any provider (`tq_pick_lsn_<source>_<ref>`):
+  // the tap is the request — the provider claims the lesson and makes its quiz.
+  const lesson = Providers.parseLessonKey(listId.slice(PICK_PREFIX.length));
+  if (lesson) {
+    if (!QuizMenuFlags.lessonRows()) {
+      // QUIZ_MENU_LESSON_ROWS off: a lesson row from an older list makes nothing.
+      const lang = teacherLanguageFor({ preferredLanguage: user?.preferred_language });
+      await WhatsAppService.sendMessage(phone, resolveUx('tqLpLessonUnavailable', { language: lang }));
+      logEvent('quiz_menu.lesson_picked', { userId: user?.id || null, source: lesson.provider.source, outcome: 'switched_off', via: 'list' });
+      return true;
+    }
+    const out = await lesson.provider.start(user, lesson.lessonRef, { phone, via: 'list' });
+    await answerTakenLesson(out, phone, user);
+    return true;
+  }
+  return startTranscriptLesson(user, listId.slice(PICK_PREFIX.length), { phone, via: 'list' });
+}
+
+/**
+ * A provider's tap came back `already`: the lesson has its quiz (made by the
+ * other tap, the other replica, or the 15:00 offer). Answer with THAT quiz —
+ * its buttons when sent, the language ask again while it waits for one, "still
+ * being made" otherwise — exactly as a tap on its quiz row would. With no quiz
+ * to show (the other tap holds the claim and is still writing it), "already on
+ * it". Any other outcome has already answered the teacher itself.
+ */
+async function answerTakenLesson(out, phone, user) {
+  if (!out || out.outcome !== 'already') return false;
+  if (out.existing && out.existing.id) return handleLpPick(out.existing.id, phone, user);
   const lang = teacherLanguageFor({ preferredLanguage: user?.preferred_language });
-  if (!user?.id) {
-    await WhatsAppService.sendMessage(phone, resolveUx('tqNotYours', { language: lang }));
-    return true;
-  }
-  const { data: session } = await supabase.from('coaching_sessions')
-    .select('id, user_id, created_at, transcript_text, transcript_language, analysis_data')
-    .eq('id', sessionId).eq('user_id', user.id).maybeSingle();
-  if (!session) {
-    await WhatsAppService.sendMessage(phone, resolveUx('tqNotYours', { language: lang }));
-    return true;
-  }
-  const { data: quiz } = await supabase.from('quizzes')
-    .select('id, status, topic, subject, language, meta, coaching_session_id')
-    .eq('coaching_session_id', sessionId).eq('quiz_source', TRANSCRIPT).maybeSingle();
-
-  // The quiz language is the teacher's to choose here too — a lesson picked from /quiz
-  // reaches exactly the same decision as a "yes" on the offer. The subject
-  // rule seeds the button order; only Urdu and Islamiyat skip the ask.
-  const subject = quiz?.subject || session.analysis_data?.subject || null;
-  const ruleLanguage = quiz?.language || quizLanguageFor(subject, session.transcript_language);
-  const ask = needsLanguageAsk(subject);
-
-  if (!quiz) {
-    if (ask) {
-      const { data: created, error } = await supabase.from('quizzes').insert({
-        teacher_id: user.id, quiz_source: TRANSCRIPT, coaching_session_id: sessionId,
-        topic: session.analysis_data?.topic || 'Lesson', subject: session.analysis_data?.subject || null,
-        language: null,
-        status: 'offered',
-        meta: {
-          step: 'awaiting_language', awaiting_language: true,
-          source: 'list', claimed_at: new Date().toISOString(),
-        },
-      }).select('id').single();
-      if (error || !created) {
-        logToFile('⚠️ transcript quiz: list claim failed', { sessionId, error: error?.message });
-        await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
-        return true;
-      }
-      // No digest yet on a lesson that never had a quiz: the subject's examples.
-      await sendLanguageAsk(created.id, phone, lang, ruleLanguage, { subject });
-      logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: created.id, ruleLanguage, from: 'list' });
-      return true;
-    }
-    const claimed = await claimForGeneration({
-      userId: user.id, sessionId, session, quiz: null, quizLanguage: ruleLanguage,
-    });
-    if (claimed.error) {
-      await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
-      return true;
-    }
-    await enqueueGenerate(claimed.quizId, phone, lang);
-    logEvent('transcript_quiz.list_generate', { userId: user.id, quizId: claimed.quizId, from: 'none' });
-    return true;
-  }
-
-  switch (quiz.status) {
-    case 'generating':
-    case 'ready':
-      await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
-      return true;
-    case 'sent':
-    case 'report_sent': {
-      const counts = await countsFor([quiz.id], user.id);
-      const c = counts.get(quiz.id) || { started: 0, finished: 0 };
-      // Named for what they DO. "Report now" read as "show me the one I have";
-      // this button refetches every session and recomputes (operator, item 8).
-      // The third button exists because a tap into a lesson was otherwise a
-      // dead end — the teacher had to type /quiz again to get back to the menu.
-      await WhatsAppService.sendInteractiveButtons(phone, {
-        body: resolveUx('tqQuizStatus', {
-          language: lang,
-          params: {
-            topic: normaliseTopic(quiz.topic || session.analysis_data?.topic || ''),
-            date: formatLessonDate(session.created_at, lang),
-            started: c.started, finished: c.finished,
-          },
-        }),
-        buttons: [
-          { id: `${LINK_PREFIX}${quiz.id}`, title: resolveUx('tqLinkButton', { language: lang }) },
-          { id: `${REPORT_PREFIX}${quiz.id}`, title: resolveUx('tqReportButton', { language: lang }) },
-          { id: `${BACK_PREFIX}${quiz.id}`, title: resolveUx('tqBackButton', { language: lang }) },
-        ],
-      });
-      return true;
-    }
-    default: {
-      // offered / declined / skipped / failed / cancelled → (re)make it, after
-      // the language ask where the subject leaves a real choice.
-      if (ask) {
-        await supabase.from('quizzes')
-          .update({
-            status: 'offered',
-            meta: {
-              ...(quiz.meta || {}), step: 'awaiting_language', awaiting_language: true,
-              source: 'list', retried_at: new Date().toISOString(),
-            },
-          })
-          .eq('id', quiz.id);
-        await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage, { digest: quiz.meta?.digest, subject });
-        logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list' });
-        return true;
-      }
-      const claimed = await claimForGeneration({
-        userId: user.id, sessionId, session, quiz, quizLanguage: ruleLanguage,
-      });
-      await enqueueGenerate(quiz.id, phone, lang);
-      logEvent('transcript_quiz.list_generate', { userId: user.id, quizId: quiz.id, from: claimed.from });
-      return true;
-    }
-  }
+  await WhatsAppService.sendMessage(phone, resolveUx('tqAlreadyMaking', { language: lang }));
+  return true;
 }
 
 /**
  * A tap on an lp_v8 row. There is no session to make a quiz FROM here — the
  * quiz exists because the teacher said yes to the afternoon offer — so the
  * choices are the ones a sent quiz has (resend the link, the report, back), a
- * "still making it", or the failure copy that names the step that stopped.
+ * "still making it", a failed quiz made AGAIN when a remake can help
+ * (lpRemakeable — the Flow's "Make it again", on the list's "tap to retry"), or
+ * the failure copy that names the step that stopped when it cannot.
  * Never "make it" from a session: that path claims a coaching session.
  *
  * The one decision still open on an lp_v8 quiz is its LANGUAGE: a yes on any
@@ -507,7 +381,7 @@ async function handleLpPick(quizId, phone, user) {
   const lang = teacherLanguageFor({ preferredLanguage: user?.preferred_language });
   const { data: quiz } = user?.id ? await supabase.from('quizzes')
     .select(LP_QUIZ_SELECT)
-    .eq('id', quizId).eq('teacher_id', user.id).eq('quiz_source', LP_V8)
+    .eq('id', quizId).eq('teacher_id', user.id).in('quiz_source', PLAN_SOURCES)
     .maybeSingle() : { data: null };
   if (!quiz) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqNotYours', { language: lang }));
@@ -532,7 +406,7 @@ async function handleLpPick(quizId, phone, user) {
         { id: `${BACK_PREFIX}${quiz.id}`, title: resolveUx('tqBackButton', { language: lang }) },
       ],
     });
-    logEvent('transcript_quiz.list_pick', { userId: user.id, quizId: quiz.id, state, quiz_source: LP_V8 });
+    logEvent('transcript_quiz.list_pick', { userId: user.id, quizId: quiz.id, state, quiz_source: quiz.quiz_source });
     return true;
   }
   if (isAwaitingLanguage(quiz)) {
@@ -541,18 +415,37 @@ async function handleLpPick(quizId, phone, user) {
     const ruleLanguage = quiz.language || quizLanguageFor(quiz.subject, null);
     await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage, { digest: quiz.meta?.digest, subject: quiz.subject });
     logEvent('transcript_quiz.language_asked', {
-      userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list', quiz_source: LP_V8,
+      userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list', quiz_source: quiz.quiz_source,
+    });
+    return true;
+  }
+  // A quiz that failed because its lesson plan could not be read: read it again
+  // now (lp-source-check) — if it is there, the tap makes the quiz again.
+  if (state === 'failed') await withSourceCheck(quiz);
+  if (state === 'failed' && lpRemakeableQuiz(quiz)) {
+    // The list's own promise ("tap to retry"), kept the way a failed transcript
+    // row keeps it: the tap makes the quiz again. The same remake the Flow's
+    // "Make it again" runs — the atomic failed → generating flip, then the one
+    // LP queue step, which tells the teacher it is on its way.
+    const Offer = require('./transcript-quiz-offer.service');
+    const remade = await Offer.remakeLpQuiz({ quiz, phone, teacherLang: lang, source: 'list' });
+    logEvent('transcript_quiz.list_pick', {
+      userId: user.id, quizId: quiz.id, state, remade: Boolean(remade), quiz_source: quiz.quiz_source,
     });
     return true;
   }
   if (state === 'failed') {
     // The reason the generate step persisted, so the sentence repeated here is
     // the one the teacher was sent when it failed (model vs plan, never mixed).
-    await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(failureReasonOf(quiz.meta), LP_V8), { language: lang }));
+    // The teacher is in /quiz: a start failure's line says what can happen next
+    // from here, never the 15:00 offer's "the next lessons will get an offer".
+    await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(failureReasonOf(quiz.meta), quiz.quiz_source, {
+      meta: quiz.meta, channel: 'quiz_menu',
+    }), { language: lang }));
   } else {
     await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
   }
-  logEvent('transcript_quiz.list_pick', { userId: user.id, quizId: quiz.id, state, quiz_source: LP_V8 });
+  logEvent('transcript_quiz.list_pick', { userId: user.id, quizId: quiz.id, state, quiz_source: quiz.quiz_source });
   return true;
 }
 
@@ -610,6 +503,6 @@ async function handleActionButton(buttonId, phone) {
 module.exports = {
   isQuizCommand, buildRows, showList, handleListPick, handleActionButton, statusLine, countsFor,
   loadEligibleSessions, hasEligibleLessons, quizState, isAwaitingLanguage, claimForGeneration, enqueueGenerate,
-  lessonItems, loadLessonPage, loadLpQuizzes,
+  lessonItems, loadLessonPage, loadLpQuizzes, rowLabel, startTranscriptLesson, answerTakenLesson,
   PICK_PREFIX, LP_PICK_PREFIX, LINK_PREFIX, REPORT_PREFIX, PAGE_PREFIX, BACK_PREFIX, MAX_ROWS, PER_PAGE,
 };

@@ -441,3 +441,40 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # canSelfCoach is false for a coach, so a DC intent can never be declared by
     # one — the refusal above does not write the state, and the router would
     # ignore it if it somehow existed.
+
+  @e2e @observe @coaching @wip @draft @config-gated @P2
+  Scenario: A principal's second recording after their own lesson was coached is asked whose it is
+    Given the NIETE bot chat is open
+    And my role is "principal"
+    And I tapped "Classroom Coaching" on /menu and my first classroom recording started my own coaching
+    When I send a second classroom recording longer than 15 minutes the same morning
+    Then the bot asks "Whose observation is this?"
+    And "My own lesson" is one of the choices
+    # The recording now ends the Classroom Coaching wait (coaching-session initiateSession clears the
+    # teacher's coaching state), so a later recording is no longer read as the same declared intent.
+    # Before, the six-hour wait outlived the first recording and routed every later one to self-coaching.
+
+  @e2e @observe @coaching @wip @draft @config-gated @P3
+  Scenario: With COACHING_RECORDING_ENDS_WAIT off a principal's second recording goes straight to their own coaching again
+    Given COACHING_RECORDING_ENDS_WAIT is "off" on the bot service
+    And my role is "principal"
+    And I tapped "Classroom Coaching" on /menu and my first classroom recording started my own coaching
+    When I send a second classroom recording longer than 15 minutes the same morning
+    Then the bot does NOT ask "Whose observation is this?"
+    And the recording is analysed as MY OWN lesson
+    # The behaviour before the recording ended the wait: the six-hour Classroom Coaching intent
+    # still stands, so observe-audio-router routes the second recording to self-coaching.
+  @e2e @observe @i18n @wip @draft @P2
+  Scenario: In Urdu, the observe messages never guess the coach's or the teacher's gender
+    Given the NIETE bot chat is open as a coach whose language is Urdu
+    When I register as a school leader, start an observation of a named teacher, and reach the debrief and send steps
+    Then no message addresses me with a masculine or a feminine verb form (never «رجسٹر ہو گئے», «مشاہدہ کر رہے ہیں», «بات کریں گے», «خود دیکھیں گے»)
+    And no message describes the teacher with one (never «استاد … دیکھیں گے» or «استاد … بھروسہ کرتے ہیں»)
+    And the debrief guide and the coaching card I receive describe the teacher without «استاد چاہتے ہیں» or «استاد چاہتی ہیں»
+    # observe-strings (ur): leader_registered_welcome, the visit-capture prompt, debrief_choice_body,
+    # debrief_record_instruction, send_choice_body, onboard_why — rewritten to a noun agreement, a passive or a
+    # subjunctive. The debrief-guide and coach-feedback prompts carried "refer to the teacher with the respectful
+    # plural (استاد چاہتے ہیں)"; they now carry URDU_THIRD_PERSON_RULE (config/gender-neutral-address.js), and the
+    # HOTS analysis prompt the same rule in Urdu. The model output is content-driven: assert no gendered form, never
+    # a fixed sentence. Proven in tests/language/urdu-gender-neutral-copy.test.js and
+    # bot/tests/observe/third-person-teacher.test.js. @wip.

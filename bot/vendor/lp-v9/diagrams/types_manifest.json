@@ -292,7 +292,7 @@
       },
       "png": [],
       "limits": [
-        "`model` is \"ten_frame\" (default) or \"tally\". A count over 10 draws a second ten-frame; the cap is 20.",
+        "`model` is \"ten_frame\" (default) or \"tally\". A count over 10 draws a second ten-frame; the cap is 20. A ten_frame of count 0 is an empty frame (zero); a tally needs at least 1.",
         "The count is never printed — that is the question."
       ]
     },
@@ -323,9 +323,9 @@
       },
       "png": [],
       "limits": [
-        "`rows` ([{picto,count,label}]) overrides `picto`/`count` and is the compare mode; a row's `label` is its NAME, never its count.",
+        "`rows` ([{picto,count,label,color}]) overrides `picto`/`count` and is the compare mode; a row's `label` is its NAME, never its count; a row's `color` (ink, accent, leaf, cool, warn, plum, clay) draws its things in that colour, so a part of a set can be seen.",
         "`group` rings equal lots and applies to a single-row spec only — 12 with group 4 draws three rings of four.",
-        "No count, total or legend is ever drawn: the child counts. At most 30 things.",
+        "No count, total or legend is ever drawn: the child counts. At most 30 things; a count may be 1, and 0 draws an empty dashed tray (the empty set) — one thing or none is only the answer to how many.",
         "An Urdu row is laid out right-to-left with its name on the right."
       ]
     },
@@ -750,13 +750,14 @@
         "two_columns",
         "pair_up"
       ],
-      "for": "Two columns of pictures or words, lettered A/B/C and numbered 1/2/3, with no lines drawn — the child picks the pair.",
+      "for": "Two columns of pictures or words, lettered down one side and numbered 1/2/3 down the other, with no lines drawn — the child picks the pair.",
       "required": [
         "left",
         "right"
       ],
       "optional": [
         "handles",
+        "handleLetters",
         "rowHeight",
         "lang"
       ],
@@ -782,7 +783,7 @@
       "png": [],
       "limits": [
         "The two columns must be the same length, 2 to 4 rows. An entry is {picto} or {text}.",
-        "NOTHING is joined: the handles are on the drawing and the OPTIONS carry the candidate pairs (\"A-2\"), which is the legal labelled case under the leak rule.",
+        "NOTHING is joined: the handles are on the drawing and the OPTIONS carry the candidate pairs (a handle letter and a number), which is the legal labelled case under the leak rule.",
         "In Urdu the lettered column and its handles move to the right, as a block."
       ]
     },

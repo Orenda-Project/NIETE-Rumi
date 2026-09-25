@@ -122,9 +122,17 @@ describe('count_objects is a counting instrument, not a vocabulary one', () => {
     expect(p).toMatch(/to ask which WORD a picture matches, use the match type/i);
   });
 
-  test('a single thing is refused — one of something is not a count', () => {
-    expect(() => Figure.renderFigureSvg({ type: 'count_objects', picto: 'goat', count: 1 }, 'en'))
-      .toThrow(/one .* is not something to count/i);
+  test('a single thing under a word question is refused — one goat is a vocabulary prompt, not a count', () => {
+    // The engine floor of 2 that stood for this moved to where the question is
+    // known (SYNC.md §3.23): one car under "how many cars?" is a grade 1
+    // counting question, and transcript-quiz-figure-counts-zero-one.test.js
+    // holds that side.
+    expect(Figure.singleThingNotACount(
+      { type: 'count_objects', picto: 'goat', count: 1 }, ['goat', 'cow', 'hen'], 0, 'Which word does this picture match?',
+    )).toMatch(/"goat" is drawn once but the question does not ask how many/);
+    expect(Figure.singleThingNotACount(
+      { type: 'count_objects', picto: 'goat', count: 1 }, ['1', '2', '3'], 0, 'How many goats are there?',
+    )).toBeNull();
   });
 
   test('two or more is still allowed — a KG class genuinely counts to two', () => {

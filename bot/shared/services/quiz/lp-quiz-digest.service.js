@@ -34,6 +34,7 @@
 
 const { completeJson } = require('./transcript-quiz-llm');
 const { normaliseDigest } = require('./transcript-quiz-digest.service');
+const { peopleDigestRule } = require('./transcript-quiz-people');
 const { canonicalSubject, LANG_NAME } = require('./transcript-quiz-language');
 const { logEvent } = require('../../utils/structured-logger');
 const { logToFile } = require('../../utils/logger');
@@ -50,6 +51,25 @@ const Catalog = require('../lp-v8-catalog.service');
  * an Urdu quiz is called everywhere — quizzes.topic, the forward message the
  * children read, /quiz, the PDF — so it is taken from the catalog, never guessed.
  */
+/**
+ * The SUBJECT of a served lesson, from the catalog — never from the content.
+ *
+ * The caller's `subject` is the catalog's (the delivery row / the quiz row's
+ * `meta.class`); the lesson id names it too («grade_1_urdu_ch5_seg1»). On
+ * staging (24 Sep 2026) a grade 1 URDU lesson on the manners of visiting the
+ * sick came back from the digest model as `islamiat`; that reading replaced
+ * the catalog's on the quiz row, and the teacher was told "Your quiz:
+ * Islamiyat lesson on …". The model's reading is kept for the record
+ * (`subject_read`, `subject_conflict`) and never used.
+ */
+function catalogSubject(subject, lessonId) {
+  const given = canonicalSubject(subject);
+  if (given !== 'other') return given;
+  const m = /^grade_\d+_(.+?)_ch\d+/.exec(String(lessonId || ''));
+  const fromId = m ? canonicalSubject(m[1].replace(/_/g, ' ')) : 'other';
+  return fromId !== 'other' ? fromId : null;
+}
+
 function catalogLessonName(lessonId) {
   if (!lessonId) return null;
   try {
@@ -341,6 +361,14 @@ function carry(slideScript) {
     misconception: mis ? {
       slip: degender(mis.slip), why: degender(mis.why), fix: degender(mis.fix),
     } : null,
+    // Any further mistakes the plan warns about. A K-5 slide script has one
+    // (iDo.misconception) and no top-level list — 0 of 1,281 ingested scripts
+    // carry one — so for K-5 this is always empty and nothing below changes. A
+    // Grades 6-12 lesson warns about three or four (lp612-quiz-source.js), and
+    // every one is material for a wrong option.
+    more_misconceptions: arr(ss.misconceptions).map((m) => (m && typeof m === 'object'
+      ? { slip: degender(m.slip), why: degender(m.why), fix: degender(m.fix) }
+      : { slip: degender(m), why: '', fix: '' })).filter((m) => m.slip),
     // PROMPTS ONLY — never the answers, and never as questions to reuse.
     practice_prompts: arr(youDo.problems).map((p) => degender(p && p.prompt)).filter(Boolean),
     key_facts: arr(wrap.keyFacts).map(degender).filter(Boolean),
@@ -384,6 +412,10 @@ function lessonExcerpts(slideScript) {
     if (c.misconception.slip) lines.push(`  what they do: ${c.misconception.slip}`);
     if (c.misconception.why) lines.push(`  why: ${c.misconception.why}`);
     if (c.misconception.fix) lines.push(`  what fixes it: ${c.misconception.fix}`);
+  }
+  if (c.more_misconceptions.length) {
+    lines.push('OTHER MISTAKES THE PLAN WARNS ABOUT (gold for distractors too):');
+    c.more_misconceptions.forEach((m) => lines.push(`  what they do: ${m.slip}${m.fix ? ` — what fixes it: ${m.fix}` : ''}`));
   }
   if (c.practice_prompts.length) {
     lines.push('WHAT THE CLASS PRACTISED ON THEIR OWN — the SHAPE of the work, never questions to copy:');
@@ -450,6 +482,7 @@ RULES
 - "key_terms": up to 8 terms the lesson teaches; "term" is the canonical form, "as_spoken" is how the plan words it for the class.
 - "examples_used": the concrete examples, numbers, objects and stories THIS plan uses — the worked example and the practice work. These are the material of the quiz: a child should recognise their own lesson in it.
 - "misconceptions_surfaced": the mistake this plan expects children to make, and why. This is what the quiz's wrong options are built from, so write it as the mistaken THINKING, not as an instruction to the teacher.
+${peopleDigestRule('the plan')}
 - THE PRACTICE PROMPTS BELOW ARE SHAPE, NOT QUESTIONS. Never copy one of them, or its numbers, into anything you write — a child who did that exact sum in the period is being asked to remember an answer, not to use the idea. Write about the same skill with different material.
 - THE TEACHER HAS NO GENDER. Never write "she", "he", "her", "his" or "him" about the teacher in any field — say "the teacher". In Urdu use no gendered word for the teacher and no gendered verb form about the teacher; a verb that agrees with the object ("استاد نے سبق پڑھایا") says nothing about the teacher and is what to write. Never guess a child's gender either.
 - Religious content (Islamiyat / سیرت): write sacred names and honorifics exactly and in Urdu/Arabic script (اللہ، نبی کریم ﷺ، رضی اللہ عنہ) — never transliterated, never dropped.
@@ -461,7 +494,8 @@ Return ONLY this JSON object:
   "slos": [ { "id": "S1", "statement": "", "statement_en": "", "statement_ur": "", "evidence_quote": "", "taught_level": "recall|understand|apply" } ],
   "key_terms": [ { "term": "", "as_spoken": "" } ],
   "examples_used": [ "" ],
-  "misconceptions_surfaced": [ "" ]
+  "misconceptions_surfaced": [ "" ],
+  "people": [ { "latin": "", "ur": "" } ]
 }
 
 THE LESSON PLAN:
@@ -479,13 +513,19 @@ ${lessonExcerpts(slideScript)}`;
  * @param {string}  [args.lessonId]   the served lesson (`quizzes.meta.lessons[0].lesson_id`);
  *                                    names the quiz from the catalog. Falls back to the
  *                                    slide script's own `meta.lessonId`.
+ * @param {string}  [args.lessonName] the lesson's own name when the caller already holds it
+ *                                    (a Grades 6-12 lesson: its book heading). Wins over the
+ *                                    K-5 catalog lookup, which cannot know a 6-12 segment.
+ * @param {string}  [args.quizSource] `quizzes.quiz_source` of the quiz being written, for the
+ *                                    telemetry (default lp_v8).
  * @returns {Promise<{digest:object, grade:string|null, gradeSource:'catalog', lpHint:null,
  *                    model:string, costUsd:number|null, latencyMs:number}>}
  *   The same envelope `transcript-quiz-digest.service.run()` returns, so the
  *   generate step spreads one or the other without a second branch.
  */
 async function run({
-  slideScript, language = null, grade = null, subject = null, lessonId = null,
+  slideScript, language = null, grade = null, subject = null, lessonId = null, lessonName: givenName = null,
+  quizSource = LP_V8,
 }) {
   if (!isUsable(slideScript)) {
     // Loudly, and before the LLM call: an empty digest authored into a quiz is
@@ -518,34 +558,51 @@ async function run({
   // it is what every wrong option is built from, and on this path it is the one
   // piece of the lesson we know for certain.
   const c = carry(slideScript);
-  if (c.misconception) {
-    const seeded = [c.misconception.slip, c.misconception.why].filter(Boolean);
+  if (c.misconception || c.more_misconceptions.length) {
+    const seeded = [
+      ...(c.misconception ? [c.misconception.slip, c.misconception.why] : []),
+      ...c.more_misconceptions.map((m) => m.slip),
+    ].filter(Boolean);
     const already = new Set(digest.misconceptions_surfaced.map((m) => String(m).trim()));
     digest.misconceptions_surfaced = [
       ...seeded.filter((m) => !already.has(m.trim())),
       ...digest.misconceptions_surfaced,
     ].slice(0, 8);
   }
-  if (!digest.subject || digest.subject === 'other') digest.subject = canonicalSubject(subject);
+  // The catalog's subject, always (catalogSubject). The model's reading only
+  // stands when the catalog has none at all.
+  const servedLessonId = lessonId || (slideScript && slideScript.meta && slideScript.meta.lessonId) || null;
+  const catalog = catalogSubject(subject, servedLessonId);
+  if (catalog) {
+    if (digest.subject && digest.subject !== 'other' && digest.subject !== catalog) {
+      digest.subject_read = digest.subject;
+      digest.subject_conflict = true;
+    }
+    digest.subject = catalog;
+  } else if (!digest.subject) {
+    digest.subject = 'other';
+  }
 
   // The label is the lesson's catalog name, set AFTER the model and verbatim
   // (see catalogLessonName). The model's English `topic` stays: it is what an
   // English-language quiz is called, and the catalog has no English name for an
   // Urdu lesson.
-  const servedLessonId = lessonId || (slideScript && slideScript.meta && slideScript.meta.lessonId) || null;
-  const lessonName = catalogLessonName(servedLessonId);
+  const named = givenName && String(givenName).trim() ? String(givenName).trim() : null;
+  const lessonName = named || catalogLessonName(servedLessonId);
   if (lessonName) digest.topic_as_taught = lessonName;
 
   const resolvedGrade = grade != null && String(grade).trim() ? String(grade).trim() : null;
 
   logEvent('transcript_quiz.digest_done', {
-    quiz_source: LP_V8,
+    quiz_source: quizSource,
     lessonId: servedLessonId,
-    topicSource: lessonName ? 'catalog' : 'model',
+    topicSource: named ? 'lesson' : (lessonName ? 'catalog' : 'model'),
     model,
     costUsd,
     latencyMs,
     subject: digest.subject,
+    // what the model read the content as, when it disagreed with the catalog (kept, never used)
+    subjectRead: digest.subject_read || null,
     slos: digest.slos.length,
     confidence: digest.confidence,
     taughtLevel: bloomLevel,

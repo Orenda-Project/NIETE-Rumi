@@ -24,7 +24,36 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { PALETTE, FONTS, latticeSvg, diamondSvg, dirOf } = require('./niete-brand');
+const { PALETTE, FONTS, NASTALIQ, urduSpacingV2, latticeSvg, diamondSvg, dirOf } = require('./niete-brand');
+
+/**
+ * THE URDU SPACING — appended after the card's stylesheet when the switch is on
+ * (QUIZ_URDU_SPACING_V2, default on); off, the card renders exactly as before.
+ *   - Names and the topic line clip SIDEWAYS only (the ellipsis). A plain
+ *     overflow:hidden also cut off the Nastaliq ink above and below the line
+ *     box, and the stroke a word-initial ک or گ throws past the start of its
+ *     line — «کنول» printed as «لنول», «گنتی» as «لنتی». An Urdu name or topic
+ *     keeps NASTALIQ.startRoom inside its clip on the start side; the negative
+ *     margin puts the text back exactly where it was.
+ *   - A name drawn whole needs its row to hold it: a list holding any Urdu name
+ *     sets every name on the Bold Nastaliq pitch (class ur-names, so a list of
+ *     Latin names only is untouched and every row stays one height) and gives
+ *     back most of the row's vertical padding.
+ *   - On an Urdu card the «آپ» tag and the place line take the Nastaliq pitch.
+ */
+function urduSpacingCss(RTL) {
+  const room = NASTALIQ.startRoom;
+  return `
+  /* urdu-spacing-v2 */
+  .sub, .sub .content, .nm{overflow-x:clip;overflow-y:visible}
+  .nm[dir="rtl"], .sub .content[dir="rtl"]{padding-inline-start:${room}em;margin-inline-start:-${room}em}
+  .list.ur-names .nm{line-height:${NASTALIQ.leading.bold}}
+  .list.ur-names .row:not(.gap){padding-top:4px;padding-bottom:4px}${RTL ? `
+  .sub{padding-inline-start:${room}em;margin-inline-start:-${room}em}
+  .youtag{line-height:${NASTALIQ.leading.regular};padding:0 8px}
+  .place{line-height:${NASTALIQ.leading.bold}}` : ''}
+  /* /urdu-spacing-v2 */`;
+}
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { cardPalette } = require('./video-quiz-scorecard.template');
 const { subjectLabel } = require('../services/quiz/transcript-quiz-language');
@@ -175,6 +204,9 @@ function renderLeaderboardHtml(d) {
   const me = ranked[targetIndex] || null;
   const avg = n ? Math.round(ranked.reduce((s, r) => s + Number(r.pct || 0), 0) / n) : 0;
   const shown = visibleRows(ranked, targetIndex, mode);
+  // Read at render time, so the kill switch takes effect on the next card.
+  const v2 = urduSpacingV2();
+  const urNames = v2 && shown.some((r) => !r.gap && !r.anon && dirOf(r.name || '') === 'rtl');
 
   const logoImg = a.nieteMark ? `<img class='logo' src='data:image/png;base64,${a.nieteMark}' alt='NIETE'>` : '';
   const lattice = latticeSvg({ id: 'niete-lattice-lb', line: '#ffffff', opacity: 0.085 });
@@ -267,7 +299,7 @@ function renderLeaderboardHtml(d) {
   .row.gap{background:transparent;border-color:transparent;padding:2px 10px;gap:12px}
   .dots{flex:0 0 30px;text-align:center;letter-spacing:3px;opacity:.55;font-weight:800}
   .gaptxt{font-size:${RTL ? '16px' : '13.5px'};opacity:.7;line-height:1.6}
-  .foot{display:flex;justify-content:space-between;align-items:center;font-size:${RTL ? '16px' : '13px'};opacity:.78;direction:${dir}}
+  .foot{display:flex;justify-content:space-between;align-items:center;font-size:${RTL ? '16px' : '13px'};opacity:.78;direction:${dir}}${v2 ? urduSpacingCss(RTL) : ''}
   </style></head><body><div class='card' dir='${dir}'>
   ${lattice}
   <div class='hdr'><div class='t1'>${esc(S.eyebrow)}${nuqtas}</div>${logoImg}</div>
@@ -279,7 +311,7 @@ function renderLeaderboardHtml(d) {
     <div class='stat mine'><div class='n'>${me ? Math.round(Number(me.pct) || 0) : 0}%</div><div class='l'>${esc(S.yours)}</div></div>
     <div class='stat'><div class='n'>${avg}%</div><div class='l'>${esc(S.classAvg)}</div></div>
   </div>
-  <div class='list'>${rowHtml}</div>
+  <div class='list${urNames ? ' ur-names' : ''}'>${rowHtml}</div>
   <div class='foot'><span>${esc(S.finished(n))}</span><span>NIETE</span></div>
   </div></body></html>`;
 }
