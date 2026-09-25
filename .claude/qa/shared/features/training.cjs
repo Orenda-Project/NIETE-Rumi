@@ -1651,4 +1651,95 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
 
 
 
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T63', 'However I type "quiz", it opens my quiz menu', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T64', '/quiz lists the lesson plans I took, says where each lesson came from, and makes nothing until I tap', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T65', 'Tapping the same lesson plan twice makes one quiz', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T66', 'A lesson plan another teacher already made into a quiz comes back quickly, with my own name and link', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T67', 'Past today\'s quiz limit I am told plainly and can make it tomorrow', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T68', 'A child in the middle of a quiz who types "quiz" stays in the quiz', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T69', 'A coach who types "quiz" gets the coach menu', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T70', 'In the /quiz list message, a lesson-plan quiz that could not be made is made again on a tap', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T71', 'A Grades 6-12 lesson plan I received is in /quiz, and becomes a quiz only when I tap it', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T72', 'With the 6-12 quiz source switched off, no 6-12 lesson is offered and a quiz already made still works', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T73', 'A 6-12 lesson tapped in /quiz that could not be started says so honestly, and can be made again once it can be', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T74', 'The line after a quiz is sent says when the class report really comes', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T75', 'An Urdu class quiz never guesses whether the child is a boy or a girl — "can", "are doing", "forgot" included', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T76', 'An Urdu quiz on a lesson plan with an English title keeps the title in reading order', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T77', 'The class report arrives once, even when it is asked for while it is being made', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T78', 'After the class report, children who join late do not trigger a second automatic report', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T79', 'A quiz whose questions never passed our checks says the problem was on our side, and can be made again', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T80', 'A quiz never keys a mistake made in class as the right answer', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T81', 'The quiz sheet never presents a mistake made in class as what was taught', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T82', 'A quiz made from my recording never names or asks about a child in my class', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T83', 'A lesson quiz never asks the class the same question twice', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T84', 'A quiz with many questions to fix gets the worst ones fixed first, not none', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
 };

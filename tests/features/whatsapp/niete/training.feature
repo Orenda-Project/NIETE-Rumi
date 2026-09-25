@@ -262,7 +262,7 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-list.service lessonItems + handleLpPick (row id tq_pick_lp_<quizId>); the /quiz Flow
     # lists it too (key lp_<quizId>) with Generate report / Resend link on its LESSON screen. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T63
   Scenario Outline: However I type "quiz", it opens my quiz menu
     Given the NIETE bot chat is open and I have a recorded coaching lesson or a lesson plan from the last 30 days
     When I send "<text>"
@@ -282,7 +282,7 @@ Feature: NIETE (ICT) Teacher Training
     # quiz-menu-request isQuizMenuRequest → the text handler's /quiz door → quiz-menu-entry openQuizMenu.
     # Production, 14 days to 24 Sep 2026: 54 of 351 such texts reached general AI chat instead. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T64
   Scenario: /quiz lists the lesson plans I took, says where each lesson came from, and makes nothing until I tap
     Given the NIETE bot chat is open and I took a Grade 1-5 lesson plan today and have a recorded coaching lesson
     And no quiz has been made from either
@@ -299,7 +299,7 @@ Feature: NIETE (ICT) Teacher Training
     # Only lessons whose served version has a slide script are listed (niete_lp_asset_sources). In Urdu the
     # labels read «سبق کے منصوبے سے» and «کلاس کی ریکارڈنگ سے». @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T65
   Scenario: Tapping the same lesson plan twice makes one quiz
     Given the NIETE bot chat is open and /quiz lists a lesson plan with no quiz yet
     When I tap that lesson plan's row twice in quick succession
@@ -308,7 +308,7 @@ Feature: NIETE (ICT) Teacher Training
     # lp-lesson-claim: a Redis SET NX per (teacher, lesson) around read → insert → re-read; the re-read keeps
     # the oldest row when Redis fails open. The 15:00 offer goes through the same claim. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T66
   Scenario: A lesson plan another teacher already made into a quiz comes back quickly, with my own name and link
     Given another teacher on the same version of a lesson plan has already been sent its quiz
     And the NIETE bot chat is open and /quiz lists that lesson plan with no quiz yet
@@ -320,7 +320,7 @@ Feature: NIETE (ICT) Teacher Training
     # of that key with every check passed, not itself a copy. quiz_funnel.generated carries cached:true and
     # donor_quiz_id; meta.cache_donor on the row. Pictures re-hosted under this quiz. QUIZ_LP_CACHE=off = author. @wip.
 
-  @e2e @quiz @negative @wip @draft @P2
+  @e2e @quiz @negative @wip @draft @P2 @T67
   Scenario: Past today's quiz limit I am told plainly and can make it tomorrow
     Given I have already had the day's limit of quizzes made today
     When I ask for one more quiz from /quiz
@@ -329,7 +329,7 @@ Feature: NIETE (ICT) Teacher Training
     # quiz-daily-cap: QUIZ_DAILY_CAP (default 10) per teacher per PKT day, both streams, counted in the generate
     # step before any model call; failed / daily_cap; copy tqDailyCap. Needs Redis; off/0 = no cap. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T68
   Scenario: A child in the middle of a quiz who types "quiz" stays in the quiz
     Given a child on this phone is taking a class quiz and a question is waiting for an answer
     When the child sends "quiz"
@@ -337,7 +337,7 @@ Feature: NIETE (ICT) Teacher Training
     And no lesson list or menu is sent over the question, and the waiting question can still be answered
     # quiz-menu-entry: the video-quiz state (currentQuestionId) is checked before the role. vqStillInQuiz. @wip.
 
-  @e2e @quiz @wip @draft @P3
+  @e2e @quiz @wip @draft @P3 @T69
   Scenario: A coach who types "quiz" gets the coach menu
     Given the NIETE bot chat is open on a coach's number
     When I send "quiz"
@@ -375,7 +375,7 @@ Feature: NIETE (ICT) Teacher Training
     # atomic failed → generating, then queueLpQuiz. Seen on staging: a failed lesson-plan quiz showed the Flow's
     # generic error. @wip — forcing a failure needs a seeded failed row.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T70
   Scenario: In the /quiz list message, a lesson-plan quiz that could not be made is made again on a tap
     Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be made because something went wrong while writing it
     When I open the /quiz list from the menu's Quiz item
@@ -388,7 +388,7 @@ Feature: NIETE (ICT) Teacher Training
     # the same remake as the Flow's "Make it again". Otherwise tqRowFailedLp and the persisted failure copy.
     # @wip — forcing a failure needs a seeded failed row.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T71
   Scenario: A Grades 6-12 lesson plan I received is in /quiz, and becomes a quiz only when I tap it
     Given the NIETE bot chat is open and the 6-12 quiz source is switched on
     And earlier today I took a Grade 8 maths lesson plan from the 6-12 menu
@@ -403,7 +403,7 @@ Feature: NIETE (ICT) Teacher Training
     # quiz/lp612-quiz-source.js reads the exact stored lp_doc (R2 lp612/{tv}/{lang}/{segment}.lp.json) and adapts it
     # to the slide-script shape the LP digest reads. Needs V1.5.5 applied and the provider in the /quiz registry. @wip.
 
-  @e2e @quiz @config-gated @wip @draft @P2
+  @e2e @quiz @config-gated @wip @draft @P2 @T72
   Scenario: With the 6-12 quiz source switched off, no 6-12 lesson is offered and a quiz already made still works
     Given the NIETE bot chat is open, I have a sent quiz made from a 6-12 lesson plan, and QUIZ_LP612_SOURCE is off
     When I send "/quiz"
@@ -414,7 +414,7 @@ Feature: NIETE (ICT) Teacher Training
     # later") and never stops one already made.
     # @config-gated: needs the env var flipped on a test environment. @wip.
 
-  @e2e @quiz @config-gated @wip @draft @P2
+  @e2e @quiz @config-gated @wip @draft @P2 @T73
   Scenario: A 6-12 lesson tapped in /quiz that could not be started says so honestly, and can be made again once it can be
     Given the NIETE bot chat is open, and the 6-12 quiz source is on where /quiz runs but off where quizzes are written
     When I tap a 6-12 lesson in /quiz and choose the quiz language
@@ -432,7 +432,7 @@ Feature: NIETE (ICT) Teacher Training
     # The Flow's LP_FLOW_FAILURE_RESULT.source_off = tqFlowResultsFailedLpStart (+ tqFlowResultsLater while off).
     # @config-gated: the switch has to be flipped on one service and not another. @wip.
 
-  @e2e @quiz @copy @wip @draft @P2
+  @e2e @quiz @copy @wip @draft @P2 @T74
   Scenario: The line after a quiz is sent says when the class report really comes
     Given the NIETE bot chat is open and I made a quiz for one of my lessons from /quiz
     When the quiz PDF and the message to forward to my class arrive
@@ -445,7 +445,7 @@ Feature: NIETE (ICT) Teacher Training
     # vqShareReportPromise, the video lesson's class link, says the same schedule. Proven against the real
     # scheduler in tests/quiz/report-promise-truth.test.js. @wip.
 
-  @e2e @quiz @i18n @wip @draft @P2
+  @e2e @quiz @i18n @wip @draft @P2 @T75
   Scenario: An Urdu class quiz never guesses whether the child is a boy or a girl — "can", "are doing", "forgot" included
     Given the NIETE bot chat is open and I made an Urdu quiz for one of my lessons
     When a child takes it from the class link and reads every question, option, explanation and feedback line
@@ -459,7 +459,7 @@ Feature: NIETE (ICT) Teacher Training
     # flagged, left by the last rewrite, and shipped as a recorded soft fault. Proven in
     # tests/quiz/transcript-quiz-child-address-forms.test.js. @wip — the author's wording cannot be forced live.
 
-  @e2e @quiz @i18n @wip @draft @P2
+  @e2e @quiz @i18n @wip @draft @P2 @T76
   Scenario: An Urdu quiz on a lesson plan with an English title keeps the title in reading order
     Given the NIETE bot chat is open and I made an Urdu quiz on a maths or science lesson plan whose English title has a dash in it, like "Divisibility — apply the rules"
     When the quiz PDF arrives, and later the class report
@@ -556,7 +556,7 @@ Feature: NIETE (ICT) Teacher Training
     And afterwards that quiz's row in /quiz says the report was sent
     # video-quiz-report: isLessonQuiz gates the digest; markReportSent flips lp_v8 rows to report_sent. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T77
   Scenario: The class report arrives once, even when it is asked for while it is being made
     Given the NIETE bot chat is open and children have finished a class quiz I shared, and its scheduled class report is being made right now
     When I ask for the report from that quiz's row in /quiz
@@ -568,7 +568,7 @@ Feature: NIETE (ICT) Teacher Training
     # Kill switch VIDEO_REPORT_SEND_CLAIM. Timing cannot be forced live; proven in
     # bot/tests/quiz/video-report-send-once.test.js. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T78
   Scenario: After the class report, children who join late do not trigger a second automatic report
     Given the NIETE bot chat is open and I already received the class report of a quiz I shared
     When more children join and finish that quiz more than a day after the first child
@@ -643,7 +643,7 @@ Feature: NIETE (ICT) Teacher Training
     # one). The offer-time digest failure is skipped as model_failed and the teacher is told nothing. A model
     # failure cannot be forced live; proven in tests/quiz/transcript-quiz-failure-reasons.test.js. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T79
   Scenario: A quiz whose questions never passed our checks says the problem was on our side, and can be made again
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I recorded for coaching
     When the questions written for that lesson never pass the quiz checks, after every attempt and repair
@@ -829,7 +829,7 @@ Feature: NIETE (ICT) Teacher Training
     # A solver that itself fails ships the quiz as authored (fail-open). @wip — a wrong key cannot be forced
     # live on demand; the behaviour is proven in tests/quiz/transcript-quiz-key-verify.test.js.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T80
   Scenario: A quiz never keys a mistake made in class as the right answer
     Given the NIETE bot chat is open and I taught a lesson in which something was said that is not true by the subject, such as calling 4/8 not a proper fraction
     When I say yes to the quiz for that lesson and it arrives
@@ -843,7 +843,7 @@ Feature: NIETE (ICT) Teacher Training
     # right answer or two count at once and another answer only after a second look in another option order.
     # @wip — a class's mistake cannot be recorded on demand; proven in tests/quiz/transcript-quiz-key-truth.test.js.
 
-  @e2e @quiz @wip @draft @config-gated @P1
+  @e2e @quiz @wip @draft @config-gated @P1 @T81
   Scenario: The quiz sheet never presents a mistake made in class as what was taught
     Given the NIETE bot chat is open and I taught a lesson in which something was said that is not true by the subject, such as calling 4/8 not a proper fraction
     When I say yes to the quiz for that lesson and its PDF arrives
@@ -860,7 +860,7 @@ Feature: NIETE (ICT) Teacher Training
     # as before). @wip — a class's mistake cannot be recorded on demand; proven in
     # tests/quiz/transcript-quiz-summary-truth.test.js.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T82
   Scenario: A quiz made from my recording never names or asks about a child in my class
     Given the NIETE bot chat is open and I recorded a lesson in which I called on children by name and used their names in example sentences
     When I say yes to the quiz for that lesson and it arrives
@@ -879,7 +879,7 @@ Feature: NIETE (ICT) Teacher Training
     # the logs never carry a name. @wip — a named child cannot be recorded on demand; proven in
     # tests/quiz/transcript-quiz-pupils.test.js.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T83
   Scenario: A lesson quiz never asks the class the same question twice
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
     When the quiz arrives
@@ -913,7 +913,7 @@ Feature: NIETE (ICT) Teacher Training
     # tests/quiz/transcript-quiz-duplicates-blank-and-postposition.test.js and
     # tests/quiz/transcript-quiz-same-fact.test.js.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T84
   Scenario: A quiz with many questions to fix gets the worst ones fixed first, not none
     Given the NIETE bot chat is open and the quiz for my lesson came back with more than five questions that need a fix, such as verbs that speak to the child as a boy or a girl
     When the quiz arrives
