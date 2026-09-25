@@ -77,7 +77,7 @@ async function offerInvite({ phone, studentId, shareCodeId, language = 'en',
   // invite is STILL unanswered before it sends. Non-fatal: a queue hiccup
   // costs one offer, never the quiz.
   try {
-    const SQSQueueService = require('../queue/sqs-queue.service');
+    const SQSQueueService = require('../queue');
     await SQSQueueService.queueJob(shareCodeId, VIDEOS_JOB, { phone, shareCodeId }, {
       delaySeconds: VIDEOS_AFTER_SILENCE_SECS,
       deduplicationId: `${shareCodeId}-${VIDEOS_JOB}-${stripPlus(phone)}-${Date.now()}`,

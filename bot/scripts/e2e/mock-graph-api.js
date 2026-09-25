@@ -270,6 +270,14 @@ function createMockGraphApi(opts = {}) {
           say(`signal ${payload.type || payload.status || 'typing'} → ${payload.to || payload.message_id || ''}`);
           return json(res, 200, { messaging_product: 'whatsapp', success: true, messages: [{ id: `wamid.mock.signal.${state.signals}` }] });
         }
+        // Meta fetches a media LINK before it sends; an unreachable host fails the send with a media
+        // error. The lane models that for the reserved host example.invalid, so a driver can seed a
+        // question whose card cannot be sent (training T42) without a real dead URL (bd-5d294).
+        const link = payload && payload[payload.type] && payload[payload.type].link;
+        if (link && /(^|\.)example\.invalid$/i.test((() => { try { return new URL(link).hostname; } catch (e) { return ''; } })())) {
+          say(`REJECT media link on example.invalid → ${payload.to}`);
+          return json(res, 400, { error: { message: '(#131053) Media upload error: the link could not be fetched', type: 'OAuthException', code: 131053 } });
+        }
         let norm;
         try { norm = normalize(payload); }
         catch (e) {

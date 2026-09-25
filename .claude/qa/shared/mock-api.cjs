@@ -113,10 +113,18 @@ function makeMockApi(opts) {
   // The fresh-inbound reader the pipeline walkers (coaching, lesson-plan) use: everything that
   // arrived since the LAST call, with the media flags the CDP page-side reader computes.
   let freshCursor = 0;
-  const flagsOf = (i) => ({ txt: String(i.txt || '').slice(0, 600), img: !!i.img, audio: !!i.audio, doc: !!i.doc,
+  // 4000, not 600: a scenario-style grand-quiz question puts its lettered options past the 600th
+  // character, and the quiz driver matches the answer against those lines (run 1214, Q7/20 → NO_ROW_ID).
+  const flagsOf = (i) => ({ txt: String(i.txt || '').slice(0, 4000), img: !!i.img, audio: !!i.audio, doc: !!i.doc,
     pdf: !!i.pdf || /\.pdf/i.test(i.txt || ''), btns: i.btns || [], media: i.media,
     // interactive list rows, when this reply is one — the training module check is answered off these
-    list: i.list || null });
+    list: i.list || null,
+    // the Flow card, when this reply is one — a "Select all that apply" training question arrives as
+    // the training-msq Flow, not a list, and the quiz driver has to recognise it to answer it (bd-2ug2s)
+    flow: i.flow || null,
+    // the raw outbox message, so openFlow({ from: item }) can open the Flow behind a card that arrived
+    // through fresh() polling rather than through a send (the quiz loop is all polling)
+    raw: i.raw });
   const MEDIA_KIND_BY_MENU = { 'document': 'document', 'photos & videos': 'image', 'photo': 'image', 'audio': 'audio', 'video': 'video' };
   const MIME_BY_EXT = { '.m4a': 'audio/mp4', '.mp4': 'video/mp4', '.ogg': 'audio/ogg; codecs=opus', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
     '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.pdf': 'application/pdf', '.txt': 'text/plain' };
@@ -207,12 +215,15 @@ function makeMockApi(opts) {
     // ---- Flows: emulated from the stored JSON, never rendered ------------------------
     /** Open the Flow behind the last reply's card whose CTA matches `ctaPattern`. Loads the stored
      *  FLOW_JSON by the card's flow_id, INITs endpoint Flows through the encrypted transport. */
-    async openFlow(ctaPattern) {
+    async openFlow(ctaPattern, o2) {
       if (!FL) return { ok: false, err: 'MOCK_NO_FLOW_RENDER' };
-      const raw = lastReply && lastReply.raw && lastReply.raw.interactive;
+      // Default: the last reply a send/tap captured. `from` overrides it with a specific item — e.g. a
+      // Flow card the quiz loop pulled via fresh(), which lastReply never sees (bd-2ug2s).
+      const src = (o2 && o2.from) || lastReply;
+      const raw = src && src.raw && src.raw.interactive;
       const params = raw && raw.type === 'flow' && raw.action && raw.action.parameters;
       const re = new RegExp(ctaPattern, 'i');
-      if (!params || !(lastReply.btns || []).some((b) => re.test(b))) { flowStats.refused++; return { ok: false, err: 'NO_FRESH_CTA:' + ctaPattern }; }
+      if (!params || !(src.btns || []).some((b) => re.test(b))) { flowStats.refused++; return { ok: false, err: 'NO_FRESH_CTA:' + ctaPattern }; }
       const entry = flowEntryById(params.flow_id);
       if (!entry) return { ok: false, err: 'NO_STORED_FLOW:' + params.flow_id + ' (run flow-inventory.js fetch)' };
       let json; try { json = JSON.parse(fs.readFileSync(path.join(FL.dir, entry.envVar + '.json'), 'utf8')); } catch (e) { return { ok: false, err: 'FLOW_JSON_UNREADABLE:' + entry.envVar }; }
@@ -226,7 +237,11 @@ function makeMockApi(opts) {
         endpointUrl: isExchange ? String(FL.botUrl || base).replace(/\/+$/, '') + endpointPath : null,
         onComplete: async (done) => {
           flowCompletionSince = (await outbox(0)).last;
-          await inject('flow', { flowId: done.flowId, response_json: done.response_json });
+          // Meta's nfm_reply response_json carries the flow_token the card was sent with; the bot routes
+          // on it (flow-response.handler reads responseJson.flow_token — the STUDENT_JOIN completion is
+          // recognised by its 'vqjoin:' prefix). Without it the join fell through to the generic
+          // "Thanks for your response!" (debug run, bd-5d294).
+          await inject('flow', { flowId: done.flowId, response_json: { ...(done.response_json || {}), flow_token: done.flowToken } });
           flowStats.completed++;
         },
       });
@@ -234,11 +249,13 @@ function makeMockApi(opts) {
       flow = em; flowStats.opened++; flowStats.flows.push(entry.envVar);
       const p = em.probe();
       trace('flow open ' + entry.envVar + ' screen=' + p.screen);
-      return { ok: true, clicked: (lastReply.btns || []).find((b) => re.test(b)), screen: p.screen, items: p.items.length, via: 'flow-emulator', flow: entry.envVar };
+      return { ok: true, clicked: (src.btns || []).find((b) => re.test(b)), screen: p.screen, items: p.items.length, via: 'flow-emulator', flow: entry.envVar };
     },
     flow() { return flow; },
     async resetFlow() { const had = !!flow; flow = null; return { ok: true, note: had ? 'emulated Flow closed' : 'nothing open', attempts: 0 }; },
-    async flowProbe() { if (!flow || !flow.isOpen()) return { text: '', items: [] }; const p = flow.probe(); return { text: p.text, items: p.items.map((i) => ({ text: i.text, disabled: i.disabled, kind: i.kind })) }; },
+    // id/name/hay/value ride along: a NavigationList row's id (lp_<quizId>), a Dropdown option's field name,
+    // and the row's full text are what drivers key on; the CDP lane has them too (bd-w3cb9).
+    async flowProbe() { if (!flow || !flow.isOpen()) return { text: '', items: [] }; const p = flow.probe(); return { screen: p.screen, text: p.text, items: p.items.map((i) => ({ text: i.text, disabled: i.disabled, kind: i.kind, id: i.id, name: i.name, hay: i.hay, value: i.value })) }; },
     async flowClick(text, o2) { if (!flow || !flow.isOpen()) return noFlow(); const r = await flow.click(text, o2 || {}); if (!flow.isOpen()) flow = null; return r; },
     async flowPick(want, o2) {
       if (!flow || !flow.isOpen()) return noFlow();
@@ -263,15 +280,21 @@ function makeMockApi(opts) {
     async flowComplete(timeoutMs = 90000) { return waitReply(flowCompletionSince, timeoutMs, 'flow:complete'); },
     async flowStats() { return { ...flowStats, flows: [...new Set(flowStats.flows)] }; },
 
+    /** A SECOND phone on the same mock stack — a child opening a class quiz link, a friend they
+     *  forward it to. The mock Graph API takes `from` on every injected message and keeps one outbox
+     *  per recipient, so another makeMockApi bound to that number is a complete second actor. No
+     *  Flows (children never open one); same base/env/repo/trace (bd-5d294). */
+    as(phone) { return makeMockApi({ ...opts, driver: String(phone) }); },   // same flows: a join Flow may open
     /** DB reach-through — identical to the CDP api: the DB is real (sandbox), so persisted-state
      *  assertions (LANG02/03 language + lock) are verified the same way. */
     db(action, extra) {
       trace('db ' + action);
-      const script = /^(lookup|answer-key|module-answer-key)$/.test(action)
+      const script = /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|seed-level-complete|seed-isaps-exams|seed-lp-quiz|seed-class-quiz|quiz-rows|revert-level|activate-program|seed-lp-download|seed-coaching-session|seed-lp612-delivery|purge-run-quizzes|quizzes-for-lesson|driver-user)$/.test(action)
         ? path.join(repo, '.claude/qa/shared/niete_training_db.py')
         : path.join(repo, '.claude/qa/shared/niete_registration_db.py');
       const args = [script, action, '--env', env, '--phone', driver];
-      if (action !== 'lookup' && action !== 'snapshot') args.push('--yes-write');
+      // module-media is a READ — never hand a read a write flag (bd-xub4s).
+      if (!/^(lookup|snapshot|module-media|level-modules|answer-key|quiz-rows|quizzes-for-lesson|driver-user)$/.test(action)) args.push('--yes-write');   // reads never get a write flag
       if (extra) args.push(...extra);
       try {
         const out = execFileSync('python3', args, { cwd: repo, encoding: 'utf8', timeout: 60000 });

@@ -217,12 +217,386 @@ def cmd_answer_key(creds, a):
         if idx is None:
             for j, o in enumerate(opts):
                 if isinstance(o, dict) and str(o.get("key")) == co: idx = j; break
-        out.append({"q": (q["question_text"] or "").strip(), "correct": texts[idx] if idx is not None else None})
+        out.append({"q": (q["question_text"] or "").strip(), "correct": texts[idx] if idx is not None else None,
+                    "correct_index": (idx + 1) if idx is not None else None})   # 1-based: image-option rows are titled "Option N"
     print(json.dumps(out, ensure_ascii=False))
     sys.stderr.write("resolved %d/%d answers for grand_quiz %s\n" % (sum(1 for o in out if o["correct"]), len(out), gq))
 
 def _option_texts(opts):
     return [o if isinstance(o, str) else (o.get("text") or o.get("label") or o.get("title") or "") for o in (opts or [])]
+
+def cmd_module_media(creds, a):
+    """Which of the picker's module titles is delivered as a PDF, and which as a video. Read-only.
+
+    T04 asserts that a PDF module arrives as a DOCUMENT. The driver only knows the titles the Flow
+    picker showed, and 191 of the 438 modules in this environment carry PDF media — so picking one
+    blind is a coin toss that makes the scenario non-deterministic. This resolves title -> media
+    kind so the driver can open a module it KNOWS should arrive as a document (bd-xub4s).
+    """
+    out = []
+    for title in (a.title or []):
+        t = (title or "").replace("\u2026", "").strip()
+        if not t:
+            continue
+        mods = _get(creds, "training_modules",
+                    "title=ilike.%s*&is_active=eq.true&select=id,title,video_url,source_media_url&limit=1"
+                    % urllib.parse.quote(t, safe=""))
+        if not mods:
+            out.append({"title": title, "found": False}); continue
+        m = mods[0]
+        src = str(m.get("video_url") or m.get("source_media_url") or "")
+        out.append({"title": m.get("title"), "id": m.get("id"), "found": True,
+                    "kind": "pdf" if src.lower().endswith(".pdf") or ".pdf" in src.lower() else "video",
+                    "media": src[-60:]})
+    print(json.dumps(out, ensure_ascii=False))
+
+
+def cmd_level_modules(creds, a):
+    """Every active module of a level, in the order the ladder opens them. Read-only.
+
+    T08 seeds all-but-the-last module of the Oxbridge level and drives the last one live. Hardcoding
+    the module ids in the driver would rot the moment the catalogue is re-imported, so the driver
+    asks for them by LEVEL (bd-2ug2s).
+    """
+    courses = sorted(
+        [c for c in (_get(creds, "training_courses",
+                          "level_id=eq.%s&select=id,title,order_index,is_active" % a.level) or [])
+         if c.get("is_active")],
+        key=lambda c: (c.get("order_index") or 0, c["id"]))
+    out = []
+    for c in courses:
+        mods = sorted(
+            [x for x in (_get(creds, "training_modules",
+                              "course_id=eq.%s&select=id,title,order_index,video_url,source_media_url,is_active" % c["id"]) or [])
+             if x.get("is_active")],
+            key=lambda x: (x.get("order_index") or 0, x["id"]))
+        for x in mods:
+            src_url = str(x.get("video_url") or x.get("source_media_url") or "")
+            out.append({"id": x["id"], "title": x.get("title"), "course": c.get("title"),
+                        "kind": "pdf" if ".pdf" in src_url.lower() else "video"})
+    print(json.dumps(out, ensure_ascii=False))
+
+
+def _isaps_exam_courses(creds, level_id):
+    """The level's per-module exams (source_quiz_id > 900) paired with its courses, both in order:
+    exam k <-> course k. The bot keys the pairing on 'Module N' in the course title and 90N in the
+    source id, so ordering both is the same mapping."""
+    exams = sorted([q for q in (_get(creds, "training_grand_quizzes",
+                     "level_id=eq.%s&is_active=eq.true&select=id,source_quiz_id,quiz_type" % level_id) or [])
+                    if q.get("quiz_type") == "grand_quiz" and int(q.get("source_quiz_id") or 0) > 900],
+                   key=lambda q: int(q["source_quiz_id"]))
+    courses = sorted([c for c in (_get(creds, "training_courses",
+                       "level_id=eq.%s&is_active=eq.true&select=id,title,order_index" % level_id) or [])],
+                     key=lambda c: (c.get("order_index") or 0, c["id"]))
+    return list(zip(exams, courses))
+
+def cmd_seed_isaps_exams(creds, a):
+    """T26: "passed eight of the nine module exams and has NOT finished every unit". For every course but
+    --skip-course: one PASSED module-exam attempt (2 scenario MCQs correct + the CRQ at 10/10, the
+    paper the bot builds) with its answers. Plus, for every UNIT of the level, a passed unit-quiz
+    attempt with every question correct — the formative component has a 50% bar and is counted from
+    answers, not from teacher_training_progress, so no unit is marked finished. Prints the live
+    course's exam id so the driver can fetch its answer key. Undo: revert-level 26 (bd-w3cb9.3)."""
+    level_id = 26
+    uid = _uid(creds, a.phone)
+    prog = _get(creds, "training_programs", "key=eq.niete_isaps_pilot&select=id")
+    if not prog: sys.exit("no niete_isaps_pilot program")
+    pid = prog[0]["id"]
+    pairs = _isaps_exam_courses(creds, level_id)
+    now = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    attempts, answers, seeded = [], [], []
+    live = None
+    for exam, course in pairs:
+        if course["id"] == a.skip_course:
+            live = {"exam": exam["id"], "course": course["id"], "title": course["title"]}
+            continue
+        qs = sorted(_get(creds, "training_questions",
+                         "grand_quiz_id=eq.%s&is_active=eq.true&select=id,order_index" % exam["id"]) or [],
+                    key=lambda q: (q.get("order_index") or 0, q["id"]))
+        mcqs = [q for q in qs if (q.get("order_index") or 0) < 901][:2]
+        crqs = [q for q in qs if (q.get("order_index") or 0) >= 901][:1]
+        aid = str(uuid.uuid4())
+        attempts.append({"id": aid, "user_id": uid, "program_id": pid, "quiz_kind": "grand", "grand_quiz_id": exam["id"],
+                         "level_id": level_id, "current_question_index": 3, "total_questions": 3, "total_score": 12,
+                         "score": 12, "is_passed": True, "status": "passed", "completed_at": now, "last_activity_at": now})
+        for i, q in enumerate(mcqs):
+            answers.append({"attempt_id": aid, "question_index": i, "question_id": q["id"], "chosen_option": "1", "is_correct": True})
+        for q in crqs:
+            answers.append({"attempt_id": aid, "question_index": 2, "question_id": q["id"], "answer_text": "QA seed", "answer_score": 10})
+        seeded.append({"exam": exam["id"], "course": course["id"]})
+    units = _level_module_ids(creds, level_id)
+    unit_answers = 0
+    for mid in units:
+        qs = _get(creds, "training_questions", "training_module_id=eq.%s&is_active=eq.true&select=id&order=order_index" % mid) or []
+        if not qs: continue
+        aid = str(uuid.uuid4())
+        attempts.append({"id": aid, "user_id": uid, "program_id": pid, "quiz_kind": "training_module", "training_module_id": mid,
+                         "level_id": level_id, "current_question_index": len(qs), "total_questions": len(qs), "total_score": len(qs),
+                         "score": len(qs), "is_passed": True, "status": "passed", "completed_at": now, "last_activity_at": now})
+        for i, q in enumerate(qs):
+            answers.append({"attempt_id": aid, "question_index": i, "question_id": q["id"], "chosen_option": "1", "is_correct": True}); unit_answers += 1
+    def _uniform(rows):
+        keys = sorted({k for r in rows for k in r})          # PostgREST: "All object keys must match"
+        return [{k: r.get(k) for k in keys} for r in rows]
+    if a.yes_write:
+        _req("POST", "/rest/v1/training_assessment_attempts", creds, body=_uniform(attempts), prefer="return=minimal")
+        ua = _uniform(answers)
+        for i in range(0, len(ua), 200):
+            _req("POST", "/rest/v1/training_assessment_answers", creds, body=ua[i:i+200], prefer="return=minimal")
+    print(json.dumps({"exams": len(seeded), "seeded": seeded, "liveExam": live and live["exam"], "liveCourse": live,
+                      "units": len(units), "unitAnswers": unit_answers, "attempts": len(attempts), "dry_run": not a.yes_write}, ensure_ascii=False))
+
+
+def _restore_seeded_quizzes(creds, uid, tag, yes_write, child_prefix=None):
+    quizzes = _get(creds, "quizzes", "teacher_id=eq.%s&meta->>qa_seed=eq.%s&select=id" % (uid, tag)) or []
+    qids = [q["id"] for q in quizzes]
+    out = {"quizzes": qids, "sessions": 0, "dry_run": not yes_write}
+    if yes_write and qids:
+        inq = "in.(%s)" % ",".join(qids)
+        sess = _get(creds, "quiz_sessions", "quiz_id=%s&select=id" % inq) or []
+        sids = [x["id"] for x in sess]
+        for i in range(0, len(sids), 60):
+            _req("DELETE", "/rest/v1/quiz_answers?session_id=in.(%s)" % ",".join(sids[i:i+60]), creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/quiz_sessions?quiz_id=%s" % inq, creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/quiz_share_codes?quiz_id=%s" % inq, creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/quiz_questions?quiz_id=%s" % inq, creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/teacher_nudges?quiz_id=%s" % inq, creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/quizzes?id=%s" % inq, creds, prefer="return=minimal")
+        if child_prefix:
+            _req("DELETE", "/rest/v1/students?phone=like.%s*" % child_prefix, creds, prefer="return=minimal")
+        out["sessions"] = len(sids)
+    return out
+
+def _delete_quizzes(creds, qids, child_prefix=None):
+    out = {"quizzes": qids, "sessions": 0}
+    if not qids: return out
+    inq = "in.(%s)" % ",".join(qids)
+    sess = _get(creds, "quiz_sessions", "quiz_id=%s&select=id" % inq) or []
+    sids = [x["id"] for x in sess]
+    for i in range(0, len(sids), 60):
+        _req("DELETE", "/rest/v1/quiz_answers?session_id=in.(%s)" % ",".join(sids[i:i+60]), creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/quiz_sessions?quiz_id=%s" % inq, creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/quiz_share_codes?quiz_id=%s" % inq, creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/quiz_questions?quiz_id=%s" % inq, creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/teacher_nudges?quiz_id=%s" % inq, creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/quizzes?id=%s" % inq, creds, prefer="return=minimal")
+    if child_prefix:
+        _req("DELETE", "/rest/v1/students?phone=like.%s*" % child_prefix, creds, prefer="return=minimal")
+    out["sessions"] = len(sids)
+    return out
+
+
+def cmd_purge_run_quizzes(creds, a):
+    """Delete every quiz the DRIVER made through the real product since --since (ISO): the quizzes a
+    /quiz tap, a cache hit, a remake or a video share created during a run are not qa_seed-tagged, and
+    left behind they make the next run's lists, nudges and claims lie ("already made"). Driver-only:
+    teacher_id = the driver; share codes minted for the driver's video quizzes since then go too."""
+    uid = _uid(creds, a.phone)
+    since = a.since
+    rows = _get(creds, "quizzes", "teacher_id=eq.%s&created_at=gte.%s&select=id,quiz_source,status" % (uid, since)) or []
+    qids = [r["id"] for r in rows]
+    if not a.yes_write:
+        print(json.dumps({"dry_run": True, "would_delete": rows})); return
+    out = _delete_quizzes(creds, qids, a.child_prefix)
+    _req("DELETE", "/rest/v1/quiz_share_codes?teacher_user_id=eq.%s&created_at=gte.%s" % (uid, since), creds, prefer="return=minimal")
+    _req("DELETE", "/rest/v1/video_quiz_deliveries?user_id=eq.%s&created_at=gte.%s" % (uid, since), creds, prefer="return=minimal")
+    out["sources"] = sorted(set(r["quiz_source"] for r in rows))
+    print(json.dumps(out))
+
+
+def cmd_driver_user(creds, a):
+    """Read-only, one JSON line: the driver's users row (id, name, language, role) for a driver to key on."""
+    u = _get(creds, "users", "phone_number=eq.%s&select=id,phone_number,name,preferred_language,role,language_locked" % a.phone) or [{}]
+    print(json.dumps(u[0], ensure_ascii=False))
+
+
+def cmd_quizzes_for_lesson(creds, a):
+    """Read-only: the driver's quizzes whose meta.lessons cover --lesson-id (how many quizzes one tapped
+    lesson produced: T65), newest first."""
+    uid = _uid(creds, a.phone)
+    rows = _get(creds, "quizzes", "teacher_id=eq.%s&quiz_source=in.(lp_v8,lp612)&select=id,status,language,topic,meta,created_at&order=created_at.desc&limit=40" % uid) or []
+    hit = [r for r in rows if any((l or {}).get("lesson_id") == a.lesson_id for l in ((r.get("meta") or {}).get("lessons") or []))]
+    print(json.dumps({"lesson_id": a.lesson_id, "count": len(hit), "quizzes": [{"id": r["id"], "status": r["status"], "language": r["language"], "topic": r["topic"], "created_at": r["created_at"],
+                       "cache_donor": (r.get("meta") or {}).get("cache_donor"), "error": (r.get("meta") or {}).get("error")} for r in hit]}, ensure_ascii=False))
+
+
+def cmd_seed_lp_quiz(creds, a):
+    """A lesson-plan (lp_v8) quiz row in a chosen state, tagged meta.qa_seed=true so --restore deletes it
+    and everything hanging off it. --state sent (default: listed, T24) | offered (awaiting its language,
+    T35) | failed (model_failed, T36) | queue_failed (T41). --lessons-from auto borrows meta.lessons from
+    the newest real lp_v8 quiz on the given subject so "Make it" can actually generate (bd-5d294)."""
+    uid = _uid(creds, a.phone)
+    if getattr(a, "lookup", False):
+        rows = _get(creds, "quizzes", "teacher_id=eq.%s&quiz_source=eq.lp_v8&meta->>qa_seed=eq.true&select=id,topic,status,meta&order=created_at.desc&limit=1" % uid) or []
+        print(json.dumps(rows[0] if rows else {}, ensure_ascii=False)); return
+    if a.restore:
+        print(json.dumps(_restore_seeded_quizzes(creds, uid, "true", a.yes_write))); return
+    today = datetime.date.today().isoformat()
+    state = getattr(a, "state", None) or "sent"
+    subject = getattr(a, "subject", None) or "maths"
+    lessons, topic = None, "QA seeded lesson-plan quiz"
+    if getattr(a, "lesson_id", None):
+        src = _get(creds, "niete_lp_asset_sources", "lesson_id=eq.%s&select=asset_id,lesson_id,version_stamp,content_hash,t:slide_script->meta->>topic&order=ingested_at.desc&limit=1" % a.lesson_id) or []
+        if not src: sys.exit("no slide script for lesson %s" % a.lesson_id)
+        r = src[0]; lessons = [{"lesson_id": r["lesson_id"], "asset_id": r["asset_id"], "version_stamp": r["version_stamp"], "content_hash": r["content_hash"], "delivered_at": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"}]
+        topic = getattr(a, "topic", None) or r.get("t") or topic
+    elif getattr(a, "lessons_from", None):
+        q = "quiz_source=eq.lp_v8&meta->lessons=not.is.null&status=in.(sent,report_sent)&subject=eq.%s&select=id,topic,grade,meta&order=created_at.desc&limit=1" % subject
+        src = _get(creds, "quizzes", q) or []
+        if src:
+            lessons = (src[0].get("meta") or {}).get("lessons"); topic = src[0].get("topic") or topic
+    meta = {"source": "lp_offer", "lesson_date": today, "qa_seed": True}
+    if lessons: meta["lessons"] = lessons
+    if state == "offered":   status = "offered"; meta.update({"step": "awaiting_language", "awaiting_language": True})
+    elif state == "failed":  status = "failed";  meta.update({"step": "author", "error": getattr(a, "error", None) or "model_failed", "remakes": 0})
+    elif state == "queue_failed": status = "failed"; meta.update({"step": "queue", "error": "queue_failed", "remakes": 0})
+    else:                    status = "sent";    meta.update({"step": "done"})
+    body = {"teacher_id": uid, "quiz_source": "lp_v8", "coaching_session_id": None, "lesson_plan_id": None,
+            "topic": topic, "grade": (re.sub(r"^grade_(\d+)_.*$", r"\1", lessons[0]["lesson_id"]) if lessons else "3"), "subject": subject, "language": getattr(a, "language", None) or "en", "status": status,
+            "total_students_sent": 0, "total_students_completed": 0, "meta": meta}
+    if not a.yes_write:
+        print(json.dumps({"dry_run": True, "would_insert": body}, ensure_ascii=False)); return
+    created, _status = _req("POST", "/rest/v1/quizzes", creds, body=[body], prefer="return=representation")
+    row = (created or [{}])[0] if isinstance(created, list) else {}
+    print(json.dumps({"id": row.get("id"), "topic": topic, "status": status, "lesson_date": today, "lessons": len(lessons or [])}, ensure_ascii=False))
+
+
+def cmd_quiz_rows(creds, a):
+    """Read-only: a quiz row + its questions (for judging a GENERATED quiz's text) and its share code."""
+    q = _get(creds, "quizzes", "id=eq.%s&select=id,status,language,topic,subject,grade,meta,report_pdf_url" % a.quiz) or [{}]
+    qs = _get(creds, "quiz_questions", "quiz_id=eq.%s&select=sort_order,question_text,option_a,option_b,option_c,option_d,correct_option,option_feedback,explanation,media&order=sort_order" % a.quiz) or []
+    sc = _get(creds, "quiz_share_codes", "quiz_id=eq.%s&select=id,code,language,topic&order=created_at.desc&limit=1" % a.quiz) or []
+    print(json.dumps({"quiz": q[0], "questions": qs, "share": sc[0] if sc else None}, ensure_ascii=False))
+
+
+def cmd_seed_class_quiz(creds, a):
+    """A SENT class quiz the children can open from its QUIZ-<code> link, with hand-written questions so
+    no generation runs: quizzes row + 4 quiz_questions + one quiz_share_codes row (the code the link
+    carries), meta.share_code_id set so the report can count sessions. --language en|ur. --broken-q
+    gives question 3 a media card URL that cannot be fetched (T42). --restore removes everything this
+    seed and the children's sessions/answers/students created, keyed on meta.qa_seed (bd-5d294)."""
+    uid = _uid(creds, a.phone)
+    if a.restore:
+        print(json.dumps(_restore_seeded_quizzes(creds, uid, "class", a.yes_write, a.child_prefix))); return
+    lang = a.language or "en"
+    topic = "QA class quiz \u2014 tens and ones" if lang == "en" else "QA \u06a9\u0644\u0627\u0633 quiz \u2014 \u062f\u06c1\u0627\u0626\u06cc \u0627\u0648\u0631 \u0627\u06a9\u0627\u0626\u06cc"
+    if getattr(a, "topic", None): topic = a.topic
+    body = {"teacher_id": uid, "quiz_source": "lp_v8", "coaching_session_id": None, "lesson_plan_id": None,
+            "topic": topic, "grade": "3", "subject": "maths", "language": lang, "status": "sent",
+            "total_students_sent": 0, "total_students_completed": 0,
+            "meta": {"step": "done", "source": "lp_offer", "lesson_date": datetime.date.today().isoformat(), "qa_seed": "class"}}
+    if not a.yes_write:
+        print(json.dumps({"dry_run": True, "would_insert": body}, ensure_ascii=False)); return
+    created, _ = _req("POST", "/rest/v1/quizzes", creds, body=[body], prefer="return=representation")
+    qid = created[0]["id"]
+    if lang == "en":
+        qs = [("What is 3 tens and 7 ones?", "37", "73", "10", "307", "A"),
+              ("Which number has 5 in the tens place?", "15", "51", "5", "105", "B"),
+              ("How many ones are in 42?", "4", "42", "2", "24", "C"),
+              ("Which is the largest number?", "29", "92", "19", "91", "B")]
+    else:
+        qs = [("3 \u062f\u06c1\u0627\u0626\u06cc\u0627\u06ba \u0627\u0648\u0631 7 \u0627\u06a9\u0627\u0626\u06cc\u0627\u06ba \u06a9\u0648\u0646 \u0633\u0627 \u0646\u0645\u0628\u0631 \u06c1\u06d2\u061f", "37", "73", "10", "307", "A"),
+              ("\u06a9\u0633 \u0646\u0645\u0628\u0631 \u0645\u06cc\u06ba \u062f\u06c1\u0627\u0626\u06cc \u06a9\u06cc \u062c\u06af\u06c1 \u067e\u0631 5 \u06c1\u06d2\u061f", "15", "51", "5", "105", "B"),
+              ("42 \u0645\u06cc\u06ba \u06a9\u062a\u0646\u06cc \u0627\u06a9\u0627\u0626\u06cc\u0627\u06ba \u06c1\u06cc\u06ba\u061f", "4", "42", "2", "24", "C"),
+              ("\u0633\u0628 \u0633\u06d2 \u0628\u0691\u0627 \u0646\u0645\u0628\u0631 \u06a9\u0648\u0646 \u0633\u0627 \u06c1\u06d2\u061f", "29", "92", "19", "91", "B")]
+    rows = []
+    for i, (q, oa, ob, oc, od, corr) in enumerate(qs, 1):
+        r = {"quiz_id": qid, "sort_order": i, "external_id": "tq:%s:S1:%d" % (qid, i), "question_text": q,
+             "option_a": oa, "option_b": ob, "option_c": oc, "option_d": od, "correct_option": corr,
+             "explanation": "QA seed", "difficulty_level": 1, "media": None}   # integer column (run 1458: 22P02 on "easy")
+        if a.broken_q and i == 3:
+            r["media"] = {"question_card": "https://example.invalid/qa-missing-card.png"}
+        rows.append(r)
+    _req("POST", "/rest/v1/quiz_questions", creds, body=rows, prefer="return=minimal")
+    import random, string
+    code = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+    tn = _get(creds, "users", "id=eq.%s&select=name" % uid)   # NIETE users carry `name`
+    teacher_name = (tn and tn[0].get("name")) or "Teacher"
+    sc, _ = _req("POST", "/rest/v1/quiz_share_codes", creds, body=[{
+        "code": code, "quiz_id": qid, "teacher_user_id": uid, "video_id": None, "teacher_name": teacher_name,
+        "topic": topic, "language": lang, "active": True,
+        "expires_at": (datetime.datetime.utcnow() + datetime.timedelta(days=30)).replace(microsecond=0).isoformat() + "Z"}],
+        prefer="return=representation")
+    scid = sc[0]["id"]
+    body["meta"]["share_code_id"] = scid
+    # the "Resend link" action needs the message the link was published with (baseActions)
+    body["meta"]["student_message"] = "%s has sent you a quiz on %s. Send QUIZ-%s to start." % (teacher_name, topic, code)
+    _req("PATCH", "/rest/v1/quizzes?id=eq.%s" % qid, creds, body={"meta": body["meta"]}, prefer="return=minimal")
+    print(json.dumps({"quizId": qid, "code": code, "shareCodeId": scid, "topic": topic, "language": lang,
+                      "questions": len(rows), "key": [r["correct_option"] for r in rows]}, ensure_ascii=False))
+
+
+QA_LP_DOWNLOAD_CID = "qa-seed-lp-download"          # niete_lp_downloads.correlation_id — the restore key
+QA_COACHING_MARK = "QA_SEED_COACHING_SESSION"       # coaching_sessions.lesson_plan_excerpt — the restore key
+
+
+def cmd_seed_lp_download(creds, a):
+    """A lesson plan the driver took TODAY: one niete_lp_downloads row (status sent) on the newest served
+    version of --lesson-id that has a slide script, so lp-v8-lesson-provider lists it in /quiz as
+    "From lesson plan" with no quiz yet. Tagged by correlation_id so --restore deletes exactly ours."""
+    uid = _uid(creds, a.phone)
+    if a.restore:
+        if not a.yes_write: print(json.dumps({"dry_run": True})); return
+        _req("DELETE", "/rest/v1/niete_lp_downloads?user_id=eq.%s&correlation_id=eq.%s" % (uid, QA_LP_DOWNLOAD_CID), creds, prefer="return=minimal")
+        print(json.dumps({"restored": True})); return
+    lesson_id = a.lesson_id or "grade_1_maths_ch2_seg3"
+    src = _get(creds, "niete_lp_asset_sources", "lesson_id=eq.%s&select=asset_id,lesson_id,version_stamp,content_hash,t:slide_script->meta->>topic,g:slide_script->meta->>grade,s:slide_script->meta->>subject&order=ingested_at.desc&limit=1" % lesson_id) or []
+    if not src: sys.exit("no slide script for lesson %s" % lesson_id)
+    r = src[0]
+    m = re.match(r"^grade_(\d+)_([a-z]+)_ch(\d+)_seg(\d+)$", lesson_id)
+    body = {"user_id": uid, "lesson_id": r["lesson_id"], "asset_id": r["asset_id"], "version_stamp": r["version_stamp"], "content_hash": r["content_hash"],
+            "phone": a.phone, "status": "sent", "grade": str(r.get("g") or (m.group(1) if m else "1")), "subject": str(r.get("s") or (m.group(2) if m else "maths")),
+            "chapter_number": int(m.group(3)) if m else None, "segment_index": int(m.group(4)) if m else None, "correlation_id": QA_LP_DOWNLOAD_CID}
+    if not a.yes_write: print(json.dumps({"dry_run": True, "would_insert": body})); return
+    created, _ = _req("POST", "/rest/v1/niete_lp_downloads", creds, body=[body], prefer="return=representation")
+    row = (created or [{}])[0]
+    print(json.dumps({"id": row.get("id"), "lesson_id": lesson_id, "topic": r.get("t"), "grade": body["grade"], "subject": body["subject"], "asset_id": r["asset_id"]}, ensure_ascii=False))
+
+
+def cmd_seed_coaching_session(creds, a):
+    """A COMPLETED coaching session of the driver with a transcript, so /quiz lists it "From transcript"
+    and a quiz can be written from it. The transcript comes from --transcript-file (>= 1500 chars, the
+    provider's floor). Marked in lesson_plan_excerpt so --restore deletes ours and nothing else."""
+    uid = _uid(creds, a.phone)
+    if a.restore:
+        if not a.yes_write: print(json.dumps({"dry_run": True})); return
+        rows = _get(creds, "coaching_sessions", "user_id=eq.%s&lesson_plan_excerpt=eq.%s&select=id" % (uid, QA_COACHING_MARK)) or []
+        for r in rows:
+            _req("DELETE", "/rest/v1/quizzes?coaching_session_id=eq.%s" % r["id"], creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/coaching_sessions?user_id=eq.%s&lesson_plan_excerpt=eq.%s" % (uid, QA_COACHING_MARK), creds, prefer="return=minimal")
+        print(json.dumps({"restored": True, "deleted": len(rows)})); return
+    text = open(a.transcript_file, encoding="utf-8").read() if a.transcript_file else ""
+    if len(text) < 1500: sys.exit("transcript must be >= 1500 chars (got %d)" % len(text))
+    now = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    body = {"user_id": uid, "session_id": "qa-seed-%s" % uuid.uuid4().hex[:12], "status": "completed", "transcript_text": text,
+            "transcript_language": a.language, "analysis_data": {"topic": a.topic, "subject": a.subject, "framework": "fico"},
+            "lesson_plan_excerpt": QA_COACHING_MARK, "has_lesson_plan": False, "completed_at": now, "created_at": now}
+    if not a.yes_write: print(json.dumps({"dry_run": True, "chars": len(text)})); return
+    created, _ = _req("POST", "/rest/v1/coaching_sessions", creds, body=[body], prefer="return=representation")
+    row = (created or [{}])[0]
+    print(json.dumps({"id": row.get("id"), "chars": len(text), "language": a.language, "topic": a.topic}, ensure_ascii=False))
+
+
+def cmd_seed_lp612_delivery(creds, a):
+    """A Grades 6-12 lesson plan the driver received: one niete_lp612_deliveries row copying a REAL
+    delivery's render_id/segment_id/lang (so the worker's lp612-quiz-source finds the stored lp_doc).
+    surface 'qa-seed' is the restore key."""
+    uid = _uid(creds, a.phone)
+    if a.restore:
+        if not a.yes_write: print(json.dumps({"dry_run": True})); return
+        _req("DELETE", "/rest/v1/niete_lp612_deliveries?user_id=eq.%s&surface=eq.qa-seed" % uid, creds, prefer="return=minimal")
+        print(json.dumps({"restored": True})); return
+    src = _get(creds, "niete_lp612_deliveries", "segment_id=like.%s&select=render_id,segment_id,lang,template_version&order=delivered_at.desc&limit=1" % a.segment_like) or []
+    if not src: sys.exit("no lp612 delivery matching %s to copy" % a.segment_like)
+    r = src[0]
+    seg = (_get(creds, "niete_lp612_segments", "segment_id=eq.%s&select=grade,subject,menu_title,subtopic_title" % r["segment_id"]) or [{}])[0]
+    now = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    body = {"user_id": uid, "render_id": r["render_id"], "segment_id": r["segment_id"], "lang": r["lang"], "template_version": r.get("template_version"), "surface": "qa-seed", "delivered_at": now}
+    if not a.yes_write: print(json.dumps({"dry_run": True, "would_insert": body})); return
+    created, _ = _req("POST", "/rest/v1/niete_lp612_deliveries", creds, body=[body], prefer="return=representation")
+    row = (created or [{}])[0]
+    print(json.dumps({"id": row.get("id"), "segment_id": r["segment_id"], "lang": r["lang"], "grade": seg.get("grade"), "subject": seg.get("subject"), "title": seg.get("menu_title") or seg.get("subtopic_title")}, ensure_ascii=False))
+
 
 def cmd_module_answer_key(creds, a):
     """Answer key for ONE module's check, as the driver needs it: per served question, the correct
@@ -242,7 +616,8 @@ def cmd_module_answer_key(creds, a):
         texts = _option_texts(q.get("options"))
         keys = [k.strip() for k in str(q.get("correct_option") or "").split(",") if k.strip()]
         idx = [int(k) for k in keys if k.isdigit() and 1 <= int(k) <= len(texts)]
-        out.append({"q": (q.get("question_text") or "").strip(), "correct": [texts[i - 1] for i in idx], "correct_index": idx, "multi": len(keys) > 1})
+        out.append({"q": (q.get("question_text") or "").strip(), "correct": [texts[i - 1] for i in idx], "correct_index": idx, "multi": len(keys) > 1,
+                    "options": texts})   # T23 judges long options against these
     print(json.dumps({"module": {"id": mod["id"], "title": mod["title"]}, "questions": out}, ensure_ascii=False))
 
 def _uid(creds, phone):
@@ -274,6 +649,11 @@ def cmd_revert_level(creds, a):
         print("Re-run with --yes-write to apply.")
         return
     inlist = "in.(%s)" % ",".join(str(m) for m in mids)
+    # answers hang off attempts: clear them first, chunked, so an .in() never outgrows the URL
+    atts = _get(creds, "training_assessment_attempts", "user_id=eq.%s&level_id=eq.%s&select=id" % (uid, a.level)) or []
+    ids = [x["id"] for x in atts]
+    for i in range(0, len(ids), 60):
+        _req("DELETE", "/rest/v1/training_assessment_answers?attempt_id=in.(%s)" % ",".join(ids[i:i+60]), creds, prefer="return=minimal")
     _req("DELETE", "/rest/v1/teacher_training_progress?user_id=eq.%s&module_id=%s" % (uid, inlist), creds, prefer="return=minimal")
     _req("DELETE", "/rest/v1/training_certificates?user_id=eq.%s&level_id=eq.%s" % (uid, a.level), creds, prefer="return=minimal")
     _req("DELETE", "/rest/v1/training_assessment_attempts?user_id=eq.%s&level_id=eq.%s" % (uid, a.level), creds, prefer="return=minimal")
@@ -328,6 +708,10 @@ def cmd_activate_program(creds, a):
             existing[0]["id"] if existing else "(new)", uid, pid, a.program_key))
         print("Re-run with --yes-write. Reversible: set is_active=false.")
         return
+    if getattr(a, "deactivate", False):
+        if existing:
+            _req("PATCH", "/rest/v1/teacher_training_assignments?id=eq.%s" % existing[0]["id"], creds, body={"is_active": False}, prefer="return=minimal")
+        print("DEACTIVATED assignment %s (user %s -> %s)." % (existing[0]["id"] if existing else "(none)", uid, a.program_key)); return
     if existing:
         _req("PATCH", "/rest/v1/teacher_training_assignments?id=eq.%s" % existing[0]["id"], creds, body={"is_active": True}, prefer="return=minimal")
         print("ACTIVATED existing assignment %s (user %s -> %s)." % (existing[0]["id"], uid, a.program_key))
@@ -344,16 +728,57 @@ def main():
     sub = p.add_subparsers(dest="cmd", required=True)
     lp = sub.add_parser("lookup", parents=[common]); lp.add_argument("--phone", required=True, help="driver to inspect (digits, no +) — resolved at runtime from the runner's own linked session; never hardcoded (bd-2748/bd-2767)")
     ak = sub.add_parser("answer-key", parents=[common]); ak.add_argument("--grand-quiz", type=int, dest="grand_quiz"); ak.add_argument("--level", type=int)
+    ak.add_argument("--phone")   # api.db always passes it; answer-key does not use it
     for name in ("seed-level-complete", "revert-level"):
         s = sub.add_parser(name, parents=[common]); s.add_argument("--phone", required=True); s.add_argument("--level", type=int, required=True); s.add_argument("--yes-write", action="store_true")
     mak = sub.add_parser("module-answer-key", parents=[common]); mak.add_argument("--phone"); mak.add_argument("--module", type=int); mak.add_argument("--title"); mak.add_argument("--yes-write", action="store_true")
-    apg = sub.add_parser("activate-program", parents=[common]); apg.add_argument("--phone", required=True); apg.add_argument("--program-key", required=True, dest="program_key"); apg.add_argument("--yes-write", action="store_true")
+    sie = sub.add_parser("seed-isaps-exams", parents=[common]); sie.add_argument("--skip-course", type=int, required=True, dest="skip_course")
+    sie.add_argument("--phone", required=True); sie.add_argument("--yes-write", action="store_true")
+    slq = sub.add_parser("seed-lp-quiz", parents=[common]); slq.add_argument("--phone", required=True)
+    slq.add_argument("--restore", action="store_true"); slq.add_argument("--yes-write", action="store_true"); slq.add_argument("--lookup", action="store_true")
+    slq.add_argument("--state", choices=["sent","offered","failed","queue_failed"]); slq.add_argument("--lessons-from", dest="lessons_from"); slq.add_argument("--subject"); slq.add_argument("--language")
+    slq.add_argument("--error", choices=["model_failed","validator_failed","source_unusable","source_missing","key_disagreement"], help="the persisted failure reason for --state failed (T70: source_unusable reads Didn't work)")
+    slq.add_argument("--lesson-id", dest="lesson_id", help="borrow meta.lessons from THIS catalog lesson's newest asset source instead of --lessons-from auto")
+    slq.add_argument("--topic")
+    qr = sub.add_parser("quiz-rows", parents=[common]); qr.add_argument("--quiz", required=True); qr.add_argument("--phone")
+    scq = sub.add_parser("seed-class-quiz", parents=[common]); scq.add_argument("--phone", required=True); scq.add_argument("--language", choices=["en","ur"])
+    scq.add_argument("--broken-q", action="store_true", dest="broken_q"); scq.add_argument("--restore", action="store_true"); scq.add_argument("--child-prefix", dest="child_prefix"); scq.add_argument("--yes-write", action="store_true")
+    scq.add_argument("--topic", help="the quiz title verbatim (T61 seeds Urdu-only titles)")
+    # seed-lp-download: a lesson plan the driver "took today" (niete_lp_downloads status sent, the exact served
+    # version that has a slide script) so /quiz lists it "From lesson plan" with no quiz yet (T64/T65/T67).
+    sld = sub.add_parser("seed-lp-download", parents=[common]); sld.add_argument("--phone", required=True); sld.add_argument("--lesson-id", dest="lesson_id")
+    sld.add_argument("--restore", action="store_true"); sld.add_argument("--yes-write", action="store_true")
+    # seed-coaching-session: a COMPLETED coaching session with a transcript the driver can make a quiz from
+    # (T47/T79–T83). --transcript-file holds the text (>= 1500 chars); analysis_data carries topic/subject.
+    scs = sub.add_parser("seed-coaching-session", parents=[common]); scs.add_argument("--phone", required=True); scs.add_argument("--transcript-file", dest="transcript_file")
+    scs.add_argument("--language", default="en"); scs.add_argument("--topic", default="Proper and improper fractions"); scs.add_argument("--subject", default="maths")
+    scs.add_argument("--restore", action="store_true"); scs.add_argument("--yes-write", action="store_true")
+    # seed-lp612-delivery: a Grades 6-12 lesson plan the driver received (niete_lp612_deliveries), copying a real
+    # delivery's render so the worker can read the stored lp_doc (T71–T73).
+    s6 = sub.add_parser("seed-lp612-delivery", parents=[common]); s6.add_argument("--phone", required=True); s6.add_argument("--segment-like", dest="segment_like", default="grade_8_mathematics*")
+    s6.add_argument("--restore", action="store_true"); s6.add_argument("--yes-write", action="store_true")
+    prq = sub.add_parser("purge-run-quizzes", parents=[common]); prq.add_argument("--phone", required=True); prq.add_argument("--since", required=True)
+    prq.add_argument("--child-prefix", dest="child_prefix"); prq.add_argument("--yes-write", action="store_true")
+    qfl = sub.add_parser("quizzes-for-lesson", parents=[common]); qfl.add_argument("--phone", required=True); qfl.add_argument("--lesson-id", dest="lesson_id", required=True)
+    du = sub.add_parser("driver-user", parents=[common]); du.add_argument("--phone", required=True)
+    lm = sub.add_parser("level-modules", parents=[common]); lm.add_argument("--level", type=int, required=True)
+    lm.add_argument("--phone")   # api.db always passes it; level-modules does not use it
+    mm = sub.add_parser("module-media", parents=[common]); mm.add_argument("--title", action="append")
+    mm.add_argument("--phone")   # api.db always passes it; module-media does not use it
+    apg = sub.add_parser("activate-program", parents=[common]); apg.add_argument("--phone", required=True); apg.add_argument("--program-key", required=True, dest="program_key"); apg.add_argument("--yes-write", action="store_true"); apg.add_argument("--deactivate", action="store_true")
     smp = sub.add_parser("seed-module-pass", parents=[common]); smp.add_argument("--phone", required=True); smp.add_argument("--module", type=int, required=True); smp.add_argument("--program-key", default="niete_standard", dest="program_key"); smp.add_argument("--yes-write", action="store_true")
     a = p.parse_args()
     creds = _creds(getattr(a, "env", None))
     {"lookup": cmd_lookup, "answer-key": cmd_answer_key, "seed-level-complete": cmd_seed_level_complete,
      "revert-level": cmd_revert_level, "activate-program": cmd_activate_program,
-     "seed-module-pass": cmd_seed_module_pass, "module-answer-key": cmd_module_answer_key}[a.cmd](creds, a)
+     "seed-module-pass": cmd_seed_module_pass, "module-answer-key": cmd_module_answer_key,
+     "module-media": cmd_module_media, "level-modules": cmd_level_modules,
+     "seed-isaps-exams": cmd_seed_isaps_exams,
+     "seed-lp-quiz": cmd_seed_lp_quiz,
+     "seed-class-quiz": cmd_seed_class_quiz, "quiz-rows": cmd_quiz_rows,
+     "seed-lp-download": cmd_seed_lp_download, "seed-coaching-session": cmd_seed_coaching_session,
+     "seed-lp612-delivery": cmd_seed_lp612_delivery, "purge-run-quizzes": cmd_purge_run_quizzes,
+     "quizzes-for-lesson": cmd_quizzes_for_lesson, "driver-user": cmd_driver_user}[a.cmd](creds, a)
 
 if __name__ == "__main__":
     main()

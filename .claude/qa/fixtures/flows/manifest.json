@@ -8,24 +8,21 @@
       "flowId": "1789313642053401",
       "name": "Assessment Generator",
       "status": "PUBLISHED",
-      "version": "7.0",
+      "version": "7.3",
       "data_api_version": "3.0",
       "kind": "endpoint",
-      "screens": 16,
+      "screens": 8,
       "terminal": [
-        "CONFIRM",
-        "PICK_DONE"
+        "CONFIRM"
       ],
       "components": [
         "CheckboxGroup",
         "Dropdown",
-        "EmbeddedLink",
         "Footer",
         "Form",
-        "NavigationList",
         "OptIn",
         "RadioButtonsGroup",
-        "TextArea",
+        "SingleColumnLayout",
         "TextBody",
         "TextCaption",
         "TextHeading",
@@ -37,9 +34,11 @@
       ],
       "problems": [],
       "validation_errors": 0,
-      "sha256": "365b27b20e9bcfc931a9ec4c19dc81f0a71a20c5819ee296e3fdec171ff88a67",
+      "sha256": "cf176e095ee23aaa596431e703e5e9c440f25272fbdcbecf8843124d15b40e11",
       "fetchedAt": "2026-09-08T06:54:18.409Z",
-      "repoCopy": "none"
+      "repoCopy": "docs/flows/assessment-gen-flow.json",
+      "source": "repo copy of the publish source — the 2026-09-08 WABA capture was v7.0 and predates the per-type count screens (bd-w3cb9.7)",
+      "refreshedAt": "2026-09-24T06:24:57Z"
     },
     {
       "envVar": "ASSESSMENT_REVIEW_FLOW_ID",
@@ -817,9 +816,11 @@
       ],
       "problems": [],
       "validation_errors": 0,
-      "sha256": "6c1481f3b4d06e5c3a9b0ea8eeb02f5126844a5609cebe278b8289ce1e9d96db",
+      "sha256": "743daf2accd79771495da41ee3e95903361b2c7a506ec0117977cae370e4a0e1",
       "fetchedAt": "2026-09-08T06:54:39.149Z",
-      "repoCopy": "none"
+      "repoCopy": "docs/flows/transcript-quiz-flow.json",
+      "source": "repo copy of the publish source — the 2026-09-08 capture sent the LESSON choice as `action`; the endpoint reads `tq_action` since c12bcab2 (bd-5d294)",
+      "refreshedAt": "2026-09-25T04:52:04Z"
     }
   ],
   "failures": [],

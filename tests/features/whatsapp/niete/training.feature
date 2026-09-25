@@ -35,7 +35,7 @@ Feature: NIETE (ICT) Teacher Training
 
   # ═════════════════════════════ POSITIVE — the complete flow ═════════════════════════════
 
-  @e2e @flow @quiz @content-driven @P1
+  @e2e @flow @quiz @content-driven @P1 @T01
   Scenario: A teacher works through Teacher Training end to end — open, take a module check, pass, unlock the next
     Given the NIETE bot chat is open
     When I send "/training"
@@ -60,7 +60,7 @@ Feature: NIETE (ICT) Teacher Training
     # shared staging number 923222482222. Exam caption observed "20 questions" (prod) / "62 questions"
     # (staging 923222482222) for the same account — see the config-discrepancy note in _suite.md.
 
-  @e2e @flow @copy @P1
+  @e2e @flow @copy @P1 @T02
   Scenario Outline: Teacher Training opens from any of its entry points
     Given the NIETE bot chat is open
     When I open training via "<entry>"
@@ -76,7 +76,7 @@ Feature: NIETE (ICT) Teacher Training
     # @copy. All six converge on the same card (menu row = same entry as the command). "training"
     # (no slash) DOES open it — unlike "menu". Verified live on PROD (2026-08-05).
 
-  @e2e @certificates @copy @P2
+  @e2e @certificates @copy @P2 @T03
   Scenario: A teacher with no certificates yet is pointed back to training
     Given the NIETE bot chat is open
     When I send "/certificates"
@@ -85,13 +85,13 @@ Feature: NIETE (ICT) Teacher Training
 
   # ── other positive branches (separate because they need a different content type / state / vendor) ──
 
-  @e2e @wip @draft @flow @P3
+  @e2e @wip @draft @flow @P3 @T04
   Scenario: A PDF module arrives as a document
     Given the NIETE bot chat is open and I have opened a module whose content is a PDF, not a video
     Then the bot sends the module as a PDF document with a button to the next one
     # content-delivery.service.js isPdfModule. @wip.
 
-  @e2e @wip @draft @flow @quiz @destructive @P1
+  @e2e @wip @draft @flow @quiz @destructive @P1 @T05
   Scenario: Finishing every module unlocks the level exam, and passing it certifies the level
     Given the NIETE bot chat is open on a teacher who has passed every module in a level
     When I open that level, start the now-unlocked grand quiz, and answer at least 80% correctly
@@ -99,21 +99,21 @@ Feature: NIETE (ICT) Teacher Training
     # loadGrandQuizState (unlocks once all modules done) + quiz-delivery grand-pass branch.
     # @destructive: certifies the level + unlocks the next. @wip — needs a fully-completed level.
 
-  @e2e @wip @draft @certificates @P2
+  @e2e @wip @draft @certificates @P2 @T06
   Scenario: Asking for a certificate by its code sends the PDF
     Given the NIETE bot chat is open on a teacher who holds a certificate
     When I send "/certificate <my certificate code>"
     Then the bot sends me that certificate as a PDF document
     # certificate-pdf.service.js (only my own certificates). @wip.
 
-  @e2e @wip @draft @flow @quiz @P3
+  @e2e @wip @draft @flow @quiz @P3 @T07
   Scenario: For a Beacon House programme the level exam is written answers, not multiple choice
     Given the NIETE bot chat is open on a teacher in a Beacon House programme who has finished every module in a level
     When I start the level exam
     Then it asks open-ended questions I answer in my own words, marked out of 5
     # capstone-delivery.service.js (open-ended, model-scored, 70% to pass, no cooldown). @wip.
 
-  @e2e @flow @P3
+  @e2e @flow @P3 @T08
   Scenario: For an Oxbridge programme a level is certified from module scores, with no exam
     Given a teacher in an Oxbridge programme who has finished every module with each best score at least 70%
     Then the level detail states "🎓 No level exam — finish all sessions to complete this level." with no grand-quiz row
@@ -123,7 +123,7 @@ Feature: NIETE (ICT) Teacher Training
     # Module bar is 70% ("10 questions. You need 70%…") vs NIETE 100%. Cert NIETE-20260805-YA5IU7 + PDF issued
     # off the final module pass — no exam step. See F-OXB-examcopy (post-completion still nudges "take the level exam").
 
-  @e2e @wip @draft @quiz @destructive @P1
+  @e2e @wip @draft @quiz @destructive @P1 @T26
   Scenario: For an I-SAPS programme passing the last module exam certifies the level, whatever units are left
     Given the NIETE bot chat is open on a teacher in the I-SAPS programme who has passed eight of the nine module exams and has NOT finished every unit
     When I take the remaining module exam and pass it
@@ -133,7 +133,7 @@ Feature: NIETE (ICT) Teacher Training
     # submission does not count). certificate.service maybeIssueQuizScoreCertificate: per-module-exam level ->
     # allModuleExamsPassed is the whole rule. @wip — needs an I-SAPS level seeded 8/9 on the throwaway.
 
-  @e2e @wip @draft @certificates @P2
+  @e2e @wip @draft @certificates @P2 @T27
   Scenario: An I-SAPS certificate is watermarked as not real, in every environment, while it is a pilot
     Given a teacher in the I-SAPS programme has just been certified
     When the certificate PDF arrives
@@ -144,28 +144,28 @@ Feature: NIETE (ICT) Teacher Training
 
   # ═══════════════════════════════════ NEGATIVE ═══════════════════════════════════
 
-  @e2e @flow @negative @known-issue @P2
+  @e2e @flow @negative @known-issue @P2 @T09
   Scenario: A locked level is selectable but the server refuses to open it
     Given the NIETE bot chat is open and I have opened the "NIETE" programme
     When I select a locked level (e.g. Level 1) and tap "Open level"
     Then the "Open level" button turns on client-side (the Flow can't disable the row) but the bot replies "Pass Level 0's grand quiz first to unlock this level."
     # @known-issue: the real gate is server-side. Verified live on PROD (2026-08-05). Names the previous level.
 
-  @e2e @flow @negative @known-issue @P2
+  @e2e @flow @negative @known-issue @P2 @T10
   Scenario: A module further down the list can't be opened before the earlier ones
     Given the NIETE bot chat is open and I have opened a level with earlier modules unfinished
     When I pick a locked module lower down and try to open it
     Then the bot replies "Finish \"<the Next-up module>\" first — modules open one at a time."
     # @known-issue: locked rows stay tappable; the server enforces order. Verified live on PROD (2026-08-05).
 
-  @e2e @flow @negative @P2
+  @e2e @flow @negative @P2 @T11
   Scenario: Tapping the locked exam link explains what to finish first
     Given the NIETE bot chat is open and the level still has modules to finish
     When I tap the "🔒 Locked" exam link in the level detail
     Then the bot replies "Finish every module in this level first — the exam unlocks once all 9 courses are complete."
     # Verified live on PROD (2026-08-05). Distinct wording from the locked-card caption in the main flow.
 
-  @e2e @quiz @negative @content-driven @P2
+  @e2e @quiz @negative @content-driven @P2 @T12
   Scenario: Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry
     Given the NIETE bot chat is open and I am taking a NIETE module check
     When I answer exactly one question with a deliberately-wrong option (not matching the key) and the rest correctly
@@ -174,7 +174,7 @@ Feature: NIETE (ICT) Teacher Training
     # You need 100% to move on…" All questions are asked FIRST, then graded. module_passing_pct=100 for
     # NIETE (TALEEMABAD); other partners 70%. Assert the shape, not "2/3".
 
-  @e2e @certificates @negative @copy @P3
+  @e2e @certificates @negative @copy @P3 @T13
   Scenario: Asking for a certificate that isn't mine says it can't be found
     Given the NIETE bot chat is open
     When I send "/certificate NIETE-L0-20260101-ZZZZ"
@@ -182,71 +182,61 @@ Feature: NIETE (ICT) Teacher Training
     # Verified live on PROD (2026-08-05). Owner-scoped: not-yours and not-exist both → not found. Code must
     # be well-formed (CERT_CODE_RE), else it falls through to the list (see edge below).
 
-  @e2e @certificates @negative @P3
+  @e2e @certificates @negative @P3 @T14
   Scenario: A /certificate with a junk code just shows my certificates list
     Given the NIETE bot chat is open
     When I send "/certificate not-a-code"
     Then the bot shows my certificates list, or the no-certificates nudge
     # Verified live on PROD (2026-08-05): a junk argument is ignored → list/nudge mode.
 
-  @e2e @edge @negative @P3
+  @e2e @edge @negative @P3 @T15
   Scenario: "/teacher training" (two words) is not a training command
     Given the NIETE bot chat is open
     When I send "/teacher training"
     Then the bot treats it as a normal question, not the Teacher Training Flow
     # Verified live on PROD (2026-08-05): AI reply, no card — the two-word phrase isn't a trigger.
 
-  @e2e @quiz @negative @destructive @P3
+  @e2e @quiz @negative @destructive @P3 @T16
   Scenario: Failing the level exam starts a wait before I can retry
     Given the NIETE bot chat is open and I have just failed a level's grand quiz
     When I try to start the grand quiz again
     Then the bot tells me to try again in a few hours
-    # @destructive: a real failure locks the exam for hours — throwaway teacher only. @wip.
 
-  @e2e @i18n @quiz @wip @draft @P2
-  Scenario: An Urdu teacher gets the Urdu question text and Urdu options
-    Given my preferred_language is "ur" and a question has question_urdu + options[].urdu set
-    When the question is delivered
-    Then the Urdu question and Urdu options are shown (not English)
-    # Real flow for an Urdu-speaking teacher; delivery may currently fall back to English — drive to confirm (Rule 20). @wip.
-
-  # ═══════════════════════════════════ EDGE cases ═════════════════════════════════
-
-  @e2e @flow @edge @P3
+  @e2e @flow @edge @P3 @T18
   Scenario: /training works even in the middle of something else
     Given the NIETE bot chat is open and I am part-way through another feature
     When I send "/training"
     Then the Teacher Training card is sent without my having to cancel first
     # Single, stateless entry point. Verified live on PROD (2026-08-05): opened from a pending register Welcome card.
 
-  @e2e @quiz @edge @copy @P3
+  @e2e @quiz @edge @copy @P3 @T19
   Scenario: Pausing a module check saves my place
     Given the NIETE bot chat is open and a module check is offering "🔄 Try again" and "⏸ Pause"
     When I tap "⏸ Pause"
     Then the bot replies "⏸ Paused. Send /training when you want to pick up where you left off."
     # @copy. Verified live on PROD (2026-08-05).
 
-  @e2e @quiz @edge @content-driven @P3
+  @e2e @quiz @edge @content-driven @P3 @T20
   Scenario: A module retake serves a fresh set of questions
     Given the NIETE bot chat is open and I have just missed a module check
     When I tap "🔄 Try again"
     Then the check restarts from Q1 and may serve different questions, in a different order, with the correct answer on a different letter
     # Verified live on PROD (2026-08-05): retry served different Q1-Q3, reshuffled. Assert the CONTRACT (restarts at Q1/<n>, still 100% to pass).
 
-  @e2e @wip @draft @flow @quiz @P3
+  @e2e @wip @draft @flow @quiz @P3 @T21
   Scenario: A half-finished module quiz picks up where I left off
     Given the NIETE bot chat is open and I started a module check and answered some questions
     When I re-open the module and tap "Take quiz" again
     Then the quiz continues at the next unanswered question, not from the beginning
     # quiz-delivery startTrainingQuiz resumes the same attempt. @wip.
 
-  @e2e @flow @copy @P3
+  @e2e @flow @copy @P3 @T22
   Scenario: A module's button is named after what tapping it does
     Given the NIETE bot chat is open and I have opened a module
     Then a module with a quiz shows "Take quiz", a video module shows "Next video", and a PDF module shows "Next module"
     # @copy. The button label follows the content type. @wip.
 
-  @e2e @quiz @edge @wip @draft @P3
+  @e2e @quiz @edge @wip @draft @P3 @T23
   Scenario: A very long answer option is shown in full, not cut off
     Given the NIETE bot chat is open and a module question has an option longer than about 70 characters
     Then that option is written out as a lettered line and can still be chosen
@@ -259,7 +249,7 @@ Feature: NIETE (ICT) Teacher Training
   # (answer "Make the quiz" on the afternoon offer, or seed one on sandbox). @wip until lane E
   # drives it.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T24
   Scenario: A quiz made from my lesson plan is listed in /quiz among my coaching lessons
     Given the NIETE bot chat is open and a quiz was made from a lesson plan I was served on an earlier day
     And I also have a recorded coaching lesson
@@ -272,7 +262,7 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-list.service lessonItems + handleLpPick (row id tq_pick_lp_<quizId>); the /quiz Flow
     # lists it too (key lp_<quizId>) with Generate report / Resend link on its LESSON screen. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T63
   Scenario Outline: However I type "quiz", it opens my quiz menu
     Given the NIETE bot chat is open and I have a recorded coaching lesson or a lesson plan from the last 30 days
     When I send "<text>"
@@ -292,7 +282,7 @@ Feature: NIETE (ICT) Teacher Training
     # quiz-menu-request isQuizMenuRequest → the text handler's /quiz door → quiz-menu-entry openQuizMenu.
     # Production, 14 days to 24 Sep 2026: 54 of 351 such texts reached general AI chat instead. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T64
   Scenario: /quiz lists the lesson plans I took, says where each lesson came from, and makes nothing until I tap
     Given the NIETE bot chat is open and I took a Grade 1-5 lesson plan today and have a recorded coaching lesson
     And no quiz has been made from either
@@ -309,7 +299,7 @@ Feature: NIETE (ICT) Teacher Training
     # Only lessons whose served version has a slide script are listed (niete_lp_asset_sources). In Urdu the
     # labels read «سبق کے منصوبے سے» and «کلاس کی ریکارڈنگ سے». @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T65
   Scenario: Tapping the same lesson plan twice makes one quiz
     Given the NIETE bot chat is open and /quiz lists a lesson plan with no quiz yet
     When I tap that lesson plan's row twice in quick succession
@@ -318,7 +308,7 @@ Feature: NIETE (ICT) Teacher Training
     # lp-lesson-claim: a Redis SET NX per (teacher, lesson) around read → insert → re-read; the re-read keeps
     # the oldest row when Redis fails open. The 15:00 offer goes through the same claim. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T66
   Scenario: A lesson plan another teacher already made into a quiz comes back quickly, with my own name and link
     Given another teacher on the same version of a lesson plan has already been sent its quiz
     And the NIETE bot chat is open and /quiz lists that lesson plan with no quiz yet
@@ -330,7 +320,7 @@ Feature: NIETE (ICT) Teacher Training
     # of that key with every check passed, not itself a copy. quiz_funnel.generated carries cached:true and
     # donor_quiz_id; meta.cache_donor on the row. Pictures re-hosted under this quiz. QUIZ_LP_CACHE=off = author. @wip.
 
-  @e2e @quiz @negative @wip @draft @P2
+  @e2e @quiz @negative @wip @draft @P2 @T67
   Scenario: Past today's quiz limit I am told plainly and can make it tomorrow
     Given I have already had the day's limit of quizzes made today
     When I ask for one more quiz from /quiz
@@ -339,7 +329,7 @@ Feature: NIETE (ICT) Teacher Training
     # quiz-daily-cap: QUIZ_DAILY_CAP (default 10) per teacher per PKT day, both streams, counted in the generate
     # step before any model call; failed / daily_cap; copy tqDailyCap. Needs Redis; off/0 = no cap. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T68
   Scenario: A child in the middle of a quiz who types "quiz" stays in the quiz
     Given a child on this phone is taking a class quiz and a question is waiting for an answer
     When the child sends "quiz"
@@ -347,14 +337,14 @@ Feature: NIETE (ICT) Teacher Training
     And no lesson list or menu is sent over the question, and the waiting question can still be answered
     # quiz-menu-entry: the video-quiz state (currentQuestionId) is checked before the role. vqStillInQuiz. @wip.
 
-  @e2e @quiz @wip @draft @P3
+  @e2e @quiz @wip @draft @P3 @T69
   Scenario: A coach who types "quiz" gets the coach menu
     Given the NIETE bot chat is open on a coach's number
     When I send "quiz"
     Then the coach menu opens, and nothing tells me to record a lesson for coaching first
     # A role that cannot self-coach has no quiz row in its menu (role-features LAYOUTS). @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T35
   Scenario: A lesson-plan quiz still waiting for its language is asked again from /quiz, never "still being made"
     Given the NIETE bot chat is open and I said yes to the afternoon quiz offer on a maths, science or English lesson plan but never tapped a language
     When I send "/quiz"
@@ -369,7 +359,7 @@ Feature: NIETE (ICT) Teacher Training
     # for that state and stepAction hands it to startGenerating (atomic offered → generating, then the
     # lesson-plan quiz job) — the same path as answering the ask in chat. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T36
   Scenario: A lesson-plan quiz that could not be made opens in /quiz, says why, and can be made again
     Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be made because something went wrong while writing it
     When I open "/quiz" and tap that lesson
@@ -385,7 +375,7 @@ Feature: NIETE (ICT) Teacher Training
     # atomic failed → generating, then queueLpQuiz. Seen on staging: a failed lesson-plan quiz showed the Flow's
     # generic error. @wip — forcing a failure needs a seeded failed row.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T70
   Scenario: In the /quiz list message, a lesson-plan quiz that could not be made is made again on a tap
     Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be made because something went wrong while writing it
     When I open the /quiz list from the menu's Quiz item
@@ -398,7 +388,7 @@ Feature: NIETE (ICT) Teacher Training
     # the same remake as the Flow's "Make it again". Otherwise tqRowFailedLp and the persisted failure copy.
     # @wip — forcing a failure needs a seeded failed row.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T71
   Scenario: A Grades 6-12 lesson plan I received is in /quiz, and becomes a quiz only when I tap it
     Given the NIETE bot chat is open and the 6-12 quiz source is switched on
     And earlier today I took a Grade 8 maths lesson plan from the 6-12 menu
@@ -413,7 +403,7 @@ Feature: NIETE (ICT) Teacher Training
     # quiz/lp612-quiz-source.js reads the exact stored lp_doc (R2 lp612/{tv}/{lang}/{segment}.lp.json) and adapts it
     # to the slide-script shape the LP digest reads. Needs V1.5.5 applied and the provider in the /quiz registry. @wip.
 
-  @e2e @quiz @config-gated @wip @draft @P2
+  @e2e @quiz @config-gated @wip @draft @P2 @T72
   Scenario: With the 6-12 quiz source switched off, no 6-12 lesson is offered and a quiz already made still works
     Given the NIETE bot chat is open, I have a sent quiz made from a 6-12 lesson plan, and QUIZ_LP612_SOURCE is off
     When I send "/quiz"
@@ -424,7 +414,7 @@ Feature: NIETE (ICT) Teacher Training
     # later") and never stops one already made.
     # @config-gated: needs the env var flipped on a test environment. @wip.
 
-  @e2e @quiz @config-gated @wip @draft @P2
+  @e2e @quiz @config-gated @wip @draft @P2 @T73
   Scenario: A 6-12 lesson tapped in /quiz that could not be started says so honestly, and can be made again once it can be
     Given the NIETE bot chat is open, and the 6-12 quiz source is on where /quiz runs but off where quizzes are written
     When I tap a 6-12 lesson in /quiz and choose the quiz language
@@ -442,7 +432,7 @@ Feature: NIETE (ICT) Teacher Training
     # The Flow's LP_FLOW_FAILURE_RESULT.source_off = tqFlowResultsFailedLpStart (+ tqFlowResultsLater while off).
     # @config-gated: the switch has to be flipped on one service and not another. @wip.
 
-  @e2e @quiz @copy @wip @draft @P2
+  @e2e @quiz @copy @wip @draft @P2 @T74
   Scenario: The line after a quiz is sent says when the class report really comes
     Given the NIETE bot chat is open and I made a quiz for one of my lessons from /quiz
     When the quiz PDF and the message to forward to my class arrive
@@ -455,7 +445,7 @@ Feature: NIETE (ICT) Teacher Training
     # vqShareReportPromise, the video lesson's class link, says the same schedule. Proven against the real
     # scheduler in tests/quiz/report-promise-truth.test.js. @wip.
 
-  @e2e @quiz @i18n @wip @draft @P2
+  @e2e @quiz @i18n @wip @draft @P2 @T75
   Scenario: An Urdu class quiz never guesses whether the child is a boy or a girl — "can", "are doing", "forgot" included
     Given the NIETE bot chat is open and I made an Urdu quiz for one of my lessons
     When a child takes it from the class link and reads every question, option, explanation and feedback line
@@ -469,7 +459,7 @@ Feature: NIETE (ICT) Teacher Training
     # flagged, left by the last rewrite, and shipped as a recorded soft fault. Proven in
     # tests/quiz/transcript-quiz-child-address-forms.test.js. @wip — the author's wording cannot be forced live.
 
-  @e2e @quiz @i18n @wip @draft @P2
+  @e2e @quiz @i18n @wip @draft @P2 @T76
   Scenario: An Urdu quiz on a lesson plan with an English title keeps the title in reading order
     Given the NIETE bot chat is open and I made an Urdu quiz on a maths or science lesson plan whose English title has a dash in it, like "Divisibility — apply the rules"
     When the quiz PDF arrives, and later the class report
@@ -479,7 +469,7 @@ Feature: NIETE (ICT) Teacher Training
     # catalog's 1,390 English titles carry a dash or an arrow. The coaching hero report and card use the
     # same runs. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T37
   Scenario: /quiz never promises a report when no student has finished
     Given the NIETE bot chat is open and I have sent a class quiz that only my own test run has taken
     When I open "/quiz" and tap that lesson
@@ -491,7 +481,7 @@ Feature: NIETE (ICT) Teacher Training
     # answers tqFlowResultsNothingToReport on the lesson screen, never the DONE "on its way"; a decline after
     # the screen was answered is told in chat (tqNoReportYet). @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T38
   Scenario: A letter typed during a class quiz answers the question, and an unfinished quiz never takes over the chat
     Given a child has opened a class quiz from its link and a question with lettered answers is waiting
     When the child types "B" instead of tapping
@@ -503,7 +493,7 @@ Feature: NIETE (ICT) Teacher Training
     # it adopted share_link / video_solo sessions (production, 14 days: 2,893 adoptions, 97% of them), and
     # the teacher's menu taps and commands were answered with the adaptive quiz's nudge. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T39
   Scenario: A child can type STOP to end a class quiz, and the teacher sees it stopped
     Given a child has opened a class quiz from its link and a question is waiting
     When the child types "stop"
@@ -518,7 +508,7 @@ Feature: NIETE (ICT) Teacher Training
     # scorecard, the state cleared, vqStopped sent. The /quiz Flow results list incomplete/expired/cancelled
     # sessions under tqFlowStopped, apart from tqFlowStillGoing. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T40
   Scenario: /quiz counts each child once, however many times they opened the quiz
     Given a child stopped a class quiz part-way, opened the link again and finished it
     And another child finished it, then took it again and did better
@@ -531,7 +521,7 @@ Feature: NIETE (ICT) Teacher Training
     # the latest row, grouped by student_id), now read by transcript-quiz-list countsFor (per quiz),
     # transcript-quiz-flow-endpoint loadStudents and the nudge's startedFor. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T41
   Scenario: A lesson-plan quiz that could not be started says so, and can be made again
     Given the NIETE bot chat is open and a quiz for one of my planned lessons could not be started (the job never reached the queue)
     When I open "/quiz" and tap that lesson
@@ -541,7 +531,7 @@ Feature: NIETE (ICT) Teacher Training
     # date are kept); quiz-sources: queue_failed -> lpQuizCouldNotStart copy and a remakeable reason; the Flow
     # results read tqFlowResultsFailedLpStart. @wip — a queue refusal cannot be forced live.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T42
   Scenario: A question that cannot be sent is skipped, and the child is scored on the questions actually asked
     Given a class quiz one of whose questions cannot be sent to a child's phone
     When a child opens the quiz from its link and answers the questions before it
@@ -557,7 +547,7 @@ Feature: NIETE (ICT) Teacher Training
     # lesson-plan quizzes. Forceable on an environment whose bot cannot fetch the question cards; otherwise
     # proven in bot/tests/quiz/video-quiz-undeliverable-question.test.js. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T25
   Scenario: The class report of a quiz made from my lesson plan carries the objectives to reteach
     Given the NIETE bot chat is open and children have finished a quiz that was made from my lesson plan
     When I ask for the report from that quiz's row in /quiz
@@ -566,7 +556,7 @@ Feature: NIETE (ICT) Teacher Training
     And afterwards that quiz's row in /quiz says the report was sent
     # video-quiz-report: isLessonQuiz gates the digest; markReportSent flips lp_v8 rows to report_sent. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T77
   Scenario: The class report arrives once, even when it is asked for while it is being made
     Given the NIETE bot chat is open and children have finished a class quiz I shared, and its scheduled class report is being made right now
     When I ask for the report from that quiz's row in /quiz
@@ -578,7 +568,7 @@ Feature: NIETE (ICT) Teacher Training
     # Kill switch VIDEO_REPORT_SEND_CLAIM. Timing cannot be forced live; proven in
     # bot/tests/quiz/video-report-send-once.test.js. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T78
   Scenario: After the class report, children who join late do not trigger a second automatic report
     Given the NIETE bot chat is open and I already received the class report of a quiz I shared
     When more children join and finish that quiz more than a day after the first child
@@ -588,7 +578,7 @@ Feature: NIETE (ICT) Teacher Training
     # (report_suppressed why already_reported) — one automatic report per quiz (operator, 15 Sep). force (the
     # /quiz ask) still sends. VIDEO_REPORT_SCHEDULED_FOLLOWUP=on restores the old follow-up send. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T43
   Scenario: The class report names the class once, the same way, however the children typed it
     Given the NIETE bot chat is open and children of one class have finished a class quiz, typing their class in different ways such as "4", "Class 4", "grade 4" and "۴"
     When I ask for the report from that quiz's row in /quiz
@@ -601,7 +591,7 @@ Feature: NIETE (ICT) Teacher Training
     # class only when the report spans more than one class. The text fallback and the /quiz Flow lesson
     # screen (transcript-quiz-flow-endpoint resultsText/studentLine) follow the same rule. @wip.
 
-  @e2e @quiz @wip @draft @P3
+  @e2e @quiz @wip @draft @P3 @T44
   Scenario: The class report never calls me "your teacher"
     Given the NIETE bot chat is open and my account has no name on record, and children have finished a class quiz I shared
     When I ask for the report from that quiz's row in /quiz
@@ -611,7 +601,7 @@ Feature: NIETE (ICT) Teacher Training
     # video-quiz-report generate(): the header takes the teacher's own users.name; quiz_share_codes.teacher_name
     # holds the children's fallback (tqYourTeacher) and keeps serving the join greeting. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T45
   Scenario: The class report and the quiz PDF do not leave pages nearly empty
     Given the NIETE bot chat is open and children have finished an Urdu class quiz with several questions worth reteaching
     When I ask for the report from that quiz's row in /quiz
@@ -623,7 +613,7 @@ Feature: NIETE (ICT) Teacher Training
     # the last guidance part; transcript-quiz-teacher.template: the last card and the footer are one unbreakable
     # tail. Assert on the received PDFs' pages, never on a fixed page count (content length varies). @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T46
   Scenario: A quiz the model could not write from my lesson plan says the problem was on our side
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I planned
     When the model gives no usable reply while that quiz is being written
@@ -637,7 +627,7 @@ Feature: NIETE (ICT) Teacher Training
     # (handleLpPick) repeats it. A model failure cannot be forced live on demand; the behaviour is proven
     # in tests/quiz/lp-quiz-failure-reasons.test.js. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T47
   Scenario: A quiz the model could not write from my coaching recording says the problem was on our side
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I recorded for coaching
     When the model gives no usable reply while that quiz is being written
@@ -653,7 +643,7 @@ Feature: NIETE (ICT) Teacher Training
     # one). The offer-time digest failure is skipped as model_failed and the teacher is told nothing. A model
     # failure cannot be forced live; proven in tests/quiz/transcript-quiz-failure-reasons.test.js. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T79
   Scenario: A quiz whose questions never passed our checks says the problem was on our side, and can be made again
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I recorded for coaching
     When the questions written for that lesson never pass the quiz checks, after every attempt and repair
@@ -672,7 +662,7 @@ Feature: NIETE (ICT) Teacher Training
     # be forced live on demand; proven in tests/quiz/transcript-quiz-failure-reasons.test.js and
     # bot/tests/quiz/transcript-quiz-flow-endpoint.test.js.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T28
   Scenario: A maths question with fractions reaches the child as a typeset card
     Given the NIETE bot chat is open and a class quiz was made from a maths lesson on comparing fractions
     When a child opens the quiz from its link and reaches a question about fractions
@@ -688,7 +678,7 @@ Feature: NIETE (ICT) Teacher Training
     # isolate. Same engine for transcript and lp_v8 quizzes. Content-driven: assert the SHAPE
     # (a card, stacked fractions, no TeX source in any text), never a fixed question. @wip.
 
-  @e2e @quiz @i18n @wip @draft @P2
+  @e2e @quiz @i18n @wip @draft @P2 @T48
   Scenario: An Urdu class quiz speaks to the child in grammatical Urdu, and a picture question looks like the rest of the quiz
     Given the NIETE bot chat is open and an Urdu class quiz with a picture question was made from a maths lesson
     When a child opens the quiz from its link and gives a name and the class "3"
@@ -711,7 +701,7 @@ Feature: NIETE (ICT) Teacher Training
     # Proven in tests/quiz/child-copy-urdu-grammar.test.js, child-card-subject-and-topic.test.js and
     # transcript-quiz-figure-frame.test.js. @wip until driven live.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T49
   Scenario: A place-value question shows the bundles the class built, and never the number
     Given the NIETE bot chat is open and a class quiz was made from a grade 1-3 maths lesson on tens and ones
     When a child opens the quiz from its link and reaches a question asking what number the picture shows
@@ -724,7 +714,7 @@ Feature: NIETE (ICT) Teacher Training
     # tiles a counting lesson uses are drawn the same way, as the pictograms "counter" and "tile".
     # Content-driven: assert the SHAPE (headed columns, bundles, no digits), never a fixed number. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T50
   Scenario: A four-digit place-value question shows the thousands the class built
     Given the NIETE bot chat is open and a class quiz was made from a grade 3 maths lesson plan on four-digit numbers
     When a child opens the quiz from its link and reaches a question asking what number the picture shows
@@ -735,7 +725,7 @@ Feature: NIETE (ICT) Teacher Training
     # four-digit worked example whole (lp-quiz-digest lessonDrewBlock). Content-driven: assert the SHAPE
     # (four headed columns, cubes or bundle blocks, no digits), never a fixed number. @wip.
 
-  @e2e @quiz @wip @draft @P3
+  @e2e @quiz @wip @draft @P3 @T51
   Scenario: A counting question draws the lesson's own objects — sweets, dates, cookies, lilies, samosas, bangles
     Given the NIETE bot chat is open and a class quiz was made from a grade 1-3 maths lesson plan that counted sweets or samosas
     When a child opens the quiz from its link and reaches a counting question with a picture
@@ -745,7 +735,7 @@ Feature: NIETE (ICT) Teacher Training
     # Proven in tests/quiz/pictograms-lesson-objects.test.js. Content-driven: which object appears depends on
     # the lesson. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T52
   Scenario: An Urdu quiz for a maths lesson full of English terms is made, with the terms in English letters
     Given the NIETE bot chat is open and I planned a maths lesson whose key terms are English, such as comparing unlike fractions
     When I say yes to a quiz for that lesson and choose اردو when asked for the quiz language
@@ -761,7 +751,7 @@ Feature: NIETE (ICT) Teacher Training
     # re-authored — that cannot be forced live; it is proven in tests/quiz/transcript-quiz-urdu-script-share.test.js.
     # Content-driven: assert that a quiz arrives and its sentences are Urdu, never a fixed question. @wip.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T53
   Scenario: In an Urdu quiz, two English terms are never written side by side
     Given the NIETE bot chat is open and I planned a maths lesson whose terms are English, such as proper and improper fractions
     When I say yes to a quiz for that lesson and choose اردو when asked for the quiz language
@@ -775,7 +765,7 @@ Feature: NIETE (ICT) Teacher Training
     # forced live; the behaviour is proven in tests/quiz/transcript-quiz-adjacent-terms.test.js. Content-driven:
     # read every Urdu line of the quiz for two English words side by side that are two different things. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T54
   Scenario: A grade 1-5 maths quiz draws what the lesson drew, on at least three questions
     Given the NIETE bot chat is open and a class quiz was made from a grade 1-3 maths lesson plan that counted with counters
     When a child opens the quiz from its link and answers every question
@@ -824,7 +814,7 @@ Feature: NIETE (ICT) Teacher Training
     # stackFractions ($2/3 -> \frac). Content-driven: count the pictures and look at them; never a fixed
     # question. @wip.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T29
   Scenario: A quiz never ships an answer key a blind solver disagrees with
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
     When the quiz arrives
@@ -839,7 +829,7 @@ Feature: NIETE (ICT) Teacher Training
     # A solver that itself fails ships the quiz as authored (fail-open). @wip — a wrong key cannot be forced
     # live on demand; the behaviour is proven in tests/quiz/transcript-quiz-key-verify.test.js.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T80
   Scenario: A quiz never keys a mistake made in class as the right answer
     Given the NIETE bot chat is open and I taught a lesson in which something was said that is not true by the subject, such as calling 4/8 not a proper fraction
     When I say yes to the quiz for that lesson and it arrives
@@ -853,7 +843,7 @@ Feature: NIETE (ICT) Teacher Training
     # right answer or two count at once and another answer only after a second look in another option order.
     # @wip — a class's mistake cannot be recorded on demand; proven in tests/quiz/transcript-quiz-key-truth.test.js.
 
-  @e2e @quiz @wip @draft @config-gated @P1
+  @e2e @quiz @wip @draft @config-gated @P1 @T81
   Scenario: The quiz sheet never presents a mistake made in class as what was taught
     Given the NIETE bot chat is open and I taught a lesson in which something was said that is not true by the subject, such as calling 4/8 not a proper fraction
     When I say yes to the quiz for that lesson and its PDF arrives
@@ -870,7 +860,7 @@ Feature: NIETE (ICT) Teacher Training
     # as before). @wip — a class's mistake cannot be recorded on demand; proven in
     # tests/quiz/transcript-quiz-summary-truth.test.js.
 
-  @e2e @quiz @wip @draft @P1
+  @e2e @quiz @wip @draft @P1 @T82
   Scenario: A quiz made from my recording never names or asks about a child in my class
     Given the NIETE bot chat is open and I recorded a lesson in which I called on children by name and used their names in example sentences
     When I say yes to the quiz for that lesson and it arrives
@@ -889,7 +879,7 @@ Feature: NIETE (ICT) Teacher Training
     # the logs never carry a name. @wip — a named child cannot be recorded on demand; proven in
     # tests/quiz/transcript-quiz-pupils.test.js.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T83
   Scenario: A lesson quiz never asks the class the same question twice
     Given the NIETE bot chat is open and I have said yes to a quiz for a lesson I taught or planned
     When the quiz arrives
@@ -923,7 +913,7 @@ Feature: NIETE (ICT) Teacher Training
     # tests/quiz/transcript-quiz-duplicates-blank-and-postposition.test.js and
     # tests/quiz/transcript-quiz-same-fact.test.js.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T84
   Scenario: A quiz with many questions to fix gets the worst ones fixed first, not none
     Given the NIETE bot chat is open and the quiz for my lesson came back with more than five questions that need a fix, such as verbs that speak to the child as a boy or a girl
     When the quiz arrives
@@ -941,7 +931,7 @@ Feature: NIETE (ICT) Teacher Training
     # first. More than five questions that need re-asking is still a re-roll on an early attempt. @wip — the
     # author's faults cannot be forced on demand; proven in tests/quiz/transcript-quiz-rewrite-overflow.test.js.
 
-  @e2e @quiz @wip @draft @P2
+  @e2e @quiz @wip @draft @P2 @T55
   Scenario: A column subtraction reaches the child set out the way the textbook prints it
     Given the NIETE bot chat is open and a class quiz was made from a grade 3 maths lesson on column subtraction
     When a child opens the quiz from its link and reaches a column subtraction
@@ -959,7 +949,7 @@ Feature: NIETE (ICT) Teacher Training
   # ends. Needs an Urdu class quiz link and a phone that has never joined a class quiz (a
   # fresh driver number). @wip until driven.
 
-  @e2e @quiz @flow @copy @wip @draft @P2
+  @e2e @quiz @flow @copy @wip @draft @P2 @T56
   Scenario: A child opening an Urdu quiz link is asked for name and class in Urdu
     Given an Urdu class quiz link from a teacher, and a phone that has never joined a class quiz
     When the child sends the link's "QUIZ-<code>" text
@@ -973,7 +963,7 @@ Feature: NIETE (ICT) Teacher Training
     # the legacy STUDENT_JOIN_FLOW_ID set, only an English child gets that (English) screen and an Urdu child is
     # asked in Urdu chat — proven in bot/tests/quiz/student-join-language.test.js. @wip.
 
-  @e2e @quiz @copy @wip @draft @P2
+  @e2e @quiz @copy @wip @draft @P2 @T57
   Scenario: After an Urdu quiz, the message a child forwards to a friend is in Urdu
     Given a child has just finished an Urdu class quiz opened from its link
     When the child taps "دوست کو بھیجیں"
@@ -983,7 +973,7 @@ Feature: NIETE (ICT) Teacher Training
     # video-quiz-invite handleInviteButton: vqInviteForwardThis + vqInviteMessage in the quiz language
     # (the invite's own language, else its share code's). @wip.
 
-  @e2e @quiz @copy @wip @draft @P2
+  @e2e @quiz @copy @wip @draft @P2 @T58
   Scenario: A child who passed an Urdu quiz to a friend hears how the friend did, in Urdu
     Given a child sent an Urdu class quiz to a friend and has finished it themselves
     When the friend finishes the same quiz
@@ -993,7 +983,7 @@ Feature: NIETE (ICT) Teacher Training
     # buildComparison: vqCompareMessage + vqCompareBehind/Ahead/Tie in the quiz language (quiz_sessions
     # carries no language; the session state does). English copy is byte-identical. @wip.
 
-  @e2e @quiz @copy @wip @draft @P2
+  @e2e @quiz @copy @wip @draft @P2 @T59
   Scenario: A video quiz sent to the class from an Urdu run forwards an Urdu message
     Given I have just taken a video quiz in Urdu on my own
     When I tap "کلاس کو بھیجیں" on the offer to send it to my class
@@ -1004,7 +994,7 @@ Feature: NIETE (ICT) Teacher Training
     # vqShareForwardThis, vqClassMessage, vqShareReportPromise, vqShareDeclined, vqShareLinkFailed in
     # the run's language. English copy is byte-identical. @wip.
 
-  @e2e @quiz @copy @wip @draft @P2
+  @e2e @quiz @copy @wip @draft @P2 @T60
   Scenario: A video quiz offered in Urdu answers every tap in Urdu, even after the offer or the quiz has ended
     Given I picked a video from the library and was offered its quiz in Urdu
     When I tap "ابھی نہیں" on the offer
@@ -1017,7 +1007,7 @@ Feature: NIETE (ICT) Teacher Training
     # phone's last run language (videoquiz:<phone>:lang, a week), written by sendOffer and startSession — a child
     # from a class link never saw an offer, so startSession writes it too. English copy is byte-identical. @wip.
 
-  @e2e @quiz @copy @wip @draft @P2
+  @e2e @quiz @copy @wip @draft @P2 @T61
   Scenario: The reminder about a quiet quiz reads naturally and keeps each quiz title whole
     Given my language is English and I sent two class quizzes today whose titles are in Urdu
     And almost no child has started either of them
@@ -1028,7 +1018,7 @@ Feature: NIETE (ICT) Teacher Training
     # first-strong isolated (titled()), joined with the teacher language's list comma (vqLetterSep).
     # Proven in tests/quiz/transcript-quiz-nudge-copy.test.js. @wip.
 
-  @e2e @quiz @copy @wip @draft @P3
+  @e2e @quiz @copy @wip @draft @P3 @T62
   Scenario: The quiz caption names the lesson once, with a bracket only when the bracket says something new
     Given my language is English and I asked for an Urdu quiz on a lesson named "Comparing & ordering unlike fractions"
     When the quiz PDF arrives
@@ -1048,7 +1038,7 @@ Feature: NIETE (ICT) Teacher Training
   #   Unseen → QUESTIONS → TYPES → COUNTS → CONFIRM
   #   Both   → QUESTIONS → SEEN_COUNT → TYPES → COUNTS → CONFIRM
 
-  @e2e @flow @P1
+  @e2e @flow @P1 @T30
   Scenario: For Unseen questions she sets how many of EACH type, not one total we split for her
     Given the NIETE bot chat is open and I have opened the assessment generator
     And I have chosen a class, a subject and the pages to cover
@@ -1063,7 +1053,7 @@ Feature: NIETE (ICT) Teacher Training
     # slots labelled and hidden by the server (a Flow cannot grow a component at runtime), so
     # assert one box PER TICKED KIND — never a fixed number of boxes.
 
-  @e2e @flow @negative @P2
+  @e2e @flow @negative @P2 @T31
   Scenario Outline: A count she cannot have is refused on the screen, naming the type
     Given the NIETE bot chat is open and I have reached the Unseen "how many of each" screen with "MCQs" ticked
     When I put <value> against MCQs and continue
@@ -1079,7 +1069,7 @@ Feature: NIETE (ICT) Teacher Training
       | "abc"     |
       | "60"      |
 
-  @e2e @flow @P2
+  @e2e @flow @P2 @T32
   Scenario: Seen questions ask one thing — how many Seen
     Given the NIETE bot chat is open and I have opened the assessment generator
     And I have chosen a class, a subject and the pages to cover
@@ -1093,7 +1083,7 @@ Feature: NIETE (ICT) Teacher Training
     # the same "how many" screen as the per-kind counts: when the total box first came off
     # QUESTIONS, the seen path was left demanding a number it had no box for.
 
-  @e2e @flow @P1
+  @e2e @flow @P1 @T33
   Scenario: Both asks the Seen number first, on its own screen, then the Unseen types and counts
     Given the NIETE bot chat is open and I have opened the assessment generator
     And I have chosen a class, a subject and the pages to cover
@@ -1108,7 +1098,7 @@ Feature: NIETE (ICT) Teacher Training
     # its own, and her Unseen counts reach the model untouched. Kept on two screens on purpose
     # (operator: "I would rather it be clear"). The 50 ceiling counts Seen AND Unseen together.
 
-  @e2e @flow @negative @P1
+  @e2e @flow @negative @P1 @T34
   Scenario: Going over 50 in total tells her why, where she can see it
     Given the NIETE bot chat is open and I have chosen "Both Seen and Unseen" and asked for 30 Seen
     And I have ticked "MCQs" and "Brief Answers"

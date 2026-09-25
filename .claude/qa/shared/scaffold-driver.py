@@ -46,9 +46,9 @@ def scenarios(feature_path, px=None):
                      if ID_TAG_RE.match(x[1:]) and x[1:].lower() not in PRIORITY_TAGS]
             pending_id = next((c for c in cands if c.lower().startswith(want)), None) \
                 or next(iter(cands), None)
-        elif t.startswith("Scenario:") and pending_e2e:
+        elif (t.startswith("Scenario:") or t.startswith("Scenario Outline:")) and pending_e2e:
             n += 1
-            name = t[len("Scenario:"):].strip()
+            name = t.split(":", 1)[1].strip()
             out.append((pending_id or "%s%02d" % (px or prefix_for(feature_path), n), name))
             pending_e2e, pending_id = False, None
     return out

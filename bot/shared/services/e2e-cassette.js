@@ -175,6 +175,46 @@ function requestForRecord(keyParts) {
   try { return walk(keyParts); } catch (_) { return null; }
 }
 
+// ── scripted faults (the mock lane only) ─────────────────────────────────────
+/**
+ * E2E_CASSETTE_FAULTS names a JSON file of rules: [{ kind, match, times, content | throw }].
+ * A request whose normalised text contains `match` (a substring, or /re/ for a regex) is answered
+ * by the rule instead of the cassette or the vendor — `content` as an OpenAI-shaped completion,
+ * `throw` as an error — `times` times; a spent rule is removed from the file. This is how a
+ * scenario forces "the model gave no usable reply" or "the author never passed the checks" on
+ * demand. Ignored whenever the cassette is off (so never on prod, where mode() forces off), and a
+ * scripted answer is never recorded.
+ */
+function _faultRules() {
+  const f = process.env.E2E_CASSETTE_FAULTS;
+  if (!f) return null;
+  try { const rules = JSON.parse(fs.readFileSync(f, 'utf8')); return Array.isArray(rules) ? { file: f, rules } : null; } catch (_) { return null; }
+}
+function _faultMatches(rule, kind, keyParts) {
+  if (!rule || (rule.kind && rule.kind !== kind) || !(Number(rule.times) > 0)) return false;
+  const hay = stable(requestForRecord(keyParts) || {});
+  const m = String(rule.match || '');
+  if (!m) return false;
+  const re = /^\/(.+)\/([a-z]*)$/.exec(m);
+  return re ? new RegExp(re[1], re[2]).test(hay) : hay.includes(JSON.stringify(m).slice(1, -1));
+}
+function _takeFault(kind, keyParts) {
+  const found = _faultRules();
+  if (!found) return null;
+  const i = found.rules.findIndex(r => _faultMatches(r, kind, keyParts));
+  if (i < 0) return null;
+  const rule = found.rules[i];
+  rule.times = Number(rule.times) - 1;
+  const rest = found.rules.filter(r => Number(r.times) > 0);
+  try { fs.writeFileSync(found.file, JSON.stringify(rest)); } catch (_) { /* best effort */ }
+  _log('📼 e2e-cassette: scripted FAULT answered instead of the vendor', { kind, match: rule.match, left: rule.times });
+  if (rule.throw) { const err = new Error(String(rule.throw)); err.code = 'E2E_CASSETTE_FAULT'; throw err; }
+  if (rule.value !== undefined) return { value: rule.value };
+  return { value: { id: 'e2e-fault', object: 'chat.completion', created: Math.floor(Date.now() / 1000), model: 'e2e-fault',
+    choices: [{ index: 0, message: { role: 'assistant', content: String(rule.content == null ? '' : rule.content) }, finish_reason: 'stop' }],
+    usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } } };
+}
+
 // ── the one primitive ────────────────────────────────────────────────────────
 /**
  * Run `fn` through the cassette.
@@ -186,6 +226,8 @@ function requestForRecord(keyParts) {
 async function wrap(kind, keyParts, fn, opts = {}) {
   const m = mode();
   if (m === 'off') return fn();
+  const scripted = _takeFault(kind, keyParts);
+  if (scripted) return (opts.deserialize || (x => x))(scripted.value);
   const key = keyFor(kind, keyParts);
   const deser = opts.deserialize || (x => x);
   const ser = opts.serialize || (x => x);

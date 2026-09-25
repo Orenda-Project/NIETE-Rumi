@@ -197,8 +197,7 @@
                 "name": "tq_action",
                 "label": "${data.actions_label}",
                 "data-source": "${data.actions}",
-                "visible": "${data.actions_visible}",
-                "required": "${data.action_required}"
+                "required": true
               },
               {
                 "type": "Footer",
@@ -207,7 +206,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "step": "action",
-                    "action": "${form.tq_action}",
+                    "tq_action": "${form.tq_action}",
                     "session_id": "${data.session_id}",
                     "quiz_id": "${data.quiz_id}"
                   }
@@ -239,6 +238,10 @@
         "close": {
           "type": "string",
           "__example__": "Close"
+        },
+        "kind": {
+          "type": "string",
+          "__example__": "report"
         }
       },
       "layout": {
@@ -257,7 +260,9 @@
             "label": "${data.close}",
             "on-click-action": {
               "name": "complete",
-              "payload": {}
+              "payload": {
+                "tq_action": "${data.kind}"
+              }
             }
           }
         ]
