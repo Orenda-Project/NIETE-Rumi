@@ -1296,6 +1296,29 @@ decision, 2026-09-25): a stored Urdu document without glosses still re-renders, 
 and the top-up lane — which derives its delta from `overlayTargets()` — backfills the glosses.
 `/fbise_slos` and `page2.board_final` are out of scope. Keep all of this at the next re-sync.
 
+### 3.28 `brief_author_v3.md` + all three flash briefs — the unnamed-character pronoun rule (2026-09-25)
+
+*(Numbered 3.28, not the next free slot after 3.24 — §3.26 and §3.27 are claimed by other branches
+working this file concurrently, and a SYNC.md conflict there is expected.)*
+
+L6 "Gender-neutral register" covered addressing the teacher neutrally, Urdu verb-stem neutrality
+for the teacher/pupil "you", and naming both girls and boys in worked examples — but said nothing
+about an UNNAMED incidental character in a worked scenario ("the lab assistant", "the shopkeeper",
+"the driver"), who was left to whatever pronoun the model happened to pick (bd-oak77.32, Defect A:
+an unnamed character in a worked scenario drew a gendered pronoun).
+
+L6 now closes that gap: an unnamed incidental character never gets a guessed gender — name them, or
+use they/them for every reference. `tests/lp612/author-brief-gender-neutral.test.js` drives the real
+`authorLessonPlan()` and asserts the instruction reaches the system prompt for the standard brief and
+each of the three flash siblings.
+
+**This is a LOCAL-ONLY divergence, not a straight re-vendor** — it was written directly into this
+vendored copy rather than fixed upstream first (upstream sits in the operator's own workspace skill,
+outside this repo and outside this worker's reach), so §1's "no upstream commit SHA" caveat applies
+here too until it is folded back. `VENDOR DIVERGENCE` comments mark all four sites. Offer the same
+sentence upstream at the next re-sync, and regenerate the flash briefs there with
+`build_flash_brief.py` rather than hand-copying this local edit over a future regeneration.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
@@ -1305,7 +1328,9 @@ byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /
 `CHIP_FLOOR_PX` moved on 2026-09-06 (§3.10) — **in both homes, to the same values**, so they are
-still not a divergence. Verify with §6's diff command.
+still not a divergence. `brief_author_v3.md` and its three flash siblings
+(`brief_author_v3_flash_{maths,sci,prose}.md`) are likewise no longer byte-identical to upstream —
+see §3.28 for the local-only L6 pronoun-rule edit. Verify with §6's diff command.
 
 ---
 

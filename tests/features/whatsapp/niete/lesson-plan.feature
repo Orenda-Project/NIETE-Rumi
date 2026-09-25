@@ -244,6 +244,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # or refused, never shrunk. Prose in the formula slot is moved to the name line and the linter
     # flags it as a blocking FIGURE defect.
 
+  @e2e @content-driven @P2
+  Scenario: A worked scenario never guesses the gender of an unnamed character
+    Given the NIETE bot chat is open on a teacher whose language is English
+    And I have opened the LP Flow
+    When I complete it for a 6-12 segment whose worked example has a helper nobody names, such as "the shopkeeper"
+    Then a lesson-plan PDF is delivered to the chat
+    And that helper is given a name, or called they/them every time
+    And each learning objective the plan invents a code for gets its own code, O1, O2, O3, never a repeat
+    # bd-oak77.32. A Grade 8 plan called an unnamed lab assistant "she", then "he". The author brief's
+    # gender-neutral rule now covers unnamed characters. Separately, subjects with no curriculum SLO
+    # code invent O1-style codes, and a repeated one made homework tagged to the third objective read
+    # as untaught; the author sanitizer now renumbers a repeat and leaves the first occurrence alone.
+
   @e2e @negative @content-driven @P1
   Scenario: An Urdu overlay that drops the honorific is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu
