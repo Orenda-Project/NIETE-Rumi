@@ -607,6 +607,8 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
               // T06 — while this certificate exists (the finally below deletes it): read its code off
               // /certificates, ask for it by code, expect the PDF document (bd-w3cb9.6).
               const s06 = t();
+              await waitFresh((x) => x.doc || x.pdf, 30000);
+              await api.freshReset();
               const list = await api.sendWait('/certificates');
               const code = (/Cert:\s*`([^`]+)`/.exec(list.txt || '') || [])[1] || null;
               if (code) {
@@ -843,7 +845,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       }
       return { ok: false, seen, last: (seen[seen.length - 1] || {}).txt || '', waitedMs: Date.now() - t0 };
     };
-    const isChildQ = (x) => !!((x.list && (x.list.rows || []).length) || (x.btns || []).some(b => /^[A-D]$/.test(b)));
+    const isChildQ = (x) => !!((x.list && (x.list.rows || []).length) || (x.btns || []).some(b => /^[A-D]$|^Choose answer$|^جواب چنیں$/.test(b)));
     const isEnd = (x) => /All done|مکمل|out of|میں سے|QUIZ COMPLETE|کوئز مکمل/.test(x.txt || '') || (x.btns || []).some(b => /Invite a friend|دوست کو بھیجیں/.test(b));
     // Join a class quiz from its link: greeting → "Start" opens the WHO Flow (name + class) → question 1.
     const childJoin = async (kid, code, name, cls) => {
@@ -852,7 +854,10 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       const ev = { greeting: (g.txt || '').slice(0, 220), buttons: g.btns };
       // The teacher's OWN link is a self-test: no greeting, no name/class — "This is your own test run"
       // then question 1 at once (run 20260925-1018). The reply we already hold IS the first question.
-      if (isChildQ(g)) return { ok: true, ...ev, joinVia: 'self-test', q: g, seen: [g], last: '' };
+      if (isChildQ(g)) {   // sendWait's reply carries no rows — take the same item off fresh() (freshReset ran before the send)
+        const q1 = await waitOn(kid, (x) => x.list && (x.list.rows || []).length, 10000);
+        return { ok: q1.ok, ...ev, joinVia: 'self-test', q: q1.hit || null, seen: q1.seen, last: q1.last };
+      }
       if ((g.btns || []).some(b => /^Start$|شروع کریں/.test(b))) {
         const op = await kid.openFlow('^Start$|شروع کریں');
         if (!op.ok) return { ok: false, err: 'JOIN_FLOW:' + op.err, ...ev };
@@ -888,7 +893,10 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
     };
     // The correct option's TEXT for question i of the seeded en/ur quiz (same numbers both languages).
     const KEY_TEXT = ['37', '51', '2', '92'];
-    const childRun = async (kid, code, name, cls, { correct = 4, stopAfter = null, typed = false } = {}) => {
+    // rejoin: the bot allows ONE join per phone+code per minute (JOIN_LOCK_SECS=60, video_quiz.join_deduped)
+    // — a child opening the link again inside that minute gets silence (run 20260925-1038), so wait it out.
+    const childRun = async (kid, code, name, cls, { correct = 4, stopAfter = null, typed = false, rejoin = false } = {}) => {
+      if (rejoin) await sleep(61000);
       const j = await childJoin(kid, code, name, cls); if (!j.ok) return { ok: false, err: 'JOIN:' + (j.err || j.last), join: j };
       let q = j.q, answered = 0, ended = false, trail = [];
       for (let i = 0; i < 8 && q && !ended; i++) {
@@ -989,9 +997,9 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       s = t();
       const k3 = child(3), k4 = child(4);
       const r3a = await childRun(k3, enq.code, 'Bilal', 'Grade 3', { stopAfter: 1 }); if (r3a.ok) { await k3.freshReset(); await k3.sendWait('stop'); }
-      const r3b = await childRun(k3, enq.code, 'Bilal', 'Grade 3', { correct: 4 });
+      const r3b = await childRun(k3, enq.code, 'Bilal', 'Grade 3', { correct: 4, rejoin: true });
       const r4a = await childRun(k4, enq.code, 'Hina', 'Grade 3', { correct: 2 });
-      const r4b = await childRun(k4, enq.code, 'Hina', 'Grade 3', { correct: 4 });
+      const r4b = await childRun(k4, enq.code, 'Hina', 'Grade 3', { correct: 4, rejoin: true });
       const les40 = await openLesson(i => String(i.id || '') === 'lp_' + enq.quizId); api.closeFlow();
       const head = (/(\d+) started · (\d+) finished · average (\d+)%/.exec(les40.text || '') || []);
       const names = ((les40.text || '').match(/Bilal|Hina/g) || []);
@@ -1069,8 +1077,11 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
                        framedAsLoss: told.ok && /ہار|lost|behind/i.test(told.hit.txt || '') };
         R('T58')(V(ev58.friendFinished && ev58.urdu && ev58.scoresShape && !ev58.framedAsLoss, ev58), t() - s);
       } else R('T58')('BLOCKED', { reason: 'no friend link came out of T57' }, t() - s);
-      // T45 — the Urdu report's pages
+      // T45 — the Urdu report's pages. A second child through the SAME link (an invited friend's session
+      // hangs off its own code and is excluded from the class count — run 1038 listed one finisher and
+      // no reteach block), wrong on the same two questions, so there are questions worth reteaching.
       s = t();
+      const k8 = child(8); const r8 = await childRun(k8, urq.code, 'فاطمہ', '3', { correct: 2 });
       const lesU = await openLesson(i => String(i.id || '') === 'lp_' + urq.quizId);
       await api.freshReset();
       const pickU = lesU.ok ? await chooseAction(/Generate report|رپورٹ/) : { ok: false, err: lesU.err };
@@ -1078,9 +1089,19 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       if (repU.ok) {
         const pdf = await pdfText(repU.hit, 'class-report-ur.pdf');
         const lens = pdf.pages.map(p => p.replace(/\s+/g, '').length);
-        const ev45 = { pages: pdf.pages.length, pageTextLengths: lens, firstPageHasQuestion: /\?|؟/.test(pdf.pages[0] || ''),
-                       nearlyEmptyBeforeLast: lens.slice(0, -1).some((n, i) => n < 0.25 * Math.max(...lens)), saved: pdf.saved };
-        R('T45')(V(ev45.firstPageHasQuestion && !ev45.nearlyEmptyBeforeLast, ev45), t() - s);
+        // Shaped Urdu does not survive text extraction, so page 1 is judged by INK: render it (sips,
+        // first page) and measure how far down the page the ink reaches. A header-only page stops
+        // early; a question under the header reaches lower. Later pages: extracted-text density.
+        let ink = null;
+        try {
+          const png = pdf.saved.replace(/\.pdf$/, '-p1.png');
+          execFileSync('sips', ['-s', 'format', 'png', pdf.saved, '--out', png], { encoding: 'utf8', timeout: 60000 });
+          ink = JSON.parse(execFileSync('python3', [path.join(__dirname, '..', 'png_ink.py'), png], { encoding: 'utf8', timeout: 120000 }));
+        } catch (e) { ink = { err: String((e && e.message) || e).slice(0, 120) }; }
+        const ev45 = { secondChildFinished: r8.ok, pages: pdf.pages.length, pageTextLengths: lens, ink,
+                       nearlyEmptyBeforeLast: lens.length > 1 && lens.slice(0, -1).some((n) => n < 0.25 * Math.max(...lens)), saved: pdf.saved,
+                       note: 'Urdu text does not extract from the PDF; page 1 is judged by rendered ink reach, later pages by extracted-text density' };
+        R('T45')(V(r8.ok && !!(ink && ink.reachesBelowHeader) && !ev45.nearlyEmptyBeforeLast, ev45), t() - s);
       } else R('T45')('BLOCKED', { reason: 'no Urdu class report arrived: ' + (pickU.err || 'timeout'), lesson: lesU.err || (lesU.actions || []).map(a => a.text) }, t() - s);
     } catch (e) { for (const id of ['T56', 'T57', 'T58', 'T45']) if (!seenIds.has(id)) R(id)('BLOCKED', { reason: 'the UR class-quiz drive threw: ' + String((e && e.message) || e).slice(0, 200) }, 0); }
 
