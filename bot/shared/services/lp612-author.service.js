@@ -1673,6 +1673,68 @@ function sanitizeUnknownTopLevel(doc) {
   return doc;
 }
 
+/**
+ * bd-oak77.32, Defect B — a placeholder objective code (`O1`, `O2`, …) that repeats silently
+ * shrinks `taughtSlos(doc)` (`lint_lp.js` ~L346): the chip numbering the model painted is wrong,
+ * and a homework item correctly tagged to the objective the duplicate shadowed fails `HW_TAGS`
+ * (~L1537) as untaught. Subjects with no real curriculum SLO are told to invent an `O#`-style
+ * code per objective (confirmed in the flash briefs); the model sometimes repeats one instead of
+ * counting up.
+ *
+ * A REAL curriculum code (anything not matching `/^O\d+$/`) is left alone even when it
+ * legitimately repeats — two objectives teaching the same SLO in one lesson is normal, and this
+ * function has no business rewriting curriculum.
+ *
+ * For a placeholder code, only a REPEAT is renumbered. The FIRST occurrence keeps its code: a
+ * homework item that already points at it is still naming the right objective, so renumbering
+ * the first occurrence too would invalidate a reference for no gain — guessing it meant the
+ * second would be invention. Each 2nd-or-later occurrence gets the next unused `O`-number, in
+ * the order the duplicates appear.
+ *
+ * `homework.items[].slo_code` is never rewritten here. Under this rule a homework reference can
+ * only dangle if it pointed at a *second* occurrence of a duplicate — and nothing upstream does
+ * that, since a duplicate is the model repeating a code by mistake, not something anyone
+ * deliberately cross-referenced.
+ *
+ * Idempotent: the "next unused" scan is recomputed fresh from the document's own codes on every
+ * call, never tracked across calls, so a document with no repeats — including one this function
+ * already fixed — comes back unchanged.
+ */
+function sanitizeObjectiveCodes(doc) {
+  const items = doc && doc.objectives && Array.isArray(doc.objectives.items)
+    ? doc.objectives.items
+    : null;
+  if (!items || !items.length) return doc;
+
+  const PLACEHOLDER = /^O(\d+)$/;
+  const used = new Set();
+  for (const item of items) {
+    const code = item && item.slo_code;
+    const m = typeof code === 'string' ? code.match(PLACEHOLDER) : null;
+    if (m) used.add(Number(m[1]));
+  }
+
+  const nextUnused = () => {
+    let n = 1;
+    while (used.has(n)) n += 1;
+    used.add(n);
+    return n;
+  };
+
+  const seen = new Set();
+  for (const item of items) {
+    const code = item && item.slo_code;
+    if (typeof code !== 'string' || !PLACEHOLDER.test(code)) continue;
+    if (!seen.has(code)) {
+      seen.add(code); // first occurrence: keep it
+      continue;
+    }
+    item.slo_code = `O${nextUnused()}`;
+  }
+
+  return doc;
+}
+
 function applyVideo(doc, video) {
   if (!doc || !Array.isArray(doc.sections)) return doc;
   for (const s of doc.sections) {
@@ -2228,6 +2290,7 @@ async function authorLessonPlan({
   // bd-zle0u: the ladder's document is overlay-free BY CONTRACT. See `stripOverlay`.
   noteStrippedOverlay(stripOverlay(doc), 0);
   sanitizeSequence(doc, segment);
+  sanitizeObjectiveCodes(doc); // bd-oak77.32: dedupe placeholder O#-style objective codes.
 
   // `overlayExpected: false` — bd-zle0u. The ladder is not writing the Urdu overlay, so it is
   // not held to OVERLAY_MISSING. See `languageDirective` and `overlayPass`.
@@ -2475,6 +2538,7 @@ async function authorLessonPlan({
     sanitizeOverlay(candidate);
     noteStrippedOverlay(stripOverlay(candidate), spent);
     sanitizeSequence(candidate, segment);
+    sanitizeObjectiveCodes(candidate); // bd-oak77.32: dedupe placeholder O#-style objective codes.
     const g2 = await runGates(candidate, renderCheck, { ...ladderGateMeta, round: spent });
     if (notWorseVisual(g2, gates, candidate, doc)) {
       doc = candidate;
@@ -3182,6 +3246,7 @@ async function reviseLessonPlan({
     sanitizeUnknownTopLevel(candidate);
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
+    sanitizeObjectiveCodes(candidate); // bd-oak77.32: dedupe placeholder O#-style objective codes.
 
     const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent, lang: language });
     const schemaTiered = beforeSchemaOk && !schemaOk(g2);
@@ -3256,6 +3321,7 @@ module.exports = {
   sanitizeOverlay,
   sanitizeSequence,
   sanitizeUnknownTopLevel,
+  sanitizeObjectiveCodes,
   buildUserPrompt,
   // Exported for the suite: the budget card's POSITION is the whole point of bd-vjk68, and a
   // test that cannot see the assembled revision prompt cannot assert it is above the defects.
