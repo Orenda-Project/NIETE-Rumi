@@ -245,13 +245,16 @@ async function buildSubjectItems(grade) {
     .slice(0, PAGE_SIZE)
     .map(([subject, e]) => {
       const n = (v) => (e.rtl ? urD(v) : String(v));
+      const lead = e.rtl ? RLM : '';
+      const chapterWord = e.chapters.size === 1 ? 'باب' : 'ابواب';
       return {
         id: subject,
         'main-content': {
           title: clip(subject, TITLE_CAP),
-          description: clip(e.rtl ? `${n(e.chapters.size)} chapters`
+          description: clip(e.rtl ? `${lead}${n(e.chapters.size)} ${chapterWord}`
             : plural(e.chapters.size, 'chapter'), DESC_CAP),
-          metadata: clip(e.rtl ? `Grade ${n(grade)} · ${n(e.lessons)} lessons`
+          // Urdu comma, not `·`: a middle dot beside an Urdu digit renders as a zero in Nastaliq.
+          metadata: clip(e.rtl ? `${lead}جماعت ${n(grade)}، ${n(e.lessons)} اسباق`
             : `Grade ${grade} · ${plural(e.lessons, 'lesson')}`, META_CAP),
         },
         'on-click-action': {
