@@ -534,7 +534,14 @@ p{ font-size:18px; }
    margin. Sentence case at 700 is metadata a teacher reads once. Same 14px: the ladder is weight
    and case, never size, and lowercase is also the narrower of the two, so the float shrinks. */
 .wu .kind{ float:${end}; margin-${start}:9px; font-size:14px; font-weight:700; letter-spacing:.02em;
-      color:var(--mut); }
+      color:var(--mut); max-width:50%; }
+/* bd-oak77.31. A long SPACED REVIEW source ("§3.2 Cell structure and function, Grade 6 General
+   Science textbook, p.41") floated in the corner took most of the row and squeezed the question
+   into a ribbon beside it. The 50% cap bounds any corner label; a label too long to sit on one
+   line under that cap (WU_OWN_LINE_CHARS) is not floated at all but set on its own line under the
+   question, which keeps the full measure. Short labels keep the float and their markup. */
+.wu .kind.own{ float:none; display:block; max-width:none; margin-${start}:0; margin-top:2px;
+      text-align:${end}; overflow-wrap:anywhere; }
 
 /* ── blocks ─────────────────────────────────────────────────────────────── */
 .hook{ background:var(--navy); color:#fff; border-radius:var(--r-2); padding:9px 14px; }
@@ -986,6 +993,9 @@ p, li, figcaption,
 .hook .q, .hook .lf, .askb .q, .askb .lf, .srq .q, .ck .q, .erq .q,
 .wu .q, .pr .q, .hw .q, .mcq .q, .exq h4, .exq .prompt,
 .exit .it > span, .vres a, .tnote, .crit, .bythe, .how, .refq{ unicode-bidi:plaintext; }
+/* bd-oak77.42 — the one Urdu line under an English board block (SYNC §3.27). */
+.gloss{ font-family:'Noto Nastaliq Urdu','Inter','Helvetica Neue',Arial,sans-serif;
+      font-size:16px; line-height:2.05; color:var(--s-quiet-ink); margin-top:2px; }
 ` : ""}`;
   return `${fonts}\n${katex}\n${scaleTypeCss(sheet, TYPE_SCALE)}`;
 }
@@ -1004,7 +1014,11 @@ const FULL_COL = PAGE_INNER_W - FIG_CHROME;  // 727
 const SPLIT_GAP = 9;
 /** The legibility floor inside a figure, AT THE A4 MEASURE it was chosen against, and the drawing
  *  box it was chosen for. A figure's labels scale with ITS COLUMN, not with the page. */
-const DIAGRAM_MIN_PX_A4 = 13.5;
+// The diagram engine owns the number (MIN_LABEL_PX, bd-oak77.15: 13.5 -> 14); 14 is only the
+// fallback for a build without the engine.
+const DIAGRAM_MIN_PX_A4 = (() => {
+  try { return require("../diagrams/lib/svg").MIN_LABEL_PX; } catch (_) { return 14; }
+})();
 const FULL_COL_A4 = PAGE_A4.w - PAGE_A4.padX * 2 - FIG_CHROME;   // 729
 /* And the same floor on this page. IT MUST SCALE, AND IT MUST SCALE BY THE COLUMN.
 
@@ -1198,8 +1212,11 @@ function makeBlockRenderer(ctx) {
     watch_out: (b) => `<div class="blk watch"><div class="lbl">&#9888; ${esc(L.watch)}</div>
       <div class="t">${rich(b.text)}</div></div>`,
 
+    // bd-oak77.42: on an Urdu render the board text stays English; the overlay's derived
+    // `<block>/gloss` adds ONE Urdu line under it, RLM-led. English renders never print it.
     board: (b) => `<div class="blk board"><div class="lbl">${esc(L.board)}</div>
-      <div class="t">${rich(b.text)}</div></div>`,
+      <div class="t">${rich(b.text)}</div>${ctx.rtl && typeof b.gloss === "string" && b.gloss.trim()
+    ? `\n      <div class="gloss" dir="rtl" lang="ur">&#x200F;${rich(b.gloss)}</div>` : ""}</div>`,
 
     keywords: (b) => `<div class="blk"><div class="lbl g">${esc(L.keywords)}</div>
       <div class="kwrow">${b.items
@@ -1563,6 +1580,14 @@ function footerHtml(doc, ctx, n, total) {
   return `<div class="foot"><div class="fl">${left}</div><div class="fr">${brand}${esc(L.pageOf(n, total))}</div></div>`;
 }
 
+// bd-oak77.31. A warm-up label longer than this does not fit on one line in the 50%-capped
+// corner (14px bold, ~7.5px a character, half of the 478px row), so it takes its own line.
+const WU_OWN_LINE_CHARS = 32;
+function wuOwnLine(kindLabel, from) {
+  const text = `${kindLabel || ""}${from ? ` · ${from}` : ""}`.replace(/[*_`]/g, "");
+  return [...text].length > WU_OWN_LINE_CHARS;
+}
+
 function page1(doc, ctx, secIndex) {
   const L = ctx.L;
   const p = doc.provenance;
@@ -1761,7 +1786,7 @@ function page1(doc, ctx, secIndex) {
     .map(
       (it, i) => `<div class="it"><span class="n">${i + 1}.</span>
         <span class="q">${rich(it.q)} <span class="a">${AR} ${rich(it.a)}</span></span>
-        <span class="kind">${esc(L.kind[it.kind] || it.kind)}${it.from ? ` &middot; ${rich(it.from)}` : ""}</span></div>`
+        <span class="kind${wuOwnLine(L.kind[it.kind] || it.kind, it.from) ? " own" : ""}">${esc(L.kind[it.kind] || it.kind)}${it.from ? ` &middot; ${rich(it.from)}` : ""}</span></div>`
     )
     .join("")}</div>`;
 

@@ -120,11 +120,27 @@ function pointerParent(doc, ptr) {
   return cur && typeof cur === "object" ? { parent: cur, key } : null;
 }
 
+// A DERIVED overlay target (SYNC §3.27): `<board block>/gloss` does not exist in the stored
+// document. It names the one Urdu line printed UNDER an English board block on an Urdu render
+// of an English-medium book — the board text itself stays English (frozen below). The source
+// the translator sees is the board's own text; the value is set on the render clone only.
+const GLOSS_KEY = "gloss";
+
+/** The English source a derived gloss pointer explains, or undefined if `ptr` is not one. */
+function glossSource(doc, ptr) {
+  if (typeof ptr !== "string" || !ptr.endsWith(`/${GLOSS_KEY}`)) return undefined;
+  const block = pointerGet(doc, ptr.slice(0, -(GLOSS_KEY.length + 1)));
+  if (!block || typeof block !== "object" || block.type !== "board") return undefined;
+  return typeof block.text === "string" ? block.text : undefined;
+}
+
 function pointerSet(doc, ptr, value) {
   const loc = pointerParent(doc, ptr);
   if (!loc) throw new Error(`ur_overlay: pointer does not resolve: ${ptr}`);
   const k = Array.isArray(loc.parent) ? Number(loc.key) : loc.key;
-  if (loc.parent[k] === undefined) throw new Error(`ur_overlay: pointer targets nothing: ${ptr}`);
+  if (loc.parent[k] === undefined && glossSource(doc, ptr) === undefined) {
+    throw new Error(`ur_overlay: pointer targets nothing: ${ptr}`);
+  }
   loc.parent[k] = value;
 }
 
@@ -287,4 +303,4 @@ const LABELS = {
   },
 };
 
-module.exports = { applyOverlay, frozenReason, MACHINE_KEYS, pointerGet, pointerParent, pointerParts, LABELS };
+module.exports = { applyOverlay, frozenReason, glossSource, GLOSS_KEY, MACHINE_KEYS, pointerGet, pointerParent, pointerParts, LABELS };

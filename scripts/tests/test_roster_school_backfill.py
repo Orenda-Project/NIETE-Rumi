@@ -128,5 +128,80 @@ class AuditRow(unittest.TestCase):
             m.audit_row(d, run_id="run-1")
 
 
+class SkipRoles(unittest.TestCase):
+    def test_a_skipped_role_is_reported_not_linked(self):
+        d = m.classify_user([row(role="principal")], skip_roles={"principal"})
+        self.assertEqual(d["decision"], "skipped_role_principal")
+        self.assertIsNone(d["target_school_id"])
+
+    def test_skip_roles_leaves_other_roles_untouched(self):
+        d = m.classify_user([row(role="teacher")], skip_roles={"principal"})
+        self.assertEqual(d["decision"], "backfill")
+
+    def test_skip_roles_threads_through_classify_all(self):
+        ds = m.classify_all([row(user_id="a", role="principal"), row(user_id="b")], skip_roles={"principal"})
+        self.assertEqual(sorted(d["decision"] for d in ds), ["backfill", "skipped_role_principal"])
+
+    def test_an_already_linked_principal_is_still_already_linked(self):
+        d = m.classify_user([row(role="principal", current_school_id="s1")], skip_roles={"principal"})
+        self.assertEqual(d["decision"], "already_linked")
+
+
+class RespectCoachRemovals(unittest.TestCase):
+    """leader_teachers is not cleaned when a coach removes a teacher, so the stale roster still
+    lists 824 teachers coaches removed on prod. A removal is a decision; the backfill must not undo it."""
+
+    def test_latest_membership_action_remove_is_skipped(self):
+        d = m.classify_user([row(last_membership_action="remove")])
+        self.assertEqual(d["decision"], "skipped_removed_by_coach")
+        self.assertIsNone(d["target_school_id"])
+
+    def test_a_school_id_that_was_cleared_before_is_skipped(self):
+        d = m.classify_user([row(school_id_ever_cleared=True)])
+        self.assertEqual(d["decision"], "skipped_unlinked_before")
+
+    def test_re_added_after_a_removal_is_linked(self):
+        d = m.classify_user([row(last_membership_action="add")])
+        self.assertEqual(d["decision"], "backfill")
+
+    def test_removal_check_runs_before_role_skips(self):
+        d = m.classify_user([row(role="principal", last_membership_action="remove")], skip_roles={"principal"})
+        self.assertEqual(d["decision"], "skipped_removed_by_coach")
+
+    def test_an_already_linked_user_is_unaffected_by_history(self):
+        d = m.classify_user([row(current_school_id="s1", last_membership_action="remove")])
+        self.assertEqual(d["decision"], "already_linked")
+
+
+class UndoRemovedRelinks(unittest.TestCase):
+    def u(self, **over):
+        base = dict(user_id="u1", phone_e164="923001234567", teacher_name="T", actor_user_id="coach1",
+                    school_ext_id="niete:216", target_school_id="s1", current_school_id="s1",
+                    prior_action="remove", later_action=None)
+        base.update(over)
+        return base
+
+    def test_selects_a_relink_of_a_removed_teacher_still_on_the_target(self):
+        self.assertEqual([x["user_id"] for x in m.select_undo([self.u()])], ["u1"])
+
+    def test_skips_when_the_teacher_was_not_removed_before_the_run(self):
+        self.assertEqual(m.select_undo([self.u(prior_action="add"), self.u(user_id="u2", prior_action=None)]), [])
+
+    def test_skips_when_the_school_changed_since_the_run(self):
+        self.assertEqual(m.select_undo([self.u(current_school_id="s9"), self.u(user_id="u2", current_school_id=None)]), [])
+
+    def test_skips_when_a_coach_acted_on_the_teacher_after_the_run(self):
+        self.assertEqual(m.select_undo([self.u(later_action="add")]), [])
+
+    def test_undo_audit_row_is_a_remove_that_names_the_run(self):
+        a = m.undo_audit_row(self.u(), run_id="run-1")
+        self.assertEqual(a["action"], "remove")
+        self.assertEqual(a["actor_user_id"], "coach1")
+        self.assertEqual(a["from_school_ext_id"], "niete:216")
+        self.assertIsNone(a["to_school_ext_id"])
+        self.assertEqual(a["detail"]["rollback_of"], "run-1")
+        self.assertEqual(a["detail"]["backfill"], "undo_removed_relink")
+
+
 if __name__ == "__main__":
     unittest.main()

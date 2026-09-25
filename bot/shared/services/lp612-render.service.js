@@ -43,6 +43,17 @@ const { logEvent } = require('../utils/structured-logger');
 // then reach production as a runtime crash instead of a red gate.
 const { renderDoc } = require('../../vendor/lp-v9/render_lp.js');
 const { attachFbiseSlos } = require('./lp612-fbise-tags');
+const { subjectNameFor } = require('../config/lp612-subject-order');
+
+// bd-oak77.40: the template prints `provenance.subject` at five sites (kicker, title, page strip,
+// footer, page-2 head) and the overlay deliberately never carries it, so an Urdu render of an
+// English-medium book printed "Mathematics" on every page. The Urdu name is put on the COPY that
+// goes to disk; the caller's lpDoc (what gets stored) keeps its English subject.
+function withLangSubject(doc, lang) {
+  const prov = doc && doc.provenance;
+  if (lang !== 'ur' || !prov || typeof prov.subject !== 'string') return doc;
+  return { ...doc, provenance: { ...prov, subject: subjectNameFor(prov.subject, 'ur') } };
+}
 
 function renderFailed(message, extra = {}) {
   const err = new Error(message);
@@ -185,7 +196,7 @@ async function renderLessonPlan({
     docPath = path.join(outDir, `${stem}.lp.json`);
     // bd-f01ob: the FBISE status of each SLO is looked up here, on every render path (gate, final,
     // overlay, reuse), so stored documents gain it on re-render without being rewritten.
-    fs.writeFileSync(docPath, JSON.stringify(attachFbiseSlos(lpDoc, segmentId), null, 1), 'utf8');
+    fs.writeFileSync(docPath, JSON.stringify(withLangSubject(attachFbiseSlos(lpDoc, segmentId), lang), null, 1), 'utf8');
   } catch (e) {
     // A disk/permission failure preparing the temp files. Not the document's fault, and not the
     // Chromium launch below — but it must still carry `.infra: true` (bd-htueq), because a caller
