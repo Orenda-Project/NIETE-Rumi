@@ -113,6 +113,54 @@ describe('bd-w56zx — sanitizeSequence', () => {
   });
 });
 
+// bd-oak77.33 — a FIRST lesson has no predecessor. The corpus says so with a null
+// prev_segment_id; the model was still asked for "the TOPIC NAME of" the lesson that
+// "comes after [nothing]" and filled the strip with an invented one. There is nothing
+// truthful to print, so the value is null — the schema's own "no previous" shape, which
+// the template already renders as no span at all.
+describe('bd-oak77.33 — first lesson: no fabricated sequence.previous', () => {
+  const FIRST = { ...SEGMENT, prev_segment_id: null };
+
+  test('a human-looking previous is nulled when the segment has no prev_segment_id', () => {
+    const doc = { sequence: { previous: 'Introduction to the chapter', this: 'Lesson', next: 'Next topic' } };
+    const notes = sanitizeSequence(doc, FIRST);
+
+    expect(doc.sequence.previous).toBeNull();
+    expect(doc.sequence.next).toBe('Next topic');   // a real next is not touched
+    expect(notes.some((n) => /sequence\.previous/.test(n))).toBe(true);
+  });
+
+  test('an empty-string prev_segment_id counts as "no predecessor" too', () => {
+    const doc = { sequence: { previous: 'Whatever came before', this: 'Lesson' } };
+    sanitizeSequence(doc, { ...SEGMENT, prev_segment_id: '' });
+    expect(doc.sequence.previous).toBeNull();
+  });
+
+  test('an already-null previous stays null and adds no note', () => {
+    const doc = { sequence: { previous: null, this: 'Lesson' } };
+    expect(sanitizeSequence(doc, FIRST)).toEqual([]);
+    expect(doc.sequence.previous).toBeNull();
+  });
+
+  test('a segment row that never carried the field (unknown position) is left alone', () => {
+    // No evidence of "first lesson" — only an explicit null from the corpus is.
+    const doc = { sequence: { previous: 'Chemistry & its branches', this: 'Lesson' } };
+    const { prev_segment_id, ...noField } = SEGMENT; // eslint-disable-line no-unused-vars
+    expect(sanitizeSequence(doc, noField)).toEqual([]);
+    expect(doc.sequence.previous).toBe('Chemistry & its branches');
+  });
+
+  test('the prompt tells the model sequence.previous must be null on a first lesson', () => {
+    const { buildUserPrompt } = require('../../bot/shared/services/lp612-author.service');
+    const args = { bundle: { book: {}, toc: {}, pages: [] }, lang: 'en', video: null };
+    const first = buildUserPrompt({ ...args, segment: FIRST });
+    const middle = buildUserPrompt({ ...args, segment: SEGMENT });
+
+    expect(first).toMatch(/FIRST lesson[^\n]*`sequence\.previous` MUST be null/);
+    expect(middle).not.toMatch(/FIRST lesson/);
+  });
+});
+
 describe('bd-w56zx — the prompt must not label internal ids with output-field names', () => {
   const { buildUserPrompt } = require('../../bot/shared/services/lp612-author.service');
 
