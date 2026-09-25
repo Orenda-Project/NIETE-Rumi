@@ -608,8 +608,10 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
               // /certificates, ask for it by code, expect the PDF document (bd-w3cb9.6).
               const s06 = t();
               await waitFresh((x) => x.doc || x.pdf, 30000);
-              await api.freshReset();
-              const list = await api.sendWait('/certificates');
+              await sleep(4000); await api.freshReset();   // the level-complete card trails the PDF (run 20260925-1108)
+              await api.sendWait('/certificates');
+              const lst = await waitFresh((x) => /Cert:\s*`/.test(x.txt || ''), 30000);   // the list, not whatever landed first
+              const list = lst.ok ? lst.hit : { txt: lst.last };
               const code = (/Cert:\s*`([^`]+)`/.exec(list.txt || '') || [])[1] || null;
               if (code) {
                 await api.freshReset();
