@@ -47,7 +47,7 @@ const { pageCapsFor } = require('../vendor/lp-v9/render_lp.js');
 // The one_screen shape rule, read from the LINTER itself so the reuse lane and gate 12b can never
 // drift apart (bd-jpfww). The reuse lane never calls `lint`, which is how a pre-shape body reached
 // a teacher's phone; it asks the same function instead.
-const { oneScreenShapeDefects, overlayChromeGaps } = require('../vendor/lp-v9/lint_lp.js');
+const { oneScreenShapeDefects, overlayChromeGaps, overlayObjectiveGaps } = require('../vendor/lp-v9/lint_lp.js');
 const { refsFromDoc, stageFigures } = require('../shared/services/lp612-pagetruth.service');
 const Serving = require('../shared/services/lp612-serving.service');
 const {
@@ -416,7 +416,9 @@ async function tellAll(waiters, key, lang) {
     // has to be asked explicitly here. Mirrors the same guard in lp612-serving's `tell()`.
     if (!w.phone) continue;
     try {
-      await WhatsAppService.sendMessage(w.phone, resolveUx(key, { language: w.ui_lang || lang }));
+      const copy = resolveUx(key, { language: w.ui_lang || lang });
+      const ok = await WhatsAppService.sendMessage(w.phone, copy);
+      if (ok) logEvent('lp612.send.sent', { kind: 'text', uxKey: key, lang: w.ui_lang || lang || null, userId: w.user_id || null, copy });
     } catch (err) {
       logToFile('LP 6-12 worker: could not message waiter', {
         phone: w.phone, key, error: err.message,
@@ -861,7 +863,9 @@ async function process(payload) {
       // The saving is not thrown away: an Urdu-medium book has no overlay to miss, an English
       // render is untouched, and a document whose chrome IS overlaid is still reused for free.
       // Refusing costs one author call for that segment, once.
-      const chromeGaps = lang === 'ur' ? overlayChromeGaps(lpDoc) : [];
+      // bd-oak77.40: English objectives are refused the same way — same coverage blind spot.
+      const titleGaps = lang === 'ur' ? overlayChromeGaps(lpDoc) : [];
+      const chromeGaps = lang === 'ur' ? [...titleGaps, ...overlayObjectiveGaps(lpDoc)] : [];
       if (chromeGaps.length) {
         logEvent('lp612.render.reuse_rejected', {
           renderId,
@@ -870,10 +874,10 @@ async function process(payload) {
           lang,
           fromVersion: prev,
           toVersion: templateVersion,
-          reason: 'overlay_chrome_stale',
+          reason: titleGaps.length ? 'overlay_chrome_stale' : 'overlay_objectives_untranslated',
           defects: chromeGaps,
         });
-        logToFile('LP 6-12 worker: stored lesson refused for reuse — the Urdu overlay has no title', {
+        logToFile('LP 6-12 worker: stored lesson refused for reuse — the Urdu overlay has gaps', {
           renderId, segmentId, lang, fromVersion: prev, toVersion: templateVersion,
           missing: chromeGaps, correlationId,
         });

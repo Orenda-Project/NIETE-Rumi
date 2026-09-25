@@ -60,7 +60,7 @@ const { meetsSubjectMinimum } = require('../../vendor/lp-v9/visual_check.js');
 const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
 // The renderer's OWN pointer resolver and frozen-slot list, so `sanitizeOverlay` cannot
 // disagree with `applyOverlay` about what is applicable — one implementation, not two.
-const { pointerParent, pointerGet, frozenReason } = require('../../vendor/lp-v9/lib/overlay.js');
+const { pointerParent, pointerGet, frozenReason, glossSource } = require('../../vendor/lp-v9/lib/overlay.js');
 // The page caps the RENDERER will actually gate on, so the budget card in the prompt and the
 // gate can never state different numbers (bd-vjk68). This module's top-level cost is `fs`,
 // `path` and its own libs — `playwright-core` is required lazily inside the launch path — so
@@ -473,7 +473,13 @@ async function callLlm({ system, user, model, correlationId, stage, maxTokens, u
     usage: res.usage || null,
   });
 
-  return { text: String(text), usage: (res && res.usage) || {} };
+  return {
+    text: String(text),
+    usage: (res && res.usage) || {},
+    // bd-oak77.19: 'length' here is the difference between "the model wrote the wrong shape" and
+    // "the model was cut off mid-shape" — a rejected patch cannot be diagnosed without it.
+    finishReason: (res && res.choices && res.choices[0] && res.choices[0].finish_reason) || null,
+  };
 }
 
 /**
@@ -540,12 +546,15 @@ function modelLabel(chosenModel, usage) {
   return (usage && usage.provider_fallback_calls > 0) ? `${chosenModel}+fallback` : chosenModel;
 }
 
-async function callWithRetry({ system, user, model, correlationId, stage, usageSink, maxTokens, userCachePrefix }) {
+async function callWithRetry({ system, user, model, correlationId, stage, usageSink, maxTokens, userCachePrefix, replySink }) {
   let lastErr = null;
   for (const attempt of [1, 2]) {
     try {
-      const { text, usage } = await callLlm({ system, user, model, correlationId, stage: `${stage}.a${attempt}`, maxTokens, userCachePrefix });
+      const { text, usage, finishReason } = await callLlm({ system, user, model, correlationId, stage: `${stage}.a${attempt}`, maxTokens, userCachePrefix });
       usageSink(usage);
+      // bd-oak77.19: the raw reply of the attempt whose JSON is returned, for a caller that has
+      // to explain a reply it then rejects. Telemetry only — never read by a decision.
+      if (replySink) replySink({ text, finishReason });
       try {
         return extractJson(text);
       } catch (e) {
@@ -1004,7 +1013,7 @@ titles and must NEVER appear in your output, least of all in \`sequence\`, which
 teacher reads on page 1): comes after [${segment.prev_segment_id || 'nothing'}], comes
 before [${segment.next_segment_id || 'nothing'}]. In \`sequence.previous\` and
 \`sequence.next\` write the TOPIC NAME of those lessons in the teacher's language, or
-null if you do not know it.
+null if you do not know it.${segment.prev_segment_id ? '' : '\nThis is the FIRST lesson — nothing comes before it, so `sequence.previous` MUST be null.'}
 
 ## THE SLO THIS SEGMENT CARRIES (quote it verbatim into slo.text_verbatim)
 ${segment.slo_text || '(none recorded on the segment — take one verbatim from the page-truth below)'}
@@ -1203,6 +1212,31 @@ function parseTargetedReply(parsed) {
   return { mode: 'invalid' };
 }
 
+/**
+ * bd-oak77.19: WHY `parseTargetedReply` said 'invalid', as the same `{pointers, errors}` pair a
+ * rejected merge carries — so `patch_rejected` never arrives as `pointers:[] errors:[]`. The
+ * pointers are the reply's own top-level keys (what the model DID send), escaped as JSON Pointer
+ * tokens. Telemetry only: nothing decides on this.
+ */
+function describeInvalidReply(parsed) {
+  const kind = (v) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v);
+  if (kind(parsed) !== 'object') {
+    return { pointers: [], errors: [`reply must be an object with "replace" or "full", got ${kind(parsed)}`] };
+  }
+  const keys = Object.keys(parsed);
+  const pointers = keys.slice(0, 10).map((k) => `/${k.replace(/~/g, '~0').replace(/\//g, '~1')}`);
+  const errors = [];
+  for (const k of ['replace', 'full']) {
+    if (k in parsed && kind(parsed[k]) !== 'object') {
+      errors.push(`"${k}" must be an object, got ${kind(parsed[k])}`);
+    }
+  }
+  if (!errors.length) {
+    errors.push(`reply has neither "replace" nor "full" (top-level keys: ${keys.slice(0, 10).join(', ') || 'none'})`);
+  }
+  return { pointers, errors };
+}
+
 function targetedRevisionPreamble(allowedPointers) {
   return (
     'Your previous lp_doc is below, followed by every defect found by the schema validator and '
@@ -1316,7 +1350,23 @@ function pageCountRepair(render) {
   return out;
 }
 
-function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted = false, stableFirst = false }) {
+/**
+ * bd-5w13w — the retry after a rejected "worse" candidate. doc/gates/notes are unchanged by a
+ * rejection, so without this the retry is byte-identical to the round that just failed. The
+ * running count makes every consecutive rejection's prompt distinct; the rejected attempt's own
+ * defects tell the model which route not to take again. Empty when nothing was rejected, so the
+ * prompt is byte-identical to before for every caller that does not pass `rejected`.
+ */
+function rejectedAttemptBlock(rejected) {
+  if (!rejected || !rejected.count) return '';
+  const fails = (rejected.fails || []).join('\n') || '(none recorded)';
+  return `=== YOUR LAST ${rejected.count} REVISION ATTEMPT(S) WERE REJECTED — TRY A DIFFERENT APPROACH ===\n`
+    + 'Each came back WORSE than the document below and was discarded, so the document below is '
+    + 'still the one to revise. Do not repeat the same edit: fix the defects by a different route. '
+    + 'The most recent rejected attempt had these defects:\n' + fails + '\n\n';
+}
+
+function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted = false, stableFirst = false, rejected = null }) {
   // ADVISORY defects are recorded, not chased (see ADVISORY_CODES). A defect the ladder will not
   // spend a round on must not spend the model's attention either: showing it under "Fix EVERY
   // listed defect" is an order to act on something we have decided does not matter.
@@ -1346,6 +1396,7 @@ function buildRevisionPrompt({ doc, gates, originalUser, notes, lang, targeted =
   // The relative order of everything inside the volatile block is untouched.
   const volatile_ = budgetCard(clampLanguage(lang)) + '\n' + preamble +
     (notes ? `=== THE OPERATOR'S NAMED DEFECTS — THESE OUTRANK EVERYTHING BELOW ===\n${notes}\n\n` : '') +
+    rejectedAttemptBlock(rejected) +
     (visual.length
       ? '=== THE VISUAL CONTRACT (§4b) — FIX THESE FIRST, BY ADDING A FIGURE ===\n'
         + 'These are missing PICTURES, and the fix is always to put one in — never to delete '
@@ -1474,7 +1525,8 @@ function sanitizeOverlay(doc) {
     }
     if (!loc) return false;
     const k = Array.isArray(loc.parent) ? Number(loc.key) : loc.key;
-    return loc.parent[k] !== undefined;
+    // bd-oak77.42: a board block's derived `/gloss` exists only in the overlay (SYNC §3.27).
+    return loc.parent[k] !== undefined || glossSource(doc, pointer) !== undefined;
   };
 
   const kept = {};
@@ -1583,6 +1635,14 @@ function sanitizeSequence(doc, segment = {}) {
     }
   }
 
+  // bd-oak77.33: a FIRST lesson has no predecessor — the corpus row says so with an explicit
+  // null/empty prev_segment_id. Anything in `previous` then is a topic the model made up, so it
+  // is dropped to null. A row that never carried the field is no evidence either way: left alone.
+  if ('prev_segment_id' in segment && !segment.prev_segment_id && seq.previous != null) {
+    notes.push(`sequence.previous: dropped a predecessor on a first lesson (${seq.previous})`);
+    seq.previous = null;
+  }
+
   if (looksLikeId(seq.this)) {
     const title = segment.subtopic_title || segment.menu_title || segment.chapter_title;
     if (title) {
@@ -1648,6 +1708,9 @@ function applyVideo(doc, video) {
  * `meta` is optional context (correlationId/segmentId/round) for the telemetry line below — it
  * changes nothing about the gate decision, only what a schema failure can be traced back to.
  */
+/** How many schema messages `lp612.author.schema_invalid` carries (was 5, bd-oak77.19). */
+const SCHEMA_INVALID_ERRORS_LOGGED = 20;
+
 async function runGates(doc, renderCheck, meta = {}) {
   const v = validateDoc(doc);
   // The `SCHEMA:` prefix is the lint's own vocabulary for the same finding — worth matching so
@@ -1661,7 +1724,10 @@ async function runGates(doc, renderCheck, meta = {}) {
       segmentId: meta.segmentId || null,
       round: typeof meta.round === 'number' ? meta.round : null,
       errorCount: v.errors.length,
-      errors: v.errors.slice(0, 5),
+      errors: v.errors.slice(0, SCHEMA_INVALID_ERRORS_LOGGED),
+      // bd-oak77.19: the truncation, stated — `errors.length < errorCount` must never read as
+      // "these are all of them".
+      errorsOmitted: Math.max(0, v.errors.length - SCHEMA_INVALID_ERRORS_LOGGED),
     });
     return { schema: v.errors.map((e) => `SCHEMA: ${e}`), lint: [], render: [], warns: [] };
   }
@@ -2202,6 +2268,9 @@ async function authorLessonPlan({
   // three unchanged, so the NEXT round's prompt is identical to this one's) is a named,
   // queryable event instead of something only visible by diffing two ~40k-token log payloads.
   let lastRevisionPromptSha = null;
+  // bd-5w13w FIX: consecutive "worse" rejections since the last kept candidate, and the latest
+  // rejected attempt's defects — fed into buildRevisionPrompt so the retry is NOT a re-issue.
+  let rejected = { count: 0, fails: [] };
 
   /**
    * What is LEFT of the budget — bd-oak77.11.
@@ -2268,7 +2337,7 @@ async function authorLessonPlan({
 
     const fixUser = buildRevisionPrompt({
       doc, gates, originalUser: user, notes: segment.notes, lang: language, targeted: useTargetedRevision,
-      stableFirst: promptCacheOn,
+      stableFirst: promptCacheOn, rejected,
     });
 
     // bd-5w13w: fires the moment THIS round's prompt hashes identically to the last one sent —
@@ -2292,17 +2361,27 @@ async function authorLessonPlan({
     let pointersReplaced = 0;
     const completionTokensBefore = usage.completion_tokens;
 
+    // bd-oak77.19: the reply the targeted call actually got, so a rejection can say what it was.
+    let lastReply = null;
+    const noteReply = (r) => { lastReply = r; };
     const notePatchRejected = (reason, pointers, errors) => {
+      const replyText = lastReply ? String(lastReply.text) : '';
+      const detail = {
+        pointers: pointers.slice(0, 10),
+        errors: (errors || []).slice(0, 10),
+        replyChars: replyText.length,
+        replyPreview: replyText.slice(0, 500),
+        finishReason: (lastReply && lastReply.finishReason) || null,
+      };
       logToFile('lp612 author: targeted patch rejected — falling back to a full rewrite this round', {
-        correlationId, segmentId: segment.segment_id, round: spent, reason,
-        pointers: pointers.slice(0, 10), errors: (errors || []).slice(0, 10),
+        correlationId, segmentId: segment.segment_id, round: spent, reason, ...detail,
       }, 'warn');
       logEvent('lp612.author.patch_rejected', {
         correlationId: correlationId || null,
         segmentId: segment.segment_id || null,
         round: spent,
         reason,
-        pointers: pointers.slice(0, 10),
+        ...detail,
       });
     };
 
@@ -2317,6 +2396,7 @@ async function authorLessonPlan({
         const parsed = await callWithRetry({
           system, user: fixUser, model: chosenModel, correlationId,
           stage: `revision${spent}`, usageSink: addUsage, userCachePrefix: cachePrefix,
+          replySink: noteReply,
         });
         const shape = parseTargetedReply(parsed);
         if (shape.mode === 'full') {
@@ -2333,7 +2413,7 @@ async function authorLessonPlan({
             // existing full-rewrite prompt, once. Worst case this round costs one extra call.
             const fallbackUser = buildRevisionPrompt({
               doc, gates, originalUser: user, notes: segment.notes, lang: language,
-              stableFirst: promptCacheOn,
+              stableFirst: promptCacheOn, rejected,
             });
             candidate = await callWithRetry({
               system, user: fallbackUser, model: chosenModel, correlationId,
@@ -2342,10 +2422,11 @@ async function authorLessonPlan({
             patchMode = 'fallback';
           }
         } else {
-          notePatchRejected('unparseable_shape', []);
+          const why = describeInvalidReply(parsed);
+          notePatchRejected('unparseable_shape', why.pointers, why.errors);
           const fallbackUser = buildRevisionPrompt({
             doc, gates, originalUser: user, notes: segment.notes, lang: language,
-            stableFirst: promptCacheOn,
+            stableFirst: promptCacheOn, rejected,
           });
           candidate = await callWithRetry({
             system, user: fallbackUser, model: chosenModel, correlationId,
@@ -2392,9 +2473,11 @@ async function authorLessonPlan({
     if (notWorseVisual(g2, gates, candidate, doc)) {
       doc = candidate;
       gates = g2;
+      rejected = { count: 0, fails: [] };
       // Published the moment it is KEPT, not at the end — the end may never come (bd-0cdug).
       publish(doc, gates, spent);
     } else {
+      rejected = { count: rejected.count + 1, fails: gateFails(g2).slice(0, 10) };
       // Upstream keeps the rejected candidate on disk — "was worse" with no numbers and no
       // artefact is unreviewable. A worker has nowhere to put it, so the numbers go to the log
       // and the document itself is dropped. Then CONTINUE, not break.
@@ -2675,6 +2758,8 @@ function overlayBrief() {
     '   imperatives («کریں», «پوچھیں») or let the verb agree with a NOUN. A mixed-gender cohort',
     '   reads every one of these lines.',
     '8. URDU PUNCTUATION FOR URDU SENTENCES: ۔ ، ؟ — not . , ?',
+    '9. A KEY ENDING IN /gloss IS NOT A TRANSLATION. Its value is English board text that stays',
+    '   printed as it is; write ONE short Urdu line that explains it to the teacher.',
   ].join('\n');
 }
 
@@ -2690,7 +2775,7 @@ function buildOverlayPrompt({ lpDoc, segment, targets }) {
   const prov = (lpDoc && lpDoc.provenance) || {};
   const seg = segment || {};
   const map = {};
-  for (const ptr of targets) map[ptr] = pointerGet(lpDoc, ptr);
+  for (const ptr of targets) map[ptr] = glossSource(lpDoc, ptr) ?? pointerGet(lpDoc, ptr);
   return [
     `SUBJECT: ${seg.subject || prov.subject || 'unknown'}`,
     `GRADE: ${seg.grade || prov.grade || 'unknown'}`,
@@ -2859,7 +2944,7 @@ async function overlayLessonPlan({
     throw fail('OVERLAY_TOO_THIN',
       `the overlay covers ${Object.keys(kept).length} of ${targets.length} strings `
       + `(${(coverage * 100).toFixed(1)}%); the floor is ${OVERLAY_MIN_COVERAGE * 100}%. `
-      + defects[0].msg,
+      + defects.map((d) => d.msg).join(' '),   // bd-oak77.40: an objectives gap can ride with it
       { coverage });
   }
 
@@ -3175,6 +3260,7 @@ module.exports = {
   deriveAllowedPointers,
   applyReplacements,
   parseTargetedReply,
+  describeInvalidReply,
   __notWorseVisualForTests: (a, b, ad, bd) => notWorseVisual(a, b, ad, bd),
   pythonDictToJson,
   __extractJsonForTests: extractJson,
