@@ -128,5 +128,24 @@ class AuditRow(unittest.TestCase):
             m.audit_row(d, run_id="run-1")
 
 
+class SkipRoles(unittest.TestCase):
+    def test_a_skipped_role_is_reported_not_linked(self):
+        d = m.classify_user([row(role="principal")], skip_roles={"principal"})
+        self.assertEqual(d["decision"], "skipped_role_principal")
+        self.assertIsNone(d["target_school_id"])
+
+    def test_skip_roles_leaves_other_roles_untouched(self):
+        d = m.classify_user([row(role="teacher")], skip_roles={"principal"})
+        self.assertEqual(d["decision"], "backfill")
+
+    def test_skip_roles_threads_through_classify_all(self):
+        ds = m.classify_all([row(user_id="a", role="principal"), row(user_id="b")], skip_roles={"principal"})
+        self.assertEqual(sorted(d["decision"] for d in ds), ["backfill", "skipped_role_principal"])
+
+    def test_an_already_linked_principal_is_still_already_linked(self):
+        d = m.classify_user([row(role="principal", current_school_id="s1")], skip_roles={"principal"})
+        self.assertEqual(d["decision"], "already_linked")
+
+
 if __name__ == "__main__":
     unittest.main()

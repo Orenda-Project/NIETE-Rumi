@@ -18,6 +18,9 @@ Output: one decision per user.
   skipped_inactive_school unlinked; every roster school is inactive
   skipped_role_coach      a coach account listed as a teacher; linking it would put the coach
                           into that school's derived patch (leader_schools x users.school_id)
+  skipped_role_<role>     unlinked, and the caller asked to hold this role back (skip_roles) — e.g.
+                          a principal's users.school_id also grants that school's staff-attendance
+                          register, so linking one is an access decision, not a data fix
   no_roster_school        the roster rows carry no resolvable school
 """
 from collections import Counter, OrderedDict
@@ -33,7 +36,7 @@ def _usable(flags):
     return flags["is_active"] and not flags["is_probable_test"]
 
 
-def classify_user(rows):
+def classify_user(rows, skip_roles=None):
     if not rows:
         raise ValueError("classify_user needs at least one row")
     first = rows[0]
@@ -65,6 +68,10 @@ def classify_user(rows):
         return {**base, "decision": "conflict",
                 "reason": "users.school_id is set to a school the roster does not name; needs a human"}
 
+    if skip_roles and role in skip_roles:
+        return {**base, "decision": f"skipped_role_{role}",
+                "reason": f"role '{role}' held back by the caller; linking it is not only a data fix"}
+
     if role == "coach":
         return {**base, "decision": "skipped_role_coach",
                 "reason": "coach account on a teacher roster; a coach must not be linked as a school's teacher"}
@@ -91,11 +98,11 @@ def classify_user(rows):
     return {**base, "decision": "skipped_inactive_school", "reason": "every roster school is inactive"}
 
 
-def classify_all(rows):
+def classify_all(rows, skip_roles=None):
     by_user = OrderedDict()
     for r in rows:
         by_user.setdefault(r["user_id"], []).append(r)
-    return [classify_user(v) for v in by_user.values()]
+    return [classify_user(v, skip_roles=skip_roles) for v in by_user.values()]
 
 
 def summarize(decisions):
