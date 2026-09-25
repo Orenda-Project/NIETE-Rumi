@@ -1013,7 +1013,7 @@ titles and must NEVER appear in your output, least of all in \`sequence\`, which
 teacher reads on page 1): comes after [${segment.prev_segment_id || 'nothing'}], comes
 before [${segment.next_segment_id || 'nothing'}]. In \`sequence.previous\` and
 \`sequence.next\` write the TOPIC NAME of those lessons in the teacher's language, or
-null if you do not know it.${segment.prev_segment_id ? '' : '\nThis is the FIRST lesson — nothing comes before it, so `sequence.previous` MUST be null.'}
+null if you do not know it.${segment.prev_segment_id ? '' : '\nThis is the FIRST lesson — nothing comes before it, so `sequence.previous` MUST be null.'}${segment.next_segment_id ? '' : '\nThis is the LAST lesson — nothing comes after it, so `sequence.next` MUST be null.'}
 
 ## THE SLO THIS SEGMENT CARRIES (quote it verbatim into slo.text_verbatim)
 ${segment.slo_text || '(none recorded on the segment — take one verbatim from the page-truth below)'}
@@ -1641,6 +1641,12 @@ function sanitizeSequence(doc, segment = {}) {
   if ('prev_segment_id' in segment && !segment.prev_segment_id && seq.previous != null) {
     notes.push(`sequence.previous: dropped a predecessor on a first lesson (${seq.previous})`);
     seq.previous = null;
+  }
+
+  // bd-oak77.38: the mirror at the other end — a LAST lesson has no successor.
+  if ('next_segment_id' in segment && !segment.next_segment_id && seq.next != null) {
+    notes.push(`sequence.next: dropped a successor on a last lesson (${seq.next})`);
+    seq.next = null;
   }
 
   if (looksLikeId(seq.this)) {

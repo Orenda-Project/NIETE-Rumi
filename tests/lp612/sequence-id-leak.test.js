@@ -161,6 +161,50 @@ describe('bd-oak77.33 — first lesson: no fabricated sequence.previous', () => 
   });
 });
 
+// bd-oak77.38 — the mirror of .33 at the other end of the chapter. A LAST lesson has no
+// successor; the corpus says so with a null next_segment_id, and anything in `next` is a topic
+// the model made up.
+describe('bd-oak77.38 — last lesson: no fabricated sequence.next', () => {
+  const LAST = { ...SEGMENT, next_segment_id: null };
+
+  test('a human-looking next is nulled when the segment has no next_segment_id', () => {
+    const doc = { sequence: { previous: 'Earlier topic', this: 'Lesson', next: 'Chapter review' } };
+    const notes = sanitizeSequence(doc, LAST);
+
+    expect(doc.sequence.next).toBeNull();
+    expect(doc.sequence.previous).toBe('Earlier topic');   // a real previous is not touched
+    expect(notes.some((n) => /sequence\.next/.test(n))).toBe(true);
+  });
+
+  test('an empty-string next_segment_id counts as "no successor" too', () => {
+    const doc = { sequence: { this: 'Lesson', next: 'Whatever comes after' } };
+    sanitizeSequence(doc, { ...SEGMENT, next_segment_id: '' });
+    expect(doc.sequence.next).toBeNull();
+  });
+
+  test('an already-null next stays null and adds no note', () => {
+    const doc = { sequence: { this: 'Lesson', next: null } };
+    expect(sanitizeSequence(doc, LAST)).toEqual([]);
+  });
+
+  test('a segment row that never carried the field (unknown position) is left alone', () => {
+    const doc = { sequence: { this: 'Lesson', next: 'Acids and bases' } };
+    const { next_segment_id, ...noField } = SEGMENT; // eslint-disable-line no-unused-vars
+    expect(sanitizeSequence(doc, noField)).toEqual([]);
+    expect(doc.sequence.next).toBe('Acids and bases');
+  });
+
+  test('the prompt tells the model sequence.next must be null on a last lesson', () => {
+    const { buildUserPrompt } = require('../../bot/shared/services/lp612-author.service');
+    const args = { bundle: { book: {}, toc: {}, pages: [] }, lang: 'en', video: null };
+    const last = buildUserPrompt({ ...args, segment: LAST });
+    const middle = buildUserPrompt({ ...args, segment: SEGMENT });
+
+    expect(last).toMatch(/LAST lesson[^\n]*`sequence\.next` MUST be null/);
+    expect(middle).not.toMatch(/LAST lesson/);
+  });
+});
+
 describe('bd-w56zx — the prompt must not label internal ids with output-field names', () => {
   const { buildUserPrompt } = require('../../bot/shared/services/lp612-author.service');
 
