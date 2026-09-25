@@ -1695,27 +1695,32 @@ const UX_STRINGS = {
   // No recording exists on this path, so the copy says "planned", never
   // "taught". {topic} is the catalog topic of the lesson the quiz is written
   // from; in Urdu it is first-strong isolated because it may be either script.
-  // Digits passed into the Urdu variants are Urdu digits (the caller converts).
+  // {q} is the question count. Every number (q, grade, n) is filled by the caller:
+  // Western digits, as the coaching offer and the pre-send PDF write them inside
+  // Urdu; LP_QUIZ_OFFER_NATIVE_DIGITS=on makes them Urdu digits (U+06F0-06F9).
   lpQuizOfferOne: {
-    en: 'You planned “{topic}” for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
-    ur: 'آپ نے آج «⁨{topic}⁩» کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+    en: 'You planned “{topic}” for today. I can make a short {q}-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج «⁨{topic}⁩» کا سبق پلان کیا۔ اس پر {q} سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
   },
   // A lesson the catalog has no topic for — named by its class instead.
   lpQuizOfferOneUntitled: {
-    en: 'You planned a Grade {grade} {subject} lesson for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
-    ur: 'آپ نے آج جماعت {grade} کے {subject} کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+    en: 'You planned a Grade {grade} {subject} lesson for today. I can make a short {q}-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج جماعت {grade} کے {subject} کا سبق پلان کیا۔ اس پر {q} سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
   },
   // Several lessons, one class. The quiz is written from ONE lesson (the first
   // planned), so the copy names it rather than promising all of them.
   lpQuizOfferClass: {
-    en: 'You planned {n} Grade {grade} {subject} lessons for today. I can make a short 8-question quiz on the first one, “{topic}”, that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
-    ur: 'آپ نے آج جماعت {grade} کے {subject} کے {n} اسباق پلان کیے۔ پہلے سبق «⁨{topic}⁩» پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+    en: 'You planned {n} Grade {grade} {subject} lessons for today. I can make a short {q}-question quiz on the first one, “{topic}”, that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج جماعت {grade} کے {subject} کے {n} اسباق پلان کیے۔ پہلے سبق «⁨{topic}⁩» پر {q} سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
   },
   lpQuizOfferListBody: {
-    en: 'You planned lessons for {n} classes today. Pick a class and I will make a short 8-question quiz on its first lesson, for your students to take on WhatsApp, with a report on what to reteach.',
-    ur: 'آپ نے آج {n} کلاسوں کے اسباق پلان کیے۔ ایک کلاس چنیں — اس کے پہلے سبق پر ۸ سوالوں کا مختصر quiz بن جائے گا، طلبہ اسے WhatsApp پر حل کریں اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔',
+    en: 'You planned lessons for {n} classes today. Pick a class and I will make a short {q}-question quiz on its first lesson, for your students to take on WhatsApp, with a report on what to reteach.',
+    ur: 'آپ نے آج {n} کلاسوں کے اسباق پلان کیے۔ ایک کلاس چنیں — اس کے پہلے سبق پر {q} سوالوں کا مختصر quiz بن جائے گا، طلبہ اسے WhatsApp پر حل کریں اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔',
   },
   lpQuizOfferListButton: { en: 'Choose a class', ur: 'کلاس چنیں' },
+  // Caption on the intro film that goes ahead of a list offer (a list message
+  // cannot carry a video header, so the film is its own message).
+  lpQuizOfferFilmCaption: { en: 'How a quiz from your lesson plan works', ur: 'سبق کے پلان سے quiz کیسے بنتا ہے' },
   // List row title, 24 code points. The caller shortens a long subject first.
   lpQuizOfferRowTitle: { en: 'Grade {grade} · {subject}', ur: 'جماعت {grade} · {subject}' },
   lpQuizOfferRowDesc: { en: '{topics}', ur: '⁨{topics}⁩' },
