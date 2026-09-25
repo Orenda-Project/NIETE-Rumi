@@ -209,6 +209,9 @@ def main():
     ap.add_argument("--promote-unregistered", action="store_true",
                     help="also set role='teacher' on 'unregistered' rows being linked (mirrors the coach "
                          "add-teacher path). Default: link only, role untouched")
+    ap.add_argument("--skip-role", action="append", default=[], metavar="ROLE",
+                    help="hold this role back (repeatable), e.g. --skip-role principal: a principal's "
+                         "school_id also grants the school's staff-attendance register")
     ap.add_argument("--confirm-ref", default=None, help="with --commit on prod: the prod project ref, typed out")
     a = ap.parse_args()
 
@@ -220,13 +223,15 @@ def main():
     conn = connect(read_env(a.env_file), a.target, writable=a.commit)
     run_id = f"roster-school-backfill-{a.target}-{uuid.uuid4().hex[:8]}"
     rows = fetch_candidates(conn)
-    decisions = logic.classify_all(rows)
+    decisions = logic.classify_all(rows, skip_roles=set(a.skip_role))
     counts = logic.summarize(decisions)
     promote_n = sum(1 for d in decisions if d["decision"] == "backfill" and d["promote_to_teacher"])
 
     print(f"[{a.target}] roster rows={len(rows)} users={len(decisions)} run_id={run_id}")
-    for k in logic.DECISIONS:
+    for k in list(logic.DECISIONS) + sorted(k for k in counts if k not in logic.DECISIONS):
         print(f"  {k:24s} {counts.get(k, 0):6d}")
+    if a.skip_role:
+        print(f"  held back by --skip-role: {', '.join(sorted(a.skip_role))}")
     print(f"  unregistered among backfill: {promote_n} "
           f"({'WILL be promoted to teacher' if a.promote_unregistered else 'linked only, role untouched'})")
     summary = write_outputs(a.out, a.target, run_id, decisions, counts, dry_run=not a.commit)
