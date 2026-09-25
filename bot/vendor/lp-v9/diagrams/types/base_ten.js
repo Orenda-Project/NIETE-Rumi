@@ -201,7 +201,10 @@ function render(spec) {
   const cols = PLACES.slice(first);
 
   const heads = { ...DEFAULT_LABELS[isUr ? "ur" : "en"], ...((spec.labels && typeof spec.labels === "object") ? spec.labels : {}) };
-  const headSize = SIZE.label * 1.4;
+  // The heads are the mat's only text, so they carry its legibility: at 1.4 a four-place blocks
+  // mat (1310 wide) put them at 7.05px on the phone, under the 8.74px floor. 1.75 gives 8.82px
+  // there and widens no other mat past the floor (bd-oak77.15).
+  const headSize = SIZE.label * 1.75;
   const headW = (s) => measure(String(s), headSize, { lang: hasUrdu(String(s)) ? "ur" : "en" }) * (hasUrdu(String(s)) ? 1.3 : 1.05);
   const headH = headSize * (isUr ? 2.2 : 1.5);
   const PADC = 16;       // inside a column's panel

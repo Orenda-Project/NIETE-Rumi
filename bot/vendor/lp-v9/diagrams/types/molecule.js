@@ -32,7 +32,7 @@
 
 const OCL = require("openchemlib");
 const { Svg, C, SIZE, FONT, hashId, hasUrdu } = require("../lib/svg");
-const { drawFormula, formulaWidth, chromeWidth } = require("./chem_equation");
+const { drawFormula, formulaWidth, chromeWidth, isFormula } = require("./chem_equation");
 
 const PAD = 14;
 
@@ -295,8 +295,12 @@ const FORMULA_SIZE = 27;
 
 function render(spec) {
   const s = spec || {};
-  const name = s.name ? String(s.name) : "";
-  const formula = s.formula ? String(s.formula) : "";
+  // Prose in the formula slot (bd-oak77.24) joins the name line: it is never fed to the
+  // formula typesetter, which drops spaces. lint_lp.js flags the spec so the author fixes it.
+  const rawFormula = s.formula ? String(s.formula) : "";
+  const prose = rawFormula && !isFormula(rawFormula) ? rawFormula : "";
+  const name = [s.name ? String(s.name) : "", prose].filter(Boolean).join(" — ");
+  const formula = prose ? "" : rawFormula;
   const bodyW = Math.max(420, chromeWidth(s, 660), Math.min(660, s.w ?? 520));
 
   // The uid must be known BEFORE the builder exists (the fragment carries it in

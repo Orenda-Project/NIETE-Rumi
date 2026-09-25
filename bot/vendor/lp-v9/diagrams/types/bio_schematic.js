@@ -583,7 +583,7 @@ function renderHeartLoop(spec, L) {
   svg.line(cx - hw / 2 + 4, hTop + hh * 0.4, cx + hw / 2 - 4, hTop + hh * 0.4, { stroke: C.ink, sw: 1.5 });
   if (showLabels) {
     const t = (x, y, s) =>
-      svg.text(x, y, s, { size: SIZE.tiny, anchor: "middle", baseline: "middle", weight: 700, fill: C.ink, lang: "en" });
+      svg.text(x, y, s, { size: SIZE.small, anchor: "middle", baseline: "middle", weight: 700, fill: C.ink, lang: "en" });
     t(cx - hw / 4, hTop + hh * 0.2, L.ra);
     t(cx - hw / 4, hTop + hh * 0.7, L.rv);
     t(cx + hw / 4, hTop + hh * 0.2, L.la);

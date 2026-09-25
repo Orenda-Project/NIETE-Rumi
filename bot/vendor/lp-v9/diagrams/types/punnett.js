@@ -215,10 +215,12 @@ function render(spec) {
   const gutterT = showParents ? (lang === "ur" ? 40 : 28) : 0;
 
   const legendOn = byPheno && phenoEntries.length > 1;
+  // The phenotype legend is set at SIZE.caption, not SIZE.small: at 13 a dihybrid square (690
+  // wide) put it at 8.57px on the phone, under the 8.74px floor; 13.5 gives 8.9px (bd-oak77.15).
   const legendEntryW = (e) =>
     hasUrdu(e.label)
-      ? measure(e.label, SIZE.small, { lang: "ur" }) * 1.25 + SIZE.small + 26 + 4 + 28
-      : measure(`${e.label} (${e.count})`, SIZE.small) + 30;
+      ? measure(e.label, SIZE.caption, { lang: "ur" }) * 1.25 + SIZE.caption + 26 + 4 + 28
+      : measure(`${e.label} (${e.count})`, SIZE.caption) + 30;
   const legendW = legendOn
     ? Math.max(140, Math.min(240, Math.max(...phenoEntries.map(legendEntryW)) + 8))
     : 0;
@@ -393,9 +395,9 @@ function render(spec) {
       if (isUr) {
         // an Urdu box is right-aligned inside itself, so size it to the text and
         // centre it, or the label drifts to the far edge of the panel
-        const w = measure(txt, SIZE.small, { lang: "ur" }) * 1.25 + SIZE.small;
+        const w = measure(txt, SIZE.caption, { lang: "ur" }) * 1.25 + SIZE.caption;
         svg.text(lx + 26 + w / 2, ly, txt, {
-          size: SIZE.small,
+          size: SIZE.caption,
           baseline: "middle",
           fill: C.text,
           lang: "ur",
@@ -403,14 +405,14 @@ function render(spec) {
           w,
         });
         svg.text(lx + 26 + w + 6, ly, `(${e.count})`, {
-          size: SIZE.small,
+          size: SIZE.caption,
           baseline: "middle",
           fill: C.muted,
           lang: "en",
         });
       } else {
         svg.text(lx + 26, ly, txt, {
-          size: SIZE.small,
+          size: SIZE.caption,
           baseline: "middle",
           fill: C.text,
           lang: "en",

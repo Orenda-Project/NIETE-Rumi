@@ -1708,6 +1708,7 @@ function v9Gates(doc, ctx) {
     }
     for (const { where, spec } of gSpecs) for (const d of graphDefects(spec, where)) fail(d.code, d.msg);
     for (const { where, spec } of gSpecs) for (const d of atomDefects(spec, where)) fail(d.code, d.msg);
+    for (const { where, spec } of gSpecs) for (const d of moleculeFormulaDefects(spec, where)) fail(d.code, d.msg);
     for (const { where, spec } of gSpecs) for (const d of specContractDefects(spec, where)) fail(d.code, d.msg);
     // The lesson's own prose is the authority on which mirror/lens this lesson is about;
     // the diagram's title and caption are excluded on purpose -- they are being checked.
@@ -2434,6 +2435,20 @@ function atomDefects(spec, where) {
   return out;
 }
 
+// bd-oak77.24 — prose in a molecule's formula slot. The engine degrades it to the name line
+// rather than typesetting it run-together, but the spec is still wrong, so it is a FIGURE fail.
+const MOLECULE_TYPES = new Set(["molecule", "smiles", "structure"]);
+function moleculeFormulaDefects(spec, where) {
+  if (!spec || typeof spec !== "object" || !MOLECULE_TYPES.has(spec.type) || !spec.formula) return [];
+  const { isFormula } = require("./diagrams/types/chem_equation");
+  if (isFormula(spec.formula)) return [];
+  return [{
+    code: "FIGURE",
+    msg: `${where}: molecule "formula" is prose, not a chemical formula: "${String(spec.formula).slice(0, 50)}". `
+      + `Put a formula (C6H12O6) or a SMILES there, and the words in "name" or "caption".`,
+  }];
+}
+
 function graphDefects(spec, where) {
   const out = [];
   if (!spec || typeof spec !== "object" || !GRAPH_TYPES.has(spec.type)) return out;
@@ -2740,7 +2755,7 @@ function overlayChromeGaps(doc) {
 }
 overlayDefects.chromeGaps = overlayChromeGaps;
 
-module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, specContractDefects, rayDiagramDefects,
+module.exports = { lint, fixChemInPlace, distractorVisible, unworded, normQ, v9Gates, graphDefects, atomDefects, moleculeFormulaDefects, specContractDefects, rayDiagramDefects,
   // Exported so the author worker's reuse lane can ask the SAME rule gate 12b asks. That lane
   // never calls `lint`, and a stored pre-shape body reached prod through it (bd-jpfww).
   oneScreenShapeDefects, ONESCREEN_BEATS, overlayChromeGaps,

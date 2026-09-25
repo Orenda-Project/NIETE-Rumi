@@ -1185,11 +1185,65 @@ fixes are all in the frame test, each marked `VENDOR DIVERGENCE (bd-oak77.34)`:
 Upstream (`.claude/skills/curriculum-baked-lesson-plans/scripts/lp_html/lint_lp.js`) has none of this.
 Offer the same patch upstream, and keep it at the next re-sync.
 
+### 3.26 The diagram label floor, prose in a molecule formula, and a long warm-up label — `diagrams/lib/svg.js`, `diagrams/types/{bio_schematic,flow,labelled_figure,ray_diagram,timeline,base_ten,count_frame,punnett,chem_equation,molecule}.js`, `lint_lp.js`, `lib/template.js` (2026-09-25)
+
+* **The diagram label floor is one constant, 14 at the A4 measure (bd-oak77.15, option C).**
+  * `diagrams/lib/svg.js` exports `MIN_LABEL_PX = 14`, and `requiredBox()` defaults to it.
+  * `lib/template.js` takes `DIAGRAM_MIN_PX_A4` from it (was 13.5). `DIAGRAM_MIN_PX` is still that
+    value scaled by the figure column, so it is now 14 × 455/729 = **8.74px** on the phone page
+    (was 8.43).
+  * Lint 10d and `figureSlot()` already read `DIAGRAM_MIN_PX`, so they follow.
+
+  Page geometry and the body/chip floors are unchanged. Raising the floor to the 16.33px chip size
+  would be a redesign and is out of scope.
+
+  Two sets of changes bring every engine example up to 8.74px at FULL_COL with 0 overlaps. Test:
+  `tests/lp612/diagram-label-floor.test.js`.
+  * **Ported from upstream (f439c00):**
+    * bio_schematic's heart-loop label, the flow tag, the ray-diagram axis handle and the
+      timeline detail/era labels go from `SIZE.tiny` to `SIZE.small`.
+  * **Vendor-only, kept divergences.** Upstream measures at the A4 column, where these already pass:
+    * `labelled_figure` `MAXW` is 676. Upstream uses 696, which is its A4 figure; at the 455px
+      phone column the limit is 676.
+    * `base_ten` heads are `SIZE.label * 1.75` (was 1.4). The heads are the mat's only text, and a
+      four-place blocks mat (1310 wide) had put them at 7.05px; they are now 8.82px.
+    * `count_frame`: two ten-frames use a 61-unit cell (was 66), so the figure is 668 wide
+      (was 718). A frame with no text is judged at the `SIZE.small` fallback; it is now 8.85px
+      (was 8.24). A single frame keeps 66.
+    * `punnett`'s phenotype legend is `SIZE.caption` (was `SIZE.small`). The dihybrid square is now
+      8.9px (was 8.57).
+
+* **Prose in a `molecule` formula slot (bd-oak77.24).** The formula typesetter drops every space,
+  so `formula: "phospholipid (bacterial membrane component)"` printed as one run-together word.
+  There are three changes:
+  * `chem_equation.js` gains `isFormula()` (exported): a string with two lower-case letters in a
+    row, outside a state symbol, is a word and not a formula.
+  * `molecule.js` stops typesetting such a string and appends it to the name line instead.
+  * `lint_lp.js` adds `moleculeFormulaDefects()` (exported), which reports a blocking `FIGURE`
+    defect for the `molecule`/`smiles`/`structure` types.
+
+  **Upstream already has the first two changes.** The code is the same as upstream's, and only the
+  comment in `molecule.js` is worded differently. Its lint check
+  (10f) has the same message, but it sits inside the `full`-gated diagram-render loop and covers
+  section diagrams only. Here it runs in the `gSpecs` loop (not gated on `full`, and it also covers
+  `page2.board_final.diagram`), next to `atomDefects()`. Test:
+  `tests/lp612/molecule-formula-prose.test.js`.
+* **A long SPACED REVIEW label no longer squeezes the warm-up question (bd-oak77.31).**
+  * `.wu .kind` gains `max-width:50%`.
+  * A label longer than `WU_OWN_LINE_CHARS` (32 visible characters) gets the class `kind own`.
+    `.wu .kind.own` is `float:none; display:block`, so the label sits on its own line under the
+    question.
+  * Short labels keep the float, and their markup is byte-identical.
+
+  **This is a kept divergence.** Upstream's fix is a flex rule (`flex`/`min-width` on
+  `.kind`/`.q`), but this tree's warm-up row is a float layout (bd-a8veu.5), so that rule does not
+  apply here. Test: `tests/lp612/warmup-provenance-layout.test.js`.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
-exception of the four `glue` marks in `lib/template.js` recorded in §3.9. The `diagrams/` tree is
-byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) §3.20 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`), §3.21 (`types/match.js`'s `handleLetters`, `types_manifest.json`), §3.22 (`types/count_objects.js`'s row `color`, `types_manifest.json`) and §3.23 (`types/count_objects.js`'s counts of 1 and 0, `types/count_frame.js`'s empty ten-frame, `types_manifest.json`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), and §3.11 for its three new checks
+exception of the four `glue` marks in `lib/template.js` recorded in §3.9 and the warm-up label rule and the engine-owned `DIAGRAM_MIN_PX_A4` in `lib/template.js` recorded in §3.26. The `diagrams/` tree is
+byte-identical apart from §3.12 (`index.js`, plus the new `lib/tex.js`), §3.16 (`lib/tokens.js`, the Urdu font stack), §3.17 (`lib/pictogram.js`, the school-bag glyph), §3.18 (`lib/pictogram.js` again, the new `types/base_ten.js`, `types/count_objects.js`, `types_manifest.json`; `visual_check.js` also carries §3.18) §3.20 (`types/base_ten.js`'s thousands place, `types_manifest.json`, `lib/pictogram.js`'s date/samosa/bangle and aliases, and three OpenMoji glyphs added to `assets/pictograms/`), §3.21 (`types/match.js`'s `handleLetters`, `types_manifest.json`), §3.22 (`types/count_objects.js`'s row `color`, `types_manifest.json`) and §3.23 (`types/count_objects.js`'s counts of 1 and 0, `types/count_frame.js`'s empty ten-frame, `types_manifest.json`) and §3.26 (`types/chem_equation.js`'s `isFormula()` and `types/molecule.js`'s prose degrade, which differ only until the next re-sync because both are already upstream; `lib/svg.js`'s `MIN_LABEL_PX` and the `SIZE.tiny`→`SIZE.small` changes in `types/bio_schematic.js`, `types/flow.js`, `types/ray_diagram.js` and `types/timeline.js`, which are also upstream; and the kept phone-column divergences in `types/labelled_figure.js`, `types/base_ten.js`, `types/count_frame.js` and `types/punnett.js`). `lint_lp.js` is no longer wholesale byte-identical — see §3.13 for the two `overlayTargets()` fixes and `overlayChromeGaps()`, §3.14 for the G5c cleared-name list (which also adds `g5c_cleared_names.json`, a file upstream does not have), §3.15 for its Latin-lane twin (which adds `g5c_cleared_names_en.json`, likewise), §3.26 for `moleculeFormulaDefects()`, and §3.11 for its three new checks
 (render-laws 22-24): two of the three (WARMTOPIC, LABELACT's English half) landed as identical
 hunks in both trees, one (LABELACT's Urdu half) is a genuine kept divergence, and one (REDUNDANT's
 message text) is a cosmetic one. The renderer's `MAX_PAGES` / `WARN_PAGES` / `BODY_FLOOR_PX` /

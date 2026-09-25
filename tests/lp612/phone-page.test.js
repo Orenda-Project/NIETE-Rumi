@@ -244,7 +244,7 @@ describe('v9.3 — what a narrow measure breaks, and what was done about it', ()
     //                                                  FIG_CHROME did not shrink with the page
     //   8.43 (scaled by FULL_COL) -> 8 across   8    — today's set, exactly
     const { DIAGRAM_MIN_PX, DIAGRAM_MIN_PX_A4, FULL_COL, FULL_COL_A4, pageScaled } = TPL;
-    expect(DIAGRAM_MIN_PX_A4).toBe(13.5);
+    expect(DIAGRAM_MIN_PX_A4).toBe(14);   // bd-oak77.15 option C: MIN_LABEL_PX, was 13.5
     // derived, never a second literal — 2dp for the same reason `scaledPx` is 2dp
     expect(DIAGRAM_MIN_PX).toBeCloseTo(DIAGRAM_MIN_PX_A4 * (FULL_COL / FULL_COL_A4), 2);
     // and NOT the page ratio, which is the mistake this test exists to pin

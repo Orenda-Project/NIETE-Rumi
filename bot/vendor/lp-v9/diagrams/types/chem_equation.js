@@ -102,6 +102,17 @@ function parseFormula(src, o = {}) {
   return out;
 }
 
+/**
+ * Is this string a chemical formula, or prose that landed in a formula slot? An element
+ * symbol is one capital and at most one lower-case letter, so two lower-case letters in a
+ * row — outside a state symbol like (aq) — can only be a word (bd-oak77.24: the tokenizer
+ * drops spaces, so prose printed as "phospholipid(bacterialmembranecomponent)").
+ */
+function isFormula(src) {
+  const s = String(src ?? "").replace(/\((s|l|g|aq)\)/g, "");
+  return s.trim() !== "" && !/[a-z]{2}/.test(s);
+}
+
 /** Place every token on its own x, returning the total advance. */
 function layoutFormula(src, base, o = {}) {
   const toks = parseFormula(src, o);
@@ -495,6 +506,7 @@ module.exports = {
   render,
   // helpers other type modules reuse (molecule.js prints formulae with these)
   parseFormula,
+  isFormula,
   layoutFormula,
   drawFormula,
   formulaWidth,
