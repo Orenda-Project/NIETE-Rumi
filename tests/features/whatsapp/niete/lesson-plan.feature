@@ -432,6 +432,33 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the list has one row per class titled like "Grade 4 · Mathematics", each showing that class's lesson topics
     And the last row is "Not today"
 
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: A teacher's first afternoon offer carries the intro film in their language
+    Given LP_QUIZ_OFFER_INTRO_VIDEO_UR and LP_QUIZ_OFFER_INTRO_VIDEO_EN name films in the bucket
+    And the NIETE bot chat is open on an English-speaking teacher who took one K-5 lesson plan today before 14:00 PKT
+    And the teacher has never been shown the afternoon offer's film
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the offer arrives with the English film as its video, above the same text and the buttons "Make the quiz" and "No thanks"
+    And on the teacher's next afternoon offer there is no film
+    # LP_QUIZ_OFFER_INTRO_VIDEO_SHOWS (default 1) showings per teacher, counted in user_feature_first_use under
+    # 'lp_quiz_offer' — the coaching offer's film count is separate. A film that fails to send leaves plain buttons.
+
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: A list offer sends the intro film first, then the list
+    Given the offer films are configured
+    And the NIETE bot chat is open on a teacher who planned lessons for two classes today and has never been shown the film
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the film arrives first as its own video, with a one-line caption
+    And the list of classes arrives after it
+    # A list message cannot carry a video header.
+
+  @e2e @quiz @language @wip @draft @config-gated @P2
+  Scenario: The Urdu afternoon offer writes its numbers in Western digits
+    Given the NIETE bot chat is open on an Urdu-speaking teacher who planned lessons for two classes today
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the offer says "8 سوالوں" and the rows read like "جماعت 4 · ریاضی", with no Urdu digits
+    # Same as the coaching offer and the quiz PDF. LP_QUIZ_OFFER_NATIVE_DIGITS=on brings back ۸ / ۴.
+
   @e2e @quiz @wip @draft @config-gated @negative @P2
   Scenario: A teacher coached today is not offered the afternoon quiz
     Given the NIETE bot chat is open on a teacher who took a lesson plan today
