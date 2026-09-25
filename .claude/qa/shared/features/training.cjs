@@ -826,6 +826,14 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
     const CHILD_PREFIX = '9230099';
     const child = (n) => api.as(CHILD_PREFIX + String(n).padStart(5, '0'));
     const URDU = /[؀-ۿ]/;
+    // flowClick matches LITERAL text (findItem: includes), unlike openFlow's regex: an alternation like
+    // 'Start the quiz|quiz شروع کریں' matches nothing (run 20260925-0958: every child join and every
+    // lesson-screen Continue silently did not click). Click a footer by the label the probe shows.
+    const clickFooter = async (actor, o2) => {
+      const pr = await actor.flowProbe(); const f = (pr.items || []).find(i => i.kind === 'footer');
+      if (!f) return { ok: false, err: 'NO_FOOTER', items: (pr.items || []).map(i => i.kind + ':' + String(i.text || '').slice(0, 30)) };
+      return actor.flowClick(String(f.text), { settleMs: 3000, exact: true, ...(o2 || {}) });
+    };
     const waitOn = async (actor, pred, timeoutMs, stepMs = 1500) => {
       const t0 = Date.now(); const seen = [];
       while (Date.now() - t0 < timeoutMs) {
@@ -848,7 +856,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
         const pr = await kid.flowProbe(); ev.joinScreen = { screen: pr.screen, text: String(pr.text || '').slice(0, 160) };
         await kid.flowType(name, { field: 'student_name' }); await kid.flowType(cls, { field: 'student_class' });
         await kid.freshReset();
-        const s = await kid.flowClick('Start the quiz|quiz شروع کریں', { settleMs: 3000 }); kid.closeFlow();
+        const s = await clickFooter(kid); kid.closeFlow();
         ev.joinVia = 'flow'; ev.submit = s.ok;
       } else if (/name|نام/i.test(g.txt || '')) {
         const cp = await kid.sendWait(name); ev.classPrompt = (cp.txt || '').slice(0, 160); await kid.freshReset(); await kid.sendWait(cls); ev.joinVia = 'chat';
@@ -907,10 +915,10 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       if (!a) return { ok: false, err: 'NO_ACTION', offered: (pr.items || []).filter(i => i.kind === 'option').map(i => i.text) };
       const p = await api.flowPick(a.text, { exact: true }); if (!p.ok) return { ok: false, err: 'PICK:' + p.err };
       await api.freshReset();
-      const c = await api.flowClick('Continue|Next|Done|آگے', { settleMs: 3000 });
+      const c = await clickFooter(api);
       if (!c.ok) { api.closeFlow(); return { ok: false, err: 'CONTINUE:' + c.err, picked: a.text }; }
       const done = await api.flowProbe();   // a SUCCESS completion has already closed the Flow (screen undefined)
-      if (done.screen === 'DONE') { await api.flowClick('Close|Done|بند', { settleMs: 1500 }).catch(() => null); }
+      if (done.screen === 'DONE') { await clickFooter(api, { settleMs: 1500 }).catch(() => null); }
       api.closeFlow();
       return { ok: true, picked: a.text, doneScreen: done.screen || 'SUCCESS', doneText: String(done.text || '').slice(0, 200) };
     };
