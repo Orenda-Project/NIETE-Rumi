@@ -217,6 +217,9 @@ exports.run = async (ctx) => {
     } catch (e) { errors.push('T69:' + e.message); blocked('T69', 'threw: ' + short(e.message, 200)); }
     finally { try { await api.setRole('teacher'); seeds.role = null; } catch (_) {} }
 
+    // a recording of the driver's own, so /quiz lists 'From transcript' whichever driver this machine holds
+    const TF = path.join(__dirname, '..', 'fixtures', 'whatsapp', 'niete', 'quiz', 'transcript-fractions-en.txt');
+    let cs = dbJson('seed-coaching-session', ['--transcript-file', TF, '--language', 'en', '--topic', 'Proper and improper fractions', '--subject', 'maths']); seeds.coaching = true;
     // ════ T63 — however I type "quiz", the menu opens (with a lesson plan taken today to list) ═══
     const dlA = dbJson('seed-lp-download', ['--lesson-id', 'grade_1_maths_ch2_seg3']); seeds.lpDownload = true;
     try {
@@ -533,10 +536,8 @@ exports.run = async (ctx) => {
     finally { SC.clearFaults(); }
 
     // ════ T47 T79 T80 T81 T82 T83 — a quiz from a coaching RECORDING ═══════════════════════════
-    let cs = null;
     try {
-      const tf = path.join(__dirname, '..', 'fixtures', 'whatsapp', 'niete', 'quiz', 'transcript-fractions-en.txt');
-      cs = dbJson('seed-coaching-session', ['--transcript-file', tf, '--language', 'en', '--topic', 'Proper and improper fractions', '--subject', 'maths']); seeds.coaching = true;
+      if (!cs || !cs.id) { cs = dbJson('seed-coaching-session', ['--transcript-file', TF, '--language', 'en', '--topic', 'Proper and improper fractions', '--subject', 'maths']); seeds.coaching = true; }
       if (!cs || !cs.id) throw new Error('SEED_CS:' + JSON.stringify(cs));
       const isTranscriptRow = (i) => /From transcript|کلاس کی ریکارڈنگ سے/.test(String(i.hay || i.text || '')) && /fraction/i.test(String(i.hay || i.text || ''));
       const isItsQuiz = (i) => !/^lsn_/.test(String(i.id || '')) && /fraction/i.test(String(i.hay || i.text || '')) && /Failed|نہیں بنا/.test(String(i.hay || '')) && /From transcript|کلاس کی ریکارڈنگ/.test(String(i.hay || ''));
