@@ -136,6 +136,16 @@ exports.run = async (ctx) => {
     return { ok: ended, ended, trail, screens, join: j, end: q };
   };
   const collect = async (actor, pred, timeoutMs) => waitOn(actor, pred, timeoutMs);
+  /** The /quiz LIST MESSAGE — the menu's Quiz item (menu_quiz → transcript-quiz-list.showList). */
+  const quizList = async () => {
+    await api.resetFlow(); await api.freshReset();
+    await api.sendWait('/menu', 60000);
+    await api.freshReset();
+    await api.tapId('list', 'menu_quiz', 'Quiz');
+    const w = await collect(api, (x) => x.list && (x.list.rows || []).length, 60000);
+    const rows = w.ok ? w.hit.list.rows.map((r) => ({ id: r.id, title: r.title, desc: r.description || '' })) : [];
+    return { ok: w.ok, rows, text: w.ok ? short(w.hit.txt, 200) : w.last };
+  };
   const pdfOf = async (doc, name) => { try { return await pdfText(doc, name); } catch (e) { return { pages: [], text: '', err: short(e.message, 120) }; } };
   const done = (id, verdict, ev, since) => R(id)(verdict, ev, t() - (since || s));
   const blocked = (id, reason, ev) => R(id)('BLOCKED', { reason, ...(ev || {}) }, t() - s);
@@ -217,8 +227,8 @@ exports.run = async (ctx) => {
       for (const text of texts) {
         await api.resetFlow(); await api.freshReset();
         const r = await api.sendWait(text, 60000);
-        const isFlowCard = !!(r.raw && r.raw.interactive && r.raw.interactive.type === 'flow');
-        const isList = !!(r.list && (r.list.rows || []).length);
+        const isFlowCard = /Your quizzes|آپ کے quiz|Your lessons/.test(r.txt || '') && (r.btns || []).length > 0;
+        const isList = r.kind === 'list' || !!(r.list && (r.list.rows || []).length);
         const chatty = !isFlowCard && !isList && String(r.txt || '').length > 200;
         hits.push({ text, menu: isFlowCard || isList, via: isFlowCard ? 'flow card' : isList ? 'list' : 'text', reply: short(r.txt, 80), chatAnswer: chatty });
       }
@@ -230,41 +240,40 @@ exports.run = async (ctx) => {
     let g1 = null;
     try {
       s = t();
-      const isLpRow = (i) => /^lsn_lp_v8_/.test(String(i.id || '')) && /place value|Recognise/i.test(String(i.hay || i.text || ''));
-      const first = await openLesson(isLpRow);
-      const rowsAll = first.ok ? null : first.rows;
-      const ev64 = { listed: first.ok, row: first.row, screenText: short(first.text, 240), actions: (first.actions || []).map((a) => a.text), rowsSeen: rowsAll,
-        saysFromLessonPlan: /From lesson plan|سبق کے منصوبے سے/.test(String((first.row && first.row.hay) || '')),
-        recordingListed: null, nothingMadeByOpening: lessonQuizzes('grade_1_maths_ch2_seg3').count === 0 };
-      // the recording row ("From transcript") sits in the same list
-      { const pr = await api.flowProbe(); ev64.recordingListed = (pr.items || []).some((i) => /From transcript|کلاس کی ریکارڈنگ سے/.test(String(i.hay || i.text || ''))); ev64.rowOrder = (pr.items || []).filter((i) => i.kind !== 'footer').slice(0, 4).map((i) => short(i.hay || i.text, 60)); }
-      api.closeFlow();
-      if (!first.ok) throw new Error('LP_ROW_ABSENT:' + JSON.stringify(first.rows));
-      const made = await makeVia(isLpRow, /make_en|English/i);
-      const asked = /which language|Make it in|English|اردو/.test(made.ev.actions ? made.ev.actions.join(' ') : '');
+      const LP_ROW = 'tq_pick_lsn_lp_v8_' + dlA.id;
+      const l1 = await quizList();
+      const lpRow = l1.rows.find((r) => r.id === LP_ROW);
+      const recRow = l1.rows.find((r) => /From transcript|کلاس کی ریکارڈنگ سے/.test(r.desc));
+      const ev64 = { listed: !!lpRow, rows: l1.rows.slice(0, 5), lpRow, saysFromLessonPlan: !!lpRow && /From lesson plan|سبق کے منصوبے سے/.test(lpRow.desc), recordingListed: !!recRow, recordingSaysFromTranscript: !!recRow,
+        newestFirst: !!lpRow && !!recRow && l1.rows.indexOf(lpRow) < l1.rows.indexOf(recRow), nothingMadeByOpening: lessonQuizzes('grade_1_maths_ch2_seg3').count === 0 };
+      if (!lpRow) throw new Error('LP_ROW_ABSENT:' + JSON.stringify(l1.rows.slice(0, 6)));
+      // T65: the same row twice in quick succession
+      await api.freshReset();
+      await api.tapId('list', LP_ROW, lpRow.title); await api.tapId('list', LP_ROW, lpRow.title);
+      const ask = await collect(api, (x) => (x.btns || []).some((b) => /^English$|اردو/.test(b)), 60000);
+      const asks = ask.seen.filter((x) => (x.btns || []).some((b) => /^English$|اردو/.test(b))).length;
+      ev64.askedLanguage = ask.ok; ev64.askText = ask.ok ? short(ask.hit.txt, 160) : ask.last;
+      await api.freshReset();
+      if (ask.ok) await api.tapAndWait('English', 60000);
+      const arr = await waitArrival(540000);
+      const made = { ok: !!(arr.doc && arr.fwd), arr, ev: { arrival: { making: !!arr.making, pdf: !!arr.doc, forward: !!arr.fwd, promise: !!arr.promise, failed: arr.failed ? short(arr.failed.txt, 200) : null, order: arr.order.slice(0, 8), waitedMs: arr.waitedMs } } };
       const after = lessonQuizzes('grade_1_maths_ch2_seg3');
       g1 = after.quizzes[0] || null;
-      // /quiz again: the lesson is now ONE row, its quiz with a status — never a lesson to make
-      const again = await openLesson((i) => /^lp_/.test(String(i.id || '')) && /place value|Recognise/i.test(String(i.hay || i.text || '')));
-      const pr2 = await api.flowProbe();
-      const lessonRowsLeft = (pr2.items || []).filter((i) => /^lsn_lp_v8_/.test(String(i.id || '')) && /place value|Recognise/i.test(String(i.hay || i.text || ''))).length;
-      api.closeFlow();
-      const ev = { ...ev64, askedLanguage: asked, ...made.ev, quizzesForLesson: after.count, quiz: g1 && { id: g1.id, status: g1.status, language: g1.language, topic: g1.topic },
-        listedOnceAsQuiz: again.ok && lessonRowsLeft === 0, quizRowText: again.row && short(again.row.hay, 100) };
-      done('T64', ...V(ev.listed && ev.saysFromLessonPlan && ev.recordingListed && ev.nothingMadeByOpening && asked && made.ok && after.count === 1 && ev.listedOnceAsQuiz, ev));
-      // T65: a second tap on the same lesson while it is being made / after — still ONE quiz
+      // /quiz again: the lesson is ONE row, its quiz with a status — never a lesson to make
+      const l2 = await quizList();
+      const asLesson = l2.rows.filter((r) => r.id === LP_ROW).length;
+      const asQuiz = g1 ? l2.rows.filter((r) => r.id === 'tq_pick_lp_' + g1.id) : [];
+      const ev = { ...ev64, languageAsks: asks, ...made.ev, quizzesForLesson: after.count, quiz: g1 && { id: g1.id, status: g1.status, language: g1.language, topic: g1.topic },
+        listedOnceAsQuiz: asLesson === 0 && asQuiz.length === 1, quizRow: asQuiz[0] };
+      done('T64', ...V(ev.listed && ev.saysFromLessonPlan && ev.recordingListed && ev.newestFirst && ev.nothingMadeByOpening && ask.ok && made.ok && after.count === 1 && ev.listedOnceAsQuiz, ev));
       s = t();
-      const second = await openLesson((i) => /place value|Recognise/i.test(String(i.hay || i.text || '')));
-      const ev65 = { makingLines: (made.arr ? made.arr.seen : []).filter((x) => /Making it now|بن رہا|تیار ہو رہا/.test(x.txt || '')).length, secondTapRow: second.row, screenText: short(second.text, 200), actions: (second.actions || []).map((a) => a.text), quizzesForLesson: lessonQuizzes('grade_1_maths_ch2_seg3').count,
-        secondTapOffersMake: (second.actions || []).some((a) => /make_en|make_ur|Make the quiz|Make it in/i.test(a.id + ' ' + a.text)) };
-      api.closeFlow();
-      done('T65', ...V(ev65.quizzesForLesson === 1 && !ev65.secondTapOffersMake && ev65.makingLines === 1, ev65));
-      // T74: the line after the forward says when the report really comes
+      const ev65 = { tappedTwice: true, quizzesForLesson: after.count, makingLines: arr.seen.filter((x) => /Making it now|بن رہا|تیار ہو رہا/.test(x.txt || '')).length, languageAsks: asks };
+      done('T65', ...V(ev65.quizzesForLesson === 1 && ev65.makingLines === 1, ev65));
       s = t();
-      const prom = made.arr && made.arr.promise ? made.arr.promise.txt : '';
-      const ev74 = { order: made.ev.arrival && made.ev.arrival.order, promise: short(prom, 300), says12h: /about 12 hours after the first student starts/.test(prom), says7am: /7 am if that falls at night/.test(prom),
+      const prom = arr.promise ? arr.promise.txt : '';
+      const ev74 = { order: made.ev.arrival.order, promise: short(prom, 300), says12h: /about 12 hours after the first student starts/.test(prom), says7am: /7 am if that falls at night/.test(prom),
         saysSooner: /send \/quiz, pick this lesson and ask for its report/.test(prom), neverEveryoneFinishes: !/sooner if everyone finishes|when everyone finishes/i.test(prom),
-        promiseFollowsForward: (() => { const o = made.ev.arrival ? made.ev.arrival.order : []; return o.indexOf('PROMISE') > o.indexOf('FORWARD') && o.indexOf('FORWARD') >= 0; })() };
+        promiseFollowsForward: (() => { const o = made.ev.arrival.order; return o.indexOf('PROMISE') > o.indexOf('FORWARD') && o.indexOf('FORWARD') >= 0; })() };
       done('T74', ...V(!!prom && ev74.says12h && ev74.says7am && ev74.saysSooner && ev74.neverEveryoneFinishes && ev74.promiseFollowsForward, ev74));
     } catch (e) { errors.push('T64:' + e.message); for (const id of ['T64', 'T65', 'T74']) if (!seenIds.has(id)) blocked(id, 'the lesson-plan tap did not produce a quiz: ' + short(e.message, 200)); }
 
@@ -339,7 +348,7 @@ exports.run = async (ctx) => {
       if (!teacherId) throw new Error('no teacher id for the cap key');
       seeds.capKey = `quizcap:${teacherId}:${pkt}`;
       const filled = SC.redis(['SADD', seeds.capKey, ...Array.from({ length: 10 }, (_, i) => 'qa-cap-' + i)]);
-      const made = await makeVia((i) => /^lsn_lp_v8_/.test(String(i.id || '')) && /Identify numbers|count numbers/i.test(String(i.hay || i.text || '')), /make_en|English/i, { timeoutMs: 180000 });
+      const made = await makeVia((i) => String(i.id || '') === 'lsn_lp_v8_' + dlB.id, /make_en|English/i, { timeoutMs: 180000 });
       const capLine = made.arr && made.arr.seen.find((x) => /limit for new quizzes|نئے quiz کی حد/.test(x.txt || ''));
       const ev = { capKey: seeds.capKey, filled: filled.out || filled.err, ...made.ev, capLine: capLine && short(capLine.txt, 240), saysTomorrow: !!capLine && /tomorrow|کل/.test(capLine.txt), saysQuiz: !!capLine && /\/quiz/.test(capLine.txt), noQuizSent: !(made.arr && made.arr.doc) };
       done('T67', ...V(!!capLine && ev.saysTomorrow && ev.saysQuiz && ev.noQuizSent, ev));
@@ -358,25 +367,29 @@ exports.run = async (ctx) => {
       done('T54', ...(madeC.ok ? V(ev54.atLeastThree && ev54.atMostHalf && ev54.partsNeverABC && ev54.noAnswerInPicture, ev54) : ['BLOCKED', { reason: 'the counting lesson could not be made after the cap', ...madeC.ev }]));
     } catch (e) { errors.push('T51:' + e.message); for (const id of ['T51', 'T54']) if (!seenIds.has(id)) blocked(id, 'the counting-lesson leg threw: ' + short(e.message, 200)); }
 
-    // ════ T70 — a failed lesson-plan quiz is made again from its row; an unusable plan says why ═══
+    // ════ T70 — a failed lesson-plan quiz is made again from its LIST row; an unusable plan says why ═══
     try {
       s = t();
       const f1 = dbJson('seed-lp-quiz', ['--state', 'failed', '--lesson-id', 'grade_1_maths_ch1_seg3']); seeds.lpQuiz = true;
       if (!f1 || !f1.id) throw new Error('SEED_F1:' + JSON.stringify(f1));
-      const row1 = await openLesson((i) => String(i.id || '') === 'lp_' + f1.id);
-      const ev = { failedRow: row1.row && short(row1.row.hay, 120), saysTapToRetry: /Failed — tap to retry|نہیں بنا — دوبارہ tap/.test(String((row1.row && row1.row.hay) || '')), actions: (row1.actions || []).map((a) => a.text) };
-      api.closeFlow();
-      const made = await makeVia((i) => String(i.id || '') === 'lp_' + f1.id, /remake|Make it again|دوبارہ/i);
-      ev.remake = made.ev; ev.remade = made.ok;
+      const l1 = await quizList();
+      const r1 = l1.rows.find((r) => r.id === 'tq_pick_lp_' + f1.id);
+      const ev = { failedRow: r1, saysTapToRetry: !!r1 && /Failed — tap to retry|نہیں بنا — دوبارہ tap/.test(r1.desc) };
+      if (!r1) throw new Error('FAILED_ROW_ABSENT:' + JSON.stringify(l1.rows.slice(0, 6)));
+      await api.freshReset();
+      await api.tapId('list', r1.id, r1.title);
+      const arr = await waitArrival(540000);
+      ev.remake = { making: !!arr.making, pdf: !!arr.doc, forward: !!arr.fwd, failed: arr.failed && short(arr.failed.txt, 160), order: arr.order.slice(0, 6) };
       const f2 = dbJson('seed-lp-quiz', ['--state', 'failed', '--error', 'source_unusable', '--lesson-id', 'grade_1_maths_ch1_seg4']);
-      const row2 = await openLesson((i) => String(i.id || '') === 'lp_' + f2.id);
-      ev.unusableRow = row2.row && short(row2.row.hay, 120); ev.saysDidntWork = /Didn.t work|نہیں بن سکا/.test(String((row2.row && row2.row.hay) || ''));
-      ev.unusableScreen = short(row2.text, 240); ev.unusableActions = (row2.actions || []).map((a) => a.text);
-      ev.tapOnlySaysWhy = /doesn.t have enough|اتنا سبق موجود نہیں/.test(row2.text || '') && !(row2.actions || []).some((a) => /remake|Make it again|make_/i.test(a.id + ' ' + a.text));
-      api.closeFlow();
-      done('T70', ...V(ev.saysTapToRetry && made.ok && ev.saysDidntWork && ev.tapOnlySaysWhy, ev));
-      // T46 (second half): a plan with no lesson to write from → "too little in it" — the same seeded reason
-      ev.forT46 = ev.tapOnlySaysWhy;
+      const l2 = await quizList();
+      const r2 = l2.rows.find((r) => r.id === 'tq_pick_lp_' + f2.id);
+      ev.unusableRow = r2; ev.saysDidntWork = !!r2 && /Didn.t work|نہیں بن سکا/.test(r2.desc);
+      await api.freshReset();
+      if (r2) await api.tapId('list', r2.id, r2.title);
+      const why = await collect(api, (x) => /doesn.t have enough|اتنا سبق موجود نہیں|Making it now|بن رہا/.test(x.txt || ''), 60000);
+      ev.tapReply = why.ok ? short(why.hit.txt, 200) : why.last;
+      ev.tapOnlySaysWhy = why.ok && /doesn.t have enough|اتنا سبق موجود نہیں/.test(why.hit.txt) && !why.seen.some((x) => /Making it now|بن رہا/.test(x.txt || ''));
+      done('T70', ...V(ev.saysTapToRetry && !!arr.making && !!arr.doc && !!arr.fwd && ev.saysDidntWork && ev.tapOnlySaysWhy, ev));
       try { api.db('seed-lp-quiz', ['--restore']); } catch (_) {}
     } catch (e) { errors.push('T70:' + e.message); blocked('T70', 'threw: ' + short(e.message, 200)); try { api.db('seed-lp-quiz', ['--restore']); } catch (_) {} }
 
@@ -386,7 +399,7 @@ exports.run = async (ctx) => {
       s = t();
       const dlC = dbJson('seed-lp-download', ['--lesson-id', 'grade_4_math_ch5_seg3']);
       if (!dlC || !dlC.id) throw new Error('SEED_DL_C:' + JSON.stringify(dlC));
-      const isRow = (i) => /^lsn_lp_v8_/.test(String(i.id || '')) && /fraction/i.test(String(i.hay || i.text || ''));
+      const isRow = (i) => String(i.id || '') === 'lsn_lp_v8_' + dlC.id;
       const made = await makeVia(isRow, /make_en|English/i, { timeoutMs: 300000 });
       const after = lessonQuizzes('grade_4_math_ch5_seg3'); g66 = after.quizzes[0] || null;
       const rr = g66 ? rows(g66.id) : {};
@@ -418,7 +431,7 @@ exports.run = async (ctx) => {
       s = t();
       const dlD = dbJson('seed-lp-download', ['--lesson-id', 'grade_5_math_ch6_seg14']);
       if (!dlD || !dlD.id) throw new Error('SEED_DL_D:' + JSON.stringify(dlD));
-      const isRow = (i) => /^lsn_lp_v8_/.test(String(i.id || '')) && /operations|multiplication/i.test(String(i.hay || i.text || ''));
+      const isRow = (i) => String(i.id || '') === 'lsn_lp_v8_' + dlD.id;
       const made = await makeVia(isRow, /make_ur|اردو|Urdu/i, { timeoutMs: 540000 });
       const after = lessonQuizzes('grade_5_math_ch6_seg14'); gU = after.quizzes[0] || null;
       const rr = gU ? rows(gU.id) : {}; const qs = rr.questions || [];
@@ -454,6 +467,7 @@ exports.run = async (ctx) => {
         { ...ev48, note: 'the shared-place class-card wording needs two children on one place — not exercised' }));
       // T76 — the English dash title keeps reading order on the quiz PDF and on the class report
       s = t();
+      if (!gU) throw new Error('no Urdu quiz was made from the dash-titled lesson');
       const pdf = made.arr && made.arr.doc ? await pdfOf(made.arr.doc, 'T76-quiz.pdf') : { text: '' };
       const title = String(dlD.topic || (gU && gU.topic) || '');
       const dashTitle = /[—–→]/.test(title);
@@ -506,7 +520,7 @@ exports.run = async (ctx) => {
       const dlE = dbJson('seed-lp-download', ['--lesson-id', 'grade_1_maths_ch1_seg1']);
       if (!dlE || !dlE.id) throw new Error('SEED_DL_E:' + JSON.stringify(dlE));
       SC.faults([{ kind: 'llm', match: 'You are writing a short WhatsApp quiz', times: 12, content: '' }]);
-      const isRow = (i) => /^lsn_lp_v8_/.test(String(i.id || '')) && /Identify numbers from 0 to 9 and count/i.test(String(i.hay || i.text || '')) && !/count numbers from 0 to 9, write/i.test(String(i.hay || ''));
+      const isRow = (i) => String(i.id || '') === 'lsn_lp_v8_' + dlE.id;
       const made = await makeVia(isRow, /make_en|English/i, { timeoutMs: 300000 });
       const fail = made.arr && made.arr.failed ? made.arr.failed.txt : '';
       const q = lessonQuizzes('grade_1_maths_ch1_seg1').quizzes[0];
@@ -583,7 +597,7 @@ exports.run = async (ctx) => {
       s = t();
       const d1 = dbJson('seed-lp612-delivery', ['--segment-like', 'grade_8_mathematics*']); seeds.lp612 = true;
       if (!d1 || !d1.id) throw new Error('SEED_612:' + JSON.stringify(d1));
-      const isRow = (i) => /^lsn_lp612_/.test(String(i.id || ''));
+      const isRow = (i) => String(i.id || '') === 'lsn_lp612_' + d1.id;
       const first = await openLesson(isRow);
       const ev71 = { listed: first.ok, row: first.row, saysFromLessonPlan: /From lesson plan|سبق کے منصوبے سے/.test(String((first.row && first.row.hay) || '')), rowHasSubject: /math/i.test(String((first.row && first.row.hay) || '')), rowHasName: !!d1.title && String((first.row && first.row.hay) || '').includes(String(d1.title).slice(0, 12)), title: d1.title, actions: (first.actions || []).map((a) => a.text) };
       api.closeFlow();
@@ -607,7 +621,7 @@ exports.run = async (ctx) => {
       const d2 = dbJson('seed-lp612-delivery', ['--segment-like', 'grade_7_mathematics*']);
       const rw = SC.restart('worker', { QUIZ_LP612_SOURCE: 'off' }); const rb = SC.restart('bot', { QUIZ_LP612_SOURCE: 'off' });
       await api.resetFlow(); await api.freshReset();
-      const off = await openLesson((i) => /^lsn_lp612_/.test(String(i.id || '')));
+      const off = await openLesson((i) => d2 && String(i.id || '') === 'lsn_lp612_' + d2.id);
       const prOff = await api.flowProbe(); const rowsOff = (prOff.items || []).filter((i) => i.kind !== 'footer').map((i) => ({ id: i.id, text: short(i.hay || i.text, 50) }));
       api.closeFlow();
       const sentRow = q612 ? await openLesson((i) => String(i.id || '') === 'lp_' + q612) : { ok: false };
@@ -624,7 +638,7 @@ exports.run = async (ctx) => {
       s = t();
       const rb2 = SC.restart('bot', {});
       await api.resetFlow(); await api.freshReset();
-      const m73 = await makeVia((i) => /^lsn_lp612_/.test(String(i.id || '')), /make_en|English/i, { timeoutMs: 180000 });
+      const m73 = await makeVia((i) => d2 && String(i.id || '') === 'lsn_lp612_' + d2.id, /make_en|English/i, { timeoutMs: 180000 });
       const f73 = m73.arr && m73.arr.failed ? m73.arr.failed.txt : '';
       const rw2 = SC.restart('worker', {});
       const rowF = await openLesson((i) => /^lp_/.test(String(i.id || '')) && /Failed|نہیں بنا|Didn.t work/.test(String(i.hay || '')) && /math/i.test(String(i.hay || '')));
@@ -685,9 +699,11 @@ exports.run = async (ctx) => {
         lastAnswerId = (row && row.id) || null;
         await api.freshReset();
         if (row) await api.tapId('list', row.id, row.title); else if (btn) await api.tapAndWait(btn, 30000); else break;
-        const w = await collect(api, (x) => isChildQ(x) || isEnd(x) || (x.btns || []).some((b) => /کلاس کو بھیجیں|Share with class/.test(b)), 60000);
+        const isShare = (x) => (x.btns || []).some((b) => /کلاس کو بھیجیں|Share with class/.test(b));
+        const w = await collect(api, (x) => isChildQ(x) || isShare(x), 60000);
         n++; trail.push(short((w.hit && w.hit.txt) || w.last, 60));
-        ended = !!(w.hit && (isEnd(w.hit) || (w.hit.btns || []).some((b) => /کلاس کو بھیجیں|Share with class/.test(b)))); q = w.hit && isChildQ(w.hit) ? w.hit : null;
+        const nextQ = w.seen.filter(isChildQ).pop() || null;
+        ended = w.seen.some(isShare) || (!nextQ && w.seen.some(isEnd)); q = nextQ;
         if (ended) break;
       }
       const shareOffer = await collect(api, (x) => (x.btns || []).some((b) => /کلاس کو بھیجیں|Share with class/.test(b)), 60000);
