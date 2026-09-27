@@ -60,7 +60,9 @@ const keyProblems = (qs) => (qs || []).map((q) => {
 const figuresOf = (qs) => (qs || []).map((q) => ({ q: q.sort_order, type: q.media && q.media.figure && q.media.figure.type, image: !!(q.media && q.media.question_image), card: !!(q.media && q.media.question_card), spec: q.media && q.media.figure, counter: !!(q.media && q.media.question_image_paints_counter) }));
 
 exports.run = async (ctx) => {
-  const { api, R, seenIds, sleep, t, dbJson, child, childJoin, childAnswer, openLesson, chooseAction, clickFooter, waitOn, isChildQ, isEnd, pdfText, CHILD_PREFIX } = ctx;
+  const { api, R, seenIds, sleep, t, dbJson, child, childJoin, childAnswer, openLesson, chooseAction, clickFooter, waitOn, isEnd, pdfText, CHILD_PREFIX } = ctx;
+  const OFFER_BTN = /Invite a friend|دوست کو بھیجیں|کلاس کو بھیجیں|Share with class|Yes, start|جی، شروع کریں|Not now|ابھی نہیں|Start$|شروع کریں|Resend|Open$/;
+  const isChildQ = (x) => !!((x.list && (x.list.rows || []).length) || ((x.btns || []).length >= 2 && !(x.btns || []).some((b) => OFFER_BTN.test(b))) || (x.btns || []).some((b) => /^Choose answer$|^جواب چنیں$/.test(b)));
   const runStartIso = new Date(Date.now() - 60000).toISOString();
   const DRIVER = String(process.env.E2E_DRIVER || '');
   const stackNote = { runDir: SC.runDir(), ports: SC.ports() };
@@ -75,7 +77,8 @@ exports.run = async (ctx) => {
   const waitArrival = async (timeoutMs = 420000, { actor = api } = {}) => {
     const t0 = Date.now(); const seen = []; let doc = null, fwd = null, promise = null, failed = null, making = null;
     while (Date.now() - t0 < timeoutMs) {
-      for (const x of await actor.fresh()) {
+      let batch = []; try { batch = await actor.fresh(); } catch (e) { if (!/fetch failed|ECONN|ENOTFOUND|socket/i.test(String(e.message))) throw e; await sleep(3000); continue; }
+      for (const x of batch) {
         seen.push(x);
         if (x.doc || x.pdf) doc = doc || x;
         if (/QUIZ-[A-Z0-9]{6}/.test(x.txt || '')) fwd = fwd || x;
@@ -135,7 +138,8 @@ exports.run = async (ctx) => {
     }
     return { ok: ended, ended, trail, screens, join: j, end: q };
   };
-  const collect = async (actor, pred, timeoutMs) => waitOn(actor, pred, timeoutMs);
+  // a DNS/socket blip (run 20260927-1742: getaddrinfo ENOTFOUND mid-leg) must not end a scenario
+  const collect = async (actor, pred, timeoutMs) => { for (let i = 0; ; i++) { try { return await waitOn(actor, pred, timeoutMs); } catch (e) { if (i >= 3 || !/fetch failed|ECONN|ENOTFOUND|socket/i.test(String(e.message))) throw e; await sleep(3000); } } };
   /** The /quiz LIST MESSAGE — the menu's Quiz item (menu_quiz → transcript-quiz-list.showList). */
   const quizList = async () => {
     await api.resetFlow(); await api.freshReset();
@@ -161,6 +165,7 @@ exports.run = async (ctx) => {
     // ════ T61 — the quiet-quiz reminder: two Urdu titles whole and bold, or the single form ══════
     try {
       s = t();
+      try { api.db('seed-class-quiz', ['--restore', '--child-prefix', CHILD_PREFIX]); api.db('seed-lp-quiz', ['--restore']); } catch (_) {}
       const a = dbJson('seed-class-quiz', ['--language', 'ur', '--topic', 'کسریں اور اعشاریہ']); seeds.classQuiz = true;
       if (!a || !a.quizId) throw new Error('SEED_A:' + JSON.stringify(a));
       await api.freshReset();
@@ -373,7 +378,7 @@ exports.run = async (ctx) => {
     // ════ T70 — a failed lesson-plan quiz is made again from its LIST row; an unusable plan says why ═══
     try {
       s = t();
-      const f1 = dbJson('seed-lp-quiz', ['--state', 'failed', '--lesson-id', 'grade_1_maths_ch1_seg3']); seeds.lpQuiz = true;
+      const f1 = dbJson('seed-lp-quiz', ['--state', 'failed', '--lesson-id', 'grade_1_maths_ch1_seg3', '--topic', 'Counting to 9']); seeds.lpQuiz = true;   // a short title: the 72-code-point row drops its STATUS first (transcript-quiz-rows), and this scenario reads the status
       if (!f1 || !f1.id) throw new Error('SEED_F1:' + JSON.stringify(f1));
       const l1 = await quizList();
       const r1 = l1.rows.find((r) => r.id === 'tq_pick_lp_' + f1.id);
@@ -383,7 +388,7 @@ exports.run = async (ctx) => {
       await api.tapId('list', r1.id, r1.title);
       const arr = await waitArrival(540000);
       ev.remake = { making: !!arr.making, pdf: !!arr.doc, forward: !!arr.fwd, failed: arr.failed && short(arr.failed.txt, 160), order: arr.order.slice(0, 6) };
-      const f2 = dbJson('seed-lp-quiz', ['--state', 'failed', '--error', 'source_unusable', '--lesson-id', 'grade_1_maths_ch1_seg4']);
+      const f2 = dbJson('seed-lp-quiz', ['--state', 'failed', '--error', 'source_unusable', '--lesson-id', 'grade_1_maths_ch1_seg4', '--topic', 'Counting back']);
       const l2 = await quizList();
       const r2 = l2.rows.find((r) => r.id === 'tq_pick_lp_' + f2.id);
       ev.unusableRow = r2; ev.saysDidntWork = !!r2 && /Didn.t work|نہیں بن سکا/.test(r2.desc);
@@ -693,7 +698,7 @@ exports.run = async (ctx) => {
       if (!p2.ok) throw new Error('second pick: ' + p2.err);
       await api.freshReset();
       const yes = await api.tapAndWait('جی، شروع کریں', 60000);
-      let q = isChildQ(yes) ? yes : (await collect(api, isChildQ, 90000)).hit;
+      let q = (await collect(api, (x) => x.list && (x.list.rows || []).length, 90000)).hit;
       let ended = false, n = 0, lastAnswerId = null; const trail = [];
       while (q && !ended && n < 20) {
         const row = q.list && (q.list.rows || [])[0]; const btn = (q.btns || [])[0];
@@ -701,9 +706,10 @@ exports.run = async (ctx) => {
         await api.freshReset();
         if (row) await api.tapId('list', row.id, row.title); else if (btn) await api.tapAndWait(btn, 30000); else break;
         const isShare = (x) => (x.btns || []).some((b) => /کلاس کو بھیجیں|Share with class/.test(b));
-        const w = await collect(api, (x) => isChildQ(x) || isShare(x), 60000);
+        const isVq = (x) => !!(x.list && (x.list.rows || []).length);
+        const w = await collect(api, (x) => isVq(x) || isShare(x), 60000);
         n++; trail.push(short((w.hit && w.hit.txt) || w.last, 60));
-        const nextQ = w.seen.filter(isChildQ).pop() || null;
+        const nextQ = w.seen.filter(isVq).pop() || null;
         ended = w.seen.some(isShare) || (!nextQ && w.seen.some(isEnd)); q = nextQ;
         if (ended) break;
       }

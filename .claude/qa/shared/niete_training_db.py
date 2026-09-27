@@ -575,7 +575,10 @@ def cmd_seed_coaching_session(creds, a):
     if not sid:
         prev = _get(creds, "coaching_sessions", "user_id=eq.%s&session_id=not.is.null&select=session_id&order=created_at.desc&limit=1" % uid) or []
         sid = prev[0]["session_id"] if prev else None
-    if not sid: sys.exit("no chat session to hang the coaching session on (users.session_id empty)")
+    if not sid:
+        cs = _get(creds, "chat_sessions", "user_id=eq.%s&select=id&order=created_at.desc&limit=1" % uid) or []
+        sid = cs[0]["id"] if cs else None
+    if not sid: sys.exit("no chat session to hang the coaching session on (users.session_id empty, no chat_sessions row)")
     body = {"user_id": uid, "session_id": sid, "status": "completed", "transcript_text": text,
             "transcript_language": a.language, "analysis_data": {"topic": a.topic, "subject": a.subject, "framework": "fico"},
             "lesson_plan_excerpt": QA_COACHING_MARK, "has_lesson_plan": False, "completed_at": now, "created_at": now}

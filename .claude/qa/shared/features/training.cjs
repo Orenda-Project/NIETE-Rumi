@@ -918,7 +918,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       const pr = await api.flowProbe(); const rows = (pr.items || []).filter(i => i.kind !== 'footer');
       const row = rows.find(rowPred) || null;
       if (!row) return { ok: false, err: 'ROW_ABSENT', rows: rows.map(i => ({ id: i.id, text: String(i.text || '').slice(0, 50) })).slice(0, 6) };
-      const k = await api.flowClick(String(row.text), { settleMs: 3000, exact: true });
+      const k = await api.flowClick(String(row.text), { settleMs: 3000, exact: true, id: row.id });   // by id: every lesson row shares one title
       const lp = await api.flowProbe();
       return { ok: !!k.ok, err: k.err, row: { id: row.id, text: row.text, hay: String(row.hay || '').slice(0, 120) }, screen: lp.screen, text: String(lp.text || '').slice(0, 600),
                actions: (lp.items || []).filter(i => i.kind === 'option').map(i => ({ id: i.id, text: String(i.text || '').slice(0, 60) })) };
