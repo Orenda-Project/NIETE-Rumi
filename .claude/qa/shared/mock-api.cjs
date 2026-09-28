@@ -35,7 +35,9 @@ function makeMockApi(opts) {
   const env = opts.env || process.env.E2E_ENV || 'sandbox';
   const repo = opts.repo || path.resolve(__dirname, '..', '..', '..');
   const pollMs = opts.pollMs || 500;
-  const quiesceMs = opts.quiesceMs || 1500;
+  // How long the outbox must stay still before a reply counts as complete. 1.5 s on the chrome lane;
+  // the mock lane sets E2E_QUIESCE_MS=800 (a hundred sends a run, each paying this once).
+  const quiesceMs = opts.quiesceMs || Number(process.env.E2E_QUIESCE_MS) || 1500;
   const settleMs = opts.settleMs != null ? opts.settleMs : 1200;   // the CDP runner settles 1200ms too
   const trace = opts.trace || (() => {});
   if (!driver) throw new Error('HARNESS mock-api: a driver phone is required (E2E_DRIVER)');

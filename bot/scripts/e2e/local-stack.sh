@@ -128,6 +128,8 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # Scripted vendor answers (e2e-cassette _takeFault): a driver writes rules into this file to force
     # "no usable model reply" / "the author never passed the checks" for one generation, then empties it.
     echo "E2E_CASSETTE_FAULTS=$run_dir/cassette-faults.json"
+    # The class-quiz join lock is a minute in production; a rejoin scenario idled that long. 5 s here.
+    echo "VIDEO_QUIZ_JOIN_LOCK_SECS=${VIDEO_QUIZ_JOIN_LOCK_SECS:-5}"
     # observe capability gate (observe-gate.js:62) + the visit-picker Flow. keys/niete-local.env already
     # carries both real ids, and dotenv keeps the first value, so these are FALLBACKS for a clone whose
     # keys file lacks them — the ids match the committed flow fixtures (fixtures/flows/*.json + manifest),

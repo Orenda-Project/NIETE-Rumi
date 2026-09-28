@@ -902,7 +902,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
     // rejoin: the bot allows ONE join per phone+code per minute (JOIN_LOCK_SECS=60, video_quiz.join_deduped)
     // — a child opening the link again inside that minute gets silence (run 20260925-1038), so wait it out.
     const childRun = async (kid, code, name, cls, { correct = 4, stopAfter = null, typed = false, rejoin = false } = {}) => {
-      if (rejoin) await sleep(61000);
+      if (rejoin) await sleep(((Number(process.env.E2E_JOIN_LOCK_SECS) || 60) + 1) * 1000);   // the lane's join lock (VIDEO_QUIZ_JOIN_LOCK_SECS), a minute in production
       const j = await childJoin(kid, code, name, cls); if (!j.ok) return { ok: false, err: 'JOIN:' + (j.err || j.last), join: j };
       let q = j.q, answered = 0, ended = false, trail = [];
       for (let i = 0; i < 8 && q && !ended; i++) {
