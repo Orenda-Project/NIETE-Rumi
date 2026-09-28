@@ -426,3 +426,41 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     And the same exchange on an English account reads in English
     # R8 §5.2. lpQuizOffer* live in ux-strings.js in en+ur and are fitted to the WhatsApp caps in code
     # points (list row title 24, description 72). @wip — driven and promoted by the sandbox E2E run.
+
+  # ══════════════════════ H. THE CHILD STUDY HELPER — REPLY LANGUAGE PER MESSAGE ══════════════════════
+  # A child who joined a quiz and then chats is answered by the study helper. The reply language is decided
+  # in code for EACH message (shared/utils/child-reply-language.js) and stated to the model right before the
+  # child's message: Urdu script -> Urdu; Latin text that reads as English -> English; Latin text that reads as
+  # Roman Urdu -> Urdu, in Urdu script; no clear language (a letter, a number, a name, one word) -> the
+  # language the chat's last reply is actually in, else the language of the child's last quiz. Nothing is
+  # written to the child's stored language. Both child entry points (the text path and student-ingress) reach
+  # handleGeneralConversation, where the decision is made. Seed: the child-join method (a share code owned
+  # by a test teacher, so the driver's handset joins as a child); restore the owner afterwards.
+
+  @e2e @language @persona:student @wip @draft @seeded @P2
+  Scenario: A child whose quiz was in English and who writes English is answered in English
+    Given a child whose last quiz was in English
+    And the study-helper chat has already drifted into Urdu
+    When the child writes an English question
+    Then the reply is in English
+
+  @e2e @language @persona:student @wip @draft @seeded @P2
+  Scenario: A child whose quiz was in English and who writes Roman Urdu is answered in Urdu script
+    Given a child whose last quiz was in English
+    When the child writes a question in Roman Urdu
+    Then the reply is in Urdu, in Urdu script (English subject terms may stay in English letters)
+    And the reply is not Urdu written in English letters
+
+  @e2e @language @persona:student @wip @draft @seeded @P2
+  Scenario: A one-letter answer keeps the chat's language
+    Given a child in a study-helper chat whose last reply was in Urdu
+    When the child answers "b" to the helper's practice question
+    Then the reply stays in Urdu, even if the child's last quiz was in English
+
+  @e2e @language @persona:student @wip @draft @seeded @P2
+  Scenario: A child whose quiz was in Urdu and who writes English is answered in English
+    Given a child whose last quiz was in Urdu
+    When the child writes an English question
+    Then the reply is in English
+    # Telemetry: a reply in a language other than the decided one logs "🈯 language_drift: chat reply" at warn,
+    # with persona=student, messageScript, decidedLanguage, languageSource and quizLanguage.
