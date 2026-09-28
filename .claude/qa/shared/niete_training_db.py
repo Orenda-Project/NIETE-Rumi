@@ -415,7 +415,7 @@ def cmd_quizzes_for_lesson(creds, a):
     lesson produced: T65), newest first."""
     uid = _uid(creds, a.phone)
     rows = _get(creds, "quizzes", "teacher_id=eq.%s&quiz_source=in.(lp_v8,lp612)&select=id,status,language,topic,meta,created_at&order=created_at.desc&limit=40" % uid) or []
-    hit = [r for r in rows if any((l or {}).get("lesson_id") == a.lesson_id for l in ((r.get("meta") or {}).get("lessons") or []))]
+    hit = [r for r in rows if any((l or {}).get("lesson_id") == a.lesson_id or (l or {}).get("segment_id") == a.lesson_id for l in ((r.get("meta") or {}).get("lessons") or []))]
     print(json.dumps({"lesson_id": a.lesson_id, "count": len(hit), "quizzes": [{"id": r["id"], "status": r["status"], "language": r["language"], "topic": r["topic"], "created_at": r["created_at"],
                        "cache_donor": (r.get("meta") or {}).get("cache_donor"), "error": (r.get("meta") or {}).get("error")} for r in hit]}, ensure_ascii=False))
 
@@ -540,9 +540,19 @@ def cmd_seed_lp_download(creds, a):
         _req("DELETE", "/rest/v1/niete_lp_downloads?user_id=eq.%s&correlation_id=eq.%s" % (uid, QA_LP_DOWNLOAD_CID), creds, prefer="return=minimal")
         print(json.dumps({"restored": True})); return
     lesson_id = a.lesson_id or "grade_1_maths_ch2_seg3"
-    src = _get(creds, "niete_lp_asset_sources", "lesson_id=eq.%s&select=asset_id,lesson_id,version_stamp,content_hash,t:slide_script->meta->>topic,g:slide_script->meta->>grade,s:slide_script->meta->>subject&order=ingested_at.desc&limit=1" % lesson_id) or []
+    src = _get(creds, "niete_lp_asset_sources", "lesson_id=eq.%s&select=asset_id,lesson_id,version_stamp,content_hash,t:slide_script->meta->>topic,g:slide_script->meta->>grade,s:slide_script->meta->>subject&order=ingested_at.desc&limit=40" % lesson_id) or []
     if not src: sys.exit("no slide script for lesson %s" % lesson_id)
     r = src[0]
+    donor = None
+    if getattr(a, "donor_version", False):
+        # the version ANOTHER teacher's sent quiz was written from, whose checks all passed — a cache donor
+        for q in _get(creds, "quizzes", "quiz_source=eq.lp_v8&status=in.(sent,report_sent)&teacher_id=neq.%s&meta->>key_verify=not.is.null&select=id,teacher_id,language,meta,created_at&order=created_at.desc&limit=60" % uid) or []:
+            m = q.get("meta") or {}; l = (m.get("lessons") or [{}])[0]
+            kv = (m.get("key_verify") or {}).get("status"); kc = (m.get("key_check") or {}).get("status")
+            if l.get("lesson_id") != lesson_id or m.get("cache_donor") or (m.get("soft_faults") or []) or kv not in ("clean", "passed", "ok") or not m.get("digest") or not m.get("question_count"): continue
+            match = [x for x in src if x["version_stamp"] == l.get("version_stamp") and x["content_hash"] == l.get("content_hash")]
+            if match: r = match[0]; donor = {"quiz_id": q["id"], "language": q["language"], "key_verify": kv, "key_check": kc}; break
+        if not donor: sys.exit("no cache donor for %s: no other teacher's SENT quiz with a clean key_verify on a version that has a slide script" % lesson_id)
     m = re.match(r"^grade_(\d+)_([a-z]+)_ch(\d+)_seg(\d+)$", lesson_id)
     body = {"user_id": uid, "lesson_id": r["lesson_id"], "asset_id": r["asset_id"], "version_stamp": r["version_stamp"], "content_hash": r["content_hash"],
             "phone": a.phone, "status": "sent", "grade": str(r.get("g") or (m.group(1) if m else "1")), "subject": str(r.get("s") or (m.group(2) if m else "maths")),
@@ -550,7 +560,7 @@ def cmd_seed_lp_download(creds, a):
     if not a.yes_write: print(json.dumps({"dry_run": True, "would_insert": body})); return
     created, _ = _req("POST", "/rest/v1/niete_lp_downloads", creds, body=[body], prefer="return=representation")
     row = (created or [{}])[0]
-    print(json.dumps({"id": row.get("id"), "lesson_id": lesson_id, "topic": r.get("t"), "grade": body["grade"], "subject": body["subject"], "asset_id": r["asset_id"]}, ensure_ascii=False))
+    print(json.dumps({"id": row.get("id"), "lesson_id": lesson_id, "topic": r.get("t"), "grade": body["grade"], "subject": body["subject"], "asset_id": r["asset_id"], "version_stamp": r["version_stamp"], "donor": donor}, ensure_ascii=False))
 
 
 def cmd_seed_coaching_session(creds, a):
@@ -602,11 +612,11 @@ def cmd_seed_lp612_delivery(creds, a):
     r = src[0]
     seg = (_get(creds, "niete_lp612_segments", "segment_id=eq.%s&select=grade,subject,menu_title,subtopic_title" % r["segment_id"]) or [{}])[0]
     now = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
-    body = {"user_id": uid, "render_id": r["render_id"], "segment_id": r["segment_id"], "lang": r["lang"], "template_version": r.get("template_version"), "surface": "backfill", "delivered_at": now}   # surface is CHECK-constrained; the driver's rows are all ours
+    body = {"user_id": uid, "render_id": r["render_id"], "segment_id": r["segment_id"], "lang": r["lang"], "template_version": getattr(a, "template_version", None) or r.get("template_version"), "surface": "backfill", "delivered_at": now}   # surface is CHECK-constrained; the driver's rows are all ours
     if not a.yes_write: print(json.dumps({"dry_run": True, "would_insert": body})); return
     created, _ = _req("POST", "/rest/v1/niete_lp612_deliveries", creds, body=[body], prefer="return=representation")
     row = (created or [{}])[0]
-    print(json.dumps({"id": row.get("id"), "segment_id": r["segment_id"], "lang": r["lang"], "grade": seg.get("grade"), "subject": seg.get("subject"), "title": seg.get("menu_title") or seg.get("subtopic_title")}, ensure_ascii=False))
+    print(json.dumps({"id": row.get("id"), "segment_id": r["segment_id"], "lang": r["lang"], "template_version": body["template_version"], "grade": seg.get("grade"), "subject": seg.get("subject"), "title": seg.get("menu_title") or seg.get("subtopic_title")}, ensure_ascii=False))
 
 
 def cmd_module_answer_key(creds, a):
@@ -759,6 +769,7 @@ def main():
     # version that has a slide script) so /quiz lists it "From lesson plan" with no quiz yet (T64/T65/T67).
     sld = sub.add_parser("seed-lp-download", parents=[common]); sld.add_argument("--phone", required=True); sld.add_argument("--lesson-id", dest="lesson_id")
     sld.add_argument("--restore", action="store_true"); sld.add_argument("--yes-write", action="store_true")
+    sld.add_argument("--donor-version", action="store_true", dest="donor_version", help="serve the version another teacher's clean SENT quiz was written from, so the lp quiz cache can donate (T66)")
     # seed-coaching-session: a COMPLETED coaching session with a transcript the driver can make a quiz from
     # (T47/T79–T83). --transcript-file holds the text (>= 1500 chars); analysis_data carries topic/subject.
     scs = sub.add_parser("seed-coaching-session", parents=[common]); scs.add_argument("--phone", required=True); scs.add_argument("--transcript-file", dest="transcript_file")
@@ -768,6 +779,7 @@ def main():
     # delivery's render so the worker can read the stored lp_doc (T71–T73).
     s6 = sub.add_parser("seed-lp612-delivery", parents=[common]); s6.add_argument("--phone", required=True); s6.add_argument("--segment-like", dest="segment_like", default="grade_8_mathematics*")
     s6.add_argument("--restore", action="store_true"); s6.add_argument("--yes-write", action="store_true")
+    s6.add_argument("--template-version", dest="template_version", help="qa-v1: the seed's own doc key (bot/scripts/e2e/lp612-doc.js puts the document there)")
     prq = sub.add_parser("purge-run-quizzes", parents=[common]); prq.add_argument("--phone", required=True); prq.add_argument("--since", required=True)
     prq.add_argument("--child-prefix", dest="child_prefix"); prq.add_argument("--yes-write", action="store_true")
     qfl = sub.add_parser("quizzes-for-lesson", parents=[common]); qfl.add_argument("--phone", required=True); qfl.add_argument("--lesson-id", dest="lesson_id", required=True)

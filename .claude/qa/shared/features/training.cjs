@@ -847,7 +847,11 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       }
       return { ok: false, seen, last: (seen[seen.length - 1] || {}).txt || '', waitedMs: Date.now() - t0 };
     };
-    const isChildQ = (x) => !!((x.list && (x.list.rows || []).length) || (x.btns || []).some(b => /^[A-D]$|^Choose answer$|^جواب چنیں$/.test(b)));
+    // A seeded quiz asks as a list; a card asks with A–D letters; a GENERATED question asks with
+    // buttons carrying the option texts themselves ('43' '7' '34' — run 20260927-1742). Anything
+    // with two or more buttons that are not an offer/invite is a question waiting for an answer.
+    const NOT_A_QUESTION = /Invite a friend|دوست کو بھیجیں|کلاس کو بھیجیں|Share with class|Yes, start|جی، شروع کریں|Not now|ابھی نہیں|^Start$|شروع کریں|Resend|^Open$|^Done$/;
+    const isChildQ = (x) => !!((x.list && (x.list.rows || []).length) || (x.btns || []).some(b => /^[A-D]$|^Choose answer$|^جواب چنیں$/.test(b)) || ((x.btns || []).length >= 2 && !(x.btns || []).some(b => NOT_A_QUESTION.test(b))));
     const isEnd = (x) => /All done|مکمل|out of|میں سے|QUIZ COMPLETE|کوئز مکمل/.test(x.txt || '') || (x.btns || []).some(b => /Invite a friend|دوست کو بھیجیں/.test(b));
     // Join a class quiz from its link: greeting → "Start" opens the WHO Flow (name + class) → question 1.
     const childJoin = async (kid, code, name, cls) => {

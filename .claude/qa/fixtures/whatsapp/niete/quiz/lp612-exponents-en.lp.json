@@ -1,0 +1,23 @@
+{
+  "provenance": { "grade": 8, "subject": "Mathematics", "topic": "Laws of exponents: power law, zero and negative exponents", "chapter_title": "Exponents" },
+  "period_minutes": 40,
+  "slo": { "code": "M8-EXP-02", "text_verbatim": "Apply the power law, and the rules for zero and negative exponents, to simplify expressions.", "cognitive_level": "A" },
+  "objectives": { "outcome": "Simplify expressions with a power raised to a power, a zero exponent and a negative exponent.", "items": [
+    { "text": "State that (a^m)^n = a^(m×n)." }, { "text": "State that any non-zero number to the power zero is 1." }, { "text": "Rewrite a^(-n) as 1/a^n and simplify." } ] },
+  "sections": [
+    { "id": "introduction", "blocks": [
+      { "type": "keywords", "items": [ { "word": "base", "meaning": "the number being multiplied by itself" }, { "word": "exponent", "meaning": "how many times the base is used as a factor" }, { "word": "reciprocal", "meaning": "1 divided by the number" } ] },
+      { "type": "key_points", "items": [ "(a^m)^n = a^(m×n): multiply the exponents when a power is raised to a power.", "a^0 = 1 for every non-zero a.", "a^(-n) = 1/a^n: a negative exponent means the reciprocal." ] } ] },
+    { "id": "development", "blocks": [
+      { "type": "worked_example", "prompt": "Simplify (2^3)^2.", "steps": [ "A power raised to a power: multiply the exponents.", "3 × 2 = 6.", "So (2^3)^2 = 2^6 = 64." ], "result": "64" },
+      { "type": "faded_example", "prompt": "Simplify 5^(-2).", "steps": [ "A negative exponent means the reciprocal.", "5^(-2) = 1/5^2." ], "answer": "1/25" },
+      { "type": "watch_out", "misconception": true, "text": "Pupils write (a^m)^n = a^(m+n), adding the exponents instead of multiplying them." },
+      { "type": "practice", "items": [ { "q": "Simplify (3^2)^3.", "a": "3^6 = 729" }, { "q": "What is 7^0?", "a": "1" }, { "q": "Write 2^(-3) as a fraction.", "a": "1/8" }, { "q": "Simplify (x^4)^2.", "a": "x^8" }, { "q": "Simplify 10^(-1).", "a": "1/10" } ] } ] },
+    { "id": "conclusion", "blocks": [ { "type": "board", "text": "(a^m)^n = a^(mn)\na^0 = 1\na^(-n) = 1/a^n" } ],
+      "exit_ticket": [ { "q": "Simplify (4^2)^2.", "a": "4^4 = 256" }, { "q": "What is 9^0 + 2^(-1)?", "a": "1 + 1/2 = 3/2" } ],
+      "homework": { "items": [ { "ref": "H1", "q": "Simplify (2^4)^3." }, { "ref": "H2", "q": "Write 3^(-2) as a fraction." } ] } } ],
+  "page2": {
+    "mistakes": [ { "pupil_says": "(2^3)^2 = 2^5", "you_ask": "Are we multiplying 2^3 by 2^2, or raising 2^3 to a power? What happens to the exponents in each case?" }, { "pupil_says": "5^0 = 0", "you_ask": "What is 5^2 ÷ 5^2? What exponent does that leave?" } ],
+    "exam_bank": { "mcq": [ { "q": "(a^3)^4 equals", "options": [ "a^7", "a^12", "a^1", "a^34" ], "answer": "a^12" }, { "q": "The value of 6^0 is", "options": [ "0", "6", "1", "60" ], "answer": "1" } ] },
+    "homework_key": [ { "ref": "H1", "answer": "2^12 = 4096" }, { "ref": "H2", "answer": "1/9" } ] }
+}

@@ -160,7 +160,7 @@ exports.run = async (ctx) => {
     for (const id of OWNED) if (!seenIds.has(id)) blocked(id, 'no local stack ports under RUN_DIR — the generation cluster needs the mock lane stack', stackNote);
     return;
   }
-  const seeds = { lpDownload: false, coaching: false, lp612: false, lpQuiz: false, classQuiz: false, capKey: null, role: null, lang: null };
+  const seeds = { lpDownload: false, coaching: false, lp612: false, lp612Docs: [], lpQuiz: false, classQuiz: false, capKey: null, role: null, lang: null };
   try {
     // ════ T61 — the quiet-quiz reminder: two Urdu titles whole and bold, or the single form ══════
     try {
@@ -405,7 +405,7 @@ exports.run = async (ctx) => {
     let g66 = null;
     try {
       s = t();
-      const dlC = dbJson('seed-lp-download', ['--lesson-id', 'grade_4_math_ch5_seg3']);
+      const dlC = dbJson('seed-lp-download', ['--lesson-id', 'grade_4_math_ch5_seg3', '--donor-version']);
       if (!dlC || !dlC.id) throw new Error('SEED_DL_C:' + JSON.stringify(dlC));
       const isRow = (i) => String(i.id || '') === 'lsn_lp_v8_' + dlC.id;
       const made = await makeVia(isRow, /make_en|English/i, { timeoutMs: 300000 });
@@ -416,7 +416,7 @@ exports.run = async (ctx) => {
       const same = donor.questions && rr.questions && donor.questions.length === rr.questions.length && donor.questions.every((q, i) => normText(q.question_text) === normText(rr.questions[i].question_text));
       const pdf = made.arr && made.arr.doc ? await pdfOf(made.arr.doc, 'T66-quiz.pdf') : { text: '' };
       const today = new Date(); const dateWords = [String(today.getDate()), today.toLocaleString('en-GB', { month: 'short' }), today.toLocaleString('en-GB', { month: 'long' })];
-      const ev = { ...made.ev, cached: !!donorId, donorId, donorQuestionsEqual: !!same, questions: (rr.questions || []).length, arrivedInMs: made.ev.arrival && made.ev.arrival.waitedMs,
+      const ev = { ...made.ev, servedVersion: dlC.version_stamp, donorSeeded: dlC.donor, cached: !!donorId, donorId, donorQuestionsEqual: !!same, questions: (rr.questions || []).length, arrivedInMs: made.ev.arrival && made.ev.arrival.waitedMs,
         pdfCarriesMyName: !!teacherName && (pdf.text || '').includes(teacherName), teacherName, pdfCarriesLessonDate: dateWords.some((w) => (pdf.text || '').includes(w)),
         forwardCarriesMyName: !!teacherName && !!(made.arr && made.arr.fwd) && made.arr.fwd.txt.includes(teacherName), newCode: codeOf(made.arr && made.arr.fwd), donorCode: donor.share && donor.share.code, codeIsNew: !!codeOf(made.arr && made.arr.fwd) && codeOf(made.arr && made.arr.fwd) !== (donor.share && donor.share.code) };
       done('T66', ...V(made.ok && ev.cached && ev.donorQuestionsEqual && ev.pdfCarriesMyName && ev.forwardCarriesMyName && ev.codeIsNew, ev));
@@ -477,16 +477,20 @@ exports.run = async (ctx) => {
       s = t();
       if (!gU) throw new Error('no Urdu quiz was made from the dash-titled lesson');
       const pdf = made.arr && made.arr.doc ? await pdfOf(made.arr.doc, 'T76-quiz.pdf') : { text: '' };
-      const title = String(dlD.topic || (gU && gU.topic) || '');
-      const dashTitle = /[—–→]/.test(title);
-      const parts = title.split(/\s*[—–→]\s*/);
+      // No maths/science lesson in the sandbox corpus carries an em dash, en dash or arrow in its title
+      // (curriculum_lp_ast + niete_lp_asset_sources, searched 2026-09-28); '&' is a joiner the same
+      // latin-runs rule handles, so the quiz's own '&' title is what reading order is judged on.
+      const cands = [String((gU && gU.topic) || ''), String(dlD.topic || '')].filter((x) => /[—–→&]/.test(x));
+      const title = cands.find((x) => (pdf.text || '').includes(x.split(/\s*[—–→&]\s*/)[0])) || cands[0] || String((gU && gU.topic) || '');
+      const dashTitle = /[—–→&]/.test(title);
+      const parts = title.split(/\s*[—–→&]\s*/);
       const inOrder = (txt) => { const a = (txt || '').indexOf(parts[0]), b = parts[1] ? (txt || '').indexOf(parts[1]) : a; return a >= 0 && b >= 0 && a <= b; };
-      const reversed = (txt) => parts[1] && new RegExp(parts[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[—–→]\\s*' + parts[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(txt || '');
+      const reversed = (txt) => parts[1] && new RegExp(parts[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[—–→&]\\s*' + parts[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(txt || '');
       await api.freshReset();
       const lesR = await openLesson((i) => String(i.id || '') === 'lp_' + gU.id); const pickR = lesR.ok ? await chooseAction(/report|رپورٹ/i) : { ok: false };
       const repU = await collect(api, (x) => (x.doc || x.pdf), 240000);
       const pdfR = repU.ok ? await pdfOf(repU.hit, 'T76-report.pdf') : { text: '' };
-      const ev76 = { title, quizTopic: gU && gU.topic, dashTitle, quizPdfInOrder: inOrder(pdf.text), quizPdfReversed: !!reversed(pdf.text), reportArrived: repU.ok, reportInOrder: inOrder(pdfR.text), reportReversed: !!reversed(pdfR.text) };
+      const ev76 = { title, joiner: (title.match(/[—–→&]/) || [])[0], corpusNote: 'no dash-titled maths/science lesson exists in the sandbox corpus; the & joiner exercises the same latin-runs isolate', quizTopic: gU && gU.topic, dashTitle, quizPdfInOrder: inOrder(pdf.text), quizPdfReversed: !!reversed(pdf.text), reportArrived: repU.ok, reportInOrder: inOrder(pdfR.text), reportReversed: !!reversed(pdfR.text) };
       done('T76', ...V(dashTitle && ev76.quizPdfInOrder && !ev76.quizPdfReversed && repU.ok && ev76.reportInOrder && !ev76.reportReversed, ev76));
       // T83 (Urdu half) + T84
       s = t();
@@ -601,16 +605,18 @@ exports.run = async (ctx) => {
     let q612 = null;
     try {
       s = t();
-      const d1 = dbJson('seed-lp612-delivery', ['--segment-like', 'grade_8_mathematics*']); seeds.lp612 = true;
+      const d1 = dbJson('seed-lp612-delivery', ['--segment-like', 'grade_8_mathematics*', '--template-version', 'qa-v1']); seeds.lp612 = true;
       if (!d1 || !d1.id) throw new Error('SEED_612:' + JSON.stringify(d1));
+      const DOC = path.join(__dirname, '..', 'fixtures', 'whatsapp', 'niete', 'quiz', 'lp612-exponents-en.lp.json');
+      const put1 = SC.lp612Doc('put', d1.segment_id, 'en', 'qa-v1', DOC); seeds.lp612Docs = [[d1.segment_id, 'en']];
+      if (!put1.ok) throw new Error('DOC_612:' + put1.err);
       const isRow = (i) => String(i.id || '') === 'lsn_lp612_' + d1.id;
       const first = await openLesson(isRow);
       const ev71 = { listed: first.ok, row: first.row, saysFromLessonPlan: /From lesson plan|سبق کے منصوبے سے/.test(String((first.row && first.row.hay) || '')), rowHasSubject: /math/i.test(String((first.row && first.row.hay) || '')), rowHasName: !!d1.title && String((first.row && first.row.hay) || '').includes(String(d1.title).slice(0, 12)), title: d1.title, actions: (first.actions || []).map((a) => a.text) };
       api.closeFlow();
       const made = await makeVia(isRow, /make_en|English/i, { timeoutMs: 540000 });
       const pdf = made.arr && made.arr.doc ? await pdfOf(made.arr.doc, 'T71-quiz.pdf') : { text: '' };
-      const rowQ = await openLesson((i) => /^lp_/.test(String(i.id || '')) && String(i.hay || '').includes(String(d1.title || '').slice(0, 12))); api.closeFlow();
-      q612 = rowQ.row && String(rowQ.row.id || '').replace(/^lp_/, '');
+      q612 = (lessonQuizzes(d1.segment_id).quizzes[0] || {}).id || null;
       const rr = q612 ? rows(q612) : {};
       const kid = rr.share && rr.questions && rr.questions.length ? await childRunKeyed(child(27), rr.share.code, 'Ahmed', 'Grade 8', rr.questions, { correct: 3 }) : { ok: false, trail: [] };
       await api.freshReset();
@@ -619,12 +625,13 @@ exports.run = async (ctx) => {
       const pick = les.ok ? await chooseAction(/report|رپورٹ/i) : { ok: false };
       const t0 = Date.now(); const got = [];
       while (Date.now() - t0 < 240000) { for (const x of await api.fresh()) got.push(x); if (got.filter((x) => x.doc || x.pdf || x.img).length >= 2) break; await sleep(3000); }
-      const ev = { ...ev71, askedLanguage: /Make it in|English|اردو/.test((made.ev.actions || []).join(' ')), ...made.ev, quiz: q612, pdfSaysPlanned: /What you planned/.test(pdf.text || ''), pdfSaysMadeFrom: /Made from your lesson plan/.test(pdf.text || ''), childFinished: kid.ok,
+      const ev = { ...ev71, docKeyPut: put1.key, askedLanguage: /Make it in|English|اردو/.test((made.ev.actions || []).join(' ')), ...made.ev, quiz: q612, pdfSaysPlanned: /What you planned/.test(pdf.text || ''), pdfSaysMadeFrom: /Made from your lesson plan/.test(pdf.text || ''), childFinished: kid.ok,
         actionsAfter: acts, offersResend: acts.some((a) => /Resend link|دوبارہ link/.test(a)), offersReport: acts.some((a) => /report|رپورٹ/i.test(a)), reportPdf: got.some((x) => x.doc || x.pdf), childrenCards: got.filter((x) => x.img).length };
       done('T71', ...V(ev71.listed && ev71.saysFromLessonPlan && ev.askedLanguage && made.ok && ev.pdfSaysPlanned && ev.pdfSaysMadeFrom && kid.ok && ev.offersResend && ev.offersReport && ev.reportPdf, ev));
       // T72 — the source switched OFF everywhere: no 6-12 lesson without a quiz, the sent one still works
       s = t();
-      const d2 = dbJson('seed-lp612-delivery', ['--segment-like', 'grade_7_mathematics*']);
+      const d2 = dbJson('seed-lp612-delivery', ['--segment-like', 'grade_7_mathematics*', '--template-version', 'qa-v1']);
+      if (d2 && d2.segment_id) { SC.lp612Doc('put', d2.segment_id, d2.lang || 'en', 'qa-v1', DOC); seeds.lp612Docs.push([d2.segment_id, d2.lang || 'en']); }
       const rw = SC.restart('worker', { QUIZ_LP612_SOURCE: 'off' }); const rb = SC.restart('bot', { QUIZ_LP612_SOURCE: 'off' });
       await api.resetFlow(); await api.freshReset();
       const off = await openLesson((i) => d2 && String(i.id || '') === 'lsn_lp612_' + d2.id);
@@ -741,6 +748,7 @@ exports.run = async (ctx) => {
     for (const [a, extra] of [['seed-class-quiz', ['--restore', '--child-prefix', CHILD_PREFIX]], ['seed-lp-quiz', ['--restore']], ['seed-lp-download', ['--restore']], ['seed-coaching-session', ['--restore']], ['seed-lp612-delivery', ['--restore']]]) {
       try { api.db(a, extra); } catch (_) {}
     }
+    for (const [seg, lg] of seeds.lp612Docs) SC.lp612Doc('rm', seg, lg, 'qa-v1');
     try { api.db('purge-run-quizzes', ['--since', runStartIso, '--child-prefix', CHILD_PREFIX]); } catch (_) {}
     for (const id of OWNED) if (!seenIds.has(id)) R(id)('BLOCKED', { reason: 'not reached — an earlier step of the generation cluster threw: ' + (errors.slice(-1)[0] || 'unknown'), errors: errors.slice(0, 6) }, 0);
   }

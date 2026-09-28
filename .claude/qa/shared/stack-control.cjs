@@ -61,4 +61,13 @@ function faults(rules) {
 function clearFaults() { try { fs.rmSync(faultsFile(), { force: true }); } catch (_) {} return { ok: true }; }
 function faultsLeft() { try { return JSON.parse(fs.readFileSync(faultsFile(), 'utf8')); } catch (_) { return []; } }
 
-module.exports = { runDir, ports, restart, redis, job, faults, clearFaults, faultsLeft };
+function lp612Doc(mode, segment, lang, tv, file) {
+  const src = path.join(runDir(), 'src');
+  if (!runDir() || !fs.existsSync(src)) return { ok: false, err: 'NO_STACK_SRC' };
+  try {
+    const out = execFileSync('node', [path.join(src, 'bot/scripts/e2e/lp612-doc.js'), mode, segment, lang, tv, ...(file ? [file] : [])], { cwd: src, encoding: 'utf8', timeout: 120000 });
+    try { return JSON.parse(out.trim().split('\n').pop()); } catch (_) { return { ok: true, out: out.slice(-200) }; }
+  } catch (e) { return { ok: false, err: String((e.stdout || '') + (e.stderr || '') + e.message).slice(-300) }; }
+}
+
+module.exports = { runDir, ports, restart, redis, job, faults, clearFaults, faultsLeft, lp612Doc };
