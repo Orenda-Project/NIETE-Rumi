@@ -10,6 +10,8 @@
  *
  * Each scenario is timed, so the output doubles as the cost ledger the efficiency gate needs.
  */
+// The lane's resolver fallback (bot/scripts/e2e/dns-pin.js): the runner's own Supabase calls survive a router DNS drop too.
+try { require(require('path').resolve(__dirname, '..', '..', '..', 'bot', 'scripts', 'e2e', 'dns-pin.js')); } catch (_) { /* older checkout */ }
 const path = require('path');
 const PORT = Number((process.argv.find(a => a.startsWith('--port=')) || '').split('=')[1] || process.env.CDP_PORT || 9223);
 const FEATURE = process.argv[2];

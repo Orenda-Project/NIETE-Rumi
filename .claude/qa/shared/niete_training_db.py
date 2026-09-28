@@ -33,6 +33,25 @@ each row is {q, correct} — resolve the served question by `q` (substring),
 select the option whose TEXT matches `correct` (correct_option is 1-based).
 """
 import argparse, subprocess, json, os, re, sys, uuid, datetime, urllib.request, urllib.parse, urllib.error
+import socket
+
+# The machine's router DNS has dropped mid-run (gaierror 'nodename nor servname provided'); when the OS
+# resolver fails, answer from 1.1.1.1 through dig and keep going. Off with E2E_DNS_FALLBACK=off.
+_getaddrinfo = socket.getaddrinfo
+_dns_cache = {}
+def _getaddrinfo_fallback(host, port, *args, **kw):
+    try:
+        return _getaddrinfo(host, port, *args, **kw)
+    except socket.gaierror:
+        if os.environ.get("E2E_DNS_FALLBACK", "on").lower() == "off" or not isinstance(host, str) or re.match(r"^[\d.]+$", host): raise
+        ips = _dns_cache.get(host)
+        if not ips:
+            try: ips = [l.strip() for l in subprocess.run(["dig", "+short", "@1.1.1.1", host, "A"], capture_output=True, text=True, timeout=10).stdout.splitlines() if re.match(r"^\d+\.\d+\.\d+\.\d+$", l.strip())]
+            except Exception: ips = []
+            if not ips: raise
+            _dns_cache[host] = ips
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, port)) for ip in ips]
+socket.getaddrinfo = _getaddrinfo_fallback
 
 # sandbox = the landing branch's environment since 2026-09-09 (sandbox -> staging -> main);
 # staging is cut from main and is a regression check, not where new work lands (bd-yd11o).
@@ -367,9 +386,11 @@ def _restore_seeded_quizzes(creds, uid, tag, yes_write, child_prefix=None):
         _req("DELETE", "/rest/v1/quiz_questions?quiz_id=%s" % inq, creds, prefer="return=minimal")
         _req("DELETE", "/rest/v1/teacher_nudges?quiz_id=%s" % inq, creds, prefer="return=minimal")
         _req("DELETE", "/rest/v1/quizzes?id=%s" % inq, creds, prefer="return=minimal")
-        if child_prefix:
-            _req("DELETE", "/rest/v1/students?phone=like.%s*" % child_prefix, creds, prefer="return=minimal")
+        pass
+
         out["sessions"] = len(sids)
+    if yes_write and child_prefix:
+        out["children"] = _purge_children(creds, child_prefix)
     return out
 
 def _delete_quizzes(creds, qids, child_prefix=None):
@@ -386,9 +407,28 @@ def _delete_quizzes(creds, qids, child_prefix=None):
     _req("DELETE", "/rest/v1/teacher_nudges?quiz_id=%s" % inq, creds, prefer="return=minimal")
     _req("DELETE", "/rest/v1/quizzes?id=%s" % inq, creds, prefer="return=minimal")
     if child_prefix:
-        _req("DELETE", "/rest/v1/students?phone=like.%s*" % child_prefix, creds, prefer="return=minimal")
+        _purge_children(creds, child_prefix)
     out["sessions"] = len(sids)
     return out
+
+
+def _purge_children(creds, child_prefix):
+    """The QA children (phones under child_prefix) and everything hanging off them, whichever quiz
+    they took: answers → sessions → students. A student still referenced by a session of a quiz the
+    run did not make (a friend's invite, an older day) blocked the plain delete with 23503."""
+    kids = _get(creds, "students", "phone=like.%s*&select=id" % child_prefix) or []
+    ids = [k["id"] for k in kids]
+    for i in range(0, len(ids), 60):
+        chunk = ",".join(ids[i:i+60])
+        sess = _get(creds, "quiz_sessions", "student_id=in.(%s)&select=id" % chunk) or []
+        sids = [x["id"] for x in sess]
+        for j in range(0, len(sids), 60):
+            _req("DELETE", "/rest/v1/quiz_answers?session_id=in.(%s)" % ",".join(sids[j:j+60]), creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/quiz_sessions?student_id=in.(%s)" % chunk, creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/quiz_sessions?invited_by_student_id=in.(%s)" % chunk, creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/quiz_share_codes?invited_by_student_id=in.(%s)" % chunk, creds, prefer="return=minimal")
+        _req("DELETE", "/rest/v1/students?id=in.(%s)" % chunk, creds, prefer="return=minimal")
+    return len(ids)
 
 
 def cmd_purge_run_quizzes(creds, a):
