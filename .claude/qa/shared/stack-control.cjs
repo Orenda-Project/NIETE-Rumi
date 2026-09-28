@@ -47,7 +47,7 @@ function job(mode, type, groupId, payload = {}, delaySeconds = 0) {
   if (!runDir() || !fs.existsSync(src)) return { ok: false, err: 'NO_STACK_SRC' };
   try {
     const out = execFileSync('node', [path.join(src, 'bot/scripts/e2e/quiz-job.js'), mode, type, String(groupId), JSON.stringify(payload), String(delaySeconds || 0)], { cwd: src, encoding: 'utf8', timeout: 180000 });
-    const line = out.trim().split('\n').pop();
+    const line = out.trim().split('\n').reverse().find((l) => l.trim().startsWith('{')) || '';
     try { return JSON.parse(line); } catch (_) { return { ok: true, out: out.slice(-300) }; }
   } catch (e) { return { ok: false, err: String((e.stdout || '') + (e.stderr || '') + e.message).slice(-400) }; }
 }
@@ -66,7 +66,8 @@ function lp612Doc(mode, segment, lang, tv, file) {
   if (!runDir() || !fs.existsSync(src)) return { ok: false, err: 'NO_STACK_SRC' };
   try {
     const out = execFileSync('node', [path.join(src, 'bot/scripts/e2e/lp612-doc.js'), mode, segment, lang, tv, ...(file ? [file] : [])], { cwd: src, encoding: 'utf8', timeout: 120000 });
-    try { return JSON.parse(out.trim().split('\n').pop()); } catch (_) { return { ok: true, out: out.slice(-200) }; }
+    const line = out.trim().split('\n').reverse().find((l) => l.trim().startsWith('{')) || '';
+    try { return JSON.parse(line); } catch (_) { return { ok: true, out: out.slice(-200) }; }
   } catch (e) { return { ok: false, err: String((e.stdout || '') + (e.stderr || '') + e.message).slice(-300) }; }
 }
 

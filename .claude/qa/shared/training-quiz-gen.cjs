@@ -131,7 +131,7 @@ exports.run = async (ctx) => {
           want = dbq ? String(dbq.correct_option) : (q.btns[0] || 'wrong');
         } else want = (q.btns || [])[0] || 'wrong';
       }
-      screens.push({ i: i + 1, image: !!(q.img || q.image || (q.media && !q.doc)), text: short(q.txt, 220), rows: (q.list && q.list.rows || []).map((r) => short(optionText(r), 40)), btns: q.btns, dbQ: dbq && dbq.sort_order, key: short(key, 40) });
+      screens.push({ i: i + 1, image: !!(q.img || q.image || (q.media && !q.doc)) || /in the picture above|اوپر (والی )?تصویر|تصویر میں/.test(q.txt || ''), text: short(q.txt, 220), rows: (q.list && q.list.rows || []).map((r) => short(optionText(r), 40)), btns: q.btns, dbQ: dbq && dbq.sort_order, key: short(key, 40) });
       const a = await childAnswer(kid, q, want, {});
       trail.push({ q: i + 1, want: short(want, 40), feedback: short(a.feedback, 200), image: screens[screens.length - 1].image });
       ended = a.ended; q = a.next;
@@ -159,6 +159,14 @@ exports.run = async (ctx) => {
   if (!stackNote.ports) {
     for (const id of OWNED) if (!seenIds.has(id)) blocked(id, 'no local stack ports under RUN_DIR — the generation cluster needs the mock lane stack', stackNote);
     return;
+  }
+  // Idempotent start: a quiz, student or seed left by an earlier run (run 20260928-0837 lost its
+  // cleanup to a DNS outage) hides the lesson from the list, reads as "welcome back" to a child and
+  // marks the teacher as nudged today. The driver is a QA account: everything it made in the last
+  // week goes first.
+  const weekAgo = new Date(Date.now() - 7 * 86400e3).toISOString();
+  for (const [a, extra] of [['seed-class-quiz', ['--restore', '--child-prefix', CHILD_PREFIX]], ['seed-lp-quiz', ['--restore']], ['seed-lp-download', ['--restore']], ['seed-coaching-session', ['--restore']], ['seed-lp612-delivery', ['--restore']], ['purge-run-quizzes', ['--since', weekAgo, '--child-prefix', CHILD_PREFIX]]]) {
+    try { api.db(a, extra); } catch (_) {}
   }
   const seeds = { lpDownload: false, coaching: false, lp612: false, lp612Docs: [], lpQuiz: false, classQuiz: false, capKey: null, role: null, lang: null };
   try {
@@ -224,7 +232,7 @@ exports.run = async (ctx) => {
 
     // a recording of the driver's own, so /quiz lists 'From transcript' whichever driver this machine holds
     const TF = path.join(__dirname, '..', 'fixtures', 'whatsapp', 'niete', 'quiz', 'transcript-fractions-en.txt');
-    let cs = dbJson('seed-coaching-session', ['--transcript-file', TF, '--language', 'en', '--topic', 'Proper and improper fractions', '--subject', 'maths']); seeds.coaching = true;
+    let cs = dbJson('seed-coaching-session', ['--transcript-file', TF, '--language', 'en', '--topic', 'Fractions', '--subject', 'maths']); seeds.coaching = true;
     // ════ T63 — however I type "quiz", the menu opens (with a lesson plan taken today to list) ═══
     const dlA = dbJson('seed-lp-download', ['--lesson-id', 'grade_1_maths_ch2_seg3']); seeds.lpDownload = true;
     try {
@@ -491,7 +499,8 @@ exports.run = async (ctx) => {
       const repU = await collect(api, (x) => (x.doc || x.pdf), 240000);
       const pdfR = repU.ok ? await pdfOf(repU.hit, 'T76-report.pdf') : { text: '' };
       const ev76 = { title, joiner: (title.match(/[—–→&]/) || [])[0], corpusNote: 'no dash-titled maths/science lesson exists in the sandbox corpus; the & joiner exercises the same latin-runs isolate', quizTopic: gU && gU.topic, dashTitle, quizPdfInOrder: inOrder(pdf.text), quizPdfReversed: !!reversed(pdf.text), reportArrived: repU.ok, reportInOrder: inOrder(pdfR.text), reportReversed: !!reversed(pdfR.text) };
-      done('T76', ...V(dashTitle && ev76.quizPdfInOrder && !ev76.quizPdfReversed && repU.ok && ev76.reportInOrder && !ev76.reportReversed, ev76));
+      ev76.quizPdfChars = (pdf.text || '').length; ev76.reportPdfChars = (pdfR.text || '').length;
+      done('T76', ...(ev76.quizPdfChars < 20 ? ['BLOCKED', { reason: 'the Urdu quiz PDF yields no extractable text (pypdf: subset Nastaliq glyphs), so the Latin title\'s reading order cannot be read off it; the report PDF ' + (ev76.reportPdfChars < 20 ? 'likewise' : 'was read: ' + (ev76.reportInOrder ? 'in order' : 'not in order')), ...ev76 }] : V(dashTitle && ev76.quizPdfInOrder && !ev76.quizPdfReversed && repU.ok && ev76.reportInOrder && !ev76.reportReversed, ev76)));
       // T83 (Urdu half) + T84
       s = t();
       const dups = duplicates(qs);
@@ -546,10 +555,11 @@ exports.run = async (ctx) => {
 
     // ════ T47 T79 T80 T81 T82 T83 — a quiz from a coaching RECORDING ═══════════════════════════
     try {
-      if (!cs || !cs.id) { cs = dbJson('seed-coaching-session', ['--transcript-file', TF, '--language', 'en', '--topic', 'Proper and improper fractions', '--subject', 'maths']); seeds.coaching = true; }
+      if (!cs || !cs.id) { cs = dbJson('seed-coaching-session', ['--transcript-file', TF, '--language', 'en', '--topic', 'Fractions', '--subject', 'maths']); seeds.coaching = true; }
       if (!cs || !cs.id) throw new Error('SEED_CS:' + JSON.stringify(cs));
-      const isTranscriptRow = (i) => /From transcript|کلاس کی ریکارڈنگ سے/.test(String(i.hay || i.text || '')) && /fraction/i.test(String(i.hay || i.text || ''));
-      const isItsQuiz = (i) => !/^lsn_/.test(String(i.id || '')) && /fraction/i.test(String(i.hay || i.text || '')) && /Failed|نہیں بنا/.test(String(i.hay || '')) && /From transcript|کلاس کی ریکارڈنگ/.test(String(i.hay || ''));
+      const isTranscriptRow = (i) => String(i.id || '') === cs.id || (/From transcript|کلاس کی ریکارڈنگ سے/.test(String(i.hay || i.text || '')) && /fraction/i.test(String(i.hay || i.text || '')));
+      const csQuiz = () => (lessonQuizzes(cs.id).quizzes[0] || {}).id || null;
+      const isItsQuiz = (i) => { const q = csQuiz(); return !!q && String(i.id || '') === 'lp_' + q; };
       // T47 — no usable model reply
       s = t();
       SC.faults([{ kind: 'llm', match: 'You are writing a short WhatsApp quiz', times: 12, content: '' }]);
@@ -575,8 +585,7 @@ exports.run = async (ctx) => {
       // the REAL transcript quiz — T80 T81 T82 T83 (+ T29 evidence)
       s = t();
       const mT = await makeVia(isItsQuiz, /remake|Make it again|make_|دوبارہ/i, { timeoutMs: 540000 });
-      const rowT = await openLesson((i) => !/^lsn_/.test(String(i.id || '')) && /fraction/i.test(String(i.hay || i.text || '')) && /From transcript|کلاس کی ریکارڈنگ/.test(String(i.hay || '')) && !/Failed|نہیں بنا/.test(String(i.hay || ''))); api.closeFlow();
-      const tid = rowT.row && String(rowT.row.id || '').replace(/^(lp|tq|q)_/, '');
+      const tid = csQuiz();
       const rr = tid ? rows(tid) : {}; const qs = rr.questions || [];
       const texts = textsOf(qs);
       const pdf = mT.arr && mT.arr.doc ? await pdfOf(mT.arr.doc, 'T80-quiz.pdf') : { text: '' };
@@ -705,7 +714,7 @@ exports.run = async (ctx) => {
       if (!p2.ok) throw new Error('second pick: ' + p2.err);
       await api.freshReset();
       const yes = await api.tapAndWait('جی، شروع کریں', 60000);
-      let q = (await collect(api, (x) => x.list && (x.list.rows || []).length, 90000)).hit;
+      let q = (await collect(api, isChildQ, 90000)).hit;
       let ended = false, n = 0, lastAnswerId = null; const trail = [];
       while (q && !ended && n < 20) {
         const row = q.list && (q.list.rows || [])[0]; const btn = (q.btns || [])[0];
@@ -713,10 +722,9 @@ exports.run = async (ctx) => {
         await api.freshReset();
         if (row) await api.tapId('list', row.id, row.title); else if (btn) await api.tapAndWait(btn, 30000); else break;
         const isShare = (x) => (x.btns || []).some((b) => /کلاس کو بھیجیں|Share with class/.test(b));
-        const isVq = (x) => !!(x.list && (x.list.rows || []).length);
-        const w = await collect(api, (x) => isVq(x) || isShare(x), 60000);
+        const w = await collect(api, (x) => isChildQ(x) || isShare(x), 60000);
         n++; trail.push(short((w.hit && w.hit.txt) || w.last, 60));
-        const nextQ = w.seen.filter(isVq).pop() || null;
+        const nextQ = w.seen.filter(isChildQ).pop() || null;
         ended = w.seen.some(isShare) || (!nextQ && w.seen.some(isEnd)); q = nextQ;
         if (ended) break;
       }

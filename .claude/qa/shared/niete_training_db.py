@@ -419,8 +419,8 @@ def cmd_quizzes_for_lesson(creds, a):
     """Read-only: the driver's quizzes whose meta.lessons cover --lesson-id (how many quizzes one tapped
     lesson produced: T65), newest first."""
     uid = _uid(creds, a.phone)
-    rows = _get(creds, "quizzes", "teacher_id=eq.%s&quiz_source=in.(lp_v8,lp612)&select=id,status,language,topic,meta,created_at&order=created_at.desc&limit=40" % uid) or []
-    hit = [r for r in rows if any((l or {}).get("lesson_id") == a.lesson_id or (l or {}).get("segment_id") == a.lesson_id for l in ((r.get("meta") or {}).get("lessons") or []))]
+    rows = _get(creds, "quizzes", "teacher_id=eq.%s&quiz_source=in.(lp_v8,lp612,transcript)&select=id,status,language,topic,meta,coaching_session_id,created_at&order=created_at.desc&limit=60" % uid) or []
+    hit = [r for r in rows if r.get("coaching_session_id") == a.lesson_id or any((l or {}).get("lesson_id") == a.lesson_id or (l or {}).get("segment_id") == a.lesson_id for l in ((r.get("meta") or {}).get("lessons") or []))]
     print(json.dumps({"lesson_id": a.lesson_id, "count": len(hit), "quizzes": [{"id": r["id"], "status": r["status"], "language": r["language"], "topic": r["topic"], "created_at": r["created_at"],
                        "cache_donor": (r.get("meta") or {}).get("cache_donor"), "error": (r.get("meta") or {}).get("error")} for r in hit]}, ensure_ascii=False))
 

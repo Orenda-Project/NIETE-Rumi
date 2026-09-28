@@ -30,9 +30,9 @@ if (!/^qa-/.test(tv)) { console.error('lp612-doc: template_version must start wi
     const body = fs.readFileSync(file);
     JSON.parse(body.toString('utf8'));
     await s3.send(new PutObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key, Body: body, ContentType: 'application/json' }));
-    console.log(JSON.stringify({ ok: true, mode, key, bytes: body.length }));
+    console.log(JSON.stringify({ ok: true, mode, key, bytes: body.length })); process.exit(0);
   } else if (mode === 'rm') {
     await s3.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key }));
-    console.log(JSON.stringify({ ok: true, mode, key }));
+    console.log(JSON.stringify({ ok: true, mode, key })); process.exit(0);
   } else { console.error('lp612-doc: mode must be put|rm'); process.exit(2); }
 })().catch((e) => { console.error(JSON.stringify({ ok: false, error: e.message })); process.exit(1); });
