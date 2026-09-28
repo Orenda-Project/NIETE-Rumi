@@ -160,7 +160,7 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   # The machine's router DNS has dropped mid-run for 15+ minutes (four runs, Sept 2026): bot, worker
   # and mock preload a resolver fallback (bot/scripts/e2e/dns-pin.js) that answers from 1.1.1.1 only
   # when the OS lookup fails. NODE_OPTIONS must be in the process env, not .env. E2E_DNS_FALLBACK=off.
-  export NODE_OPTIONS="--require $src/bot/scripts/e2e/dns-pin.js"
+  export NODE_OPTIONS="--require \"$src/bot/scripts/e2e/dns-pin.js\""   # quoted: the workspace path has spaces
   ( cd "$src" && exec node bot/whatsapp-bot.js ) >"$run_dir/bot.log" 2>&1 &
   echo $! >"$run_dir/bot.pid"
   ( cd "$src" && exec node bot/workers/sqs-worker.js ) >"$run_dir/worker.log" 2>&1 &
@@ -218,7 +218,7 @@ restart() {
   local proc="$1" run_dir="$2"; shift 2
   local src="$run_dir/src"; [ -d "$src" ] || { log "restart: no $src"; exit 2; }
   read -r mock_port bot_port redis_port worker_port <"$run_dir/ports"
-  export NODE_OPTIONS="--require $src/bot/scripts/e2e/dns-pin.js"
+  export NODE_OPTIONS="--require \"$src/bot/scripts/e2e/dns-pin.js\""   # quoted: the workspace path has spaces
   if [ -f "$run_dir/$proc.pid" ]; then kill "$(cat "$run_dir/$proc.pid")" >/dev/null 2>&1 || true; fi
   case "$proc" in
     bot)
