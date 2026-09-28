@@ -46,7 +46,7 @@ def _getaddrinfo_fallback(host, port, *args, **kw):
         if os.environ.get("E2E_DNS_FALLBACK", "on").lower() == "off" or not isinstance(host, str) or re.match(r"^[\d.]+$", host): raise
         ips = _dns_cache.get(host)
         if not ips:
-            try: ips = [l.strip() for l in subprocess.run(["dig", "+short", "@1.1.1.1", host, "A"], capture_output=True, text=True, timeout=10).stdout.splitlines() if re.match(r"^\d+\.\d+\.\d+\.\d+$", l.strip())]
+            try: ips = [l.strip() for l in subprocess.run(["dig", "+short", "+time=3", "+tries=2", "@1.1.1.1", host, "A"], capture_output=True, text=True, timeout=30).stdout.splitlines() if re.match(r"^\d+\.\d+\.\d+\.\d+$", l.strip())]
             except Exception: ips = []
             if not ips: raise
             _dns_cache[host] = ips
