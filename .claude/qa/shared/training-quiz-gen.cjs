@@ -416,6 +416,11 @@ exports.run = async (ctx) => {
       const dlC = dbJson('seed-lp-download', ['--lesson-id', 'grade_4_math_ch5_seg3', '--donor-version']);
       if (!dlC || !dlC.id) throw new Error('SEED_DL_C:' + JSON.stringify(dlC));
       const isRow = (i) => String(i.id || '') === 'lsn_lp_v8_' + dlC.id;
+      // The donor's pictures live in the SANDBOX bot's bucket (rumi-sandbox); the lane's keys point the
+      // worker at another bucket, and extractKeyFromUrl cannot read a URL on a different bucket, so the
+      // copy step 'could not copy the donor pictures' and authored instead (run 20260928-1127). For this
+      // one make the worker runs on the sandbox bucket — the same lever as the 6-12 switch.
+      const rwB = SC.restart('worker', { R2_BUCKET_NAME: 'rumi-sandbox' });
       const made = await makeVia(isRow, /make_en|English/i, { timeoutMs: 300000 });
       const after = lessonQuizzes('grade_4_math_ch5_seg3'); g66 = after.quizzes[0] || null;
       const rr = g66 ? rows(g66.id) : {};
@@ -424,7 +429,7 @@ exports.run = async (ctx) => {
       const same = donor.questions && rr.questions && donor.questions.length === rr.questions.length && donor.questions.every((q, i) => normText(q.question_text) === normText(rr.questions[i].question_text));
       const pdf = made.arr && made.arr.doc ? await pdfOf(made.arr.doc, 'T66-quiz.pdf') : { text: '' };
       const today = new Date(); const dateWords = [String(today.getDate()), today.toLocaleString('en-GB', { month: 'short' }), today.toLocaleString('en-GB', { month: 'long' })];
-      const ev = { ...made.ev, servedVersion: dlC.version_stamp, donorSeeded: dlC.donor, cached: !!donorId, donorId, donorQuestionsEqual: !!same, questions: (rr.questions || []).length, arrivedInMs: made.ev.arrival && made.ev.arrival.waitedMs,
+      const ev = { ...made.ev, workerBucket: rwB.ok ? 'rumi-sandbox (restarted)' : 'restart failed: ' + rwB.err, servedVersion: dlC.version_stamp, donorSeeded: dlC.donor, cached: !!donorId, donorId, donorQuestionsEqual: !!same, questions: (rr.questions || []).length, arrivedInMs: made.ev.arrival && made.ev.arrival.waitedMs,
         pdfCarriesMyName: !!teacherName && (pdf.text || '').includes(teacherName), teacherName, pdfCarriesLessonDate: dateWords.some((w) => (pdf.text || '').includes(w)),
         forwardCarriesMyName: !!teacherName && !!(made.arr && made.arr.fwd) && made.arr.fwd.txt.includes(teacherName), newCode: codeOf(made.arr && made.arr.fwd), donorCode: donor.share && donor.share.code, codeIsNew: !!codeOf(made.arr && made.arr.fwd) && codeOf(made.arr && made.arr.fwd) !== (donor.share && donor.share.code) };
       done('T66', ...V(made.ok && ev.cached && ev.donorQuestionsEqual && ev.pdfCarriesMyName && ev.forwardCarriesMyName && ev.codeIsNew, ev));
@@ -440,6 +445,7 @@ exports.run = async (ctx) => {
         lettersUnderCard: cardScreens.every((x) => (x.btns || []).filter((b) => /^[A-D]$/.test(b)).length >= 2), verdictNoTex: !/\$|\\frac|\\\\/.test(verdicts), pdfNoTex: !/\\frac|\$\\/.test(pdf.text || ''), verdictSample: short(verdicts, 200) };
       done('T28', ...V(r23.ok && cardQs.length > 0 && cardScreens.length > 0 && ev28.lettersUnderCard && ev28.verdictNoTex && ev28.pdfNoTex, ev28));
     } catch (e) { errors.push('T66:' + e.message); for (const id of ['T66', 'T28']) if (!seenIds.has(id)) blocked(id, 'the cached lesson-plan quiz leg threw: ' + short(e.message, 200)); }
+    finally { SC.restart('worker', {}); }
 
     // ════ the URDU generation (dash-titled maths lesson) — T52 T53 T62 T75 T76 T83 T84 T48 ═════
     let gU = null;
