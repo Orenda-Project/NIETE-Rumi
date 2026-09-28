@@ -174,12 +174,17 @@ def _req(method, path, key, body=None, prefer=None):
     if prefer: headers["Prefer"] = prefer
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url + path, data=data, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req) as r:
-            raw = r.read().decode()
-            return json.loads(raw) if raw.strip() else None, r.status
-    except urllib.error.HTTPError as e:
-        sys.exit("HTTP %s on %s %s: %s" % (e.code, method, path, e.read().decode()[:300]))
+    import time
+    for attempt in range(1, 5):   # a DNS/socket blip (run 20260928-0837: gaierror mid-run) is retried, not fatal
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                raw = r.read().decode()
+                return json.loads(raw) if raw.strip() else None, r.status
+        except urllib.error.HTTPError as e:
+            sys.exit("HTTP %s on %s %s: %s" % (e.code, method, path, e.read().decode()[:300]))
+        except (urllib.error.URLError, OSError) as e:
+            if attempt >= 4: raise
+            time.sleep(3 * attempt)
 
 def _upsert_path(table, conflict_cols):
     """PostgREST upsert target. `Prefer: resolution=merge-duplicates` is only honoured
