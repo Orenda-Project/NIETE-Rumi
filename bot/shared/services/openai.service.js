@@ -483,6 +483,23 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
     }
   }
 
+  /**
+   * The one-line reply-language note placed before a child's message. A model
+   * instruction, not child-facing copy — English on purpose, like the
+   * religious-reverence block.
+   * @private
+   */
+  _studentReplyLanguageNote(language) {
+    const name = this._languageName(language);
+    // A right-to-left language is written in its own script; say so, or the
+    // model answers Urdu in English letters, which a child reads worst.
+    const { getLanguage } = require('../config/languages');
+    const ownScript = (getLanguage(language) || {}).direction === 'rtl'
+      ? ` — ${name} script; English subject terms may stay in English letters`
+      : '';
+    return `REPLY LANGUAGE: ${name}${ownScript}`;
+  }
+
   async getResponseWithFormat(userMessage, userId, format, language, firstName = null, featureContext = null, opts = {}) {
     try {
       logToFile('Getting format-aware response', {
@@ -547,11 +564,19 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
           + featureContext
         : null;
 
+      // A child's reply language is decided by the caller for this turn and
+      // stated right before the child's message: a rule in the system prompt,
+      // ~10 turns away, lost to the language of the chat's earlier replies.
+      const studentLanguageNote = opts && opts.persona === 'student'
+        ? this._studentReplyLanguageNote(language)
+        : null;
+
       // Build new history with format-specific system prompt
       const messages = [
         { role: 'system', content: systemPrompt },
         ...existingHistory,
         ...(adjacentContext ? [{ role: 'system', content: adjacentContext }] : []),
+        ...(studentLanguageNote ? [{ role: 'system', content: studentLanguageNote }] : []),
         { role: 'user', content: userMessage }
       ];
 

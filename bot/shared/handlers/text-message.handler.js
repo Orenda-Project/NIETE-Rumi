@@ -1,6 +1,7 @@
 const WhatsAppService = require('../services/whatsapp.service');
 const { firstNameOf } = require('../utils/person-name');
 const { verifyOutputLanguage } = require('../utils/output-language-check');
+const { decideChildReplyLanguage } = require('../utils/child-reply-language');
 const { resolveResponseLanguage } = require('../utils/resolve-response-language');
 const OpenAIService = require('../services/openai.service');
 const ContentService = require('../services/content.service');
@@ -2880,7 +2881,28 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
   // Her quiz was written in one language and she answered fifteen questions in
   // it; that is the language she reads, whatever the users row created by her
   // first inbound message happens to say.
-  const replyLanguage = isStudent ? (studentVerdict.language || responseLanguage) : responseLanguage;
+  const quizLanguage = isStudent ? (studentVerdict.language || responseLanguage) : null;
+  let replyLanguage = isStudent ? quizLanguage : responseLanguage;
+
+  // A child's reply language is decided here, per turn, from what the child
+  // wrote — and, when the message carries no language (a letter, a number, a
+  // name), from the language the chat's last reply is actually in. The quiz
+  // language is only the starting point. The model is then told the answer
+  // (getResponseWithFormat puts it right before the child's message); asking
+  // the model to work it out lost to its own earlier replies.
+  let childLanguage = null;
+  if (isStudent) {
+    try {
+      childLanguage = decideChildReplyLanguage({
+        message: messageBody,
+        history: await OpenAIService.getConversationHistory(user.id),
+        quizLanguage,
+      });
+      replyLanguage = childLanguage.language;
+    } catch (err) {
+      logToFile('⚠️ child reply language: decision failed, using the quiz language', { error: err.message }, 'warn');
+    }
+  }
 
   // Phase 2: Conditional Feature Context Injection
   let featureContext = null;
@@ -2934,14 +2956,26 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
   // we still deliver, because a checker that suppresses a reply is worse than the
   // drift it was added to catch.
   const langCheck = verifyOutputLanguage(aiResponse, replyLanguage);
+  // Logged at warn: the check is advisory and the reply is always delivered.
+  // For a child, `expected` is the language decided for THIS message, so an
+  // Urdu reply to a child who wrote Urdu (in either script) is not drift; the
+  // message script and the decision's source ride along so the rate can be
+  // read per kind of message.
   if (!langCheck.ok) {
     logToFile('🈯 language_drift: chat reply', {
       surface: 'chat_text',
       expected: langCheck.expected,
       detected: langCheck.detected,
       reason: langCheck.reason,
-      userId: user?.id
-    }, 'error');
+      userId: user?.id,
+      persona: isStudent ? 'student' : 'teacher',
+      ...(childLanguage ? {
+        messageScript: childLanguage.messageScript,
+        decidedLanguage: childLanguage.language,
+        languageSource: childLanguage.source,
+        quizLanguage,
+      } : {}),
+    }, 'warn');
   }
 
   // Stop typing indicator before sending reply
