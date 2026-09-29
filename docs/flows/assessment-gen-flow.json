@@ -111,7 +111,14 @@
                 "name": "grade",
                 "label": "Grade",
                 "required": true,
-                "data-source": "${data.grades}"
+                "data-source": "${data.grades}",
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "trigger": "grade_selected",
+                    "grade": "${form.grade}"
+                  }
+                }
               },
               {
                 "type": "Dropdown",
