@@ -114,7 +114,7 @@ exports.run = async (ctx) => {
   const childRunKeyed = async (kid, code, name, cls, qrows, { correct = 99, maxQ = 20 } = {}) => {
     const j = await childJoin(kid, code, name, cls);
     if (!j.ok) return { ok: false, err: 'JOIN:' + (j.err || j.last), join: j, trail: [], screens: [] };
-    let q = j.q, ended = false; const trail = [], screens = [];
+    let q = j.q, ended = false; const trail = [], screens = []; let lastSeen = [];
     for (let i = 0; i < maxQ && q && !ended; i++) {
       const stem = normText(q.txt).slice(0, 80);
       const dbq = (qrows || []).find((r) => stem && normText(r.question_text).slice(0, 80) === stem)
@@ -134,9 +134,9 @@ exports.run = async (ctx) => {
       screens.push({ i: i + 1, image: !!(q.img || q.image || (q.media && !q.doc)) || /in the picture above|اوپر (والی )?تصویر|تصویر میں/.test(q.txt || ''), text: short(q.txt, 220), rows: (q.list && q.list.rows || []).map((r) => short(optionText(r), 40)), btns: q.btns, dbQ: dbq && dbq.sort_order, key: short(key, 40) });
       const a = await childAnswer(kid, q, want, {});
       trail.push({ q: i + 1, want: short(want, 40), feedback: short(a.feedback, 200), image: screens[screens.length - 1].image });
-      ended = a.ended; q = a.next;
+      ended = a.ended; q = a.next; lastSeen = a.seen || [];
     }
-    return { ok: ended, ended, trail, screens, join: j, end: q };
+    return { ok: ended, ended, trail, screens, join: j, end: q, lastSeen };
   };
   // a DNS/socket blip (run 20260927-1742: getaddrinfo ENOTFOUND mid-leg) must not end a scenario
   const collect = async (actor, pred, timeoutMs) => { for (let i = 0; ; i++) { try { return await waitOn(actor, pred, timeoutMs); } catch (e) { if (i >= 3 || !/fetch failed|ECONN|ENOTFOUND|socket/i.test(String(e.message))) throw e; await sleep(3000); } } };
@@ -483,7 +483,8 @@ exports.run = async (ctx) => {
       s = t();
       const joinTexts = [...(((r24.join && r24.join.seen) || []).map((x) => x.txt || '')), String((r24.join && r24.join.greeting) || '')];
       const greeting = joinTexts.find((x) => /حسن/.test(x)) || joinTexts[0] || '';
-      const endTxt = String((r24.end && r24.end.txt) || '') + ' ' + r24.trail.map((x) => x.feedback).join(' ');
+      const tail = await collect(k24, (x) => /ستار/.test(x.txt || ''), 20000);
+      const endTxt = [String((r24.end && r24.end.txt) || ''), ...(r24.lastSeen || []).map((x) => x.txt || ''), ...tail.seen.map((x) => x.txt || ''), ...r24.trail.map((x) => x.feedback)].join(' ');
       const picQ = qs.filter((q) => q.media && q.media.question_image);
       const picScreens = r24.screens.filter((x) => x.image);
       const ev48 = { greeting: short(greeting, 160), urduCommaInGreeting: /حسن\s*،/.test(greeting) || (/،/.test(greeting) && !/حسن\s*,/.test(greeting)), pictureQuestions: picQ.map((q) => q.sort_order), pictureSeen: picScreens.map((x) => x.i),
@@ -506,10 +507,11 @@ exports.run = async (ctx) => {
       const inOrder = (txt0) => { const txt = flat(txt0); const a = txt.indexOf(parts[0]), b = parts[1] ? txt.indexOf(parts[1]) : a; return a >= 0 && b >= 0 && a <= b; };
       const reversed = (txt0) => { const txt = flat(txt0); return parts[1] && new RegExp(parts[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[—–→&]\\s*' + parts[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(txt); };
       await api.freshReset();
-      const lesR = await openLesson((i) => String(i.id || '') === 'lp_' + gU.id); const pickR = lesR.ok ? await chooseAction(/report|رپورٹ/i) : { ok: false };
-      const repU = await collect(api, (x) => (x.doc || x.pdf), 240000);
+      let lesR = await openLesson((i) => String(i.id || '') === 'lp_' + gU.id); let pickR = lesR.ok ? await chooseAction(/report|رپورٹ/i) : { ok: false, err: lesR.err };
+      let repU = await collect(api, (x) => (x.doc || x.pdf), 240000);
+      if (!repU.ok && lesR.ok && !pickR.ok) { await api.freshReset(); lesR = await openLesson((i) => String(i.id || '') === 'lp_' + gU.id); pickR = lesR.ok ? await chooseAction(/report|رپورٹ/i) : { ok: false, err: lesR.err }; repU = await collect(api, (x) => (x.doc || x.pdf), 240000); }
       const pdfR = repU.ok ? await pdfOf(repU.hit, 'T76-report.pdf') : { text: '' };
-      const ev76 = { title, joiner: (title.match(/[—–→&]/) || [])[0], corpusNote: 'no dash-titled maths/science lesson exists in the sandbox corpus; the & joiner exercises the same latin-runs isolate', quizTopic: gU && gU.topic, dashTitle, quizPdfInOrder: inOrder(pdf.text), quizPdfReversed: !!reversed(pdf.text), reportArrived: repU.ok, reportInOrder: inOrder(pdfR.text), reportReversed: !!reversed(pdfR.text) };
+      const ev76 = { reportAsk: { lesson: lesR.ok, actions: (lesR.actions || []).map((a) => a.text), picked: pickR.picked, err: pickR.err || lesR.err, offered: pickR.offered }, title, joiner: (title.match(/[—–→&]/) || [])[0], corpusNote: 'no dash-titled maths/science lesson exists in the sandbox corpus; the & joiner exercises the same latin-runs isolate', quizTopic: gU && gU.topic, dashTitle, quizPdfInOrder: inOrder(pdf.text), quizPdfReversed: !!reversed(pdf.text), reportArrived: repU.ok, reportInOrder: inOrder(pdfR.text), reportReversed: !!reversed(pdfR.text) };
       ev76.quizPdfChars = (pdf.text || '').length; ev76.reportPdfChars = (pdfR.text || '').length;
       done('T76', ...(ev76.quizPdfChars < 20 ? ['BLOCKED', { reason: 'the Urdu quiz PDF yields no extractable text (pypdf: subset Nastaliq glyphs), so the Latin title\'s reading order cannot be read off it; the report PDF ' + (ev76.reportPdfChars < 20 ? 'likewise' : 'was read: ' + (ev76.reportInOrder ? 'in order' : 'not in order')), ...ev76 }] : V(dashTitle && ev76.quizPdfInOrder && !ev76.quizPdfReversed && repU.ok && ev76.reportInOrder && !ev76.reportReversed, ev76)));
       // T83 (Urdu half) + T84
