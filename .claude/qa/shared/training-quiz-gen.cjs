@@ -111,6 +111,24 @@ exports.run = async (ctx) => {
 
   // A child answering a GENERATED quiz: the key comes from the stored rows, matched to the question on screen.
   const optionText = (row) => String(row.description || row.title || '');
+  const isEndCard = (x) => /🎉|All done!|مکمل!|You got \*?\d+ out of \d+|ستار[ہے] مل/.test(x.txt || '') || (x.btns || []).some((b) => /Invite a friend|دوست کو بھیجیں/.test(b));
+  // childAnswer with the stricter end: tap the answer, then wait for the next question or the end card
+  const answerKeyed = async (kid, q, want) => {
+    await kid.freshReset();
+    if (q.list && (q.list.rows || []).length) {
+      const rows = q.list.rows;
+      const row = want === 'wrong' ? rows[rows.length - 1] : (rows.find((r) => optionText(r) === String(want)) || rows.find((r) => /^[A-D]$/.test(r.title) && optionText(r).includes(String(want))) || rows[0]);
+      await kid.tapId('list', row.id, row.title);
+    } else {
+      const btns = q.btns || []; const b = want === 'wrong' ? btns[btns.length - 1] : (btns.find((x) => x === String(want)) || btns[0]);
+      await kid.tapAndWait(b, 30000);
+    }
+    const w = await waitOn(kid, (x) => isChildQ(x) || isEndCard(x), 60000);
+    const fb = w.seen.map((x) => x.txt || '').join(' | ');
+    const nextQ = w.seen.filter(isChildQ).pop() || null;
+    const ended = w.seen.some(isEndCard);
+    return { ok: w.ok, next: ended ? null : nextQ, feedback: fb.slice(0, 200), ended, seen: w.seen };
+  };
   const childRunKeyed = async (kid, code, name, cls, qrows, { correct = 99, maxQ = 20 } = {}) => {
     const j = await childJoin(kid, code, name, cls);
     if (!j.ok) return { ok: false, err: 'JOIN:' + (j.err || j.last), join: j, trail: [], screens: [] };
@@ -132,7 +150,7 @@ exports.run = async (ctx) => {
         } else want = (q.btns || [])[0] || 'wrong';
       }
       screens.push({ i: i + 1, image: !!(q.img || q.image || (q.media && !q.doc)) || /in the picture above|اوپر (والی )?تصویر|تصویر میں/.test(q.txt || ''), text: short(q.txt, 220), rows: (q.list && q.list.rows || []).map((r) => short(optionText(r), 40)), btns: q.btns, dbQ: dbq && dbq.sort_order, key: short(key, 40) });
-      const a = await childAnswer(kid, q, want, {});
+      const a = await answerKeyed(kid, q, want);
       trail.push({ q: i + 1, want: short(want, 40), feedback: short(a.feedback, 200), image: screens[screens.length - 1].image });
       ended = a.ended; q = a.next; lastSeen = a.seen || [];
     }
