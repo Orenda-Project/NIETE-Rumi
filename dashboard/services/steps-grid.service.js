@@ -31,6 +31,13 @@
 
 const { scoreBandFor } = require('../../bot/shared/config/score-bands');
 
+// A Human Observation is one a coach or principal made in class (/observe);
+// every other analysed session is a Digital Coach Observation — a lesson the
+// teacher recorded herself. Only a Human Observation rates S/T/E: STEPS feeds
+// her ACR (operator, 2026-09-29).
+const HUMAN_OBSERVATION = 'leader_observation';
+const isHumanObservation = (s) => !!s && s.observation_type === HUMAN_OBSERVATION;
+
 // FICO section → domain key, as the analysis writes them.
 const S_DOMAINS = ['teacher_subject_knowledge'];                         // F
 const T_DOMAINS = ['lesson_plan_fidelity', 'high_leverage_practices'];   // B + C
@@ -113,7 +120,7 @@ function buildStepsGrid({ teachers = [], sessions = [], attendance = [], remarks
 
   const rows = staff.map((t) => {
     const mine = (sessionsBy.get(t.rumiUserId) || [])
-      .slice()
+      .filter(isHumanObservation)
       .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
     const observed = mine.find((s) => s.analysis_data && s.analysis_data.domains);
     return {
@@ -154,4 +161,6 @@ function buildStepsGrid({ teachers = [], sessions = [], attendance = [], remarks
   };
 }
 
-module.exports = { buildStepsGrid, S_DOMAINS, T_DOMAINS, E_DOMAINS };
+module.exports = {
+  buildStepsGrid, pooledPct, isHumanObservation, HUMAN_OBSERVATION, S_DOMAINS, T_DOMAINS, E_DOMAINS,
+};

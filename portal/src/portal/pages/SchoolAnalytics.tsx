@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { TrendingUp, Target, Users, BookOpen, Calendar, UserCheck, ClipboardCheck } from 'lucide-react';
-import Chart from 'react-apexcharts';
-import { ApexOptions } from 'apexcharts';
+import { Users, BookOpen, UserCheck, ClipboardCheck } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
-import ScoreIndicator from '../components/ScoreIndicator';
-import { bandAxisLabel, bandTooltip } from '../lib/scoreBands';
 import TeacherSteps from '../components/TeacherSteps';
+import ObservationsSection from '../components/ObservationsSection';
 import NextStep from '../components/NextStep';
 import { leader } from '../services/api';
 import type { SchoolAnalyticsResponse } from '../types/portal';
@@ -29,12 +26,6 @@ import type { SchoolAnalyticsResponse } from '../types/portal';
  * goal1_total in this deployment's data, so each one would render a confident
  * 0%. The domains here are whatever the sessions actually contain.
  */
-/**
- * bd-60121 — how many lessons the Analytics panel previews before handing off
- * to the full page. Five covers the median school (5 rows on prod) while the
- * p90 of 13 and the 63-row tail go to /portal/leader/lessons.
- */
-const LESSON_PREVIEW = 5;
 
 const SchoolAnalytics = () => {
   const [data, setData] = useState<SchoolAnalyticsResponse | null>(null);
@@ -144,48 +135,11 @@ const SchoolAnalytics = () => {
   const remarks = data.remarks ?? {
     submitted: 0, averagePct: null, indicatorBreakdown: [], focusIndicator: null,
   };
-  const hasData = analytics.totalSessions > 0;
-
-  const trendOptions: ApexOptions = {
-    chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false } },
-    stroke: { curve: 'smooth', width: 3 },
-    colors: ['hsl(15, 85%, 60%)'],
-    grid: { borderColor: 'hsl(220, 13%, 91%)', strokeDashArray: 4 },
-    // both axes drew ticks and neither said what it was — dates along
-    // the bottom, percentages up the side, and nothing naming the quantity. A
-    // principal reported the chart as unreadable at a glance. The titles are
-    // the whole fix; the data was never wrong.
-    xaxis: {
-      categories: analytics.scoreTrend.map((p) =>
-        new Date(p.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })),
-      labels: { style: { colors: 'hsl(220, 9%, 46%)', fontSize: '12px' } },
-      title: {
-        text: 'Date observed — one point per observed lesson',
-        style: { color: 'hsl(220, 9%, 46%)', fontSize: '12px', fontWeight: 500 },
-      },
-    },
-    // Bands, never numbers (operator, 2026-09-29): gridlines every 20 are
-    // exactly the band boundaries, each labelled with the band it starts.
-    yaxis: {
-      min: 0,
-      max: 100,
-      tickAmount: 5,
-      labels: { formatter: (v) => bandAxisLabel(Number(v)) },
-      title: {
-        text: 'Lesson rating',
-        style: { color: 'hsl(220, 9%, 46%)', fontSize: '12px', fontWeight: 500 },
-      },
-    },
-    tooltip: { y: { formatter: (v) => bandTooltip(Number(v)) } },
-    dataLabels: { enabled: false },
-    markers: { size: 4 },
-  };
-
   return (
     <PortalLayout>
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
         <header className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-light mb-2">Your school</h1>
+          <h1 className="text-3xl sm:text-4xl font-light mb-2">School Analytics</h1>
           <p className="text-muted-foreground" data-testid="scope-label">
             {focusTeacher
               ? `${school.name || 'Your school'} — ${focusTeacher.name}`
@@ -236,34 +190,14 @@ const SchoolAnalytics = () => {
           {focusTeacher && <TeacherSteps teacherId={focusTeacher.id} />}
         </header>
 
-        {/* bd-60122 — the row says ONE scope at a time. Filtered, it used to mix
-            two and announce neither: totalTeachers/onRumi came from the whole
-            school while totalLessonPlans was already scoped to the selection,
-            so three cards described her and one described the school. Four
-            cards in a row read as sharing a scope, which made it misleading
-            rather than merely redundant. */}
+        {/* bd-60122 — the row says ONE scope at a time. Observation counts
+            moved into Observations; "Coaching sessions" is gone — it pooled
+            both kinds under one number (operator, 2026-09-29). */}
         <p data-testid="kpi-scope" className="text-xs text-muted-foreground mb-2">
           {focusTeacher ? `${focusTeacher.name}'s numbers` : 'Across the whole school'}
         </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-          {focusTeacher ? (
-            // Her equivalent of the roster card: how many lessons a coach has
-            // actually sat in on. "19 teachers · 17 on NIETE" says nothing
-            // about her.
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="w-5 h-5 text-accent" />
-                <span className="text-sm text-muted-foreground">Observed lessons</span>
-              </div>
-              <div data-testid="kpi-observed" className="text-3xl font-bold">
-                {analytics.totalSessions}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">a coach sat in</p>
-            </div>
-          ) : (
-            // Roster KPIs render even with no coaching yet: "18 teachers, 5 on
-            // NIETE" is useful on its own, and is the state 6 of 40 sampled
-            // schools are actually in.
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-8">
+          {!focusTeacher && (
             <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="w-5 h-5 text-accent" />
@@ -275,29 +209,6 @@ const SchoolAnalytics = () => {
               <p className="text-xs text-muted-foreground mt-1">{school.onRumi} on NIETE</p>
             </div>
           )}
-
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar className="w-5 h-5 text-accent" />
-              <span className="text-sm text-muted-foreground">Coaching sessions</span>
-            </div>
-            <div data-testid="kpi-sessions" className="text-3xl font-bold">
-              {analytics.totalSessions}
-            </div>
-          </div>
-
-          {analytics.averageScore != null && (
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-5 h-5 text-accent" />
-                <span className="text-sm text-muted-foreground">Average rating</span>
-              </div>
-              <div data-testid="kpi-avg-score" className="text-3xl font-bold">
-                <ScoreIndicator percentage={analytics.averageScore} size="large" />
-              </div>
-            </div>
-          )}
-
           <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
             <div className="flex items-center gap-2 mb-2">
               <BookOpen className="w-5 h-5 text-accent" />
@@ -308,6 +219,9 @@ const SchoolAnalytics = () => {
             </div>
           </div>
         </div>
+
+        {/* S·T·E first, then P, then the remark S — the STEPS order. */}
+        <ObservationsSection analytics={analytics} showTeacher={!focusTeacher} />
 
         {/* ── Presence ───────────────────────────────────────────────────
             Teacher and student presence sit SIDE BY SIDE, never blended. The
@@ -320,7 +234,7 @@ const SchoolAnalytics = () => {
         <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8">
           <div className="flex items-center gap-2 mb-6">
             <UserCheck className="w-5 h-5 text-accent" />
-            <h2 className="text-2xl font-light">Who is showing up</h2>
+            <h2 className="text-2xl font-light">Attendance</h2>
             {/* bd-60123 — the full picture lives on its own page: every grade
                 merged across children and days, with a day-by-day view and
                 date/teacher filters. This panel stays the headline. */}
@@ -387,7 +301,7 @@ const SchoolAnalytics = () => {
         <section id="remarks" className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8 scroll-mt-20">
           <div className="flex items-center gap-2 mb-6">
             <ClipboardCheck className="w-5 h-5 text-accent" />
-            <h2 className="text-2xl font-light">Your evaluations</h2>
+            <h2 className="text-2xl font-light">Principal Remarks</h2>
           </div>
           <p data-testid="remarks-help" className="text-muted-foreground text-sm mb-6">
             The quarterly reviews you submitted yourself on WhatsApp, rated 1 to 4 across
@@ -440,162 +354,6 @@ const SchoolAnalytics = () => {
             </>
           )}
         </section>
-
-        {!hasData ? (
-          // Say the true thing. A 0% average and a flat chart would read as "my
-          // school scores zero", which is a different and much worse claim than
-          // "nobody has been coached yet".
-          <div
-            data-testid="empty-analytics"
-            className="bg-white rounded-lg p-6 shadow-sm border border-border"
-          >
-            <h2 className="text-lg font-medium mb-2">No coaching sessions yet</h2>
-            <p className="text-muted-foreground text-sm">
-              Once your teachers record a coaching session on NIETE, their scores and the
-              areas to focus on will show up here.
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Headings say what the number MEANS, not what the chart looks
-                like. "Score over time" and "By area" named the shape and left
-                the principal to infer the rest; the score is a FICO classroom
-                observation — a coach watches a lesson and scores sections
-                B/C/D/F — which is the one fact that makes any of it readable. */}
-            <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8">
-              <h2 data-testid="trend-heading" className="text-2xl font-light mb-1">
-                Are lessons improving?
-              </h2>
-              <p data-testid="trend-help" className="text-muted-foreground text-sm mb-6">
-                Every point is one observed lesson, rated from Needs support up to
-                Excellent. A line that climbs means teaching is getting stronger over time.
-              </p>
-              <Chart
-                options={trendOptions}
-                series={[{ name: 'Lesson score', data: analytics.scoreTrend.map((p) => p.percentage) }]}
-                type="line"
-                height={320}
-              />
-            </section>
-
-            <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8">
-              <h2 data-testid="domain-heading" className="text-2xl font-light mb-1">
-                What teaching is strongest and weakest
-              </h2>
-              <p data-testid="domain-help" className="text-muted-foreground text-sm mb-6">
-                Each observed lesson is scored across four parts of teaching. Higher is
-                better — the lowest one is where coaching will help most.
-              </p>
-
-              {/* The session count sits next to every domain on purpose. NIETE
-                  has two rubrics live at once — one set appears in 182 of 200
-                  sessions, another in 15 — so a domain measured a handful of
-                  times would otherwise read as a school-wide weakness.
-
-                  These cards replaced an Apex bar chart that plotted exactly
-                  the same four numbers directly above them (operator,
-                  2026-09-17). Two renderings of one dataset is not two views,
-                  it is one view and a distraction — and the cards carry the
-                  session count, which the bars could not. */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                {analytics.domainBreakdown.map((d) => (
-                  <div
-                    key={d.key}
-                    data-testid={`domain-${d.key}`}
-                    className="p-4 bg-secondary rounded-lg"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold">{d.name}</h3>
-                      <ScoreIndicator percentage={d.percentage} size="medium" />
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      from {d.sessions} session{d.sessions === 1 ? '' : 's'}
-                    </p>
-                    <div className="w-full bg-background rounded-full h-2">
-                      <div
-                        className="bg-accent h-2 rounded-full transition-all"
-                        style={{ width: `${d.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* bd-60119 — Coaching history, ported from the teacher-detail page
-                that principals no longer land on. The chart above shows the
-                SHAPE; this is the individual lessons behind it, with the date
-                and the marks — what she points at when talking to a teacher
-                about one particular visit. Same ScoreIndicator as the detail
-                page, so it reads identically to what coaches already know. */}
-            <section
-              data-testid="coaching-history"
-              className="bg-white rounded-lg shadow-sm border border-border overflow-hidden mb-8"
-            >
-              <div className="p-6 pb-3 flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-light">Recent observed lessons</h2>
-                  <p className="text-muted-foreground text-sm mt-1">
-                    Newest first. Each row is one lesson a coach sat in on and scored.
-                  </p>
-                </div>
-                {/* bd-60121 — a preview, not the archive. Prod has a school at
-                    63 lessons and the list grows as observation coverage
-                    improves, so the full list has its own page rather than a
-                    cap that hides the tail. */}
-                <Link
-                  to={`/portal/leader/lessons${focusTeacher ? `?teacherId=${focusTeacher.id}` : ''}`}
-                  data-testid="lessons-detail-link"
-                  className="text-sm font-medium text-accent hover:underline whitespace-nowrap shrink-0"
-                >
-                  See all {analytics.scoreTrend.length} →
-                </Link>
-              </div>
-              <ul className="divide-y divide-border">
-                {[...analytics.scoreTrend].reverse().slice(0, LESSON_PREVIEW).map((p, i) => (
-                  <li
-                    key={`${p.date}-${i}`}
-                    data-testid={`history-row-${i}`}
-                    className="flex items-center justify-between px-6 py-4"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium">
-                        {new Date(p.date).toLocaleDateString('en-GB', {
-                          day: 'numeric', month: 'short', year: 'numeric',
-                        })}
-                      </p>
-                      <p className="text-muted-foreground text-sm truncate">
-                        {/* Whose lesson — but only when the view is not already
-                            one teacher, where repeating her name on every row
-                            is noise. */}
-                        {!focusTeacher && p.teacherName && <>{p.teacherName}</>}
-                      </p>
-                    </div>
-                    <ScoreIndicator percentage={p.percentage} size="small" />
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            {analytics.focusDomain && (
-              <section className="bg-gradient-to-r from-accent/10 to-primary/10 rounded-lg p-6 border border-accent/20">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-white rounded-lg">
-                    <Target className="w-6 h-6 text-accent" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">Where to focus</h3>
-                    <p className="text-foreground">
-                      Across your school, <strong data-testid="focus-domain">{analytics.focusDomain}</strong>{' '}
-                      is scoring lowest
-                      {analytics.strongestDomain && <> — {analytics.strongestDomain} is strongest</>}.
-                    </p>
-                  </div>
-                </div>
-              </section>
-            )}
-          </>
-        )}
 
         {focusTeacher && (
           <NextStep to={`/portal/leader/lessons?teacherId=${focusTeacher.id}`} step={3} label="Review her lessons" />

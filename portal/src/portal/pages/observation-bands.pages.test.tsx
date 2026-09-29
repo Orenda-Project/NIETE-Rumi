@@ -202,6 +202,18 @@ const SCHOOL = {
       { key: "teacher_subject_knowledge", name: "Subject Knowledge", percentage: 25, sessions: 2 },
     ],
     strongestDomain: "Student Engagement", focusDomain: "Subject Knowledge",
+    // Human-only fields the API sends since 2026-09-29.
+    humanObservations: 2, digitalCoachObservations: 1,
+    areas: [
+      { key: "e", name: "Engagement", pct: 64.3, band: "good", observations: 2 },
+      { key: "s", name: "Subject knowledge", pct: 25, band: "below_average", observations: 2 },
+    ],
+    byMonth: [{ month: "2026-08", human: 1, digitalCoach: 0 }, { month: "2026-09", human: 1, digitalCoach: 1 }],
+    observations: [
+      { date: "2026-09-20T00:00:00Z", kind: "digital_coach", percentage: null, teacherName: "Ayesha Bibi" },
+      { date: "2026-09-15T00:00:00Z", kind: "human", percentage: 64.2, teacherName: "Ayesha Bibi" },
+      { date: "2026-08-10T00:00:00Z", kind: "human", percentage: 48, teacherName: "Ayesha Bibi" },
+    ],
   },
   presence: {
     teacher: { records: 20, present: 18, absent: 2, leave: 0, presentPct: 90 },

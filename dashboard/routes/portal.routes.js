@@ -1256,7 +1256,7 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
       // reaches 'completed' (bd-2671), and filtering on it hid the entire
       // observation programme once already.
       userIds.length ? pool.query(
-        `SELECT c.created_at, c.analysis_data, u.name AS teacher_name
+        `SELECT c.created_at, c.analysis_data, c.observation_type, u.name AS teacher_name
            FROM coaching_sessions c
            JOIN users u ON u.id = c.user_id
           WHERE c.user_id = ANY($1::uuid[])
@@ -1372,7 +1372,7 @@ router.get('/leader/steps', requirePortalAuth, requireLeaderRole, async (req, re
       // 'completed', so filtering on it would hide the observation programme.
       // Same predicate as school-analytics.
       pool.query(
-        `SELECT user_id, created_at, analysis_data
+        `SELECT user_id, created_at, analysis_data, observation_type
            FROM coaching_sessions
           WHERE user_id = ANY($1::uuid[])
             AND status IN ${TERMINAL}

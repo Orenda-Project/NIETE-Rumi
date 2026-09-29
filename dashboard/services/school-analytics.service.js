@@ -32,6 +32,24 @@
  */
 
 const { getOverall } = require('./coaching-frameworks.service');
+const { scoreBandFor } = require('../../bot/shared/config/score-bands');
+const { pooledPct, isHumanObservation, S_DOMAINS, T_DOMAINS, E_DOMAINS } = require('./steps-grid.service');
+
+// The three STEPS observation areas, in the words the principal reads.
+const AREAS = [
+  { key: 's', name: 'Subject knowledge', domains: S_DOMAINS },
+  { key: 't', name: 'Teaching skills', domains: T_DOMAINS },
+  { key: 'e', name: 'Engagement', domains: E_DOMAINS },
+];
+
+/** "2026-09" in Pakistan time — a lesson at 11pm on 31 Aug is still August there. */
+function monthOf(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit' })
+    .formatToParts(d);
+  return `${parts.find((p) => p.type === 'year').value}-${parts.find((p) => p.type === 'month').value}`;
+}
 
 function round1(n) {
   return Math.round(n * 10) / 10;
@@ -62,7 +80,13 @@ function humanize(key) {
  * }}
  */
 function summarizeSchoolAnalytics(sessions) {
-  const list = Array.isArray(sessions) ? sessions : [];
+  const all = Array.isArray(sessions) ? sessions.filter(Boolean) : [];
+  // Ratings — the progress line, the areas, the average, the domain cards —
+  // come from Human Observations ONLY (operator, 2026-09-29). On prod 83% of
+  // analysed sessions are Digital Coach Observations; pooled, they decided a
+  // teacher's rating from lessons nobody watched. They are still COUNTED, and
+  // still appear on the monthly chart.
+  const list = all.filter(isHumanObservation);
 
   // Framework-agnostic, via the same getOverall the patch + teacher detail use.
   // A session with no usable percentage is SKIPPED, never counted as zero: an
@@ -129,9 +153,55 @@ function summarizeSchoolAnalytics(sessions) {
     ? round1(scored.reduce((sum, s) => sum + s.percentage, 0) / scored.length)
     : null;
 
+  const areas = AREAS
+    .map((a) => {
+      const pcts = list
+        .map((s) => pooledPct(s.analysis_data && s.analysis_data.domains, a.domains))
+        .filter((v) => v !== null);
+      if (!pcts.length) return null;
+      const pct = round1(pcts.reduce((x, y) => x + y, 0) / pcts.length);
+      return { key: a.key, name: a.name, pct, band: scoreBandFor(pct), observations: pcts.length };
+    })
+    .filter(Boolean)
+    .sort((x, y) => y.pct - x.pct);
+
+  const observations = all
+    .map((s) => {
+      const human = isHumanObservation(s);
+      const o = human && s.analysis_data ? getOverall(s.analysis_data) : null;
+      return {
+        date: s.created_at,
+        kind: human ? 'human' : 'digital_coach',
+        // A Digital Coach Observation carries no rating on this page.
+        percentage: human && o && o.percentage != null && o.maxPoints > 0 ? o.percentage : null,
+        teacherName: s.teacher_name || null,
+      };
+    })
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const months = new Map();
+  for (const o of observations) {
+    const m = monthOf(o.date);
+    if (!m) continue;
+    const acc = months.get(m) || { month: m, human: 0, digitalCoach: 0 };
+    if (o.kind === 'human') acc.human += 1; else acc.digitalCoach += 1;
+    months.set(m, acc);
+  }
+  const byMonth = [...months.values()].sort((a, b) => a.month.localeCompare(b.month));
+
   return {
-    totalSessions: scored.length,
+    // Scored sessions of BOTH kinds, as before: a session with no usable score
+    // is skipped, never counted as a zero.
+    totalSessions: all.filter((x) => {
+      const o = x.analysis_data ? getOverall(x.analysis_data) : null;
+      return o && o.percentage != null && Number.isFinite(o.maxPoints) && o.maxPoints > 0;
+    }).length,
+    humanObservations: list.length,
+    digitalCoachObservations: all.length - list.length,
     averageScore,
+    areas,
+    byMonth,
+    observations,
     scoreTrend: scored.map((s) => ({
       date: s.date,
       percentage: s.percentage,
