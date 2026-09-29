@@ -2753,10 +2753,21 @@ const CLASS_FLOW_STRINGS = {
     ur: 'جو طلبہ جماعت چھوڑ رہے ہیں انہیں منتخب کریں، اور نئے نام نیچے لکھیں۔ '
       + 'نکالے گئے طالب علم اس جماعت کے تمام اساتذہ کو نظر آنا بند ہو جائیں گے؛ حاضری کا ریکارڈ محفوظ رہے گا۔',
   },
+  /**
+   * The removal checkboxes ran out of room. Reachable only past {shown} children —
+   * 100 since bd-a6mhn, when the one 20-option CheckboxGroup became five of them.
+   * No class in ICT production is anywhere near it (the biggest is 88 on
+   * 2026-09-29), but nothing bounds a class, so the sentence still has to exist —
+   * and it has to say what to DO, because the old wording ("Showing the first 20")
+   * described a dead end: the slice is always the first N BY ROLL, so the 21st child
+   * only ever appeared after twenty real children had been deleted.
+   */
   classEditHintCapped: {
-    en: 'Showing the first {shown} to remove, and paste any new names below. '
+    en: 'This class has more than {shown} children, so the first {shown} are listed to remove. '
+      + 'Remove the ones you need, save, then open the class again for the rest. '
       + 'Every teacher on this class stops seeing a removed student; their attendance record is kept.',
-    ur: 'نکالنے کے لیے پہلے {shown} دکھائے جا رہے ہیں، اور نئے نام نیچے لکھیں۔ '
+    ur: 'اس جماعت میں {shown} سے زیادہ بچے ہیں، اس لیے نکالنے کے لیے پہلے {shown} دکھائے جا رہے ہیں۔ '
+      + 'جنہیں نکالنا ہے انہیں منتخب کر کے محفوظ کریں، پھر باقی کے لیے جماعت دوبارہ کھولیں۔ '
       + 'نکالے گئے طالب علم اس جماعت کے تمام اساتذہ کو نظر آنا بند ہو جائیں گے؛ حاضری کا ریکارڈ محفوظ رہے گا۔',
   },
   /**
@@ -2776,6 +2787,23 @@ const CLASS_FLOW_STRINGS = {
   classRemoveField: {
     en: 'Remove from this class',
     ur: 'اس جماعت سے نکالیں',
+  },
+  /**
+   * The label on ONE of the removal checkbox groups, when a class needs more than
+   * one. Meta caps a single CheckboxGroup at 20 options, so a 36-child class is
+   * shown as consecutive groups and each has to say which slice it is — otherwise
+   * the teacher reads the first group as the whole class, which is precisely the
+   * bug this replaced (bd-a6mhn).
+   *
+   * {from} and {to} are ROLL NUMBERS, not positions, so the label agrees with the
+   * numbering on the checkbox and in the roster text above it.
+   *
+   * A CheckboxGroup label is capped at 30 CODE POINTS. Worst case in this
+   * deployment is "(81–100)": en 26, ur 27. Both are measured by a test.
+   */
+  classRemoveFieldRange: {
+    en: 'Remove from class ({from}–{to})',
+    ur: 'اس جماعت سے نکالیں ({from}–{to})',
   },
   classAddField: {
     en: 'Add students',
