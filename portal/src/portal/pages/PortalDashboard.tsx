@@ -10,6 +10,7 @@ import { portal } from '../services/api';
 import PortalLayout from '../components/PortalLayout';
 import StatCard from '../components/StatCard';
 import ScoreIndicator from '../components/ScoreIndicator';
+import { bandAxisLabel, bandTooltip, scoreBandLabel } from '../lib/scoreBands';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -101,20 +102,22 @@ const PortalDashboard = () => {
         },
       },
     },
+    // Bands, never numbers (operator, 2026-09-29).
     yaxis: {
       min: 0,
       max: 100,
+      tickAmount: 5,
       labels: {
         style: {
           colors: 'hsl(220, 9%, 46%)',
           fontSize: '12px',
         },
-        formatter: (value) => `${value}%`,
+        formatter: (value) => bandAxisLabel(Number(value)),
       },
     },
     tooltip: {
       y: {
-        formatter: (value) => `${value}%`,
+        formatter: (value) => bandTooltip(Number(value)),
       },
     },
     dataLabels: {
@@ -181,8 +184,8 @@ const PortalDashboard = () => {
           />
           <StatCard
             compact
-            title="Latest score"
-            value={recentSession?.percentage != null ? `${recentSession.percentage.toFixed(0)}%` : '—'}
+            title="Latest rating"
+            value={recentSession?.percentage != null ? (scoreBandLabel(recentSession.percentage) ?? '—') : '—'}
             detail={recentSession?.percentage != null ? 'most recent lesson' : 'no scored session yet'}
             icon={TrendingUp}
           />

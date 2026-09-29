@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { CalendarDays, MessageSquare, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
 import { leader } from "../services/api";
 import PortalLayout from "../components/PortalLayout";
+import ScoreIndicator from "../components/ScoreIndicator";
 import LoadingState from "../components/LoadingState";
 import type { LeaderObservationsData, LeaderObservationSession, LeaderPatchTeacher } from "../types/portal";
 
@@ -218,8 +219,8 @@ const LeaderObservations = () => {
                         <p className="font-medium">{d.teacherName || "Unassigned observation"}</p>
                         <p className="text-muted-foreground text-sm">{observationSubline(d)}</p>
                       </div>
-                      {/* no score chip — the visit is identified by
-                          teacher and date, which is what the row is for. */}
+                      {/* The visit's band, never its number (operator, 2026-09-29). */}
+                      <ScoreIndicator percentage={d.score} size="small" />
                     </li>
                   ))}
                 </ul>
@@ -244,7 +245,7 @@ const LeaderObservations = () => {
                           <p className="text-muted-foreground text-sm">{observationSubline(d)}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                          {/* score chip removed. */}
+                          <ScoreIndicator percentage={d.score} size="small" />
                           {d.teacherUserId && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
                         </div>
                       </>

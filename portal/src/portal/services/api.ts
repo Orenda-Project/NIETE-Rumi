@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getApiBaseUrl } from '@/lib/runtime';
-import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse, AttendanceResponse } from '../types/portal';
+import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
+  StepsGridResponse, AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse } from '../types/portal';
 
@@ -387,6 +388,13 @@ export const leader = {
   // bd-60118 — teacherId narrows every STEPS component to one teacher. The
   // server validates it against her school and 404s otherwise, so this is a
   // convenience, not the boundary.
+  // The principal's home organised by STEPS — a row per teacher, a column per
+  // letter. Principals only; the server 403s the rest of the leader family.
+  getSteps: async (): Promise<StepsGridResponse> => {
+    const response = await api.get('/leader/steps');
+    return response.data;
+  },
+
   getSchoolAnalytics: async (teacherId?: string | null): Promise<SchoolAnalyticsResponse> => {
     const response = await api.get('/leader/school-analytics', {
       params: teacherId ? { teacherId } : undefined,

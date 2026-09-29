@@ -12,7 +12,7 @@ import { MemoryRouter } from "react-router-dom";
  */
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
-vi.mock("../services/api", () => ({ leader: { getSchoolAnalytics: vi.fn() } }));
+vi.mock("../services/api", () => ({ leader: { getSchoolAnalytics: vi.fn(), getSteps: vi.fn().mockResolvedValue({ success: true, cycle: null, teachers: [], summary: {} }) } }));
 vi.mock("react-apexcharts", () => ({ default: () => <div data-testid="chart" /> }));
 
 import { useAuth } from "../hooks/useAuth";
@@ -58,10 +58,14 @@ describe("SchoolAnalytics — coaching history", () => {
     expect(rows[0].textContent).toMatch(/Sep/);
   });
 
-  it("shows the marks behind each lesson, not only the percentage", async () => {
+  it("shows each lesson's band, never its marks or percentage", async () => {
+    // This asserted "64 / 100" — the marks line, which observation scores no
+    // longer show: every lesson carries its band instead (operator, 2026-09-29).
     mount();
     await waitFor(() => expect(screen.getByTestId("coaching-history")).toBeInTheDocument());
-    expect(screen.getAllByTestId(/^history-row-/)[0].textContent).toMatch(/64 \/ 100/);
+    const row = screen.getAllByTestId(/^history-row-/)[0];
+    expect(row.textContent).toMatch(/Excellent|Good|Average|Below average|Needs support/);
+    expect(row.textContent).not.toMatch(/\d+\s*\/\s*\d+|\d+\s*%/);
   });
 
   it("names the teacher on each row when showing the whole school", async () => {

@@ -1,59 +1,40 @@
 import { cn } from '@/lib/utils';
+import { scoreBandFor, bandLabel, BAND_TONE } from '../lib/scoreBands';
 
 interface ScoreIndicatorProps {
-  percentage: number;
+  percentage: number | null | undefined;
   size?: 'small' | 'medium' | 'large';
+  /** Kept for call-site compatibility; the band IS the label now. */
   showLabel?: boolean;
 }
 
-const ScoreIndicator = ({ percentage, size = 'medium', showLabel = true }: ScoreIndicatorProps) => {
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'success';
-    if (score >= 60) return 'warning';
-    return 'error';
-  };
-
-  const getScoreLabel = (score: number) => {
-    if (score >= 80) return 'Strong';
-    if (score >= 60) return 'Good';
-    return 'Focus Area';
-  };
-
-  const scoreColor = getScoreColor(percentage);
-  const scoreLabel = getScoreLabel(percentage);
+/**
+ * An observation score, shown as its BAND — never the number
+ * (operator, 2026-09-29). Every page that used to draw a percentage circle
+ * reads through here, so they all switched together.
+ */
+const ScoreIndicator = ({ percentage, size = 'medium' }: ScoreIndicatorProps) => {
+  const band = scoreBandFor(percentage);
+  if (!band) return null;
 
   const sizeClasses = {
-    small: 'w-12 h-12 text-sm',
-    medium: 'w-16 h-16 text-base',
-    large: 'w-20 h-20 text-lg'
-  };
-
-  const colorClasses = {
-    success: 'bg-success/10 text-success border-success/20',
-    warning: 'bg-warning/10 text-warning border-warning/20',
-    error: 'bg-error/10 text-error border-error/20'
+    small: 'px-2 py-0.5 text-xs',
+    medium: 'px-3 py-1 text-sm',
+    large: 'px-4 py-1.5 text-base',
   };
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className={cn(
-        "rounded-full border-2 flex items-center justify-center font-bold",
+    <span
+      data-testid="score-band"
+      data-band={band}
+      className={cn(
+        'inline-flex items-center rounded-full border font-semibold whitespace-nowrap',
         sizeClasses[size],
-        colorClasses[scoreColor]
-      )}>
-        {Math.round(percentage)}%
-      </div>
-      {showLabel && (
-        <span className={cn(
-          "text-xs font-medium",
-          scoreColor === 'success' && "text-success",
-          scoreColor === 'warning' && "text-warning",
-          scoreColor === 'error' && "text-error"
-        )}>
-          {scoreLabel}
-        </span>
+        BAND_TONE[band],
       )}
-    </div>
+    >
+      {bandLabel(band)}
+    </span>
   );
 };
 

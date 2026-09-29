@@ -14,7 +14,7 @@ import { MemoryRouter } from "react-router-dom";
  */
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
-vi.mock("../services/api", () => ({ leader: { getSchoolAnalytics: vi.fn() } }));
+vi.mock("../services/api", () => ({ leader: { getSchoolAnalytics: vi.fn(), getSteps: vi.fn().mockResolvedValue({ success: true, cycle: null, teachers: [], summary: {} }) } }));
 vi.mock("react-apexcharts", () => ({ default: () => <div data-testid="chart" /> }));
 
 import { useAuth } from "../hooks/useAuth";
@@ -65,7 +65,9 @@ describe("SchoolAnalytics", () => {
   it("shows the school's headline KPIs, not the principal's own", async () => {
     renderPage(PRINCIPAL);
     await waitFor(() => expect(screen.getByTestId("kpi-sessions")).toHaveTextContent("136"));
-    expect(screen.getByTestId("kpi-avg-score")).toHaveTextContent("64.2");
+    // The average is a band now, never a number (operator, 2026-09-29): 64.2 → Good.
+    expect(screen.getByTestId("kpi-avg-score")).toHaveTextContent("Good");
+    expect(screen.getByTestId("kpi-avg-score").textContent).not.toMatch(/\d/);
     expect(screen.getByTestId("kpi-teachers")).toHaveTextContent("19");
     expect(screen.getByTestId("kpi-lesson-plans")).toHaveTextContent("269");
   });
