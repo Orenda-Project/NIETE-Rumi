@@ -709,6 +709,14 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     const subject = String(data.subject || '');
     const subjects = await subjectsOnOffer(grade);
 
+    // She picked a grade — the Grade Dropdown's on-select-action, not Continue.
+    // Answer with THAT grade's subjects. Without this the list stays the one
+    // INIT rendered for grades[0] (Grade 1), which has no Science or Social
+    // Studies, so no G4/G5 teacher could ever see them (bd-g4jkt).
+    if (data.trigger === 'grade_selected') {
+      return screen('CLASS', { grades: await gradesOnOffer(), subjects, error: '' });
+    }
+
     // A stale client can submit a pair that is not on offer. Re-render rather
     // than accept it — the next screen would only fail on a missing book.
     if (!subjects.some((s) => s.id === subject)) {
