@@ -97,6 +97,8 @@ export interface BreakdownGroup {
  */
 export interface ScoreBreakdown {
   framework: string | null;
+  /** The scale one INDICATOR is scored on (FICO: 2), so it can be banded. */
+  scaleMax?: number | null;
   language: string;
   overall: number | null;
   marks: number | null;
@@ -571,4 +573,63 @@ export interface AddStudentsResponse {
   /** Cut by the paste cap. Surfaced so nobody wonders where their students went. */
   dropped?: number;
   error?: string;
+}
+
+// ---------------------------------------------------------------------------
+// STEPS — the principal's home, a row per teacher, a column per letter.
+// S subject knowledge (FICO F) · T teaching skills (B + C) · E engagement (D)
+// · P presence (her own attendance) · S supervisor remark. Built by
+// dashboard/services/steps-grid.service.js.
+//
+// `pct` travels for completeness; the UI renders ONLY the band — observation
+// scores are never shown as numbers (operator, 2026-09-29). Presence is counts,
+// deliberately not a band: NIETE has not defined a single P score.
+
+export type StepsBandKey = 'excellent' | 'good' | 'average' | 'below_average' | 'needs_support';
+
+export interface StepsLetter {
+  pct: number;
+  band: StepsBandKey;
+}
+
+export interface StepsPresence {
+  present: number;
+  absent: number;
+  leave: number;
+  /** present + absent — leave is not absence and is not in the denominator. */
+  markedDays: number;
+}
+
+export type StepsRemarkStatus = 'done' | 'todo' | 'no_cycle';
+
+export interface StepsTeacherRow {
+  id: string;
+  name: string | null;
+  lastObservedAt: string | null;
+  s: StepsLetter | null;
+  t: StepsLetter | null;
+  e: StepsLetter | null;
+  presence: StepsPresence;
+  remark: StepsRemarkStatus;
+}
+
+export interface StepsLetterSummary {
+  pct: number | null;
+  band: StepsBandKey | null;
+  /** Teachers the band is averaged over — those who HAVE data. */
+  teachers: number;
+  of: number;
+}
+
+export interface StepsGridResponse {
+  success: boolean;
+  cycle: { name: string; endsAt: string } | null;
+  teachers: StepsTeacherRow[];
+  summary: {
+    s: StepsLetterSummary;
+    t: StepsLetterSummary;
+    e: StepsLetterSummary;
+    presence: { present: number; absent: number; leave: number; teachersMarked: number; of: number };
+    remark: { done: number; todo: number };
+  };
 }

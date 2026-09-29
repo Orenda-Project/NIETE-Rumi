@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { TrendingUp, Target, Users, BookOpen, Calendar, UserCheck, ClipboardCheck } from 'lucide-react';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import ScoreIndicator from '../components/ScoreIndicator';
+import { bandAxisLabel, bandTooltip } from '../lib/scoreBands';
+import TeacherSteps from '../components/TeacherSteps';
+import NextStep from '../components/NextStep';
 import { leader } from '../services/api';
 import type { SchoolAnalyticsResponse } from '../types/portal';
 
@@ -41,6 +44,10 @@ const SchoolAnalytics = () => {
   // bd-60119: seeded from ?teacherId=, so the roster can deep-link straight to
   // one teacher's numbers and the dropdown shows her as selected on arrival.
   const [searchParams, setSearchParams] = useSearchParams();
+  // Step 5 of the principal's journey links to #remarks. React Router does not
+  // scroll to a hash on its own, and the section only exists once the data has
+  // loaded, so it is scrolled to after the first render that has it.
+  const { hash } = useLocation();
   const [teacherId, setTeacherId] = useState<string>(searchParams.get('teacherId') || '');
 
   // Keep the URL honest as she changes the filter, so the view is shareable and
@@ -83,6 +90,11 @@ const SchoolAnalytics = () => {
     // load from a refetch, and depending on it would refetch on every result.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teacherId]);
+
+  useEffect(() => {
+    if (loading || !hash) return;
+    document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [loading, hash]);
 
   if (loading) {
     return <PortalLayout><LoadingState type="full" /></PortalLayout>;
@@ -152,16 +164,19 @@ const SchoolAnalytics = () => {
         style: { color: 'hsl(220, 9%, 46%)', fontSize: '12px', fontWeight: 500 },
       },
     },
+    // Bands, never numbers (operator, 2026-09-29): gridlines every 20 are
+    // exactly the band boundaries, each labelled with the band it starts.
     yaxis: {
       min: 0,
       max: 100,
-      labels: { formatter: (v) => `${v}%` },
+      tickAmount: 5,
+      labels: { formatter: (v) => bandAxisLabel(Number(v)) },
       title: {
-        text: 'Lesson score (% of the rubric)',
+        text: 'Lesson rating',
         style: { color: 'hsl(220, 9%, 46%)', fontSize: '12px', fontWeight: 500 },
       },
     },
-    tooltip: { y: { formatter: (v) => `${v}%` } },
+    tooltip: { y: { formatter: (v) => bandTooltip(Number(v)) } },
     dataLabels: { enabled: false },
     markers: { size: 4 },
   };
@@ -215,6 +230,10 @@ const SchoolAnalytics = () => {
               )}
             </div>
           )}
+
+          {/* bd-60119: a principal's teacher IS this page filtered to her, so
+              her STEPS row lives here — each letter a link into her own view. */}
+          {focusTeacher && <TeacherSteps teacherId={focusTeacher.id} />}
         </header>
 
         {/* bd-60122 — the row says ONE scope at a time. Filtered, it used to mix
@@ -271,10 +290,10 @@ const SchoolAnalytics = () => {
             <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="w-5 h-5 text-accent" />
-                <span className="text-sm text-muted-foreground">Average score</span>
+                <span className="text-sm text-muted-foreground">Average rating</span>
               </div>
               <div data-testid="kpi-avg-score" className="text-3xl font-bold">
-                {analytics.averageScore}%
+                <ScoreIndicator percentage={analytics.averageScore} size="large" />
               </div>
             </div>
           )}
@@ -363,8 +382,9 @@ const SchoolAnalytics = () => {
         {/* ── Supervisor remarks ─────────────────────────────────────────
             Her OWN quarterly evaluations, read back to her. Only submitted
             forms appear: scores are written as she answers, so a part-finished
-            form would otherwise show a teacher a "result" she never gave. */}
-        <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8">
+            form would otherwise show a teacher a "result" she never gave.
+            id="remarks" is where the principal's STEPS journey ends. */}
+        <section id="remarks" className="bg-white rounded-lg p-6 shadow-sm border border-border mb-8 scroll-mt-20">
           <div className="flex items-center gap-2 mb-6">
             <ClipboardCheck className="w-5 h-5 text-accent" />
             <h2 className="text-2xl font-light">Your evaluations</h2>
@@ -447,8 +467,8 @@ const SchoolAnalytics = () => {
                 Are lessons improving?
               </h2>
               <p data-testid="trend-help" className="text-muted-foreground text-sm mb-6">
-                Every point is one observed lesson, scored out of 100. A line that climbs
-                means teaching is getting stronger over time.
+                Every point is one observed lesson, rated from Needs support up to
+                Excellent. A line that climbs means teaching is getting stronger over time.
               </p>
               <Chart
                 options={trendOptions}
@@ -486,7 +506,7 @@ const SchoolAnalytics = () => {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold">{d.name}</h3>
-                      <span className="text-2xl font-bold text-accent">{d.percentage}%</span>
+                      <ScoreIndicator percentage={d.percentage} size="medium" />
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">
                       from {d.sessions} session{d.sessions === 1 ? '' : 's'}
@@ -549,10 +569,6 @@ const SchoolAnalytics = () => {
                             one teacher, where repeating her name on every row
                             is noise. */}
                         {!focusTeacher && p.teacherName && <>{p.teacherName}</>}
-                        {!focusTeacher && p.teacherName && p.points != null && <> · </>}
-                        {p.points != null && p.maxPoints != null && (
-                          <>{p.points} / {p.maxPoints} marks</>
-                        )}
                       </p>
                     </div>
                     <ScoreIndicator percentage={p.percentage} size="small" />
@@ -579,6 +595,10 @@ const SchoolAnalytics = () => {
               </section>
             )}
           </>
+        )}
+
+        {focusTeacher && (
+          <NextStep to={`/portal/leader/lessons?teacherId=${focusTeacher.id}`} step={3} label="Review her lessons" />
         )}
       </div>
     </PortalLayout>

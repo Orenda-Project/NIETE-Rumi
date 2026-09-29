@@ -165,7 +165,8 @@ describe('one lesson — the offer names the lesson', () => {
   test('an Urdu teacher is offered in Urdu', async () => {
     install(world({ users: [teacher({ preferred_language: 'ur' })] }));
     await Offer.send(nudgeRow(), { now: SEND_AT });
-    expect(buttonsSent().body).toBe(UX_STRINGS.lpQuizOfferOne.ur.replace('{topic}', 'Fractions on a Number Line'));
+    expect(buttonsSent().body).toBe(UX_STRINGS.lpQuizOfferOne.ur
+      .replace('{topic}', 'Fractions on a Number Line').replace('{q}', '8'));
     expect(buttonsSent().buttons[0].title).toBe(UX_STRINGS.lpQuizYes.ur);
   });
 

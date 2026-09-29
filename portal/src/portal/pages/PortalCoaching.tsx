@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ScoreIndicator from '../components/ScoreIndicator';
 import { WHATSAPP_URL } from '@/lib/whatsapp';
 import { MessageSquare, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -49,10 +50,13 @@ const PortalCoaching = () => {
 
   // Calculate stats
   const totalSessions = sessions.length;
-  const averageScore = sessions.length > 0
-    ? (sessions.reduce((sum, s) => sum + s.percentage, 0) / sessions.length).toFixed(1)
-    : 0;
-  const latestScore = sessions.length > 0 ? sessions[0].percentage.toFixed(0) : 0;
+  // Shown as bands, never numbers (operator, 2026-09-29). Only SCORED sessions
+  // count toward the average — an unscored one is not a zero.
+  const scored = sessions.filter((s) => s.percentage != null);
+  const averageScore = scored.length > 0
+    ? scored.reduce((sum, s) => sum + (s.percentage as number), 0) / scored.length
+    : null;
+  const latestScore = scored.length > 0 ? scored[0].percentage : null;
 
   if (loading) {
     return (
@@ -89,12 +93,16 @@ const PortalCoaching = () => {
               <div className="text-2xl font-semibold">{totalSessions}</div>
             </div>
             <div className="bg-white rounded-lg p-4 shadow-sm border border-border">
-              <div className="text-sm text-muted-foreground mb-1">Average Score</div>
-              <div className="text-2xl font-semibold">{averageScore}%</div>
+              <div className="text-sm text-muted-foreground mb-1">Average rating</div>
+              <div className="text-2xl font-semibold">
+                {averageScore != null ? <ScoreIndicator percentage={averageScore} size="medium" /> : '—'}
+              </div>
             </div>
             <div className="bg-white rounded-lg p-4 shadow-sm border border-border">
-              <div className="text-sm text-muted-foreground mb-1">Latest Score</div>
-              <div className="text-2xl font-semibold">{latestScore}%</div>
+              <div className="text-sm text-muted-foreground mb-1">Latest rating</div>
+              <div className="text-2xl font-semibold">
+                {latestScore != null ? <ScoreIndicator percentage={latestScore} size="medium" /> : '—'}
+              </div>
             </div>
           </div>
         )}

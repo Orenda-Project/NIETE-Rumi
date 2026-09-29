@@ -1,0 +1,414 @@
+{
+  "en.one": {
+    "result": true,
+    "calls": [
+      {
+        "method": "sendInteractiveButtons",
+        "args": [
+          "923001112222",
+          {
+            "body": "You planned “Fractions part 4” for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?",
+            "buttons": [
+              {
+                "id": "lpquiz_yes_nudge-1",
+                "title": "Make the quiz"
+              },
+              {
+                "id": "lpquiz_no_nudge-1",
+                "title": "No thanks"
+              }
+            ]
+          },
+          {
+            "onMessageId": "<function>"
+          }
+        ]
+      }
+    ]
+  },
+  "en.one_untitled": {
+    "result": true,
+    "calls": [
+      {
+        "method": "sendInteractiveButtons",
+        "args": [
+          "923001112222",
+          {
+            "body": "You planned a Grade 4 General Science lesson for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?",
+            "buttons": [
+              {
+                "id": "lpquiz_yes_nudge-1",
+                "title": "Make the quiz"
+              },
+              {
+                "id": "lpquiz_no_nudge-1",
+                "title": "No thanks"
+              }
+            ]
+          },
+          {
+            "onMessageId": "<function>"
+          }
+        ]
+      }
+    ]
+  },
+  "en.class": {
+    "result": true,
+    "calls": [
+      {
+        "method": "sendInteractiveButtons",
+        "args": [
+          "923001112222",
+          {
+            "body": "You planned 3 Grade 4 General Science lessons for today. I can make a short 8-question quiz on the first one, “Fractions part 1”, that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?",
+            "buttons": [
+              {
+                "id": "lpquiz_yes_nudge-1",
+                "title": "Make the quiz"
+              },
+              {
+                "id": "lpquiz_no_nudge-1",
+                "title": "No thanks"
+              }
+            ]
+          },
+          {
+            "onMessageId": "<function>"
+          }
+        ]
+      }
+    ]
+  },
+  "en.list": {
+    "result": true,
+    "calls": [
+      {
+        "method": "sendInteractiveMessage",
+        "args": [
+          "923001112222",
+          {
+            "body": {
+              "text": "You planned lessons for 3 classes today. Pick a class and I will make a short 8-question quiz on its first lesson, for your students to take on WhatsApp, with a report on what to reteach."
+            },
+            "action": {
+              "button": "Choose a class",
+              "sections": [
+                {
+                  "rows": [
+                    {
+                      "id": "lpquiz_pick_nudge-1_g1_math_0",
+                      "title": "Grade 1 · Mathematics",
+                      "description": "Fractions part 1"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g2_english_1",
+                      "title": "Grade 2 · English",
+                      "description": "Fractions part 2"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g3_urdu_2",
+                      "title": "Grade 3 · Urdu",
+                      "description": "Fractions part 3"
+                    },
+                    {
+                      "id": "lpquiz_none_nudge-1",
+                      "title": "Not today"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "onMessageId": "<function>"
+          }
+        ]
+      }
+    ]
+  },
+  "en.list_more": {
+    "result": true,
+    "calls": [
+      {
+        "method": "sendInteractiveMessage",
+        "args": [
+          "923001112222",
+          {
+            "body": {
+              "text": "You planned lessons for 12 classes today. Pick a class and I will make a short 8-question quiz on its first lesson, for your students to take on WhatsApp, with a report on what to reteach."
+            },
+            "action": {
+              "button": "Choose a class",
+              "sections": [
+                {
+                  "rows": [
+                    {
+                      "id": "lpquiz_pick_nudge-1_g1_math_0",
+                      "title": "Grade 1 · Mathematics",
+                      "description": "Fractions part 1"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g2_english_1",
+                      "title": "Grade 2 · English",
+                      "description": "Fractions part 2"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g3_urdu_2",
+                      "title": "Grade 3 · Urdu",
+                      "description": "Fractions part 3"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g4_general_science_3",
+                      "title": "Grade 4 · Science",
+                      "description": "Fractions part 4"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g5_social_studies_4",
+                      "title": "Grade 5 · Social Studies",
+                      "description": "Fractions part 5"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g1_islamiat_5",
+                      "title": "Grade 1 · Islamiyat",
+                      "description": "Fractions part 6"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g2_general_knowledge_6",
+                      "title": "Grade 2 · Gen. Knowledge",
+                      "description": "Fractions part 7"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g3_math_7",
+                      "title": "Grade 3 · Mathematics",
+                      "description": "Fractions part 8"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g4_english_8",
+                      "title": "Grade 4 · English",
+                      "description": "Fractions part 9"
+                    },
+                    {
+                      "id": "lpquiz_none_nudge-1",
+                      "title": "Not today"
+                    }
+                  ]
+                }
+              ]
+            },
+            "footer": "And 3 more classes not shown here"
+          },
+          {
+            "onMessageId": "<function>"
+          }
+        ]
+      }
+    ]
+  },
+  "ur.one": {
+    "result": true,
+    "calls": [
+      {
+        "method": "sendInteractiveButtons",
+        "args": [
+          "923001112222",
+          {
+            "body": "آپ نے آج «⁨Fractions part 4⁩» کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟",
+            "buttons": [
+              {
+                "id": "lpquiz_yes_nudge-1",
+                "title": "‏quiz بنائیں"
+              },
+              {
+                "id": "lpquiz_no_nudge-1",
+                "title": "نہیں، شکریہ"
+              }
+            ]
+          },
+          {
+            "onMessageId": "<function>"
+          }
+        ]
+      }
+    ]
+  },
+  "ur.one_untitled": {
+    "result": true,
+    "calls": [
+      {
+        "method": "sendInteractiveButtons",
+        "args": [
+          "923001112222",
+          {
+            "body": "آپ نے آج جماعت ۴ کے سائنس کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟",
+            "buttons": [
+              {
+                "id": "lpquiz_yes_nudge-1",
+                "title": "‏quiz بنائیں"
+              },
+              {
+                "id": "lpquiz_no_nudge-1",
+                "title": "نہیں، شکریہ"
+              }
+            ]
+          },
+          {
+            "onMessageId": "<function>"
+          }
+        ]
+      }
+    ]
+  },
+  "ur.class": {
+    "result": true,
+    "calls": [
+      {
+        "method": "sendInteractiveButtons",
+        "args": [
+          "923001112222",
+          {
+            "body": "آپ نے آج جماعت ۴ کے سائنس کے ۳ اسباق پلان کیے۔ پہلے سبق «⁨Fractions part 1⁩» پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟",
+            "buttons": [
+              {
+                "id": "lpquiz_yes_nudge-1",
+                "title": "‏quiz بنائیں"
+              },
+              {
+                "id": "lpquiz_no_nudge-1",
+                "title": "نہیں، شکریہ"
+              }
+            ]
+          },
+          {
+            "onMessageId": "<function>"
+          }
+        ]
+      }
+    ]
+  },
+  "ur.list": {
+    "result": true,
+    "calls": [
+      {
+        "method": "sendInteractiveMessage",
+        "args": [
+          "923001112222",
+          {
+            "body": {
+              "text": "آپ نے آج ۳ کلاسوں کے اسباق پلان کیے۔ ایک کلاس چنیں — اس کے پہلے سبق پر ۸ سوالوں کا مختصر quiz بن جائے گا، طلبہ اسے WhatsApp پر حل کریں اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔"
+            },
+            "action": {
+              "button": "کلاس چنیں",
+              "sections": [
+                {
+                  "rows": [
+                    {
+                      "id": "lpquiz_pick_nudge-1_g1_math_0",
+                      "title": "جماعت ۱ · ریاضی",
+                      "description": "⁨Fractions part 1⁩"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g2_english_1",
+                      "title": "جماعت ۲ · انگریزی",
+                      "description": "⁨Fractions part 2⁩"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g3_urdu_2",
+                      "title": "جماعت ۳ · اردو",
+                      "description": "⁨Fractions part 3⁩"
+                    },
+                    {
+                      "id": "lpquiz_none_nudge-1",
+                      "title": "آج نہیں"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "onMessageId": "<function>"
+          }
+        ]
+      }
+    ]
+  },
+  "ur.list_more": {
+    "result": true,
+    "calls": [
+      {
+        "method": "sendInteractiveMessage",
+        "args": [
+          "923001112222",
+          {
+            "body": {
+              "text": "آپ نے آج ۱۲ کلاسوں کے اسباق پلان کیے۔ ایک کلاس چنیں — اس کے پہلے سبق پر ۸ سوالوں کا مختصر quiz بن جائے گا، طلبہ اسے WhatsApp پر حل کریں اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔"
+            },
+            "action": {
+              "button": "کلاس چنیں",
+              "sections": [
+                {
+                  "rows": [
+                    {
+                      "id": "lpquiz_pick_nudge-1_g1_math_0",
+                      "title": "جماعت ۱ · ریاضی",
+                      "description": "⁨Fractions part 1⁩"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g2_english_1",
+                      "title": "جماعت ۲ · انگریزی",
+                      "description": "⁨Fractions part 2⁩"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g3_urdu_2",
+                      "title": "جماعت ۳ · اردو",
+                      "description": "⁨Fractions part 3⁩"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g4_general_science_3",
+                      "title": "جماعت ۴ · سائنس",
+                      "description": "⁨Fractions part 4⁩"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g5_social_studies_4",
+                      "title": "جماعت ۵ · معاشرتی علوم",
+                      "description": "⁨Fractions part 5⁩"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g1_islamiat_5",
+                      "title": "جماعت ۱ · اسلامیات",
+                      "description": "⁨Fractions part 6⁩"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g2_general_knowledge_6",
+                      "title": "جماعت ۲ · Gen. Knowledge",
+                      "description": "⁨Fractions part 7⁩"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g3_math_7",
+                      "title": "جماعت ۳ · ریاضی",
+                      "description": "⁨Fractions part 8⁩"
+                    },
+                    {
+                      "id": "lpquiz_pick_nudge-1_g4_english_8",
+                      "title": "جماعت ۴ · انگریزی",
+                      "description": "⁨Fractions part 9⁩"
+                    },
+                    {
+                      "id": "lpquiz_none_nudge-1",
+                      "title": "آج نہیں"
+                    }
+                  ]
+                }
+              ]
+            },
+            "footer": "مزید ۳ کلاسیں یہاں نہیں دکھائی گئیں"
+          },
+          {
+            "onMessageId": "<function>"
+          }
+        ]
+      }
+    ]
+  }
+}

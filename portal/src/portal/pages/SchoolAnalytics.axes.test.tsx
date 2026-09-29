@@ -22,7 +22,7 @@ import { MemoryRouter } from "react-router-dom";
 const captured: { options?: any; series?: any } = {};
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
-vi.mock("../services/api", () => ({ leader: { getSchoolAnalytics: vi.fn() } }));
+vi.mock("../services/api", () => ({ leader: { getSchoolAnalytics: vi.fn(), getSteps: vi.fn().mockResolvedValue({ success: true, cycle: null, teachers: [], summary: {} }) } }));
 vi.mock("react-apexcharts", () => ({
   default: (props: any) => {
     captured.options = props.options;

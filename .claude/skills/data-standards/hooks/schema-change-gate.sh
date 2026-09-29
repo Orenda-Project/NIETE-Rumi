@@ -86,6 +86,7 @@ INPUT_JSON=$(cat)
 export INPUT_JSON
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VALIDATOR="$SKILL_DIR/scripts/validate_schema.py"
+TELEMETRY="$SKILL_DIR/scripts/gate_telemetry.py"
 BYPASS_AUDIT="$SKILL_DIR/scripts/bypass_audit.py"
 NOTIFY="$SKILL_DIR/scripts/notify.py"
 
@@ -120,13 +121,25 @@ fi
 VALIDATE_OUTPUT=$(python3 "$VALIDATOR" --mode staged 2>&1)
 VALIDATE_EXIT=$?
 
+# Record this firing — every outcome, not just blocks. Synchronous on purpose:
+# the local append is a microsecond file write, and only the network send is
+# detached inside gate_telemetry.py. A record written after the caller has
+# already read the log is a record that gets missed. gate_telemetry always
+# exits 0 and prints nothing, so it can never change this gate's verdict.
+emit_event() {
+    printf '%s' "$VALIDATE_OUTPUT" | python3 "$TELEMETRY" emit --gate commit \
+        --skill data-standards --result "$1" --from-stdin-report >/dev/null 2>&1
+}
+
 if [ "$VALIDATE_EXIT" -eq 3 ]; then
     # No schema-relevant staged change — nothing for this gate to say, and no
     # bypass decision to make either.
+    emit_event no_change
     exit 0
 fi
 
 if [ "$VALIDATE_EXIT" -eq 0 ]; then
+    emit_event pass
     exit 0
 fi
 
@@ -183,6 +196,7 @@ if [ -n "$BYPASS_REASON" ]; then
             echo "  be investigated: $RECORD_OUTPUT" >&2
         fi
         notify_slack "bypass" "$ACTOR" "BYPASSED: $BYPASS_REASON"
+        emit_event bypass
         exit 0
     fi
     echo "DATA STANDARDS: bypass REJECTED — $CHECK_OUTPUT" >&2
@@ -199,6 +213,7 @@ if [ "$VALIDATE_EXIT" -eq 2 ]; then
     echo "Bypass (only if you've confirmed this is a validator bug, not a real problem):" >&2
     echo "export TALEEMABAD_DATA_STANDARDS_BYPASS=\"<a real reason>\"" >&2
     notify_slack "validation_failure" "$ACTOR" "VALIDATOR ERROR"
+    emit_event error
     exit 2
 fi
 
@@ -210,4 +225,5 @@ echo "See skills/data-standards/reference/enforcement-policy.md for what blocks 
 echo "what's advisory. Fix the finding(s) above, or bypass with an approved reason:" >&2
 echo "export TALEEMABAD_DATA_STANDARDS_BYPASS=\"<a real reason — ticket, incident, or named approver>\"" >&2
 notify_slack "validation_failure" "$ACTOR" "FAIL"
+emit_event block
 exit 2

@@ -114,7 +114,12 @@ describe('the Flow graph', () => {
 
     it('submits both in one action', () => {
       const payload = form.children.find((c) => c.type === 'Footer')['on-click-action'].payload;
-      expect(payload.remove).toBe('${form.remove}');
+      // One CheckboxGroup could only ever offer 20 children, so the removals now ride
+      // in five consecutive groups — still ONE footer action, still one screen
+      // (bd-a6mhn). See tests/classes/roster-remove-every-child.test.js.
+      for (let n = 1; n <= 5; n += 1) {
+        expect(payload[`remove${n}`]).toBe(`\${form.remove${n}}`);
+      }
       expect(payload.add).toBe('${form.add}');
     });
 
@@ -267,14 +272,20 @@ describe('a handset still holding the old published asset', () => {
 });
 
 describe('the removal list against the platform cap', () => {
-  it('offers at most 20 to tick, and says how many it could not show', async () => {
-    // Meta caps a CheckboxGroup at 20 options. Truncating in silence would leave the
-    // 21st child unremovable with no explanation; the roster text still lists everyone.
+  it('spills past 20 into a second group rather than hiding the 21st child', async () => {
+    // Meta caps ONE CheckboxGroup at 20 options — per group, not per screen. This used
+    // to assert the screen offered 20 and explained the rest away, which read as a
+    // graceful cap and was a dead end: the slice is always the first 20 BY ROLL, so
+    // child 21 only ever appeared once twenty real children had been deleted (bd-a6mhn).
     const many = Array.from({ length: 25 }, (_, i) => kid(i + 1, i + 1));
     boot({ students: many, enrollments: many.map((_, i) => enrolled(i + 1, i + 1)) });
     const res = await ep.handleClassManagerDataExchange(TEACHER, 'CLASSES', { target: CLASS_ID });
 
-    expect(res.data.remove_options).toHaveLength(20);
-    expect(res.data.hint).toMatch(/20|first/i);
+    expect(res.data.remove_options1).toHaveLength(20);
+    expect(res.data.remove_options2).toHaveLength(5);
+    expect(res.data.has_group2).toBe(true);
+    expect(res.data.remove_options2.map((o) => o.id)).toContain('s21');
+    // Nothing was cut, so nothing is explained away.
+    expect(res.data.hint).not.toMatch(/first 20/i);
   });
 });

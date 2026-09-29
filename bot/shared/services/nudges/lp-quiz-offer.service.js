@@ -49,6 +49,7 @@ const { LP_V8 } = require('../quiz/quiz-sources');
 const Funnel = require('../quiz/quiz-funnel');
 const LessonClaim = require('../quiz/lp-lesson-claim');
 const QuizMenuFlags = require('../quiz/quiz-menu-flags');
+const FeatureIntro = require('../feature-intro.service');
 
 /** The `teacher_nudges.kind` this module owns. */
 const KIND = 'lp_quiz_offer';
@@ -530,15 +531,56 @@ const CAPS = Object.freeze({ rowTitle: 24, rowDesc: 72, button: 20, footer: 60 }
 const QUIZ_SOURCE = LP_V8;            // never 'lesson_plan', the column default
 /** A language's own digits, where its prose uses them (Urdu: U+06F0–06F9, never ٠١٢٣). */
 const NATIVE_DIGITS = Object.freeze({ ur: '۰۱۲۳۴۵۶۷۸۹' });
+/** The questions a quiz has — the number the offer promises ({q} in its copy). */
+const QUESTION_COUNT = 8;
+/** The user_feature_first_use row that counts this offer's intro film — never the coaching film's. */
+const FILM_FEATURE_KEY = 'lp_quiz_offer';
 /** A language's own subject names, keyed on the lp612 canonical name. English is the name itself. */
 const SUBJECT_NAMES = Object.freeze({ ur: SUBJECT_NAMES_UR });
 
 const cps = (s) => [...String(s == null ? '' : s)].length;
 
+/**
+ * Western digits by default — the coaching offer and the teacher's pre-send PDF
+ * write Western digits inside Urdu, and the two offers should read alike.
+ * LP_QUIZ_OFFER_NATIVE_DIGITS=on (read at call time) writes the language's own.
+ */
+function nativeDigits() {
+  return (process.env.LP_QUIZ_OFFER_NATIVE_DIGITS || '').trim().toLowerCase() === 'on';
+}
+
 function digitsFor(n, language) {
   const str = String(n == null ? '' : n);
-  const digits = NATIVE_DIGITS[language];
+  const digits = nativeDigits() ? NATIVE_DIGITS[language] : null;
   return digits ? str.replace(/[0-9]/g, (d) => digits[Number(d)]) : str;
+}
+
+// ─── the intro film ──────────────────────────────────────────────────────────
+
+/**
+ * Explicit map (not a computed `process.env[...]`) so
+ * tests/setup/env-template-completeness.test.js and a plain grep can both see
+ * the two per-language names. Same shape as the coaching offer's film.
+ */
+const INTRO_VIDEO_BY_LANGUAGE = {
+  ur: () => process.env.LP_QUIZ_OFFER_INTRO_VIDEO_UR,
+  en: () => process.env.LP_QUIZ_OFFER_INTRO_VIDEO_EN,
+};
+
+/** Per-language film first, the shared one second, null when neither is set. */
+function introVideo(language) {
+  const shared = (process.env.LP_QUIZ_OFFER_INTRO_VIDEO || '').trim() || null;
+  const perLanguage = INTRO_VIDEO_BY_LANGUAGE[language];
+  if (!perLanguage) return shared;
+  return (perLanguage() || '').trim() || shared;
+}
+
+/** How many offers carry the film, per teacher. 0 is legitimate ("never"); anything unreadable is 1. */
+function introVideoShows() {
+  const raw = (process.env.LP_QUIZ_OFFER_INTRO_VIDEO_SHOWS || '').trim();
+  if (raw === '') return 1;
+  const n = parseInt(raw, 10);
+  return Number.isNaN(n) || n < 0 ? 1 : n;
 }
 
 const titleCase = (s) => String(s || '').split(' ').filter(Boolean)
@@ -685,6 +727,12 @@ async function send(row, { now } = {}) {
   const messageIds = [];
   const sendOpts = { onMessageId: (id) => messageIds.push(id) };
   let ok;
+  // The intro film, in the teacher's language, while their count is under
+  // LP_QUIZ_OFFER_INTRO_VIDEO_SHOWS. No film configured: nothing is read.
+  const video = introVideo(language);
+  const shownCount = video ? await FeatureIntro.introShownCount(row.user_id, FILM_FEATURE_KEY) : 0;
+  const wantVideo = Boolean(video) && shownCount < introVideoShows();
+  let videoSent = false;
 
   if (shape === 'list') {
     const shown = classes.slice(0, MAX_CLASS_ROWS);
@@ -699,7 +747,11 @@ async function send(row, { now } = {}) {
     });
     rows.push({ id: `lpquiz_none_${row.id}`, title: resolveUx('lpQuizOfferNone', { language }) });
     const list = {
-      body: { text: resolveUx('lpQuizOfferListBody', { language, params: { n: digitsFor(classes.length, language) } }) },
+      body: {
+        text: resolveUx('lpQuizOfferListBody', {
+          language, params: { n: digitsFor(classes.length, language), q: digitsFor(QUESTION_COUNT, language) },
+        }),
+      },
       action: {
         button: resolveUx('lpQuizOfferListButton', { language }),
         sections: [{ rows }],
@@ -711,25 +763,42 @@ async function send(row, { now } = {}) {
       }), CAPS.footer);
       context.dropped_classes = dropped;
     }
+    // A list message cannot carry a video header: the film goes first as its own
+    // message, awaited, so it lands above the list. A film that fails never
+    // holds the list back.
+    if (wantVideo) {
+      videoSent = await WhatsAppService.sendVideoFromUrl(to, video, resolveUx('lpQuizOfferFilmCaption', { language }));
+      if (!videoSent) logToFile('⚠️ lp quiz offer: intro video failed, sending the list alone', { nudgeId: row.id }, 'warn');
+    }
     ok = await WhatsAppService.sendInteractiveMessage(to, list, sendOpts);
   } else {
     const cls = classes[0];
     const first = cls.lessons[0];
     const grade = digitsFor(cls.grade, language);
+    const q = digitsFor(QUESTION_COUNT, language);
     const subject = subjectName(cls.subject, language);
     let body;
     if (shape === 'class') {
       body = resolveUx('lpQuizOfferClass', {
         language,
-        params: { n: digitsFor(cls.lessons.length, language), grade, subject, topic: first.topic || subject },
+        params: { n: digitsFor(cls.lessons.length, language), q, grade, subject, topic: first.topic || subject },
       });
     } else if (first.topic) {
-      body = resolveUx('lpQuizOfferOne', { language, params: { topic: first.topic } });
+      body = resolveUx('lpQuizOfferOne', { language, params: { topic: first.topic, q } });
     } else {
-      body = resolveUx('lpQuizOfferOneUntitled', { language, params: { grade, subject } });
+      body = resolveUx('lpQuizOfferOneUntitled', { language, params: { grade, subject, q } });
     }
-    ok = await WhatsAppService.sendInteractiveButtons(to, { body, buttons: yesNoButtons(row.id, language) }, sendOpts);
+    const buttons = yesNoButtons(row.id, language);
+    if (wantVideo) {
+      videoSent = await WhatsAppService.sendVideoWithButtons(to, video, body, buttons, sendOpts);
+      if (!videoSent) logToFile('⚠️ lp quiz offer: intro video failed, sending plain buttons', { nudgeId: row.id }, 'warn');
+      ok = videoSent;
+    }
+    if (!ok) ok = await WhatsAppService.sendInteractiveButtons(to, { body, buttons }, sendOpts);
   }
+  // Counted only when the film actually went; FeatureIntro is not touched at
+  // all when no film is configured.
+  if (videoSent) await FeatureIntro.markVideoShown(row.user_id, FILM_FEATURE_KEY, { incrementIntroCount: true });
 
   const offerFunnel = {
     nudge_id: row.id, teacher_id: row.user_id, source: QUIZ_SOURCE, channel: 'lp_offer', n: classes.length,
@@ -743,6 +812,7 @@ async function send(row, { now } = {}) {
   logEvent('lp_quiz.offer_sent', {
     nudgeId: row.id, userId: row.user_id, shape, classes: classes.length,
     dropped: (context.dropped_classes || []).length, language,
+    withVideo: Boolean(videoSent), shownCount,
   });
   return { sent: true, messageIds, context };
 }

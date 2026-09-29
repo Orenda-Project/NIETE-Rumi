@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -54,8 +55,15 @@ SKILL_DIR = Path(__file__).resolve().parent.parent
 STANDARDS_PATH = SKILL_DIR / "reference" / "standards.yaml"
 DETECTOR = SKILL_DIR / "scripts" / "detect_schema_changes.py"
 
+# Matched against the COLUMN NAME token only, anchored on `_` as well as the
+# name's ends. `\b` treats `_` as a word character, so `\bphone\b` never matched
+# parent_phone / teacher_phone / work_email — 3 of the 6 real PII-shaped column
+# names in the first governed repository were invisible to D4 (measured
+# 2026-08-20). telephone_booth and emailed_at still do not match: the token must
+# sit between `_` or a name boundary on BOTH sides.
 PII_NAME_PATTERN = re.compile(
-    r"\b(phone|phone_number|cnic|ssn|social_security|dob|date_of_birth|email)\b", re.IGNORECASE
+    r"(?:^|_)(phone_number|phone|cnic|ssn|social_security|date_of_birth|dob|email)(?=_|$)",
+    re.IGNORECASE,
 )
 MIGRATION_TOOL_MARKERS = ["flyway", "alembic", "django migrations", "makemigrations",
                             "knex migrate", "prisma migrate", "migration"]
@@ -265,12 +273,17 @@ def check_d4_new_pii_column(table: str, body: str) -> list[dict]:
     certifier; see reference/enforcement-policy.md's honesty note on this."""
     findings = []
     for col in split_columns(body):
-        m = PII_NAME_PATTERN.search(col)
+        name_m = re.match(r"^(\S+)", col)
+        if not name_m:
+            continue
+        col_name = name_m.group(1).strip('"')
+        # Name token only — a trailing comment that merely mentions "phone" is not
+        # a PII column, and a PII column is one whatever its comment says.
+        m = PII_NAME_PATTERN.search(col_name)
         if not m:
             continue
         if re.search(r"--\s*(PII|Restricted-PII|Confidential)", col, re.IGNORECASE):
             continue
-        col_name = re.match(r"^(\S+)", col).group(1)
         findings.append({"standard": "D4", "confirmed": True, "confidence": "MEDIUM",
                           "finding": f"table `{table}` column `{col_name}` looks like PII "
                                       f"(matched `{m.group(1)}`) with no classification marker "
@@ -288,9 +301,43 @@ def check_d8_migration_tool(text: str) -> dict | None:
     return None
 
 
+def _blank_sql_comments(text: str) -> str:
+    """Return text with every `-- ...` line comment and `/* ... */` block comment
+    replaced by spaces of the same length, so character offsets are unchanged.
+
+    The destructive-statement scan runs on the blanked text; the safety-marker
+    lookback (`-- destructive: reviewed`, "rollback") still reads the ORIGINAL
+    text, because those markers live in comments by design.
+
+    Why: the scan used to run over raw text, comments included. On the first
+    governed repository 23 of 85 findings (27%) were commented-out rollback
+    lines or prose — `-- DROP TABLE IF EXISTS x;`, `-- Truncate content to
+    create title` — read as live destructive SQL (measured 2026-08-20). A `--`
+    inside a string literal is treated as a comment start too; DDL migrations
+    essentially never contain one, and the previous behaviour had no string
+    awareness either."""
+    out, i, n = [], 0, len(text)
+    while i < n:
+        if text.startswith("--", i):
+            j = text.find("\n", i)
+            j = n if j == -1 else j
+            out.append(" " * (j - i))
+            i = j
+        elif text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            j = n if j == -1 else j + 2
+            out.append(" " * (j - i))
+            i = j
+        else:
+            out.append(text[i])
+            i += 1
+    return "".join(out)
+
+
 def check_d8_destructive_without_safety(text: str) -> list[dict]:
     findings = []
-    for m in re.finditer(r"(DROP\s+(TABLE|COLUMN)\s+[\w.\"]+|TRUNCATE\s+[\w.\"]+)", text, re.IGNORECASE):
+    scan = _blank_sql_comments(text)
+    for m in re.finditer(r"(DROP\s+(TABLE|COLUMN)\s+[\w.\"]+|TRUNCATE\s+[\w.\"]+)", scan, re.IGNORECASE):
         window = text[max(0, m.start() - 200):m.start()]
         if re.search(r"--\s*destructive:\s*reviewed", window, re.IGNORECASE) or "rollback" in window.lower():
             continue
@@ -336,15 +383,24 @@ def run_detector(mode_args: list[str]) -> dict:
     return json.loads(result.stdout)
 
 
-def read_files(paths: list[str]) -> dict[str, str]:
-    out = {}
+def read_files(paths: list[str]) -> tuple[dict[str, str], list[str]]:
+    """Read each relevant path. A path that cannot be read comes back in the
+    second element — it is NOT mapped to "". An empty text has no CREATE TABLE
+    and used to be reported as a clean pass on content the validator never saw:
+    the same staged violating migration gave 4 findings from the repo root and
+    complete silence from a subdirectory (measured 2026-09-25). Callers must
+    treat any unreadable path as a validator error (exit 2), never a pass."""
+    out, unreadable = {}, []
     for p in paths:
         fp = Path(p)
         try:
-            out[p] = fp.read_text(encoding="utf-8", errors="replace") if fp.exists() else ""
+            if fp.is_file():
+                out[p] = fp.read_text(encoding="utf-8", errors="replace")
+            else:
+                unreadable.append(p)
         except OSError:
-            out[p] = ""
-    return out
+            unreadable.append(p)
+    return out, unreadable
 
 
 def validate_report(report_path: Path) -> tuple[int, dict]:
@@ -392,19 +448,38 @@ def main() -> int:
             {"path": str(p), "status": "modified", "renamed_from": None, "category": "raw_sql"}
             for p in all_sql
         ]}
-    elif args.mode == "diff":
-        if not (args.base and args.head):
-            ap.error("--mode diff requires --base and --head")
-        detector_result = run_detector(["--git-diff", args.base, args.head])
-    else:  # staged
-        detector_result = run_detector(["--git-staged"])
+    else:
+        # git reports repo-root-relative paths from anywhere in the tree, so the
+        # rest of this run must happen AT the root — from a subdirectory every
+        # path was unreadable, and (before read_files failed closed) silently
+        # scored as clean. Anchoring here also makes the detector's own
+        # schema-vs-dump content check read the right files.
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True)
+        if top.returncode != 0 or not top.stdout.strip():
+            print(json.dumps({"result": "validator_error", "findings": [],
+                              "error": "not inside a git repository"}, indent=2))
+            return 2
+        os.chdir(top.stdout.strip())
+        if args.mode == "diff":
+            if not (args.base and args.head):
+                ap.error("--mode diff requires --base and --head")
+            detector_result = run_detector(["--git-diff", args.base, args.head])
+        else:  # staged
+            detector_result = run_detector(["--git-staged"])
 
     relevant = detector_result.get("relevant", [])
     if not relevant:
         print(json.dumps({"result": "no_schema_change", "findings": []}, indent=2))
         return 3
 
-    files = read_files([e["path"] for e in relevant if e["status"] != "deleted"])
+    files, unreadable = read_files([e["path"] for e in relevant if e["status"] != "deleted"])
+    if unreadable:
+        print(json.dumps({"result": "validator_error", "findings": [],
+                          "error": "schema-relevant file(s) could not be read — refusing to "
+                                   "report a pass on content never seen",
+                          "unreadable": unreadable}, indent=2))
+        return 2
     all_findings = []
     for path, text in files.items():
         all_findings.extend(validate_text(path, text))

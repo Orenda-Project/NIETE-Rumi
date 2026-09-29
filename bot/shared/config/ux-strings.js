@@ -91,6 +91,32 @@ const LP612_ETA = Object.freeze({
 });
 
 const UX_STRINGS = {
+  // ─── observation score bands ──────────────────────────────────────────────
+  // An observation score is never shown as a number or a percentage — only as
+  // one of these five (operator, 2026-09-29). Thresholds live in
+  // score-bands.js; these are the words. The portal carries the English five
+  // in a parity-tested copy, so change them in both or the test fails.
+  scoreBandExcellent: {
+    en: 'Excellent',
+    ur: 'بہترین',
+  },
+  scoreBandGood: {
+    en: 'Good',
+    ur: 'اچھا',
+  },
+  scoreBandAverage: {
+    en: 'Average',
+    ur: 'اوسط',
+  },
+  scoreBandBelowAverage: {
+    en: 'Below average',
+    ur: 'اوسط سے کم',
+  },
+  scoreBandNeedsSupport: {
+    en: 'Needs support',
+    ur: 'مدد درکار',
+  },
+
   // ─── post-coaching survey ─────────────────────────────────────────────────
   // Sent once a coaching session has settled — report delivered, voice debrief
   // attempted. The negative path is the point of the whole survey: an
@@ -1695,27 +1721,32 @@ const UX_STRINGS = {
   // No recording exists on this path, so the copy says "planned", never
   // "taught". {topic} is the catalog topic of the lesson the quiz is written
   // from; in Urdu it is first-strong isolated because it may be either script.
-  // Digits passed into the Urdu variants are Urdu digits (the caller converts).
+  // {q} is the question count. Every number (q, grade, n) is filled by the caller:
+  // Western digits, as the coaching offer and the pre-send PDF write them inside
+  // Urdu; LP_QUIZ_OFFER_NATIVE_DIGITS=on makes them Urdu digits (U+06F0-06F9).
   lpQuizOfferOne: {
-    en: 'You planned “{topic}” for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
-    ur: 'آپ نے آج «⁨{topic}⁩» کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+    en: 'You planned “{topic}” for today. I can make a short {q}-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج «⁨{topic}⁩» کا سبق پلان کیا۔ اس پر {q} سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
   },
   // A lesson the catalog has no topic for — named by its class instead.
   lpQuizOfferOneUntitled: {
-    en: 'You planned a Grade {grade} {subject} lesson for today. I can make a short 8-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
-    ur: 'آپ نے آج جماعت {grade} کے {subject} کا سبق پلان کیا۔ اس پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+    en: 'You planned a Grade {grade} {subject} lesson for today. I can make a short {q}-question quiz on it that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج جماعت {grade} کے {subject} کا سبق پلان کیا۔ اس پر {q} سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
   },
   // Several lessons, one class. The quiz is written from ONE lesson (the first
   // planned), so the copy names it rather than promising all of them.
   lpQuizOfferClass: {
-    en: 'You planned {n} Grade {grade} {subject} lessons for today. I can make a short 8-question quiz on the first one, “{topic}”, that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
-    ur: 'آپ نے آج جماعت {grade} کے {subject} کے {n} اسباق پلان کیے۔ پہلے سبق «⁨{topic}⁩» پر ۸ سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
+    en: 'You planned {n} Grade {grade} {subject} lessons for today. I can make a short {q}-question quiz on the first one, “{topic}”, that your students take on WhatsApp, and you get a report on what to reteach.\n\nWant it?',
+    ur: 'آپ نے آج جماعت {grade} کے {subject} کے {n} اسباق پلان کیے۔ پہلے سبق «⁨{topic}⁩» پر {q} سوالوں کا مختصر quiz بن سکتا ہے — طلبہ اسے WhatsApp پر حل کریں، اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔\n\nبنا دیں؟',
   },
   lpQuizOfferListBody: {
-    en: 'You planned lessons for {n} classes today. Pick a class and I will make a short 8-question quiz on its first lesson, for your students to take on WhatsApp, with a report on what to reteach.',
-    ur: 'آپ نے آج {n} کلاسوں کے اسباق پلان کیے۔ ایک کلاس چنیں — اس کے پہلے سبق پر ۸ سوالوں کا مختصر quiz بن جائے گا، طلبہ اسے WhatsApp پر حل کریں اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔',
+    en: 'You planned lessons for {n} classes today. Pick a class and I will make a short {q}-question quiz on its first lesson, for your students to take on WhatsApp, with a report on what to reteach.',
+    ur: 'آپ نے آج {n} کلاسوں کے اسباق پلان کیے۔ ایک کلاس چنیں — اس کے پہلے سبق پر {q} سوالوں کا مختصر quiz بن جائے گا، طلبہ اسے WhatsApp پر حل کریں اور آپ کو رپورٹ ملے کہ کیا دوبارہ پڑھانا ہے۔',
   },
   lpQuizOfferListButton: { en: 'Choose a class', ur: 'کلاس چنیں' },
+  // Caption on the intro film that goes ahead of a list offer (a list message
+  // cannot carry a video header, so the film is its own message).
+  lpQuizOfferFilmCaption: { en: 'How a quiz from your lesson plan works', ur: 'سبق کے پلان سے quiz کیسے بنتا ہے' },
   // List row title, 24 code points. The caller shortens a long subject first.
   lpQuizOfferRowTitle: { en: 'Grade {grade} · {subject}', ur: 'جماعت {grade} · {subject}' },
   lpQuizOfferRowDesc: { en: '{topics}', ur: '⁨{topics}⁩' },
@@ -2748,10 +2779,21 @@ const CLASS_FLOW_STRINGS = {
     ur: 'جو طلبہ جماعت چھوڑ رہے ہیں انہیں منتخب کریں، اور نئے نام نیچے لکھیں۔ '
       + 'نکالے گئے طالب علم اس جماعت کے تمام اساتذہ کو نظر آنا بند ہو جائیں گے؛ حاضری کا ریکارڈ محفوظ رہے گا۔',
   },
+  /**
+   * The removal checkboxes ran out of room. Reachable only past {shown} children —
+   * 100 since bd-a6mhn, when the one 20-option CheckboxGroup became five of them.
+   * No class in ICT production is anywhere near it (the biggest is 88 on
+   * 2026-09-29), but nothing bounds a class, so the sentence still has to exist —
+   * and it has to say what to DO, because the old wording ("Showing the first 20")
+   * described a dead end: the slice is always the first N BY ROLL, so the 21st child
+   * only ever appeared after twenty real children had been deleted.
+   */
   classEditHintCapped: {
-    en: 'Showing the first {shown} to remove, and paste any new names below. '
+    en: 'This class has more than {shown} children, so the first {shown} are listed to remove. '
+      + 'Remove the ones you need, save, then open the class again for the rest. '
       + 'Every teacher on this class stops seeing a removed student; their attendance record is kept.',
-    ur: 'نکالنے کے لیے پہلے {shown} دکھائے جا رہے ہیں، اور نئے نام نیچے لکھیں۔ '
+    ur: 'اس جماعت میں {shown} سے زیادہ بچے ہیں، اس لیے نکالنے کے لیے پہلے {shown} دکھائے جا رہے ہیں۔ '
+      + 'جنہیں نکالنا ہے انہیں منتخب کر کے محفوظ کریں، پھر باقی کے لیے جماعت دوبارہ کھولیں۔ '
       + 'نکالے گئے طالب علم اس جماعت کے تمام اساتذہ کو نظر آنا بند ہو جائیں گے؛ حاضری کا ریکارڈ محفوظ رہے گا۔',
   },
   /**
@@ -2771,6 +2813,23 @@ const CLASS_FLOW_STRINGS = {
   classRemoveField: {
     en: 'Remove from this class',
     ur: 'اس جماعت سے نکالیں',
+  },
+  /**
+   * The label on ONE of the removal checkbox groups, when a class needs more than
+   * one. Meta caps a single CheckboxGroup at 20 options, so a 36-child class is
+   * shown as consecutive groups and each has to say which slice it is — otherwise
+   * the teacher reads the first group as the whole class, which is precisely the
+   * bug this replaced (bd-a6mhn).
+   *
+   * {from} and {to} are ROLL NUMBERS, not positions, so the label agrees with the
+   * numbering on the checkbox and in the roster text above it.
+   *
+   * A CheckboxGroup label is capped at 30 CODE POINTS. Worst case in this
+   * deployment is "(81–100)": en 26, ur 27. Both are measured by a test.
+   */
+  classRemoveFieldRange: {
+    en: 'Remove from class ({from}–{to})',
+    ur: 'اس جماعت سے نکالیں ({from}–{to})',
   },
   classAddField: {
     en: 'Add students',

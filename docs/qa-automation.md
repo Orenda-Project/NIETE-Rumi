@@ -156,7 +156,7 @@ Nothing server-side enforces either verdict.
 | Runner | `.claude/qa/shared/feature-runner.cjs` (+ `features/*.cjs`, `wa-drive.js`, `flow-lib.cjs`) |
 | Git hooks + installer | `.githooks/post-commit` · `.githooks/pre-push` · `scripts/qa/install-hooks.sh` |
 | Claude Code hooks | `.claude/hooks/e2e-autorun.sh` · `e2e-autorun-stop.sh` · `e2e-pending-banner.sh` · `lib/git-push-match.sh` |
-| Commands / skills | `/niete-e2e` · `/sync-specs` · `/testcases` · `/apply-discoveries` · `gherkin-spec-sync` · `gherkin-test-cases` · `chrome-mcp-whatsapp-e2e` |
+| Commands / skills | `/niete-e2e` (chrome, paused) · `niete-mock-e2e` (mock lane) · `/sync-specs` · `/testcases` · `/apply-discoveries` · `gherkin-spec-sync` · `gherkin-test-cases` · `chrome-mcp-whatsapp-e2e` |
 | Pre-push range report (`npm run qa:impact`) | `scripts/qa/impact.py` |
 | Verification from a clean clone | `scripts/qa/verify-clean-clone.sh` |
 

@@ -3,6 +3,8 @@ import { WHATSAPP_URL } from '@/lib/whatsapp';
 import { ArrowLeft, TrendingUp, Target, Award, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Chart from 'react-apexcharts';
+import ScoreIndicator from '../components/ScoreIndicator';
+import { bandAxisLabel, bandTooltip, scoreBandLabel } from '../lib/scoreBands';
 import { ApexOptions } from 'apexcharts';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
@@ -67,6 +69,13 @@ const PortalCoachingAnalytics = () => {
     );
   }
 
+  const trendPoints = analytics.overallScoreTrend || [];
+  const firstBand = trendPoints.length ? scoreBandLabel(trendPoints[0].percentage) : null;
+  const lastBand = trendPoints.length ? scoreBandLabel(trendPoints[trendPoints.length - 1].percentage) : null;
+  const bandJourney = !firstBand || !lastBand
+    ? 'Not enough lessons yet'
+    : firstBand === lastBand ? `Steady at ${lastBand}` : `${firstBand} → ${lastBand}`;
+
   // Score Trend Chart Configuration
   const scoreTrendOptions: ApexOptions = {
     chart: {
@@ -96,20 +105,23 @@ const PortalCoachingAnalytics = () => {
         },
       },
     },
+    // Observation scores read as bands, never numbers (operator, 2026-09-29):
+    // gridlines every 20 are exactly the band boundaries.
     yaxis: {
       min: 0,
       max: 100,
+      tickAmount: 5,
       labels: {
         style: {
           colors: 'hsl(220, 9%, 46%)',
           fontSize: '12px',
         },
-        formatter: (value) => `${value}%`,
+        formatter: (value) => bandAxisLabel(Number(value)),
       },
     },
     tooltip: {
       y: {
-        formatter: (value) => `${value}%`,
+        formatter: (value) => bandTooltip(Number(value)),
       },
     },
     dataLabels: {
@@ -150,8 +162,8 @@ const PortalCoachingAnalytics = () => {
     colors: ['hsl(15, 85%, 60%)'],
     dataLabels: {
       enabled: true,
-      formatter: (val) => `${val}%`,
-      offsetX: 30,
+      formatter: (val) => bandTooltip(Number(val)),
+      offsetX: 48,
       style: {
         fontSize: '12px',
         colors: ['hsl(220, 9%, 46%)'],
@@ -159,9 +171,11 @@ const PortalCoachingAnalytics = () => {
     },
     xaxis: {
       categories: analytics.goalAreaBreakdown.map(item => item.name),
+      min: 0,
       max: 100,
+      tickAmount: 5,
       labels: {
-        formatter: (value) => `${value}%`,
+        formatter: (value) => bandAxisLabel(Number(value)),
         style: {
           colors: 'hsl(220, 9%, 46%)',
           fontSize: '12px',
@@ -187,7 +201,7 @@ const PortalCoachingAnalytics = () => {
     },
     tooltip: {
       y: {
-        formatter: (value) => `${value}%`,
+        formatter: (value) => bandTooltip(Number(value)),
       },
     },
   };
@@ -241,10 +255,10 @@ const PortalCoachingAnalytics = () => {
           <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="w-5 h-5 text-accent" />
-              <span className="text-sm text-muted-foreground">Average Score</span>
+              <span className="text-sm text-muted-foreground">Average rating</span>
             </div>
             <div className="text-3xl font-bold text-foreground">
-              {analytics.insights.averageScore.toFixed(1)}%
+              <ScoreIndicator percentage={analytics.insights.averageScore} size="large" />
             </div>
           </div>
 
@@ -253,16 +267,16 @@ const PortalCoachingAnalytics = () => {
               <Award className="w-5 h-5 text-green-600" />
               <span className="text-sm text-muted-foreground">Improvement</span>
             </div>
-            {/* Signed, and coloured by direction. A hardcoded "+" printed a
-                decline as a gain — and now that this is a real percentage
-                rather than a flat zero, declines actually occur. */}
-            <div className={`text-3xl font-bold ${
+            {/* Band to band, first lesson to latest — no percentage-point
+                delta (operator, 2026-09-29), and no invented threshold for what
+                counts as "improving": the bands themselves say it. Coloured by
+                direction, as before. */}
+            <div className={`text-xl font-bold leading-tight ${
               analytics.insights.improvement < 0 ? 'text-rose-600' : 'text-green-600'
-            }`}>
-              {analytics.insights.improvement > 0 ? '+' : ''}
-              {analytics.insights.improvement.toFixed(1)}%
+            }`} data-testid="band-journey">
+              {bandJourney}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Since first session</p>
+            <p className="text-xs text-muted-foreground mt-1">First lesson to latest</p>
           </div>
 
           <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
@@ -306,12 +320,7 @@ const PortalCoachingAnalytics = () => {
               <div key={index} className="p-4 bg-secondary rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-foreground">{goal.name}</h3>
-                  <span className="text-2xl font-bold text-accent">
-                    {goal.percentage.toFixed(1)}%
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
-                  <span>Score: {goal.score}/{goal.maxScore}</span>
+                  <ScoreIndicator percentage={goal.percentage} size="medium" />
                 </div>
                 <div className="w-full bg-background rounded-full h-2">
                   <div 

@@ -1,0 +1,62 @@
+{
+  "skill": "niete-mock-e2e",
+  "written_at": "2026-09-29",
+  "contract": "Capability + trigger probes for the NIETE mock WhatsApp E2E lane. An agent starting at SKILL.md, opening reference/ only when the dispatch table points there, must answer each probe with every must_contain fact. Trigger probes check the skill fires on phrasings that never say 'mock lane' and does NOT fire for the paused chrome lane.",
+  "probes": [
+    {
+      "id": "P1",
+      "type": "GUARD",
+      "question": "The Gherkin tests got generated on my PR but the qa-impact comment still says E2E recorded: missing. Other operators see the same. What is wrong?",
+      "must_contain": [
+        "impact.py counts a runs.jsonl row only if it was ADDED in the PR's commit range on the remote",
+        "ledger_row.py auto-commits and pushes the row, but skips on detached HEAD, a protected branch (sandbox/staging/main/develop), no upstream, or a refused push — the run's `ledger:` line says which",
+        "the workflow runs only on PRs into sandbox"
+      ]
+    },
+    {
+      "id": "P2",
+      "type": "GUARD",
+      "question": "keys/niete-local.env is missing on a teammate's laptop even though they ran railway login. Why, and how do they fix it?",
+      "must_contain": [
+        "the account must be a member of the \"NIETE-Rumi Staging\" Railway project — login alone is not access",
+        "provision-local-keys.sh reads service bot in both the sandbox and staging environments",
+        "run bash bot/scripts/e2e/provision-local-keys.sh by hand and read the exit code (5 = no Railway access)",
+        "fallback: hand-made niete-sandbox.env + --from-kv team.kv"
+      ]
+    },
+    {
+      "id": "P3",
+      "type": "SPINE",
+      "question": "How do I run the mock E2E for just the lesson-plan feature on my current commit?",
+      "must_contain": [
+        "bash .claude/qa/shared/commit-e2e.sh HEAD --features lesson-plan, from a NIETE-Rumi worktree",
+        "exit 0 means it ran; verdicts are in the printed rows"
+      ]
+    },
+    {
+      "id": "P4",
+      "type": "GUARD",
+      "question": "A coaching scenario PASSed but the row is CRITICAL with cassette misses. Can I call it green?",
+      "must_contain": [
+        "no — a PASS under cassette.scenarios_affected is not evidence (error path)",
+        "record with --record or --record-missing using keys/niete-record.env; never hand-write a cassette"
+      ]
+    },
+    {
+      "id": "P5",
+      "type": "EVIDENCE-MOVED",
+      "question": "commit-e2e.sh exited 3 and the run log shows local-stack.sh exit 13. What does that mean?",
+      "must_contain": [
+        "/health reported a different commit than asked — the branch lacks build-info.js / the /health commit field (not sandbox-based)"
+      ]
+    },
+    {
+      "id": "T1",
+      "type": "TRIGGER-NEGATIVE",
+      "question": "Run the WhatsApp Web E2E for registration against staging with the linked browser.",
+      "must_contain": [
+        "this is the chrome lane (/niete-e2e), paused unless E2E_CHROME_ON=1 — not this skill"
+      ]
+    }
+  ]
+}

@@ -18,19 +18,20 @@ import { useState } from 'react';
 import { ChevronDown, Target } from 'lucide-react';
 import type { ScoreBreakdown as Breakdown, BreakdownGroup } from '../types/portal';
 import { UrduAware } from './UrduAware';
+import ScoreIndicator from './ScoreIndicator';
+import { scoreBandFor, scoreBandForScore, bandLabel, BAND_COLOR } from '../lib/scoreBands';
 
-/** Bar colour by band. Semantic, not the accent — this encodes standing. */
-function bandClass(pct: number): string {
-  if (pct >= 75) return 'bg-emerald-600';
-  if (pct >= 50) return 'bg-amber-500';
-  return 'bg-rose-500';
-}
+// Observation scores show as a band, never a number (operator, 2026-09-29).
+// The bar stays — its LENGTH carries the standing without printing a score —
+// and is coloured by the same band the label names.
 
-function Domain({ group, open, onToggle }: {
+function Domain({ group, open, onToggle, scaleMax }: {
   group: BreakdownGroup;
   open: boolean;
   onToggle: () => void;
+  scaleMax: number | null;
 }) {
+  const band = scoreBandFor(group.pct);
   const scored = group.indicators.filter((i) => i.applicable);
   const withEvidence = scored.filter((i) => i.evidence || i.evidence_summary);
 
@@ -47,15 +48,16 @@ function Domain({ group, open, onToggle }: {
             <span className="text-muted-foreground font-mono text-xs mr-2">{group.key}</span>
             {group.name}
           </span>
-          <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
-            {group.score}/{group.max} · {group.pct}%
-          </span>
+          <ScoreIndicator percentage={group.pct} size="small" />
         </div>
         <div className="flex items-center gap-2">
           <div className="flex-1 bg-secondary rounded-full h-2">
             <div
-              className={`h-2 rounded-full transition-all ${bandClass(group.pct)}`}
-              style={{ width: `${Math.max(0, Math.min(100, group.pct))}%` }}
+              className="h-2 rounded-full transition-all"
+              style={{
+                width: `${Math.max(0, Math.min(100, group.pct))}%`,
+                background: band ? BAND_COLOR[band] : undefined,
+              }}
             />
           </div>
           <ChevronDown
@@ -74,13 +76,19 @@ function Domain({ group, open, onToggle }: {
           )}
 
           {scored.map((ind) => (
-            <div key={ind.id || ind.name} className="pl-3 border-l-2 border-border">
+            <div key={ind.id || ind.name} data-testid={`indicator-${ind.id}`} className="pl-3 border-l-2 border-border">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-sm text-foreground">
                   <span className="text-muted-foreground font-mono text-xs mr-1.5">{ind.id}</span>
                   {ind.name}
                 </span>
-                <span className="text-sm font-medium tabular-nums shrink-0">{ind.score}</span>
+                {/* Banded against the scale the bot sent. Without a scale
+                    the raw 0/1/2 is hidden, never printed as a bare number. */}
+                {scaleMax ? (
+                  <span className="text-xs font-medium shrink-0 text-muted-foreground">
+                    {bandLabel(scoreBandForScore(ind.score, scaleMax))}
+                  </span>
+                ) : null}
               </div>
               {/* The quote from her own lesson. Shown, not hidden behind a tap:
                   it is the only thing on the page that explains WHY a number
@@ -153,6 +161,7 @@ export default function ScoreBreakdown({ breakdown }: { breakdown: Breakdown }) 
           <Domain
             key={g.domainKey || g.key}
             group={g}
+            scaleMax={breakdown.scaleMax ?? null}
             open={openIndex === i}
             onToggle={() => setOpenIndex(openIndex === i ? -1 : i)}
           />
