@@ -162,6 +162,42 @@ class TranscriptionProcessorService {
           if (fs.existsSync(tempAudioPath)) fs.unlinkSync(tempAudioPath);
           return;
         }
+      } else if (session.observation_type === 'leader_observation') {
+        // bd-erpvf (HITL row 185) — a coach's recording is analysed ONCE. Same
+        // bytes already analysed for this coach → close this observation and ask
+        // for a new recording. Fails OPEN exactly like the DC branch above.
+        let refused = false;
+        try {
+          const { findPriorLeaderObservation, refuseDuplicateObservation } = require('./audio-hash-cache');
+          const prior = await findPriorLeaderObservation(supabase, {
+            observerUserId: session.observer_user_id,
+            audioHash,
+            excludeSessionId: coachingSessionId,
+          });
+          if (prior) {
+            const { updateIfNotTerminal } = require('./session-terminal');
+            const { observeStrings } = require('../observe/observe-strings');
+            refused = await refuseDuplicateObservation(
+              { coachingSessionId, from, observerUserId: session.observer_user_id, audioHash, prior },
+              {
+                updateIfNotTerminal,
+                sendMessage: (to, body) => WhatsAppService.sendMessage(to, body),
+                getLanguage: (uid) => getUserLanguage(uid),
+                getStrings: observeStrings,
+                log: logToFile,
+              },
+            );
+          }
+        } catch (dedupeErr) {
+          logWarn('⚠️ observe audio dedupe check failed — analysing normally (non-fatal)', {
+            coachingSessionId, error: dedupeErr && dedupeErr.message,
+          });
+        }
+
+        if (refused) {
+          if (fs.existsSync(tempAudioPath)) fs.unlinkSync(tempAudioPath);
+          return;
+        }
       }
 
       // Upload to R2 storage

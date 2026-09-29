@@ -239,6 +239,9 @@ const STRINGS = {
       + 'درست جانچ نہیں ہو سکی۔ نیچے جس درجہ بندی سے اختلاف ہو، براہ کرم اُس پر دوبارہ نظر ڈالیں۔',
     no_account: 'معاف کیجیے، آپ کا اکاؤنٹ نہیں ملا۔ براہ کرم پہلے رجسٹر کریں۔',
     capture_failed: 'معاف کیجیے — یہ مشاہدہ محفوظ کرتے وقت میری طرف سے مسئلہ ہوا۔ آپ کی ریکارڈنگ ضائع نہیں ہوئی۔ براہ کرم دوبارہ /observe لکھ کر بھیجیں۔',
+    // bd-erpvf (HITL row 185) — see the en entry. `کا تجزیہ` is masculine, so
+    // `کیا جا چکا ہے` agrees with it, not with ریکارڈنگ.
+    capture_duplicate_recording: 'اس کلاس روم ریکارڈنگ کا تجزیہ پہلے ہی کیا جا چکا ہے۔ براہ کرم نئی ریکارڈنگ بھیجیں۔',
     role_denied: 'یہ سہولت اسکول لیڈرز، سپروائزرز، کوچز اور پرنسپلز کے لیے ہے۔ اگر آپ کو یہ کردار ملنا چاہیے تو اپنی ٹیم سے رابطہ کریں۔',
     onboard_why:
       'کوچنگ کے کام میں خوش آمدید۔ 🌱\n\nشروع کرنے سے پہلے دل کی ایک بات: آپ کا کام معائنہ نہیں — پرورش ہے۔ کسی استاد کے پاس آپ کا جانا نگرانی کے لیے نہیں، مدد کے لیے ہے۔ آپ اُن کے رازدار ہیں: جن پر وہ بھروسہ کریں، جو سنیں، جو دکھائیں کہ کیا اچھا ہوا — اور پھر بہتری کا صرف ایک چھوٹا قدم دکھائیں۔\n\nیہ کیوں اہم ہے؟ بھروسے سے بات کھلتی ہے۔ کھلی بات سے سیکھنا شروع ہوتا ہے۔ اور سیکھنے سے کلاس بدلتی ہے۔\n\n🎙 تیار ہوں تو کلاس میں WhatsApp پر ریکارڈ دبائیں اور سبق ریکارڈ کریں (10 سے 40 منٹ)۔ مکمل ہونے پر ریکارڈنگ مجھے بھیج دیں۔',
@@ -425,6 +428,10 @@ const STRINGS = {
       + 'could not be checked properly. Please re-check any rating below that you disagree with.',
     no_account: "Sorry, I couldn't find your account. Please send me any message first, then try /observe again.",
     capture_failed: "Sorry — something went wrong on my side while saving that observation. Your recording isn't lost. Please type /observe and send it again; if it keeps happening, tell the team.",
+    // bd-erpvf (HITL row 185) — the coach re-sent bytes we already analysed.
+    // Requirement wording, verbatim. No prior report is resent (unlike DC's
+    // duplicateRecording): the coach is asked for a new recording instead.
+    capture_duplicate_recording: 'This classroom recording has already been analyzed. Please submit a new recording.',
     role_denied:
       '/observe is for school leaders (field officers) for now. 💛\n\n' +
       "If you're a teacher, I'm here for you — type \"menu\" to see what I can do.",

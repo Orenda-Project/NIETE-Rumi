@@ -22,7 +22,9 @@
  * gets a fresh sample. Reducing the scorer's own variance is a separate piece
  * of work — see bd-ls9x5's write-up.
  *
- * Scope: the DC (teacher self-recorded) path only. `observation_type IS NULL`
+ * Scope: the functions below the header are the DC (teacher self-recorded)
+ * path; the leader-observation counterpart (bd-erpvf) is at the end of the file
+ * and is a different operation. For DC, `observation_type IS NULL`
  * is filtered in the lookup AND checked at the call site, so a coach's leader
  * observation is never deduped against — its debrief is a separate state
  * machine and reusing a prior analysis under it is not the same operation.
@@ -191,9 +193,93 @@ async function resolveDuplicateSubmission(ctx, opts) {
   return true;
 }
 
+// ── bd-erpvf — the HITL (/observe) counterpart ─────────────────────────────
+//
+// HITL row 185: a coach's classroom recording is analysed ONCE. The DC dedupe
+// above deliberately skips leader observations, so a coach re-sending the same
+// audio through /observe got a fresh, differently-sampled FICO analysis each
+// time — 23 (coach, bytes) groups covering 52 sessions on NIETE production as
+// of 29 Sep 2026. Different operation from DC: nothing is reused or resent;
+// the new observation is closed and the coach is asked for a new recording.
+
+/** A prior in any of these states was never analysed — it must not block. */
+const NOT_ANALYSED_STATUSES = ['cancelled', 'abandoned', 'failed'];
+
+/**
+ * The most recent leader observation BY THIS COACH over the same audio bytes,
+ * excluding the one in flight. No time window: the requirement is "only once".
+ *
+ * Keyed on observer_user_id, not user_id — a bound observation's user_id is the
+ * TEACHER (the visit picker binds her), and the same recording filed under a different teacher is
+ * still the same recording. audio_hash is stamped after transcription for every
+ * session, so any prior that reached analysis carries it.
+ *
+ * @returns {Promise<object|null>} { id, status, created_at } or null
+ */
+async function findPriorLeaderObservation(supabase, opts) {
+  const { observerUserId, audioHash, excludeSessionId } = opts || {};
+  if (!observerUserId || !audioHash) return null;
+
+  let q = supabase
+    .from('coaching_sessions')
+    .select('id, status, created_at')
+    .eq('observer_user_id', observerUserId)
+    .eq('audio_hash', audioHash)
+    .eq('observation_type', 'leader_observation')
+    .not('status', 'in', `(${NOT_ANALYSED_STATUSES.join(',')})`);
+
+  if (excludeSessionId) q = q.neq('id', excludeSessionId);
+
+  const { data, error } = await q
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  if (excludeSessionId && data.id === excludeSessionId) return null;
+  return data;
+}
+
+/**
+ * Close an already-analysed resubmission and tell the coach.
+ *
+ * @param {object} ctx  { coachingSessionId, from, observerUserId, audioHash, prior }
+ * @param {object} opts { updateIfNotTerminal, sendMessage, getLanguage, getStrings, log }
+ * @returns {Promise<boolean>} always true — the caller must not transcribe
+ */
+async function refuseDuplicateObservation(ctx, opts) {
+  const { coachingSessionId, from, observerUserId, audioHash, prior } = ctx;
+  const log = opts.log || (() => {});
+
+  const { applied } = await opts.updateIfNotTerminal(coachingSessionId, {
+    audio_hash: audioHash,
+    status: 'cancelled',
+    duplicate_of_session_id: prior.id,
+  });
+
+  // bd-n9832: the coach may already have tapped Cancel on the capture ack.
+  // Still no transcription, but no message about an observation she ended.
+  if (!applied) {
+    log('🚫 duplicate observation audio, but the session is already over', { coachingSessionId });
+    return true;
+  }
+
+  // The COACH's language — the row's user may be the bound teacher. No floor
+  // here: observeStrings already resolves an unknown language to the catalog's.
+  const lang = await opts.getLanguage(observerUserId);
+  await opts.sendMessage(from, opts.getStrings(lang).capture_duplicate_recording);
+
+  log('🔁 observe: recording already analysed — resubmission refused', {
+    coachingSessionId, priorSessionId: prior.id, priorStatus: prior.status, audioHash,
+  });
+  return true;
+}
+
 module.exports = {
   computeAudioHash,
   priorReportDelivery,
   findRecentDuplicateSession,
   resolveDuplicateSubmission,
+  findPriorLeaderObservation,
+  refuseDuplicateObservation,
 };
