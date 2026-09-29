@@ -341,7 +341,7 @@ exports.run = async (ctx) => {
         const les = await openLesson((i) => String(i.id || '') === 'lp_' + g1.id);
         await api.freshReset();
         const pick = les.ok ? await chooseAction(/report|Generate report|رپورٹ/i) : { ok: false, err: les.err };
-        const rep = await collect(api, (x) => (x.doc || x.pdf), 240000);
+        const rep = await collect(api, (x) => (x.doc || x.pdf), 420000);   // the first report of a run renders in Chrome and asks OpenAI for the 'For tomorrow' box — up to seven minutes
         const pdf = rep.ok ? await pdfOf(rep.hit, 'T25-report.pdf') : { text: '' };
         const digest = rr.quiz && rr.quiz.meta && rr.quiz.meta.digest;
         const slos = [...((digest && digest.slos) || []).map((x) => (x && (x.statement_en || x.statement || x.text)) || '').filter(Boolean), ...(digest && digest.objectives ? [].concat(digest.objectives).map(String) : []), String((rr.quiz && rr.quiz.topic) || g1.topic || '')].filter(Boolean);
