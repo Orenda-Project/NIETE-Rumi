@@ -115,6 +115,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # in; the final graded report had not landed within the run window. Rubric:
     # bot/shared/services/observe/observe-framework.js.
 
+  @e2e @slow @content-driven @P2
+  Scenario: Every score a teacher receives is a band, never a number
+    Given the NIETE bot chat is open
+    And my coaching analysis has finished
+    When the report and the voice note are delivered
+    Then the report rates the lesson overall, and each of its sections, with one of Excellent, Good, Average, Below average or Needs support
+    And no percentage, no "points out of" and no marks line appears anywhere on the report
+    And the voice note describes how the lesson went without saying any score, percentage or "out of"
+    # ADDED 2026-09-29 (bd-wswm0). Operator: "remove the Observation scores
+    # everywhere from Numbers and Percentages to brackets … <20, <40, <60, <80,
+    # <100". The rule lives in bot/shared/config/score-bands.js; the Urdu words are
+    # بہترین / اچھا / اوسط / اوسط سے کم / مدد درکار. Assert that NO number appears and
+    # that A band word does — never which band, because that depends on the lesson.
+
   @known-issue
   Scenario: The two coaching entry points quote different minimum audio lengths
     Given the NIETE bot chat is open
