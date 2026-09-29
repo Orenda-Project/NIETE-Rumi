@@ -359,6 +359,18 @@ function createLLMClient() {
 function getClient() {
   if (!_client) {
     _client = createLLMClient();
+    // Staging-only record/replay of every non-streaming completion (E2E_CASSETTE=replay|record).
+    // Off by default and forced off against the production DB — see e2e-cassette.js.
+    //
+    // NOT applied to the direct-Anthropic lane (bd-oak77.29): that lane speaks `/v1/messages`, and
+    // `wrapChatCompletions` keys a cassette on the OpenAI-shaped request, so recording one lane
+    // and replaying it on the other would silently mismatch. The consequence, stated so nobody
+    // discovers it as a mystery: with `E2E_CASSETTE=record` AND `LP_AUTHOR_MODEL` on the direct
+    // lane, author calls are NOT recorded. Neither condition holds on prod (`E2E_CASSETTE` must
+    // stay absent) or on staging today, and a fallback to OpenRouter DOES get recorded because it
+    // comes back through this client.
+    const cassette = require('./e2e-cassette');
+    if (cassette.mode() !== 'off') cassette.wrapChatCompletions(_client);
   }
   return _client;
 }

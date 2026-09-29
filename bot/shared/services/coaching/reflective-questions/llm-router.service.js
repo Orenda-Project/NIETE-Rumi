@@ -63,20 +63,23 @@ const _getOpenRouterRaw = lazyClient(OpenAI, ['OPENROUTER_API_KEY'], (env) => ({
   maxRetries: 0,
 }));
 
-// bd-wgso2: this client never reached recordModelCost, so its spend was invisible. Wrap it with
-// llm-client's withSpendRecording, which strips the job label and records the spend -- and changes
-// nothing else. Once per client: wrapping twice would record every call twice.
-//
-// STAGING SHAPE. On sandbox this same block also applies the e2e cassette (spend inner, cassette
-// outer, the order getClient() uses). That cassette wiring is a separate change which has not been
-// promoted to staging, so it is deliberately NOT carried here on the back of this one. Whoever
-// promotes it adds one line after the wrap below.
+// Route this client's completions through the e2e cassette, exactly like llm-client.getClient().
+// WITHOUT this the reflective corpus/question call bypasses the cassette and goes LIVE — which in the
+// sealed mock lane (no vendor keys) 401s, so corpus extraction fails, the question falls back to a
+// generic safe question, and the TTS of that fallback was never recorded → an unattributable cassette
+// miss (bd-yjyn0). Off by default and forced off on the prod DB (see e2e-cassette.js).
 let _wrapped = false;
 const getOpenRouter = () => {
   const client = _getOpenRouterRaw();
   if (!_wrapped) {
     _wrapped = true;
+    // bd-wgso2: this client never reached recordModelCost, so its spend was invisible. Spend
+    // recording goes on FIRST (inner) and the cassette SECOND (outer) -- the order getClient() uses.
+    // That way a cassette replay answers without reaching the recorder, so a replay records no
+    // spend (it cost nothing), and the cassette keys on the request minus its label (bd-t3u9t).
+    // Once per client, like the cassette: wrapping twice would record every call twice.
     require('../../llm-client').withSpendRecording(client);
+    try { const cassette = require('../../e2e-cassette'); if (cassette.mode() !== 'off') cassette.wrapChatCompletions(client); } catch (_) { /* cassette optional */ }
   }
   return client;
 };
