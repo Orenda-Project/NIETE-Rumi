@@ -81,7 +81,8 @@ function collectAgentDocs() {
     const walkMd = (d) => {
       for (const e of fs.readdirSync(d, { withFileTypes: true })) {
         const p = path.join(d, e.name);
-        if (e.isDirectory()) { if (e.name !== 'node_modules') walkMd(p); }
+        // .claude/qa/results/ is git-ignored run output (PER-SCENARIO.md per mock run): never shipped, not a doc.
+        if (e.isDirectory()) { if (e.name !== 'node_modules' && !(d === path.join(claudeDir, 'qa') && e.name === 'results')) walkMd(p); }
         else if (e.name.endsWith('.md')) docs.push(p);
       }
     };
