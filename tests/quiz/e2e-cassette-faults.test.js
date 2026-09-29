@@ -62,3 +62,34 @@ test('with the cassette off, rules are ignored', async () => {
   const live = jest.fn(async () => 'LIVE');
   expect(await c.wrap('llm', req('quiz'), live)).toBe('LIVE');
 });
+
+// ── the audit's cases: a bad file, a bad rule, a bad regex, a kind-less rule ──────────────
+test('a malformed faults file is ignored loudly and the vendor is called', async () => {
+  fs.writeFileSync(FAULTS, '{not json');
+  const c = fresh(); const { logToFile } = require('../../bot/shared/utils/logger');
+  const live = jest.fn(async () => 'LIVE');
+  expect(await c.wrap('llm', req('quiz'), live)).toBe('LIVE');
+  expect(logToFile.mock.calls.some((k) => /not JSON/.test(k[0]) && k[2] === 'warn')).toBe(true);
+});
+test('a rule without times, without kind, or with a broken regex is rejected with a warning and never deleted the others', async () => {
+  fs.writeFileSync(FAULTS, JSON.stringify([
+    { kind: 'llm', match: 'quiz', content: '' },                    // no times
+    { match: 'quiz', times: 2, content: '' },                       // no kind
+    { kind: 'llm', match: '/quiz(/', times: 2, content: '' },       // bad regex
+    { kind: 'llm', match: 'quiz', times: 1, content: 'scripted' },  // the good one
+  ]));
+  const c = fresh(); const { logToFile } = require('../../bot/shared/utils/logger');
+  const live = jest.fn(async () => ({ choices: [{ message: { content: 'LIVE' } }] }));
+  const a = await c.wrap('llm', req('a quiz please'), live);
+  expect(a.choices[0].message.content).toBe('scripted');
+  expect(live).not.toHaveBeenCalled();
+  expect(logToFile.mock.calls.filter((k) => /fault rule (ignored|has an invalid)/.test(k[0]) && k[2] === 'warn').length).toBe(3);
+  const left = JSON.parse(fs.readFileSync(FAULTS, 'utf8'));
+  expect(left.length).toBe(3);                                       // the spent good rule is gone; the rejected ones are not silently dropped
+});
+test('a rule for another kind never answers this kind', async () => {
+  fs.writeFileSync(FAULTS, JSON.stringify([{ kind: 'llm', match: 'audio', times: 1, content: '' }]));
+  const c = fresh();
+  const live = jest.fn(async () => 'TRANSCRIPT');
+  expect(await c.wrap('asr', { audio: 'audio bytes' }, live)).toBe('TRANSCRIPT');
+});

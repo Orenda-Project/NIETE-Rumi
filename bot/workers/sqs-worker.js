@@ -224,7 +224,13 @@ class SQSCoachingWorker {
    */
   static _hasDedicatedQueue(kind) {
     const driver = String(process.env.QUEUE_DRIVER || 'sqs').toLowerCase();   // read exactly as queue/index.js reads it
-    if (driver === 'bullmq') return !!process.env.REDIS_URL;
+    if (driver === 'bullmq') {
+      if (!process.env.REDIS_URL && !SQSCoachingWorker._warnedNoRedis) {   // once: a BullMQ worker with no Redis would otherwise poll nothing, silently, for ever
+        SQSCoachingWorker._warnedNoRedis = true;
+        logToFile('❌ QUEUE_DRIVER=bullmq but REDIS_URL is unset — no queue can be polled', { kind }, 'error');
+      }
+      return !!process.env.REDIS_URL;
+    }
     return kind === 'quiz' ? !!process.env.SQS_QUIZ_QUEUE_URL : !!process.env.SQS_VIDEO_QUEUE_URL;
   }
 

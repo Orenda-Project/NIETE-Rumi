@@ -16,4 +16,9 @@ function load(v) {
 afterAll(() => { delete process.env.VIDEO_QUIZ_JOIN_LOCK_SECS; });
 test('unset → 60 s', () => { expect(load(null)).toBe(60); });
 test('VIDEO_QUIZ_JOIN_LOCK_SECS=5 → 5 s', () => { expect(load('5')).toBe(5); });
-test('a non-number keeps 60 s', () => { expect(load('soon')).toBe(60); });
+test('a non-number keeps 60 s and says so', () => {
+  expect(load('soon')).toBe(60);
+  const { logToFile } = require('../../bot/shared/utils/logger');
+  expect(logToFile.mock.calls.some((k) => /VIDEO_QUIZ_JOIN_LOCK_SECS/.test(k[0]) && k[2] === 'warn')).toBe(true);
+});
+test('a value above an hour is rejected to 60', () => { expect(load('600000')).toBe(60); });
