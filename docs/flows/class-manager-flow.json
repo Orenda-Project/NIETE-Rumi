@@ -386,6 +386,150 @@
             }
           ]
         },
+        "remove_label1": {
+          "type": "string",
+          "__example__": "Remove from this class"
+        },
+        "has_group1": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "remove_options1": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s1",
+              "title": "1. Aleeha Noor"
+            },
+            {
+              "id": "s2",
+              "title": "2. Bilal Ahmed"
+            }
+          ]
+        },
+        "remove_label2": {
+          "type": "string",
+          "__example__": "Remove from class (21–40)"
+        },
+        "has_group2": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "remove_options2": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s21",
+              "title": "21. Zainab Fatima"
+            }
+          ]
+        },
+        "remove_label3": {
+          "type": "string",
+          "__example__": "Remove from class (41–60)"
+        },
+        "has_group3": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "remove_options3": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s41",
+              "title": "41. Hamza Tariq"
+            }
+          ]
+        },
+        "remove_label4": {
+          "type": "string",
+          "__example__": "Remove from class (61–80)"
+        },
+        "has_group4": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "remove_options4": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s61",
+              "title": "61. Ayesha Khan"
+            }
+          ]
+        },
+        "remove_label5": {
+          "type": "string",
+          "__example__": "Remove from class (81–100)"
+        },
+        "has_group5": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "remove_options5": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "s81",
+              "title": "81. Usman Raza"
+            }
+          ]
+        },
         "add_label": {
           "type": "string",
           "__example__": "Add students"
@@ -420,11 +564,43 @@
               },
               {
                 "type": "CheckboxGroup",
-                "name": "remove",
-                "label": "${data.remove_label}",
+                "name": "remove1",
+                "label": "${data.remove_label1}",
                 "required": false,
-                "visible": "${data.has_students}",
-                "data-source": "${data.remove_options}"
+                "visible": "${data.has_group1}",
+                "data-source": "${data.remove_options1}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "remove2",
+                "label": "${data.remove_label2}",
+                "required": false,
+                "visible": "${data.has_group2}",
+                "data-source": "${data.remove_options2}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "remove3",
+                "label": "${data.remove_label3}",
+                "required": false,
+                "visible": "${data.has_group3}",
+                "data-source": "${data.remove_options3}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "remove4",
+                "label": "${data.remove_label4}",
+                "required": false,
+                "visible": "${data.has_group4}",
+                "data-source": "${data.remove_options4}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "remove5",
+                "label": "${data.remove_label5}",
+                "required": false,
+                "visible": "${data.has_group5}",
+                "data-source": "${data.remove_options5}"
               },
               {
                 "type": "TextArea",
@@ -440,7 +616,11 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "ROSTER",
-                    "remove": "${form.remove}",
+                    "remove1": "${form.remove1}",
+                    "remove2": "${form.remove2}",
+                    "remove3": "${form.remove3}",
+                    "remove4": "${form.remove4}",
+                    "remove5": "${form.remove5}",
                     "add": "${form.add}"
                   }
                 }

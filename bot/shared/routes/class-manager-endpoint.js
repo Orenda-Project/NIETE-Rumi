@@ -47,8 +47,33 @@ const pending = new Map();
 /** The "create one instead" choice on the class picker. */
 const ADD_NEW = '__add__';
 
-// Meta caps a CheckboxGroup at 20 options.
+/**
+ * Meta caps ONE CheckboxGroup at 20 options. That is a real limit and it is not
+ * negotiable — so the screen carries FIVE of them, consecutive slices of the same
+ * roll, rather than one that stops at 20 (bd-a6mhn).
+ *
+ * 5 x 20 = 100. Measured read-only against ICT production on 2026-09-29: 2,303
+ * active classes, the biggest holding 88 children, and not one over 100.
+ */
 const REMOVE_OPTION_CAP = 20;
+const REMOVE_GROUPS = 5;
+const REMOVE_TOTAL_CAP = REMOVE_OPTION_CAP * REMOVE_GROUPS;
+
+/**
+ * The form fields the ROSTER submit reads, newest first.
+ *
+ * `remove` is the field the CURRENTLY PUBLISHED assets on staging and prod still
+ * post, and they keep posting it until their Flow is republished. Dropping it here
+ * would break removal for every teacher in the window between the code deploy and
+ * the asset publish, which is a window we do not control the length of.
+ */
+const REMOVE_FIELDS = Object.freeze([
+  'remove',
+  ...Array.from({ length: REMOVE_GROUPS }, (_, i) => `remove${i + 1}`),
+]);
+
+/** Meta's cap on a CheckboxGroup `label`, in code points. */
+const GROUP_LABEL_CAP = 30;
 
 /**
  * Meta's cap on a Flow TextBody, in characters.
@@ -68,7 +93,7 @@ const TEXT_BODY_CAP = 4096;
  * not renderable: the client shows Meta's generic "Something went wrong" and the
  * screen never draws. A new class has no students by definition, so EVERY class made
  * through /class died on this — the endpoint had already written the class and
- * assigned the teacher, so nothing threw and nothing logged (bd-2731). The catch-22
+ * assigned the teacher, so nothing threw and nothing logged. The catch-22
  * it produced: you could only add students to a class that already had students.
  *
  * The group itself is hidden by `visible: ${data.has_students}` whenever this
@@ -355,41 +380,108 @@ function rosterText(students, who) {
  * no legal edge back from a save screen to the roster, and ROSTER → ADD → ROSTER_2 →
  * REMOVE → … is unbounded. One screen, one submit, both halves applied.
  */
+/**
+ * One checkbox item: the SAME "33. Zarnish" the roster text shows, so the list above
+ * and the box below can never disagree about who number 33 is.
+ *
+ * Cut with cap(), by CODE POINT. `.slice(0, 30)` — what this used to be — counts
+ * UTF-16 units, so a name carrying anything outside the BMP both overruns Meta's cap
+ * and can be cut through the middle of a surrogate pair.
+ */
+function removalOption(st) {
+  const prefix = st.rollNumber != null ? `${st.rollNumber}. ` : '';
+  return { id: st.studentId, title: cap(`${prefix}${st.studentName}`) };
+}
+
+/**
+ * The label for one slice — "Remove from class (21–40)".
+ *
+ * The numbers are ROLL NUMBERS taken from the chunk's own first and last child, not
+ * positions, because that is what the teacher is reading off the checkbox. Falls back
+ * to the position when a class carries no rolls at all.
+ */
+function removalGroupLabel(chunk, startIndex, who) {
+  const first = chunk[0];
+  const last = chunk[chunk.length - 1];
+  const from = first.rollNumber != null ? first.rollNumber : startIndex + 1;
+  const to = last.rollNumber != null ? last.rollNumber : startIndex + chunk.length;
+  return cap(resolveUx('classRemoveFieldRange', { user: who, params: { from, to } }), GROUP_LABEL_CAP);
+}
+
+/**
+ * The removal checkboxes: consecutive groups of 20 on ONE screen.
+ *
+ * WHY THIS IS FIVE GROUPS AND NOT ONE (bd-a6mhn, field report 29 Sep 2026).
+ * A teacher asked to strike off "number 33" and could not: the screen carried a single
+ * CheckboxGroup fed by `students.slice(0, 20)`, so the list was always the first 20 BY
+ * ROLL. Child 33 was not below a scroll boundary — she was not on the screen, and the
+ * only route to her was deleting the twenty children in front of her first. The comment
+ * that used to sit here defended the cap as costing "a second pass". There was no second
+ * pass to take. 1,769 of ICT's 2,303 active classes are over 20 children and 32,352
+ * children were sitting past roll 20 on the day this was written.
+ *
+ * Meta's 20 is per GROUP, not per screen, so the fix is more groups — not a second
+ * screen, which Flow routing cannot come back from, and not a bigger group, which Meta
+ * refuses. Five covers the deployment's biggest class (88) with headroom.
+ *
+ * EVERY group gets a non-empty `data-source` even while hidden. An empty array is not
+ * renderable: the client shows its generic "Something went wrong" and the screen never
+ * draws at all. That is the bug that once made /class unable to fill any class it had
+ * just created, and it applies to each of the five groups, not only the first.
+ */
+function buildRemovalGroups(students, who) {
+  const shown = students.slice(0, REMOVE_TOTAL_CAP);
+  const chunks = [];
+  for (let i = 0; i < shown.length; i += REMOVE_OPTION_CAP) {
+    chunks.push(shown.slice(i, i + REMOVE_OPTION_CAP));
+  }
+
+  const plain = cap(resolveUx('classRemoveField', { user: who }), GROUP_LABEL_CAP);
+  const data = {};
+  for (let g = 0; g < REMOVE_GROUPS; g += 1) {
+    const n = g + 1;
+    const chunk = chunks[g] || [];
+    const has = chunk.length > 0;
+    data[`has_group${n}`] = has;
+    data[`remove_options${n}`] = has ? chunk.map(removalOption) : [NO_STUDENTS_OPTION];
+    // A class that fits in one group is not a slice of anything, so it keeps the plain
+    // label. A hidden group is never drawn but still needs a well-formed string.
+    data[`remove_label${n}`] = has && chunks.length > 1
+      ? removalGroupLabel(chunk, g * REMOVE_OPTION_CAP, who)
+      : plain;
+  }
+
+  return { data, plain, shown: shown.length, capped: students.length > shown.length };
+}
+
 async function buildRosterScreen(who, classId, display) {
   const students = await ClassService.listStudents({ classId, teacherUserId: who.id });
 
-  // Meta caps a CheckboxGroup at 20 options, and that one IS a real Meta limit.
-  //
-  // This comment used to justify the cap by saying "the roster TEXT still lists
-  // everyone". That was FALSE for every class over 40 children — 166 of them in ICT
-  // production — because rosterText() was itself cutting the list at 40. The coach was
-  // shown one unexplained truncation and a hint about a different one.
-  //
-  // rosterText() now packs to the TextBody budget, which makes the claim true again
-  // for every class in the deployment: the list IS complete, so the cap costs a second
-  // pass to remove the 21st child rather than hiding that child. Where the budget
-  // genuinely runs out, the roster carries its OWN sentence saying so — the hint
-  // below is about the checkboxes only, and the two must never be conflated.
-  const options = students.slice(0, REMOVE_OPTION_CAP).map((st) => ({
-    id: st.studentId,
-    title: `${st.rollNumber != null ? `${st.rollNumber}. ` : ''}${st.studentName}`.slice(0, 30),
-  }));
-  const capped = students.length > options.length;
-  const hasStudents = options.length > 0;
+  const groups = buildRemovalGroups(students, who);
+  const hasStudents = students.length > 0;
 
   return {
     screen: 'ROSTER',
     data: {
       heading: display,
       roster: rosterText(students, who),
-      hint: capped
-        ? resolveUx('classEditHintCapped', { user: who, params: { shown: options.length } })
+      // The checkbox cap and the roster TEXT's own budget are two DIFFERENT
+      // truncations on this one screen, and they must never be worded alike: a coach
+      // who cannot tell them apart cannot tell which children are missing. rosterText()
+      // packs to the TextBody budget and carries its own sentence when it runs out;
+      // this hint is about the checkboxes only, and now fires past 100, not past 20.
+      hint: groups.capped
+        ? resolveUx('classEditHintCapped', { user: who, params: { shown: groups.shown } })
         : resolveUx('classEditHint', { user: who }),
-      remove_label: resolveUx('classRemoveField', { user: who }),
-      // Drives `visible` on the CheckboxGroup: there is nothing to remove from a
-      // class nobody is in yet, and an empty group cannot be rendered at all.
+      ...groups.data,
+      // LEGACY, and deliberately still sent. The Flow assets published on staging and
+      // prod bind `remove_label` / `has_students` / `remove_options` and post `remove`.
+      // They keep doing so until each WABA's Flow is republished, and a teacher on an
+      // old handset must not lose the first twenty while that happens. The new asset
+      // ignores these; the old one ignores the five groups.
+      remove_label: groups.plain,
       has_students: hasStudents,
-      remove_options: hasStudents ? options : [NO_STUDENTS_OPTION],
+      remove_options: groups.data.remove_options1,
       add_label: resolveUx('classAddField', { user: who }),
       add_hint: resolveUx('classAddStudentsHint', { user: who }),
       save_label: resolveUx('classSaveChanges', { user: who }),
@@ -457,10 +549,16 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
     // delivered to a handset still submits under those names with their own field
     // names, so both are read here rather than dead-ending a teacher mid-edit.
     const d = screenData || {};
-    // The empty-roster placeholder is not a student. It is hidden on the screen, so
-    // it should never come back — but a Flow sitting on a handset is a durable
-    // artifact, and removeStudent() would otherwise go hunting for id '__none__'.
-    const removeIds = normalizeMultiSelect(d.remove)
+    // Every removal group, PLUS the legacy single-group key. A handset holds whichever
+    // asset was published when its Flow message was sent, so both shapes arrive at the
+    // same endpoint for as long as it takes each WABA to republish — and one child can
+    // legitimately arrive under both, which is why this de-duplicates rather than
+    // calling removeStudent() twice for her.
+    //
+    // The empty-roster placeholder is not a student. It is hidden on the screen, so it
+    // should never come back — but a Flow sitting on a handset is a durable artifact,
+    // and removeStudent() would otherwise go hunting for id '__none__'.
+    const removeIds = [...new Set(REMOVE_FIELDS.flatMap((field) => normalizeMultiSelect(d[field])))]
       .filter((id) => id !== NO_STUDENTS_OPTION.id);
     const rawAdd = d.add != null ? d.add : d.roster;
 
@@ -696,6 +794,10 @@ module.exports = {
     runAsActor(userId, () => handleClassManagerBack(userId, screen)),
   // Exported for tests.
   NO_STUDENTS_OPTION,
+  REMOVE_OPTION_CAP,
+  REMOVE_GROUPS,
+  REMOVE_TOTAL_CAP,
+  REMOVE_FIELDS,
   normalizeSubjectSelection,
   normalizeMultiSelect,
   classDisplay,
