@@ -223,7 +223,7 @@ class SQSCoachingWorker {
    * "generating" for ever in the local mock lane (bd-p99wn, the twin of bd-2aetj).
    */
   static _hasDedicatedQueue(kind) {
-    const driver = String(process.env.QUEUE_DRIVER || 'sqs').trim().toLowerCase();
+    const driver = String(process.env.QUEUE_DRIVER || 'sqs').toLowerCase();   // read exactly as queue/index.js reads it
     if (driver === 'bullmq') return !!process.env.REDIS_URL;
     return kind === 'quiz' ? !!process.env.SQS_QUIZ_QUEUE_URL : !!process.env.SQS_VIDEO_QUEUE_URL;
   }
