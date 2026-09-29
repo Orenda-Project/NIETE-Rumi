@@ -80,6 +80,7 @@ const { summarizeSchoolAnalytics } = require('../services/school-analytics.servi
 // /20 math to remark-rubric rather than restating it.
 const { summarizePresence } = require('../services/steps-presence.service');
 const { summarizeRemarks } = require('../services/steps-remarks.service');
+const { buildStepsGrid } = require('../services/steps-grid.service');
 // bd-60123 — attendance, merged per group (G3) and split per day.
 const { summarizeGroups, summarizeByDay } = require('../services/attendance-detail.service');
 // Single teacher detail (patch-membership guarded).
@@ -1326,6 +1327,84 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
   } catch (error) {
     console.error('leader/school-analytics error:', error);
     res.status(500).json({ success: false, error: 'Failed to load your school analytics.' });
+  }
+});
+
+/**
+ * GET /api/portal/leader/steps
+ * The principal's home, organised by STEPS: a row per teacher, a column per
+ * letter (Subject knowledge, Teaching skills, Engagement, Presence, Supervisor
+ * remark). The rules live in steps-grid.service; this only loads the rows.
+ *
+ * PRINCIPALS ONLY, for the same reason as school-analytics: the other four
+ * leader roles span many schools, and a one-school grid would be a wrong
+ * answer in the shape of a right one. Scoping comes from the session user via
+ * the roster's own resolver, never from a query param.
+ *
+ * Presence is read over the OPEN evaluation cycle when there is one — STEPS is
+ * a per-cycle evaluation — and over everything on record when there is not.
+ */
+router.get('/leader/steps', requirePortalAuth, requireLeaderRole, async (req, res) => {
+  try {
+    const role = req.portalUser && req.portalUser.role;
+    if (String(role || '').trim().toLowerCase() !== 'principal') {
+      return res.status(403).json({ success: false, error: 'The STEPS view is available to principals.' });
+    }
+
+    const teachers = await getPatchTeachers(
+      (sql, params) => pool.query(sql, params),
+      req.session.portalUserId,
+      { role }
+    );
+    const userIds = teachers.filter((t) => t.rumiUserId && !t.isPrincipal).map((t) => t.rumiUserId);
+
+    const { rows: cycleRows } = await pool.query(
+      `SELECT id, name, starts_at, ends_at
+         FROM evaluation_cycles
+        WHERE starts_at <= now() AND ends_at > now()
+        ORDER BY starts_at DESC
+        LIMIT 1`
+    );
+    const cycle = cycleRows[0] || null;
+
+    const [sessionRows, attendanceRows, remarkRows] = userIds.length ? await Promise.all([
+      // TERMINAL, not status='completed' — a leader observation never reaches
+      // 'completed', so filtering on it would hide the observation programme.
+      // Same predicate as school-analytics.
+      pool.query(
+        `SELECT user_id, created_at, analysis_data
+           FROM coaching_sessions
+          WHERE user_id = ANY($1::uuid[])
+            AND status IN ${TERMINAL}
+            AND analysis_data IS NOT NULL`, [userIds]),
+      pool.query(
+        `SELECT teacher_id, status
+           FROM teacher_attendance_records
+          WHERE teacher_id = ANY($1::uuid[])
+            AND ($2::timestamptz IS NULL OR date >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR date <  $3::timestamptz)`,
+        [userIds, cycle ? cycle.starts_at : null, cycle ? cycle.ends_at : null]),
+      // Only HER remarks, about teachers in her school.
+      pool.query(
+        `SELECT teacher_id, cycle_id, submitted_at
+           FROM supervisor_remarks
+          WHERE teacher_id = ANY($1::uuid[])
+            AND principal_user_id = $2`, [userIds, req.session.portalUserId]),
+    ]) : [{ rows: [] }, { rows: [] }, { rows: [] }];
+
+    res.json({
+      success: true,
+      ...buildStepsGrid({
+        teachers,
+        sessions: sessionRows.rows || [],
+        attendance: attendanceRows.rows || [],
+        remarks: remarkRows.rows || [],
+        cycle,
+      }),
+    });
+  } catch (error) {
+    console.error('leader/steps error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load the STEPS view.' });
   }
 });
 

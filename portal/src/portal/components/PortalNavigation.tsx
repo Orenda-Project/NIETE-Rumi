@@ -45,24 +45,23 @@ const PortalNavigation = () => {
   // else had no way to them. Reported as "the navigation does not guide the
   // user". This is the Training bug above, on two more pages — a route nobody
   // can find is not shipped.
+  //
+  // A principal's nav runs in the order of her STEPS journey (feedback item 5:
+  // "the current navigation does not guide the user"): her school → a teacher
+  // → their lessons (S·T·E) → presence (P) → remarks, on Analytics (S). Then
+  // the pages outside the journey. Each journey page also ends with a
+  // Next-step link to the one after it.
   const isPrincipal = resolveRole(user) === 'principal';
   if (isPrincipal) {
-    leaderNav.push(
-      {
-        title: 'Analytics',
-        path: '/portal/leader/school-analytics',
-        icon: TrendingUp,
-      },
-      {
-        title: 'Attendance',
-        path: '/portal/leader/attendance',
-        icon: UserCheck,
-      },
-      {
-        title: 'Lessons',
-        path: '/portal/leader/lessons',
-        icon: BookOpen,
-      },
+    const byPath = new Map(leaderNav.map((i) => [i.path, i]));
+    leaderNav.splice(0, leaderNav.length,
+      byPath.get('/portal/leader')!,
+      byPath.get('/portal/leader/teachers')!,
+      { title: 'Lessons', path: '/portal/leader/lessons', icon: BookOpen },
+      { title: 'Attendance', path: '/portal/leader/attendance', icon: UserCheck },
+      { title: 'Analytics', path: '/portal/leader/school-analytics', icon: TrendingUp },
+      byPath.get('/portal/leader/observations')!,
+      byPath.get('/portal/training')!,
     );
   }
   const teacherNav = [

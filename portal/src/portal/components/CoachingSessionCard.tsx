@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { CoachingSession } from '../types/portal';
 import ScoreIndicator from './ScoreIndicator';
+import { scoreBandLabel } from '../lib/scoreBands';
 
 interface CoachingSessionCardProps {
   session: CoachingSession;
@@ -48,14 +49,16 @@ const CoachingSessionCard = ({ session }: CoachingSessionCardProps) => {
       <div className="mb-4">
         <div className="flex items-center gap-2 mb-2">
           <TrendingUp className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">Overall Score</span>
+          <span className="text-sm font-medium text-foreground">Overall rating</span>
         </div>
         <div className="text-sm text-muted-foreground">
           {session.percentage == null || session.maxScore == null ? (
             'Not scored yet'
           ) : (
             <>
-              {session.overallScore} / {session.maxScore} points ({session.percentage.toFixed(1)}%)
+              {/* No points and no percentage — the band above is the rating
+                  (operator, 2026-09-29). */}
+              {scoreBandLabel(session.percentage)}
               {session.framework && (
                 <span className="ml-1.5 uppercase text-xs tracking-wide">· {session.framework}</span>
               )}

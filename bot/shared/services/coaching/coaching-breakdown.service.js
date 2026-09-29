@@ -153,8 +153,18 @@ function buildBreakdown(analysisData, language = 'en') {
     ? Math.round(storedPct)
     : (sumMax > 0 ? Math.round((sumScore / sumMax) * 100) : (vm.overall ?? null));
 
+  // The scale an INDICATOR is scored on, so a surface can band a raw 1 of 2
+  // instead of printing it (operator, 2026-09-29: no observation score is shown
+  // as a number). Only FICO is known here; anything else stays null and the
+  // surface hides the raw score rather than guessing its scale.
+  const fw = String(vm.framework || analysisData.framework || '').toLowerCase();
+  const scaleMax = fw === 'fico'
+    ? require('./frameworks/fico-framework').getScoringConstants().scaleMax
+    : null;
+
   return {
     framework: vm.framework || null,
+    scaleMax,
     language: vm.language || language,
     overall,
     marks: vm.marks ?? (sumMax > 0 ? sumScore : null),

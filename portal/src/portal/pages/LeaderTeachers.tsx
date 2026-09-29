@@ -7,6 +7,8 @@ import { resolveRole } from "../lib/leaderRole";
 import PortalLayout from "../components/PortalLayout";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
+import ScoreIndicator from "../components/ScoreIndicator";
+import NextStep from "../components/NextStep";
 import type { LeaderPatchTeacher } from "../types/portal";
 
 /**
@@ -106,9 +108,9 @@ const LeaderTeachers = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      {/* the score chip is gone. The row already
-                          names the focus area, which is the actionable half of
-                          what the number stood for. */}
+                      {/* Her latest lesson as a band, never the number
+                          (operator, 2026-09-29). */}
+                      <ScoreIndicator percentage={t.lastScore} size="small" />
                       {!t.onRumi && (
                         <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">Invite</span>
                       )}
@@ -130,6 +132,10 @@ const LeaderTeachers = () => {
               })}
             </ul>
           </section>
+        )}
+
+        {resolveRole(user) === 'principal' && (
+          <NextStep to="/portal/leader/lessons" step={3} label="Review their lessons" />
         )}
       </div>
     </PortalLayout>

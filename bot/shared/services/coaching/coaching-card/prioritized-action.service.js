@@ -8,6 +8,7 @@
  */
 
 const { logToFile } = require('../../../utils/logger');
+const { scoreBandLabel } = require('../../../config/score-bands');
 
 /**
  * Extract every candidate indicator from the analysis, normalized to a
@@ -161,8 +162,15 @@ async function generatePrioritizedAction(analysis, teacherName, priorAction = nu
       progressivePrefix = `Building on your last commitment: `;
     }
 
-    // Generate framework-appropriate action
-    const action = `${progressivePrefix}Focus on "${weakest.name}" — currently ${weakest.score}/${weakest.maxScore}. Try one specific improvement in your next class.`;
+    // Generate framework-appropriate action. The indicator's standing is named
+    // as a BAND, never as its score: "currently 1/2" is exactly the number the
+    // teacher is no longer shown (operator, 2026-09-29).
+    const band = scoreBandLabel(
+      weakest.maxScore > 0 ? (Number(weakest.score) / Number(weakest.maxScore)) * 100 : null,
+      'en',
+    );
+    const standing = band ? ` — currently ${band.toLowerCase()}` : '';
+    const action = `${progressivePrefix}Focus on "${weakest.name}"${standing}. Try one specific improvement in your next class.`;
 
     // Generate concrete example based on indicator type
     const example = generateExample(weakest, teacherName);

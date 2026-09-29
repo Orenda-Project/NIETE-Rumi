@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { UserCheck, GraduationCap } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
+import NextStep from '../components/NextStep';
 import { leader } from '../services/api';
 import type { AttendanceResponse, AttendanceGroup, AttendanceByDay } from '../types/portal';
 
@@ -384,6 +385,14 @@ const SchoolAttendance = () => {
             </div>
           </>
         )}
+
+        {/* Step 5 of the journey: the remark. Kept on the same teacher when
+            the page is filtered to one. */}
+        <NextStep
+          to={teacherId ? `/portal/leader/school-analytics?teacherId=${teacherId}#remarks` : '/portal/leader/school-analytics#remarks'}
+          step={5}
+          label="Give your remark"
+        />
       </div>
     </PortalLayout>
   );
