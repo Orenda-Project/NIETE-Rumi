@@ -94,6 +94,23 @@ const VOLATILE = [
   [/\b\d+\s*(?:minutes|minute|mins|min|hours|hour|hrs|hr|days|day|weeks|week|months|month|years|year|m|h|d|w)\s+ago\b/gi, '<reltime>'],
   [/\bin\s+\d+\s*(?:minutes|minute|hours|hour|days|day|weeks|week|months|month|years|year|m|h|d|w)\b/gi, '<reltime>'],
   [/\b(?:just now|yesterday|tomorrow|today)\b/gi, '<reltime>'],
+  // ── account-scoped DB state (bd-oo8ka) ────────────────────────────────────────────────────────
+  // Two values are read live from the driver's own rows and pasted into the free-chat prompt, so
+  // the key followed whatever that shared account happened to hold. The suite mutates both itself:
+  // lesson-plan runs BEFORE menu against the SAME driver and delivers a lesson plan, which rewrites
+  // the context every later feature is prompted with. Measured 2026-09-22: 18 of 61 recorded llm
+  // cassettes had the lesson baked in, and all 8 misses in the full-suite run traced to one call —
+  // "Error getting format-aware AI response", the path this context is injected into. Re-recording
+  // cannot fix that; the next lesson-plan run moves the value again.
+  //
+  // Folded here and NOWHERE ELSE: the question the teacher asked, the model, the instructions and
+  // the reference material all still decide the key. Only who she is and what she was last sent are
+  // blanked, because those are facts about the account rather than about the request.
+  //
+  // lp-context.service.js:261 — `Recently delivered to this teacher: Grade 1 English — Ch 1 “…” (…). `
+  [/(Recently delivered to this teacher: ).*?\.\s/gs, '$1<lesson>. '],
+  // openai.service.js:324,396 — `The teacher's name is Mahnoor. Use their name naturally…`
+  [/(The teacher's name is )[^.\n]{1,80}\./g, '$1<teacher>.'],
 ];
 function normaliseForKey(v) {
   if (typeof v === 'string') return VOLATILE.reduce((acc, [re, rep]) => acc.replace(re, rep), v);

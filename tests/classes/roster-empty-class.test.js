@@ -165,12 +165,21 @@ describe('the Flow asset has to agree, or none of the above reaches a handset', 
     expect(roster.data.has_students.type).toBe('boolean');
   });
 
-  it('guards the remove group with it, so an empty group is never drawn', () => {
+  it('guards EVERY remove group with its own gate, so an empty group is never drawn', () => {
+    // There are five of them since bd-a6mhn — Meta's 20-option cap is per CheckboxGroup,
+    // so one group could never reach child 21. The empty-data-source hazard this test
+    // exists for applies to each of the five, not only the first: an empty array is
+    // unrenderable whether the group is visible or not.
     const form = roster.layout.children.find((c) => c.type === 'Form');
-    const group = form.children.find((c) => c.type === 'CheckboxGroup' && c.name === 'remove');
+    const groups = form.children.filter((c) => c.type === 'CheckboxGroup');
+    expect(groups).toHaveLength(5);
 
-    expect(group['data-source']).toBe('${data.remove_options}');
-    expect(group.visible).toBe('${data.has_students}');
+    groups.forEach((group, i) => {
+      const n = i + 1;
+      expect(group.name).toBe(`remove${n}`);
+      expect(group['data-source']).toBe(`\${data.remove_options${n}}`);
+      expect(group.visible).toBe(`\${data.has_group${n}}`);
+    });
   });
 
   it('declares every key the endpoint sends — an undeclared one fails just as hard', async () => {

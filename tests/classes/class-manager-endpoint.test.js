@@ -524,7 +524,11 @@ describe('the roster screens', () => {
     it('forwards both halves under the keys the endpoint reads', () => {
       const roster = flowJson.screens.find((s) => s.id === 'ROSTER');
       const layout = JSON.stringify(roster.layout);
-      expect(layout).toContain('"remove":"${form.remove}"');
+      // The removals ride in five consecutive CheckboxGroups since bd-a6mhn — Meta's
+      // 20-option cap is per group, so one group could never reach child 21.
+      for (let n = 1; n <= 5; n += 1) {
+        expect(layout).toContain(`"remove${n}":"\${form.remove${n}}"`);
+      }
       expect(layout).toContain('"add":"${form.add}"');
     });
   });
