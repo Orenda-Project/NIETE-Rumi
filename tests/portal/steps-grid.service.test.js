@@ -37,9 +37,12 @@ const T2 = { rumiUserId: 'u2', name: 'Bushra Khan', isPrincipal: false, onRumi: 
 const PRINCIPAL = { rumiUserId: 'p1', name: 'Atifa Noor', isPrincipal: true, onRumi: true };
 
 const dom = (score, max) => ({ domain_score: score, domain_max: max });
-const ficoSession = (userId, createdAt, { b, c, d, f }) => ({
+// Every fixture below is a HUMAN Observation unless it says otherwise — only a
+// Human Observation rates S/T/E (operator, 2026-09-29).
+const ficoSession = (userId, createdAt, { b, c, d, f }, observationType = 'leader_observation') => ({
   user_id: userId,
   created_at: createdAt,
+  observation_type: observationType,
   analysis_data: {
     domains: {
       lesson_plan_fidelity: dom(...b),
@@ -85,7 +88,7 @@ describe('S, T, E — from her latest lesson', () => {
   });
 
   test('a lesson on the OLDER rubric is skipped, never read as a zero', () => {
-    const older = { user_id: 'u1', created_at: '2026-09-25', analysis_data: { domains: { lesson_structure: dom(9, 10) } } };
+    const older = { user_id: 'u1', created_at: '2026-09-25', observation_type: 'leader_observation', analysis_data: { domains: { lesson_structure: dom(9, 10) } } };
     const g = grid({ sessions: [older, ficoSession('u1', '2026-09-01', { b: [10, 20], c: [12, 24], d: [7, 14], f: [8, 16] })] });
     expect(row(g, 'u1').s).toEqual({ pct: 50, band: 'average' });
   });
@@ -99,8 +102,29 @@ describe('S, T, E — from her latest lesson', () => {
   });
 
   test('T survives a lesson that scored only one of its two sections', () => {
-    const onlyC = { user_id: 'u1', created_at: '2026-09-01', analysis_data: { domains: { high_leverage_practices: dom(18, 24) } } };
+    const onlyC = { user_id: 'u1', created_at: '2026-09-01', observation_type: 'leader_observation', analysis_data: { domains: { high_leverage_practices: dom(18, 24) } } };
     expect(row(grid({ sessions: [onlyC] }), 'u1').t).toEqual({ pct: 75, band: 'good' });
+  });
+});
+
+describe('S, T, E — Human Observations only', () => {
+  // STEPS feeds her ACR. A Digital Coach Observation is a lesson she recorded
+  // herself: it is counted elsewhere, but it never rates her here.
+  test('a Digital Coach Observation never sets S, T or E', () => {
+    const digital = ficoSession('u1', '2026-09-20', { b: [20, 20], c: [24, 24], d: [14, 14], f: [16, 16] }, null);
+    const r = row(grid({ sessions: [digital] }), 'u1');
+    expect(r.s).toBeNull();
+    expect(r.t).toBeNull();
+    expect(r.e).toBeNull();
+    expect(r.lastObservedAt).toBeNull();
+  });
+
+  test('a newer Digital Coach Observation does not replace her latest Human one', () => {
+    const human = ficoSession('u1', '2026-09-01', { b: [10, 20], c: [12, 24], d: [7, 14], f: [8, 16] });
+    const digital = ficoSession('u1', '2026-09-25', { b: [20, 20], c: [24, 24], d: [14, 14], f: [16, 16] }, null);
+    const r = row(grid({ sessions: [digital, human] }), 'u1');
+    expect(r.s.band).toBe('average');       // 8/16, from the Human Observation
+    expect(r.lastObservedAt).toBe('2026-09-01');
   });
 });
 

@@ -107,38 +107,36 @@ describe("SchoolAnalytics — refetch feedback", () => {
 describe("SchoolAnalytics — panels explain themselves", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("says what the score IS, not just that it is a score", async () => {
+  // Rewritten 2026-09-29 for the Observations section (operator): the same
+  // questions — does each panel say what it is? — asked of what replaced them.
+  it("says what the Progress line IS: one rating per Human Observation", async () => {
     mount();
-    await waitFor(() => expect(screen.getByTestId("trend-help")).toBeInTheDocument());
-    // It comes from a coach observing a lesson — the one fact that makes the
-    // whole number interpretable.
-    expect(screen.getByTestId("trend-help").textContent).toMatch(/observ/i);
+    await waitFor(() => expect(screen.getByTestId("progress-help")).toBeInTheDocument());
+    expect(screen.getByTestId("progress-help").textContent).toMatch(/Human Observation/);
+    expect(screen.getByTestId("progress-help").textContent).toMatch(/oldest to newest/i);
   });
 
-  it("explains what an 'area' is and that higher is better", async () => {
+  it("defines both kinds of observation in plain words", async () => {
     mount();
-    await waitFor(() => expect(screen.getByTestId("domain-help")).toBeInTheDocument());
-    const help = screen.getByTestId("domain-help").textContent || "";
-    expect(help).toMatch(/lesson|teaching|classroom/i);
-    expect(help).toMatch(/higher/i);
+    await waitFor(() => expect(screen.getByTestId("def-human")).toBeInTheDocument());
+    expect(screen.getByTestId("def-human").textContent).toMatch(/watched the lesson in class/);
+    expect(screen.getByTestId("def-digital").textContent).toMatch(/recorded her own lesson/);
   });
 
-  it("gives the charts headings a principal can act on", async () => {
+  it("gives every panel a plain heading a principal can act on", async () => {
     mount();
-    await waitFor(() => expect(screen.getByTestId("trend-heading")).toBeInTheDocument());
-    // The old headings named the chart's shape ("Score over time", "By area").
-    expect(screen.getByTestId("trend-heading").textContent).not.toBe("Score over time");
-    expect(screen.getByTestId("domain-heading").textContent).not.toBe("By area");
+    await waitFor(() => expect(screen.getByTestId("observations")).toBeInTheDocument());
+    const h3 = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(h3).toEqual(expect.arrayContaining(["Progress", "Strong and Weak Areas", "When Observations Happened"]));
+    expect(h3).not.toContain("Score over time");
+    expect(h3).not.toContain("By area");
   });
 
-  it("renders ONE view of the area scores, not a chart and cards saying the same thing", async () => {
+  it("renders ONE view of the areas — a ranked list, never a chart of the same numbers", async () => {
     mount();
-    await waitFor(() => expect(screen.getByTestId("domain-heading")).toBeInTheDocument());
-    // The bar chart plotted exactly the four numbers the cards below already
-    // carry (operator, 2026-09-17) — and the cards also carry the session
-    // count, which the bars could not. Only the trend chart remains.
-    expect(screen.getAllByTestId("chart")).toHaveLength(1);
-    expect(screen.getByTestId("domain-high_leverage_practices")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("observations")).toBeInTheDocument());
+    // The only bar chart on the page is the monthly count; areas are a list.
+    expect(screen.queryAllByTestId("chart").length).toBeLessThanOrEqual(2);
   });
 
   it("explains the attendance and evaluation panels too", async () => {

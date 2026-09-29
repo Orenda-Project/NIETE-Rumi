@@ -25,8 +25,12 @@ vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("../services/api", () => ({ leader: { getSchoolAnalytics: vi.fn(), getSteps: vi.fn().mockResolvedValue({ success: true, cycle: null, teachers: [], summary: {} }) } }));
 vi.mock("react-apexcharts", () => ({
   default: (props: any) => {
-    captured.options = props.options;
-    captured.series = props.series;
+    // The page has two charts since 2026-09-29; this test is about Progress,
+    // the line chart of Human Observation ratings.
+    if (props.type === "line") {
+      captured.options = props.options;
+      captured.series = props.series;
+    }
     return <div data-testid="chart" />;
   },
 }));
@@ -80,6 +84,6 @@ describe("SchoolAnalytics score trend — the axes say what they are (bd-60174)"
     expect(title).toBeTruthy();
     // "%" was already on the ticks and was not enough: the title has to carry a
     // word, so the reader learns what is being scored.
-    expect(String(title)).toMatch(/score|lesson/i);
+    expect(String(title)).toMatch(/score|lesson|rating/i);
   });
 });

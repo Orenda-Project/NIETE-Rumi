@@ -62,47 +62,51 @@ describe("SchoolAnalytics", () => {
     });
   });
 
-  it("shows the school's headline KPIs, not the principal's own", async () => {
-    renderPage(PRINCIPAL);
-    await waitFor(() => expect(screen.getByTestId("kpi-sessions")).toHaveTextContent("136"));
-    // The average is a band now, never a number (operator, 2026-09-29): 64.2 → Good.
-    expect(screen.getByTestId("kpi-avg-score")).toHaveTextContent("Good");
-    expect(screen.getByTestId("kpi-avg-score").textContent).not.toMatch(/\d/);
-    expect(screen.getByTestId("kpi-teachers")).toHaveTextContent("19");
+  // Rewritten 2026-09-29 for the Observations section (operator): the old
+  // "Coaching sessions" / "Average rating" cards pooled Human and Digital Coach
+  // Observations, and the four rubric-part cards became the three STEPS areas.
+  // Each test keeps the question it asked, pointed at what now answers it.
+  it("shows the school's headline numbers, not the principal's own", async () => {
+    renderPage(PRINCIPAL, { ...PAYLOAD, analytics: { ...PAYLOAD.analytics, humanObservations: 12, digitalCoachObservations: 124 } });
+    await waitFor(() => expect(screen.getByTestId("kpi-teachers")).toHaveTextContent("19"));
     expect(screen.getByTestId("kpi-lesson-plans")).toHaveTextContent("269");
+    expect(screen.getByTestId("count-human")).toHaveTextContent("12");
+    expect(screen.getByTestId("count-digital")).toHaveTextContent("124");
+    expect(screen.queryByTestId("kpi-sessions")).toBeNull();
   });
 
-  it("lists each domain with the number of sessions it was measured in", async () => {
-    renderPage(PRINCIPAL);
-    // Scoped to the domain cards: these names legitimately appear again in the
-    // "where to focus" line below, so a bare getByText matches twice.
-    await waitFor(() =>
-      expect(screen.getByTestId("domain-student_engagement")).toHaveTextContent("Student Engagement"));
-    expect(screen.getByTestId("domain-lesson_plan_fidelity")).toHaveTextContent("Lesson Plan Fidelity");
-    // The session count is what stops a rarely-measured domain reading as a
-    // school-wide weakness — two rubrics coexist in NIETE's live data.
-    expect(screen.getByTestId("domain-lesson_plan_fidelity")).toHaveTextContent("120");
+  const AREAS = [
+    { key: "e", name: "Engagement", pct: 78.5, band: "good", observations: 12 },
+    { key: "t", name: "Teaching skills", pct: 55, band: "average", observations: 12 },
+    { key: "s", name: "Subject knowledge", pct: 41.2, band: "average", observations: 12 },
+  ];
+
+  it("lists each STEPS area with its rating, strongest first", async () => {
+    renderPage(PRINCIPAL, { ...PAYLOAD, analytics: { ...PAYLOAD.analytics, areas: AREAS } });
+    await waitFor(() => expect(screen.getByTestId("area-e")).toHaveTextContent("Engagement"));
+    expect(screen.getByTestId("area-e")).toHaveTextContent("Good");
+    expect(screen.getAllByTestId(/^area-/).map((el) => el.getAttribute("data-testid"))).toEqual(["area-e", "area-t", "area-s"]);
   });
 
-  it("names the focus domain so she knows where to put attention", async () => {
-    renderPage(PRINCIPAL);
-    await waitFor(() => {
-      expect(screen.getByTestId("focus-domain")).toHaveTextContent("Lesson Plan Fidelity");
-    });
+  it("marks the weakest area so she knows where to put attention", async () => {
+    renderPage(PRINCIPAL, { ...PAYLOAD, analytics: { ...PAYLOAD.analytics, areas: AREAS } });
+    await waitFor(() => expect(screen.getByTestId("area-s")).toHaveTextContent(/work on this/i));
+    expect(screen.getByTestId("area-e")).not.toHaveTextContent(/work on this/i);
   });
 
-  it("says plainly there is nothing yet rather than rendering 0%", async () => {
+  it("says plainly there are no Human Observations yet rather than rendering a rating", async () => {
     renderPage(PRINCIPAL, {
       success: true,
       school: { name: "IMSG (VI-X) G-7/2", totalTeachers: 18, onRumi: 5, totalLessonPlans: 0 },
       analytics: {
-        totalSessions: 0, averageScore: null, scoreTrend: [],
+        totalSessions: 0, averageScore: null, scoreTrend: [], humanObservations: 0, digitalCoachObservations: 0,
+        areas: [], byMonth: [], observations: [],
         domainBreakdown: [], strongestDomain: null, focusDomain: null,
       },
     });
     // 18 of the 40 sampled schools looked like this — a real, common state.
-    await waitFor(() => expect(screen.getByTestId("empty-analytics")).toBeInTheDocument());
-    expect(screen.queryByTestId("kpi-avg-score")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText(/No Human Observations yet/).length).toBeGreaterThan(0));
+    expect(screen.queryAllByTestId("score-band")).toHaveLength(0);
   });
 
   it("tells a non-principal leader this view is not theirs, instead of showing a wrong school", async () => {

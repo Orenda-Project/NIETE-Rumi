@@ -167,7 +167,7 @@ describe("4 · her own STEPS row drills into her own views", () => {
     (leader.getSchoolAnalytics as any).mockResolvedValue({ ...FOCUS_ANALYTICS, focusTeacher: null });
     render(<MemoryRouter><SchoolAnalytics /></MemoryRouter>);
     await waitFor(() => expect(leader.getSchoolAnalytics).toHaveBeenCalled());
-    await screen.findByText(/Your school/);
+    await screen.findByRole("heading", { level: 1, name: "School Analytics" });
     expect(screen.queryByTestId("teacher-steps")).toBeNull();
   });
 
