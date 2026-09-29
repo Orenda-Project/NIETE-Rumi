@@ -14,9 +14,26 @@ const field = (user, k) => { const m = (user || '').match(new RegExp('"' + k + '
 const hasHeader = t => /Select Language/.test(t) && /زبان منتخب کریں/.test(t);
 const hasFooter = t => /change anytime/.test(t) && /کسی بھی وقت تبدیل کریں/.test(t);
 const CONFIRM_EN = 'Language set to English. I will now respond in English.';
+// Labels come from the bot's own catalog, in BOTH languages: the suite switches the driver to Urdu at LANG03 and the bot
+// then renders the menu and the picker button in Urdu. Hardcoded English labels made the mock lane throw at "Ask Anything"
+// on every run (bd-lu2p4) and made the live picker unopenable on an Urdu account (bd-7fsb6).
+const { UX_STRINGS: UX } = require(require('path').resolve(__dirname, '..', '..', '..', '..', 'bot/shared/config/ux-strings.js'));
+const both = k => [UX[k].en, UX[k].ur];
+const openerIn = (r, k) => (r.btns || []).find(b => both(k).includes(b)) || UX[k].en;
 // Free text is swallowed by awaiting_menu_selection (left by any /menu) and by coaching AWAITING_CLASSROOM_AUDIO. Enter Ask
 // Anything first so a free-text reply is an AI answer, not the "choose an option (1-4)" nudge (contaminated LANG10/12 on pass 4).
-const enterAskAnything = async (api) => { await api.sendWait('/menu'); await api.openList('See what I do'); await api.pickRowAndWait('Ask Anything'); };
+const enterAskAnything = async (api) => {
+  const m = await api.sendWait('/menu');
+  const list = await api.openList(openerIn(m, 'menuButton'));
+  await api.pickRowAndWait(both('menuRowOtherTitle').find(x => (list.rows || []).includes(x)) || UX.menuRowOtherTitle.en);
+};
+// Open /language and pick a row, whatever language the account is in. Always returns a txt string.
+const pickLanguage = async (api, row) => {
+  const r = await api.sendWait('/language');
+  await api.openList(openerIn(r, 'languagePickerButton'));
+  const p = await api.pickRowAndWait(row);
+  return Object.assign({}, p, { txt: (p && p.txt) || '' });
+};
 
 exports.run = async ({ api, rec, sleep }) => {
   const t = () => Date.now();
@@ -52,8 +69,7 @@ exports.run = async ({ api, rec, sleep }) => {
 
   // LANG02 — select English → exact confirm, DB en/locked, "hello" → English
   s = t();
-  await api.sendWait('/language'); await api.openList('Languages');
-  r = await api.pickRowAndWait('English');
+  r = await pickLanguage(api, 'English');
   const dbEn = api.db('lookup');
   await enterAskAnything(api);
   api.resetConversation();   // clean history -> deterministic open-chat cassette
@@ -65,8 +81,7 @@ exports.run = async ({ api, rec, sleep }) => {
   // LANG14/15 on ENGLISH first is pointless — the known-issues are about an URDU account. Switch to Urdu.
   // LANG03 — select Urdu → confirm in Urdu, DB ur/locked, "hello" → Urdu
   s = t();
-  await api.sendWait('/language'); await api.openList('Languages');
-  r = await api.pickRowAndWait('اردو');
+  r = await pickLanguage(api, 'اردو');
   const dbUr = api.db('lookup');
   await enterAskAnything(api);
   api.resetConversation();   // clean history -> deterministic open-chat cassette
@@ -162,10 +177,17 @@ exports.run = async ({ api, rec, sleep }) => {
 
   // restore the pre-run language via the surface under test
   s = t();
-  if (langBefore !== 'ur') { await api.sendWait('/language'); await api.openList('Languages'); await api.pickRowAndWait(langBefore === 'en' ? 'English' : 'اردو'); }
-  const after = api.db('lookup');
-  rec('LANG-restore', 'driver language restored to its pre-run value', field(after.user, 'preferred_language') === langBefore ? 'PASS' : 'FAIL',
-      { before: langBefore, after: field(after.user, 'preferred_language') }, t() - s);
+  // An unreadable baseline (lookup failed → '(not found)') is NOT a language: guessing one left the shared driver in Urdu
+  // for the next run, and '(not found)' === '(not found)' reported that as a PASS (bd-7fsb6). Refuse, and say why.
+  if (langBefore === 'en' || langBefore === 'ur') {
+    await pickLanguage(api, langBefore === 'en' ? 'English' : 'اردو');
+    const after = api.db('lookup');
+    rec('LANG-restore', 'driver language restored to its pre-run value', field(after.user, 'preferred_language') === langBefore ? 'PASS' : 'FAIL',
+        { before: langBefore, after: field(after.user, 'preferred_language') }, t() - s);
+  } else {
+    rec('LANG-restore', 'driver language restored to its pre-run value', 'FAIL',
+        { before: langBefore, reason: 'baseline unknown — the DB lookup was unreadable (' + ((before && before.err) || 'no USER block') + '), so the pre-run language could not be read or restored; the driver is left as the run ended' }, t() - s);
+  }
 
   for (const [id, name, why] of [
     ['LANG06', 'coaching transcription cannot re-language a locked account', '@slow — needs the full coaching pipeline driven on a locked-Urdu account; the coaching feature drives that pipeline, this suite does not repeat it'],

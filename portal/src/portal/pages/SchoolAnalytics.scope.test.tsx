@@ -56,15 +56,18 @@ describe("SchoolAnalytics — the KPI row states one scope", () => {
 
   it("drops the school teacher count once one teacher is selected", async () => {
     mount({ ...BASE, focusTeacher: { id: "t1", name: "Ayesha Bibi" } });
-    await waitFor(() => expect(screen.getByTestId("kpi-sessions")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("kpi-lesson-plans")).toBeInTheDocument());
     // "19 teachers · 17 on NIETE" says nothing about Ayesha.
     expect(screen.queryByTestId("kpi-teachers")).not.toBeInTheDocument();
   });
 
-  it("replaces it with a card about HER", async () => {
-    mount({ ...BASE, focusTeacher: { id: "t1", name: "Ayesha Bibi" } });
-    await waitFor(() => expect(screen.getByTestId("kpi-observed")).toBeInTheDocument());
-    expect(screen.getByTestId("kpi-observed")).toHaveTextContent("3");
+  it("counts HER observations of each kind", async () => {
+    // Was "Observed lessons — a coach sat in", which pooled both kinds
+    // (operator, 2026-09-29). Now each kind has its own count.
+    mount({ ...BASE, focusTeacher: { id: "t1", name: "Ayesha Bibi" },
+      analytics: { ...BASE.analytics, humanObservations: 3, digitalCoachObservations: 7 } });
+    await waitFor(() => expect(screen.getByTestId("count-human")).toHaveTextContent("3"));
+    expect(screen.getByTestId("count-digital")).toHaveTextContent("7");
   });
 
   it("labels the row with whose numbers these are", async () => {

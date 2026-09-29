@@ -314,6 +314,16 @@ export interface SchoolAnalytics {
     teacherName: string | null;
   }>;
   domainBreakdown: SchoolDomainScore[];
+  /** Human Observations (a coach or principal in class) vs Digital Coach
+   *  Observations (the teacher recorded her own lesson). Ratings use Human only. */
+  humanObservations?: number;
+  digitalCoachObservations?: number;
+  /** The three STEPS areas from Human Observations, strongest first. */
+  areas?: Array<{ key: 's' | 't' | 'e'; name: string; pct: number; band: string; observations: number }>;
+  /** Both kinds, per month ("2026-09", Pakistan time), oldest first. */
+  byMonth?: Array<{ month: string; human: number; digitalCoach: number }>;
+  /** Both kinds, newest first. `percentage` is null on a Digital Coach Observation. */
+  observations?: Array<{ date: string; kind: 'human' | 'digital_coach'; percentage: number | null; teacherName: string | null }>;
   strongestDomain: string | null;
   focusDomain: string | null;
 }
