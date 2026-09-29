@@ -91,6 +91,32 @@ const LP612_ETA = Object.freeze({
 });
 
 const UX_STRINGS = {
+  // ─── observation score bands ──────────────────────────────────────────────
+  // An observation score is never shown as a number or a percentage — only as
+  // one of these five (operator, 2026-09-29). Thresholds live in
+  // score-bands.js; these are the words. The portal carries the English five
+  // in a parity-tested copy, so change them in both or the test fails.
+  scoreBandExcellent: {
+    en: 'Excellent',
+    ur: 'بہترین',
+  },
+  scoreBandGood: {
+    en: 'Good',
+    ur: 'اچھا',
+  },
+  scoreBandAverage: {
+    en: 'Average',
+    ur: 'اوسط',
+  },
+  scoreBandBelowAverage: {
+    en: 'Below average',
+    ur: 'اوسط سے کم',
+  },
+  scoreBandNeedsSupport: {
+    en: 'Needs support',
+    ur: 'مدد درکار',
+  },
+
   // ─── post-coaching survey ─────────────────────────────────────────────────
   // Sent once a coaching session has settled — report delivered, voice debrief
   // attempted. The negative path is the point of the whole survey: an

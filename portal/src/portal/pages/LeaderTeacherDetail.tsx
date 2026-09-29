@@ -6,6 +6,7 @@ import PortalLayout from "../components/PortalLayout";
 import StatCard from "../components/StatCard";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
+import ScoreIndicator from "../components/ScoreIndicator";
 import type { LeaderTeacherDetail as Detail } from "../types/portal";
 
 /**
@@ -54,6 +55,14 @@ const LeaderTeacherDetail = () => {
                 <h1 className="text-3xl font-light">{detail.teacher.name || "Unnamed teacher"}</h1>
                 <p className="text-muted-foreground mt-1">{detail.teacher.phone}</p>
               </div>
+              {/* Her latest lesson as a band — never the number
+                  (operator, 2026-09-29). */}
+              {detail.stats.lastScore != null && (
+                <div data-testid="latest-band" className="text-right">
+                  <ScoreIndicator percentage={detail.stats.lastScore} size="large" />
+                  <p className="text-xs text-muted-foreground mt-1">latest lesson</p>
+                </div>
+              )}
             </header>
 
             {/* the written feedback that replaces the score. The
@@ -90,7 +99,10 @@ const LeaderTeacherDetail = () => {
                 <ul className="divide-y divide-border">
                   {detail.sessions.map((s) => (
                     <li key={s.id} data-testid={`session-${s.id}`} className="px-6 py-4">
-                      <p className="font-medium">{fmtDate(s.date)}</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-medium">{fmtDate(s.date)}</p>
+                        <ScoreIndicator percentage={s.score} size="small" />
+                      </div>
                       {/* No marks, no percentage: the written note IS the
                           record of the visit now. A session with none says so
                           rather than rendering a heading over nothing. */}
@@ -104,6 +116,7 @@ const LeaderTeacherDetail = () => {
                 </ul>
               )}
             </section>
+
           </>
         )}
       </div>

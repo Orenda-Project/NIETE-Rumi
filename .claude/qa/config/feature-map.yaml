@@ -331,6 +331,11 @@ shared:
     [coaching, observe]
   bot/shared/services/coaching/report-v2/score-adapters/**:
     [coaching, observe]
+  # The observation-score band rule (Excellent … Needs support). Read by the
+  # report-v2 hero template, the coaching card and the voice note, so it has
+  # the report's owners.
+  bot/shared/config/score-bands.js:
+    [coaching, observe]
   bot/shared/services/exam-checker/**:
     [coaching, training]
   bot/shared/services/queue/**:
