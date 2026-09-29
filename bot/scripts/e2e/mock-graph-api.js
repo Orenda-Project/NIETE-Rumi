@@ -305,7 +305,8 @@ function createMockGraphApi(opts = {}) {
   return {
     server, state, phoneNumberId, botUrl,
     listen: (port = Number(process.env.MOCK_PORT || 4010), host = '127.0.0.1') =>
-      new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, host, () => { selfBase = `http://${host}:${server.address().port}`; resolve(server.address().port); }); }),
+      new Promise((resolve, reject) => { server.once('error', reject); server.keepAliveTimeout = 65000; server.headersTimeout = 66000;   // a driver blocked in a seed or a stack restart comes back to a live socket (bd-p99wn)
+      server.listen(port, host, () => { selfBase = `http://${host}:${server.address().port}`; resolve(server.address().port); }); }),
     close: () => new Promise((resolve) => server.close(() => resolve())),
     reset,
   };

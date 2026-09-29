@@ -177,14 +177,14 @@ exports.run = async (ctx) => {
       const a = dbJson('seed-class-quiz', ['--language', 'ur', '--topic', 'کسریں اور اعشاریہ']); seeds.classQuiz = true;
       if (!a || !a.quizId) throw new Error('SEED_A:' + JSON.stringify(a));
       await api.freshReset();
-      const r1 = SC.job('run', 'quiz_nudge_teacher', a.quizId, { quizId: a.quizId });
+      const r1 = await SC.job('run', 'quiz_nudge_teacher', a.quizId, { quizId: a.quizId });
       const n1 = await collect(api, (x) => /started your quiz|شروع نہیں کیا|شروع کیا ہے|almost nobody|تقریباً کسی نے/.test(x.txt || ''), 30000);
       const single = n1.ok ? debidi(n1.hit.txt) : '';
       api.db('seed-class-quiz', ['--restore', '--child-prefix', CHILD_PREFIX]);
       const b = dbJson('seed-class-quiz', ['--language', 'ur', '--topic', 'ضرب کے سوالات']);
       const c = dbJson('seed-class-quiz', ['--language', 'ur', '--topic', 'وقت پڑھنا']);
       await api.freshReset();
-      const r2 = SC.job('run', 'quiz_nudge_teacher', b.quizId, { quizId: b.quizId });
+      const r2 = await SC.job('run', 'quiz_nudge_teacher', b.quizId, { quizId: b.quizId });
       const n2 = await collect(api, (x) => /almost nobody|started your quiz|تقریباً کسی نے|شروع نہیں/.test(x.txt || ''), 30000);
       const many = n2.ok ? debidi(n2.hit.txt) : '';
       const ev = { singleForm: short(single, 240), manyForm: short(many, 300), jobs: [r1 && (r1.result || r1.err), r2 && (r2.result || r2.err)],
@@ -300,8 +300,9 @@ exports.run = async (ctx) => {
       const rr = rows(g1.id); g1rows = rr.questions || [];
       const figs = figuresOf(g1rows);
       const pics = figs.filter((f) => f.image);
-      const kvm = rr.quiz && rr.quiz.meta && (rr.quiz.meta.key_verify || rr.quiz.meta.key_check);
-      const ev29 = { quiz: g1.id, questions: g1rows.length, keyProblems: keyProblems(g1rows), verifiedBy: rr.quiz && rr.quiz.meta && (rr.quiz.meta.key_verify ? 'key_verify (blind solve)' : rr.quiz.meta.key_check ? 'key_check' : 'none recorded'), keyVerify: kvm && { status: kvm.status, agreed: kvm.agreed, disagreed: kvm.disagreed, dropped: kvm.dropped }, metaKeys: rr.quiz && rr.quiz.meta ? Object.keys(rr.quiz.meta).slice(0, 30) : [] };
+      const donorMeta = rr.quiz && rr.quiz.meta && rr.quiz.meta.cache_donor && rr.quiz.meta.cache_donor.quiz_id ? ((rows(rr.quiz.meta.cache_donor.quiz_id).quiz || {}).meta || null) : null;
+      const kvm = (rr.quiz && rr.quiz.meta && (rr.quiz.meta.key_verify || rr.quiz.meta.key_check)) || (donorMeta && (donorMeta.key_verify || donorMeta.key_check));
+      const ev29 = { quiz: g1.id, questions: g1rows.length, keyProblems: keyProblems(g1rows), verifiedBy: rr.quiz && rr.quiz.meta && (rr.quiz.meta.key_verify ? 'key_verify (blind solve)' : rr.quiz.meta.key_check ? 'key_check' : donorMeta && (donorMeta.key_verify || donorMeta.key_check) ? 'the donor\'s ' + (donorMeta.key_verify ? 'key_verify' : 'key_check') + ' (this quiz is a cache copy of ' + rr.quiz.meta.cache_donor.quiz_id + ')' : 'none recorded'), keyVerify: kvm && { status: kvm.status, agreed: kvm.agreed, disagreed: kvm.disagreed, dropped: kvm.dropped }, metaKeys: rr.quiz && rr.quiz.meta ? Object.keys(rr.quiz.meta).slice(0, 30) : [] };
       done('T29', ...V(g1rows.length > 0 && ev29.keyProblems.length === 0 && !!ev29.keyVerify, { ...ev29, note: 'the held-back branch (too few questions survive) cannot be forced; the shipped quiz is checked: one key per question, distinct options, the blind solve recorded' }));
       s = t();
       const base = figs.filter((f) => f.type === 'base_ten');
@@ -342,7 +343,7 @@ exports.run = async (ctx) => {
         // T78 — a scheduled run after the report was sent is suppressed; a late child + the teacher's ask → a fresh report
         s = t();
         await api.freshReset();
-        const sched = SC.job('run', 'quiz_video_report', rr.share.id, { shareCodeId: rr.share.id, reason: 'scheduled' });
+        const sched = await SC.job('run', 'quiz_video_report', rr.share.id, { shareCodeId: rr.share.id, reason: 'scheduled' });
         const auto = await collect(api, (x) => (x.doc || x.pdf), 60000);
         const k22 = child(22);
         const r22 = await childRunKeyed(k22, code, 'Zara', 'Grade 1', g1rows, { correct: 1 });
@@ -364,13 +365,13 @@ exports.run = async (ctx) => {
       const teacherId = me.id || null;
       if (!teacherId) throw new Error('no teacher id for the cap key');
       seeds.capKey = `quizcap:${teacherId}:${pkt}`;
-      const filled = SC.redis(['SADD', seeds.capKey, ...Array.from({ length: 10 }, (_, i) => 'qa-cap-' + i)]);
+      const filled = await SC.redis(['SADD', seeds.capKey, ...Array.from({ length: 10 }, (_, i) => 'qa-cap-' + i)]);
       const made = await makeVia((i) => String(i.id || '') === 'lsn_lp_v8_' + dlB.id, /make_en|English/i, { timeoutMs: 180000 });
       const capLine = made.arr && made.arr.seen.find((x) => /limit for new quizzes|نئے quiz کی حد/.test(x.txt || ''));
       const ev = { capKey: seeds.capKey, filled: filled.out || filled.err, ...made.ev, capLine: capLine && short(capLine.txt, 240), saysTomorrow: !!capLine && /tomorrow|کل/.test(capLine.txt), saysQuiz: !!capLine && /\/quiz/.test(capLine.txt), noQuizSent: !(made.arr && made.arr.doc) };
       done('T67', ...V(!!capLine && ev.saysTomorrow && ev.saysQuiz && ev.noQuizSent, ev));
     } catch (e) { errors.push('T67:' + e.message); lastStack = short(e && e.stack, 400); blocked('T67', 'threw: ' + short(e.message, 200)); }
-    finally { if (seeds.capKey) { SC.redis(['DEL', seeds.capKey]); seeds.capKey = null; } }
+    finally { if (seeds.capKey) { await SC.redis(['DEL', seeds.capKey]); seeds.capKey = null; } }
     // the counting lesson the cap refused is made now (Make it again) — T51 / T54 read ITS pictures
     try {
       s = t();
@@ -607,7 +608,7 @@ exports.run = async (ctx) => {
       s = t();
       const sheet = String(pdf.text || '');
       const sheetLines = sheet.split('\n');
-      const taughtIdx = sheetLines.findIndex((l) => /What you taught/.test(l)); const checksIdx = sheetLines.findIndex((l) => /What this quiz checks/.test(l));
+      const taughtIdx = sheetLines.findIndex((l) => /What you\s+taught/i.test(l)); const checksIdx = sheetLines.findIndex((l) => /What this quiz\s+checks/i.test(l));
       const ev81 = { pdfChars: sheet.length, hasTaught: taughtIdx >= 0, hasChecks: checksIdx >= 0, mistakeOnSheet: /4\s*\/\s*8[^.\n]{0,40}(is )?not (a )?proper|4\s*\/\s*8[^.\n]{0,40}improper/i.test(sheet), blameOnSheet: /(teacher|class)[^.\n]{0,30}(wrong|mistake|incorrect)|correction/i.test(sheet), summaryTruth: rr.quiz && rr.quiz.meta && rr.quiz.meta.summary_truth, note: 'QUIZ_SUMMARY_TRUTH_FILTER=off is a per-process switch not flipped in this run' };
       done('T81', ...V(mT.ok && ev81.hasTaught && ev81.hasChecks && !ev81.mistakeOnSheet && !ev81.blameOnSheet, ev81));
       s = t();
@@ -628,7 +629,7 @@ exports.run = async (ctx) => {
       const d1 = dbJson('seed-lp612-delivery', ['--segment-like', 'grade_8_mathematics*', '--template-version', 'qa-v1']); seeds.lp612 = true;
       if (!d1 || !d1.id) throw new Error('SEED_612:' + JSON.stringify(d1));
       const DOC = path.join(__dirname, '..', 'fixtures', 'whatsapp', 'niete', 'quiz', 'lp612-exponents-en.lp.json');
-      const put1 = SC.lp612Doc('put', d1.segment_id, 'en', 'qa-v1', DOC); seeds.lp612Docs = [[d1.segment_id, 'en']];
+      const put1 = await SC.lp612Doc('put', d1.segment_id, 'en', 'qa-v1', DOC); seeds.lp612Docs = [[d1.segment_id, 'en']];
       if (!put1.ok) throw new Error('DOC_612:' + put1.err);
       const isRow = (i) => String(i.id || '') === 'lsn_lp612_' + d1.id;
       const first = await openLesson(isRow);
@@ -651,8 +652,8 @@ exports.run = async (ctx) => {
       // T72 — the source switched OFF everywhere: no 6-12 lesson without a quiz, the sent one still works
       s = t();
       const d2 = dbJson('seed-lp612-delivery', ['--segment-like', 'grade_7_mathematics*', '--template-version', 'qa-v1']);
-      if (d2 && d2.segment_id) { SC.lp612Doc('put', d2.segment_id, d2.lang || 'en', 'qa-v1', DOC); seeds.lp612Docs.push([d2.segment_id, d2.lang || 'en']); }
-      const rw = SC.restart('worker', { QUIZ_LP612_SOURCE: 'off' }); const rb = SC.restart('bot', { QUIZ_LP612_SOURCE: 'off' });
+      if (d2 && d2.segment_id) { await SC.lp612Doc('put', d2.segment_id, d2.lang || 'en', 'qa-v1', DOC); seeds.lp612Docs.push([d2.segment_id, d2.lang || 'en']); }
+      const rw = await SC.restart('worker', { QUIZ_LP612_SOURCE: 'off' }); const rb = await SC.restart('bot', { QUIZ_LP612_SOURCE: 'off' });
       await api.resetFlow(); await api.freshReset();
       const off = await openLesson((i) => d2 && String(i.id || '') === 'lsn_lp612_' + d2.id);
       const prOff = await api.flowProbe(); const rowsOff = (prOff.items || []).filter((i) => i.kind !== 'footer').map((i) => ({ id: i.id, text: short(i.hay || i.text, 50) }));
@@ -669,11 +670,11 @@ exports.run = async (ctx) => {
       done('T72', ...V(rw.ok && rb.ok && ev72.lessonRowsListed === 0 && sentRow.ok && ev72.resendWorked && ev72.reportWorked, ev72));
       // T73 — on where /quiz runs, off where quizzes are written; then on again → Make it again
       s = t();
-      const rb2 = SC.restart('bot', {});
+      const rb2 = await SC.restart('bot', {});
       await api.resetFlow(); await api.freshReset();
       const m73 = await makeVia((i) => d2 && String(i.id || '') === 'lsn_lp612_' + d2.id, /make_en|English/i, { timeoutMs: 180000 });
       const f73 = m73.arr && m73.arr.failed ? m73.arr.failed.txt : '';
-      const rw2 = SC.restart('worker', {});
+      const rw2 = await SC.restart('worker', {});
       const rowF = await openLesson((i) => /^lp_/.test(String(i.id || '')) && /Failed|نہیں بنا|Didn.t work/.test(String(i.hay || '')) && /math/i.test(String(i.hay || '')));
       const ev73 = { botOn: rb2.ok, ...m73.ev, failureLine: short(f73, 240), couldNotStart: /couldn.t start that quiz just now/.test(f73), ourSideNotPlan: /problem was on my side, not your lesson plan/.test(f73), tryLater: /Try it again from \/quiz a little later/.test(f73), neverNextLessons: !/next lessons? you plan/i.test(f73),
         workerOn: rw2.ok, lessonScreen: short(rowF.text, 240), screenSaysNotStarted: /could not be started on my side[\s\S]*not your lesson plan/.test(rowF.text || ''), actions: (rowF.actions || []).map((a) => a.text),
@@ -684,7 +685,7 @@ exports.run = async (ctx) => {
       ev73.remake = { picked: pk.picked, making: !!arr.making, pdf: !!arr.doc, forward: !!arr.fwd, order: arr.order.slice(0, 6) };
       done('T73', ...V(rb2.ok && !!f73 && ev73.couldNotStart && ev73.ourSideNotPlan && ev73.tryLater && ev73.neverNextLessons && rw2.ok && ev73.screenSaysNotStarted && ev73.offersRemakeAndDone && !!arr.doc && !!arr.fwd, ev73));
     } catch (e) { errors.push('T71:' + e.message); lastStack = short(e && e.stack, 400); for (const id of ['T71', 'T72', 'T73']) if (!seenIds.has(id)) blocked(id, 'the 6-12 leg threw: ' + short(e.message, 200)); }
-    finally { try { SC.restart('bot', {}); SC.restart('worker', {}); } catch (_) {} }
+    finally { try { await SC.restart('bot', {}); await SC.restart('worker', {}); } catch (_) {} }
 
     // ════ T59 T60 — a video quiz in Urdu: offer taps, the solo run, the class message ═════════
     try {
@@ -728,7 +729,7 @@ exports.run = async (ctx) => {
       const NOT_Q = /پسند آئی|Did you like|مزید ویڈیوز|more videos|👍|👎/;
       const isVq = (x) => isChildQ(x) && !NOT_Q.test(x.txt || '') && !(x.btns || []).some((b) => NOT_Q.test(b));
       let q = (await collect(api, isVq, 90000)).hit;
-      let ended = false, n = 0, lastAnswerId = null; const trail = [];
+      let ended = false, n = 0, lastAnswerId = null; const trail = []; let lastSeen = [];
       while (q && !ended && n < 20) {
         const row = q.list && (q.list.rows || [])[0]; const btn = (q.btns || [])[0];
         lastAnswerId = (row && row.id) || null;
@@ -736,12 +737,14 @@ exports.run = async (ctx) => {
         if (row) await api.tapId('list', row.id, row.title); else if (btn) await api.tapAndWait(btn, 30000); else break;
         const isShare = (x) => (x.btns || []).some((b) => /کلاس کو بھیجیں|Share with class/.test(b));
         const w = await collect(api, (x) => isVq(x) || isShare(x), 60000);
-        n++; trail.push(short((w.hit && w.hit.txt) || w.last, 60));
+        n++; trail.push(short((w.hit && w.hit.txt) || w.last, 60)); lastSeen = w.seen;
         const nextQ = w.seen.filter(isVq).pop() || null;
         ended = w.seen.some(isShare) || (!nextQ && w.seen.some(isEnd)); q = nextQ;
         if (ended) break;
       }
-      const shareOffer = await collect(api, (x) => (x.btns || []).some((b) => /کلاس کو بھیجیں|Share with class/.test(b)), 150000);
+      const isShareBtn = (x) => (x.btns || []).some((b) => /کلاس کو بھیجیں|Share with class/.test(b));
+      const already = lastSeen.find(isShareBtn);
+      const shareOffer = already ? { ok: true, hit: already, seen: lastSeen } : await collect(api, isShareBtn, 150000);
       await api.freshReset();
       const share = shareOffer.ok ? await api.tapAndWait('کلاس کو بھیجیں', 60000) : { txt: '' };
       const after = await collect(api, (x) => /کلاس کی رپورٹ آئے گی|report on how your class did/.test(x.txt || ''), 60000);
@@ -764,12 +767,12 @@ exports.run = async (ctx) => {
     // every seed back, every quiz the driver made in this run gone
     try { if (seeds.role) await api.setRole('teacher'); } catch (_) {}
     try { if (seeds.lang) await api.setUser({ preferred_language: 'en' }); } catch (_) {}
-    if (seeds.capKey) SC.redis(['DEL', seeds.capKey]);
+    if (seeds.capKey) await SC.redis(['DEL', seeds.capKey]);
     SC.clearFaults();
     for (const [a, extra] of [['seed-class-quiz', ['--restore', '--child-prefix', CHILD_PREFIX]], ['seed-lp-quiz', ['--restore']], ['seed-lp-download', ['--restore']], ['seed-coaching-session', ['--restore']], ['seed-lp612-delivery', ['--restore']]]) {
       try { api.db(a, extra); } catch (_) {}
     }
-    for (const [seg, lg] of seeds.lp612Docs) SC.lp612Doc('rm', seg, lg, 'qa-v1');
+    for (const [seg, lg] of seeds.lp612Docs) await SC.lp612Doc('rm', seg, lg, 'qa-v1');
     try { api.db('purge-run-quizzes', ['--since', runStartIso, '--child-prefix', CHILD_PREFIX]); } catch (_) {}
     for (const id of OWNED) if (!seenIds.has(id)) R(id)('BLOCKED', { reason: 'not reached — an earlier step of the generation cluster threw: ' + (errors.slice(-1)[0] || 'unknown'), errors: errors.slice(0, 6) }, 0);
   }
