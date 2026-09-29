@@ -88,8 +88,13 @@ const SchoolLessons = () => {
   const { school, analytics } = data;
   const focusTeacher = data.focusTeacher ?? null;
   const teachers = data.teachers ?? [];
-  // Newest first: the list is read as "what happened recently".
-  const lessons = [...(analytics.scoreTrend ?? [])].reverse();
+  // Both kinds, newest first, each labelled — Human Observation or Digital
+  // Coach Observation (operator, 2026-09-29). An older API without
+  // `observations` sent only scored lessons, which were all read as Human.
+  const lessons = analytics.observations
+    ?? [...(analytics.scoreTrend ?? [])].reverse().map((p) => ({
+      date: p.date, kind: 'human' as const, percentage: p.percentage, teacherName: p.teacherName,
+    }));
 
   return (
     <PortalLayout>
@@ -105,8 +110,8 @@ const SchoolLessons = () => {
           <h1 className="text-3xl sm:text-4xl font-light mb-2">Observed lessons</h1>
           <p className="text-muted-foreground" data-testid="scope-label">
             {focusTeacher
-              ? `${focusTeacher.name} — every lesson a coach sat in on.`
-              : `${school.name || 'Your school'} — every lesson a coach sat in on, newest first.`}
+              ? `${focusTeacher.name} — every observation, newest first.`
+              : `${school.name || 'Your school'} — every observation, newest first.`}
           </p>
         </header>
 
@@ -142,9 +147,9 @@ const SchoolLessons = () => {
 
         {lessons.length === 0 ? (
           <div data-testid="lessons-empty" className="bg-white rounded-lg p-6 shadow-sm border border-border">
-            <h2 className="text-lg font-medium mb-2">No observed lessons yet</h2>
+            <h2 className="text-lg font-medium mb-2">No observations yet</h2>
             <p className="text-muted-foreground text-sm">
-              Once a coach sits in on a lesson and scores it, it will appear here.
+              Once you or a coach watches a lesson in class, or a teacher records one, it will appear here.
             </p>
           </div>
         ) : (
@@ -164,6 +169,10 @@ const SchoolLessons = () => {
                       {new Date(p.date).toLocaleDateString('en-GB', {
                         day: 'numeric', month: 'short', year: 'numeric',
                       })}
+                      {' · '}
+                      <span className={p.kind === 'human' ? 'text-accent' : 'text-muted-foreground'}>
+                        {p.kind === 'human' ? 'Human Observation' : 'Digital Coach Observation'}
+                      </span>
                     </p>
                     <p className="text-muted-foreground text-sm truncate">
                       {/* Whose lesson — but not when the view is already one
@@ -171,8 +180,8 @@ const SchoolLessons = () => {
                       {!focusTeacher && p.teacherName && <>{p.teacherName}</>}
                     </p>
                   </div>
-                  {/* The lesson's band — never its marks or percentage. */}
-                  <ScoreIndicator percentage={p.percentage} size="small" />
+                  {/* A rating only for a Human Observation — never marks or a percentage. */}
+                  {p.kind === 'human' && <ScoreIndicator percentage={p.percentage} size="small" />}
                 </li>
               ))}
             </ul>

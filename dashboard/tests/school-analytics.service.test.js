@@ -27,8 +27,11 @@
 
 const { summarizeSchoolAnalytics } = require('../services/school-analytics.service');
 
+// Human Observations: since 2026-09-29 only those rate a school (Digital Coach
+// Observations are counted, not rated) — see tests/portal/school-analytics-observations.test.js.
 const sess = (date, pct, domains) => ({
   created_at: date,
+  observation_type: 'leader_observation',
   analysis_data: {
     scores: { overall_marks: pct, overall_max_marks: 100, overall_percentage: pct },
     ...(domains ? { domains } : {}),
@@ -64,6 +67,7 @@ describe('summarizeSchoolAnalytics', () => {
     const out = summarizeSchoolAnalytics([
       {
         created_at: '2026-08-01T00:00:00Z',
+        observation_type: 'leader_observation',
         teacher_name: 'Ayesha Bibi',
         analysis_data: { scores: { overall_marks: 71, overall_max_marks: 104, overall_percentage: 68.3 } },
       },
