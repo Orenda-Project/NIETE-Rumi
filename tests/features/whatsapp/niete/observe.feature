@@ -124,6 +124,39 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # debrief_status='pending', queues transcription, arms 'analyzing', sends
     # audio_received. Contrast with teacher coaching, which DOES confirm.
 
+  @e2e @wip @draft @audio @destructive @config-gated @P1
+  Scenario: A classroom recording the coach already had analysed is not analysed again
+    Given the NIETE bot chat is open on a LEADER account
+    And a recording I sent earlier has already been analysed as an observation
+    When I send that exact same recording file again
+    Then the bot replies "This classroom recording has already been analyzed. Please submit a new recording."
+    And no new FICO form or analysis arrives for it
+    # bd-erpvf (HITL row 185) — transcription-processor, leader branch: the SHA-256
+    # of the downloaded bytes is matched against this coach's own leader
+    # observations (observer_user_id — a bound row's user_id is the teacher). A hit
+    # closes the new row (cancelled, duplicate_of_session_id = prior) before the R2
+    # upload and transcription. No time window. Unlike DC, no prior report is resent.
+
+  @e2e @wip @draft @audio @i18n @destructive @config-gated @P2
+  Scenario: The already-analysed reply is in the coach's own language, not the teacher's
+    Given the NIETE bot chat is open on a LEADER account whose language is Urdu
+    And a teacher whose language is English is bound to the observation
+    And a recording I sent earlier has already been analysed as an observation
+    When I send that exact same recording file again
+    Then the bot replies "اس کلاس روم ریکارڈنگ کا تجزیہ پہلے ہی کیا جا چکا ہے۔ براہ کرم نئی ریکارڈنگ بھیجیں۔"
+    # audio-hash-cache.js refuseDuplicateObservation — language is read for
+    # observer_user_id, never the row's user_id.
+
+  @e2e @wip @draft @audio @negative @destructive @config-gated @P2
+  Scenario: A recording whose earlier observation was cancelled is analysed normally
+    Given the NIETE bot chat is open on a LEADER account
+    And I cancelled the observation for a recording I sent earlier
+    When I send that exact same recording file again
+    Then the bot replies that the audio was received and is being analysed
+    And it does NOT say the recording has already been analysed
+    # findPriorLeaderObservation excludes cancelled / abandoned / failed priors —
+    # a recording that never produced an analysis must not be refused.
+
   @e2e @wip @content-driven @flow @destructive @config-gated @P1
   Scenario: When analysis is ready the editable FICO form opens pre-filled
     Given a leader observation has finished analysis
