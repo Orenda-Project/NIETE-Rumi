@@ -115,13 +115,17 @@ describe('a 44-child class — the reported screen', () => {
     expect(cp(res.data.roster)).toBeLessThanOrEqual(TEXT_BODY_CAP);
   });
 
-  it('the removal hint is about the CHECKBOX cap only, and the list is complete', async () => {
+  it('offers all 44 to remove as well — nothing on this screen is capped now', async () => {
     const res = await openRoster();
-    // 44 > 20, so the removal group is genuinely capped and says so...
-    expect(res.data.remove_options).toHaveLength(20);
-    expect(res.data.hint).toMatch(/first 20/i);
-    // ...but that sentence must not be the only explanation on a screen whose list
-    // is complete. Nothing here is hidden from view.
+    // Meta's 20 is per CheckboxGroup, so 44 children ride in three of them (bd-a6mhn).
+    // This used to assert 20 options and a "first 20" hint: a cap that read as graceful
+    // and was a dead end, because the slice is always the first 20 BY ROLL.
+    expect(res.data.remove_options1).toHaveLength(20);
+    expect(res.data.remove_options2).toHaveLength(20);
+    expect(res.data.remove_options3).toHaveLength(4);
+    expect(res.data.has_group4).toBe(false);
+    expect(res.data.hint).not.toMatch(/first 20/i);
+    // The list is complete too. Nothing here is hidden from view.
     expect(res.data.roster).toContain(nameFor(44));
   });
 });
