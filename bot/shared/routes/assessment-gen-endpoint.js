@@ -114,6 +114,78 @@ function chaptersOf(state) {
     .map((n, i) => ({ number: n, title: titles[i] != null ? titles[i] : null }));
 }
 
+/**
+ * "1-3, 5, 7, 8" from [1, 2, 3, 5, 7, 8]. A run of three or more becomes a
+ * span; two neighbours stay a list, so "Chapters 2, 3" reads as it always did.
+ * Needed once she can tick the whole book: twenty-four numbers in a caption is
+ * a wall, "Chapters 1-24" is a sentence.
+ */
+function compressRuns(numbers) {
+  const sorted = [...new Set(numbers)].sort((a, b) => a - b);
+  const parts = [];
+  for (let i = 0; i < sorted.length;) {
+    let j = i;
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j += 1;
+    if (j - i >= 2) parts.push(`${sorted[i]}-${sorted[j]}`);
+    else for (let k = i; k <= j; k += 1) parts.push(String(sorted[k]));
+    i = j + 1;
+  }
+  return parts.join(', ');
+}
+
+/**
+ * The chapter picker is TWO CheckboxGroups, not one (sheet request: a paper
+ * covering at least half the syllabus; the old `max-selected-items: 6` is gone).
+ *
+ * Meta caps a single CheckboxGroup at 20 options, and the biggest ICT books
+ * have 23 and 24 chapters — so with one group, chapters 21+ were never on the
+ * screen at all. Chapters 1-20 go in `chapters`, 21-40 in `chapters_more`,
+ * which is drawn only when the book has them. A hidden group still gets a
+ * one-row placeholder: an empty data-source is not renderable, even hidden.
+ */
+const CHAPTER_GROUP_CAP = 20;
+const NO_MORE_CHAPTERS_ID = '__none__';
+const NO_MORE_CHAPTERS = Object.freeze([{ id: NO_MORE_CHAPTERS_ID, title: '-' }]);
+
+function chapterOption(c) {
+  return {
+    id: String(c.chapterNumber),
+    title: `${c.chapterNumber} · ${c.title}${c.pageStart ? ` (pages ${c.pageStart}-${c.pageEnd})` : ''}`,
+  };
+}
+
+function coverageLists(chapters) {
+  const options = (chapters || []).map(chapterOption);
+  if (options.length > CHAPTER_GROUP_CAP * 2) {
+    logToFile('[assessment-flow] book has more chapters than the picker holds', {
+      chapters: options.length, shown: CHAPTER_GROUP_CAP * 2,
+    });
+  }
+  const first = options.slice(0, CHAPTER_GROUP_CAP);
+  const more = options.slice(CHAPTER_GROUP_CAP, CHAPTER_GROUP_CAP * 2);
+  return {
+    chapters: first,
+    chapters_more: more.length ? more : [...NO_MORE_CHAPTERS],
+    has_more_chapters: more.length > 0,
+  };
+}
+
+/**
+ * Every chapter she ticked, across both groups, as sorted unique numbers.
+ * `chapters_more` is absent on a client still running the previously published
+ * Flow, and `chapter` (scalar) on one from the single-select era; both still work.
+ */
+function pickedChapterNumbers(data) {
+  const asList = (v) => (Array.isArray(v) ? v : (v != null ? [v] : []));
+  const picked = [
+    ...(data.chapters != null ? asList(data.chapters) : asList(data.chapter)),
+    ...asList(data.chapters_more),
+  ];
+  return [...new Set(
+    picked.map(Number).filter((n) => Number.isFinite(n) && n > 0),
+  )].sort((a, b) => a - b);
+}
+
 function summaryOf(state) {
   const chapters = chaptersOf(state);
   // "Chapter 2 · The Thirsty Crow" for one — unchanged, it is the common case
@@ -123,7 +195,7 @@ function summaryOf(state) {
   const chapterLine = chapters.length === 1
     ? `Chapter ${chapters[0].number}${chapters[0].title ? ` · ${chapters[0].title}` : ''}`
     : (chapters.length > 1
-      ? `Chapters ${chapters.map((c) => c.number).join(', ')}`
+      ? `Chapters ${compressRuns(chapters.map((c) => c.number))}`
       : null);
 
   return [
@@ -752,11 +824,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     return screen('COVERAGE', {
       summary: summaryOf(state),
       has_chapters: true,
-      chapters: chapters.map((c) => ({
-        id: String(c.chapterNumber),
-        title: `${c.chapterNumber} · ${c.title}`
-          + (c.pageStart ? ` (pages ${c.pageStart}-${c.pageEnd})` : ''),
-      })),
+      ...coverageLists(chapters),
       error: '',
     });
   }
@@ -776,20 +844,15 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     }
 
     // A CheckboxGroup sends an array of the ids it was drawn with — which are
-    // strings, because a Flow data-source id always is. `data.chapter` is read
-    // too: a client mid-session on the previous, single-select screen is still
-    // posting the old key, and refusing it would strand her.
-    const picked = Array.isArray(data.chapters)
-      ? data.chapters
-      : (data.chapters != null ? [data.chapters] : (data.chapter != null ? [data.chapter] : []));
-    const chapterNumbers = [...new Set(
-      picked.map(Number).filter((n) => Number.isFinite(n) && n > 0),
-    )].sort((a, b) => a - b);
+    // strings, because a Flow data-source id always is. Both groups are read;
+    // `data.chapter` is read too: a client mid-session on the previous,
+    // single-select screen is still posting the old key.
+    const chapterNumbers = pickedChapterNumbers(data);
 
     if (chapterNumbers.length === 0) {
       return screen('COVERAGE', {
         summary: summaryOf(state), has_chapters: true,
-        chapters: await chapterOptions(state),
+        ...(await chapterOptions(state)),
         error: 'Please choose at least one chapter, or tick the box to type page numbers.',
       });
     }
@@ -1116,11 +1179,8 @@ async function submitFromCompletion({ flowToken, userId, outputFormat, answerKey
 async function chapterOptions(state) {
   try {
     const chapters = await BookContent.listChapters({ grade: state.grade, subject: state.subject });
-    return chapters.map((c) => ({
-      id: String(c.chapterNumber),
-      title: `${c.chapterNumber} · ${c.title}${c.pageStart ? ` (pages ${c.pageStart}-${c.pageEnd})` : ''}`,
-    }));
-  } catch { return []; }
+    return coverageLists(chapters);
+  } catch { return coverageLists([]); }
 }
 
 async function bookFacts(state) {
@@ -1278,15 +1338,26 @@ async function chapterPageRange(state) {
     const chapters = await BookContent.listChapters({
       grade: state.grade, subject: state.subject,
     });
-    // One range per chapter, in the order she picked them, joined the way
-    // parsePageRanges already reads: "15-27, 28-40". A chapter the contents
+    // One range per chapter, in page order, joined the way parsePageRanges
+    // already reads: "15-27, 40-52". A chapter the contents
     // page never paginated contributes nothing rather than sinking the rest —
     // the same best-effort rule as before, now applied per chapter.
-    const ranges = picked
+    //
+    // Neighbouring chapters are merged into one span ("15-27" + "28-40" ->
+    // "15-40"): with the whole book on offer, twenty-four ranges would
+    // otherwise be printed on the paper's header after "Pages".
+    const spans = picked
       .map((p) => chapters.find((x) => x.chapterNumber === p.number))
       .filter((c) => c && c.pageStart != null && c.pageEnd != null)
-      .map((c) => `${c.pageStart}-${c.pageEnd}`);
-    return ranges.length ? ranges.join(', ') : null;
+      .map((c) => [Number(c.pageStart), Number(c.pageEnd)])
+      .sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const [lo, hi] of spans) {
+      const last = merged[merged.length - 1];
+      if (last && lo <= last[1] + 1) last[1] = Math.max(last[1], hi);
+      else merged.push([lo, hi]);
+    }
+    return merged.length ? merged.map(([lo, hi]) => `${lo}-${hi}`).join(', ') : null;
   } catch (err) {
     logToFile('[assessment-flow] could not resolve chapter pages', {
       grade: state.grade, subject: state.subject,
@@ -1384,7 +1455,7 @@ async function handleBack(userId, screenId, flowToken) {
   if (screenId === 'QUESTIONS' || screenId === 'PAGES') {
     return screen('COVERAGE', {
       summary: summaryOf(state), has_chapters: true,
-      chapters: await chapterOptions(state), error: '',
+      ...(await chapterOptions(state)), error: '',
     });
   }
   return handleInit(userId, flowToken);
@@ -1398,5 +1469,6 @@ module.exports = {
   rebuildFromCompletion,
   // exported for tests
   _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES,
+    coverageLists, pickedChapterNumbers, compressRuns, NO_MORE_CHAPTERS_ID, CHAPTER_GROUP_CAP,
     paperIdFromToken, mergePageTicks, REVIEW_MARKER, SHAPE_SCREEN, navFit, NAV_MAX },
 };
