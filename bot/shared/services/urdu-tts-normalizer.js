@@ -38,7 +38,19 @@ function normalizeForUrduTTS(text) {
   out = out.replace(/(\*\*|__)(.+?)\1/g, '$2');
   out = out.replace(/(\*|_)(.+?)\1/g, '$2');
 
-  // 2. Spell inline 0–99 as English number words; leave larger numbers alone
+  // 2. A decimal is one number: "31.3" → "thirty-one point three", its fraction
+  //    read digit by digit ("2.05" → "two point zero five"). Spelled as two
+  //    separate numbers it reached the voice as "thirty-one.three" and was
+  //    heard as "thirty-one three". A dotted run such as a date (30.09.2026)
+  //    is not a decimal and is left to the integer rule below.
+  out = out.replace(/(?<![\d.])(\d+)\.(\d+)(?![.\d])/g, (m, whole, fraction) => {
+    const n = parseInt(whole, 10);
+    const wholeWords = n <= 99 ? numToWords(n) : whole;
+    const fractionWords = fraction.split('').map((d) => ONES[Number(d)]).join(' ');
+    return `${wholeWords} point ${fractionWords}`;
+  });
+
+  // 3. Spell inline 0–99 as English number words; leave larger numbers alone
   //    (rare in coaching copy, and less prone to the gibberish failure).
   out = out.replace(/\d+/g, (m) => {
     const n = parseInt(m, 10);

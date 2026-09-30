@@ -6,7 +6,7 @@
  *
  * The sibling reply path already clamps before it speaks. This one did not.
  *
- * Executes conductReflectiveConversation(); the synthesiser is spied at its
+ * Executes conductReflectiveConversation(); the voice gateway is spied at its
  * boundary.
  */
 
@@ -34,9 +34,9 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn(() => Promise.resolve()),
   sendAudio: jest.fn(() => Promise.resolve()),
 }));
-const mockSpeak = jest.fn(() => Promise.resolve(Buffer.from('a')));
-jest.mock('../../bot/shared/services/elevenlabs.service', () => ({
-  generateSpeechForLanguage: (...a) => mockSpeak(...a),
+const mockSpeak = jest.fn(() => Promise.resolve({ audio: Buffer.from('a'), mimeType: 'audio/ogg', extension: 'ogg', durationSec: 1 }));
+jest.mock('../../bot/shared/services/tts', () => ({
+  synthesize: (...a) => mockSpeak(...a),
 }));
 jest.mock('../../bot/shared/services/gpt5-mini.service', () => ({
   _generateReflectiveQuestionV12: jest.fn(() => Promise.resolve('آپ نے کیا محسوس کیا؟')),
@@ -77,7 +77,7 @@ describe('the reflective question is never spoken in an unoffered language', () 
     await ReflectiveConversationService.conductReflectiveConversation(SID, FROM, 2);
 
     expect(mockSpeak).toHaveBeenCalledTimes(1);
-    expect(mockSpeak.mock.calls[0][1]).toBe('en');
+    expect(mockSpeak.mock.calls[0][0].language).toBe('en');
   });
 
   test('an Urdu conversation still speaks Urdu', async () => {
@@ -85,7 +85,7 @@ describe('the reflective question is never spoken in an unoffered language', () 
 
     await ReflectiveConversationService.conductReflectiveConversation(SID, FROM, 2);
 
-    expect(mockSpeak.mock.calls[0][1]).toBe('ur');
+    expect(mockSpeak.mock.calls[0][0].language).toBe('ur');
   });
 
   test('a junk label degrades to the floor rather than reaching the synthesiser raw', async () => {
@@ -93,7 +93,7 @@ describe('the reflective question is never spoken in an unoffered language', () 
 
     await ReflectiveConversationService.conductReflectiveConversation(SID, FROM, 2);
 
-    expect(mockSpeak.mock.calls[0][1]).toBe('en');
+    expect(mockSpeak.mock.calls[0][0].language).toBe('en');
   });
 });
 

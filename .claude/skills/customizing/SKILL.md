@@ -35,6 +35,7 @@ is how customization silently breaks. So:
 | Pic-to-LP illustrated layout | module + template | `pic-to-lp/kieai-prompt-builder.service.js` (`SECTION_REGISTRY`, `THEME`) |
 | Reading benchmark numbers | config | `config/reading-benchmarks.js` |
 | Languages / branding | config | `language-prompts.js`, `branding.js` |
+| Who speaks voice notes (TTS provider / voice), per use case or all together | env + module | `services/tts/` (the voice gateway): `TTS_PROVIDER`, `TTS_PROVIDER_<USE_CASE>`; providers under `services/tts/providers/` |
 | Turn a feature on/off | env | set its key — `feature-availability.js`, `npm run doctor` |
 
 Full detail, file paths, and the test for each: **[`docs/customization.md`](../../../docs/customization.md)**.
