@@ -22,7 +22,7 @@ const { logToFile, logWarn } = require('../../utils/logger');
 const { reflectionProgress } = require('./reflection-progress');
 const GPT5MiniService = require('../gpt5-mini.service');
 const ContentService = require('../content.service');
-const AudioService = require('../audio.service');
+const tts = require('../tts');
 const WhatsAppService = require('../whatsapp.service');
 const CoachingSessionService = require('./coaching-session.service');
 const CoachingHelpersService = require('./coaching-helpers.service');
@@ -1588,11 +1588,16 @@ class ReportGeneratorService {
       }
 
       // Generate audio from script
-      const voiceBuffer = await AudioService.generateSpeechForLanguage(voiceScript, outputLanguage);
+      const spoken = await tts.synthesize({
+        text: voiceScript,
+        language: outputLanguage,
+        useCase: 'coaching',
+        site: 'report_voicenote',
+      });
 
       // Upload voice debrief to R2
       const voiceUrl = await uploadVoiceDebrief(
-        voiceBuffer,
+        spoken.audio,
         session.user_id,
         coachingSessionId,
         outputLanguage
@@ -1606,7 +1611,9 @@ class ReportGeneratorService {
         .update({
           voice_debrief_url: voiceUrl,
           voice_debrief_language: outputLanguage,
-          voice_debrief_duration_seconds: Math.round(voiceBuffer.length / 16000)
+          // The audio's own length. `bytes / 16000` assumed 128 kbps; voice notes
+          // are 64 kbps Ogg Opus, so it recorded about half the real duration.
+          voice_debrief_duration_seconds: Math.round(spoken.durationSec)
         })
         .eq('id', coachingSessionId);
 
