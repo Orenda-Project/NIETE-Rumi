@@ -101,6 +101,26 @@ Without all three, submissions fall through to the generic unknown-flow reply:
 Don't bounce the user to "Type /menu". Tag the action in `extension_message_response.params` and dispatch a
 contextual ack from the `nfm_reply` branch.
 
+### 12. Screen ids are letters and underscores only — no digits
+
+Meta refuses the upload with `PATTERN_MISMATCH` ("should only consist of alphabets and underscores") for a
+screen id such as `PART_1`, both in `screens[].id` and in `routing_model`. Name them `PART_ONE`, `STEP_TWO`.
+Component names and data keys may carry digits. A contract test over the generated JSON catches this before
+Meta does (see `tests/observe2/*-flow-contract.test.js`).
+
+### 13. One comparison per `If` condition — nest `If`s instead of `&&`
+
+Meta's condition parser mis-groups combined comparisons. `${form.x} != 'a' && ${form.x} != 'b'` is refused
+("Wrong positioning of operator '&&'"), and the parenthesised form is refused too ("Type mismatch in an
+equality operation between '(… != a)' and 'b'"). Put the second condition in an `If` inside the first one's
+`then`.
+
+### 14. Validate against Meta before you deploy the endpoint
+
+Uploading the JSON as an asset returns `validation_errors` at once, and needs no live endpoint. Only
+**publishing** needs the endpoint deployed. So upload to the draft first, fix everything Meta reports, and only
+then deploy and publish; otherwise a rename found at publish time costs a second deploy.
+
 ## Endpoint response formats
 
 ```js
