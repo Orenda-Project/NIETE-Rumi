@@ -77,7 +77,7 @@ const MIN_TERM = 2;
 // ── SQL ────────────────────────────────────────────────────────────────
 
 const OWNED_SCHEDULE_SQL = `
-  SELECT id, status, leader_user_id FROM observation_schedules WHERE id = $1 LIMIT 1
+  SELECT id, status, leader_user_id, scheduled_for, scheduled_slot FROM observation_schedules WHERE id = $1 LIMIT 1
 `;
 
 const EDIT_SCHEDULE_SQL = `
@@ -261,7 +261,12 @@ async function editSchedule(query, leaderUserId, scheduleId, input = {}, opts = 
 
   const { rows: done } = await query(EDIT_SCHEDULE_SQL, [scheduleId, leaderUserId, date, slot || null]);
   if (!done || !done[0]) throw new Error('Schedule not found');
-  return { id: done[0].id, date, slot: slot || null, updated: true };
+  // bd-xorfy: `changed` tells the route whether the teacher needs a "moved"
+  // notice — saving the same date and slot is not news to her.
+  const prevDate = row.scheduled_for instanceof Date
+    ? row.scheduled_for.toISOString().slice(0, 10) : String(row.scheduled_for || '').slice(0, 10);
+  const changed = prevDate !== date || (row.scheduled_slot || null) !== (slot || null);
+  return { id: done[0].id, date, slot: slot || null, updated: true, changed };
 }
 
 // ── R38 · own your school list ─────────────────────────────────────────

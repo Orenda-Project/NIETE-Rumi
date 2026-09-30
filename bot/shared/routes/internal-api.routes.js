@@ -1865,4 +1865,47 @@ router.post('/me/language', requireInternalKey, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/internal/observe/notify-teacher — bd-xorfy
+ *
+ * A visit booked, moved or cancelled on the portal is announced to the teacher
+ * by the bot, through the SAME notice service the WhatsApp flow uses. The portal
+ * cannot send it itself (it cannot require bot modules; see dashboard/services/training-bands.service.js).
+ *
+ * The row is re-read by id AND leader: the body carries only ids and a kind, so
+ * a hand-posted teacher, phone or date can never reach anybody's WhatsApp.
+ *
+ * Body   { scheduleId, leaderUserId, kind: 'scheduled'|'rescheduled'|'cancelled' }
+ * Errors 400 (bad kind / missing id), 401 (bad key), 404 (not her schedule)
+ * Ok     200 { success: true, sent }  — sent:false is a skip (flag off, no phone), not an error
+ */
+router.post('/observe/notify-teacher', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const scheduleId = String(body.scheduleId || '').trim();
+    const leaderUserId = String(body.leaderUserId || '').trim();
+    const kind = String(body.kind || '').trim();
+    const Notice = require('../services/observe/observe-teacher-notice.service');
+    if (!scheduleId || !leaderUserId || !['scheduled', 'rescheduled', 'cancelled'].includes(kind)) {
+      return res.status(400).json({ success: false, error: 'scheduleId, leaderUserId and a valid kind are required' });
+    }
+
+    const supabase = require('../config/supabase');
+    const { data: row, error } = await supabase
+      .from('observation_schedules')
+      .select('id, leader_user_id, teacher_ext_id, teacher_name, school_name, scheduled_for, scheduled_slot, status')
+      .eq('id', scheduleId)
+      .eq('leader_user_id', leaderUserId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) return res.status(404).json({ success: false, error: 'Schedule not found' });
+
+    const sent = await Notice.notifyTeacher(kind, row);
+    return res.json({ success: true, sent: sent === true });
+  } catch (error) {
+    logToFile('❌ Internal observe notify-teacher failed', { error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Could not notify the teacher' });
+  }
+});
+
 module.exports = router;
