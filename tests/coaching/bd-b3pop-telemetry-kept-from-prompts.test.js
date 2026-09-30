@@ -7,7 +7,9 @@
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({ sendMessage: jest.fn().mockResolvedValue(true), sendAudioFromUrl: jest.fn().mockResolvedValue(true) }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/storage/r2', () => ({ uploadVoiceDebrief: jest.fn(), uploadReportImage: jest.fn(), uploadReportPDF: jest.fn() }));
-jest.mock('../../bot/shared/services/audio.service', () => ({ generateSpeechForLanguage: jest.fn() }));
+jest.mock('../../bot/shared/services/tts', () => ({
+  synthesize: jest.fn().mockResolvedValue({ audio: Buffer.alloc(32000), mimeType: 'audio/ogg', extension: 'ogg', durationSec: 2 }),
+}));
 jest.mock('../../bot/shared/services/coaching/coaching-helpers.service', () => ({ determineOutputLanguage: jest.fn().mockResolvedValue('en') }));
 jest.mock('../../bot/shared/config/supabase', () => {
   const chain = { update: jest.fn(() => chain), select: jest.fn(() => chain), eq: jest.fn(() => chain), single: jest.fn(() => Promise.resolve({ data: null, error: null })), then: (resolve) => resolve({ data: null, error: null }) };
