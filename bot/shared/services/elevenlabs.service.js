@@ -165,6 +165,11 @@ class ElevenLabsService {
    * @returns {Promise<Buffer>} Audio buffer (MP3 or OGG format)
    */
   /**
+   * @deprecated Features no longer call this: every voice note goes through the
+   * voice gateway (services/tts), which uses generateSpeechWithVoice /
+   * generateSpeechOpenAI below as the ElevenLabs and OpenAI transports and holds
+   * the cassette seam. tests/setup/tts-single-seam.test.js stops new callers.
+   *
    * Cassette front (E2E_CASSETTE, staging only). This is the seam, not _postTts: the voice for a
    * language may come from ElevenLabs, Uplift or the OpenAI fallback (voiceConfig.provider), and
    * the E2E suite only cares that the SAME text in the SAME language yields the same audio.

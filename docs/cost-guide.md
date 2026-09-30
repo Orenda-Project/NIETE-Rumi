@@ -22,7 +22,7 @@ beyond hosting.
 | Feature | Provider | Key | Rough cost | Notes |
 |---------|----------|-----|-----------|-------|
 | Voice transcription (voice notes, coaching, reading) | Soniox | `SONIOX_API_KEY` | ~$25 | Per-minute audio transcription. |
-| Spoken replies (TTS) | ElevenLabs | `ELEVENLABS_API_KEY` | ~$5–50 | Scales with how much speech you generate. |
+| Spoken replies (TTS) | ElevenLabs, Soniox or OpenAI (`TTS_PROVIDER` picks) | `ELEVENLABS_API_KEY` / `SONIOX_API_KEY` | ~$5–50 | Scales with how much speech you generate; Soniox bills per hour of audio and is several times cheaper per note. |
 | Urdu / regional voices | Uplift | `UPLIFT_API_KEY` | varies | Alternative TTS for non-English. |
 | Reading pronunciation scoring | Azure Speech | `AZURE_SPEECH_KEY` | ~$25 | Only the English pronunciation path. |
 | Lesson plans (text) | Gamma | `GAMMA_API_KEY` | ~$50 | Per-plan generation; pre-generated curriculum LPs are free to serve. |
