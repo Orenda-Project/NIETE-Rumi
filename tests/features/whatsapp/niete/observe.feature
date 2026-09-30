@@ -542,3 +542,43 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # HOTS analysis prompt the same rule in Urdu. The model output is content-driven: assert no gendered form, never
     # a fixed sentence. Proven in tests/language/urdu-gender-neutral-copy.test.js and
     # bot/tests/observe/third-person-teacher.test.js. @wip.
+
+  @e2e @observe @wip @draft @P1
+  Scenario: Picking the teacher's lesson plan from the list asks me to confirm before it is used
+    Given the NIETE bot chat is open as a coach
+    And an observation I started is waiting at the lesson-plan step with the teacher's recent lesson plans listed
+    When I tap one of the recent lesson plans in the list
+    Then the bot replies "You have selected <the plan I tapped>. Do you want to proceed?"
+    And the reply shows that plan's grade, chapter and pages line under its name
+    And it offers exactly two buttons, "Yes" and "Change lesson plan"
+    And no "Lesson plan linked" message has arrived yet
+    When I tap "Yes"
+    Then the bot says the lesson plan is linked
+    And the analysis continues with that plan
+    # ICT feedback sheet, HITL row 189 (bd-2c1gj): one slip in the list used to link the wrong plan and queue
+    # the analysis at once. lp-list-selection.handler.js: on a leader_observation lp_select_ sends
+    # lessonPlan_confirm_prompt with lpconfirm_yes_{asset}_{session} / lpconfirm_no_{session}; the Yes tap
+    # re-enters the unchanged link path. Unit: tests/coaching/bd-2c1gj-lp-select-confirm.test.js. @wip.
+
+  @e2e @observe @wip @draft @P1
+  Scenario: Changing the lesson plan links nothing and returns to the lesson-plan list
+    Given the NIETE bot chat is open as a coach
+    And I tapped a recent lesson plan on an observation and was asked to confirm it
+    When I tap "Change lesson plan"
+    Then the bot sends the recent lesson-plan list again
+    And no lesson plan has been linked to the observation
+    And tapping a different plan asks me to confirm that one by name
+    # resendLpList (lp-step.service.js) re-sends the menu and writes nothing, so a late "Change lesson plan"
+    # cannot walk an already-analysed observation back to awaiting_lesson_plan.
+
+  @e2e @observe @wip @draft @negative @P2 @obsolete
+  Scenario: A teacher picking her own lesson plan is not asked to confirm
+    Given the NIETE bot chat is open as a teacher
+    And my own Classroom Coaching session is waiting at the lesson-plan step with my recent lesson plans listed
+    When I tap one of my recent lesson plans in the list
+    Then the bot says the lesson plan is linked straight away
+    And no "Do you want to proceed?" confirmation is sent
+    # The confirmation is for a coach choosing on someone else's behalf; self-serve keeps the one-tap pick.
+    # OBSOLETE 2026-09-30 (bd-2c1gj): the operator widened the confirmation to the teacher's own Digital Coach
+    # flow — the same list, the same slip. Replaced by coaching.feature "Picking my lesson plan from the list
+    # asks me to confirm before it is used".

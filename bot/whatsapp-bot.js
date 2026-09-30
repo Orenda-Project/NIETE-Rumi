@@ -910,6 +910,13 @@ app.post('/webhook', async (req, res) => {
         const sessionId = buttonId.replace('lessonplan_no_', '');
         await CoachingService.handleLessonPlanResponse(sessionId, from, false);
       }
+      // bd-2c1gj — "use this lesson plan?" after a coach picks from the LP list
+      // on an observation: "Yes" links it, "Change lesson plan" re-sends the menu.
+      else if (buttonId.startsWith('lpconfirm_')) {
+        const { handleLpConfirmTap } = require('./shared/services/coaching/lp-coaching/lp-list-selection.handler');
+        // R165: pass WHO tapped, as the list tap does.
+        await handleLpConfirmTap(buttonId, from, { userId: user?.id });
+      }
       // Classroom-photo prompt buttons (Phase 1C-B). The photo-prompt.service
       // emits these IDs but neither was previously routed → sessions got stuck
       // at status=awaiting_photo with no way for the teacher to advance.
