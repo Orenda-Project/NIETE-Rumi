@@ -18,6 +18,7 @@ function createFakeSupabase(seed = {}) {
       if (op === 'eq') return row[col] === val;
       if (op === 'is') return val === null ? row[col] == null : row[col] === val;
       if (op === 'gte') return String(row[col] || '') >= String(val);
+      if (op === 'not_in') return !String(val).replace(/[()]/g, '').split(',').includes(String(row[col]));
       return true;
     });
     const run = () => {
@@ -48,6 +49,7 @@ function createFakeSupabase(seed = {}) {
       eq(col, val) { q.filters.push(['eq', col, val]); return api; },
       is(col, val) { q.filters.push(['is', col, val]); return api; },
       gte(col, val) { q.filters.push(['gte', col, val]); return api; },
+      not(col, op, val) { if (op === 'in') q.filters.push(['not_in', col, val]); return api; },
       order(col, opts = {}) { q.order = { col, ascending: opts.ascending !== false }; return api; },
       limit(n) { q.limit = n; return api; },
       single() { q.mode = 'single'; return Promise.resolve(run()); },

@@ -535,6 +535,16 @@ class TranscriptionProcessorService {
     const env = deps.env || process.env;
     const gatesOn = env.OBSERVE_CAPTURE_GATES_ENABLED === 'true';
 
+    // /observe2: a recording linked to a field form goes to its own moments step. The coach took
+    // the photos and answered the lesson-plan question in the form, and the classic FICO draft is
+    // not what /observe2 sends, so the gates and the analysis below are skipped for it.
+    const observe2 = deps.observe2 || require('../observe/observe2/moments');
+    const o2 = await observe2.runForSession(coachingSessionId, from);
+    if (o2 && o2.handled) {
+      logToFile('✅ Transcription complete (observe2 path — moments step ran)', { coachingSessionId, action: o2.action });
+      return { action: 'observe2', result: o2 };
+    }
+
     if (!gatesOn) {
       const queueAnalysis = deps.queueAnalysis
         || ((sid, payload) => require('./coaching-job-queue.service').queueAnalysis(sid, payload));

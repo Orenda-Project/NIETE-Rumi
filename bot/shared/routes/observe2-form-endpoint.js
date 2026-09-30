@@ -11,7 +11,8 @@
  *   PART_1    checked (rules.validate) → refused under the field, or saved with the server time → PART_2
  *   PART_2    checked against Part 1 (children who had not spoken yet) → saved → AFTER
  *   AFTER     checked → sealed once (compare-and-set) → SEALED; then, after the response, the
- *             recording steps go to the chat and up to three photos are stored.
+ *             recording steps go to the chat, the check opens if the recording's moments are
+ *             already in, and up to three photos are stored.
  *   CONTINUE  → PART_2, AFTER or SEALED, from the record.
  *
  * The screens are English for the pilot; the chat message after the seal is in the coach's language.
@@ -162,10 +163,18 @@ async function afterSeal(form, photos) {
     } else {
       const WhatsAppService = require('../services/whatsapp.service');
       const S = observe2Strings(coach.preferred_language);
-      await WhatsAppService.sendMessage(coach.phone_number, S.sealed_chat(clock(form.sealed_at)));
+      const time = clock(form.sealed_at);
+      await WhatsAppService.sendMessage(coach.phone_number,
+        form.coaching_session_id ? S.sealed_chat_recording_in(time) : S.sealed_chat(time));
     }
   } catch (err) {
     logToFile('[observe2] the after-seal message failed', { formId: form.id, error: err.message }, 'error');
+  }
+  // The recording may have come first: then its moments are in, and the check opens now.
+  try {
+    await require('../services/observe/observe2/moments').onSealed(form);
+  } catch (err) {
+    logToFile('[observe2] opening the check after the seal failed', { formId: form.id, error: err.message }, 'error');
   }
   if (Array.isArray(photos) && photos.length) {
     try { await storePhotos(form, photos); } catch (err) {

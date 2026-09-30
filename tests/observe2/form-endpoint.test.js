@@ -180,6 +180,27 @@ describe('the seal', () => {
     expect(row(id).answers.priority).toBe('C8');
   });
 
+  test('the recording came first: sealing opens the check straight away', async () => {
+    process.env.OBSERVE2_CHECK_FLOW_ID = 'F-CHECK';
+    try {
+      const id = await toAfter();
+      Object.assign(row(id), { coaching_session_id: 'sess-1', moments_ready_at: '2026-09-30T05:30:00.000Z', rumi_moments: { moments: [{ id: 'ask_1' }, { id: 'ask_2' }] } });
+      await Endpoint.handleObserve2FormDataExchange(token(id), 'AFTER', AFTER_OK);
+      await flush();
+      expect(WhatsAppService.sendFlow).toHaveBeenCalledWith('923000000001', expect.objectContaining({ flowId: 'F-CHECK', flowToken: `coach-1:observe2-check:${id}` }));
+      const [, text] = WhatsAppService.sendMessage.mock.calls[0];
+      expect(text).not.toMatch(/stop the recorder/i);
+      expect(text).toMatch(/recording is already in/i);
+    } finally { delete process.env.OBSERVE2_CHECK_FLOW_ID; }
+  });
+
+  test('the recording has not come yet: no check at the seal', async () => {
+    const id = await toAfter();
+    await Endpoint.handleObserve2FormDataExchange(token(id), 'AFTER', AFTER_OK);
+    await flush();
+    expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
+  });
+
   test('never more than three photos are kept', async () => {
     const id = await toAfter();
     await Endpoint.handleObserve2FormDataExchange(token(id), 'AFTER', { ...AFTER_OK, photos: [photo(1), photo(2), photo(3), photo(4)] });
