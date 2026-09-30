@@ -230,3 +230,29 @@ describe('tts.synthesize — the E2E cassette sits at the gateway', () => {
     expect(axios.post).not.toHaveBeenCalled();
   });
 });
+
+describe('tts.synthesize — a vendor quirk the teacher no longer feels still shows in the logs', () => {
+  const { PassThrough } = require('stream');
+  const sonioxBody = ({ close }) => () => {
+    const s = new PassThrough();
+    if (close) s.end(SONIOX_UR); else s.write(SONIOX_UR); // the whole clip; closed, or left open as Soniox sometimes does
+    return { status: 200, data: s };
+  };
+
+  it('the ok event counts the parts whose Soniox response never closed', async () => {
+    process.env.TTS_PROVIDER = 'soniox';
+    process.env.SONIOX_API_KEY = 'sk-test';
+    routeAxios({ soniox: sonioxBody({ close: false }), elevenlabs: () => { throw new Error('elevenlabs must not be called'); } });
+    const out = await tts.synthesize({ text: 'یہ آواز کی جانچ ہے۔', language: 'ur', useCase: 'conversation', site: 'voice_reply' });
+    expect(out.provider).toBe('soniox');
+    expect(logEvent).toHaveBeenCalledWith('tts.synthesize.ok', expect.objectContaining({ provider: 'soniox', unclosed: 1 }));
+  });
+
+  it('a response that closes counts none', async () => {
+    process.env.TTS_PROVIDER = 'soniox';
+    process.env.SONIOX_API_KEY = 'sk-test';
+    routeAxios({ soniox: sonioxBody({ close: true }), elevenlabs: () => { throw new Error('elevenlabs must not be called'); } });
+    await tts.synthesize({ text: 'یہ آواز کی جانچ ہے۔', language: 'ur', useCase: 'conversation', site: 'voice_reply' });
+    expect(logEvent).toHaveBeenCalledWith('tts.synthesize.ok', expect.objectContaining({ provider: 'soniox', unclosed: 0 }));
+  });
+});
