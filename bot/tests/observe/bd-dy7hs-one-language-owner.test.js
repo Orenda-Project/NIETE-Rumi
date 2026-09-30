@@ -152,7 +152,10 @@ describe('bd-dy7hs — the teacher\'s own language decides her report', () => {
       expect.anything(), expect.anything(), expect.objectContaining({ language: 'ur' }));
     // …and the coach's own confirm chrome is English, not the teacher's Urdu.
     const buttons = WhatsAppService.sendInteractiveButtons.mock.calls[0][1];
-    expect(buttons.body).toBe(observeStrings('en').send_confirm_body);
+    expect(buttons.body).toBe(ObserveSend.buildSendConfirmButtons(SID, observeStrings('en'), {
+      name: 'Kamran Afzal', phone: TEACHER_PHONE,
+    }).body);
+    expect(buttons.body.startsWith('📨 To:')).toBe(true);
   });
 
   it('never leaks the coach\'s language into a teacher who has no account', async () => {
