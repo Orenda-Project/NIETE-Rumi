@@ -632,6 +632,10 @@ async function startDebriefFromAudio(user, from, audioId, observeState, opts = {
       error_class: null,
       failed_at: null,
       failure_notified_at: null,
+      // bd-zq0ea: the hash belongs to the recording, not the row — a new one
+      // starts without it, or a stale hash could match against itself later.
+      audio_hash: null,
+      duplicate_of_session_id: null,
     });
     await CoachingJobQueueService.queueObserveDebrief(sessionId, { from, audioId });
     await WhatsAppService.sendMessage(from, S.debrief_audio_received);
@@ -815,6 +819,64 @@ async function _recordTranscriptionFailure(sessionId, from, observerDebrief, err
 }
 
 /**
+ * bd-zq0ea — HITL row 185: has this coach already been coached on these exact
+ * bytes, for another observation? If so: tell them, keep THIS observation
+ * pending with the recording detached, and re-arm it for the right recording.
+ *
+ * The audio id is cleared on purpose: the debrief retry sweep re-queues every
+ * pending row that has an audio id and no transcript, so a kept id would be
+ * refused — and the coach re-messaged — every tick.
+ *
+ * Fails OPEN on a lookup error (the debrief is analysed as before). Never
+ * throws: it runs inside the transcription try, whose catch would record a
+ * refusal as a transcription failure.
+ *
+ * @returns {Promise<boolean>} true → the caller must not transcribe
+ */
+async function _refuseIfAlreadyAnalysed(session, sessionId, from, audioHash, observerDebrief, S) {
+  let prior = null;
+  try {
+    const { findPriorAnalysedDebrief } = require('../coaching/audio-hash-cache');
+    prior = await findPriorAnalysedDebrief(supabase, {
+      observerUserId: session.observer_user_id, audioHash, excludeSessionId: sessionId,
+    });
+  } catch (err) {
+    logToFile('⚠️ observe debrief: duplicate check failed — analysing normally (non-fatal)', {
+      sessionId, error: err && err.message,
+    }, 'warn');
+    return false;
+  }
+  if (!prior) return false;
+
+  try {
+    await _mergeObserverDebrief(sessionId, {
+      audio_id: null,
+      audio_mime: null,
+      duplicate_of_session_id: prior.id,
+      duplicate_refused_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    // Nothing is analysed either way. Left un-detached, the retry sweep picks the
+    // row up again later and this runs once more — a self-healing retry.
+    logToFile('❌ observe debrief: could not record a duplicate refusal', {
+      sessionId, priorSessionId: prior.id, error: err && err.message,
+    }, 'error');
+    return true;
+  }
+
+  try {
+    await armDebriefAudio(session.observer_user_id, sessionId, observerDebrief.guide_snapshot);
+    await WhatsAppService.sendMessage(from, S.debrief_duplicate_recording);
+  } catch (err) {
+    logToFile('⚠️ observe debrief: duplicate notice/re-arm failed', { sessionId, error: err && err.message }, 'warn');
+  }
+  logToFile('🔁 observe debrief: recording already analysed — resubmission refused', {
+    sessionId, priorSessionId: prior.id, audioHash,
+  });
+  return true;
+}
+
+/**
  * bd-28 (worker side) — transcribe the debrief recording and coach the coach.
  * Success: praise line + 2-wins-1-try card, debrief_status → 'done', rubric
  * booleans persisted for the study. Any failure keeps status 'pending' (the
@@ -889,10 +951,15 @@ async function processDebriefRecording(sessionId, payload = {}) {
       // as the teacher (reported by a coach, 2026-08-25).
       const { DEBRIEF_ROLES } = require('../speaker-roles');
       let transcription;
+      let audioHash = null;
       try {
         if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
         const audioData = await WhatsAppService.downloadMedia(audioId);
         fs.writeFileSync(tempAudioPath, audioData);
+        // bd-zq0ea (HITL row 185) — a debrief is analysed once. Checked on the
+        // downloaded bytes, BEFORE transcription, so a repeat costs no ASR/LLM.
+        audioHash = require('../coaching/audio-hash-cache').computeAudioHash(audioData);
+        if (await _refuseIfAlreadyAnalysed(session, sessionId, from, audioHash, observerDebrief, S)) return;
         transcription = await TranscriptionProcessorService.transcribeWithDiarization(
           tempAudioPath, { roles: DEBRIEF_ROLES });
       } catch (txErr) {
@@ -928,6 +995,9 @@ async function processDebriefRecording(sessionId, payload = {}) {
       // never loses the recording's content (and redelivery skips re-transcribing).
       await _mergeObserverDebrief(sessionId, {
         transcript,
+        // bd-zq0ea — what a later resubmission of these bytes matches on. It
+        // only counts as "analysed" once `feedback` lands beside it.
+        audio_hash: audioHash,
         transcript_language: transcription.language || null,
         diarization_confidence:
           (transcription.diarization && transcription.diarization.confidence) || null,
