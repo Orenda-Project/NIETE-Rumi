@@ -89,6 +89,7 @@ const { getPatchTeacherDetail } = require('../services/leader-teacher-detail.ser
 const { getLeaderObservations } = require('../services/leader-observations.service');
 // bd-2676 — the portal's WRITE side for scheduled visits (create + cancel).
 const { createSchedule, cancelSchedule } = require('../services/leader-schedule-write.service');
+const ObserveNotice = require('../services/observe-notice.service');
 // bd-88krt — coach self-service: edit a visit, own the school list, search by name.
 const {
   editSchedule, searchSchools, addSchool, removeSchool, searchTeachers,
@@ -1524,6 +1525,15 @@ router.post('/leader/schedules', requirePortalAuth, requireLeaderRole, async (re
       { teacherExtId, date, slot }
     );
     res.json({ success: true, ...result });
+    // bd-xorfy — tell the teacher on WhatsApp. Not awaited: the booking is
+    // saved and answered already; the client never throws.
+    if (result && result.id && result.changed !== false) {
+      ObserveNotice.notifyTeacher({
+        scheduleId: result.id,
+        leaderUserId: req.session.portalUserId,
+        kind: result.updated ? 'rescheduled' : 'scheduled',
+      });
+    }
   } catch (error) {
     // These are user-facing validation messages ("that date is in the past"),
     // so they are returned as 400s with the reason rather than a blank 500.
@@ -1541,6 +1551,11 @@ router.post('/leader/schedules/:id/cancel', requirePortalAuth, requireLeaderRole
       req.params.id
     );
     res.json({ success: true, ...result });
+    ObserveNotice.notifyTeacher({
+      scheduleId: req.params.id,
+      leaderUserId: req.session.portalUserId,
+      kind: 'cancelled',
+    });
   } catch (error) {
     console.error('leader/schedules cancel error:', error.message);
     res.status(400).json({ success: false, error: error.message });
@@ -1562,6 +1577,14 @@ router.post('/leader/schedules/:id/edit', requirePortalAuth, requireLeaderRole, 
     const result = await editSchedule(
       (sql, params) => pool.query(sql, params), req.session.portalUserId, req.params.id, { date, slot });
     res.json({ success: true, ...result });
+    // bd-xorfy — a real move is news to the teacher. Not awaited; never throws.
+    if (result && result.changed) {
+      ObserveNotice.notifyTeacher({
+        scheduleId: req.params.id,
+        leaderUserId: req.session.portalUserId,
+        kind: 'rescheduled',
+      });
+    }
   } catch (error) {
     console.error('leader/schedules edit error:', error.message);
     res.status(400).json({ success: false, error: error.message });
