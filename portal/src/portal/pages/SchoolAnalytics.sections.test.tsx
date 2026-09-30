@@ -132,8 +132,9 @@ describe("Observations", () => {
   it("explains both kinds in one simple sentence each", async () => {
     mount();
     const obs = await screen.findByTestId("observations");
-    expect(within(obs).getByTestId("def-human")).toHaveTextContent(/Human Observation.*watched the lesson in class/);
-    expect(within(obs).getByTestId("def-digital")).toHaveTextContent(/Digital Coach Observation.*recorded (her|their) own lesson/);
+    // Each card names its kind and, inside it, says what that kind is.
+    expect(within(obs).getByTestId("count-human")).toHaveTextContent(/Human Observation.*watched the lesson in class/i);
+    expect(within(obs).getByTestId("count-digital")).toHaveTextContent(/Digital Coach Observation.*recorded (her|their) own lesson/i);
   });
 
   it("counts each kind", async () => {
