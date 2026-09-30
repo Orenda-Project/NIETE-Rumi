@@ -37,6 +37,15 @@ const LIMITS = {
   rowTitle: 24,
   rowDescription: 72,
   sectionTitle: 24,
+  // A Flow message's CTA (`flow_cta`) — Meta's documented cap, no emoji.
+  flowCta: 20,
+  // A Flow NavigationList row's title / description / metadata: clipped on the
+  // device at 20, and nothing server-side notices (measured in this repo).
+  navRow: 20,
+  // A Flow RadioButtonsGroup option title.
+  radioTitle: 30,
+  // A Flow TextArea / TextInput helper-text.
+  helperText: 80,
 };
 
 /** Which catalog key lands in which WhatsApp field. */
@@ -52,6 +61,45 @@ const KEY_FIELD = {
   assessmentReviewOfferHeader: 'header',
   assessmentReviewOfferBody: 'body',
   assessmentReviewOfferButton: 'buttonText',
+  // Versioned editing (AG 1.2 items 1+2): the Edit button rides ON the paper.
+  assessmentEditButton: 'flowCta',
+  assessmentPaperBody: 'body',
+  assessmentVersionBody: 'body',
+  assessmentKeyCaption: 'body',
+  assessmentVersionMaking: 'body',
+  assessmentNoChanges: 'body',
+  assessmentDraftExpired: 'body',
+  assessmentRowAdd: 'navRow',
+  assessmentRowAddDesc: 'navRow',
+  assessmentRowMake: 'navRow',
+  assessmentRowPrev: 'navRow',
+  assessmentRowNext: 'navRow',
+  assessmentRowMark1: 'navRow',
+  assessmentRowRemoveQ: 'navRow',
+  assessmentRowBackToList: 'navRow',
+  assessmentOptionNotSet: 'radioTitle',
+  assessmentAnswerHint: 'helperText',
+};
+
+/**
+ * The ONE string allowed to sit exactly on its cap: the Edit button's CTA,
+ * "Edit questions/marks", is operator-approved copy measured at 20/20 code
+ * points (Urdu 19/20). If a reviewer refuses the exemption the fallback copy
+ * is "Edit paper".
+ */
+const HEADROOM_EXEMPT = new Set(['assessmentEditButton']);
+
+/**
+ * Row strings with placeholders are measured RENDERED, with the widest values a
+ * paper can produce (50 questions, 3-digit marks), because the template's own
+ * length says nothing about what reaches the device.
+ */
+const ROW_TEMPLATES = {
+  assessmentRowMakeDesc: { count: 50, marks: 150 },
+  assessmentRowPrevDesc: { from: 33, to: 48 },
+  assessmentRowNextDesc: { from: 49, to: 50, total: 50 },
+  assessmentRowRemoved: { marks: 15 },
+  assessmentRowMarks: { marks: 150 },
 };
 
 const len = (s) => [...s].length;
@@ -73,9 +121,31 @@ describe('ux-strings — every picker string fits its WhatsApp field', () => {
     // making that edit will not be looking at this file.
     for (const [key, field] of Object.entries(KEY_FIELD)) {
       if (field === 'body') continue; // 1024 is not a realistic constraint here
+      if (HEADROOM_EXEMPT.has(key)) continue; // measured and approved; see above
       for (const lang of Object.keys(UX_STRINGS[key])) {
         expect(len(UX_STRINGS[key][lang])).toBeLessThanOrEqual(LIMITS[field] - 5);
       }
+    }
+  });
+});
+
+describe('versioned-editing list rows fit the 20-code-point row, rendered', () => {
+  const { resolveUx } = require('../../bot/shared/config/ux-strings');
+  for (const [key, params] of Object.entries(ROW_TEMPLATES)) {
+    for (const lang of Object.keys(UX_STRINGS[key] || { en: 1, ur: 1 })) {
+      it(`${key} fits in ${lang} with the widest values`, () => {
+        expect(UX_STRINGS[key]).toBeTruthy();
+        expect(len(resolveUx(key, { language: lang, params }))).toBeLessThanOrEqual(LIMITS.navRow);
+      });
+    }
+  }
+
+  it('the Edit button CTA fits flow_cta in every language, and carries no emoji', () => {
+    for (const [lang, v] of Object.entries(UX_STRINGS.assessmentEditButton)) {
+      expect([lang, len(resolveUx('assessmentEditButton', { language: lang }))])
+        .toEqual([lang, expect.any(Number)]);
+      expect(len(resolveUx('assessmentEditButton', { language: lang }))).toBeLessThanOrEqual(LIMITS.flowCta);
+      expect(/\p{Extended_Pictographic}/u.test(v)).toBe(false);
     }
   });
 });

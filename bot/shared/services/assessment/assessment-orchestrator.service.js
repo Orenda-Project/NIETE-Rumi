@@ -50,6 +50,8 @@ const ENV = globalThis.process.env;
 // service. Was copied verbatim into three files.
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 const { resolveUx } = require('../../config/ux-strings');
+const Delivery = require('./assessment-delivery');
+const { isAssessmentVersionsEnabled } = require('../../config/feature-flags');
 
 /**
  * What she is told, per failure. Each one names the thing she can change; a
@@ -223,9 +225,13 @@ async function buildPaper(job, user = {}) {
       contentSource, questionCount, totalMarks, questionTypes, includeAnswerKey: true, seenCount,
     });
 
+    // With versioned editing the generated row IS version 1 and is never
+    // rewritten, so the frozen copy is redundant. Until the flag is on, the old
+    // in-place edit path still needs it to keep the model's paper recoverable.
+    const versioned = await isAssessmentVersionsEnabled();
     await _patchPaper(paperId, {
       exam_json: generated.examJson,
-      original_exam_json: generated.examJson,
+      ...(versioned ? {} : { original_exam_json: generated.examJson }),
       question_count: generated.questionCount,
       model: generated.tokenData?.model,
       input_tokens: generated.tokenData?.inputTokens,
@@ -290,6 +296,7 @@ async function buildPaper(job, user = {}) {
       renderer,
       chapterTitle: source.chapterTitle || null,
       pageReference: source.pageReference,
+      versioned,
     };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
@@ -404,7 +411,24 @@ async function process(job) {
     // "your paper is ready 👇" sent BEFORE the document is a promise made by a
     // step that has not run yet, and when the send failed that is exactly what
     // she was left holding.
-    const sent = await WhatsAppService.sendDocumentByLink(phone, url, name, caption);
+    // Versioned editing: the paper carries its own Edit button — one message,
+    // the PDF as the header of a Flow message whose button opens the list for
+    // THIS row (version 1). Otherwise, exactly the document it always was.
+    const versioned = built.versioned === true;
+    let sent;
+    if (versioned) {
+      const title = [`Grade ${grade} ${SUBJECT_LABEL[subject] || subject}`, chapterTitle].filter(Boolean).join(' · ');
+      const delivered = await Delivery.sendPaperWithEditButton({
+        phone, url, filename: name, caption, user,
+        body: resolveUx('assessmentPaperBody', {
+          user, params: { title, count: questionCount, marks: built.marks ?? 0 },
+        }),
+        flowToken: paperId ? `${userId}:assessment-review:${paperId}` : null,
+      });
+      sent = delivered.sent;
+    } else {
+      sent = await WhatsAppService.sendDocumentByLink(phone, url, name, caption);
+    }
     if (!sent) {
       throw Object.assign(new Error('sendDocumentByLink returned falsy'),
         { code: 'SEND_FAILED' });
@@ -435,7 +459,9 @@ async function process(job) {
     // AFTER the document — a prompt sent before the send is a promise made by a
     // step that has not run yet — and it can only ever be an addition: a paper
     // that arrived is delivered whether or not she is offered the trim.
-    if (paperId) {
+    //
+    // Not with versioned editing: the Edit button is already ON the paper.
+    if (paperId && !versioned) {
       try {
         const flowId = reviewFlowId();
         if (flowId) {

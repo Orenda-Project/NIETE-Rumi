@@ -1855,12 +1855,6 @@
   },
   {
     "file": "bot/shared/services/whatsapp.service.js",
-    "line": 1646,
-    "snippet": "logToFile('❌ Error sending WhatsApp Flow', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/services/whatsapp.service.js",
     "line": 1864,
     "snippet": "logToFile('❌ Style carousel template FAILED - using fallback list', {",
     "occurrence": 0

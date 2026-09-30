@@ -2573,6 +2573,90 @@ const UX_STRINGS = {
     en: 'Fill in the blanks.',
     ur: 'خالی جگہ پُر کریں۔',
   },
+
+  /*
+   * Versioned editing — the Edit button rides ON the paper (one interactive
+   * Flow message whose header is the PDF), the ✓/✗ question list, and every
+   * "Make my paper" is a new version.
+   *
+   * Caps, in code points: flow_cta 20 (no emoji), body 1024, a Flow
+   * NavigationList row's title/description 20 (clipped on the device), a radio
+   * option title 30, helper-text 80. Row strings with placeholders are
+   * measured RENDERED with the widest values in
+   * tests/config/ux-strings-whatsapp-limits.test.js. The Urdu keeps the bot's
+   * own voice ("میں … دوں گی") and is otherwise impersonal. Arrows follow the
+   * reading direction: in Urdu "next" points left.
+   */
+  assessmentEditButton: {
+    // Operator-approved copy, exactly 20/20 — the one headroom exemption.
+    en: 'Edit questions/marks',
+    ur: 'سوال اور نمبر بدلیں',
+  },
+  assessmentPaperBody: {
+    en: "{title}\n{count} questions · {marks} marks\n\nTap the button to change questions, marks or answers. I'll make a new version.",
+    ur: '{title}\n{count} سوال · {marks} نمبر\n\nسوال، نمبر یا جواب بدلنے کے لیے بٹن دبائیں۔ میں نیا ورژن بنا دوں گی۔',
+  },
+  assessmentVersionBody: {
+    en: "{title}\nVersion {version} (from version {parent}) · {count} questions · {marks} marks\n\nTap the button to change it again. Every version stays as it is.",
+    ur: '{title}\nورژن {version} (ورژن {parent} سے) · {count} سوال · {marks} نمبر\n\nدوبارہ بدلنے کے لیے بٹن دبائیں۔ ہر ورژن ویسا ہی محفوظ رہتا ہے۔',
+  },
+  assessmentKeyCaption: {
+    en: 'Answer key · {title}',
+    ur: 'جوابی کلید · {title}',
+  },
+  assessmentVersionMaking: {
+    en: '📝 Making your new version — a few seconds.',
+    ur: '📝 نیا ورژن بن رہا ہے — چند سیکنڈ۔',
+  },
+  assessmentNoChanges: {
+    en: "You didn't change anything, so here is the same paper again.",
+    ur: 'کوئی تبدیلی نہیں ہوئی، اس لیے وہی پرچہ دوبارہ بھیج رہی ہوں۔',
+  },
+  assessmentDraftExpired: {
+    en: 'Your changes timed out. Tap “Edit questions/marks” under the paper to start again.',
+    ur: 'تبدیلیوں کا وقت ختم ہو گیا۔ دوبارہ شروع کرنے کے لیے پرچے کے نیچے “سوال اور نمبر بدلیں” دبائیں۔',
+  },
+
+  // The ✓/✗ list's rows (NavigationList, 20 code points).
+  assessmentRowAdd: { en: '＋ Add question', ur: '＋ نیا سوال' },
+  assessmentRowAddDesc: { en: 'Short/long/MCQ', ur: 'مختصر/طویل/MCQ' },
+  assessmentRowMake: { en: '✅ Make my paper', ur: '✅ پرچہ بنائیں' },
+  assessmentRowMakeDesc: { en: '{count} Qs · {marks} marks', ur: '{count} سوال · {marks} نمبر' },
+  assessmentRowPrev: { en: '← Previous', ur: '→ پچھلے سوال' },
+  assessmentRowPrevDesc: { en: 'Qs {from}–{to}', ur: 'سوال {from}–{to}' },
+  assessmentRowNext: { en: 'Next page →', ur: 'اگلے سوال ←' },
+  assessmentRowNextDesc: { en: 'Qs {from}–{to} of {total}', ur: 'سوال {from}–{to} / {total}' },
+  assessmentRowRemoved: { en: 'removed · {marks}', ur: 'ہٹایا گیا · {marks}' },
+  assessmentRowMarks: { en: '{marks} marks', ur: '{marks} نمبر' },
+  assessmentRowMark1: { en: '1 mark', ur: '1 نمبر' },
+  assessmentRowRemoveQ: { en: '🗑 Remove this', ur: '🗑 سوال ہٹائیں' },
+  assessmentRowBackToList: { en: '↩ Back to list', ur: '↩ فہرست پر واپس' },
+
+  // Edit screens.
+  assessmentOptionNew: { en: 'Option {n} (new)', ur: 'نیا جواب {n}' },
+  assessmentOptionNotSet: { en: '— not set —', ur: '— طے نہیں —' },
+  assessmentAnswerHint: { en: 'Goes in the answer key.', ur: 'یہ جوابی کلید میں جائے گا۔' },
+  assessmentAddPickType: { en: 'Choose what kind of question to add.', ur: 'پہلے سوال کی قسم چنیں۔' },
+  assessmentRemovedHeading: { en: 'Removed from the paper', ur: 'پرچے سے ہٹایا گیا' },
+
+  // The DONE screen before "Make my paper".
+  assessmentDoneSummary: { en: '{count} questions · {marks} marks', ur: '{count} سوال · {marks} نمبر' },
+  assessmentDoneNoChanges: {
+    en: 'No changes yet. Make my paper sends the same paper again.',
+    ur: 'ابھی کوئی تبدیلی نہیں۔ "پرچہ بنائیں" وہی پرچہ دوبارہ بھیجے گا۔',
+  },
+  assessmentDoneEdited: { en: '{n} edited', ur: '{n} بدلے گئے' },
+  assessmentDoneRemoved: { en: '{n} removed', ur: '{n} ہٹائے گئے' },
+  assessmentDoneAdded: { en: '{n} added', ur: '{n} نئے' },
+  assessmentDoneRestored: { en: '{n} brought back', ur: '{n} واپس لائے گئے' },
+  assessmentDoneNote: {
+    en: 'A new version is made from version {version}. Version {version} stays as it is.',
+    ur: 'ورژن {version} سے نیا ورژن بنے گا۔ ورژن {version} ویسا ہی رہے گا۔',
+  },
+  assessmentDoneEmpty: {
+    en: 'Keep at least one question on the paper.',
+    ur: 'پرچے پر کم از کم ایک سوال رکھیں۔',
+  },
 };
 
 /**

@@ -23,6 +23,8 @@ const Edit = require('./assessment-edit');
 const { rendererFor } = require('./assessment-format');
 const r2 = require('../../storage/r2');
 const WhatsAppService = require('../whatsapp.service');
+const Delivery = require('./assessment-delivery');
+const { resolveUx } = require('../../config/ux-strings');
 
 const SUBJECT_LABEL = {
   english: 'English', urdu: 'Urdu', maths: 'Maths', islamiat: 'Islamiat',
@@ -319,4 +321,295 @@ async function saveEdit({ paperId, userId, questionId, edit }) {
   return { status: 'ok', questionId };
 }
 
-module.exports = { rerender, listQuestions, saveEdit, fileName, TEACHER_MESSAGE };
+// ── Versions ────────────────────────────────────────────────────────────────
+//
+// Every "Make my paper" is a NEW row that names the row it was edited from
+// (`edited_from`), and no code path here rewrites `exam_json` of a row that is
+// ready. The family is every row with the same request_id: a version copies
+// its parent's request_id and attempt (V1.5.6 narrows the unique index to
+// generated rows). The version number is worked out, never stored.
+//
+// The three functions above (listQuestions, rerender, saveEdit) are the old
+// in-place path and stay only while assessment_versions_enabled is off.
+
+const VERSION_COLUMNS = 'id, status, exam_json, request_id, attempt, edited_from, created_at, '
+  + 'file_r2_key, answer_key_r2_key, question_count, total_marks, '
+  + 'assessment_requests!inner(id, user_id, grade_code, subject_code, chapter_number, '
+  + 'page_ranges, output_format, has_answer_lines, textbook_id)';
+
+/** A version, with its request — only if it is hers (checked in the query). */
+async function loadVersion({ paperId, userId }) {
+  if (!paperId) return { code: 'NOT_FOUND' };
+  const { data, error } = await supabase
+    .from('assessment_papers')
+    .select(VERSION_COLUMNS)
+    .eq('id', paperId)
+    .maybeSingle();
+  if (error || !data) {
+    if (error) logToFile('[assessment-revision] version lookup failed', { paperId, error: error.message });
+    return { code: 'NOT_FOUND' };
+  }
+  if (data.assessment_requests?.user_id !== userId) return { code: 'NOT_FOUND' };
+  if (data.status !== 'ready') return { code: 'NOT_READY' };
+  return { paper: data };
+}
+
+/**
+ * Which version this row is. The generated row is 1; any other is 1 + the
+ * number of ready non-generated rows in the family created no later than it
+ * (itself included once it is ready). Fixed once the row exists, so two edits
+ * racing each other still get distinct numbers by created_at.
+ */
+async function versionNumberOf(paper) {
+  if (!paper || !paper.edited_from) return 1;
+  const { count, error } = await supabase
+    .from('assessment_papers')
+    .select('id', { count: 'exact', head: true })
+    .eq('request_id', paper.request_id)
+    .eq('status', 'ready')
+    .not('edited_from', 'is', null)
+    .lte('created_at', paper.created_at)
+    .neq('id', paper.id);
+  if (error) {
+    logToFile('[assessment-revision] version count failed', { paperId: paper.id, error: error.message });
+    return null;
+  }
+  return 2 + (count || 0);
+}
+
+/** Everything the ✓/✗ list needs: the version, its number, its questions. */
+async function listVersionItems({ paperId, userId }) {
+  const { paper, code } = await loadVersion({ paperId, userId });
+  if (!paper) return { code };
+  return { paper, version: await versionNumberOf(paper), items: Selection.indexQuestions(paper.exam_json) };
+}
+
+async function _chapterTitle(req, grade, subject) {
+  if (req?.chapter_number == null) return null;
+  try {
+    const chapters = await require('./book-content.service').listChapters({ grade, subject });
+    const hit = (chapters || []).find((c) => Number(c.chapterNumber) === Number(req.chapter_number));
+    return hit?.title || null;
+  } catch (err) {
+    logToFile('[assessment-revision] chapter title lookup failed', { error: err.message });
+    return null;
+  }
+}
+
+async function _teacher(userId, knownPhone) {
+  let phone = knownPhone || null;
+  let schoolName = null;
+  try {
+    const { data } = await supabase.from('users')
+      .select('phone_number, school_name').eq('id', userId).maybeSingle();
+    phone = phone || data?.phone_number || null;
+    schoolName = data?.school_name || null;
+  } catch (err) {
+    logToFile('[assessment-revision] user lookup failed', { userId, error: err.message });
+  }
+  return { phone, schoolName };
+}
+
+function _say(phone, budget) {
+  return async (code) => {
+    if (!phone) return;
+    try {
+      await WhatsAppService.sendMessage(phone, TEACHER_MESSAGE[code] || FALLBACK_MESSAGE, { budget });
+    } catch (err) {
+      logToFile('[assessment-revision] could not send the apology', { error: err.message });
+    }
+  };
+}
+
+/** "Grade 3 Maths · The Thirsty Crow" — what the document is. */
+function _title({ grade, subject, chapterTitle }) {
+  return [`Grade ${grade} ${SUBJECT_LABEL[subject] || subject}`, chapterTitle].filter(Boolean).join(' · ');
+}
+
+/**
+ * Make a NEW version from her draft tree and hand it over.
+ *
+ * INSERT, never UPDATE of the parent: the version she edited from stays exactly
+ * as it was, and so does every older one. The new row is inserted `generating`
+ * and becomes `ready` once its paper and key are stored; the paper then goes
+ * out WITH its Edit button (token naming the new row) and the key after it.
+ */
+async function createVersion({ parentId, userId, tree, phone: knownPhone, user = null, budget = null }) {
+  const loaded = await loadVersion({ paperId: parentId, userId });
+  const { phone, schoolName } = loaded.paper ? await _teacher(userId, knownPhone) : { phone: knownPhone || null };
+  const say = _say(phone, budget);
+  if (!loaded.paper) {
+    await say(loaded.code);
+    return { status: 'failed', code: loaded.code };
+  }
+  const parent = loaded.paper;
+  const req = parent.assessment_requests || {};
+  const { grade, subject, pageRanges, format, answerLines } = coverageOf(req);
+
+  const active = Selection.activeTree(tree);
+  const questions = Renderer.collectQuestions(active);
+  if (!questions.length) {
+    await say('EMPTY_SELECTION');
+    return { status: 'failed', code: 'EMPTY_SELECTION' };
+  }
+  const marks = Renderer.totalMarks(questions);
+
+  const { data: row, error: insErr } = await supabase.from('assessment_papers')
+    .insert({
+      request_id: parent.request_id,
+      attempt: parent.attempt,
+      edited_from: parent.id,
+      status: 'generating',
+      exam_json: tree,
+      question_count: questions.length,
+      total_marks: Number.isFinite(marks) ? marks : null,
+    })
+    .select('id, created_at, request_id, edited_from')
+    .single();
+  if (insErr || !row?.id) {
+    logToFile('[assessment-revision] could not open the version row', { parentId, error: insErr?.message });
+    await say('UNKNOWN');
+    return { status: 'failed', code: 'INSERT_FAILED' };
+  }
+  const paperId = row.id;
+
+  try {
+    const [version, parentVersion] = await Promise.all([versionNumberOf(row), versionNumberOf(parent)]);
+    const chapterTitle = await _chapterTitle(req, grade, subject);
+    const renderer = rendererFor(format);
+    const common = { examJson: active, grade, subject, schoolName, pageReference: pageRanges, chapterTitle };
+
+    let buffer;
+    let keyBuffer;
+    try {
+      buffer = await renderer.render(Renderer.renderPaper({ ...common, answerLines }));
+      keyBuffer = await renderer.render(Renderer.renderAnswerKey(common));
+    } catch (err) {
+      throw Object.assign(err, { code: 'RENDER_FAILED' });
+    }
+
+    const v = version ? `_v${version}` : '_Edited';
+    const name = fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: v });
+    const keyName = fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: `${v}_AnswerKey` });
+    let key;
+    let keyKey;
+    try {
+      key = await r2.uploadExamBuffer({ buffer, userId, examId: paperId, filename: name });
+      keyKey = await r2.uploadExamBuffer({ buffer: keyBuffer, userId, examId: paperId, filename: keyName });
+    } catch (err) {
+      throw Object.assign(err, { code: 'UPLOAD_FAILED' });
+    }
+
+    await _patch(paperId, {
+      status: 'ready', file_r2_key: key, answer_key_r2_key: keyKey, ready_at: new Date().toISOString(),
+    });
+
+    const title = _title({ grade, subject, chapterTitle });
+    const caption = `${title} · ${questions.length} questions`;
+    const body = resolveUx('assessmentVersionBody', {
+      user,
+      params: { title, version: version || '?', parent: parentVersion || '?', count: questions.length, marks },
+    });
+    const url = await r2.getPresignedUrl(r2.buildR2PublicUrl(key), 3600);
+    const delivered = await Delivery.sendPaperWithEditButton({
+      phone, url, filename: name, caption, body, user, budget,
+      flowToken: `${userId}:assessment-review:${paperId}`,
+    });
+    if (!delivered.sent) {
+      throw Object.assign(new Error('paper send returned falsy'), { code: 'SEND_FAILED' });
+    }
+
+    const keyUrl = await r2.getPresignedUrl(r2.buildR2PublicUrl(keyKey), 3600);
+    const answerKeySent = await Delivery.sendAnswerKey({
+      phone, url: keyUrl, filename: keyName, caption: resolveUx('assessmentKeyCaption', { user, params: { title } }),
+    });
+
+    logToFile('[assessment-revision] version delivered', {
+      userId, paperId, parentId, version, parentVersion, questions: questions.length, marks,
+      mode: delivered.mode, answerKeySent,
+    });
+    return {
+      status: 'ready', paperId, version, parentVersion, questionCount: questions.length, marks, answerKeySent,
+    };
+  } catch (err) {
+    const code = err.code || 'UNKNOWN';
+    logToFile('[assessment-revision] failed', { userId, paperId, parentId, code, error: err.message });
+    await _patch(paperId, { status: 'failed', error_code: code, error_detail: String(err.message || '').slice(0, 200) });
+    await say(code);
+    return { status: 'failed', code, paperId };
+  }
+}
+
+/**
+ * "Make my paper" with nothing changed: the SAME version again, with its key
+ * and its Edit button. No row is inserted — a version identical to its parent
+ * would only be noise in the family.
+ */
+async function resendVersion({ paperId, userId, phone: knownPhone, user = null, budget = null }) {
+  const loaded = await loadVersion({ paperId, userId });
+  const { phone, schoolName } = await _teacher(userId, knownPhone);
+  const say = _say(phone, budget);
+  if (!loaded.paper) {
+    await say(loaded.code);
+    return { status: 'failed', code: loaded.code };
+  }
+  const p = loaded.paper;
+  if (!p.file_r2_key) {
+    await say('NOT_FOUND');
+    return { status: 'failed', code: 'NO_FILE' };
+  }
+  const req = p.assessment_requests || {};
+  const { grade, subject, pageRanges, format } = coverageOf(req);
+  const chapterTitle = await _chapterTitle(req, grade, subject);
+  const version = await versionNumberOf(p);
+  const questions = Renderer.collectQuestions(p.exam_json);
+  const marks = Renderer.totalMarks(questions);
+  const title = [_title({ grade, subject, chapterTitle }), version > 1 ? `Version ${version}` : null]
+    .filter(Boolean).join(' · ');
+  const name = String(p.file_r2_key).split('/').pop();
+
+  const url = await r2.getPresignedUrl(r2.buildR2PublicUrl(p.file_r2_key), 3600);
+  const delivered = await Delivery.sendPaperWithEditButton({
+    phone, url, filename: name, caption: `${title} · ${questions.length} questions`, user, budget,
+    body: resolveUx('assessmentPaperBody', { user, params: { title, count: questions.length, marks } }),
+    flowToken: `${userId}:assessment-review:${paperId}`,
+  });
+  if (!delivered.sent) {
+    await say('SEND_FAILED');
+    return { status: 'failed', code: 'SEND_FAILED' };
+  }
+
+  // A key is sent with every version. One that predates stored keys is built
+  // now from this version's own tree and recorded (the tree is not touched).
+  let keyKey = p.answer_key_r2_key;
+  if (!keyKey) {
+    try {
+      const renderer = rendererFor(format);
+      const keyBuffer = await renderer.render(Renderer.renderAnswerKey({
+        examJson: Selection.activeTree(p.exam_json), grade, subject, schoolName, pageReference: pageRanges, chapterTitle,
+      }));
+      keyKey = await r2.uploadExamBuffer({
+        buffer: keyBuffer, userId, examId: paperId,
+        filename: fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: `_v${version}_AnswerKey` }),
+      });
+      await _patch(paperId, { answer_key_r2_key: keyKey });
+    } catch (err) {
+      logToFile('[assessment-revision] key for resend failed', { paperId, error: err.message });
+    }
+  }
+  let answerKeySent = false;
+  if (keyKey) {
+    const keyUrl = await r2.getPresignedUrl(r2.buildR2PublicUrl(keyKey), 3600);
+    answerKeySent = await Delivery.sendAnswerKey({
+      phone, url: keyUrl, filename: String(keyKey).split('/').pop(),
+      caption: resolveUx('assessmentKeyCaption', { user, params: { title } }),
+    });
+  }
+  logToFile('[assessment-revision] version re-sent unchanged', { userId, paperId, version, answerKeySent });
+  return { status: 'resent', paperId, version, questionCount: questions.length, marks, answerKeySent };
+}
+
+module.exports = {
+  rerender, listQuestions, saveEdit, fileName, TEACHER_MESSAGE,
+  loadVersion, versionNumberOf, listVersionItems, createVersion, resendVersion,
+};
