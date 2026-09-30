@@ -21,15 +21,14 @@ const AttendanceSection = ({ presence, audience = 'principal' }: {
       <div className="flex items-center gap-2 mb-6">
         <UserCheck className="w-5 h-5 text-accent" />
         <h2 className="text-2xl font-light">Attendance</h2>
-        {!mine && (
-          <Link
-            to="/portal/leader/attendance"
-            data-testid="attendance-detail-link"
-            className="ml-auto text-sm font-medium text-accent hover:underline"
-          >
-            See all attendance →
-          </Link>
-        )}
+        {/* Each audience's own full page: the school's, or her classes and her days. */}
+        <Link
+          to={mine ? '/portal/attendance' : '/portal/leader/attendance'}
+          data-testid={mine ? 'my-attendance-link' : 'attendance-detail-link'}
+          className="ml-auto text-sm font-medium text-accent hover:underline"
+        >
+          {mine ? 'See each day →' : 'See all attendance →'}
+        </Link>
       </div>
       <p data-testid="presence-help" className="text-muted-foreground text-sm mb-6">
         {mine

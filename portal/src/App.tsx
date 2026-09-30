@@ -137,6 +137,7 @@ const App = () => {
                 one school's numbers to a multi-school role. */}
             <Route path="/portal/leader/school-analytics" element={<SchoolAnalytics />} />
             <Route path="/portal/leader/attendance" element={<SchoolAttendance />} />
+            <Route path="/portal/attendance" element={<SchoolAttendance audience="teacher" />} />
             <Route path="/portal/leader/lessons" element={<SchoolLessons />} />
             <Route path="/portal/leader/teacher/:id" element={<LeaderTeacherDetail />} />
 

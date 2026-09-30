@@ -1063,6 +1063,111 @@ router.get('/leader/teacher/:id', requirePortalAuth, requireLeaderRole, async (r
 });
 
 /**
+ * The attendance window: ?from=&to= (inclusive dates), defaulting to the last
+ * 30 days. Explicit and bounded rather than all-time — an unbounded window
+ * makes "of how many days?" unanswerable, which is the whole failure the
+ * attendance view exists to fix.
+ */
+function attendanceWindow(query = {}) {
+  const today = new Date();
+  const defaultFrom = new Date(today.getTime() - 29 * 86400000);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(query.from || '') ? query.from : iso(defaultFrom);
+  const to = /^\d{4}-\d{2}-\d{2}$/.test(query.to || '') ? query.to : iso(today);
+  return { from, to };
+}
+
+/**
+ * The attendance detail for a set of teachers: their classes' registers
+ * (students) and their own days (staff), each as merged groups and by day.
+ * Shared by the principal's page and a teacher's own page, so both read the
+ * same bars from the same rules.
+ */
+async function buildAttendanceReport(userIds, from, to) {
+  const [studentRows, staffRows] = await Promise.all([
+    // class_name already contains the section — appending it yields
+    // "Grade 2 - A-A" (measured on prod).
+    pool.query(
+      `SELECT s.session_date::text AS date,
+              COALESCE(sl.class_name, 'Unnamed class') AS "group",
+              s.total_students AS total,
+              s.present_count  AS present
+         FROM attendance_sessions s
+         LEFT JOIN student_lists sl ON sl.id = s.list_id
+        WHERE s.user_id = ANY($1::uuid[])
+          AND s.session_date BETWEEN $2::date AND $3::date
+        ORDER BY s.session_date ASC`,
+      [userIds, from, to]
+    ),
+    // Staff: one "group" per teacher, so the same summariser serves both.
+    // present/absent are per-person, hence total 1 per row; leave is NOT an
+    // absence and is excluded from the register entirely.
+    pool.query(
+      `SELECT r.date::text AS date,
+              COALESCE(u.name, 'Unnamed teacher') AS "group",
+              1 AS total,
+              CASE WHEN r.status = 'present' THEN 1 ELSE 0 END AS present,
+              r.status
+         FROM teacher_attendance_records r
+         JOIN users u ON u.id = r.teacher_id
+        WHERE r.teacher_id = ANY($1::uuid[])
+          AND r.date BETWEEN $2::date AND $3::date
+        ORDER BY r.date ASC`,
+      [userIds, from, to]
+    ),
+  ]);
+
+  // The window's school days are the days SOMEBODY marked anything. Without
+  // a school calendar this is the only defensible denominator — inventing
+  // one from weekday arithmetic would state a term we do not know.
+  const dayset = new Set();
+  for (const r of studentRows.rows) dayset.add(r.date);
+  for (const r of staffRows.rows) dayset.add(r.date);
+  const schoolDays = [...dayset].sort();
+
+  // Leave is not an absence: a teacher on approved leave is dropped from the
+  // register rather than counted against her.
+  const staffSessions = staffRows.rows
+    .filter((r) => r.status !== 'leave')
+    .map((r) => ({ group: r.group, date: r.date, total: 1, present: Number(r.present) }));
+
+  const studentSessions = studentRows.rows.map((r) => ({
+    group: r.group, date: r.date, total: Number(r.total), present: Number(r.present),
+  }));
+
+
+  return {
+    schoolDays,
+    students: {
+      groups: summarizeGroups(studentSessions, schoolDays),
+      byDay: summarizeByDay(studentSessions, schoolDays),
+    },
+    staff: {
+      groups: summarizeGroups(staffSessions, schoolDays),
+      byDay: summarizeByDay(staffSessions, schoolDays),
+    },
+  };
+}
+
+/**
+ * GET /api/portal/my-attendance
+ *
+ * The Attendance page, for a teacher: the same report as the principal's,
+ * scoped to ONE person — the signed-in teacher's classes and her own days.
+ * The scope is the session, never the request: a ?teacherId= is ignored.
+ */
+router.get('/my-attendance', requirePortalAuth, async (req, res) => {
+  try {
+    const { from, to } = attendanceWindow(req.query);
+    const report = await buildAttendanceReport([req.session.portalUserId], from, to);
+    res.json({ success: true, from, to, focusTeacher: null, teachers: [], ...report });
+  } catch (error) {
+    console.error('my-attendance error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load attendance.' });
+  }
+});
+
+/**
  * GET /api/portal/leader/attendance
  *
  * bd-60123 — the attendance detail, in the two shapes settled on the design
@@ -1100,14 +1205,7 @@ router.get('/leader/attendance', requirePortalAuth, requireLeaderRole, async (re
       }
     }
 
-    // Default window: the last 30 days. Explicit and bounded rather than
-    // all-time — an unbounded window makes "of how many days?" unanswerable,
-    // which is the whole failure this view exists to fix.
-    const today = new Date();
-    const defaultFrom = new Date(today.getTime() - 29 * 86400000);
-    const iso = (d) => d.toISOString().slice(0, 10);
-    const from = /^\d{4}-\d{2}-\d{2}$/.test(req.query.from || '') ? req.query.from : iso(defaultFrom);
-    const to = /^\d{4}-\d{2}-\d{2}$/.test(req.query.to || '') ? req.query.to : iso(today);
+    const { from, to } = attendanceWindow(req.query);
 
     const scopeTeachers = focusTeacher ? [focusTeacher] : teachers;
     const userIds = scopeTeachers.filter((t) => t.rumiUserId).map((t) => t.rumiUserId);
@@ -1123,56 +1221,7 @@ router.get('/leader/attendance', requirePortalAuth, requireLeaderRole, async (re
       });
     }
 
-    const [studentRows, staffRows] = await Promise.all([
-      // class_name already contains the section — appending it yields
-      // "Grade 2 - A-A" (measured on prod).
-      pool.query(
-        `SELECT s.session_date::text AS date,
-                COALESCE(sl.class_name, 'Unnamed class') AS "group",
-                s.total_students AS total,
-                s.present_count  AS present
-           FROM attendance_sessions s
-           LEFT JOIN student_lists sl ON sl.id = s.list_id
-          WHERE s.user_id = ANY($1::uuid[])
-            AND s.session_date BETWEEN $2::date AND $3::date
-          ORDER BY s.session_date ASC`,
-        [userIds, from, to]
-      ),
-      // Staff: one "group" per teacher, so the same summariser serves both.
-      // present/absent are per-person, hence total 1 per row; leave is NOT an
-      // absence and is excluded from the register entirely.
-      pool.query(
-        `SELECT r.date::text AS date,
-                COALESCE(u.name, 'Unnamed teacher') AS "group",
-                1 AS total,
-                CASE WHEN r.status = 'present' THEN 1 ELSE 0 END AS present,
-                r.status
-           FROM teacher_attendance_records r
-           JOIN users u ON u.id = r.teacher_id
-          WHERE r.teacher_id = ANY($1::uuid[])
-            AND r.date BETWEEN $2::date AND $3::date
-          ORDER BY r.date ASC`,
-        [userIds, from, to]
-      ),
-    ]);
-
-    // The window's school days are the days SOMEBODY marked anything. Without
-    // a school calendar this is the only defensible denominator — inventing
-    // one from weekday arithmetic would state a term we do not know.
-    const dayset = new Set();
-    for (const r of studentRows.rows) dayset.add(r.date);
-    for (const r of staffRows.rows) dayset.add(r.date);
-    const schoolDays = [...dayset].sort();
-
-    // Leave is not an absence: a teacher on approved leave is dropped from the
-    // register rather than counted against her.
-    const staffSessions = staffRows.rows
-      .filter((r) => r.status !== 'leave')
-      .map((r) => ({ group: r.group, date: r.date, total: 1, present: Number(r.present) }));
-
-    const studentSessions = studentRows.rows.map((r) => ({
-      group: r.group, date: r.date, total: Number(r.total), present: Number(r.present),
-    }));
+    const report = await buildAttendanceReport(userIds, from, to);
 
     res.json({
       success: true,
@@ -1183,15 +1232,7 @@ router.get('/leader/attendance', requirePortalAuth, requireLeaderRole, async (re
       teachers: teachers
         .filter((t) => t.rumiUserId)
         .map((t) => ({ id: t.rumiUserId, name: t.name, isPrincipal: t.isPrincipal })),
-      schoolDays,
-      students: {
-        groups: summarizeGroups(studentSessions, schoolDays),
-        byDay: summarizeByDay(studentSessions, schoolDays),
-      },
-      staff: {
-        groups: summarizeGroups(staffSessions, schoolDays),
-        byDay: summarizeByDay(staffSessions, schoolDays),
-      },
+      ...report,
     });
   } catch (error) {
     console.error('leader/attendance error:', error);

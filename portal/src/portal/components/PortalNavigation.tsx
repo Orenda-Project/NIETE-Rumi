@@ -69,6 +69,8 @@ const PortalNavigation = () => {
     { title: 'Curriculum', path: '/portal/curriculum', icon: Library },
     { title: 'Training', path: '/portal/training', icon: GraduationCap },
     { title: 'My Classes', path: '/portal/classes', icon: School },
+    // Her own registers and days — the principal's Attendance page, scoped to her.
+    { title: 'Attendance', path: '/portal/attendance', icon: UserCheck },
     // bd-60078 — "My Plans" removed. It listed a teacher's own Gamma-generated
     // lesson plans and presentations, and custom generation is off, so the tab
     // could only ever show her older work with no way to make more. The
