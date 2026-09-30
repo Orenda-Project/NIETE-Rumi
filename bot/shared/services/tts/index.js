@@ -25,6 +25,7 @@ const { elevenLabsProvider } = require('./providers/elevenlabs.provider');
 const { openAiProvider } = require('./providers/openai.provider');
 const { logError, logWarn } = require('../../utils/logger');
 const { logEvent, getCurrentCorrelationId } = require('../../utils/structured-logger');
+const { DEFAULT_LANGUAGE } = require('../../config/languages');
 
 // Soniox bills about $0.722 per hour of audio; the other two by character and
 // are left to their own dashboards. A cost column that is summable in Axiom is
@@ -106,7 +107,9 @@ function createTtsGateway({
   async function synthesize({ text, language, useCase, site, correlationId, deadlineMs } = {}) {
     const { chain, source, ignored } = resolveChain({ useCase, site, env });
     if (typeof text !== 'string' || !text.trim()) throw new TypeError('tts.synthesize: text is empty');
-    const lang = String(language || 'en');
+    // A caller always resolves the teacher's language; a missing one falls to the
+    // deployment's emergency floor, never to a hard-coded language.
+    const lang = String(language || DEFAULT_LANGUAGE);
     const corr = correlationId || getCurrentCorrelationId() || undefined;
     const job = ['tts', useCase, site].filter(Boolean).join('.');
     if (ignored.length) logError('tts.config.ignored', { event: 'tts.config.ignored', ignored, useCase, site });

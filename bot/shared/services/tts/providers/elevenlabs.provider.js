@@ -10,7 +10,7 @@
  * adapter, so a failure here is reported once and handled once.
  */
 
-const { normalizeForUrduTTS } = require('../../urdu-tts-normalizer');
+const { normalizeFor } = require('../text/normalizers');
 
 // Video narration always used the expressive settings (its prompts write
 // emotion tags into every line); every other use case keeps the per-language
@@ -34,7 +34,7 @@ function createElevenLabsProvider({ env = process.env, service } = {}) {
       const model = voiceModel(language);
       // The Urdu voice renders bare digits as gibberish and reads Markdown
       // markers aloud; the clean-up has run on this path since it was chosen.
-      const textSent = String(language).split('-')[0] === 'ur' ? normalizeForUrduTTS(text) : text;
+      const textSent = normalizeFor(language, text);
       const settings = useCase === 'video' ? { ...VIDEO_VOICE_SETTINGS } : undefined;
       const audio = await elevenLabs().generateSpeechWithVoice(textSent, model.voiceId, language, settings);
       return { audio, voice: model.voiceId, model: 'eleven_v3', parts: 1, attempts: 1, textSent, dropped: [] };
