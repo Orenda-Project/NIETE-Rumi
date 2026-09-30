@@ -222,11 +222,36 @@ describe('the answer key is a second document (bd-60015)', () => {
     expect(mockSendDocumentByLink.mock.calls[1][2]).toMatch(/AnswerKey/);
   });
 
-  it('sends one document when she did not', async () => {
+  // bd-bfnsk: this pinned "one document when she did not ask". The key is no
+  // longer a choice — every paper is followed by its key, including jobs
+  // queued before the choice was removed that still carry includeAnswerKey=false.
+  it('sends the key too when the job says she did not ask for one', async () => {
     happyPath();
+    mockRenderAnswerKey.mockReturnValue('<html>key</html>');
     await Orchestrator.process({ ...JOB, includeAnswerKey: false });
-    expect(mockRenderAnswerKey).not.toHaveBeenCalled();
-    expect(mockSendDocumentByLink).toHaveBeenCalledTimes(1);
+    expect(mockRenderAnswerKey).toHaveBeenCalledTimes(1);
+    expect(mockSendDocumentByLink).toHaveBeenCalledTimes(2);
+    expect(mockSendDocumentByLink.mock.calls[1][2]).toMatch(/AnswerKey/);
+  });
+
+  it('sends the key when the job carries no flag at all', async () => {
+    happyPath();
+    mockRenderAnswerKey.mockReturnValue('<html>key</html>');
+    await Orchestrator.process({ ...JOB });
+    expect(mockSendDocumentByLink).toHaveBeenCalledTimes(2);
+  });
+
+  it('a portal build stores a key as well, with nobody to send it to', async () => {
+    happyPath();
+    mockRenderAnswerKey.mockReturnValue('<html>key</html>');
+    const out = await Orchestrator.process({ ...JOB, deliver: 'none' });
+    expect(out.status).toBe('ready');
+    expect(mockRenderAnswerKey).toHaveBeenCalledTimes(1);
+    expect(mockUploadExamBuffer).toHaveBeenCalledTimes(2);
+    expect(mockSendDocumentByLink).not.toHaveBeenCalled();
+    const stored = mockDbCalls.filter((c) => c.table === 'assessment_papers' && c.op === 'update')
+      .reduce((a, c) => Object.assign(a, c.payload), {});
+    expect(stored.answer_key_r2_key).toBeTruthy();
   });
 
   it('the paper itself never carries the answers', async () => {

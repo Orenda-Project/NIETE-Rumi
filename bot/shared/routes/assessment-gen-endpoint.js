@@ -114,6 +114,78 @@ function chaptersOf(state) {
     .map((n, i) => ({ number: n, title: titles[i] != null ? titles[i] : null }));
 }
 
+/**
+ * "1-3, 5, 7, 8" from [1, 2, 3, 5, 7, 8]. A run of three or more becomes a
+ * span; two neighbours stay a list, so "Chapters 2, 3" reads as it always did.
+ * Needed once she can tick the whole book: twenty-four numbers in a caption is
+ * a wall, "Chapters 1-24" is a sentence.
+ */
+function compressRuns(numbers) {
+  const sorted = [...new Set(numbers)].sort((a, b) => a - b);
+  const parts = [];
+  for (let i = 0; i < sorted.length;) {
+    let j = i;
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j += 1;
+    if (j - i >= 2) parts.push(`${sorted[i]}-${sorted[j]}`);
+    else for (let k = i; k <= j; k += 1) parts.push(String(sorted[k]));
+    i = j + 1;
+  }
+  return parts.join(', ');
+}
+
+/**
+ * The chapter picker is TWO CheckboxGroups, not one (sheet request: a paper
+ * covering at least half the syllabus; the old `max-selected-items: 6` is gone).
+ *
+ * Meta caps a single CheckboxGroup at 20 options, and the biggest ICT books
+ * have 23 and 24 chapters — so with one group, chapters 21+ were never on the
+ * screen at all. Chapters 1-20 go in `chapters`, 21-40 in `chapters_more`,
+ * which is drawn only when the book has them. A hidden group still gets a
+ * one-row placeholder: an empty data-source is not renderable, even hidden.
+ */
+const CHAPTER_GROUP_CAP = 20;
+const NO_MORE_CHAPTERS_ID = '__none__';
+const NO_MORE_CHAPTERS = Object.freeze([{ id: NO_MORE_CHAPTERS_ID, title: '-' }]);
+
+function chapterOption(c) {
+  return {
+    id: String(c.chapterNumber),
+    title: `${c.chapterNumber} · ${c.title}${c.pageStart ? ` (pages ${c.pageStart}-${c.pageEnd})` : ''}`,
+  };
+}
+
+function coverageLists(chapters) {
+  const options = (chapters || []).map(chapterOption);
+  if (options.length > CHAPTER_GROUP_CAP * 2) {
+    logToFile('[assessment-flow] book has more chapters than the picker holds', {
+      chapters: options.length, shown: CHAPTER_GROUP_CAP * 2,
+    });
+  }
+  const first = options.slice(0, CHAPTER_GROUP_CAP);
+  const more = options.slice(CHAPTER_GROUP_CAP, CHAPTER_GROUP_CAP * 2);
+  return {
+    chapters: first,
+    chapters_more: more.length ? more : [...NO_MORE_CHAPTERS],
+    has_more_chapters: more.length > 0,
+  };
+}
+
+/**
+ * Every chapter she ticked, across both groups, as sorted unique numbers.
+ * `chapters_more` is absent on a client still running the previously published
+ * Flow, and `chapter` (scalar) on one from the single-select era; both still work.
+ */
+function pickedChapterNumbers(data) {
+  const asList = (v) => (Array.isArray(v) ? v : (v != null ? [v] : []));
+  const picked = [
+    ...(data.chapters != null ? asList(data.chapters) : asList(data.chapter)),
+    ...asList(data.chapters_more),
+  ];
+  return [...new Set(
+    picked.map(Number).filter((n) => Number.isFinite(n) && n > 0),
+  )].sort((a, b) => a - b);
+}
+
 function summaryOf(state) {
   const chapters = chaptersOf(state);
   // "Chapter 2 · The Thirsty Crow" for one — unchanged, it is the common case
@@ -123,7 +195,7 @@ function summaryOf(state) {
   const chapterLine = chapters.length === 1
     ? `Chapter ${chapters[0].number}${chapters[0].title ? ` · ${chapters[0].title}` : ''}`
     : (chapters.length > 1
-      ? `Chapters ${chapters.map((c) => c.number).join(', ')}`
+      ? `Chapters ${compressRuns(chapters.map((c) => c.number))}`
       : null);
 
   return [
@@ -170,16 +242,19 @@ const REVIEW_MARKER = ':assessment-review:';
 const NAV_MAX = 20;
 
 /** Fit a row field to the cap, cutting at a word boundary where one is close. */
-function navFit(text) {
+function navFit(text, max = NAV_MAX) {
   const t = String(text || '').replace(/\s+/g, ' ').trim();
-  if (t.length <= NAV_MAX) return t;
-  const cut = t.slice(0, NAV_MAX);
+  // CODE POINTS, which is what Meta counts: `.length` counts UTF-16 units, so
+  // an emoji-led row was cut one character short (or, worse, mid-surrogate).
+  const chars = [...t];
+  if (chars.length <= max) return t;
+  const cut = chars.slice(0, Math.max(0, max)).join('');
   const space = cut.lastIndexOf(' ');
   // Strip a dangling space or punctuation mark — and NOTHING else. This was
   // `[\s\W]+$`, and in JavaScript `\W` is "not [A-Za-z0-9_]", so every Urdu
   // letter matched: a cut Urdu row lost all its text and read as a bare "1".
   // The same defect as optionTitle, one function along.
-  return (space > NAV_MAX * 0.5 ? cut.slice(0, space) : cut).replace(/[\s.,;:!?—–\-·۔،]+$/u, '');
+  return (space > cut.length * 0.5 ? cut.slice(0, space) : cut).replace(/[\s.,;:!?—–\-·۔،]+$/u, '');
 }
 
 /**
@@ -658,10 +733,545 @@ function completionPayload(action, summary) {
   return { params: { assessment_action: action, summary: summary || '' } };
 }
 
+// ── Versioned editing: the ✓/✗ list ────────────────────────────────────────
+//
+// Behind assessment_versions_enabled (and the review Flow v8 publish, which it
+// is flipped together with). The token names the VERSION she tapped Edit on.
+//
+//   LIST ──▶ ADD_TYPE / EDIT_* / REMOVED ──▶ LIST_MORE ──▶ … ──▶ DONE (complete)
+//
+// Every edit goes into a DRAFT held in the Flow session; nothing touches the
+// database until "Make my paper", and then the completion INSERTS a new
+// version (revision.createVersion). No Flow action here waits on a render.
+//
+// LIST and LIST_MORE are the same list. There are two because Meta refuses a
+// backward route: after an edit the list is shown again as LIST_MORE, a
+// forward step, and the edit screens are reached from it at runtime.
+
+const { isAssessmentVersionsEnabled } = require('../config/feature-flags');
+const { resolveUx, clampLanguage, UX_STRINGS } = require('../config/ux-strings');
+const { shortType } = require('../services/assessment/assessment-vocabulary');
+const { isRtl } = require('../services/assessment/assessment-paper.renderer');
+
+const VERSION_KIND = 'versions';
+const ADD_KINDS = ['short', 'long', 'mcq', 'fill'];
+// The printed type an added question joins, for its lines and its screen.
+const ADD_KIND_TYPE = { short: 'Short Questions', long: 'Long Question', mcq: 'MCQs', fill: 'Fill in the Blanks' };
+const ADD_KIND_TITLE = {
+  short: 'مختصر سوال · Short answer',
+  long: 'طویل سوال · Long answer',
+  mcq: 'کثیر انتخابی · MCQ',
+  fill: 'خالی جگہ · Fill in the blank',
+};
+
+const ux = (state, key, params) => resolveUx(key, { language: state.lang, params });
+const uxRaw = (state, key) => (UX_STRINGS[key] && (UX_STRINGS[key][state.lang] || UX_STRINGS[key].en)) || '';
+const clone = (x) => JSON.parse(JSON.stringify(x ?? {}));
+
+function isVersionSession(state) {
+  return state && state.kind === VERSION_KIND && !!state.draft;
+}
+
+function navRow(id, title, description, payload) {
+  return {
+    id,
+    'main-content': { title: navFit(title), description: navFit(description || ''), metadata: '' },
+    'on-click-action': { name: 'data_exchange', payload },
+  };
+}
+
+function marksText(state, marks) {
+  return marks === 1 ? ux(state, 'assessmentRowMark1') : ux(state, 'assessmentRowMarks', { marks });
+}
+
+/**
+ * A question row, in the operator's copy: "1. Amna is Happy - ✅" on the paper,
+ * "–. Jojo saw ____ - ❌" taken off. The TEXT is what gets cut (at a word, as
+ * navFit does); the status suffix always survives the 20-code-point cap.
+ */
+function questionTitle(q) {
+  const prefix = `${q.removed ? '–' : q.number}. `;
+  const suffix = q.removed ? ' - ❌' : ' - ✅';
+  const room = NAV_MAX - [...prefix].length - [...suffix].length;
+  return `${prefix}${navFit(q.text, room)}${suffix}`;
+}
+
+function questionRow(state, q, i) {
+  const payload = { _action: 'open', question_id: q.id };
+  if (q.removed) {
+    return navRow(`q${i}`, questionTitle(q), ux(state, 'assessmentRowRemoved', { marks: q.marks }), payload);
+  }
+  const marks = marksText(state, q.marks);
+  const withType = `${marks} · ${shortType(q.type)}`;
+  return navRow(`q${i}`, questionTitle(q), [...withType].length <= NAV_MAX ? withType : marks, payload);
+}
+
+function activeTotals(tree) {
+  const Renderer = require('../services/assessment/assessment-paper.renderer');
+  const qs = Renderer.collectQuestions(tree);
+  return { count: qs.length, marks: Renderer.totalMarks(qs) };
+}
+
+/**
+ * One page of the list, in the operator's order (30 Sep): up to 16 questions,
+ * "➕ Add a question", "⬅️ Previous" / "More questions ➡️" when there is a page
+ * that way, and "📄 Make my paper" LAST. 20 rows at most — Meta's cap for a
+ * NavigationList.
+ */
+function listScreen(id, state) {
+  const items = Selection.indexQuestions(state.draft);
+  const view = Selection.pageOf(items, state.page, Selection.LIST_PAGE_SIZE);
+  state.page = view.index;
+  state.listScreen = id;
+  const t = activeTotals(state.draft);
+  const rows = [
+    ...view.items.map((q, k) => questionRow(state, q, view.from - 1 + k)),
+    navRow('add', ux(state, 'assessmentRowAdd'), ux(state, 'assessmentRowAddDesc'), { _action: 'add' }),
+  ];
+  if (view.hasPrev) {
+    const from = (view.index - 1) * Selection.LIST_PAGE_SIZE + 1;
+    rows.push(navRow('prev', ux(state, 'assessmentRowPrev'),
+      ux(state, 'assessmentRowPrevDesc', { from, to: from + Selection.LIST_PAGE_SIZE - 1 }),
+      { _action: 'page', page: String(view.index - 1) }));
+  }
+  if (view.hasNext) {
+    const from = view.to + 1;
+    rows.push(navRow('next', ux(state, 'assessmentRowNext'),
+      ux(state, 'assessmentRowNextDesc', { from, to: Math.min(from + Selection.LIST_PAGE_SIZE - 1, view.total), total: view.total }),
+      { _action: 'page', page: String(view.index + 1) }));
+  }
+  rows.push(navRow('done', ux(state, 'assessmentRowMake'),
+    ux(state, 'assessmentRowMakeDesc', { count: t.count, marks: t.marks }), { _action: 'done' }));
+  return screen(id, { rows });
+}
+
+/** A list with one row that explains itself — nothing else can be shown on LIST. */
+function listMessage(id, message) {
+  return screen(id, { rows: [navRow('msg', message, '', { _action: 'noop' })] });
+}
+
+function pageHolding(state, questionId) {
+  const i = Selection.indexQuestions(state.draft).findIndex((q) => q.id === questionId);
+  return i < 0 ? state.page || 0 : Math.floor(i / Selection.LIST_PAGE_SIZE);
+}
+
+/**
+ * An edit screen for the versions path: today's screen, plus the answer-key
+ * entry, answer lines, the correct option and the remove box. Remembers which
+ * of those were VISIBLE, because a hidden component's value must never be read
+ * as a change (an MCQ's hidden answer box would otherwise clear its answer).
+ */
+function versionEditScreen(item, state, { mode = 'edit', error = '', overrides = null, kind = null } = {}) {
+  const base = editScreen(item, { error });
+  const type = item.type || (kind ? ADD_KIND_TYPE[kind] : '');
+  const f = Edit.fieldsFor(item.question, {
+    type, labels: { newOption: uxRaw(state, 'assessmentOptionNew'), notSet: uxRaw(state, 'assessmentOptionNotSet') },
+  });
+  const data = {
+    ...base.data,
+    answer: f.answer,
+    answer_hint: ux(state, 'assessmentAnswerHint'),
+    show_remove: mode === 'edit',
+  };
+  if (base.screen === 'EDIT_STANDARD') {
+    Object.assign(data, { lines: f.lines, lines_options: f.lines_options, show_lines: f.show_lines });
+  }
+  if (base.screen === 'EDIT_OPTIONS') {
+    Object.assign(data, {
+      correct: f.correct, correct_options: f.correct_options,
+      show_correct: f.show_correct, show_answer_text: f.show_answer_text,
+    });
+  }
+  if (mode === 'add') {
+    data.heading = 'نیا سوال · New question';
+    data.subheading = ADD_KIND_TITLE[kind] || '';
+    if (base.screen === 'EDIT_OPTIONS') {
+      // Four blanks ready to type into; she needs at least two and a correct one.
+      for (let i = 0; i < Edit.SLOT_CAP; i += 1) data[`slot_show_${i}`] = i < 4;
+      data.correct_options = [
+        ...Array.from({ length: Edit.SLOT_CAP }, (_, i) => ({ id: String(i), title: uxRaw(state, 'assessmentOptionNew').replace('{n}', String(i + 1)) })),
+        { id: 'none', title: uxRaw(state, 'assessmentOptionNotSet') },
+      ];
+      data.correct = 'none';
+    }
+  }
+  state.editingView = {
+    screen: base.screen,
+    showLines: data.show_lines === true,
+    showCorrect: data.show_correct === true,
+    showAnswerText: base.screen !== 'EDIT_OPTIONS' || data.show_answer_text === true,
+    showRemove: data.show_remove === true,
+    linesDefault: f.lines_default,
+  };
+  if (overrides) Object.assign(data, overrides);
+  return screen(base.screen, data);
+}
+
+function versionSubScreen(item, subIndex, state, { error = '', overrides = null } = {}) {
+  const base = subScreen(item, subIndex, { error });
+  const sub = (item.question.questions || [])[subIndex] || {};
+  const data = {
+    ...base.data,
+    answer: typeof sub === 'object' && sub.answer != null ? String(sub.answer) : '',
+    answer_hint: ux(state, 'assessmentAnswerHint'),
+  };
+  state.editingView = { screen: 'EDIT_SUB', showAnswerText: true };
+  if (overrides) Object.assign(data, overrides);
+  return screen('EDIT_SUB', data);
+}
+
+/** The comprehension list: its sub-questions, then "remove", then "back". */
+function versionComprehensionScreen(item, state) {
+  const base = editScreen(item);
+  const rows = [
+    ...(base.data.subs || []),
+    navRow('remove', ux(state, 'assessmentRowRemoveQ'), '', { _action: 'remove', question_id: item.id }),
+    navRow('back', ux(state, 'assessmentRowBackToList'), '', { _action: 'back' }),
+  ];
+  return screen('EDIT_COMPREHENSION', { ...base.data, subs: rows });
+}
+
+function removedScreen(item, state) {
+  const q = item.question || {};
+  const parts = [String(q.question || q.main_question || '')];
+  if (Array.isArray(q.options)) parts.push(q.options.join('\n'));
+  if (Array.isArray(q.column_a)) parts.push(q.column_a.map((a, i) => `${a} — ${(q.column_b || [])[i] || ''}`).join('\n'));
+  if (Array.isArray(q.words)) parts.push(q.words.join(', '));
+  if (q.passage) parts.push(String(q.passage).slice(0, 300));
+  const body = parts.filter(Boolean).join('\n\n');
+  return screen('REMOVED', {
+    heading: ux(state, 'assessmentRemovedHeading'),
+    subheading: `${shortType(item.type) || ''} · ${marksText(state, item.marks)}`.replace(/^ · /, ''),
+    body: [...body].length > 1000 ? `${[...body].slice(0, 999).join('')}…` : body,
+  });
+}
+
+async function doneScreen(state) {
+  const t = activeTotals(state.draft);
+  const summary = ux(state, 'assessmentDoneSummary', { count: t.count, marks: t.marks });
+  let changes = ux(state, 'assessmentDoneNoChanges');
+  let dirty = false;
+  const loaded = await revision().loadVersion({ paperId: state.paperId, userId: state.userId });
+  if (loaded.paper) {
+    const d = Selection.diffTrees(loaded.paper.exam_json, state.draft);
+    const parts = [
+      d.edited ? ux(state, 'assessmentDoneEdited', { n: d.edited }) : null,
+      d.removed ? ux(state, 'assessmentDoneRemoved', { n: d.removed }) : null,
+      d.added ? ux(state, 'assessmentDoneAdded', { n: d.added }) : null,
+      d.restored ? ux(state, 'assessmentDoneRestored', { n: d.restored }) : null,
+    ].filter(Boolean);
+    dirty = parts.length > 0;
+    if (dirty) changes = parts.join(' · ');
+  }
+  const canMake = t.count > 0;
+  // No extension_message_response here, unlike PICK_DONE and CONFIRM: DONE is
+  // reached from a NavigationList row, and from there Meta's client refuses an
+  // object-valued data key ("Data Validation Error: Required
+  // [key=data.extension_message_response]", measured in the preview on 30 Sep —
+  // the same response renders when a Form Footer asks for it). Meta drops that
+  // payload from the completion anyway; the flow token routes it.
+  return screen('DONE', {
+    summary,
+    changes,
+    note: dirty && state.version ? ux(state, 'assessmentDoneNote', { version: state.version }) : '',
+    can_make: canMake,
+    error: canMake ? '' : ux(state, 'assessmentDoneEmpty'),
+  });
+}
+
+/** INIT on a review token with versions on: resume her draft, or open the version. */
+async function openList(userId, paperId, flowToken) {
+  const prior = await readSession(flowToken);
+  if (isVersionSession(prior) && prior.paperId === paperId && prior.userId === userId) {
+    const state = { ...prior, page: prior.page || 0, editing: null, editingSub: null, adding: null };
+    const out = listScreen('LIST', state);
+    await writeSession(flowToken, state);
+    return out;
+  }
+
+  const res = await revision().listVersionItems({ paperId, userId });
+  let lang = 'en';
+  try {
+    const { data } = await supabase.from('users').select('preferred_language').eq('id', userId).maybeSingle();
+    lang = clampLanguage(data?.preferred_language);
+  } catch { /* the floor is fine for a screen */ }
+  if (!res.paper) {
+    const key = res.code === 'NOT_READY' ? 'assessmentNotReady' : null;
+    return listMessage('LIST', key ? resolveUx(key, { language: lang })
+      : "I couldn't find that paper. Send /assessment to make a new one.");
+  }
+  const req = res.paper.assessment_requests || {};
+  const g = String(req.grade_code || '').match(/(\d+)/);
+  const state = {
+    kind: VERSION_KIND,
+    userId,
+    paperId,
+    version: res.version,
+    lang,
+    subject: req.subject_code || null,
+    grade: g ? Number(g[1]) : null,
+    rtl: isRtl(req.subject_code),
+    draft: clone(res.paper.exam_json),
+    nonce: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+    page: 0,
+    listScreen: 'LIST',
+    editing: null,
+    editingSub: null,
+    adding: null,
+  };
+  const out = listScreen('LIST', state);
+  await writeSession(flowToken, state);
+  return out;
+}
+
+async function handleVersionList(screenId, data, state, flowToken) {
+  const action = String(data._action || '');
+  const save = async (out) => { await writeSession(flowToken, state); return out; };
+  state.listScreen = screenId;
+
+  if (action === 'page') {
+    state.page = Number.parseInt(data.page, 10) || 0;
+    return save(listScreen(screenId, state));
+  }
+  if (action === 'add') {
+    state.adding = null;
+    return save(screen('ADD_TYPE', {
+      kinds: ADD_KINDS.map((k) => ({ id: k, title: ADD_KIND_TITLE[k] })), error: '',
+    }));
+  }
+  if (action === 'done') return save(await doneScreen(state));
+  if (action === 'open') {
+    const item = Selection.indexQuestions(state.draft).find((q) => q.id === data.question_id);
+    if (!item) return save(listScreen(screenId, state));
+    state.editing = item.id;
+    state.editingSub = null;
+    state.adding = null;
+    if (item.removed) return save(removedScreen(item, state));
+    if (Edit.shapeOf(item.question) === 'comprehension') return save(versionComprehensionScreen(item, state));
+    return save(versionEditScreen(item, state, { mode: 'edit' }));
+  }
+  return save(listScreen(screenId, state));
+}
+
+async function handleVersionAddType(data, state, flowToken) {
+  const kind = String(data.kind || '');
+  if (!ADD_KINDS.includes(kind)) {
+    return screen('ADD_TYPE', {
+      kinds: ADD_KINDS.map((k) => ({ id: k, title: ADD_KIND_TITLE[k] })), error: ux(state, 'assessmentAddPickType'),
+    });
+  }
+  state.adding = { kind };
+  state.editing = null;
+  const d = Edit.NEW_DEFAULTS[kind];
+  const blank = kind === 'mcq'
+    ? { question: '', options: ['', '', '', ''], marks: d.marks }
+    : { question: '', marks: d.marks, lines: d.lines };
+  const out = versionEditScreen({ id: null, number: null, type: ADD_KIND_TYPE[kind], marks: d.marks, question: blank },
+    state, { mode: 'add', kind });
+  await writeSession(flowToken, state);
+  return out;
+}
+
+/** What she sent from an edit screen, reading only what the screen SHOWED. */
+function versionEditFrom(screenId, data, state, shape) {
+  const v = state.editingView || {};
+  const edit = {};
+  if (data.question !== undefined) edit.question = data.question;
+  if (data.passage !== undefined) edit.passage = data.passage;
+  if (data.marks !== undefined) edit.marks = data.marks;
+  if (v.showAnswerText && data.answer !== undefined) edit.answer = data.answer;
+  if (v.showCorrect && data.correct !== undefined) edit.correct = data.correct;
+  if (v.showLines && data.lines !== undefined) {
+    edit.lines = data.lines;
+    edit.linesDefault = v.linesDefault;
+  }
+  if (v.showRemove && (data.remove === true || data.remove === 'true')) edit.remove = true;
+  if (screenId === 'EDIT_SUB' || shape === 'options' || shape === 'words') edit.slots = slotsFrom(data);
+  if (shape === 'columns') {
+    edit.pairs = [];
+    for (let i = 0; i < Edit.SLOT_CAP; i += 1) {
+      edit.pairs.push({ left: String(data[`left_${i}`] ?? ''), right: String(data[`right_${i}`] ?? '') });
+    }
+  }
+  return edit;
+}
+
+function refusalOverrides(data, edit) {
+  const o = {};
+  if (data.question !== undefined) o.question = data.question;
+  if (data.answer !== undefined) o.answer = data.answer;
+  if (data.passage !== undefined) o.passage = data.passage;
+  if (edit.slots) edit.slots.forEach((val, i) => { o[`slot_${i}`] = val; });
+  if (edit.pairs) edit.pairs.forEach((p, i) => { o[`left_${i}`] = p.left; o[`right_${i}`] = p.right; });
+  return o;
+}
+
+async function handleVersionEdit(screenId, data, state, flowToken) {
+  const save = async (out) => { await writeSession(flowToken, state); return out; };
+  const items = Selection.indexQuestions(state.draft);
+
+  // A question she is ADDING: build it, then place it. Only the session changes.
+  if (state.adding && screenId !== 'EDIT_COMPREHENSION' && screenId !== 'EDIT_SUB') {
+    const { kind } = state.adding;
+    const shape = kind === 'mcq' ? 'options' : 'standard';
+    const edit = versionEditFrom(screenId, data, state, shape);
+    let q;
+    try {
+      q = Edit.newQuestion(kind, edit);
+    } catch (err) {
+      const d = Edit.NEW_DEFAULTS[kind];
+      const blank = kind === 'mcq' ? { question: '', options: ['', '', '', ''], marks: d.marks } : { question: '', marks: d.marks, lines: d.lines };
+      return save(versionEditScreen({ id: null, number: null, type: ADD_KIND_TYPE[kind], marks: d.marks, question: blank },
+        state, { mode: 'add', kind, error: err.message, overrides: refusalOverrides(data, edit) }));
+    }
+    const placed = Selection.appendQuestion(state.draft, { kind, subject: state.subject, grade: state.grade }, q);
+    state.draft = placed.tree;
+    state.adding = null;
+    state.page = pageHolding(state, placed.id);
+    return save(listScreen('LIST_MORE', state));
+  }
+
+  const item = items.find((q) => q.id === (data.question_id || state.editing));
+  if (!item) return save(listScreen('LIST_MORE', state));
+
+  if (screenId === 'EDIT_COMPREHENSION') {
+    const action = String(data._action || '');
+    if (action === 'open_sub') {
+      const idx = Number.parseInt(data.sub_index, 10) || 0;
+      state.editing = item.id;
+      state.editingSub = idx;
+      return save(versionSubScreen(item, idx, state));
+    }
+    if (action === 'remove') {
+      state.draft = Selection.setRemoved(state.draft, item.id, true) || state.draft;
+    }
+    state.page = pageHolding(state, item.id);
+    return save(listScreen('LIST_MORE', state));
+  }
+
+  const shape = Edit.shapeOf(item.question);
+  const edit = versionEditFrom(screenId, data, state, shape);
+  if (screenId === 'EDIT_SUB') edit.subIndex = state.editingSub ?? 0;
+
+  let updated;
+  try {
+    updated = Edit.applyEdit(item.question, edit);
+  } catch (err) {
+    const overrides = refusalOverrides(data, edit);
+    return save(screenId === 'EDIT_SUB'
+      ? versionSubScreen(item, edit.subIndex, state, { error: err.message, overrides })
+      : versionEditScreen(item, state, { mode: 'edit', error: err.message, overrides }));
+  }
+  state.draft = Selection.replaceAt(state.draft, item.id, updated) || state.draft;
+  state.editing = null;
+  state.editingSub = null;
+  state.page = pageHolding(state, item.id);
+  return save(listScreen('LIST_MORE', state));
+}
+
+async function handleVersionRemoved(data, state, flowToken) {
+  const item = Selection.indexQuestions(state.draft).find((q) => q.id === (data.question_id || state.editing));
+  if (item && String(data._action) === 'restore') {
+    state.draft = Selection.setRemoved(state.draft, item.id, false) || state.draft;
+    state.page = pageHolding(state, item.id);
+  }
+  state.editing = null;
+  const out = listScreen('LIST_MORE', state);
+  await writeSession(flowToken, state);
+  return out;
+}
+
+/** The versions path's data exchange, or null when this is not a versions session. */
+async function handleVersionExchange(screenId, data, flowToken) {
+  const state = await readSession(flowToken);
+  if (!isVersionSession(state)) return null;
+  logToFile('[assessment-flow] review action', {
+    userId: state.userId, screen: screenId, action: data._action == null ? null : String(data._action), versions: true,
+  });
+  if (screenId === 'LIST' || screenId === 'LIST_MORE') return handleVersionList(screenId, data, state, flowToken);
+  if (screenId === 'ADD_TYPE') return handleVersionAddType(data, state, flowToken);
+  if (screenId === 'REMOVED') return handleVersionRemoved(data, state, flowToken);
+  if (screenId === 'DONE') return doneScreen(state);
+  if (String(screenId).startsWith('EDIT_')) return handleVersionEdit(screenId, data, state, flowToken);
+  return listScreen(state.listScreen || 'LIST', state);
+}
+
+/** Back (refresh_on_back): the screen she came from, with fresh data. */
+async function handleVersionBack(screenId, flowToken) {
+  const state = await readSession(flowToken);
+  if (!isVersionSession(state)) return null;
+  if (screenId === 'EDIT_SUB') {
+    const item = Selection.indexQuestions(state.draft).find((q) => q.id === state.editing);
+    if (item) return versionComprehensionScreen(item, state);
+  }
+  if (state.adding && String(screenId).startsWith('EDIT_')) {
+    return screen('ADD_TYPE', { kinds: ADD_KINDS.map((k) => ({ id: k, title: ADD_KIND_TITLE[k] })), error: '' });
+  }
+  state.editing = null;
+  state.adding = null;
+  const out = listScreen(state.listScreen || 'LIST', state);
+  await writeSession(flowToken, state);
+  return out;
+}
+
+/**
+ * "Make my paper", AFTER the Flow closed (DONE is terminal). The draft in the
+ * session becomes a new version — or, if she changed nothing, the same version
+ * is sent again. `onStart(kind)` runs once the completion is known to be the
+ * first of its kind, before the slow part, so the chat order is: ack → paper
+ * with its Edit button → key.
+ */
+async function rebuildVersionFromCompletion({ flowToken, userId, user, onStart }) {
+  const paperId = paperIdFromToken(flowToken);
+  const state = await readSession(flowToken);
+  const doneKey = `assessment_rebuilt:${flowToken}`;
+  if (!isVersionSession(state) || state.paperId !== paperId) {
+    // Meta retries a completion webhook; one that arrives after we finished and
+    // cleared the session is a duplicate, not an expired draft.
+    let finished = null;
+    try { finished = await redis.get(doneKey); } catch { finished = null; }
+    return finished ? { status: 'duplicate' } : { status: 'expired' };
+  }
+  const claimed = await redis.setNX(`assessment_rebuild:${flowToken}:${state.nonce || 'x'}`, '1', 600);
+  if (!claimed) return { status: 'duplicate' };
+
+  const owner = state.userId || userId;
+  const markDone = async () => {
+    try { await redis.set(doneKey, state.nonce || '1', 600); } catch { /* best effort */ }
+    await clearSession(flowToken);
+  };
+
+  const parent = await revision().loadVersion({ paperId, userId: owner });
+  const dirty = parent.paper
+    ? Object.values(Selection.diffTrees(parent.paper.exam_json, state.draft)).some((n) => n > 0)
+    : true;
+
+  if (!dirty) {
+    if (onStart) await onStart('resend');
+    const r = await revision().resendVersion({ paperId, userId: owner, user });
+    await markDone();
+    return r.status === 'resent' ? { status: 'resent' } : { status: 'failed', code: r.code, apologised: true };
+  }
+
+  if (onStart) await onStart('build');
+  const r = await revision().createVersion({ parentId: paperId, userId: owner, tree: state.draft, user });
+  await markDone();
+  if (r.status !== 'ready') return { status: 'failed', code: r.code, apologised: true };
+  return {
+    status: 'rebuilt',
+    summary: `${r.questionCount} question${r.questionCount === 1 ? '' : 's'}${r.marks ? ` · ${r.marks} marks` : ''}`,
+    version: r.version,
+  };
+}
+
 async function handleInit(userId, flowToken) {
   // A review token means she already has a paper and wants to trim it. Checked
   // before anything else, because every screen below assumes a fresh request.
   const reviewPaperId = paperIdFromToken(flowToken);
+  if (reviewPaperId && (await isAssessmentVersionsEnabled())) {
+    // The ✓/✗ list: only its entry screen, LIST, is ever returned from INIT.
+    return openList(userId, reviewPaperId, flowToken);
+  }
   if (reviewPaperId) {
     // The budget she set when the paper was made, so the review screen can show
     // her total against her target rather than on its own.
@@ -691,6 +1301,27 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
 
   // ── The review journey ───────────────────────────────────────────────────
   // Its own path, entered by token rather than by walking the screens above.
+  //
+  // The action VALUE is logged, not just the payload's keys: the generic
+  // endpoint line records only keys, which told us PICK arrived without a
+  // question_id 834 times but not what she pressed. This is the funnel for
+  // "did she edit, or did she only finish?" (bd-q3rfn).
+  // Versioned editing: its own screens, and the EDIT_* screens when the
+  // session was opened by the ✓/✗ list. Falls through to the old path for a
+  // session the old path opened.
+  if (paperIdFromToken(flowToken)
+    && ['LIST', 'LIST_MORE', 'ADD_TYPE', 'REMOVED', 'DONE'].concat(Object.values(SHAPE_SCREEN), ['EDIT_SUB']).includes(screenId)) {
+    const out = await handleVersionExchange(screenId, data, flowToken);
+    if (out) return out;
+  }
+  if (screenId === 'KEEP' || screenId === 'PICK' || screenId === 'PICK_MORE') {
+    logToFile('[assessment-flow] review action', {
+      userId,
+      screen: screenId,
+      action: data._action == null ? null : String(data._action),
+      hasQuestionId: !!data.question_id,
+    });
+  }
   if (screenId === 'KEEP') return handleKeep(userId, data, flowToken);
   // Both list screens share one handler: they render identical rows, and the
   // only reason there are two is that Meta refuses a backward route from an
@@ -752,11 +1383,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     return screen('COVERAGE', {
       summary: summaryOf(state),
       has_chapters: true,
-      chapters: chapters.map((c) => ({
-        id: String(c.chapterNumber),
-        title: `${c.chapterNumber} · ${c.title}`
-          + (c.pageStart ? ` (pages ${c.pageStart}-${c.pageEnd})` : ''),
-      })),
+      ...coverageLists(chapters),
       error: '',
     });
   }
@@ -776,20 +1403,15 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     }
 
     // A CheckboxGroup sends an array of the ids it was drawn with — which are
-    // strings, because a Flow data-source id always is. `data.chapter` is read
-    // too: a client mid-session on the previous, single-select screen is still
-    // posting the old key, and refusing it would strand her.
-    const picked = Array.isArray(data.chapters)
-      ? data.chapters
-      : (data.chapters != null ? [data.chapters] : (data.chapter != null ? [data.chapter] : []));
-    const chapterNumbers = [...new Set(
-      picked.map(Number).filter((n) => Number.isFinite(n) && n > 0),
-    )].sort((a, b) => a - b);
+    // strings, because a Flow data-source id always is. Both groups are read;
+    // `data.chapter` is read too: a client mid-session on the previous,
+    // single-select screen is still posting the old key.
+    const chapterNumbers = pickedChapterNumbers(data);
 
     if (chapterNumbers.length === 0) {
       return screen('COVERAGE', {
         summary: summaryOf(state), has_chapters: true,
-        chapters: await chapterOptions(state),
+        ...(await chapterOptions(state)),
         error: 'Please choose at least one chapter, or tick the box to type page numbers.',
       });
     }
@@ -992,7 +1614,6 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     Object.assign(state, {
       outputFormat: String(data.output_format || 'pdf'),
       answerLines: data.answer_lines !== false && data.answer_lines !== 'false',
-      answerKey: data.answer_key === true || data.answer_key === 'true',
     });
 
     try {
@@ -1043,9 +1664,13 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
  * Everything needed survives the close: the ticks are in the Redis session
  * under the flow token, and the paper id is in the token itself.
  */
-async function rebuildFromCompletion({ flowToken, userId }) {
+async function rebuildFromCompletion({ flowToken, userId, user = null, onStart = null }) {
   const paperId = paperIdFromToken(flowToken);
   if (!paperId) return { status: 'failed', code: 'NO_PAPER' };
+
+  if (await isAssessmentVersionsEnabled()) {
+    return rebuildVersionFromCompletion({ flowToken, userId, user, onStart });
+  }
 
   const state = (await readSession(flowToken)) || {};
   const owner = state.userId || userId;
@@ -1077,7 +1702,9 @@ async function rebuildFromCompletion({ flowToken, userId }) {
   };
 }
 
-async function submitFromCompletion({ flowToken, userId, outputFormat, answerKey, answerLines }) {
+// `answerKey` is no longer read: every paper gets a key and she is not asked. A
+// stale client that still posts one is ignored rather than obeyed.
+async function submitFromCompletion({ flowToken, userId, outputFormat, answerLines }) {
   const state = await readSession(flowToken);
 
   // A session that has expired or was never written cannot be completed into a
@@ -1097,7 +1724,6 @@ async function submitFromCompletion({ flowToken, userId, outputFormat, answerKey
     userId: state.userId || userId,
     outputFormat: await resolveFormat(outputFormat),
     answerLines: answerLines !== false && answerLines !== 'false',
-    answerKey: answerKey === true || answerKey === 'true',
   });
 
   try {
@@ -1116,11 +1742,8 @@ async function submitFromCompletion({ flowToken, userId, outputFormat, answerKey
 async function chapterOptions(state) {
   try {
     const chapters = await BookContent.listChapters({ grade: state.grade, subject: state.subject });
-    return chapters.map((c) => ({
-      id: String(c.chapterNumber),
-      title: `${c.chapterNumber} · ${c.title}${c.pageStart ? ` (pages ${c.pageStart}-${c.pageEnd})` : ''}`,
-    }));
-  } catch { return []; }
+    return coverageLists(chapters);
+  } catch { return coverageLists([]); }
 }
 
 async function bookFacts(state) {
@@ -1278,15 +1901,26 @@ async function chapterPageRange(state) {
     const chapters = await BookContent.listChapters({
       grade: state.grade, subject: state.subject,
     });
-    // One range per chapter, in the order she picked them, joined the way
-    // parsePageRanges already reads: "15-27, 28-40". A chapter the contents
+    // One range per chapter, in page order, joined the way parsePageRanges
+    // already reads: "15-27, 40-52". A chapter the contents
     // page never paginated contributes nothing rather than sinking the rest —
     // the same best-effort rule as before, now applied per chapter.
-    const ranges = picked
+    //
+    // Neighbouring chapters are merged into one span ("15-27" + "28-40" ->
+    // "15-40"): with the whole book on offer, twenty-four ranges would
+    // otherwise be printed on the paper's header after "Pages".
+    const spans = picked
       .map((p) => chapters.find((x) => x.chapterNumber === p.number))
       .filter((c) => c && c.pageStart != null && c.pageEnd != null)
-      .map((c) => `${c.pageStart}-${c.pageEnd}`);
-    return ranges.length ? ranges.join(', ') : null;
+      .map((c) => [Number(c.pageStart), Number(c.pageEnd)])
+      .sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const [lo, hi] of spans) {
+      const last = merged[merged.length - 1];
+      if (last && lo <= last[1] + 1) last[1] = Math.max(last[1], hi);
+      else merged.push([lo, hi]);
+    }
+    return merged.length ? merged.map(([lo, hi]) => `${lo}-${hi}`).join(', ') : null;
   } catch (err) {
     logToFile('[assessment-flow] could not resolve chapter pages', {
       grade: state.grade, subject: state.subject,
@@ -1356,13 +1990,18 @@ async function submit(state) {
     seenCount: state.contentSource === 'both' ? (Number(state.seenCount) || null) : null,
     totalMarks: state.totalMarks ?? null,
     questionTypes: types,
-    includeAnswerKey: !!state.answerKey,
+    // Always: the answer key stopped being her choice (bd-bfnsk).
+    includeAnswerKey: true,
     answerLines: state.answerLines !== false,
     outputFormat: state.outputFormat || 'pdf',
   });
 }
 
 async function handleBack(userId, screenId, flowToken) {
+  if (paperIdFromToken(flowToken)) {
+    const out = await handleVersionBack(screenId, flowToken);
+    if (out) return out;
+  }
   const state = await readSession(flowToken);
   // Back goes to the screen she actually came from, which on the unseen path is
   // no longer QUESTIONS: COUNTS sits between TYPES and CONFIRM now. Sending her
@@ -1384,7 +2023,7 @@ async function handleBack(userId, screenId, flowToken) {
   if (screenId === 'QUESTIONS' || screenId === 'PAGES') {
     return screen('COVERAGE', {
       summary: summaryOf(state), has_chapters: true,
-      chapters: await chapterOptions(state), error: '',
+      ...(await chapterOptions(state)), error: '',
     });
   }
   return handleInit(userId, flowToken);
@@ -1398,5 +2037,7 @@ module.exports = {
   rebuildFromCompletion,
   // exported for tests
   _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES,
-    paperIdFromToken, mergePageTicks, REVIEW_MARKER, SHAPE_SCREEN, navFit, NAV_MAX },
+    coverageLists, pickedChapterNumbers, compressRuns, NO_MORE_CHAPTERS_ID, CHAPTER_GROUP_CAP,
+    paperIdFromToken, mergePageTicks, REVIEW_MARKER, SHAPE_SCREEN, navFit, NAV_MAX,
+    listScreen, doneScreen, openList, LIST_PAGE_SIZE: Selection.LIST_PAGE_SIZE },
 };

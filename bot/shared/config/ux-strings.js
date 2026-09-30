@@ -348,6 +348,33 @@ const UX_STRINGS = {
     ur: 'زبان: {language} | مشاہدہ: {framework}',
   },
 
+  // ─── live calls (bd-1hae7) ────────────────────────────────────────────────
+  // Sent right after we decline a call, so a teacher who rings and gets nothing
+  // is not left wondering. Message bodies, not buttons or footers, so no
+  // code-point cap applies — but they stay short because they arrive unbidden.
+  // Feminine first person throughout (Rumi's own voice) and the آپ register.
+
+  // Every line is in use. She rang; the phone did not ring back.
+  callBusyOverflow: {
+    en: "Sorry — I'm on another call right now. Send me a message here and I'll help you straight away.",
+    ur: 'معذرت، میں اس وقت ایک اور کال پر ہوں۔ آپ یہاں پیغام لکھ دیں، میں فوراً مدد کروں گی۔',
+  },
+
+  // The weekly calling budget is spent. Messaging is unaffected, so say so.
+  callBudgetOverflow: {
+    en: "Sorry — calling isn't available just now. Message me here and I'll help you the same way.",
+    ur: 'معذرت، کال اس وقت دستیاب نہیں۔ آپ یہاں پیغام لکھ دیں، میں اسی طرح مدد کروں گی۔',
+  },
+
+  // She has used her calls for today. Not a telling-off — an invitation.
+  // NOTE the Urdu: addressed to the TEACHER, so the verb is a gender-neutral
+  // imperative (لکھ دیں), never a gendered second person (لکھ سکتی/سکتے ہیں).
+  // Cohorts are mixed-gender. Rumi's OWN voice stays feminine (موجود ہوں).
+  callDailyLimitOverflow: {
+    en: "That's all our calls for today. Message me here any time — I'm always available.",
+    ur: 'آج کی کالیں مکمل ہو گئیں۔ آپ یہاں کسی بھی وقت پیغام لکھ دیں، میں ہمیشہ موجود ہوں۔',
+  },
+
   /**
    * The language picker's footer. Bilingual — see languagePickerHeader below —
    * but on a HARD 60-CHARACTER BUDGET, which is why it is terse to the point of
@@ -536,6 +563,38 @@ const UX_STRINGS = {
   assessmentFlowButton: {
     en: 'Start',
     ur: 'شروع کریں',
+  },
+
+  /**
+   * bd-q3rfn (AG 1.2 item 6) — the offer sent after a paper is delivered.
+   *
+   * It used to say only "Want a shorter paper? … untick any questions", so a
+   * review Flow that has let her change marks and wording since 6 Sep was
+   * advertised as a way to delete questions: 34 of 3,839 papers had a mark
+   * changed by 30 Sep. It now names all three things the Flow does.
+   *
+   * Caps (code points): header 60, body 1024, Flow button 20 — header and
+   * button kept ≥5 under. The Urdu is impersonal ("کی جا سکتی ہے") so no
+   * gendered stem for the addressee; "میں … دوں گی" is the bot's own voice, as
+   * in assessmentNotReady below.
+   */
+  assessmentReviewOfferHeader: {
+    en: '✏️ Change marks, wording or questions',
+    ur: '✏️ نمبر، الفاظ یا سوال بدلیں',
+  },
+
+  assessmentReviewOfferBody: {
+    en: 'You can still change this paper before you print it: change the marks '
+      + 'for any question, edit its wording, or remove questions you do not want. '
+      + 'Open this and I will make the paper again.',
+    ur: 'پرنٹ کرنے سے پہلے اس پرچے میں تبدیلی کی جا سکتی ہے: کسی بھی سوال کے نمبر '
+      + 'بدلیں، اس کے الفاظ درست کریں، یا جو سوال نہیں چاہیے انہیں ہٹا دیں۔ '
+      + 'اسے کھولیں، میں پرچہ دوبارہ بنا دوں گی۔',
+  },
+
+  assessmentReviewOfferButton: {
+    en: 'Edit the paper',
+    ur: 'پرچہ بدلیں',
   },
 
   assessmentNotReady: {
@@ -2490,6 +2549,113 @@ const UX_STRINGS = {
   vqReportNoOne: {
     en: 'No one has opened your quiz on \u201c{topic}\u201d yet. The link stays live for 30 days \u2014 worth a nudge in the class group.',
     ur: '\u200Fآپ کے quiz «{topic}» کو ابھی تک کسی نے نہیں کھولا۔ link 30 دن تک چلتا رہے گا — class group میں ایک بار پھر یاد دہانی کرا دیں۔',
+  },
+
+  /*
+   * Paper copy, not chat copy: the shared instruction printed over a question
+   * type a teacher started herself on an edited paper. Resolved by the language
+   * the PAPER is set in (the subject's direction), never by her chat language —
+   * it is read by the children, beside the generator's own instructions.
+   */
+  assessmentInstructionMcq: {
+    en: 'Choose the correct option.',
+    ur: 'درست جواب کا انتخاب کریں۔',
+  },
+  assessmentInstructionShort: {
+    en: 'Answer the following questions.',
+    ur: 'درج ذیل سوالات کے جواب دیں۔',
+  },
+  assessmentInstructionLong: {
+    en: 'Answer in detail.',
+    ur: 'تفصیل سے جواب دیں۔',
+  },
+  assessmentInstructionFill: {
+    en: 'Fill in the blanks.',
+    ur: 'خالی جگہ پُر کریں۔',
+  },
+
+  /*
+   * Versioned editing — the Edit button rides ON the paper (one interactive
+   * Flow message whose header is the PDF), the ✓/✗ question list, and every
+   * "Make my paper" is a new version.
+   *
+   * Caps, in code points: flow_cta 20 (no emoji), body 1024, a Flow
+   * NavigationList row's title/description 20 (clipped on the device), a radio
+   * option title 30, helper-text 80. Row strings with placeholders are
+   * measured RENDERED with the widest values in
+   * tests/config/ux-strings-whatsapp-limits.test.js. The Urdu keeps the bot's
+   * own voice ("میں … دوں گی") and is otherwise impersonal. Arrows follow the
+   * reading direction: in Urdu "next" points left.
+   */
+  assessmentEditButton: {
+    // Operator-approved copy, exactly 20/20 — the one headroom exemption.
+    en: 'Edit questions/marks',
+    ur: 'سوال اور نمبر بدلیں',
+  },
+  assessmentPaperBody: {
+    en: "{title}\n{count} questions · {marks} marks\n\nTap the button to change questions, marks or answers. I'll make a new version.",
+    ur: '{title}\n{count} سوال · {marks} نمبر\n\nسوال، نمبر یا جواب بدلنے کے لیے بٹن دبائیں۔ میں نیا ورژن بنا دوں گی۔',
+  },
+  assessmentVersionBody: {
+    en: "{title}\nVersion {version} (from version {parent}) · {count} questions · {marks} marks\n\nTap the button to change it again. Every version stays as it is.",
+    ur: '{title}\nورژن {version} (ورژن {parent} سے) · {count} سوال · {marks} نمبر\n\nدوبارہ بدلنے کے لیے بٹن دبائیں۔ ہر ورژن ویسا ہی محفوظ رہتا ہے۔',
+  },
+  assessmentKeyCaption: {
+    en: 'Answer key · {title}',
+    ur: 'جوابی کلید · {title}',
+  },
+  assessmentVersionMaking: {
+    en: '📝 Making your new version — a few seconds.',
+    ur: '📝 نیا ورژن بن رہا ہے — چند سیکنڈ۔',
+  },
+  assessmentNoChanges: {
+    en: "You didn't change anything, so here is the same paper again.",
+    ur: 'کوئی تبدیلی نہیں ہوئی، اس لیے وہی پرچہ دوبارہ بھیج رہی ہوں۔',
+  },
+  assessmentDraftExpired: {
+    en: 'Your changes timed out. Tap “Edit questions/marks” under the paper to start again.',
+    ur: 'تبدیلیوں کا وقت ختم ہو گیا۔ دوبارہ شروع کرنے کے لیے پرچے کے نیچے “سوال اور نمبر بدلیں” دبائیں۔',
+  },
+
+  // The ✓/✗ list's rows (NavigationList, 20 code points).
+  assessmentRowAdd: { en: '➕ Add a question', ur: '➕ نیا سوال' },
+  assessmentRowAddDesc: { en: 'Short/long/MCQ', ur: 'مختصر/طویل/MCQ' },
+  assessmentRowMake: { en: '📄 Make my paper', ur: '📄 پرچہ بنائیں' },
+  assessmentRowMakeDesc: { en: '{count} Qs · {marks} marks', ur: '{count} سوال · {marks} نمبر' },
+  assessmentRowPrev: { en: '⬅️ Previous', ur: '➡️ پچھلے سوال' },
+  assessmentRowPrevDesc: { en: 'Qs {from}–{to}', ur: 'سوال {from}–{to}' },
+  assessmentRowNext: { en: 'More questions ➡️', ur: 'مزید سوال ⬅️' },
+  assessmentRowNextDesc: { en: 'Qs {from}–{to} of {total}', ur: 'سوال {from}–{to} / {total}' },
+  assessmentRowRemoved: { en: 'removed · {marks}', ur: 'ہٹایا گیا · {marks}' },
+  assessmentRowMarks: { en: '{marks} marks', ur: '{marks} نمبر' },
+  assessmentRowMark1: { en: '1 mark', ur: '1 نمبر' },
+  assessmentRowRemoveQ: { en: '🗑 Remove this', ur: '🗑 سوال ہٹائیں' },
+  assessmentRowBackToList: { en: '↩ Back to list', ur: '↩ فہرست پر واپس' },
+
+  // Edit screens.
+  assessmentOptionNew: { en: 'Option {n} (new)', ur: 'نیا جواب {n}' },
+  assessmentOptionNotSet: { en: '— not set —', ur: '— طے نہیں —' },
+  assessmentAnswerHint: { en: 'Goes in the answer key.', ur: 'یہ جوابی کلید میں جائے گا۔' },
+  assessmentAddPickType: { en: 'Choose what kind of question to add.', ur: 'پہلے سوال کی قسم چنیں۔' },
+  assessmentRemovedHeading: { en: 'Removed from the paper', ur: 'پرچے سے ہٹایا گیا' },
+
+  // The DONE screen before "Make my paper".
+  assessmentDoneSummary: { en: '{count} questions · {marks} marks', ur: '{count} سوال · {marks} نمبر' },
+  assessmentDoneNoChanges: {
+    en: 'No changes yet. Make my paper sends the same paper again.',
+    ur: 'ابھی کوئی تبدیلی نہیں۔ "پرچہ بنائیں" وہی پرچہ دوبارہ بھیجے گا۔',
+  },
+  assessmentDoneEdited: { en: '{n} edited', ur: '{n} بدلے گئے' },
+  assessmentDoneRemoved: { en: '{n} removed', ur: '{n} ہٹائے گئے' },
+  assessmentDoneAdded: { en: '{n} added', ur: '{n} نئے' },
+  assessmentDoneRestored: { en: '{n} brought back', ur: '{n} واپس لائے گئے' },
+  assessmentDoneNote: {
+    en: 'A new version is made from version {version}. Version {version} stays as it is.',
+    ur: 'ورژن {version} سے نیا ورژن بنے گا۔ ورژن {version} ویسا ہی رہے گا۔',
+  },
+  assessmentDoneEmpty: {
+    en: 'Keep at least one question on the paper.',
+    ur: 'پرچے پر کم از کم ایک سوال رکھیں۔',
   },
 };
 

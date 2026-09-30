@@ -1,0 +1,4 @@
+
+# The mock-lane run ledger is append-only: every run on every branch adds rows. Let git union them
+# instead of conflicting on every merge (bd-5d294).
+.claude/qa/ledgers/runs.jsonl merge=union

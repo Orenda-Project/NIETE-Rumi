@@ -93,7 +93,7 @@ async function loadEligibleSessions(userId, needed) {
 }
 
 async function enqueueGenerate(quizId, phone, lang, source = 'list', quizSource = TRANSCRIPT) {
-  const SQSQueueService = require('../queue/sqs-queue.service');
+  const SQSQueueService = require('../queue');
   await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: lang, source }, { delaySeconds: 0 });
   // Every /quiz path that makes a quiz queues it here — the list, the Flow, a retry.
   Funnel.emit('accepted', { quiz_id: quizId, source: quizSource, channel: Funnel.channelOf(source) });

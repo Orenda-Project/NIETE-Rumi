@@ -22,6 +22,8 @@ const mockEditFlag = jest.fn().mockResolvedValue(true);
 jest.mock('../../bot/shared/config/feature-flags', () => ({
   isAssessmentGeneratorEnabled: jest.fn().mockResolvedValue(true),
   isAssessmentEditingEnabled: (...a) => mockEditFlag(...a),
+  // The old KEEP/PICK path: versioned editing explicitly OFF.
+  isAssessmentVersionsEnabled: jest.fn().mockResolvedValue(false),
   ASSESSMENT_GENERATOR_KEY: 'assessment_generator_enabled',
   ASSESSMENT_EDITING_KEY: 'assessment_editing_enabled',
 }));

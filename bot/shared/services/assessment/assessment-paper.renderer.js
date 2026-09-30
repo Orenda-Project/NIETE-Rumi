@@ -133,13 +133,49 @@ function marksLabel(marks) {
   return `<span class="marks">[${n} ${n === 1 ? 'mark' : 'marks'}]</span>`;
 }
 
+/**
+ * bd-bfnsk — the bounds within which the model's own `lines`
+ * number is believed. Prod values run 0..15 (an essay asks for 15); anything
+ * outside, fractional or non-numeric is a malformed field, not a request for a
+ * page of lines, and falls back to the type's default.
+ */
+const MAX_STORED_LINES = 15;
+
+/** The stored `lines` as a whole number in bounds, or null. */
+function storedLines(value) {
+  if (value === null || value === undefined || value === '' || typeof value === 'boolean') return null;
+  if (typeof value === 'string' && !/^\s*\d+\s*$/.test(value)) return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0 || n > MAX_STORED_LINES) return null;
+  return n;
+}
+
+/**
+ * How many ruled lines a question gets. Every question the model writes
+ * carries a `lines` number sized to the answer it expects (15 for an essay, 2
+ * for a brief answer) and until bd-bfnsk the paper ignored it in favour of a
+ * per-type table. Now:
+ *
+ *   * nowhere to write — a no-line type, options to mark, columns to match — 0,
+ *     whatever `lines` says;
+ *   * otherwise the stored number, when it is sane (see storedLines);
+ *   * otherwise the type's default, as before.
+ *
+ * This is the one rule for every paper: the PDF and the Word file are both
+ * made from renderPaper's HTML, and so is the revised paper.
+ */
 function answerLinesFor(questionType, question) {
   const key = String(questionType || '').trim().toLowerCase();
   if (NO_LINES.has(key)) return 0;
   if (question && Array.isArray(question.options) && question.options.length) return 0;
   if (question && (question.column_a || question.column_b)) return 0;
+  const stored = storedLines(question && question.lines);
+  if (stored !== null) return stored;
   return ANSWER_LINES[key] ?? 3;
 }
+
+// A comprehension sub-question's lines: its own number when sane, else 2.
+const SUB_QUESTION_LINES = 2;
 
 function ruledLines(count) {
   if (!count) return '';
@@ -216,7 +252,8 @@ function renderQuestion(question, number, questionType, opts) {
         sub.options.forEach((o) => out.push(`<div class="opt">${esc(o)}</div>`));
         out.push('</div>');
       } else if (answerLines) {
-        out.push(ruledLines(2));
+        const own = typeof sub === 'object' ? storedLines(sub && sub.lines) : null;
+        out.push(ruledLines(own !== null ? own : SUB_QUESTION_LINES));
       }
       if (includeAnswerKey && typeof sub === 'object' && sub.answer) {
         out.push(`<div class="answer"><b>Answer:</b> ${esc(sub.answer)}</div>`);
@@ -237,9 +274,20 @@ function renderQuestion(question, number, questionType, opts) {
   return out.join('\n');
 }
 
-/** Every question in the tree, in printing order, with its type. */
+/**
+ * Every question the paper PRINTS, in printing order, with its type.
+ *
+ * A question she took off the paper stays in the tree flagged `removed: true`
+ * (so it can be brought back without moving any other question's id). Skipping
+ * it HERE, in the one walk the paper, the answer key and the total all go
+ * through, is what keeps a caller from forgetting it.
+ */
 function collectQuestions(examJson) {
   const found = [];
+  const push = (entry) => {
+    if (entry.question && entry.question.removed === true) return;
+    found.push(entry);
+  };
   for (const section of ['seen', 'unseen']) {
     const branch = examJson?.[section];
     if (!branch || typeof branch !== 'object') continue;
@@ -247,11 +295,11 @@ function collectQuestions(examJson) {
       if (!types || typeof types !== 'object') continue;
       for (const [type, entry] of Object.entries(types)) {
         if (Array.isArray(entry)) {
-          entry.forEach((q) => q && found.push({ section, category, type, question: q }));
+          entry.forEach((q) => q && push({ section, category, type, question: q }));
         } else if (entry && typeof entry === 'object') {
           for (const [subType, list] of Object.entries(entry)) {
             if (Array.isArray(list)) {
-              list.forEach((q) => q && found.push({ section, category, type: subType, question: q }));
+              list.forEach((q) => q && push({ section, category, type: subType, question: q }));
             }
           }
         }
@@ -406,7 +454,15 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
       lastType = type;
     }
     let answer;
-    if (question && Array.isArray(question.questions) && question.passage) {
+    const subsAnswered = question && Array.isArray(question.questions)
+      && question.questions.some((q) => q && typeof q === 'object' && q.answer);
+    if (question && Array.isArray(question.questions) && question.passage
+        && !subsAnswered && question.answer) {
+      // The model wrote the comprehension answer once, on the passage, and it
+      // could not be split per sub-question: print it whole rather than a dash
+      // beside every part (bd-bfnsk).
+      answer = escMultiline(question.answer);
+    } else if (question && Array.isArray(question.questions) && question.passage) {
       answer = question.questions.map((sub, i) => {
         const letter = String.fromCharCode(97 + i);
         const a = typeof sub === 'object' && sub.answer ? esc(sub.answer) : dash;
@@ -464,4 +520,8 @@ ${rows.join('\n')}
 </body></html>`;
 }
 
-module.exports = { renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion };
+module.exports = {
+  renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion,
+  answerLinesFor, storedLines, MAX_STORED_LINES,
+  NO_LINES, isRtl,
+};

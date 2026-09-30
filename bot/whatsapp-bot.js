@@ -54,6 +54,9 @@ const ConversationState = require('./shared/services/conversation-state.service'
 const supabase = require('./shared/config/supabase');
 const railwayRedis = require('./shared/services/cache/railway-redis.service');
 
+// Live voice calls (bd-1hae7) — the bot only RECOGNISES and FORWARDS call
+// events; all media work lives in the separate `calls` Railway service.
+const { extractCallEvents, forwardCallEvents } = require('./shared/calls/call-forwarder');
 
 // Import Routes (Flow encryption endpoints)
 const flowEndpointRoutes = require('./shared/routes/flow-endpoint.routes');
@@ -479,6 +482,24 @@ app.post('/webhook', async (req, res) => {
     }
 
     try {
+      // Live voice calls (bd-1hae7.2) — handled FIRST and returned, so a calls
+      // payload can never fall through into message handling. The media work
+      // runs in a separate Railway service; this hands the event over the
+      // private network and answers Meta immediately. Forwarding is
+      // fire-and-forget: if the calls service is down we still 200, because a
+      // Meta retry storm on the messages webhook would be far worse.
+      const callEvents = extractCallEvents(req.body);
+      if (callEvents) {
+        logToFile('Call events received', {
+          correlationId,
+          count: callEvents.calls.length,
+          events: callEvents.calls.map((c) => `${c.event || '?'}:${c.id}`),
+        });
+        void forwardCallEvents(callEvents);
+        ack();
+        return;
+      }
+
       // Check for status webhooks first (delivered/read notifications)
       // Used for broadcast delivery tracking
       const statusValidation = validators.validateWebhookStatus(req);
@@ -2247,8 +2268,14 @@ app.post('/webhook', async (req, res) => {
       // inputs (a coach mid-photo-capture read the old generic reply as the
       // bot breaking). Everything else keeps the historical fallback.
       const { unsupportedTypeReply } = require('./shared/utils/unsupported-message');
-      const reply = unsupportedTypeReply(messageType);
-      logToFile(`⚠️ Unsupported message type: ${messageType}`, { replied: !!reply });
+      // The interactive SUB-type matters: WhatsApp posts `call_permission_reply`
+      // around a voice call, and answering it told the teacher "I can only reply
+      // to text and voice" the moment she hung up (bd-1hae7).
+      const interactiveSubType = message.interactive?.type;
+      const reply = unsupportedTypeReply(messageType, interactiveSubType);
+      logToFile(`⚠️ Unsupported message type: ${messageType}`, {
+        replied: !!reply, interactiveType: interactiveSubType,
+      });
       if (reply) await WhatsAppService.sendMessage(from, reply);
     }
 

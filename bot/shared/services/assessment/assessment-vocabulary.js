@@ -53,4 +53,54 @@ function taughtIn(subject, grade) {
   return !band || band.includes(Number(grade));
 }
 
-module.exports = { SUBJECT_LABEL, GRADE_BANDS, subjectLabel, taughtIn };
+/**
+ * A question type, short enough to sit after the marks on a 20-code-point list
+ * row ("2 marks · Short"). Keys are compared lower-cased with the spaces around
+ * a slash removed, because the model writes "True / False" and "True/False".
+ */
+const SHORT_TYPE = {
+  mcqs: 'MCQ', mcq: 'MCQ', msqs: 'MSQ', msq: 'MSQ', 'true/false': 'T/F',
+  'fill in the blanks': 'Blanks', blanks: 'Blanks', 'match the column': 'Match',
+  'brief answers': 'Brief', 'short questions': 'Short', 'short question': 'Short',
+  'short answer': 'Short', 'long question': 'Long', 'long questions': 'Long',
+  'long answers': 'Long', 'detailed answers': 'Long', 'word meanings': 'Meanings',
+  'word sentences': 'Sentences', 'comprehension passage': 'Passage',
+  'missing letters': 'Letters', 'circle the correct answer': 'Circle',
+  'rewrite sentences': 'Rewrite', 'word problems': 'Problems',
+  'restricted response question': 'Short',
+};
+
+function shortType(type) {
+  const raw = String(type || '').replace(/\s+/g, ' ').trim();
+  if (!raw) return '';
+  const key = raw.toLowerCase().replace(/\s*\/\s*/g, '/');
+  if (SHORT_TYPE[key]) return SHORT_TYPE[key];
+  const first = raw.split(' ')[0];
+  return [...first].slice(0, 10).join('');
+}
+
+/**
+ * The shared instruction printed over a type she started herself. Chosen by
+ * the direction the PAPER is set in (the subject), not by the teacher's chat
+ * language: it is printed for the children, beside the model's own copy. The
+ * copy lives in the catalog (assessmentInstruction*).
+ */
+const INSTRUCTION_KEY = {
+  mcq: 'assessmentInstructionMcq',
+  short: 'assessmentInstructionShort',
+  long: 'assessmentInstructionLong',
+  fill: 'assessmentInstructionFill',
+};
+
+function defaultInstruction(kind, rtl) {
+  const { UX_STRINGS } = require('../../config/ux-strings');
+  const entry = UX_STRINGS[INSTRUCTION_KEY[kind] || INSTRUCTION_KEY.short];
+  // Read raw rather than through resolveUx: this is printed on paper, and the
+  // chat resolver's direction marks have no business on a photocopy.
+  return entry[rtl ? 'ur' : 'en'];
+}
+
+module.exports = {
+  SUBJECT_LABEL, GRADE_BANDS, subjectLabel, taughtIn,
+  SHORT_TYPE, shortType, INSTRUCTION_KEY, defaultInstruction,
+};

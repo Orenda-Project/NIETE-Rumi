@@ -1,0 +1,394 @@
+/**
+ * P1.2 (bd-1hae7.6) — the Tier-A connect context.
+ *
+ * What she gets asked about on a call is her OWN teaching, so the assistant has
+ * to arrive already knowing her. This block is assembled at connect from our own
+ * Supabase, and the rules it must obey are all failure-driven:
+ *
+ *  - **Every block soft-fails INDEPENDENTLY.** One slow table must not cost her
+ *    the whole call — the block goes missing, the call proceeds.
+ *  - **Every block carries its as-of date** (RT-5). Undated context gets spoken
+ *    as if it were true today.
+ *  - **It is TEXT, not scores.** The words — executive_summary, focus_area,
+ *    strengths, recommendations — are what let her have a real conversation.
+ *  - **Size-capped**, because a 20KB prompt is a slow, expensive call.
+ *
+ * The shapes here are the LIVE ones, verified against the staging DB on
+ * 2026-08-24: analysis_data carries executive_summary / focus_area / strengths /
+ * recommendations / growth_opportunities / domains / framework. There is NO
+ * `prioritized_action` key, so nothing here depends on one.
+ */
+
+const { buildCallContext } = require('../../shared/calls/call-context.service');
+
+const USER = {
+  id: 'u-1', first_name: 'Ayesha', last_name: 'Khan', name: 'Ayesha Khan',
+  school_name: 'Govt Girls Primary Rawal', grades_taught: ['4', '5'],
+  subjects_taught: ['Maths'], preferred_language: 'ur', role: 'teacher',
+};
+
+const COACHING = {
+  id: 'cs-9',
+  completed_at: '2026-08-18T09:00:00Z',
+  analysis_data: {
+    framework: 'FICO',
+    executive_summary: 'Strong questioning; pupils reasoned aloud in the second half.',
+    focus_area: 'Wait time after open questions',
+    strengths: ['Clear modelling on the board', 'Warm classroom tone'],
+    recommendations: ['Pause three seconds after each open question', 'Ask a pupil to explain another pupil’s answer'],
+    growth_opportunities: ['More pupil-to-pupil talk'],
+    scores: { overall_percentage: 72 },
+    domains: { classroom_culture: { narrative: 'settled and warm' } },
+  },
+};
+
+const deps = (over = {}) => ({
+  fetchUser: async () => USER,
+  fetchLatestCoaching: async () => COACHING,
+  fetchLpContext: async () => 'Recently delivered to this teacher: Grade 4 Maths — Ch 3 “Fractions” (2 days ago).',
+  fetchUpcomingVisit: async () => ({ scheduled_at: '2026-08-27T05:00:00Z', observation_tool: 'FICO' }),
+  fetchTraining: async () => ({ completed: 4, total: 12, latestTitle: 'Questioning for understanding' }),
+  fetchMemory: async () => ({ summary: 'Last call she asked about fractions pacing.', updated_at: '2026-08-20T10:00:00Z', call_count: 2 }),
+  now: () => new Date('2026-08-24T12:00:00Z'),
+  ...over,
+});
+
+describe('call context — who she is', () => {
+  test('names her, her school and what she teaches', async () => {
+    const { block } = await buildCallContext({ from: '923001234567', deps: deps() });
+    expect(block).toContain('Ayesha');
+    expect(block).toContain('Govt Girls Primary Rawal');
+    expect(block).toMatch(/Maths/);
+    expect(block).toMatch(/4/);
+  });
+
+  test('an unknown caller still yields a usable, warm context', async () => {
+    const { block, known } = await buildCallContext({
+      from: '923009999999', deps: deps({ fetchUser: async () => null }),
+    });
+    expect(known).toBe(false);
+    expect(block).toMatch(/not .{0,20}recognis|unknown|first time|no record/i);
+    expect(block).not.toMatch(/undefined|null/);
+  });
+
+  test('her preferred language is reported so the persona can follow it', async () => {
+    const { language } = await buildCallContext({ from: '92300', deps: deps() });
+    expect(language).toBe('ur');
+  });
+
+  test('language falls back to Urdu when she has no preference stored', async () => {
+    const { language } = await buildCallContext({
+      from: '92300', deps: deps({ fetchUser: async () => ({ ...USER, preferred_language: null }) }),
+    });
+    expect(language).toBe('ur');
+  });
+});
+
+describe('call context — the coaching, in WORDS', () => {
+  test('carries the narrative fields, not just a number', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: deps() });
+    expect(block).toContain('Strong questioning');
+    expect(block).toContain('Wait time after open questions');
+    expect(block).toContain('Clear modelling on the board');
+    expect(block).toContain('Pause three seconds');
+  });
+
+  // CONTRACT REVERSED after the second live call. Withholding the score meant
+  // that when the caller asked "why were my numbers low?" she had nothing to
+  // answer with and told him she could not see his records. The number is now
+  // present but explicitly answer-only-if-asked.
+  test('the score IS present, but marked never-lead-with-it', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: deps() });
+    expect(block).toMatch(/\b72\b/);
+    expect(block).toMatch(/unless SHE asks|if she asks/i);
+    expect(block).not.toMatch(/overall_percentage/); // the raw key never leaks
+  });
+
+  test('a coaching row with no analysis_data is skipped, not half-rendered', async () => {
+    const { block } = await buildCallContext({
+      from: '92300', deps: deps({ fetchLatestCoaching: async () => ({ id: 'x', analysis_data: null }) }),
+    });
+    // No coaching BLOCK — but the record summary still names it as absent, on
+    // purpose: silence about absence is what made her claim she had no access.
+    expect(block).not.toMatch(/## HER MOST RECENT COACHING/);
+    expect(block).toMatch(/NOTHING RECORDED/);
+    expect(block).toContain('Ayesha');
+  });
+
+  test('missing individual keys degrade gracefully', async () => {
+    const { block } = await buildCallContext({
+      from: '92300',
+      deps: deps({ fetchLatestCoaching: async () => ({ completed_at: COACHING.completed_at, analysis_data: { focus_area: 'Wait time' } }) }),
+    });
+    expect(block).toContain('Wait time');
+    expect(block).not.toMatch(/undefined|\[object Object\]/);
+  });
+});
+
+describe('call context — as-of dating (RT-5)', () => {
+  test('the coaching block says when it happened', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: deps() });
+    expect(block).toMatch(/2026-08-18|18 Aug|6 days ago/i);
+  });
+
+  test('the memory block says when it was written', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: deps() });
+    expect(block).toMatch(/2026-08-20|20 Aug|4 days ago/i);
+  });
+
+  test('no block is emitted undated', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: deps() });
+    block.split('\n').filter((l) => l.startsWith('## ')).forEach((heading) => {
+      const section = block.slice(block.indexOf(heading), block.indexOf(heading) + 400);
+      if (/COACHING|MEMORY|VISIT|LESSON/i.test(heading)) {
+        expect(section).toMatch(/\d{4}-\d{2}-\d{2}|ago|today|tomorrow/i);
+      }
+    });
+  });
+});
+
+describe('call context — every block fails independently (fail-open)', () => {
+  const throwing = () => async () => { throw new Error('table unreachable'); };
+
+  test('a coaching failure still leaves her identity and lessons', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: deps({ fetchLatestCoaching: throwing() }) });
+    expect(block).toContain('Ayesha');
+    expect(block).toContain('Fractions');
+  });
+
+  test('an LP failure still leaves identity and coaching', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: deps({ fetchLpContext: throwing() }) });
+    expect(block).toContain('Ayesha');
+    expect(block).toContain('Wait time');
+  });
+
+  test('EVERY source failing still returns a usable block, never a throw', async () => {
+    const all = {
+      fetchUser: throwing(), fetchLatestCoaching: throwing(), fetchLpContext: throwing(),
+      fetchUpcomingVisit: throwing(), fetchTraining: throwing(), fetchMemory: throwing(),
+    };
+    const { block } = await buildCallContext({ from: '92300', deps: deps(all) });
+    expect(typeof block).toBe('string');
+    expect(block.length).toBeGreaterThan(0);
+    expect(block).not.toMatch(/undefined|\[object Object\]/);
+  });
+
+  test('a hanging source does not hang the call — it is bounded by a timeout', async () => {
+    const hang = () => new Promise(() => {}); // never settles
+    const started = Date.now();
+    const { block } = await buildCallContext({
+      from: '92300', deps: deps({ fetchLatestCoaching: hang, timeoutMs: 50 }),
+    });
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(block).toContain('Ayesha');
+  }, 10000);
+});
+
+describe('call context — the other blocks', () => {
+  test('the upcoming visit is stated with its date', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: deps() });
+    expect(block).toMatch(/2026-08-27|27 Aug/i);
+  });
+
+  test('training position is stated as progress, not a grade', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: deps() });
+    expect(block).toMatch(/4.{0,6}12|4 of 12/);
+    expect(block).toContain('Questioning for understanding');
+  });
+
+  test('rolling memory from previous calls is included', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: deps() });
+    expect(block).toContain('fractions pacing');
+  });
+
+  test('absent optional blocks render no block, but ARE named as absent', async () => {
+    const { block } = await buildCallContext({
+      from: '92300',
+      deps: deps({ fetchUpcomingVisit: async () => null, fetchTraining: async () => null, fetchMemory: async () => null }),
+    });
+    expect(block).not.toMatch(/## HER NEXT COACH VISIT|## HER TRAINING|## PREVIOUS CALLS/);
+    expect(block).toMatch(/NOTHING RECORDED for:.*upcoming coach visit/s);
+    expect(block).toContain('Ayesha');
+  });
+});
+
+describe('call context — size discipline', () => {
+  test('is capped so a call is not slow and expensive to start (12KB)', async () => {
+    const huge = 'x'.repeat(50000);
+    const { block } = await buildCallContext({
+      from: '92300',
+      deps: deps({ fetchLpContext: async () => huge, fetchLatestCoaching: async () => ({
+        completed_at: COACHING.completed_at,
+        analysis_data: { executive_summary: huge, strengths: [huge], recommendations: [huge] },
+      }) }),
+    });
+    expect(block.length).toBeLessThanOrEqual(12500);
+  });
+
+  // CONTRACT REVERSED: the marker was READ ALOUD to the teacher as "your record
+  // is incomplete because of truncation". Trimming is now silent.
+  test('trimming is SILENT — no marker can ever be narrated', async () => {
+    const { block } = await buildCallContext({
+      from: '92300', deps: deps({ fetchLpContext: async () => 'y'.repeat(50000) }),
+    });
+    expect(block).not.toMatch(/truncat/i);
+  });
+
+  test('identity survives truncation — it is the block that matters most', async () => {
+    const { block } = await buildCallContext({
+      from: '92300', deps: deps({ fetchLpContext: async () => 'y'.repeat(50000) }),
+    });
+    expect(block).toContain('Ayesha');
+  });
+});
+
+describe('call context — the snapshot for the audit trail (P3.1)', () => {
+  test('returns which blocks were present and which failed', async () => {
+    const { snapshot } = await buildCallContext({
+      from: '92300', deps: deps({ fetchTraining: async () => { throw new Error('nope'); } }),
+    });
+    expect(snapshot.blocks.identity).toBe(true);
+    expect(snapshot.blocks.coaching).toBe(true);
+    expect(snapshot.blocks.training).toBe(false);
+    expect(snapshot.failures).toContain('training');
+  });
+
+  test('records the user id it resolved, for joining the call row', async () => {
+    const { snapshot, userId } = await buildCallContext({ from: '92300', deps: deps() });
+    expect(userId).toBe('u-1');
+    expect(snapshot.userId).toBe('u-1');
+  });
+});
+
+/**
+ * ─── LIVE SHAPES (found by a synthetic call against the staging DB, 2026-08-24) ───
+ *
+ * The first real call proved three assumptions wrong, and every one of them was
+ * a silent failure rather than an error:
+ *
+ *   focus_area           is an OBJECT in all 90 production rows, not a string.
+ *                        Stringifying it put a literal "[object Object]" into
+ *                        the prompt.
+ *   strengths[]          are OBJECTS ({title, impact, analysis, evidence}), so a
+ *                        string-only filter dropped ALL of them — the assistant
+ *                        knew none of her strengths and nothing said so.
+ *   growth_opportunities are OBJECTS too.
+ *
+ * These fixtures are copied from real rows. This is the "test against
+ * live-shaped fixtures, never assume" rule, paid for once.
+ */
+const LIVE_ANALYSIS = {
+  framework: 'FICO',
+  executive_summary: 'Meem clearly taught fractions using concrete models.',
+  focus_area: {
+    title: 'کھلی سوال سازی اور سوچ کا وقت',
+    domain: 'high_leverage_practices',
+    indicator: 'C1',
+    rationale: 'کھلے سوالات اور think-time واضح طور پر reasoning کو بڑھاتے ہیں۔',
+    lever_question: 'کیا اس سے ان کی زبان اور reasoning میں فرق آیا؟',
+    try_this_tomorrow: 'ایک اہم سوال کے بعد 10–15 سیکنڈ کی خاموش think-time دیں۔',
+  },
+  strengths: [
+    { title: 'Clear lesson sequence & authentic tasks', impact: 'Strengthened comprehension.', analysis: 'I Do → We Do → You Do.', evidence: 'quote at 12:39' },
+    { title: 'Warm classroom tone', impact: 'Children volunteered readily.', analysis: '…', evidence: '…' },
+  ],
+  growth_opportunities: [
+    { title: 'Equitable participation', impact: 'Few children spoke.', analysis: '…' },
+  ],
+  recommendations: ['Start with a 1-minute Think → Pair → Share.'],
+  scores: { overall_percentage: 72 },
+};
+
+const liveDeps = (over = {}) => deps({
+  fetchLatestCoaching: async () => ({ completed_at: '2026-08-23T09:00:00Z', analysis_data: LIVE_ANALYSIS }),
+  ...over,
+});
+
+describe('call context — production analysis_data shapes', () => {
+  test('focus_area renders its TITLE, never "[object Object]"', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).not.toMatch(/\[object Object\]/);
+    expect(block).toContain('کھلی سوال سازی اور سوچ کا وقت');
+  });
+
+  test('focus_area carries the parts worth TALKING about on a call', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).toContain('ایک اہم سوال کے بعد');       // try_this_tomorrow
+    expect(block).toContain('کیا اس سے ان کی زبان');       // lever_question
+  });
+
+  test('object-shaped strengths are RENDERED, not silently dropped', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).toContain('Clear lesson sequence & authentic tasks');
+    expect(block).toContain('Warm classroom tone');
+  });
+
+  test('object-shaped growth opportunities are rendered too', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).toContain('Equitable participation');
+  });
+
+  test('string-shaped recommendations still work (they really are strings)', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).toContain('Think → Pair → Share');
+  });
+
+  test('the long sub-fields are NOT dumped in full — a call prompt stays lean', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).not.toContain('I Do → We Do → You Do'); // `analysis` is not call material
+  });
+
+  test('the score is present and framed, not raw', async () => {
+    const { block } = await buildCallContext({ from: '92300', deps: liveDeps() });
+    expect(block).toMatch(/\b72\b/);
+    expect(block).toMatch(/Do not mention this number unless SHE asks/);
+  });
+
+  test('a mixed array of strings AND objects renders both', async () => {
+    const { block } = await buildCallContext({
+      from: '92300',
+      deps: liveDeps({ fetchLatestCoaching: async () => ({
+        completed_at: '2026-08-23T09:00:00Z',
+        analysis_data: { ...LIVE_ANALYSIS, strengths: ['A plain string strength', { title: 'An object strength' }] },
+      }) }),
+    });
+    expect(block).toContain('A plain string strength');
+    expect(block).toContain('An object strength');
+  });
+
+  test('an object with no recognisable text field is skipped, not stringified', async () => {
+    const { block } = await buildCallContext({
+      from: '92300',
+      deps: liveDeps({ fetchLatestCoaching: async () => ({
+        completed_at: '2026-08-23T09:00:00Z',
+        analysis_data: { ...LIVE_ANALYSIS, strengths: [{ unexpected: 'shape' }] },
+      }) }),
+    });
+    expect(block).not.toMatch(/\[object Object\]/);
+  });
+});
+
+describe('call context — one block must not starve the others', () => {
+  test('the LESSONS block survives a very large coaching block', async () => {
+    // The real failure: a rich FICO analysis ate the whole 4KB budget and the
+    // lessons block — the thing she is most likely to ring about — was cut.
+    const fat = { ...LIVE_ANALYSIS, executive_summary: 'S'.repeat(6000) };
+    const { block } = await buildCallContext({
+      from: '92300',
+      deps: liveDeps({ fetchLatestCoaching: async () => ({ completed_at: '2026-08-23T09:00:00Z', analysis_data: fat }) }),
+    });
+    expect(block).toContain('LESSONS RECENTLY DELIVERED');
+    expect(block).toContain('Fractions');
+    expect(block).toContain('Ayesha');
+  });
+
+  test('an oversized single block is trimmed rather than dropped whole', async () => {
+    const fat = { ...LIVE_ANALYSIS, executive_summary: 'S'.repeat(6000) };
+    const { block } = await buildCallContext({
+      from: '92300',
+      deps: liveDeps({ fetchLatestCoaching: async () => ({ completed_at: '2026-08-23T09:00:00Z', analysis_data: fat }) }),
+    });
+    expect(block).toMatch(/MOST RECENT COACHING/);
+    expect(block.length).toBeLessThanOrEqual(12500);
+  });
+});

@@ -4958,8 +4958,22 @@ CREATE TABLE IF NOT EXISTS assessment_papers (
   ready_at              TIMESTAMPTZ,
   edited_at             TIMESTAMPTZ,
 
-  UNIQUE (request_id, attempt)
+  -- V1.5.6. The version this row was edited from; NULL = generated (version 1).
+  -- A version keeps its parent's request_id and attempt, so request_id groups
+  -- the family and the version number is derived, never stored.
+  edited_from           UUID REFERENCES assessment_papers(id),
+
+  CONSTRAINT assessment_papers_edited_from_not_self
+    CHECK (edited_from IS NULL OR edited_from <> id)
 );
+
+-- V1.5.6: uniqueness covers generated rows only — a version inherits its
+-- parent's attempt.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_assessment_papers_request_attempt_generated
+  ON assessment_papers (request_id, attempt) WHERE edited_from IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_assessment_papers_edited_from
+  ON assessment_papers (edited_from) WHERE edited_from IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_assessment_papers_request
   ON assessment_papers (request_id, attempt DESC);
@@ -4980,6 +4994,10 @@ COMMENT ON COLUMN assessment_papers.selected_question_ids IS
   '[] = she unticked every one.';
 COMMENT ON COLUMN assessment_papers.error_detail IS
   'Internal. Never write a name, phone number or CNIC here.';
+COMMENT ON COLUMN assessment_papers.edited_from IS
+  'Internal. The version this one was edited from (NULL = generated, i.e. version 1). '
+  'A version keeps its parent''s request_id and attempt. exam_json of a ready row is '
+  'never rewritten; removed questions stay in it flagged "removed": true.';
 
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
