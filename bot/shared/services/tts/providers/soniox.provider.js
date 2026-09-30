@@ -121,10 +121,11 @@ async function readErrorBody(data) {
  * (Soniox sometimes never closes a response whose clip is already whole), or
  * with an error when the stream is silent for `idleMs`, closes early, fails, or
  * the part's time cap aborts it. A body that is already a buffer is returned as is.
+ * Resolves to { audio, unclosed }: `unclosed` says the response never closed by itself.
  */
 function readAudio(body, { idleMs, endGraceMs, signal }) {
-  if (body == null) return Promise.resolve(Buffer.alloc(0));
-  if (!isStream(body)) return Promise.resolve(Buffer.from(body));
+  if (body == null) return Promise.resolve({ audio: Buffer.alloc(0), unclosed: false });
+  if (!isStream(body)) return Promise.resolve({ audio: Buffer.from(body), unclosed: false });
   return new Promise((resolve, reject) => {
     const watcher = createEndWatcher();
     let idle = null;
@@ -137,9 +138,10 @@ function readAudio(body, { idleMs, endGraceMs, signal }) {
       clearTimeout(idle);
       clearTimeout(grace);
       if (signal) signal.removeEventListener('abort', onAbort);
-      if (!body.readableEnded) body.destroy(); // a response that never closes is let go
+      const unclosed = !body.readableEnded;
+      if (unclosed) body.destroy(); // a response that never closes is let go
       if (error) reject(error);
-      else resolve(watcher.buffer());
+      else resolve({ audio: watcher.buffer(), unclosed });
     };
     function onAbort() { done(fail('ERR_CANCELED', 'canceled: the part ran past its time cap')); }
     const armIdle = () => {
@@ -236,7 +238,7 @@ function createSonioxProvider({ http = realAxios, env = process.env, sleep, limi
       }
       try {
         // The slot is held until the body is read, not just until the headers arrive.
-        const audio = await withSlot(async () => {
+        const { audio, unclosed } = await withSlot(async () => {
           const controller = new AbortController();
           const cap = setTimeout(() => controller.abort(), lim.totalCapMs([...text].length));
           try {
@@ -265,7 +267,7 @@ function createSonioxProvider({ http = realAxios, env = process.env, sleep, limi
           }
         });
         const problem = checkPart(audio, text);
-        if (!problem) return { audio, attempts: attempt };
+        if (!problem) return { audio, attempts: attempt, unclosed };
         lastError = new SonioxTtsError('incomplete_audio', `Soniox returned an incomplete voice note: ${problem}`);
       } catch (error) {
         // A 2xx status on an error means the stream broke AFTER its header — a
@@ -308,6 +310,10 @@ function createSonioxProvider({ http = realAxios, env = process.env, sleep, limi
       model,
       parts: parts.length,
       attempts: results.reduce((sum, r) => sum + r.attempts, 0), // requests made, across all parts
+      // Parts whose response never closed and were taken at their end page. The
+      // teacher does not feel it any more, so it is counted: a rising number is
+      // Soniox misbehaving before it is an outage.
+      unclosed: results.filter((r) => r.unclosed).length,
       textSent: prepared,
       dropped,
     };

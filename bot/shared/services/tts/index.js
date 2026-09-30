@@ -150,6 +150,7 @@ function createTtsGateway({
       parts: result.parts, attempts: result.attempts, durationMs: latencyMs,
       audioSec: Math.round(result.durationSec * 10) / 10, bytes: result.audio.length, fallbackFrom,
       estimatedCostUsd: result.provider === 'soniox' ? Math.round(result.durationSec * SONIOX_USD_PER_AUDIO_SECOND * 1e6) / 1e6 : undefined,
+      unclosed: result.unclosed, // Soniox only: parts whose response never closed (taken at their end page)
       cassette: result.cassette,
     });
     if (fallbackFrom) {

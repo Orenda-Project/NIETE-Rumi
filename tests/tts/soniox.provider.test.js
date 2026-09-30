@@ -312,6 +312,7 @@ describe('soniox provider — a streamed response', () => {
     expect(post).toHaveBeenCalledTimes(1);
     expect(out.attempts).toBe(1);
     expect(out.audio.equals(UR_A)).toBe(true);
+    expect(out.unclosed).toBe(1); // counted, so the vendor quirk stays visible once the teacher no longer feels it
     await new Promise((r) => setImmediate(r));
     expect(closed).toBe(true); // the hanging response is let go, so its socket does not leak
   });
@@ -321,6 +322,7 @@ describe('soniox provider — a streamed response', () => {
     const out = await provider({ post }).synthesize({ text: TEXT, language: 'ur', useCase: 'conversation' });
     expect(out.attempts).toBe(1);
     expect(out.audio.equals(UR_A)).toBe(true);
+    expect(out.unclosed).toBe(0);
   });
 
   it('a stream that goes silent BEFORE its end page is given up after the idle window, and the retry is logged', async () => {
