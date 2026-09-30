@@ -106,9 +106,10 @@ describe('register-all-flows', () => {
     // generate report / resend link / make the quiz, all in one session.
     // Re-armed at 20 on 2026-09-23: the child's join screen became a localized
     // Flow (Student Join Localized), every word supplied in the quiz language.
-    it('exports an array of all 20 registerable flow configurations', () => {
+    // Re-armed at 22 on 2026-09-30: /observe2 — the live field form and the evidence check.
+    it('exports an array of all 22 registerable flow configurations', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(20);
+      expect(FLOW_CONFIGS).toHaveLength(22);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {

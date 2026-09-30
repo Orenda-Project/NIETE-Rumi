@@ -38,10 +38,24 @@ describe('the committed JSON is the generator output', () => {
 });
 
 describe('the flow is internally consistent', () => {
-  test('four screens in order, forward-only routing, one terminal', () => {
-    expect(flow.screens.map((s) => s.id)).toEqual(['PART_1', 'PART_2', 'AFTER', 'SEALED']);
-    expect(flow.routing_model).toEqual({ PART_1: ['PART_2'], PART_2: ['AFTER'], AFTER: ['SEALED'], SEALED: [] });
+  test('the parts in order, forward-only routing, one terminal', () => {
+    expect(flow.screens.map((s) => s.id)).toEqual(['PART_1', 'PART_2', 'AFTER', 'SEALED', 'CONTINUE']);
+    expect(flow.routing_model).toEqual({
+      PART_1: ['PART_2'], PART_2: ['AFTER'], AFTER: ['SEALED'], SEALED: [], CONTINUE: ['PART_2', 'AFTER', 'SEALED'],
+    });
     expect(flow.screens.filter((s) => s.terminal).map((s) => s.id)).toEqual(['SEALED']);
+  });
+
+  // A form reopened after Part 1 (or after the seal) must not start again at Part 1, and INIT may
+  // only answer with a screen that has no incoming route. CONTINUE is that second entry: it says
+  // where the record stands and posts only its own id; the endpoint then sends Part 2, the seal
+  // screen, or the sealed screen.
+  test('two entry screens: Part 1 for a new form, CONTINUE for a reopened one', () => {
+    const incoming = new Set(Object.values(flow.routing_model).flat());
+    expect(flow.screens.map((s) => s.id).filter((id) => !incoming.has(id))).toEqual(['PART_1', 'CONTINUE']);
+    const footer = components(screens.CONTINUE).find((c) => c.type === 'Footer');
+    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'CONTINUE' } });
+    expect(Object.keys(screens.CONTINUE.data).sort()).toEqual(['continue_heading', 'continue_line']);
   });
 
   test('every ${data.x} reference is declared in its own screen data', () => {
@@ -131,6 +145,11 @@ describe('the form agrees with the endpoint', () => {
       expect(Object.keys(payload).filter((k) => k !== 'screen' && k !== 'photos').sort()).toEqual(shown);
       expect([...fields].sort()).toEqual(shown);
     }
+  });
+  test('at most three photos, each within the size cap', () => {
+    const picker = components(screens.AFTER).find((c) => c.type === 'PhotoPicker');
+    expect(picker['max-uploaded-photos']).toBe(3);
+    expect(picker['max-file-size-kb']).toBeLessThanOrEqual(10240);
   });
   test('photos travel only on the seal, never in a navigate payload', () => {
     expect(components(screens.AFTER).some((c) => c.type === 'PhotoPicker')).toBe(true);

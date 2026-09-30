@@ -3,7 +3,7 @@
 -- /observe2 reads it.
 -- SAFE ONLY after the code is rolled back or the /observe2 Flow ids are unset: the /observe2
 -- endpoints and the capture link write it. Roll the CODE back first.
--- One exec_sql call = one transaction; no BEGIN/COMMIT (exec_sql cannot execute them).
+-- One RPC call from the migration runner = one transaction; no BEGIN/COMMIT (it cannot execute them).
 DROP TRIGGER IF EXISTS observation_field_forms_keep_seal ON observation_field_forms;
 DROP TRIGGER IF EXISTS update_observation_field_forms_updated_at ON observation_field_forms;
 DROP FUNCTION IF EXISTS observation_field_forms_keep_seal();

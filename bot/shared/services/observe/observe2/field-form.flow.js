@@ -8,6 +8,7 @@
  *   PART_2  the second half                (the same questions, plus children speaking for the first time)
  *   AFTER   before leaving the room        (anything to report, photos, what to work on first, the seal)
  *   SEALED  the record is locked
+ *   CONTINUE  a reopened form: where the record stands, then on to the right screen
  *
  * Every question describes something the coach can SEE, in plain words; no indicator name or
  * level ever appears while the lesson is on. The ids behind each option are the ones
@@ -169,10 +170,10 @@ function buildFieldFormFlow() {
     radio('lp', 'Lesson plan', LESSON_PLAN),
     {
       type: 'PhotoPicker', name: 'photos', label: 'Photos (optional)', description: 'Boards, notebooks, groups at work. Never faces.',
-      'photo-source': 'camera_gallery', 'min-uploaded-photos': 0, 'max-uploaded-photos': 9, 'max-file-size-kb': 10240,
+      'photo-source': 'camera_gallery', 'min-uploaded-photos': 0, 'max-uploaded-photos': 3, 'max-file-size-kb': 10240,
     },
     { type: 'Dropdown', name: 'priority', label: 'Work on first', required: true, 'data-source': PRIORITY_ORDER.map((c) => opt(c, PRIORITY[c])) },
-    { type: 'OptIn', name: 'seal_ok', label: "Seal this record. I can't change it afterwards, and Rumi's findings open only after I seal.", required: true },
+    { type: 'OptIn', name: 'seal_ok', label: "Seal this record. I can't change it afterwards, and the recording's moments open only after I seal.", required: true },
     ERR_LINE,
   ];
   const sealed = {
@@ -196,10 +197,31 @@ function buildFieldFormFlow() {
       ],
     },
   };
+  // The second entry screen. A form reopened after Part 1, after Part 2 or after the seal says where
+  // the record stands; "Continue" posts only this screen's id and the endpoint sends the next screen.
+  // (INIT may only answer with a screen that has no incoming route, so Part 2 cannot be opened directly.)
+  const resume = {
+    id: 'CONTINUE',
+    title: 'Your record',
+    data: {
+      continue_heading: { type: 'string', __example__: 'Part 1 is saved' },
+      continue_line: { type: 'string', __example__: 'Carry on with Part 2, from minute 20 to 40.' },
+    },
+    layout: {
+      type: 'SingleColumnLayout',
+      children: [
+        { type: 'TextHeading', text: '${data.continue_heading}' },
+        { type: 'TextBody', text: '${data.continue_line}' },
+        { type: 'Footer', label: 'Continue', 'on-click-action': { name: 'data_exchange', payload: { screen: 'CONTINUE' } } },
+      ],
+    },
+  };
   return {
     version: FLOW_VERSION,
     data_api_version: '3.0',
-    routing_model: { PART_1: ['PART_2'], PART_2: ['AFTER'], AFTER: ['SEALED'], SEALED: [] },
+    routing_model: {
+      PART_1: ['PART_2'], PART_2: ['AFTER'], AFTER: ['SEALED'], SEALED: [], CONTINUE: ['PART_2', 'AFTER', 'SEALED'],
+    },
     screens: [
       screen('PART_1', 'Part 1', part1, 'Part 1 done', {
         teacher_line: { type: 'string', __example__: "Rabia's lesson · Grade 4 · Maths" },
@@ -210,6 +232,7 @@ function buildFieldFormFlow() {
       }),
       screen('AFTER', 'Before you seal', after, 'Seal and send'),
       sealed,
+      resume,
     ],
   };
 }

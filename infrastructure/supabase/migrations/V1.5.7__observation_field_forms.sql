@@ -34,8 +34,8 @@
 -- IDEMPOTENT. IF NOT EXISTS / OR REPLACE / DROP ... IF EXISTS throughout.
 -- Rollback: ROLLBACK_V1.5.7__observation_field_forms.sql
 -- ORDER. Apply BEFORE the code that writes observation_field_forms.
--- ATOMIC without BEGIN/COMMIT: infrastructure/scripts/migrate.js sends the file as ONE exec_sql call,
--- which is one transaction, and exec_sql cannot execute transaction commands.
+-- ATOMIC without BEGIN/COMMIT: infrastructure/scripts/migrate.js sends the file as ONE RPC call,
+-- which is one transaction, and that call cannot execute transaction commands.
 
 CREATE TABLE IF NOT EXISTS observation_field_forms (
   id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),

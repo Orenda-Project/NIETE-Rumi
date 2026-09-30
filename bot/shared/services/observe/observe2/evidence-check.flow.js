@@ -27,10 +27,10 @@ const FLOW_VERSION = '7.3';
 const SLOTS = 8;
 
 const HEARD_SCREENS = [
-  { id: 'HEARD_ASK', title: 'Rumi heard: asking', moment: 'ask' },
-  { id: 'HEARD_WRONG', title: 'Rumi heard: wrong answers', moment: 'wrong' },
-  { id: 'HEARD_WORK', title: 'Rumi heard: working', moment: 'work' },
-  { id: 'HEARD_EXPLAIN', title: 'Rumi heard: explaining', moment: 'explain' },
+  { id: 'HEARD_ASK', title: 'Recording: asking', moment: 'ask' },
+  { id: 'HEARD_WRONG', title: 'Recording: wrong answers', moment: 'wrong' },
+  { id: 'HEARD_WORK', title: 'Recording: working', moment: 'work' },
+  { id: 'HEARD_EXPLAIN', title: 'Recording: explaining', moment: 'explain' },
 ];
 const MOMENT_BY_ID = Object.fromEntries(MOMENTS.map((m) => [m.id, m]));
 const ADDED_SCREENS = [
@@ -62,7 +62,7 @@ function heardScreen({ id, title, moment }, isLast) {
   const data = {};
   const kids = [
     { type: 'TextHeading', text: MOMENT_BY_ID[moment].question },
-    { type: 'TextCaption', text: 'These are moments from the recording. Say whether each one really happened. Rumi never shows its own score.' },
+    { type: 'TextCaption', text: 'These are moments from the recording. Say whether each one really happened. No score from the recording is shown.' },
   ];
   for (let i = 1; i <= SLOTS; i += 1) {
     const k = `${id.toLowerCase()}_${i}`;
@@ -99,7 +99,7 @@ function addedScreen({ id, title, codes }) {
 
 function priorityScreen() {
   const kids = [
-    { type: 'TextCaption', text: 'Your pick before you saw anything from Rumi. Keep it or change it.' },
+    { type: 'TextCaption', text: "Your pick before you saw the recording's moments. Keep it or change it." },
     { type: 'Dropdown', name: 'priority_final', label: 'Work on first', required: true, 'data-source': ORDER.map((c) => ({ id: c, title: PRIORITY[c] })) },
     { type: 'TextArea', name: 'why', label: 'Why you changed', required: false, 'max-length': 600, 'helper-text': 'If you changed a level or the pick: which moment or answer did it' },
   ];
