@@ -1,5 +1,5 @@
 /**
- * bd-60118 — STEPS "S" (Supervisor Remarks), aggregated for a principal.
+ * STEPS "S" (Supervisor Remarks), aggregated for a principal.
  *
  * These are the principal's OWN quarterly evaluations, authored through
  * /remark: one per (teacher, cycle), five indicators scored 1..4. Prod

@@ -91,13 +91,16 @@ describe('1 · the coaching report image', () => {
 });
 
 describe('2 · the coaching card', () => {
+  // The rubric's own scale, not a hard-coded one: FICO has been 0-4 and 0-2 on
+  // different branches, and the band is a percentage of whichever it is.
+  const MAX = require('../../bot/shared/services/coaching/frameworks/fico-framework').getScoringConstants().scaleMax;
   const fico = {
     framework: 'fico',
     scores: { overall_percentage: 61 },
     domains: {
       student_engagement: { indicators: [
-        { id: 'D1', name: 'Every student participates', score: 1 },
-        { id: 'D2', name: 'Students ask questions', score: 2 },
+        { id: 'D1', name: 'Every student participates', score: MAX / 2 },
+        { id: 'D2', name: 'Students ask questions', score: MAX },
       ] },
     },
   };
@@ -107,7 +110,7 @@ describe('2 · the coaching card', () => {
     expect(out.action).not.toMatch(OUT_OF);
     expect(out.action).not.toMatch(PERCENT);
     expect(out.action).toMatch(/Every student participates/);
-    expect(out.action).toMatch(/currently average\./);   // 1 of FICO's 0-2 scale = 50
+    expect(out.action).toMatch(/currently average\./);   // half the scale = 50 = Average
   });
 });
 
@@ -139,7 +142,7 @@ describe('3 · the voice note', () => {
 });
 
 describe('4 · the breakdown carries its scale', () => {
-  test('a FICO breakdown says its indicators are scored out of 2', () => {
+  test('a FICO breakdown says its indicators are scored out of the rubric\'s own scale', () => {
     const fico = require('../../bot/shared/services/coaching/frameworks/fico-framework');
     const C = fico.getScoringConstants();
     const domains = {};
@@ -148,6 +151,6 @@ describe('4 · the breakdown carries its scale', () => {
     }
     const b = buildBreakdown({ framework: 'fico', scores: { overall_percentage: 50 }, domains }, 'en');
     expect(b.scaleMax).toBe(C.scaleMax);
-    expect(C.scaleMax).toBe(2);
+    expect(C.scaleMax).toBeGreaterThan(0);
   });
 });

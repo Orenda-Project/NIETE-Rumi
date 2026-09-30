@@ -1,5 +1,5 @@
 /**
- * bd-60118 — STEPS "P" (Presence), aggregated for a principal's school.
+ * STEPS "P" (Presence), aggregated for a principal's school.
  *
  * Two measurements, deliberately kept apart:
  *   · TEACHER attendance — teacher_attendance_records, one row per (teacher,

@@ -1,5 +1,5 @@
 /**
- * bd-60117 — school-level coaching analytics, for a principal.
+ * school-level coaching analytics, for a principal.
  *
  * The teacher Analytics page answers "how am I doing?" from one teacher's own
  * sessions. A principal needs that question asked of her whole school, so this
@@ -111,7 +111,7 @@ function summarizeSchoolAnalytics(sessions, opts = {}) {
     scored.push({
       date: s.created_at,
       percentage: overall.percentage,
-      // bd-60119: the trend doubles as the portal's coaching-history list, so
+      // the trend doubles as the portal's coaching-history list, so
       // each point carries what a principal actually points at in a
       // conversation — the marks behind the percentage, and whose lesson it
       // was. Null teacher name is fine: the UI only shows it school-wide.
