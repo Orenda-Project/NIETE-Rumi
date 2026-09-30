@@ -1,5 +1,5 @@
 // @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
-/* coaching.feature — all 15 @e2e scenarios in ONE driver.
+/* coaching.feature — all 55 scenarios: COA01–COA15 in this driver, COA16–COA55 through coaching-ext.cjs.
  *
  * ─── MOCKING ────────────────────────────────────────────────────────────────
  * Every string the bot is expected to produce lives in EXPECT below, and every
@@ -34,7 +34,7 @@ const EXPECT = {
   stepAny           : /Step (\d)\/5/,
   longLesson        : /Long Lesson Detected/i,
   acknowledges      : /Great job|engaging \d+-minute lesson/i,
-  photoPrompt       : /(classroom photo|share a .*photo|تصویر)/i,
+  photoPrompt       : /(classroom photo|share a .*photo|add up to \d+ photos|like to add .*photo|تصویر)/i,
   lpPrompt          : /(lesson plan for this class|do you have a lesson plan|سبق کا منصوبہ)/i,
   notLessonPlan     : /not a lesson plan|doesn'?t look like|isn'?t a lesson plan|نہیں لگتا/i,
   reflectiveQ       : /(reflect|what (do|did) you|how (did|do) you|think about)/i,
@@ -58,7 +58,7 @@ const FIXTURE = {
   classroom : MEDIA + '/hameeda_16min.m4a',      // 4 MB · 16 min — clears the 900s gate
   tooShort  : MEDIA + '/hameeda_short.m4a',      // 444 KB — under the gate
   photo     : MEDIA + '/textbook_page.png',
-  notAPlan  : MEDIA + '/staff_meeting_notes.txt',
+  notAPlan  : MEDIA + '/staff_meeting_notes.pdf',      // a REAL text PDF: the .txt was stored as .pdf, failed to parse, and the classifier never ran
   oversized : null,                              // needs >100MB; largest fixture is 25.7MB
 };
 
@@ -211,9 +211,28 @@ exports.run = async ({ api, rec, sleep }) => {
         { why: '@wip/@draft — run with DEEP=1' }, 0);
   }
 
+
+  // The bot answers a 16-min upload in TWO messages — a voice ack, then the "Yes, Analyze" card — and
+  // the card can land after the reply's settle window closes (mock run 20260930-0531: the second
+  // upload returned the audio, offers2 was false, and every pipeline scenario cascaded to BLOCKED
+  // with elapsed 0s). Keep reading the fresh inbound for the card before deciding the offer is absent.
+  const awaitOffer = async (reply, maxMs = 30000) => {
+    const has = (r) => (r.btns || []).some(b => EXPECT.yesAnalyze.test(b)) || EXPECT.yesAnalyze.test(r.txt || '');
+    if (has(reply)) return reply;
+    const t1 = Date.now();
+    while (Date.now() - t1 < maxMs) {
+      const batch = await fresh();
+      const card = batch.find(has);
+      if (card) return Object.assign({}, reply, { txt: card.txt || reply.txt, btns: card.btns || [], lateCardMs: Date.now() - t1 });
+      await sleep(1000);
+    }
+    return reply;
+  };
+
   // ══ COA03 — a >=15-min recording is detected, confirmation offered ════════
   s = t();
-  const up = await api.upload(FIXTURE.classroom, 'Document', 180000);
+  await fresh();   // drain BEFORE the upload: awaitOffer must only see cards that arrive after it (run 20260930-0649 tapped the previous, cancelled card)
+  const up = await awaitOffer(await api.upload(FIXTURE.classroom, 'Document', 180000));
   const upTxt = up.txt || '';
   const detectedM = EXPECT.detected.exec(upTxt);
   const offers = (up.btns || []).some(b => EXPECT.yesAnalyze.test(b)) || EXPECT.yesAnalyze.test(upTxt);
@@ -240,16 +259,21 @@ exports.run = async ({ api, rec, sleep }) => {
 
   // ══ COA04 — confirming walks the 5-step pipeline ═════════════════════════
   s = t();
-  const up2 = await api.upload(FIXTURE.classroom, 'Document', 180000);
+  await fresh();
+  const up2 = await awaitOffer(await api.upload(FIXTURE.classroom, 'Document', 180000));
   const offers2 = (up2.btns || []).some(b => EXPECT.yesAnalyze.test(b)) || EXPECT.yesAnalyze.test(up2.txt || '');
   let confirmed = false;
-  if (offers2) { await api.tapAndWait('Yes, Analyze', 120000); confirmed = true; await fresh(); }
+  // Drain the fresh-inbound BEFORE confirming, never after: the reply to "Yes, Analyze" is "Step 1/5"
+  // and the photo prompt follows it within seconds — a drain after the tap swallowed both, so the walker
+  // below started with stepsSeen [] and bailed as a stall (mock run 20260930-0537).
+  if (offers2) { await fresh(); await api.tapAndWait('Yes, Analyze', 120000); confirmed = true; }
+  if (confirmed) { try { const o = api.db('session-get'); const line = String(o.out || '').trim().split('\n').reverse().find((l) => l.trim().startsWith('{')); obs.sessionId = line ? JSON.parse(line).id : null; } catch (_) {} }
 
   // Walk the pipeline as a state machine — react to each prompt as it arrives
   // rather than assuming an order. Shallow runs stop as soon as COA04 is decided.
   const obs = { steps: [], photoPrompt: false, photoAccepted: null, lpPrompt: false, lpRejected: null,
                 reflectiveQ: null, reflectiveAck: null, slashEnded: null, deferral: null,
-                report: null, commitment: null, acknowledges: false, longLesson: false };
+                report: null, commitment: null, acknowledges: false, longLesson: false, rows: [], sessionId: null };
   const seenTexts = [];
   let deferralTried = false;
   const t0 = Date.now();
@@ -293,11 +317,13 @@ exports.run = async ({ api, rec, sleep }) => {
     await fresh();
   };
 
+  let carry = [];   // rows read by a lever mid-loop (the COA09 upload) are processed, never dropped
   while (confirmed && Date.now() - t0 < budget) {
-    const batch = await fresh();
+    const batch = carry.concat(await fresh()); carry = [];
     if (batch.length) lastMsgAt = Date.now();
     for (const r of batch) {
       const x = r.txt || '';
+      obs.rows.push(r);
       if (x) seenTexts.push(x);
       const m = EXPECT.stepAny.exec(x);
       if (m && !obs.steps.includes(m[1])) { obs.steps.push(m[1]); lastMsgAt = Date.now(); }
@@ -345,7 +371,8 @@ exports.run = async ({ api, rec, sleep }) => {
           obs.slashEnded = { reply: (cmd.txt || '').slice(0, 200) };
         } else {
           const ans = await api.sendWait(REFLECT_ANSWER, 120000);
-          obs.reflectiveAck = (ans.txt || '').slice(0, 220);
+          // the acknowledgement is a VOICE note on this build (run 20260930-0832: ok, no text) — count it
+          obs.reflectiveAck = (ans.txt || '').slice(0, 220) || (ans.ok ? '(acknowledged with a ' + (ans.kind || 'non-text') + ' message)' : '');
         }
         await fresh();
         continue;
@@ -374,10 +401,18 @@ exports.run = async ({ api, rec, sleep }) => {
       deferralTried = true;
       const second = await api.upload(FIXTURE.classroom, 'Document', 180000);
       const txt2 = second.txt || '';
+      // whatever landed while the upload settled (the voice question after Step 3/5 — run 20260930-0621
+      // lost it here and stalled) is carried into the next iteration, and the card is judged from ALL of it
+      // the bot's answer to a second recording (a deferral ack, or a fresh detection card) can land several
+      // seconds after the upload settles — keep reading for up to 15 s before judging (run 20260930-0832)
+      let extra = await fresh(); const tCard = Date.now();
+      while (Date.now() - tCard < 15000 && !extra.some(r => EXPECT.detected.test(r.txt || '') || /still analys|already analys|in progress|ابھی تجزیہ/i.test(r.txt || ''))) { await sleep(2000); extra = extra.concat(await fresh()); }
+      const cardRows = [second].concat(extra);
       obs.deferral = { replied: !!second.ok, reply: txt2.slice(0, 220),
-        startedNewSession: EXPECT.detected.test(txt2) ||
-                           (second.btns || []).some(b => EXPECT.yesAnalyze.test(b)) };
-      await fresh();
+        startedNewSession: cardRows.some(r => EXPECT.detected.test(r.txt || '') || (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))) };
+      carry = carry.concat(extra.filter(r => !(EXPECT.detected.test(r.txt || '') && (r.btns || []).some(b => EXPECT.yesAnalyze.test(b)))));
+      // a second session the bot DID open must not stay in flight and swallow the rest of the run
+      if (obs.deferral.startedNewSession) { const c = cardRows.find(r => (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))); if (c) { try { await api.tapAndWait('No', 60000); } catch (_) {} } }
     }
 
     if (!DEEP && obs.steps.length && obs.photoPrompt) break;   // COA04 is decided
@@ -461,10 +496,13 @@ exports.run = async ({ api, rec, sleep }) => {
             ? V(!EXPECT.reflectiveQ.test(obs.slashEnded.reply || ''), obs.slashEnded)
             : ['BLOCKED', { reason: stallNote || ('the reflective step was not reached within ' + elapsed + 's') }]));
 
+  // The FICO report is a hero IMAGE whose caption names the lesson, not the rubric; the rubric the analysis was
+  // scored on is stamped on the session (analysis_data.framework — gpt5-mini stamps it, the transformer dispatches on it).
+  let scoredOn = null, scoredRaw = null; try { const o = api.db('session-get', obs.sessionId ? ['--session-id', obs.sessionId] : ['--status', 'completed']); scoredRaw = String(o.out || o.err || '').trim().slice(-200); const line = String(o.out || '').trim().split('\n').reverse().find((l) => l.trim().startsWith('{')); scoredOn = line ? ((JSON.parse(line).analysis || {}).framework || null) : null; } catch (e) { scoredRaw = 'threw: ' + e.message; }
   deepOnly('COA05', 'The pipeline delivers coaching feedback on the FICO/ICT rubric',
       ...(obs.report
-          ? V(EXPECT.rubric.test(obs.report.caption + ' ' + joined),
-              { caption: obs.report.caption, note: 'asserting rubric vocabulary in the delivered feedback' })
+          ? V(String(scoredOn || '').toLowerCase() === 'fico' || EXPECT.rubric.test(obs.report.caption + ' ' + joined),
+              { scoredOnFramework: scoredOn, sessionId: obs.sessionId, lookup: scoredRaw, caption: obs.report.caption, reportKind: obs.report.kind, note: 'PASS = the session was analysed on the FICO framework (or the delivered text names the rubric)' })
           : ['BLOCKED', { reason: stallNote || ('no report delivered within ' + elapsed + 's'), stepsSeen: obs.steps }]));
 
   deepOnly('COA07', 'Coaching feedback is delivered as a branded hero-report image',
@@ -498,6 +536,58 @@ exports.run = async ({ api, rec, sleep }) => {
       { reason: 'unreachable via WhatsApp: reject threshold (100MB) = WhatsApp document ceiling, so no '
               + 'upload can exceed it. Covered by unit test bot/tests/coa14-audio-size-cap.test.js.',
         note: 'the reject copy still says "25MB"/"Whisper" though the real cap is 100MB — stale (bd-60026).' }, 0);
+
+  // ══ COA16–COA55 — coaching-ext.cjs: six more pipeline runs + the coaching-ask family (2026-09-30) ══
+  // Recorded here with literal ids so check-scenario-coverage.py binds every spec scenario to a driver line.
+  let ext = new Map(); let extErr = null;
+  if (DEEP) {
+    try { ext = await require('../coaching-ext.cjs').run({ api, rec, sleep, fresh, r1: { rows: obs.rows, sessionId: obs.sessionId } }); }
+    catch (e) { extErr = e; }
+  }
+  const E = (id, name) => { const r = ext.get(id);
+    rec(id, name, DEEP ? (r ? r[0] : 'BLOCKED') : 'SKIP',
+        DEEP ? (r ? r[1] : { reason: 'coaching-ext did not record it' + (extErr ? ' — the extension threw: ' + String(extErr.message).slice(0, 200) : '') })
+             : { why: '@wip/@draft — run with DEEP=1' }, 0); };
+  E('COA16', 'Every score a teacher receives is a band, never a number');
+  E('COA17', 'The two coaching entry points quote different minimum audio lengths (@known-issue)');
+  E('COA18', 'A report built without the reflection never claims a total of three questions');
+  E('COA19', 'A lesson-plan move is credited from what a classroom photo shows');
+  E('COA20', 'The same recording sent twice returns the report already made, not a second score');
+  E('COA21', 'A recording the bot has not scored before is still analysed normally');
+  E('COA22', 'A button left behind by a cancelled coaching session is refused on every tap');
+  E('COA23', 'The reflective question still arrives as text when its voice note cannot be sent');
+  E('COA24', "An Urdu teacher's five step messages are all in Urdu, counted in digits");
+  E('COA25', "An English-account teacher's reflective question is written in English");
+  E('COA26', 'The report-preparation greeting never calls a teacher "null"');
+  E('COA27', 'A screenshot sent as a classroom photo is kept out of both scorers');
+  E('COA28', 'A grader answer that comes back empty is re-graded the same way, not on a more generous setting');
+  E('COA29', 'A recording whose transcript carries no timestamps is "not scored", never 0%');
+  E('COA30', 'The "was this useful?" survey comes right after the voice debrief');
+  E('COA31', 'The commitment question opens by saying the coaching session is over');
+  E('COA32', 'A lesson plan typed into the chat is attached to the waiting observation');
+  E('COA33', 'A short reply at the lesson-plan step is not mistaken for a plan (@obsolete)');
+  E('COA34', 'Pasted text that is not a lesson plan gets the same rejection as a file');
+  E('COA35', 'A brief typed lesson plan counts — length is not the test');
+  E('COA36', 'Saying I have no lesson plan is not the same as sending one (@obsolete)');
+  E('COA37', 'Talking about a lesson plan is not the same as sending one (@obsolete)');
+  E('COA38', 'The first lesson plan of the day brings one coaching ask');
+  E('COA39', 'A lesson planned after 14:00 is asked about the next morning without saying today');
+  E('COA40', 'A second lesson plan the same day brings no second ask');
+  E('COA41', 'Not today is remembered');
+  E('COA42', 'Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times');
+  E('COA43', "The how-to clip arrives as the coaching ask's own video, never after it");
+  E('COA44', 'An 11-minute recording after yes is answered as too short');
+  E('COA45', 'A classroom-length voice note gets no "send it as a document" warning');
+  E('COA46', 'Saying yes to the coaching ask means no quiz offer arrives that afternoon');
+  E('COA47', 'The coaching ask waits while the lesson-plan survey is asking what did not work');
+  E('COA48', 'The survey and the coaching ask can be answered in either order');
+  E('COA49', 'After my recording has started coaching the bot stops waiting for a recording');
+  E('COA50', 'Nobody offers to pick up a lesson that was already coached');
+  E('COA51', 'A teacher who said yes and never recorded is still offered it back');
+  E('COA52', '"Only N children have started" arrives at most once a morning, even for quizzes made on earlier days');
+  E('COA53', 'With COACHING_RECORDING_ENDS_WAIT off the recording no longer ends the wait');
+  E('COA54', 'With NUDGE_OPEN_QUESTION_DEFER off the coaching ask no longer waits for the survey');
+  E('COA55', 'In Urdu, the coaching messages never guess my gender');
 
   if (DEEP)
     rec('COA-pipeline', 'Pipeline steps observed end to end', 'PASS',

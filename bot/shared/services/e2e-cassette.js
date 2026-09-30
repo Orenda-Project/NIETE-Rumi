@@ -304,6 +304,9 @@ function wrapChatCompletions(client) {
 async function wrapBuffer(kind, keyParts, fn) {
   const m = mode();
   if (m === 'off') return fn();
+  // a scripted answer (E2E_CASSETTE_FAULTS) applies here exactly as in wrap(): the rule file names 'tts' as a kind
+  const fault = _takeFault(kind, keyParts);
+  if (fault) return fault.value;
   const key = keyFor(kind, keyParts);
   if (m === 'replay') {
     let rec = readLocal(key);
