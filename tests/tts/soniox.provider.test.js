@@ -115,6 +115,24 @@ describe('soniox provider — the request', () => {
     expect(durationSec(out.audio)).toBeGreaterThan(1.5 * post.mock.calls.length);
   });
 
+  it('a typical Urdu reply (~450 characters) is spoken as 3 parts, all at the same time', async () => {
+    // Measured live 30 Sep: at 300-character parts a 423-character Urdu reply took 20 s
+    // (2 parts); at 200 it took 12.6 s (3 parts); at 150 no faster. The longest part sets the wait.
+    let inFlight = 0; let maxInFlight = 0;
+    const post = jest.fn().mockImplementation(async () => {
+      inFlight += 1; maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight -= 1;
+      return { status: 200, data: UR_A };
+    });
+    const sentence = 'آپ بچوں کو چھوٹے گروپوں میں تقسیم کریں اور ہر گروپ کو ایک سوال دیں۔ ';
+    const text = sentence.repeat(6).trim(); // ~430 characters
+    await createSonioxProvider({ http: { post }, env: { SONIOX_API_KEY: 'k' }, sleep: () => Promise.resolve(), limits: { minSecPerChar: 0 } })
+      .synthesize({ text, language: 'ur', useCase: 'conversation' });
+    expect(post).toHaveBeenCalledTimes(3);
+    expect(maxInFlight).toBe(3);
+  });
+
   it('never sends more parts at once than the per-process cap', async () => {
     let inFlight = 0; let maxInFlight = 0;
     const post = jest.fn().mockImplementation(async () => {
