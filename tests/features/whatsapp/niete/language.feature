@@ -161,6 +161,30 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
 
   # ── E1. Localized correctly (positive) ──
 
+  @e2e @language @content-driven @P1
+  Scenario: A spoken question is answered with a voice message the teacher can speed up, in the teacher's language
+    Given the NIETE bot chat is open
+    And my language is set to English
+    When I send a voice note asking a teaching question
+    Then the bot answers with a voice message with a waveform, not an audio file
+    And its playback-speed control steps 1× → 1.5× → 2×
+    And the answer is spoken in English
+    # ADDED 2026-09-30 from a real-client E2E (see coaching.feature COA57): spoken replies arrived as
+    # audio FILES a teacher could not speed up — the send never said voice=true. Asserted by the
+    # bubble (voice-note waveform + speed control), not by the audio bytes, which were right all along.
+
+  @e2e @language @content-driven @P2
+  Scenario: Saying "switch to Urdu" in a voice note switches the language, and the confirmation is itself an Urdu voice message
+    Given the NIETE bot chat is open
+    And my language is set to English
+    When I send a voice note saying "switch to Urdu"
+    Then the bot confirms the switch with a voice message in Urdu, not an audio file
+    And its answer that follows is an Urdu voice message too
+    And my stored language is now Urdu, and locked
+    # The spoken command goes through the one writer (setUserLanguage), like /language. Known gap,
+    # tracked separately: the reverse — "switch to English" spoken on an Urdu account — is transcribed
+    # in Urdu script and does not match the command, so it is not asserted here.
+
   @e2e @language @content-driven @P2
   Scenario: Ask Anything answers an Urdu account in Urdu, and drift is logged
     Given the NIETE bot chat is open

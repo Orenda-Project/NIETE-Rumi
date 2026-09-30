@@ -175,6 +175,7 @@ exports.run = async ({ api, rec, sleep }) => {
       out.push({ txt:txt0.slice(0,600),
                  img:!!r.querySelector('img[src^="blob:"],img[src^="data:image/j"],[data-icon="wds-ic-hd-filled"]'),
                  audio:!!r.querySelector('[data-icon="audio-file"],[data-icon="ptt"],[aria-label*="Voice message"],[aria-label*="voice message"],audio'),
+                 voice:!!r.querySelector('[data-icon^="ptt"],[aria-label*="Voice note progress" i],[aria-label*="playback speed" i]') && !r.querySelector('[data-icon="audio-file"]'),
                  doc:!!r.querySelector('[data-icon^="document-"],[data-icon="ms-office-doc"]'),
                  pdf:/\\.pdf/i.test(r.innerText||''),
                  btns:[...r.querySelectorAll('button,div[role="button"]')]
@@ -251,7 +252,10 @@ exports.run = async ({ api, rec, sleep }) => {
   // rather than assuming an order. Shallow runs stop as soon as COA04 is decided.
   const obs = { steps: [], photoPrompt: false, photoAccepted: null, lpPrompt: false, lpRejected: null,
                 reflectiveQ: null, reflectiveAck: null, slashEnded: null, deferral: null,
-                report: null, commitment: null, acknowledges: false, longLesson: false };
+                report: null, commitment: null, acknowledges: false, longLesson: false, voiceNotes: [] };
+  // COA57 — every bot voice note in the session (question, closing note, report note) is recorded with
+  // whether it arrived as a VOICE message (waveform + speed control) or as an audio file.
+  const noteAudio = (r) => { if (r && r.audio) obs.voiceNotes.push({ voice: !!r.voice, afterReport: !!obs.report, afterAnswer: (obs.reflectiveAnswers || 0) > 0 }); };
   const seenTexts = [];
   let deferralTried = false;
   const t0 = Date.now();
@@ -301,6 +305,7 @@ exports.run = async ({ api, rec, sleep }) => {
     for (const r of batch) {
       const x = r.txt || '';
       if (x) seenTexts.push(x);
+      noteAudio(r);
       const m = EXPECT.stepAny.exec(x);
       if (m && !obs.steps.includes(m[1])) { obs.steps.push(m[1]); lastMsgAt = Date.now(); }
       if (EXPECT.longLesson.test(x)) obs.longLesson = true;
@@ -349,7 +354,7 @@ exports.run = async ({ api, rec, sleep }) => {
           const ans = await api.sendWait(REFLECT_ANSWER, 120000);
           obs.reflectiveAck = (ans.txt || '').slice(0, 220);
         }
-        await fresh();
+        for (const q of await fresh()) noteAudio(q);   // the closing note lands here, right after the answer
         continue;
       }
 
@@ -398,6 +403,16 @@ exports.run = async ({ api, rec, sleep }) => {
       break;
     }
     await sleep(5000);
+  }
+
+  // COA57 needs the report's own voice note, which lands ~40 s after the report (median; p95 55 s) and can
+  // arrive after the loop has already stopped on the commitment card.
+  if (DEEP && obs.report && !obs.voiceNotes.some((n) => n.afterReport)) {
+    const until = Date.now() + 180000;
+    while (Date.now() < until && !obs.voiceNotes.some((n) => n.afterReport)) {
+      for (const r of await fresh()) noteAudio(r);
+      if (!obs.voiceNotes.some((n) => n.afterReport)) await sleep(5000);
+    }
   }
 
   const joined = seenTexts.join(' | ');
@@ -468,6 +483,15 @@ exports.run = async ({ api, rec, sleep }) => {
           ? V(EXPECT.rubric.test(obs.report.caption + ' ' + joined),
               { caption: obs.report.caption, note: 'asserting rubric vocabulary in the delivered feedback' })
           : ['BLOCKED', { reason: stallNote || ('no report delivered within ' + elapsed + 's'), stepsSeen: obs.steps }]));
+
+  deepOnly('COA57', 'Every coaching voice note arrives as a WhatsApp voice message the teacher can speed up',
+      ...(obs.voiceNotes.some((n) => !n.afterReport) && obs.voiceNotes.some((n) => n.afterReport)
+          ? V(obs.voiceNotes.every((n) => n.voice),
+              { voiceNotes: obs.voiceNotes, note: 'every bot voice note in the session must be a voice message '
+                + '(voice flag on the send / voice-note bubble with a speed control), none an audio file' })
+          : ['BLOCKED', { reason: obs.report
+              ? 'the report arrived but its voice note did not reach the reader within 3 min'
+              : (stallNote || ('no report within ' + elapsed + 's')), voiceNotes: obs.voiceNotes }]));
 
   deepOnly('COA07', 'Coaching feedback is delivered as a branded hero-report image',
       ...(obs.report
