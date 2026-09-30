@@ -364,6 +364,37 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-debrief.service.js processDebriefRecording — transcript < MIN →
     # re-arm awaiting_debrief_audio + debrief_too_short (stays pending).
 
+  @e2e @wip @draft @debrief @audio @destructive @config-gated @P1
+  Scenario: A debrief recording the coach was already coached on is not analysed again
+    Given a debrief recording I sent for one observation has already been analysed
+    And a debrief is armed for a different observation
+    When I send that exact same debrief recording file
+    Then the bot replies "This debrief recording has already been analyzed."
+    And no new debrief feedback arrives
+    And the debrief for this observation stays pending, ready for the right recording
+    # bd-zq0ea (HITL row 185) — processDebriefRecording hashes the downloaded bytes
+    # before transcription and matches this coach's analysed debriefs
+    # (observer_debrief.audio_hash + feedback present), any observation, no time
+    # window. The row keeps debrief_status 'pending', audio_id is cleared so the
+    # retry sweep never re-queues it, and awaiting_debrief_audio is re-armed.
+
+  @e2e @wip @draft @debrief @audio @i18n @destructive @config-gated @P2
+  Scenario: The debrief already-analysed reply is in the coach's own language
+    Given the NIETE bot chat is open on a LEADER account whose language is Urdu
+    And a debrief recording I sent for one observation has already been analysed
+    And a debrief is armed for a different observation
+    When I send that exact same debrief recording file
+    Then the bot replies "اس ڈی بریف ریکارڈنگ کا تجزیہ پہلے ہی کیا جا چکا ہے۔"
+
+  @e2e @wip @draft @debrief @audio @negative @destructive @config-gated @P2
+  Scenario: A debrief recording that was never coached is analysed normally when re-sent
+    Given a debrief recording I sent earlier was too short to be coached
+    And a debrief is armed for an observation
+    When I send that exact same debrief recording file
+    Then it does NOT say the recording has already been analysed
+    # A prior only counts once observer_debrief.feedback exists — a too-short or
+    # failed debrief never produced an analysis and must not block the coach.
+
   @e2e @wip @negative @destructive @config-gated @P1
   Scenario: A failed report send is surfaced to the coach with a retry
     Given a completed observation whose delivery to the teacher fails
