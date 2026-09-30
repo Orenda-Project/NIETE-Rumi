@@ -28,8 +28,12 @@ async function fetchUser(waId) {
   return readWithFallback(async (db) => {
     const { data, error } = await db
       .from('users')
-      .select('id, name, school_name, grades_taught, subjects_taught'
-        + 'grade, subject, preferred_language, role, region, organization')
+      // One comma-separated list, on purpose: split across two string literals
+      // it lost a comma once and became `subjects_taughtgrade`, which PostgREST
+      // rejects — and a rejected select here makes every call anonymous.
+      // `grade`/`subject` are gone: `grade` is no longer a users column, and both
+      // were only ever fallbacks behind grades_taught/subjects_taught.
+      .select('id, name, school_name, grades_taught, subjects_taught, preferred_language, role, region, organization')
       .eq('phone_number', waId)
       .maybeSingle();
     if (error) throw new Error(`users lookup failed: ${error.message}`);
