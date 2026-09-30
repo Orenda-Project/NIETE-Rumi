@@ -935,7 +935,7 @@ app.post('/webhook', async (req, res) => {
         await CoachingService.handleLessonPlanResponse(sessionId, from, false);
       }
       // bd-2c1gj — "use this lesson plan?" after a coach picks from the LP list
-      // on an observation: "Yes" links it, "No" re-sends the menu.
+      // on an observation: "Yes" links it, "Change lesson plan" re-sends the menu.
       else if (buttonId.startsWith('lpconfirm_')) {
         const { handleLpConfirmTap } = require('./shared/services/coaching/lp-coaching/lp-list-selection.handler');
         // R165: pass WHO tapped, as the list tap does.

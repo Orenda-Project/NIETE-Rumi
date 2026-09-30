@@ -4,7 +4,7 @@
  * Selecting a Lesson Plan". A human coach picking the teacher's plan from the
  * recent-LP list can tap the wrong row, and the tap linked it (and queued the
  * analysis) on the spot. On an observation the tap now asks first; linking runs
- * only on "Yes"; "No" returns to the list. A teacher's own self-serve session keeps one tap.
+ * only on "Yes"; "Change lesson plan" returns to the list. A teacher's own self-serve session keeps one tap.
  */
 
 const HANDLER = '../../bot/shared/services/coaching/lp-coaching/lp-list-selection.handler';
@@ -45,7 +45,7 @@ function load() {
 }
 
 describe('a coach tapping a recent lesson plan is asked to confirm first', () => {
-  test('the tap links nothing, queues nothing, and names the plan with Yes / No', async () => {
+  test('the tap links nothing, queues nothing, and names the plan with Yes / Change lesson plan', async () => {
     const { handleLpListSelection } = load();
     const { d, log } = deps();
     const handled = await handleLpListSelection(`lp_select_${ASSET}_${SID}`, FROM, d);
@@ -61,7 +61,7 @@ describe('a coach tapping a recent lesson plan is asked to confirm first', () =>
       `lpconfirm_yes_${ASSET}_${SID}`,
       `lpconfirm_no_${SID}`,
     ]);
-    expect(payload.buttons.map((b) => b.title)).toEqual(['Yes', 'No']);
+    expect(payload.buttons.map((b) => b.title)).toEqual(['Yes', 'Change lesson plan']);
     // HITL row 189 copy: "You have selected [Lesson Plan Name]. Do you want to proceed?"
     expect(payload.body).toMatch(/^You have selected \*Fractions: halves\*\./);
     expect(payload.body).toMatch(/Do you want to proceed\?$/);
@@ -77,7 +77,7 @@ describe('a coach tapping a recent lesson plan is asked to confirm first', () =>
     expect(payload.body).toMatch(/[؀-ۿ]/);
     expect(payload.body).toContain('Fractions: halves');
     expect(payload.body).not.toMatch(/چاہت[ےی]/);
-    expect(payload.buttons.map((b) => b.title)).toEqual(['ہاں', 'نہیں']);
+    expect(payload.buttons.map((b) => b.title)).toEqual(['ہاں', 'منصوبہ تبدیل کریں']);
     for (const b of payload.buttons) {
       expect(b.title).toMatch(/[؀-ۿ]/);
       expect(cp(b.title)).toBeLessThanOrEqual(20);
@@ -144,7 +144,7 @@ describe('the confirmation buttons', () => {
     expect(log.queued).toHaveLength(0);
   });
 
-  test('"No" links nothing and returns to the lesson-plan list', async () => {
+  test('"Change lesson plan" links nothing and returns to the lesson-plan list', async () => {
     const { handleLpConfirmTap } = load();
     const { d, log } = deps();
     const handled = await handleLpConfirmTap(`lpconfirm_no_${SID}`, FROM, d);
@@ -155,7 +155,7 @@ describe('the confirmation buttons', () => {
     expect(log.resent).toEqual([{ sid: SID, to: FROM, l: 'en' }]);
   });
 
-  test('"No" on a cancelled observation re-sends nothing', async () => {
+  test('"Change lesson plan" on a cancelled observation re-sends nothing', async () => {
     const { handleLpConfirmTap } = load();
     const { d, log } = deps({ status: 'cancelled' });
     await handleLpConfirmTap(`lpconfirm_no_${SID}`, FROM, d);
@@ -248,7 +248,7 @@ describe('the real lookups, faked only at the network boundary', () => {
     expect(wa.buttons[0].p.buttons[0].id).toBe(`lpconfirm_yes_${ASSET}_${SID}`);
   });
 
-  test('"No" re-sends the recent-LP list through WhatsApp', async () => {
+  test('"Change lesson plan" re-sends the recent-LP list through WhatsApp', async () => {
     const { mod, wa } = loadWithFakes(rows);
     await mod.handleLpConfirmTap(`lpconfirm_no_${SID}`, FROM, { userId: COACH_ID });
 
