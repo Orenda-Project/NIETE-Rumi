@@ -54,9 +54,10 @@ describe('the flow is internally consistent', () => {
     }
   });
 
-  test('DONE declares extension_message_response.properties.params and completes with it', () => {
-    expect(screens.DONE.data.extension_message_response.properties.params).toBeDefined();
-    expect(footerOf(screens.DONE)['on-click-action']).toEqual({ name: 'complete', payload: { extension_message_response: '${data.extension_message_response}' } });
+  test('DONE completes with flat discriminators, not extension_message_response', () => {
+    expect(screens.DONE.data.extension_message_response).toBeUndefined();
+    expect(screens.DONE.data.record_id).toEqual({ type: 'string', __example__: expect.any(String) });
+    expect(footerOf(screens.DONE)['on-click-action']).toEqual({ name: 'complete', payload: { observe2: 'checked', record_id: '${data.record_id}' } });
   });
 });
 

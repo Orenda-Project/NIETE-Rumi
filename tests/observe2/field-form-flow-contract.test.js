@@ -52,11 +52,13 @@ describe('the flow is internally consistent', () => {
     }
   });
 
-  test('the terminal screen declares extension_message_response.properties.params and completes with it', () => {
-    const emr = screens.SEALED.data.extension_message_response;
-    expect(emr.properties.params).toBeDefined();
+  test('the terminal screen completes with flat discriminators, not extension_message_response', () => {
+    // Meta drops extension_message_response from a completion (flow-type-detector.js); the shape this
+    // deployment proves in production is flat keys in the complete payload, plus the token marker.
+    expect(screens.SEALED.data.extension_message_response).toBeUndefined();
+    expect(screens.SEALED.data.record_id).toEqual({ type: 'string', __example__: expect.any(String) });
     const footer = components(screens.SEALED).find((c) => c.type === 'Footer');
-    expect(footer['on-click-action']).toEqual({ name: 'complete', payload: { extension_message_response: '${data.extension_message_response}' } });
+    expect(footer['on-click-action']).toEqual({ name: 'complete', payload: { observe2: 'sealed', record_id: '${data.record_id}' } });
   });
 
   test('each part and the seal screen return server checks through the Form error-messages', () => {
