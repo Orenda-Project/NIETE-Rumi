@@ -23,7 +23,7 @@ const { checkComplete } = require('./ogg-opus');
 const { sonioxProvider } = require('./providers/soniox.provider');
 const { elevenLabsProvider } = require('./providers/elevenlabs.provider');
 const { openAiProvider } = require('./providers/openai.provider');
-const { logError } = require('../../utils/logger');
+const { logError, logWarn } = require('../../utils/logger');
 const { logEvent, getCurrentCorrelationId } = require('../../utils/structured-logger');
 
 // Soniox bills about $0.722 per hour of audio; the other two by character and
@@ -156,10 +156,14 @@ function createTtsGateway({
       });
     }
     if (result.dropped && result.dropped.length) {
-      // Bracketed text that was not a voice direction — usually a template
-      // placeholder the model left in. It was not spoken; the text that
-      // produced it needs fixing at its source.
-      logError('tts.text.dropped', { event: 'tts.text.dropped', job, useCase, site, dropped: result.dropped.slice(0, 5) });
+      // Bracketed text that was not a voice direction. It was not spoken either
+      // way. A template placeholder ("[Greeting]", a slot written in Urdu) means
+      // something the teacher should have heard is missing — an error, fixed at
+      // its source. An unknown lower-case stage direction only loses a tone.
+      const placeholders = result.dropped.filter((d) => /[^\x20-\x7E]|\[\s*[A-Z]/.test(d));
+      const data = { event: 'tts.text.dropped', job, useCase, site, dropped: (placeholders.length ? placeholders : result.dropped).slice(0, 5) };
+      if (placeholders.length) logError('tts.text.dropped', data);
+      else logWarn('tts.text.dropped', data);
     }
 
     return {
