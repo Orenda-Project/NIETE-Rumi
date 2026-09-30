@@ -64,6 +64,9 @@ PY
 [ -n "$TARGET" ] || { echo "ERROR: no target for env=$ENV in whatsapp-targets.yaml"; exit 2; }
 RUN_ID="${RUN_ID:-$(date +%Y%m%d-%H%M)-$MODE}"
 export RUN_DIR="$ROOT/.claude/qa/results/whatsapp/niete/$RUN_ID" E2E_ENV="$ENV" E2E_DRIVER="$DRIVER" CDP_PORT="$PORT" E2E_METHOD="$METHOD"
+# mock lane pacing: the stack shortens the class-quiz join lock to 5 s (VIDEO_QUIZ_JOIN_LOCK_SECS) and a
+# reply counts as complete after 800 ms of outbox silence instead of 1.5 s.
+if [ "$METHOD" = mock ]; then export E2E_JOIN_LOCK_SECS="${VIDEO_QUIZ_JOIN_LOCK_SECS:-5}" E2E_QUIESCE_MS="${E2E_QUIESCE_MS:-800}"; fi
 mkdir -p "$RUN_DIR"; LOG="$RUN_DIR/runner.log"
 say() { echo "$*" | tee -a "$LOG"; }
 T0=$(date +%s)
