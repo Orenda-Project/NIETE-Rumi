@@ -20,7 +20,7 @@ import type { SchoolAnalytics } from '../types/portal';
  */
 
 const HUMAN_COLOR = '#0f766e';
-const DIGITAL_COLOR = '#9ca3af';
+const DIGITAL_COLOR = '#6366f1';
 
 function monthLabel(ym: string): string {
   const [y, m] = ym.split('-').map(Number);
@@ -38,6 +38,35 @@ function monthOf(iso: string): string {
     .formatToParts(new Date(iso));
   return `${parts.find((p) => p.type === 'year')?.value}-${parts.find((p) => p.type === 'month')?.value}`;
 }
+
+/** One kind of observation: its colour, its count, and one line saying what it is. */
+const KindCard = ({ testid, color, icon, label, value, defTestid, definition }: {
+  testid: string; color: string; icon: React.ReactNode; label: string; value: number;
+  defTestid: string; definition: string;
+}) => (
+  <div
+    data-testid={testid}
+    className="relative overflow-hidden rounded-xl border p-5 sm:p-6 shadow-sm"
+    style={{ borderColor: `${color}33`, background: `linear-gradient(135deg, ${color}14 0%, #ffffff 65%)` }}
+  >
+    <span aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ background: color }} />
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center gap-3 min-w-0">
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-sm"
+          style={{ background: color }}
+        >
+          {icon}
+        </span>
+        <span className="font-semibold leading-tight" style={{ color }}>{label}</span>
+      </div>
+      <span data-testid={`${testid}-value`} className="text-4xl font-bold tabular-nums text-foreground">{value}</span>
+    </div>
+    <p data-testid={defTestid} className="mt-4 border-t pt-3 text-sm text-muted-foreground" style={{ borderColor: `${color}26` }}>
+      {definition}
+    </p>
+  </div>
+);
 
 const KIND_LABEL = { human: 'Human Observation', digital_coach: 'Digital Coach Observation' } as const;
 
@@ -112,31 +141,28 @@ const ObservationsSection = ({ analytics, showTeacher, audience = 'principal' }:
   return (
     <section data-testid="observations" className="mb-8">
       <h2 className="text-2xl font-light mb-3">Observations</h2>
-      <div className="grid gap-1 text-sm text-muted-foreground mb-5">
-        <p data-testid="def-human">
-          <strong className="text-foreground">Human Observation</strong> —{' '}
-          {mine ? 'your principal or a coach watched your lesson in class.' : 'you or a coach watched the lesson in class.'}
-        </p>
-        <p data-testid="def-digital">
-          <strong className="text-foreground">Digital Coach Observation</strong> —{' '}
-          {mine ? 'you recorded your own lesson and NIETE gave feedback.' : 'the teacher recorded her own lesson and NIETE gave feedback.'}
-        </p>
-      </div>
-
-      {/* The two counts, one per kind. */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div data-testid="count-human" className={block}>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Eye className="w-5 h-5" style={{ color: HUMAN_COLOR }} /> Human Observations
-          </div>
-          <div className="text-3xl font-bold">{human}</div>
-        </div>
-        <div data-testid="count-digital" className={block}>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Smartphone className="w-5 h-5 text-muted-foreground" /> Digital Coach Observations
-          </div>
-          <div className="text-3xl font-bold">{digital}</div>
-        </div>
+      {/* The two counts, one per kind — each card says what its kind IS,
+          beside the number (operator, 2026-09-30). The card's colour is the
+          colour that kind carries in the charts below. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <KindCard
+          testid="count-human"
+          color={HUMAN_COLOR}
+          icon={<Eye className="w-5 h-5" />}
+          label="Human Observations"
+          value={human}
+          defTestid="def-human"
+          definition={mine ? 'Your principal or a coach watched your lesson in class.' : 'You or a coach watched the lesson in class.'}
+        />
+        <KindCard
+          testid="count-digital"
+          color={DIGITAL_COLOR}
+          icon={<Smartphone className="w-5 h-5" />}
+          label="Digital Coach Observations"
+          value={digital}
+          defTestid="def-digital"
+          definition={mine ? 'You recorded your own lesson and NIETE gave feedback.' : 'The teacher recorded her own lesson and NIETE gave feedback.'}
+        />
       </div>
 
       {/* Progress — Human Observations only. */}
