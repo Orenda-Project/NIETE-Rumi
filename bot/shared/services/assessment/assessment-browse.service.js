@@ -159,7 +159,7 @@ async function paperDownloadUrl(paperId, userId, artifact = 'paper') {
 
   const { data, error } = await supabase
     .from('assessment_papers')
-    .select('id, status, file_r2_key, answer_key_r2_key, '
+    .select('id, status, file_r2_key, answer_key_r2_key, request_id, edited_from, created_at, '
       + 'assessment_requests!inner(user_id, grade_code, subject_code, chapter_number, output_format)')
     .eq('id', paperId)
     .maybeSingle();
@@ -188,6 +188,14 @@ async function paperDownloadUrl(paperId, userId, artifact = 'paper') {
     return { available: false };
   }
 
+  // A later version says so in its name, so two downloads of one paper cannot
+  // be mistaken for each other in her downloads folder.
+  let v = '';
+  if (data.edited_from) {
+    const n = await require('./assessment-revision.service').versionNumberOf(data);
+    if (n && n > 1) v = `_v${n}`;
+  }
+
   return {
     available: true,
     url,
@@ -196,7 +204,7 @@ async function paperDownloadUrl(paperId, userId, artifact = 'paper') {
       subject: req.subject_code,
       chapterTitle: null,
       format,
-      suffix: wantsKey ? '_AnswerKey' : '',
+      suffix: wantsKey ? `${v}_AnswerKey` : v,
     }),
   };
 }
@@ -239,7 +247,7 @@ async function bookFor(grade, subject) {
 async function requestStatus(requestId, userId) {
   const { data, error } = await supabase
     .from('assessment_requests')
-    .select('id, user_id, assessment_papers(id, status, error_code, attempt)')
+    .select('id, user_id, assessment_papers(id, status, error_code, attempt, edited_from)')
     .eq('id', requestId)
     .maybeSingle();
 
@@ -249,7 +257,9 @@ async function requestStatus(requestId, userId) {
   }
   if (!data || data.user_id !== userId) return { status: 'not_found' };
 
-  const papers = data.assessment_papers || [];
+  // Polling asks whether GENERATION finished. A version (edited_from set) is
+  // made from WhatsApp after the paper was ready, and is not an attempt.
+  const papers = (data.assessment_papers || []).filter((pp) => !pp.edited_from);
   if (!papers.length) return { status: 'queued' };
 
   // A retry is a NEW row rather than an overwrite, precisely so a failure stays
@@ -265,12 +275,19 @@ async function requestStatus(requestId, userId) {
 }
 
 /**
- * Her finished papers, newest first, filterable by grade and subject.
+ * Her finished papers, newest first, filterable by grade and subject — ONE
+ * entry per paper.
  *
- * Only `ready` rows: a failed attempt is kept in the table on purpose (that is
- * why a retry is a new row) but a list of things to download is not where it
- * belongs. `count: 'exact'` because the page needs to know how many pages
- * there are, not just whether there is another one.
+ * A paper is a family of versions: every row with the same request_id (a
+ * version keeps its parent's request_id). Three edits must not push three
+ * other papers off page 1, so the query is built on assessment_requests with
+ * the READY versions embedded (!inner), which makes the exact count a count of
+ * papers. The newest ready version stands for the family, with its number and
+ * how many versions there are. Older versions stay reachable from their own
+ * WhatsApp messages.
+ *
+ * Only `ready` rows: a failed attempt or version is kept in the table on
+ * purpose, but a list of things to download is not where it belongs.
  */
 async function listPapers(userId, { page = 1, pageSize = 10, grade = null, subject = null } = {}) {
   const p = Math.max(1, Number(page) || 1);
@@ -278,18 +295,19 @@ async function listPapers(userId, { page = 1, pageSize = 10, grade = null, subje
   const from = (p - 1) * size;
 
   let q = supabase
-    .from('assessment_papers')
-    .select('id, status, question_count, total_marks, ready_at, file_r2_key, answer_key_r2_key, '
-      + 'assessment_requests!inner(user_id, grade_code, subject_code, chapter_number)',
+    .from('assessment_requests')
+    .select('id, grade_code, subject_code, chapter_number, created_at, '
+      + 'assessment_papers!inner(id, status, edited_from, question_count, total_marks, ready_at, '
+      + 'created_at, answer_key_r2_key)',
     { count: 'exact' })
-    .eq('status', 'ready')
-    .eq('assessment_requests.user_id', userId);
+    .eq('user_id', userId)
+    .eq('assessment_papers.status', 'ready');
 
-  if (grade !== null) q = q.eq('assessment_requests.grade_code', `grade_${grade}`);
-  if (subject) q = q.eq('assessment_requests.subject_code', subject);
+  if (grade !== null) q = q.eq('grade_code', `grade_${grade}`);
+  if (subject) q = q.eq('subject_code', subject);
 
   const { data, error, count } = await q
-    .order('ready_at', { ascending: false })
+    .order('created_at', { ascending: false })
     .range(from, from + size - 1);
 
   if (error) {
@@ -302,21 +320,31 @@ async function listPapers(userId, { page = 1, pageSize = 10, grade = null, subje
     pageSize: size,
     total: count || 0,
     papers: (data || []).map((r) => {
-      const req = r.assessment_requests || {};
-      const subjectKey = req.subject_code;
+      const ready = (r.assessment_papers || []).filter((x) => x.status === 'ready');
+      const latest = ready.reduce((a, b) => (
+        !a || String(b.created_at) > String(a.created_at)
+          || (String(b.created_at) === String(a.created_at) && String(b.id) > String(a.id)) ? b : a), null) || {};
+      // Worked out, never stored: the generated row is 1, any other is 1 + the
+      // ready non-generated versions created no later than it.
+      const version = latest.edited_from
+        ? 1 + ready.filter((x) => x.edited_from && String(x.created_at) <= String(latest.created_at)).length
+        : 1;
+      const subjectKey = r.subject_code;
       return {
-        paper_id: r.id,
-        grade: Number(String(req.grade_code || '').replace(/^grade_/, '')) || null,
+        paper_id: latest.id,
+        grade: Number(String(r.grade_code || '').replace(/^grade_/, '')) || null,
         subject_key: subjectKey,
         subject: subjectLabel(subjectKey),
-        chapter_number: req.chapter_number,
-        question_count: r.question_count,
-        total_marks: r.total_marks,
-        ready_at: r.ready_at,
+        chapter_number: r.chapter_number,
+        question_count: latest.question_count ?? null,
+        total_marks: latest.total_marks ?? null,
+        ready_at: latest.ready_at ?? null,
         // Whether the button can be drawn at all. Absent for every paper
-        // generated before V1.4.2, and for every paper she did not ask a key
-        // for — the page must not offer a download that will answer "no".
-        has_answer_key: !!r.answer_key_r2_key,
+        // generated before V1.4.2 — the page must not offer a download that
+        // will answer "no".
+        has_answer_key: !!latest.answer_key_r2_key,
+        version,
+        version_count: ready.length,
       };
     }),
   };

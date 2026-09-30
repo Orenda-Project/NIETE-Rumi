@@ -16,7 +16,7 @@ function makeFakeDb(seed = {}) {
   function from(name) {
     const st = { filters: [], op: 'select', payload: null, cols: '*', head: false, count: null, limit: null, order: null, range: null };
     const t = () => (tables[name] || (tables[name] = []));
-    const match = (r) => st.filters.every(([k, op, v]) => {
+    const cmp = ([k, op, v], r) => {
       const x = r[k];
       switch (op) {
         case 'eq': return x === v;
@@ -28,17 +28,24 @@ function makeFakeDb(seed = {}) {
         case 'in': return v.includes(x);
         default: return true;
       }
-    });
+    };
+    // A dotted key ("assessment_papers.status") filters the EMBEDDED rows, as
+    // PostgREST does; `!inner` then drops a parent left with none.
+    const own = () => st.filters.filter(([k]) => !k.includes('.'));
+    const embedded = (rel) => st.filters.filter(([k]) => k.startsWith(`${rel}.`)).map(([k, op, v]) => [k.slice(rel.length + 1), op, v]);
+    const match = (r) => own().every((f) => cmp(f, r));
     const join = (r) => {
       if (name === 'assessment_papers' && /assessment_requests/.test(st.cols)) {
         const req = (tables.assessment_requests || []).find((q) => q.id === r.request_id) || null;
         return { ...r, assessment_requests: req };
       }
       if (name === 'assessment_requests' && /assessment_papers/.test(st.cols)) {
-        return { ...r, assessment_papers: (tables.assessment_papers || []).filter((p) => p.request_id === r.id) };
+        const fs = embedded('assessment_papers');
+        return { ...r, assessment_papers: (tables.assessment_papers || []).filter((p) => p.request_id === r.id && fs.every((f) => cmp(f, p))) };
       }
       return r;
     };
+    const innerDrop = (r) => name === 'assessment_requests' && /assessment_papers!inner/.test(st.cols) && !(r.assessment_papers || []).length;
     const exec = () => {
       if (st.op === 'insert') {
         const rows = (Array.isArray(st.payload) ? st.payload : [st.payload]).map((p) => ({
@@ -55,7 +62,11 @@ function makeFakeDb(seed = {}) {
         hit.forEach((r) => Object.assign(r, JSON.parse(JSON.stringify(st.payload))));
         return { data: hit, error: null };
       }
-      let rows = t().filter(match).map(join);
+      let rows = t().filter(match).map(join).filter((r) => !innerDrop(r));
+      if (name === 'assessment_papers' && /assessment_requests!inner/.test(st.cols)) {
+        const fs = embedded('assessment_requests');
+        rows = rows.filter((r) => r.assessment_requests && fs.every((f) => cmp(f, r.assessment_requests)));
+      }
       if (st.order) rows.sort((a, b) => (String(a[st.order.col]) < String(b[st.order.col]) ? -1 : 1) * (st.order.asc ? 1 : -1));
       const total = rows.length;
       if (st.range) rows = rows.slice(st.range[0], st.range[1] + 1);
