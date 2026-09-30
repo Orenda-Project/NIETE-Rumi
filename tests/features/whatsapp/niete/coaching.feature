@@ -775,3 +775,23 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # passive. coachingPhotoOffer (ux-strings), COACHING_CARD_COPY.ur.commitPrompt, buildLPSelectionList body,
     # COACHING_MESSAGES.duplicateRecording. Checked by the quiz lane's own addressForms / genderedTeacherForms
     # in tests/language/urdu-gender-neutral-copy.test.js, which also holds the WHOLE ux catalog to it. @wip.
+
+  @e2e @wip @draft @P1
+  Scenario: Picking my lesson plan from the list asks me to confirm before it is used
+    Given the NIETE bot chat is open
+    And my Classroom Coaching session is waiting at the lesson-plan step with my recent lesson plans listed
+    When I tap one of my recent lesson plans in the list
+    Then the bot replies "You have selected <the plan I tapped>. Do you want to proceed?"
+    And the reply shows that plan's grade, chapter and pages line under its name
+    And it offers exactly two buttons, "Yes" and "Change lesson plan"
+    And no "Lesson plan linked" message has arrived yet
+    When I tap "Change lesson plan"
+    Then the bot sends my recent lesson-plan list again
+    When I tap the plan I meant and then "Yes"
+    Then the bot says the lesson plan is linked
+    And the analysis continues with that plan
+    # bd-2c1gj: the HITL row-189 confirmation, widened on 2026-09-30 to the teacher's own Digital Coach flow
+    # (operator). Same handler and ids as the coach's observation: lp-list-selection.handler.js sends
+    # lessonPlan_confirm_prompt with lpconfirm_yes_{asset}_{session} / lpconfirm_no_{session}. In Urdu the
+    # buttons are «ہاں» / «منصوبہ تبدیل کریں» and the question «کیا آگے بڑھنا ہے؟» carries no gendered verb.
+    # Unit: tests/coaching/bd-2c1gj-lp-select-confirm.test.js. @wip.
