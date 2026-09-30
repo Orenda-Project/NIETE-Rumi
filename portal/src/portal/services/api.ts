@@ -3,7 +3,7 @@ import { getApiBaseUrl } from '@/lib/runtime';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   StepsGridResponse, AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
-import type { ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse } from '../types/portal';
+import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse } from '../types/portal';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
 // CORS and third-party cookies entirely. In the Capacitor app there is no
@@ -137,6 +137,12 @@ export const portal = {
     analytics: CoachingAnalytics;
   }> => {
     const response = await api.get('/coaching-analytics');
+    return response.data;
+  },
+
+  /** The teacher's own Analytics page — the principal's single-teacher view, for her. */
+  getMyAnalytics: async (): Promise<MyAnalyticsResponse> => {
+    const response = await api.get('/my-analytics');
     return response.data;
   },
   
