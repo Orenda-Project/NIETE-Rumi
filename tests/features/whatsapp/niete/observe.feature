@@ -582,7 +582,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # resendLpList (lp-step.service.js) re-sends the menu and writes nothing, so a late "Change lesson plan"
     # cannot walk an already-analysed observation back to awaiting_lesson_plan.
 
-  @e2e @observe @wip @draft @negative @P2
+  @e2e @observe @wip @draft @negative @P2 @obsolete
   Scenario: A teacher picking her own lesson plan is not asked to confirm
     Given the NIETE bot chat is open as a teacher
     And my own Classroom Coaching session is waiting at the lesson-plan step with my recent lesson plans listed
@@ -590,6 +590,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the bot says the lesson plan is linked straight away
     And no "Do you want to proceed?" confirmation is sent
     # The confirmation is for a coach choosing on someone else's behalf; self-serve keeps the one-tap pick.
+    # OBSOLETE 2026-09-30 (bd-2c1gj): the operator widened the confirmation to the teacher's own Digital Coach
+    # flow — the same list, the same slip. Replaced by coaching.feature "Picking my lesson plan from the list
+    # asks me to confirm before it is used".
 
   # ═══════════════════ /observe2 — the FICO ICT field-form pilot ═══════════════════
   # /observe2 lets a coach fill a live form DURING the lesson (Part 1, Part 2, then the seal),
