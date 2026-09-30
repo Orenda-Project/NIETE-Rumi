@@ -163,7 +163,7 @@ module.exports.run = async function runExt(ctx) {
     obs.confirmed = true; obs.confirmReply = short(yes.txt, 160);
     const sess = dbJson(api, 'session-get'); obs.sessionId = sess && sess.id;
     if (o.midQuestion) { const mr = await api.sendWait(o.midQuestion, 90000); obs.midReply = short(mr.txt, 240); }
-    const budget = o.budgetMs || 12 * 60 * 1000; const stallMs = o.stallMs || 150000;
+    const budget = o.budgetMs || 15 * 60 * 1000; const stallMs = o.stallMs || 240000;   // live (uncached) analysis + hero render run ~100 s each
     const t1 = t(); let lastProgress = t(); let prevSig = ''; let reportAt = 0;
     const sendLp = async () => {
       if (o.lp === 'pdf') { const d = await api.upload(FX.lpPdf, 'Document', 120000); obs.lpReply = { via: 'pdf', txt: short(d.txt, 200), btns: d.btns }; }

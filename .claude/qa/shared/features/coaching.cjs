@@ -301,7 +301,9 @@ exports.run = async ({ api, rec, sleep }) => {
   // so the old `E2E_CASSETTE === replay-strict` check was ALWAYS false here and the bail never fired.
   const SEALED = String(process.env.E2E_METHOD || '').toLowerCase() === 'mock'
               || String(process.env.E2E_CASSETTE || '').toLowerCase() === 'replay-strict';
-  const STALL_MS = Number(process.env.COACHING_STALL_MS || 90000);
+  // 240 s, not 90: a driver whose analysis is a cassette MISS goes live — the FICO analysis took 108 s and the hero
+  // report 106 s on run 20260930-1908, and the old 90 s bail fired 4 s before the report landed.
+  const STALL_MS = Number(process.env.COACHING_STALL_MS || 240000);
   let lastMsgAt = Date.now();
   let lastProgressAt = Date.now();   // advances ONLY on real progress — see the early-bail below
   let prevSig = '';
