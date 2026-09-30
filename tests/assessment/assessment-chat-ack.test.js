@@ -27,6 +27,8 @@ jest.mock('../../bot/shared/services/queue', () => ({ queueJob: mockQueueJob }))
 jest.mock('../../bot/shared/config/feature-flags', () => ({
   isAssessmentGeneratorEnabled: jest.fn().mockResolvedValue(true),
   isAssessmentEditingEnabled: jest.fn().mockResolvedValue(false),
+  // The old KEEP/PICK path: versioned editing explicitly OFF.
+  isAssessmentVersionsEnabled: jest.fn().mockResolvedValue(false),
   ASSESSMENT_GENERATOR_KEY: 'assessment_generator_enabled',
   ASSESSMENT_EDITING_KEY: 'assessment_editing_enabled',
 }));
@@ -398,7 +400,10 @@ describe('no handler may return a screen the Flow does not have (bd-60029)', () 
     // opens on screens[0] and KEEP could never be reached from a terminal
     // CONFIRM. One endpoint still serves both, so the screens it may name are
     // the union of the two.
-    const flows = ['assessment-gen-flow.json', 'assessment-review-flow.json']
+    // Plus the KEEP/PICK rollback asset, which a deployment serves while
+    // assessment_versions_enabled is off.
+    const flows = ['assessment-gen-flow.json', 'assessment-review-flow.json',
+      'rollback/assessment-review-flow.prod-v7-2026-09-30.json']
       .map((f) => JSON.parse(fs.readFileSync(path.join(__dirname, '../..', 'docs/flows', f), 'utf8')));
 
     const real = new Set(flows.flatMap((f) => f.screens.map((s) => s.id)));
@@ -418,7 +423,7 @@ describe('no handler may return a screen the Flow does not have (bd-60029)', () 
     const res = await exchange('user-1', 'KEEP',
       { keep: ['a.b.MCQs.0'], page: '0', _action: 'done' }, TOKEN);
 
-    const real = ['assessment-gen-flow.json', 'assessment-review-flow.json'].flatMap((f) =>
+    const real = ['assessment-gen-flow.json', 'rollback/assessment-review-flow.prod-v7-2026-09-30.json'].flatMap((f) =>
       JSON.parse(require('fs').readFileSync(
         require('path').join(__dirname, '../..', 'docs/flows', f), 'utf8')).screens.map((s) => s.id));
     expect(real).toContain(res.screen);

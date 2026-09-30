@@ -104,6 +104,8 @@ describe('the endpoint', () => {
   jest.mock('../../bot/shared/config/feature-flags', () => ({
     isAssessmentGeneratorEnabled: jest.fn().mockResolvedValue(true),
     isAssessmentEditingEnabled: jest.fn().mockResolvedValue(false),
+    // The old KEEP/PICK path: versioned editing explicitly OFF.
+    isAssessmentVersionsEnabled: jest.fn().mockResolvedValue(false),
     isAssessmentDocxEnabled: jest.fn().mockResolvedValue(false),
     ASSESSMENT_GENERATOR_KEY: 'a', ASSESSMENT_EDITING_KEY: 'b', ASSESSMENT_DOCX_KEY: 'c',
   }));

@@ -361,6 +361,10 @@ export type AssessmentPaper = {
   ready_at: string | null;
   /** Whether the answer-key button can be drawn at all. */
   has_answer_key: boolean;
+  /** Which version of the paper this entry is (1 = as generated). One entry per paper, its latest version. */
+  version?: number;
+  /** How many ready versions the paper has. */
+  version_count?: number;
 };
 
 export type AssessmentPaperList = {

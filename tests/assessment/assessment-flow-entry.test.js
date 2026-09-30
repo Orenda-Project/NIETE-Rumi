@@ -38,7 +38,10 @@ function reachable(flow) {
 
 describe.each([
   ['assessment-gen-flow.json', 'CLASS'],
-  ['assessment-review-flow.json', 'KEEP'],
+  // Versioned editing opens on the ✓/✗ list.
+  ['assessment-review-flow.json', 'LIST'],
+  // The rollback asset served while assessment_versions_enabled is off.
+  ['rollback/assessment-review-flow.prod-v7-2026-09-30.json', 'KEEP'],
 ])('%s', (file, expectedEntry) => {
   const flow = load(file);
 

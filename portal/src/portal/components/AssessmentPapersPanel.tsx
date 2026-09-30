@@ -193,6 +193,9 @@ const AssessmentPapersPanel = ({ refreshKey = 0 }: Props) => {
                 <p className="truncate text-sm font-medium">
                   Grade {p.grade} {p.subject}
                   {p.chapter_number != null ? ` · Chapter ${p.chapter_number}` : ''}
+                  {/* One entry per paper, showing its latest version; a paper
+                      she never edited is simply the paper. */}
+                  {p.version != null && p.version > 1 ? ` · Version ${p.version}` : ''}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {[
