@@ -26,6 +26,9 @@ function deps(linkResult) {
     resolveLanguage: async () => 'ur',
     // Injected so the test never touches the default supabase lookup (a network call that hangs on some machines).
     sessionStatus: async () => 'awaiting_lesson_plan',
+    // bd-2c1gj: an lp_select_ tap now asks "Do you want to proceed?" first; these
+    // tests exercise the link path the "Yes" tap re-enters, so they carry it.
+    confirmed: true,
   };
 }
 
@@ -93,6 +96,7 @@ describe('late LP selection → fidelity recompute (bd-5knlj)', () => {
         sessionStatus: async () => status,
         resolveLanguage: async () => 'en',
         messages: { getCoachingMessage: (k) => k },
+        confirmed: true, // bd-2c1gj: the "Yes" tap's re-entry into the link path
       },
     };
   }
@@ -142,6 +146,7 @@ describe('late re-selection is honest (bd-2kxxa.4)', () => {
         sessionStatus: async () => status,
         resolveLanguage: async () => 'en',
         messages: { getCoachingMessage: (k) => k },
+        confirmed: true, // bd-2c1gj: the "Yes" tap's re-entry into the link path
       },
     };
   }

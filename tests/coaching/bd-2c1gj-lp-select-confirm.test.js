@@ -3,8 +3,9 @@
  * bd-2c1gj — ICT feedback sheet, HITL row 189: "Add Confirmation Before
  * Selecting a Lesson Plan". A human coach picking the teacher's plan from the
  * recent-LP list can tap the wrong row, and the tap linked it (and queued the
- * analysis) on the spot. On an observation the tap now asks first; linking runs
- * only on "Yes"; "No" returns to the list. A teacher's own self-serve session keeps one tap.
+ * analysis) on the spot. The tap now asks first; linking runs only on "Yes";
+ * "Change lesson plan" returns to the list. Widened 2026-09-30 to the teacher's own
+ * Digital Coach session too (operator): the same list, the same slip, the same ask.
  */
 
 const HANDLER = '../../bot/shared/services/coaching/lp-coaching/lp-list-selection.handler';
@@ -15,11 +16,10 @@ const COACH_ID = 'c0ac0000-0000-4000-8000-000000000001';
 
 const cp = (s) => [...s].length;
 
-function deps({ status = 'awaiting_lesson_plan', coach = true, lang = 'en', buttonsOk = true } = {}) {
+function deps({ status = 'awaiting_lesson_plan', lang = 'en', buttonsOk = true } = {}) {
   const log = { sent: [], buttons: [], queued: [], linkedWith: null, resent: [], recomputed: [] };
   const d = {
     sessionStatus: async () => status,
-    isCoachObservation: async () => coach,
     describeSelection: async () => ({ title: 'Fractions: halves', description: 'Grade 4 Math · Ch3 Day 2 · p.24-25 · today' }),
     sendMessage: async (to, text) => { log.sent.push({ to, text }); return true; },
     sendButtons: async (to, payload) => { log.buttons.push({ to, payload }); return buttonsOk; },
@@ -44,8 +44,8 @@ function load() {
   return require(HANDLER);
 }
 
-describe('a coach tapping a recent lesson plan is asked to confirm first', () => {
-  test('the tap links nothing, queues nothing, and names the plan with Yes / No', async () => {
+describe('tapping a recent lesson plan asks to confirm first', () => {
+  test('the tap links nothing, queues nothing, and names the plan with Yes / Change lesson plan', async () => {
     const { handleLpListSelection } = load();
     const { d, log } = deps();
     const handled = await handleLpListSelection(`lp_select_${ASSET}_${SID}`, FROM, d);
@@ -61,7 +61,7 @@ describe('a coach tapping a recent lesson plan is asked to confirm first', () =>
       `lpconfirm_yes_${ASSET}_${SID}`,
       `lpconfirm_no_${SID}`,
     ]);
-    expect(payload.buttons.map((b) => b.title)).toEqual(['Yes', 'No']);
+    expect(payload.buttons.map((b) => b.title)).toEqual(['Yes', 'Change lesson plan']);
     // HITL row 189 copy: "You have selected [Lesson Plan Name]. Do you want to proceed?"
     expect(payload.body).toMatch(/^You have selected \*Fractions: halves\*\./);
     expect(payload.body).toMatch(/Do you want to proceed\?$/);
@@ -77,7 +77,7 @@ describe('a coach tapping a recent lesson plan is asked to confirm first', () =>
     expect(payload.body).toMatch(/[؀-ۿ]/);
     expect(payload.body).toContain('Fractions: halves');
     expect(payload.body).not.toMatch(/چاہت[ےی]/);
-    expect(payload.buttons.map((b) => b.title)).toEqual(['ہاں', 'نہیں']);
+    expect(payload.buttons.map((b) => b.title)).toEqual(['ہاں', 'منصوبہ تبدیل کریں']);
     for (const b of payload.buttons) {
       expect(b.title).toMatch(/[؀-ۿ]/);
       expect(cp(b.title)).toBeLessThanOrEqual(20);
@@ -109,10 +109,10 @@ describe('a coach tapping a recent lesson plan is asked to confirm first', () =>
     expect(log.linkedWith).toBeNull();
   });
 
-  test('a teacher on her own self-serve session still links in one tap (the fence)', async () => {
+  test('the Yes tap (confirmed) links without asking again', async () => {
     const { handleLpListSelection } = load();
-    const { d, log } = deps({ coach: false });
-    await handleLpListSelection(`lp_select_${ASSET}_${SID}`, FROM, d);
+    const { d, log } = deps();
+    await handleLpListSelection(`lp_select_${ASSET}_${SID}`, FROM, { ...d, confirmed: true });
 
     expect(log.buttons).toHaveLength(0);
     expect(log.linkedWith).toBe(`lp_select_${ASSET}_${SID}`);
@@ -144,7 +144,7 @@ describe('the confirmation buttons', () => {
     expect(log.queued).toHaveLength(0);
   });
 
-  test('"No" links nothing and returns to the lesson-plan list', async () => {
+  test('"Change lesson plan" links nothing and returns to the lesson-plan list', async () => {
     const { handleLpConfirmTap } = load();
     const { d, log } = deps();
     const handled = await handleLpConfirmTap(`lpconfirm_no_${SID}`, FROM, d);
@@ -155,7 +155,7 @@ describe('the confirmation buttons', () => {
     expect(log.resent).toEqual([{ sid: SID, to: FROM, l: 'en' }]);
   });
 
-  test('"No" on a cancelled observation re-sends nothing', async () => {
+  test('"Change lesson plan" on a cancelled observation re-sends nothing', async () => {
     const { handleLpConfirmTap } = load();
     const { d, log } = deps({ status: 'cancelled' });
     await handleLpConfirmTap(`lpconfirm_no_${SID}`, FROM, d);
@@ -248,7 +248,7 @@ describe('the real lookups, faked only at the network boundary', () => {
     expect(wa.buttons[0].p.buttons[0].id).toBe(`lpconfirm_yes_${ASSET}_${SID}`);
   });
 
-  test('"No" re-sends the recent-LP list through WhatsApp', async () => {
+  test('"Change lesson plan" re-sends the recent-LP list through WhatsApp', async () => {
     const { mod, wa } = loadWithFakes(rows);
     await mod.handleLpConfirmTap(`lpconfirm_no_${SID}`, FROM, { userId: COACH_ID });
 
@@ -257,7 +257,7 @@ describe('the real lookups, faked only at the network boundary', () => {
     expect(ids).toContain(`lp_select_${ASSET}_${SID}`);
   });
 
-  test('a self-serve session (not an observation) is not asked to confirm', async () => {
+  test('a teacher on her own Digital Coach session is asked to confirm too', async () => {
     const selfServe = { ...rows, coaching_sessions: [{ ...rows.coaching_sessions[0], observation_type: null, observer_user_id: null }] };
     const { mod, wa } = loadWithFakes(selfServe);
     let linked = false;
@@ -267,8 +267,10 @@ describe('the real lookups, faked only at the network boundary', () => {
       queueAnalysis: async () => true,
     });
 
-    expect(wa.buttons).toHaveLength(0);
-    expect(linked).toBe(true);
+    expect(linked).toBe(false);
+    expect(wa.buttons).toHaveLength(1);
+    expect(wa.buttons[0].p.body).toContain('Fractions: halves');
+    expect(wa.buttons[0].p.buttons.map((b) => b.id)).toEqual([`lpconfirm_yes_${ASSET}_${SID}`, `lpconfirm_no_${SID}`]);
   });
 });
 

@@ -561,7 +561,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When I tap one of the recent lesson plans in the list
     Then the bot replies "You have selected <the plan I tapped>. Do you want to proceed?"
     And the reply shows that plan's grade, chapter and pages line under its name
-    And it offers exactly two buttons, "Yes" and "No"
+    And it offers exactly two buttons, "Yes" and "Change lesson plan"
     And no "Lesson plan linked" message has arrived yet
     When I tap "Yes"
     Then the bot says the lesson plan is linked
@@ -572,17 +572,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # re-enters the unchanged link path. Unit: tests/coaching/bd-2c1gj-lp-select-confirm.test.js. @wip.
 
   @e2e @observe @wip @draft @P1
-  Scenario: Answering No links nothing and returns to the lesson-plan list
+  Scenario: Changing the lesson plan links nothing and returns to the lesson-plan list
     Given the NIETE bot chat is open as a coach
     And I tapped a recent lesson plan on an observation and was asked to confirm it
-    When I tap "No"
+    When I tap "Change lesson plan"
     Then the bot sends the recent lesson-plan list again
     And no lesson plan has been linked to the observation
     And tapping a different plan asks me to confirm that one by name
-    # resendLpList (lp-step.service.js) re-sends the menu and writes nothing, so a late "No"
+    # resendLpList (lp-step.service.js) re-sends the menu and writes nothing, so a late "Change lesson plan"
     # cannot walk an already-analysed observation back to awaiting_lesson_plan.
 
-  @e2e @observe @wip @draft @negative @P2
+  @e2e @observe @wip @draft @negative @P2 @obsolete
   Scenario: A teacher picking her own lesson plan is not asked to confirm
     Given the NIETE bot chat is open as a teacher
     And my own Classroom Coaching session is waiting at the lesson-plan step with my recent lesson plans listed
@@ -590,6 +590,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the bot says the lesson plan is linked straight away
     And no "Do you want to proceed?" confirmation is sent
     # The confirmation is for a coach choosing on someone else's behalf; self-serve keeps the one-tap pick.
+    # OBSOLETE 2026-09-30 (bd-2c1gj): the operator widened the confirmation to the teacher's own Digital Coach
+    # flow — the same list, the same slip. Replaced by coaching.feature "Picking my lesson plan from the list
+    # asks me to confirm before it is used".
 
   # ═══════════════════ /observe2 — the FICO ICT field-form pilot ═══════════════════
   # /observe2 lets a coach fill a live form DURING the lesson (Part 1, Part 2, then the seal),

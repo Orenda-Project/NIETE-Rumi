@@ -105,7 +105,7 @@ async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
 }
 
 /**
- * bd-2c1gj — re-send the recent-LP menu after a coach taps "No" on
+ * bd-2c1gj — re-send the recent-LP menu after a coach taps "Change lesson plan" on
  * the selection confirmation. Unlike advanceToLessonPlanStep this writes
  * NOTHING: the tap can come after the session already moved past the LP step
  * (a late pick that only recomputes fidelity), and walking its status back to
@@ -132,7 +132,7 @@ async function resendLpList({ sessionId, from, lang }) {
   const lpPrompt = buildLPSelectionList(sessionId, recents, lang, undefined,
     { isObservation: !!(session && session.observation_type === 'leader_observation') });
   const sent = await sendLpPrompt(WhatsAppService, from, lpPrompt);
-  logToFile('📄 LP menu re-sent after "No" on the confirmation', { sessionId, sent });
+  logToFile('📄 LP menu re-sent after "Change lesson plan"', { sessionId, sent });
   return sent;
 }
 
