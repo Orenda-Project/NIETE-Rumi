@@ -40,7 +40,7 @@ when you want it on. `.env.template` documents every feature's keys under an `EN
 |---------|-------------------------------|
 | **Core** (AI chat + registration) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `REDIS_URL`, `OPENROUTER_API_KEY`, WhatsApp creds |
 | Voice transcription | `SONIOX_API_KEY` |
-| Spoken replies (TTS) | `ELEVENLABS_API_KEY` (+ `UPLIFT_API_KEY` for Urdu/regional) |
+| Spoken replies (TTS) | any of `ELEVENLABS_API_KEY` · `SONIOX_API_KEY` · `OPENAI_API_KEY`; `TTS_PROVIDER` picks who speaks (unset = ElevenLabs) |
 | Reading pronunciation scoring | `AZURE_SPEECH_KEY` |
 | Lesson-plan generation | `GAMMA_API_KEY` |
 | Educational video | `VIDEO_GENERATION_ENABLED=true` + `KIE_API_KEY` |

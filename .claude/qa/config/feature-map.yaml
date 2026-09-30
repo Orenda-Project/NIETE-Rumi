@@ -217,6 +217,12 @@ features:
     - bot/shared/services/language-detector.service.js
     - bot/shared/services/urdu-tts-normalizer.js
     - bot/shared/services/elevenlabs.service.js
+    # The voice gateway: every synthesised voice note asks it, and configuration
+    # (TTS_PROVIDER, TTS_PROVIDER_<USE_CASE>[_<SITE>]) decides which vendor and
+    # voice speaks and how the text is prepared for it. Owned here like the
+    # ElevenLabs service it now fronts; the surfaces that speak through it are
+    # listed under `shared:` below.
+    - bot/shared/services/tts/**
 
   status:
     - bot/shared/services/status/**
@@ -397,6 +403,20 @@ shared:
   bot/shared/services/conversation-state.service.js:
     [menu, status, training]
   bot/shared/services/elevenlabs.service.js:
+    [coaching, language, lesson-plan, observe, registration]
+  # The voice gateway took over every call site of the ElevenLabs/AudioService
+  # speech seam above, so it carries the same reach. Its direct requirers are
+  # voice-message.handler.js (voice replies — lesson-plan by voice, language
+  # switch, name retry), coaching/reflective-conversation.service.js (question,
+  # closer) and coaching/report-generator.service.js (report voice note; observe
+  # reaches it through coaching-orchestrator), feature-registration.service.js
+  # (the spoken name question), plus reading/voice-feedback.service.js and
+  # video/video-script.service.js, which are not_covered surfaces. The graph also
+  # reaches it from menu, status and training, but only through
+  # student-mode.service.js importing feature-registration.service.js, which
+  # never asks for a voice on those paths — the same edges elevenlabs.service.js
+  # is deliberately not mapped for.
+  bot/shared/services/tts/**:
     [coaching, language, lesson-plan, observe, registration]
   bot/shared/services/feature-intro.service.js:
     [coaching, lesson-plan, menu]

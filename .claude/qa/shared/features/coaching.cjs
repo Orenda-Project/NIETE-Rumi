@@ -1,5 +1,7 @@
 // @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
-/* coaching.feature — all 15 @e2e scenarios in ONE driver.
+/* coaching.feature — every @e2e scenario in ONE driver, bound by its id tag (@COA01 … @COA56).
+ * COA01–COA13 and COA15 are driven below. Every other id records BLOCKED with its reason — a limit
+ * of this lane (COA14, COA16, COA17, COA22) or a scaffolded stub nobody has driven yet.
  *
  * ─── MOCKING ────────────────────────────────────────────────────────────────
  * Every string the bot is expected to produce lives in EXPECT below, and every
@@ -501,7 +503,9 @@ exports.run = async ({ api, rec, sleep }) => {
   // bd-hr97y: needs a COMPLETED coaching report older than 7 days for the driver account. The
   // mock lane starts from a fresh session and cannot age one; the no-window lookup is covered by
   // tests/coaching/bd-hr97y-dc-dedupe-no-window.test.js, which runs the real call site.
-  rec('COA-dedupe-aged', 'The same recording sent again weeks later still returns the report already made', 'BLOCKED',
+  // Recorded as COA22 since coaching.feature carries id tags (was the harness-style id
+  // 'COA-dedupe-aged', which the coverage gate reads as a harness row, not a scenario).
+  rec('COA22', 'The same recording sent again weeks later still returns the report already made', 'BLOCKED',
       { reason: 'needs a completed DC report older than 7 days on the driver account; the mock lane cannot age a '
               + 'session. Covered by tests/coaching/bd-hr97y-dc-dedupe-no-window.test.js (real processTranscription).' }, 0);
 
@@ -509,4 +513,176 @@ exports.run = async ({ api, rec, sleep }) => {
     rec('COA-pipeline', 'Pipeline steps observed end to end', 'PASS',
         { stepsSeen: obs.steps, elapsedSec: elapsed, reportDelivered: !!obs.report,
           reflectMode: REFLECT, transcript: joined.slice(0, 700) }, 0);
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA18', 'Every score a teacher receives is a band, never a number', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA19', 'A report built without the reflection never claims a total of three questions', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA20', 'A lesson-plan move is credited from what a classroom photo shows', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA21', 'The same recording sent twice returns the report already made, not a second score', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA23', 'A recording the bot has not scored before is still analysed normally', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA24', 'A button left behind by a cancelled coaching session is refused on every tap', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // COA16 / COA17 — the voice of the reflective question and of the closer fails, so the same words go
+  // as text. Unreachable on this lane TODAY, not by nature: both need the voice to fail on demand, and
+  // the lane has no lever for it. Once e2e-cassette's wrapBuffer honours a { kind: 'tts', throw } rule,
+  // drive them after Step 3/5 on the DEEP pipeline (COA06's path) and turn these into V(...).
+  rec('COA16', 'The reflective question still arrives as text when its voice note <failure>', 'BLOCKED',
+      { reason: 'cannot fail the voice on the mock lane: e2e-cassette.js wrapBuffer (the TTS seam) never consults '
+              + 'the E2E_CASSETTE_FAULTS rules, so a { kind: "tts" } rule loads but is never applied; and the mock '
+              + 'Graph API refuses only a media LINK on example.invalid, never an audio sent by media id. Both rows '
+              + '("cannot be sent", "cannot be made") need one of those. The "cannot be made" row is covered by '
+              + 'tests/coaching/reflective-question-voice-gateway.test.js (real service, vendors mocked).' }, 0);
+
+  rec('COA17', 'The acknowledgement of my answer arrives as text when its voice is not ready in time, and the report still follows', 'BLOCKED',
+      { reason: 'cannot make the closer\'s voice slow or fail on the mock lane: e2e-cassette.js wrapBuffer never '
+              + 'consults the E2E_CASSETTE_FAULTS rules for kind "tts", and the gateway applies its 25 s deadline '
+              + 'only when the cassette is off (bot/shared/services/tts/index.js), so this lane never exercises it. '
+              + 'The deadline itself is covered by tests/tts/gateway.test.js.' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA25', 'An Urdu teacher\'s five step messages are all in Urdu, counted in digits', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA26', 'An English-account teacher\'s reflective question is written in English', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA27', 'The report-preparation greeting never calls a teacher "null"', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA28', 'A screenshot sent as a classroom photo is kept out of both scorers', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA29', 'A grader answer that comes back empty is re-graded the same way, not on a more generous setting', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA30', 'A recording whose transcript carries no timestamps is "not scored", never 0%', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA31', 'The "was this useful?" survey comes right after the voice debrief', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA32', 'The commitment question opens by saying the coaching session is over', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA33', 'A lesson plan typed into the chat is attached to the waiting observation', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  rec('COA34', 'A short reply at the lesson-plan step is not mistaken for a plan', 'BLOCKED',
+      { reason: '@obsolete in coaching.feature — a deletion proposal (the behaviour it asserts was removed on '
+              + '2026-09-22); recorded so the id stays bound, never driven. Drop this line when the scenario is deleted.' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA35', 'Pasted text that is not a lesson plan gets the same rejection as a file', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA36', 'A brief typed lesson plan counts — length is not the test', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  rec('COA37', 'Saying I have no lesson plan is not the same as sending one', 'BLOCKED',
+      { reason: '@obsolete in coaching.feature — a deletion proposal (the behaviour it asserts was removed on '
+              + '2026-09-22); recorded so the id stays bound, never driven. Drop this line when the scenario is deleted.' }, 0);
+
+  rec('COA38', 'Talking about a lesson plan is not the same as sending one', 'BLOCKED',
+      { reason: '@obsolete in coaching.feature — a deletion proposal (the behaviour it asserts was removed on '
+              + '2026-09-22); recorded so the id stays bound, never driven. Drop this line when the scenario is deleted.' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA39', 'The first lesson plan of the day brings one coaching ask', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA40', 'A lesson planned after 14:00 is asked about the next morning without saying today', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA41', 'A second lesson plan the same day brings no second ask', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA42', 'Not today is remembered', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA43', 'Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA44', 'The how-to clip arrives as the coaching ask\'s own video, never after it', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA45', 'An 11-minute recording after yes is answered as too short', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA46', 'A classroom-length voice note gets no "send it as a document" warning', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA47', 'Saying yes to the coaching ask means no quiz offer arrives that afternoon', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA48', 'The coaching ask waits while the lesson-plan survey is asking what did not work', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA49', 'The survey and the coaching ask can be answered in either order', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA50', 'After my recording has started coaching the bot stops waiting for a recording', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA51', 'Nobody offers to pick up a lesson that was already coached', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA52', 'A teacher who said yes and never recorded is still offered it back', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA53', '"Only N children have started" arrives at most once a morning, even for quizzes made on earlier days', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA54', 'With COACHING_RECORDING_ENDS_WAIT off the recording no longer ends the wait', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA55', 'With NUDGE_OPEN_QUESTION_DEFER off the coaching ask no longer waits for the survey', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA56', 'In Urdu, the coaching messages never guess my gender', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
 };

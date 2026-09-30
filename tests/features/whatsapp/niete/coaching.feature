@@ -8,7 +8,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   # teacher uploads a classroom recording and the async coaching pipeline returns
   # pedagogical feedback against the FICO / ICT rubric.
 
-  @e2e @menu @P1
+  @e2e @menu @P1 @COA01
   Scenario: The Classroom Coaching menu row asks for a classroom recording
     Given the NIETE bot chat is open
     When I send "/menu"
@@ -22,7 +22,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # instruction the lesson-plan coaching ask's "Record my lesson" sends. The old
     # "at least 15 minutes" was the routing threshold, not an ask.
 
-  @e2e @first-use @P2
+  @e2e @first-use @P2 @COA02
   Scenario: Declining the intro on a coaching request asks for the class audio
     Given the NIETE bot chat is open
     And I have never used the Classroom Coaching feature on this account
@@ -35,7 +35,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # (FeatureIntroService); on an account that already used coaching it won't
     # appear — needs a fresh account or a feature-usage reset.
 
-  @e2e @content-driven @P2
+  @e2e @content-driven @P2 @COA03
   Scenario: Uploading a classroom recording is detected and confirmed for analysis
     Given the NIETE bot chat is open
     And I have chosen Classroom Coaching (awaiting audio)
@@ -48,7 +48,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # "Audio" item silently fails under Chrome-MCP — see interaction-map). Duration
     # gate: voice-message.handler.js:724 / whatsapp-bot.js:1773 (>=15 min = classroom).
 
-  @e2e @content-driven @P2
+  @e2e @content-driven @P2 @COA04
   Scenario: Confirming analysis walks a 5-step pipeline with optional-context prompts
     Given the NIETE bot chat is open
     # UPDATED 2026-09-20 (DC row 130): the account language is now stated. Every
@@ -90,7 +90,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # though the account's other copy was English (possible i18n leak — see F-COACH1).
     # Declining both proceeds "without the lesson plan". Steps advance ~1 min apart.
 
-  @e2e @slow @content-driven @P2
+  @e2e @slow @content-driven @P2 @COA05
   Scenario: The pipeline delivers coaching feedback on the FICO/ICT rubric
     Given the NIETE bot chat is open
     And I have confirmed analysis and answered the optional-context prompts
@@ -108,6 +108,11 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # median 39.7s between the two across 586 sessions on 18 Sep 2026 (niete-logs;
     # min 15s, p95 55s, max 242s). Assert the COUNT and which one survived, not
     # the wording of the removed line.
+    # NOTE 2026-09-30 (bd-2fp9u): the voice note is spoken by the voice gateway
+    # (TTS_PROVIDER picks the vendor; always Ogg Opus, so WhatsApp shows a voice message
+    # with a speed control). The session's voice_debrief_duration_seconds now stores the
+    # note's true length — it was bytes/16000, about half. That number is read by the
+    # dashboard, not shown on WhatsApp, so no step here asserts it.
     # @wip @slow: for a LONG (~26-min) recording the worker takes 10+ minutes. The
     # bot no longer says so (bd-di5ap removed that warning — it fired for the
     # majority of sessions and contradicted the 30-60s promise). Driven live
@@ -115,7 +120,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # in; the final graded report had not landed within the run window. Rubric:
     # bot/shared/services/observe/observe-framework.js.
 
-  @e2e @slow @content-driven @P2
+  @e2e @slow @content-driven @P2 @COA18
   Scenario: Every score a teacher receives is a band, never a number
     Given the NIETE bot chat is open
     And my coaching analysis has finished
@@ -145,17 +150,18 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   # All @wip @draft, excluded from safe runs until verified.
 
   # ── POSITIVE ──
-  @e2e @wip @draft @P2
+  @e2e @wip @draft @P2 @COA06
   Scenario: The reflective step asks exactly one question and closes after the answer
     Given the NIETE bot chat is open
     And my coaching analysis has reached the reflective step (3/5)
     When the bot asks its reflection question and I answer it
     Then the bot acknowledges my answer and moves to generate the report — it asks only ONE question
     # reflective-conversation.service.js — NUM_REFLECTIVE_QUESTIONS=1 (S.T.I.C.K.S.,
-    # was 3). The question is delivered as a voice note (ElevenLabs); after one answer
-    # → contextual acknowledgement → queue report.
+    # was 3). The question is delivered as a voice note (the voice gateway — ElevenLabs
+    # unless TTS_PROVIDER names another vendor); after one answer → contextual
+    # acknowledgement → queue report. When either voice cannot be made: COA16 / COA17.
 
-  @e2e @wip @draft @P2
+  @e2e @wip @draft @P2 @COA19
   Scenario: A report built without the reflection never claims a total of three questions
     Given the NIETE bot chat is open
     And my coaching analysis has reached the reflective step (3/5)
@@ -171,7 +177,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # covered "1/3 reflective responses" and that "full insights require completing
     # all reflection questions".
 
-  @e2e @content-driven @P2
+  @e2e @content-driven @P2 @COA07
   Scenario: Coaching feedback is delivered as a branded hero-report image
     Given the NIETE bot chat is open
     And a coaching analysis has finished
@@ -180,7 +186,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # htmlToImage, brand:'niete') → sendImage + caption. A PDF is only the fallback
     # if the hero render throws. (The @wip rubric scenario above asserts CONTENT; this asserts FORM.)
 
-  @e2e @wip @draft @P3
+  @e2e @wip @draft @P3 @COA08
   Scenario: Accepting the classroom-photo prompt folds photos into the analysis
     Given the NIETE bot chat is open
     And the coaching pipeline has asked whether I want to add photos
@@ -204,7 +210,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # analysis_data.photo_reads records each photo: read | excluded | fallback_v1 (unusable answer → today's pass) |
     # failed (the call failed, no second call) | skipped_budget (90 s for all readings). Unset = today's pass exactly.
 
-  @e2e @wip @draft @config-gated @content-driven @P2
+  @e2e @wip @draft @config-gated @content-driven @P2 @COA20
   Scenario: A lesson-plan move is credited from what a classroom photo shows
     Given the NIETE bot chat is open
     And the runtime has COACHING_PHOTO_VISION=v2 and LP_FIDELITY_PHOTO=on
@@ -224,7 +230,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # gpt-5.6-luna stays inside its run-to-run noise. @content-driven: which move a photo credits depends on the lesson;
     # assert the contract (a "[photo N]" citation on a credited move), never a specific move or score.
 
-  @e2e @wip @draft @P1
+  @e2e @wip @draft @P1 @COA21
   Scenario: The same recording sent twice returns the report already made, not a second score
     Given the NIETE bot chat is open
     And I have already received a coaching report for a classroom recording
@@ -246,7 +252,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # so resending it as 'classroom-observation.pdf' shipped PNG bytes labelled as
     # a PDF and no reader would open it — FEAT-098 again.
 
-  @e2e @wip @draft @P2
+  @e2e @wip @draft @P2 @COA22
   Scenario: The same recording sent again weeks later still returns the report already made
     Given the NIETE bot chat is open
     And I received a coaching report for a classroom recording more than 7 days ago
@@ -257,7 +263,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # bd-hr97y — findRecentDuplicateSession has no created_at cutoff: a recording
     # is analysed once, ever, like the two /observe checks (HITL row 185).
 
-  @e2e @wip @draft @P2
+  @e2e @wip @draft @P2 @COA23
   Scenario: A recording the bot has not scored before is still analysed normally
     Given the NIETE bot chat is open
     And I have already received a coaching report for a classroom recording
@@ -270,7 +276,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # broadly and silently swallows new work.
 
   # ── EDGE ──
-  @e2e @wip @draft @edge @P2
+  @e2e @wip @draft @edge @P2 @COA09
   Scenario: A second recording sent mid-analysis is deferred, not started fresh
     Given the NIETE bot chat is open
     And a coaching analysis is already in flight
@@ -279,7 +285,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # coaching-inflight-guard.js shouldDeferNewClassroomAudio (bd-2376) →
     # coaching_stillAnalysing ack. Stuck >30min or terminal → a new session is allowed.
 
-  @e2e @wip @draft @edge @P2
+  @e2e @wip @draft @edge @P2 @COA10
   Scenario: A slash command during the reflective step ends the session
     Given the NIETE bot chat is open
     And I am at the coaching reflective step
@@ -289,7 +295,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # conversation (status → abandoned) and falls through to the command.
 
   # ── NEGATIVE ──
-  @e2e @wip @draft @negative @P2
+  @e2e @wip @draft @negative @P2 @COA11
   Scenario: A teacher's under-15-minute recording does not start a coaching analysis
     Given the NIETE bot chat is open
     And I have chosen Classroom Coaching (awaiting audio)
@@ -313,7 +319,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # <15-min, <500KB audio fixture (the current hameeda_classroom.m4a is ~26 min / 25 MB).
     # Assert the CONTRACT (no coaching pipeline; handled as a normal voice note), not exact copy.
 
-  @e2e @negative @P2
+  @e2e @negative @P2 @COA12
   Scenario: Declining analysis cancels the coaching session
     Given the NIETE bot chat is open
     And I have uploaded a recording and been asked to confirm analysis
@@ -322,7 +328,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # coaching-session.service.js handleConfirmation:110 — cancel → status cancelled,
     # localized exitedNoAudio. (Counterpart to the "Yes, Analyze" pipeline scenario.)
 
-  @e2e @wip @draft @negative @P1
+  @e2e @wip @draft @negative @P1 @COA24
   Scenario: A button left behind by a cancelled coaching session is refused on every tap
     Given the NIETE bot chat is open
     And I declined analysis, so my coaching session is cancelled
@@ -336,18 +342,44 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # LP step. Before, "Yes" on the photo prompt re-opened a cancelled observation
     # while its sibling "No" refused. Copy: ux-strings coachingSessionCancelled.
 
-  @e2e @wip @draft @negative @P2
-  Scenario: The reflective question still arrives as text when its voice note cannot be sent
+  @e2e @wip @draft @negative @P2 @COA16
+  Scenario Outline: The reflective question still arrives as text when its voice note <failure>
     Given the NIETE bot chat is open
     And my coaching analysis has reached the reflective step (3/5)
-    When the voice note carrying the question fails to send
+    When the voice note carrying the question <failure>
     Then the same question arrives in the chat as a text message
     And the session waits for my answer exactly as it would after the voice note
+    And no message says there was an error analysing my classroom, and no step of the analysis is sent again
+    Examples:
+      | failure        |
+      | cannot be sent |
+      | cannot be made |
     # reflective-conversation.service.js (bd-dsx0c): sendAudio's false return used to be
     # ignored, so a failed voice note left the teacher waiting for a question that never
     # came. Now: voice → on false, the question text → delivery recorded as voice/text/none.
+    # UPDATED 2026-09-30 (bd-2fp9u): renamed from "… when its voice note cannot be sent" and
+    # made an Outline — the question is now voiced by the voice gateway (bot/shared/services/tts;
+    # TTS_PROVIDER picks the vendor, ElevenLabs when unset), and a question it cannot voice
+    # (every provider failed, or none answered within 60 s) goes as text the same way. Before,
+    # that failure escaped into the analysis job: the session was marked failed at "analysis",
+    # the teacher was sent "Sorry, there was an error analyzing your classroom. Please try
+    # again." and the job ran again, although the analysis had already succeeded.
 
-  @e2e @wip @draft @P1
+  @e2e @wip @draft @negative @P2 @COA17
+  Scenario: The acknowledgement of my answer arrives as text when its voice is not ready in time, and the report still follows
+    Given the NIETE bot chat is open
+    And my coaching analysis has reached the reflective step (3/5)
+    When I answer the reflection question
+    And no voice note of the bot's acknowledgement can be made within 25 seconds
+    Then the acknowledgement of my answer arrives in the chat as a text message
+    And my coaching report still follows, without waiting any longer for that voice
+    # reflective-conversation.service.js handleReflectiveResponse (bd-2fp9u): the report is queued
+    # only after this closing acknowledgement, so its voice has a 25 s deadline (the question gets
+    # 60 s). Past it — or when the voice cannot be made at all, or its voice note does not send —
+    # the same words go as text and the report is queued. Before, the closer waited on the voice
+    # vendor for as long as it took, and the report waited with it.
+
+  @e2e @wip @draft @P1 @COA25
   Scenario: An Urdu teacher's five step messages are all in Urdu, counted in digits
     Given the NIETE bot chat is open
     And my account language is Urdu
@@ -374,7 +406,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # A teacher who never picked a language belongs on THIS path, not the English
     # one: LANGUAGE_OFFER is ['ur','en'], so the floor is Urdu.
 
-  @e2e @wip @draft @content-driven @P2
+  @e2e @wip @draft @content-driven @P2 @COA26
   Scenario: An English-account teacher's reflective question is written in English
     Given the NIETE bot chat is open
     And my account language is English
@@ -384,7 +416,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # to let the transcript's language leak into the question; for language === 'English'
     # it now instructs English regardless of what was spoken in class.
 
-  @e2e @wip @draft @negative @P2
+  @e2e @wip @draft @negative @P2 @COA27
   Scenario: The report-preparation greeting never calls a teacher "null"
     Given the NIETE bot chat is open
     And my account has no saved name
@@ -397,7 +429,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # (6,282 on prod) and "Hi !" for the 117 blank ones — and always in English. Copy:
     # ux-strings photoGateGreeting / photoGateGreetingNameless (+ dated variants).
 
-  @e2e @wip @draft @config-gated @negative @P2
+  @e2e @wip @draft @config-gated @negative @P2 @COA28
   Scenario: A screenshot sent as a classroom photo is kept out of both scorers
     Given the NIETE bot chat is open
     And the runtime has COACHING_PHOTO_VISION=v2
@@ -413,7 +445,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # excluded the same way (reason instruction_text). Eval 9 found a teacher's upload that was a screenshot of an
     # earlier coaching report; the Eval 10 v2 prompt classified that image not_a_classroom_photo.
 
-  @e2e @wip @draft @negative @P1
+  @e2e @wip @draft @negative @P1 @COA29
   Scenario: A grader answer that comes back empty is re-graded the same way, not on a more generous setting
     Given the NIETE bot chat is open
     And I link a lesson plan to my classroom recording
@@ -428,7 +460,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # the first 5 Gemini gradings. The retry now keeps the configuration; the coaxing retry lives behind
     # LP_FIDELITY_EMPTY_RETRY_EFFORT (unset in prod) and the blob carries empty_retry.
 
-  @e2e @wip @draft @negative @P1
+  @e2e @wip @draft @negative @P1 @COA30
   Scenario: A recording whose transcript carries no timestamps is "not scored", never 0%
     Given the NIETE bot chat is open
     And I link a lesson plan to my classroom recording
@@ -445,7 +477,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # The substitution rules added to grader-prompt.js in the same change (bd-b3pop.32, Eval 12 D37) are a calibration
     # of the grader's verdicts, not a new user-visible flow: Spec-Sync coaching=none-needed for that part.
 
-  @e2e @wip @draft @negative @P2
+  @e2e @wip @draft @negative @P2 @COA13
   Scenario: A non-lesson-plan document is rejected, not silently analysed
     Given the NIETE bot chat is open
     And the coaching flow asked for a lesson plan and I upload a non-LP document (e.g. a leave letter)
@@ -453,7 +485,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # bd-2372 — lesson-plan-extraction.worker.js isLikelyLessonPlan guard →
     # not_lesson_plan notification.
 
-  @e2e @wip @draft @negative @P3
+  @e2e @wip @draft @negative @P3 @COA14
   Scenario: An audio document over the size cap is rejected before download
     Given the NIETE bot chat is open
     When I upload an audio document larger than the size cap
@@ -462,7 +494,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # (buildTooLargeMessage). NB the reject copy still says "25MB"/"Whisper" though
     # the real cap is 100MB Soniox — assert the reject, flag the stale number.
 
-  @e2e @wip @draft @P2
+  @e2e @wip @draft @P2 @COA31
   Scenario: The "was this useful?" survey comes right after the voice debrief
     Given the NIETE bot chat is open
     And I have finished the reflective questions of a coaching session
@@ -475,7 +507,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # +90 s copy. A tap before the session completes creates the metrics row, and
     # recordQualityMetrics updates that row rather than inserting a second.
 
-  @e2e @wip @draft @P2
+  @e2e @wip @draft @P2 @COA32
   Scenario: The commitment question opens by saying the coaching session is over
     Given the NIETE bot chat is open
     And I have received a coaching report with a commitment card
@@ -493,7 +525,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # With no commitment card, the standalone getCoachingMessage('sessionComplete')
     # line is still sent before scheduleTranscriptQuiz() / suggestNext().
 
-  @e2e @wip @draft @negative @known-fail @P3
+  @e2e @wip @draft @negative @known-fail @P3 @COA15
   Scenario: The commitment-card buttons on the report are handled
     Given the NIETE bot chat is open
     And I have received a coaching report with a commitment card
@@ -503,7 +535,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # never called) → prioritized_action.teacher_response never becomes 'yes' and the
     # agency reminder can't fire. Expected to FAIL until wired.
 
-  @e2e @wip @draft @P1
+  @e2e @wip @draft @P1 @COA33
   Scenario: A lesson plan typed into the chat is attached to the waiting observation
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
@@ -521,7 +553,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # its own (DC feedback 2026-09-23): the old "thanks for typing it out" line
     # arrived just before Step 2/5 and read as the same message twice.
 
-  @e2e @wip @draft @negative @P2 @obsolete
+  @e2e @wip @draft @negative @P2 @obsolete @COA34
   Scenario: A short reply at the lesson-plan step is not mistaken for a plan
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
@@ -536,7 +568,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # What counts as a plan is settled downstream by the extraction worker,
     # never by measuring her text before agreeing to read it.
 
-  @e2e @wip @draft @negative @P3
+  @e2e @wip @draft @negative @P3 @COA35
   Scenario: Pasted text that is not a lesson plan gets the same rejection as a file
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
@@ -547,7 +579,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # extraction job as an upload, so isLikelyLessonPlan decides, and the
     # not-a-lesson-plan reply now names the paste route among the retry options.
 
-  @e2e @wip @draft @P1
+  @e2e @wip @draft @P1 @COA36
   Scenario: A brief typed lesson plan counts — length is not the test
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
@@ -559,7 +591,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # the session sat waiting for one. What makes a paste a plan is the
     # evidence in it, not its size; the floor only keeps one-liners out.
 
-  @e2e @wip @draft @negative @P2 @obsolete
+  @e2e @wip @draft @negative @P2 @obsolete @COA37
   Scenario: Saying I have no lesson plan is not the same as sending one
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
@@ -573,7 +605,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # What counts as a plan is settled downstream by the extraction worker,
     # never by measuring her text before agreeing to read it.
 
-  @e2e @wip @draft @negative @P2 @obsolete
+  @e2e @wip @draft @negative @P2 @obsolete @COA38
   Scenario: Talking about a lesson plan is not the same as sending one
     Given the NIETE bot chat is open
     And the coaching flow has asked me for a lesson plan
@@ -595,7 +627,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   # LP_COACHING_ASK_ENABLED on the sandbox bot + sqs-worker; the driver's role is
   # 'teacher' (coaches are never asked). Driven and promoted by the E2E lane.
 
-  @e2e @wip @draft @lp-ask @P1
+  @e2e @wip @draft @lp-ask @P1 @COA39
   Scenario: The first lesson plan of the day brings one coaching ask
     Given the NIETE bot chat is open
     And no coaching ask has been sent to me today
@@ -605,7 +637,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then the bot sends a message that begins "You planned a lesson with me today"
     And it has the buttons "Record my lesson" and "Not today"
 
-  @e2e @wip @draft @lp-ask @edge @P1
+  @e2e @wip @draft @lp-ask @edge @P1 @COA40
   Scenario: A lesson planned after 14:00 is asked about the next morning without saying today
     Given the NIETE bot chat is open
     And no coaching ask has been sent to me today
@@ -620,7 +652,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # and names the date instead ("You planned this lesson with me on 18 Sep").
     # @wip — authored with the change, driven and promoted by the sandbox E2E run.
 
-  @e2e @wip @draft @lp-ask @negative @P1
+  @e2e @wip @draft @lp-ask @negative @P1 @COA41
   Scenario: A second lesson plan the same day brings no second ask
     Given the NIETE bot chat is open
     And I took a lesson plan earlier today and the coaching ask was booked
@@ -628,7 +660,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I wait for the coaching-ask delay plus one sweep
     Then no second coaching ask arrives today
 
-  @e2e @wip @draft @lp-ask @P2
+  @e2e @wip @draft @lp-ask @P2 @COA42
   Scenario: Not today is remembered
     Given the coaching ask is on screen
     When I tap "Not today"
@@ -636,7 +668,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And nothing else about coaching is sent to me today
     And my answer is stored as "no" on today's ask
 
-  @e2e @wip @draft @lp-ask @P1
+  @e2e @wip @draft @lp-ask @P1 @COA43
   Scenario: Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times
     Given the coaching ask is on screen
     And the how-to clip is configured for my language
@@ -647,7 +679,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # The clip (LP_COACHING_HOWTO_VIDEO_EN/_UR) rides the ask itself as its video header
     # on the first and second asks only (feature intro 'lp_coaching_howto', count < 2).
 
-  @e2e @wip @draft @lp-ask @P2
+  @e2e @wip @draft @lp-ask @P2 @COA44
   Scenario: The how-to clip arrives as the coaching ask's own video, never after it
     Given the how-to clip is configured for my language
     And I have been shown the clip fewer than two times
@@ -662,7 +694,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # A header send that fails falls back to the plain ask (howto false, not counted as shown); the third
     # ask onwards carries no clip. @wip — authored with the change, driven by the sandbox E2E run.
 
-  @e2e @wip @draft @lp-ask @negative @P1
+  @e2e @wip @draft @lp-ask @negative @P1 @COA45
   Scenario: An 11-minute recording after yes is answered as too short
     Given I tapped "Record my lesson" within the last 8 hours
     When I send an 11-minute voice note
@@ -672,7 +704,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # Keyed on the PROBED length (ffprobe runs on files >= 500 KB). Under 5 minutes
     # is an ordinary voice message; 15 minutes and over starts coaching as always.
 
-  @e2e @wip @draft @lp-ask @P2
+  @e2e @wip @draft @lp-ask @P2 @COA46
   Scenario: A classroom-length voice note gets no "send it as a document" warning
     Given the NIETE bot chat is open
     And I have chosen Classroom Coaching (awaiting audio)
@@ -680,7 +712,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then the bot detects a classroom recording and starts the coaching flow
     And no message tells me to send the recording as a document
 
-  @e2e @coaching @quiz @wip @draft @config-gated @negative @P2
+  @e2e @coaching @quiz @wip @draft @config-gated @negative @P2 @COA47
   Scenario: Saying yes to the coaching ask means no quiz offer arrives that afternoon
     Given the NIETE bot chat is open on a teacher who took a lesson plan this morning
     And the coaching ask that followed it arrived
@@ -701,7 +733,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   # And a classroom recording that starts a coaching session ends the "send me your recording" wait, so
   # nothing afterwards asks for it again. Needs TEACHER_NUDGES_ENABLED + LP_COACHING_ASK_ENABLED.
 
-  @e2e @wip @draft @lp-ask @config-gated @P1
+  @e2e @wip @draft @lp-ask @config-gated @P1 @COA48
   Scenario: The coaching ask waits while the lesson-plan survey is asking what did not work
     Given the NIETE bot chat is open on a teacher who took their first K-5 lesson plan of the day before 14:00 PKT
     And the "Was it useful for planning?" survey arrived and I tapped "Not really"
@@ -715,7 +747,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # A typed "yes" or "جی" sent while the survey question is open is saved as the lesson plan's failure
     # reason (lp-feedback consumeReasonIfPending runs before every router), so the ask is never sent into it.
 
-  @e2e @wip @draft @lp-ask @P2
+  @e2e @wip @draft @lp-ask @P2 @COA49
   Scenario: The survey and the coaching ask can be answered in either order
     Given the lesson-plan survey and the coaching ask are both on screen
     When I tap "Record my lesson"
@@ -726,7 +758,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # Every id a teacher can hold on a lesson-plan day reaches exactly one owner in the button router
     # (lp_feedback_, lp_used_, lp612_fb_, lp612_used_, lpask_, lpquiz_, tq_, coaching_fb_, resume_).
 
-  @e2e @wip @draft @lp-ask @P1
+  @e2e @wip @draft @lp-ask @P1 @COA50
   Scenario: After my recording has started coaching the bot stops waiting for a recording
     Given I tapped "Record my lesson" on the coaching ask
     And I sent a 20-minute recording and the bot confirmed it detected a classroom recording
@@ -736,7 +768,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # Before the fix the six-hour AWAITING_CLASSROOM_AUDIO wait outlived the recording: on production 62% of
     # the "Please send your classroom audio" replies went to teachers whose session had already started.
 
-  @e2e @wip @draft @lp-ask @negative @slow @P1
+  @e2e @wip @draft @lp-ask @negative @slow @P1 @COA51
   Scenario: Nobody offers to pick up a lesson that was already coached
     Given I tapped "Record my lesson" this morning
     And my recording was coached before six hours had passed
@@ -746,14 +778,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # (coaching-session initiateSession, flow-scoped). On production 46% of the daytime coaching resume
     # offers went to a teacher whose own session had started in the six hours before.
 
-  @e2e @wip @draft @lp-ask @slow @P2
+  @e2e @wip @draft @lp-ask @slow @P2 @COA52
   Scenario: A teacher who said yes and never recorded is still offered it back
     Given I tapped "Record my lesson" this morning
     And I have not sent a recording
     When six hours have passed since I tapped it
     Then the bot asks whether to pick up the classroom observation where I left off
 
-  @e2e @quiz @wip @draft @slow @negative @P2
+  @e2e @quiz @wip @draft @slow @negative @P2 @COA53
   Scenario: "Only N children have started" arrives at most once a morning, even for quizzes made on earlier days
     Given the NIETE bot chat is open
     And I have three quizzes made from lessons recorded on different earlier days
@@ -772,7 +804,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   # Both default ON (unset = the fix); false / 0 / off = the behaviour before the fix, exactly.
   # Read per call, so an operator can turn either off in production without a deploy.
 
-  @e2e @wip @draft @lp-ask @config-gated @P2
+  @e2e @wip @draft @lp-ask @config-gated @P2 @COA54
   Scenario: With COACHING_RECORDING_ENDS_WAIT off the recording no longer ends the wait
     Given COACHING_RECORDING_ENDS_WAIT is "off" on the bot service
     And I tapped "Record my lesson" on the coaching ask
@@ -781,14 +813,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # The old behaviour, kept reachable: the six-hour AWAITING_CLASSROOM_AUDIO wait runs its course
     # and the resume sweep offers it back when it lapses. Unset or "true" = the recording ends it.
 
-  @e2e @wip @draft @lp-ask @config-gated @P2
+  @e2e @wip @draft @lp-ask @config-gated @P2 @COA55
   Scenario: With NUDGE_OPEN_QUESTION_DEFER off the coaching ask no longer waits for the survey
     Given NUDGE_OPEN_QUESTION_DEFER is "off" on the worker that runs the teacher-nudge sweep
     And I tapped "Not really" on the lesson-plan survey and the bot asked what did not work
     When the coaching-ask delay passes while that question is still open
     Then the coaching ask arrives on the first sweep, as it did before the hold-back
     And no teacher_nudges.deferred event is logged for it
-  @e2e @coaching @i18n @wip @draft @P2
+  @e2e @coaching @i18n @wip @draft @P2 @COA56
   Scenario: In Urdu, the coaching messages never guess my gender
     Given the NIETE bot chat is open and my language is Urdu
     When I send a classroom recording and go through the coaching flow to the commitment question

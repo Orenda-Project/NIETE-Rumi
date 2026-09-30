@@ -91,8 +91,8 @@ describe('the reflective question when its voice note cannot be sent', () => {
     jest.doMock('../../shared/utils/language-cache', () => ({ getUserLanguage: jest.fn(async () => 'en') }));
     jest.doMock('../../shared/services/gpt5-mini.service', () => ({}));
     jest.doMock('../../shared/services/coaching/reflective-acknowledgement', () => ({ generateAcknowledgement: jest.fn() }));
-    jest.doMock('../../shared/services/elevenlabs.service', () => ({
-      generateSpeechForLanguage: jest.fn(async () => OGG),
+    jest.doMock('../../shared/services/tts', () => ({
+      synthesize: jest.fn(async () => ({ audio: OGG, mimeType: 'audio/ogg', extension: 'ogg', durationSec: 1 })),
     }));
     jest.doMock('../../shared/services/coaching/coaching-session.service', () => ({
       updateConversationState: jest.fn(async () => true),
@@ -170,8 +170,8 @@ describe('the reflection closer when its voice note cannot be sent', () => {
     jest.doMock('../../shared/services/coaching/reflective-acknowledgement', () => ({
       generateAcknowledgement: jest.fn(async () => 'Thank you for reflecting with me.'),
     }));
-    jest.doMock('../../shared/services/elevenlabs.service', () => ({
-      generateSpeechForLanguage: jest.fn(async () => OGG),
+    jest.doMock('../../shared/services/tts', () => ({
+      synthesize: jest.fn(async () => ({ audio: OGG, mimeType: 'audio/ogg', extension: 'ogg', durationSec: 1 })),
     }));
     jest.doMock('../../shared/services/coaching/coaching-session.service', () => ({
       updateConversationState: jest.fn(async () => true),
