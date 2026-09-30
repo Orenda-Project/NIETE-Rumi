@@ -142,6 +142,38 @@ describe('soniox provider — a stream that is not whole is never delivered', ()
     expect(out.audio.equals(UR_A)).toBe(true);
   });
 
+  it('a stream that dies AFTER its 200 header is retried (axios attaches the 200 response to that error)', async () => {
+    // Seen live 30 Sep: the idle timeout fired mid-stream; axios rejected with
+    // code ECONNABORTED and the 200 response attached, and a status-based rule
+    // read "HTTP 200, not retryable" and gave up at once.
+    const post = jest.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('timeout of 15000ms exceeded'), { code: 'ECONNABORTED', response: { status: 200 } }))
+      .mockRejectedValueOnce(Object.assign(new Error('stream has been aborted'), { code: 'ERR_BAD_RESPONSE', response: { status: 200 } }))
+      .mockResolvedValueOnce({ status: 200, data: UR_A });
+    const out = await provider({ post }).synthesize({ text: 'یہ آواز کی جانچ ہے۔', language: 'ur', useCase: 'conversation' });
+    expect(post).toHaveBeenCalledTimes(3);
+    expect(out.attempts).toBe(3);
+  });
+
+  it('when every attempt dies mid-stream, the error names what happened, not "HTTP 200"', async () => {
+    const post = jest.fn().mockRejectedValue(Object.assign(new Error('timeout of 15000ms exceeded'), { code: 'ECONNABORTED', response: { status: 200 } }));
+    await expect(provider({ post }).synthesize({ text: 'جانچ۔', language: 'ur', useCase: 'conversation' }))
+      .rejects.toMatchObject({ code: 'network_error', message: expect.stringMatching(/ECONNABORTED|timeout/) });
+  });
+
+  it('every retried attempt is logged with its reason, so a flaky vendor shows up before it fails outright', async () => {
+    const warn = jest.fn();
+    const post = jest.fn()
+      .mockResolvedValueOnce({ status: 200, data: UR_CUT })
+      .mockRejectedValueOnce(Object.assign(new Error('timeout of 15000ms exceeded'), { code: 'ECONNABORTED', response: { status: 200 } }))
+      .mockResolvedValueOnce({ status: 200, data: UR_A });
+    await createSonioxProvider({ http: { post }, env: { SONIOX_API_KEY: 'k' }, sleep: () => Promise.resolve(), limits: { minSecPerChar: 0 }, warn })
+      .synthesize({ text: 'یہ آواز کی جانچ ہے۔', language: 'ur', useCase: 'conversation', site: 'voice_reply' });
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenNthCalledWith(1, 'tts.soniox.retry', expect.objectContaining({ attempt: 1, part: 0, useCase: 'conversation', reason: expect.stringMatching(/truncated|eos/i) }));
+    expect(warn).toHaveBeenNthCalledWith(2, 'tts.soniox.retry', expect.objectContaining({ attempt: 2, reason: expect.stringMatching(/ECONNABORTED|timeout/) }));
+  });
+
   it('a network drop mid-stream is retried', async () => {
     const post = jest.fn()
       .mockRejectedValueOnce(Object.assign(new Error('aborted'), { code: 'ECONNRESET' }))

@@ -108,9 +108,13 @@ function createSemaphore(getLimit) {
  * @param {object} [deps.env]               read on every call, so a restart is the whole config change
  * @param {Function} [deps.sleep]           backoff delay (tests pass an instant one)
  * @param {object} [deps.limits]            overrides of DEFAULT_LIMITS
+ * @param {Function} [deps.warn]            (message, data) for each retried attempt; the repo logger by default
  */
-function createSonioxProvider({ http = realAxios, env = process.env, sleep, limits = {} } = {}) {
+function createSonioxProvider({ http = realAxios, env = process.env, sleep, limits = {}, warn } = {}) {
   const wait = sleep || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  // A retry the teacher never notices is still a vendor misbehaving: each one is
+  // logged at warn with its reason, so a rising rate shows before an outage does.
+  const logRetry = warn || ((message, data) => require('../../../utils/logger').logWarn(message, data));
   const lim = { ...DEFAULT_LIMITS, ...limits };
   const apiKey = () => env.SONIOX_TTS_API_KEY || env.SONIOX_API_KEY || '';
   const concurrency = () => {
@@ -136,10 +140,15 @@ function createSonioxProvider({ http = realAxios, env = process.env, sleep, limi
     return null;
   }
 
-  async function speakPart({ text, lang, voice, model, ref }) {
+  async function speakPart({ text, lang, voice, model, ref, part, useCase, site }) {
     let lastError = null;
     for (let attempt = 1; attempt <= lim.attempts; attempt += 1) {
-      if (attempt > 1) await wait(400 * 2 ** (attempt - 2) + Math.floor(Math.random() * 250));
+      if (attempt > 1) {
+        logRetry('tts.soniox.retry', {
+          event: 'tts.soniox.retry', useCase, site, part, attempt: attempt - 1, reason: lastError.message, status: lastError.status,
+        });
+        await wait(400 * 2 ** (attempt - 2) + Math.floor(Math.random() * 250));
+      }
       try {
         const response = await withSlot(async () => {
           const controller = new AbortController();
@@ -173,13 +182,17 @@ function createSonioxProvider({ http = realAxios, env = process.env, sleep, limi
         if (!problem) return { audio, attempts: attempt };
         lastError = new SonioxTtsError('incomplete_audio', `Soniox returned an incomplete voice note: ${problem}`);
       } catch (error) {
+        // A 2xx status on an error means the stream broke AFTER its header — a
+        // mid-body cut or the idle timeout (axios attaches the 200 response to
+        // both). That is the stream failing, not Soniox refusing: retry it.
         const status = error.response?.status;
-        if (status && !RETRYABLE_STATUS.has(status)) {
+        const refused = status && (status < 200 || status >= 300);
+        if (refused && !RETRYABLE_STATUS.has(status)) {
           throw new SonioxTtsError('http_error', `Soniox TTS ${status}: ${decodeErrorBody(error.response?.data)}`, { status });
         }
-        lastError = new SonioxTtsError(status ? 'http_error' : 'network_error',
-          `Soniox TTS ${status || error.code || 'network'}: ${status ? decodeErrorBody(error.response?.data) : error.message}`,
-          { status });
+        lastError = refused
+          ? new SonioxTtsError('http_error', `Soniox TTS ${status}: ${decodeErrorBody(error.response?.data)}`, { status })
+          : new SonioxTtsError('network_error', `Soniox TTS stream failed (${error.code || 'network'}): ${error.message}`);
       }
     }
     lastError.attempts = lim.attempts;
@@ -200,7 +213,7 @@ function createSonioxProvider({ http = realAxios, env = process.env, sleep, limi
     const model = env.SONIOX_TTS_MODEL || DEFAULT_MODEL;
 
     const results = await Promise.all(parts.map((partText, i) => speakPart({
-      text: partText, lang, voice, model, ref: referenceId({ useCase, site, correlationId, part: i }),
+      text: partText, lang, voice, model, ref: referenceId({ useCase, site, correlationId, part: i }), part: i, useCase, site,
     })));
 
     return {
