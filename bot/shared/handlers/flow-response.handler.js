@@ -1051,7 +1051,6 @@ async function handleAssessmentFlowCompletion(responseJson, from, user) {
         flowToken: token,
         userId: user?.id,
         outputFormat: responseJson?.output_format,
-        answerKey: responseJson?.answer_key,
         answerLines: responseJson?.answer_lines,
       });
     } catch (err) {

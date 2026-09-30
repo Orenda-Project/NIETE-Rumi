@@ -112,7 +112,6 @@ const AssessmentGeneratorPanel = ({ onPaperReady }: Props) => {
   const [questionCount, setQuestionCount] = useState<string>('');
   const [pickedTypes, setPickedTypes] = useState<string[]>([]);
   const [contentSource, setContentSource] = useState<'seen' | 'unseen' | 'both'>('unseen');
-  const [includeAnswerKey, setIncludeAnswerKey] = useState(false);
   const [answerLines, setAnswerLines] = useState(true);
   const [showMore, setShowMore] = useState(false);
 
@@ -283,7 +282,7 @@ const AssessmentGeneratorPanel = ({ onPaperReady }: Props) => {
         contentSource,
         questionCount: Number(questionCount),
         questionTypes: pickedTypes,
-        includeAnswerKey,
+        // No answer-key choice: every paper is made with its key.
         answerLines,
         outputFormat: 'pdf',
       });
@@ -377,12 +376,10 @@ const AssessmentGeneratorPanel = ({ onPaperReady }: Props) => {
             <Download className="mr-2 h-4 w-4" aria-hidden="true" />
             Download
           </Button>
-          {includeAnswerKey && (
-            <Button variant="outline" onClick={() => openArtifact('answer_key')}>
-              <KeyRound className="mr-2 h-4 w-4" aria-hidden="true" />
-              Answer key
-            </Button>
-          )}
+          <Button variant="outline" onClick={() => openArtifact('answer_key')}>
+            <KeyRound className="mr-2 h-4 w-4" aria-hidden="true" />
+            Answer key
+          </Button>
           <Button variant="ghost" onClick={reset}>Make another</Button>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -530,15 +527,6 @@ const AssessmentGeneratorPanel = ({ onPaperReady }: Props) => {
                   className="h-4 w-4"
                 />
                 Answer lines
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={includeAnswerKey}
-                  onChange={(e) => setIncludeAnswerKey(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                Answer key
               </label>
             </div>
           </div>

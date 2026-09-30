@@ -62,8 +62,10 @@ describe('buildSystemPrompt', () => {
     expect(at('eg.ict.math.system')).toBe(0);
     expect(at('eg.task.ict_final')).toBeGreaterThan(at('eg.ict.math.system'));
     expect(at('eg.format.maths')).toBeGreaterThan(at('eg.task.ict_final'));
-    expect(sys.indexOf('ANSWER KEY DISABLED')).toBeGreaterThan(at('eg.format.maths'));
-    expect(at('eg.safety.policies')).toBeGreaterThan(sys.indexOf('ANSWER KEY DISABLED'));
+    // bd-bfnsk: the answer-key slot now always asks FOR answers (it used to
+    // disable them whenever the teacher had not ticked the key).
+    expect(sys.indexOf('ANSWER KEY REQUIRED')).toBeGreaterThan(at('eg.format.maths'));
+    expect(at('eg.safety.policies')).toBeGreaterThan(sys.indexOf('ANSWER KEY REQUIRED'));
   });
 
   it('falls back to the English prompt for a subject with no prompt of its own', () => {
@@ -71,11 +73,16 @@ describe('buildSystemPrompt', () => {
     expect(sys.startsWith(PROMPTS['eg.ict.eng.system'])).toBe(true);
   });
 
-  it('appends the answer-key instruction only when the key is off', () => {
+  // bd-bfnsk: this used to pin the opposite — "ANSWER KEY DISABLED" appended
+  // whenever the key was off — and that instruction is why 147 of 148 prod
+  // papers requested without a key carried no answers at all.
+  it('asks for answers whether or not the key was ticked', () => {
     expect(Gen.buildSystemPrompt({ subject: 'Eng', includeAnswerKey: false }))
-      .toContain('ANSWER KEY DISABLED');
-    expect(Gen.buildSystemPrompt({ subject: 'Eng', includeAnswerKey: true }))
       .not.toContain('ANSWER KEY DISABLED');
+    expect(Gen.buildSystemPrompt({ subject: 'Eng', includeAnswerKey: false }))
+      .toContain('ANSWER KEY REQUIRED');
+    expect(Gen.buildSystemPrompt({ subject: 'Eng', includeAnswerKey: true }))
+      .toContain('ANSWER KEY REQUIRED');
   });
 
   it('accepts a canonical subject code as readily as the short one', () => {
