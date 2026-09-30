@@ -239,6 +239,7 @@ features:
     - bot/shared/handlers/observe-visit-flow.handler.js
     - bot/shared/routes/observe-mewaka-endpoint.js
     - bot/docs/flows/observe-*.json
+    - bot/shared/templates/observe-*.js
     - bot/shared/templates/observation-report.template.js
     - bot/shared/templates/classroom-observation-report.html
     - bot/shared/services/authz/**
