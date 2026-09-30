@@ -1376,7 +1376,8 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     contentSource: body.contentSource || 'unseen',
     questionCount: parsed.count,
     questionTypes: types,
-    includeAnswerKey: !!body.includeAnswerKey,
+    // Every paper gets a key; the portal no longer offers the choice (bd-bfnsk).
+    includeAnswerKey: true,
     answerLines: body.answerLines !== false,
     outputFormat: body.outputFormat || 'pdf',
   });

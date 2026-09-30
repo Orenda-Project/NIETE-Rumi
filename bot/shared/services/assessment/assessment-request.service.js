@@ -74,10 +74,14 @@ async function createAndQueue(spec) {
     // no column holds it, and question_count on the row is still the whole paper.
     seenCount = null,
     questionTypes = [],
-    includeAnswerKey = false,
     answerLines = true,
     outputFormat = 'pdf',
   } = spec;
+
+  // Every paper gets an answer key, and she is no longer asked (bd-bfnsk). A
+  // caller that still passes includeAnswerKey=false is overruled HERE, the one
+  // place both the row and the job are shaped, so no surface can drift.
+  const includeAnswerKey = true;
 
   if (!SURFACES.includes(surface)) {
     throw new Error(`unknown surface: ${surface}`);
@@ -101,7 +105,7 @@ async function createAndQueue(spec) {
       content_source: contentSource,
       question_count: questionCount,
       question_types: questionTypes,
-      has_answer_key: !!includeAnswerKey,
+      has_answer_key: includeAnswerKey,
       has_answer_lines: answerLines !== false,
       output_format: outputFormat,
     })
@@ -130,7 +134,7 @@ async function createAndQueue(spec) {
     totalMarks,
     seenCount,
     questionTypes,
-    includeAnswerKey: !!includeAnswerKey,
+    includeAnswerKey,
     answerLines: answerLines !== false,
     outputFormat,
     deliver: deliveryFor(surface),
