@@ -4,7 +4,7 @@ import { UserCheck, GraduationCap } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import NextStep from '../components/NextStep';
-import { leader } from '../services/api';
+import { leader, portal } from '../services/api';
 import type { AttendanceResponse, AttendanceGroup, AttendanceByDay } from '../types/portal';
 
 /**
@@ -169,7 +169,14 @@ function ByDayTable({ rows, days, id }: { rows: AttendanceByDay[]; days: string[
   );
 }
 
-const SchoolAttendance = () => {
+/**
+ * `audience="teacher"` is the same page for a teacher (operator, 2026-09-30):
+ * her classes' registers and her own days, from /my-attendance. The server
+ * scopes it to her session, so there is no teacher picker; and step 5 of the
+ * principal's journey is not hers.
+ */
+const SchoolAttendance = ({ audience = 'principal' }: { audience?: 'principal' | 'teacher' }) => {
+  const mine = audience === 'teacher';
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<AttendanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -189,8 +196,7 @@ const SchoolAttendance = () => {
   useEffect(() => {
     let alive = true;
     setRefetching((prev) => (data ? true : prev));
-    leader
-      .getAttendance(params)
+    (mine ? portal.getMyAttendance({ from: params.from, to: params.to }) : leader.getAttendance(params))
       .then((d) => { if (alive) setData(d); })
       .catch((err) => {
         if (!alive) return;
@@ -254,9 +260,11 @@ const SchoolAttendance = () => {
         <header className="mb-6">
           <h1 className="text-3xl sm:text-4xl font-light mb-2">Attendance</h1>
           <p className="text-muted-foreground" data-testid="scope-label">
-            {data.focusTeacher
-              ? `${data.focusTeacher.name} — her classes`
-              : 'Every grade and every teacher, across the days in the window.'}
+            {mine
+              ? 'Your classes and your own days, across the days in the window.'
+              : data.focusTeacher
+                ? `${data.focusTeacher.name} — her classes`
+                : 'Every grade and every teacher, across the days in the window.'}
           </p>
         </header>
 
@@ -279,19 +287,21 @@ const SchoolAttendance = () => {
               className="border border-border rounded-md px-3 py-2 text-sm bg-white"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="teacher-filter" className="text-xs text-muted-foreground">Teacher</label>
-            <select
-              id="teacher-filter" data-testid="teacher-filter" value={teacherId}
-              onChange={(e) => { setTeacherId(e.target.value); syncUrl({ teacherId: e.target.value }); }}
-              className="border border-border rounded-md px-3 py-2 text-sm bg-white"
-            >
-              <option value="">Everyone</option>
-              {data.teachers.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-          </div>
+          {!mine && (
+            <div className="flex flex-col gap-1">
+              <label htmlFor="teacher-filter" className="text-xs text-muted-foreground">Teacher</label>
+              <select
+                id="teacher-filter" data-testid="teacher-filter" value={teacherId}
+                onChange={(e) => { setTeacherId(e.target.value); syncUrl({ teacherId: e.target.value }); }}
+                className="border border-border rounded-md px-3 py-2 text-sm bg-white"
+              >
+                <option value="">Everyone</option>
+                {data.teachers.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex gap-1 ml-auto rounded-md border border-border p-1">
             <button
@@ -321,8 +331,9 @@ const SchoolAttendance = () => {
           <div data-testid="attendance-empty" className="bg-white rounded-lg p-6 shadow-sm border border-border">
             <h2 className="text-lg font-medium mb-2">No attendance in this window</h2>
             <p className="text-muted-foreground text-sm">
-              Nobody marked a register between these dates. Try a wider range, or ask your
-              teachers to mark attendance from WhatsApp.
+              {mine
+                ? 'You have not marked a register between these dates. Try a wider range, or mark attendance from WhatsApp.'
+                : 'Nobody marked a register between these dates. Try a wider range, or ask your teachers to mark attendance from WhatsApp.'}
             </p>
           </div>
         ) : (
@@ -330,11 +341,11 @@ const SchoolAttendance = () => {
             <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-6">
               <div className="flex items-center gap-2 mb-1">
                 <GraduationCap className="w-5 h-5 text-accent" />
-                <h2 className="text-xl font-light">Children, by grade</h2>
+                <h2 className="text-xl font-light">{mine ? 'Your students, by class' : 'Children, by grade'}</h2>
               </div>
               <p className="text-muted-foreground text-sm mb-5">
                 {view === 'summary'
-                  ? `Each bar is one grade across all ${data.schoolDays.length} days. The full width is every child, every day — so the dashed part is what nobody recorded.`
+                  ? `Each bar is one ${mine ? 'class' : 'grade'} across all ${data.schoolDays.length} days. The full width is every child, every day — so the dashed part is what nobody recorded.`
                   : 'One column per day. A dash means nobody marked that register.'}
               </p>
 
@@ -352,11 +363,12 @@ const SchoolAttendance = () => {
             <section className="bg-white rounded-lg p-6 shadow-sm border border-border mb-6">
               <div className="flex items-center gap-2 mb-1">
                 <UserCheck className="w-5 h-5 text-accent" />
-                <h2 className="text-xl font-light">Teachers</h2>
+                <h2 className="text-xl font-light">{mine ? 'You' : 'Teachers'}</h2>
               </div>
               <p className="text-muted-foreground text-sm mb-5">
-                Same shape, one row per teacher. Approved leave is left out entirely — it is
-                neither attendance nor absence.
+                {mine
+                  ? 'Your own days. Approved leave is left out entirely — it is neither attendance nor absence.'
+                  : 'Same shape, one row per teacher. Approved leave is left out entirely — it is neither attendance nor absence.'}
               </p>
 
               {view === 'summary' ? (
@@ -388,11 +400,13 @@ const SchoolAttendance = () => {
 
         {/* Step 5 of the journey: the remark. Kept on the same teacher when
             the page is filtered to one. */}
-        <NextStep
-          to={teacherId ? `/portal/leader/school-analytics?teacherId=${teacherId}#remarks` : '/portal/leader/school-analytics#remarks'}
-          step={5}
-          label="Give your remark"
-        />
+        {!mine && (
+          <NextStep
+            to={teacherId ? `/portal/leader/school-analytics?teacherId=${teacherId}#remarks` : '/portal/leader/school-analytics#remarks'}
+            step={5}
+            label="Give your remark"
+          />
+        )}
       </div>
     </PortalLayout>
   );
