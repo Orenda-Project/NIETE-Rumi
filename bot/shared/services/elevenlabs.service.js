@@ -158,6 +158,12 @@ class ElevenLabsService {
    * @param {string} languageCode - Language code (en, es, ur, ar)
    * @returns {Promise<Buffer>} Audio buffer (MP3 or OGG format)
    */
+  /**
+   * @deprecated Features no longer call this: every voice note goes through the
+   * voice gateway (services/tts), which uses generateSpeechWithVoice /
+   * generateSpeechOpenAI below as the ElevenLabs and OpenAI transports and holds
+   * the cassette seam. tests/setup/tts-single-seam.test.js stops new callers.
+   */
   static async generateSpeechForLanguage(text, languageCode = 'en') {
     const voiceConfig = VOICE_MODELS[languageCode];
 

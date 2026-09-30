@@ -25,7 +25,12 @@ const axios = require('axios'); // mapped stub
 const { logToFile } = require('../../bot/shared/utils/logger');
 const WhatsAppService = require('../../bot/shared/services/whatsapp.service');
 
+afterEach(() => jest.restoreAllMocks());
+
 beforeEach(() => {
+  // The form-data stub never reads the file stream, so a real one would open the
+  // temp file after the send has deleted it and crash the worker (ENOENT).
+  jest.spyOn(require('fs'), 'createReadStream').mockReturnValue({ on() { return this; }, pipe() {} });
   logToFile.mockClear();
   axios.post.mockReset();
   axios.post.mockImplementation(async (url) => (/\/media$/.test(url)

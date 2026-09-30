@@ -596,6 +596,7 @@ class WhatsAppService {
    */
   static async sendAudio(to, audioBuffer, tempDir) {
     const path = require('path');
+    let mediaId = null;
 
     try {
       // bd-z5olm: sniff the container instead of assuming MP3. TTS now
@@ -633,7 +634,7 @@ class WhatsAppService {
         }
       );
 
-      const mediaId = uploadResponse.data.id;
+      mediaId = uploadResponse.data.id;
 
       // Send audio message
       const sendResponse = await axios.post(
@@ -668,9 +669,13 @@ class WhatsAppService {
       });
       return true;
     } catch (error) {
+      // The media id survives a refused send: the voice note was uploaded, and
+      // this is the handle to fetch exactly what was made.
       logToFile('❌ Error sending audio message', {
         error: error.message,
-        errorDetails: error.response?.data
+        errorDetails: error.response?.data,
+        mediaId,
+        bytes: audioBuffer ? audioBuffer.length : null,
       });
       return false;
     }
