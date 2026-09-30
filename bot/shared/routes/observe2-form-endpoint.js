@@ -6,14 +6,14 @@
  * Token: <coachUserId>:observe2-form:<recordId>. Every request re-reads the record and checks that
  * it belongs to the coach in the token.
  *
- *   INIT      a new form → PART_1; a reopened one → CONTINUE, saying where the record stands
+ *   INIT      a new form → PART_ONE; a reopened one → CONTINUE, saying where the record stands
  *             (INIT may only answer with an entry screen, so Part 2 cannot be opened directly).
- *   PART_1    checked (rules.validate) → refused under the field, or saved with the server time → PART_2
- *   PART_2    checked against Part 1 (children who had not spoken yet) → saved → AFTER
+ *   PART_ONE    checked (rules.validate) → refused under the field, or saved with the server time → PART_TWO
+ *   PART_TWO    checked against Part 1 (children who had not spoken yet) → saved → AFTER
  *   AFTER     checked → sealed once (compare-and-set) → SEALED; then, after the response, the
  *             recording steps go to the chat, the check opens if the recording's moments are
  *             already in, and up to three photos are stored.
- *   CONTINUE  → PART_2, AFTER or SEALED, from the record.
+ *   CONTINUE  → PART_TWO, AFTER or SEALED, from the record.
  *
  * The screens are English for the pilot; the chat message after the seal is in the coach's language.
  */
@@ -80,7 +80,7 @@ async function renderPart1(form, extra = {}) {
   const { period, half } = halves(form);
   const name = await teacherName(form);
   return {
-    screen: 'PART_1',
+    screen: 'PART_ONE',
     data: {
       teacher_line: name ? `Teacher: ${name} · ${period}-minute period` : `${period}-minute period`,
       part_hint: `Minute 0 to ${half}. At minute ${half}, tap "Part 1 done": your answers are saved then.`,
@@ -93,7 +93,7 @@ async function renderPart1(form, extra = {}) {
 function renderPart2(form, extra = {}) {
   const { period, half } = halves(form);
   return {
-    screen: 'PART_2',
+    screen: 'PART_TWO',
     data: {
       part_hint: `From minute ${half} to ${period}. Answer only for what happens in this part.`,
       ...NO_ERRORS,
@@ -213,29 +213,29 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
 
   if (!loaded.ok) {
     const again = { error: 'Something went wrong on our side. Tap the button again.', has_error: true };
-    if (step === 'PART_2') return renderPart2(null, again);
+    if (step === 'PART_TWO') return renderPart2(null, again);
     if (step === 'AFTER') return renderAfter(again);
-    return { screen: 'PART_1', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...again } };
+    return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...again } };
   }
   if (!form) {
     const gone = { error: 'This form is not available. Close it and send /observe2 in the chat.', has_error: true };
-    if (step === 'PART_2') return renderPart2(null, gone);
+    if (step === 'PART_TWO') return renderPart2(null, gone);
     if (step === 'AFTER') return renderAfter(gone);
-    return { screen: 'PART_1', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...gone } };
+    return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...gone } };
   }
 
-  if (step === 'PART_1' || step === 'PART_2') {
-    const part = step === 'PART_1' ? 'p1' : 'p2';
+  if (step === 'PART_ONE' || step === 'PART_TWO') {
+    const part = step === 'PART_ONE' ? 'p1' : 'p2';
     const answers = Store.pick(screenData, FIELDS[step]);
     const errors = validate(step, { ...(form.answers || {}), ...answers });
-    const render = step === 'PART_1' ? (extra) => renderPart1(form, extra) : (extra) => renderPart2(form, extra);
+    const render = step === 'PART_ONE' ? (extra) => renderPart1(form, extra) : (extra) => renderPart2(form, extra);
     if (Object.keys(errors).length) return render(refused(errors));
     const saved = await Store.savePart(form, part, answers);
     if (!saved.ok) {
       return render({ error: saved.sealed ? 'This record is already sealed. Close the form.' : 'Not saved. Tap the button again.', has_error: true });
     }
     logToFile('[observe2] part saved', { formId: form.id, part });
-    return step === 'PART_1' ? renderPart2(saved.form) : renderAfter();
+    return step === 'PART_ONE' ? renderPart2(saved.form) : renderAfter();
   }
 
   if (step === 'AFTER') {

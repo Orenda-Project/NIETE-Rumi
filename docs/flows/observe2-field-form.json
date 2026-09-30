@@ -2,10 +2,10 @@
   "version": "7.3",
   "data_api_version": "3.0",
   "routing_model": {
-    "PART_1": [
-      "PART_2"
+    "PART_ONE": [
+      "PART_TWO"
     ],
-    "PART_2": [
+    "PART_TWO": [
       "AFTER"
     ],
     "AFTER": [
@@ -13,14 +13,14 @@
     ],
     "SEALED": [],
     "CONTINUE": [
-      "PART_2",
+      "PART_TWO",
       "AFTER",
       "SEALED"
     ]
   },
   "screens": [
     {
-      "id": "PART_1",
+      "id": "PART_ONE",
       "title": "Part 1",
       "data": {
         "teacher_line": {
@@ -49,7 +49,7 @@
         "children": [
           {
             "type": "Form",
-            "name": "part_1_form",
+            "name": "part_one_form",
             "error-messages": "${data.error_messages}",
             "children": [
               {
@@ -143,43 +143,50 @@
               },
               {
                 "type": "If",
-                "condition": "${form.p1_groups} != 'none' && ${form.p1_groups} != 'cannot'",
+                "condition": "${form.p1_groups} != 'none'",
                 "then": [
                   {
-                    "type": "CheckboxGroup",
-                    "name": "p1_listen",
-                    "label": "When you sat with a group",
-                    "description": "Tick everything you saw",
-                    "required": false,
-                    "data-source": [
+                    "type": "If",
+                    "condition": "${form.p1_groups} != 'cannot'",
+                    "then": [
                       {
-                        "id": "turns",
-                        "title": "Each spoke, no one replied",
-                        "description": "Children spoke in turn but did not answer each other."
+                        "type": "CheckboxGroup",
+                        "name": "p1_listen",
+                        "label": "When you sat with a group",
+                        "description": "Tick everything you saw",
+                        "required": false,
+                        "data-source": [
+                          {
+                            "id": "turns",
+                            "title": "Each spoke, no one replied",
+                            "description": "Children spoke in turn but did not answer each other."
+                          },
+                          {
+                            "id": "once",
+                            "title": "One child replied to another",
+                            "description": "Once, a child answered or added to another child's idea."
+                          },
+                          {
+                            "id": "often",
+                            "title": "Replied to each other often",
+                            "description": "Two or more times, children answered or added to each other's ideas."
+                          },
+                          {
+                            "id": "agreed",
+                            "title": "Disagreed, then agreed",
+                            "description": "Children gave reasons, questioned each other and agreed on one answer."
+                          }
+                        ]
                       },
                       {
-                        "id": "once",
-                        "title": "One child replied to another",
-                        "description": "Once, a child answered or added to another child's idea."
-                      },
-                      {
-                        "id": "often",
-                        "title": "Replied to each other often",
-                        "description": "Two or more times, children answered or added to each other's ideas."
-                      },
-                      {
-                        "id": "agreed",
-                        "title": "Disagreed, then agreed",
-                        "description": "Children gave reasons, questioned each other and agreed on one answer."
+                        "type": "TextInput",
+                        "name": "p1_listen_other",
+                        "label": "Something else",
+                        "required": false,
+                        "helper-text": "What the children did, in a few words"
                       }
-                    ]
-                  },
-                  {
-                    "type": "TextInput",
-                    "name": "p1_listen_other",
-                    "label": "Something else",
-                    "required": false,
-                    "helper-text": "What the children did, in a few words"
+                    ],
+                    "else": []
                   }
                 ],
                 "else": []
@@ -289,7 +296,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "screen": "PART_1",
+                    "screen": "PART_ONE",
                     "present": "${form.present}",
                     "p1_spoke": "${form.p1_spoke}",
                     "p1_picked": "${form.p1_picked}",
@@ -309,7 +316,7 @@
       }
     },
     {
-      "id": "PART_2",
+      "id": "PART_TWO",
       "title": "Part 2",
       "data": {
         "part_hint": {
@@ -334,7 +341,7 @@
         "children": [
           {
             "type": "Form",
-            "name": "part_2_form",
+            "name": "part_two_form",
             "error-messages": "${data.error_messages}",
             "children": [
               {
@@ -424,43 +431,50 @@
               },
               {
                 "type": "If",
-                "condition": "${form.p2_groups} != 'none' && ${form.p2_groups} != 'cannot'",
+                "condition": "${form.p2_groups} != 'none'",
                 "then": [
                   {
-                    "type": "CheckboxGroup",
-                    "name": "p2_listen",
-                    "label": "When you sat with a group",
-                    "description": "Tick everything you saw",
-                    "required": false,
-                    "data-source": [
+                    "type": "If",
+                    "condition": "${form.p2_groups} != 'cannot'",
+                    "then": [
                       {
-                        "id": "turns",
-                        "title": "Each spoke, no one replied",
-                        "description": "Children spoke in turn but did not answer each other."
+                        "type": "CheckboxGroup",
+                        "name": "p2_listen",
+                        "label": "When you sat with a group",
+                        "description": "Tick everything you saw",
+                        "required": false,
+                        "data-source": [
+                          {
+                            "id": "turns",
+                            "title": "Each spoke, no one replied",
+                            "description": "Children spoke in turn but did not answer each other."
+                          },
+                          {
+                            "id": "once",
+                            "title": "One child replied to another",
+                            "description": "Once, a child answered or added to another child's idea."
+                          },
+                          {
+                            "id": "often",
+                            "title": "Replied to each other often",
+                            "description": "Two or more times, children answered or added to each other's ideas."
+                          },
+                          {
+                            "id": "agreed",
+                            "title": "Disagreed, then agreed",
+                            "description": "Children gave reasons, questioned each other and agreed on one answer."
+                          }
+                        ]
                       },
                       {
-                        "id": "once",
-                        "title": "One child replied to another",
-                        "description": "Once, a child answered or added to another child's idea."
-                      },
-                      {
-                        "id": "often",
-                        "title": "Replied to each other often",
-                        "description": "Two or more times, children answered or added to each other's ideas."
-                      },
-                      {
-                        "id": "agreed",
-                        "title": "Disagreed, then agreed",
-                        "description": "Children gave reasons, questioned each other and agreed on one answer."
+                        "type": "TextInput",
+                        "name": "p2_listen_other",
+                        "label": "Something else",
+                        "required": false,
+                        "helper-text": "What the children did, in a few words"
                       }
-                    ]
-                  },
-                  {
-                    "type": "TextInput",
-                    "name": "p2_listen_other",
-                    "label": "Something else",
-                    "required": false,
-                    "helper-text": "What the children did, in a few words"
+                    ],
+                    "else": []
                   }
                 ],
                 "else": []
@@ -570,7 +584,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "screen": "PART_2",
+                    "screen": "PART_TWO",
                     "p2_spoke": "${form.p2_spoke}",
                     "p2_new": "${form.p2_new}",
                     "p2_picked": "${form.p2_picked}",

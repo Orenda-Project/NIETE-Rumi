@@ -7,7 +7,7 @@
  *       The moments Rumi found in the recording, grouped by the four moments. Each is a quote with
  *       its minute; the coach answers "yes, this happened" or "no, or not like this". Up to SLOTS
  *       per screen; unused slots are hidden.
- *   ADDED_1, ADDED_2
+ *   ADDED_ONE, ADDED_TWO
  *       Every level, pre-selected with what the coach's sealed answers and confirmed moments add up
  *       to (rules.js). Rumi's own level is never shown. The coach changes any they disagree with.
  *   PRIORITY
@@ -34,8 +34,8 @@ const HEARD_SCREENS = [
 ];
 const MOMENT_BY_ID = Object.fromEntries(MOMENTS.map((m) => [m.id, m]));
 const ADDED_SCREENS = [
-  { id: 'ADDED_1', title: 'Added up: asking, wrong', codes: [...MOMENT_BY_ID.ask.codes, ...MOMENT_BY_ID.wrong.codes] },
-  { id: 'ADDED_2', title: 'Added up: working, explaining', codes: [...MOMENT_BY_ID.work.codes, ...MOMENT_BY_ID.explain.codes] },
+  { id: 'ADDED_ONE', title: 'Added up: asking, wrong', codes: [...MOMENT_BY_ID.ask.codes, ...MOMENT_BY_ID.wrong.codes] },
+  { id: 'ADDED_TWO', title: 'Added up: working, explaining', codes: [...MOMENT_BY_ID.work.codes, ...MOMENT_BY_ID.explain.codes] },
 ];
 const ORDER = MOMENTS.flatMap((m) => m.codes);
 const YES_NO = [{ id: 'yes', title: 'Yes, this happened' }, { id: 'no', title: 'No, or not like this' }];

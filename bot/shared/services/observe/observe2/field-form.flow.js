@@ -4,8 +4,8 @@
  * /observe2 — the live field form, as a WhatsApp Flow.
  *
  * The coach opens it when the lesson starts and fills it in while watching:
- *   PART_1  the first half of the period   (numbers + a few taps; "Part 1 done" saves it)
- *   PART_2  the second half                (the same questions, plus children speaking for the first time)
+ *   PART_ONE  the first half of the period   (numbers + a few taps; "Part 1 done" saves it)
+ *   PART_TWO  the second half                (the same questions, plus children speaking for the first time)
  *   AFTER   before leaving the room        (anything to report, photos, what to work on first, the seal)
  *   SEALED  the record is locked
  *   CONTINUE  a reopened form: where the record stands, then on to the right screen
@@ -89,13 +89,19 @@ function partQuestions(p) {
   return [
     radio(`${p}_picked`, 'Who did the teacher ask?', WHO_ASKED),
     radio(`${p}_groups`, 'Did children work together?', TOGETHER),
+    // Two nested Ifs, not one "&&": Meta's condition parser mis-groups combined comparisons.
     {
       type: 'If',
-      condition: `\${form.${p}_groups} != 'none' && \${form.${p}_groups} != 'cannot'`,
-      then: [
-        { type: 'CheckboxGroup', name: `${p}_listen`, label: 'When you sat with a group', description: 'Tick everything you saw', required: false, 'data-source': LISTENED },
-        { type: 'TextInput', name: `${p}_listen_other`, label: 'Something else', required: false, 'helper-text': 'What the children did, in a few words' },
-      ],
+      condition: `\${form.${p}_groups} != 'none'`,
+      then: [{
+        type: 'If',
+        condition: `\${form.${p}_groups} != 'cannot'`,
+        then: [
+          { type: 'CheckboxGroup', name: `${p}_listen`, label: 'When you sat with a group', description: 'Tick everything you saw', required: false, 'data-source': LISTENED },
+          { type: 'TextInput', name: `${p}_listen_other`, label: 'Something else', required: false, 'helper-text': 'What the children did, in a few words' },
+        ],
+        else: [],
+      }],
       else: [],
     },
     radio(`${p}_materials`, 'Who used books or materials?', MATERIALS),
@@ -112,8 +118,8 @@ function partQuestions(p) {
 }
 
 const FIELDS = {
-  PART_1: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
-  PART_2: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
+  PART_ONE: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
+  PART_TWO: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
   AFTER: ['incident', 'detail', 'note', 'lp', 'priority', 'seal_ok'],
 };
 
@@ -220,14 +226,14 @@ function buildFieldFormFlow() {
     version: FLOW_VERSION,
     data_api_version: '3.0',
     routing_model: {
-      PART_1: ['PART_2'], PART_2: ['AFTER'], AFTER: ['SEALED'], SEALED: [], CONTINUE: ['PART_2', 'AFTER', 'SEALED'],
+      PART_ONE: ['PART_TWO'], PART_TWO: ['AFTER'], AFTER: ['SEALED'], SEALED: [], CONTINUE: ['PART_TWO', 'AFTER', 'SEALED'],
     },
     screens: [
-      screen('PART_1', 'Part 1', part1, 'Part 1 done', {
+      screen('PART_ONE', 'Part 1', part1, 'Part 1 done', {
         teacher_line: { type: 'string', __example__: "Rabia's lesson · Grade 4 · Maths" },
         part_hint: { type: 'string', __example__: 'Minutes 0 to 20. Tap "Part 1 done" at minute 20; your answers are saved then.' },
       }),
-      screen('PART_2', 'Part 2', part2, 'Part 2 done', {
+      screen('PART_TWO', 'Part 2', part2, 'Part 2 done', {
         part_hint: { type: 'string', __example__: 'Minutes 20 to 40. Answer only for what happens in this part.' },
       }),
       screen('AFTER', 'Before you seal', after, 'Seal and send'),
