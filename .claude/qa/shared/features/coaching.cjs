@@ -80,6 +80,16 @@ exports.run = async ({ api, rec, sleep }) => {
   const t = () => Date.now();
   let s;
   await api.resetFlow();
+  // This driver speaks the ENGLISH copy. A previous run can leave the account on Urdu (run 20260930-0909 died on
+  // the menu row in Urdu), so put it back through the product's own /language picker before anything else.
+  try {
+    const o = api.db('user-get'); const line = String(o.out || '').trim().split('\n').reverse().find((l) => l.trim().startsWith('{')); const u = line ? JSON.parse(line) : {};
+    if (u.preferred_language && u.preferred_language !== 'en') {
+      const r = await api.sendWait('/language'); const opener = (r.btns || []).find((b) => /Languages|زبانیں/.test(b)) || 'Languages';
+      const list = await api.openList(opener); const row = ((list && list.rows) || []).find((x) => /English|انگریزی/.test(x)) || 'English'; await api.pickRowAndWait(row, 60000);
+      await api.resetFlow();
+    }
+  } catch (_) { /* the run goes on; an Urdu account then shows up as the row error it always did */ }
 
   // ══ COA02 — decline the first-use intro, get asked for the class audio ════
   // MUST run before COA01: the menu path (View Features → Classroom Coaching) can
@@ -310,6 +320,13 @@ exports.run = async ({ api, rec, sleep }) => {
     else { await api.openList(opener); await api.pickRowAndWait('اپلوڈ', 60000); }
     const doc = await api.upload(FIXTURE.notAPlan, 'Document', 120000);
     obs.lpRejected = { replied: !!doc.ok, reply: (doc.txt || '').slice(0, 200) };
+    // The verdict is the extraction WORKER's, ~15-20 s after the "Lesson plan received" ack (run 20260930-0921:
+    // rejected at +18 s). Wait for it here; whatever else lands meanwhile is carried into the walker.
+    { const tR = Date.now(); let seen = [];
+      while (Date.now() - tR < 45000 && !seen.some(r => EXPECT.notLessonPlan.test(r.txt || ''))) { await sleep(2500); seen = seen.concat(await fresh()); }
+      const verdict = seen.find(r => EXPECT.notLessonPlan.test(r.txt || ''));
+      if (verdict) obs.lpRejected = { replied: true, ack: obs.lpRejected.reply, reply: (verdict.txt || '').slice(0, 200), verdictAfterMs: Date.now() - tR };
+      carry = carry.concat(seen.filter(r => r !== verdict)); }
     // the bot re-offers the list after a rejection — decline so the analysis can start
     const again = (doc.btns || []).find(b => /منتخب کریں|^Select$/i.test(b));
     if (again) { await api.openList(again); const no = await api.pickRowAndWait('نہیں', 90000); obs.lpDeclined = (no.txt || '').slice(0, 120); }

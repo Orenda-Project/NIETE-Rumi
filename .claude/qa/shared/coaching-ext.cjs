@@ -107,6 +107,7 @@ async function reportTextOf(report, sessionId) {
   return pdfText(report.mediaId);
 }
 const mediaIdOf = (r) => (r && r.media && (r.media.id || r.media.mediaId)) || (r && r.raw && r.raw.document && r.raw.document.id) || (r && r.raw && r.raw.image && r.raw.image.id) || null;
+const faultFired = (sinceMs) => { try { const log = fs.readFileSync(path.join(SC.runDir(), 'worker.log'), 'utf8'); const lines = log.split('\n').filter((l) => l.includes('scripted FAULT answered')); const last = lines[lines.length - 1] || ''; const m = last.match(/\[(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)/); return !!m && (Date.parse(m[1].replace(' ', 'T') + '+05:00') >= sinceMs - 5000); } catch (_) { return false; } };
 const notAssessedReason = (sessionId) => { try { const log = fs.readFileSync(path.join(SC.runDir(), 'worker.log'), 'utf8'); const i = log.indexOf(String(sessionId)); const seg = log.slice(Math.max(0, i - 200000)); const m = seg.match(/not_assessed_reason[^"]*"([a-z_]+)"/); return m ? m[1] : null; } catch (_) { return null; } };
 const rowKind = (r) => r.audio ? 'audio' : r.doc ? 'document' : r.img ? 'image' : (r.raw && r.raw.type === 'interactive' ? 'interactive' : 'text');
 const btnOf = (r, rx) => (r.btns || []).find((b) => rx.test(b));
@@ -318,7 +319,7 @@ module.exports.run = async function runExt(ctx) {
     set('COA18', ...(r2.report
       ? (r2.reportText && r2.reportText.ok
           ? V(/based on classroom audio analysis only|reflective conversation was skipped/i.test(txt) && !/[0-3]\/3 reflective|of 3 reflective|all three reflection|three reflect/i.test(txt),
-              { reflectTap: r2.reflectiveAck, noteFound: (txt.match(/Note: [^\n]{0,160}/) || [])[0] || null, claimsThree: /[0-3]\/3 reflective|of 3 reflective|three reflect/i.test(txt), reportKind: r2.report.kind })
+              { reflectTap: r2.reflectiveAck, noteFound: (txt.match(/Note: [^\n]{0,160}/) || [])[0] || null, claimsThree: /[0-3]\/3 reflective|of 3 reflective|three reflect/i.test(txt), reportKind: r2.report.kind, reflectMentions: (txt.match(/[^.]{0,80}reflect[^.]{0,80}/gi) || []).slice(0, 3), textVia: r2.reportText.via, note: 'the hero (FICO) report carries no partial-report note at all when the reflection is skipped — the transformer builds one (buildPartialNote) that the hero template does not show' })
           : B('report arrived but its text could not be read: ' + (r2.reportText && r2.reportText.err), { report: r2.report }))
       : B(r2.stalled || 'no report arrived after Get Report Now', { steps: r2.steps, reflective: r2.reflective })));
     set('COA49', ...(r2.confirmed
@@ -420,8 +421,11 @@ module.exports.run = async function runExt(ctx) {
   // ══════════════════════════════════════════════════════════════════════════════════════════════
   await guard(['COA19', 'COA27', 'COA28'], async () => {
     await cleanSlate();
-    const rs = await SC.restart('worker', { COACHING_PHOTO_VISION: 'v2', LP_FIDELITY_PHOTO: 'on' });
+    // LP_FIDELITY_ENABLED gates BOTH the recent-plan list (bot, lp-step _recentLpsFor) and the grading (worker); the lane
+    // env does not set it (production sets it on Railway), so both processes get it for the two fidelity runs
+    const rs = await SC.restart('worker', { COACHING_PHOTO_VISION: 'v2', LP_FIDELITY_PHOTO: 'on', LP_FIDELITY_ENABLED: 'true' });
     if (!rs.ok) throw new Error('worker restart failed: ' + rs.err);
+    const rb4 = await SC.restart('bot', { LP_FIDELITY_ENABLED: 'true' }); if (!rb4.ok) throw new Error('bot restart failed: ' + rb4.err);
     let lpSeed = null; try { lpSeed = dbJson(api, 'seed-lp-download'); } catch (_) {}
     const r4 = await pipeline({ label: 'run4-v2', photo: 'screenshot', firstPhoto: FX.board, lp: 'recent', reflect: 'answer', budgetMs: 15 * 60 * 1000,
       faults: [{ kind: 'llm', match: '/FIDELITY GRADER/', times: 1, content: '' }] });
@@ -462,6 +466,7 @@ module.exports.run = async function runExt(ctx) {
     if (!pick) throw new Error('no recorded ASR cassette with tokens to derive a stamp-less answer from');
     const value = { text: pick.value.text, language: pick.value.language, tokens: [] };
     try { dbJson(api, 'seed-lp-download'); } catch (_) {}
+    { const rw = await SC.restart('worker', { LP_FIDELITY_ENABLED: 'true' }); if (!rw.ok) throw new Error('worker restart failed: ' + rw.err); const rb = await SC.restart('bot', { LP_FIDELITY_ENABLED: 'true' }); if (!rb.ok) throw new Error('bot restart failed: ' + rb.err); }
     const r5 = await pipeline({ label: 'run5-nostamps', photo: 'no', lp: 'recent', reflect: 'answer', budgetMs: 15 * 60 * 1000,
       faults: [{ kind: 'asr', match: '/./', times: 1, value }] });
     const a = (r5.session && r5.session.analysis) || {}; const fid = a.lp_fidelity || {};
@@ -472,6 +477,7 @@ module.exports.run = async function runExt(ctx) {
           { status: fid.status, fidelity_pct: fid.fidelity_pct, recording_unusable: fid.recording_unusable, moderators: fid.moderators, unusable_guard: fid.unusable_guard, model: fid.model, runs: fid.runs, lpSectionPercent: pctInLp, framework: a.framework, analysisKeys: Object.keys(a), transcriptHasStamps: /\[\d\d:\d\d\]/.test(String(r5.session.transcript_head || '')), transcriptHead: short(r5.session.transcript_head, 120) })
       : B(r5.stalled || (r5.report ? 'lesson plan not linked on run 5' : 'no report on run 5 (the stamp-less ASR answer may have broken transcription)'), { steps: r5.steps, lp: r5.lpReply, faultsLeft: SC.faultsLeft() })));
     try { api.db('seed-lp-download', ['--restore']); } catch (_) {}
+    await SC.restart('worker', {}); await SC.restart('bot', {});
     if (r5.report && r5.session.has_lesson_plan && !Object.keys(fid).length) { const why = notAssessedReason(r5.sessionId); set('COA29', ...B('Section B was not assessed (worker: not_assessed_reason ' + why + '): the analysis read the session before the lesson-plan extraction had finished, so the no-timestamps guard never ran. The transcript itself DID arrive without stamps (the scripted ASR answer worked).', { not_assessed_reason: why, transcriptHasStamps: /\[\d\d:\d\d\]/.test(String(r5.session.transcript_head || '')), extraction: r5.session.lesson_plan_extraction_status })); }
   });
 
@@ -493,11 +499,15 @@ module.exports.run = async function runExt(ctx) {
   });
   await guard('COA23', async () => {
     await cleanSlate();
+    const t6b = Date.now();
     const r6b = await pipeline({ label: 'run6b-tts-down', photo: 'no', lp: 'no', reflect: 'answer', budgetMs: 12 * 60 * 1000,
       faults: [{ kind: 'tts', match: '/./', times: 6, throw: 'e2e: voice note delivery down' }] });
+    const fired = faultFired(t6b);
     set('COA23', ...(r6b.reflective
-      ? V(r6b.reflective.kind === 'text' && !!r6b.reflectiveAck, { question: r6b.reflective, acknowledgement: r6b.reflectiveAck, delivery: ((r6b.session || {}).questions || []).map((q) => q.delivery || q.format), faultsLeft: SC.faultsLeft(), reportDelivered: !!r6b.report })
-      : B(r6b.stalled || 'the reflective step was not reached (with the voice note down the pipeline sent no question at all)', { steps: r6b.steps, events: r6b.events.map((e) => e.k) })));
+      ? V(r6b.reflective.kind === 'text' && !!r6b.reflectiveAck, { question: r6b.reflective, acknowledgement: r6b.reflectiveAck, delivery: ((r6b.session || {}).questions || []).map((q) => q.delivery || q.format), faultFired: fired, reportDelivered: !!r6b.report })
+      : (fired && r6b.steps.includes('3')
+          ? V(false, { reason: 'the voice step failed (scripted TTS fault answered "Generating voice for reflective question") and NO text question followed — the session sat at Step 3/5 until the walker gave up', steps: r6b.steps, events: r6b.events.map((e) => e.k), faultFired: true, note: 'the text fallback (bd-dsx0c) covers a voice send that returns false; a throw from speech generation leaves the teacher with no question' })
+          : B(r6b.stalled || 'the reflective step was not reached', { steps: r6b.steps, events: r6b.events.map((e) => e.k), faultFired: fired }))));
   });
   await guard('COA32', async () => {
     const s3 = (r3ref && r3ref.session) || {};
@@ -665,9 +675,9 @@ module.exports.run = async function runExt(ctx) {
     await api.tapId('button', 'lpask_yes_' + row.id, 'Record my lesson');
     const a1 = await collect((r) => RX.menuAsks.test(r.txt || ''), 20000);
     await api.tapId('button', 'lp_feedback_yes_' + lp.id, '👍 Yes, useful');
-    const a2 = await collect((r) => /glad it helped|Thanks for the feedback|thank|شکریہ/i.test(r.txt || ''), 30000);
+    const a2 = await collect((r) => /glad it helped|Thanks for the feedback|thank|شکریہ|Did you get to use it|use it in class|استعمال/i.test(r.txt || ''), 30000);
     const rowAfter = (nudgeRows('coaching_after_lp') || [])[0] || {};
-    set('COA48', ...V(!!a1.hit && !!a2.hit && rowAfter.choice === 'yes', { askReply: short(a1.hit && a1.hit.txt, 120), surveyReply: short(a2.hit && a2.hit.txt, 120), askChoice: rowAfter.choice, lessonPlanId: lp.id, seed, note: 'the lp_feedback row is written by the bot from the tap; useful=true is asserted through the thanks reply' }));
+    set('COA48', ...V(!!a1.hit && !!a2.hit && rowAfter.choice === 'yes', { askReply: short(a1.hit && a1.hit.txt, 120), surveyReply: short(a2.hit && a2.hit.txt, 120), surveyBtns: a2.hit && a2.hit.btns, askChoice: rowAfter.choice, lessonPlanId: lp.id, seed, note: 'a positive survey tap is answered with the usage prompt ("Did you get to use it in class?"), which is the acknowledgement on this build' }));
     const u = dbJson(api, 'user-get'); if (u.conversation_state) await api.setUser({ conversation_state: null, conversation_state_expires_at: null });
   });
   await guard('COA46', async () => {

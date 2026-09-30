@@ -29,6 +29,9 @@ const svc = (p) => require(path.join(root, 'bot', 'shared', 'services', p));
 // E2E_SWEEP_NOW=<ISO>: the clock the sweep runs on — rows booked a few minutes ahead are due for THIS sweep only
 const NOW = process.env.E2E_SWEEP_NOW ? new Date(process.env.E2E_SWEEP_NOW) : new Date();
 (async () => {
+  // the resume sweep takes a Redis lock and the nudge sweep reads the open-question windows: both fail CLOSED while the
+  // client is still connecting (run 20260930-0921: skippedLocked on every try). Wait for it, briefly.
+  try { const cache = svc('cache/railway-redis.service'); const t0 = Date.now(); while (!(cache.isAvailable && cache.isAvailable()) && Date.now() - t0 < 15000) await new Promise((r) => setTimeout(r, 300)); } catch (_) {}
   let result;
   if (name === 'teacher-nudges') {
     svc('nudges/lp-coaching-ask.service');       // registers its kind
