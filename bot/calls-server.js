@@ -21,7 +21,7 @@
 require('dotenv').config();
 const express = require('express');
 
-const { logToFile } = require('./shared/utils/logger');
+const { logToFile, logError } = require('./shared/utils/logger');
 const { isCallsEnabled, getCallsConfig } = require('./shared/calls/calls-config');
 const { verifyForwardSecret } = require('./shared/calls/call-forwarder');
 const CallEngine = require('./shared/calls/call-engine');
@@ -80,8 +80,17 @@ const governor = createBudgetGovernor({
     weeklySpendUsd: callLog.weeklySpendUsd,
     callsToday: callLog.callsToday,
     onAlarm: async ({ spendUsd, budgetUsd, fraction }) => {
-      const operator = process.env.OPERATOR_WHATSAPP || '923365709413';
+      // Who hears the alarm is configuration, never a number baked into source.
+      // Unset is an ERROR, not a quiet skip: this is the only early warning before
+      // new calls start being declined for budget.
+      const operator = process.env.OPERATOR_WHATSAPP;
       const pct = Math.round(fraction * 100);
+      if (!operator) {
+        logError('[calls] budget alarm NOT sent — OPERATOR_WHATSAPP is not set', {
+          pct, spendUsd, budgetUsd,
+        });
+        return;
+      }
       await WhatsAppService.sendMessage(operator,
         `NIETE calls: ${pct}% of the weekly calling budget used `
         + `($${spendUsd.toFixed(2)} of $${budgetUsd}). New calls are declined at 100%.`);
