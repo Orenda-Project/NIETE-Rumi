@@ -37,8 +37,8 @@ describe('bd-2414 — completion branch voices the acknowledgement (source guard
     expect(region).toMatch(/reflectionsThanks/);
   });
 
-  it('voices the closer (generateSpeechForLanguage on the closer, in the teacher language)', () => {
-    expect(src).toMatch(/generateSpeechForLanguage\(spokenForm,\s*languageCode\)/);
+  it('voices the closer (the voice gateway speaks the closer, in the teacher language)', () => {
+    expect(src).toMatch(/text:\s*spokenForm,\s*language:\s*languageCode,\s*useCase:\s*'coaching',\s*site:\s*'closer'/);
   });
 
   it('does NOT also send the acknowledgement as a separate text message (no duplication)', () => {

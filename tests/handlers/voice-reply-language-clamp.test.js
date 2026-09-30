@@ -69,12 +69,12 @@ describe('voice reply language — clamped to the offer', () => {
     // The split-brain this prevents: an Urdu reply spoken by a Punjabi voice.
     //
     // Targeted at the call that actually carries detectedLanguage. The handler has
-    // THREE generateSpeechForLanguage sites and the other two are already safe by
+    // THREE spoken-message sites and the other two are already safe by
     // construction — the name-retry prompt uses the stored preference, and the
     // switch confirmation uses an override already gated by isMarketLanguage — so
     // matching the first occurrence anywhere would test the wrong one.
     const clampIdx = CODE.search(/detectedLanguage\s*=\s*clampLanguage\(/);
-    const replyTtsIdx = CODE.search(/generateSpeechForLanguage\([^)]*detectedLanguage/);
+    const replyTtsIdx = CODE.search(/sendVoiceOrText\([^)]*detectedLanguage/);
     expect(clampIdx).toBeGreaterThan(-1);
     expect(replyTtsIdx).toBeGreaterThan(-1);
     expect(clampIdx).toBeLessThan(replyTtsIdx);
@@ -82,7 +82,7 @@ describe('voice reply language — clamped to the offer', () => {
 
   it('leaves the two already-safe speech paths alone', () => {
     // Recording why they need no clamp, so a future reader does not "fix" them.
-    expect(CODE).toMatch(/generateSpeechForLanguage\(retryMessage,\s*userLanguage\)/);
+    expect(CODE).toMatch(/sendVoiceOrText\(from,\s*retryMessage,\s*userLanguage,/);
     expect(CODE).toMatch(/isMarketLanguage\(/);
   });
 

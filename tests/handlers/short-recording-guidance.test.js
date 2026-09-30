@@ -44,6 +44,11 @@ jest.mock('../../bot/shared/services/audio.service', () => ({
   getASREngine: jest.fn(() => 'soniox'),
 }));
 
+// The voice itself (not under test here): the gateway answers with a voice note.
+jest.mock('../../bot/shared/services/tts', () => ({
+  synthesize: jest.fn(() => Promise.resolve({ audio: Buffer.from('OggS'), mimeType: 'audio/ogg', extension: 'ogg', durationSec: 1 })),
+}));
+
 // ── everything else the handler touches, stubbed so the branch can run ───────
 jest.mock('fs', () => ({
   writeFileSync: jest.fn(), unlinkSync: jest.fn(), existsSync: jest.fn(() => false),
