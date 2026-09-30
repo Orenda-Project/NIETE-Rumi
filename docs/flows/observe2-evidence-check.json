@@ -12,12 +12,12 @@
       "HEARD_EXPLAIN"
     ],
     "HEARD_EXPLAIN": [
-      "ADDED_1"
+      "ADDED_ONE"
     ],
-    "ADDED_1": [
-      "ADDED_2"
+    "ADDED_ONE": [
+      "ADDED_TWO"
     ],
-    "ADDED_2": [
+    "ADDED_TWO": [
       "PRIORITY"
     ],
     "PRIORITY": [
@@ -1159,7 +1159,7 @@
       }
     },
     {
-      "id": "ADDED_1",
+      "id": "ADDED_ONE",
       "title": "Added up: asking, wrong",
       "data": {
         "C1_because": {
@@ -1232,7 +1232,7 @@
         "children": [
           {
             "type": "Form",
-            "name": "added_1_form",
+            "name": "added_one_form",
             "init-values": {
               "C1_final": "${data.C1_level}",
               "C3_final": "${data.C3_level}",
@@ -1574,7 +1574,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "screen": "ADDED_1",
+                    "screen": "ADDED_ONE",
                     "C1_final": "${form.C1_final}",
                     "C3_final": "${form.C3_final}",
                     "D1_final": "${form.D1_final}",
@@ -1592,7 +1592,7 @@
       }
     },
     {
-      "id": "ADDED_2",
+      "id": "ADDED_TWO",
       "title": "Added up: working, explaining",
       "data": {
         "C4_because": {
@@ -1673,7 +1673,7 @@
         "children": [
           {
             "type": "Form",
-            "name": "added_2_form",
+            "name": "added_two_form",
             "init-values": {
               "C4_final": "${data.C4_level}",
               "C5_final": "${data.C5_level}",
@@ -2056,7 +2056,7 @@
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "screen": "ADDED_2",
+                    "screen": "ADDED_TWO",
                     "C4_final": "${form.C4_final}",
                     "C5_final": "${form.C5_final}",
                     "C7_final": "${form.C7_final}",

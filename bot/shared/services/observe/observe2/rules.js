@@ -249,12 +249,12 @@ function partChecks(e, a, p) {
 function validate(screen, answers) {
   const a = answers || {};
   const e = {};
-  if (screen === 'PART_1') {
+  if (screen === 'PART_ONE') {
     const present = whole(a.present);
     if (a.present === '' || a.present == null) e.present = 'Type how many children are in class today.';
     else if (present == null || present < 1 || present > 120) e.present = 'A whole number between 1 and 120.';
     partChecks(e, a, 'p1');
-  } else if (screen === 'PART_2') {
+  } else if (screen === 'PART_TWO') {
     partChecks(e, a, 'p2');
     const fresh = a.p2_new, n = whole(fresh), p2 = whole(a.p2_spoke), present = whole(a.present), p1 = whole(a.p1_spoke);
     if (fresh === '' || fresh == null) e.p2_new = 'Type how many, 0 if none.';

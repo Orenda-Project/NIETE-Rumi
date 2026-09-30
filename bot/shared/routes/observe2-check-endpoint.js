@@ -9,10 +9,10 @@
  *   INIT / HEARD_*  the moments from the recording for one part of the lesson, each its minute,
  *                   what it is and the words; the coach says whether it happened. Each screen's
  *                   answers are saved as it is submitted.
- *   HEARD_EXPLAIN → ADDED_1, ADDED_2   every level pre-filled with what the sealed answers and the
+ *   HEARD_EXPLAIN → ADDED_ONE, ADDED_TWO   every level pre-filled with what the sealed answers and the
  *                   confirmed moments add up to (rules.addUp), with the reason; the recording's
  *                   own levels are never sent to any screen.
- *   ADDED_2 → PRIORITY   the pick sealed before any moment was seen.
+ *   ADDED_TWO → PRIORITY   the pick sealed before any moment was seen.
  *   PRIORITY → DONE      the record is checked once; the brief follows in the chat.
  */
 
@@ -163,9 +163,9 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
   if (!form) {
     // Nothing to save; walk the coach through to the end so the Flow can close.
     if (idx >= 0 && idx < HEARD_IDS.length - 1) return renderHeard(HEARD_IDS[idx + 1], null);
-    if (step === 'HEARD_EXPLAIN') return renderAdded('ADDED_1', {});
-    if (step === 'ADDED_1') return renderAdded('ADDED_2', {});
-    if (step === 'ADDED_2') return { screen: 'PRIORITY', data: { priority_level: '' } };
+    if (step === 'HEARD_EXPLAIN') return renderAdded('ADDED_ONE', {});
+    if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', {});
+    if (step === 'ADDED_TWO') return { screen: 'PRIORITY', data: { priority_level: '' } };
     return renderDone(null, NOT_AVAILABLE);
   }
 
@@ -176,14 +176,14 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     if (idx < HEARD_IDS.length - 1) return renderHeard(HEARD_IDS[idx + 1], current);
     const added = addedLevels(current, current.evidence_review || {});
     await Store.saveReview(current, { added: Object.fromEntries(Object.entries(added).map(([c, r]) => [c, levelText(r.level)])) });
-    return renderAdded('ADDED_1', added);
+    return renderAdded('ADDED_ONE', added);
   }
 
-  if (step === 'ADDED_1' || step === 'ADDED_2') {
+  if (step === 'ADDED_ONE' || step === 'ADDED_TWO') {
     const keys = ADDED_CODES[step].map((c) => `${c}_final`);
     const saved = await Store.saveReview(form, pickFields(screenData, keys));
     const current = saved.ok ? saved.form : form;
-    if (step === 'ADDED_1') return renderAdded('ADDED_2', addedLevels(current, current.evidence_review || {}));
+    if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', addedLevels(current, current.evidence_review || {}));
     return { screen: 'PRIORITY', data: { priority_level: String((current.answers || {}).priority || '') } };
   }
 

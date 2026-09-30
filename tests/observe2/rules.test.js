@@ -139,22 +139,22 @@ describe('the checks the server runs when a part is saved', () => {
   const P1 = { present: '32', p1_spoke: '5', p1_picked: 'once', p1_groups: 'none', p1_materials: 'teacher', p1_change: 'no' };
   const P2 = { ...P1, p2_spoke: '7', p2_new: '3', p2_picked: 'often', p2_groups: 'combine', p2_listen: ['often'], p2_materials: 'teacher', p2_change: 'yes', p2_change_how: 'clear' };
   test('complete parts pass', () => {
-    expect(validate('PART_1', P1)).toEqual({});
-    expect(validate('PART_2', P2)).toEqual({});
+    expect(validate('PART_ONE', P1)).toEqual({});
+    expect(validate('PART_TWO', P2)).toEqual({});
   });
   test('children present is required and sane', () => {
-    expect(validate('PART_1', { ...P1, present: '' }).present).toBeTruthy();
-    expect(validate('PART_1', { ...P1, present: '0' }).present).toBeTruthy();
+    expect(validate('PART_ONE', { ...P1, present: '' }).present).toBeTruthy();
+    expect(validate('PART_ONE', { ...P1, present: '0' }).present).toBeTruthy();
   });
-  test('more children spoke than are present fails, naming the number present', () => expect(validate('PART_1', { ...P1, p1_spoke: '40' }).p1_spoke).toMatch(/32/));
+  test('more children spoke than are present fails, naming the number present', () => expect(validate('PART_ONE', { ...P1, p1_spoke: '40' }).p1_spoke).toMatch(/32/));
   test('group work needs a tick or a note', () => {
-    expect(validate('PART_1', { ...P1, p1_groups: 'combine', p1_listen: [] }).p1_listen).toBeTruthy();
-    expect(validate('PART_1', { ...P1, p1_groups: 'combine', p1_listen: [], p1_listen_other: 'Drew it together' })).toEqual({});
+    expect(validate('PART_ONE', { ...P1, p1_groups: 'combine', p1_listen: [] }).p1_listen).toBeTruthy();
+    expect(validate('PART_ONE', { ...P1, p1_groups: 'combine', p1_listen: [], p1_listen_other: 'Drew it together' })).toEqual({});
   });
-  test('a switch of activity needs how it went', () => expect(validate('PART_1', { ...P1, p1_change: 'yes' }).p1_change_how).toBeTruthy());
+  test('a switch of activity needs how it went', () => expect(validate('PART_ONE', { ...P1, p1_change: 'yes' }).p1_change_how).toBeTruthy());
   test('new voices cannot exceed Part 2 speakers, or the children still quiet after Part 1', () => {
-    expect(validate('PART_2', { ...P2, p2_new: '8' }).p2_new).toBeTruthy();
-    expect(validate('PART_2', { ...P2, present: '10', p1_spoke: '8', p2_spoke: '5', p2_new: '4' }).p2_new).toMatch(/2/);
+    expect(validate('PART_TWO', { ...P2, p2_new: '8' }).p2_new).toBeTruthy();
+    expect(validate('PART_TWO', { ...P2, present: '10', p1_spoke: '8', p2_spoke: '5', p2_new: '4' }).p2_new).toMatch(/2/);
   });
   test('sealing needs a priority and the seal ticked; an incident needs what happened', () => {
     const e = validate('AFTER', { incident: 'none', lp: 'used' });
