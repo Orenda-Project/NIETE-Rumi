@@ -236,7 +236,7 @@ const COACHING_MESSAGES = {
   },
 
   // bd-7beiz — sent when the teacher submits a recording we have already
-  // scored (identical bytes, same teacher, within 7 days). She gets the report
+  // scored (identical bytes, same teacher, any time — bd-hr97y). She gets the report
   // she already has rather than a second, differently-sampled score for the
   // same lesson: the rubric pass runs at temperature 1, and re-scoring the same
   // audio moved the overall by a mean of 5.9 points across 1,515 measured

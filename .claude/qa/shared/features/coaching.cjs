@@ -498,6 +498,12 @@ exports.run = async ({ api, rec, sleep }) => {
       { reason: 'unreachable via WhatsApp: reject threshold (100MB) = WhatsApp document ceiling, so no '
               + 'upload can exceed it. Covered by unit test bot/tests/coa14-audio-size-cap.test.js.',
         note: 'the reject copy still says "25MB"/"Whisper" though the real cap is 100MB — stale (bd-60026).' }, 0);
+  // bd-hr97y: needs a COMPLETED coaching report older than 7 days for the driver account. The
+  // mock lane starts from a fresh session and cannot age one; the no-window lookup is covered by
+  // tests/coaching/bd-hr97y-dc-dedupe-no-window.test.js, which runs the real call site.
+  rec('COA-dedupe-aged', 'The same recording sent again weeks later still returns the report already made', 'BLOCKED',
+      { reason: 'needs a completed DC report older than 7 days on the driver account; the mock lane cannot age a '
+              + 'session. Covered by tests/coaching/bd-hr97y-dc-dedupe-no-window.test.js (real processTranscription).' }, 0);
 
   if (DEEP)
     rec('COA-pipeline', 'Pipeline steps observed end to end', 'PASS',
