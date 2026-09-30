@@ -140,4 +140,7 @@ exports.run = async ({ api, rec }) => {
   rec('OBS37', 'A classroom recording the coach already had analysed is not analysed again', ...ANALYSIS, 0);
   rec('OBS38', "The already-analysed reply is in the coach's own language, not the teacher's", ...ANALYSIS, 0);
   rec('OBS39', 'A recording whose earlier observation was cancelled is analysed normally', ...ANALYSIS, 0);
+  rec('OBS40', 'A debrief recording the coach was already coached on is not analysed again', ...ANALYSIS, 0);
+  rec('OBS41', "The debrief already-analysed reply is in the coach's own language", ...ANALYSIS, 0);
+  rec('OBS42', 'A debrief recording that was never coached is analysed normally when re-sent', ...ANALYSIS, 0);
 };
