@@ -49,6 +49,7 @@ const ENV = globalThis.process.env;
 // One definition, shared with the Flow endpoint and the portal's browse
 // service. Was copied verbatim into three files.
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
+const { resolveUx } = require('../../config/ux-strings');
 
 /**
  * What she is told, per failure. Each one names the thing she can change; a
@@ -440,10 +441,12 @@ async function process(job) {
         if (flowId) {
           await WhatsAppService.sendFlow(phone, {
             flowId,
-            header: '✏️ Change this paper',
-            body: 'Want a shorter paper? Open this to untick any questions you '
-              + 'do not want, and I will make it again.',
-            buttonText: 'Choose questions',
+            // Teacher-addressed, so read in her CURRENT language at send time.
+            // It names marks and wording, not only removal: the Flow has done
+            // all three since 6 Sep and almost nobody knew (bd-q3rfn).
+            header: resolveUx('assessmentReviewOfferHeader', { user }),
+            body: resolveUx('assessmentReviewOfferBody', { user }),
+            buttonText: resolveUx('assessmentReviewOfferButton', { user }),
             // The token names the PAPER; INIT reads it and opens REVIEW rather
             // than starting a new request. No `screen`, so this is data_exchange.
             flowToken: `${userId}:assessment-review:${paperId}`,
