@@ -663,3 +663,93 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When the failure is recorded
     Then the observation shows as stopped in the portal
     And the coach receives no failure message on WhatsApp
+
+  # ═══════════════════ /observe2 — the FICO ICT field-form pilot ═══════════════════
+  # /observe2 lets a coach fill a live form DURING the lesson (Part 1, Part 2, then the seal),
+  # send the recording afterwards, and check the moments found in it before a brief comes back.
+  # GATING (observe2/gate.js, FEATURE_GATES.observe2): OBSERVE2_FIELD_FORM_FLOW_ID,
+  # OBSERVE2_CHECK_FLOW_ID and OBSERVE_VISIT_FLOW_ID must all be set, and the user must be in the
+  # leader family; otherwise "/observe2" falls through like any text. Sandbox only for the pilot.
+  # Copy: bot/shared/services/observe/observe2/strings.js. All @wip @draft until driven on sandbox.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A coach's /observe2 opens the visit planner
+    Given the NIETE bot chat is open on a LEADER account on sandbox
+    When I send "/observe2"
+    Then the bot responds with "Let's plan the /observe2 visit. Pick a school, then a teacher." and a "Plan my visit" CTA
+    # observe2/start.js handleObserve2Command: the /observe visit Flow, token <userId>:observe2-visit.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: After Start, the coach chooses the period length
+    Given I opened the visit planner from /observe2 and picked a school and a teacher
+    When I tap "Start observation" in the brief
+    Then the bot asks "How long is this period?" naming the teacher
+    And it offers exactly three buttons: "30 minutes", "35 minutes", "40 minutes"
+    And no "record it and send me the audio" message is sent
+    # flow-response.handler handleObserveVisitFlow: the observe2 marker → Observe2Start.afterStart
+    # (record created in observation_field_forms; the teacher is bound exactly as for /observe).
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: The period button sends the live form with the steps before the lesson
+    Given I was asked how long the period is
+    When I tap "40 minutes"
+    Then the bot sends a message starting "Before the lesson starts:" with an "Open the form" CTA
+    And it tells me to start my phone's voice recorder app, not WhatsApp
+    And it says to save Part 1 at minute 20 and carry on with Part 2 until minute 40
+
+  @e2e @flow @config-gated @wip @draft @negative @P1
+  Scenario: Part 1 refuses a number that cannot be right
+    Given the live form is open on Part 1
+    When I type 32 children present and 40 children who spoke, and tap "Part 1 done"
+    Then the form stays on Part 1 with "Can't be more than the 32 children present." under "Children who spoke"
+    And nothing is saved
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A form reopened after Part 1 continues with Part 2
+    Given I saved Part 1 of the live form and closed it
+    When I tap "Open the form" again
+    Then the form opens on "Part 1 is saved" with "Carry on with Part 2, from minute 20 to 40."
+    And "Continue" opens Part 2
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: Sealing locks the record and the chat says what to do with the recording
+    Given I filled Part 1 and Part 2 of the live form
+    When I pick what to work on first, tick the seal box and tap "Seal and send"
+    Then the form shows "Sealed at" and the time
+    And the bot says the record is sealed and to stop the recorder, then share the recording to this chat
+    And tapping "Seal and send" again changes nothing
+    # observe2-form-endpoint.js: seal is a compare-and-set; the database trigger refuses any later
+    # change to what was sealed. Up to three photos are kept (observe2/<record>/photo-N.jpg).
+
+  @e2e @audio @config-gated @destructive @wip @draft @P1
+  Scenario: The recording joins the sealed record and its moments come back to check
+    Given my /observe2 record is sealed
+    When I send the lesson recording from the recorder app as a file
+    Then the bot says "Recording received" and that the moments come here to check
+    And no photo or lesson-plan question is asked
+    And a few minutes later a message with a "Check the moments" CTA arrives
+    # capture-link.js links the recording to the open form; moments.js reads the timed transcript
+    # (one model call) and opens the check because the record is sealed.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The check pre-fills every level and Submit sends the brief
+    Given the "Check the moments" form is open
+    When I answer each moment "Yes, this happened" or "No, or not like this" and tap through
+    Then every level is pre-filled with what my sealed answers and the confirmed moments add up to, with the reason
+    And no level found by the recording alone is shown
+    When I keep or change the levels, keep my sealed pick and tap "Submit"
+    Then the form shows "Saved at" and the time
+    And the bot sends a brief naming the teacher, what went well, the thing to work on first and one moment to bring up
+
+  @e2e @config-gated @wip @draft @negative @P2
+  Scenario: A teacher's /observe2 is refused
+    Given the NIETE bot chat is open on a TEACHER account on sandbox
+    When I send "/observe2"
+    Then the bot responds with "/observe2 is for coaches and school leaders."
+    And no Flow is sent
+
+  @e2e @wip @draft @negative @P3
+  Scenario: /observe2 is plain text where its Flows are not configured
+    Given the NIETE bot runs without OBSERVE2_FIELD_FORM_FLOW_ID or OBSERVE2_CHECK_FLOW_ID
+    When a coach sends "/observe2"
+    Then the message is handled like any other text and no /observe2 Flow is sent

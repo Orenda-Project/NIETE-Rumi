@@ -222,6 +222,39 @@ async function handleObserve2FormFlow(data) {
   return FlowEncryptionService.createErrorResponse('Unknown action');
 }
 
+/**
+ * /observe2 — the check after the seal (the recording's moments, the levels they add up to,
+ * the pick). flow_token = <coachUserId>:observe2-check:<recordId>. Publish the Flow with
+ * endpoint_uri .../api/flows/observe2-check and set OBSERVE2_CHECK_FLOW_ID.
+ */
+router.post('/observe2-check', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'observe2-check' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => handleObserve2CheckFlow(decryptedData)
+    );
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', { endpoint: 'observe2-check', error: error.message }, 'error');
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function handleObserve2CheckFlow(data) {
+  const Observe2Check = require('./observe2-check-endpoint');
+  const { action, flow_token: flowToken, screen, data: screenData } = data;
+  if (action === 'ping') return FlowEncryptionService.handlePing();
+  if (action === 'INIT' || action === 'init') return Observe2Check.handleObserve2CheckInit(flowToken);
+  if (action === 'data_exchange') return Observe2Check.handleObserve2CheckDataExchange(flowToken, screen, screenData || {});
+  logToFile('Unknown observe2-check flow action', { action }, 'warn');
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
 router.post('/registration', async (req, res) => {
   try {
     if (!FlowEncryptionService.isConfigured()) {
