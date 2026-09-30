@@ -126,6 +126,18 @@ function detectFlowType(responseJson) {
     return 'observe_visit';
   }
 
+  // 0.3 /observe2 — the live field form (sealed) and the "What Rumi heard" check (checked).
+  //     Both complete with a flat `observe2` key; Meta can drop fields from a completion, so the
+  //     flow token marker (<userId>:observe2-form:<recordId> / <userId>:observe2-check:<recordId>)
+  //     is matched too. MUST sit above the loose attendance_marking fallback: both tokens carry colons.
+  if (responseJson.observe2 !== undefined) {
+    return 'observe2';
+  }
+  const observe2Token = String(responseJson.flow_token || '');
+  if (observe2Token.includes(':observe2-form:') || observe2Token.includes(':observe2-check:')) {
+    return 'observe2';
+  }
+
   // 0.3 Assessment Generator (bd-60027). The Flow now CLOSES on submit rather
   //     than ending on a screen, so its completion arrives here carrying
   //     `assessment_action`. That tag is unique to this flow and MUST be matched

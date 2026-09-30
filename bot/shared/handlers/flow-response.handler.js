@@ -737,6 +737,10 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
   try {
     const responseJson = JSON.parse(message.interactive.nfm_reply.response_json || '{}');
     const flowToken = responseJson.flow_token || userId;
+    // /observe2 opens this same planner with the token <userId>:observe2-visit. A loop reopen must
+    // carry it on, or the Start that follows is a classic /observe Start.
+    const Observe2Start = require('../services/observe/observe2/start');
+    const loopToken = Observe2Start.isObserve2VisitToken(flowToken) ? flowToken : undefined;
     // bd-2444: three exits — 'start' (bind + capture prompt, the legacy path),
     // 'debrief' (hand off to the chat debrief), 'done' (localized schedule ack).
     const visitAction = responseJson.observe_visit_action
@@ -794,13 +798,13 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
     // "tell me about the lesson you observed".
     if (visitAction === 'roster_teacher') {
       const { rosterTeacherNextTarget } = require('../services/observe/observe-teacher-admin.service');
-      await _continueObserveLoop(rosterTeacherNextTarget(responseJson.roster_next), user, phoneNumber, userId);
+      await _continueObserveLoop(rosterTeacherNextTarget(responseJson.roster_next), user, phoneNumber, userId, loopToken);
       return;
     }
 
     if (visitAction === 'roster') {
       const { rosterNextTarget } = require('../services/observe/observe-school-admin.service');
-      await _continueObserveLoop(rosterNextTarget(responseJson.roster_next), user, phoneNumber, userId);
+      await _continueObserveLoop(rosterNextTarget(responseJson.roster_next), user, phoneNumber, userId, loopToken);
       return true;
     }
 
@@ -812,7 +816,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
       await WhatsAppService.sendMessage(phoneNumber, buildVisitCancelledAck(observeLang(user || {}), {
         teacherName: responseJson.teacher_name,
       }));
-      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId);
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, loopToken);
       return true;
     }
 
@@ -822,7 +826,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
         date: responseJson.sched_date || responseJson.date,
         slot: responseJson.sched_slot || responseJson.slot,
       }));
-      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId);
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, loopToken);
       return true;
     }
 
@@ -832,11 +836,23 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
         date: responseJson.sched_date,
         slot: responseJson.sched_slot,
       }));
-      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId);
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, loopToken);
       return true;
     }
 
     const result = await VisitHandler.handle(userId, 'complete', 'BRIEF', responseJson, flowToken, user);
+
+    // /observe2: the same bind (the recording still attaches to this teacher), then the field form
+    // instead of the capture prompt.
+    if (loopToken) {
+      await Observe2Start.afterStart({
+        user: user || { id: userId },
+        phoneNumber,
+        boundTeacher: result && result.boundTeacher,
+        schoolExtId: responseJson.school_ext_id,
+      });
+      return true;
+    }
 
     const framework = ((getObservePack().key) || 'fico').toUpperCase();
     const teacherName = result && result.boundTeacher && result.boundTeacher.teacher_name;
@@ -872,7 +888,7 @@ function _visitNextTarget(next) {
  * the reopen fails the coach has still had her action confirmed on-screen, and
  * /observe always gets her back in. Never throws into the caller.
  */
-async function _continueObserveLoop(target, user, phoneNumber, userId) {
+async function _continueObserveLoop(target, user, phoneNumber, userId, flowToken) {
   if (!target || !target.reopen || !user) return;
   try {
     const { reopenObserveVisitFlow } = require('./observe-command.handler');
@@ -882,7 +898,7 @@ async function _continueObserveLoop(target, user, phoneNumber, userId) {
       // mode means WE supply them — there is no endpoint round-trip to do it.
       const admin = require('../services/observe/observe-school-admin.service');
       const mine = await admin.listMySchools(userId).catch(() => []);
-      if (!mine.length) return reopenObserveVisitFlow(user, phoneNumber, null);
+      if (!mine.length) return reopenObserveVisitFlow(user, phoneNumber, null, undefined, flowToken);
       // EVERY key the screen declares, or the screen fails to render and the
       // coach's tap does nothing — the payload-schema-error class again. In
       // navigate mode there is no endpoint round-trip to fill these in, so the
@@ -896,11 +912,11 @@ async function _continueObserveLoop(target, user, phoneNumber, userId) {
         })),
       };
     }
-    const sent = await reopenObserveVisitFlow(user, phoneNumber, target.screen, screenData);
+    const sent = await reopenObserveVisitFlow(user, phoneNumber, target.screen, screenData, flowToken);
     // Never strand her: if opening straight onto the screen was rejected, put
     // the menu back in front of her rather than leaving the tap looking dead.
     if (sent === false && target.screen) {
-      await reopenObserveVisitFlow(user, phoneNumber, null);
+      await reopenObserveVisitFlow(user, phoneNumber, null, undefined, flowToken);
     }
   } catch (err) {
     logToFile('observe loop reopen failed — coach can still use /observe', { userId, error: err.message });
@@ -1141,8 +1157,24 @@ async function handleAssessmentFlowCompletion(responseJson, from, user) {
   logToFile('[assessment] completion acknowledged in chat', { userId: user?.id, action });
 }
 
+/**
+ * /observe2 completion (the live form sealed, or the "What Rumi heard" check submitted).
+ * The chat follow-ups are sent by the endpoint when the coach taps "Seal and send" / "Submit",
+ * because this completion only arrives if they also tap "Done". So this branch only claims the
+ * completion (keeping it off the generic "thanks") and records it; it sends nothing.
+ */
+async function handleObserve2Completion(responseJson, from, user) {
+  const token = String((responseJson && responseJson.flow_token) || '');
+  const action = (responseJson && responseJson.observe2)
+    || (token.includes(':observe2-check:') ? 'checked' : token.includes(':observe2-form:') ? 'sealed' : 'unknown');
+  const recordId = (responseJson && responseJson.record_id) || token.split(':')[2] || null;
+  logToFile('[observe2] form completion received', { userId: user?.id, from, action, recordId });
+  return { handled: true, action };
+}
+
 module.exports = {
   handleAssessmentFlowCompletion,
+  handleObserve2Completion,
   handleFlowResponse,
   handleReadingAssessmentFlow,
   handleRegistrationFlow,

@@ -97,6 +97,17 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
     return null;
   }
 
+  // /observe2: the recording joins the coach's open field form BEFORE transcription is queued, so
+  // the step after transcription finds the link. Never lets a failure cost the capture.
+  let observe2 = null;
+  try {
+    observe2 = await require('./observe2/capture-link').linkRecording(user, session, boundTeacher);
+  } catch (err) {
+    logToFile('❌ observe2: linking the recording failed (capture goes on as /observe)', {
+      userId: user.id, sessionId: session.id, error: err.message,
+    }, 'error');
+  }
+
   const CoachingJobQueueService = require('../coaching/coaching-job-queue.service');
   await CoachingJobQueueService.queueTranscription(session.id, { from, audioId });
 
@@ -128,7 +139,7 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   // Do not "optimise" it by moving the queue call without deciding that every
   // observation should wait on a human tap first.
   await WhatsAppService.sendInteractiveButtons(from, {
-    body: `${S.audio_received}\n\n${S.capture_next_hint || ''}`.trim(),
+    body: observe2 ? observe2.ack : `${S.audio_received}\n\n${S.capture_next_hint || ''}`.trim(),
     buttons: [
       { id: `observe_ok_${session.id}`, title: S.btn_ok_wait.slice(0, 20) },
       { id: `observe_cancel_${session.id}`, title: S.btn_cancel_obs.slice(0, 20) },
@@ -141,7 +152,7 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   // and the ack is sent, so analysis proceeds regardless and ignoring the
   // question leaves today's behaviour byte-for-byte. Never let it throw: a
   // missing name must never cost a coach her recording.
-  if (!boundTeacher) {
+  if (!boundTeacher && !observe2) {
     try {
       const ObserveWho = require('./observe-who.service');
       await ObserveWho.maybeAskObservedTeacher(user, from, session.id);

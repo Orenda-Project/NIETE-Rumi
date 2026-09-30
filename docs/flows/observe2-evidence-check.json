@@ -1,0 +1,2246 @@
+{
+  "version": "7.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "HEARD_ASK": [
+      "HEARD_WRONG"
+    ],
+    "HEARD_WRONG": [
+      "HEARD_WORK"
+    ],
+    "HEARD_WORK": [
+      "HEARD_EXPLAIN"
+    ],
+    "HEARD_EXPLAIN": [
+      "ADDED_1"
+    ],
+    "ADDED_1": [
+      "ADDED_2"
+    ],
+    "ADDED_2": [
+      "PRIORITY"
+    ],
+    "PRIORITY": [
+      "DONE"
+    ],
+    "DONE": []
+  },
+  "screens": [
+    {
+      "id": "HEARD_ASK",
+      "title": "Recording: asking",
+      "data": {
+        "heard_ask_1_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_ask_1_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_ask_1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_ask_2_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_ask_2_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_ask_2_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_ask_3_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_ask_3_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_ask_3_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_ask_4_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_ask_4_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_ask_4_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_ask_5_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_ask_5_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_ask_5_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_ask_6_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_ask_6_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_ask_6_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_ask_7_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_ask_7_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_ask_7_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_ask_8_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_ask_8_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_ask_8_v": {
+          "type": "boolean",
+          "__example__": true
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "heard_ask_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "When the teacher asks, who answers, and how?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_ask_1",
+                "label": "${data.heard_ask_1_t}",
+                "description": "${data.heard_ask_1_d}",
+                "visible": "${data.heard_ask_1_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_ask_2",
+                "label": "${data.heard_ask_2_t}",
+                "description": "${data.heard_ask_2_d}",
+                "visible": "${data.heard_ask_2_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_ask_3",
+                "label": "${data.heard_ask_3_t}",
+                "description": "${data.heard_ask_3_d}",
+                "visible": "${data.heard_ask_3_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_ask_4",
+                "label": "${data.heard_ask_4_t}",
+                "description": "${data.heard_ask_4_d}",
+                "visible": "${data.heard_ask_4_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_ask_5",
+                "label": "${data.heard_ask_5_t}",
+                "description": "${data.heard_ask_5_d}",
+                "visible": "${data.heard_ask_5_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_ask_6",
+                "label": "${data.heard_ask_6_t}",
+                "description": "${data.heard_ask_6_d}",
+                "visible": "${data.heard_ask_6_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_ask_7",
+                "label": "${data.heard_ask_7_t}",
+                "description": "${data.heard_ask_7_d}",
+                "visible": "${data.heard_ask_7_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_ask_8",
+                "label": "${data.heard_ask_8_t}",
+                "description": "${data.heard_ask_8_d}",
+                "visible": "${data.heard_ask_8_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "HEARD_ASK",
+                    "heard_ask_1": "${form.heard_ask_1}",
+                    "heard_ask_2": "${form.heard_ask_2}",
+                    "heard_ask_3": "${form.heard_ask_3}",
+                    "heard_ask_4": "${form.heard_ask_4}",
+                    "heard_ask_5": "${form.heard_ask_5}",
+                    "heard_ask_6": "${form.heard_ask_6}",
+                    "heard_ask_7": "${form.heard_ask_7}",
+                    "heard_ask_8": "${form.heard_ask_8}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "HEARD_WRONG",
+      "title": "Recording: wrong answers",
+      "data": {
+        "heard_wrong_1_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_wrong_1_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_wrong_1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_wrong_2_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_wrong_2_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_wrong_2_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_wrong_3_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_wrong_3_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_wrong_3_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_wrong_4_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_wrong_4_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_wrong_4_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_wrong_5_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_wrong_5_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_wrong_5_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_wrong_6_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_wrong_6_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_wrong_6_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_wrong_7_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_wrong_7_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_wrong_7_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_wrong_8_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_wrong_8_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_wrong_8_v": {
+          "type": "boolean",
+          "__example__": true
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "heard_wrong_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "When a child gets it wrong, what happens next?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_wrong_1",
+                "label": "${data.heard_wrong_1_t}",
+                "description": "${data.heard_wrong_1_d}",
+                "visible": "${data.heard_wrong_1_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_wrong_2",
+                "label": "${data.heard_wrong_2_t}",
+                "description": "${data.heard_wrong_2_d}",
+                "visible": "${data.heard_wrong_2_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_wrong_3",
+                "label": "${data.heard_wrong_3_t}",
+                "description": "${data.heard_wrong_3_d}",
+                "visible": "${data.heard_wrong_3_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_wrong_4",
+                "label": "${data.heard_wrong_4_t}",
+                "description": "${data.heard_wrong_4_d}",
+                "visible": "${data.heard_wrong_4_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_wrong_5",
+                "label": "${data.heard_wrong_5_t}",
+                "description": "${data.heard_wrong_5_d}",
+                "visible": "${data.heard_wrong_5_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_wrong_6",
+                "label": "${data.heard_wrong_6_t}",
+                "description": "${data.heard_wrong_6_d}",
+                "visible": "${data.heard_wrong_6_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_wrong_7",
+                "label": "${data.heard_wrong_7_t}",
+                "description": "${data.heard_wrong_7_d}",
+                "visible": "${data.heard_wrong_7_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_wrong_8",
+                "label": "${data.heard_wrong_8_t}",
+                "description": "${data.heard_wrong_8_d}",
+                "visible": "${data.heard_wrong_8_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "HEARD_WRONG",
+                    "heard_wrong_1": "${form.heard_wrong_1}",
+                    "heard_wrong_2": "${form.heard_wrong_2}",
+                    "heard_wrong_3": "${form.heard_wrong_3}",
+                    "heard_wrong_4": "${form.heard_wrong_4}",
+                    "heard_wrong_5": "${form.heard_wrong_5}",
+                    "heard_wrong_6": "${form.heard_wrong_6}",
+                    "heard_wrong_7": "${form.heard_wrong_7}",
+                    "heard_wrong_8": "${form.heard_wrong_8}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "HEARD_WORK",
+      "title": "Recording: working",
+      "data": {
+        "heard_work_1_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_work_1_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_work_1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_work_2_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_work_2_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_work_2_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_work_3_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_work_3_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_work_3_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_work_4_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_work_4_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_work_4_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_work_5_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_work_5_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_work_5_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_work_6_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_work_6_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_work_6_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_work_7_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_work_7_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_work_7_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_work_8_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_work_8_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_work_8_v": {
+          "type": "boolean",
+          "__example__": true
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "heard_work_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "When children work, what do they do?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_work_1",
+                "label": "${data.heard_work_1_t}",
+                "description": "${data.heard_work_1_d}",
+                "visible": "${data.heard_work_1_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_work_2",
+                "label": "${data.heard_work_2_t}",
+                "description": "${data.heard_work_2_d}",
+                "visible": "${data.heard_work_2_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_work_3",
+                "label": "${data.heard_work_3_t}",
+                "description": "${data.heard_work_3_d}",
+                "visible": "${data.heard_work_3_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_work_4",
+                "label": "${data.heard_work_4_t}",
+                "description": "${data.heard_work_4_d}",
+                "visible": "${data.heard_work_4_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_work_5",
+                "label": "${data.heard_work_5_t}",
+                "description": "${data.heard_work_5_d}",
+                "visible": "${data.heard_work_5_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_work_6",
+                "label": "${data.heard_work_6_t}",
+                "description": "${data.heard_work_6_d}",
+                "visible": "${data.heard_work_6_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_work_7",
+                "label": "${data.heard_work_7_t}",
+                "description": "${data.heard_work_7_d}",
+                "visible": "${data.heard_work_7_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_work_8",
+                "label": "${data.heard_work_8_t}",
+                "description": "${data.heard_work_8_d}",
+                "visible": "${data.heard_work_8_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "HEARD_WORK",
+                    "heard_work_1": "${form.heard_work_1}",
+                    "heard_work_2": "${form.heard_work_2}",
+                    "heard_work_3": "${form.heard_work_3}",
+                    "heard_work_4": "${form.heard_work_4}",
+                    "heard_work_5": "${form.heard_work_5}",
+                    "heard_work_6": "${form.heard_work_6}",
+                    "heard_work_7": "${form.heard_work_7}",
+                    "heard_work_8": "${form.heard_work_8}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "HEARD_EXPLAIN",
+      "title": "Recording: explaining",
+      "data": {
+        "heard_explain_1_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_explain_1_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_explain_1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_explain_2_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_explain_2_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_explain_2_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_explain_3_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_explain_3_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_explain_3_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_explain_4_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_explain_4_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_explain_4_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_explain_5_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_explain_5_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_explain_5_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_explain_6_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_explain_6_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_explain_6_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_explain_7_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_explain_7_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_explain_7_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "heard_explain_8_t": {
+          "type": "string",
+          "__example__": "12:41 · open question"
+        },
+        "heard_explain_8_d": {
+          "type": "string",
+          "__example__": "\"Why is two quarters the same as one half?\""
+        },
+        "heard_explain_8_v": {
+          "type": "boolean",
+          "__example__": true
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "heard_explain_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "How well does the teacher explain?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_explain_1",
+                "label": "${data.heard_explain_1_t}",
+                "description": "${data.heard_explain_1_d}",
+                "visible": "${data.heard_explain_1_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_explain_2",
+                "label": "${data.heard_explain_2_t}",
+                "description": "${data.heard_explain_2_d}",
+                "visible": "${data.heard_explain_2_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_explain_3",
+                "label": "${data.heard_explain_3_t}",
+                "description": "${data.heard_explain_3_d}",
+                "visible": "${data.heard_explain_3_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_explain_4",
+                "label": "${data.heard_explain_4_t}",
+                "description": "${data.heard_explain_4_d}",
+                "visible": "${data.heard_explain_4_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_explain_5",
+                "label": "${data.heard_explain_5_t}",
+                "description": "${data.heard_explain_5_d}",
+                "visible": "${data.heard_explain_5_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_explain_6",
+                "label": "${data.heard_explain_6_t}",
+                "description": "${data.heard_explain_6_d}",
+                "visible": "${data.heard_explain_6_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_explain_7",
+                "label": "${data.heard_explain_7_t}",
+                "description": "${data.heard_explain_7_d}",
+                "visible": "${data.heard_explain_7_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "heard_explain_8",
+                "label": "${data.heard_explain_8_t}",
+                "description": "${data.heard_explain_8_d}",
+                "visible": "${data.heard_explain_8_v}",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes, this happened"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No, or not like this"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Add it all up",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "HEARD_EXPLAIN",
+                    "heard_explain_1": "${form.heard_explain_1}",
+                    "heard_explain_2": "${form.heard_explain_2}",
+                    "heard_explain_3": "${form.heard_explain_3}",
+                    "heard_explain_4": "${form.heard_explain_4}",
+                    "heard_explain_5": "${form.heard_explain_5}",
+                    "heard_explain_6": "${form.heard_explain_6}",
+                    "heard_explain_7": "${form.heard_explain_7}",
+                    "heard_explain_8": "${form.heard_explain_8}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ADDED_1",
+      "title": "Added up: asking, wrong",
+      "data": {
+        "C1_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C1_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "C3_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C3_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "D1_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "D1_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "D2_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "D2_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "D5_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "D5_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "C2_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C2_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "C6_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C6_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "D4_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "D4_level": {
+          "type": "string",
+          "__example__": "3"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "added_1_form",
+            "init-values": {
+              "C1_final": "${data.C1_level}",
+              "C3_final": "${data.C3_level}",
+              "D1_final": "${data.D1_level}",
+              "D2_final": "${data.D2_level}",
+              "D5_final": "${data.D5_level}",
+              "C2_final": "${data.C2_level}",
+              "C6_final": "${data.C6_level}",
+              "D4_final": "${data.D4_level}"
+            },
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "Each level is what your answers and the moments you confirmed add up to. Change any you disagree with."
+              },
+              {
+                "type": "TextSubheading",
+                "text": "The teacher's questions"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C1_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C1_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No real questions asked"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Yes/no or chorus answers only"
+                  },
+                  {
+                    "id": "3",
+                    "title": "Open questions, one child each"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Plus a 'why' and a follow-up"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Who got to answer"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C3_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C3_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Only raised hands answered"
+                  },
+                  {
+                    "id": "2",
+                    "title": "A quiet child picked once"
+                  },
+                  {
+                    "id": "3",
+                    "title": "Quiet children picked often"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Varied ways, silent child in"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Children's reasoning"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.D1_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "D1_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "One-word answers only"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Longer answers, no reasoning"
+                  },
+                  {
+                    "id": "3",
+                    "title": "2+ children explained why"
+                  },
+                  {
+                    "id": "4",
+                    "title": "A child went beyond the ask"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "How many children spoke"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.D2_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "D2_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "1-2 children, or none"
+                  },
+                  {
+                    "id": "2",
+                    "title": "3 to 5 children"
+                  },
+                  {
+                    "id": "3",
+                    "title": "6+ across the lesson"
+                  },
+                  {
+                    "id": "4",
+                    "title": "6+, and new voices later"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Children's own questions"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.D5_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "D5_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No child asked anything"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Only 'which page' questions"
+                  },
+                  {
+                    "id": "3",
+                    "title": "A question about the content"
+                  },
+                  {
+                    "id": "4",
+                    "title": "2+, one beyond the lesson"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "When an answer was wrong"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C2_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C2_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Wrong answers ignored"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Marked wrong, little reason"
+                  },
+                  {
+                    "id": "3",
+                    "title": "Explained why, twice or more"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Child fixed it; new way shown"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Safe to be wrong"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C6_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C6_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Flat or dismissive"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Praise only for right answers"
+                  },
+                  {
+                    "id": "3",
+                    "title": "Praised effort, 2+ times"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Mistakes used, disagreement OK"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Trying when unsure"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.D4_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "D4_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No one tried"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Tried only when sure"
+                  },
+                  {
+                    "id": "3",
+                    "title": "2+ tried while unsure"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Tried unasked, kept going"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ADDED_1",
+                    "C1_final": "${form.C1_final}",
+                    "C3_final": "${form.C3_final}",
+                    "D1_final": "${form.D1_final}",
+                    "D2_final": "${form.D2_final}",
+                    "D5_final": "${form.D5_final}",
+                    "C2_final": "${form.C2_final}",
+                    "C6_final": "${form.C6_final}",
+                    "D4_final": "${form.D4_final}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ADDED_2",
+      "title": "Added up: working, explaining",
+      "data": {
+        "C4_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C4_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "C5_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C5_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "C7_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C7_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "C8_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "C8_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "D3_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "D3_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "F1_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "F1_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "F2_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "F2_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "F3_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "F3_level": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "F4_because": {
+          "type": "string",
+          "__example__": "Two open questions, each answered by one child."
+        },
+        "F4_level": {
+          "type": "string",
+          "__example__": "3"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "added_2_form",
+            "init-values": {
+              "C4_final": "${data.C4_level}",
+              "C5_final": "${data.C5_level}",
+              "C7_final": "${data.C7_level}",
+              "C8_final": "${data.C8_level}",
+              "D3_final": "${data.D3_level}",
+              "F1_final": "${data.F1_level}",
+              "F2_final": "${data.F2_level}",
+              "F3_final": "${data.F3_level}",
+              "F4_final": "${data.F4_level}"
+            },
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "Each level is what your answers and the moments you confirmed add up to. Change any you disagree with."
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Children's choices"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C4_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C4_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Teacher decided everything"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Choices on small things only"
+                  },
+                  {
+                    "id": "3",
+                    "title": "A real choice, acted on"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Children led part of it"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Switching activities"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C5_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C5_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No signal, children drifted"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Signal, but slow to settle"
+                  },
+                  {
+                    "id": "3",
+                    "title": "Settled within a minute"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Ready before being told"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Group work"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C7_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C7_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No pair or group task"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Sat together, worked alone"
+                  },
+                  {
+                    "id": "3",
+                    "title": "Made one thing together"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Had roles and reported back"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Books and materials"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.C8_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "C8_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "None used, though needed"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Only the teacher used them"
+                  },
+                  {
+                    "id": "3",
+                    "title": "Children used them"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Children explained with them"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Children answering each other"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.D3_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "D3_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No child spoke to another"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Spoke, but no one replied"
+                  },
+                  {
+                    "id": "3",
+                    "title": "Replied to each other 2+ times"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Disagreed, then agreed"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Accuracy of content"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.F1_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "F1_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Wrong content left standing"
+                  },
+                  {
+                    "id": "2",
+                    "title": "A slip not corrected"
+                  },
+                  {
+                    "id": "3",
+                    "title": "All accurate"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Accurate, misconceptions met"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Subject words"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.F2_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "F2_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "Everyday words only"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Terms used, not explained"
+                  },
+                  {
+                    "id": "3",
+                    "title": "Terms used and defined"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Children made to use them"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Explaining why"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.F3_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "F3_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "'Do it this way' only"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Some why, mostly memorising"
+                  },
+                  {
+                    "id": "3",
+                    "title": "Explained why it works"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Children reasoned it out"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Links to real life"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.F4_because}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "F4_final",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "1",
+                    "title": "No links to life or subjects"
+                  },
+                  {
+                    "id": "2",
+                    "title": "Link mentioned, not explained"
+                  },
+                  {
+                    "id": "3",
+                    "title": "Link explained clearly"
+                  },
+                  {
+                    "id": "4",
+                    "title": "Children made their own links"
+                  },
+                  {
+                    "id": "NA",
+                    "title": "N/A · No chance to see it"
+                  },
+                  {
+                    "id": "IE",
+                    "title": "IE · Couldn't tell"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ADDED_2",
+                    "C4_final": "${form.C4_final}",
+                    "C5_final": "${form.C5_final}",
+                    "C7_final": "${form.C7_final}",
+                    "C8_final": "${form.C8_final}",
+                    "D3_final": "${form.D3_final}",
+                    "F1_final": "${form.F1_final}",
+                    "F2_final": "${form.F2_final}",
+                    "F3_final": "${form.F3_final}",
+                    "F4_final": "${form.F4_final}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PRIORITY",
+      "title": "Work on first",
+      "data": {
+        "priority_level": {
+          "type": "string",
+          "__example__": "C8"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "priority_form",
+            "init-values": {
+              "priority_final": "${data.priority_level}"
+            },
+            "children": [
+              {
+                "type": "TextCaption",
+                "text": "Your pick before you saw the recording's moments. Keep it or change it."
+              },
+              {
+                "type": "Dropdown",
+                "name": "priority_final",
+                "label": "Work on first",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "C1",
+                    "title": "Questions that make them think"
+                  },
+                  {
+                    "id": "C3",
+                    "title": "Picking quiet children too"
+                  },
+                  {
+                    "id": "D1",
+                    "title": "Children explaining why"
+                  },
+                  {
+                    "id": "D2",
+                    "title": "More children speaking"
+                  },
+                  {
+                    "id": "D5",
+                    "title": "Children asking questions"
+                  },
+                  {
+                    "id": "C2",
+                    "title": "Helping when a child is wrong"
+                  },
+                  {
+                    "id": "C6",
+                    "title": "Making it safe to be wrong"
+                  },
+                  {
+                    "id": "D4",
+                    "title": "Children trying when unsure"
+                  },
+                  {
+                    "id": "C4",
+                    "title": "Giving children real choices"
+                  },
+                  {
+                    "id": "C5",
+                    "title": "Smooth switches of activity"
+                  },
+                  {
+                    "id": "C7",
+                    "title": "Real group work"
+                  },
+                  {
+                    "id": "C8",
+                    "title": "Children using materials"
+                  },
+                  {
+                    "id": "D3",
+                    "title": "Children talking to each other"
+                  },
+                  {
+                    "id": "F1",
+                    "title": "Getting the content right"
+                  },
+                  {
+                    "id": "F2",
+                    "title": "Using subject words"
+                  },
+                  {
+                    "id": "F3",
+                    "title": "Explaining why it works"
+                  },
+                  {
+                    "id": "F4",
+                    "title": "Linking to real life"
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "why",
+                "label": "Why you changed",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "If you changed a level or the pick: which moment or answer did it"
+              },
+              {
+                "type": "Footer",
+                "label": "Submit",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "PRIORITY",
+                    "priority_final": "${form.priority_final}",
+                    "why": "${form.why}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DONE",
+      "title": "Done",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "done_line": {
+          "type": "string",
+          "__example__": "Saved at 10:52"
+        },
+        "next_line": {
+          "type": "string",
+          "__example__": "Your brief for the conversation with the teacher is on its way."
+        },
+        "record_id": {
+          "type": "string",
+          "__example__": "00000000-0000-4000-8000-000000000000"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.done_line}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.next_line}"
+          },
+          {
+            "type": "Footer",
+            "label": "Done",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "observe2": "checked",
+                "record_id": "${data.record_id}"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

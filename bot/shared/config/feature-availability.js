@@ -100,6 +100,9 @@ function isFeatureAvailable(feature, env = process.env) {
  */
 const FEATURE_GATES = {
   reading: ['READING_ASSESSMENT_FLOW_ID'],
+  // The /observe2 field-form pilot: its live form, its evidence check, and the /observe visit
+  // planner it starts from (the teacher is picked there).
+  observe2: ['OBSERVE2_FIELD_FORM_FLOW_ID', 'OBSERVE2_CHECK_FLOW_ID', 'OBSERVE_VISIT_FLOW_ID'],
 };
 
 /**
