@@ -1172,8 +1172,24 @@ async function handleAssessmentFlowCompletion(responseJson, from, user) {
   logToFile('[assessment] completion acknowledged in chat', { userId: user?.id, action });
 }
 
+/**
+ * /observe2 completion (the live form sealed, or the "What Rumi heard" check submitted).
+ * The chat follow-ups are sent by the endpoint when the coach taps "Seal and send" / "Submit",
+ * because this completion only arrives if they also tap "Done". So this branch only claims the
+ * completion (keeping it off the generic "thanks") and records it; it sends nothing.
+ */
+async function handleObserve2Completion(responseJson, from, user) {
+  const token = String((responseJson && responseJson.flow_token) || '');
+  const action = (responseJson && responseJson.observe2)
+    || (token.includes(':observe2-check:') ? 'checked' : token.includes(':observe2-form:') ? 'sealed' : 'unknown');
+  const recordId = (responseJson && responseJson.record_id) || token.split(':')[2] || null;
+  logToFile('[observe2] form completion received', { userId: user?.id, from, action, recordId });
+  return { handled: true, action };
+}
+
 module.exports = {
   handleAssessmentFlowCompletion,
+  handleObserve2Completion,
   handleFlowResponse,
   handleReadingAssessmentFlow,
   handleRegistrationFlow,
