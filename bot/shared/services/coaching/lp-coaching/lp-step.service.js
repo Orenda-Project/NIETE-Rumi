@@ -105,6 +105,38 @@ async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
 }
 
 /**
+ * bd-2c1gj — re-send the recent-LP menu after a coach taps "No" on
+ * the selection confirmation. Unlike advanceToLessonPlanStep this writes
+ * NOTHING: the tap can come after the session already moved past the LP step
+ * (a late pick that only recomputes fidelity), and walking its status back to
+ * awaiting_lesson_plan would re-open an analyzed observation.
+ *
+ * Load (pre-merge Class R): one single-row keyed read + the recent-LP read the
+ * original prompt already made, fired only on a button tap.
+ *
+ * @param {{ sessionId: string, from: string, lang: string }} args
+ * @returns {Promise<boolean>} true when the menu went out
+ */
+async function resendLpList({ sessionId, from, lang }) {
+  const WhatsAppService = require('../../whatsapp.service');
+  const { buildLPSelectionList } = require('./lp-selection-list.service');
+  const { sendLpPrompt } = require('./send-lp-prompt');
+
+  const { data: session } = await supabase
+    .from('coaching_sessions')
+    .select('user_id, observation_type')
+    .eq('id', sessionId)
+    .maybeSingle();
+
+  const recents = await _recentLpsFor(session && session.user_id);
+  const lpPrompt = buildLPSelectionList(sessionId, recents, lang, undefined,
+    { isObservation: !!(session && session.observation_type === 'leader_observation') });
+  const sent = await sendLpPrompt(WhatsAppService, from, lpPrompt);
+  logToFile('📄 LP menu re-sent after "No" on the confirmation', { sessionId, sent });
+  return sent;
+}
+
+/**
  * Text-message hook (leaders): if a session this user owns or observes sits at
  * awaiting_lesson_plan and was touched recently, re-send the LP prompt instead
  * of letting the text fall to generic AI chat. The recency guard keeps a
@@ -137,4 +169,4 @@ async function resendLpPromptIfWaiting(user, from) {
   return true;
 }
 
-module.exports = { advanceToLessonPlanStep, resendLpPromptIfWaiting, LP_REPROMPT_WINDOW_MS };
+module.exports = { advanceToLessonPlanStep, resendLpList, resendLpPromptIfWaiting, LP_REPROMPT_WINDOW_MS };

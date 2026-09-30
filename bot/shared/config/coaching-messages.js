@@ -70,6 +70,30 @@ const COACHING_MESSAGES = {
     ...en("✅ Lesson plan linked! I'll compare your teaching against this plan in the analysis."),
     ur: '✅ سبق کا منصوبہ منسلک ہو گیا! تجزیے میں تدریس کا موازنہ اسی منصوبے سے کیا جائے گا۔',
   },
+  // Lesson-plan branch: a coach tapped a recent LP on an observation — ask before
+  // linking (bd-2c1gj). Copy is the ICT HITL feedback's own wording (row 189):
+  // "You have selected [Lesson Plan Name]. Do you want to proceed?" — Yes proceeds,
+  // No returns to the list. {details} is the tapped row's grade/chapter/pages line,
+  // which tells apart plans with similar titles. The Urdu question is obligative
+  // («کیا آگے بڑھنا ہے؟»), never «چاہتے/چاہتی ہیں», so it does not guess the coach's gender.
+  lessonPlan_confirm_prompt: {
+    ...en('You have selected *{title}*.\n{details}\n\nDo you want to proceed?'),
+    ur: 'آپ نے *{title}* منتخب کیا ہے۔\n{details}\n\nکیا آگے بڑھنا ہے؟',
+  },
+  // {title} when the tapped row can no longer be looked up.
+  lessonPlan_confirm_fallback_title: {
+    ...en('this lesson plan'),
+    ur: 'یہ سبق کا منصوبہ',
+  },
+  // Button titles — WhatsApp caps them at 20 code points.
+  lessonPlan_confirm_yes: {
+    ...en('Yes'),
+    ur: 'ہاں',
+  },
+  lessonPlan_confirm_change: {
+    ...en('No'),
+    ur: 'نہیں',
+  },
   // Lesson-plan branch: a late LP tap after the observer's review was submitted
   // (bd-2kxxa.4). The list stays in the chat; once the review is in, the linked
   // plan can no longer change — say so instead of a "linked" that changes nothing.

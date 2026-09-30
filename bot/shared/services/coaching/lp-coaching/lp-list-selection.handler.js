@@ -13,19 +13,59 @@
  * path never had — tell the teacher what happens next, and queue the analysis
  * where the flow proceeds. Without it a tap updated nothing and the session
  * hung at awaiting_lesson_plan.
+ *
+ * bd-2c1gj (ICT HITL feedback): on an OBSERVATION the tapper is a human coach
+ * picking the teacher's plan from a list, where the wrong row is one slip away —
+ * and a pick links the plan and queues the analysis at once. So on an
+ * observation lp_select_ first asks, naming the plan the coach tapped:
+ *   lpconfirm_yes_{assetId}_{sessionId}  — link it (the unchanged lp_select_ path)
+ *   lpconfirm_no_{sessionId}             — link nothing, re-send the menu
+ * A teacher's own self-serve session keeps the one-tap pick.
  */
-const { logToFile } = require('../../../utils/logger');
+const { logToFile, logWarn } = require('../../../utils/logger');
 const { REVIEW_SUBMITTED_STATUSES } = require('../fidelity/fidelity-recompute.service');
 const { resolveUx } = require('../../../config/ux-strings');
 const { isTerminalStatus } = require('../session-terminal');
 
 const LP_ID_RE = /^lp_(select|upload|none)_/;
+const CONFIRM_ID_RE = /^lpconfirm_(yes|no)_/;
 
 // sessionId is always the LAST underscore-separated UUID; asset ids can contain
 // underscores in principle, so take the trailing 36-char UUID.
 function sessionIdFrom(listId) {
   const m = listId.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
   return m ? m[1] : null;
+}
+
+async function defaultResolveLanguage(sid) {
+  try {
+    const supabase = require('../../../config/supabase');
+    const { data } = await supabase
+      .from('coaching_sessions')
+      .select('observation_type, observer_user_id, users:users(name, preferred_language)')
+      .eq('id', sid)
+      .maybeSingle();
+    // bd-9hzdn.3: in a leader observation the COACH is the one tapping —
+    // reply in the observer's language, not the observed teacher's.
+    if (data && data.observation_type === 'leader_observation' && data.observer_user_id) {
+      const { data: obs } = await supabase
+        .from('users')
+        .select('preferred_language')
+        .eq('id', data.observer_user_id)
+        .maybeSingle();
+      if (obs && obs.preferred_language) return obs.preferred_language;
+    }
+    return (data && data.users && data.users.preferred_language) || 'en';
+  } catch (_) { return 'en'; }
+}
+
+async function defaultSessionStatus(sid) {
+  try {
+    const supabase = require('../../../config/supabase');
+    const { data } = await supabase
+      .from('coaching_sessions').select('status').eq('id', sid).maybeSingle();
+    return (data && data.status) || null;
+  } catch (_) { return null; }
 }
 
 async function handleLpListSelection(listId, from, deps = {}) {
@@ -36,28 +76,7 @@ async function handleLpListSelection(listId, from, deps = {}) {
     || ((to, text) => require('../../whatsapp.service').sendMessage(to, text));
   const queueAnalysis = deps.queueAnalysis
     || ((sid, payload) => require('../coaching-job-queue.service').queueAnalysis(sid, payload));
-  const resolveLanguage = deps.resolveLanguage
-    || (async (sid) => {
-      try {
-        const supabase = require('../../../config/supabase');
-        const { data } = await supabase
-          .from('coaching_sessions')
-          .select('observation_type, observer_user_id, users:users(name, preferred_language)')
-          .eq('id', sid)
-          .maybeSingle();
-        // bd-9hzdn.3: in a leader observation the COACH is the one tapping —
-        // reply in the observer's language, not the observed teacher's.
-        if (data && data.observation_type === 'leader_observation' && data.observer_user_id) {
-          const { data: obs } = await supabase
-            .from('users')
-            .select('preferred_language')
-            .eq('id', data.observer_user_id)
-            .maybeSingle();
-          if (obs && obs.preferred_language) return obs.preferred_language;
-        }
-        return (data && data.users && data.users.preferred_language) || 'en';
-      } catch (_) { return 'en'; }
-    });
+  const resolveLanguage = deps.resolveLanguage || defaultResolveLanguage;
   const { getCoachingMessage } = deps.messages || require('../../../config/coaching-messages');
   const recomputeFidelity = deps.recomputeFidelity
     || ((sid) => require('../fidelity/fidelity-recompute.service').recomputeFidelityForSession(sid));
@@ -66,15 +85,35 @@ async function handleLpListSelection(listId, from, deps = {}) {
   // session at awaiting_lesson_plan.
   const setMediaTarget = deps.setMediaTarget
     || ((uid, sid, kind) => require('../media-target.service').setTarget(uid, sid, kind));
-  const sessionStatus = deps.sessionStatus
+  const sessionStatus = deps.sessionStatus || defaultSessionStatus;
+
+  // bd-2c1gj — who is tapping: a coach on an observation gets the confirmation.
+  const isCoachObservation = deps.isCoachObservation
     || (async (sid) => {
       try {
         const supabase = require('../../../config/supabase');
         const { data } = await supabase
-          .from('coaching_sessions').select('status').eq('id', sid).maybeSingle();
-        return (data && data.status) || null;
+          .from('coaching_sessions').select('observation_type').eq('id', sid).maybeSingle();
+        return !!(data && data.observation_type === 'leader_observation');
+      } catch (_) { return false; }
+    });
+  // The tapped row's own label (title + context line), rebuilt from the same
+  // source and formatter as the menu, so the coach reads back the row tapped.
+  const describeSelection = deps.describeSelection
+    || (async (sid, assetId) => {
+      try {
+        const supabase = require('../../../config/supabase');
+        const { data } = await supabase
+          .from('coaching_sessions').select('user_id').eq('id', sid).maybeSingle();
+        if (!data || !data.user_id) return null;
+        const { getRecentFidelityLps } = require('./recent-fidelity-lps.service');
+        const { formatLpRow } = require('./lp-selection-format');
+        const lp = (await getRecentFidelityLps(data.user_id)).find((r) => r.id === assetId);
+        return lp ? formatLpRow(lp) : null;
       } catch (_) { return null; }
     });
+  const sendButtons = deps.sendButtons
+    || ((to, payload) => require('../../whatsapp.service').sendInteractiveButtons(to, payload));
 
   const sessionId = sessionIdFrom(listId);
   if (!sessionId) {
@@ -100,6 +139,28 @@ async function handleLpListSelection(listId, from, deps = {}) {
       logToFile('[lp-list] late tap after review submitted — not linking', { sessionId, status });
       await sendMessage(from, getCoachingMessage('lessonPlan_review_submitted', lang));
       return true;
+    }
+    // bd-2c1gj — ask before linking a coach's pick. deps.confirmed is set only
+    // by the "Yes" tap, which re-enters here to link.
+    if (!deps.confirmed && await isCoachObservation(sessionId)) {
+      const assetId = listId.slice('lp_select_'.length, -(sessionId.length + 1));
+      const row = await describeSelection(sessionId, assetId);
+      const body = getCoachingMessage('lessonPlan_confirm_prompt', lang)
+        .replace('{title}', (row && row.title) || getCoachingMessage('lessonPlan_confirm_fallback_title', lang))
+        .replace('{details}', (row && row.description) || '');
+      const asked = await sendButtons(from, {
+        body: body.replace(/\n{3,}/g, '\n\n'),
+        buttons: [
+          { id: `lpconfirm_yes_${assetId}_${sessionId}`, title: getCoachingMessage('lessonPlan_confirm_yes', lang) },
+          { id: `lpconfirm_no_${sessionId}`, title: getCoachingMessage('lessonPlan_confirm_change', lang) },
+        ],
+      });
+      if (asked !== false) {
+        logToFile('[lp-list] coach pick — asked to confirm before linking', { sessionId, assetId });
+        return true;
+      }
+      // Never strand the session on a prompt that did not go out: link as before.
+      logWarn('[lp-list] LP confirmation could not be sent — linking without it', { sessionId, assetId });
     }
   }
 
@@ -154,4 +215,47 @@ async function handleLpListSelection(listId, from, deps = {}) {
   return true;
 }
 
-module.exports = { handleLpListSelection, sessionIdFrom };
+/**
+ * bd-2c1gj — the two buttons on the "use this lesson plan?" confirmation.
+ *   lpconfirm_yes_{assetId}_{sessionId} → the lp_select_ path, now confirmed
+ *   lpconfirm_no_{sessionId}            → link nothing, re-send the menu
+ * @returns {Promise<boolean>} true when the id was one of ours
+ */
+async function handleLpConfirmTap(buttonId, from, deps = {}) {
+  const m = CONFIRM_ID_RE.exec(buttonId || '');
+  if (!m) return false;
+  const sessionId = sessionIdFrom(buttonId);
+  if (!sessionId) {
+    logToFile('[lp-confirm] tap had no session id — ignoring', { buttonId });
+    return false;
+  }
+
+  if (m[1] === 'yes') {
+    const assetAndSession = buttonId.slice('lpconfirm_yes_'.length);
+    return handleLpListSelection(`lp_select_${assetAndSession}`, from, { ...deps, confirmed: true });
+  }
+
+  const sendMessage = deps.sendMessage
+    || ((to, text) => require('../../whatsapp.service').sendMessage(to, text));
+  const resolveLanguage = deps.resolveLanguage || defaultResolveLanguage;
+  const sessionStatus = deps.sessionStatus || defaultSessionStatus;
+  const resendList = deps.resendList
+    || ((sid, to, l) => require('./lp-step.service').resendLpList({ sessionId: sid, from: to, lang: l }));
+  const { getCoachingMessage } = deps.messages || require('../../../config/coaching-messages');
+
+  const lang = await resolveLanguage(sessionId);
+  const status = await sessionStatus(sessionId);
+  if (isTerminalStatus(status)) {
+    await sendMessage(from, resolveUx('coachingSessionCancelled', { language: lang }));
+    return true;
+  }
+  if (REVIEW_SUBMITTED_STATUSES.includes(status)) {
+    await sendMessage(from, getCoachingMessage('lessonPlan_review_submitted', lang));
+    return true;
+  }
+  const sent = await resendList(sessionId, from, lang);
+  if (!sent) logWarn('[lp-confirm] could not re-send the LP menu', { sessionId });
+  return true;
+}
+
+module.exports = { handleLpListSelection, handleLpConfirmTap, sessionIdFrom };
