@@ -595,8 +595,10 @@ module.exports.run = async function runExt(ctx) {
     const c = await collect((r) => RX.lpAsk.test(r.txt || ''), 25000);
     const ask = c.hit;
     set('COA39', ...(ask
-      ? V(/^You planned this lesson with me yesterday/.test(ask.txt || '') && !/\btoday\b/i.test(ask.txt || '') && btnOf(ask, /^Record my lesson$/) && btnOf(ask, /^Not today$/),
-          { ask: short(ask.txt, 160), btns: ask.btns, deliveredAt: y.toISOString(), seed })
+      // "yesterday" when the send day is the next PKT day; the date form ("on 29 Sep") when the run crossed PKT midnight and
+      // the planning day is two days back — both are the NextDay body, and neither may say "today" (run 20260930-1915)
+      ? V(/^You planned this lesson with me (yesterday|on \d{1,2} [A-Z][a-z]{2})/.test(ask.txt || '') && !/\btoday\b/i.test(ask.txt || '') && btnOf(ask, /^Record my lesson$/) && btnOf(ask, /^Not today$/),
+          { ask: short(ask.txt, 160), btns: ask.btns, deliveredAt: y.toISOString(), seed, sendDayPkt: seed.nudge_date })
       : B('no ask arrived for the yesterday-16:30 booking', { seed, sweep: sw })));
     if (!ask) { set('COA42', ...B('no ask on screen')); return; }
     const row = (nudgeRows('coaching_after_lp') || [])[0];
