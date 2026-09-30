@@ -22,10 +22,12 @@ vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("../services/api", () => ({
   leader: {
+    // The Attendance tab loads its detail too (2026-09-30).
+    getAttendance: vi.fn().mockResolvedValue({ success: true, from: null, to: null, focusTeacher: null, teachers: [], schoolDays: [], students: { groups: [], byDay: [] }, staff: { groups: [], byDay: [] } }),
     getSchoolAnalytics: vi.fn(),
     getSteps: vi.fn().mockResolvedValue({ success: true, cycle: null, teachers: [], summary: {} }),
   },
-  portal: { getMyAnalytics: vi.fn() },
+  portal: { getMyAttendance: vi.fn().mockResolvedValue({ success: true, from: null, to: null, focusTeacher: null, teachers: [], schoolDays: [], students: { groups: [], byDay: [] }, staff: { groups: [], byDay: [] } }), getMyAnalytics: vi.fn() },
 }));
 
 import { useAuth } from "../hooks/useAuth";

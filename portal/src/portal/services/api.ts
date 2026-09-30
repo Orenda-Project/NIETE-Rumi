@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getApiBaseUrl } from '@/lib/runtime';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
-  StepsGridResponse, AttendanceResponse } from '../types/portal';
+  AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse } from '../types/portal';
 
@@ -150,7 +150,7 @@ export const portal = {
   },
 
   /** The Attendance page, for a teacher: her classes and her own days. */
-  getMyAttendance: async (params: { from?: string; to?: string } = {}): Promise<AttendanceResponse> => {
+  getMyAttendance: async (params: { from?: string | null; to?: string | null } = {}): Promise<AttendanceResponse> => {
     const query: Record<string, string> = {};
     if (params.from) query.from = params.from;
     if (params.to) query.to = params.to;
@@ -411,13 +411,6 @@ export const leader = {
   // bd-60118 — teacherId narrows every STEPS component to one teacher. The
   // server validates it against her school and 404s otherwise, so this is a
   // convenience, not the boundary.
-  // The principal's home organised by STEPS — a row per teacher, a column per
-  // letter. Principals only; the server 403s the rest of the leader family.
-  getSteps: async (): Promise<StepsGridResponse> => {
-    const response = await api.get('/leader/steps');
-    return response.data;
-  },
-
   getSchoolAnalytics: async (
     teacherId?: string | null,
     range: { from?: string | null; to?: string | null } = {},
@@ -434,7 +427,7 @@ export const leader = {
 
   // bd-60123 — attendance, merged per group (G3) and split per day. Window
   // defaults to the last 30 days server-side.
-  getAttendance: async (params: { from?: string; to?: string; teacherId?: string | null } = {}):
+  getAttendance: async (params: { from?: string | null; to?: string | null; teacherId?: string | null } = {}):
     Promise<AttendanceResponse> => {
     const query: Record<string, string> = {};
     if (params.from) query.from = params.from;
