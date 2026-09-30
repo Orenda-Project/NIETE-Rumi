@@ -275,6 +275,42 @@ async function refuseDuplicateObservation(ctx, opts) {
   return true;
 }
 
+/**
+ * bd-zq0ea — the debrief counterpart. The coach's debrief conversation lives
+ * inside analysis_data.observer_debrief, so its hash does too (no column). A
+ * prior counts only once it was actually coached (`feedback` present) — a
+ * debrief that failed or was too short never produced an analysis and must not
+ * block the coach. No time window, and any observation of this coach's except
+ * the one in flight ("Debrief now" already refuses a done one for itself).
+ *
+ * Class R: one row by id/created_at only — never the fat analysis_data blob.
+ *
+ * @returns {Promise<object|null>} { id, created_at } or null
+ */
+async function findPriorAnalysedDebrief(supabase, opts) {
+  const { observerUserId, audioHash, excludeSessionId } = opts || {};
+  if (!observerUserId || !audioHash) return null;
+
+  let q = supabase
+    .from('coaching_sessions')
+    .select('id, created_at')
+    .eq('observer_user_id', observerUserId)
+    .eq('observation_type', 'leader_observation')
+    .eq('analysis_data->observer_debrief->>audio_hash', audioHash)
+    .not('analysis_data->observer_debrief->feedback', 'is', null);
+
+  if (excludeSessionId) q = q.neq('id', excludeSessionId);
+
+  const { data, error } = await q
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  if (excludeSessionId && data.id === excludeSessionId) return null;
+  return data;
+}
+
 module.exports = {
   computeAudioHash,
   priorReportDelivery,
@@ -282,4 +318,5 @@ module.exports = {
   resolveDuplicateSubmission,
   findPriorLeaderObservation,
   refuseDuplicateObservation,
+  findPriorAnalysedDebrief,
 };
