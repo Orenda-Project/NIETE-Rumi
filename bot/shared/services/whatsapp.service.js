@@ -599,11 +599,11 @@ class WhatsAppService {
     let mediaId = null;
 
     try {
-      // bd-z5olm: sniff the container instead of assuming MP3. TTS now
-      // produces Ogg Opus (ElevenLabs opus_48000_64, OpenAI 'opus'), and
-      // audio/ogg is what makes WhatsApp render a real VOICE message —
-      // waveform + speed control — instead of a music-player bubble. Any
-      // straggler MP3 producer (Uplift tiers) still sends as audio/mpeg.
+      // Sniff the container instead of assuming MP3: every voice provider
+      // returns Ogg Opus, and any straggler MP3 producer still sends as
+      // audio/mpeg. Ogg Opus alone does NOT make a voice message: Meta renders
+      // one only when the send says `voice: true` (below). Without it, a
+      // teacher gets an audio file with no waveform and no speed button.
       const isOgg = audioBuffer.slice(0, 4).toString('latin1') === 'OggS';
       const ext = isOgg ? 'ogg' : 'mp3';
       const contentType = isOgg ? 'audio/ogg' : 'audio/mpeg';
@@ -622,6 +622,7 @@ class WhatsAppService {
         filename: `audio.${ext}`,
       });
       formData.append('messaging_product', 'whatsapp');
+      formData.append('type', contentType); // the media API asks for the file's type
 
       const uploadResponse = await axios.post(
         `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`,
@@ -643,9 +644,10 @@ class WhatsAppService {
           messaging_product: 'whatsapp',
           to: to,
           type: 'audio',
-          audio: {
-            id: mediaId,
-          },
+          // Meta: "voice — set to true if sending a voice message; to send a
+          // basic audio message, set to false or omit entirely." Only Ogg Opus
+          // can be a voice message, so an MP3 stays plain audio.
+          audio: isOgg ? { id: mediaId, voice: true } : { id: mediaId },
         },
         {
           headers: {
