@@ -709,4 +709,14 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('COA56', 'In Urdu, the coaching messages never guess my gender', 'BLOCKED',
       { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  // bd-5lrgh — needs a real recording of a different lesson + a selected plan, a live grader run and the
+  // rendered report image; the mock lane has neither audio analysis nor a render to read. Covered at unit
+  // level by tests/coaching/bd-5lrgh-lp-mismatch-reason.test.js.
+  rec('COA58', 'A recording of a different lesson from the selected plan is explained as a mismatch, not with the plan', 'BLOCKED',
+      { reason: '@wip @draft — needs a live coaching analysis of a mismatched recording and the rendered report; unit-tested in tests/coaching/bd-5lrgh-lp-mismatch-reason.test.js' }, 0);
+
 };
