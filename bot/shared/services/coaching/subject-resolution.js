@@ -117,7 +117,7 @@ function canonicalSubject(raw) {
  */
 function parseCorpusLessonId(lessonId) {
   if (typeof lessonId !== 'string') return null;
-  const m = /^grade_(\d+)_(.+?)_ch\d+_seg\d+$/i.exec(lessonId.trim());
+  const m = /^grade_(\d+)_(.+?)_ch\d+_seg\d+b?$/i.exec(lessonId.trim());
   if (!m) return null;
   const subject = canonicalSubject(m[2].replace(/_/g, ' '));
   if (!subject) return null;
