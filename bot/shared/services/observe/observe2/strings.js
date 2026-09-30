@@ -9,6 +9,8 @@
  * Button titles stay within WhatsApp's 20 code points.
  */
 
+const { clampLanguage } = require('../../../config/ux-strings');
+
 const STRINGS = {
   en: {
     deny_no_user: 'I couldn\'t find your account. Send *register* first, then /observe2 again.',
@@ -98,9 +100,9 @@ const STRINGS = {
   },
 };
 
-/** @param {string} lang 'ur' | anything else → en */
+/** @param {string} lang the coach's language; clamped to this deployment's offer (en, ur). */
 function observe2Strings(lang) {
-  return lang === 'ur' ? STRINGS.ur : STRINGS.en;
+  return STRINGS[clampLanguage(lang)] || STRINGS.en;
 }
 
 module.exports = { observe2Strings };
