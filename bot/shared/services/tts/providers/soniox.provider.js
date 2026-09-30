@@ -17,13 +17,17 @@
  *   - Whole-stream check: a response can be cut mid-body and still arrive as
  *     "200 OK" bytes. A part without its end-of-stream page, at the 2-minute
  *     ceiling, or far too short for its text is retried, never delivered.
+ *   - Streamed read: the response is read as it arrives. A clip is taken as soon
+ *     as its end-of-stream page is in, because Soniox sometimes sends every byte
+ *     of a clip and then never closes the response; and a stream that goes silent
+ *     before its end page is given up after a few seconds instead of fifteen.
  *   - Retries only where another try can help: a dropped connection, 408, 429
  *     and 5xx. A 400/401/402/403 fails at once so the next provider speaks.
  */
 
 const realAxios = require('axios');
 const { prepareForSoniox, splitForSoniox } = require('../text/soniox-text');
-const { checkComplete, concatOggOpus } = require('../ogg-opus');
+const { checkComplete, concatOggOpus, createEndWatcher } = require('../ogg-opus');
 
 const ENDPOINT = 'https://tts-rt.soniox.com/tts';
 const DEFAULT_MODEL = 'tts-rt-v2';
@@ -41,14 +45,18 @@ const DEFAULT_LIMITS = Object.freeze({
   minSecPerChar: 1 / 40,   // 40 characters a second is faster than any voice speaks: the audio was cut
   minCharsForRateCheck: 80,
   attempts: 3,
-  // A stream can stall: on 30 Sep a one-line clip sent headers and then nothing
-  // until a 90-second read timeout. Two clocks stop that: `idleTimeoutMs` is
-  // axios' socket-inactivity timeout (it fires when no byte arrives for that
-  // long — Soniox streams audio as it speaks, so a quarter-minute of silence is
-  // a dead stream), and `totalCapMs` bounds one request by the length of its
-  // text (about 10 characters a second for the slowest voice, spoken at roughly
-  // real time, with room to spare).
-  idleTimeoutMs: 15000,
+  // A stream can stall. Measured 30 Sep on 110 healthy streams: the first byte
+  // by 0.71 s, and never more than 1.61 s between two chunks; 6 of 100 Urdu
+  // streams sent the whole clip and then went silent without ever closing.
+  // `idleTimeoutMs` is the longest silence allowed, before the first byte and
+  // between chunks: 5 s is three times the worst healthy gap, where 15 s only
+  // made the teacher wait. `endGraceMs` is how long a response whose end page is
+  // already in may take to close (a normal close keeps the connection reusable).
+  // `totalCapMs` bounds one request by the length of its text (about 10
+  // characters a second for the slowest voice, spoken at roughly real time, with
+  // room to spare).
+  idleTimeoutMs: 5000,
+  endGraceMs: 500,
   totalCapMs: (chars) => Math.max(30000, Math.ceil(chars / 10) * 1500 + 10000),
   // Parts in flight per process — enough for a long reply (~6 parts) in one wave.
   // Splitting leaves the average load on the Soniox organisation's limit (15,
@@ -79,13 +87,83 @@ function referenceId({ useCase, site, correlationId, part }) {
   return ['tts', useCase, site, req || undefined, `p${part}`].filter(Boolean).join('-').slice(0, 250);
 }
 
-function decodeErrorBody(data) {
+function isStream(data) {
+  return Boolean(data) && typeof data.on === 'function' && typeof data.destroy === 'function';
+}
+
+// Soniox's reason for refusing a request: a Buffer when the body was buffered, a
+// stream when it was streamed (read for at most a second and 2 KB).
+async function readErrorBody(data) {
   try {
-    const text = Buffer.isBuffer(data) ? data.toString('utf8') : (data instanceof ArrayBuffer ? Buffer.from(data).toString('utf8') : String(data || ''));
-    return text.slice(0, 300);
+    if (!isStream(data)) {
+      const text = Buffer.isBuffer(data) ? data.toString('utf8') : (data instanceof ArrayBuffer ? Buffer.from(data).toString('utf8') : String(data || ''));
+      return text.slice(0, 300);
+    }
+    const chunks = [];
+    let size = 0;
+    await new Promise((resolve) => {
+      const stop = setTimeout(resolve, 1000);
+      const finish = () => { clearTimeout(stop); resolve(); };
+      data.on('data', (chunk) => { chunks.push(Buffer.from(chunk)); size += chunk.length; if (size >= 2048) finish(); });
+      data.on('end', finish);
+      data.on('error', finish);
+    });
+    data.destroy();
+    return Buffer.concat(chunks).toString('utf8').slice(0, 300);
   } catch (_) {
     return '';
   }
+}
+
+/**
+ * Reads one streamed Soniox response into the clip it carries. Settles when the
+ * response ends, when the clip's end-of-stream page has been in for `endGraceMs`
+ * (Soniox sometimes never closes a response whose clip is already whole), or
+ * with an error when the stream is silent for `idleMs`, closes early, fails, or
+ * the part's time cap aborts it. A body that is already a buffer is returned as is.
+ */
+function readAudio(body, { idleMs, endGraceMs, signal }) {
+  if (body == null) return Promise.resolve(Buffer.alloc(0));
+  if (!isStream(body)) return Promise.resolve(Buffer.from(body));
+  return new Promise((resolve, reject) => {
+    const watcher = createEndWatcher();
+    let idle = null;
+    let grace = null;
+    let settled = false;
+    const fail = (code, message) => Object.assign(new Error(message), { code });
+    const done = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(idle);
+      clearTimeout(grace);
+      if (signal) signal.removeEventListener('abort', onAbort);
+      if (!body.readableEnded) body.destroy(); // a response that never closes is let go
+      if (error) reject(error);
+      else resolve(watcher.buffer());
+    };
+    function onAbort() { done(fail('ERR_CANCELED', 'canceled: the part ran past its time cap')); }
+    const armIdle = () => {
+      clearTimeout(idle);
+      idle = setTimeout(() => done(fail('ESILENT', `the stream went silent for ${idleMs} ms before its end page`)), idleMs);
+    };
+    if (signal) {
+      if (signal.aborted) { onAbort(); return; }
+      signal.addEventListener('abort', onAbort);
+    }
+    body.on('data', (chunk) => {
+      if (settled) return;
+      if (watcher.push(chunk)) {
+        clearTimeout(idle);
+        if (!grace) grace = setTimeout(() => done(), endGraceMs);
+      } else {
+        armIdle();
+      }
+    });
+    body.on('end', () => done());
+    body.on('error', (error) => done(watcher.ended ? null : error));
+    body.on('close', () => done(watcher.ended ? null : fail('ECLOSED', 'the stream closed before its end page')));
+    armIdle();
+  });
 }
 
 function createSemaphore(getLimit) {
@@ -157,11 +235,12 @@ function createSonioxProvider({ http = realAxios, env = process.env, sleep, limi
         await wait(400 * 2 ** (attempt - 2) + Math.floor(Math.random() * 250));
       }
       try {
-        const response = await withSlot(async () => {
+        // The slot is held until the body is read, not just until the headers arrive.
+        const audio = await withSlot(async () => {
           const controller = new AbortController();
           const cap = setTimeout(() => controller.abort(), lim.totalCapMs([...text].length));
           try {
-            return await http.post(ENDPOINT, {
+            const response = await http.post(ENDPOINT, {
               model,
               text,
               language: lang,
@@ -176,15 +255,15 @@ function createSonioxProvider({ http = realAxios, env = process.env, sleep, limi
                 'Content-Type': 'application/json',
                 'User-Agent': USER_AGENT,
               },
-              responseType: 'arraybuffer',
-              timeout: lim.idleTimeoutMs,
+              responseType: 'stream',
+              timeout: lim.idleTimeoutMs, // the wait for the first byte; readAudio watches the gaps after it
               signal: controller.signal,
             });
+            return await readAudio(response.data, { idleMs: lim.idleTimeoutMs, endGraceMs: lim.endGraceMs, signal: controller.signal });
           } finally {
             clearTimeout(cap);
           }
         });
-        const audio = Buffer.from(response.data || []);
         const problem = checkPart(audio, text);
         if (!problem) return { audio, attempts: attempt };
         lastError = new SonioxTtsError('incomplete_audio', `Soniox returned an incomplete voice note: ${problem}`);
@@ -195,10 +274,10 @@ function createSonioxProvider({ http = realAxios, env = process.env, sleep, limi
         const status = error.response?.status;
         const refused = status && (status < 200 || status >= 300);
         if (refused && !RETRYABLE_STATUS.has(status)) {
-          throw new SonioxTtsError('http_error', `Soniox TTS ${status}: ${decodeErrorBody(error.response?.data)}`, { status });
+          throw new SonioxTtsError('http_error', `Soniox TTS ${status}: ${await readErrorBody(error.response?.data)}`, { status });
         }
         lastError = refused
-          ? new SonioxTtsError('http_error', `Soniox TTS ${status}: ${decodeErrorBody(error.response?.data)}`, { status })
+          ? new SonioxTtsError('http_error', `Soniox TTS ${status}: ${await readErrorBody(error.response?.data)}`, { status })
           : new SonioxTtsError('network_error', `Soniox TTS stream failed (${error.code || 'network'}): ${error.message}`);
       }
     }

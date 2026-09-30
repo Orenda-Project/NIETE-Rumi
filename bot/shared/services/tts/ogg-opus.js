@@ -476,6 +476,43 @@ function concatOggOpus(buffers) {
   return Buffer.concat(writer.pages);
 }
 
-module.exports = { OggOpusError, parseOggOpus, checkComplete, durationSec, concatOggOpus };
+/**
+ * Follows a clip's pages as its bytes arrive and says when the end-of-stream page is in.
+ *
+ * "The response ended" cannot be the only sign that a clip is complete: Soniox sometimes sends every
+ * byte of a clip and then never closes the response (30 Sep: 6 of 100 Urdu requests). Only whole
+ * pages count here, and the walk stops at anything that is not a page; checkComplete still judges
+ * the clip (CRCs, packets, end-of-stream) before it is used.
+ *
+ * @returns {{ push(chunk: Buffer): boolean, readonly ended: boolean, buffer(): Buffer }}
+ *   `push` appends bytes and returns true once the end-of-stream page is complete.
+ */
+function createEndWatcher() {
+  let buf = Buffer.alloc(0);
+  let next = 0; // where the next page starts
+  let ended = false;
+  let stuck = false; // bytes that are not a page: leave the verdict to checkComplete
+  return {
+    push(chunk) {
+      buf = buf.length ? Buffer.concat([buf, chunk]) : Buffer.from(chunk);
+      while (!ended && !stuck && next + HEADER_BYTES <= buf.length) {
+        if (buf.toString('latin1', next, next + 4) !== CAPTURE) { stuck = true; break; }
+        const segments = buf[next + 26];
+        if (next + HEADER_BYTES + segments > buf.length) break;
+        let size = 0;
+        for (let k = 0; k < segments; k += 1) size += buf[next + HEADER_BYTES + k];
+        const end = next + HEADER_BYTES + segments + size;
+        if (end > buf.length) break;
+        if (buf[next + 5] & FLAG_EOS) ended = true;
+        next = end;
+      }
+      return ended;
+    },
+    get ended() { return ended; },
+    buffer() { return buf; },
+  };
+}
+
+module.exports = { OggOpusError, parseOggOpus, checkComplete, durationSec, concatOggOpus, createEndWatcher };
 // For tests only: the CRC and the TOC arithmetic are checked directly against known answers.
 module.exports._internals = { crc32, packetSamples };

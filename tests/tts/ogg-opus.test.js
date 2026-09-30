@@ -31,6 +31,7 @@ const {
   checkComplete,
   durationSec,
   concatOggOpus,
+  createEndWatcher,
   _internals,
 } = require('../../bot/shared/services/tts/ogg-opus');
 
@@ -536,5 +537,48 @@ describe('concatOggOpus: parts become ONE logical Ogg Opus stream', () => {
     const overLong = concatOggOpus([one, muxOpus({ packets: fakePackets(60), finalGranule: 10 ** 7 })]);
     pages = listPages(overLong);
     expect(pages.at(-1).granule).toBe(61 * 960);
+  });
+});
+
+describe('createEndWatcher: knowing a streamed clip is whole before the response closes', () => {
+  // Soniox sometimes sends every byte of a clip and never closes the response (30 Sep, 6 of 100
+  // Urdu requests), so the provider has to see the end-of-stream page arrive on its own.
+  const feed = (bytes, sizes) => {
+    const w = createEndWatcher();
+    let at = 0; let endedAt = null; let i = 0;
+    while (at < bytes.length) {
+      const n = sizes[i % sizes.length]; i += 1;
+      const ended = w.push(bytes.subarray(at, at + n));
+      at += n;
+      if (ended && endedAt === null) endedAt = Math.min(at, bytes.length);
+    }
+    return { w, endedAt };
+  };
+
+  it.each(FIXTURES.map(([name, bytes]) => [name, bytes]))('%s: ends exactly when its last byte arrives, whatever the chunking', (name, bytes) => {
+    for (const sizes of [[1], [7, 13, 2], [4096], [bytes.length]]) {
+      const { w, endedAt } = feed(bytes, sizes);
+      expect(endedAt).toBe(bytes.length);
+      expect(w.ended).toBe(true);
+      expect(w.buffer().equals(bytes)).toBe(true);
+    }
+  });
+
+  it('a cut clip never ends', () => {
+    const { w, endedAt } = feed(UR_A_CUT, [512]);
+    expect(endedAt).toBeNull();
+    expect(w.ended).toBe(false);
+    expect(w.buffer().equals(UR_A_CUT)).toBe(true);
+  });
+
+  it('bytes that are not Ogg pages never end (the full check then decides)', () => {
+    for (const junk of [RANDOM, MP3, Buffer.from('{"error_type":"x"}')]) {
+      expect(feed(junk, [5]).endedAt).toBeNull();
+    }
+  });
+
+  it('what it saw end is also what checkComplete calls whole', () => {
+    const { w } = feed(UR_A, [333]);
+    expect(checkComplete(w.buffer()).ok).toBe(true);
   });
 });
