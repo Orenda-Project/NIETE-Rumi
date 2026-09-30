@@ -856,6 +856,12 @@ app.post('/webhook', async (req, res) => {
         const sessionId = buttonId.replace('coaching_cancel_', '');
         await CoachingService.handleConfirmation(sessionId, from, false);
       }
+      // /observe2 — "How long is this period?" → save it, send the live field form.
+      else if (buttonId.startsWith('obs2_period:')) {
+        const Observe2Start = require('./shared/services/observe/observe2/start');
+        const claimed = user ? await Observe2Start.handlePeriodButton(user, from, buttonId) : false;
+        if (!claimed) logToFile('⚠️ /observe2 period button not handled', { buttonId, hasUser: !!user }, 'warn');
+      }
       // bd-tju8f — resume / cancel family. ORDER: the *_yes_/_no_ variants must
       // precede the bare observe_cancel_ prefix they share.
       else if (buttonId.startsWith('observe_cancel_yes_')) {

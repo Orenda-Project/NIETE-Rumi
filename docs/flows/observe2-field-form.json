@@ -11,7 +11,12 @@
     "AFTER": [
       "SEALED"
     ],
-    "SEALED": []
+    "SEALED": [],
+    "CONTINUE": [
+      "PART_2",
+      "AFTER",
+      "SEALED"
+    ]
   },
   "screens": [
     {
@@ -699,7 +704,7 @@
                 "description": "Boards, notebooks, groups at work. Never faces.",
                 "photo-source": "camera_gallery",
                 "min-uploaded-photos": 0,
-                "max-uploaded-photos": 9,
+                "max-uploaded-photos": 3,
                 "max-file-size-kb": 10240
               },
               {
@@ -781,7 +786,7 @@
               {
                 "type": "OptIn",
                 "name": "seal_ok",
-                "label": "Seal this record. I can't change it afterwards, and Rumi's findings open only after I seal.",
+                "label": "Seal this record. I can't change it afterwards, and the recording's moments open only after I seal.",
                 "required": true
               },
               {
@@ -849,6 +854,43 @@
               "payload": {
                 "observe2": "sealed",
                 "record_id": "${data.record_id}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "CONTINUE",
+      "title": "Your record",
+      "data": {
+        "continue_heading": {
+          "type": "string",
+          "__example__": "Part 1 is saved"
+        },
+        "continue_line": {
+          "type": "string",
+          "__example__": "Carry on with Part 2, from minute 20 to 40."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.continue_heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.continue_line}"
+          },
+          {
+            "type": "Footer",
+            "label": "Continue",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "screen": "CONTINUE"
               }
             }
           }

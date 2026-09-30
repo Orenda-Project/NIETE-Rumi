@@ -189,6 +189,39 @@ router.post('/observe-visit', async (req, res) => {
   }
 });
 
+/**
+ * /observe2 — the live field form (Part 1, Part 2, the seal). flow_token =
+ * <coachUserId>:observe2-form:<recordId>. Publish the Flow with endpoint_uri
+ * .../api/flows/observe2-form and set OBSERVE2_FIELD_FORM_FLOW_ID.
+ */
+router.post('/observe2-form', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'observe2-form' });
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(
+      req.body,
+      async (decryptedData) => handleObserve2FormFlow(decryptedData)
+    );
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', { endpoint: 'observe2-form', error: error.message }, 'error');
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function handleObserve2FormFlow(data) {
+  const Observe2Form = require('./observe2-form-endpoint');
+  const { action, flow_token: flowToken, screen, data: screenData } = data;
+  if (action === 'ping') return FlowEncryptionService.handlePing();
+  if (action === 'INIT' || action === 'init') return Observe2Form.handleObserve2FormInit(flowToken);
+  if (action === 'data_exchange') return Observe2Form.handleObserve2FormDataExchange(flowToken, screen, screenData || {});
+  logToFile('Unknown observe2-form flow action', { action }, 'warn');
+  return FlowEncryptionService.createErrorResponse('Unknown action');
+}
+
 router.post('/registration', async (req, res) => {
   try {
     if (!FlowEncryptionService.isConfigured()) {

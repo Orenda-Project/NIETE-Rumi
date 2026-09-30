@@ -841,6 +841,15 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // observe is OFF the handler returns false and the message falls through to
   // normal processing — teacher behaviour provably unchanged.
   // ============================================================
+  // /observe2 — the FICO field-form pilot (live form during the lesson, then "What Rumi heard").
+  // Gated in observe2/gate.js; off (false) → falls through like any text. /^\/observe\b/ below
+  // does not match "/observe2", so the two commands never shadow each other.
+  if (/^\/observe2\b/i.test(trimmedMessage)) {
+    const { handleObserve2Command } = require('../services/observe/observe2/start');
+    const observe2Handled = await handleObserve2Command(user, from, trimmedMessage);
+    if (observe2Handled) return;
+  }
+
   if (/^\/observe\b/i.test(trimmedMessage)) {
     if (await redirectToApp('observe', 'command')) return;
     const { handleObserveCommand } = require('./observe-command.handler');

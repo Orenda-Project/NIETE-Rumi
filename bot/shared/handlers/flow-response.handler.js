@@ -737,6 +737,10 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
   try {
     const responseJson = JSON.parse(message.interactive.nfm_reply.response_json || '{}');
     const flowToken = responseJson.flow_token || userId;
+    // /observe2 opens this same planner with the token <userId>:observe2-visit. A loop reopen must
+    // carry it on, or the Start that follows is a classic /observe Start.
+    const Observe2Start = require('../services/observe/observe2/start');
+    const loopToken = Observe2Start.isObserve2VisitToken(flowToken) ? flowToken : undefined;
     // bd-2444: three exits — 'start' (bind + capture prompt, the legacy path),
     // 'debrief' (hand off to the chat debrief), 'done' (localized schedule ack).
     const visitAction = responseJson.observe_visit_action
@@ -795,13 +799,13 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
     if (visitAction === 'roster_teacher') {
       const { rosterTeacherNextTarget } = require('../services/observe/observe-teacher-admin.service');
       await _continueObserveLoop(rosterTeacherNextTarget(responseJson.roster_next), user, phoneNumber, userId,
-        { schoolExtId: responseJson.school_ext_id });
+        { schoolExtId: responseJson.school_ext_id, flowToken: loopToken });
       return;
     }
 
     if (visitAction === 'roster') {
       const { rosterNextTarget } = require('../services/observe/observe-school-admin.service');
-      await _continueObserveLoop(rosterNextTarget(responseJson.roster_next), user, phoneNumber, userId);
+      await _continueObserveLoop(rosterNextTarget(responseJson.roster_next), user, phoneNumber, userId, { flowToken: loopToken });
       return true;
     }
 
@@ -813,7 +817,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
       await WhatsAppService.sendMessage(phoneNumber, buildVisitCancelledAck(observeLang(user || {}), {
         teacherName: responseJson.teacher_name,
       }));
-      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId);
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, { flowToken: loopToken });
       return true;
     }
 
@@ -823,7 +827,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
         date: responseJson.sched_date || responseJson.date,
         slot: responseJson.sched_slot || responseJson.slot,
       }));
-      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId);
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, { flowToken: loopToken });
       return true;
     }
 
@@ -833,11 +837,23 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
         date: responseJson.sched_date,
         slot: responseJson.sched_slot,
       }));
-      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId);
+      await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, { flowToken: loopToken });
       return true;
     }
 
     const result = await VisitHandler.handle(userId, 'complete', 'BRIEF', responseJson, flowToken, user);
+
+    // /observe2: the same bind (the recording still attaches to this teacher), then the field form
+    // instead of the capture prompt.
+    if (loopToken) {
+      await Observe2Start.afterStart({
+        user: user || { id: userId },
+        phoneNumber,
+        boundTeacher: result && result.boundTeacher,
+        schoolExtId: responseJson.school_ext_id,
+      });
+      return true;
+    }
 
     const framework = ((getObservePack().key) || 'fico').toUpperCase();
     const teacherName = result && result.boundTeacher && result.boundTeacher.teacher_name;
@@ -874,6 +890,9 @@ function _visitNextTarget(next) {
  * /observe always gets her back in. Never throws into the caller.
  */
 async function _continueObserveLoop(target, user, phoneNumber, userId, ctx = {}) {
+  // ctx.schoolExtId: the school a teacher-level roster change was made in; ctx.flowToken: the
+  // loop's token (an /observe2 visit's planner carries a marker in it).
+  const { flowToken } = ctx;
   if (!target || !target.reopen || !user) return;
   try {
     const { reopenObserveVisitFlow } = require('./observe-command.handler');
@@ -890,7 +909,7 @@ async function _continueObserveLoop(target, user, phoneNumber, userId, ctx = {})
       const school = mine.find((x) => x.school_ext_id === schoolExtId);
       // Lost the school (stale client, or she no longer holds it): the menu is
       // the honest fallback rather than an action picker for nothing.
-      if (!school) return reopenObserveVisitFlow(user, phoneNumber, null);
+      if (!school) return reopenObserveVisitFlow(user, phoneNumber, null, undefined, flowToken);
       const act = (id, title, metadata) => ({
         id,
         'main-content': { title, metadata },
@@ -914,7 +933,7 @@ async function _continueObserveLoop(target, user, phoneNumber, userId, ctx = {})
       // mode means WE supply them — there is no endpoint round-trip to do it.
       const admin = require('../services/observe/observe-school-admin.service');
       const mine = await admin.listMySchools(userId).catch(() => []);
-      if (!mine.length) return reopenObserveVisitFlow(user, phoneNumber, null);
+      if (!mine.length) return reopenObserveVisitFlow(user, phoneNumber, null, undefined, flowToken);
       // EVERY key the screen declares, or the screen fails to render and the
       // coach's tap does nothing — the payload-schema-error class again. In
       // navigate mode there is no endpoint round-trip to fill these in, so the
@@ -928,11 +947,11 @@ async function _continueObserveLoop(target, user, phoneNumber, userId, ctx = {})
         })),
       };
     }
-    const sent = await reopenObserveVisitFlow(user, phoneNumber, target.screen, screenData);
+    const sent = await reopenObserveVisitFlow(user, phoneNumber, target.screen, screenData, flowToken);
     // Never strand her: if opening straight onto the screen was rejected, put
     // the menu back in front of her rather than leaving the tap looking dead.
     if (sent === false && target.screen) {
-      await reopenObserveVisitFlow(user, phoneNumber, null);
+      await reopenObserveVisitFlow(user, phoneNumber, null, undefined, flowToken);
     }
   } catch (err) {
     logToFile('observe loop reopen failed — coach can still use /observe', { userId, error: err.message });

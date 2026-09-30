@@ -1127,4 +1127,6 @@ module.exports = {
   buildDebriefGuide,
   freshRecordingPatch,
   mergeObserverDebrief: _mergeObserverDebrief,
+  // The deployment's display clock, for other observe surfaces that print a time (/observe2).
+  displayTimeZone: _displayTimeZone,
 };

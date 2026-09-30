@@ -96,7 +96,7 @@ const REOPEN_CTA = {
  * reopening is the loop. `screen === null` reopens in data_exchange mode, which
  * runs the endpoint's INIT and serves a freshly-built MENU.
  */
-async function reopenObserveVisitFlow(user, from, screen, screenData) {
+async function reopenObserveVisitFlow(user, from, screen, screenData, flowToken) {
   if (!visitFlowId()) return false;
   const lang = clampLanguage(observeLang(user));
   const key = screen || 'MENU';
@@ -106,7 +106,8 @@ async function reopenObserveVisitFlow(user, from, screen, screenData) {
     flowId: visitFlowId(),
     body: chrome[lang] || chrome.en,
     buttonText: cta[lang] || cta.en,
-    flowToken: user.id,
+    // The bare user id, unless the loop belongs to /observe2 (<userId>:observe2-visit).
+    flowToken: flowToken || user.id,
     screen: screen || undefined,          // undefined => data_exchange => MENU
     screenData: screenData || undefined,
   });

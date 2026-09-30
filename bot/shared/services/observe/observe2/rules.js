@@ -81,7 +81,7 @@ function higher(a, key, map, code, naBecause) {
 function d3(a) {
   const withGroups = PARTS.filter((p) => hasGroups(a[`${p}_groups`]));
   if (!withGroups.length) {
-    if (PARTS.some((p) => a[`${p}_groups`])) return { level: null, because: 'no group work to listen to: judge from what Rumi heard near the recorder', source: 'heard' };
+    if (PARTS.some((p) => a[`${p}_groups`])) return { level: null, because: 'no group work to listen to: judge from what the recording caught near the recorder', source: 'heard' };
     return null;
   }
   const ticks = withGroups.flatMap((p) => a[`${p}_listen`] || []);
@@ -217,7 +217,7 @@ function addUp({ form, confirmed, heardCounts } = {}) {
       ? { level: 'IE', because: 'the recording failed, so nothing could be heard', source: 'heard' }
       : heard[code];
   }
-  for (const code of PICK_CODES) out[code] = { level: null, because: "no counting rule yet: pick from Rumi's moments", source: 'pick' };
+  for (const code of PICK_CODES) out[code] = { level: null, because: "no counting rule yet: pick from the recording's moments", source: 'pick' };
   const seen = seenLevels(a);
   for (const code of SEEN_CODES) out[code] = seen[code] || { level: null, because: 'not answered in the form', source: 'seen' };
   if (a.incident === 'ridicule') out.C6 = { level: 1, because: 'you reported ridicule or humiliation, which forces 1', source: 'seen' };

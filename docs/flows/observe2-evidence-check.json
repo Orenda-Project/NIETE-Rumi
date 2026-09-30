@@ -28,7 +28,7 @@
   "screens": [
     {
       "id": "HEARD_ASK",
-      "title": "Rumi heard: asking",
+      "title": "Recording: asking",
       "data": {
         "heard_ask_1_t": {
           "type": "string",
@@ -140,7 +140,7 @@
               },
               {
                 "type": "TextCaption",
-                "text": "These are moments from the recording. Say whether each one really happened. Rumi never shows its own score."
+                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
               },
               {
                 "type": "RadioButtonsGroup",
@@ -311,7 +311,7 @@
     },
     {
       "id": "HEARD_WRONG",
-      "title": "Rumi heard: wrong answers",
+      "title": "Recording: wrong answers",
       "data": {
         "heard_wrong_1_t": {
           "type": "string",
@@ -423,7 +423,7 @@
               },
               {
                 "type": "TextCaption",
-                "text": "These are moments from the recording. Say whether each one really happened. Rumi never shows its own score."
+                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
               },
               {
                 "type": "RadioButtonsGroup",
@@ -594,7 +594,7 @@
     },
     {
       "id": "HEARD_WORK",
-      "title": "Rumi heard: working",
+      "title": "Recording: working",
       "data": {
         "heard_work_1_t": {
           "type": "string",
@@ -706,7 +706,7 @@
               },
               {
                 "type": "TextCaption",
-                "text": "These are moments from the recording. Say whether each one really happened. Rumi never shows its own score."
+                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
               },
               {
                 "type": "RadioButtonsGroup",
@@ -877,7 +877,7 @@
     },
     {
       "id": "HEARD_EXPLAIN",
-      "title": "Rumi heard: explaining",
+      "title": "Recording: explaining",
       "data": {
         "heard_explain_1_t": {
           "type": "string",
@@ -989,7 +989,7 @@
               },
               {
                 "type": "TextCaption",
-                "text": "These are moments from the recording. Say whether each one really happened. Rumi never shows its own score."
+                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
               },
               {
                 "type": "RadioButtonsGroup",
@@ -2095,7 +2095,7 @@
             "children": [
               {
                 "type": "TextCaption",
-                "text": "Your pick before you saw anything from Rumi. Keep it or change it."
+                "text": "Your pick before you saw the recording's moments. Keep it or change it."
               },
               {
                 "type": "Dropdown",
