@@ -18,7 +18,7 @@ import userEvent from "@testing-library/user-event";
 vi.mock("react-apexcharts", () => ({ default: (p: any) => <div data-testid={`chart-${p.type}`} /> }));
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
-vi.mock("../services/api", () => ({ portal: { getMyAnalytics: vi.fn() } }));
+vi.mock("../services/api", () => ({ portal: { getMyAttendance: vi.fn().mockResolvedValue({ success: true, from: null, to: null, focusTeacher: null, teachers: [], schoolDays: [], students: { groups: [], byDay: [] }, staff: { groups: [], byDay: [] } }), getMyAnalytics: vi.fn() } }));
 
 import { useAuth } from "../hooks/useAuth";
 import { portal } from "../services/api";
@@ -104,15 +104,16 @@ describe("the teacher's own Analytics page", () => {
     expect(within(obs).getByTestId("area-s")).toHaveTextContent(/work on this/i);
   });
 
-  it("shows her own presence and her students', separately, with no link to the principal's page", async () => {
+  it("shows her own presence and her students', separately, with the detail right here and no link out", async () => {
     mount();
     await userEvent.click(await screen.findByRole("tab", { name: "Attendance" }));
     expect(screen.getByTestId("presence-teacher-block")).toHaveTextContent(/You were present/);
     expect(screen.getByTestId("presence-teacher-block")).toHaveTextContent(/18 present · 1 absent · 1 on leave/);
     expect(screen.getByTestId("presence-student-block")).toHaveTextContent(/Your students/);
     expect(screen.queryByTestId("attendance-detail-link")).toBeNull();
-    // …but a link to her OWN attendance page.
-    expect(screen.getByTestId("my-attendance-link")).toHaveAttribute("href", "/portal/attendance");
+    // Nor one to a page of her own: the detail sits right here, in this tab (2026-09-30).
+    expect(screen.queryByTestId("my-attendance-link")).toBeNull();
+    expect(screen.getByTestId("attendance-detail")).toBeInTheDocument();
   });
 
   it("shows the remark she received — the quarter, the comment and each area", async () => {

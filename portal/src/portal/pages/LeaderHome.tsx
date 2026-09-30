@@ -6,9 +6,6 @@ import { useAuth } from "../hooks/useAuth";
 import PortalLayout from "../components/PortalLayout";
 import StatCard from "../components/StatCard";
 import LoadingState from "../components/LoadingState";
-import ScoreIndicator from "../components/ScoreIndicator";
-import StepsHome from "../components/StepsHome";
-import { resolveRole } from "../lib/leaderRole";
 import type { LeaderOverview } from "../types/portal";
 
 /**
@@ -22,9 +19,6 @@ import type { LeaderOverview } from "../types/portal";
 const LeaderHome = () => {
   const { user } = useAuth();
   const name = user?.firstName?.trim();
-  // A principal holds one school, so her home is that school by STEPS. The
-  // other four leader roles span many schools and keep the patch view.
-  const isPrincipal = resolveRole(user) === 'principal';
   const [overview, setOverview] = useState<LeaderOverview | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,9 +40,7 @@ const LeaderHome = () => {
             {name ? `Assalam-o-alaikum, ${name}` : "Assalam-o-alaikum"}
           </h1>
           <p className="text-muted-foreground mt-2">
-            {isPrincipal
-              ? "Your school by STEPS — every teacher, feature by feature."
-              : "Here's your patch — the teachers and schools you support."}
+            Here's your patch — the teachers and schools you support.
           </p>
         </header>
 
@@ -68,8 +60,7 @@ const LeaderHome = () => {
               <StatCard title="Lesson plans" value={overview.totalLessonPlans} icon={BookOpen} />
             </div>
 
-            {isPrincipal ? <StepsHome /> : (<>
-            {/* one tile per feature, so the patch can be read
+            {/* one tile per STEPS feature, so the patch can be read
                 feature by feature. Each shows REACH (how many teachers have
                 used it) over the total, not just a volume: 21 registers across
                 19 teachers reads healthy until you learn one teacher took all
@@ -86,6 +77,12 @@ const LeaderHome = () => {
                 icon={GraduationCap}
               />
             </div>
+
+            {/* the "Average recent coaching score" panel is gone.
+                It was the headline number against which teachers were read, and
+                it is the thing this ticket hides. The score is still computed
+                and still on the payload; a leader simply no longer reads it.
+                School-level numbers live on Analytics, where they are labelled. */}
 
             {/* Focus list — where attention pays off most */}
             <section className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
@@ -122,9 +119,8 @@ const LeaderHome = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
-                          {/* The band, never the number (operator, 2026-09-29),
-                              and the named area — what to work on. */}
-                          <ScoreIndicator percentage={t.lastScore} size="small" />
+                          {/* The named area, not a number: "what to work on"
+                              is the actionable half of what the score implied. */}
                           {t.focusArea && (
                             <span className="text-sm text-accent max-w-[14rem] truncate" title={t.focusArea}>
                               {t.focusArea}
@@ -138,7 +134,6 @@ const LeaderHome = () => {
                 </ul>
               )}
             </section>
-            </>)}
           </>
         )}
       </div>

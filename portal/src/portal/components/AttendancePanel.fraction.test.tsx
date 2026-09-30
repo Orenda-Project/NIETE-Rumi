@@ -9,7 +9,7 @@ vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("../services/api", () => ({ leader: { getAttendance: vi.fn() } }));
 import { useAuth } from "../hooks/useAuth";
 import { leader } from "../services/api";
-import SchoolAttendance from "./SchoolAttendance";
+import AttendancePanel from "./AttendancePanel";
 
 it("a class's day cell shows present / on the register; a teacher's stays P or A", async () => {
   (useAuth as any).mockReturnValue({ user: { firstName: "A", role: "principal" }, loading: false, logout: vi.fn() });
@@ -33,7 +33,7 @@ it("a class's day cell shows present / on the register; a teacher's stays P or A
       ] }],
     },
   });
-  render(<MemoryRouter><SchoolAttendance /></MemoryRouter>);
+  render(<MemoryRouter><AttendancePanel from={null} to={null} /></MemoryRouter>);
   await userEvent.click(await screen.findByTestId("view-byday"));
   expect(screen.getByTestId("cell-Grade 4-2026-09-08")).toHaveTextContent("28/30");
   expect(screen.getByTestId("cell-Grade 4-2026-09-09")).toHaveTextContent("30/30");

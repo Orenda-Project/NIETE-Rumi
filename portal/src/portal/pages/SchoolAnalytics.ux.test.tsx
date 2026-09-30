@@ -20,7 +20,9 @@ import { MemoryRouter } from "react-router-dom";
  */
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
-vi.mock("../services/api", () => ({ leader: { getSchoolAnalytics: vi.fn(), getSteps: vi.fn().mockResolvedValue({ success: true, cycle: null, teachers: [], summary: {} }) } }));
+vi.mock("../services/api", () => ({ leader: {
+    // The Attendance tab loads its detail too (2026-09-30).
+    getAttendance: vi.fn().mockResolvedValue({ success: true, from: null, to: null, focusTeacher: null, teachers: [], schoolDays: [], students: { groups: [], byDay: [] }, staff: { groups: [], byDay: [] } }), getSchoolAnalytics: vi.fn(), getSteps: vi.fn().mockResolvedValue({ success: true, cycle: null, teachers: [], summary: {} }) } }));
 vi.mock("react-apexcharts", () => ({ default: () => <div data-testid="chart" /> }));
 
 import { useAuth } from "../hooks/useAuth";

@@ -14,7 +14,7 @@ vi.mock("../services/api", () => ({ leader: { getAttendance: vi.fn() }, portal: 
 
 import { useAuth } from "../hooks/useAuth";
 import { leader, portal } from "../services/api";
-import SchoolAttendance from "./SchoolAttendance";
+import AttendancePanel from "./AttendancePanel";
 
 const PAYLOAD = {
   success: true, from: "2026-09-01", to: "2026-09-30", focusTeacher: null, teachers: [],
@@ -38,7 +38,7 @@ const PAYLOAD = {
 function mount(payload: any = PAYLOAD) {
   (useAuth as any).mockReturnValue({ user: { firstName: "Ayesha", role: "teacher" }, loading: false, logout: vi.fn() });
   (portal.getMyAttendance as any).mockResolvedValue(payload);
-  render(<MemoryRouter><SchoolAttendance audience="teacher" /></MemoryRouter>);
+  render(<MemoryRouter><AttendancePanel audience="teacher" from={null} to={null} /></MemoryRouter>);
 }
 
 describe("Attendance, for a teacher", () => {
@@ -53,10 +53,10 @@ describe("Attendance, for a teacher", () => {
 
   it("says it is her classes and her own days", async () => {
     mount();
-    expect(await screen.findByTestId("scope-label")).toHaveTextContent(/your classes/i);
-    const h2 = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent?.trim());
-    expect(h2).toContain("Your students, by class");
-    expect(h2).toContain("You");
+    await screen.findByTestId("group-Grade 4");
+    const h3 = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent?.trim());
+    expect(h3).toContain("Your students, by class");
+    expect(h3).toContain("You");
   });
 
   it("has no teacher picker and no principal's next step", async () => {
@@ -66,10 +66,9 @@ describe("Attendance, for a teacher", () => {
     expect(screen.queryByText(/Give your remark/)).toBeNull();
   });
 
-  it("keeps the date window and the day-by-day view", async () => {
+  it("keeps the day-by-day view (the date window is the Analytics page's)", async () => {
     mount();
     await screen.findByTestId("group-Grade 4");
-    expect(screen.getByTestId("from-date")).toBeInTheDocument();
     await userEvent.click(screen.getByTestId("view-byday"));
     expect(screen.getByTestId("byday-row-Ayesha (test) One")).toBeInTheDocument();
   });
