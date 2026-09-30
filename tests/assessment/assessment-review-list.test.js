@@ -87,12 +87,39 @@ const tap = (screenId, row) => exchange(U, screenId, row['on-click-action'].payl
 const paperWrites = () => mockDb.writes.filter((w) => w.table === 'assessment_papers');
 
 describe('INIT opens the list', () => {
-  test('a 50-question paper: add, make, 16 questions, next — 19 rows', async () => {
+  // Operator copy, 30 Sep (final order): question rows → "➕ Add a question" →
+  // "⬅️ Previous" → "More questions ➡️" → "📄 Make my paper" LAST. The status
+  // emoji rides at the END of a question row ("1. Amna is Happy - ✅").
+  test('a 50-question paper: 16 questions, add, next, make — 19 rows, make last', async () => {
     const res = await init(U, TOKEN);
     expect(res.screen).toBe('LIST');
-    expect(rowIds(res)).toEqual(['add', 'done', ...Array.from({ length: 16 }, (_, i) => `q${i}`), 'next']);
-    expect(res.data.rows[1]['main-content'].description).toBe('50 Qs · 70 marks');
-    expect(res.data.rows[2]['main-content'].title).toMatch(/^✓ 1\. Which planet/);
+    expect(rowIds(res)).toEqual([...Array.from({ length: 16 }, (_, i) => `q${i}`), 'add', 'next', 'done']);
+    expect(res.data.rows[18]['main-content']).toMatchObject({ title: '📄 Make my paper', description: '50 Qs · 70 marks' });
+    expect(res.data.rows[16]['main-content'].title).toBe('➕ Add a question');
+    expect(res.data.rows[17]['main-content'].title).toBe('More questions ➡️');
+    expect(res.data.rows[0]['main-content'].title).toMatch(/^1\. Which planet.* - ✅$/);
+  });
+
+  test('a middle page: questions, add, previous, next, make', async () => {
+    let res = await init(U, TOKEN);
+    res = await tap('LIST', res.data.rows.find((r) => r.id === 'next'));
+    expect(rowIds(res)).toEqual([...Array.from({ length: 16 }, (_, i) => `q${16 + i}`), 'add', 'prev', 'next', 'done']);
+    expect(res.data.rows.find((r) => r.id === 'prev')['main-content'].title).toBe('⬅️ Previous');
+  });
+
+  test('a long question is cut at a word — the " - ✅" / " - ❌" never is', async () => {
+    const res = await init(U, TOKEN);
+    for (const r of res.data.rows.filter((x) => /^q\d+$/.test(x.id))) {
+      const t = r['main-content'].title;
+      expect(t.endsWith(' - ✅') || t.endsWith(' - ❌')).toBe(true);
+      expect(cp(t)).toBeLessThanOrEqual(20);
+      const body = t.replace(/^\S+\s/, '').replace(/ - [✅❌]$/, '');
+      expect(body.length).toBeGreaterThan(0);
+      expect(body.endsWith(' ')).toBe(false);
+      const words = body.split(' ');
+      const source = /^Which/.test(body) ? r : null;
+      if (source) expect('Which planet is number 1 in this long list of questions?'.split(' ')).toEqual(expect.arrayContaining(words));
+    }
   });
 
   test('every title and description fits 20 code points — English and Urdu', async () => {
@@ -107,6 +134,8 @@ describe('INIT opens the list', () => {
     }
     const res = await init(U, TOKEN);
     expect(res.data.rows.some((r) => /[؀-ۿ]/.test(r['main-content'].title))).toBe(true);
+    // the Urdu question rows keep their suffix too
+    for (const r of res.data.rows.filter((x) => /^q\d+$/.test(x.id))) expect(r['main-content'].title).toMatch(/ - ✅$/);
   });
 
   test('pages through all 50 questions, 16 at a time, with previous and next', async () => {
@@ -149,7 +178,7 @@ describe('editing a question', () => {
   test('a written question carries its answer and lines', async () => {
     let list = await init(U, TOKEN);
     list = await tap('LIST', list.data.rows.find((r) => r.id === 'next'));
-    const row = list.data.rows.find((r) => /Why does rain/.test(r['main-content'].title));
+    const row = list.data.rows.find((r) => /Short Questions/.test(r['on-click-action'].payload.question_id || ''));
     const edit = await tap('LIST', row);
     expect(edit.screen).toBe('EDIT_STANDARD');
     expect(edit.data).toMatchObject({ answer: 'Gravity.', lines: '4', show_lines: true });
@@ -163,7 +192,7 @@ describe('editing a question', () => {
       slot_0: 'A) Mars', slot_1: 'B) Venus', slot_2: 'C) Earth', slot_3: 'D) Jupiter', slot_4: '', slot_5: '', answer: '', remove: false,
     }, TOKEN);
     expect(after.screen).toBe('LIST_MORE');
-    expect(after.data.rows[2]['main-content'].description).toMatch(/^3 marks/);
+    expect(after.data.rows[0]['main-content'].description).toMatch(/^3 marks/);
     expect(createSpy).not.toHaveBeenCalled();
     expect(saveEditSpy).not.toHaveBeenCalled();
     expect(paperWrites()).toEqual([]);
@@ -175,14 +204,14 @@ describe('editing a question', () => {
   test('a second and third edit in one opening, from LIST_MORE', async () => {
     let list = await init(U, TOKEN);
     for (const n of ['1.', '2.', '3.']) {
-      const row = list.data.rows.find((r) => r['main-content'].title.startsWith(`✓ ${n}`));
+      const row = list.data.rows.find((r) => r['main-content'].title.startsWith(`${n} `));
       const edit = await tap(list.screen, row);
       expect(edit.screen).toBe('EDIT_OPTIONS');
       list = await exchange(U, 'EDIT_OPTIONS', { _action: 'save', marks: '2', correct: '2',
         slot_0: 'A) Mars', slot_1: 'B) Venus', slot_2: 'C) Earth', slot_3: 'D) Jupiter', slot_4: '', slot_5: '' }, TOKEN);
       expect(list.screen).toBe('LIST_MORE');
     }
-    expect(list.data.rows[1]['main-content'].description).toBe('50 Qs · 73 marks');
+    expect(list.data.rows.find((r) => r.id === 'done')['main-content'].description).toBe('50 Qs · 73 marks');
   });
 
   test('the remove box takes it off: the row shows ✗, and tapping it opens REMOVED', async () => {
@@ -190,14 +219,15 @@ describe('editing a question', () => {
     await tap('LIST', rowFor(list, '1. Which planet'));
     const after = await exchange(U, 'EDIT_OPTIONS', { _action: 'save', remove: true, correct: '2',
       slot_0: 'A) Mars', slot_1: 'B) Venus', slot_2: 'C) Earth', slot_3: 'D) Jupiter', slot_4: '', slot_5: '' }, TOKEN);
-    const x = after.data.rows.find((r) => r['main-content'].title.startsWith('✗'));
+    const x = after.data.rows.find((r) => r['main-content'].title.endsWith(' - ❌'));
+    expect(x['main-content'].title).toMatch(/^–\. /);
     expect(x['main-content'].description).toMatch(/^removed/);
-    expect(after.data.rows[1]['main-content'].description).toBe('49 Qs · 69 marks');
+    expect(after.data.rows.find((r) => r.id === 'done')['main-content'].description).toBe('49 Qs · 69 marks');
     const removed = await tap('LIST_MORE', x);
     expect(removed.screen).toBe('REMOVED');
     const restored = await exchange(U, 'REMOVED', { _action: 'restore' }, TOKEN);
     expect(restored.screen).toBe('LIST_MORE');
-    expect(restored.data.rows[2]['main-content'].title).toMatch(/^✓ 1\./);
+    expect(restored.data.rows[0]['main-content'].title).toMatch(/^1\. .* - ✅$/);
   });
 
   test('a refused edit comes back to the same screen with her typing and the reason', async () => {
@@ -225,8 +255,10 @@ describe('adding a question', () => {
     expect(refused.data.has_error).toBe(true);
     const ok = await exchange(U, 'EDIT_OPTIONS', { ...MCQ, correct: '0' }, TOKEN);
     expect(ok.screen).toBe('LIST_MORE');
-    expect(ok.data.rows[1]['main-content'].description).toBe('51 Qs · 71 marks');
-    expect(ok.data.rows.some((r) => /Closest star/.test(r['main-content'].title))).toBe(true);
+    expect(ok.data.rows.find((r) => r.id === 'done')['main-content'].description).toBe('51 Qs · 71 marks');
+    // An added MCQ joins the paper's MCQs, so it prints (and lists) as 21.
+    expect(ok.data.rows.some((r) => /^21\. Closest - ✅$/.test(r['main-content'].title))).toBe(true);
+    expect(ok.data.rows).toHaveLength(20); // a middle page: 16 + add + previous + next + make
     expect(paperWrites()).toEqual([]);
   });
 
@@ -248,7 +280,11 @@ describe('DONE — the real button', () => {
     expect(done.screen).toBe('DONE');
     expect(done.data).toMatchObject({ summary: '49 questions · 69 marks', changes: '1 removed', can_make: true });
     expect(done.data.note).toMatch(/version 1/);
-    expect(done.data.extension_message_response.params.assessment_action).toBe('rebuilt');
+    // No object-valued data on DONE: reached from a NavigationList row, Meta's
+    // client refused it with "Data Validation Error: Required
+    // [key=data.extension_message_response]" (preview, 30 Sep). The completion
+    // is routed by the flow token, which Meta always returns.
+    expect('extension_message_response' in done.data).toBe(false);
   });
 
   test('with 0 questions left the button is disabled and says why', async () => {
@@ -271,7 +307,7 @@ describe('the session', () => {
       slot_0: 'A) Mars', slot_1: 'B) Venus', slot_2: 'C) Earth', slot_3: 'D) Jupiter', slot_4: '', slot_5: '' }, TOKEN);
     const again = await init(U, TOKEN);
     expect(again.screen).toBe('LIST');
-    expect(again.data.rows[2]['main-content'].description).toMatch(/^9 marks/);
+    expect(again.data.rows[0]['main-content'].description).toMatch(/^9 marks/);
   });
 
   test('back from an edit screen refreshes the list she came from', async () => {

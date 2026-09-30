@@ -242,13 +242,13 @@ const REVIEW_MARKER = ':assessment-review:';
 const NAV_MAX = 20;
 
 /** Fit a row field to the cap, cutting at a word boundary where one is close. */
-function navFit(text) {
+function navFit(text, max = NAV_MAX) {
   const t = String(text || '').replace(/\s+/g, ' ').trim();
   // CODE POINTS, which is what Meta counts: `.length` counts UTF-16 units, so
   // an emoji-led row was cut one character short (or, worse, mid-surrogate).
   const chars = [...t];
-  if (chars.length <= NAV_MAX) return t;
-  const cut = chars.slice(0, NAV_MAX).join('');
+  if (chars.length <= max) return t;
+  const cut = chars.slice(0, Math.max(0, max)).join('');
   const space = cut.lastIndexOf(' ');
   // Strip a dangling space or punctuation mark — and NOTHING else. This was
   // `[\s\W]+$`, and in JavaScript `\W` is "not [A-Za-z0-9_]", so every Urdu
@@ -784,16 +784,26 @@ function marksText(state, marks) {
   return marks === 1 ? ux(state, 'assessmentRowMark1') : ux(state, 'assessmentRowMarks', { marks });
 }
 
-/** A question row: "✓ 3. Which is…" / "✗ Which is…", marks first, type if it fits. */
+/**
+ * A question row, in the operator's copy: "1. Amna is Happy - ✅" on the paper,
+ * "–. Jojo saw ____ - ❌" taken off. The TEXT is what gets cut (at a word, as
+ * navFit does); the status suffix always survives the 20-code-point cap.
+ */
+function questionTitle(q) {
+  const prefix = `${q.removed ? '–' : q.number}. `;
+  const suffix = q.removed ? ' - ❌' : ' - ✅';
+  const room = NAV_MAX - [...prefix].length - [...suffix].length;
+  return `${prefix}${navFit(q.text, room)}${suffix}`;
+}
+
 function questionRow(state, q, i) {
+  const payload = { _action: 'open', question_id: q.id };
   if (q.removed) {
-    return navRow(`q${i}`, `✗ ${q.text}`, ux(state, 'assessmentRowRemoved', { marks: q.marks }),
-      { _action: 'open', question_id: q.id });
+    return navRow(`q${i}`, questionTitle(q), ux(state, 'assessmentRowRemoved', { marks: q.marks }), payload);
   }
   const marks = marksText(state, q.marks);
   const withType = `${marks} · ${shortType(q.type)}`;
-  return navRow(`q${i}`, `✓ ${q.number}. ${q.text}`, [...withType].length <= NAV_MAX ? withType : marks,
-    { _action: 'open', question_id: q.id });
+  return navRow(`q${i}`, questionTitle(q), [...withType].length <= NAV_MAX ? withType : marks, payload);
 }
 
 function activeTotals(tree) {
@@ -803,8 +813,10 @@ function activeTotals(tree) {
 }
 
 /**
- * One page of the list: add, make, up to 16 questions, previous/next. 20 rows
- * at most, which is Meta's cap for a NavigationList.
+ * One page of the list, in the operator's order (30 Sep): up to 16 questions,
+ * "➕ Add a question", "⬅️ Previous" / "More questions ➡️" when there is a page
+ * that way, and "📄 Make my paper" LAST. 20 rows at most — Meta's cap for a
+ * NavigationList.
  */
 function listScreen(id, state) {
   const items = Selection.indexQuestions(state.draft);
@@ -813,10 +825,8 @@ function listScreen(id, state) {
   state.listScreen = id;
   const t = activeTotals(state.draft);
   const rows = [
-    navRow('add', ux(state, 'assessmentRowAdd'), ux(state, 'assessmentRowAddDesc'), { _action: 'add' }),
-    navRow('done', ux(state, 'assessmentRowMake'),
-      ux(state, 'assessmentRowMakeDesc', { count: t.count, marks: t.marks }), { _action: 'done' }),
     ...view.items.map((q, k) => questionRow(state, q, view.from - 1 + k)),
+    navRow('add', ux(state, 'assessmentRowAdd'), ux(state, 'assessmentRowAddDesc'), { _action: 'add' }),
   ];
   if (view.hasPrev) {
     const from = (view.index - 1) * Selection.LIST_PAGE_SIZE + 1;
@@ -830,6 +840,8 @@ function listScreen(id, state) {
       ux(state, 'assessmentRowNextDesc', { from, to: Math.min(from + Selection.LIST_PAGE_SIZE - 1, view.total), total: view.total }),
       { _action: 'page', page: String(view.index + 1) }));
   }
+  rows.push(navRow('done', ux(state, 'assessmentRowMake'),
+    ux(state, 'assessmentRowMakeDesc', { count: t.count, marks: t.marks }), { _action: 'done' }));
   return screen(id, { rows });
 }
 
@@ -952,13 +964,18 @@ async function doneScreen(state) {
     if (dirty) changes = parts.join(' · ');
   }
   const canMake = t.count > 0;
+  // No extension_message_response here, unlike PICK_DONE and CONFIRM: DONE is
+  // reached from a NavigationList row, and from there Meta's client refuses an
+  // object-valued data key ("Data Validation Error: Required
+  // [key=data.extension_message_response]", measured in the preview on 30 Sep —
+  // the same response renders when a Form Footer asks for it). Meta drops that
+  // payload from the completion anyway; the flow token routes it.
   return screen('DONE', {
     summary,
     changes,
     note: dirty && state.version ? ux(state, 'assessmentDoneNote', { version: state.version }) : '',
     can_make: canMake,
     error: canMake ? '' : ux(state, 'assessmentDoneEmpty'),
-    extension_message_response: completionPayload('rebuilt', summary),
   });
 }
 

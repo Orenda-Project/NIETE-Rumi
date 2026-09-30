@@ -40,12 +40,19 @@ test('routing model exactly as designed, every route forward, ≤ 10 branches pe
   }
   expect(rm.EDIT_COMPREHENSION).toEqual(['EDIT_SUB', 'LIST_MORE', 'DONE']);
   expect(rm.EDIT_SUB).toEqual(['LIST_MORE']);
-  expect(rm.LIST_MORE).toEqual(['DONE']);
+  // ADD_TYPE is declared so the client will move there from LIST_MORE; EDIT_*,
+  // REMOVED and EDIT_COMPREHENSION need no declaration — each declares
+  // X → LIST_MORE, and the client accepts the reverse hop at runtime.
+  expect(rm.LIST_MORE).toEqual(['ADD_TYPE', 'DONE']);
   expect(rm.DONE).toEqual([]);
-  const pos = Object.fromEntries(FLOW.screens.map((s, i) => [s.id, i]));
+  // Meta's rule, as its validator states it (sandbox, 30 Sep): "Backward route
+  // [A->B] corresponding to forward route [B->A] is not allowed". A route
+  // whose direct reverse is also declared is refused; LIST_MORE → ADD_TYPE is
+  // not one (ADD_TYPE reaches LIST_MORE only through an edit screen) and the
+  // validator accepted it.
   for (const [from, tos] of Object.entries(rm)) {
     expect(tos.length).toBeLessThanOrEqual(10);
-    for (const to of tos) expect([from, to, pos[to] > pos[from]]).toEqual([from, to, true]);
+    for (const to of tos) expect([from, to, (rm[to] || []).includes(from)]).toEqual([from, to, false]);
   }
 });
 
@@ -60,12 +67,17 @@ test('every NavigationList is alone on its screen; LIST and LIST_MORE declare ro
   }
 });
 
-test('DONE is the only terminal screen; it completes and declares extension_message_response.params', () => {
+test('DONE is the only terminal screen; it completes, and declares no extension_message_response', () => {
   expect(FLOW.screens.filter((s) => s.terminal).map((s) => s.id)).toEqual(['DONE']);
   const footer = components(byId.DONE).find((c) => c.type === 'Footer');
   expect(footer['on-click-action'].name).toBe('complete');
   expect(footer.enabled).toBe('${data.can_make}');
-  expect(byId.DONE.data.extension_message_response.properties.params.properties.assessment_action.type).toBe('string');
+  // Reached from a NavigationList row, DONE with an object-valued
+  // extension_message_response failed on the client ("Data Validation Error:
+  // Required [key=data.extension_message_response]", Meta preview 30 Sep);
+  // without it the same screen renders. Meta drops it from completions anyway.
+  expect('extension_message_response' in byId.DONE.data).toBe(false);
+  expect(JSON.stringify(footer)).not.toContain('extension_message_response');
 });
 
 test('every edit screen has an answer; STANDARD has lines + remove; OPTIONS has the correct option', () => {
