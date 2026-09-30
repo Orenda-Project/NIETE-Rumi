@@ -14,13 +14,12 @@
  * where the flow proceeds. Without it a tap updated nothing and the session
  * hung at awaiting_lesson_plan.
  *
- * bd-2c1gj (ICT HITL feedback): on an OBSERVATION the tapper is a human coach
- * picking the teacher's plan from a list, where the wrong row is one slip away —
- * and a pick links the plan and queues the analysis at once. So on an
- * observation lp_select_ first asks, naming the plan the coach tapped:
- *   lpconfirm_yes_{assetId}_{sessionId}  — link it (the unchanged lp_select_ path)
- *   lpconfirm_no_{sessionId}             — link nothing, re-send the menu
- * A teacher's own self-serve session keeps the one-tap pick.
+ * bd-2c1gj (ICT HITL feedback, row 189): in a list the wrong row is one slip
+ * away, and a pick linked the plan and queued the analysis at once. So every
+ * lp_select_ tap — a human coach on an observation, or a teacher on her own
+ * Digital Coach session (widened 2026-09-30) — first asks, naming the plan tapped:
+ *   lpconfirm_yes_{assetId}_{sessionId}  "Yes"                — link it (the unchanged lp_select_ path)
+ *   lpconfirm_no_{sessionId}             "Change lesson plan" — link nothing, re-send the menu
  */
 const { logToFile, logWarn } = require('../../../utils/logger');
 const { REVIEW_SUBMITTED_STATUSES } = require('../fidelity/fidelity-recompute.service');
@@ -87,18 +86,8 @@ async function handleLpListSelection(listId, from, deps = {}) {
     || ((uid, sid, kind) => require('../media-target.service').setTarget(uid, sid, kind));
   const sessionStatus = deps.sessionStatus || defaultSessionStatus;
 
-  // bd-2c1gj — who is tapping: a coach on an observation gets the confirmation.
-  const isCoachObservation = deps.isCoachObservation
-    || (async (sid) => {
-      try {
-        const supabase = require('../../../config/supabase');
-        const { data } = await supabase
-          .from('coaching_sessions').select('observation_type').eq('id', sid).maybeSingle();
-        return !!(data && data.observation_type === 'leader_observation');
-      } catch (_) { return false; }
-    });
   // The tapped row's own label (title + context line), rebuilt from the same
-  // source and formatter as the menu, so the coach reads back the row tapped.
+  // source and formatter as the menu, so the tapper reads back the row tapped.
   const describeSelection = deps.describeSelection
     || (async (sid, assetId) => {
       try {
@@ -140,9 +129,9 @@ async function handleLpListSelection(listId, from, deps = {}) {
       await sendMessage(from, getCoachingMessage('lessonPlan_review_submitted', lang));
       return true;
     }
-    // bd-2c1gj — ask before linking a coach's pick. deps.confirmed is set only
-    // by the "Yes" tap, which re-enters here to link.
-    if (!deps.confirmed && await isCoachObservation(sessionId)) {
+    // bd-2c1gj — ask before linking any pick. deps.confirmed is set only by the
+    // "Yes" tap, which re-enters here to link.
+    if (!deps.confirmed) {
       const assetId = listId.slice('lp_select_'.length, -(sessionId.length + 1));
       const row = await describeSelection(sessionId, assetId);
       const body = getCoachingMessage('lessonPlan_confirm_prompt', lang)
@@ -156,7 +145,7 @@ async function handleLpListSelection(listId, from, deps = {}) {
         ],
       });
       if (asked !== false) {
-        logToFile('[lp-list] coach pick — asked to confirm before linking', { sessionId, assetId });
+        logToFile('[lp-list] LP pick — asked to confirm before linking', { sessionId, assetId });
         return true;
       }
       // Never strand the session on a prompt that did not go out: link as before.
