@@ -42,7 +42,7 @@ const RX = {
   photoSend    : /Send the photos now|تصاویر بھیجیں|بورڈ/i,
   addAnother   : /Add another|مزید تصویر/i,
   done         : /^Done$|مکمل/i,
-  lpPrompt     : /lesson plan for this class|do you have a lesson plan|سبق کا منصوبہ ہے/i,
+  lpPrompt     : /lesson plan for this class|do you have a lesson plan|link a recent lesson plan|سبق کا منصوبہ ہے|حالیہ سبق/i,
   lpSend       : /Send your lesson plan as a document|paste it here|منصوبہ .*بھیجیں/i,
   lpReceived   : /Lesson plan received|منصوبہ موصول/i,
   notLessonPlan: /doesn'?t look like a lesson plan|not a lesson plan|isn'?t a lesson plan|منصوبے جیسا نہیں لگتا/i,
@@ -198,7 +198,7 @@ module.exports.run = async function runExt(ctx) {
           } else if (o.lp === 'recent') {
             const opener = btnOf(r, /Select|منتخب/i);
             if (!opener) { obs.lpReply = { via: 'recent', err: 'the LP prompt was Yes/No, not a list — no recent lesson plan was offered', btns: r.btns }; const rep = await tapRow(r, RX.no, 90000); obs.lpSend = short(rep && rep.txt, 120); }
-            else { const list = await api.openList(opener); const rows = (list && list.rows) || []; const pick = rows.find((x) => !/upload|اپلوڈ|^No$|^نہیں$|new/i.test(x)); const rep = pick ? await api.pickRowAndWait(pick, 90000) : null; obs.lpReply = { via: 'recent', rows, picked: pick || null, txt: short(rep && rep.txt, 200) }; obs.lpSend = 'picked from the list'; }
+            else { const list = await api.openList(opener); const rows = (list && list.rows) || []; const pick = rows.find((x) => !/upload|اپلوڈ|^No\b|^نہیں|new|none|no lesson/i.test(x)); const rep = pick ? await api.pickRowAndWait(pick, 90000) : null; obs.lpReply = { via: 'recent', rows, picked: pick || null, txt: short(rep && rep.txt, 200) }; obs.lpSend = 'picked from the list'; }
           } else {
             const rep = await tapRow(r, RX.yes, 90000);
             // whatever the ask's wording (English or Urdu), "Yes" is answered by sending the plan
