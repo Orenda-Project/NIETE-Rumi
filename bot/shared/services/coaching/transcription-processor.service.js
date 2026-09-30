@@ -126,7 +126,6 @@ class TranscriptionProcessorService {
           const duplicate = await findRecentDuplicateSession(supabase, {
             userId: session.user_id,
             audioHash,
-            windowDays: 7,
             excludeSessionId: coachingSessionId,
           });
 
