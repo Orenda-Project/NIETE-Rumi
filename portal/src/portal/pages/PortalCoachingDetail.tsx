@@ -13,6 +13,15 @@ import { portal } from '../services/api';
 import { useToast } from '@/hooks/use-toast';
 import type { SessionDetail } from '../types/portal';
 
+/**
+ * A coaching card stored before observation scores became bands carries its
+ * old "— currently 1/2" suffix. Stored text is not rewritten, so the score is
+ * taken off at display time; new cards are written with the band instead.
+ */
+function withoutScore(action: string): string {
+  return action.replace(/\s*—\s*currently\s+\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?/g, '');
+}
+
 const PortalCoachingDetail = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
@@ -180,25 +189,11 @@ const PortalCoachingDetail = () => {
                 <TrendingUp className="w-5 h-5 text-accent" />
                 <h2 className="text-xl font-semibold">Overall Performance</h2>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-secondary rounded-lg">
-                  <div className="text-3xl font-bold text-foreground">
-                    {session.analysisData.overall_score.points}
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">Points Earned</div>
-                </div>
-                <div className="text-center p-4 bg-secondary rounded-lg">
-                  <div className="text-3xl font-bold text-foreground">
-                    {session.analysisData.overall_score.max_points}
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">Maximum Points</div>
-                </div>
-                <div className="text-center p-4 bg-secondary rounded-lg">
-                  <div className="text-3xl font-bold text-accent">
-                    {session.analysisData.overall_score.percentage.toFixed(1)}%
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">Success Rate</div>
-                </div>
+              {/* One band, not points / maximum / percentage — observation
+                  scores are never shown as numbers (operator, 2026-09-29). */}
+              <div className="flex items-center gap-3">
+                <ScoreIndicator percentage={session.analysisData.overall_score?.percentage} size="large" />
+                <span className="text-sm text-muted-foreground">for this lesson overall</span>
               </div>
             </div>
 
@@ -296,7 +291,7 @@ const PortalCoachingDetail = () => {
                   <h2 className="text-xl font-semibold">Your reflection</h2>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  From your conversation with Rumi on WhatsApp.
+                  From your conversation with NIETE on WhatsApp.
                 </p>
 
                 <div className="space-y-5">
@@ -305,7 +300,7 @@ const PortalCoachingDetail = () => {
                       {entry.question && (
                         <div>
                           <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-                            Rumi asked
+                            NIETE asked
                           </div>
                           <UrduAware
                             text={entry.question}
@@ -325,7 +320,7 @@ const PortalCoachingDetail = () => {
                         </div>
                       ) : (
                         <p className="text-xs text-muted-foreground pl-3">
-                          You have not answered this one yet — reply to Rumi on WhatsApp.
+                          You have not answered this one yet — reply to NIETE on WhatsApp.
                         </p>
                       )}
                     </div>
@@ -337,7 +332,7 @@ const PortalCoachingDetail = () => {
                         One thing to try next class
                       </div>
                       <UrduAware
-                        text={session.prioritizedAction.action}
+                        text={withoutScore(session.prioritizedAction.action)}
                         className="text-sm text-foreground pl-3 border-l-2 border-accent"
                       />
                     </div>

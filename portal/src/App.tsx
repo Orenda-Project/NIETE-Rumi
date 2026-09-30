@@ -26,6 +26,11 @@ import LeaderHome from "./portal/pages/LeaderHome";
 import LeaderTeachers from "./portal/pages/LeaderTeachers";
 import LeaderTeacherDetail from "./portal/pages/LeaderTeacherDetail";
 import LeaderObservations from "./portal/pages/LeaderObservations";
+// bd-60117 — a principal's school-level Analytics tab.
+import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
+import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
+// bd-60121 — every observed lesson, its own page.
+import SchoolLessons from "./portal/pages/SchoolLessons";
 /* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
  * removed so the URLs 404 rather than expose unfinished screens. Restore by re-adding both
  * imports and the /portal/reading-* + /portal/video* routes below. */
@@ -126,6 +131,13 @@ const App = () => {
             <Route path="/portal/leader" element={<LeaderHome />} />
             <Route path="/portal/leader/teachers" element={<LeaderTeachers />} />
             <Route path="/portal/leader/observations" element={<LeaderObservations />} />
+            {/* bd-60117 — principals only; the endpoint 403s the rest of
+                the leader family and the page says so rather than showing
+                one school's numbers to a multi-school role. */}
+            <Route path="/portal/leader/school-analytics" element={<SchoolAnalytics />} />
+            <Route path="/portal/leader/attendance" element={<LegacyAttendanceRedirect to="/portal/leader/school-analytics" />} />
+            <Route path="/portal/attendance" element={<LegacyAttendanceRedirect to="/portal/coaching/analytics" />} />
+            <Route path="/portal/leader/lessons" element={<SchoolLessons />} />
             <Route path="/portal/leader/teacher/:id" element={<LeaderTeacherDetail />} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

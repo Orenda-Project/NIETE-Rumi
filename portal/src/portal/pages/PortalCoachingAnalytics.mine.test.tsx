@@ -1,0 +1,140 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
+
+/**
+ * A teacher's own Analytics page is the page her principal sees when she
+ * picks that teacher (operator, 2026-09-30), in the teacher's own words:
+ *   · her lesson plans and exams generated — HIDDEN for now (operator, 2026-09-30)
+ *   · Observations, Attendance and Principal Remarks as tabs, one at a time
+ *   · Observations — both kinds defined, two counts, Progress and Strong and
+ *     Weak Areas from Human Observations, and When Observations Happened —
+ *     where HER Digital Coach Observations carry their ratings too
+ *   · Attendance — her own presence and her students', kept separate
+ *   · Principal Remarks — the remark she received: comment and each area
+ */
+
+vi.mock("react-apexcharts", () => ({ default: (p: any) => <div data-testid={`chart-${p.type}`} /> }));
+vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
+vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
+vi.mock("../services/api", () => ({ portal: { getMyAttendance: vi.fn().mockResolvedValue({ success: true, from: null, to: null, focusTeacher: null, teachers: [], schoolDays: [], students: { groups: [], byDay: [] }, staff: { groups: [], byDay: [] } }), getMyAnalytics: vi.fn() } }));
+
+import { useAuth } from "../hooks/useAuth";
+import { portal } from "../services/api";
+import PortalCoachingAnalytics from "./PortalCoachingAnalytics";
+
+const PAYLOAD = {
+  success: true,
+  totals: { lessonPlans: 12, examsGenerated: 5 },
+  analytics: {
+    totalSessions: 3, humanObservations: 1, digitalCoachObservations: 2, averageScore: 64,
+    scoreTrend: [{ date: "2026-09-15T09:00:00Z", percentage: 64, points: 64, maxPoints: 100, teacherName: null }],
+    areas: [
+      { key: "e", name: "Engagement", pct: 85, band: "excellent", observations: 1 },
+      { key: "s", name: "Subject knowledge", pct: 30, band: "below_average", observations: 1 },
+    ],
+    byMonth: [{ month: "2026-09", human: 1, digitalCoach: 2 }],
+    observations: [
+      { date: "2026-09-20T09:00:00Z", kind: "digital_coach", percentage: 90, teacherName: null },
+      { date: "2026-09-15T09:00:00Z", kind: "human", percentage: 64, teacherName: null },
+      { date: "2026-09-02T09:00:00Z", kind: "digital_coach", percentage: 45, teacherName: null },
+    ],
+    domainBreakdown: [], strongestDomain: null, focusDomain: null,
+  },
+  presence: {
+    teacher: { records: 20, present: 18, absent: 1, leave: 1, presentPct: 94.7 },
+    student: { sessions: 6, totalMarked: 240, present: 210, presentPct: 87.5 },
+  },
+  remarksReceived: [{
+    cycleName: "Third Quarter 2026", submittedAt: "2026-09-24T10:00:00Z", comment: "Prepares well and is punctual.",
+    areas: [
+      { ordinal: 1, name: "Professional Growth & Feedback Uptake", score: 3 },
+      { ordinal: 2, name: "Collaboration & Peer Support", score: 4 },
+    ],
+  }],
+};
+
+function mount(over: any = {}) {
+  (useAuth as any).mockReturnValue({ user: { firstName: "Ayesha", role: "teacher" }, loading: false, logout: vi.fn() });
+  (portal.getMyAnalytics as any).mockResolvedValue({ ...PAYLOAD, ...over });
+  render(<MemoryRouter><PortalCoachingAnalytics /></MemoryRouter>);
+}
+
+beforeEach(() => vi.clearAllMocks());
+
+describe("the teacher's own Analytics page", () => {
+  it("is titled My Analytics", async () => {
+    mount();
+    expect(await screen.findByRole("heading", { level: 1, name: "My Analytics" })).toBeInTheDocument();
+  });
+
+  it("hides her lesson plans and exams generated, for now", async () => {
+    mount();
+    await screen.findByTestId("observations");
+    expect(screen.queryByTestId("kpi-lesson-plans")).toBeNull();
+    expect(screen.queryByTestId("kpi-exams")).toBeNull();
+  });
+
+  it("has Observations, Attendance and Principal Remarks, in that order — as tabs", async () => {
+    mount();
+    await screen.findByTestId("observations");
+    expect(screen.getAllByRole("tab").map((t) => t.textContent?.trim()))
+      .toEqual(["Observations", "Attendance", "Principal Remarks"]);
+  });
+
+  it("defines both kinds of observation in her words", async () => {
+    mount();
+    expect(await screen.findByTestId("def-human")).toHaveTextContent(/watched your lesson in class/);
+    expect(screen.getByTestId("def-digital")).toHaveTextContent(/you recorded your own lesson/i);
+  });
+
+  it("rates her own Digital Coach Observations in the list", async () => {
+    mount();
+    await screen.findByTestId("observations");
+    const rows = screen.getAllByTestId(/^obs-row-/);
+    const digital = rows.find((r) => /Digital Coach Observation/.test(r.textContent || ""));
+    expect(digital).toHaveTextContent("Excellent"); // 90
+  });
+
+  it("keeps Observation Feedback (rating and areas) on Human Observations", async () => {
+    mount();
+    const obs = await screen.findByTestId("observations");
+    expect(within(obs).getByTestId("progress-help")).toHaveTextContent(/Human Observation/);
+    expect(within(obs).getByTestId("area-s")).toHaveTextContent(/work on this/i);
+  });
+
+  it("shows her own presence and her students', separately, with the detail right here and no link out", async () => {
+    mount();
+    await userEvent.click(await screen.findByRole("tab", { name: "Attendance" }));
+    expect(screen.getByTestId("presence-teacher-block")).toHaveTextContent(/You were present/);
+    expect(screen.getByTestId("presence-teacher-block")).toHaveTextContent(/18 present · 1 absent · 1 on leave/);
+    expect(screen.getByTestId("presence-student-block")).toHaveTextContent(/Your students/);
+    expect(screen.queryByTestId("attendance-detail-link")).toBeNull();
+    // Nor one to a page of her own: the detail sits right here, in this tab (2026-09-30).
+    expect(screen.queryByTestId("my-attendance-link")).toBeNull();
+    expect(screen.getByTestId("attendance-detail")).toBeInTheDocument();
+  });
+
+  it("shows the remark she received — the quarter, the comment and each area", async () => {
+    mount();
+    await userEvent.click(await screen.findByRole("tab", { name: "Principal Remarks" }));
+    const r = await screen.findByTestId("remark-received-0");
+    expect(r).toHaveTextContent("Third Quarter 2026");
+    expect(r).toHaveTextContent("Prepares well and is punctual.");
+    expect(r).toHaveTextContent(/Professional Growth & Feedback Uptake.*3\/4/);
+    expect(r).toHaveTextContent(/Collaboration & Peer Support.*4\/4/);
+  });
+
+  it("says so plainly when she has not received a remark yet", async () => {
+    mount({ remarksReceived: [] });
+    await userEvent.click(await screen.findByRole("tab", { name: "Principal Remarks" }));
+    expect(await screen.findByTestId("remarks-empty")).toHaveTextContent(/No remark from your principal yet/);
+  });
+
+  it("no observation rating is a number or a percentage", async () => {
+    mount();
+    const obs = await screen.findByTestId("observations");
+    expect(obs.textContent).not.toMatch(/\d+(?:\.\d+)?\s*%/);
+  });
+});

@@ -97,6 +97,8 @@ export interface BreakdownGroup {
  */
 export interface ScoreBreakdown {
   framework: string | null;
+  /** The scale one INDICATOR is scored on (FICO: 2), so it can be banded. */
+  scaleMax?: number | null;
   language: string;
   overall: number | null;
   marks: number | null;
@@ -252,6 +254,10 @@ export interface LeaderPatchTeacher {
   coachingSessions: number;   // sessions the teacher recorded herself
   observations: number;       // bd-2671: visits by a coach (/observe)
   lessonPlans: number;
+  // per-feature engagement, so the landing view can be organised by
+  // feature. attendanceSessions is registers SHE took, not her own presence.
+  attendanceSessions: number;
+  trainingModules: number;    // COMPLETED modules, distinct
   lastSessionAt: string | null;
   lastScore: number | null;   // framework-agnostic %, null if never coached
   focusArea: string | null;   // bd-2672: the named area, not just "Focus Area"
@@ -266,9 +272,191 @@ export interface LeaderOverview {
   notOnRumi: number;
   totalCoachingSessions: number;
   totalLessonPlans: number;
+  // patch-wide feature engagement for the landing tiles, plus the
+  // reach counts, which are the honest figure: 21 registers across 19 teachers
+  // reads healthy until you learn one teacher took all 21.
+  totalAttendanceSessions: number;
+  totalTrainingModules: number;
+  teachersMarkingAttendance: number;
+  teachersInTraining: number;
   scoredTeachers: number;
   avgLastScore: number | null;
   focus: LeaderPatchTeacher[];
+}
+
+/**
+ * School-level coaching analytics for a principal — GET /leader/school-analytics
+ * (bd-60117).
+ *
+ * Domains are DISCOVERED from the data, never a fixed list: NIETE has two
+ * coexisting rubrics in live sessions, and `sessions` says how many sessions
+ * each domain was actually measured in so a rarely-scored domain cannot be
+ * misread as the school's weakness.
+ */
+export interface SchoolDomainScore {
+  key: string;
+  name: string;
+  percentage: number;
+  sessions: number;
+}
+
+export interface SchoolAnalytics {
+  totalSessions: number;
+  /** null — not 0 — when the school has no scored session yet. */
+  averageScore: number | null;
+  /** Doubles as the coaching-history list — each point is one observed lesson. */
+  scoreTrend: Array<{
+    date: string;
+    percentage: number;
+    points: number | null;
+    maxPoints: number | null;
+    /** Whose lesson. Only shown when the view is not already one teacher. */
+    teacherName: string | null;
+  }>;
+  domainBreakdown: SchoolDomainScore[];
+  /** Human Observations (a coach or principal in class) vs Digital Coach
+   *  Observations (the teacher recorded her own lesson). Ratings use Human only. */
+  humanObservations?: number;
+  digitalCoachObservations?: number;
+  /** The three STEPS areas from Human Observations, strongest first. */
+  areas?: Array<{ key: 's' | 't' | 'e'; name: string; pct: number; band: string; observations: number }>;
+  /** Both kinds, per month ("2026-09", Pakistan time), oldest first. */
+  byMonth?: Array<{ month: string; human: number; digitalCoach: number }>;
+  /** Both kinds, newest first. `percentage` is null on a Digital Coach Observation. */
+  observations?: Array<{ date: string; kind: 'human' | 'digital_coach'; percentage: number | null; teacherName: string | null }>;
+  strongestDomain: string | null;
+  focusDomain: string | null;
+}
+
+/**
+ * STEPS "P" — Presence (bd-60118). Teacher and student presence stay SEPARATE:
+ * the 60:40 weighting between them was never locked (Sabeena, 2026-08-10:
+ * adjust after the pilot), so there is deliberately no combined figure.
+ */
+export interface SchoolPresence {
+  teacher: {
+    records: number;
+    present: number;
+    absent: number;
+    leave: number;
+    /** null — not 0 — when nothing has been marked. Leave is out of the denominator. */
+    presentPct: number | null;
+  };
+  student: {
+    sessions: number;
+    totalMarked: number;
+    present: number;
+    presentPct: number | null;
+  };
+}
+
+/** STEPS "S" — the principal's own quarterly supervisor remarks (bd-60118). */
+export interface SchoolRemarkIndicator {
+  key: string;
+  ordinal: number;
+  name: string;
+  /** Mean of the 1..4 rubric scores. */
+  average: number;
+  percentage: number;
+  teachers: number;
+}
+
+export interface SchoolRemarks {
+  /** Committed forms only — a part-answered form is not a result. */
+  submitted: number;
+  averagePct: number | null;
+  indicatorBreakdown: SchoolRemarkIndicator[];
+  focusIndicator: string | null;
+}
+
+export interface SchoolAnalyticsResponse {
+  success: boolean;
+  /** The date window the server applied; null ends are open (all time). */
+  range?: { from: string | null; to: string | null };
+  school: {
+    name: string | null;
+    totalTeachers: number;
+    onRumi: number;
+    totalLessonPlans: number;
+    /** Question papers that finished generating (status 'ready'). */
+    totalExams?: number;
+  };
+  /** Set when ?teacherId= narrowed the view to one teacher. */
+  focusTeacher: { id: string; name: string } | null;
+  /** Everyone in the school, for the filter control. */
+  teachers: Array<{ id: string; name: string; isPrincipal: boolean }>;
+  analytics: SchoolAnalytics;
+  presence: SchoolPresence;
+  remarks: SchoolRemarks;
+}
+
+/** One quarterly remark a teacher received — submitted forms only. */
+export interface RemarkReceived {
+  cycleName: string | null;
+  submittedAt: string | null;
+  comment: string | null;
+  areas: Array<{ ordinal: number; name: string; score: number }>;
+}
+
+/** GET /my-analytics — a teacher's own Analytics page. */
+export interface MyAnalyticsResponse {
+  success: boolean;
+  range?: { from: string | null; to: string | null };
+  totals: { lessonPlans: number; examsGenerated: number };
+  analytics: SchoolAnalytics;
+  presence: SchoolPresence;
+  remarksReceived: RemarkReceived[];
+}
+
+/**
+ * Attendance detail (GET /leader/attendance) — bd-60123.
+ *
+ * The unit is a PERSON-DAY: `chances` = people x school days. Unmarked
+ * person-days are their own block, so thin coverage cannot hide inside the
+ * numerator the way a bare percentage lets it.
+ */
+export interface AttendanceGroup {
+  name: string;
+  /** Roster size — the largest register ever recorded for this group. */
+  people: number;
+  days: number;
+  /** people x days. */
+  chances: number;
+  present: number;
+  absent: number;
+  neverMarked: number;
+  /** How many of the window's days this group was marked at all. */
+  markedDays: number;
+}
+
+export interface AttendanceDayCell {
+  date: string;
+  marked: boolean;
+  total: number | null;
+  /** null — never 0 — when nobody marked that day. */
+  present: number | null;
+  absent: number | null;
+}
+
+export interface AttendanceByDay {
+  name: string;
+  days: AttendanceDayCell[];
+}
+
+export interface AttendanceSection {
+  groups: AttendanceGroup[];
+  byDay: AttendanceByDay[];
+}
+
+export interface AttendanceResponse {
+  success: boolean;
+  from: string;
+  to: string;
+  focusTeacher: { id: string; name: string } | null;
+  teachers: Array<{ id: string; name: string; isPrincipal: boolean }>;
+  schoolDays: string[];
+  students: AttendanceSection;
+  staff: AttendanceSection;
 }
 
 /** The coach's /observe world (GET /leader/observations) — bd-2455. */
@@ -311,7 +499,13 @@ export interface LeaderTeacherDetail {
     coachingSessions: number;
     lessonPlans: number;
     readingAssessments: number;
+    /**
+     * still computed, still sent, NOT rendered in the leader UI.
+     * Hiding is a render decision; the pipeline that produces this is untouched.
+     */
     lastScore: number | null;
+    /** The newest written summary — what the leader reads instead. */
+    lastSummary: string | null;
   };
   sessions: Array<{
     id: string;
@@ -319,6 +513,8 @@ export interface LeaderTeacherDetail {
     score: number | null;
     points: number | null;
     maxPoints: number | null;
+    /** analysis_data.executive_summary — prose, 2-3 lines. Null on old rows. */
+    summary: string | null;
   }>;
 }
 
@@ -410,3 +606,4 @@ export interface AddStudentsResponse {
   dropped?: number;
   error?: string;
 }
+

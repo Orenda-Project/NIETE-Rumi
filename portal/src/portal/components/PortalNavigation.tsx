@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School } from 'lucide-react';
+import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, BookOpen } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '../hooks/useAuth';
-import { isLeader } from '../lib/leaderRole';
+import { isLeader, resolveRole } from '../lib/leaderRole';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
 
@@ -31,6 +31,26 @@ const PortalNavigation = () => {
     // nav item.
     { title: 'Training', path: '/portal/training', icon: GraduationCap },
   ];
+
+  // bd-60117 — Analytics, for PRINCIPALS only. A principal holds exactly one
+  // school, so "your school's numbers" is a well-defined question for her and
+  // for nobody else in the leader family: an AEO, supervisor or coach covers
+  // many schools (85 of 400 assigned schools have more than one coach), so the
+  // same tab would show them one school's data labelled as theirs. The other
+  // four keep the nav they have; the endpoint 403s them regardless of the nav.
+  //
+  // Lessons joins Analytics here: a principal-gated route that existed with
+  // no nav entry was reachable only by an in-page link, so a principal who
+  // landed anywhere else had no way to it — a route nobody can find is not
+  // shipped. Attendance used to be a third; it now lives inside Analytics, on
+  // its Attendance tab (operator, 2026-09-30).
+  const isPrincipal = resolveRole(user) === 'principal';
+  if (isPrincipal) {
+    leaderNav.push(
+      { title: 'Analytics', path: '/portal/leader/school-analytics', icon: TrendingUp },
+      { title: 'Lessons', path: '/portal/leader/lessons', icon: BookOpen },
+    );
+  }
   const teacherNav = [
     { title: 'Dashboard', path: '/portal/dashboard', icon: Home },
     { title: 'Curriculum', path: '/portal/curriculum', icon: Library },

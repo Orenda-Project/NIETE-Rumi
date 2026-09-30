@@ -15,10 +15,10 @@ import LeaderTeacherDetail from "./LeaderTeacherDetail";
 const DETAIL = {
   success: true,
   teacher: { rumiUserId: "u1", name: "Ayesha", phone: "923001234567", onRumi: true },
-  stats: { coachingSessions: 2, lessonPlans: 7, readingAssessments: 3, lastScore: 48 },
+  stats: { coachingSessions: 2, lessonPlans: 7, readingAssessments: 3, lastScore: 48, lastSummary: null },
   sessions: [
-    { id: "s2", date: "2026-07-22T10:00:00Z", score: 48, points: 71, maxPoints: 148 },
-    { id: "s1", date: "2026-07-10T10:00:00Z", score: 71, points: 105, maxPoints: 148 },
+    { id: "s2", date: "2026-07-22T10:00:00Z", score: 48, points: 71, maxPoints: 148, summary: null },
+    { id: "s1", date: "2026-07-10T10:00:00Z", score: 71, points: 105, maxPoints: 148, summary: null },
   ],
 };
 
@@ -51,6 +51,10 @@ describe("LeaderTeacherDetail", () => {
 
   it("lists the coaching sessions", async () => {
     renderDetail();
-    await waitFor(() => expect(screen.getAllByText(/%/).length).toBeGreaterThan(0));
+    // bd-60174: this asserted on a "%" because the row used to carry a score.
+    // The leader view no longer shows one — the operator's decision is to hide
+    // the number, not to stop computing it — so the claim is now made against
+    // the session rows themselves, which is what this test was always about.
+    await waitFor(() => expect(screen.getAllByTestId(/^session-/).length).toBe(2));
   });
 });
