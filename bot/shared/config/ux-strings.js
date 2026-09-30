@@ -2618,13 +2618,13 @@ const UX_STRINGS = {
   },
 
   // The ✓/✗ list's rows (NavigationList, 20 code points).
-  assessmentRowAdd: { en: '＋ Add question', ur: '＋ نیا سوال' },
+  assessmentRowAdd: { en: '➕ Add a question', ur: '➕ نیا سوال' },
   assessmentRowAddDesc: { en: 'Short/long/MCQ', ur: 'مختصر/طویل/MCQ' },
-  assessmentRowMake: { en: '✅ Make my paper', ur: '✅ پرچہ بنائیں' },
+  assessmentRowMake: { en: '📄 Make my paper', ur: '📄 پرچہ بنائیں' },
   assessmentRowMakeDesc: { en: '{count} Qs · {marks} marks', ur: '{count} سوال · {marks} نمبر' },
-  assessmentRowPrev: { en: '← Previous', ur: '→ پچھلے سوال' },
+  assessmentRowPrev: { en: '⬅️ Previous', ur: '➡️ پچھلے سوال' },
   assessmentRowPrevDesc: { en: 'Qs {from}–{to}', ur: 'سوال {from}–{to}' },
-  assessmentRowNext: { en: 'Next page →', ur: 'اگلے سوال ←' },
+  assessmentRowNext: { en: 'More questions ➡️', ur: 'مزید سوال ⬅️' },
   assessmentRowNextDesc: { en: 'Qs {from}–{to} of {total}', ur: 'سوال {from}–{to} / {total}' },
   assessmentRowRemoved: { en: 'removed · {marks}', ur: 'ہٹایا گیا · {marks}' },
   assessmentRowMarks: { en: '{marks} marks', ur: '{marks} نمبر' },
