@@ -38,7 +38,7 @@ const {
 // 433 rows) — no new tables, no new columns.
 const TERMINAL = `('completed', 'observer_review_complete')`;
 
-// bd-60117: the projection and the four stat LATERALs are shared by BOTH entry
+// the projection and the four stat LATERALs are shared by BOTH entry
 // points below (coach-by-leader_schools, principal-by-users.school_id). They are
 // one constant rather than two copies because the moment a stat is defined twice
 // the two definitions start to drift, and "the principal's numbers disagree with
@@ -159,7 +159,7 @@ ${PATCH_LATERALS}
 `;
 
 // ── entry point 2: a PRINCIPAL, via her OWN users.school_id ─────────────────
-// bd-60117. A principal is tied to her school by users.school_id and holds no
+// A principal is tied to her school by users.school_id and holds no
 // leader_schools row — only 24 of 460 did on prod 2026-09-17, so the other 436
 // fell through the coach query's WHERE and saw an empty My Patch. Nothing
 // errored; the roster was simply blank, which is why it went unreported as a
@@ -250,7 +250,7 @@ function shapeTeacher(r) {
 /**
  * Which query answers "who is in this person's patch", given their role.
  *
- * bd-60117: a principal's patch is her own school (users.school_id); everyone
+ * a principal's patch is her own school (users.school_id); everyone
  * else's is their school assignments (leader_schools). Unknown/absent role
  * falls back to the coach path — that is what every caller got before this
  * existed, so an un-passed role cannot change an existing answer.

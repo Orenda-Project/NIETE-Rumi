@@ -68,19 +68,19 @@ const { getOverall } = require('../services/coaching-frameworks.service');
 // pg pool — the LATERAL-join SQL can't be expressed through supabase-js.
 const pool = require('../config/database');
 // TERMINAL is imported rather than respelled: two spellings of "finished" is
-// exactly how 629 observations went missing once (bd-2671).
+// exactly how 629 observations went missing once.
 const { getPatchTeachers, TERMINAL } = require('../services/leader-patch.service');
 // My Patch overview aggregation (pure, over the resolver output).
 const { summarizePatch } = require('../services/leader-overview.service');
-// bd-60117 — school-level coaching analytics for a principal (pure, over the
+// school-level coaching analytics for a principal (pure, over the
 // school's scored sessions).
 const { summarizeSchoolAnalytics } = require('../services/school-analytics.service');
-// bd-60118 — the remaining two STEPS components. P is two separate figures on
+// the remaining two STEPS components. P is two separate figures on
 // purpose (the teacher:student weighting is still unresolved); S delegates its
 // /20 math to remark-rubric rather than restating it.
 const { summarizePresence } = require('../services/steps-presence.service');
 const { summarizeRemarks, remarksReceived } = require('../services/steps-remarks.service');
-// bd-60123 — attendance, merged per group (G3) and split per day.
+// attendance, merged per group (G3) and split per day.
 const { summarizeGroups, summarizeByDay } = require('../services/attendance-detail.service');
 // Single teacher detail (patch-membership guarded).
 const { getPatchTeacherDetail } = require('../services/leader-teacher-detail.service');
@@ -995,7 +995,7 @@ router.get('/leader/overview', requirePortalAuth, requireLeaderRole, async (req,
     const teachers = await getPatchTeachers(
       (sql, params) => pool.query(sql, params),
       req.session.portalUserId,
-      // bd-60117: a principal's patch is her own school, not a coach's school
+      // a principal's patch is her own school, not a coach's school
       // assignments. requireLeaderRole already loaded the row, so the role
       // costs no extra round-trip.
       { role: req.portalUser && req.portalUser.role }
@@ -1019,7 +1019,7 @@ router.get('/leader/teachers', requirePortalAuth, requireLeaderRole, async (req,
     const teachers = await getPatchTeachers(
       (sql, params) => pool.query(sql, params),
       req.session.portalUserId,
-      // bd-60117: a principal's patch is her own school, not a coach's school
+      // a principal's patch is her own school, not a coach's school
       // assignments. requireLeaderRole already loaded the row, so the role
       // costs no extra round-trip.
       { role: req.portalUser && req.portalUser.role }
@@ -1048,7 +1048,7 @@ router.get('/leader/teacher/:id', requirePortalAuth, requireLeaderRole, async (r
       (sql, params) => pool.query(sql, params),
       req.session.portalUserId,
       req.params.id,
-      // bd-60117: a principal proves membership through her own school.
+      // a principal proves membership through her own school.
       { role: req.portalUser && req.portalUser.role }
     );
     if (!detail) {
@@ -1166,7 +1166,7 @@ router.get('/my-attendance', requirePortalAuth, async (req, res) => {
 /**
  * GET /api/portal/leader/attendance
  *
- * bd-60123 — the attendance detail, in the two shapes settled on the design
+ * the attendance detail, in the two shapes settled on the design
  * canvas (operator, 2026-09-17):
  *   · `groups`  (G3) every grade merged across its children AND its days, one
  *     row each on one scale. The dashboard default.
@@ -1239,7 +1239,7 @@ router.get('/leader/attendance', requirePortalAuth, requireLeaderRole, async (re
 /**
  * GET /api/portal/leader/school-analytics
  *
- * bd-60117 — the Analytics tab, asked of a principal's SCHOOL rather than of
+ * the Analytics tab, asked of a principal's SCHOOL rather than of
  * her own handful of sessions. (Across all 460 principals there are 46 own
  * completed sessions in total — 0.10 each — so "her own coaching data" is not
  * a view worth giving her. Her school's is: sampling 40 principals, 34 had
@@ -1269,7 +1269,7 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
       { role }
     );
 
-    // bd-60118 — optional ?teacherId= narrows every component to one teacher
+    // optional ?teacherId= narrows every component to one teacher
     // ("build teacher report card individually", Osama 2026-09-10). It is
     // VALIDATED AGAINST THE PATCH, never trusted: an id that is not in her
     // school 404s rather than quietly scoping to someone else's teacher. This
@@ -1292,7 +1292,7 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
     // filtered view and the school view can never disagree about who counts.
     const [sessionRows, teacherAttRows, studentSessRows, remarkRows, outputRows] = await Promise.all([
       // S/T/E — TERMINAL, not status='completed': a leader observation never
-      // reaches 'completed' (bd-2671), and filtering on it hid the entire
+      // reaches 'completed', and filtering on it hid the entire
       // observation programme once already.
       userIds.length ? pool.query(
         `SELECT c.created_at, c.analysis_data, c.observation_type, u.name AS teacher_name
