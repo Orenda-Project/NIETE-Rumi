@@ -10,6 +10,7 @@
  */
 
 const { CODES, MOMENTS, PLAIN, ROW, PRIORITY } = require('./fico17');
+const { clampLanguage } = require('../../../config/ux-strings');
 
 // Which indicator a moment type speaks to, so the moment offered is about the thing to work on.
 const TYPE_CODE = {
@@ -54,7 +55,7 @@ const numeric = (v) => (/^[1-4]$/.test(String(v)) ? Number(v) : null);
  * @returns {string}
  */
 function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
-  const F = FRAME[lang === 'ur' ? 'ur' : 'en'];
+  const F = FRAME[clampLanguage(lang)] || FRAME.en;
   const finals = form.final_levels || {};
   const review = form.evidence_review || {};
   const priority = review.priority_final || (form.answers || {}).priority || null;
