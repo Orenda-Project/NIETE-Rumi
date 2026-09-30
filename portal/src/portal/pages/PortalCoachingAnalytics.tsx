@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, FileText } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import ObservationsSection from '../components/ObservationsSection';
 import AttendanceSection from '../components/AttendanceSection';
 import { RemarksReceivedSection } from '../components/RemarksSection';
+import { AnalyticsControls } from '../components/AnalyticsControls';
+import { useAnalyticsView } from '../lib/analyticsView';
 import { portal } from '../services/api';
 import { useToast } from '@/hooks/use-toast';
 import type { MyAnalyticsResponse } from '../types/portal';
@@ -13,7 +14,8 @@ import type { MyAnalyticsResponse } from '../types/portal';
  * My Analytics — a teacher's own page. It is the page her principal sees when
  * picking her on School Analytics, in her own words (operator, 2026-09-30):
  *
- *   · her lesson plans and exams generated
+ *   · (her lesson plans and exams — hidden for now, operator 2026-09-30)
+ *   · tabs + a date window over the page, as on School Analytics
  *   · Observations — Progress and Strong and Weak Areas from Human
  *     Observations only; her own Digital Coach Observations carry their
  *     ratings in the monthly list, because they are hers to learn from
@@ -24,9 +26,10 @@ const PortalCoachingAnalytics = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<MyAnalyticsResponse | null>(null);
+  const { tab, setTab, from, to, setRange } = useAnalyticsView();
 
   useEffect(() => {
-    portal.getMyAnalytics()
+    portal.getMyAnalytics({ from, to })
       .then(setData)
       .catch((error) => {
         console.error('My analytics fetch error:', error);
@@ -37,7 +40,7 @@ const PortalCoachingAnalytics = () => {
         });
       })
       .finally(() => setLoading(false));
-  }, [toast]);
+  }, [toast, from, to]);
 
   if (loading) {
     return (
@@ -58,12 +61,10 @@ const PortalCoachingAnalytics = () => {
   }
 
   // Defaulted, not destructured bare: a partial response must cost a panel, not the page.
-  const totals = data.totals ?? { lessonPlans: 0, examsGenerated: 0 };
   const presence = data.presence ?? {
     teacher: { records: 0, present: 0, absent: 0, leave: 0, presentPct: null },
     student: { sessions: 0, totalMarked: 0, present: 0, presentPct: null },
   };
-  const tile = 'bg-white rounded-lg p-6 shadow-sm border border-border';
 
   return (
     <PortalLayout>
@@ -73,26 +74,14 @@ const PortalCoachingAnalytics = () => {
           <p className="text-muted-foreground">How your teaching is going, all in one place.</p>
         </header>
 
-        <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-8">
-          <div className={tile}>
-            <div className="flex items-center gap-2 mb-2">
-              <BookOpen className="w-5 h-5 text-accent" />
-              <span className="text-sm text-muted-foreground">Lesson plans</span>
-            </div>
-            <div data-testid="kpi-lesson-plans" className="text-3xl font-bold">{totals.lessonPlans}</div>
-          </div>
-          <div data-testid="kpi-exams" className={tile}>
-            <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-5 h-5 text-accent" />
-              <span className="text-sm text-muted-foreground">Exams generated</span>
-            </div>
-            <div className="text-3xl font-bold">{totals.examsGenerated}</div>
-          </div>
-        </div>
-
-        <ObservationsSection analytics={data.analytics} showTeacher={false} audience="teacher" />
-        <AttendanceSection presence={presence} audience="teacher" />
-        <RemarksReceivedSection remarks={data.remarksReceived ?? []} />
+        {/* Lesson plans and exams are hidden on her page for now (operator,
+            2026-09-30); the server still sends them, under `totals`. */}
+        <AnalyticsControls tab={tab} onTab={setTab} from={from} to={to} onRange={setRange} />
+        {tab === 'observations' && (
+          <ObservationsSection analytics={data.analytics} showTeacher={false} audience="teacher" range={{ from, to }} />
+        )}
+        {tab === 'attendance' && <AttendanceSection presence={presence} audience="teacher" />}
+        {tab === 'remarks' && <RemarksReceivedSection remarks={data.remarksReceived ?? []} />}
       </div>
     </PortalLayout>
   );

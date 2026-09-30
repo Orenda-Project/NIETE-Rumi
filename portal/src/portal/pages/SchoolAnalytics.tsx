@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
 import { Users, BookOpen, FileText } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
@@ -7,6 +6,8 @@ import TeacherSteps from '../components/TeacherSteps';
 import ObservationsSection from '../components/ObservationsSection';
 import NextStep from '../components/NextStep';
 import AttendanceSection from '../components/AttendanceSection';
+import { AnalyticsControls } from '../components/AnalyticsControls';
+import { useAnalyticsView } from '../lib/analyticsView';
 import RemarksSection from '../components/RemarksSection';
 import { leader } from '../services/api';
 import type { SchoolAnalyticsResponse } from '../types/portal';
@@ -36,20 +37,17 @@ const SchoolAnalytics = () => {
   // her roster, so this is a convenience rather than the access boundary.
   // bd-60119: seeded from ?teacherId=, so the roster can deep-link straight to
   // one teacher's numbers and the dropdown shows her as selected on arrival.
-  const [searchParams, setSearchParams] = useSearchParams();
-  // Step 5 of the principal's journey links to #remarks. React Router does not
-  // scroll to a hash on its own, and the section only exists once the data has
-  // loaded, so it is scrolled to after the first render that has it.
-  const { hash } = useLocation();
+  // Tab (#hash), date window (?from=&to=) and teacher (?teacherId=) all live
+  // in the address. Step 5 of the principal's journey links to #remarks, which
+  // now simply opens the Principal Remarks tab.
+  const { tab, setTab, from, to, setRange, setParams, searchParams } = useAnalyticsView();
   const [teacherId, setTeacherId] = useState<string>(searchParams.get('teacherId') || '');
 
   // Keep the URL honest as she changes the filter, so the view is shareable and
   // the back button returns to what she was actually looking at.
   const selectTeacher = (id: string) => {
     setTeacherId(id);
-    const next = new URLSearchParams(searchParams);
-    if (id) next.set('teacherId', id); else next.delete('teacherId');
-    setSearchParams(next, { replace: true });
+    setParams({ teacherId: id || null });
   };
   // Distinct from `loading`, which is only ever true before the FIRST load.
   // Without this a filter change swapped every number in place with nothing on
@@ -66,7 +64,7 @@ const SchoolAnalytics = () => {
     // must keep the page (and the filter she is still using) on screen.
     setRefetching((prev) => (data ? true : prev));
     leader
-      .getSchoolAnalytics(teacherId || null)
+      .getSchoolAnalytics(teacherId || null, { from, to })
       .then((d) => { if (alive) setData(d); })
       .catch((err) => {
         if (!alive) return;
@@ -82,12 +80,7 @@ const SchoolAnalytics = () => {
     // `data` is deliberately not a dependency: it is read only to tell a first
     // load from a refetch, and depending on it would refetch on every result.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teacherId]);
-
-  useEffect(() => {
-    if (loading || !hash) return;
-    document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [loading, hash]);
+  }, [teacherId, from, to]);
 
   if (loading) {
     return <PortalLayout><LoadingState type="full" /></PortalLayout>;
@@ -230,11 +223,13 @@ const SchoolAnalytics = () => {
           </div>
         </div>
 
-        {/* S·T·E first, then P, then the remark S — the STEPS order. */}
-        <ObservationsSection analytics={analytics} showTeacher={!focusTeacher} />
-
-        <AttendanceSection presence={presence} />
-        <RemarksSection remarks={remarks} />
+        {/* S·T·E, then P, then the remark S — the STEPS order, one at a time. */}
+        <AnalyticsControls tab={tab} onTab={setTab} from={from} to={to} onRange={setRange} />
+        {tab === 'observations' && (
+          <ObservationsSection analytics={analytics} showTeacher={!focusTeacher} range={{ from, to }} />
+        )}
+        {tab === 'attendance' && <AttendanceSection presence={presence} />}
+        {tab === 'remarks' && <RemarksSection remarks={remarks} />}
 
         {focusTeacher && (
           <NextStep to={`/portal/leader/lessons?teacherId=${focusTeacher.id}`} step={3} label="Review her lessons" />

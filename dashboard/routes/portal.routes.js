@@ -1289,10 +1289,12 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
 
     const scopeTeachers = focusTeacher ? [focusTeacher] : teachers;
     const userIds = scopeTeachers.filter((t) => t.rumiUserId).map((t) => t.rumiUserId);
+    const range = analyticsRange(req.query);
+    const w = [range.from, range.to];
 
     // One round-trip per STEPS component, all scoped to the same id set, so a
     // filtered view and the school view can never disagree about who counts.
-    const [sessionRows, teacherAttRows, studentSessRows, remarkRows] = await Promise.all([
+    const [sessionRows, teacherAttRows, studentSessRows, remarkRows, outputRows] = await Promise.all([
       // S/T/E — TERMINAL, not status='completed': a leader observation never
       // reaches 'completed' (bd-2671), and filtering on it hid the entire
       // observation programme once already.
@@ -1303,14 +1305,16 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
           WHERE c.user_id = ANY($1::uuid[])
             AND c.status IN ${TERMINAL}
             AND c.analysis_data IS NOT NULL
-          ORDER BY c.created_at ASC`, [userIds]) : { rows: [] },
+            AND ${inWindow(pkDay('c.created_at'), '$2', '$3')}
+          ORDER BY c.created_at ASC`, [userIds, ...w]) : { rows: [] },
 
       // P (teacher) — keyed by teacher_id, so it filters with the same ids.
       userIds.length ? pool.query(
         `SELECT status, date
            FROM teacher_attendance_records
           WHERE teacher_id = ANY($1::uuid[])
-          ORDER BY date ASC`, [userIds]) : { rows: [] },
+            AND ${inWindow('date', '$2', '$3')}
+          ORDER BY date ASC`, [userIds, ...w]) : { rows: [] },
 
       // P (students) — attendance_sessions.user_id is the teacher who MARKED
       // the register, which is how a student roll reaches a school at all.
@@ -1318,7 +1322,8 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
         `SELECT total_students, present_count, session_date
            FROM attendance_sessions
           WHERE user_id = ANY($1::uuid[])
-          ORDER BY session_date ASC`, [userIds]) : { rows: [] },
+            AND ${inWindow('session_date', '$2', '$3')}
+          ORDER BY session_date ASC`, [userIds, ...w]) : { rows: [] },
 
       // S (supervisor remarks) — the principal's own quarterly forms, with
       // their per-indicator scores folded in. Only her remarks (she is the
@@ -1334,8 +1339,13 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
            LEFT JOIN supervisor_remark_scores sc ON sc.remark_id = r.id
           WHERE r.teacher_id = ANY($1::uuid[])
             AND r.principal_user_id = $2
-          GROUP BY r.id`, [userIds, req.session.portalUserId]) : { rows: [] },
+            AND ${inWindow(pkDay('r.submitted_at'), '$3', '$4')}
+          GROUP BY r.id`, [userIds, req.session.portalUserId, ...w]) : { rows: [] },
+
+      // Lesson plans and exams, in the same window and the same scope.
+      userIds.length ? countOutputs(userIds, w) : { rows: [{ lesson_plans: 0, exams: 0 }] },
     ]);
+    const outputs = (outputRows.rows && outputRows.rows[0]) || {};
 
     const remarks = (remarkRows.rows || []).map((r) => ({
       teacherId: r.teacher_id,
@@ -1346,13 +1356,14 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
 
     res.json({
       success: true,
+      range,
       school: {
         name: (teachers.find((t) => t.schoolName) || {}).schoolName || null,
         totalTeachers: teachers.length,
         onRumi: teachers.filter((t) => t.onRumi).length,
-        totalLessonPlans: scopeTeachers.reduce((n, t) => n + (t.lessonPlans || 0), 0),
-        // Ready Assessment Generator papers, same scope as the lesson plans.
-        totalExams: scopeTeachers.reduce((n, t) => n + (t.examsGenerated || 0), 0),
+        // Lesson plans and ready exams, in the date window and the same scope.
+        totalLessonPlans: Number(outputs.lesson_plans) || 0,
+        totalExams: Number(outputs.exams) || 0,
       },
       // The filter's own state, so the page renders the right heading without
       // re-deriving who was asked for.
@@ -1374,6 +1385,47 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
 });
 
 /**
+ * The Analytics page's date window (operator, 2026-09-30): ?from=&to=, both
+ * optional and inclusive. Blank is all time — what the page showed before the
+ * filter existed. Anything that is not a real YYYY-MM-DD is dropped, never
+ * passed to SQL.
+ */
+function analyticsRange(query = {}) {
+  const ok = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') && !Number.isNaN(Date.parse(v)) ? v : null);
+  return { from: ok(query.from), to: ok(query.to) };
+}
+
+/** A timestamp read as the Pakistan-time day it happened on. */
+const pkDay = (col) => `(${col} AT TIME ZONE 'Asia/Karachi')::date`;
+
+/**
+ * `expr` falls inside [$a, $b], either end open when its parameter is NULL.
+ * `expr` is a date: a plain date column as-is, a timestamp through pkDay().
+ */
+const inWindow = (expr, a, b) =>
+  `(${a}::date IS NULL OR ${expr} >= ${a}::date) AND (${b}::date IS NULL OR ${expr} <= ${b}::date)`;
+
+/**
+ * Lesson plans and READY exams for a set of teachers, inside the window.
+ * The same two definitions the patch roster counts all-time: every lesson
+ * plan, and only papers that finished generating.
+ */
+function countOutputs(userIds, [from, to]) {
+  return pool.query(
+    `SELECT
+       (SELECT count(*) FROM lesson_plans l
+         WHERE l.user_id = ANY($1::uuid[])
+           AND ${inWindow(pkDay('l.created_at'), '$2', '$3')}) AS lesson_plans,
+       (SELECT count(*)
+          FROM assessment_papers p
+          JOIN assessment_requests r ON r.id = p.request_id
+         WHERE r.user_id = ANY($1::uuid[]) AND p.status = 'ready'
+           AND ${inWindow(pkDay('p.created_at'), '$2', '$3')}) AS exams`,
+    [userIds, from, to]
+  );
+}
+
+/**
  * GET /api/portal/my-analytics
  * A TEACHER's own Analytics page: the same sections her principal sees when
  * she picks that teacher (operator, 2026-09-30) — observations, attendance,
@@ -1387,6 +1439,8 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
 router.get('/my-analytics', requirePortalAuth, async (req, res) => {
   try {
     const me = req.session.portalUserId;
+    const range = analyticsRange(req.query);
+    const w = [range.from, range.to];
     const [sessionRows, teacherAttRows, studentSessRows, remarkRows, counts] = await Promise.all([
       pool.query(
         `SELECT created_at, analysis_data, observation_type
@@ -1394,12 +1448,17 @@ router.get('/my-analytics', requirePortalAuth, async (req, res) => {
           WHERE user_id = $1
             AND status IN ${TERMINAL}
             AND analysis_data IS NOT NULL
-          ORDER BY created_at ASC`, [me]),
+            AND ${inWindow(pkDay('created_at'), '$2', '$3')}
+          ORDER BY created_at ASC`, [me, ...w]),
       pool.query(
-        `SELECT status, date FROM teacher_attendance_records WHERE teacher_id = $1 ORDER BY date ASC`, [me]),
+        `SELECT status, date FROM teacher_attendance_records
+          WHERE teacher_id = $1 AND ${inWindow('date', '$2', '$3')}
+          ORDER BY date ASC`, [me, ...w]),
       pool.query(
         `SELECT total_students, present_count, session_date
-           FROM attendance_sessions WHERE user_id = $1 ORDER BY session_date ASC`, [me]),
+           FROM attendance_sessions
+          WHERE user_id = $1 AND ${inWindow('session_date', '$2', '$3')}
+          ORDER BY session_date ASC`, [me, ...w]),
       pool.query(
         `SELECT r.submitted_at, r.comment_text, c.name AS cycle_name,
                 COALESCE(
@@ -1411,18 +1470,14 @@ router.get('/my-analytics', requirePortalAuth, async (req, res) => {
            JOIN evaluation_cycles c ON c.id = r.cycle_id
            LEFT JOIN supervisor_remark_scores sc ON sc.remark_id = r.id
           WHERE r.teacher_id = $1
-          GROUP BY r.id, c.name`, [me]),
-      pool.query(
-        `SELECT
-           (SELECT count(*) FROM lesson_plans WHERE user_id = $1) AS lesson_plans,
-           (SELECT count(*)
-              FROM assessment_papers p
-              JOIN assessment_requests r ON r.id = p.request_id
-             WHERE r.user_id = $1 AND p.status = 'ready') AS exams`, [me]),
+            AND ${inWindow(pkDay('r.submitted_at'), '$2', '$3')}
+          GROUP BY r.id, c.name`, [me, ...w]),
+      countOutputs([me], w),
     ]);
     const c = (counts.rows && counts.rows[0]) || {};
     res.json({
       success: true,
+      range,
       totals: { lessonPlans: Number(c.lesson_plans) || 0, examsGenerated: Number(c.exams) || 0 },
       analytics: summarizeSchoolAnalytics(sessionRows.rows || [], { rateDigital: true }),
       presence: summarizePresence(teacherAttRows.rows || [], studentSessRows.rows || []),
