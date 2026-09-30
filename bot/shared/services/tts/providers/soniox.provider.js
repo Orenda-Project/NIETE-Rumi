@@ -31,7 +31,11 @@ const DEFAULT_VOICES = Object.freeze({ ur: 'Ishita', en: 'Grace' });
 const USER_AGENT = 'voice-gateway/1.0';
 
 const DEFAULT_LIMITS = Object.freeze({
-  targetChars: 300,        // a part this long takes ~20-25 s to speak; parts run together
+  // Parts run at the same time, so the longest one sets the wait. Measured live
+  // (30 Sep): a 423-character Urdu reply took 20 s at 300-character parts, 12.6 s
+  // at 200, and no less at 150; a 935-character English reply 18 s → 12.4 s.
+  // Soniox bills audio seconds, so smaller parts cost nothing extra.
+  targetChars: 200,
   maxChars: 900,           // hard ceiling: ~80 s of audio for the slowest voice, safely under 2 minutes
   maxPartSec: 118,         // audio this long means Soniox's 2-minute cut ended it, not the text
   minSecPerChar: 1 / 40,   // 40 characters a second is faster than any voice speaks: the audio was cut
@@ -46,7 +50,10 @@ const DEFAULT_LIMITS = Object.freeze({
   // real time, with room to spare).
   idleTimeoutMs: 15000,
   totalCapMs: (chars) => Math.max(30000, Math.ceil(chars / 10) * 1500 + 10000),
-  concurrency: 4,          // parts in flight per process (the Soniox org allows 15 across everything)
+  // Parts in flight per process — enough for a long reply (~6 parts) in one wave.
+  // Splitting leaves the average load on the Soniox organisation's limit (15,
+  // shared by everything) unchanged: the same speaking time, in a shorter window.
+  concurrency: 6,
 });
 
 class SonioxTtsError extends Error {
