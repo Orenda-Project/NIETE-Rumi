@@ -36,7 +36,7 @@ const MEMBERSHIP_SQL = `
   LIMIT 1
 `;
 
-// bd-60117 — the same proof for a PRINCIPAL, whose link to a school is her own
+// the same proof for a PRINCIPAL, whose link to a school is her own
 // users.school_id rather than a leader_schools assignment. Without this she was
 // refused every teacher in her own school, herself included: the drawer 404'd
 // while the roster behind it sat empty, both from this one missing entry point.
@@ -82,7 +82,7 @@ const COUNTS_SQL = `
  * @param {string} leaderUserId   portal session user id
  * @param {string} teacherUserId  Rumi users.id of the teacher being viewed
  * @param {{role?: string}} [opts]  viewer's users.role — picks the membership
- *   proof (bd-60117). Omitted ⇒ the coach proof, exactly as before.
+ *   proof. Omitted ⇒ the coach proof, exactly as before.
  * @returns {Promise<object|null>}  detail, or null if the teacher isn't in the leader's patch
  */
 /**

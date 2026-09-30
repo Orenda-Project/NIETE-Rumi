@@ -1,5 +1,5 @@
 /**
- * bd-60123 — attendance shaped the way a principal reads it.
+ * attendance shaped the way a principal reads it.
  *
  * Settled on the design canvas with the operator (2026-09-17). Three views,
  * two of them built here:
@@ -46,7 +46,7 @@ function num(v) {
 
 
 /**
- * bd-60124 — the reading order of a group list (operator, 2026-09-17).
+ * the reading order of a group list (operator, 2026-09-17).
  *
  * Grades run G1 → G2 → G3, teachers run alphabetically, and one comparator
  * does both because a row is only ever a grade or a person.
