@@ -93,9 +93,39 @@ const FORMAT_PROMPT = {
 
 const URDU_MEDIUM = new Set(['urdu', 'islamiat', 'genk', 'sst']);
 
-const ANSWER_KEY_OFF =
-  '\n\n🚨 **ANSWER KEY DISABLED**: Do NOT include the "answer" field in any '
-  + 'question object. Omit it entirely from the JSON output.';
+/**
+ * bd-bfnsk — answers are ALWAYS asked for.
+ *
+ * This slot used to hold "ANSWER KEY DISABLED: do NOT include the answer field",
+ * appended whenever the teacher had not ticked the answer key. On the last 200
+ * NIETE prod papers (30 Sep 2026) that one flag decided everything: 147 of the
+ * 148 papers requested without a key carried no answer on any question, while
+ * 47 of the 52 requested with one were fully answered — across every model,
+ * subject and content source. The paper never prints answers (renderPaper
+ * forces them off), so the instruction saved a few output tokens and left every
+ * later key — a revised paper, a portal download — with nothing but dashes.
+ *
+ * The format prompts already require an answer "for EVERY question", but the
+ * Urdu-medium ones only say so for objective and brief-answer types, and the
+ * residual misses on keyed papers were exactly the shapes they leave out:
+ * writing tasks, word-bank items, and comprehension answers written on the
+ * passage instead of on each sub-question. So this instruction names them.
+ */
+const ANSWER_KEY_ON =
+  '\n\n🚨 **ANSWER KEY REQUIRED**: EVERY question object MUST carry an "answer" '
+  + 'field (a string) — every type, seen and unseen, with no exceptions:\n'
+  + '- MCQs: the full text of the correct option exactly as it appears in "options" '
+  + '(e.g. "b) 4"); MSQs: every correct option, comma-separated.\n'
+  + '- True/False: "True" or "False".\n'
+  + '- Fill in the blanks / Missing Letters: the word(s) or letters that fill each blank.\n'
+  + '- Match the Column: every correct pair, "left → right", comma-separated.\n'
+  + '- Questions with a "words" list (Word Meanings, Word Sentences, word bank): '
+  + 'one answer per word — its meaning or a model sentence — as "word: answer" lines.\n'
+  + '- Brief/short/long answers and word problems: a concise model answer or worked solution.\n'
+  + '- Any writing task (essay, story, letter, application, paragraph, picture '
+  + 'description): a short model answer or the key points a good answer must contain.\n'
+  + '- Comprehension: put the "answer" inside EACH sub-question object in "questions", '
+  + 'not on the passage.';
 
 function fail(code, message, extra = {}) {
   const err = new Error(message);
@@ -112,14 +142,18 @@ function canonical(subject) {
  * The system prompt, in the order the original assembled it: subject, final
  * task, output format, answer-key instruction, safety policies. The order is
  * load-bearing — safety goes last so nothing after it can soften it.
+ *
+ * `includeAnswerKey` is still accepted and no longer changes the prompt: it
+ * decides whether a key is SENT, not whether one can be made (bd-bfnsk).
  */
+// eslint-disable-next-line no-unused-vars
 function buildSystemPrompt({ subject, includeAnswerKey }) {
   const key = canonical(subject) || 'eng';
   const parts = [
     PROMPTS[SYSTEM_PROMPT[key] || SYSTEM_PROMPT.eng],
     PROMPTS['eg.task.ict_final'],
     PROMPTS[FORMAT_PROMPT[key] || 'eg.format.exam'],
-    includeAnswerKey ? '' : ANSWER_KEY_OFF,
+    ANSWER_KEY_ON,
     PROMPTS['eg.safety.policies'],
   ];
   return parts.join('');
@@ -402,6 +436,116 @@ function stripImageKeys(examJson) {
   return examJson;
 }
 
+// An option's label and the text after it: "b) 4", "(b) 4", "B. 4", "ج) اسلام آباد".
+const OPTION_LABEL = /^\s*\(?\s*([A-Za-z]|[؀-ۿ]{1,3})\s*[).:\-]\s*(.*)$/s;
+
+function _norm(text) {
+  return String(text ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function _splitOption(option) {
+  const m = String(option ?? '').match(OPTION_LABEL);
+  return m ? { label: _norm(m[1]), text: _norm(m[2]) } : { label: null, text: _norm(option) };
+}
+
+/**
+ * The option an MCQ answer names, or null when it names none unambiguously.
+ * Tried in order: the option itself, its label alone ("b", "(b)", "ج"), and the
+ * text after the label ("4" for "b) 4"). Only a single match counts — a guess
+ * would print a wrong answer on a teacher's key, which is worse than a gap.
+ */
+function _resolveOption(options, answer) {
+  const want = _norm(answer);
+  if (!want) return null;
+  const exact = options.filter((o) => _norm(o) === want);
+  if (exact.length === 1) return exact[0];
+  const bareLabel = want.replace(/^\(\s*/, '').replace(/\s*[).:\-]?\s*\)?$/, '');
+  const byLabel = options.filter((o) => _splitOption(o).label === bareLabel);
+  if (byLabel.length === 1) return byLabel[0];
+  const asOption = _splitOption(answer);
+  const byText = options.filter((o) => {
+    const t = _splitOption(o).text;
+    return t && (t === want || (asOption.label && t === asOption.text));
+  });
+  return byText.length === 1 ? byText[0] : null;
+}
+
+/** "1) a 2) b 3) c" → ['a','b','c'], or null when it is not numbered 1..n. */
+function _splitNumbered(answer, n) {
+  const text = String(answer ?? '');
+  const marks = [...text.matchAll(/(?:^|\s)\(?(\d{1,2})\s*[).:\-]\s*/g)];
+  const seq = [];
+  for (const m of marks) {
+    if (Number(m[1]) === seq.length + 1) seq.push(m);
+  }
+  if (seq.length !== n || n === 0) return null;
+  return seq.map((m, i) => {
+    const start = m.index + m[0].length;
+    const end = i + 1 < seq.length ? seq[i + 1].index : text.length;
+    return text.slice(start, end).trim();
+  });
+}
+
+function _hasText(v) {
+  return typeof v === 'string' ? v.trim() !== '' : v != null && v !== false;
+}
+
+/**
+ * Make the model's answers usable by the key without asking it again — only
+ * where the right answer is recoverable from what it wrote (bd-bfnsk):
+ *
+ *   * An MCQ answer given as a letter, a label or the option's bare text is
+ *     rewritten to the exact option, so the key reads "b) 4", not "b".
+ *   * A comprehension answer written once on the passage as "1) … 2) …" is
+ *     split onto the sub-questions that carry none. A sub-question's own
+ *     answer is never overwritten.
+ *
+ * Nothing is invented: an answer that cannot be placed is left as written.
+ */
+function normaliseAnswers(examJson) {
+  _walkQuestions(examJson, (q) => {
+    if (Array.isArray(q.options) && q.options.length && _hasText(q.answer)
+        && typeof q.answer !== 'object') {
+      const hit = _resolveOption(q.options, q.answer);
+      if (hit != null) q.answer = hit;
+    }
+    if (Array.isArray(q.questions) && q.questions.length && _hasText(q.answer)) {
+      const parts = _splitNumbered(q.answer, q.questions.length);
+      if (parts) {
+        q.questions.forEach((sub, i) => {
+          if (sub && typeof sub === 'object' && !_hasText(sub.answer) && parts[i]) sub.answer = parts[i];
+        });
+      }
+    }
+  });
+  return examJson;
+}
+
+/**
+ * How much of the key has an answer, counted the way renderAnswerKey prints
+ * it: a comprehension question counts once per sub-question, and falls back to
+ * the passage's own answer only when none of its subs has one.
+ */
+function answerCoverage(examJson) {
+  let questions = 0;
+  let answered = 0;
+  _walkQuestions(examJson, (q) => {
+    if (Array.isArray(q.questions) && q.questions.length && q.passage) {
+      const subs = q.questions;
+      const anySub = subs.some((s) => s && typeof s === 'object' && _hasText(s.answer));
+      if (!anySub && _hasText(q.answer)) { questions += 1; answered += 1; return; }
+      subs.forEach((s) => {
+        questions += 1;
+        if (s && typeof s === 'object' && _hasText(s.answer)) answered += 1;
+      });
+      return;
+    }
+    questions += 1;
+    if (_hasText(q.answer)) answered += 1;
+  });
+  return { questions, answered };
+}
+
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference,
           contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false,
@@ -467,6 +611,7 @@ async function generateExam(args) {
   }
 
   stripImageKeys(examJson);
+  normaliseAnswers(examJson);
   const removedSeen = trimSeen(examJson, plan.seenTarget);
   if (removedSeen > 0) {
     logToFile('[assessment] trimmed seen questions to the cap', { seenTarget: plan.seenTarget, removed: removedSeen });
@@ -496,11 +641,17 @@ async function generateExam(args) {
     model,
   };
 
+  // Measured on every paper, so a model that stops writing answers shows up in
+  // the logs the day it happens rather than in a teacher's blank key (bd-bfnsk).
+  const coverage = answerCoverage(examJson);
+
   logToFile('[assessment] generated', {
     grade, subject: key, questionCount: produced, elapsedMs: Date.now() - startedAt, ...tokenData,
+    answersGiven: coverage.answered, answersExpected: coverage.questions,
   });
 
-  return { examJson, questionCount: produced, tokenData, trimmed, plan, marksRemoved, elapsedMs: Date.now() - startedAt };
+  return { examJson, questionCount: produced, tokenData, trimmed, plan, marksRemoved,
+    answerCoverage: coverage, elapsedMs: Date.now() - startedAt };
 }
 
 module.exports = {
@@ -513,5 +664,7 @@ module.exports = {
   totalMarksOf,
   countQuestions,
   stripImageKeys,
+  normaliseAnswers,
+  answerCoverage,
   MODELS,
 };

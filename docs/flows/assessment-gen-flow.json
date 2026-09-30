@@ -873,7 +873,8 @@
             "type": "Form",
             "name": "confirm_form",
             "init-values": {
-              "output_format": "pdf"
+              "output_format": "pdf",
+              "answer_lines": true
             },
             "children": [
               {
@@ -897,11 +898,6 @@
                 "label": "Lines for the answers"
               },
               {
-                "type": "OptIn",
-                "name": "answer_key",
-                "label": "Include an answer key"
-              },
-              {
                 "type": "Footer",
                 "label": "Make my paper",
                 "on-click-action": {
@@ -909,7 +905,6 @@
                   "payload": {
                     "output_format": "${form.output_format}",
                     "answer_lines": "${form.answer_lines}",
-                    "answer_key": "${form.answer_key}",
                     "extension_message_response": "${data.extension_message_response}"
                   }
                 }

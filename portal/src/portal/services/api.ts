@@ -331,6 +331,7 @@ export type AssessmentSpec = {
   questionCount: number;
   /** Bare type ids; the bot spreads the count across them. */
   questionTypes?: string[];
+  /** Ignored: every paper is made with its answer key. Kept so older callers still type-check. */
   includeAnswerKey?: boolean;
   answerLines?: boolean;
   outputFormat?: 'pdf' | 'docx';

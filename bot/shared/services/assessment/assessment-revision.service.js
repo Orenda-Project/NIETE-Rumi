@@ -53,6 +53,9 @@ function coverageOf(req) {
     subject: req?.subject_code || null,
     pageRanges: req?.page_ranges || null,
     format: req?.output_format || 'pdf',
+    // Her answer-lines choice survives a revision. This path used to hardcode
+    // lines ON, so unticking them was undone the moment she trimmed the paper.
+    answerLines: req?.has_answer_lines !== false,
   };
 }
 
@@ -80,7 +83,7 @@ async function _loadOwnedPaper(paperId, userId) {
     // CheckboxGroup with no options, while the paper itself was fine.
     .select('id, status, exam_json, selected_question_ids, request_id, '
       + 'assessment_requests!inner(id, user_id, grade_code, subject_code, '
-      + 'chapter_number, page_ranges, output_format)')
+      + 'chapter_number, page_ranges, output_format, has_answer_lines)')
     .eq('id', paperId)
     .maybeSingle();
 
@@ -135,7 +138,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
   }
   const { paper } = loaded;
   const req = paper.assessment_requests || {};
-  const { grade, subject, pageRanges, format } = coverageOf(req);
+  const { grade, subject, pageRanges, format, answerLines } = coverageOf(req);
 
   let phone = knownPhone || null;
   let schoolName = null;
@@ -174,7 +177,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
       schoolName,
       pageReference: pageRanges,
       chapterTitle: null,
-      answerLines: true,
+      answerLines,
     });
 
     const renderer = rendererFor(format);
@@ -219,10 +222,43 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
       edited_at: new Date().toISOString(),
     });
 
+    // Her questions are renumbered now, so the first key no longer matches this
+    // paper. Every paper is followed by its own key (bd-bfnsk) — built from the
+    // same filtered tree, recorded before it is sent, and never allowed to turn a
+    // delivered paper into a failure.
+    //
+    // Inside a Flow's data exchange (a `budget` is set) the screen is waiting on
+    // this call and Meta gives it seconds, so the key is left to finish on its
+    // own rather than hold the reply for a second render. Everywhere else it is
+    // awaited, so the caller knows whether it went.
+    const keyTask = (async () => {
+      try {
+        const keyHtml = Renderer.renderAnswerKey({
+          examJson, grade, subject, schoolName, pageReference: pageRanges, chapterTitle: null,
+        });
+        const keyBuffer = await renderer.render(keyHtml);
+        const keyName = fileName({ grade, subject, format: renderer.ext, suffix: '_Edited_AnswerKey' });
+        const keyKey = await r2.uploadExamBuffer({ buffer: keyBuffer, userId, examId: paperId, filename: keyName });
+        await _patch(paperId, { answer_key_r2_key: keyKey });
+        const keyUrl = await r2.getPresignedUrl(r2.buildR2PublicUrl(keyKey), 3600);
+        // No budget: nothing is waiting on this send, so it takes its turn in
+        // the recipient's pacing like any other message.
+        const ok = !!(await WhatsAppService.sendDocumentByLink(
+          phone, keyUrl, keyName, `Answer key · ${caption}`));
+        logToFile(ok ? '[assessment-revision] answer key delivered' : '[assessment-revision] answer key send returned falsy',
+          { userId, paperId, key: keyKey });
+        return ok;
+      } catch (err) {
+        logToFile('[assessment-revision] answer key failed', { userId, paperId, error: err.message });
+        return false;
+      }
+    })();
+    const answerKeySent = budget ? null : await keyTask;
+
     logToFile('[assessment-revision] delivered', {
-      userId, paperId, questions: questions.length, marks, key,
+      userId, paperId, questions: questions.length, marks, key, answerKeySent,
     });
-    return { status: 'ready', paperId, key, questionCount: questions.length, marks };
+    return { status: 'ready', paperId, key, questionCount: questions.length, marks, answerKeySent };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
     logToFile('[assessment-revision] failed', { userId, paperId, code, error: err.message });
