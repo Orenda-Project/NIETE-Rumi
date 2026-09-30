@@ -171,6 +171,30 @@
             }
           ]
         },
+        "chapters_more": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "21",
+              "title": "21 · Kindness (pages 98-102)"
+            }
+          ]
+        },
+        "has_more_chapters": {
+          "type": "boolean",
+          "__example__": false
+        },
         "summary": {
           "type": "string",
           "__example__": "Grade 1 · English"
@@ -215,8 +239,15 @@
                 "description": "Tick every chapter the test should cover.",
                 "required": false,
                 "data-source": "${data.chapters}",
-                "visible": "${data.has_chapters}",
-                "max-selected-items": 6
+                "visible": "${data.has_chapters}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "chapters_more",
+                "label": "More chapters",
+                "required": false,
+                "data-source": "${data.chapters_more}",
+                "visible": "${data.has_more_chapters}"
               },
               {
                 "type": "OptIn",
@@ -230,6 +261,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "chapters": "${form.chapters}",
+                    "chapters_more": "${form.chapters_more}",
                     "use_pages": "${form.use_pages}"
                   }
                 }
@@ -841,7 +873,8 @@
             "type": "Form",
             "name": "confirm_form",
             "init-values": {
-              "output_format": "pdf"
+              "output_format": "pdf",
+              "answer_lines": true
             },
             "children": [
               {
@@ -865,11 +898,6 @@
                 "label": "Lines for the answers"
               },
               {
-                "type": "OptIn",
-                "name": "answer_key",
-                "label": "Include an answer key"
-              },
-              {
                 "type": "Footer",
                 "label": "Make my paper",
                 "on-click-action": {
@@ -877,7 +905,6 @@
                   "payload": {
                     "output_format": "${form.output_format}",
                     "answer_lines": "${form.answer_lines}",
-                    "answer_key": "${form.answer_key}",
                     "extension_message_response": "${data.extension_message_response}"
                   }
                 }

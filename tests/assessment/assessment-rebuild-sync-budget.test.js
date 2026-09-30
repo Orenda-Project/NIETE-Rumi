@@ -47,6 +47,8 @@ jest.mock('../../bot/shared/storage/r2', () => ({
 jest.mock('../../bot/shared/config/feature-flags', () => ({
   isAssessmentGeneratorEnabled: jest.fn().mockResolvedValue(true),
   isAssessmentEditingEnabled: jest.fn().mockResolvedValue(true),
+  // The old KEEP/PICK path: versioned editing explicitly OFF.
+  isAssessmentVersionsEnabled: jest.fn().mockResolvedValue(false),
   ASSESSMENT_GENERATOR_KEY: 'assessment_generator_enabled',
   ASSESSMENT_EDITING_KEY: 'assessment_editing_enabled',
 }));
@@ -114,5 +116,11 @@ test('PICK_DONE rebuild answers within the budget; the document is sent now, unp
   expect(docs).toHaveLength(1);
   expect(docs[0][1].to).toBe(mockPhone);
   const paced = logToFile.mock.calls.filter((c) => c[0] === 'whatsapp.paced').map((c) => c[1]);
-  expect(paced).toEqual([expect.objectContaining({ outcome: 'unpaced', reason: 'sync_budget' })]);
+  // bd-bfnsk: the revised paper is now followed by its answer key. The key is
+  // not what the screen waits on, so it is sent in the background and takes its
+  // normal pacing turn — it must NOT ride the paper's sync-budget exemption, and
+  // it must not have gone out inside the Flow's window.
+  expect(paced[0]).toEqual(expect.objectContaining({ outcome: 'unpaced', reason: 'sync_budget' }));
+  expect(paced.slice(1)).toEqual(paced.slice(1).map(() => expect.objectContaining({ outcome: 'waited' })));
+  expect(paced.filter((e) => e.reason === 'sync_budget')).toHaveLength(1);
 });

@@ -103,8 +103,53 @@ describe('rerender — an edit becomes a document', () => {
 
   test('sends BY LINK — the sender that dereferences a signed url itself', async () => {
     await Revision.rerender({ paperId: 'paper-1', userId: 'user-1', selectedIds: ['seen.objective.MCQs.0'] });
-    expect(mockSendDocumentByLink).toHaveBeenCalledTimes(1);
+    // bd-bfnsk: the paper, then its answer key (was: exactly one document).
+    expect(mockSendDocumentByLink).toHaveBeenCalledTimes(2);
     expect(mockSendDocumentByLink.mock.calls[0][1]).toBe('https://signed.example/paper.pdf');
+    expect(mockSendDocumentByLink.mock.calls[0][2]).not.toMatch(/AnswerKey/);
+  });
+
+  // bd-bfnsk — the revised paper renumbers its questions, so the first key no
+  // longer matches it. Every paper is followed by its own key.
+  test('follows the revised paper with a key for exactly the questions she kept', async () => {
+    mockUpload
+      .mockResolvedValueOnce('exams/user-1/paper-1/Grade4_Science_Edited.pdf')
+      .mockResolvedValueOnce('exams/user-1/paper-1/Grade4_Science_Edited_AnswerKey.pdf');
+    const res = await Revision.rerender({ paperId: 'paper-1', userId: 'user-1', selectedIds: ['seen.objective.MCQs.0'] });
+    expect(res.status).toBe('ready');
+    const keyHtml = mockHtmlToPdf.mock.calls[1][0];
+    expect(keyHtml).toContain('Answer Key');
+    expect(keyHtml).toContain('Which is a living thing?');
+    expect(keyHtml).not.toContain('The sun is a plant.');
+    expect(mockSendDocumentByLink.mock.calls[1][2]).toMatch(/AnswerKey/);
+    const row = patched.reduce((a, p) => Object.assign(a, p), {});
+    expect(row.answer_key_r2_key).toBe('exams/user-1/paper-1/Grade4_Science_Edited_AnswerKey.pdf');
+  });
+
+  test('a key that fails still leaves her the revised paper', async () => {
+    mockSendDocumentByLink.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const res = await Revision.rerender({ paperId: 'paper-1', userId: 'user-1', selectedIds: ['seen.objective.MCQs.0'] });
+    expect(res.status).toBe('ready');
+  });
+
+  // bd-bfnsk item 4 — the revision path used to hardcode answer lines ON, so a
+  // teacher who unticked them got lines back the moment she trimmed the paper.
+  test('keeps answer lines off on a revised paper when she turned them off', async () => {
+    const withLines = { ...PAPER, exam_json: { unseen: { subjective: { 'Short Questions': [
+      { question: 'Describe it.', marks: 2, lines: 6 }] } } } };
+    wireDb({ paper: { ...withLines, assessment_requests: { ...PAPER.assessment_requests, has_answer_lines: false } } });
+    await Revision.rerender({ paperId: 'paper-1', userId: 'user-1', selectedIds: null });
+    const html = mockHtmlToPdf.mock.calls[0][0];
+    expect((html.match(/<div class="answer-line">/g) || []).length).toBe(0);
+  });
+
+  test('prints the stored lines on a revised paper when answer lines are on', async () => {
+    const withLines = { ...PAPER, exam_json: { unseen: { subjective: { 'Short Questions': [
+      { question: 'Describe it.', marks: 2, lines: 6 }] } } } };
+    wireDb({ paper: { ...withLines, assessment_requests: { ...PAPER.assessment_requests, has_answer_lines: true } } });
+    await Revision.rerender({ paperId: 'paper-1', userId: 'user-1', selectedIds: null });
+    const html = mockHtmlToPdf.mock.calls[0][0];
+    expect((html.match(/<div class="answer-line">/g) || []).length).toBe(6);
   });
 
   test('writes her ticks and the edited tree, and stamps edited_at', async () => {

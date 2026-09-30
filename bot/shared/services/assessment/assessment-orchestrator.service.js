@@ -49,6 +49,9 @@ const ENV = globalThis.process.env;
 // One definition, shared with the Flow endpoint and the portal's browse
 // service. Was copied verbatim into three files.
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
+const { resolveUx } = require('../../config/ux-strings');
+const Delivery = require('./assessment-delivery');
+const { isAssessmentVersionsEnabled } = require('../../config/feature-flags');
 
 /**
  * What she is told, per failure. Each one names the thing she can change; a
@@ -127,6 +130,44 @@ async function _patchPaper(paperId, patch) {
 }
 
 /**
+ * Render the answer key, put it in storage, and record where it went.
+ *
+ * Every paper gets one now (bd-bfnsk) — the teacher is no longer asked, and a
+ * job still carrying includeAnswerKey=false from before that change is not
+ * obeyed. Shared by both surfaces: WhatsApp sends it after the paper, the portal
+ * serves it from `answer_key_r2_key` behind its download button.
+ *
+ * Recorded BEFORE any send, and deliberately so. The upload is what makes the
+ * key retrievable; the send is what makes it delivered, and those are different
+ * facts. Until V1.4.2 this location went into a log line and nowhere else, so a
+ * teacher who lost the message lost the key permanently: regenerating runs the
+ * model again and yields different questions, so a new key would not match the
+ * paper she printed.
+ *
+ * Never throws. The paper is the thing she asked for; a key that fails is
+ * logged and returns null, and never turns a good paper into a failed one.
+ */
+async function _storeAnswerKey({
+  paperId, requestId, userId, examJson, grade, subject, schoolName, pageReference, chapterTitle, renderer,
+}) {
+  try {
+    const keyHtml = Renderer.renderAnswerKey({
+      examJson, grade, subject, schoolName: schoolName || null, pageReference, chapterTitle,
+    });
+    const keyBuffer = await renderer.render(keyHtml);
+    const keyName = fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: '_AnswerKey' });
+    const keyKey = await r2.uploadExamBuffer({
+      buffer: keyBuffer, userId, examId: paperId || requestId, filename: keyName,
+    });
+    await _patchPaper(paperId, { answer_key_r2_key: keyKey });
+    return { keyKey, keyName };
+  } catch (err) {
+    logToFile('[assessment] answer key failed', { userId, requestId, paperId, error: err.message });
+    return null;
+  }
+}
+
+/**
  * Everything between a queued request and a finished document — and nothing
  * about handing it over.
  *
@@ -155,7 +196,7 @@ async function buildPaper(job, user = {}) {
   const {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
     questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null,
-    outputFormat = 'pdf', includeAnswerKey = false, answerLines = true,
+    outputFormat = 'pdf', answerLines = true,
   } = job;
 
   // Open the record before doing any work, so a job that dies mid-flight leaves
@@ -179,20 +220,26 @@ async function buildPaper(job, user = {}) {
       grade, subject,
       pageContent: source.content,
       pageReference: source.pageReference,
-      contentSource, questionCount, totalMarks, questionTypes, includeAnswerKey, seenCount,
+      // Always: answers are generated for every paper, so a key can always be
+      // made — now, after a revision, or from the portal later (bd-bfnsk).
+      contentSource, questionCount, totalMarks, questionTypes, includeAnswerKey: true, seenCount,
     });
 
+    // With versioned editing the generated row IS version 1 and is never
+    // rewritten, so the frozen copy is redundant. Until the flag is on, the old
+    // in-place edit path still needs it to keep the model's paper recoverable.
+    const versioned = await isAssessmentVersionsEnabled();
     await _patchPaper(paperId, {
       exam_json: generated.examJson,
-      original_exam_json: generated.examJson,
+      ...(versioned ? {} : { original_exam_json: generated.examJson }),
       question_count: generated.questionCount,
       model: generated.tokenData?.model,
       input_tokens: generated.tokenData?.inputTokens,
       output_tokens: generated.tokenData?.outputTokens,
     });
 
-    // The paper never carries the answers; the key, if she asked for one, is a
-    // second document built after it.
+    // The paper never carries the answers; the key is a second document built
+    // after it.
     const html = Renderer.renderPaper({
       examJson: generated.examJson,
       grade, subject,
@@ -249,6 +296,7 @@ async function buildPaper(job, user = {}) {
       renderer,
       chapterTitle: source.chapterTitle || null,
       pageReference: source.pageReference,
+      versioned,
     };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
@@ -270,7 +318,8 @@ async function buildPaper(job, user = {}) {
  * offer to trim, and a sentence when any of it goes wrong.
  */
 async function process(job) {
-  const { userId, requestId, grade, subject, includeAnswerKey = false } = job;
+  // `includeAnswerKey` on the job is no longer read: every paper gets its key.
+  const { userId, requestId, grade, subject } = job;
 
   // Where this paper is going.
   //
@@ -307,6 +356,15 @@ async function process(job) {
   // says so, and whoever asked for it is polling — which is the entire contract
   // for a surface that is not a chat.
   if (!toWhatsApp) {
+    // Nobody to send it to, but it is still made and stored, so the portal's
+    // "Answer key" button has something behind it.
+    if (built.status === 'ready') {
+      await _storeAnswerKey({
+        paperId: built.paperId, requestId, userId, examJson: built.examJson, grade, subject,
+        schoolName: user?.school_name, pageReference: built.pageReference,
+        chapterTitle: built.chapterTitle, renderer: built.renderer,
+      });
+    }
     logToFile('[assessment] built without delivery', {
       userId, requestId, paperId: built.paperId, status: built.status, deliver,
     });
@@ -353,7 +411,24 @@ async function process(job) {
     // "your paper is ready 👇" sent BEFORE the document is a promise made by a
     // step that has not run yet, and when the send failed that is exactly what
     // she was left holding.
-    const sent = await WhatsAppService.sendDocumentByLink(phone, url, name, caption);
+    // Versioned editing: the paper carries its own Edit button — one message,
+    // the PDF as the header of a Flow message whose button opens the list for
+    // THIS row (version 1). Otherwise, exactly the document it always was.
+    const versioned = built.versioned === true;
+    let sent;
+    if (versioned) {
+      const title = [`Grade ${grade} ${SUBJECT_LABEL[subject] || subject}`, chapterTitle].filter(Boolean).join(' · ');
+      const delivered = await Delivery.sendPaperWithEditButton({
+        phone, url, filename: name, caption, user,
+        body: resolveUx('assessmentPaperBody', {
+          user, params: { title, count: questionCount, marks: built.marks ?? 0 },
+        }),
+        flowToken: paperId ? `${userId}:assessment-review:${paperId}` : null,
+      });
+      sent = delivered.sent;
+    } else {
+      sent = await WhatsAppService.sendDocumentByLink(phone, url, name, caption);
+    }
     if (!sent) {
       throw Object.assign(new Error('sendDocumentByLink returned falsy'),
         { code: 'SEND_FAILED' });
@@ -361,38 +436,19 @@ async function process(job) {
 
     // The paper is hers now. Whatever happens to the key from here is logged,
     // never allowed to turn a delivered paper into a "failed" message.
-    let answerKeySent = null;
-    if (includeAnswerKey) {
-      answerKeySent = false;
+    // Every paper is followed by its key (bd-bfnsk).
+    let answerKeySent = false;
+    const stored = await _storeAnswerKey({
+      paperId, requestId, userId, examJson, grade, subject,
+      schoolName: user.school_name, pageReference, chapterTitle, renderer,
+    });
+    if (stored) {
       try {
-        const keyHtml = Renderer.renderAnswerKey({
-          examJson, grade, subject,
-          schoolName: user.school_name || null,
-          pageReference, chapterTitle,
-        });
-        const keyBuffer = await renderer.render(keyHtml);
-        const keyName = fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: '_AnswerKey' });
-        const keyKey = await r2.uploadExamBuffer({
-          buffer: keyBuffer, userId, examId: paperId || requestId, filename: keyName,
-        });
-        // Recorded BEFORE the send, and deliberately so.
-        //
-        // The upload is what makes the key retrievable; the send is what makes
-        // it delivered, and those are different facts. Writing the column only
-        // after a successful send would lose exactly the case the column exists
-        // for — a key sitting in R2 that we can no longer point at.
-        //
-        // Until V1.4.2 this location went into the log line below and nowhere
-        // else, so a teacher who lost the message lost the key permanently:
-        // regenerating runs the model again and yields different questions, so
-        // the new key does not match the paper she printed.
-        await _patchPaper(paperId, { answer_key_r2_key: keyKey });
-
-        const keyUrl = await r2.getPresignedUrl(r2.buildR2PublicUrl(keyKey), 3600);
+        const keyUrl = await r2.getPresignedUrl(r2.buildR2PublicUrl(stored.keyKey), 3600);
         answerKeySent = !!(await WhatsAppService.sendDocumentByLink(
-          phone, keyUrl, keyName, `Answer key · ${caption}`));
+          phone, keyUrl, stored.keyName, `Answer key · ${caption}`));
         logToFile(answerKeySent ? '[assessment] answer key delivered' : '[assessment] answer key send returned falsy',
-          { userId, requestId, paperId, key: keyKey });
+          { userId, requestId, paperId, key: stored.keyKey });
       } catch (err) {
         logToFile('[assessment] answer key failed', { userId, requestId, paperId, error: err.message });
       }
@@ -403,16 +459,20 @@ async function process(job) {
     // AFTER the document — a prompt sent before the send is a promise made by a
     // step that has not run yet — and it can only ever be an addition: a paper
     // that arrived is delivered whether or not she is offered the trim.
-    if (paperId) {
+    //
+    // Not with versioned editing: the Edit button is already ON the paper.
+    if (paperId && !versioned) {
       try {
         const flowId = reviewFlowId();
         if (flowId) {
           await WhatsAppService.sendFlow(phone, {
             flowId,
-            header: '✏️ Change this paper',
-            body: 'Want a shorter paper? Open this to untick any questions you '
-              + 'do not want, and I will make it again.',
-            buttonText: 'Choose questions',
+            // Teacher-addressed, so read in her CURRENT language at send time.
+            // It names marks and wording, not only removal: the Flow has done
+            // all three since 6 Sep and almost nobody knew (bd-q3rfn).
+            header: resolveUx('assessmentReviewOfferHeader', { user }),
+            body: resolveUx('assessmentReviewOfferBody', { user }),
+            buttonText: resolveUx('assessmentReviewOfferButton', { user }),
             // The token names the PAPER; INIT reads it and opens REVIEW rather
             // than starting a new request. No `screen`, so this is data_exchange.
             flowToken: `${userId}:assessment-review:${paperId}`,

@@ -154,7 +154,9 @@ describe('a multi-chapter request is stored so the worker can build it', () => {
     });
 
     expect(inserted).not.toBeNull();
-    expect(inserted.page_ranges).toBe('15-27, 28-40');
+    // Chapters 2 and 3 are neighbours, so their pages read as one span
+    // (merged since the chapter cap was lifted — see assessment-chapter-cap).
+    expect(inserted.page_ranges).toBe('15-40');
   });
 
   test('chapter_number stays a scalar the INTEGER column can hold', async () => {
@@ -191,7 +193,7 @@ describe('a multi-chapter request is stored so the worker can build it', () => {
     expect(mockQueueJob).toHaveBeenCalled();
     const [, jobType, job] = mockQueueJob.mock.calls[0];
     expect(jobType).toBe('assessment_generate');
-    expect(job.pageRanges).toBe('15-27, 28-40');
+    expect(job.pageRanges).toBe('15-40');
     // The orchestrator branches on `chapterNumber != null` and would load ONE
     // chapter. A multi-chapter job must take the page-range branch.
     expect(job.chapterNumber).toBeNull();

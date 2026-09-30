@@ -20,7 +20,10 @@ const path = require('path');
 // a Flow opens on screens[0] and KEEP was unreachable behind a terminal CONFIRM.
 // The contract spans both.
 const FLOW = {
-  screens: ['assessment-gen-flow.json', 'assessment-review-flow.json'].flatMap((f) =>
+  // Both review assets: v8 (versioned editing) and the KEEP/PICK rollback asset
+  // served while assessment_versions_enabled is off.
+  screens: ['assessment-gen-flow.json', 'assessment-review-flow.json',
+    'rollback/assessment-review-flow.prod-v7-2026-09-30.json'].flatMap((f) =>
     JSON.parse(fs.readFileSync(path.join(__dirname, '../../docs/flows', f), 'utf8')).screens),
 };
 const ENDPOINT_SRC = fs.readFileSync(
