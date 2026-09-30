@@ -145,8 +145,11 @@ function createEmulator(flowJson, opts) {
   }
 
   const norm = (s) => String(s || '').trim().toLowerCase();
-  function findItem(text, { exact = false, kinds = null } = {}) {
+  // `id` picks a row by its own id — the quiz LESSONS list titles every row "28 Sep · Mathematics",
+  // so a title click lands on the first of them (run 20260927-1742: eleven scenarios opened the wrong lesson).
+  function findItem(text, { exact = false, kinds = null, id = null } = {}) {
     const want = norm(text);
+    if (id != null) return probe().items.find((i) => (!kinds || kinds.includes(i.kind)) && String(i.id) === String(id)) || null;
     return probe().items.find((i) => (!kinds || kinds.includes(i.kind)) && (exact ? norm(i.text) === want : (norm(i.text).includes(want) || norm(i.hay).includes(want))));
   }
 
@@ -166,6 +169,17 @@ function createEmulator(flowJson, opts) {
     try { res = await o.transport.exchange(o.endpointUrl, req); } catch (e) { return { ok: false, err: 'ENDPOINT_FAILED:' + e.message.slice(0, 160) }; }
     if (o.onExchange) o.onExchange(req, res);
     if (res && res.data && (res.data.error || res.data.error_message)) return { ok: false, err: 'ENDPOINT_ERROR:' + (res.data.error_message || res.data.error) };
+    if (res && res.screen === 'SUCCESS' && !screensById.SUCCESS) {
+      // Meta's reserved terminal screen, answered by an endpoint whose Flow JSON defines no SUCCESS
+      // screen of its own: the client closes the Flow and sends a completion whose response_json is
+      // extension_message_response.params (the transcript-quiz LESSON answers make/remake/done this
+      // way). A Flow that DOES define SUCCESS (Settings: a Done footer) is entered like any screen.
+      const params = (res.data && res.data.extension_message_response && res.data.extension_message_response.params) || {};
+      const done = { flowId: o.flowId, flowToken: o.flowToken, name: `flow_${o.flowId}`, response_json: params };
+      st.open = false; st.log.push({ complete: params, via: 'SUCCESS' });
+      if (o.onComplete) await o.onComplete(done);
+      return { ok: true, screen: 'SUCCESS', completed: done };
+    }
     if (res && res.screen) {
       if (st.screen && routing[st.screen] && !routing[st.screen].includes(res.screen) && res.screen !== st.screen) return { ok: false, err: `ROUTING_REFUSED:${st.screen}→${res.screen}` };
       enterScreen(res.screen, res.data || {});
@@ -220,10 +234,10 @@ function createEmulator(flowJson, opts) {
       // already in the probe here, so it is a successful no-op — scripts do this before picking.
       const want = norm(text);
       const field = components().find((c) => OPTION_TYPES.has(c.type) && norm(label(c)) && (opts.exact ? norm(label(c)) === want : norm(label(c)).includes(want)));
-      if (field && !findItem(text, { exact: !!opts.exact, kinds: ['footer', 'link', 'nav', 'optin'] })) return { ok: true, clicked: String(label(field)) };
+      if (field && !opts.id && !findItem(text, { exact: !!opts.exact, kinds: ['footer', 'link', 'nav', 'optin'] })) return { ok: true, clicked: String(label(field)) };
       // Footer/link/nav first (an action), then an option (a selection) — the browser helper clicks
       // whichever element carries the text, so scripts drive lists with flowClick as well as flowPick.
-      const it = findItem(text, { exact: !!opts.exact, kinds: ['footer', 'link', 'nav', 'optin'] }) || findItem(text, { exact: !!opts.exact, kinds: ['option'] });
+      const it = findItem(text, { exact: !!opts.exact, kinds: ['footer', 'link', 'nav', 'optin'], id: opts.id }) || findItem(text, { exact: !!opts.exact, kinds: ['option'], id: opts.id });
       if (!it) return { ok: false, err: 'NO_ITEM:' + text, seen: probe().items.map((i) => i.text) };   // what WAS on screen
       if (it.disabled) return { ok: false, err: 'DISABLED:' + it.text };
       if (it.kind === 'option') { const r = this.pick(it.text, { exact: true }); if (!r.ok) return r; const a = await settle(); return a.ok ? { ok: true, clicked: it.text } : a; }

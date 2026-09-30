@@ -37,7 +37,16 @@ const stripPlus = (p) => (p && p.startsWith('+') ? p.slice(1) : p);
 const JOIN_KEY = (phone) => `videoquiz:${stripPlus(phone)}:join`;
 // Ack-first join lock: one join per phone+code at a time (see beginFromCodeLocked).
 const JOIN_LOCK_KEY = (phone, code) => `videoquiz:${stripPlus(phone)}:joinlock:${code}`;
-const JOIN_LOCK_SECS = 60;
+// One join per phone+code per minute. VIDEO_QUIZ_JOIN_LOCK_SECS shortens it for a test lane
+// (the mock lane sets 5 so a rejoin scenario does not idle a minute); unset or not a number → 60.
+const JOIN_LOCK_SECS = (() => {
+  const raw = String(process.env.VIDEO_QUIZ_JOIN_LOCK_SECS || '').trim();
+  if (!raw) return 60;
+  const n = /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN;
+  if (Number.isInteger(n) && n > 0 && n <= 3600) return n;
+  logToFile('⚠️ VIDEO_QUIZ_JOIN_LOCK_SECS is not a whole number of seconds up to 3600 — using 60', { raw }, 'warn');   // set-and-rejected is said, never silent
+  return 60;
+})();
 
 // Chrome a CHILD reads, in the quiz language.
 const ux = (key, language, params) => resolveUx(key, { language, params });
