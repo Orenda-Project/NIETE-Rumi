@@ -23,7 +23,7 @@
 const fs = require('fs');
 const path = require('path');
 const { getClient } = require('../llm-client');
-const AudioService = require('../audio.service');
+const tts = require('../tts');
 const FluencyService = require('./fluency.service');
 const { logToFile } = require('../../utils/logger');
 const { voiceLanguageRules } = require('../../config/voice-language-rules'); // bd-2651
@@ -62,8 +62,9 @@ class VoiceFeedbackService {
         language: userLanguage
       });
 
-      // Step 2: Convert script to speech using appropriate TTS
-      const audioBuffer = await AudioService.generateSpeechForLanguage(script, userLanguage);
+      // Step 2: Convert script to speech (the voice gateway picks who speaks)
+      const spoken = await tts.synthesize({ text: script, language: userLanguage, useCase: 'reading', site: 'feedback' });
+      const audioBuffer = spoken.audio;
 
       logToFile('✅ Voice feedback audio generated', {
         assessmentId: assessment.id,
