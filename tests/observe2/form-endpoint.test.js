@@ -44,11 +44,11 @@ async function newForm(patch = {}) {
 }
 
 const PART_1_OK = {
-  screen: 'PART_1', present: '32', p1_spoke: '6', p1_picked: 'once', p1_groups: 'alone', p1_listen: ['turns'],
+  screen: 'PART_ONE', present: '32', p1_spoke: '6', p1_picked: 'once', p1_groups: 'alone', p1_listen: ['turns'],
   p1_listen_other: '', p1_materials: 'teacher', p1_change: 'yes', p1_change_how: 'slow', p1_notes: '8 min: board wiped',
 };
 const PART_2_OK = {
-  screen: 'PART_2', p2_spoke: '10', p2_new: '5', p2_picked: 'often', p2_groups: 'combine', p2_listen: ['once'],
+  screen: 'PART_TWO', p2_spoke: '10', p2_new: '5', p2_picked: 'often', p2_groups: 'combine', p2_listen: ['once'],
   p2_listen_other: '', p2_materials: 'children', p2_change: 'no', p2_notes: '',
 };
 const AFTER_OK = { screen: 'AFTER', incident: 'none', detail: '', note: '', lp: 'used', priority: 'C8', seal_ok: true };
@@ -68,7 +68,7 @@ describe('opening the form', () => {
   test('a new form opens on Part 1, naming the teacher and the halfway minute', async () => {
     const id = await newForm();
     const out = await Endpoint.handleObserve2FormInit(token(id));
-    expect(out.screen).toBe('PART_1');
+    expect(out.screen).toBe('PART_ONE');
     expect(out.data.teacher_line).toContain('Rabia');
     expect(out.data.part_hint).toMatch(/minute 20/);
     expect(out.data).toMatchObject({ error_messages: {}, error: '', has_error: false });
@@ -103,8 +103,8 @@ describe('opening the form', () => {
 describe('Part 1 and Part 2', () => {
   test('an impossible number is refused under its field, and nothing is saved', async () => {
     const id = await newForm();
-    const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_1', { ...PART_1_OK, p1_spoke: '40' });
-    expect(out.screen).toBe('PART_1');
+    const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', { ...PART_1_OK, p1_spoke: '40' });
+    expect(out.screen).toBe('PART_ONE');
     expect(out.data.error_messages.p1_spoke).toBeTruthy();
     expect(out.data.has_error).toBe(true);
     expect(row(id).part1_done_at).toBeUndefined();
@@ -112,8 +112,8 @@ describe('Part 1 and Part 2', () => {
 
   test('"Part 1 done" saves the part with the server time and opens Part 2', async () => {
     const id = await newForm();
-    const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_1', PART_1_OK);
-    expect(out.screen).toBe('PART_2');
+    const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', PART_1_OK);
+    expect(out.screen).toBe('PART_TWO');
     expect(out.data.part_hint).toMatch(/minute 20 to 40/);
     expect(row(id).answers).toMatchObject({ present: '32', p1_spoke: '6', p1_listen: ['turns'] });
     expect(row(id).part1_done_at).toBeTruthy();
@@ -121,16 +121,16 @@ describe('Part 1 and Part 2', () => {
 
   test('Part 2 is checked against Part 1: more first-time speakers than silent children is refused', async () => {
     const id = await newForm();
-    await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_1', PART_1_OK);
-    const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_2', { ...PART_2_OK, p2_spoke: '30', p2_new: '27' });
-    expect(out.screen).toBe('PART_2');
+    await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', PART_1_OK);
+    const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_TWO', { ...PART_2_OK, p2_spoke: '30', p2_new: '27' });
+    expect(out.screen).toBe('PART_TWO');
     expect(out.data.error_messages.p2_new).toMatch(/26/);
   });
 
   test('"Part 2 done" saves and opens the seal screen', async () => {
     const id = await newForm();
-    await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_1', PART_1_OK);
-    const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_2', PART_2_OK);
+    await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', PART_1_OK);
+    const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_TWO', PART_2_OK);
     expect(out.screen).toBe('AFTER');
     expect(row(id).part2_done_at).toBeTruthy();
   });
@@ -139,8 +139,8 @@ describe('Part 1 and Part 2', () => {
 describe('the seal', () => {
   async function toAfter() {
     const id = await newForm();
-    await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_1', PART_1_OK);
-    await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_2', PART_2_OK);
+    await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', PART_1_OK);
+    await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_TWO', PART_2_OK);
     return id;
   }
 
@@ -212,7 +212,7 @@ describe('the seal', () => {
 
 describe('Continue, on a reopened form', () => {
   test.each([
-    [{ part1_done_at: 'x' }, 'PART_2'],
+    [{ part1_done_at: 'x' }, 'PART_TWO'],
     [{ part1_done_at: 'x', part2_done_at: 'x' }, 'AFTER'],
     [{ part1_done_at: 'x', part2_done_at: 'x', sealed_at: '2026-09-30T05:39:00.000Z' }, 'SEALED'],
   ])('%j goes on to %s', async (patch, next) => {

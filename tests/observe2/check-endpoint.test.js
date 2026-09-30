@@ -102,7 +102,7 @@ describe('the levels', () => {
   test('after the last moment screen: pre-filled from the sealed answers and the confirmed moments', async () => {
     const id = await checkable();
     const out = await toAdded(id);
-    expect(out.screen).toBe('ADDED_1');
+    expect(out.screen).toBe('ADDED_ONE');
     expect(out.data.C3_level).toBe('3');
     expect(out.data.C3_because).toMatch(/you saw/);
     expect(out.data.C2_level).toBe('1');
@@ -118,10 +118,10 @@ describe('the levels', () => {
   test('then the second half of the levels, then the pick sealed before any moment was seen', async () => {
     const id = await checkable();
     await toAdded(id);
-    const a2 = await Check.handleObserve2CheckDataExchange(token(id), 'ADDED_1', { screen: 'ADDED_1', C1_final: '2', C2_final: '1', C3_final: '3', C6_final: '2', D1_final: '2', D2_final: '4', D4_final: 'IE', D5_final: '1' });
-    expect(a2.screen).toBe('ADDED_2');
+    const a2 = await Check.handleObserve2CheckDataExchange(token(id), 'ADDED_ONE', { screen: 'ADDED_ONE', C1_final: '2', C2_final: '1', C3_final: '3', C6_final: '2', D1_final: '2', D2_final: '4', D4_final: 'IE', D5_final: '1' });
+    expect(a2.screen).toBe('ADDED_TWO');
     expect(Object.keys(a2.data).filter((k) => k.endsWith('_level')).sort()).toEqual(['C4_level', 'C5_level', 'C7_level', 'C8_level', 'D3_level', 'F1_level', 'F2_level', 'F3_level', 'F4_level'].sort());
-    const pr = await Check.handleObserve2CheckDataExchange(token(id), 'ADDED_2', { screen: 'ADDED_2', C4_final: '1', C5_final: '2', C7_final: '3', C8_final: '3', D3_final: '2', F1_final: '3', F2_final: '2', F3_final: '2', F4_final: '1' });
+    const pr = await Check.handleObserve2CheckDataExchange(token(id), 'ADDED_TWO', { screen: 'ADDED_TWO', C4_final: '1', C5_final: '2', C7_final: '3', C8_final: '3', D3_final: '2', F1_final: '3', F2_final: '2', F3_final: '2', F4_final: '1' });
     expect(pr).toEqual({ screen: 'PRIORITY', data: { priority_level: 'C8' } });
   });
 });
@@ -132,8 +132,8 @@ describe('Submit, and the brief', () => {
       // eslint-disable-next-line no-await-in-loop
       await Check.handleObserve2CheckDataExchange(token(id), s, heardPayload(s, { 1: 'yes', 2: 'yes' }));
     }
-    await Check.handleObserve2CheckDataExchange(token(id), 'ADDED_1', { screen: 'ADDED_1', C1_final: '3', C2_final: '1', C3_final: '3', C6_final: '2', D1_final: '3', D2_final: '4', D4_final: 'IE', D5_final: '1' });
-    await Check.handleObserve2CheckDataExchange(token(id), 'ADDED_2', { screen: 'ADDED_2', C4_final: '1', C5_final: '2', C7_final: '3', C8_final: '2', D3_final: '2', F1_final: '3', F2_final: '2', F3_final: '2', F4_final: '1' });
+    await Check.handleObserve2CheckDataExchange(token(id), 'ADDED_ONE', { screen: 'ADDED_ONE', C1_final: '3', C2_final: '1', C3_final: '3', C6_final: '2', D1_final: '3', D2_final: '4', D4_final: 'IE', D5_final: '1' });
+    await Check.handleObserve2CheckDataExchange(token(id), 'ADDED_TWO', { screen: 'ADDED_TWO', C4_final: '1', C5_final: '2', C7_final: '3', C8_final: '2', D3_final: '2', F1_final: '3', F2_final: '2', F3_final: '2', F4_final: '1' });
   }
 
   test('Submit checks the record once, closes on DONE, and the brief arrives', async () => {

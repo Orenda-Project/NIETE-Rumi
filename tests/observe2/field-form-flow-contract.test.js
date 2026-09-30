@@ -38,10 +38,31 @@ describe('the committed JSON is the generator output', () => {
 });
 
 describe('the flow is internally consistent', () => {
+  // Meta rejects the upload otherwise: "Property 'id' should only consist of alphabets and
+  // underscores" (PATTERN_MISMATCH), found on the sandbox account 2026-09-30. Digits included.
+  // Meta's condition parser mis-groups combined comparisons: without parentheses it refuses
+  // "&&" next to "!=", and with them it reports "Type mismatch in an equality operation between
+  // '(${form.p1_groups} != none)' and 'cannot'" (sandbox account, 2026-09-30). So no If combines
+  // comparisons; two conditions are two nested Ifs.
+  test('no If condition combines comparisons; each is one comparison', () => {
+    const conditions = [];
+    walk(flow.screens.map((sc) => sc.layout.children), (c) => { if (c.type === 'If') conditions.push(c.condition); });
+    expect(conditions.length).toBeGreaterThan(0);
+    for (const c of conditions) {
+      expect(c).not.toMatch(/&&|\|\||[()]/);
+      expect(c).toMatch(/^\$\{form\.[a-z0-9_]+\} (==|!=) '[a-z]+'$/);
+    }
+  });
+
+  test('every screen id is letters and underscores only, as Meta requires', () => {
+    const ids = [...flow.screens.map((s) => s.id), ...Object.keys(flow.routing_model), ...Object.values(flow.routing_model).flat()];
+    expect(ids.filter((id) => !/^[A-Za-z_]+$/.test(id))).toEqual([]);
+  });
+
   test('the parts in order, forward-only routing, one terminal', () => {
-    expect(flow.screens.map((s) => s.id)).toEqual(['PART_1', 'PART_2', 'AFTER', 'SEALED', 'CONTINUE']);
+    expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'AFTER', 'SEALED', 'CONTINUE']);
     expect(flow.routing_model).toEqual({
-      PART_1: ['PART_2'], PART_2: ['AFTER'], AFTER: ['SEALED'], SEALED: [], CONTINUE: ['PART_2', 'AFTER', 'SEALED'],
+      PART_ONE: ['PART_TWO'], PART_TWO: ['AFTER'], AFTER: ['SEALED'], SEALED: [], CONTINUE: ['PART_TWO', 'AFTER', 'SEALED'],
     });
     expect(flow.screens.filter((s) => s.terminal).map((s) => s.id)).toEqual(['SEALED']);
   });
@@ -52,7 +73,7 @@ describe('the flow is internally consistent', () => {
   // screen, or the sealed screen.
   test('two entry screens: Part 1 for a new form, CONTINUE for a reopened one', () => {
     const incoming = new Set(Object.values(flow.routing_model).flat());
-    expect(flow.screens.map((s) => s.id).filter((id) => !incoming.has(id))).toEqual(['PART_1', 'CONTINUE']);
+    expect(flow.screens.map((s) => s.id).filter((id) => !incoming.has(id))).toEqual(['PART_ONE', 'CONTINUE']);
     const footer = components(screens.CONTINUE).find((c) => c.type === 'Footer');
     expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'CONTINUE' } });
     expect(Object.keys(screens.CONTINUE.data).sort()).toEqual(['continue_heading', 'continue_line']);
@@ -76,7 +97,7 @@ describe('the flow is internally consistent', () => {
   });
 
   test('each part and the seal screen return server checks through the Form error-messages', () => {
-    for (const id of ['PART_1', 'PART_2', 'AFTER']) {
+    for (const id of ['PART_ONE', 'PART_TWO', 'AFTER']) {
       const form = screens[id].layout.children.find((c) => c.type === 'Form');
       expect(form['error-messages']).toBe('${data.error_messages}');
       for (const k of ['error_messages', 'error', 'has_error']) expect(screens[id].data[k]).toBeDefined();
@@ -115,7 +136,7 @@ describe('WhatsApp caps, measured in code points', () => {
 describe('the form agrees with the rules module', () => {
   const ids = (screen, name) => byName(screens[screen], name)['data-source'].map((o) => o.id).sort();
   test.each(['p1', 'p2'])('%s answer ids all have a level', (p) => {
-    const S = `PART_${p.slice(1)}`;
+    const S = p === 'p1' ? 'PART_ONE' : 'PART_TWO';
     expect(ids(S, `${p}_picked`)).toEqual(Object.keys(PICKED).sort());
     expect(ids(S, `${p}_groups`)).toEqual(Object.keys(GROUPS).sort());
     expect(ids(S, `${p}_listen`)).toEqual(Object.keys(LISTEN).sort());
@@ -128,7 +149,7 @@ describe('the form agrees with the rules module', () => {
     for (const o of pri) expect(o.title).toBe(PRIORITY[o.id]);
   });
   test('no indicator code or level name reaches the coach during the lesson', () => {
-    const text = JSON.stringify([screens.PART_1.layout, screens.PART_2.layout]);
+    const text = JSON.stringify([screens.PART_ONE.layout, screens.PART_TWO.layout]);
     expect(text).not.toMatch(/\b[CDF][1-8]\b/);
     expect(text).not.toMatch(/Proficient|Developing|Highly Effective|rubric|indicator/i);
   });

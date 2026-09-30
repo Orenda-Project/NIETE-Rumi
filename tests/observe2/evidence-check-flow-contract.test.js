@@ -2,7 +2,7 @@
  * /observe2 — contract guards for "What Rumi heard", the check a coach does after sealing.
  *
  *   HEARD_ASK → HEARD_WRONG → HEARD_WORK → HEARD_EXPLAIN   a yes or no on each moment Rumi found
- *   ADDED_1 → ADDED_2                                        every level, pre-filled by the rule
+ *   ADDED_ONE → ADDED_TWO                                        every level, pre-filled by the rule
  *   PRIORITY                                                 the first pick, kept or changed, and why
  *   DONE
  *
@@ -40,7 +40,7 @@ describe('the committed JSON is the generator output', () => {
 
 describe('the flow is internally consistent', () => {
   test('eight screens, forward-only, one terminal', () => {
-    const ids = ['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'ADDED_1', 'ADDED_2', 'PRIORITY', 'DONE'];
+    const ids = ['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY', 'DONE'];
     expect(flow.screens.map((s) => s.id)).toEqual(ids);
     ids.forEach((id, i) => expect(flow.routing_model[id]).toEqual(i < ids.length - 1 ? [ids[i + 1]] : []));
     expect(flow.screens.filter((s) => s.terminal).map((s) => s.id)).toEqual(['DONE']);
@@ -62,7 +62,7 @@ describe('the flow is internally consistent', () => {
 });
 
 describe('every screen sends what the coach answered', () => {
-  test.each(['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'ADDED_1', 'ADDED_2', 'PRIORITY'])('%s posts its screen id and every field it shows', (id) => {
+  test.each(['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY'])('%s posts its screen id and every field it shows', (id) => {
     const action = footerOf(screens[id])['on-click-action'];
     expect(action.name).toBe('data_exchange');
     expect(action.payload.screen).toBe(id);
@@ -94,7 +94,7 @@ describe('levels: pre-filled from the rule, every option in plain words', () => 
     expect(codes).toEqual(MOMENTS.flatMap((m) => m.codes));
     expect([...codes].sort()).toEqual([...CODES].sort());
   });
-  test.each(['ADDED_1', 'ADDED_2'])('%s pre-fills each level from ${data.<code>_level}', (id) => {
+  test.each(['ADDED_ONE', 'ADDED_TWO'])('%s pre-fills each level from ${data.<code>_level}', (id) => {
     const form = screens[id].layout.children.find((c) => c.type === 'Form');
     const { codes } = ADDED_SCREENS.find((s) => s.id === id);
     for (const code of codes) {
@@ -128,5 +128,14 @@ describe('WhatsApp caps, measured in code points', () => {
       }
     }
     expect(problems).toEqual([]);
+  });
+});
+
+describe('Meta\'s naming rules', () => {
+  // Meta rejects the upload otherwise: "Property 'id' should only consist of alphabets and
+  // underscores" (PATTERN_MISMATCH), found on the sandbox account 2026-09-30. Digits included.
+  test('every screen id is letters and underscores only, as Meta requires', () => {
+    const ids = [...flow.screens.map((s) => s.id), ...Object.keys(flow.routing_model), ...Object.values(flow.routing_model).flat()];
+    expect(ids.filter((id) => !/^[A-Za-z_]+$/.test(id))).toEqual([]);
   });
 });
