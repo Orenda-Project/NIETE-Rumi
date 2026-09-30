@@ -115,12 +115,72 @@ and fall back, which the logs show as "using fallback". A miss on a wrapped call
 `E2E_CASSETTE_MISS` attributed to its scenario.
 
 **What a Phase 2 run proves today** (2026-09-08): lesson-plan 4 pass · 1 fail · 5 blocked (the Flow
-scenarios, as designed); coaching 4 pass · 1 fail · 2 blocked · 9 skipped (`DEEP=1` scenarios);
-training 6 pass · 0 fail · 11 blocked (the native Training Flow and account-state-gated scenarios) in
-75 seconds — its entry points, the two-word negative, statelessness and the certificates surface. The coaching pipeline reaches Step 1, replays the transcription from the
-mirror, and asks for the classroom photo; the shallow script declines by ignoring, so COA04 records
-the stall it would also record on chrome without `DEEP=1`. Run `DEEP=1` to walk the whole pipeline;
-its LLM calls will miss until the library holds them.
+scenarios, as designed); coaching 4 pass · 1 fail · 2 blocked · 9 skipped (`DEEP=1` scenarios). The
+coaching pipeline reaches Step 1, replays the transcription from the mirror, and asks for the
+classroom photo; the shallow script declines by ignoring, so COA04 records the stall it would also
+record on chrome without `DEEP=1`. Run `DEEP=1` to walk the whole pipeline; its LLM calls will miss
+until the library holds them.
+
+**Training grew from 6 scenarios to all 83** (2026-09-30, #1200). The quiz-generation scenarios
+needed levers the product itself does not expose to a script — a job enqueued or run right now, a
+lesson document seeded into R2 under the lane's own key, a process restarted with one env var
+flipped, a Redis key filled or dropped, a vendor call forced to answer badly on demand — and those
+levers surfaced two real bugs rather than test gaps: `quiz_offer`/`quiz_generate` were queued
+through `../queue/sqs-queue.service` directly instead of the pluggable driver index, so nothing
+reached BullMQ on the mock lane (bd-2aetj); and the worker's own gate for polling the `quiz`/`video`
+queues checked only the SQS-specific `SQS_QUIZ_QUEUE_URL`/`SQS_VIDEO_QUEUE_URL` env vars, so under
+`QUEUE_DRIVER=bullmq` a queued quiz sat "generating" forever (bd-p99wn, twin of bd-2aetj). Both are
+fixed on `sandbox`. The training feature file's full run on the pushed head: **81 pass · 3 fail · 1
+blocked of 83**. See `.claude/qa/shared/training-quiz-gen.cjs` for the generation cluster (T25 T28
+T29, T46–T84) and its owned-id list, and the new levers below.
+
+### New mock-lane levers (2026-09-30, #1200)
+
+The stack now sets three more things per run (`local-stack.sh`): `QUIZ_LP612_SOURCE=on` (quizzes can
+draw from a Grades 6-12 lesson, not just a coaching transcript), `VIDEO_QUIZ_JOIN_LOCK_SECS=5` (the
+class-quiz join lock is a minute in production; a rejoin scenario cannot wait that long), and
+`E2E_CASSETTE_FAULTS=<run_dir>/cassette-faults.json` (see below). Suite pacing for the mock method
+(`run-suite.sh`): `E2E_JOIN_LOCK_SECS` (mirrors `VIDEO_QUIZ_JOIN_LOCK_SECS`) and `E2E_QUIESCE_MS`
+(default 800ms — how long the mock waits for a burst of outbound sends to quiet down before reading
+the outbox).
+
+- **A job, on demand.** `bot/scripts/e2e/quiz-job.js enqueue <jobType> <groupId> '<payload>'
+  [delaySeconds]` puts one quiz job in front of the real queue driver, so the worker consumes it
+  exactly as production would. `quiz-job.js run <jobType> <groupId> '<payload>'` calls the handler
+  directly in-process instead, for a case the worker would otherwise defer (a nudge inside the
+  21:00–07:00 PKT quiet window re-queues itself until morning; a scenario cannot wait for that).
+  Handles `quiz_nudge_teacher` and `quiz_video_report`. Refuses the NIETE production project.
+- **A Grades 6-12 lesson document, on demand.** `bot/scripts/e2e/lp612-doc.js put <segment_id>
+  <lang> <template_version> <doc.json>` / `rm <segment_id> <lang> <template_version>` puts or
+  removes one lesson document in the lane's R2 bucket, under exactly the key the product computes
+  (`lp612-serving.service.js`'s `docKeyFor`) — needed because the backfilled 6-12 deliveries on
+  sandbox point at renders whose documents live in a different bucket. `template_version` must start
+  with `qa-`, so a seed can never collide with a real render's key.
+- **A resolver fallback for a flaky machine.** `bot/scripts/e2e/dns-pin.js`, preloaded by
+  `local-stack.sh` via `NODE_OPTIONS`, answers a hostname from the public resolvers (1.1.1.1 / 8.8.8.8)
+  when the OS resolver fails — the run machine has lost its router's DNS mid-run for 15+ minutes on
+  four separate occasions. The OS resolver is always tried first. `E2E_DNS_FALLBACK=off` disables it.
+- **A process restarted with a switch flipped.** `bot/scripts/e2e/local-stack.sh restart bot|worker
+  <run_dir> [KEY=VAL ...]` kills and relaunches one stack process with env overrides layered on the
+  composed `.env` — how a scenario proves a config-gated behaviour changes when the flag does
+  (training T72/T73), without tearing down the whole stack.
+- **A scripted vendor answer.** `E2E_CASSETTE_FAULTS` names a JSON file of rules
+  (`[{kind, match, times, content|throw}]`, `kind` one of `asr`/`llm`/`tts`) that `e2e-cassette.js`
+  answers instead of the cassette or the vendor when the request's normalised text matches — a
+  scenario's only way to force "the model gave no usable reply" or "the author never passed the
+  checks" on demand. Rule shape and file validation are documented in the module's own header
+  (`bot/shared/services/e2e-cassette.js`). Ignored whenever the cassette is off, so never live on
+  production. A scripted answer is never recorded into the real cassette library.
+- **A driver's async view of all four levers**, plus a private Redis command and the faults file:
+  `.claude/qa/shared/stack-control.cjs` (`restart`, `redis`, `job`, `lp612Doc`, `faults` /
+  `clearFaults` / `faultsLeft`). Every lever that shells out is async and awaited — a synchronous
+  wait past a restart can outlive the mock's dropped keep-alive sockets and the next request rides a
+  dead one. Absent `RUN_DIR`, every lever reports `{ ok: false }` and the driver records `BLOCKED`
+  with that reason, never a false pass.
+- **Seed helpers for the quiz scenarios** live in `.claude/qa/shared/niete_training_db.py`:
+  `seed-lp-download`, `seed-coaching-session`, `seed-lp612-delivery`, `seed-lp-quiz`
+  (`--lesson-id`/`--error`/`--topic`), `seed-class-quiz --topic`, `quizzes-for-lesson`, `driver-user`,
+  `purge-run-quizzes`.
 
 ## Phase 4, step 0 — the published Flow definitions, stored
 
@@ -219,6 +279,12 @@ the lane's feature list.
 | Mock driver | `.claude/qa/shared/mock-api.cjs` (selected by `E2E_METHOD=mock` in `feature-runner.cjs`) |
 | Runner, profile, ledger | `.claude/qa/shared/run-suite.sh` (`--method`, `--commit`), `whatsapp-targets.yaml` (`niete-local`), `ledger_row.py` |
 | Sandbox driver account | `.claude/qa/shared/niete_sandbox_driver.py` |
+| Quiz job, on demand (enqueue through the driver, or run its handler now) | `bot/scripts/e2e/quiz-job.js` |
+| Grades 6-12 lesson document, seeded into the lane's R2 bucket | `bot/scripts/e2e/lp612-doc.js` |
+| DNS resolver fallback for the mock lane (`E2E_DNS_FALLBACK`) | `bot/scripts/e2e/dns-pin.js` |
+| A driver's async view of restart/redis/job/lp612Doc/faults | `.claude/qa/shared/stack-control.cjs` |
+| Training's quiz-generation scenario cluster (T25 T28 T29, T46–T84) | `.claude/qa/shared/training-quiz-gen.cjs` |
+| Quiz/coaching/6-12 seed + purge helpers | `.claude/qa/shared/niete_training_db.py` |
 | Flow definitions + census | `bot/scripts/e2e/flow-inventory.js` → `.claude/qa/fixtures/flows/` |
 | Flow emulator (client side of a Flow, encrypted exchange) | `bot/scripts/e2e/flow-emulator.js`, used by `mock-api.cjs` (`E2E_FLOWS_DIR`, `E2E_FLOW_PUBLIC_KEY_B64`, `E2E_BOT_URL`) |
 | Tests | `tests/e2e-mock/*.test.js` (54), `.claude/qa/shared/test_mock_api.js` (23), `test_ledger_row.py`, `test_niete_sandbox_driver.py`, `test_preflight.py`, `test_niete_training_db.py`, `.claude/hooks/e2e-autorun.test.sh` |
