@@ -19,7 +19,8 @@
  *      to P's stored tree; otherwise P keeps its stored tree ('fallback').
  *   3. v1's PDF: the first file in exams/<user>/<P.id>/ that is neither the
  *      "_Edited" re-render nor an answer key (nothing in the row names it).
- *   4. v1 is inserted from original_exam_json — at attempt+1000 FIRST. The
+ *   4. v1 is inserted from original_exam_json, created 1s before P (so it
+ *      never ties with the child it is the parent of) — at attempt+1000 FIRST. The
  *      unique index covers roots only (edited_from IS NULL), and until P is
  *      patched both P and v1 are roots with the same (request_id, attempt), so
  *      inserting v1 at its real attempt fails on the first row.
@@ -58,6 +59,13 @@ function uuidv5(name, namespace) {
 
 function v1IdFor(paperId) {
   return uuidv5(paperId, NAMESPACE);
+}
+
+/** One second before the edited paper, so v1 sorts before the v2 it becomes the parent of. */
+function v1CreatedAt(childCreatedAt) {
+  const t = Date.parse(childCreatedAt);
+  if (!Number.isFinite(t)) throw new Error(`unparseable created_at: ${childCreatedAt}`);
+  return new Date(t - 1000).toISOString();
 }
 
 function parseArgs(argv) {
@@ -229,7 +237,9 @@ async function run(argv, injected = {}) {
           model: P.model || null,
           input_tokens: P.input_tokens ?? null,
           output_tokens: P.output_tokens ?? null,
-          created_at: P.created_at,
+          // Strictly OLDER than P (bd-5ioto.11): a shared created_at left
+          // "latest version" to an id tie-break and the portal showed v1.
+          created_at: v1CreatedAt(P.created_at),
           ready_at: P.ready_at,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id', ignoreDuplicates: true }), 'insert v1');
@@ -265,7 +275,7 @@ async function run(argv, injected = {}) {
   return { dryRun: !args.yes, counts, manifest };
 }
 
-module.exports = { run, uuidv5, v1IdFor, parseArgs, NAMESPACE };
+module.exports = { run, uuidv5, v1IdFor, v1CreatedAt, parseArgs, refOf, NAMESPACE };
 
 if (require.main === module) {
   run(process.argv.slice(2))

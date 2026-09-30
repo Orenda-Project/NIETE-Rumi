@@ -289,6 +289,32 @@ async function requestStatus(requestId, userId) {
  * Only `ready` rows: a failed attempt or version is kept in the table on
  * purpose, but a list of things to download is not where it belongs.
  */
+/**
+ * The row that stands for a family: never one whose own descendant (through
+ * the edited_from chain) is also ready — a child always beats its parent,
+ * whatever the timestamps say. Among the rows left, the newest created_at,
+ * then the larger id. The backfilled v1 shares its child's created_at on some
+ * families (bd-5ioto.11); timestamps alone cannot order those.
+ */
+function latestVersion(rows) {
+  const list = rows || [];
+  const byId = new Map(list.map((r) => [r.id, r]));
+  const superseded = new Set();
+  for (const r of list) {
+    const seen = new Set([r.id]);
+    let up = r.edited_from;
+    while (up && byId.has(up) && !seen.has(up)) {
+      superseded.add(up);
+      seen.add(up);
+      up = byId.get(up).edited_from;
+    }
+  }
+  const leaves = list.filter((r) => !superseded.has(r.id));
+  return (leaves.length ? leaves : list).reduce((a, b) => (
+    !a || String(b.created_at) > String(a.created_at)
+      || (String(b.created_at) === String(a.created_at) && String(b.id) > String(a.id)) ? b : a), null);
+}
+
 async function listPapers(userId, { page = 1, pageSize = 10, grade = null, subject = null } = {}) {
   const p = Math.max(1, Number(page) || 1);
   const size = Math.min(50, Math.max(1, Number(pageSize) || 10));
@@ -321,9 +347,7 @@ async function listPapers(userId, { page = 1, pageSize = 10, grade = null, subje
     total: count || 0,
     papers: (data || []).map((r) => {
       const ready = (r.assessment_papers || []).filter((x) => x.status === 'ready');
-      const latest = ready.reduce((a, b) => (
-        !a || String(b.created_at) > String(a.created_at)
-          || (String(b.created_at) === String(a.created_at) && String(b.id) > String(a.id)) ? b : a), null) || {};
+      const latest = latestVersion(ready) || {};
       // Worked out, never stored: the generated row is 1, any other is 1 + the
       // ready non-generated versions created no later than it.
       const version = latest.edited_from
@@ -358,6 +382,7 @@ module.exports = {
   bookFor,
   requestStatus,
   listPapers,
+  latestVersion,
   paperDownloadUrl,
   fileNameFor,
 };
