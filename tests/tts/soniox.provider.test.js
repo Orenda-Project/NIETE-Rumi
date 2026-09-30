@@ -8,6 +8,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { PassThrough } = require('stream');
 
 const { createSonioxProvider } = require('../../bot/shared/services/tts/providers/soniox.provider');
 const { parseOggOpus, durationSec } = require('../../bot/shared/services/tts/ogg-opus');
@@ -21,6 +22,24 @@ const EN_A = FIX('soniox-grace-en-a.ogg');
 const httpError = (status, body = { error_type: 'x', message: 'y' }) => Object.assign(new Error(`HTTP ${status}`), {
   response: { status, data: Buffer.from(JSON.stringify(body)) },
 });
+
+// A Soniox response body as a real Node stream: `bytes` in `chunks` pieces, then the end — unless
+// `end: false`, which is what Soniox did on 30 Sep: every byte of the clip, then silence, never a close.
+function sonioxStream(bytes, { chunks = 4, end = true, delayMs = 0, onClose } = {}) {
+  const s = new PassThrough();
+  const size = Math.ceil(bytes.length / chunks);
+  let i = 0;
+  const next = () => {
+    if (s.destroyed) return;
+    if (i >= bytes.length) { if (end) s.end(); return; }
+    s.write(bytes.subarray(i, i + size));
+    i += size;
+    if (delayMs) setTimeout(next, delayMs); else setImmediate(next);
+  };
+  if (onClose) s.on('close', onClose);
+  setImmediate(next);
+  return s;
+}
 
 // The fixtures are ~1.6 s clips; the per-character sanity floor is off here unless a test sets it.
 function provider({ post, env = { SONIOX_API_KEY: 'sk-test' }, limits = {} } = {}) {
@@ -78,7 +97,8 @@ describe('soniox provider — the request', () => {
     expect(body.client_reference_id.length).toBeLessThanOrEqual(256);
     expect(config.headers.Authorization).toBe('Bearer sk-test');
     expect(config.headers['User-Agent']).toMatch(/\S/);
-    expect(config.responseType).toBe('arraybuffer');
+    // streamed, so a clip can be taken at its end page even when the response never closes
+    expect(config.responseType).toBe('stream');
     expect(config.timeout).toBeGreaterThan(0);
 
     expect(out.audio.subarray(0, 4).toString('latin1')).toBe('OggS');
@@ -228,11 +248,16 @@ describe('soniox provider — a stream that is not whole is never delivered', ()
     expect(out.attempts).toBe(2);
   });
 
-  it('a silent socket is cut by the idle timeout, not after a flat minute and a half', async () => {
+  it('a silent socket is given up after a few seconds, not a quarter-minute', async () => {
+    // Measured 30 Sep on 110 healthy Soniox streams: first byte by 0.71 s at worst, never more than
+    // 1.61 s between two chunks. A stream silent for 5 s is dead; waiting 15 s only made the teacher wait.
+    const { DEFAULT_LIMITS } = require('../../bot/shared/services/tts/providers/soniox.provider');
+    expect(DEFAULT_LIMITS.idleTimeoutMs).toBeLessThanOrEqual(5000);
+    expect(DEFAULT_LIMITS.idleTimeoutMs).toBeGreaterThanOrEqual(3 * 1610);
     const post = jest.fn().mockResolvedValue({ status: 200, data: UR_A });
     await provider({ post }).synthesize({ text: 'یہ آواز کی جانچ ہے۔', language: 'ur', useCase: 'conversation' });
-    // axios' `timeout` in Node is a socket inactivity timeout: it fires when no byte arrives for that long
-    expect(post.mock.calls[0][2].timeout).toBeLessThanOrEqual(15000);
+    // axios' `timeout` covers the wait for the first byte; the stream reader watches every gap after it
+    expect(post.mock.calls[0][2].timeout).toBe(DEFAULT_LIMITS.idleTimeoutMs);
     expect(post.mock.calls[0][2].signal).toBeDefined();
   });
 
@@ -270,5 +295,80 @@ describe('soniox provider — a stream that is not whole is never delivered', ()
     const out = await provider({ post }).synthesize({ text: 'السلام علیکم [استاد کا نام]۔', language: 'ur', useCase: 'coaching' });
     expect(out.dropped).toEqual(['[استاد کا نام]']);
     expect(post.mock.calls[0][1].text).not.toContain('استاد کا نام');
+  });
+});
+
+describe('soniox provider — a streamed response', () => {
+  const TEXT = 'یہ آواز کی جانچ ہے۔';
+
+  it('takes the clip the moment its end-of-stream page is in, even when Soniox never closes the response', async () => {
+    // Seen 30 Sep: 6 of 100 Urdu requests sent every byte of the clip and then went silent without
+    // ever ending the response. Waiting for the close cost 15 s and a retry; the clip was already whole.
+    let closed = false;
+    const post = jest.fn().mockImplementation(async () => ({ status: 200, data: sonioxStream(UR_A, { end: false, onClose: () => { closed = true; } }) }));
+    const t0 = Date.now();
+    const out = await provider({ post, limits: { idleTimeoutMs: 60000 } }).synthesize({ text: TEXT, language: 'ur', useCase: 'conversation' });
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(out.attempts).toBe(1);
+    expect(out.audio.equals(UR_A)).toBe(true);
+    expect(out.unclosed).toBe(1); // counted, so the vendor quirk stays visible once the teacher no longer feels it
+    await new Promise((r) => setImmediate(r));
+    expect(closed).toBe(true); // the hanging response is let go, so its socket does not leak
+  });
+
+  it('reads a healthy stream to its end and returns the clip whole', async () => {
+    const post = jest.fn().mockImplementation(async () => ({ status: 200, data: sonioxStream(UR_A, { chunks: 9 }) }));
+    const out = await provider({ post }).synthesize({ text: TEXT, language: 'ur', useCase: 'conversation' });
+    expect(out.attempts).toBe(1);
+    expect(out.audio.equals(UR_A)).toBe(true);
+    expect(out.unclosed).toBe(0);
+  });
+
+  it('a stream that goes silent BEFORE its end page is given up after the idle window, and the retry is logged', async () => {
+    const warn = jest.fn();
+    let firstClosed = false;
+    const post = jest.fn()
+      .mockImplementationOnce(async () => ({ status: 200, data: sonioxStream(UR_CUT, { end: false, onClose: () => { firstClosed = true; } }) }))
+      .mockImplementationOnce(async () => ({ status: 200, data: sonioxStream(UR_A) }));
+    const out = await createSonioxProvider({ http: { post }, env: { SONIOX_API_KEY: 'k' }, sleep: () => Promise.resolve(),
+      limits: { minSecPerChar: 0, idleTimeoutMs: 40 }, warn })
+      .synthesize({ text: TEXT, language: 'ur', useCase: 'conversation', site: 'voice_reply' });
+    expect(out.attempts).toBe(2);
+    expect(out.audio.equals(UR_A)).toBe(true);
+    expect(firstClosed).toBe(true);
+    expect(warn).toHaveBeenCalledWith('tts.soniox.retry', expect.objectContaining({ attempt: 1, reason: expect.stringMatching(/silent/i) }));
+  });
+
+  it('a stream that ends early without its end page is retried, never delivered', async () => {
+    const post = jest.fn()
+      .mockImplementationOnce(async () => ({ status: 200, data: sonioxStream(UR_CUT) }))
+      .mockImplementationOnce(async () => ({ status: 200, data: sonioxStream(UR_A) }));
+    const out = await provider({ post }).synthesize({ text: TEXT, language: 'ur', useCase: 'conversation' });
+    expect(out.attempts).toBe(2);
+    expect(out.audio.equals(UR_A)).toBe(true);
+  });
+
+  it('keeps a part\'s concurrency slot until its body is read, not just until the headers arrive', async () => {
+    let open = 0; let maxOpen = 0;
+    const post = jest.fn().mockImplementation(async () => {
+      open += 1; maxOpen = Math.max(maxOpen, open);
+      return { status: 200, data: sonioxStream(UR_A, { chunks: 5, delayMs: 3, onClose: () => { open -= 1; } }) };
+    });
+    const text = 'یہ جانچ کا جملہ ہے اور یہ کافی لمبا ہے تاکہ حصے بنیں۔ '.repeat(30);
+    const out = await provider({ post, env: { SONIOX_API_KEY: 'k', SONIOX_TTS_MAX_CONCURRENCY: '2' } })
+      .synthesize({ text, language: 'ur', useCase: 'coaching' });
+    expect(post.mock.calls.length).toBeGreaterThan(2);
+    expect(out.parts).toBe(post.mock.calls.length);
+    expect(maxOpen).toBeLessThanOrEqual(2);
+  });
+
+  it('a refused request still names Soniox\'s reason when the error body arrives as a stream', async () => {
+    const body = new PassThrough();
+    body.end(JSON.stringify({ error_type: 'invalid_request', message: 'voice not found' }));
+    const post = jest.fn().mockRejectedValue(Object.assign(new Error('Request failed with status code 400'), { response: { status: 400, data: body } }));
+    await expect(provider({ post }).synthesize({ text: TEXT, language: 'ur', useCase: 'conversation' }))
+      .rejects.toMatchObject({ status: 400, message: expect.stringContaining('voice not found') });
+    expect(post).toHaveBeenCalledTimes(1);
   });
 });
