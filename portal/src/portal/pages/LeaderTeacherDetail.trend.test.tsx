@@ -3,12 +3,21 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 /**
- * A coach opening a teacher wants to know whether she is getting better, and the
- * detail page only ever showed a flat list of dated scores. The API already returns
- * the whole ordered series, so the trend was a rendering gap, not a data one.
+ * bd-60174 — this file used to assert the score TREND CHART on the leader's
+ * teacher-detail page: that it drew above two scored observations, plotted
+ * oldest-first, skipped unscored visits, and hid itself below two points.
  *
- * It is deliberately hidden below two scored observations: a "trend" drawn through one
- * point is a decoration that invites a conclusion it cannot support.
+ * That chart is gone. It plotted the very number the principal-dashboard
+ * feedback asked us to stop showing, so keeping it would have handed the score
+ * back as a picture. The score itself is untouched — still computed, still
+ * stored, still on the payload, and still shown on the teacher's OWN analytics,
+ * where it was never in question.
+ *
+ * The old assertions are not merely deleted. Four of them would now pass
+ * VACUOUSLY — "hides itself when nothing was scored" is trivially true once
+ * nothing ever draws — and a vacuous test is worse than no test, because it
+ * reports coverage it does not have. What replaces them is the claim that
+ * actually matters now, stated so it fails if the chart ever comes back.
  */
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
@@ -24,73 +33,64 @@ const detail = (sessions: any[]) => ({
   stats: {
     coachingSessions: sessions.length, lessonPlans: 7, readingAssessments: 3,
     lastScore: sessions.length ? sessions[0].score : null,
+    lastSummary: null,
   },
   sessions,
 });
 
-// Newest first, exactly as the service returns it.
+/** Newest first, exactly as the service returns it — three SCORED visits. */
 const THREE = [
-  { id: "s3", date: "2026-09-10T10:00:00Z", score: 66, points: 92, maxPoints: 140 },
-  { id: "s2", date: "2026-08-28T10:00:00Z", score: 54, points: 76, maxPoints: 140 },
-  { id: "s1", date: "2026-08-02T10:00:00Z", score: 48, points: 71, maxPoints: 148 },
+  { id: "s3", date: "2026-09-10T10:00:00Z", score: 66, points: 92, maxPoints: 140, summary: null },
+  { id: "s2", date: "2026-08-28T10:00:00Z", score: 54, points: 76, maxPoints: 140, summary: null },
+  { id: "s1", date: "2026-08-02T10:00:00Z", score: 48, points: 71, maxPoints: 148, summary: null },
 ];
 
-function renderWith(resolved: any) {
-  (useAuth as any).mockReturnValue({ user: { firstName: "Noor", role: "coach" }, loading: false, logout: vi.fn() });
+function renderWith(resolved: any, role = "coach") {
+  (useAuth as any).mockReturnValue({ user: { firstName: "Noor", role }, loading: false, logout: vi.fn() });
   (leader.getTeacher as any).mockResolvedValue(resolved);
-  const r = render(
+  return render(
     <MemoryRouter initialEntries={["/portal/leader/teacher/u1"]}>
       <Routes>
         <Route path="/portal/leader/teacher/:id" element={<LeaderTeacherDetail />} />
       </Routes>
     </MemoryRouter>,
   );
-  return r;
 }
 
-describe("LeaderTeacherDetail — score trend", () => {
+/** The page's own text, without the layout's injected <style> rules. */
+function pageText(): string {
+  const main = document.querySelector("main") || document.body;
+  const clone = main.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll("style,script").forEach((n) => n.remove());
+  return clone.textContent || "";
+}
+
+describe("LeaderTeacherDetail — the score trend is gone, and stays gone", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("draws a line chart once there are two or more scored observations", async () => {
-    const { container } = renderWith(detail(THREE));
-    await waitFor(() => expect(screen.getByTestId("score-trend")).toBeInTheDocument());
-    // The series is a monotone cubic, so the path's `d` is one C-command run rather
-    // than one segment per point — the dots are what carry the point count, and what a
-    // reader actually sees.
-    expect(container.querySelector(".recharts-line-curve")).not.toBeNull();
-    expect(container.querySelectorAll(".recharts-line-dot")).toHaveLength(3);
-  });
-
-  it("plots oldest-first, so the line reads left to right in time", async () => {
+  it("draws no trend chart, even with three scored observations", async () => {
     renderWith(detail(THREE));
-    await waitFor(() => expect(screen.getByTestId("score-trend")).toBeInTheDocument());
-    const labels = screen.getAllByTestId("trend-x-label").map((n) => n.textContent);
-    expect(labels).toEqual(["2 Aug", "28 Aug", "10 Sep"]);
+    await waitFor(() => expect(screen.getByTestId("session-s3")).toBeInTheDocument());
+    expect(screen.queryByTestId("score-trend")).toBeNull();
+    // The axis ticks were the chart's only findable text; neither may return.
+    expect(screen.queryAllByTestId("trend-x-label")).toHaveLength(0);
   });
 
-  it("hides itself for a single observation — one point is not a trend", async () => {
-    renderWith(detail([THREE[0]]));
-    await waitFor(() => expect(screen.getByRole("heading", { name: /Ayesha/ })).toBeInTheDocument());
-    expect(screen.queryByTestId("score-trend")).not.toBeInTheDocument();
-  });
-
-  it("hides itself when nothing was scored, even with several observations", async () => {
-    renderWith(detail(THREE.map((s) => ({ ...s, score: null }))));
-    await waitFor(() => expect(screen.getByRole("heading", { name: /Ayesha/ })).toBeInTheDocument());
-    expect(screen.queryByTestId("score-trend")).not.toBeInTheDocument();
-  });
-
-  it("skips an unscored observation rather than plotting it as zero", async () => {
-    const withGap = [THREE[0], { ...THREE[1], score: null }, THREE[2]];
-    const { container } = renderWith(detail(withGap));
-    await waitFor(() => expect(screen.getByTestId("score-trend")).toBeInTheDocument());
-    expect(container.querySelectorAll(".recharts-line-dot")).toHaveLength(2);
-    expect(screen.getAllByTestId("trend-x-label").map((n) => n.textContent)).toEqual(["2 Aug", "10 Sep"]);
-  });
-
-  it("leaves the coaching history list in place", async () => {
+  it("shows no percentage anywhere, however many scores the payload carries", async () => {
     renderWith(detail(THREE));
-    await waitFor(() => expect(screen.getByText("Coaching history")).toBeInTheDocument());
-    expect(screen.getAllByText(/marks/).length).toBe(3);
+    await waitFor(() => expect(screen.getByTestId("session-s3")).toBeInTheDocument());
+    expect(pageText()).not.toMatch(/\d+\s*%/);
+  });
+
+  it("still lists every visit — the history was never the problem", async () => {
+    renderWith(detail(THREE));
+    await waitFor(() => expect(screen.getByTestId("session-s3")).toBeInTheDocument());
+    expect(screen.getAllByTestId(/^session-/)).toHaveLength(3);
+  });
+
+  it("hides the score from a coach too, not only a principal", async () => {
+    renderWith(detail(THREE), "principal");
+    await waitFor(() => expect(screen.getByTestId("session-s3")).toBeInTheDocument());
+    expect(pageText()).not.toMatch(/\d+\s*%/);
   });
 });

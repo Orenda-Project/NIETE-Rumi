@@ -105,6 +105,32 @@ const UX_STRINGS = {
     ur: 'مضمون کی تصدیق نہیں ہو سکی — زبان یا مضمون سے متعلق مخصوص شعبے کو نمبر نہیں دیے گئے۔',
   },
 
+  // ─── observation score bands ──────────────────────────────────────────────
+  // An observation score is never shown as a number or a percentage — only as
+  // one of these five (operator, 2026-09-29). Thresholds live in
+  // score-bands.js; these are the words. The portal carries the English five
+  // in a parity-tested copy, so change them in both or the test fails.
+  scoreBandExcellent: {
+    en: 'Excellent',
+    ur: 'بہترین',
+  },
+  scoreBandGood: {
+    en: 'Good',
+    ur: 'اچھا',
+  },
+  scoreBandAverage: {
+    en: 'Average',
+    ur: 'اوسط',
+  },
+  scoreBandBelowAverage: {
+    en: 'Below average',
+    ur: 'اوسط سے کم',
+  },
+  scoreBandNeedsSupport: {
+    en: 'Needs support',
+    ur: 'مدد درکار',
+  },
+
   // ─── /roster — the class-register command ─────────────────────────────────
   // Every string on this command was an English literal, including all four
   // Flow chrome fields, on a deployment where the leaders who use it read Urdu

@@ -1,4 +1,5 @@
 const { getClient } = require('./llm-client');
+const { scoreBandLabel, scoreBandScale } = require('../config/score-bands');
 const { jsonrepair } = require('jsonrepair');
 const { OPENAI_API_KEY } = require('../utils/constants');
 const { logToFile, logWarn } = require('../utils/logger');
@@ -21,7 +22,7 @@ const {
 // speak a separate model's near-constant estimate while the card showed the
 // measurement. A plan the grader judged to be a different lesson is described as
 // that, not as a low score she earned.
-function voiceFidelityRule(d) {
+function voiceFidelityRule(d, language = 'en') {
   const data = d || {};
   if (data.sectionBNotAssessed) {
     return 'LESSON PLAN: this lesson was NOT measured against a lesson plan. Do NOT state any '
@@ -40,14 +41,26 @@ function voiceFidelityRule(d) {
       + 'any lesson-plan percentage or fidelity figure, and do NOT describe the plan as followed or '
       + 'not followed.';
   }
-  const pct = data.fidelityScore;
-  const band = data.fidelityBand
-    ? `, which counts as ${data.fidelityBand} adherence`
-    : '';
-  return `LESSON PLAN: she carried out ${pct}% of the moves her lesson plan prescribed${band}. `
-    + `Reference this once, in either the strength or the growth portion. If you state a figure it `
-    + `MUST be exactly ${pct}% — never any other percentage from the observation data, and never a `
-    + `figure you have worked out yourself.`;
+  // The figure is handed over as a BAND word only. A number here was an
+  // invitation to say it aloud, and observation scores are never spoken or
+  // shown as numbers (operator, 2026-09-29).
+  const en = scoreBandLabel(data.fidelityScore, 'en');
+  const local = language && language !== 'en' ? scoreBandLabel(data.fidelityScore, language) : null;
+  const word = local && local !== en ? `${en} (${local})` : en;
+  return `LESSON PLAN: how closely she followed the moves her lesson plan prescribed counts as `
+    + `"${word}". Reference this once, in either the strength or the growth portion, using that `
+    + `word — never a number, a percentage or a count of moves.`;
+}
+
+// Every voice note: the observation data below carries scores, so the rule has
+// to be SAID. The five band words are the only way a score may be described.
+function voiceNoScoreRule(language = 'en') {
+  const scale = scoreBandScale('en').join(' / ');
+  const local = language && language !== 'en' ? scoreBandScale(language).join(' / ') : null;
+  return `SCORES: never say a score, a percentage, a mark, or "out of" — not for the lesson, not for `
+    + `any section, not for any indicator, even though the data above contains them. If you describe `
+    + `how any part of the lesson went, use only one of these words: ${scale}`
+    + `${local ? ` (in the target language: ${local})` : ''}.`;
 }
 
 class GPT5MiniService {
@@ -1761,7 +1774,9 @@ STRUCTURE (90 seconds total):
 3. One growth opportunity with actionable suggestion (40 seconds)
 4. Encouraging closing (10 seconds)
 
-${voiceFidelityRule(observationData)}
+${voiceFidelityRule(observationData, language)}
+
+${voiceNoScoreRule(language)}
 
 TONE:
 - Warm, respectful, mentor-like
