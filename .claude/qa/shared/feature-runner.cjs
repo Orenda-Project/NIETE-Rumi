@@ -575,6 +575,9 @@ function makeApi(c) {
           out.push({ txt:txt0.slice(0,600),
                      img:!!r.querySelector('img[src^="blob:"],img[src^="data:image/j"],[data-icon="wds-ic-hd-filled"]'),
                      audio:!!r.querySelector('[data-icon="audio-file"],[data-icon="ptt"],[aria-label*="Voice message"],[aria-label*="voice message"],audio'),
+                     // a VOICE message (waveform + playback-speed control), not an audio file — WhatsApp
+                     // labels both "Voice message", so the file icon is what tells them apart
+                     voice:!!r.querySelector('[data-icon^="ptt"],[aria-label*="Voice note progress" i],[aria-label*="playback speed" i]') && !r.querySelector('[data-icon="audio-file"]'),
                      doc:!!r.querySelector('[data-icon^="document-"],[data-icon="ms-office-doc"]'),
                      pdf:/\\.pdf/i.test(r.innerText||''),
                      btns:[...r.querySelectorAll('button,div[role="button"]')]

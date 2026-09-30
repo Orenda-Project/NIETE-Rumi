@@ -134,6 +134,8 @@ function normalize(payload) {
     const txt = String(m.caption || '');
     return { type, txt, btns: [],
       img: type === 'image' || type === 'sticker', audio: type === 'audio', doc: type === 'document',
+      // what makes WhatsApp render a voice message (waveform + speed control) rather than an audio file
+      voice: type === 'audio' && m.voice === true,
       pdf: /\.pdf$/i.test(filename) || /\.pdf/i.test(txt),
       media: { id: m.id, link: m.link, filename } };
   }

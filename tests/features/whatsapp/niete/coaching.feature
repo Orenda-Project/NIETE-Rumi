@@ -109,8 +109,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # min 15s, p95 55s, max 242s). Assert the COUNT and which one survived, not
     # the wording of the removed line.
     # NOTE 2026-09-30 (bd-2fp9u): the voice note is spoken by the voice gateway
-    # (TTS_PROVIDER picks the vendor; always Ogg Opus, so WhatsApp shows a voice message
-    # with a speed control). The session's voice_debrief_duration_seconds now stores the
+    # (TTS_PROVIDER picks the vendor; always Ogg Opus). CORRECTED the same day: Ogg Opus
+    # alone does NOT make WhatsApp show a voice message — the send must also say voice=true
+    # (COA57 pins that). The session's voice_debrief_duration_seconds now stores the
     # note's true length — it was bytes/16000, about half. That number is read by the
     # dashboard, not shown on WhatsApp, so no step here asserts it.
     # @wip @slow: for a LONG (~26-min) recording the worker takes 10+ minutes. The
@@ -119,6 +120,22 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # 2026-08-04: reached Step 3/5 ("Let's reflect on your teaching together") ~6 min
     # in; the final graded report had not landed within the run window. Rubric:
     # bot/shared/services/observe/observe-framework.js.
+
+  @e2e @slow @content-driven @P1 @COA57
+  Scenario: Every coaching voice note arrives as a WhatsApp voice message the teacher can speed up
+    Given the NIETE bot chat is open
+    And I have sent a classroom recording and its analysis has finished
+    When the reflective question, the closing note after my answer and the report's voice note arrive
+    Then each of them is a voice message with a waveform, not an audio file
+    And each can be played faster: its playback-speed control steps 1× → 1.5× → 2×
+    # ADDED 2026-09-30, from a real-client E2E (the operator's WhatsApp on WhatsApp Web, sandbox):
+    # every bot voice note arrived as an audio FILE (headphones icon, no waveform, no speed control).
+    # Meta renders a voice message only when the send says voice=true, and the send layer never did.
+    # Proof on the same client: the same Ogg Opus bytes rendered as a file without the flag and as a
+    # voice message, speed control included, with it. The fix is in the send layer, so every spoken
+    # surface changed at once; this row pins the coaching three (language.feature pins the replies).
+    # The mock lane reads the flag on the outbound send; a WhatsApp Web run reads the bubble itself.
+    # Pre-recorded lesson-plan voice notes go out by a different path and are deliberately unchanged.
 
   @e2e @slow @content-driven @P2 @COA18
   Scenario: Every score a teacher receives is a band, never a number
