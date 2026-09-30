@@ -106,7 +106,9 @@ describe('the 30 does not leak into any other multi-select', () => {
   const CAPS = {
     'registration-flow-v3.json': [12, 11],
     'homework-request-flow.json': [12],
-    'assessment-gen-flow.json': [6],
+    // The chapter picker's 6 was lifted on purpose: a paper may cover the
+    // whole book (two uncapped groups, 20 options each — Meta's per-group limit).
+    'assessment-gen-flow.json': [],
     'exam-checker-confirm-students-flow.json': [100],
   };
 
