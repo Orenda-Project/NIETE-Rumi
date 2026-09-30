@@ -670,6 +670,38 @@ const UX_STRINGS = {
     ur: 'شروع کریں',
   },
 
+  /**
+   * bd-q3rfn (AG 1.2 item 6) — the offer sent after a paper is delivered.
+   *
+   * It used to say only "Want a shorter paper? … untick any questions", so a
+   * review Flow that has let her change marks and wording since 6 Sep was
+   * advertised as a way to delete questions: 34 of 3,839 papers had a mark
+   * changed by 30 Sep. It now names all three things the Flow does.
+   *
+   * Caps (code points): header 60, body 1024, Flow button 20 — header and
+   * button kept ≥5 under. The Urdu is impersonal ("کی جا سکتی ہے") so no
+   * gendered stem for the addressee; "میں … دوں گی" is the bot's own voice, as
+   * in assessmentNotReady below.
+   */
+  assessmentReviewOfferHeader: {
+    en: '✏️ Change marks, wording or questions',
+    ur: '✏️ نمبر، الفاظ یا سوال بدلیں',
+  },
+
+  assessmentReviewOfferBody: {
+    en: 'You can still change this paper before you print it: change the marks '
+      + 'for any question, edit its wording, or remove questions you do not want. '
+      + 'Open this and I will make the paper again.',
+    ur: 'پرنٹ کرنے سے پہلے اس پرچے میں تبدیلی کی جا سکتی ہے: کسی بھی سوال کے نمبر '
+      + 'بدلیں، اس کے الفاظ درست کریں، یا جو سوال نہیں چاہیے انہیں ہٹا دیں۔ '
+      + 'اسے کھولیں، میں پرچہ دوبارہ بنا دوں گی۔',
+  },
+
+  assessmentReviewOfferButton: {
+    en: 'Edit the paper',
+    ur: 'پرچہ بدلیں',
+  },
+
   assessmentNotReady: {
     en: "We're getting the assessment generator ready for you. I'll tell you the moment it's live.",
     ur: 'پرچہ بنانے والا حصہ آپ کے لیے تیار کیا جا رہا ہے۔ جیسے ہی چالو ہوا، میں بتا دوں گی۔',
