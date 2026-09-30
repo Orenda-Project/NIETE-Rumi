@@ -220,7 +220,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And it comes back as an IMAGE, the same way the first report arrived — openable, not a .pdf that will not render
     And no new 5-step analysis is started
     # bd-7beiz — audio-hash-cache.js: SHA-256 of the downloaded audio, matched against
-    # this teacher's own completed DC sessions inside a 7-day window.
+    # this teacher's own completed DC sessions, at any age (bd-hr97y removed the
+    # 7-day window the check was ported with).
     # transcription-processor short-circuits BEFORE the R2 upload and before
     # transcription, so a duplicate costs neither ASR nor LLM. Why it matters: the
     # rubric pass runs at temperature 1 with no seed, so re-scoring identical audio
@@ -230,6 +231,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # PNG on this deployment (12,749 of 12,754 completed DC sessions; zero PDFs),
     # so resending it as 'classroom-observation.pdf' shipped PNG bytes labelled as
     # a PDF and no reader would open it — FEAT-098 again.
+
+  @e2e @wip @draft @P2
+  Scenario: The same recording sent again weeks later still returns the report already made
+    Given the NIETE bot chat is open
+    And I received a coaching report for a classroom recording more than 7 days ago
+    When I upload that exact same recording file again
+    Then the bot tells me it has heard this recording before
+    And the bot sends back the report it already made for that recording
+    And no new 5-step analysis is started
+    # bd-hr97y — findRecentDuplicateSession has no created_at cutoff: a recording
+    # is analysed once, ever, like the two /observe checks (HITL row 185).
 
   @e2e @wip @draft @P2
   Scenario: A recording the bot has not scored before is still analysed normally

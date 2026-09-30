@@ -9,7 +9,7 @@
   "counts": {
     "books": 17,
     "chapters": 233,
-    "lessons": 2038
+    "lessons": 2041
   },
   "books": [
     {
@@ -31737,11 +31737,11 @@
               "lesson_id": "grade_4_math_ch10_seg9",
               "segment_index": 9,
               "lp_type": "content",
-              "day_label": "Day 9",
+              "day_label": "Day 9 · part 1",
               "section": "Discovery / Symmetry Nature Walk / Skill Sharpener / Practice",
               "section_short": "Discovery +",
               "topic": "Symmetry — Nature Walk & completing figures",
-              "topic_short": "Discovery / Symmetry Nature Walk / Skill Sharpener / Practice — Symmetry — Natu…",
+              "topic_short": "Discovery / Symmetry Nature Walk / Skill Sharpener / Practice — Sy…",
               "pages": [
                 204,
                 205
@@ -31749,9 +31749,31 @@
               "pages_label": "p.204-205",
               "row": {
                 "title": "Discovery +",
-                "description": "Day 9 · p.204-205",
-                "metadata": "Discovery / Symmetry Nature Walk / Skill Sharpener / Practice — Symmetry — Natu…"
-              }
+                "description": "Day 9 · part 1",
+                "metadata": "Discovery / Symmetry Nature Walk / Skill Sharpener / Practice — Sy…‎ · p.204-205"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_4_math_ch10_seg9b",
+              "segment_index": 9,
+              "lp_type": "content",
+              "day_label": "Day 9 · part 2",
+              "section": "Discovery / Symmetry Nature Walk / Skill Sharpener / Practice",
+              "section_short": "Discovery +",
+              "topic": "Symmetry — Nature Walk & completing figures",
+              "topic_short": "Discovery / Symmetry Nature Walk / Skill Sharpener / Practice — Sy…",
+              "pages": [
+                204,
+                205
+              ],
+              "pages_label": "p.204-205",
+              "row": {
+                "title": "Discovery +",
+                "description": "Day 9 · part 2",
+                "metadata": "Discovery / Symmetry Nature Walk / Skill Sharpener / Practice — Sy…‎ · p.204-205"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_4_math_ch10_seg10",
@@ -33457,7 +33479,7 @@
               "lesson_id": "grade_4_urdu_ch9_seg4",
               "segment_index": 4,
               "lp_type": "content",
-              "day_label": "Day 4",
+              "day_label": "Day 4 · part 1",
               "section": "گہرائی تک پہنچنا",
               "section_short": "‏گہرائی تک پہنچنا",
               "topic": "تفہیم — متن کو فہم کے ساتھ پڑھنا (MCQ، مختصر و تفصیلی)",
@@ -33470,9 +33492,32 @@
               "pages_label": "p.78-80",
               "row": {
                 "title": "‏گہرائی تک پہنچنا",
-                "description": "‏دن ۴ · ص ۷۸-۸۰",
-                "metadata": "‏تفہیم — متن کو فہم کے ساتھ پڑھنا (MCQ، مختصر و تفصیلی)"
-              }
+                "description": "‏دن ۴ · حصہ ۱",
+                "metadata": "‏تفہیم — متن کو فہم کے ساتھ پڑھنا (MCQ، مختصر و تفصیلی) · ص ۷۸-۸۰"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_4_urdu_ch9_seg4b",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4 · part 2",
+              "section": "گہرائی تک پہنچنا",
+              "section_short": "‏گہرائی تک پہنچنا",
+              "topic": "تفہیم — متن کو فہم کے ساتھ پڑھنا (MCQ، مختصر و تفصیلی)",
+              "topic_short": "تفہیم — متن کو فہم کے ساتھ پڑھنا (MCQ، مختصر و تفصیلی)",
+              "pages": [
+                78,
+                79,
+                80
+              ],
+              "pages_label": "p.78-80",
+              "row": {
+                "title": "‏گہرائی تک پہنچنا",
+                "description": "‏دن ۴ · حصہ ۲",
+                "metadata": "‏تفہیم — متن کو فہم کے ساتھ پڑھنا (MCQ، مختصر و تفصیلی) · ص ۷۸-۸۰"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_4_urdu_ch9_seg5",
@@ -33606,7 +33651,7 @@
               "lesson_id": "grade_4_urdu_ch10_seg2",
               "segment_index": 2,
               "lp_type": "content",
-              "day_label": "Day 2",
+              "day_label": "Day 2 · part 1",
               "section": "متن کا سفر",
               "section_short": "‏متن کا سفر",
               "topic": "بلند خوانی — نظم 'بارش کا پہلا قطرہ' (اسماعیل میرٹھی)",
@@ -33619,9 +33664,32 @@
               "pages_label": "p.88-90",
               "row": {
                 "title": "‏متن کا سفر",
-                "description": "‏دن ۲ · ص ۸۸-۹۰",
-                "metadata": "‏بلند خوانی — نظم 'بارش کا پہلا قطرہ' (اسماعیل میرٹھی)"
-              }
+                "description": "‏دن ۲ · حصہ ۱",
+                "metadata": "‏بلند خوانی — نظم 'بارش کا پہلا قطرہ' (اسماعیل میرٹھی) · ص ۸۸-۹۰"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_4_urdu_ch10_seg2b",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2 · part 2",
+              "section": "متن کا سفر",
+              "section_short": "‏متن کا سفر",
+              "topic": "بلند خوانی — نظم 'بارش کا پہلا قطرہ' (اسماعیل میرٹھی)",
+              "topic_short": "بلند خوانی — نظم 'بارش کا پہلا قطرہ' (اسماعیل میرٹھی)",
+              "pages": [
+                88,
+                89,
+                90
+              ],
+              "pages_label": "p.88-90",
+              "row": {
+                "title": "‏متن کا سفر",
+                "description": "‏دن ۲ · حصہ ۲",
+                "metadata": "‏بلند خوانی — نظم 'بارش کا پہلا قطرہ' (اسماعیل میرٹھی) · ص ۸۸-۹۰"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_4_urdu_ch10_seg3",
