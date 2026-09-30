@@ -65,11 +65,17 @@ function renderPage(payload: any = PAYLOAD) {
   render(<MemoryRouter><SchoolAnalytics /></MemoryRouter>);
 }
 
+/** Attendance and Principal Remarks each live on their own tab (operator, 2026-09-30). */
+async function openTab(name: "Attendance" | "Principal Remarks") {
+  await userEvent.click(await screen.findByRole("tab", { name }));
+}
+
 describe("SchoolAnalytics — presence + remarks + filter", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("shows teacher and student presence as two SEPARATE figures", async () => {
     renderPage();
+    await openTab("Attendance");
     await waitFor(() => expect(screen.getByTestId("presence-teacher")).toHaveTextContent("100"));
     expect(screen.getByTestId("presence-student")).toHaveTextContent("88.8");
     // No blended P score — the 60:40 weighting was never locked.
@@ -78,6 +84,7 @@ describe("SchoolAnalytics — presence + remarks + filter", () => {
 
   it("shows the supervisor remarks with their indicator breakdown", async () => {
     renderPage();
+    await openTab("Principal Remarks");
     await waitFor(() => expect(screen.getByTestId("remarks-average")).toHaveTextContent("70"));
     expect(screen.getByTestId("remark-score_student_support")).toHaveTextContent("Student-Centered Support");
     expect(screen.getByTestId("remarks-focus")).toHaveTextContent("Student-Centered Support");
@@ -85,7 +92,11 @@ describe("SchoolAnalytics — presence + remarks + filter", () => {
 
   it("does not brand the page STEPS", async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByTestId("presence-teacher")).toBeInTheDocument());
+    await screen.findByTestId("observations");
+    expect(document.body.textContent).not.toMatch(/STEPS/);
+    await openTab("Attendance");
+    expect(document.body.textContent).not.toMatch(/STEPS/);
+    await openTab("Principal Remarks");
     expect(document.body.textContent).not.toMatch(/STEPS/);
   });
 
@@ -103,7 +114,7 @@ describe("SchoolAnalytics — presence + remarks + filter", () => {
     renderPage();
     await waitFor(() => expect(screen.getByTestId("teacher-filter")).toBeInTheDocument());
     await userEvent.selectOptions(screen.getByTestId("teacher-filter"), "t1");
-    await waitFor(() => expect(leader.getSchoolAnalytics).toHaveBeenLastCalledWith("t1"));
+    await waitFor(() => expect((leader.getSchoolAnalytics as any).mock.lastCall?.[0]).toBe("t1"));
   });
 
   it("says whose numbers are on screen when one teacher is selected", async () => {
@@ -116,7 +127,9 @@ describe("SchoolAnalytics — presence + remarks + filter", () => {
       ...PAYLOAD,
       remarks: { submitted: 0, averagePct: null, indicatorBreakdown: [], focusIndicator: null },
     });
+    await openTab("Attendance");
     await waitFor(() => expect(screen.getByTestId("presence-teacher")).toBeInTheDocument());
+    await openTab("Principal Remarks");
     expect(screen.getByTestId("remarks-empty")).toBeInTheDocument();
     expect(screen.queryByTestId("remarks-average")).not.toBeInTheDocument();
   });
@@ -129,6 +142,7 @@ describe("SchoolAnalytics — presence + remarks + filter", () => {
         student: { sessions: 0, totalMarked: 0, present: 0, presentPct: null },
       },
     });
+    await openTab("Attendance");
     await waitFor(() => expect(screen.getByTestId("presence-empty")).toBeInTheDocument());
     expect(screen.queryByTestId("presence-teacher")).not.toBeInTheDocument();
   });

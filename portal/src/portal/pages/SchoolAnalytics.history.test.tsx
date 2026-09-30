@@ -52,20 +52,24 @@ function mount(payload: any = BASE) {
 }
 
 // Rewritten 2026-09-29: the "Recent observed lessons" preview became the
-// month list under "When Observations Happened" (operator). Same questions —
-// newest first, band not marks, whose lesson — asked of the new list.
+// month list under "When Observations Happened" (operator). Rewritten again
+// 2026-09-30: the month list became a day strip, and the list under it is the
+// picked day's. Same questions — newest first, band not marks, whose lesson.
 describe("SchoolAnalytics — when observations happened", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("lists the newest month's observations, newest first", async () => {
+  it("opens on the newest day with observations, and lists it newest first", async () => {
     mount({ ...BASE, analytics: { ...BASE.analytics,
-      byMonth: [{ month: "2026-09", human: 2, digitalCoach: 0 }],
+      byMonth: [{ month: "2026-09", human: 3, digitalCoach: 0 }],
       observations: [
-        { date: "2026-09-20T09:00:00Z", kind: "human", percentage: 64, teacherName: "Sana Riaz" },
+        { date: "2026-09-18T09:00:00Z", kind: "human", percentage: 64, teacherName: "Sana Riaz" },
+        { date: "2026-09-18T05:00:00Z", kind: "human", percentage: 58, teacherName: "Ayesha Bibi" },
         { date: "2026-09-02T09:00:00Z", kind: "human", percentage: 58, teacherName: "Ayesha Bibi" },
       ] } });
     await waitFor(() => expect(screen.getAllByTestId(/^obs-row-/)).toHaveLength(2));
-    expect(screen.getAllByTestId(/^obs-row-/)[0].textContent).toMatch(/20 Sept?/);
+    expect(screen.getByTestId("obs-day-2026-09-18")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getAllByTestId(/^obs-row-/)[0].textContent).toMatch(/Sana Riaz/);
+    expect(screen.getAllByTestId(/^obs-row-/)[1].textContent).toMatch(/Ayesha Bibi/);
   });
 
   it("shows a Human Observation's band, never its marks or percentage", async () => {

@@ -102,12 +102,17 @@ describe("the page and its sections have plain names", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "School Analytics" })).toBeInTheDocument();
   });
 
-  it("has Observations, Attendance and Principal Remarks, in that order", async () => {
+  it("has Observations, Attendance and Principal Remarks, in that order — as tabs", async () => {
     mount();
     await screen.findByTestId("observations");
-    const order = ["Observations", "Attendance", "Principal Remarks"].map((t) => headings(2).indexOf(t));
-    expect(order.every((i) => i >= 0)).toBe(true);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    // One section at a time since 2026-09-30; the ORDER now lives in the tabs.
+    expect(screen.getAllByRole("tab").map((t) => t.textContent?.trim()))
+      .toEqual(["Observations", "Attendance", "Principal Remarks"]);
+    expect(headings(2)).toContain("Observations");
+    await userEvent.click(screen.getByRole("tab", { name: "Attendance" }));
+    expect(headings(2)).toContain("Attendance");
+    await userEvent.click(screen.getByRole("tab", { name: "Principal Remarks" }));
+    expect(headings(2)).toContain("Principal Remarks");
   });
 
   it("the old vague titles are gone", async () => {
@@ -146,20 +151,19 @@ describe("Observations", () => {
     expect(within(obs).getByTestId("count-digital")).toHaveTextContent("Digital Coach Observations");
   });
 
-  it("Progress plots Human Observations only", async () => {
+  it("Observation Feedback plots Human Observations only", async () => {
     mount();
     const obs = await screen.findByTestId("observations");
-    expect(within(obs).getByRole("heading", { level: 3, name: "Progress" })).toBeInTheDocument();
+    expect(within(obs).getByRole("heading", { level: 3, name: "Observation Feedback" })).toBeInTheDocument();
     const line = charts.find((c) => c.type === "line");
     expect(line?.series[0].data).toEqual([48, 64]);
     expect(within(obs).getByTestId("progress-help")).toHaveTextContent(/Human Observation/);
   });
 
-  it("Strong and Weak Areas lists the three areas, strongest first, and marks the weakest", async () => {
+  it("Observation Feedback lists the three areas, strongest first, and marks the weakest", async () => {
     mount();
-    const obs = await screen.findByTestId("observations");
-    expect(within(obs).getByRole("heading", { level: 3, name: "Strong and Weak Areas" })).toBeInTheDocument();
-    const items = within(obs).getAllByTestId(/^area-/);
+    const fb = await screen.findByTestId("observation-feedback");
+    const items = within(fb).getAllByTestId(/^area-/);
     expect(items.map((i) => i.getAttribute("data-testid"))).toEqual(["area-e", "area-t", "area-s"]);
     expect(items[0]).toHaveTextContent(/Engagement.*Excellent/);
     expect(items[2]).toHaveTextContent(/Subject knowledge.*Needs support/);
@@ -167,22 +171,23 @@ describe("Observations", () => {
     expect(items[0]).not.toHaveTextContent(/work on this/i);
   });
 
-  it("When Observations Happened is a monthly chart of BOTH kinds", async () => {
+  it("When Observations Happened is a day strip of BOTH kinds", async () => {
     mount();
     const obs = await screen.findByTestId("observations");
     expect(within(obs).getByRole("heading", { level: 3, name: "When Observations Happened" })).toBeInTheDocument();
-    const bar = charts.find((c) => c.type === "bar");
-    expect(bar?.options?.chart?.stacked).toBe(true);
-    expect(bar?.series.map((s: any) => s.name)).toEqual(["Human Observations", "Digital Coach Observations"]);
-    expect(bar?.series.map((s: any) => s.data)).toEqual([[1, 1], [0, 2]]);
+    expect(charts.find((c) => c.type === "bar")).toBeUndefined();
+    expect(within(obs).getByTestId("obs-day-2026-08-12")).toHaveTextContent("1"); // Human
+    expect(within(obs).getByTestId("obs-day-2026-09-02")).toHaveTextContent("1"); // Digital Coach
+    expect(within(obs).getByTestId("obs-day-2026-09-03")).toHaveTextContent("–");
   });
 
-  it("each month is a plain button that lists what happened that month", async () => {
+  it("each day is a plain button that lists what happened that day", async () => {
     mount();
     await screen.findByTestId("observations");
-    // The newest month is shown to start with.
-    expect(screen.getAllByTestId(/^obs-row-/)).toHaveLength(3);
-    await userEvent.click(screen.getByTestId("month-2026-08"));
+    // The newest day is shown to start with.
+    expect(screen.getByTestId("obs-day-2026-09-20")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getAllByTestId(/^obs-row-/)).toHaveLength(1);
+    await userEvent.click(screen.getByTestId("obs-day-2026-08-12"));
     const rows = screen.getAllByTestId(/^obs-row-/);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toHaveTextContent(/Human Observation/);
@@ -205,8 +210,8 @@ describe("Observations", () => {
     const obs = await screen.findByTestId("observations");
     expect(within(obs).getAllByText(/No Human Observations yet/).length).toBeGreaterThan(0);
     expect(charts.find((c) => c.type === "line")).toBeUndefined();
-    // The monthly chart still shows, because Digital Coach Observations exist.
-    expect(charts.find((c) => c.type === "bar")).toBeDefined();
+    // The day strip still shows, because Digital Coach Observations exist.
+    expect(within(obs).getByTestId("obs-strip")).toBeInTheDocument();
   });
 
   it("no rating inside Observations is a number or a percentage", async () => {

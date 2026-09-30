@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
 
 /**
  * A teacher's own Analytics page is the page her principal sees when she
  * picks that teacher (operator, 2026-09-30), in the teacher's own words:
- *   · top row: her lesson plans and exams generated
+ *   · her lesson plans and exams generated — HIDDEN for now (operator, 2026-09-30)
+ *   · Observations, Attendance and Principal Remarks as tabs, one at a time
  *   · Observations — both kinds defined, two counts, Progress and Strong and
  *     Weak Areas from Human Observations, and When Observations Happened —
  *     where HER Digital Coach Observations carry their ratings too
@@ -67,20 +69,18 @@ describe("the teacher's own Analytics page", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "My Analytics" })).toBeInTheDocument();
   });
 
-  it("shows her lesson plans and exams generated", async () => {
-    mount();
-    expect(await screen.findByTestId("kpi-lesson-plans")).toHaveTextContent("12");
-    expect(screen.getByTestId("kpi-exams")).toHaveTextContent("5");
-    expect(screen.getByTestId("kpi-exams")).toHaveTextContent("Exams generated");
-  });
-
-  it("has Observations, Attendance and Principal Remarks, in that order", async () => {
+  it("hides her lesson plans and exams generated, for now", async () => {
     mount();
     await screen.findByTestId("observations");
-    const h2 = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent?.trim());
-    const order = ["Observations", "Attendance", "Principal Remarks"].map((t) => h2.indexOf(t));
-    expect(order.every((i) => i >= 0)).toBe(true);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(screen.queryByTestId("kpi-lesson-plans")).toBeNull();
+    expect(screen.queryByTestId("kpi-exams")).toBeNull();
+  });
+
+  it("has Observations, Attendance and Principal Remarks, in that order — as tabs", async () => {
+    mount();
+    await screen.findByTestId("observations");
+    expect(screen.getAllByRole("tab").map((t) => t.textContent?.trim()))
+      .toEqual(["Observations", "Attendance", "Principal Remarks"]);
   });
 
   it("defines both kinds of observation in her words", async () => {
@@ -97,7 +97,7 @@ describe("the teacher's own Analytics page", () => {
     expect(digital).toHaveTextContent("Excellent"); // 90
   });
 
-  it("keeps Progress and the areas on Human Observations", async () => {
+  it("keeps Observation Feedback (rating and areas) on Human Observations", async () => {
     mount();
     const obs = await screen.findByTestId("observations");
     expect(within(obs).getByTestId("progress-help")).toHaveTextContent(/Human Observation/);
@@ -106,7 +106,7 @@ describe("the teacher's own Analytics page", () => {
 
   it("shows her own presence and her students', separately, with no link to the principal's page", async () => {
     mount();
-    await screen.findByTestId("observations");
+    await userEvent.click(await screen.findByRole("tab", { name: "Attendance" }));
     expect(screen.getByTestId("presence-teacher-block")).toHaveTextContent(/You were present/);
     expect(screen.getByTestId("presence-teacher-block")).toHaveTextContent(/18 present · 1 absent · 1 on leave/);
     expect(screen.getByTestId("presence-student-block")).toHaveTextContent(/Your students/);
@@ -117,6 +117,7 @@ describe("the teacher's own Analytics page", () => {
 
   it("shows the remark she received — the quarter, the comment and each area", async () => {
     mount();
+    await userEvent.click(await screen.findByRole("tab", { name: "Principal Remarks" }));
     const r = await screen.findByTestId("remark-received-0");
     expect(r).toHaveTextContent("Third Quarter 2026");
     expect(r).toHaveTextContent("Prepares well and is punctual.");
@@ -126,6 +127,7 @@ describe("the teacher's own Analytics page", () => {
 
   it("says so plainly when she has not received a remark yet", async () => {
     mount({ remarksReceived: [] });
+    await userEvent.click(await screen.findByRole("tab", { name: "Principal Remarks" }));
     expect(await screen.findByTestId("remarks-empty")).toHaveTextContent(/No remark from your principal yet/);
   });
 

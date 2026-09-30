@@ -371,6 +371,8 @@ export interface SchoolRemarks {
 
 export interface SchoolAnalyticsResponse {
   success: boolean;
+  /** The date window the server applied; null ends are open (all time). */
+  range?: { from: string | null; to: string | null };
   school: {
     name: string | null;
     totalTeachers: number;
@@ -399,6 +401,7 @@ export interface RemarkReceived {
 /** GET /my-analytics — a teacher's own Analytics page. */
 export interface MyAnalyticsResponse {
   success: boolean;
+  range?: { from: string | null; to: string | null };
   totals: { lessonPlans: number; examsGenerated: number };
   analytics: SchoolAnalytics;
   presence: SchoolPresence;
