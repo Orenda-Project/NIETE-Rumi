@@ -140,8 +140,13 @@ describe('backfill-paper-versions', () => {
       request_id: 'r1', attempt: 1, status: 'ready',
       exam_json: ORIGINAL, file_r2_key: `exams/u1/${P_ID}/Grade3_Maths.pdf`,
       answer_key_r2_key: `exams/u1/${P_ID}/Grade3_Maths_AnswerKey.pdf`,
-      created_at: '2026-08-31T00:00:00Z', ready_at: '2026-08-31T00:01:00Z', question_count: 4,
+      ready_at: '2026-08-31T00:01:00Z', question_count: 4,
     });
+    // bd-5ioto.11: v1 is strictly OLDER than P. A shared created_at left the
+    // portal's "latest version" to an id tie-break, and half the families showed v1.
+    expect(v1.created_at).toBe('2026-08-30T23:59:59.000Z');
+    expect(Date.parse(v1.created_at)).toBeLessThan(Date.parse(p.created_at));
+    expect(p.created_at).toBe('2026-08-31T00:00:00Z'); // P keeps its own
     expect(v1.edited_from == null).toBe(true);
     expect(p.edited_from).toBe(v1Id);
     // P's tree is the full original with her edit in and the trimmed ones flagged
