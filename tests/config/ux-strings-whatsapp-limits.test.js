@@ -87,7 +87,12 @@ const KEY_FIELD = {
  * points (Urdu 19/20). If a reviewer refuses the exemption the fallback copy
  * is "Edit paper".
  */
-const HEADROOM_EXEMPT = new Set(['assessmentEditButton']);
+const HEADROOM_EXEMPT = new Set([
+  'assessmentEditButton',
+  // Operator copy for the ✓/✗ list, 30 Sep 2026: "➕ Add a question" (16/20)
+  // and "More questions ➡️" (17/20 — ➡️ is two code points).
+  'assessmentRowAdd', 'assessmentRowNext',
+]);
 
 /**
  * Row strings with placeholders are measured RENDERED, with the widest values a
@@ -139,6 +144,18 @@ describe('versioned-editing list rows fit the 20-code-point row, rendered', () =
       });
     }
   }
+
+  it('the list rows carry the operator\'s emoji copy', () => {
+    expect(UX_STRINGS.assessmentRowAdd.en).toBe('➕ Add a question');
+    expect(UX_STRINGS.assessmentRowMake.en).toBe('📄 Make my paper');
+    expect(UX_STRINGS.assessmentRowMake.ur.startsWith('📄 ')).toBe(true);
+    expect(UX_STRINGS.assessmentRowAdd.ur.startsWith('➕ ')).toBe(true);
+    expect(UX_STRINGS.assessmentRowPrev.en).toBe('⬅️ Previous');
+    expect(UX_STRINGS.assessmentRowNext.en).toBe('More questions ➡️');
+    for (const k of ['assessmentRowAdd', 'assessmentRowMake', 'assessmentRowPrev', 'assessmentRowNext']) {
+      for (const [lang, v] of Object.entries(UX_STRINGS[k])) expect([k, lang, len(v) <= LIMITS.navRow]).toEqual([k, lang, true]);
+    }
+  });
 
   it('the Edit button CTA fits flow_cta in every language, and carries no emoji', () => {
     for (const [lang, v] of Object.entries(UX_STRINGS.assessmentEditButton)) {

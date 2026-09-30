@@ -50,6 +50,7 @@
       "DONE"
     ],
     "LIST_MORE": [
+      "ADD_TYPE",
       "DONE"
     ],
     "DONE": []
@@ -1857,28 +1858,6 @@
         "can_make": {
           "type": "boolean",
           "__example__": true
-        },
-        "extension_message_response": {
-          "type": "object",
-          "properties": {
-            "params": {
-              "type": "object",
-              "properties": {
-                "assessment_action": {
-                  "type": "string"
-                },
-                "summary": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "__example__": {
-            "params": {
-              "assessment_action": "rebuilt",
-              "summary": "14 questions · 45 marks"
-            }
-          }
         }
       },
       "layout": {
@@ -1912,8 +1891,7 @@
             "on-click-action": {
               "name": "complete",
               "payload": {
-                "_action": "make",
-                "extension_message_response": "${data.extension_message_response}"
+                "_action": "make"
               }
             }
           }
