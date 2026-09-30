@@ -79,7 +79,7 @@ const { summarizeSchoolAnalytics } = require('../services/school-analytics.servi
 // purpose (the teacher:student weighting is still unresolved); S delegates its
 // /20 math to remark-rubric rather than restating it.
 const { summarizePresence } = require('../services/steps-presence.service');
-const { summarizeRemarks } = require('../services/steps-remarks.service');
+const { summarizeRemarks, remarksReceived } = require('../services/steps-remarks.service');
 const { buildStepsGrid } = require('../services/steps-grid.service');
 // bd-60123 — attendance, merged per group (G3) and split per day.
 const { summarizeGroups, summarizeByDay } = require('../services/attendance-detail.service');
@@ -1310,6 +1310,8 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
         totalTeachers: teachers.length,
         onRumi: teachers.filter((t) => t.onRumi).length,
         totalLessonPlans: scopeTeachers.reduce((n, t) => n + (t.lessonPlans || 0), 0),
+        // Ready Assessment Generator papers, same scope as the lesson plans.
+        totalExams: scopeTeachers.reduce((n, t) => n + (t.examsGenerated || 0), 0),
       },
       // The filter's own state, so the page renders the right heading without
       // re-deriving who was asked for.
@@ -1327,6 +1329,67 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
   } catch (error) {
     console.error('leader/school-analytics error:', error);
     res.status(500).json({ success: false, error: 'Failed to load your school analytics.' });
+  }
+});
+
+/**
+ * GET /api/portal/my-analytics
+ * A TEACHER's own Analytics page: the same sections her principal sees when
+ * she picks that teacher (operator, 2026-09-30) — observations, attendance,
+ * the remarks she received — plus lesson plans and exams generated.
+ *
+ * Scoped to the session user and nothing else: there is no id parameter to
+ * trust. Two differences from the principal's view, both decided:
+ *   · her Digital Coach Observations carry their ratings (rateDigital);
+ *   · remarks are the ones she RECEIVED, with the comment and each area.
+ */
+router.get('/my-analytics', requirePortalAuth, async (req, res) => {
+  try {
+    const me = req.session.portalUserId;
+    const [sessionRows, teacherAttRows, studentSessRows, remarkRows, counts] = await Promise.all([
+      pool.query(
+        `SELECT created_at, analysis_data, observation_type
+           FROM coaching_sessions
+          WHERE user_id = $1
+            AND status IN ${TERMINAL}
+            AND analysis_data IS NOT NULL
+          ORDER BY created_at ASC`, [me]),
+      pool.query(
+        `SELECT status, date FROM teacher_attendance_records WHERE teacher_id = $1 ORDER BY date ASC`, [me]),
+      pool.query(
+        `SELECT total_students, present_count, session_date
+           FROM attendance_sessions WHERE user_id = $1 ORDER BY session_date ASC`, [me]),
+      pool.query(
+        `SELECT r.submitted_at, r.comment_text, c.name AS cycle_name,
+                COALESCE(
+                  json_agg(json_build_object('ordinal', sc.indicator_ordinal, 'score', sc.score)
+                           ORDER BY sc.indicator_ordinal)
+                  FILTER (WHERE sc.id IS NOT NULL), '[]'
+                ) AS scores
+           FROM supervisor_remarks r
+           JOIN evaluation_cycles c ON c.id = r.cycle_id
+           LEFT JOIN supervisor_remark_scores sc ON sc.remark_id = r.id
+          WHERE r.teacher_id = $1
+          GROUP BY r.id, c.name`, [me]),
+      pool.query(
+        `SELECT
+           (SELECT count(*) FROM lesson_plans WHERE user_id = $1) AS lesson_plans,
+           (SELECT count(*)
+              FROM assessment_papers p
+              JOIN assessment_requests r ON r.id = p.request_id
+             WHERE r.user_id = $1 AND p.status = 'ready') AS exams`, [me]),
+    ]);
+    const c = (counts.rows && counts.rows[0]) || {};
+    res.json({
+      success: true,
+      totals: { lessonPlans: Number(c.lesson_plans) || 0, examsGenerated: Number(c.exams) || 0 },
+      analytics: summarizeSchoolAnalytics(sessionRows.rows || [], { rateDigital: true }),
+      presence: summarizePresence(teacherAttRows.rows || [], studentSessRows.rows || []),
+      remarksReceived: remarksReceived(remarkRows.rows || []),
+    });
+  } catch (error) {
+    console.error('my-analytics error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load your analytics.' });
   }
 });
 

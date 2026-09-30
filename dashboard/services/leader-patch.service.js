@@ -68,7 +68,8 @@ const PATCH_SELECT = `
     -- principal is asked to track her teachers feature by feature, so every
     -- feature needs a number here or the view cannot be organised by one.
     COALESCE(att.n, 0)    AS attendance_sessions,
-    COALESCE(trn.n, 0)    AS training_modules
+    COALESCE(trn.n, 0)    AS training_modules,
+    COALESCE(exm.n, 0)    AS exams_generated
 `;
 
 // The four per-person stat LATERALs. Identical for every caller: they key on
@@ -127,6 +128,16 @@ const PATCH_LATERALS = `
     WHERE tp.user_id = u.id
       AND tp.completed_at IS NOT NULL
   ) trn ON true
+  -- Exams generated: Assessment Generator papers that FINISHED (status
+  -- 'ready'), reached through the request that asked for them — a failed or
+  -- abandoned generation is not an exam she has (operator, 2026-09-30).
+  LEFT JOIN LATERAL (
+    SELECT count(*) AS n
+    FROM assessment_papers p
+    JOIN assessment_requests r ON r.id = p.request_id
+    WHERE r.user_id = u.id
+      AND p.status = 'ready'
+  ) exm ON true
 `;
 
 // ── entry point 1: a COACH, via her school assignments ──────────────────────
@@ -223,6 +234,7 @@ function shapeTeacher(r) {
     // and Number(undefined) is NaN, which renders as a broken tile.
     attendanceSessions: Number(r.attendance_sessions) || 0,
     trainingModules: Number(r.training_modules) || 0,
+    examsGenerated: Number(r.exams_generated) || 0,
     lastSessionAt: r.last_session_at || null,
     // percentage is the framework-agnostic headline; null when never coached.
     lastScore: overall && overall.percentage != null ? overall.percentage : null,
