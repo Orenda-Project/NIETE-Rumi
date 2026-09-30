@@ -143,6 +143,27 @@ describe('tts.synthesize — when the chosen voice fails, the next one speaks, l
   });
 });
 
+describe('tts.synthesize — bracketed text Soniox would read aloud', () => {
+  const { logWarn } = require('../../bot/shared/utils/logger');
+  beforeEach(() => {
+    process.env.TTS_PROVIDER = 'soniox';
+    process.env.SONIOX_API_KEY = 'sk-test';
+    routeAxios({ soniox: () => ({ status: 200, data: SONIOX_UR }), elevenlabs: () => ({ status: 200, data: OTHER_OGG }) });
+    logWarn.mockClear();
+  });
+
+  it('a template placeholder left in the text is an error: someone was meant to fill it', async () => {
+    await tts.synthesize({ text: 'السلام علیکم [استاد کا نام]، آج کا سبق اچھا تھا۔', language: 'ur', useCase: 'coaching', site: 'report_voicenote' });
+    expect(logError).toHaveBeenCalledWith('tts.text.dropped', expect.objectContaining({ dropped: ['[استاد کا نام]'] }));
+  });
+
+  it('an unknown stage direction is only a warning: it is dropped and nothing is missing', async () => {
+    await tts.synthesize({ text: '[enthusiastic teacher voice] Light travels in straight lines.', language: 'en', useCase: 'video', site: 'narration' });
+    expect(logError).not.toHaveBeenCalled();
+    expect(logWarn).toHaveBeenCalledWith('tts.text.dropped', expect.objectContaining({ dropped: ['[enthusiastic teacher voice]'] }));
+  });
+});
+
 describe('tts.synthesize — a caller that cannot wait', () => {
   it('past its deadline the gateway gives up, says so, and the caller can send text', async () => {
     process.env.TTS_PROVIDER = 'soniox';

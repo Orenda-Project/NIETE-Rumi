@@ -75,9 +75,12 @@ describe('bd-2651 — every voice surface injects the shared rules (source guard
   it('reading voice-feedback injects voiceLanguageRules', () => {
     expect(src('shared/services/reading/voice-feedback.service.js')).toMatch(/voiceLanguageRules/);
   });
-  it('video narration routes Urdu away from Jessica (uses Urdu voice id / language)', () => {
+  it('video narration routes Urdu away from Jessica: it speaks through the voice gateway with its language', () => {
+    // The Urdu voice now comes from the gateway's one voice table; the behaviour
+    // (Urdu narration → the Urdu voice URL) is executed in
+    // tests/student-videos/voiceover-gateway.test.js.
     const s = src('shared/services/video/video-script.service.js');
-    expect(s).toMatch(/ELEVENLABS_URDU_VOICE_ID|URDU_VOICE_ID/);
+    expect(s).toMatch(/tts\.synthesize\(\{\s*text,\s*language,\s*useCase:\s*'video'/);
   });
   it('constants actually EXPORTS ELEVENLABS_URDU_VOICE_ID (video import would be undefined otherwise)', () => {
     // Source-guard (constants.js requires dotenv, not always present in CI sandbox):
