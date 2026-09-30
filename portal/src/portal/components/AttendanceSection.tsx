@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { UserCheck } from 'lucide-react';
 import type { SchoolPresence } from '../types/portal';
 
@@ -8,9 +7,9 @@ import type { SchoolPresence } from '../types/portal';
  * 2026-08-10, thread still open), and rural student absence is driven by
  * circumstances at home, so one teacher-facing number could misattribute it.
  *
- * `audience` changes the words only: a principal reads about her teachers
- * (with a link to the full attendance page, which is principal-only); a
- * teacher reads about herself and the registers she took.
+ * `audience` changes the words only: a principal reads about her teachers; a
+ * teacher reads about herself and the registers she took. The full detail
+ * sits right under it in the same tab (AttendancePanel).
  */
 const AttendanceSection = ({ presence, audience = 'principal' }: {
   presence: SchoolPresence; audience?: 'principal' | 'teacher';
@@ -21,14 +20,6 @@ const AttendanceSection = ({ presence, audience = 'principal' }: {
       <div className="flex items-center gap-2 mb-6">
         <UserCheck className="w-5 h-5 text-accent" />
         <h2 className="text-2xl font-light">Attendance</h2>
-        {/* Each audience's own full page: the school's, or her classes and her days. */}
-        <Link
-          to={mine ? '/portal/attendance' : '/portal/leader/attendance'}
-          data-testid={mine ? 'my-attendance-link' : 'attendance-detail-link'}
-          className="ml-auto text-sm font-medium text-accent hover:underline"
-        >
-          {mine ? 'See each day →' : 'See all attendance →'}
-        </Link>
       </div>
       <p data-testid="presence-help" className="text-muted-foreground text-sm mb-6">
         {mine

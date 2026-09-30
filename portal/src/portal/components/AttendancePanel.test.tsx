@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
@@ -19,7 +19,7 @@ vi.mock("../services/api", () => ({ leader: { getAttendance: vi.fn() } }));
 
 import { useAuth } from "../hooks/useAuth";
 import { leader } from "../services/api";
-import SchoolAttendance from "./SchoolAttendance";
+import AttendancePanel from "./AttendancePanel";
 
 const PAYLOAD = {
   success: true,
@@ -60,10 +60,10 @@ const PAYLOAD = {
 function mount(payload: any = PAYLOAD) {
   (useAuth as any).mockReturnValue({ user: { firstName: "Atifa", role: "principal" }, loading: false, logout: vi.fn() });
   (leader.getAttendance as any).mockResolvedValue(payload);
-  render(<MemoryRouter><SchoolAttendance /></MemoryRouter>);
+  render(<MemoryRouter><AttendancePanel from={null} to={null} /></MemoryRouter>);
 }
 
-describe("SchoolAttendance — G3 by default", () => {
+describe("Attendance detail — G3 by default", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("shows one merged row per grade, least-known first", async () => {
@@ -94,7 +94,7 @@ describe("SchoolAttendance — G3 by default", () => {
   });
 });
 
-describe("SchoolAttendance — day-wise detail", () => {
+describe("Attendance detail — day-wise detail", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("is not shown until she asks for it", async () => {
@@ -124,31 +124,26 @@ describe("SchoolAttendance — day-wise detail", () => {
   });
 });
 
-describe("SchoolAttendance — filters", () => {
+// The date and teacher filters moved to the Analytics page (operator,
+// 2026-09-30); the panel follows the window and teacher it is handed.
+describe("Attendance detail — follows the Analytics filters", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("refetches on a date change", async () => {
-    mount();
-    await waitFor(() => expect(screen.getByTestId("from-date")).toBeInTheDocument());
-    // fireEvent.change, not userEvent.type: a native date input commits one
-    // value at a time from the picker, whereas typing fires a partial date per
-    // keystroke ("2026-09-0") and the assertion races the last one.
-    const from = screen.getByTestId("from-date") as HTMLInputElement;
-    fireEvent.change(from, { target: { value: "2026-09-01" } });
+  it("asks for the window and teacher it is given, and refetches when they change", async () => {
+    (useAuth as any).mockReturnValue({ user: { firstName: "Atifa", role: "principal" }, loading: false, logout: vi.fn() });
+    (leader.getAttendance as any).mockResolvedValue(PAYLOAD);
+    const { rerender } = render(<MemoryRouter><AttendancePanel from={null} to={null} /></MemoryRouter>);
+    await waitFor(() => expect(leader.getAttendance).toHaveBeenLastCalledWith({ from: null, to: null, teacherId: null }));
+    rerender(<MemoryRouter><AttendancePanel from="2026-09-01" to="2026-09-15" teacherId="t1" /></MemoryRouter>);
     await waitFor(() =>
-      expect(leader.getAttendance).toHaveBeenLastCalledWith(
-        expect.objectContaining({ from: "2026-09-01" }),
-      ));
+      expect(leader.getAttendance).toHaveBeenLastCalledWith({ from: "2026-09-01", to: "2026-09-15", teacherId: "t1" }));
   });
 
-  it("refetches scoped to one teacher", async () => {
+  it("has no filters of its own", async () => {
     mount();
-    await waitFor(() => expect(screen.getByTestId("teacher-filter")).toBeInTheDocument());
-    await userEvent.selectOptions(screen.getByTestId("teacher-filter"), "t1");
-    await waitFor(() =>
-      expect(leader.getAttendance).toHaveBeenLastCalledWith(
-        expect.objectContaining({ teacherId: "t1" }),
-      ));
+    await waitFor(() => expect(screen.getByTestId("group-Grade 2 - A")).toBeInTheDocument());
+    expect(screen.queryByTestId("from-date")).toBeNull();
+    expect(screen.queryByTestId("teacher-filter")).toBeNull();
   });
 
   it("says so when the window holds no attendance at all", async () => {

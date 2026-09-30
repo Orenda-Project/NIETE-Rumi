@@ -41,12 +41,13 @@ const PRINCIPAL_DESTINATIONS = [
   { label: /teachers/i, path: "/portal/leader/teachers" },
   { label: /observations/i, path: "/portal/leader/observations" },
   { label: /analytics/i, path: "/portal/leader/school-analytics" },
-  { label: /attendance/i, path: "/portal/leader/attendance" },
+  // Attendance is no longer its own page — it is the Attendance tab inside
+  // Analytics (operator, 2026-09-30).
   { label: /lessons/i, path: "/portal/leader/lessons" },
 ];
 
 describe("PortalNavigation — a principal can reach every page she owns (bd-60174)", () => {
-  it("offers a nav entry for all six principal destinations", () => {
+  it("offers a nav entry for all five principal destinations", () => {
     renderNav({ firstName: "Atifa", role: "principal" });
     for (const dest of PRINCIPAL_DESTINATIONS) {
       const links = screen.getAllByRole("link", { name: dest.label });

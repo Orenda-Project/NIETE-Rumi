@@ -8,7 +8,6 @@ import PortalLayout from "../components/PortalLayout";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
 import ScoreIndicator from "../components/ScoreIndicator";
-import NextStep from "../components/NextStep";
 import type { LeaderPatchTeacher } from "../types/portal";
 
 /**
@@ -134,9 +133,6 @@ const LeaderTeachers = () => {
           </section>
         )}
 
-        {resolveRole(user) === 'principal' && (
-          <NextStep to="/portal/leader/lessons" step={3} label="Review their lessons" />
-        )}
       </div>
     </PortalLayout>
   );

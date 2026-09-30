@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react';
 import { Users, BookOpen, FileText } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
-import TeacherSteps from '../components/TeacherSteps';
 import ObservationsSection from '../components/ObservationsSection';
-import NextStep from '../components/NextStep';
 import AttendanceSection from '../components/AttendanceSection';
+import AttendancePanel from '../components/AttendancePanel';
 import { AnalyticsControls } from '../components/AnalyticsControls';
 import { useAnalyticsView } from '../lib/analyticsView';
 import RemarksSection from '../components/RemarksSection';
@@ -180,9 +179,6 @@ const SchoolAnalytics = () => {
             </div>
           )}
 
-          {/* bd-60119: a principal's teacher IS this page filtered to her, so
-              her STEPS row lives here — each letter a link into her own view. */}
-          {focusTeacher && <TeacherSteps teacherId={focusTeacher.id} />}
         </header>
 
         {/* bd-60122 — the row says ONE scope at a time. Observation counts
@@ -228,12 +224,14 @@ const SchoolAnalytics = () => {
         {tab === 'observations' && (
           <ObservationsSection analytics={analytics} showTeacher={!focusTeacher} range={{ from, to }} />
         )}
-        {tab === 'attendance' && <AttendanceSection presence={presence} />}
+        {tab === 'attendance' && (
+          <>
+            <AttendanceSection presence={presence} />
+            <AttendancePanel from={from} to={to} teacherId={focusTeacher ? focusTeacher.id : null} />
+          </>
+        )}
         {tab === 'remarks' && <RemarksSection remarks={remarks} />}
 
-        {focusTeacher && (
-          <NextStep to={`/portal/leader/lessons?teacherId=${focusTeacher.id}`} step={3} label="Review her lessons" />
-        )}
       </div>
     </PortalLayout>
   );

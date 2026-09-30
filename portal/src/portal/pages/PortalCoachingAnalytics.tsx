@@ -3,6 +3,7 @@ import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import ObservationsSection from '../components/ObservationsSection';
 import AttendanceSection from '../components/AttendanceSection';
+import AttendancePanel from '../components/AttendancePanel';
 import { RemarksReceivedSection } from '../components/RemarksSection';
 import { AnalyticsControls } from '../components/AnalyticsControls';
 import { useAnalyticsView } from '../lib/analyticsView';
@@ -80,7 +81,12 @@ const PortalCoachingAnalytics = () => {
         {tab === 'observations' && (
           <ObservationsSection analytics={data.analytics} showTeacher={false} audience="teacher" range={{ from, to }} />
         )}
-        {tab === 'attendance' && <AttendanceSection presence={presence} audience="teacher" />}
+        {tab === 'attendance' && (
+          <>
+            <AttendanceSection presence={presence} audience="teacher" />
+            <AttendancePanel audience="teacher" from={from} to={to} />
+          </>
+        )}
         {tab === 'remarks' && <RemarksReceivedSection remarks={data.remarksReceived ?? []} />}
       </div>
     </PortalLayout>

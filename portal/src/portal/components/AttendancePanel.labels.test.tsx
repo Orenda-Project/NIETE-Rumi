@@ -32,7 +32,7 @@ vi.mock("../services/api", () => ({ leader: { getAttendance: vi.fn() } }));
 
 import { useAuth } from "../hooks/useAuth";
 import { leader } from "../services/api";
-import SchoolAttendance from "./SchoolAttendance";
+import AttendancePanel from "./AttendancePanel";
 
 const PAYLOAD = {
   success: true,
@@ -60,10 +60,10 @@ const PAYLOAD = {
 function mount(payload: any = PAYLOAD) {
   (useAuth as any).mockReturnValue({ user: { firstName: "Atifa", role: "principal" }, loading: false, logout: vi.fn() });
   (leader.getAttendance as any).mockResolvedValue(payload);
-  render(<MemoryRouter><SchoolAttendance /></MemoryRouter>);
+  render(<MemoryRouter><AttendancePanel from={null} to={null} /></MemoryRouter>);
 }
 
-describe("SchoolAttendance — every number says what it is (bd-60174)", () => {
+describe("Attendance detail — every number says what it is (bd-60174)", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("names present and absent instead of printing a bare 220 / 20", async () => {
