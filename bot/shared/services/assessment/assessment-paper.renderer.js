@@ -274,9 +274,20 @@ function renderQuestion(question, number, questionType, opts) {
   return out.join('\n');
 }
 
-/** Every question in the tree, in printing order, with its type. */
+/**
+ * Every question the paper PRINTS, in printing order, with its type.
+ *
+ * A question she took off the paper stays in the tree flagged `removed: true`
+ * (so it can be brought back without moving any other question's id). Skipping
+ * it HERE, in the one walk the paper, the answer key and the total all go
+ * through, is what keeps a caller from forgetting it.
+ */
 function collectQuestions(examJson) {
   const found = [];
+  const push = (entry) => {
+    if (entry.question && entry.question.removed === true) return;
+    found.push(entry);
+  };
   for (const section of ['seen', 'unseen']) {
     const branch = examJson?.[section];
     if (!branch || typeof branch !== 'object') continue;
@@ -284,11 +295,11 @@ function collectQuestions(examJson) {
       if (!types || typeof types !== 'object') continue;
       for (const [type, entry] of Object.entries(types)) {
         if (Array.isArray(entry)) {
-          entry.forEach((q) => q && found.push({ section, category, type, question: q }));
+          entry.forEach((q) => q && push({ section, category, type, question: q }));
         } else if (entry && typeof entry === 'object') {
           for (const [subType, list] of Object.entries(entry)) {
             if (Array.isArray(list)) {
-              list.forEach((q) => q && found.push({ section, category, type: subType, question: q }));
+              list.forEach((q) => q && push({ section, category, type: subType, question: q }));
             }
           }
         }
@@ -512,4 +523,5 @@ ${rows.join('\n')}
 module.exports = {
   renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion,
   answerLinesFor, storedLines, MAX_STORED_LINES,
+  NO_LINES, isRtl,
 };

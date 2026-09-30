@@ -3,7 +3,7 @@
  * Handles audio file uploads to R2 storage
  */
 
-const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const fs = require('fs');
 const path = require('path');
@@ -127,6 +127,27 @@ async function uploadExamBuffer({ buffer, userId, examId, filename }) {
   await getR2Client().send(command);
   console.log(`✅ Exam paper uploaded to R2: ${key}`);
   return key;
+}
+
+/**
+ * Every object key under a prefix, following R2's 1,000-key pages.
+ *
+ * A prefix is required: an empty one would list the whole bucket. Used by the
+ * paper-version backfill to find the PDF a paper was first delivered as, which
+ * nothing in its row names any more.
+ */
+async function listKeys(prefix) {
+  if (!prefix || typeof prefix !== 'string') throw new Error('listKeys needs a non-empty prefix');
+  const keys = [];
+  let token;
+  do {
+    const input = { Bucket: BUCKET_NAME, Prefix: prefix };
+    if (token) input.ContinuationToken = token;
+    const page = await getR2Client().send(new ListObjectsV2Command(input));
+    for (const o of page?.Contents || []) if (o && o.Key) keys.push(o.Key);
+    token = page?.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+  return keys;
 }
 
 /**
@@ -962,4 +983,5 @@ module.exports = {
   toPublicUrl,  // Alias for getPresignedUrl (backward compat, async!)
   uploadBuffer, // Generic buffer upload for attendance Excel
   uploadExamBuffer, // Exam paper .docx delivery
+  listKeys, // every key under a prefix (paper-version backfill)
 };

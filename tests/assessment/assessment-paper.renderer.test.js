@@ -300,3 +300,43 @@ describe('the answer key is its own document (bd-60015)', () => {
     expect(R.renderAnswerKey({ ...HEAD, subject: 'english', examJson: exam })).not.toMatch(/dir="rtl"/);
   });
 });
+
+describe('a removed question is kept in the tree but never printed', () => {
+  const tree = () => ({
+    unseen: {
+      objective: {
+        MCQs: [
+          { question: 'Kept first', options: ['A) a', 'B) b'], marks: 1, answer: 'A) a' },
+          { question: 'Taken off', options: ['A) x', 'B) y'], marks: 5, answer: 'B) y', removed: true },
+          { question: 'Kept second', options: ['A) c', 'B) d'], marks: 2, answer: 'B) d' },
+        ],
+      },
+    },
+  });
+
+  it('collectQuestions skips it, so totalMarks excludes it', () => {
+    const qs = R.collectQuestions(tree());
+    expect(qs.map((q) => q.question.question)).toEqual(['Kept first', 'Kept second']);
+    expect(R.totalMarks(qs)).toBe(3);
+  });
+
+  it('the paper does not print it and the numbering closes up', () => {
+    const html = R.renderPaper({ ...HEAD, examJson: tree() });
+    expect(html).not.toContain('Taken off');
+    expect(html).toMatch(/<b>2\.<\/b> Kept second/);
+    expect(html).toContain('<td>3</td>'); // Total Marks cell
+  });
+
+  it('the answer key numbers match the paper and leave the removed answer out', () => {
+    const key = R.renderAnswerKey({ ...HEAD, examJson: tree() });
+    expect(key).not.toContain('Taken off');
+    expect(key).not.toContain('B) y');
+    expect(key).toMatch(/<td class="num">2\.<\/td><td class="qt">Kept second/);
+  });
+
+  it('exports NO_LINES so the edit screen knows which types have no answer lines', () => {
+    expect(R.NO_LINES instanceof Set).toBe(true);
+    expect(R.NO_LINES.has('mcqs')).toBe(true);
+    expect(R.NO_LINES.has('short questions')).toBe(false);
+  });
+});
