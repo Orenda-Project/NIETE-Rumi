@@ -196,14 +196,30 @@ function buildSendChoiceButtons(sessionId, S) {
   };
 }
 
-function buildSendConfirmButtons(sessionId, S) {
+/**
+ * The confirm names who the report is going to (bd-zpyf0, HITL row 190): the
+ * "Got it — {name}" line sits above the report image by the time the coach
+ * decides, so the name has to be restated right above the Send button. A
+ * nameless roster row shows the number alone.
+ */
+function fillConfirmBody(S, recipient = {}) {
+  const name = String(recipient.name || '').trim();
+  let body = String(S.send_confirm_body);
+  if (!name) body = body.replace('{name} ({phone})', '{phone}');
+  return body
+    .replace('{name}', name)
+    .replace('{phone}', recipient.phone ? `+${recipient.phone}` : '')
+    .replace(/[ \t]{2,}/g, ' ');
+}
+
+function buildSendConfirmButtons(sessionId, S, recipient = {}) {
   // Send, someone else, or cancel. A bound session now resolves its own
   // recipient, so the middle button is the escape hatch for the 9% of sends
   // that legitimately go elsewhere — a deliberate act instead of the default
   // every coach had to walk through. WhatsApp allows three buttons; every
   // title is inside the 20-code-point cap.
   return {
-    body: S.send_confirm_body,
+    body: fillConfirmBody(S, recipient),
     buttons: [
       { id: `${BTN.confirm}${sessionId}`, title: String(S.btn_send_now).slice(0, 20) },
       { id: `${BTN.other}${sessionId}`, title: String(S.btn_send_other).slice(0, 20) },
@@ -1200,8 +1216,9 @@ async function processTeacherReport(sessionId, payload = {}) {
     // The FO sees EXACTLY what the teacher would receive (D33)…
     await _sendPackage(foPhone, png, teacherCaption, companionText);
     // …then decides.
-    const asked = await sendInteractiveChecked('buttons', foPhone, buildSendConfirmButtons(sessionId, S),
-      { what: 'send buttons', sessionId });
+    const asked = await sendInteractiveChecked('buttons', foPhone, buildSendConfirmButtons(sessionId, S, {
+      name: delivery.teacher_name, phone: delivery.teacher_phone,
+    }), { what: 'send buttons', sessionId });
     // No buttons: say so, and the way back (the /observe list re-runs the preview with its buttons).
     if (!asked) await WhatsAppService.sendMessage(foPhone, S.send_confirm_unavailable);
     logToFile('🔎 observe send: preview delivered to FO', { sessionId, buttons: asked });
