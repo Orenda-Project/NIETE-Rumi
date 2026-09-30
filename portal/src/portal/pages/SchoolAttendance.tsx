@@ -115,8 +115,16 @@ function GroupRow({ g, unit }: { g: AttendanceGroup; unit: 'student' | 'teacher'
   );
 }
 
-/** The day-wise table — P/A per day, the individual notation repeated. */
-function ByDayTable({ rows, days, id }: { rows: AttendanceByDay[]; days: string[]; id: string }) {
+/**
+ * The day-wise table. A class's cell reads present OUT OF its register —
+ * "28/30" — so every day carries its own number to compare against (operator,
+ * 2026-09-30); a bare 28 said nothing about how many were expected. A
+ * teacher's own row is one person, so it stays P or A.
+ */
+function ByDayTable({ rows, days, id, unit }: {
+  rows: AttendanceByDay[]; days: string[]; id: string; unit: 'student' | 'teacher';
+}) {
+  const cellW = unit === 'student' ? 'w-14' : 'w-11';
   return (
     // pb-4 is the fix, not decoration: an overflow-x container draws its
     // scrollbar INSIDE its own box, so without bottom padding the bar lands on
@@ -126,7 +134,7 @@ function ByDayTable({ rows, days, id }: { rows: AttendanceByDay[]; days: string[
       <div className="min-w-max">
         <div className="flex items-center gap-2 pl-36 mb-2">
           {days.map((d) => (
-            <div key={d} className="w-11 text-center text-[9.5px] text-muted-foreground leading-tight">
+            <div key={d} className={`${cellW} text-center text-[9.5px] text-muted-foreground leading-tight`}>
               {fmtDay(d)}
             </div>
           ))}
@@ -140,11 +148,11 @@ function ByDayTable({ rows, days, id }: { rows: AttendanceByDay[]; days: string[
               {r.days.map((c) => {
                 const label = !c.marked
                   ? '–'
-                  : c.present === c.total
-                    ? 'P'
-                    : c.present === 0
-                      ? 'A'
-                      : String(c.present);
+                  : unit === 'student'
+                    ? `${c.present}/${c.total}`
+                    : c.present === c.total
+                      ? 'P'
+                      : 'A';
                 const style = !c.marked
                   ? { background: '#fef2f2', border: '1.5px dashed #f87171', color: '#ef4444' }
                   : c.present === 0
@@ -159,7 +167,7 @@ function ByDayTable({ rows, days, id }: { rows: AttendanceByDay[]; days: string[
                     data-testid={`cell-${r.name}-${c.date}`}
                     title={tip}
                     style={style}
-                    className="w-11 h-7 rounded box-border flex items-center justify-center text-[10.5px] font-bold shrink-0"
+                    className={`${cellW} h-7 rounded box-border flex items-center justify-center text-[10.5px] font-bold shrink-0 tabular-nums`}
                   >
                     {label}
                   </div>
@@ -380,7 +388,7 @@ const SchoolAttendance = ({ audience = 'principal' }: { audience?: 'principal' |
                       {data.students.groups.map((g) => <GroupRow key={g.name} g={g} unit="student" />)}
                     </div>
               ) : (
-                <ByDayTable rows={data.students.byDay} days={data.schoolDays} id="students" />
+                <ByDayTable rows={data.students.byDay} days={data.schoolDays} id="students" unit="student" />
               )}
             </section>
 
@@ -402,7 +410,7 @@ const SchoolAttendance = ({ audience = 'principal' }: { audience?: 'principal' |
                       {data.staff.groups.map((g) => <GroupRow key={g.name} g={g} unit="teacher" />)}
                     </div>
               ) : (
-                <ByDayTable rows={data.staff.byDay} days={data.schoolDays} id="staff" />
+                <ByDayTable rows={data.staff.byDay} days={data.schoolDays} id="staff" unit="teacher" />
               )}
             </section>
 

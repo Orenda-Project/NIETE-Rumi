@@ -127,7 +127,9 @@ describe("SchoolAnalytics — panels explain themselves", () => {
     mount();
     await waitFor(() => expect(screen.getByTestId("observations")).toBeInTheDocument());
     const h3 = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
-    expect(h3).toEqual(expect.arrayContaining(["Progress", "Strong and Weak Areas", "When Observations Happened"]));
+    // Progress and Strong and Weak Areas are one section now (operator, 2026-09-30).
+    expect(h3).toEqual(expect.arrayContaining(["Observation Feedback", "When Observations Happened"]));
+    expect(h3).not.toContain("Progress");
     expect(h3).not.toContain("Score over time");
     expect(h3).not.toContain("By area");
   });
@@ -135,13 +137,16 @@ describe("SchoolAnalytics — panels explain themselves", () => {
   it("renders ONE view of the areas — a ranked list, never a chart of the same numbers", async () => {
     mount();
     await waitFor(() => expect(screen.getByTestId("observations")).toBeInTheDocument());
-    // The only bar chart on the page is the monthly count; areas are a list.
-    expect(screen.queryAllByTestId("chart").length).toBeLessThanOrEqual(2);
+    // The only chart is the rating line; areas are a list, days are a strip.
+    expect(screen.queryAllByTestId("chart").length).toBeLessThanOrEqual(1);
   });
 
   it("explains the attendance and evaluation panels too", async () => {
     mount();
-    await waitFor(() => expect(screen.getByTestId("presence-help")).toBeInTheDocument());
+    // Each is on its own tab (operator, 2026-09-30).
+    await userEvent.click(await screen.findByRole("tab", { name: "Attendance" }));
+    expect(screen.getByTestId("presence-help")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Principal Remarks" }));
     expect(screen.getByTestId("remarks-help")).toBeInTheDocument();
   });
 });

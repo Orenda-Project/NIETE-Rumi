@@ -141,8 +141,11 @@ export const portal = {
   },
 
   /** The teacher's own Analytics page — the principal's single-teacher view, for her. */
-  getMyAnalytics: async (): Promise<MyAnalyticsResponse> => {
-    const response = await api.get('/my-analytics');
+  getMyAnalytics: async (range: { from?: string | null; to?: string | null } = {}): Promise<MyAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (range.from) params.from = range.from;
+    if (range.to) params.to = range.to;
+    const response = await api.get('/my-analytics', { params: Object.keys(params).length ? params : undefined });
     return response.data;
   },
 
@@ -415,9 +418,16 @@ export const leader = {
     return response.data;
   },
 
-  getSchoolAnalytics: async (teacherId?: string | null): Promise<SchoolAnalyticsResponse> => {
+  getSchoolAnalytics: async (
+    teacherId?: string | null,
+    range: { from?: string | null; to?: string | null } = {},
+  ): Promise<SchoolAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (teacherId) params.teacherId = teacherId;
+    if (range.from) params.from = range.from;
+    if (range.to) params.to = range.to;
     const response = await api.get('/leader/school-analytics', {
-      params: teacherId ? { teacherId } : undefined,
+      params: Object.keys(params).length ? params : undefined,
     });
     return response.data;
   },

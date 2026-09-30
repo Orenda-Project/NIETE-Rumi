@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import { Eye, Smartphone } from 'lucide-react';
@@ -7,36 +7,55 @@ import { bandAxisLabel, bandTooltip } from '../lib/scoreBands';
 import type { SchoolAnalytics } from '../types/portal';
 
 /**
- * Observations — S·T·E of STEPS — on a principal's Analytics page, agreed with
- * the operator on 2026-09-29. The audience is not tech-savvy, so every title
- * and label is plain and no rating is ever a number.
+ * Observations — S·T·E of STEPS — on both Analytics pages. The audience is
+ * not tech-savvy, so every title and label is plain and no rating is ever a
+ * number.
  *
- *   Human Observation          — you or a coach watched the lesson in class
+ *   Human Observation          — a principal or coach watched the lesson in class
  *   Digital Coach Observation  — the teacher recorded her own lesson
  *
- * RATINGS (Progress, Strong and Weak Areas) come from Human Observations only:
- * STEPS feeds her ACR, and 83% of analysed sessions on prod are lessons she
- * recorded herself. The COUNTS and the monthly chart show both kinds.
+ * OBSERVATION FEEDBACK (the rating over time, and the strong and weak areas)
+ * comes from Human Observations only: STEPS feeds her ACR, and 83% of
+ * analysed sessions on prod are lessons she recorded herself. The COUNTS and
+ * the day strip show both kinds (operator, 2026-09-29 / 2026-09-30).
  */
 
 const HUMAN_COLOR = '#0f766e';
 const DIGITAL_COLOR = '#6366f1';
 
-function monthLabel(ym: string): string {
-  const [y, m] = ym.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+/** The Pakistan-time day (YYYY-MM-DD) an instant falls on — how the server buckets them. */
+function pkDay(iso: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(new Date(iso));
 }
 
-function monthShort(ym: string): string {
-  const [y, m] = ym.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-GB', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+function addDays(day: string, n: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
 }
 
-/** Month of an ISO date in Pakistan time — matches how the server buckets them. */
-function monthOf(iso: string): string {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit' })
-    .formatToParts(new Date(iso));
-  return `${parts.find((p) => p.type === 'year')?.value}-${parts.find((p) => p.type === 'month')?.value}`;
+const isWeekend = (day: string) => [0, 6].includes(new Date(`${day}T00:00:00Z`).getUTCDay());
+
+function dayLabel(day: string): string {
+  return new Date(`${day}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+/**
+ * The strip's days: every school day (Mon–Fri) from the window's start — or
+ * the first observation, when the window is open — to its end or today, plus
+ * any weekend day on which something did happen, so nothing is ever hidden.
+ */
+function stripDays(observed: Set<string>, from: string | null, to: string | null): string[] {
+  const sorted = [...observed].sort();
+  const today = pkDay(new Date().toISOString());
+  const start = from || sorted[0] || to || today;
+  const end = to || (sorted.length && sorted[sorted.length - 1] > today ? sorted[sorted.length - 1] : today);
+  const out: string[] = [];
+  for (let d = start, guard = 0; d <= end && guard < 1500; d = addDays(d, 1), guard++) {
+    if (!isWeekend(d) || observed.has(d)) out.push(d);
+  }
+  return out;
 }
 
 /** One kind of observation: its colour, its count, and one line saying what it is. */
@@ -78,22 +97,42 @@ const NO_HUMAN_MINE = 'No Human Observations yet. Once your principal or a coach
  * teacher reads about herself. The rules are the same page either way — except
  * that the server sends her own Digital Coach Observations WITH a rating
  * (operator, 2026-09-30), and a row shows a rating whenever it has one.
+ *
+ * `range` is the page's date window, so the day strip spans exactly it.
  */
-const ObservationsSection = ({ analytics, showTeacher, audience = 'principal' }: {
+const ObservationsSection = ({ analytics, showTeacher, audience = 'principal', range }: {
   analytics: SchoolAnalytics; showTeacher: boolean; audience?: 'principal' | 'teacher';
+  range?: { from: string | null; to: string | null };
 }) => {
   const mine = audience === 'teacher';
   const human = analytics.humanObservations ?? 0;
   const digital = analytics.digitalCoachObservations ?? 0;
   const trend = analytics.scoreTrend ?? [];
   const areas = analytics.areas ?? [];
-  const byMonth = analytics.byMonth ?? [];
   const observations = analytics.observations ?? [];
+  const noHuman = mine ? NO_HUMAN_MINE : NO_HUMAN;
 
-  const [month, setMonth] = useState<string | null>(byMonth.length ? byMonth[byMonth.length - 1].month : null);
-  const monthRows = month ? observations.filter((o) => monthOf(o.date) === month) : [];
+  // Observations per Pakistan-time day, by kind.
+  const perDay = new Map<string, { human: number; digital: number }>();
+  for (const o of observations) {
+    const d = pkDay(o.date);
+    const c = perDay.get(d) || { human: 0, digital: 0 };
+    if (o.kind === 'human') c.human += 1; else c.digital += 1;
+    perDay.set(d, c);
+  }
+  const days = stripDays(new Set(perDay.keys()), range?.from ?? null, range?.to ?? null);
+  const latest = [...perDay.keys()].sort().pop() ?? null;
+  const [day, setDay] = useState<string | null>(latest);
+  useEffect(() => { setDay(latest); }, [latest]);
+  const dayRows = day ? observations.filter((o) => pkDay(o.date) === day) : [];
 
-  const progressOptions: ApexOptions = {
+  // Open the strip at its newest end — that is where she will look first.
+  const stripRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (stripRef.current) stripRef.current.scrollLeft = stripRef.current.scrollWidth;
+  }, [days.length]);
+
+  const ratingOptions: ApexOptions = {
     chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false } },
     stroke: { curve: 'smooth', width: 3 },
     colors: [HUMAN_COLOR],
@@ -115,35 +154,15 @@ const ObservationsSection = ({ analytics, showTeacher, audience = 'principal' }:
     markers: { size: 5 },
   };
 
-  const monthsOptions: ApexOptions = {
-    chart: {
-      type: 'bar',
-      stacked: true,
-      toolbar: { show: false },
-      events: {
-        dataPointSelection: (_e, _c, cfg) => {
-          const m = byMonth[cfg.dataPointIndex];
-          if (m) setMonth(m.month);
-        },
-      },
-    },
-    colors: [HUMAN_COLOR, DIGITAL_COLOR],
-    plotOptions: { bar: { borderRadius: 4, columnWidth: '45%' } },
-    xaxis: { categories: byMonth.map((m) => monthShort(m.month)) },
-    yaxis: { labels: { formatter: (v) => String(Math.round(Number(v))) }, forceNiceScale: true },
-    legend: { position: 'top', horizontalAlign: 'left' },
-    dataLabels: { enabled: false },
-    grid: { borderColor: 'hsl(220, 13%, 91%)', strokeDashArray: 4 },
-  };
-
   const block = 'bg-white rounded-lg p-6 shadow-sm border border-border';
 
   return (
     <section data-testid="observations" className="mb-8">
-      <h2 className="text-2xl font-light mb-3">Observations</h2>
+      <h2 className="text-2xl font-light mb-4">Observations</h2>
+
       {/* The two counts, one per kind — each card says what its kind IS,
           beside the number (operator, 2026-09-30). The card's colour is the
-          colour that kind carries in the charts below. */}
+          colour that kind carries in the strip below. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <KindCard
           testid="count-human"
@@ -165,110 +184,131 @@ const ObservationsSection = ({ analytics, showTeacher, audience = 'principal' }:
         />
       </div>
 
-      {/* Progress — Human Observations only. */}
-      <div className={`${block} mb-6`}>
-        <h3 className="text-xl font-medium mb-1">Progress</h3>
-        <p data-testid="progress-help" className="text-muted-foreground text-sm mb-4">
-          The rating from each Human Observation, oldest to newest.
+      {/* Observation Feedback — ONE section: how the rating moved, and which
+          areas are strongest and weakest. Human Observations only. */}
+      <div data-testid="observation-feedback" className={`${block} mb-6`}>
+        <h3 className="text-xl font-medium mb-1">Observation Feedback</h3>
+        <p data-testid="progress-help" className="text-muted-foreground text-sm mb-5">
+          From Human Observations: the rating each time, oldest to newest, and the areas from strongest to weakest.
         </p>
-        {trend.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{mine ? NO_HUMAN_MINE : NO_HUMAN}</p>
+        {trend.length === 0 && areas.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{noHuman}</p>
         ) : (
-          <Chart
-            options={progressOptions}
-            series={[{ name: 'Rating', data: trend.map((p) => p.percentage) }]}
-            type="line"
-            height={280}
-          />
+          <div className="grid gap-6 lg:grid-cols-5">
+            <div className="lg:col-span-3">
+              <h4 className="text-sm font-semibold text-muted-foreground mb-2">Rating over time</h4>
+              {trend.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{noHuman}</p>
+              ) : (
+                <Chart
+                  options={ratingOptions}
+                  series={[{ name: 'Rating', data: trend.map((p) => p.percentage) }]}
+                  type="line"
+                  height={260}
+                />
+              )}
+            </div>
+            <div className="lg:col-span-2">
+              <h4 className="text-sm font-semibold text-muted-foreground mb-2">Strongest to weakest</h4>
+              <ol className="space-y-2">
+                {areas.map((a, i) => {
+                  const weakest = areas.length > 1 && i === areas.length - 1;
+                  return (
+                    <li
+                      key={a.key}
+                      data-testid={`area-${a.key}`}
+                      className={`flex items-center justify-between gap-3 rounded-lg px-4 py-3 ${weakest ? 'bg-warning/10' : 'bg-secondary'}`}
+                    >
+                      <span className="font-medium">{i + 1}. {a.name}</span>
+                      <span className="flex items-center gap-2">
+                        <ScoreIndicator percentage={a.pct} size="small" />
+                        {weakest && <span className="text-xs font-semibold text-warning">← work on this</span>}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Strong and Weak Areas — Human Observations only, the STEPS areas. */}
-      <div className={`${block} mb-6`}>
-        <h3 className="text-xl font-medium mb-1">Strong and Weak Areas</h3>
-        <p className="text-muted-foreground text-sm mb-4">
-          From Human Observations, strongest first.
-        </p>
-        {areas.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{mine ? NO_HUMAN_MINE : NO_HUMAN}</p>
-        ) : (
-          <ol className="space-y-2">
-            {areas.map((a, i) => {
-              const weakest = areas.length > 1 && i === areas.length - 1;
-              return (
-                <li
-                  key={a.key}
-                  data-testid={`area-${a.key}`}
-                  className={`flex items-center justify-between gap-3 rounded-lg px-4 py-3 ${weakest ? 'bg-warning/10' : 'bg-secondary'}`}
-                >
-                  <span className="font-medium">{i + 1}. {a.name}</span>
-                  <span className="flex items-center gap-2">
-                    <ScoreIndicator percentage={a.pct} size="small" />
-                    {weakest && <span className="text-xs font-semibold text-warning">← work on this</span>}
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-      </div>
-
-      {/* When Observations Happened — BOTH kinds, month by month. */}
+      {/* When Observations Happened — BOTH kinds, day by day, in the same
+          strip the Attendance page uses (operator, 2026-09-30). */}
       <div className={block}>
         <h3 className="text-xl font-medium mb-1">When Observations Happened</h3>
         <p className="text-muted-foreground text-sm mb-4">
-          How many observations each month. Pick a month to see them.
+          Each box is a school day, with how many observations happened. Pick a day to see them.
         </p>
-        {byMonth.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No observations yet.</p>
+        {observations.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {range?.from || range?.to ? 'No observations in these dates.' : 'No observations yet.'}
+          </p>
         ) : (
           <>
-            <Chart
-              options={monthsOptions}
-              series={[
-                { name: 'Human Observations', data: byMonth.map((m) => m.human) },
-                { name: 'Digital Coach Observations', data: byMonth.map((m) => m.digitalCoach) },
-              ]}
-              type="bar"
-              height={240}
-            />
-            {/* The same months as plain buttons — easier than tapping a bar. */}
-            <div className="flex flex-wrap gap-2 mt-4 mb-4">
-              {[...byMonth].reverse().map((m) => (
-                <button
-                  key={m.month}
-                  type="button"
-                  data-testid={`month-${m.month}`}
-                  onClick={() => setMonth(m.month)}
-                  aria-pressed={month === m.month}
-                  className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                    month === m.month ? 'border-accent bg-accent/10 text-foreground' : 'border-border bg-white hover:border-accent/50'
-                  }`}
-                >
-                  {monthLabel(m.month)} · {m.human} Human · {m.digitalCoach} Digital Coach
-                </button>
-              ))}
-            </div>
-            {month && (
-              <ul className="divide-y divide-border rounded-lg border border-border">
-                {monthRows.map((o, i) => (
-                  <li key={`${o.date}-${i}`} data-testid={`obs-row-${i}`} className="flex items-center justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">
-                        {new Date(o.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        {' · '}
-                        <span style={{ color: o.kind === 'human' ? HUMAN_COLOR : undefined }}>{KIND_LABEL[o.kind]}</span>
-                      </p>
-                      {showTeacher && o.teacherName && (
-                        <p className="text-xs text-muted-foreground truncate">{o.teacherName}</p>
-                      )}
+            <div ref={stripRef} data-testid="obs-strip" className="overflow-x-auto pb-4 -mb-1">
+              <div className="flex gap-2 min-w-max">
+                {days.map((d) => {
+                  const c = perDay.get(d);
+                  const n = c ? c.human + c.digital : 0;
+                  const bg = !c ? undefined
+                    : c.human && c.digital ? `linear-gradient(135deg, ${HUMAN_COLOR} 50%, ${DIGITAL_COLOR} 50%)`
+                      : c.human ? HUMAN_COLOR : DIGITAL_COLOR;
+                  const tip = !c ? `${dayLabel(d)} — no observation`
+                    : `${dayLabel(d)} — ${c.human} Human, ${c.digital} Digital Coach`;
+                  return (
+                    <div key={d} className="flex flex-col items-center gap-1">
+                      <span className="w-11 text-center text-[9.5px] leading-tight text-muted-foreground">{dayLabel(d)}</span>
+                      <button
+                        type="button"
+                        data-testid={`obs-day-${d}`}
+                        title={tip}
+                        disabled={!c}
+                        onClick={() => setDay(d)}
+                        aria-pressed={day === d}
+                        className={`w-11 h-7 rounded box-border flex items-center justify-center text-[10.5px] font-bold shrink-0 ${
+                          day === d ? 'ring-2 ring-offset-1 ring-foreground/60' : ''
+                        }`}
+                        style={c ? { background: bg, color: '#ffffff' }
+                          : { background: '#f9fafb', border: '1.5px dashed #d1d5db', color: '#9ca3af' }}
+                      >
+                        {n || '–'}
+                      </button>
                     </div>
-                    {/* A rating whenever the server sent one: always for a Human
-                        Observation; for a Digital Coach one only on her own page. */}
-                    {o.percentage != null && <ScoreIndicator percentage={o.percentage} size="small" />}
-                  </li>
-                ))}
-              </ul>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-5 text-xs text-muted-foreground mt-2 mb-4">
+              <span className="flex items-center gap-2"><span className="inline-block w-4 h-3 rounded-sm" style={{ background: HUMAN_COLOR }} />Human Observation</span>
+              <span className="flex items-center gap-2"><span className="inline-block w-4 h-3 rounded-sm" style={{ background: DIGITAL_COLOR }} />Digital Coach Observation</span>
+              <span className="flex items-center gap-2"><span className="inline-block w-4 h-3 rounded-sm" style={{ background: `linear-gradient(135deg, ${HUMAN_COLOR} 50%, ${DIGITAL_COLOR} 50%)` }} />Both</span>
+              <span className="flex items-center gap-2"><span className="inline-block w-4 h-3 rounded-sm" style={{ background: '#f9fafb', border: '1.5px dashed #d1d5db' }} />None</span>
+            </div>
+
+            {day && (
+              <>
+                <p className="text-sm font-medium mb-2">
+                  {new Date(`${day}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })}
+                </p>
+                <ul className="divide-y divide-border rounded-lg border border-border">
+                  {dayRows.map((o, i) => (
+                    <li key={`${o.date}-${i}`} data-testid={`obs-row-${i}`} className="flex items-center justify-between gap-3 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          <span style={{ color: o.kind === 'human' ? HUMAN_COLOR : DIGITAL_COLOR }}>{KIND_LABEL[o.kind]}</span>
+                        </p>
+                        {showTeacher && o.teacherName && (
+                          <p className="text-xs text-muted-foreground truncate">{o.teacherName}</p>
+                        )}
+                      </div>
+                      {/* A row shows its rating whenever it has one. */}
+                      {o.percentage != null && <ScoreIndicator percentage={o.percentage} size="small" />}
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </>
         )}
