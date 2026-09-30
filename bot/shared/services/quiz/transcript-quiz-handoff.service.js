@@ -215,7 +215,7 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     if (!linkSent) Funnel.emit('send_failed', { ...funnel, reason: 'link_not_delivered' });
 
     try {
-      const SQSQueueService = require('../queue/sqs-queue.service');
+      const SQSQueueService = require('../queue');
       // Six hours, pushed out of the 21:00-07:00 PKT quiet window rather than
       // dropped — the worker re-queues until this instant.
       const { nudgeTargetUtc } = require('./transcript-quiz-nudge.service');

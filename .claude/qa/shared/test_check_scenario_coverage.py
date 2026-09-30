@@ -127,6 +127,19 @@ def test_an_id_recorded_through_a_WRAPPER_counts_as_driven():
         "a wrapper-recorded scenario was reported missing: %r" % (fs,)
 
 
+def test_a_Scenario_Outline_is_a_scenario_too():
+    """Gherkin has two scenario keywords. training.feature line 64 is a Scenario Outline carrying
+    @T02, and matching only "Scenario:" made the gate report the driver's T02 as an orphan while
+    the tagged Outline was invisible — a false failure AND a false blind spot in one bug."""
+    spec = TAGGED_SPEC.replace("  Scenario: The menu row asks for a recording",
+                               "  Scenario Outline: The menu row asks for a recording")
+    fs = cov.check_feature(_tree(spec=spec, driver=DRIVER_BOTH), "coaching")
+    assert not [f for f in fs if f["code"] == "E-NOSCENARIO"], \
+        "an Outline's id was reported as an orphan: %r" % (fs,)
+    assert not [f for f in fs if f["code"] == "E-NODRIVER"], \
+        "an Outline was treated as missing: %r" % (fs,)
+
+
 if __name__ == "__main__":
     fns = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     failed = 0

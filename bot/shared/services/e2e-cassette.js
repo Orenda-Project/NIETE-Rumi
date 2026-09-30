@@ -31,8 +31,8 @@ const crypto = require('crypto');
 const PROD_PROJECT_REFS = ['ihzciabopbttygxxgrkm'];   // NIETE production Supabase — never cassette here
 const R2_PREFIX = 'e2e-cassettes/';
 
-function _log(msg, data) {
-  try { require('../utils/logger').logToFile(msg, data); } catch (_) { /* logger optional in tests */ }
+function _log(msg, data, level) {
+  try { require('../utils/logger').logToFile(msg, data, level); } catch (_) { /* logger optional in tests */ }
 }
 
 function mode() {
@@ -175,6 +175,69 @@ function requestForRecord(keyParts) {
   try { return walk(keyParts); } catch (_) { return null; }
 }
 
+// ── scripted faults (the mock lane only) ─────────────────────────────────────
+/**
+ * E2E_CASSETTE_FAULTS names a JSON file of rules: [{ kind, match, times, content | throw }].
+ * A request whose normalised text contains `match` (a substring, or /re/ for a regex) is answered
+ * by the rule instead of the cassette or the vendor — `content` as an OpenAI-shaped completion,
+ * `throw` as an error — `times` times; a spent rule is removed from the file. This is how a
+ * scenario forces "the model gave no usable reply" or "the author never passed the checks" on
+ * demand. Ignored whenever the cassette is off (so never on prod, where mode() forces off), and a
+ * scripted answer is never recorded.
+ */
+let _faultsSeen = null;   // the file path + mtime last validated, so a rule is rejected once, loudly, not on every call
+function _faultRules() {
+  const f = process.env.E2E_CASSETTE_FAULTS;
+  if (!f) return null;
+  let raw, mtime;
+  try { mtime = fs.statSync(f).mtimeMs; raw = fs.readFileSync(f, 'utf8'); }
+  catch (e) { if (e && e.code === 'ENOENT') return null; _log('⚠️ e2e-cassette: faults file unreadable — no scripted answers', { file: f, error: e.message }, 'warn'); return null; }
+  let rules;
+  try { rules = JSON.parse(raw); } catch (e) { _log('⚠️ e2e-cassette: faults file is not JSON — no scripted answers', { file: f, error: e.message }, 'warn'); return null; }
+  if (!Array.isArray(rules)) { _log('⚠️ e2e-cassette: faults file must hold an array of rules — ignored', { file: f }, 'warn'); return null; }
+  const key = f + '@' + mtime;
+  const valid = [];
+  for (const r of rules) {
+    const why = !r || typeof r !== 'object' ? 'not an object'
+      : !r.kind ? 'no kind (asr | llm | tts)'
+      : !r.match ? 'no match'
+      : !(Number(r.times) > 0) ? 'times must be a positive number'
+      : (r.value === undefined && r.throw === undefined && r.kind !== 'llm') ? 'only an llm rule can default to a chat completion; give value or throw'
+      : null;
+    if (!why) { try { _faultRegex(r.match); } catch (e) { valid.push(null); if (_faultsSeen !== key) _log('⚠️ e2e-cassette: fault rule has an invalid /regex/ — rule ignored', { match: r.match, error: e.message }, 'warn'); continue; } }
+    if (why) { if (_faultsSeen !== key) _log('⚠️ e2e-cassette: fault rule ignored', { rule: r, why }, 'warn'); valid.push(null); continue; }
+    valid.push(r);
+  }
+  if (_faultsSeen !== key) { _log('📼 e2e-cassette: scripted fault rules loaded', { file: f, rules: valid.filter(Boolean).length, ignored: valid.filter((x) => !x).length }, 'warn'); _faultsSeen = key; }
+  return { file: f, rules, valid };
+}
+function _faultRegex(m) {
+  const re = /^\/(.+)\/([a-z]*)$/.exec(String(m));
+  return re ? new RegExp(re[1], re[2]) : null;
+}
+function _faultMatches(rule, kind, keyParts) {
+  if (!rule || rule.kind !== kind) return false;
+  const hay = stable(requestForRecord(keyParts) || {});
+  const re = _faultRegex(rule.match);
+  return re ? re.test(hay) : hay.includes(JSON.stringify(String(rule.match)).slice(1, -1));
+}
+function _takeFault(kind, keyParts) {
+  const found = _faultRules();
+  if (!found) return null;
+  const i = found.valid.findIndex((r) => _faultMatches(r, kind, keyParts));
+  if (i < 0) return null;
+  const rule = found.rules[i];
+  rule.times = Number(rule.times) - 1;
+  try { fs.writeFileSync(found.file, JSON.stringify(found.rules.filter((r) => !(r && Number(r.times) <= 0 && r === rule)))); }
+  catch (e) { _log('⚠️ e2e-cassette: could not write the spent fault back — it may fire again', { file: found.file, error: e.message }, 'warn'); }
+  _log('📼 e2e-cassette: scripted FAULT answered instead of the vendor', { kind, match: rule.match, left: rule.times }, 'warn');
+  if (rule.throw !== undefined) { const err = new Error(String(rule.throw)); err.code = 'E2E_CASSETTE_FAULT'; throw err; }
+  if (rule.value !== undefined) return { value: rule.value };
+  return { value: { id: 'e2e-fault', object: 'chat.completion', created: Math.floor(Date.now() / 1000), model: 'e2e-fault',
+    choices: [{ index: 0, message: { role: 'assistant', content: String(rule.content == null ? '' : rule.content) }, finish_reason: 'stop' }],
+    usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } } };
+}
+
 // ── the one primitive ────────────────────────────────────────────────────────
 /**
  * Run `fn` through the cassette.
@@ -186,6 +249,8 @@ function requestForRecord(keyParts) {
 async function wrap(kind, keyParts, fn, opts = {}) {
   const m = mode();
   if (m === 'off') return fn();
+  const scripted = _takeFault(kind, keyParts);
+  if (scripted) return (opts.deserialize || (x => x))(scripted.value);
   const key = keyFor(kind, keyParts);
   const deser = opts.deserialize || (x => x);
   const ser = opts.serialize || (x => x);

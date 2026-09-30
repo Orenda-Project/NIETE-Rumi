@@ -211,8 +211,27 @@ class SQSCoachingWorker {
     const raw = String(process.env.QUIZ_QUEUE_OWN_LOOP || '').trim().toLowerCase();
     if (raw === 'false' || raw === '0' || raw === 'off' || raw === 'no') return false;
     const enabled = SQSCoachingWorker._enabledQueues();
-    if (!enabled.has('quiz') || !process.env.SQS_QUIZ_QUEUE_URL) return false;
-    return enabled.has('main') || (enabled.has('video') && !!process.env.SQS_VIDEO_QUEUE_URL);
+    if (!enabled.has('quiz') || !SQSCoachingWorker._hasDedicatedQueue('quiz')) return false;
+    return enabled.has('main') || (enabled.has('video') && SQSCoachingWorker._hasDedicatedQueue('video'));
+  }
+
+  /**
+   * Does the queue DRIVER have a dedicated `video` / `quiz` queue to poll? SQS has one
+   * only when its URL is configured; BullMQ always has all three named queues (one
+   * Redis). Gating on the SQS URL alone left the quiz queue unpolled under
+   * QUEUE_DRIVER=bullmq while the bot kept enqueuing onto it — every quiz sat
+   * "generating" for ever in the local mock lane (bd-p99wn, the twin of bd-2aetj).
+   */
+  static _hasDedicatedQueue(kind) {
+    const driver = String(process.env.QUEUE_DRIVER || 'sqs').toLowerCase();   // read exactly as queue/index.js reads it
+    if (driver === 'bullmq') {
+      if (!process.env.REDIS_URL && !SQSCoachingWorker._warnedNoRedis) {   // once: a BullMQ worker with no Redis would otherwise poll nothing, silently, for ever
+        SQSCoachingWorker._warnedNoRedis = true;
+        logToFile('❌ QUEUE_DRIVER=bullmq but REDIS_URL is unset — no queue can be polled', { kind }, 'error');
+      }
+      return !!process.env.REDIS_URL;
+    }
+    return kind === 'quiz' ? !!process.env.SQS_QUIZ_QUEUE_URL : !!process.env.SQS_VIDEO_QUEUE_URL;
   }
 
   /**
@@ -288,8 +307,8 @@ class SQSCoachingWorker {
       // occupying a slot that coaching jobs are queued behind. Default polls
       // everything — preserves prior NIETE behaviour.
       const enabled = SQSCoachingWorker._enabledQueues();
-      const hasVideoQueue = !!process.env.SQS_VIDEO_QUEUE_URL;
-      const hasQuizQueue = !!process.env.SQS_QUIZ_QUEUE_URL;
+      const hasVideoQueue = SQSCoachingWorker._hasDedicatedQueue('video');
+      const hasQuizQueue = SQSCoachingWorker._hasDedicatedQueue('quiz');
       const pollsMain = enabled.has('main');
       const pollsVideo = enabled.has('video') && hasVideoQueue;
       // A quiz queue with its own loop (runQuizLoop) is not polled here.
