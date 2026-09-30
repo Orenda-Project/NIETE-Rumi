@@ -657,7 +657,15 @@ class WhatsAppService {
       // Clean up temp file
       fs.unlinkSync(audioPath);
 
-      logToFile('Audio message sent successfully', { response: sendResponse.data });
+      // The media id is the one handle Meta returns the uploaded bytes by, so it
+      // is what lets anyone fetch back exactly what the teacher heard.
+      logToFile('Audio message sent successfully', {
+        mediaId,
+        messageId: sendResponse.data?.messages?.[0]?.id || null,
+        bytes: audioBuffer.length,
+        contentType,
+        response: sendResponse.data,
+      });
       return true;
     } catch (error) {
       logToFile('❌ Error sending audio message', {
