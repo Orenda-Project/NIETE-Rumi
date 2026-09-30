@@ -4,7 +4,7 @@
  * Selecting a Lesson Plan". A human coach picking the teacher's plan from the
  * recent-LP list can tap the wrong row, and the tap linked it (and queued the
  * analysis) on the spot. On an observation the tap now asks first; linking runs
- * only on "Yes, use this". A teacher's own self-serve session keeps one tap.
+ * only on "Yes"; "No" returns to the list. A teacher's own self-serve session keeps one tap.
  */
 
 const HANDLER = '../../bot/shared/services/coaching/lp-coaching/lp-list-selection.handler';
@@ -45,7 +45,7 @@ function load() {
 }
 
 describe('a coach tapping a recent lesson plan is asked to confirm first', () => {
-  test('the tap links nothing, queues nothing, and names the plan with Yes / Choose another', async () => {
+  test('the tap links nothing, queues nothing, and names the plan with Yes / No', async () => {
     const { handleLpListSelection } = load();
     const { d, log } = deps();
     const handled = await handleLpListSelection(`lp_select_${ASSET}_${SID}`, FROM, d);
@@ -61,10 +61,14 @@ describe('a coach tapping a recent lesson plan is asked to confirm first', () =>
       `lpconfirm_yes_${ASSET}_${SID}`,
       `lpconfirm_no_${SID}`,
     ]);
-    expect(payload.buttons.map((b) => b.title)).toEqual(['Yes, use this', 'Choose another']);
+    expect(payload.buttons.map((b) => b.title)).toEqual(['Yes', 'No']);
+    // HITL row 189 copy: "You have selected [Lesson Plan Name]. Do you want to proceed?"
+    expect(payload.body).toMatch(/^You have selected \*Fractions: halves\*\./);
+    expect(payload.body).toMatch(/Do you want to proceed\?$/);
   });
 
   test('an Urdu coach gets the confirmation in Urdu, every button within 20 code points', async () => {
+    // Urdu copy must not gender the coach (no «چاہتے / چاہتی»).
     const { handleLpListSelection } = load();
     const { d, log } = deps({ lang: 'ur' });
     await handleLpListSelection(`lp_select_${ASSET}_${SID}`, FROM, d);
@@ -72,6 +76,8 @@ describe('a coach tapping a recent lesson plan is asked to confirm first', () =>
     const { payload } = log.buttons[0];
     expect(payload.body).toMatch(/[؀-ۿ]/);
     expect(payload.body).toContain('Fractions: halves');
+    expect(payload.body).not.toMatch(/چاہت[ےی]/);
+    expect(payload.buttons.map((b) => b.title)).toEqual(['ہاں', 'نہیں']);
     for (const b of payload.buttons) {
       expect(b.title).toMatch(/[؀-ۿ]/);
       expect(cp(b.title)).toBeLessThanOrEqual(20);
@@ -115,7 +121,7 @@ describe('a coach tapping a recent lesson plan is asked to confirm first', () =>
 });
 
 describe('the confirmation buttons', () => {
-  test('"Yes, use this" runs the existing link path for that plan', async () => {
+  test('"Yes" runs the existing link path for that plan', async () => {
     const { handleLpConfirmTap } = load();
     const { d, log } = deps();
     const handled = await handleLpConfirmTap(`lpconfirm_yes_${ASSET}_${SID}`, FROM, d);
@@ -138,7 +144,7 @@ describe('the confirmation buttons', () => {
     expect(log.queued).toHaveLength(0);
   });
 
-  test('"Choose another" links nothing and re-sends the list', async () => {
+  test('"No" links nothing and returns to the lesson-plan list', async () => {
     const { handleLpConfirmTap } = load();
     const { d, log } = deps();
     const handled = await handleLpConfirmTap(`lpconfirm_no_${SID}`, FROM, d);
@@ -149,7 +155,7 @@ describe('the confirmation buttons', () => {
     expect(log.resent).toEqual([{ sid: SID, to: FROM, l: 'en' }]);
   });
 
-  test('"Choose another" on a cancelled observation re-sends nothing', async () => {
+  test('"No" on a cancelled observation re-sends nothing', async () => {
     const { handleLpConfirmTap } = load();
     const { d, log } = deps({ status: 'cancelled' });
     await handleLpConfirmTap(`lpconfirm_no_${SID}`, FROM, d);
@@ -242,7 +248,7 @@ describe('the real lookups, faked only at the network boundary', () => {
     expect(wa.buttons[0].p.buttons[0].id).toBe(`lpconfirm_yes_${ASSET}_${SID}`);
   });
 
-  test('"Choose another" re-sends the recent-LP list through WhatsApp', async () => {
+  test('"No" re-sends the recent-LP list through WhatsApp', async () => {
     const { mod, wa } = loadWithFakes(rows);
     await mod.handleLpConfirmTap(`lpconfirm_no_${SID}`, FROM, { userId: COACH_ID });
 

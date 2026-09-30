@@ -141,7 +141,7 @@ async function handleLpListSelection(listId, from, deps = {}) {
       return true;
     }
     // bd-2c1gj — ask before linking a coach's pick. deps.confirmed is set only
-    // by the "Yes, use this" tap, which re-enters here to link.
+    // by the "Yes" tap, which re-enters here to link.
     if (!deps.confirmed && await isCoachObservation(sessionId)) {
       const assetId = listId.slice('lp_select_'.length, -(sessionId.length + 1));
       const row = await describeSelection(sessionId, assetId);
