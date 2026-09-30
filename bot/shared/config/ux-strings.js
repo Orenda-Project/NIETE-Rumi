@@ -2696,6 +2696,29 @@ const UX_STRINGS = {
     en: 'No one has opened your quiz on \u201c{topic}\u201d yet. The link stays live for 30 days \u2014 worth a nudge in the class group.',
     ur: '\u200Fآپ کے quiz «{topic}» کو ابھی تک کسی نے نہیں کھولا۔ link 30 دن تک چلتا رہے گا — class group میں ایک بار پھر یاد دہانی کرا دیں۔',
   },
+
+  /*
+   * Paper copy, not chat copy: the shared instruction printed over a question
+   * type a teacher started herself on an edited paper. Resolved by the language
+   * the PAPER is set in (the subject's direction), never by her chat language —
+   * it is read by the children, beside the generator's own instructions.
+   */
+  assessmentInstructionMcq: {
+    en: 'Choose the correct option.',
+    ur: 'درست جواب کا انتخاب کریں۔',
+  },
+  assessmentInstructionShort: {
+    en: 'Answer the following questions.',
+    ur: 'درج ذیل سوالات کے جواب دیں۔',
+  },
+  assessmentInstructionLong: {
+    en: 'Answer in detail.',
+    ur: 'تفصیل سے جواب دیں۔',
+  },
+  assessmentInstructionFill: {
+    en: 'Fill in the blanks.',
+    ur: 'خالی جگہ پُر کریں۔',
+  },
 };
 
 /**

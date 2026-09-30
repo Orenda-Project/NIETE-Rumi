@@ -144,6 +144,18 @@ describe('the index and the renderer must agree', () => {
     expect(mine).toEqual(theirs);
   });
 
+  // With versioned editing a removed question stays in the tree. The renderer
+  // prints only the ACTIVE ones, so the pin is: the active subset of the index,
+  // in order, is exactly what the renderer collects — and the index's number is
+  // the number printed.
+  test('the ACTIVE subset of the index is what the renderer prints, numbered as printed', () => {
+    const t = JSON.parse(JSON.stringify(EXAM));
+    t.seen.objective.MCQs[0].removed = true;
+    const active = indexQuestions(t).filter((q) => !q.removed);
+    expect(active.map((q) => q.question)).toEqual(Renderer.collectQuestions(t).map((q) => q.question));
+    expect(active.map((q) => q.number)).toEqual([1, 2, 3]);
+  });
+
   test('a filtered tree still renders, and totals only what is ticked', () => {
     const out = applySelection(EXAM, ['seen.objective.MCQs.0', 'seen.subjective.Long Question.Essay Writing.0']);
     expect(Renderer.totalMarks(Renderer.collectQuestions(out))).toBe(3);
@@ -256,5 +268,151 @@ describe('Urdu questions survive indexing and selection intact', () => {
     // An emptied branch is DROPPED, not left as an empty object — so the
     // subjective side is gone entirely rather than present and empty.
     expect(indexQuestions(out)).toHaveLength(1);
+  });
+});
+
+/*
+ * Versioned editing. A removed question stays IN the tree, flagged, so the path
+ * ids of every other question survive — a removal and an add-back are one flag
+ * flip, not a rebuild. Everything that prints or counts looks at the ACTIVE
+ * subset only.
+ */
+describe('removed questions stay in the tree', () => {
+  const Selection = require('../../bot/shared/services/assessment/assessment-selection');
+  const withRemoved = () => {
+    const t = JSON.parse(JSON.stringify(EXAM));
+    t.seen.objective.MCQs[1].removed = true;
+    return t;
+  };
+
+  test('indexQuestions flags a removed question and numbers only the active ones', () => {
+    const items = Selection.indexQuestions(withRemoved());
+    expect(items.map((q) => q.removed)).toEqual([false, true, false, false]);
+    expect(items.map((q) => q.number)).toEqual([1, null, 2, 3]);
+    // ids never move because of a removal
+    expect(items.map((q) => q.id)).toEqual(indexQuestions(EXAM).map((q) => q.id));
+  });
+
+  test('activeTree drops removed questions and prunes containers they emptied', () => {
+    const t = withRemoved();
+    t.unseen.objective['True / False'][0].removed = true;
+    const active = Selection.activeTree(t);
+    expect(active.seen.objective.MCQs).toHaveLength(1);
+    expect(active.unseen).toBeUndefined();
+    expect(Selection.indexQuestions(active).every((q) => !q.removed)).toBe(true);
+  });
+
+  test('activeTree of a tree with nothing removed prints the same questions', () => {
+    const Renderer = require('../../bot/shared/services/assessment/assessment-paper.renderer');
+    expect(Renderer.collectQuestions(Selection.activeTree(EXAM)).map((q) => q.question))
+      .toEqual(Renderer.collectQuestions(EXAM).map((q) => q.question));
+  });
+
+  test('setRemoved returns a copy and leaves the input alone; add-back clears the flag', () => {
+    const src = JSON.parse(JSON.stringify(EXAM));
+    const out = Selection.setRemoved(src, 'seen.objective.MCQs.0', true);
+    expect(out.seen.objective.MCQs[0].removed).toBe(true);
+    expect(src.seen.objective.MCQs[0].removed).toBeUndefined();
+    const back = Selection.setRemoved(out, 'seen.objective.MCQs.0', false);
+    expect('removed' in back.seen.objective.MCQs[0]).toBe(false);
+    expect(Selection.setRemoved(src, 'seen.objective.MCQs.9', true)).toBeNull();
+  });
+});
+
+describe('appendQuestion — a question she adds', () => {
+  const Selection = require('../../bot/shared/services/assessment/assessment-selection');
+  const q = (text) => ({ question: text, answer: 'x', marks: 1, source: 'teacher' });
+
+  test('an MCQ joins the existing MCQs list, at the end, and existing ids do not move', () => {
+    const before = indexQuestions(EXAM);
+    const { tree, id } = Selection.appendQuestion(EXAM, { kind: 'mcq', subject: 'science', grade: 4 }, q('New?'));
+    expect(id).toBe('seen.objective.MCQs.2');
+    expect(tree.seen.objective.MCQs[2].question).toBe('New?');
+    const after = new Map(indexQuestions(tree).map((i) => [i.id, i.question.question]));
+    for (const b of before) expect(after.get(b.id)).toBe(b.question.question);
+    expect(EXAM.seen.objective.MCQs).toHaveLength(2); // input untouched
+  });
+
+  test('a long question lands in the LAST sub-list when the key holds sub-typed lists', () => {
+    const { tree, id } = Selection.appendQuestion(EXAM, { kind: 'long', subject: 'english', grade: 4 }, q('Describe.'));
+    expect(id).toBe('seen.subjective.Long Question.Essay Writing.1');
+    expect(tree.seen.subjective['Long Question']['Essay Writing'][1].question).toBe('Describe.');
+  });
+
+  test('a short question with no existing key uses the catalogue name and category', () => {
+    const maths = Selection.appendQuestion(EXAM, { kind: 'short', subject: 'maths', grade: 3 }, q('2+2?'));
+    expect(maths.id).toBe('unseen.subjective.Short Questions.0');
+    const sci = Selection.appendQuestion(EXAM, { kind: 'short', subject: 'science', grade: 4 }, q('Why?'));
+    expect(sci.id).toBe('unseen.subjective.Brief Answers.0');
+  });
+
+  test('fill joins an existing Fill in the Blanks key whatever its case', () => {
+    const t = JSON.parse(JSON.stringify(EXAM));
+    t.seen.objective['fill in the blanks'] = [{ question: 'A __', marks: 1 }];
+    const { id } = Selection.appendQuestion(t, { kind: 'fill', subject: 'english', grade: 2 }, q('B __'));
+    expect(id).toBe('seen.objective.fill in the blanks.1');
+  });
+
+  test('with neither section present, a new type goes under seen', () => {
+    const { tree, id } = Selection.appendQuestion({}, { kind: 'fill', subject: 'english', grade: 2 }, q('C __'));
+    expect(id).toBe('seen.objective.Fill in the Blanks.0');
+    expect(tree.seen.objective['Fill in the Blanks']).toHaveLength(1);
+  });
+
+  test('copies the shared instruction from its last sibling; otherwise a default in the paper language', () => {
+    const t = JSON.parse(JSON.stringify(EXAM));
+    t.seen.objective.MCQs[1].main_question = 'Choose one.';
+    const a = Selection.appendQuestion(t, { kind: 'mcq', subject: 'science', grade: 4 }, q('x'));
+    expect(a.tree.seen.objective.MCQs[2].main_question).toBe('Choose one.');
+    const b = Selection.appendQuestion({}, { kind: 'mcq', subject: 'urdu', grade: 2 }, q('x'));
+    expect(b.tree.seen.objective.MCQs[0].main_question).toBe('درست جواب کا انتخاب کریں۔');
+    const c = Selection.appendQuestion({}, { kind: 'mcq', subject: 'english', grade: 2 }, q('x'));
+    expect(c.tree.seen.objective.MCQs[0].main_question).toBe('Choose the correct option.');
+  });
+
+  test('an unknown kind is refused', () => {
+    expect(() => Selection.appendQuestion(EXAM, { kind: 'essay' }, q('x'))).toThrow();
+  });
+});
+
+describe('diffTrees — what changed between the version she opened and her draft', () => {
+  const Selection = require('../../bot/shared/services/assessment/assessment-selection');
+  test('nothing changed is all zero', () => {
+    expect(Selection.diffTrees(EXAM, JSON.parse(JSON.stringify(EXAM))))
+      .toEqual({ edited: 0, removed: 0, restored: 0, added: 0 });
+  });
+
+  test('counts an edit, a removal, a restore and an add, and ignores the removed key when judging edits', () => {
+    const base = JSON.parse(JSON.stringify(EXAM));
+    base.unseen.objective['True / False'][0].removed = true;
+    let d = Selection.setRemoved(base, 'seen.objective.MCQs.1', true);
+    d = Selection.setRemoved(d, 'unseen.objective.True / False.0', false);
+    d = Selection.replaceAt(d, 'seen.objective.MCQs.0', { ...d.seen.objective.MCQs[0], marks: 3 });
+    d = Selection.appendQuestion(d, { kind: 'mcq', subject: 'science', grade: 4 },
+      { question: 'n', answer: 'a', marks: 1 }).tree;
+    expect(Selection.diffTrees(base, d)).toEqual({ edited: 1, removed: 1, restored: 1, added: 1 });
+  });
+
+  test('key order inside a question is not an edit', () => {
+    const d = JSON.parse(JSON.stringify(EXAM));
+    const q0 = d.seen.objective.MCQs[0];
+    d.seen.objective.MCQs[0] = { marks: q0.marks, options: q0.options, question: q0.question };
+    expect(Selection.diffTrees(EXAM, d).edited).toBe(0);
+  });
+});
+
+describe('the ✓/✗ list pages at 16 rows', () => {
+  const Selection = require('../../bot/shared/services/assessment/assessment-selection');
+  test('LIST_PAGE_SIZE leaves room for add, make, previous and next inside Meta\'s 20', () => {
+    expect(Selection.LIST_PAGE_SIZE).toBe(16);
+    expect(Selection.LIST_PAGE_SIZE + 4).toBeLessThanOrEqual(20);
+  });
+  test('pageOf takes a page size; the default stays the checkbox page', () => {
+    const items = Array.from({ length: 50 }, (_, i) => i);
+    const p = Selection.pageOf(items, 3, 16);
+    expect(p.items).toEqual([48, 49]);
+    expect(p.pageCount).toBe(4);
+    expect(p.from).toBe(49);
+    expect(Selection.pageOf(items, 0).items).toHaveLength(20);
   });
 });

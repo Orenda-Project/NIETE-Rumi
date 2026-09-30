@@ -244,14 +244,17 @@ const NAV_MAX = 20;
 /** Fit a row field to the cap, cutting at a word boundary where one is close. */
 function navFit(text) {
   const t = String(text || '').replace(/\s+/g, ' ').trim();
-  if (t.length <= NAV_MAX) return t;
-  const cut = t.slice(0, NAV_MAX);
+  // CODE POINTS, which is what Meta counts: `.length` counts UTF-16 units, so
+  // an emoji-led row was cut one character short (or, worse, mid-surrogate).
+  const chars = [...t];
+  if (chars.length <= NAV_MAX) return t;
+  const cut = chars.slice(0, NAV_MAX).join('');
   const space = cut.lastIndexOf(' ');
   // Strip a dangling space or punctuation mark — and NOTHING else. This was
   // `[\s\W]+$`, and in JavaScript `\W` is "not [A-Za-z0-9_]", so every Urdu
   // letter matched: a cut Urdu row lost all its text and read as a bare "1".
   // The same defect as optionTitle, one function along.
-  return (space > NAV_MAX * 0.5 ? cut.slice(0, space) : cut).replace(/[\s.,;:!?—–\-·۔،]+$/u, '');
+  return (space > cut.length * 0.5 ? cut.slice(0, space) : cut).replace(/[\s.,;:!?—–\-·۔،]+$/u, '');
 }
 
 /**
