@@ -21,8 +21,12 @@
 const path = require('path');
 const fs = require('fs');
 
+// The KEEP/PICK review Flow is the asset a deployment serves while
+// assessment_versions_enabled is OFF. Versioned editing replaced it in
+// docs/flows/assessment-review-flow.json (LIST/DONE, v8); the old JSON is kept
+// as the rollback asset and still pinned here until the old path is deleted.
 const FLOW = JSON.parse(fs.readFileSync(
-  path.join(__dirname, '../../docs/flows/assessment-review-flow.json'), 'utf8'));
+  path.join(__dirname, '../../docs/flows/rollback/assessment-review-flow.prod-v7-2026-09-30.json'), 'utf8'));
 const SRC = fs.readFileSync(
   path.join(__dirname, '../../bot/shared/routes/assessment-gen-endpoint.js'), 'utf8');
 

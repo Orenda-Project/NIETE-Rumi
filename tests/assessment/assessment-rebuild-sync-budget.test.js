@@ -47,6 +47,8 @@ jest.mock('../../bot/shared/storage/r2', () => ({
 jest.mock('../../bot/shared/config/feature-flags', () => ({
   isAssessmentGeneratorEnabled: jest.fn().mockResolvedValue(true),
   isAssessmentEditingEnabled: jest.fn().mockResolvedValue(true),
+  // The old KEEP/PICK path: versioned editing explicitly OFF.
+  isAssessmentVersionsEnabled: jest.fn().mockResolvedValue(false),
   ASSESSMENT_GENERATOR_KEY: 'assessment_generator_enabled',
   ASSESSMENT_EDITING_KEY: 'assessment_editing_enabled',
 }));

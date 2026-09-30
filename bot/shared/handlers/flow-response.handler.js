@@ -1099,6 +1099,40 @@ async function handleAssessmentFlowCompletion(responseJson, from, user) {
   // told "Making your paper again" by a step that never runs — which is exactly
   // what happened on staging: a clean "rebuilt" ack, then silence.
   if (action === 'rebuilt') {
+    // Versioned editing: "Make my paper" makes a NEW version from her draft.
+    // The chat order is the confirmation — a short ack FIRST (sent once the
+    // completion is known not to be a retried webhook), then the version with
+    // its Edit button, then its key; the documents themselves say it worked.
+    let versioned = false;
+    try {
+      versioned = await require('../config/feature-flags').isAssessmentVersionsEnabled();
+    } catch { versioned = false; }
+    if (versioned) {
+      const { resolveUx } = require('../config/ux-strings');
+      const say = (key) => WhatsAppService.sendMessage(from, resolveUx(key, { user }));
+      let result;
+      try {
+        const { rebuildFromCompletion } = require('../routes/assessment-gen-endpoint');
+        result = await rebuildFromCompletion({
+          flowToken: token,
+          userId: user?.id,
+          user,
+          onStart: (kind) => say(kind === 'resend' ? 'assessmentNoChanges' : 'assessmentVersionMaking'),
+        });
+      } catch (err) {
+        logToFile('[assessment] version from completion threw', { error: err?.message });
+        result = { status: 'failed', apologised: false };
+      }
+      // duplicate → silent; rebuilt / resent → the documents are the answer;
+      // failed → the service has already apologised.
+      if (result?.status === 'expired') await say('assessmentDraftExpired');
+      if (result?.status === 'failed' && !result.apologised) {
+        await WhatsAppService.sendMessage(from, "Sorry — we couldn't make that paper. Send /assessment to make a new one.");
+      }
+      logToFile('[assessment] version completion', { userId: user?.id, status: result?.status, code: result?.code });
+      return;
+    }
+
     let result;
     try {
       const { rebuildFromCompletion } = require('../routes/assessment-gen-endpoint');

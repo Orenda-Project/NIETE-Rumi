@@ -32,6 +32,8 @@ jest.mock('../../bot/shared/services/queue', () => ({ queueJob: jest.fn() }));
 jest.mock('../../bot/shared/config/feature-flags', () => ({
   isAssessmentGeneratorEnabled: jest.fn().mockResolvedValue(true),
   isAssessmentEditingEnabled: jest.fn().mockResolvedValue(true),
+  // The old KEEP/PICK path: versioned editing explicitly OFF.
+  isAssessmentVersionsEnabled: jest.fn().mockResolvedValue(false),
   ASSESSMENT_GENERATOR_KEY: 'assessment_generator_enabled',
   ASSESSMENT_EDITING_KEY: 'assessment_editing_enabled',
 }));
@@ -44,8 +46,12 @@ jest.mock('../../bot/shared/services/assessment/assessment-revision.service', ()
 const { UX_STRINGS, resolveUx } = require('../../bot/shared/config/ux-strings');
 const { handleAssessmentGenDataExchange: exchange } = require('../../bot/shared/routes/assessment-gen-endpoint');
 
+// The KEEP/PICK review Flow is the asset a deployment serves while
+// assessment_versions_enabled is OFF. Versioned editing replaced it in
+// docs/flows/assessment-review-flow.json (LIST/DONE, v8); the old JSON is kept
+// as the rollback asset and still pinned here until the old path is deleted.
 const FLOW = JSON.parse(fs.readFileSync(
-  path.join(__dirname, '../../docs/flows/assessment-review-flow.json'), 'utf8'));
+  path.join(__dirname, '../../docs/flows/rollback/assessment-review-flow.prod-v7-2026-09-30.json'), 'utf8'));
 const ORCH_SRC = fs.readFileSync(path.join(__dirname,
   '../../bot/shared/services/assessment/assessment-orchestrator.service.js'), 'utf8');
 
