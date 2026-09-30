@@ -38,8 +38,8 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn(() => Promise.resolve()),
   sendAudio: jest.fn(() => Promise.resolve()),
 }));
-jest.mock('../../bot/shared/services/elevenlabs.service', () => ({
-  generateSpeechForLanguage: jest.fn(() => Promise.resolve(Buffer.from('a'))),
+jest.mock('../../bot/shared/services/tts', () => ({
+  synthesize: jest.fn(() => Promise.resolve({ audio: Buffer.from('a'), mimeType: 'audio/ogg', extension: 'ogg', durationSec: 1 })),
 }));
 jest.mock('../../bot/shared/services/gpt5-mini.service', () => ({
   _generateReflectiveQuestionV12: jest.fn(() => Promise.resolve('q?')),
