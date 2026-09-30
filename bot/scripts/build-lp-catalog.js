@@ -29,6 +29,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { applySplits, loadSplits } = require('./lp-catalog-splits');
 
 // ── Meta NavigationList caps (see DELIVERY_WIRING_PLAN.md §2) ────────────────
 const TITLE_CAP = 30;
@@ -308,7 +309,7 @@ function buildRow(lesson, opts = {}) {
   // freeing the whole 80-cp metadata line for topic + section. If the composed
   // description blows the 20-cp cap, the label wins and pages fall back to the
   // metadata suffix — nothing is ever dropped, only reseated.
-  const label = dayLabelDisplay(lesson.segment_index, type, rtl);
+  const label = opts.label || dayLabelDisplay(lesson.segment_index, type, rtl);   // opts.label: a split lesson's part
   const pd = pagesDisplay(lesson.pages, rtl);
   let description = pd ? `${label} · ${pd}` : label;
   let pagesInMeta = false;
@@ -448,13 +449,14 @@ function buildCatalog({ segmentationDir, tocDir, builtAt }) {
 
   books.sort((a, b) => (a.grade - b.grade) || a.subject_key.localeCompare(b.subject_key));
 
-  return {
+  // Lessons split into two teaching days (data/lp_splits.json) survive a rebuild.
+  return applySplits({
     catalog_version: CATALOG_VERSION,
     built_at: builtAt || new Date().toISOString(),
     source: { segmentation: segmentationDir, toc: tocDir, books: books.length },
     counts: { books: books.length, chapters: chapterCount, lessons: lessonCount },
     books,
-  };
+  }, loadSplits(), module.exports);
 }
 
 /** Stable serialisation — same inputs, byte-identical output. */

@@ -127,6 +127,8 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null) {
 
   return (chapter.lessons || [])
     .filter((l) => available.has(l.lesson_id))
+    // A split lesson's two parts share a segment_index; part orders them.
+    .sort((a, b) => ((a.segment_index ?? 0) - (b.segment_index ?? 0)) || ((a.part ?? 0) - (b.part ?? 0)))
     .map((l) => ({
       lesson_id: l.lesson_id,
       segment_index: l.segment_index,
@@ -136,8 +138,7 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null) {
       topic: l.topic || null,
       pages_label: l.pages_label || null,
       downloaded: downloaded.has(l.lesson_id),
-    }))
-    .sort((a, b) => (a.segment_index ?? 0) - (b.segment_index ?? 0));
+    }));
 }
 
 /**
