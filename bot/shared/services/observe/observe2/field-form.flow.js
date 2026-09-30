@@ -180,21 +180,19 @@ function buildFieldFormFlow() {
     title: 'Sealed',
     terminal: true,
     success: true,
+    // Flat keys in the complete payload, not extension_message_response: Meta drops the latter from a
+    // completion, and the flow token (<userId>:observe2-form:<recordId>) is the second marker.
     data: {
       sealed_line: { type: 'string', __example__: 'Sealed at 10:39' },
       next_line: { type: 'string', __example__: 'Next: send me the recording.' },
-      extension_message_response: {
-        type: 'object',
-        properties: { params: { type: 'object' } },
-        __example__: { params: { observe2_action: 'sealed' } },
-      },
+      record_id: { type: 'string', __example__: '00000000-0000-4000-8000-000000000000' },
     },
     layout: {
       type: 'SingleColumnLayout',
       children: [
         { type: 'TextHeading', text: '${data.sealed_line}' },
         { type: 'TextBody', text: '${data.next_line}' },
-        { type: 'Footer', label: 'Done', 'on-click-action': { name: 'complete', payload: { extension_message_response: '${data.extension_message_response}' } } },
+        { type: 'Footer', label: 'Done', 'on-click-action': { name: 'complete', payload: { observe2: 'sealed', record_id: '${data.record_id}' } } },
       ],
     },
   };

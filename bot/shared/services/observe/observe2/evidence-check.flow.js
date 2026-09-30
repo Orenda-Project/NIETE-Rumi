@@ -114,21 +114,18 @@ function buildEvidenceCheckFlow() {
     title: 'Done',
     terminal: true,
     success: true,
+    // Flat keys in the complete payload (see field-form.flow.js); token <userId>:observe2-check:<recordId>.
     data: {
       done_line: { type: 'string', __example__: 'Saved at 10:52' },
       next_line: { type: 'string', __example__: 'Your brief for the conversation with the teacher is on its way.' },
-      extension_message_response: {
-        type: 'object',
-        properties: { params: { type: 'object' } },
-        __example__: { params: { observe2_action: 'checked' } },
-      },
+      record_id: { type: 'string', __example__: '00000000-0000-4000-8000-000000000000' },
     },
     layout: {
       type: 'SingleColumnLayout',
       children: [
         { type: 'TextHeading', text: '${data.done_line}' },
         { type: 'TextBody', text: '${data.next_line}' },
-        { type: 'Footer', label: 'Done', 'on-click-action': { name: 'complete', payload: { extension_message_response: '${data.extension_message_response}' } } },
+        { type: 'Footer', label: 'Done', 'on-click-action': { name: 'complete', payload: { observe2: 'checked', record_id: '${data.record_id}' } } },
       ],
     },
   };
