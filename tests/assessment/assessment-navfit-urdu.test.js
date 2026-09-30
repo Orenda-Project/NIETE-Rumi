@@ -35,3 +35,18 @@ describe('navFit keeps a row readable in every script', () => {
     expect(t.startsWith('1. Which')).toBe(true);
   });
 });
+
+describe('navFit counts CODE POINTS, which is what Meta counts', () => {
+  const cp = (s) => [...s].length;
+  test('an emoji-led Urdu row is cut to 20 code points, not 20 UTF-16 units', () => {
+    // "✅" is one code point; a surrogate-pair emoji is two UTF-16 units.
+    const t = navFit('📝 سوال نمبر ایک کا جواب لکھیں اور دیکھیں');
+    expect(cp(t)).toBeLessThanOrEqual(NAV_MAX);
+    expect(cp(t)).toBeGreaterThan(15);
+  });
+  test('a 20-code-point row with a surrogate emoji is left whole', () => {
+    const s = '📝 ' + 'ب'.repeat(18);
+    expect(cp(s)).toBe(20);
+    expect(navFit(s)).toBe(s);
+  });
+});
