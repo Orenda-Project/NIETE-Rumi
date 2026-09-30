@@ -111,6 +111,8 @@ describe("the teacher's own Analytics page", () => {
     expect(screen.getByTestId("presence-teacher-block")).toHaveTextContent(/18 present · 1 absent · 1 on leave/);
     expect(screen.getByTestId("presence-student-block")).toHaveTextContent(/Your students/);
     expect(screen.queryByTestId("attendance-detail-link")).toBeNull();
+    // …but a link to her OWN attendance page.
+    expect(screen.getByTestId("my-attendance-link")).toHaveAttribute("href", "/portal/attendance");
   });
 
   it("shows the remark she received — the quarter, the comment and each area", async () => {

@@ -145,6 +145,15 @@ export const portal = {
     const response = await api.get('/my-analytics');
     return response.data;
   },
+
+  /** The Attendance page, for a teacher: her classes and her own days. */
+  getMyAttendance: async (params: { from?: string; to?: string } = {}): Promise<AttendanceResponse> => {
+    const query: Record<string, string> = {};
+    if (params.from) query.from = params.from;
+    if (params.to) query.to = params.to;
+    const response = await api.get('/my-attendance', { params: query });
+    return response.data;
+  },
   
   getReadingAssessments: async (
     page = 1, 
