@@ -763,6 +763,19 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
 
   // ── The review journey ───────────────────────────────────────────────────
   // Its own path, entered by token rather than by walking the screens above.
+  //
+  // The action VALUE is logged, not just the payload's keys: the generic
+  // endpoint line records only keys, which told us PICK arrived without a
+  // question_id 834 times but not what she pressed. This is the funnel for
+  // "did she edit, or did she only finish?" (bd-q3rfn).
+  if (screenId === 'KEEP' || screenId === 'PICK' || screenId === 'PICK_MORE') {
+    logToFile('[assessment-flow] review action', {
+      userId,
+      screen: screenId,
+      action: data._action == null ? null : String(data._action),
+      hasQuestionId: !!data.question_id,
+    });
+  }
   if (screenId === 'KEEP') return handleKeep(userId, data, flowToken);
   // Both list screens share one handler: they render identical rows, and the
   // only reason there are two is that Meta refuses a backward route from an

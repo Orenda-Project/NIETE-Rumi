@@ -30,12 +30,15 @@ const order = FLOW.screens.map((s) => s.id);
 const pos = Object.fromEntries(order.map((id, i) => [id, i]));
 
 describe('she can leave the edit list, and come back to it', () => {
-  test('Done editing is a real Footer button on both list screens', () => {
+  test('Done editing is a real control on both list screens, beside the Edit Footer', () => {
     // Not a row that reads like a fifth question. A Footer needs a screen it can
-    // share, so the list is a RadioButtonsGroup, not a NavigationList.
+    // share, so the list is a RadioButtonsGroup, not a NavigationList. Since
+    // bd-q3rfn the Footer is Edit (the job the screen exists for) and finishing
+    // is the secondary EmbeddedLink — see assessment-edit-findable.test.js.
     for (const id of ['PICK', 'PICK_MORE']) {
       const blob = JSON.stringify(FLOW.screens.find((s) => s.id === id));
-      expect(blob).toMatch(/"type":"Footer".{0,80}Done/);
+      expect(blob).toMatch(/"type":"EmbeddedLink".{0,80}Finish/);
+      expect(blob).toMatch(/"type":"Footer".{0,80}Edit/);
       expect(blob).toContain('"_action":"pick_done"');
       expect(blob).toContain('"RadioButtonsGroup"');
       expect(blob).not.toContain('NavigationList');

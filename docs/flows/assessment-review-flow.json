@@ -242,7 +242,11 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "کون سا سوال بدلنا ہے؟"
+                "text": "کون سا سوال بدلنا ہے؟ · Which question to edit?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Pick one, then Edit: change its marks or wording. · ایک سوال چنیں، پھر نمبر یا الفاظ بدلیں۔"
               },
               {
                 "type": "TextCaption",
@@ -262,22 +266,22 @@
               },
               {
                 "type": "EmbeddedLink",
-                "text": "✏️ Edit the selected question",
+                "text": "ہو گیا · Finish paper",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "_action": "open",
-                    "question_id": "${form.pick}"
+                    "_action": "pick_done"
                   }
                 }
               },
               {
                 "type": "Footer",
-                "label": "ہو گیا · Done",
+                "label": "سوال بدلیں · Edit question",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "_action": "pick_done"
+                    "_action": "open",
+                    "question_id": "${form.pick}"
                   }
                 }
               }
@@ -1581,7 +1585,11 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "کون سا سوال بدلنا ہے؟"
+                "text": "کون سا سوال بدلنا ہے؟ · Which question to edit?"
+              },
+              {
+                "type": "TextCaption",
+                "text": "Pick one, then Edit: change its marks or wording. · ایک سوال چنیں، پھر نمبر یا الفاظ بدلیں۔"
               },
               {
                 "type": "TextCaption",
@@ -1601,22 +1609,22 @@
               },
               {
                 "type": "EmbeddedLink",
-                "text": "✏️ Edit the selected question",
+                "text": "ہو گیا · Finish paper",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "_action": "open",
-                    "question_id": "${form.pick}"
+                    "_action": "pick_done"
                   }
                 }
               },
               {
                 "type": "Footer",
-                "label": "ہو گیا · Done",
+                "label": "سوال بدلیں · Edit question",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "_action": "pick_done"
+                    "_action": "open",
+                    "question_id": "${form.pick}"
                   }
                 }
               }

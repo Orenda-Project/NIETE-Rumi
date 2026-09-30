@@ -48,6 +48,10 @@ const KEY_FIELD = {
   welcomeFirstOpen: 'body',
   // bd-twhcj — the reading-not-available refusal is a plain text body.
   readingNotAvailable: 'body',
+  // bd-q3rfn — the review offer sent after a paper (a Flow message).
+  assessmentReviewOfferHeader: 'header',
+  assessmentReviewOfferBody: 'body',
+  assessmentReviewOfferButton: 'buttonText',
 };
 
 const len = (s) => [...s].length;
