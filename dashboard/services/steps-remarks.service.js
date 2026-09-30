@@ -90,4 +90,34 @@ function summarizeRemarks(remarks) {
   };
 }
 
-module.exports = { summarizeRemarks };
+/**
+ * The remarks ONE teacher received, for her own Analytics page (operator,
+ * 2026-09-30: "its fine showing her the remark received"). Submitted only —
+ * a half-answered form is not a remark she was given — newest first, each with
+ * her principal's comment and every area by name with its 1-4 score.
+ *
+ * @param {Array<{cycle_name, submitted_at, comment_text, scores: Array<{ordinal, score}>}>} rows
+ */
+function remarksReceived(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((r) => r && r.submitted_at)
+    .sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
+    .map((r) => {
+      const scores = Array.isArray(r.scores) ? r.scores : [];
+      return {
+        cycleName: r.cycle_name || null,
+        submittedAt: r.submitted_at,
+        comment: r.comment_text || null,
+        areas: INDICATORS
+          .map((ind) => {
+            const hit = scores.find((x) => Number(x.ordinal) === ind.ordinal);
+            return hit && Number.isFinite(Number(hit.score))
+              ? { ordinal: ind.ordinal, name: ind.name.en, score: Number(hit.score) }
+              : null;
+          })
+          .filter(Boolean),
+      };
+    });
+}
+
+module.exports = { summarizeRemarks, remarksReceived };

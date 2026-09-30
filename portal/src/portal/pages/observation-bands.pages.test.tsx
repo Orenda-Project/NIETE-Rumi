@@ -28,6 +28,7 @@ vi.mock("../services/api", () => ({
   portal: {
     getCoachingSessions: vi.fn(),
     getCoachingAnalytics: vi.fn(),
+    getMyAnalytics: vi.fn(),
     getDashboard: vi.fn(),
     getCoachingSession: vi.fn(),
   },
@@ -116,12 +117,32 @@ describe("the teacher's own pages", () => {
     expect(text).toMatch(/Good/);
   });
 
-  it("Coaching analytics — insights, area cards and both charts", async () => {
+  it("My Analytics — observations, both charts and the month list", async () => {
     asTeacher();
-    (portal.getCoachingAnalytics as any).mockResolvedValue({ analytics: ANALYTICS });
+    (portal.getMyAnalytics as any).mockResolvedValue({
+      success: true,
+      totals: { lessonPlans: 3, examsGenerated: 1 },
+      analytics: {
+        totalSessions: 2, humanObservations: 1, digitalCoachObservations: 1, averageScore: 64.2,
+        scoreTrend: [{ date: "2026-09-15T10:00:00Z", percentage: 64.2, points: 95, maxPoints: 148, teacherName: null }],
+        areas: [{ key: "e", name: "Engagement", pct: 64.3, band: "good", observations: 1 }],
+        byMonth: [{ month: "2026-09", human: 1, digitalCoach: 1 }],
+        observations: [
+          { date: "2026-09-20T10:00:00Z", kind: "digital_coach", percentage: 48, teacherName: null },
+          { date: "2026-09-15T10:00:00Z", kind: "human", percentage: 64.2, teacherName: null },
+        ],
+        domainBreakdown: [], strongestDomain: null, focusDomain: null,
+      },
+      presence: {
+        teacher: { records: 10, present: 9, absent: 1, leave: 0, presentPct: 90 },
+        student: { sessions: 2, totalMarked: 80, present: 70, presentPct: 87.5 },
+      },
+      remarksReceived: [{ cycleName: "Q3", submittedAt: "2026-09-24T10:00:00Z", comment: null, areas: [{ ordinal: 1, name: "Collaboration", score: 3 }] }],
+    });
     render(<MemoryRouter><PortalCoachingAnalytics /></MemoryRouter>);
     await waitFor(() => expect(charts.length).toBeGreaterThan(0));
-    const text = pageText();
+    // Attendance and the remark's 1-to-4 scores are not observation scores.
+    const text = pageText(["presence-help", "remarks-help"]);
     expect(text).not.toMatch(PERCENT);
     expect(text).not.toMatch(OUT_OF);
     expect(chartOutputs().join(" | ")).not.toMatch(/%/);

@@ -376,6 +376,8 @@ export interface SchoolAnalyticsResponse {
     totalTeachers: number;
     onRumi: number;
     totalLessonPlans: number;
+    /** Question papers that finished generating (status 'ready'). */
+    totalExams?: number;
   };
   /** Set when ?teacherId= narrowed the view to one teacher. */
   focusTeacher: { id: string; name: string } | null;
@@ -384,6 +386,23 @@ export interface SchoolAnalyticsResponse {
   analytics: SchoolAnalytics;
   presence: SchoolPresence;
   remarks: SchoolRemarks;
+}
+
+/** One quarterly remark a teacher received — submitted forms only. */
+export interface RemarkReceived {
+  cycleName: string | null;
+  submittedAt: string | null;
+  comment: string | null;
+  areas: Array<{ ordinal: number; name: string; score: number }>;
+}
+
+/** GET /my-analytics — a teacher's own Analytics page. */
+export interface MyAnalyticsResponse {
+  success: boolean;
+  totals: { lessonPlans: number; examsGenerated: number };
+  analytics: SchoolAnalytics;
+  presence: SchoolPresence;
+  remarksReceived: RemarkReceived[];
 }
 
 /**

@@ -42,8 +42,18 @@ function monthOf(iso: string): string {
 const KIND_LABEL = { human: 'Human Observation', digital_coach: 'Digital Coach Observation' } as const;
 
 const NO_HUMAN = 'No Human Observations yet. Once you or a coach watches a lesson in class, it will show here.';
+const NO_HUMAN_MINE = 'No Human Observations yet. Once your principal or a coach watches your lesson in class, it will show here.';
 
-const ObservationsSection = ({ analytics, showTeacher }: { analytics: SchoolAnalytics; showTeacher: boolean }) => {
+/**
+ * `audience` only changes the WORDS: a principal reads about her teachers, a
+ * teacher reads about herself. The rules are the same page either way — except
+ * that the server sends her own Digital Coach Observations WITH a rating
+ * (operator, 2026-09-30), and a row shows a rating whenever it has one.
+ */
+const ObservationsSection = ({ analytics, showTeacher, audience = 'principal' }: {
+  analytics: SchoolAnalytics; showTeacher: boolean; audience?: 'principal' | 'teacher';
+}) => {
+  const mine = audience === 'teacher';
   const human = analytics.humanObservations ?? 0;
   const digital = analytics.digitalCoachObservations ?? 0;
   const trend = analytics.scoreTrend ?? [];
@@ -104,11 +114,12 @@ const ObservationsSection = ({ analytics, showTeacher }: { analytics: SchoolAnal
       <h2 className="text-2xl font-light mb-3">Observations</h2>
       <div className="grid gap-1 text-sm text-muted-foreground mb-5">
         <p data-testid="def-human">
-          <strong className="text-foreground">Human Observation</strong> — you or a coach watched the lesson in class.
+          <strong className="text-foreground">Human Observation</strong> —{' '}
+          {mine ? 'your principal or a coach watched your lesson in class.' : 'you or a coach watched the lesson in class.'}
         </p>
         <p data-testid="def-digital">
-          <strong className="text-foreground">Digital Coach Observation</strong> — the teacher recorded her own lesson
-          and NIETE gave feedback.
+          <strong className="text-foreground">Digital Coach Observation</strong> —{' '}
+          {mine ? 'you recorded your own lesson and NIETE gave feedback.' : 'the teacher recorded her own lesson and NIETE gave feedback.'}
         </p>
       </div>
 
@@ -135,7 +146,7 @@ const ObservationsSection = ({ analytics, showTeacher }: { analytics: SchoolAnal
           The rating from each Human Observation, oldest to newest.
         </p>
         {trend.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{NO_HUMAN}</p>
+          <p className="text-sm text-muted-foreground">{mine ? NO_HUMAN_MINE : NO_HUMAN}</p>
         ) : (
           <Chart
             options={progressOptions}
@@ -153,7 +164,7 @@ const ObservationsSection = ({ analytics, showTeacher }: { analytics: SchoolAnal
           From Human Observations, strongest first.
         </p>
         {areas.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{NO_HUMAN}</p>
+          <p className="text-sm text-muted-foreground">{mine ? NO_HUMAN_MINE : NO_HUMAN}</p>
         ) : (
           <ol className="space-y-2">
             {areas.map((a, i) => {
@@ -226,8 +237,9 @@ const ObservationsSection = ({ analytics, showTeacher }: { analytics: SchoolAnal
                         <p className="text-xs text-muted-foreground truncate">{o.teacherName}</p>
                       )}
                     </div>
-                    {/* A rating only for a Human Observation. */}
-                    {o.kind === 'human' && <ScoreIndicator percentage={o.percentage} size="small" />}
+                    {/* A rating whenever the server sent one: always for a Human
+                        Observation; for a Digital Coach one only on her own page. */}
+                    {o.percentage != null && <ScoreIndicator percentage={o.percentage} size="small" />}
                   </li>
                 ))}
               </ul>

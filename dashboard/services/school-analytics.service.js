@@ -79,7 +79,13 @@ function humanize(key) {
  *   strongestDomain: string|null, focusDomain: string|null
  * }}
  */
-function summarizeSchoolAnalytics(sessions) {
+/**
+ * @param {object} [opts]
+ * @param {boolean} [opts.rateDigital] a TEACHER's own page rates her Digital Coach
+ *   Observations in the list (operator, 2026-09-30); a principal's does not. The
+ *   progress line, the areas and the average stay Human-only either way.
+ */
+function summarizeSchoolAnalytics(sessions, opts = {}) {
   const all = Array.isArray(sessions) ? sessions.filter(Boolean) : [];
   // Ratings — the progress line, the areas, the average, the domain cards —
   // come from Human Observations ONLY (operator, 2026-09-29). On prod 83% of
@@ -168,12 +174,13 @@ function summarizeSchoolAnalytics(sessions) {
   const observations = all
     .map((s) => {
       const human = isHumanObservation(s);
-      const o = human && s.analysis_data ? getOverall(s.analysis_data) : null;
+      const rated = human || opts.rateDigital === true;
+      const o = rated && s.analysis_data ? getOverall(s.analysis_data) : null;
       return {
         date: s.created_at,
         kind: human ? 'human' : 'digital_coach',
-        // A Digital Coach Observation carries no rating on this page.
-        percentage: human && o && o.percentage != null && o.maxPoints > 0 ? o.percentage : null,
+        // A Digital Coach Observation carries no rating on the principal's page.
+        percentage: rated && o && o.percentage != null && o.maxPoints > 0 ? o.percentage : null,
         teacherName: s.teacher_name || null,
       };
     })
