@@ -161,7 +161,20 @@ describe('bd-60137 — the CRQ answer is captured, not passed to chat', () => {
     expect(upsert.payload.question_index).toBe(4);
   });
 
-  test('the teacher is told the score — not given a chat reply', async () => {
+  // INVERTED 2026-10-01 (bd-hxm7a). Was "the teacher is told the score". While
+  // I-SAPS written-answer results are HELD (the default — no release setting),
+  // the answer is graded and stored but its score is never said.
+  test('held: the teacher is told it is being graded — no score, not a chat reply', async () => {
+    await svc.routeOpenEndedAnswer('923000000000', ANSWER);
+    expect(sent.join(' ')).toMatch(/being graded/i);
+    expect(sent.join(' ')).not.toMatch(/8\/10/);
+  });
+
+  test('released: the teacher is told the score', async () => {
+    const base = rows;
+    rows = (table, f, single) => (table === 'app_settings'
+      ? (single ? { key: 'isaps_crq_results_released', value: true } : [{ key: 'isaps_crq_results_released', value: true }])
+      : base(table, f, single));
     await svc.routeOpenEndedAnswer('923000000000', ANSWER);
     expect(sent.join(' ')).toMatch(/8\/10/);
   });

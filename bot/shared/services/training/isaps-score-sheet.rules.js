@@ -38,6 +38,8 @@ const moduleNoOf = title => {
  */
 function buildIsapsScoreSheet({
   courses = [], units = [], exams = [], unitAttempts = [], examAttempts = [], examAnswers = [], crqMax = 10,
+  // bd-hxm7a — written-answer results HELD: never return the CRQ mark.
+  crqHeld = true,
 }) {
   const bestPct = new Map();
   for (const a of unitAttempts || []) {
@@ -77,11 +79,12 @@ function buildIsapsScoreSheet({
     }
     return {
       passed: Boolean(best.is_passed),
+      pending: best.status === 'pending_review',
       mcq_correct: mcqCorrect,
       mcq_served: served,
       mcq_earned: mcqCorrect * MCQ_MARKS,
       mcq_possible: served * MCQ_MARKS,
-      crq_earned: crqEarned,
+      crq_earned: crqHeld ? null : crqEarned,
       crq_max: crqMax,
     };
   };

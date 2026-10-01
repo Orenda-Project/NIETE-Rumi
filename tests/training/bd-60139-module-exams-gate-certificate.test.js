@@ -98,6 +98,8 @@ function makeSupabase({ quizzes, examAttempts, moduleAttempts }) {
     training_levels: [{ id: 26, name: 'Level 1: Novice', vendor_id: 7 }],
     training_vendors: [{ id: 7, unlock_logic: 'all_modules' }],
     training_certificates: [],
+    // bd-hxm7a — this file pins the RELEASED behaviour: I-SAPS results are released.
+    app_settings: [{ key: 'isaps_crq_results_released', value: true }],
     training_grand_quizzes: quizzes,
     teacher_training_progress: [{ user_id: 'u1', module_id: 438 }],
     training_assessment_attempts: [...(moduleAttempts || []), ...(examAttempts || [])],
