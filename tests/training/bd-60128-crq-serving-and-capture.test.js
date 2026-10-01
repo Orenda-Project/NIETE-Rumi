@@ -43,10 +43,11 @@ describe('bd-60128 — selectPaperWithOneCrq', () => {
   ];
 
   test('serves the sampled MCQs and exactly ONE CRQ', () => {
-    // bd-60141 — "every MCQ" became "2 MCQs" per ISAPS §5.1. The ONE-CRQ half
-    // of the rule, which this file is about, is unchanged.
+    // bd-60141 — "every MCQ" became "2 MCQs" per ISAPS §5.1, and bd-vej4h
+    // (2026-10-01) made it 4. The ONE-CRQ half of the rule, which this file is
+    // about, is unchanged.
     const paper = selectPaperWithOneCrq(BANK, 'attempt-a');
-    expect(paper).toHaveLength(3);
+    expect(paper).toHaveLength(5);
     expect(paper.filter(q => q.correct_option === '').length).toBe(1);
   });
 

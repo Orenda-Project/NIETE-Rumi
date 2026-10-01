@@ -416,6 +416,33 @@ router.post('/training/certify-level', requireInternalKey, async (req, res) => {
  * asks (`loadModuleExamSlot`), exposed so both surfaces answer identically —
  * re-deriving it portal-side is precisely the drift that was removed once already.
  */
+/**
+ * POST /api/internal/training/unit-locks
+ * Body { userId, courseId } -> { success, locks: { [unitId]: 'passed'|'next'|'locked' } }
+ *
+ * bd-vej4h — the portal lists one course's units and must show which are
+ * locked without re-deriving the rule (one implementation, the bot's). This is the same
+ * loadModulesWithProgress → annotateModuleLocks the bot's own gate uses.
+ */
+router.post('/training/unit-locks', requireInternalKey, async (req, res) => {
+  const { userId } = req.body || {};
+  const courseId = num((req.body || {}).courseId);
+  if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (courseId === null) return res.status(400).json({ success: false, error: 'courseId is required' });
+  try {
+    const supabase = require('../config/supabase');
+    const { data: course } = await supabase
+      .from('training_courses').select('id, level_id').eq('id', courseId).maybeSingle();
+    if (!course || !course.level_id) return res.json({ success: true, locks: {} });
+    const { loadModulesWithProgress, unitLocksForCourse } = require('./teacher-training-endpoint');
+    const mods = await loadModulesWithProgress(userId, course.level_id);
+    return res.json({ success: true, locks: unitLocksForCourse(mods, courseId) });
+  } catch (error) {
+    logError('Internal training API failed', { route: 'unit-locks', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Unit lock lookup failed' });
+  }
+});
+
 router.post('/training/module-exam-gate', requireInternalKey, async (req, res) => {
   const { userId } = req.body || {};
   const courseId = num((req.body || {}).courseId);

@@ -63,12 +63,16 @@ describe('bd-60120 — buildModuleExamSlot', () => {
   // in any order; the only important thing is that the certificate issues
   // only if the requirements are complete"), so the wait moved to the level
   // certificate and the exam opens on demand.
-  test('units unfinished → the exam is STILL offered; nothing sequences', () => {
+  // INVERTED 2026-10-01 (bd-vej4h). Was "units unfinished → the exam is STILL
+  // offered; nothing sequences". I-SAPS's assessment-administration note (Sept
+  // 2026) puts the gates back: the module exam opens once the module's units
+  // are passed. Modules themselves stay open (operator).
+  test('units unfinished → the exam is closed until the module\'s sessions are passed', () => {
     const slot = buildModuleExamSlot({
       ...OPEN, unitsDone: 4, mcqCount: 8, crqCount: 4, passed: false,
     });
-    expect(slot.ok).toBe(true);
-    expect(slot.cta).toMatch(/take|start/i);
+    expect(slot.ok).toBe(false);
+    expect(slot.body).toMatch(/finish \d+ more session/i);
   });
 
   test('a module with NO units at all is still not examinable', () => {

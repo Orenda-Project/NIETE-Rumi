@@ -1,5 +1,9 @@
 /**
- * bd-60141 — an I-SAPS module exam is 2 MCQs + 1 CRQ, sampled from the bank.
+ * bd-60141 — an I-SAPS module exam is a SAMPLE of the bank, never the whole of it.
+ *
+ * UPDATED 2026-10-01 (bd-vej4h): I-SAPS raised the paper to 4 MCQs (5 marks
+ * each) + 1 CRQ (10 marks). The sizes asserted below are the new ones; the
+ * rule this file guards — sample, do not serve the bank — is unchanged.
  *
  * Operator caught this on sandbox: the Module 9 exam served TEN questions.
  *
@@ -52,18 +56,18 @@ const bankM9 = () => [
 
 const isCrq = (q) => Array.isArray(q.options) && q.options.length === 0;
 
-describe('bd-60141 — the paper is 2 MCQs + 1 CRQ', () => {
-  test('THE BUG: Module 9 served 10 questions, not 3', () => {
-    expect(selectPaperWithOneCrq(bankM9(), 'attempt-a')).toHaveLength(3);
+describe('bd-60141 / bd-vej4h — the paper is 4 MCQs + 1 CRQ', () => {
+  test('THE BUG: Module 9 served 10 questions, not 5', () => {
+    expect(selectPaperWithOneCrq(bankM9(), 'attempt-a')).toHaveLength(5);
   });
 
-  test('Module 1 (8 MCQs + 4 CRQs) also yields exactly 3', () => {
-    expect(selectPaperWithOneCrq(bankM1(), 'attempt-a')).toHaveLength(3);
+  test('Module 1 (8 MCQs + 4 CRQs) also yields exactly 5', () => {
+    expect(selectPaperWithOneCrq(bankM1(), 'attempt-a')).toHaveLength(5);
   });
 
-  test('the composition is exactly 2 MCQs and 1 CRQ', () => {
+  test('the composition is exactly 4 MCQs and 1 CRQ', () => {
     const paper = selectPaperWithOneCrq(bankM9(), 'attempt-a');
-    expect(paper.filter(q => !isCrq(q))).toHaveLength(2);
+    expect(paper.filter(q => !isCrq(q))).toHaveLength(4);
     expect(paper.filter(isCrq)).toHaveLength(1);
   });
 
@@ -74,7 +78,7 @@ describe('bd-60141 — the paper is 2 MCQs + 1 CRQ', () => {
   });
 
   test('the count is named, not a magic number', () => {
-    expect(MODULE_EXAM_MCQ_COUNT).toBe(2);
+    expect(MODULE_EXAM_MCQ_COUNT).toBe(4);
   });
 });
 
@@ -127,7 +131,7 @@ describe('bd-60141 — thin banks degrade safely rather than throwing', () => {
 
   test('a bank with NO CRQ still serves its MCQs', () => {
     const paper = buildMixedPaper([MCQ(1), MCQ(2), MCQ(3)], [], 'a');
-    expect(paper).toHaveLength(2);
+    expect(paper).toHaveLength(3);
     expect(paper.every(q => !isCrq(q))).toBe(true);
   });
 
