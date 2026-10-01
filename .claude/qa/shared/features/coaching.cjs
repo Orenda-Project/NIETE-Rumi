@@ -584,11 +584,8 @@ exports.run = async ({ api, rec, sleep }) => {
   E('COA30', 'The "was this useful?" survey comes right after the voice debrief');
   E('COA31', 'The commitment question opens by saying the coaching session is over');
   E('COA32', 'A lesson plan typed into the chat is attached to the waiting observation');
-  E('COA33', 'A short reply at the lesson-plan step is not mistaken for a plan (@obsolete)');
   E('COA34', 'Pasted text that is not a lesson plan gets the same rejection as a file');
   E('COA35', 'A brief typed lesson plan counts — length is not the test');
-  E('COA36', 'Saying I have no lesson plan is not the same as sending one (@obsolete)');
-  E('COA37', 'Talking about a lesson plan is not the same as sending one (@obsolete)');
   E('COA38', 'The first lesson plan of the day brings one coaching ask');
   E('COA39', 'A lesson planned after 14:00 is asked about the next morning without saying today');
   E('COA40', 'A second lesson plan the same day brings no second ask');

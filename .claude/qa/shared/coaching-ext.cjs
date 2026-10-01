@@ -530,10 +530,6 @@ module.exports.run = async function runExt(ctx) {
       : B(r7.stalled || 'the pipeline never asked for a lesson plan', { steps: r7.steps })));
   });
 
-  // the three OBSOLETE lesson-plan-step scenarios (bd-cq1go): the pre-filter they describe is gone by decision
-  for (const [id, why] of [['COA33', 'a short reply at the LP step'], ['COA36', 'saying "I have no plan"'], ['COA37', 'talking about a plan']])
-    set(id, 'SKIP', { why: '@obsolete (bd-cq1go, 2026-09-22): whatever the teacher sends at the lesson-plan step is considered; the length/marker/layout pre-filter this scenario asserts no longer exists. Its successor is COA34/COA35.', was: why });
-
   // ══════════════════════════════════════════════════════════════════════════════════════════════
   // H — the coaching ask (teacher_nudges) family: rows seeded on the sandbox DB, the sweeper run in-process
   // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -787,5 +783,5 @@ module.exports.run = async function runExt(ctx) {
   return out;
 };
 module.exports.ALL_IDS = ['COA16', 'COA17', 'COA18', 'COA19', 'COA20', 'COA21', 'COA22', 'COA23', 'COA24', 'COA25', 'COA26', 'COA27', 'COA28', 'COA29', 'COA30',
-  'COA31', 'COA32', 'COA33', 'COA34', 'COA35', 'COA36', 'COA37', 'COA38', 'COA39', 'COA40', 'COA41', 'COA42', 'COA43', 'COA44', 'COA45', 'COA46', 'COA47', 'COA48',
+  'COA31', 'COA32', 'COA34', 'COA35', 'COA38', 'COA39', 'COA40', 'COA41', 'COA42', 'COA43', 'COA44', 'COA45', 'COA46', 'COA47', 'COA48',
   'COA49', 'COA50', 'COA51', 'COA52', 'COA53', 'COA54', 'COA55'];
