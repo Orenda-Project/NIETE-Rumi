@@ -5204,6 +5204,22 @@ router.get('/training/module/:id/exam/draft', requirePortalAuth, async (req, res
   }
 });
 
+/**
+ * GET /api/portal/training/module/:id/exam/attempts -> { success, attempts[] }
+ *
+ * bd-2exhl — her submitted sittings of this module's exam, newest first, so the
+ * exam page can say what happened to each (being graded / not passed / passed)
+ * and let her read back what she submitted.
+ */
+router.get('/training/module/:id/exam/attempts', requirePortalAuth, async (req, res) => {
+  const courseId = parseInt(req.params.id, 10);
+  if (!Number.isFinite(courseId)) {
+    return res.status(400).json({ success: false, error: 'Invalid module id' });
+  }
+  const attempts = await TrainingRules.moduleExamAttempts(req.session.portalUserId, courseId);
+  return res.json({ success: true, attempts });
+});
+
 router.post('/training/module/:id/exam/attempts', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;

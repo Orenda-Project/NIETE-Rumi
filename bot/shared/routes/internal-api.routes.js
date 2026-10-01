@@ -584,6 +584,28 @@ router.post('/training/module-exam-draft-load', requireInternalKey, async (req, 
   }
 });
 
+/**
+ * POST /api/internal/training/module-exam-attempts
+ * Body { userId, courseId } -> { success, ok, attempts[] }
+ *
+ * bd-2exhl — her submitted sittings of one module exam, newest first, with
+ * what she answered. While written-answer results are held this carries no
+ * answer key, no per-question right/wrong and no written mark.
+ */
+router.post('/training/module-exam-attempts', requireInternalKey, async (req, res) => {
+  const b = req.body || {};
+  if (!b.userId) return res.status(400).json({ success: false, error: 'userId is required' });
+  if (num(b.courseId) === null) return res.status(400).json({ success: false, error: 'courseId is required' });
+  try {
+    const QuizDelivery = require('../services/training/quiz-delivery.service');
+    const out = await QuizDelivery.moduleExamAttempts({ userId: b.userId, courseId: num(b.courseId) });
+    return res.json({ success: true, ...out });
+  } catch (error) {
+    logError('Internal training API failed', { route: 'module-exam-attempts', error: error?.message });
+    return res.status(500).json({ success: false, error: 'Could not load exam attempts' });
+  }
+});
+
 router.post('/training/module-exam-submit', requireInternalKey, async (req, res) => {
   const { userId, attemptId } = req.body || {};
   const answers = Array.isArray((req.body || {}).answers) ? req.body.answers : null;
