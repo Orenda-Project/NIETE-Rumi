@@ -68,6 +68,7 @@ const {
 } = require('./isaps-module-exam.rules');
 const {
   isOpenEndedQuestion, selectPaperWithOneCrq, isTextAnswerForOpenQuestion, scoreMixedPaper,
+  decideIsapsModuleExamPass, isapsPaperMarks,
 } = require('./isaps-crq-paper.rules');
 // bd-2673 — the marking rule lives in ONE module, shared with the portal over
 // the internal API. Do not re-implement isMultiKey/normalizeSet here: a second
@@ -529,7 +530,9 @@ async function startModuleExam(userId, courseId, phoneNumber) {
       level_id: course.level_id,
       current_question_index: 0,
       total_questions: servedCount,
-      total_score: servedCount,
+      // MARKS (bd-vej4h): 5 per MCQ + the CRQ's own scale, the same
+      // denominator gradeAttempt scores against.
+      total_score: isapsPaperMarks(servedCount, await crqPointsForLevel(course.level_id)),
       status: 'in_progress',
       started_at: now,
       last_activity_at: now,
@@ -1899,6 +1902,40 @@ async function getVendorPassingPctByLevel(levelId, kind = 'exam') {
 }
 
 /**
+ * When a failed attempt may be retaken (bd-vej4h).
+ *
+ * The hours come from training_vendors.cooldown_hours. This was a hardcoded
+ * 24 for every vendor, so a vendor row set to 0 changed nothing — which is how
+ * I-SAPS kept a 24-hour wait it never asked for. Unreadable falls back to the
+ * old 24 (fail closed: an unknown vendor keeps the wait it always had).
+ *
+ * @param {number|null|undefined} hours
+ * @param {number} [nowMs]
+ * @returns {string|null} ISO timestamp, or null for no cooldown
+ */
+function cooldownUntilFor(hours, nowMs = Date.now()) {
+  const h = Number(hours);
+  const use = (hours === null || hours === undefined || !Number.isFinite(h) || h < 0) ? COOLDOWN_HOURS : h;
+  if (use === 0) return null;
+  return new Date(nowMs + use * 3_600_000).toISOString();
+}
+
+async function getVendorCooldownHoursByLevel(levelId) {
+  if (!levelId) return undefined;
+  try {
+    const { data: level } = await supabase
+      .from('training_levels').select('vendor_id').eq('id', levelId).maybeSingle();
+    if (!level?.vendor_id) return undefined;
+    const { data: vendor } = await supabase
+      .from('training_vendors').select('cooldown_hours').eq('id', level.vendor_id).maybeSingle();
+    return vendor ? vendor.cooldown_hours : undefined;
+  } catch (err) {
+    logToFile('⚠️ Could not resolve vendor cooldown — keeping the 24h default', { levelId, error: err?.message });
+    return undefined;
+  }
+}
+
+/**
  * Grade a completed attempt. Branches on quiz_kind:
  *   - grand              → pass/fail, cert or cooldown message
  *   - training_module    → pass/fail against module_passing_pct. A pass
@@ -1928,7 +1965,29 @@ async function gradeAttempt(attemptId, phoneNumber) {
   );
   let score = (answers || []).filter(a => a.is_correct === true).length;
   let mixedPossible = null;
-  if (hasRubricMark) {
+  // bd-vej4h — an I-SAPS MODULE exam is recognised by its quiz, not by whether
+  // a rubric mark happens to be present: its verdict is two independent bars
+  // (MCQs >= 75% of those served, CRQ >= 60%), and its marks are 5 per MCQ.
+  let isapsVerdict = null;
+  let isModuleExam = false;
+  if (attempt.quiz_kind === KIND_GRAND && attempt.grand_quiz_id) {
+    const { data: gq } = await supabase
+      .from('training_grand_quizzes').select('id, source_quiz_id')
+      .eq('id', attempt.grand_quiz_id).maybeSingle();
+    isModuleExam = Boolean(gq && isPerModuleQuiz(gq.source_quiz_id));
+  }
+  if (isModuleExam) {
+    const crqMax = await crqPointsForLevel(attempt.level_id);
+    const mcqCount = Math.max(0, (Number(attempt.total_questions) || 0) - (crqMax > 0 ? 1 : 0));
+    const mixed = scoreMixedPaper({ answers: answers || [], mcqCount, crqMaxPoints: crqMax });
+    score = mixed.earned;
+    mixedPossible = mixed.possible;
+    isapsVerdict = decideIsapsModuleExamPass(mixed);
+    logToFile('🎓 Module exam scored (I-SAPS split bars)', {
+      attemptId, mcqCorrect: mixed.mcqCorrect, mcqServed: mixed.mcqServed,
+      crqEarned: mixed.crqEarned, crqMax, earned: mixed.earned, possible: mixed.possible, passed: isapsVerdict,
+    });
+  } else if (hasRubricMark) {
     const crqMax = await crqPointsForLevel(attempt.level_id);
     const mcqCount = Math.max(0, (Number(attempt.total_questions) || 0) - 1);
     const mixed = scoreMixedPaper({ answers: answers || [], mcqCount, crqMaxPoints: crqMax });
@@ -2068,14 +2127,17 @@ async function gradeAttempt(attemptId, phoneNumber) {
   // plus a 10-mark CRQ is out of 18, not out of 9.
   const examTotal = mixedPossible !== null ? mixedPossible : (attempt.total_questions || 0);
   const examPct = examTotal > 0 ? (score / examTotal) * 100 : 0;
-  const isPassed = examTotal > 0 && examPct >= examPassingPct;
+  const isPassed = isapsVerdict !== null
+    ? isapsVerdict
+    : (examTotal > 0 && examPct >= examPassingPct);
+  const cooldownHours = isPassed ? 0 : await getVendorCooldownHoursByLevel(attempt.level_id);
   const update = {
     status: isPassed ? 'passed' : 'failed',
     score,
     is_passed: isPassed,
     completed_at: new Date().toISOString(),
     last_activity_at: new Date().toISOString(),
-    cooldown_until: isPassed ? null : new Date(Date.now() + COOLDOWN_HOURS * 3_600_000).toISOString(),
+    cooldown_until: isPassed ? null : cooldownUntilFor(cooldownHours),
   };
   await supabase.from('training_assessment_attempts').update(update).eq('id', attemptId);
 
@@ -2461,9 +2523,9 @@ async function openModuleExamAttempt({ userId, courseId, programId = null }) {
     // the verdict was right while the stored row was wrong, so only a surface
     // that DISPLAYS total_score sees it. The course page is about to.
     //
-    // A paper is (n - 1) one-mark MCQs plus one rubric-marked CRQ.
+    // A paper is (n - 1) five-mark MCQs plus one rubric-marked CRQ (bd-vej4h).
     const crqMarks = await crqPointsForLevel(course.level_id);
-    const totalMarks = Math.max(0, total - 1) + crqMarks;
+    const totalMarks = isapsPaperMarks(total, crqMarks);
     const now = new Date().toISOString();
     const { data: created, error: aErr } = await supabase
       .from('training_assessment_attempts')
@@ -2616,6 +2678,7 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
 }
 
 module.exports = {
+  cooldownUntilFor,
   openModuleExamAttempt,
   saveModuleExamDraft,
   loadModuleExamDraft,

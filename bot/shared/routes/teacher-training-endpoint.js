@@ -868,6 +868,7 @@ async function loadModulesWithProgress(userId, levelId) {
   return annotateModuleLocks(levelModules.map(m => ({
     id: m.id,
     title: m.title,
+    course_id: m.course_id,
     course_title: courseById.get(m.course_id).title,
     done: doneIds.has(m.id),
   })), unlockLogic);
@@ -886,7 +887,7 @@ async function loadModulesWithProgress(userId, levelId) {
  * quietly open a level's content.
  *
  * @param {number|string} levelId
- * @returns {Promise<string>} 'chain' | 'all_modules'
+ * @returns {Promise<string>} 'chain' | 'all_modules' | 'chain_per_course'
  */
 async function loadLevelUnlockLogic(levelId) {
   const { data, error } = await supabase
@@ -912,6 +913,20 @@ async function loadLevelUnlockLogic(levelId) {
  * strict answer) instead of unlocking a whole level.
  */
 const NON_SEQUENTIAL_UNLOCK_LOGICS = new Set(['all_modules']);
+
+/**
+ * bd-vej4h — units sequence INSIDE each course; courses are independent.
+ *
+ * I-SAPS go-live (operator, 2026-10-01): "modules are not chain locked —
+ * teacher can pick whichever one they want", while I-SAPS's own administration
+ * note gates each unit behind the previous unit's 70% formative check. In this
+ * schema an I-SAPS "module" is a training_course and a "unit" is a
+ * training_module, so the rule is: every course has its own next-up unit.
+ *
+ * Recognised explicitly (an allow-list, like the sets above): a typo here
+ * still falls through to whole-level sequencing, the strict answer.
+ */
+const PER_COURSE_UNLOCK_LOGIC = 'chain_per_course';
 
 /**
  * bd-43482 — level_unlock_logic values that do NOT chain their levels.
@@ -982,15 +997,39 @@ function annotateModuleLocks(orderedModules, unlockLogic = 'chain') {
   // unlock_logic must not silently unlock a level's whole content. Only a
   // value we recognise as non-sequential opens everything; the rest sequence.
   const sequential = !NON_SEQUENTIAL_UNLOCK_LOGICS.has(unlockLogic);
-  let nextTaken = false;
+  // Whole-level chains share ONE "next" slot; per-course chains get one per
+  // course, keyed on the course the row belongs to.
+  const perCourse = unlockLogic === PER_COURSE_UNLOCK_LOGIC;
+  const nextTakenFor = new Set();
   return orderedModules.map(m => {
     if (m.done) return { ...m, lock: 'passed' };
-    if (!sequential || !nextTaken) {
-      nextTaken = true;
+    const slot = perCourse ? `c:${m.course_id ?? m.course_title}` : 'level';
+    if (!sequential || !nextTakenFor.has(slot)) {
+      nextTakenFor.add(slot);
       return { ...m, lock: 'next' };
     }
     return { ...m, lock: 'locked' };
   });
+}
+
+/**
+ * bd-vej4h — the lock of every unit in ONE course, keyed by unit id.
+ *
+ * The portal lists a course's units; it needs each one's lock to show it, and
+ * must not compute the rule itself (one implementation, the bot's). Input is the output of
+ * loadModulesWithProgress, which already applied annotateModuleLocks.
+ *
+ * @param {Array<{id:number, course_id:number, lock:string}>} annotated
+ * @param {number|string} courseId
+ * @returns {Object<string,string>}
+ */
+function unitLocksForCourse(annotated, courseId) {
+  const cid = Number(courseId);
+  const out = {};
+  for (const m of annotated || []) {
+    if (Number(m.course_id) === cid) out[m.id] = m.lock;
+  }
+  return out;
 }
 
 /**
@@ -1023,7 +1062,10 @@ async function checkModuleUnlocked(userId, moduleId) {
   if (!target) return { ok: false, message: 'That module is not part of your training.' };
   if (target.lock !== 'locked') return { ok: true };
 
-  const nextUp = modules.find(m => m.lock === 'next');
+  // Per-course chains have one next-up unit per course: name the one in the
+  // course she tapped into, not the first open unit anywhere in the level.
+  const nextUp = modules.find(m => m.lock === 'next' && m.course_id === target.course_id)
+    || modules.find(m => m.lock === 'next');
   logToFile('🎓 Refused a locked module', {
     userId, moduleId: moduleIdNum, nextUp: nextUp?.id || null,
   });
@@ -2024,6 +2066,9 @@ module.exports = {
   // it so the "exactly one unpassed module is open" contract can be asserted
   // without a DB fixture.
   annotateModuleLocks,
+  // bd-vej4h — read by content-delivery's nextUnitAfter (per-course advance).
+  loadLevelUnlockLogic,
+  unitLocksForCourse,
   // bd-u2td8 — exported for the same reason annotateModuleLocks is: the module
   // SEQUENCE is a rule worth pinning, and it cannot be tested through the Flow
   // handler without standing up the whole screen.

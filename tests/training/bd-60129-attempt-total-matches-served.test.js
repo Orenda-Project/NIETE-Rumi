@@ -55,9 +55,10 @@ describe('bd-60129 — the served paper is what the attempt must be sized to', (
   // sized to the SERVED paper, never to the bank, because the teacher's
   // question index addresses the paper.
 
-  test('the bank is 12 but the paper is 3 — the numbers, after bd-60141', () => {
+  // bd-vej4h (2026-10-01): the quota rose to 4 MCQs, so the paper is 5.
+  test('the bank is 12 but the paper is 5 — the numbers, after bd-vej4h', () => {
     expect(BANK).toHaveLength(12);
-    expect(selectPaperWithOneCrq(BANK, 'attempt-a')).toHaveLength(3);
+    expect(selectPaperWithOneCrq(BANK, 'attempt-a')).toHaveLength(5);
   });
 
   test('the paper is always SHORTER than the bank — sizing to the bank is the bug', () => {
@@ -93,7 +94,7 @@ describe('bd-60129 — the served paper is what the attempt must be sized to', (
     expect(selectPaperWithOneCrq(mcqOnly, 'a')).toHaveLength(MODULE_EXAM_MCQ_COUNT);
   });
 
-  test('every module shape in sandbox sizes to the same 3 — including the thin one', () => {
+  test('every module shape sizes to min(bank, 4) MCQs + 1 CRQ — including the thin one', () => {
     // M6 is the thin one (1 MCQ in the real bank) and M8 the fat one (12).
     // A fat bank now sizes to 3 like every other; a bank thinner than the
     // quota serves what it has, which is why M6 is asserted separately.
@@ -101,7 +102,7 @@ describe('bd-60129 — the served paper is what the attempt must be sized to', (
       const bank = [];
       for (let i = 1; i <= mcqCount; i += 1) bank.push(MCQ(i, i));
       for (let i = 1; i <= 4; i += 1) bank.push(CRQ(900 + i, 900 + i));
-      expect(selectPaperWithOneCrq(bank, `a-${mcqCount}`)).toHaveLength(3);
+      expect(selectPaperWithOneCrq(bank, `a-${mcqCount}`)).toHaveLength(Math.min(MODULE_EXAM_MCQ_COUNT, mcqCount) + 1);
     }
     // The real Module 6: a single MCQ in the bank cannot yield two.
     const thin = [MCQ(1, 1), CRQ(901, 901), CRQ(902, 902)];

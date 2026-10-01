@@ -124,23 +124,60 @@ Feature: NIETE (ICT) Teacher Training
     # off the final module pass — no exam step. See F-OXB-examcopy (post-completion still nudges "take the level exam").
 
   @e2e @wip @draft @quiz @destructive @P1 @T26
-  Scenario: For an I-SAPS programme passing the last module exam certifies the level, whatever units are left
-    Given the NIETE bot chat is open on a teacher in the I-SAPS programme who has passed eight of the nine module exams and has NOT finished every unit
-    When I take the remaining module exam and pass it
+  Scenario: For an I-SAPS programme passing the ninth module exam certifies the level
+    Given the NIETE bot chat is open on a teacher in the I-SAPS programme who has passed eight of the nine module exams
+    And every session of the remaining module is passed
+    When I take that module exam and pass it
     Then the bot says "You have completed every module of Level 1: Novice.", gives me a certificate code, and sends the certificate PDF
-    And no unit, unit quiz score or module order is asked about first
-    # Operator 2026-09-23: no chaining; the certificate waits on the module exams ONLY (PASSED — a failed
-    # submission does not count). certificate.service maybeIssueQuizScoreCertificate: per-module-exam level ->
-    # allModuleExamsPassed is the whole rule. @wip — needs an I-SAPS level seeded 8/9 on the throwaway.
+    # UPDATED 2026-10-01 (bd-vej4h): was "...whatever units are left". The certificate still waits on the
+    # module exams ONLY, but a module exam now opens only after that module's sessions are passed, so
+    # "units left" can no longer reach the exam. @wip — needs an I-SAPS level seeded 8/9 on the throwaway.
+
+  @e2e @wip @draft @flow @P1 @T85
+  Scenario: In I-SAPS, any module can be opened, but its sessions open one at a time
+    Given the NIETE bot chat is open on a teacher in the I-SAPS programme with nothing completed
+    When I open Module 5
+    Then its first session is open and its second session is locked
+    And Module 1's first session is open as well
+    # bd-vej4h: module_unlock_logic = chain_per_course — one next-up session per module.
+
+  @e2e @wip @draft @quiz @P1 @T86
+  Scenario: An I-SAPS session's quick check needs 70% before the next session opens
+    Given the NIETE bot chat is open on a teacher in the I-SAPS programme partway through a module
+    When I answer a 3-question quick check with 2 correct
+    Then the bot says I did not clear the 70% bar and offers a retry
+    And the next session stays locked until I pass
+    # bd-vej4h: module_passing_pct = 70. On a 1-3 question check this means every answer correct.
+
+  @e2e @wip @draft @quiz @P1 @T87
+  Scenario: An I-SAPS module exam opens only once that module's sessions are passed
+    Given the NIETE bot chat is open on a teacher in the I-SAPS programme with 4 of 6 sessions of Module 1 passed
+    When I open Module 1
+    Then the module exam row says to finish 2 more sessions first, and cannot be started
+    # bd-vej4h: buildModuleExamSlot closes the exam while unitsDone < unitsTotal.
+
+  @e2e @wip @draft @quiz @destructive @P1 @T88
+  Scenario: An I-SAPS module exam is 4 multiple-choice questions and 1 written answer, with two separate pass bars
+    Given the NIETE bot chat is open on a teacher in the I-SAPS programme with every session of Module 1 passed
+    When I take the Module 1 exam, get all 4 multiple-choice questions right, and score 5 of 10 on the written answer
+    Then the exam is not passed, because the written answer needs 6 of 10
+    And my mark is shown out of 30 (5 per multiple-choice question, 10 for the written answer)
+    # bd-vej4h: pass = MCQ >= 75% of those served AND CRQ >= 60%. Module 6 serves its 2 MCQs and needs both.
+
+  @e2e @wip @draft @quiz @P2 @T89
+  Scenario: A failed I-SAPS module exam can be retaken straight away
+    Given a teacher in the I-SAPS programme has just failed the Module 1 exam
+    When I open Module 1
+    Then the module exam can be started again immediately, with a new random draw of questions
+    # bd-vej4h: I-SAPS cooldown_hours = 0, and the exam cooldown now reads the vendor row (was a hardcoded 24h).
 
   @e2e @wip @draft @certificates @P2 @T27
-  Scenario: An I-SAPS certificate is watermarked as not real, in every environment, while it is a pilot
-    Given a teacher in the I-SAPS programme has just been certified
+  Scenario: An I-SAPS certificate on production carries no "not a real certificate" watermark
+    Given a teacher in the I-SAPS programme has just been certified on production
     When the certificate PDF arrives
-    Then it carries the diagonal "NOT A REAL CERTIFICATE" watermark, even on production
-    And a certificate from any other programme on production does not
-    # certificate-env.rules PILOT_WATERMARK_VENDORS = ['ISAPS'].
-    # TODO(NIETE-ISAPS-GO-LIVE): at go-live for all teachers this flips — production I-SAPS certificates are clean.
+    Then it has no "NOT A REAL CERTIFICATE" watermark
+    And a certificate issued on sandbox or staging still carries it
+    # Updated at go-live (bd-vej4h, 2026-10-01): PILOT_WATERMARK_VENDORS is empty.
 
   # ═══════════════════════════════════ NEGATIVE ═══════════════════════════════════
 

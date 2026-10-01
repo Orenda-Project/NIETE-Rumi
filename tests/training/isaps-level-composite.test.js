@@ -73,10 +73,12 @@ describe('I-SAPS level composite — counting', () => {
     expect(await gradeLevelForUser(fakeSupabase(t), { userId: USER, levelId: LEVEL })).toBeNull();
   });
 
-  test('summative possible is the PAPER (9x2 MCQ, 9x10 CRQ), not the bank', async () => {
+  // bd-vej4h (2026-10-01): the paper is 4 MCQs, so 9 x 4 = 36. The composite
+  // is display-only since 2026-09-23 (the certificate waits on the exams).
+  test('summative possible is the PAPER (9x4 MCQ, 9x10 CRQ), not the bank', async () => {
     const t = baseTables();
     const r = await gradeLevelForUser(fakeSupabase(t), { userId: USER, levelId: LEVEL });
-    expect(r.counts.mcqItemCount).toBe(18);    // 9 modules x 2 served
+    expect(r.counts.mcqItemCount).toBe(36);    // 9 modules x 4 served
     expect(r.counts.crqPossible).toBe(90);     // 9 modules x 10 marks
   });
 
@@ -152,7 +154,7 @@ describe('I-SAPS level composite — counting', () => {
     });
     const r = await gradeLevelForUser(fakeSupabase(t), { userId: USER, levelId: LEVEL });
     expect(r.counts.mcqCorrect).toBe(2);
-    expect(r.counts.mcqItemCount).toBe(18);
-    expect(r.components.mcq.passed).toBe(false);   // 2/18 = 11%, bar 60
+    expect(r.counts.mcqItemCount).toBe(36);
+    expect(r.components.mcq.passed).toBe(false);   // 2/36 = 6%, bar 60
   });
 });
