@@ -173,6 +173,12 @@ esac
 say "features: $(echo $FEATURES | tr '\n' ' ')"
 
 # ── 2. account hygiene (all mode / named coaching): nothing in flight, then the product-side reset ──
+# status: STA04 SEEDS a coaching session to list "things running" and leaves it in flight, so the next status
+# run on the same driver sees "1 thing running" where STA05/STA07 expect nothing (a back-to-back slot run,
+# 20261001-1048). Start status clean the same way coaching does.
+if [ "$MODE" != "all" ] && echo "$FEATURES" | grep -qx status && ! echo "$FEATURES" | grep -qx coaching; then
+  python3 "$QA/niete_coaching_db.py" cancel-stuck --env "$ENV" --phone "$DRIVER" --yes-write 2>&1 | tee -a "$LOG" | tail -1
+fi
 if [ "$MODE" = "all" ] || echo "$FEATURES" | grep -qx coaching; then
   python3 "$QA/niete_coaching_db.py" cancel-stuck --env "$ENV" --phone "$DRIVER" --yes-write 2>&1 | tee -a "$LOG" | tail -1
   # Archive prior COMPLETED coaching sessions so the analysis prompt drops its growing
