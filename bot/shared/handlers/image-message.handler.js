@@ -25,6 +25,7 @@ const { uploadImageWithRetry } = require('../storage/r2');
 const { logToFile } = require('../utils/logger');
 const { logEvent, runWithCorrelation, generateCorrelationId } = require('../utils/structured-logger');
 const { getUserLanguage } = require('../utils/language-cache');
+const { redirectIfFlagged } = require('../services/app-redirect.service');
 const { storeConversation, getOrCreateSession } = require('../database/bot-helpers');
 
 // Idempotency TTL (1 hour - prevents reprocessing of same image)
@@ -171,6 +172,15 @@ async function handleImageMessage(message, from, user = null) {
       } catch (raceErr) {
         logToFile('⚠️ Race-hold classroom-photo check failed (non-critical)', { error: raceErr.message });
         // fall through to generic vision feedback
+      }
+
+      // bd-onxyu — an image with no session waiting for it is an open message:
+      // the general-chat switch decides.
+      if (user?.id && await redirectIfFlagged('general_chat', {
+        userId: user.id, from, language: await getUserLanguage(user.id), reason: 'image',
+      })) {
+        typingController.stop();
+        return;
       }
 
       // Generic vision-feedback path.

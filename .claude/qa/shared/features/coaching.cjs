@@ -651,4 +651,10 @@ exports.run = async ({ api, rec, sleep }) => {
     rec('COA-pipeline', 'Pipeline steps observed end to end', 'PASS',
         { stepsSeen: obs.steps, elapsedSec: elapsed, reportDelivered: !!obs.report,
           reflectMode: REFLECT, transcript: joined.slice(0, 700) }, 0);
+
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
+  const APP_REDIRECT_WHY = 'needs an app_redirect_* switch turned ON in the target database, and the switch is global: it would redirect every teacher on that environment for the length of the run. Covered by tests/app-redirect/ (the real text handler and menu router, red-first).';
+  rec('COA62', 'With coaching moved to the app, /coaching sends me to the Play Store instead of asking for a recording', 'BLOCKED',
+      { reason: APP_REDIRECT_WHY }, 0);
+
 };

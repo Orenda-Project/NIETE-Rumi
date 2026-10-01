@@ -34,6 +34,10 @@ const { resolveUx } = require('../shared/config/ux-strings');
  */
 async function openLpBrowseFlowForCutover({ from, userId, language, topic, requestId }) {
   if (!userId) return false;
+  // bd-onxyu — Lesson Plans switched to the app: the notice (or the quiet hour) IS the answer,
+  // and the "here is the menu" line below would contradict it.
+  const { redirectIfFlagged } = require('../shared/services/app-redirect.service');
+  if (await redirectIfFlagged('lesson_plan', { userId, from, language, reason: 'cutover_inflight_gamma' })) return true;
   const sent = await openLpBrowseFlow({ from, userId, language, reason: 'cutover_inflight_gamma' });
   if (!sent) return false;
   try {

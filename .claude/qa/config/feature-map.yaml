@@ -278,6 +278,11 @@ shared:
   bot/shared/handlers/voice-message.handler.js:
     [registration, menu, training, lesson-plan, coaching, language, status, observe, attendance]
 
+  # bd-onxyu — the app-redirect switches. Every feature door asks it first, so a change here can
+  # silence any of these surfaces (each switch is off by default; off = no behaviour change).
+  bot/shared/services/app-redirect.service.js:
+    [menu, training, lesson-plan, coaching, observe, attendance]
+
   # Native Flow submissions land here before dispatch to a surface.
   bot/shared/handlers/flow-response.handler.js:
     [registration, menu, training, lesson-plan, coaching, language, status, observe, attendance]
