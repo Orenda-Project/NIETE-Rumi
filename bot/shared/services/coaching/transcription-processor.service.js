@@ -30,6 +30,40 @@ const { buildDiarizationFromTokens, detectSilences, assembleDiarizedTranscriptio
 
 class TranscriptionProcessorService {
   /**
+   * bd-78i2k — fetch the recording's bytes, whatever transport delivered it.
+   *
+   * WhatsApp has always been the only source: a Graph media id, downloaded
+   * through WhatsAppService. A PORTAL upload has no media id — the browser PUTs
+   * the file straight into R2 and the start endpoint records the resulting URL
+   * on `coaching_sessions.audio_url` before queueing this job.
+   *
+   * `audio_url` is an unambiguous signal rather than an overload: on a WhatsApp
+   * session it is written only AFTER transcription (see the updateData block
+   * below), so at fetch time it is always empty. Populated → already in R2.
+   *
+   * The WhatsApp branch is byte-for-byte what it was, including the error text.
+   *
+   * @param {object} session coaching_sessions row
+   * @param {object} payload SQS job payload
+   * @returns {Promise<Buffer>} the audio bytes
+   */
+  static async fetchAudioForSession(session, payload = {}) {
+    const r2Url = session && session.audio_url;
+    if (r2Url) {
+      const { downloadFromR2, extractKeyFromUrl } = require('../../storage/r2');
+      return await downloadFromR2(extractKeyFromUrl(r2Url));
+    }
+
+    // Download audio from WhatsApp
+    const audioId = payload.audioId;
+    if (!audioId) {
+      throw new Error('Audio ID not found in payload');
+    }
+
+    return await WhatsAppService.downloadMedia(audioId);
+  }
+
+  /**
    * Process transcription job (called by background worker)
    * @param {string} coachingSessionId - Coaching session UUID
    * @param {object} payload - Job payload with metadata
@@ -82,18 +116,15 @@ class TranscriptionProcessorService {
         clampLanguage(session.users.preferred_language || offerDefaultLanguage())
       );
 
-      // Download audio from WhatsApp
-      const audioId = payload.audioId;
-      if (!audioId) {
-        throw new Error('Audio ID not found in payload');
-      }
-
-      const audioData = await WhatsAppService.downloadMedia(audioId);
+      // bd-78i2k: the bytes may come from WhatsApp (a media id) or from R2 (a
+      // portal upload). Everything below this line is identical either way.
+      const audioData = await this.fetchAudioForSession(session, payload);
       fs.writeFileSync(tempAudioPath, audioData);
 
-      logToFile('Audio downloaded from WhatsApp', {
+      logToFile('Audio downloaded', {
         coachingSessionId,
-        fileSize: audioData.length
+        fileSize: audioData.length,
+        source: session.audio_url ? 'r2' : 'whatsapp'
       });
 
       // bd-7beiz — the same recording must score the same. The rubric pass runs
@@ -199,8 +230,12 @@ class TranscriptionProcessorService {
         }
       }
 
-      // Upload to R2 storage
-      const r2Url = await uploadClassroomAudio(
+      // Upload to R2 storage.
+      // bd-78i2k: a portal upload is ALREADY in R2 — the browser PUT it there
+      // and `audio_url` was set before this job was queued. Re-uploading the
+      // same bytes under a second key would waste storage and overwrite the
+      // URL the portal is already serving playback from, so reuse it.
+      const r2Url = session.audio_url || await uploadClassroomAudio(
         tempAudioPath,
         session.user_id,
         coachingSessionId,
