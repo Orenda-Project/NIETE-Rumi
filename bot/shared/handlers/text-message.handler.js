@@ -24,6 +24,7 @@ const FeatureLinkerService = require('../services/feature-linker.service');
 const FeatureIntroService = require('../services/feature-intro.service');
 const LessonPlanQueueService = require('../services/lesson-plan-queue.service');
 const LpFeedbackService = require('../services/lp-feedback.service');
+const InboundTyping = require('../services/inbound-typing');
 const handleCurriculumLessonPlan = require('./lesson-plan-v2.handler');
 const RegionFeaturesService = require('../services/region-features.service');
 const { getUserRegion } = require('../utils/region');
@@ -295,6 +296,9 @@ async function tryShareCodeJoin(from, messageBody, typingController) {
     // join now runs after the handler returns, under a per-phone+code
     // lock so a retry cannot start a second session.
     typingController.stop();
+    // The join answers with a message, after this handler has returned: keep the inbound's
+    // deferred "typing…" alive past the end of the webhook's dispatch (bd-0wrn4).
+    InboundTyping.handOff();
     setImmediate(() => VideoQuizShare.beginFromCodeLocked(from, code)
       .catch((err) => logToFile('❌ video-quiz join failed', { from, code, error: err.message }, 'error')));
     return true;
@@ -319,11 +323,41 @@ async function quizInterceptStep(name, fn) {
   }
 }
 
+/**
+ * bd-0wrn4 — an open lesson-plan 👎-reason window (K-5 or 6-12) means this text is most likely the
+ * reason, and a reason is receipted by the webhook's 👍 alone: no message follows. Those checks sit
+ * behind the quiz intercepts and the session lookup — on production they decide 2.4-3.4 s after the
+ * point "typing…" used to appear, past the inbound-typing deadline — so "typing…" is held back until
+ * they have run. Checked off the critical path (two Redis reads); with no window open nothing is
+ * held. Returns an idempotent release.
+ */
+function holdTypingWhileReasonPending(user) {
+  if (!user || !user.id || !InboundTyping.isPending()) return () => {};
+  let release = null;
+  let done = false;
+  (async () => {
+    try {
+      const redisService = require('../services/cache/railway-redis.service');
+      const Lp612FeedbackService = require('../services/lp612-feedback.service');
+      const keys = [LpFeedbackService.REDIS_REASON_KEY(user.id), Lp612FeedbackService.REDIS_REASON_KEY(user.id)];
+      const open = await Promise.all(keys.map((k) => Promise.resolve(redisService.get(k)).catch(() => null)));
+      if (!done && open.some(Boolean)) release = InboundTyping.hold();
+    } catch (_) { /* no hold: typing behaves as for any other text */ }
+  })();
+  // release() — not a reason: a reply is coming. release(false) — on the way out: drop the hold
+  // without showing typing (a captured reason ends the request silently).
+  return (showIfDue = true) => {
+    done = true;
+    if (release) { release(showIfDue); release = null; }
+  };
+}
+
 async function handleTextMessage(message, from, messageBody, user = null) {
   logToFile(`Processing TEXT message: ${messageBody}`);
 
   // Start continuous typing indicator immediately
   const typingController = WhatsAppService.startContinuousTypingIndicator(from, message.id);
+  const releaseReasonHold = holdTypingWhileReasonPending(user);
 
   try {
     // bd-mg9c7.97 — the share-code JOIN itself runs before anything else,
@@ -568,6 +602,8 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       });
     }
   }
+  // Not a 👎 reason: a reply is coming — let "typing…" go up (at once if its deadline passed).
+  releaseReasonHold();
 
   // ============================================================
   // FEATURE-BASED REGISTRATION: Check if waiting for name
@@ -2809,6 +2845,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   } finally {
     // CRITICAL: Always stop typing indicator, even if function exits early or throws
     typingController.stop();
+    releaseReasonHold(false);
   }
 }
 

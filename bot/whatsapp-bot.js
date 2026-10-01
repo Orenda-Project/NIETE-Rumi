@@ -8,6 +8,7 @@ const fs = require('fs');
 
 // Import Services
 const WhatsAppService = require('./shared/services/whatsapp.service');
+const InboundTyping = require('./shared/services/inbound-typing');
 const SessionService = require('./shared/services/session.service');
 const OpenAIService = require('./shared/services/openai.service');
 const CoachingService = require('./shared/services/coaching-orchestrator.service');
@@ -467,7 +468,9 @@ app.post('/webhook', async (req, res) => {
   // Wrap the entire request processing with correlation context
   // All console.log calls inside will automatically include correlationId
   // Tracked, so a deploy's drain waits for this work and not just for the ack.
-  await trackWebhookWork(runWithCorrelation(correlationId, async () => {
+  // bd-0wrn4: the request runs inside an inbound-typing context, so a reply made anywhere below
+  // (any handler, any depth) is seen by the deferred "typing…" for this message.
+  await trackWebhookWork(InboundTyping.withRequest(() => runWithCorrelation(correlationId, async () => {
     logToFile('=== INCOMING WEBHOOK ===', { correlationId });
 
     // Issue #58 FIX: Add button payload diagnostic logging
@@ -631,8 +634,10 @@ app.post('/webhook', async (req, res) => {
     const emoji = SessionService.getReactionEmoji(from);
     await WhatsAppService.sendReaction(from, message.id, emoji);
 
-    // Show typing indicator
-    await WhatsAppService.showTypingIndicator(from, message.id);
+    // Read receipt now; "typing…" only if no reply (message OR reaction) has gone out within
+    // INBOUND_TYPING_DEFER_MS (2 s) and the handler is still working. Sent up front, it hung on
+    // screen ~25 s over every reply that is only a reaction (bd-0wrn4) — see inbound-typing.js.
+    InboundTyping.open(from, message.id, WhatsAppService);
 
     // Get or create user in database
     let user = null;
@@ -2296,8 +2301,12 @@ app.post('/webhook', async (req, res) => {
       stack: error.stack
     });
     ack(); // Still send 200 to avoid retries
+  } finally {
+    // Nothing more will answer this message from this request: a deferred "typing…" that has
+    // not gone up yet never will (bd-0wrn4). No-op before open() / for a handed-off join.
+    InboundTyping.endDispatch();
   }
-  })); // End of runWithCorrelation (tracked by web-drain)
+  }))); // End of runWithCorrelation (tracked by web-drain)
 });
 
 /**
