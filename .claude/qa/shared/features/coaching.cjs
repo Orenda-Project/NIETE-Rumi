@@ -692,4 +692,10 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('COA70', 'Each report piece arrives once even if the report job runs twice', 'BLOCKED',
       { reason: 'not yet driven on the mock lane — needs a report job redelivered for one session; unit: tests/coaching/meta-bill-nc2-report-caption.test.js + meta-bill-nc5-sweeper-repeats.test.js' }, 0);
 
+  // Meta bill cut (2026-10-01, lane I5) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA71', 'The first AI-coaching request sends the intro film with its introducing line as the caption', 'BLOCKED',
+      { reason: 'first-use only: needs the driver account\'s ai_coaching first-use marker reset before the chip tap '
+          + '(a reversible seed not wired into this driver yet); the one-message shape is pinned by '
+          + 'tests/coaching/first-use-intro-one-message.test.js' }, 0);
+
 };

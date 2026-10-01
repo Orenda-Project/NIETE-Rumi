@@ -548,13 +548,29 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # 'lp_quiz_offer' — the coaching offer's film count is separate. A film that fails to send leaves plain buttons.
 
   @e2e @quiz @wip @draft @config-gated @P2
-  Scenario: A list offer sends the intro film first, then the list
+  Scenario: A two-class offer with the intro film is ONE message — the film above three buttons
     Given the offer films are configured
     And the NIETE bot chat is open on a teacher who planned lessons for two classes today and has never been shown the film
     When the send hour passes and the teacher-nudge sweep runs
+    Then one message arrives: the film as its video, the list's text with one line per class naming that class's lesson topics, and the film's one-line caption as its footer
+    And it has three buttons: one per class (titled like "Grade 4 · Maths") and "Not today"
+    And tapping a class button makes the quiz for that class exactly as tapping its list row did
+    # UPDATED 2026-10-01 (Meta bill cut, NO3 / N2-U01): a list message cannot carry a video header,
+    # so this used to be the film as its own message and then the list. Three reply buttons hold two
+    # classes and "Not today", and a buttons message CAN carry the film (lp-quiz-offer.service.js
+    # twoClassFilmOffer). The button ids are the list rows' ids (lpquiz_pick_<nudge>_<class>,
+    # lpquiz_none_<nudge>); handleButton routes them to handleListPick. Any class title over 20 code
+    # points even with its short subject name, or a body over 1,024, keeps the film-then-list shape.
+
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: An offer for three or more classes sends the intro film first, then the list
+    Given the offer films are configured
+    And the NIETE bot chat is open on a teacher who planned lessons for three classes today and has never been shown the film
+    When the send hour passes and the teacher-nudge sweep runs
     Then the film arrives first as its own video, with a one-line caption
     And the list of classes arrives after it
-    # A list message cannot carry a video header.
+    # A list message cannot carry a video header, and three classes plus "Not today" do not fit
+    # three reply buttons.
 
   @e2e @quiz @language @wip @draft @config-gated @P2
   Scenario: The Urdu afternoon offer writes its numbers in Western digits
