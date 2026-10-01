@@ -131,7 +131,7 @@ module.exports.run = async function runExt(ctx) {
     while (t() - t0 < ms) {
       const batch = await fresh();
       for (const r of batch) { seen.push(r); if (pred(r)) return { ok: true, hit: r, seen }; }
-      await sleep(1500);
+      await sleep(1000);
     }
     return { ok: false, hit: null, seen };
   }
@@ -233,17 +233,19 @@ module.exports.run = async function runExt(ctx) {
         if (RX.complete.test(x) || RX.commit.test(x)) { obs.complete.push({ i: obs.rows.length - 1, txt: short(x, 260), btns: r.btns, hasComplete: RX.complete.test(x), hasCommit: RX.commit.test(x) }); note('complete/commit', r); if (RX.commit.test(x)) obs.commit = obs.complete[obs.complete.length - 1]; continue; }
         if (obs.report && RX.quizOffer.test(x) && (r.btns || r.list)) { obs.quizOffer = { i: obs.rows.length - 1, txt: short(x, 160) }; note('quizOffer', r); }
       }
-      if (o.photo === 'ignore' && obs.photoAt && !obs.gateSwept && t() - obs.photoAt > 70000) {
+      if (o.photo === 'ignore' && obs.photoAt && !obs.gateSwept && t() - obs.photoAt > 63000) {
         obs.gateSwept = await SC.sweep('stale', { COACHING_PHOTO_GATE_MINUTES: '1', COACHING_REMINDER_MINUTES: '60', COACHING_AUTO_COMPLETE_MINUTES: '720' });
         lastProgress = t();
       }
       if (obs.commit && obs.quizOffer) break;
-      if (obs.commit && t() - reportAt > 45000) break;
-      if (obs.report && t() - reportAt > 120000) break;
+      if (obs.commit && t() - reportAt > 30000) break;
+      if (obs.report && t() - reportAt > 90000) break;
       const sig = [obs.steps.length, !!obs.photoPrompt, !!obs.lpPrompt, !!obs.reflective, !!obs.report, obs.survey.length, obs.complete.length].join('/');
       if (sig !== prevSig) { prevSig = sig; lastProgress = t(); }
       if (t() - lastProgress > stallMs) { obs.stalled = `no progress for ${Math.round((t() - lastProgress) / 1000)}s at steps [${obs.steps}]`; break; }
-      await sleep(3000);
+      // a scripted vendor fault that leaves the pipeline silent at Step 3/5 is the finding itself — do not wait the full budget for it
+      if (o.faults && obs.steps.includes('3') && !obs.reflective && t() - lastProgress > (o.faultStallMs || 90000)) { obs.stalled = `no question for ${Math.round((t() - lastProgress) / 1000)}s after Step 3/5 with a scripted fault armed`; break; }
+      await sleep(1500);
     }
     obs.elapsedSec = Math.round((t() - t1) / 1000);
     if (obs.report) obs.reportText = await reportTextOf(obs.report, obs.sessionId);

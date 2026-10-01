@@ -455,7 +455,7 @@ exports.run = async ({ api, rec, sleep }) => {
       obs.stalled = { silentSec: Math.round((Date.now() - lastProgressAt) / 1000), atSteps: obs.steps.slice(), asrLlmMisses: asrLlmMisses() };
       break;
     }
-    await sleep(5000);
+    await sleep(2500);
   }
 
   // COA57 needs the report's own voice note, which lands ~40 s after the report (median; p95 55 s) and can
@@ -464,7 +464,7 @@ exports.run = async ({ api, rec, sleep }) => {
     const until = Date.now() + 180000;
     while (Date.now() < until && !obs.voiceNotes.some((n) => n.afterReport)) {
       for (const r of await fresh()) { noteAudio(r); obs.rows.push(r); }
-      if (!obs.voiceNotes.some((n) => n.afterReport)) await sleep(5000);
+      if (!obs.voiceNotes.some((n) => n.afterReport)) await sleep(2500);
     }
   }
 
