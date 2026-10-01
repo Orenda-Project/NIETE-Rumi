@@ -630,3 +630,16 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the quiz offer is sent on that sweep, as it was before the hold-back
     # Kill switch for the one-open-question rule (default on). The quiet-hours skip is not switched
     # separately: it stays under LP_QUIZ_OFFER_ENABLED.
+
+  # ─────────── app redirect (bd-onxyu) — Lesson Plans moved to the NIETE app ───────────
+  # Switch app_redirect_lesson_plan, off by default. Every lesson-plan door — "lesson plan" typed,
+  # the chip, the menu row, an open request the classifier reads as a lesson plan, a voice note —
+  # asks it. Unit: tests/app-redirect/.
+
+  @e2e @config-gated @P1
+  Scenario: With Lesson Plans moved to the app, asking for a lesson plan sends me to the Play Store instead
+    Given the NIETE bot chat is open
+    And Lesson Plans has been switched to the NIETE app
+    When I send "make me a lesson plan on fractions for grade 4"
+    Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
+    And no lesson-plan menu opens
