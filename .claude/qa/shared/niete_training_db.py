@@ -602,6 +602,7 @@ def cmd_seed_lp_download(creds, a):
     body = {"user_id": uid, "lesson_id": r["lesson_id"], "asset_id": r["asset_id"], "version_stamp": r["version_stamp"], "content_hash": r["content_hash"],
             "phone": a.phone, "status": "sent", "grade": str(r.get("g") or (m.group(1) if m else "1")), "subject": str(r.get("s") or (m.group(2) if m else "maths")),
             "chapter_number": int(m.group(3)) if m else None, "segment_index": int(m.group(4)) if m else None, "correlation_id": QA_LP_DOWNLOAD_CID}
+    if getattr(a, "created_at", None): body["created_at"] = a.created_at
     if not a.yes_write: print(json.dumps({"dry_run": True, "would_insert": body})); return
     created, _ = _req("POST", "/rest/v1/niete_lp_downloads", creds, body=[body], prefer="return=representation")
     row = (created or [{}])[0]
@@ -813,7 +814,7 @@ def main():
     # seed-lp-download: a lesson plan the driver "took today" (niete_lp_downloads status sent, the exact served
     # version that has a slide script) so /quiz lists it "From lesson plan" with no quiz yet (T64/T65/T67).
     sld = sub.add_parser("seed-lp-download", parents=[common]); sld.add_argument("--phone", required=True); sld.add_argument("--lesson-id", dest="lesson_id")
-    sld.add_argument("--restore", action="store_true"); sld.add_argument("--yes-write", action="store_true")
+    sld.add_argument("--restore", action="store_true"); sld.add_argument("--yes-write", action="store_true"); sld.add_argument("--created-at", dest="created_at", help="ISO timestamp the download was taken (lp-quiz-offer cohorts are built per PKT day)")
     sld.add_argument("--donor-version", action="store_true", dest="donor_version", help="serve the version another teacher's clean SENT quiz was written from, so the lp quiz cache can donate (T66)")
     # seed-coaching-session: a COMPLETED coaching session with a transcript the driver can make a quiz from
     # (T47/T79–T83). --transcript-file holds the text (>= 1500 chars); analysis_data carries topic/subject.

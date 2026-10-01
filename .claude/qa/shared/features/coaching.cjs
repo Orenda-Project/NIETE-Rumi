@@ -524,7 +524,7 @@ exports.run = async ({ api, rec, sleep }) => {
             : ['BLOCKED', { reason: stallNote || ('the reflective step (3/5) was not reached within ' + elapsed + 's'),
                             stepsSeen: obs.steps }]));
 
-  deepOnly('COA10', 'A slash command during the reflective step ends the session',
+  if (REFLECT === 'slash') deepOnly('COA10', 'A slash command during the reflective step ends the session',
       ...(REFLECT !== 'slash'
           ? ['BLOCKED', { reason: 'mutually exclusive with COA06 — re-run with REFLECT=slash' }]
           : obs.slashEnded
@@ -630,6 +630,7 @@ exports.run = async ({ api, rec, sleep }) => {
   E('COA55', 'With NUDGE_OPEN_QUESTION_DEFER off the coaching ask no longer waits for the survey');
   E('COA56', 'In Urdu, the coaching messages never guess my gender');
   E('COA59', 'Picking my lesson plan from the list asks me to confirm before it is used');
+  if (REFLECT !== 'slash') E('COA10', 'A slash command during the reflective step ends the session');
 
   // bd-hr97y: needs a COMPLETED coaching report older than 7 days for the driver account. The mock lane starts
   // from a fresh session and cannot age one; the no-window lookup is covered by

@@ -223,6 +223,7 @@ module.exports.run = async function runExt(ctx) {
         if ((voiceQ || textQ) && !obs.report) {
           obs.reflective = { kind: voiceQ ? 'audio' : 'text', txt: short(x, 260) }; note('reflectiveQ', r);
           if (o.reflect === 'answer') { const a = await api.sendWait(REFLECT_ANSWER, 120000); obs.reflectiveAck = short(a.txt, 200); }
+          else if (o.reflect === 'slash') { const m = await api.sendWait('/menu', 90000); obs.slashEnded = { reply: short(m.txt, 200), btns: m.btns, kind: rowKind(m) }; obs.session = dbJson(api, 'session-get', ['--session-id', obs.sessionId || 'latest']); obs.stalled = null; return Object.assign(obs, { elapsedSec: Math.round((t() - t1) / 1000) }); }
           else if (o.reflect === 'report') { await api.tapId('button', 'coaching_finish_' + obs.sessionId, 'Get Report Now'); obs.reflectiveAck = 'tapped coaching_finish_'; }
           continue;
         }
@@ -436,7 +437,7 @@ module.exports.run = async function runExt(ctx) {
     const rs = await SC.restart('worker', { COACHING_PHOTO_VISION: 'v2', LP_FIDELITY_PHOTO: 'on', LP_FIDELITY_ENABLED: 'true' });
     if (!rs.ok) throw new Error('worker restart failed: ' + rs.err);
     const rb4 = await SC.restart('bot', { LP_FIDELITY_ENABLED: 'true' }); if (!rb4.ok) throw new Error('bot restart failed: ' + rb4.err);
-    let lpSeed = null; try { lpSeed = dbJson(api, 'seed-lp-download'); } catch (_) {}
+    let lpSeed = null; try { lpSeed = dbJson(api, 'seed-lp-download', ['--lesson-id', 'grade_4_math_ch5_seg1']); } catch (_) {}   // the recording teaches types of fractions
     const r4 = await pipeline({ label: 'run4-v2', photo: 'screenshot', firstPhoto: FX.board, lp: 'recent', reflect: 'answer', budgetMs: 15 * 60 * 1000,
       faults: [{ kind: 'llm', match: '/FIDELITY GRADER/', times: 1, content: '' }] });
     const a = (r4.session && r4.session.analysis) || {};
@@ -480,7 +481,7 @@ module.exports.run = async function runExt(ctx) {
     const pick = cas.map((f) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (_) { return null; } }).find((c) => c && c.value && Array.isArray(c.value.tokens) && c.value.tokens.length > 200);
     if (!pick) throw new Error('no recorded ASR cassette with tokens to derive a stamp-less answer from');
     const value = { text: pick.value.text, language: pick.value.language, tokens: [] };
-    try { dbJson(api, 'seed-lp-download'); } catch (_) {}
+    try { dbJson(api, 'seed-lp-download', ['--lesson-id', 'grade_4_math_ch5_seg1']); } catch (_) {}
     { const rw = await SC.restart('worker', { LP_FIDELITY_ENABLED: 'true' }); if (!rw.ok) throw new Error('worker restart failed: ' + rw.err); const rb = await SC.restart('bot', { LP_FIDELITY_ENABLED: 'true' }); if (!rb.ok) throw new Error('bot restart failed: ' + rb.err); }
     const r5 = await pipeline({ label: 'run5-nostamps', photo: 'no', lp: 'recent', reflect: 'answer', budgetMs: 15 * 60 * 1000,
       faults: [{ kind: 'asr', match: '/./', times: 1, value }] });
@@ -535,6 +536,18 @@ module.exports.run = async function runExt(ctx) {
   // ══════════════════════════════════════════════════════════════════════════════════════════════
   // G — run 7 (English): pasted text that is NOT a plan → the same rejection a file gets, recording still analysed
   // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // ══ run 7b — a slash command during the reflective step ends the session (COA10; mutually exclusive with COA06's answer) ══
+  await guard('COA10', async () => {
+    await cleanSlate();
+    const r = await pipeline({ label: 'run7b-slash', photo: 'no', lp: 'no', reflect: 'slash' });
+    const st = (r.session || {}).status; const cs = (r.session || {}).conversation_state || {};
+    set('COA10', ...(r.reflective && r.slashEnded
+      ? V(/See what I do|فہرست دیکھیں|NIETE Teaching Assistant|ٹیچنگ اسسٹنٹ/.test((r.slashEnded.reply || '') + ' ' + (r.slashEnded.btns || []).join(' ')) && !/\?/.test(r.slashEnded.reply || '') && /abandoned|cancelled|completed/.test(String(st)),
+          { question: r.reflective, command: '/menu', reply: r.slashEnded, sessionStatus: st, state: cs.current_state, note: 'the command must run (the menu arrives) and the reflective conversation must end (session status abandoned, no re-ask)' })
+      : B(r.stalled || 'the reflective step was not reached', { steps: r.steps })));
+    try { api.db('cancel-stuck'); } catch (_) {}
+  });
+
   await guard('COA35', async () => {
     await cleanSlate();
     const r7 = await pipeline({ label: 'run7-nonplan', photo: 'no', lp: 'nonplan', reflect: 'answer' });
@@ -696,23 +709,31 @@ module.exports.run = async function runExt(ctx) {
   await guard('COA47', async () => {
     if (!askReady) throw new Error('ask block not ready');
     api.db('purge-nudges'); await fresh();
-    let dl = null; try { dl = dbJson(api, 'seed-lp-download'); } catch (_) {}
-    const seed = seedAsk(); const sw = await sweepAsk();
+    // The cohort is built ONCE per PKT day across the shared sandbox DB. If today's is already there (a run earlier
+    // in the day built it), the scenario plays out on TOMORROW's school day on the lane's own clock: the ask row,
+    // the lesson download and the cohort build all carry that date.
+    const pkt = (d) => new Date(d.getTime() + 5 * 3600 * 1000);
+    const probe = await SC.sweep('quiz-offer-prepare', { ...ASK_ENV, LP_QUIZ_OFFER_ENABLED: 'true', LP_QUIZ_OFFER_SEND_HOUR_PKT: String(pkt(new Date()).getUTCHours()), LP_QUIZ_OFFER_SEND_MINUTE_PKT: '0', E2E_SWEEP_NOW: NOW10() });
+    const todayBuilt = probe && probe.result && probe.result.built === false && !probe.result.reason;
+    let day = new Date(); if (todayBuilt) { day = new Date(day.getTime() + 24 * 3600 * 1000); while ([5, 6].includes((pkt(day).getUTCDay() + 6) % 7)) day = new Date(day.getTime() + 24 * 3600 * 1000); }   // next Mon–Fri
+    const nudgeDate = pkt(day).toISOString().slice(0, 10);
+    const dl = dbJson(api, 'seed-lp-download', todayBuilt ? ['--created-at', new Date(Date.UTC(pkt(day).getUTCFullYear(), pkt(day).getUTCMonth(), pkt(day).getUTCDate(), 4, 0, 0)).toISOString()] : []);   // 09:00 PKT that day
+    const seed = seedAsk(todayBuilt ? { nudgeDate } : {}); const sw = await sweepAsk();
     const c = await collect((r) => RX.lpAsk.test(r.txt || ''), 25000);
-    if (!c.hit) throw new Error('no ask on screen');
+    if (!c.hit) throw new Error('no ask on screen: ' + short(JSON.stringify(sw), 160));
     const row = (nudgeRows('coaching_after_lp') || [])[0];
     await api.tapId('button', 'lpask_yes_' + row.id, 'Record my lesson');
     await collect((r) => RX.menuAsks.test(r.txt || ''), 20000);
-    const nowPkt = new Date(Date.now() + 5 * 3600 * 1000);
-    const qEnv = { ...ASK_ENV, LP_QUIZ_OFFER_ENABLED: 'true', LP_QUIZ_OFFER_SEND_HOUR_PKT: String(nowPkt.getUTCHours()), LP_QUIZ_OFFER_SEND_MINUTE_PKT: '0' };
-    const prep = await SC.sweep('quiz-offer-prepare', { ...qEnv, E2E_SWEEP_NOW: NOW10() });
-    const sw2 = await SC.sweep('teacher-nudges', { ...qEnv, E2E_SWEEP_NOW: NOW10() });
+    const clock = todayBuilt ? new Date(Date.UTC(pkt(day).getUTCFullYear(), pkt(day).getUTCMonth(), pkt(day).getUTCDate(), 11, 0, 0)).toISOString() : NOW10();   // 16:00 PKT that day
+    const qEnv = { ...ASK_ENV, LP_QUIZ_OFFER_ENABLED: 'true', LP_QUIZ_OFFER_SEND_HOUR_PKT: todayBuilt ? '15' : String(pkt(new Date()).getUTCHours()), LP_QUIZ_OFFER_SEND_MINUTE_PKT: '0', E2E_SWEEP_NOW: clock };
+    const prep = await SC.sweep('quiz-offer-prepare', qEnv);
+    const sw2 = await SC.sweep('teacher-nudges', qEnv);
     const offer = await collect((r) => RX.quizOffer.test(r.txt || ''), 12000);
-    const qrows = nudgeRows('lp_quiz_offer'); const q = Array.isArray(qrows) ? qrows[0] : null;
+    const qrows = nudgeRows('lp_quiz_offer'); const q = Array.isArray(qrows) ? qrows.find((x) => x.nudge_date === nudgeDate) || qrows[0] : null;
     set('COA47', ...(q
-      ? V(!offer.hit && q.status === 'skipped' && String((q.context || {}).skip_reason || '').includes('coaching_yes_today') && (Array.isArray(qrows) ? qrows.length === 1 : true),
-          { quizOfferRow: { status: q.status, context: q.context, nudge_date: q.nudge_date }, offerArrived: !!offer.hit, prepare: prep.result || prep, sweep: sw2.result || sw2, lpDownloadSeed: dl })
-      : B('no lp_quiz_offer row was built for the driver: the cohort for this PKT day already exists on the shared sandbox DB (alreadyBuilt — one build per day, any teacher), so prepare() will not build again until tomorrow; it is also skipped on a non-school day', { prepare: prep.result || prep, sweep: sw2.result || sw2, lpDownloadSeed: dl, offerArrived: !!offer.hit })));
+      ? V(!offer.hit && q.status === 'skipped' && String((q.context || {}).skip_reason || '').includes('coaching_yes_today'),
+          { cohortDay: nudgeDate, playedOn: todayBuilt ? 'the next school day (today\'s cohort already existed on the shared DB)' : 'today', quizOfferRow: { status: q.status, context: q.context, nudge_date: q.nudge_date }, offerArrived: !!offer.hit, prepare: prep.result || prep, sweep: sw2.result || sw2, lpDownloadSeed: dl, seed })
+      : B('no lp_quiz_offer row was built for the driver on ' + nudgeDate, { prepare: prep.result || prep, probe: probe.result || probe, sweep: sw2.result || sw2, lpDownloadSeed: dl, offerArrived: !!offer.hit })));
     try { api.db('seed-lp-download', ['--restore']); } catch (_) {}
     const u = dbJson(api, 'user-get'); if (u.conversation_state) await api.setUser({ conversation_state: null, conversation_state_expires_at: null });
   });
