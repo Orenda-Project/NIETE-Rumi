@@ -31,6 +31,7 @@ const WhatsAppService = require('./whatsapp.service');
 const { logToFile } = require('../utils/logger');
 const { resolveUx } = require('../config/ux-strings');
 const { appStoreUrl } = require('../config/branding');
+const InboundTyping = require('./inbound-typing');
 
 /** feature → app_settings key. The keys are the contract with whoever flips them. */
 const APP_REDIRECT_FLAGS = Object.freeze({
@@ -150,7 +151,15 @@ async function recordNotice(userId, previous, now) {
  * @param {number} [args.now]    clock, for tests
  * @returns {Promise<boolean>} true = handled (notice sent, or silenced by the quiet hour)
  */
-async function redirectIfFlagged(feature, { userId, from, language, reason = 'unspecified', now = Date.now() } = {}) {
+async function redirectIfFlagged(feature, args = {}) {
+  const handled = await decideRedirect(feature, args);
+  // Meta bill cut FX3 (bd-w2daa.24): typing state only — what is sent is unchanged. Not
+  // redirected → the feature will answer, so a quiet-hour-held "typing…" may show now.
+  if (!handled) InboundTyping.replyComing();
+  return handled;
+}
+
+async function decideRedirect(feature, { userId, from, language, reason = 'unspecified', now = Date.now() } = {}) {
   if (!(await isRedirectEnabled(feature, { now }))) return false;
   if (!userId || !from) return false;
 
@@ -158,6 +167,10 @@ async function redirectIfFlagged(feature, { userId, from, language, reason = 'un
   const lastAt = previous?.video_shown_at ? Date.parse(previous.video_shown_at) : NaN;
   if (Number.isFinite(lastAt) && now - lastAt < QUIET_MS) {
     logToFile('📵 App redirect: inside the quiet hour, no reply', { userId, feature, reason });
+    // FX3: this turn ends silent — no "typing…" for it, and her next turns in the hour hold
+    // theirs until their door decides (the text handler reaches it ~2.7 s in, past the 2 s deadline).
+    InboundTyping.nothingComing({ reason: 'app_redirect_quiet_hour' });
+    InboundTyping.expectSilence(from, lastAt + QUIET_MS);
     return true;
   }
 
@@ -171,6 +184,7 @@ async function redirectIfFlagged(feature, { userId, from, language, reason = 'un
     logToFile('❌ App redirect: notice send threw', { userId, feature, error: err?.message }, 'error');
   }
   if (sent) {
+    InboundTyping.expectSilence(from, now + QUIET_MS);   // FX3: her next hour of redirects is silent
     await recordNotice(userId, previous, now);
     logToFile('📲 App redirect: notice sent', { userId, feature, reason });
   } else {

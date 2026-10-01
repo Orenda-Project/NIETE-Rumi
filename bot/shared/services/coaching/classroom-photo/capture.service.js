@@ -9,6 +9,7 @@
  */
 
 const { appendClassroomPhoto, MAX_COACHING_PHOTOS, CLASSROOM_PHOTO_STATUSES, isClassroomPhotoState } = require('../photo-capture-routing');
+const InboundTyping = require('../../inbound-typing');
 
 // ─── Meta bill cut NC4 (N2-C04): one receipt prompt per BURST of photos ──────
 // Teachers send 2–3 photos seconds apart; each used to get its own
@@ -25,6 +26,16 @@ const promptKey = (sessionId) => `coaching:photo_prompt:${sessionId}`;
 function photoPromptDebounceMs() {
   const n = Number(process.env.COACHING_PHOTO_PROMPT_DEBOUNCE_MS);
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_PHOTO_PROMPT_DEBOUNCE_MS;
+}
+
+// Meta bill cut FX3 (bd-w2daa.24): a photo absorbed into its burst sends nothing — the burst's
+// one prompt (another request) answers it. So the wait holds this turn's "typing…" for its first
+// second and checks then: already superseded → settle "nothing coming" (typing never goes up);
+// still the newest → let typing show and wait out the rest.
+const DEFAULT_BURST_EARLY_CHECK_MS = 1000;
+function burstEarlyCheckMs() {
+  const n = Number(process.env.COACHING_PHOTO_BURST_EARLY_CHECK_MS);
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_BURST_EARLY_CHECK_MS;
 }
 
 const UR_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
@@ -73,6 +84,97 @@ function mergedPhotoUpdate(session, photos) {
   };
 }
 
+// ─── Meta bill cut FX3 (bd-fr45b): photos sent together must not overwrite each other ──
+// A gallery burst arrives as separate webhooks within a second, and each request resolved the
+// session before any of them wrote: every one appended to the same stale classroom_photos and the
+// last write won (sandbox 1 Oct 16:17:49Z — two photos, "Photo 1 of 3", one lost). The append now
+// re-reads the row under a per-session lock — an in-process queue (requests on this replica) plus
+// a Redis lock (other replicas) — the Global fix (lane I7, G1-17). Fail-safe both ways: no Redis,
+// a Redis error, or a lock held past the wait → append anyway (never lose a photo, never block).
+// The upload stays OUTSIDE the lock; the locked work is one read and one write.
+const PHOTO_LOCK_TTL_SECONDS = 30;
+const DEFAULT_PHOTO_LOCK_WAIT_MS = 10000;
+const PHOTO_LOCK_POLL_MS = 100;
+const localPhotoQueues = new Map();   // sessionId → tail of this replica's append queue
+
+function photoLockWaitMs() {
+  const n = Number(process.env.COACHING_PHOTO_LOCK_WAIT_MS);
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_PHOTO_LOCK_WAIT_MS;
+}
+
+function queueLocally(sessionId, fn) {
+  const prev = localPhotoQueues.get(sessionId) || Promise.resolve();
+  const run = prev.then(fn);
+  const tail = run.catch(() => {});
+  localPhotoQueues.set(sessionId, tail);
+  tail.then(() => { if (localPhotoQueues.get(sessionId) === tail) localPhotoQueues.delete(sessionId); });
+  return run;
+}
+
+async function withRedisPhotoLock(sessionId, fn) {
+  const { logToFile } = require('../../../utils/logger');
+  let redis = null;
+  try {
+    redis = require('../../cache/railway-redis.service');
+    if (!redis || typeof redis.isAvailable !== 'function' || !redis.isAvailable()) redis = null;
+  } catch (_) { redis = null; }
+  if (!redis) return fn();
+
+  const resource = `coaching:photo_append:${sessionId}`;
+  const lockId = `${process.pid}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+  const deadline = Date.now() + photoLockWaitMs();
+  let held = false;
+  try {
+    for (;;) {
+      held = await redis.acquireLock(resource, lockId, PHOTO_LOCK_TTL_SECONDS);
+      if (held || Date.now() >= deadline) break;
+      await new Promise((resolve) => setTimeout(resolve, PHOTO_LOCK_POLL_MS));
+    }
+  } catch (err) {
+    logToFile('⚠️ Classroom photo lock unavailable — appending unlocked', { coachingSessionId: sessionId, error: err && err.message });
+    held = false;
+  }
+  if (!held) logToFile('⚠️ Classroom photo lock not acquired — appending unlocked', { coachingSessionId: sessionId });
+  try {
+    return await fn();
+  } finally {
+    if (held) {
+      try { await redis.releaseLock(resource, lockId); } catch (_) { /* the TTL frees it */ }
+    }
+  }
+}
+
+function withSessionPhotoLock(sessionId, fn) {
+  return queueLocally(sessionId, () => withRedisPhotoLock(sessionId, fn));
+}
+
+/**
+ * Append one stored photo to the session from a FRESH read, under the per-session lock.
+ * The caller's earlier read is used only when the fresh read fails.
+ * @returns {Promise<{photos: Array, added: boolean, full: boolean}>}
+ */
+async function appendPhotoLocked(session, photoUrl) {
+  const supabase = require('../../../config/supabase');
+  const { logToFile } = require('../../../utils/logger');
+  return withSessionPhotoLock(session.id, async () => {
+    let current = session;
+    try {
+      const { data: fresh } = await supabase
+        .from('coaching_sessions')
+        .select('status, conversation_state, classroom_photos')
+        .eq('id', session.id)
+        .maybeSingle();
+      if (fresh) current = { ...session, ...fresh };
+    } catch (err) {
+      logToFile('⚠️ Classroom photo: fresh read failed — using the earlier read', { coachingSessionId: session.id, error: err && err.message });
+    }
+    const existing = current.classroom_photos || (current.conversation_state && current.conversation_state.classroom_photos) || [];
+    const { photos, added, full } = appendClassroomPhoto(existing, photoUrl);
+    if (added) await supabase.from('coaching_sessions').update(mergedPhotoUpdate(current, photos)).eq('id', session.id);
+    return { photos, added, full };
+  });
+}
+
 /**
  * Store a photo for a session already ON the photo step, then prompt add-more /
  * done exactly like the image Phase 3 does. Used by the document-as-photo path.
@@ -91,7 +193,6 @@ function mergedPhotoUpdate(session, photos) {
  * one. add-another.service now makes it true rather than assuming it.
  */
 async function capturePhotoAndPrompt({ session, imageBuffer, mimeType, from, user }) {
-  const supabase = require('../../../config/supabase');
   const { uploadImageWithRetry } = require('../../../storage/r2');
   const { getUserLanguage } = require('../../../utils/language-cache');
   const { logToFile } = require('../../../utils/logger');
@@ -114,8 +215,16 @@ async function capturePhotoAndPrompt({ session, imageBuffer, mimeType, from, use
   }
 
   const photoUrl = await uploadImageWithRetry(imageBuffer, user.id, `${session.id}-${Date.now()}`, mimeType || 'image/jpeg');
-  const { photos, full } = appendClassroomPhoto(existing, photoUrl);
-  await supabase.from('coaching_sessions').update(mergedPhotoUpdate(session, photos)).eq('id', session.id);
+  // FX3 (bd-fr45b): from a fresh read under the per-session lock, so a burst keeps every photo.
+  const { photos, added, full } = await appendPhotoLocked(session, photoUrl);
+
+  if (!added) {
+    // A sibling photo of the same burst filled the last slot first; it has already opened the
+    // lesson-plan step, so this one answers nothing (a second LP prompt would be a duplicate).
+    logToFile('📸 Classroom photo over the cap in the same burst — not stored', { coachingSessionId: session.id, photoCount: photos.length });
+    InboundTyping.nothingComing({ reason: 'photo_over_cap_in_burst', answeredElsewhere: true });
+    return photos.length;
+  }
 
   if (full) {
     // bd-5azz0: same routing as the webhook path — max lands on the LP step.
@@ -150,9 +259,18 @@ async function promptOncePerBurst({ session, from, userLang, count }) {
     return;
   }
 
-  await new Promise((resolve) => setTimeout(resolve, photoPromptDebounceMs()));
-  if (!(await stillNewest(session.id, token))) {
+  const wait = photoPromptDebounceMs();
+  const early = Math.min(wait, burstEarlyCheckMs());
+  const releaseTyping = InboundTyping.hold();
+  await new Promise((resolve) => setTimeout(resolve, early));
+  const newestEarly = await stillNewest(session.id, token);
+  if (newestEarly) releaseTyping(true);
+  if (newestEarly && wait > early) {
+    await new Promise((resolve) => setTimeout(resolve, wait - early));
+  }
+  if (!newestEarly || !(await stillNewest(session.id, token))) {
     logToFile('📸 Photo receipt folded into the burst prompt', { coachingSessionId: session.id, photoCount: count });
+    InboundTyping.nothingComing({ reason: 'photo_burst_absorbed', answeredElsewhere: true });
     return;
   }
 
@@ -173,6 +291,7 @@ async function promptOncePerBurst({ session, from, userLang, count }) {
         logToFile('📸 Burst prompt not sent — the session left the photo step meanwhile', {
           coachingSessionId: session.id, status: fresh.status,
         });
+        InboundTyping.nothingComing({ reason: 'photo_step_left' });
         return;
       }
       const stored = Array.isArray(fresh.classroom_photos) ? fresh.classroom_photos
@@ -191,7 +310,6 @@ async function promptOncePerBurst({ session, from, userLang, count }) {
  * classroom_photos. Prevents the photo being lost to the pic-to-LP fallback.
  */
 async function holdPhotoForSession({ session, imageBuffer, mimeType, from, user, messageId = null }) {
-  const supabase = require('../../../config/supabase');
   const { uploadImageWithRetry } = require('../../../storage/r2');
   const { getUserLanguage } = require('../../../utils/language-cache');
   const { logToFile } = require('../../../utils/logger');
@@ -200,8 +318,11 @@ async function holdPhotoForSession({ session, imageBuffer, mimeType, from, user,
   if (Array.isArray(existing) && existing.length >= MAX_COACHING_PHOTOS) return existing.length;
 
   const photoUrl = await uploadImageWithRetry(imageBuffer, user.id, `${session.id}-${Date.now()}`, mimeType || 'image/jpeg');
-  const { photos } = appendClassroomPhoto(existing, photoUrl);
-  await supabase.from('coaching_sessions').update(mergedPhotoUpdate(session, photos)).eq('id', session.id);
+  const { photos, added } = await appendPhotoLocked(session, photoUrl);   // FX3 (bd-fr45b)
+  if (!added) {
+    logToFile('📸 Held classroom photo over the cap — not stored', { coachingSessionId: session.id, photoCount: photos.length });
+    return photos.length;
+  }
 
   // Meta bill cut NC4 (N2-C07): a free 📸 reaction on their photo instead of the
   // billed "Got your classroom photo…" text. No wamid (a parked photo re-attached

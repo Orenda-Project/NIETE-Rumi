@@ -44,6 +44,17 @@
  *     the caller queues the job that answers (it can never land after that answer) — and the
  *     dispatch's end does not cancel it. Meta bill cut FX1 (bd-w2daa.22): the LP-pick outcome
  *     that now rides on the analysis job's Step 2/5.
+ *   - nothingComing(): the handler now KNOWS this turn sends nothing more — settle at once, so
+ *     "typing…" never goes up however long the handler still runs. { answeredElsewhere: true } when
+ *     another request's message answers this one (a photo absorbed into its burst's one prompt).
+ *     Too late (typing already shown) is logged honestly: silentAfterTyping.
+ *   - expectSilence(to, untilMs): this person's turns may end in silence until untilMs (the
+ *     app-redirect quiet hour). At the deadline their "typing…" is HELD until a door decides —
+ *     nothingComing() → never shown; replyComing() → shown at once; a message → that message,
+ *     no typing first — or QUIET_HOLD_MS passes, and it is shown as before. Meta bill cut FX3
+ *     (bd-w2daa.24): the text handler reaches its door ~2.7 s in (sandbox, 1 Oct 15:53:08Z), so a
+ *     silent quiet-hour turn showed ~25 s of "typing…" over nothing. Per replica, in memory: a
+ *     restart or another replica just means today's behaviour for that turn.
  */
 const { AsyncLocalStorage } = require('async_hooks');
 const { logToFile } = require('../utils/logger');
@@ -51,6 +62,27 @@ const { logToFile } = require('../utils/logger');
 const DEFAULT_DEFER_MS = 2000;
 const TYPING_LIFETIME_MS = 25000;   // WhatsApp drops "typing…" on its own after ~25 s
 const storage = new AsyncLocalStorage();
+
+/**
+ * How long past the deadline a quiet-hour turn holds "typing…" for its door to decide. Sandbox,
+ * 1 Oct 15:53:08Z: the decision came 0.7 s after the 2 s deadline; 3 s covers that with margin.
+ * INBOUND_TYPING_QUIET_HOLD_MS overrides; 0 disables the hold.
+ */
+const DEFAULT_QUIET_HOLD_MS = 3000;
+const MAX_QUIET_ENTRIES = 5000;
+const quietUntil = new Map();   // digits → epoch ms the expected silence ends
+
+function quietHoldMs() {
+  const n = Number(process.env.INBOUND_TYPING_QUIET_HOLD_MS);
+  return process.env.INBOUND_TYPING_QUIET_HOLD_MS !== undefined && Number.isFinite(n) && n >= 0 ? n : DEFAULT_QUIET_HOLD_MS;
+}
+
+function quietFor(digits) {
+  const until = quietUntil.get(digits);
+  if (!until) return false;
+  if (until <= Date.now()) { quietUntil.delete(digits); return false; }
+  return true;
+}
 
 function deferMs() {
   const raw = process.env.INBOUND_TYPING_DEFER_MS;
@@ -79,6 +111,12 @@ class Scope {
     this.answeredElsewhere = false;   // answerLater(): the reply is another process's send
     this.timer = null;
     this.reported = false;
+    this.quietChecked = false;   // expectSilence() consulted (or overruled by replyComing())
+    this.quietHeld = false;      // typing held at the deadline for a door's decision
+    this.quietTimer = null;
+    this.quietHeldEver = false;
+    this.silentReason = null;    // nothingComing() — why this turn ends silent
+    this.silentAfterTyping = false;
   }
 
   arm() {
@@ -90,12 +128,53 @@ class Scope {
     this.timer = null;
     if (this.state !== 'pending') return;
     if (this.holds > 0) { this.due = true; return; }
+    if (!this.quietChecked) {
+      this.quietChecked = true;
+      const bound = quietHoldMs();
+      if (bound > 0 && quietFor(this.digits)) {
+        this.due = true;
+        this.quietHeld = true;
+        this.quietHeldEver = true;
+        this.quietTimer = setTimeout(() => this.quietExpired(), bound);
+        if (this.quietTimer && typeof this.quietTimer.unref === 'function') this.quietTimer.unref();
+        return;
+      }
+    }
     this.show();
+  }
+
+  /** No door decided within the bound — show "typing…", as without the hold. */
+  quietExpired() {
+    this.quietTimer = null;
+    if (this.state !== 'pending' || !this.quietHeld) return;
+    this.quietHeld = false;
+    if (this.holds === 0 && this.due) { this.due = false; this.show(); }
+  }
+
+  clearQuiet() {
+    this.quietHeld = false;
+    if (this.quietTimer) { clearTimeout(this.quietTimer); this.quietTimer = null; }
+  }
+
+  /** nothingComing(): this turn sends nothing more. */
+  silent(reason, answeredElsewhere) {
+    if (!this.silentReason) this.silentReason = reason || 'unspecified';
+    if (this.state === 'pending') {
+      this.holds = 0;
+      this.due = false;
+      this.settle('nothing');
+      return;
+    }
+    if (this.state === 'shown') {
+      if (answeredElsewhere) this.answeredElsewhere = true;
+      else if (!this.messageAfterTyping) this.silentAfterTyping = true;
+    }
   }
 
   show() {
     if (this.state !== 'pending') return Promise.resolve();
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    this.clearQuiet();
     this.state = 'shown';
     this.shownAfterMs = Date.now() - this.openedAt;
     let sent = Promise.resolve();
@@ -113,6 +192,7 @@ class Scope {
   settle(by) {
     if (this.state !== 'pending') return;
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    this.clearQuiet();
     this.state = 'settled';
     this.answeredBy = by;
     this.settledAfterMs = Date.now() - this.openedAt;
@@ -139,6 +219,9 @@ class Scope {
       // A reply from another process is invisible here, so it cannot count as lingering.
       lingered: this.state === 'shown' && !this.messageAfterTyping && !this.answeredElsewhere,
       answeredElsewhere: this.answeredElsewhere,
+      silentReason: this.silentReason,
+      silentAfterTyping: this.silentAfterTyping,
+      quietHeld: this.quietHeldEver,
       deferMs: this.deferMs,
       shownAfterMs: this.shownAfterMs ?? null,
       settledAfterMs: this.settledAfterMs ?? null,
@@ -232,7 +315,7 @@ function hold() {
     if (released) return;
     released = true;
     scope.holds = Math.max(0, scope.holds - 1);
-    if (showIfDue && scope.holds === 0 && scope.due) { scope.due = false; scope.show(); }
+    if (showIfDue && scope.holds === 0 && scope.due && !scope.quietHeld) { scope.due = false; scope.show(); }
   };
 }
 
@@ -280,6 +363,55 @@ async function answerLater() {
   }
 }
 
+/**
+ * This turn sends nothing more (a quiet-hour redirect, a photo absorbed into its burst). Settles a
+ * pending scope so "typing…" never goes up. Never throws; a no-op outside a webhook request.
+ *
+ * @param {{reason?: string, answeredElsewhere?: boolean}} [opts] - answeredElsewhere: another
+ *   request's message answers this turn (and clears the chat's "typing…" when it lands)
+ */
+function nothingComing({ reason, answeredElsewhere = false } = {}) {
+  try {
+    const scope = current();
+    if (scope) scope.silent(reason, answeredElsewhere);
+  } catch (_) { /* typing is a courtesy */ }
+}
+
+/**
+ * A door that might have answered silently has decided it will NOT: a held quiet-hour "typing…"
+ * shows now (or at the deadline if that has not come yet). Never throws.
+ */
+function replyComing() {
+  try {
+    const scope = current();
+    if (!scope || scope.state !== 'pending') return;
+    scope.quietChecked = true;
+    if (scope.quietHeld) {
+      scope.clearQuiet();
+      if (scope.holds === 0 && scope.due) { scope.due = false; scope.show(); }
+    }
+  } catch (_) { /* typing is a courtesy */ }
+}
+
+/**
+ * This person's turns may end silent until untilMs (the app-redirect quiet hour): hold their
+ * "typing…" at the deadline for a door's decision. Never throws.
+ */
+function expectSilence(to, untilMs) {
+  try {
+    const digits = digitsOf(to);
+    const until = Number(untilMs);
+    if (!digits || !Number.isFinite(until)) return;
+    if (until <= Date.now()) { quietUntil.delete(digits); return; }
+    if (quietUntil.size >= MAX_QUIET_ENTRIES && !quietUntil.has(digits)) {
+      const now = Date.now();
+      for (const [d, u] of quietUntil) if (u <= now) quietUntil.delete(d);
+      if (quietUntil.size >= MAX_QUIET_ENTRIES) quietUntil.delete(quietUntil.keys().next().value);
+    }
+    quietUntil.set(digits, until);
+  } catch (_) { /* best-effort */ }
+}
+
 /** The webhook's dispatch is over. Unless handed off, nothing else will answer — no typing. */
 function endDispatch() {
   const scope = current();
@@ -291,4 +423,5 @@ function endDispatch() {
 
 module.exports = {
   withRequest, open, noteOutbound, claimFirstBeat, hold, isPending, handOff, answerLater, endDispatch,
+  nothingComing, replyComing, expectSilence,
 };

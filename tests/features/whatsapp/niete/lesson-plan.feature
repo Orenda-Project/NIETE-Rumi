@@ -764,3 +764,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I send "make me a lesson plan on fractions for grade 4"
     Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
     And no lesson-plan menu opens
+
+  # ADDED 2026-10-01 (FX3, bd-w2daa.24): inside the quiet hour the bot answers nothing — and must not
+  # look as if it is about to (it used to show "typing…" for ~25 s over silence).
+  @e2e @config-gated @P2
+  Scenario: Asking again inside the hour gets no reply and no "typing…"
+    Given the NIETE bot chat is open
+    And Lesson Plans has been switched to the NIETE app
+    And I got the "use the NIETE app" message less than an hour ago
+    When I send "lp"
+    Then my message gets a 👍 and blue ticks
+    And no message arrives
+    And the chat header does not show "typing…" in the next 10 seconds
+    # inbound-typing expectSilence/nothingComing (app-redirect.service). Residual: the FIRST such
+    # message after a bot restart can still show "typing…" (the quiet hour is remembered per
+    # process); it is logged inbound_typing.done silentAfterTyping=true. Unit:
+    # tests/meta-bill-cut/fx3-silent-turn-typing.test.js.
