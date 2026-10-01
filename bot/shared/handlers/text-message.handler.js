@@ -367,7 +367,8 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       // adaptive quiz below never sees them.
       const typedAnswer = await quizInterceptStep('typed quiz answer', () => {
         const VideoQuizService = require('../services/quiz/video-quiz.service');
-        return VideoQuizService.answerTypedLetter(from, messageBody);
+        // The child's own message id: a free ✅/❌ lands on it.
+        return VideoQuizService.answerTypedLetter(from, messageBody, { messageId: message && message.id });
       });
       if (typedAnswer) { typingController.stop(); return; }
 

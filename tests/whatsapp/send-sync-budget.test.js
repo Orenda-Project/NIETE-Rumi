@@ -211,9 +211,14 @@ describe('the budget, through the real WhatsApp service', () => {
 });
 
 describe('Student Videos Flow: a child who just finished a quiz picks the next video', () => {
+  // The pre-delivery ack is only sent for a video with NO quiz: a video with a
+  // quiz opens with the quiz's own lesson note, so its ack was a second note
+  // before one video (bd-w2daa.7). The budget is exercised on the no-quiz video.
   test('SELECT_TOPIC answers within the budget; the ack is skipped, the video still follows', async () => {
     const ChildFlowToken = require('../../bot/shared/services/quiz/child-flow-token');
     const { handleStudentVideosDataExchange } = require('../../bot/shared/routes/student-videos-endpoint');
+    const VideoQuizService = require('../../bot/shared/services/quiz/video-quiz.service');
+    VideoQuizService.quizForVideo.mockResolvedValue(null);
     mockTables.student_videos = [{
       id: 'video-1', grade: '3', subject: 'Maths', clean_chapter: 'Numbers',
       clean_title: 'Even and Odd', r2_url: 'https://r2/v1.mp4', migration_status: 'done',
@@ -231,13 +236,35 @@ describe('Student Videos Flow: a child who just finished a quiz picks the next v
     expect(eventsNamed('whatsapp.paced').map((e) => e[1])).toEqual(
       expect.arrayContaining([expect.objectContaining({ outcome: 'skipped', reason: 'sync_budget' })]),
     );
+    // No quiz, so no session: the video is delivered on its own, after the response.
+    expect(VideoQuizService.startSession).not.toHaveBeenCalled();
+    expect(eventsNamed('student_videos.delivered').map((e) => e[1])).toEqual([]);   // not before the screen
+    VideoQuizService.quizForVideo.mockResolvedValue({ id: 'quiz-1' });
+  });
+
+  test('a video WITH a quiz: no ack at all — the quiz\'s lesson note is the one note — and the quiz starts', async () => {
+    const ChildFlowToken = require('../../bot/shared/services/quiz/child-flow-token');
+    const { handleStudentVideosDataExchange } = require('../../bot/shared/routes/student-videos-endpoint');
     const VideoQuizService = require('../../bot/shared/services/quiz/video-quiz.service');
+    mockTables.student_videos = [{
+      id: 'video-1', grade: '3', subject: 'Maths', clean_chapter: 'Numbers',
+      clean_title: 'Even and Odd', r2_url: 'https://r2/v1.mp4', migration_status: 'done',
+    }];
+    const token = ChildFlowToken.build({ phone: CHILD, shareCodeId: 'sc-1', studentId: 'stu-1', language: 'en' });
+    const p = handleStudentVideosDataExchange(token, 'SELECT_TOPIC', { grade: '3', subject: 'Maths', video: 'video-1' });
+
+    expect(await settlesWithin(p, BUDGET)).toBe(true);
+    expect((await p).screen).toBe('SUCCESS');
+    expect(bodiesTo(CHILD).filter((b) => /Sending your video/.test((b.text || {}).body || ''))).toHaveLength(0);
+    await jest.advanceTimersByTimeAsync(10);
     expect(VideoQuizService.startSession).toHaveBeenCalledWith(expect.objectContaining({ phone: CHILD }));
   });
 
-  test('a child with room still gets the ack BEFORE the SUCCESS screen, as before', async () => {
+  test('a child with room still gets the ack BEFORE the SUCCESS screen, as before (a video with no quiz)', async () => {
     const ChildFlowToken = require('../../bot/shared/services/quiz/child-flow-token');
     const { handleStudentVideosDataExchange } = require('../../bot/shared/routes/student-videos-endpoint');
+    const VideoQuizService = require('../../bot/shared/services/quiz/video-quiz.service');
+    VideoQuizService.quizForVideo.mockResolvedValue(null);
     mockTables.student_videos = [{
       id: 'video-1', grade: '3', subject: 'Maths', clean_chapter: 'Numbers',
       clean_title: 'Even and Odd', r2_url: 'https://r2/v1.mp4', migration_status: 'done',
@@ -246,6 +273,7 @@ describe('Student Videos Flow: a child who just finished a quiz picks the next v
     const res = await handleStudentVideosDataExchange(token, 'SELECT_TOPIC', { grade: '3', subject: 'Maths', video: 'video-1' });
     expect(res.screen).toBe('SUCCESS');
     expect(bodiesTo(CHILD).filter((b) => /Sending your video/.test(b.text.body))).toHaveLength(1);
+    VideoQuizService.quizForVideo.mockResolvedValue({ id: 'quiz-1' });
   });
 });
 

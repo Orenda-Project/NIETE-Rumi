@@ -194,8 +194,10 @@ describe('sendHandoff — resend vs first send bookkeeping', () => {
     const sentUpdate = updates.find((u) => u.status === 'sent');
     expect(sentUpdate).toBeTruthy();
     expect(sentUpdate.meta.sent_at).toBeTruthy();
+    // The promise rides in the PDF's caption now, not as a message of its own.
     const reportPromiseUr = resolveUx('tqReportPromise', { language: 'ur' });
-    expect(WhatsAppService.sendMessage.mock.calls.some((c) => c[1] === reportPromiseUr)).toBe(true);
+    expect(WhatsAppService.sendDocument.mock.calls[0][3].endsWith(`\n\n${reportPromiseUr}`)).toBe(true);
+    expect(WhatsAppService.sendMessage.mock.calls.some((c) => c[1] === reportPromiseUr)).toBe(false);
     expect(SQS.queueJob).toHaveBeenCalledWith(QID, 'quiz_nudge_teacher', expect.any(Object), expect.any(Object));
   });
 });

@@ -489,10 +489,14 @@ Feature: NIETE (ICT) Teacher Training
   Scenario: The line after a quiz is sent says when the class report really comes
     Given the NIETE bot chat is open and I made a quiz for one of my lessons from /quiz
     When the quiz PDF and the message to forward to my class arrive
-    Then the next message says the class report comes about 12 hours after the first student starts, or at 7 in the morning if that falls at night
+    Then the PDF's caption ends by saying the class report comes about 12 hours after the first student starts, or at 7 in the morning if that falls at night
     And it says that to get the report sooner I can send /quiz, pick the lesson and ask for its report
     And it never promises the report "sooner if everyone finishes"
-    # tqReportPromise (transcript-quiz-handoff, first send). The schedule is video-quiz-report reportTargetUtc:
+    And the message to forward is the last thing I am sent — no line arrives after it
+    # tqReportPromise (transcript-quiz-handoff, first send) closes the PDF caption — it was a third message
+    # after the link until the Meta bill cut (bd-w2daa.7); only past the 1,024-code-point caption cap does it
+    # still go on its own, after the link. When no PDF can be made, the text that stands in for it carries
+    # it, ahead of "Forward THIS message". The schedule is video-quiz-report reportTargetUtc:
     # 12 h after the first join, 22:00-07:00 PKT moved to 07:00; the early "everyone finished" send was removed
     # (generate suppresses every follow_up), so nothing sends it sooner except the teacher's own request.
     # vqShareReportPromise, the video lesson's class link, says the same schedule. Proven against the real
@@ -1183,3 +1187,73 @@ Feature: NIETE (ICT) Teacher Training
     When I send "/training"
     Then the bot does not reply
     # After the hour the next request gets the Play Store message again.
+
+  # ─────────── fewer bubbles, same words (bd-w2daa.7 — the Meta bill cut, 1 Oct 2026) ───────────
+  # Meta bills every message from 1 Oct 2026; a reaction is free. Each scenario below sends fewer
+  # bubbles and loses no word, and keeps its order. Unit: tests/quiz/child-quiz-fewer-bubbles.test.js,
+  # child-refusals-once-a-day.test.js, teacher-quiz-handoff-fewer-bubbles.test.js (red-first).
+
+  @e2e @quiz @wip @draft @P1 @T94
+  Scenario: A child's answer gets a ✅ or ❌ on the tap, and the verdict rides on the next question when that one starts with words
+    Given a child has opened a class quiz from its link and a question with text answers is waiting
+    When the child taps the right answer
+    Then a ✅ appears on the child's own tap at once
+    And the next message starts "✅ Correct! The answer is …", then "Question 2 of 8", then the question and its buttons — one message
+    When the child taps a wrong answer
+    Then a ❌ appears on the tap, and the next message starts with "❌ Not quite — the answer is …" and "Keep going, mistakes help you learn!" above the question
+    But when the next question is a picture card, the verdict still comes as its own message first, then the card
+    And the verdict on the last question still comes on its own, before the score card
+    # video-quiz.service handleAnswer -> sendNextQuestion({ lead }) -> video-quiz-lead foldLead: only a
+    # text-only verdict (no explanation picture or clip), only into a first bubble with nothing drawn above its
+    # body (buttons with no image header, a list, the listen line), only within Meta's 1,024 cap. A verdict
+    # under the next question's PICTURE is operator decision D1, not built. @wip.
+
+  @e2e @quiz @wip @draft @P2 @T95
+  Scenario: A double tap does not bring the same question twice
+    Given a child has answered a question and the next one has arrived
+    When the child taps the old answer again a few seconds later
+    Then nothing new arrives, and the question on screen is still the one to answer
+    But when the child taps it again long after (more than two minutes), the waiting question is sent again
+    # video-quiz.service reconcileFromAnswers: a 23505 duplicate whose next question is the one already sent
+    # (currentQuestionId, set only after its picker went out) within RESEND_WINDOW_MS sends nothing. @wip.
+
+  @e2e @quiz @wip @draft @P1 @T96
+  Scenario: A class quiz opens in one message when its first question starts with words
+    Given a child the bot already knows taps a class quiz link
+    When the quiz starts
+    Then one message carries the greeting naming the teacher and the topic, "Good to see you again", "Here we go — 8 questions. Take your time!", "Question 1 of 8" and the first question with its buttons
+    But when the first question is a picture card, the greeting and "Here we go" are one message, then the card
+    And when the lesson video goes first, the greeting and "First, here is the lesson" are one message before the video, and "Here we go" rides on question 1
+    And a child picking a video from the video library gets "First, here is the lesson" before it, and no "Sending your video" line
+    # video-quiz-share passes the greeting / "let's begin" to startSession as its lead; sendLessonFirst sends
+    # it with the lesson note; the opener rides on question 1 through the same foldLead. student-videos-endpoint
+    # sendPreDeliveryAck skips a child's video that has a quiz (the Flow's SUCCESS screen says it is on its way). @wip.
+
+  @e2e @quiz @wip @draft @P1 @T97
+  Scenario: The score card is the picture on the "invite a friend" message
+    Given a child is answering the last question of a class quiz
+    When the child answers it
+    Then the verdict arrives, then ONE message: the score card picture, "All done! You got … right", and "Want to send this quiz to a friend?" with "Invite a friend" and "No thanks"
+    But when the teacher's class report is already out, the score card, the class card and the invite come as before, in that order
+    # video-quiz.service finish -> scorecardForInvite -> video-quiz-invite offerInvite({ scorecard }) ->
+    # WhatsAppService.sendImageBufferWithButtons; any failure sends the score card and the invite separately,
+    # and the score card is never lost. Watch-more after the invite is unchanged (operator decision D2). @wip.
+
+  @e2e @quiz @wip @draft @P2 @T98
+  Scenario: A child who keeps sending voice notes hears the "please type" line once a day
+    Given a child the bot knows as a student
+    When the child sends a voice note
+    Then the bot says it can only read typed messages
+    When the child sends another voice note the same day
+    Then a ✍️ appears on that voice note and no message is sent
+    And a sticker gets no reply at all
+    # student-ingress refuse(): each refusal line once per handset per 24 h (Redis set-if-absent); a repeat gets
+    # a free reaction, and the line is said again whenever the reaction cannot be sent. @wip.
+
+  @e2e @quiz @wip @draft @P2 @T99
+  Scenario: "Not now" on the quiz offer is answered with a 👍
+    Given the NIETE bot chat is open and I have been offered a quiz after a coaching session
+    When I tap "Not now"
+    Then a 👍 appears on my tap and no message is sent
+    # transcript-quiz-offer handleOfferButton: the offer already ends "You can make one for any lesson
+    # anytime by sending /quiz"; tqDeclined is sent only when the reaction cannot be. @wip.

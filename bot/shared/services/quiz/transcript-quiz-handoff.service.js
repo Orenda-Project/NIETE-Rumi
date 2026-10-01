@@ -23,6 +23,8 @@ const { isPlanQuiz, lessonSessionFor, handoffIntroKey } = require('./quiz-source
 const Funnel = require('./quiz-funnel');
 
 const GAP_MS = 1200;
+// Meta's caption cap on a document, in code points.
+const CAPTION_MAX = 1024;
 // The nudge's wait belongs to the nudge service (one number for "when it is due"
 // and "which nudges are due"); re-exported below for existing readers.
 const { NUDGE_AFTER_MS } = require('./transcript-quiz-nudge.service');
@@ -177,10 +179,17 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
   // ── send: document (or its text fallback), THEN the link alone, THEN (first
   // send only) the report promise — paced exactly as process() always paced it.
   // "what you taught" is true only of a recorded lesson; an lp_v8 quiz was planned.
-  const caption = resolveUx(handoffIntroKey(quiz.quiz_source), {
+  const intro = resolveUx(handoffIntroKey(quiz.quiz_source), {
     language: teacherLang,
     params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: qRows.length },
   });
+  // The report promise (first send only) rides in the PDF's caption — or in the
+  // text that stands in for it — instead of costing a message of its own after
+  // the link. The forwardable stays alone and LAST. Only past Meta's 1,024-
+  // code-point caption cap does it go separately, after the link, as before.
+  const promise = firstSend ? resolveUx('tqReportPromise', { language: teacherLang }) : null;
+  const promiseInCaption = Boolean(promise) && [...`${intro}\n\n${promise}`].length <= CAPTION_MAX;
+  const caption = promiseInCaption ? `${intro}\n\n${promise}` : intro;
   let pdfSent = false;
   if (tempPath) {
     const { pdfFilename } = require('./transcript-quiz-generate.service');
@@ -194,9 +203,9 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
   // THE forwardable message, alone — the one thing the class needs. Whether it
   // arrived is recorded: `sent` used to be logged either way.
   const linkSent = Boolean(await WhatsAppService.sendMessage(phone, forwardable));
-  if (firstSend) {
+  if (promise && !promiseInCaption) {
     await api.sleep(GAP_MS);
-    await WhatsAppService.sendMessage(phone, resolveUx('tqReportPromise', { language: teacherLang }));
+    await WhatsAppService.sendMessage(phone, promise);
   }
 
   // ── bookkeeping — only the first send owns status/sent_at/the nudge ────────

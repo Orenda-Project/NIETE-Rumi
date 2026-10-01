@@ -124,7 +124,9 @@ describe('webhook → tq_lang_ button', () => {
 
     await postWebhook(app, webhookBody(`tq_yes_${QID}`));
 
-    expect(Offer.handleOfferButton).toHaveBeenCalledWith(`tq_yes_${QID}`, PHONE);
+    // The tap's own wamid travels with it: a "Not now" is answered with a free
+    // 👍 on it rather than a billed text (bd-w2daa.7).
+    expect(Offer.handleOfferButton).toHaveBeenCalledWith(`tq_yes_${QID}`, PHONE, { messageId: `wamid.tq_yes_${QID}` });
     expect(Offer.handleLanguageButton).not.toHaveBeenCalled();
   });
 });

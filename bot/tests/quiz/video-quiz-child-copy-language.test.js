@@ -175,7 +175,12 @@ describe('a video quiz sent to the class: the forwarded message is in the quiz l
 
     await share.handleShareButton(share.SHARE_YES, PHONE);
 
-    const [intro, forwarded, promise] = sentTo(PHONE);
+    // Two messages: the report promise rides on the "forward THIS one" line
+    // (it was a third message after the class message), and the class message
+    // stays alone and last.
+    const [introWithPromise, forwarded, ...rest] = sentTo(PHONE);
+    expect(rest).toEqual([]);
+    const [promise, intro] = introWithPromise.split('\n\n');
     expect(intro).toBe('یہ رہا کلاس کا پیغام — یہی پیغام class group میں forward کریں:');
     expect(forwarded.startsWith(`${RLM}📚 *Quiz کا وقت!*`)).toBe(true);
     // The teacher's Latin name opens its line; the line stays right to left.
@@ -189,7 +194,7 @@ describe('a video quiz sent to the class: the forwarded message is in the quiz l
     }
   });
 
-  test('English: the three messages are exactly what they were', async () => {
+  test('English: the same words as ever, in two messages — the promise rides on the forward line', async () => {
     stubMint();
     supabase.from.mockImplementation((table) => {
       const chain = {
@@ -204,16 +209,17 @@ describe('a video quiz sent to the class: the forwarded message is in the quiz l
     await share.handleShareButton(share.SHARE_YES, PHONE);
 
     expect(sentTo(PHONE)).toEqual([
-      'Here is your class message — forward THIS one to your class group:',
+      // The promise line changed once since this suite pinned the copy: it
+      // promised "tomorrow morning, or as soon as everyone has finished", and
+      // the report goes 12 hours after the first child starts (07:00 PKT at
+      // night), never early — tests/quiz/report-promise-truth.test.js checks it
+      // against the real schedule. It now opens the "forward THIS one" message
+      // instead of being a third message after the class message.
+      "You'll get a report on how your class did about 12 hours after the first student starts (at 7 am if that falls at night)."
+        + '\n\nHere is your class message — forward THIS one to your class group:',
       '📚 *Quiz time!*\n\nMiss Ayesha has sent you a quiz on *A Balanced Diet*.\n\n'
         + 'Tap here to start:\nhttps://wa.me/15550001111?text=QUIZ-ZX7Q2P\n\n'
         + "It takes about 10 minutes. You'll need to type your name and class first.",
-      // The one line that changed since this suite pinned the copy: it promised
-      // "tomorrow morning, or as soon as everyone has finished", and the report
-      // goes 12 hours after the first child starts (07:00 PKT at night), never
-      // early — tests/quiz/report-promise-truth.test.js checks it against the
-      // real schedule.
-      "You'll get a report on how your class did about 12 hours after the first student starts (at 7 am if that falls at night).",
     ]);
   });
 
