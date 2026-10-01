@@ -1332,6 +1332,13 @@ const PortalTrainingV2 = () => {
                         })
                         .catch(() => { /* the pass is recorded server-side either way */ });
                     }}
+                    onSubmitted={() => {
+                      // bd-2exhl — re-read the gate so the list row stops offering
+                      // a paper that is now being graded or was just failed.
+                      api.get('/training/modules', { params: { course_id: routeExamCourseId } })
+                        .then(({ data }) => { setModuleExam(data.exam || null); })
+                        .catch(() => { /* the panel already shows the sitting from the record */ });
+                    }}
                   />
                 </div>
               </div>

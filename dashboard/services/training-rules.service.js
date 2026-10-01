@@ -312,7 +312,26 @@ async function submitModuleExam(userId, attemptId, answers) {
     attempt: data.attempt || null,
     crq_pending: data.crq_pending === true,
     certificate: data.certificate || null,
+    // bd-2exhl — the verdict the teacher can be told at submit: 'failed' (MCQs
+    // short) or 'pending_review' (MCQs cleared, written answer being graded).
+    outcome: data.outcome || null,
+    mcq_correct: Number.isFinite(data.mcq_correct) ? data.mcq_correct : null,
+    mcq_served: Number.isFinite(data.mcq_served) ? data.mcq_served : null,
+    already_submitted: data.already_submitted === true,
   };
+}
+
+/**
+ * bd-2exhl — her submitted sittings of one module exam, newest first, for
+ * review. Best-effort: an empty list only hides the review, it never blocks.
+ */
+async function moduleExamAttempts(userId, courseId) {
+  try {
+    const data = await ask('module-exam-attempts', { userId, courseId });
+    return Array.isArray(data?.attempts) ? data.attempts : [];
+  } catch (_) {
+    return [];
+  }
 }
 
 /**
@@ -369,6 +388,7 @@ module.exports = {
   moduleExamGate,
   startModuleExam,
   submitModuleExam,
+  moduleExamAttempts,
   saveModuleExamDraft,
   loadModuleExamDraft,
   getModuleQuizVerdict,
