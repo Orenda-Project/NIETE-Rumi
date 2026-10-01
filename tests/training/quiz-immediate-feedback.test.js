@@ -30,8 +30,13 @@
  * source bank has per-option explanations for ~43% of questions that were never
  * migrated). This pins the tick/cross only.
  *
- * What this canNOT tell you: how the two messages look arriving back-to-back on
- * a real handset. That wants a human on the PR.
+ * bd-w2daa.8 — the text echo is no longer its own bubble (Meta bills every
+ * message from Oct 2026). Its words head the next question's header
+ * ("✓ Correct · Q2/2") or open the result on the last answer; the reaction is
+ * unchanged. The assertions below read the verdict wherever it rides.
+ *
+ * What this canNOT tell you: how the header reads on a real handset. That
+ * wants a human on the PR.
  */
 let supabaseFrom, tableStates, whatsapp, callLog;
 
@@ -113,7 +118,15 @@ beforeEach(() => {
 afterEach(() => jest.resetModules());
 
 const svc = () => require('../../bot/shared/services/training/quiz-delivery.service');
-const verdicts = () => whatsapp.sendMessage.mock.calls.map(c => c[1]).filter(t => /Correct|correct/.test(t));
+// bd-w2daa.8 — the verdict's WORDS no longer travel as a text bubble of their
+// own (Meta bills every message). They head the next question
+// ("✓ Correct · Q2/2"), or open the result on the last answer. So a verdict is
+// read from every surface it can ride on, not only from plain texts.
+const verdicts = () => [
+  ...whatsapp.sendMessage.mock.calls.map(c => c[1]),
+  ...whatsapp.sendInteractiveMessage.mock.calls.map(c => c[1]?.header?.text || ''),
+  ...whatsapp.sendFlow.mock.calls.map(c => c[1]?.header || ''),
+].map(String).filter(t => /Correct|correct/.test(t));
 
 // Every case runs against BOTH surfaces: the interactive list a teacher taps,
 // and the Flow used when a question is too long for a list (bd-43496).
@@ -132,7 +145,8 @@ const SURFACES = [
 describe.each(SURFACES)('bd-2523 — per-question verdict (%s surface)', (_name, answer) => {
   it('sends a verdict for a correct answer', async () => {
     seed(); await answer(2, WAMID);
-    expect(verdicts().some(t => /✅/.test(t) && /Correct/.test(t))).toBe(true);
+    // Thin ✓ in the words (matching the ✗ family); the heavy ✅ is the reaction.
+    expect(verdicts().some(t => /✓ Correct/.test(t))).toBe(true);
   });
 
   it('sends a verdict for a wrong answer', async () => {
@@ -140,15 +154,17 @@ describe.each(SURFACES)('bd-2523 — per-question verdict (%s surface)', (_name,
     expect(verdicts().some(t => /Not correct/.test(t))).toBe(true);
   });
 
-  it('the verdict arrives BEFORE the next question, not after', async () => {
+  it('the verdict opens the next question, so it cannot land after it', async () => {
     seed(); await answer(2, WAMID);
     // Arriving after the next question would attach the feedback to the wrong
-    // one — the teacher reads it as a verdict on what is now on screen.
-    const v = callLog.findIndex(e => e.startsWith('sendMessage:'));
-    const q = callLog.indexOf('sendQuestion');
-    expect(v).toBeGreaterThan(-1);
-    expect(q).toBeGreaterThan(-1);
-    expect(v).toBeLessThan(q);
+    // one — the teacher reads it as a verdict on what is now on screen. It now
+    // rides at the very front of that question (bd-w2daa.8): same message,
+    // first thing read, no separate bubble to arrive out of order.
+    expect(whatsapp.sendMessage).not.toHaveBeenCalled();
+    expect(callLog.filter(e => e === 'sendQuestion')).toHaveLength(1);
+    const header = String(whatsapp.sendInteractiveMessage.mock.calls[0][1].header.text);
+    expect(header.startsWith('✓ Correct')).toBe(true);
+    expect(header).toMatch(/Q2\/2$/);
   });
 
   it('the answer is recorded before anything is sent', async () => {

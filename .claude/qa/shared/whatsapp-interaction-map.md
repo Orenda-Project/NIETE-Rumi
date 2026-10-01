@@ -161,5 +161,10 @@ video + a "📝 Take quiz" chat button. Then: tap **📝 Take quiz** (chat butto
 `aria-disabled="false"` — filter on `!== 'true'`, don't reject the presence of the attr) → each **Q_n/3** arrives
 as a message with an **"Answer"** button → tapping it opens an **A/B/C/D options list dialog** (same select-radio-
 via-wrapping-button + `[data-icon="wds-ic-send-filled"]` send pattern). The check asks **ALL** questions THEN
-grades (100% required) → "Module check — passed/not quite … N/3". The **"🔄 Try again"** retry button is a
-**separate follow-up message** ("Ready to try the module check again?"), NOT on the result message.
+grades (100% required) → "Module check — passed/not quite … N/3". **Since 2026-10-01 (fewer billed
+bubbles):** the module card and its "📝 Take quiz" / "⏸ Pause" buttons are ONE message (a PDF module: the
+card is the document caption, buttons follow); the intro opens Q1 ("Module check · Q1/n"); each later
+question is headed with the verdict on the previous answer ("✓ Correct · Q2/3" / "✗ Not correct · Q2/3");
+a not-quite result carries **"🔄 Try again" / "⏸ Pause" on the same message** ("Ready to try the module
+check again?" closes its body); a pass opens the NEXT module's card (or the certificate PDF caption, or
+the level-complete line) — there is no separate "Loading the next module…" message any more.

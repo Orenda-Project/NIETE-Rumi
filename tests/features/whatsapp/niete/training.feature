@@ -49,12 +49,16 @@ Feature: NIETE (ICT) Teacher Training
     And the "Pick a module to watch" picker lists modules tagged "✓ Passed" / "▶ Next up" / "🔒 Locked", with exactly one "▶ Next up"
     And the grand quiz reads "🔒 Grand Quiz — Unlocks when all courses are complete." with a "🔒 Locked" button, and its exam caption states the real served size in the shape "<n> questions · <p>% required · 24h cooldown on fail" (not the whole bank)
     When I pick the "▶ Next up" module
-    Then the Flow closes and the bot posts the module video card with "Watch the video, then tap 📝 Take quiz — passing it unlocks the next module." followed by "Finished watching \"<module>\"?" offering "📝 Take quiz" and "⏸ Pause"
+    Then the Flow closes and the bot posts ONE module video card: "Watch the video, then tap 📝 Take quiz — passing it unlocks the next module.", the video link, then "Finished watching \"<module>\"?" — with "📝 Take quiz" and "⏸ Pause" buttons on that same message
     When I tap "📝 Take quiz"
-    Then the bot announces "Module check — \"<module>\"" and "<n> questions. You need 100% to unlock the next module — if you miss it you can retry straight away.", then serves "Q1/<n>" with an "Answer" button and the caption "100% required · tap an option"
+    Then the bot serves Q1 as ONE message headed "Module check · Q1/<n>", opening with "Module check — \"<module>\"" and "<n> questions. You need 100% to unlock the next module — if you miss it you can retry straight away.", with an "Answer" button and the caption "100% required · tap an option"
     When I answer every served question with its correct option, resolved live (match the option TEXT to the answer key, never a fixed letter)
-    Then the bot replies "Module check — passed" and confirms a perfect score in the shape "<n>/<n> correct"
+    Then each answer gets a ✅ reaction, and every question after Q1 is headed with the verdict on the one before it, in the shape "✓ Correct · Q<k>/<n>" — no separate verdict message
+    And the next module's card arrives as ONE message opening with "✓ Correct", then "Module check — passed" with a perfect score in the shape "<n>/<n> correct", then the next module's card and its "📝 Take quiz" / "⏸ Pause" buttons — and no "Loading the next module…" message
     And the module that was "▶ Next up" becomes "✓ Passed" and the following module becomes the new "▶ Next up"
+    # UPDATED 2026-10-01 (bd-w2daa.8, fewer billed bubbles): module card + buttons, intro + Q1, verdict + next
+    # question, and "passed" + next module card are each ONE message now; "Loading the next module…" is gone.
+    # Same words, same order. Over a WhatsApp cap, each falls back to the old separate messages.
     # NIETE needs 100%. Verified live on PROD (2026-08-05) end-to-end (Auditory aids & Differentiated
     # reading materials driven 3/3 → next-up advanced); re-verified entry+Flow+ladder+level-detail on the
     # shared staging number 923222482222. Exam caption observed "20 questions" (prod) / "62 questions"
@@ -88,14 +92,14 @@ Feature: NIETE (ICT) Teacher Training
   @e2e @wip @draft @flow @P3 @T04
   Scenario: A PDF module arrives as a document
     Given the NIETE bot chat is open and I have opened a module whose content is a PDF, not a video
-    Then the bot sends the module as a PDF document with a button to the next one
+    Then the bot sends the module as a PDF document whose caption is the module card ("<course> — <i> of <N>", the module title, "Read the PDF, then tap …"), followed by its buttons — no separate caption message
     # content-delivery.service.js isPdfModule. @wip.
 
   @e2e @wip @draft @flow @quiz @destructive @P1 @T05
   Scenario: Finishing every module unlocks the level exam, and passing it certifies the level
     Given the NIETE bot chat is open on a teacher who has passed every module in a level
     When I open that level, start the now-unlocked grand quiz, and answer at least 80% correctly
-    Then the bot congratulates me, gives me a certificate code, and sends the certificate PDF
+    Then the bot sends the certificate PDF captioned with the congratulation and my certificate code — one message (plain text only when there is no PDF, or the PDF does not arrive)
     # loadGrandQuizState (unlocks once all modules done) + quiz-delivery grand-pass branch.
     # @destructive: certifies the level + unlocks the next. @wip — needs a fully-completed level.
 
@@ -111,13 +115,14 @@ Feature: NIETE (ICT) Teacher Training
     Given the NIETE bot chat is open on a teacher in a Beacon House programme who has finished every module in a level
     When I start the level exam
     Then it asks open-ended questions I answer in my own words, marked out of 5
+    And each answer's mark and feedback arrive in the same message as the next question (and, on the last answer, the result)
     # capstone-delivery.service.js (open-ended, model-scored, 70% to pass, no cooldown). @wip.
 
   @e2e @flow @P3 @T08
   Scenario: For an Oxbridge programme a level is certified from module scores, with no exam
     Given a teacher in an Oxbridge programme who has finished every module with each best score at least 70%
     Then the level detail states "🎓 No level exam — finish all sessions to complete this level." with no grand-quiz row
-    And on finishing the last module the bot congratulates me "with 70%+ on each quiz", gives a certificate code, and sends the certificate PDF — no exam is ever shown
+    And on finishing the last module the bot sends the certificate PDF captioned with "Module check — passed", the congratulation "with 70%+ on each quiz" and a certificate code — no exam is ever shown
     # maybeIssueQuizScoreCertificate (QUIZ_CERT_PASS_PCT=0.7, vendor unlock_logic=all_modules, no capstone).
     # Verified live on PROD (2026-08-06): Oxbridge L17 (1 course · 7 modules SESSION#1-7 · no grand_quizzes).
     # Module bar is 70% ("10 questions. You need 70%…") vs NIETE 100%. Cert NIETE-20260805-YA5IU7 + PDF issued
@@ -128,7 +133,7 @@ Feature: NIETE (ICT) Teacher Training
     Given the NIETE bot chat is open on a teacher in the I-SAPS programme who has passed eight of the nine module exams
     And every session of the remaining module is passed
     When I take that module exam and pass it
-    Then the bot says "You have completed every module of Level 1: Novice.", gives me a certificate code, and sends the certificate PDF
+    Then the bot sends the certificate PDF captioned "You have completed every module of Level 1: Novice." with my certificate code
     # UPDATED 2026-10-01 (bd-vej4h): was "...whatever units are left". The certificate still waits on the
     # module exams ONLY, but a module exam now opens only after that module's sessions are passed, so
     # "units left" can no longer reach the exam. @wip — needs an I-SAPS level seeded 8/9 on the throwaway.
@@ -217,7 +222,7 @@ Feature: NIETE (ICT) Teacher Training
   Scenario: Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry
     Given the NIETE bot chat is open and I am taking a NIETE module check
     When I answer exactly one question with a deliberately-wrong option (not matching the key) and the rest correctly
-    Then the bot replies "Module check — not quite" with my score in the shape "<got>/<total> (<pct>%)", says I need 100% to move on, and a follow-up offers "🔄 Try again" and "⏸ Pause"
+    Then the bot replies in ONE message, opening with the verdict on my last answer: "Module check — not quite" with my score in the shape "<got>/<total> (<pct>%)", that I need 100% to move on, and "Ready to try the module check again?" — with "🔄 Try again" and "⏸ Pause" buttons on that same message
     # @content-driven. Verified live on PROD (2026-08-05): "Module check — not quite. You got 2/3 (67%).
     # You need 100% to move on…" All questions are asked FIRST, then graded. module_passing_pct=100 for
     # NIETE (TALEEMABAD); other partners 70%. Assert the shape, not "2/3".

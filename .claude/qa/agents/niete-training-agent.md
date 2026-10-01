@@ -27,8 +27,11 @@ Interaction map: [`../shared/whatsapp-interaction-map.md`](../shared/whatsapp-in
 - **Read options from the MESSAGE, not the picker dialog.** When options are long the dialog renders
   as literally `Answer / A / B / C / D` with no text at all; the chat message always carries them in
   full. (That truncation is itself a filed bug.)
-- **The module check grades PER QUESTION now** ("Correct" / "✗ Not correct." after each), then gives
-  a final "Module check — passed/not quite … N/3". The older all-then-grade note is stale.
+- **The module check grades PER QUESTION now**: a ✅/❌ reaction on the tap, and (since 2026-10-01) the
+  words ride at the head of the NEXT question's header — "✓ Correct · Q2/3" / "✗ Not correct · Q2/3" —
+  not as a separate text. The last answer's verdict opens the result: "Module check — passed/not
+  quite … N/3". A pass opens the next module's card (same message); a not-quite carries its
+  "🔄 Try again" / "⏸ Pause" buttons on the same message. The older all-then-grade note is stale.
 - **Seeds make the exam reachable** — `niete_training_db.py seed-level-complete --level N` marks
   every module done so the grand quiz unlocks (this is what turns T5/T6/T16 from BLOCKED into
   runnable); `revert-level --level N` undoes progress, certificate AND attempts, which also clears a
