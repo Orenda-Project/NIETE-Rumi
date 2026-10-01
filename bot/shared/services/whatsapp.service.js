@@ -82,6 +82,9 @@ const GRAPH_API_BASE = `${GRAPH_API_HOST}/${GRAPH_API_VERSION}`;
 // clients are resolved at CALL time, so a test's stub of global.fetch or of the
 // axios module is still what runs underneath.
 const pacer = require('./whatsapp-send-pacer');
+// bd-0wrn4: a message or reaction to the person whose inbound the webhook is handling answers it,
+// so its deferred "typing…" must not go up. Both transports below tell the scope (see inbound-typing.js).
+const InboundTyping = require('./inbound-typing');
 
 /** What a caller of a paced transport sees for a send that was never attempted. */
 function pacingRefusal(local) {
@@ -96,6 +99,7 @@ const axios = {
   // `gate` is ours, never axios's: { budget } for a send an HTTP response waits on.
   post: (url, body, config, gate = {}) => {
     if (!pacer.isMessagesUrl(url)) return realAxios.post(url, body, config);
+    InboundTyping.noteOutbound(body);
     // Created synchronously, inside the sender, so its stack names the caller.
     const site = new Error('whatsapp send site');
     return pacer.send({ to: body && body.to, kind: pacer.kindOf(body), budget: gate.budget, site }, async () => {
@@ -131,6 +135,7 @@ function fetch(url, init, gate = {}) {
   const site = new Error('whatsapp send site');
   let body = null;
   try { body = JSON.parse((init && init.body) || 'null'); } catch (_) { body = null; }
+  InboundTyping.noteOutbound(body);
   // A POST with no recipient (the read receipt / typing indicator) is not a
   // message: it is not paced and never retried.
   const to = body && body.to;
@@ -481,6 +486,44 @@ class WhatsAppService {
   }
 
   /**
+   * Mark an inbound message as read (blue ticks) WITHOUT a typing indicator. Free.
+   * bd-0wrn4: the webhook sends this at once and defers "typing…" (inbound-typing.js), because a
+   * reply that is only a reaction must not leave "typing…" on screen for ~25 s.
+   * @param {string} messageId - the inbound wamid
+   * @returns {Promise<boolean>}
+   */
+  static async markAsRead(messageId) {
+    if (!messageId) return false;
+    try {
+      const response = await fetch(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            status: 'read',
+            message_id: messageId,
+          }),
+        }
+      );
+      if (response && response.ok === false) {
+        let data = null;
+        try { data = await response.json(); } catch (_) { data = null; }
+        logToFile('Error marking message as read', data);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      logToFile('Error marking message as read', { error: error.message });
+      return false;
+    }
+  }
+
+  /**
    * Start continuous typing indicator that lasts until response is sent
    * The typing indicator will be refreshed every 20 seconds to keep it active
    * @param {string} to - Recipient phone number
@@ -488,8 +531,10 @@ class WhatsAppService {
    * @returns {Object} Controller object with stop() method to stop the typing indicator
    */
   static startContinuousTypingIndicator(to, messageId) {
-    // Show typing indicator immediately
-    this.showTypingIndicator(to, messageId);
+    // Show typing indicator immediately — unless the webhook's inbound scope for this same message
+    // is still waiting on its deadline (bd-0wrn4): then the scope shows it if no reply has gone out
+    // by then, and never if the reply was a reaction or nothing. Outside a webhook request: at once.
+    if (!InboundTyping.claimFirstBeat(to, messageId)) this.showTypingIndicator(to, messageId);
 
     // Refresh typing indicator every 20 seconds (before the 25 second timeout)
     const intervalId = setInterval(() => {
