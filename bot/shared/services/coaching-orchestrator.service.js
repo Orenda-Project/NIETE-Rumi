@@ -42,14 +42,23 @@ class CoachingOrchestrator {
    * Handle confirmation button response
    * ✅ Delegated to CoachingSessionService + JobQueue
    */
-  static async handleConfirmation(coachingSessionId, from, confirmed) {
+  static async handleConfirmation(coachingSessionId, from, confirmed, inboundMessageId = null) {
     const result = await CoachingSessionService.handleConfirmation(coachingSessionId, from, confirmed);
 
     if (result.confirmed) {
+      // Meta bill cut NC1 (N2-C01): the confirm prompt already told them the wait
+      // ("up to 15 minutes — no need to wait here…"), so the Yes tap gets a free
+      // ⏳ reaction and the job skips the billed Step 1/5 text. Only when the
+      // reaction actually went out — no wamid, or a pacer-skipped reaction, and
+      // the job sends Step 1/5 exactly as before.
+      const { reactInstead } = require('./coaching/ack-reaction');
+      const reacted = await reactInstead({ to: from, messageId: inboundMessageId, emoji: '⏳' });
+
       // Queue transcription job
       await this.queueTranscription(coachingSessionId, {
         from,
-        audioId: result.session.audio_id
+        audioId: result.session.audio_id,
+        ...(reacted ? { step1Announced: true } : {}),
       });
     }
 

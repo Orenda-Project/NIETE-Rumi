@@ -765,7 +765,8 @@ app.post('/webhook', async (req, res) => {
       // record merge and the ack live in the service.
       if (buttonId.startsWith('card_')) {
         const { handleCardButton } = require('./shared/services/coaching/coaching-card/card-response.service');
-        if (await handleCardButton(buttonId, from, user && user.preferred_language)) return;
+        // Meta bill cut (N2-C11): the tap's wamid lets the ack be a free ✅ reaction.
+        if (await handleCardButton(buttonId, from, user && user.preferred_language, message.id)) return;
       }
 
       // Coaching survey buttons (👍 Yes / 👎 Not really) — sent once the report AND the
@@ -865,7 +866,8 @@ app.post('/webhook', async (req, res) => {
       // Coaching confirmation buttons
       if (buttonId.startsWith('coaching_confirm_')) {
         const sessionId = buttonId.replace('coaching_confirm_', '');
-        await CoachingService.handleConfirmation(sessionId, from, true);
+        // NC1: the tap's wamid lets the Yes get a free ⏳ reaction instead of Step 1/5.
+        await CoachingService.handleConfirmation(sessionId, from, true, message.id);
       } else if (buttonId.startsWith('att_method_') || buttonId.startsWith('att_voice_')
                  || buttonId.startsWith('att_class_')) {
         if (user?.id) { await handleAttendanceTap(buttonId, from, user); }
@@ -1001,7 +1003,8 @@ app.post('/webhook', async (req, res) => {
       else if (buttonId.startsWith('photo_more_')) {
         const sessionId = buttonId.replace('photo_more_', '');
         const { handleAddAnotherPhotoTap } = require('./shared/services/coaching/classroom-photo/add-another.service');
-        await handleAddAnotherPhotoTap({ sessionId, from, user });
+        // NC4: the tap's wamid lets "Add another" get a free 📸 reaction instead of a text.
+        await handleAddAnotherPhotoTap({ sessionId, from, user, messageId: message.id });
       }
       // Stale session reminder buttons - Continue coaching.
       // The body lives in continue-coaching.service so it can be executed by a
@@ -2323,7 +2326,7 @@ async function handleDocumentMessage(message, from, user) {
       const { isImageMime } = require('./shared/services/coaching/photo-capture-routing');
       if (isImageMime(mimeType)) {
         const { handlePhotoArrival } = require('./shared/services/coaching/media-attach.service');
-        if (await handlePhotoArrival({ user, from, mediaId: documentId, mimeType, kind: 'photo' })) return;
+        if (await handlePhotoArrival({ user, from, mediaId: documentId, mimeType, kind: 'photo', messageId: message.id })) return;
       }
     } catch (photoDocErr) {
       logToFile('⚠️ Classroom-photo-as-document check failed (non-critical)', { error: photoDocErr.message });

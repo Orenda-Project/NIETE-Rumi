@@ -110,11 +110,21 @@ class TranscriptionProcessorService {
       // floored to what the deployment offers FIRST. We hold her row here, so
       // "nothing can be determined" is not the situation and the emergency
       // 'en' floor would be the wrong one.
-      await this.sendProgressUpdate(
-        from,
-        1,
-        clampLanguage(session.users.preferred_language || offerDefaultLanguage())
-      );
+      //
+      // Meta bill cut NC1 (N2-C01 / N2-C18): `step1Announced` means the wait was
+      // already said — in the confirm prompt (and a ⏳ reaction landed on their Yes
+      // tap), or in the sweeper's localised "started analysing" notice — so the
+      // billed Step 1/5 text would repeat it. Only those two callers set it; the
+      // observe path and every retry without it are unchanged.
+      if (!payload.step1Announced) {
+        await this.sendProgressUpdate(
+          from,
+          1,
+          clampLanguage(session.users.preferred_language || offerDefaultLanguage())
+        );
+      } else {
+        logToFile('🔕 Step 1/5 not re-sent — the wait was already announced', { coachingSessionId });
+      }
 
       // bd-78i2k: the bytes may come from WhatsApp (a media id) or from R2 (a
       // portal upload). Everything below this line is identical either way.
@@ -486,7 +496,11 @@ class TranscriptionProcessorService {
       // no-hardcoded-coaching-strings ratchet, and a model call is the shape
       // that caused row 129 in the first place.
 
-      // Phase 3: Agency follow-up — remind teacher of prior commitment
+      // Phase 3: Agency follow-up — remind teacher of prior commitment.
+      // Meta bill cut NC4 (N2-C10): the reminder now OPENS the photo offer below
+      // instead of going out as its own text; a reminder too long for the offer's
+      // 1,024 body cap is still sent on its own first.
+      let priorReminder = null;
       try {
         const { data: priorSessions } = await supabase
           .from('coaching_sessions')
@@ -501,9 +515,8 @@ class TranscriptionProcessorService {
           // Substitute {{action}} into the catalog template — keeps the
           // string translatable 1:1 (translators see {{action}}, not ${}).
           const reminderLang = await getUserLanguage(session.user_id) || 'en';
-          const reminder = getCoachingMessage('priorActionReminder', reminderLang)
+          priorReminder = getCoachingMessage('priorActionReminder', reminderLang)
             .replace('{{action}}', priorAction.action);
-          await WhatsAppService.sendMessage(from, reminder);
         }
       } catch (agencyError) {
         logToFile('⚠️ Agency follow-up check failed (non-critical)', { error: agencyError.message });
@@ -529,9 +542,10 @@ class TranscriptionProcessorService {
       }
 
       // Phase 3: Ask about classroom photo FIRST, before LP question
-      const { buildPhotoPrompt } = require('./classroom-photo/photo-prompt.service');
+      const { buildPhotoPromptWithLead } = require('./classroom-photo/photo-prompt.service');
       const userLanguage = await getUserLanguage(session.user_id) || 'en';
-      const photoPrompt = buildPhotoPrompt(coachingSessionId, userLanguage);
+      const { prompt: photoPrompt, leadMerged } = buildPhotoPromptWithLead(coachingSessionId, userLanguage, priorReminder);
+      if (priorReminder && !leadMerged) await WhatsAppService.sendMessage(from, priorReminder);
       await WhatsAppService.sendInteractiveButtons(from, photoPrompt);
 
       // Update conversation state to AWAITING_PHOTO

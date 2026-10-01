@@ -40,6 +40,9 @@ class ReflectiveConversationService {
    * @param {string} coachingSessionId - Coaching session UUID
    * @param {string} from - User's phone number
    * @param {number} questionNumber - Question number (1-3), defaults to 1
+   * @param {{ reask?: boolean, silent?: boolean }} [opts] - reask: a deliberate
+   *   re-ask of an unanswered question ("Continue Now"), exempt from the
+   *   once-per-session guard; silent: a portal debrief, nothing sent on WhatsApp
    * @returns {Promise<void>}
    */
   static async conductReflectiveConversation(coachingSessionId, from, questionNumber = 1, opts = {}) {
@@ -171,6 +174,18 @@ class ReflectiveConversationService {
       // escape used to fail the whole session at "analysis" — telling the
       // teacher her classroom could not be analysed and re-queueing the job —
       // although the analysis had already succeeded.
+      // Meta bill cut NC5 (N1-13): 4.5% of reflective questions went out twice —
+      // the analysis job ran twice for one session and both runs asked. Once per
+      // (session, question number). "Continue Now" re-asks on purpose (reask).
+      // A question that reaches them by neither voice nor text gives the claim back.
+      const { claimPiece, releasePiece } = require('./report-piece-once');
+      const piece = `refl_q_${questionNumber}`;
+      // A silent (portal) debrief sends nothing on WhatsApp, so it takes no claim.
+      if (!silent && !(opts && opts.reask) && !(await claimPiece(coachingSessionId, piece))) {
+        logToFile('🔁 Reflective question already asked for this session — not asking twice', { coachingSessionId, questionNumber });
+        return;
+      }
+
       let voiceSent;
       let voiceError = null;
       let delivery = silent ? 'portal' : 'voice';
@@ -207,6 +222,7 @@ class ReflectiveConversationService {
         delivery = textSent === false ? 'none' : 'text';
       }
       }
+      if (delivery === 'none') await releasePiece(coachingSessionId, piece);
 
       // Update conversation state - STORE THE QUESTION
       const existingQuestions = session.conversation_state.questions || [];

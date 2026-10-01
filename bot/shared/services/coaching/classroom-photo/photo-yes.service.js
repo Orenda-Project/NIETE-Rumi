@@ -83,8 +83,10 @@ async function advanceToClassroomPhotoStep({ sessionId, from, tapperUserId }) {
   }
 
   logToFile('📸 User will send classroom photo', { sessionId, from });
-  // bd-8s2xb — board first; the scorer reads what is written on it (catalog string, Rule 20).
-  await WhatsAppService.sendMessage(from, resolveUx('coachingPhotoSendNow', { language: lang }));
+  // Meta bill cut NC4 (N2-C06): no text here. The photo offer they just answered
+  // now ends with the same instruction ("Tap Yes, then send them one at a time —
+  // board first…", ux-strings coachingPhotoOffer), and their tap already got the
+  // 👍 every inbound gets — a third copy of the instruction was a billed repeat.
   return true;
 }
 

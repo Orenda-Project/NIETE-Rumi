@@ -11,6 +11,7 @@ const supabase = require('../../../config/supabase');
 const WhatsAppService = require('../../whatsapp.service');
 const { resolveUx } = require('../../../config/ux-strings');
 const { logToFile } = require('../../../utils/logger');
+const { reactInstead } = require('../ack-reaction');
 
 // `card_<yes|later|no>_<session uuid>` — the ids report-generator sends with the
 // commit prompt. Anchored: a foreign prefix or a non-uuid tail is not ours.
@@ -69,13 +70,19 @@ async function handleCoachingCardResponse(coachingSessionId, response) {
  * @param {string} buttonId - interactive button id
  * @param {string} phone - the teacher's WhatsApp number
  * @param {string} [language] - the teacher's preferred_language (catalog-clamped)
+ * @param {string} [inboundMessageId] - the tap's wamid (Meta bill cut N2-C11)
  */
-async function handleCardButton(buttonId, phone, language) {
+async function handleCardButton(buttonId, phone, language, inboundMessageId = null) {
   const m = BUTTON_RX.exec(typeof buttonId === 'string' ? buttonId : '');
   if (!m) return false;
   const [, response, coachingSessionId] = m;
   await handleCoachingCardResponse(coachingSessionId, response);
-  await WhatsAppService.sendMessage(phone, resolveUx(ACK_KEY[response], { language }));
+  // Meta bill cut (N2-C11): the answer is recorded above; the acknowledgement is a
+  // free ✅ reaction on their tap instead of a billed text (~1,500 taps a week once
+  // this handler reaches production). No wamid, or a reaction the pacer skipped →
+  // the text ack, exactly as before.
+  const reacted = await reactInstead({ to: phone, messageId: inboundMessageId, emoji: '✅' });
+  if (!reacted) await WhatsAppService.sendMessage(phone, resolveUx(ACK_KEY[response], { language }));
   return true;
 }
 

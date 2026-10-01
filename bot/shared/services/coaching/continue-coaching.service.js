@@ -81,10 +81,13 @@ async function handleContinueCoachingTap({ sessionId, from, user = null }) {
   }
 
   const ReflectiveConversationService = require('./reflective-conversation.service');
+  // A deliberate re-ask of the unanswered question — exempt from the
+  // once-per-session guard on reflective questions (Meta bill cut N1-13).
   await ReflectiveConversationService.conductReflectiveConversation(
     sessionId,
     from,
-    nextQuestionNumber
+    nextQuestionNumber,
+    { reask: true }
   );
 
   // Clear reminder_sent_at since user re-engaged
