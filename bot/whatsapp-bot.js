@@ -1282,7 +1282,8 @@ app.post('/webhook', async (req, res) => {
           || await VideoQuizShare.handleShareButton(buttonId, from)
           || await VideoQuizInvite.handleInviteButton(buttonId, from)
           || await VideoQuizBinge.handleMoreButton(buttonId, from)
-          || await VideoQuizService.handleAnswer(from, buttonId);
+          // The tap's own wamid: the verdict's free ✅/❌ reaction lands on it.
+          || await VideoQuizService.handleAnswer(from, buttonId, { messageId: message.id });
         if (!handled) {
           logToFile('⚠️ unrouted vq_ button', { buttonId, from });
         }
@@ -1310,7 +1311,8 @@ app.post('/webhook', async (req, res) => {
       else if (buttonId.startsWith('tq_')) {
         const TranscriptQuizOffer = require('./shared/services/quiz/transcript-quiz-offer.service');
         const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
-        const handled = await TranscriptQuizOffer.handleOfferButton(buttonId, from)
+        // The tap's wamid: a 'Not now' is answered with a free reaction on it.
+        const handled = await TranscriptQuizOffer.handleOfferButton(buttonId, from, { messageId: message.id })
           || await TranscriptQuizList.handleActionButton(buttonId, from);
         if (!handled) {
           logToFile('⚠️ unrouted tq_ button', { buttonId, from });
@@ -1570,7 +1572,7 @@ app.post('/webhook', async (req, res) => {
             .find((v) => /^\d+$/.test(String(v)));
           if (questionId && picked !== undefined) {
             const VideoQuizService = require('./shared/services/quiz/video-quiz.service');
-            await VideoQuizService.handleAnswer(from, `vq_${questionId}_${picked}`);
+            await VideoQuizService.handleAnswer(from, `vq_${questionId}_${picked}`, { messageId: message.id });
             return;
           }
           logToFile('⚠️ video-quiz Flow reply had no option index', { vqToken, responseJson });
@@ -1903,7 +1905,7 @@ app.post('/webhook', async (req, res) => {
 
       if (listId.startsWith('vq_')) {
         const VideoQuizService = require('./shared/services/quiz/video-quiz.service');
-        if (await VideoQuizService.handleAnswer(from, listId)) return;
+        if (await VideoQuizService.handleAnswer(from, listId, { messageId: message.id })) return;
       }
 
       // Teacher-training grand quiz answers — handle before Reading Assessment routing.

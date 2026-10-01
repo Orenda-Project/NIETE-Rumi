@@ -37,6 +37,10 @@ const render = require('./video-quiz-render.service');
 const rateLimiter = require('./video-quiz-rate-limiter.service');
 const { resolveUx } = require('../../config/ux-strings');
 const { truncateCodePoints } = require('./religious-marks');
+// The body text of a message — counter, card cue, and a LEAD riding on top —
+// is decided in one pure module, so the quiz service decides "can this line
+// ride on the next question?" with the very code that writes the body.
+const { withCounter, textBody, withLead, inPhase } = require('./video-quiz-lead');
 
 // Enough for WhatsApp to preserve order without making a child wait.
 const GAP_TEXT_MS = 700;
@@ -46,19 +50,6 @@ const GAP_MEDIA_MS = 1200;
 const chrome = (key, ctx, params) => resolveUx(key, { language: ctx && ctx.language, params });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-/**
- * Fold "Question n of N" into a body or caption that was going out anyway.
- *
- * `m.counter` is `{ i, n }` and is set by render.build() on exactly ONE message
- * per question — the first thing the child reads. Everything else is unchanged,
- * so a message with no counter renders exactly as it did before.
- */
-function withCounter(m, body, ctx) {
-  if (!m || !m.counter) return body;
-  const line = chrome('vqQuestionOf', ctx, { i: m.counter.i, n: m.counter.n });
-  return body ? `${line}\n\n${body}` : line;
-}
 
 /**
  * Build list rows that a child can actually read.
@@ -135,16 +126,13 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
     });
   };
 
-  for (const m of msgs.filter((x) => x.phase === phase)) {
-    // The ANSWER phase carries the correct branch plus one branch per wrong
-    // option. Send only the branch matching what the child actually picked.
-    if (phase === 'answer') {
-      if (m.role === 'feedback_correct' && !ctx.isCorrect) continue;
-      if (m.role === 'feedback_incorrect') {
-        if (ctx.isCorrect) continue;
-        if (m.optionIndex !== undefined && m.optionIndex !== ctx.selectedIndex) continue;
-      }
-    }
+  // A LEAD (video-quiz-lead.js) riding on a message of this phase: whether it
+  // reached the child is reported back, so the caller can send it on its own
+  // when the bubble carrying it did not go.
+  let leadSent;
+  // The ANSWER phase carries the correct branch plus one branch per wrong
+  // option; inPhase() keeps only the branch matching what the child picked.
+  for (const m of msgs.filter((x) => inPhase(x, phase, ctx))) {
     messages += 1;
     kinds.push(m.kind);
 
@@ -157,7 +145,7 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
       const sendStart = Date.now();
       switch (m.kind) {
         case 'text': {
-          const text = withCounter(m, m.body, ctx);
+          const text = withLead(m, withCounter(m, m.body, ctx));
           if (m.anchoredToPrevious && lastMessageId) {
             const id = await WhatsAppService.sendTextReturningId(
               phone, text, { contextMessageId: lastMessageId }
@@ -184,10 +172,7 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
           break;
         case 'list':
           ok = await WhatsAppService.sendInteractiveMessage(phone, {
-            body: {
-              text: withCounter(m,
-                m.letterTitles ? cardAskBody(m, ctx, m.options.length) : m.body, ctx),
-            },
+            body: { text: withLead(m, textBody(m, ctx)) },
             action: {
               button: chrome('vqChooseAnswer', ctx),
               sections: [{
@@ -214,6 +199,7 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
       ok = false;
     }
 
+    if (m.lead) leadSent = Boolean(ok);
     if (ok) {
       sent += 1;
     } else {
@@ -225,7 +211,7 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
       // child with nothing to tap. Only the latter aborts the phase.
       if (m.role === 'ask' || m.role === 'picture_flow') {
         emitPhaseSent(true);
-        return { sent, failed, pickerFailed: true };
+        return { sent, failed, pickerFailed: true, ...(leadSent === undefined ? {} : { leadSent }) };
       }
     }
     const gapStart = Date.now();
@@ -233,22 +219,7 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
     msGaps += Date.now() - gapStart;
   }
   emitPhaseSent(false);
-  return { sent, failed, pickerFailed: false };
-}
-
-/**
- * The body under a QUESTION CARD, naming exactly the letters THIS send offers.
- *
- * It was hardcoded to "A, B or C" whatever the card held, so a two-option card
- * told the child to tap a C that was never sent (round 5). `count` is what
- * the picker will actually emit — three for a button row, up to ten for a list.
- */
-function cardAskBody(m, ctx, count) {
-  const letters = render.letterListLabel(count, {
-    separator: chrome('vqLetterSep', ctx),
-    conjunction: chrome('vqLetterOr', ctx),
-  });
-  return chrome('vqCardAsk', ctx, { letters });
+  return { sent, failed, pickerFailed: false, ...(leadSent === undefined ? {} : { leadSent }) };
 }
 
 /**
@@ -264,7 +235,7 @@ async function sendButtons(phone, m, ctx) {
     // A question card carries the options in the picture; the buttons are letters.
     title: m.letterTitles ? render.optionLetter(i) : truncateCodePoints(title, render.BUTTON_TITLE_MAX),
   }));
-  const body = withCounter(m, m.letterTitles ? cardAskBody(m, ctx, shown.length) : m.body, ctx);
+  const body = withLead(m, textBody(m, ctx));
   if (m.headerImage) {
     // A QUESTION CARD reaches here too (render.build attaches the card as this
     // message's header when the picker is buttons), so the picture, the

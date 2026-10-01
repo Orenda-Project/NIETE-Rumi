@@ -176,6 +176,9 @@ describe('webhook → the response Meta actually receives', () => {
 
     expect(res.status).toBe(200);
     await waitFor(() => VideoQuiz.handleAnswer.mock.calls.length > 0, 'handleAnswer');
-    expect(VideoQuiz.handleAnswer).toHaveBeenCalledWith(PHONE, `vq_${QUESTION_ID}_2`);
+    // The Flow reply's own wamid travels with the answer: the verdict's free
+    // ✅/❌ reaction lands on it (bd-w2daa.7).
+    expect(VideoQuiz.handleAnswer).toHaveBeenCalledWith(PHONE, `vq_${QUESTION_ID}_2`,
+      { messageId: expect.stringMatching(/^wamid\./) });
   });
 });

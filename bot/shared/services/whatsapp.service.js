@@ -1450,6 +1450,77 @@ class WhatsAppService {
   }
 
   /**
+   * Interactive reply buttons whose HEADER is an in-memory image — one message
+   * where a picture followed by a buttons question used to be two.
+   *
+   * The sibling of sendImageFromBuffer (same upload, by media id) and of
+   * sendImageWithButtons, which takes a URL and so cannot carry a picture that
+   * was rendered in memory (a child's quiz scorecard). Additive: no existing
+   * sender changes. Returns a boolean like both, false on any failure, so the
+   * caller can fall back to sending the picture and the buttons separately.
+   *
+   * @param {string} to
+   * @param {Buffer} imageBuffer
+   * @param {string} bodyText  ≤ 1024 code points (Meta refuses the whole message over it)
+   * @param {Array<{id:string,title:string}>} buttons  1–3
+   * @param {{mimeType?: string, onMessageId?: function(string)}} [opts]
+   * @returns {Promise<boolean>}
+   */
+  static async sendImageBufferWithButtons(to, imageBuffer, bodyText, buttons, opts = {}) {
+    try {
+      if (!imageBuffer || !imageBuffer.length || !Array.isArray(buttons) || !buttons.length || buttons.length > 3) {
+        logToFile('⚠️ sendImageBufferWithButtons: bad arguments', {
+          hasImage: Boolean(imageBuffer && imageBuffer.length), count: buttons && buttons.length,
+        });
+        return false;
+      }
+      const mimeType = (opts && opts.mimeType) || 'image/png';
+      const ext = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png';
+      const formData = new FormData();
+      formData.append('file', imageBuffer, { contentType: mimeType, filename: `image.${ext}` });
+      formData.append('messaging_product', 'whatsapp');
+      const uploadResp = await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`,
+        formData,
+        { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, ...formData.getHeaders() }, timeout: 30000 },
+      );
+      const mediaId = uploadResp.data.id;
+
+      const response = await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to,
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            header: { type: 'image', image: { id: mediaId } },
+            body: { text: bodyText },
+            action: {
+              buttons: buttons.map((btn) => ({
+                type: 'reply',
+                reply: { id: btn.id, title: [...String(btn.title)].slice(0, MAX_BUTTON_TITLE).join('') },
+              })),
+            },
+          },
+        },
+        { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } },
+      );
+      logToFile('✅ Image buffer with buttons sent', {
+        response: response.data, mediaId, bytes: imageBuffer.length, buttonCount: buttons.length,
+      });
+      WhatsAppService._reportMessageId(opts, response.data);
+      return true;
+    } catch (error) {
+      logToFile('❌ Error sending image buffer with buttons', {
+        error: error.message, errorDetails: error.response?.data,
+      }, 'error');
+      return false;
+    }
+  }
+
+  /**
    * Send image with interactive reply buttons (for vocabulary questions)
    * Word-level comprehension assessment
    * Fixed R2 private URL issue - now downloads from R2 first, uploads to WhatsApp

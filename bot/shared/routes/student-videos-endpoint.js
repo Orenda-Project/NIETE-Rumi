@@ -216,8 +216,21 @@ async function selectTopic(flowToken, screenData) {
 // and the SUCCESS screen already says it is on its way.
 async function sendPreDeliveryAck(flowToken, row) {
   try {
-    const { phone } = await resolveDelivery(flowToken);
+    const resolved = await resolveDelivery(flowToken);
+    const { phone } = resolved;
     if (!phone) return;
+    // A CHILD's video that carries a quiz opens with the lesson note ("🎬
+    // First, here is the lesson…"), sent by the quiz before the upload — so
+    // this ack was the second note before one video, and the Flow's own
+    // SUCCESS screen had already said the video is on its way. One note, not
+    // two. A video with no quiz has no lesson note, so it keeps this ack.
+    if (resolved.kind === 'child') {
+      const VideoQuizService = require('../services/quiz/video-quiz.service');
+      if (await VideoQuizService.quizForVideo(row.id)) {
+        logEvent('student_videos.pre_ack_skipped', { videoId: row.id, why: 'lesson_note_follows' });
+        return;
+      }
+    }
     await WhatsAppService.sendMessage(
       phone,
       `🎬 Sending your video: ${gradeTitle(row.grade)} ${row.subject} — ${row.clean_title} …`,

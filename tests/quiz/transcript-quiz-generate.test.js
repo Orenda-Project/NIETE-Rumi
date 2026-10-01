@@ -80,7 +80,7 @@ function wire({ quiz = QUIZ, insertError = null } = {}) {
 }
 
 describe('process — happy path', () => {
-  test('authors, validates, stores 8 rows, renders the PDF, mints a code, sends three paced messages, marks sent', async () => {
+  test('authors, validates, stores 8 rows, renders the PDF, mints a code, sends two paced messages, marks sent', async () => {
     Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY,
       extras: { lesson_summary_short: 'آپ نے آدھی روٹی سے کسر پڑھائی۔', checks_summary: 'یہ quiz جانچتا ہے کہ بچے کسر پہچان سکتے ہیں۔' } });
     wire();
@@ -104,7 +104,9 @@ describe('process — happy path', () => {
     });
 
     expect(WhatsAppService.sendDocument).toHaveBeenCalledTimes(1);
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+    // The PDF (its caption closing with the report promise) and the forwardable
+    // link — two messages; the promise was a third until bd-w2daa.7.
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
     const forwardable = WhatsAppService.sendMessage.mock.calls[0][1];
     expect(forwardable).toMatch(/Rifat Noor/);
     expect(forwardable).toMatch(/کسریں/);
@@ -223,7 +225,7 @@ describe('process — the PDF is written in the quiz language, whole', () => {
     const caption = WhatsAppService.sendDocument.mock.calls[0][3];
     expect(caption).toMatch(/Your quiz/);                     // English, hers
     expect(caption).toMatch(/forward it to the class group/);
-    expect(WhatsAppService.sendMessage.mock.calls[1][1]).toMatch(/^You will get a report/);   // the report promise
+    expect(caption.split('\n\n').pop()).toMatch(/^You will get a report/);   // the report promise closes it
   });
 
   test('and the caption describes the sheet she actually gets, not the round-2 one', async () => {

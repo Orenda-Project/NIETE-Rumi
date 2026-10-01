@@ -315,8 +315,11 @@ describe('the lock releases on every exit', () => {
     stubStores();
     stubRedis();
     await redis.set(VideoQuiz.STATE_KEY(PHONE), baseState());
+    // A text-only verdict now rides on the next question's picker (the
+    // INTERACTION phase), not an answer phase of its own — throw on either,
+    // so the throw lands on the verdict's send whichever bubble carries it.
     sender.sendPhase.mockImplementation(async (_p, _m, phase) => {
-      if (phase === 'answer') throw new Error('boom');
+      if (phase === 'answer' || phase === 'interaction') throw new Error('boom');
       return { pickerFailed: false };
     });
 

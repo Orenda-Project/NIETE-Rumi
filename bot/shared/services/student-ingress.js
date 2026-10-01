@@ -258,9 +258,40 @@ async function quizInFlight(from) {
   return false;
 }
 
-async function refuse(from, language, what, key) {
-  logEvent('student_ingress.refused', { what });
-  await say(from, key, language);
+// ── refusals: each line once a day per handset ───────────────────────────
+//
+// A child who keeps sending voice notes heard the same line every time — up to
+// 65 times in one day on one handset (prod, 24-30 Sep 2026), each one a billed
+// message. Each refusal line is now said ONCE per handset per day; a repeat of
+// the same kind gets a free reaction on the child's own message instead. With
+// no message id to react to (or Redis unable to remember), the line is said,
+// as before: a refusal is never answered with silence.
+const REFUSAL_ONCE_SECS = 24 * 60 * 60;
+const REFUSAL_KEY = (phone, key) => `student_ingress:refused:${String(phone || '').replace(/^\+/, '')}:${key}`;
+// ✍️ "type it" for the two lines that ask the child to type; 🙏 for the rest.
+const REPEAT_REACTION = { studentVoiceNotSupported: '✍️', studentMediaNotSupported: '✍️' };
+
+async function refuse(from, language, what, key, message = null) {
+  const messageId = message && message.id;
+  let first = true;
+  if (messageId) {
+    try {
+      first = await redisService.setNX(REFUSAL_KEY(from, key), { at: Date.now() }, REFUSAL_ONCE_SECS);
+    } catch (err) {
+      first = true;
+    }
+  }
+  if (first !== false) {
+    logEvent('student_ingress.refused', { what });
+    await say(from, key, language);
+    return true;
+  }
+  const WhatsAppService = require('./whatsapp.service');
+  const reacted = await Promise.resolve(
+    WhatsAppService.sendReaction(from, messageId, REPEAT_REACTION[key] || '🙏'),
+  ).catch(() => false);
+  logEvent('student_ingress.refused', { what, repeat: true, reacted: Boolean(reacted) });
+  if (!reacted) await say(from, key, language);
   return true;
 }
 
@@ -313,7 +344,7 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
         if (cmd === '/video' || cmd === '/videos') return false;    // the handler's child videos path
         if (cmd === '/menu') { await sendChildMenu(from, language); return true; }
         if (cmd === '/quiz') { await openQuizzes(from, language); return true; }
-        return refuse(from, language, `command:${cmd}`, 'studentTeacherOnly');
+        return refuse(from, language, `command:${cmd}`, 'studentTeacherOnly', message);
       }
 
       // A school question: the child tutor, directly. The ordinary text path
@@ -338,10 +369,17 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
     }
 
     if (type === 'audio' || type === 'voice') {
-      return refuse(from, language, 'voice', 'studentVoiceNotSupported');
+      return refuse(from, language, 'voice', 'studentVoiceNotSupported', message);
     }
-    if (type === 'image' || type === 'document' || type === 'video' || type === 'sticker') {
-      return refuse(from, language, type, 'studentMediaNotSupported');
+    // A sticker is not a request — the same rule as for a teacher
+    // (utils/unsupported-message.js): no reply. The webhook's ack reaction is
+    // already on it.
+    if (type === 'sticker') {
+      logEvent('student_ingress.refused', { what: 'sticker', silent: true });
+      return true;
+    }
+    if (type === 'image' || type === 'document' || type === 'video') {
+      return refuse(from, language, type, 'studentMediaNotSupported', message);
     }
 
     if (type === 'interactive') {
@@ -356,7 +394,7 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
           return true;
         }
         if (ALLOWED_BUTTON_PREFIXES.some((p) => id.startsWith(p))) return false;
-        return refuse(from, language, `button:${id.split('_').slice(0, 2).join('_')}`, 'studentTeacherOnly');
+        return refuse(from, language, `button:${id.split('_').slice(0, 2).join('_')}`, 'studentTeacherOnly', message);
       }
       // A Flow or list reply answers something WE sent this handset.
       return false;
@@ -372,4 +410,5 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
 module.exports = {
   identity, activity, classify, attach, route, forget,
   CACHE_KEY, CACHE_TTL_SECS, CHILD_MENU_VIDEO, CHILD_MENU_QUIZ, ALLOWED_BUTTON_PREFIXES,
+  REFUSAL_KEY, REFUSAL_ONCE_SECS,
 };
