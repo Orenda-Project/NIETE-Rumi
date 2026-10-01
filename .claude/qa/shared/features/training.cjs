@@ -1597,8 +1597,8 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   // T26/T27 — I-SAPS (operator 2026-09-23). Declared unrunnable here, with the reason, not left absent.
 
 
-  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
-  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
+  const APP_REDIRECT_WHY = 'needs an app_redirect_* switch turned ON in the target database, and the switch is global: it would redirect every teacher on that environment for the length of the run. Covered by tests/app-redirect/ (the real text handler and menu router, red-first).';
   if (!seenIds.has('T28')) rec('T28', 'A maths question with fractions reaches the child as a typeset card', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
   if (!seenIds.has('T29')) rec('T29', 'A quiz never ships an answer key a blind solver disagrees with', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
@@ -1609,8 +1609,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
 
 
 
-  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
-  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
 
 
 
@@ -1640,8 +1639,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
 
 
 
-  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
-  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
   if (!seenIds.has('T63')) rec('T63', 'However I type "quiz", it opens my quiz menu', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
   if (!seenIds.has('T64')) rec('T64', '/quiz lists the lesson plans I took, says where each lesson came from, and makes nothing until I tap', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
@@ -1698,4 +1696,12 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
     rec('T88', 'An I-SAPS module exam is 4 multiple-choice questions and 1 written answer, with two separate pass bars', 'BLOCKED', { reason: why }, 0);
     rec('T89', 'A failed I-SAPS module exam can be retaken straight away', 'BLOCKED', { reason: why }, 0);
   }
+
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
+  rec('T90', 'With Teacher Training moved to the app, /training sends me to the Play Store instead', 'BLOCKED',
+      { reason: APP_REDIRECT_WHY }, 0);
+
+  rec('T91', 'Asking again within the hour gets no reply at all', 'BLOCKED',
+      { reason: APP_REDIRECT_WHY }, 0);
+
 };
