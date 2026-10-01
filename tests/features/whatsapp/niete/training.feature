@@ -159,10 +159,21 @@ Feature: NIETE (ICT) Teacher Training
   @e2e @wip @draft @quiz @destructive @P1 @T88
   Scenario: An I-SAPS module exam is 4 multiple-choice questions and 1 written answer, with two separate pass bars
     Given the NIETE bot chat is open on a teacher in the I-SAPS programme with every session of Module 1 passed
-    When I take the Module 1 exam, get all 4 multiple-choice questions right, and score 5 of 10 on the written answer
-    Then the exam is not passed, because the written answer needs 6 of 10
-    And my mark is shown out of 30 (5 per multiple-choice question, 10 for the written answer)
+    When I take the Module 1 exam and get 3 of the 4 multiple-choice questions right
+    Then the bot says the multiple choice is cleared and my written answer is being graded
+    And no written-answer mark or feedback is shown, and no certificate is issued
     # bd-vej4h: pass = MCQ >= 75% of those served AND CRQ >= 60%. Module 6 serves its 2 MCQs and needs both.
+    # UPDATED 2026-10-01 (bd-hxm7a): while I-SAPS written-answer results are HELD, an exam with the MCQs
+    # cleared is PENDING REVIEW (neither passed nor failed); fewer than 3 of 4 fails now and can be retaken.
+
+  @e2e @wip @draft @quiz @P0 @T90
+  Scenario: An I-SAPS written answer is graded but its mark is not shown while results are held
+    Given the NIETE bot chat is open on a teacher in the I-SAPS programme sitting a module exam
+    When I type my written answer
+    Then the bot says my written answer is being graded and will take some time
+    And it shows no score and no feedback for it
+    And the module exam cannot be started again while it is being graded
+    # bd-hxm7a: graded against the I-SAPS rubric and stored; app_settings isaps_crq_results_released is the switch.
 
   @e2e @wip @draft @quiz @P2 @T89
   Scenario: A failed I-SAPS module exam can be retaken straight away
