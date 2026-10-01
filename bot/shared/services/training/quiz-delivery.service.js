@@ -2707,6 +2707,14 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
     .eq('id', attemptId).maybeSingle();
   if (!attempt) throw new Error('attempt not found');
   if (attempt.user_id !== userId) throw new Error('attempt does not belong to this user');
+  // bd-2exhl — a submitted paper is closed. Without this a teacher who came
+  // back while the written answer was being graded could submit it again.
+  if (attempt.status !== 'in_progress') {
+    return {
+      attempt: { id: attemptId, status: attempt.status, total_questions: attempt.total_questions },
+      crq_pending: false, already_submitted: true, outcome: attempt.status,
+    };
+  }
 
   const ids = answers.map(a => a.question_id).filter(Boolean);
   const { data: qs } = await supabase
@@ -2718,6 +2726,7 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
   const now = new Date().toISOString();
   const rows = [];
   let mcqScore = 0;
+  let mcqServed = 0;
   let crq = null;
   answers.forEach((a, i) => {
     const q = byId.get(a.question_id);
@@ -2732,6 +2741,7 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
       });
     } else {
       const correct = String(a.chosen_option) === String(q.correct_option);
+      mcqServed += 1;
       if (correct) mcqScore += 1;
       rows.push({
         attempt_id: attemptId, question_index: i, question_id: q.id,
@@ -2751,12 +2761,21 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
     if (error) throw new Error(`could not store answers: ${error.message}`);
   }
 
-  // Commit the MCQ half now. The attempt stays in_progress while a CRQ is
-  // outstanding, so nothing reads it as a finished paper mid-marking.
+  // Commit the MCQ half now.
+  //
+  // bd-2exhl — and with it the verdict the teacher can already be told. The
+  // MCQs are marked, so "fewer than the bar → failed" and "cleared → pending
+  // review" are known HERE, not when the written-answer grader replies. The
+  // attempt used to stay in_progress until then, and a teacher who left and
+  // came back inside that window reopened the same paper and could submit it
+  // again. gradeAttempt writes the final verdict over this when it runs.
+  const { heldModuleExamOutcome } = require('./isaps-crq-hold.rules');
+  const early = crq ? heldModuleExamOutcome({ mcqCorrect: mcqScore, mcqServed }) : null;
   await supabase.from('training_assessment_attempts').update({
     current_question_index: answers.length,
     score: mcqScore,
     last_activity_at: now,
+    ...(early ? { status: early.status, is_passed: early.is_passed, completed_at: now, cooldown_until: null } : {}),
   }).eq('id', attemptId);
 
   const finishGrading = async () => {
@@ -2778,7 +2797,13 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
         attemptId, error: err?.message,
       }));
     });
-    return { attempt: { id: attemptId, score: mcqScore, total_questions: attempt.total_questions, status: 'marking' }, crq_pending: true };
+    return {
+      attempt: { id: attemptId, score: mcqScore, total_questions: attempt.total_questions, status: early.status },
+      crq_pending: true,
+      outcome: early.status,
+      mcq_correct: mcqScore,
+      mcq_served: mcqServed,
+    };
   }
 
   await finishGrading();
@@ -2789,7 +2814,103 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
   return { attempt: done, crq_pending: false };
 }
 
+/**
+ * bd-2exhl — every SUBMITTED sitting of one I-SAPS module exam, newest first,
+ * with what the teacher answered, so the portal can show her the status of
+ * each and let her read back her own paper.
+ *
+ * Deliberately NOT included while written-answer results are held: the answer
+ * key, per-question right/wrong, and the written answer's mark and feedback.
+ * The MCQ bank is small and a retake draws from the same pool, so a key shown
+ * after a failed sitting would hand her the next one. The MCQ tally (x of y)
+ * is the one result she is told, exactly as WhatsApp tells her.
+ *
+ * @returns {Promise<{ok:boolean, attempts:object[]}>}
+ */
+async function moduleExamAttempts({ userId, courseId }) {
+  const courseIdNum = parseInt(String(courseId), 10);
+  if (!userId || !Number.isFinite(courseIdNum)) return { ok: false, attempts: [] };
+  const { data: course } = await supabase
+    .from('training_courses').select('id, title, level_id')
+    .eq('id', courseIdNum).maybeSingle();
+  const m = /Module (\d+)/.exec(course?.title || '');
+  if (!course?.level_id || !m) return { ok: false, attempts: [] };
+
+  const { data: quizRows } = await supabase
+    .from('training_grand_quizzes').select('id')
+    .eq('level_id', course.level_id).eq('source_quiz_id', moduleSourceQuizId(parseInt(m[1], 10)));
+  const quizIds = (quizRows || []).map(q => q.id);
+  if (quizIds.length === 0) return { ok: true, attempts: [] };
+
+  const { data: attemptRows } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, user_id, status, is_passed, started_at, completed_at, total_questions, level_id')
+    .eq('user_id', userId)
+    .in('grand_quiz_id', quizIds)
+    .in('status', ['pending_review', 'failed', 'passed'])
+    .order('started_at', { ascending: false });
+  const attempts = (attemptRows || [])
+    .filter(a => a.user_id === userId)
+    .sort((a, b) => String(b.started_at).localeCompare(String(a.started_at)));
+  if (attempts.length === 0) return { ok: true, attempts: [] };
+
+  const { data: answerRows } = await supabase
+    .from('training_assessment_answers')
+    .select('attempt_id, question_index, question_id, chosen_option, is_correct, answer_text, answer_score, feedback_text')
+    .in('attempt_id', attempts.map(a => a.id))
+    .order('question_index', { ascending: true });
+  const qIds = [...new Set((answerRows || []).map(r => r.question_id))];
+  const { data: qRows } = await supabase
+    .from('training_questions').select('id, question_text, options, correct_option')
+    .in('id', qIds.length ? qIds : [-1]);
+  const qById = new Map((qRows || []).map(q => [q.id, q]));
+
+  const { crqResultsHeld } = require('./isaps-crq-hold.rules');
+  const { MCQ_PASS_PCT } = require('./isaps-crq-paper.rules');
+  const held = await crqResultsHeld(supabase);
+  const crqMax = await crqPointsForLevel(course.level_id);
+
+  const out = attempts.map((a) => {
+    const rows = (answerRows || [])
+      .filter(r => r.attempt_id === a.id)
+      .sort((x, y) => x.question_index - y.question_index);
+    let mcqCorrect = 0; let mcqServed = 0; let crqRow = null;
+    const answers = rows.map((r) => {
+      const q = qById.get(r.question_id) || {};
+      const open = isOpenEndedQuestion({ options: q.options, correct_option: q.correct_option });
+      if (open) crqRow = r;
+      else { mcqServed += 1; if (r.is_correct === true) mcqCorrect += 1; }
+      return {
+        index: r.question_index,
+        question_text: q.question_text || '',
+        is_open_ended: open,
+        options: open ? [] : (Array.isArray(q.options) ? q.options : []),
+        chosen_option: open ? null : (r.chosen_option ?? null),
+        answer_text: open ? (r.answer_text || '') : null,
+      };
+    });
+    return {
+      id: a.id,
+      status: a.status,
+      started_at: a.started_at,
+      completed_at: a.completed_at || null,
+      mcq_correct: mcqCorrect,
+      mcq_served: mcqServed,
+      mcq_needed: Math.ceil((mcqServed * MCQ_PASS_PCT) / 100),
+      crq: {
+        held,
+        score: held || !crqRow ? null : (crqRow.answer_score ?? null),
+        max: crqMax,
+        feedback: held || !crqRow ? null : (crqRow.feedback_text || null),
+      },
+      answers,
+    };
+  });
+  return { ok: true, attempts: out };
+}
+
 module.exports = {
+  moduleExamAttempts,
   cooldownUntilFor,
   openModuleExamAttempt,
   saveModuleExamDraft,
