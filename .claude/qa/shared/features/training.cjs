@@ -1700,10 +1700,10 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   }
 
   // bd-onxyu — app redirect. Recorded with the reason, not left absent.
-  rec('T90', 'With Teacher Training moved to the app, /training sends me to the Play Store instead', 'BLOCKED',
+  rec('T92', 'With Teacher Training moved to the app, /training sends me to the Play Store instead', 'BLOCKED',
       { reason: APP_REDIRECT_WHY }, 0);
 
-  rec('T91', 'Asking again within the hour gets no reply at all', 'BLOCKED',
+  rec('T93', 'Asking again within the hour gets no reply at all', 'BLOCKED',
       { reason: APP_REDIRECT_WHY }, 0);
 
 };

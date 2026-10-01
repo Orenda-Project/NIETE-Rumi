@@ -124,6 +124,12 @@ function seed(onKeys = []) {
   };
 }
 
+// Doors that exist on one branch and not another (sandbox carries /observe2 and the LP
+// worker's cutover rescue; staging/main carry the pic-to-LP image route). Each check runs
+// where its door exists, so one copy of this file holds on every branch.
+const botFile = (rel) => path.join(__dirname, '../../bot', rel);
+const HAS_OBSERVE2 = fs.existsSync(botFile('shared/services/observe/observe2/start.js'));
+
 const ENV = {
   TEACHER_TRAINING_FLOW_ID: 'flow-training',
   ASSESSMENT_GEN_FLOW_ID: 'flow-assess',
@@ -181,7 +187,7 @@ const TEXT_DOORS = [
   ['coaching', 'ai_coaching'],
   [PROMPTS[1], 'ai_coaching'], // "AI coaching" chip
   ['/observe', 'observe'],
-  ['/observe2', 'observe'],
+  ...(HAS_OBSERVE2 ? [['/observe2', 'observe']] : []),
   ['/remark', 'remark'],
   ['/reading test', 'reading_test'],
   ['/readingtest', 'reading_test'],
@@ -387,15 +393,33 @@ describe('doors that cannot be driven here are wired at the source', () => {
   test('image: generic vision analysis asks general_chat before it runs', () => {
     const s = src('shared/handlers/image-message.handler.js');
     const ask = s.indexOf("redirectIfFlagged('general_chat'");
-    const run = s.indexOf('await runImageAnalysis(');
     expect(ask).toBeGreaterThan(-1);
-    expect(run).toBeGreaterThan(-1);
-    expect(ask).toBeLessThan(run);
+    // Either at the call site, or as the first thing inside runImageAnalysis itself (where
+    // every caller, including the pic-LP coalescer's fallback, passes through it).
+    const def = s.indexOf('async function runImageAnalysis(');
+    const call = s.indexOf('await runImageAnalysis(');
+    expect(call).toBeGreaterThan(-1);
+    const insideDef = def > -1 && ask > def && ask < s.indexOf('\n}\n', def);
+    expect(insideDef || ask < call).toBe(true);
+  });
+
+  test('image: where the pic-to-LP route exists, a textbook page asks lesson_plan before any session', () => {
+    const s = src('shared/handlers/image-message.handler.js');
+    const fnAt = s.indexOf('async function handleCoalescedBatch(');
+    if (fnAt === -1) return; // no pic-to-LP route on this branch
+    const fn = s.slice(fnAt, s.indexOf('\n}\n', fnAt));
+    const ask = fn.indexOf("redirectIfFlagged('lesson_plan'");
+    const create = fn.indexOf('PicLpSession.create(');
+    expect(ask).toBeGreaterThan(-1);
+    expect(create).toBeGreaterThan(-1);
+    expect(ask).toBeLessThan(create);
   });
 
   test('the LP worker\'s cutover rescue redirects BEFORE it opens the menu and adds its menu line', () => {
     const s = src('workers/lesson-plan-generation.worker.js');
-    const fn = s.slice(s.indexOf('async function openLpBrowseFlowForCutover'));
+    const at = s.indexOf('async function openLpBrowseFlowForCutover');
+    if (at === -1) return; // no cutover rescue on this branch
+    const fn = s.slice(at);
     const ask = fn.indexOf("redirectIfFlagged('lesson_plan'");
     const open = fn.indexOf('await openLpBrowseFlow(');
     expect(ask).toBeGreaterThan(-1);
