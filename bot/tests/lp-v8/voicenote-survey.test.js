@@ -96,13 +96,13 @@ describe('Q2 — what she did with it', () => {
     expect(JSON.stringify(sent.buttons[0])).not.toMatch(/both|prefer/i);
   });
 
-  test('👍 with NO voice note keeps the plain thank-you — no usage question', async () => {
+  test('👍 with NO voice note sends nothing — no usage question, no thank-you text (NL1: the reaction is the receipt)', async () => {
     seedLesson({ triggerMode: 'after_pdf_only', language: 'en' });
 
     await Feedback.handleFeedbackButton(`lp_feedback_yes_${LP_ID}`, '923001234567');
 
     expect(sent.buttons).toHaveLength(0);
-    expect(sent.messages).toHaveLength(1);
+    expect(sent.messages).toHaveLength(0);
   });
 
   test('the usage question renders in her language', async () => {

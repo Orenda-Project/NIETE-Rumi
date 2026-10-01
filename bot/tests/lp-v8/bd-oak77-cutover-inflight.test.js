@@ -71,9 +71,9 @@ describe('a Gamma job still in SQS when the cutover lands', () => {
     expect(flowsSent).toHaveLength(1);
     expect(flowsSent[0].flowId).toBe(FLOW_ID);
     expect(flowsSent[0].to).toBe('923365709413');
-    // her language, from the job payload frozen at enqueue time
-    expect(messagesSent.map((m) => m.text)).toContain(resolveUx('lp612RouteRedirect', { language: 'ur' }));
-    expect(messagesSent.some((m) => /Send "menu"/.test(m.text))).toBe(false);
+    // the teacher's language, from the job payload frozen at enqueue time — inside the Flow body (Meta bill cut NL3)
+    expect(flowsSent[0].body.startsWith(resolveUx('lp612RouteRedirect', { language: 'ur' }))).toBe(true);
+    expect(messagesSent).toHaveLength(0);
   });
 
   test('the flow token leads with her user id, so the endpoint resolves her', async () => {

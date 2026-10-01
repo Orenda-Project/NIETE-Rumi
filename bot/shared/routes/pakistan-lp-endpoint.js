@@ -533,10 +533,51 @@ async function selectLessonPage(flowToken, d) {
   return v8LessonScreen(flowToken, grade, d.subject, d.chapter, parseInt(d.page, 10) || 2, 'SELECT_LESSON_MORE');
 }
 
+// ── One bundle per double tap (Meta bill cut NL2, bd-w2daa.9) ──────────────
+//
+// A teacher who taps the same lesson twice got the whole bundle twice — the
+// "Preparing…" line, the PDF, the voice note and, 30 s later, a second survey:
+// 811 times in 7 days on production, median gap 19.6 s, every one a billed
+// message. The claim is (teacher, lesson) for two minutes, taken BEFORE the
+// delivery starts, so the second tap finds it and sends nothing new — the
+// teacher already has that lesson on its way.
+//
+// Fail OPEN: no cache, a cache error, or no user id all mean "deliver". A rare
+// double send is a cost; a swallowed lesson is a teacher with nothing. And a
+// delivery that did not reach the teacher releases the claim, so a retry is served.
+const V8_DELIVERY_CLAIM_SECS = 120;
+const v8DeliveryClaimKey = (userId, lessonId) => `lpv8_deliver:${userId}:${lessonId}`;
+
+async function claimV8Delivery(userId, lessonId) {
+  if (!userId) return true;
+  try {
+    const redisService = require('../services/cache/railway-redis.service');
+    if (typeof redisService.setNX !== 'function') return true;
+    const claimed = await redisService.setNX(
+      v8DeliveryClaimKey(userId, lessonId), { at: Date.now() }, V8_DELIVERY_CLAIM_SECS,
+    );
+    return claimed !== false;
+  } catch (err) {
+    logToFile('Pakistan LP v8: delivery claim unavailable — delivering anyway', { lessonId, error: err.message });
+    return true;
+  }
+}
+
+async function releaseV8Delivery(userId, lessonId) {
+  if (!userId) return;
+  try {
+    const redisService = require('../services/cache/railway-redis.service');
+    if (typeof redisService.delete === 'function') await redisService.delete(v8DeliveryClaimKey(userId, lessonId));
+  } catch (err) {
+    logToFile('Pakistan LP v8: delivery claim release failed (non-fatal)', { lessonId, error: err.message });
+  }
+}
+
 /**
  * A lesson row was tapped. Delivery is fire-and-forget: data_exchange has a
  * ~10s budget and an R2 presign plus a Meta document send can exceed it, so the
- * SUCCESS screen returns first and the PDF follows into the chat.
+ * SUCCESS screen returns first and the PDF follows into the chat. Only the
+ * double-tap claim (one fail-fast cache SET NX) is awaited before it.
  */
 async function selectLesson(flowToken, d) {
   const raw = d && d.lesson;
@@ -553,9 +594,25 @@ async function selectLesson(flowToken, d) {
   }
 
   const userId = userIdFrom(flowToken);
-  Promise.resolve(V8Delivery.deliverV8Lesson({
-    userId, lessonId: rawId, correlationId: `lpv8:${rawId}:${userId}`,
-  })).catch((err) => logToFile('Pakistan LP v8: deliver threw', { lessonId: rawId, error: err.message }));
+  if (await claimV8Delivery(userId, rawId)) {
+    Promise.resolve(V8Delivery.deliverV8Lesson({
+      userId, lessonId: rawId, correlationId: `lpv8:${rawId}:${userId}`,
+    }))
+      .then((res) => {
+        // Not delivered → let the next tap through instead of swallowing it.
+        if (!res || res.ok !== true) return releaseV8Delivery(userId, rawId);
+        return undefined;
+      })
+      .catch((err) => {
+        logToFile('Pakistan LP v8: deliver threw', { lessonId: rawId, error: err.message });
+        return releaseV8Delivery(userId, rawId);
+      });
+  } else {
+    logToFile('Pakistan LP v8: same lesson tapped again inside the window — not re-sent', {
+      userId, lessonId: rawId, windowSecs: V8_DELIVERY_CLAIM_SECS,
+    });
+    logEvent('lp_v8.delivery.duplicate_tap_skipped', { userId, lessonId: rawId, windowSecs: V8_DELIVERY_CLAIM_SECS });
+  }
 
   const { lesson, book, chapter } = hit;
   return {

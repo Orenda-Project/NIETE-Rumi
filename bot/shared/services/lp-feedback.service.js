@@ -7,7 +7,7 @@
  *   - Trigger modes: `after_pdf_only` only. `after_voice_note` is reserved
  *     for when audio-LP ships (see docs/roadmap/audio-lp.md).
  *   - No `askReasonOnYes` opt-in — NIETE MVP asks for a reason only on 👎.
- *     Positive taps get a warm "thanks" and no further prompt.
+ *     Positive taps get no text at all (see "Receipts" below).
  *   - No `handleComponentTap` — no voicenote-vs-LP comparison because there's
  *     no voicenote yet.
  *
@@ -29,6 +29,14 @@
  *   - Row inserted on button tap; reason_text UPDATEd on the SAME row.
  *   - Duplicate button taps (user changes their mind) update `useful` and
  *     re-arm the Redis flag.
+ *
+ * Receipts (Meta bill cut NL1, bd-w2daa.9): a tap or a typed reason that only
+ * needs acknowledging gets NO text. The webhook already reacts 👍 to every
+ * inbound message before any handler runs (whatsapp-bot.js, sendReaction), a
+ * reaction is free, and from 1 Oct 2026 every text is billed — so the old
+ * "Thanks — glad it helped!" / "Thank you!" / "Got it, thanks…" said nothing the
+ * reaction had not, at a price. Anything that ASKS the teacher something still goes:
+ * the 👎 "What didn't work?" line and the 👍-after-voice-note usage question.
  */
 
 const supabase = require('../config/supabase');
@@ -41,6 +49,14 @@ const { clampLanguage } = require('../config/ux-strings');
 const FEEDBACK_DELAY_MS = 30 * 1000;
 const REASON_WINDOW_SECS = 600;                 // 10-min reason-capture window
 const REDIS_REASON_KEY = (userId) => `lp_feedback_pending:${userId}`;
+
+// One survey per lesson per teacher per ten minutes (Meta bill cut NL4 / N2-L04, bd-w2daa.9).
+// Each delivery writes its own lesson_plans row, so a re-delivered lesson used to be asked about
+// again 30 s later — the identical question about the identical lesson, a billed message carrying
+// nothing new. Keyed on the caller's OWN lesson identity (`context.lessonKey`); a caller that does
+// not name one is not deduplicated at all.
+const ASKED_WINDOW_SECS = 600;
+const REDIS_ASKED_KEY = (userId, lessonKey) => `lp_feedback_asked:${userId}:${lessonKey}`;
 
 // Matches lp_feedback_(yes|no)_<uuid>. UUID = 8-4-4-4-12 hex.
 const BUTTON_RX = /^lp_feedback_(yes|no)_([0-9a-f-]{36})$/;
@@ -90,10 +106,6 @@ function _usageButtons(language, lessonPlanId) {
   ];
 }
 
-function _usageAck(language) {
-  return language === 'ur' ? 'شکریہ!' : 'Thank you!';
-}
-
 // WhatsApp button labels capped at 20 chars; emoji counts as ~2 chars.
 function _promptButtons(language, lessonPlanId) {
   const yes = language === 'ur' ? '👍 ہاں' : '👍 Yes, useful';
@@ -104,22 +116,10 @@ function _promptButtons(language, lessonPlanId) {
   ];
 }
 
-function _ackYes(language) {
-  return language === 'ur'
-    ? 'شکریہ — خوشی ہے یہ مفید تھی!'
-    : 'Thanks — glad it helped!';
-}
-
 function _askReasonOnNo(language) {
   return language === 'ur'
     ? 'بتانے کا شکریہ۔ کیا چیز کام نہیں آئی؟ (ایک سطر کا جواب کافی ہے)'
     : "Thanks for letting us know. What didn't work? (one line is enough)";
-}
-
-function _finalAck(language) {
-  return language === 'ur'
-    ? 'سمجھ گئی، شکریہ — یہ ہمیں منصوبے بہتر بنانے میں مدد کرے گا۔'
-    : 'Got it, thanks — this helps us improve the plans.';
 }
 
 /**
@@ -151,7 +151,9 @@ async function _resolveLanguage(userId, contextLanguage) {
  * @param {string} opts.lessonPlanId  UUID of the lesson_plans row just inserted
  * @param {string} opts.userId        Teacher's users.id (UUID)
  * @param {string} opts.phone         Teacher's phone number (for delivery)
- * @param {Object} [opts.context]     { grade, subject, chapterNumber, segmentNumber, topic, lpVariant, language }
+ * @param {Object} [opts.context]     { grade, subject, chapterNumber, segmentNumber, topic, lpVariant, language,
+ *                                      lessonKey? — the caller's stable lesson id; when present, a second
+ *                                      prompt for the same lesson within ASKED_WINDOW_SECS is skipped }
  * @param {number} [opts.delayMs=30000]
  */
 function scheduleFeedbackPrompt(opts) {
@@ -181,12 +183,41 @@ function scheduleFeedbackPrompt(opts) {
 
 // ─── 2. Send prompt ───────────────────────────────────────────────────────
 
+/**
+ * Claim "asked about this lesson" for ASKED_WINDOW_SECS. True = go ahead and ask.
+ * Fails OPEN: no lesson key, no cache, or a cache error all mean "ask" — being asked twice is a
+ * smaller harm than never being asked because the cache blinked.
+ */
+async function _claimAsk(userId, lessonKey) {
+  if (!lessonKey || !userId) return true;
+  try {
+    if (typeof redisService.setNX !== 'function') return true;
+    const claimed = await redisService.setNX(REDIS_ASKED_KEY(userId, lessonKey), { at: Date.now() }, ASKED_WINDOW_SECS);
+    return claimed !== false;
+  } catch (err) {
+    logToFile('LP Feedback: ask-once check unavailable — asking anyway', { userId, lessonKey, error: err.message });
+    return true;
+  }
+}
+
 async function sendFeedbackPrompt({ lessonPlanId, userId, phone, context }) {
+  const lessonKey = context && context.lessonKey;
+  // Only a caller that names its lesson pays the cache round-trip; every other door is unchanged.
+  if (lessonKey && !(await _claimAsk(userId, lessonKey))) {
+    logToFile('LP Feedback: prompt skipped — this lesson was already asked about inside the window', {
+      lessonPlanId, userId, lessonKey, windowSecs: ASKED_WINDOW_SECS,
+    });
+    return;
+  }
   const language = await _resolveLanguage(userId, context && context.language);
   const body = _promptBody(language, context && context.triggerMode);
   const buttons = _promptButtons(language, lessonPlanId);
   const ok = await WhatsAppService.sendInteractiveButtons(phone, { body, buttons });
   logToFile('LP Feedback: prompt sent', { lessonPlanId, userId, phone, language, ok });
+  // Not asked after all → do not let the claim swallow the next delivery's survey.
+  if (!ok && lessonKey) {
+    try { await redisService.delete(REDIS_ASKED_KEY(userId, lessonKey)); } catch (_) { /* non-fatal */ }
+  }
 }
 
 // ─── 3. Button handler ────────────────────────────────────────────────────
@@ -217,10 +248,10 @@ async function handleFeedbackButton(buttonId, phone) {
     .maybeSingle();
 
   if (lpError || !lp) {
+    // Owned, acknowledged by the webhook's 👍 reaction, nothing to store against.
     logToFile('LP Feedback: button tap for unknown lesson_plan_id', {
       lessonPlanId, err: lpError?.message,
     });
-    await WhatsAppService.sendMessage(phone, 'Thanks for the feedback!');
     return true;
   }
 
@@ -256,9 +287,8 @@ async function handleFeedbackButton(buttonId, phone) {
     logToFile('LP Feedback: duplicate tap', {
       lessonPlanId, userId: lp.user_id, useful, existingId: existing.id,
     });
-    if (useful) {
-      await WhatsAppService.sendMessage(phone, _ackYes(language));
-    } else {
+    // A repeat 👍 is receipted by the reaction alone (NL1); a 👎 re-asks for the reason.
+    if (!useful) {
       await redisService.set(
         REDIS_REASON_KEY(lp.user_id),
         { lpFeedbackId: existing.id, polarity: 'disliked', promptedAt: Date.now() },
@@ -292,11 +322,10 @@ async function handleFeedbackButton(buttonId, phone) {
       lessonPlanId, userId: lp.user_id, useful,
       error: insertError?.message || 'insert returned no row',
     });
-    // Still ack. On 👎, prompt for a reason using an orphan sentinel so we
-    // still capture it via a log event even if the DB write is broken.
-    if (useful) {
-      await WhatsAppService.sendMessage(phone, _ackYes(language));
-    } else {
+    // The 👍 is receipted by the reaction (NL1). On 👎, prompt for a reason using
+    // an orphan sentinel so we still capture it via a log event even if the DB
+    // write is broken.
+    if (!useful) {
       await redisService.set(
         REDIS_REASON_KEY(lp.user_id),
         { lpFeedbackId: '__orphan__', lessonPlanId, promptedAt: Date.now() },
@@ -312,9 +341,10 @@ async function handleFeedbackButton(buttonId, phone) {
   });
 
   if (useful) {
-    // A voice note landed → ask what she DID with it. Otherwise just say thanks (NIETE MVP has
-    // no askReasonOnYes opt-in). Gate on the DELIVERED trigger_mode, never on "we have voice
-    // notes now" — a lesson whose audio failed must not be asked about audio she never heard.
+    // A voice note landed → ask what the teacher DID with it. Otherwise nothing: the 👍 reaction
+    // the webhook already put on the tap is the receipt (NL1; NIETE MVP has no askReasonOnYes
+    // opt-in). Gate on the DELIVERED trigger_mode, never on "we have voice notes now" — a lesson
+    // whose audio failed must not be asked about audio she never heard.
     if (meta.trigger_mode === 'after_voice_note') {
       await WhatsAppService.sendInteractiveButtons(phone, {
         body: _usageBody(language),
@@ -322,7 +352,7 @@ async function handleFeedbackButton(buttonId, phone) {
       });
       logToFile('LP Feedback: usage prompt sent', { lessonPlanId, userId: lp.user_id, language });
     } else {
-      await WhatsAppService.sendMessage(phone, _ackYes(language));
+      logToFile('LP Feedback: 👍 receipted by reaction only', { lessonPlanId, userId: lp.user_id });
     }
   } else {
     await redisService.set(
@@ -339,8 +369,9 @@ async function handleFeedbackButton(buttonId, phone) {
  * Q2 button router entry — `lp_used_(taught|planned|not_yet)_<uuid>` (bd-vw0aj).
  *
  * UPDATEs `used_in_class` on the lp_feedback row this teacher already created by tapping 👍,
- * so one delivery stays one row. Deliberately forgiving: a tap we cannot store still gets a
- * thank-you, because the teacher has done her part and a silent button is worse than a lost datum.
+ * so one delivery stays one row. Deliberately forgiving: a tap we cannot store is still owned —
+ * the teacher has done their part. Its receipt is the 👍 reaction the webhook put on the tap before
+ * this ran; the old "Thank you!" text said nothing more and was a billed message (NL1).
  *
  * @param {string} buttonId Full interactive-button id
  * @param {string} phone    Sender phone
@@ -353,13 +384,6 @@ async function handleUsageButton(buttonId, phone) {
   const usedInClass = match[1];                 // taught | planned | not_yet
   const lessonPlanId = match[2];
 
-  let language = 'en';
-  try {
-    const { data: lp } = await supabase
-      .from('lesson_plans').select('id, user_id').eq('id', lessonPlanId).maybeSingle();
-    if (lp && lp.user_id) language = await _resolveLanguage(lp.user_id, null);
-  } catch (_) { /* fall back to en */ }
-
   try {
     await supabase
       .from('lp_feedback')
@@ -370,7 +394,6 @@ async function handleUsageButton(buttonId, phone) {
     logToFile('LP Feedback: used_in_class UPDATE failed', { lessonPlanId, usedInClass, error: err.message });
   }
 
-  await WhatsAppService.sendMessage(phone, _usageAck(language));
   return true;
 }
 
@@ -421,9 +444,7 @@ async function consumeReasonIfPending(userId, phone, text) {
       userId, reasonLanguage, reasonLength: reasonTrimmed.length,
       reasonText: reasonTrimmed, lessonPlanId: pending.lessonPlanId || null,
     });
-    const uiLang = await _resolveLanguage(userId, reasonLanguage);
-    await WhatsAppService.sendMessage(phone, _finalAck(uiLang));
-    return true;
+    return true;   // receipted by the webhook's 👍 reaction on the teacher's message (NL1)
   }
 
   const reasonPolarity =
@@ -452,9 +473,7 @@ async function consumeReasonIfPending(userId, phone, text) {
     userId, feedbackId: pending.lpFeedbackId,
     reasonLanguage, reasonLength: reasonTrimmed.length,
   });
-  const uiLang = await _resolveLanguage(userId, reasonLanguage);
-  await WhatsAppService.sendMessage(phone, _finalAck(uiLang));
-  return true;
+  return true;   // receipted by the webhook's 👍 reaction on the teacher's message (NL1)
 }
 
 module.exports = {

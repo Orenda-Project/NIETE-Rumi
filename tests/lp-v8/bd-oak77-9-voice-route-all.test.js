@@ -60,16 +60,19 @@ beforeEach(() => {
 afterAll(() => { delete process.env.PAKISTAN_LP_FLOW_ID; ROUTE_ENV.forEach((k) => delete process.env[k]); });
 
 describe('the voice lesson-plan door follows the same cutover as the typed one', () => {
-  test('BOTH flags on: the redirect line, then the menu — and NO Gamma job', async () => {
+  // Meta bill cut NL3 (bd-w2daa.9): the line rides inside the Flow body — one message, not two.
+  test('BOTH flags on: the redirect line opens the menu\'s own body — and NO Gamma job', async () => {
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
 
     await handleVoiceLessonPlanRequest('923365709413', 'make me a lesson plan on photosynthesis', user, null, 'ur');
 
-    expect(messagesSent).toHaveLength(1);
-    expect(messagesSent[0].text).toBe(resolveUx('lp612RouteRedirect', { language: 'ur' }));
+    expect(messagesSent).toHaveLength(0);
     expect(flowsSent).toHaveLength(1);
     expect(flowsSent[0].flowId).toBe(FLOW_ID);
+    expect(flowsSent[0].body).toBe(
+      `${resolveUx('lp612RouteRedirect', { language: 'ur' })}\n\n${resolveUx('lpBrowseBody', { language: 'ur' })}`,
+    );
     expect(LessonPlanQueueService.createAndQueue).not.toHaveBeenCalled();
   });
 
@@ -82,6 +85,7 @@ describe('the voice lesson-plan door follows the same cutover as the typed one',
     expect(messagesSent).toHaveLength(0);
     expect(flowsSent).toHaveLength(1);
     expect(flowsSent[0].flowId).toBe(FLOW_ID);
+    expect(flowsSent[0].body).toBe(resolveUx('lpBrowseBody', { language: 'en' }));
     expect(LessonPlanQueueService.createAndQueue).not.toHaveBeenCalled();
   });
 

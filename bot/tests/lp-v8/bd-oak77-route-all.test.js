@@ -163,14 +163,15 @@ describe('LEAK 1 — the old 6-12 Oxbridge picker is unreachable from free text'
 
 // ── the redirect copy ─────────────────────────────────────────────────────
 describe('she typed a topic — one short line, then the menu', () => {
-  test('ROUTE_ALL on: the redirect line is sent BEFORE the Flow, in her language', async () => {
+  // Meta bill cut NL3: the line rides as the Flow body's opening paragraph — one message, not two.
+  test('ROUTE_ALL on: the redirect line rides INSIDE the Flow body, in the teacher\'s language', async () => {
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
     await handleLessonPlanRequest('923365709413', 'a lesson plan on photosynthesis', user, null, 'ur', typing());
-    expect(messagesSent).toHaveLength(1);
-    expect(messagesSent[0].text).toBe(resolveUx('lp612RouteRedirect', { language: 'ur' }));
+    expect(messagesSent).toHaveLength(0);
     expect(flowsSent).toHaveLength(1);
     expect(flowsSent[0].flowId).toBe(FLOW_ID);
+    expect(flowsSent[0].body.startsWith(resolveUx('lp612RouteRedirect', { language: 'ur' }))).toBe(true);
   });
 
   test('ROUTE_ALL off: no redirect line — the Flow alone, exactly as bd-hgwfo ships it', async () => {
