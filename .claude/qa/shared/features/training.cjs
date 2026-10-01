@@ -724,7 +724,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       ev.code = (/`([A-Z0-9][A-Z0-9-]{7,})`/.exec(txt) || /\b(CERT-\d{8}-[A-Z0-9]+)\b/.exec(txt) || [])[1] || null;
       doc = seen.find(x => x.doc || x.pdf) || null; ev.pdfDocument = !!doc; ev.filename = doc && doc.media && doc.media.filename;
     } catch (e) { crashed26 = String((e && e.message) || e); }
-    rec('T26', 'For an I-SAPS programme passing the last module exam certifies the level, whatever units are left',
+    rec('T26', 'For an I-SAPS programme passing the ninth module exam certifies the level',
         ...(crashed26 ? ['BLOCKED', { reason: 'threw: ' + crashed26, ...ev }]
             : V(ev.completedEveryModule && !!ev.code && ev.pdfDocument && ev.mcq && ev.mcq.first === 'Q1/3', ev)), t() - s);
 
@@ -742,7 +742,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
                productionHalf: 'not observable in the mock lane: NODE_ENV is not production, so shouldStampTestBanner stamps EVERY vendor here; the "other programmes are clean on production" rule is pinned by certificate-env.rules tests' };
       } catch (e) { wm = { reason: 'could not read the PDF text: ' + String((e && e.message) || e).slice(0, 160) }; }
     }
-    rec('T27', 'An I-SAPS certificate is watermarked as not real, in every environment, while it is a pilot',
+    rec('T27', 'An I-SAPS certificate on production carries no "not a real certificate" watermark',
         ...(wm.watermark === undefined ? ['BLOCKED', wm] : V(wm.watermark === true, wm)), t() - s);
     if (seeded26) { try { api.db('revert-level', ['--level', String(ISAPS_LEVEL)]); } catch (e) {} }
     try { api.db('activate-program', ['--program-key', 'niete_isaps_pilot', '--deactivate']); } catch (e) {}
@@ -1686,4 +1686,16 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
 
   if (!seenIds.has('T84')) rec('T84', 'A quiz with many questions to fix gets the worst ones fixed first, not none', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
+
+  // T85-T89 — I-SAPS go-live gates (bd-vej4h). Recorded with the reason, not left absent: the mock lane
+  // provisions no I-SAPS level. Each rule is covered by tests/training/isaps-golive-gates.test.js.
+  {
+    const why = 'needs a driver on the I-SAPS programme; the mock lane provisions no I-SAPS level. '
+      + 'Covered by tests/training/isaps-golive-gates.test.js (pure rules + gradeAttempt against a stubbed DB).';
+    rec('T85', 'In I-SAPS, any module can be opened, but its sessions open one at a time', 'BLOCKED', { reason: why }, 0);
+    rec('T86', "An I-SAPS session's quick check needs 70% before the next session opens", 'BLOCKED', { reason: why }, 0);
+    rec('T87', "An I-SAPS module exam opens only once that module's sessions are passed", 'BLOCKED', { reason: why }, 0);
+    rec('T88', 'An I-SAPS module exam is 4 multiple-choice questions and 1 written answer, with two separate pass bars', 'BLOCKED', { reason: why }, 0);
+    rec('T89', 'A failed I-SAPS module exam can be retaken straight away', 'BLOCKED', { reason: why }, 0);
+  }
 };

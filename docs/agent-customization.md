@@ -312,7 +312,7 @@ description: {
 | `bot/shared/config/system-messages.js` | Add translations for ALL message keys (currently 10 keys x 9 languages) |
 | `bot/shared/config/language-config.js` | Add language detection patterns and configuration |
 | `bot/shared/config/language-prompts.js` | Add language-specific system prompts for the LLM |
-| `bot/shared/config/tts-voices.js` | Map language to TTS voice (ElevenLabs voice ID) |
+| `bot/shared/utils/constants.js` (`VOICE_MODELS`) · `SONIOX_TTS_VOICE_<LANG>` | Map language to a TTS voice (ElevenLabs voice ID, or a Soniox voice name) — see the voice gateway in `docs/customization.md` |
 | `bot/shared/config/capabilities.config.js` | Add translations for ALL 7 capability descriptions |
 | `bot/shared/services/audio.service.js` | Add language to ASR routing (which transcription service handles it) |
 
@@ -346,14 +346,16 @@ freshStart: {
 
 #### Step 3: Configure TTS Voice
 
-In `tts-voices.js`, add an ElevenLabs voice ID for French:
+Voice notes go through the voice gateway (`bot/shared/services/tts`); the provider speaks the language if it
+has a voice for it. For ElevenLabs, add the language to `VOICE_MODELS` in `bot/shared/utils/constants.js`:
 
 ```javascript
-fr: {
-  voiceId: 'YOUR_ELEVENLABS_FRENCH_VOICE_ID',
-  name: 'French Teacher',
-}
+fr: { provider: 'elevenlabs', voiceId: 'YOUR_ELEVENLABS_FRENCH_VOICE_ID', supportsEmotionTags: true, tier: 2 },
 ```
+
+For Soniox, add a default voice for `fr` in `DEFAULT_VOICES` in
+`bot/shared/services/tts/providers/soniox.provider.js` (or set `SONIOX_TTS_VOICE_FR`). A language a provider
+has no voice for simply goes to the next provider in the chain.
 
 ### Testing
 
@@ -664,7 +666,7 @@ WhatsApp Webhook
 | System messages (all languages) | `bot/shared/config/system-messages.js` |
 | Language list | `bot/shared/config/branding.js` + `language-config.js` |
 | LLM model | `.env` → `LLM_MODEL` |
-| TTS voices | `bot/shared/config/tts-voices.js` |
+| TTS provider + voices | `.env` → `TTS_PROVIDER` (per use case: `TTS_PROVIDER_<USE_CASE>`); voices: `VOICE_MODELS` in `bot/shared/utils/constants.js`, `SONIOX_TTS_VOICE_<LANG>` |
 | Coaching framework | `bot/shared/services/gpt5-mini.service.js` → `getCachedFrameworkPrompt()` |
 | Scoring rubric | `bot/shared/constants/scoring.constants.js` |
 | Reading benchmarks | `bot/shared/services/reading/analysis.service.js` (`compareToBenchmarks` → `check_benchmark_status` RPC) |

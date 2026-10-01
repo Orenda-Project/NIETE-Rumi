@@ -70,15 +70,61 @@ function isOpenEndedQuestion(q) {
  * @returns {Array<object>} zero or one question
  */
 /**
- * How many scenario MCQs a module's summative paper carries.
+ * How a module's summative paper is built, marked and passed (bd-vej4h).
  *
- * ISAPS process document §5.1: "The Summative Assessment score is itself
- * calculated for two Scenario-Based MCQs (2 marks @ 1 mark for each MCQ) and
- * one CRQ (10 marks)." So the paper is 3 questions / 12 marks, drawn from a
- * per-module bank that is deliberately larger (Module 1 holds 8 MCQs and 4
- * CRQs) — the surplus is what makes a §5.5 re-attempt possible.
+ * I-SAPS, "With regard to assessment administration" (Sept 2026), confirmed by
+ * the operator 2026-10-01:
+ *   - 4 Summative MCQs (was 2) and 1 CRQ, drawn at random from the module bank;
+ *   - MCQs worth 5 marks each, the CRQ 10;
+ *   - pass = at least 3 of 4 MCQs (75%) AND at least 60% on the CRQ — two
+ *     independent bars, never a blended total.
+ *
+ * A bank thinner than the quota serves what it has (Module 6 holds 2 MCQs on
+ * production as of 2026-10-01). The MCQ bar is a share of what was SERVED, so
+ * a 2-MCQ paper needs both: operator decision, until I-SAPS add items.
  */
-const MODULE_EXAM_MCQ_COUNT = 2;
+const MODULE_EXAM_MCQ_COUNT = 4;
+const MCQ_MARKS = 5;
+const MCQ_PASS_PCT = 75;
+const CRQ_PASS_PCT = 60;
+
+/**
+ * Total marks for a served paper of `servedCount` questions: every question
+ * but the last is an MCQ, the last is the one CRQ.
+ *
+ * @param {number} servedCount questions on the paper, CRQ included
+ * @param {number} crqMarks    the CRQ's maximum (vendor capstone_points_per_question)
+ * @returns {number}
+ */
+function isapsPaperMarks(servedCount, crqMarks) {
+  const mcqs = Math.max(0, (Number(servedCount) || 0) - 1);
+  return mcqs * MCQ_MARKS + (Number(crqMarks) || 0);
+}
+
+/**
+ * Has this module exam passed? Both bars, independently.
+ *
+ * An unmarked CRQ (null) is not a pass: the verdict waits for the mark rather
+ * than passing on the MCQs alone. A paper with no CRQ (crqMax 0) is judged on
+ * its MCQs; a paper with no MCQs on its CRQ.
+ *
+ * @param {object} p
+ * @param {number} p.mcqCorrect
+ * @param {number} p.mcqServed
+ * @param {number|null} p.crqEarned
+ * @param {number} p.crqMax
+ * @returns {boolean}
+ */
+function decideIsapsModuleExamPass({ mcqCorrect, mcqServed, crqEarned, crqMax }) {
+  const served = Number(mcqServed) || 0;
+  const max = Number(crqMax) || 0;
+  if (served === 0 && max === 0) return false;
+  const mcqOk = served === 0 || ((Number(mcqCorrect) || 0) / served) * 100 >= MCQ_PASS_PCT;
+  if (max === 0) return mcqOk;
+  if (crqEarned === null || crqEarned === undefined || !Number.isFinite(Number(crqEarned))) return false;
+  const crqOk = (Math.min(max, Number(crqEarned)) / max) * 100 >= CRQ_PASS_PCT;
+  return mcqOk && crqOk;
+}
 
 function pickOneCrq(bank, attemptId) {
   const items = Array.isArray(bank) ? bank.filter(Boolean) : [];
@@ -119,7 +165,7 @@ function buildMixedPaper(mcqs, crqBank, attemptId) {
 /**
  * Score a paper that mixes auto-marked MCQs with one rubric-marked CRQ.
  *
- * An MCQ is worth 1; the CRQ is worth its vendor's
+ * An MCQ is worth MCQ_MARKS (5); the CRQ is worth its vendor's
  * capstone_points_per_question (10 for I-SAPS). An unanswered or unmarked CRQ
  * scores 0 rather than undefined, and a mark above the cap is clamped — an
  * LLM returning 99 must not invent a pass.
@@ -130,22 +176,33 @@ function buildMixedPaper(mcqs, crqBank, attemptId) {
  * @param {number} input.crqMaxPoints 0 when the paper has no CRQ
  * @returns {{earned:number, possible:number}}
  */
-function scoreMixedPaper({ answers, mcqCount, crqMaxPoints }) {
+function scoreMixedPaper({ answers, mcqCount, crqMaxPoints, mcqMarks = MCQ_MARKS }) {
   const rows = Array.isArray(answers) ? answers : [];
   const mcqs = Number(mcqCount) || 0;
   const crqMax = Number(crqMaxPoints) || 0;
+  const perMcq = Number(mcqMarks) || 0;
 
-  let earned = 0;
+  let mcqCorrect = 0;
+  let crqEarned = null;
   for (const a of rows) {
     const idx = Number(a.question_index);
     if (Number.isFinite(idx) && idx < mcqs) {
-      if (a.is_correct === true) earned += 1;
+      if (a.is_correct === true) mcqCorrect += 1;
     } else if (crqMax > 0) {
       const raw = Number(a.answer_score);
-      if (Number.isFinite(raw) && raw > 0) earned += Math.min(crqMax, raw);
+      if (a.answer_score !== null && a.answer_score !== undefined && Number.isFinite(raw)) {
+        crqEarned = Math.max(0, Math.min(crqMax, raw));
+      }
     }
   }
-  return { earned, possible: mcqs + crqMax };
+  return {
+    earned: mcqCorrect * perMcq + (crqEarned || 0),
+    possible: mcqs * perMcq + crqMax,
+    mcqCorrect,
+    mcqServed: mcqs,
+    crqEarned,
+    crqMax,
+  };
 }
 
 
@@ -188,6 +245,11 @@ function isTextAnswerForOpenQuestion(text, currentQuestion) {
 
 module.exports = {
   MODULE_EXAM_MCQ_COUNT,
+  MCQ_MARKS,
+  MCQ_PASS_PCT,
+  CRQ_PASS_PCT,
+  isapsPaperMarks,
+  decideIsapsModuleExamPass,
   pickMcqs,
   isOpenEndedQuestion,
   pickOneCrq,

@@ -9,7 +9,8 @@
  *
  *   AudioService._transcribeOnce   → key: sha256(audio bytes) + diarization + language + roles
  *   llm-client chat.completions    → key: the full request params (model + messages + …)
- *   ElevenLabsService._postTts     → key: url + body (text, voice settings)
+ *   tts.synthesize (voice gateway) → key: provider + voice + text + language (with ElevenLabs
+ *                                    as the provider, the older {fn, text, languageCode} key)
  *
  * The key is the REQUEST, so a changed prompt, fixture or voice is a miss and goes live (then gets
  * recorded) — cassettes make the run fast, never blind. Errors are never recorded. Streaming LLM
@@ -304,6 +305,9 @@ function wrapChatCompletions(client) {
 async function wrapBuffer(kind, keyParts, fn) {
   const m = mode();
   if (m === 'off') return fn();
+  // a scripted answer (E2E_CASSETTE_FAULTS) applies here exactly as in wrap(): the rule file names 'tts' as a kind
+  const fault = _takeFault(kind, keyParts);
+  if (fault) return fault.value;
   const key = keyFor(kind, keyParts);
   if (m === 'replay') {
     let rec = readLocal(key);

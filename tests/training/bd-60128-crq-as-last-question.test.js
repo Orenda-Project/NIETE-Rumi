@@ -110,8 +110,10 @@ describe('bd-60128 — buildMixedPaper', () => {
     // bd-60141 — the paper is now SAMPLED to 2 MCQs + 1 CRQ, so its length is
     // 3 rather than every-MCQ + 1. What this test guards is position, not
     // size: the written answer must close the exam.
+    // bd-vej4h — the quota is now 4 MCQs, so a 3-MCQ bank serves all three
+    // plus the CRQ.
     const paper = buildMixedPaper(MCQS, CRQS, 'attempt-a');
-    expect(paper).toHaveLength(3);
+    expect(paper).toHaveLength(4);
     expect(isOpenEndedQuestion(paper[paper.length - 1])).toBe(true);
     expect(paper.slice(0, -1).every(q => !isOpenEndedQuestion(q))).toBe(true);
   });
@@ -125,8 +127,8 @@ describe('bd-60128 — buildMixedPaper', () => {
   });
 
   test('a module with no CRQ is just its MCQs — no empty slot', () => {
-    // bd-60141 — "its MCQs" is now the 2 sampled ones, not all of them.
-    expect(buildMixedPaper(MCQS, [], 'a')).toHaveLength(2);
+    // bd-vej4h — up to 4 sampled MCQs; this bank has 3, so all of them.
+    expect(buildMixedPaper(MCQS, [], 'a')).toHaveLength(3);
   });
 
   test('a module with only a CRQ is a one-question paper', () => {
@@ -137,7 +139,8 @@ describe('bd-60128 — buildMixedPaper', () => {
 });
 
 describe('bd-60128 — scoreMixedPaper', () => {
-  test('MCQs count 1 each; the CRQ contributes its rubric mark', () => {
+  // bd-vej4h — I-SAPS: MCQs are worth 5 marks each (were 1).
+  test('MCQs count 5 each; the CRQ contributes its rubric mark', () => {
     const out = scoreMixedPaper({
       answers: [
         { question_index: 0, is_correct: true },
@@ -148,9 +151,9 @@ describe('bd-60128 — scoreMixedPaper', () => {
       mcqCount: 3,
       crqMaxPoints: 10,
     });
-    // 2 of 3 MCQs + 7 of 10 CRQ marks = 9 of 13
-    expect(out.earned).toBe(9);
-    expect(out.possible).toBe(13);
+    // 2 of 3 MCQs (10 of 15) + 7 of 10 CRQ marks = 17 of 25
+    expect(out.earned).toBe(17);
+    expect(out.possible).toBe(25);
   });
 
   test('an unanswered CRQ scores zero, not undefined', () => {
@@ -158,8 +161,8 @@ describe('bd-60128 — scoreMixedPaper', () => {
       answers: [{ question_index: 0, is_correct: true }],
       mcqCount: 1, crqMaxPoints: 10,
     });
-    expect(out.earned).toBe(1);
-    expect(out.possible).toBe(11);
+    expect(out.earned).toBe(5);
+    expect(out.possible).toBe(15);
   });
 
   test('a paper with no CRQ scores out of its MCQs alone', () => {
@@ -167,7 +170,7 @@ describe('bd-60128 — scoreMixedPaper', () => {
       answers: [{ question_index: 0, is_correct: true }],
       mcqCount: 1, crqMaxPoints: 0,
     });
-    expect(out.possible).toBe(1);
+    expect(out.possible).toBe(5);
   });
 
   test('a CRQ mark above its cap is clamped, never inflating the score', () => {
@@ -182,6 +185,6 @@ describe('bd-60128 — scoreMixedPaper', () => {
   test('no answers at all is 0 of the full paper', () => {
     const out = scoreMixedPaper({ answers: [], mcqCount: 3, crqMaxPoints: 10 });
     expect(out.earned).toBe(0);
-    expect(out.possible).toBe(13);
+    expect(out.possible).toBe(25);
   });
 });

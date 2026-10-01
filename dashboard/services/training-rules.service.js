@@ -237,6 +237,20 @@ async function certifyLevel({ userId, levelId, attemptId = null, programId = nul
  * portal had NONE of this before, and adding a local copy would recreate the
  * exact drift this module was built to remove.
  */
+/**
+ * bd-vej4h — each unit's lock in one course, for the portal list. Display
+ * only: on any failure the list renders as before (no locks shown) and the
+ * server-side open gate still refuses a locked unit.
+ */
+async function unitLocks(userId, courseId) {
+  try {
+    const data = await ask('unit-locks', { userId, courseId });
+    return (data && data.locks) || {};
+  } catch (_) {
+    return {};
+  }
+}
+
 async function moduleExamGate(userId, courseId) {
   return gate('module-exam-gate', () => ask('module-exam-gate', { userId, courseId }));
 }
@@ -342,6 +356,7 @@ async function servePaper(questions, { attemptId, isModuleQuiz, vendor } = {}) {
 }
 
 module.exports = {
+  unitLocks,
   getLevelStates,
   markPaper,
   servePaper,

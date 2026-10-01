@@ -38,8 +38,8 @@ jest.mock('../../bot/shared/storage/r2', () => ({
   uploadReportImage: jest.fn(),
   uploadReportPDF: jest.fn(),
 }));
-jest.mock('../../bot/shared/services/audio.service', () => ({
-  generateSpeechForLanguage: jest.fn().mockResolvedValue(Buffer.alloc(32000)),
+jest.mock('../../bot/shared/services/tts', () => ({
+  synthesize: jest.fn().mockResolvedValue({ audio: Buffer.alloc(32000), mimeType: 'audio/ogg', extension: 'ogg', durationSec: 2 }),
 }));
 jest.mock('../../bot/shared/services/coaching/coaching-helpers.service', () => ({
   determineOutputLanguage: jest.fn().mockResolvedValue('ur'),

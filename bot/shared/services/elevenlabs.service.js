@@ -158,6 +158,12 @@ class ElevenLabsService {
    * @param {string} languageCode - Language code (en, es, ur, ar)
    * @returns {Promise<Buffer>} Audio buffer (MP3 or OGG format)
    */
+  /**
+   * @deprecated Features no longer call this: every voice note goes through the
+   * voice gateway (services/tts), which uses generateSpeechWithVoice /
+   * generateSpeechOpenAI below as the ElevenLabs and OpenAI transports and holds
+   * the cassette seam. tests/setup/tts-single-seam.test.js stops new callers.
+   */
   static async generateSpeechForLanguage(text, languageCode = 'en') {
     const voiceConfig = VOICE_MODELS[languageCode];
 
@@ -205,9 +211,11 @@ class ElevenLabsService {
    * @param {string} text - Text to convert to speech
    * @param {string} voiceId - ElevenLabs voice ID
    * @param {string} languageCode - Language code for logging
-   * @returns {Promise<Buffer>} Audio buffer (MP3 format)
+   * @param {object} [voiceSettingsOverride] - replaces the per-language settings
+   *   (video narration keeps its own expressive settings)
+   * @returns {Promise<Buffer>} Audio buffer (Ogg Opus)
    */
-  static async generateSpeechWithVoice(text, voiceId, languageCode) {
+  static async generateSpeechWithVoice(text, voiceId, languageCode, voiceSettingsOverride) {
     try {
       logToFile('Generating speech with ElevenLabs', {
         textLength: text.length,
@@ -220,9 +228,9 @@ class ElevenLabsService {
       // bd-2375: Sara (Urdu) reads best at the LP-voicenotes V20 settings —
       // higher stability keeps Nastaliq + code-switched English steady. The
       // expressive 0.0-stability profile stays for en/es/ar (audio tags).
-      const voiceSettings = languageCode === 'ur'
+      const voiceSettings = voiceSettingsOverride || (languageCode === 'ur'
         ? { stability: 0.7, similarity_boost: 0.85, style: 0.0, use_speaker_boost: true }
-        : { stability: 0.0, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true };
+        : { stability: 0.0, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true });
 
       // bd-z5olm: Ogg Opus for the WhatsApp voice bubble — see generateSpeech.
       const response = await ElevenLabsService._postTts(

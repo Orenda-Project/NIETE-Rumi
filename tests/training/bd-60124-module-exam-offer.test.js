@@ -50,10 +50,13 @@ describe('bd-60124 — shouldOfferModuleExam', () => {
   // bd-60164 — inverted deliberately. Sequencing is gone: an exam may be sat
   // at any point, and the level certificate is the only thing that checks
   // whether the work is complete.
-  test('module not finished → the exam is STILL offered', () => {
+  // INVERTED 2026-10-01 (bd-vej4h). Was "module not finished → the exam is
+  // STILL offered". The exam now waits for the module's units (I-SAPS gates),
+  // so offering it mid-module would interrupt with an exam that is closed.
+  test('module not finished → the exam is NOT offered yet', () => {
     expect(shouldOfferModuleExam({
       vendorKey: 'ISAPS', unitsTotal: 6, unitsDone: 4, mcqCount: 8, crqCount: 4, alreadyPassed: false,
-    })).toBe(true);
+    })).toBe(false);
   });
 
   test('a module with no units yet is never offered — no content, no exam', () => {
