@@ -207,7 +207,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I selected a lesson plan for one lesson
     When I send a classroom recording of a clearly different lesson and the report arrives
     Then the Lesson Plan Fidelity line says the classroom recording does not match the selected lesson plan, so it is 0%
-    And the same line says what the recording shows I taught, written only in my report's language
+    And that line gives no other reason
     And no line of the report names, lists or judges an activity or topic from the selected lesson plan
     And the report's next horizon is not Lesson Plan Fidelity
     # bd-5lrgh (ICT sheet DC row 142) — the grader sets moderators.note = lesson_mismatch and Section B = 0;
