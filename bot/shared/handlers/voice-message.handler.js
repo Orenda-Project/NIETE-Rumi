@@ -37,6 +37,7 @@ const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // 
 const { isLp612Enabled, isLp612RouteAll } = require('../config/lp612-flags'); // the cutover switch
 // Language cache for ASR routing based on user preference
 const { getUserLanguage, setUserLanguage } = require('../utils/language-cache');
+const { redirectIfFlagged } = require('../services/app-redirect.service');
 
 /**
  * Speak `text` to the teacher as a voice note. If no voice can be made, or the
@@ -727,7 +728,13 @@ async function handleVoiceMessage(message, from, user = null) {
           .limit(1)
           .single();
 
-        if (activeCoaching) {
+        // bd-lfzoz: a PORTAL session's reflective question was never shown on
+        // WhatsApp — she answers it in the portal — so it must not capture her
+        // chat (a stray message would be filed as her answer; a slash command
+        // would abandon it). Rows with no source, i.e. every WhatsApp session,
+        // pass exactly as before.
+        const { isWhatsAppReflectiveSession } = require('../services/coaching/portal-coaching.service');
+        if (isWhatsAppReflectiveSession(activeCoaching)) {
           logToFile('🎓 Active coaching session detected - processing as reflective response', {
             coachingSessionId: activeCoaching.id,
             conversationState: activeCoaching.conversation_state?.current_state
@@ -855,6 +862,11 @@ async function handleVoiceMessage(message, from, user = null) {
 
         // Stop typing indicator
         typingController.stop();
+
+        // bd-onxyu — a classroom recording IS a coaching request.
+        if (user?.id && await redirectIfFlagged('ai_coaching', {
+          userId: user.id, from, language: await getUserLanguage(user.id), reason: 'classroom_audio',
+        })) return;
 
         // Route to classroom coaching flow
         if (user && sessionId) {
@@ -1251,6 +1263,17 @@ async function handleVoiceMessage(message, from, user = null) {
     logToFile('Step 5: Detecting intent from transcription...');
     const intent = await OpenAIService.detectIntent(transcription);
     logToFile('Intent detected', { intent: intent.type });
+
+    // bd-onxyu — a voice note is an open message: same switches as the text path.
+    const voiceFeature = {
+      lesson_plan: 'lesson_plan', presentation: 'presentation', video: 'video',
+    }[intent.type] || 'general_chat';
+    if (user?.id && await redirectIfFlagged(voiceFeature, {
+      userId: user.id, from, language: detectedLanguage, reason: 'voice_intent',
+    })) {
+      typingController.stop();
+      return;
+    }
 
     // Update session type for voice messages
     if (sessionId && intent.type !== 'general') {

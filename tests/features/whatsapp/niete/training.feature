@@ -1156,3 +1156,25 @@ Feature: NIETE (ICT) Teacher Training
     # even tell what is happening" — the logs showed Continue tapped twice a second apart. The
     # reason used to sit at the TOP of the screen; it now sits under the offending box (a single
     # bad box) or above Continue (a total over 50, which belongs to no one box).
+
+  # ─────────── app redirect (bd-onxyu) — Teacher Training moved to the NIETE app ───────────
+  # One switch per feature (app_redirect_<feature>), off by default, so none of this is visible
+  # until an operator turns Teacher Training's switch on. The quiet hour is per teacher and shared
+  # by every switch. Unit: tests/app-redirect/ (service + every door, red-first).
+
+  @e2e @config-gated @P1 @T92
+  Scenario: With Teacher Training moved to the app, /training sends me to the Play Store instead
+    Given the NIETE bot chat is open
+    And Teacher Training has been switched to the NIETE app
+    When I send "/training"
+    Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
+    And no training Flow opens
+
+  @e2e @config-gated @P1 @T93
+  Scenario: Asking again within the hour gets no reply at all
+    Given the NIETE bot chat is open
+    And Teacher Training has been switched to the NIETE app
+    And the bot sent me to the Play Store less than an hour ago
+    When I send "/training"
+    Then the bot does not reply
+    # After the hour the next request gets the Play Store message again.

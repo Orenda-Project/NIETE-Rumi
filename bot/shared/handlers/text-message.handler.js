@@ -208,6 +208,7 @@ function isSelectVideoButton({ buttonId, buttonPayload, buttonText } = {}) {
 // it can be tested without this module's dependency graph, and widened there to
 // match the plural (`/videos`), which used to fall through to the chat LLM.
 const { isVideoCommand } = require('./video-command');
+const { redirectIfFlagged } = require('../services/app-redirect.service');
 // A bare request for the quiz menu, in any spelling. The /quiz door and the
 // reason windows below both read it, so a quiz request is never a 👎 reason.
 const { isQuizMenuRequest } = require('../services/quiz/quiz-menu-request');
@@ -638,6 +639,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   const trimmedMessage = messageBody.trim().toLowerCase();
 
+  // bd-onxyu — the app-redirect switches. Each feature door below asks first;
+  // true means handled (the Play Store notice went, or the quiet hour silenced
+  // it) and the door returns without running the feature. Off — the default —
+  // is false and changes nothing. Unregistered senders are never redirected.
+  const redirectToApp = async (feature, reason) => {
+    if (!user?.id) return false;
+    const handled = await redirectIfFlagged(feature, { userId: user.id, from, language: responseLanguage, reason });
+    if (handled) typingController.stop();
+    return handled;
+  };
+
   // Student Video feedback reason capture — if the teacher tapped "Not really"
   // on a recent video survey and is within the 10-min reason window, capture
   // this text as the reason and short-circuit. Slash commands bypass this
@@ -677,6 +689,11 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       typingController.stop();
       return;
     }
+
+    const chipFeature = {
+      lesson_plan: 'lesson_plan', video: 'video', ai_coaching: 'ai_coaching', training: 'teacher_training',
+    }[action];
+    if (chipFeature && await redirectToApp(chipFeature, 'chip')) return;
 
     try {
       switch (action) {
@@ -760,6 +777,9 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   if (user && !trimmedMessage.startsWith('/')) {
     try {
       const ExamCheckerHandler = require('./exam-checker.handler');
+      if (ExamCheckerHandler.shouldTriggerExamChecker(messageBody)
+          && !(await ExamCheckerHandler.hasActiveExamSession(user.id))
+          && await redirectToApp('exam_checker', 'keyword')) return;
       const result = await ExamCheckerHandler.handleExamText(message, from, user);
       if (result && result.handled) {
         logToFile('✅ Message handled by Exam Checker', { userId: user.id });
@@ -822,6 +842,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // normal processing — teacher behaviour provably unchanged.
   // ============================================================
   if (/^\/observe\b/i.test(trimmedMessage)) {
+    if (await redirectToApp('observe', 'command')) return;
     const { handleObserveCommand } = require('./observe-command.handler');
     const observeHandled = await handleObserveCommand(user, from, trimmedMessage);
     if (observeHandled) return;
@@ -835,6 +856,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // Returns false on a non-match so normal chat is untouched.
   // ============================================================
   if (/^\/remark\b/i.test(trimmedMessage)) {
+    if (await redirectToApp('remark', 'command')) return;
     const { handleRemarkCommand } = require('./remark-command.handler');
     const remarkHandled = await handleRemarkCommand(user, from, trimmedMessage);
     if (remarkHandled) return;
@@ -883,6 +905,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // The command body lives in handlers/roster-command.js so it can be executed
   // by a test; this branch only dispatches.
   if (trimmedMessage === '/roster') {
+    if (await redirectToApp('classes', 'command')) return;
     const { handleRosterCommand } = require('./roster-command');
     await handleRosterCommand({ user, from, typingController, noAccountCopy });
     return;
@@ -893,6 +916,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   if (trimmedMessage === '/reading test' || trimmedMessage === '/readingtest') {
     logToFile('📖 /reading test command detected', { userId: user?.id, phoneNumber: from });
+    if (await redirectToApp('reading_test', 'command')) return;
 
     if (!user) {
       // Edge case: user not found in database
@@ -1052,6 +1076,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     lowerTrimmed === 'open trainings'
   ) {
     logToFile('🎓 /training command detected', { userId: user?.id, phoneNumber: from });
+    if (await redirectToApp('teacher_training', 'command')) return;
     if (!user) {
       typingController.stop();
       await WhatsAppService.sendMessage(
@@ -1086,6 +1111,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   const certCommand = parseCertificateCommand(trimmedMessage);
   if (certCommand) {
     logToFile('🏆 /certificates command detected', { userId: user?.id, phoneNumber: from, code: certCommand.code });
+    if (await redirectToApp('teacher_training', 'certificates_command')) return;
     if (!user) {
       typingController.stop();
       await WhatsAppService.sendMessage(
@@ -1155,6 +1181,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   if (['/assessment', '/assess', '/assessments', '/exam', '/exams'].includes(trimmedMessage)) {
     logToFile('📝 assessment command', { userId: user?.id, command: trimmedMessage });
+    if (await redirectToApp('assessment_generator', 'command')) return;
     if (!user) {
       typingController.stop();
       await WhatsAppService.sendMessage(from,
@@ -1187,6 +1214,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   if (TranscriptQuizList.isQuizCommand(messageBody)
       && !(TranscriptQuizOffer.enabled() === false && !/^\/quiz(\s|$)/i.test(trimmedMessage))) {
     logToFile('📝 /quiz command detected', { userId: user?.id, phoneNumber: from });
+    if (await redirectToApp('quiz', 'command')) return;
     if (!user) {
       typingController.stop();
       await WhatsAppService.sendMessage(
@@ -1249,6 +1277,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   {
     const lpMatch = matchLessonPlanIntent(trimmedMessage);
+    if (lpMatch.matched && await redirectToApp('lesson_plan', 'bare_command')) return;
     if (lpMatch.matched && process.env.PAKISTAN_LP_FLOW_ID) {
       logToFile('📘 LP bare command → opening catalogue Flow', {
         userId: user?.id, phoneNumber: from, message: trimmedMessage,
@@ -1280,6 +1309,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   if (isVideoCommand(trimmedMessage)) {
     logToFile('🎬 /video command detected', { userId: user?.id, phoneNumber: from });
+    if (await redirectToApp('video', 'command')) return;
 
     if (!user) {
       // bd-2475 (ported from PK) — a binge-declining child was told
@@ -1647,7 +1677,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         .limit(1)
         .single();
 
-      if (activeCoaching) {
+      // bd-lfzoz: a PORTAL session's reflective question was never shown on
+      // WhatsApp — she answers it in the portal — so it must not capture her
+      // chat (a stray message would be filed as her answer; a slash command
+      // would abandon it). Rows with no source, i.e. every WhatsApp session,
+      // pass exactly as before.
+      const { isWhatsAppReflectiveSession } = require('../services/coaching/portal-coaching.service');
+      if (isWhatsAppReflectiveSession(activeCoaching)) {
         // ONE call decides what this message is, and it deliberately has no
         // clock. The branch that used to live here asked whether `updated_at`
         // was more than an hour old and, if so, threw the teacher's answer away
@@ -2096,6 +2132,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // gap an inline regex accretes one alternative at a time.
   if (isClassesCommand(trimmedMessage)) {
     logToFile('🏫 /classes command detected', { userId: user?.id, phoneNumber: from });
+    if (await redirectToApp('classes', 'command')) return;
 
     if (!user) {
       await WhatsAppService.sendMessage(from,
@@ -2197,6 +2234,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     const HOMEWORK_FLOW_ID = process.env.HOMEWORK_FLOW_ID || '';
     const hwDecision = evaluateHomeworkTrigger({ messageBody, user, homeworkFlowId: HOMEWORK_FLOW_ID });
     if (hwDecision.match) {
+      if (await redirectToApp('homework', 'keyword')) return;
       typingController.stop();
       if (hwDecision.action === 'send_flow' && user) {
         const flowToken = `${user.id}:homework:${Date.now()}`;
@@ -2243,6 +2281,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   {
     const coachDecision = evaluateCoachingTrigger({ messageBody });
     if (coachDecision.match) {
+      if (await redirectToApp('ai_coaching', 'keyword')) return;
       typingController.stop();
       if (user) {
         await FeatureIntroService.sendFirstUseIntroIfNeeded(user.id, from, 'ai_coaching', responseLanguage);
@@ -2304,6 +2343,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // screen or a reply button; there is no typed-number step anywhere in this path.
   // ============================================================
   if (user?.id && AttendanceRouter.detect(messageBody).detected) {
+    if (await redirectToApp('attendance', 'keyword')) return;
     typingController.stop();
     // One door, in attendance-entry.service: it plans through the router and
     // then runs the ONE decision switch, the same one the typed-answer path
@@ -2672,6 +2712,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       logToFile('⚠️ Failed to update session type', { error: error.message });
     }
   }
+
+  // bd-onxyu — open messages. Whatever the classifier makes of it, the matching
+  // switch is asked; anything it does not name is general chat.
+  const intentFeature = {
+    lesson_plan: 'lesson_plan', presentation: 'presentation', video: 'video',
+  }[intent.type] || 'general_chat';
+  if (await redirectToApp(intentFeature, 'intent')) return;
 
   if (intent.type === 'lesson_plan') {
     // Curriculum pre-gen intercept (no-op unless the region enables it)

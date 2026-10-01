@@ -69,7 +69,51 @@ function isAssessmentGeneratorEnabled(supabase) {
   return isFlagEnabled(supabase, ASSESSMENT_GENERATOR_KEY);
 }
 
+/** bd-3bvfj — app_settings key for teacher self-observation from the portal. */
+const PORTAL_SELF_OBSERVATION_KEY = 'portal_self_observation';
+
+/**
+ * bd-3bvfj — a flag that can be on for EVERYONE or for a PILOT.
+ *
+ *   true (or "true")            → on for every user
+ *   ["<user id>", …] (or JSON)  → on only for those users.id values
+ *   anything else, no row, or a failed read → OFF
+ *
+ * Same fail-closed rule as isFlagEnabled: the only way on is a deliberate,
+ * well-formed value. An object, a number or an empty list is OFF, and a pilot
+ * list never matches a missing user.
+ *
+ * @param {object} supabase
+ * @param {string} key app_settings.key
+ * @param {string|null} userId the SESSION user
+ * @returns {Promise<boolean>}
+ */
+async function isFlagEnabledForUser(supabase, key, userId) {
+  if (!userId) return false;
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', key)
+      .maybeSingle();
+    if (error || !data) return false;
+
+    let value = data.value;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch (_) { /* fall through to the raw string */ }
+    }
+    if (value === true) return true;
+    if (typeof value === 'string') return value.trim().toLowerCase() === 'true';
+    if (Array.isArray(value)) return value.some((id) => typeof id === 'string' && id === userId);
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
 module.exports = {
+  PORTAL_SELF_OBSERVATION_KEY,
+  isFlagEnabledForUser,
   ASSESSMENT_GENERATOR_KEY,
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
   isFlagEnabled,
