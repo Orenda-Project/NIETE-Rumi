@@ -709,4 +709,15 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('COA56', 'In Urdu, the coaching messages never guess my gender', 'BLOCKED',
       { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA58', 'The coaching report and voice note give the lesson\'s scores as numbers', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('COA58', 'Picking my lesson plan from the list asks me to confirm before it is used', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
 };

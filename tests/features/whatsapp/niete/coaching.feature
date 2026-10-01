@@ -139,7 +139,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
 
   @obsolete @slow @content-driven @P2 @COA18
   Scenario: Every score a teacher receives is a band, never a number
-    # OBSOLETE 2026-10-01 (bd-895yd): bands were meant for the PORTAL only; the WhatsApp report, card and voice note are reverted to their numbers. Superseded by @COA19 below. Kept (not deleted) for the audit trail.
+    # OBSOLETE 2026-10-01 (bd-895yd): bands were meant for the PORTAL only; the WhatsApp report, card and voice note are reverted to their numbers. Superseded by @COA58 below. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open
     And my coaching analysis has finished
     When the report and the voice note are delivered
@@ -152,7 +152,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # بہترین / اچھا / اوسط / اوسط سے کم / مدد درکار. Assert that NO number appears and
     # that A band word does — never which band, because that depends on the lesson.
 
-  @e2e @slow @content-driven @P2 @COA19
+  @e2e @slow @content-driven @P2 @COA58
   Scenario: The coaching report and voice note give the lesson's scores as numbers
     Given the NIETE bot chat is open
     And my coaching analysis has finished
