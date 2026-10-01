@@ -455,6 +455,11 @@ module.exports.run = async function runExt(ctx) {
       ? (cites.length ? V(notDoneCitingPhoto.length === 0, { photoCitations: cites, photo_evidence: short(JSON.stringify(pe), 200), photo_citations: fid.photo_citations, fidelity_pct: fid.fidelity_pct, notDoneCitingPhoto: notDoneCitingPhoto.length })
                       : B(Object.keys(fid).length ? 'content-driven: no lesson-plan move was credited from a photo in this lesson (the contract cannot be asserted without one)' : 'the fidelity grader never ran (worker: not_assessed_reason ' + notAssessedReason(r4.sessionId) + '), so no move could be credited from the photo', { photo_evidence: short(JSON.stringify(pe), 200), fidelity_status: fid.status, fidelity_pct: fid.fidelity_pct, photo_reads: reads, lpLink: r4.lpReply }))
       : B(r4.stalled || (r4.report ? 'the lesson plan was not linked (has_lesson_plan false)' : 'no report arrived'), { lp: r4.lpReply, lpVerdict: r4.lpVerdict, extraction: r4.session && r4.session.lesson_plan_extraction_status })));
+    const cf = r4.lpReply && r4.lpReply.confirm; const s4 = r4.session || {};
+    set('COA59', ...(r4.lpReply && r4.lpReply.via === 'recent' && r4.lpReply.picked
+      ? V(!!cf && /You have selected|منتخب/.test(cf.prompt) && cf.prompt.includes(String(r4.lpReply.picked).replace(/…$/, '').slice(0, 12)) && (cf.btns || []).some((b) => /Change lesson plan|تبدیل/i.test(b)) && s4.has_lesson_plan === true && s4.lesson_plan_link_method === 'selected_recent',
+          { picked: r4.lpReply.picked, confirmation: cf, has_lesson_plan: s4.has_lesson_plan, link_method: s4.lesson_plan_link_method })
+      : B('no recent lesson plan was offered to pick, so there was nothing to confirm', { lp: r4.lpReply })));
     const left = SC.faultsLeft();
     set('COA29', ...(r4.report && r4.session.has_lesson_plan
       ? V(fid.empty_retry === true || !!fid.empty_retry, { empty_retry: fid.empty_retry, framework: a.framework, fidelityKeys: Object.keys(fid), reasoning_effort: fid.reasoning_effort || (fid.runs && fid.runs.map((x) => x.reasoning_effort)), runs: Array.isArray(fid.runs) ? fid.runs.length : fid.runs, model: fid.model, status: fid.status, faultConsumed: left.length === 0,
