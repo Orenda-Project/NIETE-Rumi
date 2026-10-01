@@ -582,3 +582,31 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # OBSOLETE 2026-09-30 (bd-2c1gj): the operator widened the confirmation to the teacher's own Digital Coach
     # flow — the same list, the same slip. Replaced by coaching.feature "Picking my lesson plan from the list
     # asks me to confirm before it is used".
+
+  # ── The teacher hears about her own visit ──────────────────────────────────
+  # observe-teacher-notice.service sends an approved UTILITY template, gated by
+  # OBSERVE_TEACHER_NOTIFY_ENABLED; the portal routes reach it through
+  # POST /api/internal/observe/notify-teacher.
+
+  @e2e @config-gated @P1
+  Scenario: The teacher gets the date and time on WhatsApp when a coach books her visit
+    Given OBSERVE_TEACHER_NOTIFY_ENABLED is on and the visit-notice templates are approved
+    And a coach has a teacher with a WhatsApp number in her patch
+    When the coach books a visit for that teacher on a date and time slot, in WhatsApp or on the portal
+    Then the teacher receives a message naming the coach, her school, the date and the time
+    And the message is in the teacher's own language, not the coach's
+
+  @e2e @config-gated @P1
+  Scenario: Moving or cancelling a visit tells the teacher
+    Given a teacher has been told about an upcoming visit
+    When the coach moves the visit to a different date or time
+    Then the teacher receives a message with the new date and time
+    When the coach cancels the visit
+    Then the teacher receives a message that the visit is cancelled
+
+  @e2e @config-gated @negative @P2
+  Scenario: Re-saving a visit unchanged, or a teacher with no number, sends nothing
+    Given a coach has an upcoming visit booked for a teacher
+    When the coach saves the same visit again on the same date and time slot
+    Then the teacher receives no new message
+    And the coach's booking of a hand-added teacher with no WhatsApp number is saved without any message
