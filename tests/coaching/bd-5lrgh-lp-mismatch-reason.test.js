@@ -9,9 +9,10 @@
  * was told what she had not done from a lesson she never taught.
  *
  * The fix is report text only; no score changes. When the grader flagged a mismatch
- * AND Section B is 0, the Section B line is written in code (the catalogue line the
- * field team asked for) plus one sentence on what the RECORDING shows was taught; the
- * plan's moves never reach the model, and the "next horizon" never lands on that 0.
+ * AND Section B is 0, the Section B line is written in code — the catalogue line the
+ * field team asked for, and nothing else (operator, 2026-10-01: "just need to have that
+ * why it was marked zero because of mismatch"); the plan's moves never reach the model,
+ * and the "next horizon" never lands on that 0.
  * A flagged session whose Section B is still above 0 is left exactly as it was — a
  * line saying "0%" beside a non-zero bar would be a second contradiction.
  */
@@ -105,25 +106,19 @@ describe('buildFicoGroups — the Section B row carries the line', () => {
 });
 
 describe('attachDomainWhys — the model cannot overwrite the mismatch line', () => {
-  test('the model\'s Section B diagnosis is ignored; the taught-sentence is appended', () => {
-    const groups = buildFicoGroups(analysis(), 'en');
+  test.each(['en', 'ur'])('%s: the line is the catalogue sentence only — no model text is added to it', (lang) => {
+    const groups = buildFicoGroups(analysis(), lang);
     attachDomainWhys(groups, { lesson_plan_fidelity: `not full marks because ${PLAN_MOVE}`, student_engagement: 'D why' },
       { lessonMismatchTaught: 'The recording shows a reading lesson on sentence order and syllables.' });
     const b = sectionB(groups);
-    expect(b.why).toBe(`${resolveUx('reportLpMismatch', { language: 'en' })} The recording shows a reading lesson on sentence order and syllables.`);
+    expect(b.why).toBe(resolveUx('reportLpMismatch', { language: lang }));
     expect(b.why).not.toContain('countable');
     expect(groups.find((g) => g.domainKey === 'student_engagement').why).toBe('D why');
   });
 
-  test('no taught-sentence → the catalogue line stands alone', () => {
-    const groups = buildFicoGroups(analysis(), 'ur');
-    attachDomainWhys(groups, { lesson_plan_fidelity: 'model text' });
-    expect(sectionB(groups).why).toBe(resolveUx('reportLpMismatch', { language: 'ur' }));
-  });
-
   test('a normal session still takes the model\'s Section B why', () => {
     const groups = buildFicoGroups(analysis({ note: null }), 'en');
-    attachDomainWhys(groups, { lesson_plan_fidelity: 'B why' }, { lessonMismatchTaught: 'ignored' });
+    attachDomainWhys(groups, { lesson_plan_fidelity: 'B why' });
     expect(sectionB(groups).why).toBe('B why');
   });
 });
@@ -131,12 +126,12 @@ describe('attachDomainWhys — the model cannot overwrite the mismatch line', ()
 describe('buildPrompt — the plan never reaches the why-writer on a mismatch', () => {
   const opts = { transcript: '[00:05] read the sentences', language: 'en', teacherName: 'Annie' };
 
-  test('no plan move text, a mismatch instruction, and a taught-sentence field', () => {
+  test('no plan move text, a mismatch instruction, and no extra field to fill for that line', () => {
     const p = buildPrompt(analysis(), opts);
     expect(p).not.toContain(PLAN_MOVE);
     expect(p).not.toContain('Moves missed or partial');
     expect(p).toMatch(/LESSON MISMATCH/);
-    expect(p).toContain('"lesson_mismatch_taught"');
+    expect(p).not.toContain('lesson_mismatch_taught');
   });
 
   test('the next horizon is not the mismatched Section B', () => {
