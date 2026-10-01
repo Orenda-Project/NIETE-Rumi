@@ -1,5 +1,5 @@
 // @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
-/* coaching.feature — every @e2e scenario in ONE driver, bound by its id tag (@COA01 … @COA59).
+/* coaching.feature — every @e2e scenario in ONE driver, bound by its id tag (@COA01 … @COA60).
  * COA01–COA15, COA57 and COA22/COA17/COA59 (BLOCKED, with their reasons) are driven below; the rest through coaching-ext.cjs.
  *
  * ─── MOCKING ────────────────────────────────────────────────────────────────
@@ -592,8 +592,8 @@ exports.run = async ({ api, rec, sleep }) => {
     rec(id, name, DEEP ? (r ? r[0] : 'BLOCKED') : 'SKIP',
         DEEP ? (r ? r[1] : { reason: 'coaching-ext did not record it' + (extErr ? ' — the extension threw: ' + String(extErr.message).slice(0, 200) : '') })
              : { why: '@wip/@draft — run with DEEP=1' }, 0); };
-  E('COA18', 'Every score a teacher receives is a band, never a number');
-  E('COA58', 'The two coaching entry points quote different minimum audio lengths (@known-issue)');
+  E('COA58', "The coaching report and voice note give the lesson's scores as numbers");
+  E('COA60', 'The two coaching entry points quote different minimum audio lengths (@known-issue)');
   E('COA19', 'A report built without the reflection never claims a total of three questions');
   E('COA20', 'A lesson-plan move is credited from what a classroom photo shows');
   E('COA21', 'The same recording sent twice returns the report already made, not a second score');

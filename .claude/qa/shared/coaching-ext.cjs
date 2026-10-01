@@ -270,17 +270,23 @@ module.exports.run = async function runExt(ctx) {
     await api.openList(opener); const p = await api.pickRowAndWait(row, 60000); return p;
   };
   try { const u0 = dbJson(api, 'user-get'); if (u0.preferred_language !== 'en' || u0.language_locked) { await pickLanguage('English'); } } catch (_) {}
-  await guard(['COA18', 'COA26', 'COA31', 'COA32'], async () => {
+  await guard(['COA58', 'COA26', 'COA31', 'COA32'], async () => {
     const sess = dbJson(api, 'session-get', ['--status', 'completed']);
     const rows = (r1 && r1.rows) || [];
     const rep = rows.find((r) => r.doc || r.img);
     const text = rep ? await reportTextOf({ kind: rep.img ? 'image' : 'document', mediaId: mediaIdOf(rep) }, sess.id) : { ok: false, err: 'no report row in run 1' };
     const debrief = String((sess.analysis || {}).voice_debrief_script || '');
     const nums = text.ok ? digits(text.text) : [];
-    set('COA18', ...(text.ok
-      ? V(bandWords.test(text.text) && nums.length === 0 && !/\d+\s*%|out of/i.test(debrief),
-          { reportKind: rep.doc ? 'document' : 'image', textVia: text.via || 'pdf', bandWordFound: (text.text.match(bandWords) || [])[0] || null, numericScoreMentions: nums.slice(0, 8),
-            debriefHasScore: /\d+\s*%|out of/i.test(debrief), debriefHead: short(debrief, 160), pages: text.pages })
+    // bd-895yd (2026-10-01): bands are portal-only; the WhatsApp report, card and voice note show NUMBERS again.
+    // PASS = the report text carries a percentage and "out of" / x/y section scores, the voice note says a score,
+    // and no band word is used as a score label (a band word inside prose is not a label).
+    const pct = text.ok ? (text.text.match(/\d+(?:\.\d+)?\s*%/g) || []) : [];
+    const outOf = text.ok ? (text.text.match(/\d+(?:\.\d+)?\s*(?:\/|out of)\s*\d+/g) || []) : [];
+    const bandLabel = text.ok ? (text.text.match(/(?:Overall|Score|Rating)\s*[:：]\s*(Excellent|Good|Average|Below average|Needs support)\b/i) || [])[0] : null;
+    const debriefNum = /\d+\s*%|out of \d+|\d+\s*\/\s*\d+|فیصد/.test(debrief);
+    set('COA58', ...(text.ok
+      ? V(pct.length > 0 && outOf.length > 0 && !bandLabel && debriefNum,
+          { reportKind: rep.doc ? 'document' : 'image', textVia: text.via || 'pdf', percentages: pct.slice(0, 4), sectionScores: outOf.slice(0, 6), bandUsedAsScoreLabel: bandLabel, debriefSaysScore: debriefNum, debriefHead: short(debrief, 160) })
       : B('the report text could not be read: ' + text.err)));
     const q = (sess.questions || [])[0];
     set('COA26', ...(q ? V(latinOnly(q.question) && String(q.language || 'en').startsWith('en'), { question: short(q.question, 200), language: q.language, transcriptLanguage: sess.transcript_language })
@@ -302,14 +308,14 @@ module.exports.run = async function runExt(ctx) {
   });
 
   // COA58 — the known issue: two doors, two minimum lengths (documented, asserted as "they differ")
-  await guard('COA58', async () => {
+  await guard('COA60', async () => {
     // the menu list can land a beat after the reply settles (run 20261001-0614: rows=null once) — open it on a second try
     let row = null;
     for (let i = 0; i < 2 && !row; i++) { try { const m = await api.sendWait('/menu'); await api.openList(btnOf(m, /See what I do|فہرست دیکھیں/) || 'See what I do'); row = await api.pickRowAndWait('Classroom Coaching'); } catch (e) { if (i) throw e; await sleep(2000); } }
     await api.resetFlow();
     const kw = await api.sendWait('Can you give me feedback on my teaching?', 60000);
     const menuMin = (row.txt || '').match(/\d+ to \d+ minutes|at least \d+ minutes/i); const kwMin = (kw.txt || '').match(/up to \d+ minutes|at least \d+ minutes|\d+ to \d+ minutes/i);
-    set('COA58', ...V(!!menuMin && (!kwMin || kwMin[0] !== menuMin[0]),
+    set('COA60', ...V(!!menuMin && (!kwMin || kwMin[0] !== menuMin[0]),
       { menuDoor: menuMin && menuMin[0], keywordDoor: kwMin ? kwMin[0] : '(no length stated)', keywordReply: short(kw.txt, 160), note: '@known-issue — the spec documents that the two doors differ; PASS = still differ, FAIL = they now agree (retire the known issue)' }));
     await api.resetFlow();
   });
@@ -820,6 +826,6 @@ module.exports.run = async function runExt(ctx) {
   try { api.db('cancel-stuck'); api.db('purge-nudges'); SC.clearFaults(); await api.setUser({ preferred_language: 'en', name: 'E2E Driver', conversation_state: null, conversation_state_expires_at: null }); } catch (_) {}
   return out;
 };
-module.exports.ALL_IDS = ['COA18', 'COA58', 'COA19', 'COA20', 'COA21', 'COA23', 'COA24', 'COA16', 'COA25', 'COA26', 'COA27', 'COA28', 'COA29', 'COA30', 'COA31',
+module.exports.ALL_IDS = ['COA58', 'COA60', 'COA19', 'COA20', 'COA21', 'COA23', 'COA24', 'COA16', 'COA25', 'COA26', 'COA27', 'COA28', 'COA29', 'COA30', 'COA31',
   'COA32', 'COA33', 'COA35', 'COA36', 'COA39', 'COA40', 'COA41', 'COA42', 'COA43', 'COA44', 'COA45', 'COA46', 'COA47', 'COA48', 'COA49',
   'COA50', 'COA51', 'COA52', 'COA53', 'COA54', 'COA55', 'COA56'];

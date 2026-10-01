@@ -137,21 +137,19 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # The mock lane reads the flag on the outbound send; a WhatsApp Web run reads the bubble itself.
     # Pre-recorded lesson-plan voice notes go out by a different path and are deliberately unchanged.
 
-  @e2e @slow @content-driven @P2 @COA18
-  Scenario: Every score a teacher receives is a band, never a number
+  @e2e @slow @content-driven @P2 @COA58
+  Scenario: The coaching report and voice note give the lesson's scores as numbers
     Given the NIETE bot chat is open
     And my coaching analysis has finished
     When the report and the voice note are delivered
-    Then the report rates the lesson overall, and each of its sections, with one of Excellent, Good, Average, Below average or Needs support
-    And no percentage, no "points out of" and no marks line appears anywhere on the report
-    And the voice note describes how the lesson went without saying any score, percentage or "out of"
-    # ADDED 2026-09-29 (bd-wswm0). Operator: "remove the Observation scores
-    # everywhere from Numbers and Percentages to brackets … <20, <40, <60, <80,
-    # <100". The rule lives in bot/shared/config/score-bands.js; the Urdu words are
-    # بہترین / اچھا / اوسط / اوسط سے کم / مدد درکار. Assert that NO number appears and
-    # that A band word does — never which band, because that depends on the lesson.
+    Then the report shows the overall score as a percentage with its marks line, and each section as a score out of its maximum
+    And no band word (Excellent, Good, Average, Below average, Needs support) stands in for a score on the report
+    And the coaching card's focus line names the weakest indicator with its score out of the scale
+    # ADDED 2026-10-01 (bd-895yd). Operator: the band change "was supposed to be portal
+    # only". The portal keeps bands; everything a teacher receives on WhatsApp shows numbers,
+    # exactly as before 2026-09-29. Assert the numbers are present — never their values.
 
-  @e2e @known-issue @COA58
+  @e2e @known-issue @COA60
   Scenario: The two coaching entry points quote different minimum audio lengths
     Given the NIETE bot chat is open
     When I reach coaching from the menu versus from a keyword request
