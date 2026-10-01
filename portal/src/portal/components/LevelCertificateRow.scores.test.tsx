@@ -62,4 +62,15 @@ describe("score sheet on the certificate card", () => {
     await screen.findByTestId("level-certificate-claim");
     expect(screen.queryByTestId("level-scores-toggle")).not.toBeInTheDocument();
   });
+
+  it("bd-hxm7a: a held written answer says it is being graded, never a mark", async () => {
+    const held = { ...STATE, scores: { modules: [{ ...STATE.scores.modules[0],
+      exam: { passed: false, pending: true, mcq_correct: 4, mcq_served: 4, mcq_earned: 20, mcq_possible: 20, crq_earned: null, crq_max: 10 } }] } };
+    (api.get as any).mockResolvedValue({ data: held });
+    render(<LevelCertificateRow levelId={27} />);
+    await userEvent.click(await screen.findByTestId("level-scores-toggle"));
+    expect(screen.getByText(/Module exam being graded/)).toBeInTheDocument();
+    expect(screen.getByText(/Written answer being graded/)).toBeInTheDocument();
+    expect(screen.queryByText(/\/10/)).not.toBeInTheDocument();
+  });
 });

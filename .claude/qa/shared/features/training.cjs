@@ -1697,5 +1697,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
     rec('T87', "An I-SAPS module exam opens only once that module's sessions are passed", 'BLOCKED', { reason: why }, 0);
     rec('T88', 'An I-SAPS module exam is 4 multiple-choice questions and 1 written answer, with two separate pass bars', 'BLOCKED', { reason: why }, 0);
     rec('T89', 'A failed I-SAPS module exam can be retaken straight away', 'BLOCKED', { reason: why }, 0);
+    rec('T90', 'An I-SAPS written answer is graded but its mark is not shown while results are held', 'BLOCKED',
+      { reason: why.replace('isaps-golive-gates.test.js', 'isaps-crq-hold.test.js') }, 0);
   }
 };

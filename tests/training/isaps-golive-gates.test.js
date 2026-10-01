@@ -195,6 +195,9 @@ function loadGrader() {
 
 function moduleExam({ mcq = [true, true, true, false], crq = 6, cooldownHours = 0 } = {}) {
   tableStates = {
+    // bd-hxm7a — these cases pin the RELEASED behaviour (results shown); the
+    // held behaviour is pinned in isaps-crq-hold.test.js.
+    app_settings: { rows: [{ key: 'isaps_crq_results_released', value: true }] },
     training_assessment_attempts: { rows: [{
       id: 'att-1', user_id: 'u1', quiz_kind: 'grand', grand_quiz_id: 37, training_module_id: null,
       level_id: 27, program_id: 'p1', total_questions: mcq.length + 1, status: 'in_progress',

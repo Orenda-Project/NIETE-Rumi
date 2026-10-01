@@ -26,6 +26,8 @@ import api from '../services/api';
 
 type ExamMarks = {
   passed: boolean;
+  /** bd-hxm7a — MCQs cleared, written answer graded but held. */
+  pending?: boolean;
   mcq_correct: number; mcq_served: number; mcq_earned: number; mcq_possible: number;
   crq_earned: number | null; crq_max: number;
 };
@@ -65,7 +67,7 @@ function ScoreSheetPanel({ sheet }: { sheet: ScoreSheet }) {
               <div className="font-medium text-foreground">{m.title}</div>
               <div className="text-muted-foreground">
                 {m.exam
-                  ? <>Module exam {m.exam.passed ? 'passed' : 'not passed yet'} · Multiple choice {m.exam.mcq_earned}/{m.exam.mcq_possible} · Written answer {m.exam.crq_earned ?? '—'}/{m.exam.crq_max}</>
+                  ? <>Module exam {m.exam.pending ? 'being graded' : m.exam.passed ? 'passed' : 'not passed yet'} · Multiple choice {m.exam.mcq_earned}/{m.exam.mcq_possible} · Written answer {m.exam.crq_earned === null ? 'being graded' : `${m.exam.crq_earned}/${m.exam.crq_max}`}</>
                   : 'Module exam: Not taken yet'}
               </div>
               <ul className="mt-1 grid gap-0.5">

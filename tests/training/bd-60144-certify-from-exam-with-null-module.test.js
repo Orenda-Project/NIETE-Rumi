@@ -59,6 +59,8 @@ function makeSupabase({ passedExamIds = [], unitsComplete = true } = {}) {
     training_levels: [{ id: 26, name: 'Level 1: Novice', vendor_id: 7 }],
     training_vendors: [{ id: 7, unlock_logic: 'all_modules' }],
     training_certificates: [],
+    // bd-hxm7a — this file pins the RELEASED behaviour: I-SAPS results are released.
+    app_settings: [{ key: 'isaps_crq_results_released', value: true }],
     teacher_training_progress: unitsComplete ? UNITS.map(u => ({ user_id: 'u1', module_id: u.id })) : [],
     users: [{ id: 'u1', name: 'Test Teacher', phone_number: '923000000000' }],
     training_assessment_attempts: passedExamIds.map(id => ({
