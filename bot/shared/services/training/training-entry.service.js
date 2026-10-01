@@ -40,6 +40,13 @@ const COPY = {
  * @returns {Promise<boolean>} true if the Flow was sent, false if it fell back
  */
 async function openTrainingFlow(user, from, language = 'en') {
+  // bd-onxyu — every training door passes through here, so the app-redirect
+  // switch is asked here too (the routers ask first; this catches any new door).
+  const { redirectIfFlagged } = require('../app-redirect.service');
+  if (await redirectIfFlagged('teacher_training', { userId: user?.id, from, language, reason: 'training_door' })) {
+    return false;
+  }
+
   const flowId = process.env.TEACHER_TRAINING_FLOW_ID || '';
 
   if (!flowId) {

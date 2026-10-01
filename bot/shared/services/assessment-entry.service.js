@@ -30,6 +30,10 @@ const { resolveUx } = require('../config/ux-strings');
  * @returns {Promise<boolean>} true if the Flow was sent
  */
 async function openAssessmentFlow({ from, userId, language, reason = 'unspecified' }) {
+  // bd-onxyu — the app-redirect switch, asked at the one door as well as the routers.
+  const { redirectIfFlagged } = require('./app-redirect.service');
+  if (await redirectIfFlagged('assessment_generator', { userId, from, language, reason })) return false;
+
   const { isAssessmentGeneratorEnabled } = require('../config/feature-flags');
   const flowId = process.env.ASSESSMENT_GEN_FLOW_ID || '';
   const live = await isAssessmentGeneratorEnabled();
