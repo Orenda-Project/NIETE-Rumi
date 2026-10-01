@@ -138,6 +138,13 @@ async function processStaleCoachingSessions() {
 
   console.log(`📋 Found ${staleSessions?.length || 0} sessions in conducting_conversation`);
 
+  // Meta bill cut NC5 (N1-12): ONE reminder per teacher per sweep. A teacher with
+  // ten stale sessions got ten "incomplete coaching session" reminders in the same
+  // minute (51 such bursts in a week). Only their NEWEST reminder-eligible session
+  // is reminded; an older one is never reminded once a newer sibling has been —
+  // otherwise the next tick would walk down the list one reminder at a time.
+  const reminderPick = pickReminderSessions(staleSessions || [], now);
+
   for (const session of staleSessions || []) {
     // Get last interaction time from conversation_state
     const lastInteraction = session.conversation_state?.last_interaction
@@ -166,12 +173,51 @@ async function processStaleCoachingSessions() {
 
     // Phase 1: Send reminder (2h threshold, not already sent)
     if (idleTime >= COACHING_REMINDER_THRESHOLD_MS && !session.reminder_sent_at) {
+      if (!reminderPick.has(session.id)) {
+        logToFile('📨 Coaching reminder folded — the teacher is reminded about their newest session only', {
+          sessionId: session.id, userId: session.user_id,
+        });
+        skipped++;
+        continue;
+      }
       console.log(`    📨 Sending reminder (${idleHours}h > 2h threshold)`);
       if (await sendSessionReminder(session)) reminders++;
     }
   }
 
   return { total: staleSessions?.length || 0, reminders, autoCompleted, skipped };
+}
+
+/**
+ * Meta bill cut NC5 (N1-12) — which sessions may get a reminder THIS sweep: per
+ * teacher, the newest session that is reminder-eligible (idle past the reminder
+ * threshold, short of auto-complete, not yet reminded) — and only if no NEWER
+ * session of theirs has already been reminded. Pure: reads the rows the sweep
+ * already holds, no extra query.
+ * @returns {Set<string>} session ids
+ */
+function pickReminderSessions(sessions, nowMs = Date.now()) {
+  const createdMs = (s) => Date.parse(s.created_at || '') || 0;
+  const idleMs = (s) => nowMs - (s.conversation_state?.last_interaction
+    ? new Date(s.conversation_state.last_interaction).getTime()
+    : createdMs(s));
+  const newestReminded = new Map();   // user_id → newest created_at already reminded
+  const newestEligible = new Map();   // user_id → newest eligible session
+  for (const s of sessions) {
+    if (s.reminder_sent_at) {
+      newestReminded.set(s.user_id, Math.max(newestReminded.get(s.user_id) || 0, createdMs(s)));
+      continue;
+    }
+    const idle = idleMs(s);
+    if (idle < COACHING_REMINDER_THRESHOLD_MS || idle >= COACHING_AUTO_COMPLETE_THRESHOLD_MS) continue;
+    const best = newestEligible.get(s.user_id);
+    if (!best || createdMs(s) > createdMs(best)) newestEligible.set(s.user_id, s);
+  }
+  const pick = new Set();
+  for (const [userId, s] of newestEligible) {
+    if (createdMs(s) > (newestReminded.get(userId) || 0)) pick.add(s.id);
+  }
+  return pick;
 }
 
 /**
@@ -468,19 +514,17 @@ async function autoCompleteSession(session) {
       autoCompleted: true
     });
 
-    // 3. Notify user
-    const notificationText = questionsAnswered > 0
-      ? `Hi ${firstNameOf(session.users) || 'there'}! I noticed you didn't get back to complete your coaching session. ` +
-        `No worries - I'm generating your report now based on the ${questionsAnswered} reflection${questionsAnswered > 1 ? 's' : ''} you provided. 📊`
-      : `Hi ${firstNameOf(session.users) || 'there'}! Since you didn't continue the reflective conversation, ` +
-        `I'm generating your coaching report based on the classroom audio analysis. 📊`;
-
-    await WhatsAppService.sendMessage(session.users.phone_number, notificationText);
-
+    // 3. No separate notice (Meta bill cut NC5 / N2-U02). It used to be its own
+    // English text ("I noticed you didn't get back to complete your coaching
+    // session… generating your report now"); the same fact now rides as one line
+    // on the report image's caption, in their language (report-generator,
+    // `autoCompleted` → reportCaption_autoCompleted*), and "the report is coming"
+    // is said by Step 4/5.
     logToFile('✅ Auto-complete initiated', {
       sessionId: session.id,
       questionsAnswered,
-      notificationSent: true
+      notificationSent: false,
+      noticeOn: 'report_caption',
     });
     return true;
   } catch (error) {
@@ -543,7 +587,7 @@ if (require.main === module) {
 async function processStuckInitiatedSessions() {
   const { data: stuck } = await supabase
     .from('coaching_sessions')
-    .select('id, user_id, status, created_at, audio_id, users!inner(phone_number, name)')
+    .select('id, user_id, status, created_at, audio_id, users!inner(phone_number, name, preferred_language)')
     .eq('status', 'initiated')
     .order('created_at', { ascending: true })
     .limit(50);
@@ -564,14 +608,24 @@ async function processStuckInitiatedSessions() {
           updated_at: new Date().toISOString(),
         }, [['eq', 'status', 'initiated']], 'Confirmation-gate recovery');
         if (!claimed) { skipped += 1; continue; }
+        // Meta bill cut NC5 (N2-C18): ONE message, in THEIR language, that also
+        // carries the wait Step 1/5 used to announce seconds later ("up to 15
+        // minutes — no need to wait here…"). It goes first, and the job is told
+        // Step 1/5 is said only when it actually went out.
+        const { resolveUx, clampLanguage } = require('../shared/config/ux-strings');
+        const gateName = firstNameOf(session.users);
+        const noticeSent = await WhatsAppService.sendMessage(
+          session.users.phone_number,
+          resolveUx(gateName ? 'coachingConfirmGateProceeding' : 'coachingConfirmGateProceedingNoName', {
+            language: clampLanguage(session.users.preferred_language),
+            params: gateName ? { name: gateName } : {},
+          }),
+        );
         await CoachingJobQueueService.queueTranscription(session.id, {
           from: session.users.phone_number,
           audioId: session.audio_id,
+          ...(noticeSent ? { step1Announced: true } : {}),
         });
-        await WhatsAppService.sendMessage(
-          session.users.phone_number,
-          `Hi ${firstNameOf(session.users) || 'there'}! I've gone ahead and started analysing your classroom recording — your report is on the way. 📊`,
-        );
         confirmed += 1;
         logToFile('🔄 Stuck confirmation-gate session auto-proceeded', { sessionId: session.id, reason: decision.reason });
       } else if (decision.action === 'abandon') {
@@ -1254,7 +1308,11 @@ async function processStuckPhotoGateSessions() {
   const cutoff = new Date(Date.now() - PHOTO_GATE_THRESHOLD_MS).toISOString();
   const { data: stuck, error } = await supabase
     .from('coaching_sessions')
-    .select('id, user_id, observer_user_id, observation_type, status, created_at, updated_at, transcript_text, conversation_state, users!inner(phone_number, name)')
+    // `preferred_language` so the notice below reaches a teacher in THEIR language:
+    // PostgREST embeds only what the select names, and observeLang() floored the
+    // missing value to English for every teacher (Meta bill cut NC5 found it —
+    // that notice is now the only progress message this path sends).
+    .select('id, user_id, observer_user_id, observation_type, status, created_at, updated_at, transcript_text, conversation_state, users!inner(phone_number, name, preferred_language)')
     .in('status', PHOTO_GATE_STATUSES)
     .lt('updated_at', cutoff);
   if (error) {
@@ -1334,12 +1392,6 @@ async function processStuckPhotoGateSessions() {
         }
       }
 
-      await CoachingJobQueueService.queueAnalysis(session.id, {
-        from: notifyPhone || session.users.phone_number,
-        trigger: 'photo_gate_timeout',
-        skipReflection: true,
-      });
-
       // bd-gc1ge — this one line carried three defects: `${notifyName}` printed
       // the literal "null" for the 6,282 prod users with no name (and "Hi !" for
       // the 117 with ''), the copy was hardcoded English to a population that is
@@ -1356,6 +1408,7 @@ async function processStuckPhotoGateSessions() {
       // catalogue carries a separate no-name SENTENCE rather than a blank slot.
       const notifyFirstName = notifyPhone ? firstNameOf(notifyUser) : null;
 
+      let noticeSent = false;
       if (notifyPhone && !alreadyNotified) {
         const dated = ageMs > 24 * 3600 * 1000;
         const key = `coachingPhotoGateAdvancing${dated ? 'Dated' : ''}${notifyFirstName ? '' : 'NoName'}`;
@@ -1365,14 +1418,25 @@ async function processStuckPhotoGateSessions() {
         // teacher PDF, the quiz offer and the report footer already share, and
         // it is PKT-anchored rather than container-local.
         if (dated) params.date = formatLessonDate(session.created_at, notifyLang);
-        await WhatsAppService.sendMessage(notifyPhone, resolveUx(key, { language: notifyLang, params }));
+        noticeSent = (await WhatsAppService.sendMessage(notifyPhone, resolveUx(key, { language: notifyLang, params }))) !== false;
       }
+
+      // Meta bill cut NC5 (N2-C05): the notice now goes FIRST, and the analysis
+      // job is told whether it went out. It already says "I'm putting together
+      // your coaching report…", so Step 2/5 and Step 4/5 a minute later would be
+      // the same sentence twice more; with `progressNoticeSent` both are skipped.
+      await CoachingJobQueueService.queueAnalysis(session.id, {
+        from: notifyPhone || session.users.phone_number,
+        trigger: 'photo_gate_timeout',
+        skipReflection: true,
+        ...(noticeSent ? { progressNoticeSent: true } : {}),
+      });
 
       advanced++;
       logToFile('✅ Photo-gate session auto-advanced → report', {
         sessionId: session.id,
         wasStatus: session.status,
-        notified: !!(notifyPhone && !alreadyNotified),
+        notified: noticeSent,
         // bd-gc1ge — why "Hi null!" survived to a teacher unseen: this line
         // recorded THAT a message went out and nothing about whether it could
         // be addressed. `hasName` is the missing fact. The name and phone are

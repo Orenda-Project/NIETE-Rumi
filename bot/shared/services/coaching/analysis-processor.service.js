@@ -126,7 +126,21 @@ class AnalysisProcessorService {
       // hers three hundred lines later in the same file. `_resolveSessionLanguage`
       // is that same resolver: no new one is introduced here, because a second
       // resolver is a second thing to forget.
-      await this.sendProgressUpdate(from, 2, await _resolveSessionLanguage(coachingSessionId));
+      //
+      // Meta bill cut:
+      //   NC5 (N2-C05) a photo-gate recovery whose notice already said "I'm putting
+      //                together your coaching report…" skips Step 2/5 (set only when
+      //                that notice actually went out);
+      //   NC3 (N2-C02) the LP step's outcome line ("✅ Lesson plan linked!…") opens
+      //                Step 2/5 instead of arriving as its own text seconds earlier.
+      if (payload.skipReflection && payload.progressNoticeSent) {
+        logToFile('🔕 Step 2/5 not sent — the recovery notice already said it', { coachingSessionId });
+      } else {
+        const step2Lang = await _resolveSessionLanguage(coachingSessionId);
+        const { leadForStep2 } = require('./lp-coaching/lp-outcome-ack.service');
+        const lead = await leadForStep2(coachingSessionId, payload, step2Lang);
+        await this.sendProgressUpdate(from, 2, step2Lang, lead);
+      }
 
       // Fetch and compress prior feedback
       const ReportGeneratorService = require('./report-generator.service');
@@ -540,6 +554,8 @@ class AnalysisProcessorService {
         const CoachingJobQueueService = require('./coaching-job-queue.service');
         await CoachingJobQueueService.queueReport(coachingSessionId, {
           from, partial: true, suppressPartialBanner: true,
+          // Meta bill cut NC5 (N2-C05): the recovery notice also covers Step 4/5.
+          ...(payload.progressNoticeSent ? { progressNoticeSent: true } : {}),
         });
         logToFile('✅ Analysis complete — report queued, reflection skipped (bd-1sddt recovery)', { coachingSessionId });
         return;
@@ -603,14 +619,16 @@ class AnalysisProcessorService {
    * @param {number} step - Current step (1-5)
    * @returns {Promise<void>}
    */
-  static async sendProgressUpdate(phoneNumber, step, languageCode = offerDefaultLanguage()) {
+  static async sendProgressUpdate(phoneNumber, step, languageCode = offerDefaultLanguage(), lead = null) {
     try {
       // Step 2 catalog string carries the canonical "2/5" — we tolerate
       // callers passing other step numbers (e.g. legacy callers) and
       // substitute via simple string replacement to preserve message
       // localisation while still letting callers control the step counter.
       const base = getCoachingMessage('step2_analyzing', languageCode);
-      const text = step === 2 ? base : base.replace('2/5', `${step}/5`);
+      const stepText = step === 2 ? base : base.replace('2/5', `${step}/5`);
+      // Meta bill cut NC3: an optional line that opens the same bubble.
+      const text = lead ? `${lead}\n\n${stepText}` : stepText;
       await WhatsAppService.sendMessage(phoneNumber, text);
 
       // Send pedagogical analysis animation if available

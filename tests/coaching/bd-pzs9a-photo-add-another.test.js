@@ -153,8 +153,15 @@ describe('bd-pzs9a — "Add another" keeps the session on the classroom-photo st
 
     await handleAddAnotherPhotoTap({ sessionId: SESSION_ID, from: FROM, user: COACH });
 
-    expect(mockWa.messages.map((m) => m.text).join(' ')).not.toMatch(/next photo/i);
-    expect(mockWa.messages.map((m) => m.text).join(' ')).toMatch(new RegExp(String(MAX_COACHING_PHOTOS)));
+    // Meta bill cut NC4: the "maximum" line now OPENS the lesson-plan prompt
+    // instead of going out as its own text, so read every bubble they get.
+    const said = [
+      ...mockWa.messages.map((m) => m.text),
+      ...mockWa.buttons.map((b) => b.payload.body),
+      ...mockWa.lists.map((l) => (l.payload.body && l.payload.body.text) || ''),
+    ].join(' ');
+    expect(said).not.toMatch(/next photo/i);
+    expect(said).toMatch(new RegExp(String(MAX_COACHING_PHOTOS)));
     // lands on the lesson-plan step (the bd-5azz0 rule: photo-max never skips the LP ask)
     expect(mockWa.buttons.length + mockWa.lists.length).toBeGreaterThan(0);
     expect(lastStatusUpdate().status).toBe('awaiting_lesson_plan');

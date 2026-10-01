@@ -200,6 +200,22 @@ const COACHING_MESSAGES = {
     ...en("🔄 Step 5/5: Creating your personalized voice debrief..."),
     ur: '🔄 مرحلہ ⁦5/5⁩: آپ کے لیے آواز میں خصوصی خلاصہ تیار کیا جا رہا ہے...',
   },
+  // Meta bill cut NC5 (N2-U02): the 12-hour auto-complete used to send its own
+  // English text ("I noticed you didn't get back to complete your coaching
+  // session… I'm generating your report now…") before the report. The same fact
+  // now rides as ONE line on the report image's caption, in their language
+  // (report-generator `_heroCaptionLines`). "The report is coming" is already
+  // said by Step 4/5. Impersonal / passive in Urdu — no addressee-gendered verb.
+  // Caption lines, so the 1,024 caption cap applies to the whole caption; the
+  // caller falls back to a separate text if it would not fit.
+  reportCaption_autoCompletedAudioOnly: {
+    ...en("ℹ️ The reflective conversation wasn't finished, so this report is based on your classroom audio."),
+    ur: 'ℹ️ غور و فکر والی گفتگو مکمل نہیں ہوئی، اس لیے یہ رپورٹ آپ کی کلاس کی آڈیو کی بنیاد پر تیار کی گئی ہے۔',
+  },
+  reportCaption_autoCompletedWithReflections: {
+    ...en("ℹ️ The session wasn't finished, so this report is based on your classroom audio and the reflections you shared."),
+    ur: 'ℹ️ سیشن مکمل نہیں ہوا تھا، اس لیے یہ رپورٹ آپ کی کلاس کی آڈیو اور اب تک دیے گئے جوابات کی بنیاد پر تیار کی گئی ہے۔',
+  },
   // bd-x3k1q (DC row 133): the coaching session has to announce its own END.
   // Qurat, 2026-09-18: the quiz offer used to land immediately after the
   // commitment question with nothing between them, so teachers and coaches read
@@ -303,12 +319,18 @@ const COACHING_MESSAGES = {
   // re-ordered by the bidi algorithm, and a catalog string isolates the
   // placeholder because the value's direction is unknowable at authoring time.
   //
-  // Caps, in CODE POINTS: bodies 141 (en) / 120 (ur) of 1024; button titles
+  // Caps, in CODE POINTS: bodies ~248 (en) / ~233 (ur) of 1024; button titles
   // 12 (en) / 14 (ur) and 2 (en) / 4 (ur) of 20 — the button is the tightest
   // field there is, and a monolingual→bilingual edit is a length change first.
+  //
+  // Meta bill cut NC1 (N2-C01): the prompt now ENDS with the wait sentence that
+  // `step1_transcribing` carried — word for word, so nothing is lost — and the
+  // Yes tap gets a ⏳ reaction instead of the billed Step 1/5 text
+  // (coaching-orchestrator.handleConfirmation → transcription job
+  // `step1Announced`). If the reaction cannot go out, Step 1/5 is still sent.
   coaching_confirmAudio: {
-    ...en("I detected a {minutes}-minute audio recording.\n\nIs this classroom audio you'd like me to analyze using research-based pedagogical frameworks?"),
-    ur: 'مجھے \u2066{minutes}\u2069 منٹ کی آڈیو ریکارڈنگ ملی ہے۔\n\nکیا یہ کلاس روم کی آڈیو ہے جس کا تجزیہ تدریسی فریم ورک کے مطابق کیا جائے؟',
+    ...en("I detected a {minutes}-minute audio recording.\n\nIs this classroom audio you'd like me to analyze using research-based pedagogical frameworks?\n\nFor a full lesson this can take up to 15 minutes — no need to wait here, I'll message you as each step finishes."),
+    ur: 'مجھے \u2066{minutes}\u2069 منٹ کی آڈیو ریکارڈنگ ملی ہے۔\n\nکیا یہ کلاس روم کی آڈیو ہے جس کا تجزیہ تدریسی فریم ورک کے مطابق کیا جائے؟\n\nمکمل سبق کے لیے اس میں 15 منٹ تک لگ سکتے ہیں — یہیں انتظار کرنے کی ضرورت نہیں، ہر مرحلہ مکمل ہونے پر اطلاع دی جائے گی۔',
   },
   coaching_confirmYes: { ...en('Yes, Analyze'), ur: 'جی، تجزیہ کریں' },
   coaching_confirmNo: { ...en('No'), ur: 'نہیں' },

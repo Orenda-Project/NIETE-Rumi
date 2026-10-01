@@ -41,7 +41,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I have chosen Classroom Coaching (awaiting audio)
     When I upload a >=15-minute classroom audio recording
     Then the bot replies "I detected a <N>-minute audio recording. Is this classroom audio you'd like me to analyze using research-based pedagogical frameworks?"
+    And the same message ends "For a full lesson this can take up to 15 minutes — no need to wait here, I'll message you as each step finishes."
     And a "Yes, Analyze" / "No" choice is offered
+    # UPDATED 2026-10-01 (Meta bill cut NC1): the wait sentence that Step 1/5 carried rides
+    # on this prompt (coaching_confirmAudio, en/ur), so the Yes tap no longer needs a text.
     # Verified live on PROD (2026-08-04) with fixture hameeda_classroom.m4a (25 MB,
     # ~26 min): the bot read the duration correctly ("I detected a 26-minute audio
     # recording") and offered Yes,Analyze / No. Upload via Attach → **Document** (the
@@ -60,7 +63,11 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And my account language is English
     And I have uploaded a classroom recording and it was detected
     When I tap "Yes, Analyze"
-    Then the bot posts "Step 1/5: Transcribing your classroom audio"
+    Then my "Yes, Analyze" tap gets a ⏳ reaction and NO "Step 1/5: Transcribing your classroom audio" text follows
+    # UPDATED 2026-10-01 (Meta bill cut NC1): the confirm prompt already stated the wait,
+    # so Step 1/5 is a free ⏳ reaction (coaching-orchestrator handleConfirmation →
+    # transcription job `step1Announced`). If the reaction cannot go out (no wamid, pacer
+    # skip) the job still sends Step 1/5 — the steps below still apply in that case.
     # UPDATED 2026-09-18 (bd-di5ap): the "Long Lesson Detected" step that stood
     # here is gone, and the acknowledgement no longer praises the lesson. Both
     # were sent before any analysis had run — the second was a GPT-4o line that
@@ -74,14 +81,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # (CLASSROOM_AUDIO_THRESHOLD = 900) and transcription was measured in the
     # 880-990s band, so "30-60 seconds" was wrong by more than an order of
     # magnitude — and the warning that used to qualify it had just been removed.
-    And that step states the wait in minutes and does NOT promise "30-60 seconds"
+    And the wait was stated in minutes (on the confirm prompt) and nothing promises "30-60 seconds"
     And it does NOT warn "Long Lesson Detected" — that engineering threshold is telemetry only
     And it sends NO acknowledgement of the recording at all before the photo prompt
     And in particular no message carries a verdict on the teaching — no "engaging", "impactful" or similar
     And it asks whether I want to add up to 3 photos, naming the useful ones (the board with the objective/task, a student's notebook or worksheet, the materials used) and that a photo of the class at their desks does not help
+    And the photo offer ends by saying to tap Yes and send the photos one at a time, board first
     And when I decline it asks whether I have a lesson plan for this class
-    And when I decline it replies "No problem! I'll analyze your classroom audio without the lesson plan."
-    And it continues "Step 2/5: Analyzing your teaching using research-based pedagogical frameworks"
+    And when I decline ONE message arrives: "No problem! I'll analyze your classroom audio without the lesson plan." followed, in the same bubble, by "Step 2/5: Analyzing your teaching using research-based pedagogical frameworks"
+    # UPDATED 2026-10-01 (Meta bill cut NC3): the lesson-plan outcome rides on the analysis
+    # job's Step 2/5 (payload lpOutcomeKey + one Redis claim). If the job has not started
+    # 30 s later the outcome is sent on its own and Step 2/5 follows plain (LP_OUTCOME_ACK_FALLBACK_MS).
     And then "Step 3/5: Let's reflect on your teaching together"
     # Verified live on PROD (2026-08-04), fixture hameeda_classroom.m4a (26 min):
     # after "Yes, Analyze" the pipeline emits numbered progress steps AND two optional-
@@ -96,8 +106,12 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I have confirmed analysis and answered the optional-context prompts
     When the async worker finishes steps 4/5 and 5/5
     Then it returns coaching feedback referencing the FICO / ICT rubric
-    And Step 5/5 is followed by the voice note ITSELF — exactly one message stands
-    And that one message is the Step 5/5 announcement, in my own language, not a second line restating it
+    And the report image's caption ends with the Step 5/5 announcement, in my own language
+    And the voice note follows the report image with NO separate Step 5/5 message between them
+    # UPDATED 2026-10-01 (Meta bill cut NC2): "Step 5/5: Creating your personalized voice
+    # debrief…" moved from its own text onto the hero image caption (report-generator
+    # _composeHeroCaption). A caption that would pass 1,024 code points keeps the old text;
+    # a retry (no voice note follows) carries no Step 5/5 line at all.
     # UPDATED 2026-09-20 (bd-sk206, DC row 132): a caption used to sit between
     # Step 5/5 and the audio — "🎤 Here's your personalized voice summary:". In
     # Urdu it restated the announcement almost word for word (both "a summary …
@@ -219,10 +233,13 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   Scenario: Accepting the classroom-photo prompt folds photos into the analysis
     Given the NIETE bot chat is open
     And the coaching pipeline has asked whether I want to add photos
+    And the offer itself ends: tap Yes, then send the photos one at a time, board first, and that it will read what is on them and use it alongside the recording
     When I tap Yes
-    Then the bot says to send the photos one at a time, board first, and that it will read what is on them and use it alongside the recording
+    Then no further instruction text arrives — the tap's 👍 is the acknowledgement
     When I send a board photo, a notebook photo and a class photo
     Then the bot collects all 3 and folds every one into the analysis
+    # UPDATED 2026-10-01 (Meta bill cut NC4 / N2-C06): coachingPhotoSendNow's words moved
+    # to the END of coachingPhotoOffer; photo-yes.service sends no text.
     And with COACHING_PHOTO_MODE=both the scorer receives the vision description AND the photos, and the session records photo_mode "both" and photo_count_analysed 3
     And with the flag unset the session records photo_mode "note" and the scoring prompt is unchanged from before
     And any indicator the photo informed carries evidence starting "Photo:" — in the coach's editable draft as well
@@ -453,6 +470,11 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then the bot says "I'm putting together your coaching report from your class recording now. 📊"
     And a teacher WITH a saved name is greeted "Hi <name>! …" in the same sentence
     And either form is in the teacher's own language
+    And no "Step 2/5" or "Step 4/5" text follows it before the report
+    # UPDATED 2026-10-01 (Meta bill cut NC5 / N2-C05): the notice now goes first and the
+    # analysis/report jobs are told it went out (progressNoticeSent) — Step 2/5 and Step 4/5
+    # said the same thing a minute later. The sweep now selects users.preferred_language,
+    # which it never did (the notice was English for every teacher).
     # stale-session.worker.js + coaching + remark surfaces (bd-gc1ge): the greeting was a
     # raw `Hi ${session.users.name}!`, which read "Hi null!" for every nameless account
     # (6,282 on prod) and "Hi !" for the 117 blank ones — and always in English. Copy:
@@ -560,9 +582,11 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I have received a coaching report with a commitment card
     When I tap "Yes" on the commitment card
     Then the bot records my commitment
-    # ⚠ ORPHAN BUG: card_yes_/later_/no_ have NO handler (card-response.service.js is
-    # never called) → prioritized_action.teacher_response never becomes 'yes' and the
-    # agency reminder can't fire. Expected to FAIL until wired.
+    And my tap gets a ✅ reaction and no text acknowledgement
+    # ⚠ ORPHAN BUG on main: card_yes_/later_/no_ have NO handler there. Sandbox wires
+    # them (card-response.service handleCardButton). UPDATED 2026-10-01 (Meta bill cut
+    # N2-C11): the acknowledgement is a free ✅ reaction on the tap; the coachingCardAck*
+    # text goes only when no wamid is available or the reaction cannot go out.
 
   @e2e @wip @draft @P1 @COA33
   Scenario: A lesson plan typed into the chat is attached to the waiting observation
@@ -832,8 +856,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When I tap "Change lesson plan"
     Then the bot sends my recent lesson-plan list again
     When I tap the plan I meant and then "Yes"
-    Then the bot says the lesson plan is linked
+    Then ONE message says the lesson plan is linked and, in the same bubble, "Step 2/5: Analyzing your teaching…"
     And the analysis continues with that plan
+    # UPDATED 2026-10-01 (Meta bill cut NC3): "✅ Lesson plan linked!…" opens the analysis
+    # job's Step 2/5 (30 s fallback sends it alone if the job is slow).
     # bd-2c1gj: the HITL row-189 confirmation, widened on 2026-09-30 to the teacher's own Digital Coach flow
     # (operator). Same handler and ids as the coach's observation: lp-list-selection.handler.js sends
     # lessonPlan_confirm_prompt with lpconfirm_yes_{asset}_{session} / lpconfirm_no_{session}. In Urdu the
@@ -852,3 +878,84 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When I send "/coaching"
     Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
     And the bot does not ask me to record my lesson
+
+  # ═══════════ ADDED 2026-10-01 · Meta bill cut — fewer billed bubbles, same words (@wip) ═══════════
+  # From 1 Oct 2026 Meta bills every message. These pin the merges/reactions that are not already
+  # covered above. Unit: tests/coaching/meta-bill-*.test.js.
+
+  @e2e @wip @draft @P2 @COA63
+  Scenario: Photos sent seconds apart get ONE receipt prompt with the running count
+    Given the NIETE bot chat is open
+    And the coaching pipeline is waiting for my classroom photos
+    When I send 2 photos within a few seconds of each other
+    Then ONE prompt arrives: "📸 2 of 3 photos received. Would you like to add another photo?" with "Add another" / "Done"
+    And a single photo sent on its own is answered "📸 Photo 1 of 3 received. Would you like to add another photo?"
+    # capture.service promptOncePerBurst: a Redis token per arrival, COACHING_PHOTO_PROMPT_DEBOUNCE_MS
+    # (default 5 s); only the last arrival of a burst prompts, with the count re-read from the row.
+    # No Redis → every photo is answered at once (the old behaviour).
+
+  @e2e @wip @draft @P2 @COA64
+  Scenario: The third photo's "maximum reached" line opens the lesson-plan question
+    Given the NIETE bot chat is open
+    And I have sent 2 classroom photos
+    When I send a 3rd photo
+    Then ONE message arrives: the lesson-plan question, opening with "📸 Photo 3 received. Maximum reached."
+    And no separate "Maximum reached" text arrives
+
+  @e2e @wip @draft @P2 @COA65
+  Scenario: "Add another" and a photo sent during the analysis are acknowledged with a 📸 reaction
+    Given the NIETE bot chat is open
+    And the coaching pipeline has asked whether I want to add another photo
+    When I tap "Add another"
+    Then my tap gets a 📸 reaction and no "Send the next classroom photo" text
+    When I send a classroom photo while my recording is still being transcribed
+    Then my photo gets a 📸 reaction and no "Got your classroom photo" text
+    # A parked photo re-attached after "which teacher is this for?" has no wamid → the text, as before.
+
+  @e2e @wip @draft @P2 @COA66
+  Scenario: Last time's commitment opens the photo question
+    Given the NIETE bot chat is open
+    And I said "Yes, I'll try!" to the commitment question after my previous coaching report
+    When my next classroom recording has been transcribed
+    Then ONE message arrives: the photo question, opening with "💡 Quick reminder: Last time, you committed to: …"
+    # transcription-processor → photo-prompt.service buildPhotoPromptWithLead; a reminder that would push
+    # the body past 1,024 code points is still sent on its own first.
+
+  @e2e @wip @draft @P2 @COA67
+  Scenario: Several stale sessions bring ONE reminder, about the newest
+    Given the NIETE bot chat is open
+    And I have three coaching sessions waiting at the reflective step for more than 2 hours
+    When the stale-session sweep runs, and runs again 15 minutes later
+    Then I get exactly ONE "incomplete coaching session" reminder, for my newest session
+    # stale-session.worker pickReminderSessions: per teacher, the newest reminder-eligible session, and
+    # never one older than a session already reminded.
+
+  @e2e @wip @draft @P2 @COA68
+  Scenario: An unconfirmed recording that the bot goes ahead with sends ONE notice, in my language
+    Given the NIETE bot chat is open
+    And my account language is Urdu
+    And I sent a classroom recording and never answered "Yes, Analyze"
+    When the confirmation-gate sweep goes ahead with it
+    Then ONE Urdu message tells me the analysis has started and that it can take up to 15 minutes
+    And no "Step 1/5" text follows it
+    # coachingConfirmGateProceeding(NoName) en/ur; the transcription job is queued with step1Announced
+    # only when the notice actually went out.
+
+  @e2e @wip @draft @P2 @COA69
+  Scenario: A session auto-completed after 12 hours says so on the report, not in a separate message
+    Given the NIETE bot chat is open
+    And I left a coaching session at the reflective step for more than 12 hours
+    When the report is generated for me
+    Then no "I noticed you didn't get back…" message arrives
+    And the report image's caption carries one line saying the session was not finished, so the report is based on my classroom audio
+    # reportCaption_autoCompletedAudioOnly / reportCaption_autoCompletedWithReflections (en/ur).
+
+  @e2e @wip @draft @P2 @COA70
+  Scenario: Each report piece arrives once even if the report job runs twice
+    Given the NIETE bot chat is open
+    And my coaching report job has run once for my session
+    When the same report job runs a second time for that session
+    Then I receive the report image, the voice note and the commitment question exactly once each
+    And the reflective question is asked once — "Continue Now" may still ask it again on purpose
+    # report-piece-once.js: a Redis SET NX per (session, piece), 24 h; a failed send gives its claim back.
+

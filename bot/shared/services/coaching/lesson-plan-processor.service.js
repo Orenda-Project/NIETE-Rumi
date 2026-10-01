@@ -93,19 +93,26 @@ class LessonPlanProcessorService {
           .eq('id', coachingSessionId);
 
         const lang = await _resolveSessionLanguage(coachingSessionId);
-        await WhatsAppService.sendMessage(from, getCoachingMessage('lessonPlan_skip', lang));
+        // Meta bill cut NC3: on a teacher's own session "No problem! I'll analyze…
+        // without the lesson plan" opens the analysis job's Step 2/5 instead of
+        // going out on its own (30 s fallback). A coach observation hears it now.
+        const { deferOrSendLpOutcome } = require('./lp-coaching/lp-outcome-ack.service');
+        const extra = await deferOrSendLpOutcome({
+          sessionId: coachingSessionId, from, messageKey: 'lessonPlan_skip', language: lang,
+          sendMessage: (to, text) => WhatsAppService.sendMessage(to, text),
+        });
 
         // Queue analysis job
         const CoachingJobQueueService = require('./coaching-job-queue.service');
-        await CoachingJobQueueService.queueAnalysis(coachingSessionId, { from });
+        await CoachingJobQueueService.queueAnalysis(coachingSessionId, { from, ...extra });
         return;
       }
 
       // User has lesson plan
       if (documentId) {
-        await this.handleLessonPlanUpload(coachingSessionId, from, documentId);
+        const extra = (await this.handleLessonPlanUpload(coachingSessionId, from, documentId)) || {};
         // Queue analysis job immediately; LP extraction happens in background
-        await CoachingJobQueueService.queueAnalysis(coachingSessionId, { from, lpUploaded: true });
+        await CoachingJobQueueService.queueAnalysis(coachingSessionId, { from, lpUploaded: true, ...extra });
       } else {
         // User said yes but no document yet - ask them to send it
         const lang = await _resolveSessionLanguage(coachingSessionId);
@@ -162,13 +169,21 @@ class LessonPlanProcessorService {
       });
 
       const lang = await _resolveSessionLanguage(coachingSessionId);
-      await WhatsAppService.sendMessage(from, getCoachingMessage('lessonPlan_received', lang));
+      // Meta bill cut NC3: "📄 Lesson plan received! It's being read in the
+      // background…" opens the analysis job's Step 2/5 on a teacher's own session
+      // (30 s fallback); the extras returned here ride in the analysis payload.
+      const { deferOrSendLpOutcome } = require('./lp-coaching/lp-outcome-ack.service');
+      const extra = await deferOrSendLpOutcome({
+        sessionId: coachingSessionId, from, messageKey: 'lessonPlan_received', language: lang,
+        sendMessage: (to, text) => WhatsAppService.sendMessage(to, text),
+      });
 
       logToFile('Lesson plan queued for extraction', {
         coachingSessionId,
         fileType,
         r2Key
       });
+      return extra;
     } catch (error) {
       logToFile('❌ Error handling lesson plan upload', {
         error: error.message,

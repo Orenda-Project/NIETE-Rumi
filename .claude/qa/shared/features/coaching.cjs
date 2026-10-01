@@ -440,7 +440,7 @@ exports.run = async ({ api, rec, sleep }) => {
       if (obs.deferral.startedNewSession) { const c = cardRows.find(r => (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))); if (c) { try { await api.tapAndWait('No', 60000); } catch (_) {} } }
     }
 
-    if (!DEEP && obs.steps.length && obs.photoPrompt) break;   // COA04 is decided
+    if (!DEEP && obs.photoPrompt) break;   // COA04 is decided (Step 1/5 is a reaction since the Meta bill cut)
     if (obs.commitment) break;
     // Early-bail (fast commit gate): the DEEP pipeline is stuck when it makes NO forward progress —
     // no new step, report, photo/LP prompt, reflective turn or commitment — for STALL_MS. That happens
@@ -482,7 +482,7 @@ exports.run = async ({ api, rec, sleep }) => {
           : confirmed
           ? (obs.stalled
               ? ['BLOCKED', { reason: stallNote, stepsSeen: obs.steps, asksPhoto: obs.photoPrompt, asksLessonPlan: obs.lpPrompt, elapsedSec: elapsed }]
-              : V(obs.steps.length > 0 && obs.photoPrompt,   // Step 1 often lands while the driver is inside the photo/LP gate replies
+              : V(obs.photoPrompt,   // Meta bill cut NC1: Step 1/5 is a ⏳ reaction on the Yes tap now (reactions are not observed here); the photo prompt proves transcription ran
                   { stepsSeen: obs.steps, longLessonWarning: obs.longLesson, acknowledges: obs.acknowledges,
                     asksPhoto: obs.photoPrompt, asksLessonPlan: obs.lpPrompt, elapsedSec: elapsed }))
           : ['BLOCKED', { reason: 'the second upload produced no Yes/No choice',
@@ -656,5 +656,40 @@ exports.run = async ({ api, rec, sleep }) => {
   const APP_REDIRECT_WHY = 'needs an app_redirect_* switch turned ON in the target database, and the switch is global: it would redirect every teacher on that environment for the length of the run. Covered by tests/app-redirect/ (the real text handler and menu router, red-first).';
   rec('COA62', 'With coaching moved to the app, /coaching sends me to the Play Store instead of asking for a recording', 'BLOCKED',
       { reason: APP_REDIRECT_WHY }, 0);
+
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA63', 'Photos sent seconds apart get ONE receipt prompt with the running count', 'BLOCKED',
+      { reason: 'not yet driven on the mock lane — needs two photo uploads inside COACHING_PHOTO_PROMPT_DEBOUNCE_MS; unit: tests/coaching/meta-bill-nc4-photo-step.test.js' }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA64', 'The third photo\'s "maximum reached" line opens the lesson-plan question', 'BLOCKED',
+      { reason: 'not yet driven on the mock lane — needs three photo uploads on the photo step; unit: tests/coaching/meta-bill-nc4-photo-step.test.js' }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA65', '"Add another" and a photo sent during the analysis are acknowledged with a 📸 reaction', 'BLOCKED',
+      { reason: 'the mock lane does not observe reactions (feature-runner filters them out) — verify on the sandbox handset; unit: tests/coaching/meta-bill-nc4-photo-step.test.js + meta-bill-wamid-wiring.test.js' }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA66', 'Last time\'s commitment opens the photo question', 'BLOCKED',
+      { reason: 'not yet driven on the mock lane — needs a seeded prior session with prioritized_action.teacher_response=yes; unit: tests/coaching/meta-bill-nc4-prior-reminder-wiring.test.js' }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA67', 'Several stale sessions bring ONE reminder, about the newest', 'BLOCKED',
+      { reason: "not yet driven on the mock lane — needs three seeded stale sessions + SC.sweep('stale'); unit: tests/coaching/meta-bill-nc5-sweeper-repeats.test.js" }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA68', 'An unconfirmed recording that the bot goes ahead with sends ONE notice, in my language', 'BLOCKED',
+      { reason: "not yet driven on the mock lane — needs an aged initiated session + SC.sweep('stale'); unit: tests/coaching/meta-bill-nc5-sweeper-repeats.test.js" }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA69', 'A session auto-completed after 12 hours says so on the report, not in a separate message', 'BLOCKED',
+      { reason: "not yet driven on the mock lane — needs a 12h-idle session + SC.sweep('stale') and the report caption; unit: tests/coaching/meta-bill-nc2-report-caption.test.js" }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA70', 'Each report piece arrives once even if the report job runs twice', 'BLOCKED',
+      { reason: 'not yet driven on the mock lane — needs a report job redelivered for one session; unit: tests/coaching/meta-bill-nc2-report-caption.test.js + meta-bill-nc5-sweeper-repeats.test.js' }, 0);
 
 };
