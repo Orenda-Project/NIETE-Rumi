@@ -2937,7 +2937,11 @@ async function _isapsScoreSheet(userId, levelId) {
       : { data: null };
     const crqMax = Number(vendor?.capstone_points_per_question) > 0 ? Number(vendor.capstone_points_per_question) : 10;
 
+    // bd-hxm7a — the written mark stays hidden while results are held.
+    const { crqResultsHeld } = require('../../bot/shared/services/training/isaps-crq-hold.rules');
+    const crqHeld = await crqResultsHeld(supabase);
     return buildIsapsScoreSheet({
+      crqHeld,
       courses: courses || [], units: units || [], exams,
       unitAttempts: (unitAttempts || []).filter(a => a.status !== 'in_progress'),
       examAttempts: examAttempts || [], examAnswers: examAnswers || [], crqMax,

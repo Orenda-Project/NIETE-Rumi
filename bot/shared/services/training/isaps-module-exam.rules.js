@@ -77,6 +77,8 @@ function moduleFromSourceQuizId(sourceQuizId) {
  */
 function buildModuleExamSlot({
   moduleTitle, unitsTotal, unitsDone, mcqCount, crqCount, passed, cooldownHoursLeft,
+  // bd-hxm7a — MCQs cleared, written answer graded but HELD: closed, no mark.
+  pendingReview = false,
   // bd-60167 — her best graded mark, carried through so a surface can SHOW it.
   // Optional: every caller that does not know a mark simply omits them, and
   // the slot reads exactly as before.
@@ -110,6 +112,15 @@ function buildModuleExamSlot({
       caption: 'Your score counts towards the level certificate.',
       cta: mark ? `✓ Passed · ${mark.score}/${mark.total}` : '✓ Passed',
       mark,
+    };
+  }
+
+  if (pendingReview) {
+    return {
+      ok: false,
+      body: '📝 Module exam — your written answer is being graded. This takes some time.',
+      caption: "Multiple choice cleared. Once the written answer passes, we'll issue your certificate.",
+      cta: '⏳ Being graded',
     };
   }
 
@@ -184,10 +195,11 @@ function buildModuleExamSlot({
 function shouldOfferModuleExam(input) {
   if (!input) return false;
   const {
-    vendorKey, unitsTotal, unitsDone, mcqCount, crqCount, alreadyPassed,
+    vendorKey, unitsTotal, unitsDone, mcqCount, crqCount, alreadyPassed, pendingReview,
   } = input;
   if (String(vendorKey || '').trim().toUpperCase() !== 'ISAPS') return false;
   if (alreadyPassed) return false;
+  if (pendingReview) return false;   // bd-hxm7a — being graded; no re-sit
   // A module with no units at all has no content yet; offering its exam would
   // be offering an assessment for nothing. And the exam waits for the module's
   // units (bd-vej4h): offering it after every unit pass would interrupt the
