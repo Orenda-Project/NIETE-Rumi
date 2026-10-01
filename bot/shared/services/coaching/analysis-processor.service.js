@@ -128,12 +128,20 @@ class AnalysisProcessorService {
       // resolver is a second thing to forget.
       //
       // Meta bill cut:
+      //   NO1 (N2-O02) a leader observation: the line is the teacher's ("Analyzing
+      //                your teaching…"), resolved from the observed teacher's row,
+      //                and the coach's next message — the pre-filled form — arrives
+      //                minutes later anyway. Nothing rides on it there: NC3 defers the
+      //                LP outcome only on a teacher's own session (lp-outcome-ack
+      //                isSelfServeSession), so a coach got that line already.
       //   NC5 (N2-C05) a photo-gate recovery whose notice already said "I'm putting
       //                together your coaching report…" skips Step 2/5 (set only when
       //                that notice actually went out);
       //   NC3 (N2-C02) the LP step's outcome line ("✅ Lesson plan linked!…") opens
       //                Step 2/5 instead of arriving as its own text seconds earlier.
-      if (payload.skipReflection && payload.progressNoticeSent) {
+      if (session.observation_type === 'leader_observation') {
+        logToFile('🔕 Step 2/5 not sent — a leader observation (the pre-filled form is next)', { coachingSessionId });
+      } else if (payload.skipReflection && payload.progressNoticeSent) {
         logToFile('🔕 Step 2/5 not sent — the recovery notice already said it', { coachingSessionId });
       } else {
         const step2Lang = await _resolveSessionLanguage(coachingSessionId);

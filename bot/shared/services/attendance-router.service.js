@@ -337,8 +337,17 @@ async function resolveMethodChoice(userId, buttonId) {
     return awaitVoice('teacher', user.school_id);
   }
 
-  // A teacher tapping: the Flow picks the class, so the token is the bare user id.
-  if (wantsTap) return { action: 'OPEN_REGISTER', flowToken: userId };
+  // A teacher tapping: the Flow picks the class, so the token names no target —
+  // "<userId>:student", which the marking endpoint reads exactly as it read the
+  // bare id (this teacher, marking students, class not yet picked).
+  //
+  // The subject is spelled out because the token is the ONLY part of the Flow's
+  // completion that every WABA is guaranteed to return. A bare id carried nothing
+  // the classifier could recognise, and the SAVED Footer's attendance_action tag
+  // arrives only from an asset republished after it was added — production's was
+  // not, so every teacher save was answered "Thanks for your response! Type
+  // /menu…" (1,369 a week). We set the token at send time; it always comes back.
+  if (wantsTap) return { action: 'OPEN_REGISTER', flowToken: `${userId}:student` };
 
   const classes = await loadClasses(userId);
   if (!classes.length) return noClassYet(user);

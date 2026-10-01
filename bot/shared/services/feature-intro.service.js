@@ -189,14 +189,11 @@ class FeatureIntroService {
 
       logToFile('📹 Sending first-use intro video', { userId, feature, language: msgLanguage });
 
-      // Send intro message
-      await WhatsAppService.sendMessage(phoneNumber, introMessage);
-
-      // Small delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Send video
-      await WhatsAppService.sendVideoFromUrl(phoneNumber, videoUrl);
+      // ONE message: the film, captioned with the line that introduces it. It used
+      // to be that line as a text, then (a second later) the film with no caption —
+      // two billed messages for one thing. Every intro line is far inside a video
+      // caption's 1,024 code points (a test pins it).
+      await WhatsAppService.sendVideoFromUrl(phoneNumber, videoUrl, introMessage);
 
       // Mark as shown
       await this.markVideoShown(userId, feature);

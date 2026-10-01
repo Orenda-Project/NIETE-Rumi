@@ -79,7 +79,7 @@ describe('route — one Flow, opened directly', () => {
 
     const tapped = await router.resolveMethodChoice('t1', 'att_method_tap');
     expect(tapped.action).toBe('OPEN_REGISTER');
-    expect(tapped.flowToken).toBe('t1');
+    expect(tapped.flowToken).toBe('t1:student');
   });
 
   it('asks a principal how they want to mark, not whose attendance it is', async () => {

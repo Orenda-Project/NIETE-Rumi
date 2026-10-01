@@ -111,12 +111,20 @@ class TranscriptionProcessorService {
       // "nothing can be determined" is not the situation and the emergency
       // 'en' floor would be the wrong one.
       //
-      // Meta bill cut NC1 (N2-C01 / N2-C18): `step1Announced` means the wait was
-      // already said — in the confirm prompt (and a ⏳ reaction landed on their Yes
-      // tap), or in the sweeper's localised "started analysing" notice — so the
-      // billed Step 1/5 text would repeat it. Only those two callers set it; the
-      // observe path and every retry without it are unchanged.
-      if (!payload.step1Announced) {
+      // Meta bill cut, two reasons not to send it:
+      //   NO1 (N2-O01) a leader observation. The line is written for a teacher about
+      //       her own lesson, in the language of `session.users` — the OBSERVED
+      //       teacher on a bound observation — yet it goes to the COACH, who has just
+      //       been told the recording arrived and the form follows in 2–5 minutes, and
+      //       whose next message is the photo question.
+      //   NC1 (N2-C01 / N2-C18) `step1Announced` means the wait was already said — in
+      //       the confirm prompt (and a ⏳ reaction landed on their Yes tap), or in the
+      //       sweeper's localised "started analysing" notice — so the billed Step 1/5
+      //       text would repeat it. Only those two callers set it; every retry without
+      //       it is unchanged.
+      if (session.observation_type === 'leader_observation') {
+        logToFile('🔕 Step 1/5 not sent — a leader observation (the coach was told the wait on capture)', { coachingSessionId });
+      } else if (!payload.step1Announced) {
         await this.sendProgressUpdate(
           from,
           1,

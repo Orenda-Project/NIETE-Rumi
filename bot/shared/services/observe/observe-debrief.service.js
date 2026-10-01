@@ -25,6 +25,7 @@ const ObserveState = require('./observe-state.service');
 const GPT5MiniService = require('../gpt5-mini.service');
 const { detectRegion } = require('../../utils/region');
 const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
+const { mergeWithinCap, FIELD_CAPS } = require('../../utils/merge-within-cap');
 const {
   buildGuidePrompt,
   validateGuide,
@@ -79,6 +80,39 @@ function buildDebriefChoiceButtons(sessionId, S) {
       { id: `${BUTTON_LATER_PREFIX}${sessionId}`, title: S.btn_debrief_later },
     ],
   };
+}
+
+/**
+ * The coach submitted the FICO form: say it is saved, and offer the debrief —
+ * as ONE buttons message, the acknowledgement on top of the question.
+ *
+ * These used to be two messages back to back (a text, then the buttons), read
+ * together, with nothing decided between them. Kept apart only when the joined
+ * body would overrun WhatsApp's 1,024 code points. If the buttons are refused,
+ * the coach still hears the form was saved — the /observe list carries the
+ * pending debrief as its durable way back in.
+ *
+ * @param {string} from       the coach's number
+ * @param {string|null} sessionId
+ * @param {object} S          observeStrings in the coach's language
+ */
+async function acknowledgeFormSubmitted(from, sessionId, S) {
+  if (!sessionId) {
+    await WhatsAppService.sendMessage(from, S.submitted_ack);
+    return;
+  }
+  const choice = buildDebriefChoiceButtons(sessionId, S);
+  const merged = mergeWithinCap([S.submitted_ack, choice.body], FIELD_CAPS.body);
+  if (!merged) {
+    await WhatsAppService.sendMessage(from, S.submitted_ack);
+    await WhatsAppService.sendInteractiveButtons(from, choice);
+    return;
+  }
+  const sent = await WhatsAppService.sendInteractiveButtons(from, { ...choice, body: merged });
+  if (sent === false) {
+    logToFile('⚠️ observe: saved+debrief buttons refused — sending the saved line alone', { sessionId }, 'warn');
+    await WhatsAppService.sendMessage(from, S.submitted_ack);
+  }
 }
 
 /**
@@ -465,6 +499,26 @@ async function armDebriefAudio(observerId, sessionId, guideSnapshot) {
  * deterministic fallback on ANY failure. The FO standing next to the teacher
  * always gets a guide.
  */
+/**
+ * The debrief guide and "When you're with the teacher: open the voice recorder…"
+ * as ONE text — the instruction is the guide's last paragraph, which is also
+ * exactly where it sat as a second bubble. A guide is budgeted to 2,200 code
+ * points, so the pair fits WhatsApp's 4,096 with room to spare; a stored snapshot
+ * that somehow does not (it is not re-validated on a re-send) keeps the two
+ * messages. No guide at all: the instruction alone, as before.
+ */
+async function _sendGuideWithInstruction(from, guideText, S) {
+  const merged = guideText
+    ? mergeWithinCap([guideText, S.debrief_record_instruction], FIELD_CAPS.text)
+    : null;
+  if (merged) {
+    await WhatsAppService.sendMessage(from, merged);
+    return;
+  }
+  if (guideText) await WhatsAppService.sendMessage(from, guideText);
+  await WhatsAppService.sendMessage(from, S.debrief_record_instruction);
+}
+
 async function startDebrief(sessionId, from, user) {
   const lang = observeLang(user);
   const S = observeStrings(lang);
@@ -505,10 +559,8 @@ async function startDebrief(sessionId, from, user) {
   // so a genuine later re-arm still rebuilds.
   const existing = await ObserveState.getState(user.id);
   if (existing && existing.state === 'awaiting_debrief_audio' && existing.sessionId === sessionId) {
-    if (existing.guide_snapshot) {
-      await WhatsAppService.sendMessage(from, renderGuideMessage(existing.guide_snapshot, S));
-    }
-    await WhatsAppService.sendMessage(from, S.debrief_record_instruction);
+    await _sendGuideWithInstruction(
+      from, existing.guide_snapshot ? renderGuideMessage(existing.guide_snapshot, S) : null, S);
     logToFile('🔭 observe debrief: already armed for this session — re-sent guide + nudge', { sessionId });
     return;
   }
@@ -570,8 +622,7 @@ async function startDebrief(sessionId, from, user) {
     }
   }
 
-  await WhatsAppService.sendMessage(from, renderGuideMessage(guide, S));
-  await WhatsAppService.sendMessage(from, S.debrief_record_instruction);
+  await _sendGuideWithInstruction(from, renderGuideMessage(guide, S), S);
   // Direct arm (NOT the guarded armDebriefAudio): the FO explicitly chose to
   // debrief THIS session now — their tap is the intent, so it wins over any
   // stale arm for another session (which becomes pending, resurfaces in the
@@ -681,7 +732,6 @@ async function startDebriefFromAudio(user, from, audioId, observeState, opts = {
 async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, lang = 'en') {
   const { renderCoachFeedbackMessages } = require('./observe-coach-feedback');
   const [praiseMsg, cardMsg] = renderCoachFeedbackMessages(feedback, S);
-  const sentPraise = await WhatsAppService.sendMessage(from, praiseMsg);
 
   // bd-44: the celebration card ships as a rendered image (hero design,
   // value-anchored). renderCoachCard returns null for harmful debriefs and on
@@ -697,10 +747,21 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
   // so re-labelling the card silently flipped Urdu coaches to the English one.
   // Same failure shape as bd-2644 (tofu boxes), one layer up.
   const png = await renderCoachCard(feedback, { lang, brand: heroBrandFor(framework) });
+
+  // The praise line rides on the card: its caption is the praise, then the
+  // card's closing line — one message where there were two, every word kept.
+  // Only with a rendered card (never on the harmful path, where renderCoachCard
+  // returns null) and only when the caption fits 1,024 code points; otherwise the
+  // praise goes first as its own message, exactly as before.
+  const praiseCaption = png ? mergeWithinCap([praiseMsg, S.coach_card_closing], FIELD_CAPS.caption) : null;
+  let sentPraise = true;
+  if (!praiseCaption) sentPraise = await WhatsAppService.sendMessage(from, praiseMsg);
   if (png) {
-    sentCard = await WhatsAppService.sendImageFromBuffer(from, png, S.coach_card_closing);
+    sentCard = await WhatsAppService.sendImageFromBuffer(from, png, praiseCaption || S.coach_card_closing);
   }
   if (!png || sentCard === false) {
+    // The card image was refused: if the praise was riding on it, it goes first.
+    if (praiseCaption) sentPraise = await WhatsAppService.sendMessage(from, praiseMsg);
     sentCard = await WhatsAppService.sendMessage(from, cardMsg);
   }
   if (sentPraise === false || sentCard === false) {
@@ -1067,6 +1128,7 @@ module.exports = {
   parseDebriefButtonId,
   parseDebriefListReplyId,
   buildDebriefChoiceButtons,
+  acknowledgeFormSubmitted,
   listPendingDebriefs,
   listUnsentReports,
   sendReportRowMeta,

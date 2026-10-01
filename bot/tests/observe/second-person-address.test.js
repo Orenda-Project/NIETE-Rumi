@@ -283,7 +283,12 @@ describe('B3 — the teacher\'s note: checked and logged, the report still ships
     db.usersByPhone = { [TEACHER_PHONE]: 'ur' };
     mockCreate.mockResolvedValue(reply({ discussed_sw: 'آپ کلاس میں سوال پوچھنے کا طریقہ بہتر بنانا چاہتے ہیں۔', commitment_sw: null }));
     await ObserveSend.processTeacherReport('sess-n', { phase: 'preview', from: COACH_PHONE });
-    const sent = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
+    // The note reaches the preview — as the report image's caption since the
+    // companion rides there, or as its own text when it overruns 1,024.
+    const sent = [
+      ...(WhatsAppService.sendImageFromBuffer ? WhatsAppService.sendImageFromBuffer.mock.calls.map((c) => c[2]) : []),
+      ...WhatsAppService.sendMessage.mock.calls.map((c) => c[1]),
+    ].join('\n');
     expect(sent).toContain('سوال پوچھنے کا طریقہ بہتر بنانا');
     const ev = addressEvents();
     expect(ev).toHaveLength(1);

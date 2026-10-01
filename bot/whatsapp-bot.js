@@ -263,8 +263,8 @@ async function handleAttendanceTap(interactiveId, from, user) {
     return true;
   }
 
-  // One Flow, opened with the bare user id for a teacher; it picks the class
-  // and the date. MARK_* carry an explicit target — a principal always.
+  // One Flow, opened with "<userId>:student" (no target) for a teacher; it picks
+  // the class and the date. MARK_* carry an explicit target — a principal always.
   if (decision.action === 'OPEN_REGISTER'
       || decision.action === 'MARK_TEACHERS' || decision.action === 'MARK_STUDENTS') {
     if (!constants.ATTENDANCE_MARKING_FLOW_ID) {
@@ -284,16 +284,17 @@ async function handleAttendanceTap(interactiveId, from, user) {
   }
 
   // /class owns class creation now — attendance points at it rather than shipping a
-  // second way to make one. flowToken is the bare user id, the class-manager
-  // endpoint's convention (NOT a composite token). (bd-2724)
+  // second way to make one. The token is the one every class-manager sender
+  // builds, so the Flow's completion is recognised whichever door opened it. (bd-2724)
   if (decision.action === 'SEND_CLASS_MANAGER') {
     if (constants.CLASS_MANAGER_FLOW_ID) {
+      const { classManagerFlowToken } = require('./shared/services/classes/class-entry.service');
       await WhatsAppService.sendFlow(from, {
         flowId: constants.CLASS_MANAGER_FLOW_ID,
         header: '🏫 Your classes',
         body: decision.message,
         buttonText: 'Manage classes',
-        flowToken: user.id,
+        flowToken: classManagerFlowToken(user.id),
       });
       return true;
     }
@@ -919,7 +920,7 @@ app.post('/webhook', async (req, res) => {
         if (parsed && user) {
           if (parsed.action === 'start') await ObserveSend.startSendFlow(parsed.sessionId, from, user);
           else if (parsed.action === 'later') await ObserveSend.handleSendLater(parsed.sessionId, from, user);
-          else if (parsed.action === 'confirm') await ObserveSend.handleSendConfirm(parsed.sessionId, from, user);
+          else if (parsed.action === 'confirm') await ObserveSend.handleSendConfirm(parsed.sessionId, from, user, { messageId: message.id });
           else if (parsed.action === 'other') await ObserveSend.handleSendOther(parsed.sessionId, from, user);
           else if (parsed.action === 'cancel') await ObserveSend.handleSendCancel(parsed.sessionId, from, user);
         } else {
@@ -1677,6 +1678,15 @@ app.post('/webhook', async (req, res) => {
           from,
           responseFields: Object.keys(responseJson)
         });
+      } else if (flowType === 'class_manager') {
+        // /class. The endpoint wrote every change before the Flow closed and its
+        // own SAVED screen confirmed it, so this branch only claims the completion
+        // — without it the save fell to the "Thanks for your response! Type /menu…"
+        // catch-all below.
+        logToFile('🏫 Class manager flow completion (changes already written by endpoint)', {
+          from,
+          responseFields: Object.keys(responseJson)
+        });
       } else if (flowType === 'roster') {
         // The Flow already showed the result on its own terminal screen; this is
         // the chat breadcrumb so the coach can see it later in the thread.
@@ -1784,12 +1794,9 @@ app.post('/webhook', async (req, res) => {
             .from('users').select('preferred_language').eq('id', observerId).maybeSingle();
           const obsLang = clampLanguage(obsRow?.preferred_language);
           const S = observeStrings(obsLang);
-          await WhatsAppService.sendMessage(from, S.submitted_ack);
           if (observerId) await ObserveDebrief.clearStateAfterSubmit(observerId, observeSessionId);
-          if (observeSessionId) {
-            await WhatsAppService.sendInteractiveButtons(
-              from, ObserveDebrief.buildDebriefChoiceButtons(observeSessionId, S));
-          }
+          // "Saved" and "debrief now or later?" — one buttons message, ack on top.
+          await ObserveDebrief.acknowledgeFormSubmitted(from, observeSessionId, S);
           logToFile('🔭 Observe FICO submission acknowledged', { from, sessionId: observeSessionId });
         } catch (observeAckErr) {
           logToFile('⚠️ observe ack failed (submission itself already persisted)', { error: observeAckErr.message });
@@ -1838,7 +1845,8 @@ app.post('/webhook', async (req, res) => {
           from, action: responseJson.assessment_action,
         });
         try {
-          await FlowResponseHandler.handleAssessmentFlowCompletion(responseJson, from, user);
+          // The completion's own id: a remake is acknowledged with a reaction on it.
+          await FlowResponseHandler.handleAssessmentFlowCompletion(responseJson, from, user, { messageId: message.id });
         } catch (ackErr) {
           logToFile('❌ assessment completion handler failed', { from, error: ackErr.message }, 'error');
         }

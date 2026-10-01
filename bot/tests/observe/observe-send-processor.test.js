@@ -107,9 +107,13 @@ describe('phase: preview', () => {
     expect(uploadImageBuffer).toHaveBeenCalled();
     // preview goes to the FO, not the teacher
     expect(WhatsAppService.sendImageFromBuffer.mock.calls[0][0]).toBe(FO_PHONE);
-    // companion text + confirm buttons
-    const texts = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
-    expect(texts).toContain('Umejuaje');
+    // companion text (it rides in the preview image's caption, as it does for
+    // the teacher) + confirm buttons
+    const shown = [
+      ...WhatsAppService.sendImageFromBuffer.mock.calls.map((c) => c[2]),
+      ...WhatsAppService.sendMessage.mock.calls.map((c) => c[1]),
+    ].join('\n');
+    expect(shown).toContain('Umejuaje');
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalled();
     const btns = WhatsAppService.sendInteractiveButtons.mock.calls[0][1].buttons;
     expect(btns[0].id).toBe(`observe_send_confirm_${SID}`);
@@ -163,8 +167,10 @@ describe('phase: deliver', () => {
     await processTeacherReport(SID, { from: FO_PHONE, phase: 'deliver' });
     expect(downloadFromR2).toHaveBeenCalledWith('observe-reports/sess-77.png');
     expect(WhatsAppService.sendImageFromBuffer.mock.calls[0][0]).toBe(TEACHER_PHONE);
+    // the companion rides in the report image's caption: one message, not two
+    expect(WhatsAppService.sendImageFromBuffer.mock.calls[0][2]).toBe('caption\n\ncompanion');
     const teacherTexts = WhatsAppService.sendMessage.mock.calls.filter((c) => c[0] === TEACHER_PHONE);
-    expect(teacherTexts.length).toBeGreaterThanOrEqual(1);   // companion
+    expect(teacherTexts).toHaveLength(0);
     expect(mockDb.row.analysis_data.teacher_delivery.status).toBe('sent');
     const foTexts = WhatsAppService.sendMessage.mock.calls.filter((c) => c[0] === FO_PHONE);
     expect(foTexts.length).toBeGreaterThanOrEqual(1);        // FO confirmation
