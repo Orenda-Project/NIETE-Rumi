@@ -193,9 +193,10 @@ describe('training-module quiz — content-delivery wiring', () => {
     await new Promise((r) => setImmediate(r));
 
     expect(spy).not.toHaveBeenCalled();
-    // deliverNextModule path runs — whatsapp received at least one send (the
-    // "marked done" line, and/or the empty-course fallback).
-    expect(whatsappSend).toHaveBeenCalled();
+    // deliverNextModule path runs — whatsapp received at least one send. The
+    // next module's card and its buttons are ONE interactive message now
+    // (bd-w2daa.8), so a text send alone no longer proves delivery.
+    expect(whatsappSend.mock.calls.length + whatsappButtons.mock.calls.length).toBeGreaterThan(0);
     spy.mockRestore();
   });
 

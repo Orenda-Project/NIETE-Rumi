@@ -45,6 +45,13 @@ const portalUrl = () => brandUrl('PORTAL_URL');
 const assetBaseUrl = () => brandUrl('ASSET_BASE_URL') || brandUrl('ASSETS_BASE_URL');
 const logoUrl = () => brandUrl('LOGO_URL');
 
+// The NIETE app's store listing (bd-onxyu) — where an app-redirect switch sends a
+// teacher. Unlike the URLs above it has a code default: like botName, this fork
+// cannot set Railway variables, so the default IS the operative config. A clone
+// overrides it with APP_STORE_URL.
+const NIETE_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=pk.edu.niete';
+const appStoreUrl = () => brandUrl('APP_STORE_URL') || NIETE_PLAY_STORE_URL;
+
 const supportedLanguages = [
   { code: 'en', name: 'English', direction: 'ltr' },
   { code: 'ur', name: 'Urdu', direction: 'rtl' },
@@ -77,6 +84,7 @@ module.exports = {
   // URL helpers — return null when unset; callers degrade gracefully.
   websiteUrl,
   portalUrl,
+  appStoreUrl,
   assetBaseUrl,
   logoUrl,
   getWelcomeMessage,

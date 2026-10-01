@@ -165,4 +165,8 @@ exports.run = async ({ api, rec, sleep }) => {
       ['M18', 'A teacher tapping a stray Observe row is refused and redirected'],
       ['M19', "The role-refusal is in the tapping user's own language (Urdu)"]]) roleBlocked(id, name);
   }
+
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
+  rec('M20', 'A menu row whose feature moved to the app sends me to the Play Store instead', 'BLOCKED',
+      { reason: 'needs an app_redirect_* switch turned ON in the target database, and the switch is global: it would redirect every teacher on that environment for the length of the run. Covered by tests/app-redirect/ (the real text handler and menu router, red-first).' }, 0);
 };

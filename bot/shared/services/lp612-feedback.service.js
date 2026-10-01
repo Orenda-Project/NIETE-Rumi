@@ -23,6 +23,12 @@
  *      lesson has no `lesson_plans` row. It is a (segment_id, lang, template_version) render. The
  *      row lands on `lp_feedback` all the same — see V1.3.5's header for what was ruled out.
  *
+ * RECEIPTS ARE THE REACTION (Meta bill cut NL1, bd-w2daa.9). A tap or a typed reason that only
+ * needs acknowledging gets no text: the webhook reacts 👍 to every inbound message before any
+ * handler runs, a reaction is free, and from 1 Oct 2026 every text is billed. The
+ * `lp612UsedThanks` / `lp612FeedbackReasonThanks` catalog entries stay (unsent) beside
+ * `lp612FeedbackThanks`; anything that ASKS the teacher something — the 👎 reason ask, Q2 — still goes.
+ *
  * BUTTON IDS: `lp612_fb_(yes|no)_(en|ur)_<segment_id>`.
  *   - The prefix is distinct from `lp_feedback_` and `student_video_feedback_`, and is dispatched
  *     in `whatsapp-bot.js` beside them. An emitted prefix with no dispatcher is the orphan class
@@ -326,9 +332,10 @@ async function handleFeedbackButton(buttonId, phone) {
  * a segment is a shared corpus row that hundreds of teachers rate, so a filter on the segment
  * alone would stamp one teacher's answer onto every row for that lesson.
  *
- * Deliberately forgiving, exactly as the K-5 handler is: a tap we cannot store still gets a
- * thank-you. She has done her part, and a button that answers with silence teaches her that
- * answering is pointless — which costs more signal than the one row we just failed to write.
+ * Deliberately forgiving, exactly as the K-5 handler is: a tap we cannot store is still owned.
+ * She has done her part, and a button that answers with silence teaches her that answering is
+ * pointless — so it is never silent: the webhook's 👍 reaction on the tap is the receipt. The
+ * "Thank you — that helps." text that used to follow said nothing more, at a billed message (NL1).
  *
  * @returns {Promise<boolean>} true iff this handler owned the id
  */
@@ -343,10 +350,8 @@ async function handleUsageButton(buttonId, phone) {
   if (userError || !user) {
     logToFile('LP 6-12 usage: phone → user lookup failed', { phone, error: userError && userError.message });
     logEvent('lp612.usage.unattributable', { segmentId, phone, usedInClass });
-    await WhatsAppService.sendMessage(phone, resolveUx('lp612UsedThanks', { language: clampLanguage(null) }));
     return true;
   }
-  const voice = clampLanguage(user.preferred_language);
 
   const { error } = await supabase
     .from(TABLE)
@@ -361,8 +366,7 @@ async function handleUsageButton(buttonId, phone) {
     logEvent('lp612.usage.recorded', { segmentId, userId: user.id, usedInClass });
   }
 
-  await WhatsAppService.sendMessage(phone, resolveUx('lp612UsedThanks', { language: voice }));
-  return true;
+  return true;   // receipted by the webhook's 👍 reaction on the tap (NL1)
 }
 
 // ─── 4. the reason ──────────────────────────────────────────────────────────
@@ -395,14 +399,12 @@ async function consumeReasonIfPending(userId, phone, text) {
   // The REASON's own language, independent of her UI: she may answer an Urdu prompt in English.
   const reasonLanguage = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/.test(text) ? 'ur' : 'en';
   const reasonText = String(text).trim().slice(0, 2000);
-  const voice = await _voiceOf(userId, reasonLanguage);
 
   if (pending.feedbackId === '__orphan__') {
     logEvent('lp612.feedback.reason_orphaned', {
       userId, segmentId: pending.segmentId || null, reasonLanguage, reasonText,
     });
-    await WhatsAppService.sendMessage(phone, resolveUx('lp612FeedbackReasonThanks', { language: voice }));
-    return true;
+    return true;   // receipted by the webhook's 👍 reaction on the teacher's message (NL1)
   }
 
   const { error } = await supabase
@@ -426,8 +428,7 @@ async function consumeReasonIfPending(userId, phone, text) {
     userId, segmentId: pending.segmentId || null, feedbackId: pending.feedbackId,
     reasonLanguage, reasonLength: reasonText.length,
   });
-  await WhatsAppService.sendMessage(phone, resolveUx('lp612FeedbackReasonThanks', { language: voice }));
-  return true;
+  return true;   // receipted by the webhook's 👍 reaction on the teacher's message (NL1)
 }
 
 module.exports = {

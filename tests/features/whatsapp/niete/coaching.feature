@@ -207,6 +207,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I selected a lesson plan for one lesson
     When I send a classroom recording of a clearly different lesson and the report arrives
     Then the Lesson Plan Fidelity line says the classroom recording does not match the selected lesson plan, so it is 0%
+    And that line gives no other reason
     And no line of the report names, lists or judges an activity or topic from the selected lesson plan
     And the report's next horizon is not Lesson Plan Fidelity
     # bd-5lrgh (ICT sheet DC row 142) — the grader sets moderators.note = lesson_mismatch and Section B = 0;
@@ -838,3 +839,16 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # lessonPlan_confirm_prompt with lpconfirm_yes_{asset}_{session} / lpconfirm_no_{session}. In Urdu the
     # buttons are «ہاں» / «منصوبہ تبدیل کریں» and the question «کیا آگے بڑھنا ہے؟» carries no gendered verb.
     # Unit: tests/coaching/bd-2c1gj-lp-select-confirm.test.js. @wip.
+
+  # ─────────── app redirect (bd-onxyu) — Classroom Coaching moved to the NIETE app ───────────
+  # Switch app_redirect_ai_coaching, off by default. Every coaching door — /coaching, the chip, the
+  # menu row, a classroom recording — asks it. Unit: tests/app-redirect/.
+
+  @e2e @config-gated @P1 @COA62
+  Scenario: With coaching moved to the app, /coaching sends me to the Play Store instead of asking for a recording
+    Given the NIETE bot chat is open
+    And my role is "teacher"
+    And Classroom Coaching has been switched to the NIETE app
+    When I send "/coaching"
+    Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
+    And the bot does not ask me to record my lesson

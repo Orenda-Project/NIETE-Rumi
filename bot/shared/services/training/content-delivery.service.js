@@ -21,6 +21,11 @@ const { logEvent } = require('../../utils/structured-logger');
 // module so quiz-delivery can record a completion without requiring this file
 // (which requires quiz-delivery back).
 const { markModuleComplete, countActiveQuestions } = require('./progress.service');
+// Fewer bubbles, same words — module card + its buttons as one message, the
+// PDF's caption on the document, a lead line on whatever goes first.
+const {
+  withLead, fitsIn, sendTextWithButtons, INTERACTIVE_BODY_MAX, MEDIA_CAPTION_MAX,
+} = require('./merged-sends');
 
 /**
  * A module is delivered as a PDF (not a video) when it has no video_url but
@@ -94,11 +99,13 @@ function moduleCta(m, hasQuiz, reviewMode = false) {
  *
  * @param {string} phoneNumber - Teacher's WhatsApp number
  * @param {object} module - training_modules row (needs id, title, source_media_url)
- * @param {object} [opts] - { userId, vendorKey } for the semantic event
+ * @param {object} [opts] - { userId, vendorKey } for the semantic event;
+ *   `caption` replaces the bare module title as the document's caption (the
+ *   module card rides on the document instead of a text bubble before it).
  * @returns {Promise<boolean>}
  */
 async function deliverPdfModule(phoneNumber, module, opts = {}) {
-  const { userId, vendorKey } = opts;
+  const { userId, vendorKey, caption } = opts;
   if (!module || !module.source_media_url) {
     logToFile('⚠️ deliverPdfModule: no source_media_url — sending "PDF not available yet"', {
       moduleId: module?.id,
@@ -145,7 +152,7 @@ async function deliverPdfModule(phoneNumber, module, opts = {}) {
 
   let ok = false;
   try {
-    ok = await WhatsAppService.sendDocumentByLink(phoneNumber, documentUrl, filename, module.title);
+    ok = await WhatsAppService.sendDocumentByLink(phoneNumber, documentUrl, filename, caption || module.title);
   } catch (err) {
     logToFile('❌ deliverPdfModule: sendDocumentByLink threw', {
       moduleId: module.id,
@@ -167,6 +174,65 @@ async function deliverPdfModule(phoneNumber, module, opts = {}) {
     module_id: module.id,
     user_id: userId || null,
     vendor_key: vendorKey || null,
+  });
+  return true;
+}
+
+/** The module card's two buttons: what the tap does, and Pause. */
+function moduleCtaButtons(m, cta) {
+  return [
+    { id: `training_module_done_${m.id}`, title: cta.title },
+    { id: 'training_pause', title: '⏸ Pause' },
+  ];
+}
+
+// Gap between a link-mode send and the buttons after it. Meta acknowledges in
+// ~200ms but fetches the media / link preview for seconds more; without the
+// gap the buttons can land ABOVE the module in the chat.
+const SPLIT_ORDER_DELAY_MS = 1000;
+
+/**
+ * A module card that is text (a video link, or "no file yet") and its buttons,
+ * as ONE reply-button message: the card is the body, "Finished watching …?"
+ * closes it. It used to be the text, a 1-second wait, then the buttons.
+ *
+ * The video link stays a plain URL in the body — a video header is not an
+ * option (files run to 611 MB against the 16 MB cap). Over the 1024 body cap,
+ * or refused by Meta, it goes out as before: text, wait, buttons.
+ */
+async function sendModuleCard(phoneNumber, m, cardText, cta) {
+  return sendTextWithButtons(phoneNumber, {
+    text: cardText,
+    prompt: cta.body,
+    buttons: moduleCtaButtons(m, cta),
+    splitDelayMs: SPLIT_ORDER_DELAY_MS,
+    logCtx: { moduleId: m.id, branch: 'module_card' },
+  });
+}
+
+/**
+ * A PDF module: the document carries the whole card as its caption (it used to
+ * carry only the title, after a separate caption text), then the buttons.
+ *
+ * The card must reach the teacher even when the document does not: a refused
+ * document send falls back to the card as text, and a card over the caption
+ * cap keeps today's text-then-document shape.
+ */
+async function sendPdfModuleCard(phoneNumber, m, cardText, cta, { userId } = {}) {
+  if (fitsIn(cardText, MEDIA_CAPTION_MAX)) {
+    const ok = await deliverPdfModule(phoneNumber, m, { userId, caption: cardText });
+    if (!ok) {
+      logToFile('❌ PDF module document not delivered — sending its card as text', { moduleId: m.id, userId }, 'error');
+      await WhatsAppService.sendMessage(phoneNumber, cardText);
+    }
+  } else {
+    await WhatsAppService.sendMessage(phoneNumber, cardText);
+    await deliverPdfModule(phoneNumber, m, { userId });
+  }
+  await new Promise(resolve => setTimeout(resolve, SPLIT_ORDER_DELAY_MS));
+  await WhatsAppService.sendInteractiveButtons(phoneNumber, {
+    body: cta.body,
+    buttons: moduleCtaButtons(m, cta),
   });
   return true;
 }
@@ -210,11 +276,15 @@ async function findNextModule(userId, courseId) {
  * @param {string} userId - Supabase user UUID
  * @param {number|string} courseId - training_courses.id (int)
  * @param {string} phoneNumber - Teacher's WhatsApp number
+ * @param {{lead?: string}} [opts] - a line that opens the first message sent
+ *   (e.g. "Module check — passed"), instead of a bubble of its own
  */
-async function deliverNextModule(userId, courseId, phoneNumber) {
+async function deliverNextModule(userId, courseId, phoneNumber, opts = {}) {
+  const lead = opts.lead || null;
   const courseIdNum = parseInt(courseId, 10);
   if (!courseIdNum) {
     logToFile('⚠️ Invalid courseId in deliverNextModule', { userId, courseId });
+    if (lead) await WhatsAppService.sendMessage(phoneNumber, lead);
     return false;
   }
 
@@ -227,7 +297,7 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
 
   const state = await findNextModule(userId, courseIdNum);
   if (!state) {
-    await WhatsAppService.sendMessage(phoneNumber, `${courseTitle} has no active modules yet — please check back soon.`);
+    await WhatsAppService.sendMessage(phoneNumber, withLead(lead, `${courseTitle} has no active modules yet — please check back soon.`));
     return true;
   }
 
@@ -250,7 +320,7 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
       .limit(1)
       .maybeSingle();
     if (!firstMod) {
-      await WhatsAppService.sendMessage(phoneNumber, `${courseTitle} has no active modules yet — please check back soon.`);
+      await WhatsAppService.sendMessage(phoneNumber, withLead(lead, `${courseTitle} has no active modules yet — please check back soon.`));
       return true;
     }
     m = firstMod;
@@ -278,10 +348,14 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
   // ~100-500KB each). Route to sendDocumentByLink so WhatsApp renders a
   // tappable document card that opens in the native PDF viewer.
   if (isPdfModule(m)) {
-    // Header caption first (title + progress), then the PDF as a document.
-    await WhatsAppService.sendMessage(phoneNumber, caption);
-    await deliverPdfModule(phoneNumber, m, { userId });
-  } else if (m.video_url) {
+    // The card (title + progress + what to tap) is the PDF's caption, then
+    // the buttons. See sendPdfModuleCard.
+    await sendPdfModuleCard(phoneNumber, m, withLead(lead, caption), cta, { userId });
+    return true;
+  }
+
+  let card;
+  if (m.video_url) {
   // Send the video as a plain-text presigned link. The training corpus has
   // files up to 611 MB (median 100 MB); both video-type (16 MB) and document-
   // type (100 MB) WhatsApp media caps reject them with async error 131053.
@@ -290,32 +364,19 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
     try {
       const signed = await getPresignedUrl(m.video_url, 3600); // 1h TTL is plenty
       logToFile('🎓 Sending training video as link', { moduleId: m.id, urlPrefix: signed.slice(0, 80) });
-      await WhatsAppService.sendMessage(phoneNumber, `${caption}\n\n▶️ ${signed}`);
+      card = `${caption}\n\n▶️ ${signed}`;
     } catch (err) {
       logToFile('⚠️ Presign failed', { moduleId: m.id, error: err.message });
-      await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(Video could not be delivered — please contact NIETE support.)`);
+      card = caption + `\n\n(Video could not be delivered — please contact NIETE support.)`;
     }
   } else {
     logToFile('⚠️ Module has no video_url — sending "no video available" text', { moduleId: m.id, courseId: courseIdNum });
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      `📘 *${courseTitle}* — ${positionLabel}\n\n*${m.title}*\n\nNo file is available for this module yet. ${cta.trailer}`
-    );
+    card = `📘 *${courseTitle}* — ${positionLabel}\n\n*${m.title}*\n\nNo file is available for this module yet. ${cta.trailer}`;
   }
 
-  // Delay the CTA button so it lands AFTER the video finishes fetching +
-  // delivering (link-mode is async — Meta acknowledges our API call in ~200ms
-  // but fetches from R2 asynchronously for another 3-6s). Without this delay
-  // the button appears above the video in the chat.
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  await WhatsAppService.sendInteractiveButtons(phoneNumber, {
-    body: cta.body,
-    buttons: [
-      { id: `training_module_done_${m.id}`, title: cta.title },
-      { id: `training_pause`, title: '⏸ Pause' },
-    ],
-  });
+  // The card and its buttons as one message (text, 1s, buttons when it
+  // cannot be — see sendModuleCard).
+  await sendModuleCard(phoneNumber, m, withLead(lead, card), cta);
   return true;
 }
 
@@ -341,9 +402,12 @@ async function deliverNextModule(userId, courseId, phoneNumber) {
  * the next module back. Returns false for every other vendor and for any
  * module whose exam is not yet open, so their advancement is untouched.
  *
+ * @param {{lead?: string}} [opts] a line that opens the offer (e.g. "Module
+ *   check — passed") instead of a bubble of its own
  * @returns {Promise<boolean>} true if an offer was sent
  */
-async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
+async function maybeOfferModuleExam(userId, moduleId, phoneNumber, opts = {}) {
+  const lead = opts.lead || null;
   const {
     shouldOfferModuleExam, moduleExamOfferMessage, moduleSourceQuizId,
   } = require('./isaps-module-exam.rules');
@@ -396,6 +460,11 @@ async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
     .from('training_assessment_attempts').select('id')
     .eq('user_id', userId).eq('is_passed', true)
     .in('grand_quiz_id', ids);
+  // bd-hxm7a — an exam whose written answer is being graded is not re-offered.
+  const { data: pendingRows } = await supabase
+    .from('training_assessment_attempts').select('id')
+    .eq('user_id', userId).eq('status', 'pending_review')
+    .in('grand_quiz_id', ids);
 
   if (!shouldOfferModuleExam({
     vendorKey: vendor?.key,
@@ -404,6 +473,7 @@ async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
     mcqCount,
     crqCount,
     alreadyPassed: (passedRows || []).length > 0,
+    pendingReview: (pendingRows || []).length > 0,
   })) return false;
 
   // Announce the paper the teacher will actually sit.
@@ -422,14 +492,24 @@ async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
   const offeredMcqCount = Math.min(MODULE_EXAM_MCQ_COUNT, mcqCount);
   const offeredCrqCount = crqCount > 0 ? 1 : 0;
 
-  await WhatsAppService.sendInteractiveButtons(phoneNumber, {
-    body: moduleExamOfferMessage({
-      moduleTitle: course.title,
-      mcqCount: offeredMcqCount,
-      crqCount: offeredCrqCount,
-    }),
+  const offer = moduleExamOfferMessage({
+    moduleTitle: course.title,
+    mcqCount: offeredMcqCount,
+    crqCount: offeredCrqCount,
+  });
+  // The lead (the pass line) opens the offer; over the body cap it goes first
+  // on its own, as it used to.
+  const leadFits = !lead || fitsIn(withLead(lead, offer), INTERACTIVE_BODY_MAX);
+  if (!leadFits) await WhatsAppService.sendMessage(phoneNumber, lead);
+  const offered = await WhatsAppService.sendInteractiveButtons(phoneNumber, {
+    body: leadFits ? withLead(lead, offer) : offer,
     buttons: [{ id: `module_exam_start_${course.id}`, title: '📝 Take the exam' }],
   });
+  if (offered === false && lead && leadFits) {
+    // The offer is lost either way (as before), but the pass line is not.
+    logToFile('❌ Module-exam offer refused — sending the pass line on its own', { userId, moduleId }, 'error');
+    await WhatsAppService.sendMessage(phoneNumber, lead);
+  }
   logToFile('🎓 Offered the module exam', {
     userId, moduleId, courseId: course.id,
     // Both, so a log line can show the bank the paper was drawn from.
@@ -439,15 +519,35 @@ async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
   return true;
 }
 
-async function onModuleCompleted(userId, moduleId, phoneNumber) {
-  // Capstone offer — fire-and-forget, never blocks forward progress. The
-  // service itself checks vendor type, capstone existence, full completion and
-  // prior passes, so calling it after every completion is safe and cheap.
-  {
+/**
+ * @param {string} userId
+ * @param {number} moduleId the module just credited
+ * @param {string} phoneNumber
+ * @param {{lead?: string}} [opts] a line that must open the FIRST message sent
+ *   from here (the "Module check — passed" line). Whichever exit fires — the
+ *   capstone offer, the module-exam offer, the next module, the level-complete
+ *   line — folds it in, so it is never a bubble of its own.
+ */
+async function onModuleCompleted(userId, moduleId, phoneNumber, opts = {}) {
+  let lead = opts.lead || null;
+
+  // Capstone offer. The service itself checks vendor type, capstone existence,
+  // full completion and prior passes, so calling it after every completion is
+  // safe and cheap, and it never throws.
+  //
+  // AWAITED now (it used to be fire-and-forget): when it offers, the level is
+  // finished, and advancement below would send "That's every module in this
+  // level complete — send /training to take the level exam" right alongside
+  // an offer that already has a Start button. Knowing the answer first is what
+  // lets that duplicate be skipped. Still never blocks progress on a failure.
+  let capstoneOffered = false;
+  try {
     const CapstoneDelivery = require('./capstone-delivery.service');
-    Promise.resolve(CapstoneDelivery.maybeOfferCapstone(userId, moduleId, phoneNumber))
-      .catch((err) => logToFile('⚠️ Non-blocking capstone offer failed', { moduleId, error: err?.message }));
+    capstoneOffered = (await CapstoneDelivery.maybeOfferCapstone(userId, moduleId, phoneNumber, { lead })) === true;
+  } catch (err) {
+    logToFile('⚠️ Non-blocking capstone offer failed', { moduleId, error: err?.message });
   }
+  if (capstoneOffered) lead = null;   // it rode on the offer
 
   // The I-SAPS end-of-MODULE exam.
   //
@@ -462,7 +562,7 @@ async function onModuleCompleted(userId, moduleId, phoneNumber) {
   // and the next unit's video arrive together, the video is what gets tapped,
   // which is precisely the bug.
   try {
-    const offered = await maybeOfferModuleExam(userId, moduleId, phoneNumber);
+    const offered = await maybeOfferModuleExam(userId, moduleId, phoneNumber, { lead });
     if (offered) return true;
   } catch (err) {
     // Never block progress on this. A teacher who does not get the offer can
@@ -472,7 +572,9 @@ async function onModuleCompleted(userId, moduleId, phoneNumber) {
     });
   }
 
-  return advanceAfterModule(userId, moduleId, phoneNumber);
+  return advanceAfterModule(userId, moduleId, phoneNumber, {
+    lead, levelExamAlreadyOffered: capstoneOffered,
+  });
 }
 
 /**
@@ -486,16 +588,27 @@ async function onModuleCompleted(userId, moduleId, phoneNumber) {
  * Order matches what the Flow renders (course order_index, then module
  * order_index) so "next" means the same thing in both surfaces.
  */
-async function advanceAfterModule(userId, moduleId, phoneNumber) {
+/**
+ * The unit that follows `moduleId` for this teacher, or null when the level is
+ * finished. Level order (course order_index, then module order_index), with one
+ * exception (bd-vej4h): a vendor whose units chain PER COURSE (I-SAPS) stays in
+ * the course just finished while it still has open units — its modules are
+ * independent, so jumping to another module's first gap would walk her out of
+ * the module she chose.
+ *
+ * @returns {Promise<{id:number, course_id:number}|null|undefined>} undefined
+ *   when the finished unit cannot be resolved at all
+ */
+async function nextUnitAfter(userId, moduleId) {
   const { data: mod } = await supabase
     .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
   if (!mod?.course_id) {
     logToFile('⚠️ Completed module has no course_id — cannot advance', { moduleId });
-    return true;
+    return undefined;
   }
   const { data: course } = await supabase
     .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();
-  if (!course?.level_id) return deliverNextModule(userId, mod.course_id, phoneNumber);
+  if (!course?.level_id) return undefined;
 
   const { data: courses } = await supabase
     .from('training_courses').select('id, order_index')
@@ -514,15 +627,55 @@ async function advanceAfterModule(userId, moduleId, phoneNumber) {
     || (a.course_id - b.course_id)                       // stable across duplicate course order_index
     || ((a.order_index || 0) - (b.order_index || 0)));
 
-  const next = ordered.find(m => !done.has(m.id));
-  if (next) return deliverModuleById(next.id, phoneNumber, { userId, courseId: next.course_id, reviewMode: false });
+  const open = ordered.filter(m => !done.has(m.id));
+  if (open.length === 0) return null;
+  let perCourse = false;
+  try {
+    const { loadLevelUnlockLogic } = require('../../routes/teacher-training-endpoint');
+    perCourse = (await loadLevelUnlockLogic(course.level_id)) === 'chain_per_course';
+  } catch (err) {
+    logToFile('⚠️ unlock-logic lookup failed — advancing in level order', { moduleId, error: err?.message });
+  }
+  if (perCourse) {
+    const sameCourse = open.find(m => m.course_id === mod.course_id);
+    if (sameCourse) return sameCourse;
+  }
+  return open[0];
+}
+
+/**
+ * @param {{lead?: string, levelExamAlreadyOffered?: boolean}} [opts]
+ *   lead — opens the first message sent from here.
+ *   levelExamAlreadyOffered — the capstone offer (with its Start button) is
+ *   already out, so the level-complete line would only repeat it.
+ */
+async function advanceAfterModule(userId, moduleId, phoneNumber, opts = {}) {
+  const lead = opts.lead || null;
+  const next = await nextUnitAfter(userId, moduleId);
+  if (next === undefined) {
+    const { data: mod } = await supabase
+      .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
+    if (!mod?.course_id) {
+      logToFile('⚠️ Completed module has no course_id — cannot advance', { moduleId });
+      if (lead) await WhatsAppService.sendMessage(phoneNumber, lead);
+      return true;
+    }
+    return deliverNextModule(userId, mod.course_id, phoneNumber, { lead });
+  }
+  if (next) return deliverModuleById(next.id, phoneNumber, { userId, courseId: next.course_id, reviewMode: false, lead });
 
   // Level complete. Do NOT loop back to module 1 — say so and let the exam
   // surface take over (the capstone offer above, or the Flow's exam CTA).
-  logToFile('🎓 Level complete after module', { userId, moduleId, levelId: course.level_id });
+  logToFile('🎓 Level complete after module', { userId, moduleId, levelExamAlreadyOffered: Boolean(opts.levelExamAlreadyOffered) });
+  if (opts.levelExamAlreadyOffered) {
+    // The offer above already says the level is done and carries the button
+    // that starts the exam; this line would be the same news twice.
+    if (lead) await WhatsAppService.sendMessage(phoneNumber, lead);
+    return true;
+  }
   await WhatsAppService.sendMessage(
     phoneNumber,
-    "🎉 That's every module in this level complete.\n\nSend /training to take the level exam."
+    withLead(lead, "🎉 That's every module in this level complete.\n\nSend /training to take the level exam.")
   );
   return true;
 }
@@ -607,9 +760,12 @@ async function handleModuleDone(userId, moduleId, phoneNumber) {
  *   2. Review-mode advancement from handleModuleDone (passes reviewMode + courseId)
  * If reviewMode is not supplied, we infer it from whether the user already
  * has a progress row for this module — "already watched" is review mode.
+ * `opts.lead` opens the first message sent (the "Module check — passed" line
+ * when this is the module a pass just unlocked).
  */
 async function deliverModuleById(moduleId, phoneNumber, opts = {}) {
   let { reviewMode, courseId, userId } = opts;
+  const lead = opts.lead || null;
   const { data: m } = await supabase
     .from('training_modules')
     .select('id, course_id, title, video_url, source_media_url, order_index')
@@ -617,7 +773,7 @@ async function deliverModuleById(moduleId, phoneNumber, opts = {}) {
     .single();
   if (!m) {
     logToFile('⚠️ deliverModuleById: module not found', { moduleId });
-    await WhatsAppService.sendMessage(phoneNumber, 'That module could not be found. Send /training to start over.');
+    await WhatsAppService.sendMessage(phoneNumber, withLead(lead, 'That module could not be found. Send /training to start over.'));
     return false;
   }
   if (!courseId) courseId = m.course_id;
@@ -642,38 +798,32 @@ async function deliverModuleById(moduleId, phoneNumber, opts = {}) {
   const cta = moduleCta(m, hasQuiz, reviewMode);
   const caption = `📘 *${courseTitle}* — ${label}\n\n*${m.title}*\n\n${cta.trailer}`;
   if (isPdfModule(m)) {
-    // PDF module — send the header caption, then the PDF as a document.
-    // See deliverPdfModule for the delivery mechanics.
-    await WhatsAppService.sendMessage(phoneNumber, caption);
-    await deliverPdfModule(phoneNumber, m, { userId });
-  } else if (m.video_url) {
+    // PDF module — the card is the document's caption, then the buttons.
+    // See sendPdfModuleCard / deliverPdfModule for the mechanics.
+    await sendPdfModuleCard(phoneNumber, m, withLead(lead, caption), cta, { userId });
+    return true;
+  }
+
+  let card;
+  if (m.video_url) {
     try {
       const signed = await getPresignedUrl(m.video_url, 3600);
       // See deliverNextModule for why we send as a text link, not video/document
       logToFile('🎓 deliverModuleById sending as link', { moduleId, urlPrefix: signed.slice(0, 80) });
-      await WhatsAppService.sendMessage(phoneNumber, `${caption}\n\n▶️ ${signed}`);
+      card = `${caption}\n\n▶️ ${signed}`;
     } catch (err) {
       logToFile('⚠️ deliverModuleById presign/send failed', { moduleId, error: err.message });
-      await WhatsAppService.sendMessage(phoneNumber, caption + `\n\n(Video could not be delivered — please contact NIETE support.)`);
+      card = caption + `\n\n(Video could not be delivered — please contact NIETE support.)`;
     }
   } else {
     logToFile('⚠️ Module has no video_url — sending "no video available" text (deliverModuleById)', { moduleId: m.id, courseId });
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      `📘 *${courseTitle}* — ${label}\n\n*${m.title}*\n\nNo file is available for this module yet. ${cta.trailer}`
-    );
+    card = `📘 *${courseTitle}* — ${label}\n\n*${m.title}*\n\nNo file is available for this module yet. ${cta.trailer}`;
   }
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  await WhatsAppService.sendInteractiveButtons(phoneNumber, {
-    body: cta.body,
-    buttons: [
-      { id: `training_module_done_${m.id}`, title: cta.title },
-      { id: `training_pause`, title: '⏸ Pause' },
-    ],
-  });
+  // The card and its "Finished watching …?" buttons as ONE message.
+  await sendModuleCard(phoneNumber, m, withLead(lead, card), cta);
   return true;
 }
 
 // markModuleComplete is re-exported for the existing callers/tests that reach
 // for it here; progress.service.js is the definition.
-module.exports = { deliverNextModule, handleModuleDone, onModuleCompleted, advanceAfterModule, deliverModuleById, deliverPdfModule, isPdfModule, markModuleComplete };
+module.exports = { deliverNextModule, handleModuleDone, onModuleCompleted, advanceAfterModule, nextUnitAfter, deliverModuleById, deliverPdfModule, isPdfModule, markModuleComplete };

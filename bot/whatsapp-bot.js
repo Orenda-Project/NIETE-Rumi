@@ -324,7 +324,19 @@ async function handleAttendanceTap(interactiveId, from, user) {
   return true;
 }
 
+/**
+ * bd-onxyu — the app-redirect switch for a button that STARTS a feature.
+ * True = handled (notice sent or quiet hour); the branch returns.
+ */
+async function buttonRedirectsToApp(feature, user, from, reason) {
+  if (!user?.id) return false;
+  const { redirectIfFlagged } = require('./shared/services/app-redirect.service');
+  const { getUserLanguage } = require('./shared/utils/language-cache');
+  return redirectIfFlagged(feature, { userId: user.id, from, language: await getUserLanguage(user.id), reason });
+}
+
 async function openStudentVideosFlowFromCta(message, from, user) {
+  if (await buttonRedirectsToApp('video', user, from, 'select_video_cta')) return;
   const { STUDENT_VIDEOS_FLOW_ID } = require('./shared/utils/constants');
   logToFile('🎬 Student Videos: Select Video CTA tapped', { from, userId: user?.id });
   if (STUDENT_VIDEOS_FLOW_ID) {
@@ -705,6 +717,7 @@ app.post('/webhook', async (req, res) => {
       // completed. Routed BEFORE the module/quiz prefixes below because
       // `module_exam_start_` must not be mistaken for either.
       if (buttonId.startsWith('module_exam_start_')) {
+        if (await buttonRedirectsToApp('teacher_training', user, from, 'module_exam_button')) return;
         const courseId = buttonId.replace('module_exam_start_', '');
         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');
         await QuizDelivery.startModuleExam(user.id, courseId, from);
@@ -739,6 +752,7 @@ app.post('/webhook', async (req, res) => {
       }
       // BH open-ended capstone start 
       if (buttonId.startsWith('capstone_start_')) {
+        if (await buttonRedirectsToApp('teacher_training', user, from, 'capstone_button')) return;
         const CapstoneDelivery = require('./shared/services/training/capstone-delivery.service');
         await CapstoneDelivery.handleCapstoneButton(user.id, buttonId, from);
         return;

@@ -1,0 +1,11 @@
+-- bd-hxm7a — an I-SAPS module exam whose written answer is graded but HELD.
+--
+-- Operator, 2026-10-01: grade the CRQs but do not show results or issue
+-- certificates until the grading prompts are trusted. Such an exam is neither
+-- passed nor failed; none of the existing statuses says that honestly.
+--
+-- Additive: a new enum value. Nothing existing reads or writes it; old code
+-- treats it like any non-in_progress status. ADD VALUE cannot run inside a
+-- transaction block on older Postgres, so this file has no BEGIN/COMMIT.
+-- Apply BEFORE the bot code that writes it (sandbox, staging, production).
+ALTER TYPE training_attempt_status ADD VALUE IF NOT EXISTS 'pending_review';

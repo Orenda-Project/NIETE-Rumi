@@ -211,7 +211,10 @@ describe('bd-2472 — the capstone offer must reach quizzed modules', () => {
 
     await passModuleQuiz(202);
 
-    expect(capstoneOffer).toHaveBeenCalledWith(UID, 202, PHONE);
+    // bd-w2daa.8 — the pass line rides on the offer (4th arg) instead of
+    // being a bubble of its own before it.
+    expect(capstoneOffer).toHaveBeenCalledWith(UID, 202, PHONE,
+      expect.objectContaining({ lead: expect.stringContaining('Module check — passed') }));
   });
 
   test('a quiz-less module still offers it (the path that already worked)', async () => {
@@ -233,7 +236,7 @@ describe('bd-2472 — the capstone offer must reach quizzed modules', () => {
 
     await passModuleQuiz(101);   // first of four, mid-level
 
-    expect(capstoneOffer).toHaveBeenCalledWith(UID, 101, PHONE);
+    expect(capstoneOffer).toHaveBeenCalledWith(UID, 101, PHONE, expect.anything());
   });
 });
 

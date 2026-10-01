@@ -64,10 +64,9 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
    phone-number-id, or region name.
 5. **No credentials in code.** Everything comes from `.env` (copy `.env.template`). The repo is public —
    no secrets, no internal phone numbers, no internal ticket refs in source (CI enforces all three).
-6. **I-SAPS training is a pilot — its certificates are watermarked "NOT A REAL CERTIFICATE" in production
-   too.** TODO(NIETE-ISAPS-GO-LIVE): when I-SAPS goes live for all teachers, remove `'ISAPS'` from
-   `PILOT_WATERMARK_VENDORS` (`bot/shared/services/training/certificate-env.rules.js`) and flip the tests
-   tagged the same way — `rg "NIETE-ISAPS-GO-LIVE"` finds every place.
+6. **Pilot vendors' certificates are watermarked "NOT A REAL CERTIFICATE" in production too** — list them in
+   `PILOT_WATERMARK_VENDORS` (`bot/shared/services/training/certificate-env.rules.js`). Empty since I-SAPS went
+   live for all Middle & High teachers on 2026-10-01; `tests/training/isaps-pilot-watermark.test.js` pins it.
 
 ## Working rules
 

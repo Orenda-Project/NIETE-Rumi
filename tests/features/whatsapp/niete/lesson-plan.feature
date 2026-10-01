@@ -57,10 +57,49 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When the feedback survey arrives and I tap 👍
     Then the bot asks whether I got to use it in class
     And it offers exactly three replies — "Taught it today", "Planning to", "Not yet"
-    And tapping one of them is acknowledged with a short thank-you that ends the survey
+    And tapping one of them is acknowledged by a 👍 reaction on my tap, with no further message
     # bd-b708h. Before this, 👍 ended the survey on a bare thank-you, so lp_feedback.used_in_class
     # was NULL on every 6-12 row — and it is the only signal this lane has that a PDF became a
     # lesson (a render row is a cache miss, not a delivery).
+    # Meta bill cut NL1 (bd-w2daa.9): the "Thank you — that helps." text after the answer is gone —
+    # the webhook's 👍 reaction on every inbound message is the receipt, and a reaction is not billed.
+
+  @e2e @P1
+  Scenario: A survey answer that needs no follow-up is receipted by a reaction, not a message
+    Given the NIETE bot chat is open
+    And a Grades 1–5 lesson plan has just been delivered to the chat without a voice note
+    When the feedback survey arrives and I tap 👍
+    Then the bot reacts 👍 to my tap
+    And no "Thanks — glad it helped!" (or Urdu «شکریہ — خوشی ہے یہ مفید تھی!») message follows
+    # Meta bill cut NL1 (bd-w2daa.9). Same rule for: a repeat tap on the same survey, the
+    # "Taught it today / Planning to / Not yet" answer (K-5 and 6-12), and the typed reason after 👎
+    # — each used to get a thank-you text; each now gets only the reaction. Anything that ASKS
+    # something still goes: the 👎 "What didn't work?" line and the usage question.
+    # Unit: tests/lp-v8/meta-bill-nl1-survey-acks.test.js.
+
+  @e2e @flow @P1
+  Scenario: Tapping the same lesson twice in the Pick Class Flow delivers it once
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow and navigated to a Grades 1–5 chapter's lesson list
+    When I tap the same lesson twice within a minute (re-opening the Flow for the second tap)
+    Then both taps close the Flow on its "on its way" screen
+    But the chat receives ONE "Preparing" line, ONE lesson-plan PDF and at most ONE voice note
+    And ONE feedback survey follows about 30 seconds later
+    # Meta bill cut NL2 (bd-w2daa.9): a (teacher, lesson) claim held for 2 minutes in the Flow
+    # endpoint's lesson step. Production had 811 same-PDF double sends in 7 days, median gap 19.6 s.
+    # After 2 minutes the same tap delivers again; a delivery that failed releases the claim.
+    # Unit: tests/lp-v8/meta-bill-nl2-double-tap.test.js.
+
+  @e2e @flow @P2
+  Scenario: The same lesson delivered twice within ten minutes is surveyed once
+    Given the NIETE bot chat is open
+    And a Grades 1–5 lesson plan has been delivered and its feedback survey has arrived
+    When I request the same lesson again three minutes later
+    Then the lesson-plan PDF is delivered again
+    But no second "Was it useful?" survey arrives for it
+    # Meta bill cut NL4 / N2-L04 (bd-w2daa.9): one survey per (teacher, lesson) per 10 minutes,
+    # checked when the survey is about to send. A different lesson is still surveyed; after 10
+    # minutes the same lesson is surveyed again. Unit: tests/lp-v8/meta-bill-nl4-survey-dedupe.test.js.
 
   # ─────────────────────── Business rules / valid variations ───────────────────────
 
@@ -290,6 +329,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # document intact as its fallback and this refusal lands in that same catch.
     # An overlay that INTRODUCES religious content onto an unflagged document is held by the same
     # rule and looks identical to her, so it is not a separate scenario.
+
+  @e2e @flow @P1
+  Scenario: Under route-all, a typed lesson-plan request opens the Flow with the textbook line inside it
+    Given the NIETE bot chat is open on a deployment with LP_612_ROUTE_ALL on
+    When I send a free-text request like "make me a lesson plan on photosynthesis"
+    Then the bot sends ONE message: the "📘 Lesson Plans" card with its "Pick Class" button
+    And its body opens with "Lesson plans now come straight from your own textbook…" (Urdu: «اب سبق کے منصوبے آپ کی اپنی درسی کتاب سے بنتے ہیں۔…»)
+    And the usual "Pick your class, subject and chapter…" line follows in the same body
+    And no separate text bubble with that textbook line arrives before or after the card
+    # Meta bill cut NL3 (bd-w2daa.9): the redirect line was its own billed text a second before the
+    # Flow (99.3% followed within 15 s). The voice door and the drained-Gamma-job door do the same.
+    # The menu tap, the bare "lp" keyword and the ice-breaker keep the plain body (no line).
+    # Unit: tests/lp-v8/meta-bill-nl3-redirect-in-flow.test.js, bd-oak77-9-route-all.test.js.
 
   @e2e @content-driven @P2
   Scenario: A natural-language request returns the curriculum fallback, not a generated plan
@@ -682,3 +734,16 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the quiz offer is sent on that sweep, as it was before the hold-back
     # Kill switch for the one-open-question rule (default on). The quiet-hours skip is not switched
     # separately: it stays under LP_QUIZ_OFFER_ENABLED.
+
+  # ─────────── app redirect (bd-onxyu) — Lesson Plans moved to the NIETE app ───────────
+  # Switch app_redirect_lesson_plan, off by default. Every lesson-plan door — "lesson plan" typed,
+  # the chip, the menu row, an open request the classifier reads as a lesson plan, a voice note —
+  # asks it. Unit: tests/app-redirect/.
+
+  @e2e @config-gated @P1
+  Scenario: With Lesson Plans moved to the app, asking for a lesson plan sends me to the Play Store instead
+    Given the NIETE bot chat is open
+    And Lesson Plans has been switched to the NIETE app
+    When I send "make me a lesson plan on fractions for grade 4"
+    Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
+    And no lesson-plan menu opens

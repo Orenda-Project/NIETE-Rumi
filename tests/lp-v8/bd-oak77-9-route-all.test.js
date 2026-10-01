@@ -191,14 +191,18 @@ describe('LEAK 1 — the old 6-12 Oxbridge picker is unreachable from free text'
 
 // ── the redirect copy ─────────────────────────────────────────────────────
 describe('she typed a topic — one short line, then the menu', () => {
-  test('ROUTE_ALL on: the redirect line is sent BEFORE the Flow, in her language', async () => {
+  // Meta bill cut NL3 (bd-w2daa.9): the line used to be its own billed text a second before the
+  // Flow. It is now the opening paragraph of the Flow message's body — same words, one message.
+  test('ROUTE_ALL on: the redirect line rides INSIDE the Flow body, in the teacher\'s language — one message, not two', async () => {
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
     await handleLessonPlanRequest('923365709413', 'a lesson plan on photosynthesis', user, null, 'ur', typing());
-    expect(messagesSent).toHaveLength(1);
-    expect(messagesSent[0].text).toBe(resolveUx('lp612RouteRedirect', { language: 'ur' }));
+    expect(messagesSent).toHaveLength(0);
     expect(flowsSent).toHaveLength(1);
     expect(flowsSent[0].flowId).toBe(FLOW_ID);
+    expect(flowsSent[0].body).toBe(
+      `${resolveUx('lp612RouteRedirect', { language: 'ur' })}\n\n${resolveUx('lpBrowseBody', { language: 'ur' })}`,
+    );
   });
 
   // NO ROLLBACK LEVER ON THIS BRANCH. With both flags unset the gate is a no-op, so the
@@ -209,6 +213,7 @@ describe('she typed a topic — one short line, then the menu', () => {
     expect(messagesSent.some((m) => m.text === resolveUx('lp612RouteRedirect', { language: 'en' }))).toBe(false);
     expect(flowsSent).toHaveLength(1);
     expect(flowsSent[0].flowId).toBe(FLOW_ID);
+    expect(flowsSent[0].body).toBe(resolveUx('lpBrowseBody', { language: 'en' }));   // no line in the body either
     expect(LessonPlanQueueService.createAndQueue).not.toHaveBeenCalled();
   });
 
@@ -217,6 +222,7 @@ describe('she typed a topic — one short line, then the menu', () => {
     await handleLessonPlanRequest('923365709413', 'a lesson plan on photosynthesis', user, null, 'en', typing());
     expect(messagesSent.some((m) => m.text === resolveUx('lp612RouteRedirect', { language: 'en' }))).toBe(false);
     expect(flowsSent).toHaveLength(1);
+    expect(flowsSent[0].body).toBe(resolveUx('lpBrowseBody', { language: 'en' }));
     expect(LessonPlanQueueService.createAndQueue).not.toHaveBeenCalled();
   });
 

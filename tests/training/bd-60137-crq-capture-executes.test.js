@@ -74,9 +74,10 @@ const ATTEMPT = {
   // This was index 8 of 9 when the exam served the whole MCQ bank; leaving it
   // there made routeOpenEndedAnswer look for a question the paper no longer
   // has, and the typed answer went unclaimed — the very bug this file guards.
-  current_question_index: 2,
-  total_questions: 3,
-  total_score: 3,
+  // bd-vej4h (2026-10-01): 4 MCQs + 1 CRQ, so the CRQ is index 4 of 5.
+  current_question_index: 4,
+  total_questions: 5,
+  total_score: 30,
   status: 'in_progress',
 };
 
@@ -156,11 +157,24 @@ describe('bd-60137 — the CRQ answer is captured, not passed to chat', () => {
     expect(upsert).toBeDefined();
     expect(upsert.payload.answer_text).toBe(ANSWER);
     expect(upsert.payload.answer_score).toBe(8);
-    // bd-60141 — index 2 of a 3-question paper, was 8 of 9.
-    expect(upsert.payload.question_index).toBe(2);
+    // bd-vej4h — index 4 of a 5-question paper (was 2 of 3, and 8 of 9 before that).
+    expect(upsert.payload.question_index).toBe(4);
   });
 
-  test('the teacher is told the score — not given a chat reply', async () => {
+  // INVERTED 2026-10-01 (bd-hxm7a). Was "the teacher is told the score". While
+  // I-SAPS written-answer results are HELD (the default — no release setting),
+  // the answer is graded and stored but its score is never said.
+  test('held: the teacher is told it is being graded — no score, not a chat reply', async () => {
+    await svc.routeOpenEndedAnswer('923000000000', ANSWER);
+    expect(sent.join(' ')).toMatch(/being graded/i);
+    expect(sent.join(' ')).not.toMatch(/8\/10/);
+  });
+
+  test('released: the teacher is told the score', async () => {
+    const base = rows;
+    rows = (table, f, single) => (table === 'app_settings'
+      ? (single ? { key: 'isaps_crq_results_released', value: true } : [{ key: 'isaps_crq_results_released', value: true }])
+      : base(table, f, single));
     await svc.routeOpenEndedAnswer('923000000000', ANSWER);
     expect(sent.join(' ')).toMatch(/8\/10/);
   });

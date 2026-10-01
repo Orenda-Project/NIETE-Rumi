@@ -10,8 +10,8 @@
  * lesson and goes out on the next sweep tick — squarely inside that window for
  * a teacher who tapped 👎 in the first minutes (the median 👎 on production
  * comes 1.1 minutes after the survey). A teacher who then TYPES "yes" or "جی"
- * to the ask has it saved as the lesson plan's failure reason and is told
- * "Got it, thanks — this helps us improve the plans."; nothing opens the
+ * to the ask has it saved as the lesson plan's failure reason (receipted only
+ * by the webhook's 👍 reaction since the Meta bill cut); nothing opens the
  * recording door.
  *
  * The sweeper now hands such a row back to `pending`, due when the window
@@ -182,7 +182,9 @@ describe('why the ask must wait: what the open window does to a typed answer', (
     expect(await LpFeedback.consumeReasonIfPending(TEACHER, PHONE, typed)).toBe(true);
 
     expect(mockDb.rows('lp_feedback')[0].reason_text).toBe(typed);
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(PHONE, expect.stringMatching(/this helps us improve the plans|شکریہ/));
+    // Swallowed as the survey's answer: nothing it says reaches the coaching ask. Since the Meta
+    // bill cut (NL1, bd-w2daa.9) not even a "thanks" text — the webhook's 👍 reaction is the receipt.
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
   });
 });
 

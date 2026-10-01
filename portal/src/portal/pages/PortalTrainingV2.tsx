@@ -68,6 +68,7 @@ import { classifyTrainingLoadError, EMPTY_MODULES_MESSAGE } from '../lib/trainin
 import { Button } from '@/components/ui/button';
 import ModuleExamPanel, { type ExamGate } from '../components/ModuleExamPanel';
 import ModuleReadings, { type ModuleReadingList } from '../components/ModuleReadings';
+import { unitRowState, type UnitLock } from '../lib/unitLock';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 import niteLogo from '@/assets/vendors/niete.png';
@@ -139,7 +140,7 @@ type Level = {
   previous_level_order: number | null;
 };
 type Course = { id: string; title: string; course_type: string; order_index: number; module_count: number; completed_count: number };
-type ModuleSummary = { id: string; title: string; order_index: number; duration_seconds: number; has_video: boolean; has_audio: boolean; has_pdf: boolean; has_questions?: boolean; completed_at: string | null };
+type ModuleSummary = { id: string; title: string; order_index: number; duration_seconds: number; has_video: boolean; has_audio: boolean; has_pdf: boolean; has_questions?: boolean; completed_at: string | null; lock?: UnitLock };
 type ModuleDetail = {
   id: string; title: string; content_html: string;
   video_url: string | null; audio_url: string | null;
@@ -1183,21 +1184,30 @@ const PortalTrainingV2 = () => {
                     // The unit's own formative assessment is a separate row —
                     // but only when the unit actually has one.
                     const scored = (attempts || []).some(a => a.completed_at);
+                    // bd-vej4h — the bot's lock for this unit. A locked unit is
+                    // disabled here so the refusal is visible before the tap;
+                    // the server refuses it regardless.
+                    const row = unitRowState(m);
                     return (
                     <Fragment key={m.id}>
                       <button
                         key={m.id}
                         type="button"
-                        onClick={() => openUnit(m.id)}
+                        onClick={() => { if (!row.disabled) openUnit(m.id); }}
+                        disabled={row.disabled}
+                        title={row.hint || undefined}
                         data-testid={`module-item-${m.id}`}
+                        data-lock={m.lock || undefined}
                         aria-pressed={active}
                         className={`w-full text-left rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 transition-colors ${
-                          active ? 'bg-accent/10 ring-1 ring-accent/30' : 'hover:bg-muted/50'
+                          row.disabled ? 'opacity-60 cursor-not-allowed' : active ? 'bg-accent/10 ring-1 ring-accent/30' : 'hover:bg-muted/50'
                         }`}
                       >
                         {m.completed_at
                           ? <CheckCircle2 className="w-4 h-4 text-accent shrink-0" />
-                          : <Circle className="w-4 h-4 text-muted-foreground shrink-0" />}
+                          : row.disabled
+                            ? <Lock className="w-4 h-4 text-muted-foreground shrink-0" aria-label="Locked" />
+                            : <Circle className="w-4 h-4 text-muted-foreground shrink-0" />}
                         <span className={`flex-1 text-[15px] truncate ${active ? 'font-semibold' : ''} text-foreground`}>
                           {m.title}
                         </span>
@@ -1212,7 +1222,7 @@ const PortalTrainingV2 = () => {
                           loading={loading}
                         />
                       </button>
-                      {m.has_questions && (
+                      {m.has_questions && !row.disabled && (
                         <button
                           type="button"
                           onClick={() => openUnit(m.id)}

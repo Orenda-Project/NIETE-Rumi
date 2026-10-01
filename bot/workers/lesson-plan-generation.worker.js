@@ -34,14 +34,17 @@ const { resolveUx } = require('../shared/config/ux-strings');
  */
 async function openLpBrowseFlowForCutover({ from, userId, language, topic, requestId }) {
   if (!userId) return false;
-  const sent = await openLpBrowseFlow({ from, userId, language, reason: 'cutover_inflight_gamma' });
+  // bd-onxyu — Lesson Plans switched to the app: the notice (or the quiet hour) IS the answer,
+  // and the "here is the menu" line below would contradict it.
+  const { redirectIfFlagged } = require('../shared/services/app-redirect.service');
+  if (await redirectIfFlagged('lesson_plan', { userId, from, language, reason: 'cutover_inflight_gamma' })) return true;
+  // Meta bill cut NL3 (bd-w2daa.9): the redirect line is the Flow body's opening paragraph — the
+  // same one line the typed and spoken doors carry — instead of its own billed text after the Flow.
+  const sent = await openLpBrowseFlow({
+    from, userId, language, reason: 'cutover_inflight_gamma',
+    bodyPrefix: resolveUx('lp612RouteRedirect', { language }),
+  });
   if (!sent) return false;
-  try {
-    await WhatsAppService.sendMessage(from, resolveUx('lp612RouteRedirect', { language }));
-  } catch (lineErr) {
-    // The Flow is already with her — the explanation failing is a worse message, not no message.
-    logToFile('cutover redirect line failed after the Flow was sent (non-fatal)', { error: lineErr.message, requestId });
-  }
   logToFile('LP cutover: in-flight Gamma job drained, teacher handed the menu', { requestId, userId, topic });
   return true;
 }

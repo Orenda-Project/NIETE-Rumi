@@ -54,6 +54,7 @@ const TrainingRules = require('../services/training-rules.service');
 // DB read or the vendor's bar stays behind the internal API.
 const { isMultiKey } = require('../../bot/shared/services/training/paper-marking.service');
 const { readingsForCourse } = require('../../bot/shared/services/training/isaps-readings.rules');
+const { buildIsapsScoreSheet } = require('../../bot/shared/services/training/isaps-score-sheet.rules');
 // bd-2460 — Assessment Generator availability. Fail-closed, shared with the
 // bot via one app_settings row (see dashboard/lib/feature-flags.js).
 const {
@@ -2895,6 +2896,64 @@ router.delete('/classes/:classId/students/:studentId', requirePortalAuth, async 
  * Idempotent: the guard refuses a second certificate per (user, level), so a
  * double tap cannot mint two.
  */
+/**
+ * bd-vej4h — the teacher's score sheet for a level with per-module exams, or
+ * null for any other level. Best effort: a failed lookup shows no sheet rather
+ * than breaking the certificate card. The arithmetic is the bot's pure
+ * isaps-score-sheet.rules; this only gathers the rows.
+ */
+async function _isapsScoreSheet(userId, levelId) {
+  try {
+    const { data: quizzes } = await supabase
+      .from('training_grand_quizzes').select('id, source_quiz_id, is_active')
+      .eq('level_id', levelId).eq('is_active', true);
+    const exams = (quizzes || []).filter(q => Number(q.source_quiz_id) > 900);
+    if (exams.length === 0) return null;
+
+    const { data: courses } = await supabase
+      .from('training_courses').select('id, title, order_index')
+      .eq('level_id', levelId).eq('is_active', true);
+    const courseIds = (courses || []).map(c => c.id);
+    const { data: units } = courseIds.length
+      ? await supabase.from('training_modules').select('id, course_id, title, order_index')
+        .in('course_id', courseIds).eq('is_active', true)
+      : { data: [] };
+    const unitIds = (units || []).map(u => u.id);
+    const { data: unitAttempts } = unitIds.length
+      ? await supabase.from('training_assessment_attempts')
+        .select('training_module_id, score, total_questions, status')
+        .eq('user_id', userId).eq('quiz_kind', 'training_module').in('training_module_id', unitIds)
+      : { data: [] };
+    const { data: examAttempts } = await supabase.from('training_assessment_attempts')
+      .select('id, grand_quiz_id, is_passed, score, total_questions, status')
+      .eq('user_id', userId).eq('quiz_kind', 'grand').in('grand_quiz_id', exams.map(e => e.id));
+    const attemptIds = (examAttempts || []).map(a => a.id);
+    const { data: examAnswers } = attemptIds.length
+      ? await supabase.from('training_assessment_answers')
+        .select('attempt_id, question_index, is_correct, answer_score').in('attempt_id', attemptIds)
+      : { data: [] };
+    const { data: lvl } = await supabase
+      .from('training_levels').select('vendor_id').eq('id', levelId).maybeSingle();
+    const { data: vendor } = lvl?.vendor_id
+      ? await supabase.from('training_vendors').select('capstone_points_per_question').eq('id', lvl.vendor_id).maybeSingle()
+      : { data: null };
+    const crqMax = Number(vendor?.capstone_points_per_question) > 0 ? Number(vendor.capstone_points_per_question) : 10;
+
+    // bd-hxm7a — the written mark stays hidden while results are held.
+    const { crqResultsHeld } = require('../../bot/shared/services/training/isaps-crq-hold.rules');
+    const crqHeld = await crqResultsHeld(supabase);
+    return buildIsapsScoreSheet({
+      crqHeld,
+      courses: courses || [], units: units || [], exams,
+      unitAttempts: (unitAttempts || []).filter(a => a.status !== 'in_progress'),
+      examAttempts: examAttempts || [], examAnswers: examAnswers || [], crqMax,
+    });
+  } catch (err) {
+    console.error('isaps score sheet failed:', err?.message);
+    return null;
+  }
+}
+
 async function _levelCertificateState(userId, levelId) {
   // Held already? Then the answer is the certificate, whatever the gates say.
   const { data: held } = await supabase
@@ -2903,7 +2962,10 @@ async function _levelCertificateState(userId, levelId) {
     .eq('user_id', userId).eq('level_id', levelId)
     .limit(1);
   if (Array.isArray(held) && held.length > 0) {
-    return { state: 'issued', certificate: held[0], units_total: 0, units_done: 0 };
+    return {
+      state: 'issued', certificate: held[0], units_total: 0, units_done: 0,
+      scores: await _isapsScoreSheet(userId, levelId),
+    };
   }
 
   // Otherwise: how much of the level is actually finished? Counted here rather
@@ -2950,6 +3012,8 @@ async function _levelCertificateState(userId, levelId) {
     units_done: unitIds.filter(id => doneIds.has(id)).length,
     exams_total: perModule.length,
     exams_done: examsDone,
+    // bd-vej4h — the teacher's score sheet (I-SAPS); null on other levels.
+    scores: perModule.length ? await _isapsScoreSheet(userId, levelId) : null,
     // null on a level this model does not describe, or when the bot could not
     // be reached — the row then falls back to the counts and says nothing it
     // cannot stand behind.
@@ -3749,6 +3813,13 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
       for (const r of qRows || []) qMap.set(r.training_module_id, true);
     }
 
+    // bd-vej4h — display only; the open gate refuses a locked unit anyway. Best
+    // effort like the exam and readings below: a lookup failure renders the
+    // list without locks, never a broken page.
+    let unitLockMap = {};
+    try {
+      if (userId) unitLockMap = (await TrainingRules.unitLocks(userId, parseInt(courseId, 10))) || {};
+    } catch (_) { unitLockMap = {}; }
     const enriched = (modules || []).map(m => ({
       id: m.id, title: m.title, order_index: m.order_index,
       duration_seconds: m.duration_seconds,
@@ -3757,6 +3828,8 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
       has_pdf: _isPdfSourceUrl(m.source_media_url),
       has_questions: qMap.has(m.id),
       completed_at: completedMap.get(m.id) || null,
+      // bd-vej4h — the bot's lock for this unit, so a locked unit LOOKS locked.
+      lock: unitLockMap[m.id] || null,
     }));
     // The module's own summative exam, alongside its units.
     //

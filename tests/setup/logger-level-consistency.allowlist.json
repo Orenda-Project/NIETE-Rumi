@@ -1536,12 +1536,6 @@
     "occurrence": 0
   },
   {
-    "file": "bot/shared/services/training/capstone-delivery.service.js",
-    "line": 674,
-    "snippet": "logToFile('❌ Capstone certificate PDF delivery failed', {",
-    "occurrence": 0
-  },
-  {
     "file": "bot/shared/services/training/certificate-pdf.service.js",
     "line": 656,
     "snippet": "logToFile('❌ Certificate PDF stored but key not persisted', {",
@@ -1605,12 +1599,6 @@
     "file": "bot/shared/services/training/progress.service.js",
     "line": 45,
     "snippet": "logToFile('❌ Progress upsert failed', { userId, moduleId, error: error.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/services/training/quiz-delivery.service.js",
-    "line": 186,
-    "snippet": "logToFile('❌ Certificate PDF delivery failed (message already sent)', {",
     "occurrence": 0
   },
   {
