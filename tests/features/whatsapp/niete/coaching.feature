@@ -201,6 +201,19 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # htmlToImage, brand:'niete') → sendImage + caption. A PDF is only the fallback
     # if the hero render throws. (The @wip rubric scenario above asserts CONTENT; this asserts FORM.)
 
+  @e2e @wip @draft @P1 @COA61
+  Scenario: A recording of a different lesson from the selected plan is explained as a mismatch, not with the plan
+    Given the NIETE bot chat is open
+    And I selected a lesson plan for one lesson
+    When I send a classroom recording of a clearly different lesson and the report arrives
+    Then the Lesson Plan Fidelity line says the classroom recording does not match the selected lesson plan, so it is 0%
+    And no line of the report names, lists or judges an activity or topic from the selected lesson plan
+    And the report's next horizon is not Lesson Plan Fidelity
+    # bd-5lrgh (ICT sheet DC row 142) — the grader sets moderators.note = lesson_mismatch and Section B = 0;
+    # fico-adapter.js isLessonMismatch → the code-written reportLpMismatch line (en/ur), narrative.service.js
+    # keeps the plan's moves and topic out of the prompt, the weakest-domain horizon skips Section B, and the
+    # header no longer falls back to the plan's topic. A flagged session whose Section B is above 0 is unchanged.
+
   @e2e @wip @draft @P3 @COA08
   Scenario: Accepting the classroom-photo prompt folds photos into the analysis
     Given the NIETE bot chat is open

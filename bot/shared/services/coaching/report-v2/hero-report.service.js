@@ -30,18 +30,38 @@ const { logToFile } = require('../../../utils/logger');
  * this service's R2/sharp/LLM dependency graph (same split rationale as
  * report-language.js).
  */
-function attachDomainWhys(groups, domainWhys) {
+function attachDomainWhys(groups, domainWhys, opts = {}) {
+  // bd-5lrgh: a lesson-mismatch Section B keeps its code-written line whatever the model
+  // said about that section; the only model text it takes is one sentence on what the
+  // RECORDING shows was taught, appended after it. Runs before the domainWhys guard so a
+  // narrative that failed outright still leaves the line intact.
+  const taught = typeof opts.lessonMismatchTaught === 'string' ? opts.lessonMismatchTaught.trim() : '';
+  for (const g of (groups || [])) {
+    if (g && g.lessonMismatch && taught && !g.why.includes(taught)) g.why = `${g.why} ${taught}`;
+  }
   if (!domainWhys || typeof domainWhys !== 'object') return groups;
   for (const g of (groups || [])) {
     // A not-assessed section already carries a why line written in code. The model
     // must not be able to replace it: it is under a prompt that requires it to name
     // one concrete missing element, and for a section that was never measured any
-    // sentence it produces is invented.
-    if (g.notAssessed) continue;
+    // sentence it produces is invented. The same holds for a lesson-mismatch Section B.
+    if (g.notAssessed || g.lessonMismatch) continue;
     const why = domainWhys[g.domainKey || g.key];
     if (why) g.why = why;
   }
   return groups;
+}
+
+/**
+ * bd-5lrgh: the header's lesson topic. `analysis.topic` is the selected plan's topic, so
+ * on a lesson mismatch it names a lesson she did not teach — only the narrative's topic
+ * (read from the transcript) may head that report. Everywhere else: unchanged.
+ */
+function heroTopic(narrative, analysis) {
+  if (narrative && narrative.topic) return narrative.topic;
+  const { isLessonMismatch } = require('./score-adapters/fico-adapter');
+  if (isLessonMismatch(analysis)) return '';
+  return (analysis && analysis.topic) || '';
 }
 
 const UPTAKE_LINE_KEY = {
@@ -157,7 +177,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
   });
 
   // bd-1t1wz: per-section "why" diagnosis lines onto the scorecard rows.
-  attachDomainWhys(score.groups, narrative && narrative.domain_whys);
+  attachDomainWhys(score.groups, narrative && narrative.domain_whys,
+    { lessonMismatchTaught: narrative && narrative.lesson_mismatch_taught });
   attachSubjectNote(score.groups, analysis, lang);
 
   // bd-pv2tl: the teacher's own classroom photos, framed under the scorecard.
@@ -184,7 +205,7 @@ async function generateHeroReport(session, analysis, opts = {}) {
     language: lang,
     brand,
     teacherName,
-    topic: (narrative && narrative.topic) || analysis.topic || '',
+    topic: heroTopic(narrative, analysis),
     date: String(session.created_at || '').slice(0, 10),
     score: { overall: score.overall, marks: score.marks, max: score.max },
     groups: score.groups,
@@ -202,5 +223,5 @@ async function generateHeroReport(session, analysis, opts = {}) {
 }
 
 module.exports = {
-  generateHeroReport, attachDomainWhys, attachSubjectNote, buildUptakeVm, tallyInWords,
+  generateHeroReport, attachDomainWhys, attachSubjectNote, buildUptakeVm, tallyInWords, heroTopic,
 };

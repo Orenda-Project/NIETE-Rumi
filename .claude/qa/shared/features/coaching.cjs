@@ -594,6 +594,9 @@ exports.run = async ({ api, rec, sleep }) => {
              : { why: '@wip/@draft — run with DEEP=1' }, 0); };
   E('COA58', "The coaching report and voice note give the lesson's scores as numbers");
   E('COA60', 'The two coaching entry points quote different minimum audio lengths (@known-issue)');
+  // bd-5lrgh — needs a mismatched recording + a live grader run + the rendered report; unit-tested in
+  // tests/coaching/bd-5lrgh-lp-mismatch-reason.test.js until coaching-ext drives it.
+  E('COA61', 'A recording of a different lesson from the selected plan is explained as a mismatch, not with the plan');
   E('COA19', 'A report built without the reflection never claims a total of three questions');
   E('COA20', 'A lesson-plan move is credited from what a classroom photo shows');
   E('COA21', 'The same recording sent twice returns the report already made, not a second score');
