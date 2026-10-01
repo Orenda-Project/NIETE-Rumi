@@ -138,6 +138,11 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # NOT on this var). Override MEWAKA to empty to exercise the dark-safe OFF fall-through.
     echo "OBSERVE_MEWAKA_FLOW_ID=${OBSERVE_MEWAKA_FLOW_ID:-4360063587540938}"
     echo "OBSERVE_VISIT_FLOW_ID=${OBSERVE_VISIT_FLOW_ID:-2385271438550199}"
+    # The NIETE deployment scores on FICO (NIETE-Rumi/.env: DEFAULT_OBSERVATION_FRAMEWORK=fico); without it the
+    # framework-selector falls to oecd and a coaching run here renders the PDFKit report with no fidelity
+    # section and no photo reading — coaching COA05/07/19/27/28/29 could never be judged (run 20260930-0649).
+    # dotenv keeps the FIRST value, so a keys file that sets it wins; this is the fallback.
+    echo "DEFAULT_OBSERVATION_FRAMEWORK=${DEFAULT_OBSERVATION_FRAMEWORK:-fico}"
     echo "NODE_ENV=test"
     echo "QUEUE_DRIVER=bullmq"
     echo "REDIS_URL=redis://127.0.0.1:$redis_port"

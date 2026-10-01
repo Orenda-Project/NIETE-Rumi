@@ -60,7 +60,9 @@ async function job(mode, type, groupId, payload = {}, delaySeconds = 0) {
   if (!runDir() || !fs.existsSync(src)) return { ok: false, err: 'NO_STACK_SRC' };
   try {
     const { stdout } = await run('node', [path.join(src, 'bot/scripts/e2e/quiz-job.js'), mode, type, String(groupId), JSON.stringify(payload), String(delaySeconds || 0)], { cwd: src, encoding: 'utf8', timeout: 180000 });
-    return jsonLine(stdout) || { ok: true, out: String(stdout || '').slice(-300) };
+    const plain = String(stdout || '').replace(/\x1b\[[0-9;]*m/g, ''); const m = plain.match(/\{"ok":(?:true|false),"mode":.*\}/);
+    if (m) { try { return JSON.parse(m[0]); } catch (_) {} }
+    return jsonLine(stdout) || { ok: true, out: plain.slice(-300) };
   } catch (e) { return { ok: false, err: errText(e) }; }
 }
 
@@ -73,6 +75,36 @@ async function lp612Doc(mode, segment, lang, tv, file) {
   } catch (e) { return { ok: false, err: errText(e) }; }
 }
 
+// the script's one JSON line arrives wrapped by the bot's logger (timestamp, ANSI colour), so it is found by shape
+const sweepJson = (out) => { const plain = String(out || '').replace(/\x1b\[[0-9;]*m/g, ''); const m = plain.match(/\{"ok":(?:true|false),"sweep":.*\}/); if (!m) return null; try { return JSON.parse(m[0]); } catch (_) { return null; } };
+/** One of the worker's periodic sweeps, run NOW in a child process against the stack (bot/scripts/e2e/sweep.js):
+ *  'teacher-nudges' | 'resume' | 'stale' | 'quiz-offer-prepare'. `env` = flags/thresholds read at call time. */
+async function sweep(name, env = {}) {
+  const src = path.join(runDir(), 'src');
+  if (!runDir() || !fs.existsSync(src)) return { ok: false, err: 'NO_STACK_SRC' };
+  const kv = Object.entries(env).map(([k, v]) => `${k}=${v}`);
+  // the detached checkout the stack runs from is at a COMMIT; a lever not yet committed is taken from the working tree
+  const inSrc = path.join(src, 'bot/scripts/e2e/sweep.js');
+  const script = fs.existsSync(inSrc) ? inSrc : path.join(repo(), 'bot/scripts/e2e/sweep.js');
+  try {
+    const { stdout } = await run('node', [script, name, ...kv], { cwd: src, encoding: 'utf8', timeout: 180000 });
+    return sweepJson(stdout) || { ok: true, out: String(stdout || '').slice(-300) };
+  } catch (e) { return sweepJson(e && e.stdout) || { ok: false, err: errText(e) }; }
+}
+
+/** The words on a hero (image) coaching report, re-rendered from the session (bot/scripts/e2e/hero-text.js). */
+async function heroText(sessionId) {
+  const src = path.join(runDir(), 'src');
+  if (!runDir() || !fs.existsSync(src)) return { ok: false, err: 'NO_STACK_SRC' };
+  const inSrc = path.join(src, 'bot/scripts/e2e/hero-text.js');
+  const script = fs.existsSync(inSrc) ? inSrc : path.join(repo(), 'bot/scripts/e2e/hero-text.js');
+  const outFile = path.join(runDir(), `hero-text-${String(sessionId).slice(0, 8)}.json`);
+  try {
+    await run('node', [script, String(sessionId), outFile], { cwd: src, encoding: 'utf8', timeout: 180000 });
+  } catch (e) { if (!fs.existsSync(outFile)) return { ok: false, err: errText(e) }; }
+  try { return JSON.parse(fs.readFileSync(outFile, 'utf8')); } catch (e) { return { ok: false, err: 'unreadable hero-text output: ' + e.message }; }
+}
+
 const faultsFile = () => path.join(runDir(), 'cassette-faults.json');
 function faults(rules) {
   if (!runDir()) return { ok: false, err: 'NO_RUN_DIR' };
@@ -82,4 +114,4 @@ function faults(rules) {
 function clearFaults() { try { fs.rmSync(faultsFile(), { force: true }); } catch (_) {} return { ok: true }; }
 function faultsLeft() { try { return JSON.parse(fs.readFileSync(faultsFile(), 'utf8')); } catch (_) { return []; } }
 
-module.exports = { runDir, ports, restart, redis, job, faults, clearFaults, faultsLeft, lp612Doc };
+module.exports = { runDir, ports, restart, redis, job, faults, clearFaults, faultsLeft, lp612Doc, sweep, heroText };
