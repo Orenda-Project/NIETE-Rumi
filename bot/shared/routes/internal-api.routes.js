@@ -1973,11 +1973,11 @@ function portalCoachingRoute(name, run) {
       const result = await run(PortalCoaching, body);
       const http = PORTAL_COACHING_HTTP[result && result.status] || 500;
       if (http >= 500) {
-        logToFile('❌ Portal coaching request failed', { route: name, userId: body.userId, result });
+        logToFile('❌ Portal coaching request failed', { route: name, userId: body.userId, result }, 'error');
       }
       return res.status(http).json({ success: http < 400, ...result });
     } catch (error) {
-      logToFile('❌ Portal coaching request threw', { route: name, userId: body.userId, error: error?.message });
+      logToFile('❌ Portal coaching request threw', { route: name, userId: body.userId, error: error?.message }, 'error');
       return res.status(500).json({ success: false, error: 'Portal coaching request failed' });
     }
   };
