@@ -1,20 +1,14 @@
 'use strict';
 /**
- * Observation scores reach a teacher as a BAND, never as a number, a
- * percentage or a "points out of" (operator, 2026-09-29).
- *
- * Every bot surface that tells a teacher how her lesson scored, one test each:
- *   1. the coaching report image (report-v2 hero template — the one FICO/NIETE
- *      routes to; the PDFKit renderer is only the fallback)
- *   2. the coaching card's focus line
- *   3. the 90-second voice note — whose prompt carries the whole observation
- *      as data, scores included, so the rule has to be SAID, not assumed
- *   4. the score breakdown the portal renders, which must carry its own scale
- *      so an indicator's raw 0/1/2 can be banded instead of printed
- *
- * "Visible text" below means the rendered report with <style> and every
- * style="" attribute removed: a bar's CSS width is a length, not a number the
- * teacher reads, and the bars stay.
+ * Observation-score BANDS are a PORTAL change only (operator, 2026-10-01:
+ * "those changes were supposed to be portal only"). On 2026-09-29 they leaked
+ * into what a teacher receives on WhatsApp, reached 230 teachers in production,
+ * and were reverted. These tests pin the WhatsApp surfaces to their numbers:
+ *   1. the coaching report image — marks, section scores, the trend percentage
+ *   2. the coaching card's focus line — "currently x/y"
+ *   3. the voice note — the exact lesson-plan percentage
+ * and keep the one bot change the PORTAL does read:
+ *   4. the score breakdown carries its scale, so the portal can band it.
  */
 
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
@@ -56,43 +50,36 @@ function visibleText(html) {
     .replace(/\s+/g, ' ');
 }
 
-const PERCENT = /\d+(?:\.\d+)?\s*%/;
-const OUT_OF = /\b\d+\s*\/\s*\d+\b/;
-
-describe('1 · the coaching report image', () => {
-  test.each(['en', 'ur'])('%s: no percentage and no "x/y" anywhere she reads', (language) => {
+describe('1 · the coaching report image keeps its numbers', () => {
+  test.each(['en', 'ur'])('%s: the overall marks line is printed', (language) => {
     const text = visibleText(buildHeroReportHtml(vm({ language })));
-    expect(text).not.toMatch(PERCENT);
-    expect(text).not.toMatch(OUT_OF);
-    expect(text).not.toMatch(/\bmarks\b|نمبر/);
+    expect(text).toMatch(/111\/148/);
   });
 
-  test('English: the overall and each section carry their band', () => {
+  test('each section shows its score out of its max', () => {
     const text = visibleText(buildHeroReportHtml(vm({ language: 'en' })));
-    expect(text).toMatch(/Good/);           // overall 75, and B 78
-    expect(text).toMatch(/Below average/);  // D 32
+    expect(text).toMatch(/31\/40/);
+    expect(text).toMatch(/9\/28/);
   });
 
-  test('Urdu: the bands are in Urdu', () => {
-    const text = visibleText(buildHeroReportHtml(vm({ language: 'ur' })));
-    expect(text).toMatch(/اچھا/);
-    expect(text).toMatch(/اوسط سے کم/);
+  test('no band word replaces a score on the report', () => {
+    const text = visibleText(buildHeroReportHtml(vm({ language: 'en' })));
+    expect(text).not.toMatch(/Below average|Needs support/);
   });
 
-  test('the trend peak is labelled with its band, not its percentage', () => {
+  test('the trend peak is labelled with its percentage', () => {
     const html = buildHeroReportHtml(vm({ language: 'en' }));
     const svgText = [...html.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]);
-    expect(svgText.join(' ')).not.toMatch(PERCENT);
+    expect(svgText.join(' ')).toMatch(/75%/);
   });
 
-  test('the section bars stay — a bar is a length, not a number she reads', () => {
+  test('the section bars stay', () => {
     expect(buildHeroReportHtml(vm())).toMatch(/class="pfill"/);
   });
 });
 
-describe('2 · the coaching card', () => {
-  // The rubric's own scale, not a hard-coded one: FICO has been 0-4 and 0-2 on
-  // different branches, and the band is a percentage of whichever it is.
+describe('2 · the coaching card keeps its score', () => {
+  // The rubric's own scale: FICO has been 0-4 and 0-2 on different branches.
   const MAX = require('../../bot/shared/services/coaching/frameworks/fico-framework').getScoringConstants().scaleMax;
   const fico = {
     framework: 'fico',
@@ -105,16 +92,15 @@ describe('2 · the coaching card', () => {
     },
   };
 
-  test('the focus line names the band of the weakest indicator, not its score', async () => {
+  test('the focus line names the weakest indicator with its score out of the scale', async () => {
     const out = await generatePrioritizedAction(fico, 'Sadia');
-    expect(out.action).not.toMatch(OUT_OF);
-    expect(out.action).not.toMatch(PERCENT);
     expect(out.action).toMatch(/Every student participates/);
-    expect(out.action).toMatch(/currently average\./);   // half the scale = 50 = Average
+    expect(out.action).toContain(`currently ${MAX / 2}/${MAX}`);
+    expect(out.action).not.toMatch(/currently (average|good|excellent|below average|needs support)/i);
   });
 });
 
-describe('3 · the voice note', () => {
+describe('3 · the voice note keeps the lesson-plan percentage', () => {
   jest.resetModules();
   const create = jest.fn().mockResolvedValue({
     choices: [{ message: { content: 'Assalam-o-alaikum.' } }],
@@ -125,19 +111,15 @@ describe('3 · the voice note', () => {
 
   const prompt = () => create.mock.calls[create.mock.calls.length - 1][0].messages[0].content;
 
-  test('the lesson-plan figure is handed over as a band word, never a percentage', async () => {
+  test('the lesson-plan figure is handed over as the exact percentage', async () => {
     await GPT5MiniService.summarizeForVoiceDebrief({ analysis: {}, fidelityScore: 60, fidelityBand: 'partial' }, 'en');
     const rule = prompt().split('LESSON PLAN:')[1].split('\n\n')[0];
-    expect(rule).not.toMatch(PERCENT);
-    expect(rule).not.toMatch(/\b60\b/);
-    expect(rule).toMatch(/Good/);     // 60 → Good
+    expect(rule).toMatch(/60%/);
   });
 
-  test('every voice note is told never to say a score, a percentage or "out of"', async () => {
+  test('no voice note is told to swap scores for band words', async () => {
     await GPT5MiniService.summarizeForVoiceDebrief({ analysis: {} }, 'ur');
-    expect(prompt()).toMatch(/never (say|state|speak)[^.]*(score|percent)/i);
-    expect(prompt()).toMatch(/Excellent/);
-    expect(prompt()).toMatch(/Needs support/);
+    expect(prompt()).not.toMatch(/Needs support/);
   });
 });
 
