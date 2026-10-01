@@ -171,6 +171,29 @@ might want to change, it tells you **where** the seam is, **what kind** of chang
   [`bot/shared/config/gamma-languages.config.js`](../bot/shared/config/gamma-languages.config.js). Bot
   identity via env (`BOT_NAME`, `ORG_NAME`, `SUPPORT_CONTACT`) or [`bot/shared/config/branding.js`](../bot/shared/config/branding.js).
 
+### Who speaks voice notes (text-to-speech provider and voice)
+- **Type:** `env` (switch provider or voice) + `module` (add a provider)
+- **Seam:** the voice gateway, [`bot/shared/services/tts/index.js`](../bot/shared/services/tts/index.js).
+  Every voice note — voice replies, the coaching question, closer and report voice note, reading feedback,
+  video narration — asks it by **use case** (`conversation` · `coaching` · `reading` · `video`) and gets
+  back Ogg Opus (a WhatsApp voice message with a speed control) plus its true duration. Who speaks is
+  configuration, resolved in [`bot/shared/services/tts/routing.js`](../bot/shared/services/tts/routing.js):
+  `TTS_PROVIDER` moves every voice note; `TTS_PROVIDER_<USE_CASE>` (or `_<USE_CASE>_<SITE>`) moves one
+  use case; `TTS_FALLBACK` orders the providers behind it. Unset = ElevenLabs, then OpenAI.
+- **Voices:** Soniox voices per language via `SONIOX_TTS_VOICE_<LANG>` (defaults in
+  [`providers/soniox.provider.js`](../bot/shared/services/tts/providers/soniox.provider.js)); ElevenLabs
+  voices via `VOICE_MODELS` in [`bot/shared/utils/constants.js`](../bot/shared/utils/constants.js).
+  Text is prepared for Soniox in [`text/soniox-text.js`](../bot/shared/services/tts/text/soniox-text.js)
+  (symbols and numbers as words, our emotion tags mapped to Soniox's).
+- **To add a provider:** add a module under
+  [`bot/shared/services/tts/providers/`](../bot/shared/services/tts/providers/) exporting
+  `{ name, isConfigured, supports, voiceFor, synthesize }` (returning Ogg Opus), register it in the
+  gateway's provider map and in `PROVIDERS` in `routing.js`. Nothing outside the gateway changes.
+- **Pre-recorded voice notes** (lesson-plan voicenotes) are served from storage and never pass through the
+  gateway, so switching provider never re-renders them.
+- **Conformance test:** `tests/setup/tts-single-seam.test.js` (no feature calls a vendor directly),
+  `tests/tts/routing.test.js`, `tests/tts/gateway.test.js`
+
 ### Which features are on
 - **Type:** `env`
 - **Seam:** presence-gating — [`bot/shared/config/feature-availability.js`](../bot/shared/config/feature-availability.js).

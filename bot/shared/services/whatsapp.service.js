@@ -596,13 +596,14 @@ class WhatsAppService {
    */
   static async sendAudio(to, audioBuffer, tempDir) {
     const path = require('path');
+    let mediaId = null;
 
     try {
-      // bd-z5olm: sniff the container instead of assuming MP3. TTS now
-      // produces Ogg Opus (ElevenLabs opus_48000_64, OpenAI 'opus'), and
-      // audio/ogg is what makes WhatsApp render a real VOICE message —
-      // waveform + speed control — instead of a music-player bubble. Any
-      // straggler MP3 producer (Uplift tiers) still sends as audio/mpeg.
+      // Sniff the container instead of assuming MP3: every voice provider
+      // returns Ogg Opus, and any straggler MP3 producer still sends as
+      // audio/mpeg. Ogg Opus alone does NOT make a voice message: Meta renders
+      // one only when the send says `voice: true` (below). Without it, a
+      // teacher gets an audio file with no waveform and no speed button.
       const isOgg = audioBuffer.slice(0, 4).toString('latin1') === 'OggS';
       const ext = isOgg ? 'ogg' : 'mp3';
       const contentType = isOgg ? 'audio/ogg' : 'audio/mpeg';
@@ -621,6 +622,7 @@ class WhatsAppService {
         filename: `audio.${ext}`,
       });
       formData.append('messaging_product', 'whatsapp');
+      formData.append('type', contentType); // the media API asks for the file's type
 
       const uploadResponse = await axios.post(
         `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`,
@@ -633,7 +635,7 @@ class WhatsAppService {
         }
       );
 
-      const mediaId = uploadResponse.data.id;
+      mediaId = uploadResponse.data.id;
 
       // Send audio message
       const sendResponse = await axios.post(
@@ -642,9 +644,10 @@ class WhatsAppService {
           messaging_product: 'whatsapp',
           to: to,
           type: 'audio',
-          audio: {
-            id: mediaId,
-          },
+          // Meta: "voice — set to true if sending a voice message; to send a
+          // basic audio message, set to false or omit entirely." Only Ogg Opus
+          // can be a voice message, so an MP3 stays plain audio.
+          audio: isOgg ? { id: mediaId, voice: true } : { id: mediaId },
         },
         {
           headers: {
@@ -657,12 +660,24 @@ class WhatsAppService {
       // Clean up temp file
       fs.unlinkSync(audioPath);
 
-      logToFile('Audio message sent successfully', { response: sendResponse.data });
+      // The media id is the one handle Meta returns the uploaded bytes by, so it
+      // is what lets anyone fetch back exactly what the teacher heard.
+      logToFile('Audio message sent successfully', {
+        mediaId,
+        messageId: sendResponse.data?.messages?.[0]?.id || null,
+        bytes: audioBuffer.length,
+        contentType,
+        response: sendResponse.data,
+      });
       return true;
     } catch (error) {
+      // The media id survives a refused send: the voice note was uploaded, and
+      // this is the handle to fetch exactly what was made.
       logToFile('❌ Error sending audio message', {
         error: error.message,
-        errorDetails: error.response?.data
+        errorDetails: error.response?.data,
+        mediaId,
+        bytes: audioBuffer ? audioBuffer.length : null,
       });
       return false;
     }

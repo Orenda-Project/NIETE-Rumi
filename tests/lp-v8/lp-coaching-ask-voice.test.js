@@ -41,6 +41,10 @@ jest.mock('../../bot/shared/services/openai.service', () => ({
   getResponseWithFormat: (...a) => mockGetResponse(...a),
 }));
 
+// The voice itself is not under test here: the gateway answers with a voice note.
+jest.mock('../../bot/shared/services/tts', () => ({
+  synthesize: jest.fn(() => Promise.resolve({ audio: Buffer.from('OggS'), mimeType: 'audio/ogg', extension: 'ogg', durationSec: 1 })),
+}));
 jest.mock('../../bot/shared/services/audio.service', () => ({
   getAudioDuration: jest.fn(() => Promise.resolve(global.__SR_PROBED_SECONDS)),
   convertToWav: jest.fn(() => Promise.resolve()),

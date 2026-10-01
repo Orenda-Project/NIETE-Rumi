@@ -17,7 +17,7 @@ const { logToFile } = require('../../utils/logger');
 const GPT5MiniService = require('../gpt5-mini.service');
 const WhatsAppService = require('../whatsapp.service');
 const CoachingSessionService = require('./coaching-session.service');
-const ElevenLabsService = require('../elevenlabs.service');
+const tts = require('../tts');
 const { getUserLanguage } = require('../../utils/language-cache');
 const { clampLanguage } = require('../../config/ux-strings');
 const { TEMP_DIR } = require('../../utils/constants');
@@ -28,6 +28,11 @@ const path = require('path');
 
 // Language name for the acknowledgement prompt (bd-2374).
 const ACK_LANG_NAME = { en: 'English', ur: 'Urdu', ar: 'Arabic', sw: 'Kiswahili' };
+
+// How long the teacher waits for a voice before the same words go as text. The
+// question arrives after a finished analysis; the closer holds up the report.
+const QUESTION_VOICE_DEADLINE_MS = 60000;
+const CLOSER_VOICE_DEADLINE_MS = 25000;
 
 class ReflectiveConversationService {
   /**
@@ -156,21 +161,36 @@ class ReflectiveConversationService {
       // The synthesiser's behaviour for a code it does not carry is to read the
       // text in the ENGLISH voice, silently — so an unoffered label arriving here
       // means an English voice reading Urdu, with no error row to notice.
-      const voiceBuffer = await ElevenLabsService.generateSpeechForLanguage(
-        question,
-        clampLanguage(languageCode),
-      );
-
-      // Send voice question to teacher. The question goes out ONLY as this voice
-      // note, and sendAudio reports a failed send by returning false, not by
-      // throwing — so a failure used to leave the teacher with nothing to answer
-      // while the log below said the question was sent. Send it as text instead.
-      const voiceSent = await WhatsAppService.sendAudio(from, voiceBuffer, TEMP_DIR);
+      //
+      // A question that cannot be voiced goes out as text. Letting the failure
+      // escape used to fail the whole session at "analysis" — telling the
+      // teacher her classroom could not be analysed and re-queueing the job —
+      // although the analysis had already succeeded.
+      let voiceSent;
+      let voiceError = null;
+      try {
+        const voice = await tts.synthesize({
+          text: question,
+          language: clampLanguage(languageCode),
+          useCase: 'coaching',
+          site: 'question',
+          deadlineMs: QUESTION_VOICE_DEADLINE_MS,
+        });
+        // Send voice question to teacher. sendAudio reports a failed send by
+        // returning false, not by throwing — so a failure used to leave the
+        // teacher with nothing to answer while the log said the question was sent.
+        voiceSent = await WhatsAppService.sendAudio(from, voice.audio, TEMP_DIR);
+      } catch (error) {
+        voiceError = error;
+      }
       let delivery = 'voice';
-      if (voiceSent === false) {
-        logToFile('❌ Reflective question voice note not delivered — sending it as text', {
+      if (voiceError || voiceSent === false) {
+        logToFile(voiceError
+          ? '❌ Reflective question could not be voiced — sending it as text'
+          : '❌ Reflective question voice note not delivered — sending it as text', {
           coachingSessionId,
           questionNumber,
+          error: voiceError ? voiceError.message : undefined,
         }, 'error');
         const textSent = await WhatsAppService.sendMessage(from, question);
         delivery = textSent === false ? 'none' : 'text';
@@ -376,11 +396,20 @@ class ReflectiveConversationService {
           const spokenForm = closingText.replace(/\s*🙏\s*$/u, '');
 
           try {
-            const voiceBuffer = await ElevenLabsService.generateSpeechForLanguage(spokenForm, languageCode);
+            // The report is queued only after this closer, so its voice gets a
+            // short deadline: past it the closer goes as text and the report is
+            // not held up by a slow voice.
+            const voice = await tts.synthesize({
+              text: spokenForm,
+              language: languageCode,
+              useCase: 'coaching',
+              site: 'closer',
+              deadlineMs: CLOSER_VOICE_DEADLINE_MS,
+            });
             // Same contract as the question above: a failed send returns false
             // rather than throwing, so the catch below never saw it and the
             // teacher was left without her closing acknowledgement.
-            const closerSent = await WhatsAppService.sendAudio(from, voiceBuffer, TEMP_DIR);
+            const closerSent = await WhatsAppService.sendAudio(from, voice.audio, TEMP_DIR);
             if (closerSent === false) {
               logToFile('❌ Reflection closer voice note not delivered — sending it as text', {
                 coachingSessionId,

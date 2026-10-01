@@ -16,7 +16,7 @@ const { v4: uuidv4 } = require('uuid');
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const WhatsAppService = require('./whatsapp.service');
-const AudioService = require('./audio.service');
+const tts = require('./tts');
 const { TEMP_DIR } = require('../utils/constants');
 
 class FeatureRegistrationService {
@@ -185,9 +185,16 @@ class FeatureRegistrationService {
 
     try {
       if (format === 'voice') {
-        // Generate and send voice message
-        const speechBuffer = await AudioService.generateSpeechForLanguage(message, language);
-        await WhatsAppService.sendAudio(phoneNumber, speechBuffer, TEMP_DIR);
+        // Spoken, like the message she sent. A question that cannot be voiced
+        // goes as text: rethrowing used to leave her never asked her name.
+        let voiced = false;
+        try {
+          const spoken = await tts.synthesize({ text: message, language, useCase: 'conversation', site: 'name_question' });
+          voiced = (await WhatsAppService.sendAudio(phoneNumber, spoken.audio, TEMP_DIR)) !== false;
+        } catch (voiceError) {
+          logToFile('Name question could not be voiced — sending it as text', { userId, error: voiceError.message }, 'error');
+        }
+        if (!voiced) await WhatsAppService.sendMessage(phoneNumber, message);
       } else {
         // Send text message
         await WhatsAppService.sendMessage(phoneNumber, message);

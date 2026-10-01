@@ -53,7 +53,7 @@ const PATCH_SQL = `
 `;
 
 const ACTIVE_SQL = `
-  SELECT id FROM observation_schedules
+  SELECT id, scheduled_for, scheduled_slot FROM observation_schedules
   WHERE leader_user_id = $1 AND school_ext_id = $2 AND teacher_ext_id = $3 AND status = 'upcoming'
   LIMIT 1
 `;
@@ -117,7 +117,13 @@ async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
     const { rows } = await query(UPDATE_SQL, [
       active[0].id, date, slot || null, teacher.teacher_name || null, teacher.school_name || null,
     ]);
-    return { id: (rows && rows[0] && rows[0].id) || active[0].id, updated: true };
+    // bd-xorfy: `changed` tells the route whether the teacher needs a "moved"
+    // notice — re-booking the same date and slot is not news to her.
+    const prev = active[0];
+    const prevDate = prev.scheduled_for instanceof Date
+      ? prev.scheduled_for.toISOString().slice(0, 10) : String(prev.scheduled_for || '').slice(0, 10);
+    const changed = prevDate !== date || (prev.scheduled_slot || null) !== (slot || null);
+    return { id: (rows && rows[0] && rows[0].id) || active[0].id, updated: true, changed };
   }
   const { rows } = await query(INSERT_SQL, [
     leaderUserId, schoolExtId, teacherExtId,
@@ -127,7 +133,7 @@ async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
     teacher.teacher_user_id || null,
     teacher.teacher_name || null, teacher.school_name || null, date, slot || null,
   ]);
-  return { id: rows && rows[0] && rows[0].id, updated: false };
+  return { id: rows && rows[0] && rows[0].id, updated: false, changed: true };
 }
 
 /**

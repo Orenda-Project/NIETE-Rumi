@@ -886,6 +886,10 @@ class AudioService {
   }
 
   /**
+   * @deprecated No caller: every voice note goes through the voice gateway
+   * (services/tts), where TTS_PROVIDER picks the vendor. Kept until the gateway
+   * is live everywhere; tests/setup/tts-single-seam.test.js stops new callers.
+   *
    * Generate speech using appropriate TTS service based on language
    * Routes to ElevenLabs, Uplift, or OpenAI TTS based on VOICE_MODELS config
    *

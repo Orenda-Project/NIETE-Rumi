@@ -32,6 +32,21 @@ async function _calendar(hook, row) {
   }
 }
 
+// bd-xorfy — the teacher's WhatsApp notice. Same discipline as the invite: a
+// courtesy on top of the scheduling, so it is lazily required, wrapped, and
+// never allowed to change what the store returns.
+async function _notice(kind, row) {
+  try {
+    if (!row) return;
+    const Notice = require('./observe-teacher-notice.service');
+    await Notice.notifyTeacher(kind, row);
+  } catch (err) {
+    logToFile('❌ observe-schedule: teacher notice failed (non-blocking)', {
+      kind, scheduleId: row && row.id, error: err.message,
+    }, 'error');
+  }
+}
+
 // School-hour half-hour slots (no native time picker in Meta Flows — the
 // SCHEDULE_PICKER renders these in a Dropdown).
 const SLOTS = [
@@ -87,6 +102,10 @@ async function saveSchedule(leaderUserId, { school_ext_id, teacher_ext_id, teach
     // The picker re-uses saveSchedule to CHANGE a date. Creating here would
     // leave the coach holding two invites for one visit.
     await _calendar('onRescheduled', moved);
+    // Only a real move is news to the teacher; re-saving the same slot is not.
+    if (existing.scheduled_for !== date || (existing.scheduled_slot || null) !== (slot || null)) {
+      await _notice('rescheduled', moved);
+    }
     return moved;
   }
   const { data, error } = await supabase
@@ -105,6 +124,7 @@ async function saveSchedule(leaderUserId, { school_ext_id, teacher_ext_id, teach
     .single();
   if (error) throw new Error(`observe-schedule: insert failed: ${error.message}`);
   await _calendar('onScheduled', data);
+  await _notice('scheduled', data);
   return data;
 }
 
@@ -170,7 +190,7 @@ async function cancelById(leaderUserId, scheduleId) {
     .eq('id', scheduleId)
     .eq('leader_user_id', leaderUserId)
     .eq('status', 'upcoming')
-    .select('id, leader_user_id, teacher_name, school_name, scheduled_for, scheduled_slot, calendar_event_id');
+    .select('id, leader_user_id, teacher_ext_id, teacher_name, school_name, scheduled_for, scheduled_slot, calendar_event_id');
   if (error) {
     logToFile('observe-schedule: cancelById failed', { leaderUserId, scheduleId, error: error.message });
     return false;
@@ -178,7 +198,10 @@ async function cancelById(leaderUserId, scheduleId) {
   const cancelled = Array.isArray(data) && data.length > 0;
   // Only a row that actually matched — the guards that protect the record of who
   // was observed must also stop us deleting somebody else's invite.
-  if (cancelled) await _calendar('onCancelled', data[0]);
+  if (cancelled) {
+    await _calendar('onCancelled', data[0]);
+    await _notice('cancelled', data[0]);
+  }
   return cancelled;
 }
 
@@ -191,13 +214,16 @@ async function rescheduleById(leaderUserId, scheduleId, date, slot) {
     .eq('id', scheduleId)
     .eq('leader_user_id', leaderUserId)
     .eq('status', 'upcoming')
-    .select('id, leader_user_id, teacher_name, school_name, scheduled_for, scheduled_slot, calendar_event_id');
+    .select('id, leader_user_id, teacher_ext_id, teacher_name, school_name, scheduled_for, scheduled_slot, calendar_event_id');
   if (error) {
     logToFile('observe-schedule: rescheduleById failed', { leaderUserId, scheduleId, error: error.message });
     return false;
   }
   const moved = Array.isArray(data) && data.length > 0;
-  if (moved) await _calendar('onRescheduled', data[0]);
+  if (moved) {
+    await _calendar('onRescheduled', data[0]);
+    await _notice('rescheduled', data[0]);
+  }
   return moved;
 }
 
