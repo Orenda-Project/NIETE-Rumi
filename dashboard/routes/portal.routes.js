@@ -5479,6 +5479,139 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
   }
 });
 
+/* ------------------------------------------------------------------------- *
+ * bd-lfzoz — teacher self-observation from the portal.
+ *
+ * She uploads a classroom recording (and, optionally, her lesson plan and up to
+ * three classroom photos) straight to R2, starts the analysis, watches it
+ * progress, and answers her reflective question here instead of on WhatsApp.
+ *
+ * These routes hold NO coaching logic. Every write goes to the bot over the
+ * internal API (services/portal-coaching.client.js) because the pipeline's
+ * code cannot load in this service; the one read is a plain row read.
+ *
+ * IDENTITY: the user is ALWAYS req.session.portalUserId. A userId in the body
+ * is ignored, never forwarded.
+ * ------------------------------------------------------------------------- */
+
+const PortalCoachingClient = require('../services/portal-coaching.client');
+// Zero module-scope requires beyond `crypto` — safe for this service to load
+// (the paper-marking precedent above). One definition of "is this a portal
+// session", shared with the bot, rather than a copied regex.
+const { isPortalSession, SHORT_RECORDING_SECONDS } = require('../../bot/shared/services/coaching/portal-coaching.service');
+
+// The pipeline's statuses, collapsed to the handful of stages the page shows.
+const PORTAL_COACHING_STAGE = {
+  initiated: 'queued', confirmed: 'queued', pending: 'queued',
+  transcribing: 'transcribing', transcription_complete: 'transcribing',
+  awaiting_photo: 'analysing', awaiting_classroom_photo: 'analysing', awaiting_lesson_plan: 'analysing',
+  analyzing: 'analysing', analysis_started: 'analysing', analysis_complete: 'analysing',
+  conducting_conversation: 'reflection',
+  generating_report: 'report',
+  completed: 'done',
+  failed: 'stopped', cancelled: 'stopped', abandoned: 'stopped',
+};
+
+/** Relay the bot's answer; a throw (unreachable / 5xx) is a 502, never success. */
+async function relayToBot(res, label, call) {
+  try {
+    const { httpStatus, body } = await call();
+    return res.status(httpStatus).json(body);
+  } catch (error) {
+    console.error(`Portal coaching ${label} failed:`, error.message);
+    return res.status(502).json({ success: false, error: 'Could not reach the coaching service. Please try again.' });
+  }
+}
+
+/**
+ * POST /api/portal/coaching-upload/presign
+ * Body { filename, sizeBytes, kind? }  kind: 'audio' | 'lesson_plan' | 'photo'
+ * → { uploadUrl, key, contentType, expiresIn, maxBytes }. The browser PUTs the
+ *   file to uploadUrl with exactly that Content-Type.
+ */
+router.post('/coaching-upload/presign', requirePortalAuth, (req, res) => {
+  const { filename, sizeBytes, kind } = req.body || {};
+  return relayToBot(res, 'presign', () => PortalCoachingClient.presignUpload({
+    userId: req.session.portalUserId, filename, sizeBytes, kind,
+  }));
+});
+
+/**
+ * POST /api/portal/coaching-upload/start
+ * Body { key, lessonPlanKey?, photoKeys? } — keys returned by /presign, uploaded.
+ * → 200 { coachingSessionId }   409 { status:'in_progress', coachingSessionId }
+ */
+router.post('/coaching-upload/start', requirePortalAuth, (req, res) => {
+  const { key, lessonPlanKey, photoKeys } = req.body || {};
+  return relayToBot(res, 'start', () => PortalCoachingClient.startSession({
+    userId: req.session.portalUserId, key, lessonPlanKey, photoKeys,
+  }));
+});
+
+/**
+ * GET /api/portal/coaching-session/:id/progress
+ * → { stage, status, reflection: {questionNumber, question} | null, ... }
+ *
+ * The question is shown only for a PORTAL session at conducting_conversation:
+ * a WhatsApp session's debrief is happening in her chat, and answering it here
+ * as well would put two answers on one question.
+ */
+router.get('/coaching-session/:id/progress', requirePortalAuth, async (req, res) => {
+  try {
+    const { data: row, error } = await supabase
+      .from('coaching_sessions')
+      .select('id, user_id, status, audio_url, audio_duration_seconds, has_lesson_plan, classroom_photos, conversation_state, created_at')
+      .eq('id', req.params.id)
+      .eq('user_id', req.session.portalUserId)
+      .maybeSingle();
+    if (error) throw error;
+    // Same answer for "not hers" and "does not exist".
+    if (!row || row.user_id !== req.session.portalUserId) {
+      return res.status(404).json({ success: false, error: 'Session not found' });
+    }
+
+    const portal = isPortalSession(row);
+    const stage = PORTAL_COACHING_STAGE[row.status] || 'analysing';
+    let reflection = null;
+    if (portal && row.status === 'conducting_conversation') {
+      const asked = ((row.conversation_state && row.conversation_state.questions) || [])
+        .filter((q) => q && q.question && !q.answer)
+        .pop();
+      if (asked) reflection = { questionNumber: asked.question_number, question: asked.question };
+    }
+    const seconds = Number(row.audio_duration_seconds);
+
+    return res.json({
+      success: true,
+      id: row.id,
+      status: row.status,
+      stage,
+      source: portal ? 'portal' : 'whatsapp',
+      reflection,
+      reportReady: row.status === 'completed',
+      // null until transcription has measured it (ffprobe), never a guess.
+      shortRecording: Number.isFinite(seconds) && seconds > 0 ? seconds < SHORT_RECORDING_SECONDS : null,
+      hasLessonPlan: !!row.has_lesson_plan,
+      photoCount: Array.isArray(row.classroom_photos) ? row.classroom_photos.length : 0,
+      createdAt: row.created_at,
+    });
+  } catch (error) {
+    console.error('Coaching progress error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load progress' });
+  }
+});
+
+/**
+ * POST /api/portal/coaching-session/:id/reflection
+ * Body { answer } → { done, acknowledgement, reportStatus }
+ */
+router.post('/coaching-session/:id/reflection', requirePortalAuth, (req, res) => {
+  const { answer } = req.body || {};
+  return relayToBot(res, 'reflection', () => PortalCoachingClient.submitReflection({
+    userId: req.session.portalUserId, coachingSessionId: req.params.id, answer,
+  }));
+});
+
 /**
  * GET /api/portal/coaching-analytics
  * Get coaching score trends over time
