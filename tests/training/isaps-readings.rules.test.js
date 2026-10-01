@@ -12,11 +12,11 @@ const {
 const L1 = { vendorName: 'I-SAPS', levelOrderIndex: 0 };
 
 describe('readingsForCourse', () => {
-  test('Module 3 of Level 1 → its 13 items, split into linked and not-yet-online', () => {
+  test('Module 3 of Level 1 → the 2 items of the partner\'s edited list (Oct 2026)', () => {
     const r = readingsForCourse({ ...L1, courseTitle: 'Module 3 - Classroom Management' });
-    expect(r.available).toHaveLength(9);
-    expect(r.unavailable).toHaveLength(4);
-    expect(r.available[0]).toMatchObject({ author: 'Shalini Gupta and Harikrishnan M' });
+    expect(r.available).toHaveLength(2);
+    expect(r.unavailable).toHaveLength(0);
+    expect(r.available[0]).toMatchObject({ author: 'Roselyn D. Ramo', url: 'https://uijrt.com/articles/v6/i7/UIJRTV6I70031.pdf' });
   });
 
   test('every linked item carries an http(s) url and a title', () => {
@@ -30,21 +30,30 @@ describe('readingsForCourse', () => {
     }
   });
 
-  test('Module 8 has nothing online yet — the list is still returned, all unavailable', () => {
-    const r = readingsForCourse({ ...L1, courseTitle: 'Module 8 - Instructional Design' });
-    expect(r.available).toHaveLength(0);
-    expect(r.unavailable).toHaveLength(3);
+  test('Module 7 keeps the three books with no free copy, named but unlinked', () => {
+    const r = readingsForCourse({ ...L1, courseTitle: 'Module 7 - X' });
+    expect(r.available).toHaveLength(1);
+    expect(r.unavailable.map(x => x.author)).toEqual(['Paulo Freire', 'Tony Wagner', 'Robert Gagné']);
   });
 
-  test('95 items across the nine modules, 72 of them linked', () => {
-    let all = 0; let linked = 0;
+  test('a link the partner put in the description or title column is still the link', () => {
+    const m2 = readingsForCourse({ ...L1, courseTitle: 'Module 2 - X' });
+    const dweck = m2.available.find(x => x.author === 'Carol Dweck');
+    expect(dweck.url).toBe('https://www.youtube.com/watch?v=J-swZaKN2Ic');
+    expect(dweck.description).not.toMatch(/https?:/);
+    const m8 = readingsForCourse({ ...L1, courseTitle: 'Module 8 - X' });
+    expect(m8.available).toHaveLength(2);
+  });
+
+  test('29 items across the nine modules (3,5,2,3,3,4,4,2,3), 26 of them linked', () => {
+    const per = []; let linked = 0;
     for (let m = 1; m <= 9; m += 1) {
       const r = readingsForCourse({ ...L1, courseTitle: `Module ${m} - X` });
-      all += r.available.length + r.unavailable.length;
+      per.push(r.available.length + r.unavailable.length);
       linked += r.available.length;
     }
-    expect(all).toBe(95);
-    expect(linked).toBe(72);
+    expect(per).toEqual([3, 5, 2, 3, 3, 4, 4, 2, 3]);
+    expect(linked).toBe(26);
   });
 
   test('another vendor, another level, or a title with no module number → null', () => {
