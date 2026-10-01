@@ -52,16 +52,15 @@ function isProductionEnv(nodeEnv) {
  * Vendors whose certificates are watermarked in EVERY environment, production
  * included, because their training is still a pilot.
  *
- * TODO(NIETE-ISAPS-GO-LIVE): when I-SAPS training goes live for ALL teachers,
- * REMOVE 'ISAPS' from this list so production I-SAPS certificates are clean
- * again (operator, 2026-09-23: "when we are making this live for all the
- * teachers, we want to remove this from the certificate as well").
- * The tests pinning it carry the same tag: rg "NIETE-ISAPS-GO-LIVE"
+ * EMPTY since 2026-10-01 (bd-vej4h): I-SAPS went live for every Middle & High
+ * teacher and its certificates ship clean (operator: "this also needs to ship
+ * certificates without the 'Not a real cert' thingy"). I-SAPS was the only
+ * pilot vendor, from 2026-09-23 to 2026-10-01.
  *
- * Scoped to I-SAPS by the operator the same day: production issues real
- * Oxbridge / Beacon House / NIETE certificates daily and those stay clean.
+ * To watermark a future pilot, add its vendor key here. Keep it to pilots:
+ * production issues real NIETE / Oxbridge / Beacon House certificates daily.
  */
-const PILOT_WATERMARK_VENDORS = Object.freeze(['ISAPS']);
+const PILOT_WATERMARK_VENDORS = Object.freeze([]);
 
 /**
  * Should this certificate carry the test banner?

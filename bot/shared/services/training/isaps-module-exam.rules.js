@@ -123,21 +123,26 @@ function buildModuleExamSlot({
     };
   }
 
-  // The exam does NOT wait for the sessions.
+  // The exam waits for the module's sessions (bd-vej4h).
   //
-  // Operator, Sept 2026, after the partner's revised guide: "Anything can be
-  // given in any order. The only important thing is that the certificate
-  // issues only if the requirements are complete."
-  //
-  // So sequencing is gone at every level — units no longer chain, and the
-  // exam no longer waits for them. The gate that used to live here has moved
-  // to where it belongs: the LEVEL certificate, which is refused until all
-  // three weighted components clear their bars. Blocking the exam
-  // as well was gating the same work twice, and it stranded a teacher who
-  // wanted to sit an assessment she was ready for.
-  //
-  // `unitsTotal`/`unitsDone` stay in the signature: the caller still uses them
-  // for the progress line, and a future vendor may want the lock back.
+  // I-SAPS, Sept 2026, confirmed by the operator 2026-10-01: each unit is
+  // gated behind its formative check (70%), and the module exam is the gate at
+  // the END of the module — so it opens once every unit of that module is
+  // passed. A unit counts as done only when its check cleared the bar (or it
+  // has no check), because that is the only time a progress row is written.
+  // This reverses the Sept 2026 "the exam does not wait" decision; the certificate still
+  // checks the exams on top.
+  if (total > 0 && done < total) {
+    const left = total - done;
+    return {
+      ok: false,
+      body: `🔒 Module exam — finish ${left} more session${left === 1 ? '' : 's'} in this module first.`,
+      caption: `${done} of ${total} sessions passed. Each session's quick check needs 70% to count.`,
+      cta: `🔒 ${done}/${total} sessions`,
+      mark,
+    };
+  }
+
   const parts = [];
   if (mcq > 0) parts.push(`${mcq} scenario question${mcq === 1 ? '' : 's'}`);
   if (crq > 0) parts.push('1 written answer');
@@ -184,11 +189,12 @@ function shouldOfferModuleExam(input) {
   if (String(vendorKey || '').trim().toUpperCase() !== 'ISAPS') return false;
   if (alreadyPassed) return false;
   // A module with no units at all has no content yet; offering its exam would
-  // be offering an assessment for nothing. But a module whose units are only
-  // PARTLY done is fair game — that wait was removed, since the
-  // certificate is now the only thing that checks completeness.
+  // be offering an assessment for nothing. And the exam waits for the module's
+  // units (bd-vej4h): offering it after every unit pass would interrupt the
+  // module with an exam that is still closed.
   const total = Number(unitsTotal) || 0;
   if (total <= 0) return false;
+  if ((Number(unitsDone) || 0) < total) return false;
   return (Number(mcqCount) || 0) + (Number(crqCount) || 0) > 0;
 }
 

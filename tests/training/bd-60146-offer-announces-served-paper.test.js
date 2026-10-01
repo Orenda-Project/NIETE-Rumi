@@ -54,7 +54,8 @@ describe('bd-60146 — the offer promises the served paper', () => {
     const msg = moduleExamOfferMessage({ moduleTitle: 'Module 9', ...offeredCounts(m, c) });
     expect(msg).not.toMatch(/13 scenario/);
     expect(msg).not.toMatch(/9 scenario/);      // the bank's MCQ count
-    expect(msg).toMatch(/2 scenario questions/);
+    // bd-vej4h (2026-10-01): the paper is now 4 MCQs.
+    expect(msg).toMatch(/4 scenario questions/);
     expect(msg).toMatch(/1 written answer/);
   });
 
@@ -99,7 +100,7 @@ describe('bd-60146 — the offer promises the served paper', () => {
 
   test('a bank with no CRQ promises no written answer', () => {
     const msg = moduleExamOfferMessage({ moduleTitle: 'M', ...offeredCounts(8, 0) });
-    expect(msg).toMatch(/2 scenario questions/);
+    expect(msg).toMatch(/4 scenario questions/);
     expect(msg).not.toMatch(/written answer/);
   });
 });

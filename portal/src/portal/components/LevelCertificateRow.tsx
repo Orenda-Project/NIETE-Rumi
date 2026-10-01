@@ -20,9 +20,69 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Award, Lock, Loader2, Download } from 'lucide-react';
+import { Award, Lock, Loader2, Download, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
+
+type ExamMarks = {
+  passed: boolean;
+  mcq_correct: number; mcq_served: number; mcq_earned: number; mcq_possible: number;
+  crq_earned: number | null; crq_max: number;
+};
+type ScoreSheet = {
+  modules: Array<{
+    course_id: number;
+    title: string;
+    units: Array<{ id: number; title: string; best_pct: number | null }>;
+    exam: ExamMarks | null;
+  }>;
+};
+
+/**
+ * bd-vej4h — "Your scores": per module, the exam split into its two bars and
+ * each unit's best quick-check. Collapsed by default; it is reference, not the
+ * thing the card asks her to do.
+ */
+function ScoreSheetPanel({ sheet }: { sheet: ScoreSheet }) {
+  const [open, setOpen] = useState(false);
+  if (!sheet || !Array.isArray(sheet.modules) || sheet.modules.length === 0) return null;
+  return (
+    <div className="mt-2.5 border-t pt-2">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        data-testid="level-scores-toggle"
+        className="w-full text-left flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary"
+      >
+        <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`} />
+        Your scores
+      </button>
+      {open && (
+        <ol className="mt-2 space-y-3" data-testid="level-scores">
+          {sheet.modules.map(m => (
+            <li key={m.course_id} className="text-sm">
+              <div className="font-medium text-foreground">{m.title}</div>
+              <div className="text-muted-foreground">
+                {m.exam
+                  ? <>Module exam {m.exam.passed ? 'passed' : 'not passed yet'} · Multiple choice {m.exam.mcq_earned}/{m.exam.mcq_possible} · Written answer {m.exam.crq_earned ?? '—'}/{m.exam.crq_max}</>
+                  : 'Module exam: Not taken yet'}
+              </div>
+              <ul className="mt-1 grid gap-0.5">
+                {m.units.map(u => (
+                  <li key={u.id} className="flex justify-between gap-3 text-muted-foreground">
+                    <span className="truncate">{u.title}</span>
+                    <span className="tabular-nums shrink-0">{u.best_pct === null ? '—' : `${u.best_pct}%`}</span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
 
 type CertState = {
   state: 'issued' | 'locked';
@@ -33,6 +93,8 @@ type CertState = {
   exams_done?: number;
   /** Retired with the composite (2026-09-23); the server now sends null. */
   grade?: unknown;
+  /** bd-vej4h — the teacher's score sheet; null on a level without module exams. */
+  scores?: ScoreSheet | null;
 };
 
 export default function LevelCertificateRow({
@@ -104,15 +166,18 @@ export default function LevelCertificateRow({
   // Already held — offer it rather than asking for it again.
   if (info.state === 'issued' && info.certificate) {
     return (
-      <a
-        href={`/api/portal/training/certificates/${info.certificate.certificate_code}/download`}
-        className="w-full text-left rounded-lg px-3 py-2.5 mb-0.5 flex items-center gap-2.5 transition-colors hover:bg-muted/50 ring-1 ring-green-600/30 bg-green-600/5"
-        data-testid="level-certificate-download"
-      >
-        <Award className="w-4 h-4 text-green-700 shrink-0" />
-        <span className="flex-1 text-[15px] font-semibold text-foreground">Your certificate</span>
-        <Download className="w-4 h-4 text-green-700 shrink-0" />
-      </a>
+      <>
+        <a
+          href={`/api/portal/training/certificates/${info.certificate.certificate_code}/download`}
+          className="w-full text-left rounded-lg px-3 py-2.5 mb-0.5 flex items-center gap-2.5 transition-colors hover:bg-muted/50 ring-1 ring-green-600/30 bg-green-600/5"
+          data-testid="level-certificate-download"
+        >
+          <Award className="w-4 h-4 text-green-700 shrink-0" />
+          <span className="flex-1 text-[15px] font-semibold text-foreground">Your certificate</span>
+          <Download className="w-4 h-4 text-green-700 shrink-0" />
+        </a>
+        {info.scores && <div className="mx-1.5 mb-1.5"><ScoreSheetPanel sheet={info.scores} /></div>}
+      </>
     );
   }
 
@@ -138,7 +203,7 @@ export default function LevelCertificateRow({
           <span className="text-[15px] font-semibold text-foreground">Level certificate</span>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Issued once all {examsTotal} module exams are passed. Units can be taken in any order.
+          Issued once all {examsTotal} module exams are passed. Modules can be taken in any order; inside a module, each session opens once the one before it is passed.
         </p>
         <div
           className="h-1.5 rounded-full bg-muted overflow-hidden mt-2.5 mb-1"
@@ -171,6 +236,7 @@ export default function LevelCertificateRow({
           {claiming && <Loader2 className="w-4 h-4 animate-spin" />}
           Receive certificate
         </button>
+        {info.scores && <ScoreSheetPanel sheet={info.scores} />}
       </div>
     );
   }
