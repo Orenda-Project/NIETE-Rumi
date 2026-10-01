@@ -349,10 +349,12 @@ async function handleOfferButton(buttonId, phone, opts = {}) {
     logEvent('transcript_quiz.declined', { quizId, userId: quiz.teacher_id, flipped: Boolean(flipped && flipped.length) });
     // The offer she declined already ends with "you can make one for any lesson
     // anytime by sending /quiz" — tqDeclined said it a second time, as a billed
-    // message. A free 👍 on her own tap acknowledges it. With no message id to
-    // react to, the text still goes: the decline is never met with silence.
+    // message. A free 👌 ("noted, fine") on her own tap acknowledges it — not 👍,
+    // which the webhook puts on every message and so answers nothing (FX1,
+    // bd-w2daa.22); ours replaces it. With no message id to react to, or the
+    // reaction refused, the text still goes: the decline is never met with silence.
     const reacted = opts.messageId
-      ? await WhatsAppService.sendReaction(phone, opts.messageId, '👍').catch(() => false)
+      ? await WhatsAppService.sendReaction(phone, opts.messageId, '👌').catch(() => false)
       : false;
     if (!reacted) {
       await WhatsAppService.sendMessage(phone, resolveUx('tqDeclined', { language: lang }));

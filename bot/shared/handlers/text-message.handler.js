@@ -564,7 +564,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
 
   if (user?.id && !quizMenuRequest) {
     try {
-      const consumed = await LpFeedbackService.consumeReasonIfPending(user.id, from, messageBody);
+      const consumed = await LpFeedbackService.consumeReasonIfPending(user.id, from, messageBody, { messageId: message && message.id });
       if (consumed) {
         logToFile('LP Feedback: reason captured, short-circuiting text handler', {
           userId: user.id, from,
@@ -589,7 +589,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   if (user?.id && messageBody && !quizMenuRequest) {
     try {
       const Lp612FeedbackService = require('../services/lp612-feedback.service');
-      const consumed = await Lp612FeedbackService.consumeReasonIfPending(user.id, from, messageBody);
+      const consumed = await Lp612FeedbackService.consumeReasonIfPending(user.id, from, messageBody, { messageId: message && message.id });
       if (consumed) {
         logToFile('LP 6-12 feedback: reason captured, short-circuiting text handler', {
           userId: user.id, from,

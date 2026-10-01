@@ -113,6 +113,8 @@ const order = (fn, i = 0) => fn.mock.invocationCallOrder[i];
 
 beforeEach(() => {
   Object.values(mockWA).forEach((fn) => fn.mockClear());
+  mockWA.sendMessage.mockResolvedValue(true);
+  require('../../bot/shared/services/coaching/coaching-feedback.service').sendFeedbackPrompt.mockClear().mockResolvedValue(true);
   mockWA.sendImage.mockResolvedValue(true);
   mockRedisStore.clear();
   mockLang = 'en';
@@ -216,6 +218,44 @@ describe('NC5 (N1-13) — each report piece goes out once per session', () => {
     await expect(ReportGeneratorService.generateReport(SID, { from: FROM })).rejects.toThrow();
     await ReportGeneratorService.generateReport(SID, { from: FROM, attempt: 2 });
     expect(mockWA.sendImage).toHaveBeenCalledTimes(2);
+  });
+});
+
+// FX1 (bd-w2daa.22) — the capture audit (A3 §4.2) found two report pieces the NC5 claim did not
+// cover: "🔄 Step 4/5" and the sandbox survey "Was this coaching report useful to you?" both went
+// out again when the report job ran twice. Same once-per-session claim; a failed send gives it back.
+describe('FX1 — Step 4/5 and the coaching survey go out once per session', () => {
+  const survey = () => require('../../bot/shared/services/coaching/coaching-feedback.service').sendFeedbackPrompt;
+  const step4 = () => texts().filter((t) => t === getCoachingMessage('step4_generatingReport', 'en'));
+
+  test('the job running twice → ONE Step 4/5, ONE survey', async () => {
+    await ReportGeneratorService.generateReport(SID, { from: FROM });
+    await ReportGeneratorService.generateReport(SID, { from: FROM });
+    expect(step4()).toHaveLength(1);
+    expect(survey()).toHaveBeenCalledTimes(1);
+  });
+
+  test('a survey that did not go out gives its claim back → the next run asks it', async () => {
+    survey().mockResolvedValueOnce(false);
+    await ReportGeneratorService.generateReport(SID, { from: FROM });
+    await ReportGeneratorService.generateReport(SID, { from: FROM });
+    expect(survey()).toHaveBeenCalledTimes(2);
+  });
+
+  test('a Step 4/5 that did not go out gives its claim back → the next run says it', async () => {
+    const step4Text = getCoachingMessage('step4_generatingReport', 'en');
+    mockWA.sendMessage.mockImplementationOnce(async (to, t) => (t === step4Text ? false : true));
+    await ReportGeneratorService.generateReport(SID, { from: FROM });
+    await ReportGeneratorService.generateReport(SID, { from: FROM });
+    expect(step4()).toHaveLength(2);
+  });
+
+  test('CONTROL — two different sessions each get their own Step 4/5 and survey', async () => {
+    await ReportGeneratorService.generateReport(SID, { from: FROM });
+    mockRedisStore.clear();
+    await ReportGeneratorService.generateReport(SID, { from: FROM });
+    expect(step4()).toHaveLength(2);
+    expect(survey()).toHaveBeenCalledTimes(2);
   });
 });
 

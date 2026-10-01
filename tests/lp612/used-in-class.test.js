@@ -27,7 +27,10 @@ const mockRedisDelete = jest.fn();
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: (...a) => mockSendMessage(...a),
   sendInteractiveButtons: (...a) => mockSendInteractiveButtons(...a),
+  sendReaction: (...a) => mockSendReaction(...a),
 }));
+// FX1 (bd-w2daa.22): the receipt is our own 🙏 on the tap (its wamid); refused → the text.
+const mockSendReaction = jest.fn().mockResolvedValue(true);
 jest.mock('../../bot/shared/services/cache/railway-redis.service', () => ({
   set: (...a) => mockRedisSet(...a),
   get: (...a) => mockRedisGet(...a),
@@ -150,7 +153,7 @@ describe('a thumbs-down is left alone', () => {
 // ── 2. the tap that writes the column ───────────────────────────────────────
 
 describe('handleUsageButton records what she did with the lesson', () => {
-  const tap = (id) => Feedback.handleUsageButton(id, PHONE);
+  const tap = (id) => Feedback.handleUsageButton(id, PHONE, { messageId: 'wamid.TAP_612' });
 
   test.each([['taught'], ['planned'], ['not_yet']])(
     '%s is written to used_in_class', async (answer) => {
@@ -190,16 +193,27 @@ describe('handleUsageButton records what she did with the lesson', () => {
     expect(updates('lp_feedback')[0].filters).toContainEqual(['lp612_segment_id', SEGMENT_ID]);
   });
 
-  // Meta bill cut NL1 (bd-w2daa.9): the receipt for the teacher's answer is the 👍 reaction the webhook puts
-  // on every inbound message before any handler runs. The "Thank you — that helps." text that
-  // followed said nothing more and was a billed message, so no text goes — in any of these cases.
-  test('the answer gets no thank-you TEXT — the webhook reaction is the receipt', async () => {
+  // Meta bill cut NL1 (bd-w2daa.9) + FX1 (bd-w2daa.22): the receipt for the teacher's answer is a 🙏
+  // reaction on her tap. The "Thank you — that helps." text that followed said nothing more and was
+  // a billed message, so no text goes — in any of these cases — unless the reaction cannot.
+  test('the answer gets no thank-you TEXT — a 🙏 on the tap is the receipt', async () => {
     dbResults.push({ data: { id: 'u1', preferred_language: 'ur' }, error: null });
     dbResults.push({ data: null, error: null });
 
     await tap(`lp612_used_taught_${SEGMENT_ID}`);
 
     expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(mockSendReaction).toHaveBeenCalledWith(PHONE, 'wamid.TAP_612', '🙏');
+  });
+
+  test('the reaction refused → the original Urdu thank-you text', async () => {
+    mockSendReaction.mockResolvedValueOnce(false);
+    dbResults.push({ data: { id: 'u1', preferred_language: 'ur' }, error: null });
+    dbResults.push({ data: null, error: null });
+
+    await tap(`lp612_used_taught_${SEGMENT_ID}`);
+
+    expect(mockSendMessage).toHaveBeenCalledWith(PHONE, resolveUx('lp612UsedThanks', { language: 'ur' }));
   });
 
   test('an unstorable tap is still owned — and still sends no text', async () => {

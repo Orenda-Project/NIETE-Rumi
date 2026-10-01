@@ -31,6 +31,7 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn().mockResolvedValue(true),
   sendInteractiveButtons: jest.fn().mockResolvedValue(true),
   sendVideoWithButtons: jest.fn().mockResolvedValue(true),
+  sendReaction: jest.fn().mockResolvedValue(true),   // the 🙏 receipt on a reason (FX1, bd-w2daa.22)
 }));
 jest.mock('../../bot/shared/services/feature-intro.service', () => ({
   introShownCount: jest.fn().mockResolvedValue(0),
@@ -179,7 +180,7 @@ describe('why the ask must wait: what the open window does to a typed answer', (
     jest.setSystemTime(pkt(8, 11));
     WhatsAppService.sendMessage.mockClear();
 
-    expect(await LpFeedback.consumeReasonIfPending(TEACHER, PHONE, typed)).toBe(true);
+    expect(await LpFeedback.consumeReasonIfPending(TEACHER, PHONE, typed, { messageId: 'wamid.reason' })).toBe(true);
 
     expect(mockDb.rows('lp_feedback')[0].reason_text).toBe(typed);
     // Swallowed as the survey's answer: nothing it says reaches the coaching ask. Since the Meta

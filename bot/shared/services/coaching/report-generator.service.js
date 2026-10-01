@@ -214,8 +214,16 @@ class ReportGeneratorService {
       // putting together your coaching report from your class recording now"
       // (stale-session sweeper), and Step 4/5 a minute later said the same thing.
       // `progressNoticeSent` is set only when that notice actually went out.
+      //
+      // FX1 (bd-w2daa.22): once per session, like the other report pieces (NC5
+      // N1-13) — a redelivered job used to say Step 4/5 again. A send that did not
+      // go out gives the claim back.
       if (!isRetry && !payload.progressNoticeSent) {
-        await WhatsAppService.sendMessage(from, getCoachingMessage('step4_generatingReport', _languageFromSession(session)));
+        const { claimPiece, releasePiece } = require('./report-piece-once');
+        if (await claimPiece(coachingSessionId, 'step4')) {
+          const step4Sent = await WhatsAppService.sendMessage(from, getCoachingMessage('step4_generatingReport', _languageFromSession(session)));
+          if (step4Sent === false) await releasePiece(coachingSessionId, 'step4');
+        }
       }
 
       // Enhance analysis with teacher reflections
@@ -447,14 +455,26 @@ class ReportGeneratorService {
       // creates that row on demand, and recordQualityMetrics updates it instead of inserting
       // a second. The quiz offer a tap brings forward is refused until the session is
       // 'completed', which happens after the commit prompt.
+      //
+      // FX1 (bd-w2daa.22): "sent from this ONE place" was not enough — a job that
+      // runs twice reached this place twice. Once per session (report-piece-once);
+      // a prompt that did not go out gives the claim back.
       try {
-        const CoachingFeedbackService = require('./coaching-feedback.service');
-        await CoachingFeedbackService.sendFeedbackPrompt({
-          coachingSessionId,
-          userId: session.user_id,
-          phone: from,
-          language: outputLanguage,
-        });
+        const { claimPiece, releasePiece } = require('./report-piece-once');
+        if (await claimPiece(coachingSessionId, 'survey')) {
+          const CoachingFeedbackService = require('./coaching-feedback.service');
+          let surveySent = false;
+          try {
+            surveySent = await CoachingFeedbackService.sendFeedbackPrompt({
+              coachingSessionId,
+              userId: session.user_id,
+              phone: from,
+              language: outputLanguage,
+            });
+          } finally {
+            if (surveySent === false) await releasePiece(coachingSessionId, 'survey');
+          }
+        }
       } catch (surveyErr) {
         logWarn('⚠️ Coaching survey failed to send (non-fatal)', {
           coachingSessionId, error: surveyErr.message,

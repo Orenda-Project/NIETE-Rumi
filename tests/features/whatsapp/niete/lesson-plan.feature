@@ -69,11 +69,12 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Given the NIETE bot chat is open
     And a Grades 1–5 lesson plan has just been delivered to the chat without a voice note
     When the feedback survey arrives and I tap 👍
-    Then the bot reacts 👍 to my tap
+    Then the bot reacts 🙏 to my tap
     And no "Thanks — glad it helped!" (or Urdu «شکریہ — خوشی ہے یہ مفید تھی!») message follows
     # Meta bill cut NL1 (bd-w2daa.9). Same rule for: a repeat tap on the same survey, the
     # "Taught it today / Planning to / Not yet" answer (K-5 and 6-12), and the typed reason after 👎
-    # — each used to get a thank-you text; each now gets only the reaction. Anything that ASKS
+    # — each used to get a thank-you text; each now gets only a 🙏 reaction (FX1, bd-w2daa.22: our own,
+    # replacing the automatic 👍 every message gets; the text goes only if the reaction cannot). Anything that ASKS
     # something still goes: the 👎 "What didn't work?" line and the usage question.
     # Unit: tests/lp-v8/meta-bill-nl1-survey-acks.test.js.
 

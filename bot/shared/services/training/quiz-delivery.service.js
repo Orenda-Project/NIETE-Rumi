@@ -87,7 +87,7 @@ const {
 // question, the intro on Q1, the result on its buttons, the congratulation on
 // its certificate. Caps + fallbacks live in one place (merged-sends).
 const {
-  withLead, verdictLabel, fitsIn, sendTextWithButtons, sendCongratulation,
+  withLead, verdictLabel, verdictText, fitsIn, sendTextWithButtons, sendCongratulation,
   HEADER_TEXT_MAX, TEXT_MAX,
 } = require('./merged-sends');
 
@@ -921,7 +921,7 @@ async function loadQuestionForDelivery(selected) {
  * @param {string} phoneNumber
  * @param {object} [opts]
  * @param {boolean} [opts.verdict] the verdict on the answer just recorded. It
- *        heads this question ("✓ Correct · Q3/5") instead of being a bubble of
+ *        heads this question ("✅ Correct · Q3/5") instead of being a bubble of
  *        its own; when there is no next question it opens the result.
  * @param {string} [opts.intro] the module-check intro. It opens Q1's body
  *        (header "<introLabel> · Q1/<n>"), or goes first on its own, as it
@@ -929,11 +929,15 @@ async function loadQuestionForDelivery(selected) {
  * @param {string} [opts.introLabel] the header prefix while the intro rides.
  */
 async function sendQuestion(attemptId, phoneNumber, opts = {}) {
-  const verdictLine = typeof opts.verdict === 'boolean' ? verdictLabel(opts.verdict) : null;
+  const hasVerdict = typeof opts.verdict === 'boolean';
+  // Header form (heads the next question) and body form (opens a text/body) —
+  // see merged-sends verdictLabel / verdictText.
+  const verdictLine = hasVerdict ? verdictLabel(opts.verdict) : null;
+  const verdictBody = hasVerdict ? verdictText(opts.verdict) : null;
   const intro = opts.intro || null;
   // Whatever must reach the teacher on ANY path out of here. Every exit either
   // folds it into what it sends, or sends it alone — it is never dropped.
-  const lead = [verdictLine, intro].filter(Boolean).join('\n\n') || null;
+  const lead = [verdictBody, intro].filter(Boolean).join('\n\n') || null;
   const sendLeadAlone = async () => {
     if (lead) await WhatsAppService.sendMessage(phoneNumber, lead);
   };
@@ -981,12 +985,12 @@ async function sendQuestion(attemptId, phoneNumber, opts = {}) {
   // intro first, on its own, exactly as before. Returns what to send and which
   // lead rode inside it (so a failed send can still say it).
   const foldIntro = async (body, max) => {
-    if (!intro) return { body, prefix: verdictLine, riding: verdictLine };
+    if (!intro) return { body, prefix: verdictLine, riding: verdictBody };
     if (fitsIn(withLead(intro, body), max)) {
       return { body: withLead(intro, body), prefix: opts.introLabel || null, riding: intro };
     }
     await WhatsAppService.sendMessage(phoneNumber, intro);
-    return { body, prefix: verdictLine, riding: verdictLine };
+    return { body, prefix: verdictLine, riding: verdictBody };
   };
 
   // An OPEN-ENDED question (the I-SAPS CRQ) is answered by typing,
@@ -1199,7 +1203,7 @@ async function sendQuestion(attemptId, phoneNumber, opts = {}) {
   }
 
   const foldedList = introSentAlone
-    ? { body: bodyText, prefix: verdictLine, riding: verdictLine }
+    ? { body: bodyText, prefix: verdictLine, riding: verdictBody }
     : await foldIntro(bodyText, INTERACTIVE_BODY_MAX);
   const sent = await WhatsAppService.sendInteractiveMessage(phoneNumber, {
     header: { type: 'text', text: headerWith(foldedList.prefix) },
@@ -1349,7 +1353,7 @@ async function handleQuizButton(userId, replyId, phoneNumber, messageId = null) 
   // either signal or copy.
   //
   // The one-line text echo is no longer a bubble of its own (Meta bills each
-  // message): the verdict now heads the NEXT question ("✓ Correct · Q3/5"),
+  // message): the verdict now heads the NEXT question ("✅ Correct · Q3/5"),
   // or opens the result when this was the last one. It still reaches every
   // teacher — including the ~2% whose reaction the pacer skips — and still
   // reads as a verdict on the answer just given, because it is the first

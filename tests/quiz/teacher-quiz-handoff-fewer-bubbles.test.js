@@ -136,10 +136,11 @@ describe('"Not now" on the quiz offer', () => {
     });
   }
 
-  test('with the tap\'s message id: a 👍 on it, and no text', async () => {
+  // FX1 (bd-w2daa.22): 👌, not 👍 — the webhook's automatic 👍 is on every message.
+  test('with the tap\'s message id: a 👌 on it, and no text', async () => {
     offered();
     await Offer.handleOfferButton(`tq_no_${QID}`, PHONE, { messageId: 'wamid.notnow' });
-    expect(WA.sendReaction).toHaveBeenCalledWith(PHONE, 'wamid.notnow', '👍');
+    expect(WA.sendReaction).toHaveBeenCalledWith(PHONE, 'wamid.notnow', '👌');
     expect(WA.sendMessage).not.toHaveBeenCalled();
   });
 

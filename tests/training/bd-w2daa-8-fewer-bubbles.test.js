@@ -228,11 +228,11 @@ const tap = (option, messageId = WAMID) =>
 
 // ═════════════════════════════ NT1 ═════════════════════════════════════════
 describe('NT1 — the verdict rides on the next question (reaction unchanged)', () => {
-  it('right answer, mid-check: ONE billed send — the next question, headed "✓ Correct · Q2/2"', async () => {
+  it('right answer, mid-check: ONE billed send — the next question, headed "✅ Correct · Q2/2"', async () => {
     seedLevel(); seedAttempt({ idx: 0 });
     await tap(2);
     expect(kinds()).toEqual(['list']);
-    expect(billed()[0].header).toBe('✓ Correct · Q2/2');
+    expect(billed()[0].header).toBe('✅ Correct · Q2/2');
     expect(billed()[0].body).toContain('Q2 text?');
     expect(wa.sendReaction).toHaveBeenCalledWith(PHONE, WAMID, '✅');
   });
@@ -250,7 +250,7 @@ describe('NT1 — the verdict rides on the next question (reaction unchanged)', 
     await tap(2, null);
     expect(wa.sendReaction).not.toHaveBeenCalled();
     expect(kinds()).toEqual(['list']);
-    expect(billed()[0].header).toBe('✓ Correct · Q2/2');
+    expect(billed()[0].header).toBe('✅ Correct · Q2/2');
   });
 
   it('the header stays inside Meta\'s 60-code-point cap at the widest verdict', async () => {
@@ -265,7 +265,7 @@ describe('NT1 — the verdict rides on the next question (reaction unchanged)', 
     seedLevel({ multiAt: 2 }); seedAttempt({ idx: 0 });
     await tap(2);
     expect(kinds()).toEqual(['flow']);
-    expect(billed()[0].header).toBe('✓ Correct · Q2/2');
+    expect(billed()[0].header).toBe('✅ Correct · Q2/2');
   });
 
   it('answer submitted through the Flow: the next question still carries the verdict', async () => {
@@ -282,14 +282,14 @@ describe('NT1 — the verdict rides on the next question (reaction unchanged)', 
     wa.sendInteractiveMessage.mockImplementationOnce(async () => false);
     await tap(2);
     expect(kinds()).toEqual(['text']);
-    expectInOrder(billed()[0].text, ['✓ Correct', "I couldn't display that question just now"]);
+    expectInOrder(billed()[0].text, ['✅ *Correct*', "I couldn't display that question just now"]);
   });
 
   it('last answer, failed check: the verdict opens the result — one billed send', async () => {
     seedLevel(); seedAttempt({ idx: 1, answeredCorrect: 1 });
     await tap(3);
     expect(kinds()).toEqual(['buttons']);
-    expectInOrder(billed()[0].body, ['✗ Not correct', '📝 *Module check — not quite.*']);
+    expectInOrder(billed()[0].body, ['✗ *Not correct.*', '📝 *Module check — not quite.*']);
   });
 
   it('last answer on a level exam: the verdict opens the result text', async () => {
@@ -306,7 +306,7 @@ describe('NT1 — the verdict rides on the next question (reaction unchanged)', 
     tables.training_assessment_answers.push({ attempt_id: ATTEMPT, question_index: 0, question_id: 3000, chosen_option: '2', is_correct: false });
     await tap(2);
     expect(kinds()).toEqual(['text']);
-    expectInOrder(billed()[0].text, ['✗ Not correct', '❌ *Not this time.*']);
+    expectInOrder(billed()[0].text, ['✗ *Not correct.*', '❌ *Not this time.*']);
   });
 });
 
@@ -360,7 +360,7 @@ describe('NT3 — "passed" rides on what comes next; "Loading the next module…
     expect(kinds()).toEqual(['buttons']);
     const card = billed()[0];
     expectInOrder(card.body, [
-      '✓ Correct',
+      '✅ *Correct*',
       '📝 *Module check — passed.*',
       'Nice — *2/2* correct. Perfect score! ✨',
       '📘 *Classroom Basics* — 2 of 2',
@@ -379,7 +379,7 @@ describe('NT3 — "passed" rides on what comes next; "Loading the next module…
     await tap(2);
     expect(kinds()).toEqual(['doc', 'buttons']);
     expectInOrder(billed()[0].caption, [
-      '✓ Correct', '📝 *Module check — passed.*', '📘 *Classroom Basics* — 2 of 2', '*Seating plans*', 'Read the PDF',
+      '✅ *Correct*', '📝 *Module check — passed.*', '📘 *Classroom Basics* — 2 of 2', '*Seating plans*', 'Read the PDF',
     ]);
     expect(billed()[0].filename).toBe('Seating plans.pdf');
     expect(billed()[1].body).toBe('Finished reading "Seating plans"?');
@@ -389,7 +389,7 @@ describe('NT3 — "passed" rides on what comes next; "Loading the next module…
     seedLevel({ next: 'none' }); seedAttempt({ idx: 1, answeredCorrect: 1 });
     await tap(2);
     expect(kinds()).toEqual(['text']);
-    expectInOrder(billed()[0].text, ['✓ Correct', '📝 *Module check — passed.*', "🎉 That's every module in this level complete."]);
+    expectInOrder(billed()[0].text, ['✅ *Correct*', '📝 *Module check — passed.*', "🎉 That's every module in this level complete."]);
     expect(billed()[0].text).not.toContain('Loading the next module');
   });
 
@@ -401,7 +401,7 @@ describe('NT3 — "passed" rides on what comes next; "Loading the next module…
     seedAttempt({ idx: 1, answeredCorrect: 1 });
     await tap(2);
     expect(kinds()).toEqual(['buttons']);
-    expectInOrder(billed()[0].body, ['✓ Correct', '📝 *Module check — passed.*', 'Module 1: Foundations']);
+    expectInOrder(billed()[0].body, ['✅ *Correct*', '📝 *Module check — passed.*', 'Module 1: Foundations']);
     expect(billed()[0].buttons).toEqual(['📝 Take the exam']);
   });
 
@@ -415,7 +415,7 @@ describe('NT3 — "passed" rides on what comes next; "Loading the next module…
     await tap(2);
     expect(kinds()).toEqual(['doc', 'text']);
     expectInOrder(billed()[0].caption, [
-      '✓ Correct', '📝 *Module check — passed.*', '🏆 *Congratulations, Asma!*', 'Certificate code: `NIETE-20261001-OXB001`',
+      '✅ *Correct*', '📝 *Module check — passed.*', '🏆 *Congratulations, Asma!*', 'Certificate code: `NIETE-20261001-OXB001`',
     ]);
     expect(billed()[1].text).toContain("That's every module in this level complete.");
     expect(billed()[1].text).not.toContain('Module check — passed');
@@ -557,7 +557,7 @@ describe('NT4 — module delivery, fail + retry, capstone, certificates, level-c
     await tap(1);
     expect(kinds()).toEqual(['doc']);
     expectInOrder(billed()[0].caption, [
-      '✓ Correct', '🏆 *Congratulations, Asma!*', 'You passed the Teacher Leader grand quiz with *2/2* (100%).',
+      '✅ *Correct*', '🏆 *Congratulations, Asma!*', 'You passed the Teacher Leader grand quiz with *2/2* (100%).',
       'Certificate code: `NIETE-20261001-ABC123`',
     ]);
   });
@@ -568,7 +568,7 @@ describe('NT4 — module delivery, fail + retry, capstone, certificates, level-c
     await tap(1);
     const texts = billed().filter(s => s.kind === 'text');
     expect(texts).toHaveLength(1);
-    expectInOrder(texts[0].text, ['✓ Correct', '🏆 *Congratulations, Asma!*', 'Certificate code: `NIETE-20261001-ABC123`']);
+    expectInOrder(texts[0].text, ['✅ *Correct*', '🏆 *Congratulations, Asma!*', 'Certificate code: `NIETE-20261001-ABC123`']);
   });
 
   it('T09 certificate with no PDF → text only (unchanged)', async () => {
@@ -587,7 +587,7 @@ describe('NT4 — module delivery, fail + retry, capstone, certificates, level-c
     await tap(2);
     // Awaited: the offer is already out by the time the tap is handled.
     expect(kinds()).toEqual(['buttons']);
-    expectInOrder(billed()[0].body, ['✓ Correct', '📝 *Module check — passed.*', "🎓 You've completed every Teacher Leader module!"]);
+    expectInOrder(billed()[0].body, ['✅ *Correct*', '📝 *Module check — passed.*', "🎓 You've completed every Teacher Leader module!"]);
     expect(billed()[0].buttons).toEqual(['Start Grand Quiz']);
     expect(sends.some(s => /That's every module in this level complete/.test(textOf(s)))).toBe(false);
   });
@@ -599,7 +599,7 @@ describe('fallback arms — the riding line is never dropped', () => {
     seedLevel();
     await Quiz().sendQuestion('ffffffff-ffff-ffff-ffff-ffffffffffff', PHONE, { verdict: true });
     expect(kinds()).toEqual(['text']);
-    expect(billed()[0].text).toBe('✓ Correct');
+    expect(billed()[0].text).toBe('✅ *Correct*');
   });
 
   it('sendQuestion on a closed attempt: the verdict still goes, alone', async () => {
@@ -607,7 +607,7 @@ describe('fallback arms — the riding line is never dropped', () => {
     tables.training_assessment_attempts[0].status = 'passed';
     await Quiz().sendQuestion(ATTEMPT, PHONE, { verdict: false });
     expect(kinds()).toEqual(['text']);
-    expect(billed()[0].text).toBe('✗ Not correct');
+    expect(billed()[0].text).toBe('✗ *Not correct.*');
   });
 
   it('next question is a written answer (CRQ): the verdict heads its text', async () => {
@@ -616,7 +616,7 @@ describe('fallback arms — the riding line is never dropped', () => {
     seedAttempt({ idx: 0 });
     await tap(2);
     expect(kinds()).toEqual(['text']);
-    expectInOrder(billed()[0].text, ['*✓ Correct · Q2/2*', 'Q2 text?', 'Type your answer as a message']);
+    expectInOrder(billed()[0].text, ['*✅ Correct · Q2/2*', 'Q2 text?', 'Type your answer as a message']);
   });
 
   it('oversized next question and no Flow configured: the failure text carries the verdict', async () => {
@@ -624,7 +624,7 @@ describe('fallback arms — the riding line is never dropped', () => {
     seedAttempt({ idx: 0 });
     await tap(2);
     expect(kinds()).toEqual(['text']);
-    expectInOrder(billed()[0].text, ['✓ Correct', "I couldn't display that question just now"]);
+    expectInOrder(billed()[0].text, ['✅ *Correct*', "I couldn't display that question just now"]);
   });
 
   it('Q1 with option pictures: the intro goes first on its own (it must precede the pictures)', async () => {
@@ -650,7 +650,7 @@ describe('fallback arms — the riding line is never dropped', () => {
     jest.spyOn(Content(), 'onModuleCompleted').mockRejectedValueOnce(new Error('boom'));
     await expect(tap(2)).rejects.toThrow('boom');
     expect(kinds()).toEqual(['text']);
-    expectInOrder(billed()[0].text, ['✓ Correct', '📝 *Module check — passed.*']);
+    expectInOrder(billed()[0].text, ['✅ *Correct*', '📝 *Module check — passed.*']);
   });
 
   it('PDF card over the caption cap: today\'s text, then the document with its title', async () => {
@@ -742,5 +742,31 @@ describe('fallback arms — the riding line is never dropped', () => {
     await Capstone().routeTextAnswer(PHONE, 'An answer with enough substance to be marked fairly.');
     expect(kinds()).toEqual(['text']);
     expectInOrder(billed()[0].text, ['📝 *4/5*', 'some of your answers were not saved']);
+  });
+});
+
+// FX1 (bd-w2daa.22) — NT1 moved the verdict into the next question's header as a plain "✓ Correct".
+// A header cannot carry *bold*, but it can carry emoji: the original ✅ / ✗ marks come back, and a
+// verdict sent as body text is the original "✅ *Correct*" / "✗ *Not correct.*" word for word.
+describe('FX1 — the verdict keeps its original marks', () => {
+  const { verdictLabel, verdictText, HEADER_TEXT_MAX } = require('../../bot/shared/services/training/merged-sends');
+  const cp = (s) => [...s].length;
+
+  it('header form: ✅ Correct / ✗ Not correct', () => {
+    expect(verdictLabel(true)).toBe('✅ Correct');
+    expect(verdictLabel(false)).toBe('✗ Not correct');
+  });
+
+  it('body form: the pre-NT1 text, word for word', () => {
+    expect(verdictText(true)).toBe('✅ *Correct*');
+    expect(verdictText(false)).toBe('✗ *Not correct.*');
+  });
+
+  it('the longest header (wrong answer, Q100/100) fits 60 code points', () => {
+    for (const ok of [true, false]) {
+      const longest = `${verdictLabel(ok)} · Q100/100`;
+      expect(cp(longest)).toBeLessThanOrEqual(HEADER_TEXT_MAX);
+    }
+    expect(cp(`${verdictLabel(false)} · Q100/100`)).toBe(24);
   });
 });

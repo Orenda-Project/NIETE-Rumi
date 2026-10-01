@@ -30,20 +30,40 @@
  *   - Duplicate button taps (user changes their mind) update `useful` and
  *     re-arm the Redis flag.
  *
- * Receipts (Meta bill cut NL1, bd-w2daa.9): a tap or a typed reason that only
- * needs acknowledging gets NO text. The webhook already reacts 👍 to every
- * inbound message before any handler runs (whatsapp-bot.js, sendReaction), a
- * reaction is free, and from 1 Oct 2026 every text is billed — so the old
- * "Thanks — glad it helped!" / "Thank you!" / "Got it, thanks…" said nothing the
- * reaction had not, at a price. Anything that ASKS the teacher something still goes:
- * the 👎 "What didn't work?" line and the 👍-after-voice-note usage question.
+ * Receipts (Meta bill cut NL1, bd-w2daa.9; FX1, bd-w2daa.22): a tap or a typed
+ * reason that only needs acknowledging gets a 🙏 REACTION on the teacher's own
+ * message instead of the old "Thanks — glad it helped!" / "Thank you!" / "Got it,
+ * thanks…" text (from 1 Oct 2026 every text is billed; a reaction is free). It is
+ * our OWN reaction, not the 👍 the webhook puts on every inbound message — that
+ * one is indistinguishable from "received", so the tap had no answer of its own
+ * (FX1). Ours replaces it on that message (one reaction per sender per message).
+ * No wamid, or the reaction refused → the original text (ux-strings
+ * lpFeedback*Thanks), never silence. Anything that ASKS the teacher something
+ * still goes as text: the 👎 "What didn't work?" line and the usage question.
  */
 
 const supabase = require('../config/supabase');
 const redisService = require('./cache/railway-redis.service');
 const WhatsAppService = require('./whatsapp.service');
 const { logToFile } = require('../utils/logger');
-const { clampLanguage } = require('../config/ux-strings');
+const { clampLanguage, resolveUx } = require('../config/ux-strings');
+
+// The receipt on a thank-you (FX1). See "Receipts" above.
+const THANKS_REACTION = '🙏';
+
+/**
+ * 🙏 on her message, or — no wamid / refused — the original thank-you text in her language.
+ * `language` may be a function so the lookup only runs when the text is needed.
+ */
+async function _thank(phone, messageId, key, language, what) {
+  const { reactOrSay } = require('./coaching/ack-reaction');
+  return reactOrSay({
+    to: phone, messageId, emoji: THANKS_REACTION, what,
+    text: async () => resolveUx(key, {
+      language: clampLanguage(typeof language === 'function' ? await language() : language),
+    }),
+  });
+}
 
 // 30s post-delivery. Longer than that and the teacher may be onto the next task.
 const FEEDBACK_DELAY_MS = 30 * 1000;
@@ -228,9 +248,11 @@ async function sendFeedbackPrompt({ lessonPlanId, userId, phone, context }) {
  *
  * @param {string} buttonId
  * @param {string} phone
+ * @param {{messageId?: string}} [opts] the tap's wamid — the 🙏 receipt reacts on it
  * @returns {Promise<boolean>} true if the buttonId matched + was handled
  */
-async function handleFeedbackButton(buttonId, phone) {
+async function handleFeedbackButton(buttonId, phone, opts = {}) {
+  const messageId = opts && opts.messageId;
   const match = BUTTON_RX.exec(buttonId || '');
   if (!match) return false;
 
@@ -287,7 +309,8 @@ async function handleFeedbackButton(buttonId, phone) {
     logToFile('LP Feedback: duplicate tap', {
       lessonPlanId, userId: lp.user_id, useful, existingId: existing.id,
     });
-    // A repeat 👍 is receipted by the reaction alone (NL1); a 👎 re-asks for the reason.
+    // A repeat 👍 is receipted by 🙏 (NL1/FX1); a 👎 re-asks for the reason.
+    if (useful) await _thank(phone, messageId, 'lpFeedbackThanksYes', language, 'lp_feedback_repeat_yes');
     if (!useful) {
       await redisService.set(
         REDIS_REASON_KEY(lp.user_id),
@@ -322,9 +345,10 @@ async function handleFeedbackButton(buttonId, phone) {
       lessonPlanId, userId: lp.user_id, useful,
       error: insertError?.message || 'insert returned no row',
     });
-    // The 👍 is receipted by the reaction (NL1). On 👎, prompt for a reason using
+    // The 👍 is receipted by 🙏 (NL1/FX1). On 👎, prompt for a reason using
     // an orphan sentinel so we still capture it via a log event even if the DB
     // write is broken.
+    if (useful) await _thank(phone, messageId, 'lpFeedbackThanksYes', language, 'lp_feedback_yes');
     if (!useful) {
       await redisService.set(
         REDIS_REASON_KEY(lp.user_id),
@@ -341,9 +365,8 @@ async function handleFeedbackButton(buttonId, phone) {
   });
 
   if (useful) {
-    // A voice note landed → ask what the teacher DID with it. Otherwise nothing: the 👍 reaction
-    // the webhook already put on the tap is the receipt (NL1; NIETE MVP has no askReasonOnYes
-    // opt-in). Gate on the DELIVERED trigger_mode, never on "we have voice notes now" — a lesson
+    // A voice note landed → ask what the teacher DID with it. Otherwise 🙏 on the tap is the
+    // receipt (NL1/FX1; NIETE MVP has no askReasonOnYes opt-in). Gate on the DELIVERED trigger_mode, never on "we have voice notes now" — a lesson
     // whose audio failed must not be asked about audio she never heard.
     if (meta.trigger_mode === 'after_voice_note') {
       await WhatsAppService.sendInteractiveButtons(phone, {
@@ -352,7 +375,8 @@ async function handleFeedbackButton(buttonId, phone) {
       });
       logToFile('LP Feedback: usage prompt sent', { lessonPlanId, userId: lp.user_id, language });
     } else {
-      logToFile('LP Feedback: 👍 receipted by reaction only', { lessonPlanId, userId: lp.user_id });
+      const via = await _thank(phone, messageId, 'lpFeedbackThanksYes', language, 'lp_feedback_yes');
+      logToFile('LP Feedback: 👍 receipted', { lessonPlanId, userId: lp.user_id, via });
     }
   } else {
     await redisService.set(
@@ -370,14 +394,15 @@ async function handleFeedbackButton(buttonId, phone) {
  *
  * UPDATEs `used_in_class` on the lp_feedback row this teacher already created by tapping 👍,
  * so one delivery stays one row. Deliberately forgiving: a tap we cannot store is still owned —
- * the teacher has done their part. Its receipt is the 👍 reaction the webhook put on the tap before
- * this ran; the old "Thank you!" text said nothing more and was a billed message (NL1).
+ * the teacher has done their part. Its receipt is 🙏 on the tap (NL1/FX1); "Thank you!" only when
+ * the reaction cannot go out.
  *
  * @param {string} buttonId Full interactive-button id
  * @param {string} phone    Sender phone
+ * @param {{messageId?: string}} [opts] the tap's wamid
  * @returns {Promise<boolean>} true if this handler owned the button
  */
-async function handleUsageButton(buttonId, phone) {
+async function handleUsageButton(buttonId, phone, opts = {}) {
   const match = USAGE_RX.exec(buttonId || '');
   if (!match) return false;
 
@@ -394,6 +419,14 @@ async function handleUsageButton(buttonId, phone) {
     logToFile('LP Feedback: used_in_class UPDATE failed', { lessonPlanId, usedInClass, error: err.message });
   }
 
+  // The language lookup runs only if the text fallback is needed.
+  await _thank(phone, opts && opts.messageId, 'lpFeedbackUsageThanks', async () => {
+    try {
+      const { data: lp } = await supabase
+        .from('lesson_plans').select('id, user_id').eq('id', lessonPlanId).maybeSingle();
+      return lp && lp.user_id ? await _resolveLanguage(lp.user_id, null) : 'en';
+    } catch (_) { return 'en'; }
+  }, 'lp_used');
   return true;
 }
 
@@ -407,9 +440,11 @@ async function handleUsageButton(buttonId, phone) {
  * @param {string} userId  users.id (UUID)
  * @param {string} phone   sender phone
  * @param {string} text    inbound message text
+ * @param {{messageId?: string}} [opts] the reason message's wamid — the 🙏 receipt reacts on it
  * @returns {Promise<boolean>} true if consumed (caller should return early)
  */
-async function consumeReasonIfPending(userId, phone, text) {
+async function consumeReasonIfPending(userId, phone, text, opts = {}) {
+  const messageId = opts && opts.messageId;
   if (!userId || !text || !text.trim()) return false;
 
   let pending;
@@ -444,7 +479,8 @@ async function consumeReasonIfPending(userId, phone, text) {
       userId, reasonLanguage, reasonLength: reasonTrimmed.length,
       reasonText: reasonTrimmed, lessonPlanId: pending.lessonPlanId || null,
     });
-    return true;   // receipted by the webhook's 👍 reaction on the teacher's message (NL1)
+    await _thank(phone, messageId, 'lpFeedbackReasonThanks', () => _resolveLanguage(userId, reasonLanguage), 'lp_feedback_reason');
+    return true;
   }
 
   const reasonPolarity =
@@ -473,7 +509,8 @@ async function consumeReasonIfPending(userId, phone, text) {
     userId, feedbackId: pending.lpFeedbackId,
     reasonLanguage, reasonLength: reasonTrimmed.length,
   });
-  return true;   // receipted by the webhook's 👍 reaction on the teacher's message (NL1)
+  await _thank(phone, messageId, 'lpFeedbackReasonThanks', () => _resolveLanguage(userId, reasonLanguage), 'lp_feedback_reason');
+  return true;
 }
 
 module.exports = {

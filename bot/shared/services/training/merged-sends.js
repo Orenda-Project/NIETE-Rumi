@@ -44,13 +44,22 @@ function withLead(lead, text) {
 }
 
 /**
- * The per-question verdict, worded the way the old one-line echo was: the
- * thin ✓/✗ in prose, the heavy ✅/❌ kept for the reaction on the teacher's
- * own tap. Plain text (no *bold*) because it also heads an interactive
- * header, where WhatsApp renders no formatting.
+ * The per-question verdict, with the marks the old one-line echo carried
+ * ("✅ *Correct*" / "✗ *Not correct.*" — FX1, bd-w2daa.22 restored the ✅ that
+ * NT1 had thinned to ✓).
+ *
+ * verdictLabel — the HEADER form ("✅ Correct · Q3/5"). An interactive header
+ *   renders no *bold* but does render emoji, so only the asterisks go. Longest
+ *   "✗ Not correct · Q100/100" = 24 code points of the 60 cap.
+ * verdictText  — the BODY form, the pre-NT1 text word for word, wherever the
+ *   verdict opens a body or travels as a text of its own.
  */
 function verdictLabel(isCorrect) {
-  return isCorrect ? '✓ Correct' : '✗ Not correct';
+  return isCorrect ? '✅ Correct' : '✗ Not correct';
+}
+
+function verdictText(isCorrect) {
+  return isCorrect ? '✅ *Correct*' : '✗ *Not correct.*';
 }
 
 function deps() {
@@ -164,6 +173,7 @@ module.exports = {
   fitsIn,
   withLead,
   verdictLabel,
+  verdictText,
   sendTextWithButtons,
   sendJoinedText,
   sendCongratulation,

@@ -32,7 +32,7 @@
  *
  * bd-w2daa.8 — the text echo is no longer its own bubble (Meta bills every
  * message from Oct 2026). Its words head the next question's header
- * ("✓ Correct · Q2/2") or open the result on the last answer; the reaction is
+ * ("✅ Correct · Q2/2") or open the result on the last answer; the reaction is
  * unchanged. The assertions below read the verdict wherever it rides.
  *
  * What this canNOT tell you: how the header reads on a real handset. That
@@ -120,7 +120,7 @@ afterEach(() => jest.resetModules());
 const svc = () => require('../../bot/shared/services/training/quiz-delivery.service');
 // bd-w2daa.8 — the verdict's WORDS no longer travel as a text bubble of their
 // own (Meta bills every message). They head the next question
-// ("✓ Correct · Q2/2"), or open the result on the last answer. So a verdict is
+// ("✅ Correct · Q2/2"), or open the result on the last answer. So a verdict is
 // read from every surface it can ride on, not only from plain texts.
 const verdicts = () => [
   ...whatsapp.sendMessage.mock.calls.map(c => c[1]),
@@ -145,8 +145,8 @@ const SURFACES = [
 describe.each(SURFACES)('bd-2523 — per-question verdict (%s surface)', (_name, answer) => {
   it('sends a verdict for a correct answer', async () => {
     seed(); await answer(2, WAMID);
-    // Thin ✓ in the words (matching the ✗ family); the heavy ✅ is the reaction.
-    expect(verdicts().some(t => /✓ Correct/.test(t))).toBe(true);
+    // The original mark (FX1, bd-w2daa.22): ✅ in the words, as before NT1.
+    expect(verdicts().some(t => /✅ \*?Correct/.test(t))).toBe(true);
   });
 
   it('sends a verdict for a wrong answer', async () => {
@@ -163,7 +163,7 @@ describe.each(SURFACES)('bd-2523 — per-question verdict (%s surface)', (_name,
     expect(whatsapp.sendMessage).not.toHaveBeenCalled();
     expect(callLog.filter(e => e === 'sendQuestion')).toHaveLength(1);
     const header = String(whatsapp.sendInteractiveMessage.mock.calls[0][1].header.text);
-    expect(header.startsWith('✓ Correct')).toBe(true);
+    expect(header.startsWith('✅ Correct')).toBe(true);
     expect(header).toMatch(/Q2\/2$/);
   });
 
