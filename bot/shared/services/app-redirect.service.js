@@ -163,14 +163,14 @@ async function redirectIfFlagged(feature, { userId, from, language, reason = 'un
       params: { url: appStoreUrl() },
     }));
   } catch (err) {
-    logToFile('❌ App redirect: notice send threw', { userId, feature, error: err?.message });
+    logToFile('❌ App redirect: notice send threw', { userId, feature, error: err?.message }, 'error');
   }
   if (sent) {
     await recordNotice(userId, previous, now);
     logToFile('📲 App redirect: notice sent', { userId, feature, reason });
   } else {
     // Not recorded, so the next request tries again rather than going quiet.
-    logToFile('❌ App redirect: notice not delivered', { userId, feature, reason });
+    logToFile('❌ App redirect: notice not delivered', { userId, feature, reason }, 'error');
   }
   return true;
 }
