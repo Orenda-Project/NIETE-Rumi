@@ -118,14 +118,19 @@ async function lastNotice(userId) {
 
 async function recordNotice(userId, previous, now) {
   try {
+    // Built first, then upserted — the same shape feature-intro.service writes
+    // this table with. intro_shown_count is added by an ALTER in the schema.
+    const fields = {
+      user_id: userId,
+      feature: NOTICE_FEATURE,
+      video_shown_at: new Date(now).toISOString(),
+    };
+    fields.intro_shown_count = (previous?.intro_shown_count || 0) + 1;
     const { error } = await supabase
       .from('user_feature_first_use')
-      .upsert({
-        user_id: userId,
-        feature: NOTICE_FEATURE,
-        video_shown_at: new Date(now).toISOString(),
-        intro_shown_count: (previous?.intro_shown_count || 0) + 1,
-      }, { onConflict: 'user_id,feature' });
+      .upsert(fields, {
+        onConflict: 'user_id,feature'
+      });
     if (error) throw new Error(error.message || 'upsert failed');
   } catch (err) {
     logToFile('⚠️ App-redirect notice not recorded — the quiet hour will not hold', { userId, error: err?.message });
