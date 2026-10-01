@@ -280,3 +280,17 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     Then the bot reply contains "Record your lesson with the WhatsApp mic"
     And the bot reply asks for 20 to 45 minutes of the lesson
     And the bot reply does not say "at least 15 minutes"
+
+  # ─────────── app redirect (bd-onxyu) — a menu row whose feature moved to the NIETE app ───────────
+  # Each row answers to its feature's switch (app_redirect_<feature>), off by default. Unit:
+  # tests/app-redirect/app-redirect-routing.test.js drives every row.
+
+  @e2e @menu @config-gated @P1
+  Scenario: A menu row whose feature moved to the app sends me to the Play Store instead
+    Given the NIETE bot chat is open
+    And Lesson Plans has been switched to the NIETE app
+    When I send "/menu"
+    And I open the "See what I do" list
+    And I tap the "Lesson Plans" row
+    Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
+    And no lesson-plan menu opens

@@ -208,4 +208,8 @@ exports.run = async ({ api, rec, sleep }) => {
       { reason: 'the grade picker is content-driven — every offered grade has content, so no empty grade is selectable' }, 0);
   rec('L07', 'A subject with no chapters is refused politely', 'BLOCKED',
       { reason: 'same — the subject picker only lists subjects that have chapters for that grade' }, 0);
+
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
+  rec('L11', 'With Lesson Plans moved to the app, asking for a lesson plan sends me to the Play Store instead', 'BLOCKED',
+      { reason: 'needs an app_redirect_* switch turned ON in the target database, and the switch is global: it would redirect every teacher on that environment for the length of the run. Covered by tests/app-redirect/ (the real text handler and menu router, red-first).' }, 0);
 };

@@ -825,3 +825,16 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # lessonPlan_confirm_prompt with lpconfirm_yes_{asset}_{session} / lpconfirm_no_{session}. In Urdu the
     # buttons are «ہاں» / «منصوبہ تبدیل کریں» and the question «کیا آگے بڑھنا ہے؟» carries no gendered verb.
     # Unit: tests/coaching/bd-2c1gj-lp-select-confirm.test.js. @wip.
+
+  # ─────────── app redirect (bd-onxyu) — Classroom Coaching moved to the NIETE app ───────────
+  # Switch app_redirect_ai_coaching, off by default. Every coaching door — /coaching, the chip, the
+  # menu row, a classroom recording — asks it. Unit: tests/app-redirect/.
+
+  @e2e @config-gated @P1 @COA62
+  Scenario: With coaching moved to the app, /coaching sends me to the Play Store instead of asking for a recording
+    Given the NIETE bot chat is open
+    And my role is "teacher"
+    And Classroom Coaching has been switched to the NIETE app
+    When I send "/coaching"
+    Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
+    And the bot does not ask me to record my lesson
