@@ -14,9 +14,6 @@
  */
 
 const { wrapLatinRuns } = require('../../../templates/latin-runs');
-// Observation scores reach the teacher as a band, never a number or a
-// percentage (operator, 2026-09-29). One rule for every surface.
-const { scoreBandLabel } = require('../../../config/score-bands');
 const fs = require('fs');
 const path = require('path');
 
@@ -76,6 +73,7 @@ const PALETTES = {
   },
 };
 
+const MARKS_WORD = { sw: ' alama', en: ' marks', ur: ' نمبر', ar: ' درجة' };
 
 // Last resort only — the adapter supplies the localised wording with the row.
 const NOT_ASSESSED_FALLBACK = 'not assessed';
@@ -112,7 +110,7 @@ function fontFaces() {
 }
 
 /** Always-LTR trend with English date labels, regardless of report language. */
-function ltrTrend(points, peak, P, bandOf = (v) => `${v}%`, labelFont = 'Lexend', w = 700, h = 110) {
+function ltrTrend(points, peak, P, w = 700, h = 110) {
   if (!points || points.length < 2) return '';
   const pad = 24, lo = 35, hi = 95, base = h - 28;
   const xs = (i) => pad + (i * (w - pad * 2)) / (points.length - 1);
@@ -123,7 +121,7 @@ function ltrTrend(points, peak, P, bandOf = (v) => `${v}%`, labelFont = 'Lexend'
   const mon = (d) => { const x = new Date(String(d) + 'T00:00:00'); return Number.isNaN(x.getTime()) ? '' : `${x.getDate()} ${EN_MON[x.getMonth()]}`; };
   const dots = points.map((p, i) =>
     `<circle cx="${xs(i)}" cy="${ys(p.pct)}" r="${i === peakI ? 6 : 4}" fill="${i === peakI ? P.trendPeak : P.deep}"/>`
-    + (i === peakI ? `<text x="${xs(i)}" y="${ys(p.pct) - 12}" text-anchor="middle" font-size="14" font-weight="700" fill="${P.deep}" font-family="${labelFont}">${esc(bandOf(p.pct))}</text>` : '')
+    + (i === peakI ? `<text x="${xs(i)}" y="${ys(p.pct) - 12}" text-anchor="middle" font-size="14" font-weight="700" fill="${P.deep}" font-family="Lexend">${p.pct}%</text>` : '')
     + `<text x="${xs(i)}" y="${base + 19}" text-anchor="middle" font-size="12" fill="${P.faint}" font-family="Lexend">${mon(p.date)}</text>`).join('');
   return `<div style="direction:ltr"><svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}"><polygon points="${area}" fill="${P.trendArea}"/><polyline points="${line}" fill="none" stroke="${P.deep}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}</svg></div>`;
 }
@@ -173,8 +171,7 @@ function buildHeroReportHtml(vm) {
   const n = vm.narrative || {};
   const score = vm.score || {};
   const peak = (vm.trend && vm.trend.length) ? Math.max(...vm.trend.map((t) => t.pct)) : score.overall;
-  // No marks line: "111/148 marks" is the number the band replaces.
-  const bandOf = (pct) => scoreBandLabel(pct, lang) || '';
+  const marksLine = (score.marks != null && score.max != null) ? `${score.marks}/${score.max}${MARKS_WORD[lang] || ''}` : '';
   const moment = (n.moments || [])[0];
   const logo = (b64, cls) => b64 ? `<img class="${cls}" src="data:image/png;base64,${b64}" alt="NIETE">` : '';
 
@@ -199,7 +196,7 @@ function buildHeroReportHtml(vm) {
     </div>`
     : `
     <div class="sc-row">
-      <div class="sc-h"><span class="sc-n">${T(g.name)}</span><span class="sc-s">${T(bandOf(g.pct))}</span></div>
+      <div class="sc-h"><span class="sc-n">${T(g.name)}</span><span class="sc-s">${g.score}/${g.max}</span></div>
       <div class="pbar"><div class="pfill" style="width:${g.pct}%;background:${g.pct >= 80 ? P.barHigh : g.pct >= 50 ? '#e0a52e' : '#dd7a5c'}"></div></div>
       ${whyLine('sc-why', g.why)}
     </div>`)).join('');
@@ -233,7 +230,7 @@ function buildHeroReportHtml(vm) {
   .headline{display:flex;align-items:flex-start;justify-content:space-between;gap:30px}
   .hero h1{font-family:${headFam};font-size:${RTL ? '26px' : '31px'};line-height:${RTL ? '1.6' : '1.15'};font-weight:600;flex:1;max-width:560px;margin:0}
   .hscore{flex-shrink:0;text-align:${RTL ? 'left' : 'right'};line-height:1}
-  .hscore .p{font-family:${RTL ? 'inherit' : `'Lexend'`};font-weight:700;font-size:30px;letter-spacing:-.01em;margin-top:4px;white-space:nowrap}
+  .hscore .p{font-family:'Lexend';font-weight:700;font-size:44px;letter-spacing:-.02em;margin-top:4px}
   .hscore .s{font-family:'Lexend';font-size:12.5px;color:${P.scoreSub};margin-top:6px;letter-spacing:.05em}
   .who{margin-top:14px;font-size:14px;color:${P.who}}.who b{color:#fff}
   .pad{padding:${RTL ? '14px' : '13px'} 42px}
@@ -244,7 +241,7 @@ function buildHeroReportHtml(vm) {
   .ov{color:${P.deep};opacity:1}
   .sc-row{margin-bottom:12px}
   .sc-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
-  .sc-n{font-size:13px;font-weight:700;color:${P.mid}}.sc-s{font-family:${RTL ? 'inherit' : `'Lexend'`};font-size:13px;font-weight:700;color:${P.deep};white-space:nowrap}
+  .sc-n{font-size:13px;font-weight:700;color:${P.mid}}.sc-s{font-family:'Lexend';font-size:13px;font-weight:700;color:${P.deep}}
   /* A not-assessed section: words, not a number, and lighter than a score so it
      never reads as one. No bar is emitted for the row at all. */
   .sc-s.sc-na{font-family:inherit;font-weight:600;color:${P.mid};opacity:.8}
@@ -299,7 +296,7 @@ function buildHeroReportHtml(vm) {
         <div class="hrow"><div class="eyebrow">${T(C.celebrate)}</div>${logo(A.logoWhite, 'logo')}</div>
         <div class="headline">
           <h1>${T(n.affirmation || '')}</h1>
-          <div class="hscore"><div class="p">${T(bandOf(score.overall))}</div></div>
+          <div class="hscore"><div class="p">${score.overall}%</div>${marksLine ? `<div class="s">${marksLine}</div>` : ''}</div>
         </div>
         <div class="who"><b>${esc(vm.teacherName || '')}</b>${vm.topic ? ` &nbsp;·&nbsp; ${T(vm.topic)}` : ''}${vm.date ? ` &nbsp;·&nbsp; ${esc(vm.date)}` : ''}</div>
       </div>
@@ -307,7 +304,7 @@ function buildHeroReportHtml(vm) {
     ${n.identity ? `<div class="pad" style="padding-bottom:0"><div class="identity">${T(n.identity)}</div></div>` : ''}
     <div class="cols">
       <div class="col-l">
-        <div class="label">${T(C.scores)} &nbsp; <span class="ov">${T(bandOf(score.overall))}</span></div>
+        <div class="label">${T(C.scores)} &nbsp; <span class="ov">${score.overall}%</span></div>
         ${scorecard}
       </div>
       <div class="col-r">
@@ -317,7 +314,7 @@ function buildHeroReportHtml(vm) {
       </div>
     </div>
     ${(vm.classroomPhotos && vm.classroomPhotos.length) ? `<div class="photos"><div class="label">${T(C.classroom)}</div><div class="pgrid">${vm.classroomPhotos.slice(0, 2).map((p) => `<div class="pframe"><img src="${p.src}" alt="classroom photo">${p.caption ? `<div class="pcap">${esc(p.caption)}</div>` : ''}</div>`).join('')}</div></div>` : ''}
-    ${(vm.trend && vm.trend.length >= 2) ? `<div class="journey"><div class="label">${T(C.journey(vm.trend.length))}</div>${ltrTrend(vm.trend, peak, P, bandOf, RTL ? (lang === 'ar' ? 'NaskhArabic' : 'NastaliqUrdu') : 'Lexend')}<div class="j-cap">${T(n.journey_note || '')}</div></div>` : ''}
+    ${(vm.trend && vm.trend.length >= 2) ? `<div class="journey"><div class="label">${T(C.journey(vm.trend.length))}</div>${ltrTrend(vm.trend, peak, P)}<div class="j-cap">${T(n.journey_note || '')}</div></div>` : ''}
     ${(vm.uptake && vm.uptake.asked) ? `<div class="uptake"><div class="label">${T(C.uptake_asked)}</div><div class="u-asked">${T(vm.uptake.asked)}</div><div class="u-line"><span class="upill ${esc(vm.uptake.status || 'unknown')}">${T(C['uptake_' + (vm.uptake.status || 'unknown')] || C.uptake_unknown)}</span>${T(vm.uptake.line || '')}</div></div>` : ''}
     ${vm.tryNext ? `<div class="try"><div class="label">${T(C.trynext)}</div><div class="try-text">${T(vm.tryNext)}</div></div>` : ''}
     <div class="foot"><div class="brand">${logo(A.logoNavy, '')}NIETE</div><div>${T(C.made(vm.teacherName || ''))}</div></div>
