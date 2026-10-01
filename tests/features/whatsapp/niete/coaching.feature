@@ -908,6 +908,22 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # (default 5 s); only the last arrival of a burst prompts, with the count re-read from the row.
     # No Redis → every photo is answered at once (the old behaviour).
 
+  # UPDATED 2026-10-01 (FX3, bd-w2daa.24 / bd-fr45b): photos sent together no longer overwrite each
+  # other — before, two photos in one go were stored as ONE and the prompt said "Photo 1 of 3".
+  @e2e @P1 @COA63b
+  Scenario: Photos sent together in one go are all kept, and the one prompt counts them all
+    Given the NIETE bot chat is open
+    And the coaching pipeline is waiting for my classroom photos
+    When I pick 2 photos in the gallery and send them together
+    Then each photo gets a 👍
+    And ONE prompt arrives about 5 seconds later: "📸 2 of 3 photos received. Would you like to add another photo?" with "Add another" / "Done"
+    And when I tap "Done", my coaching session has both photos
+    # Same for the coach's /observe photo step (it shares the gate) and for photos sent while the
+    # recording is still being processed (a 📸 on each, both kept). Unit:
+    # tests/meta-bill-cut/fx3-photo-burst-lock.test.js. capture.service appendPhotoLocked: fresh read
+    # under a per-session lock (in-process queue + Redis lock); no Redis / lock held too long →
+    # appended anyway. The photo that is absorbed into the burst shows no "typing…" of its own.
+
   @e2e @wip @draft @P2 @COA64
   Scenario: The third photo's "maximum reached" line opens the lesson-plan question
     Given the NIETE bot chat is open
