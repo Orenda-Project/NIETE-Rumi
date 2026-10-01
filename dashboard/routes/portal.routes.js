@@ -59,6 +59,8 @@ const { readingsForCourse } = require('../../bot/shared/services/training/isaps-
 const {
   isAssessmentGeneratorEnabled,
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
+  isFlagEnabledForUser,
+  PORTAL_SELF_OBSERVATION_KEY,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
@@ -5512,6 +5514,18 @@ const PORTAL_COACHING_STAGE = {
   failed: 'stopped', cancelled: 'stopped', abandoned: 'stopped',
 };
 
+/**
+ * bd-3bvfj — the feature ships dark. Off for this user (no app_settings row, a
+ * pilot list without her, or a failed read) → 404, the same answer as a route
+ * that does not exist, and the bot is never called. Hiding the button alone
+ * would leave the API open to anyone who knew the path.
+ */
+async function requireSelfObservation(req, res, next) {
+  const on = await isFlagEnabledForUser(supabase, PORTAL_SELF_OBSERVATION_KEY, req.session && req.session.portalUserId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  return next();
+}
+
 /** Relay the bot's answer; a throw (unreachable / 5xx) is a 502, never success. */
 async function relayToBot(res, label, call) {
   try {
@@ -5529,7 +5543,7 @@ async function relayToBot(res, label, call) {
  * → { uploadUrl, key, contentType, expiresIn, maxBytes }. The browser PUTs the
  *   file to uploadUrl with exactly that Content-Type.
  */
-router.post('/coaching-upload/presign', requirePortalAuth, (req, res) => {
+router.post('/coaching-upload/presign', requirePortalAuth, requireSelfObservation, (req, res) => {
   const { filename, sizeBytes, kind } = req.body || {};
   return relayToBot(res, 'presign', () => PortalCoachingClient.presignUpload({
     userId: req.session.portalUserId, filename, sizeBytes, kind,
@@ -5541,7 +5555,7 @@ router.post('/coaching-upload/presign', requirePortalAuth, (req, res) => {
  * Body { key, lessonPlanKey?, photoKeys? } — keys returned by /presign, uploaded.
  * → 200 { coachingSessionId }   409 { status:'in_progress', coachingSessionId }
  */
-router.post('/coaching-upload/start', requirePortalAuth, (req, res) => {
+router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation, (req, res) => {
   const { key, lessonPlanKey, photoKeys } = req.body || {};
   return relayToBot(res, 'start', () => PortalCoachingClient.startSession({
     userId: req.session.portalUserId, key, lessonPlanKey, photoKeys,
@@ -5556,7 +5570,7 @@ router.post('/coaching-upload/start', requirePortalAuth, (req, res) => {
  * a WhatsApp session's debrief is happening in her chat, and answering it here
  * as well would put two answers on one question.
  */
-router.get('/coaching-session/:id/progress', requirePortalAuth, async (req, res) => {
+router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObservation, async (req, res) => {
   try {
     const { data: row, error } = await supabase
       .from('coaching_sessions')
@@ -5605,7 +5619,7 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, async (req, res)
  * POST /api/portal/coaching-session/:id/reflection
  * Body { answer } → { done, acknowledgement, reportStatus }
  */
-router.post('/coaching-session/:id/reflection', requirePortalAuth, (req, res) => {
+router.post('/coaching-session/:id/reflection', requirePortalAuth, requireSelfObservation, (req, res) => {
   const { answer } = req.body || {};
   return relayToBot(res, 'reflection', () => PortalCoachingClient.submitReflection({
     userId: req.session.portalUserId, coachingSessionId: req.params.id, answer,
@@ -6465,11 +6479,17 @@ router.put('/me/language', requirePortalAuth, async (req, res) => {
 router.get('/config', async (req, res) => {
   try {
     const assessmentGenerator = await isAssessmentGeneratorEnabled(supabase);
+    // bd-3bvfj: per USER — a pilot list is answered for whoever is logged in;
+    // logged out, it is off. Read from the session, never from the request.
+    const selfObservation = await isFlagEnabledForUser(
+      supabase, PORTAL_SELF_OBSERVATION_KEY, req.session && req.session.portalUserId,
+    );
     return res.json({
       success: true,
       features: {
         assessmentGenerator,
         assessmentGeneratorMessage: assessmentGenerator ? null : ASSESSMENT_GENERATOR_OFF_MESSAGE,
+        selfObservation,
       },
     });
   } catch (error) {
@@ -6480,6 +6500,7 @@ router.get('/config', async (req, res) => {
       features: {
         assessmentGenerator: false,
         assessmentGeneratorMessage: ASSESSMENT_GENERATOR_OFF_MESSAGE,
+        selfObservation: false,
       },
     });
   }

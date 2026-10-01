@@ -17,6 +17,7 @@ vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock("../services/api", () => ({
   portal: {
+    getConfig: vi.fn(),
     presignCoachingUpload: vi.fn(),
     uploadToR2: vi.fn(),
     startCoachingUpload: vi.fn(),
@@ -55,8 +56,17 @@ function choose(testId: string, files: File[]) {
   fireEvent.change(screen.getByTestId(testId), { target: { files } });
 }
 
+/** The page waits for /config before rendering the form. */
+async function renderForm(path?: string) {
+  const out = renderAt(path);
+  await screen.findByTestId("start-analysis");
+  return out;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  // These tests cover the page with the feature ON (bd-3bvfj).
+  api.getConfig.mockResolvedValue({ success: true, features: { selfObservation: true } });
   (readAudioDuration as any).mockResolvedValue(1800);
   let n = 0;
   api.presignCoachingUpload.mockImplementation(async ({ kind }: any) => {
@@ -69,29 +79,29 @@ beforeEach(() => {
 });
 
 describe("choosing files", () => {
-  it("cannot start until a recording is chosen", () => {
-    renderAt();
+  it("cannot start until a recording is chosen", async () => {
+    await renderForm();
     expect(screen.getByTestId("start-analysis")).toBeDisabled();
     choose("recording-input", [file("period-3.m4a")]);
     expect(screen.getByTestId("start-analysis")).toBeEnabled();
   });
 
-  it("refuses a file that is not a recording, before uploading anything", () => {
-    renderAt();
+  it("refuses a file that is not a recording, before uploading anything", async () => {
+    await renderForm();
     choose("recording-input", [file("lesson.pdf")]);
     expect(screen.getByTestId("recording-error")).toHaveTextContent(/audio recording/i);
     expect(screen.getByTestId("start-analysis")).toBeDisabled();
   });
 
-  it("refuses a fourth classroom photo", () => {
-    renderAt();
+  it("refuses a fourth classroom photo", async () => {
+    await renderForm();
     choose("photos-input", [file("a.jpg"), file("b.jpg"), file("c.png"), file("d.jpg")]);
     expect(screen.getByTestId("photos-error")).toHaveTextContent(/3 photos/i);
   });
 
   it("warns — but does not block — when the recording is under 10 minutes", async () => {
     (readAudioDuration as any).mockResolvedValue(240);
-    renderAt();
+    await renderForm();
     choose("recording-input", [file("short.m4a")]);
     await waitFor(() => expect(screen.getByTestId("short-warning")).toBeInTheDocument());
     expect(screen.getByTestId("start-analysis")).toBeEnabled();
@@ -100,7 +110,7 @@ describe("choosing files", () => {
 
 describe("uploading and starting", () => {
   it("uploads the recording straight to R2 with the signed content type, then starts", async () => {
-    renderAt();
+    await renderForm();
     const rec = file("period-3.m4a", 31_000_000);
     choose("recording-input", [rec]);
     fireEvent.click(screen.getByTestId("start-analysis"));
@@ -113,7 +123,7 @@ describe("uploading and starting", () => {
   });
 
   it("sends the lesson plan and photos with the recording", async () => {
-    renderAt();
+    await renderForm();
     choose("recording-input", [file("p.m4a")]);
     choose("lesson-plan-input", [file("plan.pdf")]);
     choose("photos-input", [file("board.jpg"), file("books.png")]);
@@ -129,7 +139,7 @@ describe("uploading and starting", () => {
 
   it("does not start when an upload fails, and says so", async () => {
     api.uploadToR2.mockRejectedValue(new Error("network"));
-    renderAt();
+    await renderForm();
     choose("recording-input", [file("p.m4a")]);
     fireEvent.click(screen.getByTestId("start-analysis"));
     await waitFor(() => expect(screen.getByTestId("upload-error")).toBeInTheDocument());
@@ -140,7 +150,7 @@ describe("uploading and starting", () => {
     const err: any = new Error("conflict");
     err.response = { status: 409, data: { status: "in_progress", coachingSessionId: "cs-old" } };
     api.startCoachingUpload.mockRejectedValue(err);
-    renderAt();
+    await renderForm();
     choose("recording-input", [file("p.m4a")]);
     fireEvent.click(screen.getByTestId("start-analysis"));
     await waitFor(() => expect(api.getCoachingProgress).toHaveBeenCalledWith("cs-old"));
@@ -194,5 +204,22 @@ describe("following the analysis", () => {
     api.getCoachingProgress.mockResolvedValue({ id: "cs-1", stage: "stopped", status: "failed", reflection: null });
     renderAt("/portal/coaching/new?session=cs-1");
     expect(await screen.findByTestId("analysis-stopped")).toBeInTheDocument();
+  });
+});
+
+describe("behind the feature flag (bd-3bvfj)", () => {
+  it("shows no form, and uploads nothing, when the feature is off for her", async () => {
+    api.getConfig.mockResolvedValue({ success: true, features: { selfObservation: false } });
+    renderAt();
+    expect(await screen.findByTestId("self-observation-off")).toBeInTheDocument();
+    expect(screen.queryByTestId("start-analysis")).toBeNull();
+    expect(screen.queryByTestId("recording-input")).toBeNull();
+  });
+
+  it("does not poll a session when the feature is off", async () => {
+    api.getConfig.mockResolvedValue({ success: true, features: { selfObservation: false } });
+    renderAt("/portal/coaching/new?session=cs-1");
+    await screen.findByTestId("self-observation-off");
+    expect(api.getCoachingProgress).not.toHaveBeenCalled();
   });
 });

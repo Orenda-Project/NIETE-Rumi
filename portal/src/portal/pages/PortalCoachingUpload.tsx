@@ -69,6 +69,7 @@ const COPY = {
   stopped: "This analysis couldn't be completed. You can try again with the same recording.",
   tryAgain: 'Start a new analysis',
   back: 'Back to coaching sessions',
+  notAvailable: "Analysing a lesson from the portal isn't available on your account yet. You can still send a recording to the WhatsApp bot.",
 };
 
 const STAGES: { key: CoachingStage; label: string }[] = [
@@ -99,13 +100,34 @@ const PortalCoachingUpload = () => {
   const sessionId = params.get('session');
   const existing = params.get('existing') === '1';
 
+  // bd-3bvfj: the feature ships dark. Nothing renders (no form, no polling)
+  // until /config says it is on for this teacher; a failed read stays off.
+  // The server enforces the same flag on every route, so this is the UI's
+  // half, not the gate.
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  useEffect(() => {
+    let live = true;
+    // Promise.resolve().then: a config client that throws synchronously must
+    // not take the page down — it is just "off".
+    Promise.resolve().then(() => portal.getConfig())
+      .then((cfg) => { if (live) setEnabled(cfg?.features?.selfObservation === true); })
+      .catch(() => { if (live) setEnabled(false); });
+    return () => { live = false; };
+  }, []);
+
   return (
     <PortalLayout>
       <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-3xl">
         <Link to="/portal/coaching" className="text-sm text-muted-foreground hover:underline">
           ← {COPY.back}
         </Link>
-        {sessionId ? (
+        {enabled === null ? (
+          <div className="mt-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+        ) : !enabled ? (
+          <div data-testid="self-observation-off" className="mt-6 rounded-md border border-border bg-muted/40 p-4 text-sm">
+            {COPY.notAvailable}
+          </div>
+        ) : sessionId ? (
           <ProgressView sessionId={sessionId} alreadyRunning={existing} />
         ) : (
           <UploadForm onStarted={(id, wasRunning) => setParams(wasRunning ? { session: id, existing: '1' } : { session: id })} />

@@ -64,7 +64,9 @@ const WA_URL = 'https://r2.example/digital-coach-audio/classroom_audio/teacher-1
 
 beforeEach(() => {
   jest.resetModules();
-  tableRows = {};
+  // These tests cover the routes with the feature ON (bd-3bvfj gates them;
+  // the OFF behaviour is pinned in portal-self-observation-flag.test.js).
+  tableRows = { app_settings: [{ key: 'portal_self_observation', value: true }] };
   client = {
     presignUpload: jest.fn().mockResolvedValue({ httpStatus: 200, body: { success: true, status: 'ok', key: 'k', uploadUrl: 'u' } }),
     startSession: jest.fn().mockResolvedValue({ httpStatus: 200, body: { success: true, status: 'ok', coachingSessionId: 'cs-1' } }),
