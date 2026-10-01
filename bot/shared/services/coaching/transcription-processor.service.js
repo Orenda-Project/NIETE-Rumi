@@ -509,6 +509,25 @@ class TranscriptionProcessorService {
         logToFile('⚠️ Agency follow-up check failed (non-critical)', { error: agencyError.message });
       }
 
+      // bd-lfzoz: a PORTAL upload collected its classroom photos and lesson plan
+      // at upload, so there is nothing to ask her on WhatsApp — and she may not
+      // be looking at her chat (outside the 24h window Meta drops the buttons,
+      // and after 60 minutes the gate sweep would advance the session
+      // report-only, with NO reflective question). afterTranscription queues
+      // exactly what the WhatsApp photo/LP taps would have queued.
+      const PortalCoaching = require('./portal-coaching.service');
+      const { isPortalSession } = PortalCoaching;
+      if (isPortalSession(session)) {
+        await PortalCoaching.afterTranscription(session, coachingSessionId, from);
+        if (fs.existsSync(tempAudioPath)) {
+          fs.unlinkSync(tempAudioPath);
+        }
+        logToFile('✅ Transcription complete (portal — attachments collected at upload, gates skipped)', {
+          coachingSessionId, hasLessonPlan: !!session.has_lesson_plan,
+        });
+        return;
+      }
+
       // Phase 3: Ask about classroom photo FIRST, before LP question
       const { buildPhotoPrompt } = require('./classroom-photo/photo-prompt.service');
       const userLanguage = await getUserLanguage(session.user_id) || 'en';

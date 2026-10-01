@@ -1677,7 +1677,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         .limit(1)
         .single();
 
-      if (activeCoaching) {
+      // bd-lfzoz: a PORTAL session's reflective question was never shown on
+      // WhatsApp — she answers it in the portal — so it must not capture her
+      // chat (a stray message would be filed as her answer; a slash command
+      // would abandon it). Rows with no source, i.e. every WhatsApp session,
+      // pass exactly as before.
+      const { isWhatsAppReflectiveSession } = require('../services/coaching/portal-coaching.service');
+      if (isWhatsAppReflectiveSession(activeCoaching)) {
         // ONE call decides what this message is, and it deliberately has no
         // clock. The branch that used to live here asked whether `updated_at`
         // was more than an hour old and, if so, threw the teacher's answer away

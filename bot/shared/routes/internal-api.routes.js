@@ -1938,4 +1938,78 @@ router.post('/observe/notify-teacher', requireInternalKey, async (req, res) => {
   }
 });
 
+/* ------------------------------------------------------------------------- *
+ * bd-lfzoz — a teacher's classroom recording, uploaded from the PORTAL.
+ *
+ * Same reason as the LP enqueue above: the portal cannot run the coaching
+ * pipeline in-process (aws-sdk v2 for the queue; supabase-js, axios and openai
+ * for the reflection engine — all bot/ dependencies). These routes add NO logic;
+ * each delegates to portal-coaching.service, which uses the bot's own queue
+ * service and the same reflection engine as the WhatsApp debrief.
+ *
+ * IDENTITY. `userId` is the id the portal read from ITS session; every function
+ * behind these routes checks the key or the row belongs to that user.
+ *
+ * FAIL CLOSED. A throw is a 5xx with no `status` field, so the portal can never
+ * read a failure as "accepted".
+ * ------------------------------------------------------------------------- */
+
+// The service's result statuses → HTTP. Anything unmapped is a 500.
+const PORTAL_COACHING_HTTP = {
+  ok: 200,
+  invalid: 400,
+  not_found: 404,
+  not_ready: 409,
+  in_progress: 409,
+  queue_failed: 502,
+};
+
+function portalCoachingRoute(name, run) {
+  return async (req, res) => {
+    const body = req.body || {};
+    if (!body.userId) return res.status(400).json({ success: false, error: 'userId is required' });
+    try {
+      const PortalCoaching = require('../services/coaching/portal-coaching.service');
+      const result = await run(PortalCoaching, body);
+      const http = PORTAL_COACHING_HTTP[result && result.status] || 500;
+      if (http >= 500) {
+        logToFile('❌ Portal coaching request failed', { route: name, userId: body.userId, result });
+      }
+      return res.status(http).json({ success: http < 400, ...result });
+    } catch (error) {
+      logToFile('❌ Portal coaching request threw', { route: name, userId: body.userId, error: error?.message });
+      return res.status(500).json({ success: false, error: 'Portal coaching request failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/coaching/presign-upload
+ * Body { userId, filename, sizeBytes, kind? }   kind: 'audio' (default) | 'lesson_plan' | 'photo'
+ * Ok   200 { status:'ok', uploadUrl, key, contentType, expiresIn, maxBytes }
+ */
+router.post('/coaching/presign-upload', requireInternalKey, portalCoachingRoute('presign-upload',
+  (Svc, b) => Svc.presignUpload({ userId: b.userId, filename: b.filename, sizeBytes: b.sizeBytes, kind: b.kind })));
+
+/**
+ * POST /api/internal/coaching/start
+ * Body { userId, key, lessonPlanKey?, photoKeys? }
+ * Ok   200 { status:'ok', coachingSessionId }   409 in_progress   400 invalid
+ */
+router.post('/coaching/start', requireInternalKey, portalCoachingRoute('start',
+  (Svc, b) => Svc.startPortalSession({
+    userId: b.userId, key: b.key, lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys,
+  })));
+
+/**
+ * POST /api/internal/coaching/reflection
+ * Body { userId, coachingSessionId, answer }
+ * Ok   200 { status:'ok', done, acknowledgement, reportStatus }
+ *
+ * Synchronous: the reflection engine stores the answer, writes the closing
+ * acknowledgement and queues the report before this returns.
+ */
+router.post('/coaching/reflection', requireInternalKey, portalCoachingRoute('reflection',
+  (Svc, b) => Svc.submitReflection({ userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer })));
+
 module.exports = router;
