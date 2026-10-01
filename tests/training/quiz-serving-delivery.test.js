@@ -233,7 +233,11 @@ describe('startTrainingQuiz — snapshots the SERVED count', () => {
 
     await QuizDelivery.startTrainingQuiz(USER_ID, MODULE_ID, PHONE);
 
-    const said = whatsappSend.mock.calls.map(c => String(c[1])).join('\n');
+    // The intro opens Q1's list body now (bd-w2daa.8) — read both surfaces.
+    const said = [
+      ...whatsappSend.mock.calls.map(c => String(c[1])),
+      ...whatsappInteractive.mock.calls.map(c => String(c[1]?.body?.text || '')),
+    ].join('\n');
     expect(said).toMatch(/3 questions/);
     expect(said).not.toMatch(/9 questions/);
   });

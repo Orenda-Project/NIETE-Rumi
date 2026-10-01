@@ -52,6 +52,12 @@ function deps() {
   };
 }
 
+// Pure at module scope (it requires its I/O lazily), so it is as safe for the
+// portal to pull in through this file as the rules below.
+const {
+  withLead, fitsIn, sendJoinedText, sendCongratulation, INTERACTIVE_BODY_MAX, TEXT_MAX,
+} = require('./merged-sends');
+
 const KIND_CAPSTONE = 'capstone';
 // bd-60113 — the default now lives in capstone-points.rules alongside the
 // per-vendor override, so the portal can read the scale without pulling this
@@ -125,10 +131,13 @@ function questionMessage(idx, total, text) {
 /**
  * Called after a module is marked done. Offers the level's capstone when the
  * teacher has just finished the last module. Never throws.
+ * @param {{lead?: string}} [opts] a line that opens the offer (the "Module
+ *   check — passed" line) instead of a bubble of its own
  * @returns {Promise<boolean>} whether the offer was sent
  */
-async function maybeOfferCapstone(userId, moduleId, phoneNumber) {
+async function maybeOfferCapstone(userId, moduleId, phoneNumber, opts = {}) {
   const { supabase, WhatsAppService, logToFile, logEvent } = deps();
+  const lead = (opts && opts.lead) || null;
   try {
     const { data: mod } = await supabase
       .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
@@ -164,14 +173,24 @@ async function maybeOfferCapstone(userId, moduleId, phoneNumber) {
     const questions = await loadCapstoneQuestions(quiz.id);
     if (questions.length === 0) return false;
 
-    await WhatsAppService.sendInteractiveButtons(phoneNumber, {
-      body:
-        `🎓 You've completed every ${level.name} module!\n\n` +
-        `One step left for your certificate: the *${level.name} Grand Quiz* — ` +
-        `${questions.length} written questions, answered in your own words. ` +
-        `You need ${Math.round(PASS_PCT * 100)}% to pass.`,
+    const offer =
+      `🎓 You've completed every ${level.name} module!\n\n` +
+      `One step left for your certificate: the *${level.name} Grand Quiz* — ` +
+      `${questions.length} written questions, answered in your own words. ` +
+      `You need ${Math.round(PASS_PCT * 100)}% to pass.`;
+    // The lead opens the offer; over the body cap it goes first on its own.
+    const leadFits = !lead || fitsIn(withLead(lead, offer), INTERACTIVE_BODY_MAX);
+    if (!leadFits) await WhatsAppService.sendMessage(phoneNumber, lead);
+    const sent = await WhatsAppService.sendInteractiveButtons(phoneNumber, {
+      body: leadFits ? withLead(lead, offer) : offer,
       buttons: [{ id: `${BUTTON_PREFIX}${level.id}`, title: 'Start Grand Quiz' }],
     });
+    if (sent === false && lead && leadFits) {
+      // The offer is lost either way (as before), but the line riding on it
+      // is not.
+      logToFile('❌ Capstone offer refused — sending its lead line on its own', { userId, moduleId }, 'error');
+      await WhatsAppService.sendMessage(phoneNumber, lead);
+    }
     logEvent('training_capstone_offered', { user_uuid: userId, level_row_id: level.id });
     return true;
   } catch (err) {
@@ -573,24 +592,36 @@ async function routeTextAnswer(phoneNumber, text) {
     );
     return true;
   }
-  await WhatsAppService.sendMessage(phoneNumber, `📝 *${score}/5* — ${feedback}`);
+  // The score + feedback opens whatever comes next — the next question, or
+  // the result — instead of being a text of its own.
+  const scoreLine = `📝 *${score}/5* — ${feedback}`;
 
   const nextIdx = attempt.current_question_index + 1;
   if (nextIdx >= attempt.total_questions) {
-    return await finalizeAttempt({ ...attempt, current_question_index: nextIdx }, user, phoneNumber, { lastScore: score });
+    return await finalizeAttempt({ ...attempt, current_question_index: nextIdx }, user, phoneNumber, { lastScore: score, lead: scoreLine });
   }
 
   await supabase.from('training_assessment_attempts')
     .update({ current_question_index: nextIdx, last_activity_at: new Date().toISOString() })
     .eq('id', attempt.id);
-  await WhatsAppService.sendMessage(phoneNumber, questionMessage(nextIdx, attempt.total_questions, questions[nextIdx].question_text));
+  // One text when both fit (4096); otherwise the two texts as before.
+  await sendJoinedText(phoneNumber, scoreLine, questionMessage(nextIdx, attempt.total_questions, questions[nextIdx].question_text));
   return true;
 }
 
 // ─── 4. grading ─────────────────────────────────────────────────────────────
 
-async function finalizeAttempt(attempt, user, phoneNumber, { lastScore } = {}) {
+async function finalizeAttempt(attempt, user, phoneNumber, { lastScore, lead = null } = {}) {
   const { supabase, WhatsAppService, logToFile, logEvent, issueCertificate } = deps();
+  // `lead` (the last answer's score + feedback) opens the first message sent
+  // below, whichever it is. A plain text has 4096 to work with; when the pair
+  // would not fit, the lead goes first on its own, as it used to.
+  const leadInto = async (text) => {
+    if (!lead) return text;
+    if (fitsIn(withLead(lead, text), TEXT_MAX)) return withLead(lead, text);
+    await WhatsAppService.sendMessage(phoneNumber, lead);
+    return text;
+  };
   const { data: answers } = await supabase
     .from('training_assessment_answers')
     .select('question_index, answer_score')
@@ -614,7 +645,7 @@ async function finalizeAttempt(attempt, user, phoneNumber, { lastScore } = {}) {
       .eq('id', attempt.id);
     await WhatsAppService.sendMessage(
       phoneNumber,
-      'Sorry — some of your answers were not saved, so I cannot score this fairly. Your attempt is still open. Please contact NIETE support.'
+      await leadInto('Sorry — some of your answers were not saved, so I cannot score this fairly. Your attempt is still open. Please contact NIETE support.')
     );
     return true;
   }
@@ -655,33 +686,25 @@ async function finalizeAttempt(attempt, user, phoneNumber, { lastScore } = {}) {
       });
       certLine = `\n\n🏆 Your *${earned.level_name}* certificate is earned!\nCertificate code: \`${earned.certificate_code}\`\nYou can also download it from your portal.`;
     }
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      `🎉 *Grand Quiz passed!*\n\nYour score: *${score}/${attempt.total_score}* (needed ${passBar}).${certLine}`
-    );
+    const passed = `🎉 *Grand Quiz passed!*\n\nYour score: *${score}/${attempt.total_score}* (needed ${passBar}).${certLine}`;
 
-    // Hand over the actual file. Best effort and strictly after the message:
-    // a certificate whose PDF never rendered (`pdf_r2_key` null) still reaches
-    // the teacher as a code, which is how it has always worked.
     if (earned && earned.pdf_r2_key) {
-      try {
-        const { sendCertificateDocument } = require('./certificate-pdf.service');
-        await sendCertificateDocument(phoneNumber, {
-          certificate_code: earned.certificate_code,
-          level_name: earned.level_name,
-          pdf_r2_key: earned.pdf_r2_key,
-        });
-      } catch (err) {
-        logToFile('❌ Capstone certificate PDF delivery failed', {
-          certificateCode: earned.certificate_code, error: err.message,
-        });
-      }
+      // One message: the certificate PDF captioned with the result and its
+      // code. A certificate whose PDF does not arrive, or a caption over the
+      // cap, still reaches the teacher as text — the code is the record.
+      await sendCongratulation(phoneNumber, withLead(lead, passed), earned, {
+        attemptId: attempt.id, branch: 'capstone_certificate',
+      });
+    } else {
+      await WhatsAppService.sendMessage(phoneNumber, await leadInto(passed));
     }
   } else {
     await WhatsAppService.sendMessage(
       phoneNumber,
-      `You scored *${score}/${attempt.total_score}* — the pass mark is ${passBar} (${Math.round(PASS_PCT * 100)}%).\n\n` +
-      `Have another look at the modules and try again when you're ready — your answers' feedback above shows exactly where to strengthen. Open the level page to retake it.`
+      await leadInto(
+        `You scored *${score}/${attempt.total_score}* — the pass mark is ${passBar} (${Math.round(PASS_PCT * 100)}%).\n\n` +
+        `Have another look at the modules and try again when you're ready — your answers' feedback above shows exactly where to strengthen. Open the level page to retake it.`
+      )
     );
   }
   return true;

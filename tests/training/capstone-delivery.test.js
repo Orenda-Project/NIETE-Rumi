@@ -284,7 +284,11 @@ describe('routeTextAnswer', () => {
     expect(upd.payload.is_passed).toBe(true);
     expect(upd.payload.score).toBe(8);
     expect(certIssue).toHaveBeenCalled();
-    expect(waSend.mock.calls.map(c => c[1]).join('\n')).toContain('NIETE-TEST-0001');
+    // bd-w2daa.8 — the result + code ride on the certificate PDF as its caption
+    // (one message, not a text before the PDF); a text only when no PDF.
+    const caption = String((certPdfSend.mock.calls[0] || [])[2] || '');
+    expect(caption).toContain('Grand Quiz passed');
+    expect(caption).toContain('NIETE-TEST-0001');
   });
 
   test('a passed capstone also delivers the certificate PDF as a document', async () => {

@@ -192,9 +192,22 @@ function buttonBodies() {
   return whatsappButtons.mock.calls.map(c => String(c[1]?.body || ''));
 }
 
-/** Everything the teacher was sent as plain text. */
+/**
+ * Everything the teacher READS, whatever bubble it arrived in.
+ *
+ * This used to be the plain-text sends only. Since bd-w2daa.8 the module card
+ * rides in the body of its own buttons message, a PDF module's card is the
+ * document's caption, and the module-check intro opens Q1's list body — the
+ * same words, fewer bubbles. These tests are about the COPY, so they read all
+ * of it: text, button bodies, list bodies and document captions.
+ */
 function saidText() {
-  return whatsappSend.mock.calls.map(c => String(c[1])).join('\n');
+  return [
+    ...whatsappSend.mock.calls.map(c => String(c[1])),
+    ...buttonBodies(),
+    ...whatsappInteractive.mock.calls.map(c => String(c[1]?.body?.text || c[1]?.body || '')),
+    ...whatsappDocument.mock.calls.map(c => String(c[3] || '')),
+  ].join('\n');
 }
 
 describe('bd-2446 — the module button names the action it performs', () => {
