@@ -26,6 +26,7 @@ const { uploadImageWithRetry } = require('../storage/r2');
 const { logToFile } = require('../utils/logger');
 const { logEvent, runWithCorrelation, generateCorrelationId } = require('../utils/structured-logger');
 const { getUserLanguage } = require('../utils/language-cache');
+const { redirectIfFlagged } = require('../services/app-redirect.service');
 const { storeConversation, getOrCreateSession } = require('../database/bot-helpers');
 
 // Idempotency TTL (1 hour - prevents reprocessing of same image)
@@ -265,6 +266,16 @@ async function handleImageMessage(message, from, user = null) {
  * `{ idempotencyAcquired }` so the caller can update its own flag for that guard.
  */
 async function runImageAnalysis({ user, from, imageId, mimeType, caption, typingController, correlationId, startTime }) {
+  // bd-onxyu — an image no session is waiting for is an open message: the
+  // general-chat switch decides. Asked HERE, not at the call site, because the
+  // pic-LP coalescer's not-a-book-page fallback lands here too.
+  if (user?.id && await redirectIfFlagged('general_chat', {
+    userId: user.id, from, language: await getUserLanguage(user.id), reason: 'image',
+  })) {
+    typingController?.stop();
+    return { idempotencyAcquired: false };
+  }
+
   // Get or create session for conversation history
   const sessionId = await getOrCreateSession(user.id);
 
@@ -676,6 +687,10 @@ async function handleCoalescedBatch({ user, from, batch }) {
     }
     return;
   }
+
+  // bd-onxyu — a textbook page IS a lesson-plan request: ask the switch before
+  // anything is uploaded or a session created.
+  if (await redirectIfFlagged('lesson_plan', { userId: user.id, from, language, reason: 'pic_lp_book_page' })) return;
 
   // BOOK_PAGE: upload every image in the batch to R2.
   const uploaded = [];

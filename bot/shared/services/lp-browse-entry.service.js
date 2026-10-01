@@ -37,6 +37,11 @@ const { resolveUx } = require('../config/ux-strings');
  * @returns {Promise<boolean>}
  */
 async function openLpBrowseFlow({ from, userId, language, reason = 'unspecified' }) {
+  // bd-onxyu — the app-redirect switch. TRUE when it handled the request, because
+  // every caller treats false as "fall back to another lesson-plan path".
+  const { redirectIfFlagged } = require('./app-redirect.service');
+  if (await redirectIfFlagged('lesson_plan', { userId, from, language, reason })) return true;
+
   const flowId = process.env.PAKISTAN_LP_FLOW_ID || '';
   if (!flowId) {
     logToFile('LP browse: no PAKISTAN_LP_FLOW_ID provisioned, caller falls back', { userId, reason });

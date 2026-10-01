@@ -623,6 +623,17 @@ const UX_STRINGS = {
     ur: 'پرچہ بدلیں',
   },
 
+  // bd-onxyu — sent instead of a feature whose app_redirect_* switch is on, at
+  // most once an hour per teacher (app-redirect.service). {url} is the Play
+  // Store listing and sits on its own line so the phone lays it out LTR and
+  // makes it tappable. "Open" is named because a teacher who already has the
+  // app lands on the listing too and has to press it herself. Gender-neutral:
+  // every Urdu verb is an imperative.
+  appRedirectNotice: {
+    en: 'You can now do this in the NIETE app. Get it from the Play Store — or tap Open if you already have it — and sign in with your phone number:\n{url}',
+    ur: 'یہ سہولت اب NIETE ایپ میں ہے۔ Play Store سے ایپ ڈاؤن لوڈ کریں — یا اگر ایپ پہلے سے موجود ہے تو Open (کھولیں) دبائیں — اور اپنے فون نمبر سے لاگ اِن کریں:\n{url}',
+  },
+
   assessmentNotReady: {
     en: "We're getting the assessment generator ready for you. I'll tell you the moment it's live.",
     ur: 'پرچہ بنانے والا حصہ آپ کے لیے تیار کیا جا رہا ہے۔ جیسے ہی چالو ہوا، میں بتا دوں گی۔',
