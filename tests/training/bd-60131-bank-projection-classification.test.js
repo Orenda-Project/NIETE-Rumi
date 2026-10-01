@@ -76,9 +76,10 @@ describe('bd-60131 — a thin projection is not evidence of open-endedness', () 
     // Was 9 (all MCQs + 1 CRQ). bd-60141 samples the MCQs to 2 per the ISAPS
     // spec, so the paper is 3 — but the invariant bd-60131 exists for is that
     // EXACTLY ONE CRQ is served off a properly loaded bank, never four.
+    // bd-vej4h (2026-10-01): 4 MCQs now, so the paper is 5.
     const paper = selectPaperWithOneCrq(bank, 'sizing');
     expect(paper.filter(isOpenEndedQuestion)).toHaveLength(1);
-    expect(paper).toHaveLength(3);
+    expect(paper).toHaveLength(5);
   });
 
   test('options present but key missing is open-ended — the image-CRQ guard', () => {

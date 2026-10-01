@@ -486,16 +486,27 @@ async function onModuleCompleted(userId, moduleId, phoneNumber) {
  * Order matches what the Flow renders (course order_index, then module
  * order_index) so "next" means the same thing in both surfaces.
  */
-async function advanceAfterModule(userId, moduleId, phoneNumber) {
+/**
+ * The unit that follows `moduleId` for this teacher, or null when the level is
+ * finished. Level order (course order_index, then module order_index), with one
+ * exception (bd-vej4h): a vendor whose units chain PER COURSE (I-SAPS) stays in
+ * the course just finished while it still has open units — its modules are
+ * independent, so jumping to another module's first gap would walk her out of
+ * the module she chose.
+ *
+ * @returns {Promise<{id:number, course_id:number}|null|undefined>} undefined
+ *   when the finished unit cannot be resolved at all
+ */
+async function nextUnitAfter(userId, moduleId) {
   const { data: mod } = await supabase
     .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
   if (!mod?.course_id) {
     logToFile('⚠️ Completed module has no course_id — cannot advance', { moduleId });
-    return true;
+    return undefined;
   }
   const { data: course } = await supabase
     .from('training_courses').select('id, level_id').eq('id', mod.course_id).maybeSingle();
-  if (!course?.level_id) return deliverNextModule(userId, mod.course_id, phoneNumber);
+  if (!course?.level_id) return undefined;
 
   const { data: courses } = await supabase
     .from('training_courses').select('id, order_index')
@@ -514,12 +525,38 @@ async function advanceAfterModule(userId, moduleId, phoneNumber) {
     || (a.course_id - b.course_id)                       // stable across duplicate course order_index
     || ((a.order_index || 0) - (b.order_index || 0)));
 
-  const next = ordered.find(m => !done.has(m.id));
+  const open = ordered.filter(m => !done.has(m.id));
+  if (open.length === 0) return null;
+  let perCourse = false;
+  try {
+    const { loadLevelUnlockLogic } = require('../../routes/teacher-training-endpoint');
+    perCourse = (await loadLevelUnlockLogic(course.level_id)) === 'chain_per_course';
+  } catch (err) {
+    logToFile('⚠️ unlock-logic lookup failed — advancing in level order', { moduleId, error: err?.message });
+  }
+  if (perCourse) {
+    const sameCourse = open.find(m => m.course_id === mod.course_id);
+    if (sameCourse) return sameCourse;
+  }
+  return open[0];
+}
+
+async function advanceAfterModule(userId, moduleId, phoneNumber) {
+  const next = await nextUnitAfter(userId, moduleId);
+  if (next === undefined) {
+    const { data: mod } = await supabase
+      .from('training_modules').select('id, course_id').eq('id', moduleId).maybeSingle();
+    if (!mod?.course_id) {
+      logToFile('⚠️ Completed module has no course_id — cannot advance', { moduleId });
+      return true;
+    }
+    return deliverNextModule(userId, mod.course_id, phoneNumber);
+  }
   if (next) return deliverModuleById(next.id, phoneNumber, { userId, courseId: next.course_id, reviewMode: false });
 
   // Level complete. Do NOT loop back to module 1 — say so and let the exam
   // surface take over (the capstone offer above, or the Flow's exam CTA).
-  logToFile('🎓 Level complete after module', { userId, moduleId, levelId: course.level_id });
+  logToFile('🎓 Level complete after module', { userId, moduleId });
   await WhatsAppService.sendMessage(
     phoneNumber,
     "🎉 That's every module in this level complete.\n\nSend /training to take the level exam."
@@ -676,4 +713,4 @@ async function deliverModuleById(moduleId, phoneNumber, opts = {}) {
 
 // markModuleComplete is re-exported for the existing callers/tests that reach
 // for it here; progress.service.js is the definition.
-module.exports = { deliverNextModule, handleModuleDone, onModuleCompleted, advanceAfterModule, deliverModuleById, deliverPdfModule, isPdfModule, markModuleComplete };
+module.exports = { deliverNextModule, handleModuleDone, onModuleCompleted, advanceAfterModule, nextUnitAfter, deliverModuleById, deliverPdfModule, isPdfModule, markModuleComplete };

@@ -537,10 +537,9 @@ async function renderCertificatePdf({
   // save()/restore() brackets the whole thing so the rotation, opacity and
   // fill cannot leak into anything drawn afterwards.
   //
-  // TODO(NIETE-ISAPS-GO-LIVE): I-SAPS certificates are watermarked in
-  // PRODUCTION too while its training is a pilot (operator, 2026-09-23). When
-  // it goes live for all teachers, remove 'ISAPS' from PILOT_WATERMARK_VENDORS
-  // in certificate-env.rules.js — nothing here needs to change.
+  // A vendor listed in PILOT_WATERMARK_VENDORS (certificate-env.rules.js) is
+  // stamped in production too. The list is empty since I-SAPS went live
+  // (bd-vej4h, 2026-10-01); nothing here changes when it does.
   if (shouldStampTestBanner(process.env.NODE_ENV, template)) {
     // Sizing the box to the page diagonal is not enough on its own: `rotate`
     // turns the whole coordinate system about `origin`, so a box drawn at
