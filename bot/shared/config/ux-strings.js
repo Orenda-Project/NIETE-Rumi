@@ -213,6 +213,15 @@ const UX_STRINGS = {
     ur: 'مضمون کی تصدیق نہیں ہو سکی — زبان یا مضمون سے متعلق مخصوص شعبے کو نمبر نہیں دیے گئے۔',
   },
 
+  // bd-5lrgh (ICT sheet DC row 142): the Section B why-line when the grader judged the
+  // recording to be a different lesson from the selected plan and scored it 0. English is
+  // the field team's own wording. The Urdu carries no digits or Latin so the RTL why-line
+  // has nothing to reorder ("صفر" rather than "0%").
+  reportLpMismatch: {
+    en: 'The classroom recording does not match the selected lesson plan. Therefore, LP Fidelity is 0%.',
+    ur: 'کلاس روم کی ریکارڈنگ منتخب کردہ لیسن پلان سے مطابقت نہیں رکھتی، اس لیے لیسن پلان پر عمل کا اسکور صفر ہے۔',
+  },
+
   // ─── short-recording length guidance ──────────────────────────────────────
   // Sent BEFORE the chat answer, never instead of it: a recording that is too
   // short for an analysis still gets answered. The wording says so explicitly,

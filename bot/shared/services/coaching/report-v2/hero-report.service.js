@@ -36,12 +36,25 @@ function attachDomainWhys(groups, domainWhys) {
     // A not-assessed section already carries a why line written in code. The model
     // must not be able to replace it: it is under a prompt that requires it to name
     // one concrete missing element, and for a section that was never measured any
-    // sentence it produces is invented.
-    if (g.notAssessed) continue;
+    // sentence it produces is invented. The same holds for a lesson-mismatch Section B
+    // (bd-5lrgh): its line is the catalogue sentence and nothing else.
+    if (g.notAssessed || g.lessonMismatch) continue;
     const why = domainWhys[g.domainKey || g.key];
     if (why) g.why = why;
   }
   return groups;
+}
+
+/**
+ * bd-5lrgh: the header's lesson topic. `analysis.topic` is the selected plan's topic, so
+ * on a lesson mismatch it names a lesson she did not teach — only the narrative's topic
+ * (read from the transcript) may head that report. Everywhere else: unchanged.
+ */
+function heroTopic(narrative, analysis) {
+  if (narrative && narrative.topic) return narrative.topic;
+  const { isLessonMismatch } = require('./score-adapters/fico-adapter');
+  if (isLessonMismatch(analysis)) return '';
+  return (analysis && analysis.topic) || '';
 }
 
 const UPTAKE_LINE_KEY = {
@@ -184,7 +197,7 @@ async function generateHeroReport(session, analysis, opts = {}) {
     language: lang,
     brand,
     teacherName,
-    topic: (narrative && narrative.topic) || analysis.topic || '',
+    topic: heroTopic(narrative, analysis),
     date: String(session.created_at || '').slice(0, 10),
     score: { overall: score.overall, marks: score.marks, max: score.max },
     groups: score.groups,
@@ -202,5 +215,5 @@ async function generateHeroReport(session, analysis, opts = {}) {
 }
 
 module.exports = {
-  generateHeroReport, attachDomainWhys, attachSubjectNote, buildUptakeVm, tallyInWords,
+  generateHeroReport, attachDomainWhys, attachSubjectNote, buildUptakeVm, tallyInWords, heroTopic,
 };

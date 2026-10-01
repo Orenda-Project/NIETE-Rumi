@@ -139,7 +139,9 @@ function pickWeakestDomain(analysis) {
     const { getScoreAdapter } = require('./score-adapters/dispatch');
     const framework = String((analysis && analysis.framework) || 'oecd').toLowerCase();
     const groups = getScoreAdapter(framework)(analysis || {});
-    const valid = (groups || []).filter((g) => g && (g.max || 0) > 0);
+    // bd-5lrgh: a lesson-mismatch Section B is 0 because the plan was for another lesson,
+    // not because of anything she can grow — never the horizon.
+    const valid = (groups || []).filter((g) => g && (g.max || 0) > 0 && !g.lessonMismatch);
     if (!valid.length) return null;
     const sorted = valid.slice().sort((a, b) => (a.pct || 0) - (b.pct || 0));
     return sorted[0];
@@ -148,8 +150,18 @@ function pickWeakestDomain(analysis) {
   }
 }
 
-function buildPrompt(analysis, { transcript, trend = [], language, teacherName, target = null }) {
+function buildPrompt(analysis, { transcript, trend = [], language, teacherName, target: requestedTarget = null }) {
   const a = analysis || {};
+  // bd-5lrgh (ICT sheet DC row 142): the grader judged the recording to be a different
+  // lesson from the selected plan and Section B is 0. The why-writer used to be handed
+  // the plan's first three moves as "missed", and explained the 0 with a lesson she never
+  // taught. On a mismatch the plan's content never enters this prompt: code writes the
+  // Section B line, the model only describes what the recording shows, and a scorer focus
+  // inside Section B is not used as her horizon.
+  const { isLessonMismatch } = require('./score-adapters/fico-adapter');
+  const lessonMismatch = isLessonMismatch(a);
+  const target = lessonMismatch && requestedTarget && requestedTarget.domain === 'lesson_plan_fidelity'
+    ? null : requestedTarget;
   const fw = (a.framework || 'hots').toUpperCase();
   const pct = Math.round(parseFloat(a.scores?.overall_percentage || 0));
   const sessionCount = trend.length || 1;
@@ -187,6 +199,9 @@ function buildPrompt(analysis, { transcript, trend = [], language, teacherName, 
         // the model is told not to.
         if (d.assessed === false) {
           return `- ${k} (${FICO_DOMAIN_LABELS[k]}): NOT ASSESSED — this section was not measured for this lesson, so it is not part of the score. Do NOT diagnose it, do NOT name anything missing from it, and omit it from "domain_whys" entirely.`;
+        }
+        if (k === 'lesson_plan_fidelity' && lessonMismatch) {
+          return `- ${k} (${FICO_DOMAIN_LABELS[k]}): LESSON MISMATCH — ${d.domain_score}/${d.domain_max} because the recording is a different lesson from the selected lesson plan. The report already states this in a fixed line. Do NOT diagnose it, do NOT name, list or evaluate anything from the lesson plan, and omit it from "domain_whys" entirely.`;
         }
         // Section B may be DERIVED from the measured LP-fidelity engine (P4.1/D27):
         // ground its "why" in the actual missed moves, not the legacy proxy indicators.
@@ -248,7 +263,8 @@ Return STRICT JSON:
  "score_framing":"one warm sentence framing overall ${pct}% as a stage in a journey, not a verdict."${isFico ? `,
  "domain_whys":{ ${Object.keys(FICO_DOMAIN_LABELS).map((k) => `"${k}":"..."`).join(', ')} }` : ''}
 }
-moments: EXACTLY 3, the best real moments. Do NOT invent quotes — use real lines from the transcript.
+moments: EXACTLY 3, the best real moments. Do NOT invent quotes — use real lines from the transcript.${lessonMismatch ? `
+The selected lesson plan was for a different lesson: nowhere in this report — strengths, horizon, moments or any line — mention, list or judge the lesson plan's content.` : ''}
 ${isFico ? `
 domain_whys: ONE sentence per domain, in the report language, in the PAST TENSE, with NO instruction verb (no "try", "should", "could", "کریں", "چاہیے") — pure diagnosis, not advice; the single next-step lives elsewhere. Follow this EXACT two-clause skeleton (bd-43497, the locked reference):
   EN: "This is strong/developing because <one concrete classroom moment> — it's not full marks because <one clear, concrete missing thing>."
@@ -260,7 +276,10 @@ domain_whys: ONE sentence per domain, in the report language, in the PAST TENSE,
 DOMAIN SCORES (diagnose each):
 ${domainScoresBlock}` : ''}
 
-${throughline ? `THIS LESSON'S THROUGHLINE (from prior analysis): ${throughline}\n` : ''}${corpusMoments ? `MOMENTS ALREADY SURFACED (hints — prefer these, but pull the verbatim quote from the transcript):\n${corpusMoments}\n` : ''}LESSON TOPIC: ${a.topic || ''}
+${throughline ? `THIS LESSON'S THROUGHLINE (from prior analysis): ${throughline}\n` : ''}${corpusMoments ? `MOMENTS ALREADY SURFACED (hints — prefer these, but pull the verbatim quote from the transcript):\n${corpusMoments}\n` : ''}LESSON TOPIC: ${lessonMismatch
+  // bd-5lrgh: analysis.topic is the selected plan's topic — on a mismatch, not this lesson's.
+  ? 'take it from the TRANSCRIPT — the selected lesson plan was for a different lesson.'
+  : (a.topic || '')}
 ${fw} summary: ${(a.executive_summary_sw || a.executive_summary || '').slice(0, 700)}
 Strengths: ${(a.strengths || []).map((s) => s.title_sw || s.title || s).filter(Boolean).join('; ')}
 ${target && target.indicator
@@ -310,6 +329,9 @@ async function generateReportNarrative(analysis, opts = {}) {
     } else {
       delete narrative.domain_whys;
     }
+    // bd-5lrgh: the mismatch line is written in code and nothing is added to it (operator,
+    // 2026-10-01) — a taught-sentence the model volunteers never travels on.
+    delete narrative.lesson_mismatch_taught;
     narrative._language = language;
     return narrative;
   } catch (err) {
