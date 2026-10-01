@@ -137,21 +137,6 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # The mock lane reads the flag on the outbound send; a WhatsApp Web run reads the bubble itself.
     # Pre-recorded lesson-plan voice notes go out by a different path and are deliberately unchanged.
 
-  @obsolete @slow @content-driven @P2 @COA18
-  Scenario: Every score a teacher receives is a band, never a number
-    # OBSOLETE 2026-10-01 (bd-895yd): bands were meant for the PORTAL only; the WhatsApp report, card and voice note are reverted to their numbers. Superseded by @COA58 below. Kept (not deleted) for the audit trail.
-    Given the NIETE bot chat is open
-    And my coaching analysis has finished
-    When the report and the voice note are delivered
-    Then the report rates the lesson overall, and each of its sections, with one of Excellent, Good, Average, Below average or Needs support
-    And no percentage, no "points out of" and no marks line appears anywhere on the report
-    And the voice note describes how the lesson went without saying any score, percentage or "out of"
-    # ADDED 2026-09-29 (bd-wswm0). Operator: "remove the Observation scores
-    # everywhere from Numbers and Percentages to brackets … <20, <40, <60, <80,
-    # <100". The rule lives in bot/shared/config/score-bands.js; the Urdu words are
-    # بہترین / اچھا / اوسط / اوسط سے کم / مدد درکار. Assert that NO number appears and
-    # that A band word does — never which band, because that depends on the lesson.
-
   @e2e @slow @content-driven @P2 @COA58
   Scenario: The coaching report and voice note give the lesson's scores as numbers
     Given the NIETE bot chat is open
@@ -164,7 +149,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # only". The portal keeps bands; everything a teacher receives on WhatsApp shows numbers,
     # exactly as before 2026-09-29. Assert the numbers are present — never their values.
 
-  @known-issue
+  @e2e @known-issue @COA60
   Scenario: The two coaching entry points quote different minimum audio lengths
     Given the NIETE bot chat is open
     When I reach coaching from the menu versus from a keyword request
@@ -583,21 +568,6 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # its own (DC feedback 2026-09-23): the old "thanks for typing it out" line
     # arrived just before Step 2/5 and read as the same message twice.
 
-  @e2e @wip @draft @negative @P2 @obsolete @COA34
-  Scenario: A short reply at the lesson-plan step is not mistaken for a plan
-    Given the NIETE bot chat is open
-    And the coaching flow has asked me for a lesson plan
-    When I send a short reply such as "no" or the teacher's name
-    Then the bot does not treat it as a lesson plan
-    And the observation still has no lesson plan attached
-    # The pre-filter is deliberately strict — a paste must clear a length floor
-    # AND name several parts of a plan. A false positive would eat the message,
-    # so short answers keep the existing behaviour (the LP prompt is re-sent).
-    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
-    # teacher sends at the lesson-plan step is considered, so the length floor it rests on is gone.
-    # What counts as a plan is settled downstream by the extraction worker,
-    # never by measuring her text before agreeing to read it.
-
   @e2e @wip @draft @negative @P3 @COA35
   Scenario: Pasted text that is not a lesson plan gets the same rejection as a file
     Given the NIETE bot chat is open
@@ -620,35 +590,6 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # was refused by a 280-point floor fitted to long formatted pastes, while
     # the session sat waiting for one. What makes a paste a plan is the
     # evidence in it, not its size; the floor only keeps one-liners out.
-
-  @e2e @wip @draft @negative @P2 @obsolete @COA37
-  Scenario: Saying I have no lesson plan is not the same as sending one
-    Given the NIETE bot chat is open
-    And the coaching flow has asked me for a lesson plan
-    When I reply that I do not have a lesson plan for this class
-    Then the bot does not record that reply as my lesson plan
-    # A teacher explaining she has no plan NAMES one, so she clears the marker
-    # bar; the old length floor excluded her only by accident. Checked in
-    # English, Roman Urdu and Urdu.
-    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
-    # teacher sends at the lesson-plan step is considered, so she now reaches the same judge a PDF does and gets the No-button outcome.
-    # What counts as a plan is settled downstream by the extraction worker,
-    # never by measuring her text before agreeing to read it.
-
-  @e2e @wip @draft @negative @P2 @obsolete @COA38
-  Scenario: Talking about a lesson plan is not the same as sending one
-    Given the NIETE bot chat is open
-    And the coaching flow has asked me for a lesson plan
-    When I describe in one sentence the lesson I just taught, or ask how to write a plan
-    Then the bot does not record what I typed as my lesson plan
-    # Naming the parts of a plan is not enough on its own at this length — a
-    # teacher narrating her lesson names the topic, an activity and how she
-    # checked learning, all in one flowing sentence. A plan that short is
-    # LAID OUT: a label, a line per step, a numbered list.
-    # OBSOLETE 2026-09-22 (bd-cq1go): the operator set the rule that whatever a
-    # teacher sends at the lesson-plan step is considered, so the layout rule it rests on is gone.
-    # What counts as a plan is settled downstream by the extraction worker,
-    # never by measuring her text before agreeing to read it.
 
   # ═══════════ ADDED 2026-09-22 · the coaching ask on the first lesson plan of the day (@wip) ═══════════
   # lp-coaching-ask.service: a lesson plan delivered before 14:00 PKT books ONE ask
@@ -865,7 +806,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # COACHING_MESSAGES.duplicateRecording. Checked by the quiz lane's own addressForms / genderedTeacherForms
     # in tests/language/urdu-gender-neutral-copy.test.js, which also holds the WHOLE ux catalog to it. @wip.
 
-  @e2e @wip @draft @P1
+  @e2e @wip @draft @P1 @COA59
   Scenario: Picking my lesson plan from the list asks me to confirm before it is used
     Given the NIETE bot chat is open
     And my Classroom Coaching session is waiting at the lesson-plan step with my recent lesson plans listed

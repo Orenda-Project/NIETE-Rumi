@@ -1,7 +1,6 @@
 // @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
-/* coaching.feature — every @e2e scenario in ONE driver, bound by its id tag (@COA01 … @COA56).
- * COA01–COA13 and COA15 are driven below. Every other id records BLOCKED with its reason — a limit
- * of this lane (COA14, COA16, COA17, COA22) or a scaffolded stub nobody has driven yet.
+/* coaching.feature — every @e2e scenario in ONE driver, bound by its id tag (@COA01 … @COA60).
+ * COA01–COA15, COA57 and COA22/COA17/COA59 (BLOCKED, with their reasons) are driven below; the rest through coaching-ext.cjs.
  *
  * ─── MOCKING ────────────────────────────────────────────────────────────────
  * Every string the bot is expected to produce lives in EXPECT below, and every
@@ -36,7 +35,7 @@ const EXPECT = {
   stepAny           : /Step (\d)\/5/,
   longLesson        : /Long Lesson Detected/i,
   acknowledges      : /Great job|engaging \d+-minute lesson/i,
-  photoPrompt       : /(classroom photo|share a .*photo|تصویر)/i,
+  photoPrompt       : /(classroom photo|share a .*photo|add up to \d+ photos|like to add .*photo|تصویر)/i,
   lpPrompt          : /(lesson plan for this class|do you have a lesson plan|سبق کا منصوبہ)/i,
   notLessonPlan     : /not a lesson plan|doesn'?t look like|isn'?t a lesson plan|نہیں لگتا/i,
   reflectiveQ       : /(reflect|what (do|did) you|how (did|do) you|think about)/i,
@@ -60,7 +59,7 @@ const FIXTURE = {
   classroom : MEDIA + '/hameeda_16min.m4a',      // 4 MB · 16 min — clears the 900s gate
   tooShort  : MEDIA + '/hameeda_short.m4a',      // 444 KB — under the gate
   photo     : MEDIA + '/textbook_page.png',
-  notAPlan  : MEDIA + '/staff_meeting_notes.txt',
+  notAPlan  : MEDIA + '/staff_meeting_notes.pdf',      // a REAL text PDF: the .txt was stored as .pdf, failed to parse, and the classifier never ran
   oversized : null,                              // needs >100MB; largest fixture is 25.7MB
 };
 
@@ -82,6 +81,16 @@ exports.run = async ({ api, rec, sleep }) => {
   const t = () => Date.now();
   let s;
   await api.resetFlow();
+  // This driver speaks the ENGLISH copy. A previous run can leave the account on Urdu (run 20260930-0909 died on
+  // the menu row in Urdu), so put it back through the product's own /language picker before anything else.
+  try {
+    const o = api.db('user-get'); const line = String(o.out || '').trim().split('\n').reverse().find((l) => l.trim().startsWith('{')); const u = line ? JSON.parse(line) : {};
+    if (u.preferred_language && u.preferred_language !== 'en') {
+      const r = await api.sendWait('/language'); const opener = (r.btns || []).find((b) => /Languages|زبانیں/.test(b)) || 'Languages';
+      const list = await api.openList(opener); const row = ((list && list.rows) || []).find((x) => /English|انگریزی/.test(x)) || 'English'; await api.pickRowAndWait(row, 60000);
+      await api.resetFlow();
+    }
+  } catch (_) { /* the run goes on; an Urdu account then shows up as the row error it always did */ }
 
   // ══ COA02 — decline the first-use intro, get asked for the class audio ════
   // MUST run before COA01: the menu path (View Features → Classroom Coaching) can
@@ -214,9 +223,28 @@ exports.run = async ({ api, rec, sleep }) => {
         { why: '@wip/@draft — run with DEEP=1' }, 0);
   }
 
+
+  // The bot answers a 16-min upload in TWO messages — a voice ack, then the "Yes, Analyze" card — and
+  // the card can land after the reply's settle window closes (mock run 20260930-0531: the second
+  // upload returned the audio, offers2 was false, and every pipeline scenario cascaded to BLOCKED
+  // with elapsed 0s). Keep reading the fresh inbound for the card before deciding the offer is absent.
+  const awaitOffer = async (reply, maxMs = 30000) => {
+    const has = (r) => (r.btns || []).some(b => EXPECT.yesAnalyze.test(b)) || EXPECT.yesAnalyze.test(r.txt || '');
+    if (has(reply)) return reply;
+    const t1 = Date.now();
+    while (Date.now() - t1 < maxMs) {
+      const batch = await fresh();
+      const card = batch.find(has);
+      if (card) return Object.assign({}, reply, { txt: card.txt || reply.txt, btns: card.btns || [], lateCardMs: Date.now() - t1 });
+      await sleep(1000);
+    }
+    return reply;
+  };
+
   // ══ COA03 — a >=15-min recording is detected, confirmation offered ════════
   s = t();
-  const up = await api.upload(FIXTURE.classroom, 'Document', 180000);
+  await fresh();   // drain BEFORE the upload: awaitOffer must only see cards that arrive after it (run 20260930-0649 tapped the previous, cancelled card)
+  const up = await awaitOffer(await api.upload(FIXTURE.classroom, 'Document', 180000));
   const upTxt = up.txt || '';
   const detectedM = EXPECT.detected.exec(upTxt);
   const offers = (up.btns || []).some(b => EXPECT.yesAnalyze.test(b)) || EXPECT.yesAnalyze.test(upTxt);
@@ -243,18 +271,23 @@ exports.run = async ({ api, rec, sleep }) => {
 
   // ══ COA04 — confirming walks the 5-step pipeline ═════════════════════════
   s = t();
-  const up2 = await api.upload(FIXTURE.classroom, 'Document', 180000);
+  await fresh();
+  const up2 = await awaitOffer(await api.upload(FIXTURE.classroom, 'Document', 180000));
   const offers2 = (up2.btns || []).some(b => EXPECT.yesAnalyze.test(b)) || EXPECT.yesAnalyze.test(up2.txt || '');
   let confirmed = false;
-  if (offers2) { await api.tapAndWait('Yes, Analyze', 120000); confirmed = true; await fresh(); }
+  // Drain the fresh-inbound BEFORE confirming, never after: the reply to "Yes, Analyze" is "Step 1/5"
+  // and the photo prompt follows it within seconds — a drain after the tap swallowed both, so the walker
+  // below started with stepsSeen [] and bailed as a stall (mock run 20260930-0537).
+  if (offers2) { await fresh(); await api.tapAndWait('Yes, Analyze', 120000); confirmed = true; }
+  if (confirmed) { try { const o = api.db('session-get'); const line = String(o.out || '').trim().split('\n').reverse().find((l) => l.trim().startsWith('{')); obs.sessionId = line ? JSON.parse(line).id : null; } catch (_) {} }
 
   // Walk the pipeline as a state machine — react to each prompt as it arrives
   // rather than assuming an order. Shallow runs stop as soon as COA04 is decided.
   const obs = { steps: [], photoPrompt: false, photoAccepted: null, lpPrompt: false, lpRejected: null,
                 reflectiveQ: null, reflectiveAck: null, slashEnded: null, deferral: null,
-                report: null, commitment: null, acknowledges: false, longLesson: false, voiceNotes: [] };
+                report: null, commitment: null, acknowledges: false, longLesson: false, rows: [], sessionId: null, voiceNotes: [] };
   // COA57 — every bot voice note in the session (question, closing note, report note) is recorded with
-  // whether it arrived as a VOICE message (waveform + speed control) or as an audio file.
+  // whether it arrived as a VOICE message (voice flag on the send / waveform + speed control) or as an audio file.
   const noteAudio = (r) => { if (r && r.audio) obs.voiceNotes.push({ voice: !!r.voice, afterReport: !!obs.report, afterAnswer: (obs.reflectiveAnswers || 0) > 0 }); };
   const seenTexts = [];
   let deferralTried = false;
@@ -273,7 +306,9 @@ exports.run = async ({ api, rec, sleep }) => {
   // so the old `E2E_CASSETTE === replay-strict` check was ALWAYS false here and the bail never fired.
   const SEALED = String(process.env.E2E_METHOD || '').toLowerCase() === 'mock'
               || String(process.env.E2E_CASSETTE || '').toLowerCase() === 'replay-strict';
-  const STALL_MS = Number(process.env.COACHING_STALL_MS || 90000);
+  // 240 s, not 90: a driver whose analysis is a cassette MISS goes live — the FICO analysis took 108 s and the hero
+  // report 106 s on run 20260930-1908, and the old 90 s bail fired 4 s before the report landed.
+  const STALL_MS = Number(process.env.COACHING_STALL_MS || 240000);
   let lastMsgAt = Date.now();
   let lastProgressAt = Date.now();   // advances ONLY on real progress — see the early-bail below
   let prevSig = '';
@@ -292,6 +327,13 @@ exports.run = async ({ api, rec, sleep }) => {
     else { await api.openList(opener); await api.pickRowAndWait('اپلوڈ', 60000); }
     const doc = await api.upload(FIXTURE.notAPlan, 'Document', 120000);
     obs.lpRejected = { replied: !!doc.ok, reply: (doc.txt || '').slice(0, 200) };
+    // The verdict is the extraction WORKER's, ~15-20 s after the "Lesson plan received" ack (run 20260930-0921:
+    // rejected at +18 s). Wait for it here; whatever else lands meanwhile is carried into the walker.
+    { const tR = Date.now(); let seen = [];
+      while (Date.now() - tR < 45000 && !seen.some(r => EXPECT.notLessonPlan.test(r.txt || ''))) { await sleep(2500); seen = seen.concat(await fresh()); }
+      const verdict = seen.find(r => EXPECT.notLessonPlan.test(r.txt || ''));
+      if (verdict) obs.lpRejected = { replied: true, ack: obs.lpRejected.reply, reply: (verdict.txt || '').slice(0, 200), verdictAfterMs: Date.now() - tR };
+      carry = carry.concat(seen.filter(r => r !== verdict)); }
     // the bot re-offers the list after a rejection — decline so the analysis can start
     const again = (doc.btns || []).find(b => /منتخب کریں|^Select$/i.test(b));
     if (again) { await api.openList(again); const no = await api.pickRowAndWait('نہیں', 90000); obs.lpDeclined = (no.txt || '').slice(0, 120); }
@@ -299,11 +341,13 @@ exports.run = async ({ api, rec, sleep }) => {
     await fresh();
   };
 
+  let carry = [];   // rows read by a lever mid-loop (the COA09 upload) are processed, never dropped
   while (confirmed && Date.now() - t0 < budget) {
-    const batch = await fresh();
+    const batch = carry.concat(await fresh()); carry = [];
     if (batch.length) lastMsgAt = Date.now();
     for (const r of batch) {
       const x = r.txt || '';
+      obs.rows.push(r);
       if (x) seenTexts.push(x);
       noteAudio(r);
       const m = EXPECT.stepAny.exec(x);
@@ -352,9 +396,10 @@ exports.run = async ({ api, rec, sleep }) => {
           obs.slashEnded = { reply: (cmd.txt || '').slice(0, 200) };
         } else {
           const ans = await api.sendWait(REFLECT_ANSWER, 120000);
-          obs.reflectiveAck = (ans.txt || '').slice(0, 220);
+          // the acknowledgement is a VOICE note on this build (run 20260930-0832: ok, no text) — count it
+          obs.reflectiveAck = (ans.txt || '').slice(0, 220) || (ans.ok ? '(acknowledged with a ' + (ans.kind || 'non-text') + ' message)' : '');
         }
-        for (const q of await fresh()) noteAudio(q);   // the closing note lands here, right after the answer
+        for (const q of await fresh()) { noteAudio(q); obs.rows.push(q); }   // the closing note lands here, right after the answer
         continue;
       }
 
@@ -381,10 +426,18 @@ exports.run = async ({ api, rec, sleep }) => {
       deferralTried = true;
       const second = await api.upload(FIXTURE.classroom, 'Document', 180000);
       const txt2 = second.txt || '';
+      // whatever landed while the upload settled (the voice question after Step 3/5 — run 20260930-0621
+      // lost it here and stalled) is carried into the next iteration, and the card is judged from ALL of it
+      // the bot's answer to a second recording (a deferral ack, or a fresh detection card) can land several
+      // seconds after the upload settles — keep reading for up to 15 s before judging (run 20260930-0832)
+      let extra = await fresh(); const tCard = Date.now();
+      while (Date.now() - tCard < 15000 && !extra.some(r => EXPECT.detected.test(r.txt || '') || /still analys|already analys|in progress|ابھی تجزیہ/i.test(r.txt || ''))) { await sleep(2000); extra = extra.concat(await fresh()); }
+      const cardRows = [second].concat(extra);
       obs.deferral = { replied: !!second.ok, reply: txt2.slice(0, 220),
-        startedNewSession: EXPECT.detected.test(txt2) ||
-                           (second.btns || []).some(b => EXPECT.yesAnalyze.test(b)) };
-      await fresh();
+        startedNewSession: cardRows.some(r => EXPECT.detected.test(r.txt || '') || (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))) };
+      carry = carry.concat(extra.filter(r => !(EXPECT.detected.test(r.txt || '') && (r.btns || []).some(b => EXPECT.yesAnalyze.test(b)))));
+      // a second session the bot DID open must not stay in flight and swallow the rest of the run
+      if (obs.deferral.startedNewSession) { const c = cardRows.find(r => (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))); if (c) { try { await api.tapAndWait('No', 60000); } catch (_) {} } }
     }
 
     if (!DEEP && obs.steps.length && obs.photoPrompt) break;   // COA04 is decided
@@ -402,7 +455,7 @@ exports.run = async ({ api, rec, sleep }) => {
       obs.stalled = { silentSec: Math.round((Date.now() - lastProgressAt) / 1000), atSteps: obs.steps.slice(), asrLlmMisses: asrLlmMisses() };
       break;
     }
-    await sleep(5000);
+    await sleep(2500);
   }
 
   // COA57 needs the report's own voice note, which lands ~40 s after the report (median; p95 55 s) and can
@@ -410,8 +463,8 @@ exports.run = async ({ api, rec, sleep }) => {
   if (DEEP && obs.report && !obs.voiceNotes.some((n) => n.afterReport)) {
     const until = Date.now() + 180000;
     while (Date.now() < until && !obs.voiceNotes.some((n) => n.afterReport)) {
-      for (const r of await fresh()) noteAudio(r);
-      if (!obs.voiceNotes.some((n) => n.afterReport)) await sleep(5000);
+      for (const r of await fresh()) { noteAudio(r); obs.rows.push(r); }
+      if (!obs.voiceNotes.some((n) => n.afterReport)) await sleep(2500);
     }
   }
 
@@ -471,17 +524,20 @@ exports.run = async ({ api, rec, sleep }) => {
             : ['BLOCKED', { reason: stallNote || ('the reflective step (3/5) was not reached within ' + elapsed + 's'),
                             stepsSeen: obs.steps }]));
 
-  deepOnly('COA10', 'A slash command during the reflective step ends the session',
+  if (REFLECT === 'slash') deepOnly('COA10', 'A slash command during the reflective step ends the session',
       ...(REFLECT !== 'slash'
           ? ['BLOCKED', { reason: 'mutually exclusive with COA06 — re-run with REFLECT=slash' }]
           : obs.slashEnded
             ? V(!EXPECT.reflectiveQ.test(obs.slashEnded.reply || ''), obs.slashEnded)
             : ['BLOCKED', { reason: stallNote || ('the reflective step was not reached within ' + elapsed + 's') }]));
 
+  // The FICO report is a hero IMAGE whose caption names the lesson, not the rubric; the rubric the analysis was
+  // scored on is stamped on the session (analysis_data.framework — gpt5-mini stamps it, the transformer dispatches on it).
+  let scoredOn = null, scoredRaw = null; try { const o = api.db('session-get', obs.sessionId ? ['--session-id', obs.sessionId] : ['--status', 'completed']); scoredRaw = String(o.out || o.err || '').trim().slice(-200); const line = String(o.out || '').trim().split('\n').reverse().find((l) => l.trim().startsWith('{')); scoredOn = line ? ((JSON.parse(line).analysis || {}).framework || null) : null; } catch (e) { scoredRaw = 'threw: ' + e.message; }
   deepOnly('COA05', 'The pipeline delivers coaching feedback on the FICO/ICT rubric',
       ...(obs.report
-          ? V(EXPECT.rubric.test(obs.report.caption + ' ' + joined),
-              { caption: obs.report.caption, note: 'asserting rubric vocabulary in the delivered feedback' })
+          ? V(String(scoredOn || '').toLowerCase() === 'fico' || EXPECT.rubric.test(obs.report.caption + ' ' + joined),
+              { scoredOnFramework: scoredOn, sessionId: obs.sessionId, lookup: scoredRaw, caption: obs.report.caption, reportKind: obs.report.kind, note: 'PASS = the session was analysed on the FICO framework (or the delivered text names the rubric)' })
           : ['BLOCKED', { reason: stallNote || ('no report delivered within ' + elapsed + 's'), stepsSeen: obs.steps }]));
 
   deepOnly('COA57', 'Every coaching voice note arrives as a WhatsApp voice message the teacher can speed up',
@@ -524,200 +580,72 @@ exports.run = async ({ api, rec, sleep }) => {
       { reason: 'unreachable via WhatsApp: reject threshold (100MB) = WhatsApp document ceiling, so no '
               + 'upload can exceed it. Covered by unit test bot/tests/coa14-audio-size-cap.test.js.',
         note: 'the reject copy still says "25MB"/"Whisper" though the real cap is 100MB — stale (bd-60026).' }, 0);
-  // bd-hr97y: needs a COMPLETED coaching report older than 7 days for the driver account. The
-  // mock lane starts from a fresh session and cannot age one; the no-window lookup is covered by
+
+  // ══ COA16–COA55 — coaching-ext.cjs: six more pipeline runs + the coaching-ask family (2026-09-30) ══
+  // Recorded here with literal ids so check-scenario-coverage.py binds every spec scenario to a driver line.
+  let ext = new Map(); let extErr = null;
+  if (DEEP) {
+    try { ext = await require('../coaching-ext.cjs').run({ api, rec, sleep, fresh, r1: { rows: obs.rows, sessionId: obs.sessionId } }); }
+    catch (e) { extErr = e; }
+  }
+  const E = (id, name) => { const r = ext.get(id);
+    rec(id, name, DEEP ? (r ? r[0] : 'BLOCKED') : 'SKIP',
+        DEEP ? (r ? r[1] : { reason: 'coaching-ext did not record it' + (extErr ? ' — the extension threw: ' + String(extErr.message).slice(0, 200) : '') })
+             : { why: '@wip/@draft — run with DEEP=1' }, 0); };
+  E('COA58', "The coaching report and voice note give the lesson's scores as numbers");
+  E('COA60', 'The two coaching entry points quote different minimum audio lengths (@known-issue)');
+  E('COA19', 'A report built without the reflection never claims a total of three questions');
+  E('COA20', 'A lesson-plan move is credited from what a classroom photo shows');
+  E('COA21', 'The same recording sent twice returns the report already made, not a second score');
+  E('COA23', 'A recording the bot has not scored before is still analysed normally');
+  E('COA24', 'A button left behind by a cancelled coaching session is refused on every tap');
+  E('COA16', 'The reflective question still arrives as text when its voice note cannot be sent');
+  E('COA25', "An Urdu teacher's five step messages are all in Urdu, counted in digits");
+  E('COA26', "An English-account teacher's reflective question is written in English");
+  E('COA27', 'The report-preparation greeting never calls a teacher "null"');
+  E('COA28', 'A screenshot sent as a classroom photo is kept out of both scorers');
+  E('COA29', 'A grader answer that comes back empty is re-graded the same way, not on a more generous setting');
+  E('COA30', 'A recording whose transcript carries no timestamps is "not scored", never 0%');
+  E('COA31', 'The "was this useful?" survey comes right after the voice debrief');
+  E('COA32', 'The commitment question opens by saying the coaching session is over');
+  E('COA33', 'A lesson plan typed into the chat is attached to the waiting observation');
+  E('COA35', 'Pasted text that is not a lesson plan gets the same rejection as a file');
+  E('COA36', 'A brief typed lesson plan counts — length is not the test');
+  E('COA39', 'The first lesson plan of the day brings one coaching ask');
+  E('COA40', 'A lesson planned after 14:00 is asked about the next morning without saying today');
+  E('COA41', 'A second lesson plan the same day brings no second ask');
+  E('COA42', 'Not today is remembered');
+  E('COA43', 'Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times');
+  E('COA44', "The how-to clip arrives as the coaching ask's own video, never after it");
+  E('COA45', 'An 11-minute recording after yes is answered as too short');
+  E('COA46', 'A classroom-length voice note gets no "send it as a document" warning');
+  E('COA47', 'Saying yes to the coaching ask means no quiz offer arrives that afternoon');
+  E('COA48', 'The coaching ask waits while the lesson-plan survey is asking what did not work');
+  E('COA49', 'The survey and the coaching ask can be answered in either order');
+  E('COA50', 'After my recording has started coaching the bot stops waiting for a recording');
+  E('COA51', 'Nobody offers to pick up a lesson that was already coached');
+  E('COA52', 'A teacher who said yes and never recorded is still offered it back');
+  E('COA53', '"Only N children have started" arrives at most once a morning, even for quizzes made on earlier days');
+  E('COA54', 'With COACHING_RECORDING_ENDS_WAIT off the recording no longer ends the wait');
+  E('COA55', 'With NUDGE_OPEN_QUESTION_DEFER off the coaching ask no longer waits for the survey');
+  E('COA56', 'In Urdu, the coaching messages never guess my gender');
+  E('COA59', 'Picking my lesson plan from the list asks me to confirm before it is used');
+  if (REFLECT !== 'slash') E('COA10', 'A slash command during the reflective step ends the session');
+
+  // bd-hr97y: needs a COMPLETED coaching report older than 7 days for the driver account. The mock lane starts
+  // from a fresh session and cannot age one; the no-window lookup is covered by
   // tests/coaching/bd-hr97y-dc-dedupe-no-window.test.js, which runs the real call site.
-  // Recorded as COA22 since coaching.feature carries id tags (was the harness-style id
-  // 'COA-dedupe-aged', which the coverage gate reads as a harness row, not a scenario).
   rec('COA22', 'The same recording sent again weeks later still returns the report already made', 'BLOCKED',
       { reason: 'needs a completed DC report older than 7 days on the driver account; the mock lane cannot age a '
               + 'session. Covered by tests/coaching/bd-hr97y-dc-dedupe-no-window.test.js (real processTranscription).' }, 0);
+  // The closer's voice arriving late (the gateway's 25 s deadline) is applied only with the cassette off
+  // (bot/shared/services/tts/index.js), so this lane never exercises it; tests/tts/gateway.test.js covers the deadline.
+  rec('COA17', 'The acknowledgement of my answer arrives as text when its voice is not ready in time, and the report still follows', 'BLOCKED',
+      { reason: 'the voice gateway applies its 25 s deadline only when the cassette is off, so the mock lane cannot make the '
+              + 'closer late. The deadline itself is covered by tests/tts/gateway.test.js.' }, 0);
 
   if (DEEP)
     rec('COA-pipeline', 'Pipeline steps observed end to end', 'PASS',
         { stepsSeen: obs.steps, elapsedSec: elapsed, reportDelivered: !!obs.report,
           reflectMode: REFLECT, transcript: joined.slice(0, 700) }, 0);
-
-  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
-  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA18', 'Every score a teacher receives is a band, never a number', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA19', 'A report built without the reflection never claims a total of three questions', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA20', 'A lesson-plan move is credited from what a classroom photo shows', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA21', 'The same recording sent twice returns the report already made, not a second score', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA23', 'A recording the bot has not scored before is still analysed normally', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA24', 'A button left behind by a cancelled coaching session is refused on every tap', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // COA16 / COA17 — the voice of the reflective question and of the closer fails, so the same words go
-  // as text. Unreachable on this lane TODAY, not by nature: both need the voice to fail on demand, and
-  // the lane has no lever for it. Once e2e-cassette's wrapBuffer honours a { kind: 'tts', throw } rule,
-  // drive them after Step 3/5 on the DEEP pipeline (COA06's path) and turn these into V(...).
-  rec('COA16', 'The reflective question still arrives as text when its voice note <failure>', 'BLOCKED',
-      { reason: 'cannot fail the voice on the mock lane: e2e-cassette.js wrapBuffer (the TTS seam) never consults '
-              + 'the E2E_CASSETTE_FAULTS rules, so a { kind: "tts" } rule loads but is never applied; and the mock '
-              + 'Graph API refuses only a media LINK on example.invalid, never an audio sent by media id. Both rows '
-              + '("cannot be sent", "cannot be made") need one of those. The "cannot be made" row is covered by '
-              + 'tests/coaching/reflective-question-voice-gateway.test.js (real service, vendors mocked).' }, 0);
-
-  rec('COA17', 'The acknowledgement of my answer arrives as text when its voice is not ready in time, and the report still follows', 'BLOCKED',
-      { reason: 'cannot make the closer\'s voice slow or fail on the mock lane: e2e-cassette.js wrapBuffer never '
-              + 'consults the E2E_CASSETTE_FAULTS rules for kind "tts", and the gateway applies its 25 s deadline '
-              + 'only when the cassette is off (bot/shared/services/tts/index.js), so this lane never exercises it. '
-              + 'The deadline itself is covered by tests/tts/gateway.test.js.' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA25', 'An Urdu teacher\'s five step messages are all in Urdu, counted in digits', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA26', 'An English-account teacher\'s reflective question is written in English', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA27', 'The report-preparation greeting never calls a teacher "null"', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA28', 'A screenshot sent as a classroom photo is kept out of both scorers', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA29', 'A grader answer that comes back empty is re-graded the same way, not on a more generous setting', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA30', 'A recording whose transcript carries no timestamps is "not scored", never 0%', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA31', 'The "was this useful?" survey comes right after the voice debrief', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA32', 'The commitment question opens by saying the coaching session is over', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA33', 'A lesson plan typed into the chat is attached to the waiting observation', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  rec('COA34', 'A short reply at the lesson-plan step is not mistaken for a plan', 'BLOCKED',
-      { reason: '@obsolete in coaching.feature — a deletion proposal (the behaviour it asserts was removed on '
-              + '2026-09-22); recorded so the id stays bound, never driven. Drop this line when the scenario is deleted.' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA35', 'Pasted text that is not a lesson plan gets the same rejection as a file', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA36', 'A brief typed lesson plan counts — length is not the test', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  rec('COA37', 'Saying I have no lesson plan is not the same as sending one', 'BLOCKED',
-      { reason: '@obsolete in coaching.feature — a deletion proposal (the behaviour it asserts was removed on '
-              + '2026-09-22); recorded so the id stays bound, never driven. Drop this line when the scenario is deleted.' }, 0);
-
-  rec('COA38', 'Talking about a lesson plan is not the same as sending one', 'BLOCKED',
-      { reason: '@obsolete in coaching.feature — a deletion proposal (the behaviour it asserts was removed on '
-              + '2026-09-22); recorded so the id stays bound, never driven. Drop this line when the scenario is deleted.' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA39', 'The first lesson plan of the day brings one coaching ask', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA40', 'A lesson planned after 14:00 is asked about the next morning without saying today', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA41', 'A second lesson plan the same day brings no second ask', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA42', 'Not today is remembered', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA43', 'Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA44', 'The how-to clip arrives as the coaching ask\'s own video, never after it', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA45', 'An 11-minute recording after yes is answered as too short', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA46', 'A classroom-length voice note gets no "send it as a document" warning', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA47', 'Saying yes to the coaching ask means no quiz offer arrives that afternoon', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA48', 'The coaching ask waits while the lesson-plan survey is asking what did not work', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA49', 'The survey and the coaching ask can be answered in either order', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA50', 'After my recording has started coaching the bot stops waiting for a recording', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA51', 'Nobody offers to pick up a lesson that was already coached', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA52', 'A teacher who said yes and never recorded is still offered it back', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA53', '"Only N children have started" arrives at most once a morning, even for quizzes made on earlier days', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA54', 'With COACHING_RECORDING_ENDS_WAIT off the recording no longer ends the wait', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA55', 'With NUDGE_OPEN_QUESTION_DEFER off the coaching ask no longer waits for the survey', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA56', 'In Urdu, the coaching messages never guess my gender', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-
-  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
-  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA58', 'The coaching report and voice note give the lesson\'s scores as numbers', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('COA58', 'Picking my lesson plan from the list asks me to confirm before it is used', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
-
 };
