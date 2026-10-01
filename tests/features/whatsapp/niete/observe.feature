@@ -223,6 +223,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # processTeacherReport:544 generateHeroReport (brand heroBrandFor(fico)='niete',
     # teacher's market language) → R2 → deliver. FO sees exactly what the teacher gets (D33).
 
+  @e2e @wip @destructive @config-gated @P1
+  Scenario: The send confirm names the teacher the report is going to
+    Given an observation with completed observer review and debrief
+    When I tap "Send report" and the report preview arrives
+    Then the confirm message right above the buttons names the recipient teacher and her number
+    And "Send now" sends it, "Someone else" takes me back to the teacher pick, and "Cancel" sends nothing
+    # bd-zpyf0 (HITL row 190): fillConfirmBody in observe-send.service.js fills
+    # send_confirm_body {name} ({phone}) from teacher_delivery; a nameless row shows
+    # the number alone. Button ids observe_send_confirm_/other_/cancel_ unchanged.
+    # Proven in bot/tests/observe/bd-zpyf0-confirm-names-recipient.test.js.
+
   @e2e @wip @content-driven @P2 @config-gated
   Scenario: The FICO report to the teacher carries no score and no accusatory verdicts
     Given a completed observation is delivered to a teacher
@@ -363,6 +374,37 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the bot asks me to record a bit more and the debrief stays pending
     # observe-debrief.service.js processDebriefRecording — transcript < MIN →
     # re-arm awaiting_debrief_audio + debrief_too_short (stays pending).
+
+  @e2e @wip @draft @debrief @audio @destructive @config-gated @P1
+  Scenario: A debrief recording the coach was already coached on is not analysed again
+    Given a debrief recording I sent for one observation has already been analysed
+    And a debrief is armed for a different observation
+    When I send that exact same debrief recording file
+    Then the bot replies "This debrief recording has already been analyzed."
+    And no new debrief feedback arrives
+    And the debrief for this observation stays pending, ready for the right recording
+    # bd-zq0ea (HITL row 185) — processDebriefRecording hashes the downloaded bytes
+    # before transcription and matches this coach's analysed debriefs
+    # (observer_debrief.audio_hash + feedback present), any observation, no time
+    # window. The row keeps debrief_status 'pending', audio_id is cleared so the
+    # retry sweep never re-queues it, and awaiting_debrief_audio is re-armed.
+
+  @e2e @wip @draft @debrief @audio @i18n @destructive @config-gated @P2
+  Scenario: The debrief already-analysed reply is in the coach's own language
+    Given the NIETE bot chat is open on a LEADER account whose language is Urdu
+    And a debrief recording I sent for one observation has already been analysed
+    And a debrief is armed for a different observation
+    When I send that exact same debrief recording file
+    Then the bot replies "اس ڈی بریف ریکارڈنگ کا تجزیہ پہلے ہی کیا جا چکا ہے۔"
+
+  @e2e @wip @draft @debrief @audio @negative @destructive @config-gated @P2
+  Scenario: A debrief recording that was never coached is analysed normally when re-sent
+    Given a debrief recording I sent earlier was too short to be coached
+    And a debrief is armed for an observation
+    When I send that exact same debrief recording file
+    Then it does NOT say the recording has already been analysed
+    # A prior only counts once observer_debrief.feedback exists — a too-short or
+    # failed debrief never produced an analysis and must not block the coach.
 
   @e2e @wip @negative @destructive @config-gated @P1
   Scenario: A failed report send is surfaced to the coach with a retry
@@ -511,3 +553,161 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # HOTS analysis prompt the same rule in Urdu. The model output is content-driven: assert no gendered form, never
     # a fixed sentence. Proven in tests/language/urdu-gender-neutral-copy.test.js and
     # bot/tests/observe/third-person-teacher.test.js. @wip.
+
+  @e2e @observe @wip @draft @P1
+  Scenario: Picking the teacher's lesson plan from the list asks me to confirm before it is used
+    Given the NIETE bot chat is open as a coach
+    And an observation I started is waiting at the lesson-plan step with the teacher's recent lesson plans listed
+    When I tap one of the recent lesson plans in the list
+    Then the bot replies "You have selected <the plan I tapped>. Do you want to proceed?"
+    And the reply shows that plan's grade, chapter and pages line under its name
+    And it offers exactly two buttons, "Yes" and "Change lesson plan"
+    And no "Lesson plan linked" message has arrived yet
+    When I tap "Yes"
+    Then the bot says the lesson plan is linked
+    And the analysis continues with that plan
+    # ICT feedback sheet, HITL row 189 (bd-2c1gj): one slip in the list used to link the wrong plan and queue
+    # the analysis at once. lp-list-selection.handler.js: on a leader_observation lp_select_ sends
+    # lessonPlan_confirm_prompt with lpconfirm_yes_{asset}_{session} / lpconfirm_no_{session}; the Yes tap
+    # re-enters the unchanged link path. Unit: tests/coaching/bd-2c1gj-lp-select-confirm.test.js. @wip.
+
+  @e2e @observe @wip @draft @P1
+  Scenario: Changing the lesson plan links nothing and returns to the lesson-plan list
+    Given the NIETE bot chat is open as a coach
+    And I tapped a recent lesson plan on an observation and was asked to confirm it
+    When I tap "Change lesson plan"
+    Then the bot sends the recent lesson-plan list again
+    And no lesson plan has been linked to the observation
+    And tapping a different plan asks me to confirm that one by name
+    # resendLpList (lp-step.service.js) re-sends the menu and writes nothing, so a late "Change lesson plan"
+    # cannot walk an already-analysed observation back to awaiting_lesson_plan.
+
+  @e2e @observe @wip @draft @negative @P2 @obsolete
+  Scenario: A teacher picking her own lesson plan is not asked to confirm
+    Given the NIETE bot chat is open as a teacher
+    And my own Classroom Coaching session is waiting at the lesson-plan step with my recent lesson plans listed
+    When I tap one of my recent lesson plans in the list
+    Then the bot says the lesson plan is linked straight away
+    And no "Do you want to proceed?" confirmation is sent
+    # The confirmation is for a coach choosing on someone else's behalf; self-serve keeps the one-tap pick.
+    # OBSOLETE 2026-09-30 (bd-2c1gj): the operator widened the confirmation to the teacher's own Digital Coach
+    # flow — the same list, the same slip. Replaced by coaching.feature "Picking my lesson plan from the list
+    # asks me to confirm before it is used".
+
+  # ═══════════════════ /observe2 — the FICO ICT field-form pilot ═══════════════════
+  # /observe2 lets a coach fill a live form DURING the lesson (Part 1, Part 2, then the seal),
+  # send the recording afterwards, and check the moments found in it before a brief comes back.
+  # GATING (observe2/gate.js, FEATURE_GATES.observe2): OBSERVE2_FIELD_FORM_FLOW_ID,
+  # OBSERVE2_CHECK_FLOW_ID and OBSERVE_VISIT_FLOW_ID must all be set, and the user must be in the
+  # leader family; otherwise "/observe2" falls through like any text. Sandbox only for the pilot.
+  # Copy: bot/shared/services/observe/observe2/strings.js. All @wip @draft until driven on sandbox.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A coach's /observe2 opens the visit planner
+    Given the NIETE bot chat is open on a LEADER account on sandbox
+    When I send "/observe2"
+    Then the bot responds with "Let's plan the /observe2 visit. Pick a school, then a teacher." and a "Plan my visit" CTA
+    # observe2/start.js handleObserve2Command: the /observe visit Flow, token <userId>:observe2-visit.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: After Start, the coach chooses the period length
+    Given I opened the visit planner from /observe2 and picked a school and a teacher
+    When I tap "Start observation" in the brief
+    Then the bot asks "How long is this period?" naming the teacher
+    And it offers exactly three buttons: "30 minutes", "35 minutes", "40 minutes"
+    And no "record it and send me the audio" message is sent
+    # flow-response.handler handleObserveVisitFlow: the observe2 marker → Observe2Start.afterStart
+    # (record created in observation_field_forms; the teacher is bound exactly as for /observe).
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: The period button sends the live form with the steps before the lesson
+    Given I was asked how long the period is
+    When I tap "40 minutes"
+    Then the bot sends a message starting "Before the lesson starts:" with an "Open the form" CTA
+    And it tells me to start my phone's voice recorder app, not WhatsApp
+    And it says to save Part 1 at minute 20 and carry on with Part 2 until minute 40
+
+  @e2e @flow @config-gated @wip @draft @negative @P1
+  Scenario: Part 1 refuses a number that cannot be right
+    Given the live form is open on Part 1
+    When I type 32 children present and 40 children who spoke, and tap "Part 1 done"
+    Then the form stays on Part 1 with "Can't be more than the 32 children present." under "Children who spoke"
+    And nothing is saved
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A form reopened after Part 1 continues with Part 2
+    Given I saved Part 1 of the live form and closed it
+    When I tap "Open the form" again
+    Then the form opens on "Part 1 is saved" with "Carry on with Part 2, from minute 20 to 40."
+    And "Continue" opens Part 2
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: Sealing locks the record and the chat says what to do with the recording
+    Given I filled Part 1 and Part 2 of the live form
+    When I pick what to work on first, tick the seal box and tap "Seal and send"
+    Then the form shows "Sealed at" and the time
+    And the bot says the record is sealed and to stop the recorder, then share the recording to this chat
+    And tapping "Seal and send" again changes nothing
+    # observe2-form-endpoint.js: seal is a compare-and-set; the database trigger refuses any later
+    # change to what was sealed. Up to three photos are kept (observe2/<record>/photo-N.jpg).
+
+  @e2e @audio @config-gated @destructive @wip @draft @P1
+  Scenario: The recording joins the sealed record and its moments come back to check
+    Given my /observe2 record is sealed
+    When I send the lesson recording from the recorder app as a file
+    Then the bot says "Recording received" and that the moments come here to check
+    And no photo or lesson-plan question is asked
+    And a few minutes later a message with a "Check the moments" CTA arrives
+    # capture-link.js links the recording to the open form; moments.js reads the timed transcript
+    # (one model call) and opens the check because the record is sealed.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The check pre-fills every level and Submit sends the brief
+    Given the "Check the moments" form is open
+    When I answer each moment "Yes, this happened" or "No, or not like this" and tap through
+    Then every level is pre-filled with what my sealed answers and the confirmed moments add up to, with the reason
+    And no level found by the recording alone is shown
+    When I keep or change the levels, keep my sealed pick and tap "Submit"
+    Then the form shows "Saved at" and the time
+    And the bot sends a brief naming the teacher, what went well, the thing to work on first and one moment to bring up
+
+  @e2e @config-gated @wip @draft @negative @P2
+  Scenario: A teacher's /observe2 is refused
+    Given the NIETE bot chat is open on a TEACHER account on sandbox
+    When I send "/observe2"
+    Then the bot responds with "/observe2 is for coaches and school leaders."
+    And no Flow is sent
+
+  @e2e @wip @draft @negative @P3
+  Scenario: /observe2 is plain text where its Flows are not configured
+    Given the NIETE bot runs without OBSERVE2_FIELD_FORM_FLOW_ID or OBSERVE2_CHECK_FLOW_ID
+    When a coach sends "/observe2"
+    Then the message is handled like any other text and no /observe2 Flow is sent
+
+  # ── The teacher hears about her own visit ──────────────────────────────────
+  # observe-teacher-notice.service sends an approved UTILITY template, gated by
+  # OBSERVE_TEACHER_NOTIFY_ENABLED; the portal routes reach it through
+  # POST /api/internal/observe/notify-teacher.
+
+  @e2e @config-gated @P1
+  Scenario: The teacher gets the date and time on WhatsApp when a coach books her visit
+    Given OBSERVE_TEACHER_NOTIFY_ENABLED is on and the visit-notice templates are approved
+    And a coach has a teacher with a WhatsApp number in her patch
+    When the coach books a visit for that teacher on a date and time slot, in WhatsApp or on the portal
+    Then the teacher receives a message naming the coach, her school, the date and the time
+    And the message is in the teacher's own language, not the coach's
+
+  @e2e @config-gated @P1
+  Scenario: Moving or cancelling a visit tells the teacher
+    Given a teacher has been told about an upcoming visit
+    When the coach moves the visit to a different date or time
+    Then the teacher receives a message with the new date and time
+    When the coach cancels the visit
+    Then the teacher receives a message that the visit is cancelled
+
+  @e2e @config-gated @negative @P2
+  Scenario: Re-saving a visit unchanged, or a teacher with no number, sends nothing
+    Given a coach has an upcoming visit booked for a teacher
+    When the coach saves the same visit again on the same date and time slot
+    Then the teacher receives no new message
+    And the coach's booking of a hand-added teacher with no WhatsApp number is saved without any message

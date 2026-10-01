@@ -1,7 +1,7 @@
 /**
  * Video Script Service
  *
- * Generates slide scripts using GPT and creates voiceovers using ElevenLabs.
+ * Generates slide scripts using GPT and speaks them through the voice gateway.
  */
 
 const { logToFile } = require('../../utils/logger');
@@ -14,18 +14,11 @@ const path = require('path');
 // FIX: Use npm-installed ffprobe instead of system ffprobe
 const ffprobePath = require('@ffprobe-installer/ffprobe').path;
 
-// ElevenLabs configuration
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const { ELEVENLABS_URDU_VOICE_ID } = require('../../utils/constants');
+// The narration is spoken by the voice gateway like every other voice note, so
+// the voice for each language comes from its one voice table (the Urdu voice
+// for Urdu, never the English one) and TTS_PROVIDER decides the vendor.
+const tts = require('../tts');
 const { voiceLanguageRules } = require('../../config/voice-language-rules'); // bd-2651
-const VOICE_ID = 'cgSgspJ2msm6clMCkdW9'; // Jessica (English)
-// bd-2651: Jessica mangles Urdu (the lp-voicenotes V20 lesson). Urdu narration must
-// use Sara (eleven_v3). Pick the voice by language, don't hardcode Jessica for all.
-function voiceIdForLanguage(language) {
-  return String(language || 'en').slice(0, 2).toLowerCase() === 'ur'
-    ? ELEVENLABS_URDU_VOICE_ID
-    : VOICE_ID;
-}
 
 /**
  * STYLE_PREFIXES - Issue #35: Video Style Selection
@@ -353,48 +346,30 @@ Respond in JSON format:
   }
 
   /**
-   * Generate voiceover using ElevenLabs
+   * Generate one slide's voiceover through the voice gateway
    * @param {string} text - Text to speak
    * @param {string} videoRequestId - For organizing files
    * @param {number} slideId - Slide number
+   * @param {string} language - Narration language
    * @returns {Object} { audioUrl, duration }
    */
   static async generateVoiceover(text, videoRequestId, slideId, language = 'en') {
-    const voiceId = voiceIdForLanguage(language);
-    logToFile('Generating voiceover', { videoRequestId, slideId, textLength: text.length, language, voiceId });
+    logToFile('Generating voiceover', { videoRequestId, slideId, textLength: text.length, language });
 
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'xi-api-key': ELEVENLABS_API_KEY
-      },
-      body: JSON.stringify({
-        text,
-        model_id: 'eleven_v3',  // ISSUE #29: v3 for emotion tag support
-        voice_settings: {
-          stability: 0.0,  // Creative mode - best for emotion tags
-          similarity_boost: 0.75
-        }
-      })
-    });
+    const spoken = await tts.synthesize({ text, language, useCase: 'video', site: 'narration' });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
-    }
-
-    // Get audio buffer
-    const audioBuffer = await response.arrayBuffer();
-
-    // Save to temp file to get duration
     const tempDir = path.join('/tmp', 'video-generation', videoRequestId);
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
+    // The gateway returns Ogg Opus; the assembler concatenates the narration
+    // with MP3 silence, so it is converted to MP3 once here and nothing after
+    // this step changes.
+    const oggPath = path.join(tempDir, `audio_${slideId}.ogg`);
     const audioPath = path.join(tempDir, `audio_${slideId}.mp3`);
-    fs.writeFileSync(audioPath, Buffer.from(audioBuffer));
+    fs.writeFileSync(oggPath, spoken.audio);
+    await this._toMp3(oggPath, audioPath);
 
     // Get audio duration using ffprobe
     const duration = await this.getAudioDuration(audioPath);
@@ -402,9 +377,25 @@ Respond in JSON format:
     // Upload to R2 (for now, return local path - will be updated for R2)
     const audioUrl = audioPath;
 
-    logToFile('Voiceover generated', { videoRequestId, slideId, duration, audioPath });
+    logToFile('Voiceover generated', {
+      videoRequestId, slideId, duration, audioPath, provider: spoken.provider, voice: spoken.voice,
+    });
 
     return { audioUrl, duration };
+  }
+
+  /**
+   * Convert an Ogg Opus narration to the MP3 the video assembler concatenates.
+   * @param {string} fromPath - Ogg Opus input
+   * @param {string} toPath - MP3 output
+   */
+  static async _toMp3(fromPath, toPath) {
+    const { execFile } = require('child_process');
+    const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+    await new Promise((resolve, reject) => {
+      execFile(ffmpegPath, ['-y', '-v', 'error', '-i', fromPath, '-ac', '1', '-ar', '44100', '-c:a', 'libmp3lame', '-q:a', '2', toPath],
+        (error, stdout, stderr) => (error ? reject(new Error(`ffmpeg: ${stderr || error.message}`)) : resolve()));
+    });
   }
 
   /**

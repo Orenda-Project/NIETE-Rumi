@@ -78,20 +78,21 @@ function computeAudioHash(buffer) {
  * never be shown another's report. `status = 'completed'` keeps us off in-flight
  * and failed runs, which carry no analysis to reuse.
  *
+ * No time window (bd-hr97y): a recording is analysed once, ever, as in the two
+ * HITL checks. The 7-day lookback ported from the main bot had no recorded
+ * reason, and let a teacher re-send the same file on day 8 for a fresh score.
+ *
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
  * @param {object} opts
  * @param {string} opts.userId
  * @param {string} opts.audioHash        SHA-256 hex digest
- * @param {number} opts.windowDays       lookback, e.g. 7
  * @param {string} [opts.excludeSessionId] the in-flight session
  * @returns {Promise<object|null>} the prior session row, or null
  */
 async function findRecentDuplicateSession(supabase, opts) {
-  const { userId, audioHash, windowDays, excludeSessionId } = opts || {};
+  const { userId, audioHash, excludeSessionId } = opts || {};
 
   if (!userId || !audioHash) return null;
-
-  const since = new Date(Date.now() - (windowDays || 7) * 24 * 60 * 60 * 1000).toISOString();
 
   let q = supabase
     .from('coaching_sessions')
@@ -105,8 +106,7 @@ async function findRecentDuplicateSession(supabase, opts) {
     .eq('status', 'completed')
     // DC only — a leader observation is a different activity and is never a
     // duplicate of a teacher's own recording.
-    .is('observation_type', null)
-    .gte('created_at', since);
+    .is('observation_type', null);
 
   if (excludeSessionId && typeof q.neq === 'function') {
     q = q.neq('id', excludeSessionId);
@@ -275,6 +275,42 @@ async function refuseDuplicateObservation(ctx, opts) {
   return true;
 }
 
+/**
+ * bd-zq0ea — the debrief counterpart. The coach's debrief conversation lives
+ * inside analysis_data.observer_debrief, so its hash does too (no column). A
+ * prior counts only once it was actually coached (`feedback` present) — a
+ * debrief that failed or was too short never produced an analysis and must not
+ * block the coach. No time window, and any observation of this coach's except
+ * the one in flight ("Debrief now" already refuses a done one for itself).
+ *
+ * Class R: one row by id/created_at only — never the fat analysis_data blob.
+ *
+ * @returns {Promise<object|null>} { id, created_at } or null
+ */
+async function findPriorAnalysedDebrief(supabase, opts) {
+  const { observerUserId, audioHash, excludeSessionId } = opts || {};
+  if (!observerUserId || !audioHash) return null;
+
+  let q = supabase
+    .from('coaching_sessions')
+    .select('id, created_at')
+    .eq('observer_user_id', observerUserId)
+    .eq('observation_type', 'leader_observation')
+    .eq('analysis_data->observer_debrief->>audio_hash', audioHash)
+    .not('analysis_data->observer_debrief->feedback', 'is', null);
+
+  if (excludeSessionId) q = q.neq('id', excludeSessionId);
+
+  const { data, error } = await q
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  if (excludeSessionId && data.id === excludeSessionId) return null;
+  return data;
+}
+
 module.exports = {
   computeAudioHash,
   priorReportDelivery,
@@ -282,4 +318,5 @@ module.exports = {
   resolveDuplicateSubmission,
   findPriorLeaderObservation,
   refuseDuplicateObservation,
+  findPriorAnalysedDebrief,
 };

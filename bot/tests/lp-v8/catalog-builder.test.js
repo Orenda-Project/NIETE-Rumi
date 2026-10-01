@@ -250,11 +250,12 @@ describe('lp-catalog: the committed artifact (bot/data/lp_catalog.json)', () => 
     }
   };
 
-  test('covers the whole corpus — 17 books, 233 chapters, 2038 lessons', () => {
+  // 2,038 corpus lessons + 3 part-2 days from data/lp_splits.json.
+  test('covers the whole corpus — 17 books, 233 chapters, 2041 lessons', () => {
     expect(catalog.catalog_version).toBe('v8');
     expect(catalog.books).toHaveLength(17);
     expect(catalog.counts.chapters).toBe(233);
-    expect(catalog.counts.lessons).toBe(2038);
+    expect(catalog.counts.lessons).toBe(2041);
     let chapters = 0; let lessons = 0;
     for (const b of catalog.books) { chapters += b.chapters.length; for (const c of b.chapters) lessons += c.lessons.length; }
     expect(chapters).toBe(catalog.counts.chapters);
@@ -310,10 +311,10 @@ describe('lp-catalog: the committed artifact (bot/data/lp_catalog.json)', () => 
     expect(big).toEqual(['grade_1_maths_ch3']);
   });
 
-  test('lesson_id is unique and matches {stem}_ch{N}_seg{M}', () => {
+  test('lesson_id is unique and matches {stem}_ch{N}_seg{M}, part 2 of a split + "b"', () => {
     const seen = new Set();
     eachLesson((l, c, b) => {
-      expect(l.lesson_id).toBe(`${b.stem}_ch${c.number}_seg${l.segment_index}`);
+      expect(l.lesson_id).toBe(`${b.stem}_ch${c.number}_seg${l.segment_index}${l.part === 2 ? 'b' : ''}`);
       expect(seen.has(l.lesson_id)).toBe(false);
       seen.add(l.lesson_id);
     });

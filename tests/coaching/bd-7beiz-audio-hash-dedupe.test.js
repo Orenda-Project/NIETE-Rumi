@@ -64,7 +64,7 @@ describe('findRecentDuplicateSession', () => {
   test('matches on the same user, the same hash and a completed session only', async () => {
     const sb = supabaseDouble({ data: { id: 'prior' }, error: null });
     await findRecentDuplicateSession(sb, {
-      userId: 'u1', audioHash: HASH, windowDays: 7, excludeSessionId: 'current',
+      userId: 'u1', audioHash: HASH, excludeSessionId: 'current',
     });
     expect(sb.calls.eq).toEqual(expect.arrayContaining([
       ['user_id', 'u1'],
@@ -72,13 +72,14 @@ describe('findRecentDuplicateSession', () => {
       ['status', 'completed'],
     ]));
     expect(sb.calls.neq).toEqual([['id', 'current']]);
-    expect(sb.calls.gte[0][0]).toBe('created_at');
+    // bd-hr97y: no time window — a recording is analysed once, ever.
+    expect(sb.calls.gte).toEqual([]);
   });
 
   test('never dedupes against a leader observation', async () => {
     const sb = supabaseDouble({ data: null, error: null });
     await findRecentDuplicateSession(sb, {
-      userId: 'u1', audioHash: HASH, windowDays: 7, excludeSessionId: 'current',
+      userId: 'u1', audioHash: HASH, excludeSessionId: 'current',
     });
     expect(sb.calls.is).toEqual(expect.arrayContaining([['observation_type', null]]));
   });
@@ -86,14 +87,14 @@ describe('findRecentDuplicateSession', () => {
   test('a query error is not a duplicate', async () => {
     const sb = supabaseDouble({ data: null, error: { message: 'boom' } });
     expect(await findRecentDuplicateSession(sb, {
-      userId: 'u1', audioHash: HASH, windowDays: 7,
+      userId: 'u1', audioHash: HASH,
     })).toBeNull();
   });
 
   test('no prior session is not a duplicate', async () => {
     const sb = supabaseDouble({ data: null, error: null });
     expect(await findRecentDuplicateSession(sb, {
-      userId: 'u1', audioHash: HASH, windowDays: 7,
+      userId: 'u1', audioHash: HASH,
     })).toBeNull();
   });
 
@@ -109,7 +110,7 @@ describe('findRecentDuplicateSession', () => {
     // silently did nothing) must still not produce a self-match.
     const sb = supabaseDouble({ data: { id: 'current' }, error: null });
     expect(await findRecentDuplicateSession(sb, {
-      userId: 'u1', audioHash: HASH, windowDays: 7, excludeSessionId: 'current',
+      userId: 'u1', audioHash: HASH, excludeSessionId: 'current',
     })).toBeNull();
   });
 });

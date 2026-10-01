@@ -860,6 +860,12 @@ app.post('/webhook', async (req, res) => {
         const sessionId = buttonId.replace('coaching_cancel_', '');
         await CoachingService.handleConfirmation(sessionId, from, false);
       }
+      // /observe2 — "How long is this period?" → save it, send the live field form.
+      else if (buttonId.startsWith('obs2_period:')) {
+        const Observe2Start = require('./shared/services/observe/observe2/start');
+        const claimed = user ? await Observe2Start.handlePeriodButton(user, from, buttonId) : false;
+        if (!claimed) logToFile('⚠️ /observe2 period button not handled', { buttonId, hasUser: !!user }, 'warn');
+      }
       // bd-tju8f — resume / cancel family. ORDER: the *_yes_/_no_ variants must
       // precede the bare observe_cancel_ prefix they share.
       else if (buttonId.startsWith('observe_cancel_yes_')) {
@@ -927,6 +933,13 @@ app.post('/webhook', async (req, res) => {
       } else if (buttonId.startsWith('lessonplan_no_')) {
         const sessionId = buttonId.replace('lessonplan_no_', '');
         await CoachingService.handleLessonPlanResponse(sessionId, from, false);
+      }
+      // bd-2c1gj — "use this lesson plan?" after a coach picks from the LP list
+      // on an observation: "Yes" links it, "Change lesson plan" re-sends the menu.
+      else if (buttonId.startsWith('lpconfirm_')) {
+        const { handleLpConfirmTap } = require('./shared/services/coaching/lp-coaching/lp-list-selection.handler');
+        // R165: pass WHO tapped, as the list tap does.
+        await handleLpConfirmTap(buttonId, from, { userId: user?.id });
       }
       // Classroom-photo prompt buttons (Phase 1C-B). The photo-prompt.service
       // emits these IDs but neither was previously routed → sessions got stuck
@@ -1772,6 +1785,16 @@ app.post('/webhook', async (req, res) => {
           await FlowResponseHandler.handleObserveVisitFlow(message, from, user?.id);
         } catch (visitErr) {
           logToFile('❌ observe-visit completion handler failed', { from, error: visitErr.message });
+        }
+      } else if (flowType === 'observe2') {
+        // /observe2: the live field form (sealed) or the "What Rumi heard" check (checked). The
+        // endpoint already sent the follow-up in chat when the coach tapped Seal / Submit; this
+        // branch only claims the completion so it never lands on the generic catch-all below.
+        logToFile('📝 Detected observe2 flow submission', { from, responseFields: Object.keys(responseJson) });
+        try {
+          await FlowResponseHandler.handleObserve2Completion(responseJson, from, user);
+        } catch (observe2Err) {
+          logToFile('❌ observe2 completion handler failed', { from, error: observe2Err.message }, 'error');
         }
       } else if (flowType === 'status') {
         // /status. The endpoint did every write before the Flow closed,

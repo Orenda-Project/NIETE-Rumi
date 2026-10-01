@@ -48,7 +48,7 @@ const DEFAULTS = {
   // 2026-09-04).
   //
   // Do NOT "align" this with UPLIFT_VOICE_ID_UR / v_8eelc901. That is the RETIRED
-  // Urdu Uplift voice: bd-2375 moved Urdu voice notes off Uplift onto ElevenLabs
+  // Urdu Uplift voice: Urdu voice notes were moved off Uplift onto ElevenLabs
   // (Sara, eleven_v3), so v_8eelc901 is what the product stopped using. Uplift
   // still serves Sindhi and Balochi voice notes, and in NIETE — whose offer is
   // exactly ['ur','en'] — it serves nothing but calls. So this value IS the NIETE

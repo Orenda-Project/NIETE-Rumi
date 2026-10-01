@@ -38,7 +38,7 @@ const {
 // 433 rows) — no new tables, no new columns.
 const TERMINAL = `('completed', 'observer_review_complete')`;
 
-// bd-60117: the projection and the four stat LATERALs are shared by BOTH entry
+// the projection and the four stat LATERALs are shared by BOTH entry
 // points below (coach-by-leader_schools, principal-by-users.school_id). They are
 // one constant rather than two copies because the moment a stat is defined twice
 // the two definitions start to drift, and "the principal's numbers disagree with
@@ -68,7 +68,8 @@ const PATCH_SELECT = `
     -- principal is asked to track her teachers feature by feature, so every
     -- feature needs a number here or the view cannot be organised by one.
     COALESCE(att.n, 0)    AS attendance_sessions,
-    COALESCE(trn.n, 0)    AS training_modules
+    COALESCE(trn.n, 0)    AS training_modules,
+    COALESCE(exm.n, 0)    AS exams_generated
 `;
 
 // The four per-person stat LATERALs. Identical for every caller: they key on
@@ -127,6 +128,16 @@ const PATCH_LATERALS = `
     WHERE tp.user_id = u.id
       AND tp.completed_at IS NOT NULL
   ) trn ON true
+  -- Exams generated: Assessment Generator papers that FINISHED (status
+  -- 'ready'), reached through the request that asked for them — a failed or
+  -- abandoned generation is not an exam she has (operator, 2026-09-30).
+  LEFT JOIN LATERAL (
+    SELECT count(*) AS n
+    FROM assessment_papers p
+    JOIN assessment_requests r ON r.id = p.request_id
+    WHERE r.user_id = u.id
+      AND p.status = 'ready'
+  ) exm ON true
 `;
 
 // ── entry point 1: a COACH, via her school assignments ──────────────────────
@@ -148,7 +159,7 @@ ${PATCH_LATERALS}
 `;
 
 // ── entry point 2: a PRINCIPAL, via her OWN users.school_id ─────────────────
-// bd-60117. A principal is tied to her school by users.school_id and holds no
+// A principal is tied to her school by users.school_id and holds no
 // leader_schools row — only 24 of 460 did on prod 2026-09-17, so the other 436
 // fell through the coach query's WHERE and saw an empty My Patch. Nothing
 // errored; the roster was simply blank, which is why it went unreported as a
@@ -223,6 +234,7 @@ function shapeTeacher(r) {
     // and Number(undefined) is NaN, which renders as a broken tile.
     attendanceSessions: Number(r.attendance_sessions) || 0,
     trainingModules: Number(r.training_modules) || 0,
+    examsGenerated: Number(r.exams_generated) || 0,
     lastSessionAt: r.last_session_at || null,
     // percentage is the framework-agnostic headline; null when never coached.
     lastScore: overall && overall.percentage != null ? overall.percentage : null,
@@ -238,7 +250,7 @@ function shapeTeacher(r) {
 /**
  * Which query answers "who is in this person's patch", given their role.
  *
- * bd-60117: a principal's patch is her own school (users.school_id); everyone
+ * a principal's patch is her own school (users.school_id); everyone
  * else's is their school assignments (leader_schools). Unknown/absent role
  * falls back to the coach path — that is what every caller got before this
  * existed, so an un-passed role cannot change an existing answer.

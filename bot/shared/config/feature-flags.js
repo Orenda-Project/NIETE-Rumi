@@ -37,6 +37,15 @@ const ASSESSMENT_EDITING_KEY = 'assessment_editing_enabled';
  */
 const ASSESSMENT_DOCX_KEY = 'assessment_docx_enabled';
 
+/**
+ * Versioned editing (the Edit button on the paper, the ✓/✗ list, every "Make
+ * my paper" a new version). TRANSITIONAL: it decides which entry screen INIT
+ * returns, so it has to flip together with the review Flow publish, and it is
+ * deleted once the old KEEP/PICK path is. Seeded false by migration V1.5.6.
+ * `assessment_editing_enabled` stays the kill switch above it.
+ */
+const ASSESSMENT_VERSIONS_KEY = 'assessment_versions_enabled';
+
 async function isFlagEnabled(key) {
   try {
     const { data, error } = await supabase
@@ -61,9 +70,10 @@ async function isFlagEnabled(key) {
 const isAssessmentGeneratorEnabled = () => isFlagEnabled(ASSESSMENT_GENERATOR_KEY);
 const isAssessmentEditingEnabled = () => isFlagEnabled(ASSESSMENT_EDITING_KEY);
 const isAssessmentDocxEnabled = () => isFlagEnabled(ASSESSMENT_DOCX_KEY);
+const isAssessmentVersionsEnabled = () => isFlagEnabled(ASSESSMENT_VERSIONS_KEY);
 
 module.exports = {
-  ASSESSMENT_GENERATOR_KEY, ASSESSMENT_EDITING_KEY, ASSESSMENT_DOCX_KEY,
+  ASSESSMENT_GENERATOR_KEY, ASSESSMENT_EDITING_KEY, ASSESSMENT_DOCX_KEY, ASSESSMENT_VERSIONS_KEY,
   isFlagEnabled, isAssessmentGeneratorEnabled, isAssessmentEditingEnabled,
-  isAssessmentDocxEnabled,
+  isAssessmentDocxEnabled, isAssessmentVersionsEnabled,
 };

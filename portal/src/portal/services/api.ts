@@ -1,9 +1,9 @@
 import axios from 'axios';
 import { getApiBaseUrl } from '@/lib/runtime';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
-  StepsGridResponse, AttendanceResponse } from '../types/portal';
+  AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
-import type { ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse } from '../types/portal';
+import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse } from '../types/portal';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
 // CORS and third-party cookies entirely. In the Capacitor app there is no
@@ -137,6 +137,24 @@ export const portal = {
     analytics: CoachingAnalytics;
   }> => {
     const response = await api.get('/coaching-analytics');
+    return response.data;
+  },
+
+  /** The teacher's own Analytics page — the principal's single-teacher view, for her. */
+  getMyAnalytics: async (range: { from?: string | null; to?: string | null } = {}): Promise<MyAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (range.from) params.from = range.from;
+    if (range.to) params.to = range.to;
+    const response = await api.get('/my-analytics', { params: Object.keys(params).length ? params : undefined });
+    return response.data;
+  },
+
+  /** The Attendance page, for a teacher: her classes and her own days. */
+  getMyAttendance: async (params: { from?: string | null; to?: string | null } = {}): Promise<AttendanceResponse> => {
+    const query: Record<string, string> = {};
+    if (params.from) query.from = params.from;
+    if (params.to) query.to = params.to;
+    const response = await api.get('/my-attendance', { params: query });
     return response.data;
   },
   
@@ -331,6 +349,7 @@ export type AssessmentSpec = {
   questionCount: number;
   /** Bare type ids; the bot spreads the count across them. */
   questionTypes?: string[];
+  /** Ignored: every paper is made with its answer key. Kept so older callers still type-check. */
   includeAnswerKey?: boolean;
   answerLines?: boolean;
   outputFormat?: 'pdf' | 'docx';
@@ -354,6 +373,10 @@ export type AssessmentPaper = {
   ready_at: string | null;
   /** Whether the answer-key button can be drawn at all. */
   has_answer_key: boolean;
+  /** Which version of the paper this entry is (1 = as generated). One entry per paper, its latest version. */
+  version?: number;
+  /** How many ready versions the paper has. */
+  version_count?: number;
 };
 
 export type AssessmentPaperList = {
@@ -388,23 +411,23 @@ export const leader = {
   // bd-60118 — teacherId narrows every STEPS component to one teacher. The
   // server validates it against her school and 404s otherwise, so this is a
   // convenience, not the boundary.
-  // The principal's home organised by STEPS — a row per teacher, a column per
-  // letter. Principals only; the server 403s the rest of the leader family.
-  getSteps: async (): Promise<StepsGridResponse> => {
-    const response = await api.get('/leader/steps');
-    return response.data;
-  },
-
-  getSchoolAnalytics: async (teacherId?: string | null): Promise<SchoolAnalyticsResponse> => {
+  getSchoolAnalytics: async (
+    teacherId?: string | null,
+    range: { from?: string | null; to?: string | null } = {},
+  ): Promise<SchoolAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (teacherId) params.teacherId = teacherId;
+    if (range.from) params.from = range.from;
+    if (range.to) params.to = range.to;
     const response = await api.get('/leader/school-analytics', {
-      params: teacherId ? { teacherId } : undefined,
+      params: Object.keys(params).length ? params : undefined,
     });
     return response.data;
   },
 
   // bd-60123 — attendance, merged per group (G3) and split per day. Window
   // defaults to the last 30 days server-side.
-  getAttendance: async (params: { from?: string; to?: string; teacherId?: string | null } = {}):
+  getAttendance: async (params: { from?: string | null; to?: string | null; teacherId?: string | null } = {}):
     Promise<AttendanceResponse> => {
     const query: Record<string, string> = {};
     if (params.from) query.from = params.from;

@@ -371,11 +371,15 @@ export interface SchoolRemarks {
 
 export interface SchoolAnalyticsResponse {
   success: boolean;
+  /** The date window the server applied; null ends are open (all time). */
+  range?: { from: string | null; to: string | null };
   school: {
     name: string | null;
     totalTeachers: number;
     onRumi: number;
     totalLessonPlans: number;
+    /** Question papers that finished generating (status 'ready'). */
+    totalExams?: number;
   };
   /** Set when ?teacherId= narrowed the view to one teacher. */
   focusTeacher: { id: string; name: string } | null;
@@ -384,6 +388,24 @@ export interface SchoolAnalyticsResponse {
   analytics: SchoolAnalytics;
   presence: SchoolPresence;
   remarks: SchoolRemarks;
+}
+
+/** One quarterly remark a teacher received — submitted forms only. */
+export interface RemarkReceived {
+  cycleName: string | null;
+  submittedAt: string | null;
+  comment: string | null;
+  areas: Array<{ ordinal: number; name: string; score: number }>;
+}
+
+/** GET /my-analytics — a teacher's own Analytics page. */
+export interface MyAnalyticsResponse {
+  success: boolean;
+  range?: { from: string | null; to: string | null };
+  totals: { lessonPlans: number; examsGenerated: number };
+  analytics: SchoolAnalytics;
+  presence: SchoolPresence;
+  remarksReceived: RemarkReceived[];
 }
 
 /**
@@ -585,61 +607,3 @@ export interface AddStudentsResponse {
   error?: string;
 }
 
-// ---------------------------------------------------------------------------
-// STEPS — the principal's home, a row per teacher, a column per letter.
-// S subject knowledge (FICO F) · T teaching skills (B + C) · E engagement (D)
-// · P presence (her own attendance) · S supervisor remark. Built by
-// dashboard/services/steps-grid.service.js.
-//
-// `pct` travels for completeness; the UI renders ONLY the band — observation
-// scores are never shown as numbers (operator, 2026-09-29). Presence is counts,
-// deliberately not a band: NIETE has not defined a single P score.
-
-export type StepsBandKey = 'excellent' | 'good' | 'average' | 'below_average' | 'needs_support';
-
-export interface StepsLetter {
-  pct: number;
-  band: StepsBandKey;
-}
-
-export interface StepsPresence {
-  present: number;
-  absent: number;
-  leave: number;
-  /** present + absent — leave is not absence and is not in the denominator. */
-  markedDays: number;
-}
-
-export type StepsRemarkStatus = 'done' | 'todo' | 'no_cycle';
-
-export interface StepsTeacherRow {
-  id: string;
-  name: string | null;
-  lastObservedAt: string | null;
-  s: StepsLetter | null;
-  t: StepsLetter | null;
-  e: StepsLetter | null;
-  presence: StepsPresence;
-  remark: StepsRemarkStatus;
-}
-
-export interface StepsLetterSummary {
-  pct: number | null;
-  band: StepsBandKey | null;
-  /** Teachers the band is averaged over — those who HAVE data. */
-  teachers: number;
-  of: number;
-}
-
-export interface StepsGridResponse {
-  success: boolean;
-  cycle: { name: string; endsAt: string } | null;
-  teachers: StepsTeacherRow[];
-  summary: {
-    s: StepsLetterSummary;
-    t: StepsLetterSummary;
-    e: StepsLetterSummary;
-    presence: { present: number; absent: number; leave: number; teachersMarked: number; of: number };
-    remark: { done: number; todo: number };
-  };
-}

@@ -4,7 +4,6 @@ import { ArrowLeft } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import ScoreIndicator from '../components/ScoreIndicator';
-import NextStep from '../components/NextStep';
 import { leader } from '../services/api';
 import type { SchoolAnalyticsResponse } from '../types/portal';
 
@@ -188,7 +187,6 @@ const SchoolLessons = () => {
           </section>
         )}
 
-        <NextStep to="/portal/leader/attendance" step={4} label="Check presence" />
       </div>
     </PortalLayout>
   );

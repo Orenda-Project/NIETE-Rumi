@@ -209,7 +209,7 @@ const STRINGS = {
     send_preview_coming:
       'Sawa — {name} ({phone}). Naandaa ripoti yake sasa; nitakuonyesha KWANZA kabla ya kutuma. Dakika 1–2. ⏳',
     send_confirm_body:
-      'Hii hapo juu ndiyo ripoti kamili atakayopokea mwalimu — ripoti rasmi ya MEWAKA pamoja na kumbukumbu za debrief yenu. Je, nitume sasa?',
+      '📨 Kwa: {name} ({phone})\n\nHii hapo juu ndiyo ripoti kamili atakayopokea — ripoti rasmi ya MEWAKA pamoja na kumbukumbu za debrief yenu. Je, huyu ndiye mwalimu sahihi? Bonyeza *Tuma sasa* kutuma, au *Mtu mwingine* kuchagua mwalimu mwingine.',
     btn_send_now: 'Tuma sasa',
     btn_send_cancel: 'Ghairi',
     btn_send_other: 'Mtu mwingine',
@@ -306,6 +306,9 @@ const STRINGS = {
     debrief_load_error: 'معاف کیجیے، کچھ گڑبڑ ہو گئی۔ دوبارہ کوشش کریں یا /observe لکھیں۔',
     debrief_audio_received: '🎧 ڈی بریف کی ریکارڈنگ مل گئی — بھروسے کا شکریہ! سن کر چند منٹ میں آپ کو رائے بھیجوں گی۔ یہ صرف میرے اور آپ کے درمیان ہے۔',
     debrief_too_short: 'ریکارڈنگ بہت مختصر لگی۔ پوری گفتگو ریکارڈ کر کے دوبارہ بھیجیں۔',
+    // bd-zq0ea (HITL row 185) — see the en entry. `کا تجزیہ` is masculine, so
+    // `کیا جا چکا ہے` agrees with it, not with ریکارڈنگ.
+    debrief_duplicate_recording: 'اس ڈی بریف ریکارڈنگ کا تجزیہ پہلے ہی کیا جا چکا ہے۔',
     debrief_feedback_failed: 'معاف کیجیے، رائے تیار نہیں ہو سکی۔ ریکارڈنگ محفوظ ہے — تھوڑی دیر بعد دوبارہ کوشش ہو گی۔',
     // bd-2kxxa.3 — gender-agnostic when addressing the coach (imperatives only).
     debrief_processing_failed:
@@ -398,7 +401,7 @@ const STRINGS = {
     send_ask_details: 'استاد کا نام اور فون نمبر لکھیں — ایک ہی پیغام میں۔\n\nمثال: *مس ثانیہ، 0301 2345678*',
     send_details_reask: 'سمجھ نہیں آیا۔ نام اور نمبر ایک پیغام میں لکھیں۔ مثال: *مس ثانیہ، 0301 2345678*',
     send_preview_coming: 'ٹھیک ہے — {name} ({phone})۔ رپورٹ تیار کر رہی ہوں؛ بھیجنے سے پہلے آپ کو دکھاؤں گی۔ 1-2 منٹ۔ ⏳',
-    send_confirm_body: 'اوپر بالکل وہی رپورٹ ہے جو استاد کو ملے گی — سرکاری رپورٹ مع آپ کی ڈی بریف کے نکات۔ ابھی بھیج دوں؟',
+    send_confirm_body: '📨 وصول کنندہ: {name} ({phone})\n\nاوپر بالکل وہی رپورٹ ہے جو انہیں ملے گی — سرکاری رپورٹ مع آپ کی ڈی بریف کے نکات۔ کیا یہ درست استاد ہیں؟ بھیجنے کے لیے *ابھی بھیجیں* دبائیں، یا کوئی دوسرا استاد چننے کے لیے *کسی اور کو بھیجیں*۔',
     btn_send_now: 'ابھی بھیجیں',
     btn_send_cancel: 'منسوخ',
     btn_send_other: 'کسی اور کو بھیجیں',
@@ -522,6 +525,9 @@ const STRINGS = {
       "🎧 Got your debrief recording — thank you for trusting me with it! I'm listening now; feedback to help you grow as a coach arrives in a few minutes. This stays between us. 💛",
     debrief_too_short:
       "Sorry — I couldn't hear enough of the conversation in that recording. If the debrief is still going, record a longer stretch and send it over — the guide is still right above.",
+    // bd-zq0ea (HITL row 185) — the coach sent debrief audio we already
+    // coached them on. Requirement wording, verbatim.
+    debrief_duplicate_recording: 'This debrief recording has already been analyzed.',
     debrief_feedback_failed:
       "I received your recording but couldn't analyze it just now. Type /observe, pick that observation from the list, and record again — I'll listen fresh.",
     // bd-2kxxa.3 — transcription failed (provider outage etc.). Honest, and told
@@ -629,7 +635,7 @@ const STRINGS = {
     send_preview_coming:
       "Got it — {name} ({phone}). I'm preparing the report now; you'll see it FIRST before anything is sent. 1–2 minutes. ⏳",
     send_confirm_body:
-      'Above is the exact report the teacher will receive — the official FICO report plus your debrief notes. Send it now?',
+      '📨 To: {name} ({phone})\n\nAbove is the exact report they will receive — the official FICO report plus your debrief notes. Is this the right teacher? Tap *Send now* to send it, or *Someone else* to pick a different teacher.',
     btn_send_now: 'Send now',
     btn_send_cancel: 'Cancel',
     btn_send_other: 'Someone else',

@@ -169,6 +169,16 @@ describe('mock-graph-api: media (Phase 2)', () => {
     expect(items[1]).toMatchObject({ type: 'audio', txt: '', audio: true });
   });
 
+  test('an audio sent with voice:true is recorded as a voice message; without it, as an audio file', async () => {
+    // WhatsApp renders a voice message (waveform + playback-speed control) only when the send says
+    // voice:true; the drivers assert on this flag, so the mock must carry it through.
+    await post(`/v21.0/${PH}/messages`, { messaging_product: 'whatsapp', to: '923000000001', type: 'audio', audio: { id: 'media.mock.a', voice: true } });
+    await post(`/v21.0/${PH}/messages`, { messaging_product: 'whatsapp', to: '923000000001', type: 'audio', audio: { id: 'media.mock.b' } });
+    const { items } = await get('/outbox');
+    expect(items[0]).toMatchObject({ type: 'audio', audio: true, voice: true });
+    expect(items[1]).toMatchObject({ type: 'audio', audio: true, voice: false });
+  });
+
   test('a registered file is served back the way Meta does: GET /<id> → metadata with a url, GET url → the bytes', async () => {
     const p = fixture();
     const reg = await fetch(`${base}/media/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: p, mime: 'text/plain' }) });

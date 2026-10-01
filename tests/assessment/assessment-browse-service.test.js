@@ -256,12 +256,15 @@ describe('status — telling "still working" apart from "we are broken"', () => 
 });
 
 describe('her papers, paginated and filtered (D5)', () => {
+  // One row per PAPER FAMILY (versioned editing): the request, with its ready
+  // versions embedded; the newest ready version stands for the family.
   const ROW = {
-    id: 'paper-1', status: 'ready', question_count: 20, total_marks: 45,
-    ready_at: '2026-09-09T10:00:00Z', file_r2_key: 'k', answer_key_r2_key: null,
-    assessment_requests: {
-      user_id: 'u1', grade_code: 'grade_4', subject_code: 'science', chapter_number: 3,
-    },
+    id: 'req-1', grade_code: 'grade_4', subject_code: 'science', chapter_number: 3,
+    created_at: '2026-09-09T09:00:00Z',
+    assessment_papers: [{
+      id: 'paper-1', status: 'ready', edited_from: null, question_count: 20, total_marks: 45,
+      ready_at: '2026-09-09T10:00:00Z', created_at: '2026-09-09T10:00:00Z', answer_key_r2_key: null,
+    }],
   };
 
   it('returns only ready papers, newest first', async () => {
@@ -274,12 +277,14 @@ describe('her papers, paginated and filtered (D5)', () => {
       paper_id: 'paper-1', grade: 4, subject_key: 'science',
       subject: 'Science', question_count: 20, total_marks: 45,
     });
-    expect(JSON.stringify(cap.order)).toContain('ready_at');
+    // Families, newest request first; ready-only is an embedded filter.
+    expect(JSON.stringify(cap.order)).toContain('created_at');
+    expect(JSON.stringify(cap.eq)).toContain('assessment_papers.status');
   });
 
   it('says whether an answer key can be handed over', async () => {
     mockSupabase.from.mockReturnValue(table({
-      data: [{ ...ROW, answer_key_r2_key: 'ak' }], error: null, count: 1,
+      data: [{ ...ROW, assessment_papers: [{ ...ROW.assessment_papers[0], answer_key_r2_key: 'ak' }] }], error: null, count: 1,
     }));
     const [p] = (await Browse().listPapers('u1', {})).papers;
     expect(p.has_answer_key).toBe(true);

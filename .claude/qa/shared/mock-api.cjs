@@ -126,7 +126,7 @@ function makeMockApi(opts) {
   let freshCursor = 0;
   // 4000, not 600: a scenario-style grand-quiz question puts its lettered options past the 600th
   // character, and the quiz driver matches the answer against those lines (run 1214, Q7/20 → NO_ROW_ID).
-  const flagsOf = (i) => ({ txt: String(i.txt || '').slice(0, 4000), img: !!i.img, audio: !!i.audio, doc: !!i.doc,
+  const flagsOf = (i) => ({ txt: String(i.txt || '').slice(0, 4000), img: !!i.img, audio: !!i.audio, voice: !!i.voice, doc: !!i.doc,
     pdf: !!i.pdf || /\.pdf/i.test(i.txt || ''), btns: i.btns || [], media: i.media,
     // interactive list rows, when this reply is one — the training module check is answered off these
     list: i.list || null,

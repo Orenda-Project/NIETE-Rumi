@@ -70,6 +70,32 @@ const COACHING_MESSAGES = {
     ...en("✅ Lesson plan linked! I'll compare your teaching against this plan in the analysis."),
     ur: '✅ سبق کا منصوبہ منسلک ہو گیا! تجزیے میں تدریس کا موازنہ اسی منصوبے سے کیا جائے گا۔',
   },
+  // Lesson-plan branch: a recent LP was tapped (coach on an observation, or teacher in DC) — ask before
+  // linking (bd-2c1gj). Copy is the ICT HITL feedback's own wording (row 189):
+  // "You have selected [Lesson Plan Name]. Do you want to proceed?" — Yes proceeds;
+  // the second button returns to the list, so it is labelled for what it does
+  // ("Change lesson plan", ICT feedback 2026-09-30) rather than a bare "No".
+  // {details} is the tapped row's grade/chapter/pages line,
+  // which tells apart plans with similar titles. The Urdu question is obligative
+  // («کیا آگے بڑھنا ہے؟»), never «چاہتے/چاہتی ہیں», so it does not guess the reader's gender.
+  lessonPlan_confirm_prompt: {
+    ...en('You have selected *{title}*.\n{details}\n\nDo you want to proceed?'),
+    ur: 'آپ نے *{title}* منتخب کیا ہے۔\n{details}\n\nکیا آگے بڑھنا ہے؟',
+  },
+  // {title} when the tapped row can no longer be looked up.
+  lessonPlan_confirm_fallback_title: {
+    ...en('this lesson plan'),
+    ur: 'یہ سبق کا منصوبہ',
+  },
+  // Button titles — WhatsApp caps them at 20 code points.
+  lessonPlan_confirm_yes: {
+    ...en('Yes'),
+    ur: 'ہاں',
+  },
+  lessonPlan_confirm_change: {
+    ...en('Change lesson plan'),
+    ur: 'منصوبہ تبدیل کریں',
+  },
   // Lesson-plan branch: a late LP tap after the observer's review was submitted
   // (bd-2kxxa.4). The list stays in the chat; once the review is in, the linked
   // plan can no longer change — say so instead of a "linked" that changes nothing.
@@ -236,7 +262,7 @@ const COACHING_MESSAGES = {
   },
 
   // bd-7beiz — sent when the teacher submits a recording we have already
-  // scored (identical bytes, same teacher, within 7 days). She gets the report
+  // scored (identical bytes, same teacher, any time — bd-hr97y). She gets the report
   // she already has rather than a second, differently-sampled score for the
   // same lesson: the rubric pass runs at temperature 1, and re-scoring the same
   // audio moved the overall by a mean of 5.9 points across 1,515 measured

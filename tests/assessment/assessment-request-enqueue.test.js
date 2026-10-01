@@ -103,7 +103,8 @@ describe('createAndQueue — the one place a request becomes a job', () => {
       chapter_number: 3,
       page_ranges: '34-41',
       question_count: 20,
-      has_answer_key: false,
+      // bd-bfnsk: always true — the key is no longer a choice, whatever the caller says.
+      has_answer_key: true,
       has_answer_lines: true,
       output_format: 'pdf',
     });
@@ -150,7 +151,8 @@ describe('deliver — whether the worker sends anything', () => {
     const [, , payload] = mockQueueJob.mock.calls[0];
     expect(payload).toMatchObject({
       grade: 4, subject: 'science', chapterNumber: 3, pageRanges: '34-41',
-      contentSource: 'unseen', questionCount: 20, includeAnswerKey: false,
+      // bd-bfnsk: the one field NOT passed through — every job makes a key.
+      contentSource: 'unseen', questionCount: 20, includeAnswerKey: true,
       answerLines: true, outputFormat: 'pdf',
     });
   });

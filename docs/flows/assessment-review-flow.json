@@ -2,66 +2,66 @@
   "version": "7.0",
   "data_api_version": "3.0",
   "routing_model": {
-    "KEEP": [
-      "PICK",
-      "PICK_DONE"
-    ],
-    "PICK": [
+    "LIST": [
+      "ADD_TYPE",
       "EDIT_STANDARD",
       "EDIT_OPTIONS",
       "EDIT_COLUMNS",
       "EDIT_WORDS",
       "EDIT_PASSAGE",
       "EDIT_COMPREHENSION",
-      "PICK_DONE"
+      "REMOVED",
+      "DONE"
+    ],
+    "ADD_TYPE": [
+      "EDIT_STANDARD",
+      "EDIT_OPTIONS"
     ],
     "EDIT_STANDARD": [
-      "PICK_MORE",
-      "PICK_DONE"
+      "LIST_MORE",
+      "DONE"
     ],
     "EDIT_OPTIONS": [
-      "PICK_MORE",
-      "PICK_DONE"
+      "LIST_MORE",
+      "DONE"
     ],
     "EDIT_COLUMNS": [
-      "PICK_MORE",
-      "PICK_DONE"
+      "LIST_MORE",
+      "DONE"
     ],
     "EDIT_WORDS": [
-      "PICK_MORE",
-      "PICK_DONE"
+      "LIST_MORE",
+      "DONE"
     ],
     "EDIT_PASSAGE": [
-      "PICK_MORE",
-      "PICK_DONE"
+      "LIST_MORE",
+      "DONE"
     ],
     "EDIT_COMPREHENSION": [
-      "PICK_MORE",
       "EDIT_SUB",
-      "PICK_DONE"
+      "LIST_MORE",
+      "DONE"
     ],
     "EDIT_SUB": [
-      "PICK_MORE"
+      "LIST_MORE"
     ],
-    "PICK_MORE": [
-      "PICK_DONE"
+    "REMOVED": [
+      "LIST_MORE",
+      "DONE"
     ],
-    "PICK_DONE": []
+    "LIST_MORE": [
+      "ADD_TYPE",
+      "DONE"
+    ],
+    "DONE": []
   },
   "screens": [
     {
-      "id": "KEEP",
-      "title": "پرچہ درست کریں",
+      "id": "LIST",
+      "title": "آپ کا پرچہ · Your paper",
+      "refresh_on_back": false,
       "data": {
-        "summary": {
-          "type": "string",
-          "__example__": "20 questions · 20 marks"
-        },
-        "progress": {
-          "type": "string",
-          "__example__": "Questions 1-20 of 20"
-        },
-        "questions": {
+        "rows": {
           "type": "array",
           "items": {
             "type": "object",
@@ -69,138 +69,67 @@
               "id": {
                 "type": "string"
               },
-              "title": {
-                "type": "string"
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
               },
-              "description": {
-                "type": "string"
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
               }
             }
           },
           "__example__": [
             {
-              "id": "unseen.objective.MCQs.0",
-              "title": "1. Which is a living thing?",
-              "description": "1 mark · MCQs"
+              "id": "add",
+              "main-content": {
+                "title": "＋ Add question",
+                "description": "Short/long/MCQ",
+                "metadata": ""
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {}
+              }
             }
           ]
-        },
-        "selected": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "__example__": [
-            "unseen.objective.MCQs.0"
-          ]
-        },
-        "page": {
-          "type": "string",
-          "__example__": "0"
-        },
-        "has_prev": {
-          "type": "boolean",
-          "__example__": false
-        },
-        "has_next": {
-          "type": "boolean",
-          "__example__": false
-        },
-        "error": {
-          "type": "string",
-          "__example__": ""
-        },
-        "has_error": {
-          "type": "boolean",
-          "__example__": false
         }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
           {
-            "type": "Form",
-            "name": "keep_form",
-            "init-values": {
-              "keep": "${data.selected}"
-            },
-            "children": [
-              {
-                "type": "TextHeading",
-                "text": "کون سے سوال رکھنے ہیں؟"
-              },
-              {
-                "type": "TextCaption",
-                "text": "${data.summary}"
-              },
-              {
-                "type": "TextCaption",
-                "text": "${data.progress}"
-              },
-              {
-                "type": "TextBody",
-                "text": "${data.error}",
-                "visible": "${data.has_error}"
-              },
-              {
-                "type": "CheckboxGroup",
-                "name": "keep",
-                "label": "Keep these",
-                "required": false,
-                "data-source": "${data.questions}"
-              },
-              {
-                "type": "EmbeddedLink",
-                "text": "← پچھلے سوال",
-                "visible": "${data.has_prev}",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "keep": "${form.keep}",
-                    "page": "${data.page}",
-                    "_action": "prev"
-                  }
-                }
-              },
-              {
-                "type": "EmbeddedLink",
-                "text": "مزید سوال →",
-                "visible": "${data.has_next}",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "keep": "${form.keep}",
-                    "page": "${data.page}",
-                    "_action": "next"
-                  }
-                }
-              },
-              {
-                "type": "Footer",
-                "label": "آگے بڑھیں · Next",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "keep": "${form.keep}",
-                    "page": "${data.page}",
-                    "_action": "done"
-                  }
-                }
-              }
-            ]
+            "type": "NavigationList",
+            "name": "rows_list",
+            "list-items": "${data.rows}"
           }
         ]
       }
     },
     {
-      "id": "PICK",
-      "title": "پرچہ درست کریں",
+      "id": "ADD_TYPE",
+      "title": "نیا سوال · New question",
+      "refresh_on_back": true,
       "data": {
-        "summary": {
-          "type": "string",
-          "__example__": "4 questions · 6 marks"
-        },
-        "questions": {
+        "kinds": {
           "type": "array",
           "items": {
             "type": "object",
@@ -210,17 +139,13 @@
               },
               "title": {
                 "type": "string"
-              },
-              "description": {
-                "type": "string"
               }
             }
           },
           "__example__": [
             {
-              "id": "unseen.objective.MCQs.0",
-              "title": "1. Which is a living thing?",
-              "description": "1 mark · MCQs"
+              "id": "short",
+              "title": "مختصر سوال · Short answer"
             }
           ]
         },
@@ -238,15 +163,11 @@
         "children": [
           {
             "type": "Form",
-            "name": "pick_form",
+            "name": "add_type_form",
             "children": [
               {
                 "type": "TextHeading",
-                "text": "کون سا سوال بدلنا ہے؟"
-              },
-              {
-                "type": "TextCaption",
-                "text": "${data.summary}"
+                "text": "نیا سوال · New question"
               },
               {
                 "type": "TextBody",
@@ -255,29 +176,19 @@
               },
               {
                 "type": "RadioButtonsGroup",
-                "name": "pick",
-                "label": "Questions",
-                "required": false,
-                "data-source": "${data.questions}"
-              },
-              {
-                "type": "EmbeddedLink",
-                "text": "✏️ Edit the selected question",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "_action": "open",
-                    "question_id": "${form.pick}"
-                  }
-                }
+                "name": "kind",
+                "label": "قسم · Type",
+                "required": true,
+                "data-source": "${data.kinds}"
               },
               {
                 "type": "Footer",
-                "label": "ہو گیا · Done",
+                "label": "آگے · Next",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
-                    "_action": "pick_done"
+                    "_action": "add_type",
+                    "kind": "${form.kind}"
                   }
                 }
               }
@@ -317,6 +228,46 @@
         "marks": {
           "type": "number",
           "__example__": 2
+        },
+        "answer": {
+          "type": "string",
+          "__example__": ""
+        },
+        "answer_hint": {
+          "type": "string",
+          "__example__": "Goes in the answer key."
+        },
+        "show_remove": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "lines": {
+          "type": "string",
+          "__example__": "4"
+        },
+        "lines_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "4",
+              "title": "4"
+            }
+          ]
+        },
+        "show_lines": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {
@@ -327,7 +278,9 @@
             "name": "edit_standard_form",
             "init-values": {
               "question": "${data.question}",
-              "marks": "${data.marks}"
+              "marks": "${data.marks}",
+              "answer": "${data.answer}",
+              "lines": "${data.lines}"
             },
             "children": [
               {
@@ -347,7 +300,8 @@
                 "type": "TextArea",
                 "name": "question",
                 "label": "سوال · Question",
-                "required": true
+                "required": true,
+                "max-length": 600
               },
               {
                 "type": "TextInput",
@@ -358,6 +312,29 @@
                 "helper-text": "${data.marks_hint}"
               },
               {
+                "type": "TextArea",
+                "name": "answer",
+                "label": "جواب · Answer",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.answer_hint}"
+              },
+              {
+                "type": "Dropdown",
+                "name": "lines",
+                "label": "لائنیں · Lines",
+                "required": false,
+                "data-source": "${data.lines_options}",
+                "visible": "${data.show_lines}"
+              },
+              {
+                "type": "OptIn",
+                "name": "remove",
+                "label": "اس سوال کو پرچے سے ہٹائیں · Remove from the paper",
+                "required": false,
+                "visible": "${data.show_remove}"
+              },
+              {
                 "type": "Footer",
                 "label": "محفوظ کریں · Save",
                 "on-click-action": {
@@ -365,14 +342,18 @@
                   "payload": {
                     "_action": "save",
                     "marks": "${form.marks}",
-                    "question": "${form.question}"
+                    "question": "${form.question}",
+                    "answer": "${form.answer}",
+                    "remove": "${form.remove}",
+                    "lines": "${form.lines}"
                   }
                 }
               }
             ]
           }
         ]
-      }
+      },
+      "refresh_on_back": true
     },
     {
       "id": "EDIT_OPTIONS",
@@ -477,6 +458,50 @@
         "marks": {
           "type": "number",
           "__example__": 2
+        },
+        "answer": {
+          "type": "string",
+          "__example__": ""
+        },
+        "answer_hint": {
+          "type": "string",
+          "__example__": "Goes in the answer key."
+        },
+        "show_remove": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "correct": {
+          "type": "string",
+          "__example__": "none"
+        },
+        "correct_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "none",
+              "title": "— not set —"
+            }
+          ]
+        },
+        "show_correct": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "show_answer_text": {
+          "type": "boolean",
+          "__example__": false
         }
       },
       "layout": {
@@ -493,7 +518,9 @@
               "slot_3": "${data.slot_3}",
               "slot_4": "${data.slot_4}",
               "slot_5": "${data.slot_5}",
-              "marks": "${data.marks}"
+              "marks": "${data.marks}",
+              "answer": "${data.answer}",
+              "correct": "${data.correct}"
             },
             "children": [
               {
@@ -513,7 +540,8 @@
                 "type": "TextArea",
                 "name": "question",
                 "label": "سوال · Question",
-                "required": true
+                "required": true,
+                "max-length": 600
               },
               {
                 "type": "TextCaption",
@@ -570,6 +598,30 @@
                 "helper-text": "${data.marks_hint}"
               },
               {
+                "type": "RadioButtonsGroup",
+                "name": "correct",
+                "label": "درست جواب · Correct",
+                "required": false,
+                "data-source": "${data.correct_options}",
+                "visible": "${data.show_correct}"
+              },
+              {
+                "type": "TextArea",
+                "name": "answer",
+                "label": "جواب · Answer",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.answer_hint}",
+                "visible": "${data.show_answer_text}"
+              },
+              {
+                "type": "OptIn",
+                "name": "remove",
+                "label": "اس سوال کو پرچے سے ہٹائیں · Remove from the paper",
+                "required": false,
+                "visible": "${data.show_remove}"
+              },
+              {
                 "type": "Footer",
                 "label": "محفوظ کریں · Save",
                 "on-click-action": {
@@ -583,14 +635,18 @@
                     "slot_2": "${form.slot_2}",
                     "slot_3": "${form.slot_3}",
                     "slot_4": "${form.slot_4}",
-                    "slot_5": "${form.slot_5}"
+                    "slot_5": "${form.slot_5}",
+                    "answer": "${form.answer}",
+                    "remove": "${form.remove}",
+                    "correct": "${form.correct}"
                   }
                 }
               }
             ]
           }
         ]
-      }
+      },
+      "refresh_on_back": true
     },
     {
       "id": "EDIT_COLUMNS",
@@ -743,6 +799,18 @@
         "marks": {
           "type": "number",
           "__example__": 2
+        },
+        "answer": {
+          "type": "string",
+          "__example__": ""
+        },
+        "answer_hint": {
+          "type": "string",
+          "__example__": "Goes in the answer key."
+        },
+        "show_remove": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {
@@ -765,7 +833,8 @@
               "right_4": "${data.right_4}",
               "left_5": "${data.left_5}",
               "right_5": "${data.right_5}",
-              "marks": "${data.marks}"
+              "marks": "${data.marks}",
+              "answer": "${data.answer}"
             },
             "children": [
               {
@@ -785,7 +854,8 @@
                 "type": "TextArea",
                 "name": "question",
                 "label": "ہدایت · Instruction",
-                "required": true
+                "required": true,
+                "max-length": 600
               },
               {
                 "type": "TextCaption",
@@ -884,6 +954,21 @@
                 "helper-text": "${data.marks_hint}"
               },
               {
+                "type": "TextArea",
+                "name": "answer",
+                "label": "جواب · Answer",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.answer_hint}"
+              },
+              {
+                "type": "OptIn",
+                "name": "remove",
+                "label": "اس سوال کو پرچے سے ہٹائیں · Remove from the paper",
+                "required": false,
+                "visible": "${data.show_remove}"
+              },
+              {
                 "type": "Footer",
                 "label": "محفوظ کریں · Save",
                 "on-click-action": {
@@ -903,14 +988,17 @@
                     "left_4": "${form.left_4}",
                     "right_4": "${form.right_4}",
                     "left_5": "${form.left_5}",
-                    "right_5": "${form.right_5}"
+                    "right_5": "${form.right_5}",
+                    "answer": "${form.answer}",
+                    "remove": "${form.remove}"
                   }
                 }
               }
             ]
           }
         ]
-      }
+      },
+      "refresh_on_back": true
     },
     {
       "id": "EDIT_WORDS",
@@ -1015,6 +1103,18 @@
         "marks": {
           "type": "number",
           "__example__": 2
+        },
+        "answer": {
+          "type": "string",
+          "__example__": ""
+        },
+        "answer_hint": {
+          "type": "string",
+          "__example__": "Goes in the answer key."
+        },
+        "show_remove": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {
@@ -1031,7 +1131,8 @@
               "slot_3": "${data.slot_3}",
               "slot_4": "${data.slot_4}",
               "slot_5": "${data.slot_5}",
-              "marks": "${data.marks}"
+              "marks": "${data.marks}",
+              "answer": "${data.answer}"
             },
             "children": [
               {
@@ -1051,7 +1152,8 @@
                 "type": "TextArea",
                 "name": "question",
                 "label": "ہدایت · Instruction",
-                "required": true
+                "required": true,
+                "max-length": 600
               },
               {
                 "type": "TextCaption",
@@ -1108,6 +1210,21 @@
                 "helper-text": "${data.marks_hint}"
               },
               {
+                "type": "TextArea",
+                "name": "answer",
+                "label": "جواب · Answer",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.answer_hint}"
+              },
+              {
+                "type": "OptIn",
+                "name": "remove",
+                "label": "اس سوال کو پرچے سے ہٹائیں · Remove from the paper",
+                "required": false,
+                "visible": "${data.show_remove}"
+              },
+              {
                 "type": "Footer",
                 "label": "محفوظ کریں · Save",
                 "on-click-action": {
@@ -1121,14 +1238,17 @@
                     "slot_2": "${form.slot_2}",
                     "slot_3": "${form.slot_3}",
                     "slot_4": "${form.slot_4}",
-                    "slot_5": "${form.slot_5}"
+                    "slot_5": "${form.slot_5}",
+                    "answer": "${form.answer}",
+                    "remove": "${form.remove}"
                   }
                 }
               }
             ]
           }
         ]
-      }
+      },
+      "refresh_on_back": true
     },
     {
       "id": "EDIT_PASSAGE",
@@ -1165,6 +1285,18 @@
         "marks": {
           "type": "number",
           "__example__": 2
+        },
+        "answer": {
+          "type": "string",
+          "__example__": ""
+        },
+        "answer_hint": {
+          "type": "string",
+          "__example__": "Goes in the answer key."
+        },
+        "show_remove": {
+          "type": "boolean",
+          "__example__": true
         }
       },
       "layout": {
@@ -1175,7 +1307,8 @@
             "name": "edit_passage_form",
             "init-values": {
               "passage": "${data.passage}",
-              "marks": "${data.marks}"
+              "marks": "${data.marks}",
+              "answer": "${data.answer}"
             },
             "children": [
               {
@@ -1199,7 +1332,8 @@
                 "type": "TextArea",
                 "name": "passage",
                 "label": "اقتباس · Passage",
-                "required": true
+                "required": true,
+                "max-length": 600
               },
               {
                 "type": "TextInput",
@@ -1210,6 +1344,21 @@
                 "helper-text": "${data.marks_hint}"
               },
               {
+                "type": "TextArea",
+                "name": "answer",
+                "label": "جواب · Answer",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.answer_hint}"
+              },
+              {
+                "type": "OptIn",
+                "name": "remove",
+                "label": "اس سوال کو پرچے سے ہٹائیں · Remove from the paper",
+                "required": false,
+                "visible": "${data.show_remove}"
+              },
+              {
                 "type": "Footer",
                 "label": "محفوظ کریں · Save",
                 "on-click-action": {
@@ -1217,14 +1366,17 @@
                   "payload": {
                     "_action": "save",
                     "marks": "${form.marks}",
-                    "passage": "${form.passage}"
+                    "passage": "${form.passage}",
+                    "answer": "${form.answer}",
+                    "remove": "${form.remove}"
                   }
                 }
               }
             ]
           }
         ]
-      }
+      },
+      "refresh_on_back": true
     },
     {
       "id": "EDIT_COMPREHENSION",
@@ -1303,7 +1455,8 @@
             "list-items": "${data.subs}"
           }
         ]
-      }
+      },
+      "refresh_on_back": true
     },
     {
       "id": "EDIT_SUB",
@@ -1412,6 +1565,14 @@
         "marks": {
           "type": "number",
           "__example__": 2
+        },
+        "answer": {
+          "type": "string",
+          "__example__": ""
+        },
+        "answer_hint": {
+          "type": "string",
+          "__example__": "Goes in the answer key."
         }
       },
       "layout": {
@@ -1428,7 +1589,8 @@
               "slot_3": "${data.slot_3}",
               "slot_4": "${data.slot_4}",
               "slot_5": "${data.slot_5}",
-              "marks": "${data.marks}"
+              "marks": "${data.marks}",
+              "answer": "${data.answer}"
             },
             "children": [
               {
@@ -1451,8 +1613,9 @@
               {
                 "type": "TextArea",
                 "name": "question",
-                "label": "ذیلی سوال · Sub-question",
-                "required": true
+                "label": "ذیلی سوال · Part",
+                "required": true,
+                "max-length": 600
               },
               {
                 "type": "TextCaption",
@@ -1509,6 +1672,14 @@
                 "helper-text": "${data.marks_hint}"
               },
               {
+                "type": "TextArea",
+                "name": "answer",
+                "label": "جواب · Answer",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "${data.answer_hint}"
+              },
+              {
                 "type": "Footer",
                 "label": "محفوظ کریں · Save",
                 "on-click-action": {
@@ -1522,150 +1693,33 @@
                     "slot_2": "${form.slot_2}",
                     "slot_3": "${form.slot_3}",
                     "slot_4": "${form.slot_4}",
-                    "slot_5": "${form.slot_5}"
+                    "slot_5": "${form.slot_5}",
+                    "answer": "${form.answer}"
                   }
                 }
               }
             ]
           }
         ]
-      }
-    },
-    {
-      "id": "PICK_MORE",
-      "title": "پرچہ درست کریں",
-      "data": {
-        "summary": {
-          "type": "string",
-          "__example__": "4 questions · 6 marks"
-        },
-        "questions": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "title": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              }
-            }
-          },
-          "__example__": [
-            {
-              "id": "unseen.objective.MCQs.0",
-              "title": "1. Which is a living thing?",
-              "description": "1 mark · MCQs"
-            }
-          ]
-        },
-        "error": {
-          "type": "string",
-          "__example__": ""
-        },
-        "has_error": {
-          "type": "boolean",
-          "__example__": false
-        }
       },
-      "layout": {
-        "type": "SingleColumnLayout",
-        "children": [
-          {
-            "type": "Form",
-            "name": "pick_form",
-            "children": [
-              {
-                "type": "TextHeading",
-                "text": "کون سا سوال بدلنا ہے؟"
-              },
-              {
-                "type": "TextCaption",
-                "text": "${data.summary}"
-              },
-              {
-                "type": "TextBody",
-                "text": "${data.error}",
-                "visible": "${data.has_error}"
-              },
-              {
-                "type": "RadioButtonsGroup",
-                "name": "pick",
-                "label": "Questions",
-                "required": false,
-                "data-source": "${data.questions}"
-              },
-              {
-                "type": "EmbeddedLink",
-                "text": "✏️ Edit the selected question",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "_action": "open",
-                    "question_id": "${form.pick}"
-                  }
-                }
-              },
-              {
-                "type": "Footer",
-                "label": "ہو گیا · Done",
-                "on-click-action": {
-                  "name": "data_exchange",
-                  "payload": {
-                    "_action": "pick_done"
-                  }
-                }
-              }
-            ]
-          }
-        ]
-      }
+      "refresh_on_back": true
     },
     {
-      "id": "PICK_DONE",
-      "title": "پرچہ درست کریں",
+      "id": "REMOVED",
+      "title": "ہٹایا گیا سوال · Removed",
+      "refresh_on_back": true,
       "data": {
-        "summary": {
+        "heading": {
           "type": "string",
-          "__example__": "19 questions · 18 marks"
+          "__example__": "Removed from the paper"
         },
-        "note": {
+        "subheading": {
           "type": "string",
-          "__example__": "Nothing to fix? Just rebuild."
+          "__example__": "MCQ · 1 mark"
         },
-        "error": {
+        "body": {
           "type": "string",
-          "__example__": ""
-        },
-        "has_error": {
-          "type": "boolean",
-          "__example__": false
-        },
-        "extension_message_response": {
-          "type": "object",
-          "properties": {
-            "params": {
-              "type": "object",
-              "properties": {
-                "assessment_action": {
-                  "type": "string"
-                },
-                "summary": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "__example__": {
-            "params": {
-              "assessment_action": "queued",
-              "summary": "Grade 4 Science · 20 questions"
-            }
-          }
+          "__example__": "Which is a living thing?"
         }
       },
       "layout": {
@@ -1673,11 +1727,153 @@
         "children": [
           {
             "type": "TextHeading",
-            "text": "کوئی سوال درست کرنا ہے؟"
+            "text": "${data.heading}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "${data.subheading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.body}"
+          },
+          {
+            "type": "EmbeddedLink",
+            "text": "↩ فہرست · Back to list",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "_action": "back"
+              }
+            }
+          },
+          {
+            "type": "Footer",
+            "label": "واپس لائیں · Add back to paper",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "_action": "restore"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "LIST_MORE",
+      "title": "آپ کا پرچہ · Your paper",
+      "refresh_on_back": false,
+      "data": {
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "main-content": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "string"
+                  }
+                }
+              },
+              "on-click-action": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "add",
+              "main-content": {
+                "title": "＋ Add question",
+                "description": "Short/long/MCQ",
+                "metadata": ""
+              },
+              "on-click-action": {
+                "name": "data_exchange",
+                "payload": {}
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "NavigationList",
+            "name": "rows_list",
+            "list-items": "${data.rows}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "DONE",
+      "title": "پرچہ بنائیں · Make my paper",
+      "terminal": true,
+      "success": true,
+      "refresh_on_back": true,
+      "data": {
+        "summary": {
+          "type": "string",
+          "__example__": "14 questions · 45 marks"
+        },
+        "changes": {
+          "type": "string",
+          "__example__": "2 edited · 1 removed"
+        },
+        "note": {
+          "type": "string",
+          "__example__": "A new version is made from version 2. Version 2 stays as it is."
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "can_make": {
+          "type": "boolean",
+          "__example__": true
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "پرچہ بنائیں؟ · Make my paper?"
           },
           {
             "type": "TextCaption",
             "text": "${data.summary}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.changes}"
           },
           {
             "type": "TextBody",
@@ -1689,30 +1885,18 @@
             "visible": "${data.has_error}"
           },
           {
-            "type": "EmbeddedLink",
-            "text": "سوال منتخب کریں · Choose a question",
-            "on-click-action": {
-              "name": "data_exchange",
-              "payload": {
-                "_action": "pick"
-              }
-            }
-          },
-          {
             "type": "Footer",
-            "label": "دوبارہ بنائیں · Rebuild paper",
+            "label": "پرچہ بنائیں · Make my paper",
+            "enabled": "${data.can_make}",
             "on-click-action": {
               "name": "complete",
               "payload": {
-                "_action": "rebuild",
-                "extension_message_response": "${data.extension_message_response}"
+                "_action": "make"
               }
             }
           }
         ]
-      },
-      "terminal": true,
-      "success": true
+      }
     }
   ]
 }

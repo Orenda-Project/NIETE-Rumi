@@ -8,6 +8,7 @@ const { clampLanguage } = require('../config/ux-strings');
 const { verifyOutputLanguage } = require('../utils/output-language-check');
 const { resolveResponseLanguage } = require('../utils/resolve-response-language');
 const AudioService = require('../services/audio.service');
+const tts = require('../services/tts');
 const ContentService = require('../services/content.service');
 const FeatureRegistrationService = require('../services/feature-registration.service');
 const CoachingService = require('../services/coaching-orchestrator.service');
@@ -15,7 +16,7 @@ const ConversationState = require('../services/conversation-state.service');
 const MenuService = require('../services/menu.service');
 const VideoOrchestrator = require('../services/video/video-orchestrator.service');
 const LessonPlanQueueService = require('../services/lesson-plan-queue.service');
-const { logToFile } = require('../utils/logger');
+const { logToFile, logError } = require('../utils/logger');
 const { TEMP_DIR, LOADING_STICKER_PATH, LOADING_STICKER_MEDIA_ID } = require('../utils/constants');
 const {
   getOrCreateUser,
@@ -36,6 +37,25 @@ const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // 
 const { isLp612Enabled, isLp612RouteAll } = require('../config/lp612-flags'); // the cutover switch
 // Language cache for ASR routing based on user preference
 const { getUserLanguage, setUserLanguage } = require('../utils/language-cache');
+
+/**
+ * Speak `text` to the teacher as a voice note. If no voice can be made, or the
+ * voice note is not delivered, the same words go as text, so a voice failure
+ * never costs her the message. sendAudio reports a failed send by returning
+ * false rather than throwing.
+ * @returns {Promise<'voice'|'text'|'none'>} what actually went out
+ */
+async function sendVoiceOrText(to, text, language, site) {
+  try {
+    const voice = await tts.synthesize({ text, language, useCase: 'conversation', site });
+    if ((await WhatsAppService.sendAudio(to, voice.audio, TEMP_DIR)) !== false) return 'voice';
+    logError('Voice note not delivered — sending the same words as text', { site, language });
+  } catch (error) {
+    logError('No voice could be made — sending the same words as text', { site, language, error: error.message });
+  }
+  const sent = await WhatsAppService.sendMessage(to, text);
+  return sent === false ? 'none' : 'text';
+}
 
 /**
  * Handle voice message processing
@@ -124,8 +144,7 @@ async function handleVoiceMessage(message, from, user = null) {
               es: "No entendí tu nombre. ¿Puedes repetirlo?"
             };
             const retryMessage = retryMessages[userLanguage] || retryMessages.en;
-            const speechBuffer = await AudioService.generateSpeechForLanguage(retryMessage, userLanguage);
-            await WhatsAppService.sendAudio(from, speechBuffer, TEMP_DIR);
+            await sendVoiceOrText(from, retryMessage, userLanguage, 'name_retry');
           }
 
           // Stop typing and return early
@@ -1070,14 +1089,10 @@ async function handleVoiceMessage(message, from, user = null) {
       };
 
       // Generate and send voice confirmation
-      const confirmationSpeech = await AudioService.generateSpeechForLanguage(
-        confirmations[overrideLanguage],
-        overrideLanguage
-      );
       typingController.stop();
-      await WhatsAppService.sendAudio(from, confirmationSpeech, TEMP_DIR);
+      const confirmationFormat = await sendVoiceOrText(from, confirmations[overrideLanguage], overrideLanguage, 'language_switch');
 
-      logToFile('✅ Language switch confirmation sent via voice');
+      logToFile('✅ Language switch confirmation sent', { format: confirmationFormat });
     }
 
     // Session was already created at the start of the handler (for classroom coaching detection)
@@ -1306,20 +1321,14 @@ async function handleVoiceMessage(message, from, user = null) {
       }, 'error');
     }
 
-    // Step 7: Generate speech using appropriate TTS service based on language
-    logToFile('Step 7: Generating speech for language:', { language: detectedLanguage });
-    const speechBuffer = await AudioService.generateSpeechForLanguage(aiResponse, detectedLanguage);
-    logToFile('Speech generated', {
-      bufferSize: speechBuffer.length,
-      ttsService: detectedLanguage === 'en' ? 'ElevenLabs' : 'Uplift'
-    });
-
-    // Step 8: Send audio response (stop typing indicator first)
-    logToFile('Step 8: Sending audio response...');
+    // Steps 7-8: speak the answer and send it. If no voice can be made, or the
+    // voice note does not send, the same answer goes as text — a voice failure
+    // must never cost the teacher the answer the model has already written.
+    logToFile('Step 7: Speaking the reply', { language: detectedLanguage });
     typingController.stop();
-    await WhatsAppService.sendAudio(from, speechBuffer, TEMP_DIR);
+    const replyFormat = await sendVoiceOrText(from, aiResponse, detectedLanguage, 'voice_reply');
 
-    logToFile('✅ Voice acknowledgment sent successfully!');
+    logToFile('✅ Voice reply sent', { format: replyFormat });
 
     // Step 8.5: Send loading sticker if intent is presentation or lesson plan
     if (intent.type === 'lesson_plan' || intent.type === 'presentation') {

@@ -119,15 +119,17 @@ describe('the answer key is findable again afterwards', () => {
     expect(row.answer_key_r2_key).toBe('exams/user-1/paper-1/paper_AnswerKey.pdf');
   });
 
-  it('leaves the column alone when she did not ask for a key', async () => {
+  // bd-bfnsk: this pinned the column being left alone when she did not ask for
+  // a key. The key is no longer a choice, so a job that still says "no key"
+  // (queued before the change) gets one, and its location is stored.
+  it('stores the key even for a job that says she did not ask for one', async () => {
     happyPath();
     await Orchestrator.process({ ...JOB, includeAnswerKey: false });
 
     const row = rowAfterRun();
     expect(row.file_r2_key).toBeTruthy();
-    // Not null-written, not empty-stringed: never mentioned.
-    expect(row).not.toHaveProperty('answer_key_r2_key');
-    expect(mockRenderAnswerKey).not.toHaveBeenCalled();
+    expect(row.answer_key_r2_key).toBe('exams/user-1/paper-1/paper_AnswerKey.pdf');
+    expect(mockRenderAnswerKey).toHaveBeenCalledTimes(1);
   });
 
   it('does not record a key that was never uploaded', async () => {

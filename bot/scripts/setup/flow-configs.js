@@ -258,6 +258,26 @@ const FLOW_CONFIGS = [
     envVar: 'TRANSCRIPT_QUIZ_FLOW_ID',
     categories: ['OTHER'],
   },
+  {
+    // /observe2 — the FICO field form a coach fills DURING the lesson (Part 1, Part 2, the seal).
+    // Regenerate the JSON with bot/scripts/generate-observe2-flow-json.js.
+    name: 'Observe2 Field Form',
+    jsonPath: path.join(FLOWS_DIR, 'observe2-field-form.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/observe2-form',
+    envVar: 'OBSERVE2_FIELD_FORM_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
+    // /observe2 — after the seal: the moments found in the recording, confirmed one by one,
+    // and the levels they add up to.
+    name: 'Observe2 Evidence Check',
+    jsonPath: path.join(FLOWS_DIR, 'observe2-evidence-check.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/observe2-check',
+    envVar: 'OBSERVE2_CHECK_FLOW_ID',
+    categories: ['OTHER'],
+  },
 ];
 
 /** The flow names that a complete setup must have registered. */

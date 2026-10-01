@@ -26,7 +26,13 @@ const REQUIRED_VARS = [
 // Optional features → the env key(s) that switch each one on.
 const FEATURES = [
   { name: 'Voice notes (speech-to-text, Soniox)', keys: ['SONIOX_API_KEY'] },
-  { name: 'Spoken replies (text-to-speech, ElevenLabs)', keys: ['ELEVENLABS_API_KEY'] },
+  // Every voice note goes through the voice gateway (bot/shared/services/tts),
+  // which can speak with ElevenLabs, Soniox or OpenAI — TTS_PROVIDER picks the
+  // first; the others are the fallback. Any one key makes spoken replies work.
+  {
+    name: 'Spoken replies (text-to-speech: ElevenLabs, Soniox or OpenAI)',
+    keysAny: ['ELEVENLABS_API_KEY', 'SONIOX_API_KEY', 'OPENAI_API_KEY'],
+  },
   { name: 'Urdu / regional voices (Uplift)', keys: ['UPLIFT_API_KEY'] },
   { name: 'Lesson-plan generation (Gamma)', keys: ['GAMMA_API_KEY'] },
   { name: 'Reading pronunciation scoring (Azure)', keys: ['AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION'] },
@@ -100,6 +106,9 @@ function isFeatureAvailable(feature, env = process.env) {
  */
 const FEATURE_GATES = {
   reading: ['READING_ASSESSMENT_FLOW_ID'],
+  // The /observe2 field-form pilot: its live form, its evidence check, and the /observe visit
+  // planner it starts from (the teacher is picked there).
+  observe2: ['OBSERVE2_FIELD_FORM_FLOW_ID', 'OBSERVE2_CHECK_FLOW_ID', 'OBSERVE_VISIT_FLOW_ID'],
 };
 
 /**

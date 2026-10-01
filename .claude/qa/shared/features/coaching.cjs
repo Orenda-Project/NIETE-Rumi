@@ -1,5 +1,6 @@
 // @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
-/* coaching.feature — all 55 scenarios: COA01–COA15 in this driver, COA16–COA55 through coaching-ext.cjs.
+/* coaching.feature — every @e2e scenario in ONE driver, bound by its id tag (@COA01 … @COA59).
+ * COA01–COA15, COA57 and COA22/COA17/COA59 (BLOCKED, with their reasons) are driven below; the rest through coaching-ext.cjs.
  *
  * ─── MOCKING ────────────────────────────────────────────────────────────────
  * Every string the bot is expected to produce lives in EXPECT below, and every
@@ -183,6 +184,7 @@ exports.run = async ({ api, rec, sleep }) => {
       out.push({ txt:txt0.slice(0,600),
                  img:!!r.querySelector('img[src^="blob:"],img[src^="data:image/j"],[data-icon="wds-ic-hd-filled"]'),
                  audio:!!r.querySelector('[data-icon="audio-file"],[data-icon="ptt"],[aria-label*="Voice message"],[aria-label*="voice message"],audio'),
+                 voice:!!r.querySelector('[data-icon^="ptt"],[aria-label*="Voice note progress" i],[aria-label*="playback speed" i]') && !r.querySelector('[data-icon="audio-file"]'),
                  doc:!!r.querySelector('[data-icon^="document-"],[data-icon="ms-office-doc"]'),
                  pdf:/\\.pdf/i.test(r.innerText||''),
                  btns:[...r.querySelectorAll('button,div[role="button"]')]
@@ -283,7 +285,10 @@ exports.run = async ({ api, rec, sleep }) => {
   // rather than assuming an order. Shallow runs stop as soon as COA04 is decided.
   const obs = { steps: [], photoPrompt: false, photoAccepted: null, lpPrompt: false, lpRejected: null,
                 reflectiveQ: null, reflectiveAck: null, slashEnded: null, deferral: null,
-                report: null, commitment: null, acknowledges: false, longLesson: false, rows: [], sessionId: null };
+                report: null, commitment: null, acknowledges: false, longLesson: false, rows: [], sessionId: null, voiceNotes: [] };
+  // COA57 — every bot voice note in the session (question, closing note, report note) is recorded with
+  // whether it arrived as a VOICE message (voice flag on the send / waveform + speed control) or as an audio file.
+  const noteAudio = (r) => { if (r && r.audio) obs.voiceNotes.push({ voice: !!r.voice, afterReport: !!obs.report, afterAnswer: (obs.reflectiveAnswers || 0) > 0 }); };
   const seenTexts = [];
   let deferralTried = false;
   const t0 = Date.now();
@@ -344,6 +349,7 @@ exports.run = async ({ api, rec, sleep }) => {
       const x = r.txt || '';
       obs.rows.push(r);
       if (x) seenTexts.push(x);
+      noteAudio(r);
       const m = EXPECT.stepAny.exec(x);
       if (m && !obs.steps.includes(m[1])) { obs.steps.push(m[1]); lastMsgAt = Date.now(); }
       if (EXPECT.longLesson.test(x)) obs.longLesson = true;
@@ -393,7 +399,7 @@ exports.run = async ({ api, rec, sleep }) => {
           // the acknowledgement is a VOICE note on this build (run 20260930-0832: ok, no text) — count it
           obs.reflectiveAck = (ans.txt || '').slice(0, 220) || (ans.ok ? '(acknowledged with a ' + (ans.kind || 'non-text') + ' message)' : '');
         }
-        await fresh();
+        for (const q of await fresh()) { noteAudio(q); obs.rows.push(q); }   // the closing note lands here, right after the answer
         continue;
       }
 
@@ -450,6 +456,16 @@ exports.run = async ({ api, rec, sleep }) => {
       break;
     }
     await sleep(5000);
+  }
+
+  // COA57 needs the report's own voice note, which lands ~40 s after the report (median; p95 55 s) and can
+  // arrive after the loop has already stopped on the commitment card.
+  if (DEEP && obs.report && !obs.voiceNotes.some((n) => n.afterReport)) {
+    const until = Date.now() + 180000;
+    while (Date.now() < until && !obs.voiceNotes.some((n) => n.afterReport)) {
+      for (const r of await fresh()) { noteAudio(r); obs.rows.push(r); }
+      if (!obs.voiceNotes.some((n) => n.afterReport)) await sleep(5000);
+    }
   }
 
   const joined = seenTexts.join(' | ');
@@ -524,6 +540,15 @@ exports.run = async ({ api, rec, sleep }) => {
               { scoredOnFramework: scoredOn, sessionId: obs.sessionId, lookup: scoredRaw, caption: obs.report.caption, reportKind: obs.report.kind, note: 'PASS = the session was analysed on the FICO framework (or the delivered text names the rubric)' })
           : ['BLOCKED', { reason: stallNote || ('no report delivered within ' + elapsed + 's'), stepsSeen: obs.steps }]));
 
+  deepOnly('COA57', 'Every coaching voice note arrives as a WhatsApp voice message the teacher can speed up',
+      ...(obs.voiceNotes.some((n) => !n.afterReport) && obs.voiceNotes.some((n) => n.afterReport)
+          ? V(obs.voiceNotes.every((n) => n.voice),
+              { voiceNotes: obs.voiceNotes, note: 'every bot voice note in the session must be a voice message '
+                + '(voice flag on the send / voice-note bubble with a speed control), none an audio file' })
+          : ['BLOCKED', { reason: obs.report
+              ? 'the report arrived but its voice note did not reach the reader within 3 min'
+              : (stallNote || ('no report within ' + elapsed + 's')), voiceNotes: obs.voiceNotes }]));
+
   deepOnly('COA07', 'Coaching feedback is delivered as a branded hero-report image',
       ...(obs.report
           ? V(obs.report.kind === 'image',
@@ -567,43 +592,58 @@ exports.run = async ({ api, rec, sleep }) => {
     rec(id, name, DEEP ? (r ? r[0] : 'BLOCKED') : 'SKIP',
         DEEP ? (r ? r[1] : { reason: 'coaching-ext did not record it' + (extErr ? ' — the extension threw: ' + String(extErr.message).slice(0, 200) : '') })
              : { why: '@wip/@draft — run with DEEP=1' }, 0); };
-  E('COA16', 'Every score a teacher receives is a band, never a number');
-  E('COA17', 'The two coaching entry points quote different minimum audio lengths (@known-issue)');
-  E('COA18', 'A report built without the reflection never claims a total of three questions');
-  E('COA19', 'A lesson-plan move is credited from what a classroom photo shows');
-  E('COA20', 'The same recording sent twice returns the report already made, not a second score');
-  E('COA21', 'A recording the bot has not scored before is still analysed normally');
-  E('COA22', 'A button left behind by a cancelled coaching session is refused on every tap');
-  E('COA23', 'The reflective question still arrives as text when its voice note cannot be sent');
-  E('COA24', "An Urdu teacher's five step messages are all in Urdu, counted in digits");
-  E('COA25', "An English-account teacher's reflective question is written in English");
-  E('COA26', 'The report-preparation greeting never calls a teacher "null"');
-  E('COA27', 'A screenshot sent as a classroom photo is kept out of both scorers');
-  E('COA28', 'A grader answer that comes back empty is re-graded the same way, not on a more generous setting');
-  E('COA29', 'A recording whose transcript carries no timestamps is "not scored", never 0%');
-  E('COA30', 'The "was this useful?" survey comes right after the voice debrief');
-  E('COA31', 'The commitment question opens by saying the coaching session is over');
-  E('COA32', 'A lesson plan typed into the chat is attached to the waiting observation');
-  E('COA34', 'Pasted text that is not a lesson plan gets the same rejection as a file');
-  E('COA35', 'A brief typed lesson plan counts — length is not the test');
-  E('COA38', 'The first lesson plan of the day brings one coaching ask');
-  E('COA39', 'A lesson planned after 14:00 is asked about the next morning without saying today');
-  E('COA40', 'A second lesson plan the same day brings no second ask');
-  E('COA41', 'Not today is remembered');
-  E('COA42', 'Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times');
-  E('COA43', "The how-to clip arrives as the coaching ask's own video, never after it");
-  E('COA44', 'An 11-minute recording after yes is answered as too short');
-  E('COA45', 'A classroom-length voice note gets no "send it as a document" warning');
-  E('COA46', 'Saying yes to the coaching ask means no quiz offer arrives that afternoon');
-  E('COA47', 'The coaching ask waits while the lesson-plan survey is asking what did not work');
-  E('COA48', 'The survey and the coaching ask can be answered in either order');
-  E('COA49', 'After my recording has started coaching the bot stops waiting for a recording');
-  E('COA50', 'Nobody offers to pick up a lesson that was already coached');
-  E('COA51', 'A teacher who said yes and never recorded is still offered it back');
-  E('COA52', '"Only N children have started" arrives at most once a morning, even for quizzes made on earlier days');
-  E('COA53', 'With COACHING_RECORDING_ENDS_WAIT off the recording no longer ends the wait');
-  E('COA54', 'With NUDGE_OPEN_QUESTION_DEFER off the coaching ask no longer waits for the survey');
-  E('COA55', 'In Urdu, the coaching messages never guess my gender');
+  E('COA18', 'Every score a teacher receives is a band, never a number');
+  E('COA58', 'The two coaching entry points quote different minimum audio lengths (@known-issue)');
+  E('COA19', 'A report built without the reflection never claims a total of three questions');
+  E('COA20', 'A lesson-plan move is credited from what a classroom photo shows');
+  E('COA21', 'The same recording sent twice returns the report already made, not a second score');
+  E('COA23', 'A recording the bot has not scored before is still analysed normally');
+  E('COA24', 'A button left behind by a cancelled coaching session is refused on every tap');
+  E('COA16', 'The reflective question still arrives as text when its voice note cannot be sent');
+  E('COA25', "An Urdu teacher's five step messages are all in Urdu, counted in digits");
+  E('COA26', "An English-account teacher's reflective question is written in English");
+  E('COA27', 'The report-preparation greeting never calls a teacher "null"');
+  E('COA28', 'A screenshot sent as a classroom photo is kept out of both scorers');
+  E('COA29', 'A grader answer that comes back empty is re-graded the same way, not on a more generous setting');
+  E('COA30', 'A recording whose transcript carries no timestamps is "not scored", never 0%');
+  E('COA31', 'The "was this useful?" survey comes right after the voice debrief');
+  E('COA32', 'The commitment question opens by saying the coaching session is over');
+  E('COA33', 'A lesson plan typed into the chat is attached to the waiting observation');
+  E('COA35', 'Pasted text that is not a lesson plan gets the same rejection as a file');
+  E('COA36', 'A brief typed lesson plan counts — length is not the test');
+  E('COA39', 'The first lesson plan of the day brings one coaching ask');
+  E('COA40', 'A lesson planned after 14:00 is asked about the next morning without saying today');
+  E('COA41', 'A second lesson plan the same day brings no second ask');
+  E('COA42', 'Not today is remembered');
+  E('COA43', 'Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times');
+  E('COA44', "The how-to clip arrives as the coaching ask's own video, never after it");
+  E('COA45', 'An 11-minute recording after yes is answered as too short');
+  E('COA46', 'A classroom-length voice note gets no "send it as a document" warning');
+  E('COA47', 'Saying yes to the coaching ask means no quiz offer arrives that afternoon');
+  E('COA48', 'The coaching ask waits while the lesson-plan survey is asking what did not work');
+  E('COA49', 'The survey and the coaching ask can be answered in either order');
+  E('COA50', 'After my recording has started coaching the bot stops waiting for a recording');
+  E('COA51', 'Nobody offers to pick up a lesson that was already coached');
+  E('COA52', 'A teacher who said yes and never recorded is still offered it back');
+  E('COA53', '"Only N children have started" arrives at most once a morning, even for quizzes made on earlier days');
+  E('COA54', 'With COACHING_RECORDING_ENDS_WAIT off the recording no longer ends the wait');
+  E('COA55', 'With NUDGE_OPEN_QUESTION_DEFER off the coaching ask no longer waits for the survey');
+  E('COA56', 'In Urdu, the coaching messages never guess my gender');
+
+  // bd-hr97y: needs a COMPLETED coaching report older than 7 days for the driver account. The mock lane starts
+  // from a fresh session and cannot age one; the no-window lookup is covered by
+  // tests/coaching/bd-hr97y-dc-dedupe-no-window.test.js, which runs the real call site.
+  rec('COA22', 'The same recording sent again weeks later still returns the report already made', 'BLOCKED',
+      { reason: 'needs a completed DC report older than 7 days on the driver account; the mock lane cannot age a '
+              + 'session. Covered by tests/coaching/bd-hr97y-dc-dedupe-no-window.test.js (real processTranscription).' }, 0);
+  // The closer's voice arriving late (the gateway's 25 s deadline) is applied only with the cassette off
+  // (bot/shared/services/tts/index.js), so this lane never exercises it; tests/tts/gateway.test.js covers the deadline.
+  rec('COA17', 'The acknowledgement of my answer arrives as text when its voice is not ready in time, and the report still follows', 'BLOCKED',
+      { reason: 'the voice gateway applies its 25 s deadline only when the cassette is off, so the mock lane cannot make the '
+              + 'closer late. The deadline itself is covered by tests/tts/gateway.test.js.' }, 0);
+  rec('COA59', 'Picking my lesson plan from the list asks me to confirm before it is used', 'BLOCKED',
+      { reason: 'added on sandbox by bd-2c1gj (2026-09-30) after this driver was written — not driven yet. The list pick is '
+              + 'exercised by coaching-ext runs 4/5 (lp: recent), which link the plan without a confirmation step on this build.' }, 0);
 
   if (DEEP)
     rec('COA-pipeline', 'Pipeline steps observed end to end', 'PASS',

@@ -29,6 +29,8 @@ const PAIRS = [
   ['bot/shared/routes/class-manager-endpoint.js', 'docs/flows/class-manager-flow.json'],
   ['bot/shared/routes/roster-flow-endpoint.js', 'docs/flows/roster-flow-v1.json'],
   ['bot/shared/routes/student-quiz-flow-endpoint.js', 'docs/flows/student-quiz-flow.json'],
+  ['bot/shared/routes/observe2-form-endpoint.js', 'docs/flows/observe2-field-form.json'],
+  ['bot/shared/routes/observe2-check-endpoint.js', 'docs/flows/observe2-evidence-check.json'],
 ];
 
 describe('flow screen contract', () => {

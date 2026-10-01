@@ -9,7 +9,8 @@
  *
  *   AudioService._transcribeOnce   → key: sha256(audio bytes) + diarization + language + roles
  *   llm-client chat.completions    → key: the full request params (model + messages + …)
- *   ElevenLabsService._postTts     → key: url + body (text, voice settings)
+ *   tts.synthesize (voice gateway) → key: provider + voice + text + language (with ElevenLabs
+ *                                    as the provider, the older {fn, text, languageCode} key)
  *
  * The key is the REQUEST, so a changed prompt, fixture or voice is a miss and goes live (then gets
  * recorded) — cassettes make the run fast, never blind. Errors are never recorded. Streaming LLM

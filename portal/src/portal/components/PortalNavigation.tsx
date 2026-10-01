@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, UserCheck, BookOpen } from 'lucide-react';
+import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, BookOpen } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader, resolveRole } from '../lib/leaderRole';
@@ -39,29 +39,16 @@ const PortalNavigation = () => {
   // same tab would show them one school's data labelled as theirs. The other
   // four keep the nav they have; the endpoint 403s them regardless of the nav.
   //
-  // Attendance and Lessons join Analytics here. All three are
-  // principal-gated routes that existed with no nav entry: they were reachable
-  // only by an in-page link from Analytics, so a principal who landed anywhere
-  // else had no way to them. Reported as "the navigation does not guide the
-  // user". This is the Training bug above, on two more pages — a route nobody
-  // can find is not shipped.
-  //
-  // A principal's nav runs in the order of her STEPS journey (feedback item 5:
-  // "the current navigation does not guide the user"): her school → a teacher
-  // → their lessons (S·T·E) → presence (P) → remarks, on Analytics (S). Then
-  // the pages outside the journey. Each journey page also ends with a
-  // Next-step link to the one after it.
+  // Lessons joins Analytics here: a principal-gated route that existed with
+  // no nav entry was reachable only by an in-page link, so a principal who
+  // landed anywhere else had no way to it — a route nobody can find is not
+  // shipped. Attendance used to be a third; it now lives inside Analytics, on
+  // its Attendance tab (operator, 2026-09-30).
   const isPrincipal = resolveRole(user) === 'principal';
   if (isPrincipal) {
-    const byPath = new Map(leaderNav.map((i) => [i.path, i]));
-    leaderNav.splice(0, leaderNav.length,
-      byPath.get('/portal/leader')!,
-      byPath.get('/portal/leader/teachers')!,
-      { title: 'Lessons', path: '/portal/leader/lessons', icon: BookOpen },
-      { title: 'Attendance', path: '/portal/leader/attendance', icon: UserCheck },
+    leaderNav.push(
       { title: 'Analytics', path: '/portal/leader/school-analytics', icon: TrendingUp },
-      byPath.get('/portal/leader/observations')!,
-      byPath.get('/portal/training')!,
+      { title: 'Lessons', path: '/portal/leader/lessons', icon: BookOpen },
     );
   }
   const teacherNav = [

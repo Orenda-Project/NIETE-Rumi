@@ -68,20 +68,19 @@ const { getOverall } = require('../services/coaching-frameworks.service');
 // pg pool — the LATERAL-join SQL can't be expressed through supabase-js.
 const pool = require('../config/database');
 // TERMINAL is imported rather than respelled: two spellings of "finished" is
-// exactly how 629 observations went missing once (bd-2671).
+// exactly how 629 observations went missing once.
 const { getPatchTeachers, TERMINAL } = require('../services/leader-patch.service');
 // My Patch overview aggregation (pure, over the resolver output).
 const { summarizePatch } = require('../services/leader-overview.service');
-// bd-60117 — school-level coaching analytics for a principal (pure, over the
+// school-level coaching analytics for a principal (pure, over the
 // school's scored sessions).
 const { summarizeSchoolAnalytics } = require('../services/school-analytics.service');
-// bd-60118 — the remaining two STEPS components. P is two separate figures on
+// the remaining two STEPS components. P is two separate figures on
 // purpose (the teacher:student weighting is still unresolved); S delegates its
 // /20 math to remark-rubric rather than restating it.
 const { summarizePresence } = require('../services/steps-presence.service');
-const { summarizeRemarks } = require('../services/steps-remarks.service');
-const { buildStepsGrid } = require('../services/steps-grid.service');
-// bd-60123 — attendance, merged per group (G3) and split per day.
+const { summarizeRemarks, remarksReceived } = require('../services/steps-remarks.service');
+// attendance, merged per group (G3) and split per day.
 const { summarizeGroups, summarizeByDay } = require('../services/attendance-detail.service');
 // Single teacher detail (patch-membership guarded).
 const { getPatchTeacherDetail } = require('../services/leader-teacher-detail.service');
@@ -90,6 +89,7 @@ const { getPatchTeacherDetail } = require('../services/leader-teacher-detail.ser
 const { getLeaderObservations } = require('../services/leader-observations.service');
 // bd-2676 — the portal's WRITE side for scheduled visits (create + cancel).
 const { createSchedule, cancelSchedule } = require('../services/leader-schedule-write.service');
+const ObserveNotice = require('../services/observe-notice.service');
 // bd-88krt — coach self-service: edit a visit, own the school list, search by name.
 const {
   editSchedule, searchSchools, addSchool, removeSchool, searchTeachers,
@@ -996,7 +996,7 @@ router.get('/leader/overview', requirePortalAuth, requireLeaderRole, async (req,
     const teachers = await getPatchTeachers(
       (sql, params) => pool.query(sql, params),
       req.session.portalUserId,
-      // bd-60117: a principal's patch is her own school, not a coach's school
+      // a principal's patch is her own school, not a coach's school
       // assignments. requireLeaderRole already loaded the row, so the role
       // costs no extra round-trip.
       { role: req.portalUser && req.portalUser.role }
@@ -1020,7 +1020,7 @@ router.get('/leader/teachers', requirePortalAuth, requireLeaderRole, async (req,
     const teachers = await getPatchTeachers(
       (sql, params) => pool.query(sql, params),
       req.session.portalUserId,
-      // bd-60117: a principal's patch is her own school, not a coach's school
+      // a principal's patch is her own school, not a coach's school
       // assignments. requireLeaderRole already loaded the row, so the role
       // costs no extra round-trip.
       { role: req.portalUser && req.portalUser.role }
@@ -1049,7 +1049,7 @@ router.get('/leader/teacher/:id', requirePortalAuth, requireLeaderRole, async (r
       (sql, params) => pool.query(sql, params),
       req.session.portalUserId,
       req.params.id,
-      // bd-60117: a principal proves membership through her own school.
+      // a principal proves membership through her own school.
       { role: req.portalUser && req.portalUser.role }
     );
     if (!detail) {
@@ -1063,9 +1063,111 @@ router.get('/leader/teacher/:id', requirePortalAuth, requireLeaderRole, async (r
 });
 
 /**
+ * The attendance window: ?from=&to= (inclusive dates). Blank ends are open —
+ * all time, like every other part of Analytics, which is where this report
+ * now lives (operator, 2026-09-30). The denominator stays "days somebody
+ * marked", so an open window never invents a term. Anything that is not a
+ * real YYYY-MM-DD is dropped, never passed to SQL.
+ */
+function attendanceWindow(query = {}) {
+  const ok = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') && !Number.isNaN(Date.parse(v)) ? v : null);
+  return { from: ok(query.from), to: ok(query.to) };
+}
+
+/**
+ * The attendance detail for a set of teachers: their classes' registers
+ * (students) and their own days (staff), each as merged groups and by day.
+ * Shared by the principal's page and a teacher's own page, so both read the
+ * same bars from the same rules.
+ */
+async function buildAttendanceReport(userIds, from, to) {
+  const [studentRows, staffRows] = await Promise.all([
+    // class_name already contains the section — appending it yields
+    // "Grade 2 - A-A" (measured on prod).
+    pool.query(
+      `SELECT s.session_date::text AS date,
+              COALESCE(sl.class_name, 'Unnamed class') AS "group",
+              s.total_students AS total,
+              s.present_count  AS present
+         FROM attendance_sessions s
+         LEFT JOIN student_lists sl ON sl.id = s.list_id
+        WHERE s.user_id = ANY($1::uuid[])
+          AND ${inWindow('s.session_date', '$2', '$3')}
+        ORDER BY s.session_date ASC`,
+      [userIds, from, to]
+    ),
+    // Staff: one "group" per teacher, so the same summariser serves both.
+    // present/absent are per-person, hence total 1 per row; leave is NOT an
+    // absence and is excluded from the register entirely.
+    pool.query(
+      `SELECT r.date::text AS date,
+              COALESCE(u.name, 'Unnamed teacher') AS "group",
+              1 AS total,
+              CASE WHEN r.status = 'present' THEN 1 ELSE 0 END AS present,
+              r.status
+         FROM teacher_attendance_records r
+         JOIN users u ON u.id = r.teacher_id
+        WHERE r.teacher_id = ANY($1::uuid[])
+          AND ${inWindow('r.date', '$2', '$3')}
+        ORDER BY r.date ASC`,
+      [userIds, from, to]
+    ),
+  ]);
+
+  // The window's school days are the days SOMEBODY marked anything. Without
+  // a school calendar this is the only defensible denominator — inventing
+  // one from weekday arithmetic would state a term we do not know.
+  const dayset = new Set();
+  for (const r of studentRows.rows) dayset.add(r.date);
+  for (const r of staffRows.rows) dayset.add(r.date);
+  const schoolDays = [...dayset].sort();
+
+  // Leave is not an absence: a teacher on approved leave is dropped from the
+  // register rather than counted against her.
+  const staffSessions = staffRows.rows
+    .filter((r) => r.status !== 'leave')
+    .map((r) => ({ group: r.group, date: r.date, total: 1, present: Number(r.present) }));
+
+  const studentSessions = studentRows.rows.map((r) => ({
+    group: r.group, date: r.date, total: Number(r.total), present: Number(r.present),
+  }));
+
+
+  return {
+    schoolDays,
+    students: {
+      groups: summarizeGroups(studentSessions, schoolDays),
+      byDay: summarizeByDay(studentSessions, schoolDays),
+    },
+    staff: {
+      groups: summarizeGroups(staffSessions, schoolDays),
+      byDay: summarizeByDay(staffSessions, schoolDays),
+    },
+  };
+}
+
+/**
+ * GET /api/portal/my-attendance
+ *
+ * The Attendance page, for a teacher: the same report as the principal's,
+ * scoped to ONE person — the signed-in teacher's classes and her own days.
+ * The scope is the session, never the request: a ?teacherId= is ignored.
+ */
+router.get('/my-attendance', requirePortalAuth, async (req, res) => {
+  try {
+    const { from, to } = attendanceWindow(req.query);
+    const report = await buildAttendanceReport([req.session.portalUserId], from, to);
+    res.json({ success: true, from, to, focusTeacher: null, teachers: [], ...report });
+  } catch (error) {
+    console.error('my-attendance error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load attendance.' });
+  }
+});
+
+/**
  * GET /api/portal/leader/attendance
  *
- * bd-60123 — the attendance detail, in the two shapes settled on the design
+ * the attendance detail, in the two shapes settled on the design
  * canvas (operator, 2026-09-17):
  *   · `groups`  (G3) every grade merged across its children AND its days, one
  *     row each on one scale. The dashboard default.
@@ -1100,14 +1202,7 @@ router.get('/leader/attendance', requirePortalAuth, requireLeaderRole, async (re
       }
     }
 
-    // Default window: the last 30 days. Explicit and bounded rather than
-    // all-time — an unbounded window makes "of how many days?" unanswerable,
-    // which is the whole failure this view exists to fix.
-    const today = new Date();
-    const defaultFrom = new Date(today.getTime() - 29 * 86400000);
-    const iso = (d) => d.toISOString().slice(0, 10);
-    const from = /^\d{4}-\d{2}-\d{2}$/.test(req.query.from || '') ? req.query.from : iso(defaultFrom);
-    const to = /^\d{4}-\d{2}-\d{2}$/.test(req.query.to || '') ? req.query.to : iso(today);
+    const { from, to } = attendanceWindow(req.query);
 
     const scopeTeachers = focusTeacher ? [focusTeacher] : teachers;
     const userIds = scopeTeachers.filter((t) => t.rumiUserId).map((t) => t.rumiUserId);
@@ -1123,56 +1218,7 @@ router.get('/leader/attendance', requirePortalAuth, requireLeaderRole, async (re
       });
     }
 
-    const [studentRows, staffRows] = await Promise.all([
-      // class_name already contains the section — appending it yields
-      // "Grade 2 - A-A" (measured on prod).
-      pool.query(
-        `SELECT s.session_date::text AS date,
-                COALESCE(sl.class_name, 'Unnamed class') AS "group",
-                s.total_students AS total,
-                s.present_count  AS present
-           FROM attendance_sessions s
-           LEFT JOIN student_lists sl ON sl.id = s.list_id
-          WHERE s.user_id = ANY($1::uuid[])
-            AND s.session_date BETWEEN $2::date AND $3::date
-          ORDER BY s.session_date ASC`,
-        [userIds, from, to]
-      ),
-      // Staff: one "group" per teacher, so the same summariser serves both.
-      // present/absent are per-person, hence total 1 per row; leave is NOT an
-      // absence and is excluded from the register entirely.
-      pool.query(
-        `SELECT r.date::text AS date,
-                COALESCE(u.name, 'Unnamed teacher') AS "group",
-                1 AS total,
-                CASE WHEN r.status = 'present' THEN 1 ELSE 0 END AS present,
-                r.status
-           FROM teacher_attendance_records r
-           JOIN users u ON u.id = r.teacher_id
-          WHERE r.teacher_id = ANY($1::uuid[])
-            AND r.date BETWEEN $2::date AND $3::date
-          ORDER BY r.date ASC`,
-        [userIds, from, to]
-      ),
-    ]);
-
-    // The window's school days are the days SOMEBODY marked anything. Without
-    // a school calendar this is the only defensible denominator — inventing
-    // one from weekday arithmetic would state a term we do not know.
-    const dayset = new Set();
-    for (const r of studentRows.rows) dayset.add(r.date);
-    for (const r of staffRows.rows) dayset.add(r.date);
-    const schoolDays = [...dayset].sort();
-
-    // Leave is not an absence: a teacher on approved leave is dropped from the
-    // register rather than counted against her.
-    const staffSessions = staffRows.rows
-      .filter((r) => r.status !== 'leave')
-      .map((r) => ({ group: r.group, date: r.date, total: 1, present: Number(r.present) }));
-
-    const studentSessions = studentRows.rows.map((r) => ({
-      group: r.group, date: r.date, total: Number(r.total), present: Number(r.present),
-    }));
+    const report = await buildAttendanceReport(userIds, from, to);
 
     res.json({
       success: true,
@@ -1183,15 +1229,7 @@ router.get('/leader/attendance', requirePortalAuth, requireLeaderRole, async (re
       teachers: teachers
         .filter((t) => t.rumiUserId)
         .map((t) => ({ id: t.rumiUserId, name: t.name, isPrincipal: t.isPrincipal })),
-      schoolDays,
-      students: {
-        groups: summarizeGroups(studentSessions, schoolDays),
-        byDay: summarizeByDay(studentSessions, schoolDays),
-      },
-      staff: {
-        groups: summarizeGroups(staffSessions, schoolDays),
-        byDay: summarizeByDay(staffSessions, schoolDays),
-      },
+      ...report,
     });
   } catch (error) {
     console.error('leader/attendance error:', error);
@@ -1202,7 +1240,7 @@ router.get('/leader/attendance', requirePortalAuth, requireLeaderRole, async (re
 /**
  * GET /api/portal/leader/school-analytics
  *
- * bd-60117 — the Analytics tab, asked of a principal's SCHOOL rather than of
+ * the Analytics tab, asked of a principal's SCHOOL rather than of
  * her own handful of sessions. (Across all 460 principals there are 46 own
  * completed sessions in total — 0.10 each — so "her own coaching data" is not
  * a view worth giving her. Her school's is: sampling 40 principals, 34 had
@@ -1232,7 +1270,7 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
       { role }
     );
 
-    // bd-60118 — optional ?teacherId= narrows every component to one teacher
+    // optional ?teacherId= narrows every component to one teacher
     // ("build teacher report card individually", Osama 2026-09-10). It is
     // VALIDATED AGAINST THE PATCH, never trusted: an id that is not in her
     // school 404s rather than quietly scoping to someone else's teacher. This
@@ -1248,12 +1286,14 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
 
     const scopeTeachers = focusTeacher ? [focusTeacher] : teachers;
     const userIds = scopeTeachers.filter((t) => t.rumiUserId).map((t) => t.rumiUserId);
+    const range = analyticsRange(req.query);
+    const w = [range.from, range.to];
 
     // One round-trip per STEPS component, all scoped to the same id set, so a
     // filtered view and the school view can never disagree about who counts.
-    const [sessionRows, teacherAttRows, studentSessRows, remarkRows] = await Promise.all([
+    const [sessionRows, teacherAttRows, studentSessRows, remarkRows, outputRows] = await Promise.all([
       // S/T/E — TERMINAL, not status='completed': a leader observation never
-      // reaches 'completed' (bd-2671), and filtering on it hid the entire
+      // reaches 'completed', and filtering on it hid the entire
       // observation programme once already.
       userIds.length ? pool.query(
         `SELECT c.created_at, c.analysis_data, c.observation_type, u.name AS teacher_name
@@ -1262,14 +1302,16 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
           WHERE c.user_id = ANY($1::uuid[])
             AND c.status IN ${TERMINAL}
             AND c.analysis_data IS NOT NULL
-          ORDER BY c.created_at ASC`, [userIds]) : { rows: [] },
+            AND ${inWindow(pkDay('c.created_at'), '$2', '$3')}
+          ORDER BY c.created_at ASC`, [userIds, ...w]) : { rows: [] },
 
       // P (teacher) — keyed by teacher_id, so it filters with the same ids.
       userIds.length ? pool.query(
         `SELECT status, date
            FROM teacher_attendance_records
           WHERE teacher_id = ANY($1::uuid[])
-          ORDER BY date ASC`, [userIds]) : { rows: [] },
+            AND ${inWindow('date', '$2', '$3')}
+          ORDER BY date ASC`, [userIds, ...w]) : { rows: [] },
 
       // P (students) — attendance_sessions.user_id is the teacher who MARKED
       // the register, which is how a student roll reaches a school at all.
@@ -1277,7 +1319,8 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
         `SELECT total_students, present_count, session_date
            FROM attendance_sessions
           WHERE user_id = ANY($1::uuid[])
-          ORDER BY session_date ASC`, [userIds]) : { rows: [] },
+            AND ${inWindow('session_date', '$2', '$3')}
+          ORDER BY session_date ASC`, [userIds, ...w]) : { rows: [] },
 
       // S (supervisor remarks) — the principal's own quarterly forms, with
       // their per-indicator scores folded in. Only her remarks (she is the
@@ -1293,8 +1336,13 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
            LEFT JOIN supervisor_remark_scores sc ON sc.remark_id = r.id
           WHERE r.teacher_id = ANY($1::uuid[])
             AND r.principal_user_id = $2
-          GROUP BY r.id`, [userIds, req.session.portalUserId]) : { rows: [] },
+            AND ${inWindow(pkDay('r.submitted_at'), '$3', '$4')}
+          GROUP BY r.id`, [userIds, req.session.portalUserId, ...w]) : { rows: [] },
+
+      // Lesson plans and exams, in the same window and the same scope.
+      userIds.length ? countOutputs(userIds, w) : { rows: [{ lesson_plans: 0, exams: 0 }] },
     ]);
+    const outputs = (outputRows.rows && outputRows.rows[0]) || {};
 
     const remarks = (remarkRows.rows || []).map((r) => ({
       teacherId: r.teacher_id,
@@ -1305,11 +1353,14 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
 
     res.json({
       success: true,
+      range,
       school: {
         name: (teachers.find((t) => t.schoolName) || {}).schoolName || null,
         totalTeachers: teachers.length,
         onRumi: teachers.filter((t) => t.onRumi).length,
-        totalLessonPlans: scopeTeachers.reduce((n, t) => n + (t.lessonPlans || 0), 0),
+        // Lesson plans and ready exams, in the date window and the same scope.
+        totalLessonPlans: Number(outputs.lesson_plans) || 0,
+        totalExams: Number(outputs.exams) || 0,
       },
       // The filter's own state, so the page renders the right heading without
       // re-deriving who was asked for.
@@ -1331,80 +1382,107 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
 });
 
 /**
- * GET /api/portal/leader/steps
- * The principal's home, organised by STEPS: a row per teacher, a column per
- * letter (Subject knowledge, Teaching skills, Engagement, Presence, Supervisor
- * remark). The rules live in steps-grid.service; this only loads the rows.
- *
- * PRINCIPALS ONLY, for the same reason as school-analytics: the other four
- * leader roles span many schools, and a one-school grid would be a wrong
- * answer in the shape of a right one. Scoping comes from the session user via
- * the roster's own resolver, never from a query param.
- *
- * Presence is read over the OPEN evaluation cycle when there is one — STEPS is
- * a per-cycle evaluation — and over everything on record when there is not.
+ * The Analytics page's date window (operator, 2026-09-30): ?from=&to=, both
+ * optional and inclusive. Blank is all time — what the page showed before the
+ * filter existed. Anything that is not a real YYYY-MM-DD is dropped, never
+ * passed to SQL.
  */
-router.get('/leader/steps', requirePortalAuth, requireLeaderRole, async (req, res) => {
+function analyticsRange(query = {}) {
+  const ok = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') && !Number.isNaN(Date.parse(v)) ? v : null);
+  return { from: ok(query.from), to: ok(query.to) };
+}
+
+/** A timestamp read as the Pakistan-time day it happened on. */
+const pkDay = (col) => `(${col} AT TIME ZONE 'Asia/Karachi')::date`;
+
+/**
+ * `expr` falls inside [$a, $b], either end open when its parameter is NULL.
+ * `expr` is a date: a plain date column as-is, a timestamp through pkDay().
+ */
+const inWindow = (expr, a, b) =>
+  `(${a}::date IS NULL OR ${expr} >= ${a}::date) AND (${b}::date IS NULL OR ${expr} <= ${b}::date)`;
+
+/**
+ * Lesson plans and READY exams for a set of teachers, inside the window.
+ * The same two definitions the patch roster counts all-time: every lesson
+ * plan, and only papers that finished generating.
+ */
+function countOutputs(userIds, [from, to]) {
+  return pool.query(
+    `SELECT
+       (SELECT count(*) FROM lesson_plans l
+         WHERE l.user_id = ANY($1::uuid[])
+           AND ${inWindow(pkDay('l.created_at'), '$2', '$3')}) AS lesson_plans,
+       (SELECT count(*)
+          FROM assessment_papers p
+          JOIN assessment_requests r ON r.id = p.request_id
+         WHERE r.user_id = ANY($1::uuid[]) AND p.status = 'ready'
+           AND ${inWindow(pkDay('p.created_at'), '$2', '$3')}) AS exams`,
+    [userIds, from, to]
+  );
+}
+
+/**
+ * GET /api/portal/my-analytics
+ * A TEACHER's own Analytics page: the same sections her principal sees when
+ * she picks that teacher (operator, 2026-09-30) — observations, attendance,
+ * the remarks she received — plus lesson plans and exams generated.
+ *
+ * Scoped to the session user and nothing else: there is no id parameter to
+ * trust. Two differences from the principal's view, both decided:
+ *   · her Digital Coach Observations carry their ratings (rateDigital);
+ *   · remarks are the ones she RECEIVED, with the comment and each area.
+ */
+router.get('/my-analytics', requirePortalAuth, async (req, res) => {
   try {
-    const role = req.portalUser && req.portalUser.role;
-    if (String(role || '').trim().toLowerCase() !== 'principal') {
-      return res.status(403).json({ success: false, error: 'The STEPS view is available to principals.' });
-    }
-
-    const teachers = await getPatchTeachers(
-      (sql, params) => pool.query(sql, params),
-      req.session.portalUserId,
-      { role }
-    );
-    const userIds = teachers.filter((t) => t.rumiUserId && !t.isPrincipal).map((t) => t.rumiUserId);
-
-    const { rows: cycleRows } = await pool.query(
-      `SELECT id, name, starts_at, ends_at
-         FROM evaluation_cycles
-        WHERE starts_at <= now() AND ends_at > now()
-        ORDER BY starts_at DESC
-        LIMIT 1`
-    );
-    const cycle = cycleRows[0] || null;
-
-    const [sessionRows, attendanceRows, remarkRows] = userIds.length ? await Promise.all([
-      // TERMINAL, not status='completed' — a leader observation never reaches
-      // 'completed', so filtering on it would hide the observation programme.
-      // Same predicate as school-analytics.
+    const me = req.session.portalUserId;
+    const range = analyticsRange(req.query);
+    const w = [range.from, range.to];
+    const [sessionRows, teacherAttRows, studentSessRows, remarkRows, counts] = await Promise.all([
       pool.query(
-        `SELECT user_id, created_at, analysis_data, observation_type
+        `SELECT created_at, analysis_data, observation_type
            FROM coaching_sessions
-          WHERE user_id = ANY($1::uuid[])
+          WHERE user_id = $1
             AND status IN ${TERMINAL}
-            AND analysis_data IS NOT NULL`, [userIds]),
+            AND analysis_data IS NOT NULL
+            AND ${inWindow(pkDay('created_at'), '$2', '$3')}
+          ORDER BY created_at ASC`, [me, ...w]),
       pool.query(
-        `SELECT teacher_id, status
-           FROM teacher_attendance_records
-          WHERE teacher_id = ANY($1::uuid[])
-            AND ($2::timestamptz IS NULL OR date >= $2::timestamptz)
-            AND ($3::timestamptz IS NULL OR date <  $3::timestamptz)`,
-        [userIds, cycle ? cycle.starts_at : null, cycle ? cycle.ends_at : null]),
-      // Only HER remarks, about teachers in her school.
+        `SELECT status, date FROM teacher_attendance_records
+          WHERE teacher_id = $1 AND ${inWindow('date', '$2', '$3')}
+          ORDER BY date ASC`, [me, ...w]),
       pool.query(
-        `SELECT teacher_id, cycle_id, submitted_at
-           FROM supervisor_remarks
-          WHERE teacher_id = ANY($1::uuid[])
-            AND principal_user_id = $2`, [userIds, req.session.portalUserId]),
-    ]) : [{ rows: [] }, { rows: [] }, { rows: [] }];
-
+        `SELECT total_students, present_count, session_date
+           FROM attendance_sessions
+          WHERE user_id = $1 AND ${inWindow('session_date', '$2', '$3')}
+          ORDER BY session_date ASC`, [me, ...w]),
+      pool.query(
+        `SELECT r.submitted_at, r.comment_text, c.name AS cycle_name,
+                COALESCE(
+                  json_agg(json_build_object('ordinal', sc.indicator_ordinal, 'score', sc.score)
+                           ORDER BY sc.indicator_ordinal)
+                  FILTER (WHERE sc.id IS NOT NULL), '[]'
+                ) AS scores
+           FROM supervisor_remarks r
+           JOIN evaluation_cycles c ON c.id = r.cycle_id
+           LEFT JOIN supervisor_remark_scores sc ON sc.remark_id = r.id
+          WHERE r.teacher_id = $1
+            AND ${inWindow(pkDay('r.submitted_at'), '$2', '$3')}
+          GROUP BY r.id, c.name`, [me, ...w]),
+      countOutputs([me], w),
+    ]);
+    const c = (counts.rows && counts.rows[0]) || {};
     res.json({
       success: true,
-      ...buildStepsGrid({
-        teachers,
-        sessions: sessionRows.rows || [],
-        attendance: attendanceRows.rows || [],
-        remarks: remarkRows.rows || [],
-        cycle,
-      }),
+      range,
+      totals: { lessonPlans: Number(c.lesson_plans) || 0, examsGenerated: Number(c.exams) || 0 },
+      analytics: summarizeSchoolAnalytics(sessionRows.rows || [], { rateDigital: true }),
+      presence: summarizePresence(teacherAttRows.rows || [], studentSessRows.rows || []),
+      remarksReceived: remarksReceived(remarkRows.rows || []),
     });
   } catch (error) {
-    console.error('leader/steps error:', error);
-    res.status(500).json({ success: false, error: 'Failed to load the STEPS view.' });
+    console.error('my-analytics error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load your analytics.' });
   }
 });
 
@@ -1447,6 +1525,15 @@ router.post('/leader/schedules', requirePortalAuth, requireLeaderRole, async (re
       { teacherExtId, date, slot }
     );
     res.json({ success: true, ...result });
+    // bd-xorfy — tell the teacher on WhatsApp. Not awaited: the booking is
+    // saved and answered already; the client never throws.
+    if (result && result.id && result.changed !== false) {
+      ObserveNotice.notifyTeacher({
+        scheduleId: result.id,
+        leaderUserId: req.session.portalUserId,
+        kind: result.updated ? 'rescheduled' : 'scheduled',
+      });
+    }
   } catch (error) {
     // These are user-facing validation messages ("that date is in the past"),
     // so they are returned as 400s with the reason rather than a blank 500.
@@ -1464,6 +1551,11 @@ router.post('/leader/schedules/:id/cancel', requirePortalAuth, requireLeaderRole
       req.params.id
     );
     res.json({ success: true, ...result });
+    ObserveNotice.notifyTeacher({
+      scheduleId: req.params.id,
+      leaderUserId: req.session.portalUserId,
+      kind: 'cancelled',
+    });
   } catch (error) {
     console.error('leader/schedules cancel error:', error.message);
     res.status(400).json({ success: false, error: error.message });
@@ -1485,6 +1577,14 @@ router.post('/leader/schedules/:id/edit', requirePortalAuth, requireLeaderRole, 
     const result = await editSchedule(
       (sql, params) => pool.query(sql, params), req.session.portalUserId, req.params.id, { date, slot });
     res.json({ success: true, ...result });
+    // bd-xorfy — a real move is news to the teacher. Not awaited; never throws.
+    if (result && result.changed) {
+      ObserveNotice.notifyTeacher({
+        scheduleId: req.params.id,
+        leaderUserId: req.session.portalUserId,
+        kind: 'rescheduled',
+      });
+    }
   } catch (error) {
     console.error('leader/schedules edit error:', error.message);
     res.status(400).json({ success: false, error: error.message });
