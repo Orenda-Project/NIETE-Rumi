@@ -1150,7 +1150,7 @@ async function processStuckMidFlightSessions() {
   // Load math: 25 rows x ~200 bytes x 4 ticks/hr x replicas — kilobytes, not MB.
   const { data: stuck } = await supabase
     .from('coaching_sessions')
-    .select('id, user_id, status, created_at, updated_at, audio_id, observation_type, observer_user_id, watchdog:analysis_data->watchdog, users!inner(name, phone_number, preferred_language), name')
+    .select('id, user_id, status, created_at, updated_at, audio_id, audio_url, observation_type, observer_user_id, watchdog:analysis_data->watchdog, users!inner(name, phone_number, preferred_language), name')
     .in('status', ['transcribing', 'transcription_complete', 'analyzing', 'analysis_started', 'analysis_complete', 'generating_report'])
     .lt('updated_at', staleBefore)
     .order('updated_at', { ascending: true })

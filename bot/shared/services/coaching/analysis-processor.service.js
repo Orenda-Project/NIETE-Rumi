@@ -545,22 +545,56 @@ class AnalysisProcessorService {
         return;
       }
 
-      // Send progress update - Step 3
-      const lang3 = await _resolveSessionLanguage(coachingSessionId);
-      await WhatsAppService.sendMessage(from, getCoachingMessage('step3_reflecting', lang3));
-
-      // Brief pause before first question
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Start reflective conversation
-      const ReflectiveConversationService = require('./reflective-conversation.service');
-      await ReflectiveConversationService.conductReflectiveConversation(coachingSessionId, from);
+      await this._handOffToReflection(session, coachingSessionId, from);
 
       logToFile('✅ Analysis processing complete', { coachingSessionId });
     } catch (error) {
       await this.handleAnalysisError(coachingSessionId, error, payload.from);
       throw error;
     }
+  }
+
+  /**
+   * Hand a finished analysis to the reflective debrief.
+   *
+   * A WhatsApp row runs exactly the three steps that used to sit inline in
+   * processAnalysis: "Step 3/5: Let's reflect" to her chat, a one-second pause,
+   * then the question as a voice note.
+   *
+   * bd-lfzoz: a PORTAL row (isPortalSession — its R2 key) keeps its debrief off WhatsApp
+   * (operator). The question is generated and stored by the same engine in
+   * silent mode, and she answers it in the portal. The Step 3 message is not
+   * sent either — it announces a question that would never arrive in her chat.
+   * Row-derived, like the leader_observation fork above, so a requeue that
+   * rebuilds the payload cannot lose it.
+   *
+   * @param {object} session  the coaching_sessions row (select '*')
+   * @param {string} coachingSessionId
+   * @param {string} from     her WhatsApp number
+   * @param {{pauseMs?: number}} [opts] test seam for the pause
+   */
+  static async _handOffToReflection(session, coachingSessionId, from, opts = {}) {
+    const ReflectiveConversationService = require('./reflective-conversation.service');
+    const { isPortalSession } = require('./portal-coaching.service');
+
+    if (isPortalSession(session)) {
+      await ReflectiveConversationService.conductReflectiveConversation(coachingSessionId, from, 1, { silent: true });
+      logToFile('🖥️ Portal session — reflective question stored for the portal, nothing sent to WhatsApp', {
+        coachingSessionId,
+      });
+      return;
+    }
+
+    // Send progress update - Step 3
+    const lang3 = await this._resolveSessionLanguage(coachingSessionId);
+    await WhatsAppService.sendMessage(from, getCoachingMessage('step3_reflecting', lang3));
+
+    // Brief pause before first question
+    const pauseMs = opts.pauseMs === undefined ? 1000 : opts.pauseMs;
+    await new Promise(resolve => setTimeout(resolve, pauseMs));
+
+    // Start reflective conversation
+    await ReflectiveConversationService.conductReflectiveConversation(coachingSessionId, from);
   }
 
   /**

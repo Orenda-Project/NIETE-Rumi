@@ -96,7 +96,12 @@ function classifyStuckMidFlightSession(session, nowMs = Date.now()) {
   if (spent) return { action: 'fail', reason: 'retry_already_spent' };
 
   const queue = RETRY_QUEUE_BY_STATUS[session.status];
-  if (queue === 'transcription' && !session.audio_id) {
+  // bd-lfzoz: a portal upload has no WhatsApp media id by construction — its
+  // audio is in R2 at audio_url, which transcription reads (bd-78i2k). Narrowed
+  // to portal rows so every other row keeps exactly today's decision.
+  const { isPortalSession } = require('./portal-coaching.service');
+  const portalAudioInR2 = isPortalSession(session);
+  if (queue === 'transcription' && !session.audio_id && !portalAudioInR2) {
     return { action: 'fail', reason: 'no_audio_to_transcribe' };
   }
   return { action: 'retry', queue, reason: `requeue_${queue}` };

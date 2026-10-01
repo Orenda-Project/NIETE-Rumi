@@ -3,7 +3,7 @@
  * Handles audio file uploads to R2 storage
  */
 
-const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const fs = require('fs');
 const path = require('path');
@@ -959,7 +959,47 @@ async function uploadBuffer(buffer, key, contentType = 'application/octet-stream
   }
 }
 
+/**
+ * bd-lfzoz — a presigned PUT, so a browser can upload a classroom recording
+ * straight to R2 without the bytes passing through any of our servers.
+ *
+ * ContentType is SIGNED: the browser must send exactly this Content-Type header
+ * or R2 rejects the PUT, so a URL minted for audio/mp4 cannot be used to plant
+ * an HTML file under the same key.
+ *
+ * @param {string} key          R2 object key
+ * @param {string} contentType  the MIME type the browser will send
+ * @param {number} expiresIn    seconds
+ * @returns {Promise<string>} presigned PUT url
+ */
+async function getPresignedUploadUrl(key, contentType, expiresIn = 900) {
+  const command = new PutObjectCommand({ Bucket: BUCKET_NAME, Key: key, ContentType: contentType });
+  return getSignedUrl(getR2Client(), command, { expiresIn });
+}
+
+/**
+ * bd-lfzoz — does an object exist, and how big is it?
+ * A 404 is an answer ({ exists: false }), not an error; anything else throws.
+ *
+ * @param {string} key
+ * @returns {Promise<{exists: boolean, sizeBytes?: number, contentType?: string}>}
+ */
+async function headObject(key) {
+  try {
+    const res = await getR2Client().send(new HeadObjectCommand({ Bucket: BUCKET_NAME, Key: key }));
+    return { exists: true, sizeBytes: res.ContentLength, contentType: res.ContentType };
+  } catch (error) {
+    const status = error && error.$metadata && error.$metadata.httpStatusCode;
+    if (status === 404 || (error && (error.name === 'NotFound' || error.name === 'NoSuchKey'))) {
+      return { exists: false };
+    }
+    throw error;
+  }
+}
+
 module.exports = {
+  getPresignedUploadUrl,
+  headObject,
   uploadAudio,
   deleteAudio,
   uploadClassroomAudio,
