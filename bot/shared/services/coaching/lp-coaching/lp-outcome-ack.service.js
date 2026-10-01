@@ -13,9 +13,22 @@
  *            (`lpOutcomeKey`) instead of sending it, and arms a fallback timer;
  *   job      `leadForStep2` opens Step 2/5 with the outcome line.
  * ONE Redis claim (`coaching:lp_outcome_ack:<sid>`) decides who says it. If the
- * job has not started within LP_OUTCOME_ACK_FALLBACK_MS (default 30 s) the timer
+ * job has not started within LP_OUTCOME_ACK_FALLBACK_MS (default 20 s) the timer
  * claims it and sends the outcome on its own — the teacher is never left in silence —
- * and the job then sends a plain Step 2/5. Redis down → both claims succeed
+ * and the job then sends a plain Step 2/5.
+ *
+ * "typing…" while the job is on its way (FX1, bd-w2daa.22). The webhook request
+ * now ends having sent nothing, and the typing fix (inbound-typing.js, bd-0wrn4)
+ * cancels "typing…" when a request ends silently — so the teacher saw the automatic
+ * 👍 and then nothing until Step 2/5. A deferral therefore calls answerLater():
+ * "typing…" goes up at once, BEFORE the job is queued (it cannot land after Step
+ * 2/5), and outlives the request. WhatsApp keeps it ~25 s; the fallback at 20 s
+ * lands inside that, so there is no silent gap even on the slow path.
+ * Why 20 s: niete-logs production, 14 days to 1 Oct 2026, 3,723 LP picks paired
+ * with their analysis start ("LP linked…"/"LP selection: none" → "🔄 Starting
+ * pedagogical analysis", emitter `time`): p50 1.2 s, p95 4.8 s, p99 10.2 s;
+ * 99.5% within 20 s and still 99.5% within 30 s — the 20→30 s window merged
+ * nothing measurable, while it left the teacher without "typing…" for 3–5 s. Redis down → both claims succeed
  * (setNX fails open) → at worst the outcome is said twice, never lost.
  *
  * Scope: teacher self-serve sessions only (observation_type IS NULL). A coach
@@ -23,7 +36,7 @@
  * whose kind cannot be read is treated as NOT self-serve: send now, as before.
  *
  * Load: one keyed single-row read + one SET NX per LP outcome; one timer per
- * deferred outcome (unref'd, 30 s).
+ * deferred outcome (unref'd, 20 s); one typing POST per deferral (free).
  */
 
 const { logToFile } = require('../../../utils/logger');
@@ -31,7 +44,7 @@ const { getCoachingMessage } = require('../../../config/coaching-messages');
 
 const DEFERRABLE_KEYS = new Set(['lessonPlan_linked', 'lessonPlan_skip', 'lessonPlan_received']);
 const CLAIM_TTL_SECONDS = 60 * 60;
-const DEFAULT_FALLBACK_MS = 30 * 1000;
+const DEFAULT_FALLBACK_MS = 20 * 1000;
 const claimKey = (sessionId) => `coaching:lp_outcome_ack:${sessionId}`;
 
 function fallbackMs() {
@@ -95,7 +108,9 @@ async function deferOrSendLpOutcome({ sessionId, from, messageKey, language, sen
   }, fallbackMs());
   if (timer && typeof timer.unref === 'function') timer.unref();
 
-  logToFile('📎 LP outcome deferred onto Step 2/5', { sessionId, messageKey });
+  // Before the caller queues the job (see the header): typing up now, kept past the request.
+  const typing = await require('../../inbound-typing').answerLater();
+  logToFile('📎 LP outcome deferred onto Step 2/5', { sessionId, messageKey, typing });
   return { lpOutcomeKey: messageKey };
 }
 

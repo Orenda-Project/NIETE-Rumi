@@ -53,8 +53,8 @@ Feature: NIETE (ICT) Teacher Training
     When I tap "📝 Take quiz"
     Then the bot serves Q1 as ONE message headed "Module check · Q1/<n>", opening with "Module check — \"<module>\"" and "<n> questions. You need 100% to unlock the next module — if you miss it you can retry straight away.", with an "Answer" button and the caption "100% required · tap an option"
     When I answer every served question with its correct option, resolved live (match the option TEXT to the answer key, never a fixed letter)
-    Then each answer gets a ✅ reaction, and every question after Q1 is headed with the verdict on the one before it, in the shape "✓ Correct · Q<k>/<n>" — no separate verdict message
-    And the next module's card arrives as ONE message opening with "✓ Correct", then "Module check — passed" with a perfect score in the shape "<n>/<n> correct", then the next module's card and its "📝 Take quiz" / "⏸ Pause" buttons — and no "Loading the next module…" message
+    Then each answer gets a ✅ reaction, and every question after Q1 is headed with the verdict on the one before it, in the shape "✅ Correct · Q<k>/<n>" (a wrong answer: "✗ Not correct · Q<k>/<n>") — no separate verdict message
+    And the next module's card arrives as ONE message opening with "✅ *Correct*", then "Module check — passed" with a perfect score in the shape "<n>/<n> correct", then the next module's card and its "📝 Take quiz" / "⏸ Pause" buttons — and no "Loading the next module…" message
     And the module that was "▶ Next up" becomes "✓ Passed" and the following module becomes the new "▶ Next up"
     # UPDATED 2026-10-01 (bd-w2daa.8, fewer billed bubbles): module card + buttons, intro + Q1, verdict + next
     # question, and "passed" + next module card are each ONE message now; "Loading the next module…" is gone.
@@ -1251,9 +1251,10 @@ Feature: NIETE (ICT) Teacher Training
     # a free reaction, and the line is said again whenever the reaction cannot be sent. @wip.
 
   @e2e @quiz @wip @draft @P2 @T99
-  Scenario: "Not now" on the quiz offer is answered with a 👍
+  Scenario: "Not now" on the quiz offer is answered with a 👌
     Given the NIETE bot chat is open and I have been offered a quiz after a coaching session
     When I tap "Not now"
-    Then a 👍 appears on my tap and no message is sent
+    Then a 👌 appears on my tap and no message is sent
+    # FX1 (bd-w2daa.22): 👌, not 👍 — the webhook's automatic 👍 on every message would answer nothing.
     # transcript-quiz-offer handleOfferButton: the offer already ends "You can make one for any lesson
     # anytime by sending /quiz"; tqDeclined is sent only when the reaction cannot be. @wip.

@@ -1,6 +1,7 @@
 'use strict';
 /**
- * Meta bill cut NL1 (bd-w2daa.9): the lesson-plan survey's thank-you texts go; the reaction stays.
+ * Meta bill cut NL1 (bd-w2daa.9): the lesson-plan survey's thank-you texts go; a reaction stays
+ * (FX1, bd-w2daa.22: our own 🙏 on the tap, not the webhook's 👍 alone — see the TAP helper).
  *
  * From 1 Oct 2026 Meta bills every message we send. After every survey tap and every typed reason
  * the bot sent a text whose whole content was "thanks". The webhook already puts a 👍 reaction on
@@ -25,6 +26,7 @@ jest.mock('../../bot/shared/services/cache/railway-redis.service', () => mockRed
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn().mockResolvedValue(true),
   sendInteractiveButtons: jest.fn().mockResolvedValue(true),
+  sendReaction: jest.fn().mockResolvedValue(true),
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
@@ -55,6 +57,10 @@ function seed({ language = 'en', triggerMode = 'after_pdf_only', feedback = [] }
 }
 
 const texts = () => WhatsAppService.sendMessage.mock.calls.map((c) => c[1]);
+// FX1 (bd-w2daa.22): the receipt is a 🙏 reaction on the teacher's own message (the tap's wamid),
+// not the webhook's 👍 alone. Without a wamid the original text goes — pinned at the end.
+const TAP = { messageId: 'wamid.TAP_1' };
+const thanked = () => WhatsAppService.sendReaction.mock.calls.map((c) => c[2]);
 const buttonMessages = () => WhatsAppService.sendInteractiveButtons.mock.calls.map((c) => c[1]);
 
 beforeEach(() => {
@@ -67,18 +73,20 @@ beforeEach(() => {
 describe('K-5 survey: a tap that only needed a receipt gets the reaction, not a text', () => {
   test.each(['en', 'ur'])('👍 on a PDF-only lesson (%s) records the verdict and sends NOTHING', async (language) => {
     seed({ language });
-    expect(await LpFeedback.handleFeedbackButton(`lp_feedback_yes_${LP}`, PHONE)).toBe(true);
+    expect(await LpFeedback.handleFeedbackButton(`lp_feedback_yes_${LP}`, PHONE, TAP)).toBe(true);
 
     expect(mockDb.rows('lp_feedback')).toHaveLength(1);
     expect(mockDb.rows('lp_feedback')[0]).toMatchObject({ user_id: TEACHER, lesson_plan_id: LP, useful: true });
     expect(texts()).toEqual([]);
+    expect(thanked()).toEqual(['🙏']);   // FX1: our own receipt on the tap
     expect(buttonMessages()).toEqual([]);
   });
 
   test('a repeat 👍 on the same lesson sends NOTHING (it used to re-thank the teacher)', async () => {
     seed({ feedback: [{ id: 'fb-1', user_id: TEACHER, lesson_plan_id: LP, useful: true }] });
-    expect(await LpFeedback.handleFeedbackButton(`lp_feedback_yes_${LP}`, PHONE)).toBe(true);
+    expect(await LpFeedback.handleFeedbackButton(`lp_feedback_yes_${LP}`, PHONE, TAP)).toBe(true);
     expect(texts()).toEqual([]);
+    expect(thanked()).toEqual(['🙏']);   // FX1: our own receipt on the tap
   });
 
   test('a 👍 whose row could not be written still sends NOTHING — and is still owned', async () => {
@@ -92,11 +100,12 @@ describe('K-5 survey: a tap that only needed a receipt gets the reaction, not a 
       return b;
     });
     try {
-      expect(await LpFeedback.handleFeedbackButton(`lp_feedback_yes_${LP}`, PHONE)).toBe(true);
+      expect(await LpFeedback.handleFeedbackButton(`lp_feedback_yes_${LP}`, PHONE, TAP)).toBe(true);
     } finally {
       mockDb.from.mockImplementation(realFrom);
     }
     expect(texts()).toEqual([]);
+    expect(thanked()).toEqual(['🙏']);   // FX1: our own receipt on the tap
   });
 
   test('a tap on a lesson we cannot find sends NOTHING, and is still owned', async () => {
@@ -107,9 +116,10 @@ describe('K-5 survey: a tap that only needed a receipt gets the reaction, not a 
 
   test('the usage answer ("Taught it today") is recorded and sends NOTHING', async () => {
     seed({ triggerMode: 'after_voice_note', feedback: [{ id: 'fb-1', user_id: TEACHER, lesson_plan_id: LP, useful: true }] });
-    expect(await LpFeedback.handleUsageButton(`lp_used_taught_${LP}`, PHONE)).toBe(true);
+    expect(await LpFeedback.handleUsageButton(`lp_used_taught_${LP}`, PHONE, TAP)).toBe(true);
     expect(mockDb.rows('lp_feedback')[0].used_in_class).toBe('taught');
     expect(texts()).toEqual([]);
+    expect(thanked()).toEqual(['🙏']);   // FX1: our own receipt on the tap
   });
 
   test('the typed reason after 👎 is saved and sends NOTHING (the reaction is the receipt)', async () => {
@@ -117,15 +127,17 @@ describe('K-5 survey: a tap that only needed a receipt gets the reaction, not a 
     await LpFeedback.handleFeedbackButton(`lp_feedback_no_${LP}`, PHONE);
     WhatsAppService.sendMessage.mockClear();
 
-    expect(await LpFeedback.consumeReasonIfPending(TEACHER, PHONE, 'سرگرمیاں بہت لمبی تھیں')).toBe(true);
+    expect(await LpFeedback.consumeReasonIfPending(TEACHER, PHONE, 'سرگرمیاں بہت لمبی تھیں', TAP)).toBe(true);
     expect(mockDb.rows('lp_feedback')[0].reason_text).toBe('سرگرمیاں بہت لمبی تھیں');
     expect(texts()).toEqual([]);
+    expect(thanked()).toEqual(['🙏']);   // FX1: our own receipt on the tap
   });
 
   test('an orphaned reason (the 👎 row never landed) is consumed and sends NOTHING', async () => {
     await mockRedis.set(LpFeedback.REDIS_REASON_KEY(TEACHER), { lpFeedbackId: '__orphan__', lessonPlanId: LP }, 600);
-    expect(await LpFeedback.consumeReasonIfPending(TEACHER, PHONE, 'too long')).toBe(true);
+    expect(await LpFeedback.consumeReasonIfPending(TEACHER, PHONE, 'too long', TAP)).toBe(true);
     expect(texts()).toEqual([]);
+    expect(thanked()).toEqual(['🙏']);   // FX1: our own receipt on the tap
   });
 
   // ── the asks stay ─────────────────────────────────────────────────────────
@@ -155,15 +167,17 @@ describe('K-5 survey: a tap that only needed a receipt gets the reaction, not a 
 describe('6-12 survey: same rule, catalog strings', () => {
   test.each(['en', 'ur'])('the usage answer (%s) is recorded and sends NOTHING', async (language) => {
     seed({ language, feedback: [{ id: 'fb-9', user_id: TEACHER, lp612_segment_id: SEGMENT_ID, useful: true }] });
-    expect(await Lp612Feedback.handleUsageButton(`lp612_used_planned_${SEGMENT_ID}`, PHONE)).toBe(true);
+    expect(await Lp612Feedback.handleUsageButton(`lp612_used_planned_${SEGMENT_ID}`, PHONE, TAP)).toBe(true);
     expect(mockDb.rows('lp_feedback')[0].used_in_class).toBe('planned');
     expect(texts()).toEqual([]);
+    expect(thanked()).toEqual(['🙏']);   // FX1: our own receipt on the tap
   });
 
   test('a usage tap from a phone we cannot attribute is owned and sends NOTHING', async () => {
     mockDb.reset({ users: [], lp_feedback: [] });
-    expect(await Lp612Feedback.handleUsageButton(`lp612_used_taught_${SEGMENT_ID}`, PHONE)).toBe(true);
+    expect(await Lp612Feedback.handleUsageButton(`lp612_used_taught_${SEGMENT_ID}`, PHONE, TAP)).toBe(true);
     expect(texts()).toEqual([]);
+    expect(thanked()).toEqual(['🙏']);   // FX1: our own receipt on the tap
   });
 
   test('the typed reason after 👎 is saved and sends NOTHING', async () => {
@@ -171,15 +185,17 @@ describe('6-12 survey: same rule, catalog strings', () => {
     expect(texts()).toEqual([resolveUx('lp612FeedbackAskReason', { language: 'en' })]); // the ask stays
     WhatsAppService.sendMessage.mockClear();
 
-    expect(await Lp612Feedback.consumeReasonIfPending(TEACHER, PHONE, 'needs apparatus we do not have')).toBe(true);
+    expect(await Lp612Feedback.consumeReasonIfPending(TEACHER, PHONE, 'needs apparatus we do not have', TAP)).toBe(true);
     expect(mockDb.rows('lp_feedback')[0].reason_text).toBe('needs apparatus we do not have');
     expect(texts()).toEqual([]);
+    expect(thanked()).toEqual(['🙏']);   // FX1: our own receipt on the tap
   });
 
   test('an orphaned 6-12 reason is consumed and sends NOTHING', async () => {
     await mockRedis.set(Lp612Feedback.REDIS_REASON_KEY(TEACHER), { feedbackId: '__orphan__', segmentId: SEGMENT_ID }, 600);
-    expect(await Lp612Feedback.consumeReasonIfPending(TEACHER, PHONE, 'too long')).toBe(true);
+    expect(await Lp612Feedback.consumeReasonIfPending(TEACHER, PHONE, 'too long', TAP)).toBe(true);
     expect(texts()).toEqual([]);
+    expect(thanked()).toEqual(['🙏']);   // FX1: our own receipt on the tap
   });
 
   test('👍 STILL asks whether the lesson was taught (Q2 asks for input)', async () => {
@@ -187,5 +203,23 @@ describe('6-12 survey: same rule, catalog strings', () => {
     expect(buttonMessages()).toHaveLength(1);
     expect(buttonMessages()[0].body).toBe(resolveUx('lp612UsedAsk', { language: 'en' }));
     expect(texts()).toEqual([]);
+  });
+});
+
+describe('FX1 — no wamid (or the reaction refused) → the original thank-you text, never silence', () => {
+  test.each([
+    ['en', 'Thanks — glad it helped!'], ['ur', 'شکریہ — خوشی ہے یہ مفید تھی!'],
+  ])('K-5 👍 without a wamid (%s) → "%s"', async (language, expected) => {
+    seed({ language });
+    await LpFeedback.handleFeedbackButton(`lp_feedback_yes_${LP}`, PHONE);
+    expect(thanked()).toEqual([]);
+    expect(texts()).toEqual([expected]);
+  });
+
+  test('6-12 usage answer, reaction refused → lp612UsedThanks', async () => {
+    WhatsAppService.sendReaction.mockResolvedValueOnce(false);
+    seed({ feedback: [{ id: 'fb-612', user_id: TEACHER, lp612_segment_id: SEGMENT_ID, useful: true }] });
+    await Lp612Feedback.handleUsageButton(`lp612_used_taught_${SEGMENT_ID}`, PHONE, TAP);
+    expect(texts()).toEqual([resolveUx('lp612UsedThanks', { language: 'en' })]);
   });
 });

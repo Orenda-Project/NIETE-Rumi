@@ -23,11 +23,11 @@
  *      lesson has no `lesson_plans` row. It is a (segment_id, lang, template_version) render. The
  *      row lands on `lp_feedback` all the same — see V1.3.5's header for what was ruled out.
  *
- * RECEIPTS ARE THE REACTION (Meta bill cut NL1, bd-w2daa.9). A tap or a typed reason that only
- * needs acknowledging gets no text: the webhook reacts 👍 to every inbound message before any
- * handler runs, a reaction is free, and from 1 Oct 2026 every text is billed. The
- * `lp612UsedThanks` / `lp612FeedbackReasonThanks` catalog entries stay (unsent) beside
- * `lp612FeedbackThanks`; anything that ASKS the teacher something — the 👎 reason ask, Q2 — still goes.
+ * RECEIPTS ARE THE REACTION (Meta bill cut NL1, bd-w2daa.9; FX1, bd-w2daa.22). A usage answer or
+ * a typed reason gets a 🙏 reaction on her own message, not a text (every text is billed from
+ * 1 Oct 2026; a reaction is free). It is OUR reaction: the webhook's 👍 on every inbound message
+ * answers nothing in particular. `lp612UsedThanks` / `lp612FeedbackReasonThanks` are sent only
+ * when the reaction cannot go out; anything that ASKS — the 👎 reason ask, Q2 — still goes.
  *
  * BUTTON IDS: `lp612_fb_(yes|no)_(en|ur)_<segment_id>`.
  *   - The prefix is distinct from `lp_feedback_` and `student_video_feedback_`, and is dispatched
@@ -48,6 +48,16 @@ const WhatsAppService = require('./whatsapp.service');
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
+
+// The receipt on a usage answer / typed reason (FX1, bd-w2daa.22): our OWN 🙏 on her message —
+// the webhook's 👍 is on every message and answers nothing. No wamid / refused → the catalog text.
+async function _thank(phone, messageId, key, voice, what) {
+  const { reactOrSay } = require('./coaching/ack-reaction');
+  return reactOrSay({
+    to: phone, messageId, emoji: '🙏', what,
+    text: async () => resolveUx(key, { language: clampLanguage(typeof voice === 'function' ? await voice() : voice) }),
+  });
+}
 
 const TABLE = 'lp_feedback';
 const SEGMENTS = 'niete_lp612_segments';
@@ -334,12 +344,14 @@ async function handleFeedbackButton(buttonId, phone) {
  *
  * Deliberately forgiving, exactly as the K-5 handler is: a tap we cannot store is still owned.
  * She has done her part, and a button that answers with silence teaches her that answering is
- * pointless — so it is never silent: the webhook's 👍 reaction on the tap is the receipt. The
- * "Thank you — that helps." text that used to follow said nothing more, at a billed message (NL1).
+ * pointless — so it is never silent: 🙏 on the tap is the receipt (NL1/FX1), and the old
+ * "Thank you — that helps." text goes only when that reaction cannot.
  *
+ * @param {{messageId?: string}} [opts] the tap's wamid
  * @returns {Promise<boolean>} true iff this handler owned the id
  */
-async function handleUsageButton(buttonId, phone) {
+async function handleUsageButton(buttonId, phone, opts = {}) {
+  const messageId = opts && opts.messageId;
   const match = USAGE_RX.exec(buttonId || '');
   if (!match) return false;
 
@@ -350,6 +362,7 @@ async function handleUsageButton(buttonId, phone) {
   if (userError || !user) {
     logToFile('LP 6-12 usage: phone → user lookup failed', { phone, error: userError && userError.message });
     logEvent('lp612.usage.unattributable', { segmentId, phone, usedInClass });
+    await _thank(phone, messageId, 'lp612UsedThanks', null, 'lp612_used');
     return true;
   }
 
@@ -366,7 +379,8 @@ async function handleUsageButton(buttonId, phone) {
     logEvent('lp612.usage.recorded', { segmentId, userId: user.id, usedInClass });
   }
 
-  return true;   // receipted by the webhook's 👍 reaction on the tap (NL1)
+  await _thank(phone, messageId, 'lp612UsedThanks', user.preferred_language, 'lp612_used');
+  return true;
 }
 
 // ─── 4. the reason ──────────────────────────────────────────────────────────
@@ -375,9 +389,11 @@ async function handleUsageButton(buttonId, phone) {
  * Consume the next inbound text as the reason if her window is open. Called from
  * text-message.handler BEFORE any routing.
  *
+ * @param {{messageId?: string}} [opts] the reason message's wamid — the 🙏 receipt reacts on it
  * @returns {Promise<boolean>} true if consumed (the caller must return early)
  */
-async function consumeReasonIfPending(userId, phone, text) {
+async function consumeReasonIfPending(userId, phone, text, opts = {}) {
+  const messageId = opts && opts.messageId;
   if (!userId || !text || !String(text).trim()) return false;
 
   let pending;
@@ -404,7 +420,8 @@ async function consumeReasonIfPending(userId, phone, text) {
     logEvent('lp612.feedback.reason_orphaned', {
       userId, segmentId: pending.segmentId || null, reasonLanguage, reasonText,
     });
-    return true;   // receipted by the webhook's 👍 reaction on the teacher's message (NL1)
+    await _thank(phone, messageId, 'lp612FeedbackReasonThanks', () => _voiceOf(userId, reasonLanguage), 'lp612_reason');
+    return true;
   }
 
   const { error } = await supabase
@@ -428,7 +445,8 @@ async function consumeReasonIfPending(userId, phone, text) {
     userId, segmentId: pending.segmentId || null, feedbackId: pending.feedbackId,
     reasonLanguage, reasonLength: reasonText.length,
   });
-  return true;   // receipted by the webhook's 👍 reaction on the teacher's message (NL1)
+  await _thank(phone, messageId, 'lp612FeedbackReasonThanks', () => _voiceOf(userId, reasonLanguage), 'lp612_reason');
+  return true;
 }
 
 module.exports = {

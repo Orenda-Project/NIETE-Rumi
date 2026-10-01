@@ -103,7 +103,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And when I decline ONE message arrives: "No problem! I'll analyze your classroom audio without the lesson plan." followed, in the same bubble, by "Step 2/5: Analyzing your teaching using research-based pedagogical frameworks"
     # UPDATED 2026-10-01 (Meta bill cut NC3): the lesson-plan outcome rides on the analysis
     # job's Step 2/5 (payload lpOutcomeKey + one Redis claim). If the job has not started
-    # 30 s later the outcome is sent on its own and Step 2/5 follows plain (LP_OUTCOME_ACK_FALLBACK_MS).
+    # 20 s later the outcome is sent on its own and Step 2/5 follows plain (LP_OUTCOME_ACK_FALLBACK_MS).
+    # UPDATED 2026-10-01 (FX1, bd-w2daa.22): "typing…" shows at once after the decline / pick and stays
+    # until that bubble arrives — never the 👍 alone followed by silence.
     And then "Step 3/5: Let's reflect on your teaching together"
     # Verified live on PROD (2026-08-04), fixture hameeda_classroom.m4a (26 min):
     # after "Yes, Analyze" the pipeline emits numbered progress steps AND two optional-
@@ -871,7 +873,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then ONE message says the lesson plan is linked and, in the same bubble, "Step 2/5: Analyzing your teaching…"
     And the analysis continues with that plan
     # UPDATED 2026-10-01 (Meta bill cut NC3): "✅ Lesson plan linked!…" opens the analysis
-    # job's Step 2/5 (30 s fallback sends it alone if the job is slow).
+    # job's Step 2/5 (20 s fallback sends it alone if the job is slow; FX1: "typing…" shows meanwhile).
     # bd-2c1gj: the HITL row-189 confirmation, widened on 2026-09-30 to the teacher's own Digital Coach flow
     # (operator). Same handler and ids as the coach's observation: lp-list-selection.handler.js sends
     # lessonPlan_confirm_prompt with lpconfirm_yes_{asset}_{session} / lpconfirm_no_{session}. In Urdu the

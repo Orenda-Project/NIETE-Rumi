@@ -11,7 +11,7 @@
  * analysis job), so the outcome travels in the analysis payload (`lpOutcomeKey`)
  * and ONE Redis claim decides who says it:
  *   - the analysis job claims it and opens Step 2/5 with it, or
- *   - if the job has not started within 30 s, the webhook's fallback timer claims
+ *   - if the job has not started within 20 s (FX1; was 30 s), the webhook's fallback timer claims
  *     it and sends the outcome on its own (the teacher is never left silent), and
  *     the job then sends a plain Step 2/5.
  * Coach observations (leader_observation) keep today's immediate ack — that path
@@ -88,11 +88,12 @@ describe('NC3 — the webhook defers the LP outcome onto Step 2/5 (teacher DC se
     expect(h.queued[0].payload).toEqual({ from: FROM, lpOutcomeKey: 'lessonPlan_skip' });
   });
 
-  test('FALLBACK — the job has not started 30 s later: the outcome goes out on its own, once', async () => {
+  // FX1 (bd-w2daa.22): 20 s, inside WhatsApp's ~25 s "typing…" (was 30 s — see lp-outcome-ack header).
+  test('FALLBACK — the job has not started 20 s later: the outcome goes out on its own, once', async () => {
     const h = loadHandler();
     await h.handleLpListSelection(`lp_select_abcd-123_${SID}`, FROM, h.deps);
-    jest.advanceTimersByTime(29000);
-    await Promise.resolve();
+    jest.advanceTimersByTime(19000);
+    for (let i = 0; i < 5; i += 1) await Promise.resolve(); // eslint-disable-line no-await-in-loop
     expect(h.sent).toEqual([]);
     jest.advanceTimersByTime(1500);
     for (let i = 0; i < 5; i += 1) await Promise.resolve(); // eslint-disable-line no-await-in-loop

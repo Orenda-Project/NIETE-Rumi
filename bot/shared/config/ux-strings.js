@@ -1290,6 +1290,22 @@ const UX_STRINGS = {
     en: '👎 Not really',
     ur: '👎 نہیں',
   },
+  // ── LP survey receipts (K-5) — Meta bill cut NL1 / FX1 (bd-w2daa.22) ─────
+  // The receipt for a survey tap / usage answer / typed reason is a 🙏 reaction on
+  // the teacher's own message. These are the original texts, word for word, sent
+  // ONLY when that reaction cannot go out (no wamid, or Meta refused it).
+  lpFeedbackThanksYes: {
+    en: 'Thanks — glad it helped!',
+    ur: 'شکریہ — خوشی ہے یہ مفید تھی!',
+  },
+  lpFeedbackUsageThanks: {
+    en: 'Thank you!',
+    ur: 'شکریہ!',
+  },
+  lpFeedbackReasonThanks: {
+    en: 'Got it, thanks — this helps us improve the plans.',
+    ur: 'سمجھ گئی، شکریہ — یہ ہمیں منصوبے بہتر بنانے میں مدد کرے گا۔',
+  },
   lp612FeedbackThanks: {
     en: 'Thanks — glad it helped.',
     ur: 'شکریہ — خوشی ہے کہ یہ مفید رہا۔',

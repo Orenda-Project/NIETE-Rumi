@@ -191,12 +191,14 @@ afterEach(() => {
 });
 
 describe('a reply that is only a reaction (or nothing) leaves no "typing…" behind', () => {
-  test('"Taught it today" — receipted by the webhook reaction alone — never shows typing', async () => {
+  test('"Taught it today" — receipted by a reaction alone — never shows typing', async () => {
     const id = await post(tap(`lp_used_taught_${LP}`));
 
     expect(mockDb.rows('lp_feedback')[0]).toMatchObject({ used_in_class: 'taught' });
     expect(messages()).toEqual([]);
-    expect(reactions()).toHaveLength(1);
+    // The webhook's automatic reaction, then our own 🙏 receipt (FX1, bd-w2daa.22).
+    expect(reactions()).toHaveLength(2);
+    expect(reactions()[1]).toBe('🙏');
     expect(typings()).toEqual([]);
     // The read receipt the typing call used to carry still goes, once, for this message.
     expect(reads().map((g) => g.body.message_id)).toEqual([id]);

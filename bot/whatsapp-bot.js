@@ -787,7 +787,8 @@ app.post('/webhook', async (req, res) => {
       // LP feedback survey buttons (👍 Yes / 👎 Not really) — 30s after LP delivery
       if (buttonId.startsWith('lp_feedback_yes_') || buttonId.startsWith('lp_feedback_no_')) {
         const LpFeedbackService = require('./shared/services/lp-feedback.service');
-        await LpFeedbackService.handleFeedbackButton(buttonId, from);
+        // FX1: the tap's wamid — the receipt is a 🙏 reaction on it.
+        await LpFeedbackService.handleFeedbackButton(buttonId, from, { messageId: message.id });
         return;
       }
 
@@ -809,7 +810,7 @@ app.post('/webhook', async (req, res) => {
       // where this one carries a segment id, so a mis-route would silently drop the tap.
       if (buttonId.startsWith('lp612_used_')) {
         const Lp612FeedbackService = require('./shared/services/lp612-feedback.service');
-        if (await Lp612FeedbackService.handleUsageButton(buttonId, from)) return;
+        if (await Lp612FeedbackService.handleUsageButton(buttonId, from, { messageId: message.id })) return;
       }
 
       // LP usage follow-up (bd-vw0aj) — the 👍 path when a voice note was delivered.
@@ -818,7 +819,7 @@ app.post('/webhook', async (req, res) => {
       // survey buttons it follows.
       if (buttonId.startsWith('lp_used_')) {
         const LpFeedbackService = require('./shared/services/lp-feedback.service');
-        await LpFeedbackService.handleUsageButton(buttonId, from);
+        await LpFeedbackService.handleUsageButton(buttonId, from, { messageId: message.id });
         return;
       }
 

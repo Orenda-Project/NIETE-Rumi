@@ -38,7 +38,10 @@ async function reactInstead({ to, messageId, emoji }) {
 /**
  * React when we can; otherwise send the text the reaction replaces.
  *
- * @param {{ to: string, messageId?: string|null, emoji: string, text: string, what?: string }} args
+ * @param {{ to: string, messageId?: string|null, emoji: string,
+ *           text: string|(() => (string|Promise<string>)), what?: string }} args
+ *   `text` may be a function: it is then only called (e.g. to look up the teacher's
+ *   language) when the reaction did not go out and the text is actually needed.
  * @returns {Promise<'reaction'|'text'>} which signal went out
  */
 async function reactOrSay({ to, messageId, emoji, text, what = 'ack' }) {
@@ -47,7 +50,7 @@ async function reactOrSay({ to, messageId, emoji, text, what = 'ack' }) {
     return 'reaction';
   }
   const WhatsAppService = require('../whatsapp.service');
-  await WhatsAppService.sendMessage(to, text);
+  await WhatsAppService.sendMessage(to, typeof text === 'function' ? await text() : text);
   logToFile('ℹ️ ack sent as text (no wamid or the reaction did not go out)', { what, hadWamid: !!messageId });
   return 'text';
 }

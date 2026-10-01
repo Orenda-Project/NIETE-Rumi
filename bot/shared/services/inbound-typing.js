@@ -39,6 +39,11 @@
  *     is open) keeps "typing…" back until release().
  *   - handOff(): work that continues AFTER the dispatch returns (setImmediate) and will answer with
  *     a message keeps the scope open past the dispatch's end.
+ *   - answerLater(): the answer comes from ANOTHER PROCESS (an SQS job), so no send this scope can
+ *     see will ever settle it. "typing…" goes up at once — awaited, so it reaches WhatsApp before
+ *     the caller queues the job that answers (it can never land after that answer) — and the
+ *     dispatch's end does not cancel it. Meta bill cut FX1 (bd-w2daa.22): the LP-pick outcome
+ *     that now rides on the analysis job's Step 2/5.
  */
 const { AsyncLocalStorage } = require('async_hooks');
 const { logToFile } = require('../utils/logger');
@@ -71,6 +76,7 @@ class Scope {
     this.holds = 0;
     this.due = false;
     this.handedOff = false;
+    this.answeredElsewhere = false;   // answerLater(): the reply is another process's send
     this.timer = null;
     this.reported = false;
   }
@@ -88,17 +94,20 @@ class Scope {
   }
 
   show() {
-    if (this.state !== 'pending') return;
+    if (this.state !== 'pending') return Promise.resolve();
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
     this.state = 'shown';
     this.shownAfterMs = Date.now() - this.openedAt;
+    let sent = Promise.resolve();
     try {
-      Promise.resolve(this.sender.showTypingIndicator(this.to, this.messageId)).catch(() => {});
+      sent = Promise.resolve(this.sender.showTypingIndicator(this.to, this.messageId)).catch(() => {});
     } catch (_) { /* typing is a courtesy; never break the request over it */ }
     if (this.handedOff) {
       // The dispatch already ended; report once the reply lands, or when "typing…" has expired.
       const t = setTimeout(() => this.report(), TYPING_LIFETIME_MS);
       if (t && typeof t.unref === 'function') t.unref();
     }
+    return sent;
   }
 
   settle(by) {
@@ -127,7 +136,9 @@ class Scope {
       typing: this.state === 'shown' ? 'shown' : 'skipped',
       answeredBy: this.answeredBy,
       firstReply: this.firstReply || 'none',
-      lingered: this.state === 'shown' && !this.messageAfterTyping,
+      // A reply from another process is invisible here, so it cannot count as lingering.
+      lingered: this.state === 'shown' && !this.messageAfterTyping && !this.answeredElsewhere,
+      answeredElsewhere: this.answeredElsewhere,
       deferMs: this.deferMs,
       shownAfterMs: this.shownAfterMs ?? null,
       settledAfterMs: this.settledAfterMs ?? null,
@@ -237,6 +248,38 @@ function handOff() {
   if (scope && scope.state === 'pending') scope.handedOff = true;
 }
 
+/** Upper bound on waiting for the typing POST before the caller queues its job. */
+const ANSWER_LATER_WAIT_MS = 3000;
+
+/**
+ * The reply to this inbound message will come from another process (an SQS job queued next).
+ * Shows "typing…" now and keeps it past the dispatch's end. Await it BEFORE queueing the job, so
+ * the indicator cannot reach WhatsApp after the job's own message (typing then would hang ~25 s
+ * over an answer already on screen). No-op when there is no pending scope — typing already showing,
+ * or the request already answered — or outside a webhook request (a portal call, a worker).
+ * Never throws.
+ *
+ * @returns {Promise<boolean>} true when this call put "typing…" up
+ */
+async function answerLater() {
+  try {
+    const scope = current();
+    if (!scope || scope.state !== 'pending') return false;
+    scope.handedOff = true;
+    scope.answeredElsewhere = true;
+    const sent = scope.show();
+    let timer;
+    await Promise.race([
+      sent,
+      new Promise((resolve) => { timer = setTimeout(resolve, ANSWER_LATER_WAIT_MS); }),
+    ]);
+    clearTimeout(timer);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 /** The webhook's dispatch is over. Unless handed off, nothing else will answer — no typing. */
 function endDispatch() {
   const scope = current();
@@ -247,5 +290,5 @@ function endDispatch() {
 }
 
 module.exports = {
-  withRequest, open, noteOutbound, claimFirstBeat, hold, isPending, handOff, endDispatch,
+  withRequest, open, noteOutbound, claimFirstBeat, hold, isPending, handOff, answerLater, endDispatch,
 };

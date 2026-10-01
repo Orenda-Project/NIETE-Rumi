@@ -16,7 +16,8 @@
  *     double send beats a report that never arrives. railway-redis.setNX already
  *     behaves this way; the try/catch below covers a client without setNX.
  *
- * Load: one SET NX per piece per report (four keys per session, 24 h TTL).
+ * Load: one SET NX per piece per report (six keys per session, 24 h TTL —
+ * 'step4' and 'survey' added by FX1, bd-w2daa.22).
  */
 
 const { logToFile } = require('../../utils/logger');
@@ -30,7 +31,7 @@ function redis() {
 
 /**
  * @param {string} sessionId
- * @param {string} piece  e.g. 'hero_report', 'voice_debrief', 'commit_prompt', 'refl_q_1'
+ * @param {string} piece  e.g. 'step4', 'hero_report', 'voice_debrief', 'survey', 'commit_prompt', 'refl_q_1'
  * @returns {Promise<boolean>} true = this run sends it
  */
 async function claimPiece(sessionId, piece) {
