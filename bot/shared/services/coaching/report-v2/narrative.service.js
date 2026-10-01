@@ -114,24 +114,9 @@ function fixCodeswitch(s) {
   return TRANSLIT_FIX.reduce((acc, [re, en]) => acc.replace(re, en), s);
 }
 
-// bd-5lrgh follow-up: reading an Urdu transcript, the model appended its own Urdu translation
-// to the English "what was taught" sentence (sandbox d7196d60). On an LTR report, keep only what
-// precedes the first Arabic-script character and close it as a sentence; an all-Urdu reply leaves
-// nothing to show. RTL reports are untouched — English pedagogy terms inside Urdu are the style.
-const ARABIC_SCRIPT = /[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]/;
-function taughtSentenceInReportScript(s, language) {
-  if (typeof s !== 'string') return '';
-  if (RTL_LANGS.has(language)) return s.trim();
-  const cut = s.search(ARABIC_SCRIPT);
-  if (cut === -1) return s.trim();
-  const kept = s.slice(0, cut).replace(/[\s;:,—–(-]+$/u, '').trim();
-  if (!kept) return '';
-  return /[.!?]$/.test(kept) ? kept : `${kept}.`;
-}
-
 function normalize(c, language) {
   if (!RTL_LANGS.has(language)) return c;
-  for (const k of ['affirmation', 'identity', 'strength_name', 'strength_note', 'horizon_title', 'horizon_note', 'journey_note', 'score_framing', 'topic', 'lesson_mismatch_taught']) {
+  for (const k of ['affirmation', 'identity', 'strength_name', 'strength_note', 'horizon_title', 'horizon_note', 'journey_note', 'score_framing', 'topic']) {
     if (c[k]) c[k] = fixCodeswitch(c[k]);
   }
   (c.moments || []).forEach((m) => { m.title = fixCodeswitch(m.title); m.why = fixCodeswitch(m.why); });
@@ -276,11 +261,9 @@ Return STRICT JSON:
  "horizon_note":"one warm sentence naming the growth area without making her feel deficient",
  "journey_note":"one sentence on her ${sessionCount}-session arc (peaked at ${peak}%, keeps showing up). Honest + encouraging.",
  "score_framing":"one warm sentence framing overall ${pct}% as a stage in a journey, not a verdict."${isFico ? `,
- "domain_whys":{ ${Object.keys(FICO_DOMAIN_LABELS).map((k) => `"${k}":"..."`).join(', ')} }` : ''}${lessonMismatch ? `,
- "lesson_mismatch_taught":"..."` : ''}
+ "domain_whys":{ ${Object.keys(FICO_DOMAIN_LABELS).map((k) => `"${k}":"..."`).join(', ')} }` : ''}
 }
 moments: EXACTLY 3, the best real moments. Do NOT invent quotes — use real lines from the transcript.${lessonMismatch ? `
-lesson_mismatch_taught: ONE short sentence, in the report language and PAST TENSE, saying what the RECORDING shows you actually taught (the topic and one or two activities), taken ONLY from the transcript. It must not mention, compare with, or evaluate the lesson plan, must not say what was missing, and gives no advice. Write it ONLY in ${LANG_NAME[language] || 'English'} (for Urdu, in Urdu SCRIPT) — never add a translation or a second-language version of the sentence, even though the transcript is in another language.
 The selected lesson plan was for a different lesson: nowhere in this report — strengths, horizon, moments or any line — mention, list or judge the lesson plan's content.` : ''}
 ${isFico ? `
 domain_whys: ONE sentence per domain, in the report language, in the PAST TENSE, with NO instruction verb (no "try", "should", "could", "کریں", "چاہیے") — pure diagnosis, not advice; the single next-step lives elsewhere. Follow this EXACT two-clause skeleton (bd-43497, the locked reference):
@@ -346,13 +329,9 @@ async function generateReportNarrative(analysis, opts = {}) {
     } else {
       delete narrative.domain_whys;
     }
-    // bd-5lrgh: only ever a renderable string in the report's own script, and only when this was a mismatch.
-    if (typeof narrative.lesson_mismatch_taught === 'string') {
-      narrative.lesson_mismatch_taught = taughtSentenceInReportScript(narrative.lesson_mismatch_taught, language);
-    }
-    if (typeof narrative.lesson_mismatch_taught !== 'string' || !narrative.lesson_mismatch_taught.trim()) {
-      delete narrative.lesson_mismatch_taught;
-    }
+    // bd-5lrgh: the mismatch line is written in code and nothing is added to it (operator,
+    // 2026-10-01) — a taught-sentence the model volunteers never travels on.
+    delete narrative.lesson_mismatch_taught;
     narrative._language = language;
     return narrative;
   } catch (err) {
@@ -385,5 +364,5 @@ function subjectUnconfirmedNote(language) {
 }
 
 module.exports = {
-  generateReportNarrative, buildPrompt, LANG_NAME, fixCodeswitch, subjectUnconfirmedNote, taughtSentenceInReportScript,
+  generateReportNarrative, buildPrompt, LANG_NAME, fixCodeswitch, subjectUnconfirmedNote,
 };
