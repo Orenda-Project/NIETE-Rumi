@@ -3,7 +3,7 @@ import { getApiBaseUrl } from '@/lib/runtime';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
-import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse } from '../types/portal';
+import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
 // CORS and third-party cookies entirely. In the Capacitor app there is no
@@ -137,6 +137,56 @@ export const portal = {
     analytics: CoachingAnalytics;
   }> => {
     const response = await api.get('/coaching-analytics');
+    return response.data;
+  },
+
+  // ── bd-7hyj7: teacher self-observation from the portal ───────────────────
+
+  /** Sign a direct-to-R2 upload for one file. */
+  presignCoachingUpload: async (args: {
+    filename: string; sizeBytes: number; kind: 'audio' | 'lesson_plan' | 'photo';
+  }): Promise<{ key: string; uploadUrl: string; contentType: string }> => {
+    const response = await api.post('/coaching-upload/presign', args);
+    return response.data;
+  },
+
+  /**
+   * PUT the file straight to R2. Plain XHR rather than the `api` instance: it
+   * reports upload progress, and it sends NO session cookie — R2 does not need
+   * it, and a credentialed cross-origin request would need a stricter CORS rule.
+   * The Content-Type must be exactly the signed one or R2 rejects the PUT.
+   */
+  uploadToR2: (
+    uploadUrl: string, file: File, contentType: string, onProgress?: (loaded: number, total: number) => void,
+  ): Promise<void> => new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl);
+    xhr.setRequestHeader('Content-Type', contentType);
+    xhr.upload.onprogress = (e) => { if (onProgress && e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300
+      ? resolve()
+      : reject(new Error(`upload failed (${xhr.status})`)));
+    xhr.onerror = () => reject(new Error('upload failed (network)'));
+    xhr.send(file);
+  }),
+
+  /** Start the analysis. A 409 (one already running) rejects with err.response. */
+  startCoachingUpload: async (args: {
+    key: string; lessonPlanKey?: string; photoKeys: string[];
+  }): Promise<{ coachingSessionId: string }> => {
+    const response = await api.post('/coaching-upload/start', args);
+    return response.data;
+  },
+
+  getCoachingProgress: async (id: string): Promise<CoachingProgress> => {
+    const response = await api.get(`/coaching-session/${id}/progress`);
+    return response.data;
+  },
+
+  submitCoachingReflection: async (id: string, answer: string): Promise<{
+    done?: boolean; acknowledgement?: string | null; reportStatus?: string;
+  }> => {
+    const response = await api.post(`/coaching-session/${id}/reflection`, { answer });
     return response.data;
   },
 

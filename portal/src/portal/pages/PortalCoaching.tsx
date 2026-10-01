@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ScoreIndicator from '../components/ScoreIndicator';
 import { WHATSAPP_URL } from '@/lib/whatsapp';
-import { MessageSquare, TrendingUp } from 'lucide-react';
+import { MessageSquare, TrendingUp, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PortalLayout from '../components/PortalLayout';
 import CoachingSessionCard from '../components/CoachingSessionCard';
@@ -77,12 +77,21 @@ const PortalCoaching = () => {
               Review your coaching sessions and track your progress
             </p>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/portal/coaching/analytics" className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Analytics
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* bd-7hyj7: analyse a lesson from the portal, not only on WhatsApp. */}
+            <Button asChild size="sm">
+              <Link to="/portal/coaching/new" data-testid="analyse-lesson" className="flex items-center gap-2">
+                <Upload className="w-4 h-4" />
+                Analyse a lesson
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/portal/coaching/analytics" className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Analytics
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -158,7 +167,7 @@ const PortalCoaching = () => {
           <EmptyState
             icon={MessageSquare}
             title="No coaching sessions yet"
-            description="Complete your first coaching session using the WhatsApp bot"
+            description="Upload a lesson recording with “Analyse a lesson” above, or send one to the WhatsApp bot"
             actionLabel="Open WhatsApp"
             actionHref={WHATSAPP_URL}
           />
