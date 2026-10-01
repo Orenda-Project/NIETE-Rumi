@@ -629,6 +629,7 @@ exports.run = async ({ api, rec, sleep }) => {
   E('COA54', 'With COACHING_RECORDING_ENDS_WAIT off the recording no longer ends the wait');
   E('COA55', 'With NUDGE_OPEN_QUESTION_DEFER off the coaching ask no longer waits for the survey');
   E('COA56', 'In Urdu, the coaching messages never guess my gender');
+  E('COA59', 'Picking my lesson plan from the list asks me to confirm before it is used');
 
   // bd-hr97y: needs a COMPLETED coaching report older than 7 days for the driver account. The mock lane starts
   // from a fresh session and cannot age one; the no-window lookup is covered by
@@ -641,9 +642,6 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('COA17', 'The acknowledgement of my answer arrives as text when its voice is not ready in time, and the report still follows', 'BLOCKED',
       { reason: 'the voice gateway applies its 25 s deadline only when the cassette is off, so the mock lane cannot make the '
               + 'closer late. The deadline itself is covered by tests/tts/gateway.test.js.' }, 0);
-  rec('COA59', 'Picking my lesson plan from the list asks me to confirm before it is used', 'BLOCKED',
-      { reason: 'added on sandbox by bd-2c1gj (2026-09-30) after this driver was written — not driven yet. The list pick is '
-              + 'exercised by coaching-ext runs 4/5 (lp: recent), which link the plan without a confirmation step on this build.' }, 0);
 
   if (DEEP)
     rec('COA-pipeline', 'Pipeline steps observed end to end', 'PASS',

@@ -198,7 +198,15 @@ module.exports.run = async function runExt(ctx) {
           } else if (o.lp === 'recent') {
             const opener = btnOf(r, /Select|منتخب/i);
             if (!opener) { obs.lpReply = { via: 'recent', err: 'the LP prompt was Yes/No, not a list — no recent lesson plan was offered', btns: r.btns }; const rep = await tapRow(r, RX.no, 90000); obs.lpSend = short(rep && rep.txt, 120); }
-            else { const list = await api.openList(opener); const rows = (list && list.rows) || []; const pick = rows.find((x) => !/upload|اپلوڈ|^No\b|^نہیں|new|none|no lesson/i.test(x)); const rep = pick ? await api.pickRowAndWait(pick, 90000) : null; obs.lpReply = { via: 'recent', rows, picked: pick || null, txt: short(rep && rep.txt, 200) }; obs.lpSend = 'picked from the list'; }
+            else {
+              const list = await api.openList(opener); const rows = (list && list.rows) || []; const pick = rows.find((x) => !/upload|اپلوڈ|^No\b|^نہیں|new|none|no lesson/i.test(x));
+              const rep = pick ? await api.pickRowAndWait(pick, 90000) : null;
+              // bd-2c1gj (sandbox, 2026-09-30): the pick is CONFIRMED first — "You have selected *<plan>* … Do you want to proceed?"
+              // with Yes / Change lesson plan. COA59 is judged from this exchange.
+              let confirm = null;
+              if (rep && /proceed|آگے بڑھ|جاری/i.test(rep.txt || '') && btnOf(rep, RX.yes)) { const y = await tapRow(rep, RX.yes, 90000); confirm = { prompt: short(rep.txt, 200), btns: rep.btns, afterYes: short(y && y.txt, 200) }; }
+              obs.lpReply = { via: 'recent', rows, picked: pick || null, txt: short(rep && rep.txt, 200), confirm }; obs.lpSend = 'picked from the list';
+            }
           } else {
             const rep = await tapRow(r, RX.yes, 90000);
             // whatever the ask's wording (English or Urdu), "Yes" is answered by sending the plan
@@ -697,7 +705,7 @@ module.exports.run = async function runExt(ctx) {
     set('COA47', ...(q
       ? V(!offer.hit && q.status === 'skipped' && String((q.context || {}).skip_reason || '').includes('coaching_yes_today') && (Array.isArray(qrows) ? qrows.length === 1 : true),
           { quizOfferRow: { status: q.status, context: q.context, nudge_date: q.nudge_date }, offerArrived: !!offer.hit, prepare: prep.result || prep, sweep: sw2.result || sw2, lpDownloadSeed: dl })
-      : B('no lp_quiz_offer row was built for the driver — the cohort build is time-gated (LP_QUIZ_OFFER_SEND_HOUR_PKT) and skips a day already built or a non-school day', { prepare: prep.result || prep, sweep: sw2.result || sw2, lpDownloadSeed: dl, offerArrived: !!offer.hit })));
+      : B('no lp_quiz_offer row was built for the driver: the cohort for this PKT day already exists on the shared sandbox DB (alreadyBuilt — one build per day, any teacher), so prepare() will not build again until tomorrow; it is also skipped on a non-school day', { prepare: prep.result || prep, sweep: sw2.result || sw2, lpDownloadSeed: dl, offerArrived: !!offer.hit })));
     try { api.db('seed-lp-download', ['--restore']); } catch (_) {}
     const u = dbJson(api, 'user-get'); if (u.conversation_state) await api.setUser({ conversation_state: null, conversation_state_expires_at: null });
   });
