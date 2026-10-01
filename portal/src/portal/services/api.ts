@@ -264,6 +264,7 @@ export const portal = {
           assessmentGenerator: false,
           assessmentGeneratorMessage:
             "The assessment generator is being prepared for you. We'll notify you when it's live.",
+          selfObservation: false,
         },
       };
     }
@@ -352,6 +353,8 @@ export type PortalConfig = {
   features: {
     assessmentGenerator: boolean;
     assessmentGeneratorMessage: string | null;
+    /** bd-3bvfj — "Analyse a lesson" is on for THIS user (fail-closed). */
+    selfObservation?: boolean;
   };
 };
 

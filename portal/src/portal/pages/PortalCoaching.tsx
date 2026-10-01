@@ -19,6 +19,20 @@ const PortalCoaching = () => {
   const [sessions, setSessions] = useState<CoachingSession[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
+  // bd-3bvfj: "Analyse a lesson" ships dark — shown only when /config says the
+  // feature is on for this teacher. Off until that answer arrives, and off if
+  // it never does.
+  const [selfObservation, setSelfObservation] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    // Promise.resolve().then: a config client that throws synchronously must
+    // not take the page down — it is just "off".
+    Promise.resolve().then(() => portal.getConfig())
+      .then((cfg) => { if (live) setSelfObservation(cfg?.features?.selfObservation === true); })
+      .catch(() => { /* stays off */ });
+    return () => { live = false; };
+  }, []);
 
   // Fetch coaching sessions
   useEffect(() => {
@@ -79,12 +93,14 @@ const PortalCoaching = () => {
           </div>
           <div className="flex items-center gap-2">
             {/* bd-7hyj7: analyse a lesson from the portal, not only on WhatsApp. */}
-            <Button asChild size="sm">
-              <Link to="/portal/coaching/new" data-testid="analyse-lesson" className="flex items-center gap-2">
-                <Upload className="w-4 h-4" />
-                Analyse a lesson
-              </Link>
-            </Button>
+            {selfObservation && (
+              <Button asChild size="sm">
+                <Link to="/portal/coaching/new" data-testid="analyse-lesson" className="flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  Analyse a lesson
+                </Link>
+              </Button>
+            )}
             <Button asChild variant="outline" size="sm">
               <Link to="/portal/coaching/analytics" className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4" />
@@ -167,7 +183,9 @@ const PortalCoaching = () => {
           <EmptyState
             icon={MessageSquare}
             title="No coaching sessions yet"
-            description="Upload a lesson recording with “Analyse a lesson” above, or send one to the WhatsApp bot"
+            description={selfObservation
+              ? 'Upload a lesson recording with “Analyse a lesson” above, or send one to the WhatsApp bot'
+              : 'Complete your first coaching session using the WhatsApp bot'}
             actionLabel="Open WhatsApp"
             actionHref={WHATSAPP_URL}
           />
