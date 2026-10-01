@@ -122,20 +122,22 @@ async function _userByPhone(phone) {
  * @param {number} [opts.delayMs]
  */
 function scheduleFeedbackPrompt(opts) {
-  const { segmentId, userId, phone, lang, delayMs = FEEDBACK_DELAY_MS } = opts || {};
+  const { segmentId, userId, phone, lang, renderId = null, delayMs = FEEDBACK_DELAY_MS } = opts || {};
   if (!segmentId || !userId || !phone) {
     logToFile('LP 6-12 feedback: prompt not scheduled, missing field', { segmentId, userId, phone });
     return;
   }
 
+  // `renderId` is carried but never REQUIRED: a prompt that refused to schedule because an
+  // id was absent would trade a teacher's verdict for a column, which is the wrong way round.
   logEvent('lp612.feedback.scheduled', {
-    segmentId, userId, lang: clampLanguage(lang), delayMs,
+    segmentId, userId, renderId, lang: clampLanguage(lang), delayMs,
   });
 
   const timer = setTimeout(() => {
     // Exported-object call, not the bare function: the delivery path spies on this module, and a
     // direct reference would bypass a test double AND make the two impossible to tell apart.
-    module.exports.sendFeedbackPrompt({ segmentId, userId, phone, lang }).catch((err) => {
+    module.exports.sendFeedbackPrompt({ segmentId, userId, phone, lang, renderId }).catch((err) => {
       logToFile('LP 6-12 feedback: prompt send threw', { segmentId, userId, error: err.message });
     });
   }, delayMs);
@@ -144,7 +146,7 @@ function scheduleFeedbackPrompt(opts) {
 
 // ─── 2. send ────────────────────────────────────────────────────────────────
 
-async function sendFeedbackPrompt({ segmentId, userId, phone, lang }) {
+async function sendFeedbackPrompt({ segmentId, userId, phone, lang, renderId = null }) {
   const docLang = clampLanguage(lang);
   const voice = await _voiceOf(userId, lang);
 
@@ -184,7 +186,12 @@ async function sendFeedbackPrompt({ segmentId, userId, phone, lang }) {
     ],
   });
 
-  logEvent('lp612.feedback.prompt_sent', { segmentId, userId, lang: docLang, voice, ok: ok !== false });
+  // The tap arrives LATER as `lp612_fb_(yes|no)_(en|ur)_<segment_id>`, which carries no render
+  // id — so the join from a verdict back to the artifact is made here, in Axiom, on
+  // (segmentId, userId). A direct SQL join still needs a render column on `lp_feedback`. bd-jsong.
+  logEvent('lp612.feedback.prompt_sent', {
+    segmentId, userId, renderId, lang: docLang, voice, ok: ok !== false,
+  });
 }
 
 // ─── 3. the tap ─────────────────────────────────────────────────────────────

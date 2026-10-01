@@ -27,6 +27,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { logToFile } = require('../utils/logger');
+const { logEvent } = require('../utils/structured-logger');
 const { isLp612WideSegmentsEnabled } = require('../config/lp612-flags');
 
 const R2_PREFIX = 'lp612/page-truth';
@@ -278,9 +279,13 @@ function figureKeyFor(ref) {
  * Never throws for a missing crop — a lesson without its picture still ships.
  * @returns {Promise<{staged: string[], missing: string[]}>}
  */
-async function stageFigures({ refs = [], outDir, correlationId } = {}) {
+async function stageFigures({ refs = [], outDir, correlationId, segmentId, renderId } = {}) {
   const staged = [];
   const missing = [];
+  // ref -> why it did not arrive. 'not on disk' is a bad reference, 'empty' is a bad
+  // upload, an R2 message is neither — three different fixes in three different places,
+  // and until now all three arrived as the same silence.
+  const reasons = {};
   if (!refs.length) return { staged, missing };
 
   const localDir = process.env.LP612_PAGE_TRUTH_DIR || null;
@@ -305,17 +310,26 @@ async function stageFigures({ refs = [], outDir, correlationId } = {}) {
         fs.mkdirSync(path.dirname(dest), { recursive: true });
         fs.writeFileSync(dest, buf);
         staged.push(ref);
-      } catch (_) {
+      } catch (err) {
         missing.push(ref);
+        reasons[ref] = (err && err.message) || 'unknown';
       }
     })
   );
 
   if (missing.length) {
-    logToFile(
-      `lp612.figures.missing correlationId=${correlationId || '-'} ` +
-        `missing=${missing.join(',')} staged=${staged.length}`
-    );
+    // logEvent, not logToFile: the free-text form never matched `where event == "…"`, so a crop
+    // that failed to arrive was undetectable in Axiom even though the degraded page shipped to a
+    // teacher. bd-7wr3f (§1.8).
+    logEvent('lp612.figures.missing', {
+      correlationId: correlationId || undefined,
+      segmentId,
+      renderId,
+      missing,
+      missingCount: missing.length,
+      stagedCount: staged.length,
+      reasons,
+    });
   }
   return { staged, missing };
 }

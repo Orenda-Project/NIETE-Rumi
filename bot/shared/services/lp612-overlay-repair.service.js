@@ -121,7 +121,10 @@ async function repairRow(row, lpDoc, { model, correlationId, keys }) {
     // notice herself. The row is left for a later run and counted by name in the summary.
     const figRefs = refsFromDoc(up.doc);
     if (figRefs.length) {
-      const { missing } = await stageFigures({ refs: figRefs, outDir, correlationId });
+      // No renderId here on purpose: a backfill has not rendered anything yet. The segment id
+      // is what makes a refused row findable.
+      const { missing } = await stageFigures({
+        refs: figRefs, outDir, correlationId, segmentId: row.segment_id });
       if (missing.length) {
         return { repaired: false, reason: REPAIR_SKIPPED.FIGURES_MISSING, missing };
       }
