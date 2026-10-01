@@ -174,8 +174,15 @@ describe('the greeting after the join form', () => {
     });
   }
 
-  const greeting = () => WhatsAppService.sendMessage.mock.calls.map((c) => c[1])
-    .find((t) => /بہت خوب|Great —/.test(String(t)));
+  // The "let's begin" line rides at the top of question 1's first bubble when
+  // that opens with text (bd-w2daa.7), else it is a text of its own — so it is
+  // read as its own paragraph out of whichever message carries it.
+  const greeting = () => [
+    ...WhatsAppService.sendMessage.mock.calls.map((c) => c[1]),
+    ...WhatsAppService.sendInteractiveButtons.mock.calls.map((c) => c[1] && c[1].body),
+    ...WhatsAppService.sendInteractiveMessage.mock.calls.map((c) => c[1] && c[1].body && c[1].body.text),
+  ].flatMap((t) => String(t || '').split('\n\n'))
+    .find((t) => /بہت خوب|Great —/.test(t));
 
   beforeEach(() => { jest.clearAllMocks(); });
 

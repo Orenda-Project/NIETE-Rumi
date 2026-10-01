@@ -305,8 +305,9 @@ async function runChain(source, language) {
   out.handoffMessages = to(TPHONE).map((m) => m.fn);
   out.forwardable = quizRow().meta.student_message;
   out.handoffCaption = (to(TPHONE).find((m) => m.fn === 'sendDocument') || { args: [] }).args[2];
-  out.reportPromise = to(TPHONE).some((m) => m.fn === 'sendMessage'
-    && textOf(m) === resolveUx('tqReportPromise', { language }));
+  // The promise closes the PDF caption (bd-w2daa.7: it was a third message).
+  out.reportPromise = String(out.handoffCaption || '').endsWith(`\n\n${resolveUx('tqReportPromise', { language })}`)
+    && !to(TPHONE).some((m) => m.fn === 'sendMessage' && textOf(m) === resolveUx('tqReportPromise', { language }));
   out.nudgeQueued = mockJobs.some((j) => j.jobType === 'quiz_nudge_teacher' && j.payload.quizId === QUIZ);
   out.shareCodeRow = mockDb.table('quiz_share_codes')[0];
 
@@ -334,7 +335,8 @@ async function runChain(source, language) {
     status: sess.status, answered: sess.total_questions_answered, correct: sess.correct_answers, pct: sess.mastery_percentage,
   };
   out.childQuestions = to(CHILD).filter((m) => /Interactive|Buttons|List/.test(m.fn)).length;
-  out.scorecard = to(CHILD).some((m) => m.fn === 'sendImageFromBuffer');
+  // The scorecard rides as the image header of the invite buttons (bd-w2daa.7).
+  out.scorecard = to(CHILD).some((m) => m.fn === 'sendImageFromBuffer' || m.fn === 'sendImageBufferWithButtons');
   out.scorecardEvent = mockEvents.find((e) => e.name === 'video_quiz.scorecard_sent') || null;
 
   // 4. the scheduled class report
@@ -396,11 +398,11 @@ describe.each([
     lp = await runChain(source, language);
   });
 
-  test('hand-off: PDF, the forwardable link, the report promise; status sent; the nudge queued', () => {
+  test('hand-off: PDF (the report promise in its caption), the forwardable link; status sent; the nudge queued', () => {
     for (const run of [transcript, lp]) {
       expect(run.generate).toEqual(expect.objectContaining({ ok: true }));
       expect(run.afterHandoff).toEqual(expect.objectContaining({ status: 'sent', step: 'sent' }));
-      expect(run.handoffMessages).toEqual(['sendDocument', 'sendMessage', 'sendMessage']);
+      expect(run.handoffMessages).toEqual(['sendDocument', 'sendMessage']);
       expect(run.reportPromise).toBe(true);
       expect(run.nudgeQueued).toBe(true);
       expect(run.forwardable).toContain(`QUIZ-${run.afterHandoff.shareCode}`);

@@ -1719,4 +1719,19 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   rec('T93', 'Asking again within the hour gets no reply at all', 'BLOCKED',
       { reason: APP_REDIRECT_WHY }, 0);
 
+  // bd-w2daa.7 — fewer bubbles, same words (the Meta bill cut). Recorded with the reason, not left
+  // absent: no driver yet reads reactions or counts a child's bubbles on this lane. Each rule is
+  // covered red-first by the suites named in the spec's section header.
+  {
+    const why = 'no driver yet counts a child\'s bubbles or reads reactions on this lane; covered by '
+      + 'tests/quiz/child-quiz-fewer-bubbles.test.js, child-refusals-once-a-day.test.js and '
+      + 'teacher-quiz-handoff-fewer-bubbles.test.js';
+    rec('T94', 'A child\'s answer gets a ✅ or ❌ on the tap, and the verdict rides on the next question when that one starts with words', 'BLOCKED', { reason: why }, 0);
+    rec('T95', 'A double tap does not bring the same question twice', 'BLOCKED', { reason: why }, 0);
+    rec('T96', 'A class quiz opens in one message when its first question starts with words', 'BLOCKED', { reason: why }, 0);
+    rec('T97', 'The score card is the picture on the "invite a friend" message', 'BLOCKED', { reason: why }, 0);
+    rec('T98', 'A child who keeps sending voice notes hears the "please type" line once a day', 'BLOCKED', { reason: why }, 0);
+    rec('T99', '"Not now" on the quiz offer is answered with a 👍', 'BLOCKED', { reason: why }, 0);
+  }
+
 };

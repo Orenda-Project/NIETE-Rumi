@@ -90,9 +90,10 @@ async function lessonQuizPromise(teacherLang) {
     },
   });
   expect(out.ok).toBe(true);
-  // The promise is the LAST text of a first send: after the forward line and the forwardable message.
-  const texts = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]);
-  return texts[texts.length - 1];
+  // The promise closes the PDF's caption on a first send (it used to be a
+  // message of its own after the link — one billed message, same words).
+  const caption = WhatsAppService.sendDocument.mock.calls[0][3];
+  return caption.split('\n\n').pop();
 }
 
 async function classLinkPromise(language) {
@@ -102,8 +103,10 @@ async function classLinkPromise(language) {
     quiz_share_codes: { data: [{ id: 'sc-9', code: 'K7RM2P' }] },
   });
   await RealShare.deliverClassLink({ quizId: QID, userId: 'u-1', videoId: 'v-1', language }, '920000000001');
+  // The promise opens the "forward THIS one" message; the class message
+  // itself stays alone and last.
   const texts = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]);
-  return texts[texts.length - 1];
+  return texts[0].split('\n\n')[0];
 }
 
 beforeEach(() => { jest.clearAllMocks(); WhatsAppService.sendMessage.mockResolvedValue(true); });

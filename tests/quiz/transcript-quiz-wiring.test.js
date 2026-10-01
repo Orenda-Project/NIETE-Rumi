@@ -90,8 +90,12 @@ describe('video-quiz startSession without a video', () => {
     await VQ.startSession({ phone: '923001234567', userId: null, quizId: 'qz', videoId: null, language: 'ur', source: 'share_link', studentName: 'Ali', shareCodeId: 'sc' });
     expect(from.mock.calls.map((c) => c[0])).not.toContain('student_videos');
     expect(WA.sendVideoFromUrl).not.toHaveBeenCalled();
-    // The opener is in the QUIZ language.
-    expect(WA.sendMessage.mock.calls[0][1]).toMatch(/[؀-ۿ]/);
+    // The opener is in the QUIZ language. It rides at the top of question 1's
+    // first bubble when that opens with text (bd-w2daa.7), else it is a text.
+    const Sender = require('../../bot/shared/services/quiz/video-quiz-sender.service');
+    const carried = Sender.sendPhase.mock.calls.flatMap((c) => c[1] || []).find((m) => m.lead);
+    const opener = carried ? carried.lead : WA.sendMessage.mock.calls[0][1];
+    expect(opener).toMatch(/[؀-ۿ]/);
   });
 });
 

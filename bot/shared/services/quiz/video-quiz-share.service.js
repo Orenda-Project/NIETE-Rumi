@@ -218,14 +218,17 @@ async function deliverClassLink(ctx, phone) {
   }
 
   const link = `https://wa.me/${botNumber()}?text=QUIZ-${minted.code}`;
-  await WhatsAppService.sendMessage(phone, ux('vqShareForwardThis', lang));
+  // The report promise rides on the "forward THIS one" line, ahead of it —
+  // it used to be a third message after the class message. The class message
+  // stays alone and LAST, so the thing to forward is the newest bubble.
+  await WhatsAppService.sendMessage(phone,
+    `${ux('vqShareReportPromise', lang)}\n\n${ux('vqShareForwardThis', lang)}`);
   // Sent as its own message so forwarding it carries nothing else.
   await WhatsAppService.sendMessage(phone, ux('vqClassMessage', lang, {
     teacher: minted.teacherName,
     topic: minted.topic || ux('vqTodaysVideo', lang),
     link,
   }));
-  await WhatsAppService.sendMessage(phone, ux('vqShareReportPromise', lang));
 
   logEvent('video_quiz.share_code_minted', {
     userId: ctx.userId, quizId: ctx.quizId, code: minted.code,
@@ -349,12 +352,12 @@ async function beginFromCode(phone, code) {
   const selfTest = await TeacherSelfTest.resolveSelfTest({ phone, teacherUserId: ctx.teacherUserId });
   if (selfTest) {
     await redisService.delete(JOIN_KEY(phone));
-    await WhatsAppService.sendMessage(phone, ux('vqSelfTestStart', lang));
     // `id: null` explicitly: startForStudent reads `student.id` for the
     // `students` FK, and an undefined there is one JSON round-trip away from
     // becoming a silent surprise. The teacher has no students row, by design.
+    // The "your own test run" line rides on the quiz's first bubble (lead).
     await startForStudent(phone, ctx, { id: null, student_name: selfTest.name || null },
-      { selfTestUserId: selfTest.userId });
+      { selfTestUserId: selfTest.userId, lead: ux('vqSelfTestStart', lang) });
     // The event carries ids only — never the phone and never the name.
     logEvent('video_quiz.teacher_self_test', {
       shareCodeId: ctx.shareCodeId, quizId: ctx.quizId, userId: selfTest.userId,
@@ -382,9 +385,12 @@ async function beginFromCode(phone, code) {
     // again just because their teacher shared a new quiz.
     const s = known[0];
     await redisService.delete(JOIN_KEY(phone));
-    await WhatsAppService.sendMessage(phone,
-      `${greeting}\n\n${ux('vqWelcomeBack', lang, { name: s.student_name })}`);
-    await startForStudent(phone, ctx, s);
+    // The greeting is no longer a bubble of its own: it rides on the first
+    // thing the quiz sends — question 1 when that opens with text, else one
+    // text with "Here we go", or with the lesson note when a lesson goes first.
+    await startForStudent(phone, ctx, s, {
+      lead: `${greeting}\n\n${ux('vqWelcomeBack', lang, { name: s.student_name })}`,
+    });
     logEvent('video_quiz.share_code_opened', {
       code, quizId: sc.quiz_id, recognised: true,
     });
@@ -488,15 +494,13 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
     phone, name, className, enrolledByUserId: sc.teacher_user_id || null,
   });
 
-  await WhatsAppService.sendMessage(phone,
-    ux('vqLetsBegin', lang, { who: whoLabel(name, className, lang) }));
-
+  // "Great — {who}. Let's begin!" rides on the quiz's first bubble (lead).
   await startForStudent(phone, {
     shareCodeId: sc.id, quizId: sc.quiz_id, videoId: sc.video_id,
     language: sc.language || 'en',
   }, {
     id: student?.id || null, student_name: name, self_reported_class: className,
-  });
+  }, { lead: ux('vqLetsBegin', lang, { who: whoLabel(name, className, lang) }) });
 
   logEvent('video_quiz.join_flow_completed', {
     shareCodeId: sc.id, quizId: sc.quiz_id, studentId: student?.id || null,
@@ -516,6 +520,9 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
 async function startForStudent(phone, ctx, student, opts = {}) {
   const VideoQuizService = require('./video-quiz.service');
   await VideoQuizService.startSession({
+    // What the caller would have sent just before the quiz; it rides on the
+    // quiz's first bubble instead (see startSession).
+    lead: opts.lead || null,
     phone, userId: opts.selfTestUserId || null, quizId: ctx.quizId, videoId: ctx.videoId,
     language: ctx.language, source: 'share_link',
     studentName: student.student_name || student.name,
@@ -558,11 +565,10 @@ async function consumeJoinReply(phone, text) {
     }
     const chosen = list[pick - 1];
     await redisService.delete(JOIN_KEY(phone));
-    await WhatsAppService.sendMessage(phone, ux('vqLetsBeginName', lang, { name: chosen.name }));
     await StudentIdentity.touch(chosen.id);
     await startForStudent(phone, st, {
       id: chosen.id, student_name: chosen.name, self_reported_class: chosen.className,
-    });
+    }, { lead: ux('vqLetsBeginName', lang, { name: chosen.name }) });
     return true;
   }
 
@@ -589,8 +595,6 @@ async function consumeJoinReply(phone, text) {
   if (st.step === 'class') {
     st.studentClass = value.slice(0, 40);
     await redisService.delete(JOIN_KEY(phone));
-    await WhatsAppService.sendMessage(phone,
-      ux('vqLetsBegin', lang, { who: whoLabel(st.studentName, st.studentClass, lang) }));
 
     // bd-2337 — remember them, so the next quiz their teacher shares opens
     // straight at question 1. Best-effort: if this fails the quiz still runs,
@@ -604,6 +608,8 @@ async function consumeJoinReply(phone, text) {
     await VideoQuizService.startSession({
       phone, userId: null, quizId: st.quizId, videoId: st.videoId,
       language: st.language, source: 'share_link',
+      // "Great — {who}. Let's begin!" rides on the quiz's first bubble.
+      lead: ux('vqLetsBegin', lang, { who: whoLabel(st.studentName, st.studentClass, lang) }),
       studentName: st.studentName, studentClass: st.studentClass,
       studentId: student?.id || null,
       shareCodeId: st.shareCodeId,

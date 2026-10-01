@@ -80,12 +80,11 @@ describe('SELECT_TOPIC → deliver, child token', () => {
     });
     expect(res.screen).toBe('SUCCESS');
 
-    // Pre-delivery ack resolves phone straight from the token — no supabase round trip.
-    // Budgeted: the ack is awaited inside Meta's data_exchange window, so per-recipient pacing
-    // may not hold it — past the budget it is skipped (the video follows).
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(
-      '923001234567', expect.stringContaining('Identifying Even and Odd Numbers'),
-      { budget: expect.objectContaining({ ifLate: 'skip' }) });
+    // No pre-delivery ack for a child whose video has a quiz: the quiz's own
+    // lesson note ("First, here is the lesson…") is sent before the upload, and
+    // the Flow's SUCCESS screen already said the video is on its way — one note
+    // before the video, not two (Meta bills each).
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
 
     await flush();
 

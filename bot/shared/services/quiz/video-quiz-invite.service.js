@@ -42,6 +42,9 @@ function firstName(full, fallback = 'Your friend') {
   return String(full || '').trim().split(/\s+/)[0] || fallback;
 }
 
+/** Meta's interactive body cap, in code points. */
+const BODY_MAX = 1024;
+
 /**
  * Offer the invite after a child finishes.
  *
@@ -50,7 +53,7 @@ function firstName(full, fallback = 'Your friend') {
  * keep.
  */
 async function offerInvite({ phone, studentId, shareCodeId, language = 'en',
-                             sessionId = null, quizId = null }) {
+                             sessionId = null, quizId = null, scorecard = null }) {
   if (!studentId || !shareCodeId) return false;
   await redisService.set(INVITE_KEY(phone), { studentId, shareCodeId, language, sessionId, quizId },
     INVITE_TTL_SECS);
@@ -60,16 +63,44 @@ async function offerInvite({ phone, studentId, shareCodeId, language = 'en',
   // send here is a send the limiter cannot see, and the whole point of the
   // window is that every send against a pair is counted.
   const rateLimiter = require('./video-quiz-rate-limiter.service');
-  await rateLimiter.throttle(phone);
-  await WhatsAppService.sendInteractiveButtons(phone, {
-    body: resolveUx('vqInviteAsk', { language }),
-    buttons: [
-      { id: INVITE_YES, title: resolveUx('vqInviteYes', { language }) },   // ≤ 20 code points, asserted in tests
-      { id: INVITE_NO, title: resolveUx('vqInviteNo', { language }) },
-    ],
-  });
+  const ask = resolveUx('vqInviteAsk', { language });
+  const buttons = [
+    { id: INVITE_YES, title: resolveUx('vqInviteYes', { language }) },   // ≤ 20 code points, asserted in tests
+    { id: INVITE_NO, title: resolveUx('vqInviteNo', { language }) },
+  ];
+  // `scorecard` — { png, caption } — is the child's result, handed over unsent
+  // so it can ride on THIS message: the picture as the header, its caption
+  // above the question. One message where there were two. Anything that stops
+  // the combined send (a body past Meta's cap, Meta refusing it) sends exactly
+  // the two messages of before. `scorecard.delivered` tells the caller the
+  // result reached the child, so it is never lost.
+  let asked = false;
+  if (scorecard && scorecard.caption) {
+    const body = `${scorecard.caption}\n\n${ask}`;
+    if ([...body].length <= BODY_MAX) {
+      await rateLimiter.throttle(phone);
+      asked = scorecard.png
+        ? await WhatsAppService.sendImageBufferWithButtons(phone, scorecard.png, body, buttons)
+        : await WhatsAppService.sendInteractiveButtons(phone, { body, buttons });
+      scorecard.delivered = Boolean(asked);
+      scorecard.asHeader = Boolean(asked && scorecard.png);
+    }
+    if (!asked) {
+      await rateLimiter.throttle(phone);
+      scorecard.delivered = Boolean(scorecard.png
+        ? await WhatsAppService.sendImageFromBuffer(phone, scorecard.png, scorecard.caption)
+        : await WhatsAppService.sendMessage(phone, scorecard.caption));
+    }
+  }
+  if (!asked) {
+    await rateLimiter.throttle(phone);
+    await WhatsAppService.sendInteractiveButtons(phone, { body: ask, buttons });
+  }
   // The invite is only ever offered on a share_link session.
-  logEvent('video_quiz.offer_shown', { kind: 'invite', sessionId, quizId, source: 'share_link', language });
+  logEvent('video_quiz.offer_shown', {
+    kind: 'invite', sessionId, quizId, source: 'share_link', language,
+    withScorecard: Boolean(scorecard && asked),
+  });
 
   // The videos offer must reach this child whether they answer or not. A tap
   // offers it at once (handleInviteButton); silence offers it after

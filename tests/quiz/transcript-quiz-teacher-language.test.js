@@ -165,7 +165,7 @@ describe('every teacher-facing surface answers in her stored language', () => {
     expect(WA.sendMessage.mock.calls[0][1]).toBe(en('tqMaking'));
   });
 
-  test('the three hand-off messages, and the PDF chrome', async () => {
+  test('the two hand-off messages, and the PDF chrome', async () => {
     Author.author.mockResolvedValue({ questions: EIGHT, model: 'm', costUsd: 0.01, latencyMs: 100, lessonSummary: LESSON_SUMMARY });
     installFrom(supabase.from, {
       quizzes: (calls) => (calls.some((c) => c[0] === 'update') ? { data: [{ id: QID }] } : { data: [QUIZ] }),
@@ -175,13 +175,16 @@ describe('every teacher-facing surface answers in her stored language', () => {
     });
     await Gen.process(QID, {});
 
-    expect(WA.sendDocument.mock.calls[0][3]).toBe(en('tqHandoffIntro', {
+    // The caption is the intro, then the report promise — both in HER language.
+    // (The promise used to be a third message after the link; it rides in the
+    // caption now, and the forwardable is the last thing she is sent.)
+    expect(WA.sendDocument.mock.calls[0][3]).toBe(`${en('tqHandoffIntro', {
       lesson: lessonLabel({ digest: DIGEST, quizLanguage: 'ur', teacherLanguage: 'en' }), n: 8,
-    }));
-    // The middle message is the forwardable one, in the QUIZ language — it is
+    })}\n\n${en('tqReportPromise')}`);
+    // The other message is the forwardable one, in the QUIZ language — it is
     // read by children, not by her, so it is deliberately not English here.
     expect(WA.sendMessage.mock.calls[0][1]).toMatch(/[؀-ۿ]/);
-    expect(WA.sendMessage.mock.calls[1][1]).toBe(en('tqReportPromise'));
+    expect(WA.sendMessage).toHaveBeenCalledTimes(1);
     // The DOCUMENT is not one of her surfaces in that sense: PLAN_R4 D1 makes
     // the PDF single-language, and the language it speaks is the QUIZ's — she
     // chose it for this quiz, and it is what her class will read. Her stored

@@ -106,6 +106,15 @@ function callLog() {
   WhatsAppService.sendVideoFromUrl.mockImplementation((_p, url, cap) => {
     calls.push(['video', url, cap]); return Promise.resolve(true);
   });
+  // "Here we go — n questions" now rides at the top of question 1's first
+  // bubble when that opens with text (it was a text of its own), so the
+  // question send is logged with whatever line it carries.
+  const sender = require('../../shared/services/quiz/video-quiz-sender.service');
+  sender.sendPhase.mockImplementation(async (_p, msgs, phase) => {
+    const carried = (Array.isArray(msgs) ? msgs : []).find((m) => m.phase === phase && m.lead);
+    calls.push(['question', carried ? carried.lead : '', phase]);
+    return { pickerFailed: false };
+  });
   return calls;
 }
 
