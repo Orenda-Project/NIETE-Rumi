@@ -90,6 +90,13 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     Given a teacher chose the tap marking method for a class
     When I mark the absent students in the Flow and submit
     Then the bot confirms and a monthly Excel register document is delivered (not asserting exact cell values / counts / dates)
+    And after the Flow closes the chat gets NOTHING else — in particular never "Thanks for your response! Type /menu to see what I can help you with."
+    # UPDATED 2026-10-01 (Meta bill cut, NO3 / N2-O08): 1,461 saves a week were followed by that
+    # English catch-all. The completion carries only what the PUBLISHED asset's SAVED Footer asks
+    # for; production's asset predates the attendance_action tag, so the completion arrives as
+    # { flow_token } alone and a teacher's bare "<userId>" token matched no rule. The teacher's
+    # token is now "<userId>:student" (flow-type-detector reads it), which works whatever asset a
+    # WABA holds. The in-Flow SAVED screen and the register document are the confirmation.
     # flow-response.handler.js:579 handleAttendanceMarkingFlow →
     # attendance-flow.handler.js:278 handleMarkingFlowSubmission (absent set vs all)
     # → processAndDeliver markingMethod:'tap'. Flow gated on ATTENDANCE_MARKING_FLOW_ID.
@@ -118,6 +125,16 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     Then the bot opens the "Add New Class" setup Flow
     # attendance-detector.service.js:171 detectAddClassIntent →
     # text-message.handler.js:2066 (header "Add New Class", always fires).
+
+  @e2e @wip @flow @P2
+  Scenario: Saving in the class manager (/class) is answered by its own screen, not the /menu catch-all
+    Given a teacher opened the class manager with /class
+    When I add a class and the Flow closes on its saved screen
+    Then the chat gets no "Thanks for your response! Type /menu to see what I can help you with."
+    # UPDATED 2026-10-01 (Meta bill cut, NO3 / N2-O08): the class manager's SAVED Footer completes
+    # with an empty payload on every WABA, so its completion fell to the catch-all (89 a week). Every
+    # sender now builds the token "<userId>:classes" (class-entry.service.js classManagerFlowToken);
+    # flow-type-detector names it class_manager and the webhook only logs it.
 
   @e2e @wip @flow @P2
   Scenario: /edit-class opens the roster editor

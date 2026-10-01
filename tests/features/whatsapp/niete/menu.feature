@@ -172,15 +172,31 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   # the text path, so its copy is NOT teacher-visible. The scenario pins what teachers see.
 
   @e2e @menu @negative @copy @P3
-  Scenario: A menu number outside 1-4 gets the choose-an-option nudge and starts nothing
+  Scenario: Free text after /menu is answered as an ordinary message, not with a choose-1-4 nudge
     Given the NIETE bot chat is open
     And I have just sent "/menu"
     When I send "7"
-    Then the bot reply contains "choose an option (1-4)"
-    And the reply offers "/menu" to see the menu again
+    Then the bot answers the message
+    And the reply does NOT contain "choose an option (1-4)"
     And no feature is started
-    # HelperAgentService.getEscapePathMessage('AWAITING_MENU_CHOICE') — "📋 Please choose an
-    # option (1-4) from the menu above.\n\nOr type /menu to see the menu again."
+    # UPDATED 2026-10-01 (Meta bill cut, NO3): the menu a teacher sees is a WhatsApp LIST of named
+    # rows with no 1-4 in it, and the wait it parks (AWAITING_MENU_CHOICE) lasts an hour. Any free
+    # text in that hour used to get "📋 Please choose an option (1-4) from the menu above…" and was
+    # dropped — 712 a week, 478 of them real requests, 562 followed by the teacher writing again
+    # within 5 minutes. Free text now ENDS the menu wait (flow-scoped) and is routed like any other
+    # message (text-message.handler.js, the AWAITING_MENU_CHOICE block). A digit 1-4 still picks from
+    # the numbered TEXT menu, which is sent when the list cannot be.
+
+  @e2e @menu @edge @P2
+  Scenario: Tapping a menu row ends the menu wait, so the next free text is answered
+    Given the NIETE bot chat is open
+    And I have just sent "/menu"
+    When I tap a menu row that opens a Flow, such as "Lesson Plans"
+    And I then send "Lesson for class 4 Urdu"
+    Then the bot answers that message as a request
+    And it does NOT reply "choose an option (1-4)"
+    # menu.service.js handleMenuButtonResponse clears the 'menu' flow's wait (flow-scoped — another
+    # feature's work in progress is untouched) before routing the row.
   # ═══════ ROLE-BASED ROWS (row 122, 2026-09-15) · DC and HITL by persona ═══════
   # The four rows above are the TEACHER menu and remain exactly that. Two of the
   # features are role-shaped and the menu used to say so nowhere: DC is "coach ME

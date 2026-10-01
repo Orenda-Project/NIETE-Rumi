@@ -86,13 +86,15 @@ beforeEach(() => {
 });
 
 describe('startDebrief', () => {
-  test('happy path: guide message + recording instruction, state armed with sessionId', async () => {
+  test('happy path: guide + recording instruction in ONE message, state armed with sessionId', async () => {
     await startDebrief(SID, FROM, FO);
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
-    const [guideMsg, recordMsg] = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]);
-    expect(guideMsg).toContain('1️⃣');
-    expect(guideMsg).toContain('Asante kwa kunikaribisha');
-    expect(recordMsg).toMatch(/rekodi|🎙/i);
+    // One billed message: the instruction is the guide's last paragraph.
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
+    const msg = WhatsAppService.sendMessage.mock.calls[0][1];
+    expect(msg).toContain('1️⃣');
+    expect(msg).toContain('Asante kwa kunikaribisha');
+    const tail = msg.slice(msg.lastIndexOf('\n\n') + 2);
+    expect(tail).toMatch(/rekodi|🎙/i);
     expect(ObserveState.setState).toHaveBeenCalledWith(
       'fo-uuid-1', 'awaiting_debrief_audio', expect.objectContaining({ sessionId: SID }));
   });
@@ -115,7 +117,7 @@ describe('startDebrief', () => {
   test('LLM failure → deterministic fallback guide still delivered + state armed', async () => {
     GPT5MiniService.completeJson.mockRejectedValue(new Error('llm down'));
     await startDebrief(SID, FROM, FO);
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1); // guide + instruction, one message
     const guideMsg = WhatsAppService.sendMessage.mock.calls[0][1];
     expect(guideMsg).toContain('vijiti');           // v2 evidence survives into fallback
     expect(guideMsg).not.toMatch(/40\s*\/\s*75|53/); // still score-free
@@ -163,9 +165,10 @@ describe('startDebrief', () => {
     expect(GPT5MiniService.completeJson).not.toHaveBeenCalled();
     expect(ObserveState.setState).not.toHaveBeenCalled();  // no re-arm churn
     // re-verify fix: re-send the GUIDE (from snapshot) + the nudge, so a
-    // silently-failed first send is repaired, not just re-nudged
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+    // silently-failed first send is repaired, not just re-nudged — as one message
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
     expect(WhatsAppService.sendMessage.mock.calls[0][1]).toContain('1️⃣');
+    expect(WhatsAppService.sendMessage.mock.calls[0][1]).toMatch(/rekodi|🎙/i);
   });
 
   test('armed for a DIFFERENT session → still builds this one (not blocked)', async () => {

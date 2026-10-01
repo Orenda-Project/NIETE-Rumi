@@ -61,7 +61,7 @@ async function coachLanguage(user) {
  * Attach one classroom photo to a KNOWN session. On the photo step → capture +
  * add-another/done prompt; still processing (race) → hold on the session.
  */
-async function attachClassroomPhoto({ user, from, mediaId, mimeType, session, claim = true }) {
+async function attachClassroomPhoto({ user, from, mediaId, mimeType, session, claim = true, messageId = null }) {
   if (claim) {
     const ok = await claimMedia(user.id, mediaId, 'classroom_photo_handled');
     if (!ok) {
@@ -78,7 +78,8 @@ async function attachClassroomPhoto({ user, from, mediaId, mimeType, session, cl
   if (onPhotoStep) {
     await capturePhotoAndPrompt({ session, imageBuffer, mimeType: mime, from, user });
   } else {
-    await holdPhotoForSession({ session, imageBuffer, mimeType: mime, from, user });
+    // Meta bill cut NC4 (N2-C07): the photo's wamid lets the hold ack be a 📸 reaction.
+    await holdPhotoForSession({ session, imageBuffer, mimeType: mime, from, user, messageId });
   }
   logToFile('📸 Classroom photo attached', {
     coachingSessionId: session.id, userId: user.id, imageId: mediaId, mode: onPhotoStep ? 'capture' : 'hold',
@@ -164,14 +165,14 @@ async function parkAndAsk({ user, from, kind, mediaId, mimeType, candidates }) {
  * @returns {Promise<boolean>} true when handled (attached, parked, or a dupe);
  *   false when no session is at this gate (caller keeps its fall-through).
  */
-async function handlePhotoArrival({ user, from, mediaId, mimeType, kind = 'photo' }) {
+async function handlePhotoArrival({ user, from, mediaId, mimeType, kind = 'photo', messageId = null }) {
   const r = await resolveMediaSession({ user, kind });
   if (r.outcome === 'none') return false;
   if (r.outcome === 'ambiguous') {
     await parkAndAsk({ user, from, kind: 'photo', mediaId, mimeType, candidates: r.candidates });
     return true;
   }
-  const res = await attachClassroomPhoto({ user, from, mediaId, mimeType, session: r.session });
+  const res = await attachClassroomPhoto({ user, from, mediaId, mimeType, session: r.session, messageId });
   // The tapped observation keeps receiving her next photos: refresh the target.
   if (r.outcome === 'target' && res.outcome === 'attached') await MediaTarget.setTarget(user.id, r.session.id, 'photo');
   return true;

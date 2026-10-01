@@ -126,7 +126,29 @@ class AnalysisProcessorService {
       // hers three hundred lines later in the same file. `_resolveSessionLanguage`
       // is that same resolver: no new one is introduced here, because a second
       // resolver is a second thing to forget.
-      await this.sendProgressUpdate(from, 2, await _resolveSessionLanguage(coachingSessionId));
+      //
+      // Meta bill cut:
+      //   NO1 (N2-O02) a leader observation: the line is the teacher's ("Analyzing
+      //                your teaching…"), resolved from the observed teacher's row,
+      //                and the coach's next message — the pre-filled form — arrives
+      //                minutes later anyway. Nothing rides on it there: NC3 defers the
+      //                LP outcome only on a teacher's own session (lp-outcome-ack
+      //                isSelfServeSession), so a coach got that line already.
+      //   NC5 (N2-C05) a photo-gate recovery whose notice already said "I'm putting
+      //                together your coaching report…" skips Step 2/5 (set only when
+      //                that notice actually went out);
+      //   NC3 (N2-C02) the LP step's outcome line ("✅ Lesson plan linked!…") opens
+      //                Step 2/5 instead of arriving as its own text seconds earlier.
+      if (session.observation_type === 'leader_observation') {
+        logToFile('🔕 Step 2/5 not sent — a leader observation (the pre-filled form is next)', { coachingSessionId });
+      } else if (payload.skipReflection && payload.progressNoticeSent) {
+        logToFile('🔕 Step 2/5 not sent — the recovery notice already said it', { coachingSessionId });
+      } else {
+        const step2Lang = await _resolveSessionLanguage(coachingSessionId);
+        const { leadForStep2 } = require('./lp-coaching/lp-outcome-ack.service');
+        const lead = await leadForStep2(coachingSessionId, payload, step2Lang);
+        await this.sendProgressUpdate(from, 2, step2Lang, lead);
+      }
 
       // Fetch and compress prior feedback
       const ReportGeneratorService = require('./report-generator.service');
@@ -540,21 +562,14 @@ class AnalysisProcessorService {
         const CoachingJobQueueService = require('./coaching-job-queue.service');
         await CoachingJobQueueService.queueReport(coachingSessionId, {
           from, partial: true, suppressPartialBanner: true,
+          // Meta bill cut NC5 (N2-C05): the recovery notice also covers Step 4/5.
+          ...(payload.progressNoticeSent ? { progressNoticeSent: true } : {}),
         });
         logToFile('✅ Analysis complete — report queued, reflection skipped (bd-1sddt recovery)', { coachingSessionId });
         return;
       }
 
-      // Send progress update - Step 3
-      const lang3 = await _resolveSessionLanguage(coachingSessionId);
-      await WhatsAppService.sendMessage(from, getCoachingMessage('step3_reflecting', lang3));
-
-      // Brief pause before first question
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Start reflective conversation
-      const ReflectiveConversationService = require('./reflective-conversation.service');
-      await ReflectiveConversationService.conductReflectiveConversation(coachingSessionId, from);
+      await this._handOffToReflection(session, coachingSessionId, from);
 
       logToFile('✅ Analysis processing complete', { coachingSessionId });
     } catch (error) {
@@ -564,19 +579,64 @@ class AnalysisProcessorService {
   }
 
   /**
+   * Hand a finished analysis to the reflective debrief.
+   *
+   * A WhatsApp row runs exactly the three steps that used to sit inline in
+   * processAnalysis: "Step 3/5: Let's reflect" to her chat, a one-second pause,
+   * then the question as a voice note.
+   *
+   * bd-lfzoz: a PORTAL row (isPortalSession — its R2 key) keeps its debrief off WhatsApp
+   * (operator). The question is generated and stored by the same engine in
+   * silent mode, and she answers it in the portal. The Step 3 message is not
+   * sent either — it announces a question that would never arrive in her chat.
+   * Row-derived, like the leader_observation fork above, so a requeue that
+   * rebuilds the payload cannot lose it.
+   *
+   * @param {object} session  the coaching_sessions row (select '*')
+   * @param {string} coachingSessionId
+   * @param {string} from     her WhatsApp number
+   * @param {{pauseMs?: number}} [opts] test seam for the pause
+   */
+  static async _handOffToReflection(session, coachingSessionId, from, opts = {}) {
+    const ReflectiveConversationService = require('./reflective-conversation.service');
+    const { isPortalSession } = require('./portal-coaching.service');
+
+    if (isPortalSession(session)) {
+      await ReflectiveConversationService.conductReflectiveConversation(coachingSessionId, from, 1, { silent: true });
+      logToFile('🖥️ Portal session — reflective question stored for the portal, nothing sent to WhatsApp', {
+        coachingSessionId,
+      });
+      return;
+    }
+
+    // Send progress update - Step 3
+    const lang3 = await this._resolveSessionLanguage(coachingSessionId);
+    await WhatsAppService.sendMessage(from, getCoachingMessage('step3_reflecting', lang3));
+
+    // Brief pause before first question
+    const pauseMs = opts.pauseMs === undefined ? 1000 : opts.pauseMs;
+    await new Promise(resolve => setTimeout(resolve, pauseMs));
+
+    // Start reflective conversation
+    await ReflectiveConversationService.conductReflectiveConversation(coachingSessionId, from);
+  }
+
+  /**
    * Send progress update to user
    * @param {string} phoneNumber - User's phone number
    * @param {number} step - Current step (1-5)
    * @returns {Promise<void>}
    */
-  static async sendProgressUpdate(phoneNumber, step, languageCode = offerDefaultLanguage()) {
+  static async sendProgressUpdate(phoneNumber, step, languageCode = offerDefaultLanguage(), lead = null) {
     try {
       // Step 2 catalog string carries the canonical "2/5" — we tolerate
       // callers passing other step numbers (e.g. legacy callers) and
       // substitute via simple string replacement to preserve message
       // localisation while still letting callers control the step counter.
       const base = getCoachingMessage('step2_analyzing', languageCode);
-      const text = step === 2 ? base : base.replace('2/5', `${step}/5`);
+      const stepText = step === 2 ? base : base.replace('2/5', `${step}/5`);
+      // Meta bill cut NC3: an optional line that opens the same bubble.
+      const text = lead ? `${lead}\n\n${stepText}` : stepText;
       await WhatsAppService.sendMessage(phoneNumber, text);
 
       // Send pedagogical analysis animation if available

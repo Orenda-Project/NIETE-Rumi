@@ -607,3 +607,25 @@ export interface AddStudentsResponse {
   error?: string;
 }
 
+
+/**
+ * bd-7hyj7 — GET /api/portal/coaching-session/:id/progress.
+ * `reflection` is set only for a PORTAL session whose question is ready; a
+ * WhatsApp session's debrief is in her chat. `shortRecording` is null until
+ * transcription has measured the audio.
+ */
+export type CoachingStage =
+  | 'queued' | 'transcribing' | 'analysing' | 'reflection' | 'report' | 'done' | 'stopped';
+
+export interface CoachingProgress {
+  id: string;
+  status: string;
+  stage: CoachingStage;
+  source?: 'portal' | 'whatsapp';
+  reflection: { questionNumber: number; question: string } | null;
+  reportReady?: boolean;
+  shortRecording?: boolean | null;
+  hasLessonPlan?: boolean;
+  photoCount?: number;
+  createdAt?: string;
+}

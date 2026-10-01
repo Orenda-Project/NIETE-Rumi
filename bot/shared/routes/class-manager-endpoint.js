@@ -786,12 +786,27 @@ async function handleClassManagerBack(userId, screen) {
 // bd-a21ks). A non-uuid token sets no actor and the write proceeds as before.
 const { runAsActor } = require('../utils/actor-context');
 
+/**
+ * The Flow token is "<userId>:classes" (classManagerFlowToken in class-entry);
+ * everything below works in user ids. Reading up to the first colon also accepts
+ * the bare id a Flow sent before the marker existed, so one already on a handset
+ * still opens.
+ */
+const userIdOf = (flowToken) => String(flowToken || '').split(':')[0];
+
 module.exports = {
-  handleClassesInit: (userId) => runAsActor(userId, () => handleClassesInit(userId)),
-  handleClassManagerDataExchange: (userId, screen, screenData) =>
-    runAsActor(userId, () => handleClassManagerDataExchange(userId, screen, screenData)),
-  handleClassManagerBack: (userId, screen) =>
-    runAsActor(userId, () => handleClassManagerBack(userId, screen)),
+  handleClassesInit: (flowToken) => {
+    const userId = userIdOf(flowToken);
+    return runAsActor(userId, () => handleClassesInit(userId));
+  },
+  handleClassManagerDataExchange: (flowToken, screen, screenData) => {
+    const userId = userIdOf(flowToken);
+    return runAsActor(userId, () => handleClassManagerDataExchange(userId, screen, screenData));
+  },
+  handleClassManagerBack: (flowToken, screen) => {
+    const userId = userIdOf(flowToken);
+    return runAsActor(userId, () => handleClassManagerBack(userId, screen));
+  },
   // Exported for tests.
   NO_STUDENTS_OPTION,
   REMOVE_OPTION_CAP,

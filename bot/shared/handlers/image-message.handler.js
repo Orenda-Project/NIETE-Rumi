@@ -99,7 +99,7 @@ async function handleImageMessage(message, from, user = null) {
       // ============================================================
       try {
         const { handlePhotoArrival } = require('../services/coaching/media-attach.service');
-        if (await handlePhotoArrival({ user, from, mediaId: imageId, mimeType, kind: 'photo' })) {
+        if (await handlePhotoArrival({ user, from, mediaId: imageId, mimeType, kind: 'photo', messageId: message.id })) {
           typingController.stop();
           return;
         }
@@ -165,7 +165,8 @@ async function handleImageMessage(message, from, user = null) {
       // (30-min window, observer parity); two sessions still processing → ask.
       try {
         const { handlePhotoArrival } = require('../services/coaching/media-attach.service');
-        if (await handlePhotoArrival({ user, from, mediaId: imageId, mimeType, kind: 'hold' })) {
+        // Meta bill cut NC4 (N2-C07): the photo's wamid → a 📸 reaction instead of a text.
+        if (await handlePhotoArrival({ user, from, mediaId: imageId, mimeType, kind: 'hold', messageId: message.id })) {
           typingController.stop();
           return;
         }

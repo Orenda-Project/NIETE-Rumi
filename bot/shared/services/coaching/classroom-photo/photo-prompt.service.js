@@ -27,4 +27,19 @@ function buildPhotoPrompt(coachingSessionId, language = 'en') {
   };
 }
 
-module.exports = { buildPhotoPrompt };
+/**
+ * Meta bill cut NC4 (N2-C10) — the photo offer, opened by `lead` (the prior-
+ * commitment reminder) when the whole body fits WhatsApp's 1,024 code-point cap.
+ * `leadMerged: false` → the caller sends the lead on its own first, as before.
+ *
+ * @returns {{ prompt: { body: string, buttons: Array }, leadMerged: boolean }}
+ */
+function buildPhotoPromptWithLead(coachingSessionId, language = 'en', lead = null) {
+  const prompt = buildPhotoPrompt(coachingSessionId, language);
+  if (!lead) return { prompt, leadMerged: false };
+  const body = `${lead}\n\n${prompt.body}`;
+  if ([...body].length > 1024) return { prompt, leadMerged: false };
+  return { prompt: { ...prompt, body }, leadMerged: true };
+}
+
+module.exports = { buildPhotoPrompt, buildPhotoPromptWithLead };

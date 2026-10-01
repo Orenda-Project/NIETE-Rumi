@@ -23,6 +23,7 @@ const { languageFor, clampToMarket } = require('./observe-language');
 const { metaErrorCodeOf, RE_ENGAGEMENT_ERROR_CODE } = require('../../config/meta-messaging-window');
 const { teacherOf, coachOf, isBound } = require('./observe-people');
 const { logToFile } = require('../../utils/logger');
+const { mergeWithinCap, FIELD_CAPS } = require('../../utils/merge-within-cap');
 
 const BTN = {
   start: 'observe_send_start_',
@@ -769,13 +770,27 @@ async function handleTeacherManageButton(user, from, buttonId) {
   return true;
 }
 
-async function handleSendConfirm(sessionId, from, user) {
+/**
+ * "Send now". The job is queued, and the coach's tap is acknowledged with a 📨
+ * reaction instead of the text "📨 Sending the report to the teacher now. I'll
+ * confirm once it lands." — every outcome already sends its own message (it
+ * reached the teacher / an invite went because her window was closed / it
+ * failed / operator review), so the text added one billed message and no news.
+ *
+ * The reaction needs the tap's own message id (opts.messageId, from the webhook).
+ * Without one, or if WhatsApp refuses the reaction, the text is sent as before —
+ * the coach is never left with no sign the tap landed.
+ */
+async function handleSendConfirm(sessionId, from, user, opts = {}) {
   const lang = observeLang(user);
   const S = observeStrings(lang);
   const CoachingJobQueueService = require('../coaching/coaching-job-queue.service');
   try {
     await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'deliver' });
-    await WhatsAppService.sendMessage(from, S.send_delivering);
+    const reacted = opts.messageId
+      ? await WhatsAppService.sendReaction(from, opts.messageId, '📨')
+      : false;
+    if (!reacted) await WhatsAppService.sendMessage(from, S.send_delivering);
     await ObserveState.clearState(user.id);
   } catch (err) {
     logToFile('❌ observe send: confirm failed', { sessionId, error: err.message });
@@ -880,9 +895,18 @@ async function _sendPackage(dest, pngBuffer, caption, companionText) {
     return err;
   };
 
-  const sentImg = await WhatsAppService.sendImageFromBuffer(dest, pngBuffer, caption, 'image/png', capture);
+  // The companion ("From {coach} … Your commitment … We are with you") rides in
+  // the image's caption, under the report caption: one message where there were
+  // two, read in the same order. Every path — the coach's preview, the teacher's
+  // delivery, her template tap, operator review — comes through here, so the
+  // preview still shows the coach exactly what the teacher gets. Over WhatsApp's
+  // 1,024-code-point caption cap the companion stays its own message, as before.
+  // Nothing stored changes: teacher_delivery keeps caption and companion_text
+  // separately, and the merge is made at send time.
+  const merged = companionText ? mergeWithinCap([caption, companionText], FIELD_CAPS.caption) : null;
+  const sentImg = await WhatsAppService.sendImageFromBuffer(dest, pngBuffer, merged || caption, 'image/png', capture);
   if (sentImg === false) throw fail('observe send: report image send failed');
-  if (companionText) {
+  if (companionText && !merged) {
     const sentTxt = await WhatsAppService.sendMessage(dest, companionText, capture);
     if (sentTxt === false) throw fail('observe send: companion send failed');
   }

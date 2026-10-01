@@ -1039,7 +1039,7 @@ async function handleStatusFlowCompletion(responseJson, from, user) {
  * Every branch says what happens next, because that is the only thing she can
  * act on: wait, or send /assessment again.
  */
-async function handleAssessmentFlowCompletion(responseJson, from, user) {
+async function handleAssessmentFlowCompletion(responseJson, from, user, opts = {}) {
   // The tag when we get one — but Meta DROPS `extension_message_response` from
   // a completion, so the usual case is that it is absent and the token is all
   // we have. Routing on the token without deriving the ACTION from it too would
@@ -1095,6 +1095,18 @@ async function handleAssessmentFlowCompletion(responseJson, from, user) {
     if (versioned) {
       const { resolveUx } = require('../config/ux-strings');
       const say = (key) => WhatsAppService.sendMessage(from, resolveUx(key, { user }));
+      // "📝 Making your new version — a few seconds." is a 📝 reaction on her
+      // completion plus the typing indicator: the build takes seconds and ends
+      // with the new version in the chat. Needs the completion's own message id;
+      // without one, or if the reaction is refused, the sentence is sent.
+      // "No changes" keeps its sentence — it says something the paper does not.
+      const acknowledgeMaking = async () => {
+        if (opts.messageId && await WhatsAppService.sendReaction(from, opts.messageId, '📝')) {
+          await WhatsAppService.showTypingIndicator(from, opts.messageId);
+          return;
+        }
+        await say('assessmentVersionMaking');
+      };
       let result;
       try {
         const { rebuildFromCompletion } = require('../routes/assessment-gen-endpoint');
@@ -1102,7 +1114,7 @@ async function handleAssessmentFlowCompletion(responseJson, from, user) {
           flowToken: token,
           userId: user?.id,
           user,
-          onStart: (kind) => say(kind === 'resend' ? 'assessmentNoChanges' : 'assessmentVersionMaking'),
+          onStart: (kind) => (kind === 'resend' ? say('assessmentNoChanges') : acknowledgeMaking()),
         });
       } catch (err) {
         logToFile('[assessment] version from completion threw', { error: err?.message });
@@ -1127,8 +1139,13 @@ async function handleAssessmentFlowCompletion(responseJson, from, user) {
     }
     if (result?.status !== 'rebuilt') {
       action = 'rebuild_failed';
-    } else if (!summary) {
-      summary = result.summary || '';
+    } else {
+      // The rebuilt paper is already in the chat — the rebuild above sent it, and
+      // its caption names its questions and marks. "📝 Making your paper again — a
+      // few seconds.\n\n{N questions · M marks}" used to follow it, promising what
+      // had already happened and repeating the caption. Nothing more to say.
+      logToFile('[assessment] rebuilt — the paper itself is the acknowledgement', { userId: user?.id });
+      return;
     }
   }
 
@@ -1136,9 +1153,6 @@ async function handleAssessmentFlowCompletion(responseJson, from, user) {
     queued: summary
       ? `📝 Making your paper — about a minute.\n\n${summary}`
       : '📝 Making your paper — about a minute.',
-    rebuilt: summary
-      ? `📝 Making your paper again — a few seconds.\n\n${summary}`
-      : '📝 Making your paper again — a few seconds.',
     queue_failed: "Something went wrong starting your paper, so nothing is being made. "
       + 'Send /assessment to try again.',
     rebuild_failed: "Sorry — we couldn't rebuild that paper. "

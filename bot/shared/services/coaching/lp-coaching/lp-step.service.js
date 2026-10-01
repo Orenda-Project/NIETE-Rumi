@@ -25,6 +25,35 @@ const { logToFile } = require('../../../utils/logger');
 const { resolveUx } = require('../../../config/ux-strings');
 const { isTerminalStatus } = require('../session-terminal');
 
+const MAX_BODY_CODE_POINTS = 1024;
+
+/**
+ * Meta bill cut NC4 — open the LP prompt's body(ies) with `lead`. Both the list
+ * body and its Yes/No fallback carry it, so whichever goes out says it. Returns
+ * the prompt unchanged (merged: false) when there is no lead or any body would
+ * pass WhatsApp's 1,024 code-point cap.
+ */
+function withLead(lpPrompt, leadText) {
+  if (!leadText || !lpPrompt) return { prompt: lpPrompt, merged: false };
+  const join = (body) => `${leadText}\n\n${body}`;
+  const fits = (body) => typeof body === 'string' && [...join(body)].length <= MAX_BODY_CODE_POINTS;
+  if (lpPrompt.type === 'list' && lpPrompt.listData) {
+    const listBody = lpPrompt.listData.body && lpPrompt.listData.body.text;
+    const fbBody = lpPrompt.fallback && lpPrompt.fallback.body;
+    if (!fits(listBody) || (lpPrompt.fallback && !fits(fbBody))) return { prompt: lpPrompt, merged: false };
+    return {
+      prompt: {
+        ...lpPrompt,
+        listData: { ...lpPrompt.listData, body: { ...lpPrompt.listData.body, text: join(listBody) } },
+        ...(lpPrompt.fallback ? { fallback: { ...lpPrompt.fallback, body: join(fbBody) } } : {}),
+      },
+      merged: true,
+    };
+  }
+  if (!fits(lpPrompt.body)) return { prompt: lpPrompt, merged: false };
+  return { prompt: { ...lpPrompt, body: join(lpPrompt.body) }, merged: true };
+}
+
 async function _recentLpsFor(ownerUserId) {
   try {
     const { isFidelityEnabled } = require('../fidelity/fidelity-orchestrator');
@@ -42,12 +71,17 @@ async function _recentLpsFor(ownerUserId) {
  * Idempotent: safe to call on a session already at awaiting_lesson_plan (the
  * text re-prompt path does exactly that).
  *
- * @param {{ sessionId: string, from: string, tapperUserId: string }} args
+ * @param {{ sessionId: string, from: string, tapperUserId: string,
+ *           lead?: { key: string, params?: object } }} args
+ *   `lead` (Meta bill cut NC4) — a ux-strings line that OPENS the prompt's body
+ *   instead of going out as its own text ("📸 Photo 3 received. Maximum
+ *   reached."). Rendered in the tapper's language; if it would push a body past
+ *   1,024 code points, or the prompt cannot be delivered, it is sent on its own.
  * @returns {Promise<boolean>} true when the prompt went out AND the session was
  *   moved to the lesson-plan step; false when the prompt could not be delivered
  *   (the session is deliberately left where it was).
  */
-async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
+async function advanceToLessonPlanStep({ sessionId, from, tapperUserId, lead = null }) {
   const WhatsAppService = require('../../whatsapp.service');
   const { buildLPSelectionList } = require('./lp-selection-list.service');
   const { sendLpPrompt } = require('./send-lp-prompt');
@@ -75,8 +109,12 @@ async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
   }
 
   const recents = await _recentLpsFor((session && session.user_id) || tapperUserId);
-  const lpPrompt = buildLPSelectionList(sessionId, recents, lang, userRow && userRow.region,
+  const builtPrompt = buildLPSelectionList(sessionId, recents, lang, userRow && userRow.region,
     { isObservation: !!(session && session.observation_type === 'leader_observation') });
+
+  const leadText = lead && lead.key ? resolveUx(lead.key, { language: lang, params: lead.params }) : null;
+  const { prompt: lpPrompt, merged: leadMerged } = withLead(builtPrompt, leadText);
+  if (leadText && !leadMerged) await WhatsAppService.sendMessage(from, leadText);
 
   // bd-zrlcp — send FIRST, commit only if the prompt actually went out.
   // sendLpPrompt returns false when the payload was refused (WhatsApp caps an
@@ -85,6 +123,8 @@ async function advanceToLessonPlanStep({ sessionId, from, tapperUserId }) {
   // shown, and nothing sweeps that status.
   const sent = await sendLpPrompt(WhatsAppService, from, lpPrompt);
   if (!sent) {
+    // The lead rode on a prompt that did not go out — say it on its own, as before.
+    if (leadText && leadMerged) await WhatsAppService.sendMessage(from, leadText);
     logToFile('⚠️ LP prompt could not be delivered — session left in place', { sessionId, tapperUserId });
     return false;
   }
@@ -169,4 +209,4 @@ async function resendLpPromptIfWaiting(user, from) {
   return true;
 }
 
-module.exports = { advanceToLessonPlanStep, resendLpList, resendLpPromptIfWaiting, LP_REPROMPT_WINDOW_MS };
+module.exports = { advanceToLessonPlanStep, resendLpList, resendLpPromptIfWaiting, LP_REPROMPT_WINDOW_MS, withLead };

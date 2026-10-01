@@ -76,7 +76,7 @@ async function tapperLanguage(userId, fallback) {
  *
  * @param {{ sessionId: string, from: string, user: { id: string, preferred_language?: string } }} args
  */
-async function handleAddAnotherPhotoTap({ sessionId, from, user }) {
+async function handleAddAnotherPhotoTap({ sessionId, from, user, messageId = null }) {
   const WhatsAppService = require('../../whatsapp.service');
   if (!sessionId || !user || !user.id) return;
 
@@ -121,12 +121,12 @@ async function handleAddAnotherPhotoTap({ sessionId, from, user }) {
   if (photos.length >= MAX_COACHING_PHOTOS) {
     // Say the actual state, then land on the LP step — bd-5azz0's rule that the
     // photo-max path never skips the lesson-plan ask.
-    await WhatsAppService.sendMessage(from, resolveUx('photoAddAnotherAtMax', {
-      language: lang,
-      params: { max: digits(MAX_COACHING_PHOTOS, lang) },
-    }));
+    // Meta bill cut NC4: the line OPENS the LP prompt instead of its own text.
     const { advanceToLessonPlanStep } = require('../lp-coaching/lp-step.service');
-    await advanceToLessonPlanStep({ sessionId, from, tapperUserId: user.id });
+    await advanceToLessonPlanStep({
+      sessionId, from, tapperUserId: user.id,
+      lead: { key: 'photoAddAnotherAtMax', params: { max: digits(MAX_COACHING_PHOTOS, lang) } },
+    });
     logToFile('📸 "Add another" at the photo cap — advanced to the LP step instead', {
       sessionId, userId: user.id, photoCount: photos.length,
     });
@@ -151,10 +151,17 @@ async function handleAddAnotherPhotoTap({ sessionId, from, user }) {
   // R165: the next photo belongs to THIS observation, not the coach's newest.
   await MediaTarget.setTarget(user.id, sessionId, 'photo');
 
-  await WhatsAppService.sendMessage(from, resolveUx('photoAddAnotherNext', {
-    language: lang,
-    params: { n: digits(photos.length + 1, lang), max: digits(MAX_COACHING_PHOTOS, lang) },
-  }));
+  // Meta bill cut NC4 (N2-C09): a free 📸 reaction on their tap. The receipt
+  // prompt they tapped already asked for another photo and now carries "n of max".
+  // No wamid, or a reaction that did not go out → the text, as before.
+  const { reactOrSay } = require('../ack-reaction');
+  await reactOrSay({
+    to: from, messageId, emoji: '📸', what: 'photo add another',
+    text: resolveUx('photoAddAnotherNext', {
+      language: lang,
+      params: { n: digits(photos.length + 1, lang), max: digits(MAX_COACHING_PHOTOS, lang) },
+    }),
+  });
 
   logToFile('📸 "Add another" — session re-anchored on the classroom-photo step', {
     sessionId, userId: user.id, photoCount: photos.length, reopenedFrom: session.status,

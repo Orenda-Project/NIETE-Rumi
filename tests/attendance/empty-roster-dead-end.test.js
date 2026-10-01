@@ -172,7 +172,7 @@ describe('router: a class with no students never opens the marking Flow', () => 
     const r = await router.resolveMethodChoice('t2', 'att_method_tap');
 
     expect(r.action).toBe('OPEN_REGISTER');
-    expect(r.flowToken).toBe('t2');
+    expect(r.flowToken).toBe('t2:student');
   });
 
   it('picking an empty class from the class list is caught too', async () => {
