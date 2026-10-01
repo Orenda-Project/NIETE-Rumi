@@ -303,7 +303,9 @@ module.exports.run = async function runExt(ctx) {
 
   // COA58 — the known issue: two doors, two minimum lengths (documented, asserted as "they differ")
   await guard('COA58', async () => {
-    await api.sendWait('/menu'); await api.openList('See what I do'); const row = await api.pickRowAndWait('Classroom Coaching');
+    // the menu list can land a beat after the reply settles (run 20261001-0614: rows=null once) — open it on a second try
+    let row = null;
+    for (let i = 0; i < 2 && !row; i++) { try { const m = await api.sendWait('/menu'); await api.openList(btnOf(m, /See what I do|فہرست دیکھیں/) || 'See what I do'); row = await api.pickRowAndWait('Classroom Coaching'); } catch (e) { if (i) throw e; await sleep(2000); } }
     await api.resetFlow();
     const kw = await api.sendWait('Can you give me feedback on my teaching?', 60000);
     const menuMin = (row.txt || '').match(/\d+ to \d+ minutes|at least \d+ minutes/i); const kwMin = (kw.txt || '').match(/up to \d+ minutes|at least \d+ minutes|\d+ to \d+ minutes/i);
