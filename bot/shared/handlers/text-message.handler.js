@@ -2513,7 +2513,16 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
   const conversationState = activeState?.step || null;
 
-  // Handle menu choice (1-4)
+  // The menu wait. A digit 1-4 still picks from the NUMBERED text menu, which is
+  // sent when the list menu cannot be.
+  //
+  // Anything else used to be answered "📋 Please choose an option (1-4) from the
+  // menu above" and dropped — but the menu a teacher sees is a WhatsApp LIST of
+  // named rows, with no 1-4 in it, and the wait lasts an hour. Production, one
+  // week: 712 such replies; 562 were followed by the teacher writing again within
+  // five minutes, and 478 of the 712 were real requests ("Lesson for class 10th
+  // urdu"). Free text now ENDS the menu wait (flow-scoped, so nothing else is
+  // touched) and goes on to be answered like any other message.
   if (conversationState === 'AWAITING_MENU_CHOICE' && user && sessionId) {
     const choice = messageBody.trim();
     if (['1', '2', '3', '4'].includes(choice)) {
@@ -2529,14 +2538,12 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         responseLanguage
       );
       return; // Exit early
-    } else {
-      // Invalid menu choice - use Helper Agent to guide user
-      logToFile('⚠️  Invalid menu choice', { choice: messageBody });
-      typingController.stop();
-
-      const escapeMessage = HelperAgentService.getEscapePathMessage('AWAITING_MENU_CHOICE', responseLanguage);
-      await WhatsAppService.sendMessage(from, escapeMessage);
-      return; // Don't fall through to intent detection
+    }
+    logToFile('📋 Free text during the menu wait — ending the wait and answering it', { length: choice.length });
+    try {
+      await ConversationState.clearState(user.id, { flow: 'menu' });
+    } catch (err) {
+      logToFile('⚠️ could not end the menu wait (non-fatal)', { error: err.message }, 'warn');
     }
   }
 

@@ -164,6 +164,20 @@ class MenuService {
         await redisService.delete(stateKey); // consume it; a tap is answered once
       }
 
+      // The tap answers the menu, so the menu's wait is over. Sending the menu
+      // parks AWAITING_MENU_CHOICE for an hour; rows that open a Flow (training,
+      // assessment, attendance…) never cleared it, so the teacher's next free text
+      // within the hour was met with "Please choose an option (1-4)" — a billed
+      // message that answered nothing. Flow-scoped to 'menu': another feature's
+      // work in progress is not this tap's to end. Rows that start a wait of their
+      // own (coaching, lesson plan) set it after this.
+      // Never allowed to cost the tap: a failed clear is logged and the row still opens.
+      try {
+        await ConversationState.clearState(user.id, { flow: 'menu' });
+      } catch (err) {
+        logToFile('⚠️ menu: could not end the menu wait (non-fatal)', { error: err.message }, 'warn');
+      }
+
       // Recompute rather than refuse. getOrCreateSession returns the teacher's
       // current session, creating one if the old one has rotated — which is the
       // normal case for a teacher returning after a break.

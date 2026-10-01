@@ -121,11 +121,10 @@ describe('the debrief success path', () => {
     await Debrief.processDebriefRecording(SID, { from: COACH_EN.phone_number });
 
     const en = observeStrings('en');
-    // the praise line and the card
-    expect(sent[0]).toMatchObject({ kind: 'text', to: COACH_EN.phone_number });
-    expect(sent[0].text).toBe(FEEDBACK().praise_line);
+    // the card, with the praise line above its closing line in the caption
+    expect(sent[0]).toMatchObject({ kind: 'image', to: COACH_EN.phone_number });
     const image = sent.find((s) => s.kind === 'image');
-    expect(image.caption).toBe(en.coach_card_closing);
+    expect(image.caption).toBe(`${FEEDBACK().praise_line}\n\n${en.coach_card_closing}`);
     expect(cardCalls[0]).toMatchObject({ lang: 'en' });
     // the send prompt and its buttons — the mixed-language step QA reported
     const buttons = sent.find((s) => s.kind === 'buttons');
@@ -138,7 +137,7 @@ describe('the debrief success path', () => {
     await Debrief.processDebriefRecording(SID, { from: COACH_UR.phone_number });
 
     const ur = observeStrings('ur');
-    expect(sent.find((s) => s.kind === 'image').caption).toBe(ur.coach_card_closing);
+    expect(sent.find((s) => s.kind === 'image').caption).toBe(`${FEEDBACK().praise_line}\n\n${ur.coach_card_closing}`);
     expect(cardCalls[0]).toMatchObject({ lang: 'ur' });
     expect(sent.find((s) => s.kind === 'buttons').p.buttons[0].title).toBe(ur.btn_send_report);
   });

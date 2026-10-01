@@ -192,7 +192,9 @@ describe('a teacher is asked how, in chat, before anything opens', () => {
     const r = await router.resolveMethodChoice('t1', 'att_method_tap');
 
     expect(r.action).toBe('OPEN_REGISTER');
-    expect(r.flowToken).toBe('t1');
+    // No target (the Flow picks the class); the subject is spelled out so the
+    // completion is recognised from the token alone.
+    expect(r.flowToken).toBe('t1:student');
   });
 
   it('still has no classes to offer a teacher who has none', async () => {

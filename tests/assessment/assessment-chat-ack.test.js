@@ -248,16 +248,16 @@ describe('what she actually reads in the chat', () => {
     expect(text).toContain('Grade 4 Science');
   });
 
-  test('a rebuild says seconds, not a minute — it makes no model call', async () => {
-    // A rebuild needs its paper: PICK_DONE is terminal, so the rebuild now runs
-    // from the completion (like the new-paper submit before it) and the paper id
-    // comes from the token. Without one there is nothing to rebuild, and the
-    // handler correctly says so instead of promising a paper.
+  test('a successful rebuild says nothing after the paper — the paper is the answer', async () => {
+    // A rebuild needs its paper: PICK_DONE is terminal, so the rebuild runs from
+    // the completion and the paper id comes from the token. The rebuild SENDS the
+    // paper (its caption names its questions and marks), so the "Making your paper
+    // again — a few seconds" line that used to follow it promised what had already
+    // happened, one billed message late. It is no longer sent.
     await handle({ assessment_action: 'rebuilt', summary: '12 questions · 25 marks',
       flow_token: 'u1:assessment-review:paper-1' }, '92300', { id: 'u1' });
-    const [, text] = mockSend.mock.calls[0];
-    expect(text).toMatch(/seconds/i);
-    expect(text).not.toMatch(/about a minute/i);
+    expect(mockRerender).toHaveBeenCalledTimes(1);
+    expect(mockSend).not.toHaveBeenCalled();
   });
 
   test('a rebuild with no paper in the token promises nothing', async () => {
@@ -311,20 +311,24 @@ describe('what she actually reads in the chat', () => {
     expect(text).toMatch(/about a minute/i);
   });
 
-  test('a review token produces the rebuild wording, not the generation one', async () => {
+  test('a review token runs the REBUILD, not the generation path', async () => {
     await handle({ keep: ['a.0'], flow_token: 'u1:assessment-review:paper-1' },
       '92300', { id: 'u1' });
-    const [, text] = mockSend.mock.calls[0];
-    expect(text).toMatch(/seconds/i);
-    expect(text).not.toMatch(/about a minute/i);
+    expect(mockRerender).toHaveBeenCalledTimes(1);
+    // No generation wording, and (the paper having been sent) no wording at all.
+    expect(mockSend.mock.calls.map((c) => c[1]).join('\n')).not.toMatch(/about a minute/i);
+    expect(mockSend).not.toHaveBeenCalled();
   });
 
   test('an Urdu summary reaches the chat untouched — nothing trims it to ASCII', async () => {
     // Every other fixture in this file is English. The `\W` regexes that
     // erased Urdu elsewhere (bd-60041, bd-60047) would have passed them all.
+    // Exercised on a NEW paper: that is where a summary still reaches the chat
+    // (a rebuild's paper now speaks for itself).
+    withSession(); wireBook();
     const summary = 'چار سوال · چھ نمبر';
-    await handle({ assessment_action: 'rebuilt', summary,
-      flow_token: 'u1:assessment-review:paper-1' }, '92300', { id: 'u1' });
+    await handle({ assessment_action: 'queued', summary,
+      flow_token: 'u1:assessment-gen:1' }, '92300', { id: 'u1' });
     const [, text] = mockSend.mock.calls[0];
     expect(text).toContain(summary);
   });

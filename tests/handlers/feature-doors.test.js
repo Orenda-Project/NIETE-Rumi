@@ -164,15 +164,17 @@ describe('the class manager has one door', () => {
     return require('../../bot/shared/services/classes/class-entry.service');
   };
 
-  test('a teacher with a school on file gets the Flow, token = the bare user id', async () => {
+  test('a teacher with a school on file gets the Flow, token = "<userId>:classes"', async () => {
     process.env.CLASS_MANAGER_FLOW_ID = 'flow-class';
     const { openClassManagerFlow } = load('school-1');
 
     expect(await openClassManagerFlow({ from: FROM, user: USER, language: 'ur' })).toBe(true);
     const [, opts] = wa().sendFlow.mock.calls[0];
     expect(opts.flowId).toBe('flow-class');
-    // The endpoint reads flow_token AS the user id — never a composite here.
-    expect(opts.flowToken).toBe(USER.id);
+    // "<userId>:classes": the marker is how the Flow's completion is recognised
+    // (its SAVED Footer completes with an empty payload, so the token is all that
+    // comes back); the endpoint reads the user id from before the colon.
+    expect(opts.flowToken).toBe(`${USER.id}:classes`);
   });
 
   test('no school on file is answered in chat, not with a Flow that cannot succeed', async () => {

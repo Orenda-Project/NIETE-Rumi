@@ -35,6 +35,18 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # (FeatureIntroService); on an account that already used coaching it won't
     # appear — needs a fresh account or a feature-usage reset.
 
+  @e2e @first-use @wip @draft @P2 @COA71
+  Scenario: The first AI-coaching request sends the intro film with its introducing line as the caption
+    Given the NIETE bot chat is open on an Urdu-speaking teacher who has never seen the Digital Coach intro film
+    When I tap the AI coaching chip
+    Then ONE message arrives: the Digital Coach intro film, captioned "تین منٹ میں دیکھیں NIETE ڈیجیٹل کوچ کیا کرتا ہے — …"
+    And no separate text announcing the film arrives before it
+    And the next AI-coaching request does not send the film again
+    # UPDATED 2026-10-01 (Meta bill cut, NO3 / N2-M03): feature-intro.service.js
+    # sendFirstUseIntroIfNeeded used to send the line as a text and, a second later, the film with no
+    # caption — two billed messages for one thing (331 a week on the AI-coaching chip). The line is
+    # now the film's caption (FIRST_USE_INTRO_MESSAGES, every entry far inside 1,024 code points).
+
   @e2e @content-driven @P2 @COA03
   Scenario: Uploading a classroom recording is detected and confirmed for analysis
     Given the NIETE bot chat is open
