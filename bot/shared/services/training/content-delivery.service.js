@@ -396,6 +396,11 @@ async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
     .from('training_assessment_attempts').select('id')
     .eq('user_id', userId).eq('is_passed', true)
     .in('grand_quiz_id', ids);
+  // bd-hxm7a — an exam whose written answer is being graded is not re-offered.
+  const { data: pendingRows } = await supabase
+    .from('training_assessment_attempts').select('id')
+    .eq('user_id', userId).eq('status', 'pending_review')
+    .in('grand_quiz_id', ids);
 
   if (!shouldOfferModuleExam({
     vendorKey: vendor?.key,
@@ -404,6 +409,7 @@ async function maybeOfferModuleExam(userId, moduleId, phoneNumber) {
     mcqCount,
     crqCount,
     alreadyPassed: (passedRows || []).length > 0,
+    pendingReview: (pendingRows || []).length > 0,
   })) return false;
 
   // Announce the paper the teacher will actually sit.
