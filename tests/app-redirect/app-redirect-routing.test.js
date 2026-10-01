@@ -393,6 +393,16 @@ describe('doors that cannot be driven here are wired at the source', () => {
     expect(ask).toBeLessThan(run);
   });
 
+  test('the LP worker\'s cutover rescue redirects BEFORE it opens the menu and adds its menu line', () => {
+    const s = src('workers/lesson-plan-generation.worker.js');
+    const fn = s.slice(s.indexOf('async function openLpBrowseFlowForCutover'));
+    const ask = fn.indexOf("redirectIfFlagged('lesson_plan'");
+    const open = fn.indexOf('await openLpBrowseFlow(');
+    expect(ask).toBeGreaterThan(-1);
+    expect(open).toBeGreaterThan(-1);
+    expect(ask).toBeLessThan(open);
+  });
+
   test('webhook buttons that START training or the video library ask their switch', () => {
     const s = src('whatsapp-bot.js');
     expect(s).toMatch(/module_exam_start_'\)\) \{\s*if \(await buttonRedirectsToApp\('teacher_training'/);
