@@ -1438,17 +1438,15 @@ async function handleVoiceLessonPlanRequest(from, transcription, user, sessionId
     // bd-oak77.4 — the voice twin of the text door: under LP_612_ROUTE_ALL she spoke a topic and
     // is about to be shown a grade picker, so she gets the same one short line first, from the same
     // single catalogue entry, so the two doors cannot drift apart (the bd-72dth lesson).
+    // Meta bill cut NL3 (bd-w2daa.9): the line rides inside the Flow message's body — same words,
+    // one message — exactly as on the typed door.
     const { isLp612RouteAll } = require('../config/lp612-flags');
     const { resolveUx } = require('../config/ux-strings');
-    if (isLp612RouteAll() && process.env.PAKISTAN_LP_FLOW_ID) {
-      try {
-        await WhatsAppService.sendMessage(from, resolveUx('lp612RouteRedirect', { language: detectedLanguage }));
-      } catch (redirectErr) {
-        logToFile('LP route-all redirect line failed to send (voice)', { error: redirectErr.message, userId: user.id });
-      }
-    }
+    const bodyPrefix = isLp612RouteAll()
+      ? resolveUx('lp612RouteRedirect', { language: detectedLanguage })
+      : null;
     const { openLpBrowseFlow } = require('../services/lp-browse-entry.service');
-    if (await openLpBrowseFlow({ from, userId: user.id, language: detectedLanguage, reason: 'voice_lesson_plan_intent' })) {
+    if (await openLpBrowseFlow({ from, userId: user.id, language: detectedLanguage, reason: 'voice_lesson_plan_intent', bodyPrefix })) {
       return;
     }
   }

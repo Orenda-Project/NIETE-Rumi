@@ -6,10 +6,11 @@
  * scoping call:
  *
  *   1. Schedule fires the prompt after the 30s delay
- *   2. 👍 tap inserts useful=true, sends thanks, no Redis flag
+ *   2. 👍 tap inserts useful=true, sends NO text (the webhook's 👍 reaction is the
+ *      receipt — Meta bill cut NL1), no Redis flag
  *   3. 👎 tap inserts useful=false, sets Redis flag, sends "why?" prompt
  *   4. Reply within 10 min updates reason_text + reason_polarity=disliked,
- *      clears the flag, sends final ack
+ *      clears the flag, sends no text (receipted by the reaction — NL1)
  *   5. Reply AFTER the 10-min window (no flag) falls through — service
  *      returns false; caller keeps routing to intent detection
  *
@@ -136,7 +137,7 @@ describe('LpFeedbackService', () => {
   });
 
   // ─── 2. 👍 button tap ──────────────────────────────────────────────────
-  it('👍 tap inserts useful=true, sends thanks, does NOT set Redis flag', async () => {
+  it('👍 tap inserts useful=true, sends NO text, does NOT set Redis flag', async () => {
     // Queue: lesson_plans lookup → user preferred_language → existing check → insert
     mockResultQueue.push({ data: LP_ROW, error: null });
     mockResultQueue.push({ data: null, error: null }); // preferred_language lookup (no row)
@@ -145,8 +146,7 @@ describe('LpFeedbackService', () => {
 
     const ok = await LpFeedbackService.handleFeedbackButton(`lp_feedback_yes_${LP_UUID}`, PHONE);
     expect(ok).toBe(true);
-    expect(mockSentMessages).toHaveLength(1);
-    expect(mockSentMessages[0].body).toMatch(/glad it helped/i);
+    expect(mockSentMessages).toHaveLength(0);   // NL1: the reaction is the receipt
     // No 👎 → no Redis flag
     expect(redisService.set).not.toHaveBeenCalled();
   });
@@ -179,9 +179,7 @@ describe('LpFeedbackService', () => {
       lpFeedbackId: FB_UUID, polarity: 'disliked', promptedAt: Date.now(),
     });
 
-    // Queue: update result → preferred_language for final ack
     mockResultQueue.push({ data: null, error: null }); // update
-    mockResultQueue.push({ data: null, error: null }); // preferred_language
 
     const consumed = await LpFeedbackService.consumeReasonIfPending(
       USER_UUID, PHONE,
@@ -194,9 +192,8 @@ describe('LpFeedbackService', () => {
       LpFeedbackService.REDIS_REASON_KEY(USER_UUID)
     );
 
-    // Final ack sent in English
-    expect(mockSentMessages).toHaveLength(1);
-    expect(mockSentMessages[0].body).toMatch(/got it, thanks/i);
+    // No closing text (NL1) — the reaction on the teacher's message is the receipt
+    expect(mockSentMessages).toHaveLength(0);
   });
 
   it('reason capture: Urdu-script text tags reason_language=ur', async () => {
@@ -204,15 +201,12 @@ describe('LpFeedbackService', () => {
       lpFeedbackId: FB_UUID, polarity: 'disliked',
     });
     mockResultQueue.push({ data: null, error: null }); // update
-    mockResultQueue.push({ data: null, error: null }); // preferred_language
 
     const consumed = await LpFeedbackService.consumeReasonIfPending(
       USER_UUID, PHONE, 'کلاس میں پتھر نہیں ملتے'
     );
     expect(consumed).toBe(true);
-    expect(mockSentMessages).toHaveLength(1);
-    // Final ack falls back to reasonLanguage='ur' when user lookup returns null
-    expect(mockSentMessages[0].body).toMatch(/سمجھ گئی/);
+    expect(mockSentMessages).toHaveLength(0);   // NL1: no closing text
   });
 
   // ─── 5. Reply after the window ─────────────────────────────────────────
@@ -253,12 +247,12 @@ describe('LpFeedbackService', () => {
     expect(redisService.set.mock.calls[0][1].lpFeedbackId).toBe(FB_UUID);
   });
 
-  it('button tap for unknown lesson_plan_id acknowledges without inserting', async () => {
+  it('button tap for unknown lesson_plan_id is owned without inserting or texting', async () => {
     mockResultQueue.push({ data: null, error: null }); // no LP row
 
     const ok = await LpFeedbackService.handleFeedbackButton(`lp_feedback_yes_${LP_UUID}`, PHONE);
     expect(ok).toBe(true);
-    expect(mockSentMessages[0].body).toBe('Thanks for the feedback!');
+    expect(mockSentMessages).toHaveLength(0);   // NL1: the reaction is the receipt
     // Should NOT have called any insert path
     expect(redisService.set).not.toHaveBeenCalled();
   });

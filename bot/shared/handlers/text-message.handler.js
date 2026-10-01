@@ -2821,18 +2821,14 @@ async function handleLessonPlanRequest(from, messageBody, user, sessionId, respo
   // bd-oak77.4 — she typed a TOPIC and is about to be shown a grade picker. One short line first,
   // saying where lessons come from now. Only on this door: the bare "lp" command and the /menu tap
   // open the Flow with no preamble because nothing needs explaining there.
-  // Gated on the same precondition openLpBrowseFlow checks, so a deployment with no Flow gets the
-  // not-in-catalog reply on its own rather than an explanation followed by a contradiction.
-  if (user && isLp612RouteAll() && process.env.PAKISTAN_LP_FLOW_ID) {
-    try {
-      await WhatsAppService.sendMessage(from, resolveUx('lp612RouteRedirect', { language: responseLanguage }));
-    } catch (redirectErr) {
-      logError('LP route-all redirect line failed to send', {
-        error: redirectErr.message, userId: user.id,
-      });
-    }
-  }
-  if (user && await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'lesson_plan_intent' })) {
+  // Meta bill cut NL3 (bd-w2daa.9): the line is the opening paragraph of the Flow message's body,
+  // not its own billed text a second earlier — same words, one message. It rides only on the Flow,
+  // so a deployment with no Flow still gets the not-in-catalog reply on its own rather than an
+  // explanation followed by a contradiction.
+  const bodyPrefix = (user && isLp612RouteAll())
+    ? resolveUx('lp612RouteRedirect', { language: responseLanguage })
+    : null;
+  if (user && await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'lesson_plan_intent', bodyPrefix })) {
     return;
   }
   const notInCatalogMessages = {

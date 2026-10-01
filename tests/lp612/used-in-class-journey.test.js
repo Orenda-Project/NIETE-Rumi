@@ -168,9 +168,8 @@ describe('👍 → she is asked whether she taught it, and the answer reaches th
       expect.arrayContaining([['user_id', USER_ID], ['lp612_segment_id', SEGMENT_ID]]),
     );
 
-    expect(mockSendMessage).toHaveBeenLastCalledWith(
-      PHONE, resolveUx('lp612UsedThanks', { language: 'ur' }),
-    );
+    // Meta bill cut NL1 (bd-w2daa.9): no thank-you text — the webhook's 👍 reaction is the receipt.
+    expect(mockSendMessage).not.toHaveBeenCalledWith(PHONE, resolveUx('lp612UsedThanks', { language: 'ur' }));
   });
 
   test('"Not yet" is an answer, not a silence — it lands as not_yet', async () => {
