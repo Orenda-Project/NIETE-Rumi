@@ -21,6 +21,7 @@ const exams = [{ id: 37, source_quiz_id: 901 }, { id: 38, source_quiz_id: 902 }]
 describe('buildIsapsScoreSheet', () => {
   const sheet = buildIsapsScoreSheet({
     courses, units, exams, crqMax: 10,
+    crqHeld: false,   // bd-hxm7a — released view; the held view is in isaps-crq-hold.test.js
     unitAttempts: [
       { training_module_id: 101, score: 1, total_questions: 2 },
       { training_module_id: 101, score: 2, total_questions: 2 },   // best counts
@@ -48,7 +49,7 @@ describe('buildIsapsScoreSheet', () => {
 
   test('the exam shows the passed attempt, split into MCQ and written marks', () => {
     expect(sheet.modules[0].exam).toEqual({
-      passed: true, mcq_correct: 3, mcq_served: 4, mcq_earned: 15, mcq_possible: 20, crq_earned: 6, crq_max: 10,
+      passed: true, pending: false, mcq_correct: 3, mcq_served: 4, mcq_earned: 15, mcq_possible: 20, crq_earned: 6, crq_max: 10,
     });
   });
 

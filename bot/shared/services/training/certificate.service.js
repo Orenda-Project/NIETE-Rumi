@@ -295,6 +295,13 @@ async function maybeIssueQuizScoreCertificate(
       q => q && q.is_active === true && isPerModuleQuiz(q.source_quiz_id),
     );
     if (hasModuleExams) {
+      // bd-hxm7a — while I-SAPS written answers are HELD (grading prompts not
+      // yet trusted), no certificate is issued, whatever the exams say.
+      const { crqResultsHeld } = require('./isaps-crq-hold.rules');
+      if (await crqResultsHeld(supabase)) {
+        logToFile('🎓 Certificate held — I-SAPS written-answer results not released', { userId, levelId: level.id });
+        return { issued: false, held: true };
+      }
       const cert = await issueCertificate(supabase, {
         userId, programId, levelId: level.id, attemptId,
       });

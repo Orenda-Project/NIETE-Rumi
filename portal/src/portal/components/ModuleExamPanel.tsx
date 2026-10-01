@@ -381,8 +381,8 @@ export default function ModuleExamPanel({
           <div className="text-sm">
             <p className="font-medium">Your answers are saved.</p>
             <p className="text-muted-foreground mt-1">
-              The written answer is being marked — this takes a moment. You can leave this
-              page; your score will be here when it is ready.
+              Your written answer is being graded — this takes some time. You can leave this
+              page. Once it passes, we'll issue your certificate.
             </p>
           </div>
         </div>

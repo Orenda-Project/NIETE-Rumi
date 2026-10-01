@@ -1810,8 +1810,12 @@ async function routeOpenEndedAnswer(phoneNumber, text) {
     last_activity_at: new Date().toISOString(),
   }).eq('id', attempt.id);
 
+  // bd-hxm7a — while I-SAPS written-answer results are HELD, the grade is
+  // stored (above) but never said: no score, no feedback.
+  const { crqResultsHeld, crqAnswerAck } = require('./isaps-crq-hold.rules');
+  const held = await crqResultsHeld(supabase);
   await WhatsAppService.sendMessage(
-    phoneNumber, `📝 Answer recorded — *${score}/${perAnswer}*.\n\n${feedback}`,
+    phoneNumber, crqAnswerAck({ held, score, max: perAnswer, feedback }),
   );
   logToFile('🎓 Open-ended answer recorded', {
     attemptId: attempt.id, questionId: q.id, score, perAnswer,
@@ -1969,6 +1973,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
   // a rubric mark happens to be present: its verdict is two independent bars
   // (MCQs >= 75% of those served, CRQ >= 60%), and its marks are 5 per MCQ.
   let isapsVerdict = null;
+  let isapsMixed = null;
   let isModuleExam = false;
   if (attempt.quiz_kind === KIND_GRAND && attempt.grand_quiz_id) {
     const { data: gq } = await supabase
@@ -1983,6 +1988,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
     score = mixed.earned;
     mixedPossible = mixed.possible;
     isapsVerdict = decideIsapsModuleExamPass(mixed);
+    isapsMixed = mixed;
     logToFile('🎓 Module exam scored (I-SAPS split bars)', {
       attemptId, mcqCorrect: mixed.mcqCorrect, mcqServed: mixed.mcqServed,
       crqEarned: mixed.crqEarned, crqMax, earned: mixed.earned, possible: mixed.possible, passed: isapsVerdict,
@@ -2112,6 +2118,48 @@ async function gradeAttempt(attemptId, phoneNumber) {
     // module 1 of a finished course instead of moving on.
     await onModuleCompleted(attempt.user_id, attempt.training_module_id, phoneNumber);
     return true;
+  }
+
+  // bd-hxm7a — an I-SAPS module exam while written-answer results are HELD.
+  //
+  // The CRQ was graded and its mark is stored (score), but it does not decide
+  // anything the teacher sees: under the MCQ bar the exam fails now (retake
+  // allowed); otherwise it is PENDING REVIEW — neither passed nor failed, no
+  // retake, no certificate — until the team releases results.
+  if (isModuleExam && isapsMixed) {
+    const Hold = require('./isaps-crq-hold.rules');
+    if (await Hold.crqResultsHeld(supabase)) {
+      const outcome = Hold.heldModuleExamOutcome(isapsMixed);
+      await supabase.from('training_assessment_attempts').update({
+        status: outcome.status,
+        score,
+        is_passed: outcome.is_passed,
+        completed_at: new Date().toISOString(),
+        last_activity_at: new Date().toISOString(),
+        cooldown_until: null,
+      }).eq('id', attemptId);
+      let moduleTitle = null;
+      try {
+        const { data: gq } = await supabase.from('training_grand_quizzes')
+          .select('source_quiz_id').eq('id', attempt.grand_quiz_id).maybeSingle();
+        const modNo = gq ? Number(gq.source_quiz_id) - 900 : null;
+        if (modNo) {
+          const { data: c } = await supabase.from('training_courses').select('title')
+            .eq('level_id', attempt.level_id).ilike('title', `Module ${modNo}%`).maybeSingle();
+          moduleTitle = c?.title || null;
+        }
+      } catch (_) { /* the message reads fine without a title */ }
+      logToFile('🎓 Module exam graded — written answer HELD', {
+        attemptId, outcome: outcome.status, mcqCorrect: isapsMixed.mcqCorrect,
+        mcqServed: isapsMixed.mcqServed, crqEarned: isapsMixed.crqEarned,
+      });
+      if (phoneNumber) {
+        await WhatsAppService.sendMessage(phoneNumber, Hold.heldModuleExamMessage({
+          moduleTitle, mcqCorrect: isapsMixed.mcqCorrect, mcqServed: isapsMixed.mcqServed, outcome,
+        }));
+      }
+      return true;
+    }
   }
 
   // Grand quiz (the level exam) — bar comes from training_vendors.passing_pct.
