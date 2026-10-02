@@ -49,7 +49,7 @@
  * separates "nothing assigned" from "could not ask" (bd-43487).
  */
 
-import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import {
@@ -710,13 +710,51 @@ const PortalTrainingV2 = () => {
   // disagree. null until it answers: the button shows no number rather than a
   // 0 that is really "not loaded yet".
   const [certCount, setCertCount] = useState<number | null>(null);
+  // Bumped on returning to the Training page, so a certificate earned on
+  // another page is counted without a reload.
+  const [certCountKey, setCertCountKey] = useState(0);
   useEffect(() => {
     let live = true;
     api.get('/training/certificates')
       .then(({ data }) => { if (live) setCertCount((data.certificates || []).length); })
       .catch(() => { /* the button still opens the page, which reports its own error */ });
     return () => { live = false; };
-  }, [certReloadKey]);
+  }, [certReloadKey, certCountKey]);
+
+  // bd-xga3l — each page re-reads what it shows when you come back to it.
+  //
+  // Operator, 2026-10-02 (sandbox): after finishing the last Beacon House
+  // English module the level card still read 4/5 while the database held
+  // 55/55. Levels, courses and the provider roll-up were each read ONCE — on
+  // first load, or when the selection changed — and walking back up the
+  // breadcrumb (or Back) changes neither, so the counts were the ones from
+  // before the work was done.
+  //
+  // Silent on purpose: no spinner and no cleared selection, just the newer
+  // numbers. Skipped on first load (the mount fetches already ran) and when a
+  // NEW level is opened (the courses effect fetches that one itself).
+  const lastScreen = useRef<string | null>(null);
+  useEffect(() => {
+    const here = `${screenKind}|${routeVendorKey ?? ''}|${routeLevelId ?? ''}|${routeCourseId ?? ''}`;
+    const prev = lastScreen.current;
+    lastScreen.current = here;
+    if (prev === null || prev === here) return;
+
+    if (screenKind === 'home') {
+      api.get('/training/vendors')
+        .then(({ data }) => setVendors(data.vendors || []))
+        .catch(() => { /* keep the cards already on screen */ });
+      setCertCountKey(k => k + 1);
+    } else if (screenKind === 'provider') {
+      void refreshLevels();
+    } else if ((screenKind === 'level' || screenKind === 'course')
+      && routeLevelId && routeLevelId === selectedLevel) {
+      api.get('/training/courses', { params: { level_id: routeLevelId } })
+        .then(({ data }) => setCourses(data.courses || []))
+        .catch(() => { /* keep the cards already on screen */ });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screenKind, routeVendorKey, routeLevelId, routeCourseId]);
 
   // NO VENDOR, NO LEVELS. v1 showed every provider's levels at once when
   // nothing was picked, and v2 inherited it — which a dropdown survived and a
