@@ -4,6 +4,7 @@ import SoundBars from '../SoundBars';
 import BottomSheet from '../BottomSheet';
 import { pickRecordingType } from '../../../lib/recordingSupport';
 import { keepScreenOn } from '../../../lib/keepAwake';
+import { useRecordingBackGuard } from '../../../lib/useRecordingBackGuard';
 import { LessonRecorder, type FinishedRecording } from '../../../lib/lessonRecorder';
 
 /**
@@ -101,6 +102,9 @@ const CoachRecorder = ({
   const [paused, setPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [confirmFinish, setConfirmFinish] = useState(false);
+
+  // Back while recording asks "Finish recording?" instead of leaving the lesson.
+  useRecordingBackGuard(recording, () => setConfirmFinish(true));
   const [screenWentOff, setScreenWentOff] = useState(false);
   const level = useMicLevel(stream, recording && !paused);
 

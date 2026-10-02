@@ -14,6 +14,7 @@ import { portal } from '../services/api';
 import { acceptFor, checkFile, formatSize, MAX_PHOTOS, minutesText, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
 import { pickRecordingType } from '../lib/recordingSupport';
 import { keepScreenOn } from '../lib/keepAwake';
+import { useRecordingBackGuard } from '../lib/useRecordingBackGuard';
 import { LessonRecorder } from '../lib/lessonRecorder';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../lib/recordingStore';
 import { takeHandedOffRecording } from '../lib/lessonHandoff';
@@ -245,6 +246,9 @@ const PortalCoachingRecord = () => {
   const photosInput = useRef<HTMLInputElement>(null);
 
   const level = useMicLevel(stream, stage === 'recording' && !paused);
+
+  // Back while recording asks "Finish recording?" instead of leaving the lesson.
+  useRecordingBackGuard(stage === 'recording', () => setConfirmFinish(true));
 
   // ── first load: is it on for her? ─────────────────────────────────────────
   useEffect(() => {
