@@ -9,7 +9,7 @@
   "counts": {
     "books": 17,
     "chapters": 233,
-    "lessons": 2048
+    "lessons": 2049
   },
   "books": [
     {
@@ -1665,7 +1665,7 @@
               "lesson_id": "grade_1_english_ch8_seg7",
               "segment_index": 7,
               "lp_type": "content",
-              "day_label": "Day 7",
+              "day_label": "Day 7 · part 1",
               "section": "Connect and Create",
               "section_short": "Connect and Create",
               "topic": "Treasure-Map Days & Months + Favourite Learning Moment",
@@ -1677,9 +1677,31 @@
               "pages_label": "p.108-109",
               "row": {
                 "title": "Connect and Create",
-                "description": "Day 7 · p.108-109",
-                "metadata": "Treasure-Map Days & Months + Favourite Learning Moment"
-              }
+                "description": "Day 7 · part 1",
+                "metadata": "Treasure-Map Days & Months + Favourite Learning Moment‎ · p.108-109"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_1_english_ch8_seg7b",
+              "segment_index": 7,
+              "lp_type": "content",
+              "day_label": "Day 7 · part 2",
+              "section": "Connect and Create",
+              "section_short": "Connect and Create",
+              "topic": "Treasure-Map Days & Months + Favourite Learning Moment",
+              "topic_short": "Treasure-Map Days & Months + Favourite Learning Moment",
+              "pages": [
+                108,
+                109
+              ],
+              "pages_label": "p.108-109",
+              "row": {
+                "title": "Connect and Create",
+                "description": "Day 7 · part 2",
+                "metadata": "Treasure-Map Days & Months + Favourite Learning Moment‎ · p.108-109"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_1_english_ch8_seg995",
