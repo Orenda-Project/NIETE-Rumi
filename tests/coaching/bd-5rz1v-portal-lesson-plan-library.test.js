@@ -114,6 +114,34 @@ describe('bd-5rz1v — portal lesson-plan library lookups', () => {
     });
   });
 
+  test('where the ch3-10 A/B module is not deployed yet (staging, main), a lesson resolves to its CURRENT asset — what that branch\'s Curriculum PDF serves', async () => {
+    jest.resetModules();
+    jest.doMock('../../bot/shared/services/lp-ab-ch310.service', () => {
+      const e = new Error("Cannot find module '../lp-ab-ch310.service'");
+      e.code = 'MODULE_NOT_FOUND';
+      throw e;
+    }, { virtual: true });
+    const Fresh = require(MODULE);
+    const d = deps();
+    delete d.ab;                      // use the module's own loader
+    d.currentAssetFor = jest.fn().mockResolvedValue({ id: 'current-asset' });
+    const out = await Fresh.resolveAsset({ userId: USER, lessonId: 'g4-sst-ch3-seg2' }, d);
+
+    expect(out).toEqual({ assetId: 'current-asset' });
+    expect(d.currentAssetFor).toHaveBeenCalledWith('g4-sst-ch3-seg2', 'lesson');
+    jest.dontMock('../../bot/shared/services/lp-ab-ch310.service');
+  });
+
+  test('any OTHER failure loading the A/B module is not swallowed', async () => {
+    jest.resetModules();
+    jest.doMock('../../bot/shared/services/lp-ab-ch310.service', () => { throw new Error('syntax error in lp-ab'); });
+    const Fresh = require(MODULE);
+    const d = deps();
+    delete d.ab;
+    await expect(Fresh.resolveAsset({ userId: USER, lessonId: 'g4-sst-ch3-seg2' }, d)).rejects.toThrow('syntax error in lp-ab');
+    jest.dontMock('../../bot/shared/services/lp-ab-ch310.service');
+  });
+
   test('recent plans are the WhatsApp list\'s source', async () => {
     const d = deps();
     expect(await Lib.recent(USER, d)).toEqual([{ asset_id: ASSET }]);
