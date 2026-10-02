@@ -18,6 +18,25 @@ ${tokens.map((w, i) => `${i + 1}:${w}`).join(' ')}
 Judge every word of the printed text in order. For each word say whether the child read it CORRECTLY (an acceptable pronunciation of that word), read it WRONG (said a different word or a mispronunciation that changes the word), or SKIPPED it (never attempted, including everything after the child stopped). Self-corrections count as correct. Do not invent words the child did not say. Return ONLY JSON:
 {"words":[{"i":1,"w":"<word>","v":"correct|wrong|skipped"}, ...], "words_correct": <int>, "words_attempted": <int>, "notes":"<one line>"}`;
 
+/**
+ * STORY's reply, as a strict schema (bd-s1oo0.24). For a child who barely reads, nearly every
+ * entry is "skipped", and in that long run of identical objects Gemini drops the "w" key
+ * ({"i":4,"early","v":"skipped"}) in ~40% of replies, which no JSON repair can mend. Sent as
+ * response_format, it constrains the decoder to the shape STORY already asks for; the prompt,
+ * and so the study's measurement, is unchanged.
+ */
+const STORY_SCHEMA = {
+  name: 'story_marks',
+  schema: {
+    type: 'object', additionalProperties: false, required: ['words', 'words_correct', 'words_attempted', 'notes'],
+    properties: {
+      words: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['i', 'w', 'v'],
+        properties: { i: { type: 'integer' }, w: { type: 'string' }, v: { type: 'string', enum: ['correct', 'wrong', 'skipped'] } } } },
+      words_correct: { type: 'integer' }, words_attempted: { type: 'integer' }, notes: { type: 'string' },
+    },
+  },
+};
+
 const COMPREHENSION = ({ lang, passage, questions, transcript }) => `You are marking an oral reading-comprehension test in ${LANG_NAME[lang] || lang} for a grade 1-5 child in Pakistan. The child has just read this passage aloud:
 ${passage}
 Below is a timestamped, diarised transcript of the coach asking ${questions.length} questions about the passage and the child answering. Speech-to-text errors are possible; judge the meaning. An answer is CORRECT if it conveys the right information from the passage in any language or wording; WRONG if it is incorrect, off-topic, or the child says they do not know; NO_ANSWER if no audible answer. Use each question's accepted and rejected answers and rubric. Mark each question in order.
@@ -72,4 +91,4 @@ Also read the small form code printed in a corner of the strip (expected "${expe
 For each item return what the child wrote as digits ("" if blank), a status: "written" | "blank" | "unreadable" (crossed out with no clear final answer, illegible, or covered), and your confidence (0-1) that you read it right. Return ONLY JSON:
 {"form_code":"<as printed or null>","items":[{"id":"<id>","read":"<digits>","status":"written|blank|unreadable","confidence":<0-1>}]}`;
 
-module.exports = { STORY, COMPREHENSION, PHONICS, FALLBACK, LABELLER, WORD_PROBLEM, STRIP, LANG_NAME };
+module.exports = { STORY, STORY_SCHEMA, COMPREHENSION, PHONICS, FALLBACK, LABELLER, WORD_PROBLEM, STRIP, LANG_NAME };
