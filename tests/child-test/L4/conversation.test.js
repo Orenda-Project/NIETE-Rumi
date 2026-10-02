@@ -129,6 +129,20 @@ describe('today\'s list', () => {
     expect(l.action.sections[0].rows.map((r) => r.id)).toEqual(['ctst_school:school-2', 'ctst_school:school-1']);
     expect(lanes.calls.find((c) => c[0] === 'todaysList')).toBeUndefined();
   });
+  test('a later observe2 visit the same day wins over the list opened earlier (when no child is mid-test)', async () => {
+    await openList();
+    mockDb.__tables.observation_field_forms.push({ id: 'form-2', observer_user_id: 'coach-1', teacher_user_id: 'teacher-1',
+      visit_context: {}, created_at: new Date(Date.now() + 1000).toISOString() });
+    await openList();
+    expect(lanes.calls.filter((c) => c[0] === 'todaysList').map((c) => c[1].visitId)).toEqual(['form-1', 'form-2']);
+  });
+  test('mid-test, /egra keeps the list the child belongs to', async () => {
+    await openList(); await startChild('d1');
+    mockDb.__tables.observation_field_forms.push({ id: 'form-2', observer_user_id: 'coach-1', teacher_user_id: 'teacher-1',
+      visit_context: {}, created_at: new Date(Date.now() + 1000).toISOString() });
+    await openList();
+    expect(lanes.calls.filter((c) => c[0] === 'todaysList').map((c) => c[1].visitId).pop()).toBe('form-1');
+  });
   test('tapping an alternate does not start a child', async () => {
     await openList();
     expect(await H.handleList(COACH, PHONE, 'ctst_alt:d6')).toBe(true);

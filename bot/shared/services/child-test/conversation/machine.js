@@ -216,14 +216,19 @@ async function start(user, from, arg) {
     if (!hit) return say(from, t(lang, 'childTestSchoolNotFound'));
     ctx = (await C.fromSchool({ coachUserId: user.id, schoolId: hit.schoolId })).ctx;
   } else {
+    // A child mid-test keeps the list it belongs to. Otherwise today's latest observe2 visit wins
+    // (the coach may have observed again since), and the last list is the fallback.
     const prev = await S.get(user.id);
-    if (prev && prev.ctx) ctx = prev.ctx;
-  }
-  if (!ctx) {
-    const visitId = await C.todaysVisitId(user.id);
-    if (visitId) {
-      const v = await C.fromVisit({ coachUserId: user.id, visitId });
-      if (v.ok) ctx = v.ctx;
+    const midTest = prev && prev.ctx && (prev.step === 'block' || prev.step === 'presence');
+    if (midTest) ctx = prev.ctx;
+    else {
+      const visitId = await C.todaysVisitId(user.id);
+      if (visitId && prev && prev.ctx && prev.ctx.visitId === visitId) ctx = prev.ctx;
+      else if (visitId) {
+        const v = await C.fromVisit({ coachUserId: user.id, visitId });
+        if (v.ok) ctx = v.ctx;
+      }
+      if (!ctx && prev && prev.ctx) ctx = prev.ctx;
     }
   }
   if (!ctx) {
