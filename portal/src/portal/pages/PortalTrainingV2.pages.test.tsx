@@ -183,6 +183,44 @@ describe("Provider page — that provider's levels only", () => {
     expect(card).toHaveTextContent("Certified · 1/1 courses");
   });
 
+  // Operator, 2026-10-02 (design option A): a provider with ONE level —
+  // I-SAPS, Oxbridge — share Beacon House's any-order rule, so the page called
+  // their only level a "subject" and said "these are independent". With one
+  // card there is nothing to choose between: the breadcrumb and the card.
+  it("shows a single-level provider's card with no subject wording", async () => {
+    const one = { ...LEVELS[2], unlock_logic: "all_modules" };
+    (api.get as any).mockImplementation((url: string) => {
+      if (url === "/training/vendors") return Promise.resolve({ data: { vendors: VENDORS } });
+      if (url === "/training/levels") return Promise.resolve({ data: { levels: [one] } });
+      if (url === "/training/certificates") return Promise.resolve({ data: { certificates: [] } });
+      return Promise.resolve({ data: {} });
+    });
+    renderAt("/portal/training/provider/OXBRIDGE");
+    const card = await screen.findByTestId("level-card-17");
+    expect(card).toHaveTextContent("Game-Based Teaching");
+    expect(card).not.toHaveTextContent(/subject/i);
+    expect(card).not.toHaveTextContent(/^LEVEL/);
+    expect(screen.queryByText(/Choose a subject/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/independent/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Your levels/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps the subject wording for Beacon House, which has several subjects", async () => {
+    const bh = [
+      { ...LEVELS[3], unlock_logic: "all_modules" },
+      { ...level(19, "Mathematics", "BEACONHOUSE", 1), unlock_logic: "all_modules" },
+    ];
+    (api.get as any).mockImplementation((url: string) => {
+      if (url === "/training/vendors") return Promise.resolve({ data: { vendors: VENDORS } });
+      if (url === "/training/levels") return Promise.resolve({ data: { levels: bh } });
+      if (url === "/training/certificates") return Promise.resolve({ data: { certificates: [] } });
+      return Promise.resolve({ data: {} });
+    });
+    renderAt("/portal/training/provider/BEACONHOUSE");
+    expect(await screen.findByTestId("level-card-18")).toHaveTextContent("SUBJECT");
+    expect(screen.getByText("Choose a subject")).toBeInTheDocument();
+  });
+
   it("still shows a provider's single level as a card", async () => {
     renderAt("/portal/training/provider/OXBRIDGE");
     expect(await screen.findByTestId("level-card-17")).toBeInTheDocument();
