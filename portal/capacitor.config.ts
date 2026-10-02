@@ -144,6 +144,18 @@ const config: CapacitorConfig = {
     // on first launch and whenever the server is unreachable.
     ...(otaUrl ? { url: otaUrl } : {}),
   },
+  plugins: {
+    // @capacitor/app is here to hand tapped App Links to the web code
+    // (`appUrlOpen` — see AppLinkListener). By default it ALSO takes over the
+    // hardware back key: with no web listener it goes back in WebView history
+    // and, at the first page, does nothing instead of leaving the app. That
+    // would change back-key behaviour for every user, so it is switched off and
+    // the back key behaves exactly as it did before the plugin. This is native
+    // config (copied into the APK), so turning it on later is a Play release.
+    App: {
+      disableBackButtonHandler: true,
+    },
+  },
 };
 
 export default config;
