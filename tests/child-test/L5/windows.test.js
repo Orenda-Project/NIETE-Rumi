@@ -107,3 +107,21 @@ describe('child-test window cutter — last-resort story window', () => {
     expect(defaultTimedWindow(w, 30)).toMatchObject({ start: 0.5, end: 30, source: 'default' });
   });
 });
+
+describe('child-test window cutter — section cue in the bank but not said', () => {
+  test('falls back to the start-cue rule (opening cue opens the numbers)', () => {
+    const cueL1 = { start: 'اب سوال شروع کریں', alt_start: ['اب شروع کریں'], stop: 'بس، شکریہ', quick_sums: 'اب جلدی جلدی یہ سوال حل کریں', numbers: 'یہ نمبر پڑھیں' };
+    const script = [[1, 0.2, 'اب شروع کریں'], [2, 3.0, 'سینتالیس بارہ نوے آٹھ'], [2, 20.0, 'سات سات نو چھ']];
+    const r = findCueWindows({ words: words(script), block: 'maths', form, cue: cueL1, durationSec: 80 });
+    expect(r.windows.numbers.start).toBeLessThan(2);
+    expect(r.missing).toContain('quick_sums');
+  });
+  test('the section cue, when said, opens the quick-sums minute', () => {
+    const cueL1 = { start: 'اب سوال شروع کریں', alt_start: ['اب شروع کریں'], stop: 'بس، شکریہ', quick_sums: 'اب جلدی جلدی یہ سوال حل کریں', numbers: 'یہ نمبر پڑھیں' };
+    const script = [[1, 0.2, 'اب شروع کریں'], [1, 2.0, 'یہ نمبر پڑھیں'], [2, 4.0, 'سینتالیس بارہ نوے آٹھ'], [1, 10.0, 'اب جلدی جلدی یہ سوال حل کریں'], [2, 14.0, 'سات سات نو چھ']];
+    const r = findCueWindows({ words: words(script), block: 'maths', form, cue: cueL1, durationSec: 80 });
+    expect(r.windows.numbers.start).toBeCloseTo(2.0, 1);
+    expect(r.windows.quick_sums.start).toBeGreaterThan(12);
+    expect(r.windows.quick_sums.start).toBeLessThan(14);
+  });
+});

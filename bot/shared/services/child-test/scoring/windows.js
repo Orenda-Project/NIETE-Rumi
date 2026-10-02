@@ -100,15 +100,18 @@ function findCueWindows({ words, block, form, cue = {}, durationSec }) {
   const flags = [];
 
   if (block === 'maths') {
-    anchors.numbers = firstAnchor(words, [cue.numbers], {}) || (words.length ? { start: 0, end: 0, speaker: null, implicit: true } : null);
-    anchors.quick_sums = firstAnchor(words, [cue.quick_sums, ...starts(cue)], { after: anchors.numbers ? anchors.numbers.end : -1 });
+    const numbersCue = firstAnchor(words, [cue.numbers], {});
+    anchors.numbers = numbersCue || (words.length ? { start: 0, end: 0, speaker: null, implicit: true } : null);
+    const qsCues = [cue.quick_sums, ...starts(cue)];
+    let qs = firstAnchor(words, qsCues, { after: numbersCue ? numbersCue.end : -1 });
     // The start cue marks the quick-sums minute (item bank note), but a coach may also say it to
-    // open the block. Said in the first seconds, before the numbers were read, it opened the
-    // numbers; the minute then starts at a LATER start cue, or the labeller finds it.
-    if (!cue.quick_sums && anchors.quick_sums && anchors.quick_sums.start < OPENING_SECONDS && (spec.numbers || []).length) {
-      anchors.numbers = anchors.quick_sums;
-      anchors.quick_sums = firstAnchor(words, starts(cue), { after: anchors.numbers.end + 1 });
+    // open the block. Said in the first seconds, before any numbers cue, it opened the numbers;
+    // the minute then starts at a LATER cue, or the labeller finds it.
+    if (qs && !numbersCue && qs.start < OPENING_SECONDS && (spec.numbers || []).length) {
+      anchors.numbers = qs;
+      qs = firstAnchor(words, qsCues, { after: qs.end + 1 });
     }
+    anchors.quick_sums = qs;
     const wpAfter = anchors.quick_sums ? anchors.quick_sums.end + 5 : -1;
     anchors.word_problem = firstAnchor(words, [cue.word_problem, firstWords(spec.word_problem && spec.word_problem.prompt_ur, 5)], { after: wpAfter });
   } else {
