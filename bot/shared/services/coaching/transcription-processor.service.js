@@ -110,11 +110,16 @@ class TranscriptionProcessorService {
       // floored to what the deployment offers FIRST. We hold her row here, so
       // "nothing can be determined" is not the situation and the emergency
       // 'en' floor would be the wrong one.
-      await this.sendProgressUpdate(
-        from,
-        1,
-        clampLanguage(session.users.preferred_language || offerDefaultLanguage())
-      );
+      // bd-5rz1v.6.9 — not for a coach's PORTAL observation: the portal shows its
+      // progress, and this teacher-worded step would land on the COACH's
+      // WhatsApp with no later step ever following it there.
+      if (!require('./portal-coaching.service').isPortalObservation(session)) {
+        await this.sendProgressUpdate(
+          from,
+          1,
+          clampLanguage(session.users.preferred_language || offerDefaultLanguage())
+        );
+      }
 
       // bd-78i2k: the bytes may come from WhatsApp (a media id) or from R2 (a
       // portal upload). Everything below this line is identical either way.
