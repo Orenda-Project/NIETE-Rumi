@@ -87,10 +87,39 @@ export default {
             height: "0",
           },
         },
+        // bd-5rz1v — the Coaching pages' live signals: the record button's
+        // ripples, the "needs your answer" dot, the sound bars while recording,
+        // and the stripe across a progress bar. Each use pairs them with
+        // motion-reduce:animate-none.
+        "rec-wave": {
+          "0%": { transform: "scale(0.6)", opacity: "0.85" },
+          "100%": { transform: "scale(1)", opacity: "0" },
+        },
+        "rec-core": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.07)" },
+        },
+        "attention-ring": {
+          "0%": { transform: "scale(0.6)", opacity: "0.75" },
+          "100%": { transform: "scale(1.6)", opacity: "0" },
+        },
+        "sound-level": {
+          "0%, 100%": { transform: "scaleY(0.25)" },
+          "50%": { transform: "scaleY(1)" },
+        },
+        "progress-stripe": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(250%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "rec-wave": "rec-wave 2s ease-out infinite",
+        "rec-core": "rec-core 2s ease-in-out infinite",
+        "attention-ring": "attention-ring 1.6s ease-out infinite",
+        "sound-level": "sound-level 0.9s ease-in-out infinite",
+        "progress-stripe": "progress-stripe 1.4s ease-in-out infinite",
       },
     },
   },

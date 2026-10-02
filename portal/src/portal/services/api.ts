@@ -157,7 +157,7 @@ export const portal = {
    * The Content-Type must be exactly the signed one or R2 rejects the PUT.
    */
   uploadToR2: (
-    uploadUrl: string, file: File, contentType: string, onProgress?: (loaded: number, total: number) => void,
+    uploadUrl: string, file: Blob, contentType: string, onProgress?: (loaded: number, total: number) => void,
   ): Promise<void> => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', uploadUrl);
@@ -170,12 +170,97 @@ export const portal = {
     xhr.send(file);
   }),
 
-  /** Start the analysis. A 409 (one already running) rejects with err.response. */
+  /**
+   * Start the analysis. A 409 (one already running) rejects with err.response.
+   * `lessonPlan` (bd-5rz1v) is a library pick instead of an uploaded plan.
+   */
   startCoachingUpload: async (args: {
     key: string; lessonPlanKey?: string; photoKeys: string[];
+    lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
   }): Promise<{ coachingSessionId: string }> => {
     const response = await api.post('/coaching-upload/start', args);
     return response.data;
+  },
+
+  // ── bd-5rz1v: a lesson plan from the library, for "Record your class" ─────
+
+  /** Her recent plans — what the WhatsApp "Recent Lesson Plans" list offers. */
+  getRecentLessonPlans: async (): Promise<{ plans: RecentLessonPlan[] }> => {
+    const response = await api.get('/coaching-upload/recent-plans');
+    return response.data;
+  },
+
+  /**
+   * The library, one step at a time. Grades 1-5 and 6-12 are two catalogues
+   * behind one picker (as on the Curriculum page): `lane` says which one a grade
+   * lives in, and every later step asks that one.
+   */
+  getLibraryGrades: async (): Promise<LibraryGrade[]> => {
+    const [k5, g612] = await Promise.allSettled([api.get('/curriculum/grades'), api.get('/lp612/grades')]);
+    const grades: LibraryGrade[] = [];
+    if (k5.status === 'fulfilled') for (const g of k5.value.data.grades || []) grades.push({ grade: Number(g.grade), lane: 'k5' });
+    if (g612.status === 'fulfilled') for (const g of g612.value.data.grades || []) grades.push({ grade: Number(g.grade), lane: 'g612' });
+    if (!grades.length) throw new Error('no grades');
+    return grades.sort((a, b) => a.grade - b.grade);
+  },
+
+  getLibrarySubjects: async (grade: number, lane: LibraryLane): Promise<LibraryOption[]> => {
+    const { data } = lane === 'g612'
+      ? await api.get('/lp612/subjects', { params: { grade } })
+      : await api.get('/curriculum/subjects', { params: { grade } });
+    return (data.subjects || []).map((s: Record<string, unknown>) => ({
+      // 6-12 has no subject_key — its display name IS the key it wants back.
+      key: String(s.subject_key ?? s.subject),
+      label: String(s.subject),
+    }));
+  },
+
+  getLibraryChapters: async (grade: number, lane: LibraryLane, subject: string): Promise<LibraryOption[]> => {
+    const { data } = lane === 'g612'
+      ? await api.get('/lp612/chapters', { params: { grade, subject } })
+      : await api.get('/curriculum/chapters', { params: { grade, subject } });
+    return (data.chapters || []).map((c: Record<string, unknown>) => {
+      const n = c.chapter_number != null ? `Chapter ${c.chapter_number}` : 'Chapter';
+      return {
+        // K-5 addresses a chapter by number; 6-12 by chapter_key.
+        key: String(c.chapter_key ?? c.chapter_number),
+        label: c.chapter_title ? `${n}: ${c.chapter_title}` : n,
+      };
+    });
+  },
+
+  getLibraryLessons: async (grade: number, lane: LibraryLane, subject: string, chapter: string): Promise<LibraryLesson[]> => {
+    if (lane === 'g612') {
+      const { data } = await api.get('/lp612/lessons', {
+        params: { grade, subject, chapter_key: chapter, lang: 'en' },
+      });
+      return (data.lessons || []).map((l: Record<string, unknown>) => ({
+        id: String(l.segment_id),
+        label: String(l.title ?? ''),
+        sub: (l.pages_label as string) || null,
+        ready: l.ready === true,
+        used: false,
+      }));
+    }
+    const { data } = await api.get('/curriculum/lps', { params: { grade, subject, chapter_number: chapter } });
+    return (data.lessons || []).map((l: Record<string, unknown>) => ({
+      id: String(l.lesson_id),
+      label: String(l.topic || l.section || `Lesson ${l.segment_index}`),
+      sub: [l.day_label, l.pages_label].filter(Boolean).join(' · ') || null,
+      ready: true,
+      used: l.downloaded === true,
+    }));
+  },
+
+  /** Ask for a 6-12 lesson to be written (the Curriculum page's request). */
+  requestLibraryLesson: async (segmentId: string): Promise<{ state: string; renderId: string }> => {
+    const { data } = await api.post('/lp612/request', { segment_id: segmentId, lang: 'en' });
+    return data;
+  },
+
+  getLibraryLessonStatus: async (renderId: string): Promise<{ state: string }> => {
+    const { data } = await api.get(`/lp612/status/${renderId}`);
+    return data;
   },
 
   getCoachingProgress: async (id: string): Promise<CoachingProgress> => {
@@ -348,6 +433,24 @@ export const portal = {
 };
 
 // ── Portal config ─────────────────────────────────────────────────────────
+// ── bd-5rz1v: the lesson-plan library, for "Record your class" ─────────────
+export type RecentLessonPlan = {
+  assetId: string;
+  lessonId: string;
+  topic: string | null;
+  grade: string | number | null;
+  subject: string | null;
+  chapterNumber: number | null;
+  dayLabel: string | null;
+  pagesLabel: string | null;
+  downloadedAt: string | null;
+};
+export type LibraryLane = 'k5' | 'g612';
+export type LibraryGrade = { grade: number; lane: LibraryLane };
+export type LibraryOption = { key: string; label: string };
+/** `ready` is false only for a 6-12 lesson not written yet; `used` = she downloaded it. */
+export type LibraryLesson = { id: string; label: string; sub: string | null; ready: boolean; used: boolean };
+
 export type PortalConfig = {
   success: boolean;
   features: {
