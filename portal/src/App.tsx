@@ -28,6 +28,10 @@ import LeaderHome from "./portal/pages/LeaderHome";
 import LeaderTeachers from "./portal/pages/LeaderTeachers";
 import LeaderTeacherDetail from "./portal/pages/LeaderTeacherDetail";
 import LeaderObservations from "./portal/pages/LeaderObservations";
+import LeaderObserveRecord from "./portal/pages/LeaderObserveRecord";
+import LeaderObservation from "./portal/pages/LeaderObservation";
+import LeaderObserveDraft from "./portal/pages/LeaderObserveDraft";
+import LeaderObserveTalk from "./portal/pages/LeaderObserveTalk";
 // bd-60117 — a principal's school-level Analytics tab.
 import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
@@ -135,6 +139,11 @@ const App = () => {
             <Route path="/portal/leader" element={<LeaderHome />} />
             <Route path="/portal/leader/teachers" element={<LeaderTeachers />} />
             <Route path="/portal/leader/observations" element={<LeaderObservations />} />
+            {/* bd-5rz1v.6 — a coach's /observe observation from the portal (dark behind portal_coach_observation). */}
+            <Route path="/portal/leader/observe/new" element={<LeaderObserveRecord />} />
+            <Route path="/portal/leader/observe/:id" element={<LeaderObservation />} />
+            <Route path="/portal/leader/observe/:id/draft" element={<LeaderObserveDraft />} />
+            <Route path="/portal/leader/observe/:id/talk" element={<LeaderObserveTalk />} />
             {/* bd-60117 — principals only; the endpoint 403s the rest of
                 the leader family and the page says so rather than showing
                 one school's numbers to a multi-school role. */}
