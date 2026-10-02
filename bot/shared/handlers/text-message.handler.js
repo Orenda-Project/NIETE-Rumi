@@ -339,7 +339,12 @@ function holdTypingWhileReasonPending(user) {
     try {
       const redisService = require('../services/cache/railway-redis.service');
       const Lp612FeedbackService = require('../services/lp612-feedback.service');
-      const keys = [LpFeedbackService.REDIS_REASON_KEY(user.id), Lp612FeedbackService.REDIS_REASON_KEY(user.id)];
+      // FX6 (bd-w2daa.28): the coaching-report survey's window too — its reason is answered by 🙏 alone.
+      const CoachingFeedbackService = require('../services/coaching/coaching-feedback.service');
+      const keys = [
+        LpFeedbackService.REDIS_REASON_KEY(user.id), Lp612FeedbackService.REDIS_REASON_KEY(user.id),
+        CoachingFeedbackService.REDIS_REASON_KEY(user.id),
+      ];
       const open = await Promise.all(keys.map((k) => Promise.resolve(redisService.get(k)).catch(() => null)));
       if (!done && open.some(Boolean)) release = InboundTyping.hold();
     } catch (_) { /* no hold: typing behaves as for any other text */ }
@@ -357,6 +362,11 @@ async function handleTextMessage(message, from, messageBody, user = null) {
 
   // Start continuous typing indicator immediately
   const typingController = WhatsAppService.startContinuousTypingIndicator(from, message.id);
+  // Meta bill cut FX6 (bd-w2daa.28): in the app-redirect quiet hour every text turn ends at a door
+  // that says replyComing() / nothingComing() (the intent door below), or with a send. Declare it
+  // NOW: on sandbox the handler reached the intent door > 5 s in (2 Oct 15:37:55Z), after the 3 s
+  // hold had shown "typing…" over silence. Outside a quiet hour this changes nothing.
+  InboundTyping.doorDeciding('text_handler');
   const releaseReasonHold = holdTypingWhileReasonPending(user);
 
   try {
@@ -2806,7 +2816,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   } catch (_) { /* the hint is an optimisation; classification must never break on it */ }
   // Meta bill cut FX4: the intent door below decides whether this turn is redirected (silent in the
   // quiet hour) or answered; a held quiet-hour "typing…" waits for it, however long the classifier takes.
-  InboundTyping.doorDeciding();
+  InboundTyping.doorDeciding('intent');
   const intent = await OpenAIService.detectIntent(messageBody, intentHint);
   logToFile('Intent detected', { intent: intent.type });
 

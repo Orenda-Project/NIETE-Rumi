@@ -593,9 +593,25 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then the bot asks what could have been better, as a message
     When I type my reason
     Then a 🙏 appears on my reason and no message is sent
+    And the chat header does not show "typing…" before the 🙏
     And my reason is recorded against this coaching session
     # handlePendingReason (text-message.handler passes the inbound wamid). No wamid / refused → the
-    # coachingSurveyReasonThanks text in my language.
+    # coachingSurveyReasonThanks text in my language. UPDATED 2026-10-02 (FX6, bd-w2daa.28): the reason-window
+    # typing hold now covers this survey's window, and the handler settles the turn once the window is found
+    # (sandbox run 4 showed typing at 2,000 ms before the 🙏, 15:08:03Z). Unit: fx6-round4.test.js (FX6-2).
+
+  # ADDED 2026-10-02 (FX6, bd-w2daa.28 / bd-foiys): the reason window closes after ONE reason. It never closed
+  # (redisService.del() does not exist; the TypeError was swallowed), so for 10 minutes every text — a pasted
+  # lesson plan for a NEW session included — was stored as another 👎 reason and answered with 🙏.
+  @e2e @wip @draft @P1 @COA75
+  Scenario: After my 👎 reason, my next message is not taken as another reason
+    Given the NIETE bot chat is open
+    And I tapped "👎 Not really" on the coaching-report survey and typed my reason
+    When I start a new coaching session and paste my lesson plan into the chat within 10 minutes
+    Then my lesson plan is attached to the new session and the bot moves on to "Step 2/5"
+    And no 🙏 appears on my lesson plan
+    # coaching-feedback.service handlePendingReason → redisService.delete(REDIS_REASON_KEY). Unit:
+    # tests/meta-bill-cut/fx6-round4.test.js (FX6-4), tests/coaching/coaching-feedback.test.js.
 
   # ADDED 2026-10-02 (FX4, bd-w2daa.26): a plan pasted as text is answered by the analysis job's
   # Step 2/5 — nothing is sent in between, so "typing…" must cover the wait.
@@ -638,6 +654,25 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # them (card-response.service handleCardButton). UPDATED 2026-10-01 (Meta bill cut
     # N2-C11): the acknowledgement is a free ✅ reaction on the tap; the coachingCardAck*
     # text goes only when no wamid is available or the reaction cannot go out.
+    # UPDATED 2026-10-02 (FX6): "Maybe later" → 👌 and "Not for me" → 🙏 (COA76) — never ✅.
+
+  # ADDED 2026-10-02 (FX6, bd-w2daa.28): a ✅ on "Not for me" read as "agreed" (e2e run 4). Each answer has its
+  # own reaction. "Maybe later" schedules nothing (only a "yes" is read back), so 👌 loses no promise.
+  @e2e @wip @draft @P2 @COA76
+  Scenario Outline: Each commitment-card answer gets its own reaction
+    Given the NIETE bot chat is open
+    And I have received a coaching report with a commitment card
+    When I tap "<answer>" on the commitment card
+    Then my answer is recorded
+    And my tap gets a <reaction> reaction and no message is sent
+    And when the reaction cannot be sent, the bot sends "<text>" in my selected language instead
+
+    Examples:
+      | answer          | reaction | text                                                                    |
+      | Yes, I'll try!  | ✅       | Noted — we will look for it in your next lesson. Good luck!             |
+      | Maybe later     | 👌       | No problem — it will be here whenever you are ready.                    |
+      | Not for me      | 🙏       | Thanks for telling us — we will suggest something different next time. |
+    # card-response.service ACK_REACTION. Unit: tests/meta-bill-cut/fx6-round4.test.js (FX6-1).
 
   @e2e @wip @draft @P1 @COA72
   Scenario: The lesson-plan list says a photo, a PDF, or typing the plan all work

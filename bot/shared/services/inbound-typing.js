@@ -361,11 +361,25 @@ function showNow() {
 /**
  * A quiet-hour door has started deciding and will call replyComing() or nothingComing(): hold
  * "typing…" until it does (backstop TYPING_LIFETIME_MS), not just QUIET_HOLD_MS. Only changes a
- * scope this person's quiet hour applies to. Never throws.
+ * scope this person's quiet hour applies to. Logs inbound_typing.door_deciding (where, scope state,
+ * ms since the inbound, quietHeld) when the scope is in a quiet hour or there is no scope. Never throws.
+ *
+ * @param {string} [where] - which door (log only): 'text_handler' | 'intent'
  */
-function doorDeciding() {
+function doorDeciding(where = 'unspecified') {
   try {
     const scope = current();
+    // FX6 (bd-w2daa.28): one line per call, so a run can tell "too late" from "no scope" (Rule 12).
+    if (scope && quietFor(scope.digits)) {
+      logToFile('inbound_typing.door_deciding', {
+        where,
+        scope: scope.state,
+        msSinceInbound: Date.now() - scope.openedAt,
+        quietHeld: scope.quietHeld,
+      });
+    } else if (!scope) {
+      logToFile('inbound_typing.door_deciding', { where, scope: 'none' });
+    }
     if (!scope || scope.state !== 'pending') return;
     scope.doorDeciding = true;
     if (scope.quietHeld && scope.quietTimer) {
