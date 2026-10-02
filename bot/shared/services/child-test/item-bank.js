@@ -108,5 +108,6 @@ module.exports = {
   getBlock,
   getItem,
   quickSumsSeconds,
+  sandboxQuickSumsOverride,
   isSandbox,
 };
