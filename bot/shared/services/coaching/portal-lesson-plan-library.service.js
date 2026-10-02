@@ -29,12 +29,33 @@
 
 const LANGS = new Set(['en', 'ur']);
 
+/**
+ * The current asset for a lesson — the SAME select as
+ * lp-v8-delivery.currentAssetFor (is_current, by lesson + kind). It is not
+ * required from there because lp-v8-delivery sits inside an allowlisted require
+ * cycle (tests/setup/circular-deps.allowlist.json) that leads back to
+ * transcription-processor → portal-coaching.service; requiring it from here
+ * would pull this module and portal-coaching into that cycle.
+ */
+function currentAssetFrom(supabase) {
+  return async (lessonId, assetKind = 'lesson') => {
+    const { data } = await supabase
+      .from('niete_lp_assets')
+      .select('id, lesson_id, asset_kind, r2_key, content_hash, version_stamp, is_current')
+      .eq('lesson_id', lessonId)
+      .eq('asset_kind', assetKind)
+      .eq('is_current', true)
+      .maybeSingle();
+    return data || null;
+  };
+}
+
 function withDefaults(deps = {}) {
   const lazy = {
     supabase: () => require('../../config/supabase'),
     catalog: () => require('../lp-v8-catalog.service'),
     ab: () => require('../lp-ab-ch310.service'),
-    currentAssetFor: () => require('../lp-v8-delivery.service').currentAssetFor,
+    currentAssetFor: () => currentAssetFrom(require('../../config/supabase')),
     linker: () => require('./lp-coaching/lp-coaching-linker.service'),
     getRecentFidelityLps: () => require('./lp-coaching/recent-fidelity-lps.service').getRecentFidelityLps,
     templateVersion: () => require('../../config/lp612-flags').templateVersion,
@@ -104,4 +125,4 @@ async function recent(userId, deps) {
   return d.getRecentFidelityLps(userId);
 }
 
-module.exports = { resolveAsset, readyRender, link, recent, LANGS };
+module.exports = { resolveAsset, readyRender, link, recent, currentAssetFrom, LANGS };
