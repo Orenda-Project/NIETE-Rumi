@@ -107,7 +107,11 @@ const SYN = (() => { try { return JSON.parse(fs.readFileSync(path.join(FIX, '_bu
 const toks = (t) => String(t || '').split(/\s+/).map((w) => w.replace(/[۔،.,!?؟:;"'()]/g, '')).filter(Boolean);
 
 function synthSpec(key, block) {
-  if (!SYN) return BANK.grades[String(key.grade)].forms[key.form || 'A'][block];
+  // L8 re-keys its synthetic fixtures against the bank once item-bank.v1.json lands (ids u3A-…);
+  // only the provisional ones (ids syn-…) need L8's own items.
+  const k = key.blocks && key.blocks[block];
+  const firstId = k && ((k.questions || [])[0] || (k.nonwords || [])[0] || ((k.maths || {}).numbers || [])[0] || {}).id;
+  if (!SYN || !String(firstId || '').startsWith('syn-')) return BANK.grades[String(key.grade)].forms[key.form || 'A'][block];
   const g5 = Number(key.grade) === 5;
   if (block === 'maths') {
     const m = SYN.maths;
@@ -133,7 +137,7 @@ function synthSpec(key, block) {
 
 // The synthetic coach speaks a fixed intro line before each section (CR-4): pass them as section cues.
 function synthCue() {
-  if (!SYN || !SYN.coach) return BANK.cue;
+  if (BANK.cue.urdu.questions || !SYN || !SYN.coach) return BANK.cue;   // the bank now carries section cues (CR-4)
   const c = SYN.coach;
   return {
     urdu: { ...BANK.cue.urdu, questions: c.questions_intro, first_sounds: c.first_sounds_intro, nonwords: c.nonwords_intro },
@@ -276,7 +280,8 @@ async function main() {
       const cacheFile = path.join(OUT, 'cache', `${key.strip_id}__strip.json`);
       if (fs.existsSync(cacheFile)) return JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
       const img = path.join(sdir, `${key.strip_id}.jpg`);
-      const spec = { written: key.written.map((w) => ({ id: w.id, prompt: w.prompt, answer: w.answer })), word_problem: key.word_problem ? { id: key.word_problem.id, prompt_en: (BANK.grades[String(key.grade)].forms[key.form].maths.word_problem || {}).prompt_en, answer: key.word_problem.answer } : null };
+      // L8's provisional strips (rendered before L2's strip landed) print the code as m<grade><form>
+      const spec = { strip_code: /L2 strip not yet landed/.test(key.source || '') ? `m${key.grade}${key.form}` : undefined, written: key.written.map((w) => ({ id: w.id, prompt: w.prompt, answer: w.answer })), word_problem: key.word_problem ? { id: key.word_problem.id, prompt_en: (BANK.grades[String(key.grade)].forms[key.form].maths.word_problem || {}).prompt_en, answer: key.word_problem.answer } : null };
       const calls = []; const t0 = Date.now();
       const r = await scoreStrip({ spec, grade: key.grade, form: key.form, image: fs.readFileSync(img), calls });
       const rec = { id: key.strip_id, difficulty: key.difficulty, r, calls, wall_s: (Date.now() - t0) / 1000, key };

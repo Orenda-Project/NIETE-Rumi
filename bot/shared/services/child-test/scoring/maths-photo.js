@@ -40,7 +40,13 @@ async function scoreStrip({ spec, grade, form, image, mime = 'image/jpeg', calls
   calls.push({ job: 'vision', model, cost: r.cost, seconds: r.seconds, error: r.error });
   if (!r.json) return { ok: false, error: r.error || 'no_json' };
 
-  const read = new Map((r.json.items || []).filter((x) => x && x.id).map((x) => [x.id, x]));
+  // By id; an item whose id the model dropped or mangled is taken by its position on the strip
+  // (the prompt lists the written sums first, then the word problem).
+  const items = (r.json.items || []).filter(Boolean);
+  const order = [...written.map((w) => w.id), ...(wp ? [wp.id] : [])];
+  const read = new Map();
+  items.forEach((x) => { if (order.includes(x.id)) read.set(x.id, x); });
+  items.forEach((x, i) => { if (!order.includes(x.id) && order[i] && !read.has(order[i])) read.set(order[i], x); });
   const formCodeOk = r.json.form_code == null ? null : normCode(r.json.form_code) === normCode(code);
   const judge = (id, answer) => {
     const x = read.get(id);
@@ -60,7 +66,7 @@ async function scoreStrip({ spec, grade, form, image, mime = 'image/jpeg', calls
     const j = judge(wp.id, wp.answer);
     part.word_problem = { verdict: j.verdict === 'correct' ? 'correct' : (j.verdict === 'wrong' ? 'wrong' : 'none'), read_answer: j.read_answer, confidence: j.confidence, photo_verdict: j.verdict };
   }
-  return { ok: true, part, formCode: r.json.form_code || null, formCodeOk, expectedCode: code, modelVersion: model };
+  return { ok: true, part, formCode: r.json.form_code || null, formCodeOk, expectedCode: code, modelVersion: model, raw: items };
 }
 
 module.exports = { scoreStrip, expectedCode };
