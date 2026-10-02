@@ -1202,6 +1202,14 @@ async function processTeacherReport(sessionId, payload = {}) {
           : S.send_done_fo);
     }
     logToFile('✅ observe send: combined report delivered to teacher', { sessionId });
+    // The child test (bd-s1oo0.4): offered once the teacher has the report, carrying this
+    // coaching session so the school and the observed class are pre-filled. Only on the direct
+    // send at the end of the visit, not on a teacher's later tap. Gated inside sendOffer
+    // (flag + coach role + ICT); never throws.
+    if (phase !== 'teacher_tap' && session.observer_user_id) {
+      const ChildTestOffer = require('../child-test/conversation/offer');
+      await ChildTestOffer.sendOffer({ coachUserId: session.observer_user_id, kind: 's', id: sessionId });
+    }
     return;
   }
 

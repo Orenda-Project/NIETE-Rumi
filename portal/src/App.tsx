@@ -28,6 +28,7 @@ import LeaderHome from "./portal/pages/LeaderHome";
 import LeaderTeachers from "./portal/pages/LeaderTeachers";
 import LeaderTeacherDetail from "./portal/pages/LeaderTeacherDetail";
 import LeaderObservations from "./portal/pages/LeaderObservations";
+import LeaderChildTest from "./portal/pages/LeaderChildTest";
 import LeaderObserveRecord from "./portal/pages/LeaderObserveRecord";
 import LeaderObservation from "./portal/pages/LeaderObservation";
 import LeaderObserveDraft from "./portal/pages/LeaderObserveDraft";
@@ -139,6 +140,9 @@ const App = () => {
             <Route path="/portal/leader" element={<LeaderHome />} />
             <Route path="/portal/leader/teachers" element={<LeaderTeachers />} />
             <Route path="/portal/leader/observations" element={<LeaderObservations />} />
+            {/* bd-s1oo0.7 — the child test in the coach app; the page and the
+                API both check the portal_child_test flag. */}
+            <Route path="/portal/leader/child-test" element={<LeaderChildTest />} />
             {/* bd-5rz1v.6 — a coach's /observe observation from the portal (dark behind portal_coach_observation). */}
             <Route path="/portal/leader/observe/new" element={<LeaderObserveRecord />} />
             <Route path="/portal/leader/observe/:id" element={<LeaderObservation />} />

@@ -278,6 +278,18 @@ const FLOW_CONFIGS = [
     envVar: 'OBSERVE2_CHECK_FLOW_ID',
     categories: ['OTHER'],
   },
+  {
+    // Child test — the coach confirms or corrects the AI's marks for one child, one
+    // pre-filled screen per block (Urdu, English, maths). Sandbox only for now: register it with
+    // bot/scripts/setup/register-child-test-check-flow.js, which refuses any other account.
+    // Regenerate the JSON with bot/scripts/generate-child-test-check-flow-json.js.
+    name: 'Child Test Check',
+    jsonPath: path.join(FLOWS_DIR, 'child-test-check.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/child-test-check',
+    envVar: 'CHILD_TEST_CHECK_FLOW_ID',
+    categories: ['OTHER'],
+  },
 ];
 
 /** The flow names that a complete setup must have registered. */

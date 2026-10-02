@@ -2,6 +2,7 @@ import axios from 'axios';
 import { getApiBaseUrl } from '@/lib/runtime';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   AttendanceResponse } from '../types/portal';
+import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, ChildTestBlockName } from '../types/childTest';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
 
@@ -360,6 +361,7 @@ export const portal = {
           assessmentGeneratorMessage:
             "The assessment generator is being prepared for you. We'll notify you when it's live.",
           selfObservation: false,
+          childTest: false,
           coachObservation: false,
         },
       };
@@ -482,6 +484,8 @@ export type PortalConfig = {
     assessmentGeneratorMessage: string | null;
     /** bd-3bvfj — "Analyse a lesson" is on for THIS user (fail-closed). */
     selfObservation?: boolean;
+    /** bd-s1oo0.7 — the child test in the coach app is on for THIS user (fail-closed). */
+    childTest?: boolean;
     /** bd-5rz1v.6 — a coach can run an /observe observation from the portal (fail-closed). */
     coachObservation?: boolean;
   };
@@ -810,6 +814,42 @@ export const classes = {
     const response = await api.delete(`/classes/${classId}/students/${studentId}`);
     return response.data;
   },
+};
+
+// ── bd-s1oo0.7: the child test in the coach app ─────────────────────────────
+// Every call relays to the bot (dashboard/routes/portal-child-test.routes.js);
+// the server's draw picks the children and can never be redrawn from here.
+
+const CT = '/leader/child-test';
+
+export const childTest = {
+  getVisits: async (): Promise<{ visits: ChildTestVisit[] }> => (await api.get(`${CT}/visits`)).data,
+
+  getList: async (visitId: string): Promise<{ list: ChildTestList }> =>
+    (await api.get(`${CT}/list`, { params: { visitId } })).data,
+
+  markOutcome: async (args: { visitId: string; drawId: string; outcome: 'present' | 'absent' | 'refused'; note?: string }):
+    Promise<{ sessionId?: string; list: ChildTestList | null }> => (await api.post(`${CT}/outcome`, args)).data,
+
+  getSession: async (sessionId: string): Promise<ChildTestSession> =>
+    (await api.get(`${CT}/session/${encodeURIComponent(sessionId)}`)).data,
+
+  getCard: async (sessionId: string, block: ChildTestBlockName): Promise<{ card: ChildTestCard }> =>
+    (await api.get(`${CT}/session/${encodeURIComponent(sessionId)}/card/${block}`)).data,
+
+  presignBlockUpload: async (sessionId: string, args: { block: string; kind: 'audio' | 'photo'; contentType: string; sizeBytes: number }):
+    Promise<{ key: string; uploadUrl: string; contentType: string }> =>
+    (await api.post(`${CT}/session/${encodeURIComponent(sessionId)}/presign`, args)).data,
+
+  uploadToR2: (uploadUrl: string, blob: Blob, contentType: string): Promise<void> =>
+    portal.uploadToR2(uploadUrl, blob, contentType),
+
+  registerBlockMedia: async (sessionId: string, args: { block: string; audioKey?: string; photoKey?: string; timing?: Record<string, unknown>; photoDeclined?: boolean }):
+    Promise<{ scoring?: string }> => (await api.post(`${CT}/session/${encodeURIComponent(sessionId)}/media`, args)).data,
+
+  submitCheck: async (sessionId: string, args: { block: ChildTestBlockName; coachMarks: Record<string, unknown> }):
+    Promise<{ edits: number; allChecked: boolean }> =>
+    (await api.post(`${CT}/session/${encodeURIComponent(sessionId)}/check`, args)).data,
 };
 
 export default api;

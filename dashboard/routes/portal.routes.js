@@ -62,6 +62,7 @@ const {
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
   isFlagEnabledForUser,
   PORTAL_SELF_OBSERVATION_KEY,
+  PORTAL_CHILD_TEST_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
@@ -6826,6 +6827,10 @@ router.get('/config', async (req, res) => {
     const selfObservation = await isFlagEnabledForUser(
       supabase, PORTAL_SELF_OBSERVATION_KEY, req.session && req.session.portalUserId,
     );
+    // bd-s1oo0.7: the child test in the coach app, per user, same rule.
+    const childTest = await isFlagEnabledForUser(
+      supabase, PORTAL_CHILD_TEST_KEY, req.session && req.session.portalUserId,
+    );
     // bd-5rz1v.6: per USER too — the coach's portal observation pilot.
     const coachObservation = await isFlagEnabledForUser(
       supabase, PORTAL_COACH_OBSERVATION_KEY, req.session && req.session.portalUserId,
@@ -6836,6 +6841,7 @@ router.get('/config', async (req, res) => {
         assessmentGenerator,
         assessmentGeneratorMessage: assessmentGenerator ? null : ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation,
+        childTest,
         coachObservation,
       },
     });
@@ -6848,6 +6854,7 @@ router.get('/config', async (req, res) => {
         assessmentGenerator: false,
         assessmentGeneratorMessage: ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation: false,
+        childTest: false,
         coachObservation: false,
       },
     });

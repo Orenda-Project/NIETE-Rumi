@@ -72,6 +72,9 @@ function isAssessmentGeneratorEnabled(supabase) {
 /** bd-3bvfj — app_settings key for teacher self-observation from the portal. */
 const PORTAL_SELF_OBSERVATION_KEY = 'portal_self_observation';
 
+/** bd-s1oo0.7 — app_settings key for the child test in the coach app (true or a pilot list). */
+const PORTAL_CHILD_TEST_KEY = 'portal_child_test';
+
 /**
  * bd-5rz1v.6 — app_settings key for a COACH running an /observe observation from
  * the portal (record or send the lesson, check the draft, the talk with the
@@ -120,6 +123,7 @@ async function isFlagEnabledForUser(supabase, key, userId) {
 
 module.exports = {
   PORTAL_SELF_OBSERVATION_KEY,
+  PORTAL_CHILD_TEST_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   isFlagEnabledForUser,
   ASSESSMENT_GENERATOR_KEY,

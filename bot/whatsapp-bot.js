@@ -735,6 +735,14 @@ app.post('/webhook', async (req, res) => {
         if (await ConversationResume.handleResumeButton(user, from, buttonId)) return;
       }
 
+      // Child test (bd-s1oo0.4): every ctst_ button (offer, Present/Absent/Refused, Stop, Menu,
+      // No strip photo) belongs to the child test. Inert unless CHILD_TEST_ENABLED; false → the
+      // chain below runs as before.
+      if (user && buttonId.startsWith('ctst_')) {
+        const ChildTest = require('./shared/handlers/child-test.handler');
+        if (await ChildTest.handleButton(user, from, buttonId)) return;
+      }
+
       // bd-2712 — "Grade another teacher?" after a Supervisor Remark submit.
       // Re-enters through handleRemarkCommand rather than reaching into the flow
       // sender directly, so BOTH gates (capability + open cycle) are re-checked:
@@ -1856,6 +1864,15 @@ app.post('/webhook', async (req, res) => {
         } catch (observe2Err) {
           logToFile('❌ observe2 completion handler failed', { from, error: observe2Err.message }, 'error');
         }
+      } else if (flowType === 'child_test_check') {
+        // Child test: the coach's check of one child's marks. The endpoint saved each
+        // block as its screen was submitted; this only confirms in one line (or says it did not save).
+        try {
+          const { handleCheckCompletion } = require('./shared/services/child-test/check-flow');
+          await handleCheckCompletion(responseJson, from, user);
+        } catch (childTestErr) {
+          logToFile('❌ child test check completion handler failed', { from, error: childTestErr.message }, 'error');
+        }
       } else if (flowType === 'status') {
         // /status. The endpoint did every write before the Flow closed,
         // so this branch ONLY acknowledges. Without it the completion landed on the
@@ -1920,6 +1937,12 @@ app.post('/webhook', async (req, res) => {
       const listReply = message.interactive.list_reply;
       const listId = listReply.id;
       logToFile('📋 Interactive list item selected', { listId, from });
+
+      // Child test (bd-s1oo0.4): a child, an alternate or a school tapped on the child-test list.
+      if (user && listId.startsWith('ctst_')) {
+        const ChildTest = require('./shared/handlers/child-test.handler');
+        if (await ChildTest.handleList(user, from, listId)) { ack(); return; }
+      }
 
       // bd-2482 (NIETE port of PK bd-2309): video-quiz answers arrive as
       // list_reply whenever the question has 4 options or a title too long

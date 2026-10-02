@@ -3028,6 +3028,240 @@ const UX_STRINGS = {
     en: 'Keep at least one question on the paper.',
     ur: 'پرچے پر کم از کم ایک سوال رکھیں۔',
   },
+  // ─── child test (EGRA/EGMA five-minute test, bd-s1oo0.4) ──────────────────
+  // The coach's side of the child test: the offer after /observe2, today's list,
+  // Present/Absent/Refused, one voice note per block, the maths strip photo.
+  // Urdu addresses the coach with imperatives and impersonal forms only (coaches
+  // are women and men); children are "بچہ" with no gendered verb. Numbers in Urdu
+  // lines arrive already in Urdu digits (conversation/copy.js). /egra and other
+  // Latin atoms inside Urdu lines are isolated (U+2066 … U+2069).
+  // Field caps (code points): button 20, row title 24, row description 72,
+  // section title 24, header 60 — tests/child-test/L4/strings-caps.test.js.
+  childTestDenyNoUser: {
+    en: 'I couldn\'t find your account. Send *register* first, then /egra again.',
+    ur: 'اکاؤنٹ نہیں ملا۔ پہلے *register* بھیجیں، پھر دوبارہ ⁦/egra⁩۔',
+  },
+  childTestDenyRole: {
+    en: 'The child test is for coaches and school leaders.',
+    ur: 'بچوں کا ٹیسٹ کوچز اور اسکول سربراہان کے لیے ہے۔',
+  },
+  childTestOfferBody: {
+    en: 'Test 5 children now? About 25 minutes. The school and class come from this visit.',
+    ur: 'ابھی ۵ بچوں کا ٹیسٹ کریں؟ تقریباً ۲۵ منٹ۔ اسکول اور جماعت اسی وزٹ سے لی جائیں گی۔',
+  },
+  childTestOfferYes: { en: 'Yes, test now', ur: 'ہاں، ابھی' },
+  childTestOfferLater: { en: 'Not now', ur: 'ابھی نہیں' },
+  childTestOfferLaterAck: {
+    en: 'OK. Send /egra any time today and the same list opens.',
+    ur: 'ٹھیک ہے۔ آج کسی بھی وقت ⁦/egra⁩ بھیجیں، یہی فہرست کھلے گی۔',
+  },
+  childTestNoSchool: {
+    en: 'No school is linked to your account yet, so there is no list to show. Please tell the team.',
+    ur: 'آپ کے اکاؤنٹ سے ابھی کوئی اسکول منسلک نہیں، اس لیے فہرست نہیں بن سکتی۔ ٹیم کو بتائیں۔',
+  },
+  childTestPickSchoolBody: {
+    en: 'Which school are you testing in today?',
+    ur: 'آج کس اسکول میں ٹیسٹ کرنا ہے؟',
+  },
+  childTestPickSchoolMore: {
+    en: 'Not in the list? Send /egra followed by the school\'s EMIS number.',
+    ur: 'فہرست میں نہیں؟ ⁦/egra⁩ کے بعد اسکول کا EMIS نمبر بھیجیں۔',
+  },
+  childTestPickSchoolButton: { en: 'Schools', ur: 'اسکول' },
+  childTestPickSchoolSection: { en: 'Your schools', ur: 'آپ کے اسکول' },
+  childTestSchoolNotFound: {
+    en: 'I couldn\'t find that school among yours. Send /egra to see your list.',
+    ur: 'یہ اسکول آپ کے اسکولوں میں نہیں ملا۔ فہرست کے لیے ⁦/egra⁩ بھیجیں۔',
+  },
+  childTestNoClassList: {
+    en: 'This school has no Grade 3 or Grade 5 class list yet. Send the register photos with /roster first, then /egra.',
+    ur: 'اس اسکول کی جماعت ۳ یا ۵ کی فہرست ابھی موجود نہیں۔ پہلے ⁦/roster⁩ سے رجسٹر کی تصاویر بھیجیں، پھر ⁦/egra⁩۔',
+  },
+  childTestNeedsVisit: {
+    en: 'For now the child test runs after an /observe2 visit. Start /observe2 at this school; the offer comes at the end, or send /egra after it.',
+    ur: 'فی الحال بچوں کا ٹیسٹ ⁦/observe2⁩ وزٹ کے بعد ہوتا ہے۔ اس اسکول میں ⁦/observe2⁩ شروع کریں؛ آخر میں پیشکش آئے گی، یا اس کے بعد ⁦/egra⁩ بھیجیں۔',
+  },
+  childTestListFailed: {
+    en: 'I couldn\'t open today\'s list just now. Please send /egra again in a minute.',
+    ur: 'آج کی فہرست ابھی نہیں کھل سکی۔ ایک منٹ بعد دوبارہ ⁦/egra⁩ بھیجیں۔',
+  },
+  childTestListHeader: { en: 'Grade {grade} · Class {cls}', ur: 'جماعت {grade} · سیکشن {cls}' },
+  childTestListBody: {
+    en: 'Today\'s children were picked by the server and cannot be changed. Tap a child to start.\nDone: {done} of {total}',
+    ur: 'آج کے بچے سرور نے چنے ہیں، بدلے نہیں جا سکتے۔ شروع کرنے کے لیے بچے پر ٹیپ کریں۔\nمکمل: {total} میں سے {done}',
+  },
+  childTestListChecks: { en: 'Checks waiting: {n}', ur: 'چیک باقی: {n}' },
+  childTestListAllDone: {
+    en: 'All children are done. Finish any checks waiting.',
+    ur: 'سب بچوں کا ٹیسٹ ہو گیا۔ باقی چیک مکمل کریں۔',
+  },
+  childTestListButton: { en: 'Today\'s children', ur: 'آج کے بچے' },
+  childTestSectionChildren: { en: 'Today\'s children', ur: 'آج کے بچے' },
+  childTestSectionAlternates: { en: 'Alternates', ur: 'متبادل' },
+  childTestRowTitle: { en: 'Roll {roll} · {name}', ur: 'رول {roll} · {name}' },
+  childTestRoleNew: { en: 'New', ur: 'نیا' },
+  childTestRoleReturning: { en: 'Returning (Form B)', ur: 'دوبارہ (فارم B)' },
+  childTestStatusTested: { en: 'Done ✓', ur: 'مکمل ✓' },
+  childTestStatusInProgress: { en: 'In progress', ur: 'جاری' },
+  childTestStatusAbsent: { en: 'Absent', ur: 'غیر حاضر' },
+  childTestStatusRefused: { en: 'Refused', ur: 'انکار' },
+  childTestStatusCheckWaiting: { en: 'Check waiting', ur: 'چیک باقی' },
+  childTestAlternateRow: {
+    en: 'Alternate: joins only if a child is absent or refuses',
+    ur: 'متبادل: صرف غیر حاضری یا انکار کی صورت میں',
+  },
+  childTestAlternateTapped: {
+    en: 'This is an alternate. They join today\'s list by themselves when a child on it is absent or refuses.',
+    ur: 'یہ متبادل ہے۔ فہرست کا کوئی بچہ غیر حاضر ہو یا انکار کرے تو یہ متبادل خود فہرست میں شامل ہو جائے گا۔',
+  },
+  childTestAlreadyDone: {
+    en: 'Roll {roll} is already done today.',
+    ur: 'رول {roll} کا ٹیسٹ آج ہو چکا ہے۔',
+  },
+  childTestNotOnList: {
+    en: 'That child is not on today\'s list any more. Here is the list.',
+    ur: 'یہ بچہ اب آج کی فہرست میں نہیں۔ فہرست یہ ہے۔',
+  },
+  childTestBusy: {
+    en: 'Roll {roll} is still in progress ({block}). Finish that child first, or send /cancel to stop.',
+    ur: 'رول {roll} کا ٹیسٹ ابھی جاری ہے ({block})۔ پہلے یہ مکمل کریں، یا روکنے کے لیے ⁦/cancel⁩ بھیجیں۔',
+  },
+  childTestProgress: {
+    en: 'Child {n} of {total} · {block} {b}/3',
+    ur: 'بچہ {n} از {total} · {block} {b}/۳',
+  },
+  childTestProgressChild: { en: 'Child {n} of {total}', ur: 'بچہ {n} از {total}' },
+  childTestBlockUrdu: { en: 'Urdu', ur: 'اردو' },
+  childTestBlockEnglish: { en: 'English', ur: 'انگریزی' },
+  childTestBlockMaths: { en: 'Maths', ur: 'ریاضی' },
+  childTestPresenceBody: {
+    en: 'Roll {roll} · {name}\nIs the child here and willing to read?',
+    ur: 'رول {roll} · {name}\nکیا بچہ موجود ہے اور پڑھنے پر آمادہ ہے؟',
+  },
+  childTestPresent: { en: 'Present', ur: 'موجود' },
+  childTestAbsent: { en: 'Absent', ur: 'غیر حاضر' },
+  childTestRefused: { en: 'Refused', ur: 'انکار' },
+  childTestOutcomeAbsent: { en: 'Roll {roll} marked absent.', ur: 'رول {roll} غیر حاضر درج۔' },
+  childTestOutcomeRefused: { en: 'Roll {roll} marked as refused.', ur: 'رول {roll} انکار درج۔' },
+  childTestPromoted: {
+    en: 'Roll {roll} from the alternates joins today\'s list.',
+    ur: 'متبادل میں سے رول {roll} آج کی فہرست میں شامل۔',
+  },
+  childTestNoAlternate: {
+    en: 'No alternate is left for today.',
+    ur: 'آج کے لیے کوئی متبادل باقی نہیں۔',
+  },
+  childTestOutcomeFailed: {
+    en: '⚠️ I couldn\'t save that. Nothing changed; please tap the button again.',
+    ur: '⚠️ یہ محفوظ نہیں ہو سکا۔ کچھ نہیں بدلا؛ بٹن دوبارہ دبائیں۔',
+  },
+  childTestSessionFailed: {
+    en: '⚠️ I couldn\'t start this child\'s test (the save failed). Tap Present again.',
+    ur: '⚠️ اس بچے کا ٹیسٹ شروع نہیں ہو سکا (محفوظ نہیں ہوا)۔ دوبارہ «موجود» دبائیں۔',
+  },
+  // One short line per block (bd-s1oo0.12): the card page, the exact cue, the locked note. The full
+  // per-section script (questions, first sounds, made-up words, fallback) is on the printed coach sheet.
+  childTestCueUrdu: {
+    en: 'Form {form} card, Urdu page · Say «{cue}» · one locked note, flip pages without stopping',
+    ur: 'فارم ⁦{form}⁩ کارڈ، اردو صفحہ · «{cue}» کہیں · ایک لاک وائس نوٹ، صفحے پلٹیں، ریکارڈنگ نہ روکیں',
+  },
+  childTestCueEnglish: {
+    en: 'Form {form} card, English page · Say «{cue}» · one locked note, flip pages without stopping',
+    ur: 'فارم ⁦{form}⁩ کارڈ، انگریزی صفحہ · «{cue}» کہیں · ایک لاک وائس نوٹ، صفحے پلٹیں، ریکارڈنگ نہ روکیں',
+  },
+  childTestCueMaths: {
+    en: 'Form {form} card, Maths page · Say «{numbersCue}», then «{cue}» for {seconds} s of quick sums · one locked note',
+    ur: 'فارم ⁦{form}⁩ کارڈ، ریاضی صفحہ · «{numbersCue}» کہیں، پھر «{cue}» اور {seconds} سیکنڈ زبانی سوال · ایک لاک وائس نوٹ',
+  },
+  childTestStripHandOver: {
+    en: 'Give Roll {roll} the maths strip to write while waiting.',
+    ur: 'انتظار کے دوران رول {roll} کو ریاضی کی پٹی لکھنے کو دیں۔',
+  },
+  childTestCardTextHeader: {
+    en: '(The picture did not send. Here is the same text.)',
+    ur: '(تصویر نہیں جا سکی۔ یہی متن یہ ہے۔)',
+  },
+  childTestStopChild: { en: 'Stop this child', ur: 'یہ بچہ روکیں' },
+  childTestFallbackButton: { en: 'Letters & words', ur: 'حروف اور الفاظ' },
+  childTestMenu: { en: 'Menu', ur: 'مینو' },
+  childTestVoiceAck: { en: '🎧 Got it · {block}', ur: '🎧 ملا · {block}' },
+  childTestVoiceSaveFailed: {
+    en: '⚠️ The {block} voice note did not save. Please send the same voice note again.',
+    ur: '⚠️ {block} کا وائس نوٹ محفوظ نہیں ہو سکا۔ وہی وائس نوٹ دوبارہ بھیجیں۔',
+  },
+  childTestVoiceEarly: {
+    en: 'That voice note was sent before the {block} card, so I kept the first {prev} note. Record {block} now.',
+    ur: 'یہ وائس نوٹ {block} کارڈ سے پہلے بھیجا گیا، اس لیے {prev} کا پہلا نوٹ رکھا گیا۔ اب {block} ریکارڈ کریں۔',
+  },
+  childTestPhotoAsk: {
+    en: 'Roll {roll}\'s strip: send its photo once it is written, or send all the strips at the end. Tap the next child now.',
+    ur: 'رول {roll} کی پٹی: لکھی جا چکے تو تصویر بھیجیں، یا آخر میں سب پٹیاں ایک ساتھ۔ ابھی اگلے بچے پر ٹیپ کریں۔',
+  },
+  childTestStripsBatch: {
+    en: 'Send the strip photos now, one per child, in list order: {rolls}',
+    ur: 'اب پٹیوں کی تصاویر بھیجیں، ہر بچے کی ایک، فہرست کی ترتیب سے: {rolls}',
+  },
+  childTestRollItem: { en: 'Roll {roll}', ur: 'رول {roll}' },
+  childTestRollItemNamed: { en: 'Roll {roll} ({name})', ur: 'رول {roll} ({name})' },
+  childTestListTeacherLine: {
+    en: 'Give the class teacher these roll numbers, in this order, to send one child at a time: {rolls}',
+    ur: 'کلاس ٹیچر کو یہ رول نمبر اسی ترتیب سے دیں، تاکہ ایک وقت میں ایک بچہ آئے: {rolls}',
+  },
+  childTestTeacherOfferBody: {
+    en: 'The observed teacher is this class\'s teacher. Send them today\'s order of roll numbers?',
+    ur: 'مشاہدے والے ٹیچر اسی جماعت کے کلاس ٹیچر ہیں۔ آج کے رول نمبر ترتیب سے انہیں بھیج دیں؟',
+  },
+  childTestSendToTeacher: { en: 'Send to teacher', ur: 'ٹیچر کو بھیجیں' },
+  childTestTeacherMessage: {
+    en: 'For today\'s child test, please send these children to the coach one at a time, in this order: {rolls}. When one comes back, send the next.',
+    ur: 'آج کے بچوں کے ٹیسٹ کے لیے یہ بچے ایک ایک کر کے اسی ترتیب سے کوچ کے پاس بھیجیں: {rolls}۔ ایک بچہ واپس آئے تو اگلا بھیجیں۔',
+  },
+  childTestTeacherSent: {
+    en: 'Sent the order to the class teacher.',
+    ur: 'ترتیب کلاس ٹیچر کو بھیج دی گئی۔',
+  },
+  childTestTeacherSendFailed: {
+    en: '⚠️ I couldn\'t reach the class teacher on WhatsApp. Please give them the roll numbers yourself.',
+    ur: '⚠️ کلاس ٹیچر تک واٹس ایپ پیغام نہیں جا سکا۔ رول نمبر خود دے دیں۔',
+  },
+  childTestNoPhoto: { en: 'No strip photo', ur: 'تصویر نہیں' },
+  childTestNoPhotoAck: {
+    en: 'OK, no strip photo for Roll {roll}. The written sums stay blank.',
+    ur: 'ٹھیک ہے، رول {roll} کی پٹی کی تصویر نہیں۔ لکھے ہوئے سوال خالی رہیں گے۔',
+  },
+  childTestPhotoSaved: { en: '📷 Strip saved for Roll {roll}.', ur: '📷 رول {roll} کی پٹی محفوظ۔' },
+  childTestPhotoAlreadyIn: {
+    en: '📷 Roll {roll}\'s strip photo is already in.',
+    ur: '📷 رول {roll} کی پٹی کی تصویر پہلے ہی مل چکی ہے۔',
+  },
+  childTestPhotoSaveFailed: {
+    en: '⚠️ The strip photo for Roll {roll} did not save. Please send it again.',
+    ur: '⚠️ رول {roll} کی پٹی کی تصویر محفوظ نہیں ہو سکی۔ دوبارہ بھیجیں۔',
+  },
+  childTestChildDone: {
+    en: '✅ All three parts for Roll {roll} are in. The marks are being worked out; a Check button follows.',
+    ur: '✅ رول {roll} کے تینوں حصے مل گئے۔ نمبر لگنے کے بعد چیک کا بٹن آئے گا۔',
+  },
+  childTestCheckFailed: {
+    en: '⚠️ The check for Roll {roll} is ready but did not open. Send /egra and tap the child to open it.',
+    ur: '⚠️ رول {roll} کا چیک تیار ہے مگر کھل نہیں سکا۔ ⁦/egra⁩ بھیجیں اور بچے پر ٹیپ کریں۔',
+  },
+  childTestCancelledChild: {
+    en: 'Stopped the test for Roll {roll}. The child stays on today\'s list.',
+    ur: 'رول {roll} کا ٹیسٹ روک دیا گیا۔ نام آج کی فہرست میں رہے گا۔',
+  },
+  childTestClosed: {
+    en: 'Child test closed. Send /egra to reopen the same list.',
+    ur: 'بچوں کا ٹیسٹ بند۔ ⁦/egra⁩ بھیجیں تو یہی فہرست دوبارہ کھلے گی۔',
+  },
+  childTestNothingOpen: {
+    en: 'There is no child test open. Send /egra to start.',
+    ur: 'کوئی ٹیسٹ کھلا نہیں۔ شروع کرنے کے لیے ⁦/egra⁩ بھیجیں۔',
+  },
+  childTestExpired: {
+    en: 'That button is from an older list. Send /egra for today\'s list.',
+    ur: 'یہ بٹن پرانی فہرست کا ہے۔ آج کی فہرست کے لیے ⁦/egra⁩ بھیجیں۔',
+  },
 };
 
 /**
