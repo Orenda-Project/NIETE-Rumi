@@ -75,7 +75,7 @@ describe("LeaderObservation", () => {
     const tracker = await screen.findByTestId("observe-tracker");
     const items = Array.from(tracker.querySelectorAll("li"));
     expect(items.map((li) => li.textContent)).toEqual([
-      "Lesson analysed", "Check the draft report", "Talk with Ayesha", "Your feedback", "Send Ayesha her report",
+      "Lesson analysed", "Check the draft report", "Talk with Ayesha", "Your feedback", "Send Ayesha the report",
     ]);
     expect(items.map((li) => li.getAttribute("data-state"))).toEqual(["done", "done", "now", "todo", "todo"]);
   });
@@ -94,12 +94,12 @@ describe("LeaderObservation", () => {
     await waitFor(() => expect(L.retryTalk).toHaveBeenCalledWith("cs-1"));
   });
 
-  it("her own feedback comes before the report — then she asks for the report", async () => {
+  it("the coach's own feedback comes before the report — then the coach asks for the report", async () => {
     L.getObservation.mockResolvedValue(view({ step: "feedback", talk: { guide: null, recordedAt: "t", feedback: FEEDBACK } }));
     renderPage();
     expect(await screen.findByText(/You let her find her own next step/)).toBeInTheDocument();
     expect(screen.getByText("Opened with a strength")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Next: send Ayesha her report/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Next: send Ayesha the report/ }));
     await waitFor(() => expect(L.previewReport).toHaveBeenCalledWith("cs-1"));
   });
 

@@ -27,7 +27,7 @@ import { firstName, sendTalk } from '../lib/coachObserve';
 
 const COPY = {
   title: (name: string) => `Talk with ${name}`,
-  about: 'About 10 minutes, after her class. Use this as a guide — your own words are fine.',
+  about: 'About 10 minutes, after the class. Use this as a guide — your own words are fine.',
   writing: 'Your Digital Coach is writing a guide for this talk…',
   guideFailed: 'The guide could not load. You can still record your talk.',
   sections: { strengths: '💪', growth: '🌱', action: '📋' } as Record<string, string>,
