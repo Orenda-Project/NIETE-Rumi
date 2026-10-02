@@ -26,6 +26,12 @@ const FlowEncryptionService = require('../../../bot/shared/services/flow-encrypt
 const Check = require('../../../bot/shared/routes/child-test-check-endpoint');
 const F = require('./fixtures/ai-marks');
 
+// Form logic is tested against fixed bars (bars.DEFAULT_BARS); the real calibration is tested in real-thresholds.test.js.
+const Bars = require('../../../bot/shared/services/child-test/check-flow/bars');
+Bars.__pinBarsForTest(Bars.DEFAULT_BARS);   // at load: some screens are built while the suite is collected
+afterAll(() => Bars.__pinBarsForTest(null));
+
+
 const token = (sid = 'sess-1', uid = 'coach-1') => `${uid}:child-test-check:${sid}`;
 const blockRow = (block) => mockFake.__tables.child_test_blocks.find((r) => r.session_id === 'sess-1' && r.block === block);
 

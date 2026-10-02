@@ -60,19 +60,19 @@
         },
         "wc_i": {
           "type": "string",
-          "__example__": "31"
+          "__example__": ""
         },
         "wa_i": {
           "type": "string",
-          "__example__": "34"
+          "__example__": ""
         },
         "wc_h": {
           "type": "string",
-          "__example__": "ریکارڈنگ سے گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں"
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ اپنی گنتی لکھیں"
         },
         "wa_h": {
           "type": "string",
-          "__example__": "ریکارڈنگ سے گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں"
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ اپنی گنتی لکھیں"
         },
         "t_flag": {
           "type": "string",
@@ -119,10 +119,7 @@
           "items": {
             "type": "string"
           },
-          "__example__": [
-            "w4",
-            "w8"
-          ]
+          "__example__": []
         },
         "sw_v": {
           "type": "boolean",
@@ -962,10 +959,7 @@
           "items": {
             "type": "string"
           },
-          "__example__": [
-            "w3",
-            "w7"
-          ]
+          "__example__": []
         },
         "sw_v": {
           "type": "boolean",
@@ -1125,7 +1119,7 @@
         },
         "nwc_v": {
           "type": "boolean",
-          "__example__": true
+          "__example__": false
         },
         "nwc_opts": {
           "type": "array",
@@ -1142,32 +1136,12 @@
           },
           "__example__": [
             {
-              "id": "e3A-nw1",
-              "title": "rup"
+              "id": "x_a",
+              "title": "-"
             },
             {
-              "id": "e3A-nw2",
-              "title": "jeg"
-            },
-            {
-              "id": "e3A-nw3",
-              "title": "fim"
-            },
-            {
-              "id": "e3A-nw4",
-              "title": "tob"
-            },
-            {
-              "id": "e3A-nw5",
-              "title": "sab"
-            },
-            {
-              "id": "e3A-nw6",
-              "title": "lud"
-            },
-            {
-              "id": "e3A-nw7",
-              "title": "vop"
+              "id": "x_b",
+              "title": "-"
             }
           ]
         },
@@ -1176,14 +1150,11 @@
           "items": {
             "type": "string"
           },
-          "__example__": [
-            "e3A-nw2",
-            "e3A-nw5"
-          ]
+          "__example__": []
         },
         "nw1_v": {
           "type": "boolean",
-          "__example__": false
+          "__example__": true
         },
         "nw1_t": {
           "type": "string",
@@ -1191,15 +1162,15 @@
         },
         "nw1_d": {
           "type": "string",
-          "__example__": ""
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ جو سنا وہ چنیں"
         },
         "nw1_i": {
           "type": "string",
-          "__example__": "correct"
+          "__example__": ""
         },
         "nw2_v": {
           "type": "boolean",
-          "__example__": false
+          "__example__": true
         },
         "nw2_t": {
           "type": "string",
@@ -1207,15 +1178,15 @@
         },
         "nw2_d": {
           "type": "string",
-          "__example__": ""
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ جو سنا وہ چنیں"
         },
         "nw2_i": {
           "type": "string",
-          "__example__": "wrong"
+          "__example__": ""
         },
         "nw3_v": {
           "type": "boolean",
-          "__example__": false
+          "__example__": true
         },
         "nw3_t": {
           "type": "string",
@@ -1223,15 +1194,15 @@
         },
         "nw3_d": {
           "type": "string",
-          "__example__": ""
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ جو سنا وہ چنیں"
         },
         "nw3_i": {
           "type": "string",
-          "__example__": "correct"
+          "__example__": ""
         },
         "nw4_v": {
           "type": "boolean",
-          "__example__": false
+          "__example__": true
         },
         "nw4_t": {
           "type": "string",
@@ -1239,15 +1210,15 @@
         },
         "nw4_d": {
           "type": "string",
-          "__example__": ""
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ جو سنا وہ چنیں"
         },
         "nw4_i": {
           "type": "string",
-          "__example__": "correct"
+          "__example__": ""
         },
         "nw5_v": {
           "type": "boolean",
-          "__example__": false
+          "__example__": true
         },
         "nw5_t": {
           "type": "string",
@@ -1255,15 +1226,15 @@
         },
         "nw5_d": {
           "type": "string",
-          "__example__": ""
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ جو سنا وہ چنیں"
         },
         "nw5_i": {
           "type": "string",
-          "__example__": "wrong"
+          "__example__": ""
         },
         "nw6_v": {
           "type": "boolean",
-          "__example__": false
+          "__example__": true
         },
         "nw6_t": {
           "type": "string",
@@ -1271,15 +1242,15 @@
         },
         "nw6_d": {
           "type": "string",
-          "__example__": ""
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ جو سنا وہ چنیں"
         },
         "nw6_i": {
           "type": "string",
-          "__example__": "correct"
+          "__example__": ""
         },
         "nw7_v": {
           "type": "boolean",
-          "__example__": false
+          "__example__": true
         },
         "nw7_t": {
           "type": "string",
@@ -1287,11 +1258,11 @@
         },
         "nw7_d": {
           "type": "string",
-          "__example__": ""
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ جو سنا وہ چنیں"
         },
         "nw7_i": {
           "type": "string",
-          "__example__": "correct"
+          "__example__": ""
         },
         "nw8_v": {
           "type": "boolean",
@@ -1833,19 +1804,19 @@
         },
         "qc_i": {
           "type": "string",
-          "__example__": "9"
+          "__example__": ""
         },
         "qa_i": {
           "type": "string",
-          "__example__": "11"
+          "__example__": ""
         },
         "qc_h": {
           "type": "string",
-          "__example__": "ریکارڈنگ سے گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں"
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ اپنی گنتی لکھیں"
         },
         "qa_h": {
           "type": "string",
-          "__example__": "ریکارڈنگ سے گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں"
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ اپنی گنتی لکھیں"
         },
         "t_wr": {
           "type": "string",
@@ -1945,7 +1916,7 @@
         },
         "w4_i": {
           "type": "string",
-          "__example__": "correct"
+          "__example__": ""
         },
         "t_wp": {
           "type": "string",

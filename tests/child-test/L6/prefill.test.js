@@ -9,6 +9,11 @@
  * Real: the payload builder, the bars, the item bank (the committed bank, read through item-bank.js).
  */
 const { renderScreen, MAX_CHIPS } = require('../../../bot/shared/services/child-test/check-flow/prefill');
+
+// Form logic is tested against fixed bars (bars.DEFAULT_BARS); the real calibration is tested in real-thresholds.test.js.
+const Bars = require('../../../bot/shared/services/child-test/check-flow/bars');
+Bars.__pinBarsForTest(Bars.DEFAULT_BARS);   // at load: some screens are built while the suite is collected
+afterAll(() => Bars.__pinBarsForTest(null));
 const { formItems } = require('../../../bot/shared/services/child-test/check-flow/items');
 const itemBank = require('../../../bot/shared/services/child-test/item-bank');
 const F = require('./fixtures/ai-marks');

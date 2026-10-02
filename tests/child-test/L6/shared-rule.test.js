@@ -8,6 +8,12 @@
 const CheckFlow = require('../../../bot/shared/services/child-test/check-flow');
 const F = require('./fixtures/ai-marks');
 
+// Form logic is tested against fixed bars (bars.DEFAULT_BARS); the real calibration is tested in real-thresholds.test.js.
+const Bars = require('../../../bot/shared/services/child-test/check-flow/bars');
+Bars.__pinBarsForTest(Bars.DEFAULT_BARS);   // at load: some screens are built while the suite is collected
+afterAll(() => Bars.__pinBarsForTest(null));
+
+
 describe('the check-flow entry point exports the one prefill rule and the one diff', () => {
   test('isPrefilled: at or above the field bar is pre-filled, below it arrives empty', () => {
     expect(CheckFlow.isPrefilled('story.words_correct', 0.95)).toBe(true);

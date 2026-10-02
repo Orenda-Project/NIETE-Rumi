@@ -32,6 +32,11 @@ function loadL5() {
 const L5 = loadL5();
 const BARS = L5 && L5.FIELD_BARS ? { ...DEFAULT_BARS, ...L5.FIELD_BARS } : DEFAULT_BARS;
 
+// Test seam: the Flow's form-logic tests run against fixed bars, so a recalibration in
+// scoring/thresholds.js does not change what they test. null = the real bars (the default).
+let pinnedBars = null;
+function __pinBarsForTest(bars) { pinnedBars = bars || null; }
+
 /**
  * Does this mark arrive filled in? Below the bar it arrives empty and the coach marks it.
  * With L5's thresholds on the branch, its prefill() decides, in the block's language (its bars differ
@@ -41,6 +46,12 @@ const BARS = L5 && L5.FIELD_BARS ? { ...DEFAULT_BARS, ...L5.FIELD_BARS } : DEFAU
  * @param {{lang?: 'urdu'|'english'|null, hintOnly?: boolean}} [o]
  */
 function confident(field, confidence, { lang = null, hintOnly = false } = {}) {
+  if (pinnedBars) {
+    // the pre-L5 default rule: the field's bar alone decides (hint-only handling is L5's calibration)
+    const pinned = pinnedBars[field];
+    const c = Number(confidence);
+    return pinned != null && Number.isFinite(c) && c >= pinned;
+  }
   if (L5 && typeof L5.prefill === 'function') return Boolean(L5.prefill(field, confidence, { hint_only: Boolean(hintOnly), lang }));
   const bar = BARS[field];
   if (bar == null) return false;
@@ -48,4 +59,4 @@ function confident(field, confidence, { lang = null, hintOnly = false } = {}) {
   return Number.isFinite(c) && c >= bar;
 }
 
-module.exports = { confident, BARS, DEFAULT_BARS };
+module.exports = { confident, BARS, DEFAULT_BARS, __pinBarsForTest };
