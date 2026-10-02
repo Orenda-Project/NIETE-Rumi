@@ -13,7 +13,7 @@
  *          and the ack + next line go out, then it is stored to R2 and scored off the critical path
  *   after maths: the strip photo is asked for and may arrive while the next child is going
  *   all three blocks scored → the check (L6 checkFlow.sendCheck)
- *   scoring and the check run through recovery.js (bd-s1oo0.22): claimed in the database, gated on
+ *   scoring and the check run through recovery.js: claimed in the database, gated on
  *   the store, and picked up by its sweep when the process that saved a note dies before scoring it
  *
  * The five-minute protocol (bd-s1oo0.12): the list tells the coach to give the class teacher the roll

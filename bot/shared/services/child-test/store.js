@@ -371,7 +371,7 @@ async function saveAiMarks({ sessionId, block, aiMarks, aiStatus = 'scored', mod
   return { ok: true, block: row };
 }
 
-// ── Scoring recovery (bd-s1oo0.22) ─────────────────────────────────────────────────────────────
+// ── Scoring recovery ─────────────────────────────────────────────────────────────────────────
 // A block saved by a process that died before it was scored has no in-memory job left anywhere.
 // These are the sweep's reads (narrow: no transcript, no marks) and its claim.
 
@@ -448,7 +448,7 @@ module.exports = {
   setAiStatus,
   saveAiMarks,
   saveCoachMarks,
-  // L17 scoring recovery (bd-s1oo0.22)
+  // scoring recovery (conversation/recovery.js)
   listBlocksToRecover,
   listRecentlyScoredBlocks,
   claimBlockStatus,

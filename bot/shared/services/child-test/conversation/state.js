@@ -13,7 +13,7 @@
  *   }
  *
  * Side keys (per session): ctst:check:<sessionId> (the check was claimed — set once; the check
- * itself is gated on the store, recovery.js, never on a count of scoring calls — bd-s1oo0.22),
+ * itself is gated on the store, recovery.js, never on a count of scoring calls),
  * ctst:check_retry:<sessionId> (a check whose sender died is re-sent once), ctst:media:<mediaId> (a webhook re-send
  * is not stored twice), ctst:block:<sessionId>:<block> (the voice note that claimed this block, set
  * before any ack or upload so quick notes fill distinct blocks — bd-s1oo0.14), ctst:done:<sessionId>

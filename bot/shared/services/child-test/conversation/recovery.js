@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test — scoring that survives a restart (bd-s1oo0.22).
+ * Child test — scoring that survives a restart.
  *
  * The coach's voice note is stored, then scored off the critical path. That job used to be only an
  * in-memory promise: a deploy that removed the container in between (NIETE sandbox, 2 Oct 2026, one

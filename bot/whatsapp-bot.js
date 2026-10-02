@@ -2832,7 +2832,7 @@ if (require.main === module) {
   // so waiting for sockets alone exits mid-send). Bounded inside Railway's
   // draining window — see shared/utils/web-drain.js.
   installWebDrain({ server, log: logToFile });
-  // bd-s1oo0.22: a child-test block saved by a container a deploy removed before it was scored is
+  // Child test: a block saved by a container a deploy removed before it was scored is
   // picked up here — once soon after boot, then every 30 s. Inert unless CHILD_TEST_ENABLED=true;
   // CHILD_TEST_SCORE_RECOVERY_OFF=1 turns it off.
   try {
