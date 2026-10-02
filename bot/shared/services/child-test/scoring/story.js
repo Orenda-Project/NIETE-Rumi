@@ -15,7 +15,7 @@ const { modelFor } = require('./models');
 const { chatJSON } = require('./llm');
 const { cutClip, cleanup } = require('./media');
 const { align, refWords, same, clean } = require('./text-norm');
-const { wordsIn, lastWordsHeard } = require('./windows');
+const { wordsIn } = require('./windows');
 const speechace = require('./speechace');
 const th = require('./thresholds');
 
@@ -35,16 +35,11 @@ function verdictsFrom(json, n) {
  * child who said five words "attempted" the whole passage. Nobody attempts more words than
  * they spoke: cap at the words Soniox heard from the child in the window, plus a little slack
  * for words it merged or missed.
- *
- * The cap only trims WRONG verdicts: it never goes below the last word Gemini heard read correctly.
- * Soniox's child-only word count is not a reliable floor. It collapses when diarisation puts the child on
- * the coach's speaker, or when it drops a halting reader's words, and the cap then cut real readers to
- * 2 words and sent them to letters + words (L30, bd-s1oo0.46.6: sandbox 3 Oct, keys 46, 10 and 7).
  */
 const ATTEMPT_SLACK = 2;
 function capAttempted(verdicts, spokenCount) {
   if (!Number.isFinite(spokenCount)) return verdicts;
-  const cap = Math.max(spokenCount + ATTEMPT_SLACK, verdicts.lastIndexOf('correct') + 1);
+  const cap = spokenCount + ATTEMPT_SLACK;
   return verdicts.map((v, i) => (i >= cap ? 'skipped' : v));
 }
 
@@ -93,11 +88,11 @@ async function scoreStory({ lang, spec, file, window, words, coachSpeaker, flags
     // Gemini and SpeechAce are independent: run them side by side (latency budget < 60 s per block)
     clip = await cutClip(file, window.start - 0.5, window.end + 1, 'mp3');
     const [r, sa] = await Promise.all([
-      chatJSON({ model, prompt: prompts.STORY({ lang, tokens }), schema: prompts.STORY_SCHEMA, audio: { data: clip.base64, format: 'mp3' }, job: 'child_test.story' }),
+      chatJSON({ model, prompt: prompts.STORY({ lang, tokens }), audio: { data: clip.base64, format: 'mp3' }, job: 'child_test.story' }),
       lang === 'english' ? speechAceWrong({ file, window, tokens, aligned, hyp, calls }) : Promise.resolve(null),
     ]);
-    calls.push({ job: 'story', model, cost: r.cost, seconds: r.seconds, error: r.error, ...(r.detail ? { detail: r.detail } : {}) });
-    if (!r.json) return { ok: false, error: r.error || 'no_json', ...(r.detail ? { detail: r.detail } : {}) };
+    calls.push({ job: 'story', model, cost: r.cost, seconds: r.seconds, error: r.error });
+    if (!r.json) return { ok: false, error: r.error || 'no_json' };
 
     const verdicts = capAttempted(verdictsFrom(r.json, tokens.length), hyp.length);
     const attempted = attemptedOf(verdicts);
@@ -112,16 +107,12 @@ async function scoreStory({ lang, spec, file, window, words, coachSpeaker, flags
       });
     }
 
-    // finished early: the child reached the last word before the minute was up. The end is where the passage's
-    // last words are heard, from any speaker; the child's last copy of the final word is only the fallback. Alone,
-    // that word («تھا») is said all through the passage, and the true last one is often misheard: the latest
-    // child-labelled «تھا» then sat 17 s in, and a 65-a-minute reader was shown 177 (bd-s1oo0.50.11).
+    // finished early: the child reached the last word before the minute was up
     let seconds = Math.min(60, window.end - window.start);
     let finishedEarly = false;
     if (attempted >= tokens.length) {
       const last = clean(tokens[tokens.length - 1]);
-      const ending = lastWordsHeard(words, tokens, { after: window.start - 0.5, before: window.end + 2 });
-      const hit = ending || [...hyp].reverse().find((h) => same(h.w, last));
+      const hit = [...hyp].reverse().find((h) => same(h.w, last));
       const endAt = hit ? hit.end : (hyp.length ? hyp[hyp.length - 1].end : window.end);
       const used = Math.max(1, endAt - window.start);
       if (used < FINISHED_EARLY_BEFORE) { seconds = Math.round(used * 10) / 10; finishedEarly = true; }
@@ -131,7 +122,7 @@ async function scoreStory({ lang, spec, file, window, words, coachSpeaker, flags
     return {
       ok: true,
       modelVersion: model,
-      part: { words_correct: correct, words_attempted: attempted, seconds, finished_early: finishedEarly, flagged, confidence, align_correct: alignCorrect },
+      part: { words_correct: correct, words_attempted: attempted, seconds, finished_early: finishedEarly, flagged, confidence },
       evidence: { align_correct: alignCorrect, speechace_correct: sa ? sa.correct : null, notes: r.json.notes || null },
     };
   } catch (e) {
@@ -145,18 +136,12 @@ async function scoreStory({ lang, spec, file, window, words, coachSpeaker, flags
  * EGRA's stop rule (CONTRACT §9.2): fewer than 5 words right in the first line of the story
  * means the child could not read it, so the coach switched to the 10 letters + 10 words card.
  * Without `story.lines`, a total of 2 or fewer correct stands in for it.
- *
- * A child whose own count is at least twice line 1's length read on past line 1, so nobody stopped
- * them: the model marking line 1 `skipped` is not the stop rule (L24, CR-2: 12 real readers, 20–53
- * words right, were sent to letters + words and their story count hidden).
  */
 const FIRST_LINE_MIN_CORRECT = 5;
 const NO_LINES_AT_OR_BELOW = 2;
-const READ_ON_LINES = 2;
 function needsFallback(part, storySpec) {
   const line = storySpec && storySpec.lines && storySpec.lines[0];
   if (!line) return part.words_correct <= NO_LINES_AT_OR_BELOW;
-  if (part.words_correct >= READ_ON_LINES * (line.to - line.from + 1)) return false;
   const wrong = new Set((part.flagged || []).map((f) => f.idx));
   let right = 0;
   for (let i = line.from; i <= line.to && i < part.words_attempted; i += 1) if (!wrong.has(i)) right += 1;

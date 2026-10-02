@@ -1,0 +1,3271 @@
+{
+ "version": "child-test-items-v1-fixture",
+ "cue": {
+  "urdu": {
+   "start": "شروع",
+   "stop": "رکیے"
+  },
+  "english": {
+   "start": "start",
+   "stop": "stop"
+  },
+  "maths": {
+   "start": "شروع",
+   "stop": "رکیے"
+  }
+ },
+ "grades": {
+  "3": {
+   "forms": {
+    "A": {
+     "urdu": {
+      "story": {
+       "id": "u3A-story",
+       "title": "",
+       "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہے۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔",
+       "tokens": [
+        "آج",
+        "بلال",
+        "اپنے",
+        "والد",
+        "کے",
+        "ساتھ",
+        "دریائے",
+        "جہلم",
+        "کے",
+        "کنارے",
+        "گیا",
+        "وہاں",
+        "ٹھنڈی",
+        "ہوا",
+        "چل",
+        "رہی",
+        "تھی",
+        "اور",
+        "پانی",
+        "آہستہ",
+        "بہہ",
+        "رہا",
+        "تھا",
+        "بلال",
+        "نے",
+        "کشتی",
+        "کو",
+        "حرکت",
+        "کرتے",
+        "دیکھا",
+        "اس",
+        "کے",
+        "والد",
+        "نے",
+        "اسے",
+        "بتایا",
+        "کہ",
+        "دریا",
+        "ہمارے",
+        "ملک",
+        "کے",
+        "لیے",
+        "اہم",
+        "ہے",
+        "واپسی",
+        "پر",
+        "بلال",
+        "نے",
+        "خوبصورت",
+        "پتھر",
+        "جمع",
+        "کیے",
+        "اور",
+        "مسکراتا",
+        "رہا",
+        "وہ",
+        "بہت",
+        "خوش",
+        "بھی",
+        "تھا"
+       ],
+       "word_count": 60,
+       "source": "fixture",
+       "vetting": {
+        "fixture": true
+       }
+      },
+      "questions": [
+       {
+        "id": "u3A-q1",
+        "prompt": "بلال کس کے ساتھ گیا؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "والد"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "u3A-q2",
+        "prompt": "وہاں کیسی ہوا چل رہی تھی؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "ٹھنڈی"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "u3A-q3",
+        "prompt": "بلال نے کیا جمع کیا؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "پتھر"
+        ],
+        "reject": [],
+        "rubric": ""
+       }
+      ],
+      "first_sounds": [
+       {
+        "id": "u3A-fs1",
+        "word": "کتاب",
+        "sound": "ک"
+       },
+       {
+        "id": "u3A-fs2",
+        "word": "مچھلی",
+        "sound": "م"
+       },
+       {
+        "id": "u3A-fs3",
+        "word": "سورج",
+        "sound": "س"
+       },
+       {
+        "id": "u3A-fs4",
+        "word": "پانی",
+        "sound": "پ"
+       },
+       {
+        "id": "u3A-fs5",
+        "word": "گھر",
+        "sound": "گھ"
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "u3A-nw1",
+        "text": "گوپا",
+        "sounds": [
+         "گ",
+         "و",
+         "پ",
+         "ا"
+        ]
+       },
+       {
+        "id": "u3A-nw2",
+        "text": "ٹِمل",
+        "sounds": [
+         "ٹ",
+         "ِ",
+         "م",
+         "ل"
+        ]
+       },
+       {
+        "id": "u3A-nw3",
+        "text": "دوسا",
+        "sounds": [
+         "د",
+         "و",
+         "س",
+         "ا"
+        ]
+       },
+       {
+        "id": "u3A-nw4",
+        "text": "پَنگو",
+        "sounds": [
+         "پ",
+         "َ",
+         "ن",
+         "گ",
+         "و"
+        ]
+       },
+       {
+        "id": "u3A-nw5",
+        "text": "ساتِم",
+        "sounds": [
+         "س",
+         "ا",
+         "ت",
+         "ِ",
+         "م"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "ر",
+        "د",
+        "م",
+        "ک",
+        "س",
+        "ج",
+        "ت",
+        "ب",
+        "ا",
+        "ش"
+       ],
+       "words": [
+        "بچہ",
+        "دروازہ",
+        "پانی",
+        "کتاب",
+        "گھر",
+        "قلم",
+        "بستہ",
+        "کمرہ",
+        "استاد",
+        "اسکول"
+       ]
+      }
+     },
+     "english": {
+      "story": {
+       "id": "e3A-story",
+       "title": "",
+       "text": "Imran woke up early for school today. His class was planting trees. He took a small plant in a bag. The teacher asked Imran to show the class how to plant it. Imran dug a hole, put the plant in the soil and put water in it. The teacher was happy with his work. His friends clapped for him.",
+       "tokens": [
+        "Imran",
+        "woke",
+        "up",
+        "early",
+        "for",
+        "school",
+        "today",
+        "His",
+        "class",
+        "was",
+        "planting",
+        "trees",
+        "He",
+        "took",
+        "a",
+        "small",
+        "plant",
+        "in",
+        "a",
+        "bag",
+        "The",
+        "teacher",
+        "asked",
+        "Imran",
+        "to",
+        "show",
+        "the",
+        "class",
+        "how",
+        "to",
+        "plant",
+        "it",
+        "Imran",
+        "dug",
+        "a",
+        "hole",
+        "put",
+        "the",
+        "plant",
+        "in",
+        "the",
+        "soil",
+        "and",
+        "put",
+        "water",
+        "in",
+        "it",
+        "The",
+        "teacher",
+        "was",
+        "happy",
+        "with",
+        "his",
+        "work",
+        "His",
+        "friends",
+        "clapped",
+        "for",
+        "him"
+       ],
+       "word_count": 59,
+       "source": "fixture",
+       "vetting": {
+        "fixture": true
+       }
+      },
+      "questions": [
+       {
+        "id": "e3A-q1",
+        "prompt": "What was the class doing?",
+        "type": "literal",
+        "needs_line": 2,
+        "accept": [
+         "planting trees"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "e3A-q2",
+        "prompt": "Why did his friends clap?",
+        "type": "inferential",
+        "needs_line": 7,
+        "accept": [
+         "he planted well"
+        ],
+        "reject": [],
+        "rubric": ""
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "e3A-nw1",
+        "text": "maz",
+        "sounds": [
+         "m",
+         "a",
+         "z"
+        ]
+       },
+       {
+        "id": "e3A-nw2",
+        "text": "zaj",
+        "sounds": [
+         "z",
+         "a",
+         "j"
+        ]
+       },
+       {
+        "id": "e3A-nw3",
+        "text": "ver",
+        "sounds": [
+         "v",
+         "e",
+         "r"
+        ]
+       },
+       {
+        "id": "e3A-nw4",
+        "text": "lut",
+        "sounds": [
+         "l",
+         "u",
+         "t"
+        ]
+       },
+       {
+        "id": "e3A-nw5",
+        "text": "eaf",
+        "sounds": [
+         "e",
+         "a",
+         "f"
+        ]
+       },
+       {
+        "id": "e3A-nw6",
+        "text": "sno",
+        "sounds": [
+         "s",
+         "n",
+         "o"
+        ]
+       },
+       {
+        "id": "e3A-nw7",
+        "text": "mov",
+        "sounds": [
+         "m",
+         "o",
+         "v"
+        ]
+       },
+       {
+        "id": "e3A-nw8",
+        "text": "vod",
+        "sounds": [
+         "v",
+         "o",
+         "d"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "l",
+        "i",
+        "h",
+        "r",
+        "s",
+        "y",
+        "e",
+        "o",
+        "n",
+        "t"
+       ],
+       "words": [
+        "boy",
+        "girl",
+        "school",
+        "book",
+        "pen",
+        "bag",
+        "teacher",
+        "student",
+        "class",
+        "read"
+       ]
+      }
+     },
+     "maths": {
+      "numbers": [
+       {
+        "id": "m3A-n1",
+        "value": 47,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3A-n2",
+        "value": 8,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3A-n3",
+        "value": 15,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3A-n4",
+        "value": 63,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3A-n5",
+        "value": 90,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3A-n6",
+        "value": 106,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3A-n7",
+        "value": 25,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3A-n8",
+        "value": 71,
+        "say_ur": "",
+        "say_en": ""
+       }
+      ],
+      "quick_sums": [
+       {
+        "id": "m3A-qs1",
+        "prompt": "2 + 8",
+        "answer": 10
+       },
+       {
+        "id": "m3A-qs2",
+        "prompt": "10 − 7",
+        "answer": 3
+       },
+       {
+        "id": "m3A-qs3",
+        "prompt": "4 + 6",
+        "answer": 10
+       },
+       {
+        "id": "m3A-qs4",
+        "prompt": "10 − 5",
+        "answer": 5
+       },
+       {
+        "id": "m3A-qs5",
+        "prompt": "6 + 4",
+        "answer": 10
+       },
+       {
+        "id": "m3A-qs6",
+        "prompt": "10 − 3",
+        "answer": 7
+       },
+       {
+        "id": "m3A-qs7",
+        "prompt": "8 + 2",
+        "answer": 10
+       },
+       {
+        "id": "m3A-qs8",
+        "prompt": "10 − 1",
+        "answer": 9
+       },
+       {
+        "id": "m3A-qs9",
+        "prompt": "1 + 8",
+        "answer": 9
+       },
+       {
+        "id": "m3A-qs10",
+        "prompt": "9 − 7",
+        "answer": 2
+       },
+       {
+        "id": "m3A-qs11",
+        "prompt": "3 + 6",
+        "answer": 9
+       },
+       {
+        "id": "m3A-qs12",
+        "prompt": "9 − 5",
+        "answer": 4
+       },
+       {
+        "id": "m3A-qs13",
+        "prompt": "5 + 4",
+        "answer": 9
+       },
+       {
+        "id": "m3A-qs14",
+        "prompt": "9 − 3",
+        "answer": 6
+       },
+       {
+        "id": "m3A-qs15",
+        "prompt": "7 + 2",
+        "answer": 9
+       },
+       {
+        "id": "m3A-qs16",
+        "prompt": "9 − 1",
+        "answer": 8
+       },
+       {
+        "id": "m3A-qs17",
+        "prompt": "9 + 8",
+        "answer": 17
+       },
+       {
+        "id": "m3A-qs18",
+        "prompt": "8 − 7",
+        "answer": 1
+       },
+       {
+        "id": "m3A-qs19",
+        "prompt": "2 + 6",
+        "answer": 8
+       },
+       {
+        "id": "m3A-qs20",
+        "prompt": "8 − 5",
+        "answer": 3
+       },
+       {
+        "id": "m3A-qs21",
+        "prompt": "4 + 4",
+        "answer": 8
+       },
+       {
+        "id": "m3A-qs22",
+        "prompt": "8 − 3",
+        "answer": 5
+       },
+       {
+        "id": "m3A-qs23",
+        "prompt": "6 + 2",
+        "answer": 8
+       },
+       {
+        "id": "m3A-qs24",
+        "prompt": "8 − 1",
+        "answer": 7
+       },
+       {
+        "id": "m3A-qs25",
+        "prompt": "8 + 8",
+        "answer": 16
+       },
+       {
+        "id": "m3A-qs26",
+        "prompt": "16 − 7",
+        "answer": 9
+       },
+       {
+        "id": "m3A-qs27",
+        "prompt": "1 + 6",
+        "answer": 7
+       },
+       {
+        "id": "m3A-qs28",
+        "prompt": "7 − 5",
+        "answer": 2
+       },
+       {
+        "id": "m3A-qs29",
+        "prompt": "3 + 4",
+        "answer": 7
+       },
+       {
+        "id": "m3A-qs30",
+        "prompt": "7 − 3",
+        "answer": 4
+       },
+       {
+        "id": "m3A-qs31",
+        "prompt": "5 + 2",
+        "answer": 7
+       },
+       {
+        "id": "m3A-qs32",
+        "prompt": "7 − 1",
+        "answer": 6
+       },
+       {
+        "id": "m3A-qs33",
+        "prompt": "7 + 8",
+        "answer": 15
+       },
+       {
+        "id": "m3A-qs34",
+        "prompt": "15 − 7",
+        "answer": 8
+       },
+       {
+        "id": "m3A-qs35",
+        "prompt": "9 + 6",
+        "answer": 15
+       },
+       {
+        "id": "m3A-qs36",
+        "prompt": "6 − 5",
+        "answer": 1
+       },
+       {
+        "id": "m3A-qs37",
+        "prompt": "2 + 4",
+        "answer": 6
+       },
+       {
+        "id": "m3A-qs38",
+        "prompt": "6 − 3",
+        "answer": 3
+       },
+       {
+        "id": "m3A-qs39",
+        "prompt": "4 + 2",
+        "answer": 6
+       },
+       {
+        "id": "m3A-qs40",
+        "prompt": "6 − 1",
+        "answer": 5
+       },
+       {
+        "id": "m3A-qs41",
+        "prompt": "6 + 8",
+        "answer": 14
+       },
+       {
+        "id": "m3A-qs42",
+        "prompt": "14 − 7",
+        "answer": 7
+       }
+      ],
+      "written": [
+       {
+        "id": "m3A-w1",
+        "prompt": "34 + 28",
+        "answer": 62
+       },
+       {
+        "id": "m3A-w2",
+        "prompt": "52 − 17",
+        "answer": 35
+       },
+       {
+        "id": "m3A-w3",
+        "prompt": "6 × 3",
+        "answer": 18
+       },
+       {
+        "id": "m3A-w4",
+        "prompt": "45 + 36",
+        "answer": 81
+       }
+      ],
+      "word_problem": {
+       "id": "m3A-wp",
+       "prompt_ur": "علی کے پاس 12 ٹافیاں ہیں۔ وہ 3 ٹافیاں اپنے دوست کو دیتا ہے۔ اب علی کے پاس کتنی ٹافیاں ہیں؟",
+       "prompt_en": "Ali has 12 sweets. He gives 3 sweets to his friend. How many sweets does Ali have now?",
+       "answer": 9
+      }
+     }
+    },
+    "B": {
+     "urdu": {
+      "story": {
+       "id": "u3B-story",
+       "title": "",
+       "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہے۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔",
+       "tokens": [
+        "آج",
+        "بلال",
+        "اپنے",
+        "والد",
+        "کے",
+        "ساتھ",
+        "دریائے",
+        "جہلم",
+        "کے",
+        "کنارے",
+        "گیا",
+        "وہاں",
+        "ٹھنڈی",
+        "ہوا",
+        "چل",
+        "رہی",
+        "تھی",
+        "اور",
+        "پانی",
+        "آہستہ",
+        "بہہ",
+        "رہا",
+        "تھا",
+        "بلال",
+        "نے",
+        "کشتی",
+        "کو",
+        "حرکت",
+        "کرتے",
+        "دیکھا",
+        "اس",
+        "کے",
+        "والد",
+        "نے",
+        "اسے",
+        "بتایا",
+        "کہ",
+        "دریا",
+        "ہمارے",
+        "ملک",
+        "کے",
+        "لیے",
+        "اہم",
+        "ہے",
+        "واپسی",
+        "پر",
+        "بلال",
+        "نے",
+        "خوبصورت",
+        "پتھر",
+        "جمع",
+        "کیے",
+        "اور",
+        "مسکراتا",
+        "رہا",
+        "وہ",
+        "بہت",
+        "خوش",
+        "بھی",
+        "تھا"
+       ],
+       "word_count": 60,
+       "source": "fixture",
+       "vetting": {
+        "fixture": true
+       }
+      },
+      "questions": [
+       {
+        "id": "u3B-q1",
+        "prompt": "بلال کس کے ساتھ گیا؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "والد"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "u3B-q2",
+        "prompt": "وہاں کیسی ہوا چل رہی تھی؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "ٹھنڈی"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "u3B-q3",
+        "prompt": "بلال نے کیا جمع کیا؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "پتھر"
+        ],
+        "reject": [],
+        "rubric": ""
+       }
+      ],
+      "first_sounds": [
+       {
+        "id": "u3B-fs1",
+        "word": "کتاب",
+        "sound": "ک"
+       },
+       {
+        "id": "u3B-fs2",
+        "word": "مچھلی",
+        "sound": "م"
+       },
+       {
+        "id": "u3B-fs3",
+        "word": "سورج",
+        "sound": "س"
+       },
+       {
+        "id": "u3B-fs4",
+        "word": "پانی",
+        "sound": "پ"
+       },
+       {
+        "id": "u3B-fs5",
+        "word": "گھر",
+        "sound": "گھ"
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "u3B-nw1",
+        "text": "گوپا",
+        "sounds": [
+         "گ",
+         "و",
+         "پ",
+         "ا"
+        ]
+       },
+       {
+        "id": "u3B-nw2",
+        "text": "ٹِمل",
+        "sounds": [
+         "ٹ",
+         "ِ",
+         "م",
+         "ل"
+        ]
+       },
+       {
+        "id": "u3B-nw3",
+        "text": "دوسا",
+        "sounds": [
+         "د",
+         "و",
+         "س",
+         "ا"
+        ]
+       },
+       {
+        "id": "u3B-nw4",
+        "text": "پَنگو",
+        "sounds": [
+         "پ",
+         "َ",
+         "ن",
+         "گ",
+         "و"
+        ]
+       },
+       {
+        "id": "u3B-nw5",
+        "text": "ساتِم",
+        "sounds": [
+         "س",
+         "ا",
+         "ت",
+         "ِ",
+         "م"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "ر",
+        "د",
+        "م",
+        "ک",
+        "س",
+        "ج",
+        "ت",
+        "ب",
+        "ا",
+        "ش"
+       ],
+       "words": [
+        "بچہ",
+        "دروازہ",
+        "پانی",
+        "کتاب",
+        "گھر",
+        "قلم",
+        "بستہ",
+        "کمرہ",
+        "استاد",
+        "اسکول"
+       ]
+      }
+     },
+     "english": {
+      "story": {
+       "id": "e3B-story",
+       "title": "",
+       "text": "Imran woke up early for school today. His class was planting trees. He took a small plant in a bag. The teacher asked Imran to show the class how to plant it. Imran dug a hole, put the plant in the soil and put water in it. The teacher was happy with his work. His friends clapped for him.",
+       "tokens": [
+        "Imran",
+        "woke",
+        "up",
+        "early",
+        "for",
+        "school",
+        "today",
+        "His",
+        "class",
+        "was",
+        "planting",
+        "trees",
+        "He",
+        "took",
+        "a",
+        "small",
+        "plant",
+        "in",
+        "a",
+        "bag",
+        "The",
+        "teacher",
+        "asked",
+        "Imran",
+        "to",
+        "show",
+        "the",
+        "class",
+        "how",
+        "to",
+        "plant",
+        "it",
+        "Imran",
+        "dug",
+        "a",
+        "hole",
+        "put",
+        "the",
+        "plant",
+        "in",
+        "the",
+        "soil",
+        "and",
+        "put",
+        "water",
+        "in",
+        "it",
+        "The",
+        "teacher",
+        "was",
+        "happy",
+        "with",
+        "his",
+        "work",
+        "His",
+        "friends",
+        "clapped",
+        "for",
+        "him"
+       ],
+       "word_count": 59,
+       "source": "fixture",
+       "vetting": {
+        "fixture": true
+       }
+      },
+      "questions": [
+       {
+        "id": "e3B-q1",
+        "prompt": "What was the class doing?",
+        "type": "literal",
+        "needs_line": 2,
+        "accept": [
+         "planting trees"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "e3B-q2",
+        "prompt": "Why did his friends clap?",
+        "type": "inferential",
+        "needs_line": 7,
+        "accept": [
+         "he planted well"
+        ],
+        "reject": [],
+        "rubric": ""
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "e3B-nw1",
+        "text": "maz",
+        "sounds": [
+         "m",
+         "a",
+         "z"
+        ]
+       },
+       {
+        "id": "e3B-nw2",
+        "text": "zaj",
+        "sounds": [
+         "z",
+         "a",
+         "j"
+        ]
+       },
+       {
+        "id": "e3B-nw3",
+        "text": "ver",
+        "sounds": [
+         "v",
+         "e",
+         "r"
+        ]
+       },
+       {
+        "id": "e3B-nw4",
+        "text": "lut",
+        "sounds": [
+         "l",
+         "u",
+         "t"
+        ]
+       },
+       {
+        "id": "e3B-nw5",
+        "text": "eaf",
+        "sounds": [
+         "e",
+         "a",
+         "f"
+        ]
+       },
+       {
+        "id": "e3B-nw6",
+        "text": "sno",
+        "sounds": [
+         "s",
+         "n",
+         "o"
+        ]
+       },
+       {
+        "id": "e3B-nw7",
+        "text": "mov",
+        "sounds": [
+         "m",
+         "o",
+         "v"
+        ]
+       },
+       {
+        "id": "e3B-nw8",
+        "text": "vod",
+        "sounds": [
+         "v",
+         "o",
+         "d"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "l",
+        "i",
+        "h",
+        "r",
+        "s",
+        "y",
+        "e",
+        "o",
+        "n",
+        "t"
+       ],
+       "words": [
+        "boy",
+        "girl",
+        "school",
+        "book",
+        "pen",
+        "bag",
+        "teacher",
+        "student",
+        "class",
+        "read"
+       ]
+      }
+     },
+     "maths": {
+      "numbers": [
+       {
+        "id": "m3B-n1",
+        "value": 47,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3B-n2",
+        "value": 8,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3B-n3",
+        "value": 15,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3B-n4",
+        "value": 63,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3B-n5",
+        "value": 90,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3B-n6",
+        "value": 106,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3B-n7",
+        "value": 25,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m3B-n8",
+        "value": 71,
+        "say_ur": "",
+        "say_en": ""
+       }
+      ],
+      "quick_sums": [
+       {
+        "id": "m3B-qs1",
+        "prompt": "2 + 8",
+        "answer": 10
+       },
+       {
+        "id": "m3B-qs2",
+        "prompt": "10 − 7",
+        "answer": 3
+       },
+       {
+        "id": "m3B-qs3",
+        "prompt": "4 + 6",
+        "answer": 10
+       },
+       {
+        "id": "m3B-qs4",
+        "prompt": "10 − 5",
+        "answer": 5
+       },
+       {
+        "id": "m3B-qs5",
+        "prompt": "6 + 4",
+        "answer": 10
+       },
+       {
+        "id": "m3B-qs6",
+        "prompt": "10 − 3",
+        "answer": 7
+       },
+       {
+        "id": "m3B-qs7",
+        "prompt": "8 + 2",
+        "answer": 10
+       },
+       {
+        "id": "m3B-qs8",
+        "prompt": "10 − 1",
+        "answer": 9
+       },
+       {
+        "id": "m3B-qs9",
+        "prompt": "1 + 8",
+        "answer": 9
+       },
+       {
+        "id": "m3B-qs10",
+        "prompt": "9 − 7",
+        "answer": 2
+       },
+       {
+        "id": "m3B-qs11",
+        "prompt": "3 + 6",
+        "answer": 9
+       },
+       {
+        "id": "m3B-qs12",
+        "prompt": "9 − 5",
+        "answer": 4
+       },
+       {
+        "id": "m3B-qs13",
+        "prompt": "5 + 4",
+        "answer": 9
+       },
+       {
+        "id": "m3B-qs14",
+        "prompt": "9 − 3",
+        "answer": 6
+       },
+       {
+        "id": "m3B-qs15",
+        "prompt": "7 + 2",
+        "answer": 9
+       },
+       {
+        "id": "m3B-qs16",
+        "prompt": "9 − 1",
+        "answer": 8
+       },
+       {
+        "id": "m3B-qs17",
+        "prompt": "9 + 8",
+        "answer": 17
+       },
+       {
+        "id": "m3B-qs18",
+        "prompt": "8 − 7",
+        "answer": 1
+       },
+       {
+        "id": "m3B-qs19",
+        "prompt": "2 + 6",
+        "answer": 8
+       },
+       {
+        "id": "m3B-qs20",
+        "prompt": "8 − 5",
+        "answer": 3
+       },
+       {
+        "id": "m3B-qs21",
+        "prompt": "4 + 4",
+        "answer": 8
+       },
+       {
+        "id": "m3B-qs22",
+        "prompt": "8 − 3",
+        "answer": 5
+       },
+       {
+        "id": "m3B-qs23",
+        "prompt": "6 + 2",
+        "answer": 8
+       },
+       {
+        "id": "m3B-qs24",
+        "prompt": "8 − 1",
+        "answer": 7
+       },
+       {
+        "id": "m3B-qs25",
+        "prompt": "8 + 8",
+        "answer": 16
+       },
+       {
+        "id": "m3B-qs26",
+        "prompt": "16 − 7",
+        "answer": 9
+       },
+       {
+        "id": "m3B-qs27",
+        "prompt": "1 + 6",
+        "answer": 7
+       },
+       {
+        "id": "m3B-qs28",
+        "prompt": "7 − 5",
+        "answer": 2
+       },
+       {
+        "id": "m3B-qs29",
+        "prompt": "3 + 4",
+        "answer": 7
+       },
+       {
+        "id": "m3B-qs30",
+        "prompt": "7 − 3",
+        "answer": 4
+       },
+       {
+        "id": "m3B-qs31",
+        "prompt": "5 + 2",
+        "answer": 7
+       },
+       {
+        "id": "m3B-qs32",
+        "prompt": "7 − 1",
+        "answer": 6
+       },
+       {
+        "id": "m3B-qs33",
+        "prompt": "7 + 8",
+        "answer": 15
+       },
+       {
+        "id": "m3B-qs34",
+        "prompt": "15 − 7",
+        "answer": 8
+       },
+       {
+        "id": "m3B-qs35",
+        "prompt": "9 + 6",
+        "answer": 15
+       },
+       {
+        "id": "m3B-qs36",
+        "prompt": "6 − 5",
+        "answer": 1
+       },
+       {
+        "id": "m3B-qs37",
+        "prompt": "2 + 4",
+        "answer": 6
+       },
+       {
+        "id": "m3B-qs38",
+        "prompt": "6 − 3",
+        "answer": 3
+       },
+       {
+        "id": "m3B-qs39",
+        "prompt": "4 + 2",
+        "answer": 6
+       },
+       {
+        "id": "m3B-qs40",
+        "prompt": "6 − 1",
+        "answer": 5
+       },
+       {
+        "id": "m3B-qs41",
+        "prompt": "6 + 8",
+        "answer": 14
+       },
+       {
+        "id": "m3B-qs42",
+        "prompt": "14 − 7",
+        "answer": 7
+       }
+      ],
+      "written": [
+       {
+        "id": "m3B-w1",
+        "prompt": "34 + 28",
+        "answer": 62
+       },
+       {
+        "id": "m3B-w2",
+        "prompt": "52 − 17",
+        "answer": 35
+       },
+       {
+        "id": "m3B-w3",
+        "prompt": "6 × 3",
+        "answer": 18
+       },
+       {
+        "id": "m3B-w4",
+        "prompt": "45 + 36",
+        "answer": 81
+       }
+      ],
+      "word_problem": {
+       "id": "m3B-wp",
+       "prompt_ur": "علی کے پاس 12 ٹافیاں ہیں۔ وہ 3 ٹافیاں اپنے دوست کو دیتا ہے۔ اب علی کے پاس کتنی ٹافیاں ہیں؟",
+       "prompt_en": "Ali has 12 sweets. He gives 3 sweets to his friend. How many sweets does Ali have now?",
+       "answer": 9
+      }
+     }
+    }
+   }
+  },
+  "5": {
+   "forms": {
+    "A": {
+     "urdu": {
+      "story": {
+       "id": "u5A-story",
+       "title": "",
+       "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہے۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔ شام کو بلال نے اپنی بہن کو سارے پتھر دکھائے۔ کچھ پتھر سفید تھے اور کچھ پر نیلی لکیریں تھیں۔ اس کی بہن نے کہا کہ ہم ان پتھروں سے ایک چھوٹا سا باغ بنائیں گے۔ دونوں نے صحن کے ایک کونے میں مٹی کھودی اور پتھر قطار میں لگا دیے۔ پھر انہوں نے بیچ میں گلاب کا ایک پودا لگایا اور اسے پانی دیا۔ ابو نے باغ دیکھا تو بہت خوش ہوئے۔ انہوں نے کہا کہ اگلی چھٹی پر ہم سب دوبارہ دریا پر جائیں گے اور وہاں سے اور پتھر لائیں گے۔ اس رات بلال نے خواب میں دریا اور کشتی کو دیکھا۔",
+       "tokens": [
+        "آج",
+        "بلال",
+        "اپنے",
+        "والد",
+        "کے",
+        "ساتھ",
+        "دریائے",
+        "جہلم",
+        "کے",
+        "کنارے",
+        "گیا",
+        "وہاں",
+        "ٹھنڈی",
+        "ہوا",
+        "چل",
+        "رہی",
+        "تھی",
+        "اور",
+        "پانی",
+        "آہستہ",
+        "بہہ",
+        "رہا",
+        "تھا",
+        "بلال",
+        "نے",
+        "کشتی",
+        "کو",
+        "حرکت",
+        "کرتے",
+        "دیکھا",
+        "اس",
+        "کے",
+        "والد",
+        "نے",
+        "اسے",
+        "بتایا",
+        "کہ",
+        "دریا",
+        "ہمارے",
+        "ملک",
+        "کے",
+        "لیے",
+        "اہم",
+        "ہے",
+        "واپسی",
+        "پر",
+        "بلال",
+        "نے",
+        "خوبصورت",
+        "پتھر",
+        "جمع",
+        "کیے",
+        "اور",
+        "مسکراتا",
+        "رہا",
+        "وہ",
+        "بہت",
+        "خوش",
+        "بھی",
+        "تھا",
+        "شام",
+        "کو",
+        "بلال",
+        "نے",
+        "اپنی",
+        "بہن",
+        "کو",
+        "سارے",
+        "پتھر",
+        "دکھائے",
+        "کچھ",
+        "پتھر",
+        "سفید",
+        "تھے",
+        "اور",
+        "کچھ",
+        "پر",
+        "نیلی",
+        "لکیریں",
+        "تھیں",
+        "اس",
+        "کی",
+        "بہن",
+        "نے",
+        "کہا",
+        "کہ",
+        "ہم",
+        "ان",
+        "پتھروں",
+        "سے",
+        "ایک",
+        "چھوٹا",
+        "سا",
+        "باغ",
+        "بنائیں",
+        "گے",
+        "دونوں",
+        "نے",
+        "صحن",
+        "کے",
+        "ایک",
+        "کونے",
+        "میں",
+        "مٹی",
+        "کھودی",
+        "اور",
+        "پتھر",
+        "قطار",
+        "میں",
+        "لگا",
+        "دیے",
+        "پھر",
+        "انہوں",
+        "نے",
+        "بیچ",
+        "میں",
+        "گلاب",
+        "کا",
+        "ایک",
+        "پودا",
+        "لگایا",
+        "اور",
+        "اسے",
+        "پانی",
+        "دیا",
+        "ابو",
+        "نے",
+        "باغ",
+        "دیکھا",
+        "تو",
+        "بہت",
+        "خوش",
+        "ہوئے",
+        "انہوں",
+        "نے",
+        "کہا",
+        "کہ",
+        "اگلی",
+        "چھٹی",
+        "پر",
+        "ہم",
+        "سب",
+        "دوبارہ",
+        "دریا",
+        "پر",
+        "جائیں",
+        "گے",
+        "اور",
+        "وہاں",
+        "سے",
+        "اور",
+        "پتھر",
+        "لائیں",
+        "گے",
+        "اس",
+        "رات",
+        "بلال",
+        "نے",
+        "خواب",
+        "میں",
+        "دریا",
+        "اور",
+        "کشتی",
+        "کو",
+        "دیکھا"
+       ],
+       "word_count": 165,
+       "source": "fixture",
+       "vetting": {
+        "fixture": true
+       }
+      },
+      "questions": [
+       {
+        "id": "u5A-q1",
+        "prompt": "بلال کس کے ساتھ گیا؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "والد"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "u5A-q2",
+        "prompt": "وہاں کیسی ہوا چل رہی تھی؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "ٹھنڈی"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "u5A-q3",
+        "prompt": "بلال نے کیا جمع کیا؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "پتھر"
+        ],
+        "reject": [],
+        "rubric": ""
+       }
+      ],
+      "first_sounds": [
+       {
+        "id": "u5A-fs1",
+        "word": "کتاب",
+        "sound": "ک"
+       },
+       {
+        "id": "u5A-fs2",
+        "word": "مچھلی",
+        "sound": "م"
+       },
+       {
+        "id": "u5A-fs3",
+        "word": "سورج",
+        "sound": "س"
+       },
+       {
+        "id": "u5A-fs4",
+        "word": "پانی",
+        "sound": "پ"
+       },
+       {
+        "id": "u5A-fs5",
+        "word": "گھر",
+        "sound": "گھ"
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "u5A-nw1",
+        "text": "گوپا",
+        "sounds": [
+         "گ",
+         "و",
+         "پ",
+         "ا"
+        ]
+       },
+       {
+        "id": "u5A-nw2",
+        "text": "ٹِمل",
+        "sounds": [
+         "ٹ",
+         "ِ",
+         "م",
+         "ل"
+        ]
+       },
+       {
+        "id": "u5A-nw3",
+        "text": "دوسا",
+        "sounds": [
+         "د",
+         "و",
+         "س",
+         "ا"
+        ]
+       },
+       {
+        "id": "u5A-nw4",
+        "text": "پَنگو",
+        "sounds": [
+         "پ",
+         "َ",
+         "ن",
+         "گ",
+         "و"
+        ]
+       },
+       {
+        "id": "u5A-nw5",
+        "text": "ساتِم",
+        "sounds": [
+         "س",
+         "ا",
+         "ت",
+         "ِ",
+         "م"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "ر",
+        "د",
+        "م",
+        "ک",
+        "س",
+        "ج",
+        "ت",
+        "ب",
+        "ا",
+        "ش"
+       ],
+       "words": [
+        "بچہ",
+        "دروازہ",
+        "پانی",
+        "کتاب",
+        "گھر",
+        "قلم",
+        "بستہ",
+        "کمرہ",
+        "استاد",
+        "اسکول"
+       ]
+      }
+     },
+     "english": {
+      "story": {
+       "id": "e5A-story",
+       "title": "",
+       "text": "Imran woke up early for school today. His class was planting trees. He took a small plant in a bag. The teacher asked Imran to show the class how to plant it. Imran dug a hole, put the plant in the soil and put water in it. The teacher was happy with his work. His friends clapped for him. After school, Imran walked home with his sister Sana. On the way they saw an old man sitting under a big tree. He looked tired and his bag was heavy. Imran and Sana offered to carry the bag to his house. The old man smiled and thanked them. At home, Imran told his mother about the trees and the old man. His mother said that planting a tree and helping a person are both good work. That night Imran could not sleep for a long time. He was thinking about the small plant at school and hoped it would grow tall and green.",
+       "tokens": [
+        "Imran",
+        "woke",
+        "up",
+        "early",
+        "for",
+        "school",
+        "today",
+        "His",
+        "class",
+        "was",
+        "planting",
+        "trees",
+        "He",
+        "took",
+        "a",
+        "small",
+        "plant",
+        "in",
+        "a",
+        "bag",
+        "The",
+        "teacher",
+        "asked",
+        "Imran",
+        "to",
+        "show",
+        "the",
+        "class",
+        "how",
+        "to",
+        "plant",
+        "it",
+        "Imran",
+        "dug",
+        "a",
+        "hole",
+        "put",
+        "the",
+        "plant",
+        "in",
+        "the",
+        "soil",
+        "and",
+        "put",
+        "water",
+        "in",
+        "it",
+        "The",
+        "teacher",
+        "was",
+        "happy",
+        "with",
+        "his",
+        "work",
+        "His",
+        "friends",
+        "clapped",
+        "for",
+        "him",
+        "After",
+        "school",
+        "Imran",
+        "walked",
+        "home",
+        "with",
+        "his",
+        "sister",
+        "Sana",
+        "On",
+        "the",
+        "way",
+        "they",
+        "saw",
+        "an",
+        "old",
+        "man",
+        "sitting",
+        "under",
+        "a",
+        "big",
+        "tree",
+        "He",
+        "looked",
+        "tired",
+        "and",
+        "his",
+        "bag",
+        "was",
+        "heavy",
+        "Imran",
+        "and",
+        "Sana",
+        "offered",
+        "to",
+        "carry",
+        "the",
+        "bag",
+        "to",
+        "his",
+        "house",
+        "The",
+        "old",
+        "man",
+        "smiled",
+        "and",
+        "thanked",
+        "them",
+        "At",
+        "home",
+        "Imran",
+        "told",
+        "his",
+        "mother",
+        "about",
+        "the",
+        "trees",
+        "and",
+        "the",
+        "old",
+        "man",
+        "His",
+        "mother",
+        "said",
+        "that",
+        "planting",
+        "a",
+        "tree",
+        "and",
+        "helping",
+        "a",
+        "person",
+        "are",
+        "both",
+        "good",
+        "work",
+        "That",
+        "night",
+        "Imran",
+        "could",
+        "not",
+        "sleep",
+        "for",
+        "a",
+        "long",
+        "time",
+        "He",
+        "was",
+        "thinking",
+        "about",
+        "the",
+        "small",
+        "plant",
+        "at",
+        "school",
+        "and",
+        "hoped",
+        "it",
+        "would",
+        "grow",
+        "tall",
+        "and",
+        "green"
+       ],
+       "word_count": 162,
+       "source": "fixture",
+       "vetting": {
+        "fixture": true
+       }
+      },
+      "questions": [
+       {
+        "id": "e5A-q1",
+        "prompt": "What was the class doing?",
+        "type": "literal",
+        "needs_line": 2,
+        "accept": [
+         "planting trees"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "e5A-q2",
+        "prompt": "Why did his friends clap?",
+        "type": "inferential",
+        "needs_line": 7,
+        "accept": [
+         "he planted well"
+        ],
+        "reject": [],
+        "rubric": ""
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "e5A-nw1",
+        "text": "maz",
+        "sounds": [
+         "m",
+         "a",
+         "z"
+        ]
+       },
+       {
+        "id": "e5A-nw2",
+        "text": "zaj",
+        "sounds": [
+         "z",
+         "a",
+         "j"
+        ]
+       },
+       {
+        "id": "e5A-nw3",
+        "text": "ver",
+        "sounds": [
+         "v",
+         "e",
+         "r"
+        ]
+       },
+       {
+        "id": "e5A-nw4",
+        "text": "lut",
+        "sounds": [
+         "l",
+         "u",
+         "t"
+        ]
+       },
+       {
+        "id": "e5A-nw5",
+        "text": "eaf",
+        "sounds": [
+         "e",
+         "a",
+         "f"
+        ]
+       },
+       {
+        "id": "e5A-nw6",
+        "text": "sno",
+        "sounds": [
+         "s",
+         "n",
+         "o"
+        ]
+       },
+       {
+        "id": "e5A-nw7",
+        "text": "mov",
+        "sounds": [
+         "m",
+         "o",
+         "v"
+        ]
+       },
+       {
+        "id": "e5A-nw8",
+        "text": "vod",
+        "sounds": [
+         "v",
+         "o",
+         "d"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "l",
+        "i",
+        "h",
+        "r",
+        "s",
+        "y",
+        "e",
+        "o",
+        "n",
+        "t"
+       ],
+       "words": [
+        "boy",
+        "girl",
+        "school",
+        "book",
+        "pen",
+        "bag",
+        "teacher",
+        "student",
+        "class",
+        "read"
+       ]
+      }
+     },
+     "maths": {
+      "numbers": [
+       {
+        "id": "m5A-n1",
+        "value": 47,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5A-n2",
+        "value": 8,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5A-n3",
+        "value": 15,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5A-n4",
+        "value": 63,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5A-n5",
+        "value": 90,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5A-n6",
+        "value": 106,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5A-n7",
+        "value": 25,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5A-n8",
+        "value": 71,
+        "say_ur": "",
+        "say_en": ""
+       }
+      ],
+      "quick_sums": [
+       {
+        "id": "m5A-qs1",
+        "prompt": "2 + 8",
+        "answer": 10
+       },
+       {
+        "id": "m5A-qs2",
+        "prompt": "10 − 7",
+        "answer": 3
+       },
+       {
+        "id": "m5A-qs3",
+        "prompt": "4 + 6",
+        "answer": 10
+       },
+       {
+        "id": "m5A-qs4",
+        "prompt": "10 − 5",
+        "answer": 5
+       },
+       {
+        "id": "m5A-qs5",
+        "prompt": "6 + 4",
+        "answer": 10
+       },
+       {
+        "id": "m5A-qs6",
+        "prompt": "10 − 3",
+        "answer": 7
+       },
+       {
+        "id": "m5A-qs7",
+        "prompt": "8 + 2",
+        "answer": 10
+       },
+       {
+        "id": "m5A-qs8",
+        "prompt": "10 − 1",
+        "answer": 9
+       },
+       {
+        "id": "m5A-qs9",
+        "prompt": "1 + 8",
+        "answer": 9
+       },
+       {
+        "id": "m5A-qs10",
+        "prompt": "9 − 7",
+        "answer": 2
+       },
+       {
+        "id": "m5A-qs11",
+        "prompt": "3 + 6",
+        "answer": 9
+       },
+       {
+        "id": "m5A-qs12",
+        "prompt": "9 − 5",
+        "answer": 4
+       },
+       {
+        "id": "m5A-qs13",
+        "prompt": "5 + 4",
+        "answer": 9
+       },
+       {
+        "id": "m5A-qs14",
+        "prompt": "9 − 3",
+        "answer": 6
+       },
+       {
+        "id": "m5A-qs15",
+        "prompt": "7 + 2",
+        "answer": 9
+       },
+       {
+        "id": "m5A-qs16",
+        "prompt": "9 − 1",
+        "answer": 8
+       },
+       {
+        "id": "m5A-qs17",
+        "prompt": "9 + 8",
+        "answer": 17
+       },
+       {
+        "id": "m5A-qs18",
+        "prompt": "8 − 7",
+        "answer": 1
+       },
+       {
+        "id": "m5A-qs19",
+        "prompt": "2 + 6",
+        "answer": 8
+       },
+       {
+        "id": "m5A-qs20",
+        "prompt": "8 − 5",
+        "answer": 3
+       },
+       {
+        "id": "m5A-qs21",
+        "prompt": "4 + 4",
+        "answer": 8
+       },
+       {
+        "id": "m5A-qs22",
+        "prompt": "8 − 3",
+        "answer": 5
+       },
+       {
+        "id": "m5A-qs23",
+        "prompt": "6 + 2",
+        "answer": 8
+       },
+       {
+        "id": "m5A-qs24",
+        "prompt": "8 − 1",
+        "answer": 7
+       },
+       {
+        "id": "m5A-qs25",
+        "prompt": "8 + 8",
+        "answer": 16
+       },
+       {
+        "id": "m5A-qs26",
+        "prompt": "16 − 7",
+        "answer": 9
+       },
+       {
+        "id": "m5A-qs27",
+        "prompt": "1 + 6",
+        "answer": 7
+       },
+       {
+        "id": "m5A-qs28",
+        "prompt": "7 − 5",
+        "answer": 2
+       },
+       {
+        "id": "m5A-qs29",
+        "prompt": "3 + 4",
+        "answer": 7
+       },
+       {
+        "id": "m5A-qs30",
+        "prompt": "7 − 3",
+        "answer": 4
+       },
+       {
+        "id": "m5A-qs31",
+        "prompt": "5 + 2",
+        "answer": 7
+       },
+       {
+        "id": "m5A-qs32",
+        "prompt": "7 − 1",
+        "answer": 6
+       },
+       {
+        "id": "m5A-qs33",
+        "prompt": "7 + 8",
+        "answer": 15
+       },
+       {
+        "id": "m5A-qs34",
+        "prompt": "15 − 7",
+        "answer": 8
+       },
+       {
+        "id": "m5A-qs35",
+        "prompt": "9 + 6",
+        "answer": 15
+       },
+       {
+        "id": "m5A-qs36",
+        "prompt": "6 − 5",
+        "answer": 1
+       },
+       {
+        "id": "m5A-qs37",
+        "prompt": "2 + 4",
+        "answer": 6
+       },
+       {
+        "id": "m5A-qs38",
+        "prompt": "6 − 3",
+        "answer": 3
+       },
+       {
+        "id": "m5A-qs39",
+        "prompt": "4 + 2",
+        "answer": 6
+       },
+       {
+        "id": "m5A-qs40",
+        "prompt": "6 − 1",
+        "answer": 5
+       },
+       {
+        "id": "m5A-qs41",
+        "prompt": "6 + 8",
+        "answer": 14
+       },
+       {
+        "id": "m5A-qs42",
+        "prompt": "14 − 7",
+        "answer": 7
+       }
+      ],
+      "written": [
+       {
+        "id": "m5A-w1",
+        "prompt": "34 + 28",
+        "answer": 62
+       },
+       {
+        "id": "m5A-w2",
+        "prompt": "52 − 17",
+        "answer": 35
+       },
+       {
+        "id": "m5A-w3",
+        "prompt": "6 × 3",
+        "answer": 18
+       },
+       {
+        "id": "m5A-w4",
+        "prompt": "45 + 36",
+        "answer": 81
+       }
+      ],
+      "word_problem": {
+       "id": "m5A-wp",
+       "prompt_ur": "علی کے پاس 12 ٹافیاں ہیں۔ وہ 3 ٹافیاں اپنے دوست کو دیتا ہے۔ اب علی کے پاس کتنی ٹافیاں ہیں؟",
+       "prompt_en": "Ali has 12 sweets. He gives 3 sweets to his friend. How many sweets does Ali have now?",
+       "answer": 9
+      }
+     }
+    },
+    "B": {
+     "urdu": {
+      "story": {
+       "id": "u5B-story",
+       "title": "",
+       "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہے۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔ شام کو بلال نے اپنی بہن کو سارے پتھر دکھائے۔ کچھ پتھر سفید تھے اور کچھ پر نیلی لکیریں تھیں۔ اس کی بہن نے کہا کہ ہم ان پتھروں سے ایک چھوٹا سا باغ بنائیں گے۔ دونوں نے صحن کے ایک کونے میں مٹی کھودی اور پتھر قطار میں لگا دیے۔ پھر انہوں نے بیچ میں گلاب کا ایک پودا لگایا اور اسے پانی دیا۔ ابو نے باغ دیکھا تو بہت خوش ہوئے۔ انہوں نے کہا کہ اگلی چھٹی پر ہم سب دوبارہ دریا پر جائیں گے اور وہاں سے اور پتھر لائیں گے۔ اس رات بلال نے خواب میں دریا اور کشتی کو دیکھا۔",
+       "tokens": [
+        "آج",
+        "بلال",
+        "اپنے",
+        "والد",
+        "کے",
+        "ساتھ",
+        "دریائے",
+        "جہلم",
+        "کے",
+        "کنارے",
+        "گیا",
+        "وہاں",
+        "ٹھنڈی",
+        "ہوا",
+        "چل",
+        "رہی",
+        "تھی",
+        "اور",
+        "پانی",
+        "آہستہ",
+        "بہہ",
+        "رہا",
+        "تھا",
+        "بلال",
+        "نے",
+        "کشتی",
+        "کو",
+        "حرکت",
+        "کرتے",
+        "دیکھا",
+        "اس",
+        "کے",
+        "والد",
+        "نے",
+        "اسے",
+        "بتایا",
+        "کہ",
+        "دریا",
+        "ہمارے",
+        "ملک",
+        "کے",
+        "لیے",
+        "اہم",
+        "ہے",
+        "واپسی",
+        "پر",
+        "بلال",
+        "نے",
+        "خوبصورت",
+        "پتھر",
+        "جمع",
+        "کیے",
+        "اور",
+        "مسکراتا",
+        "رہا",
+        "وہ",
+        "بہت",
+        "خوش",
+        "بھی",
+        "تھا",
+        "شام",
+        "کو",
+        "بلال",
+        "نے",
+        "اپنی",
+        "بہن",
+        "کو",
+        "سارے",
+        "پتھر",
+        "دکھائے",
+        "کچھ",
+        "پتھر",
+        "سفید",
+        "تھے",
+        "اور",
+        "کچھ",
+        "پر",
+        "نیلی",
+        "لکیریں",
+        "تھیں",
+        "اس",
+        "کی",
+        "بہن",
+        "نے",
+        "کہا",
+        "کہ",
+        "ہم",
+        "ان",
+        "پتھروں",
+        "سے",
+        "ایک",
+        "چھوٹا",
+        "سا",
+        "باغ",
+        "بنائیں",
+        "گے",
+        "دونوں",
+        "نے",
+        "صحن",
+        "کے",
+        "ایک",
+        "کونے",
+        "میں",
+        "مٹی",
+        "کھودی",
+        "اور",
+        "پتھر",
+        "قطار",
+        "میں",
+        "لگا",
+        "دیے",
+        "پھر",
+        "انہوں",
+        "نے",
+        "بیچ",
+        "میں",
+        "گلاب",
+        "کا",
+        "ایک",
+        "پودا",
+        "لگایا",
+        "اور",
+        "اسے",
+        "پانی",
+        "دیا",
+        "ابو",
+        "نے",
+        "باغ",
+        "دیکھا",
+        "تو",
+        "بہت",
+        "خوش",
+        "ہوئے",
+        "انہوں",
+        "نے",
+        "کہا",
+        "کہ",
+        "اگلی",
+        "چھٹی",
+        "پر",
+        "ہم",
+        "سب",
+        "دوبارہ",
+        "دریا",
+        "پر",
+        "جائیں",
+        "گے",
+        "اور",
+        "وہاں",
+        "سے",
+        "اور",
+        "پتھر",
+        "لائیں",
+        "گے",
+        "اس",
+        "رات",
+        "بلال",
+        "نے",
+        "خواب",
+        "میں",
+        "دریا",
+        "اور",
+        "کشتی",
+        "کو",
+        "دیکھا"
+       ],
+       "word_count": 165,
+       "source": "fixture",
+       "vetting": {
+        "fixture": true
+       }
+      },
+      "questions": [
+       {
+        "id": "u5B-q1",
+        "prompt": "بلال کس کے ساتھ گیا؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "والد"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "u5B-q2",
+        "prompt": "وہاں کیسی ہوا چل رہی تھی؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "ٹھنڈی"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "u5B-q3",
+        "prompt": "بلال نے کیا جمع کیا؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "پتھر"
+        ],
+        "reject": [],
+        "rubric": ""
+       }
+      ],
+      "first_sounds": [
+       {
+        "id": "u5B-fs1",
+        "word": "کتاب",
+        "sound": "ک"
+       },
+       {
+        "id": "u5B-fs2",
+        "word": "مچھلی",
+        "sound": "م"
+       },
+       {
+        "id": "u5B-fs3",
+        "word": "سورج",
+        "sound": "س"
+       },
+       {
+        "id": "u5B-fs4",
+        "word": "پانی",
+        "sound": "پ"
+       },
+       {
+        "id": "u5B-fs5",
+        "word": "گھر",
+        "sound": "گھ"
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "u5B-nw1",
+        "text": "گوپا",
+        "sounds": [
+         "گ",
+         "و",
+         "پ",
+         "ا"
+        ]
+       },
+       {
+        "id": "u5B-nw2",
+        "text": "ٹِمل",
+        "sounds": [
+         "ٹ",
+         "ِ",
+         "م",
+         "ل"
+        ]
+       },
+       {
+        "id": "u5B-nw3",
+        "text": "دوسا",
+        "sounds": [
+         "د",
+         "و",
+         "س",
+         "ا"
+        ]
+       },
+       {
+        "id": "u5B-nw4",
+        "text": "پَنگو",
+        "sounds": [
+         "پ",
+         "َ",
+         "ن",
+         "گ",
+         "و"
+        ]
+       },
+       {
+        "id": "u5B-nw5",
+        "text": "ساتِم",
+        "sounds": [
+         "س",
+         "ا",
+         "ت",
+         "ِ",
+         "م"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "ر",
+        "د",
+        "م",
+        "ک",
+        "س",
+        "ج",
+        "ت",
+        "ب",
+        "ا",
+        "ش"
+       ],
+       "words": [
+        "بچہ",
+        "دروازہ",
+        "پانی",
+        "کتاب",
+        "گھر",
+        "قلم",
+        "بستہ",
+        "کمرہ",
+        "استاد",
+        "اسکول"
+       ]
+      }
+     },
+     "english": {
+      "story": {
+       "id": "e5B-story",
+       "title": "",
+       "text": "Imran woke up early for school today. His class was planting trees. He took a small plant in a bag. The teacher asked Imran to show the class how to plant it. Imran dug a hole, put the plant in the soil and put water in it. The teacher was happy with his work. His friends clapped for him. After school, Imran walked home with his sister Sana. On the way they saw an old man sitting under a big tree. He looked tired and his bag was heavy. Imran and Sana offered to carry the bag to his house. The old man smiled and thanked them. At home, Imran told his mother about the trees and the old man. His mother said that planting a tree and helping a person are both good work. That night Imran could not sleep for a long time. He was thinking about the small plant at school and hoped it would grow tall and green.",
+       "tokens": [
+        "Imran",
+        "woke",
+        "up",
+        "early",
+        "for",
+        "school",
+        "today",
+        "His",
+        "class",
+        "was",
+        "planting",
+        "trees",
+        "He",
+        "took",
+        "a",
+        "small",
+        "plant",
+        "in",
+        "a",
+        "bag",
+        "The",
+        "teacher",
+        "asked",
+        "Imran",
+        "to",
+        "show",
+        "the",
+        "class",
+        "how",
+        "to",
+        "plant",
+        "it",
+        "Imran",
+        "dug",
+        "a",
+        "hole",
+        "put",
+        "the",
+        "plant",
+        "in",
+        "the",
+        "soil",
+        "and",
+        "put",
+        "water",
+        "in",
+        "it",
+        "The",
+        "teacher",
+        "was",
+        "happy",
+        "with",
+        "his",
+        "work",
+        "His",
+        "friends",
+        "clapped",
+        "for",
+        "him",
+        "After",
+        "school",
+        "Imran",
+        "walked",
+        "home",
+        "with",
+        "his",
+        "sister",
+        "Sana",
+        "On",
+        "the",
+        "way",
+        "they",
+        "saw",
+        "an",
+        "old",
+        "man",
+        "sitting",
+        "under",
+        "a",
+        "big",
+        "tree",
+        "He",
+        "looked",
+        "tired",
+        "and",
+        "his",
+        "bag",
+        "was",
+        "heavy",
+        "Imran",
+        "and",
+        "Sana",
+        "offered",
+        "to",
+        "carry",
+        "the",
+        "bag",
+        "to",
+        "his",
+        "house",
+        "The",
+        "old",
+        "man",
+        "smiled",
+        "and",
+        "thanked",
+        "them",
+        "At",
+        "home",
+        "Imran",
+        "told",
+        "his",
+        "mother",
+        "about",
+        "the",
+        "trees",
+        "and",
+        "the",
+        "old",
+        "man",
+        "His",
+        "mother",
+        "said",
+        "that",
+        "planting",
+        "a",
+        "tree",
+        "and",
+        "helping",
+        "a",
+        "person",
+        "are",
+        "both",
+        "good",
+        "work",
+        "That",
+        "night",
+        "Imran",
+        "could",
+        "not",
+        "sleep",
+        "for",
+        "a",
+        "long",
+        "time",
+        "He",
+        "was",
+        "thinking",
+        "about",
+        "the",
+        "small",
+        "plant",
+        "at",
+        "school",
+        "and",
+        "hoped",
+        "it",
+        "would",
+        "grow",
+        "tall",
+        "and",
+        "green"
+       ],
+       "word_count": 162,
+       "source": "fixture",
+       "vetting": {
+        "fixture": true
+       }
+      },
+      "questions": [
+       {
+        "id": "e5B-q1",
+        "prompt": "What was the class doing?",
+        "type": "literal",
+        "needs_line": 2,
+        "accept": [
+         "planting trees"
+        ],
+        "reject": [],
+        "rubric": ""
+       },
+       {
+        "id": "e5B-q2",
+        "prompt": "Why did his friends clap?",
+        "type": "inferential",
+        "needs_line": 7,
+        "accept": [
+         "he planted well"
+        ],
+        "reject": [],
+        "rubric": ""
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "e5B-nw1",
+        "text": "maz",
+        "sounds": [
+         "m",
+         "a",
+         "z"
+        ]
+       },
+       {
+        "id": "e5B-nw2",
+        "text": "zaj",
+        "sounds": [
+         "z",
+         "a",
+         "j"
+        ]
+       },
+       {
+        "id": "e5B-nw3",
+        "text": "ver",
+        "sounds": [
+         "v",
+         "e",
+         "r"
+        ]
+       },
+       {
+        "id": "e5B-nw4",
+        "text": "lut",
+        "sounds": [
+         "l",
+         "u",
+         "t"
+        ]
+       },
+       {
+        "id": "e5B-nw5",
+        "text": "eaf",
+        "sounds": [
+         "e",
+         "a",
+         "f"
+        ]
+       },
+       {
+        "id": "e5B-nw6",
+        "text": "sno",
+        "sounds": [
+         "s",
+         "n",
+         "o"
+        ]
+       },
+       {
+        "id": "e5B-nw7",
+        "text": "mov",
+        "sounds": [
+         "m",
+         "o",
+         "v"
+        ]
+       },
+       {
+        "id": "e5B-nw8",
+        "text": "vod",
+        "sounds": [
+         "v",
+         "o",
+         "d"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "l",
+        "i",
+        "h",
+        "r",
+        "s",
+        "y",
+        "e",
+        "o",
+        "n",
+        "t"
+       ],
+       "words": [
+        "boy",
+        "girl",
+        "school",
+        "book",
+        "pen",
+        "bag",
+        "teacher",
+        "student",
+        "class",
+        "read"
+       ]
+      }
+     },
+     "maths": {
+      "numbers": [
+       {
+        "id": "m5B-n1",
+        "value": 47,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5B-n2",
+        "value": 8,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5B-n3",
+        "value": 15,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5B-n4",
+        "value": 63,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5B-n5",
+        "value": 90,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5B-n6",
+        "value": 106,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5B-n7",
+        "value": 25,
+        "say_ur": "",
+        "say_en": ""
+       },
+       {
+        "id": "m5B-n8",
+        "value": 71,
+        "say_ur": "",
+        "say_en": ""
+       }
+      ],
+      "quick_sums": [
+       {
+        "id": "m5B-qs1",
+        "prompt": "2 + 8",
+        "answer": 10
+       },
+       {
+        "id": "m5B-qs2",
+        "prompt": "10 − 7",
+        "answer": 3
+       },
+       {
+        "id": "m5B-qs3",
+        "prompt": "4 + 6",
+        "answer": 10
+       },
+       {
+        "id": "m5B-qs4",
+        "prompt": "10 − 5",
+        "answer": 5
+       },
+       {
+        "id": "m5B-qs5",
+        "prompt": "6 + 4",
+        "answer": 10
+       },
+       {
+        "id": "m5B-qs6",
+        "prompt": "10 − 3",
+        "answer": 7
+       },
+       {
+        "id": "m5B-qs7",
+        "prompt": "8 + 2",
+        "answer": 10
+       },
+       {
+        "id": "m5B-qs8",
+        "prompt": "10 − 1",
+        "answer": 9
+       },
+       {
+        "id": "m5B-qs9",
+        "prompt": "1 + 8",
+        "answer": 9
+       },
+       {
+        "id": "m5B-qs10",
+        "prompt": "9 − 7",
+        "answer": 2
+       },
+       {
+        "id": "m5B-qs11",
+        "prompt": "3 + 6",
+        "answer": 9
+       },
+       {
+        "id": "m5B-qs12",
+        "prompt": "9 − 5",
+        "answer": 4
+       },
+       {
+        "id": "m5B-qs13",
+        "prompt": "5 + 4",
+        "answer": 9
+       },
+       {
+        "id": "m5B-qs14",
+        "prompt": "9 − 3",
+        "answer": 6
+       },
+       {
+        "id": "m5B-qs15",
+        "prompt": "7 + 2",
+        "answer": 9
+       },
+       {
+        "id": "m5B-qs16",
+        "prompt": "9 − 1",
+        "answer": 8
+       },
+       {
+        "id": "m5B-qs17",
+        "prompt": "9 + 8",
+        "answer": 17
+       },
+       {
+        "id": "m5B-qs18",
+        "prompt": "8 − 7",
+        "answer": 1
+       },
+       {
+        "id": "m5B-qs19",
+        "prompt": "2 + 6",
+        "answer": 8
+       },
+       {
+        "id": "m5B-qs20",
+        "prompt": "8 − 5",
+        "answer": 3
+       },
+       {
+        "id": "m5B-qs21",
+        "prompt": "4 + 4",
+        "answer": 8
+       },
+       {
+        "id": "m5B-qs22",
+        "prompt": "8 − 3",
+        "answer": 5
+       },
+       {
+        "id": "m5B-qs23",
+        "prompt": "6 + 2",
+        "answer": 8
+       },
+       {
+        "id": "m5B-qs24",
+        "prompt": "8 − 1",
+        "answer": 7
+       },
+       {
+        "id": "m5B-qs25",
+        "prompt": "8 + 8",
+        "answer": 16
+       },
+       {
+        "id": "m5B-qs26",
+        "prompt": "16 − 7",
+        "answer": 9
+       },
+       {
+        "id": "m5B-qs27",
+        "prompt": "1 + 6",
+        "answer": 7
+       },
+       {
+        "id": "m5B-qs28",
+        "prompt": "7 − 5",
+        "answer": 2
+       },
+       {
+        "id": "m5B-qs29",
+        "prompt": "3 + 4",
+        "answer": 7
+       },
+       {
+        "id": "m5B-qs30",
+        "prompt": "7 − 3",
+        "answer": 4
+       },
+       {
+        "id": "m5B-qs31",
+        "prompt": "5 + 2",
+        "answer": 7
+       },
+       {
+        "id": "m5B-qs32",
+        "prompt": "7 − 1",
+        "answer": 6
+       },
+       {
+        "id": "m5B-qs33",
+        "prompt": "7 + 8",
+        "answer": 15
+       },
+       {
+        "id": "m5B-qs34",
+        "prompt": "15 − 7",
+        "answer": 8
+       },
+       {
+        "id": "m5B-qs35",
+        "prompt": "9 + 6",
+        "answer": 15
+       },
+       {
+        "id": "m5B-qs36",
+        "prompt": "6 − 5",
+        "answer": 1
+       },
+       {
+        "id": "m5B-qs37",
+        "prompt": "2 + 4",
+        "answer": 6
+       },
+       {
+        "id": "m5B-qs38",
+        "prompt": "6 − 3",
+        "answer": 3
+       },
+       {
+        "id": "m5B-qs39",
+        "prompt": "4 + 2",
+        "answer": 6
+       },
+       {
+        "id": "m5B-qs40",
+        "prompt": "6 − 1",
+        "answer": 5
+       },
+       {
+        "id": "m5B-qs41",
+        "prompt": "6 + 8",
+        "answer": 14
+       },
+       {
+        "id": "m5B-qs42",
+        "prompt": "14 − 7",
+        "answer": 7
+       }
+      ],
+      "written": [
+       {
+        "id": "m5B-w1",
+        "prompt": "34 + 28",
+        "answer": 62
+       },
+       {
+        "id": "m5B-w2",
+        "prompt": "52 − 17",
+        "answer": 35
+       },
+       {
+        "id": "m5B-w3",
+        "prompt": "6 × 3",
+        "answer": 18
+       },
+       {
+        "id": "m5B-w4",
+        "prompt": "45 + 36",
+        "answer": 81
+       }
+      ],
+      "word_problem": {
+       "id": "m5B-wp",
+       "prompt_ur": "علی کے پاس 12 ٹافیاں ہیں۔ وہ 3 ٹافیاں اپنے دوست کو دیتا ہے۔ اب علی کے پاس کتنی ٹافیاں ہیں؟",
+       "prompt_en": "Ali has 12 sweets. He gives 3 sweets to his friend. How many sweets does Ali have now?",
+       "answer": 9
+      }
+     }
+    }
+   }
+  }
+ }
+}

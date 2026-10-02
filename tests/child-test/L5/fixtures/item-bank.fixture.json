@@ -1,0 +1,41 @@
+{
+  "version": "child-test-items-v1-test-fixture",
+  "cue": {
+    "urdu":    { "start": "شروع", "stop": "بس شکریہ", "first_sounds": "پہلی آواز", "nonwords": "یہ لفظ پڑھیں" },
+    "english": { "start": "start", "stop": "thank you", "nonwords": "read these words" },
+    "maths":   { "numbers": "یہ نمبر پڑھیں", "quick_sums": "شروع", "stop": "بس شکریہ", "word_problem": "سوال سنیں" }
+  },
+  "grades": { "3": { "forms": { "A": {
+    "urdu": {
+      "story": { "id": "u3A-story", "title": "دریا", "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا",
+        "tokens": ["آج","بلال","اپنے","والد","کے","ساتھ","دریائے","جہلم","کے","کنارے","گیا","وہاں","ٹھنڈی","ہوا","چل","رہی","تھی","اور","پانی","آہستہ","بہہ","رہا","تھا"],
+        "word_count": 23, "source": "may2026-orf_urd" },
+      "questions": [
+        { "id": "u3A-q1", "prompt": "بلال کس کے ساتھ گیا", "type": "literal", "needs_line": 1, "accept": ["والد", "ابو", "باپ"], "reject": ["امی"], "rubric": "Father in any wording." },
+        { "id": "u3A-q2", "prompt": "وہاں ہوا کیسی تھی", "type": "literal", "needs_line": 2, "accept": ["ٹھنڈی"], "reject": ["گرم"], "rubric": "Cold/cool." },
+        { "id": "u3A-q3", "prompt": "پانی کیسے بہہ رہا تھا", "type": "inferential", "needs_line": 2, "accept": ["آہستہ"], "reject": ["تیز"], "rubric": "Slowly." }
+      ],
+      "first_sounds": [ { "id": "u3A-fs1", "word": "انار", "sound": "ا" }, { "id": "u3A-fs2", "word": "بکری", "sound": "ب" } ],
+      "nonwords": [ { "id": "u3A-nw1", "text": "تمال", "sounds": ["ت","م","ا","ل"] }, { "id": "u3A-nw2", "text": "سوپک", "sounds": ["س","و","پ","ک"] } ],
+      "fallback": { "letters": ["ا","ب","پ","ت","ٹ","ث","ج","چ","ح","خ"], "words": ["گھر","آم","کتاب","پانی","دن","رات","ماں","باپ","سکول","کھیل"] }
+    },
+    "english": {
+      "story": { "id": "e3A-story", "title": "Trees", "text": "imran woke up early for school today his class was planting trees",
+        "tokens": ["imran","woke","up","early","for","school","today","his","class","was","planting","trees"], "word_count": 12, "source": "may2026-orf_eng" },
+      "questions": [
+        { "id": "e3A-q1", "prompt": "what was the class planting", "type": "literal", "needs_line": 1, "accept": ["trees", "plants"], "reject": [], "rubric": "Trees." },
+        { "id": "e3A-q2", "prompt": "why did imran wake up early", "type": "inferential", "needs_line": 1, "accept": ["school"], "reject": [], "rubric": "For school." }
+      ],
+      "nonwords": [ { "id": "e3A-nw1", "text": "lat", "sounds": ["l","a","t"] }, { "id": "e3A-nw2", "text": "mip", "sounds": ["m","i","p"] } ],
+      "fallback": { "letters": ["a","b","c","d","e","f","g","h","i","j"], "words": ["cat","dog","sun","red","big","run","hat","pen","cup","bus"] }
+    },
+    "maths": {
+      "numbers": [ { "id": "m3A-n1", "value": 47, "say_ur": "سینتالیس", "say_en": "forty seven" }, { "id": "m3A-n2", "value": 12, "say_ur": "بارہ", "say_en": "twelve" },
+                   { "id": "m3A-n3", "value": 90, "say_ur": "نوے", "say_en": "ninety" }, { "id": "m3A-n4", "value": 8, "say_ur": "آٹھ", "say_en": "eight" } ],
+      "quick_sums": [ { "id": "m3A-qs1", "prompt": "3 + 4", "answer": 7 }, { "id": "m3A-qs2", "prompt": "5 + 2", "answer": 7 }, { "id": "m3A-qs3", "prompt": "6 + 3", "answer": 9 },
+                      { "id": "m3A-qs4", "prompt": "8 - 2", "answer": 6 }, { "id": "m3A-qs5", "prompt": "4 + 4", "answer": 8 } ],
+      "written": [ { "id": "m3A-w1", "prompt": "34 + 28", "answer": 62 }, { "id": "m3A-w2", "prompt": "51 - 17", "answer": 34 }, { "id": "m3A-w3", "prompt": "6 × 4", "answer": 24 }, { "id": "m3A-w4", "prompt": "45 + 30", "answer": 75 } ],
+      "word_problem": { "id": "m3A-wp", "prompt_ur": "ایک ٹوکری میں پانچ آم ہیں چار اور ڈال دیے اب کتنے آم ہیں", "prompt_en": "There are 5 mangoes in a basket. 4 more are added. How many now?", "answer": 9 }
+    }
+  } } } }
+}
