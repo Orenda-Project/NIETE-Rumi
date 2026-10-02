@@ -40,11 +40,13 @@ function findPhrase(words, phrase, { after = -1, before = Infinity, minScore } =
   if (!target.length || !words || !words.length) return null;
   const need = minScore != null ? minScore : (target.length <= 2 ? 1 : 0.6);
   const span = target.length + 2;
+  // a spoken phrase is said in one breath: its words may not straddle a long gap
+  const maxSeconds = target.length * 1.2 + 2;
   for (let j = 0; j < words.length; j += 1) {
     if (words[j].start < after || words[j].start > before) continue;
     if (!same(words[j].w, target[0]) && target.length <= 2) continue;
     let k = 0; let first = -1; let last = -1;
-    for (let x = j; x < Math.min(words.length, j + span) && k < target.length; x += 1) {
+    for (let x = j; x < Math.min(words.length, j + span) && k < target.length && words[x].start - words[j].start <= maxSeconds; x += 1) {
       // advance through the target until this word matches one of the next two
       for (let look = k; look < Math.min(target.length, k + 2); look += 1) {
         if (same(words[x].w, target[look])) {
@@ -63,6 +65,7 @@ function findPhrase(words, phrase, { after = -1, before = Infinity, minScore } =
 }
 
 function countMatched(words, first, last, target) {
+  // (bounded by the caller's span and time window)
   let k = 0; let n = 0;
   for (let x = first; x <= last; x += 1) {
     for (let look = k; look < Math.min(target.length, k + 2); look += 1) {
@@ -97,11 +100,11 @@ function findCueWindows({ words, block, form, cue = {}, durationSec }) {
 
   if (block === 'maths') {
     anchors.numbers = firstAnchor(words, [cue.numbers], {}) || (words.length ? { start: 0, end: 0, speaker: null, implicit: true } : null);
-    anchors.quick_sums = firstAnchor(words, [cue.quick_sums, cue.start], { after: anchors.numbers ? anchors.numbers.end : -1 });
+    anchors.quick_sums = firstAnchor(words, [cue.quick_sums, ...starts(cue)], { after: anchors.numbers ? anchors.numbers.end : -1 });
     const wpAfter = anchors.quick_sums ? anchors.quick_sums.end + 5 : -1;
     anchors.word_problem = firstAnchor(words, [cue.word_problem, firstWords(spec.word_problem && spec.word_problem.prompt_ur, 5)], { after: wpAfter });
   } else {
-    anchors.story = firstAnchor(words, [cue.start], {});
+    anchors.story = firstAnchor(words, starts(cue), {});
     const qAfter = anchors.story ? anchors.story.end + 5 : -1;
     const qs = spec.questions || [];
     // A question shares words with the story it is about, so its prompt must match closely.
@@ -136,7 +139,7 @@ function findCueWindows({ words, block, form, cue = {}, durationSec }) {
     const start = timed ? a.end : (a.implicit ? 0 : a.start);
     windows[s] = { start, end: sectionEnd };
     if (timed) {
-      const stop = cue.stop ? findPhrase(words, cue.stop, { after: start, before: start + TIMED_SECONDS + 20 }) : null;
+      const stop = findStop(words, cue, a.speaker, { after: start, before: start + TIMED_SECONDS + 20 });
       const limit = start + TIMED_SECONDS;
       let tEnd = Math.min(limit, sectionEnd);
       if (stop && stop.start < tEnd) tEnd = stop.start;
@@ -164,6 +167,24 @@ function findCueWindows({ words, block, form, cue = {}, durationSec }) {
   }
 
   return { windows, missing, flags, coachSpeaker, anchors };
+}
+
+function starts(cue) { return [cue.start, ...(cue.alt_start || [])].filter(Boolean); }
+
+/**
+ * The stop cue, said by the coach. "بس" and "شکریہ" are ordinary words a child can say
+ * mid-story, so when the recording is diarised only the cue speaker's words count.
+ */
+function findStop(words, cue, coachSpeaker, range) {
+  const phrases = [cue.stop, ...(cue.alt_stop || [])].filter(Boolean);
+  const diarised = coachSpeaker && distinctSpeakers(words) > 1;
+  const pool = diarised ? words.filter((w) => w.speaker === coachSpeaker) : words;
+  let best = null;
+  for (const p of phrases) {
+    const hit = findPhrase(pool, p, range);
+    if (hit && (!best || hit.start < best.start)) best = hit;
+  }
+  return best;
 }
 
 function reachedEnd(section, childWords, spec) {

@@ -58,3 +58,26 @@ describe('child-test window cutter', () => {
     expect(r.flags).toContain('timer_problem');
   });
 });
+
+describe('child-test window cutter — L1 cue shape (alt_start / alt_stop)', () => {
+  const cueL1 = { start: 'اب شروع کریں', stop: 'بس، شکریہ', alt_start: ['شروع کریں', 'چلیں شروع کریں'], alt_stop: ['بس', 'شکریہ'] };
+
+  test('an alternate start cue opens the timed minute when the main cue is not said', () => {
+    const script = [[1, 1.0, 'بیٹا یہ کہانی پڑھیں چلیں شروع کریں'], ...T.URDU_BLOCK.slice(1)];
+    const r = findCueWindows({ words: words(script), block: 'urdu', form, cue: cueL1, durationSec: 112 });
+    expect(r.missing).not.toContain('story');
+    expect(r.flags).not.toContain('no_cue_phrase');
+    expect(r.windows.story.start).toBeGreaterThan(3);
+    expect(r.windows.story.start).toBeLessThan(5);
+  });
+
+  test('a stop word said by the CHILD does not end the minute; the coach saying it does', () => {
+    const base = [[1, 1.0, 'بیٹا یہ کہانی پڑھیں اب شروع کریں'], ...T.URDU_BLOCK.slice(1)];
+    const childSaysBas = base.slice(0, 2).concat([[2, 15.0, 'بس']], base.slice(2));
+    const r = findCueWindows({ words: words(childSaysBas), block: 'urdu', form, cue: cueL1, durationSec: 112 });
+    expect(r.windows.story.end - r.windows.story.start).toBeCloseTo(60, 0);
+    const coachSaysBas = base.slice(0, 3).concat([[1, 40.0, 'بس']], base.slice(3));
+    const r2 = findCueWindows({ words: words(coachSaysBas), block: 'urdu', form, cue: cueL1, durationSec: 112 });
+    expect(r2.windows.story.end).toBeCloseTo(40, 0);
+  });
+});

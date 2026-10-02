@@ -29,9 +29,9 @@ ${transcript}`;
 
 const PHONICS = ({ lang, firstSounds, nonwords }) => `A child in a Pakistani government school (grade 1-5) is doing two short ${LANG_NAME[lang] || lang} tasks with a coach, recorded in this clip.
 ${firstSounds.length ? `TASK 1, FIRST SOUNDS: the coach says a word and the child says only its first sound. Words and expected first sounds:
-${firstSounds.map((f, i) => `${i + 1}. [${f.id}] word "${f.word}" -> first sound "${f.sound}"`).join('\n')}
+${firstSounds.map((f, i) => `${i + 1}. [${f.id}] word "${f.word}" -> first sound "${f.sound}"${(f.accept || []).length ? ` (accept: ${f.accept.join(' | ')})` : ''}${f.rubric ? `\n   rubric: ${f.rubric}` : ''}`).join('\n')}
 ` : ''}${nonwords.length ? `TASK ${firstSounds.length ? 2 : 1}, MADE-UP WORDS: the child reads made-up words from a card. They are not real words; judge whether the child decoded each one with the expected sounds.
-${nonwords.map((n, i) => `${i + 1}. [${n.id}] "${n.text}" sounds: ${(n.sounds || []).join(' ')}`).join('\n')}
+${nonwords.map((n, i) => `${i + 1}. [${n.id}] "${n.text}" sounds: ${(n.sounds || []).join(' ')}${(n.accept_readings || []).length ? ` (acceptable readings: ${n.accept_readings.join(' | ')})` : ''}${n.rubric ? `\n   rubric: ${n.rubric}` : ''}`).join('\n')}
 ` : ''}For each item say CORRECT, WRONG (a different sound or word), or NONE (no attempt heard). Report what you heard. Return ONLY JSON:
 {"first_sounds":[{"id":"<id>","heard":"<what the child said>","verdict":"correct|wrong|none","confidence":<0-1>}], "nonwords":[{"id":"<id>","heard":"<what the child said>","verdict":"correct|wrong|none","confidence":<0-1>}]}`;
 
