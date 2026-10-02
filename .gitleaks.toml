@@ -116,3 +116,16 @@ regexTarget = "secret"
 regexes = [
   '''^niete_[a-z0-9_]+$''',
 ]
+
+# --- The ch3-8 A/B test's app_settings flag name (bd-5o0ay.10.17) -------------
+# `const FLAG_KEY = 'ab_lp_ch310_enabled'` trips generic-api-key the same way as
+# the niete_* table names above: the word "key" then a snake_case value. It is a
+# config flag name in app_settings, not a credential. Exact match, so nothing
+# else is excused.
+[[allowlists]]
+description = "The A/B test's app_settings flag name is not a secret"
+targetRules = ["generic-api-key"]
+regexTarget = "secret"
+regexes = [
+  '''^ab_lp_ch310_enabled$''',
+]
