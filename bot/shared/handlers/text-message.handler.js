@@ -868,7 +868,9 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // menu below runs. Gated in child-test/conversation/gate.js (CHILD_TEST_ENABLED + coach role +
   // ICT); off, or not its text → false and the message carries on exactly as before.
   // ============================================================
-  if (trimmedMessage) {
+  // The pure gate is checked first, so a teacher's turn never loads the child-test machine.
+  const ChildTestGate = require('../services/child-test/conversation/gate');
+  if (trimmedMessage && (ChildTestGate.isChildTestAvailable(user) || ChildTestGate.CHILD_TEST_TRIGGER_RX.test(trimmedMessage))) {
     const ChildTest = require('./child-test.handler');
     if (await ChildTest.handleText(from, trimmedMessage, user)) {
       typingController.stop();
