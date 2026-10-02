@@ -53,9 +53,10 @@ async function renderPrintableCard({ grade, form, itemBank, onLayout } = {}) {
 
 /** @returns {Promise<Buffer>} */
 async function renderCoachSheet({ grade, form, lang = 'ur', itemBank } = {}) {
-  const { data } = resolveForm({ grade, form, itemBank });
-  const page = html.buildCoachSheetHtml({ grade: Number(grade), formCode: form, form: data, lang });
-  return htmlToPdf(page, { pdfOptions: { preferCSSPageSize: true } });
+  const { data, cue } = resolveForm({ grade, form, itemBank });
+  const page = html.buildCoachSheetHtml({ grade: Number(grade), formCode: form, form: data, lang, cue: cue || {} });
+  // The sheet's own @page margin governs; htmlToPdf's default 50px margin on top of it clipped the right edge.
+  return htmlToPdf(page, { pdfOptions: { preferCSSPageSize: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } } });
 }
 
 module.exports = {
