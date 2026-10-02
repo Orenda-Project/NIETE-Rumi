@@ -790,6 +790,9 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I type "please make me a lesson plan for grade 4 maths fractions"
     Then no message arrives
     And the chat header does not show "typing…" in the next 30 seconds
-    # text-message.handler calls InboundTyping.doorDeciding() before detectIntent; the held typing waits for
-    # the redirect door (backstop: WhatsApp's 25 s typing lifetime). A message the door lets through shows
-    # "typing…" when the door decides. Unit: tests/meta-bill-cut/fx4-round3.test.js (FX4-4).
+    # text-message.handler calls InboundTyping.doorDeciding() as it STARTS (FX6, bd-w2daa.28 — before, it was
+    # called just before detectIntent, which sandbox reached > 5 s in on 2 Oct 15:37:55Z, after the 3 s hold had
+    # already shown typing); the held typing waits for the redirect door (backstop: WhatsApp's 25 s typing
+    # lifetime). A message the door lets through shows "typing…" when the door decides. Axiom: one
+    # inbound_typing.door_deciding line per door (where, msSinceInbound, scope, quietHeld).
+    # Unit: tests/meta-bill-cut/fx4-round3.test.js (FX4-4), tests/meta-bill-cut/fx6-round4.test.js (FX6-3).
