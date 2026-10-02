@@ -48,12 +48,24 @@ function recentWhere(p: RecentLessonPlan): string {
   return bits.join(' · ');
 }
 
-const LibraryPicker = ({ onPick, onStepChange, backSignal }: {
+const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTitle, showUsed = true }: {
   onPick: (plan: PickedPlan) => void;
   /** How deep she is (0 = grades), so the page's back arrow can step back first. */
   onStepChange?: (level: number) => void;
   /** Bumped by the page's back arrow: go up one step. */
   backSignal: number;
+  /**
+   * bd-5rz1v.6 — whose recent plans come first. Omitted: the signed-in teacher's
+   * own. A coach observing a lesson passes the OBSERVED teacher's.
+   */
+  loadRecent?: () => Promise<{ plans: RecentLessonPlan[] }>;
+  /** The heading above them (default "Your recent plans"). */
+  recentTitle?: string;
+  /**
+   * "✓ You used this plan" marks a lesson the signed-in user downloaded. A coach
+   * picking for a teacher would see her OWN downloads there, so she hides it.
+   */
+  showUsed?: boolean;
 }) => {
   const [step, setStep] = useState<Step>({ level: 0 });
   const [recent, setRecent] = useState<RecentLessonPlan[]>([]);
@@ -84,10 +96,12 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal }: {
 
   useEffect(() => {
     let live = true;
-    portal.getRecentLessonPlans()
+    (loadRecent ? loadRecent() : portal.getRecentLessonPlans())
       .then((r) => { if (live) setRecent((r && r.plans) || []); })
       .catch(() => { /* recent plans are a shortcut, not a requirement */ });
     return () => { live = false; };
+    // Loaded once, like the grades: the page passes one loader for the picker's life.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -196,7 +210,7 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal }: {
 
       {step.level === 0 && recent.length > 0 && (
         <>
-          <div className="text-base font-bold text-primary">{COPY.recent}</div>
+          <div className="text-base font-bold text-primary">{recentTitle || COPY.recent}</div>
           {recent.slice(0, 3).map((p) => (
             <button key={p.assetId} type="button"
               onClick={() => onPick({ pick: { assetId: p.assetId }, title: p.topic || 'Lesson plan', sub: `${COPY.fromLibrary} · ${recentWhere(p)}` })}
@@ -257,7 +271,7 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal }: {
             <span className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="text-[17px] font-semibold" dir="auto">{l.label}</span>
               {l.sub && <span className="text-sm text-[#5b6170]">{l.sub}</span>}
-              {l.used && <span className="text-[13px] font-semibold text-[#1b6b43]">{COPY.used}</span>}
+              {showUsed && l.used && <span className="text-[13px] font-semibold text-[#1b6b43]">{COPY.used}</span>}
               {!l.ready && !busy && prepFailed !== l.id && <span className="text-[13px] text-[#7a5600]">{COPY.notWritten}</span>}
               {busy && <span className="flex items-center gap-1.5 text-[13px] text-[#5b6170]"><Loader2 className="h-3.5 w-3.5 animate-spin" />{COPY.preparing}</span>}
               {prepFailed === l.id && <span className="text-[13px] text-[#c62828]">{COPY.failed}</span>}
