@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, ClipboardList, BookOpen, CircleUserRound, ChevronRight } from 'lucide-react';
+import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, ClipboardList, BookOpen, CircleUserRound, ChevronRight, ClipboardCheck } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader, resolveRole } from '../lib/leaderRole';
+import { useChildTest } from '../lib/useChildTest';
 import { useLogoutGuard } from '../lib/recordingSession';
 import { useNewUi } from '../lib/useNewUi';
 import NewUiNavigation from '../newui/NewUiNavigation';
@@ -39,6 +40,7 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   // leader family). It wins over the new UI. Off, loading, unreadable, or not a teacher:
   // the markup below, unchanged.
   const teacherV2 = isTeacherV2For(user, useTeacherV2(user?.phoneNumber || null));
+  const childTestOn = useChildTest() === true;
   const currentPath = location.pathname;
 
   // bd-2434 (Leader Portal): the school-leader family gets the leader nav
@@ -72,6 +74,11 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   // landed anywhere else had no way to it — a route nobody can find is not
   // shipped. Attendance used to be a third; it now lives inside Analytics, on
   // its Attendance tab (operator, 2026-09-30).
+  // bd-s1oo0.7 — the child test, for the leader family when the flag is on for
+  // them. A route with no nav entry is a route nobody finds (see Training).
+  if (childTestOn) {
+    leaderNav.push({ title: 'Child test', path: '/portal/leader/child-test', icon: ClipboardCheck });
+  }
   const isPrincipal = resolveRole(user) === 'principal';
   if (isPrincipal) {
     leaderNav.push(

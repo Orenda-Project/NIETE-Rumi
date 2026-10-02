@@ -34,7 +34,7 @@ FEATURES = os.path.join(ROOT, "tests", "features", "whatsapp", "niete")
 # needs the principal persona; observe is all @config-gated/@first-use and needs
 # role_switch.enabled, which is false. Coaching IS in `all` — slow (real audio + ~10 min
 # analysis per scenario), but in scope.
-RUN_BY_NAME_ONLY = {"attendance", "observe"}
+RUN_BY_NAME_ONLY = {"attendance", "observe", "child-test"}   # child-test: sandbox-only, all @wip (bd-s1oo0.9)
 
 
 def _claimed_counts(text):

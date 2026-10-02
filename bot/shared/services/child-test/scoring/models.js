@@ -13,7 +13,6 @@ const JOB = {
   phonics: 'childTest.phonics',
   word_problem: 'childTest.wordProblem',
   vision: 'childTest.vision',
-  child_no: 'childTest.childNo',
 };
 
 function modelFor(key) {

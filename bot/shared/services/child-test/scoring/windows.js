@@ -20,7 +20,7 @@
  * the next section.
  */
 
-const { clean, same, align, refWords } = require('./text-norm');
+const { clean, same } = require('./text-norm');
 const itemBank = require('../item-bank');
 
 const TIMED_SECONDS = 60;   // the story; quick sums: timedSecondsFor('quick_sums', spec)
@@ -106,7 +106,7 @@ function firstAnchor(words, phrases, opts) {
  * @param {number} p.durationSec length of the voice note
  * @returns {{ windows, missing, flags, coachSpeaker, anchors }}
  */
-function findCueWindows({ words, block, form, cue = {}, durationSec, sections = SECTIONS[block] }) {
+function findCueWindows({ words, block, form, cue = {}, durationSec }) {
   const end = Number.isFinite(durationSec) ? durationSec : (words.length ? words[words.length - 1].end + 1 : 0);
   const spec = (form && form[block]) || {};
   const anchors = {};
@@ -131,25 +131,23 @@ function findCueWindows({ words, block, form, cue = {}, durationSec, sections = 
     anchors.story = firstAnchor(words, starts(cue), {});
     const qAfter = anchors.story ? anchors.story.end + 5 : -1;
     const qs = spec.questions || [];
+    // A question shares words with the story it is about, so its prompt must match closely.
     anchors.questions = firstAnchor(words, [cue.questions], { after: qAfter })
-      || questionTextAnchor(words, qs[0], { after: qAfter, story: anchors.story, cue, spec });
+      || (qs[0] ? findPhrase(words, qs[0].prompt, { after: qAfter, minScore: PROMPT_MIN_SCORE }) : null);
     const lastQ = lastQuestionAnchor(words, qs, anchors.questions);
-    // battery v2 (bd-s1oo0.46.3): no first sounds or made-up words are given, so none are looked for —
-    // a first-sound word or a made-up-word cue heard in an answer must not cut the questions short
-    const wants = (sec) => (sections || []).includes(sec);
-    if (block === 'urdu' && wants('first_sounds')) {
+    if (block === 'urdu') {
       const fsAfter = lastQ ? lastQ.end : (anchors.questions ? anchors.questions.end : qAfter);
       const fs = spec.first_sounds || [];
       anchors.first_sounds = firstAnchor(words, [cue.first_sounds, fs[0] && fs[0].word], { after: fsAfter });
       const nwAfter = anchors.first_sounds ? anchors.first_sounds.end : fsAfter;
       anchors.nonwords = firstAnchor(words, [cue.nonwords], { after: nwAfter });
-    } else if (wants('nonwords')) {
+    } else {
       const nwAfter = lastQ ? lastQ.end : (anchors.questions ? anchors.questions.end : qAfter);
       anchors.nonwords = firstAnchor(words, [cue.nonwords], { after: nwAfter });
     }
   }
 
-  const order = (sections || SECTIONS[block] || []).filter((s) => (SECTIONS[block] || []).includes(s));
+  const order = SECTIONS[block] || [];
   const missing = order.filter((s) => !anchors[s]);
   if (block !== 'maths' && !anchors.story) flags.push('no_cue_phrase');
   if (block === 'maths' && !anchors.quick_sums) flags.push('no_cue_phrase');
@@ -221,44 +219,6 @@ function reachedEnd(section, childWords, spec) {
   return childWords.slice(-3).some((x) => same(x.w, lastTok));
 }
 
-/**
- * Question 1's own text as the anchor, when the questions cue was not heard. A question shares words
- * with the story it is about, so its prompt must match closely, and a child reading the passage can
- * still say it: inside the timed minute the match counts only after a stop cue, or once the child has
- * read the passage's last word. Otherwise look again after the minute (L24, CR-3: 14 of L23's 24 short
- * minutes ended where a question matched the child's own reading).
- */
-function questionTextAnchor(words, q, { after, story, cue, spec }) {
-  if (!q) return null;
-  const hit = findPhrase(words, q.prompt, { after, minScore: PROMPT_MIN_SCORE });
-  if (!hit || !story) return hit;
-  const start = story.end;
-  const minuteEnd = start + TIMED_SECONDS;
-  if (hit.start >= minuteEnd) return hit;
-  if (findStop(words, cue, story.speaker, { after: start, before: hit.start })) return hit;
-  const coach = story.speaker && distinctSpeakers(words) > 1 ? story.speaker : null;
-  const childBefore = words.filter((x) => x.start >= start && x.start < hit.start && (!coach || x.speaker !== coach));
-  if (finishedPassage(childBefore, spec)) return hit;
-  return findPhrase(words, q.prompt, { after: minuteEnd, minScore: PROMPT_MIN_SCORE });
-}
-
-/**
- * The child read the whole passage: the words heard, aligned to the printed text, reach its last word
- * or the one before. Alignment, not "the last word was said": a story's last word recurs in it (e.g.
- * «تھا»), and a child who finished often talks with the coach before question 1 (28 L23 readers).
- */
-const FINISHED_SHARE = 0.5;
-function finishedPassage(childWords, spec) {
-  const tokens = (spec && spec.story && spec.story.tokens) || [];
-  if (!tokens.length || !childWords.length) return false;
-  const { status } = align(refWords(tokens), childWords.map((x) => x.w));
-  let reach = 0;
-  for (let i = status.length - 1; i >= 0; i -= 1) if (status[i] !== 'omit') { reach = i + 1; break; }
-  // a few words can align anywhere (short words recur): most of the text must have been read right too
-  const right = status.filter((x) => x === 'correct').length;
-  return reach >= tokens.length - 1 && right >= FINISHED_SHARE * tokens.length;
-}
-
 function lastQuestionAnchor(words, qs, first) {
   if (!first) return null;
   let last = first;
@@ -284,25 +244,18 @@ function pushOnce(arr, v) { if (!arr.includes(v)) arr.push(v); }
  * After the labeller has filled gaps, put the sections back in order: a section never runs
  * past the start of the next one, and an untimed section the labeller found runs to the next
  * section (or the end of the note) rather than stopping at the labeller's guess.
- *
- * The story minute is the exception: its end already stops at the stop cue and at every section a
- * cue found, so a section only the labeller placed does not cut it shorter (L24, CR-3: 10 of L23's
- * 24 short minutes, e.g. a minute cut to 1.1 s by questions labelled while the child read). That
- * section still bounds the story's section end, which never falls below the minute.
  */
 function reconcileWindows(block, windows, durationSec) {
   const order = (SECTIONS[block] || []).filter((s) => windows[s]);
   order.forEach((s, i) => {
     const w = windows[s];
-    const laterOf = (keep) => order.slice(i + 1).map((n) => windows[n]).filter((x) => x.start > w.start && keep(x)).map((x) => x.start);
-    const nextOf = (later) => (later.length ? Math.min(...later) : (Number.isFinite(durationSec) ? durationSec : w.end));
-    const next = nextOf(laterOf(() => true));
+    const later = order.slice(i + 1).map((n) => windows[n].start).filter((t) => t > w.start);
+    const next = later.length ? Math.min(...later) : (Number.isFinite(durationSec) ? durationSec : w.end);
     const timed = s === 'story' || s === 'quick_sums';
-    if (s === 'story') w.end = Math.min(w.end, nextOf(laterOf((x) => x.source !== 'labeller')));
-    else if (timed) w.end = Math.min(w.end, next);
+    if (timed) w.end = Math.min(w.end, next);
     else if (w.source === 'labeller') w.end = next;
     else w.end = Math.min(w.end, next);
-    if (timed && w.sectionEnd != null) w.sectionEnd = Math.max(w.end, Math.min(w.sectionEnd, next));
+    if (timed && w.sectionEnd != null) w.sectionEnd = Math.min(w.sectionEnd, next);
   });
   return windows;
 }
@@ -324,68 +277,10 @@ function defaultTimedWindow(words, durationSec) {
   return { start, end, source: 'default' };
 }
 
-/**
- * The coach's switch to letters + words (battery v2): the item bank's `script.fallback` line, found with the
- * same phrase matcher as the cues. The coach decides the switch and says it («کوئی بات نہیں۔ اب یہ حروف پڑھیں،
- * پھر یہ الفاظ پڑھیں۔» / "That's okay. Read these letters, then these words."), so the line in the recording is
- * the evidence, not a rule on line 1 (L32, bd-s1oo0.46.9).
- *
- * Close variants count: the whole line; the line without its opening reassurance ("That's okay" / «کوئی بات
- * نہیں» is said to any halting reader, so it is never evidence alone); and the letters clause on its own,
- * which must then be heard whole ("now read these letters", «اب یہ حروف پڑھیں»). Returns the earliest hit
- * after `after`, as findPhrase's { start, end, speaker, … } plus the `phrase` matched, or null.
- */
-const SENTENCE_END = /[.!?۔؟]+/;
-const CLAUSE_END = /[,،;]+/;
-const MIN_CLAUSE_WORDS = 3;
-function switchLineVariants(line) {
-  const text = String(line || '').trim();
-  if (!text) return [];
-  const count = (x) => x.split(/\s+/).filter(Boolean).length;
-  const sentences = text.split(SENTENCE_END).map((x) => x.trim()).filter(Boolean);
-  const out = [{ phrase: text }];
-  const rest = sentences.length > 1 ? sentences.slice(1).join('. ') : null;
-  if (rest && count(rest) >= MIN_CLAUSE_WORDS) out.push({ phrase: rest });
-  const clause = (rest || text).split(CLAUSE_END).map((x) => x.trim()).filter(Boolean)[0];
-  if (clause && count(clause) >= MIN_CLAUSE_WORDS && clause !== rest) out.push({ phrase: clause, minScore: 1 });
-  return out;
-}
-
-function findSwitchLine(words, line, { after = -1 } = {}) {
-  let best = null;
-  for (const v of switchLineVariants(line)) {
-    const hit = findPhrase(words, v.phrase, { after, minScore: v.minScore });
-    if (hit && (!best || hit.start < best.start)) best = { ...hit, phrase: v.phrase };
-  }
-  return best;
-}
-
-/**
- * Where a printed text's LAST WORDS are heard: the latest match of its final `n` words between `after` and
- * `before`, any speaker. A finished reader's end (bd-s1oo0.50.11): speaker labels put the reading on the coach
- * when diarization collapses, and a text's last word alone («تھا», «the») is said many times before the end.
- * null when the ending is not heard, so the caller keeps its own fallback.
- */
-const END_WORDS = 3;
-function lastWordsHeard(words, refs, { after = -Infinity, before = Infinity, n = END_WORDS } = {}) {
-  const ends = (refs || []).filter((x) => typeof x === 'string' && /\S/.test(x));
-  if (ends.length < n || ends.length !== refs.length) return null;
-  const phrase = ends.slice(-n).join(' ');
-  let hit = null;
-  let from = after;
-  for (let guard = 0; guard < 50; guard += 1) {
-    const h = findPhrase(words, phrase, { after: from, before });
-    if (!h) break;
-    hit = h;
-    from = h.start + 0.01;
-  }
-  return hit;
-}
-
 /** Words inside a window, optionally without the coach. */
 function wordsIn(words, w, { excludeSpeaker } = {}) {
   if (!w) return [];
   return words.filter((x) => x.start >= w.start - 0.2 && x.start < w.end && (!excludeSpeaker || x.speaker !== excludeSpeaker));
 }
 
-module.exports = { findCueWindows, findPhrase, lastWordsHeard, findSwitchLine, switchLineVariants, wordsIn, reconcileWindows, defaultTimedWindow, timedSecondsFor, SECTIONS, TIMED_SECONDS };
+module.exports = { findCueWindows, findPhrase, wordsIn, reconcileWindows, defaultTimedWindow, timedSecondsFor, SECTIONS, TIMED_SECONDS };

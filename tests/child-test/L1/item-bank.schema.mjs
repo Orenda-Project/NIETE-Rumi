@@ -1,0 +1,243 @@
+// Validator for item-bank.v1.json (CONTRACT §2). Run: node --test item-bank.schema.test.mjs  (ITEM_BANK_PATH=… to point elsewhere)
+// Zero dependencies. Exits 1 on the first failing check group, printing every failure in it.
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+const here = dirname(fileURLToPath(import.meta.url));
+// Bank path: ITEM_BANK_PATH env, else item-bank.v1.json beside this file, else the bot's committed copy.
+import { existsSync } from 'node:fs';
+const candidates = [process.env.ITEM_BANK_PATH, join(here, 'item-bank.v1.json'), join(here, '../../../bot/shared/data/child-test/item-bank.v1.json')];
+const path = candidates.find((p) => p && existsSync(p));
+const bank = JSON.parse(readFileSync(path, 'utf8'));
+
+const GRADES = ['3', '5'];
+const FORMS = ['A', 'B'];
+const PUNCT = /[.,!?;:"'()\-–—،؛؟۔]/u;
+const ARABIC_LOOKALIKES = /[يكهى]/u; // ي ك ه ى — Urdu uses ی ک ہ
+const LATIN = /[A-Za-z]/;
+const MAY_UR_TOKENS = 60;
+const MAY_EN_TOKENS = 60;
+
+const forms = () => GRADES.flatMap((g) => FORMS.map((f) => [g, f, bank.grades[g].forms[f]]));
+const urduStrings = [];
+const allStrings = [];
+function walk(x, inUrdu, keyPath = '') {
+  if (typeof x === 'string') {
+    allStrings.push([keyPath, x]);
+    if (inUrdu) urduStrings.push([keyPath, x]);
+  } else if (Array.isArray(x)) x.forEach((v, i) => walk(v, inUrdu, `${keyPath}[${i}]`));
+  else if (x && typeof x === 'object') for (const [k, v] of Object.entries(x)) walk(v, inUrdu || k === 'urdu' || k.endsWith('_ur'), `${keyPath}.${k}`);
+}
+walk(bank, false);
+
+function calc(expr) {
+  const m = expr.match(/^(\d+) ([+\-×÷]) (\d+)$/);
+  assert.ok(m, `bad arithmetic prompt "${expr}"`);
+  const [a, op, b] = [Number(m[1]), m[2], Number(m[3])];
+  if (op === '÷') assert.equal(a % b, 0, `${expr} not exact`);
+  return { '+': a + b, '-': a - b, '×': a * b, '÷': a / b }[op];
+}
+function wordsOf(text, lang) {
+  return lang === 'urdu'
+    ? text.replace(/[،؛؟۔]/gu, ' ').split(/\s+/).filter(Boolean)
+    : text.match(/[A-Za-z]+(?:'[A-Za-z]+)?/g);
+}
+
+test('top level', () => {
+  assert.equal(bank.version, 'child-test-items-v1');
+  for (const b of ['urdu', 'english', 'maths']) {
+    assert.ok(bank.cue[b]?.start && bank.cue[b]?.stop, `cue.${b}`);
+    for (const alt of [...(bank.cue[b].alt_start || []), ...(bank.cue[b].alt_stop || [])]) {
+      assert.ok(alt.trim().split(/\s+/).length >= 2, `cue.${b} alt "${alt}" must be at least two words (one word occurs in stories and answers)`);
+      if (bank.cue[b].stt_language === 'en') assert.ok(!/[\u0600-\u06FF]/.test(alt), `cue.${b} alt "${alt}" must be English: the block's STT is en`);
+    }
+    const SECTIONS = { urdu: ['questions', 'first_sounds', 'nonwords'], english: ['questions', 'nonwords'], maths: ['numbers', 'quick_sums', 'word_problem'] }[b];
+    for (const k of SECTIONS) {
+      const c = bank.cue[b][k];
+      assert.ok(typeof c === 'string' && c.trim() && [...c].length <= 60, `cue.${b}.${k} is a short line`);
+      assert.ok(b === 'english' ? /^[A-Za-z ,.'!?-]+$/.test(c) : /[\u0600-\u06FF]/.test(c) && !/[A-Za-z]/.test(c), `cue.${b}.${k} language`);
+    }
+  }
+  assert.deepEqual(Object.keys(bank.grades).sort(), GRADES);
+  for (const g of GRADES) assert.deepEqual(Object.keys(bank.grades[g].forms).sort(), FORMS);
+});
+
+test('ids are unique and follow the prefix scheme', () => {
+  const ids = [];
+  (function collect(x) {
+    if (Array.isArray(x)) x.forEach(collect);
+    else if (x && typeof x === 'object') {
+      if (typeof x.id === 'string') ids.push(x.id);
+      Object.values(x).forEach(collect);
+    }
+  })(bank.grades);
+  const dup = ids.filter((id, i) => ids.indexOf(id) !== i);
+  assert.deepEqual(dup, [], `duplicate ids: ${dup}`);
+  for (const id of ids) assert.match(id, /^[uem][35][AB]-(story|q\d|fs\d|nw\d|n\d|qs\d+|w\d|wp)$/, id);
+});
+
+test('stories: tokens, counts, lengths, lines', () => {
+  for (const [g, f, F] of forms()) {
+    for (const lang of ['urdu', 'english']) {
+      const s = F[lang].story;
+      const tag = `${g}${f} ${lang}`;
+      assert.ok(s.id && s.title && s.text && s.source, `${tag} story fields`);
+      assert.ok(Array.isArray(s.tokens) && s.tokens.length > 0, `${tag} tokens`);
+      for (const t of s.tokens) {
+        assert.ok(!PUNCT.test(t.replace(/^[A-Za-z]+'[a-z]+$/, 'x')), `${tag} punctuation in token "${t}"`);
+        assert.ok(t.trim() === t && t.length > 0, `${tag} empty/space token`);
+      }
+      assert.equal(s.word_count, s.tokens.length, `${tag} word_count`);
+      assert.deepEqual(wordsOf(s.text, lang), s.tokens, `${tag} tokens must be the words of text in order`);
+      if (g === '5') assert.ok(s.word_count >= 130, `${tag} Grade 5 story must be >= 130 words (got ${s.word_count})`);
+      if (g === '3' && f === 'A') assert.equal(s.word_count, lang === 'urdu' ? MAY_UR_TOKENS : MAY_EN_TOKENS, `${tag} May passage length`);
+      if (f === 'A') assert.match(s.source, lang === 'urdu' ? /^may2026-orf_urd/ : /^may2026-orf_eng/, `${tag} Form A source`);
+      if (g === '5' && f === 'A') assert.equal(s.may_part_word_count, 60, `${tag} May part`);
+      // lines cover tokens contiguously
+      let next = 0;
+      for (const l of s.lines) { assert.equal(l.from, next, `${tag} line ${l.n} start`); next = l.to + 1; }
+      assert.equal(next, s.tokens.length, `${tag} lines cover all tokens`);
+    }
+  }
+});
+
+test('Form A Grade 5 story starts with the Grade 3 May passage', () => {
+  for (const lang of ['urdu', 'english']) {
+    const g3 = bank.grades['3'].forms.A[lang].story.tokens;
+    const g5 = bank.grades['5'].forms.A[lang].story.tokens;
+    assert.deepEqual(g5.slice(0, g3.length), g3, lang);
+  }
+});
+
+test('questions', () => {
+  for (const [g, f, F] of forms()) {
+    for (const [lang, n] of [['urdu', 3], ['english', 2]]) {
+      const qs = F[lang].questions;
+      const tag = `${g}${f} ${lang}`;
+      assert.equal(qs.length, n, `${tag} question count`);
+      for (const q of qs) {
+        assert.ok(['literal', 'inferential'].includes(q.type), `${q.id} type`);
+        assert.ok(q.prompt && q.rubric, `${q.id} prompt/rubric`);
+        assert.ok(Array.isArray(q.accept) && q.accept.length >= 1, `${q.id} accept`);
+        assert.ok(Array.isArray(q.reject) && q.reject.length >= 1, `${q.id} reject`);
+        assert.ok(Number.isInteger(q.needs_line) && q.needs_line >= 1 && q.needs_line <= F[lang].story.lines.length, `${q.id} needs_line`);
+        const overlap = q.accept.filter((a) => q.reject.includes(a));
+        assert.deepEqual(overlap, [], `${q.id} accept/reject overlap`);
+      }
+      const lines = qs.map((q) => q.needs_line);
+      assert.deepEqual([...lines].sort((a, b) => a - b), lines, `${tag} questions in story order`);
+      if (g === '5' && f === 'A') {
+        assert.equal(qs[0].type, 'literal', `${tag} q1 literal`);
+        const mayLines = F[lang].story.lines.filter((l) => l.to < 60).length;
+        assert.ok(qs[0].needs_line <= mayLines, `${tag} q1 inside the May part`);
+        for (const q of qs.slice(1)) {
+          assert.equal(q.type, 'inferential', `${q.id} inferential`);
+          assert.ok(q.needs_line > mayLines, `${q.id} in the continuation`);
+        }
+      }
+    }
+    // Form B mirrors Form A's question types
+    if (f === 'B') for (const lang of ['urdu', 'english']) {
+      assert.deepEqual(F[lang].questions.map((q) => q.type), bank.grades[g].forms.A[lang].questions.map((q) => q.type), `${g}B ${lang} types match A`);
+    }
+  }
+});
+
+test('first sounds, nonwords, fallback', () => {
+  for (const [g, f, F] of forms()) {
+    const tag = `${g}${f}`;
+    const fs = F.urdu.first_sounds;
+    assert.equal(fs.length, 5, `${tag} first_sounds`);
+    for (const x of fs) assert.ok(x.word.startsWith(x.sound), `${x.id} word starts with its sound`);
+    assert.equal(new Set(fs.map((x) => x.sound)).size, 5, `${tag} distinct first sounds`);
+    assert.equal(F.urdu.nonwords.length, 5, `${tag} urdu nonwords`);
+    assert.equal(F.english.nonwords.length, 8, `${tag} english nonwords`);
+    for (const lang of ['urdu', 'english']) {
+      for (const nw of F[lang].nonwords) {
+        assert.ok(nw.text && Array.isArray(nw.sounds) && nw.sounds.length >= 2, `${nw.id}`);
+        const spelled = nw.sounds.map((u) => u.replace('_e', '')).join('') + (nw.sounds.some((u) => u.endsWith('_e')) ? 'e' : '');
+        assert.equal(spelled, nw.text, `${nw.id} sounds spell the word`);
+        assert.ok(!F[lang].fallback.words.includes(nw.text), `${nw.id} is a fallback word`);
+        assert.ok(!F[lang].story.tokens.map((t) => t.toLowerCase()).includes(nw.text), `${nw.id} appears in the story`);
+      }
+      const fb = F[lang].fallback;
+      assert.equal(fb.letters.length, 10, `${tag} ${lang} letters`);
+      assert.equal(fb.words.length, 10, `${tag} ${lang} words`);
+      assert.equal(new Set(fb.words).size, 10, `${tag} ${lang} distinct words`);
+    }
+  }
+});
+
+test('maths', () => {
+  for (const [g, f, F] of forms()) {
+    const m = F.maths;
+    const tag = `${g}${f} maths`;
+    assert.equal(m.strip_code, `G${g}-${f}`, `${tag} strip_code`);
+    assert.equal(m.numbers.length, 8, `${tag} numbers`);
+    const max = g === '3' ? 999 : 99999;
+    for (const n of m.numbers) {
+      assert.ok(Number.isInteger(n.value) && n.value >= 0 && n.value <= max, `${n.id} range`);
+      assert.ok(n.say_ur && n.say_en, `${n.id} say`);
+      assert.ok(!LATIN.test(n.say_ur), `${n.id} say_ur latin`);
+    }
+    const vals = m.numbers.map((n) => n.value);
+    assert.ok(vals.some((v) => v >= 11 && v <= 19), `${tag} has a teen`);
+    assert.ok(vals.some((v) => v % 10 === 0 && v >= 20 && v <= 90), `${tag} has a decade`);
+    assert.ok(Math.max(...vals) >= (g === '3' ? 100 : 10000), `${tag} reaches ${g === '3' ? '3' : '5'} digits`);
+    assert.ok(m.quick_sums.length >= 40, `${tag} >= 40 quick sums`);
+    const ops = new Set();
+    for (const q of m.quick_sums) {
+      assert.ok(Number.isInteger(q.answer), `${q.id} numeric answer`);
+      assert.equal(calc(q.prompt), q.answer, `${q.id} answer`);
+      assert.ok(q.answer >= 0, `${q.id} non-negative`);
+      ops.add(q.prompt.split(' ')[1]);
+      if (g === '3') {
+        const [a, op, b] = q.prompt.split(' ');
+        assert.ok(['+', '-'].includes(op), `${q.id} G3 only + and -`);
+        if (op === '+') assert.ok(Number(a) <= 9 && Number(b) <= 9, `${q.id} single-digit addends`);
+        else assert.ok(Number(b) <= 9 && q.answer <= 9, `${q.id} subtraction fact`);
+      }
+    }
+    assert.deepEqual([...ops].sort(), g === '3' ? ['+', '-'] : ['+', '-', '×', '÷'], `${tag} operations`);
+    assert.equal(new Set(m.quick_sums.map((q) => q.prompt)).size, m.quick_sums.length, `${tag} quick sums unique`);
+    assert.equal(m.written.length, 4, `${tag} written`);
+    for (const w of m.written) {
+      assert.ok(Number.isInteger(w.answer), `${w.id} numeric`);
+      assert.equal(calc(w.prompt), w.answer, `${w.id} answer`);
+      const [a, op, b] = w.prompt.split(' ').map((x, i) => (i === 1 ? x : Number(x)));
+      if (g === '3') {
+        assert.ok(a >= 10 && a <= 99 && b >= 10 && b <= 99, `${w.id} 2-digit`);
+        const regroup = op === '+' ? (a % 10) + (b % 10) >= 10 : (a % 10) < (b % 10);
+        assert.ok(regroup, `${w.id} has one regrouping`);
+      }
+    }
+    if (g === '5') {
+      const ops5 = m.written.map((w) => w.prompt.split(' ')[1]);
+      assert.ok(ops5.includes('×') && ops5.includes('÷'), `${tag} written × and ÷`);
+      assert.ok(m.written.some((w) => /^\d{3} [+\-] \d{3}$/.test(w.prompt)), `${tag} written 3-digit`);
+    }
+    const wp = m.word_problem;
+    assert.ok(wp.id && wp.prompt_ur && wp.prompt_en, `${tag} word problem`);
+    assert.ok(Number.isInteger(wp.answer), `${tag} word problem numeric answer`);
+  }
+});
+
+test('Urdu text sanity: Urdu letters (not Arabic look-alikes), no stray Latin, no doubled spaces', () => {
+  const bad = [];
+  const CONTENT = new Set(['text', 'title', 'tokens', 'prompt', 'accept', 'reject', 'word', 'sound', 'say', 'letters', 'words',
+    'start', 'stop', 'alt_start', 'alt_stop', 'say_ur', 'prompt_ur', 'names', 'sounds', 'questions', 'first_sounds', 'nonwords', 'numbers', 'quick_sums', 'word_problem']);
+  for (const [k, s] of urduStrings) {
+    const last = k.replace(/\[\d+\]/g, '').split('.').pop();
+    if (!CONTENT.has(last) || k.includes('.cue.english')) continue;
+    if (ARABIC_LOOKALIKES.test(s)) bad.push(`${k}: Arabic look-alike in "${s}"`);
+    if (LATIN.test(s)) bad.push(`${k}: Latin in "${s}"`);
+  }
+  for (const [k, s] of allStrings) {
+    if (/ {2}/.test(s)) bad.push(`${k}: doubled space`);
+    if (s !== s.normalize('NFC')) bad.push(`${k}: not NFC`);
+  }
+  assert.deepEqual(bad, []);
+});

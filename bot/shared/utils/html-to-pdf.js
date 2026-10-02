@@ -166,6 +166,10 @@ async function htmlToPdf(html, options = {}) {
     // bd-2406/2407 — force every embedded @font-face to load before capture
     // (document.fonts.ready alone races on large lazily-referenced fonts).
     await ensureFontsLoaded(page);
+    if (options.beforeCapture) {
+      const report = await runBeforeCapture(page);
+      if (typeof options.onBeforeCapture === 'function') options.onBeforeCapture(report);
+    }
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -239,6 +243,72 @@ async function htmlToImage(html, options = {}) {
 }
 
 /**
+ * Run the page's own `window.__beforeCapture()` (if it defines one) after fonts are loaded, and
+ * return what it returns. A template that has to MEASURE laid-out text — split a story into
+ * chunks by rendered line, or shrink type until a page fits — can only do so once the embedded
+ * fonts exist, which an inline script at parse time cannot wait for.
+ * @param {import('playwright-core').Page} page
+ */
+async function runBeforeCapture(page) {
+  return page.evaluate(async () => (typeof window.__beforeCapture === 'function' ? window.__beforeCapture() : null));
+}
+
+/**
+ * Render an HTML string and screenshot EVERY element matching `selector`, in document order —
+ * one PNG per element (bd-s1oo0.2: a story split into several chat-sized cards in one layout
+ * pass, so every card shares the same type size and line breaks).
+ *
+ * Same browser singleton and font discipline as htmlToImage, plus the page's
+ * `__beforeCapture` hook. Each element may carry `data-part`; its text content is returned so a
+ * caller can prove nothing was dropped.
+ *
+ * @param {string} html
+ * @param {Object} [options]
+ * @param {number} [options.width=540] - viewport width in CSS px
+ * @param {number} [options.deviceScaleFactor=2]
+ * @param {string} [options.selector='.card']
+ * @param {number} [options.timeout=30000]
+ * @returns {Promise<Array<{png: Buffer, part: string|null, text: string, lines: number|null, widthPx: number, heightPx: number}>>}
+ */
+async function htmlToElementImages(html, options = {}) {
+  const { width = 540, deviceScaleFactor = 2, selector = '.card', timeout = 30000 } = options;
+  const browser = await getBrowser();
+  const ctx = await browser.newContext({ viewport: { width, height: 100 }, deviceScaleFactor });
+  const page = await ctx.newPage();
+  try {
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout });
+    await ensureFontsLoaded(page);
+    await runBeforeCapture(page);
+
+    const els = await page.$$(selector);
+    if (!els || els.length === 0) throw new Error(`htmlToElementImages: no element matched ${selector}`);
+
+    const out = [];
+    for (const el of els) {
+      const meta = await el.evaluate((n) => ({
+        part: n.getAttribute('data-part'),
+        text: (n.getAttribute('data-text') || n.textContent || '').replace(/\s+/g, ' ').trim(),
+        lines: n.hasAttribute('data-lines') ? Number(n.getAttribute('data-lines')) : null,
+      }));
+      const box = await el.boundingBox();
+      const png = await el.screenshot({ type: 'png' });
+      out.push({
+        png,
+        part: meta.part || null,
+        text: meta.text,
+        lines: meta.lines == null ? null : meta.lines,
+        widthPx: Math.round((box ? box.width : width) * deviceScaleFactor),
+        heightPx: Math.round((box ? box.height : 0) * deviceScaleFactor),
+      });
+    }
+    logToFile('Element images generated', { count: out.length });
+    return out;
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+}
+
+/**
  * Explicitly close the shared browser instance.
  * Useful for graceful shutdown or test teardown.
  */
@@ -270,4 +340,4 @@ process.on('exit', () => {
   if (_browser) _browser.close().catch(() => {});
 });
 
-module.exports = { htmlToPdf, htmlToImage, closeBrowser, ensureFontsLoaded };
+module.exports = { htmlToPdf, htmlToImage, htmlToElementImages, closeBrowser, ensureFontsLoaded };

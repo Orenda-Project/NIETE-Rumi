@@ -98,6 +98,22 @@ def test_spec_change_in_range_makes_it_fresh():
     shutil.rmtree(r)
 
 
+def test_child_test_code_needs_the_child_test_spec():
+    """bd-s1oo0.9: the child test is a mapped feature — its code without its spec is stale, the
+    same change carrying child-test.feature is synced."""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(child-test): scoring",
+                  **{"bot/shared/services/child-test/scoring/index.js": "// c\n"})
+    res = ci.analyse(r, base, head)
+    assert res["features"] == ["child-test"], res["features"]
+    assert res["per_feature"]["child-test"]["spec_status"] == "stale", res["per_feature"]
+    head2 = commit(r, "spec(child-test)",
+                   **{"tests/features/whatsapp/niete/child-test.feature": "\n# synced\n"})
+    res = ci.analyse(r, base, head2)
+    assert res["per_feature"]["child-test"]["spec_status"] == "synced", res["per_feature"]
+    shutil.rmtree(r)
+
+
 def test_none_needed_trailer_in_a_commit_message_is_an_explicit_answer():
     r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
     head = commit(r, "fix(menu): copy\n\nSpec-Sync: menu=none-needed (wording only, no behaviour)",
@@ -123,7 +139,7 @@ def test_only_shared_features_are_not_required_to_sync():
     r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
     head = commit(r, "chore: log", **{"bot/shared/services/whatsapp.service.js": "// log\n"})
     res = ci.analyse(r, base, head)
-    assert len(res["features"]) == 9, res["features"]
+    assert len(res["features"]) == 10, res["features"]
     assert all(v["only_shared"] for v in res["per_feature"].values())
     assert all(v["spec_status"] == "only-shared" for v in res["per_feature"].values())
     assert res["verdict"]["spec_freshness"] == "synced", res["verdict"]

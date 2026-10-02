@@ -5,8 +5,7 @@
  * STORY is the May 2026 study prompt verbatim (harness/10_window_scorers.py),
  * the one Gemini 3.8 Flash was measured with in HARNESS_RESULTS §3b; changing a
  * word of it invalidates that measurement. COMPREHENSION is the study's
- * harness/11 prompt with each question's accept/reject list and rubric added, and (L34, CONTRACT §20)
- * an "asked" flag per question: the coach asks only the questions the child reached.
+ * harness/11 prompt with each question's accept/reject list and rubric added.
  *
  * Children are referred to as "the child". No prompt ever carries a name: the
  * inputs are item text, transcripts and audio only.
@@ -19,32 +18,12 @@ ${tokens.map((w, i) => `${i + 1}:${w}`).join(' ')}
 Judge every word of the printed text in order. For each word say whether the child read it CORRECTLY (an acceptable pronunciation of that word), read it WRONG (said a different word or a mispronunciation that changes the word), or SKIPPED it (never attempted, including everything after the child stopped). Self-corrections count as correct. Do not invent words the child did not say. Return ONLY JSON:
 {"words":[{"i":1,"w":"<word>","v":"correct|wrong|skipped"}, ...], "words_correct": <int>, "words_attempted": <int>, "notes":"<one line>"}`;
 
-/**
- * STORY's reply, as a strict schema (bd-s1oo0.24). For a child who barely reads, nearly every
- * entry is "skipped", and in that long run of identical objects Gemini drops the "w" key
- * ({"i":4,"early","v":"skipped"}) in ~40% of replies, which no JSON repair can mend. Sent as
- * response_format, it constrains the decoder to the shape STORY already asks for; the prompt,
- * and so the study's measurement, is unchanged.
- */
-const STORY_SCHEMA = {
-  name: 'story_marks',
-  schema: {
-    type: 'object', additionalProperties: false, required: ['words', 'words_correct', 'words_attempted', 'notes'],
-    properties: {
-      words: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['i', 'w', 'v'],
-        properties: { i: { type: 'integer' }, w: { type: 'string' }, v: { type: 'string', enum: ['correct', 'wrong', 'skipped'] } } } },
-      words_correct: { type: 'integer' }, words_attempted: { type: 'integer' }, notes: { type: 'string' },
-    },
-  },
-};
-
 const COMPREHENSION = ({ lang, passage, questions, transcript }) => `You are marking an oral reading-comprehension test in ${LANG_NAME[lang] || lang} for a grade 1-5 child in Pakistan. The child has just read this passage aloud:
 ${passage}
-Below is a timestamped, diarised transcript of the coach asking up to ${questions.length} questions about the passage and the child answering. Speech-to-text errors are possible; judge the meaning. An answer is CORRECT if it conveys the right information from the passage in any language or wording; WRONG if it is incorrect, off-topic, or the child says they do not know; NO_ANSWER if no audible answer. Use each question's accepted and rejected answers and rubric. Mark each question in order.
-The coach asks a question only if the child read far enough in the passage, so some questions may not be asked. For each question say whether the coach ASKED it (any wording, in any language). If the coach did not ask it, set "asked":false and verdict NO_ANSWER.
+Below is a timestamped, diarised transcript of the coach asking ${questions.length} questions about the passage and the child answering. Speech-to-text errors are possible; judge the meaning. An answer is CORRECT if it conveys the right information from the passage in any language or wording; WRONG if it is incorrect, off-topic, or the child says they do not know; NO_ANSWER if no audible answer. Use each question's accepted and rejected answers and rubric. Mark each question in order.
 QUESTIONS:
 ${questions.map((q, i) => `${i + 1}. [${q.id}] ${q.prompt}\n   accept: ${(q.accept || []).join(' | ') || '-'}\n   reject: ${(q.reject || []).join(' | ') || '-'}\n   rubric: ${q.rubric || '-'}`).join('\n')}
-Return ONLY JSON: {"questions":[{"id":"<id>","asked":true|false,"answer":"<child's answer as heard>","verdict":"correct|wrong|no_answer","confidence":<0-1>}, ...]}
+Return ONLY JSON: {"questions":[{"id":"<id>","answer":"<child's answer as heard>","verdict":"correct|wrong|no_answer","confidence":<0-1>}, ...]}
 TRANSCRIPT:
 ${transcript}`;
 
@@ -89,15 +68,8 @@ ${transcript}`;
 const STRIP = ({ written, wordProblem, expectedCode }) => `This is a photo of a printed maths answer strip that a grade 3-5 child in Pakistan has written on. Read exactly what the child WROTE as the answer to each item; do not solve the sums yourself. Items printed on the strip:
 ${written.map((w, i) => `${i + 1}. [${w.id}] ${w.prompt} = ?`).join('\n')}
 ${wordProblem ? `${written.length + 1}. [${wordProblem.id}] word problem: ${wordProblem.prompt_en}` : ''}
-Also read the small form code printed in a corner of the strip (expected "${expectedCode}"), and the number an adult wrote in the two boxes labelled "بچہ نمبر / Child no." near the top (one or two digits; a crossed-out digit does not count; "03" is 3; null if empty or unclear).
+Also read the small form code printed in a corner of the strip (expected "${expectedCode}").
 For each item return what the child wrote as digits ("" if blank), a status: "written" | "blank" | "unreadable" (crossed out with no clear final answer, illegible, or covered), and your confidence (0-1) that you read it right. Return ONLY JSON:
-{"form_code":"<as printed or null>","child_no":<integer or null>,"child_no_confidence":<0-1>,"items":[{"id":"<id>","read":"<digits>","status":"written|blank|unreadable","confidence":<0-1>}]}`;
+{"form_code":"<as printed or null>","items":[{"id":"<id>","read":"<digits>","status":"written|blank|unreadable","confidence":<0-1>}]}`;
 
-// L20 (bd-s1oo0.38): the quick read at receipt — the box only, nothing else on the page, no names.
-const CHILD_NO = () => `This is a photo of a printed maths worksheet. Near the top of the page is a printed label "بچہ نمبر / Child no." followed by two empty boxes, where an adult has handwritten a number of one or two digits.
-Read ONLY the number handwritten in those two boxes. Ignore every other number on the page (the sums, the answers, the code like "G3-A" in the corner).
-A digit that is crossed out does not count. A leading zero is ignored ("03" is 3). One digit may sit in either box or across both.
-If the boxes are empty, or you cannot tell the digits apart, return null.
-Return ONLY JSON: {"child_no": <integer or null>, "confidence": <0-1, how sure you are of the digits>}`;
-
-module.exports = { CHILD_NO, STORY, STORY_SCHEMA, COMPREHENSION, PHONICS, FALLBACK, LABELLER, WORD_PROBLEM, STRIP, LANG_NAME };
+module.exports = { STORY, COMPREHENSION, PHONICS, FALLBACK, LABELLER, WORD_PROBLEM, STRIP, LANG_NAME };

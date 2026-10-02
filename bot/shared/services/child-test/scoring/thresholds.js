@@ -37,7 +37,7 @@ const NEVER = 1.01;
  */
 const FIELD_BARS_BY_LANG = Object.freeze({
   'story.words_correct': Object.freeze({ urdu: NEVER, english: 0.7 }),
-  questions: Object.freeze({ urdu: 0.9, english: 0.9 }),
+  questions: Object.freeze({ urdu: 0.7, english: 0.9 }),
   nonwords: Object.freeze({ urdu: 0.65, english: NEVER }),
 });
 
@@ -45,18 +45,13 @@ const BAR_EVIDENCE = Object.freeze({
   'story.words_correct': 'Urdu real: confidence anti-calibrated (>=0.70: 56% within +-5, n 9; all: 71%). English real >=0.70: 88% within +-5 (n 16), synthetic 100% (n 6).',
   'story.flagged': 'Real per-word precision 0.25 at every bar (Urdu n 163, English n 159) vs study 0.48/0.31: chips are shown, never pre-ticked.',
   fallback: 'Letters r 0.19 MAE 3.9/10, words r 0.26 MAE 5.3/10 (n 30): coach marks.',
-  questions: 'Urdu (L23, 185 real children): >=0.70 fills 98% at 73% right, only the 73% floor; >=0.90 fills 55% at 86% (n 92), 90% lower bound 79%. L5 run 3 >=0.70: 79% (n 67). English real >=0.70: 58% (n 19), >=0.90: 71% (n 7); L23 >=0.90: 82% (n 11). Synthetic 100%.',
+  questions: 'Urdu real >=0.70: 79% (n 67) vs floor 73%. English real >=0.70: 58% (n 19), >=0.90: 71% (n 7). Synthetic 100%.',
   first_sounds: 'Hint only (coach marks); synthetic agreement 92% (n 60).',
-  nonwords: 'English real 41-43% at any bar (n 304) vs floor 52%; synthetic English worse when confident (67% vs 78%). Urdu synthetic 97% (n 60), no real Urdu made-up words yet. Urdu confidence (L16): 0.85 where Gemini (>= 0.9) and the Soniox transcript heard the same word, 98% right (n 40); else capped at 0.6, 91% (n 80).',
+  nonwords: 'English real 41-43% at any bar (n 304) vs floor 52%; synthetic English worse when confident (67% vs 78%). Urdu synthetic 97% (n 60), no real Urdu made-up words yet.',
   'maths.numbers': 'Synthetic >=0.65: 98% (n 48); real not keyed (May items were magnitude comparisons).',
   'maths.quick_sums': 'Confidence is a constant 0.7. After the alignment fix (714ebe70): real MAE 3.5, within +-3 62% (n 42), synthetic 50% (n 12) vs floor 90%.',
   'maths.written': 'Strips >=0.85: 98.3% (n 240) vs 97.2% at 0.75 (n 246); floor 88%.',
   'maths.word_problem': 'Strip misses were all unreadable at confidence 0; floor 87%.',
-  // v2 oral maths (bd-s1oo0.46.3): 8 synthetic notes (ElevenLabs child voices, classroom noise, phone band; exact keys),
-  // golive/lanes/L27/oral_results.json. Every miss was speech-to-text losing or mishearing the child, all at <= 0.6.
-  'maths.oral.compare': 'Synthetic: all items 91% (n 32); >=0.70 100% (n 25). Floor (May identify items) 87%. Real recordings not yet measured.',
-  'maths.oral.sums': 'Synthetic: all items 94% (n 32); >=0.70 100% (n 21). Floor (May computation) 88%. Real recordings not yet measured.',
-  'maths.oral.word_problems': 'Synthetic: all items 88% (n 16); >=0.70 100% (n 11). Floor (May word problems) 87%. Real recordings not yet measured.',
 });
 
 const BASE_BARS = {
@@ -67,9 +62,6 @@ const BASE_BARS = {
   'maths.quick_sums': NEVER,
   'maths.written': 0.85,
   'maths.word_problem': 0.7,
-  'maths.oral.compare': 0.7,
-  'maths.oral.sums': 0.7,
-  'maths.oral.word_problems': 0.7,
 };
 // Read without a language (L6's check Flow reads this flat), a field gets the strictest of its languages.
 for (const [f, by] of Object.entries(FIELD_BARS_BY_LANG)) BASE_BARS[f] = Math.max(...Object.values(by));
