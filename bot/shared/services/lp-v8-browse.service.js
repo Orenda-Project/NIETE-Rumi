@@ -125,8 +125,14 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null) {
   const chapter = V8Catalog.chapterFor(grade, subjectKey, chapterNumber);
   if (!chapter) return [];
 
-  return (chapter.lessons || [])
-    .filter((l) => available.has(l.lesson_id))
+  // ch3-10 A/B (bd-5o0ay.10.16): group A never sees a lesson it has no August plan for.
+  const LpAb = require('./lp-ab-ch310.service');
+  const group = await LpAb.groupFor(userId, { grade: Number(grade), chapter: Number(chapterNumber) });
+  const listed = (chapter.lessons || []).filter((l) => available.has(l.lesson_id));
+  const august = await LpAb.augustListable(group, listed.map((l) => l.lesson_id));
+
+  return listed
+    .filter((l) => !august || august.has(l.lesson_id))
     // A split lesson's two parts share a segment_index; part orders them.
     .sort((a, b) => ((a.segment_index ?? 0) - (b.segment_index ?? 0)) || ((a.part ?? 0) - (b.part ?? 0)))
     .map((l) => ({
@@ -151,10 +157,14 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null) {
  * ("not rendered yet"), which the caller renders rather than treating as an
  * error. Unknown lesson ids also return null; the portal never invents one.
  */
-async function lessonPdfUrl(lessonId, assetKind = 'lesson') {
-  if (!V8Catalog.lessonById(lessonId)) return null;
+async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null) {
+  const hit = V8Catalog.lessonById(lessonId);
+  if (!hit) return null;
 
-  const asset = await V8Delivery.currentAssetFor(lessonId, assetKind);
+  // ch3-10 A/B (bd-5o0ay.10.1): the portal serves the teacher's group, same as WhatsApp.
+  const LpAb = require('./lp-ab-ch310.service');
+  const group = await LpAb.groupFor(userId, { grade: hit.book.grade, chapter: hit.chapter.number });
+  const asset = await LpAb.assetFor({ group, lessonId, assetKind, current: V8Delivery.currentAssetFor });
   if (!asset || !asset.r2_key) return null;
 
   const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');

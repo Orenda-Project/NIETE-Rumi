@@ -107,8 +107,8 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null) {
  * pre-rendered and uploaded, so availability is the only gate, and the Gamma
  * render path the old endpoint queued is off.
  */
-async function lessonPdf(lessonId, kind = 'lesson') {
-  const data = await ask('pdf', { lessonId, assetKind: kind });
+async function lessonPdf(lessonId, kind = 'lesson', userId = null) {
+  const data = await ask('pdf', { lessonId, assetKind: kind, userId });
   if (!data.available) return null;
   return { url: data.url, asset_kind: data.asset_kind, version_stamp: data.version_stamp };
 }

@@ -22,6 +22,7 @@ const LPShelfService = require('./lp-shelf.service');
 const V8Catalog = require('./lp-v8-catalog.service');
 const { resolveUx } = require('../config/ux-strings');
 const { logToFile } = require('../utils/logger');
+const LpAb = require('./lp-ab-ch310.service');
 
 const LP_VARIANT = 'niete_v8_segment';
 const FILENAME_MAX = 64;
@@ -159,9 +160,9 @@ async function recordDownload(fields) {
  * Never throws: the worksheet has already gone out by the time this runs, and a
  * missing or failing key must not turn a successful delivery into a failed one.
  */
-async function sendAnswerKeyIfAny({ userId, lessonId, phone, book, chapter, context }) {
+async function sendAnswerKeyIfAny({ userId, lessonId, phone, book, chapter, context, abGroup = null }) {
   try {
-    const key = await currentAssetFor(lessonId, 'answer_key');
+    const key = await LpAb.assetFor({ group: abGroup, lessonId, assetKind: 'answer_key', current: currentAssetFor });
     if (!key || !key.r2_key) {
       // Not rendered yet for this chapter. Silent by design — see caller.
       logToFile('LP v8: no answer key for assessment', { lessonId });
@@ -243,7 +244,15 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     return { ok: false, reason: 'no phone' };
   }
 
-  const asset = await currentAssetFor(lessonId);
+  // ch3-10 A/B (bd-5o0ay.10.1): group A gets the August v8 PDF; null = not in the test.
+  const abGroup = await LpAb.groupFor(userId, { grade: book.grade, chapter: chapter.number });
+  const asset = await LpAb.assetFor({ group: abGroup, lessonId, current: currentAssetFor });
+  if ((!asset || !asset.r2_key) && abGroup === 'A') {
+    // A/B group A with no August plan: silence. None is coming, so "still preparing" would
+    // keep her waiting for nothing (Amena, 2 Oct).
+    await recordDownload({ ...context, user_id: userId, phone, status: 'failed', error_text: 'ab group A: no August version' });
+    return { ok: false, reason: 'no august version' };
+  }
   if (!asset || !asset.r2_key) {
     logToFile('LP v8: no current asset', { userId, lessonId });
     await recordDownload({ ...context, user_id: userId, phone, status: 'failed', error_text: 'no current asset' });
@@ -335,7 +344,8 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   //
   // Soft-fail by design: R2 hiccup, missing upload, WhatsApp rejection — all of
   // it is logged and none of it costs her the PDF or the survey.
-  const voicenoteSent = await sendVoicenoteIfAny({ userId, lessonId, phone, asset });
+  // No voice note in either A/B group: v8 never had one, and it would confound the test.
+  const voicenoteSent = abGroup ? false : await sendVoicenoteIfAny({ userId, lessonId, phone, asset });
 
   // ── The marking scheme (bd-52f1x) ─────────────────────────────────────────
   //
@@ -350,7 +360,7 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   // key should simply get the worksheet, not an apology for a thing she never
   // knew was coming. It is sent AFTER the worksheet and can never gate it.
   if (lesson.lp_type === 'assessment') {
-    await sendAnswerKeyIfAny({ userId, lessonId, phone, book, chapter, lesson, context });
+    await sendAnswerKeyIfAny({ userId, lessonId, phone, book, chapter, lesson, context, abGroup });
   }
 
   // A lesson_plans row is what the feedback survey hangs off (lp_feedback
