@@ -658,44 +658,14 @@ exports.run = async ({ api, rec, sleep }) => {
       { reason: APP_REDIRECT_WHY }, 0);
 
 
-  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
-  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
-  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
-  rec('COA63', 'Photos sent seconds apart get ONE receipt prompt with the running count', 'BLOCKED',
-      { reason: 'not yet driven on the mock lane — needs two photo uploads inside COACHING_PHOTO_PROMPT_DEBOUNCE_MS; unit: tests/coaching/meta-bill-nc4-photo-step.test.js' }, 0);
-
-  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
-  rec('COA64', 'The third photo\'s "maximum reached" line opens the lesson-plan question', 'BLOCKED',
-      { reason: 'not yet driven on the mock lane — needs three photo uploads on the photo step; unit: tests/coaching/meta-bill-nc4-photo-step.test.js' }, 0);
-
-  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
-  rec('COA65', '"Add another" and a photo sent during the analysis are acknowledged with a 📸 reaction', 'BLOCKED',
-      { reason: 'the mock lane does not observe reactions (feature-runner filters them out) — verify on the sandbox handset; unit: tests/coaching/meta-bill-nc4-photo-step.test.js + meta-bill-wamid-wiring.test.js' }, 0);
-
-  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
-  rec('COA66', 'Last time\'s commitment opens the photo question', 'BLOCKED',
-      { reason: 'not yet driven on the mock lane — needs a seeded prior session with prioritized_action.teacher_response=yes; unit: tests/coaching/meta-bill-nc4-prior-reminder-wiring.test.js' }, 0);
-
-  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
-  rec('COA67', 'Several stale sessions bring ONE reminder, about the newest', 'BLOCKED',
-      { reason: "not yet driven on the mock lane — needs three seeded stale sessions + SC.sweep('stale'); unit: tests/coaching/meta-bill-nc5-sweeper-repeats.test.js" }, 0);
-
-  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
-  rec('COA68', 'An unconfirmed recording that the bot goes ahead with sends ONE notice, in my language', 'BLOCKED',
-      { reason: "not yet driven on the mock lane — needs an aged initiated session + SC.sweep('stale'); unit: tests/coaching/meta-bill-nc5-sweeper-repeats.test.js" }, 0);
-
-  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
-  rec('COA69', 'A session auto-completed after 12 hours says so on the report, not in a separate message', 'BLOCKED',
-      { reason: "not yet driven on the mock lane — needs a 12h-idle session + SC.sweep('stale') and the report caption; unit: tests/coaching/meta-bill-nc2-report-caption.test.js" }, 0);
-
-  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
-  rec('COA70', 'Each report piece arrives once even if the report job runs twice', 'BLOCKED',
-      { reason: 'not yet driven on the mock lane — needs a report job redelivered for one session; unit: tests/coaching/meta-bill-nc2-report-caption.test.js + meta-bill-nc5-sweeper-repeats.test.js' }, 0);
-
-  // Meta bill cut (2026-10-01, lane I5) — not yet driven; replace BLOCKED with V(...) once it is.
-  rec('COA71', 'The first AI-coaching request sends the intro film with its introducing line as the caption', 'BLOCKED',
-      { reason: 'first-use only: needs the driver account\'s ai_coaching first-use marker reset before the chip tap '
-          + '(a reversible seed not wired into this driver yet); the one-message shape is pinned by '
-          + 'tests/coaching/first-use-intro-one-message.test.js' }, 0);
+  // Meta bill cut FX4 (2026-10-02, bd-w2daa.26) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA72', '"👍 Yes" on the coaching-report survey is answered with a 🙏, not a message', 'BLOCKED',
+      { reason: 'needs a completed coaching session whose report survey is on screen (a full audio run on the mock lane); '
+          + 'pinned by tests/meta-bill-cut/fx4-round3.test.js (FX4-2, through the real /webhook, en + ur, refusal fallback)' }, 0);
+  rec('COA73', 'The reason I type after "👎 Not really" is answered with a 🙏', 'BLOCKED',
+      { reason: 'same precondition as COA72 plus the open reason window; pinned by tests/meta-bill-cut/fx4-round3.test.js (FX4-2)' }, 0);
+  rec('COA74', 'After I paste my lesson plan as text, "typing…" shows until Step 2/5 arrives', 'BLOCKED',
+      { reason: 'the mock lane records sends, not the typing indicator\'s timing on screen; '
+          + 'pinned by tests/meta-bill-cut/fx4-round3.test.js (FX4-1 "a PASTED plan")' }, 0);
 
 };
