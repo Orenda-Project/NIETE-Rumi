@@ -22,6 +22,29 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!--
+              Android App Links: a tapped portal link opens this app instead of
+              the browser, once Android has verified the domain against
+              /.well-known/assetlinks.json on that host (served by the portal;
+              it must list this build's package + signing SHA-256).
+              Unverified, links keep opening in the browser as before.
+
+              The host placeholder is the host of VITE_API_BASE_URL
+              (app/build.gradle), so each build claims the portal it talks to.
+
+              Scope is deliberately exact paths. The web side (AppLinkListener)
+              already accepts any /portal/ page, so widening this list is the
+              only change needed later, but it IS a Play release.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="${deepLinkHost}" />
+                <data android:path="/portal/dashboard" />
+                <data android:path="/portal/login" />
+            </intent-filter>
+
         </activity>
 
         <provider

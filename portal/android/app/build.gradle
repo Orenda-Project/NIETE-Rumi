@@ -16,6 +16,36 @@ def nieteAlias = System.getenv('NIETE_KEY_ALIAS') ?: findProperty('NIETE_KEY_ALI
 def nieteKeyPass = System.getenv('NIETE_KEY_PASSWORD') ?: findProperty('NIETE_KEY_PASSWORD')
 def hasNieteSigning = nieteKeystore && nieteStorePass && nieteAlias && nieteKeyPass
 
+// Android App Links: the host the manifest's VIEW intent filter claims.
+//
+// Derived from VITE_API_BASE_URL — the one configured host the web build, OTA
+// and allowNavigation already use (capacitor.config.ts) — so a staging build
+// claims the staging portal, a release build claims production, and the claim
+// cannot drift from the host the app actually talks to. The environment wins
+// over portal/.env.app, as in capacitor.config.ts; every Android CI workflow
+// writes .env.app before Gradle runs.
+def nieteApiBaseUrl = System.getenv('VITE_API_BASE_URL')?.trim()
+if (!nieteApiBaseUrl) {
+    def envApp = rootProject.file('../.env.app')
+    if (envApp.exists()) {
+        envApp.eachLine { line ->
+            def m = (line =~ '^\\s*VITE_API_BASE_URL\\s*=\\s*(.+?)\\s*$')
+            if (m.find()) {
+                nieteApiBaseUrl = m.group(1).replaceAll('^[\'"]|[\'"]$', '').trim()
+            }
+        }
+    }
+}
+def deepLinkHost = null
+try {
+    def apiUri = nieteApiBaseUrl ? new URI(nieteApiBaseUrl) : null
+    if (apiUri?.scheme == 'https' && apiUri.host) {
+        deepLinkHost = apiUri.host
+    }
+} catch (URISyntaxException ignored) {
+    // Left null; preBuild below fails the build with the reason.
+}
+
 android {
     namespace = "pk.edu.niete"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -27,7 +57,9 @@ android {
         versionName "1213"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // Default launcher label; the debug build type overrides it.
-        manifestPlaceholders = [appLabel: "NIETE"]
+        // deepLinkHost is shared by every build type (they merge with this map);
+        // the placeholder value is never shipped, preBuild refuses to build it.
+        manifestPlaceholders = [appLabel: "NIETE", deepLinkHost: deepLinkHost ?: "unset.invalid"]
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -126,6 +158,22 @@ android {
 // TYPE, but reads as "the real one", so it invites uploading the wrong file.
 base {
     archivesName = "niete-rumi-v${android.defaultConfig.versionCode}"
+}
+
+// No https VITE_API_BASE_URL means the App Links filter would claim a host that
+// does not exist. Refuse to build rather than ship that silently — the same rule
+// the web build applies to a native build with no absolute API url. Checked at
+// build time, not configuration time, so an IDE sync without .env.app works.
+tasks.named('preBuild').configure {
+    doFirst {
+        if (!deepLinkHost) {
+            throw new GradleException(
+                "No https host for Android App Links: set VITE_API_BASE_URL (environment or " +
+                "portal/.env.app) to the absolute portal API url, e.g. by building through " +
+                "`npm run android:debug`. Got: ${nieteApiBaseUrl ?: '(unset)'}"
+            )
+        }
+    }
 }
 
 tasks.whenTaskAdded { task ->

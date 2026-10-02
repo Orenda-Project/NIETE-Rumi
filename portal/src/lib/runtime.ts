@@ -8,6 +8,8 @@
  */
 // @ts-expect-error - CommonJS module shared with the Jest test suite
 import { resolveIsPortal, resolveApiBaseUrl } from './app-target.cjs';
+// @ts-expect-error - CommonJS module shared with the Jest test suite
+import { resolvePortalOrigin } from './app-links.cjs';
 
 /**
  * True when running inside the Capacitor native shell.
@@ -21,6 +23,18 @@ export function isNativeApp(): boolean {
   return typeof cap.isNativePlatform === 'function'
     ? cap.isNativePlatform()
     : Boolean(cap.isNative);
+}
+
+/**
+ * Is a given native plugin compiled into THIS app build?
+ *
+ * Under OTA the newest web bundle also runs on older APKs, so web code must
+ * never assume a plugin exists just because its own build added it.
+ */
+export function isNativePluginAvailable(name: string): boolean {
+  const cap = (globalThis as { Capacitor?: { isPluginAvailable?: (plugin: string) => boolean } })
+    .Capacitor;
+  return typeof cap?.isPluginAvailable === 'function' && cap.isPluginAvailable(name) === true;
 }
 
 /** Should the portal render (vs the public marketing site)? */
@@ -45,4 +59,19 @@ export function getApiBaseUrl(): string {
     // really running on a developer's machine".
     origin: typeof window !== 'undefined' ? window.location.origin : undefined,
   });
+}
+
+/**
+ * The portal's own origin, used to accept only our links as app links.
+ * Null (ignore every link) when it cannot be worked out — never a throw.
+ */
+export function getPortalOrigin(): string | null {
+  try {
+    return resolvePortalOrigin({
+      apiBaseUrl: getApiBaseUrl(),
+      pageHref: typeof window !== 'undefined' ? window.location.href : undefined,
+    });
+  } catch {
+    return null;
+  }
 }
