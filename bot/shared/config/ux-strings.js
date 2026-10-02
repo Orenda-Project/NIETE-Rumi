@@ -704,6 +704,79 @@ const UX_STRINGS = {
     ur: 'آپ کی پہلی {count} کلاسیں دکھائی جا رہی ہیں۔',
   },
 
+  /**
+   * bd-37lyd — the principal who is ALSO a class teacher.
+   *
+   * /roster can now name a principal the class teacher of a class, and its SAVED
+   * screen tells the coach "the class teacher can see them in their attendance
+   * now". The router sent every principal to the staff register, so that sentence
+   * was false and one live principal's student marking simply stopped.
+   *
+   * A principal who owns no class never sees either of these — they keep
+   * `attendanceBodyTeachers`' world, which is the 99% case.
+   *
+   * `attendanceAskMethodEither` is the tap-or-voice question with the register
+   * taken OUT of it: which register it is has not been settled yet, so the
+   * question cannot name one. Both options are in the body as well as on the
+   * buttons — reply buttons render below the fold on some clients and a bare
+   * "how?" is unanswerable there. Same rule for the register question.
+   *
+   * Button titles are capped at 20 CODE POINTS by WhatsApp. These sit at 11/20
+   * and 8/20 in English, 11/20 and 9/20 in Urdu.
+   */
+  attendanceAskMethodEither: {
+    en: "Taking today's attendance. How would you like to mark it "
+      + '— by tapping the names, or by sending a voice note?',
+    ur: 'آج کی حاضری لی جا رہی ہے۔ حاضری کیسے لگانی ہے '
+      + '— ناموں پر دبا کر، یا آواز کا پیغام بھیج کر؟',
+  },
+
+  /**
+   * The other two tap-or-voice bodies, lifted out of the router as English
+   * literals so all THREE say the same thing in the same language. English is
+   * unchanged, character for character — only the Urdu is new. Splitting them
+   * would be the drift the router's own comment warns about ("giving each its
+   * own copy is how the two would drift apart").
+   */
+  attendanceAskMethodTeacher: {
+    en: "Taking today's teacher attendance. How would you like to mark it "
+      + '— by tapping the names, or by sending a voice note?',
+    ur: 'آج اساتذہ کی حاضری لی جا رہی ہے۔ حاضری کیسے لگانی ہے '
+      + '— ناموں پر دبا کر، یا آواز کا پیغام بھیج کر؟',
+  },
+
+  attendanceAskMethodStudent: {
+    en: "Taking today's class attendance. How would you like to mark it "
+      + '— by tapping the names, or by sending a voice note?',
+    ur: 'آج کلاس کی حاضری لی جا رہی ہے۔ حاضری کیسے لگانی ہے '
+      + '— ناموں پر دبا کر، یا آواز کا پیغام بھیج کر؟',
+  },
+
+  attendanceMethodTapButton: {
+    en: 'Mark by tapping',
+    ur: 'دبا کر لگائیں',
+  },
+
+  attendanceMethodVoiceButton: {
+    en: 'Mark by voice note',
+    ur: 'آواز سے لگائیں',
+  },
+
+  attendanceAskRegister: {
+    en: 'Whose register is this — your teachers, or your own class?',
+    ur: 'یہ کس کا رجسٹر ہے — آپ کے اساتذہ کا، یا آپ کی اپنی کلاس کا؟',
+  },
+
+  attendanceRegisterStaffButton: {
+    en: 'My teachers',
+    ur: 'میرے اساتذہ',
+  },
+
+  attendanceRegisterClassButton: {
+    en: 'My class',
+    ur: 'میری کلاس',
+  },
+
   attendanceClassesHeader: {
     en: '🏫 Your classes',
     ur: '🏫 آپ کی کلاسیں',
@@ -840,6 +913,68 @@ const UX_STRINGS = {
   // block; a second definition here would be a duplicate object key, where the
   // later one silently wins and the earlier one is dead. Merge resolution
   // 2026-09-15: one definition, and roster-entry.service reads rosterRoleRefusal.
+
+  /**
+   * bd-37lyd — the /roster SAVED screen, which used to be four English literals
+   * concatenated in the endpoint.
+   *
+   * `rosterSavedOnRoster` reports the STORED count, re-read from
+   * `class_enrollments`, not `added + skipped`: that sum counted a skipped line as
+   * saved, and a 13 Sep save told a coach 36 children when 35 were stored.
+   *
+   * The skipped sentence is FOUR keys because English needs the number and the
+   * class's age. A line skipped on a class this save CREATED was not stored at
+   * all; a line skipped on a re-scan is a child who was already enrolled. One
+   * shared sentence for two different states is how the field report arrived
+   * pointing at the wrong layer. Urdu is gender-neutral by construction (passive,
+   * no verb stem agreeing with the addressee), and the digits are the Urdu set.
+   */
+  rosterSavedOnRoster: {
+    en: '{count} students are on the roster.',
+    ur: 'اس وقت فہرست میں ⁦{count}⁩ طلبہ ہیں۔',
+  },
+
+  rosterSavedNotSavedOne: {
+    en: '{count} line was not saved.',
+    ur: 'ایک سطر محفوظ نہیں ہوئی۔',
+  },
+
+  rosterSavedNotSavedMany: {
+    en: '{count} lines were not saved.',
+    ur: '⁦{count}⁩ سطریں محفوظ نہیں ہوئیں۔',
+  },
+
+  rosterSavedAlreadyThereOne: {
+    en: '{count} was already there.',
+    ur: 'ایک پہلے ہی فہرست میں تھا۔',
+  },
+
+  rosterSavedAlreadyThereMany: {
+    en: '{count} were already there.',
+    ur: '⁦{count}⁩ پہلے ہی فہرست میں تھے۔',
+  },
+
+  rosterSavedTeacherNamed: {
+    en: 'The class teacher can see them in their attendance now.',
+    ur: 'یہ بچے اب کلاس ٹیچر کی حاضری کی فہرست میں شامل ہیں۔',
+  },
+
+  rosterSavedNoTeacher: {
+    en: 'No class teacher was named, so nobody can mark attendance for these children.'
+      + ' Scan this class again and name one.',
+    ur: 'کوئی کلاس ٹیچر مقرر نہیں ہوا، اس لیے ان بچوں کی حاضری کوئی نہیں لگا سکتا۔'
+      + ' اس کلاس کو دوبارہ اسکین کریں اور کلاس ٹیچر مقرر کریں۔',
+  },
+
+  rosterCoverageComplete: {
+    en: 'All 5 grades are scanned at this school — it is complete. Thank you.',
+    ur: 'اس اسکول کی پانچوں جماعتیں اسکین ہو چکی ہیں — کام مکمل ہے۔ شکریہ۔',
+  },
+
+  rosterCoverageRemaining: {
+    en: 'Now {count} of 5 grades scanned at this school — {missing} remaining.',
+    ur: 'اس اسکول میں پانچ میں سے ⁦{count}⁩ جماعتیں اسکین ہو چکی ہیں — ⁦{missing}⁩ باقی ہیں۔',
+  },
 
   menuUnknownOption: {
     en: "I didn't recognise that option. Type /menu to see the list again.",
