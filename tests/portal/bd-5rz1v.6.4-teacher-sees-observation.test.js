@@ -6,9 +6,13 @@
  * 'leader_observation', observer_user_id = the coach), so every teacher route
  * that reads her coaching_sessions reached it — including while it was still a
  * DRAFT the coach had not sent. The rule now, on every one of them: an
- * observation is hers to see only once the coach has sent her the report
- * (analysis_data.teacher_delivery.status = 'sent', what processTeacherReport
- * writes on delivery). Never the draft, the review, or the debrief.
+ * observation is hers to see once the coach has SENT her the report —
+ * analysis_data.teacher_delivery.status 'sent' (it reached her WhatsApp) or
+ * 'awaiting_teacher_tap' (WhatsApp's 24-hour window was closed, so she was sent
+ * an invite to open it; operator, bd-5rz1v.6.8: she sees it in the portal
+ * whether or not she taps). Never the draft, the review, a report that went to
+ * a review number, a cancelled one, or the debrief. Her list shows a sent one
+ * even while the coach's debrief is still open (status not yet 'completed').
  *
  * Once sent, the list says who observed her and when, and the lesson page
  * carries the report as WhatsApp delivered it: the image, its caption, the
@@ -36,8 +40,24 @@ function applySlices(row, cols) {
   return out;
 }
 
-/** One `col.op.value` term of a PostgREST or=(…) filter. */
+/** Split a PostgREST filter list on its top-level commas (not those inside and(…)). */
+function splitTop(expr) {
+  const out = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of String(expr)) {
+    if (ch === '(') depth += 1;
+    if (ch === ')') depth -= 1;
+    if (ch === ',' && depth === 0) { out.push(cur); cur = ''; } else cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+/** One term of a PostgREST or=(…) filter: `col.op.value`, or `and(term,term,…)`. */
 function term(t) {
+  const group = t.match(/^and\((.*)\)$/);
+  if (group) { const ts = splitTop(group[1]).map(term); return (r) => ts.every((x) => x(r)); }
   const m = t.match(/^(.+?)\.(is|eq|neq)\.(.+)$/);
   if (!m) throw new Error(`unsupported or-term ${t}`);
   const [, col, op, raw] = m;
@@ -71,7 +91,7 @@ function makeChain(table) {
       }
       return chain;
     },
-    or: (expr) => { const ts = String(expr).split(',').map(term); tests.push((r) => ts.some((t) => t(r))); return chain; },
+    or: (expr) => { const ts = splitTop(expr).map(term); tests.push((r) => ts.some((t) => t(r))); return chain; },
     gte: (c, v) => { tests.push((r) => r[c] >= v); return chain; },
     order: (col, opts = {}) => { order = { col, asc: opts.ascending !== false }; return chain; },
     limit: (n) => { cap = n; return chain; },
@@ -142,6 +162,14 @@ const SENT = {
   teacher_name: 'Ayesha Bibi', teacher_phone: '923120004471',
 };
 
+// The coach pressed Send while WhatsApp's 24-hour window was closed: she was sent
+// an invite, and the report (already made and stored) goes out when she taps it.
+const TAP = {
+  status: 'awaiting_teacher_tap', send_requested_at: hoursAgo(6), template_sent_at: hoursAgo(5),
+  report_key: 'observe-reports/obs-tap.png', caption: 'آپ کے سبق پر مبارک ہو!', companion_text: '',
+  teacher_name: 'Ayesha Bibi', teacher_phone: '923120004471',
+};
+
 beforeEach(() => {
   jest.resetModules();
   process.env.R2_ENDPOINT = 'https://acct.r2.cloudflarestorage.com';
@@ -155,7 +183,9 @@ beforeEach(() => {
       observation('obs-draft', null, { status: 'awaiting_observer_review' }),
       observation('obs-reviewed', null, { status: 'observer_review_complete' }),
       observation('obs-previewing', { status: 'awaiting_confirm', report_key: 'observe-reports/x.png' }, { status: 'observer_review_complete' }),
-      observation('obs-tap', { status: 'awaiting_teacher_tap', template_sent_at: hoursAgo(5) }, { status: 'observer_review_complete' }),
+      observation('obs-tap', TAP, { status: 'observer_review_complete' }),
+      observation('obs-review-number', { status: 'operator_review', report_key: 'observe-reports/r.png' }, { status: 'observer_review_complete' }),
+      observation('obs-cancelled', { status: 'cancelled', report_key: 'observe-reports/c.png' }, { status: 'observer_review_complete' }),
       observation('obs-done-unsent', null, { status: 'completed' }),
     ],
   };
@@ -174,9 +204,26 @@ beforeEach(() => {
 afterEach(() => jest.resetModules());
 
 describe('GET /coaching-sessions — her list', () => {
-  it('shows her own lessons and an observation the coach SENT her — nothing the coach has not', async () => {
+  it('shows her own lessons and every observation the coach SENT her — delivered, or waiting for her to open the invite — nothing else', async () => {
     const { payload } = await invoke('get', '/coaching-sessions', { query: { limit: '100' } });
-    expect(payload.sessions.map((s) => s.id).sort()).toEqual(['obs-sent', 'own-1']);
+    expect(payload.sessions.map((s) => s.id).sort()).toEqual(['obs-sent', 'obs-tap', 'own-1']);
+  });
+
+  it('a sent observation is in her list even while the coach\'s debrief is still open', async () => {
+    tableRows.coaching_sessions.push(observation('obs-sent-open', SENT, { status: 'observer_review_complete' }));
+    const { payload } = await invoke('get', '/coaching-sessions', { query: { limit: '100' } });
+    expect(payload.sessions.map((s) => s.id)).toContain('obs-sent-open');
+  });
+
+  it('a report waiting for her tap says when the coach sent it', async () => {
+    const { payload } = await invoke('get', '/coaching-sessions', { query: { limit: '100' } });
+    expect(payload.sessions.find((s) => s.id === 'obs-tap').observation.sentAt).toBe(TAP.send_requested_at);
+  });
+
+  it('her own lessons still list only once completed', async () => {
+    tableRows.coaching_sessions.push(own('own-analysing', { status: 'analyzing' }));
+    const { payload } = await invoke('get', '/coaching-sessions', { query: { limit: '100' } });
+    expect(payload.sessions.map((s) => s.id)).not.toContain('own-analysing');
   });
 
   it('an observation row says who observed her, and when', async () => {
@@ -188,7 +235,7 @@ describe('GET /coaching-sessions — her list', () => {
 });
 
 describe('GET /coaching-session/:id — the lesson page', () => {
-  it.each(['obs-draft', 'obs-reviewed', 'obs-previewing', 'obs-tap', 'obs-done-unsent'])(
+  it.each(['obs-draft', 'obs-reviewed', 'obs-previewing', 'obs-review-number', 'obs-cancelled', 'obs-done-unsent'])(
     'an observation not yet sent to her is not found (%s)', async (id) => {
       const { statusCode, payload } = await invoke('get', '/coaching-session/:id', { params: { id } });
       expect(statusCode).toBe(404);
@@ -209,6 +256,20 @@ describe('GET /coaching-session/:id — the lesson page', () => {
     });
     // Never the debrief: the coach's talk and her own feedback stay hers.
     expect(JSON.stringify(payload)).not.toMatch(/for the coach only|coach and the teacher talking/);
+  });
+
+  it('a report waiting for her to tap the WhatsApp invite is already hers to open here', async () => {
+    const { statusCode, payload } = await invoke('get', '/coaching-session/:id', { params: { id: 'obs-tap' } });
+    expect(statusCode).toBe(200);
+    expect(payload.session.observation).toMatchObject({
+      observerName: 'Sana Malik',
+      sentAt: TAP.send_requested_at,
+      reportImageUrl: 'https://acct.r2.cloudflarestorage.com/digital-coach-audio/observe-reports/obs-tap.png?signed=1',
+      caption: TAP.caption,
+    });
+    const p = await invoke('get', '/coaching-session/:id/progress', { params: { id: 'obs-tap' } });
+    expect(p.statusCode).toBe(200);
+    expect(p.payload.stage).toBe('done');
   });
 
   it('her own lesson has no observation block', async () => {
