@@ -10,13 +10,17 @@
  *             (INIT may only answer with an entry screen, so Part 2 cannot be opened directly).
  *   PART_ONE    checked (rules.validate) → refused under the field, or saved with the server time → PART_TWO
  *   PART_TWO    checked against Part 1 (children who had not spoken yet) → saved → LESSON_PLAN
- *   LESSON_PLAN the teacher's own recent plans from the bot, plus "Not in this list"; the pick is saved
- *               with the keys the fidelity grader resolves the plan's moves by → AFTER, which names it
- *               (the coach goes back to change it; the plan is locked with the seal)
+ *   LESSON_PLAN the teacher's own recent plans from the bot, named as /observe's picker names them, plus
+ *               /observe's "Upload new"; a pick is saved with the keys the fidelity grader resolves the
+ *               plan's moves by → AFTER, which names it (the coach goes back to change it; the plan is
+ *               locked with the seal). "Upload new" asks how → LP_PHOTOS, LP_FILE or LP_TEXT
+ *   LP_*        the added plan: photos or a file are stored to R2 after the reply, typed text is kept
+ *               as typed → AFTER. It is read and graded after the recording (observe2/added-plan.js).
  *   AFTER     checked → sealed once (compare-and-set) → SEALED; then, after the response, the
  *             recording steps go to the chat, the check opens if the recording's moments are
  *             already in, and up to ten photos are stored.
- *   CONTINUE  → PART_TWO, LESSON_PLAN, AFTER or SEALED, from the record.
+ *   CONTINUE  → PART_TWO, LESSON_PLAN, AFTER or SEALED, from the record (a plan whose added files never
+ *               arrived goes back to LESSON_PLAN).
  *
  * The screens are English for the pilot; the chat message after the seal is in the coach's language.
  */
@@ -24,12 +28,17 @@
 const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { validate } = require('../services/observe/observe2/rules');
-const { FIELDS, MAX_PHOTOS } = require('../services/observe/observe2/field-form.flow');
+const { FIELDS, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES } = require('../services/observe/observe2/field-form.flow');
 const { observe2Strings } = require('../services/observe/observe2/strings');
 const { logToFile } = require('../utils/logger');
 
 const DEFAULT_PERIOD = 40;
+const UPLOAD = 'upload';
+// Forms opened on the first version of this screen may still send it: a plan with nothing attached.
 const NOT_IN_LIST = 'other';
+// /observe's own row for a plan the coach sends (lp-selection-list: "Upload new").
+const UPLOAD_OPTION = { id: UPLOAD, title: 'Upload new', description: 'Photos of a paper plan, a PDF or Word file, or typed text' };
+const ADD_SCREEN = { photos: 'LP_PHOTOS', file: 'LP_FILE', text: 'LP_TEXT' };
 const NO_ERRORS = { error_messages: {}, error: '', has_error: false };
 
 function parseToken(flowToken) {
@@ -111,7 +120,7 @@ const clip = (text, n) => {
 };
 
 // The teacher's most recent lesson plans from the bot (the same source as /observe's list), newest
-// first. A failure is logged and reads as an empty list: the coach can still say "Not in this list".
+// first. A failure is logged and reads as an empty list: the coach can still add the plan.
 async function recentPlans(form) {
   if (!form || !form.teacher_user_id) return [];
   try {
@@ -123,10 +132,12 @@ async function recentPlans(form) {
   }
 }
 
+// Named exactly as /observe's plan picker names a row (lp-selection-format), so a coach sees one plan
+// one way in both flows.
 function planOption(row) {
   const { formatLpRow } = require('../services/coaching/lp-coaching/lp-selection-format');
   const f = formatLpRow(row);
-  return { id: String(row.id), title: clip(row.topic || f.title, 30), description: f.description };
+  return { id: String(row.id), title: f.title, description: f.description };
 }
 
 async function renderPlan(form, extra = {}, plans) {
@@ -134,13 +145,13 @@ async function renderPlan(form, extra = {}, plans) {
   const name = form ? await teacherName(form) : null;
   const who = name || 'The teacher';
   const hint = list.length
-    ? `${name ? `${name}'s` : "The teacher's"} most recent plans from the bot. If the plan isn't here, pick "Not in this list".`
-    : `${who} has no plans from the bot yet. Pick "Not in this list".`;
+    ? `${name ? `${name}'s` : "The teacher's"} most recent plans from the bot. If the plan isn't here, pick "Upload new" to add it.`
+    : `${who} has no plans from the bot yet. Pick "Upload new" to add the plan.`;
   return {
     screen: 'LESSON_PLAN',
     data: {
       lp_hint: hint,
-      lp_options: [...list.map(planOption), { id: NOT_IN_LIST, title: 'Not in this list', description: "A paper plan, or one this teacher didn't get from the bot" }],
+      lp_options: [...list.map(planOption), UPLOAD_OPTION],
       ...NO_ERRORS,
       ...extra,
     },
@@ -150,12 +161,29 @@ async function renderPlan(form, extra = {}, plans) {
 function planLine(answers) {
   const a = answers || {};
   const back = ' To change it, go back.';
+  const notFollowed = a.lp === 'notfollowed' ? ' You said it was not followed.' : '';
   if (a.lp === 'none') return `Lesson plan: there was no lesson plan for this lesson.${back}`;
-  if (a.lp_ref && a.lp_ref.label) {
-    return `Lesson plan: ${a.lp_ref.label}.${a.lp === 'notfollowed' ? ' You said it was not followed.' : ''}${back}`;
+  if (a.lp_ref && a.lp_ref.label) return `Lesson plan: ${a.lp_ref.label}.${notFollowed}${back}`;
+  const up = a.lp_upload;
+  if (up && up.kind === 'photos') {
+    return `Lesson plan: ${up.count} photo${up.count === 1 ? '' : 's'} of the plan, read after the recording and checked against it.${notFollowed}${back}`;
   }
-  if (a.lp) return `Lesson plan: not in the list, so the recording can't be checked against it.${back}`;
+  if (up && up.kind === 'file') return `Lesson plan: the file you added, read after the recording and checked against it.${notFollowed}${back}`;
+  if (up && up.kind === 'text') return `Lesson plan: the plan you typed, checked against the recording.${notFollowed}${back}`;
+  if (a.lp) return `Lesson plan: nothing attached, so the recording can't be checked against it.${back}`;
   return '';
+}
+
+// Has the plan step been answered? An "Upload new" whose files or text never arrived has not.
+function planDone(answers) {
+  const a = answers || {};
+  if (!a.lp) return false;
+  if (a.lp_pick === UPLOAD) return Boolean(a.lp_upload);
+  return true;
+}
+
+function renderAdd(screen, extra = {}) {
+  return { screen, data: { ...NO_ERRORS, ...extra } };
 }
 
 function renderAfter(form, extra = {}) {
@@ -253,7 +281,7 @@ async function handleObserve2FormInit(flowToken) {
   }
   await Store.markOpened(form.id);
   if (form.sealed_at) return renderContinue('sealed', form);
-  if (form.part2_done_at) return renderContinue((form.answers || {}).lp ? 'part2' : 'plan', form);
+  if (form.part2_done_at) return renderContinue(planDone(form.answers) ? 'part2' : 'plan', form);
   if (form.part1_done_at) return renderContinue('part1', form);
   return renderPart1(form);
 }
@@ -265,7 +293,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
 
   if (step === 'CONTINUE') {
     if (!form || form.sealed_at) return renderSealed(form, form ? null : { sealed_line: 'Nothing to fill in', next_line: 'Send /observe2 in the chat to start a new visit.' });
-    if (form.part2_done_at) return (form.answers || {}).lp ? renderAfter(form) : renderPlan(form);
+    if (form.part2_done_at) return planDone(form.answers) ? renderAfter(form) : renderPlan(form);
     return renderPart2(form);
   }
 
@@ -273,6 +301,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     const again = { error: 'Something went wrong on our side. Tap the button again.', has_error: true };
     if (step === 'PART_TWO') return renderPart2(null, again);
     if (step === 'LESSON_PLAN') return renderPlan(null, again, []);
+    if (step.startsWith('LP_')) return renderAdd(step, again);
     if (step === 'AFTER') return renderAfter(null, again);
     return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...again } };
   }
@@ -280,6 +309,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     const gone = { error: 'This form is not available. Close it and send /observe2 in the chat.', has_error: true };
     if (step === 'PART_TWO') return renderPart2(null, gone);
     if (step === 'LESSON_PLAN') return renderPlan(null, gone, []);
+    if (step.startsWith('LP_')) return renderAdd(step, gone);
     if (step === 'AFTER') return renderAfter(null, gone);
     return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...gone } };
   }
@@ -301,10 +331,10 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
   if (step === 'LESSON_PLAN') {
     const answers = Store.pick(screenData, FIELDS.LESSON_PLAN);
     const plans = await recentPlans(form);
-    const errors = validate('LESSON_PLAN', { ...answers, has_plans: plans.length > 0 });
+    const errors = validate('LESSON_PLAN', answers);
     if (Object.keys(errors).length) return renderPlan(form, refused(errors), plans);
     let lpRef = null;
-    if (answers.lp !== 'none' && answers.lp_pick && answers.lp_pick !== NOT_IN_LIST) {
+    if (answers.lp !== 'none' && answers.lp_pick && answers.lp_pick !== NOT_IN_LIST && answers.lp_pick !== UPLOAD) {
       const row = plans.find((r) => String(r.id) === answers.lp_pick);
       if (!row) return renderPlan(form, refused({ lp_pick: 'That plan is no longer in the list. Pick again.' }), plans);
       const opt = planOption(row);
@@ -323,7 +353,38 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     if (!saved.ok) {
       return renderPlan(form, { error: saved.sealed ? 'This record is already sealed. Close the form.' : 'Not saved. Tap Next again.', has_error: true }, plans);
     }
-    logToFile('[observe2] lesson plan saved', { formId: form.id, lp: answers.lp, lessonId: lpRef && lpRef.lesson_id });
+    logToFile('[observe2] lesson plan saved', { formId: form.id, lp: answers.lp, lessonId: lpRef && lpRef.lesson_id, upload: answers.lp_pick === UPLOAD ? answers.lp_how : null });
+    if (answers.lp !== 'none' && answers.lp_pick === UPLOAD) return renderAdd(ADD_SCREEN[answers.lp_how]);
+    return renderAfter(saved.form);
+  }
+
+  if (ADD_SCREEN.photos === step || ADD_SCREEN.file === step || ADD_SCREEN.text === step) {
+    const field = { LP_PHOTOS: 'lp_photos', LP_FILE: 'lp_file', LP_TEXT: 'lp_text' }[step];
+    const errors = validate(step, { [field]: screenData[field] });
+    if (Object.keys(errors).length) return renderAdd(step, refused(errors));
+    let lpUpload;
+    let media = [];
+    if (step === 'LP_TEXT') {
+      lpUpload = { kind: 'text', text: String(screenData.lp_text).trim(), added_at: new Date().toISOString() };
+    } else {
+      const max = step === 'LP_PHOTOS' ? MAX_PLAN_PHOTOS : MAX_PLAN_FILES;
+      media = screenData[field].slice(0, max);
+      const { planKeys } = require('../services/observe/observe2/added-plan');
+      lpUpload = { kind: step === 'LP_PHOTOS' ? 'photos' : 'file', count: media.length, keys: planKeys(form.id, media.length), added_at: new Date().toISOString() };
+    }
+    const saved = await Store.saveUpload(form, lpUpload);
+    if (!saved.ok) {
+      return renderAdd(step, { error: saved.sealed ? 'This record is already sealed. Close the form.' : 'Not saved. Tap Next again.', has_error: true });
+    }
+    logToFile('[observe2] lesson plan added', { formId: form.id, kind: lpUpload.kind, files: media.length, chars: lpUpload.text ? lpUpload.text.length : null });
+    if (media.length) {
+      const { storePlanFiles } = require('../services/observe/observe2/added-plan');
+      setImmediate(() => {
+        storePlanFiles(form.id, media, lpUpload.keys).catch((err) => {
+          logToFile('[observe2] storing the added lesson plan failed', { formId: form.id, error: err.message }, 'error');
+        });
+      });
+    }
     return renderAfter(saved.form);
   }
 

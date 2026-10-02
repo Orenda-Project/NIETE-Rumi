@@ -23,7 +23,7 @@ const LINK_WINDOW_HOURS = 6;
 const PART_KEYS = {
   p1: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
   p2: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
-  plan: ['lp', 'lp_pick'],
+  plan: ['lp', 'lp_pick', 'lp_how'],
   seal: ['incident', 'detail', 'note', 'priority'],
 };
 
@@ -99,11 +99,25 @@ async function savePart(current, part, answers) {
 async function savePlan(current, answers, lpRef) {
   if (!current || current.sealed_at) return { ok: false, sealed: Boolean(current && current.sealed_at) };
   const merged = { ...(current.answers || {}), ...pick(answers, PART_KEYS.plan) };
-  if (!pick(answers, ['lp_pick']).lp_pick) delete merged.lp_pick;
+  const given = pick(answers, ['lp_pick', 'lp_how']);
+  if (!given.lp_pick) delete merged.lp_pick;
+  if (given.lp_pick !== 'upload' || !given.lp_how) delete merged.lp_how;
   if (lpRef) merged.lp_ref = lpRef; else delete merged.lp_ref;
+  // Whatever was added before is replaced by the next screen's, or dropped with a listed pick.
+  delete merged.lp_upload;
+  return writePlan(current, merged, 'savePlan');
+}
+
+// The plan added on LP_PHOTOS / LP_FILE / LP_TEXT: what was sent and where its files go. Before the seal only.
+async function saveUpload(current, lpUpload) {
+  if (!current || current.sealed_at) return { ok: false, sealed: Boolean(current && current.sealed_at) };
+  return writePlan(current, { ...(current.answers || {}), lp_upload: lpUpload }, 'saveUpload');
+}
+
+async function writePlan(current, merged, label) {
   const { data, error } = await supabase.from('observation_field_forms')
     .update({ answers: merged }).eq('id', current.id).is('sealed_at', null).select('*');
-  if (error) return fail('savePlan', error, { id: current.id });
+  if (error) return fail(label, error, { id: current.id });
   if (!(data || []).length) return { ok: false, sealed: true };
   return { ok: true, form: data[0] };
 }
@@ -189,6 +203,6 @@ async function markChecked(current, finalLevels, patch) {
 
 module.exports = {
   TABLE, RUBRIC_VERSION, LINK_WINDOW_HOURS, PART_KEYS, pick,
-  createForm, getForm, setPeriod, markOpened, savePart, savePlan, seal, setPhotos,
+  createForm, getForm, setPeriod, markOpened, savePart, savePlan, saveUpload, seal, setPhotos,
   findOpenFormForCapture, linkSession, findBySession, setMoments, saveReview, markChecked,
 };

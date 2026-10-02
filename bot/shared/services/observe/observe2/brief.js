@@ -33,6 +33,11 @@ const FRAME = {
     reflect: ['Open with questions for the teacher:', '• "How do you think the lesson went?"', '• "What did you want the children to learn, and how could you tell?"'],
     went_well: 'Start with what went well:',
     plan: (done, total, pct, partly) => `The lesson plan: ${done} of ${total} planned steps done${partly ? `, ${partly} partly` : ''} (${pct}%).`,
+    plan_not_checked: {
+      lp_not_lesson_plan: "The lesson plan: what was added didn't read as a lesson plan, so its steps weren't checked.",
+      lp_unreadable: "The lesson plan: the photos or file couldn't be read, so its steps weren't checked.",
+      other: "The lesson plan: its steps couldn't be checked this time.",
+    },
     moment_ask: 'Ask: "What were you hoping for at that moment? What else could you try?"',
     find_one: '• Name one thing you saw the teacher do well.',
     work_on: (p) => `Work on first: *${p}*`,
@@ -46,6 +51,11 @@ const FRAME = {
     reflect: ['پہلے استاد سے یہ سوال کریں:', '• "آپ کے خیال میں سبق کیسا رہا؟"', '• "بچوں کو کیا سیکھنا تھا، اور کیسے پتا چلا کہ انہوں نے سیکھ لیا؟"'],
     went_well: 'جو اچھا ہوا، اس سے شروع کریں:',
     plan: (done, total, pct, partly) => `سبق کا منصوبہ: ${total} میں سے ${done} مراحل مکمل${partly ? `، ${partly} جزوی` : ''} (${pct}%)۔`,
+    plan_not_checked: {
+      lp_not_lesson_plan: 'سبق کا منصوبہ: جو منسلک کیا گیا وہ سبق کا منصوبہ نہیں لگا، اس لیے مراحل نہیں جانچے گئے۔',
+      lp_unreadable: 'سبق کا منصوبہ: تصاویر یا فائل پڑھی نہیں جا سکیں، اس لیے مراحل نہیں جانچے گئے۔',
+      other: 'سبق کا منصوبہ: اس بار مراحل نہیں جانچے جا سکے۔',
+    },
     moment_ask: 'پوچھیں: "اس لمحے آپ کا ارادہ کیا تھا؟ اور کیا آزمایا جا سکتا ہے؟"',
     find_one: '• ایک چیز بتائیں جو استاد نے اچھی کی۔',
     work_on: (p) => `پہلے اس پر کام: *${p}*`,
@@ -100,6 +110,15 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
 
   const plan = planResult(form);
   if (plan) lines.push('', F.plan(plan.done, plan.total, plan.pct, plan.partly));
+  else {
+    // A plan was given but not graded: say which state it is in, never nothing (a silent gap reads as
+    // "no plan" to the coach).
+    const a = form.answers || {};
+    const graded = form.rumi_moments && form.rumi_moments.fidelity;
+    if ((a.lp_ref || a.lp_upload) && graded && graded.status && graded.status !== 'ok') {
+      lines.push('', F.plan_not_checked[graded.status] || F.plan_not_checked.other);
+    }
+  }
 
   if (priority && PRIORITY[priority]) {
     const level = numeric(finals[priority]);
