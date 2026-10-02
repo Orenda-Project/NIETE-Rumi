@@ -20,7 +20,7 @@
  *   checkReady / maybeOpenCheck  the check opens when all three blocks have ai_marks or a terminal
  *                            failure — read from child_test_blocks, never from a counter.
  *                            S.claimCheck stays the once-only guard.
- *   sweepOnce()              finds blocks with media and no marks whose job is gone: `pending` past a
+ *   sweepOnce()              finds blocks with media in THIS deployment's R2 tree and no marks whose job is gone: `pending` past a
  *                            grace period, `scoring` past the longest real score, `failed` and not
  *                            terminal past a back-off. Maths only once the strip is in, or the coach
  *                            declined it (then with force — CONTRACT §10 CR-1, §12 CR-2). Also
@@ -60,6 +60,14 @@ const BOOT_DELAY_MS = 20 * 1000;
 const INTERVAL_MS = 30 * 1000;
 
 const off = () => process.env.CHILD_TEST_SCORE_RECOVERY_OFF === '1';
+// The `{env}` segment this deployment writes media under (machine.js / app-api.service.js use the same
+// rule). Mock-lane bots and the deployed sandbox bot share ONE database, so a sweep takes only the
+// blocks whose media is in its own tree: it never scores, or sends a check for, another environment's child.
+const ownEnv = () => process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT || 'local';
+const envOf = (key) => {
+  const m = /^child-test\/([^/]+)\//.exec(String(key || ''));
+  return m ? m[1] : null;
+};
 const nowIso = () => new Date().toISOString();
 const isFinalFailure = (row) => !!row && row.ai_status === 'failed' && String(row.ai_reason || '').startsWith(FINAL);
 const isDone = (row) => !!row && (row.ai_marks != null || row.ai_status === 'scored' || row.ai_status === 'partial' || isFinalFailure(row));
@@ -254,6 +262,7 @@ function verdict(row, session, nowMs) {
     if (isFinalFailure(row)) return { skip: 'final' };
     if (age < RETRY_AFTER_MS) return { skip: 'backoff' };
   }
+  if (envOf(row.audio_r2_key || row.photo_r2_key) !== ownEnv()) return { skip: 'other_env' };
   if (!session) return { skip: 'no_session' };
   if (session.status === 'abandoned') return { skip: 'abandoned' };
   if (row.block !== 'maths') return row.audio_r2_key ? { force: false } : { skip: 'no_media' };
@@ -346,7 +355,8 @@ async function sweepOnce({ now = new Date() } = {}) {
     if (!recent || !recent.ok) logError('child_test.score_sweep_failed', { stage: 'checks', error: recent && recent.error });
     else {
       sessions.clear();   // re-read: this pass may have just written timings
-      for (const id of new Set((recent.blocks || []).map((b) => b.session_id))) {
+      const mine = (recent.blocks || []).filter((b) => envOf(b.audio_r2_key || b.photo_r2_key) === ownEnv());
+      for (const id of new Set(mine.map((b) => b.session_id))) {
         const session = await sessionOf(id);
         if (session && await recoverCheck(session, nowMs)) out.checks += 1;
       }

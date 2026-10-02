@@ -276,6 +276,26 @@ describe('scoring survives a restart (bd-s1oo0.22)', () => {
     expect(sendChecks()).toEqual([['sendCheck', sessionId]]);
   });
 
+  test('a sweep only takes blocks of its own environment (mock-lane bots share the sandbox database)', async () => {
+    const scoring = contractScoring();
+    ports.__setForTest({ scoring, checkFlow: lanes.checkFlow, render: lanes.render });
+    dieAfterAudioSaved('urdu');
+    const sessionId = await testOneChild();
+    expect(blockRow('urdu').audio_r2_key).toMatch(/^child-test\/sandbox\//);
+    // A local mock-lane bot (CHILD_TEST_R2_ENV=local-sim) on the same database leaves the sandbox's block alone.
+    process.env.CHILD_TEST_R2_ENV = 'local-sim';
+    try {
+      const r = await recovery.sweepOnce({ now: later(2 * MIN) });
+      expect(r.recovered).toBe(0);
+      expect(scoring.calls.filter((c) => c.block === 'urdu')).toHaveLength(0);
+      expect(sendChecks()).toHaveLength(0);
+    } finally {
+      delete process.env.CHILD_TEST_R2_ENV;
+    }
+    expect((await recovery.sweepOnce({ now: later(2 * MIN) })).recovered).toBe(1);
+    expect(sendChecks()).toEqual([['sendCheck', sessionId]]);
+  });
+
   test('inert unless CHILD_TEST_ENABLED=true, and the kill switch stops it', async () => {
     delete process.env.CHILD_TEST_ENABLED;
     const before = mockDb.__calls.length;
