@@ -14,8 +14,12 @@
  *            A child already tested in any cycle is never drawn as new again.
  *   Absent   absent or refused: coded, the first alternate moves up, the alternates are topped up,
  *            and the child goes back in the queue at their rank — absent_final after two tries.
- *   Reopen   the visit's list is stored on the rows (last_listed_visit_id): every call for the same
- *            visit returns the same list with each child's status.
+ *   Reopen   the visit's list is stored on the rows (last_listed_visit_id, or visit_key for a visit
+ *            with no observe2 field form): every call for the same visit returns the same list.
+ *   Visit    named by visitId (observe2's observation_field_forms.id) or by visitKey — cs:<coaching
+ *            session id> after classic /observe, day:<coach>:<school>:<PKT date> for /egra with no
+ *            visit (draw/visit-key.js). Internally one string names the visit; a key never looks
+ *            like a uuid.
  *
  * There is no redraw: nothing here reshuffles, skips a child without a reason, or releases a list.
  * Classes of five or fewer are taken in full. Logs carry ids only, never a child's name.
@@ -25,6 +29,7 @@ const store = require('../store');
 const { cycleFor, sessionCodeFor } = require('./cycle');
 const { ALGO_VERSION, seedFor, seedDigest, shuffle } = require('./shuffle');
 const { logToFile } = require('../../../utils/logger');
+const { isVisitKey, parseVisitKey, pktDate, oneVisit } = require('./visit-key');
 
 const REGION = 'ict';
 const PER_VISIT = 5;
@@ -39,6 +44,14 @@ const QUEUED = ['pending', 'listed', 'absent', 'refused'];
 const OUTCOMES = ['present', 'absent', 'refused'];
 const DAY_MS = 86400000;
 
+// The visit a row is listed at, a history entry names, and the columns/fields that name it.
+const visitOf = (d) => d.last_listed_visit_id || d.visit_key || null;
+const visitOfEntry = (h) => h.visit_id || h.visit_key || null;
+const visitRef = (visit) => (isVisitKey(visit) ? { visit_key: visit } : { visit_id: visit });
+const visitColumns = (visit) => (isVisitKey(visit)
+  ? { last_listed_visit_id: null, visit_key: visit }
+  : { last_listed_visit_id: visit, visit_key: null });
+
 const iso = (d) => (d instanceof Date ? d : new Date(d)).toISOString();
 
 function normaliseGrade(g) {
@@ -48,10 +61,13 @@ function normaliseGrade(g) {
 const gradeOfClass = (c) => normaliseGrade(c.grade_code);
 const bySectionThenId = (a, b) => String(a.section || '').localeCompare(String(b.section || '')) || String(a.id).localeCompare(String(b.id));
 
-function visitsListedBefore(draws, visitId) {
+function visitsListedBefore(draws, visit) {
   const visits = new Set();
   for (const d of draws) {
-    for (const h of d.history || []) if (h.event === 'listed' && h.visit_id && h.visit_id !== visitId) visits.add(h.visit_id);
+    for (const h of d.history || []) {
+      const v = visitOfEntry(h);
+      if (h.event === 'listed' && v && v !== visit) visits.add(v);
+    }
   }
   return visits;
 }
@@ -136,7 +152,7 @@ function newSequence(ctx, grade, { visitId, exclude = new Set(), rotation = 0 })
   const classes = ctx.classesByGrade.get(grade);
   const queues = classes.map((c) => ctx.draws
     .filter((d) => d.class_id === c.id && d.sample_role === 'new' && QUEUED.includes(d.status)
-      && d.last_listed_visit_id !== visitId && !exclude.has(d.id) && !everTested.has(d.student_id)
+      && visitOf(d) !== visitId && !exclude.has(d.id) && !everTested.has(d.student_id)
       && ctx.enrolledByClass.get(c.id).has(d.student_id))
     .sort((a, b) => a.draw_rank - b.draw_rank));
   const out = [];
@@ -165,7 +181,7 @@ function currentClassOf(ctx, grade, studentId) {
 async function returningChild(ctx, grade, visitId) {
   const thisCycle = ctx.draws.filter((d) => d.sample_role === 'returning' && d.grade === grade);
   const queued = thisCycle
-    .filter((d) => QUEUED.includes(d.status) && d.last_listed_visit_id !== visitId && currentClassOf(ctx, grade, d.student_id))
+    .filter((d) => QUEUED.includes(d.status) && visitOf(d) !== visitId && currentClassOf(ctx, grade, d.student_id))
     .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
   if (queued.length) return { ok: true, draw: queued[0] };
 
@@ -216,11 +232,11 @@ async function returningChild(ctx, grade, visitId) {
 // Claim one row for the visit, compare-and-set on what was read: a child another visit claimed in
 // the meantime is not taken from it ({ won: false }); the caller moves on to the next in order.
 async function claim(d, slot, visitId, at, extra = {}) {
-  const history = [...(d.history || []), { event: 'listed', visit_id: visitId, slot, at, ...extra }];
+  const history = [...(d.history || []), { event: 'listed', ...visitRef(visitId), slot, at, ...extra }];
   const upd = await store.updateDraw(
     d.id,
-    { status: 'listed', list_slot: slot, last_listed_visit_id: visitId, history },
-    { statusIn: QUEUED, match: { status: d.status, last_listed_visit_id: d.last_listed_visit_id || null } },
+    { status: 'listed', list_slot: slot, ...visitColumns(visitId), history },
+    { statusIn: QUEUED, match: { status: d.status, last_listed_visit_id: d.last_listed_visit_id || null, visit_key: d.visit_key || null } },
   );
   if (!upd.ok) return upd;
   return { ok: true, won: Boolean(upd.draw) };
@@ -274,7 +290,7 @@ async function listFor(visitId, extra = {}) {
     || a.draw_rank - b.draw_rank;
   const main = rows.filter((d) => d.list_slot === 'main').sort(order);
   const alts = rows.filter((d) => d.list_slot === 'alternate' && d.status === 'listed').sort(order);
-  const listedHere = rows.flatMap((d) => (d.history || []).filter((h) => h.event === 'listed' && h.visit_id === visitId));
+  const listedHere = rows.flatMap((d) => (d.history || []).filter((h) => h.event === 'listed' && visitOfEntry(h) === visitId));
   const children = main.map(item);
   return {
     ok: true,
@@ -292,7 +308,10 @@ async function listFor(visitId, extra = {}) {
 
 // ── todaysList ─────────────────────────────────────────────────────────────────────────────────
 
-async function todaysList({ coachUserId, schoolId, visitId, observedGrade, now = new Date() } = {}, attempt = 0) {
+async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitKey, observedGrade, now = new Date() } = {}, attempt = 0) {
+  const named = oneVisit(givenVisitId, visitKey);
+  if (!named.ok) return named;
+  const visitId = named.visit; // a field form id or a visit key, from here on
   if (!visitId) return { ok: false, reason: 'missing_visit' };
   if (!schoolId) return { ok: false, reason: 'missing_school' };
   const secret = process.env.CHILD_TEST_DRAW_SECRET;
@@ -304,6 +323,14 @@ async function todaysList({ coachUserId, schoolId, visitId, observedGrade, now =
   const existing = await listFor(visitId, { reused: true });
   if (!existing.ok) return existing;
   if (!existing.empty) return existing;
+
+  // A day key draws only for its own coach, at its own school, on its own day (reopening a past
+  // day's list, above, is a read and is allowed).
+  const day = visitKey ? parseVisitKey(visitKey) : null;
+  if (day && day.kind === 'day' && (day.schoolId !== schoolId || (coachUserId && day.coachUserId !== coachUserId) || day.date !== pktDate(now))) {
+    logToFile('[child-test] day key does not match the call; refusing to draw', { schoolId, coachUserId, visitId }, 'warn');
+    return { ok: false, reason: 'bad_visit_key' };
+  }
 
   const cycleId = cycleFor(now);
   const ctx = await loadContext({ schoolId, cycleId, now });
@@ -321,7 +348,7 @@ async function todaysList({ coachUserId, schoolId, visitId, observedGrade, now =
 
     const ret = await returningChild(ctx, grade, visitId);
     if (!ret.ok) {
-      if (ret.conflict && attempt < 2) return todaysList({ coachUserId, schoolId, visitId, observedGrade, now }, attempt + 1);
+      if (ret.conflict && attempt < 2) return todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitKey, observedGrade, now }, attempt + 1);
       return ret;
     }
     const rotation = prior.size % Math.max(1, ctx.classesByGrade.get(grade).length);
@@ -357,20 +384,22 @@ async function todaysList({ coachUserId, schoolId, visitId, observedGrade, now =
 
 // ── markOutcome ────────────────────────────────────────────────────────────────────────────────
 
-async function markOutcome({ drawId, outcome, note = null, visitId, now = new Date() } = {}) {
+async function markOutcome({ drawId, outcome, note = null, visitId, visitKey, now = new Date() } = {}) {
   if (!OUTCOMES.includes(outcome)) return { ok: false, reason: 'bad_outcome' };
+  const named = oneVisit(visitId, visitKey);
+  if (!named.ok) return named;
   const got = await store.getDraw(drawId);
   if (!got.ok) return got;
   const d = got.draw;
   if (!d) return { ok: false, reason: 'no_draw' };
-  const visit = visitId || d.last_listed_visit_id;
-  if (!visit || d.last_listed_visit_id !== visit || d.list_slot !== 'main') return { ok: false, reason: 'not_on_list' };
+  const visit = named.visit || visitOf(d);
+  if (!visit || visitOf(d) !== visit || d.list_slot !== 'main') return { ok: false, reason: 'not_on_list' };
   if (d.status !== 'listed') return { ok: false, reason: 'already_marked' };
 
   const at = iso(now);
   let patch;
   if (outcome === 'present') {
-    patch = { status: 'tested', tested_at: at, outcome_at: at, history: [...(d.history || []), { event: 'outcome', visit_id: visit, outcome, at }] };
+    patch = { status: 'tested', tested_at: at, outcome_at: at, history: [...(d.history || []), { event: 'outcome', ...visitRef(visit), outcome, at }] };
   } else {
     const attempts = (d.attempts || 0) + 1;
     patch = {
@@ -378,7 +407,7 @@ async function markOutcome({ drawId, outcome, note = null, visitId, now = new Da
       attempts,
       outcome_at: at,
       outcome_note: note == null ? null : String(note).slice(0, 500),
-      history: [...(d.history || []), { event: 'outcome', visit_id: visit, outcome, attempt: attempts, at }],
+      history: [...(d.history || []), { event: 'outcome', ...visitRef(visit), outcome, attempt: attempts, at }],
     };
   }
   const upd = await store.updateDraw(d.id, patch, { statusIn: ['listed'] });
@@ -403,7 +432,7 @@ async function promoteAndTopUp(d, visit, now) {
   let left = alts.length;
   if (alts.length) {
     const first = alts[0];
-    const history = [...(first.history || []), { event: 'promoted', visit_id: visit, replaces: d.id, at }];
+    const history = [...(first.history || []), { event: 'promoted', ...visitRef(visit), replaces: d.id, at }];
     const up = await store.updateDraw(first.id, { list_slot: 'main', history }, { statusIn: ['listed'] });
     if (!up.ok) return up;
     left -= 1;

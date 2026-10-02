@@ -17,6 +17,7 @@
 
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { isVisitKey, oneVisit } = require('./draw/visit-key');
 
 const DRAWS = 'child_test_draws';
 const SESSIONS = 'child_test_sessions';
@@ -34,6 +35,10 @@ function fail(where, error, extra) {
 }
 
 const isUniqueViolation = (error) => Boolean(error && (error.code === '23505' || /duplicate key/i.test(error.message || '')));
+// A visit is named by an observe2 field form id (visit_id) or, with no field form, by a visit key
+// ('cs:…' / 'day:…', draw/visit-key.js). The two never look alike, so one string names either.
+const visitColumn = (visit, idCol) => (isVisitKey(visit) ? 'visit_key' : idCol);
+
 const iso = (at) => (at instanceof Date ? at : new Date(at || Date.now())).toISOString();
 
 // ── Roster reads (for the draw) ────────────────────────────────────────────────────────────────
@@ -159,9 +164,10 @@ async function listTestedDraws(schoolId) {
   return { ok: true, draws: data || [] };
 }
 
-async function listVisitDraws(visitId) {
-  const { data, error } = await supabase.from(DRAWS).select('*').eq('last_listed_visit_id', visitId);
-  if (error) return fail('listVisitDraws', error, { visitId });
+/** The rows listed at a visit: `visit` is a field form id or a visit key. */
+async function listVisitDraws(visit) {
+  const { data, error } = await supabase.from(DRAWS).select('*').eq(visitColumn(visit, 'last_listed_visit_id'), visit);
+  if (error) return fail('listVisitDraws', error, { visit });
   return { ok: true, draws: data || [] };
 }
 
@@ -208,14 +214,17 @@ async function getSessionByDraw(drawId) {
   return { ok: true, session: data || null };
 }
 
-async function listSessionsForVisit(visitId) {
-  const { data, error } = await supabase.from(SESSIONS).select('*').eq('visit_id', visitId).order('started_at', { ascending: true });
-  if (error) return fail('listSessionsForVisit', error, { visitId });
+/** `visit` is a field form id or a visit key. */
+async function listSessionsForVisit(visit) {
+  const { data, error } = await supabase.from(SESSIONS).select('*').eq(visitColumn(visit, 'visit_id'), visit).order('started_at', { ascending: true });
+  if (error) return fail('listSessionsForVisit', error, { visit });
   return { ok: true, sessions: data || [] };
 }
 
-async function createSession({ drawId, coachUserId, visitId = null, channel = 'whatsapp', itemBankVersion = null } = {}) {
+async function createSession({ drawId, coachUserId, visitId = null, visitKey = null, channel = 'whatsapp', itemBankVersion = null } = {}) {
   if (!CHANNELS.includes(channel)) return { ok: false, reason: 'bad_channel' };
+  const named = oneVisit(visitId, visitKey);
+  if (!named.ok) return named;
   const existing = await getSessionByDraw(drawId);
   if (!existing.ok) return existing;
   if (existing.session) return { ok: true, session: existing.session, created: false };
@@ -225,11 +234,15 @@ async function createSession({ drawId, coachUserId, visitId = null, channel = 'w
   if (!got.draw) return { ok: false, reason: 'no_draw' };
   if (got.draw.status !== 'tested') return { ok: false, reason: 'not_tested' };
   const d = got.draw;
+  // The visit the caller names, else the one the child was listed at.
+  const visit = named.visit || d.last_listed_visit_id || d.visit_key || null;
+  const keyed = isVisitKey(visit);
 
   const { data, error } = await supabase.from(SESSIONS).insert({
     draw_id: d.id,
     coach_user_id: coachUserId,
-    visit_id: visitId || d.last_listed_visit_id || null,
+    visit_id: keyed ? null : visit,
+    visit_key: keyed ? visit : null,
     school_id: d.school_id,
     class_id: d.class_id,
     grade: d.grade,
