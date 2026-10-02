@@ -19,10 +19,11 @@ import PortalClasses from "./portal/pages/PortalClasses";
 import PortalCurriculum from "./portal/pages/PortalCurriculum";
 import PortalTraining from "./portal/pages/PortalTraining";
 import PortalTrainingV2 from "./portal/pages/PortalTrainingV2";
+import { TRAINING_V2_PATHS } from "./portal/lib/trainingRoutes";
 import PortalCoaching from "./portal/pages/PortalCoaching";
 import PortalCoachingAnalytics from "./portal/pages/PortalCoachingAnalytics";
 import PortalCoachingDetail from "./portal/pages/PortalCoachingDetail";
-import PortalCoachingUpload from "./portal/pages/PortalCoachingUpload";
+import PortalCoachingRecord from "./portal/pages/PortalCoachingRecord";
 import LeaderHome from "./portal/pages/LeaderHome";
 import LeaderTeachers from "./portal/pages/LeaderTeachers";
 import LeaderTeacherDetail from "./portal/pages/LeaderTeacherDetail";
@@ -116,22 +117,17 @@ const App = () => {
                 this session and in review links, and a dead link is a worse
                 answer than a duplicate one. */}
             <Route path="/portal/training/v1" element={<PortalTraining />} />
-            <Route path="/portal/training/v2" element={<PortalTrainingV2 />} />
-            {/* bd-60152 — a unit gets its own page and its own URL, so it can
-                be linked, reloaded and navigated with the browser's own back
-                button rather than living as a panel under the lists. */}
-            <Route path="/portal/training/v2/unit/:moduleId" element={<PortalTrainingV2 />} />
-            {/* bd-60152 — the module exam gets its own page too: it is a sat
-                assessment, not a panel under a list. */}
-            <Route path="/portal/training/v2/exam/:courseId" element={<PortalTrainingV2 />} />
-            {/* The same two sub-pages under the canonical path, because that is
-                where openUnit/openExam now navigate. */}
-            <Route path="/portal/training/unit/:moduleId" element={<PortalTrainingV2 />} />
-            <Route path="/portal/training/exam/:courseId" element={<PortalTrainingV2 />} />
-            <Route path="/portal/training" element={<PortalTrainingV2 />} />
+            {/* Every v2 page under both bases — the training page, its
+                certificates page, a provider, a level, a course (bd-klecr),
+                and the unit and exam pages (bd-60152). One list, shared with
+                the page tests, so a URL the page navigates to cannot go
+                unserved. /v2 stays alive because it was handed out. */}
+            {TRAINING_V2_PATHS.map(path => (
+              <Route key={path} path={path} element={<PortalTrainingV2 />} />
+            ))}
             <Route path="/portal/coaching" element={<PortalCoaching />} />
             <Route path="/portal/coaching/analytics" element={<PortalCoachingAnalytics />} />
-            <Route path="/portal/coaching/new" element={<PortalCoachingUpload />} />
+            <Route path="/portal/coaching/new" element={<PortalCoachingRecord />} />
             <Route path="/portal/coaching/session/:sessionId" element={<PortalCoachingDetail />} />
 
             {/* Leader Portal (bd-2434) — role-gated inside the pages; the leader

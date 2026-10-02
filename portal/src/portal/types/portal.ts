@@ -56,6 +56,24 @@ export interface CoachingSession {
   percentage: number | null;
   /** The framework she was actually scored on: 'fico' for every NIETE region. */
   framework?: string | null;
+  /** bd-5rz1v — what the lesson was about, as its analysis found it. */
+  topic?: string | null;
+  subject?: string | null;
+  /**
+   * bd-5rz1v.6.4 — a coach's observation of her, served only once the coach
+   * sent it to her. null for her own lessons.
+   */
+  observation?: ObservationOfHer | null;
+}
+
+/** Who observed her and when (the list); the detail adds the report as WhatsApp delivered it. */
+export interface ObservationOfHer {
+  observerName: string | null;
+  observedAt: string | null;
+  sentAt: string | null;
+  reportImageUrl?: string | null;
+  caption?: string | null;
+  companionText?: string | null;
 }
 
 /**

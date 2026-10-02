@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
-// bd-3bvfj — "Analyse a lesson" ships dark. The button on Coaching Sessions
+// bd-3bvfj — teacher self-observation ships dark. Its entry point on Coaching
+// (bd-5rz1v.7: the big "Send a lesson to your Digital Coach" button, on the redesigned page)
 // appears only when /config says the feature is on for this teacher.
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -10,6 +11,7 @@ vi.mock("../components/PortalLayout", () => ({ default: ({ children }: any) => <
 vi.mock("../services/api", () => ({
   portal: {
     getCoachingSessions: vi.fn().mockResolvedValue({ sessions: [], pagination: {} }),
+    getActiveCoachingSessions: vi.fn().mockResolvedValue({ sessions: [] }),
     getConfig: vi.fn(),
   },
 }));
@@ -37,25 +39,24 @@ async function settled() {
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("the Analyse a lesson entry point", () => {
+describe("the Send a lesson entry point", () => {
   it("is hidden when the feature is off", async () => {
     api.getConfig.mockResolvedValue({ success: true, features: { selfObservation: false } });
     renderPage();
     await settled();
-    expect(screen.queryByTestId("analyse-lesson")).toBeNull();
+    expect(screen.queryByTestId("send-a-lesson")).toBeNull();
   });
 
   it("is hidden when /config cannot be read", async () => {
     api.getConfig.mockRejectedValue(new Error("down"));
     renderPage();
     await settled();
-    expect(screen.queryByTestId("analyse-lesson")).toBeNull();
+    expect(screen.queryByTestId("send-a-lesson")).toBeNull();
   });
 
-  it("shows, linking to the upload page, when the feature is on for her", async () => {
+  it("shows when the feature is on for her", async () => {
     api.getConfig.mockResolvedValue({ success: true, features: { selfObservation: true } });
     renderPage();
-    const link = await screen.findByTestId("analyse-lesson");
-    expect(link).toHaveAttribute("href", "/portal/coaching/new");
+    expect(await screen.findByTestId("send-a-lesson")).toBeInTheDocument();
   });
 });

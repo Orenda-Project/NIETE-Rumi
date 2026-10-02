@@ -159,6 +159,31 @@ describe('listCertificates', () => {
   it('returns [] for a user with none', async () => {
     expect(await svc.listCertificates(makeSupabase([OTHER_ROW]), USER)).toEqual([]);
   });
+
+  // bd-klecr — the portal's certificates page filters by provider, and a
+  // certificate code cannot say which one issued it (bd-2549: every code is
+  // stamped NIETE-). The level knows its vendor, so the list carries it.
+  it('names the provider that issued each certificate, via its level', async () => {
+    const supabase = makeSupabase([
+      { ...ROW, level: { vendor: { key: 'OXBRIDGE', name: 'Oxbridge' } } },
+    ]);
+    const [c] = await svc.listCertificates(supabase, USER);
+
+    expect(c).toEqual(expect.objectContaining({
+      level_id: 3,
+      vendor_key: 'OXBRIDGE',
+      vendor_name: 'Oxbridge',
+    }));
+    const selected = supabase.from.mock.results[0].value.select.mock.calls[0][0];
+    expect(selected).toMatch(/level_id/);
+    expect(selected).toMatch(/training_levels\s*\(\s*vendor\s*:\s*training_vendors\s*\(\s*key\s*,\s*name\s*\)\s*\)/);
+  });
+
+  it('answers null for the provider rather than failing when the level has none', async () => {
+    const [c] = await svc.listCertificates(makeSupabase([{ ...ROW, level: null }]), USER);
+    expect(c.vendor_key).toBeNull();
+    expect(c.vendor_name).toBeNull();
+  });
 });
 
 describe('fetchOrMintCertificatePdf — MINT path (key is null)', () => {

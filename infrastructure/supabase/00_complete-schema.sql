@@ -6374,3 +6374,14 @@ COMMENT ON TABLE niete_lp612_deliveries IS
 -- Cache reload LAST (infrastructure/CLAUDE.md): the blocks above were appended after the
 -- previous NOTIFY, and PostgREST cannot see a column it has not reloaded.
 NOTIFY pgrst, 'reload schema';
+
+-- ─── niete_lp_ab_assignment (migration V1.5.8) — ICT G1-5 ch3-10 LP A/B group per school ──
+-- Mirrors infrastructure/supabase/migrations/V1.5.8__niete_lp_ab_assignment.sql: written once at
+-- the draw; A = August v8 PDF, B = current v9. Transitional, dropped when the test is promoted.
+CREATE TABLE IF NOT EXISTS niete_lp_ab_assignment (
+  school_id  UUID PRIMARY KEY REFERENCES schools (id),
+  ab_group   TEXT NOT NULL CHECK (ab_group IN ('A', 'B')),
+  block      TEXT,
+  seed       TEXT NOT NULL,
+  drawn_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);

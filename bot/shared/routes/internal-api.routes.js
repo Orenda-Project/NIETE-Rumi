@@ -1265,7 +1265,8 @@ router.post('/lp/v8/lessons', requireInternalKey, lpBrowseRoute('lessons', async
 
 /**
  * POST /api/internal/lp/v8/pdf
- * Body { lessonId, assetKind? } → { success, available, url?, version_stamp? }
+ * Body { lessonId, assetKind?, userId? } → { success, available, url?, version_stamp? }
+ * `userId` (from the portal session) picks the teacher's A/B group for ch3-10.
  *
  * `available: false` (with HTTP 200) is a real answer — the lesson exists in
  * the catalogue but has no current asset yet. Only a genuine failure is a 5xx,
@@ -1277,7 +1278,7 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   const assetKind = body.assetKind === 'answer_key' ? 'answer_key' : 'lesson';
   if (!lessonId) return res.status(400).json({ success: false, error: 'lessonId is required' });
 
-  const hit = await Browse.lessonPdfUrl(lessonId, assetKind);
+  const hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null);
   if (!hit) return res.json({ success: true, available: false });
   return res.json({ success: true, available: true, ...hit });
 }));
@@ -2015,13 +2016,23 @@ router.post('/coaching/presign-upload', requireInternalKey, portalCoachingRoute(
 
 /**
  * POST /api/internal/coaching/start
- * Body { userId, key, lessonPlanKey?, photoKeys? }
- * Ok   200 { status:'ok', coachingSessionId }   409 in_progress   400 invalid
+ * Body { userId, key, lessonPlanKey?, lessonPlan?, photoKeys? }
+ *   lessonPlan (bd-5rz1v): a library pick — { assetId } | { lessonId } | { segmentId, lang }
+ * Ok   200 { status:'ok', coachingSessionId }   409 in_progress
+ *      400 invalid (incl. plan_not_found / plan_not_ready)
  */
 router.post('/coaching/start', requireInternalKey, portalCoachingRoute('start',
   (Svc, b) => Svc.startPortalSession({
-    userId: b.userId, key: b.key, lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys,
+    userId: b.userId, key: b.key, lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan,
   })));
+
+/**
+ * POST /api/internal/coaching/recent-plans  (bd-5rz1v)
+ * Body { userId }
+ * Ok   200 { status:'ok', plans: [{ assetId, lessonId, topic, grade, subject, chapterNumber, dayLabel, pagesLabel, downloadedAt }] }
+ */
+router.post('/coaching/recent-plans', requireInternalKey, portalCoachingRoute('recent-plans',
+  (Svc, b) => Svc.recentLessonPlans({ userId: b.userId })));
 
 /**
  * POST /api/internal/coaching/reflection

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ScoreIndicator from '../components/ScoreIndicator';
 import { WHATSAPP_URL } from '@/lib/whatsapp';
-import { MessageSquare, TrendingUp, Upload } from 'lucide-react';
+import { MessageSquare, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PortalLayout from '../components/PortalLayout';
 import CoachingSessionCard from '../components/CoachingSessionCard';
@@ -12,28 +12,19 @@ import { cn } from '@/lib/utils';
 import { portal } from '../services/api';
 import { useToast } from '@/hooks/use-toast';
 import type { CoachingSession } from '../types/portal';
+import CoachingHome from '../components/coaching/CoachingHome';
+import { useSelfObservation } from '../lib/useSelfObservation';
 
-const PortalCoaching = () => {
+/**
+ * Today's Coaching page — what every teacher without portal_self_observation
+ * sees, unchanged. Teachers with it get CoachingHome (bd-5rz1v).
+ */
+const LegacyCoaching = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<CoachingSession[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-  // bd-3bvfj: "Analyse a lesson" ships dark — shown only when /config says the
-  // feature is on for this teacher. Off until that answer arrives, and off if
-  // it never does.
-  const [selfObservation, setSelfObservation] = useState(false);
-
-  useEffect(() => {
-    let live = true;
-    // Promise.resolve().then: a config client that throws synchronously must
-    // not take the page down — it is just "off".
-    Promise.resolve().then(() => portal.getConfig())
-      .then((cfg) => { if (live) setSelfObservation(cfg?.features?.selfObservation === true); })
-      .catch(() => { /* stays off */ });
-    return () => { live = false; };
-  }, []);
-
   // Fetch coaching sessions
   useEffect(() => {
     const fetchSessions = async () => {
@@ -92,15 +83,6 @@ const PortalCoaching = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* bd-7hyj7: analyse a lesson from the portal, not only on WhatsApp. */}
-            {selfObservation && (
-              <Button asChild size="sm">
-                <Link to="/portal/coaching/new" data-testid="analyse-lesson" className="flex items-center gap-2">
-                  <Upload className="w-4 h-4" />
-                  Analyse a lesson
-                </Link>
-              </Button>
-            )}
             <Button asChild variant="outline" size="sm">
               <Link to="/portal/coaching/analytics" className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4" />
@@ -183,9 +165,7 @@ const PortalCoaching = () => {
           <EmptyState
             icon={MessageSquare}
             title="No coaching sessions yet"
-            description={selfObservation
-              ? 'Upload a lesson recording with “Analyse a lesson” above, or send one to the WhatsApp bot'
-              : 'Complete your first coaching session using the WhatsApp bot'}
+            description="Complete your first coaching session using the WhatsApp bot"
             actionLabel="Open WhatsApp"
             actionHref={WHATSAPP_URL}
           />
@@ -193,6 +173,19 @@ const PortalCoaching = () => {
       </div>
     </PortalLayout>
   );
+};
+
+/**
+ * bd-5rz1v — the redesigned Coaching page ships dark: CoachingHome only once
+ * /config says self-observation is on for her; today's page otherwise,
+ * including when /config cannot be read.
+ */
+const PortalCoaching = () => {
+  const on = useSelfObservation();
+  if (on === null) {
+    return <PortalLayout><LoadingState type="full" /></PortalLayout>;
+  }
+  return on ? <PortalLayout><CoachingHome /></PortalLayout> : <LegacyCoaching />;
 };
 
 export default PortalCoaching;
