@@ -180,6 +180,10 @@ describe('mount and config', () => {
   });
 
   test('/config reports childTest for the session user', async () => {
+    // portal.routes.js loads dashboard-only packages that CI's root install does not have
+    // (CI: "Cannot find module 'bcryptjs'"); stub them the way the other portal route tests do.
+    jest.doMock('bcryptjs', () => ({ hash: jest.fn(), compare: jest.fn(), genSalt: jest.fn() }), { virtual: true });
+    jest.doMock('express-rate-limit', () => jest.fn(() => (_req, _res, next) => next()), { virtual: true });
     jest.doMock('../../dashboard/services/r2.service', () => ({
       generatePresignedUrl: jest.fn(), generatePresignedUrls: jest.fn(), isValidR2Url: jest.fn(),
     }));
