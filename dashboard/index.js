@@ -1705,7 +1705,7 @@ app.get('/observability/proxy/transcript/:sessionId',
     }
 
     // Format metadata
-    const teacherName = `${session.users.name || ''} ${session.users.name || ''}`.trim() || 'Unknown';
+    const teacherName = (session.users.name || '').trim() || 'Unknown';
     const schoolName = session.users.school_name || 'N/A';
     const sessionDate = new Date(session.created_at).toLocaleString('en-US', {
       year: 'numeric',
@@ -3130,9 +3130,7 @@ app.get('/observability/api/broadcast/search-users', requireAdmin, async (req, r
     // Map results with masked phone numbers
     const results = (users || []).map(user => ({
       id: user.id,
-      displayName: user.name
-        ? `${user.name} ${user.name || ''}`.trim()
-        : user.name || 'Unknown',
+      displayName: (user.name || '').trim() || 'Unknown',
       phoneNumber: user.phone_number,
       phoneMasked: maskPhoneNumber(user.phone_number),
       country: user.phone_number.startsWith('92') ? 'PK' :

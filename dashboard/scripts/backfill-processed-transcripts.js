@@ -97,7 +97,7 @@ async function processSession(session, index, total) {
   }
 
   // Format metadata
-  const teacherName = `${session.users.name || ''} ${session.users.name || ''}`.trim() || 'Unknown';
+  const teacherName = (session.users.name || '').trim() || 'Unknown';
   const schoolName = session.users.school_name || 'N/A';
 
   let duration = 'N/A';

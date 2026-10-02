@@ -54,7 +54,10 @@ function publicUserPayload(user, opts = {}) {
     role: user.role || null,
   };
   if (opts.includeContact) {
-    payload.lastName = user.name;
+    // No surname column since V1.4.4 dropped it: `firstName` already carries
+    // the whole of `users.name`, and the portal joins first + last — echoing
+    // `name` here rendered "Welcome back, Hataf Atif Hataf Atif!".
+    payload.lastName = null;
     payload.phoneNumber = user.phone_number;
   }
   return payload;
