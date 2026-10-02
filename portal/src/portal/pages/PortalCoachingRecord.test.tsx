@@ -230,6 +230,26 @@ describe("Record your class — recording", () => {
     expect(recorder.resume).toHaveBeenCalled();
   });
 
+  it("Back (the browser's, or the app's key) asks 'Finish recording?' instead of leaving and stopping the lesson", async () => {
+    await recording();
+    await waitFor(() => expect(window.history.state && window.history.state.recordingGuard).toBe(true));
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    expect(await screen.findByRole("dialog", { name: /finish recording/i })).toBeInTheDocument();
+    expect(recorder.stop).not.toHaveBeenCalled();
+    expect(screen.getByText("Recording")).toBeInTheDocument();
+  });
+
+  it("once the recording is finished, the Back guard is taken off", async () => {
+    await recording();
+    await waitFor(() => expect(window.history.state && window.history.state.recordingGuard).toBe(true));
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: /^finish$/i }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /yes, finish/i }));
+    await screen.findByRole("button", { name: /send to digital coach/i });
+    expect(back).toHaveBeenCalled();
+    back.mockRestore();
+  });
+
   it("Finish asks first, so one stray tap cannot end the lesson", async () => {
     await recording();
     fireEvent.click(await screen.findByRole("button", { name: /^finish$/i }));

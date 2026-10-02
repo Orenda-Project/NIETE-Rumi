@@ -125,7 +125,11 @@ class AnalysisProcessorService {
       // hers three hundred lines later in the same file. `_resolveSessionLanguage`
       // is that same resolver: no new one is introduced here, because a second
       // resolver is a second thing to forget.
-      await this.sendProgressUpdate(from, 2, await _resolveSessionLanguage(coachingSessionId));
+      // bd-5rz1v.6.9 — not for a coach's PORTAL observation (see the same guard
+      // on Step 1/5 in transcription-processor).
+      if (!require('./portal-coaching.service').isPortalObservation(session)) {
+        await this.sendProgressUpdate(from, 2, await _resolveSessionLanguage(coachingSessionId));
+      }
 
       // Fetch and compress prior feedback
       const ReportGeneratorService = require('./report-generator.service');
@@ -645,6 +649,14 @@ class AnalysisProcessorService {
 
       // Update session with error
       await CoachingSessionService.markAsFailed(coachingSessionId, 'analysis', error.message);
+
+      // A coach's portal observation is followed in the portal: the row says it
+      // failed, and nothing is sent to her WhatsApp.
+      const { isPortalObservationId } = require('./portal-observe-marker');
+      if (from && await isPortalObservationId(supabase, coachingSessionId)) {
+        logToFile('🖥️ Analysis failed on a portal observation — the portal shows it, nothing sent', { coachingSessionId });
+        return;
+      }
 
       // Notify user (bilingual)
       if (from) {

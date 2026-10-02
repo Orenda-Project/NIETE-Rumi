@@ -1210,7 +1210,9 @@ async function processStuckMidFlightSessions() {
           updated_at: new Date().toISOString(),
         }).eq('id', session.id).eq('updated_at', session.updated_at).select();
         if (!closed || !closed.length) { skipped += 1; continue; }     // another replica won
-        if (phone) {
+        // A coach's portal observation is followed in the portal, not her chat.
+        const { isPortalObservation } = require('../shared/services/coaching/portal-coaching.service');
+        if (phone && !isPortalObservation(session)) {
           // An observation gets the coach-addressed wording; a teacher session
           // keeps its own. Neither claims an escalation — nothing escalates
           // from a NIETE worker, which ships no logs at all (bd-162d5).

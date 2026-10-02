@@ -464,6 +464,55 @@ async function armDebriefAudio(observerId, sessionId, guideSnapshot) {
  * deterministic fallback on ANY failure. The FO standing next to the teacher
  * always gets a guide.
  */
+/**
+ * The debrief guide for one observation: the coach's OWN edited analysis (v2)
+ * and, with the uptake loop on, the record from before this visit. Single LLM
+ * attempt → programmatic gates (validateGuide) → deterministic fallback on ANY
+ * failure, so a coach always gets a guide. Shared by startDebrief (WhatsApp)
+ * and the portal (bd-5rz1v.6), which persists it as guide_snapshot.
+ *
+ * @param {object} session  coaching_sessions row (select '*')
+ * @param {string} lang     the coach's language
+ * @returns {Promise<object>} the guide
+ */
+async function buildDebriefGuide(session, lang) {
+  const S = observeStrings(lang);
+  const sessionId = session.id;
+  const v2 = session.analysis_data || {};
+
+  let guide;
+  try {
+    const prompt = buildGuidePrompt(v2, { language: lang });
+    const { result } = await GPT5MiniService.completeJson(prompt, {
+      maxTokens: 4000, label: 'observeDebriefGuide',
+    });
+    validateGuide(result, S, lang);
+    guide = result;
+    // Soft, log only: a verb that speaks to the teacher or the coach with a
+    // gender is counted on observe.gendered_address; the guide goes out as is.
+    const { noteGenderedAddress, guideFields } = require('./observe-gender-address');
+    noteGenderedAddress('debrief_guide', guideFields(guide), { sessionId, language: lang });
+  } catch (err) {
+    logToFile('⚠️ observe debrief: guide LLM failed/invalid — using fallback', {
+      sessionId, error: err.message,
+    });
+    // The fallback sanitizes interpolated v2 fields, but validate anyway —
+    // if pathological v2 content still slips a gate, drop to the fully
+    // static scaffold (always valid). The FO must never be left guideless.
+    guide = buildFallbackGuide(v2, { language: lang });
+    try {
+      validateGuide(guide, S, lang);
+    } catch (fallbackErr) {
+      logToFile('⚠️ observe debrief: fallback failed gates — using static scaffold', {
+        sessionId, error: fallbackErr.message,
+      });
+      guide = buildFallbackGuide({}, { language: lang });
+    }
+  }
+
+  return guide;
+}
+
 async function startDebrief(sessionId, from, user) {
   const lang = observeLang(user);
   const S = observeStrings(lang);
@@ -512,37 +561,7 @@ async function startDebrief(sessionId, from, user) {
     return;
   }
 
-  const v2 = session.analysis_data || {};
-
-  let guide;
-  try {
-    const prompt = buildGuidePrompt(v2, { language: lang });
-    const { result } = await GPT5MiniService.completeJson(prompt, {
-      maxTokens: 4000, label: 'observeDebriefGuide',
-    });
-    validateGuide(result, S, lang);
-    guide = result;
-    // Soft, log only: a verb that speaks to the teacher or the coach with a
-    // gender is counted on observe.gendered_address; the guide goes out as is.
-    const { noteGenderedAddress, guideFields } = require('./observe-gender-address');
-    noteGenderedAddress('debrief_guide', guideFields(guide), { sessionId, language: lang });
-  } catch (err) {
-    logToFile('⚠️ observe debrief: guide LLM failed/invalid — using fallback', {
-      sessionId, error: err.message,
-    });
-    // The fallback sanitizes interpolated v2 fields, but validate anyway —
-    // if pathological v2 content still slips a gate, drop to the fully
-    // static scaffold (always valid). The FO must never be left guideless.
-    guide = buildFallbackGuide(v2, { language: lang });
-    try {
-      validateGuide(guide, S, lang);
-    } catch (fallbackErr) {
-      logToFile('⚠️ observe debrief: fallback failed gates — using static scaffold', {
-        sessionId, error: fallbackErr.message,
-      });
-      guide = buildFallbackGuide({}, { language: lang });
-    }
-  }
+  const guide = await buildDebriefGuide(session, lang);
 
   await WhatsAppService.sendMessage(from, renderGuideMessage(guide, S));
   await WhatsAppService.sendMessage(from, S.debrief_record_instruction);
@@ -588,6 +607,47 @@ async function _mergeObserverDebrief(sessionId, patch, extraColumns = {}) {
 }
 
 /**
+ * The observer_debrief fields a NEW debrief recording writes: its own id, MIME,
+ * guide and time, and every field the last attempt left behind cleared. Shared
+ * by the WhatsApp voice note (startDebriefFromAudio) and the portal upload
+ * (bd-5rz1v.6), so a re-recording resets exactly the same things either way.
+ *
+ * A new recording is a FRESH debrief. The worker skips re-transcription
+ * when a transcript is already stored (correct for retries of the same audio) —
+ * so a stale transcript/feedback from a previous attempt must be cleared, or
+ * every retry re-coaches the OLD recording and the FO can never recover from a
+ * bad first attempt. bd-2kxxa.3: same for the failure counters — a new
+ * recording starts at zero attempts and may be told once again if it, too,
+ * fails. audio_mime is the container (a phone-recorder AAC arrives as a
+ * DOCUMENT); the worker names the temp file from it so the transcription
+ * fallback is never handed an AAC labelled .ogg.
+ */
+function freshRecordingPatch({ audioId, audioMime, guideSnapshot, recordedAt }) {
+  return {
+    audio_id: audioId,
+    audio_mime: audioMime || null,
+    guide_snapshot: guideSnapshot || null,
+    recorded_at: recordedAt,
+    transcript: null,
+    transcript_language: null,
+    diarization_confidence: null,
+    feedback: null,
+    attempts: 0,
+    transcription_error: null,
+    // Must be cleared with the rest, or the class becomes a tombstone: the
+    // coach who is told to re-record does so, the fresh recording lands on a
+    // row still marked media_gone, and the retry planner refuses it forever.
+    error_class: null,
+    failed_at: null,
+    failure_notified_at: null,
+    // bd-zq0ea: the hash belongs to the recording, not the row — a new one
+    // starts without it, or a stale hash could match against itself later.
+    audio_hash: null,
+    duplicate_of_session_id: null,
+  };
+}
+
+/**
  * bd-28 (web side) — a voice note arrived while awaiting_debrief_audio.
  * Persist audio id + guide snapshot on the row (row-derived recovery,
  * bd-1525 class), queue the dedicated observe_debrief job — NEVER
@@ -605,38 +665,13 @@ async function startDebriefFromAudio(user, from, audioId, observeState, opts = {
   }
   const CoachingJobQueueService = require('../coaching/coaching-job-queue.service');
   try {
-    // bd-56: a new recording is a FRESH debrief. The worker skips
-    // re-transcription when a transcript is already stored (correct for
-    // retries of the same audio) — so a stale transcript/feedback from a
-    // previous attempt must be cleared here, or every retry re-coaches the
-    // OLD recording and the FO can never recover from a bad first attempt.
-    // bd-2kxxa.3: same for the failure counters — a new recording starts at
-    // zero attempts and may be told once again if it, too, fails. audio_mime
-    // is the webhook's container (a phone-recorder AAC arrives as a
-    // DOCUMENT); the worker names the temp file from it so the transcription
-    // fallback is never handed an AAC labelled .ogg.
-    await _mergeObserverDebrief(sessionId, {
-      audio_id: audioId,
-      audio_mime: (opts && opts.mimeType) || null,
-      guide_snapshot: observeState.guide_snapshot || null,
-      recorded_at: new Date().toISOString(),
-      transcript: null,
-      transcript_language: null,
-      diarization_confidence: null,
-      feedback: null,
-      attempts: 0,
-      transcription_error: null,
-      // Must be cleared with the rest, or the class becomes a tombstone: the
-      // coach who is told to re-record does so, the fresh recording lands on a
-      // row still marked media_gone, and the retry planner refuses it forever.
-      error_class: null,
-      failed_at: null,
-      failure_notified_at: null,
-      // bd-zq0ea: the hash belongs to the recording, not the row — a new one
-      // starts without it, or a stale hash could match against itself later.
-      audio_hash: null,
-      duplicate_of_session_id: null,
-    });
+    // A new recording is a FRESH debrief — freshRecordingPatch says what that clears.
+    await _mergeObserverDebrief(sessionId, freshRecordingPatch({
+      audioId,
+      audioMime: (opts && opts.mimeType) || null,
+      guideSnapshot: observeState.guide_snapshot || null,
+      recordedAt: new Date().toISOString(),
+    }));
     await CoachingJobQueueService.queueObserveDebrief(sessionId, { from, audioId });
     await WhatsAppService.sendMessage(from, S.debrief_audio_received);
     await ObserveState.clearState(user.id);
@@ -652,7 +687,15 @@ async function startDebriefFromAudio(user, from, audioId, observeState, opts = {
 // and flipping 'done' after a silent failure would lose the feedback forever
 // (review fix). A throw here keeps status 'pending' and lets SQS retry;
 // the feedback is already persisted, so the retry is deliver-only.
-async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, lang = 'en') {
+async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, lang = 'en', opts = {}) {
+  // bd-5rz1v.6: a talk recorded in the PORTAL is read there — the feedback is
+  // already stored on the row, so nothing is rendered or sent to WhatsApp; the
+  // done-flip, completion and everything after it are the same.
+  if (opts.portal) {
+    await _markDebriefDone(sessionId, feedback);
+    logToFile('🖥️ observe debrief: feedback ready for the portal — nothing sent to WhatsApp', { sessionId });
+    return;
+  }
   const { renderCoachFeedbackMessages } = require('./observe-coach-feedback');
   const [praiseMsg, cardMsg] = renderCoachFeedbackMessages(feedback, S);
   const sentPraise = await WhatsAppService.sendMessage(from, praiseMsg);
@@ -680,19 +723,7 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
   if (sentPraise === false || sentCard === false) {
     throw new Error('observe debrief: feedback send failed — retrying via SQS');
   }
-  const { error } = await supabase
-    .from('coaching_sessions')
-    .update({ debrief_status: 'done' })
-    .eq('id', sessionId);
-  if (error) throw new Error(`observe debrief: done-flip failed: ${error.message}`);
-  logToFile('✅ observe debrief coached', { sessionId, rubric: feedback.rubric });
-
-  // bd-9rrd5: debrief done — if the teacher report already went out (the other
-  // completion order), the observation is COMPLETE. Non-fatal by design.
-  {
-    const { maybeCompleteObservation } = require('./observe-completion');
-    await maybeCompleteObservation(sessionId);
-  }
+  await _markDebriefDone(sessionId, feedback);
 
   // FEAT-053 bd-24: the natural next step — offer to send the teacher her
   // combined report. Non-fatal: the /observe list carries an unsent-report
@@ -705,6 +736,21 @@ async function _deliverCoachFeedback(sessionId, from, feedback, S, framework, la
       sessionId, error: offerErr.message,
     });
   }
+}
+
+// The debrief is done once its feedback is delivered — to the chat or to the portal.
+async function _markDebriefDone(sessionId, feedback) {
+  const { error } = await supabase
+    .from('coaching_sessions')
+    .update({ debrief_status: 'done' })
+    .eq('id', sessionId);
+  if (error) throw new Error(`observe debrief: done-flip failed: ${error.message}`);
+  logToFile('✅ observe debrief coached', { sessionId, rubric: feedback && feedback.rubric });
+
+  // bd-9rrd5: debrief done — if the teacher report already went out (the other
+  // completion order), the observation is COMPLETE. Non-fatal by design.
+  const { maybeCompleteObservation } = require('./observe-completion');
+  await maybeCompleteObservation(sessionId);
 }
 
 /**
@@ -768,7 +814,7 @@ function tempExtensionFor(mime) {
  * coach ONCE. Never throws: a failure to record the failure must not turn back
  * into the unhandled throw this exists to remove.
  */
-async function _recordTranscriptionFailure(sessionId, from, observerDebrief, err, S) {
+async function _recordTranscriptionFailure(sessionId, from, observerDebrief, err, S, opts = {}) {
   const { classifyTranscriptionFailure, ERROR_CLASS } = require('./debrief-retry-sweep');
   const now = new Date().toISOString();
   const attempts = (Number(observerDebrief.attempts) || 0) + 1;
@@ -804,7 +850,7 @@ async function _recordTranscriptionFailure(sessionId, from, observerDebrief, err
   }
   // Notify-once. Merge FIRST so the flag is durable before the send: a send
   // after an unpersisted flag would repeat on the next attempt.
-  if (!alreadyNotified && persisted && from) {
+  if (!alreadyNotified && persisted && from && !opts.portal) {
     // The copy names the ACTUAL state. One shared fallback across two different
     // states sent a whole fix cycle at the wrong layer: a coach promised
     // "I'll keep retrying automatically" about a recording that no retry can
@@ -833,7 +879,7 @@ async function _recordTranscriptionFailure(sessionId, from, observerDebrief, err
  *
  * @returns {Promise<boolean>} true → the caller must not transcribe
  */
-async function _refuseIfAlreadyAnalysed(session, sessionId, from, audioHash, observerDebrief, S) {
+async function _refuseIfAlreadyAnalysed(session, sessionId, from, audioHash, observerDebrief, S, opts = {}) {
   let prior = null;
   try {
     const { findPriorAnalysedDebrief } = require('../coaching/audio-hash-cache');
@@ -852,6 +898,8 @@ async function _refuseIfAlreadyAnalysed(session, sessionId, from, audioHash, obs
     await _mergeObserverDebrief(sessionId, {
       audio_id: null,
       audio_mime: null,
+      // bd-5rz1v.6: a portal talk is detached the same way, so the portal asks for another.
+      ...(opts.portal ? { audio_r2_key: null } : {}),
       duplicate_of_session_id: prior.id,
       duplicate_refused_at: new Date().toISOString(),
     });
@@ -865,8 +913,10 @@ async function _refuseIfAlreadyAnalysed(session, sessionId, from, audioHash, obs
   }
 
   try {
-    await armDebriefAudio(session.observer_user_id, sessionId, observerDebrief.guide_snapshot);
-    await WhatsAppService.sendMessage(from, S.debrief_duplicate_recording);
+    if (!opts.portal) {
+      await armDebriefAudio(session.observer_user_id, sessionId, observerDebrief.guide_snapshot);
+      await WhatsAppService.sendMessage(from, S.debrief_duplicate_recording);
+    }
   } catch (err) {
     logToFile('⚠️ observe debrief: duplicate notice/re-arm failed', { sessionId, error: err && err.message }, 'warn');
   }
@@ -916,6 +966,12 @@ async function processDebriefRecording(sessionId, payload = {}) {
   const lang = await languageFor('coach', session);
   const S = observeStrings(lang);
   const observerDebrief = (session.analysis_data && session.analysis_data.observer_debrief) || {};
+  // bd-5rz1v.6: a talk recorded in the PORTAL (an R2 upload, no WhatsApp media
+  // id) is transcribed and coached exactly the same, read from R2, and nothing
+  // about it is said on WhatsApp — the portal reads the row. A voice note sent
+  // later carries an audio id, so it is a WhatsApp talk again.
+  const { talkOf } = require('./portal-observe-step');
+  const portal = talkOf(observerDebrief).portal;
 
   // Redelivery guards (in order of how far the previous attempt got):
   if (session.debrief_status === 'done') {
@@ -925,13 +981,14 @@ async function processDebriefRecording(sessionId, payload = {}) {
   if (observerDebrief.feedback) {
     logToFile('🔭 observe debrief: feedback stored — deliver-only redelivery', { sessionId });
     await _deliverCoachFeedback(sessionId, from, observerDebrief.feedback, S,
-      session.analysis_data && session.analysis_data.framework, lang);
+      session.analysis_data && session.analysis_data.framework, lang, { portal });
     return;
   }
 
   // bd-1525 class: payload can lose fields — the row is the source of truth.
   const audioId = payload.audioId || observerDebrief.audio_id;
-  if (!audioId) throw new Error('observe debrief: no audio id in payload or row');
+  const r2Key = !audioId && portal ? observerDebrief.audio_r2_key : null;
+  if (!audioId && !r2Key) throw new Error('observe debrief: no audio id in payload or row');
 
   // bd-2kxxa.3: the temp file carries the recording's REAL container. It used
   // to be `.ogg` whatever arrived; an AAC sent as a WhatsApp document reached
@@ -954,12 +1011,14 @@ async function processDebriefRecording(sessionId, payload = {}) {
       let audioHash = null;
       try {
         if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
-        const audioData = await WhatsAppService.downloadMedia(audioId);
+        const audioData = r2Key
+          ? await require('../../storage/r2').downloadFromR2(r2Key)
+          : await WhatsAppService.downloadMedia(audioId);
         fs.writeFileSync(tempAudioPath, audioData);
         // bd-zq0ea (HITL row 185) — a debrief is analysed once. Checked on the
         // downloaded bytes, BEFORE transcription, so a repeat costs no ASR/LLM.
         audioHash = require('../coaching/audio-hash-cache').computeAudioHash(audioData);
-        if (await _refuseIfAlreadyAnalysed(session, sessionId, from, audioHash, observerDebrief, S)) return;
+        if (await _refuseIfAlreadyAnalysed(session, sessionId, from, audioHash, observerDebrief, S, { portal })) return;
         transcription = await TranscriptionProcessorService.transcribeWithDiarization(
           tempAudioPath, { roles: DEBRIEF_ROLES });
       } catch (txErr) {
@@ -973,7 +1032,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
         // debrief-retry sweep owns retries (30-min spacing, 6 attempts, 28-day
         // ceiling). SQS's three blind retries within minutes are useless in an
         // outage and would only re-send messages.
-        await _recordTranscriptionFailure(sessionId, from, observerDebrief, txErr, S);
+        await _recordTranscriptionFailure(sessionId, from, observerDebrief, txErr, S, { portal });
         return; // debrief_status stays 'pending' (closed vocabulary — list filters read it)
       }
       transcript = (transcription && transcription.transcript) || '';
@@ -983,6 +1042,11 @@ async function processDebriefRecording(sessionId, payload = {}) {
         logToFile('🔇 observe debrief: transcript too short for feedback', {
           sessionId, chars: transcript.length,
         });
+        if (portal) {
+          // The portal asks for a longer recording; there is no chat state to re-arm.
+          await _mergeObserverDebrief(sessionId, { too_short_at: new Date().toISOString() });
+          return; // stays 'pending'
+        }
         // Re-arm the recording state so "record a longer stretch and send it"
         // actually works — but never over a debrief the FO started for another
         // session meanwhile (re-verify fix: this write raced clearStateAfterSubmit).
@@ -1021,6 +1085,11 @@ async function processDebriefRecording(sessionId, payload = {}) {
       logToFile('⚠️ observe debrief: coach-feedback LLM failed/invalid', {
         sessionId, error: llmErr.message,
       });
+      if (portal) {
+        // The transcript is kept; the portal offers to try again.
+        await _mergeObserverDebrief(sessionId, { feedback_failed_at: new Date().toISOString() });
+        return;
+      }
       await WhatsAppService.sendMessage(from, S.debrief_feedback_failed);
       return; // transcript stored; status stays 'pending'
     }
@@ -1029,7 +1098,7 @@ async function processDebriefRecording(sessionId, payload = {}) {
       feedback, completed_at: new Date().toISOString(),
     });
     await _deliverCoachFeedback(sessionId, from, feedback, S,
-      session.analysis_data && session.analysis_data.framework, _fbLang);
+      session.analysis_data && session.analysis_data.framework, _fbLang, { portal });
   } finally {
     try { if (fs.existsSync(tempAudioPath)) fs.unlinkSync(tempAudioPath); } catch (_) { /* temp cleanup */ }
   }
@@ -1054,4 +1123,8 @@ module.exports = {
   tempExtensionFor,
   processDebriefRecording,
   coachFeedbackWithRepair,
+  // bd-5rz1v.6: the portal builds the same guide, writes the same reset, merges the same record.
+  buildDebriefGuide,
+  freshRecordingPatch,
+  mergeObserverDebrief: _mergeObserverDebrief,
 };

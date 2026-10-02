@@ -610,3 +610,56 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When the coach saves the same visit again on the same date and time slot
     Then the teacher receives no new message
     And the coach's booking of a hand-added teacher with no WhatsApp number is saved without any message
+
+  # ── An observation the coach runs from the PORTAL (bd-5rz1v.6) ─────────────
+  # Dark behind app_settings.portal_coach_observation. The coach picks the
+  # teacher, records or uploads the lesson, attaches HER lesson plan, then checks
+  # the draft, records the talk and sends the report — all in the portal, through
+  # the same functions WhatsApp uses (portal-observe.service.js). The row is the
+  # WhatsApp capture's row; a portal row is recognised by its R2 key.
+
+  @e2e @config-gated @P1
+  Scenario: A lesson sent from the portal becomes a bound /observe observation
+    Given a coach is in the portal_coach_observation pilot and the teacher is in her patch
+    When the coach sends a recording of the teacher's lesson from the portal
+    Then a leader observation is created, owned by the teacher, with the coach as observer
+    And transcription and analysis run as for a WhatsApp /observe recording
+    And the coach receives nothing on WhatsApp — no capture message, no "who did you observe?", no photo or lesson-plan prompt
+
+  @e2e @config-gated @P1
+  Scenario: The draft of a portal observation is checked in the portal, not in a WhatsApp form
+    Given a portal observation whose analysis has finished
+    When the coach opens the observation in the portal
+    Then the draft report shows the same sections, ratings and notes the review form would show
+    And no review form is sent to the coach's WhatsApp
+    When the coach changes a rating and saves
+    Then the observation is saved exactly as the review form's submit saves it
+
+  @e2e @config-gated @P1
+  Scenario: The talk with the teacher and the coach's own feedback happen in the portal
+    Given the coach has saved the draft of a portal observation
+    When the coach opens the talk, records her conversation with the teacher in the portal and sends it
+    Then the guide she sees is the one WhatsApp would have sent
+    And her feedback on the talk appears in the portal, and no feedback card or send buttons reach her WhatsApp
+    And the report to the teacher can be prepared only after that feedback
+
+  @e2e @config-gated @P1
+  Scenario: The teacher's report is previewed and sent from the portal and reaches her WhatsApp
+    Given the coach has her feedback on a portal observation
+    When the coach previews the report in the portal and presses Send
+    Then the teacher receives the report on WhatsApp — directly, or through the invite template when her window is closed
+    And the coach receives no WhatsApp message about the send
+
+  @e2e @config-gated @negative @P1
+  Scenario: A WhatsApp /observe observation is unchanged
+    Given a coach records an observation on WhatsApp with /observe
+    When the analysis finishes
+    Then the review form is sent to her WhatsApp as before
+    And the debrief, her feedback card and the send-report steps all happen on WhatsApp as before
+
+  @e2e @config-gated @negative @P2
+  Scenario: A failed portal observation is shown in the portal, not announced on WhatsApp
+    Given a portal observation whose transcription or analysis fails
+    When the failure is recorded
+    Then the observation shows as stopped in the portal
+    And the coach receives no failure message on WhatsApp

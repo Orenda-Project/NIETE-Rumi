@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { CalendarDays, MessageSquare, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
-import { leader } from "../services/api";
+import { leader, portal } from "../services/api";
+import type { CoachObservationSummary } from "../services/api";
+import SendLessonButton from "../components/coaching/SendLessonButton";
+import { STEP_CHIP, entryCopy } from "../lib/coachObserve";
 import PortalLayout from "../components/PortalLayout";
 import ScoreIndicator from "../components/ScoreIndicator";
 import LoadingState from "../components/LoadingState";
@@ -38,6 +41,7 @@ function observationSubline(d: LeaderObservationSession): string {
 const SLOTS = ["09:00", "11:30", "14:00"];
 
 const LeaderObservations = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState<LeaderObservationsData | null>(null);
   const [loading, setLoading] = useState(true);
   // bd-2676 — scheduling from the portal
@@ -45,9 +49,21 @@ const LeaderObservations = () => {
   const [form, setForm] = useState({ teacherExtId: "", date: "", slot: SLOTS[0] });
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // bd-5rz1v.6 — a coach can send a lesson from here (dark behind portal_coach_observation).
+  const [coachObserve, setCoachObserve] = useState(false);
+  const [inProgress, setInProgress] = useState<CoachObservationSummary[]>([]);
 
   useEffect(() => {
     let alive = true;
+    Promise.resolve().then(() => portal.getConfig())
+      .then((cfg) => {
+        if (!alive || cfg?.features?.coachObservation !== true) return;
+        setCoachObserve(true);
+        leader.getActiveObservations()
+          .then((d) => { if (alive) setInProgress((d.observations || []).filter((o) => o.step !== "done" && o.step !== "stopped")); })
+          .catch(() => { /* the list is a shortcut; each observation also has its own page */ });
+      })
+      .catch(() => {});
     leader
       .getObservations()
       .then((d) => { if (alive) setData(d.observations); })
@@ -101,9 +117,40 @@ const LeaderObservations = () => {
         <header className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-light">Observations</h1>
           <p className="text-muted-foreground mt-2">
-            Your schedule, debriefs waiting, and completed observations. To schedule or debrief, send /observe to NIETE on WhatsApp.
+            {coachObserve
+              // bd-5rz1v.6.6: a lesson recorded from here is finished here; only what was
+              // recorded on WhatsApp is still debriefed there.
+              ? "Record a teacher's lesson, check the draft, talk with the teacher and send the report — all here. Observations you record on WhatsApp with /observe are debriefed on WhatsApp."
+              : "Your schedule, debriefs waiting, and completed observations. To schedule or debrief, send /observe to NIETE on WhatsApp."}
           </p>
         </header>
+
+        {coachObserve && (
+          <div className="mb-8 flex max-w-xl flex-col gap-4">
+            <SendLessonButton title={entryCopy().title} sub={entryCopy().sub} testId="coach-observe-entry"
+              onClick={() => navigate("/portal/leader/observe/new")} />
+            {inProgress.length > 0 && (
+              <section className="bg-white rounded-lg shadow-sm border border-border overflow-hidden" data-testid="observe-in-progress">
+                <div className="p-6 pb-3"><h2 className="text-lg font-medium">Lessons you sent</h2></div>
+                <ul className="divide-y divide-border">
+                  {inProgress.map((o) => (
+                    <li key={o.id}>
+                      <Link to={`/portal/leader/observe/${o.id}`} className="flex items-center justify-between gap-3 px-6 py-4 hover:bg-muted/40 transition-colors">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate" dir="auto">{o.teacherName || "Unnamed teacher"}</p>
+                          <p className="text-muted-foreground text-sm">{formatDay(o.createdAt)}</p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${["draft", "talk", "feedback", "report"].includes(o.step) ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>
+                          {STEP_CHIP[o.step]}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <LoadingState type="card" count={3} />
@@ -188,6 +235,14 @@ const LeaderObservations = () => {
                           <p className="text-sm text-destructive flex items-center gap-1 justify-end">
                             <AlertCircle className="w-3.5 h-3.5" /> Overdue
                           </p>
+                        )}
+                        {coachObserve && s.teacherExtId && (
+                          <Link
+                            to={`/portal/leader/observe/new?teacher=${encodeURIComponent(s.teacherExtId)}${s.schoolExtId ? `&school=${encodeURIComponent(s.schoolExtId)}` : ""}`}
+                            className="text-sm font-semibold text-accent underline mt-1 mr-3"
+                          >
+                            Record this lesson
+                          </Link>
                         )}
                         <button
                           type="button"

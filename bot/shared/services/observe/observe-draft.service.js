@@ -408,6 +408,15 @@ async function onAnalysisReady(sessionId, from) {
     return;
   }
 
+  // bd-5rz1v.6: an observation started in the PORTAL is reviewed there (operator:
+  // "the flow should be complete from the portal"). The draft is stored above
+  // exactly as for WhatsApp; the Flow and the coach's chat state are not touched.
+  const { isPortalSession } = require('../coaching/portal-coaching.service');
+  if (isPortalSession(session)) {
+    logToFile('🖥️ observe: draft ready for the portal — nothing sent to WhatsApp', { sessionId, observerId });
+    return;
+  }
+
   // Review fix: never clobber a live debrief-recording state (the FO
   // may be mid-debrief for ANOTHER session when this analysis completes).
   // awaiting_form is informational — the Flow endpoint never reads it.
@@ -579,4 +588,5 @@ module.exports = {
   onAnalysisReady, buildScreenPrefill, applyObserverEdits, reapplyFidelitySectionB,
   composeFidelitySummary, composeMoveBlocks, composeEditableFidelity, rescoreFidelityFromEdits,
   clipWords, MAX_MOVE_SLOTS, FIDELITY_VERDICT_OPTIONS, SCALE_OPTIONS_BY_LANG,
+  fid,
 };

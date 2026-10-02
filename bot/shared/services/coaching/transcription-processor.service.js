@@ -110,11 +110,16 @@ class TranscriptionProcessorService {
       // floored to what the deployment offers FIRST. We hold her row here, so
       // "nothing can be determined" is not the situation and the emergency
       // 'en' floor would be the wrong one.
-      await this.sendProgressUpdate(
-        from,
-        1,
-        clampLanguage(session.users.preferred_language || offerDefaultLanguage())
-      );
+      // bd-5rz1v.6.9 — not for a coach's PORTAL observation: the portal shows its
+      // progress, and this teacher-worded step would land on the COACH's
+      // WhatsApp with no later step ever following it there.
+      if (!require('./portal-coaching.service').isPortalObservation(session)) {
+        await this.sendProgressUpdate(
+          from,
+          1,
+          clampLanguage(session.users.preferred_language || offerDefaultLanguage())
+        );
+      }
 
       // bd-78i2k: the bytes may come from WhatsApp (a media id) or from R2 (a
       // portal upload). Everything below this line is identical either way.
@@ -211,7 +216,8 @@ class TranscriptionProcessorService {
               { coachingSessionId, from, observerUserId: session.observer_user_id, audioHash, prior },
               {
                 updateIfNotTerminal,
-                sendMessage: (to, body) => WhatsAppService.sendMessage(to, body),
+                sendMessage: TranscriptionProcessorService.coachNotice(
+                  session, (to, body) => WhatsAppService.sendMessage(to, body)),
                 getLanguage: (uid) => getUserLanguage(uid),
                 getStrings: observeStrings,
                 log: logToFile,
@@ -589,6 +595,19 @@ class TranscriptionProcessorService {
     const env = deps.env || process.env;
     const gatesOn = env.OBSERVE_CAPTURE_GATES_ENABLED === 'true';
 
+    // bd-5rz1v.6: an observation started in the PORTAL brought the teacher's plan
+    // and the board photos with it, and the coach is not asked anything on
+    // WhatsApp — so the gates below are skipped and the step queues what a
+    // portal upload queues (plan extraction, then analysis; or analysis alone).
+    const PortalCoaching = deps.portal || require('./portal-coaching.service');
+    if (PortalCoaching.isPortalSession(session)) {
+      const result = await PortalCoaching.afterTranscription(session, coachingSessionId, from);
+      logToFile('✅ Transcription complete (portal observation — attachments collected at upload, gates skipped)', {
+        coachingSessionId, hasLessonPlan: !!session.has_lesson_plan,
+      });
+      return { action: 'portal', result };
+    }
+
     if (!gatesOn) {
       const queueAnalysis = deps.queueAnalysis
         || ((sid, payload) => require('./coaching-job-queue.service').queueAnalysis(sid, payload));
@@ -616,6 +635,26 @@ class TranscriptionProcessorService {
     await updateStatus(coachingSessionId, 'awaiting_photo');
     logToFile('✅ Transcription complete (observe path — coach photo gate sent)', { coachingSessionId, observerLanguage });
     return { action: 'photo_gate', observerLanguage };
+  }
+
+  /**
+   * bd-5rz1v.6 — how the capture step tells the COACH something about her
+   * recording. A portal-started observation is followed in the portal (the row
+   * says what happened), so nothing is sent; any other observation is told on
+   * WhatsApp exactly as before.
+   * @param {object} session  coaching_sessions row
+   * @param {(to: string, body: string) => Promise<boolean>} send
+   */
+  /** Is this row a coach's portal observation? One narrow read (two columns). */
+  static async _isPortalObservationId(coachingSessionId) {
+    const { isPortalObservationId } = require('./portal-observe-marker');
+    return isPortalObservationId(supabase, coachingSessionId);
+  }
+
+  static coachNotice(session, send) {
+    const { isPortalSession } = require('./portal-coaching.service');
+    if (isPortalSession(session)) return async () => true;
+    return send;
   }
 
   /**
@@ -690,6 +729,13 @@ class TranscriptionProcessorService {
 
       // Update session with error
       await CoachingSessionService.markAsFailed(coachingSessionId, 'transcription', error.message);
+
+      // A coach's portal observation is followed in the portal: the row says it
+      // failed, and nothing is sent to her WhatsApp.
+      if (from && await TranscriptionProcessorService._isPortalObservationId(coachingSessionId)) {
+        logToFile('🖥️ Transcription failed on a portal observation — the portal shows it, nothing sent', { coachingSessionId });
+        return;
+      }
 
       // Notify user with specific error message (bilingual)
       if (from) {
