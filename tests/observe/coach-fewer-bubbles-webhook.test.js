@@ -159,7 +159,7 @@ describe('"Send now" tapped', () => {
       type: 'interactive',
       interactive: { type: 'button_reply', button_reply: { id: 'observe_send_confirm_sess-1', title: 'Send now' } },
     });
-    expect(mockWa.sendReaction).toHaveBeenCalledWith(COACH_PHONE, 'wamid.sendnow', '📨');
+    expect(mockWa.sendReaction).toHaveBeenCalledWith(COACH_PHONE, 'wamid.sendnow', '📨', { soleAck: true });
     expect(mockWa.sendMessage.mock.calls.map(([, b]) => b)).not.toContain(observeStrings('en').send_delivering);
     const Queue = require('../../bot/shared/services/coaching/coaching-job-queue.service');
     expect(Queue.queueObserveTeacherReport).toHaveBeenCalledWith('sess-1', { from: COACH_PHONE, phase: 'deliver' });

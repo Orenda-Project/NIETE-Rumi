@@ -1101,7 +1101,7 @@ async function handleAssessmentFlowCompletion(responseJson, from, user, opts = {
       // without one, or if the reaction is refused, the sentence is sent.
       // "No changes" keeps its sentence — it says something the paper does not.
       const acknowledgeMaking = async () => {
-        if (opts.messageId && await WhatsAppService.sendReaction(from, opts.messageId, '📝')) {
+        if (opts.messageId && await WhatsAppService.sendReaction(from, opts.messageId, '📝', { soleAck: true })) {
           await WhatsAppService.showTypingIndicator(from, opts.messageId);
           return;
         }

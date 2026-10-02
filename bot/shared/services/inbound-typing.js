@@ -55,6 +55,16 @@
  *     (bd-w2daa.24): the text handler reaches its door ~2.7 s in (sandbox, 1 Oct 15:53:08Z), so a
  *     silent quiet-hour turn showed ~25 s of "typing…" over nothing. Per replica, in memory: a
  *     restart or another replica just means today's behaviour for that turn.
+ *   - doorDeciding(): a quiet-hour door has started deciding (the text handler's intent classifier)
+ *     and WILL call replyComing() or nothingComing(). The hold then lasts until it does, not
+ *     QUIET_HOLD_MS — backstop: WhatsApp's own typing lifetime. Meta bill cut FX4 (bd-w2daa.26):
+ *     a free-text lesson-plan request in the quiet hour was classified 12.6 s in (sandbox,
+ *     1 Oct 18:39:00Z), far past FX3's 3 s, so "typing…" showed and lingered over silence.
+ *   - showNow(): this tap's door is one whose answer comes from ANOTHER PROCESS (an LP outcome
+ *     deferred onto the analysis job), but it reaches answerLater() only after seconds of lookups
+ *     — on sandbox the recent-LP "Yes" got there 2.24 s in (1 Oct 18:23:20.567Z → 22.811Z), so the
+ *     2 s deadline had already shown "typing…". The webhook calls this the moment it knows the door,
+ *     so "typing…" goes up at once; answerLater() then hands that same indicator to the job.
  */
 const { AsyncLocalStorage } = require('async_hooks');
 const { logToFile } = require('../utils/logger');
@@ -115,6 +125,7 @@ class Scope {
     this.quietHeld = false;      // typing held at the deadline for a door's decision
     this.quietTimer = null;
     this.quietHeldEver = false;
+    this.doorDeciding = false;   // doorDeciding(): a quiet-hour door will settle this turn itself
     this.silentReason = null;    // nothingComing() — why this turn ends silent
     this.silentAfterTyping = false;
   }
@@ -130,8 +141,8 @@ class Scope {
     if (this.holds > 0) { this.due = true; return; }
     if (!this.quietChecked) {
       this.quietChecked = true;
-      const bound = quietHoldMs();
-      if (bound > 0 && quietFor(this.digits)) {
+      const bound = this.quietBound();
+      if (quietHoldMs() > 0 && quietFor(this.digits)) {
         this.due = true;
         this.quietHeld = true;
         this.quietHeldEver = true;
@@ -141,6 +152,11 @@ class Scope {
       }
     }
     this.show();
+  }
+
+    /** The hold's bound: a door that is deciding gets until WhatsApp would drop typing anyway. */
+  quietBound() {
+    return this.doorDeciding ? TYPING_LIFETIME_MS : quietHoldMs();
   }
 
   /** No door decided within the bound — show "typing…", as without the hold. */
@@ -331,6 +347,36 @@ function handOff() {
   if (scope && scope.state === 'pending') scope.handedOff = true;
 }
 
+/**
+ * This tap's answer comes from another process and the handler will say so (answerLater()) — but
+ * only after its lookups. Put "typing…" up NOW for a still-pending scope. Never throws.
+ */
+function showNow() {
+  try {
+    const scope = current();
+    if (scope && scope.state === 'pending') scope.show();
+  } catch (_) { /* typing is a courtesy */ }
+}
+
+/**
+ * A quiet-hour door has started deciding and will call replyComing() or nothingComing(): hold
+ * "typing…" until it does (backstop TYPING_LIFETIME_MS), not just QUIET_HOLD_MS. Only changes a
+ * scope this person's quiet hour applies to. Never throws.
+ */
+function doorDeciding() {
+  try {
+    const scope = current();
+    if (!scope || scope.state !== 'pending') return;
+    scope.doorDeciding = true;
+    if (scope.quietHeld && scope.quietTimer) {
+      // Already held at the deadline: stretch the bound from the moment the hold began.
+      clearTimeout(scope.quietTimer);
+      scope.quietTimer = setTimeout(() => scope.quietExpired(), TYPING_LIFETIME_MS);
+      if (scope.quietTimer && typeof scope.quietTimer.unref === 'function') scope.quietTimer.unref();
+    }
+  } catch (_) { /* typing is a courtesy */ }
+}
+
 /** Upper bound on waiting for the typing POST before the caller queues its job. */
 const ANSWER_LATER_WAIT_MS = 3000;
 
@@ -338,15 +384,22 @@ const ANSWER_LATER_WAIT_MS = 3000;
  * The reply to this inbound message will come from another process (an SQS job queued next).
  * Shows "typing…" now and keeps it past the dispatch's end. Await it BEFORE queueing the job, so
  * the indicator cannot reach WhatsApp after the job's own message (typing then would hang ~25 s
- * over an answer already on screen). No-op when there is no pending scope — typing already showing,
- * or the request already answered — or outside a webhook request (a portal call, a worker).
+ * over an answer already on screen). "typing…" already up for this message (showNow(), or the
+ * deadline beat the handler to it) and no message since → that indicator is handed to the job as
+ * it is (FX4: it used to be reported as lingering, and the deferral logged typing:false). No-op
+ * when the request was already answered, or outside a webhook request (a portal call, a worker).
  * Never throws.
  *
- * @returns {Promise<boolean>} true when this call put "typing…" up
+ * @returns {Promise<boolean>} true when "typing…" is up and handed to the job
  */
 async function answerLater() {
   try {
     const scope = current();
+    if (scope && scope.state === 'shown' && !scope.messageAfterTyping) {
+      scope.handedOff = true;
+      scope.answeredElsewhere = true;
+      return true;
+    }
     if (!scope || scope.state !== 'pending') return false;
     scope.handedOff = true;
     scope.answeredElsewhere = true;
@@ -423,5 +476,6 @@ function endDispatch() {
 
 module.exports = {
   withRequest, open, noteOutbound, claimFirstBeat, hold, isPending, handOff, answerLater, endDispatch,
-  nothingComing, replyComing, expectSilence,
+  nothingComing, replyComing, expectSilence, showNow, doorDeciding,
+  DEFAULT_QUIET_HOLD_MS, TYPING_LIFETIME_MS,
 };

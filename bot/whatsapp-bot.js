@@ -9,6 +9,15 @@ const fs = require('fs');
 // Import Services
 const WhatsAppService = require('./shared/services/whatsapp.service');
 const InboundTyping = require('./shared/services/inbound-typing');
+
+// Meta bill cut FX4: taps whose answer, on a teacher's own session, is the coaching analysis job
+// (see InboundTyping.showNow). The session id is the id's last segment (uuids have no "_").
+const LP_JOB_ANSWERED_TAP = /^(lpconfirm_yes_|lessonplan_no_|lp_none_)/;
+const lpJobAnsweredSession = (tapId) => (LP_JOB_ANSWERED_TAP.test(tapId) ? tapId.split('_').pop() || null : null);
+const tapIdOf = (message) => {
+  const i = message && message.interactive;
+  return String((i && ((i.button_reply && i.button_reply.id) || (i.list_reply && i.list_reply.id))) || '');
+};
 const SessionService = require('./shared/services/session.service');
 const OpenAIService = require('./shared/services/openai.service');
 const CoachingService = require('./shared/services/coaching-orchestrator.service');
@@ -644,6 +653,18 @@ app.post('/webhook', async (req, res) => {
     // INBOUND_TYPING_DEFER_MS (2 s) and the handler is still working. Sent up front, it hung on
     // screen ~25 s over every reply that is only a reaction (bd-0wrn4) — see inbound-typing.js.
     InboundTyping.open(from, message.id, WhatsAppService);
+    // Meta bill cut FX4 (bd-w2daa.26): a lesson-plan tap on a teacher's OWN session ("Yes" to a
+    // recent plan, "No lesson plan", "No") is answered by the analysis job, but reached its hand-off
+    // only after the user, session and linker lookups — 2.24 s on sandbox, past the 2 s deadline.
+    // One read of the session's kind, alongside the user lookup, puts "typing…" up as soon as we
+    // know. A coach observation still answers with its text at once (no typing flash before it).
+    const lpTapSession = lpJobAnsweredSession(tapIdOf(message));
+    if (lpTapSession) {
+      require('./shared/services/coaching/lp-coaching/lp-outcome-ack.service')
+        .isSelfServeSession(lpTapSession)
+        .then((selfServe) => { if (selfServe) InboundTyping.showNow(); })
+        .catch(() => {});
+    }
 
     // Get or create user in database
     let user = null;
@@ -786,7 +807,8 @@ app.post('/webhook', async (req, res) => {
       // falls through to generic text handling and the tap is silently lost.
       if (buttonId.startsWith('coaching_fb_yes_') || buttonId.startsWith('coaching_fb_no_')) {
         const CoachingFeedbackService = require('./shared/services/coaching/coaching-feedback.service');
-        await CoachingFeedbackService.handleFeedbackButton(buttonId, from);
+        // FX4: the tap's wamid — the thank-you is a 🙏 reaction on it.
+        await CoachingFeedbackService.handleFeedbackButton(buttonId, from, { messageId: message.id });
         return;
       }
 

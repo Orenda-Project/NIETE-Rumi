@@ -788,7 +788,7 @@ async function handleSendConfirm(sessionId, from, user, opts = {}) {
   try {
     await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'deliver' });
     const reacted = opts.messageId
-      ? await WhatsAppService.sendReaction(from, opts.messageId, '📨')
+      ? await WhatsAppService.sendReaction(from, opts.messageId, '📨', { soleAck: true })
       : false;
     if (!reacted) await WhatsAppService.sendMessage(from, S.send_delivering);
     await ObserveState.clearState(user.id);

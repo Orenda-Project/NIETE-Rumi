@@ -71,7 +71,7 @@ describe('NC1 — the Yes tap reacts ⏳ and tells the job Step 1 is already sai
 
   test('with the tap wamid: ⏳ on the tap, and the job is told Step 1/5 is already said', async () => {
     await Orchestrator.handleConfirmation(SID, PHONE, true, WAMID);
-    expect(WA.sendReaction).toHaveBeenCalledWith(PHONE, WAMID, '⏳');
+    expect(WA.sendReaction).toHaveBeenCalledWith(PHONE, WAMID, '⏳', { soleAck: true });
     expect(Queue.queueTranscription).toHaveBeenCalledWith(SID, { from: PHONE, audioId: 'aud-1', step1Announced: true });
     expect(WA.sendMessage).not.toHaveBeenCalled();
   });

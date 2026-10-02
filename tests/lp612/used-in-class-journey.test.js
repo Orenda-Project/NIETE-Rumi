@@ -173,7 +173,7 @@ describe('👍 → she is asked whether she taught it, and the answer reaches th
 
     // Meta bill cut NL1 (bd-w2daa.9) + FX1: no thank-you text — a 🙏 on the tap is the receipt.
     expect(mockSendMessage).not.toHaveBeenCalledWith(PHONE, resolveUx('lp612UsedThanks', { language: 'ur' }));
-    expect(mockSendReaction).toHaveBeenCalledWith(PHONE, 'wamid.TAUGHT', '🙏');
+    expect(mockSendReaction).toHaveBeenCalledWith(PHONE, 'wamid.TAUGHT', '🙏', { soleAck: true });
   });
 
   test('"Not yet" is an answer, not a silence — it lands as not_yet', async () => {
