@@ -75,7 +75,7 @@ function screenWith(id, children, data, initValues) {
 }
 
 const number = (name, label, helper, visible) => ({
-  type: 'TextInput', name, label: d(label), 'input-type': 'number', required: true, ...(helper ? { 'helper-text': d(helper) } : {}), ...(visible ? { visible: d(visible) } : {}),
+  type: 'TextInput', name, label: d(label), 'input-type': 'phone', required: true, ...(helper ? { 'helper-text': d(helper) } : {}), ...(visible ? { visible: d(visible) } : {}),
 });
 const radio = (name, key, source) => ({
   type: 'RadioButtonsGroup', name, label: d(`${key}_t`), description: d(`${key}_d`), required: true, visible: d(`${key}_v`), 'data-source': d(source),

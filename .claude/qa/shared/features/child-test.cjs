@@ -80,6 +80,10 @@ const SCENARIOS = [
   ['CT34', 'Strip photos are claimed in list order, any time during the visit or as a batch at the end', 'L4'],
   ['CT35', 'One locked voice note keeps recording through card flips', 'L4'],
   ['CT36', 'Quick sums run for the one configured number of seconds', 'L4'],
+  ['CT37', 'Three voice notes sent within seconds fill the three blocks in order, none overwritten', 'L4'],
+  ['CT38', 'A fourth voice note for a child whose three notes are in is not stored', 'L4'],
+  ['CT39', 'A voice note that fails to save frees its block, and the next voice note fills it first', 'L4'],
+  ['CT40', 'A block costs the bot two messages with the printed card', 'L4'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -367,6 +371,12 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT34', ...B('drive not written yet: needs strip photos sent out of order across two children'));
     record('CT35', ...B('drive not written yet: a 4-minute fixture note per block (the guard is a unit test in tests/child-test/L11)'));
     record('CT36', ...B('drive not written yet: needs CHILD_TEST_QUICK_SUMS_SECONDS set on the local stack'));
+    // Claim-before-store and printed-card scenarios (L13): proven on the L13 mock-lane runs and unit tests
+    // (tests/child-test/L13); this driver does not send bursts yet — recorded honestly as BLOCKED.
+    record('CT37', ...B('drive not written yet: needs three notes sent inside one store window (L13 sim-burst-mode.patch does it outside this driver)'));
+    record('CT38', ...B('drive not written yet: needs a fourth note after all three blocks are claimed'));
+    record('CT39', ...B('needs a failing R2 upload; the harness has no fault injection on the media store'));
+    record('CT40', ...B('drive not written yet: needs per-block outbound send counts from the mock'));
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}

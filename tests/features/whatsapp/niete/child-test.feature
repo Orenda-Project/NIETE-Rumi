@@ -59,7 +59,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And I open each child's "Check" Flow and submit it without changes
     Then all 5 children show "Done ✓" on today's list and "Checks waiting: 0"
     And child_test_sessions holds 5 rows for this visit with status "completed", each with 3 child_test_blocks rows carrying ai_marks and coach_marks
-    And each session's timings carry list_opened, child_tapped, <block>.card_sent, <block>.voice_received, <block>.scored, check.opened and check.submitted
+    And each session's timings carry list_opened, child_tapped, <block>.prompt_sent, <block>.voice_received, <block>.scored, check.opened and check.submitted
     # The timing keys are what L8 measures the 5-minute / 30-minute pass mark from (PLAN §7).
     # L4 store.recordTiming (first write of a key wins), L3 STORE_API "sessions".
 
@@ -89,10 +89,11 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then a child_test_sessions row is created for that draw with status "in_progress"
     And the next message is ONE line "Child 1 of 5 · Urdu 1/3 · Form <A|B> card, Urdu page · Say «<item-bank cue.urdu.start>» · one locked note, flip pages without stopping"
     And a second line says "Give Roll <next child's roll> the maths strip to write while waiting."
-    And the message offers "Letters & words", "Stop this child" and "Menu"
+    And the message offers "No printed card", "Stop this child" and "Menu"
+    And no card image is sent
     And no AI scoring has started yet
-    # The printed card is the primary stimulus (CONTRACT §11): by default the story goes as ≤ 3 inline
-    # images plus the script; the item cards come only on "Letters & words".
+    # The printed card is the primary stimulus (CONTRACT §11, §16): no card images by default; with
+    # CHILD_TEST_INCHAT_CARDS=on the line goes first, then ≤ 3 images. bd-s1oo0.15.
 
   @e2e @wip @draft @audio @destructive @config-gated @P1 @CT05
   Scenario: Each block's voice note is acknowledged at once, stored, scored off the critical path, and moves to the next block
@@ -189,12 +190,13 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     # PLAN §5 returning rule (≥ 42 days, not retested this cycle). Needs a seeded past test.
 
   @e2e @wip @draft @destructive @config-gated @P2 @CT14
-  Scenario: "Letters & words" sends the fallback cards for a child who cannot read the first line
-    Given child 1 is on the Urdu block
-    When I tap "Letters & words"
-    Then the 10 letters and 10 words cards arrive, never more than 3 images back to back with a short text between groups
+  Scenario: "No printed card" sends the block's cards in the chat, three at a time
+    Given child 1 is on the Urdu block and the coach has no printed card
+    When I tap "No printed card"
+    Then at most 3 card images arrive, followed by the short text "Cards 1–3 of <n>. Tap «No printed card» again for the next ones."
+    And each further tap sends the next 3 (the story cards, then the made-up words, then the letters-and-words fallback), wrapping round
     And the block still waits for the same single voice note
-    # CONTRACT §11 album rule + fallback cards (render/ L2: {part:'fallback'}).
+    # CONTRACT §11 album rule, §16 (bd-s1oo0.15). Fallback cards: render/ L2 {part:'fallback_*'}.
 
   @e2e @wip @draft @audio @destructive @config-gated @P2 @CT15
   Scenario: The strip photo can arrive after the next child has started
@@ -273,16 +275,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
 
   @e2e @wip @draft @audio @negative @destructive @config-gated @P2 @CT24
   Scenario: A voice note recorded before the next block's card was sent is not filed under that block
-    Given child 1's Urdu voice note was received and the English card was then sent
-    When a second voice note arrives whose WhatsApp timestamp is earlier than the English card (a duplicate Urdu recording)
+    Given child 1's Urdu voice note was received and the English line was then sent
+    When a second voice note arrives whose WhatsApp timestamp is earlier than the Urdu note's (a re-delivered older recording)
     Then the bot replies "That voice note was sent before the English card, so I kept the first Urdu note. Record English now."
-    And urdu.ogg is unchanged and the English block still has no audio key
-    # L4 machine.js processVoice: message.timestamp < promptAt - 2s → childTestVoiceEarly.
+    And urdu.ogg is unchanged and the English block still has no audio key, and the next voice note is filed as English
+    # L13 machine.js processVoice: the note claims English, then its timestamp < the Urdu claim's sentAt → released, childTestVoiceEarly.
 
   @e2e @wip @draft @negative @destructive @config-gated @P1 @CT25
   Scenario: A stimulus image that fails to send falls back to the text version, logged at error
     Given the WhatsApp image send for the Urdu story card fails
-    When the Urdu block starts
+    When I tap "No printed card" on the Urdu block
     Then the coach receives "(The picture did not send. Here is the same text.)" followed by the story text
     And the failure is logged as child_test.* at error level, with ids only
     # CONTRACT §4. Mock lane: make the mock answer the media send with an error.
@@ -343,7 +345,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   @e2e @wip @draft @edge @no-mock-driver @config-gated @P2 @CT32
   Scenario: The inline story cards are legible inside the chat bubble and never collapse into an album
     Given a Grade 5 child is present on a real phone
-    When I tap "Letters & words" on the Urdu block
+    When I tap "No printed card" on the Urdu block
     Then no more than 3 images arrive back to back, and WhatsApp does not group them into an album collage
     And the story text can be read in the bubble without opening the image
     # Needs real pixels and a real WhatsApp client (CONTRACT §11 item 6). Chrome lane only.
@@ -384,3 +386,33 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When child 1 reaches the maths block
     Then the maths line says "for 30 s of quick sums" and the coach sheet prints "Quick sums (30 seconds)"
     # Bank maths.quick_sums_seconds stays 60; the override is sandbox-only (30 or 60).
+
+  @e2e @wip @draft @audio @destructive @config-gated @P1 @CT37
+  Scenario: Three voice notes sent within seconds fill the three blocks in order, none overwritten
+    Given child 1 is present and the Urdu line has arrived, and the coach uses the printed card
+    When I send the Urdu, English and maths voice notes within 5 seconds of each other
+    Then the bot acknowledges "Got it · Urdu", "Got it · English" and "Got it · Maths", one each
+    And child_test_blocks holds three rows for the session, urdu, english and maths, each with its own audio key
+    And the strip photo is asked for once
+    # bd-s1oo0.14 / CONTRACT §16: each note claims ctst:block:<session>:<block> (setNX) before the ack and the upload.
+
+  @e2e @wip @draft @audio @negative @destructive @config-gated @P1 @CT38
+  Scenario: A fourth voice note for a child whose three notes are in is not stored
+    Given child 1's three voice notes have been received and the maths note is still being stored
+    When I send a fourth voice note
+    Then the bot replies "Roll <roll>'s three voice notes are already in, so I did not use this one."
+    And no block's audio key changes
+
+  @e2e @wip @draft @audio @negative @destructive @config-gated @P1 @CT39
+  Scenario: A voice note that fails to save frees its block, and the next voice note fills it first
+    Given the Urdu, English and maths notes were sent together and the English upload fails
+    Then the bot replies "The English voice note did not save. Please send the same voice note again." and the strip photo is not asked for yet
+    When I send the English voice note again
+    Then it is stored as English and the strip photo is asked for
+
+  @e2e @wip @draft @timing @config-gated @P1 @CT40
+  Scenario: A block costs the bot two messages with the printed card
+    Given CHILD_TEST_INCHAT_CARDS is not "on"
+    When I send the Urdu voice note
+    Then the bot sends exactly two messages before the next voice note is welcome: "Got it · Urdu" and the English line
+    # bd-s1oo0.15: the send pacer (6 s/send after a burst of 8) is unchanged; the cards no longer queue ahead.

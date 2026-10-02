@@ -14,7 +14,9 @@
  *
  * Side keys (per session): ctst:scored:<sessionId> (count of finished scoreBlock calls),
  * ctst:check:<sessionId> (the check was sent — set once), ctst:media:<mediaId> (a webhook re-send
- * is not stored twice).
+ * is not stored twice), ctst:block:<sessionId>:<block> (the voice note that claimed this block, set
+ * before any ack or upload so quick notes fill distinct blocks — bd-s1oo0.14), ctst:done:<sessionId>
+ * (the child's three notes are stored and the after-maths step ran — set once).
  */
 
 const redis = require('../../cache/railway-redis.service');
@@ -58,4 +60,28 @@ async function checkSent(sessionId) {
   return !!(await redis.get(`ctst:check:${sessionId}`));
 }
 
-module.exports = { get, set, clear, firstSight, forget, countScored, claimCheck, checkSent, TTL_SECONDS };
+const blockKey = (sessionId, block) => `ctst:block:${sessionId}:${block}`;
+
+/** Atomic across instances: true for the one note that takes this block. `claim` = { audioId, sentAt, at }. */
+async function claimBlock(sessionId, block, claim) {
+  return redis.setNX(blockKey(sessionId, block), JSON.stringify(claim), 7 * 24 * 3600);
+}
+async function releaseBlock(sessionId, block) {
+  return redis.delete(blockKey(sessionId, block));
+}
+/** → the claim object, or null when the block is free. */
+async function blockClaim(sessionId, block) {
+  const raw = await redis.get(blockKey(sessionId, block));
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw;
+  try { return JSON.parse(raw); } catch { return { audioId: String(raw) }; }
+}
+
+async function claimDone(sessionId) {
+  return redis.setNX(`ctst:done:${sessionId}`, new Date().toISOString(), 7 * 24 * 3600);
+}
+
+module.exports = {
+  get, set, clear, firstSight, forget, countScored, claimCheck, checkSent,
+  claimBlock, releaseBlock, blockClaim, claimDone, TTL_SECONDS,
+};

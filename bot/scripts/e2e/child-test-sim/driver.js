@@ -51,6 +51,12 @@ function pickFixtures(dir, n, ids) {
   return out.map((m) => ({ id: m.fixture_id, dir: path.join(dir, m.fixture_id), grade: m.grade }));
 }
 
+/** The replies module named in sandbox.json: beside the config if it is there, else beside this driver. */
+function resolveReplies(configPath, mod) {
+  const nearConfig = path.resolve(path.dirname(configPath), mod);
+  return fs.existsSync(nearConfig) ? nearConfig : path.resolve(__dirname, mod);
+}
+
 function attachStrips(fixtures, stripsDir) {
   if (!stripsDir) return fixtures;
   const all = fs.readdirSync(stripsDir).filter((f) => /^strip-g\d-\d+-d\d\.jpg$/.test(f)).sort();
@@ -87,7 +93,7 @@ async function main() {
     transport = mockTransport({ baseUrl: a['mock-url'] || process.env.E2E_MOCK_URL || 'http://127.0.0.1:4010', driver });
   } else if (mode === 'sandbox') {
     const cfg = JSON.parse(fs.readFileSync(a['sandbox-config'], 'utf8'));
-    const replies = require(path.resolve(path.dirname(a['sandbox-config']), cfg.replies.module));
+    const replies = require(resolveReplies(a['sandbox-config'], cfg.replies.module));
     transport = sandboxTransport({ ...cfg, wabaToken: process.env[cfg.wabaTokenEnv], appSecret: cfg.appSecretEnv ? process.env[cfg.appSecretEnv] : undefined,
       driver: cfg.driver || driver, replies: typeof replies.create === 'function' ? replies.create(cfg) : replies });
   } else {
@@ -111,4 +117,4 @@ async function main() {
 
 if (require.main === module) main().catch((e) => { console.error('driver failed: ' + e.message); process.exit(2); });
 
-module.exports = { pickFixtures, attachStrips };
+module.exports = { pickFixtures, attachStrips, resolveReplies };

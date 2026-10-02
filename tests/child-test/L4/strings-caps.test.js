@@ -11,7 +11,7 @@ const keys = Object.keys(UX_STRINGS).filter((k) => k.startsWith('childTest'));
 // Which field each key lands in (anything not named here is a message body, cap 1024).
 const FIELD = {
   childTestOfferYes: 20, childTestOfferLater: 20, childTestPresent: 20, childTestAbsent: 20, childTestRefused: 20,
-  childTestStopChild: 20, childTestMenu: 20, childTestNoPhoto: 20, childTestFallbackButton: 20,
+  childTestStopChild: 20, childTestMenu: 20, childTestNoPhoto: 20, childTestCardsButton: 20,
   childTestListButton: 20, childTestPickSchoolButton: 20, childTestSendToTeacher: 20,
   childTestSectionChildren: 24, childTestSectionAlternates: 24, childTestPickSchoolSection: 24,
   childTestAlternateRow: 72, childTestRoleNew: 30, childTestRoleReturning: 30, childTestStatusTested: 20,
