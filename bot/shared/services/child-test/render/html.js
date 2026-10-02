@@ -113,7 +113,7 @@ body{width:${S.CARD_CSS_WIDTH}px}
 .card{width:${S.CARD_CSS_WIDTH}px;box-sizing:border-box;background:#fff;color:${INK};padding:0 26px 0;margin:0 0 16px;position:relative}
 .band{height:12px;margin:0 -26px 26px;background:var(--accent)}
 .t{font-family:${urdu ? URDU_STACK : LATIN_STACK};text-align:${urdu ? 'right' : 'left'};word-spacing:${urdu ? '0.12em' : '0.06em'};margin:0;${urdu ? 'padding:0 16px 0 8px;' : ''}}
-.grid{display:grid;column-gap:${urdu ? '40px' : '18px'};text-align:center;align-items:center}
+.grid{display:grid;column-gap:${urdu ? '40px' : '34px'};text-align:center;align-items:center}
 .it{white-space:nowrap;direction:${urdu ? 'rtl' : 'ltr'};min-width:0}
 .grid .it{unicode-bidi:isolate}
 .dots{height:34px;padding:${urdu ? '34px' : '18px'} 0 30px;font:22px/34px ${LATIN_STACK};color:#9AA0A6;text-align:center;letter-spacing:6px;direction:ltr}
@@ -383,6 +383,7 @@ function buildPrintableHtml({ grade, formCode: code, form }) {
 
 const CHROME = {
   en: {
+    dir: 'ltr',
     title: 'Coach copy — do not show the child',
     urdu: 'Urdu', english: 'English', maths: 'Maths',
     story: 'Story — word numbers', questions: 'Questions (say aloud)', accept: 'accept', reject: 'do not accept',
@@ -392,6 +393,7 @@ const CHROME = {
     answer: 'answer', words: 'words',
   },
   ur: {
+    dir: 'rtl',
     title: 'کوچ کی کاپی — بچے کو نہ دکھائیں',
     urdu: 'اردو', english: 'انگریزی', maths: 'ریاضی',
     story: 'کہانی — الفاظ کے نمبر', questions: 'سوالات (زبانی پوچھیں)', accept: 'درست', reject: 'درست نہیں',
@@ -450,7 +452,7 @@ function buildCoachSheetHtml({ grade, formCode: code, form, lang = 'ur' }) {
   const C = CHROME[lang];
   if (!C) throw new Error(`child-test render: coach sheet has no "${lang}" strings`);
   const m = need(form, 'maths');
-  const dir = lang === 'ur' ? 'rtl' : 'ltr';
+  const dir = C.dir;
   const nums = m.numbers.map((n, i) => `<tr><td class="ltr">${i + 1}</td><td class="ltr k">${esc(n.value)}</td><td class="ur" dir="rtl">${esc(n.say_ur)}</td><td class="en">${esc(n.say_en)}</td></tr>`).join('');
   const qs = `<div class="nums sums en" dir="ltr">${m.quick_sums.map((q, i) => `<div><i>${i + 1}</i>${esc(q.prompt)} = <b class="k">${esc(q.answer)}</b></div>`).join('')}</div>`;
   const wr = m.written.map((w, i) => `<tr><td class="ltr">${i + 1}</td><td class="ltr">${esc(w.prompt)}</td><td class="ltr k">${esc(w.answer)}</td></tr>`).join('');
