@@ -15,9 +15,13 @@
  *      hardware back key for every user (at the first screen it would do
  *      nothing instead of leaving the app). This change is about links only.
  *
- * Scope is deliberately narrow for the first release: exactly /portal/dashboard
- * and /portal/login. Widening it is a manifest change (a Play release); the web
- * side already accepts any /portal/ page.
+ * Scope: exactly /portal/dashboard and /portal/login, plus the areas a teacher
+ * or coach is sent to from WhatsApp (bd-q4g7s.2, operator 2026-10-03, the 1216
+ * Play release): Training, Lesson plans/Curriculum (the assessment generator is
+ * a tab of Curriculum), Coaching, and the coach's Observations. Each is a
+ * prefix, so its inner pages open in the app too. Never a bare /portal/ prefix:
+ * login-adjacent pages (reset-password, setup) stay in the browser. Widening it
+ * is a manifest change (a Play release); the web side accepts any /portal/ page.
  *
  * Source-level guards — the real acceptance test is a tap on a physical device.
  */
@@ -41,6 +45,7 @@ describe('AndroidManifest — App Links intent filter', () => {
   const filters = activity.match(/<intent-filter[\s\S]*?<\/intent-filter>/g) || [];
   const appLinks = filters.find((f) => /android\.intent\.action\.VIEW/.test(f)) || '';
   const dataPaths = [...appLinks.matchAll(/android:path="([^"]*)"/g)].map((m) => m[1]).sort();
+  const dataPrefixes = [...appLinks.matchAll(/android:pathPrefix="([^"]*)"/g)].map((m) => m[1]).sort();
 
   maybe('declares a VIEW filter on MainActivity with autoVerify', () => {
     expect(activity).toMatch(/android:name="\.MainActivity"/);
@@ -60,9 +65,22 @@ describe('AndroidManifest — App Links intent filter', () => {
     expect(hosts).toEqual(['${deepLinkHost}']);
   });
 
-  maybe('claims exactly /portal/dashboard and /portal/login — nothing broader', () => {
+  maybe('claims exactly /portal/dashboard and /portal/login as paths', () => {
     expect(dataPaths).toEqual(['/portal/dashboard', '/portal/login']);
-    expect(manifest).not.toMatch(/android:path(Prefix|Pattern|AdvancedPattern|Suffix)=/);
+  });
+
+  maybe('claims Training, Lesson plans/Curriculum, Coaching and Observations as prefixes — nothing broader', () => {
+    expect(dataPrefixes).toEqual([
+      '/portal/coaching',
+      '/portal/curriculum',
+      '/portal/leader/observations',
+      '/portal/leader/observe',
+      '/portal/lesson-plans',
+      '/portal/training',
+    ]);
+    expect(dataPrefixes).not.toContain('/portal/');
+    expect(dataPrefixes).not.toContain('/portal');
+    expect(manifest).not.toMatch(/android:path(Pattern|AdvancedPattern|Suffix)=/);
   });
 
   maybe('keeps the launcher entry and singleTask (links reuse the running app)', () => {
