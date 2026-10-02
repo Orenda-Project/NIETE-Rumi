@@ -17,6 +17,9 @@ const { reactInstead } = require('../ack-reaction');
 // commit prompt. Anchored: a foreign prefix or a non-uuid tail is not ours.
 const BUTTON_RX = /^card_(yes|later|no)_([0-9a-fA-F-]{36})$/;
 const ACK_KEY = { yes: 'coachingCardAckYes', later: 'coachingCardAckLater', no: 'coachingCardAckNo' };
+// One reaction per answer (FX6, bd-w2daa.28): a ✅ on "Not for me" read as "agreed". "Later"
+// schedules nothing (only teacher_response === 'yes' is read back), so 👌 loses no promise.
+const ACK_REACTION = { yes: '✅', later: '👌', no: '🙏' };
 
 /**
  * Handle a coaching card button response.
@@ -78,12 +81,12 @@ async function handleCardButton(buttonId, phone, language, inboundMessageId = nu
   const [, response, coachingSessionId] = m;
   await handleCoachingCardResponse(coachingSessionId, response);
   // Meta bill cut (N2-C11): the answer is recorded above; the acknowledgement is a
-  // free ✅ reaction on their tap instead of a billed text (~1,500 taps a week once
-  // this handler reaches production). No wamid, or a reaction the pacer skipped →
-  // the text ack, exactly as before.
-  const reacted = await reactInstead({ to: phone, messageId: inboundMessageId, emoji: '✅' });
+  // free reaction on their tap instead of a billed text (~1,500 taps a week once
+  // this handler reaches production) — each answer its own (ACK_REACTION). No wamid,
+  // or a reaction that did not go → that answer's text, exactly as before.
+  const reacted = await reactInstead({ to: phone, messageId: inboundMessageId, emoji: ACK_REACTION[response] });
   if (!reacted) await WhatsAppService.sendMessage(phone, resolveUx(ACK_KEY[response], { language }));
   return true;
 }
 
-module.exports = { handleCoachingCardResponse, handleCardButton, BUTTON_RX };
+module.exports = { handleCoachingCardResponse, handleCardButton, BUTTON_RX, ACK_REACTION };
