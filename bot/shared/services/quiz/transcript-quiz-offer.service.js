@@ -334,6 +334,9 @@ async function handleOfferButton(buttonId, phone, opts = {}) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', { language: await api.languageByPhone(phone) }));
     return true;
   }
+  // FX7 (bd-w2daa.31): a 'Not now' on a live offer is answered by 👌 alone (tqDeclined only if the
+  // reaction cannot go) — settle the turn before the teacher read and the decline write.
+  if (!yes) require('../inbound-typing').nothingComing({ reason: 'tq_offer_declined' });
   const teacher = await teacherFor(quiz);
   const lang = teacherLanguageFor({ preferredLanguage: teacher.preferred_language });
   // These buttons only ever ride the coaching offer, so the stream is transcript.

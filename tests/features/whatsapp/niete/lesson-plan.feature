@@ -71,12 +71,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When the feedback survey arrives and I tap 👍
     Then the bot reacts 🙏 to my tap
     And no "Thanks — glad it helped!" (or Urdu «شکریہ — خوشی ہے یہ مفید تھی!») message follows
+    And the chat header does not show "typing…" before the 🙏
     # Meta bill cut NL1 (bd-w2daa.9). Same rule for: a repeat tap on the same survey, the
     # "Taught it today / Planning to / Not yet" answer (K-5 and 6-12), and the typed reason after 👎
     # — each used to get a thank-you text; each now gets only a 🙏 reaction (FX1, bd-w2daa.22: our own,
     # replacing the automatic 👍 every message gets; the text goes only if the reaction cannot). Anything that ASKS
     # something still goes: the 👎 "What didn't work?" line and the usage question.
     # Unit: tests/lp-v8/meta-bill-nl1-survey-acks.test.js.
+    # UPDATED 2026-10-02 (FX7, bd-w2daa.31): no "typing…" before the 🙏 however slow the write. "Taught it today /
+    # Planning to / Not yet" (lp_used_, lp612_used_) settle at the webhook door (reaction-only-taps.js); the 👍
+    # with no voice note settles in lp-feedback.service once it has read the plan. Axiom:
+    # inbound_typing.reaction_only_tap. Unit: tests/meta-bill-cut/fx7-reaction-only-taps.test.js.
 
   @e2e @flow @P1
   Scenario: Tapping the same lesson twice in the Pick Class Flow delivers it once
