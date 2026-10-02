@@ -92,7 +92,7 @@ async function runReading({ block, spec, cue, file, durationSec, calls, errors, 
   const [story, questions, phonics] = await Promise.all([
     w.story ? scoreStory({ lang: block, spec: spec.story || {}, file, window: w.story, words, coachSpeaker: cut.coachSpeaker, flags: cut.flags, calls }) : { ok: false, error: 'no_window' },
     w.questions ? scoreQuestions({ lang: block, spec, words, window: w.questions, calls }) : { ok: false, error: 'no_window' },
-    (w.first_sounds || w.nonwords) ? scorePhonics({ lang: block, spec, file, windows: w, calls }) : { ok: false, error: 'no_window' },
+    (w.first_sounds || w.nonwords) ? scorePhonics({ lang: block, spec, file, windows: w, words, calls }) : { ok: false, error: 'no_window' },
   ]);
 
   if (story.ok) { parts.story = story.part; modelVersions.counts = story.modelVersion; }
