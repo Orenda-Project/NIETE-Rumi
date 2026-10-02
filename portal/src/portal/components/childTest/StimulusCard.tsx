@@ -14,12 +14,19 @@ export type MathsView = "numbers" | "sums" | "strip";
 
 const URDU_TEXT = "font-['Noto_Nastaliq_Urdu'] leading-[2.4]";
 
+// Inline, on every child-facing element: the portal's global CSS forces
+// `[dir=rtl] .grid > * { direction: rtl }` and right-aligns all text in an Urdu
+// page, which put "5 - 1" on screen as "1 - 5". An inline style beats both.
+function dirStyle(dir: "rtl" | "ltr") {
+  return { direction: dir, textAlign: dir === "rtl" ? "right" : "left", unicodeBidi: "isolate" } as const;
+}
+
 function Grid({ items, dir, big }: { items: (string | number)[]; dir: "rtl" | "ltr"; big?: boolean }) {
   return (
     <div dir={dir} className={`grid ${big ? "grid-cols-2" : "grid-cols-3"} gap-3`}>
       {items.map((x, i) => (
         // eslint-disable-next-line react/no-array-index-key
-        <div key={i} className={`rounded-xl bg-white border border-slate-200 py-3 text-center text-slate-900 ${big ? "text-4xl" : "text-3xl"} ${dir === "rtl" ? URDU_TEXT : "font-semibold"}`}>
+        <div key={i} style={{ ...dirStyle(dir), textAlign: "center" }} className={`rounded-xl bg-white border border-slate-200 py-3 text-center text-slate-900 ${big ? "text-4xl" : "text-3xl"} ${dir === "rtl" ? URDU_TEXT : "font-semibold"}`}>
           {x}
         </div>
       ))}
@@ -35,6 +42,7 @@ export function ReadingStimulus({ card, view, copy }: { card: ReadingCard; view:
         <p
           data-testid="story-text"
           dir={dir}
+          style={dirStyle(dir)}
           lang={card.block === "urdu" ? "ur" : "en"}
           className={card.block === "urdu" ? `text-[30px] text-slate-900 ${URDU_TEXT}` : "text-[28px] leading-[1.7] text-slate-900 font-medium"}
         >
@@ -69,13 +77,13 @@ export function CoachPrompts({ card, copy }: { card: ReadingCard; copy: ChildTes
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{copy.ask}</p>
       <ol className="space-y-2">
         {card.coach.questions.map((q) => (
-          <li key={q.id} dir={dir} className={`text-lg text-slate-800 ${dir === "rtl" ? URDU_TEXT : ""}`}>{q.prompt}</li>
+          <li key={q.id} dir={dir} style={dirStyle(dir)} className={`text-lg text-slate-800 ${dir === "rtl" ? URDU_TEXT : ""}`}>{q.prompt}</li>
         ))}
       </ol>
       {card.coach.firstSounds.length > 0 && (
         <div>
           <p className="text-xs text-slate-500 mb-1">{copy.firstSoundOf}</p>
-          <p dir={dir} className={`text-lg text-slate-800 ${dir === "rtl" ? URDU_TEXT : ""}`}>
+          <p dir={dir} style={dirStyle(dir)} className={`text-lg text-slate-800 ${dir === "rtl" ? URDU_TEXT : ""}`}>
             {card.coach.firstSounds.map((s) => s.word).join(" ، ")}
           </p>
         </div>

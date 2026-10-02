@@ -54,7 +54,7 @@ function isEnabled() {
 }
 
 function envSegment() {
-  return process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT_NAME || 'local';
+  return process.env.CHILD_TEST_R2_ENV || 'local';
 }
 
 function loadItemBank() {

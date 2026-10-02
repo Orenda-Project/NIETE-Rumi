@@ -203,14 +203,14 @@ export default function BlockRecorder({ card, sessionId, copy, onSent, deps: giv
       )}
 
       {state.phase === "recording" && (
-        <div className="flex items-center justify-between rounded-2xl bg-slate-900 text-white px-4 py-3">
+        <div className="sticky top-0 z-10 flex items-center justify-between rounded-2xl bg-slate-900 text-white px-4 py-3 shadow">
           <span className="flex items-center gap-2 text-sm">
             <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
             {copy.recordingOn} {mmss(elapsedSeconds(state))}
           </span>
           {state.timedStartAt != null && (
             timeUp
-              ? <span className="text-xl font-bold text-amber-300">{copy.timeUp}</span>
+              ? <span className="text-xl font-bold text-amber-300">{state.fallback ? copy.fallbackTitle : copy.timeUp}</span>
               : (
                 <span className="flex items-baseline gap-1">
                   <span data-testid="countdown" className={`text-4xl font-bold tabular-nums ${left <= 10 ? "text-amber-300" : ""}`}>{left}</span>
@@ -238,7 +238,8 @@ export default function BlockRecorder({ card, sessionId, copy, onSent, deps: giv
       )}
 
       {state.phase === "recording" && (
-        <div className="flex flex-col gap-3">
+        // pinned to the bottom: a long story must never push Stop off the screen
+        <div className="sticky bottom-0 z-10 -mx-4 px-4 pt-3 pb-4 bg-slate-50/95 backdrop-blur flex flex-col gap-3 border-t border-slate-200">
           {isMaths && state.timedStartAt == null && (
             <button type="button" onClick={() => dispatch({ type: "START_TIMED", now: Date.now() })} className={`${BIG} bg-emerald-600 text-white`}>
               {copy.startSums}
@@ -246,7 +247,7 @@ export default function BlockRecorder({ card, sessionId, copy, onSent, deps: giv
           )}
           {timed && (
             <button type="button" onClick={() => dispatch({ type: "FINISH_EARLY", now: Date.now() })} className="w-full rounded-xl py-3 text-lg border border-slate-300 bg-white">
-              {copy.childFinished}
+              {isMaths ? copy.childFinishedMaths : copy.childFinished}
             </button>
           )}
           {!isMaths && timed && !state.fallback && card.child && (card as ReadingCard).child.fallback && (

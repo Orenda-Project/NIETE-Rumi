@@ -13,5 +13,30 @@
     "from": "bot/workers/pic-lp-kieai.worker.js",
     "spec": "../shared/services/lp-feedback.service",
     "reason": "Same OSS-stripped service as homework-bundle; lazy-required inside the post-delivery branch."
+  },
+  {
+    "from": "bot/shared/services/child-test/app/app-api.service.js",
+    "spec": "../../../data/child-test/item-bank.v1.json",
+    "reason": "bd-s1oo0.7: the child-test item bank is committed by L0 on the childtest-golive integration branch (CONTRACT §1); lazy-loaded only when a card is asked for. Remove once it lands."
+  },
+  {
+    "from": "bot/shared/services/child-test/app/app-api.service.js",
+    "spec": "../scoring/thresholds",
+    "reason": "bd-s1oo0.7: L5's per-field confidence bars (CONTRACT §5); until that module merges the check prefill uses one default bar and reports thresholdsSource='default'. Remove once L5 lands."
+  },
+  {
+    "from": "bot/shared/services/child-test/app/app-api.service.js",
+    "spec": "../store",
+    "reason": "bd-s1oo0.7: lazy default dependency on L3 (bd-s1oo0.3) store.js, a sibling lane merged into childtest-golive separately; only loaded when a child-test call runs. Remove once it lands."
+  },
+  {
+    "from": "bot/shared/services/child-test/app/app-api.service.js",
+    "spec": "../draw",
+    "reason": "bd-s1oo0.7: lazy default dependency on L3 (bd-s1oo0.3) draw/, a sibling lane merged into childtest-golive separately; only loaded when a child-test call runs. Remove once it lands."
+  },
+  {
+    "from": "bot/shared/services/child-test/app/app-api.service.js",
+    "spec": "../scoring",
+    "reason": "bd-s1oo0.7: lazy default dependency on L5 (bd-s1oo0.5) scoring/, a sibling lane merged into childtest-golive separately; only loaded when a child-test call runs. Remove once it lands."
   }
 ]

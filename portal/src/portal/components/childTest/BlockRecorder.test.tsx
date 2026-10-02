@@ -195,6 +195,8 @@ describe("reading block", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cannot read line 1" }));
     expect(screen.queryByTestId("story-text")).not.toBeInTheDocument();
     expect(screen.getByText("پانی")).toBeInTheDocument();
+    expect(screen.queryByText("Time is up")).not.toBeInTheDocument();
+    expect(screen.getByText("Letters, then words")).toBeInTheDocument();
   });
 });
 

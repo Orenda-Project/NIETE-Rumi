@@ -26,7 +26,7 @@ const HTTP = {
 function requireInternalKey(req, res, next) {
   const expected = process.env.INTERNAL_API_KEY;
   if (!expected || req.headers['x-api-key'] !== expected) {
-    logToFile('❌ Unauthorized child-test internal call', { path: req.path });
+    logToFile('❌ Unauthorized child-test internal call', { path: req.path }, 'warn');
     return res.status(401).json({ success: false, error: 'Unauthorized' });
   }
   return next();
