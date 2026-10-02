@@ -46,3 +46,35 @@ describe('child-test spoken maths — STT writes the sum as one token', () => {
     expect(scoreQuickSums(heard, items, { start: 0, end: 60 })).toMatchObject({ correct: 2, attempted: 2 });
   });
 });
+
+describe('child-test spoken maths — quick sums aligned to the answers, not paired by position (run 3)', () => {
+  const sums = (answers) => answers.map((a, i) => ({ id: `q${i + 1}`, prompt: `${a} + 0`, answer: a }));
+  const heardOf = (text) => wordsFromTokens(T.tokensFrom([[2, 1, text]]));
+
+  test('an echoed answer ("6، 6") does not push every later answer one item along', () => {
+    const r = scoreQuickSums(heardOf('5، 4، 6، 6، 10، 10، 4، 4، 2۔'), sums([5, 4, 6, 10, 10, 4, 2]), { start: 0, end: 60 });
+    expect(r).toMatchObject({ correct: 7, attempted: 7 });
+  });
+
+  test('the child reads the sum aloud and STT mishears one operand: the third number is still the answer', () => {
+    const items = [{ id: 'a', prompt: '1 + 4', answer: 5 }, { id: 'b', prompt: '2 + 2', answer: 4 }, { id: 'c', prompt: '3 + 3', answer: 6 }];
+    const r = scoreQuickSums(heardOf('1، 2، 5۔ 2، 2، 4۔ 3، 3، 6۔'), items, { start: 0, end: 60 });
+    expect(r).toMatchObject({ correct: 3, attempted: 3 });
+  });
+
+  test('STT joins two one-digit answers into one token ("48"): both answers count', () => {
+    const r = scoreQuickSums(heardOf('7، 48، 59۔'), sums([7, 4, 8, 5, 9]), { start: 0, end: 60 });
+    expect(r).toMatchObject({ correct: 5, attempted: 5 });
+  });
+
+  test('a skipped sum is attempted and wrong; the answers after it still line up', () => {
+    const r = scoreQuickSums(heardOf('2، 1، 4، 5۔'), sums([2, 1, 3, 4, 5]), { start: 0, end: 60 });
+    expect(r).toMatchObject({ correct: 4, attempted: 5 });
+    expect(r.items.map((x) => x.verdict)).toEqual(['correct', 'correct', 'wrong', 'correct', 'correct']);
+  });
+
+  test('wrong answers stay wrong', () => {
+    const r = scoreQuickSums(heardOf('2، 3، 9۔'), sums([2, 4, 6]), { start: 0, end: 60 });
+    expect(r).toMatchObject({ correct: 1, attempted: 3 });
+  });
+});
