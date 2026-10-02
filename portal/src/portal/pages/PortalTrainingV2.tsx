@@ -361,19 +361,27 @@ function LevelRail({
   // shows).
 
   const laddered = (levels[0].unlock_logic || 'chain') === 'chain';
+  // Operator, 2026-10-02 (design option A): a provider with ONE level (I-SAPS,
+  // Oxbridge) gets the breadcrumb and its card, nothing else. Both share
+  // Beacon House's any-order rule, so they were told to "choose a subject"
+  // from a list of one, which "these are independent" then described. A
+  // ladder or a set of subjects needs a heading; a single card does not.
+  const single = levels.length === 1;
   // Falls back to the NIETE green when a provider has no colour of its own.
   const bar = tint ?? '#47ba7d';
 
   return (
     <section className="mb-8" data-testid="level-rail">
-      <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-base font-semibold text-foreground">
-          {laddered ? 'Your levels' : 'Choose a subject'}
-        </h2>
-        <span className="text-sm text-muted-foreground">
-          {laddered ? 'Each level unlocks the next' : 'These are independent — take them in any order'}
-        </span>
-      </div>
+      {!single && (
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-base font-semibold text-foreground">
+            {laddered ? 'Your levels' : 'Choose a subject'}
+          </h2>
+          <span className="text-sm text-muted-foreground">
+            {laddered ? 'Each level unlocks the next' : 'These are independent — take them in any order'}
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {levels.map((l) => {
@@ -409,8 +417,12 @@ function LevelRail({
               }`}
               style={active && bar ? { borderColor: bar, boxShadow: `0 0 0 1px ${bar}` } : undefined}
             >
-              <div className="flex items-center justify-between mb-2">
-                {laddered ? (
+              {/* The label row. On a single-level provider there is no
+                  "LEVEL N" or "SUBJECT" to say, so the row only appears when
+                  a status icon has something to show. */}
+              {(!single || locked || certified || l.state === 'ready_for_quiz') && (
+              <div className={`flex items-center mb-2 ${single ? 'justify-end' : 'justify-between'}`}>
+                {single ? null : laddered ? (
                   <span className={`text-xs font-bold tracking-wider ${locked ? 'text-muted-foreground' : 'text-foreground'}`}>
                     LEVEL {l.order_index + 1}
                   </span>
@@ -425,6 +437,7 @@ function LevelRail({
                   <ClipboardCheck className="w-4 h-4 text-amber-700" />
                 )}
               </div>
+              )}
 
               <div className={`text-base font-semibold mb-3 ${locked ? 'text-muted-foreground' : 'text-foreground'}`}>
                 {l.name}
@@ -752,6 +765,29 @@ const PortalTrainingV2 = () => {
       api.get('/training/courses', { params: { level_id: routeLevelId } })
         .then(({ data }) => setCourses(data.courses || []))
         .catch(() => { /* keep the cards already on screen */ });
+    }
+
+    // bd-bvtv9 — and the course page re-reads its module list: the unit ticks,
+    // the module exam's gate and the readings all ride on /training/modules.
+    // Operator, 2026-10-02 (sandbox): every I-SAPS Module 1 unit was complete
+    // in the database, yet back on this page the last unit had no tick and
+    // the exam was still locked — the list was from before the unit was done.
+    // Only for the course already open; a different course fetches itself.
+    if (screenKind === 'course' && routeCourseId && routeCourseId === selectedCourse) {
+      const courseId = routeCourseId;
+      api.get('/training/modules', { params: { course_id: courseId } })
+        .then(({ data }) => {
+          const list: ModuleSummary[] = data.modules || [];
+          setModules(list);
+          setModuleExam(data.exam || null);
+          setModuleReadings(data.readings || null);
+          list.forEach(m => {
+            api.get(`/training/module/${m.id}/attempts`)
+              .then(({ data: d }) => setAttemptsByModule(prev => ({ ...prev, [m.id]: d.attempts || [] })))
+              .catch(() => { /* keep the badge already on screen */ });
+          });
+        })
+        .catch(() => { /* keep the list already on screen */ });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screenKind, routeVendorKey, routeLevelId, routeCourseId]);
@@ -1356,6 +1392,7 @@ const PortalTrainingV2 = () => {
                         disabled={row.disabled}
                         title={row.hint || undefined}
                         data-testid={`module-item-${m.id}`}
+                        data-done={m.completed_at ? 'true' : 'false'}
                         data-lock={m.lock || undefined}
                         aria-pressed={active}
                         className={`w-full text-left rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 transition-colors ${
