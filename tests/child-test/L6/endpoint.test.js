@@ -10,10 +10,8 @@
  * Meta encrypts). Mocked: the database client (in-memory), the log sinks.
  */
 const crypto = require('crypto');
-const path = require('path');
 const { createFakeSupabase } = require('../../observe2/helpers/fake-supabase');
 
-process.env.CHILD_TEST_ITEM_BANK_PATH = path.join(__dirname, 'fixtures/item-bank.fixture.json');
 const KEYS = crypto.generateKeyPairSync('rsa', { modulusLength: 2048, publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
 process.env.FLOW_PRIVATE_KEY = KEYS.privateKey;
 
@@ -91,6 +89,39 @@ describe('INIT', () => {
   });
 });
 
+describe('timings L8 measures from (check.opened at INIT, check.submitted at the last save)', () => {
+  const timings = () => mockFake.__tables.child_test_sessions[0].timings || {};
+
+  test('INIT stamps check.opened once; reopening keeps the first time', async () => {
+    await Check.handleChildTestCheckInit(token());
+    const first = timings()['check.opened'];
+    expect(first).toEqual(expect.any(String));
+    await new Promise((r) => setTimeout(r, 5));
+    await Check.handleChildTestCheckInit(token());
+    expect(timings()['check.opened']).toBe(first);
+  });
+
+  test('another coach\'s token stamps nothing', async () => {
+    await Check.handleChildTestCheckInit(token('sess-1', 'coach-2'));
+    expect(timings()['check.opened']).toBeUndefined();
+  });
+
+  test('a timing that fails to save still opens the screen', async () => {
+    const realFrom = mockFake.from;
+    mockFake.from = (t) => {
+      const q = realFrom(t);
+      if (t !== 'child_test_sessions') return q;
+      return new Proxy(q, { get: (o, k) => (k === 'update' ? () => ({ eq: () => ({ select: async () => ({ data: null, error: { message: 'down' } }) }) }) : o[k]) });
+    };
+    const out = await Check.handleChildTestCheckInit(token());
+    mockFake.from = realFrom;
+    expect(out.screen).toBe('URDU');
+    expect(out.data.wc_i).toBe('41');
+    expect(timings()['check.opened']).toBeUndefined();
+    expect(Logger.logToFile).toHaveBeenCalledWith(expect.stringContaining('recordTiming failed'), expect.objectContaining({ key: 'check.opened' }), 'error');
+  });
+});
+
 describe('each screen saves its block as it is submitted', () => {
   test('URDU: saves coach_marks + coach_edits on the urdu block, leaves ai_marks alone, returns ENGLISH', async () => {
     const aiBefore = JSON.stringify(blockRow('urdu').ai_marks);
@@ -135,7 +166,7 @@ describe('each screen saves its block as it is submitted', () => {
     expect(blockRow('english').checked_at).toEqual(expect.any(String));
     // L3's session status has no "checked"; the check's end is a timing, and every block has checked_at
     expect(mockFake.__tables.child_test_sessions[0].status).toBe('in_progress');
-    expect(mockFake.__tables.child_test_sessions[0].timings['check.done']).toEqual(expect.any(String));
+    expect(mockFake.__tables.child_test_sessions[0].timings['check.submitted']).toEqual(expect.any(String));
     expect(['urdu', 'english', 'maths'].every((b) => blockRow(b).checked_at)).toBe(true);
     expect(logEvent).toHaveBeenCalledWith('child_test.check_done', expect.objectContaining({ sessionId: 'sess-1' }));
   });

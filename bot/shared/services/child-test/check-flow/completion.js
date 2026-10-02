@@ -11,6 +11,7 @@ const { logError, logToFile } = require('../../../utils/logger');
 const { loadSession, whoOf } = require('./context');
 const { parseToken } = require('./token');
 const { checkStrings } = require('./strings');
+const Store = require('./check-store');
 
 async function handleCheckCompletion(responseJson = {}, from, user) {
   const t = parseToken(responseJson.flow_token);
@@ -29,6 +30,8 @@ async function handleCheckCompletion(responseJson = {}, from, user) {
   // Checked = every block's coach marks are stored (checked_at), whatever the session's status says.
   const checked = ['urdu', 'english', 'maths'].every((b) => ctx.blocks[b] && ctx.blocks[b].checked_at);
   if (!checked) logError('[child_test] check completed but not every block is saved', { sessionId: t.sessionId });
+  // Set once: the endpoint stamped it at the last save; this covers a completion the endpoint never timed.
+  else await Store.markCheckSubmitted(t.sessionId);
   await WhatsAppService.sendMessage(from, checked ? S.completion_saved(who) : S.completion_not_saved(who));
   return { ok: true, sessionId: t.sessionId, checked };
 }

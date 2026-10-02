@@ -54,7 +54,9 @@ function partition(rows, field, sure) {
 function planBlock(block, { aiMarks = null, coachMarks = null, items = null } = {}) {
   const fromCoach = Boolean(coachMarks);
   const src = coachMarks || aiMarks || null;
-  const sure = (field, c) => fromCoach || confident(field, c);
+  // The reading blocks are named for their language; maths bars do not differ by language.
+  const lang = block === 'maths' ? null : block;
+  const sure = (field, c, hintOnly = false) => fromCoach || confident(field, c, { lang, hintOnly });
   const it = (items && items[block]) || {};
   const plan = { block, fromCoach, src };
 
@@ -86,7 +88,7 @@ function planBlock(block, { aiMarks = null, coachMarks = null, items = null } = 
     .sort((a, b) => (Number(b.f.confidence) || 0) - (Number(a.f.confidence) || 0) || a.i - b.i)
     .slice(0, MAX_CHIPS).map((x) => x.f)
     .sort((a, b) => a.idx - b.idx);
-  const ticked = (f) => (coachFlags ? coachFlags.some((c) => c.idx === f.idx) : confident('story.flagged', f.confidence));
+  const ticked = (f) => (coachFlags ? coachFlags.some((c) => c.idx === f.idx) : confident('story.flagged', f.confidence, { lang }));
   plan.flags = {
     shown: fb ? [] : shown.map((f) => ({ ...f, title: f.word || tokens[f.idx] || `#${f.idx}`, on: ticked(f) })),
     overflow: fb ? [] : pool.filter((f) => !shown.includes(f)),
@@ -184,7 +186,7 @@ function renderReading(block, plan, S, lang, data) {
     itemSlots(data, 'fs', SLOTS[block].fs, plan.firstSounds, {
       label: (r, i) => `${i} · ${r.item.word || r.id}`,
       desc: (r) => (r.mark && has(r.mark.heard) ? S.hint(r.mark.heard) : S.no_hint),
-      init: (r) => (r.mark && VERDICTS.has(r.mark.verdict) && plan.sure('first_sounds', r.mark.confidence) ? r.mark.verdict : ''),
+      init: (r) => (r.mark && VERDICTS.has(r.mark.verdict) && plan.sure('first_sounds', r.mark.confidence, r.mark.hint_only) ? r.mark.verdict : ''),
     });
   }
 
@@ -319,7 +321,7 @@ function readScreen(block, posted = {}, { aiMarks = null, coachMarks = null, ite
     });
   };
   const radios = (rows, field, path, barField, allowed = VERDICTS) => rows.map((r, i) => {
-    if (!(r.mark && allowed.has(r.mark.verdict) && plan.sure(barField, r.mark.confidence))) shownEmpty.push(`${path}[${r.id}]`);
+    if (!(r.mark && allowed.has(r.mark.verdict) && plan.sure(barField, r.mark.confidence, r.mark.hint_only))) shownEmpty.push(`${path}[${r.id}]`);
     return { id: r.id, verdict: pick(`${field}${i + 1}`, allowed), heard: (r.mark && r.mark.heard) || '' };
   });
 

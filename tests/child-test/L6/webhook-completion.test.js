@@ -13,10 +13,8 @@
  * test's boundaries).
  */
 const http = require('http');
-const path = require('path');
 const { makeDb } = require('../../quiz/helpers/memory-db');
 
-process.env.CHILD_TEST_ITEM_BANK_PATH = path.join(__dirname, 'fixtures/item-bank.fixture.json');
 
 const PHONE = '923001234567';
 const CATCH_ALL = /Thanks for your response/;

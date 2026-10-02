@@ -13,10 +13,8 @@
  * Real: sendCheck, store, detector, completion handler, guard. Mocked: the database client, the
  * WhatsApp send (network), the log sinks.
  */
-const path = require('path');
 const { createFakeSupabase } = require('../../observe2/helpers/fake-supabase');
 
-process.env.CHILD_TEST_ITEM_BANK_PATH = path.join(__dirname, 'fixtures/item-bank.fixture.json');
 
 let mockFake;
 jest.mock('../../../bot/shared/config/supabase', () => ({ from: (...a) => mockFake.from(...a) }));
@@ -101,6 +99,15 @@ describe('sendCheck', () => {
     expect(Logger.logError).toHaveBeenCalled();
   });
 
+  test('safe to call twice (L4 re-sends from the list): the same Flow and token again, nothing written', async () => {
+    const before = JSON.stringify(mockFake.__tables);
+    expect(await sendCheck('sess-1')).toEqual({ ok: true });
+    expect(await sendCheck('sess-1')).toEqual({ ok: true });
+    expect(WhatsAppService.sendFlow).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendFlow.mock.calls[1][1]).toEqual(WhatsAppService.sendFlow.mock.calls[0][1]);
+    expect(JSON.stringify(mockFake.__tables)).toBe(before);
+  });
+
   test('an unknown session', async () => {
     expect(await sendCheck('nope')).toEqual({ ok: false, reason: 'no_session' });
   });
@@ -127,6 +134,17 @@ describe('handleCheckCompletion', () => {
     expect(r).toEqual({ ok: true, sessionId: 'sess-1', checked: false });
     expect(WhatsAppService.sendMessage.mock.calls[0][1]).toMatch(/didn't save/);
     expect(Logger.logError).toHaveBeenCalled();
+  });
+
+  test('the completion stamps check.submitted on the session, once', async () => {
+    seed({ checked: true });
+    const done = { child_test: 'checked', session_id: 'sess-1', flow_token: 'coach-1:child-test-check:sess-1' };
+    await handleCheckCompletion(done, '923000000001', { id: 'coach-1', preferred_language: 'ur' });
+    const first = mockFake.__tables.child_test_sessions[0].timings['check.submitted'];
+    expect(first).toEqual(expect.any(String));
+    await new Promise((r) => setTimeout(r, 5));
+    await handleCheckCompletion(done, '923000000001', { id: 'coach-1', preferred_language: 'ur' });
+    expect(mockFake.__tables.child_test_sessions[0].timings['check.submitted']).toBe(first);
   });
 
   test('another coach\'s completion is ignored', async () => {

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Writes the child test check Flow from its generator:
- *   docs/flows/child-test-check.json   (the coach confirms or corrects Rumi's marks for one child)
+ *   docs/flows/child-test-check.json   (the coach confirms or corrects the AI's marks for one child)
  * tests/child-test/L6/check-flow-contract.test.js fails if the committed file drifts from the
  * generator, so run this after any change under bot/shared/services/child-test/check-flow/.
  *

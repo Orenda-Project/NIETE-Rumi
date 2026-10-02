@@ -95,23 +95,36 @@ async function saveCoachBlock(sessionId, block, { coachMarks, coachEdits, rowExi
   return save({ sessionId, block, coachMarks, coachEdits });
 }
 
-/** The check is finished: a timing on the session (its status stays L4's to set). */
-async function markCheckDone(sessionId, at = new Date()) {
-  if (viaStore('recordTiming')) return viaStore('recordTiming')(sessionId, 'check.done', at);
-  const cur = await supabase.from('child_test_sessions').select('timings').eq('id', sessionId).maybeSingle();
-  if (cur.error || !cur.data) {
-    logError('[child-test] check recordTiming failed', { sessionId, error: cur.error ? cur.error.message : 'no row' });
+/**
+ * A timing on the session, set once (a second stamp keeps the first time). The check stamps
+ * check.opened at INIT and check.submitted when the last block is saved and again at the Flow's
+ * completion; L8 measures the check from these. The session's status stays L4's to set. Never throws.
+ */
+async function stamp(sessionId, key, at = new Date()) {
+  try {
+    if (viaStore('recordTiming')) return await viaStore('recordTiming')(sessionId, key, at);
+    const cur = await supabase.from('child_test_sessions').select('timings').eq('id', sessionId).maybeSingle();
+    if (cur.error || !cur.data) {
+      logError('[child-test] check recordTiming failed', { sessionId, key, error: cur.error ? cur.error.message : 'no row' });
+      return { ok: false };
+    }
+    const timings = { ...(cur.data.timings || {}) };
+    if (timings[key]) return { ok: true, timings };
+    timings[key] = at.toISOString();
+    const { error } = await supabase.from('child_test_sessions').update({ timings }).eq('id', sessionId).select();
+    if (error) {
+      logError('[child-test] check recordTiming failed', { sessionId, key, error: error.message });
+      return { ok: false };
+    }
+    return { ok: true, timings };
+  } catch (err) {
+    logError('[child-test] check recordTiming threw', { sessionId, key, error: err.message });
     return { ok: false };
   }
-  const timings = { ...(cur.data.timings || {}) };
-  if (!timings['check.done']) timings['check.done'] = at.toISOString();
-  const { error } = await supabase.from('child_test_sessions').update({ timings }).eq('id', sessionId).select();
-  if (error) {
-    logError('[child-test] check recordTiming failed', { sessionId, error: error.message });
-    return { ok: false };
-  }
-  return { ok: true, timings };
 }
+
+/** The check is finished: every block is saved. */
+const markCheckSubmitted = (sessionId, at) => stamp(sessionId, 'check.submitted', at);
 
 /** Roll number for the coach-facing label; null when the draw row is not there. */
 async function getRollNumber(drawId) {
@@ -130,4 +143,4 @@ async function getCoach(userId) {
   return data || null;
 }
 
-module.exports = { getSession, getBlocks, saveCoachBlock, markCheckDone, getRollNumber, getCoach };
+module.exports = { getSession, getBlocks, saveCoachBlock, stamp, markCheckSubmitted, getRollNumber, getCoach };

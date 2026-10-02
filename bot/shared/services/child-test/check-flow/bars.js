@@ -2,8 +2,8 @@
 
 /**
  * Child test check Flow — the per-field confidence bars, read from L5's
- * scoring/thresholds.js. Until that module is on the branch, the same bars are used from here, so the
- * check behaves the same either way; once it lands, its values win.
+ * scoring/thresholds.js. Until that module is on the branch, the default bars here are used; once it
+ * lands, its prefill() decides (per language, hint-only marks never pre-filled).
  */
 
 const DEFAULT_BARS = Object.freeze({
@@ -19,25 +19,29 @@ const DEFAULT_BARS = Object.freeze({
   'maths.word_problem': 0.7,
 });
 
-function loadBars() {
+function loadL5() {
   try {
     // eslint-disable-next-line global-require
-    const t = require('../scoring/thresholds');
-    if (t && t.FIELD_BARS) return { ...DEFAULT_BARS, ...t.FIELD_BARS };
+    return require('../scoring/thresholds');
   } catch (err) {
     if (err.code !== 'MODULE_NOT_FOUND') throw err;
+    return null;
   }
-  return DEFAULT_BARS;
 }
 
-const BARS = loadBars();
+const L5 = loadL5();
+const BARS = L5 && L5.FIELD_BARS ? { ...DEFAULT_BARS, ...L5.FIELD_BARS } : DEFAULT_BARS;
 
 /**
- * Does this mark arrive filled in? Below the bar it arrives empty and the coach marks it. First sounds
- * are a hint from the model: shown always, pre-selected only when they clear the bar too (L5 caps a
- * hint's confidence below it, so in practice the coach marks them).
+ * Does this mark arrive filled in? Below the bar it arrives empty and the coach marks it.
+ * With L5's thresholds on the branch, its prefill() decides, in the block's language (its bars differ
+ * by language, and a hint-only mark is never pre-filled). Without it, the default bars here apply.
+ * @param {string} field  e.g. 'story.words_correct', 'questions', 'maths.written'
+ * @param {number} confidence
+ * @param {{lang?: 'urdu'|'english'|null, hintOnly?: boolean}} [o]
  */
-function confident(field, confidence) {
+function confident(field, confidence, { lang = null, hintOnly = false } = {}) {
+  if (L5 && typeof L5.prefill === 'function') return Boolean(L5.prefill(field, confidence, { hint_only: Boolean(hintOnly), lang }));
   const bar = BARS[field];
   if (bar == null) return false;
   const c = Number(confidence);

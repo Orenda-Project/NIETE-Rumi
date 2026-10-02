@@ -5,9 +5,7 @@
  *
  * Real: renderScreen → a posted payload built from what the screen showed → readScreen → diffMarks.
  */
-const path = require('path');
 
-process.env.CHILD_TEST_ITEM_BANK_PATH = path.join(__dirname, 'fixtures/item-bank.fixture.json');
 
 const { renderScreen, readScreen, diffMarks } = require('../../../bot/shared/services/child-test/check-flow/prefill');
 const { formItems } = require('../../../bot/shared/services/child-test/check-flow/items');

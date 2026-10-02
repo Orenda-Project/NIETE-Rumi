@@ -11,7 +11,9 @@
  *   URDU → ENGLISH → MATHS   each footer saves that block's coach_marks + coach_edits at once, so
  *                        closing the Flow halfway loses nothing; a count that does not add up comes
  *                        back on the same screen with a message and nothing is written
- *   MATHS → DONE         the check's end is recorded on the session (timing check.done)
+ *   MATHS → DONE         the check's end is recorded on the session (timing check.submitted)
+ *
+ * Timings for L8: check.opened at the first INIT, check.submitted once every block is saved (both set once).
  *
  * Coach marks are written ONCE per block (L3's store and a DB trigger). A block submitted again after
  * its save — the Flow's back button, or a reopened check — goes on when nothing changed, and comes back
@@ -61,6 +63,8 @@ async function handleChildTestCheckInit(flowToken) {
     return renderScreen('urdu', { unavailable: true, lang: NOBODY_LANG });
   }
   logEvent('child_test.check_opened', { sessionId: ctx.session.id });
+  // A timing that does not save is logged by the store; the coach still gets the screen.
+  await Store.stamp(ctx.session.id, 'check.opened');
   return screenFor(ctx, 'urdu');
 }
 
@@ -104,7 +108,7 @@ async function handleChildTestCheckDataExchange(flowToken, screen, screenData = 
   const next = BLOCKS[BLOCKS.indexOf(block) + 1];
   if (next) return screenFor(ctx, next);
 
-  const checked = await Store.markCheckDone(ctx.session.id);
+  const checked = await Store.markCheckSubmitted(ctx.session.id);
   if (!checked.ok) {
     logError('[child_test] check: blocks saved but the end of the check was not recorded', { sessionId: ctx.session.id });
     return notSaved(ctx.S, ctx.session.id);

@@ -6,14 +6,11 @@
  * so the coach has to mark it from what they heard. Words and items the model heard wrong arrive as
  * pre-ticked chips (untick = read right), at most 20.
  *
- * Real: the payload builder, the bars, the item bank reader (fixture bank via CHILD_TEST_ITEM_BANK_PATH).
+ * Real: the payload builder, the bars, the item bank (the committed bank, read through item-bank.js).
  */
-const path = require('path');
-
-process.env.CHILD_TEST_ITEM_BANK_PATH = path.join(__dirname, 'fixtures/item-bank.fixture.json');
-
 const { renderScreen, MAX_CHIPS } = require('../../../bot/shared/services/child-test/check-flow/prefill');
 const { formItems } = require('../../../bot/shared/services/child-test/check-flow/items');
+const itemBank = require('../../../bot/shared/services/child-test/item-bank');
 const F = require('./fixtures/ai-marks');
 
 const items = formItems('3', 'A');
@@ -21,9 +18,11 @@ const child = { label: 'Roll 14 · Grade 3' };
 const render = (block, aiMarks, extra = {}) => renderScreen(block, { aiMarks, items, lang: 'ur', child, aiStatus: aiMarks ? 'scored' : null, ...extra });
 
 describe('the item bank reader', () => {
-  test('reads a form from the bank file named by CHILD_TEST_ITEM_BANK_PATH', () => {
+  test('reads the form from L1\'s item bank; a grade or form the bank does not have is null', () => {
+    expect(items).toBe(itemBank.getForm('3', 'A'));
     expect(items.urdu.questions.map((q) => q.id)).toEqual(['u3A-q1', 'u3A-q2', 'u3A-q3']);
     expect(formItems('9', 'Z')).toBeNull();
+    expect(formItems('3', 'Z')).toBeNull();
   });
 });
 
@@ -54,7 +53,7 @@ describe('URDU: confident marks arrive filled, unsure ones empty', () => {
     expect(data.q1_i).toBe('correct');
     expect(data.q2_i).toBe('wrong');
     expect(data.q3_i).toBe('');
-    expect(data.q1_d).toContain('علی کس کے ساتھ گیا؟');
+    expect(data.q1_d).toContain(items.urdu.questions[0].prompt);
     expect(data.q1_d).toContain('والد کے ساتھ');
     expect(data.q3_v).toBe(true);
   });
@@ -139,7 +138,8 @@ describe('MATHS', () => {
   const { screen, data } = render('maths', F.mathsConfident());
   test('numbers: confident ones are chips, the unsure one an empty radio', () => {
     expect(screen).toBe('MATHS');
-    expect(data.numc_opts.map((o) => o.title)).toEqual(['6', '13', '27', '40', '58', '99', '104']);
+    const confidentNumbers = items.maths.numbers.filter((n) => n.id !== 'm3A-n6').map((n) => String(n.value));
+    expect(data.numc_opts.map((o) => o.title)).toEqual(confidentNumbers);
     expect(data.numc_on).toEqual(['m3A-n3', 'm3A-n8']);
     expect(data.n6_v).toBe(true);
     expect(data.n6_i).toBe('');
@@ -154,7 +154,7 @@ describe('MATHS', () => {
     expect(data.w4_i).toBe('blank');
     expect(data.wverdicts.map((v) => v.id)).toEqual(['correct', 'wrong', 'blank', 'unreadable']);
     expect(data.wp_i).toBe('');
-    expect(data.wp_d).toContain('علی کے پاس 5 آم');
+    expect(data.wp_d).toContain(items.maths.word_problem.prompt_ur);
   });
 });
 

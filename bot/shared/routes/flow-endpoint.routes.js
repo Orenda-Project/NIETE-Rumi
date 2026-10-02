@@ -251,7 +251,7 @@ async function handleObserve2CheckFlow(data) {
 }
 
 /**
- * Child test — the coach's check of Rumi's marks for one child (URDU → ENGLISH → MATHS).
+ * Child test — the coach's check of the AI's marks for one child (URDU → ENGLISH → MATHS).
  * flow_token = <coachUserId>:child-test-check:<sessionId>. Publish the Flow with endpoint_uri
  * .../api/flows/child-test-check and set CHILD_TEST_CHECK_FLOW_ID.
  */

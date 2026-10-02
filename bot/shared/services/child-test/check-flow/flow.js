@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test check Flow — the coach confirms or corrects Rumi's marks for one child.
+ * Child test check Flow — the coach confirms or corrects the AI's marks for one child.
  *
  *   URDU     the story count (or, for a child who could not read the story, letters and words),
  *            the words heard wrong as pre-ticked chips, each question with the child's answer,
