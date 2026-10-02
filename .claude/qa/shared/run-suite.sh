@@ -61,9 +61,14 @@ if [ "$METHOD" = mock ]; then
     BASE_ID="${RUN_ID:-$(date +%Y%m%d-%H%M)-par}"; PDIR="$ROOT/.claude/qa/results/whatsapp/niete/$BASE_ID"; mkdir -p "$PDIR"
     echo "=== parallel $(date -u +%FT%TZ) · $(echo $PFEATS | tr '\n' ' ')· commit ${COMMIT:0:12} · one slot each → $PDIR" | tee "$PDIR/parallel.log"
     i=0; PIDS=""; T0=$(date +%s)
+    # a slot is free when none of its four ports is listening AND no run holds a lock on its driver — a second
+    # parallel run (another commit, another session) takes the next free slots instead of colliding
+    slot_free() { local n=$1 p; for p in $((4010+n)) $((3100+n)) $((6390+n)) $((3201+n)); do lsof -ti tcp:$p -sTCP:LISTEN >/dev/null 2>&1 && return 1; done
+                  [ -e "$PDIR/.slot-$n" ] && return 1; return 0; }
     for f in $PFEATS; do
-      i=$((i+1))
-      ( E2E_LEDGER_COMMIT_OFF=1 bash "$0" "$f" --method mock --slot "$i" --commit "$COMMIT" --run-id "$BASE_ID-$f" --env "$ENV" ${REFLECT:+--reflect "$REFLECT"} \
+      i=$((i+1)); while ! slot_free "$i"; do i=$((i+1)); [ "$i" -gt 40 ] && { echo "ERROR: no free slot under 40"; exit 3; }; done
+      : >"$PDIR/.slot-$i"
+      ( E2E_LEDGER_COMMIT_OFF=1 bash "$0" "$f" --method mock --slot "$i" --commit "$COMMIT" --run-id "$BASE_ID-$f" --env "$ENV" ${REFLECT:+--reflect "$REFLECT"} ${SPEC_SYNC:+--spec-sync "$SPEC_SYNC"} ${VALIDATOR_EXIT:+--validator-exit "$VALIDATOR_EXIT"} \
           >"$PDIR/parallel-$f.log" 2>&1; echo $? >"$PDIR/parallel-$f.rc" ) &
       PIDS="$PIDS $!"; echo "  slot $i → $f (pid $!)" | tee -a "$PDIR/parallel.log"
       sleep 3   # stagger the stack bring-ups so the module provisioning lock is taken in turn
