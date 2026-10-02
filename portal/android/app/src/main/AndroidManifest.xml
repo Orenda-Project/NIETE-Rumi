@@ -71,17 +71,15 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!--
-      "Take a photo" of her lesson plan opens the camera from <input capture>.
-      Once CAMERA is declared, Capacitor asks for it at runtime before opening
-      the camera; the photo is written through the FileProvider above.
-    -->
-    <uses-permission android:name="android.permission.CAMERA" />
+      bd-q4g7s.1: NO CAMERA permission, and no storage or media permissions.
+      "Take a photo" is <input accept="image/*" capture>: with CAMERA NOT
+      declared, Capacitor hands it straight to the camera app (no permission
+      needed, the photo comes back through the FileProvider above); declaring
+      it would only add a runtime prompt first. Every file arrives through the
+      system picker, which needs no READ_EXTERNAL_STORAGE / READ_MEDIA_*.
 
-    <!--
-      Declaring those permissions makes Play IMPLY the hardware is required and
-      hide the app from phones without it. Neither is: a phone with no camera
-      can still record, and one with no usable microphone can still upload.
+      Declaring RECORD_AUDIO makes Play IMPLY a microphone is required and hide
+      the app from phones without one. It is not: such a phone can still upload.
     -->
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
 </manifest>

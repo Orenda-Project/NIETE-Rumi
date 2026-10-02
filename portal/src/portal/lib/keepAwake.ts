@@ -4,7 +4,7 @@
  * The phone sits on the table for 30-40 minutes. If the screen times out, the
  * app is paused and Android hands a background app silence from the microphone.
  *
- *   NIETE app (build 1214+)  the native KeepScreen plugin (FLAG_KEEP_SCREEN_ON)
+ *   NIETE app (build 1216+)  the native KeepScreen plugin (FLAG_KEEP_SCREEN_ON)
  *   browser / older app      the Screen Wake Lock API, re-taken whenever the page
  *                            becomes visible again (the browser drops it on hide)
  *
