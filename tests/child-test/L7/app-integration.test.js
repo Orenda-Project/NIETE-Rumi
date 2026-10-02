@@ -57,6 +57,11 @@ beforeEach(() => {
       headObject: async () => ({ exists: true, sizeBytes: 900_000 }),
     },
     scoring: { scoreBlock: async (args) => { scored.push(args); return { ok: true, aiStatus: 'scored' }; } },
+    // The claimed path (CONTRACT §17) ends in L5's scoreBlock; the claim is covered in tests/child-test/L0 + L17.
+    scoreClaimed: async (s, b, { force = false } = {}) => {
+      const r = await deps.scoring.scoreBlock({ sessionId: s.id, block: b, grade: s.grade, form: s.form, ...(force ? { force: true } : {}) });
+      return { outcome: r && r.ok ? r.aiStatus : 'failed' };
+    },
     defer: (fn) => fn(),
     now: () => new Date('2026-10-02T06:10:00Z'),
     log: () => {},
@@ -119,7 +124,8 @@ test('one child through the app: session, upload, AI marks, check — saved twic
   const [block] = await rowsOf('child_test_blocks');
   expect(block.ai_marks).toEqual(ai); // the constant ruler, untouched
   expect(block.coach_marks.version).toBe('coach-marks-v1');
-  expect(block.coach_marks.meta.shown_empty).toContain(`questions[${ai.questions[1].id}].verdict`);
+  // L6's path format (one rule for both channels, bd-s1oo0.16)
+  expect(block.coach_marks.meta.shown_empty).toContain(`questions[${ai.questions[1].id}]`);
   expect(block.coach_edits).toEqual(expect.arrayContaining([
     { path: 'story.words_correct', ai: 41, coach: 42 },
     { path: `questions[${ai.questions[1].id}].verdict`, ai: 'wrong', coach: 'correct' },

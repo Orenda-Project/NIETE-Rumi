@@ -416,3 +416,25 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When I send the Urdu voice note
     Then the bot sends exactly two messages before the next voice note is welcome: "Got it · Urdu" and the English line
     # bd-s1oo0.15: the send pacer (6 s/send after a burst of 8) is unchanged; the cards no longer queue ahead.
+
+  @e2e @wip @draft @audio @destructive @config-gated @P1 @CT41
+  Scenario: A voice note saved just before Rumi restarts is still marked, and the check still arrives
+    Given the Urdu voice note was stored and Rumi restarted before marking it
+    When the English and maths notes and the strip photo are sent after the restart
+    Then the Urdu block is marked once, within about a minute of the restart
+    And the check button for this child arrives once
+    # bd-s1oo0.22: scoring is claimed in the database and a sweep recovers blocks a dead process left unmarked.
+
+  @e2e @wip @draft @audio @negative @config-gated @P2 @CT42
+  Scenario: A block that cannot be marked is retried, and after the last try the check still opens
+    Given the English block fails to be marked
+    Then Rumi tries again, up to three times in all
+    And when every try fails, the check button arrives with the English fields left for me to fill
+
+  @e2e @wip @draft @config-gated @P2 @CT43
+  Scenario: In assist mode every mark Rumi made arrives filled, and the unsure ones are named
+    Given CHILD_TEST_PREFILL_MODE is "assist"
+    When I open the check for a child
+    Then every field Rumi marked arrives filled, including the flagged story words
+    And one line on each screen lists the marks Rumi is unsure of, for me to look at
+    And a field Rumi did not mark arrives empty

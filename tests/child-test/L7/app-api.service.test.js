@@ -126,6 +126,11 @@ function makeDeps(over = {}) {
     log: jest.fn(),
     logError: jest.fn(),
     defer: (fn) => fn(),
+    // The claimed path (CONTRACT §17) ends in L5's scoreBlock; tests/child-test/L0 covers the claim itself.
+    scoreClaimed: async (s, b, { force = false } = {}) => {
+      const r = await (over.scoring || scoring).scoreBlock({ sessionId: s.id, block: b, grade: s.grade, form: s.form, ...(force ? { force: true } : {}) });
+      return r && r.ok ? { outcome: r.aiStatus || 'scored' } : { outcome: 'failed', reason: r && r.reason };
+    },
     ...over,
     _blocks: blocks,
     _sessions: sessions,
@@ -445,11 +450,13 @@ describe('the check', () => {
     nonwords: [{ id: 'u3A-nw1', verdict: 'wrong', heard: 'z', confidence: 0.6 }],
   };
 
-  test('prefill keeps confident fields, empties the rest, and never pre-fills a hint-only field', () => {
-    const pre = Svc.buildCheckPrefill(marks, { default: 0.7 });
-    expect(pre.story.words_correct).toBe(41);
-    expect(pre.story.flagged.map((f) => f.idx)).toEqual([3]);
-    expect(pre.story.uncertain.map((f) => f.idx)).toEqual([9]);
+  // bd-s1oo0.16: the app's own copy of the rule read one 0.7 bar for every field; it now uses the WhatsApp
+  // Flow's planner with L5's per-language bars (the Urdu story count and flagged words are NEVER pre-filled).
+  test('prefill follows the WhatsApp rule: confident fields kept, the rest empty, hint-only never pre-filled', () => {
+    const pre = Svc.buildCheckPrefill(marks, { block: 'urdu' });
+    expect(pre.story.words_correct).toBeNull();
+    expect(pre.story.flagged.map((f) => f.idx)).toEqual([]);
+    expect(pre.story.uncertain.map((f) => f.idx)).toEqual([3, 9]);
     expect(pre.questions.map((q) => q.verdict)).toEqual(['correct', null]);
     expect(pre.first_sounds[0].verdict).toBeNull();
     expect(pre.first_sounds[0].hint).toBe('correct');
@@ -462,12 +469,13 @@ describe('the check', () => {
     coach.questions[1].verdict = 'correct';
     coach.story.flagged = coach.story.flagged.filter((f) => f.idx !== 3);      // the child read w3 right
     coach.story.flagged.push({ idx: 20, word: 'w20', verdict: 'wrong' });     // and w20 wrong
-    const edits = Svc.diffMarks(marks, coach);
+    const edits = Svc.diffMarks(marks, coach, 'urdu');
+    // L6's diff: an unticked flag is 'correct', a new one was 'correct' to the AI (bd-s1oo0.16)
     expect(edits).toEqual(expect.arrayContaining([
       { path: 'story.words_correct', ai: 41, coach: 39 },
       { path: 'questions[u3A-q2].verdict', ai: 'wrong', coach: 'correct' },
-      { path: 'story.flagged[3]', ai: 'wrong', coach: null },
-      { path: 'story.flagged[20]', ai: null, coach: 'wrong' },
+      { path: 'story.flagged[3]', ai: 'wrong', coach: 'correct' },
+      { path: 'story.flagged[20]', ai: 'correct', coach: 'wrong' },
     ]));
     expect(edits).toHaveLength(4);
   });
@@ -477,7 +485,7 @@ describe('the check', () => {
     for (const b of ['urdu', 'english', 'maths']) {
       deps._blocks[`${SESSION}:${b}`] = { session_id: SESSION, block: b, ai_marks: b === 'urdu' ? marks : { version: 'ai-marks-v1' }, ai_status: 'scored', checked_at: b === 'urdu' ? null : 'earlier' };
     }
-    const coach = JSON.parse(JSON.stringify(Svc.buildCheckPrefill(marks, { default: 0.7 })));
+    const coach = JSON.parse(JSON.stringify(Svc.buildCheckPrefill(marks, { block: 'urdu', grade: 3, form: 'A' })));
     coach.story.words_correct = 40;
     coach.questions[1].verdict = 'wrong';
     coach.first_sounds[0].verdict = 'correct';
@@ -487,8 +495,9 @@ describe('the check', () => {
     expect(out).toMatchObject({ status: 'ok', allChecked: true });
     const saved = deps.store.saveCoachMarks.mock.calls[0][0];
     expect(saved.coachMarks.version).toBe('coach-marks-v1');
-    expect(JSON.stringify(saved.coachMarks)).not.toMatch(/"confidence"|"hint"|"uncertain"/);
-    expect(saved.coachMarks.meta).toEqual({ source: 'ai', shown_empty: ['story.flagged[9]', 'questions[u3A-q2].verdict', 'first_sounds[u3A-fs1].verdict', 'nonwords[u3A-nw1].verdict'] });
+    expect(JSON.stringify(saved.coachMarks)).not.toMatch(/"confidence"|"hint"|"uncertain"|"unsure"/);
+    expect(saved.coachMarks.meta).toMatchObject({ source: 'ai', prefill_mode: 'strict', shown_unsure: [] });
+    expect(saved.coachMarks.meta.shown_empty).toEqual(expect.arrayContaining(['story.words_correct', 'questions[u3A-q2]', 'first_sounds[u3A-fs1]', 'nonwords[u3A-nw1]']));
     expect(saved.coachMarks.questions[0]).toMatchObject({ id: 'u3A-q1', verdict: 'correct', heard: 'x' });
     expect(saved.coachEdits).toEqual([{ path: 'story.words_correct', ai: 41, coach: 40 }]);
     expect(deps.store.recordTiming).toHaveBeenCalledWith(SESSION, 'check.done', expect.any(Date));
@@ -516,7 +525,8 @@ describe('the check', () => {
     expect(out.status).toBe('ok');
     const urdu = out.blocks.find((b) => b.block === 'urdu');
     expect(urdu).toMatchObject({ hasAudio: true, aiStatus: 'scored', checked: false });
-    expect(urdu.prefill.story.words_correct).toBe(41);
+    expect(urdu.prefill.story.words_correct).toBeNull();   // Urdu story count: L5's NEVER bar, as on WhatsApp
+    expect(urdu.prefill.story.words_attempted).toBe(45);
     expect(out.blocks.find((b) => b.block === 'english')).toMatchObject({ hasAudio: false, aiStatus: null });
   });
 });

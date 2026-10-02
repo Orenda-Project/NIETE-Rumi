@@ -76,22 +76,6 @@ function loadItemBank() {
   return require('../../../data/child-test/item-bank.v1.json');
 }
 
-/**
- * L5 owns the per-field confidence bars (scoring/thresholds.js). Until that
- * module is on this branch one default bar is used, and the status says so.
- */
-function loadThresholds() {
-  try {
-    // eslint-disable-next-line global-require
-    const t = require('../scoring/thresholds');
-    const table = t.THRESHOLDS || t.thresholds || t;
-    if (table && typeof table === 'object') {
-      return { default: typeof table.default === 'number' ? table.default : 0.7, ...table, source: 'scoring/thresholds' };
-    }
-  } catch (_) { /* not on this branch yet */ }
-  return { default: 0.7, source: 'default' };
-}
-
 function withDefaults(deps = {}) {
   const lazy = {
     supabase: () => require('../../../config/supabase'),
@@ -100,13 +84,15 @@ function withDefaults(deps = {}) {
     draw: () => require('../draw'),
     scoring: () => require('../scoring'),
     itemBank: () => loadItemBank(),
-    thresholds: () => loadThresholds(),
     log: () => require('../../../utils/logger').logToFile,
     logError: () => require('../../../utils/logger').logError,
     now: () => () => new Date(),
     env: () => envSegment(),
     enabled: () => (userId, self) => availableFor(userId, self),
     defer: () => (fn) => setImmediate(fn),
+    // CONTRACT §17: score under the same DB claim as the WhatsApp path and the restart sweep.
+    scoreClaimed: () => (session, block, { force = false } = {}) => require('../conversation/recovery').runScoring(
+      { sessionId: session.id, grade: session.grade, form: session.form, session }, block, { force }),
   };
   const d = {};
   for (const [name, load] of Object.entries(lazy)) {
@@ -372,16 +358,23 @@ const presignBlockUpload = guarded('presign', async ({ userId, sessionId, block,
   return { status: 'ok', key, uploadUrl, contentType: type, expiresIn: PRESIGN_TTL_SECONDS, maxBytes: spec.maxBytes };
 });
 
+/** ai_reason without the restart sweep's bookkeeping (CONTRACT §17): `final:` stripped, `attempt:N` hidden. */
+function coachReason(reason) {
+  if (!reason) return null;
+  const r = String(reason);
+  if (/^attempt:\d+$/.test(r)) return null;
+  return r.replace(/^final:/, '') || null;
+}
+
 /** Off the request path: the coach is not kept waiting, and a scorer failure is logged, never thrown. */
 function startScoring(d, session, block, { force = false } = {}) {
-  const args = { sessionId: session.id, block, grade: session.grade, form: session.form };
-  if (force) args.force = true;
   d.defer(() => {
     Promise.resolve()
-      .then(() => d.scoring.scoreBlock(args))
+      .then(() => d.scoreClaimed(session, block, { force }))
       .then((res) => {
-        if (!res || !res.ok) {
-          d.logError('child_test.app.score_not_ok', { sessionId: session.id, block, aiStatus: res && res.aiStatus, reason: res && res.reason });
+        const outcome = res && res.outcome;
+        if (!res || outcome === 'failed' || outcome === 'final' || (outcome === 'skipped' && res.reason !== 'already_done')) {
+          d.logError('child_test.app.score_not_ok', { sessionId: session.id, block, outcome, reason: res && res.reason });
         }
       })
       .catch((error) => {
@@ -468,137 +461,106 @@ const registerBlockMedia = guarded('register', async ({ userId, sessionId, block
 });
 
 // ─── the check ────────────────────────────────────────────────────────────
+//
+// One prefill rule and one diff for both channels (CONTRACT v0.10 §15 items 6/7, bd-s1oo0.16): the
+// WhatsApp check Flow's planner decides what arrives filled (L5's bars, per language; strict or assist,
+// CHILD_TEST_PREFILL_MODE), the Flow's arrivals() say what arrived empty or unsure, and its diffMarks()
+// is coach_edits. This file only reshapes the plan for the portal's form.
 
-function bar(thresholds, field) {
-  const t = thresholds || {};
-  return typeof t[field] === 'number' ? t[field] : (typeof t.default === 'number' ? t.default : 0.7);
-}
-
-function sure(item, thresholds, field) {
-  return item && typeof item.confidence === 'number' && item.confidence >= bar(thresholds, field);
-}
-
-/** One verdict list (questions, nonwords…): a doubtful verdict arrives empty, the model's guess kept as a hint. */
-function prefillVerdicts(list, thresholds, field) {
-  return (list || []).map((it) => {
-    const keep = !it.hint_only && sure(it, thresholds, field);
-    return { ...it, verdict: keep ? it.verdict : null, hint: keep ? null : (it.verdict || null) };
-  });
-}
-
-/**
- * The check form's starting values — the same rule as the WhatsApp check Flow
- * (L6): a field the model is not confident about is shown empty for the coach
- * to fill; first sounds and letters are coach-marked, the AI's view only a hint.
- */
-function buildCheckPrefill(aiMarks, thresholds) {
-  if (!aiMarks || typeof aiMarks !== 'object') return null;
-  const out = { version: aiMarks.version || null };
-  if (aiMarks.story) {
-    const s = aiMarks.story;
-    const flagged = s.flagged || [];
-    out.story = {
-      ...s,
-      words_correct: sure(s, thresholds, 'story') ? s.words_correct : null,
-      flagged: flagged.filter((f) => sure(f, thresholds, 'story_word')),
-      uncertain: flagged.filter((f) => !sure(f, thresholds, 'story_word')),
-    };
-  }
-  if ('fallback' in aiMarks) out.fallback = aiMarks.fallback;
-  for (const field of ['questions', 'first_sounds', 'nonwords']) {
-    if (aiMarks[field]) out[field] = prefillVerdicts(aiMarks[field], thresholds, field);
-  }
-  if (aiMarks.maths) {
-    const m = aiMarks.maths;
-    out.maths = {
-      ...m,
-      numbers: prefillVerdicts(m.numbers, thresholds, 'numbers'),
-      written: (m.written || []).map((w) => {
-        const keep = sure(w, thresholds, 'written');
-        return { ...w, verdict: keep ? w.verdict : null, read_answer: keep ? w.read_answer : null, hint: keep ? null : (w.read_answer || null) };
-      }),
-      word_problem: m.word_problem
-        ? { ...m.word_problem, verdict: sure(m.word_problem, thresholds, 'word_problem') ? m.word_problem.verdict : null }
-        : m.word_problem,
-    };
-  }
-  if (aiMarks.protocol_flags) out.protocol_flags = aiMarks.protocol_flags;
-  return out;
-}
+const BLOCK_NAMES = new Set(['urdu', 'english', 'maths']);
 
 function isPlain(v) {
   return v !== null && typeof v === 'object';
 }
 
-const v = (x) => (x === undefined ? null : x);
+function blockOf(marks, given) {
+  if (BLOCK_NAMES.has(given)) return given;
+  if (isPlain(marks) && BLOCK_NAMES.has(marks.block)) return marks.block;
+  return isPlain(marks) && marks.maths ? 'maths' : 'urdu';
+}
 
-function itemsById(list) {
-  return new Map((Array.isArray(list) ? list : []).filter((x) => x && x.id).map((x) => [x.id, x]));
+function planFor(aiMarks, { block, grade, form, mode } = {}) {
+  const items = grade != null && form ? checkFlow().formItems(String(grade), form) : null;
+  return checkFlow().planBlock(blockOf(aiMarks, block), { aiMarks, items, ...(mode ? { mode } : {}) });
+}
+
+function checkFlow() {
+  // eslint-disable-next-line global-require
+  return require('../check-flow');
+}
+
+/** One item row as the portal reads it: the verdict when it arrives filled, else null with the AI's guess as a hint. */
+function itemOut(r) {
+  const m = r.mark || { id: r.id };
+  return { ...m, id: r.id, verdict: r.prefilled ? m.verdict : null, hint: r.prefilled ? null : (m.verdict || null), unsure: r.prefilled && r.fill === 'unsure' };
 }
 
 /**
- * coach_edits — every mark the coach changed, as { path, ai, coach }, in L6's
- * path format (CONTRACT v0.9 §14 CR-4): `story.words_correct`,
- * `story.flagged[12]`, `questions[u3A-q2].verdict`, `maths.written[m3A-w2].verdict`.
- * Only marks are compared — confidences, `heard`, meta and versions are not edits.
+ * The check form's starting values (the portal's Prefill type): a field that does not arrive filled is
+ * null, the model's guess kept as a hint; story words the AI flagged and the plan ticks are `flagged`,
+ * the rest `uncertain` (unticked); `unsure` marks a field filled below its bar (assist).
+ * @param {object} aiMarks
+ * @param {{block?: string, grade?: number|string, form?: string, mode?: 'strict'|'assist'}} [o]
  */
-function diffMarks(ai, coach) {
-  const a = isPlain(ai) ? ai : {};
-  const c = isPlain(coach) ? coach : {};
-  const edits = [];
-  const cmp = (path, x, y) => { if (JSON.stringify(v(x)) !== JSON.stringify(v(y))) edits.push({ path, ai: v(x), coach: v(y) }); };
-  const items = (path, xs, ys, fields) => {
-    const A = itemsById(xs);
-    const C = itemsById(ys);
-    for (const id of new Set([...A.keys(), ...C.keys()])) {
-      for (const f of fields) cmp(`${path}[${id}].${f}`, A.get(id) && A.get(id)[f], C.get(id) && C.get(id)[f]);
+function buildCheckPrefill(aiMarks, o = {}) {
+  if (!isPlain(aiMarks)) return null;
+  const plan = planFor(aiMarks, o);
+  const out = { version: aiMarks.version || null };
+  if (plan.block === 'maths') {
+    if (aiMarks.maths) {
+      const m = aiMarks.maths;
+      const qs = plan.quickSums;
+      const wp = plan.wordProblem;
+      out.maths = {
+        ...m,
+        numbers: plan.numbers.rows.map(itemOut),
+        quick_sums: m.quick_sums ? { ...m.quick_sums, correct: qs.filled ? m.quick_sums.correct : null, unsure: qs.fill === 'unsure' } : m.quick_sums,
+        written: plan.written.map((r) => {
+          const w = itemOut(r);
+          return { ...w, read_answer: r.prefilled ? w.read_answer : null, hint: r.prefilled ? null : ((r.mark && r.mark.read_answer) || null) };
+        }),
+        word_problem: m.word_problem && wp
+          ? { ...m.word_problem, verdict: wp.fill ? m.word_problem.verdict : null, unsure: wp.fill === 'unsure' }
+          : m.word_problem,
+      };
     }
-  };
-
-  if (a.story || c.story) {
-    const as = a.story || {};
-    const cs = c.story || {};
-    for (const k of ['words_correct', 'words_attempted', 'seconds', 'finished_early']) cmp(`story.${k}`, as[k], cs[k]);
-    const fa = new Map((as.flagged || []).map((f) => [f.idx, f.verdict || 'wrong']));
-    const fc = new Map((cs.flagged || []).map((f) => [f.idx, f.verdict || 'wrong']));
-    for (const idx of [...new Set([...fa.keys(), ...fc.keys()])].sort((x, y) => x - y)) cmp(`story.flagged[${idx}]`, fa.get(idx), fc.get(idx));
+  } else {
+    if (aiMarks.story && plan.story.mark) {
+      const s = aiMarks.story;
+      const on = new Set(plan.flags.shown.filter((f) => f.on).map((f) => f.idx));
+      const strip = ({ title, on: _on, ...f }) => f;
+      out.story = {
+        ...s,
+        words_correct: plan.story.filled ? s.words_correct : null,
+        unsure: plan.story.fill === 'unsure',
+        flagged: [...plan.flags.shown.filter((f) => on.has(f.idx)), ...plan.flags.overflow].map(strip),
+        uncertain: plan.flags.shown.filter((f) => !on.has(f.idx)).map(strip),
+      };
+    }
+    if ('fallback' in aiMarks) {
+      const fb = aiMarks.fallback;
+      out.fallback = fb && plan.fallback ? {
+        ...fb,
+        letters: { ...(fb.letters || {}), correct: plan.fallback.filled ? (fb.letters || {}).correct : null },
+        words: { ...(fb.words || {}), correct: plan.fallback.filled ? (fb.words || {}).correct : null },
+        unsure: plan.fallback.fill === 'unsure',
+      } : fb;
+    }
+    if (aiMarks.questions) out.questions = plan.questions.map(itemOut);
+    if (aiMarks.first_sounds) out.first_sounds = plan.firstSounds.length ? plan.firstSounds.map(itemOut) : aiMarks.first_sounds.map((x) => ({ ...x, verdict: null, hint: x.verdict || null, unsure: false }));
+    if (aiMarks.nonwords) out.nonwords = plan.nonwords.rows.map(itemOut);
   }
-  if (a.fallback || c.fallback) {
-    for (const part of ['letters', 'words']) cmp(`fallback.${part}.correct`, a.fallback && a.fallback[part] && a.fallback[part].correct, c.fallback && c.fallback[part] && c.fallback[part].correct);
-  }
-  for (const k of ['questions', 'first_sounds', 'nonwords']) if (a[k] || c[k]) items(k, a[k], c[k], ['verdict']);
-  if (a.maths || c.maths) {
-    const am = a.maths || {};
-    const cm = c.maths || {};
-    items('maths.numbers', am.numbers, cm.numbers, ['verdict']);
-    cmp('maths.quick_sums.correct', am.quick_sums && am.quick_sums.correct, cm.quick_sums && cm.quick_sums.correct);
-    items('maths.written', am.written, cm.written, ['verdict']);
-    cmp('maths.word_problem.verdict', am.word_problem && am.word_problem.verdict, cm.word_problem && cm.word_problem.verdict);
-  }
-  return edits;
-}
-
-/** Every mark the check showed EMPTY because the model was below its bar — coach_marks.meta.shown_empty. */
-function shownEmpty(aiMarks, thresholds) {
-  const pre = buildCheckPrefill(aiMarks, thresholds);
-  if (!pre) return [];
-  const out = [];
-  if (pre.story) {
-    if (pre.story.words_correct == null) out.push('story.words_correct');
-    for (const f of pre.story.uncertain || []) out.push(`story.flagged[${f.idx}]`);
-  }
-  for (const k of ['questions', 'first_sounds', 'nonwords']) {
-    for (const it of pre[k] || []) if (it.verdict == null) out.push(`${k}[${it.id}].verdict`);
-  }
-  if (pre.maths) {
-    for (const k of ['numbers', 'written']) for (const it of pre.maths[k] || []) if (it.verdict == null) out.push(`maths.${k}[${it.id}].verdict`);
-    if (pre.maths.word_problem && pre.maths.word_problem.verdict == null) out.push('maths.word_problem.verdict');
-  }
+  if (aiMarks.protocol_flags) out.protocol_flags = aiMarks.protocol_flags;
   return out;
 }
 
+/** coach_edits: the Flow's diff (L6 paths, CONTRACT v0.9 §14 CR-4), for one block. */
+function diffMarks(ai, coach, block) {
+  return checkFlow().diffMarks(blockOf(isPlain(ai) && Object.keys(ai).length ? ai : coach, block), isPlain(ai) ? ai : {}, isPlain(coach) ? coach : {});
+}
+
 // Not marks: the prefill's own helpers, and the model's confidences.
-const NOT_MARKS = new Set(['hint', 'uncertain', 'confidence', 'meta', 'model_versions']);
+const NOT_MARKS = new Set(['hint', 'uncertain', 'unsure', 'confidence', 'meta', 'model_versions']);
 
 function stripNonMarks(x) {
   if (Array.isArray(x)) return x.map(stripNonMarks);
@@ -608,12 +570,19 @@ function stripNonMarks(x) {
   return out;
 }
 
-/** L6's coach_marks shape (CONTRACT v0.9 §14 CR-4), whatever the form sent. */
-function toCoachMarks(form, aiMarks, thresholds) {
+/** L6's coach_marks shape (CONTRACT v0.9 §14 CR-4), whatever the form sent; meta from the same plan the form started from. */
+function toCoachMarks(form, aiMarks, o = {}) {
+  const plan = isPlain(aiMarks) ? planFor(aiMarks, o) : null;
+  const arrived = plan ? checkFlow().arrivals(plan) : null;
   return {
     ...stripNonMarks(form),
     version: 'coach-marks-v1',
-    meta: { source: aiMarks ? 'ai' : 'none', shown_empty: shownEmpty(aiMarks, thresholds) },
+    meta: {
+      source: aiMarks ? 'ai' : 'none',
+      shown_empty: arrived ? arrived.shown_empty : [],
+      prefill_mode: plan ? plan.mode : checkFlow().prefillMode(),
+      shown_unsure: arrived ? arrived.shown_unsure : [],
+    },
   };
 }
 
@@ -623,7 +592,7 @@ const sessionStatus = guarded('session_status', async ({ userId, sessionId }, d)
   const listed = await d.store.listBlocks(sessionId);
   if (!listed || !listed.ok) throw new Error((listed && listed.error) || 'listBlocks failed');
   const byBlock = new Map((listed.blocks || []).map((b) => [b.block, b]));
-  const thresholds = d.thresholds;
+  const ctx = { grade: session.grade, form: session.form };
   const blocks = BLOCKS.map((name) => {
     const b = byBlock.get(name);
     if (!b) return { block: name, hasAudio: false, hasPhoto: false, aiStatus: null, aiReason: null, checked: false, prefill: null };
@@ -632,16 +601,16 @@ const sessionStatus = guarded('session_status', async ({ userId, sessionId }, d)
       hasAudio: !!b.audio_r2_key,
       hasPhoto: !!b.photo_r2_key,
       aiStatus: b.ai_status || null,
-      aiReason: b.ai_reason || null,
+      aiReason: coachReason(b.ai_reason),
       checked: !!b.checked_at,
-      prefill: buildCheckPrefill(b.ai_marks, thresholds),
+      prefill: buildCheckPrefill(b.ai_marks, { ...ctx, block: name }),
     };
   });
   if (blocks.some((b) => b.prefill && !b.checked)) await d.store.recordTiming(sessionId, 'check.opened', d.now());
   return {
     status: 'ok',
     session: { id: session.id, status: session.status, grade: session.grade, form: session.form },
-    thresholdsSource: (thresholds && thresholds.source) || null,
+    thresholdsSource: `check-flow:${checkFlow().prefillMode()}`,
     blocks,
   };
 });
@@ -660,8 +629,8 @@ const submitCheck = guarded('submit_check', async ({ userId, sessionId, block, c
   }
   if (row.checked_at) return { status: 'invalid', reason: 'already_checked' };
 
-  const marks = toCoachMarks(coachMarks, row.ai_marks || null, d.thresholds);
-  const coachEdits = diffMarks(row.ai_marks || {}, marks);
+  const marks = toCoachMarks(coachMarks, row.ai_marks || null, { block, grade: session.grade, form: session.form });
+  const coachEdits = diffMarks(row.ai_marks || {}, marks, block);
   const saved = await d.store.saveCoachMarks({ sessionId, block, coachMarks: marks, coachEdits });
   if (!saved || !saved.ok) {
     if (saved && saved.alreadyChecked) return { status: 'invalid', reason: 'already_checked' };
@@ -702,4 +671,5 @@ module.exports = {
   toCoachMarks,
   envSegment,
   startOfTodayPkt,
+  __internals: { startScoring, withDefaults, coachReason },
 };

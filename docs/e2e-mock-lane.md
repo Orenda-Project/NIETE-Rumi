@@ -275,6 +275,25 @@ For the DEPLOYED sandbox bot, whose replies go to a phone no device reads, the r
 only for recipients on `WA_OUTBOUND_ECHO_TO` and never in production. `child-test-sim/replies-axiom.js` reads it
 from Axiom (`rumi-sandbox`), strictly on one phone and the run window.
 
+### The check, played for real, and the run scored (bd-s1oo0.18)
+
+- `--checks batch|inline|none`: for every check card the bot sends, `check-play.js` plays the Flow the way
+  Meta's client does — INIT, one `data_exchange` per screen (URDU, ENGLISH, MATHS) posting the screen's own
+  init values, then the `nfm_reply` completion to the webhook — encrypted with the public half of the bot's
+  Flow key (mock: `--stack <run_dir>/stack.json`; sandbox: `FLOW_PUBLIC_KEY_B64` from the env, endpoint
+  `https://bot-sandbox.up.railway.app/api/flows/child-test-check`, no other host).
+- The coach is a seeded model (`--coach-catch 0.9 --coach-seed 1`): an empty field gets the fixture key's
+  value, a pre-filled field that disagrees beyond L5's tolerance is corrected with probability
+  `--coach-catch`, an agreeing one is confirmed. Every action is priced from `coach-actions.json` (sources
+  in the file) and logged as a `check_action` mark; `summary.json` has each child's `check` time.
+- `--grade 3|5` keeps fixtures of the visit's grade (another grade is marked against a different passage).
+- Score a run (read-only, sandbox DB asserted): `python3 "$G/sim/score_run.py" <run_dir>` → `RESULTS.md` +
+  `results.json` (time per child and per visit, AI vs key and coach vs key per field with L5's comparison
+  functions from `scripts/child-test/eval-compare.js`, pre-fill rate, cost). Score BEFORE resetting the SIM
+  school; it keeps a `db_rows.json` snapshot and refuses to overwrite a result with fewer rows.
+- The stack gives the mock bot `CHILD_TEST_CHECK_FLOW_ID=sim-child-test-check` so `sendCheck` sends a card;
+  `sim-stack.sh env-names [--live-vendors]` lists the bot's env names (never values).
+
 ## What this lane deliberately does not do (yet)
 
 Native Flow rendering (pixels, truncation, RTL), templates, delivery on a phone, and the PhotoPicker

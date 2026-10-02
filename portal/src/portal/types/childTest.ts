@@ -67,22 +67,23 @@ export type ChildTestCard = ReadingCard | MathsCard;
 
 export type Verdict = "correct" | "wrong" | "none" | null;
 
-export type PrefillItem = { id: string; verdict: Verdict | string | null; heard?: string; confidence?: number; hint?: string | null; hint_only?: boolean };
+// `unsure` (CHILD_TEST_PREFILL_MODE=assist): filled from the recording but below its confidence bar.
+export type PrefillItem = { id: string; verdict: Verdict | string | null; heard?: string; confidence?: number; hint?: string | null; hint_only?: boolean; unsure?: boolean };
 
 export type Prefill = {
   version: string | null;
   story?: {
-    words_correct: number | null; words_attempted?: number; seconds?: number; finished_early?: boolean; confidence?: number;
+    words_correct: number | null; words_attempted?: number; seconds?: number; finished_early?: boolean; confidence?: number; unsure?: boolean;
     flagged: { idx: number; word: string; verdict: string; confidence?: number }[];
     uncertain: { idx: number; word: string; verdict: string; confidence?: number }[];
   };
-  fallback?: { letters: { correct: number; of: number }; words: { correct: number; of: number } } | null;
+  fallback?: { letters: { correct: number | null; of: number }; words: { correct: number | null; of: number }; unsure?: boolean } | null;
   questions?: PrefillItem[];
   first_sounds?: PrefillItem[];
   nonwords?: PrefillItem[];
   maths?: {
     numbers: PrefillItem[];
-    quick_sums?: { correct: number; attempted: number; seconds: number };
+    quick_sums?: { correct: number | null; attempted: number; seconds: number; unsure?: boolean };
     written: (PrefillItem & { read_answer?: string | null })[];
     word_problem?: (PrefillItem & { read_answer?: string | null }) | null;
   };
