@@ -537,6 +537,14 @@
         "nw8_i": {
           "type": "string",
           "__example__": "none"
+        },
+        "unsure_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "unsure_line": {
+          "type": "string",
+          "__example__": "یقین نہیں، براہِ کرم دیکھ لیں: درست الفاظ۔"
         }
       },
       "layout": {
@@ -579,6 +587,11 @@
               {
                 "type": "TextBody",
                 "text": "${data.status_line}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.unsure_line}",
+                "visible": "${data.unsure_v}"
               },
               {
                 "type": "TextSubheading",
@@ -1279,6 +1292,14 @@
         "nw8_i": {
           "type": "string",
           "__example__": ""
+        },
+        "unsure_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "unsure_line": {
+          "type": "string",
+          "__example__": "یقین نہیں، براہِ کرم دیکھ لیں: درست الفاظ۔"
         }
       },
       "layout": {
@@ -1316,6 +1337,11 @@
               {
                 "type": "TextBody",
                 "text": "${data.status_line}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.unsure_line}",
+                "visible": "${data.unsure_v}"
               },
               {
                 "type": "TextSubheading",
@@ -1937,6 +1963,14 @@
         "wp_i": {
           "type": "string",
           "__example__": ""
+        },
+        "unsure_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "unsure_line": {
+          "type": "string",
+          "__example__": "یقین نہیں، براہِ کرم دیکھ لیں: درست الفاظ۔"
         }
       },
       "layout": {
@@ -1972,6 +2006,11 @@
               {
                 "type": "TextBody",
                 "text": "${data.status_line}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.unsure_line}",
+                "visible": "${data.unsure_v}"
               },
               {
                 "type": "TextSubheading",
