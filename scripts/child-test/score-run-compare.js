@@ -52,6 +52,13 @@ function prefillOf(coach) {
 /** Bank items only: a `may-…` key item (the May test's own item) has no twin among the items the bot scores. */
 const bankOnly = (list) => (Array.isArray(list) ? list.filter((x) => !String(x.id).startsWith('may-')) : list);
 
+/**
+ * A quick-sums key the bot's count can be compared with: its items are bank items. A real fixture's
+ * key is the May test's level-1 sums ("1+4 = 5", …, no bank ids), a different answer list from the
+ * bank's m3A sums the bot scores against, so the two counts are not comparable (bd-s1oo0.20).
+ */
+const bankQuickSums = (qs) => !!qs && !(qs.items || []).some((x) => typeof x !== 'object' || String(x.id || '').startsWith('may-'));
+
 const wpKey = (m) => (m && m.word_problem && m.word_problem.verdict
   ? [{ id: 'word_problem', verdict: m.word_problem.verdict === 'correct' ? 'correct' : 'wrong' }] : null);
 
@@ -84,7 +91,7 @@ function compareSession({ session, blocks, key }) {
         out.items.push(...itemRows(rec, bankOnly(km.written), 'written', kind).map((r) => ({ ...r, source, cut })));
         out.items.push(...itemRows(rec, wpKey(km), 'word_problem', kind).map((r) => ({ ...r, source, cut })));
         const qs = (marks.maths || {}).quick_sums;
-        if (qs && km.quick_sums) out.quick_sums.push({ source, ai: qs.correct, key: km.quick_sums.correct, conf: source === 'ai' && qs.confidence != null ? qs.confidence : null });
+        if (qs && bankQuickSums(km.quick_sums)) out.quick_sums.push({ source, ai: qs.correct, key: km.quick_sums.correct, conf: source === 'ai' && qs.confidence != null ? qs.confidence : null });
         continue;
       }
       const s = storyRow(rec, marks.story ? kb.story : null, kind);
@@ -92,6 +99,7 @@ function compareSession({ session, blocks, key }) {
       for (const f of ITEM_FIELDS) out.items.push(...itemRows(rec, bankOnly(kb[f]), f, kind).map((r) => ({ ...r, source, cut })));
       if (marks.fallback && kb.fallback) {
         for (const part of ['letters', 'words']) {
+          if (!kb.fallback[part]) continue;   // no cut of this part in the note: nothing to compare with
           out.fallback.push({ source, block: b, part, ai: marks.fallback[part] && marks.fallback[part].correct, key: kb.fallback[part] && kb.fallback[part].correct });
         }
       }
@@ -108,8 +116,10 @@ function summarise(perSession) {
   const by = (rows, source) => rows.filter((r) => r.source === source);
   const story = {};
   for (const b of ['urdu', 'english']) {
-    const rows = ok.flatMap((s) => s.story).filter((r) => r.block === b);
-    story[b] = {};
+    // a contested key (the recording contradicts the enumerator's count) is listed, not scored
+    const all = ok.flatMap((s) => s.story).filter((r) => r.block === b);
+    const rows = all.filter((r) => r.key_quality !== 'contested');
+    story[b] = { contested: [...new Set(all.filter((r) => r.key_quality === 'contested').map((r) => r.id))] };
     for (const src of ['ai', 'coach']) {
       const sel = by(rows, src);
       story[b][src] = stats(pairs(sel, 'ai_correct', 'key_correct'));

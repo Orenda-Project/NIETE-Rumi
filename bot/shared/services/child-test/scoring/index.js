@@ -96,7 +96,7 @@ async function runReading({ block, spec, cue, file, durationSec, calls, errors, 
   ]);
 
   if (story.ok) { parts.story = story.part; modelVersions.counts = story.modelVersion; }
-  else errors.push({ job: 'story', error: story.error });
+  else errors.push({ job: 'story', error: story.error, ...(story.detail ? { detail: story.detail } : {}) });
   ok.story = !!story.ok;
 
   // the child could not read the first line, so the coach switched to letters + words (PLAN §3)
@@ -235,7 +235,7 @@ async function scoreBlock(args, deps = {}) {
       duration_sec: durationSec,
       seconds: Math.round((Date.now() - started) / 100) / 10,
       cost_usd: sum(calls.map((c) => c.cost)),
-      calls: calls.map((c) => ({ job: c.job, model: c.model, cost: c.cost == null ? null : Math.round(c.cost * 1e5) / 1e5, seconds: Math.round((c.seconds || 0) * 10) / 10, error: c.error || null })),
+      calls: calls.map((c) => ({ job: c.job, model: c.model, cost: c.cost == null ? null : Math.round(c.cost * 1e5) / 1e5, seconds: Math.round((c.seconds || 0) * 10) / 10, error: c.error || null, ...(c.detail ? { detail: c.detail } : {}) })),
       errors,
       windows: result.windows,
       ...(result.parts.photo ? { photo: result.parts.photo } : {}),
