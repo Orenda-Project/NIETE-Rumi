@@ -230,3 +230,34 @@ describe('the portal download follows the same group', () => {
       .toMatch(/Browse\.lessonPdfUrl\(lessonId, assetKind, body\.userId \|\| null\)/);
   });
 });
+
+describe('the portal lesson list (bd-5o0ay.10.16)', () => {
+  const ids = async (userId = 'u1') => (await Browse.listLessons(1, 'urdu', 3, userId)).map((l) => l.lesson_id);
+  const ALL = ['grade_1_urdu_ch3_seg4', 'grade_1_urdu_ch3_seg4b', 'grade_1_urdu_ch3_seg995'];
+  const dropAugust = (id) => {
+    mockTables.niete_lp_assets = mockTables.niete_lp_assets.filter((a) => !(a.lesson_id === id && a.version_stamp === AUG));
+  };
+
+  test('group A sees a split day 2 lesson when day 1 has an August plan', async () => {
+    setup();
+    expect(await ids()).toEqual(ALL);
+  });
+
+  test('group A does not see lessons with no August version', async () => {
+    setup();
+    dropAugust('grade_1_urdu_ch3_seg4');
+    expect(await ids()).toEqual(['grade_1_urdu_ch3_seg995']);
+  });
+
+  test('group B, flag off and no teacher see every lesson', async () => {
+    setup({ group: 'B' });
+    dropAugust('grade_1_urdu_ch3_seg4');
+    expect(await ids()).toEqual(ALL);
+    setup({ flag: 'false' });
+    dropAugust('grade_1_urdu_ch3_seg4');
+    expect(await ids()).toEqual(ALL);
+    setup();
+    dropAugust('grade_1_urdu_ch3_seg4');
+    expect(await ids(null)).toEqual(ALL);
+  });
+});
