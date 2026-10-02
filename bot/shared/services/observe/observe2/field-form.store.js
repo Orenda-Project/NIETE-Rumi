@@ -23,7 +23,8 @@ const LINK_WINDOW_HOURS = 6;
 const PART_KEYS = {
   p1: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
   p2: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
-  seal: ['incident', 'detail', 'note', 'lp', 'priority'],
+  plan: ['lp', 'lp_pick'],
+  seal: ['incident', 'detail', 'note', 'priority'],
 };
 
 // Keep only the fields a screen owns; drop empty strings for fields the coach left blank.
@@ -88,6 +89,21 @@ async function savePart(current, part, answers) {
   const { data, error } = await supabase.from('observation_field_forms')
     .update(patch).eq('id', current.id).is('sealed_at', null).select('*');
   if (error) return fail('savePart', error, { id: current.id, part });
+  if (!(data || []).length) return { ok: false, sealed: true };
+  return { ok: true, form: data[0] };
+}
+
+// The lesson plan, before the seal. `lpRef` carries the keys the fidelity grader resolves the plan's
+// moves by (lesson_id, version_stamp, content_hash), or null when no plan from the list was picked.
+// Saving it again (the coach went back and changed it) replaces the earlier pick.
+async function savePlan(current, answers, lpRef) {
+  if (!current || current.sealed_at) return { ok: false, sealed: Boolean(current && current.sealed_at) };
+  const merged = { ...(current.answers || {}), ...pick(answers, PART_KEYS.plan) };
+  if (!pick(answers, ['lp_pick']).lp_pick) delete merged.lp_pick;
+  if (lpRef) merged.lp_ref = lpRef; else delete merged.lp_ref;
+  const { data, error } = await supabase.from('observation_field_forms')
+    .update({ answers: merged }).eq('id', current.id).is('sealed_at', null).select('*');
+  if (error) return fail('savePlan', error, { id: current.id });
   if (!(data || []).length) return { ok: false, sealed: true };
   return { ok: true, form: data[0] };
 }
@@ -173,6 +189,6 @@ async function markChecked(current, finalLevels, patch) {
 
 module.exports = {
   TABLE, RUBRIC_VERSION, LINK_WINDOW_HOURS, PART_KEYS, pick,
-  createForm, getForm, setPeriod, markOpened, savePart, seal, setPhotos,
+  createForm, getForm, setPeriod, markOpened, savePart, savePlan, seal, setPhotos,
   findOpenFormForCapture, linkSession, findBySession, setMoments, saveReview, markChecked,
 };

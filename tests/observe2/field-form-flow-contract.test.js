@@ -60,9 +60,10 @@ describe('the flow is internally consistent', () => {
   });
 
   test('the parts in order, forward-only routing, one terminal', () => {
-    expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'AFTER', 'SEALED', 'CONTINUE']);
+    expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'AFTER', 'SEALED', 'CONTINUE']);
     expect(flow.routing_model).toEqual({
-      PART_ONE: ['PART_TWO'], PART_TWO: ['AFTER'], AFTER: ['SEALED'], SEALED: [], CONTINUE: ['PART_TWO', 'AFTER', 'SEALED'],
+      PART_ONE: ['PART_TWO'], PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['AFTER'], AFTER: ['SEALED'], SEALED: [],
+      CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'AFTER', 'SEALED'],
     });
     expect(flow.screens.filter((s) => s.terminal).map((s) => s.id)).toEqual(['SEALED']);
   });
@@ -97,7 +98,7 @@ describe('the flow is internally consistent', () => {
   });
 
   test('each part and the seal screen return server checks through the Form error-messages', () => {
-    for (const id of ['PART_ONE', 'PART_TWO', 'AFTER']) {
+    for (const id of ['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'AFTER']) {
       const form = screens[id].layout.children.find((c) => c.type === 'Form');
       expect(form['error-messages']).toBe('${data.error_messages}');
       for (const k of ['error_messages', 'error', 'has_error']) expect(screens[id].data[k]).toBeDefined();
@@ -167,9 +168,9 @@ describe('the form agrees with the endpoint', () => {
       expect([...fields].sort()).toEqual(shown);
     }
   });
-  test('at most three photos, each within the size cap', () => {
+  test('at most ten photos, each within the size cap', () => {
     const picker = components(screens.AFTER).find((c) => c.type === 'PhotoPicker');
-    expect(picker['max-uploaded-photos']).toBe(3);
+    expect(picker['max-uploaded-photos']).toBe(10);
     expect(picker['max-file-size-kb']).toBeLessThanOrEqual(10240);
   });
   test('photos travel only on the seal, never in a navigate payload', () => {

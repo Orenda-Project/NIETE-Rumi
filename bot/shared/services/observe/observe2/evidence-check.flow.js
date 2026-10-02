@@ -7,6 +7,12 @@
  *       The moments Rumi found in the recording, grouped by the four moments. Each is a quote with
  *       its minute; the coach answers "yes, this happened" or "no, or not like this". Up to SLOTS
  *       per screen; unused slots are hidden.
+ *   FIDELITY
+ *       Only when the coach picked a lesson plan in the form and it was graded: each step the plan
+ *       asked for, already rated from the recording by the grader /observe uses (done, done another
+ *       way, partly, not done, couldn't tell), with what was seen. The coach changes any they saw
+ *       differently and the same scorer re-scores it, as in /observe's Section B. Otherwise the last
+ *       moments screen goes straight to the levels.
  *   ADDED_ONE, ADDED_TWO
  *       Every level, pre-selected with what the coach's sealed answers and confirmed moments add up
  *       to (rules.js). Rumi's own level is never shown. The coach changes any they disagree with.
@@ -25,6 +31,18 @@ const { MOMENTS, PLAIN, EXTRA, ROW, PRIORITY } = require('./fico17');
 
 const FLOW_VERSION = '7.3';
 const SLOTS = 8;
+// One slot per prescribed move, as many as /observe shows (observe-draft MAX_MOVE_SLOTS); moves past
+// the twelfth keep the grader's rating there too.
+const FIDELITY_SLOTS = 12;
+// The verdicts /observe's scorer reads, in plain words; the description says what each counts for.
+const FIDELITY_VERDICTS = [
+  { id: 'executed', title: 'Done as planned', description: 'Counts in full.' },
+  { id: 'substituted_equivalent', title: 'Done another way, as good', description: 'Counts in full.' },
+  { id: 'substituted_better', title: 'Done another way, better', description: 'Counts in full.' },
+  { id: 'partial', title: 'Partly done', description: 'Counts half.' },
+  { id: 'not_done', title: 'Not done', description: 'Counts nothing.' },
+  { id: 'not_adjudicable', title: "Couldn't tell", description: 'Left out of the result.' },
+];
 
 const HEARD_SCREENS = [
   { id: 'HEARD_ASK', title: 'Recording: asking', moment: 'ask' },
@@ -74,7 +92,33 @@ function heardScreen({ id, title, moment }, isLast) {
       visible: `\${data.${k}_v}`, required: false, 'data-source': YES_NO,
     });
   }
-  return screenWith(id, title, kids, isLast ? 'Add it all up' : 'Next', data);
+  return screenWith(id, title, kids, 'Next', data);
+}
+
+function fidelityScreen() {
+  const data = { fid_header: { type: 'string', __example__: 'The plan asked for 9 steps. From the recording: 6 done, 1 partly (72%).' } };
+  const init = {};
+  const kids = [
+    { type: 'TextHeading', text: 'Did the lesson follow the plan?' },
+    { type: 'TextBody', text: '${data.fid_header}' },
+  ];
+  for (let k = 1; k <= FIDELITY_SLOTS; k += 1) {
+    data[`mv_${k}`] = { type: 'string', __example__: `Step ${k} of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked.` };
+    data[`mv_${k}_v`] = { type: 'boolean', __example__: k === 1 };
+    data[`fr_${k}`] = { type: 'string', __example__: 'executed' };
+    data[`fe_${k}`] = { type: 'string', __example__: '[00:10] What do you notice about the two strips?' };
+    kids.push(
+      { type: 'TextBody', text: `\${data.mv_${k}}`, visible: `\${data.mv_${k}_v}` },
+      { type: 'RadioButtonsGroup', name: `fid_r_${k}`, label: 'What happened', required: false, visible: `\${data.mv_${k}_v}`, 'data-source': FIDELITY_VERDICTS },
+      {
+        type: 'TextArea', name: `fid_e_${k}`, label: 'What you saw', required: false, visible: `\${data.mv_${k}_v}`,
+        'max-length': 600, 'helper-text': `Step ${k}: the minute and the words, if you have them`,
+      },
+    );
+    init[`fid_r_${k}`] = `\${data.fr_${k}}`;
+    init[`fid_e_${k}`] = `\${data.fe_${k}}`;
+  }
+  return screenWith('FIDELITY', 'Lesson plan steps', kids, 'Add it all up', data, init);
 }
 
 function addedScreen({ id, title, codes }) {
@@ -131,13 +175,16 @@ function buildEvidenceCheckFlow() {
   };
   const screens = [
     ...HEARD_SCREENS.map((h, i) => heardScreen(h, i === HEARD_SCREENS.length - 1)),
+    fidelityScreen(),
     ...ADDED_SCREENS.map(addedScreen),
     priorityScreen(),
     done,
   ];
   const routing = {};
   screens.forEach((s, i) => { routing[s.id] = i < screens.length - 1 ? [screens[i + 1].id] : []; });
+  // No plan picked, or none graded: the last moments screen goes straight to the levels.
+  routing.HEARD_EXPLAIN = ['FIDELITY', 'ADDED_ONE'];
   return { version: FLOW_VERSION, data_api_version: '3.0', routing_model: routing, screens };
 }
 
-module.exports = { buildEvidenceCheckFlow, SLOTS, HEARD_SCREENS, ADDED_SCREENS, FLOW_VERSION };
+module.exports = { buildEvidenceCheckFlow, SLOTS, FIDELITY_SLOTS, FIDELITY_VERDICTS, HEARD_SCREENS, ADDED_SCREENS, FLOW_VERSION };

@@ -2,8 +2,11 @@
 
 /**
  * /observe2 — the brief for the coach's conversation with the teacher, built from the checked
- * record only (no model call): two things that went well, the thing to work on first with what
- * was seen and the next step up, and one confirmed moment from the recording to bring up.
+ * record only (no model call): questions that let the teacher reflect first (2 Oct call: "make the
+ * debrief more reflective"), two things that went well, how much of the lesson plan was taught, the
+ * thing to work on first with what was seen and the next step up, and one confirmed moment to bring
+ * up with a question about it. A level the rule only fills in "for now" (a gap in the rubric) is
+ * described by what was seen, never by the level's label.
  *
  * The indicator phrases come from fico17 (English for the pilot); the frame around them is in the
  * coach's language. Urdu addresses the coach with imperatives only.
@@ -27,7 +30,10 @@ const TYPE_CODE = {
 const FRAME = {
   en: {
     title: (name) => (name ? `📋 Your brief for the conversation with ${name}` : '📋 Your brief for the conversation with the teacher'),
+    reflect: ['Open with questions for the teacher:', '• "How do you think the lesson went?"', '• "What did you want the children to learn, and how could you tell?"'],
     went_well: 'Start with what went well:',
+    plan: (done, total, pct) => `The lesson plan: ${done} of ${total} planned steps done (${pct}%).`,
+    moment_ask: 'Ask: "What were you hoping for at that moment? What else could you try?"',
     find_one: '• Name one thing you saw the teacher do well.',
     work_on: (p) => `Work on first: *${p}*`,
     now: (x) => `What you saw: ${x}`,
@@ -37,7 +43,10 @@ const FRAME = {
   },
   ur: {
     title: (name) => (name ? `📋 ${name} سے بات چیت کے لیے بریف` : '📋 استاد سے بات چیت کے لیے بریف'),
+    reflect: ['پہلے استاد سے یہ سوال کریں:', '• "آپ کے خیال میں سبق کیسا رہا؟"', '• "بچوں کو کیا سیکھنا تھا، اور کیسے پتا چلا کہ انہوں نے سیکھ لیا؟"'],
     went_well: 'جو اچھا ہوا، اس سے شروع کریں:',
+    plan: (done, total, pct) => `سبق کا منصوبہ: ${total} میں سے ${done} مراحل مکمل (${pct}%)۔`,
+    moment_ask: 'پوچھیں: "اس لمحے آپ کا ارادہ کیا تھا؟ اور کیا آزمایا جا سکتا ہے؟"',
     find_one: '• ایک چیز بتائیں جو استاد نے اچھی کی۔',
     work_on: (p) => `پہلے اس پر کام: *${p}*`,
     now: (x) => `جو دیکھا: ${x}`,
@@ -48,6 +57,21 @@ const FRAME = {
 };
 
 const numeric = (v) => (/^[1-4]$/.test(String(v)) ? Number(v) : null);
+const DONE = new Set(['executed', 'substituted_equivalent', 'substituted_better']);
+
+// The plan as the coach confirmed it in the check, else as the recording graded it.
+function planResult(form) {
+  const review = form.evidence_review || {};
+  const graded = form.rumi_moments && form.rumi_moments.fidelity;
+  const lp = review.fidelity || (graded && graded.status === 'ok' ? graded : null);
+  if (!lp || lp.fidelity_pct == null) return null;
+  const counted = (lp.moves || []).filter((m) => m.counted);
+  return {
+    done: counted.filter((m) => DONE.has(m.verdict)).length,
+    total: lp.prescribed_count != null ? lp.prescribed_count : counted.length,
+    pct: Math.round(lp.fidelity_pct),
+  };
+}
 
 /**
  * @param {object} form observation_field_forms row after the check
@@ -62,7 +86,7 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
   const moments = (form.rumi_moments && form.rumi_moments.moments) || [];
   const confirmed = moments.filter((m) => review[`heard_${m.id}`] === 'yes');
 
-  const lines = [F.title(teacherName), '', F.went_well];
+  const lines = [F.title(teacherName), '', ...F.reflect, '', F.went_well];
   const strengths = CODES
     .filter((c) => c !== priority && numeric(finals[c]) >= 3)
     .sort((a, b) => numeric(finals[b]) - numeric(finals[a]))
@@ -73,15 +97,21 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
     lines.push(F.find_one);
   }
 
+  const plan = planResult(form);
+  if (plan) lines.push('', F.plan(plan.done, plan.total, plan.pct));
+
   if (priority && PRIORITY[priority]) {
     const level = numeric(finals[priority]);
     lines.push('', F.work_on(PRIORITY[priority]));
-    if (level) lines.push(F.now(PLAIN[priority][level - 1]));
+    const hole = (review.added_hole || {})[priority];
+    const kept = String(finals[priority]) === String((review.added || {})[priority]);
+    if (hole && kept) lines.push(F.now(hole));
+    else if (level) lines.push(F.now(PLAIN[priority][level - 1]));
     if (level && level < 4) lines.push(F.next(PLAIN[priority][level]));
     const group = (MOMENTS.find((m) => m.codes.includes(priority)) || {}).id;
     const moment = confirmed.find((m) => TYPE_CODE[m.type] === priority)
       || confirmed.find((m) => m.moment === group);
-    if (moment) lines.push(F.moment(moment.minute, moment.quote));
+    if (moment) lines.push(F.moment(moment.minute, moment.quote), F.moment_ask);
   }
 
   lines.push('', F.saved);

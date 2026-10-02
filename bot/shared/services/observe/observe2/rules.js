@@ -261,10 +261,13 @@ function validate(screen, answers) {
     else if (n == null) e.p2_new = 'A whole number, please.';
     else if (p2 != null && n > p2) e.p2_new = `Can't be more than the ${p2} children who spoke in Part 2.`;
     else if (present != null && p1 != null && n > present - p1) e.p2_new = `Only ${present - p1} children hadn't spoken in Part 1.`;
+  } else if (screen === 'LESSON_PLAN') {
+    need(e, a, 'lp', 'Choose one.');
+    // Only when the list had plans to pick: with none, "Not in this list" is the only answer.
+    if (a.lp && a.lp !== 'none' && a.has_plans) need(e, a, 'lp_pick', 'Pick the plan, or "Not in this list".');
   } else if (screen === 'AFTER') {
     need(e, a, 'incident', 'Choose one, or "Nothing to report".');
     if (a.incident && a.incident !== 'none') need(e, a, 'detail', 'Write what was said, and the minute.');
-    need(e, a, 'lp', 'Choose one.');
     need(e, a, 'priority', 'Pick what the teacher should work on first.');
     if (a.seal_ok !== true && a.seal_ok !== 'true') e.seal_ok = 'Tick the box to seal.';
   }
