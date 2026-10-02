@@ -5,6 +5,8 @@
 #   bash .claude/qa/shared/run-suite.sh all   --driver 923…            # EVERYTHING: safe + @slow + @destructive + @wip (DEEP coaching, training seeds)
 #   bash .claude/qa/shared/run-suite.sh safe  --driver 923…            # the default /niete-e2e subset
 #   bash .claude/qa/shared/run-suite.sh lesson-plan,status --driver 923…   # named features (every scenario in them)
+#   bash .claude/qa/shared/run-suite.sh coaching,training --method mock --parallel   # mock lane: every feature AT ONCE, one slot each
+#   bash .claude/qa/shared/run-suite.sh training --method mock --slot 2             # a second run beside another (own ports + driver)
 #   options: --env sandbox|staging|prod  (default sandbox — the landing branch's env since 2026-09-09)  --target <digits>  --port 9223  --run-id <id>  --no-seed  --reflect slash
 #
 # Preconditions it CHECKS (and stops on): Chrome CDP on the port, a live web.whatsapp.com target, the
@@ -29,10 +31,11 @@ DRIVER="" ENV="sandbox" TARGET="" PORT="${CDP_PORT:-9223}" RUN_ID="" SEED=1 REFL
 # --commit <sha> behind bot/scripts/e2e/mock-graph-api.js, on the sandbox DB, vendors replay-strict. No
 # Chrome, no WhatsApp number. Default chrome — every existing invocation is unchanged.
 # --spec-sync <brief.json|none> and --validator-exit <n> are provenance for the ledger row (phase 1).
-METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manual}" PRINT_DRIVER=""
+METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manual}" PRINT_DRIVER="" SLOT="${E2E_SLOT:-0}" PARALLEL=""
 while [ $# -gt 0 ]; do case "$1" in
   --driver) DRIVER="$2"; shift 2;; --env) ENV="$2"; shift 2;; --target) TARGET="$2"; shift 2;;
   --port) PORT="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --no-seed) SEED=0; shift;; --reflect) REFLECT="$2"; shift 2;;
+  --slot) SLOT="$2"; shift 2;; --parallel) PARALLEL=1; shift;;
   --method) METHOD="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   --spec-sync) SPEC_SYNC="$2"; shift 2;; --validator-exit) VALIDATOR_EXIT="$2"; shift 2;;
   --print-driver) PRINT_DRIVER=1; shift;;   # resolve the driver exactly as a run would, print it, exit — touches nothing
@@ -43,6 +46,60 @@ if [ "$METHOD" = mock ]; then
   [ "$ENV" = staging ] && ENV=sandbox      # the mock lane's DB is the sandbox; never staging or prod
   [ -n "$COMMIT" ] || COMMIT=$(git -C "$ROOT" rev-parse HEAD)
   COMMIT=$(git -C "$ROOT" rev-parse --verify "${COMMIT}^{commit}" 2>/dev/null) || { echo "ERROR: --commit $COMMIT is not a commit"; exit 2; }
+  # ── --parallel: one child run per feature, each in its own SLOT (own driver, own ports, own results dir),
+  #    all at once; this parent only waits, prints each child's summary and commits the ledger rows once.
+  #    Mock lane only — the chrome lane has one browser tab.
+  if [ -n "$PARALLEL" ]; then
+    [ "$METHOD" = mock ] || { echo "ERROR: --parallel is mock-lane only (the chrome lane has one WhatsApp Web tab)"; exit 2; }
+    [ -z "$DRIVER" ] || { echo "ERROR: --parallel cannot share one --driver; each child derives its own slot driver"; exit 2; }
+    case "$MODE" in
+      all|safe) PFEATS=$(python3 "$QA/feature-order.py" | awk '{print $2}' | grep -E '^(registration|menu|training|lesson-plan|coaching|language|status)$');;
+      *) PFEATS=$(echo "$MODE" | tr ',' '\n');;
+    esac
+    [ "$(echo "$PFEATS" | wc -l | tr -d ' ')" -ge 2 ] || { echo "ERROR: --parallel needs two or more features"; exit 2; }
+    [ -n "$COMMIT" ] || COMMIT=$(git -C "$ROOT" rev-parse HEAD)
+    BASE_ID="${RUN_ID:-$(date +%Y%m%d-%H%M)-par}"; PDIR="$ROOT/.claude/qa/results/whatsapp/niete/$BASE_ID"; mkdir -p "$PDIR"
+    echo "=== parallel $(date -u +%FT%TZ) · $(echo $PFEATS | tr '\n' ' ')· commit ${COMMIT:0:12} · one slot each → $PDIR" | tee "$PDIR/parallel.log"
+    i=0; PIDS=""; T0=$(date +%s)
+    # a slot is free when none of its four ports is listening AND no run holds a lock on its driver — a second
+    # parallel run (another commit, another session) takes the next free slots instead of colliding
+    slot_free() { local n=$1 p; for p in $((4010+n)) $((3100+n)) $((6390+n)) $((3201+n)); do lsof -ti tcp:$p -sTCP:LISTEN >/dev/null 2>&1 && return 1; done
+                  [ -e "$PDIR/.slot-$n" ] && return 1; return 0; }
+    for f in $PFEATS; do
+      i=$((i+1)); while ! slot_free "$i"; do i=$((i+1)); [ "$i" -gt 40 ] && { echo "ERROR: no free slot under 40"; exit 3; }; done
+      : >"$PDIR/.slot-$i"
+      ( E2E_LEDGER_COMMIT_OFF=1 bash "$0" "$f" --method mock --slot "$i" --commit "$COMMIT" --run-id "$BASE_ID-$f" --env "$ENV" ${REFLECT:+--reflect "$REFLECT"} ${SPEC_SYNC:+--spec-sync "$SPEC_SYNC"} ${VALIDATOR_EXIT:+--validator-exit "$VALIDATOR_EXIT"} \
+          >"$PDIR/parallel-$f.log" 2>&1; echo $? >"$PDIR/parallel-$f.rc" ) &
+      PIDS="$PIDS $!"; echo "  slot $i → $f (pid $!)" | tee -a "$PDIR/parallel.log"
+      sleep 3   # stagger the stack bring-ups so the module provisioning lock is taken in turn
+    done
+    for pid in $PIDS; do wait "$pid"; done
+    RC=0
+    for f in $PFEATS; do
+      rc=$(cat "$PDIR/parallel-$f.rc" 2>/dev/null || echo 1); [ "$rc" = 0 ] || RC=$rc
+      echo "--- $f (exit $rc)" | tee -a "$PDIR/parallel.log"
+      grep -E "^    $f:|^      [A-Z]+[0-9A-Za-z-]* +(FAIL|BLOCKED)|^BLOCKED:|known finding|regressions" "$PDIR/parallel-$f.log" | tee -a "$PDIR/parallel.log"
+    done
+    # the children appended their ledger rows with the commit switched off; one commit here carries them all
+    if [ "${E2E_LEDGER_COMMIT_OFF:-}" != "1" ] && git -C "$ROOT" symbolic-ref -q HEAD >/dev/null; then
+      LED=".claude/qa/ledgers/runs.jsonl"
+      if [ -n "$(git -C "$ROOT" status --porcelain -- "$LED")" ]; then
+        git -C "$ROOT" add -- "$LED" && git -C "$ROOT" commit -q --no-verify -m "qa($(echo $PFEATS | tr '\n' ',' | sed 's/,$//')): mock-lane run rows for ${COMMIT:0:12} (parallel)" -- "$LED" \
+          && echo "ledger: rows for $(echo $PFEATS | tr '\n' ' ')committed" | tee -a "$PDIR/parallel.log"
+      fi
+    fi
+    T1=$(date +%s); echo "=== parallel end $(date -u +%FT%TZ) · wall $(( (T1-T0)/60 ))m$(( (T1-T0)%60 ))s · $PDIR" | tee -a "$PDIR/parallel.log"
+    exit $RC
+  fi
+  # ── --slot N: this run's own ports and its own synthetic driver (derived from the machine key + the slot),
+  #    so two runs on one machine never share a port, a Redis, a stack or a driver row.
+  if [ "${SLOT:-0}" != 0 ]; then
+    export MOCK_PORT=$((4010+SLOT)) E2E_BOT_PORT=$((3100+SLOT)) E2E_REDIS_PORT=$((6390+SLOT)) E2E_WORKER_HEALTH_PORT=$((3201+SLOT))
+    if [ -z "$DRIVER" ]; then
+      export E2E_MOCK_DRIVER_MACHINE="${E2E_MOCK_DRIVER:-$(hostname)|$(id -un)}#slot$SLOT"; unset E2E_MOCK_DRIVER
+    fi
+    [ -n "$RUN_ID" ] || RUN_ID="$(date +%Y%m%d-%H%M)-$MODE-s$SLOT"
+  fi
   # The mock driver is PER MACHINE (mock_driver.py: hostname|user → 92300XXXXXXX; E2E_MOCK_DRIVER pins it).
   # Two machines used to share the fixed yaml number on the same sandbox DB and interleave (bd-yj4e4).
   # The yaml test_driver stays only as the last-resort fallback if the resolver itself cannot run.
@@ -121,6 +178,12 @@ esac
 say "features: $(echo $FEATURES | tr '\n' ' ')"
 
 # ── 2. account hygiene (all mode / named coaching): nothing in flight, then the product-side reset ──
+# status: STA04 SEEDS a coaching session to list "things running" and leaves it in flight, so the next status
+# run on the same driver sees "1 thing running" where STA05/STA07 expect nothing (a back-to-back slot run,
+# 20261001-1048). Start status clean the same way coaching does.
+if [ "$MODE" != "all" ] && echo "$FEATURES" | grep -qx status && ! echo "$FEATURES" | grep -qx coaching; then
+  python3 "$QA/niete_coaching_db.py" cancel-stuck --env "$ENV" --phone "$DRIVER" --yes-write 2>&1 | tee -a "$LOG" | tail -1
+fi
 if [ "$MODE" = "all" ] || echo "$FEATURES" | grep -qx coaching; then
   python3 "$QA/niete_coaching_db.py" cancel-stuck --env "$ENV" --phone "$DRIVER" --yes-write 2>&1 | tee -a "$LOG" | tail -1
   # Archive prior COMPLETED coaching sessions so the analysis prompt drops its growing

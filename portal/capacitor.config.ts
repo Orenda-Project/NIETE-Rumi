@@ -144,6 +144,19 @@ const config: CapacitorConfig = {
     // on first launch and whenever the server is unreachable.
     ...(otaUrl ? { url: otaUrl } : {}),
   },
+  plugins: {
+    // @capacitor/app hands tapped App Links to the web code (`appUrlOpen`, see
+    // AppLinkListener) and owns the hardware back key. Its back handler starts
+    // OFF here, in the APK, and BackButtonHandler switches it on at runtime
+    // (toggleBackButtonHandler). So back-key behaviour ships over the air, and
+    // a portal rolled back to a bundle without that component leaves the back
+    // key at Android's default. Left on with no web listener, the plugin would
+    // instead go back in WebView history and, at the first page, do nothing —
+    // the app could not be left with back.
+    App: {
+      disableBackButtonHandler: true,
+    },
+  },
 };
 
 export default config;

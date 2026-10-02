@@ -371,7 +371,9 @@ router.post('/validate-token', tokenValidationLimiter, async (req, res) => {
       success: true,
       user: {
         firstName: user.name,
-        lastName: user.name,
+        // No surname column since V1.4.4; the setup screen joins first + last,
+        // so echoing `name` here printed it twice.
+        lastName: null,
         phoneNumber: user.phone_number
       }
     });
@@ -5202,6 +5204,22 @@ router.get('/training/module/:id/exam/draft', requirePortalAuth, async (req, res
     console.error('training/module/:id/exam/draft GET error:', error?.message);
     return res.json({ success: true, answers: [] });
   }
+});
+
+/**
+ * GET /api/portal/training/module/:id/exam/attempts -> { success, attempts[] }
+ *
+ * bd-2exhl — her submitted sittings of this module's exam, newest first, so the
+ * exam page can say what happened to each (being graded / not passed / passed)
+ * and let her read back what she submitted.
+ */
+router.get('/training/module/:id/exam/attempts', requirePortalAuth, async (req, res) => {
+  const courseId = parseInt(req.params.id, 10);
+  if (!Number.isFinite(courseId)) {
+    return res.status(400).json({ success: false, error: 'Invalid module id' });
+  }
+  const attempts = await TrainingRules.moduleExamAttempts(req.session.portalUserId, courseId);
+  return res.json({ success: true, attempts });
 });
 
 router.post('/training/module/:id/exam/attempts', requirePortalAuth, async (req, res) => {

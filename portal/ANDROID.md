@@ -88,15 +88,21 @@ adb logcat | grep -iE "capacitor|chromium"     # watch for WebView errors
 | 2 | Login | Succeeds with a phone number + password set up beforehand via the WhatsApp link |
 | 3 | Data loads | Dashboard, lesson plans, curriculum, training, coaching show real data |
 | 4 | Session persists | ⏳ **Fix applied (bd-2402), needs a device run** — `MainActivity.onPause()` now flushes the WebView cookie store to disk so a force-close no longer drops the persistent session cookie. Confirm: log in, swipe the app away, reopen → land on the dashboard. |
-| 5 | Back button | Navigates back; exits only from the dashboard root |
+| 5 | Back button | Closes an open dialog; otherwise goes back a page; leaves the app from a home page (dashboard, leader home, login) or when there is nothing behind. See *Back key* below. Builds with `@capacitor/app` only. |
 | 6 | WhatsApp links | Open WhatsApp / the browser, not a dead WebView |
 | 7 | Stability | No crash or freeze during normal navigation |
+| 8 | App Links | A tapped `https://<portal-host>/portal/dashboard` (or `/portal/login`) link opens the app, not the browser: on the dashboard when signed in, on login when not. Try it with the app closed, in the background, and signed out. See *App Links* below. |
 
 **Status as of 2026-07-29** (Realme RMX2061, real hardware): #1, #2, #3 and #7
 pass. #4 **failed** — session did not survive force-close. **Fix applied
 2026-08-01 (bd-2402)**: `MainActivity.onPause()` flushes the WebView cookie store
 to disk; awaiting a re-run on real hardware to close it out. #5 and #6 are not
 implemented yet.
+
+**Update 2026-10-02** (same RMX2061, Android 11, debug build): **#4 passes** —
+signed in, home → `am force-stop` → reopened from a link, still signed in. **#8
+passes** for both claimed links (cold and warm, signed in and out). **#5 is
+implemented** (see *Back key*). #6 is still open.
 
 Login (#2) only works because the portal server allows the app's origin through
 CORS and issues the session cookie with `SameSite=None`. If login starts failing
@@ -175,15 +181,15 @@ Both are asserted against the built APK, not just the gradle source
 
 ## OTA updates (remote-first WebView)
 
-The app is a pure WebView wrap with **zero native plugins**, so the web bundle
-*is* the product. With OTA on, the WebView loads the SPA from the live portal
+The app is a WebView wrap with **one native plugin** (`@capacitor/app`, for tapped
+App Links and the hardware back key), so the web bundle *is* the product. With OTA on, the WebView loads the SPA from the live portal
 instead of the copy inside the APK — **a portal web deploy updates every
 installed app on next launch**, no Play release, no review, no rollout.
 
 | Change | How it ships | Reaches users in |
 |---|---|---|
 | Anything in `portal/src` — UI, copy, bug fixes | Deploy the portal | **Next app launch** |
-| Capacitor upgrade, `MainActivity`, manifest, SDK, permissions, app icon | Play release | Days (review + rollout) |
+| Capacitor upgrade, native plugins, `MainActivity`, manifest (incl. which links open the app), SDK, permissions, app icon | Play release | Days (review + rollout) |
 
 Practically: almost everything is the first row. A bug like bd-2551 becomes a
 web deploy, not a signed upload and a downtime notice.
@@ -227,9 +233,104 @@ throwing at native boot is the white screen we're eliminating.
 2. **A bad portal deploy now reaches app users too.** The blast radius of the
    web deploy grew to include Android. Roll back the portal deploy to roll back
    the app.
+3. **Web code must not assume a native plugin exists.** The newest bundle also
+   runs on older APKs built before a plugin was added. Check with
+   `isNativePluginAvailable()` (`src/lib/runtime.ts`) and do nothing without it,
+   as `AppLinkListener` does.
 
 Offline is unchanged: the portal is 100% server-data-driven and already
 unusable without connectivity.
+
+## App Links (tapped portal links open the app)
+
+A portal link tapped in WhatsApp, SMS or Chrome opens the NIETE app instead of
+the browser, once Android has verified the domain. Unverified, or with the app
+not installed, the same link opens in the browser exactly as before.
+
+**What is claimed:** exactly `/portal/dashboard` and `/portal/login` on the
+build's portal host. Signed in, the teacher lands on the dashboard; signed out,
+on the login screen, then the dashboard after logging in (the pages' own
+behaviour, same as the web). Every other link still opens in the browser.
+
+| Piece | Where | Ships by |
+|---|---|---|
+| Verification file | `GET /.well-known/assetlinks.json`, `dashboard/lib/asset-links.js`, built from `ANDROID_APP_PACKAGE` + `ANDROID_APP_SHA256_FINGERPRINTS` on the portal service | Portal deploy + env vars |
+| Intent filter | `AndroidManifest.xml`; host = the host of `VITE_API_BASE_URL` (`app/build.gradle`, which refuses to build without an https one) | Play release |
+| Link → page | `@capacitor/app` delivers `appUrlOpen` → `AppLinkListener` → router; the decision is `src/lib/app-links.cjs` | Plugin: Play release. Listener: portal deploy (OTA) |
+
+**Configure a deployment** (portal service env):
+
+- `ANDROID_APP_PACKAGE`: `pk.edu.niete` on production, `pk.edu.niete.staging` on staging.
+- `ANDROID_APP_SHA256_FINGERPRINTS`: for production, the Play **app-signing**
+  certificate SHA-256 (Play Console → Test and release → App integrity → App
+  signing key certificate). Play re-signs the app, so the upload key pinned in
+  `android-release.yml` alone never matches a phone. Listing both is fine.
+
+Unset or malformed, the endpoint answers a JSON 404 and links keep opening in
+the browser — nothing else changes. Check what Android will see:
+
+```bash
+curl -si https://<portal-host>/.well-known/assetlinks.json      # 200, application/json
+curl -s "https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://<portal-host>&relation=delegate_permission/common.handle_all_urls"
+```
+
+**Check on a device** (Android 12+):
+
+```bash
+adb shell pm verify-app-links --re-verify pk.edu.niete
+adb shell pm get-app-links pk.edu.niete                         # want: <portal-host>: verified
+adb shell am start -a android.intent.action.VIEW -c android.intent.category.BROWSABLE \
+  -d "https://<portal-host>/portal/dashboard"
+```
+
+Then the real test (#8 above): send yourself the link on WhatsApp and tap it.
+
+**Debug and staging builds cannot auto-verify.** CI signs them with the
+runner's throwaway debug key, so their fingerprint changes every build and no
+assetlinks.json can pin it. Turn the link on by hand instead:
+
+```bash
+adb shell pm set-app-links-user-selection --user cur --package pk.edu.niete.staging true <portal-host>
+```
+
+or Settings → Apps → NIETE Staging → Open by default → Add links. (Android 11
+and older show an "Open with" chooser for an unverified link; pick the app.)
+
+**What needs a Play release.** Which links open the app is the manifest's list,
+so adding a page to it is a release. Where a link lands is web code (OTA). The
+listener already accepts any `/portal/` page on the portal's own origin, so
+widening the claim later is a manifest-only change.
+
+**Older APKs under OTA** run the new listener without the plugin. It checks
+`isNativePluginAvailable('App')` and does nothing, so on those builds links keep
+opening in the browser until the teacher updates.
+
+## Back key
+
+On builds with `@capacitor/app`, the hardware back key follows
+`src/lib/back-button.cjs`, in order:
+
+1. an open dialog, sheet or menu closes (as Escape would);
+2. on a home page — `/portal/dashboard`, `/portal/leader`, `/portal/login`, `/` —
+   back **leaves the app**, even with history behind it;
+3. anywhere else, back goes to the **previous page**;
+4. with nothing behind (she arrived from a tapped link), back leaves the app,
+   which returns her to wherever she tapped it, usually WhatsApp.
+
+"Leave" is `App.minimizeApp()` (move to background, as Android's own back does
+from a root screen on current versions): the session and the page survive.
+
+**Ships over the air.** The plugin's handler is OFF in the APK
+(`plugins.App.disableBackButtonHandler: true` in `capacitor.config.ts`) and
+`BackButtonHandler` switches it on at runtime with `toggleBackButtonHandler`. So
+the rule above can be changed with a portal deploy, and a portal rolled back to a
+bundle without the component leaves the back key at Android's default — never
+stuck. Do not set the config to `false`: left on with no web listener, the plugin
+goes back through WebView history and at the first page does nothing, so the app
+cannot be left with back.
+
+Builds without the plugin (everything before App Links) keep Android's default:
+back leaves the app from any page.
 
 ## Release signing
 
