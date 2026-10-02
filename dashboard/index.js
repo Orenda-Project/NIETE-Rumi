@@ -152,6 +152,12 @@ if (!ADMIN_PASSWORD_HASH) {
   console.warn('⚠️  ADMIN_PASSWORD_HASH not set. Dashboard login will be disabled until configured.');
 }
 
+// Android App Links verification file. Registered first so nothing below — the
+// session middleware, the static SPA bundle, the SPA catch-all — can answer it:
+// the catch-all would serve index.html as text/html, which Android rejects.
+const { ASSET_LINKS_PATH, assetLinksHandler } = require('./lib/asset-links');
+app.get(ASSET_LINKS_PATH, assetLinksHandler);
+
 // Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
