@@ -5,7 +5,7 @@
  *
  *   node bot/scripts/e2e/child-test-sim/replay-check.js --run <runDir> --fixtures <dir> --strips <dir>
  *        --mode strict|assist [--catch-prefilled 0.8,0.4 | --catch 0.9] [--blind-accuracy 1]
- *        [--seeds 1-50] [--rtt-s 0.8] [--out <file.json>]
+ *        [--seeds 1-50] [--rtt-s 0.8] [--look-s 2] [--out <file.json>]
  *
  * A mock-lane run (driver.js + score_run.py) leaves <runDir>/db_rows.json: every session's ai_marks as the
  * live scorers wrote them. The check itself is deterministic given those marks, the mode and the coach: the
@@ -96,13 +96,14 @@ function checkChild({ blocks, key, items, mode, rng, coach, costs, rttS }) {
   };
 }
 
-function replay({ runDir, fixturesDir, stripsDir, mode, coach, seeds, rttS }) {
+function replay({ runDir, fixturesDir, stripsDir, mode, coach, seeds, rttS, lookS = null }) {
   const rows = JSON.parse(fs.readFileSync(path.join(runDir, 'db_rows.json'), 'utf8'));
   const run = JSON.parse(fs.readFileSync(path.join(runDir, 'run.json'), 'utf8'));
   const summary = JSON.parse(fs.readFileSync(path.join(runDir, 'summary.json'), 'utf8'));
   const byRoll = Object.fromEntries(((summary.result || {}).children || []).filter((c) => c.roll != null).map((c) => [String(c.roll), c.fixture]));
   const fx = Object.fromEntries((run.fixtures || []).map((f) => [f.id, f]));
   const costs = CP.loadActionCosts();
+  if (lookS != null) costs.check_unsure = lookS;   // sensitivity: what one look at an unsure field costs
   const perSeed = seeds.map((seed) => {
     const rng = CP.makeRng(seed);
     const sessions = []; const children = [];
@@ -117,7 +118,7 @@ function replay({ runDir, fixturesDir, stripsDir, mode, coach, seeds, rttS }) {
     }
     return { seed, summary: summarise(sessions), children };
   });
-  return { mode, coach, seeds, rtt_s: rttS, per_seed: perSeed };
+  return { mode, coach, seeds, rtt_s: rttS, look_s: costs.check_unsure, per_seed: perSeed };
 }
 
 function main() {
@@ -131,6 +132,7 @@ function main() {
   const out = replay({
     runDir: path.resolve(a.run), fixturesDir: path.resolve(a.fixtures), stripsDir: path.resolve(a.strips),
     mode, coach, seeds: seedsOf(a.seeds), rttS: a['rtt-s'] != null ? Number(a['rtt-s']) : 0.8,
+    lookS: a['look-s'] != null ? Number(a['look-s']) : null,
   });
   const json = JSON.stringify(out, null, 1);
   if (a.out) fs.writeFileSync(a.out, json); else process.stdout.write(json + '\n');

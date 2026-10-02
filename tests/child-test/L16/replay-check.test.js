@@ -53,3 +53,12 @@ test('a coach who catches everything ends at the key in both modes; one who catc
   const strictNone = replay({ runDir: d.run, fixturesDir: d.fx, stripsDir: d.strips, mode: 'strict', coach: coach(0, 0), seeds: [1], rttS: 0.8 }).per_seed[0].summary;
   expect(strictNone.story.urdu.coach.mae).toBe(0);      // strict: the Urdu count arrived empty, the coach typed the key
 });
+
+test('--look-s prices a look at an unsure field (sensitivity)', () => {
+  const d = runDir();
+  const cheap = replay({ runDir: d.run, fixturesDir: d.fx, stripsDir: d.strips, mode: 'assist', coach: coach(0.8, 0.4), seeds: [1], rttS: 0.8, lookS: 1 });
+  const dear = replay({ runDir: d.run, fixturesDir: d.fx, stripsDir: d.strips, mode: 'assist', coach: coach(0.8, 0.4), seeds: [1], rttS: 0.8, lookS: 4 });
+  const looks = cheap.per_seed[0].children[0].looks;
+  expect(dear.per_seed[0].children[0].check_s - cheap.per_seed[0].children[0].check_s).toBeCloseTo(3 * looks, 5);
+  expect(dear.look_s).toBe(4);
+});
