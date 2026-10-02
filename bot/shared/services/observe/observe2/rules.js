@@ -263,8 +263,16 @@ function validate(screen, answers) {
     else if (present != null && p1 != null && n > present - p1) e.p2_new = `Only ${present - p1} children hadn't spoken in Part 1.`;
   } else if (screen === 'LESSON_PLAN') {
     need(e, a, 'lp', 'Choose one.');
-    // Only when the list had plans to pick: with none, "Not in this list" is the only answer.
-    if (a.lp && a.lp !== 'none' && a.has_plans) need(e, a, 'lp_pick', 'Pick the plan, or "Not in this list".');
+    // "Upload new" is always in the list, so a plan that was there is always picked or added.
+    if (a.lp && a.lp !== 'none') need(e, a, 'lp_pick', 'Pick the plan, or "Upload new".');
+    if (a.lp && a.lp !== 'none' && a.lp_pick === 'upload') need(e, a, 'lp_how', "Say how you'll add the plan: photos, a file, or typed.");
+  } else if (screen === 'LP_PHOTOS') {
+    if (!Array.isArray(a.lp_photos) || !a.lp_photos.length) e.lp_photos = 'Add at least one photo of the plan.';
+  } else if (screen === 'LP_FILE') {
+    if (!Array.isArray(a.lp_file) || !a.lp_file.length) e.lp_file = "Add the plan's file.";
+  } else if (screen === 'LP_TEXT') {
+    const { LP_TEXT_MIN } = require('./field-form.flow');
+    if (String(a.lp_text || '').trim().length < LP_TEXT_MIN) e.lp_text = 'Type a little more: the steps the teacher planned, in order.';
   } else if (screen === 'AFTER') {
     need(e, a, 'incident', 'Choose one, or "Nothing to report".');
     if (a.incident && a.incident !== 'none') need(e, a, 'detail', 'Write what was said, and the minute.');

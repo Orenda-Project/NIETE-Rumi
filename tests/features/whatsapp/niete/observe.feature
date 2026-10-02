@@ -718,13 +718,46 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given I saved Part 2 of the live form
     Then the form shows "The lesson plan" with "Was there a lesson plan?"
     When I choose "Followed a lesson plan"
-    Then a "Which plan?" list shows the teacher's most recent plans from the bot, newest first, and "Not in this list"
+    Then a "Which plan?" list shows the teacher's most recent plans from the bot, newest first, named as in the /observe plan list, and "Upload new" last
     When I tap "Next" without picking a plan
-    Then the form stays with 'Pick the plan, or "Not in this list".' under "Which plan?"
+    Then the form stays with 'Pick the plan, or "Upload new".' at the bottom
     When I pick a plan and tap "Next"
     Then "Before you seal" names the plan I picked and says "To change it, go back."
     # Decided on the 2 Oct go-live call: the plan is picked inside the form, before the seal, and can be
-    # changed until then. observe2-form-endpoint.js LESSON_PLAN; recent-fidelity-lps.service.js.
+    # changed until then. observe2-form-endpoint.js LESSON_PLAN; recent-fidelity-lps.service.js; the row
+    # names come from lp-selection-format.js, as in /observe's list.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario Outline: A plan the bot didn't give the teacher is added in the form as photos, a file, or typed text
+    Given I saved Part 2 of the live form
+    When I choose "Followed a lesson plan", pick "Upload new" and choose "<how>" for "How will you add it?"
+    And I tap "Next"
+    Then the form shows "<screen heading>"
+    When I add <what> and tap "Next"
+    Then "Before you seal" says "<seal line>" and "To change it, go back."
+    Examples:
+      | how                      | screen heading            | what                         | seal line                   |
+      | Photos of the paper plan | Photos of the lesson plan | two photos, one per page     | 2 photos of the plan        |
+      | A PDF or Word file       | The lesson plan file      | a PDF of the plan            | the file you added          |
+      | Type it                  | Type the lesson plan      | the plan's steps, typed      | the plan you typed          |
+    # Asked by the operator on 2 Oct: the same ways in as /observe (photo, PDF or Word, typed). Photos and
+    # files are stored after the reply; typed text under 40 characters is refused (the extractor's floor).
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: An added plan is read and its steps checked after the recording, as /observe does
+    Given I added the lesson plan as photos before sealing, and sent the recording
+    When the "Check the moments" form opens and I tap "Next" on the last moments screen
+    Then the form shows "Did the lesson follow the plan?" with the steps read from the photos, each already rated
+    # observe2/added-plan.js reads the files with the extraction worker /observe uses (text layer, Word,
+    # vision read), applies the same "is this a lesson plan?" check, then the orchestrator's uploaded-plan
+    # path grades it. The pages of several photos are read in order as one plan.
+
+  @e2e @flow @config-gated @wip @draft @P2
+  Scenario: An added plan that can't be read, or isn't a lesson plan, is named in the brief
+    Given the photos I added could not be read
+    When I submit the check
+    Then there is no "Did the lesson follow the plan?" screen
+    And the brief says the photos or file couldn't be read, so the plan's steps weren't checked
 
   @e2e @flow @config-gated @wip @draft @P2
   Scenario: No lesson plan goes straight on to the seal

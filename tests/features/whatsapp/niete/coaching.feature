@@ -567,6 +567,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # never called) → prioritized_action.teacher_response never becomes 'yes' and the
     # agency reminder can't fire. Expected to FAIL until wired.
 
+  @e2e @wip @draft @P1 @COA72
+  Scenario: The lesson-plan list says a photo, a PDF, or typing the plan all work
+    Given the NIETE bot chat is open
+    And an observation I started is waiting at the lesson-plan step with the teacher's recent lesson plans listed
+    When I open the list
+    Then the "Upload new" row reads "A photo or PDF of the plan, or type it"
+    And in Urdu it reads "منصوبے کی تصویر یا PDF بھیجیں، یا لکھ دیں"
+    # All three ways in were already accepted (document webhook, LP-as-photo, typed paste); the row said
+    # only "Send or paste", so a coach holding a paper plan had no hint a photo works. Asked by the
+    # operator on 2 Oct 2026 (lp-selection-list.service.js; 38 / 41 code points against the 72 cap).
+
   @e2e @wip @draft @P1 @COA33
   Scenario: A lesson plan typed into the chat is attached to the waiting observation
     Given the NIETE bot chat is open
