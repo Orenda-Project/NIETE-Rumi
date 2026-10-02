@@ -302,6 +302,64 @@ describe("Unit page — breadcrumb names every step", () => {
   });
 });
 
+// Operator, 2026-10-02 (sandbox): finished the last Beacon House English
+// module, the course card read 10/10, and the level card still read 4/5. The
+// database held 55/55. The levels were read once, on first load, and walking
+// back up the breadcrumb never asked again. Each page re-reads what it shows.
+describe("Counts are current when you walk back up", () => {
+  let levelsNow: unknown[];
+  let coursesNow: unknown[];
+  let vendorsNow: unknown[];
+  beforeEach(() => {
+    levelsNow = LEVELS;
+    coursesNow = COURSES;
+    vendorsNow = VENDORS;
+    (api.get as any).mockImplementation((url: string) => {
+      if (url === "/training/vendors") return Promise.resolve({ data: { vendors: vendorsNow } });
+      if (url === "/training/levels") return Promise.resolve({ data: { levels: levelsNow } });
+      if (url === "/training/certificates") return Promise.resolve({ data: { certificates: [] } });
+      if (url === "/training/courses") return Promise.resolve({ data: { courses: coursesNow } });
+      if (url === "/training/modules") return Promise.resolve({ data: { modules: MODULES, exam: null } });
+      if (/^\/training\/module\/.+\/attempts$/.test(url)) return Promise.resolve({ data: { attempts: [] } });
+      return Promise.resolve({ data: {} });
+    });
+  });
+  const calls = (u: string) => (api.get as any).mock.calls.filter(([x]: [string]) => x === u).length;
+
+  it("re-reads the levels when you go back to the provider page", async () => {
+    renderAt("/portal/training/provider/TALEEMABAD/level/1");
+    expect(await screen.findByTestId("course-card-c-1")).toBeInTheDocument();
+    // The teacher finishes a course meanwhile.
+    levelsNow = LEVELS.map(l => (l as { id: number }).id === 1 ? { ...(l as object), courses_completed: 1 } : l);
+    await userEvent.click(within(screen.getByTestId("training-breadcrumb")).getByTestId("breadcrumb-vendor"));
+    await waitFor(() => expect(screen.getByTestId("level-card-1")).toHaveTextContent("1 / 2 courses"));
+  });
+
+  it("re-reads the courses when you go back to the level page", async () => {
+    renderAt("/portal/training/provider/TALEEMABAD/level/1/course/c-1");
+    expect(await screen.findByTestId("module-item-m-1")).toBeInTheDocument();
+    coursesNow = COURSES.map(c => c.id === "c-1" ? { ...c, completed_count: 2 } : c);
+    await userEvent.click(within(screen.getByTestId("training-breadcrumb")).getByTestId("breadcrumb-level"));
+    await waitFor(() => expect(screen.getByTestId("course-card-c-1")).toHaveTextContent("2 / 2 modules"));
+  });
+
+  it("re-reads the provider cards when you go back to Training", async () => {
+    renderAt("/portal/training/provider/TALEEMABAD");
+    expect(await screen.findByTestId("level-card-1")).toBeInTheDocument();
+    vendorsNow = VENDORS.map(v => v.vendor_key === "TALEEMABAD" ? { ...v, completed_module_count: 20 } : v);
+    await userEvent.click(within(screen.getByTestId("training-breadcrumb")).getByTestId("breadcrumb-training"));
+    await waitFor(() => expect(screen.getByTestId("vendor-card-TALEEMABAD")).toHaveTextContent("100%"));
+  });
+
+  it("does not ask twice on first load", async () => {
+    renderAt("/portal/training/provider/TALEEMABAD");
+    expect(await screen.findByTestId("level-card-1")).toBeInTheDocument();
+    await new Promise(r => setTimeout(r, 30));
+    expect(calls("/training/levels")).toBe(1);
+    expect(calls("/training/vendors")).toBe(1);
+  });
+});
+
 describe("Certificates page", () => {
   it("offers All plus a chip per provider that has a certificate, and filters by it", async () => {
     renderAt("/portal/training/certificates");
