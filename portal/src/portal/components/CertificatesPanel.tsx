@@ -97,6 +97,9 @@ export type PortalCertificate = {
   id: string;
   certificate_code: string;
   level_name: string | null;
+  /** bd-klecr — the provider that issued it, read through its level. */
+  vendor_key?: string | null;
+  vendor_name?: string | null;
   teacher_name: string | null;
   issued_at: string | null;
   /** false = not rendered yet; the download route mints it on first request. */
@@ -127,6 +130,7 @@ export default function CertificatesPanel({
   levels,
   alwaysOpen = false,
   reloadKey = 0,
+  byProvider,
 }: {
   /**
    * When given, the panel becomes THE SHELF (bd-60154): earned and unearned
@@ -149,6 +153,14 @@ export default function CertificatesPanel({
    * changing this key.
    */
   reloadKey?: number;
+  /**
+   * bd-klecr — THE CERTIFICATES PAGE. When given, the list gets filter chips:
+   * All, then one per provider the teacher holds a certificate from (a
+   * provider with none gets no chip — a chip that filters to nothing is a dead
+   * end). Under All each row carries its provider's name. The function names a
+   * provider from its key, so the page's brand labels are used.
+   */
+  byProvider?: (vendorKey: string) => string;
 } = {}) {
   const shelf = Array.isArray(levels);
   const [open, setOpen] = useState(false);
@@ -156,6 +168,7 @@ export default function CertificatesPanel({
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [certificates, setCertificates] = useState<PortalCertificate[]>([]);
+  const [providerFilter, setProviderFilter] = useState<string>('all');
 
   // Android's WebView has no PDF viewer, so an inline url downloads there
   // anyway — View and Download become the same action. Verified on a handset.
@@ -212,6 +225,24 @@ export default function CertificatesPanel({
     l => !earnedNames.has((l.name || '').trim().toLowerCase()),
   );
 
+  // Providers in the order their first certificate appears (the list is
+  // newest first), each with its count.
+  const providers: { key: string; label: string; count: number }[] = [];
+  if (byProvider) {
+    for (const c of certificates) {
+      if (!c.vendor_key) continue;
+      const found = providers.find(p => p.key === c.vendor_key);
+      if (found) found.count += 1;
+      else providers.push({ key: c.vendor_key, label: byProvider(c.vendor_key) || c.vendor_name || c.vendor_key, count: 1 });
+    }
+  }
+  const activeFilter = providers.some(p => p.key === providerFilter) ? providerFilter : 'all';
+  const shown = byProvider && activeFilter !== 'all'
+    ? certificates.filter(c => c.vendor_key === activeFilter)
+    : certificates;
+  const providerName = (c: PortalCertificate) =>
+    (c.vendor_key && byProvider ? byProvider(c.vendor_key) : null) || c.vendor_name || null;
+
   return (
     <div className="mb-6">
       {shelf && (
@@ -224,7 +255,43 @@ export default function CertificatesPanel({
           )}
         </div>
       )}
-      {!shelf && (
+      {byProvider && (
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-[17px] font-semibold text-foreground">Your certificates</h2>
+          {loaded && (
+            <span className="text-sm text-muted-foreground" data-testid="certificates-earned-count">
+              {certificates.length} earned
+            </span>
+          )}
+        </div>
+      )}
+      {byProvider && loaded && certificates.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3" role="group" aria-label="Filter by provider">
+          {[{ key: 'all', label: 'All', count: certificates.length }, ...providers].map(p => {
+            const on = activeFilter === p.key;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setProviderFilter(p.key)}
+                aria-pressed={on}
+                data-testid={`cert-chip-${p.key}`}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                  on
+                    ? 'border-slate-700 bg-slate-700 text-white'
+                    : 'border-border bg-background text-foreground hover:bg-muted'
+                }`}
+              >
+                {p.label}
+                <span className={`font-normal tabular-nums ${on ? 'text-white/80' : 'text-muted-foreground'}`}>
+                  {p.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {!shelf && !byProvider && (
       <button
         type="button"
         onClick={toggle}
@@ -265,13 +332,18 @@ export default function CertificatesPanel({
 
           {!loading && !error && certificates.length > 0 && (
             <ul className="space-y-3">
-              {certificates.map((c) => (
+              {shown.map((c) => (
                 <li
                   key={c.id || c.certificate_code}
                   data-testid="certificate-row"
                   className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background p-3"
                 >
                   <div className="min-w-0">
+                    {byProvider && activeFilter === 'all' && providerName(c) && (
+                      <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground" data-testid="certificate-provider">
+                        {providerName(c)}
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 font-medium">
                       <Award className="w-4 h-4 text-green-700 shrink-0" />
                       <span className="truncate">{c.level_name || 'Certificate'}</span>
