@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 // portal_self_observation on (everyone else keeps today's page).
 //
 //   "N lessons need your answer → Answer"   a banner on top; Answer opens the OLDEST
-//   Record your class                       one big, animated button
+//   Send a lesson to your Digital Coach     one big button (bd-5rz1v.7)
 //   Analysing N lessons…                    a quiet line, not a card
 //   Your recordings                         search, subject, newest first, by month;
 //                                           waiting lessons are rows in the same list
@@ -64,16 +64,14 @@ describe("the redesigned Coaching page", () => {
     api.getConfig.mockResolvedValue({ features: { selfObservation: false } });
     renderPage();
     expect(await screen.findByText("Coaching Sessions")).toBeInTheDocument();
-    expect(screen.queryByTestId("record-your-class")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("send-a-lesson")).not.toBeInTheDocument();
     expect(api.getActiveCoachingSessions).not.toHaveBeenCalled();
   });
 
-  it("leads with one big Record your class button", async () => {
+  it("leads with one big Send a lesson button (the sheet behind it: PortalCoaching.sendLesson.test)", async () => {
     renderPage();
-    const cta = await screen.findByTestId("record-your-class");
-    expect(cta).toHaveAttribute("href", "/portal/coaching/new");
-    expect(within(cta).getByText("Record your class")).toBeInTheDocument();
-    expect(within(cta).getByText(/your digital coach listens/i)).toBeInTheDocument();
+    const cta = await screen.findByTestId("send-a-lesson");
+    expect(within(cta).getByText("Send a lesson to your Digital Coach")).toBeInTheDocument();
   });
 
   it("says how many lessons need her answer, and Answer opens the oldest", async () => {
@@ -92,7 +90,7 @@ describe("the redesigned Coaching page", () => {
   it("shows no banner when nothing is waiting for her", async () => {
     api.getActiveCoachingSessions.mockResolvedValue({ sessions: [] });
     renderPage();
-    await screen.findByTestId("record-your-class");
+    await screen.findByTestId("send-a-lesson");
     expect(screen.queryByTestId("needs-answer-banner")).not.toBeInTheDocument();
   });
 

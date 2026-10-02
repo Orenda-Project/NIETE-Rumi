@@ -593,9 +593,25 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then the bot asks what could have been better, as a message
     When I type my reason
     Then a 🙏 appears on my reason and no message is sent
+    And the chat header does not show "typing…" before the 🙏
     And my reason is recorded against this coaching session
     # handlePendingReason (text-message.handler passes the inbound wamid). No wamid / refused → the
-    # coachingSurveyReasonThanks text in my language.
+    # coachingSurveyReasonThanks text in my language. UPDATED 2026-10-02 (FX6, bd-w2daa.28): the reason-window
+    # typing hold now covers this survey's window, and the handler settles the turn once the window is found
+    # (sandbox run 4 showed typing at 2,000 ms before the 🙏, 15:08:03Z). Unit: fx6-round4.test.js (FX6-2).
+
+  # ADDED 2026-10-02 (FX6, bd-w2daa.28 / bd-foiys): the reason window closes after ONE reason. It never closed
+  # (redisService.del() does not exist; the TypeError was swallowed), so for 10 minutes every text — a pasted
+  # lesson plan for a NEW session included — was stored as another 👎 reason and answered with 🙏.
+  @e2e @wip @draft @P1 @COA75
+  Scenario: After my 👎 reason, my next message is not taken as another reason
+    Given the NIETE bot chat is open
+    And I tapped "👎 Not really" on the coaching-report survey and typed my reason
+    When I start a new coaching session and paste my lesson plan into the chat within 10 minutes
+    Then my lesson plan is attached to the new session and the bot moves on to "Step 2/5"
+    And no 🙏 appears on my lesson plan
+    # coaching-feedback.service handlePendingReason → redisService.delete(REDIS_REASON_KEY). Unit:
+    # tests/meta-bill-cut/fx6-round4.test.js (FX6-4), tests/coaching/coaching-feedback.test.js.
 
   # ADDED 2026-10-02 (FX4, bd-w2daa.26): a plan pasted as text is answered by the analysis job's
   # Step 2/5 — nothing is sent in between, so "typing…" must cover the wait.
@@ -638,6 +654,36 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # them (card-response.service handleCardButton). UPDATED 2026-10-01 (Meta bill cut
     # N2-C11): the acknowledgement is a free ✅ reaction on the tap; the coachingCardAck*
     # text goes only when no wamid is available or the reaction cannot go out.
+    # UPDATED 2026-10-02 (FX6): "Maybe later" → 👌 and "Not for me" → 🙏 (COA76) — never ✅.
+
+  # ADDED 2026-10-02 (FX6, bd-w2daa.28): a ✅ on "Not for me" read as "agreed" (e2e run 4). Each answer has its
+  # own reaction. "Maybe later" schedules nothing (only a "yes" is read back), so 👌 loses no promise.
+  @e2e @wip @draft @P2 @COA76
+  Scenario Outline: Each commitment-card answer gets its own reaction
+    Given the NIETE bot chat is open
+    And I have received a coaching report with a commitment card
+    When I tap "<answer>" on the commitment card
+    Then my answer is recorded
+    And my tap gets a <reaction> reaction and no message is sent
+    And when the reaction cannot be sent, the bot sends "<text>" in my selected language instead
+
+    Examples:
+      | answer          | reaction | text                                                                    |
+      | Yes, I'll try!  | ✅       | Noted — we will look for it in your next lesson. Good luck!             |
+      | Maybe later     | 👌       | No problem — it will be here whenever you are ready.                    |
+      | Not for me      | 🙏       | Thanks for telling us — we will suggest something different next time. |
+    # card-response.service ACK_REACTION. Unit: tests/meta-bill-cut/fx6-round4.test.js (FX6-1).
+
+  @e2e @wip @draft @P1 @COA72
+  Scenario: The lesson-plan list says a photo, a PDF, or typing the plan all work
+    Given the NIETE bot chat is open
+    And an observation I started is waiting at the lesson-plan step with the teacher's recent lesson plans listed
+    When I open the list
+    Then the "Upload new" row reads "A photo or PDF of the plan, or type it"
+    And in Urdu it reads "منصوبے کی تصویر یا PDF بھیجیں، یا لکھ دیں"
+    # All three ways in were already accepted (document webhook, LP-as-photo, typed paste); the row said
+    # only "Send or paste", so a coach holding a paper plan had no hint a photo works. Asked by the
+    # operator on 2 Oct 2026 (lp-selection-list.service.js; 38 / 41 code points against the 72 cap).
 
   @e2e @wip @draft @P1 @COA33
   Scenario: A lesson plan typed into the chat is attached to the waiting observation
@@ -1029,3 +1075,25 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And the reflective question is asked once — "Continue Now" may still ask it again on purpose
     # report-piece-once.js: a Redis SET NX per (session, piece), 24 h; a failed send gives its claim back.
 
+
+  # ── A coach's observation of her lesson, in her portal (bd-5rz1v.6.4) ──────
+  # The row is the teacher's (observation_type leader_observation), so it is
+  # hers to see only once the coach has SENT her the report
+  # (teacher_delivery.status = 'sent'). Never the draft, the review or the debrief.
+
+  @e2e @P1
+  Scenario: A coach's observation appears in the teacher's portal only once the report is sent to her
+    Given a coach has observed the teacher's lesson and is still checking the draft
+    When the teacher opens Coaching in the portal
+    Then the observation is not in her list, and its page answers "not found"
+    When the coach sends her the report
+    Then the teacher receives the report on WhatsApp
+    And her Coaching list shows the lesson with "Observed by" and the coach's name
+    And its page shows the report picture, its caption and the coach's note, with who observed her and when
+
+  @e2e @negative @P1
+  Scenario: The coach's debrief and her own feedback never reach the teacher's portal
+    Given a coach has sent the teacher the report of an observation
+    When the teacher opens that lesson in the portal
+    Then she sees the report as WhatsApp delivered it
+    And she does not see the coach's conversation transcript or the feedback written for the coach

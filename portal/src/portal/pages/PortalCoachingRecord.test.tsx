@@ -1,12 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
-// bd-5rz1v — "Record your class": the page a teacher reaches from the big
-// button on Coaching. It is built for a teacher who is not confident with
-// phones: one big choice at a time, few words.
+// bd-5rz1v — the record page a teacher reaches from Coaching's "Send a lesson"
+// sheet (bd-5rz1v.7). It is built for a teacher who is not confident with
+// phones: one big choice at a time, few words. There is no first screen of
+// choices any more: Coaching says what she chose, in the route state —
 //
-//   choose      Record now (where the microphone can work) | Choose a recording
+//   { start: "record" }   Record Live Lecture → recording at once
+//   { start: "file" }     Upload Recording → the file Coaching handed over
+//   { start: "resume" }   Continue → the recording that was never sent
+//
 //   recording   a big clock, Pause, Finish — Finish asks first
 //   check       listen, redo, add a lesson plan (library or a photo), board photos
 //   send        → "Sent!" → Open this lesson
@@ -65,6 +69,7 @@ import { canRecordHere } from "../lib/recordingSupport";
 import { latestUnsent, deleteRecording } from "../lib/recordingStore";
 import { readAudioDuration } from "../lib/coachingUpload";
 import { keepScreenOn } from "../lib/keepAwake";
+import { handOffRecording, takeHandedOffRecording } from "../lib/lessonHandoff";
 import PortalCoachingRecord from "./PortalCoachingRecord";
 
 const api = portal as any;
@@ -75,28 +80,48 @@ function file(name: string, size = 1000) {
   return f;
 }
 
-function renderPage() {
+/** Stands in for Coaching: shows what the record page asked it to do. */
+const CoachingPage = () => {
+  const loc = useLocation();
+  return <div data-testid="coaching-page">{JSON.stringify(loc.state)}</div>;
+};
+
+/** What this history entry holds now, as Back would find it. */
+const HistoryState = () => <div data-testid="history-state">{JSON.stringify(useLocation().state)}</div>;
+
+function renderPage(state: unknown = null) {
   return render(
-    <MemoryRouter initialEntries={["/portal/coaching/new"]}>
+    <MemoryRouter initialEntries={[{ pathname: "/portal/coaching/new", state }]}>
+      <HistoryState />
       <Routes>
         <Route path="/portal/coaching/new" element={<PortalCoachingRecord />} />
+        <Route path="/portal/coaching" element={<CoachingPage />} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
-async function ready() {
-  renderPage();
-  await screen.findByRole("button", { name: /choose a recording/i });
+/** Record Live Lecture, from Coaching's sheet. */
+async function recording() {
+  renderPage({ start: "record" });
+  await screen.findByText("Recording");
+}
+
+async function finished() {
+  await recording();
+  fireEvent.click(screen.getByRole("button", { name: /^finish$/i }));
+  fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /yes, finish/i }));
+  await screen.findByRole("button", { name: /send to digital coach/i });
 }
 
 function choose(testId: string, files: File[]) {
   fireEvent.change(screen.getByTestId(testId), { target: { files } });
 }
 
+/** Upload Recording, from Coaching's sheet: Coaching hands the file over. */
 async function toCheckWithFile(name = "Period 3.m4a") {
-  await ready();
-  choose("audio-input", [file(name, 24_000_000)]);
+  handOffRecording(file(name, 24_000_000));
+  renderPage({ start: "file" });
   await screen.findByRole("button", { name: /send to digital coach/i });
 }
 
@@ -104,6 +129,7 @@ const getUserMedia = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
+  takeHandedOffRecording();
   api.getConfig.mockResolvedValue({ features: { selfObservation: true } });
   vi.mocked(canRecordHere).mockResolvedValue(true);
   vi.mocked(latestUnsent).mockResolvedValue(null);
@@ -131,38 +157,42 @@ beforeEach(() => {
 });
 
 describe("Record your class — dark until the feature is on", () => {
-  it("explains, instead of offering a recorder, when it is off for her", async () => {
+  it("explains, and starts nothing, when it is off for her", async () => {
     api.getConfig.mockResolvedValue({ features: { selfObservation: false } });
-    renderPage();
+    renderPage({ start: "record" });
     expect(await screen.findByText(/isn.t available on your account yet/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /record now/i })).not.toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(recorder.start).not.toHaveBeenCalled();
   });
 });
 
-describe("Record your class — the first choice", () => {
-  it("offers Record now and Choose a recording", async () => {
-    await ready();
-    expect(screen.getByRole("button", { name: /record now/i })).toBeInTheDocument();
+describe("Record your class — no screen of choices (bd-5rz1v.7)", () => {
+  it("opened without a choice, sends her to Coaching with the Send a lesson sheet open", async () => {
+    renderPage();
+    expect(await screen.findByTestId("coaching-page")).toHaveTextContent('{"sendSheet":true}');
   });
 
-  it("hides Record now where the microphone cannot work (an older app), keeping Choose a recording", async () => {
-    vi.mocked(canRecordHere).mockResolvedValue(false);
-    await ready();
+  it("an upload whose file did not survive a reload goes back to Coaching to choose again", async () => {
+    renderPage({ start: "file" });
+    expect(await screen.findByTestId("coaching-page")).toHaveTextContent('{"sendSheet":true}');
+  });
+
+  it("takes the choice once: Back to this page later finds nothing that would start a recording", async () => {
+    await recording();
+    expect(screen.getByTestId("history-state")).toHaveTextContent("null");
+  });
+
+  it("Record Live Lecture is recording on arrival — there is no second Record button", async () => {
+    await recording();
     expect(screen.queryByRole("button", { name: /record now/i })).not.toBeInTheDocument();
-  });
-
-  it("refuses a file that is not a recording before anything is uploaded", async () => {
-    await ready();
-    choose("audio-input", [file("notes.pdf")]);
-    expect(await screen.findByText(/not a recording/i)).toBeInTheDocument();
-    expect(api.presignCoachingUpload).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /record live lecture/i })).not.toBeInTheDocument();
   });
 });
 
 describe("Record your class — recording", () => {
   it("asks for the microphone, keeps the screen on, and shows the clock with Finish and Pause", async () => {
-    await ready();
-    fireEvent.click(screen.getByRole("button", { name: /record now/i }));
+    renderPage({ start: "record" });
 
     expect(await screen.findByText("Recording")).toBeInTheDocument();
     expect(getUserMedia).toHaveBeenCalledWith({ audio: expect.anything() });
@@ -176,10 +206,9 @@ describe("Record your class — recording", () => {
   });
 
   it("brings the navigation back once the recording is finished", async () => {
-    await ready();
-    expect(screen.getByTestId("layout")).toHaveAttribute("data-bare", "no");
-    fireEvent.click(screen.getByRole("button", { name: /record now/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /^finish$/i }));
+    await recording();
+    expect(screen.getByTestId("layout")).toHaveAttribute("data-bare", "yes");
+    fireEvent.click(screen.getByRole("button", { name: /^finish$/i }));
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /yes, finish/i }));
     await screen.findByRole("button", { name: /send to digital coach/i });
     expect(screen.getByTestId("layout")).toHaveAttribute("data-bare", "no");
@@ -187,15 +216,13 @@ describe("Record your class — recording", () => {
 
   it("says 'less than a minute' rather than rounding seconds up to a minute", async () => {
     recorder.elapsedMs.mockReturnValue(20_000);
-    await ready();
-    fireEvent.click(screen.getByRole("button", { name: /record now/i }));
+    await recording();
     fireEvent.click(await screen.findByRole("button", { name: /^finish$/i }));
     expect(within(await screen.findByRole("dialog")).getByText(/you recorded less than a minute/i)).toBeInTheDocument();
   });
 
   it("Pause stops the recording and offers Continue", async () => {
-    await ready();
-    fireEvent.click(screen.getByRole("button", { name: /record now/i }));
+    await recording();
     fireEvent.click(await screen.findByRole("button", { name: /^pause$/i }));
     expect(recorder.pause).toHaveBeenCalled();
     expect(await screen.findByText("Paused")).toBeInTheDocument();
@@ -204,8 +231,7 @@ describe("Record your class — recording", () => {
   });
 
   it("Finish asks first, so one stray tap cannot end the lesson", async () => {
-    await ready();
-    fireEvent.click(screen.getByRole("button", { name: /record now/i }));
+    await recording();
     fireEvent.click(await screen.findByRole("button", { name: /^finish$/i }));
 
     const sheet = await screen.findByRole("dialog", { name: /finish recording/i });
@@ -223,18 +249,21 @@ describe("Record your class — recording", () => {
 
   it("warns, in the finish sheet, about a recording under 10 minutes", async () => {
     recorder.elapsedMs.mockReturnValue(6 * 60_000);
-    await ready();
-    fireEvent.click(screen.getByRole("button", { name: /record now/i }));
+    await recording();
     fireEvent.click(await screen.findByRole("button", { name: /^finish$/i }));
     expect(within(await screen.findByRole("dialog")).getByText(/that is short/i)).toBeInTheDocument();
   });
 
   it("when the microphone is refused, says how to allow it and offers a file instead", async () => {
     getUserMedia.mockRejectedValue(Object.assign(new Error("denied"), { name: "NotAllowedError" }));
-    await ready();
-    fireEvent.click(screen.getByRole("button", { name: /record now/i }));
+    renderPage({ start: "record" });
     expect(await screen.findByText(/we can.t use the microphone/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /choose a recording instead/i })).toBeInTheDocument();
+    const pick = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: /choose a recording instead/i }));
+    expect(pick).toHaveBeenCalled();
+    pick.mockRestore();
+    choose("audio-input", [file("Period 3.m4a", 24_000_000)]);
+    expect(await screen.findByRole("button", { name: /send to digital coach/i })).toBeInTheDocument();
   });
 });
 
@@ -243,6 +272,28 @@ describe("Record your class — check and send", () => {
     await toCheckWithFile("Period 3.m4a");
     expect(screen.getByText("Period 3.m4a")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /choose a different file/i })).toBeInTheDocument();
+  });
+
+  it("Choose a different file opens the picker and keeps the current file until she picks another", async () => {
+    await toCheckWithFile("Period 3.m4a");
+    const pick = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: /choose a different file/i }));
+    expect(pick).toHaveBeenCalled();
+    pick.mockRestore();
+    expect(screen.getByText("Period 3.m4a")).toBeInTheDocument();
+    choose("audio-input", [file("notes.pdf")]);
+    expect(await screen.findByText(/not a recording/i)).toBeInTheDocument();
+    expect(screen.getByText("Period 3.m4a")).toBeInTheDocument();
+    choose("audio-input", [file("Period 4.m4a", 24_000_000)]);
+    expect(await screen.findByText("Period 4.m4a")).toBeInTheDocument();
+    expect(screen.queryByText(/not a recording/i)).not.toBeInTheDocument();
+  });
+
+  it("Delete and record again deletes the recording and goes back to Coaching with the sheet open", async () => {
+    await finished();
+    fireEvent.click(screen.getByRole("button", { name: /delete and record again/i }));
+    expect(await screen.findByTestId("coaching-page")).toHaveTextContent('{"sendSheet":true}');
+    expect(deleteRecording).toHaveBeenCalledWith("rec-1");
   });
 
   it("warns about a recording under 10 minutes, but still lets her send it", async () => {
@@ -263,11 +314,8 @@ describe("Record your class — check and send", () => {
   });
 
   it("a recording made here is sent as a .webm and deleted from the phone once it has arrived", async () => {
-    await ready();
-    fireEvent.click(screen.getByRole("button", { name: /record now/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /^finish$/i }));
-    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /yes, finish/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /send to digital coach/i }));
+    await finished();
+    fireEvent.click(screen.getByRole("button", { name: /send to digital coach/i }));
 
     await screen.findByText(/^sent!$/i);
     const audio = api.presignCoachingUpload.mock.calls[0][0];
@@ -398,30 +446,23 @@ describe("Record your class — the lesson plan", () => {
   });
 });
 
+// Offering it (Continue / Delete) is Coaching's job now: PortalCoaching.sendLesson.test.
 describe("Record your class — a recording that was never sent", () => {
-  it("is offered on the first screen, and Send it goes straight to check", async () => {
+  it("Continue opens it in Check and send, and it is deleted from the phone once sent", async () => {
     vi.mocked(latestUnsent).mockResolvedValue({
       meta: { id: "rec-old", mimeType: "audio/webm", ext: ".webm", startedAt: "2026-10-02T08:00:00Z", elapsedMs: 12 * 60_000, finished: false },
       blob: new Blob(["old"], { type: "audio/webm" }),
     } as any);
-    await ready();
-    expect(screen.getByText(/a recording that was not sent/i)).toBeInTheDocument();
+    renderPage({ start: "resume" });
+    const sendBtn = await screen.findByRole("button", { name: /send to digital coach/i });
     expect(screen.getByText(/12 minutes/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /send it/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /send to digital coach/i }));
+    fireEvent.click(sendBtn);
     await screen.findByText(/^sent!$/i);
     expect(deleteRecording).toHaveBeenCalledWith("rec-old");
   });
 
-  it("Delete removes it from the phone", async () => {
-    vi.mocked(latestUnsent).mockResolvedValue({
-      meta: { id: "rec-old", mimeType: "audio/webm", ext: ".webm", startedAt: "2026-10-02T08:00:00Z", elapsedMs: 60_000, finished: true },
-      blob: new Blob(["old"]),
-    } as any);
-    await ready();
-    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
-    await waitFor(() => expect(deleteRecording).toHaveBeenCalledWith("rec-old"));
-    expect(screen.queryByText(/a recording that was not sent/i)).not.toBeInTheDocument();
+  it("Continue with nothing left on the phone goes back to Coaching", async () => {
+    renderPage({ start: "resume" });
+    expect(await screen.findByTestId("coaching-page")).toHaveTextContent('{"sendSheet":true}');
   });
 });

@@ -24,3 +24,24 @@ describe('the Yes/No prompt on a leader observation', () => {
     p.buttons.forEach((b) => expect([...b.title].length).toBeLessThanOrEqual(20));
   });
 });
+
+describe('the list with recent plans: "Upload new" names all three ways in', () => {
+  const recent = [{ id: 'a1', lesson_id: 'grade_4_math_ch5_seg3', topic: 'Comparing fractions', grade: 4, subject: 'math', chapter_number: 5, created_at: new Date().toISOString() }];
+  const uploadRow = (lang) => buildLPSelectionList('cs-1', recent, lang, null, { isObservation: true })
+    .listData.action.sections.flatMap((s) => s.rows).find((r) => r.id === 'lp_upload_cs-1');
+
+  it('says a photo, a PDF, or typing it all work, within the row cap', () => {
+    const r = uploadRow('en');
+    expect(r.title).toBe('Upload new');
+    expect(r.description).toMatch(/photo/i);
+    expect(r.description).toMatch(/PDF/);
+    expect(r.description).toMatch(/type/i);
+    expect([...r.description].length).toBeLessThanOrEqual(72);
+  });
+  it('the Urdu row says the same', () => {
+    const r = uploadRow('ur');
+    expect(r.description).toMatch(/تصویر/);
+    expect(r.description).toMatch(/PDF/);
+    expect([...r.description].length).toBeLessThanOrEqual(72);
+  });
+});

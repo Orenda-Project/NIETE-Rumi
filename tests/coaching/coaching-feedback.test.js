@@ -13,7 +13,8 @@
  *   - a session with no metrics row still gets asked, and the answer is still stored.
  */
 const mockSupabase = { from: jest.fn() };
-const mockRedis = { set: jest.fn(), get: jest.fn(), del: jest.fn() };
+// The real railway-redis surface: delete(), no del() — a del() here hid bd-foiys (the window never closed).
+const mockRedis = { set: jest.fn(), get: jest.fn(), delete: jest.fn() };
 const mockWhatsApp = { sendMessage: jest.fn(), sendInteractiveButtons: jest.fn() };
 
 jest.mock('../../bot/shared/config/supabase', () => mockSupabase);
@@ -144,7 +145,7 @@ describe('the written reason lands on the same row', () => {
     expect(consumed).toBe(true);
     expect(updates[0]).toMatchObject({ user_feedback: 'the report was too long' });
     expect(filters).toContainEqual(['coaching_session_id', SESSION]);
-    expect(mockRedis.del).toHaveBeenCalled();
+    expect(mockRedis.delete).toHaveBeenCalledWith(`coaching_feedback_pending:${USER}`);
   });
 
   test('a text sent with no window open is not consumed', async () => {

@@ -7,7 +7,11 @@
  *   PART_ONE     the first half of the period   (numbers + a few taps; "Part 1 done" saves it)
  *   PART_TWO     the second half                (the same questions, plus children speaking for the first time)
  *   LESSON_PLAN  which plan the lesson followed  (picked from the teacher's own recent plans, so the
- *                recording can be checked against it; go-live call, 2 Oct 2026)
+ *                recording can be checked against it; go-live call, 2 Oct 2026). "Upload new" adds a plan
+ *                the bot didn't give the teacher, the way /observe takes one:
+ *   LP_PHOTOS    photos of the paper plan, one per page
+ *   LP_FILE      a PDF or Word file
+ *   LP_TEXT      the plan, typed
  *   AFTER        before leaving the room        (anything to report, photos, what to work on first, the seal)
  *   SEALED       the record is locked
  *   CONTINUE     a reopened form: where the record stands, then on to the right screen
@@ -28,6 +32,16 @@ const { PRIORITY, MOMENTS, PLAIN } = require('./fico17');
 const FLOW_VERSION = '7.3';
 // Coaches photograph what helps the analysis, without the teachers' cap of three (2 Oct call).
 const MAX_PHOTOS = 10;
+// An added lesson plan: pages photographed, a file, or typed. The typed floor is the uploaded-plan
+// extractor's own (lp-upload-extractor: under 40 characters there is nothing to read moves from).
+const MAX_PLAN_PHOTOS = 10;
+const MAX_PLAN_FILES = 3;
+const LP_TEXT_MIN = 40;
+const LP_TEXT_MAX = 600; // the TextArea cap the contract test holds every box to
+const PLAN_FILE_TYPES = [
+  'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg', 'image/png',
+];
 
 const opt = (id, title, description) => ({ id, title, ...(description ? { description } : {}) });
 
@@ -75,6 +89,11 @@ const LESSON_PLAN = [
   opt('used', 'Followed a lesson plan'),
   opt('notfollowed', "Had one, didn't follow it"),
   opt('none', 'No plan for this lesson'),
+];
+const PLAN_HOW = [
+  opt('photos', 'Photos of the paper plan', `One photo per page, up to ${MAX_PLAN_PHOTOS}.`),
+  opt('file', 'A PDF or Word file', "From the phone's files."),
+  opt('text', 'Type it', 'The steps the teacher planned, in order.'),
 ];
 const YES_NO = [opt('yes', 'Yes'), opt('no', 'No')];
 
@@ -125,14 +144,20 @@ function partQuestions(p) {
 const FIELDS = {
   PART_ONE: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
   PART_TWO: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
-  LESSON_PLAN: ['lp', 'lp_pick'],
+  LESSON_PLAN: ['lp', 'lp_pick', 'lp_how'],
+  LP_PHOTOS: [],
+  LP_FILE: [],
+  LP_TEXT: ['lp_text'],
   AFTER: ['incident', 'detail', 'note', 'priority', 'seal_ok'],
 };
 
 function screen(id, title, children, footerLabel, extraData) {
   const payload = { screen: id };
   for (const f of FIELDS[id]) payload[f] = `\${form.${f}}`;
+  // A picker's value may only travel as a top-level string property of a data_exchange (Meta).
   if (id === 'AFTER') payload.photos = '${form.photos}';
+  if (id === 'LP_PHOTOS') payload.lp_photos = '${form.lp_photos}';
+  if (id === 'LP_FILE') payload.lp_file = '${form.lp_file}';
   return {
     id,
     title,
@@ -199,9 +224,40 @@ function buildFieldFormFlow() {
       then: [
         { type: 'TextCaption', text: '${data.lp_hint}' },
         { type: 'Dropdown', name: 'lp_pick', label: 'Which plan?', required: false, 'data-source': '${data.lp_options}' },
+        {
+          type: 'If',
+          condition: "${form.lp_pick} == 'upload'",
+          then: [{ type: 'RadioButtonsGroup', name: 'lp_how', label: 'How will you add it?', required: false, 'data-source': PLAN_HOW }],
+          else: [],
+        },
       ],
       else: [],
     },
+    ERR_LINE,
+  ];
+  // One picker per screen, and never a photo picker beside a file picker (Meta), so each way has its own screen.
+  const planPhotos = [
+    { type: 'TextHeading', text: 'Photos of the lesson plan' },
+    { type: 'TextBody', text: 'One photo per page, in order. Hold the phone over the page so every line is sharp and nothing is cut off.' },
+    {
+      type: 'PhotoPicker', name: 'lp_photos', label: 'Pages of the plan', description: `Up to ${MAX_PLAN_PHOTOS}, in order.`,
+      'photo-source': 'camera_gallery', 'min-uploaded-photos': 1, 'max-uploaded-photos': MAX_PLAN_PHOTOS, 'max-file-size-kb': 10240,
+    },
+    ERR_LINE,
+  ];
+  const planFile = [
+    { type: 'TextHeading', text: 'The lesson plan file' },
+    { type: 'TextBody', text: 'A PDF or Word file from the phone. A photo of the plan saved as a file works too.' },
+    {
+      type: 'DocumentPicker', name: 'lp_file', label: 'The plan', description: 'PDF or Word, up to 25 MB.',
+      'min-uploaded-documents': 1, 'max-uploaded-documents': MAX_PLAN_FILES, 'max-file-size-kb': 25600, 'allowed-mime-types': PLAN_FILE_TYPES,
+    },
+    ERR_LINE,
+  ];
+  const planText = [
+    { type: 'TextHeading', text: 'Type the lesson plan' },
+    { type: 'TextBody', text: 'The steps the teacher planned, in order: how the lesson starts, what the teacher explains, what the children do, and how it ends.' },
+    { type: 'TextArea', name: 'lp_text', label: 'The lesson plan', required: true, 'max-length': LP_TEXT_MAX, 'helper-text': 'One step per line is easiest to check.' },
     ERR_LINE,
   ];
   const sealed = {
@@ -250,7 +306,10 @@ function buildFieldFormFlow() {
     routing_model: {
       PART_ONE: ['PART_TWO'],
       PART_TWO: ['LESSON_PLAN'],
-      LESSON_PLAN: ['AFTER'],
+      LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER'],
+      LP_PHOTOS: ['AFTER'],
+      LP_FILE: ['AFTER'],
+      LP_TEXT: ['AFTER'],
       AFTER: ['SEALED'],
       SEALED: [],
       CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'AFTER', 'SEALED'],
@@ -264,16 +323,19 @@ function buildFieldFormFlow() {
         part_hint: { type: 'string', __example__: 'Minutes 20 to 40. Answer only for what happens in this part.' },
       }),
       screen('LESSON_PLAN', 'Lesson plan', plan, 'Next', {
-        lp_hint: { type: 'string', __example__: "Rabia's most recent plans from the bot. If it isn't here, pick \"Not in this list\"." },
+        lp_hint: { type: 'string', __example__: "Rabia's most recent plans from the bot. If the plan isn't here, pick \"Upload new\" to add it." },
         lp_options: {
           type: 'array',
           items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' } } },
           __example__: [
-            { id: 'asset-1', title: 'Comparing & ordering unlike f…', description: 'Grade 4 Math · Ch5 Day 3 · p.79-81 · today' },
-            { id: 'other', title: 'Not in this list' },
+            { id: 'asset-1', title: 'Comparing & ordering un…', description: 'Grade 4 Math · Ch5 Day 3 · p.79-81 · today' },
+            { id: 'upload', title: 'Upload new', description: 'Photos of a paper plan, a PDF or Word file, or typed text' },
           ],
         },
       }),
+      screen('LP_PHOTOS', 'Plan photos', planPhotos, 'Next'),
+      screen('LP_FILE', 'Plan file', planFile, 'Next'),
+      screen('LP_TEXT', 'Type the plan', planText, 'Next'),
       screen('AFTER', 'Before you seal', after, 'Seal and send', {
         lp_line: { type: 'string', __example__: 'Lesson plan: Comparing & ordering unlike fractions, Grade 4 Math, Ch5 Day 3. To change it, go back.' },
       }),
@@ -283,4 +345,4 @@ function buildFieldFormFlow() {
   };
 }
 
-module.exports = { buildFieldFormFlow, FIELDS, FLOW_VERSION, MAX_PHOTOS };
+module.exports = { buildFieldFormFlow, FIELDS, FLOW_VERSION, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN };

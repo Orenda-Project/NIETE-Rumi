@@ -708,4 +708,12 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('COA74', 'After I paste my lesson plan as text, "typing…" shows until Step 2/5 arrives', 'BLOCKED',
       { reason: 'the mock lane records sends, not the typing indicator\'s timing on screen; '
           + 'pinned by tests/meta-bill-cut/fx4-round3.test.js (FX4-1 "a PASTED plan")' }, 0);
+
+  // Meta bill cut FX6 (2026-10-02, bd-w2daa.28) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA75', 'After my 👎 reason, my next message is not taken as another reason', 'BLOCKED',
+      { reason: 'needs a completed coaching session with its report survey answered 👎 + a reason, then a new session (a full audio run twice on the mock lane); '
+          + 'pinned by tests/meta-bill-cut/fx6-round4.test.js (FX6-4, through the real /webhook) and tests/coaching/coaching-feedback.test.js' }, 0);
+  rec('COA76', 'Each commitment-card answer gets its own reaction', 'BLOCKED',
+      { reason: 'the mock lane does not observe reactions (feature-runner filters them out) — verify on the sandbox handset; '
+          + 'pinned by tests/meta-bill-cut/fx6-round4.test.js (FX6-1: ✅ / 👌 / 🙏, refusal → each answer\'s own text, en + ur)' }, 0);
 };

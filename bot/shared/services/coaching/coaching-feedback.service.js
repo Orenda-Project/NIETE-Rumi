@@ -248,9 +248,15 @@ async function handlePendingReason(userId, phone, text, opts = {}) {
   } catch (_) { return false; }
   if (!pending || !pending.coachingSessionId) return false;
 
+  // FX6 (bd-w2daa.28): this turn's answer is the 🙏 below (its text only if the reaction cannot go),
+  // never a reply worth "typing…" — settle it now, before the writes.
+  require('../inbound-typing').nothingComing({ reason: 'coaching_survey_reason' });
+
   await _writeMetrics(pending.coachingSessionId, { user_feedback: text.trim() });
 
-  try { await redisService.del(REDIS_REASON_KEY(userId)); } catch (_) { /* best effort */ }
+  // delete(), not del(): railway-redis has no del(), and the swallowed TypeError left the window
+  // open for 10 minutes — every text, a pasted lesson plan included, became a reason (bd-foiys).
+  try { await redisService.delete(REDIS_REASON_KEY(userId)); } catch (_) { /* best effort */ }
 
   await _thank(phone, opts && opts.messageId, 'coachingSurveyReasonThanks',
     () => _resolveLanguage(userId, null), 'coaching_feedback_reason');

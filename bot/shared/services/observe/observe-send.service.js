@@ -496,7 +496,9 @@ async function processUntappedDelivery(sessionId, nowMs = Date.now()) {
   // half of that was fixed earlier, the identity half sent 238 nudge and
   // give-up messages to the teacher instead of the coach.
   const coach = await coachOf(session);
-  const foPhone = coach && coach.phone;
+  // bd-5rz1v.6: a report sent from the portal is followed up there — the teacher
+  // is still nudged, the coach is not messaged.
+  const foPhone = delivery.channel === 'portal' ? null : (coach && coach.phone);
   const foName = (coach && coach.name) || '';
   const lang = await languageFor('coach', session);
   const S = observeStrings(lang);
@@ -615,11 +617,17 @@ async function processUndeliveredDelivery(sessionId, nowMs = Date.now()) {
   if (decision.action === 'skip') return decision;
 
   const silent = decision.action === 'expire';
+  // bd-5rz1v.6: an observation run from the PORTAL is followed up there. Its row
+  // moves through the same cadence (so it still closes), but nobody is messaged.
+  // The send's own channel decides once a report was started; before that, where
+  // the observation was started does.
+  const { isPortalSession } = require('../coaching/portal-coaching.service');
+  const portal = delivery.channel ? delivery.channel === 'portal' : isPortalSession(session);
   // Resolve the recipient BEFORE writing anything: a reminder we cannot deliver
   // should leave the row untouched so a later tick can try again once the
   // coach's record is fixed. An expire messages nobody, so it needs no coach.
   let coach = null;
-  if (!silent) {
+  if (!silent && !portal) {
     coach = await _resolveCoach(session);
     if (!coach) return { action: 'skip', reason: 'coach_unresolved' };
   }
@@ -638,6 +646,12 @@ async function processUndeliveredDelivery(sessionId, nowMs = Date.now()) {
   if (silent) {
     logToFile('🕰️ observe send: expired an unsent report, nobody messaged', {
       sessionId, reason: decision.reason,
+    });
+    return decision;
+  }
+  if (portal) {
+    logToFile('🖥️ observe send: unsent report on a portal observation — the portal shows it, nobody messaged', {
+      sessionId, action: decision.action,
     });
     return decision;
   }
@@ -944,7 +958,7 @@ async function _sendPackage(dest, pngBuffer, caption, companionText) {
  * Not on the teacher_tap path: she has just tapped, so the window is open by
  * definition, and answering a tap with another invite is a loop.
  */
-async function _handleWindowClosedMidSend(sessionId, foPhone, S, delivery, foName, err) {
+async function _handleWindowClosedMidSend(sessionId, foPhone, S, delivery, foName, err, opts = {}) {
   logToFile('📨 observe send: window closed mid-send — falling back to the invite template', {
     sessionId, metaErrorCode: err && err.metaErrorCode,
   });
@@ -968,7 +982,7 @@ async function _handleWindowClosedMidSend(sessionId, foPhone, S, delivery, foNam
     status: 'awaiting_teacher_tap',
     template_sent_at: new Date().toISOString(),
   });
-  await WhatsAppService.sendMessage(foPhone, S.send_template_queued_fo).catch(() => {});
+  if (!opts.portal) await WhatsAppService.sendMessage(foPhone, S.send_template_queued_fo).catch(() => {});
   return true;
 }
 
@@ -980,7 +994,7 @@ async function _handleDeliverFailure(sessionId, foPhone, S, path, err, meta = {}
       && err && err.metaErrorCode === RE_ENGAGEMENT_ERROR_CODE
       && meta.delivery && meta.delivery.teacher_phone) {
     const recovered = await _handleWindowClosedMidSend(
-      sessionId, foPhone, S, meta.delivery, meta.foName || '', err);
+      sessionId, foPhone, S, meta.delivery, meta.foName || '', err, { portal: meta.portal });
     if (recovered) return;
     // Template also refused — fall through and record the failure honestly.
   }
@@ -996,7 +1010,7 @@ async function _handleDeliverFailure(sessionId, foPhone, S, path, err, meta = {}
     meta_error_code: (err && err.metaErrorCode) || null,
     failed_at: new Date().toISOString(),
   }).catch(() => {});
-  await WhatsAppService.sendMessage(foPhone, S.send_failed_fo).catch(() => {});
+  if (!meta.portal) await WhatsAppService.sendMessage(foPhone, S.send_failed_fo).catch(() => {});
 }
 
 async function processTeacherReport(sessionId, payload = {}) {
@@ -1026,6 +1040,12 @@ async function processTeacherReport(sessionId, payload = {}) {
   }
 
   const phase = payload.phase || 'preview';
+  // bd-5rz1v.6: a send started in the PORTAL is run from there. The preview job
+  // that portal queues says so, and the preview writes it onto the delivery
+  // record, which every later phase (deliver, her tap, the sweeps) reads. A
+  // preview queued from WhatsApp writes 'whatsapp', so a report started in one
+  // place and finished in the other behaves as the place it was finished in.
+  const portal = phase === 'preview' ? payload.channel === 'portal' : delivery.channel === 'portal';
 
   // The invite is already out with this teacher; the untapped planner owns what
   // happens next (one nudge, then it stops and tells the coach). A redelivery
@@ -1068,7 +1088,14 @@ async function processTeacherReport(sessionId, payload = {}) {
       caption: teacherCaption,
       companion_text: companionText,
       notes,
+      channel: portal ? 'portal' : 'whatsapp',
     });
+
+    if (portal) {
+      // The portal shows the stored image and companion; she decides there.
+      logToFile('🖥️ observe send: preview ready for the portal — nothing sent to WhatsApp', { sessionId });
+      return;
+    }
 
     // The FO sees EXACTLY what the teacher would receive (D33)…
     await _sendPackage(foPhone, png, teacherCaption, companionText);
@@ -1106,7 +1133,7 @@ async function processTeacherReport(sessionId, payload = {}) {
         `[REVIEW — FEAT-053] Kwa: ${delivery.teacher_name} (+${delivery.teacher_phone}) · Kutoka: ${foName}\n${delivery.caption || ''}`,
         delivery.companion_text);
       await mergeTeacherDelivery(sessionId, { status: 'operator_review' });
-      await WhatsAppService.sendMessage(foPhone, S.send_operator_review_fo);
+      if (!portal) await WhatsAppService.sendMessage(foPhone, S.send_operator_review_fo);
       logToFile('🔎 observe send: routed to operator review', { sessionId });
       return;
     }
@@ -1127,7 +1154,7 @@ async function processTeacherReport(sessionId, payload = {}) {
       try {
         await _sendReportTemplate(delivery, foName, sessionId);
       } catch (sendErr) {
-        await _handleDeliverFailure(sessionId, foPhone, S, 'template', sendErr, { tpl });
+        await _handleDeliverFailure(sessionId, foPhone, S, 'template', sendErr, { tpl, portal });
         return;
       }
       // bd-2675: stamp WHEN — the untapped planner refuses to act without it,
@@ -1136,7 +1163,7 @@ async function processTeacherReport(sessionId, payload = {}) {
         status: 'awaiting_teacher_tap',
         template_sent_at: new Date().toISOString(),
       });
-      await WhatsAppService.sendMessage(foPhone, S.send_template_queued_fo);
+      if (!portal) await WhatsAppService.sendMessage(foPhone, S.send_template_queued_fo);
       logToFile('📨 observe send: template sent (window closed)', { sessionId });
       return;
     }
@@ -1148,7 +1175,7 @@ async function processTeacherReport(sessionId, payload = {}) {
       // `phase` decides whether the window-closed fallback is even available:
       // on a teacher_tap the window is open by definition.
       await _handleDeliverFailure(sessionId, foPhone, S,
-        phase === 'deliver' ? 'direct' : 'direct_tap', sendErr, { delivery, foName });
+        phase === 'deliver' ? 'direct' : 'direct_tap', sendErr, { delivery, foName, portal });
       return;
     }
     // bd-2675: the tap is the event that closes the loop — it stops every
@@ -1167,11 +1194,13 @@ async function processTeacherReport(sessionId, payload = {}) {
       const { maybeCompleteObservation } = require('./observe-completion');
       await maybeCompleteObservation(sessionId);
     }
-    await WhatsAppService.sendMessage(
-      foPhone,
-      phase === 'teacher_tap'
-        ? (S.send_tapped_fo || S.send_done_fo).replace('{name}', delivery.teacher_name || '')
-        : S.send_done_fo);
+    if (!portal) {
+      await WhatsAppService.sendMessage(
+        foPhone,
+        phase === 'teacher_tap'
+          ? (S.send_tapped_fo || S.send_done_fo).replace('{name}', delivery.teacher_name || '')
+          : S.send_done_fo);
+    }
     logToFile('✅ observe send: combined report delivered to teacher', { sessionId });
     // The child test (bd-s1oo0.4): offered once the teacher has the report, carrying this
     // coaching session so the school and the observed class are pre-filled. Only on the direct

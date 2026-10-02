@@ -76,6 +76,13 @@ const PORTAL_SELF_OBSERVATION_KEY = 'portal_self_observation';
 const PORTAL_CHILD_TEST_KEY = 'portal_child_test';
 
 /**
+ * bd-5rz1v.6 — app_settings key for a COACH running an /observe observation from
+ * the portal (record or send the lesson, check the draft, the talk with the
+ * teacher, send her the report). Same shape and rule as the key above.
+ */
+const PORTAL_COACH_OBSERVATION_KEY = 'portal_coach_observation';
+
+/**
  * bd-3bvfj — a flag that can be on for EVERYONE or for a PILOT.
  *
  *   true (or "true")            → on for every user
@@ -117,6 +124,7 @@ async function isFlagEnabledForUser(supabase, key, userId) {
 module.exports = {
   PORTAL_SELF_OBSERVATION_KEY,
   PORTAL_CHILD_TEST_KEY,
+  PORTAL_COACH_OBSERVATION_KEY,
   isFlagEnabledForUser,
   ASSESSMENT_GENERATOR_KEY,
   ASSESSMENT_GENERATOR_OFF_MESSAGE,

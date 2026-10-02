@@ -204,29 +204,87 @@ async function openCheck(form) {
   return sent;
 }
 
+// /observe reads each classroom photo once with the v2 vision pass and hands what it saw to the plan
+// grader (analysis-processor, D34), under COACHING_PHOTO_VISION=v2 and LP_FIDELITY_PHOTO. The same here,
+// for the photos the coach stored at the seal: numbered as taken, a photo that is not a classroom photo
+// (or carries writing addressed to a grader) left out, and the same 90-second reading budget.
+const PHOTO_READ_BUDGET_MS = 90000;
+async function photoEvidence(form, deps = {}) {
+  const F = require('../../coaching/fidelity/fidelity-orchestrator');
+  if (!F.isPhotoEvidenceOn()) return [];
+  if (String(process.env.COACHING_PHOTO_VISION || '').trim().toLowerCase() !== 'v2') return [];
+  const keys = Array.isArray(form.photos) ? form.photos : [];
+  if (!keys.length) return [];
+  const download = deps.download || ((key) => require('../../../storage/r2').downloadFromR2(key));
+  const read = deps.read || ((buf, mime, ctx) => require('../../coaching/classroom-photo/photo-analysis.service').analyzeClassroomPhotoV2(buf, mime, ctx));
+  const started = Date.now();
+  const evidence = [];
+  for (const [i, key] of keys.entries()) {
+    const n = i + 1;
+    if (Date.now() - started > PHOTO_READ_BUDGET_MS) {
+      logToFile('[observe2] photo reading budget spent: photo left out of the plan grading', { formId: form.id, photo: n });
+      continue;
+    }
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const r = await read(await download(key), 'image/jpeg', { formId: form.id, photo: n });
+      if (r && r.ok && !r.exclude && r.evidence) evidence.push({ n, ...r.evidence });
+    } catch (err) {
+      logToFile('[observe2] a classroom photo could not be read for the plan grading', { formId: form.id, photo: n, error: err.message }, 'error');
+    }
+  }
+  return evidence;
+}
+
 /**
- * Grade the plan the coach picked in the form (answers.lp_ref) against the transcript, with the
- * fidelity orchestrator /observe uses: the same move lists, grader, runs and scorer.
- * @returns {Promise<object|null>} null when no plan was picked or LP_FIDELITY_ENABLED is off.
+ * Grade the lesson plan against the transcript with the fidelity orchestrator /observe uses: the same
+ * move lists, grader, runs, photo evidence and scorer.
+ *   - a plan picked from the list (answers.lp_ref): the bot's own move list for it (corpus);
+ *   - a plan the coach added (answers.lp_upload): read the way /observe reads an uploaded plan, then the
+ *     orchestrator's uploaded-plan path. One that can't be read, or doesn't read as a lesson plan, is not
+ *     graded and says which (lp_unreadable / lp_not_lesson_plan), so the brief can tell the coach.
+ * @returns {Promise<object|null>} null when there is no plan to grade or LP_FIDELITY_ENABLED is off.
  */
-async function gradeFidelity(form, transcript, audioDurationSeconds, fidelityDeps) {
-  const ref = (form.answers || {}).lp_ref;
-  if (!ref || !ref.lesson_id) return null;
+async function gradeFidelity(form, transcript, audioDurationSeconds, fidelityDeps, planDeps, photoDeps) {
+  const a = form.answers || {};
+  const ref = a.lp_ref && a.lp_ref.lesson_id ? a.lp_ref : null;
+  const added = !ref && a.lp_upload && a.lp_upload.kind ? a.lp_upload : null;
+  if (!ref && !added) return null;
+  const graded = (out) => ({ ...out, graded_at: new Date().toISOString() });
   try {
     const F = require('../../coaching/fidelity/fidelity-orchestrator');
     if (!F.isFidelityEnabled()) {
-      logToFile('[observe2] a plan was picked but LP_FIDELITY_ENABLED is off: fidelity not graded', { formId: form.id }, 'warn');
+      logToFile('[observe2] a plan was given but LP_FIDELITY_ENABLED is off: fidelity not graded', { formId: form.id }, 'warn');
       return null;
     }
+    let input;
+    let planSource = null;
+    if (ref) {
+      input = {
+        corpusKey: { lesson_id: ref.lesson_id, version_stamp: ref.version_stamp, content_hash: ref.content_hash },
+        meta: { lesson_id: ref.lesson_id, ...(ref.subject ? { subject: ref.subject } : {}), ...(ref.grade ? { grade: ref.grade } : {}) },
+      };
+    } else {
+      const P = require('./added-plan');
+      const read = await P.readAddedPlan(added, planDeps);
+      planSource = { kind: read.kind, files: read.files, read: read.read, parsers: read.parsers, chars: read.text.length };
+      if (!read.text) {
+        logToFile('[observe2] the added lesson plan could not be read: not graded', { formId: form.id, ...planSource }, 'error');
+        return graded({ status: 'lp_unreadable', plan_source: planSource });
+      }
+      if (await P.looksLikeLessonPlan(read.text, planDeps) === false) {
+        logToFile('[observe2] the added lesson plan does not read as a lesson plan: not graded', { formId: form.id, ...planSource }, 'warn');
+        return graded({ status: 'lp_not_lesson_plan', plan_source: planSource });
+      }
+      input = { uploadedText: read.text, meta: {} };
+    }
+    const photos = await photoEvidence(form, photoDeps);
     const out = await F.computeLpFidelity({
-      corpusKey: { lesson_id: ref.lesson_id, version_stamp: ref.version_stamp, content_hash: ref.content_hash },
-      transcript,
-      meta: { lesson_id: ref.lesson_id, ...(ref.subject ? { subject: ref.subject } : {}), ...(ref.grade ? { grade: ref.grade } : {}) },
-      audioDurationSeconds: audioDurationSeconds || null,
+      ...input, transcript, audioDurationSeconds: audioDurationSeconds || null, ...(photos.length ? { photoEvidence: photos } : {}),
     }, fidelityDeps || {});
     if (!out) return null;
     if (out.status !== 'ok') logToFile('[observe2] fidelity not graded', { formId: form.id, status: out.status, error: out.error || null }, 'error');
-    return { ...out, graded_at: new Date().toISOString() };
+    return graded({ ...out, ...(planSource ? { plan_source: planSource } : {}) });
   } catch (err) {
     logToFile('[observe2] fidelity grading threw', { formId: form.id, error: err.message }, 'error');
     return { status: 'fidelity_unavailable', error: err.message };
@@ -282,7 +340,7 @@ async function runForSession(sessionId, from, deps = {}) {
     // uses. It never fails the moments: the orchestrator returns a status instead of throwing.
     const [raw, fidelity] = await Promise.all([
       (deps.llm || defaultLlm)(buildPrompt(transcript, form)),
-      gradeFidelity(form, transcript, row && row.audio_duration_seconds, deps.fidelityDeps),
+      gradeFidelity(form, transcript, row && row.audio_duration_seconds, deps.fidelityDeps, deps.planDeps, deps.photoDeps),
     ]);
     const { moments, counts } = normalise(raw);
     const stored = await Store.setMoments(form.id, { moments, counts, prompt_version: PROMPT_VERSION, fidelity }, heardLevels(moments, counts));
@@ -313,4 +371,6 @@ async function onSealed(form) {
 module.exports = {
   PROMPT_VERSION, SLOTS, TYPES, GROUPS,
   buildPrompt, normalise, runForSession, openCheck, onSealed, setStatus,
+  // For the test that proves its default reader is /observe's (added-plan-defaults.test.js).
+  __photoEvidence: photoEvidence,
 };

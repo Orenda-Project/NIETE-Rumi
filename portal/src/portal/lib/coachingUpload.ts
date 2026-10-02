@@ -51,6 +51,13 @@ export function formatSize(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
+/** A recording's length in words: "less than a minute", never seconds rounded up. */
+export function minutesText(ms: number): string {
+  if (ms < 60_000) return 'less than a minute';
+  const m = Math.round(ms / 60_000);
+  return `${m} minute${m === 1 ? '' : 's'}`;
+}
+
 /**
  * The recording's length in seconds, read by the browser from the file's own
  * metadata — used ONLY to warn about a short recording. Resolves null when the
