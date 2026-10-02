@@ -3077,6 +3077,10 @@ const UX_STRINGS = {
     en: 'This school has no Grade 3 or Grade 5 class list yet. Send the register photos with /roster first, then /egra.',
     ur: 'اس اسکول کی جماعت ۳ یا ۵ کی فہرست ابھی موجود نہیں۔ پہلے ⁦/roster⁩ سے رجسٹر کی تصاویر بھیجیں، پھر ⁦/egra⁩۔',
   },
+  childTestNeedsVisit: {
+    en: 'For now the child test runs after an /observe2 visit. Start /observe2 at this school; the offer comes at the end, or send /egra after it.',
+    ur: 'فی الحال بچوں کا ٹیسٹ ⁦/observe2⁩ وزٹ کے بعد ہوتا ہے۔ اس اسکول میں ⁦/observe2⁩ شروع کریں؛ آخر میں پیشکش آئے گی، یا اس کے بعد ⁦/egra⁩ بھیجیں۔',
+  },
   childTestListFailed: {
     en: 'I couldn\'t open today\'s list just now. Please send /egra again in a minute.',
     ur: 'آج کی فہرست ابھی نہیں کھل سکی۔ ایک منٹ بعد دوبارہ ⁦/egra⁩ بھیجیں۔',

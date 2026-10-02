@@ -115,10 +115,19 @@ describe('today\'s list', () => {
     await openList();
     expect(last('text').text).toMatch(/no Grade 3 or Grade 5 class list/);
   });
-  test('no visit today and one school: the list opens for that school without asking', async () => {
+  test('no visit today and one school: the school is taken without asking; the draw needs a visit, and the coach is told', async () => {
     mockDb.__tables.observation_field_forms.length = 0;
     await openList();
     expect(lanes.calls.find((c) => c[0] === 'todaysList')[1]).toMatchObject({ schoolId: 'school-1', visitId: null, observedGrade: null });
+    expect(last('text').text).toMatch(/after an \/observe2 visit/);
+  });
+  test('no visit today and several schools: one list of the coach\'s schools', async () => {
+    mockDb.__tables.observation_field_forms.length = 0;
+    mockDb.__tables.leader_schools.push({ leader_user_id: 'coach-1', school_id: 'school-2', school_name: 'Another School', emis: '222' });
+    await openList();
+    const l = last('list');
+    expect(l.action.sections[0].rows.map((r) => r.id)).toEqual(['ctst_school:school-2', 'ctst_school:school-1']);
+    expect(lanes.calls.find((c) => c[0] === 'todaysList')).toBeUndefined();
   });
   test('tapping an alternate does not start a child', async () => {
     await openList();

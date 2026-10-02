@@ -35,7 +35,8 @@ function createLaneFakes({ noClassList = false } = {}) {
     async todaysList(args) {
       calls.push(['todaysList', args]);
       if (noClassList) return { ok: false, reason: 'no_class_list', grade: 3 };
-      const key = args.visitId || `novisit:${args.coachUserId}:${args.schoolId}`;
+      if (!args.visitId) return { ok: false, reason: 'missing_visit' };   // L3: visitId is required (FK to observation_field_forms)
+      const key = args.visitId;
       if (!lists[key]) lists[key] = freshList(); else lists[key].reused = true;
       return clone(lists[key]);
     },

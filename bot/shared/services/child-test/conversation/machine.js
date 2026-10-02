@@ -181,6 +181,7 @@ async function openList(user, from, ctx) {
   const res = await fetchList(user, ctx);
   if (!res || !res.ok) {
     if (res && res.reason === 'no_class_list') return say(from, t(lang, 'childTestNoClassList'));
+    if (res && res.reason === 'missing_visit') return say(from, t(lang, 'childTestNeedsVisit'));
     logError('child_test.list_failed', { coachUserId: user.id, visitId: ctx.visitId, reason: res && (res.reason || res.error) });
     return say(from, t(lang, 'childTestListFailed'));
   }
