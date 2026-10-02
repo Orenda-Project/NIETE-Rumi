@@ -13,13 +13,26 @@
  * Anything this cannot find is returned in `missing`; the caller then asks the
  * fallback labeller (labeller.js) for just those sections.
  *
- * A timed minute starts at the END of the start cue (the coach starts the timer
- * as they say it) and lasts 60 s, cut short by the stop cue or the next section.
+ * A timed run starts at the END of the start cue (the coach starts the timer
+ * as they say it) and lasts 60 s for the story, or the item bank's
+ * maths.quick_sums_seconds for quick sums (one setting, with a sandbox-only
+ * override: item-bank sandboxQuickSumsOverride), cut short by the stop cue or
+ * the next section.
  */
 
 const { clean, same } = require('./text-norm');
+const itemBank = require('../item-bank');
 
-const TIMED_SECONDS = 60;
+const TIMED_SECONDS = 60;   // the story; quick sums: timedSecondsFor('quick_sums', spec)
+
+/** Length of a timed section in seconds: the story 60; quick sums from the one setting. */
+function timedSecondsFor(section, spec) {
+  if (section !== 'quick_sums') return TIMED_SECONDS;
+  const o = itemBank.sandboxQuickSumsOverride();
+  if (o != null) return o;
+  const v = Number(spec && spec.quick_sums_seconds);
+  return Number.isFinite(v) && v > 0 ? v : TIMED_SECONDS;
+}
 const SECTIONS = {
   urdu: ['story', 'questions', 'first_sounds', 'nonwords'],
   english: ['story', 'questions', 'nonwords'],
@@ -150,8 +163,9 @@ function findCueWindows({ words, block, form, cue = {}, durationSec }) {
     const start = timed ? a.end : (a.implicit ? 0 : a.start);
     windows[s] = { start, end: sectionEnd };
     if (timed) {
-      const stop = findStop(words, cue, a.speaker, { after: start, before: start + TIMED_SECONDS + 20 });
-      const limit = start + TIMED_SECONDS;
+      const secs = timedSecondsFor(s, spec);
+      const stop = findStop(words, cue, a.speaker, { after: start, before: start + secs + 20 });
+      const limit = start + secs;
       let tEnd = Math.min(limit, sectionEnd);
       if (stop && stop.start < tEnd) tEnd = stop.start;
       windows[s] = { start, end: tEnd, sectionEnd };
@@ -172,7 +186,7 @@ function findCueWindows({ words, block, form, cue = {}, durationSec }) {
     // child had not reached the end of the text: the timer did not run its 60 s.
     const length = w.end - w.start;
     const childInside = inside.filter((x) => !coachSpeaker || x.speaker !== coachSpeaker);
-    if (length < TIMED_SECONDS - 5 && childInside.length && !reachedEnd(s, childInside, spec)) {
+    if (length < timedSecondsFor(s, spec) - 5 && childInside.length && !reachedEnd(s, childInside, spec)) {
       pushOnce(flags, 'timer_problem');
     }
   }
@@ -269,4 +283,4 @@ function wordsIn(words, w, { excludeSpeaker } = {}) {
   return words.filter((x) => x.start >= w.start - 0.2 && x.start < w.end && (!excludeSpeaker || x.speaker !== excludeSpeaker));
 }
 
-module.exports = { findCueWindows, findPhrase, wordsIn, reconcileWindows, defaultTimedWindow, SECTIONS, TIMED_SECONDS };
+module.exports = { findCueWindows, findPhrase, wordsIn, reconcileWindows, defaultTimedWindow, timedSecondsFor, SECTIONS, TIMED_SECONDS };

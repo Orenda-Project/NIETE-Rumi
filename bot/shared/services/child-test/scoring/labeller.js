@@ -9,7 +9,7 @@ const prompts = require('./prompts');
 const { modelFor } = require('./models');
 const { chatJSON } = require('./llm');
 const { renderTurns } = require('./stt');
-const { TIMED_SECONDS } = require('./windows');
+const { timedSecondsFor } = require('./windows');
 
 function itemsHint(block, spec) {
   if (block === 'maths') {
@@ -37,7 +37,7 @@ async function labelMissing({ block, spec, words, cut, durationSec, calls }) {
     const w = got[s];
     if (!w || !Number.isFinite(Number(w.start_s)) || !Number.isFinite(Number(w.end_s))) continue;
     let start = Math.max(0, Number(w.start_s)); let end = Math.min(durationSec || Infinity, Number(w.end_s));
-    if (s === 'story' || s === 'quick_sums') end = Math.min(end, start + TIMED_SECONDS);
+    if (s === 'story' || s === 'quick_sums') end = Math.min(end, start + timedSecondsFor(s, spec));
     if (end <= start) continue;
     cut.windows[s] = { start, end, source: 'labeller' };
     filled.push(s);
