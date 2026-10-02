@@ -83,6 +83,17 @@ async function handleImageMessage(message, from, user = null) {
         return;
       }
 
+      // Child test (bd-s1oo0.4): the photo of a child's maths strip, while one is pending. First,
+      // so a coach mid-observation does not have it taken as a classroom photo; claims only in
+      // the child test's own Redis state; inert unless CHILD_TEST_ENABLED.
+      {
+        const ChildTest = require('./child-test.handler');
+        if (await ChildTest.handleImage(message, from, user)) {
+          typingController.stop();
+          return;
+        }
+      }
+
       // ============================================================
       // Phase 3: Classroom photo collection for coaching
       //
