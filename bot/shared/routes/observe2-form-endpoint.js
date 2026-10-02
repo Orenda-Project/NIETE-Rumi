@@ -183,10 +183,11 @@ function renderContinue(kind, form) {
   return { screen: 'CONTINUE', data: { continue_heading: text[0], continue_line: text[1] } };
 }
 
-// Validation failures, shown under each field and once at the bottom.
+// Validation failures, shown under each field and once at the bottom. WhatsApp shows no message under
+// a Dropdown (sandbox E2E, 2 Oct), so a single failure is spelled out at the bottom too.
 function refused(errors) {
-  const n = Object.keys(errors).length;
-  return { error_messages: errors, error: n === 1 ? 'One answer needs a look.' : `${n} answers need a look.`, has_error: true };
+  const msgs = Object.values(errors);
+  return { error_messages: errors, error: msgs.length === 1 ? msgs[0] : `${msgs.length} answers need a look.`, has_error: true };
 }
 
 // ------------------------------------------------------------------ after the seal

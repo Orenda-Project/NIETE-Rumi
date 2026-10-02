@@ -195,6 +195,8 @@ describe('picking the lesson plan in the form', () => {
     const out = await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'used', lp_pick: '' });
     expect(out.screen).toBe('LESSON_PLAN');
     expect(out.data.error_messages.lp_pick).toMatch(/Pick the plan/);
+    // WhatsApp shows no message under a Dropdown (sandbox E2E, 2 Oct): the line at the bottom must say it.
+    expect(out.data.error).toBe('Pick the plan, or "Not in this list".');
     expect(formRow(id).answers.lp).toBeUndefined();
   });
 
@@ -356,6 +358,35 @@ describe('checking the plan in the check', () => {
     expect(out.data.fe_1).toBe('[00:10] What do you notice about the two strips?');
   });
 
+  // The grader's real phase names, and a homework step it does not count (sandbox E2E, 2 Oct:
+  // the header said 7 steps over a list of 8, and most steps were labelled a bare "Step").
+  test('every step carries its phase, its whole text, and says when it does not count', async () => {
+    const long = `Draw a reference chart on the board with the four-step method. ${'Say each step aloud and point to it. '.repeat(14)}Leave it up for the practice.`;
+    const moves = [
+      { move_id: 'h1', phase: 'hook', bucket: 'must_happen', text: 'Present the produce crate scenario.' },
+      { move_id: 'h2', phase: 'explain', bucket: 'must_happen', text: long },
+      { move_id: 'h3', phase: 'exit', bucket: 'must_happen', text: 'Exit slip: compare 3/7 and 4/9.' },
+      { move_id: 'h4', phase: 'homework', bucket: 'optional_extension', adjudicable: false, text: 'Page 81, questions 1c and 1d.' },
+    ];
+    const verdicts = [
+      { move_id: 'h1', verdict: 'executed', rationale: 'Used the crates.' },
+      { move_id: 'h2', verdict: 'partial', rationale: 'Two of the four steps.' },
+      { move_id: 'h3', verdict: 'not_done', rationale: 'No exit slip.' },
+      { move_id: 'h4', verdict: 'executed', rationale: 'Set aloud at the end.' },
+    ];
+    const { scoreFidelity } = require('../../bot/shared/services/coaching/fidelity/fidelity-scorer');
+    const id = await checkable({ status: 'ok', source: 'corpus', lesson_id: LESSON, ...scoreFidelity(moves, verdicts) });
+    const out = await toExplain(id);
+    expect(out.data.fid_header).toMatch(/^The plan has 4 steps; 3 count toward the result\./);
+    expect(out.data.fid_header).toMatch(/From the recording: 1 done, 1 partly, 1 not done \(50%\)\./);
+    expect(out.data.mv_1).toMatch(/^Step 1 of 4 · Hook: Present the produce crate scenario\./);
+    expect(out.data.mv_2).toMatch(/^Step 2 of 4 · Explaining: Draw a reference chart/);
+    expect(out.data.mv_2).toContain('Leave it up for the practice.');
+    expect(out.data.mv_3).toMatch(/^Step 3 of 4 · Exit check: /);
+    expect(out.data.mv_4).toMatch(/^Step 4 of 4 · Homework \(not counted\): Page 81/);
+    for (let k = 1; k <= 4; k += 1) expect(out.data[`mv_${k}`]).not.toMatch(/· Step:/);
+  });
+
   test('no plan, or a plan that could not be graded: straight to the levels', async () => {
     for (const fid of [null, { status: 'lp_absent' }, { status: 'fidelity_unavailable' }]) {
       // eslint-disable-next-line no-await-in-loop
@@ -396,6 +427,19 @@ describe('checking the plan in the check', () => {
 });
 
 // ------------------------------------------------------------------ the brief, bd-ra8xu.20
+
+test('the plan line counts the partly-done steps, which make up the rest of the percentage', () => {
+  const form = {
+    answers: { priority: 'C1' }, rumi_moments: { moments: [] }, final_levels: {},
+    evidence_review: { priority_final: 'C1', fidelity: { fidelity_pct: 50, prescribed_count: 3, moves: [
+      { move_id: 'a', verdict: 'executed', counted: true }, { move_id: 'b', verdict: 'partial', counted: true }, { move_id: 'c', verdict: 'not_done', counted: true },
+    ] } },
+  };
+  expect(buildBrief(form, { lang: 'en' })).toContain('The lesson plan: 1 of 3 planned steps done, 1 partly (50%).');
+  const ur = buildBrief(form, { lang: 'ur' });
+  expect(ur).toContain('جزوی');
+  expect(ur).not.toMatch(/undefined|NaN/);
+});
 
 describe('a placeholder level is never named as what the coach saw', () => {
   test('a kept "for now" level reads as what was seen, not as the level\'s label', () => {

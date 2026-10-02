@@ -96,7 +96,7 @@ function heardScreen({ id, title, moment }, isLast) {
 }
 
 function fidelityScreen() {
-  const data = { fid_header: { type: 'string', __example__: 'The plan asked for 9 steps. From the recording: 6 done, 1 partly (72%).' } };
+  const data = { fid_header: { type: 'string', __example__: 'The plan has 9 steps; 8 count toward the result.\nFrom the recording: 6 done, 1 partly, 1 not done (81%).' } };
   const init = {};
   const kids = [
     { type: 'TextHeading', text: 'Did the lesson follow the plan?' },
