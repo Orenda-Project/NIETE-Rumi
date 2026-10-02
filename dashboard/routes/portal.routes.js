@@ -5362,14 +5362,16 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
       .select(
         'id, created_at, audio_duration_seconds, status, scores:analysis_data->scores, '
         + 'framework:analysis_data->>framework, topic:analysis_data->>topic, subject:analysis_data->>subject, '
-        + 'observation_type, observer_user_id, sent_at:analysis_data->teacher_delivery->>sent_at',
+        + 'observation_type, observer_user_id, sent_at:analysis_data->teacher_delivery->>sent_at, '
+        + 'send_requested_at:analysis_data->teacher_delivery->>send_requested_at',
         { count: 'exact' },
       )
       .eq('user_id', userId)
-      .eq('status', 'completed')
       .not('analysis_data', 'is', null)
-      // A coach's observation only once she has sent it to her — never a draft.
-      .or(TeacherObservation.VISIBLE_TO_TEACHER_OR)
+      // Her own lessons once completed; a coach's observation once the coach
+      // has sent it to her (even before she opens the WhatsApp invite, and
+      // even while the coach's debrief is still open) — never a draft.
+      .or(TeacherObservation.LISTED_FOR_TEACHER_OR)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -5411,7 +5413,7 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
         ? {
           observerName: observers[session.observer_user_id] || null,
           observedAt: session.created_at,
-          sentAt: session.sent_at || null,
+          sentAt: session.sent_at || session.send_requested_at || null,
         }
         : null,
     }));
@@ -5548,7 +5550,7 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
       observation = {
         observerName: names[session.observer_user_id] || null,
         observedAt: session.created_at,
-        sentAt: delivery.sent_at || null,
+        sentAt: delivery.sent_at || delivery.send_requested_at || null,
         reportImageUrl,
         caption: delivery.caption || null,
         companionText: delivery.companion_text || null,
