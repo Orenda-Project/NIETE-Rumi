@@ -13,19 +13,38 @@
 
 let tableRows;
 let client;
+let selects;
+
+/**
+ * PostgREST's JSON-slice select: `alias:col->>key` (text) / `alias:col->key`
+ * (json) put that one key on the row under `alias`. The real API sends only the
+ * slice, so a route that reads a slice must find it here too.
+ */
+function applySlices(row, cols) {
+  const out = { ...row };
+  for (const part of String(cols || '').split(',')) {
+    const m = part.trim().match(/^(\w+):(\w+)->(>?)(\w+)$/);
+    if (!m) continue;
+    const [, alias, col, text, key] = m;
+    const v = row[col] && row[col][key];
+    out[alias] = v === undefined ? null : (text && v !== null && typeof v === 'object' ? JSON.stringify(v) : v);
+  }
+  return out;
+}
 
 /** A chain that filters `tableRows[table]` the way PostgREST would for the calls these routes make. */
 function makeChain(table) {
   const tests = [];
   let order = null;
   let cap = Infinity;
+  let cols = '';
   const run = () => {
     let rows = (tableRows[table] || []).filter((r) => tests.every((t) => t(r)));
     if (order) rows = [...rows].sort((a, b) => (a[order.col] < b[order.col] ? -1 : 1) * (order.asc ? 1 : -1));
-    return rows.slice(0, cap);
+    return rows.slice(0, cap).map((r) => applySlices(r, cols));
   };
   const chain = {
-    select: () => chain,
+    select: (c) => { cols = c || ''; (selects[table] = selects[table] || []).push(cols); return chain; },
     eq: (c, v) => { tests.push((r) => r[c] === v); return chain; },
     in: (c, vs) => { tests.push((r) => vs.includes(r[c])); return chain; },
     not: (c, op, v) => {
@@ -82,6 +101,7 @@ const hoursAgo = (h) => new Date(Date.now() - h * 3600 * 1000).toISOString();
 beforeEach(() => {
   jest.resetModules();
   tableRows = { app_settings: [{ key: 'portal_self_observation', value: true }] };
+  selects = {};
   client = {
     presignUpload: jest.fn(),
     startSession: jest.fn().mockResolvedValue({ httpStatus: 200, body: { success: true, status: 'ok', coachingSessionId: 'cs-1' } }),
@@ -160,6 +180,18 @@ describe('GET /coaching-sessions — topic and subject for the list', () => {
     const { payload } = await invoke('get', '/coaching-sessions');
     expect(payload.sessions[0]).toMatchObject({ topic: null, subject: null });
   });
+
+  it('reads slices of analysis_data, never the whole ~30 KB column per row (list of up to 100)', async () => {
+    tableRows.coaching_sessions = [{
+      id: 'cs-1', user_id: 'teacher-1', status: 'completed', created_at: hoursAgo(30),
+      analysis_data: { topic: 'T', subject: 'S', framework: 'fico', scores: { overall_marks: 30, overall_max_marks: 44, overall_percentage: 68.2 } },
+    }];
+    const { payload } = await invoke('get', '/coaching-sessions', { query: { limit: '100' } });
+    const cols = selects.coaching_sessions.join(' | ');
+    expect(cols).not.toMatch(/(^|[,\s])analysis_data(\s*,|\s*$)/);
+    // The score still reads the framework's own shape (getOverall over the scores slice).
+    expect(payload.sessions[0]).toMatchObject({ percentage: 68.2, maxScore: 44, overallScore: 30, framework: 'fico', topic: 'T', subject: 'S' });
+  });
 });
 
 describe('GET /coaching-session/:id — the lesson page names the lesson', () => {
@@ -192,7 +224,7 @@ describe('GET /coaching-sessions/active', () => {
   beforeEach(() => {
     tableRows.coaching_sessions = [
       { id: 'newest-analysing', user_id: 'teacher-1', status: 'analyzing', audio_url: PORTAL('n'), created_at: hoursAgo(1) },
-      { id: 'older-needs-answer', user_id: 'teacher-1', status: 'conducting_conversation', audio_url: PORTAL('o'), conversation_state: asked, created_at: hoursAgo(20), topic: 'Fractions' },
+      { id: 'older-needs-answer', user_id: 'teacher-1', status: 'conducting_conversation', audio_url: PORTAL('o'), conversation_state: asked, created_at: hoursAgo(20), analysis_data: { topic: 'Fractions' } },
       { id: 'oldest-needs-answer', user_id: 'teacher-1', status: 'conducting_conversation', audio_url: PORTAL('p'), conversation_state: asked, created_at: hoursAgo(40) },
       { id: 'whatsapp-debrief', user_id: 'teacher-1', status: 'conducting_conversation', audio_url: WHATSAPP, conversation_state: asked, created_at: hoursAgo(5) },
       { id: 'done', user_id: 'teacher-1', status: 'completed', audio_url: PORTAL('d'), created_at: hoursAgo(2) },

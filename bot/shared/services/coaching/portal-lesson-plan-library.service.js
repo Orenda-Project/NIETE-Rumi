@@ -125,4 +125,4 @@ async function recent(userId, deps) {
   return d.getRecentFidelityLps(userId);
 }
 
-module.exports = { resolveAsset, readyRender, link, recent, currentAssetFrom, LANGS };
+module.exports = { resolveAsset, readyRender, link, recent, currentAssetFrom };

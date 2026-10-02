@@ -5347,9 +5347,18 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
+    // bd-5rz1v — SLICES of analysis_data, not the column: it averages ~30 KB a
+    // row (62 KB max, sandbox 2026-10-02) and the list now asks for up to 100
+    // rows, while all it reads is the scores block (~190 B) and three labels.
+    // 100 × 30 KB = 3 MB per page load, against ~40 KB. getOverall reads only
+    // `.scores`, so it is given exactly that.
     const { data: coachingSessions, error, count } = await supabase
       .from('coaching_sessions')
-      .select('id, created_at, audio_duration_seconds, status, analysis_data', { count: 'exact' })
+      .select(
+        'id, created_at, audio_duration_seconds, status, scores:analysis_data->scores, '
+        + 'framework:analysis_data->>framework, topic:analysis_data->>topic, subject:analysis_data->>subject',
+        { count: 'exact' },
+      )
       .eq('user_id', userId)
       .eq('status', 'completed')
       .not('analysis_data', 'is', null)
@@ -5379,14 +5388,14 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
         overallScore: points,
         maxScore: maxPoints,
         percentage,
-      }))(getOverall(session.analysis_data)),
+      }))(getOverall({ scores: session.scores })),
       // The framework she was actually scored on, so the card can say so
       // instead of implying one.
-      framework: session.analysis_data?.framework || null,
+      framework: session.framework || null,
       // bd-5rz1v — what the lesson was about, as its analysis found it, so the
       // Coaching list can name and filter lessons. null when not found.
-      topic: session.analysis_data?.topic || null,
-      subject: session.analysis_data?.subject || null,
+      topic: session.topic || null,
+      subject: session.subject || null,
     }));
 
     res.json({
