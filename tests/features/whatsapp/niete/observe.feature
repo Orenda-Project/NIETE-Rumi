@@ -235,6 +235,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then a preview is shown and, on confirm, the NIETE-branded FICO report is delivered to the teacher
     And the preview and the teacher's copy are each ONE image whose caption carries the report caption and then the notes from the conversation
     And the "Send now" tap gets a 📨 reaction instead of a "Sending the report to the teacher now…" text, and the next message is the outcome
+    And the 📨 still appears when several messages have just reached me (a reaction that is the only answer is never skipped for pacing)
+    # ADDED 2026-10-02 (FX4, bd-w2daa.26): sendReaction(…, { soleAck: true }) waits for its pacing slot; only
+    # a Meta refusal sends the "Sending the report…" text instead.
     # UPDATED 2026-10-01 (Meta bill cut, NO1 / N2-O06, N2-O07): report image + companion text were two
     # messages (preview and delivery alike); _sendPackage now captions the image with both (over 1,024
     # code points the companion stays its own text; nothing stored changes). The "sending now" text

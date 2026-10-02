@@ -1255,6 +1255,8 @@ Feature: NIETE (ICT) Teacher Training
     Given the NIETE bot chat is open and I have been offered a quiz after a coaching session
     When I tap "Not now"
     Then a 👌 appears on my tap and no message is sent
+    And the 👌 still appears when several messages have just reached me (it is never skipped for pacing)
+    # ADDED 2026-10-02 (FX4, bd-w2daa.26): a reaction that is the only answer is sent as a sole ack.
     # FX1 (bd-w2daa.22): 👌, not 👍 — the webhook's automatic 👍 on every message would answer nothing.
     # transcript-quiz-offer handleOfferButton: the offer already ends "You can make one for any lesson
     # anytime by sending /quiz"; tqDeclined is sent only when the reaction cannot be. @wip.
