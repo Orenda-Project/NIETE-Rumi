@@ -99,3 +99,20 @@ describe("LeaderObserveDraft", () => {
     await waitFor(() => expect(screen.getByText(/did not save/i)).toBeInTheDocument());
   });
 });
+
+// bd-5rz1v.6.6 — on a phone the leader bottom navigation (fixed, h-16, z-50)
+// covered the Back / Next part bar, so a coach could not leave part 1
+// (handset test, RMX2061). The bar sits ABOVE the bottom nav on phones, and at
+// the bottom of the screen where there is no bottom nav (md and up).
+describe("the Back / Next part bar on a phone", () => {
+  it("sits above the bottom navigation, not under it", async () => {
+    renderPage();
+    await screen.findByText("B. Lesson Plan Fidelity");
+    const bar = screen.getByTestId("draft-actions");
+    const cls = bar.className.split(/\s+/);
+    expect(cls).toContain("bottom-16");
+    expect(cls).toContain("md:bottom-0");
+    expect(cls).not.toContain("bottom-0");
+    expect(within(bar).getByRole("button", { name: "Next part" })).toBeInTheDocument();
+  });
+});
