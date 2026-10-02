@@ -285,6 +285,8 @@ shared:
   bot/shared/config/region-config.js: "*"
   # Every LLM job's model id (lesson plans, coaching, quiz, child-test scoring, …).
   bot/shared/config/model-registry.js: "*"
+  # Opt-in sandbox echo of outbound WhatsApp payloads (WA_OUTBOUND_ECHO_TO); called from whatsapp.service.js.
+  bot/shared/services/outbound-echo.js: "*"
   bot/shared/utils/region.js: "*"
 
   # The command/text router: 6 surfaces assert copy that originates here.
