@@ -153,6 +153,13 @@ describe('across visits in a cycle', () => {
     await list('visit-2');
     expect(T().child_test_draws.some((d) => d.student_id === 'late')).toBe(false);
   });
+  test('an inactive child is not in the frame', async () => {
+    setup({ classes: [{ id: 'g3a', grade: 3, section: 'A', size: 6 }] });
+    T().students.find((s) => s.id === 'g3a-st03').is_active = false;
+    await list('visit-1');
+    expect(T().child_test_draws.map((d) => d.student_id)).not.toContain('g3a-st03');
+    expect(T().child_test_draws).toHaveLength(5);
+  });
   test('a child who has left the class since the draw is skipped, not listed', async () => {
     setup({ classes: [{ id: 'g3a', grade: 3, section: 'A', size: 25 }] });
     const a = await list('visit-1');
@@ -360,6 +367,14 @@ describe('failing closed', () => {
 describe('resolveVisitSchool', () => {
   test('the visit\'s school_ext_id → the coach\'s leader_schools row', async () => {
     setup({ classes: [] });
+    expect(await draw.resolveVisitSchool({ coachUserId: 'coach-1', visitId: 'visit-1' })).toEqual({ ok: true, schoolId: 'school-1' });
+  });
+  test('the observe2 form niete:<emis> with no leader_schools row → schools.emis', async () => {
+    setup({ classes: [] });
+    T().leader_schools.length = 0;
+    T().schools[0].emis = '411';
+    T().schools[0].source_school_id = null;
+    T().observation_field_forms[0].visit_context = { school_ext_id: 'niete:411' };
     expect(await draw.resolveVisitSchool({ coachUserId: 'coach-1', visitId: 'visit-1' })).toEqual({ ok: true, schoolId: 'school-1' });
   });
   test('no leader_schools row → schools.source_school_id', async () => {

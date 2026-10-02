@@ -38,21 +38,24 @@ const iso = (at) => (at instanceof Date ? at : new Date(at || Date.now())).toISO
 
 // ── Roster reads (for the draw) ────────────────────────────────────────────────────────────────
 
-/** Active, unmerged classes of the school in the academic session, grades 3 and 5. */
+/**
+ * Active classes of the school in the academic session, grades 3 and 5. A merged class is closed
+ * with is_active = false (roster merge, 00_complete-schema), so is_active alone excludes it.
+ */
 async function listGradeClasses(schoolId, sessionCode) {
   const { data, error } = await supabase.from('classes')
-    .select('id, school_id, grade_code, section, session_code, is_active, merged_into_class_id')
+    .select('id, school_id, grade_code, section, session_code, is_active')
     .eq('school_id', schoolId)
     .eq('session_code', sessionCode)
     .eq('is_active', true)
-    .is('merged_into_class_id', null)
     .in('grade_code', ['grade_3', 'grade_5']);
   if (error) return fail('listGradeClasses', error, { schoolId });
   return { ok: true, classes: data || [] };
 }
 
 /**
- * Current active enrolments of the classes, joined to students that are active and unmerged.
+ * Current active enrolments of the classes, joined to students that are active (a merged or
+ * withdrawn child is is_active = false).
  * Names are read here only to hand to the coach's screen; they are never logged.
  */
 async function listActiveEnrollments(classIds) {
@@ -70,7 +73,7 @@ async function listActiveEnrollments(classIds) {
   const enrollments = rows
     .filter((r) => {
       const s = byId.get(r.student_id);
-      return s && s.status === 'active' && s.is_active !== false && !s.merged_into;
+      return s && s.is_active !== false;
     })
     .map((r) => {
       const s = byId.get(r.student_id);
@@ -91,7 +94,8 @@ async function listStudents(ids) {
   const unique = [...new Set(ids)];
   if (!unique.length) return { ok: true, students: [] };
   const { data, error } = await supabase.from('students')
-    .select('id, roll_number, student_name, student_name_urdu, status, is_active, merged_into')
+    // Only columns 00_complete-schema declares: a fresh database has no students.status/merged_into.
+    .select('id, roll_number, student_name, student_name_urdu, is_active')
     .in('id', unique);
   if (error) return fail('listStudents', error, { students: unique.length });
   return { ok: true, students: data || [] };
@@ -116,6 +120,13 @@ async function findCoachSchool(coachUserId, schoolExtId) {
   if (error) return fail('findCoachSchool', error, { coachUserId });
   const row = (data || []).find((r) => r.school_id);
   return { ok: true, schoolId: row ? row.school_id : null };
+}
+
+async function findSchoolByEmis(emis) {
+  if (!emis) return { ok: true, schoolId: null };
+  const { data, error } = await supabase.from('schools').select('id').eq('emis', String(emis)).limit(2);
+  if (error) return fail('findSchoolByEmis', error, {});
+  return { ok: true, schoolId: data && data.length === 1 ? data[0].id : null };
 }
 
 async function findSchoolBySourceId(sourceSchoolId) {
@@ -391,6 +402,7 @@ module.exports = {
   listStudents,
   getVisit,
   findCoachSchool,
+  findSchoolByEmis,
   findSchoolBySourceId,
   BLOCK_NAMES,
 };

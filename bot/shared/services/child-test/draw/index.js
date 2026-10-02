@@ -432,9 +432,13 @@ async function resolveVisitSchool({ coachUserId, visitId } = {}) {
   const viaCoach = await store.findCoachSchool(coachUserId || got.visit.observer_user_id, ext);
   if (!viaCoach.ok) return viaCoach;
   if (viaCoach.schoolId) return { ok: true, schoolId: viaCoach.schoolId };
-  const viaSource = await store.findSchoolBySourceId(ext);
-  if (!viaSource.ok) return viaSource;
-  if (viaSource.schoolId) return { ok: true, schoolId: viaSource.schoolId };
+  // observe2 writes 'niete:' || emis; older rows carry a bare numeric source id.
+  const raw = String(ext);
+  const via = raw.includes(':')
+    ? await store.findSchoolByEmis(raw.split(':').pop())
+    : await store.findSchoolBySourceId(raw);
+  if (!via.ok) return via;
+  if (via.schoolId) return { ok: true, schoolId: via.schoolId };
   return { ok: false, reason: 'no_school' };
 }
 

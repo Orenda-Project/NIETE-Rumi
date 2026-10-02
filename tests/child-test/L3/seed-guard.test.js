@@ -35,5 +35,9 @@ describe('planSeed', () => {
     expect(p.classes[0].children[6].student_name).toBe('Child 3A-07');
     expect(p.classes[1].children[24].student_name).toBe('Child 5A-25');
     expect(p.coach).toMatchObject({ role: 'coach', is_test_user: true });
+    // observe2's form: the coach's patch is leader_schools (school_ext_id 'niete:'||emis) x users.school_id.
+    expect(p.schoolExtId).toBe(`niete:${p.school.emis}`);
+    expect(p.teachers.map((t) => [t.grade_code, t.role, t.is_test_user])).toEqual([['grade_3', 'teacher', true], ['grade_5', 'teacher', true]]);
+    expect(new Set([p.coach.phone_number, ...p.teachers.map((t) => t.phone_number)]).size).toBe(3);
   });
 });

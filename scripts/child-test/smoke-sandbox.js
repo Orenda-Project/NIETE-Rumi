@@ -16,7 +16,7 @@
  */
 
 const assert = require('assert');
-const { assertSandbox, SCHOOL_EMIS } = require('./seed-sandbox');
+const { assertSandbox, SCHOOL_EMIS, SCHOOL_EXT_ID } = require('./seed-sandbox');
 
 async function main() {
   const argv = process.argv.slice(2);
@@ -36,7 +36,7 @@ async function main() {
   if (already && already.length) throw new Error('the SIM school already has draws — refusing (would delete simulation data)');
 
   const { data: visit, error: ve } = await supabase.from('observation_field_forms')
-    .insert({ observer_user_id: coachUserId, visit_context: { school_ext_id: SCHOOL_EMIS }, rubric_version: 'child-test-smoke' })
+    .insert({ observer_user_id: coachUserId, visit_context: { school_ext_id: SCHOOL_EXT_ID }, rubric_version: 'child-test-smoke' })
     .select('id').single();
   if (ve) throw new Error(`visit insert: ${ve.message}`);
   const visitId = visit.id;

@@ -5,7 +5,9 @@
  * Seed the NIETE SANDBOX for the child-test simulation (bd-s1oo0.3): one clearly-marked test school
  * ("SIM — …", is_probable_test = true) with a Grade 3 and a Grade 5 class of 25 children each (roll
  * numbers 1-25, placeholder names "Child 3A-07"), and one test coach (is_test_user = true) assigned
- * to it through leader_schools — the link /observe2 and the child-test draw read.
+ * to it through leader_schools — the link /observe2 and the child-test draw read — plus one test
+ * teacher per class (users.school_id + class_teachers), so the observe2 visit planner lists them and
+ * the observed class's grade can be read from class_teachers → classes.grade_code.
  *
  * Idempotent: re-running finds what is there and fills only what is missing. Prints the ids.
  *
@@ -21,7 +23,10 @@ const PROD_REFS = ['ihzciabopbttygxxgrkm', 'jlpenspfdcwxkopaidys'];
 const SIM_PREFIX = 'SIM —';
 const SCHOOL_EMIS = 'SIM-CT-0001';
 const SCHOOL_NAME = `${SIM_PREFIX} Child Test School (simulation)`;
+// The form /observe2 and the coach's patch use (leader_schools.school_ext_id = 'niete:' || emis).
+const SCHOOL_EXT_ID = `niete:${SCHOOL_EMIS}`;
 const DEFAULT_COACH_PHONE = '923009990301';
+const TEACHER_PHONES = { 3: '923009990302', 5: '923009990303' };
 const CLASS_SIZE = 25;
 
 function assertSandbox(env, argv) {
@@ -54,9 +59,21 @@ function planSeed({ sessionCode, coachPhone = DEFAULT_COACH_PHONE }) {
       student_name: `Child ${grade}A-${String(i + 1).padStart(2, '0')}`,
     })),
   }));
+  const teachers = [3, 5].map((grade) => ({
+    grade_code: `grade_${grade}`,
+    phone_number: TEACHER_PHONES[grade],
+    name: `${SIM_PREFIX} Teacher ${grade}A`,
+    role: 'teacher',
+    region: 'ICT',
+    is_test_user: true,
+    registration_completed: true,
+    preferred_language: 'ur',
+  }));
   return {
     school: { name: SCHOOL_NAME, region: 'ict', emis: SCHOOL_EMIS, is_active: true, is_probable_test: true },
+    schoolExtId: SCHOOL_EXT_ID,
     classes,
+    teachers,
     coach: {
       phone_number: coachPhone,
       name: `${SIM_PREFIX} Coach (child test)`,
@@ -86,12 +103,17 @@ async function seed(supabase, plan) {
   if (!coach) coach = (await one(supabase.from('users').insert({ ...plan.coach, school_id: school.id }).select('id, role, is_test_user'), 'insert coach'))[0];
   if (!coach.is_test_user) throw new Error(`user with phone ${plan.coach.phone_number.slice(-4)} exists and is not a test user — refusing`);
 
-  const link = (await one(supabase.from('leader_schools').select('id').eq('leader_user_id', coach.id).eq('source', 'niete_ict').eq('school_ext_id', SCHOOL_EMIS).limit(1), 'find leader_schools'))[0]
-    || (await one(supabase.from('leader_schools').insert({
-      leader_user_id: coach.id, source: 'niete_ict', school_ext_id: SCHOOL_EMIS, school_name: plan.school.name, emis: SCHOOL_EMIS, school_id: school.id, name_match_quality: 'exact',
-    }).select('id'), 'insert leader_schools'))[0];
+  let link = (await one(supabase.from('leader_schools').select('id, school_ext_id').eq('leader_user_id', coach.id).eq('source', 'niete_ict').eq('school_id', school.id).limit(1), 'find leader_schools'))[0];
+  if (!link) {
+    link = (await one(supabase.from('leader_schools').insert({
+      leader_user_id: coach.id, source: 'niete_ict', school_ext_id: plan.schoolExtId, school_name: plan.school.name, emis: SCHOOL_EMIS, school_id: school.id, name_match_quality: 'exact',
+    }).select('id, school_ext_id'), 'insert leader_schools'))[0];
+  } else if (link.school_ext_id !== plan.schoolExtId) {
+    // An earlier seed wrote the bare emis; observe2 uses 'niete:' || emis.
+    await one(supabase.from('leader_schools').update({ school_ext_id: plan.schoolExtId }).eq('id', link.id).select('id'), 'fix leader_schools ext id');
+  }
 
-  const out = { schoolId: school.id, coachUserId: coach.id, leaderSchoolsId: link.id, classes: [] };
+  const out = { schoolId: school.id, schoolExtId: plan.schoolExtId, coachUserId: coach.id, leaderSchoolsId: link.id, classes: [] };
   for (const c of plan.classes) {
     let cls = (await one(supabase.from('classes').select('id').eq('school_id', school.id).eq('grade_code', c.grade_code)
       .eq('section', c.section).eq('session_code', c.session_code).eq('shift_code', c.shift_code).eq('is_active', true).limit(1), 'find class'))[0];
@@ -111,7 +133,15 @@ async function seed(supabase, plan) {
       }).select('id'), 'insert enrolment');
     }
     const finalCount = (await one(supabase.from('class_enrollments').select('id').eq('class_id', cls.id).eq('is_active', true), 'count enrolments')).length;
-    out.classes.push({ grade: c.grade_code, section: c.section, classId: cls.id, enrolled: finalCount });
+
+    const t = plan.teachers.find((x) => x.grade_code === c.grade_code);
+    const { grade_code: _g, ...teacherRow } = t;
+    let teacher = (await one(supabase.from('users').select('id, is_test_user').eq('phone_number', t.phone_number).limit(1), 'find teacher'))[0];
+    if (!teacher) teacher = (await one(supabase.from('users').insert({ ...teacherRow, school_id: school.id }).select('id, is_test_user'), 'insert teacher'))[0];
+    if (!teacher.is_test_user) throw new Error(`user with phone ${t.phone_number.slice(-4)} exists and is not a test user — refusing`);
+    const ct = (await one(supabase.from('class_teachers').select('id').eq('class_id', cls.id).eq('teacher_user_id', teacher.id).eq('is_active', true).limit(1), 'find class_teachers'))[0]
+      || (await one(supabase.from('class_teachers').insert({ class_id: cls.id, teacher_user_id: teacher.id, is_class_teacher: true, is_active: true }).select('id'), 'insert class_teachers'))[0];
+    out.classes.push({ grade: c.grade_code, section: c.section, classId: cls.id, enrolled: finalCount, teacherUserId: teacher.id, classTeacherId: ct.id });
   }
   return out;
 }
@@ -131,4 +161,4 @@ if (require.main === module) {
   main().catch((e) => { console.error(`[seed] ${e.message}`); process.exit(1); });
 }
 
-module.exports = { assertSandbox, planSeed, seed, SIM_PREFIX, SCHOOL_EMIS, PROD_REFS };
+module.exports = { assertSandbox, planSeed, seed, SIM_PREFIX, SCHOOL_EMIS, SCHOOL_EXT_ID, PROD_REFS };
