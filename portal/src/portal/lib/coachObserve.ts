@@ -1,12 +1,9 @@
 /**
  * bd-5rz1v.6 — a coach's /observe observation, run from the portal.
  *
- * The entry follows the teachers' Option B: ONE button that names the goal (it
- * does not promise to record) and a sheet with the two ways — record it now in
- * her class, or send a recording already on the phone. Its words mirror
- * whichever B variant the operator picks for teachers (canvas EntryB-1..4),
- * so they live here and nowhere else: change ENTRY_VARIANT, every coach screen
- * follows.
+ * The entry follows the teachers' Option B structure: ONE button, then a sheet
+ * with the two ways — record it now in the class, or upload a recording already
+ * on the phone. Its words live here (COACH_ENTRY) and nowhere else.
  *
  * Sending reuses the teacher's sendLesson (every file to R2 first, then the
  * start), pointed at the coach's endpoints and carrying the observed teacher.
@@ -16,59 +13,29 @@ import { leader, portal } from "../services/api";
 import type { CoachObservationView, ObserveStep } from "../services/api";
 import { sendLesson, SendError, type PlanChoice } from "./coachingSend";
 
-export type EntryVariant = "B1" | "B2" | "B3" | "B4";
-
-/** The operator's pick for the teachers' button (2026-10-02: B3, colour Colour-3 deep green). */
-export const ENTRY_VARIANT: EntryVariant = "B3";
-
 type EntryCopy = {
   title: string; sub: string; sheet: (name: string) => string;
   rec: string; recSub: string; file: string; fileSub: string;
 };
 
-export const ENTRY_COPY: Record<EntryVariant, EntryCopy> = {
-  B1: {
-    title: "Ask your Digital Coach about a lesson",
-    sub: "Share one lesson you watched. Get tips for the teacher.",
-    sheet: (name) => `Share ${name}’s lesson`,
-    rec: "Record now",
-    recSub: "Start when her class starts.",
-    file: "Send a recording",
-    fileSub: "One already on your phone.",
-  },
-  B2: {
-    title: "Get tips for a teacher",
-    sub: "Your Digital Coach listens to her lesson and suggests what to try next.",
-    sheet: (name) => `How will you share ${name}’s lesson?`,
-    rec: "Record now",
-    recSub: "Start when her class starts.",
-    file: "Send a recording",
-    fileSub: "One already on your phone.",
-  },
-  // The operator's pick (2026-10-02): B3, with the teachers' sheet words
-  // "Record Live Lecture" / "Upload Recording".
-  B3: {
-    title: "Send a lesson to your Digital Coach",
-    sub: "Record it in her class, or send one you already have.",
-    sheet: (name) => `Send ${name}’s lesson`,
-    rec: "Record Live Lecture",
-    recSub: "Start when her class starts.",
-    file: "Upload Recording",
-    fileSub: "One already on your phone.",
-  },
-  B4: {
-    title: "Get feedback on a lesson",
-    sub: "Your Digital Coach listens and drafts her feedback.",
-    sheet: (name) => `${name}’s lesson`,
-    rec: "Record it now",
-    recSub: "Start when her class starts.",
-    file: "Send a recording",
-    fileSub: "One already on your phone.",
-  },
+/**
+ * The coach's entry (operator, 2026-10-02): it speaks to the COACH — "Record
+ * your Teacher's Lesson" — not to a teacher about her own lesson. The sheet's
+ * two ways keep the teachers' words (Record Live Lecture / Upload Recording).
+ * Neutral throughout: the teacher may be a man.
+ */
+export const COACH_ENTRY: EntryCopy = {
+  title: "Record your Teacher’s Lesson",
+  sub: "Record it in their class, or upload one you already have.",
+  sheet: (name) => `Record ${name}’s lesson`,
+  rec: "Record Live Lecture",
+  recSub: "Start when their class starts.",
+  file: "Upload Recording",
+  fileSub: "One already on your phone.",
 };
 
-export function entryCopy(variant: EntryVariant = ENTRY_VARIANT): EntryCopy {
-  return ENTRY_COPY[variant] || ENTRY_COPY.B3;
+export function entryCopy(): EntryCopy {
+  return COACH_ENTRY;
 }
 
 /** The first name, for "Talk with Ayesha" — the whole name when there is no space. */
@@ -87,7 +54,7 @@ export function trackerItems(name: string): TrackerItem[] {
     { key: "draft", label: "Check the draft report" },
     { key: "talk", label: `Talk with ${name}` },
     { key: "feedback", label: "Your feedback" },
-    { key: "report", label: `Send ${name} her report` },
+    { key: "report", label: `Send ${name} the report` },
   ];
 }
 
@@ -113,13 +80,13 @@ export function isWaiting(view: Pick<CoachObservationView, "step" | "preparing">
 export const STEP_CHIP: Record<ObserveStep, string> = {
   analysing: "Being analysed",
   draft: "Check the draft",
-  talk: "Talk with her",
+  talk: "Talk with the teacher",
   listening: "Listening to your talk",
   feedback: "Your feedback is ready",
-  report: "Send her the report",
+  report: "Send the report",
   sending: "Sending",
-  waiting_teacher: "Waiting for her",
-  sent: "Sent to her",
+  waiting_teacher: "Waiting for the teacher",
+  sent: "Report sent",
   done: "Done",
   stopped: "Stopped",
 };

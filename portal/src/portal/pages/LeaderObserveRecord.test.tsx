@@ -100,10 +100,10 @@ describe("LeaderObserveRecord", () => {
     expect(names).toEqual(["Ayesha Bibi", "Sadia Noor"]);
   });
 
-  it("picking a teacher opens the sheet with the two ways, in the B3 words", async () => {
+  it("picking a teacher opens the sheet with the two ways, in the coach's words", async () => {
     renderPage();
     fireEvent.click(await screen.findByText("Sadia Noor"));
-    const sheet = await screen.findByRole("dialog", { name: "Send Sadia’s lesson" });
+    const sheet = await screen.findByRole("dialog", { name: "Record Sadia’s lesson" });
     expect(within(sheet).getByText("Record Live Lecture")).toBeInTheDocument();
     expect(within(sheet).getByText("Upload Recording")).toBeInTheDocument();
   });
@@ -116,23 +116,23 @@ describe("LeaderObserveRecord", () => {
     expect(within(sheet).queryByText("Record Live Lecture")).toBeNull();
   });
 
-  it("sends her lesson with her plan from HER recent plans, for that teacher, then opens the observation", async () => {
+  it("sends the lesson with the plan from THE TEACHER'S recent plans, for that teacher, then opens the observation", async () => {
     renderPage();
     fireEvent.click(await screen.findByText("Your visit at 09:30"));
-    await screen.findByRole("dialog", { name: "Send Ayesha’s lesson" });
+    await screen.findByRole("dialog", { name: "Record Ayesha’s lesson" });
     fireEvent.change(screen.getByTestId("send-audio-input"), { target: { files: [file("Period 3.m4a", 30_000_000)] } });
     expect(await screen.findByText("Period 3.m4a")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Add her lesson plan" }));
-    fireEvent.click(await screen.findByText("Her recent plans and our library"));
-    expect(await screen.findByText("Her recent plans")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add the lesson plan" }));
+    fireEvent.click(await screen.findByText("Their recent plans and our library"));
+    expect(await screen.findByText("Ayesha’s recent plans")).toBeInTheDocument();
     expect(L.getObserveRecentPlans).toHaveBeenCalledWith("923120004471", "niete:7");
     expect(P.getRecentLessonPlans).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText("Fractions: halves"));
 
     fireEvent.click(await screen.findByRole("button", { name: "Send to Digital Coach" }));
     expect(await screen.findByText("Sent!")).toBeInTheDocument();
-    expect(screen.getByText(/her draft report is ready here/)).toBeInTheDocument();
+    expect(screen.getByText(/the draft report is ready here/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Open this observation" }));
     expect(await screen.findByText("observation page")).toBeInTheDocument();
     expect(L.startObservation).toHaveBeenCalledWith({
@@ -142,7 +142,7 @@ describe("LeaderObserveRecord", () => {
 
   it("a visit opened from the schedule arrives with the teacher chosen", async () => {
     renderPage("/portal/leader/observe/new?teacher=923120004471&school=niete:7");
-    expect(await screen.findByRole("dialog", { name: "Send Ayesha’s lesson" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Record Ayesha’s lesson" })).toBeInTheDocument();
   });
 
   it("a teacher no longer in her schools is said so, and she picks again", async () => {

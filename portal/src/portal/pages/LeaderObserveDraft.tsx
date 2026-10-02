@@ -25,7 +25,7 @@ const COPY = {
   part: (n: number, total: number) => `Part ${n} of ${total}`,
   seen: 'What was seen',
   improve: 'To improve',
-  moveOf: (k: number, n: number) => `Move ${k} of ${n} · from her plan`,
+  moveOf: (k: number, n: number) => `Move ${k} of ${n} · from the lesson plan`,
   changedFrom: (was: string) => `Your Digital Coach said ${was} — you changed it`,
   youChanged: 'You changed this',
   back: 'Back',
@@ -33,8 +33,8 @@ const COPY = {
   save: 'Save the draft',
   saveQ: 'Save the draft?',
   changes: (r: number, t: number) => (r + t === 0
-    ? 'You did not change anything. Her report will use the draft as it is.'
-    : `You changed ${r} rating${r === 1 ? '' : 's'} and ${t} note${t === 1 ? '' : 's'}. Her report will use your answers.`),
+    ? 'You did not change anything. The report will use the draft as it is.'
+    : `You changed ${r} rating${r === 1 ? '' : 's'} and ${t} note${t === 1 ? '' : 's'}. The report will use your answers.`),
   saveContinue: 'Save and continue',
   keepChecking: 'Keep checking',
   saving: 'Saving…',
@@ -155,7 +155,7 @@ const LeaderObserveDraft = () => {
     }
   };
 
-  const first = (name || '').trim().split(/\s+/)[0] || 'Her';
+  const first = (name || '').trim().split(/\s+/)[0] || 'The teacher';
   if (problem) {
     return <PortalLayout><div className="mx-auto max-w-md py-10"><Warning>{problem}</Warning></div></PortalLayout>;
   }

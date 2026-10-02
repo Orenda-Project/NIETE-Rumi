@@ -26,7 +26,7 @@ const COPY = {
   notFound: 'We could not find this observation.',
   observedOn: (d: string) => `Observed ${d}`,
   analysing: (name: string) => `Your Digital Coach is listening to ${name}’s lesson. About 10 minutes — you can close this page.`,
-  draftReady: 'Her draft report is ready. Check it, and change anything you saw differently.',
+  draftReady: 'The draft report is ready. Check it, and change anything you saw differently.',
   checkDraft: 'Check the draft report',
   changeDraft: 'Change the draft report',
   talkNow: (name: string) => `Now talk with ${name}. Your Digital Coach wrote a guide for it.`,
@@ -44,18 +44,18 @@ const COPY = {
   tryNext: 'Try next time',
   askYourself: 'Ask yourself',
   concern: 'One thing to look at',
-  nextReport: (name: string) => `Next: send ${name} her report`,
+  nextReport: (name: string) => `Next: send ${name} the report`,
   makingReport: (name: string) => `Making ${name}’s report… About 1 minute.`,
-  sendTitle: (name: string) => `Send ${name} her report`,
-  exactly: 'This is exactly what she will get, on her WhatsApp.',
+  sendTitle: (name: string) => `Send ${name} the report`,
+  exactly: (name: string) => `This is exactly what ${name} will get, on WhatsApp.`,
   to: 'To:',
   sendTo: (name: string) => `Send to ${name}`,
   notNow: 'Not now',
-  sendFailed: 'The report did not reach her. Try again.',
+  sendFailed: (name: string) => `The report did not reach ${name}. Try again.`,
   sending: 'Sending…',
-  waiting: (name: string) => `Waiting for ${name}. We sent her a message — her report opens when she taps it. We remind her once if she doesn’t.`,
+  waiting: (name: string) => `Waiting for ${name}. We sent ${name} a message — the report opens when they tap it. We remind them once if they don’t.`,
   sent: (name: string) => `Sent to ${name}`,
-  sentSub: 'It is on her WhatsApp now.',
+  sentSub: 'It is on their WhatsApp now.',
   stopped: 'This observation was stopped.',
   stoppedDuplicate: 'This recording was already analysed for another observation, so it was stopped.',
   failedAction: 'Something went wrong. Please try again.',
@@ -282,12 +282,12 @@ const LeaderObservation = () => {
             <h2 className="text-[20px] font-bold" dir="auto">{COPY.sendTitle(first)}</h2>
             {view.problem === 'send_failed' ? (
               <>
-                <Warning>{COPY.sendFailed}</Warning>
+                <Warning>{COPY.sendFailed(first)}</Warning>
                 <Primary disabled={busy} onClick={() => act(() => leader.previewReport(view.id))}>{COPY.tryAgain}</Primary>
               </>
             ) : (
               <>
-                <p className="text-[14px] text-[#5b6170]">{COPY.exactly}</p>
+                <p className="text-[14px] text-[#5b6170]" dir="auto">{COPY.exactly(first)}</p>
                 <div className="flex flex-col gap-2 rounded-2xl bg-white p-2.5" data-testid="report-preview">
                   {view.report.imageUrl && (
                     <img src={view.report.imageUrl} alt={`${first}’s report`} className="w-full rounded-lg" />
