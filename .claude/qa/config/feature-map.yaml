@@ -268,6 +268,7 @@ features:
     - docs/flows/child-test-check.json
     - bot/shared/routes/observe2-check-endpoint.js      # the "Test 5 children now?" offer follows observe2's brief
     - bot/shared/handlers/image-message.handler.js      # the maths-strip photo claim sits first in this handler
+    - bot/shared/routes/child-test-app.routes.js        # the coach app's child-test API (portal → bot)
 
 # ── shared / fan-out ─────────────────────────────────────────────────────────
 # One file, several surfaces. Declared HERE rather than repeated under each
@@ -282,6 +283,8 @@ shared:
   bot/shared/services/whatsapp.service.js: "*"
   bot/shared/services/region-features.service.js: "*"
   bot/shared/config/region-config.js: "*"
+  # Every LLM job's model id (lesson plans, coaching, quiz, child-test scoring, …).
+  bot/shared/config/model-registry.js: "*"
   bot/shared/utils/region.js: "*"
 
   # The command/text router: 6 surfaces assert copy that originates here.
