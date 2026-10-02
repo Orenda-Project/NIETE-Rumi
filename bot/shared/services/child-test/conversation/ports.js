@@ -83,6 +83,18 @@ function sectionCueFor(block, section) {
   }
 }
 
+/** Quick-sums seconds (CONTRACT §2 maths.quick_sums_seconds, sandbox override): the one setting. */
+function quickSumsSeconds(grade, form) {
+  try {
+    const bank = load('itemBank');
+    if (typeof bank.quickSumsSeconds === 'function') return bank.quickSumsSeconds(grade, form);
+    return require('../item-bank').quickSumsSeconds(grade, form);
+  } catch (err) {
+    logError('child_test.quick_sums_seconds_failed', { error: err.message });
+    return 60;
+  }
+}
+
 module.exports = {
   get draw() { return load('draw'); },
   get store() { return load('store'); },
@@ -91,5 +103,6 @@ module.exports = {
   get render() { return load('render'); },
   cueFor,
   sectionCueFor,
+  quickSumsSeconds,
   __setForTest(fakes) { injected = fakes; },
 };

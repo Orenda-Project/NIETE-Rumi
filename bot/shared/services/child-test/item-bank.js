@@ -66,6 +66,38 @@ function getItem(id) {
   return INDEX.get(id) || null;
 }
 
+// ------------------------------------------------------------------ quick sums: one setting
+// `maths.quick_sums_seconds` in the bank governs the copy, the coach sheet and the scorer's timed
+// window. CHILD_TEST_QUICK_SUMS_SECONDS (30 or 60) overrides it on SANDBOX only, so a pilot can time
+// both settings without a bank change. Everything that needs the number reads quickSumsSeconds().
+const QS_ALLOWED = new Set([30, 60]);
+const QS_DEFAULT = 60;
+
+function isSandbox(env = process.env) {
+  const names = [env.CHILD_TEST_R2_ENV, env.RAILWAY_ENVIRONMENT, env.RAILWAY_ENVIRONMENT_NAME].map((x) => String(x || '').toLowerCase());
+  return names.includes('sandbox') || /-sandbox$/i.test(String(env.DEFAULT_REGION || ''));
+}
+
+function sandboxQuickSumsOverride(env = process.env) {
+  const raw = env.CHILD_TEST_QUICK_SUMS_SECONDS;
+  if (raw == null || raw === '' || !isSandbox(env)) return null;
+  const n = Number(raw);
+  if (!QS_ALLOWED.has(n)) {
+    // logger is required lazily: this module is otherwise pure data access.
+    require('../../utils/logger').logError('child_test.quick_sums_override_invalid', { value: String(raw) });
+    return null;
+  }
+  return n;
+}
+
+/** Seconds of quick sums for a form (default Grade 3 Form A): sandbox override, else the bank, else 60. */
+function quickSumsSeconds(grade = 3, form = 'A') {
+  const o = sandboxQuickSumsOverride();
+  if (o != null) return o;
+  const v = Number(getBlock(grade, form, 'maths').quick_sums_seconds);
+  return Number.isFinite(v) && v > 0 ? v : QS_DEFAULT;
+}
+
 module.exports = {
   version: BANK.version,
   cue: BANK.cue,
@@ -75,4 +107,7 @@ module.exports = {
   getForm,
   getBlock,
   getItem,
+  quickSumsSeconds,
+  sandboxQuickSumsOverride,
+  isSandbox,
 };

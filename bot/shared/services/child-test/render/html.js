@@ -391,9 +391,10 @@ const CHROME = {
     story: 'Story — word numbers', questions: 'Questions (say aloud)', accept: 'accept', reject: 'do not accept',
     firstSounds: 'First sounds (say the word; the child says its first sound)', nonwords: 'Made-up words',
     fallback: 'If the child cannot read the first line: letters, then words',
-    numbers: 'Numbers (stop after 4 wrong in a row)', quickSums: 'Quick sums (60 seconds)', written: 'Written strip', wordProblem: 'Word problem',
+    numbers: 'Numbers (stop after 4 wrong in a row)', quickSums: 'Quick sums ({s} seconds)', written: 'Written strip', wordProblem: 'Word problem',
     answer: 'answer', words: 'words',
-    say: 'Say', cueStart: 'Say, and the timed minute starts', cueStop: 'After 60 seconds, say',
+    say: 'Say', cueStart: 'Say, and the timed minute starts', cueStop: 'After 60 seconds, say', cueStopQs: 'After {s} seconds, say', cueStartQs: 'Say, and the timed {s} seconds start',
+    howTo: 'One voice note per block: lock the recording, flip the card pages without stopping it, send it when the block ends. Say the lines in grey boxes exactly as printed.',
   },
   ur: {
     dir: 'rtl',
@@ -402,9 +403,10 @@ const CHROME = {
     story: 'کہانی — الفاظ کے نمبر', questions: 'سوالات (زبانی پوچھیں)', accept: 'درست', reject: 'درست نہیں',
     firstSounds: 'پہلی آواز (لفظ آپ بولیں، بچہ پہلی آواز بتائے)', nonwords: 'بنائے ہوئے الفاظ',
     fallback: 'اگر بچہ پہلی سطر نہ پڑھ سکے: پہلے حروف، پھر الفاظ',
-    numbers: 'اعداد (لگاتار 4 غلط پر رک جائیں)', quickSums: 'فوری جمع تفریق (60 سیکنڈ)', written: 'لکھنے والی پٹی', wordProblem: 'عبارتی سوال',
+    numbers: 'اعداد (لگاتار 4 غلط پر رک جائیں)', quickSums: 'فوری جمع تفریق ({s} سیکنڈ)', written: 'لکھنے والی پٹی', wordProblem: 'عبارتی سوال',
     answer: 'جواب', words: 'الفاظ',
-    say: 'کہیں', cueStart: 'یہ کہیں، اور ایک منٹ شروع', cueStop: '60 سیکنڈ بعد کہیں',
+    say: 'کہیں', cueStart: 'یہ کہیں، اور ایک منٹ شروع', cueStop: '60 سیکنڈ بعد کہیں', cueStopQs: '{s} سیکنڈ بعد کہیں', cueStartQs: 'یہ کہیں، اور {s} سیکنڈ شروع',
+    howTo: 'ہر حصے کا ایک وائس نوٹ: ریکارڈنگ لاک کریں، کارڈ کے صفحے پلٹیں مگر ریکارڈنگ نہ روکیں، حصہ ختم ہو تو بھیجیں۔ سرمئی خانوں کی سطریں ہو بہو بولیں۔',
   },
 };
 
@@ -412,9 +414,10 @@ const COACH_CSS = `
 @page{size:A4;margin:12mm}
 html,body{margin:0;background:#fff;color:${INK};font:10.5pt/1.45 ${LATIN_STACK}}
 body[dir=rtl]{font-family:${URDU_STACK};line-height:1.9}
-h1{font-size:15pt;margin:0 0 4mm;padding:2mm 3mm;background:#FDECEC;border-inline-start:2mm solid #B42318}
+h1{font-size:15pt;margin:0 0 2mm;padding:2mm 3mm;background:#FDECEC;border-inline-start:2mm solid #B42318}
 h2{font-size:12.5pt;margin:5mm 0 2mm;border-bottom:.4mm solid #D0D5DD;padding-bottom:1mm;break-after:avoid}
 h3{font-size:10.5pt;margin:3mm 0 1mm;color:#475467;break-after:avoid}
+.how{margin:0 0 3mm;font-weight:700}
 .blk{break-inside:avoid}.nums div{break-inside:avoid}
 .ur{font-family:${URDU_STACK};line-height:1.9;direction:rtl}.en{font-family:${MIXED_STACK};line-height:1.45;direction:ltr}
 bdi.ur{font-family:${URDU_STACK};line-height:1.9}bdi.en{font-family:${MIXED_STACK};line-height:1.45}
@@ -475,7 +478,7 @@ function coachLang(block, b, C, cue = {}) {
  * @param {{grade:number, formCode:string, form:object, lang?:'ur'|'en', cue?:object}} a
  *   cue: the item bank's top-level `cue` ({ urdu, english, maths }); printed verbatim when given.
  */
-function buildCoachSheetHtml({ grade, formCode: code, form, lang = 'ur', cue = {} }) {
+function buildCoachSheetHtml({ grade, formCode: code, form, lang = 'ur', cue = {}, quickSumsSeconds }) {
   const C = CHROME[lang];
   if (!C) throw new Error(`child-test render: coach sheet has no "${lang}" strings`);
   const m = need(form, 'maths');
@@ -485,14 +488,18 @@ function buildCoachSheetHtml({ grade, formCode: code, form, lang = 'ur', cue = {
   const wr = m.written.map((w, i) => `<tr><td class="ltr">${i + 1}</td><td class="ltr">${esc(w.prompt)}</td><td class="ltr k">${esc(w.answer)}</td></tr>`).join('');
   const wp = m.word_problem;
   const mc = cue.maths || {};
+  // One setting (item-bank quickSumsSeconds): the caller passes it; else the form's own bank value. The story stays 60.
+  const qsSec = Number(quickSumsSeconds) || Number(m.quick_sums_seconds) || 60;
+  const withS = (tpl) => tpl.replace('{s}', String(qsSec));
   return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><style>${fontFaceCss({ latin: true, urdu: true, bold: true })}${COACH_CSS}</style></head>`
     + `<body dir="${dir}" data-audience="coach" data-form="${esc(formCode(grade, code))}">`
     + `<h1>${C.title} · <span class="ltr">${esc(formCode(grade, code))}</span></h1>`
+    + `<p class="how">${C.howTo}</p>`
     + coachLang('urdu', need(form, 'urdu'), C, cue.urdu)
     + coachLang('english', need(form, 'english'), C, cue.english)
     + `<section dir="${dir}"><h2>${C.maths}</h2>`
     + blk(`<h3>${C.numbers}</h3>${cueLine(C.say, mc.numbers)}<table dir="ltr">${nums}</table>`)
-    + blk(`<h3>${C.quickSums}</h3>${cueLine(C.cueStart, mc.quick_sums || mc.start)}${qs}${cueLine(C.cueStop, mc.stop)}`)
+    + blk(`<h3>${withS(C.quickSums)}</h3>${cueLine(withS(C.cueStartQs), mc.quick_sums || mc.start)}${qs}${cueLine(withS(C.cueStopQs), mc.stop)}`)
     + blk(`<h3>${C.written}</h3><table dir="ltr">${wr}</table>`)
     + blk(`<h3>${C.wordProblem}</h3>${cueLine(C.say, mc.word_problem)}<table><tr><td class="ur" dir="rtl">${esc(wp.prompt_ur)}</td><td class="en">${esc(wp.prompt_en)}</td><td class="k">${C.answer}: <span class="ltr">${esc(wp.answer)}</span></td></tr></table>`)
     + '</section>'

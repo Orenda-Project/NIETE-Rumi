@@ -3159,17 +3159,23 @@ const UX_STRINGS = {
     en: '⚠️ I couldn\'t start this child\'s test (the save failed). Tap Present again.',
     ur: '⚠️ اس بچے کا ٹیسٹ شروع نہیں ہو سکا (محفوظ نہیں ہوا)۔ دوبارہ «موجود» دبائیں۔',
   },
-  childTestScriptUrdu: {
-    en: 'Start a voice note, say «{cue}», and let the child read the story for 60 seconds. Then ask the 3 questions, the 5 first sounds and the 5 made-up words. Send it all as ONE voice note.\nIf the child cannot read the first line, ask the 10 letters and 10 words instead.',
-    ur: 'وائس نوٹ شروع کریں، «{cue}» کہیں، اور بچے کو ۶۰ سیکنڈ کہانی پڑھنے دیں۔ پھر ۳ سوال، ۵ پہلی آوازیں اور ۵ بے معنی الفاظ پوچھیں۔ یہ سب ایک ہی وائس نوٹ میں بھیجیں۔\nاگر بچہ پہلی سطر نہ پڑھ سکے تو اس کی جگہ ۱۰ حروف اور ۱۰ الفاظ پوچھیں۔',
+  // One short line per block (bd-s1oo0.12): the card page, the exact cue, the locked note. The full
+  // per-section script (questions, first sounds, made-up words, fallback) is on the printed coach sheet.
+  childTestCueUrdu: {
+    en: 'Form {form} card, Urdu page · Say «{cue}» · one locked note, flip pages without stopping',
+    ur: 'فارم ⁦{form}⁩ کارڈ، اردو صفحہ · «{cue}» کہیں · ایک لاک وائس نوٹ، صفحے پلٹیں، ریکارڈنگ نہ روکیں',
   },
-  childTestScriptEnglish: {
-    en: 'Start a voice note, say «{cue}», and let the child read the English story for 60 seconds. Then ask the 2 questions and the 8 made-up words. Send it all as ONE voice note.\nIf the child cannot read the first line, ask the 10 letters and 10 words instead.',
-    ur: 'وائس نوٹ شروع کریں، «{cue}» کہیں، اور بچے کو ۶۰ سیکنڈ انگریزی کہانی پڑھنے دیں۔ پھر ۲ سوال اور ۸ بے معنی الفاظ پوچھیں۔ یہ سب ایک ہی وائس نوٹ میں بھیجیں۔\nاگر بچہ پہلی سطر نہ پڑھ سکے تو اس کی جگہ ۱۰ حروف اور ۱۰ الفاظ پوچھیں۔',
+  childTestCueEnglish: {
+    en: 'Form {form} card, English page · Say «{cue}» · one locked note, flip pages without stopping',
+    ur: 'فارم ⁦{form}⁩ کارڈ، انگریزی صفحہ · «{cue}» کہیں · ایک لاک وائس نوٹ، صفحے پلٹیں، ریکارڈنگ نہ روکیں',
   },
-  childTestScriptMaths: {
-    en: 'Start a voice note, say «{numbersCue}», and ask the child to read the 8 numbers aloud (stop after 4 wrong in a row). Then say «{cue}» for 60 seconds of quick sums aloud. Send it as ONE voice note.\nThen give the child the strip for 4 sums and 1 word problem.',
-    ur: 'وائس نوٹ شروع کریں، «{numbersCue}» کہیں، اور بچے سے ۸ اعداد بلند آواز پڑھوائیں (لگاتار ۴ غلط ہوں تو روک دیں)۔ پھر «{cue}» کہیں اور ۶۰ سیکنڈ زبانی جمع تفریق۔ یہ ایک ہی وائس نوٹ میں بھیجیں۔\nپھر بچے کو ۴ سوالوں اور ۱ عبارتی سوال والی پٹی دیں۔',
+  childTestCueMaths: {
+    en: 'Form {form} card, Maths page · Say «{numbersCue}», then «{cue}» for {seconds} s of quick sums · one locked note',
+    ur: 'فارم ⁦{form}⁩ کارڈ، ریاضی صفحہ · «{numbersCue}» کہیں، پھر «{cue}» اور {seconds} سیکنڈ زبانی سوال · ایک لاک وائس نوٹ',
+  },
+  childTestStripHandOver: {
+    en: 'Give Roll {roll} the maths strip to write while waiting.',
+    ur: 'انتظار کے دوران رول {roll} کو ریاضی کی پٹی لکھنے کو دیں۔',
   },
   childTestCardTextHeader: {
     en: '(The picture did not send. Here is the same text.)',
@@ -3188,8 +3194,35 @@ const UX_STRINGS = {
     ur: 'یہ وائس نوٹ {block} کارڈ سے پہلے بھیجا گیا، اس لیے {prev} کا پہلا نوٹ رکھا گیا۔ اب {block} ریکارڈ کریں۔',
   },
   childTestPhotoAsk: {
-    en: 'When Roll {roll} has written the 4 sums and the word problem, send a photo of the strip here. Meanwhile, tap the next child.',
-    ur: 'جب رول {roll} پٹی پر ۴ سوال اور عبارتی سوال لکھ لے تو پٹی کی تصویر یہاں بھیجیں۔ تب تک اگلے بچے پر ٹیپ کریں۔',
+    en: 'Roll {roll}\'s strip: send its photo once it is written, or send all the strips at the end. Tap the next child now.',
+    ur: 'رول {roll} کی پٹی: لکھی جا چکے تو تصویر بھیجیں، یا آخر میں سب پٹیاں ایک ساتھ۔ ابھی اگلے بچے پر ٹیپ کریں۔',
+  },
+  childTestStripsBatch: {
+    en: 'Send the strip photos now, one per child, in list order: {rolls}',
+    ur: 'اب پٹیوں کی تصاویر بھیجیں، ہر بچے کی ایک، فہرست کی ترتیب سے: {rolls}',
+  },
+  childTestRollItem: { en: 'Roll {roll}', ur: 'رول {roll}' },
+  childTestRollItemNamed: { en: 'Roll {roll} ({name})', ur: 'رول {roll} ({name})' },
+  childTestListTeacherLine: {
+    en: 'Give the class teacher these roll numbers, in this order, to send one child at a time: {rolls}',
+    ur: 'کلاس ٹیچر کو یہ رول نمبر اسی ترتیب سے دیں، تاکہ ایک وقت میں ایک بچہ آئے: {rolls}',
+  },
+  childTestTeacherOfferBody: {
+    en: 'The observed teacher is this class\'s teacher. Send them today\'s order of roll numbers?',
+    ur: 'مشاہدے والے ٹیچر اسی جماعت کے کلاس ٹیچر ہیں۔ آج کے رول نمبر ترتیب سے انہیں بھیج دیں؟',
+  },
+  childTestSendToTeacher: { en: 'Send to teacher', ur: 'ٹیچر کو بھیجیں' },
+  childTestTeacherMessage: {
+    en: 'Rumi here, for today\'s child test. Please send these children to the coach one at a time, in this order: {rolls}. When one comes back, send the next.',
+    ur: 'رومی: آج کے بچوں کے ٹیسٹ کے لیے یہ بچے ایک ایک کر کے اسی ترتیب سے کوچ کے پاس بھیجیں: {rolls}۔ ایک بچہ واپس آئے تو اگلا بھیجیں۔',
+  },
+  childTestTeacherSent: {
+    en: 'Sent the order to the class teacher.',
+    ur: 'ترتیب کلاس ٹیچر کو بھیج دی گئی۔',
+  },
+  childTestTeacherSendFailed: {
+    en: '⚠️ I couldn\'t reach the class teacher on WhatsApp. Please give them the roll numbers yourself.',
+    ur: '⚠️ کلاس ٹیچر تک واٹس ایپ پیغام نہیں جا سکا۔ رول نمبر خود دے دیں۔',
   },
   childTestNoPhoto: { en: 'No strip photo', ur: 'تصویر نہیں' },
   childTestNoPhotoAck: {
@@ -3197,6 +3230,10 @@ const UX_STRINGS = {
     ur: 'ٹھیک ہے، رول {roll} کی پٹی کی تصویر نہیں۔ لکھے ہوئے سوال خالی رہیں گے۔',
   },
   childTestPhotoSaved: { en: '📷 Strip saved for Roll {roll}.', ur: '📷 رول {roll} کی پٹی محفوظ۔' },
+  childTestPhotoAlreadyIn: {
+    en: '📷 Roll {roll}\'s strip photo is already in.',
+    ur: '📷 رول {roll} کی پٹی کی تصویر پہلے ہی مل چکی ہے۔',
+  },
   childTestPhotoSaveFailed: {
     en: '⚠️ The strip photo for Roll {roll} did not save. Please send it again.',
     ur: '⚠️ رول {roll} کی پٹی کی تصویر محفوظ نہیں ہو سکی۔ دوبارہ بھیجیں۔',

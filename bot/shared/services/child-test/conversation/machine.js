@@ -12,6 +12,13 @@
  *   after maths: the strip photo is asked for and may arrive while the next child is going
  *   all three blocks scored → the check (L6 checkFlow.sendCheck)
  *
+ * The five-minute protocol (bd-s1oo0.12): the list tells the coach to give the class teacher the roll
+ * numbers in order (and "Send to teacher" does it, only for the class teacher of the drawn class); each
+ * block prompt is one line (card page + exact cue + locked note) because the full script is on the
+ * printed coach sheet; at Present the coach hands the maths strip to the next child to write while
+ * waiting; strip photos are taken any time or batched at the end and each is claimed for the oldest
+ * child on the list whose strip is missing (held under the draw until that child's session exists).
+ *
  * /cancel and /menu work in every state; stopping a child never releases the draw (no markOutcome),
  * and tapping the child again resumes at the first block without a recording. Every save failure is
  * told to the coach and logged at error. Every step is time-stamped in the session's timings.
@@ -23,12 +30,12 @@ const { logToFile, logError } = require('../../../utils/logger');
 const ports = require('./ports');
 const S = require('./state');
 const C = require('./context');
-const { langOf, t, clip, blockName } = require('./copy');
+const { langOf, t, clip, blockName, digits } = require('./copy');
 const { evaluateChildTestTrigger, isChildTestAvailable } = require('./gate');
 const { visitKeyFor, parseVisitKey, pktDate } = require('../draw/visit-key');
 
 const BLOCKS = ['urdu', 'english', 'maths'];
-const SCRIPT_KEY = { urdu: 'childTestScriptUrdu', english: 'childTestScriptEnglish', maths: 'childTestScriptMaths' };
+const CUE_KEY = { urdu: 'childTestCueUrdu', english: 'childTestCueEnglish', maths: 'childTestCueMaths' };
 const OUTCOME_OF = { p: 'present', a: 'absent', r: 'refused' };
 const SCORED_BLOCKS_PER_SESSION = BLOCKS.length;
 const CANCEL_RX = /^(?:\/cancel|cancel|stop|منسوخ|روکیں)$/i;
@@ -42,6 +49,16 @@ const nowIso = () => new Date().toISOString();
 const r2Env = () => process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT || 'local';
 const audioKey = (schoolId, sessionId, block) => `child-test/${r2Env()}/${schoolId}/${sessionId}/${block}.ogg`;
 const photoKey = (schoolId, sessionId) => `child-test/${r2Env()}/${schoolId}/${sessionId}/maths-strip.jpg`;
+// A strip photographed before its child's session exists (the child wrote it while waiting).
+const heldPhotoKey = (schoolId, drawId) => `child-test/${r2Env()}/${schoolId}/held/${drawId}/maths-strip.jpg`;
+const rollsLine = (lang, children, { named = false } = {}) => children
+  .map((c) => (named && nameFor(lang, c)
+    ? t(lang, 'childTestRollItemNamed', { roll: c.rollNumber, name: nameFor(lang, c) })
+    : t(lang, 'childTestRollItem', { roll: c.rollNumber })))
+  .join(lang === 'en' ? ', ' : '، ');
+const bareRolls = (lang, children) => children.map((c) => digits(lang, c.rollNumber)).join(lang === 'en' ? ', ' : '، ');
+const listClassIds = (list) => (list.classIds && list.classIds.length ? list.classIds
+  : [...new Set((list.children || []).map((c) => c.classId).filter(Boolean))]);
 
 // ------------------------------------------------------------------ off the critical path
 
@@ -190,6 +207,8 @@ async function sendList(user, from, ctx, list, state) {
   }
   const sectionsLabel = [...new Set(children.map((c) => c.section).filter(Boolean))].join(', ') || '—';
   let body = t(lang, 'childTestListBody', { done, total: children.length });
+  const waiting = children.filter((c) => c.status === 'listed');
+  if (waiting.length) body += `\n${t(lang, 'childTestListTeacherLine', { rolls: bareRolls(lang, waiting) })}`;
   if (checks) body += `\n${t(lang, 'childTestListChecks', { n: checks })}`;
   if (children.length && done === children.length) body += `\n${t(lang, 'childTestListAllDone')}`;
   const ok = await WhatsAppService.sendInteractiveMessage(from, {
@@ -223,10 +242,58 @@ async function openList(user, from, ctx) {
     step: sameCtx && prev.step === 'block' ? 'block' : 'list',
     current: sameCtx && prev.step === 'block' ? prev.current : null,
     pendingPhotos: (prev && prev.pendingPhotos) || [],
+    handed: (sameCtx && prev.handed) || [],
+    strips: (sameCtx && prev.strips) || {},
+    teacherOffered: !!(sameCtx && prev.teacherOffered),
     listOpenedAt: (sameCtx && prev.listOpenedAt) || nowIso(),
   };
   await S.set(user.id, state);
-  return sendList(user, from, ctx, res, state);
+  const ok = await sendList(user, from, ctx, res, state);
+  if (!state.teacherOffered) await offerTeacherSend(user, from, state, res);
+  return ok;
+}
+
+// ------------------------------------------------------------------ the class teacher sends the children
+
+/** Once per visit, and only when the observed teacher is a class teacher of a class on the list. */
+async function offerTeacherSend(user, from, state, list) {
+  if (!state.ctx.teacherUserId || !(await C.isClassTeacherOf(state.ctx.teacherUserId, listClassIds(list)))) return;
+  const fresh = (await S.get(user.id)) || state;
+  await S.set(user.id, { ...fresh, teacherOffered: true });
+  const lang = langOf(user);
+  await buttons(from, t(lang, 'childTestTeacherOfferBody'),
+    [{ id: 'ctst_tsend', title: clip(t(lang, 'childTestSendToTeacher'), 20) }]);
+}
+
+/** "Send to teacher": one short message to the class teacher with the roll numbers still to come, in order. */
+async function onSendToTeacher(user, from) {
+  const lang = langOf(user);
+  const state = await S.get(user.id);
+  if (!state || !state.ctx || !state.ctx.teacherUserId) return say(from, t(lang, 'childTestExpired'));
+  const { ctx } = state;
+  const res = await fetchList(user, ctx);
+  if (!res || !res.ok) return say(from, t(lang, 'childTestListFailed'));
+  // Re-checked at the tap: the button is only a pointer, never a permission.
+  if (!(await C.isClassTeacherOf(ctx.teacherUserId, listClassIds(res)))) {
+    logToFile('child_test.teacher_send_refused', { visitId: ctx.visitId, teacherUserId: ctx.teacherUserId }, 'warn');
+    return say(from, t(lang, 'childTestExpired'));
+  }
+  const waiting = active(res.children).filter((c) => c.status === 'listed');
+  const teacher = await C.teacherContact(ctx.teacherUserId);
+  if (!teacher || !waiting.length) {
+    logError('child_test.teacher_send_failed', { visitId: ctx.visitId, teacherUserId: ctx.teacherUserId, reason: teacher ? 'nothing_waiting' : 'no_phone' });
+    return say(from, t(lang, 'childTestTeacherSendFailed'));
+  }
+  const tl = teacher.preferred_language === 'en' ? 'en' : 'ur';
+  // The teacher's own class: roll + the name the teacher already has, nothing else.
+  const ok = await WhatsAppService.sendMessage(teacher.phone_number,
+    t(tl, 'childTestTeacherMessage', { rolls: rollsLine(tl, waiting, { named: true }) }));
+  if (ok === false) {
+    logError('child_test.teacher_send_failed', { visitId: ctx.visitId, teacherUserId: ctx.teacherUserId, reason: 'send' });
+    return say(from, t(lang, 'childTestTeacherSendFailed'));
+  }
+  logToFile('child_test.teacher_order_sent', { visitId: ctx.visitId, teacherUserId: ctx.teacherUserId, children: waiting.length });
+  return say(from, t(lang, 'childTestTeacherSent'));
 }
 
 // ------------------------------------------------------------------ entry
@@ -329,8 +396,12 @@ async function onChildTapped(user, from, drawId, { alternate = false } = {}) {
   }
   if (state.step === 'block' && cur && cur.drawId === drawId) return sendPrompt(user, from, state);
 
+  // The next child on the list who has not been tested or handed a strip writes the strip while waiting.
+  const handed = state.handed || [];
+  const nextUp = five.slice(idx + 1).find((c) => c.status === 'listed' && !handed.includes(c.drawId));
   const base = { drawId, rollNumber: child.rollNumber, childNo: idx + 1, total: five.length, tappedAt: nowIso(),
-    listIds: res.children.map((c) => c.drawId) };
+    listIds: res.children.map((c) => c.drawId),
+    handOver: nextUp ? { drawId: nextUp.drawId, rollNumber: nextUp.rollNumber } : null };
   if (child.status === 'tested') {
     const r = await ports.store.getSessionByDraw(drawId);
     const sess = r && r.ok ? r.session : null;
@@ -404,9 +475,13 @@ async function beginSession(user, from, state) {
   await timing(session.id, 'list.opened', state.listOpenedAt || nowIso());
   await timing(session.id, 'child.tapped', cur.tappedAt || nowIso());
   await timing(session.id, 'child.present');
+  const strips = await attachHeldStrip(state, cur.drawId, session);
+  const handed = [...(state.handed || [])];
+  const handOver = block === 'urdu' && cs.created !== false ? cur.handOver : null;
+  if (handOver && !handed.includes(handOver.drawId)) handed.push(handOver.drawId);
   const next = {
-    ...state, step: 'block',
-    current: { ...cur, sessionId: session.id, grade: session.grade, form: session.form, schoolId: session.school_id, block },
+    ...state, step: 'block', handed, strips,
+    current: { ...cur, handOver, sessionId: session.id, grade: session.grade, form: session.form, schoolId: session.school_id, block },
   };
   logToFile('child_test.session_started', { sessionId: session.id, drawId: cur.drawId, block, resumed: cs.created === false });
   return sendBlock(user, from, next);
@@ -443,10 +518,18 @@ async function sendCards(user, from, cur, variant) {
   return true;
 }
 
+/** One line: progress · card page · the exact cue · the locked note (+ the strip hand-over on Urdu). */
 async function sendPrompt(user, from, state) {
   const lang = langOf(user);
   const cur = state.current;
-  const body = `*${progressBlock(lang, cur)}*\n\n${t(lang, SCRIPT_KEY[cur.block], { cue: ports.cueFor(cur.block), numbersCue: ports.sectionCueFor('maths', 'numbers') || ports.cueFor('maths') })}`;
+  const cue = t(lang, CUE_KEY[cur.block], {
+    form: cur.form || 'A',
+    cue: ports.cueFor(cur.block),
+    numbersCue: ports.sectionCueFor('maths', 'numbers') || ports.cueFor('maths'),
+    seconds: ports.quickSumsSeconds(cur.grade, cur.form),
+  });
+  let body = `*${progressBlock(lang, cur)}* · ${cue}`;
+  if (cur.block === 'urdu' && cur.handOver) body += `\n${t(lang, 'childTestStripHandOver', { roll: cur.handOver.rollNumber })}`;
   const btns = [];
   if (cur.block !== 'maths') btns.push({ id: 'ctst_fb', title: clip(t(lang, 'childTestFallbackButton'), 20) });
   btns.push({ id: 'ctst_stop', title: clip(t(lang, 'childTestStopChild'), 20) });
@@ -516,53 +599,125 @@ async function processVoice(message, from, user, state, audioId) {
     return sendBlock(user, from, { ...state, current: { ...cur, block: BLOCKS[bi + 1] } }).then(() => true);
   }
 
-  // Maths: the strip photo comes later, possibly during the next child. Maths is scored once, with it.
-  const pending = [...(state.pendingPhotos || []), { ...sessionRef, schoolId: cur.schoolId }];
-  const next = { ...state, step: 'list', current: null, pendingPhotos: pending };
+  // Maths: the strip may already be in (written while waiting); else it comes later, possibly as a
+  // batch at the end. Maths is scored once, with it (or after "No strip photo").
+  const fresh = (await S.get(user.id)) || state;
+  const ref = { ...sessionRef, schoolId: cur.schoolId, drawId: cur.drawId };
+  const stripIn = fresh.strips && fresh.strips[cur.drawId] && fresh.strips[cur.drawId].sessionId === cur.sessionId;
+  const pending = stripIn ? (fresh.pendingPhotos || []) : [...(fresh.pendingPhotos || []), ref];
+  const next = { ...fresh, step: 'list', current: null, pendingPhotos: pending };
   await S.set(user.id, next);
-  await buttons(from, t(lang, 'childTestPhotoAsk', { roll: cur.rollNumber }),
-    [{ id: `ctst_nophoto:${cur.sessionId}`, title: clip(t(lang, 'childTestNoPhoto'), 20) }]);
-  await timing(cur.sessionId, 'maths.photo_requested');
   const res = await fetchList(user, state.ctx);
+  if (stripIn) {
+    await say(from, t(lang, 'childTestPhotoAlreadyIn', { roll: cur.rollNumber }));
+    await finishChild(ref, from, lang);
+  } else {
+    await buttons(from, t(lang, 'childTestPhotoAsk', { roll: cur.rollNumber }),
+      [{ id: `ctst_nophoto:${cur.sessionId}`, title: clip(t(lang, 'childTestNoPhoto'), 20) }]);
+    await timing(cur.sessionId, 'maths.photo_requested');
+  }
+  // Nobody left to test: ask for the strips still missing, all together, in list order.
+  if (res && res.ok && !active(res.children).some((c) => c.status === 'listed') && pending.length) {
+    const order = active(res.children).map((c) => c.drawId);
+    const missing = [...pending].sort((a, b) => order.indexOf(a.drawId) - order.indexOf(b.drawId));
+    await say(from, t(lang, 'childTestStripsBatch', { rolls: rollsLine(lang, missing) }));
+  }
   if (res && res.ok) await sendList(user, from, state.ctx, res, next);
   return true;
+}
+
+/**
+ * Which child a strip photo is for: the oldest child on today's list whose strip is still missing,
+ * among the children who have one (tested, or handed the strip to write while waiting).
+ * → { child, session } | null
+ */
+async function stripTarget(user, state) {
+  // A child whose maths note is in and whose strip is awaited is never left without a target:
+  // when the list cannot be read (or does not show them), the oldest such child takes the photo.
+  const p0 = (state.pendingPhotos || [])[0];
+  const pendingFallback = p0 ? { child: { drawId: p0.drawId, rollNumber: p0.rollNumber }, session: { id: p0.sessionId, school_id: p0.schoolId } } : null;
+  const res = await fetchList(user, state.ctx);
+  if (!res || !res.ok) return pendingFallback;
+  const strips = state.strips || {};
+  const handed = new Set(state.handed || []);
+  const pendingByDraw = new Map((state.pendingPhotos || []).map((p) => [p.drawId, p]));
+  for (const child of active(res.children)) {
+    if (strips[child.drawId]) continue;
+    const hasStrip = child.status === 'tested' || handed.has(child.drawId);
+    if (!hasStrip) continue;
+    const r = child.status === 'tested' ? await ports.store.getSessionByDraw(child.drawId) : null;
+    const session = r && r.ok ? r.session : null;
+    // A tested child whose photo was declined (no longer pending, completed) is not waiting for one.
+    if (session && session.status === 'completed' && !pendingByDraw.has(child.drawId)) continue;
+    return { child, session };
+  }
+  return pendingFallback;
 }
 
 async function handleImage(message, from, user) {
   if (!isChildTestAvailable(user)) return false;
   const state = await S.get(user.id);
-  const pending = (state && state.pendingPhotos) || [];
-  if (!pending.length) return false;
+  if (!state || !state.ctx) return false;
+  if (!(state.pendingPhotos || []).length && !(state.handed || []).length) return false;
   const imageId = message.image && message.image.id;
   if (!imageId) return false;
+  const target = await stripTarget(user, state);
+  if (!target) return false;
   if (!(await S.firstSight(imageId))) return true;
   try {
-    await processImage(from, user, pending[0], imageId);
+    await processImage(from, user, state, target, imageId);
   } catch (err) {
-    logError('child_test.photo_failed', { sessionId: pending[0].sessionId, error: err.message });
+    logError('child_test.photo_failed', { sessionId: target.session && target.session.id, drawId: target.child.drawId, error: err.message });
   }
   return true;
 }
 
-async function processImage(from, user, p, imageId) {
+async function processImage(from, user, state, { child, session }, imageId) {
   const lang = langOf(user);
-  const key = photoKey(p.schoolId, p.sessionId);
+  const schoolId = (session && session.school_id) || state.ctx.schoolId;
+  const key = session ? photoKey(schoolId, session.id) : heldPhotoKey(schoolId, child.drawId);
   try {
     const buf = await WhatsAppService.downloadMedia(imageId);
     await r2.uploadBuffer(buf, key, 'image/jpeg');
-    const r = await ports.store.attachBlockMedia({ sessionId: p.sessionId, block: 'maths', photoR2Key: key });
-    if (!r || (!r.ok && !r.alreadyScored)) throw new Error((r && r.error) || 'attach failed');
+    if (session) {
+      const r = await ports.store.attachBlockMedia({ sessionId: session.id, block: 'maths', photoR2Key: key });
+      if (!r || (!r.ok && !r.alreadyScored)) throw new Error((r && r.error) || 'attach failed');
+    }
   } catch (err) {
-    logError('child_test.photo_save_failed', { sessionId: p.sessionId, error: err.message });
+    logError('child_test.photo_save_failed', { sessionId: session && session.id, drawId: child.drawId, error: err.message });
     await S.forget(imageId);
-    await say(from, t(lang, 'childTestPhotoSaveFailed', { roll: p.rollNumber }));
+    await say(from, t(lang, 'childTestPhotoSaveFailed', { roll: child.rollNumber }));
     return true;
   }
-  await timing(p.sessionId, 'maths.photo_received');
-  await dropPending(user.id, p.sessionId);
-  await say(from, t(lang, 'childTestPhotoSaved', { roll: p.rollNumber }));
-  await finishChild(p, from, lang);
+  const at = nowIso();
+  if (session) await timing(session.id, 'maths.photo_received', at);
+  const fresh = (await S.get(user.id)) || state;
+  await S.set(user.id, { ...fresh, strips: { ...(fresh.strips || {}), [child.drawId]: { key, at, sessionId: session ? session.id : null } } });
+  logToFile('child_test.strip_saved', { sessionId: session && session.id, drawId: child.drawId, held: !session });
+  await say(from, t(lang, 'childTestPhotoSaved', { roll: child.rollNumber }));
+  const p = session && (fresh.pendingPhotos || []).find((x) => x.sessionId === session.id);
+  if (p) {
+    await dropPending(user.id, session.id);
+    await finishChild(p, from, lang);
+  }
   return true;
+}
+
+/** A strip photographed while its child waited is attached once the child's session exists. → strips */
+async function attachHeldStrip(state, drawId, session) {
+  const strips = { ...(state.strips || {}) };
+  const held = strips[drawId];
+  if (!held || held.sessionId) return strips;
+  const r = await ports.store.attachBlockMedia({ sessionId: session.id, block: 'maths', photoR2Key: held.key });
+  if (!r || (!r.ok && !r.alreadyScored)) {
+    // Not attached: the maths block will ask for the photo again (it stays visible, never silent).
+    logError('child_test.held_strip_attach_failed', { sessionId: session.id, drawId, error: r && r.error });
+    delete strips[drawId];
+    return strips;
+  }
+  await timing(session.id, 'maths.photo_received', held.at || nowIso());
+  strips[drawId] = { ...held, sessionId: session.id };
+  return strips;
 }
 
 async function dropPending(userId, sessionId) {
@@ -699,6 +854,7 @@ async function handleButton(user, from, buttonId) {
       return true;
     }
     case 'ctst_nophoto': await onNoPhoto(user, from, a); return true;
+    case 'ctst_tsend': await onSendToTeacher(user, from); return true;
     default:
       logToFile('child_test.unknown_button', { buttonId }, 'warn');
       return true;

@@ -87,7 +87,8 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given today's list is open
     When I tap the first child and tap "Present"
     Then a child_test_sessions row is created for that draw with status "in_progress"
-    And the next message is headed "Child 1 of 5 · Urdu 1/3" and carries the Urdu coach script with the cue phrase from item-bank cue.urdu.start
+    And the next message is ONE line "Child 1 of 5 · Urdu 1/3 · Form <A|B> card, Urdu page · Say «<item-bank cue.urdu.start>» · one locked note, flip pages without stopping"
+    And a second line says "Give Roll <next child's roll> the maths strip to write while waiting."
     And the message offers "Letters & words", "Stop this child" and "Menu"
     And no AI scoring has started yet
     # The printed card is the primary stimulus (CONTRACT §11): by default the story goes as ≤ 3 inline
@@ -101,7 +102,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the audio is stored at child-test/<env>/<school_id>/<session_id>/urdu.ogg and child_test_blocks.audio_r2_key points at it
     And the next message is the English block "Child 1 of 5 · English 2/3" with the English cue «Please start reading»
     When I send one voice note for the English block
-    Then the maths block "Child 1 of 5 · Maths 3/3" follows with the maths coach script
+    Then the maths block "Child 1 of 5 · Maths 3/3" follows: «<cue.maths.numbers>», then «<cue.maths.start>» for <quick_sums_seconds> s of quick sums
     And child_test_blocks.ai_status for urdu moves from "pending" to "scored" or "partial" without a further coach message
     # CONTRACT §5: scoreBlock must not throw into the conversation and L4 never waits on it.
 
@@ -109,7 +110,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: The maths voice note is followed by the strip-photo ask, and the photo completes the child
     Given child 1 is on the maths block
     When I send the maths voice note
-    Then the bot acknowledges "🎧 Got it · Maths" and asks for a photo of the strip "when Roll <n> has written the 4 sums and the word problem", with a "No strip photo" button
+    Then the bot acknowledges "🎧 Got it · Maths" and says "Roll <n>'s strip: send its photo once it is written, or send all the strips at the end. Tap the next child now.", with a "No strip photo" button
     And maths ai_status stays "pending" with reason "awaiting_photo" and ai_marks is still empty
     When I send a photo of the maths strip
     Then the bot replies "📷 Strip saved for Roll <n>." and then "All three parts for Roll <n> are in"
@@ -346,3 +347,40 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then no more than 3 images arrive back to back, and WhatsApp does not group them into an album collage
     And the story text can be read in the bubble without opening the image
     # Needs real pixels and a real WhatsApp client (CONTRACT §11 item 6). Chrome lane only.
+
+  # ---- the five-minute protocol (bd-s1oo0.12, lane L11) ----
+
+  @e2e @wip @draft @destructive @config-gated @P1 @CT33
+  Scenario: The list tells the coach to give the class teacher the roll numbers in order, and "Send to teacher" sends them
+    Given today's list is open after an observe2 visit of the class teacher of the drawn class
+    Then the list body says "Give the class teacher these roll numbers, in this order, to send one child at a time: <rolls>"
+    And one message with a "Send to teacher" button follows, once per visit
+    When I tap "Send to teacher"
+    Then the class teacher receives ONE message with "Roll <n> (<name>)" for each child still to test, in list order
+    And I get "Sent the order to the class teacher." and nobody outside the visit is messaged
+    # The button appears only when class_teachers links the observed teacher to a class on the list; the
+    # tap re-checks it. A failed send says "I couldn't reach the class teacher on WhatsApp…".
+
+  @e2e @wip @draft @destructive @config-gated @P1 @CT34
+  Scenario: Strip photos are claimed in list order, any time during the visit or as a batch at the end
+    Given child 1 is present, so Roll <child 2> was handed the strip to write while waiting
+    When I send two strip photos during child 1's Urdu block
+    Then the first is saved for child 1's session and the second is held for child 2 under child-test/<env>/<school_id>/held/<draw_id>/maths-strip.jpg
+    And child 1's maths voice note finishes child 1 at once (no strip ask), and child 2's held strip is attached when child 2 is marked "Present"
+    When the last child's maths note arrives and strips are still missing
+    Then the bot says "Send the strip photos now, one per child, in list order: Roll …"
+    And each photo I send is claimed for the oldest child on the list whose strip is missing, and maths is scored once with force
+
+  @e2e @wip @draft @audio @destructive @config-gated @P2 @CT35
+  Scenario: One locked voice note keeps recording through card flips
+    Given child 1 is on the Urdu block
+    When I lock the recording, flip the printed card through all its pages, and send one 4-minute voice note
+    Then the bot replies "🎧 Got it · Urdu" and stores the whole note as urdu.ogg
+    # No size or duration limit exists on the child-test audio path (L11 checked the claim, download and R2 upload).
+
+  @e2e @wip @draft @config-gated @P2 @CT36
+  Scenario: Quick sums run for the one configured number of seconds
+    Given the sandbox bot runs with CHILD_TEST_QUICK_SUMS_SECONDS=30
+    When child 1 reaches the maths block
+    Then the maths line says "for 30 s of quick sums" and the coach sheet prints "Quick sums (30 seconds)"
+    # Bank maths.quick_sums_seconds stays 60; the override is sandbox-only (30 or 60).

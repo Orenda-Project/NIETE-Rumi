@@ -186,7 +186,7 @@ describe('a child, start to finish', () => {
     // maths is scored once, after the photo (ai_marks are written once)
     expect(lanes.calls.filter((c) => c[0] === 'scoreBlock').map((c) => c[1].block)).toEqual(['urdu', 'english']);
     expect(lanes.calls.filter((c) => c[0] === 'scoreBlock')[0][1]).toEqual({ sessionId: 'sess-1', block: 'urdu', grade: 3, form: 'A' });
-    expect(sent().some((m) => m.kind === 'buttons' && /send a photo of the strip/.test(m.body))).toBe(true);
+    expect(sent().some((m) => m.kind === 'buttons' && /Roll 1's strip: send its photo once it is written/.test(m.body))).toBe(true);
     expect(last('list')).toBeTruthy();
     expect(lanes.calls.find((c) => c[0] === 'sendCheck')).toBeUndefined();
 
@@ -246,7 +246,10 @@ describe('a child, start to finish', () => {
     expect(scoreCalls.find((a) => a.block === 'maths')).toMatchObject({ sessionId: 'sess-1', block: 'maths', force: true });
     expect(scoreCalls.filter((a) => a.block !== 'maths').every((a) => a.force === undefined)).toBe(true);
     expect(lanes.calls.filter((c) => c[0] === 'sendCheck')).toHaveLength(1);
-    expect(await H.handleImage(image('late'), PHONE, COACH)).toBe(false);   // nothing pending any more
+    // Child 1 is done; child 2 was handed the strip at child 1's Present (bd-s1oo0.12), so a later photo is child 2's, held.
+    expect(await H.handleImage(image('late'), PHONE, COACH)).toBe(true);
+    expect(mockR2.uploadBuffer).toHaveBeenLastCalledWith(expect.any(Buffer), 'child-test/sandbox/school-1/held/d2/maths-strip.jpg', 'image/jpeg');
+    expect(lanes.calls.filter((c) => c[0] === 'scoreBlock')).toHaveLength(3);
   });
 
   test('a failed check send is told to the coach and logged at error', async () => {

@@ -56,7 +56,7 @@ async function fromVisit({ coachUserId, visitId }) {
   if (!schoolId) schoolId = await teacherSchool(form.teacher_user_id);
   if (!schoolId) return { ok: false, reason: 'no_school' };
   const cls = await observedClass(form.teacher_user_id, schoolId);
-  return { ok: true, ctx: { visitId, schoolId, ...cls } };
+  return { ok: true, ctx: { visitId, schoolId, teacherUserId: form.teacher_user_id || null, ...cls } };
 }
 
 /** A classic /observe coaching session of this coach (prod ICT still runs /observe). No field form → visitId null. */
@@ -69,7 +69,27 @@ async function fromCoachingSession({ coachUserId, sessionId }) {
   const schoolId = await teacherSchool(s.user_id);
   if (!schoolId) return { ok: false, reason: 'no_school' };
   const cls = await observedClass(s.user_id, schoolId);
-  return { ok: true, ctx: { visitId: null, coachingSessionId: sessionId, schoolId, ...cls } };
+  return { ok: true, ctx: { visitId: null, coachingSessionId: sessionId, schoolId, teacherUserId: s.user_id || null, ...cls } };
+}
+
+/**
+ * True only when the observed teacher is an active class teacher of a class on today's list — the
+ * one person, inside this visit, who may be sent the children's order. Never throws.
+ */
+async function isClassTeacherOf(teacherUserId, classIds) {
+  if (!teacherUserId || !(classIds || []).length) return false;
+  const { data, error } = await supabase.from('class_teachers').select('class_id, is_active')
+    .eq('teacher_user_id', teacherUserId).eq('is_active', true);
+  if (error) { logError('child_test.context_class_teachers_failed', { teacherUserId, error: error.message }); return false; }
+  return (data || []).some((r) => r.is_active !== false && classIds.includes(r.class_id));
+}
+
+/** The teacher's phone and language, for the one message the coach asks Rumi to send. */
+async function teacherContact(teacherUserId) {
+  const { data, error } = await supabase.from('users').select('id, phone_number, preferred_language')
+    .eq('id', teacherUserId).maybeSingle();
+  if (error) { logError('child_test.context_teacher_failed', { teacherUserId, error: error.message }); return null; }
+  return data && data.phone_number ? data : null;
 }
 
 /** This coach's latest observe2 visit today (Pakistan time), or null. */
@@ -101,4 +121,4 @@ async function fromSchool({ coachUserId, schoolId }) {
   return { ok: true, ctx: { visitId: null, schoolId, observedGrade: null, observedClassId: null } };
 }
 
-module.exports = { fromVisit, fromCoachingSession, fromSchool, todaysVisitId, coachSchools, observedClass, startOfTodayPkt };
+module.exports = { fromVisit, fromCoachingSession, fromSchool, todaysVisitId, coachSchools, observedClass, startOfTodayPkt, isClassTeacherOf, teacherContact };
