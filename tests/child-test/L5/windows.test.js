@@ -91,3 +91,19 @@ describe('child-test window cutter — maths start cue said at the top of the no
     expect(r.missing).toContain('quick_sums');
   });
 });
+
+describe('child-test window cutter — last-resort story window', () => {
+  const { defaultTimedWindow } = require('../../../bot/shared/services/child-test/scoring/windows');
+  test('starts after a short opening utterance (an unrecognised cue) and runs 60 s', () => {
+    const w = words([[1, 0.2, 'ab shuru karen'], [2, 3.0, 'imran woke up early for school']]);
+    const d = defaultTimedWindow(w, 70);
+    expect(d.start).toBeGreaterThan(1);
+    expect(d.start).toBeLessThan(3.1);
+    expect(d.end).toBeCloseTo(d.start + 60, 1);
+    expect(d.source).toBe('default');
+  });
+  test('starts at the first word when the note opens straight into reading', () => {
+    const w = words([[2, 0.5, 'imran woke up early for school today his class was planting trees he took']]);
+    expect(defaultTimedWindow(w, 30)).toMatchObject({ start: 0.5, end: 30, source: 'default' });
+  });
+});

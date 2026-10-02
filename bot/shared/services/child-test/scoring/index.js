@@ -26,7 +26,7 @@ const { logToFile, logError } = require('../../../utils/logger');
 const { logEvent } = require('../../../utils/structured-logger');
 const media = require('./media');
 const stt = require('./stt');
-const { findCueWindows, reconcileWindows } = require('./windows');
+const { findCueWindows, reconcileWindows, defaultTimedWindow } = require('./windows');
 const { labelMissing } = require('./labeller');
 const { scoreStory, scoreFallback } = require('./story');
 const { scoreQuestions } = require('./comprehension');
@@ -68,6 +68,14 @@ async function cutWindows({ block, spec, cue, words, durationSec, calls, modelVe
     const lab = await labelMissing({ block, spec, words, cut, durationSec, calls });
     modelVersions.labeller = lab.modelVersion;
     reconcileWindows(block, cut.windows, durationSec);
+  }
+  if (block !== 'maths' && !cut.windows.story) {
+    const d = defaultTimedWindow(words, durationSec);
+    if (d) {
+      cut.windows.story = d;
+      if (!cut.flags.includes('no_cue_phrase')) cut.flags.push('no_cue_phrase');
+      reconcileWindows(block, cut.windows, durationSec);
+    }
   }
   return cut;
 }

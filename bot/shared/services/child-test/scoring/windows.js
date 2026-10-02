@@ -232,7 +232,8 @@ function reconcileWindows(block, windows, durationSec) {
   const order = (SECTIONS[block] || []).filter((s) => windows[s]);
   order.forEach((s, i) => {
     const w = windows[s];
-    const next = order[i + 1] ? windows[order[i + 1]].start : (Number.isFinite(durationSec) ? durationSec : w.end);
+    const later = order.slice(i + 1).map((n) => windows[n].start).filter((t) => t > w.start);
+    const next = later.length ? Math.min(...later) : (Number.isFinite(durationSec) ? durationSec : w.end);
     const timed = s === 'story' || s === 'quick_sums';
     if (timed) w.end = Math.min(w.end, next);
     else if (w.source === 'labeller') w.end = next;
@@ -242,10 +243,27 @@ function reconcileWindows(block, windows, durationSec) {
   return windows;
 }
 
+/**
+ * Last resort when neither a cue nor the labeller placed a timed minute: the note opens with
+ * the cue in some form the transcript did not recognise (an Urdu cue in an English-forced
+ * transcript comes out as Latin noise), so start after a short opening utterance; a note that
+ * opens straight into reading starts at its first word. Always flagged no_cue_phrase upstream.
+ */
+const OPENING_MAX_WORDS = 5;
+function defaultTimedWindow(words, durationSec) {
+  if (!words || !words.length) return null;
+  let k = 1;
+  while (k < words.length && words[k].speaker === words[0].speaker && words[k].start - words[k - 1].end < 0.8) k += 1;
+  const opening = words[0].start < OPENING_SECONDS && k <= OPENING_MAX_WORDS && k < words.length;
+  const start = opening ? words[k - 1].end : words[0].start;
+  const end = Number.isFinite(durationSec) ? Math.min(start + TIMED_SECONDS, durationSec) : start + TIMED_SECONDS;
+  return { start, end, source: 'default' };
+}
+
 /** Words inside a window, optionally without the coach. */
 function wordsIn(words, w, { excludeSpeaker } = {}) {
   if (!w) return [];
   return words.filter((x) => x.start >= w.start - 0.2 && x.start < w.end && (!excludeSpeaker || x.speaker !== excludeSpeaker));
 }
 
-module.exports = { findCueWindows, findPhrase, wordsIn, reconcileWindows, SECTIONS, TIMED_SECONDS };
+module.exports = { findCueWindows, findPhrase, wordsIn, reconcileWindows, defaultTimedWindow, SECTIONS, TIMED_SECONDS };
