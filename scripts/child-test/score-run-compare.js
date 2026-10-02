@@ -49,6 +49,9 @@ function prefillOf(coach) {
   return { fields, shown_empty: empty.length, prefilled: fields - empty.length };
 }
 
+/** Bank items only: a `may-…` key item (the May test's own item) has no twin among the items the bot scores. */
+const bankOnly = (list) => (Array.isArray(list) ? list.filter((x) => !String(x.id).startsWith('may-')) : list);
+
 const wpKey = (m) => (m && m.word_problem && m.word_problem.verdict
   ? [{ id: 'word_problem', verdict: m.word_problem.verdict === 'correct' ? 'correct' : 'wrong' }] : null);
 
@@ -77,8 +80,8 @@ function compareSession({ session, blocks, key }) {
       const cut = (key.cut_quality || {})[b] || null;
       if (b === 'maths') {
         const km = kb.maths || {};
-        out.items.push(...itemRows(rec, km.numbers && km.numbers.filter((n) => !String(n.id).startsWith('may-')), 'numbers', kind).map((r) => ({ ...r, source, cut })));
-        out.items.push(...itemRows(rec, km.written, 'written', kind).map((r) => ({ ...r, source, cut })));
+        out.items.push(...itemRows(rec, bankOnly(km.numbers), 'numbers', kind).map((r) => ({ ...r, source, cut })));
+        out.items.push(...itemRows(rec, bankOnly(km.written), 'written', kind).map((r) => ({ ...r, source, cut })));
         out.items.push(...itemRows(rec, wpKey(km), 'word_problem', kind).map((r) => ({ ...r, source, cut })));
         const qs = (marks.maths || {}).quick_sums;
         if (qs && km.quick_sums) out.quick_sums.push({ source, ai: qs.correct, key: km.quick_sums.correct, conf: source === 'ai' && qs.confidence != null ? qs.confidence : null });
@@ -86,7 +89,7 @@ function compareSession({ session, blocks, key }) {
       }
       const s = storyRow(rec, marks.story ? kb.story : null, kind);
       if (s) out.story.push({ ...s, source, cut });
-      for (const f of ITEM_FIELDS) out.items.push(...itemRows(rec, kb[f], f, kind).map((r) => ({ ...r, source, cut })));
+      for (const f of ITEM_FIELDS) out.items.push(...itemRows(rec, bankOnly(kb[f]), f, kind).map((r) => ({ ...r, source, cut })));
       if (marks.fallback && kb.fallback) {
         for (const part of ['letters', 'words']) {
           out.fallback.push({ source, block: b, part, ai: marks.fallback[part] && marks.fallback[part].correct, key: kb.fallback[part] && kb.fallback[part].correct });

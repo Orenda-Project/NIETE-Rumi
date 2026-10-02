@@ -99,6 +99,8 @@ describe('score-run-compare: one session against its key', () => {
     const w2 = out.items.filter((r) => r.item === 'm3A-w2');
     expect(w2.map((r) => [r.source, r.field, r.ai])).toEqual([['ai', 'written', 'correct'], ['coach', 'written', 'correct']]);
     expect(out.items.some((r) => r.field === 'word_problem' && r.source === 'ai' && r.ai === 'correct' && r.key === 'correct')).toBe(true);
+    // May-only items (English made-up words, magnitude numbers) have no bank twin in a live run: not compared
+    expect(out.items.some((r) => String(r.item).startsWith('may-'))).toBe(false);
     expect(out.quick_sums).toEqual([{ source: 'ai', ai: 5, key: 10, conf: 0.7 }, { source: 'coach', ai: 10, key: 10, conf: null }]);
     expect(out.prefill).toEqual({ fields: 4 + 2 + 4, shown_empty: 4, prefilled: 6 });
     expect(out.cost_usd).toBeCloseTo(0.085, 5);
