@@ -38,7 +38,7 @@ const active = (children) => (children || []).filter((c) => !INACTIVE.has(c.stat
 const nameFor = (lang, c) => (lang === 'en' ? c.displayName : (c.displayNameUrdu || c.displayName)) || '';
 
 const nowIso = () => new Date().toISOString();
-const r2Env = () => process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT_NAME || process.env.ENVIRONMENT || 'local';
+const r2Env = () => process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT || 'local';
 const audioKey = (schoolId, sessionId, block) => `child-test/${r2Env()}/${schoolId}/${sessionId}/${block}.ogg`;
 const photoKey = (schoolId, sessionId) => `child-test/${r2Env()}/${schoolId}/${sessionId}/maths-strip.jpg`;
 
@@ -268,33 +268,6 @@ async function onOffer(user, from, kind, id) {
     return say(from, t(langOf(user), v.reason === 'no_school' ? 'childTestNoSchool' : 'childTestExpired'));
   }
   return openList(user, from, v.ctx);
-}
-
-/**
- * The offer at the end of an observation. Gated here (flag + coach role + ICT), so callers just call
- * it. Never throws. → true when the offer was sent.
- */
-async function sendOffer({ coachUserId, kind = 'f', id }) {
-  try {
-    const supabase = require('../../../config/supabase');
-    const { data: coach } = await supabase.from('users')
-      .select('id, role, region, preferred_language, phone_number').eq('id', coachUserId).maybeSingle();
-    if (!coach || !coach.phone_number || !isChildTestAvailable(coach)) return false;
-    const lang = langOf(coach);
-    const ok = await WhatsAppService.sendInteractiveButtons(coach.phone_number, {
-      body: t(lang, 'childTestOfferBody'),
-      buttons: [
-        { id: `ctst_offer:${kind}:${id}`, title: clip(t(lang, 'childTestOfferYes'), 20) },
-        { id: `ctst_later:${kind}:${id}`, title: clip(t(lang, 'childTestOfferLater'), 20) },
-      ],
-    });
-    if (ok === false) { logError('child_test.offer_send_failed', { coachUserId, kind, id }); return false; }
-    logToFile('child_test.offer_sent', { coachUserId, kind, id });
-    return true;
-  } catch (err) {
-    logError('child_test.offer_failed', { coachUserId, kind, id, error: err.message });
-    return false;
-  }
 }
 
 // ------------------------------------------------------------------ a child
@@ -709,5 +682,5 @@ async function handleList(user, from, listId) {
 }
 
 module.exports = {
-  handleText, handleButton, handleList, handleVoice, handleImage, sendOffer, drain, recordTiming: timing,
+  handleText, handleButton, handleList, handleVoice, handleImage, drain, recordTiming: timing,
 };

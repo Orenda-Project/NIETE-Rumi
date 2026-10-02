@@ -91,7 +91,7 @@ describe('voice', () => {
   test('a voice note while a block waits is the child test\'s, ahead of the leader-audio router', async () => {
     const sid = await seedBlockState('urdu');
     await handleVoiceMessage(voice('v1'), FROM, COACH);
-    expect(r2.uploadBuffer).toHaveBeenCalledWith(expect.any(Buffer), `child-test/${process.env.RAILWAY_ENVIRONMENT_NAME || 'local'}/school-1/${sid}/urdu.ogg`, 'audio/ogg');
+    expect(r2.uploadBuffer).toHaveBeenCalledWith(expect.any(Buffer), `child-test/${process.env.RAILWAY_ENVIRONMENT || 'local'}/school-1/${sid}/urdu.ogg`, 'audio/ogg');
     expect(routeLeaderAudio).not.toHaveBeenCalled();
   });
   test('no child-test state: the leader-audio router gets it as before', async () => {

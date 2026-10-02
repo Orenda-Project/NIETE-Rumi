@@ -1178,8 +1178,8 @@ async function processTeacherReport(sessionId, payload = {}) {
     // send at the end of the visit, not on a teacher's later tap. Gated inside sendOffer
     // (flag + coach role + ICT); never throws.
     if (phase !== 'teacher_tap' && session.observer_user_id) {
-      const ChildTest = require('../../handlers/child-test.handler');
-      await ChildTest.sendOffer({ coachUserId: session.observer_user_id, kind: 's', id: sessionId });
+      const ChildTestOffer = require('../child-test/conversation/offer');
+      await ChildTestOffer.sendOffer({ coachUserId: session.observer_user_id, kind: 's', id: sessionId });
     }
     return;
   }

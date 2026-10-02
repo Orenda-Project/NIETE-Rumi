@@ -50,7 +50,7 @@ maybe('with L3\'s real draw and store', () => {
     mockDb = createFakeSupabase(seed, { unique: CHILD_TEST_UNIQUE });
     process.env.CHILD_TEST_ENABLED = 'true';
     process.env.CHILD_TEST_DRAW_SECRET = 'test-secret';
-    process.env.RAILWAY_ENVIRONMENT_NAME = 'sandbox';
+    process.env.RAILWAY_ENVIRONMENT = 'sandbox';
     mockRedis.__data.clear();
     mockWa.__sent.length = 0;
     lanes = createLaneFakes();

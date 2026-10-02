@@ -48,7 +48,7 @@ const image = (id) => ({ id: `wamid.${id}`, image: { id, mime_type: 'image/jpeg'
 beforeEach(() => {
   process.env.CHILD_TEST_ENABLED = 'true';
   process.env.DEFAULT_REGION = 'niete-sandbox';
-  process.env.RAILWAY_ENVIRONMENT_NAME = 'sandbox';
+  process.env.RAILWAY_ENVIRONMENT = 'sandbox';
   mockRedis.__data.clear();
   mockWa.__sent.length = 0;
   Object.assign(mockWa.__ok, { text: true, buttons: true, list: true, image: true });

@@ -14,11 +14,13 @@
  *   handleList(user, from, listId)      ctst_* list rows
  *   handleVoice(message, from, user)    one voice note per block
  *   handleImage(message, from, user)    the maths strip photo
- *   sendOffer({ coachUserId, kind, id }) the "Test 5 children now?" offer after an observation
+ *   sendOffer({ coachUserId, kind, id }) the "Test 5 children now?" offer (conversation/offer.js;
+ *                                        observe code requires that module directly, not this one)
  *   recordTiming(sessionId, key, at)     for the check endpoint (check opened / submitted)
  */
 
 const M = require('../services/child-test/conversation/machine');
+const { sendOffer } = require('../services/child-test/conversation/offer');
 const { logError } = require('../utils/logger');
 
 function guarded(name, fn, onError) {
@@ -40,7 +42,7 @@ module.exports = {
   handleList: guarded('list', M.handleList, (user, from, id) => ours(id)),
   handleVoice: guarded('voice', M.handleVoice, false),
   handleImage: guarded('image', M.handleImage, false),
-  sendOffer: guarded('offer', M.sendOffer, false),
+  sendOffer,
   recordTiming: guarded('timing', M.recordTiming, undefined),
   __drain: M.drain,
 };
