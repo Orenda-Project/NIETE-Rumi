@@ -99,6 +99,28 @@ async function assetFor({ group, lessonId, assetKind = 'lesson', current }) {
   return null;
 }
 
+/**
+ * For the portal list: the lesson ids group A can open, i.e. ones with an August lesson plan
+ * of their own or (a split day 2, …seg4b) on day 1. null means no filtering: not group A, or
+ * the lookup failed, in which case the list shows as today.
+ */
+async function augustListable(group, lessonIds) {
+  if (group !== 'A' || !lessonIds.length) return null;
+  const day1 = (id) => id.replace(/(seg\d+)b$/, '$1');
+  try {
+    const { data, error } = await supabase
+      .from('niete_lp_assets').select('lesson_id, version_stamp')
+      .in('lesson_id', [...new Set([...lessonIds, ...lessonIds.map(day1)])])
+      .eq('asset_kind', 'lesson');
+    if (error) throw new Error(error.message);
+    const august = new Set((data || []).filter((a) => isAugust(a.version_stamp)).map((a) => a.lesson_id));
+    return new Set(lessonIds.filter((id) => august.has(id) || august.has(day1(id))));
+  } catch (err) {
+    logToFile('LP A/B: August list lookup failed — full list', { error: err.message });
+    return null;
+  }
+}
+
 function __resetForTests() { flagCache = null; }
 
-module.exports = { FLAG_KEY, groupFor, assetFor, isAugust, __resetForTests };
+module.exports = { FLAG_KEY, groupFor, assetFor, augustListable, isAugust, __resetForTests };
