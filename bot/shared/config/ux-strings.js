@@ -3182,12 +3182,21 @@ const UX_STRINGS = {
     ur: '(تصویر نہیں جا سکی۔ یہی متن یہ ہے۔)',
   },
   childTestStopChild: { en: 'Stop this child', ur: 'یہ بچہ روکیں' },
-  childTestFallbackButton: { en: 'Letters & words', ur: 'حروف اور الفاظ' },
+  // The printed card is the stimulus (CONTRACT §11); this button sends a block's cards in the chat, 3 per tap.
+  childTestCardsButton: { en: 'No printed card', ur: 'چھپا کارڈ نہیں' },
+  childTestCardsPage: {
+    en: 'Cards {from}–{to} of {total}. Tap «No printed card» again for the next ones.',
+    ur: 'کارڈ ⁦{from}–{to}⁩ از {total}۔ اگلے کارڈ کے لیے «چھپا کارڈ نہیں» دوبارہ دبائیں۔',
+  },
   childTestMenu: { en: 'Menu', ur: 'مینو' },
   childTestVoiceAck: { en: '🎧 Got it · {block}', ur: '🎧 ملا · {block}' },
   childTestVoiceSaveFailed: {
     en: '⚠️ The {block} voice note did not save. Please send the same voice note again.',
     ur: '⚠️ {block} کا وائس نوٹ محفوظ نہیں ہو سکا۔ وہی وائس نوٹ دوبارہ بھیجیں۔',
+  },
+  childTestVoiceAllIn: {
+    en: 'Roll {roll}\'s three voice notes are already in, so I did not use this one.',
+    ur: 'رول {roll} کے تینوں وائس نوٹ پہلے ہی مل چکے ہیں، اس لیے یہ نوٹ استعمال نہیں ہوا۔',
   },
   childTestVoiceEarly: {
     en: 'That voice note was sent before the {block} card, so I kept the first {prev} note. Record {block} now.',

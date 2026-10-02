@@ -166,7 +166,8 @@ describe('a child, start to finish', () => {
     expect(await H.handleButton(COACH, PHONE, 'ctst_pres:d1:p')).toBe(true);
     expect(lanes.calls.find((c) => c[0] === 'markOutcome')[1]).toMatchObject({ drawId: 'd1', outcome: 'present', visitId: 'form-1' });
     expect(lanes.calls.find((c) => c[0] === 'createSession')[1]).toMatchObject({ drawId: 'd1', coachUserId: 'coach-1', visitId: 'form-1', channel: 'whatsapp' });
-    expect(sent().filter((m) => m.kind === 'image')).toHaveLength(2);
+    // The printed card is the stimulus: no card images unless CHILD_TEST_INCHAT_CARDS=on (bd-s1oo0.15).
+    expect(sent().filter((m) => m.kind === 'image')).toHaveLength(0);
     expect(last('buttons').body).toMatch(/^\*Child 1 of 5 · Urdu 1\/3\*/);
     expect(last('buttons').body).toMatch(/«شروع»/);
 
@@ -200,7 +201,7 @@ describe('a child, start to finish', () => {
     expect(lanes.sessions['sess-1'].status).toBe('completed');
 
     const t = Object.keys(lanes.sessions['sess-1'].timings);
-    for (const k of ['list.opened', 'child.tapped', 'child.present', 'urdu.card_sent.1', 'urdu.card_sent.2', 'urdu.prompt_sent',
+    for (const k of ['list.opened', 'child.tapped', 'child.present', 'urdu.prompt_sent',
       'urdu.voice_received', 'urdu.audio_saved', 'urdu.scored', 'english.voice_received', 'maths.voice_received',
       'maths.photo_received', 'maths.scored', 'check.sent']) expect(t).toContain(k);
   });
@@ -320,6 +321,7 @@ describe('failures are visible', () => {
   test('a failed card image falls back to the text version and logs at error', async () => {
     mockWa.__ok.image = false;
     await openList(); await startChild('d1');
+    await H.handleButton(COACH, PHONE, 'ctst_fb');   // the cards come on demand (bd-s1oo0.15)
     expect(sent().some((m) => m.kind === 'text' && /picture did not send/.test(m.text) && /story line one/.test(m.text))).toBe(true);
     expect(logError).toHaveBeenCalledWith(expect.stringMatching(/child_test\.card_send_failed/), expect.objectContaining({ block: 'urdu' }));
   });
