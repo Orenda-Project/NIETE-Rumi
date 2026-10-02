@@ -264,7 +264,7 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPla
 
   // The same rule the WhatsApp classroom-audio branch applies: while one of her
   // recordings is mid-analysis, a second one is deferred, not started in
-  // parallel (FEAT-106 #3) — but a stale one can never trap her.
+  // parallel — but a stale one can never trap her.
   const { shouldDeferNewClassroomAudio } = require('./coaching-inflight-guard');
   const { data: latest } = await d.supabase
     .from('coaching_sessions')

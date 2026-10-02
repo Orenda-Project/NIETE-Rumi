@@ -104,6 +104,16 @@ describe('bd-5rz1v — portal lesson-plan library lookups', () => {
     expect(out).toEqual({ lesson_plan_link_method: 'selected_recent' });
   });
 
+  test('the current-asset lookup is lp-v8-delivery.currentAssetFor\'s select: the is_current row for that lesson and kind', async () => {
+    const supabase = fakeSupabase({ niete_lp_assets: (f) => (f.is_current === true ? { id: ASSET } : null) });
+    const out = await Lib.currentAssetFrom(supabase)('g4-sst-ch3-seg2', 'lesson');
+    expect(out).toEqual({ id: ASSET });
+    expect(supabase.reads[0]).toMatchObject({
+      table: 'niete_lp_assets',
+      filters: { lesson_id: 'g4-sst-ch3-seg2', asset_kind: 'lesson', is_current: true },
+    });
+  });
+
   test('recent plans are the WhatsApp list\'s source', async () => {
     const d = deps();
     expect(await Lib.recent(USER, d)).toEqual([{ asset_id: ASSET }]);
