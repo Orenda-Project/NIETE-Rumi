@@ -2013,13 +2013,23 @@ router.post('/coaching/presign-upload', requireInternalKey, portalCoachingRoute(
 
 /**
  * POST /api/internal/coaching/start
- * Body { userId, key, lessonPlanKey?, photoKeys? }
- * Ok   200 { status:'ok', coachingSessionId }   409 in_progress   400 invalid
+ * Body { userId, key, lessonPlanKey?, lessonPlan?, photoKeys? }
+ *   lessonPlan (bd-5rz1v): a library pick — { assetId } | { lessonId } | { segmentId, lang }
+ * Ok   200 { status:'ok', coachingSessionId }   409 in_progress
+ *      400 invalid (incl. plan_not_found / plan_not_ready)
  */
 router.post('/coaching/start', requireInternalKey, portalCoachingRoute('start',
   (Svc, b) => Svc.startPortalSession({
-    userId: b.userId, key: b.key, lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys,
+    userId: b.userId, key: b.key, lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan,
   })));
+
+/**
+ * POST /api/internal/coaching/recent-plans  (bd-5rz1v)
+ * Body { userId }
+ * Ok   200 { status:'ok', plans: [{ assetId, lessonId, topic, grade, subject, chapterNumber, dayLabel, pagesLabel, downloadedAt }] }
+ */
+router.post('/coaching/recent-plans', requireInternalKey, portalCoachingRoute('recent-plans',
+  (Svc, b) => Svc.recentLessonPlans({ userId: b.userId })));
 
 /**
  * POST /api/internal/coaching/reflection
