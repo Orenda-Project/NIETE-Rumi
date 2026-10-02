@@ -58,7 +58,8 @@ function player() {
   const fn = async (card, ctx) => {
     seen.push({ token: card.flow.token, ...ctx });
     return { ok: true, check_s: 41.5, session_id: 'sess-9', response_json: { flow_token: card.flow.token, child_test: 'checked', session_id: 'sess-9' },
-      actions: [{ action: 'open_check', cost_s: 3 }, { action: 'confirm_screen', screen: 'URDU', cost_s: 10 }, { action: 'type_count', screen: 'URDU', field: 'u_wc', reason: 'fill_empty', cost_s: 4 }],
+      actions: [{ action: 'open_check', cost_s: 3 }, { action: 'confirm_screen', screen: 'URDU', cost_s: 10 }, { action: 'type_count', screen: 'URDU', field: 'u_wc', reason: 'fill_empty', cost_s: 4 },
+        { action: 'choose_radio', screen: 'URDU', field: 'u_fs1', reason: 'no_key', cost_s: 2.5 }],
       rtts: [{ action: 'INIT', ms: 120 }] };
   };
   fn.seen = seen;
@@ -76,9 +77,11 @@ describe('runVisit with a check player', () => {
       expect(checkPlayer.seen).toEqual([{ token: 'coach-1:child-test-check:sess-9', child: 'AA_one', roll: 14 }]);
       expect(transport.calls.submitFlow).toEqual([{ id: 'FLOW-1', response: { flow_token: 'coach-1:child-test-check:sess-9', child_test: 'checked', session_id: 'sess-9' } }]);
       const acts = tl.events.filter((e) => e.step === 'check_action');
-      expect(acts.map((e) => [e.child, e.action, e.reason || null])).toEqual([['AA_one', 'open_check', null], ['AA_one', 'confirm_screen', null], ['AA_one', 'type_count', 'fill_empty']]);
+      expect(acts.map((e) => [e.child, e.action, e.reason || null])).toEqual([['AA_one', 'open_check', null], ['AA_one', 'confirm_screen', null], ['AA_one', 'type_count', 'fill_empty'], ['AA_one', 'choose_radio', 'no_key']]);
       const s = summarise(tl.events);
-      expect(s.per_child.AA_one.check).toMatchObject({ check_s: 41.5, actions: 3, typed: 1, ticked: 0, chosen: 0, ok: true });
+      expect(s.per_child.AA_one.check).toMatchObject({ check_s: 41.5, actions: 4, typed: 1, ticked: 0, chosen: 1, ok: true });
+      // a field the fixture has no key for (a section the May audio never had) is counted apart, with its cost
+      expect(s.per_child.AA_one.check).toMatchObject({ nokey: 1, nokey_s: 2.5 });
       expect(s.checks).toMatchObject({ n: 1, total_s: 41.5 });
     });
   }

@@ -66,8 +66,10 @@ function summarise(events) {
     }
     // the check (check-play.js via coach.js): every priced action, then check_done with the total
     if (e.dir === 'mark' && e.step === 'check_action' && perChild[e.child]) {
-      const c = perChild[e.child].check = perChild[e.child].check || { actions: 0, typed: 0, ticked: 0, chosen: 0, missed: 0, fixes: 0 };
+      const c = perChild[e.child].check = perChild[e.child].check || { actions: 0, typed: 0, ticked: 0, chosen: 0, missed: 0, fixes: 0, nokey: 0, nokey_s: 0 };
       c.actions += 1;
+      // a field the fixture has no key for: a section the fixture audio never had (real May composites)
+      if (e.reason === 'no_key') { c.nokey += 1; c.nokey_s = Math.round((c.nokey_s + (e.cost_s || 0)) * 1000) / 1000; }
       if (e.reason === 'missed') c.missed += 1;
       else if (e.action === 'type_count') c.typed += 1;
       else if (e.action === 'tick_chip') c.ticked += 1;
@@ -75,7 +77,7 @@ function summarise(events) {
       else if (e.action === 'fix_error') c.fixes += 1;
     }
     if (e.dir === 'mark' && e.step === 'check_done' && perChild[e.child]) {
-      const c = perChild[e.child].check = perChild[e.child].check || { actions: 0, typed: 0, ticked: 0, chosen: 0, missed: 0, fixes: 0 };
+      const c = perChild[e.child].check = perChild[e.child].check || { actions: 0, typed: 0, ticked: 0, chosen: 0, missed: 0, fixes: 0, nokey: 0, nokey_s: 0 };
       Object.assign(c, { check_s: e.check_s, ok: e.ok, ...(e.rtt_s ? { rtt_s: e.rtt_s } : {}) });
       if (e.ok) rtt.rtt_flow_screen.push(...(e.rtt_s || []));
     }
