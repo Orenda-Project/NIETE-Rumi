@@ -76,6 +76,10 @@ const SCENARIOS = [
   ['CT29', 'A child already done cannot be retested, and an old list\'s button is refused politely', 'L4'],
   ['CT30', 'A school with no Grade 3 or Grade 5 class list is told what to do, not shown an empty list', 'L3'],
   ['CT31', 'An absent child with no alternate left is recorded, and the list carries on with fewer children', 'L3'],
+  ['CT33', 'The list tells the coach to give the class teacher the roll numbers in order, and "Send to teacher" sends them', 'L4'],
+  ['CT34', 'Strip photos are claimed in list order, any time during the visit or as a batch at the end', 'L4'],
+  ['CT35', 'One locked voice note keeps recording through card flips', 'L4'],
+  ['CT36', 'Quick sums run for the one configured number of seconds', 'L4'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -358,6 +362,11 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT25', ...B('needs a failing media send; the mock has no fault injection on POST /media'));
     record('CT26', ...B('needs a failing Supabase write; the harness has no DB fault injection'));
     record('CT31', ...B(env.CT_DEEP === '1' ? 'CT_DEEP drive not written yet' : 'consumes 3 extra SIM children per run; set CT_DEEP=1'));
+    // Five-minute protocol scenarios (L11): spec'd, drive not written yet — recorded honestly as BLOCKED.
+    record('CT33', ...B('drive not written yet: needs the SIM class teacher to be the observed teacher and an outbound send to a second synthetic number'));
+    record('CT34', ...B('drive not written yet: needs strip photos sent out of order across two children'));
+    record('CT35', ...B('drive not written yet: a 4-minute fixture note per block (the guard is a unit test in tests/child-test/L11)'));
+    record('CT36', ...B('drive not written yet: needs CHILD_TEST_QUICK_SUMS_SECONDS set on the local stack'));
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}
