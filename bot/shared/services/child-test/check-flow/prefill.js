@@ -58,11 +58,19 @@ function withFill(rows, field, fill, valid = VERDICTS, blocked = false) {
   }));
 }
 
-/** Split item rows into a chip list (sure, ≥ 2 of them) and per-item radios (everything else). */
-function partition(rows) {
-  const chips = rows.filter((r) => r.fill === 'sure');
-  return chips.length >= 2 ? { chips, radios: rows.filter((r) => !chips.includes(r)) } : { chips: [], radios: rows };
+/**
+ * Split item rows into a chip list (sure, ≥ 2 of them) and per-item radios (everything else), and say
+ * which rows arrive filled: a chip always; a radio only in assist, when the AI marked it.
+ */
+function partition(rows, assist) {
+  const sure = rows.filter((r) => r.fill === 'sure');
+  const chips = sure.length >= 2 ? sure : [];
+  rows.forEach((r) => { r.chip = chips.includes(r); r.prefilled = r.chip || (assist && Boolean(r.fill)); });
+  return { chips, radios: rows.filter((r) => !r.chip) };
 }
+
+/** A radio-only section (questions, first sounds, written sums): filled whenever it has a fill. */
+const radiosFilled = (rows) => rows.map((r) => ({ ...r, prefilled: Boolean(r.fill) }));
 
 // ------------------------------------------------------------------ plan
 
@@ -88,13 +96,13 @@ function planBlock(block, { aiMarks = null, coachMarks = null, items = null, mod
   if (block === 'maths') {
     const m = (src && src.maths) || {};
     const numbers = withFill(rowsOf(it.numbers, m.numbers), 'maths.numbers', fill);
-    plan.numbers = { rows: numbers, ...partition(numbers) };
+    plan.numbers = { rows: numbers, ...partition(numbers, assist) };
     const qs = m.quick_sums || null;
     const qsFill = counted('maths.quick_sums', qs);
     plan.quickSums = { mark: qs, filled: Boolean(qsFill), fill: qsFill };
     // A strip photo of the wrong form (L5: meta.photo.form_code_ok false) is not a mark of this child's sums.
     const wrongStrip = !fromCoach && Boolean(src && src.meta && src.meta.photo && src.meta.photo.form_code_ok === false);
-    plan.written = withFill(rowsOf(it.written, m.written), 'maths.written', fill, WRITTEN, wrongStrip);
+    plan.written = radiosFilled(withFill(rowsOf(it.written, m.written), 'maths.written', fill, WRITTEN, wrongStrip));
     const wpItem = it.word_problem || null;
     if (wpItem || m.word_problem) {
       const wpMark = m.word_problem || null;
@@ -130,10 +138,10 @@ function planBlock(block, { aiMarks = null, coachMarks = null, items = null, mod
     overflow: fb ? [] : pool.filter((f) => !shown.includes(f)),
   };
 
-  plan.questions = withFill(rowsOf(it.questions, src && src.questions), 'questions', fill);
-  plan.firstSounds = SLOTS[block].fs ? withFill(rowsOf(it.first_sounds, src && src.first_sounds), 'first_sounds', fill) : [];
+  plan.questions = radiosFilled(withFill(rowsOf(it.questions, src && src.questions), 'questions', fill));
+  plan.firstSounds = SLOTS[block].fs ? radiosFilled(withFill(rowsOf(it.first_sounds, src && src.first_sounds), 'first_sounds', fill)) : [];
   const nonwords = withFill(rowsOf(it.nonwords, src && src.nonwords), 'nonwords', fill);
-  plan.nonwords = { rows: nonwords, ...partition(nonwords) };
+  plan.nonwords = { rows: nonwords, ...partition(nonwords, assist) };
   plan.fallbackOf = {
     letters: (fb && src.fallback.letters && src.fallback.letters.of) || ((it.fallback && it.fallback.letters) || []).length || 10,
     words: (fb && src.fallback.words && src.fallback.words.of) || ((it.fallback && it.fallback.words) || []).length || 10,
@@ -161,8 +169,8 @@ function unsureLine(S, data, list) {
   data.unsure_v = list.length > 0;
   data.unsure_line = list.length ? clip(S.unsure_line(list.join(S.list_sep)), CAP.desc) : '';
 }
-/** Pre-filled radios: a chip-list item never (its chip carries it), otherwise any fill in assist, none in strict. */
-const radioInit = (plan, r) => (r.chip || (plan.assist && r.fill) ? r.mark.verdict : '');
+/** A chip-or-radio item's slot: the AI's verdict when the row arrives filled (partition decides). */
+const radioInit = (plan, r) => (r.prefilled ? r.mark.verdict : '');
 
 /** Item radio slots: the item's text, the AI's verdict when sure, '' when not, hidden + 'none' when unused. */
 function itemSlots(data, key, count, rows, { label, desc, init }) {
@@ -360,6 +368,39 @@ function renderScreen(block, o = {}) {
   return { screen: SCREEN_OF[block], data };
 }
 
+// ------------------------------------------------------------------ arrivals
+
+/**
+ * What arrived empty (the coach marks it blind) and what arrived filled below its bar (assist: the coach
+ * was asked to check it), as coach_marks.meta.shown_empty / shown_unsure paths (CONTRACT §14 CR-4).
+ * Both channels record these from the plan, so the app and the Flow cannot disagree on them.
+ */
+function arrivals(plan) {
+  const empty = [];
+  const unsure = [];
+  const at = (path, filled, f) => { if (!filled) empty.push(path); else if (f === 'unsure') unsure.push(path); };
+  const rowsAt = (path, rows) => rows.forEach((r) => { if (!r.chip) at(`${path}[${r.id}]`, r.prefilled, r.fill); });
+  if (plan.block === 'maths') {
+    rowsAt('maths.numbers', plan.numbers.rows);
+    at('maths.quick_sums', plan.quickSums.filled, plan.quickSums.fill);
+    rowsAt('maths.written', plan.written);
+    if (plan.wordProblem) at('maths.word_problem', Boolean(plan.wordProblem.fill), plan.wordProblem.fill);
+    return { shown_empty: empty, shown_unsure: unsure };
+  }
+  if (plan.fallback) at('fallback', plan.fallback.filled, plan.fallback.fill);
+  else {
+    at('story.words_correct', plan.story.filled, plan.story.fill);
+    at('story.words_attempted', plan.story.filled, plan.story.fill);
+    const shown = plan.flags.shown;
+    shown.filter((f) => f.unsure).forEach((f) => unsure.push(`story.flagged[${f.idx}]`));
+    if (shown.length === 1 && !shown[0].on && !plan.fromCoach) empty.push(`story.flagged[${shown[0].idx}]`);
+  }
+  rowsAt('questions', plan.questions);
+  rowsAt('first_sounds', plan.firstSounds);
+  rowsAt('nonwords', plan.nonwords.rows);
+  return { shown_empty: empty, shown_unsure: unsure };
+}
+
 // ------------------------------------------------------------------ read back
 
 function readScreen(block, posted = {}, { aiMarks = null, coachMarks = null, items = null, lang, mode = prefillMode() } = {}) {
@@ -367,10 +408,7 @@ function readScreen(block, posted = {}, { aiMarks = null, coachMarks = null, ite
   const plan = planBlock(block, { aiMarks, coachMarks, items, mode });
   const p = PREFIX[block];
   const errors = {};
-  const shownEmpty = [];
-  const shownUnsure = [];
-  // Where a mark arrived: empty (the coach filled it blind) or filled but unsure (the coach was asked to check).
-  const arrived = (path, f) => { if (!f) shownEmpty.push(path); else if (f === 'unsure') shownUnsure.push(path); };
+  const { shown_empty: shownEmpty, shown_unsure: shownUnsure } = arrivals(plan);
   const count = (field, max) => {
     const s = String(posted[`${p}${field}`] == null ? '' : posted[`${p}${field}`]).trim();
     if (!/^\d+$/.test(s)) { errors[`${p}${field}`] = S.err_number; return null; }
@@ -391,15 +429,10 @@ function readScreen(block, posted = {}, { aiMarks = null, coachMarks = null, ite
         const verdict = on.has(r.id) ? (r.mark.verdict !== 'correct' ? r.mark.verdict : 'wrong') : 'correct';
         return { id: r.id, verdict, heard: (r.mark && r.mark.heard) || '' };
       }
-      // strict: every radio arrived empty (L6); assist: a radio with a mark arrived filled
-      arrived(`${path}[${r.id}]`, plan.assist ? r.fill : null);
       return { id: r.id, verdict: pick(`${field}${i + 1}`, VERDICTS), heard: (r.mark && r.mark.heard) || '' };
     });
   };
-  const radios = (rows, field, path, allowed = VERDICTS) => rows.map((r, i) => {
-    arrived(`${path}[${r.id}]`, r.fill);
-    return { id: r.id, verdict: pick(`${field}${i + 1}`, allowed), heard: (r.mark && r.mark.heard) || '' };
-  });
+  const radios = (rows, field, allowed = VERDICTS) => rows.map((r, i) => ({ id: r.id, verdict: pick(`${field}${i + 1}`, allowed), heard: (r.mark && r.mark.heard) || '' }));
 
   const coach = {
     version: 'coach-marks-v1',
@@ -416,18 +449,15 @@ function readScreen(block, posted = {}, { aiMarks = null, coachMarks = null, ite
 
   if (block === 'maths') {
     const numbers = itemVerdicts(plan.numbers, 'n', 'numc', 'maths.numbers');
-    arrived('maths.quick_sums', plan.quickSums.fill);
     const correct = count('qc');
     const attempted = count('qa');
     if (correct != null && attempted != null && correct > attempted) errors[`${p}qc`] = S.err_more_than_tried;
     const written = plan.written.map((r, i) => {
-      arrived(`maths.written[${r.id}]`, r.fill);
       return { id: r.id, read_answer: (r.mark && r.mark.read_answer) || '', verdict: pick(`w${i + 1}`, WRITTEN) };
     });
     let wordProblem = null;
     if (plan.wordProblem) {
       const wm = plan.wordProblem.mark;
-      arrived('maths.word_problem', plan.wordProblem.fill);
       wordProblem = { verdict: pick('wp', VERDICTS), read_answer: (wm && wm.read_answer) || '' };
     }
     const qsMark = plan.quickSums.mark || {};
@@ -439,25 +469,20 @@ function readScreen(block, posted = {}, { aiMarks = null, coachMarks = null, ite
     };
   } else {
     if (plan.fallback) {
-      arrived('fallback', plan.fallback.fill);
       coach.fallback = {
         letters: { correct: count('fl', plan.fallbackOf.letters), of: plan.fallbackOf.letters },
         words: { correct: count('fw', plan.fallbackOf.words), of: plan.fallbackOf.words },
       };
     } else {
-      arrived('story.words_correct', plan.story.fill);
-      arrived('story.words_attempted', plan.story.fill);
       const wc = count('wc');
       const wa = count('wa');
       if (wc != null && wa != null && wc > wa) errors[`${p}wc`] = S.err_more_than_tried;
       const shown = plan.flags.shown;
-      shown.filter((f) => f.unsure).forEach((f) => shownUnsure.push(`story.flagged[${f.idx}]`));
       let kept = [];
       if (shown.length >= 2) {
         const on = ticked('flag');
         kept = shown.filter((f) => on.has(`w${f.idx}`));
       } else if (shown.length === 1) {
-        if (!shown[0].on && !plan.fromCoach) shownEmpty.push(`story.flagged[${shown[0].idx}]`);
         const v = pick('sw', new Set(['wrong', 'correct']));
         kept = v === 'wrong' ? shown : [];
       }
@@ -472,8 +497,8 @@ function readScreen(block, posted = {}, { aiMarks = null, coachMarks = null, ite
           .sort((a, b) => a.idx - b.idx),
       };
     }
-    coach.questions = radios(plan.questions, 'q', 'questions');
-    coach.first_sounds = radios(plan.firstSounds, 'fs', 'first_sounds');
+    coach.questions = radios(plan.questions, 'q');
+    coach.first_sounds = radios(plan.firstSounds, 'fs');
     coach.nonwords = itemVerdicts(plan.nonwords, 'nw', 'nwc', 'nonwords');
   }
 
@@ -528,4 +553,4 @@ function diffMarks(block, ai, coach) {
   return edits;
 }
 
-module.exports = { planBlock, renderScreen, readScreen, diffMarks, MAX_CHIPS, PREFIX, SCREEN_OF, HIDDEN_CHIPS };
+module.exports = { planBlock, arrivals, renderScreen, readScreen, diffMarks, MAX_CHIPS, PREFIX, SCREEN_OF, HIDDEN_CHIPS };

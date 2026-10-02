@@ -119,7 +119,8 @@ test('one child through the app: session, upload, AI marks, check — saved twic
   const [block] = await rowsOf('child_test_blocks');
   expect(block.ai_marks).toEqual(ai); // the constant ruler, untouched
   expect(block.coach_marks.version).toBe('coach-marks-v1');
-  expect(block.coach_marks.meta.shown_empty).toContain(`questions[${ai.questions[1].id}].verdict`);
+  // L6's path format (one rule for both channels, bd-s1oo0.16)
+  expect(block.coach_marks.meta.shown_empty).toContain(`questions[${ai.questions[1].id}]`);
   expect(block.coach_edits).toEqual(expect.arrayContaining([
     { path: 'story.words_correct', ai: 41, coach: 42 },
     { path: `questions[${ai.questions[1].id}].verdict`, ai: 'wrong', coach: 'correct' },
