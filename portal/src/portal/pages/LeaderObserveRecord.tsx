@@ -10,7 +10,7 @@ import LoadingState from '../components/LoadingState';
 import BottomSheet from '../components/coaching/BottomSheet';
 import LibraryPicker, { type PickedPlan } from '../components/coaching/LibraryPicker';
 import CoachRecorder, { minutesText } from '../components/coaching/coach/CoachRecorder';
-import { WaysOptions } from '../components/coaching/coach/CoachEntry';
+import SendLessonSheet from '../components/coaching/SendLessonSheet';
 import { leader, portal } from '../services/api';
 import type { LeaderPatchTeacher, LeaderScheduledObservation } from '../types/portal';
 import { acceptFor, checkFile, formatSize, MAX_PHOTOS, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
@@ -236,7 +236,6 @@ const LeaderObserveRecord = () => {
 
   // ── the two ways ─────────────────────────────────────────────────────────
   const recordNow = () => { setWaysSheet(false); setStage('recording'); };
-  const chooseFile = () => { setWaysSheet(false); setTimeout(() => audioInput.current?.click(), 0); };
 
   const onAudioChosen = async (file: File | undefined) => {
     setFileError(null);
@@ -434,12 +433,13 @@ const LeaderObserveRecord = () => {
         )}
 
         {waysSheet && teacher && (
-          <BottomSheet label={copy.sheet(first)} onClose={() => setWaysSheet(false)}>
-            <div className="text-[22px] font-bold" dir="auto">{copy.sheet(first)}</div>
-            <WaysOptions onRecord={canRecord ? recordNow : undefined} onFile={chooseFile} />
-            <button type="button" onClick={() => setWaysSheet(false)}
-              className="h-12 rounded-xl border border-[#d6d9de] bg-white text-[17px] font-semibold text-[#5b6170]">{COPY.cancel}</button>
-          </BottomSheet>
+          <SendLessonSheet
+            canRecord={canRecord}
+            onRecord={recordNow}
+            onFile={(f) => { setWaysSheet(false); void onAudioChosen(f); }}
+            onClose={() => setWaysSheet(false)}
+            copy={{ title: copy.sheet(first), record: copy.rec, recordSub: copy.recSub, upload: copy.file, uploadSub: copy.fileSub }}
+          />
         )}
 
         {/* 1b. microphone refused */}

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { CalendarDays, MessageSquare, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
 import { leader, portal } from "../services/api";
 import type { CoachObservationSummary } from "../services/api";
-import { CoachObserveEntryCard } from "../components/coaching/coach/CoachEntry";
-import { STEP_CHIP } from "../lib/coachObserve";
+import SendLessonButton from "../components/coaching/SendLessonButton";
+import { STEP_CHIP, entryCopy } from "../lib/coachObserve";
 import PortalLayout from "../components/PortalLayout";
 import ScoreIndicator from "../components/ScoreIndicator";
 import LoadingState from "../components/LoadingState";
@@ -41,6 +41,7 @@ function observationSubline(d: LeaderObservationSession): string {
 const SLOTS = ["09:00", "11:30", "14:00"];
 
 const LeaderObservations = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState<LeaderObservationsData | null>(null);
   const [loading, setLoading] = useState(true);
   // bd-2676 — scheduling from the portal
@@ -122,7 +123,8 @@ const LeaderObservations = () => {
 
         {coachObserve && (
           <div className="mb-8 flex max-w-xl flex-col gap-4">
-            <CoachObserveEntryCard />
+            <SendLessonButton title={entryCopy().title} sub={entryCopy().sub} testId="coach-observe-entry"
+              onClick={() => navigate("/portal/leader/observe/new")} />
             {inProgress.length > 0 && (
               <section className="bg-white rounded-lg shadow-sm border border-border overflow-hidden" data-testid="observe-in-progress">
                 <div className="p-6 pb-3"><h2 className="text-lg font-medium">Lessons you sent</h2></div>

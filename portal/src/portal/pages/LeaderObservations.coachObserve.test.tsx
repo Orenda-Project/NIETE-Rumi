@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 // bd-5rz1v.6 — Observations gains ONE goal button (Option B, B3, deep green)
 // and the lessons she sent, only for a coach in the portal_coach_observation
@@ -27,7 +27,14 @@ const P = portal as any;
 
 function renderPage() {
   (useAuth as any).mockReturnValue({ user: { firstName: "Sana", role: "coach" }, loading: false, logout: vi.fn() });
-  render(<MemoryRouter><LeaderObservations /></MemoryRouter>);
+  render(
+    <MemoryRouter initialEntries={["/portal/leader/observations"]}>
+      <Routes>
+        <Route path="/portal/leader/observations" element={<LeaderObservations />} />
+        <Route path="/portal/leader/observe/new" element={<div>record page</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
 }
 
 beforeEach(() => {
@@ -48,12 +55,13 @@ describe("LeaderObservations — send a lesson", () => {
     renderPage();
     const entry = await screen.findByTestId("coach-observe-entry");
     expect(entry.textContent).toContain("Send a lesson to your Digital Coach");
-    expect(entry.getAttribute("href")).toBe("/portal/leader/observe/new");
     expect(await screen.findByText("Sadia Noor")).toBeInTheDocument();
     expect(screen.getByText("Check the draft")).toBeInTheDocument();
     expect(screen.queryByText("Kiran Javed")).toBeNull(); // finished ones are not "in progress"
     const send = await screen.findByRole("link", { name: "Send her lesson" });
     expect(send.getAttribute("href")).toBe("/portal/leader/observe/new?teacher=923120004471&school=niete%3A7");
+    fireEvent.click(entry);
+    expect(await screen.findByText("record page")).toBeInTheDocument();
   });
 
   it("outside the pilot: none of it", async () => {

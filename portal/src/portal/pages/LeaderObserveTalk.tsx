@@ -5,7 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import CoachRecorder from '../components/coaching/coach/CoachRecorder';
-import { RecordIconOnRed } from '../components/coaching/coach/CoachEntry';
+import RecordIcon from '../components/coaching/RecordIcon';
 import { leader } from '../services/api';
 import type { TalkGuide, TalkGuideSection } from '../services/api';
 import { acceptFor, checkFile } from '../lib/coachingUpload';
@@ -178,7 +178,7 @@ const LeaderObserveTalk = () => {
                 {canRecord && (
                   <button type="button" onClick={() => setStage('recording')}
                     className="mt-1 flex items-center gap-4 rounded-2xl border-[3px] border-[#d32f2f] bg-[#d32f2f] p-3.5 text-left">
-                    <RecordIconOnRed size={52} />
+                    <RecordIcon size={52} onRed />
                     <span className="flex flex-col gap-0.5">
                       <span className="text-[18px] font-bold text-white">{COPY.record}</span>
                       <span className="text-[13px] text-[#fde3e1]">{COPY.recordSub}</span>

@@ -120,7 +120,7 @@ describe("LeaderObserveRecord", () => {
     renderPage();
     fireEvent.click(await screen.findByText("Your visit at 09:30"));
     await screen.findByRole("dialog", { name: "Send Ayesha’s lesson" });
-    fireEvent.change(screen.getByTestId("audio-input"), { target: { files: [file("Period 3.m4a", 30_000_000)] } });
+    fireEvent.change(screen.getByTestId("send-audio-input"), { target: { files: [file("Period 3.m4a", 30_000_000)] } });
     expect(await screen.findByText("Period 3.m4a")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Add her lesson plan" }));
@@ -150,7 +150,7 @@ describe("LeaderObserveRecord", () => {
     renderPage();
     fireEvent.click(await screen.findByText("Sadia Noor"));
     await screen.findByRole("dialog");
-    fireEvent.change(screen.getByTestId("audio-input"), { target: { files: [file("a.m4a")] } });
+    fireEvent.change(screen.getByTestId("send-audio-input"), { target: { files: [file("a.m4a")] } });
     fireEvent.click(await screen.findByRole("button", { name: "Send to Digital Coach" }));
     expect(await screen.findByText(/not in your schools any more/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
