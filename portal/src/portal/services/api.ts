@@ -360,6 +360,7 @@ export const portal = {
           assessmentGeneratorMessage:
             "The assessment generator is being prepared for you. We'll notify you when it's live.",
           selfObservation: false,
+          coachObservation: false,
         },
       };
     }
@@ -481,8 +482,74 @@ export type PortalConfig = {
     assessmentGeneratorMessage: string | null;
     /** bd-3bvfj — "Analyse a lesson" is on for THIS user (fail-closed). */
     selfObservation?: boolean;
+    /** bd-5rz1v.6 — a coach can run an /observe observation from the portal (fail-closed). */
+    coachObservation?: boolean;
   };
 };
+
+// ── bd-5rz1v.6: a coach's /observe observation, run from the portal ────────
+
+/** Where an observation stands — the bot's portal-observe-step, verbatim. */
+export type ObserveStep =
+  | 'analysing' | 'draft' | 'talk' | 'listening' | 'feedback' | 'report'
+  | 'sending' | 'waiting_teacher' | 'sent' | 'done' | 'stopped';
+
+export type ObserveProblem = 'too_short' | 'failed' | 'feedback_failed' | 'duplicate' | 'send_failed' | null;
+
+export type CoachObservationSummary = {
+  id: string;
+  createdAt: string | null;
+  teacherName: string | null;
+  step: ObserveStep;
+  problem: ObserveProblem;
+};
+
+export type TalkGuideSection = { title: string; body?: string; say_this?: string };
+export type TalkGuide = {
+  intro?: string;
+  outro?: string;
+  reflection_question?: string;
+  sections?: { strengths?: TalkGuideSection; growth?: TalkGuideSection; action?: TalkGuideSection };
+  steps?: TalkGuideSection[];
+};
+
+export type CoachFeedback = {
+  harmful: boolean;
+  praise_line: string | null;
+  wins: { behaviour: string; evidence: string }[];
+  try: { move: string; evidence: string; instead: string | null } | null;
+  reflection_question: string | null;
+  concern: { what_happened: string; why_it_matters: string; instead: string } | null;
+};
+
+export type CoachObservationView = {
+  id: string;
+  createdAt: string | null;
+  sessionStatus: string;
+  step: ObserveStep;
+  problem: ObserveProblem;
+  preparing: boolean;
+  teacher: { name: string | null; phone: string | null } | null;
+  lesson: { topic: string | null; subject: string | null; hasLessonPlan: boolean };
+  draft: { edited: boolean };
+  talk: { guide: TalkGuide | null; recordedAt: string | null; feedback: CoachFeedback | null };
+  report: {
+    status: string | null; teacherName: string | null; teacherPhone: string | null;
+    caption: string | null; companionText: string | null; imageUrl: string | null;
+    sentAt: string | null; templateSentAt: string | null;
+  };
+};
+
+export type DraftOption = { id: string; title: string };
+export type DraftIndicator = {
+  id: string; field: string; name: string;
+  rating: string | undefined; evidence: string | undefined; improvement: string | undefined;
+};
+export type DraftMove = { k: number; plan: string; verdict: string; evidence: string };
+export type DraftSection =
+  | { key: string; letter: string; title: string; kind: 'indicators'; notes: string[]; indicators: DraftIndicator[] }
+  | { key: string; letter: string; title: string; kind: 'moves'; header: string; fallback: string; moves: DraftMove[] };
+export type ObservationDraft = { scale: DraftOption[]; fidelityScale: DraftOption[]; sections: DraftSection[]; saved: boolean };
 
 // ── Assessment Generator types ────────────────────────────────────────────
 //
@@ -633,7 +700,81 @@ export const leader = {
   cancelSchedule: async (id: string): Promise<{ success: boolean; cancelled?: boolean }> => {
     const response = await api.post(`/leader/schedules/${id}/cancel`);
     return response.data;
-  }
+  },
+
+  // ── bd-5rz1v.6: an /observe observation, run from the portal ─────────────
+
+  /** Sign a direct-to-R2 upload (signed under the coach's own id). */
+  presignObserveUpload: async (args: {
+    filename: string; sizeBytes: number; kind: 'audio' | 'lesson_plan' | 'photo';
+  }): Promise<{ key: string; uploadUrl: string; contentType: string }> => {
+    const response = await api.post('/leader/observe-upload/presign', args);
+    return response.data;
+  },
+
+  /** Start the observation of one teacher in her patch. A refusal rejects with err.response. */
+  startObservation: async (args: {
+    teacherExtId: string; schoolExtId?: string | null; key: string; lessonPlanKey?: string; photoKeys: string[];
+    lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
+  }): Promise<{ coachingSessionId: string }> => {
+    const response = await api.post('/leader/observe/start', args);
+    return response.data;
+  },
+
+  /** HER recent plans — the teacher being observed. */
+  getObserveRecentPlans: async (teacherExtId: string, schoolExtId?: string | null): Promise<{ plans: RecentLessonPlan[] }> => {
+    const response = await api.get('/leader/observe/recent-plans', {
+      params: schoolExtId ? { teacherExtId, schoolExtId } : { teacherExtId },
+    });
+    return response.data;
+  },
+
+  getActiveObservations: async (): Promise<{ observations: CoachObservationSummary[] }> => {
+    const response = await api.get('/leader/observe/active');
+    return response.data;
+  },
+
+  getObservation: async (id: string): Promise<CoachObservationView> => {
+    const response = await api.get(`/leader/observe/${id}`);
+    return response.data;
+  },
+
+  getObservationDraft: async (id: string): Promise<ObservationDraft> => {
+    const response = await api.get(`/leader/observe/${id}/draft`);
+    return response.data;
+  },
+
+  /** The review form's own keys: r_/ev_/imp_ per indicator, fid_r_/fid_e_ per lesson-plan move. */
+  saveObservationDraft: async (id: string, edits: Record<string, string>): Promise<{ success: boolean }> => {
+    const response = await api.post(`/leader/observe/${id}/draft`, { edits });
+    return response.data;
+  },
+
+  /** The guide for her talk with the teacher (the first open can take a minute). */
+  getTalkGuide: async (id: string): Promise<{ guide: TalkGuide | null }> => {
+    const response = await api.post(`/leader/observe/${id}/talk/guide`, {}, { timeout: 120_000 });
+    return response.data;
+  },
+
+  startTalk: async (id: string, key: string): Promise<{ success: boolean }> => {
+    const response = await api.post(`/leader/observe/${id}/talk`, { key });
+    return response.data;
+  },
+
+  retryTalk: async (id: string): Promise<{ success: boolean }> => {
+    const response = await api.post(`/leader/observe/${id}/talk/retry`);
+    return response.data;
+  },
+
+  previewReport: async (id: string): Promise<{ success: boolean }> => {
+    const response = await api.post(`/leader/observe/${id}/report/preview`);
+    return response.data;
+  },
+
+  sendReport: async (id: string): Promise<{ success: boolean }> => {
+    const response = await api.post(`/leader/observe/${id}/report/send`);
+    return response.data;
+  },
 };
 
 // Classes — the teacher's own classes (teacher-owned only; a principal's or

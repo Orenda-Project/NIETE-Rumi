@@ -1,6 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { AuthContext } from '../hooks/authContext';
 import PortalNavigation from './PortalNavigation';
 
 interface PortalLayoutProps {
@@ -10,7 +11,8 @@ interface PortalLayoutProps {
 }
 
 const PortalLayout = ({ children, bare = false }: PortalLayoutProps) => {
-  const { user, loading } = useAuth();
+  const auth = useAuth();
+  const { user, loading } = auth;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,6 +37,8 @@ const PortalLayout = ({ children, bare = false }: PortalLayoutProps) => {
   // `bare` (bd-5rz1v): no navigation at all, for a screen where one stray tap
   // must not take her away — a lesson being recorded, or being sent.
   return (
+    // The loaded user, to everything inside: the navigation never starts from "no user".
+    <AuthContext.Provider value={auth}>
     <div className="min-h-screen bg-secondary">
       {!bare && <PortalNavigation />}
       {/* Issue #22: Added consistent padding for content */}
@@ -42,6 +46,7 @@ const PortalLayout = ({ children, bare = false }: PortalLayoutProps) => {
         {children}
       </main>
     </div>
+    </AuthContext.Provider>
   );
 };
 

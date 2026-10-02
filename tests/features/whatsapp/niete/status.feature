@@ -251,3 +251,13 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # anything is sent (same for the 12-hour auto-complete notice and the
     # confirmation-gate notice). Staging must run 2+ worker replicas for this to be a
     # real test; with one copy it passes either way.
+
+  # ── The stuck-session watchdog and portal observations (bd-5rz1v.6) ────────
+
+  @e2e @config-gated @negative @P2
+  Scenario: A stuck portal observation is retried and failed without a WhatsApp message to the coach
+    Given a coach's observation started in the portal has stopped moving mid-analysis
+    When the recovery sweep finds it a second time
+    Then the observation is marked failed and shows as stopped in the portal
+    And the coach receives no WhatsApp message about it
+    But a stuck WhatsApp observation still tells the coach on WhatsApp
