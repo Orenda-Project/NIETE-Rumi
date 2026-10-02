@@ -66,6 +66,8 @@ const {
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
 const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role');
+// A coach's observation of her is the teacher's to see only once it is SENT to her.
+const TeacherObservation = require('../lib/teacher-observation');
 const { getOverall } = require('../services/coaching-frameworks.service');
 // Leader "patch" resolver (leader_teachers → Rumi users + activity) needs the
 // pg pool — the LATERAL-join SQL can't be expressed through supabase-js.
@@ -1450,6 +1452,8 @@ router.get('/my-analytics', requirePortalAuth, async (req, res) => {
           WHERE user_id = $1
             AND status IN ${TERMINAL}
             AND analysis_data IS NOT NULL
+            -- A coach's observation counts for her once it is sent, never as a draft.
+            AND ${TeacherObservation.VISIBLE_TO_TEACHER_SQL}
             AND ${inWindow(pkDay('created_at'), '$2', '$3')}
           ORDER BY created_at ASC`, [me, ...w]),
       pool.query(
@@ -5352,22 +5356,29 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
     // rows, while all it reads is the scores block (~190 B) and three labels.
     // 100 × 30 KB = 3 MB per page load, against ~40 KB. getOverall reads only
     // `.scores`, so it is given exactly that.
+    // Named, so tests/setup/column-completeness (which reads `.select('…')`
+    // literals) does not run on past a joined-string select into the code below.
+    const listColumns = 'id, created_at, audio_duration_seconds, status, scores:analysis_data->scores, '
+      + 'framework:analysis_data->>framework, topic:analysis_data->>topic, subject:analysis_data->>subject, '
+      + 'observation_type, observer_user_id, sent_at:analysis_data->teacher_delivery->>sent_at, '
+      + 'send_requested_at:analysis_data->teacher_delivery->>send_requested_at';
     const { data: coachingSessions, error, count } = await supabase
       .from('coaching_sessions')
-      .select(
-        'id, created_at, audio_duration_seconds, status, scores:analysis_data->scores, '
-        + 'framework:analysis_data->>framework, topic:analysis_data->>topic, subject:analysis_data->>subject',
-        { count: 'exact' },
-      )
+      .select(listColumns, { count: 'exact' })
       .eq('user_id', userId)
-      .eq('status', 'completed')
       .not('analysis_data', 'is', null)
+      // Her own lessons once completed; a coach's observation once the coach
+      // has sent it to her (even before she opens the WhatsApp invite, and
+      // even while the coach's debrief is still open) — never a draft.
+      .or(TeacherObservation.LISTED_FOR_TEACHER_OR)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
       throw error;
     }
+
+    const observers = await TeacherObservation.observerNames(supabase, coachingSessions);
 
     // Format sessions with summary data
     // NOTE: Transform 'created_at' to 'date' and 'audio_duration_seconds' to 'duration'
@@ -5396,6 +5407,14 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
       // Coaching list can name and filter lessons. null when not found.
       topic: session.topic || null,
       subject: session.subject || null,
+      // Who observed her and when, for a coach's observation; null for her own lessons.
+      observation: TeacherObservation.isObservation(session)
+        ? {
+          observerName: observers[session.observer_user_id] || null,
+          observedAt: session.created_at,
+          sentAt: session.sent_at || session.send_requested_at || null,
+        }
+        : null,
     }));
 
     res.json({
@@ -5438,14 +5457,15 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
       .eq('user_id', userId) // Security: ensure user owns this session
       .single();
 
-    if (error || !session) {
+    // A coach's observation that has not been sent to her is not hers yet — the
+    // same answer as a session that does not exist.
+    if (error || !session || !TeacherObservation.teacherMaySee(session)) {
       return res.status(404).json({
         success: false,
         error: 'Session not found'
       });
     }
 
-    // Transform analysis_data structure to match frontend expectations
     // Transform analysis_data structure to match frontend expectations
     // getOverall normalises every framework's score shape (see
     // coaching-frameworks.service) and is already what the leader dashboard
@@ -5516,6 +5536,26 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         answered_at: q.answered_at || null,
       }));
 
+    // A coach's observation: the report as WhatsApp delivered it to her — the
+    // image, its caption, the companion text — and who observed her, and when.
+    // The coach's debrief (observer_debrief) is hers alone and never served.
+    let observation = null;
+    if (TeacherObservation.isObservation(session)) {
+      const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
+      const names = await TeacherObservation.observerNames(supabase, [session]);
+      const reportImageUrl = delivery.report_key && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
+        ? await _resolveMediaUrl(`${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${delivery.report_key}`)
+        : null;
+      observation = {
+        observerName: names[session.observer_user_id] || null,
+        observedAt: session.created_at,
+        sentAt: delivery.sent_at || delivery.send_requested_at || null,
+        reportImageUrl,
+        caption: delivery.caption || null,
+        companionText: delivery.companion_text || null,
+      };
+    }
+
     res.json({
       success: true,
       session: {
@@ -5524,6 +5564,7 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         session_date: session.created_at, // Portal expects 'session_date'
         duration: session.audio_duration_seconds,
         status: session.status,
+        observation,
         // bd-5rz1v — the lesson page's title line; null when not found.
         topic: session.analysis_data?.topic || null,
         subject: session.analysis_data?.subject || null,
@@ -5717,6 +5758,8 @@ router.get('/coaching-sessions/active', requirePortalAuth, requireSelfObservatio
       .from('coaching_sessions')
       .select('id, status, audio_url, conversation_state, created_at, topic:analysis_data->>topic, subject:analysis_data->>subject')
       .eq('user_id', req.session.portalUserId)
+      // Her own lessons only: a coach's observation in flight is the coach's.
+      .or(TeacherObservation.NOT_AN_OBSERVATION_OR)
       .not('status', 'in', `(${ENDED_STATUSES.join(',')})`)
       .gte('created_at', since)
       .order('created_at', { ascending: true })
@@ -5757,18 +5800,20 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
   try {
     const { data: row, error } = await supabase
       .from('coaching_sessions')
-      .select('id, user_id, status, audio_url, audio_duration_seconds, has_lesson_plan, classroom_photos, conversation_state, created_at')
+      .select('id, user_id, status, audio_url, audio_duration_seconds, has_lesson_plan, classroom_photos, conversation_state, created_at, '
+        + 'observation_type, delivery_status:analysis_data->teacher_delivery->>status')
       .eq('id', req.params.id)
       .eq('user_id', req.session.portalUserId)
       .maybeSingle();
     if (error) throw error;
-    // Same answer for "not hers" and "does not exist".
-    if (!row || row.user_id !== req.session.portalUserId) {
+    // Same answer for "not hers", "does not exist" and "a coach's draft".
+    if (!row || row.user_id !== req.session.portalUserId || !TeacherObservation.teacherMaySee(row, row.delivery_status)) {
       return res.status(404).json({ success: false, error: 'Session not found' });
     }
 
     const portal = isPortalSession(row);
-    const stage = PORTAL_COACHING_STAGE[row.status] || 'analysing';
+    // A coach's observation reaches her finished: once sent, it is her report.
+    const stage = TeacherObservation.isObservation(row) ? 'done' : (PORTAL_COACHING_STAGE[row.status] || 'analysing');
     let reflection = null;
     if (portal && row.status === 'conducting_conversation') {
       const asked = ((row.conversation_state && row.conversation_state.questions) || [])
@@ -5785,7 +5830,7 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
       stage,
       source: portal ? 'portal' : 'whatsapp',
       reflection,
-      reportReady: row.status === 'completed',
+      reportReady: row.status === 'completed' || stage === 'done',
       // null until transcription has measured it (ffprobe), never a guess.
       shortRecording: Number.isFinite(seconds) && seconds > 0 ? seconds < SHORT_RECORDING_SECONDS : null,
       hasLessonPlan: !!row.has_lesson_plan,

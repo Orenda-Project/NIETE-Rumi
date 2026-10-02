@@ -55,6 +55,21 @@ function makeChain(table) {
       }
       return chain;
     },
+    // PostgREST or=(col.op.value,…): the teacher routes keep a coach's unsent
+    // observation out (bd-5rz1v.6.4). is/eq/neq, with SQL's NULL semantics.
+    or: (expr) => {
+      const terms = String(expr).split(',').map((t) => {
+        const m = t.match(/^(.+?)\.(is|eq|neq)\.(.+)$/);
+        return (r) => {
+          const v = m[1].split(/->>?/).reduce((o, k, i) => (i === 0 ? r[k] : (o && typeof o === 'object' ? o[k] : undefined)), undefined);
+          if (m[2] === 'is') return m[3] === 'null' ? v == null : String(v) === m[3];
+          if (m[2] === 'eq') return v != null && String(v) === m[3];
+          return v != null && String(v) !== m[3];
+        };
+      });
+      tests.push((r) => terms.some((t) => t(r)));
+      return chain;
+    },
     gte: (c, v) => { tests.push((r) => r[c] >= v); return chain; },
     order: (col, opts = {}) => { order = { col, asc: opts.ascending !== false }; return chain; },
     limit: (n) => { cap = n; return chain; },
