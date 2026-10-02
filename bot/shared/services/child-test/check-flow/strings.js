@@ -1,12 +1,13 @@
 'use strict';
 
 /**
- * Child test check Flow (bd-s1oo0.6) — every word the coach reads on the check, per language (ur, en).
+ * Child test check Flow — every word the coach reads on the check, per language (ur, en).
  * The Flow JSON carries no copy of its own: each label is ${data.*}, filled from here by the endpoint,
  * so the coach reads the check in their own language.
  *
- * Urdu addresses the coach with imperatives and impersonal forms only (coaches are women and men), and
- * never gives Rumi a gendered verb ("جانچی نہیں جا سکی", not "جانچ نہیں سکا/سکی"). Children are the
+ * Urdu addresses the coach with imperatives and impersonal forms only (coaches are women and men). The
+ * bot never names itself here: marks are "from the recording" / "read from the photo", which is both
+ * what the coach needs to know and free of a gendered verb ("جانچی نہیں جا سکی"). Children are the
  * child or the roll number, never "she"/"he".
  * Caps, in code points (tests/child-test/L6/check-flow-contract.test.js): input labels 20, group labels
  * 30, helpers 80, footers 35, option titles 30, headings 80, the chat button 20, header 60.
@@ -20,10 +21,10 @@ const STRINGS = {
     wverdicts: [{ id: 'correct', title: 'Correct' }, { id: 'wrong', title: 'Wrong' }, { id: 'blank', title: 'Left blank' }, { id: 'unreadable', title: "Can't read it" }],
     readwrong: [{ id: 'wrong', title: 'Read wrong' }, { id: 'correct', title: 'Read right' }],
 
-    status_scored: "Rumi's marks are filled in. Change anything you heard differently. Empty fields: Rumi wasn't sure, so mark them.",
-    status_partial: 'Rumi could mark only part of this. Mark the empty fields from what you heard.',
+    status_scored: 'The marks from the recording are filled in. Change anything you heard differently. Empty fields were unclear in the recording: mark them yourself.',
+    status_partial: 'Only part of this could be marked from the recording. Mark the empty fields from what you heard.',
     status_failed: "This recording couldn't be marked. Mark every field from what you heard.",
-    status_pending: 'Rumi is still marking this part. Mark it from what you heard, or close this and open the check again in a minute.',
+    status_pending: 'This part is still being marked. Mark it from what you heard, or close this and open the check again in a minute.',
     status_missing: 'No recording arrived for this part. Mark it from what you heard.',
     status_coach: 'Already saved earlier: these are your saved marks. Tap save to go on.',
     status_locked: "This part was saved earlier and can't be changed now. Your saved marks are back in place; tap save to go on.",
@@ -32,8 +33,8 @@ const STRINGS = {
     t_story: 'Story, 60 seconds',
     t_wc: 'Words correct',
     t_wa: 'Words tried',
-    help_filled: "Rumi's count. Change it if you counted differently",
-    help_empty: "Rumi wasn't sure. Enter your count",
+    help_filled: 'From the recording. Change it if you counted differently',
+    help_empty: 'Unclear in the recording. Enter your count',
     help_of10: 'Out of 10',
     t_flag: 'Words read wrong',
     flag_cap: 'Untick any word the child read right.',
@@ -46,12 +47,12 @@ const STRINGS = {
     heard: (text) => `Heard: «${text}»`,
     heard_nothing: 'Heard: no answer',
     t_fs: 'First sounds',
-    hint: (text) => `Rumi's hint: «${text}»`,
+    hint: (text) => `Heard in the recording: «${text}» (a hint)`,
     no_hint: 'No hint',
     t_nw: 'Made-up words',
     t_nwc: 'Read wrong',
-    nwc_cap: 'Untick any the child read right. Rumi was sure of these.',
-    unsure: "Rumi wasn't sure. Mark what you heard",
+    nwc_cap: 'Untick any the child read right. These were clear in the recording.',
+    unsure: 'Unclear in the recording. Mark what you heard',
     t_num: 'Numbers read aloud',
     t_numc: 'Read wrong',
     numc_cap: 'Untick any number the child read right.',
@@ -59,8 +60,8 @@ const STRINGS = {
     t_qc: 'Sums correct',
     t_qa: 'Sums tried',
     t_wr: 'Written sums (from the photo)',
-    read_as: (text) => `Rumi read: «${text}»`,
-    read_nothing: "Rumi couldn't read an answer",
+    read_as: (text) => `Read from the photo: «${text}»`,
+    read_nothing: 'No answer could be read from the photo',
     t_wp: 'Word problem',
     wp_label: 'Word problem',
     next_urdu: 'Save Urdu, next: English',
@@ -81,7 +82,7 @@ const STRINGS = {
     child_line: (who, grade) => `${who} · Grade ${grade}`,
     roll: (n) => `roll ${n}`,
     check_header: (who) => `Check: ${who}`,
-    check_body: ({ who, urdu, english, maths }) => `Rumi's marks for ${who}: Urdu ${urdu}, English ${english}, maths ${maths}. Open the check, change anything you heard differently, and save. About a minute.`,
+    check_body: ({ who, urdu, english, maths }) => `Marks from the recording for ${who}: Urdu ${urdu}, English ${english}, maths ${maths}. Open the check, change anything you heard differently, and save. About a minute.`,
     words_line: (n) => `${n} words`,
     letters_line: (n) => `${n}/10 letters`,
     sums_line: (n) => `${n} quick sums`,
@@ -95,7 +96,7 @@ const STRINGS = {
     wverdicts: [{ id: 'correct', title: 'درست' }, { id: 'wrong', title: 'غلط' }, { id: 'blank', title: 'خالی چھوڑا' }, { id: 'unreadable', title: 'پڑھا نہیں جا سکا' }],
     readwrong: [{ id: 'wrong', title: 'غلط پڑھا' }, { id: 'correct', title: 'درست پڑھا' }],
 
-    status_scored: 'رومی کے نمبر بھرے ہوئے ہیں۔ جو آپ نے مختلف سنا ہو وہ بدلیں۔ خالی خانے: رومی کو یقین نہیں تھا، انہیں خود بھریں۔',
+    status_scored: 'ریکارڈنگ سے نمبر بھرے ہوئے ہیں۔ جو آپ نے مختلف سنا ہو وہ بدلیں۔ خالی خانے ریکارڈنگ میں واضح نہیں تھے، انہیں خود بھریں۔',
     status_partial: 'اس حصے کا کچھ ہی حصہ جانچا جا سکا۔ خالی خانے اپنے سنے ہوئے کے مطابق بھریں۔',
     status_failed: 'یہ ریکارڈنگ جانچی نہیں جا سکی۔ ہر خانہ اپنے سنے ہوئے کے مطابق بھریں۔',
     status_pending: 'یہ حصہ ابھی جانچا جا رہا ہے۔ اپنے سنے ہوئے کے مطابق بھریں، یا بند کر کے ایک منٹ بعد دوبارہ کھولیں۔',
@@ -107,8 +108,8 @@ const STRINGS = {
     t_story: 'کہانی، 60 سیکنڈ',
     t_wc: 'درست الفاظ',
     t_wa: 'پڑھنے کی کوشش',
-    help_filled: 'رومی کی گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں',
-    help_empty: 'رومی کو یقین نہیں۔ اپنی گنتی لکھیں',
+    help_filled: 'ریکارڈنگ سے گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں',
+    help_empty: 'ریکارڈنگ میں واضح نہیں۔ اپنی گنتی لکھیں',
     help_of10: '10 میں سے',
     t_flag: 'غلط پڑھے گئے الفاظ',
     flag_cap: 'جو لفظ بچے نے درست پڑھا ہو اس سے نشان ہٹائیں۔',
@@ -121,12 +122,12 @@ const STRINGS = {
     heard: (text) => `سنا گیا: «${text}»`,
     heard_nothing: 'سنا گیا: کوئی جواب نہیں',
     t_fs: 'پہلی آواز',
-    hint: (text) => `رومی کا اندازہ: «${text}»`,
+    hint: (text) => `ریکارڈنگ میں سنا گیا: «${text}» (اندازہ)`,
     no_hint: 'کوئی اندازہ نہیں',
     t_nw: 'بے معنی الفاظ',
     t_nwc: 'غلط پڑھے',
-    nwc_cap: 'جو بچے نے درست پڑھا ہو اس سے نشان ہٹائیں۔ ان پر رومی کو یقین تھا۔',
-    unsure: 'رومی کو یقین نہیں۔ جو سنا وہ چنیں',
+    nwc_cap: 'جو بچے نے درست پڑھا ہو اس سے نشان ہٹائیں۔ یہ ریکارڈنگ میں واضح تھے۔',
+    unsure: 'ریکارڈنگ میں واضح نہیں۔ جو سنا وہ چنیں',
     t_num: 'اونچی آواز میں نمبر',
     t_numc: 'غلط پڑھے',
     numc_cap: 'جو نمبر بچے نے درست پڑھا ہو اس سے نشان ہٹائیں۔',
@@ -134,8 +135,8 @@ const STRINGS = {
     t_qc: 'درست سوال',
     t_qa: 'کوشش کیے گئے سوال',
     t_wr: 'لکھے ہوئے سوال (تصویر سے)',
-    read_as: (text) => `رومی نے پڑھا: «${text}»`,
-    read_nothing: 'رومی کو کوئی جواب پڑھنے میں نہیں آیا',
+    read_as: (text) => `تصویر سے پڑھا گیا: «${text}»`,
+    read_nothing: 'تصویر سے کوئی جواب نہیں پڑھا جا سکا',
     t_wp: 'عبارتی سوال',
     wp_label: 'عبارتی سوال',
     next_urdu: 'اردو محفوظ کریں، اگلا: انگریزی',
@@ -156,7 +157,7 @@ const STRINGS = {
     child_line: (who, grade) => `${who} · جماعت ${grade}`,
     roll: (n) => `رول نمبر ${n}`,
     check_header: (who) => `جانچ: ${who}`,
-    check_body: ({ who, urdu, english, maths }) => `${who} کے لیے رومی کے نمبر: اردو ${urdu}، انگریزی ${english}، حساب ${maths}۔ جانچ کھولیں، جو مختلف سنا ہو بدلیں، اور محفوظ کریں۔ تقریباً ایک منٹ۔`,
+    check_body: ({ who, urdu, english, maths }) => `${who} کے لیے ریکارڈنگ سے نمبر: اردو ${urdu}، انگریزی ${english}، حساب ${maths}۔ جانچ کھولیں، جو مختلف سنا ہو بدلیں، اور محفوظ کریں۔ تقریباً ایک منٹ۔`,
     words_line: (n) => `${n} الفاظ`,
     letters_line: (n) => `${n}/10 حروف`,
     sums_line: (n) => `${n} فوری سوال`,

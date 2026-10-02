@@ -279,7 +279,7 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
-    // Child test (bd-s1oo0.6) — the coach confirms or corrects Rumi's marks for one child, one
+    // Child test — the coach confirms or corrects Rumi's marks for one child, one
     // pre-filled screen per block (Urdu, English, maths). Sandbox only for now: register it with
     // bot/scripts/setup/register-child-test-check-flow.js, which refuses any other account.
     // Regenerate the JSON with bot/scripts/generate-child-test-check-flow-json.js.

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test check Flow (bd-s1oo0.6) — the reads and writes the check needs.
+ * Child test check Flow — the reads and writes the check needs.
  *
  * L3's store.js owns the child-test tables (lanes/L3/STORE_API.md). When it is on the branch, every
  * session and block call goes through it: getSession, listBlocks, saveCoachMarks (written ONCE, next to

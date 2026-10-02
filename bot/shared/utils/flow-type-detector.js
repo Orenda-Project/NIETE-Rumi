@@ -147,7 +147,7 @@ function detectFlowType(responseJson) {
     return 'observe2';
   }
 
-  // 0.3b Child test check (bd-s1oo0.6) — the coach's check of one child's marks. Completes with a flat
+  // 0.3b Child test check — the coach's check of one child's marks. Completes with a flat
   //      `child_test` key; Meta can drop fields from a completion, so the token marker
   //      (<userId>:child-test-check:<sessionId>) is matched too. MUST sit above the loose
   //      attendance_marking fallback: the token carries colons and would otherwise land there.

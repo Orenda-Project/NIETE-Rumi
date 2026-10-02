@@ -1865,7 +1865,7 @@ app.post('/webhook', async (req, res) => {
           logToFile('❌ observe2 completion handler failed', { from, error: observe2Err.message }, 'error');
         }
       } else if (flowType === 'child_test_check') {
-        // Child test (bd-s1oo0.6): the coach's check of one child's marks. The endpoint saved each
+        // Child test: the coach's check of one child's marks. The endpoint saved each
         // block as its screen was submitted; this only confirms in one line (or says it did not save).
         try {
           const { handleCheckCompletion } = require('./shared/services/child-test/check-flow');

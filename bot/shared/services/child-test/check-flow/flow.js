@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test check Flow (bd-s1oo0.6) — the coach confirms or corrects Rumi's marks for one child.
+ * Child test check Flow — the coach confirms or corrects Rumi's marks for one child.
  *
  *   URDU     the story count (or, for a child who could not read the story, letters and words),
  *            the words heard wrong as pre-ticked chips, each question with the child's answer,
@@ -75,7 +75,7 @@ function screenWith(id, children, data, initValues) {
 }
 
 const number = (name, label, helper, visible) => ({
-  type: 'TextInput', name, label: d(label), 'input-type': 'number', required: true, 'helper-text': d(helper), ...(visible ? { visible: d(visible) } : {}),
+  type: 'TextInput', name, label: d(label), 'input-type': 'number', required: true, ...(helper ? { 'helper-text': d(helper) } : {}), ...(visible ? { visible: d(visible) } : {}),
 });
 const radio = (name, key, source) => ({
   type: 'RadioButtonsGroup', name, label: d(`${key}_t`), description: d(`${key}_d`), required: true, visible: d(`${key}_v`), 'data-source': d(source),
@@ -94,7 +94,7 @@ function readingScreen(block) {
     { type: 'TextBody', text: d('status_line') },
     { type: 'TextSubheading', text: d('t_story'), visible: d('story_v') },
     number(`${p}wc`, 't_wc', 'wc_h', 'story_v'),
-    number(`${p}wa`, 't_wa', 'wa_h', 'story_v'),
+    number(`${p}wa`, 't_wa', null, 'story_v'),
     { type: 'TextCaption', text: d('flag_cap'), visible: d('flag_v') },
     chips(`${p}flag`, 't_flag', 'flag'),
     { type: 'RadioButtonsGroup', name: `${p}sw`, label: d('sw_t'), required: true, visible: d('sw_v'), 'data-source': d('readwrong') },
@@ -134,7 +134,7 @@ function mathsScreen() {
   kids.push(
     { type: 'TextSubheading', text: d('t_qs'), visible: d('sec_v') },
     number(`${p}qc`, 't_qc', 'qc_h'),
-    number(`${p}qa`, 't_qa', 'qa_h'),
+    number(`${p}qa`, 't_qa', null),
     { type: 'TextSubheading', text: d('t_wr'), visible: d('sec_v') },
   );
   for (let i = 1; i <= s.w; i += 1) { kids.push(radio(`${p}w${i}`, `w${i}`, 'wverdicts')); init[`${p}w${i}`] = d(`w${i}_i`); }

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test — the check's endpoint (POST /api/flows/child-test-check), bd-s1oo0.6.
+ * Child test — the check's endpoint (POST /api/flows/child-test-check).
  *
  * Token: <coachUserId>:child-test-check:<sessionId>. Every request re-reads the session and checks it
  * belongs to the coach in the token; with CHILD_TEST_ENABLED off nothing is read at all.

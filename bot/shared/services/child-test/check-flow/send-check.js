@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test check Flow (bd-s1oo0.6) — the "Check" message L4 sends when a child's marks are back:
+ * Child test check Flow — the "Check" message L4 sends when a child's marks are back:
  * a Flow message with the child, the three headline numbers, and «جانچ کریں». It opens in
  * data_exchange mode (a flow token, no screen), so Meta calls the endpoint's INIT for screen 1.
  */

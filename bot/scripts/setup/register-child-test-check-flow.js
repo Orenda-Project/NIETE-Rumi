@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Register the child test check Flow on the NIETE **sandbox** WhatsApp account, and nowhere else
- * (bd-s1oo0.6).
+ *.
  *
  * The child test runs on sandbox only (golive PLAN §8). register-one-flow.js will register any flow on
  * whatever account an env file points at, and an env file's name is not evidence of which account that

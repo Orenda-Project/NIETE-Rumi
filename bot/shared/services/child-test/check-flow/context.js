@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test check Flow (bd-s1oo0.6) — everything one request needs about a session, re-read every
+ * Child test check Flow — everything one request needs about a session, re-read every
  * time and only for the coach whose token it is.
  */
 

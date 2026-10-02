@@ -87,7 +87,7 @@ describe('below the bar the counts arrive empty', () => {
     const { data } = render('urdu', F.urduUnsureStory());
     expect(data.wc_i).toBe('');
     expect(data.wa_i).toBe('');
-    expect(data.wc_h).toBe('رومی کو یقین نہیں۔ اپنی گنتی لکھیں');
+    expect(data.wc_h).toBe('ریکارڈنگ میں واضح نہیں۔ اپنی گنتی لکھیں');
   });
 });
 

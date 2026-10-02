@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test check Flow (bd-s1oo0.6) — one form's items from the item bank (CONTRACT §2), for the
+ * Child test check Flow — one form's items from the item bank (CONTRACT §2), for the
  * question text, the made-up words, the numbers and the written sums the check shows.
  *
  * Read from, in order: the file named by CHILD_TEST_ITEM_BANK_PATH (tests, the mock lane); L1's

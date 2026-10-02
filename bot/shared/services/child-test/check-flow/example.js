@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test check Flow (bd-s1oo0.6) — the example a screen shows in Meta's builder and in the
+ * Child test check Flow — the example a screen shows in Meta's builder and in the
  * mockups: a made-up Grade 3 child (roll 14, no name) whose marks exercise every kind of field —
  * pre-filled counts, ticked and unticked chips, an empty unsure answer, a read photo answer. It is
  * rendered through the same code the endpoint uses, so the JSON's __example__ values are real output.

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test check Flow (bd-s1oo0.6) — the per-field confidence bars, read from L5's
+ * Child test check Flow — the per-field confidence bars, read from L5's
  * scoring/thresholds.js. Until that module is on the branch, the same bars are used from here, so the
  * check behaves the same either way; once it lands, its values win.
  */

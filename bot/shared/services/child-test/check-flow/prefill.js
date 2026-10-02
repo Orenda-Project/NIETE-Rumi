@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test check Flow (bd-s1oo0.6) — one block's screen, from its marks, and back.
+ * Child test check Flow — one block's screen, from its marks, and back.
  *
  *   planBlock    what each field shows and whether it arrives filled: a mark that clears its bar
  *                (bars.js) is pre-filled; one below it arrives EMPTY and the Flow requires it. Items
@@ -232,7 +232,8 @@ function renderMaths(plan, S, lang, data) {
   data.t_wp = S.t_wp;
   data.wp_v = Boolean(wp);
   data.wp_t = wp ? S.wp_label : '';
-  const prompt = wp ? (lang === 'ur' ? wp.item.prompt_ur : wp.item.prompt_en) || wp.item.prompt_en || wp.item.prompt_ur : '';
+  // The item bank keys the prompt by language (prompt_ur / prompt_en); the coach's own first.
+  const prompt = wp ? wp.item[`prompt_${lang}`] || wp.item.prompt_ur || wp.item.prompt_en || '' : '';
   const read = wp && wp.mark ? (has(wp.mark.read_answer) ? S.read_as(wp.mark.read_answer) : S.read_nothing) : null;
   data.wp_d = wp ? clip([prompt, read].filter(Boolean).join(' · '), CAP.desc) : '';
   data.wp_i = wp ? (wp.mark && VERDICTS.has(wp.mark.verdict) && plan.sure('maths.word_problem', wp.mark.confidence) ? wp.mark.verdict : '') : 'none';

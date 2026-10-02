@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Child test check Flow (bd-s1oo0.6) — the Flow's completion (nfm_reply). The endpoint saved every
+ * Child test check Flow — the Flow's completion (nfm_reply). The endpoint saved every
  * block as its screen was submitted, so this only confirms in one line; when the session did NOT end
  * up checked (a block without checked_at), the coach is told so (and it is logged as an error) rather than left believing it saved.
  */
