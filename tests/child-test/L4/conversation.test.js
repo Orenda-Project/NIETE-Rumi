@@ -234,9 +234,19 @@ describe('absent and refused', () => {
     expect(lanes.calls.find((c) => c[0] === 'markOutcome')[1]).toMatchObject({ drawId: 'd2', outcome });
     expect(lanes.calls.find((c) => c[0] === 'createSession')).toBeUndefined();
     expect(sent().some((m) => m.kind === 'text' && rx.test(m.text) && /Roll 6 from the alternates/.test(m.text))).toBe(true);
-    const rows = last('list').action.sections[0].rows.map((r) => r.id);
-    expect(rows).toEqual(['ctst_child:d1', 'ctst_child:d6', 'ctst_child:d3', 'ctst_child:d4', 'ctst_child:d5']);
+    const rows = last('list').action.sections[0].rows;
+    // the five to test first, then the absent/refused child, marked; "of 5" counts only the five
+    expect(rows.map((r) => r.id)).toEqual(['ctst_child:d1', 'ctst_child:d3', 'ctst_child:d4', 'ctst_child:d6', 'ctst_child:d5', 'ctst_child:d2']);
+    expect(rows[5].description).toMatch(outcome === 'absent' ? /Absent/ : /Refused/);
+    expect(last('list').body.text).toMatch(/Done: 0 of 5/);
     expect(await H.handleVoice(voice('stray'), PHONE, COACH)).toBe(false);
+    // tapping the absent child again starts nothing
+    await H.handleList(COACH, PHONE, 'ctst_child:d2');
+    expect(last('text').text).toMatch(rx);
+    expect(lanes.calls.filter((c) => c[0] === 'markOutcome')).toHaveLength(1);
+    // the promoted child is now "Child 4 of 5"
+    await H.handleList(COACH, PHONE, 'ctst_child:d6');
+    expect(last('buttons').body).toMatch(/^\*Child 4 of 5\*/);
   });
 });
 

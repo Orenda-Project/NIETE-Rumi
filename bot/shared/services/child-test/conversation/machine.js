@@ -32,6 +32,10 @@ const OUTCOME_OF = { p: 'present', a: 'absent', r: 'refused' };
 const SCORED_BLOCKS_PER_SESSION = BLOCKS.length;
 const CANCEL_RX = /^(?:\/cancel|cancel|stop|منسوخ|روکیں)$/i;
 const MENU_RX = /^\/menu$/i;
+// L3 keeps an absent or refused child on the visit's main list, marked; they are not one of "the five".
+const INACTIVE = new Set(['absent', 'refused', 'absent_final']);
+const active = (children) => (children || []).filter((c) => !INACTIVE.has(c.status));
+const nameFor = (lang, c) => (lang === 'en' ? c.displayName : (c.displayNameUrdu || c.displayName)) || '';
 
 const nowIso = () => new Date().toISOString();
 const r2Env = () => process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT_NAME || process.env.ENVIRONMENT || 'local';
@@ -125,7 +129,8 @@ async function sessionsByDraw(ctx) {
 
 function rowDescription(lang, child, sess, currentDrawId) {
   const parts = [t(lang, child.role === 'returning' ? 'childTestRoleReturning' : 'childTestRoleNew')];
-  if (child.drawId === currentDrawId) parts.push(t(lang, 'childTestStatusInProgress'));
+  if (INACTIVE.has(child.status)) parts.push(t(lang, child.status === 'refused' ? 'childTestStatusRefused' : 'childTestStatusAbsent'));
+  else if (child.drawId === currentDrawId) parts.push(t(lang, 'childTestStatusInProgress'));
   else if (sess && sess.status === 'completed') {
     parts.push(t(lang, 'childTestStatusTested'));
     if (sess.checkWaiting) parts.push(t(lang, 'childTestStatusCheckWaiting'));
@@ -137,24 +142,26 @@ async function sendList(user, from, ctx, list, state) {
   const lang = langOf(user);
   const sess = await sessionsByDraw(ctx);
   const currentDrawId = state && state.current && state.current.sessionId ? state.current.drawId : null;
-  const children = list.children || [];
+  const children = active(list.children);
+  const inactive = (list.children || []).filter((c) => INACTIVE.has(c.status));
   const done = children.filter((c) => sess[c.drawId] && sess[c.drawId].status === 'completed').length;
+  const shown = [...children, ...inactive].slice(0, 10);
   const checks = Object.values(sess).filter((s) => s.checkWaiting).length;
   const sections = [{
     title: clip(t(lang, 'childTestSectionChildren'), 24),
-    rows: children.map((c) => ({
+    rows: shown.map((c) => ({
       id: `ctst_child:${c.drawId}`,
-      title: clip(t(lang, 'childTestRowTitle', { roll: c.rollNumber, name: c.displayName || '' }), 24),
+      title: clip(t(lang, 'childTestRowTitle', { roll: c.rollNumber, name: nameFor(lang, c) }), 24),
       description: rowDescription(lang, c, sess[c.drawId], currentDrawId),
     })),
   }];
-  const alts = (list.alternates || []).slice(0, Math.max(0, 10 - children.length));
+  const alts = (list.alternates || []).slice(0, Math.max(0, 10 - shown.length));
   if (alts.length) {
     sections.push({
       title: clip(t(lang, 'childTestSectionAlternates'), 24),
       rows: alts.map((c) => ({
         id: `ctst_alt:${c.drawId}`,
-        title: clip(t(lang, 'childTestRowTitle', { roll: c.rollNumber, name: c.displayName || '' }), 24),
+        title: clip(t(lang, 'childTestRowTitle', { roll: c.rollNumber, name: nameFor(lang, c) }), 24),
         description: clip(t(lang, 'childTestAlternateRow'), 72),
       })),
     });
@@ -301,20 +308,25 @@ async function onChildTapped(user, from, drawId, { alternate = false } = {}) {
     logError('child_test.list_failed', { coachUserId: user.id, reason: res && (res.reason || res.error) });
     return say(from, t(lang, 'childTestListFailed'));
   }
-  const idx = res.children.findIndex((c) => c.drawId === drawId);
+  const marked = (res.children || []).find((c) => c.drawId === drawId && INACTIVE.has(c.status));
+  if (marked) {
+    return say(from, t(lang, marked.status === 'refused' ? 'childTestOutcomeRefused' : 'childTestOutcomeAbsent', { roll: marked.rollNumber }));
+  }
+  const five = active(res.children);
+  const idx = five.findIndex((c) => c.drawId === drawId);
   if (idx < 0) {
     if (alternate || (res.alternates || []).some((c) => c.drawId === drawId)) return say(from, t(lang, 'childTestAlternateTapped'));
     await say(from, t(lang, 'childTestNotOnList'));
     return sendList(user, from, state.ctx, res, state);
   }
-  const child = res.children[idx];
+  const child = five[idx];
   const cur = state.current;
   if (state.step === 'block' && cur && cur.drawId !== drawId) {
     return say(from, t(lang, 'childTestBusy', { roll: cur.rollNumber, block: blockName(lang, cur.block) }));
   }
   if (state.step === 'block' && cur && cur.drawId === drawId) return sendPrompt(user, from, state);
 
-  const base = { drawId, rollNumber: child.rollNumber, childNo: idx + 1, total: res.children.length, tappedAt: nowIso(),
+  const base = { drawId, rollNumber: child.rollNumber, childNo: idx + 1, total: five.length, tappedAt: nowIso(),
     listIds: res.children.map((c) => c.drawId) };
   if (child.status === 'tested') {
     const r = await ports.store.getSessionByDraw(drawId);
@@ -331,7 +343,7 @@ async function onChildTapped(user, from, drawId, { alternate = false } = {}) {
   }
   await S.set(user.id, { ...state, step: 'presence', current: base });
   return buttons(from,
-    `*${progressChild(lang, base)}*\n${t(lang, 'childTestPresenceBody', { roll: child.rollNumber, name: child.displayName || '' })}`,
+    `*${progressChild(lang, base)}*\n${t(lang, 'childTestPresenceBody', { roll: child.rollNumber, name: nameFor(lang, child) })}`,
     [
       { id: `ctst_pres:${drawId}:p`, title: clip(t(lang, 'childTestPresent'), 20) },
       { id: `ctst_pres:${drawId}:a`, title: clip(t(lang, 'childTestAbsent'), 20) },

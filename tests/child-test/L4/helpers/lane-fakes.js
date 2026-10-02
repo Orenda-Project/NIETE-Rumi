@@ -50,9 +50,13 @@ function createLaneFakes({ noClassList = false } = {}) {
       if (child.status !== 'listed') return { ok: false, reason: 'already_marked' };
       if (args.outcome === 'present') child.status = 'tested';
       else {
-        list.children.splice(idx, 1);
+        // As L3: the child stays on the main list, marked; the first alternate joins it, and the
+        // main list is ordered new-before-returning, then by rank.
+        child.status = args.outcome;
         const promoted = list.alternates.shift();
-        if (promoted) list.children.splice(idx, 0, promoted);
+        if (promoted) list.children.push(promoted);
+        const n = (c) => Number(c.drawId.slice(1));
+        list.children.sort((a, b) => (a.role === b.role ? n(a) - n(b) : a.role === 'new' ? -1 : 1));
       }
       return { ok: true, list: clone(list) };
     },
