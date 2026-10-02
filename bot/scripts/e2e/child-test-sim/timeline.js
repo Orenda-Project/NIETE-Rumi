@@ -64,6 +64,21 @@ function summarise(events) {
       rtt[e.block === 'urdu' ? 'rtt_first_prompt' : 'rtt_block_ready'].push(e.wait_s);
       if (e.child && perChild[e.child]) perChild[e.child].blocks[`${e.block}_ready`] = { wait_s: e.wait_s };
     }
+    // the check (check-play.js via coach.js): every priced action, then check_done with the total
+    if (e.dir === 'mark' && e.step === 'check_action' && perChild[e.child]) {
+      const c = perChild[e.child].check = perChild[e.child].check || { actions: 0, typed: 0, ticked: 0, chosen: 0, missed: 0, fixes: 0 };
+      c.actions += 1;
+      if (e.reason === 'missed') c.missed += 1;
+      else if (e.action === 'type_count') c.typed += 1;
+      else if (e.action === 'tick_chip') c.ticked += 1;
+      else if (e.action === 'choose_radio') c.chosen += 1;
+      else if (e.action === 'fix_error') c.fixes += 1;
+    }
+    if (e.dir === 'mark' && e.step === 'check_done' && perChild[e.child]) {
+      const c = perChild[e.child].check = perChild[e.child].check || { actions: 0, typed: 0, ticked: 0, chosen: 0, missed: 0, fixes: 0 };
+      Object.assign(c, { check_s: e.check_s, ok: e.ok, ...(e.rtt_s ? { rtt_s: e.rtt_s } : {}) });
+      if (e.ok) rtt.rtt_flow_screen.push(...(e.rtt_s || []));
+    }
     if (e.dir === 'mark' && e.step === 'child_done' && perChild[e.child]) {
       perChild[e.child].done_s = sec(e.t_ms);
       perChild[e.child].elapsed_s = Math.round((perChild[e.child].done_s - perChild[e.child].start_s) * 1000) / 1000;
@@ -73,7 +88,9 @@ function summarise(events) {
   const q = (xs, f) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(f * (xs.length - 1))] : null);
   const stats = {};
   for (const [k, xs] of Object.entries(rtt)) stats[k] = { n: xs.length, p50: q(xs, 0.5), p90: q(xs, 0.9), max: xs.length ? Math.max(...xs) : null };
-  return { total_s: total, per_child: perChild, rtt_samples: rtt, rtt_stats: stats };
+  const checkTimes = Object.values(perChild).filter((c) => c.check && c.check.ok && typeof c.check.check_s === 'number').map((c) => c.check.check_s);
+  const checks = { n: checkTimes.length, total_s: Math.round(checkTimes.reduce((a, x) => a + x, 0) * 1000) / 1000, p50: q(checkTimes, 0.5), max: checkTimes.length ? Math.max(...checkTimes) : null };
+  return { total_s: total, per_child: perChild, rtt_samples: rtt, rtt_stats: stats, checks };
 }
 
 module.exports = { createTimeline, summarise };
