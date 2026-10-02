@@ -6567,7 +6567,7 @@ router.get('/video/:id', requirePortalAuth, async (req, res) => {
 /**
  * GET /api/portal/config
  *
- * bd-2460 — what this deployment currently offers, so the browser can render an
+ * What this deployment currently offers, so the browser can render an
  * honest surface instead of a form that would 503 on submit. Public (no auth):
  * it exposes nothing but feature availability, and the login screen may need it.
  *
@@ -6628,7 +6628,7 @@ router.get('/me/language', requirePortalAuth, async (req, res) => {
  */
 router.put('/me/language', requirePortalAuth, async (req, res) => {
   try {
-    // bd-60085 — over the internal API, not by requiring language-cache in-process. That module
+    // Over the internal API, not by requiring language-cache in-process. That module
     // reaches bot/shared/config/supabase.js and its `require('dotenv')`, which the portal
     // service cannot resolve from inside bot/ (see training-bands.service.js). The route looked
     // fine and would have 500'd the first time a teacher changed her language.
