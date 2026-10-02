@@ -9,9 +9,10 @@
  *
  * So: no vendor, no rail. Pick a provider first.
  *
- * The exception is a teacher with exactly ONE provider, who has no choice to
- * make: her vendor is auto-selected so she is not asked a question with one
- * answer (the same rule already applied to single-course levels).
+ * bd-klecr — picking a provider now OPENS its own page (/provider/:key), and
+ * there is no longer an exception for a teacher with one provider: every page
+ * always shows (operator, 2026-10-02), so her single card is shown, not
+ * skipped past.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -27,8 +28,19 @@ vi.mock("../components/PortalLayout", () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 import PortalTrainingV2 from "./PortalTrainingV2";
+import { TRAINING_V2_PATHS } from "../lib/trainingRoutes";
+
+function renderTraining() {
+  return render(
+    <MemoryRouter initialEntries={["/portal/training"]}>
+      <Routes>
+        {TRAINING_V2_PATHS.map(p => <Route key={p} path={p} element={<PortalTrainingV2 />} />)}
+      </Routes>
+    </MemoryRouter>,
+  );
+}
 
 const VENDOR_NIETE = {
   vendor_key: "TALEEMABAD", vendor_name: "NIETE",
@@ -69,7 +81,7 @@ describe("bd-60148 — the level rail is gated on a vendor", () => {
       [VENDOR_NIETE, VENDOR_BH],
       [level(1, "Aspiring Teacher", "TALEEMABAD", 0), level(9, "English", "BEACONHOUSE", 0)],
     );
-    render(<MemoryRouter><PortalTrainingV2 /></MemoryRouter>);
+    renderTraining();
 
     // The vendor cards are up...
     expect(await screen.findByTestId("vendor-card-TALEEMABAD")).toBeInTheDocument();
@@ -92,7 +104,7 @@ describe("bd-60148 — the level rail is gated on a vendor", () => {
         level(10, "Mathematics", "BEACONHOUSE", 1),
       ],
     );
-    render(<MemoryRouter><PortalTrainingV2 /></MemoryRouter>);
+    renderTraining();
 
     await userEvent.click(await screen.findByTestId("vendor-card-TALEEMABAD"));
 
@@ -103,11 +115,15 @@ describe("bd-60148 — the level rail is gated on a vendor", () => {
     expect(screen.queryByTestId("level-card-10")).not.toBeInTheDocument();
   });
 
-  it("auto-selects the only provider a teacher has, so she is not asked", async () => {
+  it("shows a single provider's card rather than skipping to its levels", async () => {
     mockApi([VENDOR_NIETE], [level(1, "Aspiring Teacher", "TALEEMABAD", 0), level(2, "Emerging", "TALEEMABAD", 1)]);
-    render(<MemoryRouter><PortalTrainingV2 /></MemoryRouter>);
+    renderTraining();
 
-    // No click: the rail is there because the single vendor selected itself.
+    expect(await screen.findByTestId("vendor-card-TALEEMABAD")).toBeInTheDocument();
+    await new Promise(r => setTimeout(r, 30));
+    expect(screen.queryByTestId("level-rail")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("vendor-card-TALEEMABAD"));
     await waitFor(() => expect(screen.getByTestId("level-rail")).toBeInTheDocument());
     expect(screen.getByTestId("level-card-1")).toBeInTheDocument();
   });
