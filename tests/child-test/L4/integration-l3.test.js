@@ -101,9 +101,12 @@ maybe('with L3\'s real draw and store', () => {
     const absentId = ids[1].split(':')[1];
     await H.handleList(COACH, PHONE, `ctst_child:${absentId}`);
     await H.handleButton(COACH, PHONE, `ctst_pres:${absentId}:a`);
-    const after = last('list').action.sections[0].rows.map((r) => r.id);
+    const afterRows = last('list').action.sections[0].rows;
+    const after = afterRows.map((r) => r.id);
     expect(after).toContain(`ctst_child:${alt}`);
-    expect(after).not.toContain(`ctst_child:${absentId}`);
+    expect(after[after.length - 1]).toBe(`ctst_child:${absentId}`);   // still shown, last, marked
+    expect(afterRows[afterRows.length - 1].description).toMatch(/Absent/);
+    expect(last('list').body.text).toMatch(/of 5/);
     await H.handleText(PHONE, '/egra', COACH);
     expect(last('list').action.sections[0].rows.map((r) => r.id)).toEqual(after);
     expect(T().child_test_sessions).toHaveLength(0);
