@@ -26,18 +26,53 @@ const STUDY_AGREEMENT = Object.freeze({
 /** Bias of each counter against the enumerator on the same windows (§3b): Gemini minus STT alignment. */
 const EXPECTED_GEMINI_MINUS_ALIGNMENT = Object.freeze({ urdu: 13.8, english: 8.0 });
 
-const FIELD_BARS = Object.freeze({
-  'story.words_correct': 0.7,
-  'story.flagged': 0.6,
-  fallback: 0.7,
-  questions: 0.7,
-  first_sounds: 0.7,     // hint-only: never pre-filled whatever its confidence (see prefill)
-  nonwords: 0.65,
-  'maths.numbers': 0.75,
-  'maths.quick_sums': 0.7,
-  'maths.written': 0.75,
-  'maths.word_problem': 0.7,
+/** A bar above any confidence: the field always arrives empty and the coach marks it. */
+const NEVER = 1.01;
+
+/**
+ * Bars set from run 3 on the L8 fixtures (golive/lanes/L5/EVAL.md, 2 Oct 2026): 53 real children
+ * (May 2026 recordings, enumerator keys), 12 synthetic children, 50 strip photos. A bar is the lowest
+ * confidence at which the AI's mark agreed with the key at least as often as the human floor; where no
+ * confidence did, the field is NEVER pre-filled. Per-language where the two languages differed.
+ */
+const FIELD_BARS_BY_LANG = Object.freeze({
+  'story.words_correct': Object.freeze({ urdu: NEVER, english: 0.7 }),
+  questions: Object.freeze({ urdu: 0.7, english: 0.9 }),
+  nonwords: Object.freeze({ urdu: 0.65, english: NEVER }),
 });
+
+const BAR_EVIDENCE = Object.freeze({
+  'story.words_correct': 'Urdu real: confidence anti-calibrated (>=0.70: 56% within +-5, n 9; all: 71%). English real >=0.70: 88% within +-5 (n 16), synthetic 100% (n 6).',
+  'story.flagged': 'Real per-word precision 0.25 at every bar (Urdu n 163, English n 159) vs study 0.48/0.31: chips are shown, never pre-ticked.',
+  fallback: 'Letters r 0.19 MAE 3.9/10, words r 0.26 MAE 5.3/10 (n 30): coach marks.',
+  questions: 'Urdu real >=0.70: 79% (n 67) vs floor 73%. English real >=0.70: 58% (n 19), >=0.90: 71% (n 7). Synthetic 100%.',
+  first_sounds: 'Hint only (coach marks); synthetic agreement 92% (n 60).',
+  nonwords: 'English real 41-43% at any bar (n 304) vs floor 52%; synthetic English worse when confident (67% vs 78%). Urdu synthetic 97% (n 60), no real Urdu made-up words yet.',
+  'maths.numbers': 'Synthetic >=0.65: 98% (n 48); real not keyed (May items were magnitude comparisons).',
+  'maths.quick_sums': 'Confidence is a constant 0.7. After the alignment fix (714ebe70): real MAE 3.5, within +-3 62% (n 42), synthetic 50% (n 12) vs floor 90%.',
+  'maths.written': 'Strips >=0.85: 98.3% (n 240) vs 97.2% at 0.75 (n 246); floor 88%.',
+  'maths.word_problem': 'Strip misses were all unreadable at confidence 0; floor 87%.',
+});
+
+const BASE_BARS = {
+  'story.flagged': NEVER,
+  fallback: NEVER,
+  first_sounds: 0.7,     // hint-only: never pre-filled whatever its confidence (see prefill)
+  'maths.numbers': 0.75,
+  'maths.quick_sums': NEVER,
+  'maths.written': 0.85,
+  'maths.word_problem': 0.7,
+};
+// Read without a language (L6's check Flow reads this flat), a field gets the strictest of its languages.
+for (const [f, by] of Object.entries(FIELD_BARS_BY_LANG)) BASE_BARS[f] = Math.max(...Object.values(by));
+const FIELD_BARS = Object.freeze(BASE_BARS);
+
+/** The bar for a field, in a language when the bar differs by language. */
+function barFor(field, lang) {
+  const by = FIELD_BARS_BY_LANG[field];
+  if (by && lang && by[lang] != null) return by[lang];
+  return FIELD_BARS[field];
+}
 
 /** Letters and first sounds are marked by the coach; the AI verdict is a hint only. */
 const HINT_CONFIDENCE_CAP = 0.4;
@@ -52,9 +87,9 @@ const PROTOCOL_PENALTY = Object.freeze({
 const clamp01 = (x) => Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0));
 
 /** Should L6 pre-fill this field? */
-function prefill(field, confidence, { hint_only: hintOnly = false } = {}) {
+function prefill(field, confidence, { hint_only: hintOnly = false, lang = null } = {}) {
   if (hintOnly) return false;
-  const bar = FIELD_BARS[field];
+  const bar = barFor(field, lang);
   if (bar == null) return false;
   return clamp01(confidence) >= bar;
 }
@@ -80,7 +115,7 @@ function storyConfidence({ lang, geminiCorrect, alignCorrect, flags = [], speech
   return Math.round(clamp01(c) * 100) / 100;
 }
 
-/** A per-word chip: shown pre-ticked only where two scorers agree (HARNESS_RESULTS §8). */
+/** A per-word chip: confidence rises with the scorers that agree (HARNESS_RESULTS §8). Never pre-ticked for now (BAR_EVIDENCE). */
 function chipConfidence({ gemini, alignment, speechace = null }) {
   const votes = [gemini, alignment, speechace].filter((v) => v === true).length;
   if (!gemini && votes === 0) return 0;
@@ -90,6 +125,6 @@ function chipConfidence({ gemini, alignment, speechace = null }) {
 }
 
 module.exports = {
-  FIELD_BARS, HINT_CONFIDENCE_CAP, STUDY_AGREEMENT, EXPECTED_GEMINI_MINUS_ALIGNMENT, PROTOCOL_PENALTY,
+  FIELD_BARS, FIELD_BARS_BY_LANG, BAR_EVIDENCE, NEVER, barFor, HINT_CONFIDENCE_CAP, STUDY_AGREEMENT, EXPECTED_GEMINI_MINUS_ALIGNMENT, PROTOCOL_PENALTY,
   prefill, storyConfidence, chipConfidence, clamp01,
 };
