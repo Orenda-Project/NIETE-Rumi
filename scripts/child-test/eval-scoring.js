@@ -102,9 +102,44 @@ function realSpec(key, block) {
   return base;
 }
 
+// Synthetic fixtures were scripted by L8 from its own provisional items (ids syn-*).
+const SYN = (() => { try { return JSON.parse(fs.readFileSync(path.join(FIX, '_build', 'synth_items.json'), 'utf8')); } catch (_) { return null; } })();
+const toks = (t) => String(t || '').split(/\s+/).map((w) => w.replace(/[۔،.,!?؟:;"'()]/g, '')).filter(Boolean);
+
 function synthSpec(key, block) {
-  if (key.items && key.items[block]) return key.items[block];
-  return BANK.grades[String(key.grade)].forms[key.form || 'A'][block];
+  if (!SYN) return BANK.grades[String(key.grade)].forms[key.form || 'A'][block];
+  const g5 = Number(key.grade) === 5;
+  if (block === 'maths') {
+    const m = SYN.maths;
+    const nums = (g5 ? m.numbers_g5 : m.numbers_g3) || [];
+    const sums = (g5 ? m.quick_sums_g5 : m.quick_sums_g3) || [];
+    const ev = (p) => { const [a, op, b] = p.split(/\s+/); return op === '+' ? Number(a) + Number(b) : Number(a) - Number(b); };
+    return {
+      numbers: nums.map(([v], i) => ({ id: `syn-m${key.grade}-n${i + 1}`, value: v })),
+      quick_sums: sums.map((p, i) => ({ id: `syn-m${key.grade}-qs${i + 1}`, prompt: p, answer: ev(p) })),
+      written: [], word_problem: null,
+    };
+  }
+  const L = SYN[block];
+  const text = g5 ? `${L.story_g3} ${L.story_g5_continuation}` : L.story_g3;
+  return {
+    story: { id: `syn-${block}-story`, text, tokens: toks(text) },
+    questions: (L.questions || []).map((q) => ({ id: q.id, prompt: q.prompt, accept: [q.right], reject: [q.wrong], rubric: '' })),
+    first_sounds: (L.first_sounds || []).map((f) => ({ id: f.id, word: f.word, sound: f.sound })),
+    nonwords: (L.nonwords || []).map((n) => ({ id: n.id, text: n.text, sounds: [...n.text] })),
+    fallback: L.fallback ? { letters: L.fallback.letters, words: L.fallback.words } : null,
+  };
+}
+
+// The synthetic coach speaks a fixed intro line before each section (CR-4): pass them as section cues.
+function synthCue() {
+  if (!SYN || !SYN.coach) return BANK.cue;
+  const c = SYN.coach;
+  return {
+    urdu: { ...BANK.cue.urdu, questions: c.questions_intro, first_sounds: c.first_sounds_intro, nonwords: c.nonwords_intro },
+    english: { ...BANK.cue.english, questions: c.english_questions_intro, nonwords: c.english_nonwords_intro },
+    maths: { ...BANK.cue.maths, numbers: c.numbers_intro, quick_sums: c.quick_sums_intro },
+  };
 }
 
 // ---- in-memory store (L3 API shape) ----------------------------------------------
@@ -124,13 +159,13 @@ const copyToTemp = (file, ext) => {
   return Promise.resolve(p);
 };
 
-async function runBlock({ id, dir, block, grade, form, spec, photo }) {
+async function runBlock({ id, dir, block, grade, form, spec, photo, cue }) {
   const cacheFile = path.join(OUT, 'cache', `${id}__${block}.json`);
   if (fs.existsSync(cacheFile)) return JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
   const audio = path.join(dir, `${block}.ogg`);
   const row = { id: `${id}-${block}`, block, audio_r2_key: fs.existsSync(audio) ? audio : null, photo_r2_key: photo || null, ai_marks: null };
   const store = memStore(row);
-  const itemBank = { getForm: () => ({ [block]: spec }), cue: BANK.cue, version: BANK.version };
+  const itemBank = { getForm: () => ({ [block]: spec }), cue: cue || BANK.cue, version: BANK.version };
   const t0 = Date.now();
   const res = await scoreBlock({ sessionId: id, block, grade, form, force: true }, { store, itemBank, fetchMedia: copyToTemp });
   const rec = { id, block, res, wall_s: (Date.now() - t0) / 1000, aiMarks: store.out.saved && store.out.saved.aiMarks, transcript: store.out.saved && store.out.saved.transcript, statuses: store.out.statuses };
@@ -220,7 +255,7 @@ async function main() {
       for (const block of ['urdu', 'english', 'maths']) {
         if (!fs.existsSync(path.join(root, id, `${block}.ogg`))) continue;
         const spec = kind === 'real' ? realSpec(key, block) : synthSpec(key, block);
-        jobs.push({ id, dir: path.join(root, id), block, grade: key.grade, form: key.form || 'A', spec, key });
+        jobs.push({ id, dir: path.join(root, id), block, grade: key.grade, form: key.form || 'A', spec, key, cue: kind === 'synthetic' ? synthCue() : BANK.cue });
       }
     }
     console.log(`${kind}: ${jobs.length} block notes`);
@@ -296,7 +331,10 @@ async function main() {
       if (rows.length) summary.items[`${field}.${kind}`] = { ...agreement(rows), confident: agreement(rows.filter((r) => (r.conf || 0) >= 0.7)) };
     }
   }
-  summary.quick_sums = { correct: stats(qsPairs.map((p) => ({ ai: p.ai, key: p.key }))), attempted: stats(qsPairs.map((p) => ({ ai: p.aiAtt, key: p.keyAtt }))) };
+  for (const kind of ['real', 'synthetic']) {
+    const q = qsPairs.filter((p) => p.kind === kind);
+    if (q.length) summary.quick_sums[kind] = { correct: stats(q.map((p) => ({ ai: p.ai, key: p.key }))), attempted: stats(q.map((p) => ({ ai: p.aiAtt, key: p.keyAtt }))) };
+  }
   summary.fallback = { letters: stats(fbPairs.filter((p) => p.f === 'letters')), words: stats(fbPairs.filter((p) => p.f === 'words')) };
 
   const strip = (results.strips || []).filter((s) => s && s.r && s.r.ok);

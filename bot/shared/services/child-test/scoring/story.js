@@ -79,22 +79,24 @@ async function scoreStory({ lang, spec, file, window, words, coachSpeaker, flags
   const model = modelFor('counts');
   let clip = null;
   try {
-    clip = await cutClip(file, window.start - 0.5, window.end + 1, 'mp3');
-    const r = await chatJSON({ model, prompt: prompts.STORY({ lang, tokens }), audio: { data: clip.base64, format: 'mp3' }, job: 'child_test.story' });
-    calls.push({ job: 'story', model, cost: r.cost, seconds: r.seconds, error: r.error });
-    if (!r.json) return { ok: false, error: r.error || 'no_json' };
-
     // the study's baseline on the same window: STT words (child only when diarised) aligned to the text
     const hyp = wordsIn(words, window, { excludeSpeaker: coachSpeaker });
-
-    const verdicts = capAttempted(verdictsFrom(r.json, tokens.length), hyp.length);
-    const attempted = attemptedOf(verdicts);
-    const correct = verdicts.slice(0, attempted).filter((v) => v === 'correct').length;
     const aligned = align(ref, hyp.map((h) => h.w));
     const alignAtt = (() => { for (let i = aligned.status.length - 1; i >= 0; i -= 1) if (aligned.status[i] !== 'omit') return i + 1; return 0; })();
     const alignCorrect = aligned.status.slice(0, alignAtt).filter((s) => s === 'correct').length;
 
-    const sa = lang === 'english' ? await speechAceWrong({ file, window, tokens, aligned, hyp, calls }) : null;
+    // Gemini and SpeechAce are independent: run them side by side (latency budget < 60 s per block)
+    clip = await cutClip(file, window.start - 0.5, window.end + 1, 'mp3');
+    const [r, sa] = await Promise.all([
+      chatJSON({ model, prompt: prompts.STORY({ lang, tokens }), audio: { data: clip.base64, format: 'mp3' }, job: 'child_test.story' }),
+      lang === 'english' ? speechAceWrong({ file, window, tokens, aligned, hyp, calls }) : Promise.resolve(null),
+    ]);
+    calls.push({ job: 'story', model, cost: r.cost, seconds: r.seconds, error: r.error });
+    if (!r.json) return { ok: false, error: r.error || 'no_json' };
+
+    const verdicts = capAttempted(verdictsFrom(r.json, tokens.length), hyp.length);
+    const attempted = attemptedOf(verdicts);
+    const correct = verdicts.slice(0, attempted).filter((v) => v === 'correct').length;
 
     const flagged = [];
     for (let i = 0; i < attempted; i += 1) {

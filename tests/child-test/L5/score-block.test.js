@@ -123,6 +123,51 @@ beforeEach(() => {
 });
 
 describe('scoreBlock (L4 → L5 contract)', () => {
+  test('english block: Soniox in English, SpeechAce + Gemini both score, a chip both agree on is pre-ticked', async () => {
+    global.__noteSeconds = 62;
+    process.env.SPEECHACE_API_KEY = 'test-sa';
+    sonioxReturns(T.ENGLISH_BLOCK);
+    const sa = [];
+    axios.post.mockImplementation(async (url) => {
+      if (url.includes('api.soniox.com/v1/files')) return { data: { id: 'file-1' } };
+      if (url.includes('api.soniox.com/v1/transcriptions')) return { data: { id: 'tr-1' } };
+      if (url.includes('speechace')) {
+        sa.push(url);
+        const story = ['imran', 'woke', 'up', 'early', 'for', 'school', 'today', 'his', 'class', 'was', 'planting', 'trees'];
+        const list = sa.length === 1 && url.includes('scoring/text')
+          ? story.map((w, i) => ({ word: w, quality_score: i === 3 ? 10 : 90 }))
+          : [{ word: 'lat', quality_score: 90 }, { word: 'mip', quality_score: 20 }];
+        return { data: { status: 'success', text_score: { word_score_list: list } } };
+      }
+      return { data: {} };
+    });
+    mockCreate.mockImplementation(async (req) => {
+      const p = prompt(req);
+      if (p.includes('reading aloud from a printed')) {
+        return reply({ words: Array.from({ length: 12 }, (_, i) => ({ i: i + 1, v: i === 3 ? 'wrong' : 'correct' })) }, 0.009);
+      }
+      if (p.includes('reading-comprehension')) return reply({ questions: [{ id: 'e3A-q1', answer: 'trees', verdict: 'correct', confidence: 0.9 }, { id: 'e3A-q2', answer: 'for school', verdict: 'correct', confidence: 0.9 }] });
+      if (p.includes('MADE-UP WORDS')) return reply({ first_sounds: [], nonwords: [{ id: 'e3A-nw1', heard: 'lat', verdict: 'correct', confidence: 0.6 }, { id: 'e3A-nw2', heard: 'mop', verdict: 'wrong', confidence: 0.6 }] });
+      throw new Error(`unrouted: ${p.slice(0, 50)}`);
+    });
+    const store = fakeStore({ id: 'blk-e', session_id: 'sess-e', block: 'english', audio_r2_key: 'k', ai_marks: null });
+
+    const res = await scoreBlock({ sessionId: 'sess-e', block: 'english', grade: 3, form: 'A' }, { store, itemBank });
+
+    expect(res).toEqual({ ok: true, aiStatus: 'scored' });
+    const create = axios.post.mock.calls.find(([u]) => u.endsWith('/v1/transcriptions'));
+    expect(create[1].language_hints).toEqual(['en']);
+    const m = store.saved[0].aiMarks;
+    expect(m.story).toMatchObject({ words_correct: 11, words_attempted: 12, finished_early: true });
+    // Gemini, the STT alignment ("only" for "early") and SpeechAce all flag word 3: pre-tick bar cleared
+    expect(m.story.flagged).toEqual([expect.objectContaining({ idx: 3, verdict: 'wrong' })]);
+    expect(m.story.flagged[0].confidence).toBeGreaterThanOrEqual(0.7);
+    expect(m.meta.calls.map((c) => c.job)).toEqual(expect.arrayContaining(['speechace', 'speechace_nonwords']));
+    // SpeechAce agreeing with Gemini on a made-up word raises its confidence above Gemini's own
+    expect(m.nonwords.find((n) => n.id === 'e3A-nw2')).toMatchObject({ verdict: 'wrong', confidence: 0.75 });
+    expect(m.first_sounds).toEqual([]);
+  });
+
   test('urdu block: transcribes in Urdu, cuts the windows, scores story + questions + phonics, writes ai_marks once', async () => {
     global.__noteSeconds = 112;
     sonioxReturns(T.URDU_BLOCK);

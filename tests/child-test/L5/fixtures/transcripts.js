@@ -63,4 +63,18 @@ const MATHS_BLOCK = [
   [2, 92.0, 'نو آم'],
 ];
 
-module.exports = { tokensFrom, URDU_BLOCK, URDU_BLOCK_NO_CUE, URDU_BLOCK_PROMPTING, MATHS_BLOCK };
+// English block: start cue, the child reads the 12-word story with one wrong word (idx 3), then
+// two questions and two made-up words.
+const ENGLISH_BLOCK = [
+  [1, 1.0, 'read the story please start'],
+  [2, 4.0, 'imran woke up only for school today his class was planting trees'],
+  [1, 20.0, 'thank you'],
+  [1, 22.0, 'what was the class planting'],
+  [2, 25.0, 'trees'],
+  [1, 27.0, 'why did imran wake up early'],
+  [2, 30.0, 'for school'],
+  [1, 33.0, 'read these words'],
+  [2, 35.0, 'lat mop'],
+];
+
+module.exports = { ENGLISH_BLOCK, tokensFrom, URDU_BLOCK, URDU_BLOCK_NO_CUE, URDU_BLOCK_PROMPTING, MATHS_BLOCK };
