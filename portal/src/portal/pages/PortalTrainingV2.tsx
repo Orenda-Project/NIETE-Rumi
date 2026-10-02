@@ -753,6 +753,29 @@ const PortalTrainingV2 = () => {
         .then(({ data }) => setCourses(data.courses || []))
         .catch(() => { /* keep the cards already on screen */ });
     }
+
+    // bd-bvtv9 — and the course page re-reads its module list: the unit ticks,
+    // the module exam's gate and the readings all ride on /training/modules.
+    // Operator, 2026-10-02 (sandbox): every I-SAPS Module 1 unit was complete
+    // in the database, yet back on this page the last unit had no tick and
+    // the exam was still locked — the list was from before the unit was done.
+    // Only for the course already open; a different course fetches itself.
+    if (screenKind === 'course' && routeCourseId && routeCourseId === selectedCourse) {
+      const courseId = routeCourseId;
+      api.get('/training/modules', { params: { course_id: courseId } })
+        .then(({ data }) => {
+          const list: ModuleSummary[] = data.modules || [];
+          setModules(list);
+          setModuleExam(data.exam || null);
+          setModuleReadings(data.readings || null);
+          list.forEach(m => {
+            api.get(`/training/module/${m.id}/attempts`)
+              .then(({ data: d }) => setAttemptsByModule(prev => ({ ...prev, [m.id]: d.attempts || [] })))
+              .catch(() => { /* keep the badge already on screen */ });
+          });
+        })
+        .catch(() => { /* keep the list already on screen */ });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screenKind, routeVendorKey, routeLevelId, routeCourseId]);
 
@@ -1356,6 +1379,7 @@ const PortalTrainingV2 = () => {
                         disabled={row.disabled}
                         title={row.hint || undefined}
                         data-testid={`module-item-${m.id}`}
+                        data-done={m.completed_at ? 'true' : 'false'}
                         data-lock={m.lock || undefined}
                         aria-pressed={active}
                         className={`w-full text-left rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 transition-colors ${
