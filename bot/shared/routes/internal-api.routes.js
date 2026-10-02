@@ -2042,4 +2042,8 @@ router.post('/coaching/recent-plans', requireInternalKey, portalCoachingRoute('r
 router.post('/coaching/reflection', requireInternalKey, portalCoachingRoute('reflection',
   (Svc, b) => Svc.submitReflection({ userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer })));
 
+// bd-s1oo0.7 — the coach app's child test (portal → bot). Its own file; the
+// router checks the internal key itself.
+router.use('/child-test', require('./child-test-app.routes').router);
+
 module.exports = router;
