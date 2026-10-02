@@ -21,7 +21,6 @@ function fakeDeps(over = {}) {
     logError: jest.fn(),
     defer: (fn) => fn(),
     itemBank: require('./fixtures/mini-bank.json'),
-    thresholds: { default: 0.7 },
     supabase: {
       from: () => {
         const chain = {

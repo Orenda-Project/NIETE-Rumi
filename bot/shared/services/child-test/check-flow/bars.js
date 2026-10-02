@@ -59,4 +59,13 @@ function confident(field, confidence, { lang = null, hintOnly = false } = {}) {
   return Number.isFinite(c) && c >= bar;
 }
 
-module.exports = { confident, BARS, DEFAULT_BARS, __pinBarsForTest };
+/**
+ * CHILD_TEST_PREFILL_MODE (bd-s1oo0.21): 'strict' (the default) shows a mark below its bar EMPTY;
+ * 'assist' shows every mark the AI produced, and flags the ones below their bar "unsure, please check".
+ * Anything but "assist" is strict, so a typo can never loosen the check.
+ */
+function prefillMode(env = process.env) {
+  return String((env && env.CHILD_TEST_PREFILL_MODE) || '').trim().toLowerCase() === 'assist' ? 'assist' : 'strict';
+}
+
+module.exports = { confident, prefillMode, BARS, DEFAULT_BARS, __pinBarsForTest };

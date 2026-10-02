@@ -91,8 +91,8 @@ async function scoreStory({ lang, spec, file, window, words, coachSpeaker, flags
       chatJSON({ model, prompt: prompts.STORY({ lang, tokens }), audio: { data: clip.base64, format: 'mp3' }, job: 'child_test.story' }),
       lang === 'english' ? speechAceWrong({ file, window, tokens, aligned, hyp, calls }) : Promise.resolve(null),
     ]);
-    calls.push({ job: 'story', model, cost: r.cost, seconds: r.seconds, error: r.error });
-    if (!r.json) return { ok: false, error: r.error || 'no_json' };
+    calls.push({ job: 'story', model, cost: r.cost, seconds: r.seconds, error: r.error, ...(r.detail ? { detail: r.detail } : {}) });
+    if (!r.json) return { ok: false, error: r.error || 'no_json', ...(r.detail ? { detail: r.detail } : {}) };
 
     const verdicts = capAttempted(verdictsFrom(r.json, tokens.length), hyp.length);
     const attempted = attemptedOf(verdicts);

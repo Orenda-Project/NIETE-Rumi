@@ -12,8 +12,9 @@
  *     pendingPhotos: [{ sessionId, rollNumber, schoolId, grade, form }]   // maths strips still to come
  *   }
  *
- * Side keys (per session): ctst:scored:<sessionId> (count of finished scoreBlock calls),
- * ctst:check:<sessionId> (the check was sent — set once), ctst:media:<mediaId> (a webhook re-send
+ * Side keys (per session): ctst:check:<sessionId> (the check was claimed — set once; the check
+ * itself is gated on the store, recovery.js, never on a count of scoring calls),
+ * ctst:check_retry:<sessionId> (a check whose sender died is re-sent once), ctst:media:<mediaId> (a webhook re-send
  * is not stored twice), ctst:block:<sessionId>:<block> (the voice note that claimed this block, set
  * before any ack or upload so quick notes fill distinct blocks — bd-s1oo0.14), ctst:done:<sessionId>
  * (the child's three notes are stored and the after-maths step ran — set once).
@@ -47,17 +48,20 @@ async function forget(mediaId) {
   return redis.delete(`ctst:media:${mediaId}`);
 }
 
-async function countScored(sessionId) {
-  const n = await redis.incr(`ctst:scored:${sessionId}`);
-  await redis.expire(`ctst:scored:${sessionId}`, 2 * TTL_SECONDS);
-  return n;
-}
-
 async function claimCheck(sessionId) {
   return redis.setNX(`ctst:check:${sessionId}`, new Date().toISOString(), 7 * 24 * 3600);
 }
 async function checkSent(sessionId) {
   return !!(await redis.get(`ctst:check:${sessionId}`));
+}
+/** When the check was claimed (ISO), or null. */
+async function checkClaimedAt(sessionId) {
+  const v = await redis.get(`ctst:check:${sessionId}`);
+  return v ? String(v) : null;
+}
+/** The one re-send of a check whose sender died between the claim and the send. */
+async function claimCheckRetry(sessionId) {
+  return redis.setNX(`ctst:check_retry:${sessionId}`, new Date().toISOString(), 7 * 24 * 3600);
 }
 
 const blockKey = (sessionId, block) => `ctst:block:${sessionId}:${block}`;
@@ -82,6 +86,6 @@ async function claimDone(sessionId) {
 }
 
 module.exports = {
-  get, set, clear, firstSight, forget, countScored, claimCheck, checkSent,
+  get, set, clear, firstSight, forget, claimCheck, checkSent, checkClaimedAt, claimCheckRetry,
   claimBlock, releaseBlock, blockClaim, claimDone, TTL_SECONDS,
 };

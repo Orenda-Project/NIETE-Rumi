@@ -66,14 +66,31 @@ function create(cfg) {
 
   const seen = new Set(); const items = []; let newestIngest = 0;
 
+  // A passing Axiom 5xx/429 or a dropped connection is retried with backoff (a single 502 once aborted
+  // a whole sandbox run); anything else, or a 5xx that outlasts the retries, is still loud.
+  const retries = Number.isInteger(rc.retries) ? rc.retries : 5;
+  const retryBaseMs = Number(rc.retryBaseMs || 1000);
+  const transient = (status) => status === 429 || status >= 500;
+  const pause = (ms) => new Promise((res) => setTimeout(res, ms));
+
   async function query() {
     const fromMs = Math.max(sinceMs, newestIngest - OVERLAP_MS);
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
     if (org) headers['X-Axiom-Org-Id'] = org;
-    const r = await fetchImpl(API, { method: 'POST', headers, body: JSON.stringify({ apl: buildApl({ dataset, phone, fromIso: new Date(fromMs).toISOString() }) }) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(`replies-axiom: axiom ${r.status} ${String(j.message || '').slice(0, 120)}`);
-    return j.matches || [];
+    const body = JSON.stringify({ apl: buildApl({ dataset, phone, fromIso: new Date(fromMs).toISOString() }) });
+    for (let attempt = 0; ; attempt += 1) {
+      let r; let j = {};
+      try {
+        r = await fetchImpl(API, { method: 'POST', headers, body });
+        j = await r.json().catch(() => ({}));
+      } catch (err) {
+        if (attempt < retries) { await pause(retryBaseMs * 2 ** attempt); continue; }
+        throw new Error(`replies-axiom: axiom unreachable (${err.message})`);
+      }
+      if (r.ok) return j.matches || [];
+      if (transient(r.status) && attempt < retries) { await pause(retryBaseMs * 2 ** attempt); continue; }
+      throw new Error(`replies-axiom: axiom ${r.status} ${String(j.message || '').slice(0, 120)}`);
+    }
   }
 
   async function poll(after = 0) {

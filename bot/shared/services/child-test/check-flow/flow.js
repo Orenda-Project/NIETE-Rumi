@@ -12,7 +12,8 @@
  *   DONE
  *
  * About a minute: what the model is sure of arrives filled in; what it is not sure of arrives empty
- * and is required (prefill.js holds that rule). A Flow cannot play audio; the coach re-listens to
+ * and is required (prefill.js holds that rule). With CHILD_TEST_PREFILL_MODE=assist it arrives filled
+ * instead, tagged, and listed in the screen's unsure line (${data.unsure_line}, under the status line). A Flow cannot play audio; the coach re-listens to
  * the voice note in the chat.
  *
  * Every label is ${data.*} from the catalog (strings.js), so the coach reads it in their language;
@@ -37,6 +38,8 @@ const OPTION_LIST = { type: 'array', items: { type: 'object', properties: { id: 
 
 function declare(data) {
   const out = {};
+  // The strict example has nothing unsure; the line still needs a readable example value.
+  if (data.unsure_line === '') data = { ...data, unsure_line: checkStrings('ur').unsure_line(checkStrings('ur').u_count) };
   for (const [k, v] of Object.entries(data)) {
     let type;
     if (typeof v === 'boolean') type = { type: 'boolean' };
@@ -92,6 +95,7 @@ function readingScreen(block) {
   const kids = [
     { type: 'TextHeading', text: d('child_line') },
     { type: 'TextBody', text: d('status_line') },
+    { type: 'TextCaption', text: d('unsure_line'), visible: d('unsure_v') },
     { type: 'TextSubheading', text: d('t_story'), visible: d('story_v') },
     number(`${p}wc`, 't_wc', 'wc_h', 'story_v'),
     number(`${p}wa`, 't_wa', null, 'story_v'),
@@ -126,6 +130,7 @@ function mathsScreen() {
   const kids = [
     { type: 'TextHeading', text: d('child_line') },
     { type: 'TextBody', text: d('status_line') },
+    { type: 'TextCaption', text: d('unsure_line'), visible: d('unsure_v') },
     { type: 'TextSubheading', text: d('t_num'), visible: d('sec_v') },
     { type: 'TextCaption', text: d('numc_cap'), visible: d('numc_v') },
     chips(`${p}numc`, 't_numc', 'numc'),

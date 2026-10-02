@@ -14,13 +14,17 @@ import type { ChildTestCard, Prefill, PrefillItem } from "../../types/childTest"
 
 type Obj = Record<string, unknown>;
 
-export type DraftItem = { id: string; label: string; verdict: string | null; hint: string | null; orig: Obj };
+export type DraftItem = { id: string; label: string; verdict: string | null; hint: string | null; unsure: boolean; orig: Obj };
 export type Chip = { idx: number; word: string; wrong: boolean; fromAi: "flagged" | "uncertain"; orig?: Obj };
 
 export type Draft = {
   block: ChildTestCard["block"];
   base: Prefill | null;
   wordsCorrect: number | null;
+  /** assist: the count / letters+words / quick sums were filled below their bar ("Rumi unsure — please check") */
+  storyUnsure: boolean;
+  fallbackUnsure: boolean;
+  quickSumsUnsure: boolean;
   chips: Chip[];
   fallback: { letters: number | null; words: number | null } | null;
   quickSumsCorrect: number | null;
@@ -38,7 +42,7 @@ function items(ids: { id: string; label: string }[], from: PrefillItem[] | undef
   const byId = new Map((from || []).map((x) => [x.id, x]));
   return ids.map(({ id, label }) => {
     const p = byId.get(id);
-    return { id, label, verdict: (p?.verdict as string | null) ?? null, hint: p?.hint ?? null, orig: p ? strip(p as Obj, ["hint"]) : { id } };
+    return { id, label, verdict: (p?.verdict as string | null) ?? null, hint: p?.hint ?? null, unsure: Boolean(p?.unsure), orig: p ? strip(p as Obj, ["hint", "unsure"]) : { id } };
   });
 }
 
@@ -53,6 +57,9 @@ export function draftFrom(prefill: Prefill | null, card: ChildTestCard): Draft {
       block: "maths",
       base: prefill,
       wordsCorrect: null,
+      storyUnsure: false,
+      fallbackUnsure: false,
+      quickSumsUnsure: Boolean(m?.quick_sums?.unsure),
       chips: [],
       fallback: null,
       quickSumsCorrect: m?.quick_sums && typeof m.quick_sums.correct === "number" ? m.quick_sums.correct : null,
@@ -70,6 +77,9 @@ export function draftFrom(prefill: Prefill | null, card: ChildTestCard): Draft {
     block: card.block,
     base: prefill,
     wordsCorrect: s && typeof s.words_correct === "number" ? s.words_correct : null,
+    storyUnsure: Boolean(s?.unsure),
+    fallbackUnsure: Boolean(fb?.unsure),
+    quickSumsUnsure: false,
     chips,
     fallback: fb ? { letters: fb.letters?.correct ?? null, words: fb.words?.correct ?? null } : null,
     quickSumsCorrect: null,
@@ -118,14 +128,14 @@ export function toCoachMarks(d: Draft): Obj {
     out.maths = {
       ...m,
       numbers: verdicts(d.items.numbers),
-      quick_sums: { ...(m.quick_sums || { attempted: null, seconds: 60 }), correct: d.quickSumsCorrect },
+      quick_sums: { ...strip((m.quick_sums || { attempted: null, seconds: 60 }) as Obj, ["unsure"]), correct: d.quickSumsCorrect },
       written: verdicts(d.items.written),
       word_problem: d.wordProblem ? { ...d.wordProblem.orig, id: d.wordProblem.id, verdict: d.wordProblem.verdict } : (m.word_problem ?? null),
     };
   } else {
     const s = (base.story || {}) as Obj;
     out.story = {
-      ...strip(s, ["uncertain"]),
+      ...strip(s, ["uncertain", "unsure"]),
       words_correct: d.wordsCorrect,
       flagged: d.chips.filter((c) => c.wrong).map((c) => c.orig || { idx: c.idx, word: c.word, verdict: "wrong" }),
     };

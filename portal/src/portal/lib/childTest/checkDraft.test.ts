@@ -96,3 +96,24 @@ describe("maths", () => {
     expect(m.maths.word_problem.verdict).toBe("wrong");
   });
 });
+
+// bd-s1oo0.21 — CHILD_TEST_PREFILL_MODE=assist: a field Rumi filled below its bar carries `unsure`, and the
+// form shows it as "Rumi unsure — please check". The flag is display-only: it is never saved back.
+describe("assist: unsure fields", () => {
+  const assist: Prefill = {
+    ...prefill,
+    story: { ...prefill.story!, unsure: true },
+    questions: [{ id: "q1", verdict: "correct", confidence: 0.9, hint: null, unsure: false }, { id: "q2", verdict: "wrong", confidence: 0.4, hint: null, unsure: true }],
+  };
+  it("carries unsure onto the draft and keeps the filled value", () => {
+    const d = draftFrom(assist, urduCard);
+    expect(d.storyUnsure).toBe(true);
+    expect(d.items.questions.map((q) => [q.id, q.verdict, q.unsure])).toEqual([["q1", "correct", false], ["q2", "wrong", true]]);
+    expect(missingFields(d)).toEqual(["first_sounds.fs1"]);
+  });
+  it("never sends unsure back", () => {
+    const d = draftFrom(assist, urduCard);
+    d.items.first_sounds[0].verdict = "correct";
+    expect(JSON.stringify(toCoachMarks(d))).not.toMatch(/"unsure"/);
+  });
+});
