@@ -160,6 +160,29 @@ describe("Provider page — that provider's levels only", () => {
     expect(where()).toBe("/portal/training");
   });
 
+  // Operator, 2026-10-02: the level card counted MODULES ("0 / 55 modules" on
+  // Beacon House English), but what a level holds, and what its next page
+  // shows, is courses. The bot's own level line already counts courses.
+  it("counts a level's courses on its card, not its modules", async () => {
+    renderAt("/portal/training/provider/TALEEMABAD");
+    const card = await screen.findByTestId("level-card-1");
+    expect(card).toHaveTextContent("0 / 2 courses");
+    expect(card).not.toHaveTextContent("modules");
+  });
+
+  it("says a certified level's courses are all done", async () => {
+    (api.get as any).mockImplementation((url: string) => {
+      if (url === "/training/vendors") return Promise.resolve({ data: { vendors: VENDORS } });
+      if (url === "/training/levels")
+        return Promise.resolve({ data: { levels: [{ ...LEVELS[2], state: "certified", courses_completed: 1, courses_total: 1 }] } });
+      if (url === "/training/certificates") return Promise.resolve({ data: { certificates: [] } });
+      return Promise.resolve({ data: {} });
+    });
+    renderAt("/portal/training/provider/OXBRIDGE");
+    const card = await screen.findByTestId("level-card-17");
+    expect(card).toHaveTextContent("Certified · 1/1 courses");
+  });
+
   it("still shows a provider's single level as a card", async () => {
     renderAt("/portal/training/provider/OXBRIDGE");
     expect(await screen.findByTestId("level-card-17")).toBeInTheDocument();
@@ -198,6 +221,54 @@ describe("Level page — that level's courses only", () => {
     renderAt("/portal/training/provider/TALEEMABAD/level/1");
     await userEvent.click(await screen.findByTestId("course-card-c-1"));
     expect(where()).toBe("/portal/training/provider/TALEEMABAD/level/1/course/c-1");
+  });
+});
+
+// Operator, 2026-10-02: the "Receive certificate" row came off the level page
+// for providers whose certificate is issued on passing (NIETE's level exam,
+// Beacon House's capstone, Oxbridge's quiz scores) — there it was only a
+// fallback. I-SAPS keeps its card: it has no level exam, the card tracks its
+// module exams, and it is how a held written-answer result is collected.
+describe("Level page — the certificate row", () => {
+  function mockWithCertState(levels: unknown[], vendors: unknown[]) {
+    (api.get as any).mockImplementation((url: string) => {
+      if (url === "/training/vendors") return Promise.resolve({ data: { vendors } });
+      if (url === "/training/levels") return Promise.resolve({ data: { levels } });
+      if (url === "/training/certificates") return Promise.resolve({ data: { certificates: [] } });
+      if (url === "/training/courses") return Promise.resolve({ data: { courses: COURSES } });
+      if (/^\/training\/level\/\d+\/certificate$/.test(url))
+        return Promise.resolve({ data: { success: true, state: "locked", certificate: null, units_total: 10, units_done: 2, exams_total: url.includes("/27/") ? 9 : 0, exams_done: 3 } });
+      return Promise.resolve({ data: {} });
+    });
+  }
+
+  it("is not shown on a NIETE level", async () => {
+    mockWithCertState(LEVELS, VENDORS);
+    renderAt("/portal/training/provider/TALEEMABAD/level/1");
+    expect(await screen.findByTestId("course-card-c-1")).toBeInTheDocument();
+    await new Promise(r => setTimeout(r, 30));
+    expect(screen.queryByTestId("level-certificate-claim")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Receive certificate/i)).not.toBeInTheDocument();
+  });
+
+  it("is not shown on a Beacon House or Oxbridge level", async () => {
+    mockWithCertState(LEVELS, VENDORS);
+    for (const [vendor, id] of [["BEACONHOUSE", 18], ["OXBRIDGE", 17]] as const) {
+      const { unmount } = renderAt(`/portal/training/provider/${vendor}/level/${id}`);
+      expect(await screen.findByTestId("course-card-c-1")).toBeInTheDocument();
+      await new Promise(r => setTimeout(r, 30));
+      expect(screen.queryByTestId("level-certificate-claim")).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it("keeps the I-SAPS module-exam certificate card", async () => {
+    mockWithCertState(
+      [...LEVELS, level(27, "Level 1: Novice", "ISAPS", 0)],
+      [...VENDORS, { vendor_key: "ISAPS", vendor_name: "I-SAPS", level_count: 1, course_count: 9, module_count: 54, completed_module_count: 3, certificate_count: 0, avg_score_pct: null }],
+    );
+    renderAt("/portal/training/provider/ISAPS/level/27");
+    expect(await screen.findByTestId("level-certificate-card")).toHaveTextContent("3 of 9 module exams passed");
   });
 });
 
