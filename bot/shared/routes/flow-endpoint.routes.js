@@ -250,6 +250,27 @@ async function handleObserve2CheckFlow(data) {
   return FlowEncryptionService.createErrorResponse('Unknown action');
 }
 
+/**
+ * Child test (bd-s1oo0.6) — the coach's check of Rumi's marks for one child (URDU → ENGLISH → MATHS).
+ * flow_token = <coachUserId>:child-test-check:<sessionId>. Publish the Flow with endpoint_uri
+ * .../api/flows/child-test-check and set CHILD_TEST_CHECK_FLOW_ID.
+ */
+router.post('/child-test-check', async (req, res) => {
+  try {
+    if (!FlowEncryptionService.isConfigured()) {
+      logToFile('Flow encryption not configured', { endpoint: 'child-test-check' }, 'error');
+      return res.status(500).json({ error: 'Flow encryption not configured' });
+    }
+    const { handleChildTestCheckFlow } = require('./child-test-check-endpoint');
+    const encryptedResponse = await FlowEncryptionService.processEncryptedRequest(req.body, handleChildTestCheckFlow);
+    res.set('Content-Type', 'text/plain');
+    res.send(encryptedResponse);
+  } catch (error) {
+    logToFile('Flow endpoint error', { endpoint: 'child-test-check', error: error.message }, 'error');
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/registration', async (req, res) => {
   try {
     if (!FlowEncryptionService.isConfigured()) {
