@@ -1,0 +1,4944 @@
+{
+  "version": "child-test-items-v1",
+  "cue": {
+    "urdu": {
+      "start": "اب شروع کریں",
+      "stop": "بس، شکریہ",
+      "alt_start": [
+        "اب کہانی پڑھنا شروع کریں",
+        "چلیں شروع کریں"
+      ],
+      "alt_stop": [
+        "بس کریں، شکریہ",
+        "بس شکریہ"
+      ],
+      "stt_language": "ur",
+      "first_sounds": "اب ہر لفظ کی پہلی آواز بتائیں",
+      "nonwords": "اب یہ بے معنی لفظ پڑھیں",
+      "questions": "اب کہانی کے بارے میں کچھ سوالات سنیں"
+    },
+    "english": {
+      "start": "Please start reading",
+      "stop": "Stop, thank you",
+      "alt_start": [
+        "start reading",
+        "please start",
+        "start reading now"
+      ],
+      "alt_stop": [
+        "stop thank you",
+        "okay stop thank you"
+      ],
+      "stt_language": "en",
+      "nonwords": "Now read these made-up words",
+      "questions": "Now listen to some questions about the story"
+    },
+    "maths": {
+      "start": "اب سوال شروع کریں",
+      "stop": "بس، شکریہ",
+      "alt_start": [
+        "سوال شروع کریں",
+        "اب سوال حل کرنا شروع کریں"
+      ],
+      "alt_stop": [
+        "بس کریں، شکریہ",
+        "بس شکریہ"
+      ],
+      "stt_language": "ur",
+      "note": "Marks the start of the 60-second quick-sums run; the 8 numbers are read before it, untimed. quick_sums is the same line as start.",
+      "numbers": "اب یہ نمبر باری باری پڑھیں",
+      "quick_sums": "اب سوال شروع کریں",
+      "word_problem": "اب یہ کہانی والا سوال غور سے سنیں"
+    }
+  },
+  "conventions": {
+    "tokens": "Scored words in reading order. Punctuation is stripped and is never a token. English keeps its printed case.",
+    "needs_line": "1-based sentence number (see story.lines) holding the main answer evidence; ask the question only if the child read at least that far.",
+    "vowel_marks": "none — as in the May 2026 passages; made-up words use only long-vowel letters (ا و ی ے) so they are decodable without marks.",
+    "digits": "Maths items and word problems use Western digits, as in ICT maths textbooks.",
+    "status": "AI-vetted. Pending sign-off by Sabeena and Sameer (decision D3)."
+  },
+  "grades": {
+    "3": {
+      "forms": {
+        "A": {
+          "urdu": {
+            "story": {
+              "id": "u3A-story",
+              "title": "دریا کی سیر",
+              "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہیں۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔",
+              "tokens": [
+                "آج",
+                "بلال",
+                "اپنے",
+                "والد",
+                "کے",
+                "ساتھ",
+                "دریائے",
+                "جہلم",
+                "کے",
+                "کنارے",
+                "گیا",
+                "وہاں",
+                "ٹھنڈی",
+                "ہوا",
+                "چل",
+                "رہی",
+                "تھی",
+                "اور",
+                "پانی",
+                "آہستہ",
+                "بہہ",
+                "رہا",
+                "تھا",
+                "بلال",
+                "نے",
+                "کشتی",
+                "کو",
+                "حرکت",
+                "کرتے",
+                "دیکھا",
+                "اس",
+                "کے",
+                "والد",
+                "نے",
+                "اسے",
+                "بتایا",
+                "کہ",
+                "دریا",
+                "ہمارے",
+                "ملک",
+                "کے",
+                "لیے",
+                "اہم",
+                "ہیں",
+                "واپسی",
+                "پر",
+                "بلال",
+                "نے",
+                "خوبصورت",
+                "پتھر",
+                "جمع",
+                "کیے",
+                "اور",
+                "مسکراتا",
+                "رہا",
+                "وہ",
+                "بہت",
+                "خوش",
+                "بھی",
+                "تھا"
+              ],
+              "word_count": 60,
+              "source": "may2026-orf_urd",
+              "lines": [
+                {
+                  "n": 1,
+                  "from": 0,
+                  "to": 10
+                },
+                {
+                  "n": 2,
+                  "from": 11,
+                  "to": 22
+                },
+                {
+                  "n": 3,
+                  "from": 23,
+                  "to": 29
+                },
+                {
+                  "n": 4,
+                  "from": 30,
+                  "to": 43
+                },
+                {
+                  "n": 5,
+                  "from": 44,
+                  "to": 54
+                },
+                {
+                  "n": 6,
+                  "from": 55,
+                  "to": 59
+                }
+              ],
+              "names": [
+                "بلال",
+                "جہلم"
+              ],
+              "vetting": {
+                "metrics": {
+                  "word_count": 60,
+                  "mean_word_len": 3.43,
+                  "sentences": 6,
+                  "mean_sentence_len": 10.0,
+                  "corpus_coverage": 91.1,
+                  "distinct_chars": 29
+                },
+                "status": "ai-vetted-pending-signoff",
+                "panel_round": "r4",
+                "panel": {
+                  "claude-opus-5.5": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  },
+                  "gemini-3.1-pro-preview": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  }
+                }
+              }
+            },
+            "questions": [
+              {
+                "id": "u3A-q1",
+                "prompt": "بلال کس کے ساتھ دریائے جہلم گیا؟",
+                "type": "literal",
+                "needs_line": 1,
+                "accept": [
+                  "اپنے والد کے ساتھ",
+                  "والد کے ساتھ",
+                  "ابو کے ساتھ",
+                  "ابا کے ساتھ",
+                  "باپ کے ساتھ",
+                  "پاپا کے ساتھ",
+                  "اپنے ابو کے ساتھ",
+                  "والد",
+                  "ابو",
+                  "ابا",
+                  "باپ"
+                ],
+                "reject": [
+                  "امی کے ساتھ",
+                  "والدہ کے ساتھ",
+                  "بھائی کے ساتھ",
+                  "دوست کے ساتھ",
+                  "اکیلا"
+                ],
+                "rubric": "Correct if the child says Bilal went with his father (والد / ابو / ابا / باپ).",
+                "source": "rdcomp_lit1_urd"
+              },
+              {
+                "id": "u3A-q2",
+                "prompt": "بلال نے کس چیز کو حرکت کرتے دیکھا؟",
+                "type": "literal",
+                "needs_line": 3,
+                "accept": [
+                  "کشتی",
+                  "ایک کشتی"
+                ],
+                "reject": [
+                  "پانی",
+                  "ہوا",
+                  "مچھلی",
+                  "دریا"
+                ],
+                "rubric": "Correct only if the child says a boat (کشتی).",
+                "source": "rdcomp_lit3_urd"
+              },
+              {
+                "id": "u3A-q3",
+                "prompt": "بلال خوش کیوں تھا؟",
+                "type": "inferential",
+                "needs_line": 5,
+                "accept": [
+                  "سیر کرنے کی وجہ سے",
+                  "دریا کی سیر کی",
+                  "پتھر جمع کرنے کی وجہ سے",
+                  "خوبصورت پتھر ملے",
+                  "دریا دیکھ کر",
+                  "والد کے ساتھ دریا پر گیا تھا",
+                  "ابو کے ساتھ سیر کی",
+                  "کشتی دیکھ کر",
+                  "ٹھنڈی ہوا چل رہی تھی"
+                ],
+                "reject": [
+                  "معلوم نہیں",
+                  "کیونکہ وہ خوش تھا",
+                  "کیونکہ وہ مسکرا رہا تھا",
+                  "اسکول سے چھٹی تھی"
+                ],
+                "rubric": "Correct if the reason comes from the story: the trip to the river with his father, the cool breeze, seeing the river or the boat, or collecting beautiful stones. A circular answer (\"because he was happy / smiling\") is wrong. Evidence is spread over lines 1-5; needs_line marks the stones (line 5).",
+                "source": "rdcomp_inf2_urd"
+              }
+            ],
+            "first_sounds": [
+              {
+                "id": "u3A-fs1",
+                "word": "مچھلی",
+                "sound": "م",
+                "say": "مَ",
+                "name": "میم",
+                "accept": [
+                  "م",
+                  "مَ",
+                  "ما",
+                  "میم"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u3A-fs2",
+                "word": "چاند",
+                "sound": "چ",
+                "say": "چَ",
+                "name": "چے",
+                "accept": [
+                  "چ",
+                  "چَ",
+                  "چا",
+                  "چے"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u3A-fs3",
+                "word": "بکری",
+                "sound": "ب",
+                "say": "بَ",
+                "name": "بے",
+                "accept": [
+                  "ب",
+                  "بَ",
+                  "با",
+                  "بے"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u3A-fs4",
+                "word": "لڑکا",
+                "sound": "ل",
+                "say": "لَ",
+                "name": "لام",
+                "accept": [
+                  "ل",
+                  "لَ",
+                  "لا",
+                  "لام"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u3A-fs5",
+                "word": "ڈبہ",
+                "sound": "ڈ",
+                "say": "ڈَ",
+                "name": "ڈال",
+                "accept": [
+                  "ڈ",
+                  "ڈَ",
+                  "ڈا",
+                  "ڈال"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              }
+            ],
+            "nonwords": [
+              {
+                "id": "u3A-nw1",
+                "text": "تامو",
+                "sounds": [
+                  "ت",
+                  "ا",
+                  "م",
+                  "و"
+                ],
+                "accept": [
+                  "تامو"
+                ],
+                "accept_readings": [
+                  "taamoo",
+                  "taamo"
+                ],
+                "reject": [
+                  "تم"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u3A-nw2",
+                "text": "نوپی",
+                "sounds": [
+                  "ن",
+                  "و",
+                  "پ",
+                  "ی"
+                ],
+                "accept": [
+                  "نوپی"
+                ],
+                "accept_readings": [
+                  "noopi",
+                  "noopee",
+                  "nopi",
+                  "nopee",
+                  "naupi",
+                  "naupee"
+                ],
+                "reject": [
+                  "ٹوپی"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u3A-nw3",
+                "text": "کیبا",
+                "sounds": [
+                  "ک",
+                  "ی",
+                  "ب",
+                  "ا"
+                ],
+                "accept": [
+                  "کیبا"
+                ],
+                "accept_readings": [
+                  "keebaa",
+                  "kebaa",
+                  "kaibaa"
+                ],
+                "reject": [
+                  "کیا"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u3A-nw4",
+                "text": "لوشے",
+                "sounds": [
+                  "ل",
+                  "و",
+                  "ش",
+                  "ے"
+                ],
+                "accept": [
+                  "لوشے"
+                ],
+                "accept_readings": [
+                  "looshay",
+                  "looshe",
+                  "loshay",
+                  "loshe",
+                  "laushay",
+                  "laushe"
+                ],
+                "reject": [
+                  "لوگ"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u3A-nw5",
+                "text": "ریجو",
+                "sounds": [
+                  "ر",
+                  "ی",
+                  "ج",
+                  "و"
+                ],
+                "accept": [
+                  "ریجو"
+                ],
+                "accept_readings": [
+                  "reejoo",
+                  "reejo",
+                  "rejoo",
+                  "rejo",
+                  "raijoo",
+                  "raijo"
+                ],
+                "reject": [
+                  "ریڈیو"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              }
+            ],
+            "fallback": {
+              "letters": [
+                "ر",
+                "د",
+                "م",
+                "ک",
+                "س",
+                "ج",
+                "پ",
+                "ت",
+                "ب",
+                "ا"
+              ],
+              "words": [
+                "بچہ",
+                "دروازہ",
+                "پانی",
+                "کتاب",
+                "گھر",
+                "قلم",
+                "بستہ",
+                "کمرہ",
+                "استاد",
+                "سکول"
+              ],
+              "source": "may2026-letterid_urd+idwrd_urd row 1"
+            }
+          },
+          "english": {
+            "story": {
+              "id": "e3A-story",
+              "title": "Planting Trees",
+              "text": "Imran woke up early for school. Today his class was planting trees. He took a small plant in a bag. The teacher asked Imran to show the class how to plant it. Imran dug a hole, put the plant in the soil and put water in it slowly. The teacher was happy with his work. His friends clapped for him.",
+              "tokens": [
+                "Imran",
+                "woke",
+                "up",
+                "early",
+                "for",
+                "school",
+                "Today",
+                "his",
+                "class",
+                "was",
+                "planting",
+                "trees",
+                "He",
+                "took",
+                "a",
+                "small",
+                "plant",
+                "in",
+                "a",
+                "bag",
+                "The",
+                "teacher",
+                "asked",
+                "Imran",
+                "to",
+                "show",
+                "the",
+                "class",
+                "how",
+                "to",
+                "plant",
+                "it",
+                "Imran",
+                "dug",
+                "a",
+                "hole",
+                "put",
+                "the",
+                "plant",
+                "in",
+                "the",
+                "soil",
+                "and",
+                "put",
+                "water",
+                "in",
+                "it",
+                "slowly",
+                "The",
+                "teacher",
+                "was",
+                "happy",
+                "with",
+                "his",
+                "work",
+                "His",
+                "friends",
+                "clapped",
+                "for",
+                "him"
+              ],
+              "word_count": 60,
+              "source": "may2026-orf_eng",
+              "lines": [
+                {
+                  "n": 1,
+                  "from": 0,
+                  "to": 5
+                },
+                {
+                  "n": 2,
+                  "from": 6,
+                  "to": 11
+                },
+                {
+                  "n": 3,
+                  "from": 12,
+                  "to": 19
+                },
+                {
+                  "n": 4,
+                  "from": 20,
+                  "to": 31
+                },
+                {
+                  "n": 5,
+                  "from": 32,
+                  "to": 47
+                },
+                {
+                  "n": 6,
+                  "from": 48,
+                  "to": 54
+                },
+                {
+                  "n": 7,
+                  "from": 55,
+                  "to": 59
+                }
+              ],
+              "names": [
+                "Imran"
+              ],
+              "vetting": {
+                "metrics": {
+                  "word_count": 60,
+                  "mean_word_len": 3.82,
+                  "sentences": 7,
+                  "mean_sentence_len": 8.57,
+                  "corpus_coverage": 94.7,
+                  "distinct_chars": 21
+                },
+                "status": "ai-vetted-pending-signoff",
+                "panel_round": "r4",
+                "panel": {
+                  "claude-opus-5.5": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  },
+                  "gemini-3.1-pro-preview": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  }
+                }
+              }
+            },
+            "questions": [
+              {
+                "id": "e3A-q1",
+                "prompt": "What was the class planting?",
+                "type": "literal",
+                "needs_line": 2,
+                "accept": [
+                  "trees",
+                  "tree",
+                  "plants",
+                  "plant",
+                  "small plants",
+                  "planting trees",
+                  "درخت",
+                  "درختوں",
+                  "پودے",
+                  "پودا",
+                  "درخت لگا رہے تھے"
+                ],
+                "reject": [
+                  "flowers",
+                  "seeds",
+                  "grass"
+                ],
+                "rubric": "Correct if the child says trees or plants. An answer in Urdu or English is accepted.",
+                "source": "rdcomp_lit2_eng"
+              },
+              {
+                "id": "e3A-q2",
+                "prompt": "Why was the teacher happy with Imran?",
+                "type": "inferential",
+                "needs_line": 5,
+                "accept": [
+                  "he planted the tree well",
+                  "he showed the class how to plant it",
+                  "he did good work",
+                  "his work was good",
+                  "because of his work",
+                  "he dug a hole",
+                  "he planted it",
+                  "he put water in the plant",
+                  "اس نے اچھا کام کیا",
+                  "اس نے پودا لگایا",
+                  "اس نے گڑھا کھودا",
+                  "اس نے کلاس کو پودا لگانا سکھایا",
+                  "he watered it",
+                  "he put the plant in the soil",
+                  "he planted it well",
+                  "اس نے پانی ڈالا",
+                  "اس نے اچھی طرح پودا لگایا",
+                  "اس نے پودا مٹی میں لگایا"
+                ],
+                "reject": [
+                  "he woke up early",
+                  "he was clapping",
+                  "he brought a plant",
+                  "his friends clapped",
+                  "he is a good boy"
+                ],
+                "rubric": "Correct if the child gives any reason linked to Imran's planting work: he did good work, planted it well, showed the class how, or names a step he did (dug a hole, put the plant in the soil, watered it). Bringing a plant, or waking early, is wrong. An answer in Urdu or English is accepted.",
+                "source": "rdcomp_inf1_eng"
+              }
+            ],
+            "nonwords": [
+              {
+                "id": "e3A-nw1",
+                "text": "rup",
+                "sounds": [
+                  "r",
+                  "u",
+                  "p"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3A-nw2",
+                "text": "jeg",
+                "sounds": [
+                  "j",
+                  "e",
+                  "g"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3A-nw3",
+                "text": "nif",
+                "sounds": [
+                  "n",
+                  "i",
+                  "f"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3A-nw4",
+                "text": "sut",
+                "sounds": [
+                  "s",
+                  "u",
+                  "t"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3A-nw5",
+                "text": "zab",
+                "sounds": [
+                  "z",
+                  "a",
+                  "b"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3A-nw6",
+                "text": "tep",
+                "sounds": [
+                  "t",
+                  "e",
+                  "p"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3A-nw7",
+                "text": "hig",
+                "sounds": [
+                  "h",
+                  "i",
+                  "g"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3A-nw8",
+                "text": "zop",
+                "sounds": [
+                  "z",
+                  "o",
+                  "p"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              }
+            ],
+            "fallback": {
+              "letters": [
+                "L",
+                "i",
+                "h",
+                "R",
+                "S",
+                "y",
+                "E",
+                "O",
+                "n",
+                "T"
+              ],
+              "words": [
+                "boy",
+                "girl",
+                "school",
+                "book",
+                "pen",
+                "bag",
+                "teacher",
+                "student",
+                "class",
+                "read"
+              ],
+              "source": "may2026-letterid_eng+idwrd_eng row 1"
+            }
+          },
+          "maths": {
+            "strip_code": "G3-A",
+            "numbers": [
+              {
+                "id": "m3A-n1",
+                "value": 6,
+                "say_ur": "چھ",
+                "say_en": "six"
+              },
+              {
+                "id": "m3A-n2",
+                "value": 13,
+                "say_ur": "تیرہ",
+                "say_en": "thirteen"
+              },
+              {
+                "id": "m3A-n3",
+                "value": 20,
+                "say_ur": "بیس",
+                "say_en": "twenty"
+              },
+              {
+                "id": "m3A-n4",
+                "value": 47,
+                "say_ur": "سینتالیس",
+                "say_en": "forty-seven"
+              },
+              {
+                "id": "m3A-n5",
+                "value": 85,
+                "say_ur": "پچاسی",
+                "say_en": "eighty-five"
+              },
+              {
+                "id": "m3A-n6",
+                "value": 100,
+                "say_ur": "سو",
+                "say_en": "one hundred"
+              },
+              {
+                "id": "m3A-n7",
+                "value": 309,
+                "say_ur": "تین سو نو",
+                "say_en": "three hundred and nine"
+              },
+              {
+                "id": "m3A-n8",
+                "value": 652,
+                "say_ur": "چھ سو باون",
+                "say_en": "six hundred and fifty-two"
+              }
+            ],
+            "numbers_stop_rule": "stop after 4 wrong in a row",
+            "quick_sums": [
+              {
+                "id": "m3A-qs1",
+                "prompt": "1 + 1",
+                "answer": 2
+              },
+              {
+                "id": "m3A-qs2",
+                "prompt": "2 - 1",
+                "answer": 1
+              },
+              {
+                "id": "m3A-qs3",
+                "prompt": "1 + 2",
+                "answer": 3
+              },
+              {
+                "id": "m3A-qs4",
+                "prompt": "5 - 1",
+                "answer": 4
+              },
+              {
+                "id": "m3A-qs5",
+                "prompt": "1 + 4",
+                "answer": 5
+              },
+              {
+                "id": "m3A-qs6",
+                "prompt": "4 - 3",
+                "answer": 1
+              },
+              {
+                "id": "m3A-qs7",
+                "prompt": "1 + 6",
+                "answer": 7
+              },
+              {
+                "id": "m3A-qs8",
+                "prompt": "5 - 3",
+                "answer": 2
+              },
+              {
+                "id": "m3A-qs9",
+                "prompt": "3 + 3",
+                "answer": 6
+              },
+              {
+                "id": "m3A-qs10",
+                "prompt": "9 - 1",
+                "answer": 8
+              },
+              {
+                "id": "m3A-qs11",
+                "prompt": "1 + 8",
+                "answer": 9
+              },
+              {
+                "id": "m3A-qs12",
+                "prompt": "6 - 4",
+                "answer": 2
+              },
+              {
+                "id": "m3A-qs13",
+                "prompt": "3 + 2",
+                "answer": 5
+              },
+              {
+                "id": "m3A-qs14",
+                "prompt": "7 - 3",
+                "answer": 4
+              },
+              {
+                "id": "m3A-qs15",
+                "prompt": "9 + 1",
+                "answer": 10
+              },
+              {
+                "id": "m3A-qs16",
+                "prompt": "7 - 2",
+                "answer": 5
+              },
+              {
+                "id": "m3A-qs17",
+                "prompt": "3 + 4",
+                "answer": 7
+              },
+              {
+                "id": "m3A-qs18",
+                "prompt": "8 - 3",
+                "answer": 5
+              },
+              {
+                "id": "m3A-qs19",
+                "prompt": "3 + 5",
+                "answer": 8
+              },
+              {
+                "id": "m3A-qs20",
+                "prompt": "9 - 7",
+                "answer": 2
+              },
+              {
+                "id": "m3A-qs21",
+                "prompt": "5 + 5",
+                "answer": 10
+              },
+              {
+                "id": "m3A-qs22",
+                "prompt": "9 - 3",
+                "answer": 6
+              },
+              {
+                "id": "m3A-qs23",
+                "prompt": "3 + 6",
+                "answer": 9
+              },
+              {
+                "id": "m3A-qs24",
+                "prompt": "9 - 2",
+                "answer": 7
+              },
+              {
+                "id": "m3A-qs25",
+                "prompt": "4 + 6",
+                "answer": 10
+              },
+              {
+                "id": "m3A-qs26",
+                "prompt": "10 - 4",
+                "answer": 6
+              },
+              {
+                "id": "m3A-qs27",
+                "prompt": "8 + 2",
+                "answer": 10
+              },
+              {
+                "id": "m3A-qs28",
+                "prompt": "10 - 2",
+                "answer": 8
+              },
+              {
+                "id": "m3A-qs29",
+                "prompt": "7 + 4",
+                "answer": 11
+              },
+              {
+                "id": "m3A-qs30",
+                "prompt": "11 - 7",
+                "answer": 4
+              },
+              {
+                "id": "m3A-qs31",
+                "prompt": "5 + 6",
+                "answer": 11
+              },
+              {
+                "id": "m3A-qs32",
+                "prompt": "11 - 9",
+                "answer": 2
+              },
+              {
+                "id": "m3A-qs33",
+                "prompt": "9 + 2",
+                "answer": 11
+              },
+              {
+                "id": "m3A-qs34",
+                "prompt": "11 - 4",
+                "answer": 7
+              },
+              {
+                "id": "m3A-qs35",
+                "prompt": "4 + 8",
+                "answer": 12
+              },
+              {
+                "id": "m3A-qs36",
+                "prompt": "12 - 4",
+                "answer": 8
+              },
+              {
+                "id": "m3A-qs37",
+                "prompt": "5 + 7",
+                "answer": 12
+              },
+              {
+                "id": "m3A-qs38",
+                "prompt": "12 - 7",
+                "answer": 5
+              },
+              {
+                "id": "m3A-qs39",
+                "prompt": "5 + 8",
+                "answer": 13
+              },
+              {
+                "id": "m3A-qs40",
+                "prompt": "13 - 4",
+                "answer": 9
+              },
+              {
+                "id": "m3A-qs41",
+                "prompt": "4 + 9",
+                "answer": 13
+              },
+              {
+                "id": "m3A-qs42",
+                "prompt": "13 - 7",
+                "answer": 6
+              },
+              {
+                "id": "m3A-qs43",
+                "prompt": "5 + 9",
+                "answer": 14
+              },
+              {
+                "id": "m3A-qs44",
+                "prompt": "14 - 9",
+                "answer": 5
+              },
+              {
+                "id": "m3A-qs45",
+                "prompt": "8 + 8",
+                "answer": 16
+              },
+              {
+                "id": "m3A-qs46",
+                "prompt": "15 - 8",
+                "answer": 7
+              },
+              {
+                "id": "m3A-qs47",
+                "prompt": "7 + 9",
+                "answer": 16
+              },
+              {
+                "id": "m3A-qs48",
+                "prompt": "16 - 9",
+                "answer": 7
+              },
+              {
+                "id": "m3A-qs49",
+                "prompt": "8 + 9",
+                "answer": 17
+              },
+              {
+                "id": "m3A-qs50",
+                "prompt": "17 - 8",
+                "answer": 9
+              }
+            ],
+            "quick_sums_seconds": 60,
+            "written": [
+              {
+                "id": "m3A-w1",
+                "prompt": "34 + 28",
+                "answer": 62
+              },
+              {
+                "id": "m3A-w2",
+                "prompt": "56 + 27",
+                "answer": 83
+              },
+              {
+                "id": "m3A-w3",
+                "prompt": "52 - 17",
+                "answer": 35
+              },
+              {
+                "id": "m3A-w4",
+                "prompt": "73 - 48",
+                "answer": 25
+              }
+            ],
+            "word_problem": {
+              "id": "m3A-wp",
+              "prompt_ur": "علی کے پاس 15 کنچے تھے۔ اس نے 6 کنچے اپنی بہن کو دے دیے۔ اب علی کے پاس کتنے کنچے ہیں؟",
+              "prompt_en": "Ali had 15 marbles. He gave 6 marbles to his sister. How many marbles does Ali have now?",
+              "answer": 9
+            }
+          }
+        },
+        "B": {
+          "urdu": {
+            "story": {
+              "id": "u3B-story",
+              "title": "بازار کی سیر",
+              "text": "اتوار کو زینب اپنی والدہ کے ساتھ بازار گئی۔ وہاں بہت سی دکانیں تھیں اور لوگ خریداری کر رہے تھے۔ زینب نے پھلوں کی دکان سے سرخ سیب خریدے۔ اس کی والدہ نے بتایا کہ پھل صحت کے لیے مفید ہوتے ہیں۔ گھر پہنچ کر زینب نے سیب دھوئے اور سب کو دیے۔ دادی جان نے خوش ہو کر اسے بہت دعائیں دیں۔",
+              "tokens": [
+                "اتوار",
+                "کو",
+                "زینب",
+                "اپنی",
+                "والدہ",
+                "کے",
+                "ساتھ",
+                "بازار",
+                "گئی",
+                "وہاں",
+                "بہت",
+                "سی",
+                "دکانیں",
+                "تھیں",
+                "اور",
+                "لوگ",
+                "خریداری",
+                "کر",
+                "رہے",
+                "تھے",
+                "زینب",
+                "نے",
+                "پھلوں",
+                "کی",
+                "دکان",
+                "سے",
+                "سرخ",
+                "سیب",
+                "خریدے",
+                "اس",
+                "کی",
+                "والدہ",
+                "نے",
+                "بتایا",
+                "کہ",
+                "پھل",
+                "صحت",
+                "کے",
+                "لیے",
+                "مفید",
+                "ہوتے",
+                "ہیں",
+                "گھر",
+                "پہنچ",
+                "کر",
+                "زینب",
+                "نے",
+                "سیب",
+                "دھوئے",
+                "اور",
+                "سب",
+                "کو",
+                "دیے",
+                "دادی",
+                "جان",
+                "نے",
+                "خوش",
+                "ہو",
+                "کر",
+                "اسے",
+                "بہت",
+                "دعائیں",
+                "دیں"
+              ],
+              "word_count": 63,
+              "source": "generated",
+              "lines": [
+                {
+                  "n": 1,
+                  "from": 0,
+                  "to": 8
+                },
+                {
+                  "n": 2,
+                  "from": 9,
+                  "to": 19
+                },
+                {
+                  "n": 3,
+                  "from": 20,
+                  "to": 28
+                },
+                {
+                  "n": 4,
+                  "from": 29,
+                  "to": 41
+                },
+                {
+                  "n": 5,
+                  "from": 42,
+                  "to": 52
+                },
+                {
+                  "n": 6,
+                  "from": 53,
+                  "to": 62
+                }
+              ],
+              "names": [
+                "زینب"
+              ],
+              "vetting": {
+                "metrics": {
+                  "word_count": 63,
+                  "mean_word_len": 3.3,
+                  "sentences": 6,
+                  "mean_sentence_len": 10.5,
+                  "corpus_coverage": 88.3,
+                  "distinct_chars": 28
+                },
+                "status": "ai-vetted-pending-signoff",
+                "panel_round": "r4",
+                "panel": {
+                  "claude-opus-5.5": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  },
+                  "gemini-3.1-pro-preview": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  }
+                }
+              }
+            },
+            "questions": [
+              {
+                "id": "u3B-q1",
+                "prompt": "زینب کس کے ساتھ بازار گئی؟",
+                "type": "literal",
+                "needs_line": 1,
+                "accept": [
+                  "اپنی والدہ کے ساتھ",
+                  "والدہ کے ساتھ",
+                  "امی کے ساتھ",
+                  "ماں کے ساتھ",
+                  "امی جان کے ساتھ",
+                  "والدہ",
+                  "امی",
+                  "ماں"
+                ],
+                "reject": [
+                  "دادی کے ساتھ",
+                  "ابو کے ساتھ",
+                  "اکیلی"
+                ],
+                "rubric": "Correct if the child says Zainab went with her mother (والدہ / امی / ماں).",
+                "source": "generated"
+              },
+              {
+                "id": "u3B-q2",
+                "prompt": "زینب نے پھلوں کی دکان سے کیا خریدا؟",
+                "type": "literal",
+                "needs_line": 3,
+                "accept": [
+                  "سیب",
+                  "سرخ سیب",
+                  "لال سیب"
+                ],
+                "reject": [
+                  "کیلے",
+                  "آم",
+                  "سبزی"
+                ],
+                "rubric": "Correct only if the child says apples (سیب); \"fruit\" alone is not enough.",
+                "source": "generated"
+              },
+              {
+                "id": "u3B-q3",
+                "prompt": "دادی جان نے زینب کو دعائیں کیوں دیں؟",
+                "type": "inferential",
+                "needs_line": 5,
+                "accept": [
+                  "زینب نے سیب سب کو دیے",
+                  "اس نے سیب دھو کر سب کو دیے",
+                  "اس نے سیب دیے",
+                  "زینب نے دادی کو سیب دیا",
+                  "اس نے سب کو پھل دیے",
+                  "اس نے سب کو سیب دے کر اچھا کام کیا"
+                ],
+                "reject": [
+                  "زینب بازار گئی",
+                  "زینب نے سیب دھوئے",
+                  "اس نے اچھا کام کیا",
+                  "وہ خوش تھیں",
+                  "کیونکہ دادی خوش ہوئیں",
+                  "معلوم نہیں"
+                ],
+                "rubric": "Correct if the child says Zainab gave or shared the apples (with or without washing them). Washing alone, a generic \"she did good work\", or only saying grandmother was happy, is wrong. Evidence is line 5.",
+                "source": "generated"
+              }
+            ],
+            "first_sounds": [
+              {
+                "id": "u3B-fs1",
+                "word": "ناک",
+                "sound": "ن",
+                "say": "نَ",
+                "name": "نون",
+                "accept": [
+                  "ن",
+                  "نَ",
+                  "نا",
+                  "نون"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u3B-fs2",
+                "word": "پنکھا",
+                "sound": "پ",
+                "say": "پَ",
+                "name": "پے",
+                "accept": [
+                  "پ",
+                  "پَ",
+                  "پا",
+                  "پے"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u3B-fs3",
+                "word": "جہاز",
+                "sound": "ج",
+                "say": "جَ",
+                "name": "جیم",
+                "accept": [
+                  "ج",
+                  "جَ",
+                  "جا",
+                  "جیم"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u3B-fs4",
+                "word": "شیر",
+                "sound": "ش",
+                "say": "شَ",
+                "name": "شین",
+                "accept": [
+                  "ش",
+                  "شَ",
+                  "شی",
+                  "شین"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u3B-fs5",
+                "word": "کرسی",
+                "sound": "ک",
+                "say": "کَ",
+                "name": "کاف",
+                "accept": [
+                  "ک",
+                  "کَ",
+                  "کا",
+                  "کاف"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              }
+            ],
+            "nonwords": [
+              {
+                "id": "u3B-nw1",
+                "text": "بوشا",
+                "sounds": [
+                  "ب",
+                  "و",
+                  "ش",
+                  "ا"
+                ],
+                "accept": [
+                  "بوشا"
+                ],
+                "accept_readings": [
+                  "booshaa",
+                  "boshaa",
+                  "baushaa"
+                ],
+                "reject": [
+                  "بوسہ"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u3B-nw2",
+                "text": "ٹیما",
+                "sounds": [
+                  "ٹ",
+                  "ی",
+                  "م",
+                  "ا"
+                ],
+                "accept": [
+                  "ٹیما"
+                ],
+                "accept_readings": [
+                  "teemaa",
+                  "temaa",
+                  "taimaa"
+                ],
+                "reject": [
+                  "ٹیم"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u3B-nw3",
+                "text": "چاپو",
+                "sounds": [
+                  "چ",
+                  "ا",
+                  "پ",
+                  "و"
+                ],
+                "accept": [
+                  "چاپو"
+                ],
+                "accept_readings": [
+                  "chaapoo",
+                  "chaapo"
+                ],
+                "reject": [
+                  "چاقو"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u3B-nw4",
+                "text": "سیچو",
+                "sounds": [
+                  "س",
+                  "ی",
+                  "چ",
+                  "و"
+                ],
+                "accept": [
+                  "سیچو"
+                ],
+                "accept_readings": [
+                  "seechoo",
+                  "seecho",
+                  "sechoo",
+                  "secho",
+                  "saichoo",
+                  "saicho"
+                ],
+                "reject": [
+                  "سچ"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u3B-nw5",
+                "text": "نودا",
+                "sounds": [
+                  "ن",
+                  "و",
+                  "د",
+                  "ا"
+                ],
+                "accept": [
+                  "نودا"
+                ],
+                "accept_readings": [
+                  "noodaa",
+                  "nodaa",
+                  "naudaa"
+                ],
+                "reject": [
+                  "نو"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              }
+            ],
+            "fallback": {
+              "letters": [
+                "ل",
+                "ن",
+                "گ",
+                "ش",
+                "ف",
+                "و",
+                "چ",
+                "ڈ",
+                "ہ",
+                "ز"
+              ],
+              "words": [
+                "دوست",
+                "بہن",
+                "بھائی",
+                "باپ",
+                "ماں",
+                "ہاتھ",
+                "جوتا",
+                "کپڑا",
+                "گیند",
+                "کھیل"
+              ],
+              "source": "new letters; words = May 2026 idwrd_urd items 21-30"
+            }
+          },
+          "english": {
+            "story": {
+              "id": "e3B-story",
+              "title": "Ducks in the Park",
+              "text": "Hina got up early on Saturday. Her family was going to the park. She packed some bread and two eggs in a box for lunch. At the park, Hina saw ducks on the pond. Her little brother wanted to feed them. Hina gave him some bread to throw in the water. The ducks swam fast to eat it, and everyone laughed.",
+              "tokens": [
+                "Hina",
+                "got",
+                "up",
+                "early",
+                "on",
+                "Saturday",
+                "Her",
+                "family",
+                "was",
+                "going",
+                "to",
+                "the",
+                "park",
+                "She",
+                "packed",
+                "some",
+                "bread",
+                "and",
+                "two",
+                "eggs",
+                "in",
+                "a",
+                "box",
+                "for",
+                "lunch",
+                "At",
+                "the",
+                "park",
+                "Hina",
+                "saw",
+                "ducks",
+                "on",
+                "the",
+                "pond",
+                "Her",
+                "little",
+                "brother",
+                "wanted",
+                "to",
+                "feed",
+                "them",
+                "Hina",
+                "gave",
+                "him",
+                "some",
+                "bread",
+                "to",
+                "throw",
+                "in",
+                "the",
+                "water",
+                "The",
+                "ducks",
+                "swam",
+                "fast",
+                "to",
+                "eat",
+                "it",
+                "and",
+                "everyone",
+                "laughed"
+              ],
+              "word_count": 61,
+              "source": "generated",
+              "lines": [
+                {
+                  "n": 1,
+                  "from": 0,
+                  "to": 5
+                },
+                {
+                  "n": 2,
+                  "from": 6,
+                  "to": 12
+                },
+                {
+                  "n": 3,
+                  "from": 13,
+                  "to": 24
+                },
+                {
+                  "n": 4,
+                  "from": 25,
+                  "to": 33
+                },
+                {
+                  "n": 5,
+                  "from": 34,
+                  "to": 40
+                },
+                {
+                  "n": 6,
+                  "from": 41,
+                  "to": 50
+                },
+                {
+                  "n": 7,
+                  "from": 51,
+                  "to": 60
+                }
+              ],
+              "names": [
+                "Hina"
+              ],
+              "vetting": {
+                "metrics": {
+                  "word_count": 61,
+                  "mean_word_len": 3.8,
+                  "sentences": 7,
+                  "mean_sentence_len": 8.71,
+                  "corpus_coverage": 91.4,
+                  "distinct_chars": 23
+                },
+                "status": "ai-vetted-pending-signoff",
+                "panel_round": "r4",
+                "panel": {
+                  "claude-opus-5.5": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  },
+                  "gemini-3.1-pro-preview": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  }
+                }
+              }
+            },
+            "questions": [
+              {
+                "id": "e3B-q1",
+                "prompt": "Where was Hina's family going?",
+                "type": "literal",
+                "needs_line": 2,
+                "accept": [
+                  "to the park",
+                  "park",
+                  "the park",
+                  "پارک",
+                  "پارک جا رہے تھے"
+                ],
+                "reject": [
+                  "to school",
+                  "to the shop",
+                  "to the pond"
+                ],
+                "rubric": "Correct if the child says the park. An answer in Urdu or English is accepted.",
+                "source": "generated"
+              },
+              {
+                "id": "e3B-q2",
+                "prompt": "Why did everyone laugh?",
+                "type": "inferential",
+                "needs_line": 7,
+                "accept": [
+                  "the ducks swam fast to eat the bread",
+                  "the ducks rushed to the bread",
+                  "the ducks raced for the bread",
+                  "the ducks swam fast",
+                  "بطخیں تیزی سے روٹی کھانے آئیں",
+                  "بطخیں روٹی کے لیے بھاگیں",
+                  "بطخیں تیزی سے تیریں"
+                ],
+                "reject": [
+                  "they were sad",
+                  "they were happy",
+                  "Hina fell in the water",
+                  "because it was Saturday"
+                ],
+                "rubric": "Correct if the answer names the ducks swimming fast or rushing for the bread (food). Also correct: the ducks came or hurried to eat the bread, or the brother threw bread and the ducks came fast (بطخیں روٹی کھانے آئیں / دوڑ کر آئیں). Wrong: \"they were happy\", \"because of the ducks\" or \"the ducks ate the bread\" with nothing about the ducks coming or rushing. روٹی and ڈبل روٹی both mean the bread. An answer in Urdu or English is accepted.",
+                "source": "generated"
+              }
+            ],
+            "nonwords": [
+              {
+                "id": "e3B-nw1",
+                "text": "kib",
+                "sounds": [
+                  "k",
+                  "i",
+                  "b"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3B-nw2",
+                "text": "lem",
+                "sounds": [
+                  "l",
+                  "e",
+                  "m"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3B-nw3",
+                "text": "gub",
+                "sounds": [
+                  "g",
+                  "u",
+                  "b"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3B-nw4",
+                "text": "wep",
+                "sounds": [
+                  "w",
+                  "e",
+                  "p"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3B-nw5",
+                "text": "jaf",
+                "sounds": [
+                  "j",
+                  "a",
+                  "f"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3B-nw6",
+                "text": "tob",
+                "sounds": [
+                  "t",
+                  "o",
+                  "b"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3B-nw7",
+                "text": "zim",
+                "sounds": [
+                  "z",
+                  "i",
+                  "m"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e3B-nw8",
+                "text": "mup",
+                "sounds": [
+                  "m",
+                  "u",
+                  "p"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              }
+            ],
+            "fallback": {
+              "letters": [
+                "M",
+                "a",
+                "P",
+                "k",
+                "G",
+                "u",
+                "D",
+                "e",
+                "B",
+                "w"
+              ],
+              "words": [
+                "dog",
+                "cup",
+                "tree",
+                "ball",
+                "house",
+                "chair",
+                "milk",
+                "sun",
+                "hand",
+                "fish"
+              ],
+              "source": "new; words from the Grade 3 textbook corpus"
+            }
+          },
+          "maths": {
+            "strip_code": "G3-B",
+            "numbers": [
+              {
+                "id": "m3B-n1",
+                "value": 4,
+                "say_ur": "چار",
+                "say_en": "four"
+              },
+              {
+                "id": "m3B-n2",
+                "value": 15,
+                "say_ur": "پندرہ",
+                "say_en": "fifteen"
+              },
+              {
+                "id": "m3B-n3",
+                "value": 60,
+                "say_ur": "ساٹھ",
+                "say_en": "sixty"
+              },
+              {
+                "id": "m3B-n4",
+                "value": 38,
+                "say_ur": "اڑتیس",
+                "say_en": "thirty-eight"
+              },
+              {
+                "id": "m3B-n5",
+                "value": 92,
+                "say_ur": "بانوے",
+                "say_en": "ninety-two"
+              },
+              {
+                "id": "m3B-n6",
+                "value": 210,
+                "say_ur": "دو سو دس",
+                "say_en": "two hundred and ten"
+              },
+              {
+                "id": "m3B-n7",
+                "value": 507,
+                "say_ur": "پانچ سو سات",
+                "say_en": "five hundred and seven"
+              },
+              {
+                "id": "m3B-n8",
+                "value": 846,
+                "say_ur": "آٹھ سو چھیالیس",
+                "say_en": "eight hundred and forty-six"
+              }
+            ],
+            "numbers_stop_rule": "stop after 4 wrong in a row",
+            "quick_sums": [
+              {
+                "id": "m3B-qs1",
+                "prompt": "1 + 1",
+                "answer": 2
+              },
+              {
+                "id": "m3B-qs2",
+                "prompt": "2 - 1",
+                "answer": 1
+              },
+              {
+                "id": "m3B-qs3",
+                "prompt": "1 + 3",
+                "answer": 4
+              },
+              {
+                "id": "m3B-qs4",
+                "prompt": "6 - 1",
+                "answer": 5
+              },
+              {
+                "id": "m3B-qs5",
+                "prompt": "6 + 1",
+                "answer": 7
+              },
+              {
+                "id": "m3B-qs6",
+                "prompt": "3 - 2",
+                "answer": 1
+              },
+              {
+                "id": "m3B-qs7",
+                "prompt": "1 + 4",
+                "answer": 5
+              },
+              {
+                "id": "m3B-qs8",
+                "prompt": "9 - 1",
+                "answer": 8
+              },
+              {
+                "id": "m3B-qs9",
+                "prompt": "1 + 8",
+                "answer": 9
+              },
+              {
+                "id": "m3B-qs10",
+                "prompt": "6 - 5",
+                "answer": 1
+              },
+              {
+                "id": "m3B-qs11",
+                "prompt": "7 + 1",
+                "answer": 8
+              },
+              {
+                "id": "m3B-qs12",
+                "prompt": "6 - 2",
+                "answer": 4
+              },
+              {
+                "id": "m3B-qs13",
+                "prompt": "2 + 4",
+                "answer": 6
+              },
+              {
+                "id": "m3B-qs14",
+                "prompt": "7 - 6",
+                "answer": 1
+              },
+              {
+                "id": "m3B-qs15",
+                "prompt": "9 + 1",
+                "answer": 10
+              },
+              {
+                "id": "m3B-qs16",
+                "prompt": "7 - 2",
+                "answer": 5
+              },
+              {
+                "id": "m3B-qs17",
+                "prompt": "5 + 2",
+                "answer": 7
+              },
+              {
+                "id": "m3B-qs18",
+                "prompt": "8 - 5",
+                "answer": 3
+              },
+              {
+                "id": "m3B-qs19",
+                "prompt": "5 + 5",
+                "answer": 10
+              },
+              {
+                "id": "m3B-qs20",
+                "prompt": "9 - 7",
+                "answer": 2
+              },
+              {
+                "id": "m3B-qs21",
+                "prompt": "5 + 3",
+                "answer": 8
+              },
+              {
+                "id": "m3B-qs22",
+                "prompt": "9 - 6",
+                "answer": 3
+              },
+              {
+                "id": "m3B-qs23",
+                "prompt": "7 + 2",
+                "answer": 9
+              },
+              {
+                "id": "m3B-qs24",
+                "prompt": "10 - 9",
+                "answer": 1
+              },
+              {
+                "id": "m3B-qs25",
+                "prompt": "6 + 3",
+                "answer": 9
+              },
+              {
+                "id": "m3B-qs26",
+                "prompt": "10 - 8",
+                "answer": 2
+              },
+              {
+                "id": "m3B-qs27",
+                "prompt": "4 + 6",
+                "answer": 10
+              },
+              {
+                "id": "m3B-qs28",
+                "prompt": "10 - 5",
+                "answer": 5
+              },
+              {
+                "id": "m3B-qs29",
+                "prompt": "6 + 6",
+                "answer": 12
+              },
+              {
+                "id": "m3B-qs30",
+                "prompt": "11 - 6",
+                "answer": 5
+              },
+              {
+                "id": "m3B-qs31",
+                "prompt": "3 + 8",
+                "answer": 11
+              },
+              {
+                "id": "m3B-qs32",
+                "prompt": "11 - 4",
+                "answer": 7
+              },
+              {
+                "id": "m3B-qs33",
+                "prompt": "6 + 5",
+                "answer": 11
+              },
+              {
+                "id": "m3B-qs34",
+                "prompt": "11 - 2",
+                "answer": 9
+              },
+              {
+                "id": "m3B-qs35",
+                "prompt": "9 + 3",
+                "answer": 12
+              },
+              {
+                "id": "m3B-qs36",
+                "prompt": "12 - 4",
+                "answer": 8
+              },
+              {
+                "id": "m3B-qs37",
+                "prompt": "7 + 5",
+                "answer": 12
+              },
+              {
+                "id": "m3B-qs38",
+                "prompt": "12 - 6",
+                "answer": 6
+              },
+              {
+                "id": "m3B-qs39",
+                "prompt": "9 + 4",
+                "answer": 13
+              },
+              {
+                "id": "m3B-qs40",
+                "prompt": "13 - 6",
+                "answer": 7
+              },
+              {
+                "id": "m3B-qs41",
+                "prompt": "5 + 8",
+                "answer": 13
+              },
+              {
+                "id": "m3B-qs42",
+                "prompt": "14 - 6",
+                "answer": 8
+              },
+              {
+                "id": "m3B-qs43",
+                "prompt": "8 + 6",
+                "answer": 14
+              },
+              {
+                "id": "m3B-qs44",
+                "prompt": "14 - 8",
+                "answer": 6
+              },
+              {
+                "id": "m3B-qs45",
+                "prompt": "5 + 9",
+                "answer": 14
+              },
+              {
+                "id": "m3B-qs46",
+                "prompt": "15 - 7",
+                "answer": 8
+              },
+              {
+                "id": "m3B-qs47",
+                "prompt": "7 + 9",
+                "answer": 16
+              },
+              {
+                "id": "m3B-qs48",
+                "prompt": "15 - 6",
+                "answer": 9
+              },
+              {
+                "id": "m3B-qs49",
+                "prompt": "9 + 9",
+                "answer": 18
+              },
+              {
+                "id": "m3B-qs50",
+                "prompt": "16 - 9",
+                "answer": 7
+              }
+            ],
+            "quick_sums_seconds": 60,
+            "written": [
+              {
+                "id": "m3B-w1",
+                "prompt": "45 + 37",
+                "answer": 82
+              },
+              {
+                "id": "m3B-w2",
+                "prompt": "29 + 46",
+                "answer": 75
+              },
+              {
+                "id": "m3B-w3",
+                "prompt": "64 - 28",
+                "answer": 36
+              },
+              {
+                "id": "m3B-w4",
+                "prompt": "82 - 47",
+                "answer": 35
+              }
+            ],
+            "word_problem": {
+              "id": "m3B-wp",
+              "prompt_ur": "ایک دکان میں 24 انڈے تھے۔ ان میں سے 8 انڈے ٹوٹ گئے۔ اب کتنے انڈے باقی ہیں؟",
+              "prompt_en": "A shop had 24 eggs. 8 of the eggs broke. How many eggs are left?",
+              "answer": 16
+            }
+          }
+        }
+      }
+    },
+    "5": {
+      "forms": {
+        "A": {
+          "urdu": {
+            "story": {
+              "id": "u5A-story",
+              "title": "دریا کی سیر",
+              "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہیں۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔ گھر پہنچ کر بلال نے پتھر دھو کر ایک ڈبے میں رکھ دیے۔ اگلے دن بلال نے وہ پتھر اسکول میں اپنی جماعت کو دکھائے۔ استاد نے بتایا کہ دریا کا پانی برسوں تک پتھروں کو رگڑتا رہتا ہے۔ اسی لیے پتھر گول اور چکنے ہو جاتے ہیں۔ بلال کے دوستوں نے پوچھا کہ کیا وہ بھی کبھی دریا دیکھ سکتے ہیں۔ استاد نے مسکرا کر کہا کہ اگلے مہینے پوری جماعت سیر کے لیے جائے گی۔ یہ سن کر سب بچوں نے زور زور سے تالیاں بجائیں۔ بلال نے سوچا کہ وہ اپنے والد سے دریا کے بارے میں اور باتیں پوچھے گا، تاکہ سیر کے دن وہ اپنے دوستوں کو سب کچھ بتا سکے۔",
+              "tokens": [
+                "آج",
+                "بلال",
+                "اپنے",
+                "والد",
+                "کے",
+                "ساتھ",
+                "دریائے",
+                "جہلم",
+                "کے",
+                "کنارے",
+                "گیا",
+                "وہاں",
+                "ٹھنڈی",
+                "ہوا",
+                "چل",
+                "رہی",
+                "تھی",
+                "اور",
+                "پانی",
+                "آہستہ",
+                "بہہ",
+                "رہا",
+                "تھا",
+                "بلال",
+                "نے",
+                "کشتی",
+                "کو",
+                "حرکت",
+                "کرتے",
+                "دیکھا",
+                "اس",
+                "کے",
+                "والد",
+                "نے",
+                "اسے",
+                "بتایا",
+                "کہ",
+                "دریا",
+                "ہمارے",
+                "ملک",
+                "کے",
+                "لیے",
+                "اہم",
+                "ہیں",
+                "واپسی",
+                "پر",
+                "بلال",
+                "نے",
+                "خوبصورت",
+                "پتھر",
+                "جمع",
+                "کیے",
+                "اور",
+                "مسکراتا",
+                "رہا",
+                "وہ",
+                "بہت",
+                "خوش",
+                "بھی",
+                "تھا",
+                "گھر",
+                "پہنچ",
+                "کر",
+                "بلال",
+                "نے",
+                "پتھر",
+                "دھو",
+                "کر",
+                "ایک",
+                "ڈبے",
+                "میں",
+                "رکھ",
+                "دیے",
+                "اگلے",
+                "دن",
+                "بلال",
+                "نے",
+                "وہ",
+                "پتھر",
+                "اسکول",
+                "میں",
+                "اپنی",
+                "جماعت",
+                "کو",
+                "دکھائے",
+                "استاد",
+                "نے",
+                "بتایا",
+                "کہ",
+                "دریا",
+                "کا",
+                "پانی",
+                "برسوں",
+                "تک",
+                "پتھروں",
+                "کو",
+                "رگڑتا",
+                "رہتا",
+                "ہے",
+                "اسی",
+                "لیے",
+                "پتھر",
+                "گول",
+                "اور",
+                "چکنے",
+                "ہو",
+                "جاتے",
+                "ہیں",
+                "بلال",
+                "کے",
+                "دوستوں",
+                "نے",
+                "پوچھا",
+                "کہ",
+                "کیا",
+                "وہ",
+                "بھی",
+                "کبھی",
+                "دریا",
+                "دیکھ",
+                "سکتے",
+                "ہیں",
+                "استاد",
+                "نے",
+                "مسکرا",
+                "کر",
+                "کہا",
+                "کہ",
+                "اگلے",
+                "مہینے",
+                "پوری",
+                "جماعت",
+                "سیر",
+                "کے",
+                "لیے",
+                "جائے",
+                "گی",
+                "یہ",
+                "سن",
+                "کر",
+                "سب",
+                "بچوں",
+                "نے",
+                "زور",
+                "زور",
+                "سے",
+                "تالیاں",
+                "بجائیں",
+                "بلال",
+                "نے",
+                "سوچا",
+                "کہ",
+                "وہ",
+                "اپنے",
+                "والد",
+                "سے",
+                "دریا",
+                "کے",
+                "بارے",
+                "میں",
+                "اور",
+                "باتیں",
+                "پوچھے",
+                "گا",
+                "تاکہ",
+                "سیر",
+                "کے",
+                "دن",
+                "وہ",
+                "اپنے",
+                "دوستوں",
+                "کو",
+                "سب",
+                "کچھ",
+                "بتا",
+                "سکے"
+              ],
+              "word_count": 176,
+              "source": "may2026-orf_urd+generated-continuation",
+              "lines": [
+                {
+                  "n": 1,
+                  "from": 0,
+                  "to": 10
+                },
+                {
+                  "n": 2,
+                  "from": 11,
+                  "to": 22
+                },
+                {
+                  "n": 3,
+                  "from": 23,
+                  "to": 29
+                },
+                {
+                  "n": 4,
+                  "from": 30,
+                  "to": 43
+                },
+                {
+                  "n": 5,
+                  "from": 44,
+                  "to": 54
+                },
+                {
+                  "n": 6,
+                  "from": 55,
+                  "to": 59
+                },
+                {
+                  "n": 7,
+                  "from": 60,
+                  "to": 72
+                },
+                {
+                  "n": 8,
+                  "from": 73,
+                  "to": 84
+                },
+                {
+                  "n": 9,
+                  "from": 85,
+                  "to": 98
+                },
+                {
+                  "n": 10,
+                  "from": 99,
+                  "to": 107
+                },
+                {
+                  "n": 11,
+                  "from": 108,
+                  "to": 121
+                },
+                {
+                  "n": 12,
+                  "from": 122,
+                  "to": 136
+                },
+                {
+                  "n": 13,
+                  "from": 137,
+                  "to": 147
+                },
+                {
+                  "n": 14,
+                  "from": 148,
+                  "to": 175
+                }
+              ],
+              "names": [
+                "بلال",
+                "جہلم"
+              ],
+              "vetting": {
+                "metrics": {
+                  "word_count": 176,
+                  "mean_word_len": 3.34,
+                  "sentences": 14,
+                  "mean_sentence_len": 12.57,
+                  "corpus_coverage": 94.6,
+                  "distinct_chars": 31
+                },
+                "status": "ai-vetted-pending-signoff",
+                "panel_round": "r4",
+                "panel": {
+                  "claude-opus-5.5": {
+                    "overall": "fix",
+                    "open_high": 0,
+                    "open_medium": 1
+                  },
+                  "gemini-3.1-pro-preview": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  }
+                }
+              },
+              "may_part_word_count": 60
+            },
+            "questions": [
+              {
+                "id": "u5A-q1",
+                "prompt": "بلال کس کے ساتھ دریائے جہلم گیا؟",
+                "type": "literal",
+                "needs_line": 1,
+                "accept": [
+                  "اپنے والد کے ساتھ",
+                  "والد کے ساتھ",
+                  "ابو کے ساتھ",
+                  "ابا کے ساتھ",
+                  "باپ کے ساتھ",
+                  "پاپا کے ساتھ",
+                  "اپنے ابو کے ساتھ",
+                  "والد",
+                  "ابو",
+                  "ابا",
+                  "باپ"
+                ],
+                "reject": [
+                  "امی کے ساتھ",
+                  "والدہ کے ساتھ",
+                  "دوست کے ساتھ",
+                  "استاد کے ساتھ"
+                ],
+                "rubric": "Correct if the child says Bilal went with his father (والد / ابو / ابا / باپ). Answer is in the first part (the May 2026 passage).",
+                "source": "rdcomp_lit1_urd"
+              },
+              {
+                "id": "u5A-q2",
+                "prompt": "بلال نے پتھر اپنی جماعت کو کیوں دکھائے ہوں گے؟",
+                "type": "inferential",
+                "needs_line": 8,
+                "accept": [
+                  "کیونکہ وہ خوبصورت تھے",
+                  "خوبصورت تھے",
+                  "وہ دریا سے لایا تھا",
+                  "دریا کے پتھر تھے",
+                  "دوستوں کو دریا کے بارے میں بتانے کے لیے",
+                  "وہ دوستوں کو اپنی سیر کے بارے میں بتانا چاہتا تھا",
+                  "اسے پتھر اچھے لگے تھے",
+                  "گول اور چکنے تھے"
+                ],
+                "reject": [
+                  "استاد نے مانگے تھے",
+                  "وہ بیچنا چاہتا تھا",
+                  "دوستوں کو دکھانا چاہتا تھا",
+                  "تاکہ دوست بھی دیکھ سکیں"
+                ],
+                "rubric": "Correct if the child gives a reason supported by the story: the stones were beautiful or special (round, smooth), they came from his river trip, or he wanted to tell his friends about the river or the trip. Saying only that he wanted his friends to see them (\"he wanted to show them\", \"so they could see\") restates the question and is wrong.",
+                "source": "generated"
+              },
+              {
+                "id": "u5A-q3",
+                "prompt": "سب بچوں نے زور زور سے تالیاں کیوں بجائیں؟",
+                "type": "inferential",
+                "needs_line": 13,
+                "accept": [
+                  "وہ خوش تھے کہ وہ بھی سیر پر جائیں گے",
+                  "پوری جماعت سیر کے لیے جائے گی",
+                  "وہ بھی دریا دیکھیں گے",
+                  "سیر کی خوشی میں",
+                  "استاد نے کہا سب سیر پر جائیں گے",
+                  "اگلے مہینے سیر پر جانا تھا"
+                ],
+                "reject": [
+                  "وہ خوش تھے",
+                  "استاد نے کہا",
+                  "بلال نے پتھر دکھائے",
+                  "پتھر گول تھے"
+                ],
+                "rubric": "Correct if the child links the clapping to the news that the whole class will go on a trip (to see the river) next month. \"They were happy\" alone, or \"the teacher said something\" with no content, is wrong.",
+                "source": "generated"
+              }
+            ],
+            "first_sounds": [
+              {
+                "id": "u5A-fs1",
+                "word": "ٹوپی",
+                "sound": "ٹ",
+                "say": "ٹَ",
+                "name": "ٹے",
+                "accept": [
+                  "ٹ",
+                  "ٹَ",
+                  "ٹو",
+                  "ٹے"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u5A-fs2",
+                "word": "فرش",
+                "sound": "ف",
+                "say": "فَ",
+                "name": "فے",
+                "accept": [
+                  "ف",
+                  "فَ",
+                  "فا",
+                  "فے"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u5A-fs3",
+                "word": "روٹی",
+                "sound": "ر",
+                "say": "رَ",
+                "name": "رے",
+                "accept": [
+                  "ر",
+                  "رَ",
+                  "رو",
+                  "رے"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u5A-fs4",
+                "word": "گاجر",
+                "sound": "گ",
+                "say": "گَ",
+                "name": "گاف",
+                "accept": [
+                  "گ",
+                  "گَ",
+                  "گا",
+                  "گاف"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u5A-fs5",
+                "word": "دانت",
+                "sound": "د",
+                "say": "دَ",
+                "name": "دال",
+                "accept": [
+                  "د",
+                  "دَ",
+                  "دا",
+                  "دال"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              }
+            ],
+            "nonwords": [
+              {
+                "id": "u5A-nw1",
+                "text": "بولیک",
+                "sounds": [
+                  "ب",
+                  "و",
+                  "ل",
+                  "ی",
+                  "ک"
+                ],
+                "accept": [
+                  "بولیک"
+                ],
+                "accept_readings": [
+                  "booleek",
+                  "boolek",
+                  "boolaik",
+                  "boleek",
+                  "bolek",
+                  "bolaik",
+                  "bauleek",
+                  "baulek",
+                  "baulaik"
+                ],
+                "reject": [
+                  "بولی",
+                  "بولے"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u5A-nw2",
+                "text": "ناپور",
+                "sounds": [
+                  "ن",
+                  "ا",
+                  "پ",
+                  "و",
+                  "ر"
+                ],
+                "accept": [
+                  "ناپور"
+                ],
+                "accept_readings": [
+                  "naapoor",
+                  "naapor",
+                  "naapaur"
+                ],
+                "reject": [
+                  "ناپ"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u5A-nw3",
+                "text": "کیشاد",
+                "sounds": [
+                  "ک",
+                  "ی",
+                  "ش",
+                  "ا",
+                  "د"
+                ],
+                "accept": [
+                  "کیشاد"
+                ],
+                "accept_readings": [
+                  "keeshaad",
+                  "keshaad",
+                  "kaishaad"
+                ],
+                "reject": [
+                  "کشادہ"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u5A-nw4",
+                "text": "ریتوم",
+                "sounds": [
+                  "ر",
+                  "ی",
+                  "ت",
+                  "و",
+                  "م"
+                ],
+                "accept": [
+                  "ریتوم"
+                ],
+                "accept_readings": [
+                  "reetoom",
+                  "reetom",
+                  "reetaum",
+                  "retoom",
+                  "retom",
+                  "retaum",
+                  "raitoom",
+                  "raitom",
+                  "raitaum"
+                ],
+                "reject": [
+                  "ریت"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u5A-nw5",
+                "text": "شوماک",
+                "sounds": [
+                  "ش",
+                  "و",
+                  "م",
+                  "ا",
+                  "ک"
+                ],
+                "accept": [
+                  "شوماک"
+                ],
+                "accept_readings": [
+                  "shoomaak",
+                  "shomaak",
+                  "shaumaak"
+                ],
+                "reject": [
+                  "شام"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              }
+            ],
+            "fallback": {
+              "letters": [
+                "ر",
+                "د",
+                "م",
+                "ک",
+                "س",
+                "ج",
+                "پ",
+                "ت",
+                "ب",
+                "ا"
+              ],
+              "words": [
+                "بچہ",
+                "دروازہ",
+                "پانی",
+                "کتاب",
+                "گھر",
+                "قلم",
+                "بستہ",
+                "کمرہ",
+                "استاد",
+                "سکول"
+              ],
+              "source": "may2026-letterid_urd+idwrd_urd row 1"
+            }
+          },
+          "english": {
+            "story": {
+              "id": "e5A-story",
+              "title": "Planting Trees",
+              "text": "Imran woke up early for school. Today his class was planting trees. He took a small plant in a bag. The teacher asked Imran to show the class how to plant it. Imran dug a hole, put the plant in the soil and put water in it slowly. The teacher was happy with his work. His friends clapped for him. After school, Imran walked home with his sister. He told her about the little tree and how he had planted it. She asked him who would water it during the holidays. Imran thought about it for a moment. Then he decided to make a list of children who could take turns to water it. The next morning, he showed the list to the teacher. She was pleased and put it up on the classroom wall. All through the holidays, two children watered the tree every week. By the end of the year, it had grown taller than Imran, and the whole class was proud of it.",
+              "tokens": [
+                "Imran",
+                "woke",
+                "up",
+                "early",
+                "for",
+                "school",
+                "Today",
+                "his",
+                "class",
+                "was",
+                "planting",
+                "trees",
+                "He",
+                "took",
+                "a",
+                "small",
+                "plant",
+                "in",
+                "a",
+                "bag",
+                "The",
+                "teacher",
+                "asked",
+                "Imran",
+                "to",
+                "show",
+                "the",
+                "class",
+                "how",
+                "to",
+                "plant",
+                "it",
+                "Imran",
+                "dug",
+                "a",
+                "hole",
+                "put",
+                "the",
+                "plant",
+                "in",
+                "the",
+                "soil",
+                "and",
+                "put",
+                "water",
+                "in",
+                "it",
+                "slowly",
+                "The",
+                "teacher",
+                "was",
+                "happy",
+                "with",
+                "his",
+                "work",
+                "His",
+                "friends",
+                "clapped",
+                "for",
+                "him",
+                "After",
+                "school",
+                "Imran",
+                "walked",
+                "home",
+                "with",
+                "his",
+                "sister",
+                "He",
+                "told",
+                "her",
+                "about",
+                "the",
+                "little",
+                "tree",
+                "and",
+                "how",
+                "he",
+                "had",
+                "planted",
+                "it",
+                "She",
+                "asked",
+                "him",
+                "who",
+                "would",
+                "water",
+                "it",
+                "during",
+                "the",
+                "holidays",
+                "Imran",
+                "thought",
+                "about",
+                "it",
+                "for",
+                "a",
+                "moment",
+                "Then",
+                "he",
+                "decided",
+                "to",
+                "make",
+                "a",
+                "list",
+                "of",
+                "children",
+                "who",
+                "could",
+                "take",
+                "turns",
+                "to",
+                "water",
+                "it",
+                "The",
+                "next",
+                "morning",
+                "he",
+                "showed",
+                "the",
+                "list",
+                "to",
+                "the",
+                "teacher",
+                "She",
+                "was",
+                "pleased",
+                "and",
+                "put",
+                "it",
+                "up",
+                "on",
+                "the",
+                "classroom",
+                "wall",
+                "All",
+                "through",
+                "the",
+                "holidays",
+                "two",
+                "children",
+                "watered",
+                "the",
+                "tree",
+                "every",
+                "week",
+                "By",
+                "the",
+                "end",
+                "of",
+                "the",
+                "year",
+                "it",
+                "had",
+                "grown",
+                "taller",
+                "than",
+                "Imran",
+                "and",
+                "the",
+                "whole",
+                "class",
+                "was",
+                "proud",
+                "of",
+                "it"
+              ],
+              "word_count": 166,
+              "source": "may2026-orf_eng+generated-continuation",
+              "lines": [
+                {
+                  "n": 1,
+                  "from": 0,
+                  "to": 5
+                },
+                {
+                  "n": 2,
+                  "from": 6,
+                  "to": 11
+                },
+                {
+                  "n": 3,
+                  "from": 12,
+                  "to": 19
+                },
+                {
+                  "n": 4,
+                  "from": 20,
+                  "to": 31
+                },
+                {
+                  "n": 5,
+                  "from": 32,
+                  "to": 47
+                },
+                {
+                  "n": 6,
+                  "from": 48,
+                  "to": 54
+                },
+                {
+                  "n": 7,
+                  "from": 55,
+                  "to": 59
+                },
+                {
+                  "n": 8,
+                  "from": 60,
+                  "to": 67
+                },
+                {
+                  "n": 9,
+                  "from": 68,
+                  "to": 80
+                },
+                {
+                  "n": 10,
+                  "from": 81,
+                  "to": 90
+                },
+                {
+                  "n": 11,
+                  "from": 91,
+                  "to": 97
+                },
+                {
+                  "n": 12,
+                  "from": 98,
+                  "to": 113
+                },
+                {
+                  "n": 13,
+                  "from": 114,
+                  "to": 123
+                },
+                {
+                  "n": 14,
+                  "from": 124,
+                  "to": 134
+                },
+                {
+                  "n": 15,
+                  "from": 135,
+                  "to": 145
+                },
+                {
+                  "n": 16,
+                  "from": 146,
+                  "to": 165
+                }
+              ],
+              "names": [
+                "Imran"
+              ],
+              "vetting": {
+                "metrics": {
+                  "word_count": 166,
+                  "mean_word_len": 3.94,
+                  "sentences": 16,
+                  "mean_sentence_len": 10.38,
+                  "corpus_coverage": 95.6,
+                  "distinct_chars": 23
+                },
+                "status": "ai-vetted-pending-signoff",
+                "panel_round": "r4",
+                "panel": {
+                  "claude-opus-5.5": {
+                    "overall": "fix",
+                    "open_high": 0,
+                    "open_medium": 1
+                  },
+                  "gemini-3.1-pro-preview": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  }
+                }
+              },
+              "may_part_word_count": 60
+            },
+            "questions": [
+              {
+                "id": "e5A-q1",
+                "prompt": "What was the class planting?",
+                "type": "literal",
+                "needs_line": 2,
+                "accept": [
+                  "trees",
+                  "tree",
+                  "plants",
+                  "plant",
+                  "small plants",
+                  "planting trees",
+                  "درخت",
+                  "درختوں",
+                  "پودے",
+                  "پودا"
+                ],
+                "reject": [
+                  "flowers",
+                  "seeds"
+                ],
+                "rubric": "Correct if the child says trees or plants. Answer is in the first part (the May 2026 passage). An answer in Urdu or English is accepted.",
+                "source": "rdcomp_lit2_eng"
+              },
+              {
+                "id": "e5A-q2",
+                "prompt": "Why did Imran make a list of children?",
+                "type": "inferential",
+                "needs_line": 12,
+                "accept": [
+                  "so the tree would get water in the holidays",
+                  "so children could take turns watering the tree",
+                  "to take turns watering the tree",
+                  "so someone would water the tree",
+                  "so the tree would not dry up",
+                  "because his sister asked who would water it",
+                  "تاکہ چھٹیوں میں درخت کو پانی ملے",
+                  "باری باری درخت کو پانی دینے کے لیے",
+                  "تاکہ بچے باری باری پانی دیں",
+                  "تاکہ درخت سوکھ نہ جائے",
+                  "تاکہ درخت کو پانی ملتا رہے",
+                  "کیونکہ بہن نے پوچھا کہ پانی کون دے گا"
+                ],
+                "reject": [
+                  "to plant more trees",
+                  "to give it to his sister",
+                  "because the teacher told him",
+                  "to show the teacher",
+                  "to put on the wall"
+                ],
+                "rubric": "Correct if the child says the list was so the tree would keep getting water (in the holidays) with children taking turns, or that his sister had asked who would water it. \"To take turns\" alone, without saying what for, is wrong. Evidence is lines 10-12. An answer in Urdu or English is accepted.",
+                "source": "generated"
+              }
+            ],
+            "nonwords": [
+              {
+                "id": "e5A-nw1",
+                "text": "brep",
+                "sounds": [
+                  "b",
+                  "r",
+                  "e",
+                  "p"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5A-nw2",
+                "text": "drim",
+                "sounds": [
+                  "d",
+                  "r",
+                  "i",
+                  "m"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5A-nw3",
+                "text": "thop",
+                "sounds": [
+                  "th",
+                  "o",
+                  "p"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5A-nw4",
+                "text": "frub",
+                "sounds": [
+                  "f",
+                  "r",
+                  "u",
+                  "b"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5A-nw5",
+                "text": "chom",
+                "sounds": [
+                  "ch",
+                  "o",
+                  "m"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5A-nw6",
+                "text": "stip",
+                "sounds": [
+                  "s",
+                  "t",
+                  "i",
+                  "p"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5A-nw7",
+                "text": "gake",
+                "sounds": [
+                  "g",
+                  "a_e",
+                  "k"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5A-nw8",
+                "text": "plon",
+                "sounds": [
+                  "p",
+                  "l",
+                  "o",
+                  "n"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              }
+            ],
+            "fallback": {
+              "letters": [
+                "L",
+                "i",
+                "h",
+                "R",
+                "S",
+                "y",
+                "E",
+                "O",
+                "n",
+                "T"
+              ],
+              "words": [
+                "boy",
+                "girl",
+                "school",
+                "book",
+                "pen",
+                "bag",
+                "teacher",
+                "student",
+                "class",
+                "read"
+              ],
+              "source": "may2026-letterid_eng+idwrd_eng row 1"
+            }
+          },
+          "maths": {
+            "strip_code": "G5-A",
+            "numbers": [
+              {
+                "id": "m5A-n1",
+                "value": 13,
+                "say_ur": "تیرہ",
+                "say_en": "thirteen"
+              },
+              {
+                "id": "m5A-n2",
+                "value": 60,
+                "say_ur": "ساٹھ",
+                "say_en": "sixty"
+              },
+              {
+                "id": "m5A-n3",
+                "value": 418,
+                "say_ur": "چار سو اٹھارہ",
+                "say_en": "four hundred and eighteen"
+              },
+              {
+                "id": "m5A-n4",
+                "value": 905,
+                "say_ur": "نو سو پانچ",
+                "say_en": "nine hundred and five"
+              },
+              {
+                "id": "m5A-n5",
+                "value": 2370,
+                "say_ur": "دو ہزار تین سو ستر",
+                "say_en": "two thousand three hundred and seventy"
+              },
+              {
+                "id": "m5A-n6",
+                "value": 6004,
+                "say_ur": "چھ ہزار چار",
+                "say_en": "six thousand and four"
+              },
+              {
+                "id": "m5A-n7",
+                "value": 15020,
+                "say_ur": "پندرہ ہزار بیس",
+                "say_en": "fifteen thousand and twenty"
+              },
+              {
+                "id": "m5A-n8",
+                "value": 48216,
+                "say_ur": "اڑتالیس ہزار دو سو سولہ",
+                "say_en": "forty-eight thousand two hundred and sixteen"
+              }
+            ],
+            "numbers_stop_rule": "stop after 4 wrong in a row",
+            "quick_sums": [
+              {
+                "id": "m5A-qs1",
+                "prompt": "1 + 6",
+                "answer": 7
+              },
+              {
+                "id": "m5A-qs2",
+                "prompt": "6 - 2",
+                "answer": 4
+              },
+              {
+                "id": "m5A-qs3",
+                "prompt": "2 × 4",
+                "answer": 8
+              },
+              {
+                "id": "m5A-qs4",
+                "prompt": "10 ÷ 2",
+                "answer": 5
+              },
+              {
+                "id": "m5A-qs5",
+                "prompt": "8 + 1",
+                "answer": 9
+              },
+              {
+                "id": "m5A-qs6",
+                "prompt": "7 - 5",
+                "answer": 2
+              },
+              {
+                "id": "m5A-qs7",
+                "prompt": "2 × 5",
+                "answer": 10
+              },
+              {
+                "id": "m5A-qs8",
+                "prompt": "20 ÷ 5",
+                "answer": 4
+              },
+              {
+                "id": "m5A-qs9",
+                "prompt": "5 + 2",
+                "answer": 7
+              },
+              {
+                "id": "m5A-qs10",
+                "prompt": "8 - 7",
+                "answer": 1
+              },
+              {
+                "id": "m5A-qs11",
+                "prompt": "3 × 3",
+                "answer": 9
+              },
+              {
+                "id": "m5A-qs12",
+                "prompt": "16 ÷ 2",
+                "answer": 8
+              },
+              {
+                "id": "m5A-qs13",
+                "prompt": "4 + 3",
+                "answer": 7
+              },
+              {
+                "id": "m5A-qs14",
+                "prompt": "8 - 4",
+                "answer": 4
+              },
+              {
+                "id": "m5A-qs15",
+                "prompt": "8 × 2",
+                "answer": 16
+              },
+              {
+                "id": "m5A-qs16",
+                "prompt": "12 ÷ 6",
+                "answer": 2
+              },
+              {
+                "id": "m5A-qs17",
+                "prompt": "4 + 5",
+                "answer": 9
+              },
+              {
+                "id": "m5A-qs18",
+                "prompt": "9 - 3",
+                "answer": 6
+              },
+              {
+                "id": "m5A-qs19",
+                "prompt": "4 × 3",
+                "answer": 12
+              },
+              {
+                "id": "m5A-qs20",
+                "prompt": "40 ÷ 5",
+                "answer": 8
+              },
+              {
+                "id": "m5A-qs21",
+                "prompt": "4 + 6",
+                "answer": 10
+              },
+              {
+                "id": "m5A-qs22",
+                "prompt": "10 - 5",
+                "answer": 5
+              },
+              {
+                "id": "m5A-qs23",
+                "prompt": "5 × 8",
+                "answer": 40
+              },
+              {
+                "id": "m5A-qs24",
+                "prompt": "24 ÷ 6",
+                "answer": 4
+              },
+              {
+                "id": "m5A-qs25",
+                "prompt": "2 + 8",
+                "answer": 10
+              },
+              {
+                "id": "m5A-qs26",
+                "prompt": "10 - 3",
+                "answer": 7
+              },
+              {
+                "id": "m5A-qs27",
+                "prompt": "4 × 6",
+                "answer": 24
+              },
+              {
+                "id": "m5A-qs28",
+                "prompt": "21 ÷ 7",
+                "answer": 3
+              },
+              {
+                "id": "m5A-qs29",
+                "prompt": "4 + 7",
+                "answer": 11
+              },
+              {
+                "id": "m5A-qs30",
+                "prompt": "11 - 7",
+                "answer": 4
+              },
+              {
+                "id": "m5A-qs31",
+                "prompt": "8 × 4",
+                "answer": 32
+              },
+              {
+                "id": "m5A-qs32",
+                "prompt": "24 ÷ 8",
+                "answer": 3
+              },
+              {
+                "id": "m5A-qs33",
+                "prompt": "7 + 7",
+                "answer": 14
+              },
+              {
+                "id": "m5A-qs34",
+                "prompt": "12 - 7",
+                "answer": 5
+              },
+              {
+                "id": "m5A-qs35",
+                "prompt": "6 × 6",
+                "answer": 36
+              },
+              {
+                "id": "m5A-qs36",
+                "prompt": "32 ÷ 8",
+                "answer": 4
+              },
+              {
+                "id": "m5A-qs37",
+                "prompt": "4 + 9",
+                "answer": 13
+              },
+              {
+                "id": "m5A-qs38",
+                "prompt": "13 - 5",
+                "answer": 8
+              },
+              {
+                "id": "m5A-qs39",
+                "prompt": "7 × 7",
+                "answer": 49
+              },
+              {
+                "id": "m5A-qs40",
+                "prompt": "40 ÷ 8",
+                "answer": 5
+              },
+              {
+                "id": "m5A-qs41",
+                "prompt": "6 + 8",
+                "answer": 14
+              },
+              {
+                "id": "m5A-qs42",
+                "prompt": "13 - 9",
+                "answer": 4
+              },
+              {
+                "id": "m5A-qs43",
+                "prompt": "9 × 6",
+                "answer": 54
+              },
+              {
+                "id": "m5A-qs44",
+                "prompt": "49 ÷ 7",
+                "answer": 7
+              },
+              {
+                "id": "m5A-qs45",
+                "prompt": "9 + 5",
+                "answer": 14
+              },
+              {
+                "id": "m5A-qs46",
+                "prompt": "15 - 8",
+                "answer": 7
+              },
+              {
+                "id": "m5A-qs47",
+                "prompt": "7 × 9",
+                "answer": 63
+              },
+              {
+                "id": "m5A-qs48",
+                "prompt": "64 ÷ 8",
+                "answer": 8
+              },
+              {
+                "id": "m5A-qs49",
+                "prompt": "8 + 9",
+                "answer": 17
+              },
+              {
+                "id": "m5A-qs50",
+                "prompt": "16 - 9",
+                "answer": 7
+              }
+            ],
+            "quick_sums_seconds": 60,
+            "written": [
+              {
+                "id": "m5A-w1",
+                "prompt": "457 + 286",
+                "answer": 743
+              },
+              {
+                "id": "m5A-w2",
+                "prompt": "724 - 358",
+                "answer": 366
+              },
+              {
+                "id": "m5A-w3",
+                "prompt": "136 × 4",
+                "answer": 544
+              },
+              {
+                "id": "m5A-w4",
+                "prompt": "96 ÷ 4",
+                "answer": 24
+              }
+            ],
+            "word_problem": {
+              "id": "m5A-wp",
+              "prompt_ur": "اسکول کی ایک بس ہر چکر میں 36 بچوں کو لے کر جاتی ہے۔ آج بس نے 4 چکر لگائے۔ آج بس سب ملا کر کتنے بچوں کو لے کر گئی؟",
+              "prompt_en": "A school bus takes 36 children on each trip. Today it made 4 trips. How many children did it take altogether today?",
+              "answer": 144
+            }
+          }
+        },
+        "B": {
+          "urdu": {
+            "story": {
+              "id": "u5B-story",
+              "title": "زخمی چڑیا",
+              "text": "سردیوں کی ایک صبح حرا اسکول جانے کے لیے گھر سے نکلی۔ راستے میں اس نے سڑک کے کنارے ایک چھوٹی سی چڑیا دیکھی۔ چڑیا کا ایک پر زخمی تھا اور وہ اڑ نہیں سکتی تھی۔ حرا نے اسے آہستہ سے اپنے ہاتھوں میں اٹھایا اور گھر لے آئی۔ اس کی دادی نے ایک پرانے ڈبے میں نرم کپڑا بچھا دیا اور چڑیا کو اس میں رکھ دیا۔ حرا نے چڑیا کو پانی اور دانہ دیا اور پھر اسکول چلی گئی۔ سارا دن اسے چڑیا کی فکر رہی اور وہ سبق پر پوری توجہ نہ دے سکی۔ چھٹی کے بعد وہ دوڑتی ہوئی گھر پہنچی تو دیکھا کہ چڑیا دانہ کھا رہی تھی۔ کچھ دن تک حرا روزانہ اس کا خیال رکھتی رہی۔ ایک ہفتے بعد چڑیا ڈبے سے نکل کر کمرے میں پھدکنے لگی۔ دادی نے کہا کہ اب یہ ٹھیک ہو گئی ہے اور اسے آزاد کر دینا چاہیے۔ حرا تھوڑی اداس ہوئی، مگر اس نے کھڑکی کھول دی۔ چڑیا اڑ کر سامنے والے درخت پر جا بیٹھی اور حرا اسے دیکھ کر مسکرانے لگی۔",
+              "tokens": [
+                "سردیوں",
+                "کی",
+                "ایک",
+                "صبح",
+                "حرا",
+                "اسکول",
+                "جانے",
+                "کے",
+                "لیے",
+                "گھر",
+                "سے",
+                "نکلی",
+                "راستے",
+                "میں",
+                "اس",
+                "نے",
+                "سڑک",
+                "کے",
+                "کنارے",
+                "ایک",
+                "چھوٹی",
+                "سی",
+                "چڑیا",
+                "دیکھی",
+                "چڑیا",
+                "کا",
+                "ایک",
+                "پر",
+                "زخمی",
+                "تھا",
+                "اور",
+                "وہ",
+                "اڑ",
+                "نہیں",
+                "سکتی",
+                "تھی",
+                "حرا",
+                "نے",
+                "اسے",
+                "آہستہ",
+                "سے",
+                "اپنے",
+                "ہاتھوں",
+                "میں",
+                "اٹھایا",
+                "اور",
+                "گھر",
+                "لے",
+                "آئی",
+                "اس",
+                "کی",
+                "دادی",
+                "نے",
+                "ایک",
+                "پرانے",
+                "ڈبے",
+                "میں",
+                "نرم",
+                "کپڑا",
+                "بچھا",
+                "دیا",
+                "اور",
+                "چڑیا",
+                "کو",
+                "اس",
+                "میں",
+                "رکھ",
+                "دیا",
+                "حرا",
+                "نے",
+                "چڑیا",
+                "کو",
+                "پانی",
+                "اور",
+                "دانہ",
+                "دیا",
+                "اور",
+                "پھر",
+                "اسکول",
+                "چلی",
+                "گئی",
+                "سارا",
+                "دن",
+                "اسے",
+                "چڑیا",
+                "کی",
+                "فکر",
+                "رہی",
+                "اور",
+                "وہ",
+                "سبق",
+                "پر",
+                "پوری",
+                "توجہ",
+                "نہ",
+                "دے",
+                "سکی",
+                "چھٹی",
+                "کے",
+                "بعد",
+                "وہ",
+                "دوڑتی",
+                "ہوئی",
+                "گھر",
+                "پہنچی",
+                "تو",
+                "دیکھا",
+                "کہ",
+                "چڑیا",
+                "دانہ",
+                "کھا",
+                "رہی",
+                "تھی",
+                "کچھ",
+                "دن",
+                "تک",
+                "حرا",
+                "روزانہ",
+                "اس",
+                "کا",
+                "خیال",
+                "رکھتی",
+                "رہی",
+                "ایک",
+                "ہفتے",
+                "بعد",
+                "چڑیا",
+                "ڈبے",
+                "سے",
+                "نکل",
+                "کر",
+                "کمرے",
+                "میں",
+                "پھدکنے",
+                "لگی",
+                "دادی",
+                "نے",
+                "کہا",
+                "کہ",
+                "اب",
+                "یہ",
+                "ٹھیک",
+                "ہو",
+                "گئی",
+                "ہے",
+                "اور",
+                "اسے",
+                "آزاد",
+                "کر",
+                "دینا",
+                "چاہیے",
+                "حرا",
+                "تھوڑی",
+                "اداس",
+                "ہوئی",
+                "مگر",
+                "اس",
+                "نے",
+                "کھڑکی",
+                "کھول",
+                "دی",
+                "چڑیا",
+                "اڑ",
+                "کر",
+                "سامنے",
+                "والے",
+                "درخت",
+                "پر",
+                "جا",
+                "بیٹھی",
+                "اور",
+                "حرا",
+                "اسے",
+                "دیکھ",
+                "کر",
+                "مسکرانے",
+                "لگی"
+              ],
+              "word_count": 177,
+              "source": "generated",
+              "lines": [
+                {
+                  "n": 1,
+                  "from": 0,
+                  "to": 11
+                },
+                {
+                  "n": 2,
+                  "from": 12,
+                  "to": 23
+                },
+                {
+                  "n": 3,
+                  "from": 24,
+                  "to": 35
+                },
+                {
+                  "n": 4,
+                  "from": 36,
+                  "to": 48
+                },
+                {
+                  "n": 5,
+                  "from": 49,
+                  "to": 67
+                },
+                {
+                  "n": 6,
+                  "from": 68,
+                  "to": 80
+                },
+                {
+                  "n": 7,
+                  "from": 81,
+                  "to": 96
+                },
+                {
+                  "n": 8,
+                  "from": 97,
+                  "to": 112
+                },
+                {
+                  "n": 9,
+                  "from": 113,
+                  "to": 122
+                },
+                {
+                  "n": 10,
+                  "from": 123,
+                  "to": 134
+                },
+                {
+                  "n": 11,
+                  "from": 135,
+                  "to": 150
+                },
+                {
+                  "n": 12,
+                  "from": 151,
+                  "to": 160
+                },
+                {
+                  "n": 13,
+                  "from": 161,
+                  "to": 176
+                }
+              ],
+              "names": [
+                "حرا"
+              ],
+              "vetting": {
+                "metrics": {
+                  "word_count": 177,
+                  "mean_word_len": 3.22,
+                  "sentences": 13,
+                  "mean_sentence_len": 13.62,
+                  "corpus_coverage": 94.7,
+                  "distinct_chars": 32
+                },
+                "status": "ai-vetted-pending-signoff",
+                "panel_round": "r4",
+                "panel": {
+                  "claude-opus-5.5": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 1
+                  },
+                  "gemini-3.1-pro-preview": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  }
+                }
+              }
+            },
+            "questions": [
+              {
+                "id": "u5B-q1",
+                "prompt": "چڑیا کیوں نہیں اڑ سکتی تھی؟",
+                "type": "literal",
+                "needs_line": 3,
+                "accept": [
+                  "اس کا پر زخمی تھا",
+                  "پر زخمی تھا",
+                  "وہ زخمی تھی",
+                  "اس کو چوٹ لگی تھی",
+                  "اس کا پنکھ زخمی تھا",
+                  "پر ٹوٹا ہوا تھا",
+                  "پنکھ پر چوٹ تھی",
+                  "اس کا بازو زخمی تھا",
+                  "بازو پر چوٹ لگی تھی",
+                  "اسے چوٹ لگی تھی"
+                ],
+                "reject": [
+                  "وہ چھوٹی تھی",
+                  "سردی تھی",
+                  "وہ بھوکی تھی"
+                ],
+                "rubric": "Correct if the child says the sparrow's wing was hurt or it was injured (پر / پنکھ / بازو زخمی، چوٹ).",
+                "source": "generated"
+              },
+              {
+                "id": "u5B-q2",
+                "prompt": "سارا دن حرا کو چڑیا کی فکر کیوں رہی؟",
+                "type": "inferential",
+                "needs_line": 7,
+                "accept": [
+                  "چڑیا زخمی تھی",
+                  "وہ چڑیا کو گھر چھوڑ کر آئی تھی",
+                  "چڑیا گھر پر اکیلی تھی",
+                  "وہ سوچ رہی تھی کہ چڑیا ٹھیک ہے یا نہیں",
+                  "پتا نہیں چڑیا ٹھیک ہے یا نہیں",
+                  "اسے ڈر تھا کہ چڑیا مر نہ جائے",
+                  "چڑیا بیمار تھی"
+                ],
+                "reject": [
+                  "اسے سبق یاد نہیں تھا",
+                  "وہ سبق پر توجہ نہ دے سکی",
+                  "چڑیا اڑ گئی تھی"
+                ],
+                "rubric": "Correct if the child gives any reason showing worry for the sparrow: it was hurt, OR it was left alone at home, OR she did not know if it was all right. One of these is enough. Only restating that she could not pay attention in class is wrong.",
+                "source": "generated"
+              },
+              {
+                "id": "u5B-q3",
+                "prompt": "چڑیا کو آزاد کرتے وقت حرا اداس کیوں ہوئی؟",
+                "type": "inferential",
+                "needs_line": 12,
+                "accept": [
+                  "اسے چڑیا سے پیار ہو گیا تھا",
+                  "چڑیا اس سے دور جا رہی تھی",
+                  "چڑیا چلی جائے گی",
+                  "وہ چڑیا کو یاد کرے گی",
+                  "وہ چڑیا کو اپنے پاس رکھنا چاہتی تھی",
+                  "وہ اس کی دوست بن گئی تھی",
+                  "اس نے کئی دن چڑیا کا خیال رکھا تھا",
+                  "اب چڑیا اس کے پاس نہیں رہے گی"
+                ],
+                "reject": [
+                  "چڑیا مر گئی",
+                  "دادی ناراض تھیں",
+                  "دادی نے کہا آزاد کر دو"
+                ],
+                "rubric": "Correct if the child says Hira had grown attached to the sparrow after caring for it, or would miss it now it was leaving. Only saying that Dadi told her to free it is wrong unless linked to the sparrow leaving or Hira missing it.",
+                "source": "generated"
+              }
+            ],
+            "first_sounds": [
+              {
+                "id": "u5B-fs1",
+                "word": "میدان",
+                "sound": "م",
+                "say": "مَ",
+                "name": "میم",
+                "accept": [
+                  "م",
+                  "مَ",
+                  "می",
+                  "میم"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u5B-fs2",
+                "word": "نمک",
+                "sound": "ن",
+                "say": "نَ",
+                "name": "نون",
+                "accept": [
+                  "ن",
+                  "نَ",
+                  "نا",
+                  "نون"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u5B-fs3",
+                "word": "چمچ",
+                "sound": "چ",
+                "say": "چَ",
+                "name": "چے",
+                "accept": [
+                  "چ",
+                  "چَ",
+                  "چا",
+                  "چے"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u5B-fs4",
+                "word": "بادل",
+                "sound": "ب",
+                "say": "بَ",
+                "name": "بے",
+                "accept": [
+                  "ب",
+                  "بَ",
+                  "با",
+                  "بے"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              },
+              {
+                "id": "u5B-fs5",
+                "word": "لکڑی",
+                "sound": "ل",
+                "say": "لَ",
+                "name": "لام",
+                "accept": [
+                  "ل",
+                  "لَ",
+                  "لا",
+                  "لام"
+                ],
+                "rubric": "Correct if the child says the first sound of the word: the consonant alone or with any vowel (e.g. مَ، ما، مو for مچھلی). v1 also accepts the letter name (e.g. میم), because ICT classrooms teach letters by name; recorded as a D3 question for Sabeena and Sameer. Saying the whole word, or a different first sound, is wrong. Coach marks; the AI mark is a hint only."
+              }
+            ],
+            "nonwords": [
+              {
+                "id": "u5B-nw1",
+                "text": "پیکوم",
+                "sounds": [
+                  "پ",
+                  "ی",
+                  "ک",
+                  "و",
+                  "م"
+                ],
+                "accept": [
+                  "پیکوم"
+                ],
+                "accept_readings": [
+                  "peekoom",
+                  "peekom",
+                  "peekaum",
+                  "pekoom",
+                  "pekom",
+                  "pekaum",
+                  "paikoom",
+                  "paikom",
+                  "paikaum"
+                ],
+                "reject": [
+                  "پیک"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u5B-nw2",
+                "text": "لیتام",
+                "sounds": [
+                  "ل",
+                  "ی",
+                  "ت",
+                  "ا",
+                  "م"
+                ],
+                "accept": [
+                  "لیتام"
+                ],
+                "accept_readings": [
+                  "leetaam",
+                  "letaam",
+                  "laitaam"
+                ],
+                "reject": [
+                  "لیٹا"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u5B-nw3",
+                "text": "چوبیر",
+                "sounds": [
+                  "چ",
+                  "و",
+                  "ب",
+                  "ی",
+                  "ر"
+                ],
+                "accept": [
+                  "چوبیر"
+                ],
+                "accept_readings": [
+                  "choobeer",
+                  "choober",
+                  "choobair",
+                  "chobeer",
+                  "chober",
+                  "chobair",
+                  "chaubeer",
+                  "chauber",
+                  "chaubair"
+                ],
+                "reject": [
+                  "چوبی"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u5B-nw4",
+                "text": "موگان",
+                "sounds": [
+                  "م",
+                  "و",
+                  "گ",
+                  "ا",
+                  "ن"
+                ],
+                "accept": [
+                  "موگان"
+                ],
+                "accept_readings": [
+                  "moogaan",
+                  "mogaan",
+                  "maugaan"
+                ],
+                "reject": [
+                  "مکان"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              },
+              {
+                "id": "u5B-nw5",
+                "text": "ڈیروم",
+                "sounds": [
+                  "ڈ",
+                  "ی",
+                  "ر",
+                  "و",
+                  "م"
+                ],
+                "accept": [
+                  "ڈیروم"
+                ],
+                "accept_readings": [
+                  "deeroom",
+                  "deerom",
+                  "deeraum",
+                  "deroom",
+                  "derom",
+                  "deraum",
+                  "dairoom",
+                  "dairom",
+                  "dairaum"
+                ],
+                "reject": [
+                  "ڈیرہ"
+                ],
+                "rubric": "Correct if every letter gets a legitimate sound and the whole word is blended. Without vowel marks, medial و may be read oo or o (also au), and ی may be read ee or ay/e; any of these readings is correct. Reading it as a real word (see reject), or sounding letters without blending, is wrong. Speech-to-text may write a correct reading as a nearby real word: treat that as uncertain and leave it to the coach."
+              }
+            ],
+            "fallback": {
+              "letters": [
+                "ل",
+                "ن",
+                "گ",
+                "ش",
+                "ف",
+                "و",
+                "چ",
+                "ڈ",
+                "ہ",
+                "ز"
+              ],
+              "words": [
+                "بازار",
+                "سڑک",
+                "دکان",
+                "گھڑی",
+                "مچھلی",
+                "پرندہ",
+                "ستارہ",
+                "سورج",
+                "کھڑکی",
+                "درخت"
+              ],
+              "source": "new letters; words = May 2026 idwrd_urd items 12 and 36-50"
+            }
+          },
+          "english": {
+            "story": {
+              "id": "e5B-story",
+              "title": "The Water Filter",
+              "text": "Amna's school was having a science fair on Friday. Every class had to make something new. Amna's group chose to make a water filter from an old plastic bottle. They cut off the bottom and turned the bottle upside down. Then they filled it with small stones, sand and cotton. Next, they poured muddy water into the top. Slowly, clear water dripped out at the bottom. Her friends were very surprised. On the day of the fair, many parents came to see the work of each class. Amna explained each step in a clear voice. The head teacher asked how they got the idea. Amna said her grandma had told her that people in villages once cleaned water this way. At the end of the day, the group won second prize. Amna ran all the way home to tell her grandma. Her grandma gave her a big hug and said she was proud of the whole group. It was a happy day for them all.",
+              "tokens": [
+                "Amna's",
+                "school",
+                "was",
+                "having",
+                "a",
+                "science",
+                "fair",
+                "on",
+                "Friday",
+                "Every",
+                "class",
+                "had",
+                "to",
+                "make",
+                "something",
+                "new",
+                "Amna's",
+                "group",
+                "chose",
+                "to",
+                "make",
+                "a",
+                "water",
+                "filter",
+                "from",
+                "an",
+                "old",
+                "plastic",
+                "bottle",
+                "They",
+                "cut",
+                "off",
+                "the",
+                "bottom",
+                "and",
+                "turned",
+                "the",
+                "bottle",
+                "upside",
+                "down",
+                "Then",
+                "they",
+                "filled",
+                "it",
+                "with",
+                "small",
+                "stones",
+                "sand",
+                "and",
+                "cotton",
+                "Next",
+                "they",
+                "poured",
+                "muddy",
+                "water",
+                "into",
+                "the",
+                "top",
+                "Slowly",
+                "clear",
+                "water",
+                "dripped",
+                "out",
+                "at",
+                "the",
+                "bottom",
+                "Her",
+                "friends",
+                "were",
+                "very",
+                "surprised",
+                "On",
+                "the",
+                "day",
+                "of",
+                "the",
+                "fair",
+                "many",
+                "parents",
+                "came",
+                "to",
+                "see",
+                "the",
+                "work",
+                "of",
+                "each",
+                "class",
+                "Amna",
+                "explained",
+                "each",
+                "step",
+                "in",
+                "a",
+                "clear",
+                "voice",
+                "The",
+                "head",
+                "teacher",
+                "asked",
+                "how",
+                "they",
+                "got",
+                "the",
+                "idea",
+                "Amna",
+                "said",
+                "her",
+                "grandma",
+                "had",
+                "told",
+                "her",
+                "that",
+                "people",
+                "in",
+                "villages",
+                "once",
+                "cleaned",
+                "water",
+                "this",
+                "way",
+                "At",
+                "the",
+                "end",
+                "of",
+                "the",
+                "day",
+                "the",
+                "group",
+                "won",
+                "second",
+                "prize",
+                "Amna",
+                "ran",
+                "all",
+                "the",
+                "way",
+                "home",
+                "to",
+                "tell",
+                "her",
+                "grandma",
+                "Her",
+                "grandma",
+                "gave",
+                "her",
+                "a",
+                "big",
+                "hug",
+                "and",
+                "said",
+                "she",
+                "was",
+                "proud",
+                "of",
+                "the",
+                "whole",
+                "group",
+                "It",
+                "was",
+                "a",
+                "happy",
+                "day",
+                "for",
+                "them",
+                "all"
+              ],
+              "word_count": 165,
+              "source": "generated",
+              "lines": [
+                {
+                  "n": 1,
+                  "from": 0,
+                  "to": 8
+                },
+                {
+                  "n": 2,
+                  "from": 9,
+                  "to": 15
+                },
+                {
+                  "n": 3,
+                  "from": 16,
+                  "to": 28
+                },
+                {
+                  "n": 4,
+                  "from": 29,
+                  "to": 39
+                },
+                {
+                  "n": 5,
+                  "from": 40,
+                  "to": 49
+                },
+                {
+                  "n": 6,
+                  "from": 50,
+                  "to": 57
+                },
+                {
+                  "n": 7,
+                  "from": 58,
+                  "to": 65
+                },
+                {
+                  "n": 8,
+                  "from": 66,
+                  "to": 70
+                },
+                {
+                  "n": 9,
+                  "from": 71,
+                  "to": 86
+                },
+                {
+                  "n": 10,
+                  "from": 87,
+                  "to": 94
+                },
+                {
+                  "n": 11,
+                  "from": 95,
+                  "to": 103
+                },
+                {
+                  "n": 12,
+                  "from": 104,
+                  "to": 119
+                },
+                {
+                  "n": 13,
+                  "from": 120,
+                  "to": 130
+                },
+                {
+                  "n": 14,
+                  "from": 131,
+                  "to": 140
+                },
+                {
+                  "n": 15,
+                  "from": 141,
+                  "to": 156
+                },
+                {
+                  "n": 16,
+                  "from": 157,
+                  "to": 164
+                }
+              ],
+              "names": [
+                "Amna"
+              ],
+              "vetting": {
+                "metrics": {
+                  "word_count": 165,
+                  "mean_word_len": 4.05,
+                  "sentences": 16,
+                  "mean_sentence_len": 10.31,
+                  "corpus_coverage": 95.0,
+                  "distinct_chars": 25
+                },
+                "status": "ai-vetted-pending-signoff",
+                "panel_round": "r4",
+                "panel": {
+                  "claude-opus-5.5": {
+                    "overall": "fix",
+                    "open_high": 0,
+                    "open_medium": 1
+                  },
+                  "gemini-3.1-pro-preview": {
+                    "overall": "pass",
+                    "open_high": 0,
+                    "open_medium": 0
+                  }
+                }
+              }
+            },
+            "questions": [
+              {
+                "id": "e5B-q1",
+                "prompt": "What did Amna's group use to make the water filter?",
+                "type": "literal",
+                "needs_line": 3,
+                "accept": [
+                  "an old plastic bottle",
+                  "plastic bottle",
+                  "a bottle",
+                  "bottle",
+                  "stones, sand and cotton",
+                  "sand",
+                  "stones",
+                  "cotton",
+                  "بوتل",
+                  "پلاسٹک کی بوتل",
+                  "پتھر، ریت اور روئی",
+                  "ریت",
+                  "روئی"
+                ],
+                "reject": [
+                  "a cup",
+                  "a bucket",
+                  "muddy water",
+                  "water",
+                  "mud"
+                ],
+                "rubric": "Correct if the child names the bottle, or any one of the stones, sand or cotton they filled it with. Water or mud alone is wrong. An answer in Urdu or English is accepted.",
+                "source": "generated"
+              },
+              {
+                "id": "e5B-q2",
+                "prompt": "Why did Amna want to tell her grandma about the prize?",
+                "type": "inferential",
+                "needs_line": 12,
+                "accept": [
+                  "her grandma gave her the idea",
+                  "the idea came from her grandma",
+                  "grandma told her how people cleaned water",
+                  "grandma would be proud because it was her idea",
+                  "کیونکہ دادی نے اسے یہ طریقہ بتایا تھا",
+                  "نانی نے آئیڈیا دیا تھا",
+                  "یہ دادی کا طریقہ تھا"
+                ],
+                "reject": [
+                  "she was hungry",
+                  "her grandma was ill",
+                  "because she won",
+                  "because she was happy",
+                  "to make her grandma happy"
+                ],
+                "rubric": "Correct if the child links telling grandma to the idea coming from her (grandma told her how villages cleaned water). 'Happy' or 'proud' counts only when tied to it being grandma's idea. Wrong if the answer only restates that she won or was happy, or gives a reason not in the story. Grandma = دادی / نانی / grandmother. An answer in Urdu or English is accepted.",
+                "source": "generated"
+              }
+            ],
+            "nonwords": [
+              {
+                "id": "e5B-nw1",
+                "text": "glet",
+                "sounds": [
+                  "g",
+                  "l",
+                  "e",
+                  "t"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5B-nw2",
+                "text": "trab",
+                "sounds": [
+                  "t",
+                  "r",
+                  "a",
+                  "b"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5B-nw3",
+                "text": "shom",
+                "sounds": [
+                  "sh",
+                  "o",
+                  "m"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5B-nw4",
+                "text": "clup",
+                "sounds": [
+                  "c",
+                  "l",
+                  "u",
+                  "p"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5B-nw5",
+                "text": "flig",
+                "sounds": [
+                  "f",
+                  "l",
+                  "i",
+                  "g"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5B-nw6",
+                "text": "snid",
+                "sounds": [
+                  "s",
+                  "n",
+                  "i",
+                  "d"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5B-nw7",
+                "text": "vope",
+                "sounds": [
+                  "v",
+                  "o_e",
+                  "p"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              },
+              {
+                "id": "e5B-nw8",
+                "text": "plam",
+                "sounds": [
+                  "p",
+                  "l",
+                  "a",
+                  "m"
+                ],
+                "rubric": "Correct if the child blends the sounds into one word with the short vowel (or the long vowel for a final silent e). Accept /w/ for v and v for /w/, and for th a dental or aspirated t (ت / تھ) as well as /θ/ or /ð/ (common Pakistani English accent features). Sounding letters without blending, or saying a real word instead, is wrong. Speech-to-text often turns a made-up word into a near real word (drim to dream, stip to step): treat a near real word in the transcript as uncertain, not wrong, and leave it to the coach."
+              }
+            ],
+            "fallback": {
+              "letters": [
+                "M",
+                "a",
+                "P",
+                "k",
+                "G",
+                "u",
+                "D",
+                "e",
+                "B",
+                "w"
+              ],
+              "words": [
+                "window",
+                "garden",
+                "bread",
+                "river",
+                "market",
+                "apple",
+                "door",
+                "green",
+                "flower",
+                "pencil"
+              ],
+              "source": "new; words from the Grade 4-5 textbook corpus"
+            }
+          },
+          "maths": {
+            "strip_code": "G5-B",
+            "numbers": [
+              {
+                "id": "m5B-n1",
+                "value": 17,
+                "say_ur": "سترہ",
+                "say_en": "seventeen"
+              },
+              {
+                "id": "m5B-n2",
+                "value": 50,
+                "say_ur": "پچاس",
+                "say_en": "fifty"
+              },
+              {
+                "id": "m5B-n3",
+                "value": 629,
+                "say_ur": "چھ سو انتیس",
+                "say_en": "six hundred and twenty-nine"
+              },
+              {
+                "id": "m5B-n4",
+                "value": 704,
+                "say_ur": "سات سو چار",
+                "say_en": "seven hundred and four"
+              },
+              {
+                "id": "m5B-n5",
+                "value": 3580,
+                "say_ur": "تین ہزار پانچ سو اسی",
+                "say_en": "three thousand five hundred and eighty"
+              },
+              {
+                "id": "m5B-n6",
+                "value": 9006,
+                "say_ur": "نو ہزار چھ",
+                "say_en": "nine thousand and six"
+              },
+              {
+                "id": "m5B-n7",
+                "value": 17045,
+                "say_ur": "سترہ ہزار پینتالیس",
+                "say_en": "seventeen thousand and forty-five"
+              },
+              {
+                "id": "m5B-n8",
+                "value": 63412,
+                "say_ur": "تریسٹھ ہزار چار سو بارہ",
+                "say_en": "sixty-three thousand four hundred and twelve"
+              }
+            ],
+            "numbers_stop_rule": "stop after 4 wrong in a row",
+            "quick_sums": [
+              {
+                "id": "m5B-qs1",
+                "prompt": "6 + 1",
+                "answer": 7
+              },
+              {
+                "id": "m5B-qs2",
+                "prompt": "8 ÷ 2",
+                "answer": 4
+              },
+              {
+                "id": "m5B-qs3",
+                "prompt": "3 × 2",
+                "answer": 6
+              },
+              {
+                "id": "m5B-qs4",
+                "prompt": "8 - 1",
+                "answer": 7
+              },
+              {
+                "id": "m5B-qs5",
+                "prompt": "3 + 3",
+                "answer": 6
+              },
+              {
+                "id": "m5B-qs6",
+                "prompt": "6 - 3",
+                "answer": 3
+              },
+              {
+                "id": "m5B-qs7",
+                "prompt": "5 × 3",
+                "answer": 15
+              },
+              {
+                "id": "m5B-qs8",
+                "prompt": "14 ÷ 2",
+                "answer": 7
+              },
+              {
+                "id": "m5B-qs9",
+                "prompt": "1 + 9",
+                "answer": 10
+              },
+              {
+                "id": "m5B-qs10",
+                "prompt": "7 - 4",
+                "answer": 3
+              },
+              {
+                "id": "m5B-qs11",
+                "prompt": "7 × 2",
+                "answer": 14
+              },
+              {
+                "id": "m5B-qs12",
+                "prompt": "16 ÷ 2",
+                "answer": 8
+              },
+              {
+                "id": "m5B-qs13",
+                "prompt": "3 + 4",
+                "answer": 7
+              },
+              {
+                "id": "m5B-qs14",
+                "prompt": "8 - 5",
+                "answer": 3
+              },
+              {
+                "id": "m5B-qs15",
+                "prompt": "5 × 5",
+                "answer": 25
+              },
+              {
+                "id": "m5B-qs16",
+                "prompt": "12 ÷ 3",
+                "answer": 4
+              },
+              {
+                "id": "m5B-qs17",
+                "prompt": "6 + 2",
+                "answer": 8
+              },
+              {
+                "id": "m5B-qs18",
+                "prompt": "9 - 2",
+                "answer": 7
+              },
+              {
+                "id": "m5B-qs19",
+                "prompt": "3 × 4",
+                "answer": 12
+              },
+              {
+                "id": "m5B-qs20",
+                "prompt": "18 ÷ 6",
+                "answer": 3
+              },
+              {
+                "id": "m5B-qs21",
+                "prompt": "4 + 5",
+                "answer": 9
+              },
+              {
+                "id": "m5B-qs22",
+                "prompt": "10 - 8",
+                "answer": 2
+              },
+              {
+                "id": "m5B-qs23",
+                "prompt": "4 × 4",
+                "answer": 16
+              },
+              {
+                "id": "m5B-qs24",
+                "prompt": "16 ÷ 8",
+                "answer": 2
+              },
+              {
+                "id": "m5B-qs25",
+                "prompt": "6 + 6",
+                "answer": 12
+              },
+              {
+                "id": "m5B-qs26",
+                "prompt": "11 - 5",
+                "answer": 6
+              },
+              {
+                "id": "m5B-qs27",
+                "prompt": "5 × 8",
+                "answer": 40
+              },
+              {
+                "id": "m5B-qs28",
+                "prompt": "18 ÷ 9",
+                "answer": 2
+              },
+              {
+                "id": "m5B-qs29",
+                "prompt": "7 + 4",
+                "answer": 11
+              },
+              {
+                "id": "m5B-qs30",
+                "prompt": "11 - 9",
+                "answer": 2
+              },
+              {
+                "id": "m5B-qs31",
+                "prompt": "7 × 4",
+                "answer": 28
+              },
+              {
+                "id": "m5B-qs32",
+                "prompt": "35 ÷ 7",
+                "answer": 5
+              },
+              {
+                "id": "m5B-qs33",
+                "prompt": "9 + 3",
+                "answer": 12
+              },
+              {
+                "id": "m5B-qs34",
+                "prompt": "12 - 9",
+                "answer": 3
+              },
+              {
+                "id": "m5B-qs35",
+                "prompt": "8 × 4",
+                "answer": 32
+              },
+              {
+                "id": "m5B-qs36",
+                "prompt": "42 ÷ 7",
+                "answer": 6
+              },
+              {
+                "id": "m5B-qs37",
+                "prompt": "6 + 7",
+                "answer": 13
+              },
+              {
+                "id": "m5B-qs38",
+                "prompt": "13 - 9",
+                "answer": 4
+              },
+              {
+                "id": "m5B-qs39",
+                "prompt": "7 × 6",
+                "answer": 42
+              },
+              {
+                "id": "m5B-qs40",
+                "prompt": "36 ÷ 9",
+                "answer": 4
+              },
+              {
+                "id": "m5B-qs41",
+                "prompt": "5 + 8",
+                "answer": 13
+              },
+              {
+                "id": "m5B-qs42",
+                "prompt": "14 - 5",
+                "answer": 9
+              },
+              {
+                "id": "m5B-qs43",
+                "prompt": "9 × 7",
+                "answer": 63
+              },
+              {
+                "id": "m5B-qs44",
+                "prompt": "54 ÷ 9",
+                "answer": 6
+              },
+              {
+                "id": "m5B-qs45",
+                "prompt": "6 + 9",
+                "answer": 15
+              },
+              {
+                "id": "m5B-qs46",
+                "prompt": "15 - 7",
+                "answer": 8
+              },
+              {
+                "id": "m5B-qs47",
+                "prompt": "9 × 9",
+                "answer": 81
+              },
+              {
+                "id": "m5B-qs48",
+                "prompt": "64 ÷ 8",
+                "answer": 8
+              },
+              {
+                "id": "m5B-qs49",
+                "prompt": "9 + 8",
+                "answer": 17
+              },
+              {
+                "id": "m5B-qs50",
+                "prompt": "16 - 9",
+                "answer": 7
+              }
+            ],
+            "quick_sums_seconds": 60,
+            "written": [
+              {
+                "id": "m5B-w1",
+                "prompt": "368 + 475",
+                "answer": 843
+              },
+              {
+                "id": "m5B-w2",
+                "prompt": "812 - 457",
+                "answer": 355
+              },
+              {
+                "id": "m5B-w3",
+                "prompt": "147 × 5",
+                "answer": 735
+              },
+              {
+                "id": "m5B-w4",
+                "prompt": "84 ÷ 3",
+                "answer": 28
+              }
+            ],
+            "word_problem": {
+              "id": "m5B-wp",
+              "prompt_ur": "استاد نے 56 پنسلیں 7 بچوں میں برابر بانٹیں۔ ہر بچے کو کتنی پنسلیں ملیں؟",
+              "prompt_en": "A teacher shared 56 pencils equally among 7 children. How many pencils did each child get?",
+              "answer": 8
+            }
+          }
+        }
+      }
+    }
+  }
+}
