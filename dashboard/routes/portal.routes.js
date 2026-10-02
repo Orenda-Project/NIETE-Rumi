@@ -62,6 +62,7 @@ const {
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
   isFlagEnabledForUser,
   PORTAL_SELF_OBSERVATION_KEY,
+  PORTAL_COACH_OBSERVATION_KEY,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
@@ -5809,6 +5810,119 @@ router.post('/coaching-session/:id/reflection', requirePortalAuth, requireSelfOb
   }));
 });
 
+/* ------------------------------------------------------------------------- *
+ * bd-5rz1v.6 — a COACH's /observe observation, run from the portal: record or
+ * send the lesson, check the draft report, the talk with the teacher and her own
+ * feedback, then send the teacher her report. The bot does all of it with the
+ * WhatsApp path's own functions (portal-observe.service); these routes relay.
+ *
+ * Leader-only (requireLeaderRole), and dark behind
+ * app_settings.portal_coach_observation — off for this coach → 404, the same as
+ * a route that does not exist, and the bot is never called.
+ *
+ * IDENTITY: the coach is ALWAYS req.session.portalUserId. A userId in a body or
+ * query is ignored, never forwarded.
+ * ------------------------------------------------------------------------- */
+
+async function requireCoachObservation(req, res, next) {
+  const on = await isFlagEnabledForUser(supabase, PORTAL_COACH_OBSERVATION_KEY, req.session && req.session.portalUserId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  return next();
+}
+const coachObserve = [requirePortalAuth, requireLeaderRole, requireCoachObservation];
+const sessionCoach = (req) => req.session.portalUserId;
+const asText = (v) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+
+/** POST /api/portal/leader/observe-upload/presign  Body { filename, sizeBytes, kind } — signed under the coach's own id. */
+router.post('/leader/observe-upload/presign', ...coachObserve, (req, res) => {
+  const { filename, sizeBytes, kind } = req.body || {};
+  return relayToBot(res, 'observe-presign', () => PortalCoachingClient.presignUpload({
+    userId: sessionCoach(req), filename, sizeBytes, kind,
+  }));
+});
+
+/**
+ * POST /api/portal/leader/observe/start
+ * Body { teacherExtId, schoolExtId?, key, lessonPlanKey?, lessonPlan?, photoKeys? }
+ * → 200 { coachingSessionId }   400 { reason: 'not_your_teacher' | 'plan_not_found' | … }
+ */
+router.post('/leader/observe/start', ...coachObserve, (req, res) => {
+  const { teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan } = req.body || {};
+  return relayToBot(res, 'observe-start', () => PortalCoachingClient.startObservation({
+    userId: sessionCoach(req), teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys,
+    lessonPlan: libraryPlanPick(lessonPlan),
+  }));
+});
+
+/** GET /api/portal/leader/observe/recent-plans?teacherExtId=&schoolExtId= — the TEACHER's recent plans. */
+router.get('/leader/observe/recent-plans', ...coachObserve, (req, res) => (
+  relayToBot(res, 'observe-recent-plans', () => PortalCoachingClient.observeRecentPlans({
+    userId: sessionCoach(req), teacherExtId: asText(req.query.teacherExtId), schoolExtId: asText(req.query.schoolExtId),
+  }))
+));
+
+/** GET /api/portal/leader/observe/active — her portal observations, newest first, each with its step. */
+router.get('/leader/observe/active', ...coachObserve, (req, res) => (
+  relayToBot(res, 'observe-list', () => PortalCoachingClient.listObservations({ userId: sessionCoach(req) }))
+));
+
+/** GET /api/portal/leader/observe/:id — one observation: its step, the teacher, the talk, the report. */
+router.get('/leader/observe/:id', ...coachObserve, (req, res) => (
+  relayToBot(res, 'observe-view', () => PortalCoachingClient.observationView({
+    userId: sessionCoach(req), coachingSessionId: req.params.id,
+  }))
+));
+
+/** GET /api/portal/leader/observe/:id/draft — the draft report's sections (the WhatsApp review form's fields). */
+router.get('/leader/observe/:id/draft', ...coachObserve, (req, res) => (
+  relayToBot(res, 'observe-draft', () => PortalCoachingClient.getObservationDraft({
+    userId: sessionCoach(req), coachingSessionId: req.params.id,
+  }))
+));
+
+/** POST /api/portal/leader/observe/:id/draft  Body { edits } — save her changes (the form's r_/ev_/imp_/fid_ keys). */
+router.post('/leader/observe/:id/draft', ...coachObserve, (req, res) => {
+  const edits = req.body && req.body.edits && typeof req.body.edits === 'object' ? req.body.edits : {};
+  return relayToBot(res, 'observe-draft-save', () => PortalCoachingClient.saveObservationDraft({
+    userId: sessionCoach(req), coachingSessionId: req.params.id, edits,
+  }));
+});
+
+/** POST /api/portal/leader/observe/:id/talk/guide — the guide for her talk with the teacher. */
+router.post('/leader/observe/:id/talk/guide', ...coachObserve, (req, res) => (
+  relayToBot(res, 'observe-talk-guide', () => PortalCoachingClient.observationTalkGuide({
+    userId: sessionCoach(req), coachingSessionId: req.params.id,
+  }))
+));
+
+/** POST /api/portal/leader/observe/:id/talk  Body { key } — the talk she recorded, uploaded by /observe-upload. */
+router.post('/leader/observe/:id/talk', ...coachObserve, (req, res) => (
+  relayToBot(res, 'observe-talk', () => PortalCoachingClient.startObservationTalk({
+    userId: sessionCoach(req), coachingSessionId: req.params.id, key: req.body && req.body.key,
+  }))
+));
+
+/** POST /api/portal/leader/observe/:id/talk/retry — the same talk again, after a failure. */
+router.post('/leader/observe/:id/talk/retry', ...coachObserve, (req, res) => (
+  relayToBot(res, 'observe-talk-retry', () => PortalCoachingClient.retryObservationTalk({
+    userId: sessionCoach(req), coachingSessionId: req.params.id,
+  }))
+));
+
+/** POST /api/portal/leader/observe/:id/report/preview — make the teacher's report for her to check. */
+router.post('/leader/observe/:id/report/preview', ...coachObserve, (req, res) => (
+  relayToBot(res, 'observe-report-preview', () => PortalCoachingClient.previewObservationReport({
+    userId: sessionCoach(req), coachingSessionId: req.params.id,
+  }))
+));
+
+/** POST /api/portal/leader/observe/:id/report/send — send it to the teacher's WhatsApp. */
+router.post('/leader/observe/:id/report/send', ...coachObserve, (req, res) => (
+  relayToBot(res, 'observe-report-send', () => PortalCoachingClient.sendObservationReport({
+    userId: sessionCoach(req), coachingSessionId: req.params.id,
+  }))
+));
+
 /**
  * GET /api/portal/coaching-analytics
  * Get coaching score trends over time
@@ -6667,12 +6781,17 @@ router.get('/config', async (req, res) => {
     const selfObservation = await isFlagEnabledForUser(
       supabase, PORTAL_SELF_OBSERVATION_KEY, req.session && req.session.portalUserId,
     );
+    // bd-5rz1v.6: per USER too — the coach's portal observation pilot.
+    const coachObservation = await isFlagEnabledForUser(
+      supabase, PORTAL_COACH_OBSERVATION_KEY, req.session && req.session.portalUserId,
+    );
     return res.json({
       success: true,
       features: {
         assessmentGenerator,
         assessmentGeneratorMessage: assessmentGenerator ? null : ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation,
+        coachObservation,
       },
     });
   } catch (error) {
@@ -6684,6 +6803,7 @@ router.get('/config', async (req, res) => {
         assessmentGenerator: false,
         assessmentGeneratorMessage: ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation: false,
+        coachObservation: false,
       },
     });
   }

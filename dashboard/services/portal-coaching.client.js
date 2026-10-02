@@ -42,14 +42,14 @@ function config() {
   };
 }
 
-async function post(path, body) {
+async function post(path, body, timeoutMs = TIMEOUT_MS) {
   const { baseUrl, apiKey } = config();
   if (!baseUrl || !apiKey) {
     throw new Error('portal coaching API is not configured (MAIN_BOT_URL / INTERNAL_API_KEY)');
   }
   const res = await axios.post(`${baseUrl}/api/internal/coaching/${path}`, body, {
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
-    timeout: TIMEOUT_MS,
+    timeout: timeoutMs,
     // 4xx are answers; let them through instead of throwing.
     validateStatus: (s) => s >= 200 && s < 500,
   });
@@ -79,4 +79,41 @@ function recentPlans({ userId }) {
   return post('recent-plans', { userId });
 }
 
-module.exports = { presignUpload, startSession, submitReflection, recentPlans };
+// ── bd-5rz1v.6: a COACH's /observe observation, run from the portal ─────────
+// Same rules: `userId` is the coach from the SESSION; the bot checks the rest.
+
+// The debrief guide is one model call on its first open (the WhatsApp path's).
+const GUIDE_TIMEOUT_MS = 100_000;
+
+/** @param {{userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan}} args */
+function startObservation({ userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan }) {
+  return post('observe/start', { userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan });
+}
+/** HER recent plans — for the teacher being observed. */
+function observeRecentPlans({ userId, teacherExtId, schoolExtId }) {
+  return post('observe/recent-plans', { userId, teacherExtId, schoolExtId });
+}
+function listObservations({ userId }) { return post('observe/list', { userId }); }
+function observationView({ userId, coachingSessionId }) { return post('observe/view', { userId, coachingSessionId }); }
+function getObservationDraft({ userId, coachingSessionId }) { return post('observe/draft', { userId, coachingSessionId }); }
+function saveObservationDraft({ userId, coachingSessionId, edits }) {
+  return post('observe/draft/save', { userId, coachingSessionId, edits });
+}
+function observationTalkGuide({ userId, coachingSessionId }) {
+  return post('observe/talk/guide', { userId, coachingSessionId }, GUIDE_TIMEOUT_MS);
+}
+function startObservationTalk({ userId, coachingSessionId, key }) {
+  return post('observe/talk/start', { userId, coachingSessionId, key });
+}
+function retryObservationTalk({ userId, coachingSessionId }) { return post('observe/talk/retry', { userId, coachingSessionId }); }
+function previewObservationReport({ userId, coachingSessionId }) {
+  return post('observe/report/preview', { userId, coachingSessionId });
+}
+function sendObservationReport({ userId, coachingSessionId }) { return post('observe/report/send', { userId, coachingSessionId }); }
+
+module.exports = {
+  presignUpload, startSession, submitReflection, recentPlans,
+  startObservation, observeRecentPlans, listObservations, observationView, getObservationDraft,
+  saveObservationDraft, observationTalkGuide, startObservationTalk, retryObservationTalk,
+  previewObservationReport, sendObservationReport,
+};

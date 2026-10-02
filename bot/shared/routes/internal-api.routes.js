@@ -2042,4 +2042,83 @@ router.post('/coaching/recent-plans', requireInternalKey, portalCoachingRoute('r
 router.post('/coaching/reflection', requireInternalKey, portalCoachingRoute('reflection',
   (Svc, b) => Svc.submitReflection({ userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer })));
 
+/* ------------------------------------------------------------------------- *
+ * bd-5rz1v.6 — a COACH's /observe observation, run from the portal.
+ *
+ * Same contract as the routes above: no logic here, `userId` is the coach the
+ * portal read from its session, the named fields and no others are passed on,
+ * and portal-observe.service answers with the same statuses (→ the same HTTP).
+ * Uploads use /coaching/presign-upload above, signed under the coach's own id.
+ * ------------------------------------------------------------------------- */
+
+function portalObserveRoute(name, run) {
+  return async (req, res) => {
+    const body = req.body || {};
+    if (!body.userId) return res.status(400).json({ success: false, error: 'userId is required' });
+    try {
+      const PortalObserve = require('../services/observe/portal-observe.service');
+      const result = await run(PortalObserve, body);
+      const http = PORTAL_COACHING_HTTP[result && result.status] || 500;
+      if (http >= 500) {
+        logToFile('❌ Portal observe request failed', { route: name, userId: body.userId, result }, 'error');
+      }
+      return res.status(http).json({ success: http < 400, ...result });
+    } catch (error) {
+      logToFile('❌ Portal observe request threw', { route: name, userId: body.userId, error: error?.message }, 'error');
+      return res.status(500).json({ success: false, error: 'Portal observe request failed' });
+    }
+  };
+}
+
+/**
+ * POST /api/internal/coaching/observe/start
+ * Body { userId, teacherExtId, schoolExtId?, key, lessonPlanKey?, lessonPlan?, photoKeys? }
+ * Ok   200 { status:'ok', coachingSessionId }   400 invalid (not_your_teacher, plan_not_found, …)
+ */
+router.post('/coaching/observe/start', requireInternalKey, portalObserveRoute('observe-start',
+  (Svc, b) => Svc.startPortalObservation({
+    userId: b.userId, teacherExtId: b.teacherExtId, schoolExtId: b.schoolExtId, key: b.key,
+    lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan,
+  })));
+
+/** POST /api/internal/coaching/observe/recent-plans  Body { userId, teacherExtId, schoolExtId? } — HER recent plans. */
+router.post('/coaching/observe/recent-plans', requireInternalKey, portalObserveRoute('observe-recent-plans',
+  (Svc, b) => Svc.teacherRecentPlans({ userId: b.userId, teacherExtId: b.teacherExtId, schoolExtId: b.schoolExtId })));
+
+/** POST /api/internal/coaching/observe/list  Body { userId } — her portal observations, each with its step. */
+router.post('/coaching/observe/list', requireInternalKey, portalObserveRoute('observe-list',
+  (Svc, b) => Svc.listPortalObservations({ userId: b.userId })));
+
+/** POST /api/internal/coaching/observe/view  Body { userId, coachingSessionId } — one observation's page. */
+router.post('/coaching/observe/view', requireInternalKey, portalObserveRoute('observe-view',
+  (Svc, b) => Svc.observationView({ userId: b.userId, coachingSessionId: b.coachingSessionId })));
+
+/** POST /api/internal/coaching/observe/draft  — the review form's sections, as the MEWAKA Flow pre-fills them. */
+router.post('/coaching/observe/draft', requireInternalKey, portalObserveRoute('observe-draft',
+  (Svc, b) => Svc.getDraft({ userId: b.userId, coachingSessionId: b.coachingSessionId })));
+
+/** POST /api/internal/coaching/observe/draft/save  Body { userId, coachingSessionId, edits } — the Flow's edit keys. */
+router.post('/coaching/observe/draft/save', requireInternalKey, portalObserveRoute('observe-draft-save',
+  (Svc, b) => Svc.saveDraft({ userId: b.userId, coachingSessionId: b.coachingSessionId, edits: b.edits })));
+
+/** POST /api/internal/coaching/observe/talk/guide — the debrief guide (built once; can take a model call). */
+router.post('/coaching/observe/talk/guide', requireInternalKey, portalObserveRoute('observe-talk-guide',
+  (Svc, b) => Svc.talkGuide({ userId: b.userId, coachingSessionId: b.coachingSessionId })));
+
+/** POST /api/internal/coaching/observe/talk/start  Body { userId, coachingSessionId, key } — her talk with the teacher. */
+router.post('/coaching/observe/talk/start', requireInternalKey, portalObserveRoute('observe-talk-start',
+  (Svc, b) => Svc.startTalk({ userId: b.userId, coachingSessionId: b.coachingSessionId, key: b.key })));
+
+/** POST /api/internal/coaching/observe/talk/retry — the same talk again, after a failure. */
+router.post('/coaching/observe/talk/retry', requireInternalKey, portalObserveRoute('observe-talk-retry',
+  (Svc, b) => Svc.retryTalk({ userId: b.userId, coachingSessionId: b.coachingSessionId })));
+
+/** POST /api/internal/coaching/observe/report/preview — render the teacher's report for her to check. */
+router.post('/coaching/observe/report/preview', requireInternalKey, portalObserveRoute('observe-report-preview',
+  (Svc, b) => Svc.previewReport({ userId: b.userId, coachingSessionId: b.coachingSessionId })));
+
+/** POST /api/internal/coaching/observe/report/send — deliver it to the teacher (on her WhatsApp). */
+router.post('/coaching/observe/report/send', requireInternalKey, portalObserveRoute('observe-report-send',
+  (Svc, b) => Svc.sendReport({ userId: b.userId, coachingSessionId: b.coachingSessionId })));
+
 module.exports = router;
