@@ -5357,15 +5357,15 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
     // rows, while all it reads is the scores block (~190 B) and three labels.
     // 100 × 30 KB = 3 MB per page load, against ~40 KB. getOverall reads only
     // `.scores`, so it is given exactly that.
+    // Named, so tests/setup/column-completeness (which reads `.select('…')`
+    // literals) does not run on past a joined-string select into the code below.
+    const listColumns = 'id, created_at, audio_duration_seconds, status, scores:analysis_data->scores, '
+      + 'framework:analysis_data->>framework, topic:analysis_data->>topic, subject:analysis_data->>subject, '
+      + 'observation_type, observer_user_id, sent_at:analysis_data->teacher_delivery->>sent_at, '
+      + 'send_requested_at:analysis_data->teacher_delivery->>send_requested_at';
     const { data: coachingSessions, error, count } = await supabase
       .from('coaching_sessions')
-      .select(
-        'id, created_at, audio_duration_seconds, status, scores:analysis_data->scores, '
-        + 'framework:analysis_data->>framework, topic:analysis_data->>topic, subject:analysis_data->>subject, '
-        + 'observation_type, observer_user_id, sent_at:analysis_data->teacher_delivery->>sent_at, '
-        + 'send_requested_at:analysis_data->teacher_delivery->>send_requested_at',
-        { count: 'exact' },
-      )
+      .select(listColumns, { count: 'exact' })
       .eq('user_id', userId)
       .not('analysis_data', 'is', null)
       // Her own lessons once completed; a coach's observation once the coach
