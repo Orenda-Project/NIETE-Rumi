@@ -157,6 +157,8 @@ function withDefaults(deps = {}) {
     queue: () => require('./coaching-job-queue.service'),
     reflective: () => require('./reflective-conversation.service'),
     getUserLanguage: () => require('../../utils/language-cache').getUserLanguage,
+    library: () => require('./portal-lesson-plan-library.service'),
+    log: () => require('../../utils/logger').logToFile,
     now: () => () => new Date(),
     newId: () => () => crypto.randomUUID(),
   };
@@ -205,15 +207,38 @@ async function checkUploaded(d, items) {
 }
 
 /**
+ * bd-5rz1v — a lesson plan picked from the library instead of uploaded:
+ *   { assetId }          one of her recent plans (an asset she downloaded)
+ *   { lessonId }         a grades 1-5 lesson from the catalogue
+ *   { segmentId, lang }  a grades 6-12 lesson, in the language she browsed it in
+ * Exactly one shape, every value a non-empty string. Anything else is refused
+ * rather than guessed at.
+ */
+function libraryPick(lessonPlan) {
+  if (lessonPlan == null) return { pick: null };
+  if (typeof lessonPlan !== 'object' || Array.isArray(lessonPlan)) return { bad: true };
+  const str = (v) => typeof v === 'string' && v.trim() !== '';
+  const keys = Object.keys(lessonPlan).filter((k) => lessonPlan[k] !== undefined);
+  const only = (...want) => keys.length === want.length && want.every((k) => str(lessonPlan[k]));
+  if (only('assetId')) return { pick: { assetId: lessonPlan.assetId } };
+  if (only('lessonId')) return { pick: { lessonId: lessonPlan.lessonId } };
+  if (only('segmentId', 'lang') && ['en', 'ur'].includes(lessonPlan.lang)) {
+    return { pick: { segmentId: lessonPlan.segmentId, lang: lessonPlan.lang } };
+  }
+  return { bad: true };
+}
+
+/**
  * Turn an uploaded recording (and optional lesson plan / photos) into a
  * coaching session and start the pipeline.
- * @param {{userId, key, lessonPlanKey?, photoKeys?: string[]}} args
+ * @param {{userId, key, lessonPlanKey?, lessonPlan?, photoKeys?: string[]}} args
+ *   lessonPlanKey — a plan she uploaded; lessonPlan — one she picked (libraryPick).
  * @returns {{status:'ok', coachingSessionId}
  *         | {status:'in_progress', coachingSessionId}
  *         | {status:'invalid', reason}
  *         | {status:'queue_failed', coachingSessionId}}
  */
-async function startPortalSession({ userId, key, lessonPlanKey = null, photoKeys = [] }, deps) {
+async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPlan: picked = null, photoKeys = [] }, deps) {
   const photos = Array.isArray(photoKeys) ? photoKeys.filter(Boolean) : [];
 
   // Every key must be this teacher's own, of the right kind — checked before
@@ -224,6 +249,9 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, photoKeys
   }
   if (photos.length > MAX_PHOTOS) return { status: 'invalid', reason: 'too_many_photos' };
   if (photos.some((k) => !isOwnPortalKey(userId, k, 'photo'))) return { status: 'invalid', reason: 'not_your_upload' };
+  const { pick, bad } = libraryPick(picked);
+  if (bad) return { status: 'invalid', reason: 'bad_lesson_plan' };
+  if (pick && lessonPlanKey) return { status: 'invalid', reason: 'two_lesson_plans' };
 
   const d = withDefaults(deps);
 
@@ -236,7 +264,7 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, photoKeys
 
   // The same rule the WhatsApp classroom-audio branch applies: while one of her
   // recordings is mid-analysis, a second one is deferred, not started in
-  // parallel (FEAT-106 #3) — but a stale one can never trap her.
+  // parallel — but a stale one can never trap her.
   const { shouldDeferNewClassroomAudio } = require('./coaching-inflight-guard');
   const { data: latest } = await d.supabase
     .from('coaching_sessions')
@@ -253,16 +281,34 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, photoKeys
     .from('users').select('id, phone_number').eq('id', userId).single();
   if (!user) return { status: 'invalid', reason: 'no_user' };
 
+  // A library pick is resolved BEFORE anything is created, so a plan that does
+  // not exist — or a 6-12 lesson not written yet — is an answer she can act on
+  // (pick another, or photograph hers), never a session analysed without it.
+  let libraryAsset = null;
+  let libraryPdfKey = null;
+  if (pick && pick.segmentId) {
+    const render = await d.library.readyRender(pick);
+    if (!render) return { status: 'invalid', reason: 'plan_not_ready' };
+    libraryPdfKey = render.r2Key;
+  } else if (pick) {
+    libraryAsset = await d.library.resolveAsset({ userId, ...pick });
+    if (!libraryAsset) return { status: 'invalid', reason: 'plan_not_found' };
+  }
+
   const startedAt = d.now().toISOString();
 
   // The lesson plan, written field for field as lesson-plan-processor writes
-  // it — handleLessonPlanUpload for a plan, the "No" tap for none.
-  const lessonPlan = lessonPlanKey
+  // it — handleLessonPlanUpload for a plan, the "No" tap for none. A written
+  // 6-12 lesson is a PDF in R2, so it is that upload too. A linked library
+  // asset starts as "none" here: the linker writes the link below, exactly as
+  // it does for a WhatsApp list tap.
+  const planKey = lessonPlanKey || libraryPdfKey;
+  const lessonPlan = planKey
     ? {
       has_lesson_plan: true,
-      lesson_plan_url: d.r2.buildR2PublicUrl(lessonPlanKey),
-      lesson_plan_r2_key: lessonPlanKey,
-      lesson_plan_format: extOf(lessonPlanKey).slice(1),
+      lesson_plan_url: d.r2.buildR2PublicUrl(planKey),
+      lesson_plan_r2_key: planKey,
+      lesson_plan_format: extOf(planKey).slice(1),
       lesson_plan_extraction_status: 'pending',
       lesson_plan_extraction_error: null,
     }
@@ -300,6 +346,19 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, photoKeys
     .select()
     .single();
   if (error || !session) throw new Error(`portal coaching insert failed: ${error && error.message}`);
+
+  // Linked before transcription is queued, so afterTranscription reads the
+  // link. A linker failure degrades to "no plan", as the WhatsApp list does:
+  // the recording is still analysed, never stranded.
+  if (libraryAsset) {
+    try {
+      await d.library.link(session.id, libraryAsset.assetId);
+    } catch (linkError) {
+      d.log('❌ Portal coaching: library plan could not be linked — analysing without it', {
+        coachingSessionId: session.id, assetId: libraryAsset.assetId, error: linkError && linkError.message,
+      }, 'error');
+    }
+  }
 
   try {
     // `from` is her WhatsApp number: progress messages and the finished report
@@ -378,6 +437,31 @@ async function submitReflection({ userId, coachingSessionId, answer }, deps) {
   return { status: 'ok', ...(result || {}) };
 }
 
+/**
+ * bd-5rz1v — her recent plans, from the source the WhatsApp "Recent Lesson
+ * Plans" list reads (niete_lp_downloads via getRecentFidelityLps), in the
+ * portal's shape. Picking one sends { assetId } back to startPortalSession.
+ */
+async function recentLessonPlans({ userId }, deps) {
+  if (!userId) return { status: 'invalid', reason: 'no_user' };
+  const d = withDefaults(deps);
+  const rows = await d.library.recent(userId);
+  return {
+    status: 'ok',
+    plans: (rows || []).map((r) => ({
+      assetId: r.asset_id,
+      lessonId: r.lesson_id,
+      topic: r.topic || null,
+      grade: r.grade != null ? r.grade : null,
+      subject: r.subject || null,
+      chapterNumber: r.chapter_number != null ? r.chapter_number : null,
+      dayLabel: r.day_label || null,
+      pagesLabel: r.pages_label || null,
+      downloadedAt: r.created_at || null,
+    })),
+  };
+}
+
 module.exports = {
   KINDS,
   PORTAL_KEY_RX,
@@ -394,4 +478,5 @@ module.exports = {
   startPortalSession,
   afterTranscription,
   submitReflection,
+  recentLessonPlans,
 };

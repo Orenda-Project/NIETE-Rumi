@@ -61,4 +61,27 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      bd-q4g7s: "Record your class" records the lesson with getUserMedia +
+      MediaRecorder inside the WebView. Capacitor's BridgeWebChromeClient grants
+      an AUDIO_CAPTURE request only when these two are declared (it asks for
+      them at runtime the first time she taps Record now).
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!--
+      "Take a photo" of her lesson plan opens the camera from <input capture>.
+      Once CAMERA is declared, Capacitor asks for it at runtime before opening
+      the camera; the photo is written through the FileProvider above.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!--
+      Declaring those permissions makes Play IMPLY the hardware is required and
+      hide the app from phones without it. Neither is: a phone with no camera
+      can still record, and one with no usable microphone can still upload.
+    -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 </manifest>
