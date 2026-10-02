@@ -45,7 +45,7 @@ SPEC_SUFFIX = ".feature"
 # and `all` excludes them — they run only when named. Selecting one is still right
 # (the code changed), but the output has to say so or the operator will report a
 # phantom empty run.
-DRAFT_FEATURES = ("observe", "attendance")
+DRAFT_FEATURES = ("observe", "attendance", "child-test")   # child-test: all @wip, spec ahead of code (bd-s1oo0.9)
 
 CANNOT_DECIDE = 3
 

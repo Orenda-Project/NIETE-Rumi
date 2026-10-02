@@ -66,8 +66,8 @@ def test_glob_special_chars_are_escaped_not_regex():
 def test_feature_order_read_from_agent_frontmatter():
     order = se.load_feature_order(AGENTS_DIR)
     assert order[:3] == ["registration", "menu", "training"], order
-    assert order[-2:] == ["observe", "attendance"], order
-    assert len(order) == 9, order
+    assert order[-3:] == ["observe", "attendance", "child-test"], order
+    assert len(order) == 10, order
 
 
 def test_feature_order_rejects_duplicate_order_values(tmpdir=None):
@@ -583,7 +583,7 @@ def test_dispatchers_cover_everything_they_route_to():
                  "bot/shared/handlers/voice-message.handler.js",
                  "bot/shared/handlers/flow-response.handler.js"):
         s = _sel([path])
-        assert len(s.features) == 9, (path, len(s.features))
+        assert len(s.features) == 10, (path, len(s.features))
 
 
 def test_import_graph_audit_finds_no_under_selection():
@@ -675,6 +675,31 @@ def test_render_pluralises_the_fallback_count():
     two = se.render_text(_sel(["bot/shared/services/bandit.service.js",
                                "bot/database/migrations/018_x.sql"]))
     assert "2 changed files are unmapped" in two, two
+
+
+def test_child_test_owns_its_paths():
+    """The child test (bd-s1oo0) is a mapped feature: every file the build contract puts under it
+    selects `child-test`, so the qa-impact gate asks for child-test.feature when they change."""
+    for path in ("bot/shared/services/child-test/scoring/index.js",
+                 "bot/shared/services/child-test/draw/index.js",
+                 "bot/shared/services/child-test/store.js",
+                 "bot/shared/handlers/child-test.handler.js",
+                 "bot/shared/routes/child-test-check-endpoint.js",
+                 "bot/scripts/generate-child-test-check-flow-json.js",
+                 "docs/flows/child-test-check.json"):
+        s = _sel([path])
+        assert s.features == ["child-test"], (path, s.features)
+        assert s.fallback is False, path
+        assert "child-test" in s.draft, (path, s.draft)     # all @wip: a draft feature, run by name
+
+
+def test_child_test_entry_points_it_shares_with_other_features():
+    # The offer rides observe2's brief (observe2-check-endpoint.js), and the strip-photo claim sits
+    # first in the image handler, so a change to either can break the child test too.
+    s = _sel(["bot/shared/routes/observe2-check-endpoint.js"])
+    assert s.features == ["observe", "child-test"], s.features
+    s = _sel(["bot/shared/handlers/image-message.handler.js"])
+    assert "child-test" in s.features and "coaching" in s.features, s.features
 
 
 def test_render_text_is_quiet_when_nothing_is_selected():
