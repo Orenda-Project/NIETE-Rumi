@@ -89,11 +89,18 @@ function parseNumberWord(word) {
   return LEXICON.get(k) || null;
 }
 
-/** Split hyphenated English ("forty-seven") into words, keep the source index. */
+/**
+ * Split a word into the parts that can each be a number: hyphenated English
+ * ("forty-seven") and sums Soniox writes as one token ("1+4", "10-6=4", "2+2؟").
+ * Every part keeps the index of the word it came from.
+ */
 function explode(words) {
   const out = [];
   words.forEach((w, i) => {
-    String(w || '').split(/[-‐–]/).filter(Boolean).forEach((p) => out.push({ w: p, i }));
+    const raw = String(w || '');
+    const ascii = asciiDigits(raw);
+    const parts = /\d\s*[+\-−–×xX*÷=]\s*\d/.test(ascii) ? ascii.split(/[+\-−–×xX*÷=]/) : raw.split(/[-‐–]/);
+    parts.filter((p) => p.trim()).forEach((p) => out.push({ w: p, i }));
   });
   return out;
 }

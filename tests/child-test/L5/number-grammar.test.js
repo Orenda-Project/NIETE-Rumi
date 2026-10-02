@@ -59,3 +59,11 @@ describe('child-test number grammar', () => {
     expect(out).toEqual([{ value: 110, from: 1, to: 3, raw: 'ایک سو دس' }]);
   });
 });
+
+describe('child-test number grammar — sums written as one token', () => {
+  test('"1+4" "2+2؟" "10-6" split into their numbers', () => {
+    expect(vals('1+4 کتنا')).toEqual([1, 4]);
+    expect(vals('2+2؟ 4۔')).toEqual([2, 2, 4]);
+    expect(vals('10-6=4')).toEqual([10, 6, 4]);
+  });
+});

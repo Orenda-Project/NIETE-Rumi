@@ -26,7 +26,7 @@ const { logToFile, logError } = require('../../../utils/logger');
 const { logEvent } = require('../../../utils/structured-logger');
 const media = require('./media');
 const stt = require('./stt');
-const { findCueWindows } = require('./windows');
+const { findCueWindows, reconcileWindows } = require('./windows');
 const { labelMissing } = require('./labeller');
 const { scoreStory, scoreFallback } = require('./story');
 const { scoreQuestions } = require('./comprehension');
@@ -67,6 +67,7 @@ async function cutWindows({ block, spec, cue, words, durationSec, calls, modelVe
   if (cut.missing.length) {
     const lab = await labelMissing({ block, spec, words, cut, durationSec, calls });
     modelVersions.labeller = lab.modelVersion;
+    reconcileWindows(block, cut.windows, durationSec);
   }
   return cut;
 }
@@ -112,7 +113,7 @@ async function runReading({ block, spec, cue, file, durationSec, calls, errors, 
   return { parts, ok, flags: cut.flags, transcript: compactTranscript(res), windows: cut.windows };
 }
 
-async function runMaths({ spec, cue, grade, form, row, audioFile, durationSec, calls, errors, modelVersions }) {
+async function runMaths({ spec, cue, grade, form, row, audioFile, durationSec, calls, errors, modelVersions, fetchMedia }) {
   const parts = { maths: {} }; const ok = {};
   let flags = []; let transcript = null; let windows = null;
 
@@ -133,7 +134,7 @@ async function runMaths({ spec, cue, grade, form, row, audioFile, durationSec, c
     if (!row.photo_r2_key) return null;
     let photoFile = null;
     try {
-      photoFile = await media.downloadToTemp(row.photo_r2_key, 'jpg');
+      photoFile = await fetchMedia(row.photo_r2_key, 'jpg');
       const image = require('fs').readFileSync(photoFile);
       const r = await scoreStrip({ spec, grade, form, image, calls });
       if (!r.ok) { errors.push({ job: 'vision', error: r.error }); return null; }
@@ -179,6 +180,8 @@ async function scoreBlock(args, deps = {}) {
   try {
     if (!BLOCKS.has(block)) return { ok: false, aiStatus: 'failed', reason: 'bad_block' };
     store = deps.store || require('../store');
+    // R2 by default; the offline evaluation passes a local-file reader instead.
+    const fetchMedia = deps.fetchMedia || media.downloadToTemp;
     const itemBank = deps.itemBank || require('../item-bank');
 
     let got;
@@ -212,12 +215,12 @@ async function scoreBlock(args, deps = {}) {
     const calls = []; const errors = []; const modelVersions = {};
     let audioFile = null; let durationSec = null;
     if (row.audio_r2_key) {
-      try { audioFile = await media.downloadToTemp(row.audio_r2_key, 'ogg'); tmp.push(audioFile); } catch (e) { throw new Fatal('audio_download_failed', e.message); }
+      try { audioFile = await fetchMedia(row.audio_r2_key, 'ogg'); tmp.push(audioFile); } catch (e) { throw new Fatal('audio_download_failed', e.message); }
       durationSec = await media.probeDuration(audioFile);
     }
 
     const result = block === 'maths'
-      ? await runMaths({ spec, cue, grade, form, row, audioFile, durationSec, calls, errors, modelVersions })
+      ? await runMaths({ spec, cue, grade, form, row, audioFile, durationSec, calls, errors, modelVersions, fetchMedia })
       : await runReading({ block, spec, cue, file: audioFile, durationSec, calls, errors, modelVersions });
 
     const aiStatus = aiStatusFor(block, result.ok);

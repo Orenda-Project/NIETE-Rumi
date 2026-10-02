@@ -29,6 +29,7 @@ const SECTIONS = {
 // (the cue itself, "carry on", "louder"). Short and neutral on purpose.
 const PROMPTING_MIN_WORDS = 3;
 const PROMPT_MIN_SCORE = 0.75;
+const OPENING_SECONDS = 5;
 
 /**
  * First place `phrase` is spoken after `after` seconds: the words of the phrase,
@@ -101,6 +102,13 @@ function findCueWindows({ words, block, form, cue = {}, durationSec }) {
   if (block === 'maths') {
     anchors.numbers = firstAnchor(words, [cue.numbers], {}) || (words.length ? { start: 0, end: 0, speaker: null, implicit: true } : null);
     anchors.quick_sums = firstAnchor(words, [cue.quick_sums, ...starts(cue)], { after: anchors.numbers ? anchors.numbers.end : -1 });
+    // The start cue marks the quick-sums minute (item bank note), but a coach may also say it to
+    // open the block. Said in the first seconds, before the numbers were read, it opened the
+    // numbers; the minute then starts at a LATER start cue, or the labeller finds it.
+    if (!cue.quick_sums && anchors.quick_sums && anchors.quick_sums.start < OPENING_SECONDS && (spec.numbers || []).length) {
+      anchors.numbers = anchors.quick_sums;
+      anchors.quick_sums = firstAnchor(words, starts(cue), { after: anchors.numbers.end + 1 });
+    }
     const wpAfter = anchors.quick_sums ? anchors.quick_sums.end + 5 : -1;
     anchors.word_problem = firstAnchor(words, [cue.word_problem, firstWords(spec.word_problem && spec.word_problem.prompt_ur, 5)], { after: wpAfter });
   } else {
@@ -215,10 +223,29 @@ function distinctSpeakers(words) {
 
 function pushOnce(arr, v) { if (!arr.includes(v)) arr.push(v); }
 
+/**
+ * After the labeller has filled gaps, put the sections back in order: a section never runs
+ * past the start of the next one, and an untimed section the labeller found runs to the next
+ * section (or the end of the note) rather than stopping at the labeller's guess.
+ */
+function reconcileWindows(block, windows, durationSec) {
+  const order = (SECTIONS[block] || []).filter((s) => windows[s]);
+  order.forEach((s, i) => {
+    const w = windows[s];
+    const next = order[i + 1] ? windows[order[i + 1]].start : (Number.isFinite(durationSec) ? durationSec : w.end);
+    const timed = s === 'story' || s === 'quick_sums';
+    if (timed) w.end = Math.min(w.end, next);
+    else if (w.source === 'labeller') w.end = next;
+    else w.end = Math.min(w.end, next);
+    if (timed && w.sectionEnd != null) w.sectionEnd = Math.min(w.sectionEnd, next);
+  });
+  return windows;
+}
+
 /** Words inside a window, optionally without the coach. */
 function wordsIn(words, w, { excludeSpeaker } = {}) {
   if (!w) return [];
   return words.filter((x) => x.start >= w.start - 0.2 && x.start < w.end && (!excludeSpeaker || x.speaker !== excludeSpeaker));
 }
 
-module.exports = { findCueWindows, findPhrase, wordsIn, SECTIONS, TIMED_SECONDS };
+module.exports = { findCueWindows, findPhrase, wordsIn, reconcileWindows, SECTIONS, TIMED_SECONDS };

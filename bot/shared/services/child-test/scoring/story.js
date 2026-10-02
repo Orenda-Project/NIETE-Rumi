@@ -30,6 +30,19 @@ function verdictsFrom(json, n) {
   return out;
 }
 
+/**
+ * Gemini sometimes marks words the child never reached as WRONG rather than SKIPPED, so a
+ * child who said five words "attempted" the whole passage. Nobody attempts more words than
+ * they spoke: cap at the words Soniox heard from the child in the window, plus a little slack
+ * for words it merged or missed.
+ */
+const ATTEMPT_SLACK = 2;
+function capAttempted(verdicts, spokenCount) {
+  if (!Number.isFinite(spokenCount)) return verdicts;
+  const cap = spokenCount + ATTEMPT_SLACK;
+  return verdicts.map((v, i) => (i >= cap ? 'skipped' : v));
+}
+
 function attemptedOf(verdicts) {
   for (let i = verdicts.length - 1; i >= 0; i -= 1) if (verdicts[i] !== 'skipped') return i + 1;
   return 0;
@@ -71,12 +84,12 @@ async function scoreStory({ lang, spec, file, window, words, coachSpeaker, flags
     calls.push({ job: 'story', model, cost: r.cost, seconds: r.seconds, error: r.error });
     if (!r.json) return { ok: false, error: r.error || 'no_json' };
 
-    const verdicts = verdictsFrom(r.json, tokens.length);
-    const attempted = attemptedOf(verdicts);
-    const correct = verdicts.slice(0, attempted).filter((v) => v === 'correct').length;
-
     // the study's baseline on the same window: STT words (child only when diarised) aligned to the text
     const hyp = wordsIn(words, window, { excludeSpeaker: coachSpeaker });
+
+    const verdicts = capAttempted(verdictsFrom(r.json, tokens.length), hyp.length);
+    const attempted = attemptedOf(verdicts);
+    const correct = verdicts.slice(0, attempted).filter((v) => v === 'correct').length;
     const aligned = align(ref, hyp.map((h) => h.w));
     const alignAtt = (() => { for (let i = aligned.status.length - 1; i >= 0; i -= 1) if (aligned.status[i] !== 'omit') return i + 1; return 0; })();
     const alignCorrect = aligned.status.slice(0, alignAtt).filter((s) => s === 'correct').length;
@@ -135,4 +148,4 @@ async function scoreFallback({ lang, spec, file, window, calls }) {
   } finally { if (clip) cleanup(clip.path); }
 }
 
-module.exports = { scoreStory, scoreFallback, verdictsFrom, attemptedOf };
+module.exports = { scoreStory, scoreFallback, verdictsFrom, attemptedOf, capAttempted };

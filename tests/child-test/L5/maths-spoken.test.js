@@ -38,3 +38,11 @@ describe('child-test spoken maths', () => {
     expect(spokenAnswer(child)).toBe(9);
   });
 });
+
+describe('child-test spoken maths — STT writes the sum as one token', () => {
+  test('"1+4؟ 5" is the operands then the answer', () => {
+    const items = [{ id: 'a', prompt: '1 + 4', answer: 5 }, { id: 'b', prompt: '2 + 2', answer: 4 }];
+    const heard = wordsFromTokens(T.tokensFrom([[2, 1, '1+4؟ 5۔ 2+2؟ 4۔']]));
+    expect(scoreQuickSums(heard, items, { start: 0, end: 60 })).toMatchObject({ correct: 2, attempted: 2 });
+  });
+});

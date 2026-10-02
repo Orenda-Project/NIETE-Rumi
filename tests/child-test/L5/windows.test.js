@@ -81,3 +81,13 @@ describe('child-test window cutter — L1 cue shape (alt_start / alt_stop)', () 
     expect(r2.windows.story.end).toBeCloseTo(40, 0);
   });
 });
+
+describe('child-test window cutter — maths start cue said at the top of the note', () => {
+  test('a start cue in the first seconds opens the numbers, and the quick-sums minute is left to the labeller', () => {
+    const cueL1 = { start: 'اب سوال شروع کریں', alt_start: ['اب شروع کریں'], stop: 'بس، شکریہ' };
+    const script = [[1, 0.2, 'اب شروع کریں'], [2, 3.0, 'سینتالیس بارہ نوے آٹھ'], [2, 20.0, 'سات سات نو چھ']];
+    const r = findCueWindows({ words: words(script), block: 'maths', form, cue: cueL1, durationSec: 80 });
+    expect(r.windows.numbers.start).toBeLessThan(2);
+    expect(r.missing).toContain('quick_sums');
+  });
+});
