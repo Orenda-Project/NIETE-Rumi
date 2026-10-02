@@ -220,6 +220,10 @@ async function sendBrief(form) {
     }
     await WhatsAppService.sendMessage(coach.phone_number, buildBrief(form, { teacherName, lang: coach.preferred_language }));
     logToFile('[observe2] brief sent', { formId: form.id });
+    // The child test (bd-s1oo0.4): "Test 5 children now?", carrying this visit so the school and
+    // the observed class are pre-filled. Gated inside sendOffer (flag + coach role + ICT); never throws.
+    const ChildTest = require('../handlers/child-test.handler');
+    await ChildTest.sendOffer({ coachUserId: form.observer_user_id, kind: 'f', id: form.id });
   } catch (err) {
     logToFile('[observe2] the brief failed', { formId: form.id, error: err.message }, 'error');
   }
