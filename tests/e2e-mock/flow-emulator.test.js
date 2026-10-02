@@ -143,6 +143,35 @@ describe('flow-emulator: navigate Flow', () => {
     expect(done).toEqual([{ flowId: 't1', flowToken: 'u:tt:1', name: 'flow_t1', response_json: { training_action: 'open_module', module_id: '12' } }]);
   });
 
+  // The child-test check Flow (bd-s1oo0.6) lists the words Rumi heard wrong as a pre-ticked
+  // ChipsSelector: untick = the child read it right. Meta's ChipsSelector is a multi-select with a
+  // data-source and init-values, the same contract as CheckboxGroup; the emulator must model it or
+  // the check Flow cannot be driven on the mock lane at all (bd-s1oo0.9).
+  test('a ChipsSelector is a multi-select: init-values pre-tick chips, a pick toggles one, required counts an empty set', async () => {
+    const chips = {
+      version: '7.3',
+      routing_model: { CHECK: [] },
+      screens: [{ id: 'CHECK', title: 'Check', terminal: true, layout: { type: 'SingleColumnLayout', children: [
+        { type: 'Form', name: 'f', 'init-values': { wrong: ['w1', 'w3'] }, children: [
+          { type: 'ChipsSelector', name: 'wrong', label: 'Words read wrong', required: true,
+            'data-source': [{ id: 'w1', title: 'kitab' }, { id: 'w2', title: 'qalam' }, { id: 'w3', title: 'ghar' }] },
+          { type: 'Footer', label: 'Save', 'on-click-action': { name: 'complete', payload: { wrong: '${form.wrong}' } } },
+        ] } ] } }],
+    };
+    const em = createEmulator(chips, { flowId: 'c1', flowToken: 'tok', action: 'navigate', screen: 'CHECK' });
+    await em.open();
+    const p = em.probe();
+    expect(p.text).toContain('Words read wrong');
+    expect(p.items.filter((i) => i.kind === 'option').map((i) => i.text)).toEqual(['kitab', 'qalam', 'ghar']);
+    const ticked = () => em.probe().items.filter((i) => i.kind === 'option' && i.selected).map((i) => i.text);
+    expect(ticked()).toEqual(['kitab', 'ghar']);
+    expect(em.pick('kitab')).toEqual({ ok: true, picked: 'kitab' });      // untick
+    expect(em.pick('qalam')).toEqual({ ok: true, picked: 'qalam' });      // tick
+    expect(ticked()).toEqual(['qalam', 'ghar']);
+    em.pick('ghar'); em.pick('qalam');
+    expect(em.probe().items.find((i) => i.text === 'Save').disabled).toBe(true);   // required, now empty
+  });
+
   test('a component it does not model is refused honestly, never faked', async () => {
     const pp = JSON.parse(JSON.stringify(NAV));
     pp.screens[0].layout.children[0].children.push({ type: 'PhotoPicker', name: 'photos', label: 'Add a photo' });
