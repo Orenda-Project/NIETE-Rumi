@@ -263,6 +263,16 @@ export const portal = {
     return data;
   },
 
+  /**
+   * bd-5rz1v — her lessons still in the pipeline, OLDEST first: what the
+   * Coaching list shows above the finished ones, and what its "needs your
+   * answer" banner walks through.
+   */
+  getActiveCoachingSessions: async (): Promise<{ sessions: ActiveCoachingSession[] }> => {
+    const response = await api.get('/coaching-sessions/active');
+    return response.data;
+  },
+
   getCoachingProgress: async (id: string): Promise<CoachingProgress> => {
     const response = await api.get(`/coaching-session/${id}/progress`);
     return response.data;
@@ -433,6 +443,19 @@ export const portal = {
 };
 
 // ── Portal config ─────────────────────────────────────────────────────────
+// ── bd-5rz1v: a lesson still in the pipeline (GET /coaching-sessions/active) ─
+export type ActiveCoachingSession = {
+  id: string;
+  createdAt: string;
+  status?: string;
+  stage: CoachingProgress['stage'];
+  source: 'portal' | 'whatsapp';
+  /** A portal lesson whose reflective question is waiting for her answer here. */
+  needsAnswer: boolean;
+  topic?: string | null;
+  subject?: string | null;
+};
+
 // ── bd-5rz1v: the lesson-plan library, for "Record your class" ─────────────
 export type RecentLessonPlan = {
   assetId: string;
