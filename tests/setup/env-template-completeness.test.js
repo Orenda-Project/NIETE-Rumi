@@ -79,6 +79,7 @@ const ALLOWED_MISSING = new Set([
   // Railway-injected (auto-set by platform, not user-configurable)
   'RAILWAY_REPLICA_ID',
   'RAILWAY_SERVICE_NAME',
+  'RAILWAY_ENVIRONMENT_NAME',
   'RAILWAY_STATIC_URL',
   'RAILWAY_PUBLIC_DOMAIN',
 
