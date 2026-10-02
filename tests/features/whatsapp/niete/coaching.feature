@@ -1040,3 +1040,25 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And the reflective question is asked once — "Continue Now" may still ask it again on purpose
     # report-piece-once.js: a Redis SET NX per (session, piece), 24 h; a failed send gives its claim back.
 
+
+  # ── A coach's observation of her lesson, in her portal (bd-5rz1v.6.4) ──────
+  # The row is the teacher's (observation_type leader_observation), so it is
+  # hers to see only once the coach has SENT her the report
+  # (teacher_delivery.status = 'sent'). Never the draft, the review or the debrief.
+
+  @e2e @P1
+  Scenario: A coach's observation appears in the teacher's portal only once the report is sent to her
+    Given a coach has observed the teacher's lesson and is still checking the draft
+    When the teacher opens Coaching in the portal
+    Then the observation is not in her list, and its page answers "not found"
+    When the coach sends her the report
+    Then the teacher receives the report on WhatsApp
+    And her Coaching list shows the lesson with "Observed by" and the coach's name
+    And its page shows the report picture, its caption and the coach's note, with who observed her and when
+
+  @e2e @negative @P1
+  Scenario: The coach's debrief and her own feedback never reach the teacher's portal
+    Given a coach has sent the teacher the report of an observation
+    When the teacher opens that lesson in the portal
+    Then she sees the report as WhatsApp delivered it
+    And she does not see the coach's conversation transcript or the feedback written for the coach
