@@ -110,6 +110,15 @@ function isPortalSession(row) {
 }
 
 /**
+ * A coach's /observe observation started in the PORTAL (portal-observe.service).
+ * It is followed in the portal end to end, so nothing about it is said to the
+ * coach on WhatsApp — the row records what happened and the portal shows it.
+ */
+function isPortalObservation(row) {
+  return !!row && row.observation_type === 'leader_observation' && isPortalSession(row);
+}
+
+/**
  * The WhatsApp handlers route any message from a teacher with a session at
  * conducting_conversation into that session as her reflective answer. A portal
  * session's question was never shown on WhatsApp, so it must not capture her
@@ -471,6 +480,7 @@ module.exports = {
   SHORT_RECORDING_SECONDS,
   PRESIGN_TTL_SECONDS,
   isPortalSession,
+  isPortalObservation,
   isWhatsAppReflectiveSession,
   isOwnPortalKey,
   buildUploadKey,

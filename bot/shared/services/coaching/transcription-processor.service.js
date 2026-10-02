@@ -672,6 +672,12 @@ class TranscriptionProcessorService {
    * @param {object} session  coaching_sessions row
    * @param {(to: string, body: string) => Promise<boolean>} send
    */
+  /** Is this row a coach's portal observation? One narrow read (two columns). */
+  static async _isPortalObservationId(coachingSessionId) {
+    const { isPortalObservationId } = require('./portal-observe-marker');
+    return isPortalObservationId(supabase, coachingSessionId);
+  }
+
   static coachNotice(session, send) {
     const { isPortalSession } = require('./portal-coaching.service');
     if (isPortalSession(session)) return async () => true;
@@ -750,6 +756,13 @@ class TranscriptionProcessorService {
 
       // Update session with error
       await CoachingSessionService.markAsFailed(coachingSessionId, 'transcription', error.message);
+
+      // A coach's portal observation is followed in the portal: the row says it
+      // failed, and nothing is sent to her WhatsApp.
+      if (from && await TranscriptionProcessorService._isPortalObservationId(coachingSessionId)) {
+        logToFile('🖥️ Transcription failed on a portal observation — the portal shows it, nothing sent', { coachingSessionId });
+        return;
+      }
 
       // Notify user with specific error message (bilingual)
       if (from) {
