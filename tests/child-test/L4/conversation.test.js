@@ -218,6 +218,18 @@ describe('a child, start to finish', () => {
     expect(last('list').body.text).toMatch(/Checks waiting: 1/);
   });
 
+  test('the maths script says the numbers cue first, then the start cue for the 60-second quick sums', async () => {
+    await openList();
+    await startChild('d1');
+    for (const b of ['u', 'e']) await H.handleVoice(voice(`q-${b}`), PHONE, COACH);
+    const prompt = sent().filter((m) => m.kind === 'buttons' && /Maths 3\/3/.test(m.body)).pop();
+    expect(prompt).toBeTruthy();
+    const iNumbers = prompt.body.indexOf('اب یہ نمبر باری باری پڑھیں');
+    const iSums = prompt.body.indexOf('اب سوال شروع کریں');
+    expect(iNumbers).toBeGreaterThan(-1);
+    expect(iSums).toBeGreaterThan(iNumbers);
+  });
+
   test('"No strip photo" completes the child and the check follows', async () => {
     await openList();
     await startChild('d1');

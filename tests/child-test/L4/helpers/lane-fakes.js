@@ -138,7 +138,7 @@ function createLaneFakes({ noClassList = false } = {}) {
 
   const itemBank = {
     version: 'child-test-items-v1',
-    cue: () => ({ urdu: { start: 'شروع' }, english: { start: 'start' }, maths: { start: 'شروع' } }),
+    cue: () => ({ urdu: { start: 'شروع' }, english: { start: 'start' }, maths: { start: 'اب سوال شروع کریں', numbers: 'اب یہ نمبر باری باری پڑھیں' } }),
   };
 
   return { draw, store, scoring, checkFlow, render, itemBank, calls, sessions, blocks, lists, fail };

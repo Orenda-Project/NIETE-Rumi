@@ -3168,8 +3168,8 @@ const UX_STRINGS = {
     ur: 'وائس نوٹ شروع کریں، «{cue}» کہیں، اور بچے کو ۶۰ سیکنڈ انگریزی کہانی پڑھنے دیں۔ پھر ۲ سوال اور ۸ بے معنی الفاظ پوچھیں۔ یہ سب ایک ہی وائس نوٹ میں بھیجیں۔\nاگر بچہ پہلی سطر نہ پڑھ سکے تو اس کی جگہ ۱۰ حروف اور ۱۰ الفاظ پوچھیں۔',
   },
   childTestScriptMaths: {
-    en: 'Start a voice note, say «{cue}», and ask the child to read the 8 numbers aloud (stop after 4 wrong in a row). Then 60 seconds of quick sums aloud. Send it as ONE voice note.\nThen give the child the strip for 4 sums and 1 word problem.',
-    ur: 'وائس نوٹ شروع کریں، «{cue}» کہیں، اور بچے سے ۸ اعداد بلند آواز پڑھوائیں (لگاتار ۴ غلط ہوں تو روک دیں)۔ پھر ۶۰ سیکنڈ زبانی جمع تفریق۔ یہ ایک ہی وائس نوٹ میں بھیجیں۔\nپھر بچے کو ۴ سوالوں اور ۱ عبارتی سوال والی پٹی دیں۔',
+    en: 'Start a voice note, say «{numbersCue}», and ask the child to read the 8 numbers aloud (stop after 4 wrong in a row). Then say «{cue}» for 60 seconds of quick sums aloud. Send it as ONE voice note.\nThen give the child the strip for 4 sums and 1 word problem.',
+    ur: 'وائس نوٹ شروع کریں، «{numbersCue}» کہیں، اور بچے سے ۸ اعداد بلند آواز پڑھوائیں (لگاتار ۴ غلط ہوں تو روک دیں)۔ پھر «{cue}» کہیں اور ۶۰ سیکنڈ زبانی جمع تفریق۔ یہ ایک ہی وائس نوٹ میں بھیجیں۔\nپھر بچے کو ۴ سوالوں اور ۱ عبارتی سوال والی پٹی دیں۔',
   },
   childTestCardTextHeader: {
     en: '(The picture did not send. Here is the same text.)',

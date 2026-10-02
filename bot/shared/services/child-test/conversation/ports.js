@@ -55,17 +55,31 @@ function load(name) {
 
 const DEFAULT_CUES = { urdu: 'شروع', english: 'start', maths: 'شروع' };
 
+function bankCues() {
+  const bank = load('itemBank');
+  let cue = typeof bank.cue === 'function' ? bank.cue() : bank.cue;
+  if (!cue && typeof bank.getBank === 'function') cue = (bank.getBank() || {}).cue;
+  if (!cue && bank.bank) cue = bank.bank.cue;
+  return cue || {};
+}
+
 /** The spoken start cue for a block, from the item bank (CONTRACT §2 `cue`), else the defaults. */
 function cueFor(block) {
   try {
-    const bank = load('itemBank');
-    let cue = typeof bank.cue === 'function' ? bank.cue() : bank.cue;
-    if (!cue && typeof bank.getBank === 'function') cue = (bank.getBank() || {}).cue;
-    if (!cue && bank.bank) cue = bank.bank.cue;
-    const start = cue && cue[block] && cue[block].start;
+    const start = (bankCues()[block] || {}).start;
     return start || DEFAULT_CUES[block];
   } catch (err) {
     return DEFAULT_CUES[block];
+  }
+}
+
+/** A section cue (CONTRACT §10 CR-4, e.g. maths.numbers), or null when the bank has none. */
+function sectionCueFor(block, section) {
+  try {
+    const v = (bankCues()[block] || {})[section];
+    return typeof v === 'string' && v.trim() ? v : null;
+  } catch (err) {
+    return null;
   }
 }
 
@@ -76,5 +90,6 @@ module.exports = {
   get checkFlow() { return load('checkFlow'); },
   get render() { return load('render'); },
   cueFor,
+  sectionCueFor,
   __setForTest(fakes) { injected = fakes; },
 };

@@ -421,7 +421,7 @@ async function sendCards(user, from, cur, variant) {
 async function sendPrompt(user, from, state) {
   const lang = langOf(user);
   const cur = state.current;
-  const body = `*${progressBlock(lang, cur)}*\n\n${t(lang, SCRIPT_KEY[cur.block], { cue: ports.cueFor(cur.block) })}`;
+  const body = `*${progressBlock(lang, cur)}*\n\n${t(lang, SCRIPT_KEY[cur.block], { cue: ports.cueFor(cur.block), numbersCue: ports.sectionCueFor('maths', 'numbers') || ports.cueFor('maths') })}`;
   const btns = [];
   if (cur.block !== 'maths') btns.push({ id: 'ctst_fb', title: clip(t(lang, 'childTestFallbackButton'), 20) });
   btns.push({ id: 'ctst_stop', title: clip(t(lang, 'childTestStopChild'), 20) });

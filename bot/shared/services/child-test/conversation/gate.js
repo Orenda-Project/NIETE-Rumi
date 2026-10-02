@@ -8,7 +8,8 @@
  *   2. the user is a coach / school leader (observe-gate's LEADER_ROLES);
  *   3. the user's region is ICT (users.region, else DEFAULT_REGION). NIETE runs as `niete`,
  *      `niete-sandbox`, … so any region starting with one of CHILD_TEST_REGIONS counts
- *      (default `niete,ict,islamabad,federal`).
+ *      (default `niete,ict,islamabad,federal`);
+ *   4. if CHILD_TEST_COACH_IDS is set (pilot), the user's id is on it.
  * Flag off or region outside ICT → { match:false }: the message falls through to normal chat
  * exactly as if the command did not exist (the test proves it).
  */
@@ -26,6 +27,17 @@ function isEnabled() {
   return String(process.env.CHILD_TEST_ENABLED || '').trim().toLowerCase() === 'true';
 }
 
+/**
+ * Pilot allow-list: when CHILD_TEST_COACH_IDS (comma list of users.id) is set, only those coaches
+ * see the feature; everyone else gets the same inert behaviour as a flag that is off.
+ */
+function isAllowedCoach(user) {
+  const raw = String(process.env.CHILD_TEST_COACH_IDS || '').trim();
+  if (!raw) return true;
+  const ids = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  return !!user && ids.includes(String(user.id));
+}
+
 function isIctRegion(user) {
   const region = getUserRegion(user);
   const allowed = String(process.env.CHILD_TEST_REGIONS || DEFAULT_REGIONS)
@@ -35,7 +47,7 @@ function isIctRegion(user) {
 
 /** Whether this user may see child-test offers and buttons at all (no command text involved). */
 function isChildTestAvailable(user) {
-  return isEnabled() && !!user && isSchoolLeader(user) && isIctRegion(user);
+  return isEnabled() && !!user && isSchoolLeader(user) && isIctRegion(user) && isAllowedCoach(user);
 }
 
 /**
@@ -48,8 +60,9 @@ function evaluateChildTestTrigger({ messageBody, user }) {
   if (!isEnabled()) return { match: false };
   if (!user) return { match: true, action: 'deny_no_user', arg: null };
   if (!isIctRegion(user)) return { match: false };
+  if (!isAllowedCoach(user)) return { match: false };
   if (!isSchoolLeader(user)) return { match: true, action: 'deny_role', arg: null };
   return { match: true, action: 'start', arg: (m[1] || '').trim() || null };
 }
 
-module.exports = { CHILD_TEST_TRIGGER_RX, evaluateChildTestTrigger, isChildTestAvailable, isEnabled, isIctRegion };
+module.exports = { CHILD_TEST_TRIGGER_RX, evaluateChildTestTrigger, isChildTestAvailable, isEnabled, isIctRegion, isAllowedCoach };

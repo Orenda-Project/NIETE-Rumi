@@ -53,3 +53,21 @@ describe('flag on', () => {
     expect(evaluateChildTestTrigger({ messageBody: 'egra', user: COACH })).toEqual({ match: false });
   });
 });
+
+describe('pilot allow-list (CHILD_TEST_COACH_IDS)', () => {
+  afterEach(() => { delete process.env.CHILD_TEST_COACH_IDS; });
+  test('unset → every ICT coach passes, as before', () => {
+    delete process.env.CHILD_TEST_COACH_IDS;
+    expect(isChildTestAvailable(COACH)).toBe(true);
+  });
+  test('set → a coach on the list starts', () => {
+    process.env.CHILD_TEST_COACH_IDS = 'x9, c1 ,y8';
+    expect(evaluateChildTestTrigger({ messageBody: '/egra', user: COACH })).toEqual({ match: true, action: 'start', arg: null });
+    expect(isChildTestAvailable(COACH)).toBe(true);
+  });
+  test('set → a coach not on the list sees nothing: inert, exactly as if the feature were off', () => {
+    process.env.CHILD_TEST_COACH_IDS = 'x9,y8';
+    expect(evaluateChildTestTrigger({ messageBody: '/egra', user: COACH })).toEqual({ match: false });
+    expect(isChildTestAvailable(COACH)).toBe(false);
+  });
+});
