@@ -151,10 +151,14 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null) {
  * ("not rendered yet"), which the caller renders rather than treating as an
  * error. Unknown lesson ids also return null; the portal never invents one.
  */
-async function lessonPdfUrl(lessonId, assetKind = 'lesson') {
-  if (!V8Catalog.lessonById(lessonId)) return null;
+async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null) {
+  const hit = V8Catalog.lessonById(lessonId);
+  if (!hit) return null;
 
-  const asset = await V8Delivery.currentAssetFor(lessonId, assetKind);
+  // ch3-10 A/B (bd-5o0ay.10.1): the portal serves the teacher's group, same as WhatsApp.
+  const LpAb = require('./lp-ab-ch310.service');
+  const group = await LpAb.groupFor(userId, { grade: hit.book.grade, chapter: hit.chapter.number });
+  const asset = await LpAb.assetFor({ group, lessonId, assetKind, current: V8Delivery.currentAssetFor });
   if (!asset || !asset.r2_key) return null;
 
   const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
