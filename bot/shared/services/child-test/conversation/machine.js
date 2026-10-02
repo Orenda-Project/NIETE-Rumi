@@ -685,7 +685,10 @@ async function processVoice(message, from, user, state, audioId) {
     const moved = await moveTo(user.id, sid);
     try {
       await say(from, t(lang, 'childTestVoiceAck', { block: blockName(lang, block) }));
-      if (moved && moved.block && BLOCKS.indexOf(moved.block) > bi) await openBlock(user, from, moved.state);
+      // The ack may have waited on the send pacer; a note that came in meanwhile may hold the next block.
+      if (moved && moved.block && BLOCKS.indexOf(moved.block) > bi && !(await S.blockClaim(sid, moved.block))) {
+        await openBlock(user, from, moved.state);
+      }
     } catch (err) {
       logError('child_test.voice_failed', { sessionId: sid, block, stage: 'reply', error: err.message });
     }

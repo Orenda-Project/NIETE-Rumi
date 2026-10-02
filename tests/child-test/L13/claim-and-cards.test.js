@@ -126,6 +126,26 @@ describe('claim before store (bd-s1oo0.14)', () => {
     expect(calls('scoreBlock').map((c) => c[1].block).sort()).toEqual(['english', 'urdu']);
   });
 
+  test('a prompt for a block another note already claimed is not sent (the ack waited on the pacer)', async () => {
+    await startChild('d1');
+    // The Urdu ack takes a while (the pacer); the English note lands meanwhile and takes English.
+    const orig = mockWa.sendMessage.getMockImplementation();
+    let release;
+    const gate = new Promise((r) => { release = r; });
+    mockWa.sendMessage.mockImplementationOnce(async (to, text) => { await gate; mockWa.__sent.push({ kind: 'text', to, text }); return true; });
+    const first = H.handleVoice(voice('p1'), PHONE, COACH);
+    await sleep(5);
+    const second = H.handleVoice(voice('p2'), PHONE, COACH);
+    await sleep(5);
+    release();
+    await Promise.all([first, second]);
+    await H.__drain();
+    mockWa.sendMessage.mockImplementation(orig);
+    const englishPrompts = sent().filter((m) => m.kind === 'buttons' && /English 2\/3/.test(m.body));
+    expect(englishPrompts).toHaveLength(0);
+    expect(sent().filter((m) => m.kind === 'buttons' && /Maths 3\/3/.test(m.body))).toHaveLength(1);
+  });
+
   test('a fourth note while the three are in: the coach is told the notes are already in, nothing is stored', async () => {
     await startChild('d1');
     await Promise.all(['f1', 'f2', 'f3', 'f4'].map((id) => H.handleVoice(voice(id), PHONE, COACH)));
