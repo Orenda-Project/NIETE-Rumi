@@ -360,6 +360,70 @@ describe("Counts are current when you walk back up", () => {
   });
 });
 
+// Operator, 2026-10-02 (sandbox, 923449320536): finished the last unit of
+// I-SAPS Module 1. The database had all 6 units complete, but back on the
+// course page the unit had no tick and the module exam was still locked. The
+// module list and the exam gate were read once per course and never again.
+describe("The course page is current when you come back to it", () => {
+  const LOCKED = { available: false, body: "Finish every unit to unlock the module exam.", caption: "", cta: "🔒 Locked", module_no: 1 };
+  const OPEN = { available: true, body: "Module 1 exam", caption: "", cta: "Start the module exam", module_no: 1 };
+  let modulesNow: unknown[];
+  let examNow: unknown;
+  beforeEach(() => {
+    modulesNow = MODULES;
+    examNow = LOCKED;
+    (api.get as any).mockImplementation((url: string) => {
+      if (url === "/training/vendors") return Promise.resolve({ data: { vendors: VENDORS } });
+      if (url === "/training/levels") return Promise.resolve({ data: { levels: LEVELS } });
+      if (url === "/training/certificates") return Promise.resolve({ data: { certificates: [] } });
+      if (url === "/training/courses") return Promise.resolve({ data: { courses: COURSES } });
+      if (url === "/training/modules") return Promise.resolve({ data: { modules: modulesNow, exam: examNow } });
+      if (url === "/training/module/m-2")
+        return Promise.resolve({ data: { module: { ...MODULES[1], course: { id: "c-1", title: "Planning a lesson" }, level: { id: 1, name: "Aspiring Teacher" } } } });
+      if (/^\/training\/module\/.+\/attempts$/.test(url)) return Promise.resolve({ data: { attempts: [] } });
+      return Promise.resolve({ data: {} });
+    });
+  });
+  const finishUnit = () => {
+    modulesNow = MODULES.map(m => m.id === "m-2" ? { ...m, completed_at: "2026-10-02T11:52:16Z" } : m);
+    examNow = OPEN;
+  };
+  const calls = (u: string) => (api.get as any).mock.calls.filter(([x]: [string]) => x === u).length;
+
+  async function openUnitFromCourse() {
+    renderAt("/portal/training/provider/TALEEMABAD/level/1/course/c-1");
+    expect(await screen.findByTestId("module-item-m-2")).toHaveAttribute("data-done", "false");
+    expect(screen.getByTestId("module-exam-locked")).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("module-item-m-2"));
+    expect(await screen.findByRole("heading", { name: "I Do, We Do, You Do" })).toBeInTheDocument();
+    finishUnit();
+  }
+  async function expectCurrent() {
+    await waitFor(() => expect(screen.getByTestId("module-item-m-2")).toHaveAttribute("data-done", "true"));
+    expect(screen.getByTestId("module-exam-start")).toBeInTheDocument();
+    expect(screen.queryByTestId("module-exam-locked")).not.toBeInTheDocument();
+  }
+
+  it("via the course crumb", async () => {
+    await openUnitFromCourse();
+    await userEvent.click(within(screen.getByTestId("unit-breadcrumb")).getByTestId("breadcrumb-course"));
+    await expectCurrent();
+  });
+
+  it("via Back to modules", async () => {
+    await openUnitFromCourse();
+    await userEvent.click(screen.getByTestId("unit-back"));
+    await expectCurrent();
+  });
+
+  it("does not ask for the modules twice on first load", async () => {
+    renderAt("/portal/training/provider/TALEEMABAD/level/1/course/c-1");
+    expect(await screen.findByTestId("module-item-m-2")).toBeInTheDocument();
+    await new Promise(r => setTimeout(r, 30));
+    expect(calls("/training/modules")).toBe(1);
+  });
+});
+
 describe("Certificates page", () => {
   it("offers All plus a chip per provider that has a certificate, and filters by it", async () => {
     renderAt("/portal/training/certificates");
