@@ -88,7 +88,7 @@ async function scoreStory({ lang, spec, file, window, words, coachSpeaker, flags
     // Gemini and SpeechAce are independent: run them side by side (latency budget < 60 s per block)
     clip = await cutClip(file, window.start - 0.5, window.end + 1, 'mp3');
     const [r, sa] = await Promise.all([
-      chatJSON({ model, prompt: prompts.STORY({ lang, tokens }), audio: { data: clip.base64, format: 'mp3' }, job: 'child_test.story' }),
+      chatJSON({ model, prompt: prompts.STORY({ lang, tokens }), schema: prompts.STORY_SCHEMA, audio: { data: clip.base64, format: 'mp3' }, job: 'child_test.story' }),
       lang === 'english' ? speechAceWrong({ file, window, tokens, aligned, hyp, calls }) : Promise.resolve(null),
     ]);
     calls.push({ job: 'story', model, cost: r.cost, seconds: r.seconds, error: r.error, ...(r.detail ? { detail: r.detail } : {}) });
