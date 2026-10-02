@@ -225,6 +225,10 @@ describe('a child, start to finish', () => {
     expect(await H.handleButton(COACH, PHONE, 'ctst_nophoto:sess-1')).toBe(true);
     await H.__drain();
     expect(lanes.calls.filter((c) => c[0] === 'scoreBlock').map((c) => c[1].block)).toEqual(['urdu', 'english', 'maths']);
+    // CONTRACT §12 CR-2: without force, L5 answers 'pending' for a maths block with no photo and never writes marks.
+    const scoreCalls = lanes.calls.filter((c) => c[0] === 'scoreBlock').map((c) => c[1]);
+    expect(scoreCalls.find((a) => a.block === 'maths')).toMatchObject({ sessionId: 'sess-1', block: 'maths', force: true });
+    expect(scoreCalls.filter((a) => a.block !== 'maths').every((a) => a.force === undefined)).toBe(true);
     expect(lanes.calls.filter((c) => c[0] === 'sendCheck')).toHaveLength(1);
     expect(await H.handleImage(image('late'), PHONE, COACH)).toBe(false);   // nothing pending any more
   });

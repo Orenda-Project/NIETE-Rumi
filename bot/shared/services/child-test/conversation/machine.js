@@ -573,7 +573,11 @@ async function finishChild(p, from, lang) {
 async function scoreBlock(ref, block, from, lang) {
   let r;
   try {
-    r = await ports.scoring.scoreBlock({ sessionId: ref.sessionId, block, grade: ref.grade, form: ref.form });
+    // Maths is scored once, after the strip photo is in or the coach declined it (CONTRACT §12 CR-2).
+    // `force` tells L5 to score what is there; without it a photo-less maths block stays 'pending' forever.
+    const args = { sessionId: ref.sessionId, block, grade: ref.grade, form: ref.form };
+    if (block === 'maths') args.force = true;
+    r = await ports.scoring.scoreBlock(args);
   } catch (err) {
     r = { ok: false, aiStatus: 'failed', reason: err.message };
   }
