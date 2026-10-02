@@ -249,7 +249,9 @@ Este enlace expira en 7 días. Haz clic en él para crear tu contraseña e inici
         user: {
           id: user.id,
           firstName: user.name,
-          lastName: user.name,
+          // No surname column since V1.4.4; the portal joins first + last, so
+          // echoing `name` here printed it twice.
+          lastName: null,
           phoneNumber: user.phone_number
         }
       };
