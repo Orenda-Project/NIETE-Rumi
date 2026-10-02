@@ -85,6 +85,8 @@ const pacer = require('./whatsapp-send-pacer');
 // bd-0wrn4: a message or reaction to the person whose inbound the webhook is handling answers it,
 // so its deferred "typing…" must not go up. Both transports below tell the scope (see inbound-typing.js).
 const InboundTyping = require('./inbound-typing');
+// Synthetic test phones only (WA_OUTBOUND_ECHO_TO): the sent payload is logged for the sandbox simulation's reply reader.
+const OutboundEcho = require('./outbound-echo');
 
 /** What a caller of a paced transport sees for a send that was never attempted. */
 function pacingRefusal(local) {
@@ -111,6 +113,12 @@ const axios = {
         return { error, code };
       }
     }).then((out) => {
+      const sent = out.value;
+      OutboundEcho.note(body, {
+        ok: !out.local && !out.error && !!sent,
+        status: sent ? sent.status : (out.error && out.error.response ? out.error.response.status : null),
+        messageId: sent && sent.data && sent.data.messages && sent.data.messages[0] && sent.data.messages[0].id,
+      });
       if (out.local) {
         throw Object.assign(new Error(pacingRefusal(out.local).data.error.message), {
           response: pacingRefusal(out.local), paced: out.local,
@@ -158,6 +166,7 @@ function fetch(url, init, gate = {}) {
       return { value: replay, code: pacer.metaCodeOfBody(data) };
     },
   ).then((out) => {
+    if (to) OutboundEcho.note(body, { ok: !out.local && !!out.value && out.value.ok !== false, status: out.value ? out.value.status : 429 });
     if (!out.local) return out.value;
     const refusal = pacingRefusal(out.local);
     return {

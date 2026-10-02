@@ -40,6 +40,14 @@ function createFakeBot({ phoneNumberId, absentRolls = [], checkFlowId = 'ctst-ch
     { type: 'reply', reply: { id: pres(r, 'p', 'present'), title: 'حاضر' } },
     { type: 'reply', reply: { id: pres(r, 'a', 'absent'), title: 'غیر حاضر' } },
     { type: 'reply', reply: { id: pres(r, 'r', 'refused'), title: 'انکار' } }] } } });
+  // L4 block protocol (machine.js sendBlock/sendPrompt/processVoice): a card image, then the prompt buttons;
+  // a voice note is answered by a text ack; after maths, the photo ask and the list again.
+  const card = (to) => send(to, { type: 'image', image: { link: 'http://127.0.0.1/fake-card.png' } });
+  const prompt = (to, b) => send(to, { type: 'interactive', interactive: { type: 'button', body: { text: `*${b}*` }, action: { buttons: [
+    { type: 'reply', reply: { id: 'ctst_stop', title: 'روکیں' } }, { type: 'reply', reply: { id: 'ctst_menu', title: 'مینو' } }] } } });
+  const block = async (to, b) => { await card(to); return prompt(to, b); };
+  const photoAsk = (to, r) => send(to, { type: 'interactive', interactive: { type: 'button', body: { text: `Roll ${r}: photo of the strip` }, action: { buttons: [
+    { type: 'reply', reply: { id: `ctst_nophoto:s${r}`, title: 'تصویر نہیں' } }] } } });
   const checkCard = (to, r) => send(to, { type: 'interactive', interactive: { type: 'flow', body: { text: `Roll ${r}: marks ready` },
     action: { name: 'flow', parameters: { flow_message_version: '3', flow_id: checkFlowId, flow_cta: 'چیک کریں', flow_token: `ctst_check_${r}`, flow_action: 'data_exchange' } } } });
 
@@ -61,7 +69,8 @@ function createFakeBot({ phoneNumberId, absentRolls = [], checkFlowId = 'ctst-ch
       const r = Number(l4 ? l4[1] : legacy[2]); const what = l4 ? { p: 'present', a: 'absent', r: 'refused' }[l4[2]] : legacy[1];
       if (what === 'present') {
         if (state.alternates.includes(r)) { state.alternates = state.alternates.filter((x) => x !== r); state.rows.push(r); }
-        state.children[r] = { next: 0 }; return text(to, `Roll ${r}: Urdu block — one voice note`);
+        state.children[r] = { next: 0 };
+        return L4 ? block(to, 'urdu') : text(to, `Roll ${r}: Urdu block — one voice note`);
       }
       if (L4) state.absent.add(r);                                                     // stays, marked; alternate offered below
       else state.rows = state.rows.map((x) => (x === r ? state.alternates.shift() : x));  // absent/refused → next alternate
@@ -70,11 +79,17 @@ function createFakeBot({ phoneNumberId, absentRolls = [], checkFlowId = 'ctst-ch
     if (m.type === 'audio' && cur && state.children[cur]) {
       await fetchMedia(m.audio.id);
       const c = state.children[cur]; const b = BLOCKS[c.next++];
+      if (L4) {
+        await text(to, `🎧 ${b}`);
+        if (c.next < 3) return block(to, BLOCKS[c.next]);
+        await photoAsk(to, cur); return list(to);
+      }
       return text(to, c.next < 3 ? `${b} received. Next: ${BLOCKS[c.next]}` : `${b} received. Now a photo of the strip`);
     }
     if (m.type === 'image' && cur) {
       await fetchMedia(m.image.id);
       await text(to, `Roll ${cur}: all received`);
+      if (L4) await text(to, `Roll ${cur}: done`);
       return checkCard(to, cur);
     }
     if (m.type === 'interactive' && m.interactive.type === 'nfm_reply') {

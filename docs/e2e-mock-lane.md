@@ -257,6 +257,24 @@ scenarios that currently block on "cassette not recorded" run against the real r
 Never hand-write a cassette: a fabricated transcription or analysis would make the tests assert against
 invented data and hide real bugs. A cassette is only ever a real recorded answer.
 
+## The child-test simulation on this lane (bd-s1oo0.13)
+
+`bot/scripts/e2e/child-test-sim/sim-stack.sh up <sha> <run_dir>` is `local-stack.sh up` set up for the
+child test: sandbox only (refuses any other Supabase ref and any R2 bucket but `rumi-sandbox`), provisions
+`keys/niete-local.env` from `~/.childtest-golive/sandbox.env` through `provision-local-keys.sh --from-kv` when it
+is missing, seeds today's SIM observe2 visit (`seed-visit.js`; `--no-visit` uses the day key), and starts the
+stack in a clean environment with `CHILD_TEST_ENABLED=true`, `CHILD_TEST_R2_ENV=local-sim`, the SIM coach on
+`CHILD_TEST_COACH_IDS` and a fresh throwaway `CHILD_TEST_DRAW_SECRET` (process env: the bot's dotenv never
+overrides it, so these win over the keys file). `--live-vendors` adds the sandbox's own model keys and
+`E2E_CASSETTE=off`, so the scoring path calls the real models and no child speech is recorded into a cassette.
+Then `driver.js --mode mock --driver 923009990301` plays the coach. The driver follows L4's protocol: it records
+a block only after that block's prompt (never on a card image), and logs `ready` marks (`rtt_block_ready`).
+
+For the DEPLOYED sandbox bot, whose replies go to a phone no device reads, the reply source is the bot's own
+`whatsapp.outbound_echo` log line (`bot/shared/services/outbound-echo.js`): the sent /messages payload, logged
+only for recipients on `WA_OUTBOUND_ECHO_TO` and never in production. `child-test-sim/replies-axiom.js` reads it
+from Axiom (`rumi-sandbox`), strictly on one phone and the run window.
+
 ## What this lane deliberately does not do (yet)
 
 Native Flow rendering (pixels, truncation, RTL), templates, delivery on a phone, and the PhotoPicker
