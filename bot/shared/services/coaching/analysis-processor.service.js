@@ -646,6 +646,14 @@ class AnalysisProcessorService {
       // Update session with error
       await CoachingSessionService.markAsFailed(coachingSessionId, 'analysis', error.message);
 
+      // A coach's portal observation is followed in the portal: the row says it
+      // failed, and nothing is sent to her WhatsApp.
+      const { isPortalObservationId } = require('./portal-observe-marker');
+      if (from && await isPortalObservationId(supabase, coachingSessionId)) {
+        logToFile('🖥️ Analysis failed on a portal observation — the portal shows it, nothing sent', { coachingSessionId });
+        return;
+      }
+
       // Notify user (bilingual)
       if (from) {
         const errorMessage = "معذرت، آپ کی کلاس کا تجزیہ کرتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔\n\nSorry, there was an error analyzing your classroom. Please try again.";

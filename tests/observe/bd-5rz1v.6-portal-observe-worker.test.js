@@ -340,3 +340,70 @@ describe('the chase-up sweeps', () => {
     expect(mockWa.sendMessage.mock.calls.some(([to]) => to === COACH_PHONE)).toBe(true);
   });
 });
+
+// ── the draft, through the REAL review-form functions (no stub of the module under audit) ──
+describe('getDraft / saveDraft against the real buildScreenPrefill + applyObserverEdits', () => {
+  const Svc = () => require('../../bot/shared/services/observe/portal-observe.service');
+  const ind = (id, score) => ({ id, name: id, score, applicable: true, evidence_summary: `seen ${id}`, improvement_sw: `try ${id}` });
+  const ANALYSIS = {
+    framework: 'fico',
+    domains: {
+      lesson_plan_fidelity: { indicators: [ind('B1', 1)] },
+      high_leverage_practices: { indicators: [ind('C1', 0), ind('C2', 2)] },
+      student_engagement: { indicators: [ind('D1', 1)] },
+      teacher_subject_knowledge: { indicators: [ind('F1', 2)] },
+    },
+    lp_fidelity: {
+      status: 'ok', fidelity_pct: 50, band: 'average', prescribed_count: 2,
+      moves: [
+        { move_id: 'm1', text: 'Fold a paper into halves', phase: 'opening', verdict: 'executed', evidence: 'She folded it', rationale: 'seen', counted: true, bucket: 'core' },
+        { move_id: 'm2', text: 'Pairs fold their own paper', phase: 'practice', verdict: 'not_done', evidence: '', rationale: 'no paper', counted: true, bucket: 'core' },
+      ],
+    },
+  };
+  const OLD_FID = process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY;
+  beforeEach(() => {
+    process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY = 'editable';
+    // Arrays, so a write's `.select('id')` answers with the row it matched.
+    mockTables.coaching_sessions = () => [sessionRow({
+      status: 'awaiting_observer_review',
+      analysis_data: JSON.parse(JSON.stringify(ANALYSIS)),
+      autofill_analysis_data: JSON.parse(JSON.stringify(ANALYSIS)),
+    })];
+  });
+  afterAll(() => { if (OLD_FID === undefined) delete process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY; else process.env.OBSERVE_FICO_FLOW_HAS_FIDELITY = OLD_FID; });
+
+  test('the sections are the Flow\'s screens, pre-filled as the Flow pre-fills them', async () => {
+    const out = await Svc().getDraft({ userId: COACH.id, coachingSessionId: SID });
+    expect(out.status).toBe('ok');
+    expect(out.sections.map((s) => s.letter)).toEqual(['B', 'C', 'D', 'F']);
+    const b = out.sections[0];
+    expect(b.kind).toBe('moves');
+    expect(b.moves.map((m) => [m.k, m.verdict])).toEqual([[1, 'executed'], [2, 'not_done']]);
+    const c = out.sections[1];
+    expect(c.kind).toBe('indicators');
+    const c1 = c.indicators.find((i) => i.id === 'C1');
+    expect(c1).toMatchObject({ field: 'C1', rating: '0', evidence: 'seen C1', improvement: 'try C1' });
+    expect(out.scale.map((o) => o.id)).toEqual(expect.arrayContaining(['0', '1', '2']));
+  });
+
+  test('saving the Flow\'s keys writes v2 and observer_review_complete, exactly as the Flow\'s submit', async () => {
+    const draft = await Svc().getDraft({ userId: COACH.id, coachingSessionId: SID });
+    const edits = {};
+    for (const s of draft.sections) {
+      if (s.kind === 'moves') for (const m of s.moves) { edits[`fid_r_${m.k}`] = m.verdict; edits[`fid_e_${m.k}`] = m.evidence; }
+      else for (const i of s.indicators) { edits[`r_${i.field}`] = i.rating; edits[`ev_${i.field}`] = i.evidence; edits[`imp_${i.field}`] = i.improvement; }
+    }
+    edits.r_C1 = '2';
+    edits.fid_r_2 = 'executed';
+    const out = await Svc().saveDraft({ userId: COACH.id, coachingSessionId: SID, edits });
+    expect(out.status).toBe('ok');
+    const write = mockUpdates.find((u) => u.payload && u.payload.status === 'observer_review_complete');
+    expect(write).toBeDefined();
+    const v2 = write.payload.analysis_data;
+    expect(v2.domains.high_leverage_practices.indicators.find((i) => i.id === 'C1').score).toBe(2);
+    expect(v2.lp_fidelity.moves[1].verdict).toBe('executed');
+    expect(v2.observer_edit_summary).toMatchObject({ indicators_rescored: 1, fidelity_verdicts_changed: 1 });
+    expect(toCoach()).toEqual([]);
+  });
+});
