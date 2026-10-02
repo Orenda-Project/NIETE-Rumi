@@ -661,8 +661,29 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   Scenario: A form reopened after Part 1 continues with Part 2
     Given I saved Part 1 of the live form and closed it
     When I tap "Open the form" again
-    Then the form opens on "Part 1 is saved" with "Carry on with Part 2, from minute 20 to 40."
-    And "Continue" opens Part 2
+    Then the form opens on Part 2
+    # WhatsApp restores a form reopened shortly after from the phone (no request reaches the bot; seen on
+    # the sandbox E2E, 30 Sep). A form WhatsApp starts afresh opens on "Part 1 is saved" with "Carry on
+    # with Part 2, from minute 20 to 40." and "Continue" opens Part 2.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: After Part 2 the coach picks the lesson plan from the teacher's own plans
+    Given I saved Part 2 of the live form
+    Then the form shows "The lesson plan" with "Was there a lesson plan?"
+    When I choose "Followed a lesson plan"
+    Then a "Which plan?" list shows the teacher's most recent plans from the bot, newest first, and "Not in this list"
+    When I tap "Next" without picking a plan
+    Then the form stays with 'Pick the plan, or "Not in this list".' under "Which plan?"
+    When I pick a plan and tap "Next"
+    Then "Before you seal" names the plan I picked and says "To change it, go back."
+    # Decided on the 2 Oct go-live call: the plan is picked inside the form, before the seal, and can be
+    # changed until then. observe2-form-endpoint.js LESSON_PLAN; recent-fidelity-lps.service.js.
+
+  @e2e @flow @config-gated @wip @draft @P2
+  Scenario: No lesson plan goes straight on to the seal
+    Given I saved Part 2 of the live form
+    When I choose "No plan for this lesson" and tap "Next"
+    Then "Before you seal" says there was no lesson plan for this lesson
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: Sealing locks the record and the chat says what to do with the recording
@@ -672,7 +693,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And the bot says the record is sealed and to stop the recorder, then share the recording to this chat
     And tapping "Seal and send" again changes nothing
     # observe2-form-endpoint.js: seal is a compare-and-set; the database trigger refuses any later
-    # change to what was sealed. Up to three photos are kept (observe2/<record>/photo-N.jpg).
+    # change to what was sealed. Up to ten photos are kept (observe2/<record>/photo-N.jpg); the photo
+    # line says which ones help (2 Oct: no cap of three for coaches).
 
   @e2e @audio @config-gated @destructive @wip @draft @P1
   Scenario: The recording joins the sealed record and its moments come back to check
@@ -685,6 +707,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # (one model call) and opens the check because the record is sealed.
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: With a picked plan, the check shows each step of the plan pre-rated from the recording
+    Given I picked a lesson plan before sealing, and the "Check the moments" form is open
+    When I answer the moments and tap "Next" on the last moments screen
+    Then the form shows "Did the lesson follow the plan?" with how many steps the plan asked for and how many were done
+    And each step shows what the plan asked, what the recording showed, and a pre-selected answer from "Done as planned", "Done another way, as good", "Done another way, better", "Partly done", "Not done", "Couldn't tell"
+    When I change a step I saw differently and tap "Add it all up"
+    Then the result is re-scored from my answers and the levels follow
+    # As /observe's Section B: the same move lists, grader and scorer (fidelity-orchestrator.js,
+    # observe-draft.rescoreFidelityFromEdits). Without a graded plan, the levels come straight after the moments.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: The check pre-fills every level and Submit sends the brief
     Given the "Check the moments" form is open
     When I answer each moment "Yes, this happened" or "No, or not like this" and tap through
@@ -692,7 +725,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And no level found by the recording alone is shown
     When I keep or change the levels, keep my sealed pick and tap "Submit"
     Then the form shows "Saved at" and the time
-    And the bot sends a brief naming the teacher, what went well, the thing to work on first and one moment to bring up
+    And the bot sends a brief naming the teacher, questions to open with, what went well, how much of the lesson plan was done, the thing to work on first and one moment to bring up
 
   @e2e @config-gated @wip @draft @negative @P2
   Scenario: A teacher's /observe2 is refused

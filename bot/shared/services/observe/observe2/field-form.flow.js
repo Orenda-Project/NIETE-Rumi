@@ -4,11 +4,13 @@
  * /observe2 — the live field form, as a WhatsApp Flow.
  *
  * The coach opens it when the lesson starts and fills it in while watching:
- *   PART_ONE  the first half of the period   (numbers + a few taps; "Part 1 done" saves it)
- *   PART_TWO  the second half                (the same questions, plus children speaking for the first time)
- *   AFTER   before leaving the room        (anything to report, photos, what to work on first, the seal)
- *   SEALED  the record is locked
- *   CONTINUE  a reopened form: where the record stands, then on to the right screen
+ *   PART_ONE     the first half of the period   (numbers + a few taps; "Part 1 done" saves it)
+ *   PART_TWO     the second half                (the same questions, plus children speaking for the first time)
+ *   LESSON_PLAN  which plan the lesson followed  (picked from the teacher's own recent plans, so the
+ *                recording can be checked against it; go-live call, 2 Oct 2026)
+ *   AFTER        before leaving the room        (anything to report, photos, what to work on first, the seal)
+ *   SEALED       the record is locked
+ *   CONTINUE     a reopened form: where the record stands, then on to the right screen
  *
  * Every question describes something the coach can SEE, in plain words; no indicator name or
  * level ever appears while the lesson is on. The ids behind each option are the ones
@@ -21,20 +23,22 @@
  * Regenerate the committed copy after any change:  node bot/scripts/generate-observe2-flow-json.js
  */
 
-const { PRIORITY, MOMENTS } = require('./fico17');
+const { PRIORITY, MOMENTS, PLAIN } = require('./fico17');
 
 const FLOW_VERSION = '7.3';
+// Coaches photograph what helps the analysis, without the teachers' cap of three (2 Oct call).
+const MAX_PHOTOS = 10;
 
 const opt = (id, title, description) => ({ id, title, ...(description ? { description } : {}) });
 
 const WHO_ASKED = [
-  opt('hands', 'Only raised hands', 'The teacher only asked children who put a hand up.'),
+  opt('hands', 'Only children with hands up', 'The teacher asked only children who had a hand up.'),
   opt('once', 'One child without a hand up', 'Once, the teacher asked a child who had not put a hand up.'),
   opt('often', 'Several without hands up', 'More than once, the teacher asked children who had not put a hand up.'),
-  opt('varied', 'Several ways to include all', "For example: said the child's name before the question, pair talk, everyone writes an answer, name sticks."),
+  opt('varied', 'Other ways to include everyone', 'For example: names picked at random, talking to a partner first, or everyone writing an answer.'),
 ];
 const TOGETHER = [
-  opt('none', 'No, alone or whole class', 'No pair or group task in this part.'),
+  opt('none', 'No, alone or as a whole class', 'No pair or group task in this part.'),
   opt('alone', 'Sat together, worked alone', 'Children sat in pairs or groups, but each did their own work.'),
   opt('combine', 'Made one thing together', 'The task needed the group to work together, e.g. one chart or one answer per group.'),
   opt('roles', 'Had roles and reported back', 'Each child had a job, and the group told the class what they did.'),
@@ -53,11 +57,12 @@ const MATERIALS = [
   opt('explain', 'Children explained with them', 'A child used a material to show or explain their thinking.'),
   opt('nofit', 'Nothing suits this topic', 'No material would help with this topic.'),
 ];
+// The four titles are PLAIN.C5, word for word, so the level the coach later reviews reads the same.
 const SWITCHED = [
-  opt('stalled', 'No signal, children drifted', 'The teacher gave no signal; children kept talking or wandering, and the lesson stopped.'),
-  opt('slow', 'Signal, but slow to settle', 'The teacher gave a signal, but many children took more than a minute or had to be called back.'),
-  opt('clear', 'Settled within a minute', 'The teacher gave a clear signal and the children were ready within about a minute.'),
-  opt('ahead', 'Ready before being told', 'The teacher said what comes next beforehand; children moved without being told one by one.'),
+  opt('stalled', PLAIN.C5[0], "The teacher didn't clearly say it was time to change. Children kept chatting or wandering, and the lesson stopped."),
+  opt('slow', PLAIN.C5[1], 'The teacher said it was time to change, but many children took more than a minute or had to be called back.'),
+  opt('clear', PLAIN.C5[2], 'The teacher said it was time to change, and nearly every child was on the new task within about a minute.'),
+  opt('ahead', PLAIN.C5[3], 'The children already knew the routine and moved to the next task on their own, without being told one by one.'),
 ];
 const INCIDENT = [
   opt('none', 'Nothing to report'),
@@ -104,12 +109,12 @@ function partQuestions(p) {
       }],
       else: [],
     },
-    radio(`${p}_materials`, 'Who used books or materials?', MATERIALS),
-    radio(`${p}_change`, 'Did the class switch activity?', YES_NO, 'For example: from listening to writing, or into groups.'),
+    radio(`${p}_materials`, 'Who used books or materials?', MATERIALS, 'Books, the board, charts, cards or objects.'),
+    radio(`${p}_change`, 'Did the class switch activity?', YES_NO, 'For example: from listening to the teacher to writing, or from the whole class into groups.'),
     {
       type: 'If',
       condition: `\${form.${p}_change} == 'yes'`,
-      then: [radio(`${p}_change_how`, 'What happened at the switch?', SWITCHED, 'If there was more than one switch, pick what happened most.')],
+      then: [radio(`${p}_change_how`, 'How did the switch go?', SWITCHED, 'If the class switched more than once, pick what happened most often.')],
       else: [],
     },
     { type: 'TextArea', name: `${p}_notes`, label: 'Anything else', required: false, 'max-length': 600, 'helper-text': 'The minute and what you saw, e.g. 8 min: board wiped before copying' },
@@ -120,7 +125,8 @@ function partQuestions(p) {
 const FIELDS = {
   PART_ONE: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
   PART_TWO: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
-  AFTER: ['incident', 'detail', 'note', 'lp', 'priority', 'seal_ok'],
+  LESSON_PLAN: ['lp', 'lp_pick'],
+  AFTER: ['incident', 'detail', 'note', 'priority', 'seal_ok'],
 };
 
 function screen(id, title, children, footerLabel, extraData) {
@@ -165,21 +171,37 @@ function buildFieldFormFlow() {
   const after = [
     { type: 'TextHeading', text: 'Before you seal' },
     { type: 'TextCaption', text: 'About two minutes, before you leave the room.' },
-    radio('incident', 'Anything to report?', INCIDENT),
+    { type: 'TextBody', text: '${data.lp_line}' },
+    radio('incident', 'Anything to report?', INCIDENT, 'Something that should never happen in a classroom, or a recording that failed.'),
     {
       type: 'If',
       condition: "${form.incident} != 'none'",
       then: [{ type: 'TextArea', name: 'detail', label: 'What happened, when', required: true, 'max-length': 600, 'helper-text': 'The words used and the minute' }],
       else: [],
     },
-    { type: 'TextArea', name: 'note', label: 'Only you could see', required: false, 'max-length': 600, 'helper-text': "What a recorder can't catch: the back rows, the board, how the class reacted" },
-    radio('lp', 'Lesson plan', LESSON_PLAN),
+    { type: 'TextArea', name: 'note', label: 'Not in the recording', required: false, 'max-length': 600, 'helper-text': "What you saw that a recording can't catch: the back rows, the board, reactions" },
     {
-      type: 'PhotoPicker', name: 'photos', label: 'Photos (optional)', description: 'Boards, notebooks, groups at work. Never faces.',
-      'photo-source': 'camera_gallery', 'min-uploaded-photos': 0, 'max-uploaded-photos': 3, 'max-file-size-kb': 10240,
+      type: 'PhotoPicker', name: 'photos', label: 'Photos (optional)',
+      description: `Up to ${MAX_PHOTOS}. The ones that help: the board, the materials, children using them, groups at work, and the board at the end. Never faces.`,
+      'photo-source': 'camera_gallery', 'min-uploaded-photos': 0, 'max-uploaded-photos': MAX_PHOTOS, 'max-file-size-kb': 10240,
     },
     { type: 'Dropdown', name: 'priority', label: 'Work on first', required: true, 'data-source': PRIORITY_ORDER.map((c) => opt(c, PRIORITY[c])) },
     { type: 'OptIn', name: 'seal_ok', label: "Seal this record. I can't change it afterwards, and the recording's moments open only after I seal.", required: true },
+    ERR_LINE,
+  ];
+  const plan = [
+    { type: 'TextHeading', text: 'The lesson plan' },
+    { type: 'TextCaption', text: 'So the recording can be checked against what the plan asked for.' },
+    radio('lp', 'Was there a lesson plan?', LESSON_PLAN),
+    {
+      type: 'If',
+      condition: "${form.lp} != 'none'",
+      then: [
+        { type: 'TextCaption', text: '${data.lp_hint}' },
+        { type: 'Dropdown', name: 'lp_pick', label: 'Which plan?', required: false, 'data-source': '${data.lp_options}' },
+      ],
+      else: [],
+    },
     ERR_LINE,
   ];
   const sealed = {
@@ -226,7 +248,12 @@ function buildFieldFormFlow() {
     version: FLOW_VERSION,
     data_api_version: '3.0',
     routing_model: {
-      PART_ONE: ['PART_TWO'], PART_TWO: ['AFTER'], AFTER: ['SEALED'], SEALED: [], CONTINUE: ['PART_TWO', 'AFTER', 'SEALED'],
+      PART_ONE: ['PART_TWO'],
+      PART_TWO: ['LESSON_PLAN'],
+      LESSON_PLAN: ['AFTER'],
+      AFTER: ['SEALED'],
+      SEALED: [],
+      CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'AFTER', 'SEALED'],
     },
     screens: [
       screen('PART_ONE', 'Part 1', part1, 'Part 1 done', {
@@ -236,11 +263,24 @@ function buildFieldFormFlow() {
       screen('PART_TWO', 'Part 2', part2, 'Part 2 done', {
         part_hint: { type: 'string', __example__: 'Minutes 20 to 40. Answer only for what happens in this part.' },
       }),
-      screen('AFTER', 'Before you seal', after, 'Seal and send'),
+      screen('LESSON_PLAN', 'Lesson plan', plan, 'Next', {
+        lp_hint: { type: 'string', __example__: "Rabia's most recent plans from the bot. If it isn't here, pick \"Not in this list\"." },
+        lp_options: {
+          type: 'array',
+          items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' } } },
+          __example__: [
+            { id: 'asset-1', title: 'Comparing & ordering unlike f…', description: 'Grade 4 Math · Ch5 Day 3 · p.79-81 · today' },
+            { id: 'other', title: 'Not in this list' },
+          ],
+        },
+      }),
+      screen('AFTER', 'Before you seal', after, 'Seal and send', {
+        lp_line: { type: 'string', __example__: 'Lesson plan: Comparing & ordering unlike fractions, Grade 4 Math, Ch5 Day 3. To change it, go back.' },
+      }),
       sealed,
       resume,
     ],
   };
 }
 
-module.exports = { buildFieldFormFlow, FIELDS, FLOW_VERSION };
+module.exports = { buildFieldFormFlow, FIELDS, FLOW_VERSION, MAX_PHOTOS };

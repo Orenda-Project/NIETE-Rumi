@@ -27,7 +27,7 @@ const PLAIN = {
   C2: ['Wrong answers ignored', 'Marked wrong, little reason', 'Explained why, twice or more', 'Child fixed it; new way shown'],
   C3: ['Only raised hands answered', 'A quiet child picked once', 'Quiet children picked often', 'Varied ways, silent child in'],
   C4: ['Teacher decided everything', 'Choices on small things only', 'A real choice, acted on', 'Children led part of it'],
-  C5: ['No signal, children drifted', 'Signal, but slow to settle', 'Settled within a minute', 'Ready before being told'],
+  C5: ['Took long, no clear signal', 'Signal given, but took long', 'Changed within a minute', 'Children knew what came next'],
   C6: ['Flat or dismissive', 'Praise only for right answers', 'Praised effort, 2+ times', 'Mistakes used, disagreement OK'],
   C7: ['No pair or group task', 'Sat together, worked alone', 'Made one thing together', 'Had roles and reported back'],
   C8: ['None used, though needed', 'Only the teacher used them', 'Children used them', 'Children explained with them'],

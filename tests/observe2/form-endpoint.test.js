@@ -51,7 +51,8 @@ const PART_2_OK = {
   screen: 'PART_TWO', p2_spoke: '10', p2_new: '5', p2_picked: 'often', p2_groups: 'combine', p2_listen: ['once'],
   p2_listen_other: '', p2_materials: 'children', p2_change: 'no', p2_notes: '',
 };
-const AFTER_OK = { screen: 'AFTER', incident: 'none', detail: '', note: '', lp: 'used', priority: 'C8', seal_ok: true };
+const PLAN_NONE = { screen: 'LESSON_PLAN', lp: 'none' };
+const AFTER_OK = { screen: 'AFTER', incident: 'none', detail: '', note: '', priority: 'C8', seal_ok: true };
 const photo = (n) => ({ media_id: `m${n}`, file_name: `p${n}.jpg`, cdn_url: 'https://cdn.example/x', encryption_metadata: {} });
 
 beforeEach(() => {
@@ -127,11 +128,11 @@ describe('Part 1 and Part 2', () => {
     expect(out.data.error_messages.p2_new).toMatch(/26/);
   });
 
-  test('"Part 2 done" saves and opens the seal screen', async () => {
+  test('"Part 2 done" saves and opens the lesson plan (2 Oct: the plan is picked before the seal)', async () => {
     const id = await newForm();
     await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', PART_1_OK);
     const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_TWO', PART_2_OK);
-    expect(out.screen).toBe('AFTER');
+    expect(out.screen).toBe('LESSON_PLAN');
     expect(row(id).part2_done_at).toBeTruthy();
   });
 });
@@ -141,6 +142,7 @@ describe('the seal', () => {
     const id = await newForm();
     await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', PART_1_OK);
     await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_TWO', PART_2_OK);
+    await Endpoint.handleObserve2FormDataExchange(token(id), 'LESSON_PLAN', PLAN_NONE);
     return id;
   }
 
@@ -159,7 +161,7 @@ describe('the seal', () => {
     expect(out.data.sealed_line).toMatch(/^Sealed at \d{2}:\d{2}$/);
     expect(out.data.record_id).toBe(id);
     expect(row(id).sealed_at).toBeTruthy();
-    expect(row(id).answers).toMatchObject({ present: '32', p2_new: '5', lp: 'used', priority: 'C8' });
+    expect(row(id).answers).toMatchObject({ present: '32', p2_new: '5', lp: 'none', priority: 'C8' });
 
     await flush();
     expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
@@ -201,19 +203,20 @@ describe('the seal', () => {
     expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
   });
 
-  test('never more than three photos are kept', async () => {
+  test('never more than ten photos are kept (no teachers\' cap of three for coaches, 2 Oct)', async () => {
     const id = await toAfter();
-    await Endpoint.handleObserve2FormDataExchange(token(id), 'AFTER', { ...AFTER_OK, photos: [photo(1), photo(2), photo(3), photo(4)] });
+    await Endpoint.handleObserve2FormDataExchange(token(id), 'AFTER', { ...AFTER_OK, photos: Array.from({ length: 11 }, (_, i) => photo(i + 1)) });
     await flush();
-    expect(decryptMedia).toHaveBeenCalledTimes(3);
-    expect(row(id).photos).toHaveLength(3);
+    expect(decryptMedia).toHaveBeenCalledTimes(10);
+    expect(row(id).photos).toHaveLength(10);
   });
 });
 
 describe('Continue, on a reopened form', () => {
   test.each([
     [{ part1_done_at: 'x' }, 'PART_TWO'],
-    [{ part1_done_at: 'x', part2_done_at: 'x' }, 'AFTER'],
+    [{ part1_done_at: 'x', part2_done_at: 'x' }, 'LESSON_PLAN'],
+    [{ part1_done_at: 'x', part2_done_at: 'x', answers: { lp: 'none' } }, 'AFTER'],
     [{ part1_done_at: 'x', part2_done_at: 'x', sealed_at: '2026-09-30T05:39:00.000Z' }, 'SEALED'],
   ])('%j goes on to %s', async (patch, next) => {
     const id = await newForm(patch);

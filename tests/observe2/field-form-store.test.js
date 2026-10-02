@@ -60,10 +60,10 @@ describe('the seal', () => {
   test('stamps sealed_at once and merges the last screen', async () => {
     const f = await newForm();
     const withP1 = (await Store.savePart(f, 'p1', { present: '32', p1_spoke: '5' })).form;
-    const s = await Store.seal(withP1, { incident: 'none', lp: 'used', priority: 'C8', seal_ok: 'true' });
+    const s = await Store.seal(withP1, { incident: 'none', priority: 'C8', seal_ok: 'true' });
     expect(s.ok).toBe(true);
     expect(s.form.sealed_at).toBeTruthy();
-    expect(s.form.answers).toEqual({ present: '32', p1_spoke: '5', incident: 'none', lp: 'used', priority: 'C8' });
+    expect(s.form.answers).toEqual({ present: '32', p1_spoke: '5', incident: 'none', priority: 'C8' });
   });
   test('a second "Seal and send" finds it sealed and changes nothing', async () => {
     const f = await newForm();
