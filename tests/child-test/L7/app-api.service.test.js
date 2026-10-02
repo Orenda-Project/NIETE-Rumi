@@ -126,6 +126,11 @@ function makeDeps(over = {}) {
     log: jest.fn(),
     logError: jest.fn(),
     defer: (fn) => fn(),
+    // The claimed path (CONTRACT §17) ends in L5's scoreBlock; tests/child-test/L0 covers the claim itself.
+    scoreClaimed: async (s, b, { force = false } = {}) => {
+      const r = await (over.scoring || scoring).scoreBlock({ sessionId: s.id, block: b, grade: s.grade, form: s.form, ...(force ? { force: true } : {}) });
+      return r && r.ok ? { outcome: r.aiStatus || 'scored' } : { outcome: 'failed', reason: r && r.reason };
+    },
     ...over,
     _blocks: blocks,
     _sessions: sessions,

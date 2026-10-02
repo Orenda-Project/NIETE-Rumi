@@ -57,6 +57,11 @@ beforeEach(() => {
       headObject: async () => ({ exists: true, sizeBytes: 900_000 }),
     },
     scoring: { scoreBlock: async (args) => { scored.push(args); return { ok: true, aiStatus: 'scored' }; } },
+    // The claimed path (CONTRACT §17) ends in L5's scoreBlock; the claim is covered in tests/child-test/L0 + L17.
+    scoreClaimed: async (s, b, { force = false } = {}) => {
+      const r = await deps.scoring.scoreBlock({ sessionId: s.id, block: b, grade: s.grade, form: s.form, ...(force ? { force: true } : {}) });
+      return { outcome: r && r.ok ? r.aiStatus : 'failed' };
+    },
     defer: (fn) => fn(),
     now: () => new Date('2026-10-02T06:10:00Z'),
     log: () => {},

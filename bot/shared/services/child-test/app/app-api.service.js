@@ -90,6 +90,9 @@ function withDefaults(deps = {}) {
     env: () => envSegment(),
     enabled: () => (userId, self) => availableFor(userId, self),
     defer: () => (fn) => setImmediate(fn),
+    // CONTRACT §17: score under the same DB claim as the WhatsApp path and the restart sweep.
+    scoreClaimed: () => (session, block, { force = false } = {}) => require('../conversation/recovery').runScoring(
+      { sessionId: session.id, grade: session.grade, form: session.form, session }, block, { force }),
   };
   const d = {};
   for (const [name, load] of Object.entries(lazy)) {
@@ -355,16 +358,23 @@ const presignBlockUpload = guarded('presign', async ({ userId, sessionId, block,
   return { status: 'ok', key, uploadUrl, contentType: type, expiresIn: PRESIGN_TTL_SECONDS, maxBytes: spec.maxBytes };
 });
 
+/** ai_reason without the restart sweep's bookkeeping (CONTRACT §17): `final:` stripped, `attempt:N` hidden. */
+function coachReason(reason) {
+  if (!reason) return null;
+  const r = String(reason);
+  if (/^attempt:\d+$/.test(r)) return null;
+  return r.replace(/^final:/, '') || null;
+}
+
 /** Off the request path: the coach is not kept waiting, and a scorer failure is logged, never thrown. */
 function startScoring(d, session, block, { force = false } = {}) {
-  const args = { sessionId: session.id, block, grade: session.grade, form: session.form };
-  if (force) args.force = true;
   d.defer(() => {
     Promise.resolve()
-      .then(() => d.scoring.scoreBlock(args))
+      .then(() => d.scoreClaimed(session, block, { force }))
       .then((res) => {
-        if (!res || !res.ok) {
-          d.logError('child_test.app.score_not_ok', { sessionId: session.id, block, aiStatus: res && res.aiStatus, reason: res && res.reason });
+        const outcome = res && res.outcome;
+        if (!res || outcome === 'failed' || outcome === 'final' || (outcome === 'skipped' && res.reason !== 'already_done')) {
+          d.logError('child_test.app.score_not_ok', { sessionId: session.id, block, outcome, reason: res && res.reason });
         }
       })
       .catch((error) => {
@@ -591,7 +601,7 @@ const sessionStatus = guarded('session_status', async ({ userId, sessionId }, d)
       hasAudio: !!b.audio_r2_key,
       hasPhoto: !!b.photo_r2_key,
       aiStatus: b.ai_status || null,
-      aiReason: b.ai_reason || null,
+      aiReason: coachReason(b.ai_reason),
       checked: !!b.checked_at,
       prefill: buildCheckPrefill(b.ai_marks, { ...ctx, block: name }),
     };
@@ -661,4 +671,5 @@ module.exports = {
   toCoachMarks,
   envSegment,
   startOfTodayPkt,
+  __internals: { startScoring, withDefaults, coachReason },
 };
