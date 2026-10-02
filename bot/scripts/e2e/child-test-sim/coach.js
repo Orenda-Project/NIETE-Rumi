@@ -22,6 +22,12 @@ const DEFAULT_MATCH = {
   presentButtons: (it) => it.type === 'interactive.button' && buttonsOf(it).some((b) => isPresent(b.id)),
   checkCard: (it) => it.type === 'interactive.flow' && !!it.flow,
   ack: (it) => it.type === 'text' || it.type === 'interactive.button' || it.type === 'image',
+  // L4 protocol (machine.js): each block is N card images, THEN this prompt; a voice note is answered by
+  // a TEXT ack; after maths comes the photo ask. A card image is never an ack.
+  l4List: (it) => (it.list && it.list.rows || []).some((r) => /^ctst_(child|alt):/.test(r.id)),
+  l4Prompt: (it) => it.type === 'interactive.button' && buttonsOf(it).some((b) => b.id === 'ctst_stop' || b.id === 'ctst_fb'),
+  l4PhotoAsk: (it) => it.type === 'interactive.button' && buttonsOf(it).some((b) => /^ctst_nophoto:/.test(b.id || '')),
+  l4Text: (it) => it.type === 'text',
 };
 const isPresent = (id) => /present/i.test(id || '') || /^ctst_pres:.*:p$/.test(id || '');
 const isAbsent = (id) => /absent/i.test(id || '') || /^ctst_pres:.*:a$/.test(id || '');
@@ -29,8 +35,12 @@ function buttonsOf(it) {
   const a = it.raw && it.raw.interactive && it.raw.interactive.action;
   return ((a && a.buttons) || []).map((b) => ({ id: b.reply && b.reply.id, title: b.reply && b.reply.title }));
 }
-// the roll is the first number in the row title (L4: "<roll> · <name>"; CONTRACT fake: "Roll <n>"); never log the title itself
-const rollOf = (row) => Number((/(\d+)/.exec(row.title || '') || /(\d+)$/.exec(row.id || '') || [])[1]);
+// the roll is the first number in the row title (L4: «رول ۹ · <name>», Urdu digits; CONTRACT fake: "Roll <n>"); never log the title itself
+const asciiDigits = (s) => String(s || '').replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0))
+  .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+const rollOf = (row) => Number((/(\d+)/.exec(asciiDigits(row.title)) || /(\d+)$/.exec(row.id || '') || [])[1]);
+// the name part of a row title («رول ۹ · <name>»): redacted from every logged detail
+const nameOf = (row) => { const m = /·\s*(.+)$/.exec(row.title || ''); return m ? m[1].trim() : null; };
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function audioSeconds(file) {
@@ -49,13 +59,18 @@ async function runVisit(opts) {
   const realtime = !!opts.realtime;                   // hold each voice note's own length before sending it
   const sleep = opts.sleep || sleepMs;
   const inbox = []; const pendingChecks = []; let cursor = 0;
+  const names = new Set();
+  const redact = (txt) => { let t = String(txt || ''); for (const n of names) t = t.split(n).join('‹child›'); return t; };
+  let l4 = false;   // switched on by the first list that carries L4's ids
   const result = { ok: false, children: [], absent: [], checksSubmitted: 0 };
 
   async function pump() {
     const items = await transport.poll(cursor);
     for (const it of items) {
       cursor = Math.max(cursor, it.seq || cursor + 1);
-      tl.log({ dir: 'in', kind: it.type, seq: it.seq, detail: (it.txt || '').slice(0, 80), btns: it.btns });
+      for (const r of (it.list && it.list.rows) || []) { const n = nameOf(r); if (n) names.add(n); }
+      tl.log({ dir: 'in', kind: it.type, seq: it.seq, detail: redact(it.txt).slice(0, 80), btns: it.btns,
+        ...(typeof it.sent_ms === 'number' ? { at: it.sent_ms } : {}), ...(it.send_ok === false ? { send_ok: false } : {}) });
       if (match.checkCard(it)) pendingChecks.push(it); else inbox.push(it);
     }
   }
@@ -69,12 +84,27 @@ async function runVisit(opts) {
       if (inbox.findIndex(pred) === -1) await sleep(transport.pollMs || 300);
     }
   }
+  // Lists pile up (L4 re-sends one after every maths note): take the NEWEST, drop the stale ones.
+  async function newestList(label) {
+    await waitFor(label, match.list).then((it) => inbox.unshift(it));
+    await pump();
+    const lists = inbox.filter(match.list);
+    for (const l of lists) inbox.splice(inbox.indexOf(l), 1);
+    return lists[lists.length - 1];
+  }
   async function waitChecks(n) {
     const deadline = Date.now() + timeoutMs;
     while (pendingChecks.length < n) {
       if (Date.now() > deadline) throw new Error(`timeout waiting for: ${n} check cards (have ${pendingChecks.length})`);
       await pump(); await sleep(transport.pollMs || 300);
     }
+  }
+  // Wait for the bot to say "go on" after a send; log how long that took as a `ready` mark (rtt_block_ready).
+  async function ready(label, pred, sentAt, extra) {
+    const it = await waitFor(label, pred, extra);
+    const at = typeof it.sent_ms === 'number' ? it.sent_ms : Date.now();
+    tl.log({ dir: 'mark', step: 'ready', block: extra.block, child: extra.child, wait_s: Math.round(at - sentAt) / 1000 });
+    return it;
   }
   const byRoll = {};
   async function submitCheck(card) {
@@ -92,6 +122,7 @@ async function runVisit(opts) {
     await transport.sendText(opts.startText || '/egra');
     tl.log({ dir: 'out', kind: 'text', step: 'start' });
     let list = await waitFor("today's list", match.list);
+    l4 = match.l4List(list);
     const done = new Set();
     for (const fx of fixtures) {
       let tested = false;
@@ -110,26 +141,33 @@ async function runVisit(opts) {
           await transport.tapButton(b.id, b.title);
           tl.log({ dir: 'out', kind: 'button', step: 'absent', roll });
           result.absent.push({ roll });
-          list = await waitFor('list after absent', match.list);
+          list = await newestList('list after absent');
           continue;
         }
         const b = btns.find((x) => isPresent(x.id));
         await transport.tapButton(b.id, b.title);
+        const presentAt = Date.now();
         tl.log({ dir: 'out', kind: 'button', step: 'present', child: fx.id, roll });
-        await waitFor('urdu prompt', match.ack, { child: fx.id });
+        if (l4) await ready('urdu prompt', match.l4Prompt, presentAt, { child: fx.id, block: 'urdu' });
+        else await waitFor('urdu prompt', match.ack, { child: fx.id });
         byRoll[roll] = fx.id;
+        const NEXT = { urdu: 'english', english: 'maths', maths: 'photo' };
         for (const block of ['urdu', 'english', 'maths']) {
           const file = path.join(fx.dir, `${block}.ogg`);
           if (!fs.existsSync(file)) throw new Error(`fixture ${fx.id} has no ${block}.ogg`);
           if (realtime) await sleep(audioSeconds(file) * 1000);
+          const sentAt = Date.now();
           await transport.sendMedia('audio', file);
           tl.log({ dir: 'out', kind: 'audio', step: 'block', child: fx.id, block, bytes: fs.statSync(file).size });
-          await waitFor(`${block} ack`, match.ack, { child: fx.id });
+          if (!l4) { await waitFor(`${block} ack`, match.ack, { child: fx.id }); continue; }
+          await waitFor(`${block} ack`, match.l4Text, { child: fx.id });
+          await ready(`${NEXT[block]} ready`, block === 'maths' ? match.l4PhotoAsk : match.l4Prompt, sentAt, { child: fx.id, block: NEXT[block] });
         }
         if (fx.strip) {
           await transport.sendMedia('image', fx.strip);
           tl.log({ dir: 'out', kind: 'image', step: 'strip', child: fx.id, block: 'strip' });
-          await waitFor('strip ack', match.ack, { child: fx.id });
+          await waitFor('strip ack', l4 ? match.l4Text : match.ack, { child: fx.id });
+          if (l4) await waitFor('child done', match.l4Text, { child: fx.id });
         }
         tl.log({ dir: 'mark', step: 'child_done', child: fx.id, roll });
         result.children.push({ fixture: fx.id, roll });
@@ -140,7 +178,7 @@ async function runVisit(opts) {
         }
       }
     }
-    if (checksMode === 'batch' || result.checksSubmitted < result.children.length) {
+    if (checksMode !== 'none' && (checksMode === 'batch' || result.checksSubmitted < result.children.length)) {
       await waitChecks(result.children.length - result.checksSubmitted);
       while (pendingChecks.length) await submitCheck(pendingChecks.shift());
     }
@@ -153,4 +191,4 @@ async function runVisit(opts) {
   return result;
 }
 
-module.exports = { runVisit, DEFAULT_MATCH };
+module.exports = { runVisit, DEFAULT_MATCH, rollOf };

@@ -7,8 +7,10 @@
  *   tap a child → Present / Absent / Refused
  *     absent, refused → draw.markOutcome promotes the next alternate; nothing more is asked
  *     present → session → for each block (urdu, english, maths):
- *        the child's cards (image; on a failed send, the text) + one coach-script line with the cue
- *        → ONE voice note, acknowledged at once, stored to R2, scored off the critical path
+ *        one coach-script line with the cue (the printed card is the stimulus, CONTRACT §11; card
+ *        images only with CHILD_TEST_INCHAT_CARDS=on, after the line, ≤ 3, or on the card button)
+ *        → ONE voice note: it claims its block first (Redis setNX, bd-s1oo0.14), the state moves on
+ *          and the ack + next line go out, then it is stored to R2 and scored off the critical path
  *   after maths: the strip photo is asked for and may arrive while the next child is going
  *   all three blocks scored → the check (L6 checkFlow.sendCheck)
  *
@@ -46,6 +48,11 @@ const active = (children) => (children || []).filter((c) => !INACTIVE.has(c.stat
 const nameFor = (lang, c) => (lang === 'en' ? c.displayName : (c.displayNameUrdu || c.displayName)) || '';
 
 const nowIso = () => new Date().toISOString();
+// This process's claims: a claim with no audio from another boot (or older than CLAIM_STALE_MS) died mid-upload.
+const BOOT = `${process.pid}-${Date.now()}`;
+const CLAIM_STALE_MS = 2 * 60 * 1000;
+const CARDS_PER_TAP = 3;   // WhatsApp folds 4+ images in a row into an album (CONTRACT §11)
+const inchatCards = () => String(process.env.CHILD_TEST_INCHAT_CARDS || '').toLowerCase() === 'on';
 const r2Env = () => process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT || 'local';
 const audioKey = (schoolId, sessionId, block) => `child-test/${r2Env()}/${schoolId}/${sessionId}/${block}.ogg`;
 const photoKey = (schoolId, sessionId) => `child-test/${r2Env()}/${schoolId}/${sessionId}/maths-strip.jpg`;
@@ -466,10 +473,11 @@ async function beginSession(user, from, state) {
   }
   const session = cs.session;
   let block = 'urdu';
+  let allStored = false;
   if (cs.created === false) {
-    const b = await ports.store.listBlocks(session.id);
-    const recorded = new Set(((b && b.blocks) || []).filter((x) => x.audio_r2_key).map((x) => x.block));
-    block = BLOCKS.find((x) => !recorded.has(x)) || 'maths';
+    const recorded = await reconcileClaims(session.id);
+    block = (await firstFree(session.id)) || 'maths';
+    allStored = BLOCKS.every((x) => recorded.has(x));
     if (session.status !== 'in_progress') await ports.store.setSessionStatus(session.id, 'in_progress');
   }
   await timing(session.id, 'list.opened', state.listOpenedAt || nowIso());
@@ -481,41 +489,114 @@ async function beginSession(user, from, state) {
   if (handOver && !handed.includes(handOver.drawId)) handed.push(handOver.drawId);
   const next = {
     ...state, step: 'block', handed, strips,
-    current: { ...cur, handOver, sessionId: session.id, grade: session.grade, form: session.form, schoolId: session.school_id, block },
+    current: { ...cur, handOver, sessionId: session.id, grade: session.grade, form: session.form, schoolId: session.school_id, block, claims: true },
   };
   logToFile('child_test.session_started', { sessionId: session.id, drawId: cur.drawId, block, resumed: cs.created === false });
+  if (allStored) {
+    // All three notes were stored before a stop or a restart: what follows maths is all that is left.
+    await S.set(user.id, next);
+    return afterAllStored(user, from, next.current, lang);
+  }
   return sendBlock(user, from, next);
 }
 
-/** The block's cards, then the coach-script prompt. The state is saved first, so a quick note lands. */
+// ------------------------------------------------------------------ block claims (bd-s1oo0.14)
+
+/**
+ * The claims agree with the store: a block with audio is held ('stored'); a claim with no audio is
+ * released unless an upload for it may still be running in this process. → Set of recorded blocks.
+ */
+async function reconcileClaims(sessionId) {
+  const b = await ports.store.listBlocks(sessionId);
+  const recorded = new Set(((b && b.blocks) || []).filter((x) => x.audio_r2_key).map((x) => x.block));
+  for (const block of BLOCKS) {
+    if (recorded.has(block)) {
+      await S.claimBlock(sessionId, block, { audioId: 'stored', at: nowIso() });
+      continue;
+    }
+    const c = await S.blockClaim(sessionId, block);
+    const live = c && c.boot === BOOT && Date.now() - Date.parse(c.at || 0) < CLAIM_STALE_MS;
+    if (c && !live) {
+      await S.releaseBlock(sessionId, block);
+      logToFile('child_test.block_claim_released', { sessionId, block, reason: 'stale' }, 'warn');
+    }
+  }
+  return recorded;
+}
+
+/** The earliest of the child's blocks no note has claimed (a released hole comes first). → block | null */
+async function firstFree(sessionId) {
+  for (const block of BLOCKS) if (!(await S.blockClaim(sessionId, block))) return block;
+  return null;
+}
+
+/** Atomically take the earliest free block for this note, in BLOCKS order. → block | null (all taken). */
+async function claimNext(sessionId, claim) {
+  for (const block of BLOCKS) if (await S.claimBlock(sessionId, block, claim)) return block;
+  return null;
+}
+
+/** Re-read the state and point it at the first free block — only while it is still this session's. */
+async function moveTo(userId, sessionId, { stamp = false } = {}) {
+  const block = await firstFree(sessionId);
+  const fresh = await S.get(userId);
+  if (!fresh || fresh.step !== 'block' || !fresh.current || fresh.current.sessionId !== sessionId) return null;
+  const target = block || 'maths';
+  const changed = fresh.current.block !== target;
+  const next = { ...fresh, current: { ...fresh.current, block: target, promptAt: changed || stamp ? nowIso() : fresh.current.promptAt } };
+  await S.set(userId, next);
+  return { state: next, block };
+}
+
+/** The coach-script prompt (then, only with in-chat cards on, ≤ 3 card images). State saved first. */
 async function sendBlock(user, from, state) {
   const cur = state.current;
   cur.promptAt = nowIso();
   await S.set(user.id, state);
-  await sendCards(user, from, cur, 'main');
-  return sendPrompt(user, from, state);
+  return openBlock(user, from, state);
 }
 
-async function sendCards(user, from, cur, variant) {
+/** The prompt goes first, so a card image never holds it up behind the send pacer (bd-s1oo0.15). */
+async function openBlock(user, from, state) {
+  const ok = await sendPrompt(user, from, state);
+  if (inchatCards()) await sendCardPage(user, from, state.current, 0);
+  return ok;
+}
+
+/** A block's cards in send order: the main cards, then (language blocks) the letters-and-words fallback. */
+async function blockCards(cur) {
+  const main = await cardsFor(cur.grade, cur.form, cur.block, 'main');
+  const fb = cur.block === 'maths' ? [] : await cardsFor(cur.grade, cur.form, cur.block, 'fallback');
+  return [...(main || []), ...(fb || [])];
+}
+
+/** One page of ≤ 3 card images, then a short text so the next page never joins it in an album. → next page */
+async function sendCardPage(user, from, cur, page) {
   const lang = langOf(user);
   let cards;
   try {
-    cards = await cardsFor(cur.grade, cur.form, cur.block, variant);
+    cards = await blockCards(cur);
   } catch (err) {
-    logError('child_test.card_render_failed', { sessionId: cur.sessionId, block: cur.block, variant, error: err.message });
-    return say(from, t(lang, 'childTestCardTextHeader'));
+    logError('child_test.card_render_failed', { sessionId: cur.sessionId, block: cur.block, error: err.message });
+    await say(from, t(lang, 'childTestCardTextHeader'));
+    return page;
   }
-  let n = 0;
-  for (const card of cards || []) {
+  if (!cards.length) return page;
+  const pages = Math.ceil(cards.length / CARDS_PER_TAP);
+  const p = ((page % pages) + pages) % pages;
+  const slice = cards.slice(p * CARDS_PER_TAP, (p + 1) * CARDS_PER_TAP);
+  let n = p * CARDS_PER_TAP;
+  for (const card of slice) {
     n += 1;
     const ok = await WhatsAppService.sendImageFromBuffer(from, card.png, '', 'image/png');
     if (ok === false || ok === null || ok === undefined) {
-      logError('child_test.card_send_failed', { sessionId: cur.sessionId, block: cur.block, variant, index: n });
+      logError('child_test.card_send_failed', { sessionId: cur.sessionId, block: cur.block, part: card.part, index: n });
       await say(from, `${t(lang, 'childTestCardTextHeader')}\n\n${card.text || ''}`);
     }
-    if (variant === 'main') await timing(cur.sessionId, `${cur.block}.card_sent.${n}`);
+    await timing(cur.sessionId, `${cur.block}.card_sent.${n}`);
   }
-  return true;
+  await say(from, t(lang, 'childTestCardsPage', { from: p * CARDS_PER_TAP + 1, to: n, total: cards.length }));
+  return (p + 1) % pages;
 }
 
 /** One line: progress · card page · the exact cue · the locked note (+ the strip hand-over on Urdu). */
@@ -530,8 +611,7 @@ async function sendPrompt(user, from, state) {
   });
   let body = `*${progressBlock(lang, cur)}* · ${cue}`;
   if (cur.block === 'urdu' && cur.handOver) body += `\n${t(lang, 'childTestStripHandOver', { roll: cur.handOver.rollNumber })}`;
-  const btns = [];
-  if (cur.block !== 'maths') btns.push({ id: 'ctst_fb', title: clip(t(lang, 'childTestFallbackButton'), 20) });
+  const btns = [{ id: 'ctst_fb', title: clip(t(lang, 'childTestCardsButton'), 20) }];
   btns.push({ id: 'ctst_stop', title: clip(t(lang, 'childTestStopChild'), 20) });
   btns.push({ id: 'ctst_menu', title: clip(t(lang, 'childTestMenu'), 20) });
   const ok = await buttons(from, body, btns);
@@ -539,11 +619,19 @@ async function sendPrompt(user, from, state) {
   return ok;
 }
 
-async function onFallbackCards(user, from) {
+/** "No printed card": this block's cards on demand, ≤ 3 per tap; each tap shows the next three. */
+async function onCardsTapped(user, from) {
   const state = await S.get(user.id);
   if (!state || state.step !== 'block' || !state.current) return say(from, t(langOf(user), 'childTestNothingOpen'));
-  await sendCards(user, from, state.current, 'fallback');
-  return timing(state.current.sessionId, `${state.current.block}.fallback_sent`);
+  const cur = state.current;
+  const pages = cur.cardPages || {};
+  const page = pages[cur.block] != null ? pages[cur.block] : (inchatCards() ? 1 : 0);
+  const next = await sendCardPage(user, from, cur, page);
+  const fresh = await S.get(user.id);
+  if (fresh && fresh.current && fresh.current.sessionId === cur.sessionId) {
+    await S.set(user.id, { ...fresh, current: { ...fresh.current, cardPages: { ...(fresh.current.cardPages || {}), [cur.block]: next } } });
+  }
+  return timing(cur.sessionId, `${cur.block}.cards_tapped`);
 }
 
 // ------------------------------------------------------------------ media
@@ -567,47 +655,103 @@ async function handleVoice(message, from, user) {
 async function processVoice(message, from, user, state, audioId) {
   const lang = langOf(user);
   const cur = state.current;
-  const block = cur.block;
-  const bi = BLOCKS.indexOf(block);
-  const sentAtMs = Number(message.timestamp) * 1000;
-  if (bi > 0 && sentAtMs && cur.promptAt && sentAtMs < Date.parse(cur.promptAt) - 2000) {
-    logToFile('child_test.voice_before_prompt', { sessionId: cur.sessionId, block });
-    await say(from, t(lang, 'childTestVoiceEarly', { block: blockName(lang, block), prev: blockName(lang, BLOCKS[bi - 1]) }));
+  const sid = cur.sessionId;
+  const sentAtMs = Number(message.timestamp) * 1000 || null;
+  if (!cur.claims) await reconcileClaims(sid);   // a child started before claims existed
+
+  // 1. Claim the block before any I/O: N quick notes take N distinct blocks, in arrival order.
+  const block = await claimNext(sid, { audioId, sentAt: sentAtMs, at: nowIso(), boot: BOOT });
+  if (!block) {
+    logToFile('child_test.voice_all_in', { sessionId: sid });
+    await say(from, t(lang, 'childTestVoiceAllIn', { roll: cur.rollNumber }));
     return true;
   }
-
-  await say(from, t(lang, 'childTestVoiceAck', { block: blockName(lang, block) }));
-  await timing(cur.sessionId, `${block}.voice_received`);
-  const key = audioKey(cur.schoolId, cur.sessionId, block);
+  let stored = false;
   try {
-    const buf = await WhatsAppService.downloadMedia(audioId);
-    await r2.uploadBuffer(buf, key, 'audio/ogg');
-    const r = await ports.store.attachBlockMedia({ sessionId: cur.sessionId, block, audioR2Key: key });
-    if (!r || (!r.ok && !r.alreadyScored)) throw new Error((r && r.error) || 'attach failed');
-  } catch (err) {
-    logError('child_test.audio_save_failed', { sessionId: cur.sessionId, block, error: err.message });
-    await S.forget(audioId);
-    await say(from, t(lang, 'childTestVoiceSaveFailed', { block: blockName(lang, block) }));
-    return true;
-  }
-  await timing(cur.sessionId, `${block}.audio_saved`);
-  logToFile('child_test.audio_saved', { sessionId: cur.sessionId, block });
+    // A re-delivered older note is not the next block's: it was sent before the previous block's note.
+    const bi = BLOCKS.indexOf(block);
+    if (bi > 0 && sentAtMs) {
+      const prev = await S.blockClaim(sid, BLOCKS[bi - 1]);
+      const ref = prev && prev.sentAt ? prev.sentAt : (cur.promptAt ? Date.parse(cur.promptAt) - 2000 : null);
+      if (ref && sentAtMs < ref) {
+        await S.releaseBlock(sid, block);
+        logToFile('child_test.voice_before_prompt', { sessionId: sid, block });
+        await say(from, t(lang, 'childTestVoiceEarly', { block: blockName(lang, block), prev: blockName(lang, BLOCKS[bi - 1]) }));
+        return true;
+      }
+    }
 
-  const sessionRef = { sessionId: cur.sessionId, grade: cur.grade, form: cur.form, rollNumber: cur.rollNumber };
-  if (block !== 'maths') {
-    offPath('score', () => scoreBlock(sessionRef, block, from, lang));
-    return sendBlock(user, from, { ...state, current: { ...cur, block: BLOCKS[bi + 1] } }).then(() => true);
-  }
+    // 2. The state moves on at once; the ack names the claimed block; the next line follows. Then the I/O.
+    const moved = await moveTo(user.id, sid);
+    try {
+      await say(from, t(lang, 'childTestVoiceAck', { block: blockName(lang, block) }));
+      // The ack may have waited on the send pacer; a note that came in meanwhile may hold the next block.
+      if (moved && moved.block && BLOCKS.indexOf(moved.block) > bi && !(await S.blockClaim(sid, moved.block))) {
+        await openBlock(user, from, moved.state);
+      }
+    } catch (err) {
+      logError('child_test.voice_failed', { sessionId: sid, block, stage: 'reply', error: err.message });
+    }
+    await timing(sid, `${block}.voice_received`);
 
-  // Maths: the strip may already be in (written while waiting); else it comes later, possibly as a
-  // batch at the end. Maths is scored once, with it (or after "No strip photo").
-  const fresh = (await S.get(user.id)) || state;
-  const ref = { ...sessionRef, schoolId: cur.schoolId, drawId: cur.drawId };
+    const key = audioKey(cur.schoolId, sid, block);
+    try {
+      const buf = await WhatsAppService.downloadMedia(audioId);
+      await r2.uploadBuffer(buf, key, 'audio/ogg');
+      const r = await ports.store.attachBlockMedia({ sessionId: sid, block, audioR2Key: key });
+      if (!r || (!r.ok && !r.alreadyScored)) throw new Error((r && r.error) || 'attach failed');
+    } catch (err) {
+      logError('child_test.audio_save_failed', { sessionId: sid, block, error: err.message });
+      return saveFailed(user, from, cur, block, audioId, lang);
+    }
+    stored = true;
+  } finally {
+    // Anything that threw before the note was stored gives its block back, so the hole is re-recorded.
+    if (!stored && (await S.blockClaim(sid, block) || {}).audioId === audioId) {
+      await S.releaseBlock(sid, block);
+      await S.forget(audioId);
+      await moveTo(user.id, sid);
+      await say(from, t(lang, 'childTestVoiceSaveFailed', { block: blockName(lang, block) }));
+    }
+  }
+  await timing(sid, `${block}.audio_saved`);
+  logToFile('child_test.audio_saved', { sessionId: sid, block });
+
+  const sessionRef = { sessionId: sid, grade: cur.grade, form: cur.form, rollNumber: cur.rollNumber };
+  if (block !== 'maths') offPath('score', () => scoreBlock(sessionRef, block, from, lang));
+
+  // 3. Whichever note completes the three runs what follows maths — once.
+  const b = await ports.store.listBlocks(sid);
+  const recorded = new Set(((b && b.blocks) || []).filter((x) => x.audio_r2_key).map((x) => x.block));
+  if (BLOCKS.every((x) => recorded.has(x)) && await S.claimDone(sid)) await afterAllStored(user, from, cur, lang);
+  return true;
+}
+
+/** The note did not save: its block is free again, the coach is told, and the next note fills it first. */
+async function saveFailed(user, from, cur, block, audioId, lang) {
+  await S.releaseBlock(cur.sessionId, block);
+  await S.forget(audioId);
+  await moveTo(user.id, cur.sessionId);
+  await say(from, t(lang, 'childTestVoiceSaveFailed', { block: blockName(lang, block) }));
+  return true;
+}
+
+/**
+ * All three notes are stored. Maths: the strip may already be in (written while waiting); else it
+ * comes later, possibly as a batch at the end. Maths is scored once, with it (or after "No strip photo").
+ * Fresh state throughout: notes that arrived together have each moved it on.
+ */
+async function afterAllStored(user, from, cur, lang) {
+  const fresh = (await S.get(user.id)) || {};
+  const ctx = fresh.ctx;
+  const ref = { sessionId: cur.sessionId, grade: cur.grade, form: cur.form, rollNumber: cur.rollNumber, schoolId: cur.schoolId, drawId: cur.drawId };
   const stripIn = fresh.strips && fresh.strips[cur.drawId] && fresh.strips[cur.drawId].sessionId === cur.sessionId;
-  const pending = stripIn ? (fresh.pendingPhotos || []) : [...(fresh.pendingPhotos || []), ref];
-  const next = { ...fresh, step: 'list', current: null, pendingPhotos: pending };
+  const already = (fresh.pendingPhotos || []).some((p) => p.sessionId === cur.sessionId);
+  const pending = stripIn || already ? (fresh.pendingPhotos || []) : [...(fresh.pendingPhotos || []), ref];
+  const mine = fresh.current && fresh.current.sessionId === cur.sessionId;
+  const next = { ...fresh, step: mine ? 'list' : fresh.step, current: mine ? null : fresh.current, pendingPhotos: pending };
   await S.set(user.id, next);
-  const res = await fetchList(user, state.ctx);
+  const res = ctx ? await fetchList(user, ctx) : null;
   if (stripIn) {
     await say(from, t(lang, 'childTestPhotoAlreadyIn', { roll: cur.rollNumber }));
     await finishChild(ref, from, lang);
@@ -622,7 +766,7 @@ async function processVoice(message, from, user, state, audioId) {
     const missing = [...pending].sort((a, b) => order.indexOf(a.drawId) - order.indexOf(b.drawId));
     await say(from, t(lang, 'childTestStripsBatch', { rolls: rollsLine(lang, missing) }));
   }
-  if (res && res.ok) await sendList(user, from, state.ctx, res, next);
+  if (res && res.ok && mine) await sendList(user, from, ctx, res, next);
   return true;
 }
 
@@ -843,7 +987,7 @@ async function handleButton(user, from, buttonId) {
     case 'ctst_offer': await onOffer(user, from, a, b); return true;
     case 'ctst_later': await say(from, t(langOf(user), 'childTestOfferLaterAck')); return true;
     case 'ctst_pres': await onPresence(user, from, a, b); return true;
-    case 'ctst_fb': await onFallbackCards(user, from); return true;
+    case 'ctst_fb': await onCardsTapped(user, from); return true;
     case 'ctst_stop':
       if (!(await cancel(user, from))) await say(from, t(langOf(user), 'childTestNothingOpen'));
       return true;

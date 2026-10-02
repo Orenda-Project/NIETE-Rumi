@@ -20,9 +20,14 @@ function createTimeline(file, opts = {}) {
     file,
     events,
     log(ev) {
-      const now = clock();
+      // `at` (ms epoch): when it really happened — a reply read from the bot's logs carries the bot's
+      // own send time, seconds before the driver saw it. The driver's clock is kept as seen_ms.
+      const { at, ...rest } = ev;
+      const seen = clock();
+      const now = typeof at === 'number' && Number.isFinite(at) ? at : seen;
       if (t0 === null) t0 = now;
-      const rec = { t_ms: now - t0, iso: new Date(now).toISOString(), since_prev_ms: prev === null ? 0 : now - prev, ...ev };
+      const rec = { t_ms: now - t0, iso: new Date(now).toISOString(), since_prev_ms: prev === null ? 0 : now - prev,
+        ...(now !== seen ? { seen_ms: seen - t0 } : {}), ...rest };
       prev = now;
       events.push(rec);
       fs.appendFileSync(file, JSON.stringify(rec) + '\n');
@@ -38,7 +43,9 @@ const sec = (ms) => Math.round(ms) / 1000;
 /** Per send: seconds until the FIRST bot message after it. Per child: start→done and per-block acks. */
 function summarise(events) {
   const ev = [...events].sort((a, b) => a.t_ms - b.t_ms);
-  const rtt = { rtt_text_reply: [], rtt_media_ack: [], rtt_flow_screen: [] };
+  // rtt_block_ready (L4 protocol): voice note sent → the next block's prompt (or the photo ask) is in, i.e.
+  // the ack plus that block's paced card images. rtt_first_prompt: Present tapped → the Urdu prompt.
+  const rtt = { rtt_text_reply: [], rtt_media_ack: [], rtt_flow_screen: [], rtt_block_ready: [], rtt_first_prompt: [] };
   const perChild = {};
   for (let i = 0; i < ev.length; i++) {
     const e = ev[i];
@@ -53,6 +60,10 @@ function summarise(events) {
     if (e.child && e.block) perChild[e.child].blocks[e.block] = { ack_s: s };
   }
   for (const e of ev) {
+    if (e.dir === 'mark' && e.step === 'ready' && typeof e.wait_s === 'number') {
+      rtt[e.block === 'urdu' ? 'rtt_first_prompt' : 'rtt_block_ready'].push(e.wait_s);
+      if (e.child && perChild[e.child]) perChild[e.child].blocks[`${e.block}_ready`] = { wait_s: e.wait_s };
+    }
     if (e.dir === 'mark' && e.step === 'child_done' && perChild[e.child]) {
       perChild[e.child].done_s = sec(e.t_ms);
       perChild[e.child].elapsed_s = Math.round((perChild[e.child].done_s - perChild[e.child].start_s) * 1000) / 1000;
