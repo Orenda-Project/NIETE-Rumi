@@ -74,9 +74,10 @@ test("her coaching rows exclude a coach's observation that has not been sent to 
   expect(sessions.sql).toContain(VISIBLE_TO_TEACHER_SQL);
 });
 
-test('the predicate is the Coaching pages\' rule: her own rows, or an observation whose delivery is sent', () => {
+test('the predicate is the Coaching pages\' rule: her own rows, or an observation the coach has sent her (delivered, or waiting for her tap)', () => {
   const { VISIBLE_TO_TEACHER_SQL } = require('../../dashboard/lib/teacher-observation');
   expect(VISIBLE_TO_TEACHER_SQL).toBe(
-    "(observation_type IS NULL OR observation_type <> 'leader_observation' OR analysis_data->'teacher_delivery'->>'status' = 'sent')",
+    "(observation_type IS NULL OR observation_type <> 'leader_observation' "
+    + "OR analysis_data->'teacher_delivery'->>'status' IN ('sent', 'awaiting_teacher_tap'))",
   );
 });
