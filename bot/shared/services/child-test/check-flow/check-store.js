@@ -9,8 +9,8 @@
  * block that never got a recording) and recordTiming. Until it lands, the same semantics run here on
  * the same columns, so the check behaves identically either way.
  *
- * Two reads stay here because store.js has no function for them: the draw's roll number (for the
- * coach-facing label) and the coach's phone and language (the users table is not a child-test table).
+ * The draw's roll number (the coach-facing label) comes from store.getDraw. One read stays here because
+ * store.js has no function for it: the coach's phone and language (users is not a child-test table).
  *
  * Nothing here writes ai_marks. Every function returns { ok, ... } and logs its own failure.
  */
@@ -129,9 +129,17 @@ const markCheckSubmitted = (sessionId, at) => stamp(sessionId, 'check.submitted'
 /** Roll number for the coach-facing label; null when the draw row is not there. */
 async function getRollNumber(drawId) {
   if (!drawId) return null;
-  const { data, error } = await supabase.from('child_test_draws').select('roll_number').eq('id', drawId).maybeSingle();
-  if (error) return null;
-  return data && data.roll_number != null ? String(data.roll_number) : null;
+  let draw;
+  if (viaStore('getDraw')) {
+    const r = await viaStore('getDraw')(drawId);
+    if (!r.ok) return null;
+    draw = r.draw;
+  } else {
+    const { data, error } = await supabase.from('child_test_draws').select('roll_number').eq('id', drawId).maybeSingle();
+    if (error) return null;
+    draw = data;
+  }
+  return draw && draw.roll_number != null ? String(draw.roll_number) : null;
 }
 
 async function getCoach(userId) {
