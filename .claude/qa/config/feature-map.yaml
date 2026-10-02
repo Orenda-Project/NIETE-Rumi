@@ -49,6 +49,7 @@ version: 1
 scope:
   - bot/**                              # the WhatsApp bot runtime (see ignore: for the inert parts)
   - tests/features/whatsapp/niete/**    # the specs, in THIS repo
+  - docs/flows/child-test-check.json    # the child-test check Flow lives at the repo root, not bot/docs (bd-s1oo0.9)
 
 # ── full-suite promotions ───────────────────────────────────────────────────
 # Where a commit earns the WHOLE 99-scenario suite instead of a targeted run.
@@ -238,6 +239,7 @@ features:
     - bot/shared/handlers/observe-command.handler.js
     - bot/shared/handlers/observe-visit-flow.handler.js
     - bot/shared/routes/observe-mewaka-endpoint.js
+    - bot/shared/routes/observe2-check-endpoint.js      # observe2's check Flow + the brief (sandbox)
     - bot/docs/flows/observe-*.json
     - bot/shared/templates/observe-*.js
     - bot/shared/templates/observation-report.template.js
@@ -254,6 +256,18 @@ features:
     - bot/shared/routes/edit-class-endpoint.js
     - bot/shared/services/student-list.service.js
     - bot/workers/attendance-*.worker.js
+
+  # The coach's five-minute child test (/egra), epic bd-s1oo0, sandbox only, all @wip until driven.
+  # Module layout: golive CONTRACT.md §1 (06_Logs & Misc/Reports/Active/EGRA Student Assessment - Sep 2026).
+  child-test:
+    - bot/shared/services/child-test/**                 # item bank, render, draw, conversation, scoring, check-flow, store
+    - bot/shared/data/child-test/**                     # item-bank.v1.json — the words and sums a child reads
+    - bot/shared/handlers/child-test.handler.js
+    - bot/shared/routes/child-test-check-endpoint.js
+    - bot/scripts/generate-child-test-check-flow-json.js  # re-claimed from ignore: it writes the check Flow JSON
+    - docs/flows/child-test-check.json
+    - bot/shared/routes/observe2-check-endpoint.js      # the "Test 5 children now?" offer follows observe2's brief
+    - bot/shared/handlers/image-message.handler.js      # the maths-strip photo claim sits first in this handler
 
 # ── shared / fan-out ─────────────────────────────────────────────────────────
 # One file, several surfaces. Declared HERE rather than repeated under each
@@ -272,11 +286,11 @@ shared:
 
   # The command/text router: 6 surfaces assert copy that originates here.
   bot/shared/handlers/text-message.handler.js:
-    [registration, menu, training, lesson-plan, coaching, language, status, observe, attendance]
+    [registration, menu, training, lesson-plan, coaching, language, status, observe, attendance, child-test]
 
   # Voice intake — coaching audio, LP-by-voice, voice attendance, language detect.
   bot/shared/handlers/voice-message.handler.js:
-    [registration, menu, training, lesson-plan, coaching, language, status, observe, attendance]
+    [registration, menu, training, lesson-plan, coaching, language, status, observe, attendance, child-test]
 
   # bd-onxyu — the app-redirect switches. Every feature door asks it first, so a change here can
   # silence any of these surfaces (each switch is off by default; off = no behaviour change).
@@ -285,13 +299,13 @@ shared:
 
   # Native Flow submissions land here before dispatch to a surface.
   bot/shared/handlers/flow-response.handler.js:
-    [registration, menu, training, lesson-plan, coaching, language, status, observe, attendance]
+    [registration, menu, training, lesson-plan, coaching, language, status, observe, attendance, child-test]
   bot/shared/services/flow-encryption.service.js:
-    [registration, training, lesson-plan, status, observe, attendance]
+    [registration, training, lesson-plan, status, observe, attendance, child-test]
   bot/shared/routes/flow-endpoint.routes.js:
-    [registration, menu, training, lesson-plan, coaching, language, status, observe, attendance]
+    [registration, menu, training, lesson-plan, coaching, language, status, observe, attendance, child-test]
   bot/shared/utils/flow-type-detector.js:
-    [registration, training, lesson-plan, status, observe, attendance]
+    [registration, training, lesson-plan, status, observe, attendance, child-test]
 
   # Shared persistence + context read by every stateful surface.
   bot/shared/database/**: "*"
@@ -300,11 +314,11 @@ shared:
   bot/shared/services/context.service.js: [menu, coaching, lesson-plan, language]
   bot/shared/services/content.service.js: [menu, training, lesson-plan]
   bot/shared/services/openai.service.js: [menu, coaching, lesson-plan, language]
-  bot/shared/services/llm-client.js: [menu, coaching, lesson-plan, language]
+  bot/shared/services/llm-client.js: [menu, coaching, lesson-plan, language, child-test]
   bot/shared/services/gpt5-mini.service.js: [menu, coaching, lesson-plan, language]
   bot/shared/middleware/auth.js: "*"
   bot/shared/config/branding.js: "*"      # header/footer copy on every surface
-  bot/shared/storage/r2.js: [training, lesson-plan, coaching, observe]
+  bot/shared/storage/r2.js: [training, lesson-plan, coaching, observe, child-test]
   bot/shared/services/queue/**: [training, lesson-plan, coaching, observe]
   bot/workers/sqs-worker.js:
     [registration, menu, training, lesson-plan, coaching, language, status, observe]
@@ -367,13 +381,13 @@ shared:
   bot/shared/config/registration-data.js:
     [attendance, registration]
   bot/shared/config/ux-strings.js:
-    [coaching, language, lesson-plan, menu, observe, registration, status, training]
+    [coaching, language, lesson-plan, menu, observe, registration, status, training, child-test]
   bot/shared/constants/scoring.constants.js:
     [coaching, observe]
   bot/shared/handlers/exam-checker.handler.js:
     [coaching, training]
   bot/shared/services/audio.service.js:
-    [coaching, language, lesson-plan, observe, registration]
+    [coaching, language, lesson-plan, observe, registration, child-test]
   bot/shared/services/coaching/classroom-photo/photo-prompt.service.js:
     [coaching, observe]
   bot/shared/services/coaching/coaching-helpers.service.js:

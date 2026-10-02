@@ -20,8 +20,10 @@
 const crypto = require('crypto');
 
 const TEXT_TYPES = new Set(['TextHeading', 'TextSubheading', 'TextBody', 'TextCaption', 'RichText']);
-const FIELD_TYPES = new Set(['TextInput', 'TextArea', 'Dropdown', 'RadioButtonsGroup', 'CheckboxGroup', 'OptIn', 'CalendarPicker', 'DatePicker']);
-const OPTION_TYPES = new Set(['Dropdown', 'RadioButtonsGroup', 'CheckboxGroup']);
+const FIELD_TYPES = new Set(['TextInput', 'TextArea', 'Dropdown', 'RadioButtonsGroup', 'CheckboxGroup', 'ChipsSelector', 'OptIn', 'CalendarPicker', 'DatePicker']);
+const OPTION_TYPES = new Set(['Dropdown', 'RadioButtonsGroup', 'CheckboxGroup', 'ChipsSelector']);
+// Multi-selects hold an ARRAY of ids; a pick toggles one. ChipsSelector has CheckboxGroup's contract.
+const MULTI_TYPES = new Set(['CheckboxGroup', 'ChipsSelector']);
 const SUPPORTED = new Set([...TEXT_TYPES, ...FIELD_TYPES, 'Form', 'Footer', 'EmbeddedLink', 'NavigationList', 'If', 'Switch', 'Image']);
 
 // ── bindings ─────────────────────────────────────────────────────────────────
@@ -125,7 +127,7 @@ function createEmulator(flowJson, opts) {
     const unmet = requiredUnmet().length > 0;
     for (const c of components()) {
       if (TEXT_TYPES.has(c.type)) { const t = resolve(c.text, ctx()); if (t != null && t !== '') texts.push(Array.isArray(t) ? t.join('\n') : String(t)); }
-      else if (OPTION_TYPES.has(c.type)) { const l = label(c); if (l) texts.push(String(l)); for (const op of optionsOf(c)) { const row = op.description ? `${op.title} · ${op.description}` : op.title; items.push({ text: row, title: op.title, hay: row, disabled: !op.enabled, kind: 'option', name: c.name, id: op.id }); } }
+      else if (OPTION_TYPES.has(c.type)) { const l = label(c); if (l) texts.push(String(l)); const cur = st.form[c.name]; for (const op of optionsOf(c)) { const row = op.description ? `${op.title} · ${op.description}` : op.title; items.push({ text: row, title: op.title, hay: row, disabled: !op.enabled, kind: 'option', name: c.name, id: op.id, selected: Array.isArray(cur) ? cur.includes(op.id) : cur === op.id }); } }
       else if (c.type === 'TextInput' || c.type === 'TextArea' || c.type === 'CalendarPicker' || c.type === 'DatePicker') items.push({ text: label(c) || c.name, disabled: false, kind: 'input', name: c.name, value: st.form[c.name] });
       else if (c.type === 'OptIn') items.push({ text: label(c) || c.name, disabled: false, kind: 'optin', name: c.name, value: !!st.form[c.name] });
       else if (c.type === 'EmbeddedLink') items.push({ text: resolve(c.text, ctx()), disabled: false, kind: 'link', action: c['on-click-action'] });
@@ -249,14 +251,14 @@ function createEmulator(flowJson, opts) {
       // back through probe(); a completion is delivered through onComplete.
       return r.ok ? { ok: true, clicked: it.text } : r;
     },
-    /** Select an option of a Dropdown / RadioButtonsGroup / CheckboxGroup by title — like flow-lib.pickOption. */
+    /** Select an option of a Dropdown / RadioButtonsGroup / CheckboxGroup / ChipsSelector by title — like flow-lib.pickOption. */
     pick(want, opts = {}) {
       if (!st.open) return { ok: false, err: 'FLOW_CLOSED' };
       const it = findItem(want, { exact: !!opts.exact, kinds: ['option'] });
       if (!it) return { ok: false, err: 'OPTION_ABSENT:' + want };
       if (it.disabled) return { ok: false, err: 'OPTION_DISABLED:' + it.text };
       const c = components().find((x) => x.name === it.name);
-      if (c && c.type === 'CheckboxGroup') { const cur = Array.isArray(st.form[it.name]) ? st.form[it.name] : []; st.form[it.name] = cur.includes(it.id) ? cur.filter((x) => x !== it.id) : [...cur, it.id]; }
+      if (c && MULTI_TYPES.has(c.type)) { const cur = Array.isArray(st.form[it.name]) ? st.form[it.name] : []; st.form[it.name] = cur.includes(it.id) ? cur.filter((x) => x !== it.id) : [...cur, it.id]; }
       else st.form[it.name] = it.id;
       // A component whose selection IS the submit (Teacher Training's module picker): run its
       // on-select-action now; settle()/click() await it, exactly as the phone submits on select.
