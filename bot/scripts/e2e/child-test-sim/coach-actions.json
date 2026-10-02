@@ -1,0 +1,41 @@
+{
+  "version": "coach-actions-v1",
+  "about": "What each action the simulated coach takes inside the check Flow costs, in seconds. The check's time per child is the sum of these plus the measured endpoint round trips (INIT + one data_exchange per screen). Assumptions, not measurements: replace them with pilot timings when a coach is filmed doing a check.",
+  "actions": {
+    "open_check": {
+      "seconds": 3,
+      "what": "Tap the check card's button; the Flow opens on URDU.",
+      "source": "sim/timing_model.py check_open (2, 3, 6) — the mode."
+    },
+    "confirm_screen": {
+      "seconds": 10,
+      "what": "Read down one pre-filled screen, scroll, tap the footer. Paid once per screen, whatever else is done on it.",
+      "source": "sim/timing_model.py check_review (30, 50, 90) covers three screens; an all-confirm check is its low end, 30 s / 3 screens."
+    },
+    "type_count": {
+      "seconds": 4,
+      "what": "Tap a number field, type one or two digits on the numeric keypad, dismiss it.",
+      "source": "Keystroke-Level Model (Card, Moran & Newell 1980): M 1.35 s + point/tap ~1.1 s + 2 keys x 0.28 s + dismiss ~0.5 s, rounded up for a phone keypad."
+    },
+    "tick_chip": {
+      "seconds": 1.5,
+      "what": "Tick or untick one chip (a word read wrong, a made-up word, a number).",
+      "source": "KLM: M 1.35 s + tap 0.2 s."
+    },
+    "choose_radio": {
+      "seconds": 2.5,
+      "what": "Choose one radio verdict (a question, a first sound, an item, a written sum).",
+      "source": "KLM: M 1.35 s + point/tap ~1.1 s (the options sit below the item, so the thumb moves)."
+    },
+    "fix_error": {
+      "seconds": 3,
+      "what": "The screen came back with a field error (e.g. more correct than tried); read it and retype one field.",
+      "source": "Assumption: one extra read (M 1.35 s) plus one field edit."
+    },
+    "submit": {
+      "seconds": 3,
+      "what": "The DONE screen: read the saved line, tap the button that closes the Flow (sends the completion).",
+      "source": "sim/timing_model.py check_submit (2, 4, 8), between low and mode."
+    }
+  }
+}
