@@ -61,9 +61,12 @@ function presignUpload({ userId, filename, sizeBytes, kind }) {
   return post('presign-upload', { userId, filename, sizeBytes, kind });
 }
 
-/** @param {{userId, key, lessonPlanKey, photoKeys}} args */
-function startSession({ userId, key, lessonPlanKey, photoKeys }) {
-  return post('start', { userId, key, lessonPlanKey, photoKeys });
+/**
+ * @param {{userId, key, lessonPlanKey, photoKeys, lessonPlan}} args
+ *   lessonPlan (bd-5rz1v): a library pick — { assetId } | { lessonId } | { segmentId, lang }
+ */
+function startSession({ userId, key, lessonPlanKey, photoKeys, lessonPlan }) {
+  return post('start', { userId, key, lessonPlanKey, photoKeys, lessonPlan });
 }
 
 /** @param {{userId, coachingSessionId, answer}} args */
@@ -71,4 +74,9 @@ function submitReflection({ userId, coachingSessionId, answer }) {
   return post('reflection', { userId, coachingSessionId, answer });
 }
 
-module.exports = { presignUpload, startSession, submitReflection };
+/** bd-5rz1v — her recent plans, from the WhatsApp list's source. @param {{userId}} args */
+function recentPlans({ userId }) {
+  return post('recent-plans', { userId });
+}
+
+module.exports = { presignUpload, startSession, submitReflection, recentPlans };

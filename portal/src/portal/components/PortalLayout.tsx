@@ -5,9 +5,11 @@ import PortalNavigation from './PortalNavigation';
 
 interface PortalLayoutProps {
   children: ReactNode;
+  /** Hide the navigation (bd-5rz1v: while a lesson is recorded or sent). */
+  bare?: boolean;
 }
 
-const PortalLayout = ({ children }: PortalLayoutProps) => {
+const PortalLayout = ({ children, bare = false }: PortalLayoutProps) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -30,11 +32,13 @@ const PortalLayout = ({ children }: PortalLayoutProps) => {
 
   if (!user) return null;
 
+  // `bare` (bd-5rz1v): no navigation at all, for a screen where one stray tap
+  // must not take her away — a lesson being recorded, or being sent.
   return (
     <div className="min-h-screen bg-secondary">
-      <PortalNavigation />
+      {!bare && <PortalNavigation />}
       {/* Issue #22: Added consistent padding for content */}
-      <main className="px-4 md:px-6 lg:px-8 pt-4 pb-20 md:pb-8">
+      <main className={bare ? 'px-4 md:px-6 lg:px-8 pt-4 pb-8' : 'px-4 md:px-6 lg:px-8 pt-4 pb-20 md:pb-8'}>
         {children}
       </main>
     </div>

@@ -56,6 +56,9 @@ export interface CoachingSession {
   percentage: number | null;
   /** The framework she was actually scored on: 'fico' for every NIETE region. */
   framework?: string | null;
+  /** bd-5rz1v — what the lesson was about, as its analysis found it. */
+  topic?: string | null;
+  subject?: string | null;
 }
 
 /**

@@ -23,7 +23,7 @@ import { TRAINING_V2_PATHS } from "./portal/lib/trainingRoutes";
 import PortalCoaching from "./portal/pages/PortalCoaching";
 import PortalCoachingAnalytics from "./portal/pages/PortalCoachingAnalytics";
 import PortalCoachingDetail from "./portal/pages/PortalCoachingDetail";
-import PortalCoachingUpload from "./portal/pages/PortalCoachingUpload";
+import PortalCoachingRecord from "./portal/pages/PortalCoachingRecord";
 import LeaderHome from "./portal/pages/LeaderHome";
 import LeaderTeachers from "./portal/pages/LeaderTeachers";
 import LeaderTeacherDetail from "./portal/pages/LeaderTeacherDetail";
@@ -127,7 +127,7 @@ const App = () => {
             ))}
             <Route path="/portal/coaching" element={<PortalCoaching />} />
             <Route path="/portal/coaching/analytics" element={<PortalCoachingAnalytics />} />
-            <Route path="/portal/coaching/new" element={<PortalCoachingUpload />} />
+            <Route path="/portal/coaching/new" element={<PortalCoachingRecord />} />
             <Route path="/portal/coaching/session/:sessionId" element={<PortalCoachingDetail />} />
 
             {/* Leader Portal (bd-2434) — role-gated inside the pages; the leader

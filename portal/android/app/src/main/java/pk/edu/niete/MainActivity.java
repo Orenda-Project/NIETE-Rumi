@@ -1,10 +1,21 @@
 package pk.edu.niete;
 
+import android.os.Bundle;
 import android.webkit.CookieManager;
 
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+
+    /**
+     * bd-q4g7s: a local plugin must be registered BEFORE super.onCreate builds
+     * the bridge, or the web code never sees it.
+     */
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(KeepScreenPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
 
     /**
      * BUG-142 (bd-2358): the portal session was lost on every force-close.

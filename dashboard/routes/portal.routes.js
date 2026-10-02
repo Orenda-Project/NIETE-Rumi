@@ -5347,9 +5347,18 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
+    // bd-5rz1v — SLICES of analysis_data, not the column: it averages ~30 KB a
+    // row (62 KB max, sandbox 2026-10-02) and the list now asks for up to 100
+    // rows, while all it reads is the scores block (~190 B) and three labels.
+    // 100 × 30 KB = 3 MB per page load, against ~40 KB. getOverall reads only
+    // `.scores`, so it is given exactly that.
     const { data: coachingSessions, error, count } = await supabase
       .from('coaching_sessions')
-      .select('id, created_at, audio_duration_seconds, status, analysis_data', { count: 'exact' })
+      .select(
+        'id, created_at, audio_duration_seconds, status, scores:analysis_data->scores, '
+        + 'framework:analysis_data->>framework, topic:analysis_data->>topic, subject:analysis_data->>subject',
+        { count: 'exact' },
+      )
       .eq('user_id', userId)
       .eq('status', 'completed')
       .not('analysis_data', 'is', null)
@@ -5379,10 +5388,14 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
         overallScore: points,
         maxScore: maxPoints,
         percentage,
-      }))(getOverall(session.analysis_data)),
+      }))(getOverall({ scores: session.scores })),
       // The framework she was actually scored on, so the card can say so
       // instead of implying one.
-      framework: session.analysis_data?.framework || null
+      framework: session.framework || null,
+      // bd-5rz1v — what the lesson was about, as its analysis found it, so the
+      // Coaching list can name and filter lessons. null when not found.
+      topic: session.topic || null,
+      subject: session.subject || null,
     }));
 
     res.json({
@@ -5511,6 +5524,9 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         session_date: session.created_at, // Portal expects 'session_date'
         duration: session.audio_duration_seconds,
         status: session.status,
+        // bd-5rz1v — the lesson page's title line; null when not found.
+        topic: session.analysis_data?.topic || null,
+        subject: session.analysis_data?.subject || null,
 
         // ── what she recorded ──────────────────────────────────────────────
         lessonAudioUrl,                       // HER lesson
@@ -5642,15 +5658,91 @@ router.post('/coaching-upload/presign', requirePortalAuth, requireSelfObservatio
 });
 
 /**
+ * bd-5rz1v — the fields of a library lesson-plan pick the bot reads, and no
+ * others. The bot validates the shape; this only keeps anything else (a
+ * `userId`, say) from riding along to it.
+ */
+function libraryPlanPick(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out = {};
+  for (const k of ['assetId', 'lessonId', 'segmentId', 'lang']) {
+    if (raw[k] !== undefined) out[k] = raw[k];
+  }
+  return out;
+}
+
+/**
  * POST /api/portal/coaching-upload/start
- * Body { key, lessonPlanKey?, photoKeys? } — keys returned by /presign, uploaded.
+ * Body { key, lessonPlanKey?, lessonPlan?, photoKeys? } — keys returned by /presign, uploaded.
+ *   lessonPlan: a library pick — { assetId } | { lessonId } | { segmentId, lang }
  * → 200 { coachingSessionId }   409 { status:'in_progress', coachingSessionId }
+ *   400 { reason: 'plan_not_found' | 'plan_not_ready' | … }
  */
 router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation, (req, res) => {
-  const { key, lessonPlanKey, photoKeys } = req.body || {};
+  const { key, lessonPlanKey, photoKeys, lessonPlan } = req.body || {};
   return relayToBot(res, 'start', () => PortalCoachingClient.startSession({
-    userId: req.session.portalUserId, key, lessonPlanKey, photoKeys,
+    userId: req.session.portalUserId, key, lessonPlanKey, photoKeys, lessonPlan: libraryPlanPick(lessonPlan),
   }));
+});
+
+/**
+ * GET /api/portal/coaching-upload/recent-plans  (bd-5rz1v)
+ * → { plans: [{ assetId, lessonId, topic, grade, subject, chapterNumber, dayLabel, pagesLabel, downloadedAt }] }
+ * The plans the WhatsApp "Recent Lesson Plans" list would offer her.
+ */
+router.get('/coaching-upload/recent-plans', requirePortalAuth, requireSelfObservation, (req, res) => (
+  relayToBot(res, 'recent-plans', () => PortalCoachingClient.recentPlans({ userId: req.session.portalUserId }))
+));
+
+/**
+ * GET /api/portal/coaching-sessions/active  (bd-5rz1v)
+ * → { sessions: [{ id, createdAt, status, stage, source, needsAnswer, topic, subject }] }, OLDEST first.
+ *
+ * Her lessons still in the pipeline — what the Coaching list shows above the
+ * finished ones, and what its "needs your answer" banner walks through, oldest
+ * first. `needsAnswer` only for a PORTAL session holding an unanswered question:
+ * a WhatsApp session's debrief is in her chat (the progress route's rule).
+ *
+ * Three days back: the pipeline finishes in minutes and a debrief auto-completes
+ * after 12 hours, so anything older is stuck, and the watchdog — not this list —
+ * owns stuck sessions.
+ */
+const ACTIVE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+const ENDED_STATUSES = ['completed', 'failed', 'cancelled', 'abandoned'];
+
+router.get('/coaching-sessions/active', requirePortalAuth, requireSelfObservation, async (req, res) => {
+  try {
+    const since = new Date(Date.now() - ACTIVE_WINDOW_MS).toISOString();
+    const { data: rows, error } = await supabase
+      .from('coaching_sessions')
+      .select('id, status, audio_url, conversation_state, created_at, topic:analysis_data->>topic, subject:analysis_data->>subject')
+      .eq('user_id', req.session.portalUserId)
+      .not('status', 'in', `(${ENDED_STATUSES.join(',')})`)
+      .gte('created_at', since)
+      .order('created_at', { ascending: true })
+      .limit(50);
+    if (error) throw error;
+
+    const sessions = (rows || []).map((row) => {
+      const portal = isPortalSession(row);
+      const waiting = ((row.conversation_state && row.conversation_state.questions) || [])
+        .some((q) => q && q.question && !q.answer);
+      return {
+        id: row.id,
+        createdAt: row.created_at,
+        status: row.status,
+        stage: PORTAL_COACHING_STAGE[row.status] || 'analysing',
+        source: portal ? 'portal' : 'whatsapp',
+        needsAnswer: portal && row.status === 'conducting_conversation' && waiting,
+        topic: row.topic || null,
+        subject: row.subject || null,
+      };
+    });
+    return res.json({ success: true, sessions });
+  } catch (error) {
+    console.error('Coaching active sessions error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load your lessons' });
+  }
 });
 
 /**
@@ -6475,7 +6567,7 @@ router.get('/video/:id', requirePortalAuth, async (req, res) => {
 /**
  * GET /api/portal/config
  *
- * bd-2460 — what this deployment currently offers, so the browser can render an
+ * What this deployment currently offers, so the browser can render an
  * honest surface instead of a form that would 503 on submit. Public (no auth):
  * it exposes nothing but feature availability, and the login screen may need it.
  *
@@ -6536,7 +6628,7 @@ router.get('/me/language', requirePortalAuth, async (req, res) => {
  */
 router.put('/me/language', requirePortalAuth, async (req, res) => {
   try {
-    // bd-60085 — over the internal API, not by requiring language-cache in-process. That module
+    // Over the internal API, not by requiring language-cache in-process. That module
     // reaches bot/shared/config/supabase.js and its `require('dotenv')`, which the portal
     // service cannot resolve from inside bot/ (see training-bands.service.js). The route looked
     // fine and would have 500'd the first time a teacher changed her language.
