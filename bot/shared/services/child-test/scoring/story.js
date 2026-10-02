@@ -132,6 +132,22 @@ async function scoreStory({ lang, spec, file, window, words, coachSpeaker, flags
   }
 }
 
+/**
+ * EGRA's stop rule (CONTRACT §9.2): fewer than 5 words right in the first line of the story
+ * means the child could not read it, so the coach switched to the 10 letters + 10 words card.
+ * Without `story.lines`, a total of 2 or fewer correct stands in for it.
+ */
+const FIRST_LINE_MIN_CORRECT = 5;
+const NO_LINES_AT_OR_BELOW = 2;
+function needsFallback(part, storySpec) {
+  const line = storySpec && storySpec.lines && storySpec.lines[0];
+  if (!line) return part.words_correct <= NO_LINES_AT_OR_BELOW;
+  const wrong = new Set((part.flagged || []).map((f) => f.idx));
+  let right = 0;
+  for (let i = line.from; i <= line.to && i < part.words_attempted; i += 1) if (!wrong.has(i)) right += 1;
+  return right < FIRST_LINE_MIN_CORRECT;
+}
+
 /** Letters + words for a child who could not read the first line. */
 async function scoreFallback({ lang, spec, file, window, calls }) {
   const fb = spec.fallback;
@@ -150,4 +166,4 @@ async function scoreFallback({ lang, spec, file, window, calls }) {
   } finally { if (clip) cleanup(clip.path); }
 }
 
-module.exports = { scoreStory, scoreFallback, verdictsFrom, attemptedOf, capAttempted };
+module.exports = { scoreStory, scoreFallback, verdictsFrom, attemptedOf, capAttempted, needsFallback };

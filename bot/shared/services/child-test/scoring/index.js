@@ -28,7 +28,7 @@ const media = require('./media');
 const stt = require('./stt');
 const { findCueWindows, reconcileWindows, defaultTimedWindow } = require('./windows');
 const { labelMissing } = require('./labeller');
-const { scoreStory, scoreFallback } = require('./story');
+const { scoreStory, scoreFallback, needsFallback } = require('./story');
 const { scoreQuestions } = require('./comprehension');
 const { scorePhonics } = require('./phonics');
 const { scoreSpoken, scoreSpokenWordProblem } = require('./maths');
@@ -38,9 +38,6 @@ const { modelFor } = require('./models');
 
 const BLOCKS = new Set(['urdu', 'english', 'maths']);
 const STT_LANGUAGE = { urdu: 'ur', english: 'en', maths: 'ur' };
-// A child who reads this few words correctly most likely could not read the first line,
-// so the coach switched to the 10 letters + 10 words card (PLAN §3).
-const FALLBACK_AT_OR_BELOW = 2;
 
 class Fatal extends Error {
   constructor(reason, detail) { super(reason); this.reason = reason; this.detail = detail; }
@@ -102,7 +99,8 @@ async function runReading({ block, spec, cue, file, durationSec, calls, errors, 
   else errors.push({ job: 'story', error: story.error });
   ok.story = !!story.ok;
 
-  if (story.ok && story.part.words_correct <= FALLBACK_AT_OR_BELOW && spec.fallback) {
+  // the child could not read the first line, so the coach switched to letters + words (PLAN §3)
+  if (story.ok && spec.fallback && needsFallback(story.part, spec.story)) {
     const fbWindow = { start: w.story.start, end: w.story.sectionEnd || w.story.end };
     const fb = await scoreFallback({ lang: block, spec, file, window: fbWindow, calls });
     if (fb.ok) parts.fallback = fb.part; else errors.push({ job: 'fallback', error: fb.error });
