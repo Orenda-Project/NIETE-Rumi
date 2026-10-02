@@ -97,8 +97,10 @@ function buildLPSelectionList(coachingSessionId, recentLPs, language = 'en', reg
       title: isUrdu ? 'نیا اپلوڈ کریں' : 'Upload new',
       // bd-we73k: a typed-out plan counts now, so the row stops saying
       // "document" — that word is why teachers who had their plan in text form
-      // thought this row was not for them. 30/36 code points against the 72 cap.
-      description: isUrdu ? 'اپنا سبق کا منصوبہ بھیجیں یا لکھ دیں' : 'Send or paste your lesson plan',
+      // thought this row was not for them. Then the photo route went unnamed the
+      // same way (bd-5knlj: the Yes/No prompt had to say "a photo works"), so the
+      // row names all three ways in. 38 / 41 code points against the 72 cap.
+      description: isUrdu ? 'منصوبے کی تصویر یا PDF بھیجیں، یا لکھ دیں' : 'A photo or PDF of the plan, or type it',
     },
     {
       id: `lp_none_${coachingSessionId}`,

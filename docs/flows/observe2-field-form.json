@@ -9,6 +9,18 @@
       "LESSON_PLAN"
     ],
     "LESSON_PLAN": [
+      "LP_PHOTOS",
+      "LP_FILE",
+      "LP_TEXT",
+      "AFTER"
+    ],
+    "LP_PHOTOS": [
+      "AFTER"
+    ],
+    "LP_FILE": [
+      "AFTER"
+    ],
+    "LP_TEXT": [
       "AFTER"
     ],
     "AFTER": [
@@ -615,7 +627,7 @@
       "data": {
         "lp_hint": {
           "type": "string",
-          "__example__": "Rabia's most recent plans from the bot. If it isn't here, pick \"Not in this list\"."
+          "__example__": "Rabia's most recent plans from the bot. If the plan isn't here, pick \"Upload new\" to add it."
         },
         "lp_options": {
           "type": "array",
@@ -636,12 +648,13 @@
           "__example__": [
             {
               "id": "asset-1",
-              "title": "Comparing & ordering unlike f…",
+              "title": "Comparing & ordering un…",
               "description": "Grade 4 Math · Ch5 Day 3 · p.79-81 · today"
             },
             {
-              "id": "other",
-              "title": "Not in this list"
+              "id": "upload",
+              "title": "Upload new",
+              "description": "Photos of a paper plan, a PDF or Word file, or typed text"
             }
           ]
         },
@@ -708,6 +721,36 @@
                     "label": "Which plan?",
                     "required": false,
                     "data-source": "${data.lp_options}"
+                  },
+                  {
+                    "type": "If",
+                    "condition": "${form.lp_pick} == 'upload'",
+                    "then": [
+                      {
+                        "type": "RadioButtonsGroup",
+                        "name": "lp_how",
+                        "label": "How will you add it?",
+                        "required": false,
+                        "data-source": [
+                          {
+                            "id": "photos",
+                            "title": "Photos of the paper plan",
+                            "description": "One photo per page, up to 10."
+                          },
+                          {
+                            "id": "file",
+                            "title": "A PDF or Word file",
+                            "description": "From the phone's files."
+                          },
+                          {
+                            "id": "text",
+                            "title": "Type it",
+                            "description": "The steps the teacher planned, in order."
+                          }
+                        ]
+                      }
+                    ],
+                    "else": []
                   }
                 ],
                 "else": []
@@ -725,7 +768,204 @@
                   "payload": {
                     "screen": "LESSON_PLAN",
                     "lp": "${form.lp}",
-                    "lp_pick": "${form.lp_pick}"
+                    "lp_pick": "${form.lp_pick}",
+                    "lp_how": "${form.lp_how}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LP_PHOTOS",
+      "title": "Plan photos",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "lp_photos_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Photos of the lesson plan"
+              },
+              {
+                "type": "TextBody",
+                "text": "One photo per page, in order. Hold the phone over the page so every line is sharp and nothing is cut off."
+              },
+              {
+                "type": "PhotoPicker",
+                "name": "lp_photos",
+                "label": "Pages of the plan",
+                "description": "Up to 10, in order.",
+                "photo-source": "camera_gallery",
+                "min-uploaded-photos": 1,
+                "max-uploaded-photos": 10,
+                "max-file-size-kb": 10240
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "LP_PHOTOS",
+                    "lp_photos": "${form.lp_photos}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LP_FILE",
+      "title": "Plan file",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "lp_file_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "The lesson plan file"
+              },
+              {
+                "type": "TextBody",
+                "text": "A PDF or Word file from the phone. A photo of the plan saved as a file works too."
+              },
+              {
+                "type": "DocumentPicker",
+                "name": "lp_file",
+                "label": "The plan",
+                "description": "PDF or Word, up to 25 MB.",
+                "min-uploaded-documents": 1,
+                "max-uploaded-documents": 3,
+                "max-file-size-kb": 25600,
+                "allowed-mime-types": [
+                  "application/pdf",
+                  "application/msword",
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "image/jpeg",
+                  "image/png"
+                ]
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "LP_FILE",
+                    "lp_file": "${form.lp_file}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LP_TEXT",
+      "title": "Type the plan",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "lp_text_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Type the lesson plan"
+              },
+              {
+                "type": "TextBody",
+                "text": "The steps the teacher planned, in order: how the lesson starts, what the teacher explains, what the children do, and how it ends."
+              },
+              {
+                "type": "TextArea",
+                "name": "lp_text",
+                "label": "The lesson plan",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "One step per line is easiest to check."
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "LP_TEXT",
+                    "lp_text": "${form.lp_text}"
                   }
                 }
               }

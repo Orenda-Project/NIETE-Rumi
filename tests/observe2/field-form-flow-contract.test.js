@@ -60,9 +60,10 @@ describe('the flow is internally consistent', () => {
   });
 
   test('the parts in order, forward-only routing, one terminal', () => {
-    expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'AFTER', 'SEALED', 'CONTINUE']);
+    expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER', 'SEALED', 'CONTINUE']);
     expect(flow.routing_model).toEqual({
-      PART_ONE: ['PART_TWO'], PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['AFTER'], AFTER: ['SEALED'], SEALED: [],
+      PART_ONE: ['PART_TWO'], PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER'],
+      LP_PHOTOS: ['AFTER'], LP_FILE: ['AFTER'], LP_TEXT: ['AFTER'], AFTER: ['SEALED'], SEALED: [],
       CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'AFTER', 'SEALED'],
     });
     expect(flow.screens.filter((s) => s.terminal).map((s) => s.id)).toEqual(['SEALED']);
@@ -98,7 +99,7 @@ describe('the flow is internally consistent', () => {
   });
 
   test('each part and the seal screen return server checks through the Form error-messages', () => {
-    for (const id of ['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'AFTER']) {
+    for (const id of ['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER']) {
       const form = screens[id].layout.children.find((c) => c.type === 'Form');
       expect(form['error-messages']).toBe('${data.error_messages}');
       for (const k of ['error_messages', 'error', 'has_error']) expect(screens[id].data[k]).toBeDefined();
@@ -163,8 +164,11 @@ describe('the form agrees with the endpoint', () => {
       expect(footer['on-click-action'].name).toBe('data_exchange');
       const payload = footer['on-click-action'].payload;
       expect(payload.screen).toBe(id);
-      const shown = components(screens[id]).filter((c) => c.name && !['PhotoPicker', 'Form'].includes(c.type)).map((c) => c.name).sort();
-      expect(Object.keys(payload).filter((k) => k !== 'screen' && k !== 'photos').sort()).toEqual(shown);
+      // A media picker's value travels as its own top-level key (Meta), not as a screen field.
+      const pickers = components(screens[id]).filter((c) => ['PhotoPicker', 'DocumentPicker'].includes(c.type)).map((c) => c.name);
+      for (const name of pickers) expect(payload[name]).toBe(`\${form.${name}}`);
+      const shown = components(screens[id]).filter((c) => c.name && !['PhotoPicker', 'DocumentPicker', 'Form'].includes(c.type)).map((c) => c.name).sort();
+      expect(Object.keys(payload).filter((k) => k !== 'screen' && !pickers.includes(k)).sort()).toEqual(shown);
       expect([...fields].sort()).toEqual(shown);
     }
   });

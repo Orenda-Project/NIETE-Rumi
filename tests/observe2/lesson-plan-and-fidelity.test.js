@@ -129,9 +129,9 @@ describe('the field form: a lesson-plan screen before the seal', () => {
   const screens = Object.fromEntries(flow.screens.map((s) => [s.id, s]));
 
   test('Part 2 leads to the lesson plan, then to the seal; a reopened form can land on it', () => {
-    expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'AFTER', 'SEALED', 'CONTINUE']);
+    expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER', 'SEALED', 'CONTINUE']);
     expect(flow.routing_model).toMatchObject({
-      PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['AFTER'], AFTER: ['SEALED'],
+      PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER'], AFTER: ['SEALED'],
       CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'AFTER', 'SEALED'],
     });
   });
@@ -146,7 +146,7 @@ describe('the field form: a lesson-plan screen before the seal', () => {
     expect(conditional).toContain("${form.lp} != 'none'");
     expect(conditional).toContain('lp_pick');
     const footer = c.find((x) => x.type === 'Footer');
-    expect(footer['on-click-action'].payload).toEqual({ screen: 'LESSON_PLAN', lp: '${form.lp}', lp_pick: '${form.lp_pick}' });
+    expect(footer['on-click-action'].payload).toEqual({ screen: 'LESSON_PLAN', lp: '${form.lp}', lp_pick: '${form.lp_pick}', lp_how: '${form.lp_how}' });
   });
 
   test('the seal screen no longer asks about the plan; it shows the plan that was picked', () => {
@@ -176,15 +176,15 @@ describe('the field form: a lesson-plan screen before the seal', () => {
 // ------------------------------------------------------------------ the form endpoint
 
 describe('picking the lesson plan in the form', () => {
-  test('"Part 2 done" opens the lesson plan with the teacher\'s recent plans, newest first, and "Not in this list"', async () => {
+  test('"Part 2 done" opens the lesson plan with the teacher\'s recent plans, newest first, and "Upload new"', async () => {
     const id = await newForm();
     const out = await throughPart2(id);
     expect(out.screen).toBe('LESSON_PLAN');
     const opts = out.data.lp_options;
-    expect(opts.map((o) => o.id)).toEqual(['asset-3', 'asset-2', 'other']);
+    expect(opts.map((o) => o.id)).toEqual(['asset-3', 'asset-2', 'upload']);
     expect(opts[0].title).toMatch(/^Comparing & ordering/);
     expect(opts[0].description).toMatch(/^Grade 4 Math · Ch5 Day 3 · p\.79-81/);
-    expect(opts[2].title).toBe('Not in this list');
+    expect(opts[2].title).toBe('Upload new');
     for (const o of opts) expect(cp(o.title)).toBeLessThanOrEqual(30);
     expect(out.data.lp_hint).toMatch(/Rabia/);
   });
@@ -196,7 +196,7 @@ describe('picking the lesson plan in the form', () => {
     expect(out.screen).toBe('LESSON_PLAN');
     expect(out.data.error_messages.lp_pick).toMatch(/Pick the plan/);
     // WhatsApp shows no message under a Dropdown (sandbox E2E, 2 Oct): the line at the bottom must say it.
-    expect(out.data.error).toBe('Pick the plan, or "Not in this list".');
+    expect(out.data.error).toBe('Pick the plan, or "Upload new".');
     expect(formRow(id).answers.lp).toBeUndefined();
   });
 
