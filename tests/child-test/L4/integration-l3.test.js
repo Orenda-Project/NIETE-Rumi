@@ -113,6 +113,59 @@ maybe('with L3\'s real draw and store', () => {
   });
 });
 
+// bd-s1oo0.11: no observe2 visit today → the list is drawn on a day key, through the REAL draw + store.
+maybe('with L3\'s real draw and store, no observe2 visit (visit key)', () => {
+  const COACH_ID = '11111111-1111-4111-8111-111111111111';
+  const SCHOOL_ID = '22222222-2222-4222-8222-222222222222';
+  const COACH = { id: COACH_ID, role: 'coach', region: 'niete', preferred_language: 'en', phone_number: '923000000002' };
+  const PHONE = COACH.phone_number;
+  let H; let ports; let lanes;
+  const SAVED = { ...process.env };
+  const T = () => mockDb.__tables;
+  const last = (kind) => [...mockWa.__sent].reverse().find((m) => m.kind === kind);
+
+  beforeAll(() => {
+    ports = require('../../../bot/shared/services/child-test/conversation/ports');
+    H = require('../../../bot/shared/handlers/child-test.handler');
+  });
+  beforeEach(() => {
+    const { createFakeSupabase, CHILD_TEST_UNIQUE } = require('../L3/helpers/fake-supabase');
+    const { buildRoster } = require('../L3/helpers/roster');
+    const seed = buildRoster({ schoolId: SCHOOL_ID, coachId: COACH_ID, classes: [{ id: 'g3a', grade: 3, section: 'A', size: 25 }, { id: 'g5a', grade: 5, section: 'A', size: 25 }] });
+    seed.users = [COACH];
+    seed.observation_field_forms = [];
+    seed.leader_schools = seed.leader_schools.map((r) => ({ ...r, school_name: 'SIM — Test School' }));
+    mockDb = createFakeSupabase(seed, { unique: CHILD_TEST_UNIQUE });
+    process.env.CHILD_TEST_ENABLED = 'true';
+    process.env.CHILD_TEST_DRAW_SECRET = 'test-secret';
+    process.env.RAILWAY_ENVIRONMENT = 'sandbox';
+    mockRedis.__data.clear();
+    mockWa.__sent.length = 0;
+    lanes = createLaneFakes();
+    ports.__setForTest({ scoring: lanes.scoring, checkFlow: lanes.checkFlow, render: lanes.render });
+  });
+  afterEach(() => H.__drain());
+  afterAll(() => { process.env = SAVED; ports.__setForTest(null); });
+
+  test('/egra draws on day:<coach>:<school>:<date>; Present writes a session under the key; /egra again is the same list', async () => {
+    const { pktDate } = require('../../../bot/shared/services/child-test/draw/visit-key');
+    const key = `day:${COACH_ID}:${SCHOOL_ID}:${pktDate(new Date())}`;
+    expect(await H.handleText(PHONE, '/egra', COACH)).toBe(true);
+    const list = last('list');
+    expect(list).toBeTruthy();
+    const rows = list.action.sections[0].rows.map((r) => r.id);
+    expect(rows).toHaveLength(5);
+    expect(T().child_test_draws.filter((d) => d.visit_key === key).length).toBeGreaterThanOrEqual(5);
+    const drawId = rows[0].split(':')[1];
+    await H.handleList(COACH, PHONE, `ctst_child:${drawId}`);
+    await H.handleButton(COACH, PHONE, `ctst_pres:${drawId}:p`);
+    expect(T().child_test_sessions).toHaveLength(1);
+    expect(T().child_test_sessions[0]).toMatchObject({ draw_id: drawId, visit_id: null, visit_key: key });
+    await H.handleText(PHONE, '/egra', COACH);
+    expect(last('list').action.sections[0].rows.map((r) => r.id)).toEqual(rows);
+  });
+});
+
 test('this suite knows whether L3 is on the branch', () => {
   expect(typeof HAVE_L3).toBe('boolean');
 });

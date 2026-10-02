@@ -25,6 +25,7 @@ const S = require('./state');
 const C = require('./context');
 const { langOf, t, clip, blockName } = require('./copy');
 const { evaluateChildTestTrigger, isChildTestAvailable } = require('./gate');
+const { visitKeyFor, parseVisitKey, pktDate } = require('../draw/visit-key');
 
 const BLOCKS = ['urdu', 'english', 'maths'];
 const SCRIPT_KEY = { urdu: 'childTestScriptUrdu', english: 'childTestScriptEnglish', maths: 'childTestScriptMaths' };
@@ -103,9 +104,29 @@ function cardsFor(grade, form, block, variant) {
 
 // ------------------------------------------------------------------ today's list
 
+/** How the draw names this list's visit: the observe2 field form, else a visit key (CONTRACT §12 CR-1). */
+function visitOf(ctx) {
+  if (ctx.visitId) return { visitId: ctx.visitId };
+  return ctx.visitKey ? { visitKey: ctx.visitKey } : {};
+}
+
+/** A list with no field form gets its key: cs:<session> after classic /observe, else today's day key. */
+function keyed(user, ctx) {
+  if (ctx.visitId || ctx.visitKey) return ctx;
+  const visitKey = visitKeyFor(ctx.coachingSessionId
+    ? { coachingSessionId: ctx.coachingSessionId }
+    : { coachUserId: user.id, schoolId: ctx.schoolId });
+  return visitKey ? { ...ctx, visitKey } : ctx;
+}
+
+function staleDayKey(ctx, now = new Date()) {
+  const k = parseVisitKey(ctx.visitKey);
+  return !!k && k.kind === 'day' && k.date !== pktDate(now);
+}
+
 async function fetchList(user, ctx) {
   return ports.draw.todaysList({
-    coachUserId: user.id, schoolId: ctx.schoolId, visitId: ctx.visitId,
+    coachUserId: user.id, schoolId: ctx.schoolId, ...visitOf(ctx),
     observedGrade: ctx.observedGrade, observedClassId: ctx.observedClassId,
   });
 }
@@ -113,8 +134,9 @@ async function fetchList(user, ctx) {
 /** Per drawId: the session (if any) and whether its check is still waiting. */
 async function sessionsByDraw(ctx) {
   const out = {};
-  if (!ctx.visitId) return out;
-  const r = await ports.store.listSessionsForVisit(ctx.visitId);
+  const visit = ctx.visitId || ctx.visitKey;
+  if (!visit) return out;
+  const r = await ports.store.listSessionsForVisit(visit);
   if (!r || !r.ok) return out;
   for (const s of r.sessions || []) {
     let checkWaiting = false;
@@ -185,6 +207,7 @@ async function sendList(user, from, ctx, list, state) {
 
 async function openList(user, from, ctx) {
   const lang = langOf(user);
+  ctx = keyed(user, ctx);
   const res = await fetchList(user, ctx);
   if (!res || !res.ok) {
     if (res && res.reason === 'no_class_list') return say(from, t(lang, 'childTestNoClassList'));
@@ -193,7 +216,8 @@ async function openList(user, from, ctx) {
     return say(from, t(lang, 'childTestListFailed'));
   }
   const prev = await S.get(user.id);
-  const sameCtx = prev && prev.ctx && prev.ctx.schoolId === ctx.schoolId && prev.ctx.visitId === ctx.visitId;
+  const sameCtx = prev && prev.ctx && prev.ctx.schoolId === ctx.schoolId && prev.ctx.visitId === ctx.visitId
+    && prev.ctx.visitKey === ctx.visitKey;
   const state = {
     ctx,
     step: sameCtx && prev.step === 'block' ? 'block' : 'list',
@@ -228,7 +252,8 @@ async function start(user, from, arg) {
         const v = await C.fromVisit({ coachUserId: user.id, visitId });
         if (v.ok) ctx = v.ctx;
       }
-      if (!ctx && prev && prev.ctx) ctx = prev.ctx;
+      // The last list again — but a day key is only today's, so a list from an earlier day is redrawn.
+      if (!ctx && prev && prev.ctx) ctx = staleDayKey(prev.ctx) ? { ...prev.ctx, visitKey: undefined } : prev.ctx;
     }
   }
   if (!ctx) {
@@ -337,7 +362,7 @@ async function onPresence(user, from, drawId, code) {
     return say(from, t(lang, 'childTestExpired'));
   }
   const cur = state.current;
-  const res = await ports.draw.markOutcome({ drawId, outcome, note: null, visitId: state.ctx.visitId });
+  const res = await ports.draw.markOutcome({ drawId, outcome, note: null, ...visitOf(state.ctx) });
   if (!res || !res.ok) {
     if (outcome === 'present' && res && res.reason === 'already_marked') return beginSession(user, from, state);
     logError('child_test.outcome_failed', { drawId, outcome, reason: res && (res.reason || res.error) });
@@ -362,7 +387,7 @@ async function beginSession(user, from, state) {
   const lang = langOf(user);
   const cur = state.current;
   const cs = await ports.store.createSession({
-    drawId: cur.drawId, coachUserId: user.id, visitId: state.ctx.visitId, channel: 'whatsapp',
+    drawId: cur.drawId, coachUserId: user.id, ...visitOf(state.ctx), channel: 'whatsapp',
   });
   if (!cs || !cs.ok || !cs.session) {
     logError('child_test.session_create_failed', { drawId: cur.drawId, error: cs && cs.error });
