@@ -3,9 +3,11 @@
  * existing code path a WhatsApp teacher already goes through, reached from the
  * portal instead of re-implemented for it:
  *
- *   resolveAsset(lessonId) — the asset her A/B group is served for that lesson:
- *                            LpAb.groupFor + LpAb.assetFor(current: currentAssetFor),
- *                            exactly what the Curriculum page's PDF link serves her.
+ *   resolveAsset(lessonId) — the asset she DOWNLOADED for that lesson, when she did
+ *                            (niete_lp_downloads: her A/B group's version, the record
+ *                            the WhatsApp recent list reads); otherwise the lesson's
+ *                            current asset. No A/B module is needed, so it behaves the
+ *                            same on sandbox, staging and main.
  *   resolveAsset(assetId)  — a recent plan; the id must be a real lesson asset.
  *   readyRender            — a 6-12 lesson that has been written, on today's
  *                            template, in the language she picked it in.
@@ -24,6 +26,8 @@ function fakeSupabase(rows = {}) {
     const q = { _filters: {} };
     q.select = (cols) => { q._cols = cols; return q; };
     q.eq = (c, v) => { q._filters[c] = v; return q; };
+    q.order = () => q;
+    q.limit = () => q;
     q.maybeSingle = async () => {
       reads.push({ table, cols: q._cols, filters: { ...q._filters } });
       const r = rows[table];
@@ -38,11 +42,7 @@ function deps(overrides = {}) {
   return {
     supabase: fakeSupabase(overrides.rows || {}),
     catalog: { lessonById: jest.fn().mockReturnValue({ book: { grade: 4 }, chapter: { number: 3 }, lesson: {} }) },
-    ab: {
-      groupFor: jest.fn().mockResolvedValue('A'),
-      assetFor: jest.fn().mockResolvedValue({ id: ASSET, r2_key: 'k' }),
-    },
-    currentAssetFor: jest.fn(),
+    currentAssetFor: jest.fn().mockResolvedValue({ id: 'current-asset' }),
     linker: { handleLPSelection: jest.fn().mockResolvedValue({ lesson_plan_link_method: 'selected_recent' }) },
     getRecentFidelityLps: jest.fn().mockResolvedValue([{ asset_id: ASSET }]),
     templateVersion: () => 't4',
@@ -54,25 +54,38 @@ describe('bd-5rz1v — portal lesson-plan library lookups', () => {
   let Lib;
   beforeEach(() => { jest.resetModules(); Lib = require(MODULE); });
 
-  test('a library lesson resolves to the asset her A/B group is served, through the delivery path\'s own lookups', async () => {
-    const d = deps();
+  test('a library lesson she downloaded resolves to the asset she downloaded — her A/B group\'s version', async () => {
+    const d = deps({ rows: { niete_lp_downloads: (f) => (f.user_id === USER && f.lesson_id === 'g4-sst-ch3-seg2' && f.status === 'sent' ? { asset_id: ASSET } : null) } });
     const out = await Lib.resolveAsset({ userId: USER, lessonId: 'g4-sst-ch3-seg2' }, d);
 
     expect(out).toEqual({ assetId: ASSET });
     expect(d.catalog.lessonById).toHaveBeenCalledWith('g4-sst-ch3-seg2');
-    expect(d.ab.groupFor).toHaveBeenCalledWith(USER, { grade: 4, chapter: 3 });
-    expect(d.ab.assetFor).toHaveBeenCalledWith({
-      group: 'A', lessonId: 'g4-sst-ch3-seg2', assetKind: 'lesson', current: d.currentAssetFor,
+    expect(d.supabase.reads[0]).toMatchObject({
+      table: 'niete_lp_downloads', filters: { user_id: USER, lesson_id: 'g4-sst-ch3-seg2', status: 'sent' },
     });
+    expect(d.currentAssetFor).not.toHaveBeenCalled();
   });
 
-  test('a lesson the catalogue does not know, or with no asset for her group, resolves to nothing', async () => {
+  test('a library lesson she never downloaded resolves to its current asset', async () => {
+    const d = deps();
+    const out = await Lib.resolveAsset({ userId: USER, lessonId: 'g4-sst-ch3-seg2' }, d);
+    expect(out).toEqual({ assetId: 'current-asset' });
+    expect(d.currentAssetFor).toHaveBeenCalledWith('g4-sst-ch3-seg2', 'lesson');
+  });
+
+  test('a lesson the catalogue does not know, or with no current asset, resolves to nothing', async () => {
     const unknown = deps({ catalog: { lessonById: jest.fn().mockReturnValue(null) } });
     expect(await Lib.resolveAsset({ userId: USER, lessonId: 'x' }, unknown)).toBeNull();
+    expect(unknown.supabase.reads).toHaveLength(0);
 
-    const noAsset = deps();
-    noAsset.ab.assetFor.mockResolvedValue(null);
+    const noAsset = deps({ currentAssetFor: jest.fn().mockResolvedValue(null) });
     expect(await Lib.resolveAsset({ userId: USER, lessonId: 'g4-sst-ch3-seg2' }, noAsset)).toBeNull();
+  });
+
+  test('the A/B module is not a dependency: nothing here requires it', () => {
+    const src = require('fs').readFileSync(require.resolve(MODULE), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    expect(src).not.toMatch(/require\([^)]*lp-ab-ch310/);
   });
 
   test('a recent plan\'s asset id must be a real lesson asset', async () => {
@@ -112,34 +125,6 @@ describe('bd-5rz1v — portal lesson-plan library lookups', () => {
       table: 'niete_lp_assets',
       filters: { lesson_id: 'g4-sst-ch3-seg2', asset_kind: 'lesson', is_current: true },
     });
-  });
-
-  test('where the ch3-10 A/B module is not deployed yet (staging, main), a lesson resolves to its CURRENT asset — what that branch\'s Curriculum PDF serves', async () => {
-    jest.resetModules();
-    jest.doMock('../../bot/shared/services/lp-ab-ch310.service', () => {
-      const e = new Error("Cannot find module '../lp-ab-ch310.service'");
-      e.code = 'MODULE_NOT_FOUND';
-      throw e;
-    }, { virtual: true });
-    const Fresh = require(MODULE);
-    const d = deps();
-    delete d.ab;                      // use the module's own loader
-    d.currentAssetFor = jest.fn().mockResolvedValue({ id: 'current-asset' });
-    const out = await Fresh.resolveAsset({ userId: USER, lessonId: 'g4-sst-ch3-seg2' }, d);
-
-    expect(out).toEqual({ assetId: 'current-asset' });
-    expect(d.currentAssetFor).toHaveBeenCalledWith('g4-sst-ch3-seg2', 'lesson');
-    jest.dontMock('../../bot/shared/services/lp-ab-ch310.service');
-  });
-
-  test('any OTHER failure loading the A/B module is not swallowed', async () => {
-    jest.resetModules();
-    jest.doMock('../../bot/shared/services/lp-ab-ch310.service', () => { throw new Error('syntax error in lp-ab'); });
-    const Fresh = require(MODULE);
-    const d = deps();
-    delete d.ab;
-    await expect(Fresh.resolveAsset({ userId: USER, lessonId: 'g4-sst-ch3-seg2' }, d)).rejects.toThrow('syntax error in lp-ab');
-    jest.dontMock('../../bot/shared/services/lp-ab-ch310.service');
   });
 
   test('recent plans are the WhatsApp list\'s source', async () => {
