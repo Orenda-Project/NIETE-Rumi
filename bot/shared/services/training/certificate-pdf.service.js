@@ -708,13 +708,18 @@ function certError(code, message) {
  *
  * @param {object} supabase
  * @param {string} userId
- * @returns {Promise<Array<{certificate_code, level_name, teacher_name, issued_at, has_pdf}>>}
+ * bd-klecr — each row also names the provider that issued it (`vendor_key`,
+ * `vendor_name`), read through the certificate's level. The portal's
+ * certificates page filters by provider, and the code cannot be used for that:
+ * every code carries the same prefix whichever provider issued it.
+ *
+ * @returns {Promise<Array<{certificate_code, level_id, level_name, vendor_key, vendor_name, teacher_name, issued_at, has_pdf}>>}
  */
 async function listCertificates(supabase, userId) {
   if (!userId) return [];
   const { data, error } = await supabase
     .from('training_certificates')
-    .select('id, certificate_code, teacher_name_snapshot, level_name_snapshot, issued_at, pdf_r2_key')
+    .select('id, certificate_code, level_id, teacher_name_snapshot, level_name_snapshot, issued_at, pdf_r2_key, level:training_levels(vendor:training_vendors(key, name))')
     .eq('user_id', userId)
     .order('issued_at', { ascending: false });
   if (error) throw error;
@@ -722,7 +727,10 @@ async function listCertificates(supabase, userId) {
   return (data || []).map((c) => ({
     id: c.id,
     certificate_code: c.certificate_code,
+    level_id: c.level_id ?? null,
     level_name: c.level_name_snapshot,
+    vendor_key: c.level?.vendor?.key ?? null,
+    vendor_name: c.level?.vendor?.name ?? null,
     teacher_name: c.teacher_name_snapshot,
     issued_at: c.issued_at,
     has_pdf: !!c.pdf_r2_key,
