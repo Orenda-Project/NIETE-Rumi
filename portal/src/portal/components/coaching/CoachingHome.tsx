@@ -95,12 +95,16 @@ function monthLabel(d: Date) {
 function fromDone(s: CoachingSession): Row {
   const band = scoreBandFor(s.percentage);
   const at = new Date(s.date);
+  // bd-5rz1v.6.4 — a coach's observation of her names who observed her.
+  const observedBy = s.observation
+    ? (s.observation.observerName ? `Observed by ${s.observation.observerName}` : 'Observed by your coach')
+    : null;
   return {
     id: s.id,
     at,
-    topic: s.topic || 'Your lesson',
+    topic: s.topic || (s.observation ? 'Your coach’s observation' : 'Your lesson'),
     subject: s.subject || null,
-    sub: s.subject || at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+    sub: observedBy || s.subject || at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
     badge: band ? { label: bandLabel(band) as string, tone: band } : { label: COPY.notRated, tone: 'none' },
   };
 }
