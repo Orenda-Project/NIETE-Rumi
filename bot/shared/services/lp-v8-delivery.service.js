@@ -462,6 +462,9 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
           // or the survey and its stored context describe different deliveries.
           triggerMode: voicenoteSent ? 'after_voice_note' : 'after_pdf_only',
           language: (user && user.preferred_language) || 'en',
+          // The lesson's own identity, so a re-delivery inside ten minutes is not surveyed
+          // twice (Meta bill cut NL4 / N2-L04). Each delivery has a fresh lessonPlanId.
+          lessonKey: lessonId,
         },
       });
     } catch (err) {

@@ -83,6 +83,13 @@ const {
   selectServedQuestions,
   buildOptionDisplayOrder,
 } = require('./quiz-serving.service');
+// One bubble where the teacher loses nothing: the verdict rides on the next
+// question, the intro on Q1, the result on its buttons, the congratulation on
+// its certificate. Caps + fallbacks live in one place (merged-sends).
+const {
+  withLead, verdictLabel, verdictText, fitsIn, sendTextWithButtons, sendCongratulation,
+  HEADER_TEXT_MAX, TEXT_MAX,
+} = require('./merged-sends');
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const MAX_OPTIONS = 10;         // WhatsApp interactive list row cap
@@ -164,31 +171,10 @@ function listBodyText(question, options, optionsInBody) {
 const KIND_GRAND = 'grand';
 const KIND_TRAINING_MODULE = 'training_module';
 
-/**
- * Hand the teacher the actual certificate file after the congratulation
- * message. Purely additive: the message with the code has already gone out and
- * remains the source of truth, so a certificate with no PDF (`pdf_r2_key`
- * null — the state of every certificate issued before PDFs existed) simply
- * gets no attachment. Never throws; delivery must not fail grading.
- *
- * @param {string} phoneNumber
- * @param {{certificate_code?: string, level_name?: string, pdf_r2_key?: string|null}} cert
- */
-async function deliverCertificatePdf(phoneNumber, cert) {
-  try {
-    if (!cert || !cert.pdf_r2_key) return;
-    const { sendCertificateDocument } = require('./certificate-pdf.service');
-    await sendCertificateDocument(phoneNumber, {
-      certificate_code: cert.certificate_code,
-      level_name: cert.level_name,
-      pdf_r2_key: cert.pdf_r2_key,
-    });
-  } catch (err) {
-    logToFile('❌ Certificate PDF delivery failed (message already sent)', {
-      certificateCode: cert && cert.certificate_code, error: err.message,
-    });
-  }
-}
+// The congratulation + certificate PDF is ONE message now — the PDF captioned
+// with the congratulation, falling back to the text whenever the PDF is absent
+// or does not arrive (the code in the text is the record of truth). See
+// sendCongratulation in merged-sends.js.
 
 // bd-2138 — multi-answer ("msq") questions. A question is multi iff its
 // correct_option holds a comma-joined set ('1,3,5' — restored from the
@@ -897,14 +883,15 @@ async function startTrainingQuiz(userId, moduleId, phoneNumber) {
   // on a pass. Quote the same bar gradeAttempt marks against, and say the
   // one thing that takes the sting out of it — retries are immediate.
   const introPct = await getVendorPassingPct(moduleIdNum, 'module');
-  await WhatsAppService.sendMessage(
-    phoneNumber,
+  const intro =
     `📝 *Module check — "${mod.title}"*\n\n` +
     `${totalQuestions} question${totalQuestions === 1 ? '' : 's'}. ` +
-    `You need *${introPct}%* to unlock the next module — if you miss it you can retry straight away.`
-  );
+    `You need *${introPct}%* to unlock the next module — if you miss it you can retry straight away.`;
 
-  return await sendQuestion(attempt.id, phoneNumber);
+  // The intro opens Q1's body (header "Module check · Q1/<n>") instead of
+  // being a bubble of its own. sendQuestion falls back to sending it first,
+  // as before, when the two would not fit one message.
+  return await sendQuestion(attempt.id, phoneNumber, { intro, introLabel: 'Module check' });
 }
 
 /**
@@ -929,8 +916,32 @@ async function loadQuestionForDelivery(selected) {
 /**
  * Fetch the current question for an attempt and send it to the teacher.
  * If the attempt has advanced past the last question, grades it.
+ *
+ * @param {string} attemptId
+ * @param {string} phoneNumber
+ * @param {object} [opts]
+ * @param {boolean} [opts.verdict] the verdict on the answer just recorded. It
+ *        heads this question ("✅ Correct · Q3/5") instead of being a bubble of
+ *        its own; when there is no next question it opens the result.
+ * @param {string} [opts.intro] the module-check intro. It opens Q1's body
+ *        (header "<introLabel> · Q1/<n>"), or goes first on its own, as it
+ *        always did, when the two would not fit one message.
+ * @param {string} [opts.introLabel] the header prefix while the intro rides.
  */
-async function sendQuestion(attemptId, phoneNumber) {
+async function sendQuestion(attemptId, phoneNumber, opts = {}) {
+  const hasVerdict = typeof opts.verdict === 'boolean';
+  // Header form (heads the next question) and body form (opens a text/body) —
+  // see merged-sends verdictLabel / verdictText.
+  const verdictLine = hasVerdict ? verdictLabel(opts.verdict) : null;
+  const verdictBody = hasVerdict ? verdictText(opts.verdict) : null;
+  const intro = opts.intro || null;
+  // Whatever must reach the teacher on ANY path out of here. Every exit either
+  // folds it into what it sends, or sends it alone — it is never dropped.
+  const lead = [verdictBody, intro].filter(Boolean).join('\n\n') || null;
+  const sendLeadAlone = async () => {
+    if (lead) await WhatsAppService.sendMessage(phoneNumber, lead);
+  };
+
   const { data: attempt } = await supabase
     .from('training_assessment_attempts')
     // level_id is needed for the bd-2393 per-question footer (vendor pass bar).
@@ -940,15 +951,19 @@ async function sendQuestion(attemptId, phoneNumber) {
     .select('id, user_id, quiz_kind, grand_quiz_id, training_module_id, level_id, current_question_index, total_questions, status')
     .eq('id', attemptId)
     .single();
-  if (!attempt) return false;
+  if (!attempt) {
+    await sendLeadAlone();
+    return false;
+  }
   if (attempt.status !== 'in_progress') {
     logToFile('⚠️ sendQuestion called on non-in-progress attempt', { attemptId, status: attempt.status });
+    await sendLeadAlone();
     return false;
   }
 
   // Are we done?
   if (attempt.current_question_index >= attempt.total_questions) {
-    return await gradeAttempt(attemptId, phoneNumber);
+    return await gradeAttempt(attemptId, phoneNumber, { lead });
   }
 
   // The question at this index within the SERVED set — not the raw bank. The
@@ -958,8 +973,25 @@ async function sendQuestion(attemptId, phoneNumber) {
   const q = await loadQuestionForDelivery(served[attempt.current_question_index]);
   if (!q) {
     logToFile('⚠️ No question at index', { attemptId, index: attempt.current_question_index });
-    return await gradeAttempt(attemptId, phoneNumber);
+    return await gradeAttempt(attemptId, phoneNumber, { lead });
   }
+
+  // "Q3/5", prefixed by whatever rides in the same message: the verdict on
+  // the previous answer, or "Module check" while the intro opens the body.
+  // A header is 60 code points; the widest ("✗ Not correct · Q10/10") is 22.
+  const qLabel = `Q${attempt.current_question_index + 1}/${attempt.total_questions}`;
+  const headerWith = (prefix) => sliceCodePoints(prefix ? `${prefix} · ${qLabel}` : qLabel, HEADER_TEXT_MAX);
+  // Fold the intro into `body` when the pair fits `max`; otherwise send the
+  // intro first, on its own, exactly as before. Returns what to send and which
+  // lead rode inside it (so a failed send can still say it).
+  const foldIntro = async (body, max) => {
+    if (!intro) return { body, prefix: verdictLine, riding: verdictBody };
+    if (fitsIn(withLead(intro, body), max)) {
+      return { body: withLead(intro, body), prefix: opts.introLabel || null, riding: intro };
+    }
+    await WhatsAppService.sendMessage(phoneNumber, intro);
+    return { body, prefix: verdictLine, riding: verdictBody };
+  };
 
   // An OPEN-ENDED question (the I-SAPS CRQ) is answered by typing,
   // so it goes out as plain text and returns here. This MUST precede the
@@ -967,12 +999,13 @@ async function sendQuestion(attemptId, phoneNumber) {
   // options" as bad data — it records a wrong answer and advances, which would
   // silently score every CRQ zero without the teacher ever seeing it.
   if (isOpenEndedQuestion(q)) {
+    const openQuestion = `${q.question_text || ''}\n\n`
+      + '_Type your answer as a message. Take your time — it is marked against '
+      + 'the I-SAPS rubric._';
+    const folded = await foldIntro(openQuestion, TEXT_MAX);
     const sentOpen = await WhatsAppService.sendMessage(
       phoneNumber,
-      `*Q${attempt.current_question_index + 1}/${attempt.total_questions}*\n\n`
-      + `${q.question_text || ''}\n\n`
-      + '_Type your answer as a message. Take your time — it is marked against '
-      + 'the I-SAPS rubric._',
+      `*${headerWith(folded.prefix)}*\n\n${folded.body}`,
     );
     // Never claim a delivery that did not happen: an unreported
     // failure leaves the attempt in_progress on a question never seen, and
@@ -981,7 +1014,7 @@ async function sendQuestion(attemptId, phoneNumber) {
       logToFile('❌ Open-ended question send failed', {
         attemptId: attempt.id, questionId: q.id, index: attempt.current_question_index,
       }, 'error');
-      await WhatsAppService.sendMessage(phoneNumber, QUESTION_SEND_FAILED_MSG);
+      await WhatsAppService.sendMessage(phoneNumber, withLead(folded.riding, QUESTION_SEND_FAILED_MSG));
       return false;
     }
     return true;
@@ -1012,7 +1045,8 @@ async function sendQuestion(attemptId, phoneNumber) {
       current_question_index: attempt.current_question_index + 1,
       last_activity_at: new Date().toISOString(),
     }).eq('id', attempt.id);
-    return await sendQuestion(attempt.id, phoneNumber);
+    // Nothing was sent: the verdict / intro rides on whatever comes next.
+    return await sendQuestion(attempt.id, phoneNumber, opts);
   }
 
   // Multi-answer questions go out as a Flow when one is configured: a single
@@ -1054,10 +1088,11 @@ async function sendQuestion(attemptId, phoneNumber) {
         listBodyLength, cap: INTERACTIVE_BODY_MAX,
       });
     }
+    const foldedFlow = await foldIntro(sliceCodePoints(flowBody, INTERACTIVE_BODY_MAX), INTERACTIVE_BODY_MAX);
     const sentFlow = await WhatsAppService.sendFlow(phoneNumber, {
       flowId: msqFlowId(),
-      header: `Q${attempt.current_question_index + 1}/${attempt.total_questions}`,
-      body: sliceCodePoints(flowBody, INTERACTIVE_BODY_MAX),
+      header: headerWith(foldedFlow.prefix),
+      body: foldedFlow.body,
       footer: multiAnswer ? 'Select all that apply' : 'Choose one option',
       buttonText: 'Answer',
       // Leads with the teacher's own id (segment 0 is how every Flow endpoint
@@ -1073,7 +1108,7 @@ async function sendQuestion(attemptId, phoneNumber) {
       logToFile('❌ Question Flow send failed', {
         attemptId: attempt.id, questionId: q.id, index: attempt.current_question_index,
       }, 'error');
-      await WhatsAppService.sendMessage(phoneNumber, QUESTION_SEND_FAILED_MSG);
+      await WhatsAppService.sendMessage(phoneNumber, withLead(foldedFlow.riding, QUESTION_SEND_FAILED_MSG));
       return false;
     }
     return true;
@@ -1090,7 +1125,7 @@ async function sendQuestion(attemptId, phoneNumber) {
       attemptId: attempt.id, questionId: q.id, index: attempt.current_question_index,
       listBodyLength, cap: INTERACTIVE_BODY_MAX,
     }, 'error');
-    await WhatsAppService.sendMessage(phoneNumber, QUESTION_SEND_FAILED_MSG);
+    await WhatsAppService.sendMessage(phoneNumber, withLead(lead, QUESTION_SEND_FAILED_MSG));
     return false;
   }
 
@@ -1104,6 +1139,13 @@ async function sendQuestion(attemptId, phoneNumber) {
   // number. Fixed order is what keeps picture and button agreeing.
   const optionImages = parseOptionImages(q.option_images);
   const imageMode = optionImages.length > 0;
+  // The intro has to come BEFORE the option pictures, so with pictures it
+  // keeps its own message (today's shape); the verdict still heads the list.
+  let introSentAlone = false;
+  if (imageMode && intro) {
+    await WhatsAppService.sendMessage(phoneNumber, intro);
+    introSentAlone = true;
+  }
   if (imageMode) {
     for (let i = 0; i < optionImages.length; i += 1) {
       // Failure to send ONE panel must not strand the attempt: the teacher
@@ -1160,10 +1202,13 @@ async function sendQuestion(attemptId, phoneNumber) {
     footer = 'Select all that apply, then tap Done';
   }
 
+  const foldedList = introSentAlone
+    ? { body: bodyText, prefix: verdictLine, riding: verdictBody }
+    : await foldIntro(bodyText, INTERACTIVE_BODY_MAX);
   const sent = await WhatsAppService.sendInteractiveMessage(phoneNumber, {
-    header: { type: 'text', text: `Q${attempt.current_question_index + 1}/${attempt.total_questions}` },
+    header: { type: 'text', text: headerWith(foldedList.prefix) },
     // bd-43496 — 1024, not 4096: that is Meta's cap for an INTERACTIVE body.
-    body: { text: sliceCodePoints(bodyText, INTERACTIVE_BODY_MAX) },
+    body: { text: sliceCodePoints(foldedList.body, INTERACTIVE_BODY_MAX) },
     footer: { text: footer },
     action: {
       button: 'Answer',
@@ -1176,9 +1221,9 @@ async function sendQuestion(attemptId, phoneNumber) {
   if (sent === false) {
     logToFile('❌ Question list send failed', {
       attemptId: attempt.id, questionId: q.id, index: attempt.current_question_index,
-      bodyLength: [...bodyText].length,
+      bodyLength: [...foldedList.body].length,
     }, 'error');
-    await WhatsAppService.sendMessage(phoneNumber, QUESTION_SEND_FAILED_MSG);
+    await WhatsAppService.sendMessage(phoneNumber, withLead(foldedList.riding, QUESTION_SEND_FAILED_MSG));
     return false;
   }
   return true;
@@ -1306,6 +1351,13 @@ async function handleQuizButton(userId, replyId, phoneNumber, messageId = null) 
   //     family; the heavy ❌ stays where it works, on the reaction.
   // Shared with the Flow surface (bd-43496) so the two can never drift apart on
   // either signal or copy.
+  //
+  // The one-line text echo is no longer a bubble of its own (Meta bills each
+  // message): the verdict now heads the NEXT question ("✅ Correct · Q3/5"),
+  // or opens the result when this was the last one. It still reaches every
+  // teacher — including the ~2% whose reaction the pacer skips — and still
+  // reads as a verdict on the answer just given, because it is the first
+  // thing in the very next message.
   await sendAnswerVerdict(phoneNumber, isCorrect, messageId, {
     attemptId: attempt.id, index: attempt.current_question_index,
   });
@@ -1316,7 +1368,7 @@ async function handleQuizButton(userId, replyId, phoneNumber, messageId = null) 
     last_activity_at: new Date().toISOString(),
   }).eq('id', attempt.id);
 
-  return await sendQuestion(attempt.id, phoneNumber);
+  return await sendQuestion(attempt.id, phoneNumber, { verdict: isCorrect });
 }
 
 // ─── Multi-answer Flow surface ─────────────────────────────────────────────
@@ -1668,33 +1720,25 @@ async function handleQuizFlowSubmission(userId, responseJson, phoneNumber, messa
     attemptId: r.attempt.id, index: r.index,
   });
 
-  return await sendQuestion(r.attempt.id, phoneNumber);
+  return await sendQuestion(r.attempt.id, phoneNumber, { verdict: isCorrect });
 }
 
 /**
- * Tell the teacher whether the answer was right: a reaction on her own message
- * plus a one-line text echo.
+ * Mark the teacher's own answer ✅/❌ — a reaction, which costs no message.
  *
- * Both are best-effort — a failed reaction must never cost the teacher her
- * recorded answer or stop the next question, so each is caught separately. The
- * reaction needs the inbound wamid; callers that do not have one still send the
- * text, so no path loses its verdict (the bd-2525 rule).
+ * Best-effort: a failed reaction must never cost the teacher their recorded
+ * answer or stop the next question. The WORDS of the verdict are not sent
+ * here any more: callers pass `{ verdict }` to sendQuestion, which puts them
+ * at the head of the next message (the next question, or the result). That is
+ * what keeps the bd-2525 rule — no path loses its verdict — on the turns where
+ * there is no inbound message id or the pacer skips the reaction.
  */
 async function sendAnswerVerdict(phoneNumber, isCorrect, messageId, ctx = {}) {
-  if (messageId) {
-    try {
-      await WhatsAppService.sendReaction(phoneNumber, messageId, isCorrect ? '✅' : '❌');
-    } catch (error) {
-      logToFile('⚠️ Could not react to quiz answer', { ...ctx, error: error.message });
-    }
-  }
+  if (!messageId) return;
   try {
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      isCorrect ? '✅ *Correct*' : '✗ *Not correct.*'
-    );
+    await WhatsAppService.sendReaction(phoneNumber, messageId, isCorrect ? '✅' : '❌');
   } catch (error) {
-    logToFile('⚠️ Could not send per-question feedback', { ...ctx, error: error.message });
+    logToFile('⚠️ Could not react to quiz answer', { ...ctx, error: error.message });
   }
 }
 
@@ -1810,8 +1854,12 @@ async function routeOpenEndedAnswer(phoneNumber, text) {
     last_activity_at: new Date().toISOString(),
   }).eq('id', attempt.id);
 
+  // bd-hxm7a — while I-SAPS written-answer results are HELD, the grade is
+  // stored (above) but never said: no score, no feedback.
+  const { crqResultsHeld, crqAnswerAck } = require('./isaps-crq-hold.rules');
+  const held = await crqResultsHeld(supabase);
   await WhatsAppService.sendMessage(
-    phoneNumber, `📝 Answer recorded — *${score}/${perAnswer}*.\n\n${feedback}`,
+    phoneNumber, crqAnswerAck({ held, score, max: perAnswer, feedback }),
   );
   logToFile('🎓 Open-ended answer recorded', {
     attemptId: attempt.id, questionId: q.id, score, perAnswer,
@@ -1942,14 +1990,22 @@ async function getVendorCooldownHoursByLevel(levelId) {
  *                          writes the progress row and delivers the next
  *                          module; a fail holds the teacher here with an
  *                          immediate retry. No cooldown either way.
+ *
+ * @param {object} [opts]
+ * @param {string} [opts.lead] a line that must open the FIRST message this
+ *        sends (the verdict on the last answer). Every branch folds it in.
  */
-async function gradeAttempt(attemptId, phoneNumber) {
+async function gradeAttempt(attemptId, phoneNumber, opts = {}) {
+  const lead = opts.lead || null;
   const { data: attempt } = await supabase
     .from('training_assessment_attempts')
     .select('id, user_id, quiz_kind, grand_quiz_id, training_module_id, level_id, program_id, total_questions')
     .eq('id', attemptId)
     .single();
-  if (!attempt) return false;
+  if (!attempt) {
+    if (lead) await WhatsAppService.sendMessage(phoneNumber, lead);
+    return false;
+  }
 
   const { data: answers } = await supabase
     .from('training_assessment_answers')
@@ -1969,6 +2025,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
   // a rubric mark happens to be present: its verdict is two independent bars
   // (MCQs >= 75% of those served, CRQ >= 60%), and its marks are 5 per MCQ.
   let isapsVerdict = null;
+  let isapsMixed = null;
   let isModuleExam = false;
   if (attempt.quiz_kind === KIND_GRAND && attempt.grand_quiz_id) {
     const { data: gq } = await supabase
@@ -1983,6 +2040,7 @@ async function gradeAttempt(attemptId, phoneNumber) {
     score = mixed.earned;
     mixedPossible = mixed.possible;
     isapsVerdict = decideIsapsModuleExamPass(mixed);
+    isapsMixed = mixed;
     logToFile('🎓 Module exam scored (I-SAPS split bars)', {
       attemptId, mcqCorrect: mixed.mcqCorrect, mcqServed: mixed.mcqServed,
       crqEarned: mixed.crqEarned, crqMax, earned: mixed.earned, possible: mixed.possible, passed: isapsVerdict,
@@ -2035,18 +2093,19 @@ async function gradeAttempt(attemptId, phoneNumber) {
         pct_required: passingPct,
       });
       const pctRounded = Math.round(pct);
-      await WhatsAppService.sendMessage(
-        phoneNumber,
-        `📝 *Module check — not quite.*\n\n` +
-        `You got *${score}/${total}* (${pctRounded}%). You need ${passingPct}% to move on.\n\n` +
-        `Give it another go — you can retry right away.`
-      );
-      await WhatsAppService.sendInteractiveButtons(phoneNumber, {
-        body: 'Ready to try the module check again?',
+      // The result and its retry buttons are ONE message (they were two). Over
+      // the body cap, or refused, they go out as the text then the buttons.
+      await sendTextWithButtons(phoneNumber, {
+        text: withLead(lead,
+          `📝 *Module check — not quite.*\n\n` +
+          `You got *${score}/${total}* (${pctRounded}%). You need ${passingPct}% to move on.\n\n` +
+          `Give it another go — you can retry right away.`),
+        prompt: 'Ready to try the module check again?',
         buttons: [
           { id: `training_quiz_retry_${attempt.training_module_id}`, title: '🔄 Try again' },
           { id: 'training_pause', title: '⏸ Pause' },
         ],
+        logCtx: { attemptId, moduleId: attempt.training_module_id, branch: 'module_check_failed' },
       });
       return true;
     }
@@ -2077,12 +2136,14 @@ async function gradeAttempt(attemptId, phoneNumber) {
     const line = score === total
       ? `Nice — *${score}/${total}* correct. Perfect score! ✨`
       : `You got *${score}/${total}* (${pctRounded}%) — that clears the ${passingPct}% bar.`;
-    // bd-2446 — say the module is unlocked, since that is what the teacher was
-    // promised when they tapped "📝 Take quiz".
-    await WhatsAppService.sendMessage(
-      phoneNumber,
-      `📝 *Module check — passed.*\n\n${line}\n\nLoading the next module…`
-    );
+    // bd-2446 — say the check is passed; the next module is what it unlocked.
+    //
+    // This used to be a bubble of its own ending "Loading the next module…".
+    // It now opens whatever comes next — the next module's card, the level
+    // exam offer, the level-complete line, or the certificate — so the module
+    // the teacher was promised IS the same message, and "Loading…" has
+    // nothing left to say.
+    let passLead = withLead(lead, `📝 *Module check — passed.*\n\n${line}`);
 
     // bd-2234 — Oxbridge-style levels certify on quiz scores (all modules
     // complete, best score >= 70% each). Cheap early-outs inside; capstone
@@ -2095,13 +2156,14 @@ async function gradeAttempt(attemptId, phoneNumber) {
       programId: attempt.program_id,
     });
     if (certRes.issued) {
-      await WhatsAppService.sendMessage(
-        phoneNumber,
+      // The pass line and the congratulation ride on the certificate PDF —
+      // the certificate comes before whatever is next, as it always did.
+      await sendCongratulation(phoneNumber, withLead(passLead,
         `🏆 *Congratulations, ${certRes.teacher_name}!*\n\n` +
         `You completed every ${certRes.level_name} training with 70%+ on each quiz.\n\n` +
         `Certificate code: \`${certRes.certificate_code}\`\nYou can also download it from your portal.`
-      );
-      await deliverCertificatePdf(phoneNumber, certRes);
+      ), certRes, { attemptId, branch: 'quiz_score_certificate' });
+      passLead = null;
     }
 
     // bd-2390 — the next module is released here, not on the button tap.
@@ -2110,8 +2172,61 @@ async function gradeAttempt(attemptId, phoneNumber) {
     // offer only existed on the other completion branch (so Beacon House was
     // never offered an exam, ever), and course-scoped advancement re-sent
     // module 1 of a finished course instead of moving on.
-    await onModuleCompleted(attempt.user_id, attempt.training_module_id, phoneNumber);
+    try {
+      await onModuleCompleted(attempt.user_id, attempt.training_module_id, phoneNumber, { lead: passLead });
+    } catch (err) {
+      // The pass line used to be out before this ran. If it threw before
+      // sending anything, say the one thing that must not be lost, then let
+      // the error travel exactly as it did.
+      logError('❌ onModuleCompleted threw after a module-check pass', {
+        attemptId, moduleId: attempt.training_module_id, error: err && err.message,
+      });
+      if (passLead) await WhatsAppService.sendMessage(phoneNumber, passLead);
+      throw err;
+    }
     return true;
+  }
+
+  // bd-hxm7a — an I-SAPS module exam while written-answer results are HELD.
+  //
+  // The CRQ was graded and its mark is stored (score), but it does not decide
+  // anything the teacher sees: under the MCQ bar the exam fails now (retake
+  // allowed); otherwise it is PENDING REVIEW — neither passed nor failed, no
+  // retake, no certificate — until the team releases results.
+  if (isModuleExam && isapsMixed) {
+    const Hold = require('./isaps-crq-hold.rules');
+    if (await Hold.crqResultsHeld(supabase)) {
+      const outcome = Hold.heldModuleExamOutcome(isapsMixed);
+      await supabase.from('training_assessment_attempts').update({
+        status: outcome.status,
+        score,
+        is_passed: outcome.is_passed,
+        completed_at: new Date().toISOString(),
+        last_activity_at: new Date().toISOString(),
+        cooldown_until: null,
+      }).eq('id', attemptId);
+      let moduleTitle = null;
+      try {
+        const { data: gq } = await supabase.from('training_grand_quizzes')
+          .select('source_quiz_id').eq('id', attempt.grand_quiz_id).maybeSingle();
+        const modNo = gq ? Number(gq.source_quiz_id) - 900 : null;
+        if (modNo) {
+          const { data: c } = await supabase.from('training_courses').select('title')
+            .eq('level_id', attempt.level_id).ilike('title', `Module ${modNo}%`).maybeSingle();
+          moduleTitle = c?.title || null;
+        }
+      } catch (_) { /* the message reads fine without a title */ }
+      logToFile('🎓 Module exam graded — written answer HELD', {
+        attemptId, outcome: outcome.status, mcqCorrect: isapsMixed.mcqCorrect,
+        mcqServed: isapsMixed.mcqServed, crqEarned: isapsMixed.crqEarned,
+      });
+      if (phoneNumber) {
+        await WhatsAppService.sendMessage(phoneNumber, withLead(lead, Hold.heldModuleExamMessage({
+          moduleTitle, mcqCorrect: isapsMixed.mcqCorrect, mcqServed: isapsMixed.mcqServed, outcome,
+        })));
+      }
+      return true;
+    }
   }
 
   // Grand quiz (the level exam) — bar comes from training_vendors.passing_pct.
@@ -2175,13 +2290,13 @@ async function gradeAttempt(attemptId, phoneNumber) {
         .eq('level_id', attempt.level_id).ilike('title', `Module ${modNo}%`).maybeSingle();
       moduleTitle = c?.title || course?.title || null;
     }
-    await WhatsAppService.sendMessage(phoneNumber, moduleExamPassMessage({
+    await WhatsAppService.sendMessage(phoneNumber, withLead(lead, moduleExamPassMessage({
       // MARKS, not the question count. `score` here is already a
       // mark total (2 MCQs at 1 each + a CRQ out of 10), so dividing it by
       // attempt.total_questions printed "12/3". examTotal is the same
       // denominator the pass/fail decision above is computed against.
       moduleTitle, score, total: examTotal, hasCrq: Boolean(crqQuizId),
-    }));
+    })));
     logToFile('🎓 Module exam passed — no level certificate', {
       userId: attempt.user_id, attemptId, sourceQuizId: attemptQuiz?.source_quiz_id,
       hasCrq: Boolean(crqQuizId),
@@ -2221,14 +2336,14 @@ async function gradeAttempt(attemptId, phoneNumber) {
       programId: attempt.program_id,
     });
     if (levelCert.issued) {
-      await WhatsAppService.sendMessage(
-        phoneNumber,
+      // The congratulation is the certificate PDF's caption (text when there
+      // is no PDF, or the PDF does not arrive).
+      await sendCongratulation(phoneNumber,
         `🏆 *Congratulations, ${levelCert.teacher_name}!*\n\n`
         + `You have completed every module of ${levelCert.level_name}.\n\n`
         + `Certificate code: \`${levelCert.certificate_code}\`\n`
         + 'You can also download it from your portal.',
-      );
-      await deliverCertificatePdf(phoneNumber, levelCert);
+        levelCert, { attemptId, branch: 'module_exam_level_certificate' });
     }
     return true;
   }
@@ -2242,19 +2357,20 @@ async function gradeAttempt(attemptId, phoneNumber) {
       levelId: attempt.level_id,
       attemptId: attempt.id,
     });
-    await WhatsAppService.sendMessage(
-      phoneNumber,
+    // One message: the certificate PDF captioned with the congratulation and
+    // its code (text when there is no PDF, or the PDF does not arrive).
+    await sendCongratulation(phoneNumber, withLead(lead,
       `🏆 *Congratulations, ${cert.teacher_name}!*\n\n` +
       `You passed the ${cert.level_name} grand quiz with *${score}/${attempt.total_questions}* (${Math.round(examPct)}%).\n\n` +
       `Certificate code: \`${cert.certificate_code}\`\n\nSend /training to continue to the next level.`
-    );
-    await deliverCertificatePdf(phoneNumber, cert);
+    ), cert, { attemptId, branch: 'level_exam_certificate' });
   } else {
     await WhatsAppService.sendMessage(
       phoneNumber,
-      `❌ *Not this time.*\n\nYou scored *${score}/${attempt.total_questions}* (${Math.round(examPct)}%). This exam requires ${examPassingPct}%.\n\n` +
-      `Try again in *${COOLDOWN_HOURS} hours*. Use that time to review the modules you struggled with.\n\n` +
-      `Send /training when you're ready.`
+      withLead(lead,
+        `❌ *Not this time.*\n\nYou scored *${score}/${attempt.total_questions}* (${Math.round(examPct)}%). This exam requires ${examPassingPct}%.\n\n` +
+        `Try again in *${COOLDOWN_HOURS} hours*. Use that time to review the modules you struggled with.\n\n` +
+        `Send /training when you're ready.`)
     );
   }
   return true;
@@ -2595,6 +2711,14 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
     .eq('id', attemptId).maybeSingle();
   if (!attempt) throw new Error('attempt not found');
   if (attempt.user_id !== userId) throw new Error('attempt does not belong to this user');
+  // bd-2exhl — a submitted paper is closed. Without this a teacher who came
+  // back while the written answer was being graded could submit it again.
+  if (attempt.status !== 'in_progress') {
+    return {
+      attempt: { id: attemptId, status: attempt.status, total_questions: attempt.total_questions },
+      crq_pending: false, already_submitted: true, outcome: attempt.status,
+    };
+  }
 
   const ids = answers.map(a => a.question_id).filter(Boolean);
   const { data: qs } = await supabase
@@ -2606,6 +2730,7 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
   const now = new Date().toISOString();
   const rows = [];
   let mcqScore = 0;
+  let mcqServed = 0;
   let crq = null;
   answers.forEach((a, i) => {
     const q = byId.get(a.question_id);
@@ -2620,6 +2745,7 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
       });
     } else {
       const correct = String(a.chosen_option) === String(q.correct_option);
+      mcqServed += 1;
       if (correct) mcqScore += 1;
       rows.push({
         attempt_id: attemptId, question_index: i, question_id: q.id,
@@ -2639,12 +2765,21 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
     if (error) throw new Error(`could not store answers: ${error.message}`);
   }
 
-  // Commit the MCQ half now. The attempt stays in_progress while a CRQ is
-  // outstanding, so nothing reads it as a finished paper mid-marking.
+  // Commit the MCQ half now.
+  //
+  // bd-2exhl — and with it the verdict the teacher can already be told. The
+  // MCQs are marked, so "fewer than the bar → failed" and "cleared → pending
+  // review" are known HERE, not when the written-answer grader replies. The
+  // attempt used to stay in_progress until then, and a teacher who left and
+  // came back inside that window reopened the same paper and could submit it
+  // again. gradeAttempt writes the final verdict over this when it runs.
+  const { heldModuleExamOutcome } = require('./isaps-crq-hold.rules');
+  const early = crq ? heldModuleExamOutcome({ mcqCorrect: mcqScore, mcqServed }) : null;
   await supabase.from('training_assessment_attempts').update({
     current_question_index: answers.length,
     score: mcqScore,
     last_activity_at: now,
+    ...(early ? { status: early.status, is_passed: early.is_passed, completed_at: now, cooldown_until: null } : {}),
   }).eq('id', attemptId);
 
   const finishGrading = async () => {
@@ -2666,7 +2801,13 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
         attemptId, error: err?.message,
       }));
     });
-    return { attempt: { id: attemptId, score: mcqScore, total_questions: attempt.total_questions, status: 'marking' }, crq_pending: true };
+    return {
+      attempt: { id: attemptId, score: mcqScore, total_questions: attempt.total_questions, status: early.status },
+      crq_pending: true,
+      outcome: early.status,
+      mcq_correct: mcqScore,
+      mcq_served: mcqServed,
+    };
   }
 
   await finishGrading();
@@ -2677,7 +2818,103 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
   return { attempt: done, crq_pending: false };
 }
 
+/**
+ * bd-2exhl — every SUBMITTED sitting of one I-SAPS module exam, newest first,
+ * with what the teacher answered, so the portal can show her the status of
+ * each and let her read back her own paper.
+ *
+ * Deliberately NOT included while written-answer results are held: the answer
+ * key, per-question right/wrong, and the written answer's mark and feedback.
+ * The MCQ bank is small and a retake draws from the same pool, so a key shown
+ * after a failed sitting would hand her the next one. The MCQ tally (x of y)
+ * is the one result she is told, exactly as WhatsApp tells her.
+ *
+ * @returns {Promise<{ok:boolean, attempts:object[]}>}
+ */
+async function moduleExamAttempts({ userId, courseId }) {
+  const courseIdNum = parseInt(String(courseId), 10);
+  if (!userId || !Number.isFinite(courseIdNum)) return { ok: false, attempts: [] };
+  const { data: course } = await supabase
+    .from('training_courses').select('id, title, level_id')
+    .eq('id', courseIdNum).maybeSingle();
+  const m = /Module (\d+)/.exec(course?.title || '');
+  if (!course?.level_id || !m) return { ok: false, attempts: [] };
+
+  const { data: quizRows } = await supabase
+    .from('training_grand_quizzes').select('id')
+    .eq('level_id', course.level_id).eq('source_quiz_id', moduleSourceQuizId(parseInt(m[1], 10)));
+  const quizIds = (quizRows || []).map(q => q.id);
+  if (quizIds.length === 0) return { ok: true, attempts: [] };
+
+  const { data: attemptRows } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, user_id, status, is_passed, started_at, completed_at, total_questions, level_id')
+    .eq('user_id', userId)
+    .in('grand_quiz_id', quizIds)
+    .in('status', ['pending_review', 'failed', 'passed'])
+    .order('started_at', { ascending: false });
+  const attempts = (attemptRows || [])
+    .filter(a => a.user_id === userId)
+    .sort((a, b) => String(b.started_at).localeCompare(String(a.started_at)));
+  if (attempts.length === 0) return { ok: true, attempts: [] };
+
+  const { data: answerRows } = await supabase
+    .from('training_assessment_answers')
+    .select('attempt_id, question_index, question_id, chosen_option, is_correct, answer_text, answer_score, feedback_text')
+    .in('attempt_id', attempts.map(a => a.id))
+    .order('question_index', { ascending: true });
+  const qIds = [...new Set((answerRows || []).map(r => r.question_id))];
+  const { data: qRows } = await supabase
+    .from('training_questions').select('id, question_text, options, correct_option')
+    .in('id', qIds.length ? qIds : [-1]);
+  const qById = new Map((qRows || []).map(q => [q.id, q]));
+
+  const { crqResultsHeld } = require('./isaps-crq-hold.rules');
+  const { MCQ_PASS_PCT } = require('./isaps-crq-paper.rules');
+  const held = await crqResultsHeld(supabase);
+  const crqMax = await crqPointsForLevel(course.level_id);
+
+  const out = attempts.map((a) => {
+    const rows = (answerRows || [])
+      .filter(r => r.attempt_id === a.id)
+      .sort((x, y) => x.question_index - y.question_index);
+    let mcqCorrect = 0; let mcqServed = 0; let crqRow = null;
+    const answers = rows.map((r) => {
+      const q = qById.get(r.question_id) || {};
+      const open = isOpenEndedQuestion({ options: q.options, correct_option: q.correct_option });
+      if (open) crqRow = r;
+      else { mcqServed += 1; if (r.is_correct === true) mcqCorrect += 1; }
+      return {
+        index: r.question_index,
+        question_text: q.question_text || '',
+        is_open_ended: open,
+        options: open ? [] : (Array.isArray(q.options) ? q.options : []),
+        chosen_option: open ? null : (r.chosen_option ?? null),
+        answer_text: open ? (r.answer_text || '') : null,
+      };
+    });
+    return {
+      id: a.id,
+      status: a.status,
+      started_at: a.started_at,
+      completed_at: a.completed_at || null,
+      mcq_correct: mcqCorrect,
+      mcq_served: mcqServed,
+      mcq_needed: Math.ceil((mcqServed * MCQ_PASS_PCT) / 100),
+      crq: {
+        held,
+        score: held || !crqRow ? null : (crqRow.answer_score ?? null),
+        max: crqMax,
+        feedback: held || !crqRow ? null : (crqRow.feedback_text || null),
+      },
+      answers,
+    };
+  });
+  return { ok: true, attempts: out };
+}
+
 module.exports = {
+  moduleExamAttempts,
   cooldownUntilFor,
   openModuleExamAttempt,
   saveModuleExamDraft,

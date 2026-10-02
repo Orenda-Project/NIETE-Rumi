@@ -208,9 +208,22 @@ class ReportGeneratorService {
       session._questionsAtCompletion = session.conversation_state?.questions_at_completion ||
         session.conversation_state?.questions_answered || 0;
 
-      // Send progress update (only on first attempt)
-      if (!isRetry) {
-        await WhatsAppService.sendMessage(from, getCoachingMessage('step4_generatingReport', _languageFromSession(session)));
+      // Send progress update (only on first attempt).
+      //
+      // Meta bill cut NC5 (N2-C05): a photo-gate recovery already told them "I'm
+      // putting together your coaching report from your class recording now"
+      // (stale-session sweeper), and Step 4/5 a minute later said the same thing.
+      // `progressNoticeSent` is set only when that notice actually went out.
+      //
+      // FX1 (bd-w2daa.22): once per session, like the other report pieces (NC5
+      // N1-13) — a redelivered job used to say Step 4/5 again. A send that did not
+      // go out gives the claim back.
+      if (!isRetry && !payload.progressNoticeSent) {
+        const { claimPiece, releasePiece } = require('./report-piece-once');
+        if (await claimPiece(coachingSessionId, 'step4')) {
+          const step4Sent = await WhatsAppService.sendMessage(from, getCoachingMessage('step4_generatingReport', _languageFromSession(session)));
+          if (step4Sent === false) await releasePiece(coachingSessionId, 'step4');
+        }
       }
 
       // Enhance analysis with teacher reflections
@@ -394,22 +407,42 @@ class ReportGeneratorService {
 
       // Deliver to WhatsApp — image+caption path (hero renderer) or document
       // path (PDFKit/HTML renderers).
+      //
+      // Meta bill cut: the lines that used to be their own billed texts ride on
+      // the report image's caption instead —
+      //   NC5 (N2-U02) the auto-complete line (was the sweeper's English notice);
+      //   NC2 (N2-C03) "🔄 Step 5/5: Creating your personalized voice debrief…"
+      //                (was a text between the image and the voice note) — only
+      //                when a voice note follows, i.e. not on a retry.
+      // A line that would push the caption past 1,024 code points keeps its own
+      // text, exactly as before.
+      const captionLang = _languageFromSession(session);
+      const extraLines = this._heroCaptionLines(session, { isAutoCompleted, isRetry, language: captionLang });
+      let voiceStepAnnounced = false;
       if (isHeroImage) {
-        await this.sendHeroImageReport(
+        const { caption, fitted, overflow } = this._composeHeroCaption(reportResult.caption || '', extraLines);
+        for (const line of overflow) {
+          if (line.key !== 'step5') await WhatsAppService.sendMessage(from, line.text);
+        }
+        const heroSent = await this.sendHeroImageReport(
           from,
           coachingSessionId,
           reportResult.png,
-          reportResult.caption || '',
+          caption,
           session.users.name,
           session.created_at
         );
+        voiceStepAnnounced = heroSent !== false && fitted.some((l) => l.key === 'step5');
       } else {
+        for (const line of extraLines) {
+          if (line.key !== 'step5') await WhatsAppService.sendMessage(from, line.text);
+        }
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
       }
 
       // Generate and send voice debrief (optional, won't fail entire process)
       if (!isRetry) {
-        await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis);
+        await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis, { stepAnnounced: voiceStepAnnounced });
       }
 
       // "Was this coaching report useful to you?" — RIGHT after the voice debrief, before
@@ -422,14 +455,26 @@ class ReportGeneratorService {
       // creates that row on demand, and recordQualityMetrics updates it instead of inserting
       // a second. The quiz offer a tap brings forward is refused until the session is
       // 'completed', which happens after the commit prompt.
+      //
+      // FX1 (bd-w2daa.22): "sent from this ONE place" was not enough — a job that
+      // runs twice reached this place twice. Once per session (report-piece-once);
+      // a prompt that did not go out gives the claim back.
       try {
-        const CoachingFeedbackService = require('./coaching-feedback.service');
-        await CoachingFeedbackService.sendFeedbackPrompt({
-          coachingSessionId,
-          userId: session.user_id,
-          phone: from,
-          language: outputLanguage,
-        });
+        const { claimPiece, releasePiece } = require('./report-piece-once');
+        if (await claimPiece(coachingSessionId, 'survey')) {
+          const CoachingFeedbackService = require('./coaching-feedback.service');
+          let surveySent = false;
+          try {
+            surveySent = await CoachingFeedbackService.sendFeedbackPrompt({
+              coachingSessionId,
+              userId: session.user_id,
+              phone: from,
+              language: outputLanguage,
+            });
+          } finally {
+            if (surveySent === false) await releasePiece(coachingSessionId, 'survey');
+          }
+        }
       } catch (surveyErr) {
         logWarn('⚠️ Coaching survey failed to send (non-fatal)', {
           coachingSessionId, error: surveyErr.message,
@@ -504,16 +549,26 @@ class ReportGeneratorService {
           // prioritized_action DB write below — they drive the follow-up flow.
 
           // Response buttons follow regardless of which renderer ran.
+          //
+          // Meta bill cut NC5 (N1-13): once per session. A second run of this job
+          // skips the send — and counts the completion as announced, because the
+          // first run's prompt already said it (no standalone boundary line either).
           const lead = cardCopy.sessionCompleteLead;
-          await WhatsAppService.sendInteractiveButtons(from, {
-            body: lead ? `${lead}\n\n${cardCopy.commitPrompt}` : cardCopy.commitPrompt,
-            buttons: [
-              { id: `card_yes_${coachingSessionId}`, title: cardCopy.commitButtons.yes },
-              { id: `card_later_${coachingSessionId}`, title: cardCopy.commitButtons.later },
-              { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
-            ],
-          });
-          completionAnnounced = Boolean(lead);
+          const { claimPiece, releasePiece } = require('./report-piece-once');
+          if (await claimPiece(coachingSessionId, 'commit_prompt')) {
+            const promptSent = await WhatsAppService.sendInteractiveButtons(from, {
+              body: lead ? `${lead}\n\n${cardCopy.commitPrompt}` : cardCopy.commitPrompt,
+              buttons: [
+                { id: `card_yes_${coachingSessionId}`, title: cardCopy.commitButtons.yes },
+                { id: `card_later_${coachingSessionId}`, title: cardCopy.commitButtons.later },
+                { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
+              ],
+            });
+            if (promptSent === false) await releasePiece(coachingSessionId, 'commit_prompt');
+            completionAnnounced = Boolean(lead);
+          } else {
+            completionAnnounced = true;
+          }
 
           // Feedback-uptake loop: the record extends the card in place — the
           // target, the attempt and angle, the baseline for the NEXT verdict,
@@ -1527,6 +1582,11 @@ class ReportGeneratorService {
    * @private
    */
   static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null) {
+    // Meta bill cut NC5 (N1-13): once per session. Returns false (no throw) when
+    // this run is a duplicate; a failed send gives the claim back below so the
+    // retry can still deliver the report.
+    const { claimPiece, releasePiece } = require('./report-piece-once');
+    if (!(await claimPiece(coachingSessionId, 'hero_report'))) return false;
     let tempImagePath = null;
     try {
       // Ensure temp directory exists
@@ -1557,11 +1617,13 @@ class ReportGeneratorService {
       }
 
       logToFile('✅ Hero image report sent', { coachingSessionId, phoneNumber });
+      return true;
     } catch (error) {
       logToFile('❌ Failed to send hero image report', {
         coachingSessionId,
         error: error.message,
       });
+      await releasePiece(coachingSessionId, 'hero_report');
       throw error;
     } finally {
       // Clean up temp file even on error
@@ -1569,6 +1631,51 @@ class ReportGeneratorService {
         try { fs.unlinkSync(tempImagePath); } catch (_) { /* best effort */ }
       }
     }
+  }
+
+  /**
+   * Meta bill cut — the lines that ride on the report image's caption instead of
+   * going out as their own billed texts, in caption order.
+   *   autoComplete  (NC5 / N2-U02) — the 12-hour auto-complete notice, now one line
+   *   step5         (NC2 / N2-C03) — "Step 5/5: Creating your personalized voice
+   *                  debrief…", only when a voice note follows (not on a retry)
+   * @returns {Array<{ key: string, text: string }>}
+   */
+  static _heroCaptionLines(session, { isAutoCompleted, isRetry, language }) {
+    const lines = [];
+    if (isAutoCompleted) {
+      const answered = reflectionProgress(session && session._questionsAtCompletion).answered;
+      lines.push({
+        key: 'autoComplete',
+        text: getCoachingMessage(answered > 0
+          ? 'reportCaption_autoCompletedWithReflections'
+          : 'reportCaption_autoCompletedAudioOnly', language),
+      });
+    }
+    if (!isRetry) lines.push({ key: 'step5', text: getCoachingMessage('step5_voiceDebrief', language) });
+    return lines;
+  }
+
+  /**
+   * Append lines to the report caption while the whole caption stays within
+   * WhatsApp's 1,024 CODE POINT caption cap. A line that does not fit is returned
+   * in `overflow`, and its caller sends it as its own text — today's behaviour.
+   * @returns {{ caption: string, fitted: Array, overflow: Array }}
+   */
+  static _composeHeroCaption(base, lines, cap = 1024) {
+    let caption = base || '';
+    const fitted = [];
+    const overflow = [];
+    for (const line of lines) {
+      const next = caption ? `${caption}\n${line.text}` : line.text;
+      if ([...next].length <= cap) {
+        caption = next;
+        fitted.push(line);
+      } else {
+        overflow.push(line);
+      }
+    }
+    return { caption, fitted, overflow };
   }
 
   static async sendPDFReport(phoneNumber, coachingSessionId, pdfBuffer, teacherFirstName = 'Teacher', observationDate = null, languageCode = 'en') {
@@ -1626,10 +1733,21 @@ class ReportGeneratorService {
    * @returns {Promise<void>}
    * @private
    */
-  static async generateAndSendVoiceDebrief(session, phoneNumber, coachingSessionId, enhancedAnalysis) {
+  static async generateAndSendVoiceDebrief(session, phoneNumber, coachingSessionId, enhancedAnalysis, opts = {}) {
+    // Meta bill cut NC5 (N1-13): one voice debrief per session — a second run of
+    // the report job sends neither the Step 5/5 line nor a second voice note.
+    // Claimed up front (the generation is ~40 s of LLM + TTS); not released on a
+    // failure, because the failure branch below still tells them (fallback text).
+    const { claimPiece } = require('./report-piece-once');
+    if (!(await claimPiece(coachingSessionId, 'voice_debrief'))) return;
     try {
       const lang = _languageFromSession(session);
-      await WhatsAppService.sendMessage(phoneNumber, getCoachingMessage('step5_voiceDebrief', lang));
+      // Meta bill cut NC2 (N2-C03): when the report image's caption already
+      // carried "Step 5/5: Creating your personalized voice debrief…", the
+      // separate text would repeat it seconds later.
+      if (!opts.stepAnnounced) {
+        await WhatsAppService.sendMessage(phoneNumber, getCoachingMessage('step5_voiceDebrief', lang));
+      }
 
       const outputLanguage = await CoachingHelpersService.determineOutputLanguage(
         session.user_id,

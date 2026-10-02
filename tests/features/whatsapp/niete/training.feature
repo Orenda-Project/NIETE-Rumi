@@ -49,12 +49,16 @@ Feature: NIETE (ICT) Teacher Training
     And the "Pick a module to watch" picker lists modules tagged "✓ Passed" / "▶ Next up" / "🔒 Locked", with exactly one "▶ Next up"
     And the grand quiz reads "🔒 Grand Quiz — Unlocks when all courses are complete." with a "🔒 Locked" button, and its exam caption states the real served size in the shape "<n> questions · <p>% required · 24h cooldown on fail" (not the whole bank)
     When I pick the "▶ Next up" module
-    Then the Flow closes and the bot posts the module video card with "Watch the video, then tap 📝 Take quiz — passing it unlocks the next module." followed by "Finished watching \"<module>\"?" offering "📝 Take quiz" and "⏸ Pause"
+    Then the Flow closes and the bot posts ONE module video card: "Watch the video, then tap 📝 Take quiz — passing it unlocks the next module.", the video link, then "Finished watching \"<module>\"?" — with "📝 Take quiz" and "⏸ Pause" buttons on that same message
     When I tap "📝 Take quiz"
-    Then the bot announces "Module check — \"<module>\"" and "<n> questions. You need 100% to unlock the next module — if you miss it you can retry straight away.", then serves "Q1/<n>" with an "Answer" button and the caption "100% required · tap an option"
+    Then the bot serves Q1 as ONE message headed "Module check · Q1/<n>", opening with "Module check — \"<module>\"" and "<n> questions. You need 100% to unlock the next module — if you miss it you can retry straight away.", with an "Answer" button and the caption "100% required · tap an option"
     When I answer every served question with its correct option, resolved live (match the option TEXT to the answer key, never a fixed letter)
-    Then the bot replies "Module check — passed" and confirms a perfect score in the shape "<n>/<n> correct"
+    Then each answer gets a ✅ reaction, and every question after Q1 is headed with the verdict on the one before it, in the shape "✅ Correct · Q<k>/<n>" (a wrong answer: "✗ Not correct · Q<k>/<n>") — no separate verdict message
+    And the next module's card arrives as ONE message opening with "✅ *Correct*", then "Module check — passed" with a perfect score in the shape "<n>/<n> correct", then the next module's card and its "📝 Take quiz" / "⏸ Pause" buttons — and no "Loading the next module…" message
     And the module that was "▶ Next up" becomes "✓ Passed" and the following module becomes the new "▶ Next up"
+    # UPDATED 2026-10-01 (bd-w2daa.8, fewer billed bubbles): module card + buttons, intro + Q1, verdict + next
+    # question, and "passed" + next module card are each ONE message now; "Loading the next module…" is gone.
+    # Same words, same order. Over a WhatsApp cap, each falls back to the old separate messages.
     # NIETE needs 100%. Verified live on PROD (2026-08-05) end-to-end (Auditory aids & Differentiated
     # reading materials driven 3/3 → next-up advanced); re-verified entry+Flow+ladder+level-detail on the
     # shared staging number 923222482222. Exam caption observed "20 questions" (prod) / "62 questions"
@@ -88,14 +92,14 @@ Feature: NIETE (ICT) Teacher Training
   @e2e @wip @draft @flow @P3 @T04
   Scenario: A PDF module arrives as a document
     Given the NIETE bot chat is open and I have opened a module whose content is a PDF, not a video
-    Then the bot sends the module as a PDF document with a button to the next one
+    Then the bot sends the module as a PDF document whose caption is the module card ("<course> — <i> of <N>", the module title, "Read the PDF, then tap …"), followed by its buttons — no separate caption message
     # content-delivery.service.js isPdfModule. @wip.
 
   @e2e @wip @draft @flow @quiz @destructive @P1 @T05
   Scenario: Finishing every module unlocks the level exam, and passing it certifies the level
     Given the NIETE bot chat is open on a teacher who has passed every module in a level
     When I open that level, start the now-unlocked grand quiz, and answer at least 80% correctly
-    Then the bot congratulates me, gives me a certificate code, and sends the certificate PDF
+    Then the bot sends the certificate PDF captioned with the congratulation and my certificate code — one message (plain text only when there is no PDF, or the PDF does not arrive)
     # loadGrandQuizState (unlocks once all modules done) + quiz-delivery grand-pass branch.
     # @destructive: certifies the level + unlocks the next. @wip — needs a fully-completed level.
 
@@ -111,13 +115,14 @@ Feature: NIETE (ICT) Teacher Training
     Given the NIETE bot chat is open on a teacher in a Beacon House programme who has finished every module in a level
     When I start the level exam
     Then it asks open-ended questions I answer in my own words, marked out of 5
+    And each answer's mark and feedback arrive in the same message as the next question (and, on the last answer, the result)
     # capstone-delivery.service.js (open-ended, model-scored, 70% to pass, no cooldown). @wip.
 
   @e2e @flow @P3 @T08
   Scenario: For an Oxbridge programme a level is certified from module scores, with no exam
     Given a teacher in an Oxbridge programme who has finished every module with each best score at least 70%
     Then the level detail states "🎓 No level exam — finish all sessions to complete this level." with no grand-quiz row
-    And on finishing the last module the bot congratulates me "with 70%+ on each quiz", gives a certificate code, and sends the certificate PDF — no exam is ever shown
+    And on finishing the last module the bot sends the certificate PDF captioned with "Module check — passed", the congratulation "with 70%+ on each quiz" and a certificate code — no exam is ever shown
     # maybeIssueQuizScoreCertificate (QUIZ_CERT_PASS_PCT=0.7, vendor unlock_logic=all_modules, no capstone).
     # Verified live on PROD (2026-08-06): Oxbridge L17 (1 course · 7 modules SESSION#1-7 · no grand_quizzes).
     # Module bar is 70% ("10 questions. You need 70%…") vs NIETE 100%. Cert NIETE-20260805-YA5IU7 + PDF issued
@@ -128,7 +133,7 @@ Feature: NIETE (ICT) Teacher Training
     Given the NIETE bot chat is open on a teacher in the I-SAPS programme who has passed eight of the nine module exams
     And every session of the remaining module is passed
     When I take that module exam and pass it
-    Then the bot says "You have completed every module of Level 1: Novice.", gives me a certificate code, and sends the certificate PDF
+    Then the bot sends the certificate PDF captioned "You have completed every module of Level 1: Novice." with my certificate code
     # UPDATED 2026-10-01 (bd-vej4h): was "...whatever units are left". The certificate still waits on the
     # module exams ONLY, but a module exam now opens only after that module's sessions are passed, so
     # "units left" can no longer reach the exam. @wip — needs an I-SAPS level seeded 8/9 on the throwaway.
@@ -159,10 +164,21 @@ Feature: NIETE (ICT) Teacher Training
   @e2e @wip @draft @quiz @destructive @P1 @T88
   Scenario: An I-SAPS module exam is 4 multiple-choice questions and 1 written answer, with two separate pass bars
     Given the NIETE bot chat is open on a teacher in the I-SAPS programme with every session of Module 1 passed
-    When I take the Module 1 exam, get all 4 multiple-choice questions right, and score 5 of 10 on the written answer
-    Then the exam is not passed, because the written answer needs 6 of 10
-    And my mark is shown out of 30 (5 per multiple-choice question, 10 for the written answer)
+    When I take the Module 1 exam and get 3 of the 4 multiple-choice questions right
+    Then the bot says the multiple choice is cleared and my written answer is being graded
+    And no written-answer mark or feedback is shown, and no certificate is issued
     # bd-vej4h: pass = MCQ >= 75% of those served AND CRQ >= 60%. Module 6 serves its 2 MCQs and needs both.
+    # UPDATED 2026-10-01 (bd-hxm7a): while I-SAPS written-answer results are HELD, an exam with the MCQs
+    # cleared is PENDING REVIEW (neither passed nor failed); fewer than 3 of 4 fails now and can be retaken.
+
+  @e2e @wip @draft @quiz @P0 @T90
+  Scenario: An I-SAPS written answer is graded but its mark is not shown while results are held
+    Given the NIETE bot chat is open on a teacher in the I-SAPS programme sitting a module exam
+    When I type my written answer
+    Then the bot says my written answer is being graded and will take some time
+    And it shows no score and no feedback for it
+    And the module exam cannot be started again while it is being graded
+    # bd-hxm7a: graded against the I-SAPS rubric and stored; app_settings isaps_crq_results_released is the switch.
 
   @e2e @wip @draft @quiz @P2 @T89
   Scenario: A failed I-SAPS module exam can be retaken straight away
@@ -206,7 +222,7 @@ Feature: NIETE (ICT) Teacher Training
   Scenario: Getting one question wrong fails the module check (NIETE needs 100%) and offers a retry
     Given the NIETE bot chat is open and I am taking a NIETE module check
     When I answer exactly one question with a deliberately-wrong option (not matching the key) and the rest correctly
-    Then the bot replies "Module check — not quite" with my score in the shape "<got>/<total> (<pct>%)", says I need 100% to move on, and a follow-up offers "🔄 Try again" and "⏸ Pause"
+    Then the bot replies in ONE message, opening with the verdict on my last answer: "Module check — not quite" with my score in the shape "<got>/<total> (<pct>%)", that I need 100% to move on, and "Ready to try the module check again?" — with "🔄 Try again" and "⏸ Pause" buttons on that same message
     # @content-driven. Verified live on PROD (2026-08-05): "Module check — not quite. You got 2/3 (67%).
     # You need 100% to move on…" All questions are asked FIRST, then graded. module_passing_pct=100 for
     # NIETE (TALEEMABAD); other partners 70%. Assert the shape, not "2/3".
@@ -473,10 +489,14 @@ Feature: NIETE (ICT) Teacher Training
   Scenario: The line after a quiz is sent says when the class report really comes
     Given the NIETE bot chat is open and I made a quiz for one of my lessons from /quiz
     When the quiz PDF and the message to forward to my class arrive
-    Then the next message says the class report comes about 12 hours after the first student starts, or at 7 in the morning if that falls at night
+    Then the PDF's caption ends by saying the class report comes about 12 hours after the first student starts, or at 7 in the morning if that falls at night
     And it says that to get the report sooner I can send /quiz, pick the lesson and ask for its report
     And it never promises the report "sooner if everyone finishes"
-    # tqReportPromise (transcript-quiz-handoff, first send). The schedule is video-quiz-report reportTargetUtc:
+    And the message to forward is the last thing I am sent — no line arrives after it
+    # tqReportPromise (transcript-quiz-handoff, first send) closes the PDF caption — it was a third message
+    # after the link until the Meta bill cut (bd-w2daa.7); only past the 1,024-code-point caption cap does it
+    # still go on its own, after the link. When no PDF can be made, the text that stands in for it carries
+    # it, ahead of "Forward THIS message". The schedule is video-quiz-report reportTargetUtc:
     # 12 h after the first join, 22:00-07:00 PKT moved to 07:00; the early "everyone finished" send was removed
     # (generate suppresses every follow_up), so nothing sends it sooner except the teacher's own request.
     # vqShareReportPromise, the video lesson's class link, says the same schedule. Proven against the real
@@ -1145,3 +1165,96 @@ Feature: NIETE (ICT) Teacher Training
     # even tell what is happening" — the logs showed Continue tapped twice a second apart. The
     # reason used to sit at the TOP of the screen; it now sits under the offending box (a single
     # bad box) or above Continue (a total over 50, which belongs to no one box).
+
+  # ─────────── app redirect (bd-onxyu) — Teacher Training moved to the NIETE app ───────────
+  # One switch per feature (app_redirect_<feature>), off by default, so none of this is visible
+  # until an operator turns Teacher Training's switch on. The quiet hour is per teacher and shared
+  # by every switch. Unit: tests/app-redirect/ (service + every door, red-first).
+
+  @e2e @config-gated @P1 @T92
+  Scenario: With Teacher Training moved to the app, /training sends me to the Play Store instead
+    Given the NIETE bot chat is open
+    And Teacher Training has been switched to the NIETE app
+    When I send "/training"
+    Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
+    And no training Flow opens
+
+  @e2e @config-gated @P1 @T93
+  Scenario: Asking again within the hour gets no reply at all
+    Given the NIETE bot chat is open
+    And Teacher Training has been switched to the NIETE app
+    And the bot sent me to the Play Store less than an hour ago
+    When I send "/training"
+    Then the bot does not reply
+    # After the hour the next request gets the Play Store message again.
+
+  # ─────────── fewer bubbles, same words (bd-w2daa.7 — the Meta bill cut, 1 Oct 2026) ───────────
+  # Meta bills every message from 1 Oct 2026; a reaction is free. Each scenario below sends fewer
+  # bubbles and loses no word, and keeps its order. Unit: tests/quiz/child-quiz-fewer-bubbles.test.js,
+  # child-refusals-once-a-day.test.js, teacher-quiz-handoff-fewer-bubbles.test.js (red-first).
+
+  @e2e @quiz @wip @draft @P1 @T94
+  Scenario: A child's answer gets a ✅ or ❌ on the tap, and the verdict rides on the next question when that one starts with words
+    Given a child has opened a class quiz from its link and a question with text answers is waiting
+    When the child taps the right answer
+    Then a ✅ appears on the child's own tap at once
+    And the next message starts "✅ Correct! The answer is …", then "Question 2 of 8", then the question and its buttons — one message
+    When the child taps a wrong answer
+    Then a ❌ appears on the tap, and the next message starts with "❌ Not quite — the answer is …" and "Keep going, mistakes help you learn!" above the question
+    But when the next question is a picture card, the verdict still comes as its own message first, then the card
+    And the verdict on the last question still comes on its own, before the score card
+    # video-quiz.service handleAnswer -> sendNextQuestion({ lead }) -> video-quiz-lead foldLead: only a
+    # text-only verdict (no explanation picture or clip), only into a first bubble with nothing drawn above its
+    # body (buttons with no image header, a list, the listen line), only within Meta's 1,024 cap. A verdict
+    # under the next question's PICTURE is operator decision D1, not built. @wip.
+
+  @e2e @quiz @wip @draft @P2 @T95
+  Scenario: A double tap does not bring the same question twice
+    Given a child has answered a question and the next one has arrived
+    When the child taps the old answer again a few seconds later
+    Then nothing new arrives, and the question on screen is still the one to answer
+    But when the child taps it again long after (more than two minutes), the waiting question is sent again
+    # video-quiz.service reconcileFromAnswers: a 23505 duplicate whose next question is the one already sent
+    # (currentQuestionId, set only after its picker went out) within RESEND_WINDOW_MS sends nothing. @wip.
+
+  @e2e @quiz @wip @draft @P1 @T96
+  Scenario: A class quiz opens in one message when its first question starts with words
+    Given a child the bot already knows taps a class quiz link
+    When the quiz starts
+    Then one message carries the greeting naming the teacher and the topic, "Good to see you again", "Here we go — 8 questions. Take your time!", "Question 1 of 8" and the first question with its buttons
+    But when the first question is a picture card, the greeting and "Here we go" are one message, then the card
+    And when the lesson video goes first, the greeting and "First, here is the lesson" are one message before the video, and "Here we go" rides on question 1
+    And a child picking a video from the video library gets "First, here is the lesson" before it, and no "Sending your video" line
+    # video-quiz-share passes the greeting / "let's begin" to startSession as its lead; sendLessonFirst sends
+    # it with the lesson note; the opener rides on question 1 through the same foldLead. student-videos-endpoint
+    # sendPreDeliveryAck skips a child's video that has a quiz (the Flow's SUCCESS screen says it is on its way). @wip.
+
+  @e2e @quiz @wip @draft @P1 @T97
+  Scenario: The score card is the picture on the "invite a friend" message
+    Given a child is answering the last question of a class quiz
+    When the child answers it
+    Then the verdict arrives, then ONE message: the score card picture, "All done! You got … right", and "Want to send this quiz to a friend?" with "Invite a friend" and "No thanks"
+    But when the teacher's class report is already out, the score card, the class card and the invite come as before, in that order
+    # video-quiz.service finish -> scorecardForInvite -> video-quiz-invite offerInvite({ scorecard }) ->
+    # WhatsAppService.sendImageBufferWithButtons; any failure sends the score card and the invite separately,
+    # and the score card is never lost. Watch-more after the invite is unchanged (operator decision D2). @wip.
+
+  @e2e @quiz @wip @draft @P2 @T98
+  Scenario: A child who keeps sending voice notes hears the "please type" line once a day
+    Given a child the bot knows as a student
+    When the child sends a voice note
+    Then the bot says it can only read typed messages
+    When the child sends another voice note the same day
+    Then a ✍️ appears on that voice note and no message is sent
+    And a sticker gets no reply at all
+    # student-ingress refuse(): each refusal line once per handset per 24 h (Redis set-if-absent); a repeat gets
+    # a free reaction, and the line is said again whenever the reaction cannot be sent. @wip.
+
+  @e2e @quiz @wip @draft @P2 @T99
+  Scenario: "Not now" on the quiz offer is answered with a 👌
+    Given the NIETE bot chat is open and I have been offered a quiz after a coaching session
+    When I tap "Not now"
+    Then a 👌 appears on my tap and no message is sent
+    # FX1 (bd-w2daa.22): 👌, not 👍 — the webhook's automatic 👍 on every message would answer nothing.
+    # transcript-quiz-offer handleOfferButton: the offer already ends "You can make one for any lesson
+    # anytime by sending /quiz"; tqDeclined is sent only when the reaction cannot be. @wip.

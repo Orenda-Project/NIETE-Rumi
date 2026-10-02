@@ -25,6 +25,7 @@ const { uploadImageWithRetry } = require('../storage/r2');
 const { logToFile } = require('../utils/logger');
 const { logEvent, runWithCorrelation, generateCorrelationId } = require('../utils/structured-logger');
 const { getUserLanguage } = require('../utils/language-cache');
+const { redirectIfFlagged } = require('../services/app-redirect.service');
 const { storeConversation, getOrCreateSession } = require('../database/bot-helpers');
 
 // Idempotency TTL (1 hour - prevents reprocessing of same image)
@@ -98,7 +99,7 @@ async function handleImageMessage(message, from, user = null) {
       // ============================================================
       try {
         const { handlePhotoArrival } = require('../services/coaching/media-attach.service');
-        if (await handlePhotoArrival({ user, from, mediaId: imageId, mimeType, kind: 'photo' })) {
+        if (await handlePhotoArrival({ user, from, mediaId: imageId, mimeType, kind: 'photo', messageId: message.id })) {
           typingController.stop();
           return;
         }
@@ -164,13 +165,23 @@ async function handleImageMessage(message, from, user = null) {
       // (30-min window, observer parity); two sessions still processing → ask.
       try {
         const { handlePhotoArrival } = require('../services/coaching/media-attach.service');
-        if (await handlePhotoArrival({ user, from, mediaId: imageId, mimeType, kind: 'hold' })) {
+        // Meta bill cut NC4 (N2-C07): the photo's wamid → a 📸 reaction instead of a text.
+        if (await handlePhotoArrival({ user, from, mediaId: imageId, mimeType, kind: 'hold', messageId: message.id })) {
           typingController.stop();
           return;
         }
       } catch (raceErr) {
         logToFile('⚠️ Race-hold classroom-photo check failed (non-critical)', { error: raceErr.message });
         // fall through to generic vision feedback
+      }
+
+      // bd-onxyu — an image with no session waiting for it is an open message:
+      // the general-chat switch decides.
+      if (user?.id && await redirectIfFlagged('general_chat', {
+        userId: user.id, from, language: await getUserLanguage(user.id), reason: 'image',
+      })) {
+        typingController.stop();
+        return;
       }
 
       // Generic vision-feedback path.

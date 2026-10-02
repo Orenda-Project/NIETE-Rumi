@@ -24,6 +24,9 @@ const { logToFile } = require('../utils/logger');
 // through the one language clamp. No inline map here, by doctrine.
 const { resolveUx } = require('../config/ux-strings');
 
+// Meta's cap on an interactive message body, in CODE POINTS (language-protocol §3).
+const FLOW_BODY_CAP = 1024;
+
 /**
  * @param {object} args
  * @param {string} args.from      WhatsApp number to send to
@@ -34,19 +37,48 @@ const { resolveUx } = require('../config/ux-strings');
  *   conversational-components chip on a first open). It changes nothing about what
  *   is sent — one door, one copy — but it is the only way the funnel can tell a
  *   cold first-open apart from a menu tap, and it is cheaper than a second method.
+ * @param {string} [args.bodyPrefix] OPTIONAL paragraph set above the usual body, in the caller's
+ *   already-resolved language (Meta bill cut NL3). The topic-bearing doors pass the
+ *   `lp612RouteRedirect` line here instead of sending it as its own billed text a second before
+ *   the Flow — same words, one message. Every other door omits it and gets today's body. If the
+ *   merged body would break Meta's 1024-code-point cap the line is sent on its own first, exactly
+ *   as before, rather than risk a rejected Flow.
  * @returns {Promise<boolean>}
  */
-async function openLpBrowseFlow({ from, userId, language, reason = 'unspecified' }) {
+async function openLpBrowseFlow({ from, userId, language, reason = 'unspecified', bodyPrefix = null }) {
+  // bd-onxyu — the app-redirect switch. TRUE when it handled the request, because
+  // every caller treats false as "fall back to another lesson-plan path".
+  const { redirectIfFlagged } = require('./app-redirect.service');
+  if (await redirectIfFlagged('lesson_plan', { userId, from, language, reason })) return true;
+
   const flowId = process.env.PAKISTAN_LP_FLOW_ID || '';
   if (!flowId) {
     logToFile('LP browse: no PAKISTAN_LP_FLOW_ID provisioned, caller falls back', { userId, reason });
     return false;
   }
   try {
+    const plainBody = resolveUx('lpBrowseBody', { language });
+    let body = plainBody;
+    if (bodyPrefix) {
+      const merged = `${bodyPrefix}\n\n${plainBody}`;
+      if ([...merged].length <= FLOW_BODY_CAP) {
+        body = merged;
+      } else {
+        // Over the cap → today's two-message shape. The line failing is a worse message, not none.
+        logToFile('LP browse: prefix would exceed the Flow body cap — sent as its own line', {
+          userId, reason, mergedCodePoints: [...merged].length,
+        });
+        try {
+          await WhatsAppService.sendMessage(from, bodyPrefix);
+        } catch (lineErr) {
+          logToFile('LP browse: prefix line failed to send (non-fatal)', { userId, reason, error: lineErr.message });
+        }
+      }
+    }
     const sent = await WhatsAppService.sendFlow(from, {
       flowId,
       header: resolveUx('lpBrowseHeader', { language }),
-      body: resolveUx('lpBrowseBody', { language }),
+      body,
       buttonText: resolveUx('lpBrowseButton', { language }),
       flowToken: `${userId}:pakistan-lp:${Date.now()}`,
     });

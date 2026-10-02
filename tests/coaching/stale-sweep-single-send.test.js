@@ -77,12 +77,14 @@ describe('two sweeps at the same moment (two worker copies)', () => {
     expect(mockDb.current._tables.coaching_sessions[0].reminder_sent_at).toBeTruthy();
   });
 
-  it('auto-complete at 12 hours: ONE notice and ONE report job, not one per copy', async () => {
+  it('auto-complete at 12 hours: ONE report job, not one per copy (and no notice of its own)', async () => {
     mockDb.current = createFakeSupabase({ coaching_sessions: [reflectionSession('s-auto', 13 * HOUR)] });
 
     await Promise.all([Stale.processStaleCoachingSessions(), Stale.processStaleCoachingSessions()]);
 
-    expect(mockSends.filter((s) => s.kind === 'text')).toHaveLength(1);
+    // Meta bill cut N2-U02: the auto-complete notice now rides on the report
+    // caption (report-generator), so the sweep itself sends nothing — once or twice.
+    expect(mockSends.filter((s) => s.kind === 'text')).toHaveLength(0);
     expect(mockQueued.filter((q) => q.jobType === 'report_generation')).toHaveLength(1);
     expect(mockDb.current._tables.coaching_sessions[0].status).toBe('generating_report');
   });

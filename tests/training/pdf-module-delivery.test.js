@@ -223,7 +223,10 @@ describe('routing — video vs pdf', () => {
     await ContentDelivery.deliverModuleById(179, '9203206281951', { userId: 'user-1' });
 
     expect(whatsappDocumentByLink).not.toHaveBeenCalled();
-    // Existing path uses sendMessage with the presigned link
-    expect(whatsappSend).toHaveBeenCalled();
+    // The video path sends the presigned link as text — inside the module
+    // card, which is ONE reply-button message with its "Finished watching?"
+    // buttons now (bd-w2daa.8), not a text bubble followed by the buttons.
+    expect(whatsappButtons).toHaveBeenCalledTimes(1);
+    expect(whatsappButtons.mock.calls[0][1].body).toContain('▶️ training/videos/179.mp4');
   });
 });

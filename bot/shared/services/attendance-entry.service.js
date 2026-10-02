@@ -88,9 +88,9 @@ async function respondToDecision(decision, { user, from, language }) {
       }
       return true;
 
-    // One Flow, opened with the bare user id; it picks the class and the date.
-    // MARK_* carry an explicit target — a principal always, or a tap on a picker
-    // button already delivered to a handset.
+    // One Flow, opened with "<userId>:student" (no target); it picks the class and
+    // the date. MARK_* carry an explicit target — a principal always, or a tap on a
+    // picker button already delivered to a handset.
     case 'OPEN_REGISTER':
     case 'MARK_TEACHERS':
     case 'MARK_STUDENTS': {
@@ -111,8 +111,8 @@ async function respondToDecision(decision, { user, from, language }) {
       return true;
     }
 
-    // /class owns class creation. Same flowToken convention as the /class
-    // command itself: the bare user id.
+    // /class owns class creation. Same flowToken as the /class command itself,
+    // built in one place so the completion is recognised whichever door opened it.
     case 'SEND_CLASS_MANAGER':
       if (!classManagerFlowId) {
         await WhatsAppService.sendMessage(from, resolveUx('attendanceSetUpClass', {
@@ -125,7 +125,7 @@ async function respondToDecision(decision, { user, from, language }) {
         header: resolveUx('attendanceClassesHeader', { language }),
         body: decision.message,
         buttonText: resolveUx('attendanceClassesButton', { language }),
-        flowToken: user.id,
+        flowToken: require('./classes/class-entry.service').classManagerFlowToken(user.id),
       });
       return true;
 

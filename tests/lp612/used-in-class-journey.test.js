@@ -20,7 +20,10 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: (...a) => mockSendMessage(...a),
   sendDocumentByLink: (...a) => mockSendDocumentByLink(...a),
   sendInteractiveButtons: (...a) => mockSendInteractiveButtons(...a),
+  sendReaction: (...a) => mockSendReaction(...a),
 }));
+// FX1 (bd-w2daa.22): a usage answer is receipted with our own 🙏 on the tap.
+const mockSendReaction = jest.fn().mockResolvedValue(true);
 // A real (in-memory) Redis, not a jest.fn: the 👎 branch ARMS a window that a later step must
 // find still armed. A double that always returns null would make that leg vacuously pass.
 jest.mock('../../bot/shared/services/cache/railway-redis.service', () => ({
@@ -158,7 +161,7 @@ describe('👍 → she is asked whether she taught it, and the answer reaches th
     queue('users', { id: USER_ID, preferred_language: 'ur' });
 
     const taughtId = buttonTitled(q2, 'lp612UsedTaught', 'ur');
-    expect(await Feedback.handleUsageButton(taughtId, PHONE)).toBe(true);
+    expect(await Feedback.handleUsageButton(taughtId, PHONE, { messageId: 'wamid.TAUGHT' })).toBe(true);
 
     // The point of the whole bead: the column is no longer NULL for a 6-12 row.
     const written = updates('lp_feedback');
@@ -168,9 +171,9 @@ describe('👍 → she is asked whether she taught it, and the answer reaches th
       expect.arrayContaining([['user_id', USER_ID], ['lp612_segment_id', SEGMENT_ID]]),
     );
 
-    expect(mockSendMessage).toHaveBeenLastCalledWith(
-      PHONE, resolveUx('lp612UsedThanks', { language: 'ur' }),
-    );
+    // Meta bill cut NL1 (bd-w2daa.9) + FX1: no thank-you text — a 🙏 on the tap is the receipt.
+    expect(mockSendMessage).not.toHaveBeenCalledWith(PHONE, resolveUx('lp612UsedThanks', { language: 'ur' }));
+    expect(mockSendReaction).toHaveBeenCalledWith(PHONE, 'wamid.TAUGHT', '🙏');
   });
 
   test('"Not yet" is an answer, not a silence — it lands as not_yet', async () => {

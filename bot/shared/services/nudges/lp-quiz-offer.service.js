@@ -50,6 +50,7 @@ const Funnel = require('../quiz/quiz-funnel');
 const LessonClaim = require('../quiz/lp-lesson-claim');
 const QuizMenuFlags = require('../quiz/quiz-menu-flags');
 const FeatureIntro = require('../feature-intro.service');
+const { mergeWithinCap, FIELD_CAPS } = require('../../utils/merge-within-cap');
 
 /** The `teacher_nudges.kind` this module owns. */
 const KIND = 'lp_quiz_offer';
@@ -588,6 +589,10 @@ const titleCase = (s) => String(s || '').split(' ').filter(Boolean)
 
 /** When the full English name would overflow a 24-code-point row title. */
 const EN_SHORT = Object.freeze({
+  // Only reached when the full title overruns its field: never for a K-5 list
+  // row ("Grade 4 · Mathematics" is 21 of 24), but it is for a 20-code-point
+  // button, which the two-class film offer uses.
+  mathematics: 'Maths',
   'general science': 'Science',
   'general knowledge': 'Gen. Knowledge',
   'social studies': 'Social Studies',
@@ -638,6 +643,48 @@ function yesNoButtons(nudgeId, language) {
     { id: `lpquiz_yes_${nudgeId}`, title: resolveUx('lpQuizYes', { language }) },
     { id: `lpquiz_no_${nudgeId}`, title: resolveUx('lpQuizNo', { language }) },
   ];
+}
+
+/**
+ * Two classes while the intro film is still being shown: the list, as THREE
+ * reply buttons under the film — one message instead of the film and then the
+ * list (a list message cannot carry a video header; a buttons message can).
+ *
+ * Nothing the two messages said is dropped: the body is the list's own body,
+ * then one line per class with that row's topics (the row descriptions), and the
+ * film's caption becomes the footer. The button ids are the list rows' ids, so
+ * a tap is answered exactly as the row tap was (handleButton → handleListPick).
+ *
+ * Null — and the caller keeps the film-then-list shape — when a class title
+ * cannot fit a 20-code-point button even with its short subject name, or the
+ * body would overrun 1,024 code points.
+ */
+function twoClassFilmOffer(nudgeId, classes, language, listBodyText) {
+  const titleWithin = (cls, cap) => {
+    const grade = digitsFor(cls.grade, language);
+    for (const short of [false, true]) {
+      const t = resolveUx('lpQuizOfferRowTitle', {
+        language, params: { grade, subject: subjectName(cls.subject, language, { short }) },
+      });
+      if (cps(t) <= cap) return t;
+    }
+    return null;
+  };
+  const buttons = [];
+  const lines = [];
+  for (const cls of classes) {
+    const title = titleWithin(cls, CAPS.button);
+    if (!title) return null;
+    buttons.push({ id: `lpquiz_pick_${nudgeId}_${cls.key}`, title });
+    const topics = rowDescription(cls, language);
+    lines.push(topics ? `• ${rowTitle(cls, language)} — ${topics}` : `• ${rowTitle(cls, language)}`);
+  }
+  const none = resolveUx('lpQuizOfferNone', { language });
+  if (cps(none) > CAPS.button) return null;
+  buttons.push({ id: `lpquiz_none_${nudgeId}`, title: none });
+  const body = mergeWithinCap([listBodyText, lines.join('\n')], FIELD_CAPS.body);
+  if (!body) return null;
+  return { body, buttons, footer: Catalog.clip(resolveUx('lpQuizOfferFilmCaption', { language }), CAPS.footer) };
 }
 
 async function teacherById(userId) {
@@ -763,14 +810,26 @@ async function send(row, { now } = {}) {
       }), CAPS.footer);
       context.dropped_classes = dropped;
     }
-    // A list message cannot carry a video header: the film goes first as its own
-    // message, awaited, so it lands above the list. A film that fails never
-    // holds the list back.
-    if (wantVideo) {
+    // A list message cannot carry a video header. Two classes fit three reply
+    // buttons, so they ride under the film as ONE message; otherwise the film
+    // goes first as its own message, awaited, so it lands above the list. A film
+    // that fails never holds the offer back — the list goes alone.
+    const asButtons = wantVideo && classes.length === 2
+      ? twoClassFilmOffer(row.id, classes, language, list.body.text)
+      : null;
+    if (asButtons) {
+      videoSent = await WhatsAppService.sendVideoWithButtons(
+        to, video, asButtons.body, asButtons.buttons, { ...sendOpts, footer: asButtons.footer });
+      if (videoSent) {
+        ok = true;
+      } else {
+        logToFile('⚠️ lp quiz offer: film-with-buttons failed, sending the list alone', { nudgeId: row.id }, 'warn');
+      }
+    } else if (wantVideo) {
       videoSent = await WhatsAppService.sendVideoFromUrl(to, video, resolveUx('lpQuizOfferFilmCaption', { language }));
       if (!videoSent) logToFile('⚠️ lp quiz offer: intro video failed, sending the list alone', { nudgeId: row.id }, 'warn');
     }
-    ok = await WhatsAppService.sendInteractiveMessage(to, list, sendOpts);
+    if (!ok) ok = await WhatsAppService.sendInteractiveMessage(to, list, sendOpts);
   } else {
     const cls = classes[0];
     const first = cls.lessons[0];
@@ -813,6 +872,8 @@ async function send(row, { now } = {}) {
     nudgeId: row.id, userId: row.user_id, shape, classes: classes.length,
     dropped: (context.dropped_classes || []).length, language,
     withVideo: Boolean(videoSent), shownCount,
+    // The two-class list sent as film + three buttons in one message.
+    asButtons: shape === 'list' && Boolean(videoSent) && classes.length === 2 && !context.dropped_classes,
   });
   return { sent: true, messageIds, context };
 }
@@ -1009,10 +1070,15 @@ async function decline(nudgeId, from, user, at) {
   return true;
 }
 
-/** `lpquiz_yes_<id>` / `lpquiz_no_<id>`. False when the id is not ours. */
+/**
+ * `lpquiz_yes_<id>` / `lpquiz_no_<id>` — and the class ids `lpquiz_pick_…` /
+ * `lpquiz_none_…`, which arrive as BUTTON replies when a two-class offer went out
+ * as film + three buttons (twoClassFilmOffer). They are answered exactly as the
+ * list rows they stand in for. False when the id is not ours.
+ */
 async function handleButton(buttonId, from, user, { now } = {}) {
   const m = BUTTON_RX.exec(buttonId || '');
-  if (!m) return false;
+  if (!m) return handleListPick(buttonId, from, user, { now });
   const at = now ? new Date(now) : new Date();
   return m[1] === 'yes' ? accept(m[2], null, from, user, at) : decline(m[2], from, user, at);
 }

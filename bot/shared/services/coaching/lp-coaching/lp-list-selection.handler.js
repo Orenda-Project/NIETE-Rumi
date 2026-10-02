@@ -177,30 +177,45 @@ async function handleLpListSelection(listId, from, deps = {}) {
     return true;
   }
 
+  // Meta bill cut NC3: on a teacher's own session the outcome line rides on the
+  // analysis job's Step 2/5 instead of going out on its own (a 30 s fallback
+  // sends it if the job is slow). A coach observation keeps the immediate ack.
+  const deferLpOutcome = deps.deferLpOutcome
+    || require('./lp-outcome-ack.service').deferOrSendLpOutcome;
+
   if (result && result.lesson_plan_link_method === 'selected_recent') {
-    // "linked" only once the linker has actually written the ref.
-    await sendMessage(from, getCoachingMessage('lessonPlan_linked', lang));
     // bd-5knlj: a LATE tap — the session already analyzed — must not re-run the
     // whole analysis; recompute ONLY the fidelity section so Section B fills in
     // for the still-unsubmitted review.
-    if (status == null) status = await sessionStatus(sessionId);
-    if (status && status !== 'awaiting_lesson_plan') {
-      const r = await recomputeFidelity(sessionId);
-      // bd-2kxxa.4: race — the review was submitted between our status check and
-      // the write. The CAS persist refused; tell the coach instead of leaving
-      // "linked" as the last word.
-      if (r && r.recomputed === false && r.reason === 'review_submitted') {
-        await sendMessage(from, getCoachingMessage('lessonPlan_review_submitted', lang));
-      }
+    // (`status` is a const read above; re-reading into a const threw.)
+    const linkStatus = status == null ? await sessionStatus(sessionId) : status;
+    if (!linkStatus || linkStatus === 'awaiting_lesson_plan') {
+      // "linked" only once the linker has actually written the ref.
+      const extra = await deferLpOutcome({
+        sessionId, from, messageKey: 'lessonPlan_linked', language: lang, sendMessage,
+        text: getCoachingMessage('lessonPlan_linked', lang),
+      });
+      await queueAnalysis(sessionId, { from, ...extra });
       return true;
     }
-    await queueAnalysis(sessionId, { from });
+    // A late tap: no analysis follows, so "linked" is said now, as before.
+    await sendMessage(from, getCoachingMessage('lessonPlan_linked', lang));
+    const r = await recomputeFidelity(sessionId);
+    // bd-2kxxa.4: race — the review was submitted between our status check and
+    // the write. The CAS persist refused; tell the coach instead of leaving
+    // "linked" as the last word.
+    if (r && r.recomputed === false && r.reason === 'review_submitted') {
+      await sendMessage(from, getCoachingMessage('lessonPlan_review_submitted', lang));
+    }
     return true;
   }
 
   // none (or an unresolvable selection that fell back to none)
-  await sendMessage(from, getCoachingMessage('lessonPlan_skip', lang));
-  await queueAnalysis(sessionId, { from });
+  const extra = await deferLpOutcome({
+    sessionId, from, messageKey: 'lessonPlan_skip', language: lang, sendMessage,
+    text: getCoachingMessage('lessonPlan_skip', lang),
+  });
+  await queueAnalysis(sessionId, { from, ...extra });
   return true;
 }
 

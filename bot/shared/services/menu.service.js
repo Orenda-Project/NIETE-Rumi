@@ -12,6 +12,7 @@ const { isFeatureRunnable } = require('../config/feature-availability');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { canSelfCoach, canObserve } = require('../config/role-features');
 const { getUserLanguage } = require('../utils/language-cache');
+const { redirectIfFlagged } = require('./app-redirect.service');
 
 const openai = getClient();
 
@@ -36,6 +37,27 @@ const refusal = (kind, language) => ROLE_REFUSAL[kind][language === 'ur' ? 'ur' 
 
 // Menu selection state TTL (5 minutes)
 const MENU_STATE_TTL = 300;
+
+/**
+ * bd-onxyu — which app-redirect switch each menu row answers to. A row not
+ * listed here (language, other) is never redirected.
+ */
+const MENU_ROW_FEATURES = Object.freeze({
+  menu_training: 'teacher_training',
+  menu_lesson_plan: 'lesson_plan',
+  menu_assessment: 'assessment_generator',
+  menu_coaching: 'ai_coaching',
+  menu_observe: 'observe',
+  menu_reading: 'reading_test',
+  menu_quiz: 'quiz',
+  menu_videos: 'video',
+  menu_video: 'video',
+  menu_attendance: 'attendance',
+  menu_classes: 'classes',
+  menu_roster: 'classes',
+});
+/** The numbered text-fallback menu: 1 coaching, 2 lesson plans, 3 media, 4 general help. */
+const MENU_CHOICE_FEATURES = Object.freeze({ 1: 'ai_coaching', 2: 'lesson_plan', 3: 'video', 4: 'general_chat' });
 
 /**
  * Menu Service
@@ -142,6 +164,20 @@ class MenuService {
         await redisService.delete(stateKey); // consume it; a tap is answered once
       }
 
+      // The tap answers the menu, so the menu's wait is over. Sending the menu
+      // parks AWAITING_MENU_CHOICE for an hour; rows that open a Flow (training,
+      // assessment, attendance…) never cleared it, so the teacher's next free text
+      // within the hour was met with "Please choose an option (1-4)" — a billed
+      // message that answered nothing. Flow-scoped to 'menu': another feature's
+      // work in progress is not this tap's to end. Rows that start a wait of their
+      // own (coaching, lesson plan) set it after this.
+      // Never allowed to cost the tap: a failed clear is logged and the row still opens.
+      try {
+        await ConversationState.clearState(user.id, { flow: 'menu' });
+      } catch (err) {
+        logToFile('⚠️ menu: could not end the menu wait (non-fatal)', { error: err.message }, 'warn');
+      }
+
       // Recompute rather than refuse. getOrCreateSession returns the teacher's
       // current session, creating one if the old one has rotated — which is the
       // normal case for a teacher returning after a break.
@@ -153,6 +189,13 @@ class MenuService {
         sessionId,
         hadStoredState: Boolean(state), // watch this ratio; it is the old dead-end rate
       });
+
+      // bd-onxyu — a row whose feature is switched to the app gets the Play
+      // Store notice (or, inside the quiet hour, nothing) instead.
+      const rowFeature = MENU_ROW_FEATURES[buttonId];
+      if (rowFeature && await redirectIfFlagged(rowFeature, {
+        userId: user.id, from, language, reason: 'menu',
+      })) return;
 
       // Route to appropriate handler based on button ID
       switch (buttonId) {
@@ -395,6 +438,10 @@ class MenuService {
         return;
       }
 
+      // bd-onxyu — the numbered fallback menu reaches the same features.
+      const choiceFeature = MENU_CHOICE_FEATURES[choiceNum];
+      if (await redirectIfFlagged(choiceFeature, { userId, from, language, reason: 'menu_choice' })) return;
+
       switch (choiceNum) {
         case 1:
           // Classroom Coaching
@@ -433,6 +480,9 @@ class MenuService {
    * @private
    */
   static async _handleClassroomCoachingChoice(userId, sessionId, from, language) {
+    // bd-onxyu — every coaching door (chip, menu, /coaching, the "Record my
+    // lesson" button) lands here, so the switch is asked here as well.
+    if (await redirectIfFlagged('ai_coaching', { userId, from, language, reason: 'coaching_door' })) return;
     // One door, one instruction: the menu row, the /coaching command and the
     // "Record my lesson" tap on the lesson-plan ask all land here. The copy
     // names the WhatsApp mic (two teachers in three already record with it) and
@@ -532,6 +582,7 @@ class MenuService {
    * @private
    */
   static async _handleMediaLibraryChoice(userId, sessionId, from, language) {
+    if (await redirectIfFlagged('video', { userId, from, language, reason: 'media_door' })) return;
     // Issue #40: Delegate to VideoOrchestrator - single source of truth for video state
     const VideoOrchestrator = require('./video/video-orchestrator.service');
 
@@ -678,5 +729,7 @@ class MenuService {
 }
 
 module.exports = MenuService;
+module.exports.MENU_ROW_FEATURES = MENU_ROW_FEATURES;
+module.exports.MENU_CHOICE_FEATURES = MENU_CHOICE_FEATURES;
 
 // QA pipeline demo probe (PR #771): a mapped file changed from a plain terminal commit.

@@ -283,9 +283,19 @@ describe('an undeliverable question is skipped, never turned into a finish', () 
 
     await drive(VideoQuiz.handleAnswer(PHONE, 'vq_q-0_0'));   // the same tap again (23505 → reconcile)
 
-    const after = WhatsAppService.sendInteractiveButtons.mock.calls.slice(picked)
+    // The open question (q-2) went out moments ago and is still on screen, so
+    // the double tap re-sends nothing (a second identical bubble, billed) —
+    // and the session still waits on q-2, never on the skipped q-1.
+    const sentSince = () => WhatsAppService.sendInteractiveButtons.mock.calls.slice(picked)
       .map((c) => String(c[1].buttons[0].id).split('_')[1]);
-    expect(after).toEqual(['q-2']);
+    expect(sentSince()).toEqual([]);
+    const waiting = JSON.parse(kv.get(stateKey));
+    expect(waiting.currentQuestionId).toBe('q-2');
+
+    // Long after it went out, a re-tap re-sends the OPEN question — q-2.
+    kv.set(stateKey, JSON.stringify({ ...waiting, sentAt: Date.now() - 3 * 60 * 1000 }));
+    await drive(VideoQuiz.handleAnswer(PHONE, 'vq_q-0_0'));
+    expect(sentSince()).toEqual(['q-2']);
   });
 });
 

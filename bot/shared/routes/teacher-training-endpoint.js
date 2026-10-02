@@ -1543,6 +1543,11 @@ async function loadModuleExamSlot(userId, levelId, courseId, modules) {
       .select('is_passed, completed_at, cooldown_until, grand_quiz_id, score, total_score, status')
       .eq('user_id', userId).in('grand_quiz_id', ids.length ? ids : [-1]);
     const passed = (attempts || []).some(a => a.is_passed);
+    // bd-hxm7a — written answer graded but HELD: the exam is pending review,
+    // and while results are held no mark (which includes the CRQ) is shown.
+    const pendingReview = !passed && (attempts || []).some(a => a.status === 'pending_review');
+    const { crqResultsHeld } = require('../services/training/isaps-crq-hold.rules');
+    const marksHeld = await crqResultsHeld(supabase);
 
     // The MARK, so the course page can show it.
     //
@@ -1585,11 +1590,11 @@ async function loadModuleExamSlot(userId, levelId, courseId, modules) {
       unitsDone: units.filter(u => u.done).length,
       mcqCount: Math.min(MODULE_EXAM_MCQ_COUNT, mcqCount),
       crqCount: crqCount > 0 ? 1 : 0,
-      passed, cooldownHoursLeft,
-      bestScore: best ? best.score : null,
-      bestTotal: best ? best.total : null,
-      bestPct: best ? Math.round(best.pct) : null,
-      lastAttemptAt: best ? best.completedAt : null,
+      passed, cooldownHoursLeft, pendingReview,
+      bestScore: best && !marksHeld ? best.score : null,
+      bestTotal: best && !marksHeld ? best.total : null,
+      bestPct: best && !marksHeld ? Math.round(best.pct) : null,
+      lastAttemptAt: best && !marksHeld ? best.completedAt : null,
     });
   } catch (err) {
     logToFile('⚠️ loadModuleExamSlot failed — falling back to no exam', {

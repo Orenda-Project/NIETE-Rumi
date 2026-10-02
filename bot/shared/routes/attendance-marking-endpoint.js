@@ -26,7 +26,9 @@
  * be outside the Flow before it can start.
  *
  * flow_token carries the context:
- *   "<userId>"                            → CLASS      (teacher; the Flow picks the class)
+ *   "<userId>:student"                    → CLASS      (teacher; the Flow picks the class)
+ *   "<userId>"                            → CLASS      (the same, from a Flow sent before
+ *                                                       the subject was spelled out)
  *   "<userId>:teacher:<schoolId>"         → STAFF_DATE (principal, tapping)
  *   "<userId>:teacher:<schoolId>:voice"   → REVIEW     (principal, after a voice note)
  *   "<userId>:student:<listId>"           → CLASS      (legacy; see handleMarkingInit)
@@ -203,11 +205,14 @@ async function withRoster(ctx) {
 }
 
 /**
- * "<userId>" | "<userId>:<subject>:<targetId>[:<mode>]" → its parts.
+ * "<userId>" | "<userId>:<subject>[:<targetId>[:<mode>]]" → its parts.
  *
  * The target is OPTIONAL: the Flow's CLASS screen picks what to mark, so a TEACHER
- * opens with the bare user id. A principal always carries a composite token, because
- * their target is settled by their role before the Flow opens.
+ * opens with "<userId>:student" — no target. (The subject is spelled out so the
+ * Flow's completion, which carries nothing but this token on a WABA whose asset
+ * predates the SAVED tag, is still recognised as attendance; a bare "<userId>" from
+ * an older Flow parses identically.) A principal always carries a composite token,
+ * because their target is settled by their role before the Flow opens.
  *
  * The old student-composite shape still parses too. A Flow message already delivered
  * to a handset carries it, and a token the endpoint cannot read is a register the

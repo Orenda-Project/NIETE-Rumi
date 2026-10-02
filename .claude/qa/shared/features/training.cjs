@@ -385,10 +385,13 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
         }
         const notQuite = NOT_QUITE.test(hit.txt);
         let btns = hit.btns || [];
-        // A not-quite verdict is followed by a SEPARATE card carrying 🔄 Try again / ⏸ Pause — wait for it.
-        // A PASS is followed by the NEXT module's card; do NOT poll here or we would consume it (T01).
-        if (notQuite) { const t0 = Date.now(); while (Date.now() - t0 < 8000) { await pull(); const b = [...seen].reverse().find(x => (x.btns || []).some(bb => /Try again|Pause/i.test(bb))); if (b) { btns = b.btns; break; } await new Promise(r => setTimeout(r, 800)); } }
-        return { first, trail, seen, last: { verdict: notQuite ? 'not-quite' : 'passed', txt: (hit.txt || '').slice(0, 220), btns } };
+        // bd-w2daa.8 (fewer bubbles): a not-quite verdict now CARRIES 🔄 Try again / ⏸ Pause on the same
+        // message; the wait below only runs for the over-cap fallback, where they follow as a separate card.
+        // A PASS now opens the NEXT module's card (or the certificate PDF's caption, or the level-complete
+        // line) — the hit IS that card, returned whole so T01/T08 do not wait for a second one.
+        if (notQuite && !btns.some(bb => /Try again|Pause/i.test(bb))) { const t0 = Date.now(); while (Date.now() - t0 < 8000) { await pull(); const b = [...seen].reverse().find(x => (x.btns || []).some(bb => /Try again|Pause/i.test(bb))); if (b) { btns = b.btns; break; } await new Promise(r => setTimeout(r, 800)); } }
+        return { first, trail, seen, last: { verdict: notQuite ? 'not-quite' : 'passed', txt: (hit.txt || '').slice(0, 220), btns,
+                                             doc: !!(hit.doc || hit.pdf), hit } };
       }
       if (isFlowQ(hit)) {
         answered.add(String(hit.flow.token));
@@ -510,7 +513,13 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       s = t();
       const l2 = run2.last || {};
       let nextCard = null;
-      if (l2.verdict === 'passed') nextCard = await waitFresh((x) => (x.btns || []).some(b => CTA_RE.test(b)), 90000);
+      if (l2.verdict === 'passed') {
+        // bd-w2daa.8: "Module check — passed" opens the next module's card, so the pass hit usually IS the
+        // card. A PDF module's buttons trail its captioned document, and may already sit in run2.seen.
+        const cardIn = (x) => (x.btns || []).some(b => CTA_RE.test(b));
+        const already = (l2.hit && cardIn(l2.hit)) ? l2.hit : [...(run2.seen || [])].reverse().find(cardIn);
+        nextCard = already ? { ok: true, hit: already } : await waitFresh(cardIn, 90000);
+      }
       rec('T01', NAME.T01, ...(l2.verdict ? V(l2.verdict === 'passed' && !!(nextCard && nextCard.ok),
                                                 { verdict: l2.verdict, reply: l2.txt, answered: run2.trail.length, nextModuleCard: nextCard && nextCard.ok ? (nextCard.hit.txt || '').slice(0, 120) : null })
                                             : ['BLOCKED', { harness: l2.err, detail: l2 }]), t() - s);
@@ -603,11 +612,15 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
             await api.tapAndWait(card.cta, 60000);
             run = await takeQuiz(key);
             if ((run.last || {}).verdict === 'passed') {
-              cert = await waitFresh((x) => x.doc || x.pdf || /certificate|\u0633\u0631\u0679\u06cc\u0641\u06a9\u06cc\u0679/i.test(x.txt || ''), 120000);
+              // bd-w2daa.8: the pass line and the congratulation ride on the certificate PDF's caption, so the
+              // pass hit is usually the certificate itself (or already in run.seen).
+              const isCert = (x) => x.doc || x.pdf || /certificate|\u0633\u0631\u0679\u06cc\u0641\u06a9\u06cc\u0679/i.test(x.txt || '');
+              const certSeen = (run.last.hit && isCert(run.last.hit)) ? run.last.hit : (run.seen || []).find(isCert);
+              cert = certSeen ? { ok: true, hit: certSeen } : await waitFresh(isCert, 120000);
               // T06 — while this certificate exists (the finally below deletes it): read its code off
               // /certificates, ask for it by code, expect the PDF document (bd-w3cb9.6).
               const s06 = t();
-              await waitFresh((x) => x.doc || x.pdf, 30000);
+              if (!(cert.ok && cert.hit && (cert.hit.doc || cert.hit.pdf))) await waitFresh((x) => x.doc || x.pdf, 30000);
               await sleep(4000); await api.freshReset();   // the level-complete card trails the PDF (run 20260925-1108)
               await api.sendWait('/certificates');
               const lst = await waitFresh((x) => /Cert:\s*`/.test(x.txt || ''), 30000);   // the list, not whatever landed first
@@ -1597,8 +1610,8 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   // T26/T27 — I-SAPS (operator 2026-09-23). Declared unrunnable here, with the reason, not left absent.
 
 
-  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
-  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
+  const APP_REDIRECT_WHY = 'needs an app_redirect_* switch turned ON in the target database, and the switch is global: it would redirect every teacher on that environment for the length of the run. Covered by tests/app-redirect/ (the real text handler and menu router, red-first).';
   if (!seenIds.has('T28')) rec('T28', 'A maths question with fractions reaches the child as a typeset card', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
   if (!seenIds.has('T29')) rec('T29', 'A quiz never ships an answer key a blind solver disagrees with', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
@@ -1609,8 +1622,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
 
 
 
-  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
-  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
 
 
 
@@ -1640,8 +1652,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
 
 
 
-  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
-  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
   if (!seenIds.has('T63')) rec('T63', 'However I type "quiz", it opens my quiz menu', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
 
   if (!seenIds.has('T64')) rec('T64', '/quiz lists the lesson plans I took, says where each lesson came from, and makes nothing until I tap', 'BLOCKED', { reason: 'the generation cluster (training-quiz-gen.cjs) did not reach it' }, 0);
@@ -1697,5 +1708,30 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
     rec('T87', "An I-SAPS module exam opens only once that module's sessions are passed", 'BLOCKED', { reason: why }, 0);
     rec('T88', 'An I-SAPS module exam is 4 multiple-choice questions and 1 written answer, with two separate pass bars', 'BLOCKED', { reason: why }, 0);
     rec('T89', 'A failed I-SAPS module exam can be retaken straight away', 'BLOCKED', { reason: why }, 0);
+    rec('T90', 'An I-SAPS written answer is graded but its mark is not shown while results are held', 'BLOCKED',
+      { reason: why.replace('isaps-golive-gates.test.js', 'isaps-crq-hold.test.js') }, 0);
   }
+
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
+  rec('T92', 'With Teacher Training moved to the app, /training sends me to the Play Store instead', 'BLOCKED',
+      { reason: APP_REDIRECT_WHY }, 0);
+
+  rec('T93', 'Asking again within the hour gets no reply at all', 'BLOCKED',
+      { reason: APP_REDIRECT_WHY }, 0);
+
+  // bd-w2daa.7 — fewer bubbles, same words (the Meta bill cut). Recorded with the reason, not left
+  // absent: no driver yet reads reactions or counts a child's bubbles on this lane. Each rule is
+  // covered red-first by the suites named in the spec's section header.
+  {
+    const why = 'no driver yet counts a child\'s bubbles or reads reactions on this lane; covered by '
+      + 'tests/quiz/child-quiz-fewer-bubbles.test.js, child-refusals-once-a-day.test.js and '
+      + 'teacher-quiz-handoff-fewer-bubbles.test.js';
+    rec('T94', 'A child\'s answer gets a ✅ or ❌ on the tap, and the verdict rides on the next question when that one starts with words', 'BLOCKED', { reason: why }, 0);
+    rec('T95', 'A double tap does not bring the same question twice', 'BLOCKED', { reason: why }, 0);
+    rec('T96', 'A class quiz opens in one message when its first question starts with words', 'BLOCKED', { reason: why }, 0);
+    rec('T97', 'The score card is the picture on the "invite a friend" message', 'BLOCKED', { reason: why }, 0);
+    rec('T98', 'A child who keeps sending voice notes hears the "please type" line once a day', 'BLOCKED', { reason: why }, 0);
+    rec('T99', '"Not now" on the quiz offer is answered with a 👍', 'BLOCKED', { reason: why }, 0);
+  }
+
 };

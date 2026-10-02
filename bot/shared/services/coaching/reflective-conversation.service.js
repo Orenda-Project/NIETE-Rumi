@@ -40,11 +40,19 @@ class ReflectiveConversationService {
    * @param {string} coachingSessionId - Coaching session UUID
    * @param {string} from - User's phone number
    * @param {number} questionNumber - Question number (1-3), defaults to 1
+   * @param {{ reask?: boolean, silent?: boolean }} [opts] - reask: a deliberate
+   *   re-ask of an unanswered question ("Continue Now"), exempt from the
+   *   once-per-session guard; silent: a portal debrief, nothing sent on WhatsApp
    * @returns {Promise<void>}
    */
-  static async conductReflectiveConversation(coachingSessionId, from, questionNumber = 1) {
+  static async conductReflectiveConversation(coachingSessionId, from, questionNumber = 1, opts = {}) {
+    // bd-7kc2z: a PORTAL-originated debrief is silent on WhatsApp — the teacher
+    // is reading the question in the browser, not in her chat. Only the delivery
+    // is suppressed: generation, the conversation_state write, the language lock
+    // and the status transition below are the same code on both paths.
+    const silent = opts.silent === true;
     try {
-      logToFile('Conducting reflective conversation', { coachingSessionId, questionNumber });
+      logToFile('Conducting reflective conversation', { coachingSessionId, questionNumber, silent });
 
       // Get session data including full transcript and user_id
       const { data: session, error: sessionError } = await supabase
@@ -166,8 +174,27 @@ class ReflectiveConversationService {
       // escape used to fail the whole session at "analysis" — telling the
       // teacher her classroom could not be analysed and re-queueing the job —
       // although the analysis had already succeeded.
+      // Meta bill cut NC5 (N1-13): 4.5% of reflective questions went out twice —
+      // the analysis job ran twice for one session and both runs asked. Once per
+      // (session, question number). "Continue Now" re-asks on purpose (reask).
+      // A question that reaches them by neither voice nor text gives the claim back.
+      const { claimPiece, releasePiece } = require('./report-piece-once');
+      const piece = `refl_q_${questionNumber}`;
+      // A silent (portal) debrief sends nothing on WhatsApp, so it takes no claim.
+      if (!silent && !(opts && opts.reask) && !(await claimPiece(coachingSessionId, piece))) {
+        logToFile('🔁 Reflective question already asked for this session — not asking twice', { coachingSessionId, questionNumber });
+        return;
+      }
+
       let voiceSent;
       let voiceError = null;
+      let delivery = silent ? 'portal' : 'voice';
+      // bd-7kc2z: silent (portal) debrief — nothing is voiced and nothing is
+      // sent. `delivery` stays 'portal' so the log line below reads truthfully
+      // rather than claiming a voice note went out. Everything AFTER this block
+      // (the conversation_state write, the language lock, the status update) is
+      // the same code on both paths.
+      if (!silent) {
       try {
         const voice = await tts.synthesize({
           text: question,
@@ -183,7 +210,6 @@ class ReflectiveConversationService {
       } catch (error) {
         voiceError = error;
       }
-      let delivery = 'voice';
       if (voiceError || voiceSent === false) {
         logToFile(voiceError
           ? '❌ Reflective question could not be voiced — sending it as text'
@@ -195,6 +221,8 @@ class ReflectiveConversationService {
         const textSent = await WhatsAppService.sendMessage(from, question);
         delivery = textSent === false ? 'none' : 'text';
       }
+      }
+      if (delivery === 'none') await releasePiece(coachingSessionId, piece);
 
       // Update conversation state - STORE THE QUESTION
       const existingQuestions = session.conversation_state.questions || [];
@@ -238,6 +266,13 @@ class ReflectiveConversationService {
       } else {
         logToFile('✅ Reflective question sent', { coachingSessionId, questionNumber, delivery });
       }
+
+      // bd-7kc2z: the portal caller needs the question text back — it has no
+      // chat thread to read it from. The WhatsApp path's return value is
+      // unchanged (undefined): no existing caller reads it.
+      if (silent) {
+        return { question, questionNumber, language: languageCode };
+      }
     } catch (error) {
       logToFile('❌ Error in conductReflectiveConversation', {
         error: error.message,
@@ -257,7 +292,12 @@ class ReflectiveConversationService {
    * @param {string|null} language - Detected language
    * @returns {Promise<void>}
    */
-  static async handleReflectiveResponse(coachingSessionId, from, response, format = 'text', language = null) {
+  static async handleReflectiveResponse(coachingSessionId, from, response, format = 'text', language = null, opts = {}) {
+    // bd-7kc2z: silent (portal) — see conductReflectiveConversation. The answer
+    // is stored, the acknowledgement is still GENERATED (it is the closing
+    // content the portal shows), and the report is queued exactly as before.
+    // Only the voice note and the text fallback are suppressed.
+    const silent = opts.silent === true;
     try {
       logToFile('Handling reflective response', {
         coachingSessionId,
@@ -355,9 +395,11 @@ class ReflectiveConversationService {
       // Check if we need more questions
       if (questionsAnswered < NUM_REFLECTIVE_QUESTIONS) {
         // Generate next question
-        await this.conductReflectiveConversation(coachingSessionId, from, questionsAnswered + 1);
+        const next = await this.conductReflectiveConversation(coachingSessionId, from, questionsAnswered + 1, { silent });
+        if (silent) return { done: false, ...(next || {}) };
       } else {
         // All questions answered - proceed to report generation
+        let portalAcknowledgement = null;
         // Get user's language for thank you message
         const { data: sessionData } = await supabase
           .from('coaching_sessions')
@@ -395,6 +437,9 @@ class ReflectiveConversationService {
           const closingText = (ackLine && ackLine.trim()) || getCoachingMessage('reflectionsThanks', languageCode);
           const spokenForm = closingText.replace(/\s*🙏\s*$/u, '');
 
+          // bd-7kc2z: silent (portal) — the acknowledgement above is returned
+          // to the caller instead of being voiced. Nothing reaches WhatsApp.
+          if (!silent) {
           try {
             // The report is queued only after this closer, so its voice gets a
             // short deadline: past it the closer goes as text and the report is
@@ -421,7 +466,9 @@ class ReflectiveConversationService {
             logToFile('⚠️  Voice generation failed for reflection closer, sending text', { error: voiceError.message });
             await WhatsAppService.sendMessage(from, closingText);
           }
-        } else {
+          }
+          portalAcknowledgement = closingText;
+        } else if (!silent) {
           // Session row missing — language unknown, default to English.
           await WhatsAppService.sendMessage(from, getCoachingMessage('reflectionsThanks', 'en'));
         }
@@ -436,6 +483,13 @@ class ReflectiveConversationService {
           current_state: 'GENERATING_REPORT'
         });
         await CoachingSessionService.updateStatus(coachingSessionId, 'generating_report');
+
+        // bd-7kc2z: the portal shows the acknowledgement itself and then polls
+        // for the report. The WhatsApp path returns undefined as it always has.
+        if (silent) {
+          logToFile('✅ Reflective response handled', { coachingSessionId, questionsAnswered, silent });
+          return { done: true, acknowledgement: portalAcknowledgement, reportStatus: 'generating' };
+        }
       }
 
       logToFile('✅ Reflective response handled', { coachingSessionId, questionsAnswered });

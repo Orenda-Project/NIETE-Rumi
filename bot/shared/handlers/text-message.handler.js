@@ -24,6 +24,7 @@ const FeatureLinkerService = require('../services/feature-linker.service');
 const FeatureIntroService = require('../services/feature-intro.service');
 const LessonPlanQueueService = require('../services/lesson-plan-queue.service');
 const LpFeedbackService = require('../services/lp-feedback.service');
+const InboundTyping = require('../services/inbound-typing');
 const handleCurriculumLessonPlan = require('./lesson-plan-v2.handler');
 const RegionFeaturesService = require('../services/region-features.service');
 const { getUserRegion } = require('../utils/region');
@@ -220,6 +221,7 @@ function isSelectVideoButton({ buttonId, buttonPayload, buttonText } = {}) {
 // it can be tested without this module's dependency graph, and widened there to
 // match the plural (`/videos`), which used to fall through to the chat LLM.
 const { isVideoCommand } = require('./video-command');
+const { redirectIfFlagged } = require('../services/app-redirect.service');
 // A bare request for the quiz menu, in any spelling. The /quiz door and the
 // reason windows below both read it, so a quiz request is never a 👎 reason.
 const { isQuizMenuRequest } = require('../services/quiz/quiz-menu-request');
@@ -294,6 +296,9 @@ async function tryShareCodeJoin(from, messageBody, typingController) {
     // join now runs after the handler returns, under a per-phone+code
     // lock so a retry cannot start a second session.
     typingController.stop();
+    // The join answers with a message, after this handler has returned: keep the inbound's
+    // deferred "typing…" alive past the end of the webhook's dispatch (bd-0wrn4).
+    InboundTyping.handOff();
     setImmediate(() => VideoQuizShare.beginFromCodeLocked(from, code)
       .catch((err) => logToFile('❌ video-quiz join failed', { from, code, error: err.message }, 'error')));
     return true;
@@ -318,11 +323,41 @@ async function quizInterceptStep(name, fn) {
   }
 }
 
+/**
+ * bd-0wrn4 — an open lesson-plan 👎-reason window (K-5 or 6-12) means this text is most likely the
+ * reason, and a reason is receipted by the webhook's 👍 alone: no message follows. Those checks sit
+ * behind the quiz intercepts and the session lookup — on production they decide 2.4-3.4 s after the
+ * point "typing…" used to appear, past the inbound-typing deadline — so "typing…" is held back until
+ * they have run. Checked off the critical path (two Redis reads); with no window open nothing is
+ * held. Returns an idempotent release.
+ */
+function holdTypingWhileReasonPending(user) {
+  if (!user || !user.id || !InboundTyping.isPending()) return () => {};
+  let release = null;
+  let done = false;
+  (async () => {
+    try {
+      const redisService = require('../services/cache/railway-redis.service');
+      const Lp612FeedbackService = require('../services/lp612-feedback.service');
+      const keys = [LpFeedbackService.REDIS_REASON_KEY(user.id), Lp612FeedbackService.REDIS_REASON_KEY(user.id)];
+      const open = await Promise.all(keys.map((k) => Promise.resolve(redisService.get(k)).catch(() => null)));
+      if (!done && open.some(Boolean)) release = InboundTyping.hold();
+    } catch (_) { /* no hold: typing behaves as for any other text */ }
+  })();
+  // release() — not a reason: a reply is coming. release(false) — on the way out: drop the hold
+  // without showing typing (a captured reason ends the request silently).
+  return (showIfDue = true) => {
+    done = true;
+    if (release) { release(showIfDue); release = null; }
+  };
+}
+
 async function handleTextMessage(message, from, messageBody, user = null) {
   logToFile(`Processing TEXT message: ${messageBody}`);
 
   // Start continuous typing indicator immediately
   const typingController = WhatsAppService.startContinuousTypingIndicator(from, message.id);
+  const releaseReasonHold = holdTypingWhileReasonPending(user);
 
   try {
     // bd-mg9c7.97 — the share-code JOIN itself runs before anything else,
@@ -366,7 +401,8 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       // adaptive quiz below never sees them.
       const typedAnswer = await quizInterceptStep('typed quiz answer', () => {
         const VideoQuizService = require('../services/quiz/video-quiz.service');
-        return VideoQuizService.answerTypedLetter(from, messageBody);
+        // The child's own message id: a free ✅/❌ lands on it.
+        return VideoQuizService.answerTypedLetter(from, messageBody, { messageId: message && message.id });
       });
       if (typedAnswer) { typingController.stop(); return; }
 
@@ -528,7 +564,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
 
   if (user?.id && !quizMenuRequest) {
     try {
-      const consumed = await LpFeedbackService.consumeReasonIfPending(user.id, from, messageBody);
+      const consumed = await LpFeedbackService.consumeReasonIfPending(user.id, from, messageBody, { messageId: message && message.id });
       if (consumed) {
         logToFile('LP Feedback: reason captured, short-circuiting text handler', {
           userId: user.id, from,
@@ -553,7 +589,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   if (user?.id && messageBody && !quizMenuRequest) {
     try {
       const Lp612FeedbackService = require('../services/lp612-feedback.service');
-      const consumed = await Lp612FeedbackService.consumeReasonIfPending(user.id, from, messageBody);
+      const consumed = await Lp612FeedbackService.consumeReasonIfPending(user.id, from, messageBody, { messageId: message && message.id });
       if (consumed) {
         logToFile('LP 6-12 feedback: reason captured, short-circuiting text handler', {
           userId: user.id, from,
@@ -566,6 +602,8 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       });
     }
   }
+  // Not a 👎 reason: a reply is coming — let "typing…" go up (at once if its deadline passed).
+  releaseReasonHold();
 
   // ============================================================
   // FEATURE-BASED REGISTRATION: Check if waiting for name
@@ -671,6 +709,17 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   const trimmedMessage = messageBody.trim().toLowerCase();
 
+  // bd-onxyu — the app-redirect switches. Each feature door below asks first;
+  // true means handled (the Play Store notice went, or the quiet hour silenced
+  // it) and the door returns without running the feature. Off — the default —
+  // is false and changes nothing. Unregistered senders are never redirected.
+  const redirectToApp = async (feature, reason) => {
+    if (!user?.id) return false;
+    const handled = await redirectIfFlagged(feature, { userId: user.id, from, language: responseLanguage, reason });
+    if (handled) typingController.stop();
+    return handled;
+  };
+
   // Student Video feedback reason capture — if the teacher tapped "Not really"
   // on a recent video survey and is within the 10-min reason window, capture
   // this text as the reason and short-circuit. Slash commands bypass this
@@ -710,6 +759,11 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       typingController.stop();
       return;
     }
+
+    const chipFeature = {
+      lesson_plan: 'lesson_plan', video: 'video', ai_coaching: 'ai_coaching', training: 'teacher_training',
+    }[action];
+    if (chipFeature && await redirectToApp(chipFeature, 'chip')) return;
 
     try {
       switch (action) {
@@ -793,6 +847,9 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   if (user && !trimmedMessage.startsWith('/')) {
     try {
       const ExamCheckerHandler = require('./exam-checker.handler');
+      if (ExamCheckerHandler.shouldTriggerExamChecker(messageBody)
+          && !(await ExamCheckerHandler.hasActiveExamSession(user.id))
+          && await redirectToApp('exam_checker', 'keyword')) return;
       const result = await ExamCheckerHandler.handleExamText(message, from, user);
       if (result && result.handled) {
         logToFile('✅ Message handled by Exam Checker', { userId: user.id });
@@ -858,12 +915,14 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // Gated in observe2/gate.js; off (false) → falls through like any text. /^\/observe\b/ below
   // does not match "/observe2", so the two commands never shadow each other.
   if (/^\/observe2\b/i.test(trimmedMessage)) {
+    if (await redirectToApp('observe', 'command')) return;
     const { handleObserve2Command } = require('../services/observe/observe2/start');
     const observe2Handled = await handleObserve2Command(user, from, trimmedMessage);
     if (observe2Handled) return;
   }
 
   if (/^\/observe\b/i.test(trimmedMessage)) {
+    if (await redirectToApp('observe', 'command')) return;
     const { handleObserveCommand } = require('./observe-command.handler');
     const observeHandled = await handleObserveCommand(user, from, trimmedMessage);
     if (observeHandled) return;
@@ -877,6 +936,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // Returns false on a non-match so normal chat is untouched.
   // ============================================================
   if (/^\/remark\b/i.test(trimmedMessage)) {
+    if (await redirectToApp('remark', 'command')) return;
     const { handleRemarkCommand } = require('./remark-command.handler');
     const remarkHandled = await handleRemarkCommand(user, from, trimmedMessage);
     if (remarkHandled) return;
@@ -925,6 +985,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // The command body lives in handlers/roster-command.js so it can be executed
   // by a test; this branch only dispatches.
   if (trimmedMessage === '/roster') {
+    if (await redirectToApp('classes', 'command')) return;
     const { handleRosterCommand } = require('./roster-command');
     await handleRosterCommand({ user, from, typingController, noAccountCopy });
     return;
@@ -935,6 +996,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   if (trimmedMessage === '/reading test' || trimmedMessage === '/readingtest') {
     logToFile('📖 /reading test command detected', { userId: user?.id, phoneNumber: from });
+    if (await redirectToApp('reading_test', 'command')) return;
 
     if (!user) {
       // Edge case: user not found in database
@@ -1094,6 +1156,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     lowerTrimmed === 'open trainings'
   ) {
     logToFile('🎓 /training command detected', { userId: user?.id, phoneNumber: from });
+    if (await redirectToApp('teacher_training', 'command')) return;
     if (!user) {
       typingController.stop();
       await WhatsAppService.sendMessage(
@@ -1128,6 +1191,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   const certCommand = parseCertificateCommand(trimmedMessage);
   if (certCommand) {
     logToFile('🏆 /certificates command detected', { userId: user?.id, phoneNumber: from, code: certCommand.code });
+    if (await redirectToApp('teacher_training', 'certificates_command')) return;
     if (!user) {
       typingController.stop();
       await WhatsAppService.sendMessage(
@@ -1197,6 +1261,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   if (['/assessment', '/assess', '/assessments', '/exam', '/exams'].includes(trimmedMessage)) {
     logToFile('📝 assessment command', { userId: user?.id, command: trimmedMessage });
+    if (await redirectToApp('assessment_generator', 'command')) return;
     if (!user) {
       typingController.stop();
       await WhatsAppService.sendMessage(from,
@@ -1229,6 +1294,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   if (TranscriptQuizList.isQuizCommand(messageBody)
       && !(TranscriptQuizOffer.enabled() === false && !/^\/quiz(\s|$)/i.test(trimmedMessage))) {
     logToFile('📝 /quiz command detected', { userId: user?.id, phoneNumber: from });
+    if (await redirectToApp('quiz', 'command')) return;
     if (!user) {
       typingController.stop();
       await WhatsAppService.sendMessage(
@@ -1289,6 +1355,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   {
     const lpMatch = matchLessonPlanIntent(trimmedMessage);
+    if (lpMatch.matched && await redirectToApp('lesson_plan', 'bare_command')) return;
     if (lpMatch.matched && process.env.PAKISTAN_LP_FLOW_ID) {
       logToFile('📘 LP bare command → opening catalogue Flow', {
         userId: user?.id, phoneNumber: from, message: trimmedMessage,
@@ -1320,6 +1387,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // ============================================================
   if (isVideoCommand(trimmedMessage)) {
     logToFile('🎬 /video command detected', { userId: user?.id, phoneNumber: from });
+    if (await redirectToApp('video', 'command')) return;
 
     if (!user) {
       // bd-2475 (ported from PK) — a binge-declining child was told
@@ -1687,7 +1755,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         .limit(1)
         .single();
 
-      if (activeCoaching) {
+      // bd-lfzoz: a PORTAL session's reflective question was never shown on
+      // WhatsApp — she answers it in the portal — so it must not capture her
+      // chat (a stray message would be filed as her answer; a slash command
+      // would abandon it). Rows with no source, i.e. every WhatsApp session,
+      // pass exactly as before.
+      const { isWhatsAppReflectiveSession } = require('../services/coaching/portal-coaching.service');
+      if (isWhatsAppReflectiveSession(activeCoaching)) {
         // ONE call decides what this message is, and it deliberately has no
         // clock. The branch that used to live here asked whether `updated_at`
         // was more than an hour old and, if so, threw the teacher's answer away
@@ -2138,6 +2212,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // gap an inline regex accretes one alternative at a time.
   if (isClassesCommand(trimmedMessage)) {
     logToFile('🏫 /classes command detected', { userId: user?.id, phoneNumber: from });
+    if (await redirectToApp('classes', 'command')) return;
 
     if (!user) {
       await WhatsAppService.sendMessage(from,
@@ -2239,6 +2314,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     const HOMEWORK_FLOW_ID = process.env.HOMEWORK_FLOW_ID || '';
     const hwDecision = evaluateHomeworkTrigger({ messageBody, user, homeworkFlowId: HOMEWORK_FLOW_ID });
     if (hwDecision.match) {
+      if (await redirectToApp('homework', 'keyword')) return;
       typingController.stop();
       if (hwDecision.action === 'send_flow' && user) {
         const flowToken = `${user.id}:homework:${Date.now()}`;
@@ -2285,6 +2361,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   {
     const coachDecision = evaluateCoachingTrigger({ messageBody });
     if (coachDecision.match) {
+      if (await redirectToApp('ai_coaching', 'keyword')) return;
       typingController.stop();
       if (user) {
         await FeatureIntroService.sendFirstUseIntroIfNeeded(user.id, from, 'ai_coaching', responseLanguage);
@@ -2346,6 +2423,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   // screen or a reply button; there is no typed-number step anywhere in this path.
   // ============================================================
   if (user?.id && AttendanceRouter.detect(messageBody).detected) {
+    if (await redirectToApp('attendance', 'keyword')) return;
     typingController.stop();
     // One door, in attendance-entry.service: it plans through the router and
     // then runs the ONE decision switch, the same one the typed-answer path
@@ -2471,7 +2549,16 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   }
   const conversationState = activeState?.step || null;
 
-  // Handle menu choice (1-4)
+  // The menu wait. A digit 1-4 still picks from the NUMBERED text menu, which is
+  // sent when the list menu cannot be.
+  //
+  // Anything else used to be answered "📋 Please choose an option (1-4) from the
+  // menu above" and dropped — but the menu a teacher sees is a WhatsApp LIST of
+  // named rows, with no 1-4 in it, and the wait lasts an hour. Production, one
+  // week: 712 such replies; 562 were followed by the teacher writing again within
+  // five minutes, and 478 of the 712 were real requests ("Lesson for class 10th
+  // urdu"). Free text now ENDS the menu wait (flow-scoped, so nothing else is
+  // touched) and goes on to be answered like any other message.
   if (conversationState === 'AWAITING_MENU_CHOICE' && user && sessionId) {
     const choice = messageBody.trim();
     if (['1', '2', '3', '4'].includes(choice)) {
@@ -2487,14 +2574,12 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         responseLanguage
       );
       return; // Exit early
-    } else {
-      // Invalid menu choice - use Helper Agent to guide user
-      logToFile('⚠️  Invalid menu choice', { choice: messageBody });
-      typingController.stop();
-
-      const escapeMessage = HelperAgentService.getEscapePathMessage('AWAITING_MENU_CHOICE', responseLanguage);
-      await WhatsAppService.sendMessage(from, escapeMessage);
-      return; // Don't fall through to intent detection
+    }
+    logToFile('📋 Free text during the menu wait — ending the wait and answering it', { length: choice.length });
+    try {
+      await ConversationState.clearState(user.id, { flow: 'menu' });
+    } catch (err) {
+      logToFile('⚠️ could not end the menu wait (non-fatal)', { error: err.message }, 'warn');
     }
   }
 
@@ -2732,6 +2817,13 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     }
   }
 
+  // bd-onxyu — open messages. Whatever the classifier makes of it, the matching
+  // switch is asked; anything it does not name is general chat.
+  const intentFeature = {
+    lesson_plan: 'lesson_plan', presentation: 'presentation', video: 'video',
+  }[intent.type] || 'general_chat';
+  if (await redirectToApp(intentFeature, 'intent')) return;
+
   if (intent.type === 'lesson_plan') {
     // Curriculum pre-gen intercept (no-op unless the region enables it)
     if (await tryCurriculumLessonPlanServe(from, messageBody, user, responseLanguage)) {
@@ -2753,6 +2845,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   } finally {
     // CRITICAL: Always stop typing indicator, even if function exits early or throws
     typingController.stop();
+    releaseReasonHold(false);
   }
 }
 
@@ -2779,18 +2872,14 @@ async function handleLessonPlanRequest(from, messageBody, user, sessionId, respo
   // bd-oak77.4 — she typed a TOPIC and is about to be shown a grade picker. One short line first,
   // saying where lessons come from now. Only on this door: the bare "lp" command and the /menu tap
   // open the Flow with no preamble because nothing needs explaining there.
-  // Gated on the same precondition openLpBrowseFlow checks, so a deployment with no Flow gets the
-  // not-in-catalog reply on its own rather than an explanation followed by a contradiction.
-  if (user && isLp612RouteAll() && process.env.PAKISTAN_LP_FLOW_ID) {
-    try {
-      await WhatsAppService.sendMessage(from, resolveUx('lp612RouteRedirect', { language: responseLanguage }));
-    } catch (redirectErr) {
-      logError('LP route-all redirect line failed to send', {
-        error: redirectErr.message, userId: user.id,
-      });
-    }
-  }
-  if (user && await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'lesson_plan_intent' })) {
+  // Meta bill cut NL3 (bd-w2daa.9): the line is the opening paragraph of the Flow message's body,
+  // not its own billed text a second earlier — same words, one message. It rides only on the Flow,
+  // so a deployment with no Flow still gets the not-in-catalog reply on its own rather than an
+  // explanation followed by a contradiction.
+  const bodyPrefix = (user && isLp612RouteAll())
+    ? resolveUx('lp612RouteRedirect', { language: responseLanguage })
+    : null;
+  if (user && await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'lesson_plan_intent', bodyPrefix })) {
     return;
   }
   const notInCatalogMessages = {

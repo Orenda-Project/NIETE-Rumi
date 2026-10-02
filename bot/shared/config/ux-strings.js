@@ -338,15 +338,55 @@ const UX_STRINGS = {
   // operator 2026-09-14. Both bodies ≈285 code points (cap 1,024). The Urdu asks
   // with the subjunctive («کیا … شامل کریں؟»): «شامل کرنا چاہیں گے؟» was the
   // masculine future — it guessed the teacher is a man (operator, 24 Sep).
+  //
+  // Meta bill cut NC4 (N2-C06): the offer now ENDS with the instruction the Yes
+  // tap used to send as its own text (coachingPhotoSendNow, same words), so the
+  // Yes tap sends nothing — it keeps the 👍 every tap already gets. ≈420 (en) /
+  // ≈385 (ur) code points of 1,024.
   coachingPhotoOffer: {
-    en: "📸 Would you like to add up to 3 photos? The most useful ones: (1) the board with today's objective or the task, (2) a student's notebook or worksheet, (3) anything you used to explain — a drawing, object, chart or cards. A photo of the class at their desks does not help the analysis.",
-    ur: '📸 کیا 3 تک تصاویر بھی شامل کریں؟ سب سے مفید: (1) بورڈ جس پر آج کا مقصد یا کام لکھا ہو، (2) کسی طالبِ علم کی کاپی یا ورک شیٹ، (3) جو چیز آپ نے سمجھانے کے لیے استعمال کی — ڈرائنگ، کوئی چیز، چارٹ یا کارڈز۔ بچوں کے ڈیسک پر بیٹھے ہونے کی تصویر تجزیے میں مدد نہیں کرتی۔',
+    en: "📸 Would you like to add up to 3 photos? The most useful ones: (1) the board with today's objective or the task, (2) a student's notebook or worksheet, (3) anything you used to explain — a drawing, object, chart or cards. A photo of the class at their desks does not help the analysis.\n\nTap Yes, then send them one at a time — board first if you have it. I'll read what's on them and use it alongside the recording.",
+    ur: '📸 کیا 3 تک تصاویر بھی شامل کریں؟ سب سے مفید: (1) بورڈ جس پر آج کا مقصد یا کام لکھا ہو، (2) کسی طالبِ علم کی کاپی یا ورک شیٹ، (3) جو چیز آپ نے سمجھانے کے لیے استعمال کی — ڈرائنگ، کوئی چیز، چارٹ یا کارڈز۔ بچوں کے ڈیسک پر بیٹھے ہونے کی تصویر تجزیے میں مدد نہیں کرتی۔\n\n«ہاں» دبائیں، پھر تصاویر بھیجیں، ایک ایک کر کے — پہلے بورڈ، اگر ہو۔ میں ان میں لکھی چیزیں پڑھ کر ریکارڈنگ کے ساتھ استعمال کروں گا۔',
   },
   coachingPhotoOfferYes: { en: 'Yes', ur: 'ہاں' },
   coachingPhotoOfferNo: { en: 'No', ur: 'نہیں' },
   coachingPhotoSendNow: {
     en: "📸 Send the photos now, one at a time — board first if you have it. I'll read what's on them and use it alongside the recording.",
     ur: '📸 اب تصاویر بھیجیں، ایک ایک کر کے — پہلے بورڈ، اگر ہو۔ میں ان میں لکھی چیزیں پڑھ کر ریکارڈنگ کے ساتھ استعمال کروں گا۔',
+  },
+
+  // ─── classroom-photo receipts (Meta bill cut NC4) ──────────────────────────
+  // Every photo used to get its own "📸 Photo n received. Add another?" prompt,
+  // even when 2–3 arrived seconds apart (2,427 of 5,446 prompts in a week came
+  // ≤30 s after the last). capture.service now debounces: one prompt per burst,
+  // carrying the running count — which also carries the "n of max" that the
+  // "Add another" tap used to send as text (it now gets a 📸 reaction).
+  // {n}/{max} arrive as Urdu digits for 'ur' and are bidi-isolated here.
+  coachingPhotoReceivedOne: {
+    en: '📸 Photo {n} of {max} received. Would you like to add another photo?',
+    ur: '📸 تصویر ⁦{n}⁩ از ⁦{max}⁩ موصول۔ کیا ایک اور تصویر شامل کرنی ہے؟',
+  },
+  coachingPhotoReceivedMany: {
+    en: '📸 {n} of {max} photos received. Would you like to add another photo?',
+    ur: '📸 ⁦{max}⁩ میں سے ⁦{n}⁩ تصاویر موصول۔ کیا ایک اور تصویر شامل کرنی ہے؟',
+  },
+  // Button titles — 11/4 (en) and 9/4 (ur) code points of 20. Ids are unchanged.
+  coachingPhotoAddAnotherButton: { en: 'Add another', ur: 'مزید تصویر' },
+  coachingPhotoDoneButton: { en: 'Done', ur: 'مکمل' },
+  // The cap lines now OPEN the lesson-plan prompt (lp-step.service `lead`)
+  // instead of going out as their own text — same words as before.
+  coachingPhotoMaxReached: {
+    en: '📸 Photo {n} received. Maximum reached.',
+    ur: '📸 تصویر ⁦{n}⁩ موصول۔ زیادہ سے زیادہ حد پوری ہو گئی ہے۔',
+  },
+  coachingPhotoMaxAlready: {
+    en: '📸 You can upload a maximum of {max} photos.',
+    ur: '📸 زیادہ سے زیادہ ⁦{max}⁩ تصاویر بھیجی جا سکتی ہیں۔',
+  },
+  // A photo that raced the transcription: now a 📸 reaction on their photo. This
+  // text is the fallback when the reaction cannot go out (same words as before).
+  coachingPhotoHeld: {
+    en: "📸 Got your classroom photo — I'll include it with your lesson analysis.",
+    ur: '📸 تصویر موصول ہو گئی — میں اسے آپ کی کلاس کے تجزیے کے ساتھ شامل کر لوں گا۔',
   },
 
   // ─── classroom-photo "Add another" (bd-pzs9a) ───────────────────────
@@ -434,6 +474,20 @@ const UX_STRINGS = {
   // {date} are bidi-isolated (LRI…PDI) because a Latin name or an ASCII day
   // number inside Urdu otherwise reorders the line. Report bodies, not WhatsApp
   // chrome, so the 1,024 cap applies: longest variant en 96 / ur 104 code points.
+  // Meta bill cut NC5 (N2-C18) — the confirm-gate recovery. A recording left
+  // unconfirmed is analysed anyway by the sweeper; it used to say so in a
+  // hard-coded English line and, seconds later, the transcription job sent
+  // Step 1/5 with the wait. ONE message now, in their language, carrying the same
+  // wait sentence as `step1_transcribing` (word for word), and the job skips
+  // Step 1/5. Passive / impersonal Urdu — nothing addresses them with a gendered verb.
+  coachingConfirmGateProceeding: {
+    en: "Hi {name}! I've gone ahead and started analysing your classroom recording — your report is on the way. \u{1F4CA}\n\nFor a full lesson this can take up to 15 minutes — no need to wait here, I'll message you as each step finishes.",
+    ur: '⁦{name}⁩، آپ کی کلاس روم ریکارڈنگ کا تجزیہ شروع کر دیا گیا ہے — رپورٹ تیار ہو رہی ہے۔ \u{1F4CA}\n\nمکمل سبق کے لیے اس میں 15 منٹ تک لگ سکتے ہیں — یہیں انتظار کرنے کی ضرورت نہیں، ہر مرحلہ مکمل ہونے پر اطلاع دی جائے گی۔',
+  },
+  coachingConfirmGateProceedingNoName: {
+    en: "I've gone ahead and started analysing your classroom recording — your report is on the way. \u{1F4CA}\n\nFor a full lesson this can take up to 15 minutes — no need to wait here, I'll message you as each step finishes.",
+    ur: 'آپ کی کلاس روم ریکارڈنگ کا تجزیہ شروع کر دیا گیا ہے — رپورٹ تیار ہو رہی ہے۔ \u{1F4CA}\n\nمکمل سبق کے لیے اس میں 15 منٹ تک لگ سکتے ہیں — یہیں انتظار کرنے کی ضرورت نہیں، ہر مرحلہ مکمل ہونے پر اطلاع دی جائے گی۔',
+  },
   coachingPhotoGateAdvancing: {
     en: "Hi {name}! I'm putting together your coaching report from your class recording now. \u{1F4CA}",
     ur: '⁦{name}⁩، آپ کی کلاس کی ریکارڈنگ سے آپ کی کوچنگ رپورٹ تیار کی جا رہی ہے۔ \u{1F4CA}',
@@ -709,6 +763,17 @@ const UX_STRINGS = {
   assessmentReviewOfferButton: {
     en: 'Edit the paper',
     ur: 'پرچہ بدلیں',
+  },
+
+  // bd-onxyu — sent instead of a feature whose app_redirect_* switch is on, at
+  // most once an hour per teacher (app-redirect.service). {url} is the Play
+  // Store listing and sits on its own line so the phone lays it out LTR and
+  // makes it tappable. "Open" is named because a teacher who already has the
+  // app lands on the listing too and has to press it herself. Gender-neutral:
+  // every Urdu verb is an imperative.
+  appRedirectNotice: {
+    en: 'You can now do this in the NIETE app. Get it from the Play Store — or tap Open if you already have it — and sign in with your phone number:\n{url}',
+    ur: 'یہ سہولت اب NIETE ایپ میں ہے۔ Play Store سے ایپ ڈاؤن لوڈ کریں — یا اگر ایپ پہلے سے موجود ہے تو Open (کھولیں) دبائیں — اور اپنے فون نمبر سے لاگ اِن کریں:\n{url}',
   },
 
   assessmentNotReady: {
@@ -1224,6 +1289,22 @@ const UX_STRINGS = {
   lp612FeedbackNo: {
     en: '👎 Not really',
     ur: '👎 نہیں',
+  },
+  // ── LP survey receipts (K-5) — Meta bill cut NL1 / FX1 (bd-w2daa.22) ─────
+  // The receipt for a survey tap / usage answer / typed reason is a 🙏 reaction on
+  // the teacher's own message. These are the original texts, word for word, sent
+  // ONLY when that reaction cannot go out (no wamid, or Meta refused it).
+  lpFeedbackThanksYes: {
+    en: 'Thanks — glad it helped!',
+    ur: 'شکریہ — خوشی ہے یہ مفید تھی!',
+  },
+  lpFeedbackUsageThanks: {
+    en: 'Thank you!',
+    ur: 'شکریہ!',
+  },
+  lpFeedbackReasonThanks: {
+    en: 'Got it, thanks — this helps us improve the plans.',
+    ur: 'سمجھ گئی، شکریہ — یہ ہمیں منصوبے بہتر بنانے میں مدد کرے گا۔',
   },
   lp612FeedbackThanks: {
     en: 'Thanks — glad it helped.',

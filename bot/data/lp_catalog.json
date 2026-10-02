@@ -9,7 +9,7 @@
   "counts": {
     "books": 17,
     "chapters": 233,
-    "lessons": 2041
+    "lessons": 2048
   },
   "books": [
     {
@@ -920,7 +920,7 @@
               "lesson_id": "grade_1_english_ch5_seg4",
               "segment_index": 4,
               "lp_type": "content",
-              "day_label": "Day 4",
+              "day_label": "Day 4 · part 1",
               "section": "Share and Sparkle",
               "section_short": "Share and Sparkle",
               "topic": "Act It Out, Ask a Friend & Read the Road Signs",
@@ -932,9 +932,31 @@
               "pages_label": "p.59-60",
               "row": {
                 "title": "Share and Sparkle",
-                "description": "Day 4 · p.59-60",
-                "metadata": "Act It Out, Ask a Friend & Read the Road Signs"
-              }
+                "description": "Day 4 · part 1",
+                "metadata": "Act It Out, Ask a Friend & Read the Road Signs‎ · p.59-60"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_1_english_ch5_seg4b",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4 · part 2",
+              "section": "Share and Sparkle",
+              "section_short": "Share and Sparkle",
+              "topic": "Act It Out, Ask a Friend & Read the Road Signs",
+              "topic_short": "Act It Out, Ask a Friend & Read the Road Signs",
+              "pages": [
+                59,
+                60
+              ],
+              "pages_label": "p.59-60",
+              "row": {
+                "title": "Share and Sparkle",
+                "description": "Day 4 · part 2",
+                "metadata": "Act It Out, Ask a Friend & Read the Road Signs‎ · p.59-60"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_1_english_ch5_seg5",
@@ -999,7 +1021,7 @@
               "lesson_id": "grade_1_english_ch5_seg8",
               "segment_index": 8,
               "lp_type": "content",
-              "day_label": "Day 8",
+              "day_label": "Day 8 · part 1",
               "section": "Connect and Create",
               "section_short": "Connect and Create",
               "topic": "Book Keeper Project: Parts of a Book (Title, Author, Illustrator)",
@@ -1011,9 +1033,31 @@
               "pages_label": "p.65-66",
               "row": {
                 "title": "Connect and Create",
-                "description": "Day 8 · p.65-66",
-                "metadata": "Book Keeper Project: Parts of a Book (Title, Author, Illustrator)"
-              }
+                "description": "Day 8 · part 1",
+                "metadata": "Book Keeper Project: Parts of a Book (Title, Author, Illustrator)‎ · p.65-66"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_1_english_ch5_seg8b",
+              "segment_index": 8,
+              "lp_type": "content",
+              "day_label": "Day 8 · part 2",
+              "section": "Connect and Create",
+              "section_short": "Connect and Create",
+              "topic": "Book Keeper Project: Parts of a Book (Title, Author, Illustrator)",
+              "topic_short": "Book Keeper Project: Parts of a Book (Title, Author, Illustrator)",
+              "pages": [
+                65,
+                66
+              ],
+              "pages_label": "p.65-66",
+              "row": {
+                "title": "Connect and Create",
+                "description": "Day 8 · part 2",
+                "metadata": "Book Keeper Project: Parts of a Book (Title, Author, Illustrator)‎ · p.65-66"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_1_english_ch5_seg995",
@@ -6083,7 +6127,7 @@
               "lesson_id": "grade_1_urdu_ch3_seg4",
               "segment_index": 4,
               "lp_type": "content",
-              "day_label": "Day 4",
+              "day_label": "Day 4 · part 1",
               "section": "متن کا سفر",
               "section_short": "‏متن کا سفر",
               "topic": "نبی ﷺ کی سیرت و اخلاقِ حسنہ کی بلند خوانی",
@@ -6096,9 +6140,32 @@
               "pages_label": "p.22-24",
               "row": {
                 "title": "‏متن کا سفر",
-                "description": "‏دن ۴ · ص ۲۲-۲۴",
-                "metadata": "‏نبی ﷺ کی سیرت و اخلاقِ حسنہ کی بلند خوانی"
-              }
+                "description": "‏دن ۴ · حصہ ۱",
+                "metadata": "‏نبی ﷺ کی سیرت و اخلاقِ حسنہ کی بلند خوانی · ص ۲۲-۲۴"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_1_urdu_ch3_seg4b",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4 · part 2",
+              "section": "متن کا سفر",
+              "section_short": "‏متن کا سفر",
+              "topic": "نبی ﷺ کی سیرت و اخلاقِ حسنہ کی بلند خوانی",
+              "topic_short": "نبی ﷺ کی سیرت و اخلاقِ حسنہ کی بلند خوانی",
+              "pages": [
+                22,
+                23,
+                24
+              ],
+              "pages_label": "p.22-24",
+              "row": {
+                "title": "‏متن کا سفر",
+                "description": "‏دن ۴ · حصہ ۲",
+                "metadata": "‏نبی ﷺ کی سیرت و اخلاقِ حسنہ کی بلند خوانی · ص ۲۲-۲۴"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_1_urdu_ch3_seg5",
@@ -6163,11 +6230,11 @@
               "lesson_id": "grade_1_urdu_ch3_seg8",
               "segment_index": 8,
               "lp_type": "content",
-              "day_label": "Day 8",
+              "day_label": "Day 8 · part 1",
               "section": "میرا دوست + تخیل کی تختی: اپنے اور اپنے دوست کی پسند ناپسند کو جاننا + جانیں اور تخلیق کریں",
               "section_short": "‏میرا دوست +",
               "topic": "اپنے دوست کے بارے میں تخلیقی پیراگراف لکھنا  ⟢  تخیل کی تختی — اپنی اور دوست کی پسند ناپسند کا اظہار / جانیں اور تخلیق کریں — ہفتہ وار اچھے اعمال کا چارٹ بنانا",
-              "topic_short": "میرا دوست + تخیل کی تختی: اپنے اور اپنے دوست کی پسند ناپسند کو جاننا + جانیں ا…",
+              "topic_short": "میرا دوست + تخیل کی تختی: اپنے اور اپنے دوست کی پسند ناپسند کو جاننا…",
               "pages": [
                 26,
                 27,
@@ -6176,9 +6243,32 @@
               "pages_label": "p.26-28",
               "row": {
                 "title": "‏میرا دوست +",
-                "description": "‏دن ۸ · ص ۲۶-۲۸",
-                "metadata": "‏میرا دوست + تخیل کی تختی: اپنے اور اپنے دوست کی پسند ناپسند کو جاننا + جانیں ا…"
-              }
+                "description": "‏دن ۸ · حصہ ۱",
+                "metadata": "‏میرا دوست + تخیل کی تختی: اپنے اور اپنے دوست کی پسند ناپسند کو جاننا… · ص ۲۶-۲۸"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_1_urdu_ch3_seg8b",
+              "segment_index": 8,
+              "lp_type": "content",
+              "day_label": "Day 8 · part 2",
+              "section": "میرا دوست + تخیل کی تختی: اپنے اور اپنے دوست کی پسند ناپسند کو جاننا + جانیں اور تخلیق کریں",
+              "section_short": "‏میرا دوست +",
+              "topic": "اپنے دوست کے بارے میں تخلیقی پیراگراف لکھنا  ⟢  تخیل کی تختی — اپنی اور دوست کی پسند ناپسند کا اظہار / جانیں اور تخلیق کریں — ہفتہ وار اچھے اعمال کا چارٹ بنانا",
+              "topic_short": "میرا دوست + تخیل کی تختی: اپنے اور اپنے دوست کی پسند ناپسند کو جاننا…",
+              "pages": [
+                26,
+                27,
+                28
+              ],
+              "pages_label": "p.26-28",
+              "row": {
+                "title": "‏میرا دوست +",
+                "description": "‏دن ۸ · حصہ ۲",
+                "metadata": "‏میرا دوست + تخیل کی تختی: اپنے اور اپنے دوست کی پسند ناپسند کو جاننا… · ص ۲۶-۲۸"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_1_urdu_ch3_seg995",
@@ -6342,11 +6432,11 @@
               "lesson_id": "grade_1_urdu_ch4_seg6",
               "segment_index": 6,
               "lp_type": "content",
-              "day_label": "Day 6",
+              "day_label": "Day 6 · part 1",
               "section": "قواعد کا میدان (اسم و فعل) + قواعد کا میدان: ختمہ (۔) + کاپی کا کام",
               "section_short": "‏قواعد کا میدان (اسم و فعل)…",
               "topic": "قواعد — اسم اور فعل کی پہچان اور استعمال  ⟢  قواعد — علامتِ ختمہ (۔) پہچاننا اور استعمال کرنا",
-              "topic_short": "قواعد کا میدان (اسم و فعل) + قواعد کا میدان: ختمہ (۔) + کاپی کا کام — قواعد — …",
+              "topic_short": "قواعد کا میدان (اسم و فعل) + قواعد کا میدان: ختمہ (۔) + کاپی کا کام …",
               "pages": [
                 35,
                 36
@@ -6354,19 +6444,41 @@
               "pages_label": "p.35-36",
               "row": {
                 "title": "‏قواعد کا میدان (اسم و فعل)…",
-                "description": "‏دن ۶ · ص ۳۵-۳۶",
-                "metadata": "‏قواعد کا میدان (اسم و فعل) + قواعد کا میدان: ختمہ (۔) + کاپی کا کام — قواعد — …"
-              }
+                "description": "‏دن ۶ · حصہ ۱",
+                "metadata": "‏قواعد کا میدان (اسم و فعل) + قواعد کا میدان: ختمہ (۔) + کاپی کا کام … · ص ۳۵-۳۶"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_1_urdu_ch4_seg6b",
+              "segment_index": 6,
+              "lp_type": "content",
+              "day_label": "Day 6 · part 2",
+              "section": "قواعد کا میدان (اسم و فعل) + قواعد کا میدان: ختمہ (۔) + کاپی کا کام",
+              "section_short": "‏قواعد کا میدان (اسم و فعل)…",
+              "topic": "قواعد — اسم اور فعل کی پہچان اور استعمال  ⟢  قواعد — علامتِ ختمہ (۔) پہچاننا اور استعمال کرنا",
+              "topic_short": "قواعد کا میدان (اسم و فعل) + قواعد کا میدان: ختمہ (۔) + کاپی کا کام …",
+              "pages": [
+                35,
+                36
+              ],
+              "pages_label": "p.35-36",
+              "row": {
+                "title": "‏قواعد کا میدان (اسم و فعل)…",
+                "description": "‏دن ۶ · حصہ ۲",
+                "metadata": "‏قواعد کا میدان (اسم و فعل) + قواعد کا میدان: ختمہ (۔) + کاپی کا کام … · ص ۳۵-۳۶"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_1_urdu_ch4_seg7",
               "segment_index": 7,
               "lp_type": "content",
-              "day_label": "Day 7",
+              "day_label": "Day 7 · part 1",
               "section": "تخیل کی تختی: کہانی نویسی + جانیں اور تخلیق کریں (منصوبہ: میرا کھلونا)",
               "section_short": "‏تخیل کی تختی: کہانی نویسی +",
               "topic": "تخلیقی لکھائی — کہانی نویسی اور گفتگو کے آداب  ⟢  تخلیقی منصوبہ — 'میرا کھلونا' تصویری کہانی اور پیشکش",
-              "topic_short": "تخیل کی تختی: کہانی نویسی + جانیں اور تخلیق کریں — تخلیقی لکھائی — کہانی نویسی…",
+              "topic_short": "تخیل کی تختی: کہانی نویسی + جانیں اور تخلیق کریں — تخلیقی لکھائی — ک…",
               "pages": [
                 38,
                 39
@@ -6374,9 +6486,31 @@
               "pages_label": "p.38-39",
               "row": {
                 "title": "‏تخیل کی تختی: کہانی نویسی +",
-                "description": "‏دن ۷ · ص ۳۸-۳۹",
-                "metadata": "‏تخیل کی تختی: کہانی نویسی + جانیں اور تخلیق کریں — تخلیقی لکھائی — کہانی نویسی…"
-              }
+                "description": "‏دن ۷ · حصہ ۱",
+                "metadata": "‏تخیل کی تختی: کہانی نویسی + جانیں اور تخلیق کریں — تخلیقی لکھائی — ک… · ص ۳۸-۳۹"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_1_urdu_ch4_seg7b",
+              "segment_index": 7,
+              "lp_type": "content",
+              "day_label": "Day 7 · part 2",
+              "section": "تخیل کی تختی: کہانی نویسی + جانیں اور تخلیق کریں (منصوبہ: میرا کھلونا)",
+              "section_short": "‏تخیل کی تختی: کہانی نویسی +",
+              "topic": "تخلیقی لکھائی — کہانی نویسی اور گفتگو کے آداب  ⟢  تخلیقی منصوبہ — 'میرا کھلونا' تصویری کہانی اور پیشکش",
+              "topic_short": "تخیل کی تختی: کہانی نویسی + جانیں اور تخلیق کریں — تخلیقی لکھائی — ک…",
+              "pages": [
+                38,
+                39
+              ],
+              "pages_label": "p.38-39",
+              "row": {
+                "title": "‏تخیل کی تختی: کہانی نویسی +",
+                "description": "‏دن ۷ · حصہ ۲",
+                "metadata": "‏تخیل کی تختی: کہانی نویسی + جانیں اور تخلیق کریں — تخلیقی لکھائی — ک… · ص ۳۸-۳۹"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_1_urdu_ch4_seg995",
@@ -6747,11 +6881,11 @@
               "lesson_id": "grade_1_urdu_ch6_seg6",
               "segment_index": 6,
               "lp_type": "content",
-              "day_label": "Day 6",
+              "day_label": "Day 6 · part 1",
               "section": "سرگرمی ۳ (لفظی و ہندسی گنتی) + تخیل کی تختی + سرگرمی ۱ (ذاتی صفائی) + سرگرمی ۲ (تصویری تحریر) + جانیں اور تخلیق کریں (منصوبہ: گنتی)",
               "section_short": "‏سرگرمی ۳ (لفظی و ہندسی گنت…",
               "topic": "لفظی اور ہندسی گنتی لکھنا — اعداد اور ان کے الفاظ کی لکھائی  ⟢  تصویری جملے — تصاویر کو عنوان دینا اور جملے لکھنا (ذاتی صفائی و کلاس روم) / جانیں اور تخلیق کریں — منصوبہ: گنتی (کارڈ بورڈ سے گھر کا نقشہ اور گنتی)",
-              "topic_short": "سرگرمی ۳ (لفظی و ہندسی گنتی) + تخیل کی تختی + سرگرمی ۱ (ذاتی صفائی) + سرگرمی ۲…",
+              "topic_short": "سرگرمی ۳ (لفظی و ہندسی گنتی) + تخیل کی تختی + سرگرمی ۱ (ذاتی صفائی) …",
               "pages": [
                 52,
                 53,
@@ -6762,9 +6896,34 @@
               "pages_label": "p.52-57",
               "row": {
                 "title": "‏سرگرمی ۳ (لفظی و ہندسی گنت…",
-                "description": "‏دن ۶ · ص ۵۲-۵۷",
-                "metadata": "‏سرگرمی ۳ (لفظی و ہندسی گنتی) + تخیل کی تختی + سرگرمی ۱ (ذاتی صفائی) + سرگرمی ۲…"
-              }
+                "description": "‏دن ۶ · حصہ ۱",
+                "metadata": "‏سرگرمی ۳ (لفظی و ہندسی گنتی) + تخیل کی تختی + سرگرمی ۱ (ذاتی صفائی) … · ص ۵۲-۵۷"
+              },
+              "part": 1
+            },
+            {
+              "lesson_id": "grade_1_urdu_ch6_seg6b",
+              "segment_index": 6,
+              "lp_type": "content",
+              "day_label": "Day 6 · part 2",
+              "section": "سرگرمی ۳ (لفظی و ہندسی گنتی) + تخیل کی تختی + سرگرمی ۱ (ذاتی صفائی) + سرگرمی ۲ (تصویری تحریر) + جانیں اور تخلیق کریں (منصوبہ: گنتی)",
+              "section_short": "‏سرگرمی ۳ (لفظی و ہندسی گنت…",
+              "topic": "لفظی اور ہندسی گنتی لکھنا — اعداد اور ان کے الفاظ کی لکھائی  ⟢  تصویری جملے — تصاویر کو عنوان دینا اور جملے لکھنا (ذاتی صفائی و کلاس روم) / جانیں اور تخلیق کریں — منصوبہ: گنتی (کارڈ بورڈ سے گھر کا نقشہ اور گنتی)",
+              "topic_short": "سرگرمی ۳ (لفظی و ہندسی گنتی) + تخیل کی تختی + سرگرمی ۱ (ذاتی صفائی) …",
+              "pages": [
+                52,
+                53,
+                55,
+                56,
+                57
+              ],
+              "pages_label": "p.52-57",
+              "row": {
+                "title": "‏سرگرمی ۳ (لفظی و ہندسی گنت…",
+                "description": "‏دن ۶ · حصہ ۲",
+                "metadata": "‏سرگرمی ۳ (لفظی و ہندسی گنتی) + تخیل کی تختی + سرگرمی ۱ (ذاتی صفائی) … · ص ۵۲-۵۷"
+              },
+              "part": 2
             },
             {
               "lesson_id": "grade_1_urdu_ch6_seg7",

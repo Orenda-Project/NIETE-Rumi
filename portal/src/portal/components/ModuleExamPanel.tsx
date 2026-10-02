@@ -39,6 +39,7 @@ import { Progress } from '@/components/ui/progress';
 import QuestionPager from './QuestionPager';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
+import ExamAttempts, { type ExamAttempt } from './ExamAttempts';
 
 
 /** What the gate (GET /training/modules → `exam`) tells us. */
@@ -71,6 +72,7 @@ export default function ModuleExamPanel({
   courseId,
   exam,
   onPassed,
+  onSubmitted,
   onOpen,
   asListRow = false,
   autoStart = false,
@@ -79,6 +81,11 @@ export default function ModuleExamPanel({
   exam: ExamGate | null;
   /** Fired once the exam is PASSED, so the page can unlock what follows. */
   onPassed?: () => void;
+  /**
+   * bd-2exhl — fired after ANY submit, so the page re-reads the gate: a paper
+   * that is now being graded must stop offering "Take the exam" in the list.
+   */
+  onSubmitted?: () => void;
   /**
    * bd-60152 — when given, tapping the list row NAVIGATES instead of opening
    * the paper in place. A sat exam with a written answer needs a page, not a
@@ -105,13 +112,35 @@ export default function ModuleExamPanel({
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const saveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const [result, setResult] = useState<Result | null>(null);
+  // bd-2exhl — her SUBMITTED sittings, newest first. null = not loaded yet.
+  // Only the full panel loads them; a list row has no room for a review.
+  const [attempts, setAttempts] = useState<ExamAttempt[] | null>(null);
   const { toast } = useToast();
+
+  const loadAttempts = useCallback(async () => {
+    try {
+      const res = await api.get(`/training/module/${courseId}/exam/attempts`);
+      setAttempts(Array.isArray(res?.data?.attempts) ? res.data.attempts : []);
+    } catch {
+      // Best-effort: no history only hides the review, it never blocks.
+      setAttempts([]);
+    }
+  }, [courseId]);
 
   // A new module means a new paper.
   useEffect(() => {
     setPhase('idle'); setQuestions([]); setAttemptId(null);
-    setAnswers({}); setResult(null);
+    setAnswers({}); setResult(null); setAttempts(null);
   }, [courseId]);
+
+  useEffect(() => {
+    if (exam && !asListRow) void loadAttempts();
+  }, [exam, asListRow, loadAttempts]);
+
+  const latest = attempts && attempts.length ? attempts[0] : null;
+  // A new sitting is offered only when there is none on record or the last one
+  // was not passed. Being graded or passed closes it, whatever a stale gate says.
+  const canRetake = !latest || latest.status === 'failed';
 
 
   const start = useCallback(async () => {
@@ -157,10 +186,14 @@ export default function ModuleExamPanel({
   // opens on mount. Declared after `start` deliberately: referencing a const
   // before its declaration only works because effects run post-render, which
   // is a fragile thing to rely on.
+  //
+  // bd-2exhl — only for a FIRST sitting. With a sitting on record the page
+  // leads with what happened to it; opening a fresh paper on arrival is what
+  // made a submitted exam look like it had never been taken.
   useEffect(() => {
-    if (autoStart && exam?.available && phase === 'idle') void start();
+    if (autoStart && exam?.available && phase === 'idle' && attempts !== null && attempts.length === 0) void start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, exam?.available, courseId]);
+  }, [autoStart, exam?.available, courseId, attempts]);
 
   const answeredCount = questions.filter(q => (answers[q.id] || '').trim().length > 0).length;
   const allAnswered = questions.length > 0 && answeredCount === questions.length;
@@ -218,16 +251,22 @@ export default function ModuleExamPanel({
       const { data } = await api.post(`/training/module/${courseId}/exam/attempts`, {
         attempt_id: attemptId, answers: payload,
       });
-      if (data.crq_pending) {
-        // Saved, not yet scored. The teacher is free to leave this page.
+      if (data.already_submitted || data.crq_pending) {
+        // bd-2exhl — the MCQs are marked at submit, so the server already
+        // knows whether this sitting failed or is being graded. Show that,
+        // from the record, rather than a generic "please wait".
         setPhase('marking');
         setResult({ score: null, total: null, passed: null });
+        await loadAttempts();
+        setPhase('idle');
+        onSubmitted?.();
         return;
       }
       const a = data.attempt || {};
       setResult({ score: a.score ?? null, total: a.total_questions ?? null, passed: a.is_passed ?? null });
       setPhase('result');
       if (a.is_passed) onPassed?.();
+      onSubmitted?.();
     } catch {
       toast({
         title: 'Could not submit',
@@ -236,7 +275,7 @@ export default function ModuleExamPanel({
       });
       setPhase('taking');
     }
-  }, [attemptId, allAnswered, questions, answers, courseId, toast, onPassed]);
+  }, [attemptId, allAnswered, questions, answers, courseId, toast, onPassed, onSubmitted, loadAttempts]);
 
   // No exam on this module (every non-I-SAPS vendor) — render nothing at all.
   if (!exam) return null;
@@ -255,7 +294,8 @@ export default function ModuleExamPanel({
       // "⏳ Cooldown (3h)"), so the row carries the server's word for its own
       // state and cannot drift from it again.
       const passed = /passed/i.test(exam.cta || '') || /passed/i.test(exam.body || '');
-      return (
+      const beingGraded = /being graded/i.test(exam.cta || '') || /being graded/i.test(exam.body || '');
+      const row = (
         <div
           className={`w-full rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 ${passed ? '' : 'opacity-60'}`}
           data-testid={passed ? 'module-exam-passed' : 'module-exam-locked'}
@@ -271,18 +311,34 @@ export default function ModuleExamPanel({
           </span>
         </div>
       );
+      // bd-2exhl — a sat exam (being graded or passed) opens its page, where
+      // she can read back what she submitted. A locked one stays inert.
+      if (onOpen && (passed || beingGraded)) {
+        return (
+          <button type="button" onClick={onOpen} className="w-full text-left hover:bg-muted/50 rounded-lg" data-testid="module-exam-review">
+            {row}
+          </button>
+        );
+      }
+      return row;
     }
     return (
-      <div className="border-t pt-4" data-testid="module-exam-locked">
-        <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4">
-          <GraduationCap className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
-          <div className="text-sm">
-            <p className="whitespace-pre-line">{exam.body}</p>
-            {exam.caption?.trim() && (
-              <p className="text-muted-foreground mt-1">{exam.caption}</p>
-            )}
+      <div className="border-t pt-4 space-y-3" data-testid="module-exam-locked">
+        {/* bd-2exhl — with a sitting on record, its own status card says what
+            the gate would (being graded / passed) and more; the gate's words
+            stay for everything else, e.g. a not-passed sitting in cooldown. */}
+        {(!latest || latest.status === 'failed') && (
+          <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4">
+            <GraduationCap className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
+            <div className="text-sm">
+              <p className="whitespace-pre-line">{exam.body}</p>
+              {exam.caption?.trim() && (
+                <p className="text-muted-foreground mt-1">{exam.caption}</p>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+        {attempts && <ExamAttempts attempts={attempts} />}
       </div>
     );
   }
@@ -304,7 +360,16 @@ export default function ModuleExamPanel({
 
   return (
     <div className={asListRow ? 'px-3.5 py-3' : 'border-t pt-4'} data-testid="module-exam-panel">
-      {phase === 'idle' && (
+      {phase === 'idle' && latest && (
+        <div className="space-y-3">
+          <ExamAttempts attempts={attempts || []} />
+          {canRetake && (
+            <Button onClick={start} data-testid="module-exam-start">Try again</Button>
+          )}
+        </div>
+      )}
+
+      {phase === 'idle' && !latest && (
         <div className="flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-4">
           <GraduationCap className="h-5 w-5 mt-0.5 text-primary shrink-0" />
           <div className="flex-1 text-sm">
@@ -381,8 +446,8 @@ export default function ModuleExamPanel({
           <div className="text-sm">
             <p className="font-medium">Your answers are saved.</p>
             <p className="text-muted-foreground mt-1">
-              The written answer is being marked — this takes a moment. You can leave this
-              page; your score will be here when it is ready.
+              Your written answer is being graded — this takes some time. You can leave this
+              page. Once it passes, we'll issue your certificate.
             </p>
           </div>
         </div>

@@ -400,7 +400,8 @@ router.post('/class-manager', async (req, res) => {
 });
 
 /**
- * flow_token is the user id (set when the Flow is sent).
+ * flow_token is "<userId>:classes" (set when the Flow is sent; an older Flow on a
+ * handset may still carry the bare id) — the endpoint reads the user id from it.
  * CLASSES is the only entry screen — Meta refuses to open a Flow on a screen with
  * incoming routes, so no branch here may answer INIT with anything else.
  */

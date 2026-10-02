@@ -8,7 +8,9 @@
  * - training_msq: Training multi-answer question (training_msq_action)
  * - reading_assessment: Reading assessment flow (Student_Full_Name, Assessment_Mode)
  * - attendance_setup: Class setup flow (class_name + student_list/students_text)
- * - attendance_marking: Attendance marking flow (absent_students or attendance flow_token)
+ * - attendance_marking: Attendance marking flow (attendance_action, a "<userId>:student|teacher…" token,
+ *   absent_students, or the loose colon-token fallback)
+ * - class_manager: the /class Flow ("<userId>:classes" token)
  * - registration: User registration flow (full_name + country, or :registration: in flow_token)
  * - unknown: Unrecognized flow
  *
@@ -78,11 +80,18 @@ function detectFlowType(responseJson) {
     return 'transcript_quiz';
   }
 
-  // Attendance marking, by discriminator. A teacher's marking token is a bare
-  // "<userId>" — no colon — so the token rule below (4) missed every teacher
-  // completion and the teacher was answered "Thanks for your response! Type
-  // /menu…" straight after marking the class: ~300 a day, 4–11 Sep. SAVED's
-  // Footer now completes with attendance_action=saved.
+  // Attendance marking. Two signals, because only one of them is guaranteed.
+  //
+  // The TAG: SAVED's Footer completes with attendance_action=saved — but the
+  // payload lives in the asset AS PUBLISHED on each WABA, so a WABA holding an
+  // asset published before the tag was added completes with an empty payload.
+  // Read back from Meta on 1 Oct 2026, production's had not been republished: its
+  // completions arrive as { flow_token } and nothing else (1,461 a week), and a
+  // teacher's token was then a bare "<userId>" that matched nothing below, so each
+  // save was answered "Thanks for your response! Type /menu…".
+  //
+  // The TOKEN: ours, set at send time, returned on every completion whatever the
+  // asset — matched further down (3.5), after every tagged flow has had its turn.
   if (responseJson.attendance_action !== undefined) {
     return 'attendance_marking';
   }
@@ -207,6 +216,27 @@ function detectFlowType(responseJson) {
 
   if (hasNavigateSetupFields || hasEndpointSetupFields) {
     return 'attendance_setup';
+  }
+
+  // 3.5 Token-only completions we can name exactly. Placed after every tagged
+  // flow, so an explicit tag always wins, and before the loose fallback below,
+  // which would otherwise guess.
+  //
+  // Attendance marking: "<userId>:student" for a teacher (the Flow picks the
+  // class), "<userId>:teacher:<schoolId>" for a principal, "…:voice" after a voice
+  // note. Matched on the subject word exactly, so `:student-videos:` and
+  // `:teacher-training:` tokens are not captured. (The loose rule below would also
+  // catch these; this one does not depend on it surviving.)
+  const flowTokenText = String(responseJson.flow_token || '');
+  if (/^[^:]+:(student|teacher)(:|$)/.test(flowTokenText)) {
+    return 'attendance_marking';
+  }
+  // Class manager (/class): "<userId>:classes". Its SAVED Footer completes with an
+  // empty payload on every WABA, so the token is the only discriminator there is.
+  // Before the marker a save fell to the catch-all (89 a week in production) —
+  // and with it, the loose rule below would have called it attendance.
+  if (/^[^:]+:classes$/.test(flowTokenText)) {
+    return 'class_manager';
   }
 
   // 4. Attendance Marking (tap-to-mark absent)

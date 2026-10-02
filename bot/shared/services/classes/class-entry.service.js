@@ -54,13 +54,28 @@ async function openClassManagerFlow({ from, user, language, reason = 'unspecifie
     header: resolveUx('classFlowHeader', { language }),
     body: resolveUx('classFlowBody', { language }),
     buttonText: resolveUx('classFlowButton', { language }),
-    // The endpoint reads flow_token AS the user id — same convention as the
-    // attendance Flows. Do not make this a composite token.
-    flowToken: user.id,
+    flowToken: classManagerFlowToken(user.id),
   });
 
   logToFile('🏫 Sent class manager flow', { userId: user.id, reason });
   return true;
 }
 
-module.exports = { openClassManagerFlow };
+/**
+ * The class-manager Flow's token: "<userId>:classes".
+ *
+ * The marker is how the Flow's completion is recognised. Its SAVED Footer
+ * completes with an empty payload on every WABA, so the token is the only thing
+ * the completion carries — and a bare user id, which this used to be, is
+ * indistinguishable from half a dozen other Flows. Unrecognised, every save was
+ * answered "Thanks for your response! Type /menu…" (89 a week in production).
+ * The endpoint reads the user id from before the first colon, so a Flow already
+ * delivered with the bare id still opens.
+ *
+ * Every sender of the class-manager Flow builds its token here.
+ */
+function classManagerFlowToken(userId) {
+  return `${userId}:classes`;
+}
+
+module.exports = { openClassManagerFlow, classManagerFlowToken };

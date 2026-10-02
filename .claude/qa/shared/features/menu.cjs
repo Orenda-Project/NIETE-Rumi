@@ -91,13 +91,14 @@ exports.run = async ({ api, rec, sleep }) => {
   // cannot be met on any reachable env here, so it only ever SKIPped. The degrade path stays covered
   // by unit tests; the .feature scenario is tagged @obsolete for the E2E lane.
 
-  // M13 — a menu number outside 1-4 gets the Helper Agent escape nudge and starts nothing
-  // (spec sync 2026-09-08; the first mock drive showed "7" never reaches handleMenuChoice)
+  // M13 — free text after /menu is answered, not met with the "choose an option (1-4)" nudge
+  // (spec sync 2026-10-01, Meta bill cut NO3: the list menu has no 1-4; free text now ends the
+  // menu wait and is routed like any other message)
   s = t();
   await api.sendWait('/menu');
   r = await api.sendWait('7');
-  rec('M13', 'A menu number outside 1-4 gets the choose-an-option nudge and starts nothing',
-      ...Object.values(V(/choose an option \(1-4\)/i.test(r.txt || '') && /\/menu/.test(r.txt || '') && !r.btns.includes('See what I do'),
+  rec('M13', 'Free text after /menu is answered as an ordinary message, not with a choose-1-4 nudge',
+      ...Object.values(V(Boolean(r.txt) && !/choose an option \(1-4\)/i.test(r.txt || '') && !r.btns.includes('See what I do'),
       { reply: (r.txt || '').slice(0, 110), btns: r.btns, botWaitMs: r.waitedMs })), t() - s);
 
   // M03 — /menu as escape hatch from inside a feature flow
@@ -165,4 +166,8 @@ exports.run = async ({ api, rec, sleep }) => {
       ['M18', 'A teacher tapping a stray Observe row is refused and redirected'],
       ['M19', "The role-refusal is in the tapping user's own language (Urdu)"]]) roleBlocked(id, name);
   }
+
+  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
+  rec('M20', 'A menu row whose feature moved to the app sends me to the Play Store instead', 'BLOCKED',
+      { reason: 'needs an app_redirect_* switch turned ON in the target database, and the switch is global: it would redirect every teacher on that environment for the length of the run. Covered by tests/app-redirect/ (the real text handler and menu router, red-first).' }, 0);
 };

@@ -167,7 +167,20 @@ describe('level exam pass → the PDF is delivered', () => {
     }));
   });
 
-  test('still sends the congratulation text', async () => {
+  // bd-w2daa.8 — the congratulation used to be a text bubble before the PDF.
+  // It is now the PDF's caption: one message, same words, same code.
+  test('still sends the congratulation — as the certificate PDF\'s caption', async () => {
+    const id = seedGrandQuiz();
+    await QuizDelivery.gradeAttempt(id, PHONE);
+    expect(sendCertificateDocument).toHaveBeenCalledTimes(1);
+    const caption = String(sendCertificateDocument.mock.calls[0][2] || '');
+    expect(caption).toContain('Congratulations');
+    expect(caption).toContain('PFX-20260802-A1B2C3');
+    expect(whatsappSend).not.toHaveBeenCalled();
+  });
+
+  test('a PDF that does not arrive still leaves the congratulation, as text', async () => {
+    sendCertificateDocument.mockResolvedValueOnce(false);
     const id = seedGrandQuiz();
     await QuizDelivery.gradeAttempt(id, PHONE);
     const said = whatsappSend.mock.calls.map((c) => String(c[1])).join('\n');

@@ -67,16 +67,25 @@ async function renderScorecardImage({ topic, correct, total, pct, subject, taker
 }
 
 /**
+ * The scorecard, drawn but NOT sent: `{ png, caption }`, `png` null when the
+ * render failed. For a caller that sends it some other way — as the image
+ * header of the "invite a friend" buttons, one message instead of two.
+ */
+async function prepareScorecard({ topic, correct, total, pct, subject, takerName, language = 'en' }) {
+  const { starsAndBadge } = require('../../templates/video-quiz-scorecard.template');
+  const { stars } = starsAndBadge(pct, language);
+  const caption = buildCaption({ correct, total, pct, stars, language });
+  const png = await renderScorecardImage({ topic, correct, total, pct, subject, takerName, language });
+  return { png: png || null, caption };
+}
+
+/**
  * Render and send the scorecard. Returns true if the image sent, false if it
  * fell back (caller is expected to have already sent, or to send, the plain
  * text version — see finish() in video-quiz.service.js).
  */
 async function sendScorecard(phone, { topic, correct, total, pct, subject, takerName, language = 'en' }) {
-  const { starsAndBadge } = require('../../templates/video-quiz-scorecard.template');
-  const { stars } = starsAndBadge(pct, language);
-  const caption = buildCaption({ correct, total, pct, stars, language });
-
-  const png = await renderScorecardImage({ topic, correct, total, pct, subject, takerName, language });
+  const { png, caption } = await prepareScorecard({ topic, correct, total, pct, subject, takerName, language });
   if (!png) return false;
 
   try {
@@ -89,4 +98,4 @@ async function sendScorecard(phone, { topic, correct, total, pct, subject, taker
   }
 }
 
-module.exports = { renderScorecardImage, sendScorecard, buildCaption, tierFor };
+module.exports = { renderScorecardImage, prepareScorecard, sendScorecard, buildCaption, tierFor };

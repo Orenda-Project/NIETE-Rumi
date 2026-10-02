@@ -30,6 +30,40 @@ const { buildDiarizationFromTokens, detectSilences, assembleDiarizedTranscriptio
 
 class TranscriptionProcessorService {
   /**
+   * bd-78i2k — fetch the recording's bytes, whatever transport delivered it.
+   *
+   * WhatsApp has always been the only source: a Graph media id, downloaded
+   * through WhatsAppService. A PORTAL upload has no media id — the browser PUTs
+   * the file straight into R2 and the start endpoint records the resulting URL
+   * on `coaching_sessions.audio_url` before queueing this job.
+   *
+   * `audio_url` is an unambiguous signal rather than an overload: on a WhatsApp
+   * session it is written only AFTER transcription (see the updateData block
+   * below), so at fetch time it is always empty. Populated → already in R2.
+   *
+   * The WhatsApp branch is byte-for-byte what it was, including the error text.
+   *
+   * @param {object} session coaching_sessions row
+   * @param {object} payload SQS job payload
+   * @returns {Promise<Buffer>} the audio bytes
+   */
+  static async fetchAudioForSession(session, payload = {}) {
+    const r2Url = session && session.audio_url;
+    if (r2Url) {
+      const { downloadFromR2, extractKeyFromUrl } = require('../../storage/r2');
+      return await downloadFromR2(extractKeyFromUrl(r2Url));
+    }
+
+    // Download audio from WhatsApp
+    const audioId = payload.audioId;
+    if (!audioId) {
+      throw new Error('Audio ID not found in payload');
+    }
+
+    return await WhatsAppService.downloadMedia(audioId);
+  }
+
+  /**
    * Process transcription job (called by background worker)
    * @param {string} coachingSessionId - Coaching session UUID
    * @param {object} payload - Job payload with metadata
@@ -76,24 +110,39 @@ class TranscriptionProcessorService {
       // floored to what the deployment offers FIRST. We hold her row here, so
       // "nothing can be determined" is not the situation and the emergency
       // 'en' floor would be the wrong one.
-      await this.sendProgressUpdate(
-        from,
-        1,
-        clampLanguage(session.users.preferred_language || offerDefaultLanguage())
-      );
-
-      // Download audio from WhatsApp
-      const audioId = payload.audioId;
-      if (!audioId) {
-        throw new Error('Audio ID not found in payload');
+      //
+      // Meta bill cut, two reasons not to send it:
+      //   NO1 (N2-O01) a leader observation. The line is written for a teacher about
+      //       her own lesson, in the language of `session.users` — the OBSERVED
+      //       teacher on a bound observation — yet it goes to the COACH, who has just
+      //       been told the recording arrived and the form follows in 2–5 minutes, and
+      //       whose next message is the photo question.
+      //   NC1 (N2-C01 / N2-C18) `step1Announced` means the wait was already said — in
+      //       the confirm prompt (and a ⏳ reaction landed on their Yes tap), or in the
+      //       sweeper's localised "started analysing" notice — so the billed Step 1/5
+      //       text would repeat it. Only those two callers set it; every retry without
+      //       it is unchanged.
+      if (session.observation_type === 'leader_observation') {
+        logToFile('🔕 Step 1/5 not sent — a leader observation (the coach was told the wait on capture)', { coachingSessionId });
+      } else if (!payload.step1Announced) {
+        await this.sendProgressUpdate(
+          from,
+          1,
+          clampLanguage(session.users.preferred_language || offerDefaultLanguage())
+        );
+      } else {
+        logToFile('🔕 Step 1/5 not re-sent — the wait was already announced', { coachingSessionId });
       }
 
-      const audioData = await WhatsAppService.downloadMedia(audioId);
+      // bd-78i2k: the bytes may come from WhatsApp (a media id) or from R2 (a
+      // portal upload). Everything below this line is identical either way.
+      const audioData = await this.fetchAudioForSession(session, payload);
       fs.writeFileSync(tempAudioPath, audioData);
 
-      logToFile('Audio downloaded from WhatsApp', {
+      logToFile('Audio downloaded', {
         coachingSessionId,
-        fileSize: audioData.length
+        fileSize: audioData.length,
+        source: session.audio_url ? 'r2' : 'whatsapp'
       });
 
       // bd-7beiz — the same recording must score the same. The rubric pass runs
@@ -199,8 +248,12 @@ class TranscriptionProcessorService {
         }
       }
 
-      // Upload to R2 storage
-      const r2Url = await uploadClassroomAudio(
+      // Upload to R2 storage.
+      // bd-78i2k: a portal upload is ALREADY in R2 — the browser PUT it there
+      // and `audio_url` was set before this job was queued. Re-uploading the
+      // same bytes under a second key would waste storage and overwrite the
+      // URL the portal is already serving playback from, so reuse it.
+      const r2Url = session.audio_url || await uploadClassroomAudio(
         tempAudioPath,
         session.user_id,
         coachingSessionId,
@@ -451,7 +504,11 @@ class TranscriptionProcessorService {
       // no-hardcoded-coaching-strings ratchet, and a model call is the shape
       // that caused row 129 in the first place.
 
-      // Phase 3: Agency follow-up — remind teacher of prior commitment
+      // Phase 3: Agency follow-up — remind teacher of prior commitment.
+      // Meta bill cut NC4 (N2-C10): the reminder now OPENS the photo offer below
+      // instead of going out as its own text; a reminder too long for the offer's
+      // 1,024 body cap is still sent on its own first.
+      let priorReminder = null;
       try {
         const { data: priorSessions } = await supabase
           .from('coaching_sessions')
@@ -466,18 +523,37 @@ class TranscriptionProcessorService {
           // Substitute {{action}} into the catalog template — keeps the
           // string translatable 1:1 (translators see {{action}}, not ${}).
           const reminderLang = await getUserLanguage(session.user_id) || 'en';
-          const reminder = getCoachingMessage('priorActionReminder', reminderLang)
+          priorReminder = getCoachingMessage('priorActionReminder', reminderLang)
             .replace('{{action}}', priorAction.action);
-          await WhatsAppService.sendMessage(from, reminder);
         }
       } catch (agencyError) {
         logToFile('⚠️ Agency follow-up check failed (non-critical)', { error: agencyError.message });
       }
 
+      // bd-lfzoz: a PORTAL upload collected its classroom photos and lesson plan
+      // at upload, so there is nothing to ask her on WhatsApp — and she may not
+      // be looking at her chat (outside the 24h window Meta drops the buttons,
+      // and after 60 minutes the gate sweep would advance the session
+      // report-only, with NO reflective question). afterTranscription queues
+      // exactly what the WhatsApp photo/LP taps would have queued.
+      const PortalCoaching = require('./portal-coaching.service');
+      const { isPortalSession } = PortalCoaching;
+      if (isPortalSession(session)) {
+        await PortalCoaching.afterTranscription(session, coachingSessionId, from);
+        if (fs.existsSync(tempAudioPath)) {
+          fs.unlinkSync(tempAudioPath);
+        }
+        logToFile('✅ Transcription complete (portal — attachments collected at upload, gates skipped)', {
+          coachingSessionId, hasLessonPlan: !!session.has_lesson_plan,
+        });
+        return;
+      }
+
       // Phase 3: Ask about classroom photo FIRST, before LP question
-      const { buildPhotoPrompt } = require('./classroom-photo/photo-prompt.service');
+      const { buildPhotoPromptWithLead } = require('./classroom-photo/photo-prompt.service');
       const userLanguage = await getUserLanguage(session.user_id) || 'en';
-      const photoPrompt = buildPhotoPrompt(coachingSessionId, userLanguage);
+      const { prompt: photoPrompt, leadMerged } = buildPhotoPromptWithLead(coachingSessionId, userLanguage, priorReminder);
+      if (priorReminder && !leadMerged) await WhatsAppService.sendMessage(from, priorReminder);
       await WhatsAppService.sendInteractiveButtons(from, photoPrompt);
 
       // Update conversation state to AWAITING_PHOTO

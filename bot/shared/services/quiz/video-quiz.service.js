@@ -25,6 +25,9 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const render = require('./video-quiz-render.service');
 const sender = require('./video-quiz-sender.service');
+// Pure: can a line (the verdict, the opener) ride on the next question's first
+// bubble? Decided with the same code that writes that bubble's body.
+const Lead = require('./video-quiz-lead');
 // sender.sendPhase() already throttles every message it sends, but
 // this file makes two DIRECT WhatsAppService calls of its own (the "Here we
 // go" opener below and "Question N of M" in sendNextQuestion) that bypassed
@@ -233,7 +236,7 @@ function lessonStrings(language) {
  * Mirrors what /video already does for teachers, including the pre-send ack —
  * that path learned the hard way that a silent 5-15 s upload reads as a hang.
  */
-async function sendLessonFirst(phone, videoId, language) {
+async function sendLessonFirst(phone, videoId, language, leadBox = { text: null }) {
   try {
     const { data: row, error } = await supabase
       .from('student_videos')
@@ -248,7 +251,11 @@ async function sendLessonFirst(phone, videoId, language) {
     }
     const s = lessonStrings(language);
     const grade = /^\d+$/.test(String(row.grade)) ? `Grade ${row.grade}` : String(row.grade);
-    await WhatsAppService.sendMessage(phone, s.ack);
+    // The lines that were going out just before (the greeting, "let's begin")
+    // ride on the same text as the lesson note: one bubble, still BEFORE the
+    // upload, so the 5-15 s it takes never reads as a hang.
+    await WhatsAppService.sendMessage(phone, withLead(leadBox.text, s.ack));
+    leadBox.text = null;
     const ok = await WhatsAppService.sendVideoFromUrl(
       phone, row.r2_url, s.caption(grade, row.subject, row.clean_title));
     logEvent(ok ? 'video_quiz.lesson_sent' : 'video_quiz.lesson_failed', {
@@ -411,7 +418,11 @@ function isSelfTestRun({ source, userId } = {}) {
 async function startSession({ phone, userId, quizId, videoId, language, deliveryId,
                               source = 'video_solo', studentName = null,
                               studentClass = null, shareCodeId = null,
-                              studentId = null, invitedByStudentId = null }) {
+                              studentId = null, invitedByStudentId = null,
+                              // The line(s) the caller would have sent just
+                              // before the quiz (the greeting, "let's begin").
+                              // They ride on the next thing the child gets.
+                              lead = null }) {
   // Every run starts here — the solo one after an offer, and a child's from a
   // class link, which never saw an offer — so this is where the phone learns the
   // run's language for the taps that arrive after the run is over.
@@ -425,7 +436,7 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
 
   if (error || !questions || !questions.length) {
     logToFile('❌ video-quiz: no questions for quiz', { quizId, error: error?.message });
-    await WhatsAppService.sendMessage(phone, ux('vqNoQuestions', language));
+    await WhatsAppService.sendMessage(phone, withLead(lead, ux('vqNoQuestions', language)));
     return null;
   }
 
@@ -468,7 +479,7 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
     // Checked, not ignored: the parent quiz silently swallowed exactly this
     // error for months and nobody noticed the status never moved.
     logToFile('❌ video-quiz: could not create session', { quizId, error: sErr?.message });
-    await WhatsAppService.sendMessage(phone, ux('vqStartFailed', language));
+    await WhatsAppService.sendMessage(phone, withLead(lead, ux('vqStartFailed', language)));
     return null;
   }
 
@@ -554,18 +565,69 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
   //
   // A TRANSCRIPT quiz has no lesson video (video_id null): the lesson was
   // the teacher's own class, so there is nothing to send first.
+  const leadBox = { text: lead || null };
   if (source === 'share_link' && videoId) {
-    await sendLessonFirst(phone, videoId, language);
+    await sendLessonFirst(phone, videoId, language, leadBox);
   }
 
-  await rateLimiter.throttle(phone);
-  await WhatsAppService.sendMessage(phone, ux('vqHereWeGo', language, { n: chosen.length }));
-  await sendNextQuestion(phone, state);
+  // "Here we go — n questions" (and the greeting, when no lesson carried it)
+  // is no longer a bubble of its own: it rides at the top of question 1 when
+  // that opens with text, and goes as ONE text ahead of it otherwise.
+  await sendNextQuestion(phone, state, {
+    lead: {
+      kind: 'opener',
+      text: withLead(leadBox.text, ux('vqHereWeGo', language, { n: chosen.length })),
+      gapMs: 0,
+    },
+  });
   return state;
 }
 
-async function sendNextQuestion(phone, state) {
-  if (state.index >= state.questionIds.length) return finish(phone, state);
+/** `lead` then `text`, as paragraphs; either may be empty. */
+function withLead(lead, text) {
+  const a = String(lead == null ? '' : lead).trim();
+  if (!a) return text;
+  return text ? `${a}\n\n${text}` : a;
+}
+
+// How long a verdict sent on its own waits before the next question — the
+// same pause handleAnswer always held between the two.
+const VERDICT_PAUSE_MS = 1200;
+
+/**
+ * Send a lead that could not ride on the question as its own text — exactly
+ * what used to be sent before this existed. Throttled like every send here.
+ */
+async function sendLeadAlone(phone, lead, state) {
+  await rateLimiter.throttle(phone);
+  const ok = await WhatsAppService.sendMessage(phone, lead.text);
+  lead.sentAt = Date.now();
+  lead.folded = false;
+  if (!ok) {
+    logToFile('⚠️ video-quiz: line before the question not delivered', {
+      phone: String(phone).slice(-4), sessionId: state && state.sessionId, kind: lead.kind,
+    });
+  }
+  return ok;
+}
+
+/**
+ * Ask the next question.
+ *
+ * `opts.lead` — { text, kind, gapMs } — a line that would have gone out as its
+ * own bubble just before this question (the verdict on the last answer, or the
+ * session opener). It rides at the top of the question's first bubble when that
+ * bubble opens with text and fits; otherwise it is sent on its own first, as it
+ * always was. It is never dropped: a skipped question carries it to the next,
+ * the finish sends it ahead of the result, and a bubble that failed to go out
+ * with it is followed by the lead on its own.
+ */
+async function sendNextQuestion(phone, state, opts = {}) {
+  const lead = opts.lead && !opts.lead.sentAt ? opts.lead : null;
+  if (state.index >= state.questionIds.length) {
+    if (lead) await sendLeadAlone(phone, lead, state);
+    return finish(phone, state);
+  }
 
   const questionId = state.questionIds[state.index];
   const { data: q, error } = await supabase
@@ -583,7 +645,7 @@ async function sendNextQuestion(phone, state) {
     // under a live session, which takes several rows at once, and a line per
     // row would be a burst of messages. The finish (or its floor) explains.
     await skipQuestion(phone, state, questionId, 'missing', { tell: false });
-    return sendNextQuestion(phone, state);
+    return sendNextQuestion(phone, state, opts);
   }
 
   // "Question n of N" used to be a WhatsAppService.sendMessage of its own right
@@ -599,8 +661,35 @@ async function sendNextQuestion(phone, state) {
   });
   const ctx = { questionId: q.id, sessionId: state.sessionId, language: state.language };
 
-  await sender.sendPhase(phone, msgs, 'question', ctx);
+  let folded = false;
+  if (lead) {
+    folded = Lead.foldLead(msgs, lead.text, ctx);
+    if (!folded) {
+      await sendLeadAlone(phone, lead, state);
+      if (lead.gapMs) await sleep(lead.gapMs);
+    }
+  }
+
+  const qRes = await sender.sendPhase(phone, msgs, 'question', ctx);
   const res = await sender.sendPhase(phone, msgs, 'interaction', ctx);
+
+  if (folded) {
+    // The sender reports `leadSent: false` when the bubble carrying the lead
+    // did not go out.
+    const missed = [qRes, res].some((r) => r && r.leadSent === false);
+    if (!missed) {
+      lead.sentAt = Date.now();
+      lead.folded = true;
+      logEvent('video_quiz.lead_folded', {
+        sessionId: state.sessionId, questionId: q.id, kind: lead.kind,
+        into: (Lead.firstBubble(msgs) || {}).kind,
+      });
+    } else {
+      // The bubble that carried it never went out: say it on its own now, so
+      // it still comes before anything else this question sends.
+      await sendLeadAlone(phone, lead, state);
+    }
+  }
 
   if (res.pickerFailed) {
     // No tap surface reached the child. Most of the time this is transient
@@ -782,7 +871,9 @@ async function acquireAnswerLock(phone) {
 /**
  * Grade a tap and move on. Returns true if the input belonged to a video quiz.
  */
-async function handleAnswer(phone, inputId) {
+async function handleAnswer(phone, inputId, opts = {}) {
+  // `opts.messageId` — the wamid of the child's own tap, when the caller has it.
+  // It is what a free ✅/❌ reaction lands on.
   // The child's tap is what needs measuring, so the clock starts on the
   // FIRST line, before the render parse — not on our own bookkeeping.
   const answerStart = Date.now();
@@ -859,17 +950,37 @@ async function handleAnswer(phone, inputId) {
     }
     if (aErr) logToFile('⚠️ video-quiz: answer insert failed', { error: aErr.message });
 
-    // No emoji reaction here: sendReaction needs the message id of the child's
-    // own reply, which the webhook gives us but this path does not carry. Calling
-    // it with null would fail silently on every single answer — dead code that
-    // reads like a working feature. The verdict text opens with ✅ / "Not quite"
-    // anyway, so the feedback is not lost.
+    // A free ✅/❌ on the child's own tap — reactions are not billed, and it
+    // lands at once, whatever happens to the verdict text below. Only when the
+    // caller passed the tap's wamid: a reaction with no message id fails
+    // silently, and the verdict text carries the same mark anyway.
+    if (opts.messageId) {
+      try {
+        await WhatsAppService.sendReaction(phone, opts.messageId,
+          isCorrect ? render.VERDICT_CORRECT : render.VERDICT_WRONG);
+      } catch (err) {
+        logToFile('⚠️ video-quiz: verdict reaction failed (the verdict text still goes)', { error: err.message });
+      }
+    }
+
     const msgs = render.build(q);
-    await sender.sendPhase(phone, msgs, 'answer', {
+    const answerCtx = {
       questionId: q.id, sessionId: state.sessionId, language: state.language,
       isCorrect, selectedIndex: parsed.index,
-    });
-    const msToFeedback = Date.now() - answerStart;
+    };
+    // A verdict that is TEXT ALONE (no explanation picture, no answer clip)
+    // can ride on the next question instead of costing a bubble of its own —
+    // decided in sendNextQuestion, which knows what that question opens with.
+    // Anything with media keeps today's order: verdict, then its media.
+    const verdictMsgs = Lead.answerBranch(msgs, answerCtx);
+    let verdictLead = null;
+    let msToFeedback = null;
+    if (verdictMsgs.length === 1 && verdictMsgs[0].kind === 'text' && verdictMsgs[0].body) {
+      verdictLead = { kind: 'verdict', text: verdictMsgs[0].body, gapMs: VERDICT_PAUSE_MS };
+    } else {
+      await sender.sendPhase(phone, msgs, 'answer', answerCtx);
+      msToFeedback = Date.now() - answerStart;
+    }
 
     // The columns come from the table this call has just written to, never from
     // the counters carried in `state` — see writeCountersFromAnswers. `state` then
@@ -891,17 +1002,37 @@ async function handleAnswer(phone, inputId) {
     // it could not be asked. Without skips this is exactly the old
     // `answered >= questionIds.length`.
     const finished = state.index >= state.questionIds.length;
-    const msPause = 1200;
-    await new Promise((r) => setTimeout(r, msPause));
-    if (finished) {
-      await finish(phone, state);
+    if (verdictLead && finished) {
+      // The result comes next and opens with a picture: the verdict keeps its
+      // own bubble, ahead of it, exactly as before.
+      await sender.sendPhase(phone, msgs, 'answer', answerCtx);
+      msToFeedback = Date.now() - answerStart;
+      verdictLead = null;
+    }
+    let msPause = 0;
+    if (verdictLead) {
+      // Not sent yet, so nothing to pause after: sendNextQuestion folds it into
+      // the question or sends it first, holding the same pause when it does.
+      await sendNextQuestion(phone, state, { lead: verdictLead });
+      if (verdictLead.sentAt) msToFeedback = verdictLead.sentAt - answerStart;
+      if (!verdictLead.folded) msPause = VERDICT_PAUSE_MS;
     } else {
-      await sendNextQuestion(phone, state);
+      msPause = VERDICT_PAUSE_MS;
+      await new Promise((r) => setTimeout(r, msPause));
+      if (finished) {
+        await finish(phone, state);
+      } else {
+        await sendNextQuestion(phone, state);
+      }
     }
     logEvent('video_quiz.answer_latency', {
       sessionId: state.sessionId, questionId: q.id, isCorrect,
       msToFeedback, msToNextQuestion: Date.now() - answerStart, msPause,
       media: mediaKind(q), finished,
+      // How the verdict reached the child: on the next question, alone, or
+      // alone because the answer carried media.
+      verdict: verdictLead ? (verdictLead.folded ? 'folded' : 'alone') : 'sent_first',
+      reacted: Boolean(opts.messageId),
     });
     return true;
   } finally {
@@ -1044,6 +1175,14 @@ async function saveState(phone, state, where) {
   return ok;
 }
 
+/**
+ * A re-tap within this long of the question going out finds it still on the
+ * child's screen. Production, 7 days to 30 Sep 2026: duplicate taps re-sent the
+ * waiting question a median 7.6 s (p75 20 s) after it went out, 6,159 times.
+ * Past this window the child may have scrolled away from it, so it is re-sent.
+ */
+const RESEND_WINDOW_MS = 2 * 60 * 1000;
+
 async function reconcileFromAnswers(phone, state) {
   const truth = await truthFromAnswers(state.sessionId);
   state.answered = truth.answered;
@@ -1052,10 +1191,29 @@ async function reconcileFromAnswers(phone, state) {
   // question list that is shorter than the answers means the quiz is over.
   // A skipped question is never where the child continues.
   state.index = nextIndexFromTruth(state.questionIds, truth, state.skippedIds);
+
+  // A DOUBLE TAP: the question the child continues at is the one already sent
+  // and waiting (currentQuestionId is set only after its picker went out), and
+  // it went out moments ago. Re-sending it was a second, identical bubble.
+  const nextId = state.index < (state.questionIds || []).length ? state.questionIds[state.index] : null;
+  const waitingOnScreen = Boolean(nextId) && state.currentQuestionId === nextId
+    && Number.isFinite(state.sentAt) && (Date.now() - state.sentAt) < RESEND_WINDOW_MS;
+  if (waitingOnScreen) {
+    await saveState(phone, state, 'reconcileFromAnswers:still_waiting');
+    await writeCountersFromAnswers(state.sessionId, { reason: 'reconcile', phone });
+    logEvent('video_quiz.reconciled', {
+      sessionId: state.sessionId, answered: state.answered, index: state.index,
+      resent: false, msSinceSent: Date.now() - state.sentAt,
+    });
+    return true;
+  }
+
   state.currentQuestionId = null;
   await saveState(phone, state, 'reconcileFromAnswers');
   await writeCountersFromAnswers(state.sessionId, { reason: 'reconcile', phone });
-  logEvent('video_quiz.reconciled', { sessionId: state.sessionId, answered: state.answered, index: state.index });
+  logEvent('video_quiz.reconciled', {
+    sessionId: state.sessionId, answered: state.answered, index: state.index, resent: true,
+  });
   // sendNextQuestion's own `state.index >= state.questionIds.length` guard
   // finishes the session when nextIndexFromTruth above has already derived
   // the end — unlike handleAnswer/handleMultiAnswer, there is no separately
@@ -1072,6 +1230,39 @@ async function reconcileFromAnswers(phone, state) {
  */
 function minAskedToScore(state) {
   return Math.ceil((state.questionIds || []).length / 2);
+}
+
+/**
+ * The result to carry as the header of the "invite a friend" buttons, or null
+ * to send it on its own as before.
+ *
+ * Only when the invite comes STRAIGHT after the result: a share-link run with a
+ * known child (offerInvite needs both a student and a share code), and no late
+ * class card due in between (the teacher's report is out and class cards are
+ * on — then the child gets result, class card, invite, in that order, as
+ * today). Any doubt — a failed read, a renderer that will not load — is null.
+ *
+ * @returns {Promise<{png: Buffer|null, caption: string, delivered: boolean}|null>}
+ */
+async function scorecardForInvite(state, prepare, doneText) {
+  if (state.source !== 'share_link' || !state.shareCodeId || !state.studentId) return null;
+  try {
+    const report = require('./video-quiz-report.service');
+    if (report.classCardsEnabled()) {
+      const { data, error } = await supabase.from('quiz_share_codes')
+        .select('report_sent_at').eq('id', state.shareCodeId).maybeSingle();
+      if (error || (data && data.report_sent_at)) return null;
+    }
+    const { png, caption } = await prepare();
+    // A picture that could not be drawn: the plain-text result, exactly the
+    // words finish() has always sent in that case, above the invite question.
+    return png
+      ? { png, caption, delivered: false }
+      : { png: null, caption: doneText(), delivered: false };
+  } catch (err) {
+    logToFile('⚠️ video-quiz: scorecard-on-invite unavailable, sending the result as before', { error: err.message });
+    return null;
+  }
 }
 
 async function finish(phone, state) {
@@ -1128,22 +1319,49 @@ async function finish(phone, state) {
   const { data: quizMeta } = await supabase
     .from('quizzes').select('topic, grade, subject, quiz_source').eq('id', state.quizId).maybeSingle();
   const Scorecard = require('./video-quiz-scorecard.service');
-  const sentScorecard = await Scorecard.sendScorecard(phone, {
+  const tierKey = level === 'mastered' ? 'vqTierMastered' : level === 'developing' ? 'vqTierDeveloping' : 'vqTierNeedsPractice';
+  const doneText = () => ux('vqDoneFallback', state.language, {
+    correct: state.correct, total, pct, tier: ux(tierKey, state.language),
+  });
+  const card = {
     topic: quizMeta?.topic, grade: quizMeta?.grade, subject: quizMeta?.subject,
     correct: state.correct, total, pct, takerName: state.takerName, language: state.language,
-  }).catch((err) => {
-    logToFile('⚠️ video-quiz: scorecard send threw', { error: err.message });
-    return false;
-  });
-  if (!sentScorecard) {
-    const tierKey = level === 'mastered' ? 'vqTierMastered' : level === 'developing' ? 'vqTierDeveloping' : 'vqTierNeedsPractice';
-    await WhatsAppService.sendMessage(phone, ux('vqDoneFallback', state.language, {
-      correct: state.correct, total, pct, tier: ux(tierKey, state.language),
-    }));
+  };
+
+  // The result rides as the image HEADER of the "invite a friend" buttons when
+  // that invite comes straight after it — one message instead of two. Only
+  // then: a late finisher's class card goes between the two today, and that
+  // order is kept (the result alone, the class card, then the invite).
+  const onInvite = await scorecardForInvite(state, () => Scorecard.prepareScorecard(card), doneText);
+  let sentScorecard;
+  if (onInvite) {
+    const Invite = require('./video-quiz-invite.service');
+    await Invite.offerInvite({
+      phone, studentId: state.studentId, shareCodeId: state.shareCodeId,
+      language: state.language, sessionId: state.sessionId, quizId: state.quizId,
+      scorecard: onInvite,
+    }).catch((err) => logToFile('⚠️ invite offer (with the scorecard) failed', { error: err.message }));
+    if (!onInvite.delivered) {
+      // Whatever went wrong, the child still gets their result.
+      await rateLimiter.throttle(phone);
+      onInvite.delivered = Boolean(onInvite.png
+        ? await WhatsAppService.sendImageFromBuffer(phone, onInvite.png, onInvite.caption)
+        : await WhatsAppService.sendMessage(phone, onInvite.caption));
+    }
+    sentScorecard = Boolean(onInvite.png && onInvite.delivered);
+  } else {
+    sentScorecard = await Scorecard.sendScorecard(phone, card).catch((err) => {
+      logToFile('⚠️ video-quiz: scorecard send threw', { error: err.message });
+      return false;
+    });
+    if (!sentScorecard) {
+      await WhatsAppService.sendMessage(phone, doneText());
+    }
   }
   logEvent('video_quiz.scorecard_sent', {
     sessionId: state.sessionId, quizId: state.quizId,
     ok: !!sentScorecard, fallback: !sentScorecard, pct, language: state.language,
+    withInvite: Boolean(onInvite && onInvite.asHeader),
   });
 
   logEvent('video_quiz.completed', {
@@ -1186,10 +1404,13 @@ async function finish(phone, state) {
       await Invite.notifyInviter(session, state.language)
         .catch((err) => logToFile('⚠️ inviter notify failed', { error: err.message }));
     }
-    await Invite.offerInvite({
-      phone, studentId: state.studentId, shareCodeId: state.shareCodeId,
-      language: state.language, sessionId: state.sessionId, quizId: state.quizId,
-    }).catch((err) => logToFile('⚠️ invite offer failed', { error: err.message }));
+    // Already offered, with the scorecard as its header, when onInvite is set.
+    if (!onInvite) {
+      await Invite.offerInvite({
+        phone, studentId: state.studentId, shareCodeId: state.shareCodeId,
+        language: state.language, sessionId: state.sessionId, quizId: state.quizId,
+      }).catch((err) => logToFile('⚠️ invite offer failed', { error: err.message }));
+    }
   }
 
   // Only the solo path gets the video survey and the share offer. A child who
@@ -1447,7 +1668,7 @@ async function stopTyped(phone, text) {
  * @returns {Promise<boolean>} true when the letter was taken as this question's answer
  */
 const TYPED_LETTER_RX = /^[a-d]$/i;
-async function answerTypedLetter(phone, text) {
+async function answerTypedLetter(phone, text, opts = {}) {
   const letter = String(text || '').trim();
   if (!TYPED_LETTER_RX.test(letter)) return false;
   const state = await redisService.get(STATE_KEY(phone));
@@ -1476,7 +1697,7 @@ async function answerTypedLetter(phone, text) {
   logEvent('video_quiz.typed_answer', {
     sessionId: state.sessionId, questionId: q.id, letter: letter.toUpperCase(), position, index: original,
   });
-  return handleAnswer(phone, render.answerId(q.id, original));
+  return handleAnswer(phone, render.answerId(q.id, original), opts);
 }
 
 module.exports = {

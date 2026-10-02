@@ -8,6 +8,7 @@ const fs = require('fs');
 
 // Import Services
 const WhatsAppService = require('./shared/services/whatsapp.service');
+const InboundTyping = require('./shared/services/inbound-typing');
 const SessionService = require('./shared/services/session.service');
 const OpenAIService = require('./shared/services/openai.service');
 const CoachingService = require('./shared/services/coaching-orchestrator.service');
@@ -263,8 +264,8 @@ async function handleAttendanceTap(interactiveId, from, user) {
     return true;
   }
 
-  // One Flow, opened with the bare user id for a teacher; it picks the class
-  // and the date. MARK_* carry an explicit target — a principal always.
+  // One Flow, opened with "<userId>:student" (no target) for a teacher; it picks
+  // the class and the date. MARK_* carry an explicit target — a principal always.
   if (decision.action === 'OPEN_REGISTER'
       || decision.action === 'MARK_TEACHERS' || decision.action === 'MARK_STUDENTS') {
     if (!constants.ATTENDANCE_MARKING_FLOW_ID) {
@@ -284,16 +285,17 @@ async function handleAttendanceTap(interactiveId, from, user) {
   }
 
   // /class owns class creation now — attendance points at it rather than shipping a
-  // second way to make one. flowToken is the bare user id, the class-manager
-  // endpoint's convention (NOT a composite token). (bd-2724)
+  // second way to make one. The token is the one every class-manager sender
+  // builds, so the Flow's completion is recognised whichever door opened it. (bd-2724)
   if (decision.action === 'SEND_CLASS_MANAGER') {
     if (constants.CLASS_MANAGER_FLOW_ID) {
+      const { classManagerFlowToken } = require('./shared/services/classes/class-entry.service');
       await WhatsAppService.sendFlow(from, {
         flowId: constants.CLASS_MANAGER_FLOW_ID,
         header: '🏫 Your classes',
         body: decision.message,
         buttonText: 'Manage classes',
-        flowToken: user.id,
+        flowToken: classManagerFlowToken(user.id),
       });
       return true;
     }
@@ -324,7 +326,19 @@ async function handleAttendanceTap(interactiveId, from, user) {
   return true;
 }
 
+/**
+ * bd-onxyu — the app-redirect switch for a button that STARTS a feature.
+ * True = handled (notice sent or quiet hour); the branch returns.
+ */
+async function buttonRedirectsToApp(feature, user, from, reason) {
+  if (!user?.id) return false;
+  const { redirectIfFlagged } = require('./shared/services/app-redirect.service');
+  const { getUserLanguage } = require('./shared/utils/language-cache');
+  return redirectIfFlagged(feature, { userId: user.id, from, language: await getUserLanguage(user.id), reason });
+}
+
 async function openStudentVideosFlowFromCta(message, from, user) {
+  if (await buttonRedirectsToApp('video', user, from, 'select_video_cta')) return;
   const { STUDENT_VIDEOS_FLOW_ID } = require('./shared/utils/constants');
   logToFile('🎬 Student Videos: Select Video CTA tapped', { from, userId: user?.id });
   if (STUDENT_VIDEOS_FLOW_ID) {
@@ -454,7 +468,9 @@ app.post('/webhook', async (req, res) => {
   // Wrap the entire request processing with correlation context
   // All console.log calls inside will automatically include correlationId
   // Tracked, so a deploy's drain waits for this work and not just for the ack.
-  await trackWebhookWork(runWithCorrelation(correlationId, async () => {
+  // bd-0wrn4: the request runs inside an inbound-typing context, so a reply made anywhere below
+  // (any handler, any depth) is seen by the deferred "typing…" for this message.
+  await trackWebhookWork(InboundTyping.withRequest(() => runWithCorrelation(correlationId, async () => {
     logToFile('=== INCOMING WEBHOOK ===', { correlationId });
 
     // Issue #58 FIX: Add button payload diagnostic logging
@@ -618,8 +634,10 @@ app.post('/webhook', async (req, res) => {
     const emoji = SessionService.getReactionEmoji(from);
     await WhatsAppService.sendReaction(from, message.id, emoji);
 
-    // Show typing indicator
-    await WhatsAppService.showTypingIndicator(from, message.id);
+    // Read receipt now; "typing…" only if no reply (message OR reaction) has gone out within
+    // INBOUND_TYPING_DEFER_MS (2 s) and the handler is still working. Sent up front, it hung on
+    // screen ~25 s over every reply that is only a reaction (bd-0wrn4) — see inbound-typing.js.
+    InboundTyping.open(from, message.id, WhatsAppService);
 
     // Get or create user in database
     let user = null;
@@ -705,6 +723,7 @@ app.post('/webhook', async (req, res) => {
       // completed. Routed BEFORE the module/quiz prefixes below because
       // `module_exam_start_` must not be mistaken for either.
       if (buttonId.startsWith('module_exam_start_')) {
+        if (await buttonRedirectsToApp('teacher_training', user, from, 'module_exam_button')) return;
         const courseId = buttonId.replace('module_exam_start_', '');
         const QuizDelivery = require('./shared/services/training/quiz-delivery.service');
         await QuizDelivery.startModuleExam(user.id, courseId, from);
@@ -739,6 +758,7 @@ app.post('/webhook', async (req, res) => {
       }
       // BH open-ended capstone start 
       if (buttonId.startsWith('capstone_start_')) {
+        if (await buttonRedirectsToApp('teacher_training', user, from, 'capstone_button')) return;
         const CapstoneDelivery = require('./shared/services/training/capstone-delivery.service');
         await CapstoneDelivery.handleCapstoneButton(user.id, buttonId, from);
         return;
@@ -751,7 +771,8 @@ app.post('/webhook', async (req, res) => {
       // record merge and the ack live in the service.
       if (buttonId.startsWith('card_')) {
         const { handleCardButton } = require('./shared/services/coaching/coaching-card/card-response.service');
-        if (await handleCardButton(buttonId, from, user && user.preferred_language)) return;
+        // Meta bill cut (N2-C11): the tap's wamid lets the ack be a free ✅ reaction.
+        if (await handleCardButton(buttonId, from, user && user.preferred_language, message.id)) return;
       }
 
       // Coaching survey buttons (👍 Yes / 👎 Not really) — sent once the report AND the
@@ -766,7 +787,8 @@ app.post('/webhook', async (req, res) => {
       // LP feedback survey buttons (👍 Yes / 👎 Not really) — 30s after LP delivery
       if (buttonId.startsWith('lp_feedback_yes_') || buttonId.startsWith('lp_feedback_no_')) {
         const LpFeedbackService = require('./shared/services/lp-feedback.service');
-        await LpFeedbackService.handleFeedbackButton(buttonId, from);
+        // FX1: the tap's wamid — the receipt is a 🙏 reaction on it.
+        await LpFeedbackService.handleFeedbackButton(buttonId, from, { messageId: message.id });
         return;
       }
 
@@ -788,7 +810,7 @@ app.post('/webhook', async (req, res) => {
       // where this one carries a segment id, so a mis-route would silently drop the tap.
       if (buttonId.startsWith('lp612_used_')) {
         const Lp612FeedbackService = require('./shared/services/lp612-feedback.service');
-        if (await Lp612FeedbackService.handleUsageButton(buttonId, from)) return;
+        if (await Lp612FeedbackService.handleUsageButton(buttonId, from, { messageId: message.id })) return;
       }
 
       // LP usage follow-up (bd-vw0aj) — the 👍 path when a voice note was delivered.
@@ -797,7 +819,7 @@ app.post('/webhook', async (req, res) => {
       // survey buttons it follows.
       if (buttonId.startsWith('lp_used_')) {
         const LpFeedbackService = require('./shared/services/lp-feedback.service');
-        await LpFeedbackService.handleUsageButton(buttonId, from);
+        await LpFeedbackService.handleUsageButton(buttonId, from, { messageId: message.id });
         return;
       }
 
@@ -851,7 +873,8 @@ app.post('/webhook', async (req, res) => {
       // Coaching confirmation buttons
       if (buttonId.startsWith('coaching_confirm_')) {
         const sessionId = buttonId.replace('coaching_confirm_', '');
-        await CoachingService.handleConfirmation(sessionId, from, true);
+        // NC1: the tap's wamid lets the Yes get a free ⏳ reaction instead of Step 1/5.
+        await CoachingService.handleConfirmation(sessionId, from, true, message.id);
       } else if (buttonId.startsWith('att_method_') || buttonId.startsWith('att_voice_')
                  || buttonId.startsWith('att_class_')) {
         if (user?.id) { await handleAttendanceTap(buttonId, from, user); }
@@ -903,7 +926,7 @@ app.post('/webhook', async (req, res) => {
         if (parsed && user) {
           if (parsed.action === 'start') await ObserveSend.startSendFlow(parsed.sessionId, from, user);
           else if (parsed.action === 'later') await ObserveSend.handleSendLater(parsed.sessionId, from, user);
-          else if (parsed.action === 'confirm') await ObserveSend.handleSendConfirm(parsed.sessionId, from, user);
+          else if (parsed.action === 'confirm') await ObserveSend.handleSendConfirm(parsed.sessionId, from, user, { messageId: message.id });
           else if (parsed.action === 'other') await ObserveSend.handleSendOther(parsed.sessionId, from, user);
           else if (parsed.action === 'cancel') await ObserveSend.handleSendCancel(parsed.sessionId, from, user);
         } else {
@@ -987,7 +1010,8 @@ app.post('/webhook', async (req, res) => {
       else if (buttonId.startsWith('photo_more_')) {
         const sessionId = buttonId.replace('photo_more_', '');
         const { handleAddAnotherPhotoTap } = require('./shared/services/coaching/classroom-photo/add-another.service');
-        await handleAddAnotherPhotoTap({ sessionId, from, user });
+        // NC4: the tap's wamid lets "Add another" get a free 📸 reaction instead of a text.
+        await handleAddAnotherPhotoTap({ sessionId, from, user, messageId: message.id });
       }
       // Stale session reminder buttons - Continue coaching.
       // The body lives in continue-coaching.service so it can be executed by a
@@ -1268,7 +1292,8 @@ app.post('/webhook', async (req, res) => {
           || await VideoQuizShare.handleShareButton(buttonId, from)
           || await VideoQuizInvite.handleInviteButton(buttonId, from)
           || await VideoQuizBinge.handleMoreButton(buttonId, from)
-          || await VideoQuizService.handleAnswer(from, buttonId);
+          // The tap's own wamid: the verdict's free ✅/❌ reaction lands on it.
+          || await VideoQuizService.handleAnswer(from, buttonId, { messageId: message.id });
         if (!handled) {
           logToFile('⚠️ unrouted vq_ button', { buttonId, from });
         }
@@ -1296,7 +1321,8 @@ app.post('/webhook', async (req, res) => {
       else if (buttonId.startsWith('tq_')) {
         const TranscriptQuizOffer = require('./shared/services/quiz/transcript-quiz-offer.service');
         const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
-        const handled = await TranscriptQuizOffer.handleOfferButton(buttonId, from)
+        // The tap's wamid: a 'Not now' is answered with a free reaction on it.
+        const handled = await TranscriptQuizOffer.handleOfferButton(buttonId, from, { messageId: message.id })
           || await TranscriptQuizList.handleActionButton(buttonId, from);
         if (!handled) {
           logToFile('⚠️ unrouted tq_ button', { buttonId, from });
@@ -1556,7 +1582,7 @@ app.post('/webhook', async (req, res) => {
             .find((v) => /^\d+$/.test(String(v)));
           if (questionId && picked !== undefined) {
             const VideoQuizService = require('./shared/services/quiz/video-quiz.service');
-            await VideoQuizService.handleAnswer(from, `vq_${questionId}_${picked}`);
+            await VideoQuizService.handleAnswer(from, `vq_${questionId}_${picked}`, { messageId: message.id });
             return;
           }
           logToFile('⚠️ video-quiz Flow reply had no option index', { vqToken, responseJson });
@@ -1655,6 +1681,15 @@ app.post('/webhook', async (req, res) => {
         // This branch is also the seam a future register -> /staff hand-off travels
         // through, so it needs to stay reachable.
         logToFile('📋 Attendance marking flow completion (register already written by endpoint)', {
+          from,
+          responseFields: Object.keys(responseJson)
+        });
+      } else if (flowType === 'class_manager') {
+        // /class. The endpoint wrote every change before the Flow closed and its
+        // own SAVED screen confirmed it, so this branch only claims the completion
+        // — without it the save fell to the "Thanks for your response! Type /menu…"
+        // catch-all below.
+        logToFile('🏫 Class manager flow completion (changes already written by endpoint)', {
           from,
           responseFields: Object.keys(responseJson)
         });
@@ -1765,12 +1800,9 @@ app.post('/webhook', async (req, res) => {
             .from('users').select('preferred_language').eq('id', observerId).maybeSingle();
           const obsLang = clampLanguage(obsRow?.preferred_language);
           const S = observeStrings(obsLang);
-          await WhatsAppService.sendMessage(from, S.submitted_ack);
           if (observerId) await ObserveDebrief.clearStateAfterSubmit(observerId, observeSessionId);
-          if (observeSessionId) {
-            await WhatsAppService.sendInteractiveButtons(
-              from, ObserveDebrief.buildDebriefChoiceButtons(observeSessionId, S));
-          }
+          // "Saved" and "debrief now or later?" — one buttons message, ack on top.
+          await ObserveDebrief.acknowledgeFormSubmitted(from, observeSessionId, S);
           logToFile('🔭 Observe FICO submission acknowledged', { from, sessionId: observeSessionId });
         } catch (observeAckErr) {
           logToFile('⚠️ observe ack failed (submission itself already persisted)', { error: observeAckErr.message });
@@ -1819,7 +1851,8 @@ app.post('/webhook', async (req, res) => {
           from, action: responseJson.assessment_action,
         });
         try {
-          await FlowResponseHandler.handleAssessmentFlowCompletion(responseJson, from, user);
+          // The completion's own id: a remake is acknowledged with a reaction on it.
+          await FlowResponseHandler.handleAssessmentFlowCompletion(responseJson, from, user, { messageId: message.id });
         } catch (ackErr) {
           logToFile('❌ assessment completion handler failed', { from, error: ackErr.message }, 'error');
         }
@@ -1889,7 +1922,7 @@ app.post('/webhook', async (req, res) => {
 
       if (listId.startsWith('vq_')) {
         const VideoQuizService = require('./shared/services/quiz/video-quiz.service');
-        if (await VideoQuizService.handleAnswer(from, listId)) return;
+        if (await VideoQuizService.handleAnswer(from, listId, { messageId: message.id })) return;
       }
 
       // Teacher-training grand quiz answers — handle before Reading Assessment routing.
@@ -2269,8 +2302,12 @@ app.post('/webhook', async (req, res) => {
       stack: error.stack
     });
     ack(); // Still send 200 to avoid retries
+  } finally {
+    // Nothing more will answer this message from this request: a deferred "typing…" that has
+    // not gone up yet never will (bd-0wrn4). No-op before open() / for a handed-off join.
+    InboundTyping.endDispatch();
   }
-  })); // End of runWithCorrelation (tracked by web-drain)
+  }))); // End of runWithCorrelation (tracked by web-drain)
 });
 
 /**
@@ -2307,7 +2344,7 @@ async function handleDocumentMessage(message, from, user) {
       const { isImageMime } = require('./shared/services/coaching/photo-capture-routing');
       if (isImageMime(mimeType)) {
         const { handlePhotoArrival } = require('./shared/services/coaching/media-attach.service');
-        if (await handlePhotoArrival({ user, from, mediaId: documentId, mimeType, kind: 'photo' })) return;
+        if (await handlePhotoArrival({ user, from, mediaId: documentId, mimeType, kind: 'photo', messageId: message.id })) return;
       }
     } catch (photoDocErr) {
       logToFile('⚠️ Classroom-photo-as-document check failed (non-critical)', { error: photoDocErr.message });

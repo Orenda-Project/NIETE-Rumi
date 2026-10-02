@@ -101,6 +101,7 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => {
     sendImageFromUrl: ok('image'),
     sendAudioFromUrlReturningId: jest.fn(async () => 'wamid.a'),
     sendFlow: ok('flow'),
+    sendReaction: jest.fn(async (to, id, emoji) => { mockSent.push({ kind: 'reaction', to, payload: { id, emoji } }); return true; }),
     sendTypingIndicator: jest.fn(),
     markAsRead: jest.fn(),
     startContinuousTypingIndicator: () => ({ stop: jest.fn() }),
@@ -201,6 +202,19 @@ describe('a typed letter during a video / transcript / lesson-plan quiz', () => 
       expect.objectContaining({ session_id: SESSION, question_id: 'q-0', selected_option: 'ABCD'[shownSecond] }),
     ]);
     expect(texts().some((t) => t.includes(PARENT_NUDGE))).toBe(false);
+  });
+
+  test('the typed letter gets the free ✅/❌ verdict reaction on the child\'s own message', async () => {
+    reset({ sessions: [shareLinkRow()], videoState: videoState() });
+    const render = require('../../bot/shared/services/quiz/video-quiz-render.service');
+    const ask = render.build(question(0)).find((m) => m.role === 'ask');
+    const picked = (ask.optionIndices || [0, 1, 2])[1];
+    const right = render.correctIndices(question(0)).includes(picked);
+
+    await send('b');
+
+    expect(mockSent.filter((s) => s.kind === 'reaction').map((s) => s.payload))
+      .toEqual([{ id: 'wamid.in', emoji: right ? '✅' : '❌' }]);
   });
 
   test('a letter the question does not offer is not taken as an answer', async () => {

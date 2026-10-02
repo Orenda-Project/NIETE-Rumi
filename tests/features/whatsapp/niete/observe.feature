@@ -119,6 +119,12 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When I upload a classroom recording (Document, ≥ 15 min)
     Then the bot replies that the audio was received and is being analysed
     And it does NOT ask a Yes/No "analyse this?" confirmation
+    And it sends the coach NO teacher-coaching progress lines — no "Step 1/5: Transcribing…" and no "Step 2/5: Analyzing your teaching…"
+    # UPDATED 2026-10-01 (Meta bill cut, NO1 / N2-O01, N2-O02): the transcription and analysis jobs
+    # are shared with a teacher's own coaching, and both opened with the TEACHER's progress line,
+    # in the observed teacher's language, sent to the coach right after "Got the recording … 2–5
+    # minutes" (449 + 440 a week). Skipped when observation_type = 'leader_observation'; the
+    # teacher's own coaching session still gets both.
     # observe-capture.service.js:56 startFromAudio — inserts a row status
     # 'confirmed' directly (no Yes/No, bd-16), observation_type='leader_observation',
     # debrief_status='pending', queues transcription, arms 'analyzing', sends
@@ -183,7 +189,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given the FICO form is open with the draft pre-filled
     When I adjust a rating and an evidence note on a domain screen
     And I advance through every domain screen and submit
-    Then the bot acknowledges the submission and offers "Debrief now" / "Debrief later"
+    Then the bot acknowledges the submission and offers "Debrief now" / "Debrief later" in ONE buttons message — the "saved" line first, then the debrief question
+    # UPDATED 2026-10-01 (Meta bill cut, NO1 / N2-O03): these were a text and then the buttons
+    # (422 a week each). observe-debrief.service.js acknowledgeFormSubmitted joins them when the body
+    # fits 1,024 code points; if the buttons are refused, the "saved" line is still sent alone.
     # observe-mewaka-endpoint.js: data_exchange buffers r_/ev_/imp_ edits in Redis
     # (observe:edits:<sessionId>, 2h); LAST screen → applyObserverEdits
     # (observe-draft.service.js:164, merge → v2, computeScores, observer_edit_summary
@@ -194,7 +203,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   Scenario: "Debrief now" delivers the 6-step debrief guide
     Given a submitted FICO observation offering the debrief choice
     When I tap "Debrief now"
-    Then the bot sends a 6-step debrief guide and an instruction to record the debrief
+    Then the bot sends a 6-step debrief guide and an instruction to record the debrief, as ONE message — the instruction is its last paragraph
+    # UPDATED 2026-10-01 (Meta bill cut, NO1 / N2-O04): two texts before (455 a week each). The
+    # guide is budgeted to 2,200 code points, so the pair fits 4,096; over it they stay two messages.
     And the guide contains NO numeric scores
     # observe-debrief.service.js:282 startDebrief → observe-debrief-guide.js 6 steps
     # (intent → evidence-praise → question+silence → ONE improvement → if-then
@@ -206,6 +217,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given a debrief is armed (awaiting_debrief_audio) for an observation
     When I upload a respectful debrief recording (Document)
     Then the coach-the-coach feedback follows the "two wins + one try" STRUCTURE (exactly two wins, each with evidence, and one "try" — wording/quotes resolved live, not asserted verbatim)
+    And the praise line arrives as the caption of the coach card, above the card's closing line — not as a separate message before it
+    # UPDATED 2026-10-01 (Meta bill cut, NO1 / N2-O05): praise text + card image were two messages
+    # (412 a week). A harmful debrief has no card and keeps its two texts; a card the render or
+    # WhatsApp refuses falls back to the praise text + text card.
     And no numeric score is put on the officer
     # observe-debrief.service.js:402 startDebriefFromAudio (clears stale transcript
     # bd-56, queues observe_debrief, NOT queueTranscription) → :498
@@ -218,6 +233,13 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given an observation with completed observer review and debrief
     When I tap "Send report" and pick the teacher from the roster
     Then a preview is shown and, on confirm, the NIETE-branded FICO report is delivered to the teacher
+    And the preview and the teacher's copy are each ONE image whose caption carries the report caption and then the notes from the conversation
+    And the "Send now" tap gets a 📨 reaction instead of a "Sending the report to the teacher now…" text, and the next message is the outcome
+    # UPDATED 2026-10-01 (Meta bill cut, NO1 / N2-O06, N2-O07): report image + companion text were two
+    # messages (preview and delivery alike); _sendPackage now captions the image with both (over 1,024
+    # code points the companion stays its own text; nothing stored changes). The "sending now" text
+    # (440 a week) preceded an outcome message that always follows; without the tap's message id, or
+    # if the reaction is refused, the text is still sent.
     # observe-send.service.js: send_report → roster present → teacher-pick list
     # (observe_pickt_*) → preview job → awaiting_send_confirm → send_now →
     # processTeacherReport:544 generateHeroReport (brand heroBrandFor(fico)='niete',
@@ -269,6 +291,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given a debrief guide has already been sent for an observation
     When I tap "Debrief now" again
     Then the bot re-sends the stored guide without re-running the LLM
+    And the guide and the recording instruction arrive as ONE message, as on the first tap
     # observe-debrief.service.js:282 startDebrief double-tap idempotency
     # (re-send stored guide, no new LLM call).
 
