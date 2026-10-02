@@ -161,6 +161,55 @@ describe('gate', () => {
   });
 });
 
+describe('the default gate is L4\'s (flag + leader role + ICT region + pilot list)', () => {
+  const ENV = ['CHILD_TEST_ENABLED', 'CHILD_TEST_COACH_IDS', 'CHILD_TEST_REGIONS'];
+  let saved;
+  beforeEach(() => { saved = Object.fromEntries(ENV.map((k) => [k, process.env[k]])); process.env.CHILD_TEST_ENABLED = 'true'; delete process.env.CHILD_TEST_COACH_IDS; delete process.env.CHILD_TEST_REGIONS; });
+  afterEach(() => { for (const k of ENV) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; } });
+
+  function withUser(user) {
+    const deps = makeDeps();
+    delete deps.enabled;
+    const base = deps.supabase;
+    deps.supabase = { from: (t) => (t === 'users' ? fakeSupabase({ users: user ? [user] : [] }).from(t) : base.from(t)) };
+    return deps;
+  }
+
+  test('an ICT coach is through', async () => {
+    const out = await Svc.listVisits({ userId: COACH }, withUser({ id: COACH, role: 'coach', region: 'niete-sandbox' }));
+    expect(out.status).toBe('ok');
+  });
+
+  test('a teacher, another region, or a coach off the pilot list is disabled', async () => {
+    expect(await Svc.listVisits({ userId: COACH }, withUser({ id: COACH, role: 'teacher', region: 'niete' }))).toEqual({ status: 'disabled' });
+    expect(await Svc.listVisits({ userId: COACH }, withUser({ id: COACH, role: 'coach', region: 'pakistan' }))).toEqual({ status: 'disabled' });
+    process.env.CHILD_TEST_COACH_IDS = 'someone-else';
+    expect(await Svc.listVisits({ userId: COACH }, withUser({ id: COACH, role: 'coach', region: 'niete' }))).toEqual({ status: 'disabled' });
+  });
+
+  test('no such user is disabled', async () => {
+    expect(await Svc.listVisits({ userId: COACH }, withUser(null))).toEqual({ status: 'disabled' });
+  });
+});
+
+describe('the R2 env segment matches L4 (CHILD_TEST_R2_ENV, else RAILWAY_ENVIRONMENT, else local)', () => {
+  test('falls back to RAILWAY_ENVIRONMENT', () => {
+    const prev = [process.env.CHILD_TEST_R2_ENV, process.env.RAILWAY_ENVIRONMENT];
+    try {
+      delete process.env.CHILD_TEST_R2_ENV;
+      process.env.RAILWAY_ENVIRONMENT = 'sandbox';
+      expect(Svc.envSegment()).toBe('sandbox');
+      process.env.CHILD_TEST_R2_ENV = 'sbx';
+      expect(Svc.envSegment()).toBe('sbx');
+      delete process.env.CHILD_TEST_R2_ENV; delete process.env.RAILWAY_ENVIRONMENT;
+      expect(Svc.envSegment()).toBe('local');
+    } finally {
+      if (prev[0] === undefined) delete process.env.CHILD_TEST_R2_ENV; else process.env.CHILD_TEST_R2_ENV = prev[0];
+      if (prev[1] === undefined) delete process.env.RAILWAY_ENVIRONMENT; else process.env.RAILWAY_ENVIRONMENT = prev[1];
+    }
+  });
+});
+
 describe('visits and the list', () => {
   test("listVisits returns only this coach's visits from today (Pakistan date)", async () => {
     const deps = makeDeps();
@@ -343,6 +392,31 @@ describe('upload', () => {
     expect(deps.scoring.scoreBlock).toHaveBeenCalledTimes(1);
   });
 
+  test('maths complete (audio + photo) marks the session completed — the coach\'s work for the child is done', async () => {
+    const deps = makeDeps();
+    const base = `child-test/sandbox/${SCHOOL}/${SESSION}`;
+    await Svc.registerBlockMedia({ userId: COACH, sessionId: SESSION, block: 'maths', photoKey: `${base}/maths-strip.jpg` }, deps);
+    expect(deps.store.setSessionStatus).not.toHaveBeenCalled();
+    await Svc.registerBlockMedia({ userId: COACH, sessionId: SESSION, block: 'maths', audioKey: `${base}/maths.webm` }, deps);
+    expect(deps.store.setSessionStatus).toHaveBeenCalledWith(SESSION, 'completed');
+    expect(deps.scoring.scoreBlock).toHaveBeenCalledWith({ sessionId: SESSION, block: 'maths', grade: 3, form: 'A' });
+  });
+
+  test('no strip photo: the coach declines it, maths is scored with force and the session completes', async () => {
+    const deps = makeDeps();
+    const base = `child-test/sandbox/${SCHOOL}/${SESSION}`;
+    const out = await Svc.registerBlockMedia({ userId: COACH, sessionId: SESSION, block: 'maths', audioKey: `${base}/maths.webm`, photoDeclined: true }, deps);
+    expect(out).toMatchObject({ status: 'ok', scoring: 'started' });
+    expect(deps.store.recordTiming).toHaveBeenCalledWith(SESSION, 'maths.photo_declined', expect.any(Date));
+    expect(deps.scoring.scoreBlock).toHaveBeenCalledWith({ sessionId: SESSION, block: 'maths', grade: 3, form: 'A', force: true });
+    expect(deps.store.setSessionStatus).toHaveBeenCalledWith(SESSION, 'completed');
+  });
+
+  test('photoDeclined is maths only', async () => {
+    const out = await Svc.registerBlockMedia({ userId: COACH, sessionId: SESSION, block: 'urdu', audioKey: `child-test/sandbox/${SCHOOL}/${SESSION}/urdu.webm`, photoDeclined: true }, makeDeps());
+    expect(out).toEqual({ status: 'invalid', reason: 'no_photo_for_block' });
+  });
+
   test('a scorer that throws is logged at error and never fails the upload', async () => {
     const deps = makeDeps();
     deps.scoring.scoreBlock.mockRejectedValueOnce(new Error('model down'));
@@ -382,47 +456,43 @@ describe('the check', () => {
     expect(pre.nonwords[0].verdict).toBeNull();
   });
 
-  test('diffMarks lists every leaf the coach changed with both values', () => {
+  test("diffMarks uses L6's paths: items by id, flagged story words by index (CONTRACT v0.9 §14 CR-4)", () => {
     const coach = JSON.parse(JSON.stringify(marks));
     coach.story.words_correct = 39;
     coach.questions[1].verdict = 'correct';
+    coach.story.flagged = coach.story.flagged.filter((f) => f.idx !== 3);      // the child read w3 right
+    coach.story.flagged.push({ idx: 20, word: 'w20', verdict: 'wrong' });     // and w20 wrong
     const edits = Svc.diffMarks(marks, coach);
     expect(edits).toEqual(expect.arrayContaining([
       { path: 'story.words_correct', ai: 41, coach: 39 },
-      { path: 'questions.1.verdict', ai: 'wrong', coach: 'correct' },
+      { path: 'questions[u3A-q2].verdict', ai: 'wrong', coach: 'correct' },
+      { path: 'story.flagged[3]', ai: 'wrong', coach: null },
+      { path: 'story.flagged[20]', ai: null, coach: 'wrong' },
     ]));
-    expect(edits).toHaveLength(2);
+    expect(edits).toHaveLength(4);
   });
 
-  test('submitCheck saves coach marks with the diff and completes the session when the last block is checked', async () => {
+  test("submitCheck stores L6's coach_marks shape with the diff; the last block stamps check.done, the session status is left to the media step", async () => {
     const deps = makeDeps();
     for (const b of ['urdu', 'english', 'maths']) {
       deps._blocks[`${SESSION}:${b}`] = { session_id: SESSION, block: b, ai_marks: b === 'urdu' ? marks : { version: 'ai-marks-v1' }, ai_status: 'scored', checked_at: b === 'urdu' ? null : 'earlier' };
     }
-    const coach = JSON.parse(JSON.stringify(marks));
-    coach.story.words_correct = 40;
-    const out = await Svc.submitCheck({ userId: COACH, sessionId: SESSION, block: 'urdu', coachMarks: coach }, deps);
-    expect(out.status).toBe('ok');
-    expect(deps.store.saveCoachMarks).toHaveBeenCalledWith({
-      sessionId: SESSION, block: 'urdu', coachMarks: coach, coachEdits: [{ path: 'story.words_correct', ai: 41, coach: 40 }],
-    });
-    expect(deps.store.setSessionStatus).toHaveBeenCalledWith(SESSION, 'completed');
-    expect(out.sessionCompleted).toBe(true);
-  });
-
-  test('prefill-only fields (hint, uncertain) sent back by a form are not stored as coach marks or edits', async () => {
-    const deps = makeDeps();
-    deps._blocks[`${SESSION}:urdu`] = { session_id: SESSION, block: 'urdu', ai_marks: marks, ai_status: 'scored', checked_at: null };
     const coach = JSON.parse(JSON.stringify(Svc.buildCheckPrefill(marks, { default: 0.7 })));
-    coach.story.words_correct = 41;
-    coach.story.flagged = marks.story.flagged;
+    coach.story.words_correct = 40;
     coach.questions[1].verdict = 'wrong';
     coach.first_sounds[0].verdict = 'correct';
     coach.nonwords[0].verdict = 'wrong';
-    await Svc.submitCheck({ userId: COACH, sessionId: SESSION, block: 'urdu', coachMarks: coach }, deps);
+    coach.story.flagged = marks.story.flagged;
+    const out = await Svc.submitCheck({ userId: COACH, sessionId: SESSION, block: 'urdu', coachMarks: coach }, deps);
+    expect(out).toMatchObject({ status: 'ok', allChecked: true });
     const saved = deps.store.saveCoachMarks.mock.calls[0][0];
-    expect(JSON.stringify(saved.coachMarks)).not.toMatch(/"hint"|"uncertain"/);
-    expect(saved.coachEdits).toEqual([]);
+    expect(saved.coachMarks.version).toBe('coach-marks-v1');
+    expect(JSON.stringify(saved.coachMarks)).not.toMatch(/"confidence"|"hint"|"uncertain"/);
+    expect(saved.coachMarks.meta).toEqual({ source: 'ai', shown_empty: ['story.flagged[9]', 'questions[u3A-q2].verdict', 'first_sounds[u3A-fs1].verdict', 'nonwords[u3A-nw1].verdict'] });
+    expect(saved.coachMarks.questions[0]).toMatchObject({ id: 'u3A-q1', verdict: 'correct', heard: 'x' });
+    expect(saved.coachEdits).toEqual([{ path: 'story.words_correct', ai: 41, coach: 40 }]);
+    expect(deps.store.recordTiming).toHaveBeenCalledWith(SESSION, 'check.done', expect.any(Date));
+    expect(deps.store.setSessionStatus).not.toHaveBeenCalled();
   });
 
   test('a block not yet marked by the AI cannot be checked', async () => {
@@ -430,6 +500,13 @@ describe('the check', () => {
     deps._blocks[`${SESSION}:urdu`] = { session_id: SESSION, block: 'urdu', ai_marks: null, ai_status: 'scoring' };
     const out = await Svc.submitCheck({ userId: COACH, sessionId: SESSION, block: 'urdu', coachMarks: {} }, deps);
     expect(out).toEqual({ status: 'not_ready', reason: 'not_scored' });
+  });
+
+  test('sessionStatus stamps check.opened once a block has marks to check', async () => {
+    const deps = makeDeps();
+    deps._blocks[`${SESSION}:urdu`] = { session_id: SESSION, block: 'urdu', audio_r2_key: 'k', ai_marks: marks, ai_status: 'scored', checked_at: null };
+    await Svc.sessionStatus({ userId: COACH, sessionId: SESSION }, deps);
+    expect(deps.store.recordTiming).toHaveBeenCalledWith(SESSION, 'check.opened', expect.any(Date));
   });
 
   test('sessionStatus reports each block with its prefill', async () => {

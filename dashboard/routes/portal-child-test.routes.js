@@ -13,7 +13,7 @@
  *   GET  /session/:id                 per block: media in, AI status, check prefill
  *   GET  /session/:id/card/:block     the child's card (no answer keys)
  *   POST /session/:id/presign         { block, kind: audio|photo, contentType, sizeBytes } → R2 PUT url
- *   POST /session/:id/media           { block, audioKey?, photoKey?, timing? } → attached, scoring started
+ *   POST /session/:id/media           { block, audioKey?, photoKey?, timing?, photoDeclined? } → attached, scoring started
  *   POST /session/:id/check           { block, coachMarks } → stored next to the AI's marks
  *
  * GATES, in order: a portal session (401), the leader family (403), and the
@@ -83,7 +83,7 @@ router.post('/session/:id/presign', ...gates, relay('presign', (req) => ({
   sessionId: req.params.id, ...pick(req.body, ['block', 'kind', 'contentType', 'sizeBytes']),
 })));
 router.post('/session/:id/media', ...gates, relay('media', (req) => ({
-  sessionId: req.params.id, ...pick(req.body, ['block', 'audioKey', 'photoKey', 'timing']),
+  sessionId: req.params.id, ...pick(req.body, ['block', 'audioKey', 'photoKey', 'timing', 'photoDeclined']),
 })));
 router.post('/session/:id/check', ...gates, relay('check', (req) => ({
   sessionId: req.params.id, ...pick(req.body, ['block', 'coachMarks']),

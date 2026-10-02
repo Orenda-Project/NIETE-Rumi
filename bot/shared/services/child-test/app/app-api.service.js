@@ -53,8 +53,22 @@ function isEnabled() {
   return process.env.CHILD_TEST_ENABLED === 'true';
 }
 
+/** The {env} of every child-test R2 key — the SAME rule as the WhatsApp path (conversation/machine.js r2Env). */
 function envSegment() {
-  return process.env.CHILD_TEST_R2_ENV || 'local';
+  return process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT || 'local';
+}
+
+/**
+ * Who may use it: L4's gate, unchanged — CHILD_TEST_ENABLED, the leader family,
+ * an ICT region, and the pilot allow-list (CHILD_TEST_COACH_IDS). The user row is
+ * read here; a missing user is "off".
+ */
+async function availableFor(userId, d) {
+  // eslint-disable-next-line global-require
+  const gate = require('../conversation/gate');
+  if (!gate.isEnabled() || !userId) return false;
+  const found = await rows(d.supabase.from('users').select('id, role, region').eq('id', userId).limit(1));
+  return gate.isChildTestAvailable(found[0] || null);
 }
 
 function loadItemBank() {
@@ -91,7 +105,7 @@ function withDefaults(deps = {}) {
     logError: () => require('../../../utils/logger').logError,
     now: () => () => new Date(),
     env: () => envSegment(),
-    enabled: () => isEnabled,
+    enabled: () => (userId, self) => availableFor(userId, self),
     defer: () => (fn) => setImmediate(fn),
   };
   const d = {};
@@ -108,7 +122,12 @@ function withDefaults(deps = {}) {
 function guarded(name, fn) {
   return async (args = {}, deps) => {
     const d = withDefaults(deps);
-    if (!d.enabled()) return { status: 'disabled' };
+    try {
+      if (!(await d.enabled(args.userId, d))) return { status: 'disabled' };
+    } catch (error) {
+      d.logError(`child_test.app.${name} gate failed`, { userId: args.userId, error: error && error.message });
+      return { status: 'error', reason: 'internal' };
+    }
     if (!args.userId) return { status: 'invalid', reason: 'no_user' };
     try {
       return await fn(args, d);
@@ -354,10 +373,12 @@ const presignBlockUpload = guarded('presign', async ({ userId, sessionId, block,
 });
 
 /** Off the request path: the coach is not kept waiting, and a scorer failure is logged, never thrown. */
-function startScoring(d, session, block) {
+function startScoring(d, session, block, { force = false } = {}) {
+  const args = { sessionId: session.id, block, grade: session.grade, form: session.form };
+  if (force) args.force = true;
   d.defer(() => {
     Promise.resolve()
-      .then(() => d.scoring.scoreBlock({ sessionId: session.id, block, grade: session.grade, form: session.form }))
+      .then(() => d.scoring.scoreBlock(args))
       .then((res) => {
         if (!res || !res.ok) {
           d.logError('child_test.app.score_not_ok', { sessionId: session.id, block, aiStatus: res && res.aiStatus, reason: res && res.reason });
@@ -393,9 +414,10 @@ async function recordAppTiming(d, sessionId, block, timing) {
   }
 }
 
-const registerBlockMedia = guarded('register', async ({ userId, sessionId, block, audioKey, photoKey, timing }, d) => {
+const registerBlockMedia = guarded('register', async ({ userId, sessionId, block, audioKey, photoKey, timing, photoDeclined }, d) => {
   if (!BLOCKS.includes(block)) return { status: 'invalid', reason: 'bad_block' };
-  if (!audioKey && !photoKey) return { status: 'invalid', reason: 'no_media' };
+  if (photoDeclined && block !== 'maths') return { status: 'invalid', reason: 'no_photo_for_block' };
+  if (!audioKey && !photoKey && !photoDeclined) return { status: 'invalid', reason: 'no_media' };
   const session = await ownSession(d, userId, sessionId);
   if (!session) return { status: 'not_found' };
 
@@ -411,7 +433,12 @@ const registerBlockMedia = guarded('register', async ({ userId, sessionId, block
     if (Number(head.sizeBytes) > MEDIA[kind].maxBytes) return { status: 'invalid', reason: 'too_large' };
   }
 
-  const attached = await d.store.attachBlockMedia({ sessionId, block, audioR2Key: audioKey, photoR2Key: photoKey });
+  let attached;
+  if (audioKey || photoKey) {
+    attached = await d.store.attachBlockMedia({ sessionId, block, audioR2Key: audioKey, photoR2Key: photoKey });
+  } else {
+    attached = await d.store.getBlock(sessionId, block);
+  }
   if (!attached || !attached.ok) {
     if (attached && attached.alreadyScored) return { status: 'invalid', reason: 'already_scored' };
     throw new Error((attached && attached.error) || 'attachBlockMedia failed');
@@ -421,15 +448,22 @@ const registerBlockMedia = guarded('register', async ({ userId, sessionId, block
     await recordAppTiming(d, sessionId, block, timing);
   }
   if (photoKey) await d.store.recordTiming(sessionId, 'maths.photo_received', d.now());
-  d.log('child_test.app.media', { userId, sessionId, block, audio: !!audioKey, photo: !!photoKey });
+  if (photoDeclined) await d.store.recordTiming(sessionId, 'maths.photo_declined', d.now());
+  d.log('child_test.app.media', { userId, sessionId, block, audio: !!audioKey, photo: !!photoKey, photoDeclined: !!photoDeclined });
 
   const row = attached.block || {};
-  // Maths is one block with two inputs; ai_marks is written once, so it is
-  // scored when both are in, not twice.
-  if (block === 'maths' && !(row.audio_r2_key && row.photo_r2_key)) {
-    return { status: 'ok', scoring: row.audio_r2_key ? 'waiting_for_photo' : 'waiting_for_audio' };
+  if (block !== 'maths') {
+    startScoring(d, session, block);
+    return { status: 'ok', scoring: 'started' };
   }
-  startScoring(d, session, block);
+  // Maths is one block with two inputs and ai_marks is written once: it is scored
+  // when both are in, or — the coach declined the photo — with force (CONTRACT
+  // v0.7 §12 CR-2). Either way the coach's work for this child is done.
+  const declined = !!photoDeclined || !!(session.timings && session.timings['maths.photo_declined']);
+  if (!row.audio_r2_key) return { status: 'ok', scoring: 'waiting_for_audio' };
+  if (!row.photo_r2_key && !declined) return { status: 'ok', scoring: 'waiting_for_photo' };
+  await d.store.setSessionStatus(sessionId, 'completed');
+  startScoring(d, session, block, { force: !row.photo_r2_key });
   return { status: 'ok', scoring: 'started' };
 });
 
@@ -496,37 +530,91 @@ function isPlain(v) {
   return v !== null && typeof v === 'object';
 }
 
-/** Every leaf whose value differs, as { path, ai, coach } — CONTRACT §5 (coach_edits). */
-function diffMarks(ai, coach, prefix = '') {
-  const edits = [];
+const v = (x) => (x === undefined ? null : x);
+
+function itemsById(list) {
+  return new Map((Array.isArray(list) ? list : []).filter((x) => x && x.id).map((x) => [x.id, x]));
+}
+
+/**
+ * coach_edits — every mark the coach changed, as { path, ai, coach }, in L6's
+ * path format (CONTRACT v0.9 §14 CR-4): `story.words_correct`,
+ * `story.flagged[12]`, `questions[u3A-q2].verdict`, `maths.written[m3A-w2].verdict`.
+ * Only marks are compared — confidences, `heard`, meta and versions are not edits.
+ */
+function diffMarks(ai, coach) {
   const a = isPlain(ai) ? ai : {};
   const c = isPlain(coach) ? coach : {};
-  const keys = new Set([...Object.keys(a), ...Object.keys(c)]);
-  for (const k of keys) {
-    const p = prefix ? `${prefix}.${k}` : k;
-    const av = a[k];
-    const cv = c[k];
-    if (isPlain(av) || isPlain(cv)) {
-      if (isPlain(av) && isPlain(cv)) edits.push(...diffMarks(av, cv, p));
-      else if (JSON.stringify(av) !== JSON.stringify(cv)) edits.push({ path: p, ai: av === undefined ? null : av, coach: cv === undefined ? null : cv });
-    } else if (av !== cv) {
-      edits.push({ path: p, ai: av === undefined ? null : av, coach: cv === undefined ? null : cv });
+  const edits = [];
+  const cmp = (path, x, y) => { if (JSON.stringify(v(x)) !== JSON.stringify(v(y))) edits.push({ path, ai: v(x), coach: v(y) }); };
+  const items = (path, xs, ys, fields) => {
+    const A = itemsById(xs);
+    const C = itemsById(ys);
+    for (const id of new Set([...A.keys(), ...C.keys()])) {
+      for (const f of fields) cmp(`${path}[${id}].${f}`, A.get(id) && A.get(id)[f], C.get(id) && C.get(id)[f]);
     }
+  };
+
+  if (a.story || c.story) {
+    const as = a.story || {};
+    const cs = c.story || {};
+    for (const k of ['words_correct', 'words_attempted', 'seconds', 'finished_early']) cmp(`story.${k}`, as[k], cs[k]);
+    const fa = new Map((as.flagged || []).map((f) => [f.idx, f.verdict || 'wrong']));
+    const fc = new Map((cs.flagged || []).map((f) => [f.idx, f.verdict || 'wrong']));
+    for (const idx of [...new Set([...fa.keys(), ...fc.keys()])].sort((x, y) => x - y)) cmp(`story.flagged[${idx}]`, fa.get(idx), fc.get(idx));
+  }
+  if (a.fallback || c.fallback) {
+    for (const part of ['letters', 'words']) cmp(`fallback.${part}.correct`, a.fallback && a.fallback[part] && a.fallback[part].correct, c.fallback && c.fallback[part] && c.fallback[part].correct);
+  }
+  for (const k of ['questions', 'first_sounds', 'nonwords']) if (a[k] || c[k]) items(k, a[k], c[k], ['verdict']);
+  if (a.maths || c.maths) {
+    const am = a.maths || {};
+    const cm = c.maths || {};
+    items('maths.numbers', am.numbers, cm.numbers, ['verdict']);
+    cmp('maths.quick_sums.correct', am.quick_sums && am.quick_sums.correct, cm.quick_sums && cm.quick_sums.correct);
+    items('maths.written', am.written, cm.written, ['verdict']);
+    cmp('maths.word_problem.verdict', am.word_problem && am.word_problem.verdict, cm.word_problem && cm.word_problem.verdict);
   }
   return edits;
 }
 
-// Fields the prefill adds for the form's own use; they are not marks.
-const PREFILL_ONLY = new Set(['hint', 'uncertain']);
-
-function stripPrefillFields(v) {
-  if (Array.isArray(v)) return v.map(stripPrefillFields);
-  if (!isPlain(v)) return v;
-  const out = {};
-  for (const [k, x] of Object.entries(v)) {
-    if (!PREFILL_ONLY.has(k)) out[k] = stripPrefillFields(x);
+/** Every mark the check showed EMPTY because the model was below its bar — coach_marks.meta.shown_empty. */
+function shownEmpty(aiMarks, thresholds) {
+  const pre = buildCheckPrefill(aiMarks, thresholds);
+  if (!pre) return [];
+  const out = [];
+  if (pre.story) {
+    if (pre.story.words_correct == null) out.push('story.words_correct');
+    for (const f of pre.story.uncertain || []) out.push(`story.flagged[${f.idx}]`);
+  }
+  for (const k of ['questions', 'first_sounds', 'nonwords']) {
+    for (const it of pre[k] || []) if (it.verdict == null) out.push(`${k}[${it.id}].verdict`);
+  }
+  if (pre.maths) {
+    for (const k of ['numbers', 'written']) for (const it of pre.maths[k] || []) if (it.verdict == null) out.push(`maths.${k}[${it.id}].verdict`);
+    if (pre.maths.word_problem && pre.maths.word_problem.verdict == null) out.push('maths.word_problem.verdict');
   }
   return out;
+}
+
+// Not marks: the prefill's own helpers, and the model's confidences.
+const NOT_MARKS = new Set(['hint', 'uncertain', 'confidence', 'meta', 'model_versions']);
+
+function stripNonMarks(x) {
+  if (Array.isArray(x)) return x.map(stripNonMarks);
+  if (!isPlain(x)) return x;
+  const out = {};
+  for (const [k, val] of Object.entries(x)) if (!NOT_MARKS.has(k)) out[k] = stripNonMarks(val);
+  return out;
+}
+
+/** L6's coach_marks shape (CONTRACT v0.9 §14 CR-4), whatever the form sent. */
+function toCoachMarks(form, aiMarks, thresholds) {
+  return {
+    ...stripNonMarks(form),
+    version: 'coach-marks-v1',
+    meta: { source: aiMarks ? 'ai' : 'none', shown_empty: shownEmpty(aiMarks, thresholds) },
+  };
 }
 
 const sessionStatus = guarded('session_status', async ({ userId, sessionId }, d) => {
@@ -549,6 +637,7 @@ const sessionStatus = guarded('session_status', async ({ userId, sessionId }, d)
       prefill: buildCheckPrefill(b.ai_marks, thresholds),
     };
   });
+  if (blocks.some((b) => b.prefill && !b.checked)) await d.store.recordTiming(sessionId, 'check.opened', d.now());
   return {
     status: 'ok',
     session: { id: session.id, status: session.status, grade: session.grade, form: session.form },
@@ -571,7 +660,7 @@ const submitCheck = guarded('submit_check', async ({ userId, sessionId, block, c
   }
   if (row.checked_at) return { status: 'invalid', reason: 'already_checked' };
 
-  const marks = stripPrefillFields(coachMarks);
+  const marks = toCoachMarks(coachMarks, row.ai_marks || null, d.thresholds);
   const coachEdits = diffMarks(row.ai_marks || {}, marks);
   const saved = await d.store.saveCoachMarks({ sessionId, block, coachMarks: marks, coachEdits });
   if (!saved || !saved.ok) {
@@ -588,8 +677,10 @@ const submitCheck = guarded('submit_check', async ({ userId, sessionId, block, c
     const b = all.find((x) => x.block === name);
     return !!(b && b.checked_at);
   });
-  if (done) await d.store.setSessionStatus(sessionId, 'completed');
-  return { status: 'ok', edits: coachEdits.length, sessionCompleted: done };
+  // "Checked" = all three blocks have checked_at (CONTRACT v0.9 §14 CR-3); the
+  // session status itself was set when the coach's media was in.
+  if (done) await d.store.recordTiming(sessionId, 'check.done', d.now());
+  return { status: 'ok', edits: coachEdits.length, allChecked: done };
 });
 
 module.exports = {
@@ -608,5 +699,7 @@ module.exports = {
   buildCard,
   buildCheckPrefill,
   diffMarks,
+  toCoachMarks,
+  envSegment,
   startOfTodayPkt,
 };

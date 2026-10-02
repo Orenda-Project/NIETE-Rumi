@@ -47,6 +47,11 @@ function timeOf(iso: string) {
   try { return new Date(iso).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Karachi' }); } catch { return ''; }
 }
 
+/** The name the coach reads: the roster's Urdu spelling on the Urdu page, when it has one. */
+function nameOf(c: ChildTestChild, lang: Lang) {
+  return (lang === 'ur' ? (c.displayNameUrdu || c.displayName) : c.displayName) || '';
+}
+
 function reasonOf(err: unknown): string | null {
   const r = (err as { response?: { data?: { reason?: string }; status?: number } })?.response;
   return r?.data?.reason || null;
@@ -250,7 +255,7 @@ export default function LeaderChildTest() {
                       className="w-full rounded-2xl border border-slate-200 bg-white p-4 flex items-center gap-3 text-start">
                       <span className="h-9 w-9 shrink-0 rounded-full bg-slate-100 flex items-center justify-center font-semibold">{i + 1}</span>
                       <span className="flex-1 min-w-0">
-                        <span className="block font-semibold text-slate-900 truncate">{c.displayName}</span>
+                        <span className="block font-semibold text-slate-900 truncate">{nameOf(c, lang)}</span>
                         <span className="block text-sm text-slate-600">
                           {c.rollNumber ? copy.roll(c.rollNumber) : ''}{c.section ? ` · ${c.section}` : ''}
                         </span>
@@ -268,7 +273,7 @@ export default function LeaderChildTest() {
               {list.alternates.length > 0 && (
                 <div className="text-sm text-slate-600">
                   <p>{copy.alternates}</p>
-                  <p>{list.alternates.map((a) => (a.rollNumber ? copy.roll(a.rollNumber) : a.displayName)).join(' · ')}</p>
+                  <p>{list.alternates.map((a) => (a.rollNumber ? copy.roll(a.rollNumber) : nameOf(a, lang))).join(' · ')}</p>
                 </div>
               )}
             </div>
@@ -279,7 +284,7 @@ export default function LeaderChildTest() {
         <div className="space-y-5">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center">
             <UserCheck className="h-10 w-10 mx-auto text-slate-500" aria-hidden />
-            <p className="mt-2 text-2xl font-bold text-slate-900">{c.displayName}</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900">{nameOf(c, lang)}</p>
             {c.rollNumber && <p className="text-slate-600">{copy.roll(c.rollNumber)}</p>}
           </div>
           <p className="text-lg text-slate-800 text-center">{copy.isHere}</p>
@@ -316,7 +321,7 @@ export default function LeaderChildTest() {
     } else if (step.kind === 'check') {
       content = (
         <div className="space-y-6">
-          <h2 className="text-lg font-semibold text-slate-900">{copy.checkTitle} · {step.child.displayName}</h2>
+          <h2 className="text-lg font-semibold text-slate-900">{copy.checkTitle} · {nameOf(step.child, lang)}</h2>
           {!session ? <p className="text-slate-600">{copy.loading}</p> : session.blocks.map((b) => {
             const card = cards[b.block];
             return (

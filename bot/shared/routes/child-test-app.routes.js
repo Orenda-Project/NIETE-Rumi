@@ -39,7 +39,7 @@ const ROUTES = {
   '/outcome': ['markOutcome', ['userId', 'visitId', 'drawId', 'outcome', 'note']],
   '/card': ['getCard', ['userId', 'sessionId', 'block']],
   '/presign': ['presignBlockUpload', ['userId', 'sessionId', 'block', 'kind', 'contentType', 'sizeBytes']],
-  '/media': ['registerBlockMedia', ['userId', 'sessionId', 'block', 'audioKey', 'photoKey', 'timing']],
+  '/media': ['registerBlockMedia', ['userId', 'sessionId', 'block', 'audioKey', 'photoKey', 'timing', 'photoDeclined']],
   '/session': ['sessionStatus', ['userId', 'sessionId']],
   '/check': ['submitCheck', ['userId', 'sessionId', 'block', 'coachMarks']],
 };

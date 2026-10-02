@@ -106,6 +106,15 @@ test('a service error is a 500 with success false', async () => {
   expect(out.body.success).toBe(false);
 });
 
+test('the media route forwards photoDeclined to the service', async () => {
+  const seen = [];
+  const deps = fakeDeps({ store: { getSession: async (id) => { seen.push(id); return { ok: true, session: null }; } } });
+  const out = await call(appWith(deps), 'POST', '/api/internal/child-test/media', { body: { userId: COACH, sessionId: 's', block: 'urdu', photoDeclined: true } });
+  // reaching the service's own maths-only rule proves the flag arrived
+  expect(out.status).toBe(400);
+  expect(out.body.reason).toBe('no_photo_for_block');
+});
+
 test('every route is POST and named', () => {
   const { createChildTestAppRouter } = require('../../../bot/shared/routes/child-test-app.routes');
   const r = createChildTestAppRouter({ deps: fakeDeps() });

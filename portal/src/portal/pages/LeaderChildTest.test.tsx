@@ -96,7 +96,7 @@ describe("LeaderChildTest", () => {
         { block: "maths", hasAudio: false, hasPhoto: false, aiStatus: null, aiReason: null, checked: false, prefill: null },
       ],
     });
-    api.submitCheck.mockResolvedValue({ edits: 0, sessionCompleted: false });
+    api.submitCheck.mockResolvedValue({ edits: 0, allChecked: false });
     renderPage();
     fireEvent.click(await screen.findByTestId("child-d1"));
     expect(await screen.findByTestId("check-urdu")).toBeInTheDocument();
@@ -128,7 +128,11 @@ describe("LeaderChildTest", () => {
 
   it("Urdu is the default language for the coach", async () => {
     try { window.localStorage.removeItem("niete-child-test-lang"); } catch { /* none */ }
+    api.getList.mockResolvedValue({ list: { ...LIST, children: [child(1, { displayNameUrdu: "بچہ الف" }), ...LIST.children.slice(1)] } });
     renderPage();
     expect(await screen.findByText(/آج کے بچے/)).toBeInTheDocument();
+    // the roster's Urdu name when it has one (CONTRACT v0.8 §13 CR-L3-3), else the English one
+    expect(screen.getByText("بچہ الف")).toBeInTheDocument();
+    expect(screen.getByText("Child 2")).toBeInTheDocument();
   });
 });

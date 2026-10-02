@@ -703,11 +703,11 @@ export const childTest = {
   uploadToR2: (uploadUrl: string, blob: Blob, contentType: string): Promise<void> =>
     portal.uploadToR2(uploadUrl, blob, contentType),
 
-  registerBlockMedia: async (sessionId: string, args: { block: string; audioKey?: string; photoKey?: string; timing?: Record<string, unknown> }):
+  registerBlockMedia: async (sessionId: string, args: { block: string; audioKey?: string; photoKey?: string; timing?: Record<string, unknown>; photoDeclined?: boolean }):
     Promise<{ scoring?: string }> => (await api.post(`${CT}/session/${encodeURIComponent(sessionId)}/media`, args)).data,
 
   submitCheck: async (sessionId: string, args: { block: ChildTestBlockName; coachMarks: Record<string, unknown> }):
-    Promise<{ edits: number; sessionCompleted: boolean }> =>
+    Promise<{ edits: number; allChecked: boolean }> =>
     (await api.post(`${CT}/session/${encodeURIComponent(sessionId)}/check`, args)).data,
 };
 

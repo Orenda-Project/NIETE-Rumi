@@ -13,7 +13,7 @@ export type UploadApi = {
   presignBlockUpload: (sessionId: string, args: { block: string; kind: "audio" | "photo"; contentType: string; sizeBytes: number })
     => Promise<{ key: string; uploadUrl: string; contentType: string }>;
   uploadToR2: (uploadUrl: string, blob: Blob, contentType: string) => Promise<void>;
-  registerBlockMedia: (sessionId: string, args: { block: string; audioKey?: string; photoKey?: string; timing?: Record<string, unknown> })
+  registerBlockMedia: (sessionId: string, args: { block: string; audioKey?: string; photoKey?: string; timing?: Record<string, unknown>; photoDeclined?: boolean })
     => Promise<{ scoring?: string }>;
 };
 
@@ -28,7 +28,7 @@ function refusal(err: unknown): string | null {
   return null;
 }
 
-export async function uploadItem({ meta, blob }: PendingItem, api: UploadApi): Promise<UploadResult> {
+export async function uploadItem({ meta, blob }: PendingItem, api: UploadApi, extra: { photoDeclined?: boolean } = {}): Promise<UploadResult> {
   const sessionId = meta.sessionId as string;
   const block = meta.block as string;
   const kind = meta.kind as "audio" | "photo";
@@ -37,7 +37,7 @@ export async function uploadItem({ meta, blob }: PendingItem, api: UploadApi): P
     await api.uploadToR2(signed.uploadUrl, blob, signed.contentType);
     const reg = await api.registerBlockMedia(sessionId, kind === "photo"
       ? { block, photoKey: signed.key }
-      : { block, audioKey: signed.key, ...(meta.timing ? { timing: meta.timing } : {}) });
+      : { block, audioKey: signed.key, ...(meta.timing ? { timing: meta.timing } : {}), ...(extra.photoDeclined ? { photoDeclined: true } : {}) });
     try { await deleteRecording(meta.id); } catch { /* sent; a leftover copy is resent harmlessly as already attached */ }
     return { ok: true, scoring: reg?.scoring };
   } catch (err) {

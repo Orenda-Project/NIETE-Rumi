@@ -154,12 +154,14 @@ export default function BlockRecorder({ card, sessionId, copy, onSent, deps: giv
     setPhoto({ id, url: URL.createObjectURL(file) });
   }, [sessionId]);
 
-  const send = useCallback(async () => {
+  const send = useCallback(async (opts: { photoDeclined?: boolean } = {}) => {
     if (!state.recordingId) return;
     dispatch({ type: "SEND" });
     setSendNote(null);
-    const pending = (await Recordings.listPending(sessionId).catch(() => [])).filter((p) => p.meta.block === card.block);
-    if (isMaths && !pending.some((p) => p.meta.kind === "photo")) {
+    const pending = (await Recordings.listPending(sessionId).catch(() => []))
+      .filter((p) => p.meta.block === card.block)
+      .filter((p) => !(opts.photoDeclined && p.meta.kind === "photo"));
+    if (isMaths && !opts.photoDeclined && !pending.some((p) => p.meta.kind === "photo")) {
       dispatch({ type: "SEND_FAILED", reason: "no_photo" });
       return;
     }
@@ -167,7 +169,8 @@ export default function BlockRecorder({ card, sessionId, copy, onSent, deps: giv
     pending.sort((a, b) => (a.meta.kind === "photo" ? -1 : 0) - (b.meta.kind === "photo" ? -1 : 0));
     for (const item of pending) {
       // eslint-disable-next-line no-await-in-loop
-      const r = await uploadItem(item, depsRef.current.api);
+      // a declined photo travels with the audio: the bot then scores maths with force
+      const r = await uploadItem(item, depsRef.current.api, item.meta.kind === "audio" && opts.photoDeclined ? { photoDeclined: true } : {});
       if (r.ok === false) {
         const failed = r as { error: string; reason?: string };
         setSendNote(failed.error === "refused" ? copy.refusedBy(failed.reason || "") : copy.savedOnPhone);
@@ -294,9 +297,15 @@ export default function BlockRecorder({ card, sessionId, copy, onSent, deps: giv
             </p>
           )}
 
+          {isMaths && !photo && (
+            <button type="button" onClick={() => send({ photoDeclined: true })} disabled={state.phase === "sending"}
+              className="w-full rounded-xl py-3 text-lg border border-slate-300 bg-white">
+              {copy.noPhoto}
+            </button>
+          )}
           <button
             type="button"
-            onClick={send}
+            onClick={() => send()}
             disabled={state.phase === "sending" || (isMaths && !photo)}
             className={`${BIG} bg-emerald-600 text-white`}
           >

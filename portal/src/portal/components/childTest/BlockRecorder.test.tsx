@@ -228,6 +228,17 @@ describe("maths block", () => {
     }));
   });
 
+  it("No strip photo sends the audio alone, marked declined, so maths is scored without it", async () => {
+    renderBlock(mathsCard);
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    await waitFor(() => expect(FakeMediaRecorder.instances[0]?.state).toBe("recording"));
+    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+    fireEvent.click(await screen.findByRole("button", { name: "No strip photo" }));
+    await waitFor(() => expect(onSent).toHaveBeenCalled());
+    expect(api.presignBlockUpload.mock.calls.map((c) => (c[1] as { kind: string }).kind)).toEqual(["audio"]);
+    expect(api.registerBlockMedia).toHaveBeenCalledWith("s1", expect.objectContaining({ block: "maths", photoDeclined: true }));
+  });
+
   it("the photo input opens the camera (capture) and takes images only", () => {
     renderBlock(mathsCard);
     const input = screen.getByTestId("strip-photo-input");

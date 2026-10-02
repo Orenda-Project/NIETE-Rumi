@@ -136,8 +136,8 @@ describe('relay', () => {
     expect(axiosPost.mock.calls[0][1]).toEqual({ userId: COACH, sessionId: 's1', block: 'urdu' });
     await invoke(ROUTES, 'post', '/session/:id/presign', { params: { id: 's1' }, body: { block: 'maths', kind: 'photo', contentType: 'image/jpeg', sizeBytes: 9, sessionId: 'other' } });
     expect(axiosPost.mock.calls[1][1]).toEqual({ userId: COACH, sessionId: 's1', block: 'maths', kind: 'photo', contentType: 'image/jpeg', sizeBytes: 9 });
-    await invoke(ROUTES, 'post', '/session/:id/media', { params: { id: 's1' }, body: { block: 'urdu', audioKey: 'k1', timing: { timedStartMs: 0 } } });
-    expect(axiosPost.mock.calls[2][1]).toEqual({ userId: COACH, sessionId: 's1', block: 'urdu', audioKey: 'k1', timing: { timedStartMs: 0 } });
+    await invoke(ROUTES, 'post', '/session/:id/media', { params: { id: 's1' }, body: { block: 'maths', audioKey: 'k1', timing: { timedStartMs: 0 }, photoDeclined: true } });
+    expect(axiosPost.mock.calls[2][1]).toEqual({ userId: COACH, sessionId: 's1', block: 'maths', audioKey: 'k1', timing: { timedStartMs: 0 }, photoDeclined: true });
     await invoke(ROUTES, 'get', '/session/:id', { params: { id: 's1' } });
     expect(axiosPost.mock.calls[3][0]).toMatch(/\/child-test\/session$/);
     await invoke(ROUTES, 'post', '/session/:id/check', { params: { id: 's1' }, body: { block: 'urdu', coachMarks: { a: 1 } } });

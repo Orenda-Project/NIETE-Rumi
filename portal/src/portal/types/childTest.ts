@@ -20,6 +20,8 @@ export type ChildTestChild = {
   section?: string | null;
   /** Shown to the coach only — never logged or sent anywhere else. */
   displayName: string;
+  /** The roster's Urdu spelling, when it has one (CONTRACT v0.8 §13). */
+  displayNameUrdu?: string | null;
   role: "new" | "returning";
   form: "A" | "B";
   status: "listed" | "tested" | "absent" | "refused" | "absent_final" | "pending";
