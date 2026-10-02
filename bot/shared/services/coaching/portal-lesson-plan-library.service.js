@@ -6,11 +6,14 @@
  * uploading a file. Nothing here is new behaviour: each function is the code path a
  * WhatsApp teacher already goes through, reached from the portal.
  *
- *   resolveAsset({ lessonId })  grades 1-5. The asset her A/B group is served for that
- *                               lesson — LpAb.groupFor + LpAb.assetFor(current), the
- *                               exact pair lp-v8-browse.lessonPdfUrl uses to hand her
- *                               the Curriculum page's PDF. So the plan she is coached
- *                               against is the one she would download.
+ *   resolveAsset({ lessonId })  grades 1-5. The asset she DOWNLOADED for that lesson,
+ *                               when she did — the niete_lp_downloads record the
+ *                               WhatsApp recent list reads, which is already her A/B
+ *                               group's version (delivery chose it). So she is coached
+ *                               against the very file she taught from. A lesson she
+ *                               never downloaded resolves to its current asset.
+ *                               Nothing here needs the A/B module, which ships on
+ *                               sandbox first: the same code runs on every branch.
  *   resolveAsset({ assetId })   a recent plan: an asset she downloaded, as the WhatsApp
  *                               "Recent Lesson Plans" list offers it.
  *   link(sessionId, assetId)    lp-coaching-linker.handleLPSelection with that list's own
@@ -50,33 +53,10 @@ function currentAssetFrom(supabase) {
   };
 }
 
-/**
- * The ch3-10 A/B (lp-ab-ch310) ships on sandbox before staging and main. Where
- * it is not deployed, nobody is in a group, and every teacher is served the
- * lesson's CURRENT asset — what that branch's own Curriculum PDF link serves,
- * and what LpAb itself does for a teacher with no group. When the module lands
- * on a branch, this picks it up with no change. Only "the module is not there"
- * is answered this way; any other failure to load it is thrown.
- */
-function loadAb() {
-  try {
-    return require('../lp-ab-ch310.service');
-  } catch (err) {
-    if (err && err.code === 'MODULE_NOT_FOUND' && /lp-ab-ch310/.test(String(err.message))) {
-      return {
-        groupFor: async () => null,
-        assetFor: ({ lessonId, assetKind, current }) => current(lessonId, assetKind),
-      };
-    }
-    throw err;
-  }
-}
-
 function withDefaults(deps = {}) {
   const lazy = {
     supabase: () => require('../../config/supabase'),
     catalog: () => require('../lp-v8-catalog.service'),
-    ab: () => loadAb(),
     currentAssetFor: () => currentAssetFrom(require('../../config/supabase')),
     linker: () => require('./lp-coaching/lp-coaching-linker.service'),
     getRecentFidelityLps: () => require('./lp-coaching/recent-fidelity-lps.service').getRecentFidelityLps,
@@ -110,10 +90,18 @@ async function resolveAsset({ userId, assetId, lessonId }, deps) {
   }
 
   if (!lessonId) return null;
-  const hit = d.catalog.lessonById(lessonId);
-  if (!hit || !hit.book || !hit.chapter) return null;
-  const group = await d.ab.groupFor(userId, { grade: hit.book.grade, chapter: hit.chapter.number });
-  const asset = await d.ab.assetFor({ group, lessonId, assetKind: 'lesson', current: d.currentAssetFor });
+  if (!d.catalog.lessonById(lessonId)) return null;
+  const { data: downloaded } = await d.supabase
+    .from('niete_lp_downloads')
+    .select('asset_id')
+    .eq('user_id', userId)
+    .eq('lesson_id', lessonId)
+    .eq('status', 'sent')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (downloaded && downloaded.asset_id) return { assetId: downloaded.asset_id };
+  const asset = await d.currentAssetFor(lessonId, 'lesson');
   return asset && asset.id ? { assetId: asset.id } : null;
 }
 
