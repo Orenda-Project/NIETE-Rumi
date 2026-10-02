@@ -3,25 +3,44 @@
  *
  * One keyword, two audiences:
  *
- *   principal (+ school)  → TEACHER attendance, always. Ask tap or voice.
+ *   principal, no class  → TEACHER attendance, always. Ask tap or voice.
+ *   principal WITH a class → ask tap or voice, then ask WHICH register.
  *   teacher               → STUDENT attendance. Open the register; it picks the class.
  *
- * A principal's /attendance is STAFF attendance and nothing else. It used
+ * A principal's /attendance was STAFF attendance and nothing else. It used
  * to be a question — "your teachers, or your students?" — first as two reply buttons,
  * later as the first option on the Flow's class Dropdown. Both were asking a
  * principal to re-answer something their role had already settled, and the Dropdown
  * version buried the staff roster one screen deeper than the classes it sat above.
- * A principal who also runs a class marks it from /class, not from here.
  *
- * What a principal IS asked is how they want to mark: by tapping, or by talking. That
- * question is answered in CHAT rather than on a Flow screen, because it is the first
- * thing to decide and because a Flow cannot receive a voice note — the voice branch
- * has to leave the Flow before it can start.
+ * bd-37lyd REOPENED that question, for one group only: a principal who actually
+ * OWNS an active class. /roster can now name a principal the class teacher of a
+ * class, and its SAVED screen tells the coach "the class teacher can see them in
+ * their attendance now". With the old fork that sentence was false — the principal
+ * said "attendance", got the staff register, and the children were unreachable from
+ * every surface. One live principal owns a class and his student marking stopped.
+ *
+ * A principal who owns NO class never sees the question, which is why the fork can
+ * be reopened without undoing the thing it fixed: the 99% case is untouched.
+ *
+ * What every principal IS asked is how they want to mark: by tapping, or by talking.
+ * That question is answered in CHAT rather than on a Flow screen, because it is the
+ * first thing to decide and because a Flow cannot receive a voice note — the voice
+ * branch has to leave the Flow before it can start.
+ *
+ * WHY THE REGISTER QUESTION COMES SECOND. The tap-or-voice question is also
+ * answerable by TYPING ("voice"), and text-message.handler carries a reader for
+ * exactly that. Whichever question is asked second cannot recover the first answer
+ * from a typed reply — so the first question must be the one people type at, and the
+ * second one's answer travels in its own button ids (`att_register_<which>_<how>`),
+ * where it survives a handset sitting on it for a week. Asking "whose register?"
+ * first would have put the typed-answer path on the question nobody types at.
  */
 
 const supabase = require('../config/supabase');
 const ConversationState = require('./conversation-state.service');
 const { rosterRowTitle } = require('./classes/roster-label');
+const { resolveUx } = require('../config/ux-strings');
 const { logToFile } = require('../utils/logger');
 
 // WhatsApp platform caps, and they bind in exactly one place now: the voice branch's
@@ -53,7 +72,11 @@ function detect(message) {
 async function loadUser(userId) {
   const { data } = await supabase
     .from('users')
-    .select('id, role, school_id')
+    // `preferred_language` is the ONE language column — never the dead `user.language`.
+    // Read here so the planner can resolve its own copy: both of its consumers would
+    // otherwise have to resolve it, and two copies of a decision drift (see the
+    // comment on router-action-coverage.test.js for what that costs).
+    .select('id, role, school_id, preferred_language')
     .eq('id', userId)
     .maybeSingle();
   return data || null;
@@ -157,26 +180,68 @@ function noClassYet(user) {
 }
 
 /**
- * Tap or talk — the only question asked before the register opens.
+ * Tap or talk — the first question asked before the register opens.
  *
- * ONE function for both actors. A principal marks staff and a teacher marks a class,
- * and the only thing that differs is the noun; giving each its own copy is how the
- * two would drift apart on the day someone reworded one of them.
+ * ONE function for all three actors. A principal marks staff, a teacher marks a
+ * class, and a principal who is ALSO a class teacher has not said which yet; the
+ * only thing that differs is the noun, and giving each its own copy is how they
+ * would drift apart on the day someone reworded one of them.
  *
  * Both options are named in the body text as well as on the buttons: reply buttons
  * render below the fold on some clients, and "How would you like to mark attendance?"
  * with nothing visible under it is unanswerable.
+ *
+ * @param {'teacher'|'student'|'either'} subject whose register this is, when known
+ * @param {string} [language] the reader's `preferred_language`
  */
-function askMethod(subject) {
-  const whose = subject === 'teacher' ? 'teacher attendance' : 'class attendance';
+function askMethod(subject, language) {
+  // 'either' is a principal who owns a class: the register is NOT settled, so the
+  // question must not name one. It is settled by the ASK_REGISTER question next.
+  const subjects = { teacher: 'teacher', student: 'student', either: 'either' };
+  const known = subjects[subject] || 'student';
+  const bodyKey = {
+    teacher: 'attendanceAskMethodTeacher',
+    student: 'attendanceAskMethodStudent',
+    either: 'attendanceAskMethodEither',
+  }[known];
   return {
     action: 'ASK_METHOD',
-    subject: subject === 'teacher' ? 'teacher' : 'student',
-    message: `Taking today's ${whose}. How would you like to mark it `
-      + '— by tapping the names, or by sending a voice note?',
+    subject: known,
+    message: resolveUx(bodyKey, { language }),
     buttons: [
-      { id: 'att_method_tap', title: 'Mark by tapping' },
-      { id: 'att_method_voice', title: 'Mark by voice note' },
+      { id: 'att_method_tap', title: resolveUx('attendanceMethodTapButton', { language }) },
+      { id: 'att_method_voice', title: resolveUx('attendanceMethodVoiceButton', { language }) },
+    ],
+  };
+}
+
+/**
+ * Whose register — asked ONLY of a principal who owns at least one active class.
+ *
+ * The method is already chosen and travels in the button ids rather than in
+ * conversation state, because the typed-answer path closes the state before it
+ * resolves (text-message.handler) while the tapped path closes it after — so state
+ * would carry the method on one path and not the other. An id carries it on both,
+ * and keeps carrying it if the button is tapped tomorrow.
+ *
+ * @param {'tap'|'voice'} method what they already answered
+ * @param {string} [language]
+ */
+function askRegister(method, language) {
+  const how = method === 'voice' ? 'voice' : 'tap';
+  return {
+    action: 'ASK_REGISTER',
+    method: how,
+    message: resolveUx('attendanceAskRegister', { language }),
+    buttons: [
+      {
+        id: `att_register_staff_${how}`,
+        title: resolveUx('attendanceRegisterStaffButton', { language }),
+      },
+      {
+        id: `att_register_class_${how}`,
+        title: resolveUx('attendanceRegisterClassButton', { language }),
+      },
     ],
   };
 }
@@ -274,9 +339,11 @@ async function route(userId) {
     logToFile('⚠️ LP shelf flush failed at attendance start (non-blocking)', { error: err.message });
   }
 
-  // The principal fork comes FIRST and does not consult classes at all. Loading them
-  // is what let a class picker back into this path twice; not loading them is the
-  // guarantee that it cannot happen a third time.
+  // The principal fork comes FIRST. It used to not consult classes at all, because
+  // loading them is what let a class PICKER back into this path twice. It now asks
+  // whether the principal owns one — which is a different question with a different
+  // answer: it decides whether there is a second register to offer, and it never
+  // puts a class Dropdown in front of a principal who has no class.
   if (user.role === 'principal') {
     if (!user.school_id) {
       return {
@@ -285,7 +352,10 @@ async function route(userId) {
           + 'so there is no staff list to mark. Your NIETE coordinator can link it.',
       };
     }
-    return askMethod('teacher');
+    const own = await loadClasses(userId);
+    // No class of their own: staff attendance, exactly as before. The question that
+    // follows names the staff register, because there is nothing else it could be.
+    return askMethod(own.length ? 'either' : 'teacher', user.preferred_language);
   }
 
   const classes = await loadClasses(userId);
@@ -296,7 +366,7 @@ async function route(userId) {
   // A teacher is asked the same question a principal is. It used to be a Flow screen
   // for them and no question at all in chat, which put the voice option somewhere a
   // voice note cannot be answered from.
-  return askMethod('student');
+  return askMethod('student', user.preferred_language);
 }
 
 /**
@@ -323,7 +393,9 @@ async function resolveMethodChoice(userId, buttonId) {
 
   // Neither id. Ask again rather than defaulting: tapping and talking do very
   // different things, and picking one silently picks it FOR them.
-  if (!wantsVoice && !wantsTap) return askMethod(isPrincipal ? 'teacher' : 'student');
+  if (!wantsVoice && !wantsTap) {
+    return askMethod(isPrincipal ? 'teacher' : 'student', user.preferred_language);
+  }
 
   if (isPrincipal) {
     if (!user.school_id) {
@@ -332,6 +404,12 @@ async function resolveMethodChoice(userId, buttonId) {
         message: 'Teacher attendance is marked by a principal whose account is linked to a school. '
           + 'Your NIETE coordinator can link yours.',
       };
+    }
+    // bd-37lyd — a principal who owns a class has two registers, so which one is
+    // now a real question. Re-read rather than trusting what route() saw: a reply
+    // button is durable on a handset and the class may have been handed over since.
+    if ((await loadClasses(userId)).length) {
+      return askRegister(wantsVoice ? 'voice' : 'tap', user.preferred_language);
     }
     if (wantsTap) return { action: 'MARK_TEACHERS', flowToken: `${userId}:teacher:${user.school_id}` };
     return awaitVoice('teacher', user.school_id);
@@ -356,6 +434,55 @@ async function resolveMethodChoice(userId, buttonId) {
     return awaitVoice('student', classes[0].id);
   }
   return pickClassForVoice(classes);
+}
+
+/**
+ * Resolve "whose register?" — `att_register_<staff|class>_<tap|voice>`.
+ *
+ * Only a principal ever receives these ids, and the method they already chose is
+ * the id's own suffix. Everything is RE-READ: the user (their role or school may
+ * have changed), and the classes (the class may have been handed to someone else
+ * since the question was asked). A class branch that finds no class falls back to
+ * the staff register rather than dead-ending — it is what every principal got
+ * before this question existed, and it is never wrong, only less specific.
+ */
+async function resolveRegisterChoice(userId, buttonId) {
+  const user = await loadUser(userId);
+  if (!user) return { action: 'ERROR', message: "I couldn't find your account." };
+
+  const id = String(buttonId || '');
+  const wantsClass = id === 'att_register_class_tap' || id === 'att_register_class_voice';
+  const wantsStaff = id === 'att_register_staff_tap' || id === 'att_register_staff_voice';
+  const wantsVoice = id.endsWith('_voice');
+
+  // An id we do not know is not an answer. Ask again rather than guessing which
+  // register somebody meant — the two write to different registers entirely.
+  if (!wantsClass && !wantsStaff) return askRegister(wantsVoice ? 'voice' : 'tap', user.preferred_language);
+
+  if (!user.school_id) {
+    return {
+      action: 'NO_SCHOOL',
+      message: 'Teacher attendance is marked by a principal whose account is linked to a school. '
+        + 'Your NIETE coordinator can link yours.',
+    };
+  }
+
+  const classes = wantsClass ? await loadClasses(userId) : [];
+
+  if (wantsClass && classes.length) {
+    // From here the principal is marking a class, so they take the TEACHER path
+    // verbatim: the Flow's own CLASS screen picks which one for a tap, and the
+    // voice branch needs the roster in hand before the note arrives.
+    if (!wantsVoice) return { action: 'OPEN_REGISTER', flowToken: `${userId}:student` };
+    if (classes.length === 1) {
+      if (!await hasStudents(classes[0])) return emptyClass(classes[0].id);
+      return awaitVoice('student', classes[0].id);
+    }
+    return pickClassForVoice(classes);
+  }
+
+  if (!wantsVoice) return { action: 'MARK_TEACHERS', flowToken: `${userId}:teacher:${user.school_id}` };
+  return awaitVoice('teacher', user.school_id);
 }
 
 /** The prompt that arms the wait. One place, so both subjects ask the same way. */
@@ -437,9 +564,11 @@ module.exports = {
   detect,
   route,
   resolveMethodChoice,
+  resolveRegisterChoice,
   resolveVoiceClassChoice,
   resolveClassChoice,
   askMethod,
+  askRegister,
   MAX_BUTTONS,
   MAX_ROWS,
   readTypedMethod,

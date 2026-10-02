@@ -368,7 +368,11 @@ function createFakeSupabase(seed = {}, opts = {}) {
    * observable contract: scope checks, the role moves, her list is linked-or-
    * adopted-or-written, the children follow it, the fallback mirrors retire.
    */
-  const LEADER_ROLES = ['school_leader', 'supervisor', 'coach', 'principal', 'aeo'];
+  // bd-37lyd — LEADER_ROLES minus 'principal', exactly as the SQL now reads. A
+  // principal can be a class teacher; a coach, supervisor, AEO or school leader
+  // cannot. Diverging from the function here would make the whole suite assert
+  // against a contract production does not have.
+  const LEADER_ROLES = ['school_leader', 'supervisor', 'coach', 'aeo'];
   function rosterHandOverClass({ p_class_id, p_school_id = null, p_teacher_user_id, p_actor }) {
     if (!p_class_id || !p_teacher_user_id || !p_actor) {
       throw new Error('roster_hand_over_class: p_class_id, p_teacher_user_id and p_actor are required');
