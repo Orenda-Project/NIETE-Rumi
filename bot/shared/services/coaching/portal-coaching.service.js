@@ -474,6 +474,10 @@ module.exports = {
   isWhatsAppReflectiveSession,
   isOwnPortalKey,
   buildUploadKey,
+  // bd-5rz1v.6: a coach's portal observation checks its uploads and plan the same way.
+  libraryPick,
+  checkUploaded,
+  extOf,
   presignUpload,
   startPortalSession,
   afterTranscription,

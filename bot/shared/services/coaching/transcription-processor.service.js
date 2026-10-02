@@ -211,7 +211,8 @@ class TranscriptionProcessorService {
               { coachingSessionId, from, observerUserId: session.observer_user_id, audioHash, prior },
               {
                 updateIfNotTerminal,
-                sendMessage: (to, body) => WhatsAppService.sendMessage(to, body),
+                sendMessage: TranscriptionProcessorService.coachNotice(
+                  session, (to, body) => WhatsAppService.sendMessage(to, body)),
                 getLanguage: (uid) => getUserLanguage(uid),
                 getStrings: observeStrings,
                 log: logToFile,
@@ -589,6 +590,19 @@ class TranscriptionProcessorService {
     const env = deps.env || process.env;
     const gatesOn = env.OBSERVE_CAPTURE_GATES_ENABLED === 'true';
 
+    // bd-5rz1v.6: an observation started in the PORTAL brought the teacher's plan
+    // and the board photos with it, and the coach is not asked anything on
+    // WhatsApp — so the gates below are skipped and the step queues what a
+    // portal upload queues (plan extraction, then analysis; or analysis alone).
+    const PortalCoaching = deps.portal || require('./portal-coaching.service');
+    if (PortalCoaching.isPortalSession(session)) {
+      const result = await PortalCoaching.afterTranscription(session, coachingSessionId, from);
+      logToFile('✅ Transcription complete (portal observation — attachments collected at upload, gates skipped)', {
+        coachingSessionId, hasLessonPlan: !!session.has_lesson_plan,
+      });
+      return { action: 'portal', result };
+    }
+
     if (!gatesOn) {
       const queueAnalysis = deps.queueAnalysis
         || ((sid, payload) => require('./coaching-job-queue.service').queueAnalysis(sid, payload));
@@ -616,6 +630,20 @@ class TranscriptionProcessorService {
     await updateStatus(coachingSessionId, 'awaiting_photo');
     logToFile('✅ Transcription complete (observe path — coach photo gate sent)', { coachingSessionId, observerLanguage });
     return { action: 'photo_gate', observerLanguage };
+  }
+
+  /**
+   * bd-5rz1v.6 — how the capture step tells the COACH something about her
+   * recording. A portal-started observation is followed in the portal (the row
+   * says what happened), so nothing is sent; any other observation is told on
+   * WhatsApp exactly as before.
+   * @param {object} session  coaching_sessions row
+   * @param {(to: string, body: string) => Promise<boolean>} send
+   */
+  static coachNotice(session, send) {
+    const { isPortalSession } = require('./portal-coaching.service');
+    if (isPortalSession(session)) return async () => true;
+    return send;
   }
 
   /**
