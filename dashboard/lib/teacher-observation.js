@@ -26,6 +26,13 @@ const VISIBLE_TO_TEACHER_OR = [
   `analysis_data->teacher_delivery->>status.eq.${DELIVERED}`,
 ].join(',');
 
+/**
+ * The same rule as SQL, for the routes that read coaching_sessions through the
+ * pool (unaliased columns): her own sessions, plus observations sent to her.
+ */
+const VISIBLE_TO_TEACHER_SQL = `(observation_type IS NULL OR observation_type <> '${OBSERVATION_TYPE}' `
+  + `OR analysis_data->'teacher_delivery'->>'status' = '${DELIVERED}')`;
+
 /** PostgREST or=(): her own sessions only — what is in flight is never a coach's. */
 const NOT_AN_OBSERVATION_OR = ['observation_type.is.null', `observation_type.neq.${OBSERVATION_TYPE}`].join(',');
 
@@ -61,6 +68,7 @@ module.exports = {
   OBSERVATION_TYPE,
   DELIVERED,
   VISIBLE_TO_TEACHER_OR,
+  VISIBLE_TO_TEACHER_SQL,
   NOT_AN_OBSERVATION_OR,
   isObservation,
   teacherMaySee,

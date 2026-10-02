@@ -1452,6 +1452,8 @@ router.get('/my-analytics', requirePortalAuth, async (req, res) => {
           WHERE user_id = $1
             AND status IN ${TERMINAL}
             AND analysis_data IS NOT NULL
+            -- A coach's observation counts for her once it is sent, never as a draft.
+            AND ${TeacherObservation.VISIBLE_TO_TEACHER_SQL}
             AND ${inWindow(pkDay('created_at'), '$2', '$3')}
           ORDER BY created_at ASC`, [me, ...w]),
       pool.query(
