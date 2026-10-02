@@ -1,0 +1,2251 @@
+{
+  "version": "7.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "URDU": [
+      "ENGLISH"
+    ],
+    "ENGLISH": [
+      "MATHS"
+    ],
+    "MATHS": [
+      "DONE"
+    ],
+    "DONE": []
+  },
+  "screens": [
+    {
+      "id": "URDU",
+      "title": "اردو · Urdu",
+      "data": {
+        "child_line": {
+          "type": "string",
+          "__example__": "رول نمبر 14 · جماعت 3"
+        },
+        "status_line": {
+          "type": "string",
+          "__example__": "ریکارڈنگ سے نمبر بھرے ہوئے ہیں۔ جو آپ نے مختلف سنا ہو وہ بدلیں۔ خالی خانے ریکارڈنگ میں واضح نہیں تھے، انہیں خود بھریں۔"
+        },
+        "sec_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "t_next": {
+          "type": "string",
+          "__example__": "اردو محفوظ کریں، اگلا: انگریزی"
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "story_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "fb_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "t_story": {
+          "type": "string",
+          "__example__": "کہانی، 60 سیکنڈ"
+        },
+        "t_wc": {
+          "type": "string",
+          "__example__": "درست الفاظ"
+        },
+        "t_wa": {
+          "type": "string",
+          "__example__": "پڑھنے کی کوشش"
+        },
+        "wc_i": {
+          "type": "string",
+          "__example__": "31"
+        },
+        "wa_i": {
+          "type": "string",
+          "__example__": "34"
+        },
+        "wc_h": {
+          "type": "string",
+          "__example__": "ریکارڈنگ سے گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں"
+        },
+        "wa_h": {
+          "type": "string",
+          "__example__": "ریکارڈنگ سے گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں"
+        },
+        "t_flag": {
+          "type": "string",
+          "__example__": "غلط پڑھے گئے الفاظ"
+        },
+        "flag_cap": {
+          "type": "string",
+          "__example__": "جو لفظ بچے نے درست پڑھا ہو اس سے نشان ہٹائیں۔"
+        },
+        "flag_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "flag_opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "w4",
+              "title": "والد"
+            },
+            {
+              "id": "w8",
+              "title": "گیا"
+            },
+            {
+              "id": "w10",
+              "title": "کشتی"
+            }
+          ]
+        },
+        "flag_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "w4",
+            "w8"
+          ]
+        },
+        "sw_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "sw_t": {
+          "type": "string",
+          "__example__": ""
+        },
+        "sw_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "readwrong": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "wrong",
+              "title": "غلط پڑھا"
+            },
+            {
+              "id": "correct",
+              "title": "درست پڑھا"
+            }
+          ]
+        },
+        "t_fb": {
+          "type": "string",
+          "__example__": "حروف اور الفاظ (کہانی مشکل تھی)"
+        },
+        "t_fl": {
+          "type": "string",
+          "__example__": "درست حروف"
+        },
+        "t_fw": {
+          "type": "string",
+          "__example__": "درست الفاظ"
+        },
+        "fl_h": {
+          "type": "string",
+          "__example__": "10 میں سے"
+        },
+        "fw_h": {
+          "type": "string",
+          "__example__": "10 میں سے"
+        },
+        "fl_i": {
+          "type": "string",
+          "__example__": "0"
+        },
+        "fw_i": {
+          "type": "string",
+          "__example__": "0"
+        },
+        "t_q": {
+          "type": "string",
+          "__example__": "کہانی کے سوال"
+        },
+        "verdicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "correct",
+              "title": "درست"
+            },
+            {
+              "id": "wrong",
+              "title": "غلط"
+            },
+            {
+              "id": "none",
+              "title": "جواب نہیں دیا"
+            }
+          ]
+        },
+        "q1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "q1_t": {
+          "type": "string",
+          "__example__": "سوال 1"
+        },
+        "q1_d": {
+          "type": "string",
+          "__example__": "علی کس کے ساتھ گیا؟ · سنا گیا: «والد کے ساتھ»"
+        },
+        "q1_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "q2_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "q2_t": {
+          "type": "string",
+          "__example__": "سوال 2"
+        },
+        "q2_d": {
+          "type": "string",
+          "__example__": "وہاں کیا تھا؟ · سنا گیا: «پتھر»"
+        },
+        "q2_i": {
+          "type": "string",
+          "__example__": "wrong"
+        },
+        "q3_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "q3_t": {
+          "type": "string",
+          "__example__": "سوال 3"
+        },
+        "q3_d": {
+          "type": "string",
+          "__example__": "علی خوش کیوں تھا؟ · سنا گیا: کوئی جواب نہیں"
+        },
+        "q3_i": {
+          "type": "string",
+          "__example__": ""
+        },
+        "fs_sec_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "t_fs": {
+          "type": "string",
+          "__example__": "پہلی آواز"
+        },
+        "fs1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "fs1_t": {
+          "type": "string",
+          "__example__": "1 · مچھلی"
+        },
+        "fs1_d": {
+          "type": "string",
+          "__example__": "ریکارڈنگ میں سنا گیا: «م» (اندازہ)"
+        },
+        "fs1_i": {
+          "type": "string",
+          "__example__": ""
+        },
+        "fs2_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "fs2_t": {
+          "type": "string",
+          "__example__": "2 · چاند"
+        },
+        "fs2_d": {
+          "type": "string",
+          "__example__": "ریکارڈنگ میں سنا گیا: «ج» (اندازہ)"
+        },
+        "fs2_i": {
+          "type": "string",
+          "__example__": ""
+        },
+        "fs3_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "fs3_t": {
+          "type": "string",
+          "__example__": "3 · بکری"
+        },
+        "fs3_d": {
+          "type": "string",
+          "__example__": "ریکارڈنگ میں سنا گیا: «ب» (اندازہ)"
+        },
+        "fs3_i": {
+          "type": "string",
+          "__example__": ""
+        },
+        "fs4_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "fs4_t": {
+          "type": "string",
+          "__example__": "4 · سیب"
+        },
+        "fs4_d": {
+          "type": "string",
+          "__example__": "کوئی اندازہ نہیں"
+        },
+        "fs4_i": {
+          "type": "string",
+          "__example__": ""
+        },
+        "fs5_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "fs5_t": {
+          "type": "string",
+          "__example__": "5 · گھر"
+        },
+        "fs5_d": {
+          "type": "string",
+          "__example__": "ریکارڈنگ میں سنا گیا: «گ» (اندازہ)"
+        },
+        "fs5_i": {
+          "type": "string",
+          "__example__": ""
+        },
+        "t_nw": {
+          "type": "string",
+          "__example__": "بے معنی الفاظ"
+        },
+        "t_nwc": {
+          "type": "string",
+          "__example__": "غلط پڑھے"
+        },
+        "nwc_cap": {
+          "type": "string",
+          "__example__": "جو بچے نے درست پڑھا ہو اس سے نشان ہٹائیں۔ یہ ریکارڈنگ میں واضح تھے۔"
+        },
+        "nwc_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "nwc_opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "u3A-nw1",
+              "title": "تامو"
+            },
+            {
+              "id": "u3A-nw2",
+              "title": "نوپی"
+            },
+            {
+              "id": "u3A-nw3",
+              "title": "سیکا"
+            },
+            {
+              "id": "u3A-nw5",
+              "title": "داپو"
+            }
+          ]
+        },
+        "nwc_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "u3A-nw2"
+          ]
+        },
+        "nw1_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw1_t": {
+          "type": "string",
+          "__example__": "«تامو»"
+        },
+        "nw1_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw1_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "nw2_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw2_t": {
+          "type": "string",
+          "__example__": "«نوپی»"
+        },
+        "nw2_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw2_i": {
+          "type": "string",
+          "__example__": "wrong"
+        },
+        "nw3_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw3_t": {
+          "type": "string",
+          "__example__": "«سیکا»"
+        },
+        "nw3_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw3_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "nw4_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "nw4_t": {
+          "type": "string",
+          "__example__": "«بولی»"
+        },
+        "nw4_d": {
+          "type": "string",
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ جو سنا وہ چنیں · سنا گیا: «بولو»"
+        },
+        "nw4_i": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw5_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw5_t": {
+          "type": "string",
+          "__example__": "«داپو»"
+        },
+        "nw5_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw5_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "nw6_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw6_t": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw6_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw6_i": {
+          "type": "string",
+          "__example__": "none"
+        },
+        "nw7_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw7_t": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw7_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw7_i": {
+          "type": "string",
+          "__example__": "none"
+        },
+        "nw8_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw8_t": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw8_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw8_i": {
+          "type": "string",
+          "__example__": "none"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "urdu_form",
+            "init-values": {
+              "u_wc": "${data.wc_i}",
+              "u_wa": "${data.wa_i}",
+              "u_flag": "${data.flag_on}",
+              "u_sw": "${data.sw_i}",
+              "u_fl": "${data.fl_i}",
+              "u_fw": "${data.fw_i}",
+              "u_q1": "${data.q1_i}",
+              "u_q2": "${data.q2_i}",
+              "u_q3": "${data.q3_i}",
+              "u_fs1": "${data.fs1_i}",
+              "u_fs2": "${data.fs2_i}",
+              "u_fs3": "${data.fs3_i}",
+              "u_fs4": "${data.fs4_i}",
+              "u_fs5": "${data.fs5_i}",
+              "u_nwc": "${data.nwc_on}",
+              "u_nw1": "${data.nw1_i}",
+              "u_nw2": "${data.nw2_i}",
+              "u_nw3": "${data.nw3_i}",
+              "u_nw4": "${data.nw4_i}",
+              "u_nw5": "${data.nw5_i}",
+              "u_nw6": "${data.nw6_i}",
+              "u_nw7": "${data.nw7_i}",
+              "u_nw8": "${data.nw8_i}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.child_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.status_line}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_story}",
+                "visible": "${data.story_v}"
+              },
+              {
+                "type": "TextInput",
+                "name": "u_wc",
+                "label": "${data.t_wc}",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "${data.wc_h}",
+                "visible": "${data.story_v}"
+              },
+              {
+                "type": "TextInput",
+                "name": "u_wa",
+                "label": "${data.t_wa}",
+                "input-type": "number",
+                "required": true,
+                "visible": "${data.story_v}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.flag_cap}",
+                "visible": "${data.flag_v}"
+              },
+              {
+                "type": "ChipsSelector",
+                "name": "u_flag",
+                "label": "${data.t_flag}",
+                "data-source": "${data.flag_opts}",
+                "max-selected-items": 20,
+                "required": false,
+                "visible": "${data.flag_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_sw",
+                "label": "${data.sw_t}",
+                "required": true,
+                "visible": "${data.sw_v}",
+                "data-source": "${data.readwrong}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_fb}",
+                "visible": "${data.fb_v}"
+              },
+              {
+                "type": "TextInput",
+                "name": "u_fl",
+                "label": "${data.t_fl}",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "${data.fl_h}",
+                "visible": "${data.fb_v}"
+              },
+              {
+                "type": "TextInput",
+                "name": "u_fw",
+                "label": "${data.t_fw}",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "${data.fw_h}",
+                "visible": "${data.fb_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_q}",
+                "visible": "${data.sec_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_q1",
+                "label": "${data.q1_t}",
+                "description": "${data.q1_d}",
+                "required": true,
+                "visible": "${data.q1_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_q2",
+                "label": "${data.q2_t}",
+                "description": "${data.q2_d}",
+                "required": true,
+                "visible": "${data.q2_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_q3",
+                "label": "${data.q3_t}",
+                "description": "${data.q3_d}",
+                "required": true,
+                "visible": "${data.q3_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_fs}",
+                "visible": "${data.fs_sec_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_fs1",
+                "label": "${data.fs1_t}",
+                "description": "${data.fs1_d}",
+                "required": true,
+                "visible": "${data.fs1_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_fs2",
+                "label": "${data.fs2_t}",
+                "description": "${data.fs2_d}",
+                "required": true,
+                "visible": "${data.fs2_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_fs3",
+                "label": "${data.fs3_t}",
+                "description": "${data.fs3_d}",
+                "required": true,
+                "visible": "${data.fs3_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_fs4",
+                "label": "${data.fs4_t}",
+                "description": "${data.fs4_d}",
+                "required": true,
+                "visible": "${data.fs4_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_fs5",
+                "label": "${data.fs5_t}",
+                "description": "${data.fs5_d}",
+                "required": true,
+                "visible": "${data.fs5_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_nw}",
+                "visible": "${data.sec_v}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.nwc_cap}",
+                "visible": "${data.nwc_v}"
+              },
+              {
+                "type": "ChipsSelector",
+                "name": "u_nwc",
+                "label": "${data.t_nwc}",
+                "data-source": "${data.nwc_opts}",
+                "max-selected-items": 20,
+                "required": false,
+                "visible": "${data.nwc_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_nw1",
+                "label": "${data.nw1_t}",
+                "description": "${data.nw1_d}",
+                "required": true,
+                "visible": "${data.nw1_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_nw2",
+                "label": "${data.nw2_t}",
+                "description": "${data.nw2_d}",
+                "required": true,
+                "visible": "${data.nw2_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_nw3",
+                "label": "${data.nw3_t}",
+                "description": "${data.nw3_d}",
+                "required": true,
+                "visible": "${data.nw3_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_nw4",
+                "label": "${data.nw4_t}",
+                "description": "${data.nw4_d}",
+                "required": true,
+                "visible": "${data.nw4_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_nw5",
+                "label": "${data.nw5_t}",
+                "description": "${data.nw5_d}",
+                "required": true,
+                "visible": "${data.nw5_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_nw6",
+                "label": "${data.nw6_t}",
+                "description": "${data.nw6_d}",
+                "required": true,
+                "visible": "${data.nw6_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_nw7",
+                "label": "${data.nw7_t}",
+                "description": "${data.nw7_d}",
+                "required": true,
+                "visible": "${data.nw7_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "u_nw8",
+                "label": "${data.nw8_t}",
+                "description": "${data.nw8_d}",
+                "required": true,
+                "visible": "${data.nw8_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.t_next}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "URDU",
+                    "u_wc": "${form.u_wc}",
+                    "u_wa": "${form.u_wa}",
+                    "u_flag": "${form.u_flag}",
+                    "u_sw": "${form.u_sw}",
+                    "u_fl": "${form.u_fl}",
+                    "u_fw": "${form.u_fw}",
+                    "u_q1": "${form.u_q1}",
+                    "u_q2": "${form.u_q2}",
+                    "u_q3": "${form.u_q3}",
+                    "u_fs1": "${form.u_fs1}",
+                    "u_fs2": "${form.u_fs2}",
+                    "u_fs3": "${form.u_fs3}",
+                    "u_fs4": "${form.u_fs4}",
+                    "u_fs5": "${form.u_fs5}",
+                    "u_nwc": "${form.u_nwc}",
+                    "u_nw1": "${form.u_nw1}",
+                    "u_nw2": "${form.u_nw2}",
+                    "u_nw3": "${form.u_nw3}",
+                    "u_nw4": "${form.u_nw4}",
+                    "u_nw5": "${form.u_nw5}",
+                    "u_nw6": "${form.u_nw6}",
+                    "u_nw7": "${form.u_nw7}",
+                    "u_nw8": "${form.u_nw8}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ENGLISH",
+      "title": "انگریزی · English",
+      "data": {
+        "child_line": {
+          "type": "string",
+          "__example__": "رول نمبر 14 · جماعت 3"
+        },
+        "status_line": {
+          "type": "string",
+          "__example__": "ریکارڈنگ سے نمبر بھرے ہوئے ہیں۔ جو آپ نے مختلف سنا ہو وہ بدلیں۔ خالی خانے ریکارڈنگ میں واضح نہیں تھے، انہیں خود بھریں۔"
+        },
+        "sec_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "t_next": {
+          "type": "string",
+          "__example__": "انگریزی محفوظ کریں، اگلا: حساب"
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "story_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "fb_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "t_story": {
+          "type": "string",
+          "__example__": "کہانی، 60 سیکنڈ"
+        },
+        "t_wc": {
+          "type": "string",
+          "__example__": "درست الفاظ"
+        },
+        "t_wa": {
+          "type": "string",
+          "__example__": "پڑھنے کی کوشش"
+        },
+        "wc_i": {
+          "type": "string",
+          "__example__": "17"
+        },
+        "wa_i": {
+          "type": "string",
+          "__example__": "21"
+        },
+        "wc_h": {
+          "type": "string",
+          "__example__": "ریکارڈنگ سے گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں"
+        },
+        "wa_h": {
+          "type": "string",
+          "__example__": "ریکارڈنگ سے گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں"
+        },
+        "t_flag": {
+          "type": "string",
+          "__example__": "غلط پڑھے گئے الفاظ"
+        },
+        "flag_cap": {
+          "type": "string",
+          "__example__": "جو لفظ بچے نے درست پڑھا ہو اس سے نشان ہٹائیں۔"
+        },
+        "flag_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "flag_opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "w3",
+              "title": "class"
+            },
+            {
+              "id": "w7",
+              "title": "plant"
+            }
+          ]
+        },
+        "flag_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "w3",
+            "w7"
+          ]
+        },
+        "sw_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "sw_t": {
+          "type": "string",
+          "__example__": ""
+        },
+        "sw_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "readwrong": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "wrong",
+              "title": "غلط پڑھا"
+            },
+            {
+              "id": "correct",
+              "title": "درست پڑھا"
+            }
+          ]
+        },
+        "t_fb": {
+          "type": "string",
+          "__example__": "حروف اور الفاظ (کہانی مشکل تھی)"
+        },
+        "t_fl": {
+          "type": "string",
+          "__example__": "درست حروف"
+        },
+        "t_fw": {
+          "type": "string",
+          "__example__": "درست الفاظ"
+        },
+        "fl_h": {
+          "type": "string",
+          "__example__": "10 میں سے"
+        },
+        "fw_h": {
+          "type": "string",
+          "__example__": "10 میں سے"
+        },
+        "fl_i": {
+          "type": "string",
+          "__example__": "0"
+        },
+        "fw_i": {
+          "type": "string",
+          "__example__": "0"
+        },
+        "t_q": {
+          "type": "string",
+          "__example__": "کہانی کے سوال"
+        },
+        "verdicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "correct",
+              "title": "درست"
+            },
+            {
+              "id": "wrong",
+              "title": "غلط"
+            },
+            {
+              "id": "none",
+              "title": "جواب نہیں دیا"
+            }
+          ]
+        },
+        "q1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "q1_t": {
+          "type": "string",
+          "__example__": "سوال 1"
+        },
+        "q1_d": {
+          "type": "string",
+          "__example__": "What was the class planting? · سنا گیا: «trees»"
+        },
+        "q1_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "q2_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "q2_t": {
+          "type": "string",
+          "__example__": "سوال 2"
+        },
+        "q2_d": {
+          "type": "string",
+          "__example__": "Why was the teacher happy? · سنا گیا: «he woke up»"
+        },
+        "q2_i": {
+          "type": "string",
+          "__example__": ""
+        },
+        "q3_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "q3_t": {
+          "type": "string",
+          "__example__": ""
+        },
+        "q3_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "q3_i": {
+          "type": "string",
+          "__example__": "none"
+        },
+        "t_nw": {
+          "type": "string",
+          "__example__": "بے معنی الفاظ"
+        },
+        "t_nwc": {
+          "type": "string",
+          "__example__": "غلط پڑھے"
+        },
+        "nwc_cap": {
+          "type": "string",
+          "__example__": "جو بچے نے درست پڑھا ہو اس سے نشان ہٹائیں۔ یہ ریکارڈنگ میں واضح تھے۔"
+        },
+        "nwc_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "nwc_opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "e3A-nw1",
+              "title": "rup"
+            },
+            {
+              "id": "e3A-nw2",
+              "title": "jeg"
+            },
+            {
+              "id": "e3A-nw3",
+              "title": "fim"
+            },
+            {
+              "id": "e3A-nw4",
+              "title": "tob"
+            },
+            {
+              "id": "e3A-nw5",
+              "title": "sab"
+            },
+            {
+              "id": "e3A-nw6",
+              "title": "lud"
+            },
+            {
+              "id": "e3A-nw7",
+              "title": "vop"
+            }
+          ]
+        },
+        "nwc_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "e3A-nw2",
+            "e3A-nw5"
+          ]
+        },
+        "nw1_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw1_t": {
+          "type": "string",
+          "__example__": "«rup»"
+        },
+        "nw1_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw1_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "nw2_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw2_t": {
+          "type": "string",
+          "__example__": "«jeg»"
+        },
+        "nw2_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw2_i": {
+          "type": "string",
+          "__example__": "wrong"
+        },
+        "nw3_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw3_t": {
+          "type": "string",
+          "__example__": "«fim»"
+        },
+        "nw3_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw3_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "nw4_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw4_t": {
+          "type": "string",
+          "__example__": "«tob»"
+        },
+        "nw4_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw4_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "nw5_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw5_t": {
+          "type": "string",
+          "__example__": "«sab»"
+        },
+        "nw5_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw5_i": {
+          "type": "string",
+          "__example__": "wrong"
+        },
+        "nw6_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw6_t": {
+          "type": "string",
+          "__example__": "«lud»"
+        },
+        "nw6_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw6_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "nw7_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "nw7_t": {
+          "type": "string",
+          "__example__": "«vop»"
+        },
+        "nw7_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "nw7_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "nw8_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "nw8_t": {
+          "type": "string",
+          "__example__": "«kez»"
+        },
+        "nw8_d": {
+          "type": "string",
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ جو سنا وہ چنیں"
+        },
+        "nw8_i": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "english_form",
+            "init-values": {
+              "e_wc": "${data.wc_i}",
+              "e_wa": "${data.wa_i}",
+              "e_flag": "${data.flag_on}",
+              "e_sw": "${data.sw_i}",
+              "e_fl": "${data.fl_i}",
+              "e_fw": "${data.fw_i}",
+              "e_q1": "${data.q1_i}",
+              "e_q2": "${data.q2_i}",
+              "e_q3": "${data.q3_i}",
+              "e_nwc": "${data.nwc_on}",
+              "e_nw1": "${data.nw1_i}",
+              "e_nw2": "${data.nw2_i}",
+              "e_nw3": "${data.nw3_i}",
+              "e_nw4": "${data.nw4_i}",
+              "e_nw5": "${data.nw5_i}",
+              "e_nw6": "${data.nw6_i}",
+              "e_nw7": "${data.nw7_i}",
+              "e_nw8": "${data.nw8_i}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.child_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.status_line}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_story}",
+                "visible": "${data.story_v}"
+              },
+              {
+                "type": "TextInput",
+                "name": "e_wc",
+                "label": "${data.t_wc}",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "${data.wc_h}",
+                "visible": "${data.story_v}"
+              },
+              {
+                "type": "TextInput",
+                "name": "e_wa",
+                "label": "${data.t_wa}",
+                "input-type": "number",
+                "required": true,
+                "visible": "${data.story_v}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.flag_cap}",
+                "visible": "${data.flag_v}"
+              },
+              {
+                "type": "ChipsSelector",
+                "name": "e_flag",
+                "label": "${data.t_flag}",
+                "data-source": "${data.flag_opts}",
+                "max-selected-items": 20,
+                "required": false,
+                "visible": "${data.flag_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_sw",
+                "label": "${data.sw_t}",
+                "required": true,
+                "visible": "${data.sw_v}",
+                "data-source": "${data.readwrong}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_fb}",
+                "visible": "${data.fb_v}"
+              },
+              {
+                "type": "TextInput",
+                "name": "e_fl",
+                "label": "${data.t_fl}",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "${data.fl_h}",
+                "visible": "${data.fb_v}"
+              },
+              {
+                "type": "TextInput",
+                "name": "e_fw",
+                "label": "${data.t_fw}",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "${data.fw_h}",
+                "visible": "${data.fb_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_q}",
+                "visible": "${data.sec_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_q1",
+                "label": "${data.q1_t}",
+                "description": "${data.q1_d}",
+                "required": true,
+                "visible": "${data.q1_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_q2",
+                "label": "${data.q2_t}",
+                "description": "${data.q2_d}",
+                "required": true,
+                "visible": "${data.q2_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_q3",
+                "label": "${data.q3_t}",
+                "description": "${data.q3_d}",
+                "required": true,
+                "visible": "${data.q3_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_nw}",
+                "visible": "${data.sec_v}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.nwc_cap}",
+                "visible": "${data.nwc_v}"
+              },
+              {
+                "type": "ChipsSelector",
+                "name": "e_nwc",
+                "label": "${data.t_nwc}",
+                "data-source": "${data.nwc_opts}",
+                "max-selected-items": 20,
+                "required": false,
+                "visible": "${data.nwc_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_nw1",
+                "label": "${data.nw1_t}",
+                "description": "${data.nw1_d}",
+                "required": true,
+                "visible": "${data.nw1_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_nw2",
+                "label": "${data.nw2_t}",
+                "description": "${data.nw2_d}",
+                "required": true,
+                "visible": "${data.nw2_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_nw3",
+                "label": "${data.nw3_t}",
+                "description": "${data.nw3_d}",
+                "required": true,
+                "visible": "${data.nw3_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_nw4",
+                "label": "${data.nw4_t}",
+                "description": "${data.nw4_d}",
+                "required": true,
+                "visible": "${data.nw4_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_nw5",
+                "label": "${data.nw5_t}",
+                "description": "${data.nw5_d}",
+                "required": true,
+                "visible": "${data.nw5_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_nw6",
+                "label": "${data.nw6_t}",
+                "description": "${data.nw6_d}",
+                "required": true,
+                "visible": "${data.nw6_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_nw7",
+                "label": "${data.nw7_t}",
+                "description": "${data.nw7_d}",
+                "required": true,
+                "visible": "${data.nw7_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "e_nw8",
+                "label": "${data.nw8_t}",
+                "description": "${data.nw8_d}",
+                "required": true,
+                "visible": "${data.nw8_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.t_next}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "ENGLISH",
+                    "e_wc": "${form.e_wc}",
+                    "e_wa": "${form.e_wa}",
+                    "e_flag": "${form.e_flag}",
+                    "e_sw": "${form.e_sw}",
+                    "e_fl": "${form.e_fl}",
+                    "e_fw": "${form.e_fw}",
+                    "e_q1": "${form.e_q1}",
+                    "e_q2": "${form.e_q2}",
+                    "e_q3": "${form.e_q3}",
+                    "e_nwc": "${form.e_nwc}",
+                    "e_nw1": "${form.e_nw1}",
+                    "e_nw2": "${form.e_nw2}",
+                    "e_nw3": "${form.e_nw3}",
+                    "e_nw4": "${form.e_nw4}",
+                    "e_nw5": "${form.e_nw5}",
+                    "e_nw6": "${form.e_nw6}",
+                    "e_nw7": "${form.e_nw7}",
+                    "e_nw8": "${form.e_nw8}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "MATHS",
+      "title": "حساب · Maths",
+      "data": {
+        "child_line": {
+          "type": "string",
+          "__example__": "رول نمبر 14 · جماعت 3"
+        },
+        "status_line": {
+          "type": "string",
+          "__example__": "ریکارڈنگ سے نمبر بھرے ہوئے ہیں۔ جو آپ نے مختلف سنا ہو وہ بدلیں۔ خالی خانے ریکارڈنگ میں واضح نہیں تھے، انہیں خود بھریں۔"
+        },
+        "sec_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "t_next": {
+          "type": "string",
+          "__example__": "محفوظ کریں اور ختم کریں"
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "t_num": {
+          "type": "string",
+          "__example__": "اونچی آواز میں نمبر"
+        },
+        "t_numc": {
+          "type": "string",
+          "__example__": "غلط پڑھے"
+        },
+        "numc_cap": {
+          "type": "string",
+          "__example__": "جو نمبر بچے نے درست پڑھا ہو اس سے نشان ہٹائیں۔"
+        },
+        "verdicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "correct",
+              "title": "درست"
+            },
+            {
+              "id": "wrong",
+              "title": "غلط"
+            },
+            {
+              "id": "none",
+              "title": "جواب نہیں دیا"
+            }
+          ]
+        },
+        "numc_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "numc_opts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "m3A-n1",
+              "title": "6"
+            },
+            {
+              "id": "m3A-n2",
+              "title": "13"
+            },
+            {
+              "id": "m3A-n3",
+              "title": "27"
+            },
+            {
+              "id": "m3A-n4",
+              "title": "40"
+            },
+            {
+              "id": "m3A-n5",
+              "title": "58"
+            },
+            {
+              "id": "m3A-n7",
+              "title": "99"
+            },
+            {
+              "id": "m3A-n8",
+              "title": "104"
+            }
+          ]
+        },
+        "numc_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "m3A-n3",
+            "m3A-n8"
+          ]
+        },
+        "n1_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "n1_t": {
+          "type": "string",
+          "__example__": "6"
+        },
+        "n1_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "n1_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "n2_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "n2_t": {
+          "type": "string",
+          "__example__": "13"
+        },
+        "n2_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "n2_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "n3_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "n3_t": {
+          "type": "string",
+          "__example__": "27"
+        },
+        "n3_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "n3_i": {
+          "type": "string",
+          "__example__": "wrong"
+        },
+        "n4_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "n4_t": {
+          "type": "string",
+          "__example__": "40"
+        },
+        "n4_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "n4_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "n5_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "n5_t": {
+          "type": "string",
+          "__example__": "58"
+        },
+        "n5_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "n5_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "n6_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "n6_t": {
+          "type": "string",
+          "__example__": "71"
+        },
+        "n6_d": {
+          "type": "string",
+          "__example__": "ریکارڈنگ میں واضح نہیں۔ جو سنا وہ چنیں"
+        },
+        "n6_i": {
+          "type": "string",
+          "__example__": ""
+        },
+        "n7_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "n7_t": {
+          "type": "string",
+          "__example__": "99"
+        },
+        "n7_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "n7_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "n8_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "n8_t": {
+          "type": "string",
+          "__example__": "104"
+        },
+        "n8_d": {
+          "type": "string",
+          "__example__": ""
+        },
+        "n8_i": {
+          "type": "string",
+          "__example__": "none"
+        },
+        "t_qs": {
+          "type": "string",
+          "__example__": "فوری سوال، 60 سیکنڈ"
+        },
+        "t_qc": {
+          "type": "string",
+          "__example__": "درست سوال"
+        },
+        "t_qa": {
+          "type": "string",
+          "__example__": "کوشش کیے گئے سوال"
+        },
+        "qc_i": {
+          "type": "string",
+          "__example__": "9"
+        },
+        "qa_i": {
+          "type": "string",
+          "__example__": "11"
+        },
+        "qc_h": {
+          "type": "string",
+          "__example__": "ریکارڈنگ سے گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں"
+        },
+        "qa_h": {
+          "type": "string",
+          "__example__": "ریکارڈنگ سے گنتی۔ آپ کی گنتی مختلف ہو تو بدلیں"
+        },
+        "t_wr": {
+          "type": "string",
+          "__example__": "لکھے ہوئے سوال (تصویر سے)"
+        },
+        "wverdicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "correct",
+              "title": "درست"
+            },
+            {
+              "id": "wrong",
+              "title": "غلط"
+            },
+            {
+              "id": "blank",
+              "title": "خالی چھوڑا"
+            },
+            {
+              "id": "unreadable",
+              "title": "پڑھا نہیں جا سکا"
+            }
+          ]
+        },
+        "w1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "w1_t": {
+          "type": "string",
+          "__example__": "34 + 28"
+        },
+        "w1_d": {
+          "type": "string",
+          "__example__": "تصویر سے پڑھا گیا: «62»"
+        },
+        "w1_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "w2_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "w2_t": {
+          "type": "string",
+          "__example__": "56 + 27"
+        },
+        "w2_d": {
+          "type": "string",
+          "__example__": "تصویر سے پڑھا گیا: «73»"
+        },
+        "w2_i": {
+          "type": "string",
+          "__example__": "wrong"
+        },
+        "w3_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "w3_t": {
+          "type": "string",
+          "__example__": "72 - 35"
+        },
+        "w3_d": {
+          "type": "string",
+          "__example__": "تصویر سے کوئی جواب نہیں پڑھا جا سکا"
+        },
+        "w3_i": {
+          "type": "string",
+          "__example__": ""
+        },
+        "w4_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "w4_t": {
+          "type": "string",
+          "__example__": "6 × 4"
+        },
+        "w4_d": {
+          "type": "string",
+          "__example__": "تصویر سے پڑھا گیا: «24»"
+        },
+        "w4_i": {
+          "type": "string",
+          "__example__": "correct"
+        },
+        "t_wp": {
+          "type": "string",
+          "__example__": "عبارتی سوال"
+        },
+        "wp_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "wp_t": {
+          "type": "string",
+          "__example__": "عبارتی سوال"
+        },
+        "wp_d": {
+          "type": "string",
+          "__example__": "علی کے پاس 5 آم ہیں، 4 اور ملے۔ کل کتنے؟ · تصویر سے پڑھا گیا: «9»"
+        },
+        "wp_i": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "maths_form",
+            "init-values": {
+              "m_numc": "${data.numc_on}",
+              "m_qc": "${data.qc_i}",
+              "m_qa": "${data.qa_i}",
+              "m_wp": "${data.wp_i}",
+              "m_n1": "${data.n1_i}",
+              "m_n2": "${data.n2_i}",
+              "m_n3": "${data.n3_i}",
+              "m_n4": "${data.n4_i}",
+              "m_n5": "${data.n5_i}",
+              "m_n6": "${data.n6_i}",
+              "m_n7": "${data.n7_i}",
+              "m_n8": "${data.n8_i}",
+              "m_w1": "${data.w1_i}",
+              "m_w2": "${data.w2_i}",
+              "m_w3": "${data.w3_i}",
+              "m_w4": "${data.w4_i}"
+            },
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.child_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.status_line}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_num}",
+                "visible": "${data.sec_v}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.numc_cap}",
+                "visible": "${data.numc_v}"
+              },
+              {
+                "type": "ChipsSelector",
+                "name": "m_numc",
+                "label": "${data.t_numc}",
+                "data-source": "${data.numc_opts}",
+                "max-selected-items": 20,
+                "required": false,
+                "visible": "${data.numc_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_n1",
+                "label": "${data.n1_t}",
+                "description": "${data.n1_d}",
+                "required": true,
+                "visible": "${data.n1_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_n2",
+                "label": "${data.n2_t}",
+                "description": "${data.n2_d}",
+                "required": true,
+                "visible": "${data.n2_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_n3",
+                "label": "${data.n3_t}",
+                "description": "${data.n3_d}",
+                "required": true,
+                "visible": "${data.n3_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_n4",
+                "label": "${data.n4_t}",
+                "description": "${data.n4_d}",
+                "required": true,
+                "visible": "${data.n4_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_n5",
+                "label": "${data.n5_t}",
+                "description": "${data.n5_d}",
+                "required": true,
+                "visible": "${data.n5_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_n6",
+                "label": "${data.n6_t}",
+                "description": "${data.n6_d}",
+                "required": true,
+                "visible": "${data.n6_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_n7",
+                "label": "${data.n7_t}",
+                "description": "${data.n7_d}",
+                "required": true,
+                "visible": "${data.n7_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_n8",
+                "label": "${data.n8_t}",
+                "description": "${data.n8_d}",
+                "required": true,
+                "visible": "${data.n8_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_qs}",
+                "visible": "${data.sec_v}"
+              },
+              {
+                "type": "TextInput",
+                "name": "m_qc",
+                "label": "${data.t_qc}",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "${data.qc_h}"
+              },
+              {
+                "type": "TextInput",
+                "name": "m_qa",
+                "label": "${data.t_qa}",
+                "input-type": "number",
+                "required": true
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_wr}",
+                "visible": "${data.sec_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_w1",
+                "label": "${data.w1_t}",
+                "description": "${data.w1_d}",
+                "required": true,
+                "visible": "${data.w1_v}",
+                "data-source": "${data.wverdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_w2",
+                "label": "${data.w2_t}",
+                "description": "${data.w2_d}",
+                "required": true,
+                "visible": "${data.w2_v}",
+                "data-source": "${data.wverdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_w3",
+                "label": "${data.w3_t}",
+                "description": "${data.w3_d}",
+                "required": true,
+                "visible": "${data.w3_v}",
+                "data-source": "${data.wverdicts}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_w4",
+                "label": "${data.w4_t}",
+                "description": "${data.w4_d}",
+                "required": true,
+                "visible": "${data.w4_v}",
+                "data-source": "${data.wverdicts}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.t_wp}",
+                "visible": "${data.wp_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "m_wp",
+                "label": "${data.wp_t}",
+                "description": "${data.wp_d}",
+                "required": true,
+                "visible": "${data.wp_v}",
+                "data-source": "${data.verdicts}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.t_next}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "MATHS",
+                    "m_numc": "${form.m_numc}",
+                    "m_n1": "${form.m_n1}",
+                    "m_n2": "${form.m_n2}",
+                    "m_n3": "${form.m_n3}",
+                    "m_n4": "${form.m_n4}",
+                    "m_n5": "${form.m_n5}",
+                    "m_n6": "${form.m_n6}",
+                    "m_n7": "${form.m_n7}",
+                    "m_n8": "${form.m_n8}",
+                    "m_qc": "${form.m_qc}",
+                    "m_qa": "${form.m_qa}",
+                    "m_w1": "${form.m_w1}",
+                    "m_w2": "${form.m_w2}",
+                    "m_w3": "${form.m_w3}",
+                    "m_w4": "${form.m_w4}",
+                    "m_wp": "${form.m_wp}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DONE",
+      "title": "محفوظ · Saved",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "done_line": {
+          "type": "string",
+          "__example__": "محفوظ ہو گیا"
+        },
+        "next_line": {
+          "type": "string",
+          "__example__": "رول نمبر 14 کے نمبر محفوظ ہو گئے۔"
+        },
+        "done_button": {
+          "type": "string",
+          "__example__": "ٹھیک ہے"
+        },
+        "session_id": {
+          "type": "string",
+          "__example__": "00000000-0000-4000-8000-000000000000"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.done_line}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.next_line}"
+          },
+          {
+            "type": "Footer",
+            "label": "${data.done_button}",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "child_test": "checked",
+                "session_id": "${data.session_id}"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

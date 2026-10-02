@@ -147,6 +147,17 @@ function detectFlowType(responseJson) {
     return 'observe2';
   }
 
+  // 0.3b Child test check — the coach's check of one child's marks. Completes with a flat
+  //      `child_test` key; Meta can drop fields from a completion, so the token marker
+  //      (<userId>:child-test-check:<sessionId>) is matched too. MUST sit above the loose
+  //      attendance_marking fallback: the token carries colons and would otherwise land there.
+  if (responseJson.child_test !== undefined) {
+    return 'child_test_check';
+  }
+  if (String(responseJson.flow_token || '').includes(':child-test-check:')) {
+    return 'child_test_check';
+  }
+
   // 0.3 Assessment Generator (bd-60027). The Flow now CLOSES on submit rather
   //     than ending on a screen, so its completion arrives here carrying
   //     `assessment_action`. That tag is unique to this flow and MUST be matched

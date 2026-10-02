@@ -1864,6 +1864,15 @@ app.post('/webhook', async (req, res) => {
         } catch (observe2Err) {
           logToFile('❌ observe2 completion handler failed', { from, error: observe2Err.message }, 'error');
         }
+      } else if (flowType === 'child_test_check') {
+        // Child test: the coach's check of one child's marks. The endpoint saved each
+        // block as its screen was submitted; this only confirms in one line (or says it did not save).
+        try {
+          const { handleCheckCompletion } = require('./shared/services/child-test/check-flow');
+          await handleCheckCompletion(responseJson, from, user);
+        } catch (childTestErr) {
+          logToFile('❌ child test check completion handler failed', { from, error: childTestErr.message }, 'error');
+        }
       } else if (flowType === 'status') {
         // /status. The endpoint did every write before the Flow closed,
         // so this branch ONLY acknowledges. Without it the completion landed on the
