@@ -3213,8 +3213,8 @@ const UX_STRINGS = {
   },
   childTestSendToTeacher: { en: 'Send to teacher', ur: 'ٹیچر کو بھیجیں' },
   childTestTeacherMessage: {
-    en: 'Rumi here, for today\'s child test. Please send these children to the coach one at a time, in this order: {rolls}. When one comes back, send the next.',
-    ur: 'رومی: آج کے بچوں کے ٹیسٹ کے لیے یہ بچے ایک ایک کر کے اسی ترتیب سے کوچ کے پاس بھیجیں: {rolls}۔ ایک بچہ واپس آئے تو اگلا بھیجیں۔',
+    en: 'For today\'s child test, please send these children to the coach one at a time, in this order: {rolls}. When one comes back, send the next.',
+    ur: 'آج کے بچوں کے ٹیسٹ کے لیے یہ بچے ایک ایک کر کے اسی ترتیب سے کوچ کے پاس بھیجیں: {rolls}۔ ایک بچہ واپس آئے تو اگلا بھیجیں۔',
   },
   childTestTeacherSent: {
     en: 'Sent the order to the class teacher.',
