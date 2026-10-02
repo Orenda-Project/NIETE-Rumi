@@ -133,6 +133,9 @@ class LessonPlanProcessorService {
   static async handleLessonPlanUpload(coachingSessionId, from, documentId) {
     try {
       logToFile('Processing lesson plan upload (async)', { coachingSessionId, documentId });
+      // Meta bill cut FX4: the download + upload take seconds before the outcome is deferred
+      // (or said) — "typing…" now; answerLater() then hands it to the analysis job.
+      require('../inbound-typing').showNow();
 
       const session = await CoachingSessionService.getSession(coachingSessionId);
       if (!session) {
@@ -226,6 +229,10 @@ class LessonPlanProcessorService {
       logToFile('🚫 Pasted lesson plan refused — the session is over', { coachingSessionId, status: gate.status });
       return;
     }
+
+    // Meta bill cut FX4: nothing is sent from here — the analysis job's Step 2/5 answers the
+    // paste. "typing…" up now and handed to that job (awaited: before the job is queued).
+    await require('../inbound-typing').answerLater();
 
     await supabase
       .from('coaching_sessions')

@@ -50,6 +50,21 @@ const RATING_DOWN = 0;
 // between surfaces, and the cap audit measures the catalog, not scattered literals.
 const ux = (key, language) => resolveUx(key, { language });
 
+// Meta bill cut FX4 (bd-w2daa.26) — the thank-yous are a free 🙏 on her own message, as the
+// lesson-plan survey's are (FX1): "Thanks — glad it was useful." and the reason thank-you carried
+// nothing she had not just said, and each was a billed message. No wamid, or the reaction not sent
+// → the original text in her language, never silence. The 👎 "What could we do better?" ASKS
+// something, so it stays a text.
+const THANKS_REACTION = '🙏';
+
+async function _thank(phone, messageId, key, language, what) {
+  const { reactOrSay } = require('./ack-reaction');
+  return reactOrSay({
+    to: phone, messageId, emoji: THANKS_REACTION, what,
+    text: async () => ux(key, typeof language === 'function' ? await language() : language),
+  });
+}
+
 /**
  * The teacher's own language, preferred over anything the caller guessed.
  * Never throws: a survey is not worth failing a session over.
@@ -161,7 +176,7 @@ async function sendFeedbackPrompt({ coachingSessionId, userId, phone, language }
  * Handle a `coaching_fb_(yes|no)_<uuid>` tap.
  * @returns {Promise<boolean>} true if this handler owned the button.
  */
-async function handleFeedbackButton(buttonId, phone) {
+async function handleFeedbackButton(buttonId, phone, opts = {}) {
   const match = BUTTON_RX.exec(buttonId || '');
   if (!match) return false;
 
@@ -199,7 +214,7 @@ async function handleFeedbackButton(buttonId, phone) {
   }
 
   if (useful) {
-    await WhatsAppService.sendMessage(phone, ux('coachingSurveyThanks', language));
+    await _thank(phone, opts && opts.messageId, 'coachingSurveyThanks', language, 'coaching_feedback_yes');
     return true;
   }
 
@@ -224,7 +239,7 @@ async function handleFeedbackButton(buttonId, phone) {
  *
  * @returns {Promise<boolean>} true if the message was consumed as feedback.
  */
-async function handlePendingReason(userId, phone, text) {
+async function handlePendingReason(userId, phone, text, opts = {}) {
   if (!userId || !text || !text.trim()) return false;
 
   let pending = null;
@@ -237,8 +252,8 @@ async function handlePendingReason(userId, phone, text) {
 
   try { await redisService.del(REDIS_REASON_KEY(userId)); } catch (_) { /* best effort */ }
 
-  const language = await _resolveLanguage(userId, null);
-  await WhatsAppService.sendMessage(phone, ux('coachingSurveyReasonThanks', language));
+  await _thank(phone, opts && opts.messageId, 'coachingSurveyReasonThanks',
+    () => _resolveLanguage(userId, null), 'coaching_feedback_reason');
   logToFile('Coaching Feedback: reason recorded', {
     coachingSessionId: pending.coachingSessionId, userId, length: text.trim().length,
   });

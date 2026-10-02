@@ -288,7 +288,7 @@ async function refuse(from, language, what, key, message = null) {
   }
   const WhatsAppService = require('./whatsapp.service');
   const reacted = await Promise.resolve(
-    WhatsAppService.sendReaction(from, messageId, REPEAT_REACTION[key] || '🙏'),
+    WhatsAppService.sendReaction(from, messageId, REPEAT_REACTION[key] || '🙏', { soleAck: true }),
   ).catch(() => false);
   logEvent('student_ingress.refused', { what, repeat: true, reacted: Boolean(reacted) });
   if (!reacted) await say(from, key, language);

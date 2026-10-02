@@ -12,8 +12,10 @@
  * Two rules keep the signal:
  *   1. A reaction needs the inbound wamid. No wamid (a parked photo re-attached
  *      later, a test, an old caller) → the text goes out exactly as before.
- *   2. sendReaction is best-effort: the pacer may skip it, and it returns false
- *      rather than throwing. A reaction that did not go out → the text goes out.
+ *   2. The reaction is sent as a SOLE ACK (FX4, bd-w2daa.26): pacing waits briefly
+ *      for its slot and then sends it anyway — a spent burst can no longer skip it.
+ *      Meta may still refuse it; sendReaction then returns false rather than
+ *      throwing, and the text goes out.
  *
  * Load: one Graph call per ack, the same as before (a reaction instead of a text).
  */
@@ -28,7 +30,8 @@ async function reactInstead({ to, messageId, emoji }) {
   if (!to || !messageId || !emoji) return false;
   try {
     const WhatsAppService = require('../whatsapp.service');
-    return (await WhatsAppService.sendReaction(to, messageId, emoji)) === true;
+    // soleAck: this reaction replaces a text, so pacing may not skip it (FX4, bd-w2daa.26).
+    return (await WhatsAppService.sendReaction(to, messageId, emoji, { soleAck: true })) === true;
   } catch (err) {
     logToFile('⚠️ ack reaction threw — falling back to the text', { error: err.message }, 'warn');
     return false;

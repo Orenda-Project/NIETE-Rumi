@@ -572,6 +572,43 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # +90 s copy. A tap before the session completes creates the metrics row, and
     # recordQualityMetrics updates that row rather than inserting a second.
 
+  # ADDED 2026-10-02 (Meta bill cut FX4, bd-w2daa.26): the survey's thank-yous are a free 🙏, as the
+  # lesson-plan survey's are (FX1). The 👎 follow-up still ASKS, so it stays a message.
+  @e2e @wip @draft @P2 @COA72
+  Scenario: "👍 Yes" on the coaching-report survey is answered with a 🙏, not a message
+    Given the NIETE bot chat is open
+    And the "Was this coaching report useful to you?" survey is on screen
+    When I tap the yes button
+    Then a 🙏 appears on my tap and no message is sent
+    And my answer is recorded as useful
+    And when the 🙏 cannot be sent, the bot sends "Thanks — glad it was useful." in my selected language instead
+    # coaching-feedback.service handleFeedbackButton → ack-reaction reactOrSay (soleAck). Urdu fallback:
+    # «شکریہ — خوشی ہے کہ یہ کام آئی۔» Unit: tests/meta-bill-cut/fx4-round3.test.js (FX4-2).
+
+  @e2e @wip @draft @P2 @COA73
+  Scenario: The reason I type after "👎 Not really" is answered with a 🙏
+    Given the NIETE bot chat is open
+    And the "Was this coaching report useful to you?" survey is on screen
+    When I tap the no button
+    Then the bot asks what could have been better, as a message
+    When I type my reason
+    Then a 🙏 appears on my reason and no message is sent
+    And my reason is recorded against this coaching session
+    # handlePendingReason (text-message.handler passes the inbound wamid). No wamid / refused → the
+    # coachingSurveyReasonThanks text in my language.
+
+  # ADDED 2026-10-02 (FX4, bd-w2daa.26): a plan pasted as text is answered by the analysis job's
+  # Step 2/5 — nothing is sent in between, so "typing…" must cover the wait.
+  @e2e @wip @draft @P2 @COA74
+  Scenario: After I paste my lesson plan as text, "typing…" shows until Step 2/5 arrives
+    Given the NIETE bot chat is open
+    And my coaching session is asking whether I have a lesson plan
+    When I paste my lesson plan into the chat as a message
+    Then the chat header shows "typing…" at once
+    And the next message is "Step 2/5: Analyzing your teaching using research-based pedagogical frameworks"
+    And no separate "lesson plan received" message arrives
+    # lesson-plan-processor handlePastedLessonPlan → InboundTyping.answerLater() before the jobs are queued.
+
   @e2e @wip @draft @P2 @COA32
   Scenario: The commitment question opens by saying the coaching session is over
     Given the NIETE bot chat is open
@@ -874,6 +911,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And the analysis continues with that plan
     # UPDATED 2026-10-01 (Meta bill cut NC3): "✅ Lesson plan linked!…" opens the analysis
     # job's Step 2/5 (20 s fallback sends it alone if the job is slow; FX1: "typing…" shows meanwhile).
+    # UPDATED 2026-10-02 (FX4, bd-w2daa.26): on the "Yes" tap "typing…" shows within a moment — it used to
+    # wait for the 2 s deadline, because the link took 2.24 s to reach its hand-off (sandbox 1 Oct 18:23Z).
+    # The webhook reads the session kind alongside the user lookup (lpconfirm_yes_ / lp_none_ / lessonplan_no_).
     # bd-2c1gj: the HITL row-189 confirmation, widened on 2026-09-30 to the teacher's own Digital Coach flow
     # (operator). Same handler and ids as the coach's observation: lp-list-selection.handler.js sends
     # lessonPlan_confirm_prompt with lpconfirm_yes_{asset}_{session} / lpconfirm_no_{session}. In Urdu the

@@ -283,7 +283,7 @@ describe('"Send now" is acknowledged with a reaction, not a "sending now" text',
   test('with the tap\'s message id: a 📨 reaction on it, and no text', async () => {
     const S = observeStrings('en');
     await Send().handleSendConfirm(SESSION_ID, COACH_PHONE, COACH, { messageId: 'wamid.tap' });
-    expect(mockWa.sendReaction).toHaveBeenCalledWith(COACH_PHONE, 'wamid.tap', '📨');
+    expect(mockWa.sendReaction).toHaveBeenCalledWith(COACH_PHONE, 'wamid.tap', '📨', { soleAck: true });
     expect(texts(COACH_PHONE)).not.toContain(S.send_delivering);
     // The job is still queued — the reaction replaces only the words.
     const Queue = require('../../bot/shared/services/coaching/coaching-job-queue.service');

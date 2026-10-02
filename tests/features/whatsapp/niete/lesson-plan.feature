@@ -780,3 +780,16 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # message after a bot restart can still show "typing…" (the quiet hour is remembered per
     # process); it is logged inbound_typing.done silentAfterTyping=true. Unit:
     # tests/meta-bill-cut/fx3-silent-turn-typing.test.js.
+
+  # ADDED 2026-10-02 (FX4, bd-w2daa.26): a FREE-TEXT request is classified before the quiet hour can
+  # silence it — 12.6 s on sandbox (1 Oct 18:39Z), longer than FX3's 3 s hold, so "typing…" showed.
+  @e2e @config-gated @P2
+  Scenario: A typed lesson-plan request inside the hour gets no reply and no "typing…", however long the bot takes to read it
+    Given Lesson Plans has been moved to the NIETE app
+    And the bot sent me the Play Store link less than an hour ago
+    When I type "please make me a lesson plan for grade 4 maths fractions"
+    Then no message arrives
+    And the chat header does not show "typing…" in the next 30 seconds
+    # text-message.handler calls InboundTyping.doorDeciding() before detectIntent; the held typing waits for
+    # the redirect door (backstop: WhatsApp's 25 s typing lifetime). A message the door lets through shows
+    # "typing…" when the door decides. Unit: tests/meta-bill-cut/fx4-round3.test.js (FX4-4).

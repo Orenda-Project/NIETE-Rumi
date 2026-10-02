@@ -140,7 +140,7 @@ describe('"Not now" on the quiz offer', () => {
   test('with the tap\'s message id: a 👌 on it, and no text', async () => {
     offered();
     await Offer.handleOfferButton(`tq_no_${QID}`, PHONE, { messageId: 'wamid.notnow' });
-    expect(WA.sendReaction).toHaveBeenCalledWith(PHONE, 'wamid.notnow', '👌');
+    expect(WA.sendReaction).toHaveBeenCalledWith(PHONE, 'wamid.notnow', '👌', { soleAck: true });
     expect(WA.sendMessage).not.toHaveBeenCalled();
   });
 

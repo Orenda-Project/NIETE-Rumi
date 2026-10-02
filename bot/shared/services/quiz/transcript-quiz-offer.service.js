@@ -354,7 +354,7 @@ async function handleOfferButton(buttonId, phone, opts = {}) {
     // bd-w2daa.22); ours replaces it. With no message id to react to, or the
     // reaction refused, the text still goes: the decline is never met with silence.
     const reacted = opts.messageId
-      ? await WhatsAppService.sendReaction(phone, opts.messageId, '👌').catch(() => false)
+      ? await WhatsAppService.sendReaction(phone, opts.messageId, '👌', { soleAck: true }).catch(() => false)
       : false;
     if (!reacted) {
       await WhatsAppService.sendMessage(phone, resolveUx('tqDeclined', { language: lang }));

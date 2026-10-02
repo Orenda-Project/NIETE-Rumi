@@ -398,15 +398,30 @@ class WhatsAppService {
    * @param {string} to - Recipient phone number
    * @param {string} messageId - Message ID to react to
    * @param {string} emoji - Emoji to send (default: ❤️)
+   * @param {{soleAck?: boolean}} [opts] - soleAck: this reaction IS the answer to the
+   *   person's message (it replaced a billed text), so it must not be skipped for pacing
    * @returns {Promise<boolean>}
    */
-  static async sendReaction(to, messageId, emoji = '❤️') {
+  static async sendReaction(to, messageId, emoji = '❤️', opts = {}) {
     try {
       // A reaction is an acknowledgement, and it counts against the same
-      // per-recipient limit as the reply it acknowledges. It is BEST-EFFORT: sent
-      // only when the phone has room right now, never waited for, never retried —
-      // a late 👍 means nothing, and a skipped one leaves the budget for the reply.
-      // Both callers (the webhook ack, the training verdict) already treat it so.
+      // per-recipient limit as the reply it acknowledges. By default it is
+      // BEST-EFFORT: sent only when the phone has room right now, never waited for,
+      // never retried — a late 👍 means nothing, and a skipped one leaves the budget
+      // for the reply (the webhook receipt, a quiz verdict that has its own text).
+      //
+      // A SOLE-ACK reaction (Meta bill cut FX4, bd-w2daa.26) is different: it replaced
+      // a billed text ("Thanks — glad it was useful." → 🙏), so a skip means the tap got
+      // no answer at all. It waits for its slot within the pacer's response budget and
+      // is then sent anyway (SEND_IF_LATE), taking the slot the text it replaced would
+      // have taken. Meta refusing it returns false, and every sole-ack caller then
+      // sends that text. niete-logs production, 24 Sep–1 Oct 2026: 3,796 reactions skipped
+      // by pacing (1.34% of ~283.5k attempted — 3,718 the webhook's receipt 👍, 78 quiz
+      // verdicts, both of which have a text that carries the meaning), 119 refused by Meta
+      // (101 of them 131056, the pair rate limit).
+      const gate = opts && opts.soleAck
+        ? { budget: pacer.SYNC_BUDGET.SEND_IF_LATE }
+        : { bestEffort: true };
       const response = await fetch(
         `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
         {
@@ -426,7 +441,7 @@ class WhatsAppService {
             },
           }),
         },
-        { bestEffort: true }
+        gate
       );
 
       // Skipped by the pacer (the phone has no room): already logged as

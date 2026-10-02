@@ -28,8 +28,17 @@
  * with their analysis start ("LP linked…"/"LP selection: none" → "🔄 Starting
  * pedagogical analysis", emitter `time`): p50 1.2 s, p95 4.8 s, p99 10.2 s;
  * 99.5% within 20 s and still 99.5% within 30 s — the 20→30 s window merged
- * nothing measurable, while it left the teacher without "typing…" for 3–5 s. Redis down → both claims succeed
- * (setNX fails open) → at worst the outcome is said twice, never lost.
+ * nothing measurable, while it left the teacher without "typing…" for 3–5 s.
+ *
+ * Said ONCE, Redis or not (FX4, bd-w2daa.26). setNX fails open, so with Redis down both claims
+ * used to "win" and the outcome was said twice. Now:
+ *   - Redis unavailable at the deferral → nothing is deferred: the line is sent now, as before NC3;
+ *   - the fallback claims only on a READABLE Redis; unavailable when it fires → it stays silent and
+ *     Step 2/5 says the line (the job fails open), so it is still said, once;
+ *   - the timer is kept per session in this process: cleared when Step 2/5 has claimed the line here,
+ *     and replaced (not doubled) by a second deferral for the same session. In another process the
+ *     timer still fires once and its claim refuses — one Redis SET NX, no send.
+ * Residual: Redis readable at 20 s but failing when the job claims (fails open) → said twice.
  *
  * Scope: teacher self-serve sessions only (observation_type IS NULL). A coach
  * observation keeps the immediate ack — that path is owned elsewhere. A session
@@ -68,13 +77,37 @@ async function isSelfServeSession(sessionId) {
   }
 }
 
-/** Whoever wins this says the outcome line. Fails OPEN (true) without Redis. */
-async function claimOutcome(sessionId, who) {
+function redisReadable() {
+  try {
+    const redis = require('../../cache/railway-redis.service');
+    return typeof redis.isAvailable !== 'function' || redis.isAvailable() === true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Whoever wins this says the outcome line. `failOpen`: the answer when Redis cannot be read —
+ * true for Step 2/5 (never lose the line), false for the fallback (Step 2/5 will say it).
+ */
+async function claimOutcome(sessionId, who, { failOpen = true } = {}) {
+  if (!redisReadable()) return failOpen;
   try {
     const redis = require('../../cache/railway-redis.service');
     return (await redis.setNX(claimKey(sessionId), who, CLAIM_TTL_SECONDS)) !== false;
   } catch (_) {
-    return true;
+    return failOpen;
+  }
+}
+
+// sessionId → the fallback timer armed in THIS process.
+const fallbackTimers = new Map();
+
+function clearFallback(sessionId) {
+  const timer = fallbackTimers.get(sessionId);
+  if (timer) {
+    clearTimeout(timer);
+    fallbackTimers.delete(sessionId);
   }
 }
 
@@ -96,9 +129,18 @@ async function deferOrSendLpOutcome({ sessionId, from, messageKey, language, sen
     return {};
   }
 
+  if (!redisReadable()) {
+    // No claim can be made, so deferring could only say it twice: say it now, once.
+    logToFile('📎 LP outcome sent now — Redis unavailable, nothing deferred', { sessionId, messageKey });
+    await sendMessage(from, text);
+    return {};
+  }
+
+  clearFallback(sessionId);
   const timer = setTimeout(async () => {
+    fallbackTimers.delete(sessionId);
     try {
-      if (await claimOutcome(sessionId, 'fallback')) {
+      if (await claimOutcome(sessionId, 'fallback', { failOpen: false })) {
         await sendMessage(from, text);
         logToFile('⏱️ LP outcome sent on its own — the analysis had not started in time', { sessionId, messageKey });
       }
@@ -107,6 +149,7 @@ async function deferOrSendLpOutcome({ sessionId, from, messageKey, language, sen
     }
   }, fallbackMs());
   if (timer && typeof timer.unref === 'function') timer.unref();
+  fallbackTimers.set(sessionId, timer);
 
   // Before the caller queues the job (see the header): typing up now, kept past the request.
   const typing = await require('../../inbound-typing').answerLater();
@@ -121,7 +164,9 @@ async function deferOrSendLpOutcome({ sessionId, from, messageKey, language, sen
 async function leadForStep2(sessionId, payload, language) {
   const key = payload && payload.lpOutcomeKey;
   if (!key || !DEFERRABLE_KEYS.has(key)) return null;
-  if (!(await claimOutcome(sessionId, 'step2'))) {
+  const claimed = await claimOutcome(sessionId, 'step2');
+  if (claimed) clearFallback(sessionId);   // said here — a timer in this process has nothing left to do
+  if (!claimed) {
     logToFile('🔕 LP outcome already said by the fallback — plain Step 2/5', { sessionId, messageKey: key });
     return null;
   }

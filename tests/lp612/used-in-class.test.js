@@ -203,7 +203,7 @@ describe('handleUsageButton records what she did with the lesson', () => {
     await tap(`lp612_used_taught_${SEGMENT_ID}`);
 
     expect(mockSendMessage).not.toHaveBeenCalled();
-    expect(mockSendReaction).toHaveBeenCalledWith(PHONE, 'wamid.TAP_612', '🙏');
+    expect(mockSendReaction).toHaveBeenCalledWith(PHONE, 'wamid.TAP_612', '🙏', { soleAck: true });
   });
 
   test('the reaction refused → the original Urdu thank-you text', async () => {

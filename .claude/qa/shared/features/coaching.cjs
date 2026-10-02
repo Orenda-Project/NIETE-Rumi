@@ -698,4 +698,14 @@ exports.run = async ({ api, rec, sleep }) => {
           + '(a reversible seed not wired into this driver yet); the one-message shape is pinned by '
           + 'tests/coaching/first-use-intro-one-message.test.js' }, 0);
 
+
+  // Meta bill cut FX4 (2026-10-02, bd-w2daa.26) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA72', '"👍 Yes" on the coaching-report survey is answered with a 🙏, not a message', 'BLOCKED',
+      { reason: 'needs a completed coaching session whose report survey is on screen (a full audio run on the mock lane); '
+          + 'pinned by tests/meta-bill-cut/fx4-round3.test.js (FX4-2, through the real /webhook, en + ur, refusal fallback)' }, 0);
+  rec('COA73', 'The reason I type after "👎 Not really" is answered with a 🙏', 'BLOCKED',
+      { reason: 'same precondition as COA72 plus the open reason window; pinned by tests/meta-bill-cut/fx4-round3.test.js (FX4-2)' }, 0);
+  rec('COA74', 'After I paste my lesson plan as text, "typing…" shows until Step 2/5 arrives', 'BLOCKED',
+      { reason: 'the mock lane records sends, not the typing indicator\'s timing on screen; '
+          + 'pinned by tests/meta-bill-cut/fx4-round3.test.js (FX4-1 "a PASTED plan")' }, 0);
 };

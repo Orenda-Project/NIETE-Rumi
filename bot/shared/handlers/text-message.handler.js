@@ -548,7 +548,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   if (user?.id && !quizMenuRequest) {
     try {
       const CoachingFeedbackService = require('../services/coaching/coaching-feedback.service');
-      const tookIt = await CoachingFeedbackService.handlePendingReason(user.id, from, messageBody);
+      const tookIt = await CoachingFeedbackService.handlePendingReason(user.id, from, messageBody, { messageId: message && message.id });
       if (tookIt) {
         logToFile('Coaching Feedback: reason captured, short-circuiting text handler', {
           userId: user.id, from,
@@ -2804,6 +2804,9 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       intentHint = deliveryHint((lpCtx && lpCtx.entries) || []);
     }
   } catch (_) { /* the hint is an optimisation; classification must never break on it */ }
+  // Meta bill cut FX4: the intent door below decides whether this turn is redirected (silent in the
+  // quiet hour) or answered; a held quiet-hour "typing…" waits for it, however long the classifier takes.
+  InboundTyping.doorDeciding();
   const intent = await OpenAIService.detectIntent(messageBody, intentHint);
   logToFile('Intent detected', { intent: intent.type });
 
