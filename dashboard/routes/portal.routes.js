@@ -371,7 +371,9 @@ router.post('/validate-token', tokenValidationLimiter, async (req, res) => {
       success: true,
       user: {
         firstName: user.name,
-        lastName: user.name,
+        // No surname column since V1.4.4; the setup screen joins first + last,
+        // so echoing `name` here printed it twice.
+        lastName: null,
         phoneNumber: user.phone_number
       }
     });
