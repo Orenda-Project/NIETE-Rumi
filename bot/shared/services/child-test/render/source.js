@@ -14,7 +14,7 @@ function resolveForm({ grade, form, itemBank }) {
     if (!grades[g]) throw new Error(`child-test render: the item bank has no grade ${g}`);
     const data = (grades[g].forms || {})[f];
     if (!data) throw new Error(`child-test render: grade ${g} has no form ${f}`);
-    return { data, version: itemBank.version || null };
+    return { data, version: itemBank.version || null, cue: itemBank.cue || null };
   }
   let accessor;
   try {
@@ -26,7 +26,7 @@ function resolveForm({ grade, form, itemBank }) {
   let data;
   try { data = accessor.getForm(Number(g), f); } catch (err) { data = null; }
   if (!data) throw new Error(`child-test render: grade ${g} has no form ${f}`);
-  return { data, version: accessor.version || null };
+  return { data, version: accessor.version || null, cue: accessor.cue || null };
 }
 
 module.exports = { resolveForm };

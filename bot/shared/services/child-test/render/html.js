@@ -17,6 +17,8 @@ const S = require('./sizing');
 const BLOCKS = ['urdu', 'english', 'maths'];
 const ACCENT = { urdu: '#1E7A4E', english: '#2C5AA0', maths: '#B85A1B' };
 const INK = '#111111';
+// A Latin cell that may hold an Urdu run falls back to the embedded Nastaliq, never a system face.
+const MIXED_STACK = "'CTAndika','CTNastaliq',sans-serif";
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -391,6 +393,7 @@ const CHROME = {
     fallback: 'If the child cannot read the first line: letters, then words',
     numbers: 'Numbers (stop after 4 wrong in a row)', quickSums: 'Quick sums (60 seconds)', written: 'Written strip', wordProblem: 'Word problem',
     answer: 'answer', words: 'words',
+    say: 'Say', cueStart: 'Say, and the timed minute starts', cueStop: 'After 60 seconds, say',
   },
   ur: {
     dir: 'rtl',
@@ -401,6 +404,7 @@ const CHROME = {
     fallback: 'اگر بچہ پہلی سطر نہ پڑھ سکے: پہلے حروف، پھر الفاظ',
     numbers: 'اعداد (لگاتار 4 غلط پر رک جائیں)', quickSums: 'فوری جمع تفریق (60 سیکنڈ)', written: 'لکھنے والی پٹی', wordProblem: 'عبارتی سوال',
     answer: 'جواب', words: 'الفاظ',
+    say: 'کہیں', cueStart: 'یہ کہیں، اور ایک منٹ شروع', cueStop: '60 سیکنڈ بعد کہیں',
   },
 };
 
@@ -409,9 +413,13 @@ const COACH_CSS = `
 html,body{margin:0;background:#fff;color:${INK};font:10.5pt/1.45 ${LATIN_STACK}}
 body[dir=rtl]{font-family:${URDU_STACK};line-height:1.9}
 h1{font-size:15pt;margin:0 0 4mm;padding:2mm 3mm;background:#FDECEC;border-inline-start:2mm solid #B42318}
-h2{font-size:12.5pt;margin:5mm 0 2mm;border-bottom:.4mm solid #D0D5DD;padding-bottom:1mm}
-h3{font-size:10.5pt;margin:3mm 0 1mm;color:#475467}
-.ur{font-family:${URDU_STACK};line-height:1.9;direction:rtl}.en{font-family:${LATIN_STACK};line-height:1.45;direction:ltr}
+h2{font-size:12.5pt;margin:5mm 0 2mm;border-bottom:.4mm solid #D0D5DD;padding-bottom:1mm;break-after:avoid}
+h3{font-size:10.5pt;margin:3mm 0 1mm;color:#475467;break-after:avoid}
+.blk{break-inside:avoid}.nums div{break-inside:avoid}
+.ur{font-family:${URDU_STACK};line-height:1.9;direction:rtl}.en{font-family:${MIXED_STACK};line-height:1.45;direction:ltr}
+bdi.ur{font-family:${URDU_STACK};line-height:1.9}bdi.en{font-family:${MIXED_STACK};line-height:1.45}
+.cue{margin:1mm 0 2mm;padding:.8mm 2.5mm;background:#F2F4F7;border-inline-start:1mm solid #475467;break-inside:avoid;break-after:avoid}
+.cue b{font-weight:700;margin-inline-end:1.5mm}
 .ltr{direction:ltr;unicode-bidi:isolate}
 .nums{display:grid;grid-template-columns:repeat(auto-fill,minmax(24mm,1fr));gap:1mm 2mm;margin:1mm 0}
 .nums.sums{grid-template-columns:repeat(auto-fill,minmax(30mm,1fr))}
@@ -423,32 +431,51 @@ th{background:#F9FAFB;font-weight:700}
 .k{color:#067647;font-weight:700}.x{color:#B42318}
 `;
 
+// Urdu and Latin runs can share one cell (an English question accepts an Urdu answer). Each run is
+// isolated in its own face and line height: in a Latin cell, Nastaliq drawn at the Latin line
+// height overprints the line above, and the Latin stack alone has no Urdu glyphs (tofu on Railway).
+const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/;
+function run(text) {
+  const ur = ARABIC_SCRIPT.test(String(text));
+  return `<bdi class="${ur ? 'ur' : 'en'}" dir="${ur ? 'rtl' : 'ltr'}">${esc(text)}</bdi>`;
+}
+function runs(list) { return (list || []).map(run).join(' / '); }
+
+// A line the coach says aloud, verbatim from the item bank's cue (the window finder keys on it).
+function cueLine(label, text) {
+  return text ? `<p class="cue"><b>${label}:</b>${run(text)}</p>` : '';
+}
+function blk(inner) { return `<div class="blk">${inner}</div>`; }
+
 function coachNumbered(tokens, cls, dir) {
   return `<div class="nums ${cls}" dir="${dir}">` + tokens.map((t, i) => `<div><i>${i + 1}</i>${esc(t)}</div>`).join('') + '</div>';
 }
 
-function coachLang(block, b, C) {
+function coachLang(block, b, C, cue = {}) {
   const urdu = block === 'urdu';
   const cls = urdu ? 'ur' : 'en';
   const dir = urdu ? 'rtl' : 'ltr';
   const rows = (b.questions || []).map((q, i) => `<tr><td class="ltr">${i + 1}</td><td class="${cls}" dir="${dir}">${esc(q.prompt)}</td>`
-    + `<td class="${cls}" dir="${dir}"><span class="k">${esc((q.accept || []).join(' / '))}</span>${q.reject && q.reject.length ? ` · <span class="x">${C.reject}: ${esc(q.reject.join(' / '))}</span>` : ''}</td></tr>`).join('');
+    + `<td class="${cls}" dir="${dir}"><span class="k">${runs(q.accept)}</span>${q.reject && q.reject.length ? ` · <span class="x">${C.reject}: ${runs(q.reject)}</span>` : ''}</td></tr>`).join('');
   const fs = (b.first_sounds || []).map((f, i) => `<tr><td class="ltr">${i + 1}</td><td class="${cls}" dir="${dir}">${esc(f.word)}</td><td class="${cls} k" dir="${dir}">${esc(f.sound)}</td></tr>`).join('');
   const nw = (b.nonwords || []).map((n, i) => `<tr><td class="ltr">${i + 1}</td><td class="${cls}" dir="${dir}">${esc(n.text)}</td><td class="${cls}" dir="${dir}">${esc((n.sounds || []).join(' · '))}</td></tr>`).join('');
   return `<section dir="${dir}"><h2>${C[block]}</h2>`
-    + `<h3>${C.story} (${b.story.tokens.length} ${C.words})</h3>${coachNumbered(b.story.tokens, cls, dir)}`
-    + (rows ? `<h3>${C.questions}</h3><table>${rows}</table>` : '')
-    + (fs ? `<h3>${C.firstSounds}</h3><table>${fs}</table>` : '')
-    + (nw ? `<h3>${C.nonwords}</h3><table>${nw}</table>` : '')
-    + (b.fallback ? `<h3>${C.fallback}</h3>${coachNumbered(b.fallback.letters, cls, dir)}${coachNumbered(b.fallback.words, cls, dir)}` : '')
+    + cueLine(C.cueStart, cue.start)
+    // The story grid may run past a page (G5: 170+ words), so it is not a .blk: only its heading is kept with it.
+    + `<div class="story"><h3>${C.story} (${b.story.tokens.length} ${C.words})</h3>${coachNumbered(b.story.tokens, cls, dir)}${cueLine(C.cueStop, cue.stop)}</div>`
+    + (rows ? blk(`<h3>${C.questions}</h3>${cueLine(C.say, cue.questions)}<table>${rows}</table>`) : '')
+    + (fs ? blk(`<h3>${C.firstSounds}</h3>${cueLine(C.say, cue.first_sounds)}<table>${fs}</table>`) : '')
+    + (nw ? blk(`<h3>${C.nonwords}</h3>${cueLine(C.say, cue.nonwords)}<table>${nw}</table>`) : '')
+    + (b.fallback ? blk(`<h3>${C.fallback}</h3>${coachNumbered(b.fallback.letters, cls, dir)}${coachNumbered(b.fallback.words, cls, dir)}`) : '')
     + '</section>';
 }
 
 /**
  * The coach's copy: every item numbered, with its answer key. Never sent to a child.
- * @param {{grade:number, formCode:string, form:object, lang?:'ur'|'en'}} a
+ * @param {{grade:number, formCode:string, form:object, lang?:'ur'|'en', cue?:object}} a
+ *   cue: the item bank's top-level `cue` ({ urdu, english, maths }); printed verbatim when given.
  */
-function buildCoachSheetHtml({ grade, formCode: code, form, lang = 'ur' }) {
+function buildCoachSheetHtml({ grade, formCode: code, form, lang = 'ur', cue = {} }) {
   const C = CHROME[lang];
   if (!C) throw new Error(`child-test render: coach sheet has no "${lang}" strings`);
   const m = need(form, 'maths');
@@ -457,15 +484,18 @@ function buildCoachSheetHtml({ grade, formCode: code, form, lang = 'ur' }) {
   const qs = `<div class="nums sums en" dir="ltr">${m.quick_sums.map((q, i) => `<div><i>${i + 1}</i>${esc(q.prompt)} = <b class="k">${esc(q.answer)}</b></div>`).join('')}</div>`;
   const wr = m.written.map((w, i) => `<tr><td class="ltr">${i + 1}</td><td class="ltr">${esc(w.prompt)}</td><td class="ltr k">${esc(w.answer)}</td></tr>`).join('');
   const wp = m.word_problem;
+  const mc = cue.maths || {};
   return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><style>${fontFaceCss({ latin: true, urdu: true, bold: true })}${COACH_CSS}</style></head>`
     + `<body dir="${dir}" data-audience="coach" data-form="${esc(formCode(grade, code))}">`
     + `<h1>${C.title} · <span class="ltr">${esc(formCode(grade, code))}</span></h1>`
-    + coachLang('urdu', need(form, 'urdu'), C)
-    + coachLang('english', need(form, 'english'), C)
-    + `<section dir="${dir}"><h2>${C.maths}</h2><h3>${C.numbers}</h3><table dir="ltr">${nums}</table>`
-    + `<h3>${C.quickSums}</h3>${qs}`
-    + `<h3>${C.written}</h3><table dir="ltr">${wr}</table>`
-    + `<h3>${C.wordProblem}</h3><table><tr><td class="ur" dir="rtl">${esc(wp.prompt_ur)}</td><td class="en">${esc(wp.prompt_en)}</td><td class="k">${C.answer}: <span class="ltr">${esc(wp.answer)}</span></td></tr></table></section>`
+    + coachLang('urdu', need(form, 'urdu'), C, cue.urdu)
+    + coachLang('english', need(form, 'english'), C, cue.english)
+    + `<section dir="${dir}"><h2>${C.maths}</h2>`
+    + blk(`<h3>${C.numbers}</h3>${cueLine(C.say, mc.numbers)}<table dir="ltr">${nums}</table>`)
+    + blk(`<h3>${C.quickSums}</h3>${cueLine(C.cueStart, mc.quick_sums || mc.start)}${qs}${cueLine(C.cueStop, mc.stop)}`)
+    + blk(`<h3>${C.written}</h3><table dir="ltr">${wr}</table>`)
+    + blk(`<h3>${C.wordProblem}</h3>${cueLine(C.say, mc.word_problem)}<table><tr><td class="ur" dir="rtl">${esc(wp.prompt_ur)}</td><td class="en">${esc(wp.prompt_en)}</td><td class="k">${C.answer}: <span class="ltr">${esc(wp.answer)}</span></td></tr></table>`)
+    + '</section>'
     + '</body></html>';
 }
 
