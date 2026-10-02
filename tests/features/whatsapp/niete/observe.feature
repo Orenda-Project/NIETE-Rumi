@@ -757,8 +757,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   Scenario: With a picked plan, the check shows each step of the plan pre-rated from the recording
     Given I picked a lesson plan before sealing, and the "Check the moments" form is open
     When I answer the moments and tap "Next" on the last moments screen
-    Then the form shows "Did the lesson follow the plan?" with how many steps the plan asked for and how many were done
-    And each step shows what the plan asked, what the recording showed, and a pre-selected answer from "Done as planned", "Done another way, as good", "Done another way, better", "Partly done", "Not done", "Couldn't tell"
+    Then the form shows "Did the lesson follow the plan?" with how many steps the plan has, how many count toward the result, and how many were done, partly done and not done
+    And each step shows its phase, the whole step, what the recording showed, and a pre-selected answer from "Done as planned", "Done another way, as good", "Done another way, better", "Partly done", "Not done", "Couldn't tell"
+    And a step that does not count, such as homework, says "(not counted)"
     When I change a step I saw differently and tap "Add it all up"
     Then the result is re-scored from my answers and the levels follow
     # As /observe's Section B: the same move lists, grader and scorer (fidelity-orchestrator.js,
