@@ -5,18 +5,17 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../services/api", () => ({ portal: {}, leader: {} }));
 
-import { ENTRY_VARIANT, entryCopy, firstName, isWaiting, sendObservation, sendTalk, trackerIndex } from "./coachObserve";
+import { entryCopy, firstName, isWaiting, sendObservation, sendTalk, trackerIndex } from "./coachObserve";
 
+// The operator (2026-10-02): the coach's entry speaks to the coach — "Record your
+// Teacher's Lesson" — and the sheet keeps the teachers' two ways. (It replaces the
+// teachers' B3 wording, which spoke to a teacher about her own lesson.)
 describe("entry copy", () => {
-  it("follows the operator's pick (B3) with the teachers' sheet words", () => {
-    expect(ENTRY_VARIANT).toBe("B3");
+  it("speaks to the coach, with the teachers' sheet words", () => {
     const c = entryCopy();
     expect([c.title, c.rec, c.file, c.sheet("Ayesha")]).toEqual([
-      "Send a lesson to your Digital Coach", "Record Live Lecture", "Upload Recording", "Send Ayesha’s lesson",
+      "Record your Teacher’s Lesson", "Record Live Lecture", "Upload Recording", "Record Ayesha’s lesson",
     ]);
-  });
-  it("never promises to record on the button itself", () => {
-    expect(entryCopy().title).not.toMatch(/record/i);
   });
 });
 

@@ -117,7 +117,11 @@ const LeaderObservations = () => {
         <header className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-light">Observations</h1>
           <p className="text-muted-foreground mt-2">
-            Your schedule, debriefs waiting, and completed observations. To schedule or debrief, send /observe to NIETE on WhatsApp.
+            {coachObserve
+              // bd-5rz1v.6.6: a lesson recorded from here is finished here; only what was
+              // recorded on WhatsApp is still debriefed there.
+              ? "Record a teacher's lesson, check the draft, talk with the teacher and send the report — all here. Observations you record on WhatsApp with /observe are debriefed on WhatsApp."
+              : "Your schedule, debriefs waiting, and completed observations. To schedule or debrief, send /observe to NIETE on WhatsApp."}
           </p>
         </header>
 
@@ -237,7 +241,7 @@ const LeaderObservations = () => {
                             to={`/portal/leader/observe/new?teacher=${encodeURIComponent(s.teacherExtId)}${s.schoolExtId ? `&school=${encodeURIComponent(s.schoolExtId)}` : ""}`}
                             className="text-sm font-semibold text-accent underline mt-1 mr-3"
                           >
-                            Send her lesson
+                            Record this lesson
                           </Link>
                         )}
                         <button

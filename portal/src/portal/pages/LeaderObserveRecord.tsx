@@ -40,7 +40,7 @@ import {
  */
 
 const COPY = {
-  title: 'Send a lesson',
+  title: 'Record your Teacher’s Lesson',
   notAvailable: "Sending a lesson from the portal isn't available on your account yet. You can still use /observe on WhatsApp.",
   who: 'Who are you observing?',
   today: 'Today',
@@ -68,8 +68,8 @@ const COPY = {
   shortWarning: 'This is under 10 minutes. You can still send it, but the report may be thin.',
   addMore: 'Add more',
   canSkip: '(you can skip this)',
-  herPlan: 'Her lesson plan',
-  herPlanSub: 'Her recent plans, our library, or a photo of hers.',
+  planOf: (name: string) => `${name}’s lesson plan`,
+  planSub: 'Their recent plans, our library, or a photo of their plan.',
   add: '+ Add',
   change: 'Change',
   photosTitle: 'Photos of the board',
@@ -80,28 +80,28 @@ const COPY = {
   tooLarge: 'That recording is too large to send.',
   send: 'Send to Digital Coach',
   planSheet: (name: string) => `${name}’s lesson plan`,
-  fromLibrary: 'Her recent plans and our library',
+  fromLibrary: 'Their recent plans and our library',
   fromLibrarySub: 'Grade → subject → chapter → lesson',
-  takePhoto: 'Take a photo of her plan',
-  takePhotoSub: 'Her written or printed plan.',
+  takePhoto: 'Take a photo of their plan',
+  takePhotoSub: 'Their written or printed plan.',
   orFile: 'Or choose a file (PDF or Word)',
-  photoOfPlan: 'Photo of her plan',
+  photoOfPlan: 'Photo of their plan',
   takenNow: 'Taken just now',
   planNotOk: 'That is not a lesson plan file. Choose a PDF, Word file or photo.',
-  libraryTitle: 'Her lesson plan',
-  recentTitle: 'Her recent plans',
-  sending: 'Sending her lesson…',
+  libraryTitle: 'The teacher’s lesson plan',
+  recentTitle: (name: string) => `${name}’s recent plans`,
+  sending: (name: string) => `Sending ${name}’s lesson…`,
   keepOpenSending: 'Keep this screen open until it is done.',
   netTitle: 'The internet stopped',
   netRecorded: "Don't worry. The recording is safe on this phone.",
   netFile: "Don't worry. Nothing was lost.",
-  planProblem: 'That lesson plan could not be used. Pick another, or take a photo of hers.',
+  planProblem: 'That lesson plan could not be used. Pick another, or take a photo of their plan.',
   changePlan: 'Change the lesson plan',
-  notYourTeacher: 'That teacher is not in your schools any more. Pick her again from your teachers.',
+  notYourTeacher: 'That teacher is not in your schools any more. Pick the teacher again from your teachers.',
   refused: 'Something was not accepted. Please try again.',
   sent: 'Sent!',
-  sentSub: (name: string) => `Your Digital Coach is listening to ${name}’s lesson. In about 10 minutes her draft report is ready here.`,
-  sentNext: (name: string) => `You check the draft, talk with ${name}, then send it to her. She gets nothing until you do.`,
+  sentSub: (name: string) => `Your Digital Coach is listening to ${name}’s lesson. In about 10 minutes the draft report is ready here.`,
+  sentNext: (name: string) => `You check the draft, talk with ${name}, then send ${name} the report. ${name} gets nothing until you do.`,
   openObservation: 'Open this observation',
   backToObservations: 'Back to Observations',
   unsentTitle: (name: string) => `${name}’s lesson was not sent`,
@@ -493,11 +493,11 @@ const LeaderObserveRecord = () => {
                     : <FileText className="h-[22px] w-[22px]" aria-hidden="true" />}
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-[17px] font-semibold" dir="auto">{plan ? plan.title : COPY.herPlan}</span>
-                <span className={`text-sm ${plan ? 'text-[#1b6b43]' : 'text-muted-foreground'}`}>{plan ? plan.sub : COPY.herPlanSub}</span>
+                <span className="truncate text-[17px] font-semibold" dir="auto">{plan ? plan.title : COPY.planOf(first)}</span>
+                <span className={`text-sm ${plan ? 'text-[#1b6b43]' : 'text-muted-foreground'}`}>{plan ? plan.sub : COPY.planSub}</span>
               </span>
               <button type="button" onClick={() => { setPlanError(null); setPlanSheet(true); }}
-                aria-label={plan ? 'Change her lesson plan' : 'Add her lesson plan'}
+                aria-label={plan ? 'Change the lesson plan' : 'Add the lesson plan'}
                 className="h-11 shrink-0 rounded-[10px] border-2 border-primary bg-white px-4 text-base font-bold text-primary">
                 {plan ? COPY.change : COPY.add}
               </button>
@@ -564,14 +564,14 @@ const LeaderObserveRecord = () => {
         {/* 3c. her plan, from the library — her recent plans first */}
         {stage === 'library' && (
           <LibraryPicker onPick={onLibraryPick} onStepChange={setLibraryLevel} backSignal={libraryBack}
-            loadRecent={loadHerRecent} recentTitle={COPY.recentTitle} showUsed={false} />
+            loadRecent={loadHerRecent} recentTitle={COPY.recentTitle(first)} showUsed={false} />
         )}
 
         {/* 4. sending */}
         {stage === 'sending' && (
           <div className="flex flex-col items-center gap-4 px-1 pt-10 text-center">
             <span className="flex h-24 w-24 items-center justify-center rounded-full bg-[#e3f4ea]"><Upload className="h-11 w-11 text-[#1b6b43]" aria-hidden="true" /></span>
-            <h2 className="text-[23px] font-bold">{COPY.sending}</h2>
+            <h2 className="text-[23px] font-bold" dir="auto">{COPY.sending(first)}</h2>
             <div className="relative h-4 w-full overflow-hidden rounded-full bg-[#e5e7eb]" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
               <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${Math.max(4, progress)}%` }} />
             </div>

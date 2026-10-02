@@ -25,7 +25,7 @@ const COPY = {
   part: (n: number, total: number) => `Part ${n} of ${total}`,
   seen: 'What was seen',
   improve: 'To improve',
-  moveOf: (k: number, n: number) => `Move ${k} of ${n} · from her plan`,
+  moveOf: (k: number, n: number) => `Move ${k} of ${n} · from the lesson plan`,
   changedFrom: (was: string) => `Your Digital Coach said ${was} — you changed it`,
   youChanged: 'You changed this',
   back: 'Back',
@@ -33,8 +33,8 @@ const COPY = {
   save: 'Save the draft',
   saveQ: 'Save the draft?',
   changes: (r: number, t: number) => (r + t === 0
-    ? 'You did not change anything. Her report will use the draft as it is.'
-    : `You changed ${r} rating${r === 1 ? '' : 's'} and ${t} note${t === 1 ? '' : 's'}. Her report will use your answers.`),
+    ? 'You did not change anything. The report will use the draft as it is.'
+    : `You changed ${r} rating${r === 1 ? '' : 's'} and ${t} note${t === 1 ? '' : 's'}. The report will use your answers.`),
   saveContinue: 'Save and continue',
   keepChecking: 'Keep checking',
   saving: 'Saving…',
@@ -155,7 +155,7 @@ const LeaderObserveDraft = () => {
     }
   };
 
-  const first = (name || '').trim().split(/\s+/)[0] || 'Her';
+  const first = (name || '').trim().split(/\s+/)[0] || 'The teacher';
   if (problem) {
     return <PortalLayout><div className="mx-auto max-w-md py-10"><Warning>{problem}</Warning></div></PortalLayout>;
   }
@@ -168,7 +168,7 @@ const LeaderObserveDraft = () => {
 
   return (
     <PortalLayout>
-      <div className="mx-auto flex w-full max-w-md flex-col gap-3 pb-28">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-3 pb-32">
         <div className="flex h-12 items-center gap-1">
           <button type="button" onClick={() => (part > 0 ? setPart(part - 1) : navigate(`/portal/leader/observe/${id}`))} aria-label={COPY.back}
             className="flex h-11 w-11 items-center justify-center rounded-lg text-primary">
@@ -232,7 +232,10 @@ const LeaderObserveDraft = () => {
         {saveError && <Warning>{saveError}</Warning>}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e7eb] bg-white px-4 py-3">
+      {/* Above the leader bottom nav on a phone (fixed, h-16, z-50 — PortalNavigation):
+          at bottom-0 it sat UNDER the nav and Next part could not be tapped. */}
+      <div data-testid="draft-actions"
+        className="fixed inset-x-0 bottom-16 md:bottom-0 z-40 border-t border-[#e5e7eb] bg-white px-4 py-3 shadow-[0_-4px_12px_rgba(29,33,41,0.08)]">
         <div className="mx-auto flex max-w-md gap-2.5">
           <button type="button" onClick={() => (part > 0 ? setPart(part - 1) : navigate(`/portal/leader/observe/${id}`))}
             className="h-[52px] flex-1 rounded-[14px] border-2 border-primary bg-white text-[17px] font-bold text-primary">{COPY.back}</button>

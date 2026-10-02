@@ -1,15 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useContext, useState, useEffect } from 'react';
+import { AuthContext } from './authContext';
 import { useNavigate } from 'react-router-dom';
 import { auth, portal } from '../services/api';
 import type { User } from '../types/portal';
 
+/**
+ * bd-5rz1v.6.6 — PortalLayout PROVIDES the user it loaded. Everything inside the
+ * layout (the navigation above all) reads that user instead of fetching its own:
+ * a second, independent fetch started with no user, so for a moment a leader
+ * got the teacher navigation, and every page read /dashboard twice.
+ */
 export const useAuth = () => {
+  const shared = useContext(AuthContext);
+  // Called on every render either way (the rules of hooks); it fetches only
+  // when there is no provider above it.
+  const own = useOwnAuth(!shared);
+  return (shared as ReturnType<typeof useOwnAuth> | null) || own;
+};
+
+function useOwnAuth(fetchOnMount: boolean) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(fetchOnMount);
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAuth();
+    if (fetchOnMount) checkAuth();
+    // Mount-only, as before.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkAuth = async () => {
@@ -76,4 +93,4 @@ export const useAuth = () => {
     setupPortal,
     checkAuth
   };
-};
+}
