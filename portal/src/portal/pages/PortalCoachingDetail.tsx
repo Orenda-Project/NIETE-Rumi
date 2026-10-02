@@ -12,17 +12,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { portal } from '../services/api';
 import { useToast } from '@/hooks/use-toast';
 import type { SessionDetail } from '../types/portal';
+import { withoutScore } from '../lib/coachingCard';
+import LessonPage from '../components/coaching/LessonPage';
+import { useSelfObservation } from '../lib/useSelfObservation';
+
 
 /**
- * A coaching card stored before observation scores became bands carries its
- * old "— currently 1/2" suffix. Stored text is not rewritten, so the score is
- * taken off at display time; new cards are written with the band instead.
+ * Today's report page — what every teacher without portal_self_observation
+ * sees, unchanged. Teachers with it get LessonPage (bd-5rz1v).
  */
-function withoutScore(action: string): string {
-  return action.replace(/\s*—\s*currently\s+\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?/g, '');
-}
-
-const PortalCoachingDetail = () => {
+const LegacyDetail = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -365,6 +364,23 @@ const PortalCoachingDetail = () => {
       </div>
     </PortalLayout>
   );
+};
+
+/**
+ * bd-5rz1v — one lesson page, always openable, ships dark: LessonPage only once
+ * /config says self-observation is on for her; today's report page otherwise,
+ * including when /config cannot be read.
+ */
+const PortalCoachingDetail = () => {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const on = useSelfObservation();
+  if (on === null) {
+    return <PortalLayout><LoadingState type="full" /></PortalLayout>;
+  }
+  if (on && sessionId) {
+    return <PortalLayout><LessonPage key={sessionId} sessionId={sessionId} /></PortalLayout>;
+  }
+  return <LegacyDetail />;
 };
 
 export default PortalCoachingDetail;

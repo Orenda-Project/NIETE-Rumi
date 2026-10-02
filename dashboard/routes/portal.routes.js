@@ -5515,6 +5515,9 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         session_date: session.created_at, // Portal expects 'session_date'
         duration: session.audio_duration_seconds,
         status: session.status,
+        // bd-5rz1v — the lesson page's title line; null when not found.
+        topic: session.analysis_data?.topic || null,
+        subject: session.analysis_data?.subject || null,
 
         // ── what she recorded ──────────────────────────────────────────────
         lessonAudioUrl,                       // HER lesson

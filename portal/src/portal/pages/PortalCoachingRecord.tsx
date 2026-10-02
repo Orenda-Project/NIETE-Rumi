@@ -140,7 +140,8 @@ type Stage =
   | 'choose' | 'micBlocked' | 'recording' | 'check' | 'library' | 'sending' | 'failed' | 'busy' | 'sent';
 
 function minutesText(ms: number): string {
-  const m = Math.max(1, Math.round(ms / 60_000));
+  if (ms < 60_000) return 'less than a minute';
+  const m = Math.round(ms / 60_000);
   return `${m} minute${m === 1 ? '' : 's'}`;
 }
 
@@ -489,7 +490,7 @@ const PortalCoachingRecord = () => {
   const native = Capacitor.isNativePlatform();
 
   return (
-    <PortalLayout>
+    <PortalLayout bare={recordingNow || stage === 'sending'}>
       <div className="mx-auto flex w-full max-w-md flex-col pb-6">
         <div className="mb-3 flex h-12 items-center gap-1">
           {!recordingNow && stage !== 'sending' && (

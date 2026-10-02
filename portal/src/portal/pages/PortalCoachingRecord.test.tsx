@@ -15,7 +15,8 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 // count) are the real ones from lib/coachingUpload.
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
-vi.mock("../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
+// `bare` hides the app's navigation: a stray tap on it must not end a lesson mid-recording.
+vi.mock("../components/PortalLayout", () => ({ default: ({ children, bare }: any) => <div data-testid="layout" data-bare={bare ? "yes" : "no"}>{children}</div> }));
 vi.mock("../services/api", () => ({
   portal: {
     getConfig: vi.fn(),
@@ -170,6 +171,26 @@ describe("Record your class — recording", () => {
     expect(screen.getByRole("button", { name: /^finish$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^pause$/i })).toBeInTheDocument();
     expect(screen.getByText(/keep this screen open/i)).toBeInTheDocument();
+    // No navigation to tap away from the lesson by mistake.
+    expect(screen.getByTestId("layout")).toHaveAttribute("data-bare", "yes");
+  });
+
+  it("brings the navigation back once the recording is finished", async () => {
+    await ready();
+    expect(screen.getByTestId("layout")).toHaveAttribute("data-bare", "no");
+    fireEvent.click(screen.getByRole("button", { name: /record now/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^finish$/i }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /yes, finish/i }));
+    await screen.findByRole("button", { name: /send to digital coach/i });
+    expect(screen.getByTestId("layout")).toHaveAttribute("data-bare", "no");
+  });
+
+  it("says 'less than a minute' rather than rounding seconds up to a minute", async () => {
+    recorder.elapsedMs.mockReturnValue(20_000);
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /record now/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^finish$/i }));
+    expect(within(await screen.findByRole("dialog")).getByText(/you recorded less than a minute/i)).toBeInTheDocument();
   });
 
   it("Pause stops the recording and offers Continue", async () => {

@@ -162,6 +162,30 @@ describe('GET /coaching-sessions — topic and subject for the list', () => {
   });
 });
 
+describe('GET /coaching-session/:id — the lesson page names the lesson', () => {
+  beforeEach(() => {
+    jest.doMock('../../dashboard/services/coaching-breakdown.service', () => ({ breakdown: jest.fn().mockResolvedValue(null) }));
+  });
+
+  it('carries the topic and subject its analysis found', async () => {
+    tableRows.coaching_sessions = [{
+      id: 'cs-1', user_id: 'teacher-1', status: 'completed', created_at: hoursAgo(3), audio_url: PORTAL('a'),
+      analysis_data: { topic: 'Provinces of Pakistan', subject: 'Social Studies', framework: 'fico' },
+    }];
+    const { statusCode, payload } = await invoke('get', '/coaching-session/:id', { params: { id: 'cs-1' } });
+    expect(statusCode).toBe(200);
+    expect(payload.session).toMatchObject({ id: 'cs-1', topic: 'Provinces of Pakistan', subject: 'Social Studies' });
+  });
+
+  it('leaves them null when the analysis named neither', async () => {
+    tableRows.coaching_sessions = [{
+      id: 'cs-1', user_id: 'teacher-1', status: 'completed', created_at: hoursAgo(3), analysis_data: null,
+    }];
+    const { payload } = await invoke('get', '/coaching-session/:id', { params: { id: 'cs-1' } });
+    expect(payload.session).toMatchObject({ topic: null, subject: null });
+  });
+});
+
 describe('GET /coaching-sessions/active', () => {
   const asked = { questions: [{ question_number: 1, question: 'What did you do next?', answer: null }] };
 
