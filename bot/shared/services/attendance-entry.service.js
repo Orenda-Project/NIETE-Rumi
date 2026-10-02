@@ -51,6 +51,18 @@ async function respondToDecision(decision, { user, from, language }) {
       });
       return true;
 
+    // bd-37lyd — "whose register?", asked only of a principal who owns a class.
+    // NO conversation state is opened: the method they already chose lives in these
+    // button ids, and the question is answered by tapping. Reaching for the method
+    // question's state here would carry the method on the tapped path and lose it on
+    // the typed one, because the two close that state on opposite sides of resolve.
+    case 'ASK_REGISTER':
+      await WhatsAppService.sendInteractiveButtons(from, {
+        body: decision.message,
+        buttons: decision.buttons,
+      });
+      return true;
+
     // Voice leaves the Flow behind: a Flow cannot receive a voice note, so arm
     // the wait and hand the conversation back to chat. The arm lives in
     // conversation state (Postgres), not Redis — a restart mid-roll-call would
