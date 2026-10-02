@@ -380,8 +380,14 @@ function LevelRail({
           const active = String(l.id) === selectedLevel;
           const locked = l.state === 'locked';
           const certified = l.state === 'certified';
-          const pct = l.module_count > 0
-            ? Math.round((l.completed_count / l.module_count) * 100)
+          // Operator, 2026-10-02: a level card counts COURSES — they are what a
+          // level holds and what its own page lists. "0 / 55 modules" on
+          // Beacon House English was counting the layer two pages down. The
+          // bar follows the same count, so the two never disagree.
+          const coursesTotal = l.courses_total || 0;
+          const coursesDone = Math.min(l.courses_completed || 0, coursesTotal);
+          const pct = coursesTotal > 0
+            ? Math.round((coursesDone / coursesTotal) * 100)
             : 0;
 
           return (
@@ -449,10 +455,10 @@ function LevelRail({
                   // numbering — the same arithmetic the old dropdown did.
                   ? `Pass Level ${(l.previous_level_order ?? 0) + 1} to unlock`
                   : certified
-                    ? `Certified · ${l.completed_count}/${l.module_count}`
+                    ? `Certified · ${coursesDone}/${coursesTotal} courses`
                     : l.state === 'ready_for_quiz'
                       ? 'Ready for the exam'
-                      : `${l.completed_count} / ${l.module_count} modules`}
+                      : `${coursesDone} / ${coursesTotal} ${coursesTotal === 1 ? 'course' : 'courses'}`}
               </div>
             </button>
           );
@@ -1242,11 +1248,19 @@ const PortalTrainingV2 = () => {
                   })}
                 </div>
 
-                {/* bd-60152 — the level's certificate, after its courses. On a
-                    per-module-assessed level there is no level exam to hand it
-                    over, so without this a teacher who finished everything had
-                    nowhere to collect it. */}
-                {selectedLevelObj && (
+                {/* bd-60152 — the level's certificate, after its courses — for a
+                    per-module-assessed level ONLY (I-SAPS). There is no level
+                    exam to hand it over there, the card tracks the module
+                    exams, and it is how a held written-answer result is
+                    collected once released.
+
+                    Not shown for anyone else (operator, 2026-10-02): NIETE's
+                    level exam, Beacon House's capstone and Oxbridge's quiz
+                    scores all issue the certificate on passing, so the row was
+                    only a fallback, and the Certificates page now holds the
+                    download. */}
+                {selectedLevelObj
+                  && LEVEL_EXAMLESS_VENDORS.has(String(selectedLevelObj.vendor_key || '').toUpperCase()) && (
                   <div className="mt-4 rounded-2xl border bg-card p-2 shadow-sm">
                     <LevelCertificateRow
                       key={`cert-${selectedLevelObj.id}-${certTick}`}
