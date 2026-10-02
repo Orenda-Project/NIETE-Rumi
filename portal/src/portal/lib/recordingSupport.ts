@@ -11,8 +11,12 @@
 import { Capacitor } from "@capacitor/core";
 import { App } from "@capacitor/app";
 
-/** The first app build whose manifest declares the microphone (android/app/build.gradle). */
-export const MIC_APP_BUILD = 1214;
+/**
+ * The first app build whose manifest declares the microphone (android/app/build.gradle).
+ * Not 1214/1215: a 1215 bundle was built for Play on 2026-09-10 from code with no
+ * RECORD_AUDIO, so an install of it must not be offered "Record now" (bd-q4g7s.1).
+ */
+export const MIC_APP_BUILD = 1216;
 
 export type RecordingType = { mimeType: string; ext: ".webm" | ".ogg" | ".m4a" };
 

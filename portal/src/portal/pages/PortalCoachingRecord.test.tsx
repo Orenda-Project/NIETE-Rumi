@@ -319,11 +319,13 @@ describe("Record your class — the lesson plan", () => {
     expect(within(sheet).getByRole("button", { name: /take a photo/i })).toBeInTheDocument();
   });
 
-  it("Take a photo opens the back camera", async () => {
+  it("Take a photo opens the back camera — in the app too, which needs accept to be exactly image/*", async () => {
     await openSheet();
     const input = screen.getByTestId("plan-photo-input");
     expect(input).toHaveAttribute("capture", "environment");
-    expect(input).toHaveAttribute("accept", expect.stringContaining("image/"));
+    // Capacitor's BridgeWebChromeClient takes the camera path only when the
+    // accept list contains "image/*"; "image/jpeg,image/png" gets the file picker.
+    expect(input).toHaveAttribute("accept", "image/*");
   });
 
   it("a photo of her plan is sent as her lesson plan", async () => {
