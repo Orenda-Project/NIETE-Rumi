@@ -84,6 +84,9 @@ const SCENARIOS = [
   ['CT38', 'A fourth voice note for a child whose three notes are in is not stored', 'L4'],
   ['CT39', 'A voice note that fails to save frees its block, and the next voice note fills it first', 'L4'],
   ['CT40', 'A block costs the bot two messages with the printed card', 'L4'],
+  ['CT41', 'A voice note saved just before Rumi restarts is still marked, and the check still arrives', 'L4'],
+  ['CT42', 'A block that cannot be marked is retried, and after the last try the check still opens', 'L4'],
+  ['CT43', 'In assist mode every mark Rumi made arrives filled, and the unsure ones are named', 'L6'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -377,6 +380,10 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT38', ...B('drive not written yet: needs a fourth note after all three blocks are claimed'));
     record('CT39', ...B('needs a failing R2 upload; the harness has no fault injection on the media store'));
     record('CT40', ...B('drive not written yet: needs per-block outbound send counts from the mock'));
+    // Restart recovery and pre-fill modes (L17, L16): proven by tests/child-test/L17 + L16 and the L17 kill/restart mock run.
+    record('CT41', ...B('needs the bot killed between audio_saved and scoring; done outside this driver by lanes/L17/killproof.sh'));
+    record('CT42', ...B('needs a scorer that keeps failing; the harness has no fault injection on the scorer'));
+    record('CT43', ...B('needs the local stack restarted with CHILD_TEST_PREFILL_MODE=assist'));
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}

@@ -62,13 +62,13 @@ async function runVisit(opts) {
   const names = new Set();
   const redact = (txt) => { let t = String(txt || ''); for (const n of names) t = t.split(n).join('‹child›'); return t; };
   let l4 = false;   // switched on by the first list that carries L4's ids
-  const result = { ok: false, children: [], absent: [], checksSubmitted: 0 };
+  const result = { ok: false, children: [], absent: [], checksSubmitted: 0, checksFailed: [] };
 
   async function pump() {
     const items = await transport.poll(cursor);
     for (const it of items) {
       cursor = Math.max(cursor, it.seq || cursor + 1);
-      for (const r of (it.list && it.list.rows) || []) { const n = nameOf(r); if (n) names.add(n); }
+      for (const r of (it.list && it.list.rows) || []) { const n = nameOf(r); if (n) { names.add(n); rollByName[n] = rollOf(r); } }
       tl.log({ dir: 'in', kind: it.type, seq: it.seq, detail: redact(it.txt).slice(0, 80), btns: it.btns,
         ...(typeof it.sent_ms === 'number' ? { at: it.sent_ms } : {}), ...(it.send_ok === false ? { send_ok: false } : {}) });
       if (match.checkCard(it)) pendingChecks.push(it); else inbox.push(it);
@@ -107,18 +107,48 @@ async function runVisit(opts) {
     return it;
   }
   const byRoll = {};
+  const rollByName = {};
+  // The check card's header names the child by roll («جانچ: رول ۱۴»), or by the name the list showed.
+  function rollOfCard(card) {
+    const head = String(card.txt || '').split('\n')[0];
+    for (const [n, r] of Object.entries(rollByName)) if (n && head.includes(n)) return r;
+    const m = /(\d+)/.exec(asciiDigits(head));
+    return m ? Number(m[1]) : NaN;
+  }
   async function submitCheck(card) {
-    const roll = Number((/(\d+)$/.exec(card.flow.token || '') || [])[1]);
-    // a token that names no roll (a session-keyed token) is matched to the children in the order their checks arrive
-    const child = byRoll[roll] || (result.children[result.checksSubmitted] || {}).fixture || `check-${result.checksSubmitted + 1}`;
-    const response = opts.checkResponse ? opts.checkResponse(card, child) : { flow_token: card.flow.token, ctst_action: 'confirm' };
+    const roll = rollOfCard(card);
+    // a card that names no roll is matched to the children in the order their checks arrive
+    const child = byRoll[roll] || (result.children[result.checksSubmitted + result.checksFailed.length] || {}).fixture || `check-${result.checksSubmitted + 1}`;
+    let response = { flow_token: card.flow.token, ctst_action: 'confirm' };
+    if (opts.checkPlayer) {
+      // the real check (check-play.js): the Flow played screen by screen, each coach action priced
+      const played = await opts.checkPlayer(card, { child, roll: Number.isFinite(roll) ? roll : null });
+      for (const a of played.actions || []) {
+        tl.log({ dir: 'mark', step: 'check_action', child, action: a.action, ...(a.screen ? { screen: a.screen } : {}), ...(a.field ? { field: a.field } : {}),
+          ...(a.reason ? { reason: a.reason } : {}), cost_s: a.cost_s });
+      }
+      const rtt = (played.rtts || []).map((r) => r.ms / 1000);
+      tl.log({ dir: 'mark', step: 'check_done', child, roll, ok: !!played.ok, check_s: played.check_s, rtt_s: rtt, ...(played.ok ? {} : { detail: played.reason }) });
+      if (!played.ok) { result.checksFailed.push({ child, roll, reason: played.reason }); return; }
+      response = played.response_json;
+    } else if (opts.checkResponse) {
+      response = opts.checkResponse(card, child);
+    }
     await transport.submitFlow(card.flow.id, response);
     tl.log({ dir: 'out', kind: 'flow', step: 'check', child, roll });
     await waitFor('check saved', match.ack, { child });
     result.checksSubmitted += 1;
   }
+  const checksDone = () => result.checksSubmitted + result.checksFailed.length;
 
   try {
+    // A stack that served an earlier run still holds that run's replies: start reading after them, or
+    // the first /egra rides the old list (and every wait after it is answered by stale acks).
+    if (!opts.keepBacklog) {
+      const backlog = await transport.poll(0);
+      for (const it of backlog) cursor = Math.max(cursor, it.seq || 0);
+      if (backlog.length) tl.log({ dir: 'mark', step: 'backlog_skipped', detail: String(backlog.length) });
+    }
     await transport.sendText(opts.startText || '/egra');
     tl.log({ dir: 'out', kind: 'text', step: 'start' });
     let list = await waitFor("today's list", match.list);
@@ -178,8 +208,8 @@ async function runVisit(opts) {
         }
       }
     }
-    if (checksMode !== 'none' && (checksMode === 'batch' || result.checksSubmitted < result.children.length)) {
-      await waitChecks(result.children.length - result.checksSubmitted);
+    if (checksMode !== 'none' && (checksMode === 'batch' || checksDone() < result.children.length)) {
+      await waitChecks(result.children.length - checksDone());
       while (pendingChecks.length) await submitCheck(pendingChecks.shift());
     }
     tl.log({ dir: 'mark', step: 'visit_done' });

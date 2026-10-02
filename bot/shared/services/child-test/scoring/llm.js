@@ -31,6 +31,7 @@ async function chatJSON({ model, prompt, audio, imageDataUrl, job, maxTokens = 6
   if (imageDataUrl) content.push({ type: 'image_url', image_url: { url: imageDataUrl } });
   const started = Date.now();
   let lastErr = null; let cost = 0;
+  const noJson = [];   // per attempt: why the reply held no JSON (never the reply text — a child's words)
   for (let a = 0; a < attempts; a += 1) {
     try {
       const resp = await getClient().chat.completions.create({
@@ -43,11 +44,15 @@ async function chatJSON({ model, prompt, audio, imageDataUrl, job, maxTokens = 6
       const json = parseJson(text);
       if (json) return { json, cost, seconds: (Date.now() - started) / 1000, model, error: null };
       lastErr = 'no_json';
+      const choice = (resp && resp.choices && resp.choices[0]) || {};
+      noJson.push({ finish_reason: choice.finish_reason || null, content_chars: String(text || '').length,
+        reasoning_tokens: (u.completion_tokens_details && u.completion_tokens_details.reasoning_tokens) ?? null,
+        completion_tokens: u.completion_tokens ?? null });
     } catch (e) {
       lastErr = String(e && e.message || e).slice(0, 200);
     }
   }
-  return { json: null, cost, seconds: (Date.now() - started) / 1000, model, error: lastErr };
+  return { json: null, cost, seconds: (Date.now() - started) / 1000, model, error: lastErr, ...(noJson.length ? { detail: noJson } : {}) };
 }
 
 module.exports = { chatJSON, parseJson };

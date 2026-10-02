@@ -117,6 +117,28 @@ describe('poll', () => {
     expect(() => create(CFG)).toThrow(/SIM_AX_TOKEN/);
   });
 
+  test('a passing Axiom 5xx/429 is retried; the poll still returns the replies (a 502 aborted a sandbox run)', async () => {
+    const rows = [echoRow({ id: 'a', seq: 1, sentMs: T0 + 1000, payload: list })];
+    let n = 0;
+    global.fetch = jest.fn(async () => {
+      n += 1;
+      if (n === 1) return { ok: false, status: 502, json: async () => ({ message: 'internal server error' }) };
+      if (n === 2) return { ok: false, status: 429, json: async () => ({ message: 'rate limited' }) };
+      return { ok: true, status: 200, json: async () => ({ matches: rows }) };
+    });
+    const src = create({ ...CFG, replies: { ...CFG.replies, sinceMs: T0, retryBaseMs: 1 } });
+    const got = await src.poll(0);
+    expect(got.map((i) => i.seq)).toEqual([1]);
+    expect(n).toBe(3);
+  });
+
+  test('a 5xx that never clears is still loud once the retries run out', async () => {
+    global.fetch = jest.fn(async () => ({ ok: false, status: 503, json: async () => ({ message: 'unavailable' }) }));
+    const src = create({ ...CFG, replies: { ...CFG.replies, sinceMs: T0, retryBaseMs: 1, retries: 3 } });
+    await expect(src.poll(0)).rejects.toThrow(/axiom 503/);
+    expect(global.fetch).toHaveBeenCalledTimes(4);
+  });
+
   test('an Axiom error is loud, never an empty "no replies yet"', async () => {
     global.fetch = jest.fn(async () => ({ ok: false, status: 403, json: async () => ({ message: 'forbidden' }) }));
     const src = create({ ...CFG, replies: { ...CFG.replies, sinceMs: T0 } });

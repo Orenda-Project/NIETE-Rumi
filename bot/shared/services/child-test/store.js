@@ -371,6 +371,52 @@ async function saveAiMarks({ sessionId, block, aiMarks, aiStatus = 'scored', mod
   return { ok: true, block: row };
 }
 
+// ── Scoring recovery ─────────────────────────────────────────────────────────────────────────
+// A block saved by a process that died before it was scored has no in-memory job left anywhere.
+// These are the sweep's reads (narrow: no transcript, no marks) and its claim.
+
+const SCAN_COLUMNS = 'id, session_id, block, audio_r2_key, photo_r2_key, ai_status, ai_reason, ai_scored_at, checked_at, updated_at';
+
+/** Blocks with no AI marks and no coach check, touched since `since`: oldest first, at most `limit`. */
+async function listBlocksToRecover({ since, limit = 50 } = {}) {
+  const { data, error } = await supabase.from(BLOCKS).select(SCAN_COLUMNS)
+    .is('ai_marks', null).is('checked_at', null)
+    .in('ai_status', AI_INTERIM_STATUSES)
+    .gte('updated_at', iso(since))
+    .order('updated_at', { ascending: true })
+    .limit(limit);
+  if (error) return fail('listBlocksToRecover', error, {});
+  return { ok: true, blocks: data || [] };
+}
+
+/** Blocks marked since `since` and not yet checked: their session's check may still be owed. */
+async function listRecentlyScoredBlocks({ since, limit = 100 } = {}) {
+  const { data, error } = await supabase.from(BLOCKS).select(SCAN_COLUMNS)
+    .in('ai_status', AI_FINAL_STATUSES).is('checked_at', null)
+    .gte('ai_scored_at', iso(since))
+    .order('ai_scored_at', { ascending: true })
+    .limit(limit);
+  if (error) return fail('listRecentlyScoredBlocks', error, {});
+  return { ok: true, blocks: data || [] };
+}
+
+/**
+ * Compare-and-set on a block's AI status: moves it to `toStatus` only while it still has the status
+ * AND the updated_at the caller read, and no marks. Two instances holding one snapshot: one wins.
+ * → { ok, claimed, block? }
+ */
+async function claimBlockStatus({ blockId, fromStatus, fromUpdatedAt, toStatus, reason = null } = {}) {
+  if (!AI_INTERIM_STATUSES.includes(toStatus) || !AI_INTERIM_STATUSES.includes(fromStatus)) return { ok: false, reason: 'bad_status' };
+  if (!blockId || !fromUpdatedAt) return { ok: false, reason: 'no_snapshot' };
+  const { data, error } = await supabase.from(BLOCKS)
+    .update({ ai_status: toStatus, ai_reason: reason })
+    .eq('id', blockId).eq('ai_status', fromStatus).eq('updated_at', fromUpdatedAt).is('ai_marks', null)
+    .select(SCAN_COLUMNS);
+  if (error) return fail('claimBlockStatus', error, { blockId, toStatus });
+  const row = (data || [])[0] || null;
+  return { ok: true, claimed: !!row, block: row };
+}
+
 async function saveCoachMarks({ sessionId, block, coachMarks, coachEdits = [] } = {}) {
   if (!BLOCK_NAMES.includes(block)) return { ok: false, reason: 'bad_block' };
   if (!coachMarks || typeof coachMarks !== 'object') return { ok: false, reason: 'no_marks' };
@@ -402,6 +448,10 @@ module.exports = {
   setAiStatus,
   saveAiMarks,
   saveCoachMarks,
+  // scoring recovery (conversation/recovery.js)
+  listBlocksToRecover,
+  listRecentlyScoredBlocks,
+  claimBlockStatus,
   // the draw's own reads and writes (draw/index.js)
   getDraw,
   listSchoolDraws,

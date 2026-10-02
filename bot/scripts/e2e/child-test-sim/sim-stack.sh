@@ -3,6 +3,7 @@
 #
 #   bash bot/scripts/e2e/child-test-sim/sim-stack.sh up   <sha> <run_dir> [--live-vendors] [--teacher 3A|5A | --no-visit]
 #   bash bot/scripts/e2e/child-test-sim/sim-stack.sh down <run_dir>
+#   bash bot/scripts/e2e/child-test-sim/sim-stack.sh env-names [--live-vendors]   → names (no values) of the bot's env
 #
 # `up`, in order:
 #   1. Sandbox only. The source env (SIM_SANDBOX_ENV, default ~/.childtest-golive/sandbox.env) must point at
@@ -18,6 +19,7 @@
 #      env, so these win over the keys file:
 #        CHILD_TEST_ENABLED=true  CHILD_TEST_R2_ENV=local-sim  CHILD_TEST_COACH_IDS=<SIM coach>
 #        CHILD_TEST_DRAW_SECRET=<fresh random, never written or printed>
+#        CHILD_TEST_CHECK_FLOW_ID=sim-child-test-check (L14: the bot sends the check card; the driver plays it)
 #      Audio and photos go to R2 `rumi-sandbox` under child-test/local-sim/….
 #   --live-vendors: real model calls for the scoring path (L5) — the sandbox's own OPENROUTER_API_KEY /
 #      SONIOX_API_KEY / SPEECHACE_API_KEY (whichever exist) and E2E_CASSETTE=off, so no child speech is
@@ -70,6 +72,37 @@ ensure_keys() {
   [ "$(stat -f %Lp "$f" 2>/dev/null || stat -c %a "$f")" = "600" ] || chmod 600 "$f"
 }
 
+# The env the bot is started with (env -i: nothing else reaches it). Fills the arrays `envs` and the
+# string `vendors`. CHILD_TEST_CHECK_FLOW_ID is a mock id: the mock Graph API records the check card and
+# the driver plays the Flow against the local endpoint (check-play.js) — without it sendCheck refuses.
+stack_envs() {
+  local live="${1:-}" v
+  envs=(HOME="$HOME" PATH="$PATH" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" TMPDIR="${TMPDIR:-/tmp}"
+    CHILD_TEST_ENABLED=true CHILD_TEST_R2_ENV=local-sim CHILD_TEST_COACH_IDS="$SIM_COACH_ID"
+    CHILD_TEST_CHECK_FLOW_ID="${CHILD_TEST_CHECK_FLOW_ID:-sim-child-test-check}"
+    CHILD_TEST_DRAW_SECRET="$(openssl rand -hex 24)")
+  for v in E2E_NODE_MODULES_ROOT E2E_BOT_NODE_MODULES_ROOT MOCK_PORT E2E_BOT_PORT E2E_REDIS_PORT E2E_WORKER_HEALTH_PORT E2E_DNS_FALLBACK CHILD_TEST_INCHAT_CARDS CHILD_TEST_QUICK_SUMS_SECONDS CHILD_TEST_PREFILL_MODE; do
+    [ -n "${!v:-}" ] && envs+=("$v=${!v}")
+  done
+  vendors="sealed (replay-strict)"
+  if [ -n "$live" ]; then
+    envs+=(E2E_CASSETTE=off)
+    vendors="live:"
+    for v in OPENROUTER_API_KEY SONIOX_API_KEY SPEECHACE_API_KEY SPEECHACE_ENDPOINT; do
+      local x; x=$(val "$v" "$SRC"); [ -n "$x" ] && { envs+=("$v=$x"); vendors="$vendors $v"; }
+    done
+  fi
+}
+
+# Names only (never values) of the env `up` starts the bot with.
+env_names() {
+  local live=""; [ "${1:-}" = "--live-vendors" ] && live=1
+  assert_sandbox_source
+  local -a envs=(); local vendors=""
+  stack_envs "$live"
+  local e; for e in "${envs[@]}"; do printf '%s\n' "${e%%=*}"; done
+}
+
 up() {
   local sha="${1:-}" run_dir="${2:-}"; shift 2 || true
   [ -n "$sha" ] && [ -n "$run_dir" ] || { echo "usage: sim-stack.sh up <sha> <run_dir> [--live-vendors] [--teacher 3A|5A]" >&2; exit 2; }
@@ -94,21 +127,8 @@ up() {
   log "SIM visit $visit ($teacher)"
   fi
 
-  local -a envs=(HOME="$HOME" PATH="$PATH" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" TMPDIR="${TMPDIR:-/tmp}"
-    CHILD_TEST_ENABLED=true CHILD_TEST_R2_ENV=local-sim CHILD_TEST_COACH_IDS="$SIM_COACH_ID"
-    CHILD_TEST_DRAW_SECRET="$(openssl rand -hex 24)")
-  local v
-  for v in E2E_NODE_MODULES_ROOT E2E_BOT_NODE_MODULES_ROOT MOCK_PORT E2E_BOT_PORT E2E_REDIS_PORT E2E_WORKER_HEALTH_PORT E2E_DNS_FALLBACK; do
-    [ -n "${!v:-}" ] && envs+=("$v=${!v}")
-  done
-  local vendors="sealed (replay-strict)"
-  if [ -n "$live" ]; then
-    envs+=(E2E_CASSETTE=off)
-    vendors="live:"
-    for v in OPENROUTER_API_KEY SONIOX_API_KEY SPEECHACE_API_KEY SPEECHACE_ENDPOINT; do
-      local x; x=$(val "$v" "$SRC"); [ -n "$x" ] && { envs+=("$v=$x"); vendors="$vendors $v"; }
-    done
-  fi
+  local -a envs=(); local vendors=""
+  stack_envs "$live"
   log "vendors: $vendors"
   env -i "${envs[@]}" bash "$E2E/local-stack.sh" up "$sha" "$run_dir" >/dev/null || exit $?
 
@@ -133,5 +153,6 @@ CMD="${1:-}"; shift || true
 case "$CMD" in
   up) up "$@";;
   down) down "$@";;
+  env-names) env_names "$@";;
   *) echo "usage: sim-stack.sh up <sha> <run_dir> [--live-vendors] [--teacher 3A|5A] | down <run_dir>" >&2; exit 2;;
 esac

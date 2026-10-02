@@ -35,8 +35,9 @@ function VerdictRow({ item, copy, dir, missing, onPick, blankWord }: {
   item: DraftItem; copy: ChildTestCopy; dir: "rtl" | "ltr"; missing: boolean; onPick: (v: string) => void; blankWord?: string;
 }) {
   return (
-    <div className={`rounded-xl border p-3 space-y-2 ${missing ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white"}`} data-testid={`verdict-${item.id}`}>
+    <div className={`rounded-xl border p-3 space-y-2 ${missing || item.unsure ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white"}`} data-testid={`verdict-${item.id}`}>
       <p dir={dir} className="text-lg text-slate-900">{item.label}</p>
+      {item.unsure && <p className="text-xs font-medium text-amber-800" data-testid={`unsure-${item.id}`}>{copy.rumiUnsure}</p>}
       {item.hint && <p className="text-xs text-slate-500">{hintText(copy, item.hint)}</p>}
       <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={item.label}>
         {VERDICTS.map((v) => {
@@ -60,10 +61,11 @@ function VerdictRow({ item, copy, dir, missing, onPick, blankWord }: {
   );
 }
 
-function NumberField({ label, value, onChange, missing, testId }: { label: string; value: number | null; onChange: (n: number | null) => void; missing: boolean; testId: string }) {
+function NumberField({ label, value, onChange, missing, testId, note }: { label: string; value: number | null; onChange: (n: number | null) => void; missing: boolean; testId: string; note?: string | null }) {
   return (
-    <label className={`block rounded-xl border p-3 ${missing ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white"}`}>
+    <label className={`block rounded-xl border p-3 ${missing || note ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white"}`}>
       <span className="block text-sm text-slate-600 mb-1">{label}</span>
+      {note && <span className="block text-xs font-medium text-amber-800 mb-1" data-testid={`${testId}-unsure`}>{note}</span>}
       <input
         data-testid={testId}
         type="number"
@@ -123,6 +125,9 @@ export default function CheckForm({ card, status, copy, onSubmit }: Props) {
 
   return (
     <div className="space-y-5" data-testid={`check-${card.block}`}>
+      {(draft.storyUnsure || draft.fallbackUnsure || draft.quickSumsUnsure || Object.values(draft.items).some((l) => l.some((i) => i.unsure)) || draft.wordProblem?.unsure) && (
+        <p className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-amber-900" data-testid="unsure-banner">{copy.rumiUnsureBanner}</p>
+      )}
       {status.aiStatus === "failed" && (
         <p className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-amber-900">{copy.markFailed}</p>
       )}
@@ -131,13 +136,13 @@ export default function CheckForm({ card, status, copy, onSubmit }: Props) {
         <>
           {draft.fallback ? (
             <div className="grid grid-cols-2 gap-3">
-              <NumberField testId="fallback-letters" label={copy.fallbackLetters} value={draft.fallback.letters} missing={tried && missing.has("fallback.letters")}
+              <NumberField testId="fallback-letters" label={copy.fallbackLetters} value={draft.fallback.letters} missing={tried && missing.has("fallback.letters")} note={draft.fallbackUnsure ? copy.rumiUnsure : null}
                 onChange={(n) => update((d) => { if (d.fallback) d.fallback.letters = n; })} />
-              <NumberField testId="fallback-words" label={copy.fallbackWords} value={draft.fallback.words} missing={tried && missing.has("fallback.words")}
+              <NumberField testId="fallback-words" label={copy.fallbackWords} value={draft.fallback.words} missing={tried && missing.has("fallback.words")} note={draft.fallbackUnsure ? copy.rumiUnsure : null}
                 onChange={(n) => update((d) => { if (d.fallback) d.fallback.words = n; })} />
             </div>
           ) : (
-            <NumberField testId="words-correct" label={copy.wordsCorrect} value={draft.wordsCorrect} missing={tried && missing.has("story.words_correct")}
+            <NumberField testId="words-correct" label={copy.wordsCorrect} value={draft.wordsCorrect} missing={tried && missing.has("story.words_correct")} note={draft.storyUnsure ? copy.rumiUnsure : null}
               onChange={(n) => update((d) => { d.wordsCorrect = n; })} />
           )}
 
@@ -159,7 +164,7 @@ export default function CheckForm({ card, status, copy, onSubmit }: Props) {
       {card.block === "maths" && (
         <>
           {section(copy.numbers, "numbers")}
-          <NumberField testId="quick-sums" label={copy.quickSumsCorrect} value={draft.quickSumsCorrect} missing={tried && missing.has("quick_sums.correct")}
+          <NumberField testId="quick-sums" label={copy.quickSumsCorrect} value={draft.quickSumsCorrect} missing={tried && missing.has("quick_sums.correct")} note={draft.quickSumsUnsure ? copy.rumiUnsure : null}
             onChange={(n) => update((d) => { d.quickSumsCorrect = n; })} />
           {section(copy.written, "written", "blank")}
           {draft.wordProblem && (
