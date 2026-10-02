@@ -132,6 +132,7 @@ const wordCloudRoutes = require('./routes/wordcloud');
 const portalRoutes = require('./routes/portal.routes');
 const hcpRoutes = require('./routes/hcp.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
+const childTestRoutes = require('./routes/portal-child-test.routes');
 
 // BYOF Routes (Build Your Own Feature) - Conversational AI for bug/feature planning
 const byofRoutes = require('./routes/byof.routes');
@@ -2791,6 +2792,9 @@ app.use('/api/portal/hcp', cors(portalCorsOptions), portalAuthLimiter, portalDat
 // teachers in their school; teachers view own record; STEPS reads /presence.
 // Same CORS / rate-limit / session stack as the portal routes.
 app.use('/api/portal/attendance', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, attendanceRoutes);
+
+// bd-s1oo0.7 — the child test in the coach app (relays to the bot; flag portal_child_test).
+app.use('/api/portal/leader/child-test', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, childTestRoutes);
 
 // HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
 // endpoints without curl. Served under /observability/* so it's excluded from the
