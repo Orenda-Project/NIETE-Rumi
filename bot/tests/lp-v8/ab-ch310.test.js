@@ -190,11 +190,18 @@ describe('outside the test: today\'s delivery', () => {
 });
 
 describe('the group lookup', () => {
-  test('is the school\'s group, only for G1-5 ch3-10', async () => {
+  test('is the school\'s group, only for G1-5 ch3-8', async () => {
     setup();
     expect(await AB.groupFor('u1', { grade: 1, chapter: 3 })).toBe('A');
+    expect(await AB.groupFor('u1', { grade: 1, chapter: 8 })).toBe('A');
     expect(await AB.groupFor('u1', { grade: 1, chapter: 11 })).toBe(null);
     expect(await AB.groupFor('u1', { grade: 6, chapter: 3 })).toBe(null);
+  });
+
+  test('ch9-10 are out of the test (bd-5o0ay.10.17): no August plan exists, everyone gets v9', async () => {
+    setup();
+    expect(await AB.groupFor('u1', { grade: 3, chapter: 9 })).toBe(null);
+    expect(await AB.groupFor('u1', { grade: 3, chapter: 10 })).toBe(null);
   });
 
   test('August stamps are v8- and v8u- from August 2026 only', () => {

@@ -39,8 +39,9 @@ async function flagOn(now = Date.now()) {
   }
 }
 
+// ch3-8 only (bd-5o0ay.10.17): ch9-10 never had an August plan, so everyone gets v9 there.
 function inScope({ grade, chapter }) {
-  return grade >= 1 && grade <= 5 && chapter >= 3 && chapter <= 10;
+  return grade >= 1 && grade <= 5 && chapter >= 3 && chapter <= 8;
 }
 
 /** 'A' | 'B' for a teacher whose school is in the draw, else null. Never throws. */
