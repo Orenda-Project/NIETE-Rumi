@@ -14,6 +14,11 @@ const html = require('./html');
 const S = require('./sizing');
 const { resolveForm } = require('./source');
 
+// The one quick-sums setting (item bank + sandbox override); a bank fixture without the accessor uses its own value.
+function quickSumsSecondsFor(grade, form) {
+  try { return require('../item-bank').quickSumsSeconds(grade, form); } catch (err) { return undefined; }
+}
+
 /**
  * @returns {Promise<Array<{part: string, index: number, png: Buffer, text: string, lines: number|null, widthPx: number, heightPx: number}>>}
  *   parts, in order: story (several), then nonwords — or numbers, quick_sums for maths — or
@@ -54,7 +59,8 @@ async function renderPrintableCard({ grade, form, itemBank, onLayout } = {}) {
 /** @returns {Promise<Buffer>} */
 async function renderCoachSheet({ grade, form, lang = 'ur', itemBank } = {}) {
   const { data, cue } = resolveForm({ grade, form, itemBank });
-  const page = html.buildCoachSheetHtml({ grade: Number(grade), formCode: form, form: data, lang, cue: cue || {} });
+  const page = html.buildCoachSheetHtml({ grade: Number(grade), formCode: form, form: data, lang, cue: cue || {},
+    quickSumsSeconds: quickSumsSecondsFor(grade, form) });
   // The sheet's own @page margin governs; htmlToPdf's default 50px margin on top of it clipped the right edge.
   return htmlToPdf(page, { pdfOptions: { preferCSSPageSize: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } } });
 }

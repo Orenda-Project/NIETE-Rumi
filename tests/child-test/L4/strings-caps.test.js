@@ -12,7 +12,7 @@ const keys = Object.keys(UX_STRINGS).filter((k) => k.startsWith('childTest'));
 const FIELD = {
   childTestOfferYes: 20, childTestOfferLater: 20, childTestPresent: 20, childTestAbsent: 20, childTestRefused: 20,
   childTestStopChild: 20, childTestMenu: 20, childTestNoPhoto: 20, childTestFallbackButton: 20,
-  childTestListButton: 20, childTestPickSchoolButton: 20,
+  childTestListButton: 20, childTestPickSchoolButton: 20, childTestSendToTeacher: 20,
   childTestSectionChildren: 24, childTestSectionAlternates: 24, childTestPickSchoolSection: 24,
   childTestAlternateRow: 72, childTestRoleNew: 30, childTestRoleReturning: 30, childTestStatusTested: 20,
   childTestStatusInProgress: 20, childTestStatusAbsent: 20, childTestStatusRefused: 20, childTestStatusCheckWaiting: 20,
