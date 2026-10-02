@@ -49,7 +49,7 @@ describe("uploadItem", () => {
     const out = await uploadItem(item, api);
     expect(out).toEqual({ ok: true, scoring: "started" });
     expect(api.presignBlockUpload).toHaveBeenCalledWith(SESSION, expect.objectContaining({ block: "urdu", kind: "audio", contentType: "audio/webm;codecs=opus" }));
-    const putBlob = api.uploadToR2.mock.calls[0][1] as Blob;
+    const putBlob = (api.uploadToR2.mock.calls[0] as unknown[])[1] as Blob;
     expect(await readText(putBlob)).toBe("ab");
     expect(api.registerBlockMedia).toHaveBeenCalledWith(SESSION, {
       block: "urdu", audioKey: `child-test/sandbox/sch/${SESSION}/urdu.webm`, timing: { timedStartMs: 0, timedEndMs: 60_000 },

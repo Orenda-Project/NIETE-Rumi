@@ -168,9 +168,10 @@ export default function BlockRecorder({ card, sessionId, copy, onSent, deps: giv
     for (const item of pending) {
       // eslint-disable-next-line no-await-in-loop
       const r = await uploadItem(item, depsRef.current.api);
-      if (!r.ok) {
-        setSendNote(r.error === "refused" ? copy.refusedBy(r.reason) : copy.savedOnPhone);
-        dispatch({ type: "SEND_FAILED", reason: r.error });
+      if (r.ok === false) {
+        const failed = r as { error: string; reason?: string };
+        setSendNote(failed.error === "refused" ? copy.refusedBy(failed.reason || "") : copy.savedOnPhone);
+        dispatch({ type: "SEND_FAILED", reason: failed.error });
         return;
       }
     }

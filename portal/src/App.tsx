@@ -28,6 +28,7 @@ import LeaderHome from "./portal/pages/LeaderHome";
 import LeaderTeachers from "./portal/pages/LeaderTeachers";
 import LeaderTeacherDetail from "./portal/pages/LeaderTeacherDetail";
 import LeaderObservations from "./portal/pages/LeaderObservations";
+import LeaderChildTest from "./portal/pages/LeaderChildTest";
 // bd-60117 — a principal's school-level Analytics tab.
 import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
@@ -135,6 +136,9 @@ const App = () => {
             <Route path="/portal/leader" element={<LeaderHome />} />
             <Route path="/portal/leader/teachers" element={<LeaderTeachers />} />
             <Route path="/portal/leader/observations" element={<LeaderObservations />} />
+            {/* bd-s1oo0.7 — the child test in the coach app; the page and the
+                API both check the portal_child_test flag. */}
+            <Route path="/portal/leader/child-test" element={<LeaderChildTest />} />
             {/* bd-60117 — principals only; the endpoint 403s the rest of
                 the leader family and the page says so rather than showing
                 one school's numbers to a multi-school role. */}
