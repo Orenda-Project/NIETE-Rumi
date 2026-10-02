@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 // bd-3bvfj — teacher self-observation ships dark. Its entry point on Coaching
-// (bd-5rz1v: the big "Record your class" button, on the redesigned page)
+// (bd-5rz1v.7: the big "Send a lesson to your Digital Coach" button, on the redesigned page)
 // appears only when /config says the feature is on for this teacher.
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -39,25 +39,24 @@ async function settled() {
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("the Record your class entry point", () => {
+describe("the Send a lesson entry point", () => {
   it("is hidden when the feature is off", async () => {
     api.getConfig.mockResolvedValue({ success: true, features: { selfObservation: false } });
     renderPage();
     await settled();
-    expect(screen.queryByTestId("record-your-class")).toBeNull();
+    expect(screen.queryByTestId("send-a-lesson")).toBeNull();
   });
 
   it("is hidden when /config cannot be read", async () => {
     api.getConfig.mockRejectedValue(new Error("down"));
     renderPage();
     await settled();
-    expect(screen.queryByTestId("record-your-class")).toBeNull();
+    expect(screen.queryByTestId("send-a-lesson")).toBeNull();
   });
 
-  it("shows, linking to the Record your class page, when the feature is on for her", async () => {
+  it("shows when the feature is on for her", async () => {
     api.getConfig.mockResolvedValue({ success: true, features: { selfObservation: true } });
     renderPage();
-    const link = await screen.findByTestId("record-your-class");
-    expect(link).toHaveAttribute("href", "/portal/coaching/new");
+    expect(await screen.findByTestId("send-a-lesson")).toBeInTheDocument();
   });
 });
