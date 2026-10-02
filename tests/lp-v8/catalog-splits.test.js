@@ -18,7 +18,8 @@ const catalog = JSON.parse(fs.readFileSync(path.join(DATA, 'lp_catalog.json'), '
 // ch8-10 (30 Sep) + the seven G1 ch3-7 lessons over the G1 8-page cap (2 Oct, bd-5o0ay.16)
 const SPLITS = ['grade_4_urdu_ch10_seg2', 'grade_4_urdu_ch9_seg4', 'grade_4_math_ch10_seg9',
   'grade_1_urdu_ch3_seg4', 'grade_1_urdu_ch3_seg8', 'grade_1_urdu_ch4_seg6', 'grade_1_urdu_ch4_seg7',
-  'grade_1_english_ch5_seg4', 'grade_1_english_ch5_seg8', 'grade_1_urdu_ch6_seg6'];
+  'grade_1_english_ch5_seg4', 'grade_1_english_ch5_seg8', 'grade_1_urdu_ch6_seg6',
+  'grade_1_english_ch8_seg7'];  // bd-5o0ay.15: 9 pages > the G1 cap of 8
 const cps = (s) => [...String(s)].length;
 
 function lesson(seg, extra = {}) {
@@ -71,12 +72,12 @@ describe('applySplits', () => {
 });
 
 describe('the committed catalog', () => {
-  test('data/lp_splits.json lists exactly the ten splits', () => {
+  test('data/lp_splits.json lists exactly the eleven splits', () => {
     expect(JSON.parse(fs.readFileSync(path.join(DATA, 'lp_splits.json'), 'utf8'))).toEqual(SPLITS);
   });
 
   test('carries both parts of every split, within the row caps', () => {
-    expect(catalog.counts.lessons).toBe(2048);
+    expect(catalog.counts.lessons).toBe(2049);
     for (const id of SPLITS) {
       const [p1, p2] = [find(catalog, id), find(catalog, `${id}b`)];
       expect([p1 && p1.part, p2 && p2.part]).toEqual([1, 2]);
