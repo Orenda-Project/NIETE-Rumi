@@ -35,8 +35,10 @@ function createLaneFakes({ noClassList = false } = {}) {
     async todaysList(args) {
       calls.push(['todaysList', args]);
       if (noClassList) return { ok: false, reason: 'no_class_list', grade: 3 };
-      if (!args.visitId) return { ok: false, reason: 'missing_visit' };   // L3: visitId is required (FK to observation_field_forms)
-      const key = args.visitId;
+      // L3 + L3b: a visit is named by visitId (observe2 field form) or visitKey (cs:/day:), never both.
+      if (args.visitId && args.visitKey) return { ok: false, reason: 'ambiguous_visit' };
+      const key = args.visitId || args.visitKey;
+      if (!key) return { ok: false, reason: 'missing_visit' };
       if (!lists[key]) lists[key] = freshList(); else lists[key].reused = true;
       return clone(lists[key]);
     },
@@ -73,7 +75,7 @@ function createLaneFakes({ noClassList = false } = {}) {
       const existing = Object.values(sessions).find((s) => s.draw_id === args.drawId);
       if (existing) return { ok: true, session: clone(existing), created: false };
       const id = `sess-${nextSession++}`;
-      sessions[id] = { id, draw_id: args.drawId, coach_user_id: args.coachUserId, visit_id: args.visitId, school_id: 'school-1',
+      sessions[id] = { id, draw_id: args.drawId, coach_user_id: args.coachUserId, visit_id: args.visitId || null, visit_key: args.visitKey || null, school_id: 'school-1',
         class_id: 'class-3a', grade: 3, student_id: `s${args.drawId.slice(1)}`, form: args.drawId === 'd5' ? 'B' : 'A',
         channel: args.channel, status: 'in_progress', timings: {} };
       return { ok: true, session: clone(sessions[id]), created: true };
@@ -83,8 +85,8 @@ function createLaneFakes({ noClassList = false } = {}) {
       const s = Object.values(sessions).find((x) => x.draw_id === drawId);
       return { ok: true, session: s ? clone(s) : null };
     },
-    async listSessionsForVisit(visitId) {
-      return { ok: true, sessions: Object.values(sessions).filter((s) => s.visit_id === visitId).map(clone) };
+    async listSessionsForVisit(visit) {
+      return { ok: true, sessions: Object.values(sessions).filter((s) => s.visit_id === visit || s.visit_key === visit).map(clone) };
     },
     async setSessionStatus(id, status) {
       calls.push(['setSessionStatus', id, status]);

@@ -115,10 +115,14 @@ describe('today\'s list', () => {
     await openList();
     expect(last('text').text).toMatch(/no Grade 3 or Grade 5 class list/);
   });
-  test('no visit today and one school: the school is taken without asking; the draw needs a visit, and the coach is told', async () => {
+  // With uuid ids the list is drawn on a day key instead (tests/child-test/L3b/machine-visit-key.test.js);
+  // these fixture ids are not uuids, so no key can be made and the draw still says missing_visit.
+  test('no visit today and one school: the school is taken without asking; with no visit key the coach is told', async () => {
     mockDb.__tables.observation_field_forms.length = 0;
     await openList();
-    expect(lanes.calls.find((c) => c[0] === 'todaysList')[1]).toMatchObject({ schoolId: 'school-1', visitId: null, observedGrade: null });
+    const tl = lanes.calls.find((c) => c[0] === 'todaysList')[1];
+    expect(tl).toMatchObject({ schoolId: 'school-1', observedGrade: null });
+    expect(tl.visitId == null && tl.visitKey == null).toBe(true);
     expect(last('text').text).toMatch(/after an \/observe2 visit/);
   });
   test('no visit today and several schools: one list of the coach\'s schools', async () => {
