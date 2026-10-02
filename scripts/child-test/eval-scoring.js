@@ -61,42 +61,24 @@ const CONC = Number(arg('concurrency', '4'));
 const BANK = JSON.parse(fs.readFileSync(arg('item-bank', path.join(FIX, '..', 'content', 'item-bank.v1.json')), 'utf8'));
 fs.mkdirSync(path.join(OUT, 'cache'), { recursive: true });
 
-// ---- May 2026 items the real composites were cut from -----------------------
-// The study children read the May passage (= bank Grade 3 Form A story) whatever their grade, and
-// were asked the May questions; the key ids are may-<sub>-q<n> in instrument order.
-const MAY_QUESTIONS = {
-  urdu: [
-    ['بلال کس کے ساتھ دریائے جہلم گیا؟', ['والد', 'ابو', 'ابا', 'باپ']], ['وہاں کیا بہہ رہا تھا؟', ['پانی']],
-    ['بلال نے کیا حرکت کرتے دیکھا؟', ['کشتی']], ['واپسی پر بلال نے کیا جمع کیے؟', ['پتھر']],
-    ['والد نے دریا کے بارے میں کیوں بتایا ہوگا؟', ['اہمیت', 'سکھانے', 'معلومات']], ['بلال خوش کیوں تھا؟', ['سیر', 'پتھر', 'دریا']],
-  ],
-  english: [
-    ['Why did Imran wake up early?', ['school']], ['What was the class planting?', ['trees']],
-    ['What did Imran take in a bag?', ['plant']], ['What did Imran put in the soil?', ['plant']],
-    ['Why was the teacher happy with Imran?', ['planted', 'showed', 'good work']], ['Why did his friends clap for him?', ['planted', 'good', 'well']],
-  ],
-};
+// ---- May 2026 items the bank does not have (English made-up words) --------------
 const MAY_PW_ENG = ['maz', 'zaj', 'ver', 'lut', 'eaf', 'sno', 'mov', 'vod'];
 
 function realSpec(key, block) {
-  const base = JSON.parse(JSON.stringify(BANK.grades['3'].forms.A[block]));
+  // L8 re-keyed the composites to the bank (story + questions of the child's grade, Form A, whose
+  // first 60 words are the May passage). What the May test had and the bank does not stays May:
+  // English made-up words (pw_eng) and quick sums (blfl level 1).
+  const base = JSON.parse(JSON.stringify(BANK.grades[String(key.grade)].forms[key.form || 'A'][block]));
   const k = key.blocks[block] || {};
   if (block === 'maths') {
     const qs = (k.maths && k.maths.quick_sums && k.maths.quick_sums.items) || [];
-    // base.numbers stays the bank's: the May idnummag items are comparisons, so they are not scored
-    // (their key ids are may-*), but the windows need to know a numbers section comes first.
     base.quick_sums = qs.map((lab, i) => {
       const m = /(\d+)\s*([+-])\s*(\d+)\s*=\s*(\d+)/.exec(lab) || [];
       return { id: `may-blfl1-${i + 1}`, prompt: `${m[1]} ${m[2]} ${m[3]}`, answer: Number(m[4]) };
     });
-    // the 19-ish labels are only those the child attempted; pad with the instrument's next items unknown → keep as is
-    base.written = []; base.word_problem = null;
+    base.written = []; base.word_problem = null;   // from the strip photo, evaluated on fixtures/strips
     return base;
   }
-  const sub = block === 'urdu' ? 'rdcomp_urd' : 'rdcomp_eng';
-  base.questions = (k.questions || []).length
-    ? MAY_QUESTIONS[block].map(([prompt, accept], i) => ({ id: `may-${sub}-q${i + 1}`, prompt, accept, reject: [], rubric: '' }))
-    : [];
   if (block === 'english') base.nonwords = MAY_PW_ENG.map((t, i) => ({ id: `may-pw_eng-${i + 1}`, text: t, sounds: t.split('') }));
   if (block === 'urdu') { base.first_sounds = []; base.nonwords = []; }
   return base;
@@ -213,7 +195,7 @@ function itemRows(rec, keyItems, field, kind) {
   const ai = rec.aiMarks ? (field === 'numbers' ? (rec.aiMarks.maths || {}).numbers : rec.aiMarks[field]) : null;
   if (!keyItems || !keyItems.length || !ai) return [];
   const byId = new Map(ai.map((x) => [x.id, x]));
-  return keyItems.map((k) => {
+  return keyItems.filter((k) => k.verdict != null).map((k) => {
     const a = byId.get(k.id);
     return { id: rec.id, block: rec.block, field, kind, item: k.id, key: k.verdict === 'none' ? 'wrong' : k.verdict, ai: a ? (a.verdict === 'none' ? 'wrong' : a.verdict) : 'missing', conf: a ? a.confidence : null };
   });
