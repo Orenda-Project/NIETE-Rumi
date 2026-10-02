@@ -111,12 +111,15 @@ echo "│ validate_specs: exit 0 for $RUN"
 RUN_ID="$(date -u +%Y%m%d-%H%M%S)-${SHA:0:7}-mock"
 echo "│ driving:   $RUN  (run $RUN_ID)"
 echo "└─────────────────────────────────────────────────────────────────────"
-E2E_TRIGGER="${E2E_TRIGGER:-commit}" bash "$QA/run-suite.sh" "$RUN" --method mock --commit "$SHA" --run-id "$RUN_ID" \
+# Two or more features run side by side, one slot each (run-suite --parallel); E2E_PARALLEL=0 runs them in series.
+PAR=""; case "$RUN" in *,*) [ "${E2E_PARALLEL:-1}" != 0 ] && PAR="--parallel";; esac
+[ -n "$PAR" ] && echo "│ parallel:  one slot per feature (E2E_PARALLEL=0 to run them one after another)"
+E2E_TRIGGER="${E2E_TRIGGER:-commit}" bash "$QA/run-suite.sh" "$RUN" --method mock $PAR --commit "$SHA" --run-id "$RUN_ID" \
   --spec-sync "$([ -f "$BRIEF_FILE" ] && echo "${BRIEF_FILE#$ROOT/}" || echo none)" --validator-exit "$VEXIT"
 RC=$?
 echo
 echo "┌ runs.jsonl rows for $RUN_ID:"
-grep "\"run_id\": *\"$RUN_ID\"" "$ROOT/.claude/qa/ledgers/runs.jsonl" 2>/dev/null | python3 -c '
+grep "\"run_id\": *\"$RUN_ID\(-[a-z-]*\)\?\"" "$ROOT/.claude/qa/ledgers/runs.jsonl" 2>/dev/null | python3 -c '
 import json,sys
 for l in sys.stdin:
     r=json.loads(l); print("│  %-10s %-8s pass=%d fail=%d blocked=%d skipped=%d  commit=%s dirty=%s cassette_misses=%s" % (
