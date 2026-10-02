@@ -142,6 +142,13 @@ async function runVisit(opts) {
   const checksDone = () => result.checksSubmitted + result.checksFailed.length;
 
   try {
+    // A stack that served an earlier run still holds that run's replies: start reading after them, or
+    // the first /egra rides the old list (and every wait after it is answered by stale acks).
+    if (!opts.keepBacklog) {
+      const backlog = await transport.poll(0);
+      for (const it of backlog) cursor = Math.max(cursor, it.seq || 0);
+      if (backlog.length) tl.log({ dir: 'mark', step: 'backlog_skipped', detail: String(backlog.length) });
+    }
     await transport.sendText(opts.startText || '/egra');
     tl.log({ dir: 'out', kind: 'text', step: 'start' });
     let list = await waitFor("today's list", match.list);

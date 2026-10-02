@@ -116,3 +116,20 @@ describe('driver options', () => {
     expect(pickFixtures(dir, 5, null).length).toBe(4);
   });
 });
+
+describe('a second run on the same stack', () => {
+  test('replies already in the outbox before the run starts are not taken as this run\'s', async () => {
+    const transport = scriptedBot();
+    // the previous run's list and acks are still in the mock outbox
+    await transport.sendText('/egra');
+    const stale = (await transport.poll(0)).length;
+    expect(stale).toBeGreaterThan(0);
+    const tl = createTimeline(path.join(tmp, 'stale.jsonl'));
+    const res = await runVisit({ transport, timeline: tl, fixtures: [{ id: 'AA_one', dir: fx, grade: 3, strip }], checks: 'none', timeoutMs: 300, sleep: async () => {} });
+    // the scripted bot answers the real /egra with the NEXT reply (buttons), never a fresh list, so a
+    // driver that skipped the backlog times out waiting for the list instead of riding the stale one
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/today's list/);
+    expect(tl.events.filter((e) => e.dir === 'in').every((e) => e.seq > stale)).toBe(true);
+  });
+});
