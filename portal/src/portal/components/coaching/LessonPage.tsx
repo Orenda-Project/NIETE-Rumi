@@ -63,6 +63,11 @@ const COPY = {
   notFound: 'We could not find this lesson.',
   moreWaiting: (n: number) => (n === 1 ? '1 more lesson needs your answer' : `${n} more lessons need your answer`),
   next: 'Next',
+  // bd-5rz1v.6.4 — a coach's observation of her lesson
+  observation: 'Your coach’s observation',
+  observedBy: (name: string | null, day: string) => `Observed by ${name || 'your coach'}${day ? ` · ${day}` : ''}`,
+  sentToYou: (day: string) => `Sent to your WhatsApp${day ? ` · ${day}` : ''}`,
+  reportAlt: 'Your observation report',
 };
 
 const LINES_SHOWN = 6;
@@ -333,6 +338,32 @@ const LessonPage = ({ sessionId }: { sessionId: string }) => {
 
   // ── the report ─────────────────────────────────────────────────────────────
   if (!detail) return <LoadingState type="full" />;
+
+  // bd-5rz1v.6.4 — a coach's observation: the report exactly as WhatsApp
+  // delivered it to her (the image, its caption, the companion text), and who
+  // observed her and when. The API serves it only once the coach has sent it.
+  if (detail.observation) {
+    const o = detail.observation;
+    const day = (iso: string | null | undefined) => (iso ? sentLine(iso) : '');
+    return (
+      <>{banner}<div className="mx-auto flex max-w-xl flex-col gap-3.5 pb-6" data-testid="observation-report">
+        {header}
+        <div>
+          <h1 className="text-[24px] font-bold leading-tight" dir="auto">{detail.topic || COPY.observation}</h1>
+          <p className="text-[15px] text-[#5b6170]" dir="auto">{COPY.observedBy(o.observerName, day(o.observedAt))}</p>
+        </div>
+        <p className="flex items-center gap-1.5 text-sm text-[#1b6b43]">
+          <MessageCircle className="h-4 w-4" aria-hidden="true" />{COPY.sentToYou(day(o.sentAt))}
+        </p>
+        <section className="flex flex-col gap-2.5 rounded-2xl bg-white p-2.5">
+          {o.reportImageUrl && <img src={o.reportImageUrl} alt={COPY.reportAlt} className="w-full rounded-xl" />}
+          {o.caption && <p className="whitespace-pre-line px-1.5 text-[16px] leading-relaxed" dir="auto">{o.caption}</p>}
+          {o.companionText && <p className="whitespace-pre-line px-1.5 text-[16px] leading-relaxed" dir="auto">{o.companionText}</p>}
+        </section>
+      </div></>
+    );
+  }
+
   const data = detail.analysisData || ({} as SessionDetail['analysisData']);
   const tips = (data.recommendations || []).filter(Boolean);
   const tryNext = detail.prioritizedAction?.action ? withoutScore(detail.prioritizedAction.action) : tips[0] || null;
