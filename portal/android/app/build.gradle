@@ -53,8 +53,8 @@ android {
         applicationId "pk.edu.niete"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1214
-        versionName "1214"
+        versionCode 1216
+        versionName "1216"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // Default launcher label; the debug build type overrides it.
         // deepLinkHost is shared by every build type (they merge with this map);
