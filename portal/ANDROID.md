@@ -88,7 +88,7 @@ adb logcat | grep -iE "capacitor|chromium"     # watch for WebView errors
 | 2 | Login | Succeeds with a phone number + password set up beforehand via the WhatsApp link |
 | 3 | Data loads | Dashboard, lesson plans, curriculum, training, coaching show real data |
 | 4 | Session persists | ⏳ **Fix applied (bd-2402), needs a device run** — `MainActivity.onPause()` now flushes the WebView cookie store to disk so a force-close no longer drops the persistent session cookie. Confirm: log in, swipe the app away, reopen → land on the dashboard. |
-| 5 | Back button | Navigates back; exits only from the dashboard root |
+| 5 | Back button | Closes an open dialog; otherwise goes back a page; leaves the app from a home page (dashboard, leader home, login) or when there is nothing behind. See *Back key* below. Builds with `@capacitor/app` only. |
 | 6 | WhatsApp links | Open WhatsApp / the browser, not a dead WebView |
 | 7 | Stability | No crash or freeze during normal navigation |
 | 8 | App Links | A tapped `https://<portal-host>/portal/dashboard` (or `/portal/login`) link opens the app, not the browser: on the dashboard when signed in, on login when not. Try it with the app closed, in the background, and signed out. See *App Links* below. |
@@ -98,6 +98,11 @@ pass. #4 **failed** — session did not survive force-close. **Fix applied
 2026-08-01 (bd-2402)**: `MainActivity.onPause()` flushes the WebView cookie store
 to disk; awaiting a re-run on real hardware to close it out. #5 and #6 are not
 implemented yet.
+
+**Update 2026-10-02** (same RMX2061, Android 11, debug build): **#4 passes** —
+signed in, home → `am force-stop` → reopened from a link, still signed in. **#8
+passes** for both claimed links (cold and warm, signed in and out). **#5 is
+implemented** (see *Back key*). #6 is still open.
 
 Login (#2) only works because the portal server allows the app's origin through
 CORS and issues the session cookie with `SameSite=None`. If login starts failing
@@ -176,8 +181,8 @@ Both are asserted against the built APK, not just the gradle source
 
 ## OTA updates (remote-first WebView)
 
-The app is a WebView wrap with **one native plugin** (`@capacitor/app`, there only
-to hand tapped App Links to the web code), so the web bundle *is* the product. With OTA on, the WebView loads the SPA from the live portal
+The app is a WebView wrap with **one native plugin** (`@capacitor/app`, for tapped
+App Links and the hardware back key), so the web bundle *is* the product. With OTA on, the WebView loads the SPA from the live portal
 instead of the copy inside the APK — **a portal web deploy updates every
 installed app on next launch**, no Play release, no review, no rollout.
 
@@ -296,15 +301,36 @@ so adding a page to it is a release. Where a link lands is web code (OTA). The
 listener already accepts any `/portal/` page on the portal's own origin, so
 widening the claim later is a manifest-only change.
 
-**The back key is unchanged.** By default `@capacitor/app` takes over the
-hardware back key (in-app history, and at the first page it does nothing instead
-of leaving the app). `capacitor.config.ts` sets
-`plugins.App.disableBackButtonHandler: true`, so back behaves exactly as it did
-before the plugin. That setting is native config: changing it is a release.
-
 **Older APKs under OTA** run the new listener without the plugin. It checks
 `isNativePluginAvailable('App')` and does nothing, so on those builds links keep
 opening in the browser until the teacher updates.
+
+## Back key
+
+On builds with `@capacitor/app`, the hardware back key follows
+`src/lib/back-button.cjs`, in order:
+
+1. an open dialog, sheet or menu closes (as Escape would);
+2. on a home page — `/portal/dashboard`, `/portal/leader`, `/portal/login`, `/` —
+   back **leaves the app**, even with history behind it;
+3. anywhere else, back goes to the **previous page**;
+4. with nothing behind (she arrived from a tapped link), back leaves the app,
+   which returns her to wherever she tapped it, usually WhatsApp.
+
+"Leave" is `App.minimizeApp()` (move to background, as Android's own back does
+from a root screen on current versions): the session and the page survive.
+
+**Ships over the air.** The plugin's handler is OFF in the APK
+(`plugins.App.disableBackButtonHandler: true` in `capacitor.config.ts`) and
+`BackButtonHandler` switches it on at runtime with `toggleBackButtonHandler`. So
+the rule above can be changed with a portal deploy, and a portal rolled back to a
+bundle without the component leaves the back key at Android's default — never
+stuck. Do not set the config to `false`: left on with no web listener, the plugin
+goes back through WebView history and at the first page does nothing, so the app
+cannot be left with back.
+
+Builds without the plugin (everything before App Links) keep Android's default:
+back leaves the app from any page.
 
 ## Release signing
 

@@ -31,6 +31,7 @@ import LeaderObservations from "./portal/pages/LeaderObservations";
 import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
 import AppLinkListener from "./portal/components/AppLinkListener";
+import BackButtonHandler from "./portal/components/BackButtonHandler";
 // bd-60121 — every observed lesson, its own page.
 import SchoolLessons from "./portal/pages/SchoolLessons";
 /* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
@@ -73,6 +74,8 @@ const App = () => {
         <BrowserRouter>
           {/* Android app only: routes a tapped portal link to its page. */}
           <AppLinkListener />
+          {/* Android app only: the hardware back key (close / back / leave). */}
+          <BackButtonHandler />
           <Routes>
             {/* bd-2394: for the portal audience "/" resolves against the
                 session (PortalRoot), not straight to the login form — the
