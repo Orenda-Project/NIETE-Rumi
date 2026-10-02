@@ -12,6 +12,10 @@
       "HEARD_EXPLAIN"
     ],
     "HEARD_EXPLAIN": [
+      "FIDELITY",
+      "ADDED_ONE"
+    ],
+    "FIDELITY": [
       "ADDED_ONE"
     ],
     "ADDED_ONE": [
@@ -1137,7 +1141,7 @@
               },
               {
                 "type": "Footer",
-                "label": "Add it all up",
+                "label": "Next",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
@@ -1150,6 +1154,923 @@
                     "heard_explain_6": "${form.heard_explain_6}",
                     "heard_explain_7": "${form.heard_explain_7}",
                     "heard_explain_8": "${form.heard_explain_8}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "FIDELITY",
+      "title": "Lesson plan steps",
+      "data": {
+        "fid_header": {
+          "type": "string",
+          "__example__": "The plan asked for 9 steps. From the recording: 6 done, 1 partly (72%)."
+        },
+        "mv_1": {
+          "type": "string",
+          "__example__": "Step 1 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "fr_1": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_1": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        },
+        "mv_2": {
+          "type": "string",
+          "__example__": "Step 2 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_2_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_2": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_2": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        },
+        "mv_3": {
+          "type": "string",
+          "__example__": "Step 3 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_3_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_3": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_3": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        },
+        "mv_4": {
+          "type": "string",
+          "__example__": "Step 4 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_4_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_4": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_4": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        },
+        "mv_5": {
+          "type": "string",
+          "__example__": "Step 5 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_5_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_5": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_5": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        },
+        "mv_6": {
+          "type": "string",
+          "__example__": "Step 6 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_6_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_6": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_6": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        },
+        "mv_7": {
+          "type": "string",
+          "__example__": "Step 7 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_7_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_7": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_7": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        },
+        "mv_8": {
+          "type": "string",
+          "__example__": "Step 8 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_8_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_8": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_8": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        },
+        "mv_9": {
+          "type": "string",
+          "__example__": "Step 9 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_9_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_9": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_9": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        },
+        "mv_10": {
+          "type": "string",
+          "__example__": "Step 10 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_10_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_10": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_10": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        },
+        "mv_11": {
+          "type": "string",
+          "__example__": "Step 11 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_11_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_11": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_11": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        },
+        "mv_12": {
+          "type": "string",
+          "__example__": "Step 12 of 9 · Warm-up: Show two fraction strips and ask what the children notice.\nFrom the recording: the teacher showed the strips and asked."
+        },
+        "mv_12_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "fr_12": {
+          "type": "string",
+          "__example__": "executed"
+        },
+        "fe_12": {
+          "type": "string",
+          "__example__": "[00:10] What do you notice about the two strips?"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "fidelity_form",
+            "init-values": {
+              "fid_r_1": "${data.fr_1}",
+              "fid_e_1": "${data.fe_1}",
+              "fid_r_2": "${data.fr_2}",
+              "fid_e_2": "${data.fe_2}",
+              "fid_r_3": "${data.fr_3}",
+              "fid_e_3": "${data.fe_3}",
+              "fid_r_4": "${data.fr_4}",
+              "fid_e_4": "${data.fe_4}",
+              "fid_r_5": "${data.fr_5}",
+              "fid_e_5": "${data.fe_5}",
+              "fid_r_6": "${data.fr_6}",
+              "fid_e_6": "${data.fe_6}",
+              "fid_r_7": "${data.fr_7}",
+              "fid_e_7": "${data.fe_7}",
+              "fid_r_8": "${data.fr_8}",
+              "fid_e_8": "${data.fe_8}",
+              "fid_r_9": "${data.fr_9}",
+              "fid_e_9": "${data.fe_9}",
+              "fid_r_10": "${data.fr_10}",
+              "fid_e_10": "${data.fe_10}",
+              "fid_r_11": "${data.fr_11}",
+              "fid_e_11": "${data.fe_11}",
+              "fid_r_12": "${data.fr_12}",
+              "fid_e_12": "${data.fe_12}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Did the lesson follow the plan?"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.fid_header}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_1}",
+                "visible": "${data.mv_1_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_1",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_1_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_1",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_1_v}",
+                "max-length": 600,
+                "helper-text": "Step 1: the minute and the words, if you have them"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_2}",
+                "visible": "${data.mv_2_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_2",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_2_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_2",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_2_v}",
+                "max-length": 600,
+                "helper-text": "Step 2: the minute and the words, if you have them"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_3}",
+                "visible": "${data.mv_3_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_3",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_3_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_3",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_3_v}",
+                "max-length": 600,
+                "helper-text": "Step 3: the minute and the words, if you have them"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_4}",
+                "visible": "${data.mv_4_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_4",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_4_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_4",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_4_v}",
+                "max-length": 600,
+                "helper-text": "Step 4: the minute and the words, if you have them"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_5}",
+                "visible": "${data.mv_5_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_5",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_5_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_5",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_5_v}",
+                "max-length": 600,
+                "helper-text": "Step 5: the minute and the words, if you have them"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_6}",
+                "visible": "${data.mv_6_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_6",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_6_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_6",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_6_v}",
+                "max-length": 600,
+                "helper-text": "Step 6: the minute and the words, if you have them"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_7}",
+                "visible": "${data.mv_7_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_7",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_7_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_7",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_7_v}",
+                "max-length": 600,
+                "helper-text": "Step 7: the minute and the words, if you have them"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_8}",
+                "visible": "${data.mv_8_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_8",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_8_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_8",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_8_v}",
+                "max-length": 600,
+                "helper-text": "Step 8: the minute and the words, if you have them"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_9}",
+                "visible": "${data.mv_9_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_9",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_9_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_9",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_9_v}",
+                "max-length": 600,
+                "helper-text": "Step 9: the minute and the words, if you have them"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_10}",
+                "visible": "${data.mv_10_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_10",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_10_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_10",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_10_v}",
+                "max-length": 600,
+                "helper-text": "Step 10: the minute and the words, if you have them"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_11}",
+                "visible": "${data.mv_11_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_11",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_11_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_11",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_11_v}",
+                "max-length": 600,
+                "helper-text": "Step 11: the minute and the words, if you have them"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.mv_12}",
+                "visible": "${data.mv_12_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "fid_r_12",
+                "label": "What happened",
+                "required": false,
+                "visible": "${data.mv_12_v}",
+                "data-source": [
+                  {
+                    "id": "executed",
+                    "title": "Done as planned",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_equivalent",
+                    "title": "Done another way, as good",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "substituted_better",
+                    "title": "Done another way, better",
+                    "description": "Counts in full."
+                  },
+                  {
+                    "id": "partial",
+                    "title": "Partly done",
+                    "description": "Counts half."
+                  },
+                  {
+                    "id": "not_done",
+                    "title": "Not done",
+                    "description": "Counts nothing."
+                  },
+                  {
+                    "id": "not_adjudicable",
+                    "title": "Couldn't tell",
+                    "description": "Left out of the result."
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "fid_e_12",
+                "label": "What you saw",
+                "required": false,
+                "visible": "${data.mv_12_v}",
+                "max-length": 600,
+                "helper-text": "Step 12: the minute and the words, if you have them"
+              },
+              {
+                "type": "Footer",
+                "label": "Add it all up",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "FIDELITY",
+                    "fid_r_1": "${form.fid_r_1}",
+                    "fid_e_1": "${form.fid_e_1}",
+                    "fid_r_2": "${form.fid_r_2}",
+                    "fid_e_2": "${form.fid_e_2}",
+                    "fid_r_3": "${form.fid_r_3}",
+                    "fid_e_3": "${form.fid_e_3}",
+                    "fid_r_4": "${form.fid_r_4}",
+                    "fid_e_4": "${form.fid_e_4}",
+                    "fid_r_5": "${form.fid_r_5}",
+                    "fid_e_5": "${form.fid_e_5}",
+                    "fid_r_6": "${form.fid_r_6}",
+                    "fid_e_6": "${form.fid_e_6}",
+                    "fid_r_7": "${form.fid_r_7}",
+                    "fid_e_7": "${form.fid_e_7}",
+                    "fid_r_8": "${form.fid_r_8}",
+                    "fid_e_8": "${form.fid_e_8}",
+                    "fid_r_9": "${form.fid_r_9}",
+                    "fid_e_9": "${form.fid_e_9}",
+                    "fid_r_10": "${form.fid_r_10}",
+                    "fid_e_10": "${form.fid_e_10}",
+                    "fid_r_11": "${form.fid_r_11}",
+                    "fid_e_11": "${form.fid_e_11}",
+                    "fid_r_12": "${form.fid_r_12}",
+                    "fid_e_12": "${form.fid_e_12}"
                   }
                 }
               }
@@ -1746,19 +2667,19 @@
                 "data-source": [
                   {
                     "id": "1",
-                    "title": "No signal, children drifted"
+                    "title": "Took long, no clear signal"
                   },
                   {
                     "id": "2",
-                    "title": "Signal, but slow to settle"
+                    "title": "Signal given, but took long"
                   },
                   {
                     "id": "3",
-                    "title": "Settled within a minute"
+                    "title": "Changed within a minute"
                   },
                   {
                     "id": "4",
-                    "title": "Ready before being told"
+                    "title": "Children knew what came next"
                   },
                   {
                     "id": "NA",

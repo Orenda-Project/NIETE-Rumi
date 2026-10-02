@@ -204,6 +204,35 @@ async function openCheck(form) {
   return sent;
 }
 
+/**
+ * Grade the plan the coach picked in the form (answers.lp_ref) against the transcript, with the
+ * fidelity orchestrator /observe uses: the same move lists, grader, runs and scorer.
+ * @returns {Promise<object|null>} null when no plan was picked or LP_FIDELITY_ENABLED is off.
+ */
+async function gradeFidelity(form, transcript, audioDurationSeconds, fidelityDeps) {
+  const ref = (form.answers || {}).lp_ref;
+  if (!ref || !ref.lesson_id) return null;
+  try {
+    const F = require('../../coaching/fidelity/fidelity-orchestrator');
+    if (!F.isFidelityEnabled()) {
+      logToFile('[observe2] a plan was picked but LP_FIDELITY_ENABLED is off: fidelity not graded', { formId: form.id }, 'warn');
+      return null;
+    }
+    const out = await F.computeLpFidelity({
+      corpusKey: { lesson_id: ref.lesson_id, version_stamp: ref.version_stamp, content_hash: ref.content_hash },
+      transcript,
+      meta: { lesson_id: ref.lesson_id, ...(ref.subject ? { subject: ref.subject } : {}), ...(ref.grade ? { grade: ref.grade } : {}) },
+      audioDurationSeconds: audioDurationSeconds || null,
+    }, fidelityDeps || {});
+    if (!out) return null;
+    if (out.status !== 'ok') logToFile('[observe2] fidelity not graded', { formId: form.id, status: out.status, error: out.error || null }, 'error');
+    return { ...out, graded_at: new Date().toISOString() };
+  } catch (err) {
+    logToFile('[observe2] fidelity grading threw', { formId: form.id, error: err.message }, 'error');
+    return { status: 'fidelity_unavailable', error: err.message };
+  }
+}
+
 async function finish(sessionId, form) {
   if (!form.sealed_at) {
     await setStatus(sessionId, 'observe2_ready');
@@ -237,7 +266,7 @@ async function runForSession(sessionId, from, deps = {}) {
   }
 
   const { data: row, error } = await supabase.from('coaching_sessions')
-    .select('transcript_text').eq('id', sessionId).maybeSingle();
+    .select('transcript_text, audio_duration_seconds').eq('id', sessionId).maybeSingle();
   const transcript = (row && row.transcript_text) || '';
   if (error || !TIMED_RX.test(transcript)) {
     logToFile('❌ [observe2] no timed transcript: moments not read', {
@@ -249,13 +278,21 @@ async function runForSession(sessionId, from, deps = {}) {
   }
 
   try {
-    const raw = await (deps.llm || defaultLlm)(buildPrompt(transcript, form));
+    // The plan's fidelity is graded from the same transcript, at the same time, by the grader /observe
+    // uses. It never fails the moments: the orchestrator returns a status instead of throwing.
+    const [raw, fidelity] = await Promise.all([
+      (deps.llm || defaultLlm)(buildPrompt(transcript, form)),
+      gradeFidelity(form, transcript, row && row.audio_duration_seconds, deps.fidelityDeps),
+    ]);
     const { moments, counts } = normalise(raw);
-    const stored = await Store.setMoments(form.id, { moments, counts, prompt_version: PROMPT_VERSION }, heardLevels(moments, counts));
+    const stored = await Store.setMoments(form.id, { moments, counts, prompt_version: PROMPT_VERSION, fidelity }, heardLevels(moments, counts));
     if (!stored.ok) throw new Error(stored.error || 'moments not stored');
     const again = await Store.getForm(form.id);
     form = (again.ok && again.form) || form;
-    logToFile('[observe2] moments stored', { sessionId, formId: form.id, moments: moments.length });
+    logToFile('[observe2] moments stored', {
+      sessionId, formId: form.id, moments: moments.length,
+      fidelity: fidelity ? fidelity.status : 'no_plan', fidelityPct: fidelity && fidelity.fidelity_pct != null ? fidelity.fidelity_pct : null,
+    });
   } catch (err) {
     logToFile('❌ [observe2] moments failed', { sessionId, formId: form.id, error: err.message }, 'error');
     await setStatus(sessionId, 'observe2_failed');

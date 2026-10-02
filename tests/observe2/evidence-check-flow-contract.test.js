@@ -39,10 +39,13 @@ describe('the committed JSON is the generator output', () => {
 });
 
 describe('the flow is internally consistent', () => {
-  test('eight screens, forward-only, one terminal', () => {
-    const ids = ['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY', 'DONE'];
+  test('nine screens, forward-only, one terminal; the plan screen can be skipped', () => {
+    const ids = ['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN', 'FIDELITY', 'ADDED_ONE', 'ADDED_TWO', 'PRIORITY', 'DONE'];
     expect(flow.screens.map((s) => s.id)).toEqual(ids);
-    ids.forEach((id, i) => expect(flow.routing_model[id]).toEqual(i < ids.length - 1 ? [ids[i + 1]] : []));
+    ids.forEach((id, i) => {
+      if (id === 'HEARD_EXPLAIN') expect(flow.routing_model[id]).toEqual(['FIDELITY', 'ADDED_ONE']);
+      else expect(flow.routing_model[id]).toEqual(i < ids.length - 1 ? [ids[i + 1]] : []);
+    });
     expect(flow.screens.filter((s) => s.terminal).map((s) => s.id)).toEqual(['DONE']);
   });
 

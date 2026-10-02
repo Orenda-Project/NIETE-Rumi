@@ -9,7 +9,10 @@
  *   INIT / HEARD_*  the moments from the recording for one part of the lesson, each its minute,
  *                   what it is and the words; the coach says whether it happened. Each screen's
  *                   answers are saved as it is submitted.
- *   HEARD_EXPLAIN → ADDED_ONE, ADDED_TWO   every level pre-filled with what the sealed answers and the
+ *   HEARD_EXPLAIN → FIDELITY   only when a plan was picked in the form and graded: each step the plan
+ *                   asked for, pre-rated from the recording; the coach's corrections are re-scored by
+ *                   /observe's scorer and kept beside the recording's own grading.
+ *   HEARD_EXPLAIN or FIDELITY → ADDED_ONE, ADDED_TWO   every level pre-filled with what the sealed answers and the
  *                   confirmed moments add up to (rules.addUp), with the reason; the recording's
  *                   own levels are never sent to any screen.
  *   ADDED_TWO → PRIORITY   the pick sealed before any moment was seen.
@@ -20,7 +23,7 @@ const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { addUp } = require('../services/observe/observe2/rules');
 const { CODES } = require('../services/observe/observe2/fico17');
-const { SLOTS, HEARD_SCREENS, ADDED_SCREENS } = require('../services/observe/observe2/evidence-check.flow');
+const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS } = require('../services/observe/observe2/evidence-check.flow');
 const { logToFile } = require('../utils/logger');
 
 const HEARD_IDS = HEARD_SCREENS.map((h) => h.id);
@@ -86,6 +89,72 @@ function renderAdded(screenId, added) {
   return { screen: screenId, data };
 }
 
+// ------------------------------------------------------------------ fidelity
+
+const DONE_VERDICTS = new Set(['executed', 'substituted_equivalent', 'substituted_better']);
+const PHASE = {
+  warm_up: 'Warm-up', introduction: 'Introduction', direct_instruction: 'Teaching',
+  guided_practice: 'Practice together', independent_practice: 'Practice alone',
+  assessment: 'Checking', closure: 'Closing', homework: 'Homework',
+};
+
+/** The recording's grading of the plan, when there is one to check. */
+function gradedPlan(form) {
+  const lp = form && form.rumi_moments && form.rumi_moments.fidelity;
+  return lp && lp.status === 'ok' && lp.fidelity_pct != null && Array.isArray(lp.moves) && lp.moves.length ? lp : null;
+}
+
+function planTally(lp) {
+  const counted = (lp.moves || []).filter((m) => m.counted);
+  return {
+    total: lp.prescribed_count != null ? lp.prescribed_count : counted.length,
+    done: counted.filter((m) => DONE_VERDICTS.has(m.verdict)).length,
+    partly: counted.filter((m) => m.verdict === 'partial').length,
+  };
+}
+
+function renderFidelity(form) {
+  const lp = gradedPlan(form);
+  const { composeEditableFidelity, clipWords } = require('../services/observe/observe-draft.service');
+  const slots = (composeEditableFidelity(lp) || { slots: [] }).slots;
+  const t = planTally(lp);
+  const header = [
+    `The plan asked for ${t.total} steps. From the recording: ${t.done} done${t.partly ? `, ${t.partly} partly` : ''} (${Math.round(lp.fidelity_pct)}%).`,
+    'Check each step below and change any you saw differently; the result follows your answers.',
+  ];
+  if (lp.moves.length > FIDELITY_SLOTS) header.push(`Steps after the ${FIDELITY_SLOTS}th keep the recording's rating.`);
+  if (lp.moderators && lp.moderators.truncation_inconsistent) header.push('The recording may have stopped before the lesson ended: check the later steps.');
+  const data = { fid_header: header.join('\n') };
+  for (let k = 1; k <= FIDELITY_SLOTS; k += 1) {
+    const m = lp.moves[k - 1];
+    const slot = slots[k - 1];
+    const why = m ? String(m.rationale || '').trim() : '';
+    data[`mv_${k}`] = m
+      ? `${clipWords(`Step ${k} of ${lp.moves.length} · ${PHASE[m.phase] || 'Step'}: ${m.text}`, 300)}${why ? `\nFrom the recording: ${clipWords(why, 250)}` : ''}`
+      : '';
+    data[`mv_${k}_v`] = Boolean(m);
+    data[`fr_${k}`] = slot ? slot.verdict : '';
+    data[`fe_${k}`] = slot ? slot.evidence : '';
+  }
+  return { screen: 'FIDELITY', data };
+}
+
+// The coach's corrections, re-scored by the scorer /observe's Section B uses.
+function confirmedPlan(lp, edits) {
+  const { rescoreFidelityFromEdits } = require('../services/observe/observe-draft.service');
+  const r = rescoreFidelityFromEdits(lp, edits);
+  const out = r.lp;
+  return {
+    fidelity_pct: out.fidelity_pct,
+    band: out.band || null,
+    prescribed_count: out.prescribed_count != null ? out.prescribed_count : null,
+    observer_edited: Boolean(r.verdictsChanged || r.evidenceChanged),
+    verdicts_changed: r.verdictsChanged,
+    evidence_changed: r.evidenceChanged,
+    moves: (out.moves || []).map((m) => ({ move_id: m.move_id, text: m.text, verdict: m.verdict, evidence: m.evidence || '', counted: Boolean(m.counted) })),
+  };
+}
+
 function renderDone(form, lines) {
   const l = lines || {
     done_line: `Saved at ${clock(form.checked_at)}`,
@@ -106,10 +175,13 @@ function addedLevels(form, review) {
   const all = addUp({ form: form.answers || {}, confirmed, heardCounts: counts });
   const out = {};
   for (const [code, r] of Object.entries(all)) {
-    out[code] = { level: r.level == null ? null : r.level, because: r.because || '' };
+    out[code] = { level: r.level == null ? null : r.level, because: r.because || '', hole: Boolean(r.hole) };
   }
   return out;
 }
+
+// For the brief: what was seen behind a level the rule only puts in place "for now".
+const holesOf = (added) => Object.fromEntries(Object.entries(added).filter(([, r]) => r.hole).map(([c, r]) => [c, String(r.because).split(':')[0]]));
 
 function pickFields(screenData, keys) {
   const out = {};
@@ -163,7 +235,7 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
   if (!form) {
     // Nothing to save; walk the coach through to the end so the Flow can close.
     if (idx >= 0 && idx < HEARD_IDS.length - 1) return renderHeard(HEARD_IDS[idx + 1], null);
-    if (step === 'HEARD_EXPLAIN') return renderAdded('ADDED_ONE', {});
+    if (step === 'HEARD_EXPLAIN' || step === 'FIDELITY') return renderAdded('ADDED_ONE', {});
     if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', {});
     if (step === 'ADDED_TWO') return { screen: 'PRIORITY', data: { priority_level: '' } };
     return renderDone(null, NOT_AVAILABLE);
@@ -175,8 +247,27 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     const current = saved.ok ? saved.form : form;
     if (idx < HEARD_IDS.length - 1) return renderHeard(HEARD_IDS[idx + 1], current);
     const added = addedLevels(current, current.evidence_review || {});
-    await Store.saveReview(current, { added: Object.fromEntries(Object.entries(added).map(([c, r]) => [c, levelText(r.level)])) });
-    return renderAdded('ADDED_ONE', added);
+    await Store.saveReview(current, {
+      added: Object.fromEntries(Object.entries(added).map(([c, r]) => [c, levelText(r.level)])),
+      added_hole: holesOf(added),
+    });
+    return gradedPlan(current) ? renderFidelity(current) : renderAdded('ADDED_ONE', added);
+  }
+
+  if (step === 'FIDELITY') {
+    const lp = gradedPlan(form);
+    let current = form;
+    if (lp) {
+      const keys = [];
+      for (let k = 1; k <= FIDELITY_SLOTS; k += 1) keys.push(`fid_r_${k}`, `fid_e_${k}`);
+      const edits = {};
+      for (const k of keys) if (typeof screenData[k] === 'string') edits[k] = screenData[k];
+      const fidelity = confirmedPlan(lp, edits);
+      const saved = await Store.saveReview(form, { ...pickFields(screenData, keys), fidelity });
+      if (saved.ok) current = saved.form;
+      logToFile('[observe2] plan steps checked', { formId: form.id, pct: fidelity.fidelity_pct, changed: fidelity.verdicts_changed });
+    }
+    return renderAdded('ADDED_ONE', addedLevels(current, current.evidence_review || {}));
   }
 
   if (step === 'ADDED_ONE' || step === 'ADDED_TWO') {
