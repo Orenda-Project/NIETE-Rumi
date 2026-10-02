@@ -32,7 +32,7 @@ const FRAME = {
     title: (name) => (name ? `📋 Your brief for the conversation with ${name}` : '📋 Your brief for the conversation with the teacher'),
     reflect: ['Open with questions for the teacher:', '• "How do you think the lesson went?"', '• "What did you want the children to learn, and how could you tell?"'],
     went_well: 'Start with what went well:',
-    plan: (done, total, pct) => `The lesson plan: ${done} of ${total} planned steps done (${pct}%).`,
+    plan: (done, total, pct, partly) => `The lesson plan: ${done} of ${total} planned steps done${partly ? `, ${partly} partly` : ''} (${pct}%).`,
     moment_ask: 'Ask: "What were you hoping for at that moment? What else could you try?"',
     find_one: '• Name one thing you saw the teacher do well.',
     work_on: (p) => `Work on first: *${p}*`,
@@ -45,7 +45,7 @@ const FRAME = {
     title: (name) => (name ? `📋 ${name} سے بات چیت کے لیے بریف` : '📋 استاد سے بات چیت کے لیے بریف'),
     reflect: ['پہلے استاد سے یہ سوال کریں:', '• "آپ کے خیال میں سبق کیسا رہا؟"', '• "بچوں کو کیا سیکھنا تھا، اور کیسے پتا چلا کہ انہوں نے سیکھ لیا؟"'],
     went_well: 'جو اچھا ہوا، اس سے شروع کریں:',
-    plan: (done, total, pct) => `سبق کا منصوبہ: ${total} میں سے ${done} مراحل مکمل (${pct}%)۔`,
+    plan: (done, total, pct, partly) => `سبق کا منصوبہ: ${total} میں سے ${done} مراحل مکمل${partly ? `، ${partly} جزوی` : ''} (${pct}%)۔`,
     moment_ask: 'پوچھیں: "اس لمحے آپ کا ارادہ کیا تھا؟ اور کیا آزمایا جا سکتا ہے؟"',
     find_one: '• ایک چیز بتائیں جو استاد نے اچھی کی۔',
     work_on: (p) => `پہلے اس پر کام: *${p}*`,
@@ -68,6 +68,7 @@ function planResult(form) {
   const counted = (lp.moves || []).filter((m) => m.counted);
   return {
     done: counted.filter((m) => DONE.has(m.verdict)).length,
+    partly: counted.filter((m) => m.verdict === 'partial').length,
     total: lp.prescribed_count != null ? lp.prescribed_count : counted.length,
     pct: Math.round(lp.fidelity_pct),
   };
@@ -98,7 +99,7 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
   }
 
   const plan = planResult(form);
-  if (plan) lines.push('', F.plan(plan.done, plan.total, plan.pct));
+  if (plan) lines.push('', F.plan(plan.done, plan.total, plan.pct, plan.partly));
 
   if (priority && PRIORITY[priority]) {
     const level = numeric(finals[priority]);

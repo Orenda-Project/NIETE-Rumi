@@ -195,6 +195,8 @@ describe('picking the lesson plan in the form', () => {
     const out = await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'used', lp_pick: '' });
     expect(out.screen).toBe('LESSON_PLAN');
     expect(out.data.error_messages.lp_pick).toMatch(/Pick the plan/);
+    // WhatsApp shows no message under a Dropdown (sandbox E2E, 2 Oct): the line at the bottom must say it.
+    expect(out.data.error).toBe('Pick the plan, or "Not in this list".');
     expect(formRow(id).answers.lp).toBeUndefined();
   });
 
@@ -396,6 +398,19 @@ describe('checking the plan in the check', () => {
 });
 
 // ------------------------------------------------------------------ the brief, bd-ra8xu.20
+
+test('the plan line counts the partly-done steps, which make up the rest of the percentage', () => {
+  const form = {
+    answers: { priority: 'C1' }, rumi_moments: { moments: [] }, final_levels: {},
+    evidence_review: { priority_final: 'C1', fidelity: { fidelity_pct: 50, prescribed_count: 3, moves: [
+      { move_id: 'a', verdict: 'executed', counted: true }, { move_id: 'b', verdict: 'partial', counted: true }, { move_id: 'c', verdict: 'not_done', counted: true },
+    ] } },
+  };
+  expect(buildBrief(form, { lang: 'en' })).toContain('The lesson plan: 1 of 3 planned steps done, 1 partly (50%).');
+  const ur = buildBrief(form, { lang: 'ur' });
+  expect(ur).toContain('جزوی');
+  expect(ur).not.toMatch(/undefined|NaN/);
+});
 
 describe('a placeholder level is never named as what the coach saw', () => {
   test('a kept "for now" level reads as what was seen, not as the level\'s label', () => {
