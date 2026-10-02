@@ -20,7 +20,8 @@ const { asciiDigits } = require('./number-grammar');
 const WRONG_STRIP_CONFIDENCE = 0.2;
 
 function expectedCode(spec, grade, form) {
-  return (spec && spec.strip_code) || `m${grade}${form}`;
+  // L2 prints `G3-A` in the strip corner (render/html.js formCode)
+  return (spec && spec.strip_code) || `G${grade}-${form}`;
 }
 
 function normCode(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }

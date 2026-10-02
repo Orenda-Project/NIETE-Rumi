@@ -89,7 +89,7 @@ function routeModels({ storyVerdicts, failComprehension = false } = {}) {
     }
     if (p.includes('maths word problem')) return reply({ answer: '9', verdict: 'correct', confidence: 0.8 }, 0.001);
     if (p.includes('answer strip')) {
-      return reply({ form_code: 'm3A', items: [
+      return reply({ form_code: 'G3-A', items: [
         { id: 'm3A-w1', read: '62', status: 'written', confidence: 0.95 }, { id: 'm3A-w2', read: '44', status: 'written', confidence: 0.9 },
         { id: 'm3A-w3', read: '', status: 'blank', confidence: 0.9 }, { id: 'm3A-w4', read: '', status: 'unreadable', confidence: 0.3 },
         { id: 'm3A-wp', read: '9', status: 'written', confidence: 0.9 }] }, 0.02);
@@ -274,6 +274,7 @@ describe('scoreBlock (L4 → L5 contract)', () => {
     expect(m.quick_sums).toMatchObject({ correct: 3, attempted: 4 });
     expect(m.written.map((w) => [w.read_answer, w.verdict])).toEqual([['62', 'correct'], ['44', 'wrong'], ['', 'blank'], ['', 'unreadable']]);
     expect(m.word_problem).toMatchObject({ verdict: 'correct', read_answer: '9' });
+    expect(both.saved[0].aiMarks.meta.photo).toEqual({ form_code: 'G3-A', form_code_ok: true, expected_code: 'G3-A' });
     // the vision model is told the printed sums, never the answers
     const vision = mockCreate.mock.calls.find(([r]) => prompt(r).includes('answer strip'))[0];
     expect(vision.model).toBe('google/gemini-3.1-pro-preview');
