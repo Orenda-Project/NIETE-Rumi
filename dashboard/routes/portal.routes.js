@@ -1819,7 +1819,7 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
       return res.status(400).json({ success: false, error: 'lesson_id required' });
     }
 
-    const hit = await LpCatalogue.lessonPdf(lessonId, kind);
+    const hit = await LpCatalogue.lessonPdf(lessonId, kind, req.session.portalUserId);
     if (!hit) {
       return res.status(200).json({ success: true, available: false });
     }
