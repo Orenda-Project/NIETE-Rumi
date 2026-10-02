@@ -90,6 +90,15 @@ async function handleVoiceMessage(message, from, user = null) {
       }
     }
 
+    // Child test (bd-s1oo0.4): a coach's voice note while a child-test block is waiting for it is
+    // that block's recording. Checked BEFORE routeLeaderAudio, which would otherwise take any
+    // audio from a leader in observe's awaiting_audio as the lesson recording. Claims only in the
+    // child test's own Redis state; inert unless CHILD_TEST_ENABLED.
+    if (user) {
+      const ChildTest = require('./child-test.handler');
+      if (await ChildTest.handleVoice(message, from, user)) return;
+    }
+
     // FEAT-102 bd-2131: a school leader's voice note routes to /observe FIRST —
     // a coach may share a classroom recording OR their debrief as a voice note,
     // and it must NEVER fall into teacher coaching. Shared with the audio-

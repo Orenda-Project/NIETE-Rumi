@@ -3199,7 +3199,7 @@ const UX_STRINGS = {
   },
   childTestChildDone: {
     en: '✅ All three parts for Roll {roll} are in. The marks are being worked out; a Check button follows.',
-    ur: '✅ رول {roll} کے تینوں حصے مل گئے۔ نمبر لگ رہے ہیں؛ چیک کا بٹن جلد آئے گا۔',
+    ur: '✅ رول {roll} کے تینوں حصے مل گئے۔ نمبر لگنے کے بعد چیک کا بٹن آئے گا۔',
   },
   childTestCheckFailed: {
     en: '⚠️ The check for Roll {roll} is ready but did not open. Send /egra and tap the child to open it.',

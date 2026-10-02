@@ -456,7 +456,16 @@ async function handleVoice(message, from, user) {
   const audioId = (message.audio && message.audio.id) || (message.voice && message.voice.id);
   if (!audioId) return false;
   if (!(await S.firstSight(audioId))) return true;
+  // Claimed from here on: whatever goes wrong next is logged and told, never handed to another handler.
+  try {
+    await processVoice(message, from, user, state, audioId);
+  } catch (err) {
+    logError('child_test.voice_failed', { sessionId: state.current.sessionId, block: state.current.block, error: err.message });
+  }
+  return true;
+}
 
+async function processVoice(message, from, user, state, audioId) {
   const lang = langOf(user);
   const cur = state.current;
   const block = cur.block;
@@ -511,9 +520,16 @@ async function handleImage(message, from, user) {
   const imageId = message.image && message.image.id;
   if (!imageId) return false;
   if (!(await S.firstSight(imageId))) return true;
+  try {
+    await processImage(from, user, pending[0], imageId);
+  } catch (err) {
+    logError('child_test.photo_failed', { sessionId: pending[0].sessionId, error: err.message });
+  }
+  return true;
+}
 
+async function processImage(from, user, p, imageId) {
   const lang = langOf(user);
-  const p = pending[0];
   const key = photoKey(p.schoolId, p.sessionId);
   try {
     const buf = await WhatsAppService.downloadMedia(imageId);

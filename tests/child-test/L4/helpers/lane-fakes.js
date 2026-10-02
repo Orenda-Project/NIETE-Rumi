@@ -83,6 +83,7 @@ function createLaneFakes({ noClassList = false } = {}) {
     },
     async setSessionStatus(id, status) {
       calls.push(['setSessionStatus', id, status]);
+      if (!sessions[id]) return { ok: false, error: 'no session' };
       sessions[id].status = status; return { ok: true, session: clone(sessions[id]) };
     },
     async recordTiming(id, key, at = new Date()) {

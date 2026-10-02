@@ -302,6 +302,26 @@ describe('failures are visible', () => {
   });
 });
 
+describe('once claimed, media never falls through', () => {
+  test('a crash after the strip photo is saved is logged, and the photo stays the child test\'s', async () => {
+    await openList(); await startChild('d1');
+    for (const b of ['u', 'e', 'm']) await H.handleVoice(voice(`k-${b}`), PHONE, COACH);
+    lanes.store.setSessionStatus = async () => { throw new Error('boom'); };
+    expect(await H.handleImage(image('k1'), PHONE, COACH)).toBe(true);
+    expect(logError).toHaveBeenCalledWith('child_test.photo_failed', expect.objectContaining({ sessionId: 'sess-1' }));
+  });
+  test('a crash after a voice note is saved is logged, and the note stays the child test\'s', async () => {
+    await openList(); await startChild('d1');
+    lanes.store.recordTiming = async () => { throw new Error('boom'); };
+    lanes.render.renderInlineCards = async () => { throw new Error('boom'); };
+    const orig = mockWa.sendInteractiveButtons.getMockImplementation();
+    mockWa.sendInteractiveButtons.mockImplementationOnce(async () => { throw new Error('graph down'); });
+    expect(await H.handleVoice(voice('k-v'), PHONE, COACH)).toBe(true);
+    expect(logError).toHaveBeenCalledWith('child_test.voice_failed', expect.objectContaining({ sessionId: 'sess-1' }));
+    mockWa.sendInteractiveButtons.mockImplementation(orig);
+  });
+});
+
 describe('/cancel and /menu work in every state', () => {
   const noRelease = () => expect(lanes.calls.filter((c) => c[0] === 'markOutcome' && c[1].outcome !== 'present')).toHaveLength(0);
 
