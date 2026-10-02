@@ -1265,7 +1265,8 @@ router.post('/lp/v8/lessons', requireInternalKey, lpBrowseRoute('lessons', async
 
 /**
  * POST /api/internal/lp/v8/pdf
- * Body { lessonId, assetKind? } → { success, available, url?, version_stamp? }
+ * Body { lessonId, assetKind?, userId? } → { success, available, url?, version_stamp? }
+ * `userId` (from the portal session) picks the teacher's A/B group for ch3-10.
  *
  * `available: false` (with HTTP 200) is a real answer — the lesson exists in
  * the catalogue but has no current asset yet. Only a genuine failure is a 5xx,
@@ -1277,7 +1278,7 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   const assetKind = body.assetKind === 'answer_key' ? 'answer_key' : 'lesson';
   if (!lessonId) return res.status(400).json({ success: false, error: 'lessonId is required' });
 
-  const hit = await Browse.lessonPdfUrl(lessonId, assetKind);
+  const hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null);
   if (!hit) return res.json({ success: true, available: false });
   return res.json({ success: true, available: true, ...hit });
 }));

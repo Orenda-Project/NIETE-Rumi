@@ -247,6 +247,12 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   // ch3-10 A/B (bd-5o0ay.10.1): group A gets the August v8 PDF; null = not in the test.
   const abGroup = await LpAb.groupFor(userId, { grade: book.grade, chapter: chapter.number });
   const asset = await LpAb.assetFor({ group: abGroup, lessonId, current: currentAssetFor });
+  if ((!asset || !asset.r2_key) && abGroup === 'A') {
+    // A/B group A with no August plan: silence. None is coming, so "still preparing" would
+    // keep her waiting for nothing (Amena, 2 Oct).
+    await recordDownload({ ...context, user_id: userId, phone, status: 'failed', error_text: 'ab group A: no August version' });
+    return { ok: false, reason: 'no august version' };
+  }
   if (!asset || !asset.r2_key) {
     logToFile('LP v8: no current asset', { userId, lessonId });
     await recordDownload({ ...context, user_id: userId, phone, status: 'failed', error_text: 'no current asset' });

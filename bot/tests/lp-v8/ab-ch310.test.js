@@ -75,6 +75,7 @@ const CATALOG = {
 const V8Catalog = require('../../shared/services/lp-v8-catalog.service');
 const Delivery = require('../../shared/services/lp-v8-delivery.service');
 const AB = require('../../shared/services/lp-ab-ch310.service');
+const Browse = require('../../shared/services/lp-v8-browse.service');
 
 const asset = (lessonId, stamp, current, kind = 'lesson') => ({
   id: `${lessonId}-${kind}-${stamp}`, lesson_id: lessonId, asset_kind: kind, catalog_version: 'v8',
@@ -129,11 +130,25 @@ describe('group A', () => {
     expect(sent().map((r) => r.version_stamp)).toEqual([AUG, AUG_U]);
   });
 
-  test('a lesson with no August version falls back to the current one', async () => {
+  test('a lesson with no August version is never swapped for v9, and A hears nothing', async () => {
     setup();
+    require('../../shared/services/whatsapp.service').sendMessage.mockClear();
     mockTables.niete_lp_assets = mockTables.niete_lp_assets.filter((a) => a.version_stamp !== AUG);
-    await deliver('grade_1_urdu_ch3_seg4');
-    expect(sent()[0].version_stamp).toBe(V9);
+    const out = await deliver('grade_1_urdu_ch3_seg4');
+    expect(out.ok).toBe(false);
+    expect(mockSends.docs).toEqual([]);
+    const WA = require('../../shared/services/whatsapp.service');
+    const { resolveUx } = require('../../shared/config/ux-strings');
+    // Silence, not "still preparing": there is no August plan coming, so nobody waits for one.
+    expect(WA.sendMessage).not.toHaveBeenCalledWith('923001234567',
+      resolveUx('lpV8StillPreparing', { user: { preferred_language: 'ur' } }));
+  });
+
+  test('an assessment with no August answer key gets no v9 key either', async () => {
+    setup();
+    mockTables.niete_lp_assets = mockTables.niete_lp_assets.filter((a) => a.version_stamp !== AUG_U);
+    await deliver('grade_1_urdu_ch3_seg995');
+    expect(sent().map((r) => r.version_stamp)).toEqual([AUG]);
   });
 
   test('chapters outside 3-10 are untouched, voice note included', async () => {
@@ -187,5 +202,31 @@ describe('the group lookup', () => {
     expect(AB.isAugust(AUG_U)).toBe(true);
     expect(AB.isAugust('push_29Sep')).toBe(false);
     expect(AB.isAugust('v8-20260916T0000')).toBe(false);
+  });
+});
+
+describe('the portal download follows the same group', () => {
+  const pdf = (userId) => Browse.lessonPdfUrl('grade_1_urdu_ch3_seg4', 'lesson', userId);
+
+  test('group A gets the August PDF, group B and no teacher get the current one', async () => {
+    setup();
+    expect((await pdf('u1')).version_stamp).toBe(AUG);
+    setup({ group: 'B' });
+    expect((await pdf('u1')).version_stamp).toBe(V9);
+    setup();
+    expect((await pdf(null)).version_stamp).toBe(V9);
+  });
+
+  test('the teacher id is carried from the portal session to the bot', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const root = path.join(__dirname, '..', '..', '..');
+    const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
+    expect(read('dashboard/routes/portal.routes.js'))
+      .toMatch(/LpCatalogue\.lessonPdf\(lessonId, kind, req\.session\.portalUserId\)/);
+    expect(read('dashboard/services/lp-catalogue.service.js'))
+      .toMatch(/ask\('pdf', \{ lessonId, assetKind: kind, userId \}\)/);
+    expect(read('bot/shared/routes/internal-api.routes.js'))
+      .toMatch(/Browse\.lessonPdfUrl\(lessonId, assetKind, body\.userId \|\| null\)/);
   });
 });

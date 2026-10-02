@@ -78,9 +78,9 @@ async function latestAugust(lessonId, assetKind) {
 }
 
 /**
- * The asset this group gets. B (and null) get `current`; A gets the latest August row,
- * and a v9 split day-2 lesson (…seg4b) with no August twin repeats …seg4's August plan.
- * If there is no August row at all, A falls back to current and the miss is logged.
+ * The asset this group gets. B (and null) get `current`; A gets the latest August row, and
+ * a v9 split day-2 lesson (…seg4b) with no August twin gets …seg4's August plan. A gets
+ * nothing that is not v8 (Amena, 2 Oct): no August row means null, logged, never v9.
  */
 async function assetFor({ group, lessonId, assetKind = 'lesson', current }) {
   if (group !== 'A') return current(lessonId, assetKind);
@@ -95,8 +95,8 @@ async function assetFor({ group, lessonId, assetKind = 'lesson', current }) {
   } catch (err) {
     logToFile('LP A/B: August lookup failed', { lessonId, assetKind, error: err.message });
   }
-  logToFile('LP A/B: no August version — sending current', { lessonId, assetKind });
-  return current(lessonId, assetKind);
+  logToFile('LP A/B: no August version for group A — nothing sent', { lessonId, assetKind });
+  return null;
 }
 
 function __resetForTests() { flagCache = null; }
