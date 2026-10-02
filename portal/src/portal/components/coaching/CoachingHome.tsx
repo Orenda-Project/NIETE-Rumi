@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronRight, Loader2, Search, TrendingUp } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ChevronRight, Clock, Loader2, Search, TrendingUp } from 'lucide-react';
 import LoadingState from '../LoadingState';
-import RecordIcon from './RecordIcon';
 import NeedsAnswerBanner from './NeedsAnswerBanner';
+import SendLessonButton from './SendLessonButton';
+import SendLessonSheet from './SendLessonSheet';
 import { portal } from '../../services/api';
+import { canRecordHere } from '../../lib/recordingSupport';
+import { deleteRecording, latestUnsent, type StoredRecording } from '../../lib/recordingStore';
+import { handOffRecording } from '../../lib/lessonHandoff';
+import { minutesText } from '../../lib/coachingUpload';
 import type { ActiveCoachingSession } from '../../services/api';
 import type { CoachingSession } from '../../types/portal';
 import { scoreBandFor, bandLabel, type BandKey } from '../../lib/scoreBands';
@@ -15,7 +20,12 @@ import { useToast } from '@/hooks/use-toast';
  * with phones (behind portal_self_observation; everyone else keeps the old one).
  *
  *   needs-your-answer banner   right under the navigation; Answer → the OLDEST one
- *   Record your class          one big animated button, the page's main action
+ *   not sent                   a recording left on this phone: Continue | Delete
+ *   Send a lesson to your      one big button, the page's main action (Option B3,
+ *     Digital Coach            bd-5rz1v.7). It opens the Send a lesson sheet:
+ *                              Record Live Lecture | Upload Recording. The record
+ *                              page is told which, in the route state; it has no
+ *                              screen of choices of its own.
  *   Analysing N lessons…       a quiet line, not a card
  *   Your recordings            search, subject, newest first, grouped by month;
  *                              lessons still in flight are rows in the same list
@@ -24,8 +34,11 @@ import { useToast } from '@/hooks/use-toast';
 const COPY = {
   title: 'Coaching',
   analytics: 'Analytics',
-  record: 'Record your class',
-  recordSub: 'Your Digital Coach listens and gives you tips.',
+  send: 'Send a lesson to your Digital Coach',
+  sendSub: 'Record it in class, or send one you already have.',
+  unsentTitle: 'You have a recording that was not sent',
+  continue: 'Continue',
+  delete: 'Delete',
   needs: (n: number) => (n === 1 ? '1 lesson needs your answer' : `${n} lessons need your answer`),
   answer: 'Answer',
   analysing: (n: number) => `Analysing ${n} lesson${n === 1 ? '' : 's'}. Ready in about 10 minutes.`,
@@ -109,8 +122,18 @@ function fromActive(a: ActiveCoachingSession): Row {
   };
 }
 
+/** Where the record page is sent, and what it is to do there. */
+const RECORD_PAGE = '/portal/coaching/new';
+export type RecordStart = { start: 'record' | 'file' | 'resume' };
+
 const CoachingHome = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  // The record page sends her back with { sendSheet: true } ("Delete and record again").
+  const [sheet, setSheet] = useState(() => (location.state as { sendSheet?: boolean } | null)?.sendSheet === true);
+  const [canRecord, setCanRecord] = useState(false);
+  const [unsent, setUnsent] = useState<StoredRecording | null>(null);
   const [loading, setLoading] = useState(true);
   const [done, setDone] = useState<CoachingSession[]>([]);
   const [active, setActive] = useState<ActiveCoachingSession[]>([]);
@@ -135,6 +158,31 @@ const CoachingHome = () => {
     })();
     return () => { live = false; };
   }, [toast]);
+
+  useEffect(() => {
+    let live = true;
+    canRecordHere().then((ok) => { if (live) setCanRecord(ok); }).catch(() => {});
+    latestUnsent().then((u) => { if (live) setUnsent(u ? u.meta : null); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  // Opened once: coming Back to this page later must not open the sheet again.
+  useEffect(() => {
+    if ((location.state as { sendSheet?: boolean } | null)?.sendSheet) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location, navigate]);
+
+  const toRecordPage = (start: RecordStart['start']) => {
+    setSheet(false);
+    navigate(RECORD_PAGE, { state: { start } satisfies RecordStart });
+  };
+
+  const deleteUnsent = async () => {
+    if (!unsent) return;
+    try { await deleteRecording(unsent.id); } catch { /* already gone */ }
+    setUnsent(null);
+  };
 
   // A lesson can be in both lists for a moment as it finishes; the finished one wins.
   const rows = useMemo(() => {
@@ -186,17 +234,36 @@ const CoachingHome = () => {
         </Link>
       </div>
 
-      <Link
-        to="/portal/coaching/new"
-        data-testid="record-your-class"
-        className="flex flex-col items-center gap-3.5 rounded-[20px] border-[3px] border-primary bg-[#e3f4ea] px-5 py-7 text-center text-primary no-underline shadow-[0_4px_14px_rgba(51,55,72,0.10)] sm:flex-row sm:gap-7 sm:px-8 sm:text-left"
-      >
-        <RecordIcon size={104} />
-        <span className="flex flex-col gap-1.5">
-          <span className="text-[26px] font-bold sm:text-3xl">{COPY.record}</span>
-          <span className="text-base text-[#3a4a42] sm:text-lg">{COPY.recordSub}</span>
-        </span>
-      </Link>
+      {unsent && (
+        <div className="mb-3.5 flex flex-col gap-3 rounded-2xl border-2 border-[#f0c36d] bg-[#fff6e0] p-4">
+          <div className="flex items-start gap-3">
+            <Clock className="mt-0.5 h-6 w-6 shrink-0 text-[#7a5600]" aria-hidden="true" />
+            <div className="flex flex-col gap-1">
+              <span className="text-[17px] font-bold text-[#5c4100]">{COPY.unsentTitle}</span>
+              <span className="text-[15px] text-[#7a5600]">
+                {[unsent.elapsedMs ? minutesText(unsent.elapsedMs) : null,
+                  new Date(unsent.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })]
+                  .filter(Boolean).join(' · ')}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2.5">
+            <button type="button" onClick={() => toRecordPage('resume')} className="h-12 flex-1 rounded-xl bg-primary text-[17px] font-bold text-white">{COPY.continue}</button>
+            <button type="button" onClick={deleteUnsent} className="h-12 rounded-xl border-2 border-[#d6d9de] bg-white px-5 text-[16px] font-semibold text-[#5b6170]">{COPY.delete}</button>
+          </div>
+        </div>
+      )}
+
+      <SendLessonButton title={COPY.send} sub={COPY.sendSub} onClick={() => setSheet(true)} testId="send-a-lesson" />
+
+      {sheet && (
+        <SendLessonSheet
+          canRecord={canRecord}
+          onRecord={() => toRecordPage('record')}
+          onFile={(file) => { handOffRecording(file); toRecordPage('file'); }}
+          onClose={() => setSheet(false)}
+        />
+      )}
 
       {analysingCount > 0 && (
         <div className="mt-3.5 flex items-center gap-2 px-1 text-sm text-[#5b6170]">

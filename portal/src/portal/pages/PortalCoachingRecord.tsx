@@ -1,32 +1,42 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import {
-  AlertTriangle, BookOpen, Camera, Check, ChevronLeft, Clock, FileText, Loader2, MessageCircle, Mic, MicOff,
+  AlertTriangle, BookOpen, Camera, Check, ChevronLeft, FileText, Loader2, MessageCircle, Mic, MicOff,
   Pause, Play, Smartphone, Upload, WifiOff, X,
 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
-import RecordIcon from '../components/coaching/RecordIcon';
 import BottomSheet from '../components/coaching/BottomSheet';
 import SoundBars from '../components/coaching/SoundBars';
 import LibraryPicker, { type PickedPlan } from '../components/coaching/LibraryPicker';
 import { portal } from '../services/api';
-import { acceptFor, checkFile, formatSize, MAX_PHOTOS, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
-import { canRecordHere, pickRecordingType } from '../lib/recordingSupport';
+import { acceptFor, checkFile, formatSize, MAX_PHOTOS, minutesText, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
+import { pickRecordingType } from '../lib/recordingSupport';
 import { keepScreenOn } from '../lib/keepAwake';
 import { LessonRecorder } from '../lib/lessonRecorder';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../lib/recordingStore';
+import { takeHandedOffRecording } from '../lib/lessonHandoff';
+import type { RecordStart } from '../components/coaching/CoachingHome';
 import { withDuration } from '../lib/webmDuration';
 import { sendLesson, SendError, type LibraryPick } from '../lib/coachingSend';
 
 /**
- * bd-5rz1v — "Record your class". Reached from the big button on Coaching.
+ * bd-5rz1v — recording and sending a lesson. Reached from Coaching's "Send a
+ * lesson" sheet (bd-5rz1v.7), which says in the route state what she chose:
+ *
+ *   { start: 'record' }   Record Live Lecture → recording at once
+ *   { start: 'file' }     Upload Recording → the file Coaching handed over
+ *   { start: 'resume' }   Continue → the recording that was never sent
+ *
+ * There is no screen of choices here any more (the old one repeated Coaching's
+ * button). Opened with no choice — a link, a reload, Back — it sends her to
+ * Coaching with the sheet open. The choice is taken once and cleared from
+ * history, so Back can never start a recording by itself.
  *
  * Built for a teacher who is not confident with phones: one big choice per
  * screen, few words, nothing that can end a lesson by accident.
  *
- *   choose     Record now (only where the microphone can work) | Choose a recording
  *   recording  big clock, sound bars, Pause, Finish — Finish asks first
  *   check      listen, redo, lesson plan (library | photo | file), board photos
  *   sending    progress; the recording stays on the phone until it has arrived
@@ -39,21 +49,13 @@ import { sendLesson, SendError, type LibraryPick } from '../lib/coachingSend';
  */
 
 const COPY = {
-  title: 'Record your class',
+  title: 'Send a lesson',
+  recordTitle: 'Record Live Lecture',
   checkTitle: 'Check and send',
   libraryTitle: 'Choose a lesson plan',
   notAvailable: "Recording a lesson from the portal isn't available on your account yet. You can still send a recording to the WhatsApp bot.",
-  recordNow: 'Record now',
-  recordNowSub: 'Start when your class starts.',
-  or: 'or',
-  chooseFile: 'Choose a recording',
-  chooseFileSub: 'One you already made on this phone.',
-  tip: 'Record the whole lesson. 30 to 40 minutes is best.',
   notAudio: 'That is not a recording. Choose a sound file from your phone.',
   tooLarge: 'That recording is too large to send.',
-  unsentTitle: 'You have a recording that was not sent',
-  sendIt: 'Send it',
-  delete: 'Delete',
   micBlocked: "We can't use the microphone",
   micAllow: 'When your phone asks, tap Allow.',
   micHelpApp: 'If you tapped Block before: open phone Settings → Apps → NIETE → Permissions → Microphone → Allow.',
@@ -137,13 +139,7 @@ type Plan =
   | { kind: 'file'; file: File; title: string; sub: string };
 
 type Stage =
-  | 'choose' | 'micBlocked' | 'recording' | 'check' | 'library' | 'sending' | 'failed' | 'busy' | 'sent';
-
-function minutesText(ms: number): string {
-  if (ms < 60_000) return 'less than a minute';
-  const m = Math.round(ms / 60_000);
-  return `${m} minute${m === 1 ? '' : 's'}`;
-}
+  | 'starting' | 'micBlocked' | 'recording' | 'check' | 'library' | 'sending' | 'failed' | 'busy' | 'sent';
 
 function clockText(ms: number): string {
   const total = Math.floor(ms / 1000);
@@ -208,11 +204,11 @@ const Warning = ({ children }: { children: ReactNode }) => (
 
 const PortalCoachingRecord = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [enabled, setEnabled] = useState<boolean | null>(null);
-  const [canRecord, setCanRecord] = useState(false);
-  const [stage, setStage] = useState<Stage>('choose');
-  const [unsent, setUnsent] = useState<{ meta: StoredRecording; blob: Blob } | null>(null);
+  const [stage, setStage] = useState<Stage>('starting');
   const [fileError, setFileError] = useState<string | null>(null);
+  const begun = useRef(false);
 
   // recording
   const recorderRef = useRef<LessonRecorder | null>(null);
@@ -250,14 +246,12 @@ const PortalCoachingRecord = () => {
 
   const level = useMicLevel(stream, stage === 'recording' && !paused);
 
-  // ── first load: is it on for her, can this device record, anything unsent? ──
+  // ── first load: is it on for her? ─────────────────────────────────────────
   useEffect(() => {
     let live = true;
     Promise.resolve().then(() => portal.getConfig())
       .then((cfg) => { if (live) setEnabled(cfg?.features?.selfObservation === true); })
       .catch(() => { if (live) setEnabled(false); });
-    canRecordHere().then((ok) => { if (live) setCanRecord(ok); }).catch(() => {});
-    latestUnsent().then((u) => { if (live) setUnsent(u); }).catch(() => {});
     return () => { live = false; };
   }, []);
 
@@ -292,7 +286,12 @@ const PortalCoachingRecord = () => {
     if (recorderRef.current) void recorderRef.current.stop().catch(() => {});
   }, []);
 
-  // ── choose ────────────────────────────────────────────────────────────────
+  const toCoaching = useCallback(
+    () => navigate('/portal/coaching', { replace: true, state: { sendSheet: true } }),
+    [navigate],
+  );
+
+  // ── start ─────────────────────────────────────────────────────────────────
   const startRecording = async () => {
     const type = pickRecordingType();
     if (!type) { setStage('micBlocked'); return; }
@@ -323,11 +322,12 @@ const PortalCoachingRecord = () => {
     setStage('recording');
   };
 
-  const onAudioChosen = async (file: File | undefined) => {
+  /** A recording file she picked; false (and a message) when it is not one. */
+  const onAudioChosen = async (file: File | undefined): Promise<boolean> => {
     setFileError(null);
-    if (!file) return;
+    if (!file) return false;
     const problem = checkFile(file, 'audio');
-    if (problem) { setFileError(problem === 'too_large' ? COPY.tooLarge : COPY.notAudio); return; }
+    if (problem) { setFileError(problem === 'too_large' ? COPY.tooLarge : COPY.notAudio); return false; }
     const seconds = await readAudioDuration(file);
     const durationMs = seconds != null ? seconds * 1000 : null;
     setAudio({
@@ -339,10 +339,10 @@ const PortalCoachingRecord = () => {
       sub: [durationMs != null ? minutesText(durationMs) : null, formatSize(file.size)].filter(Boolean).join(' · '),
     });
     setStage('check');
+    return true;
   };
 
-  const sendUnsent = async () => {
-    if (!unsent) return;
+  const continueUnsent = async (unsent: { meta: StoredRecording; blob: Blob }) => {
     const { meta } = unsent;
     const blob = await withDuration(unsent.blob, meta.ext, meta.elapsedMs);
     setAudio({
@@ -355,15 +355,33 @@ const PortalCoachingRecord = () => {
         new Date(meta.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })]
         .filter(Boolean).join(' · '),
     });
-    setUnsent(null);
     setStage('check');
   };
 
-  const deleteUnsent = async () => {
-    if (!unsent) return;
-    try { await deleteRecording(unsent.meta.id); } catch { /* already gone */ }
-    setUnsent(null);
-  };
+  // What she chose on Coaching, done once it is on for her. The choice is then
+  // cleared from this history entry: Back to this page must not start anything.
+  useEffect(() => {
+    if (enabled !== true || begun.current) return;
+    begun.current = true;
+    const start = (location.state as Partial<RecordStart> | null)?.start;
+    navigate(location.pathname, { replace: true, state: null });
+    if (start === 'record') { void startRecording(); return; }
+    if (start === 'file') {
+      const file = takeHandedOffRecording();
+      if (!file) { toCoaching(); return; }
+      void onAudioChosen(file).then((ok) => { if (!ok) toCoaching(); });
+      return;
+    }
+    if (start === 'resume') {
+      latestUnsent()
+        .then((u) => (u ? continueUnsent(u) : toCoaching()))
+        .catch(toCoaching);
+      return;
+    }
+    toCoaching();
+    // Runs once, when /config has answered; the handlers are this render's.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   // ── recording ─────────────────────────────────────────────────────────────
   const togglePause = () => {
@@ -394,13 +412,16 @@ const PortalCoachingRecord = () => {
   };
 
   // ── check ─────────────────────────────────────────────────────────────────
+  // A recording made here: delete it and go back to Coaching's sheet, to record
+  // again or upload. A file: open the picker from this tap; she keeps the one
+  // she has unless she picks another.
   const redo = async () => {
     const wasRecorded = audio?.recordingId;
-    if (wasRecorded) { try { await deleteRecording(wasRecorded); } catch { /* gone */ } }
+    if (!wasRecorded) { audioInput.current?.click(); return; }
+    try { await deleteRecording(wasRecorded); } catch { /* gone */ }
     setAudio(null);
     setPlaying(false);
-    setStage('choose');
-    if (!wasRecorded) setTimeout(() => audioInput.current?.click(), 0);
+    toCoaching();
   };
 
   const togglePlay = () => {
@@ -465,7 +486,10 @@ const PortalCoachingRecord = () => {
 
   // ── header ────────────────────────────────────────────────────────────────
   const recordingNow = stage === 'recording';
-  const title = stage === 'library' ? COPY.libraryTitle : stage === 'check' ? COPY.checkTitle : COPY.title;
+  const title = stage === 'library' ? COPY.libraryTitle
+    : stage === 'check' ? COPY.checkTitle
+      : stage === 'recording' || stage === 'micBlocked' ? COPY.recordTitle
+        : COPY.title;
   const back = () => {
     if (stage === 'library') {
       if (libraryLevel > 0) setLibraryBack((n) => n + 1); else setStage('check');
@@ -502,63 +526,12 @@ const PortalCoachingRecord = () => {
           <h1 className={`text-lg font-bold text-primary ${recordingNow || stage === 'sending' ? 'pl-2' : ''}`}>{title}</h1>
         </div>
 
-        {/* 1. choose */}
-        {stage === 'choose' && (
-          <div className="flex flex-col gap-4">
-            {unsent && (
-              <div className="flex flex-col gap-3 rounded-2xl border-2 border-[#f0c36d] bg-[#fff6e0] p-4">
-                <div className="flex items-start gap-3">
-                  <Clock className="mt-0.5 h-6 w-6 shrink-0 text-[#7a5600]" aria-hidden="true" />
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[17px] font-bold text-[#5c4100]">{COPY.unsentTitle}</span>
-                    <span className="text-[15px] text-[#7a5600]">
-                      {[unsent.meta.elapsedMs ? minutesText(unsent.meta.elapsedMs) : null,
-                        new Date(unsent.meta.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })]
-                        .filter(Boolean).join(' · ')}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex gap-2.5">
-                  <button type="button" onClick={sendUnsent} className="h-12 flex-1 rounded-xl bg-primary text-[17px] font-bold text-white">{COPY.sendIt}</button>
-                  <button type="button" onClick={deleteUnsent} className="h-12 rounded-xl border-2 border-[#d6d9de] bg-white px-5 text-[16px] font-semibold text-[#5b6170]">{COPY.delete}</button>
-                </div>
-              </div>
-            )}
+        {stage === 'starting' && <LoadingState type="full" />}
 
-            {canRecord && (
-              <>
-                <button type="button" onClick={startRecording}
-                  className="flex flex-col items-center gap-3.5 rounded-[20px] border-[3px] border-primary bg-[#e3f4ea] px-5 py-7 text-center text-primary shadow-[0_4px_14px_rgba(51,55,72,0.10)]">
-                  <RecordIcon size={104} />
-                  <span className="text-2xl font-bold">{COPY.recordNow}</span>
-                  <span className="text-base text-[#3a4a42]">{COPY.recordNowSub}</span>
-                </button>
-                <div className="flex items-center gap-3 text-[15px] text-muted-foreground">
-                  <span className="h-px flex-1 bg-[#d6d9de]" /><span>{COPY.or}</span><span className="h-px flex-1 bg-[#d6d9de]" />
-                </div>
-              </>
-            )}
-
-            <button type="button" onClick={() => audioInput.current?.click()}
-              className="flex items-center gap-4 rounded-2xl border-2 border-primary bg-white px-5 py-4 text-left text-primary">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-[#eef0f4]">
-                <Upload className="h-7 w-7" aria-hidden="true" />
-              </span>
-              <span className="flex flex-col gap-1">
-                <span className="text-xl font-bold">{COPY.chooseFile}</span>
-                <span className="text-[15px] text-[#5b6170]">{COPY.chooseFileSub}</span>
-              </span>
-            </button>
-            <input ref={audioInput} data-testid="audio-input" type="file" accept={`${acceptFor('audio')},audio/*`} className="hidden"
-              onChange={(e) => { void onAudioChosen(e.target.files?.[0]); e.target.value = ''; }} />
-            {fileError && <Warning>{fileError}</Warning>}
-
-            <div className="flex items-start gap-2.5 rounded-xl bg-white p-3.5 text-[15px] leading-snug text-[#3a3f4b]">
-              <Clock className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
-              <span>{COPY.tip}</span>
-            </div>
-          </div>
-        )}
+        {/* the one place a recording file is picked on this page: "Choose a
+            recording instead" (microphone refused) and "Choose a different file" */}
+        <input ref={audioInput} data-testid="audio-input" type="file" accept={`${acceptFor('audio')},audio/*`} className="hidden"
+          onChange={(e) => { void onAudioChosen(e.target.files?.[0]); e.target.value = ''; }} />
 
         {/* 1b. microphone refused */}
         {stage === 'micBlocked' && (
@@ -572,8 +545,9 @@ const PortalCoachingRecord = () => {
               {native ? COPY.micHelpApp : COPY.micHelpWeb}
             </p>
             <button type="button" onClick={startRecording} className="h-14 w-full rounded-xl bg-primary text-lg font-bold text-white">{COPY.tryAgain}</button>
-            <button type="button" onClick={() => { setStage('choose'); setTimeout(() => audioInput.current?.click(), 0); }}
+            <button type="button" onClick={() => audioInput.current?.click()}
               className="h-[52px] w-full rounded-xl border-2 border-primary bg-white text-[17px] font-bold text-primary">{COPY.chooseInstead}</button>
+            {fileError && <div className="w-full text-left"><Warning>{fileError}</Warning></div>}
           </div>
         )}
 
@@ -648,6 +622,7 @@ const PortalCoachingRecord = () => {
                 {audio.recordingId ? COPY.recordAgain : COPY.chooseAnother}
               </button>
             </div>
+            {fileError && <Warning>{fileError}</Warning>}
 
             {isShort && <Warning>{COPY.shortWarning}</Warning>}
 
