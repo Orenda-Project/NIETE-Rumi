@@ -369,7 +369,31 @@ function startScoring(d, session, block) {
   });
 }
 
-const registerBlockMedia = guarded('register', async ({ userId, sessionId, block, audioKey, photoKey }, d) => {
+/**
+ * The app knows exactly when the timed minute started and ended inside the
+ * recording (a tap, not a guess from the audio). Stored as session timings —
+ * `<block>.app_timed_start` etc. — next to the cue phrase the scorer listens
+ * for. A malformed value is skipped: it must never cost the upload.
+ */
+async function recordAppTiming(d, sessionId, block, timing) {
+  if (!timing || typeof timing !== 'object') return;
+  const start = Date.parse(timing.startedAt);
+  if (!Number.isFinite(start)) return;
+  const at = (ms) => (Number.isFinite(Number(ms)) && ms !== null && ms !== '' ? new Date(start + Number(ms)) : null);
+  const marks = [
+    ['app_recording_start', new Date(start)],
+    ['app_timed_start', at(timing.timedStartMs)],
+    ['app_timed_end', at(timing.timedEndMs)],
+    ['app_finished_early', timing.finishedEarly === true ? at(timing.timedEndMs) : null],
+    ['app_fallback', timing.fallback === true ? at(timing.timedEndMs) : null],
+  ];
+  for (const [name, when] of marks) {
+    // eslint-disable-next-line no-await-in-loop
+    if (when) await d.store.recordTiming(sessionId, `${block}.${name}`, when);
+  }
+}
+
+const registerBlockMedia = guarded('register', async ({ userId, sessionId, block, audioKey, photoKey, timing }, d) => {
   if (!BLOCKS.includes(block)) return { status: 'invalid', reason: 'bad_block' };
   if (!audioKey && !photoKey) return { status: 'invalid', reason: 'no_media' };
   const session = await ownSession(d, userId, sessionId);
@@ -392,7 +416,10 @@ const registerBlockMedia = guarded('register', async ({ userId, sessionId, block
     if (attached && attached.alreadyScored) return { status: 'invalid', reason: 'already_scored' };
     throw new Error((attached && attached.error) || 'attachBlockMedia failed');
   }
-  if (audioKey) await d.store.recordTiming(sessionId, `${block}.audio_received`, d.now());
+  if (audioKey) {
+    await d.store.recordTiming(sessionId, `${block}.audio_received`, d.now());
+    await recordAppTiming(d, sessionId, block, timing);
+  }
   if (photoKey) await d.store.recordTiming(sessionId, 'maths.photo_received', d.now());
   d.log('child_test.app.media', { userId, sessionId, block, audio: !!audioKey, photo: !!photoKey });
 

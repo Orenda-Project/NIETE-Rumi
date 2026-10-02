@@ -305,6 +305,33 @@ describe('upload', () => {
     expect(deps.scoring.scoreBlock).toHaveBeenCalledWith({ sessionId: SESSION, block: 'urdu', grade: 3, form: 'A' });
   });
 
+  test("the app's timed-minute offsets are stored as session timings, so the scorer can find the window", async () => {
+    const deps = makeDeps();
+    const key = `child-test/sandbox/${SCHOOL}/${SESSION}/urdu.webm`;
+    await Svc.registerBlockMedia({
+      userId: COACH, sessionId: SESSION, block: 'urdu', audioKey: key,
+      timing: { startedAt: '2026-10-02T09:00:00.000Z', timedStartMs: 2000, timedEndMs: 47000, finishedEarly: true, fallback: false, attempts: 2 },
+    }, deps);
+    const calls = deps.store.recordTiming.mock.calls.map(([, k, at]) => [k, at.toISOString()]);
+    expect(calls).toEqual(expect.arrayContaining([
+      ['urdu.app_recording_start', '2026-10-02T09:00:00.000Z'],
+      ['urdu.app_timed_start', '2026-10-02T09:00:02.000Z'],
+      ['urdu.app_timed_end', '2026-10-02T09:00:47.000Z'],
+      ['urdu.app_finished_early', '2026-10-02T09:00:47.000Z'],
+    ]));
+    expect(calls.map(([k]) => k)).not.toContain('urdu.app_fallback');
+  });
+
+  test('a malformed timing is ignored, never a failed upload', async () => {
+    const deps = makeDeps();
+    const out = await Svc.registerBlockMedia({
+      userId: COACH, sessionId: SESSION, block: 'urdu', audioKey: `child-test/sandbox/${SCHOOL}/${SESSION}/urdu.webm`,
+      timing: { startedAt: 'yesterday', timedStartMs: 'x' },
+    }, deps);
+    expect(out.status).toBe('ok');
+    expect(deps.store.recordTiming.mock.calls.map(([, k]) => k)).toEqual(['urdu.audio_received']);
+  });
+
   test('maths is scored only once both the audio and the strip photo are in', async () => {
     const deps = makeDeps();
     const base = `child-test/sandbox/${SCHOOL}/${SESSION}`;
