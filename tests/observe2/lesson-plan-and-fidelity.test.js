@@ -358,6 +358,35 @@ describe('checking the plan in the check', () => {
     expect(out.data.fe_1).toBe('[00:10] What do you notice about the two strips?');
   });
 
+  // The grader's real phase names, and a homework step it does not count (sandbox E2E, 2 Oct:
+  // the header said 7 steps over a list of 8, and most steps were labelled a bare "Step").
+  test('every step carries its phase, its whole text, and says when it does not count', async () => {
+    const long = `Draw a reference chart on the board with the four-step method. ${'Say each step aloud and point to it. '.repeat(14)}Leave it up for the practice.`;
+    const moves = [
+      { move_id: 'h1', phase: 'hook', bucket: 'must_happen', text: 'Present the produce crate scenario.' },
+      { move_id: 'h2', phase: 'explain', bucket: 'must_happen', text: long },
+      { move_id: 'h3', phase: 'exit', bucket: 'must_happen', text: 'Exit slip: compare 3/7 and 4/9.' },
+      { move_id: 'h4', phase: 'homework', bucket: 'optional_extension', adjudicable: false, text: 'Page 81, questions 1c and 1d.' },
+    ];
+    const verdicts = [
+      { move_id: 'h1', verdict: 'executed', rationale: 'Used the crates.' },
+      { move_id: 'h2', verdict: 'partial', rationale: 'Two of the four steps.' },
+      { move_id: 'h3', verdict: 'not_done', rationale: 'No exit slip.' },
+      { move_id: 'h4', verdict: 'executed', rationale: 'Set aloud at the end.' },
+    ];
+    const { scoreFidelity } = require('../../bot/shared/services/coaching/fidelity/fidelity-scorer');
+    const id = await checkable({ status: 'ok', source: 'corpus', lesson_id: LESSON, ...scoreFidelity(moves, verdicts) });
+    const out = await toExplain(id);
+    expect(out.data.fid_header).toMatch(/^The plan has 4 steps; 3 count toward the result\./);
+    expect(out.data.fid_header).toMatch(/From the recording: 1 done, 1 partly, 1 not done \(50%\)\./);
+    expect(out.data.mv_1).toMatch(/^Step 1 of 4 · Hook: Present the produce crate scenario\./);
+    expect(out.data.mv_2).toMatch(/^Step 2 of 4 · Explaining: Draw a reference chart/);
+    expect(out.data.mv_2).toContain('Leave it up for the practice.');
+    expect(out.data.mv_3).toMatch(/^Step 3 of 4 · Exit check: /);
+    expect(out.data.mv_4).toMatch(/^Step 4 of 4 · Homework \(not counted\): Page 81/);
+    for (let k = 1; k <= 4; k += 1) expect(out.data[`mv_${k}`]).not.toMatch(/· Step:/);
+  });
+
   test('no plan, or a plan that could not be graded: straight to the levels', async () => {
     for (const fid of [null, { status: 'lp_absent' }, { status: 'fidelity_unavailable' }]) {
       // eslint-disable-next-line no-await-in-loop

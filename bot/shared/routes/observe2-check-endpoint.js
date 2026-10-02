@@ -92,11 +92,15 @@ function renderAdded(screenId, added) {
 // ------------------------------------------------------------------ fidelity
 
 const DONE_VERDICTS = new Set(['executed', 'substituted_equivalent', 'substituted_better']);
+// The grader's phase names (the move lists'), plus the older long names some plans still carry.
 const PHASE = {
-  warm_up: 'Warm-up', introduction: 'Introduction', direct_instruction: 'Teaching',
-  guided_practice: 'Practice together', independent_practice: 'Practice alone',
-  assessment: 'Checking', closure: 'Closing', homework: 'Homework',
+  warm_up: 'Warm-up', hook: 'Hook', recall: 'Recall', announce: 'Lesson aim', explain: 'Explaining',
+  guided: 'Practice together', independent: 'Practice alone', peer_review: 'Pairs check each other',
+  exit: 'Exit check', homework: 'Homework',
+  introduction: 'Introduction', direct_instruction: 'Explaining', guided_practice: 'Practice together',
+  independent_practice: 'Practice alone', assessment: 'Exit check', closure: 'Closing',
 };
+const STEP_TEXT_CAP = 700;
 
 /** The recording's grading of the plan, when there is one to check. */
 function gradedPlan(form) {
@@ -110,6 +114,7 @@ function planTally(lp) {
     total: lp.prescribed_count != null ? lp.prescribed_count : counted.length,
     done: counted.filter((m) => DONE_VERDICTS.has(m.verdict)).length,
     partly: counted.filter((m) => m.verdict === 'partial').length,
+    missed: counted.filter((m) => m.verdict === 'not_done').length,
   };
 }
 
@@ -118,8 +123,11 @@ function renderFidelity(form) {
   const { composeEditableFidelity, clipWords } = require('../services/observe/observe-draft.service');
   const slots = (composeEditableFidelity(lp) || { slots: [] }).slots;
   const t = planTally(lp);
+  const n = lp.moves.length;
+  // Homework, and extras the plan offers, are listed but not counted: say so, or "7 steps" sits over a list of 8.
   const header = [
-    `The plan asked for ${t.total} steps. From the recording: ${t.done} done${t.partly ? `, ${t.partly} partly` : ''} (${Math.round(lp.fidelity_pct)}%).`,
+    t.total === n ? `The plan has ${n} steps.` : `The plan has ${n} steps; ${t.total} count toward the result.`,
+    `From the recording: ${t.done} done${t.partly ? `, ${t.partly} partly` : ''}${t.missed ? `, ${t.missed} not done` : ''} (${Math.round(lp.fidelity_pct)}%).`,
     'Check each step below and change any you saw differently; the result follows your answers.',
   ];
   if (lp.moves.length > FIDELITY_SLOTS) header.push(`Steps after the ${FIDELITY_SLOTS}th keep the recording's rating.`);
@@ -129,8 +137,9 @@ function renderFidelity(form) {
     const m = lp.moves[k - 1];
     const slot = slots[k - 1];
     const why = m ? String(m.rationale || '').trim() : '';
+    const label = m ? `Step ${k} of ${n}${PHASE[m.phase] ? ` · ${PHASE[m.phase]}` : ''}${m.counted ? '' : ' (not counted)'}` : '';
     data[`mv_${k}`] = m
-      ? `${clipWords(`Step ${k} of ${lp.moves.length} · ${PHASE[m.phase] || 'Step'}: ${m.text}`, 300)}${why ? `\nFrom the recording: ${clipWords(why, 250)}` : ''}`
+      ? `${clipWords(`${label}: ${m.text}`, STEP_TEXT_CAP)}${why ? `\nFrom the recording: ${clipWords(why, 250)}` : ''}`
       : '';
     data[`mv_${k}_v`] = Boolean(m);
     data[`fr_${k}`] = slot ? slot.verdict : '';
