@@ -17,6 +17,12 @@
  * <fixtures>/_manifest.json spread across reading bands. Each child gets a strip photo from --strips
  * (matched by grade, round-robin).
  * Output in --run: timeline.jsonl, summary.json (rtt_samples for sim/timing_model.py --measured), run.json.
+ *
+ * The check's coach: --coach-catch P (L14: corrects a disagreement with probability P), or the rubber-stamp
+ * model --coach-catch-prefilled <marked>,<unmarked> (bd-s1oo0.21, e.g. 0.8,0.4: a wrong PRE-FILLED field is
+ * caught at <marked> when the screen says "unsure, please check", else <unmarked>), plus
+ * --coach-blind-accuracy A (an EMPTY field filled right with probability A; default 1). The bot's
+ * pre-fill mode is the stack's CHILD_TEST_PREFILL_MODE (sim-stack.sh passes it through).
  */
 'use strict';
 const fs = require('fs');
@@ -82,6 +88,9 @@ function makeCheckPlayer(a, mode, fixtures) {
   const transport = new FlowTransport({ publicKeyPem });
   const costs = P.loadActionCosts(a['coach-actions'] || undefined);
   const catchP = a['coach-catch'] != null ? Number(a['coach-catch']) : 0.9;
+  // bd-s1oo0.21: the rubber-stamping coach — catch rates for a wrong PRE-FILLED field, unsure-marked vs not
+  const catchPrefilled = P.parseCatchPrefilled(a['coach-catch-prefilled']);
+  const blindAccuracy = a['coach-blind-accuracy'] != null ? Number(a['coach-blind-accuracy']) : 1;
   const rng = P.makeRng(a['coach-seed'] != null ? Number(a['coach-seed']) : 1);
   const byId = Object.fromEntries(fixtures.map((f) => [f.id, f]));
   const player = async (card, { child }) => {
@@ -97,12 +106,12 @@ function makeCheckPlayer(a, mode, fixtures) {
       }
     }
     try {
-      return await P.playCheck({ token: card.flow.token, url, transport, key, items: formItems(key.grade, key.form || 'A'), rng, catchP, costs });
+      return await P.playCheck({ token: card.flow.token, url, transport, key, items: formItems(key.grade, key.form || 'A'), rng, catchP, costs, catchPrefilled, blindAccuracy });
     } catch (e) {
       return { ok: false, reason: e.message, actions: [], rtts: [], check_s: 0 };
     }
   };
-  player.info = { url, catchP, seed: a['coach-seed'] != null ? Number(a['coach-seed']) : 1 };
+  player.info = { url, catchP, catchPrefilled, blindAccuracy, prefillMode: process.env.CHILD_TEST_PREFILL_MODE || 'strict', seed: a['coach-seed'] != null ? Number(a['coach-seed']) : 1 };
   return player;
 }
 

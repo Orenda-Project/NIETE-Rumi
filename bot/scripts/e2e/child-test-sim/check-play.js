@@ -12,6 +12,11 @@
  *     the key beyond L5's tolerance           (missed — logged, costs nothing)
  *   a pre-filled field that agrees          → confirmed: nothing beyond the screen's confirm
  *   a field the key has no value for        → an empty one gets a neutral answer (no_key); a filled one is left
+ * With catchPrefilled ({unsure, unmarked}, driver --coach-catch-prefilled, bd-s1oo0.21) the coach rubber-stamps:
+ * a wrong PRE-FILLED field is corrected with probability `unsure` when the screen marks it "unsure, please
+ * check" (CHILD_TEST_PREFILL_MODE=assist) and `unmarked` otherwise; every unsure-marked field costs a look
+ * (check_unsure) even when it is right; and with blindAccuracy < 1 an EMPTY field is filled wrong that
+ * often. Without catchPrefilled the coach is L14's: catchP for every disagreement, no looks.
  * "Disagrees" is eval-compare.js (L5's bands: story ±5, quick sums ±3, fallback ±3, items exact after
  * none → wrong). Every action is priced from coach-actions.json, so a child's check time is the sum of
  * the actions plus the measured round trips.
@@ -61,6 +66,40 @@ const byId = (list, id) => (Array.isArray(list) ? list.find((x) => x && x.id ===
 // the answer sets a radio accepts (check-flow/prefill.js VERDICTS / WRITTEN)
 const toVerdict = (v) => (v === 'correct' || v === 'wrong' || v === 'none' ? v : (v == null ? null : 'none'));
 
+/** "0.8,0.4" → { unsure: 0.8, unmarked: 0.4 } (the --coach-catch-prefilled flag); undefined → null. */
+function parseCatchPrefilled(v) {
+  if (v == null || v === '' || v === true) return null;
+  const parts = String(v).split(',').map((x) => Number(x.trim()));
+  if (parts.length !== 2 || parts.some((x) => !Number.isFinite(x) || x < 0 || x > 1)) {
+    throw new Error(`--coach-catch-prefilled wants "<marked>,<unmarked>", two rates in [0,1]; got ${v}`);
+  }
+  return { unsure: parts[0], unmarked: parts[1] };
+}
+
+/** The unsure markers L6 puts on a screen in assist (check-flow/strings.js), in either language. */
+function unsureMarkers() {
+  const { STRINGS } = require('../../../shared/services/child-test/check-flow/strings');
+  return Object.values(STRINGS).map((S) => ({ help: S.help_unsure, check: S.unsure_check, flags: S.u_flags })).filter((m) => m.help && m.check);
+}
+
+/** Is this field marked "unsure, please check" on the screen? */
+function isUnsure(data, field) {
+  const M = unsureMarkers();
+  const anyIn = (s, key) => typeof s === 'string' && M.some((m) => s.includes(m[key]));
+  if (field === 'flag' || field === 'sw') return anyIn(data.unsure_line, 'flags');
+  if (/^(wc|wa)$/.test(field)) return M.some((m) => data.wc_h === m.help);
+  if (/^(qc|qa)$/.test(field)) return M.some((m) => data.qc_h === m.help);
+  if (/^(fl|fw)$/.test(field)) return anyIn(data[`${field}_h`], 'check');
+  return anyIn(data[`${field}_d`], 'check');
+}
+
+/** A blind fill the coach gets wrong: a count outside every tolerance band, or another verdict. */
+function wrongValue(keyVal, kind) {
+  if (kind === 'count') return String(Number(keyVal) + 7);
+  const order = kind === 'written' ? ['correct', 'wrong', 'blank', 'unreadable'] : ['correct', 'wrong', 'none'];
+  return order[(order.indexOf(keyVal) + 1) % order.length];
+}
+
 /** What the screen arrived with, posted back as-is (L6's endpoint.test.js#posted does the same). */
 function postedFrom(screen, data) {
   const p = PREFIX[SCREEN_BLOCK[screen]];
@@ -77,7 +116,7 @@ function postedFrom(screen, data) {
  * One screen: what the coach posts, and every action it took.
  * @param {{screen:string, data:object, key:object, items:object|null, rng:Function, catchP:number, costs:object}} o
  */
-function coachFill({ screen, data, key, items, rng, catchP = 0.9, costs }) {
+function coachFill({ screen, data, key, items, rng, catchP = 0.9, costs, catchPrefilled = null, blindAccuracy = 1 }) {
   const block = SCREEN_BLOCK[screen];
   if (!block) throw new Error(`coachFill: unknown screen ${screen}`);
   const p = PREFIX[block];
@@ -86,7 +125,16 @@ function coachFill({ screen, data, key, items, rng, catchP = 0.9, costs }) {
   const kb = block === 'maths' ? (((key.blocks || {}).maths || {}).maths || {}) : ((key.blocks || {})[block] || {});
   const it = (items && items[block]) || {};
   const act = (action, field, reason, extra = {}) => actions.push({ action, screen, field, reason, cost_s: reason === 'missed' ? 0 : costs[action], ...extra });
-  const caught = () => rng() < catchP;
+  // the catch rate for a wrong pre-filled field: L14's single rate, or the rubber-stamp pair
+  const caught = (field) => rng() < (catchPrefilled ? (isUnsure(data, field) ? catchPrefilled.unsure : catchPrefilled.unmarked) : catchP);
+  const looked = new Set();
+  // every unsure-marked field gets a look (once), right or wrong
+  const look = (field) => {
+    if (!catchPrefilled || looked.has(field) || !isUnsure(data, field)) return;
+    looked.add(field);
+    actions.push({ action: 'check_unsure', screen, field: `${p}${field}`, reason: 'unsure', cost_s: costs.check_unsure });
+  };
+  const blind = (keyVal, kind) => (blindAccuracy >= 1 || rng() < blindAccuracy ? String(keyVal) : wrongValue(keyVal, kind));
 
   function count(field, keyVal, tolField) {
     const f = `${p}${field}`; const init = data[`${field}_i`];
@@ -94,9 +142,10 @@ function coachFill({ screen, data, key, items, rng, catchP = 0.9, costs }) {
       if (!has(init)) { posted[f] = '0'; act('type_count', f, 'no_key'); }
       return;
     }
-    if (!has(init)) { posted[f] = String(keyVal); act('type_count', f, 'fill_empty', { key: keyVal }); return; }
+    if (!has(init)) { posted[f] = blind(keyVal, 'count'); act('type_count', f, 'fill_empty', { key: keyVal }); return; }
+    look(field);
     if (withinTolerance(tolField, init, keyVal)) return;
-    if (caught()) { posted[f] = String(keyVal); act('type_count', f, 'correct', { ai: init, key: keyVal }); } else act('type_count', f, 'missed', { ai: init, key: keyVal });
+    if (caught(field)) { posted[f] = String(keyVal); act('type_count', f, 'correct', { ai: init, key: keyVal }); } else act('type_count', f, 'missed', { ai: init, key: keyVal });
   }
 
   function radio(field, keyVal, cmpField) {
@@ -105,19 +154,21 @@ function coachFill({ screen, data, key, items, rng, catchP = 0.9, costs }) {
       if (!has(init)) { posted[f] = cmpField === 'maths.written' ? 'unreadable' : 'none'; act('choose_radio', f, 'no_key'); }
       return;
     }
-    if (!has(init)) { posted[f] = keyVal; act('choose_radio', f, 'fill_empty', { key: keyVal }); return; }
+    if (!has(init)) { posted[f] = blind(keyVal, cmpField === 'maths.written' ? 'written' : 'verdict'); act('choose_radio', f, 'fill_empty', { key: keyVal }); return; }
+    look(field);
     if (verdictAgrees(cmpField, init, keyVal)) return;
-    if (caught()) { posted[f] = keyVal; act('choose_radio', f, 'correct', { ai: init, key: keyVal }); } else act('choose_radio', f, 'missed', { ai: init, key: keyVal });
+    if (caught(field)) { posted[f] = keyVal; act('choose_radio', f, 'correct', { ai: init, key: keyVal }); } else act('choose_radio', f, 'missed', { ai: init, key: keyVal });
   }
 
   /** wrongOf(id) → true (key: read wrong) | false (read right) | null (no key: leave the chip alone). */
   function chips(field, wrongOf) {
     const f = `${p}${field}`;
     const on = new Set((posted[f] || []).map(String));
+    look(field);
     for (const opt of data[`${field}_opts`] || []) {
       const want = wrongOf(opt.id);
       if (want == null || want === on.has(opt.id)) continue;
-      if (caught()) { if (want) on.add(opt.id); else on.delete(opt.id); act('tick_chip', `${f}:${opt.id}`, 'correct', { key: want ? 'wrong' : 'correct' }); } else act('tick_chip', `${f}:${opt.id}`, 'missed', { key: want ? 'wrong' : 'correct' });
+      if (caught(field)) { if (want) on.add(opt.id); else on.delete(opt.id); act('tick_chip', `${f}:${opt.id}`, 'correct', { key: want ? 'wrong' : 'correct' }); } else act('tick_chip', `${f}:${opt.id}`, 'missed', { key: want ? 'wrong' : 'correct' });
     }
     posted[f] = [...on];
   }
@@ -198,7 +249,7 @@ function savedLine(line) {
  * @returns {Promise<{ok:boolean, reason?:string, screens:string[], actions:object[], rtts:object[], check_s:number,
  *   session_id?:string, response_json?:object}>}
  */
-async function playCheck({ token, url, transport, key, items, rng, catchP = 0.9, costs, clock = Date.now, maxRetries = 2 }) {
+async function playCheck({ token, url, transport, key, items, rng, catchP = 0.9, costs, clock = Date.now, maxRetries = 2, catchPrefilled = null, blindAccuracy = 1 }) {
   const actions = [{ action: 'open_check', cost_s: costs.open_check }];
   const rtts = []; const screens = [];
   const result = (extra) => {
@@ -218,7 +269,7 @@ async function playCheck({ token, url, transport, key, items, rng, catchP = 0.9,
     const screen = res.screen;
     if (!SCREEN_BLOCK[screen]) return result({ ok: false, reason: `unexpected screen ${screen}` });
     screens.push(screen);
-    const fill = coachFill({ screen, data: res.data || {}, key, items, rng, catchP, costs });
+    const fill = coachFill({ screen, data: res.data || {}, key, items, rng, catchP, costs, catchPrefilled, blindAccuracy });
     actions.push(...fill.actions);
     let next = await call({ version: '3.0', action: 'data_exchange', flow_token: token, screen, data: { screen, ...fill.posted } });
     for (let tries = 0; next.screen === screen && tries < maxRetries; tries += 1) {
@@ -256,4 +307,4 @@ function publicKeyFrom(env = process.env) {
   return crypto.createPublicKey(priv).export({ type: 'spki', format: 'pem' }).toString();
 }
 
-module.exports = { coachFill, fixErrors, playCheck, endpointFor, publicKeyFrom, makeRng, loadActionCosts, postedFrom, ACTION_SOURCES, SANDBOX_ENDPOINT };
+module.exports = { coachFill, fixErrors, playCheck, endpointFor, publicKeyFrom, makeRng, loadActionCosts, postedFrom, parseCatchPrefilled, isUnsure, ACTION_SOURCES, SANDBOX_ENDPOINT };
