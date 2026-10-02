@@ -282,6 +282,12 @@ async function handleFeedbackButton(buttonId, phone, opts = {}) {
   // columns — the delivery paths stash them inside `content` for us to read
   // here. Fall back to the row columns for legacy rows / other writers.
   const meta = (lp.content && typeof lp.content === 'object') ? lp.content : {};
+  // FX7 (bd-w2daa.31): a 👍 with no voice note is answered by 🙏 alone on every branch below (repeat
+  // tap, failed insert, new row) — settle the turn now, before the language read and the writes, so
+  // "typing…" cannot go up first. After a voice note the usage question is a message: typing stays.
+  if (useful && meta.trigger_mode !== 'after_voice_note') {
+    require('./inbound-typing').nothingComing({ reason: 'lp_feedback_yes_no_voice_note' });
+  }
   const chapterNumber = meta.chapter_number ?? null;
   const segmentNumber = meta.segment_number ?? null;
   const lpVariant = meta.lp_variant ?? lp.type ?? null;

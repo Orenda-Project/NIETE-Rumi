@@ -65,6 +65,11 @@
  *     — on sandbox the recent-LP "Yes" got there 2.24 s in (1 Oct 18:23:20.567Z → 22.811Z), so the
  *     2 s deadline had already shown "typing…". The webhook calls this the moment it knows the door,
  *     so "typing…" goes up at once; answerLater() then hands that same indicator to the job.
+ *   - A tap whose WHOLE answer is a reaction is listed in reaction-only-taps.js. The webhook settles
+ *     it (nothingComing) as soon as it reads the tap id, before any handler runs. Do not rely on the
+ *     reaction landing inside the deadline: a slow write made it miss (FX7, bd-w2daa.31, TRIAGE #46).
+ *     A tap that only SOMETIMES messages stays out and calls nothingComing() at its own branch point,
+ *     before its slow work.
  */
 const { AsyncLocalStorage } = require('async_hooks');
 const { logToFile } = require('../utils/logger');
@@ -479,6 +484,12 @@ function expectSilence(to, untilMs) {
   } catch (_) { /* best-effort */ }
 }
 
+/** Milliseconds since this request's scope opened (just after the 👍), or null outside one. */
+function msSinceInbound() {
+  const scope = current();
+  return scope ? Date.now() - scope.openedAt : null;
+}
+
 /** The webhook's dispatch is over. Unless handed off, nothing else will answer — no typing. */
 function endDispatch() {
   const scope = current();
@@ -490,6 +501,6 @@ function endDispatch() {
 
 module.exports = {
   withRequest, open, noteOutbound, claimFirstBeat, hold, isPending, handOff, answerLater, endDispatch,
-  nothingComing, replyComing, expectSilence, showNow, doorDeciding,
+  nothingComing, replyComing, expectSilence, showNow, doorDeciding, msSinceInbound,
   DEFAULT_QUIET_HOLD_MS, TYPING_LIFETIME_MS,
 };

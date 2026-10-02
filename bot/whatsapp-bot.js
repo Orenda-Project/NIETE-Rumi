@@ -665,6 +665,10 @@ app.post('/webhook', async (req, res) => {
         .then((selfServe) => { if (selfServe) InboundTyping.showNow(); })
         .catch(() => {});
     }
+    // Meta bill cut FX7 (bd-w2daa.31): a tap whose whole answer is a free reaction (the coaching
+    // survey "Yes", the commit card, "Taught it today", …) settles here, before its handler's lookups
+    // and writes can outlast the 2 s deadline and put "typing…" up over nothing (TRIAGE #46).
+    require('./shared/services/reaction-only-taps').settleAtDoor(tapIdOf(message));
 
     // Get or create user in database
     let user = null;
