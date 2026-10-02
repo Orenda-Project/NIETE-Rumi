@@ -14,10 +14,13 @@ const http = require('http');
 
 const BLOCKS = ['urdu', 'english', 'maths'];
 
-function createFakeBot({ phoneNumberId, absentRolls = [], checkFlowId = 'ctst-check-flow' } = {}) {
+function createFakeBot({ phoneNumberId, absentRolls = [], checkFlowId = 'ctst-check-flow', idStyle = 'contract' } = {}) {
+  // idStyle 'l4' mirrors childtest-golive's machine.js: ctst_child:<drawId>, ctst_alt:<drawId>, ctst_pres:<drawId>:p|a|r,
+  // the roll first in the row title, and an absent child that stays on the list (marked) while its alternate is offered.
+  const L4 = idStyle === 'l4';
   let graph = '';
   const received = []; const receivedMediaBytes = [];
-  const state = { rows: [1, 2, 3, 4, 5], alternates: [6, 7], children: {} };
+  const state = { rows: [1, 2, 3, 4, 5], alternates: [6, 7], children: {}, absent: new Set() };
   const self = { received, receivedMediaBytes, mute: false };
 
   async function send(to, payload) {
@@ -26,14 +29,17 @@ function createFakeBot({ phoneNumberId, absentRolls = [], checkFlowId = 'ctst-ch
       body: JSON.stringify({ messaging_product: 'whatsapp', to, ...payload }) });
   }
   const text = (to, body) => send(to, { type: 'text', text: { body } });
+  const rowId = (kind, r) => (L4 ? `ctst_${kind}:d${r}` : `ctst_${kind}_${r}`);
+  const rowTitle = (r) => (L4 ? `${r} · بچہ` : `Roll ${r}`);
   const list = (to) => send(to, { type: 'interactive', interactive: { type: 'list', header: { type: 'text', text: 'بچوں کا ٹیسٹ' },
     body: { text: 'آج کے بچے' }, action: { button: 'بچے', sections: [
-      { title: 'Children', rows: state.rows.map((r) => ({ id: `ctst_child_${r}`, title: `Roll ${r}`, description: r === 5 ? 'returning' : 'new' })) },
-      { title: 'Alternates', rows: state.alternates.map((r) => ({ id: `ctst_alt_${r}`, title: `Roll ${r}` })) }] } } });
+      { title: 'Children', rows: state.rows.map((r) => ({ id: rowId('child', r), title: rowTitle(r), description: state.absent.has(r) ? 'absent' : (r === 5 ? 'returning' : 'new') })) },
+      { title: 'Alternates', rows: state.alternates.map((r) => ({ id: rowId('alt', r), title: rowTitle(r) })) }] } } });
+  const pres = (r, k, legacy) => (L4 ? `ctst_pres:d${r}:${k}` : `ctst_${legacy}_${r}`);
   const buttons = (to, r) => send(to, { type: 'interactive', interactive: { type: 'button', body: { text: `Roll ${r}` }, action: { buttons: [
-    { type: 'reply', reply: { id: `ctst_present_${r}`, title: 'حاضر' } },
-    { type: 'reply', reply: { id: `ctst_absent_${r}`, title: 'غیر حاضر' } },
-    { type: 'reply', reply: { id: `ctst_refused_${r}`, title: 'انکار' } }] } } });
+    { type: 'reply', reply: { id: pres(r, 'p', 'present'), title: 'حاضر' } },
+    { type: 'reply', reply: { id: pres(r, 'a', 'absent'), title: 'غیر حاضر' } },
+    { type: 'reply', reply: { id: pres(r, 'r', 'refused'), title: 'انکار' } }] } } });
   const checkCard = (to, r) => send(to, { type: 'interactive', interactive: { type: 'flow', body: { text: `Roll ${r}: marks ready` },
     action: { name: 'flow', parameters: { flow_message_version: '3', flow_id: checkFlowId, flow_cta: 'چیک کریں', flow_token: `ctst_check_${r}`, flow_action: 'data_exchange' } } } });
 
@@ -47,12 +53,18 @@ function createFakeBot({ phoneNumberId, absentRolls = [], checkFlowId = 'ctst-ch
     const to = m.from; const cur = state.current;
     if (m.type === 'text' && /\/egra/.test(m.text.body)) return list(to);
     if (m.type === 'interactive' && m.interactive.type === 'list_reply') {
-      const r = Number(m.interactive.list_reply.id.split('_').pop()); state.current = r; return buttons(to, r);
+      const r = Number((/(\d+)$/.exec(m.interactive.list_reply.id) || [])[1]); state.current = r; return buttons(to, r);
     }
     if (m.type === 'interactive' && m.interactive.type === 'button_reply') {
-      const [, what, rs] = m.interactive.button_reply.id.split('_'); const r = Number(rs);
-      if (what === 'present') { state.children[r] = { next: 0 }; return text(to, `Roll ${r}: Urdu block — one voice note`); }
-      state.rows = state.rows.map((x) => (x === r ? state.alternates.shift() : x));      // absent/refused → next alternate
+      const id = m.interactive.button_reply.id;
+      const l4 = /^ctst_pres:d(\d+):([par])$/.exec(id); const legacy = /^ctst_([a-z]+)_(\d+)$/.exec(id);
+      const r = Number(l4 ? l4[1] : legacy[2]); const what = l4 ? { p: 'present', a: 'absent', r: 'refused' }[l4[2]] : legacy[1];
+      if (what === 'present') {
+        if (state.alternates.includes(r)) { state.alternates = state.alternates.filter((x) => x !== r); state.rows.push(r); }
+        state.children[r] = { next: 0 }; return text(to, `Roll ${r}: Urdu block — one voice note`);
+      }
+      if (L4) state.absent.add(r);                                                     // stays, marked; alternate offered below
+      else state.rows = state.rows.map((x) => (x === r ? state.alternates.shift() : x));  // absent/refused → next alternate
       return list(to);
     }
     if (m.type === 'audio' && cur && state.children[cur]) {

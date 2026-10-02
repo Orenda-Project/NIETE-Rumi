@@ -15,17 +15,22 @@ const fs = require('fs');
 const path = require('path');
 
 const DEFAULT_MATCH = {
-  list: (it) => it.type === 'interactive.list' && (it.list && it.list.rows || []).some((r) => /^ctst_/.test(r.id)),
-  childRow: (r) => /^ctst_child_/.test(r.id),
-  presentButtons: (it) => it.type === 'interactive.button' && buttonsOf(it).some((b) => /present/i.test(b.id)),
-  checkCard: (it) => it.type === 'interactive.flow' && it.flow && /^ctst_check/.test(it.flow.token || ''),
+  // CONTRACT style (ctst_child_<n>, *present*) and L4's machine.js style (ctst_child:<drawId>, ctst_pres:<drawId>:p|a|r)
+  list: (it) => it.type === 'interactive.list' && (it.list && it.list.rows || []).some((r) => /^ctst_(child|alt)[_:]/.test(r.id)),
+  childRow: (r) => /^ctst_child[_:]/.test(r.id),
+  altRow: (r) => /^ctst_alt[_:]/.test(r.id),
+  presentButtons: (it) => it.type === 'interactive.button' && buttonsOf(it).some((b) => isPresent(b.id)),
+  checkCard: (it) => it.type === 'interactive.flow' && !!it.flow,
   ack: (it) => it.type === 'text' || it.type === 'interactive.button' || it.type === 'image',
 };
+const isPresent = (id) => /present/i.test(id || '') || /^ctst_pres:.*:p$/.test(id || '');
+const isAbsent = (id) => /absent/i.test(id || '') || /^ctst_pres:.*:a$/.test(id || '');
 function buttonsOf(it) {
   const a = it.raw && it.raw.interactive && it.raw.interactive.action;
   return ((a && a.buttons) || []).map((b) => ({ id: b.reply && b.reply.id, title: b.reply && b.reply.title }));
 }
-const rollOf = (row) => Number((/(\d+)\s*$/.exec(row.title || '') || /(\d+)$/.exec(row.id || '') || [])[1]);
+// the roll is the first number in the row title (L4: "<roll> · <name>"; CONTRACT fake: "Roll <n>"); never log the title itself
+const rollOf = (row) => Number((/(\d+)/.exec(row.title || '') || /(\d+)$/.exec(row.id || '') || [])[1]);
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function audioSeconds(file) {
@@ -73,8 +78,9 @@ async function runVisit(opts) {
   }
   const byRoll = {};
   async function submitCheck(card) {
-    const roll = Number((/(\d+)$/.exec(card.flow.token) || [])[1]);
-    const child = byRoll[roll] || `roll-${roll}`;
+    const roll = Number((/(\d+)$/.exec(card.flow.token || '') || [])[1]);
+    // a token that names no roll (a session-keyed token) is matched to the children in the order their checks arrive
+    const child = byRoll[roll] || (result.children[result.checksSubmitted] || {}).fixture || `check-${result.checksSubmitted + 1}`;
     const response = opts.checkResponse ? opts.checkResponse(card, child) : { flow_token: card.flow.token, ctst_action: 'confirm' };
     await transport.submitFlow(card.flow.id, response);
     tl.log({ dir: 'out', kind: 'flow', step: 'check', child, roll });
@@ -90,7 +96,8 @@ async function runVisit(opts) {
     for (const fx of fixtures) {
       let tested = false;
       while (!tested) {
-        const row = (list.list.rows || []).find((r) => match.childRow(r) && !done.has(r.id));
+        const rows = list.list.rows || [];
+        const row = rows.find((r) => match.childRow(r) && !done.has(r.id)) || rows.find((r) => match.altRow(r) && !done.has(r.id));
         if (!row) throw new Error('no child left on the list for fixture ' + fx.id);
         done.add(row.id);
         const roll = rollOf(row);
@@ -99,14 +106,14 @@ async function runVisit(opts) {
         const btnMsg = await waitFor('present/absent buttons', match.presentButtons, { child: fx.id });
         const btns = buttonsOf(btnMsg);
         if (absentRolls.has(roll)) {
-          const b = btns.find((x) => /absent/i.test(x.id));
+          const b = btns.find((x) => isAbsent(x.id));
           await transport.tapButton(b.id, b.title);
           tl.log({ dir: 'out', kind: 'button', step: 'absent', roll });
           result.absent.push({ roll });
           list = await waitFor('list after absent', match.list);
           continue;
         }
-        const b = btns.find((x) => /present/i.test(x.id));
+        const b = btns.find((x) => isPresent(x.id));
         await transport.tapButton(b.id, b.title);
         tl.log({ dir: 'out', kind: 'button', step: 'present', child: fx.id, roll });
         await waitFor('urdu prompt', match.ack, { child: fx.id });

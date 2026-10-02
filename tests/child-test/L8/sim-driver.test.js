@@ -197,3 +197,30 @@ describe('driver fixture choice', () => {
     expect(fx.map((f) => path.basename(f.strip))).toEqual(['strip-g3-00-d1.jpg', 'strip-g5-01-d1.jpg', 'strip-g3-02-d2.jpg', 'strip-g3-00-d1.jpg']);
   });
 });
+
+describe("L4's real ids (childtest-golive @ ca1d70f9 machine.js)", () => {
+  let api, bot, base;
+  beforeEach(async () => {
+    // ctst_child:<drawId> / ctst_alt:<drawId> rows, ctst_pres:<drawId>:p|a|r buttons, the roll first in the row
+    // title, and an absent child that STAYS on the list (marked) while the alternate is taken from its section.
+    bot = createFakeBot({ phoneNumberId: PH, idStyle: 'l4' });
+    const botPort = await bot.listen(0);
+    api = createMockGraphApi({ phoneNumberId: PH, botUrl: 'http://127.0.0.1:' + botPort, quiet: true });
+    base = 'http://127.0.0.1:' + (await api.listen(0));
+    bot.setGraphBase(base);
+  });
+  afterEach(async () => { await api.close(); await bot.close(); });
+
+  test('the default matchers drive the L4 conversation: picks rows, taps :p / :a, takes the alternate row', async () => {
+    const tl = createTimeline(path.join(tmp, 'l4', 'timeline.jsonl'));
+    const fixtures = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id, dir: fixtureDir(id), strip: stripFile('s' + id) }));
+    const res = await runVisit({ transport: mockTransport({ baseUrl: base, driver: DRIVER, pollMs: 20 }), timeline: tl,
+      fixtures, absentRolls: [2], timeoutMs: 5000 });
+    expect(res.error).toBeUndefined();
+    expect(res.ok).toBe(true);
+    expect(res.children.map((c) => c.roll)).toEqual([1, 3, 4, 5, 6]);
+    expect(bot.received.filter((m) => m.type === 'interactive' && m.interactive.type === 'button_reply').map((m) => m.interactive.button_reply.id))
+      .toEqual(['ctst_pres:d1:p', 'ctst_pres:d2:a', 'ctst_pres:d3:p', 'ctst_pres:d4:p', 'ctst_pres:d5:p', 'ctst_pres:d6:p']);
+    expect(res.checksSubmitted).toBe(5);
+  });
+});
