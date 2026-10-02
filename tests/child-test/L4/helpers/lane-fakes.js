@@ -30,6 +30,8 @@ function createLaneFakes({ noClassList = false } = {}) {
       children, alternates: makeChildren(2, 6), reused: false };
   };
   const clone = (x) => JSON.parse(JSON.stringify(x));
+  let tick = 0;
+  const stamp = () => new Date(Date.now() + (tick++)).toISOString();   // distinct per write, as updated_at is
 
   const draw = {
     async todaysList(args) {
@@ -103,7 +105,7 @@ function createLaneFakes({ noClassList = false } = {}) {
       calls.push(['attachBlockMedia', args]);
       if (fail.attachBlockMedia) return { ok: false, error: 'update failed' };
       const k = `${args.sessionId}:${args.block}`;
-      const b = blocks[k] || (blocks[k] = { session_id: args.sessionId, block: args.block, ai_marks: null, checked_at: null });
+      const b = blocks[k] || (blocks[k] = { id: `blk-${k}`, session_id: args.sessionId, block: args.block, ai_marks: null, ai_status: 'pending', ai_reason: null, checked_at: null, updated_at: stamp() });
       if (b.ai_marks) return { ok: false, alreadyScored: true };
       if (args.audioR2Key) b.audio_r2_key = args.audioR2Key;
       if (args.photoR2Key) b.photo_r2_key = args.photoR2Key;
@@ -112,13 +114,44 @@ function createLaneFakes({ noClassList = false } = {}) {
     async listBlocks(sessionId) {
       return { ok: true, blocks: Object.values(blocks).filter((b) => b.session_id === sessionId).map(clone) };
     },
+    // bd-s1oo0.22 (L17): the scoring claim and the AI writes, as lanes/L3/STORE_API.md + store.js.
+    async getBlock(sessionId, block) {
+      const b = blocks[`${sessionId}:${block}`];
+      return { ok: true, block: b ? clone(b) : null };
+    },
+    async claimBlockStatus({ blockId, fromStatus, fromUpdatedAt, toStatus, reason = null }) {
+      calls.push(['claimBlockStatus', { blockId, fromStatus, toStatus }]);
+      const b = Object.values(blocks).find((x) => x.id === blockId);
+      if (!b || b.ai_marks || b.ai_status !== fromStatus || b.updated_at !== fromUpdatedAt) return { ok: true, claimed: false, block: null };
+      Object.assign(b, { ai_status: toStatus, ai_reason: reason, updated_at: stamp() });
+      return { ok: true, claimed: true, block: clone(b) };
+    },
+    async setAiStatus({ sessionId, block, aiStatus, reason = null }) {
+      const b = blocks[`${sessionId}:${block}`];
+      if (!b) return { ok: false, error: 'no block' };
+      if (b.ai_marks) return { ok: false, alreadyScored: true };
+      Object.assign(b, { ai_status: aiStatus, ai_reason: reason, updated_at: stamp() });
+      return { ok: true, block: clone(b) };
+    },
+    async saveAiMarks({ sessionId, block, aiMarks, aiStatus = 'scored' }) {
+      const b = blocks[`${sessionId}:${block}`];
+      if (!b) return { ok: false, error: 'no block' };
+      if (b.ai_marks) return { ok: false, alreadyScored: true, block: clone(b) };
+      Object.assign(b, { ai_marks: aiMarks, ai_status: aiStatus, ai_reason: null, updated_at: stamp() });
+      return { ok: true, block: clone(b) };
+    },
+    async listBlocksToRecover() { return { ok: true, blocks: [] }; },
+    async listRecentlyScoredBlocks() { return { ok: true, blocks: [] }; },
   };
 
   const scoring = {
     async scoreBlock(args) {
       calls.push(['scoreBlock', args]);
-      const b = blocks[`${args.sessionId}:${args.block}`];
-      if (b) b.ai_marks = { version: 'ai-marks-v1' };
+      // Through whichever store the conversation is using (this fake's, or L3's real one), so the
+      // write-once guard and the store-gated check (bd-s1oo0.22) see the marks.
+      const store = require('../../../../bot/shared/services/child-test/conversation/ports').store;
+      const saved = await store.saveAiMarks({ sessionId: args.sessionId, block: args.block, aiMarks: { version: 'ai-marks-v1', block: args.block }, aiStatus: 'scored' });
+      if (!saved || (!saved.ok && !saved.alreadyScored)) return { ok: false, aiStatus: 'failed', reason: 'save_failed' };
       return { ok: true, aiStatus: 'scored' };
     },
   };

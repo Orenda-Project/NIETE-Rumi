@@ -13,6 +13,8 @@
  *          and the ack + next line go out, then it is stored to R2 and scored off the critical path
  *   after maths: the strip photo is asked for and may arrive while the next child is going
  *   all three blocks scored → the check (L6 checkFlow.sendCheck)
+ *   scoring and the check run through recovery.js (bd-s1oo0.22): claimed in the database, gated on
+ *   the store, and picked up by its sweep when the process that saved a note dies before scoring it
  *
  * The five-minute protocol (bd-s1oo0.12): the list tells the coach to give the class teacher the roll
  * numbers in order (and "Send to teacher" does it, only for the class teacher of the drawn class); each
@@ -31,6 +33,7 @@ const r2 = require('../../../storage/r2');
 const { logToFile, logError } = require('../../../utils/logger');
 const ports = require('./ports');
 const S = require('./state');
+const R = require('./recovery');
 const C = require('./context');
 const { langOf, t, clip, blockName, digits } = require('./copy');
 const { evaluateChildTestTrigger, isChildTestAvailable } = require('./gate');
@@ -39,7 +42,6 @@ const { visitKeyFor, parseVisitKey, pktDate } = require('../draw/visit-key');
 const BLOCKS = ['urdu', 'english', 'maths'];
 const CUE_KEY = { urdu: 'childTestCueUrdu', english: 'childTestCueEnglish', maths: 'childTestCueMaths' };
 const OUTCOME_OF = { p: 'present', a: 'absent', r: 'refused' };
-const SCORED_BLOCKS_PER_SESSION = BLOCKS.length;
 const CANCEL_RX = /^(?:\/cancel|cancel|stop|منسوخ|روکیں)$/i;
 const MENU_RX = /^\/menu$/i;
 // L3 keeps an absent or refused child on the visit's main list, marked; they are not one of "the five".
@@ -70,7 +72,9 @@ const listClassIds = (list) => (list.classIds && list.classIds.length ? list.cla
 // ------------------------------------------------------------------ off the critical path
 
 const inflight = new Set();
-function offPath(label, fn) {
+let offPathHook = null;   // tests only: ('drop') simulates the process dying before the job runs
+function offPath(label, fn, meta) {
+  if (offPathHook && offPathHook(label, meta) === 'drop') return Promise.resolve();
   const p = new Promise((resolve) => setImmediate(resolve))
     .then(fn)
     .catch((err) => logError('child_test.offpath_failed', { label, error: err.message }))
@@ -85,15 +89,7 @@ async function drain() {
 
 // ------------------------------------------------------------------ small helpers
 
-async function timing(sessionId, key, at = new Date()) {
-  if (!sessionId) return;
-  try {
-    const r = await ports.store.recordTiming(sessionId, key, at);
-    if (!r || !r.ok) logError('child_test.timing_failed', { sessionId, key, error: r && r.error });
-  } catch (err) {
-    logError('child_test.timing_failed', { sessionId, key, error: err.message });
-  }
-}
+const { timing } = R;
 
 async function say(to, text) {
   const ok = await WhatsAppService.sendMessage(to, text);
@@ -416,7 +412,7 @@ async function onChildTapped(user, from, drawId, { alternate = false } = {}) {
       if (await S.checkSent(sess.id)) {
         const b = await ports.store.listBlocks(sess.id);
         const allChecked = b && b.ok && (b.blocks || []).length && b.blocks.every((x) => x.checked_at);
-        if (!allChecked) return openCheck(sess.id, from, lang, child.rollNumber);
+        if (!allChecked) return R.openCheck(sess.id, from, lang, child.rollNumber);
       }
       return say(from, t(lang, 'childTestAlreadyDone', { roll: child.rollNumber }));
     }
@@ -717,8 +713,9 @@ async function processVoice(message, from, user, state, audioId) {
   await timing(sid, `${block}.audio_saved`);
   logToFile('child_test.audio_saved', { sessionId: sid, block });
 
-  const sessionRef = { sessionId: sid, grade: cur.grade, form: cur.form, rollNumber: cur.rollNumber };
-  if (block !== 'maths') offPath('score', () => scoreBlock(sessionRef, block, from, lang));
+  const sessionRef = { sessionId: sid, grade: cur.grade, form: cur.form };
+  const notify = { from, lang, rollNumber: cur.rollNumber };
+  if (block !== 'maths') offPath('score', () => R.runScoring(sessionRef, block, { notify }), { sessionId: sid, block });
 
   // 3. Whichever note completes the three runs what follows maths — once.
   const b = await ports.store.listBlocks(sid);
@@ -888,49 +885,16 @@ async function finishChild(p, from, lang) {
   const r = await ports.store.setSessionStatus(p.sessionId, 'completed');
   if (!r || !r.ok) logError('child_test.session_complete_failed', { sessionId: p.sessionId, error: r && r.error });
   await say(from, t(lang, 'childTestChildDone', { roll: p.rollNumber }));
-  offPath('score', () => scoreBlock(p, 'maths', from, lang));
+  // Maths is scored once, after the strip photo is in or the coach declined it (CONTRACT §12 CR-2).
+  // `force` tells L5 to score what is there; without it a photo-less maths block stays 'pending' forever.
+  offPath('score', () => R.runScoring({ sessionId: p.sessionId, grade: p.grade, form: p.form }, 'maths',
+    { force: true, notify: { from, lang, rollNumber: p.rollNumber } }), { sessionId: p.sessionId, block: 'maths' });
   return true;
 }
 
 // ------------------------------------------------------------------ marking → the check
 
-async function scoreBlock(ref, block, from, lang) {
-  let r;
-  try {
-    // Maths is scored once, after the strip photo is in or the coach declined it (CONTRACT §12 CR-2).
-    // `force` tells L5 to score what is there; without it a photo-less maths block stays 'pending' forever.
-    const args = { sessionId: ref.sessionId, block, grade: ref.grade, form: ref.form };
-    if (block === 'maths') args.force = true;
-    r = await ports.scoring.scoreBlock(args);
-  } catch (err) {
-    r = { ok: false, aiStatus: 'failed', reason: err.message };
-  }
-  if (!r || r.aiStatus === 'failed' || r.ok === false) {
-    logError('child_test.score_failed', { sessionId: ref.sessionId, block, reason: r && r.reason });
-  }
-  await timing(ref.sessionId, `${block}.scored`);
-  const n = await S.countScored(ref.sessionId);
-  if (n >= SCORED_BLOCKS_PER_SESSION && await S.claimCheck(ref.sessionId)) {
-    await openCheck(ref.sessionId, from, lang, ref.rollNumber);
-  }
-}
-
-async function openCheck(sessionId, from, lang, rollNumber) {
-  let ok;
-  try {
-    ok = await ports.checkFlow.sendCheck(sessionId);
-  } catch (err) {
-    ok = false;
-    logError('child_test.check_send_failed', { sessionId, error: err.message });
-  }
-  if (!ok || ok.ok === false) {
-    logError('child_test.check_send_failed', { sessionId });
-    return say(from, t(lang, 'childTestCheckFailed', { roll: rollNumber }));
-  }
-  await timing(sessionId, 'check.sent');
-  logToFile('child_test.check_sent', { sessionId });
-  return true;
-}
+// Scoring and the check: recovery.js (runScoring, maybeOpenCheck, openCheck).
 
 // ------------------------------------------------------------------ /cancel and /menu
 
@@ -1017,4 +981,5 @@ async function handleList(user, from, listId) {
 
 module.exports = {
   handleText, handleButton, handleList, handleVoice, handleImage, drain, recordTiming: timing,
+  __setOffPathForTest(fn) { offPathHook = fn || null; },
 };
