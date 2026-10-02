@@ -125,8 +125,14 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null) {
   const chapter = V8Catalog.chapterFor(grade, subjectKey, chapterNumber);
   if (!chapter) return [];
 
-  return (chapter.lessons || [])
-    .filter((l) => available.has(l.lesson_id))
+  // ch3-10 A/B (bd-5o0ay.10.16): group A never sees a lesson it has no August plan for.
+  const LpAb = require('./lp-ab-ch310.service');
+  const group = await LpAb.groupFor(userId, { grade: Number(grade), chapter: Number(chapterNumber) });
+  const listed = (chapter.lessons || []).filter((l) => available.has(l.lesson_id));
+  const august = await LpAb.augustListable(group, listed.map((l) => l.lesson_id));
+
+  return listed
+    .filter((l) => !august || august.has(l.lesson_id))
     // A split lesson's two parts share a segment_index; part orders them.
     .sort((a, b) => ((a.segment_index ?? 0) - (b.segment_index ?? 0)) || ((a.part ?? 0) - (b.part ?? 0)))
     .map((l) => ({
