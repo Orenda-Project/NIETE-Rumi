@@ -87,6 +87,7 @@ const SCENARIOS = [
   ['CT41', 'A voice note saved just before Rumi restarts is still marked, and the check still arrives', 'L4'],
   ['CT42', 'A block that cannot be marked is retried, and after the last try the check still opens', 'L4'],
   ['CT43', 'In assist mode every mark Rumi made arrives filled, and the unsure ones are named', 'L6'],
+  ['CT44', 'Kept separate from the observation by default: no offer after observe2, and /egra stands alone', 'L4'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -384,6 +385,8 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT41', ...B('needs the bot killed between audio_saved and scoring; done outside this driver by lanes/L17/killproof.sh'));
     record('CT42', ...B('needs a scorer that keeps failing; the harness has no fault injection on the scorer'));
     record('CT43', ...B('needs the local stack restarted with CHILD_TEST_PREFILL_MODE=assist'));
+    // Separation (bd-s1oo0.25): proven by tests/child-test/L3b/machine-visit-key + L4 offer suites.
+    record('CT44', ...B('needs the observe2 Flows stored for the emulator (as CT02) to drive the brief end'));
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}

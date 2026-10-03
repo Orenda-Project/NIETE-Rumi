@@ -51,6 +51,7 @@ const dayKey = () => `day:${COACH_ID}:${SCHOOL_ID}:${pktDate(new Date())}`;
 
 beforeEach(() => {
   process.env.CHILD_TEST_ENABLED = 'true';
+  process.env.CHILD_TEST_OBSERVE_LINK = 'true';   // these scenarios open the list through the observe2 visit
   process.env.DEFAULT_REGION = 'niete-sandbox';
   process.env.RAILWAY_ENVIRONMENT = 'sandbox';
   mockRedis.__data.clear();
@@ -138,5 +139,24 @@ describe('a day key is only today\'s', () => {
     await S.set(COACH_ID, { ...st, ctx: { ...st.ctx, visitKey: `day:${COACH_ID}:${SCHOOL_ID}:2026-01-05` } });
     await H.handleText(PHONE, '/egra', COACH);
     expect(callsOf('todaysList').pop().visitKey).toBe(`day:${COACH_ID}:${SCHOOL_ID}:2026-01-05`);
+  });
+});
+
+describe('kept separate from observe2 (CHILD_TEST_OBSERVE_LINK unset, the default)', () => {
+  afterEach(() => { delete process.env.CHILD_TEST_OBSERVE_LINK; });
+  test('/egra on a day with an observe2 visit does not use the visit: it draws on the day key', async () => {
+    delete process.env.CHILD_TEST_OBSERVE_LINK;
+    seedDb({ fieldForm: true });
+    expect(await H.handleText(PHONE, '/egra', COACH)).toBe(true);
+    const [tl] = callsOf('todaysList');
+    expect(tl).toMatchObject({ coachUserId: COACH_ID, schoolId: SCHOOL_ID, visitKey: dayKey() });
+    expect(tl.visitId == null).toBe(true);
+  });
+  test('with CHILD_TEST_OBSERVE_LINK=true the visit is used, as before', async () => {
+    process.env.CHILD_TEST_OBSERVE_LINK = 'true';
+    seedDb({ fieldForm: true });
+    await H.handleText(PHONE, '/egra', COACH);
+    const [tl] = callsOf('todaysList');
+    expect(tl).toMatchObject({ visitId: 'form-1' });
   });
 });

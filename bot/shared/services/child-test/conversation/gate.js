@@ -23,6 +23,15 @@ const CHILD_TEST_TRIGGER_RX = /^(?:\/egra|\/childtest|\/child-test|بچوں کا
 
 const DEFAULT_REGIONS = 'niete,ict,islamabad,federal';
 
+/**
+ * The child test is kept separate from the lesson observation unless CHILD_TEST_OBSERVE_LINK=true
+ * (operator, 3 Oct 2026: "for now keep both separate"). Off: no offer after /observe2 or classic
+ * /observe, and /egra does not borrow today's observe2 visit; it draws on the coach's school.
+ */
+function isObserveLinkOn() {
+  return String(process.env.CHILD_TEST_OBSERVE_LINK || '').trim().toLowerCase() === 'true';
+}
+
 function isEnabled() {
   return String(process.env.CHILD_TEST_ENABLED || '').trim().toLowerCase() === 'true';
 }
@@ -65,4 +74,4 @@ function evaluateChildTestTrigger({ messageBody, user }) {
   return { match: true, action: 'start', arg: (m[1] || '').trim() || null };
 }
 
-module.exports = { CHILD_TEST_TRIGGER_RX, evaluateChildTestTrigger, isChildTestAvailable, isEnabled, isIctRegion, isAllowedCoach };
+module.exports = { isObserveLinkOn, CHILD_TEST_TRIGGER_RX, evaluateChildTestTrigger, isChildTestAvailable, isEnabled, isIctRegion, isAllowedCoach };
