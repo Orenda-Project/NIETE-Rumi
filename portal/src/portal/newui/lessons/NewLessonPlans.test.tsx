@@ -116,7 +116,7 @@ beforeEach(() => {
   http.get.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
     const answer = routes[url];
     if (!answer) throw new Error(`unexpected GET ${url}`);
-    const data = answer(config?.params);
+    const data = await answer(config?.params);
     if (data instanceof Error) throw data;
     return { data };
   });
@@ -219,6 +219,32 @@ describe("main page", () => {
     await walkToGrade4Lessons();
     expect(document.body.textContent).not.toMatch(/on request|My lesson plans|Write this lesson plan|6-12|6–12/i);
     expect(gets("/lp612/mine")).toHaveLength(0);
+  });
+});
+
+describe("bd-5rz1v.14 (found live on sandbox) — Back or a reload never blanks her picks", () => {
+  it("the main page names her subject and chapter at once, before the catalogue answers", async () => {
+    // A slow catalogue (sandbox took over 1.5s): subjects and chapters never answer here.
+    routes["/curriculum/subjects"] = () => new Promise(() => {});
+    routes["/curriculum/chapters"] = () => new Promise(() => {});
+    window.sessionStorage.setItem("nu-lesson-plans-picks", JSON.stringify({
+      grade: 4, subject: "general_science", subjectName: "General Science", chapter: "2", chapterTitle: "Plants",
+      lesson: { id: "g4s_d3", kind: "day", number: 3, part: null, title: "Leaves make food", pages: "p.18-20", sent: false, answerKey: true, lane: "k5" },
+    }));
+    renderAt();
+    await screen.findByText("Last: Day 2 · Plants");
+    expect(rowOf("subject")).toHaveTextContent("General Science");
+    expect(rowOf("chapter")).toHaveTextContent("Plants");
+    expect(rowOf("lesson")).toHaveTextContent("Leaves make food");
+  });
+
+  it("the names are kept as she picks, so the main page has them however she comes back", async () => {
+    await walkToGrade4Lessons();
+    fireEvent.click(screen.getByTestId("lp-lesson-g4s_d3"));
+    await screen.findByTestId("lp-ready");
+    const kept = JSON.parse(window.sessionStorage.getItem("nu-lesson-plans-picks") || "{}");
+    expect(kept).toMatchObject({ grade: 4, subject: "general_science", subjectName: "General Science", chapter: "2", chapterTitle: "Plants" });
+    expect(kept.lesson).toMatchObject({ id: "g4s_d3", title: "Leaves make food" });
   });
 });
 
