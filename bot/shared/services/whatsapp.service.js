@@ -118,6 +118,7 @@ const axios = {
         ok: !out.local && !out.error && !!sent,
         status: sent ? sent.status : (out.error && out.error.response ? out.error.response.status : null),
         messageId: sent && sent.data && sent.data.messages && sent.data.messages[0] && sent.data.messages[0].id,
+        local: out.local,
       });
       if (out.local) {
         throw Object.assign(new Error(pacingRefusal(out.local).data.error.message), {
@@ -166,7 +167,7 @@ function fetch(url, init, gate = {}) {
       return { value: replay, code: pacer.metaCodeOfBody(data) };
     },
   ).then((out) => {
-    if (to) OutboundEcho.note(body, { ok: !out.local && !!out.value && out.value.ok !== false, status: out.value ? out.value.status : 429 });
+    if (to) OutboundEcho.note(body, { ok: !out.local && !!out.value && out.value.ok !== false, status: out.value ? out.value.status : 429, local: out.local });
     if (!out.local) return out.value;
     const refusal = pacingRefusal(out.local);
     return {

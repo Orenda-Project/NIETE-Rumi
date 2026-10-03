@@ -42,7 +42,9 @@ function shouldEcho(to) {
 
 /**
  * @param {object} payload the /messages body as sent
- * @param {{ok: boolean, status?: number, messageId?: string}} outcome
+ * @param {{ok: boolean, status?: number, messageId?: string, local?: string}} outcome  `local`: the
+ *   pacer's outcome for a send it never attempted ('skipped' | 'shed'). Its status is then a local 429,
+ *   not Meta's — a sandbox run once read 21 skipped 👍 as Meta rate-limiting the bot (bd-s1oo0.30).
  */
 function note(payload, outcome = {}) {
   try {
@@ -58,6 +60,7 @@ function note(payload, outcome = {}) {
       ok: !!outcome.ok,
       status: outcome.status == null ? null : outcome.status,
       message_id: outcome.messageId || null,
+      local: outcome.local || null,
       payload,
     });
   } catch (_) { /* never break a send */ }
