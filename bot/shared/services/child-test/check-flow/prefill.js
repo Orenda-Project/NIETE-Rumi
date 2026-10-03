@@ -39,6 +39,9 @@ const VERDICTS = new Set(['correct', 'wrong', 'none']);
 const WRITTEN = new Set(['correct', 'wrong', 'blank', 'unreadable']);
 
 const clip = (s, n) => [...String(s == null ? '' : s)].slice(0, n).join('');
+// A coach on an Urdu keyboard types ۵۸ (or ٥٨); the count is the same number (bd-s1oo0.43).
+const toLatinDigits = (s) => s.replace(/[\u06F0-\u06F9]/g, (c) => String(c.charCodeAt(0) - 0x06F0))
+  .replace(/[\u0660-\u0669]/g, (c) => String(c.charCodeAt(0) - 0x0660));
 const num = (n) => (n == null || !Number.isFinite(Number(n)) ? '' : String(Math.round(Number(n))));
 const has = (v) => v !== undefined && v !== null && v !== '';
 
@@ -410,7 +413,7 @@ function readScreen(block, posted = {}, { aiMarks = null, coachMarks = null, ite
   const errors = {};
   const { shown_empty: shownEmpty, shown_unsure: shownUnsure } = arrivals(plan);
   const count = (field, max) => {
-    const s = String(posted[`${p}${field}`] == null ? '' : posted[`${p}${field}`]).trim();
+    const s = toLatinDigits(String(posted[`${p}${field}`] == null ? '' : posted[`${p}${field}`])).replace(/\s+/g, '');
     if (!/^\d+$/.test(s)) { errors[`${p}${field}`] = S.err_number; return null; }
     const n = Number(s);
     if (max != null && n > max) { errors[`${p}${field}`] = S.err_out_of(max); return null; }

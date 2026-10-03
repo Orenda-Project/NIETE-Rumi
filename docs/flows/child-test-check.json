@@ -602,7 +602,8 @@
                 "type": "TextInput",
                 "name": "u_wc",
                 "label": "${data.t_wc}",
-                "input-type": "phone",
+                "input-type": "text",
+                "max-chars": 3,
                 "required": true,
                 "helper-text": "${data.wc_h}",
                 "visible": "${data.story_v}"
@@ -611,7 +612,8 @@
                 "type": "TextInput",
                 "name": "u_wa",
                 "label": "${data.t_wa}",
-                "input-type": "phone",
+                "input-type": "text",
+                "max-chars": 3,
                 "required": true,
                 "visible": "${data.story_v}"
               },
@@ -646,7 +648,8 @@
                 "type": "TextInput",
                 "name": "u_fl",
                 "label": "${data.t_fl}",
-                "input-type": "phone",
+                "input-type": "text",
+                "max-chars": 3,
                 "required": true,
                 "helper-text": "${data.fl_h}",
                 "visible": "${data.fb_v}"
@@ -655,7 +658,8 @@
                 "type": "TextInput",
                 "name": "u_fw",
                 "label": "${data.t_fw}",
-                "input-type": "phone",
+                "input-type": "text",
+                "max-chars": 3,
                 "required": true,
                 "helper-text": "${data.fw_h}",
                 "visible": "${data.fb_v}"
@@ -1352,7 +1356,8 @@
                 "type": "TextInput",
                 "name": "e_wc",
                 "label": "${data.t_wc}",
-                "input-type": "phone",
+                "input-type": "text",
+                "max-chars": 3,
                 "required": true,
                 "helper-text": "${data.wc_h}",
                 "visible": "${data.story_v}"
@@ -1361,7 +1366,8 @@
                 "type": "TextInput",
                 "name": "e_wa",
                 "label": "${data.t_wa}",
-                "input-type": "phone",
+                "input-type": "text",
+                "max-chars": 3,
                 "required": true,
                 "visible": "${data.story_v}"
               },
@@ -1396,7 +1402,8 @@
                 "type": "TextInput",
                 "name": "e_fl",
                 "label": "${data.t_fl}",
-                "input-type": "phone",
+                "input-type": "text",
+                "max-chars": 3,
                 "required": true,
                 "helper-text": "${data.fl_h}",
                 "visible": "${data.fb_v}"
@@ -1405,7 +1412,8 @@
                 "type": "TextInput",
                 "name": "e_fw",
                 "label": "${data.t_fw}",
-                "input-type": "phone",
+                "input-type": "text",
+                "max-chars": 3,
                 "required": true,
                 "helper-text": "${data.fw_h}",
                 "visible": "${data.fb_v}"
@@ -2112,7 +2120,8 @@
                 "type": "TextInput",
                 "name": "m_qc",
                 "label": "${data.t_qc}",
-                "input-type": "phone",
+                "input-type": "text",
+                "max-chars": 3,
                 "required": true,
                 "helper-text": "${data.qc_h}"
               },
@@ -2120,7 +2129,8 @@
                 "type": "TextInput",
                 "name": "m_qa",
                 "label": "${data.t_qa}",
-                "input-type": "phone",
+                "input-type": "text",
+                "max-chars": 3,
                 "required": true
               },
               {

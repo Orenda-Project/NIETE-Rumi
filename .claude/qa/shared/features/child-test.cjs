@@ -96,6 +96,7 @@ const SCENARIOS = [
   ['CT50', 'The child number stays the same when a child is absent and an alternate steps in', 'L3'],
   ['CT61', 'The check message states only the numbers the form shows filled in, names the child, and promises two minutes', 'L6'],
   ['CT62', 'Without an observation, "Send to <name>" offers the drawn class\'s class teacher', 'L4'],
+  ['CT63', 'A count typed in the check is accepted, in Latin or Urdu digits', 'L6'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -409,6 +410,8 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     // L21 (bd-s1oo0.27/.28): proven by tests/child-test/L21 (check-message, teacher-offer).
     record('CT61', ...B('needs recorded vendor answers and the stored check Flow fixture, as CT07'));
     record('CT62', ...B('drive not written yet: needs a SIM class_teachers row and an outbound send to a second synthetic number, as CT33'));
+    // bd-s1oo0.43: proven by tests/child-test/L0/check-count-inputs.test.js; the client-side check needs a real WhatsApp client.
+    record('CT63', ...B('client-side Flow validation only runs in a real WhatsApp client (Chrome lane); the endpoint half is jest-proven'));
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}
