@@ -408,12 +408,40 @@ describe('6. auto-advance and the end of the visit', () => {
     await H.__drain();
     const txt = allText();
     expect(txt).toMatch(/🎉 All 5 children done \(\d+ min\)\. Thank the teachers\./);
-    expect(review.visitSummary).toHaveBeenCalledWith('en', expect.stringMatching(/^day:/));
-    expect(txt).toContain('Ayesha Khan — Urdu 41 words/min');
     expect(review.sendReview).toHaveBeenCalledWith(COACH_ID, expect.stringMatching(/^day:/));
+    // L31: with doubtful items the review Flow message carries the results; they are not ALSO sent as text
+    expect(txt).not.toContain('Ayesha Khan — Urdu 41 words/min');
     expect(lanes.calls.filter((c) => c[0] === 'sendCheck')).toHaveLength(0);
     // no "Child 6 of 5"
     expect(txt).not.toMatch(/Child 6/);
+  });
+
+  // L31 (bd-s1oo0.46.7, CONTRACT v0.14b CR-L28-2): the results reach the coach exactly once (shot_v2 09).
+  test('no doubtful answers: no Flow, the results are sent once as text (from the review\'s own summary)', async () => {
+    review.sendReview.mockImplementation(async () => ({ ok: true, items: 0, summary: 'Ayesha Khan — Urdu 41 words/min, 2 of 3 answers' }));
+    await startVisit();
+    for (const d of ['d1', 'd2', 'd3', 'd4', 'd5']) await testChild(d);
+    await H.__drain();
+    const hits = sent().filter((m) => /Ayesha Khan — Urdu 41 words\/min/.test(textOf(m)));
+    expect(hits).toHaveLength(1);
+    expect(hits[0].kind).toBe('text');
+  });
+
+  test('the review could not be sent: the coach still gets the results once as text, and the failure is logged', async () => {
+    review.sendReview.mockImplementation(async () => ({ ok: false, reason: 'send_failed' }));
+    await startVisit();
+    for (const d of ['d1', 'd2', 'd3', 'd4', 'd5']) await testChild(d);
+    await H.__drain();
+    expect(sent().filter((m) => /Ayesha Khan — Urdu 41 words\/min/.test(textOf(m)))).toHaveLength(1);
+    expect(require('../../../bot/shared/utils/logger').logError).toHaveBeenCalledWith('child_test.review_send_failed', expect.objectContaining({ error: 'send_failed' }));
+  });
+
+  test('per_child mode (no end review): the results are sent once as text', async () => {
+    process.env.CHILD_TEST_CHECK_MODE = 'per_child';
+    await startVisit();
+    for (const d of ['d1', 'd2', 'd3', 'd4', 'd5']) await testChild(d);
+    await H.__drain();
+    expect(sent().filter((m) => /Ayesha Khan — Urdu 41 words\/min/.test(textOf(m)))).toHaveLength(1);
   });
 
   test('nobody tested (all absent, no alternate left): no "All 0 children done", no summary, no review', async () => {
