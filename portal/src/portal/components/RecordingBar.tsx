@@ -41,13 +41,18 @@ export const BAR_STYLE = {
  * "Recording", the clock and ›. On a phone it is an opaque strip on top of the indigo menu — 8px of
  * page colour, then the 56px bar, ending 144px + the safe area up, exactly where a page's bottom
  * button (newui BottomActions) then stands: the two never overlap and nothing shows between them.
- * On a desktop it floats in the corner. The old menu keeps BAR_STYLE, unchanged.
+ *
+ * On a desktop (bd-5rz1v.26.4) it docks the same way, on the bottom edge: an opaque strip the full
+ * width of the screen (a 1px line, 12px, the 56px bar — 360px wide, at the end — and 12px), and
+ * the page pads past it (PortalLayout, md:pb-24). Floating in the corner, it sat over the end of
+ * Coaching's lesson rows at every scroll stop but the last (measured at 1280); docked, the page
+ * simply ends above it. The old menu keeps BAR_STYLE, unchanged.
  */
 export const NEW_BAR_STYLE = {
-  dock: 'fixed inset-x-0 z-40 md:inset-x-auto md:bottom-6 md:end-6 md:w-[360px] md:bg-transparent md:p-0',
+  dock: 'fixed inset-x-0 z-40 md:inset-x-0 md:bottom-0 md:flex md:justify-end md:border-t md:border-nu-surface-line md:bg-nu-surface md:px-6 md:py-3',
   dockAboveMenu: 'bottom-[calc(80px+env(safe-area-inset-bottom))] bg-nu-surface px-[14px] pb-2',
   dockNoMenu: 'bottom-3 px-[14px]',
-  bar: 'flex h-14 w-full items-center gap-3 rounded-2xl border-[1.5px] border-nu-surface-line bg-nu-surface-card pe-2.5 ps-2 text-start text-nu-surface-text md:shadow-nu-float outline-none focus-visible:ring-[3px] focus-visible:ring-nu-focus active:bg-nu-ink-xlight',
+  bar: 'flex h-14 w-full items-center gap-3 rounded-2xl border-[1.5px] border-nu-surface-line bg-nu-surface-card pe-2.5 ps-2 text-start text-nu-surface-text md:w-[360px] outline-none focus-visible:ring-[3px] focus-visible:ring-nu-focus active:bg-nu-ink-xlight',
   tile: 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
   tileLive: 'bg-nu-record-bg text-nu-record',
   tilePaused: 'bg-nu-chip-warning-bg text-nu-chip-warning',
@@ -56,6 +61,9 @@ export const NEW_BAR_STYLE = {
   clockWarn: 'text-nu-chip-warning',
   chevron: 'h-[22px] w-[22px] shrink-0 text-nu-surface-chevron rtl:rotate-180',
 };
+
+/** The desktop strip's height (NEW_BAR_STYLE.dock): a 1px line + 12px + the 56px bar + 12px. */
+export const DESK_BAR_STRIP_PX = 1 + 12 + 56 + 12;
 
 export const CHIP_STYLE = {
   chip: 'inline-flex items-center gap-1.5 rounded-full bg-[#fdecea] px-3 py-1 text-[13px] font-semibold text-[#c62828]',

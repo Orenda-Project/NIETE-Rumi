@@ -17,6 +17,7 @@ import { ToggleList } from "../ToggleList";
 import { Sheet } from "../Sheet";
 import { Hero } from "../Hero";
 import { AnswerChoices } from "../Answers";
+import { AudioPlayer } from "../AudioPlayer";
 
 /**
  * bd-5rz1v.19 — CHECK 2: every tap target is at least 56px (DESIGN.md rule 3, TAP_MIN_PX).
@@ -85,6 +86,9 @@ describe("every interactive kit component is at least 56px", () => {
         {/* bd-5rz1v.25 — answering one question per screen. */}
         <AnswerChoices label="Answers" options={["Shout louder", "Use the quiet signal"]} value={[1]} onChange={() => {}} />
         <AnswerChoices mode="multi" label="Answers" options={["A raised hand", "A clap"]} value={[]} onChange={() => {}} />
+        {/* bd-5rz1v.26.4 — listening: a card row, and the row alone inside a Panel. */}
+        <AudioPlayer src="https://r2/a.mp3" label="Digital Coach" durationHint={296} />
+        <AudioPlayer src="https://r2/b.mp3" label="Your recording" bare />
         <BottomActions>
           <BottomButton>Open</BottomButton>
           <BottomButton tone="outline" to="/key">Answer key</BottomButton>

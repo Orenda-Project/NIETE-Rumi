@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { portal } from '../services/api';
+import { forgetNewUi, rememberedNewUiFor, rememberNewUi } from './newUiMemory';
 
 /**
  * bd-5rz1v.12 — is the new UI (Direction B) on for this user?
@@ -19,8 +20,6 @@ import { portal } from '../services/api';
  * id, so the navigation passes her phone number; it is held in memory only and
  * never stored. Without a key nothing is remembered.
  */
-let remembered: { userKey: string; on: boolean } | null = null;
-
 /**
  * The layout and the navigation both ask on every page; they share one /config
  * read while it is in flight. Fail-closed: a client that throws synchronously,
@@ -44,14 +43,13 @@ function readNewUi(): Promise<boolean> {
  *                the user to load, so it does not read /config twice per page
  */
 export function useNewUi(userKey?: string | null, ready = true): boolean | null {
-  const [on, setOn] = useState<boolean | null>(() =>
-    (userKey && remembered && remembered.userKey === userKey ? remembered.on : null));
+  const [on, setOn] = useState<boolean | null>(() => rememberedNewUiFor(userKey));
 
   useEffect(() => {
     if (!ready) return undefined;
     let live = true;
     const settle = (value: boolean) => {
-      if (userKey) remembered = { userKey, on: value };
+      if (userKey) rememberNewUi(userKey, value);
       if (live) setOn(value);
     };
     readNewUi().then(settle);
@@ -63,6 +61,6 @@ export function useNewUi(userKey?: string | null, ready = true): boolean | null 
 
 /** Tests only: forget the remembered answer. */
 export function resetNewUiMemory(): void {
-  remembered = null;
+  forgetNewUi();
   inflight = null;
 }

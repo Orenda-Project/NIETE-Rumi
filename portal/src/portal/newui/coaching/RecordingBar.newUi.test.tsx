@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import RecordingBar, { NEW_BAR_STYLE } from "../../components/RecordingBar";
+import RecordingBar, { NEW_BAR_STYLE, DESK_BAR_STRIP_PX } from "../../components/RecordingBar";
 import type { RecordingSession } from "../../lib/recordingSession";
 import { RecordingBarShownContext } from "../../lib/recordingBarShown";
 import { BottomActions, BottomButton } from "../BottomButton";
@@ -116,5 +116,38 @@ describe("the bar and a page's bottom button never overlap (bd-5rz1v.24)", () =>
   it("with no bar, the button sits just above the menu", () => {
     render(<MemoryRouter><BottomActions><BottomButton>Open</BottomButton></BottomActions></MemoryRouter>);
     expect(bottomPx(classes(screen.getByTestId("newui-bottom-actions")))).toBe(80);
+  });
+});
+
+describe("bd-5rz1v.26.4 — on a desktop the bar never covers the page", () => {
+  // Measured at 1280 on sandbox before this change: the bar floated in the corner (md:bottom-6
+  // md:end-6) over Coaching's lesson list, so a row's end sat under it at every scroll stop but
+  // the last. Now it docks like the phone's: an opaque strip the full width of the bottom edge, the
+  // card at its end, and the page pads at least the strip's height (PortalLayout.newUi.test.tsx).
+  const md = (cls: string[]) => cls.filter((c) => c.startsWith("md:")).map((c) => c.slice(3));
+
+  it("docks in a full-width opaque strip on the bottom edge, the card at its end", () => {
+    renderBar();
+    const bar = screen.getByTestId("recording-bar");
+    const dock = md(classes(bar.parentElement!));
+    expect(dock).toEqual(expect.arrayContaining(["inset-x-0", "bottom-0", "bg-nu-surface", "border-t", "border-nu-surface-line", "flex", "justify-end"]));
+    // Not floating any more: no corner offsets, no see-through dock, no float shadow.
+    expect(dock).not.toEqual(expect.arrayContaining(["bottom-6"]));
+    expect(dock.some((c) => /^(end|start)-/.test(c) || c === "inset-x-auto" || c === "bg-transparent")).toBe(false);
+    expect(classes(bar)).toContain("md:w-[360px]");
+    expect(classes(bar)).not.toContain("md:shadow-nu-float");
+  });
+
+  it("the strip's height is known: 1px line + 12px + the 56px bar + 12px = 81px", () => {
+    renderBar();
+    const dock = md(classes(screen.getByTestId("recording-bar").parentElement!));
+    expect(dock).toEqual(expect.arrayContaining(["py-3"]));
+    expect(DESK_BAR_STRIP_PX).toBe(81);
+  });
+
+  it("with no menu (Sending) it docks the same way on a desktop", () => {
+    renderBar({}, { aboveMenu: false });
+    const dock = md(classes(screen.getByTestId("recording-bar").parentElement!));
+    expect(dock).toEqual(expect.arrayContaining(["inset-x-0", "bottom-0", "bg-nu-surface"]));
   });
 });

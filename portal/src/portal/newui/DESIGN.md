@@ -98,6 +98,7 @@ props, use only `nu-*` tokens and logical spacing, and keep every target at 56px
 | `ToggleList` | Big options with a tick box | `mode="single"` (radio) or `"multi"` (checkbox). On = indigo. `compact` = 56px rows. `disabled` dims every option and ignores taps (My grades inside the server's 48h window). |
 | `Panel`, `Fold` | A section of content (a report's feedback, a transcript) | `icon` + a short `title` (one heading, 1–3 words) over the content. `Panel` is the list card with a 42px neutral tile; `Fold` is the same card whose heading is a 60px button with ⌄ (`aria-expanded`), closed by default (`defaultOpen`). The words inside are data, shown as they are. |
 | `Hero` | A status screen | `ring` ({value 0–1, text}) or `icon` + `tone` (`done`, `waiting`, `neutral`), `spinning`, `chips`, `live`. |
+| `AudioPlayer` | Listening to a recording (bd-5rz1v.26.4) | Never the browser's `<audio controls>` (Firefox draws a dark bar). A white card row: a 56px round button (a green ring with ▶; **green filled** with ❚❚ while it plays), the track (`bg-nu-progress` on `bg-nu-progress-track`, a tap or a drag seeks), then elapsed / total in tabular numbers, left to right even in Urdu. No volume. `src`, `label` (names the seek bar: "Digital Coach"), `durationHint` (seconds, shown before the file says, or when it never does: a recorder's webm reports Infinity), `preload` (`none` by default: nothing is fetched before she taps, her data), `bare` (inside a `Panel`, which is already the card). RTL mirrors the track and the seek; Space plays and pauses, the arrows seek 5s in the reading direction, Home/End jump; a spinner (motion-safe) while it loads; a red "Can't play" chip when the file fails. One kit player sounds at a time, and it touches no other media, no microphone and no recording session (`audioPlayer.recording.test.tsx`). **Training:** the part page's video and audio (bd-5rz1v.25) can swap `<audio controls>` for `<AudioPlayer src={d.audio_url} label={…} />`. |
 | `AnswerChoices`, `QuestionDots` | One question per screen (bd-5rz1v.25) | Big answers: a 32px letter tile then the answer, 58px+, 16px corners, 2px edge; the picked one indigo (edge, tint, letter). `mode="multi"` = checkboxes ("Pick all"); `images` for picture answers; `value` is 0-based positions. `QuestionDots`: a bar per question, indigo up to the current one, a progressbar, never a button. |
 | `FeatureIcon`, `HeadingTile` | A feature's icon | The only place a feature colour is drawn. |
 
@@ -135,8 +136,8 @@ violations.
 
 | Check | Fails when |
 |---|---|
-| **copy** (`copy.test.ts`) | A string in `copy.ts` has more than 4 words, or ends in `.` `?` `!` `۔` or `؟` (what each function returns is checked too). New-UI source has JSX text or a string-literal child. A literal `title`, `label`, `aria-label`, `alt`, `placeholder` or `crumb` breaks the same rule. The allowlist (`COPY_ALLOWLIST` in `rules.ts`) is empty, and every entry needs a reason. |
-| **tap** (`tap.test.tsx`) | Any button, link, input, radio or checkbox that a kit component renders lacks a phone-size height of 56px or more (`min-h-[56px]`, `h-14`, `h-[58px]` and so on). An icon with no text also needs that width. jsdom has no layout, so this checks the class contract. `md:` classes do not count. An input with the `hidden` attribute (a file picker a row opens) is not on screen and is skipped. |
+| **copy** (`copy.test.ts`) | A string in `copy.ts` has more than 4 words, or ends in `.` `?` `!` `۔` or `؟` (what each function returns is checked too). New-UI source has JSX text or a string-literal child. A literal `title`, `label`, `aria-label`, `alt`, `placeholder` or `crumb` breaks the same rule. The allowlist (`COPY_ALLOWLIST` in `rules.ts`) holds one entry, "Stop recording?" (the operator's title for Logout while recording), and every entry needs a reason. |
+| **tap** (`tap.test.tsx`) | Any button, link, input, radio, checkbox or slider (AudioPlayer's track) that a kit component renders lacks a phone-size height of 56px or more (`min-h-[56px]`, `h-14`, `h-[58px]` and so on). An icon with no text also needs that width. jsdom has no layout, so this checks the class contract. `md:` classes do not count. An input with the `hidden` attribute (a file picker a row opens) is not on screen and is skipped. |
 | **style** (`style.test.tsx`) | A primary `BottomButton` is not `bg-nu-button` on `shadow-nu-button`, or any tone wears a feature colour, the leaf or the frame indigo. A `nu-f-*` class appears outside `FeatureIcon.tsx`. Source has a raw hex, rgb or hsl colour (use tokens; `theme(…)` is fine). A left/right class appears (`ml-`, `pr-`, `left-`, `rounded-l`, `border-r`, `text-left`, `space-x`). `animate-*`, `transition` or `transition-transform` appears without `motion-safe:`. A bare `grid` or `rounded-lg`/`md`/`sm` appears (see "Two classes that lie here"). |
 
 Only code is read. A comment may mention a hex or a margin.
@@ -198,7 +199,7 @@ it, so do not write a raw hex in a component (the style check fails).
 | Destructive | `#c8331f` | edge `#8a1f12` | white | `bg-nu-button-destructive`, `shadow-nu-destructive` |
 | Disabled | `#d7d9e0` | none | `#8c90a0` | `bg-nu-button-disabled`, `text-nu-button-disabled-text` |
 
-`shadow-nu-nav` is the menu bar's upward shadow. `shadow-nu-float` is something floating over the page (the recording bar in a desktop corner).
+`shadow-nu-nav` is the menu bar's upward shadow. `shadow-nu-float` is something floating over the page (nothing today: the recording bar docks on a desktop since bd-5rz1v.26.4).
 
 ### Progress, done and status chips
 
@@ -387,8 +388,21 @@ old code). The mockup has no Coaching section; these screens follow Home's and A
 - **The recording bar** on the new menu (`RecordingBar.tsx`, `NEW_BAR_STYLE`): a white kit card — the
   recording-red mic tile (amber pause tile when paused), Recording, the clock (amber if the screen went off), ›.
   On a phone an opaque strip from the top of the menu (8px, then the 56px bar) ends 144px up, where a page's
-  `BottomActions` stands: they never overlap (bd-5rz1v.24). On a desktop it floats in the corner
-  (`shadow-nu-float`). The old menu's bar is unchanged.
+  `BottomActions` stands: they never overlap (bd-5rz1v.24). On a desktop (bd-5rz1v.26.4) it docks the same way
+  on the bottom edge: an opaque strip the full width (a 1px line, 12px, the 360px bar at the end, 12px: 81px,
+  `DESK_BAR_STRIP_PX`), and the page pads 96px, so the page ends above it. (Floating in the corner, it sat over
+  the end of Coaching's lesson rows at 1280 until she scrolled to the bottom.) The old menu's bar is unchanged.
+- **Listening** (bd-5rz1v.26.4): the report's Digital Coach and Your recording play through `AudioPlayer`
+  (`bare`, inside their `Panel`); Your recording shows its length before anything loads (`durationHint`, the
+  lesson's minutes). Check and send's Listen is a row that plays and pauses, as before.
+- **Logout while recording** (bd-5rz1v.10's question, in the kit since bd-5rz1v.26.4,
+  `coaching/LogoutWhileRecording.tsx`): a `Sheet` "Stop recording?" with the Recording chip (Paused, amber,
+  when paused) and the running time; **Keep recording** (green) changes nothing, **Stop & log out**
+  (`dangerOutline`) finishes the lesson, keeps it on the phone (Coaching offers it under Continue after she signs
+  in) and logs out. Close, Escape, Back and the dim are Keep recording. The session asks it
+  (`askBeforeLogout`), in the kit while `portal_new_ui` is on for her and the old sheet otherwise. **Any Logout
+  anywhere** — the account sheet, the menu's pull-up panel (bd-5rz1v.18) — calls `useGuardedLogout()`
+  (`newui/useGuardedLogout.ts`) or `useLogoutGuard(logout)`; close your own sheet first.
 
 ## Training (built, bd-5rz1v.25)
 

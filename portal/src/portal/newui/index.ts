@@ -20,6 +20,7 @@ export { ToggleList, type ToggleListProps, type ToggleOption } from './ToggleLis
 export { Hero, type HeroProps } from './Hero';
 export { Panel, Fold, type PanelProps, type FoldProps } from './Panel';
 export { AnswerChoices, QuestionDots, type AnswerChoicesProps } from './Answers';
+export { AudioPlayer, type AudioPlayerProps, type AudioPlayerCopy } from './AudioPlayer';
 export { FeatureIcon, HeadingTile, type Feature } from './FeatureIcon';
 export { KIT_COPY, NAV_COPY, MONTHS, ASSESSMENT_COPY } from './copy';
 export { FOCUS, TAP, TAP_SQUARE, PRESS } from './styles';

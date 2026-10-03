@@ -14,9 +14,15 @@ const SENTENCE_END = /[.?!؟۔]$/u;
 
 /**
  * Strings allowed to break the rule, each with its reason. Keep it short: an entry here is a
- * sentence on a teacher's screen. Empty today.
+ * sentence on a teacher's screen.
  */
-export const COPY_ALLOWLIST: ReadonlyArray<{ text: string; why: string }> = [];
+export const COPY_ALLOWLIST: ReadonlyArray<{ text: string; why: string }> = [
+  {
+    text: 'Stop recording?',
+    why: "Logout while a lesson records (bd-5rz1v.10, kept in the kit by bd-5rz1v.26.4): the operator's title for the "
+      + 'one question the portal asks before it would end a lesson; its two buttons (Keep recording, Stop & log out) answer it.',
+  },
+];
 
 /** Words, not punctuation: "Training · NIETE · Level 2" is 4 words, "—" is none. */
 export function words(text: string): string[] {
@@ -91,6 +97,8 @@ export function tapWidthOk(className: string): boolean {
 export const INTERACTIVE = [
   'button', 'a[href]', 'input:not([type="hidden"]):not([hidden])', 'select', 'textarea',
   '[role="button"]', '[role="link"]', '[role="radio"]', '[role="checkbox"]', '[role="tab"]', '[role="switch"]',
+  // bd-5rz1v.26.4 — AudioPlayer's track: a finger taps and drags it.
+  '[role="slider"]',
 ].join(', ');
 
 function name(el: Element): string {

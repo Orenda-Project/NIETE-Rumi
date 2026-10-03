@@ -27,6 +27,7 @@ import { portal } from "../services/api";
 import { resetNewUiMemory } from "../lib/useNewUi";
 import PortalLayout from "./PortalLayout";
 import { BottomActions, BottomButton } from "../newui/BottomButton";
+import { DESK_BAR_STRIP_PX } from "./RecordingBar";
 
 const api = portal as unknown as { getDashboard: ReturnType<typeof vi.fn>; getConfig: ReturnType<typeof vi.fn> };
 
@@ -87,6 +88,17 @@ describe("flag ON — room for the taller indigo bar", () => {
     expect(d).toEqual(expect.arrayContaining(["bottom-[calc(80px+env(safe-area-inset-bottom))]", "pb-2", "bg-nu-surface"]));
     expect(d).not.toContain(OLD_DOCK);
     expect(main(container).className).toContain("pb-[calc(176px+env(safe-area-inset-bottom))]");
+  });
+
+  it("bd-5rz1v.26.4 — on a desktop the page pads past the docked bar's strip, so its end is never under it", async () => {
+    const { container } = await renderLayout(true, true);
+    const cls = main(container).className.split(/\s+/);
+    const pad = cls.find((c) => /^md:pb-/.test(c))!;
+    // md:pb-24 → 96px; md:pb-[104px] → 104px
+    const px = /\[(\d+)px\]/.test(pad) ? Number(pad.match(/\[(\d+)px\]/)![1]) : Number(pad.replace("md:pb-", "")) * 4;
+    expect(px).toBeGreaterThanOrEqual(DESK_BAR_STRIP_PX + 14);
+    const d = dock().className.split(/\s+/);
+    expect(d).toEqual(expect.arrayContaining(["md:inset-x-0", "md:bottom-0", "md:bg-nu-surface"]));
   });
 
   it("reads /config once for the layout and the navigation together", async () => {
