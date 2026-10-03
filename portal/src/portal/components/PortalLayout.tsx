@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AuthContext } from '../hooks/authContext';
 import { useRecordingSession } from '../lib/recordingSession';
+import { useNewUi } from '../lib/useNewUi';
 import PortalNavigation from './PortalNavigation';
 import RecordingBar from './RecordingBar';
 
@@ -27,6 +28,9 @@ const PortalLayout = ({ children, bare = false, loadingFallback }: PortalLayoutP
   // bd-5rz1v.10 — a lesson still recording shows its bar on every page but its own.
   const session = useRecordingSession();
   const showBar = !!session?.active && session.returnTo !== pathname;
+  // bd-5rz1v.12 — the new UI's indigo bar is taller than the old one; only then
+  // does the page (and the recording bar) need more room. Off: as before.
+  const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user) === true;
 
   useEffect(() => {
     if (!loading && !user) {
@@ -66,7 +70,9 @@ const PortalLayout = ({ children, bare = false, loadingFallback }: PortalLayoutP
   // thing on the page reachable; on a desktop it floats in a corner instead.
   const pad = bare
     ? (showBar ? 'pb-24 md:pb-24' : 'pb-8')
-    : (showBar ? 'pb-40 md:pb-24' : 'pb-20 md:pb-8');
+    : newUi
+      ? (showBar ? 'pb-[calc(176px+env(safe-area-inset-bottom))] md:pb-24' : 'pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-8')
+      : (showBar ? 'pb-40 md:pb-24' : 'pb-20 md:pb-8');
   return (
     // The loaded user, to everything inside: the navigation never starts from "no user".
     <AuthContext.Provider value={auth}>
@@ -76,7 +82,7 @@ const PortalLayout = ({ children, bare = false, loadingFallback }: PortalLayoutP
       <main className={`px-4 md:px-6 lg:px-8 pt-4 ${pad}`}>
         {children}
       </main>
-      {showBar && session && <RecordingBar session={session} aboveMenu={!bare} />}
+      {showBar && session && <RecordingBar session={session} aboveMenu={!bare} newMenu={newUi} />}
     </div>
     </AuthContext.Provider>
   );

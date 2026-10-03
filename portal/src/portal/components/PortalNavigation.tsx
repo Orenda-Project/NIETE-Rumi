@@ -6,6 +6,8 @@ import { useAuth } from '../hooks/useAuth';
 import { isLeader, resolveRole } from '../lib/leaderRole';
 import { useChildTest } from '../lib/useChildTest';
 import { useLogoutGuard } from '../lib/recordingSession';
+import { useNewUi } from '../lib/useNewUi';
+import NewUiNavigation from '../newui/NewUiNavigation';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
 
@@ -19,6 +21,9 @@ const PortalNavigation = () => {
   // bd-5rz1v.10 — Logout would end a lesson still recording, so it asks first then.
   const guardedLogout = useLogoutGuard(logout);
   const childTestOn = useChildTest() === true;
+  // bd-5rz1v.12 — the new UI's indigo menu bar, only while portal_new_ui is on
+  // for her. Off, loading or unreadable: the markup below, unchanged.
+  const newUiOn = useNewUi(user?.phoneNumber || null) === true;
   const currentPath = location.pathname;
 
   // bd-2434 (Leader Portal): the school-leader family gets the leader nav
@@ -95,6 +100,21 @@ const PortalNavigation = () => {
   const mobileOverflow = primaryNav.length > 0 ? overflowNav : navItems.slice(4);
 
   const isActive = (path: string) => currentPath === path;
+
+  if (newUiOn) {
+    return (
+      <NewUiNavigation
+        leader={isLeader(user)}
+        navItems={navItems}
+        mobileNav={mobileNav}
+        mobileOverflow={mobileOverflow}
+        isActive={isActive}
+        accountPath={ACCOUNT_PATH}
+        firstName={user?.firstName}
+        onLogout={guardedLogout}
+      />
+    );
+  }
 
   return (
     <>

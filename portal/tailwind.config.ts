@@ -1,4 +1,6 @@
 import type { Config } from "tailwindcss";
+// bd-5rz1v.12 — the new UI's colours come from ONE file; see src/portal/newui/DESIGN.md.
+import { tailwindColors as newUiColors } from "./src/portal/newui/tokens";
 
 export default {
   darkMode: ["class"],
@@ -60,6 +62,8 @@ export default {
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         error: "hsl(var(--error))",
+        // bd-5rz1v.12 — new UI (Direction B): bg-nu-ink, text-nu-leaf, text-nu-nav-label, …
+        nu: newUiColors,
       },
       fontFamily: {
         'urdu': ['"Noto Nastaliq Urdu"', 'serif'],
@@ -137,5 +141,6 @@ export default {
       },
     },
   },
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- unchanged since the scaffold; lint flagged it once this file was touched
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;

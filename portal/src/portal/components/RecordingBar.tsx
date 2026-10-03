@@ -26,6 +26,8 @@ export const BAR_STYLE = {
   /** Where it sits: above the phone menu, or in the desktop corner. */
   dock: 'fixed inset-x-0 z-40 px-2.5 md:inset-x-auto md:bottom-6 md:end-6 md:w-[360px] md:px-0',
   dockAboveMenu: 'bottom-[72px]',
+  /** bd-5rz1v.12 — above the new UI's taller indigo bar (80px + the safe area), same 8px gap. */
+  dockAboveNewMenu: 'bottom-[calc(88px+env(safe-area-inset-bottom))]',
   dockNoMenu: 'bottom-3',
   bar: 'flex min-h-[56px] w-full items-center gap-3 rounded-[14px] bg-[#1f2429] py-2 pe-2 ps-4 text-start text-white shadow-[0_6px_16px_rgba(0,0,0,0.22)] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-[#ffd54f]',
   dotLive: 'h-3 w-3 shrink-0 rounded-full bg-[#e53935] motion-safe:animate-pulse',
@@ -55,12 +57,12 @@ export const RecordingContinuesChip = () => (
   </span>
 );
 
-const RecordingBar = ({ session, aboveMenu = true }: { session: RecordingSession; aboveMenu?: boolean }) => {
+const RecordingBar = ({ session, aboveMenu = true, newMenu = false }: { session: RecordingSession; aboveMenu?: boolean; newMenu?: boolean }) => {
   const navigate = useNavigate();
   const ms = useRecordingClock(session);
 
   return (
-    <div className={`${BAR_STYLE.dock} ${aboveMenu ? BAR_STYLE.dockAboveMenu : BAR_STYLE.dockNoMenu}`}>
+    <div className={`${BAR_STYLE.dock} ${aboveMenu ? (newMenu ? BAR_STYLE.dockAboveNewMenu : BAR_STYLE.dockAboveMenu) : BAR_STYLE.dockNoMenu}`}>
       <button
         type="button"
         data-testid="recording-bar"
