@@ -9,7 +9,7 @@ import { Chip } from '../Chip';
 import { DateRangeButton, DateRangeSheet } from '../DateRange';
 import { rangeFromSearch, rangeLabel, rangeSearch, type DateRange } from '../range';
 import { AccountAvatar } from '../NewUiNavigation';
-import { countOf, getProgress, type ProgressCounts } from './progressApi';
+import { countOf, getProgress, type HomeMetric, type ProgressCounts } from './progressApi';
 
 /**
  * bd-5rz1v.17 (UI half) — Home = My progress, behind `portal_new_ui` (PortalDashboard picks it).
@@ -19,19 +19,15 @@ import { countOf, getProgress, type ProgressCounts } from './progressApi';
  * plans used, Training modules done, Assessments made, Attendance marked, and the wide Coaching
  * & observations with "n Digital Coach" and "n Visits". Activity, not ratings: no score here.
  *
- * Each tile opens what is behind it. Lesson plans and Coaching have their own lists inside Home
- * (HomeList); the other three go to their pages for now. The range lives in the address, so the
- * lists open on the same range and Back keeps it.
+ * Each tile opens what is behind it: its own list inside Home (HomeList; bd-5rz1v.17.2 moved
+ * Training, Assessments and Attendance in from their old pages). The range lives in the address,
+ * so the lists open on the same range and Back keeps it.
  *
  * While loading, or when the API fails, every tile shows "—": the page never goes blank.
  */
 
-const HOME_TILE_LINKS = {
-  training: '/portal/training',
-  // bd-5rz1v.13 — the assessments she made, on the Assessment page.
-  assessments: '/portal/assessment/mine',
-  attendance: '/portal/classes',
-} as const;
+/** A tile's list inside Home, on the range Home shows. */
+const listOf = (metric: HomeMetric, search: string) => `/portal/dashboard/${metric}${search}`;
 
 type Loaded = { key: string; counts: ProgressCounts | null };
 
@@ -76,28 +72,28 @@ export default function NewHome() {
             feature="lessonPlans"
             value={countOf(c?.lessonPlans?.used)}
             label={HOME_COPY.tiles.lessonPlans}
-            to={`/portal/dashboard/lesson-plans${search}`}
+            to={listOf('lesson-plans', search)}
             testId="newui-home-lesson-plans"
           />
           <MetricTile
             feature="training"
             value={countOf(c?.training?.completed)}
             label={HOME_COPY.tiles.training}
-            to={HOME_TILE_LINKS.training}
+            to={listOf('training', search)}
             testId="newui-home-training"
           />
           <MetricTile
             feature="assessment"
             value={countOf(c?.assessments?.made)}
             label={HOME_COPY.tiles.assessments}
-            to={HOME_TILE_LINKS.assessments}
+            to={listOf('assessments', search)}
             testId="newui-home-assessments"
           />
           <MetricTile
             feature="attendance"
             value={countOf(c?.attendance?.days)}
             label={HOME_COPY.tiles.attendance}
-            to={HOME_TILE_LINKS.attendance}
+            to={listOf('attendance', search)}
             testId="newui-home-attendance"
           />
           <MetricTile
@@ -105,7 +101,7 @@ export default function NewHome() {
             feature="coaching"
             value={countOf(c?.coaching?.total)}
             label={HOME_COPY.tiles.coaching}
-            to={`/portal/dashboard/coaching${search}`}
+            to={listOf('coaching', search)}
             testId="newui-home-coaching"
             chips={digitalCoach !== null || visits !== null ? (
               <>

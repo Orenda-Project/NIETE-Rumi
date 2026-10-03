@@ -297,8 +297,15 @@ My Patch, and flag off renders the old dashboard byte for byte (`PortalDashboard
   the breadcrumb Home, the range on a light button, and the items from
   `GET /api/portal/progress/:metric`. A plan opens in the portal's viewer (a 6–12 plan is asked for in
   its language first). A session opens its page. The coaching list is the only place a rating shows,
-  and only as a band word. The other three tiles go to their existing pages for now. Without the flag,
-  these addresses go back to the dashboard.
+  and only as a band word. Without the flag, these addresses go back to the dashboard.
+- `/portal/dashboard/training`, `/assessments` and `/attendance` (bd-5rz1v.17.2), the same pages for the
+  other three tiles. **Training**: a done tile, the module's title, the provider (`providerShort`) and the
+  day; a tap opens the part (`/portal/training/unit/:id`). **Assessments**: the subject's icon, "Science ·
+  Ch 2", Grade and the day, a download icon; a tap opens My assessments' paper sheet (Download, Answer key
+  when it has one). It is not My assessments itself: that list is one entry per paper family with no
+  dates. **Attendance**: a row per day, its classes as chips and "n registers"; a tap opens that day on
+  Analytics' Attendance tab (`?from=&to=#attendance`). Empty is a `Hero` with the list's icon and "Nothing
+  yet".
 
 ## Lesson Plans (built, bd-5rz1v.14)
 

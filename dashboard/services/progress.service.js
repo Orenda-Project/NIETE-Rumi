@@ -43,6 +43,9 @@ const { getOverall } = require('./coaching-frameworks.service');
 const { scoreBandFor } = require('../../bot/shared/config/score-bands');
 const { pkInstantWindow, dateWindow } = require('../lib/pk-range');
 const LpActivity = require('./lp-activity.service');
+// The printable subject name, from the one place that names subjects (the bot's assessment
+// vocabulary). Pure: it requires nothing, so the portal service can load it.
+const { subjectLabel } = require('../../bot/shared/services/assessment/assessment-vocabulary');
 
 const METRICS = Object.freeze(['lesson-plans', 'coaching', 'training', 'assessments', 'attendance']);
 const LIST_LIMIT_DEFAULT = 50;
@@ -154,11 +157,19 @@ async function coachingItems(query, userId, range, limit) {
   });
 }
 
+/**
+ * bd-5rz1v.17.2 — each module names its provider (the level's vendor: module → course → level →
+ * vendor), so Home's Training list can carry a provider chip. LEFT JOINs: a module whose chain is
+ * incomplete is still listed, with no provider.
+ */
 async function trainingItems(query, userId, range, limit) {
   const { rows } = await query(`
-    SELECT p.module_id, p.completed_at, m.title AS module_title, tc.title AS course_title
+    SELECT p.module_id, p.completed_at, m.title AS module_title, tc.title AS course_title,
+           tv.key AS vendor_key, tv.name AS vendor_name
       ${TRAINING_FROM}
       LEFT JOIN training_courses tc ON tc.id = m.course_id
+      LEFT JOIN training_levels tl ON tl.id = tc.level_id
+      LEFT JOIN training_vendors tv ON tv.id = tl.vendor_id
      WHERE ${TRAINING_WHERE}
      ORDER BY p.completed_at DESC NULLS LAST
      LIMIT $4`, [userId, range.from, range.to, limit]);
@@ -166,13 +177,21 @@ async function trainingItems(query, userId, range, limit) {
     moduleId: String(r.module_id),
     title: r.module_title || null,
     courseTitle: r.course_title || null,
+    vendorKey: r.vendor_key || null,
+    vendorName: r.vendor_name || null,
     completedAt: r.completed_at ? new Date(r.completed_at).toISOString() : null,
   }));
 }
 
+/**
+ * bd-5rz1v.17.2 — each paper carries what its sheet on Home shows (the same as My assessments):
+ * the subject's printable name, questions, marks, and whether an answer key exists — absent on
+ * every paper generated before V1.4.2, so the sheet must not offer one.
+ */
 async function assessmentItems(query, userId, range, limit) {
   const { rows } = await query(`
-    SELECT ap.id AS paper_id, r.grade_code, r.subject_code, r.chapter_number, ap.created_at
+    SELECT ap.id AS paper_id, r.grade_code, r.subject_code, r.chapter_number, ap.created_at,
+           ap.question_count, ap.total_marks, (ap.answer_key_r2_key IS NOT NULL) AS has_answer_key
       ${PAPERS_FROM}
      WHERE ${PAPERS_WHERE}
      ORDER BY ap.created_at DESC
@@ -182,7 +201,11 @@ async function assessmentItems(query, userId, range, limit) {
     paperId: r.paper_id,
     grade: Number(String(r.grade_code || '').replace(/^grade_/, '')) || null,
     subjectKey: r.subject_code || null,
+    subject: r.subject_code ? subjectLabel(r.subject_code) : null,
     chapterNumber: r.chapter_number ?? null,
+    questionCount: r.question_count ?? null,
+    totalMarks: r.total_marks ?? null,
+    hasAnswerKey: r.has_answer_key === true,
     createdAt: new Date(r.created_at).toISOString(),
   }));
 }
