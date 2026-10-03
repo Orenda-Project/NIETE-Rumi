@@ -122,6 +122,12 @@ beforeEach(() => {
   delete process.env.SPEECHACE_API_KEY;
 });
 
+// This file tests the v1 battery (first sounds, made-up words) and the v1 strip maths; v2 is the default
+// since bd-s1oo0.46.3 (CONTRACT §19), so the v1 switches are pinned for this file only.
+const PINNED_SWITCHES = { CHILD_TEST_BATTERY: process.env.CHILD_TEST_BATTERY, CHILD_TEST_MATHS_MODE: process.env.CHILD_TEST_MATHS_MODE };
+beforeAll(() => { process.env.CHILD_TEST_BATTERY = 'v1'; process.env.CHILD_TEST_MATHS_MODE = 'strip'; });
+afterAll(() => { for (const [k, v] of Object.entries(PINNED_SWITCHES)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } });
+
 describe('scoreBlock (L4 → L5 contract)', () => {
   test('english block: Soniox in English, SpeechAce + Gemini both score, a chip both agree on is pre-ticked', async () => {
     global.__noteSeconds = 62;

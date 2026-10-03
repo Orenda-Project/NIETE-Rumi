@@ -16,5 +16,5 @@ test('item-bank.v1.json passes the content validator', () => {
   const out = `${r.stdout}\n${r.stderr}`;
   expect({ status: r.status, failing: out.split('\n').filter((l) => /^not ok/.test(l)) })
     .toEqual({ status: 0, failing: [] });
-  expect(out).toMatch(/# pass 8/);
+  expect(out).toMatch(/# pass 10/);
 });

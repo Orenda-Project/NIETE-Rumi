@@ -1,5 +1,5 @@
 {
-  "version": "child-test-items-v1",
+  "version": "child-test-items-v2",
   "cue": {
     "urdu": {
       "start": "اب شروع کریں",
@@ -48,14 +48,20 @@
       "note": "Marks the start of the 60-second quick-sums run; the 8 numbers are read before it, untimed. quick_sums is the same line as start.",
       "numbers": "اب یہ نمبر باری باری پڑھیں",
       "quick_sums": "اب سوال شروع کریں",
-      "word_problem": "اب یہ کہانی والا سوال غور سے سنیں"
+      "word_problem": "اب یہ کہانی والا سوال غور سے سنیں",
+      "compare": "ان دونوں میں سے بڑا نمبر کون سا ہے",
+      "sum": "اس کا جواب بتائیں",
+      "next": "اگلا",
+      "word_problems": "اب کہانی والے دو سوال غور سے سنیں"
     }
   },
   "conventions": {
     "tokens": "Scored words in reading order. Punctuation is stripped and is never a token. English keeps its printed case.",
     "needs_line": "1-based sentence number (see story.lines) holding the main answer evidence; ask the question only if the child read at least that far.",
     "vowel_marks": "none — as in the May 2026 passages; made-up words use only long-vowel letters (ا و ی ے) so they are decodable without marks.",
-    "digits": "Maths items and word problems use Western digits, as in ICT maths textbooks.",
+    "digits": "Maths items printed on the card use Western digits, as in ICT maths textbooks. Urdu prose the coach reads aloud (maths.oral.word_problems[].prompt_ur) uses Urdu digits; the v1 strip word problem keeps Western digits.",
+    "script": "v2: <block>.script (maths: maths.oral.script) holds the exact words the coach says to the child. Cue lines equal a cue phrase (start ends with one), so the window finder keys on them.",
+    "oral_maths": "v2: maths.oral is the May 2026 EGMA set (Form A = Set A, this term) or a parallel set (Form B = Set B, next term; equated: false). Compare A-D and sums 1-4 are printed on the card; the coach reads the word problems aloud.",
     "status": "AI-vetted. Pending sign-off by Sabeena and Sameer (decision D3)."
   },
   "grades": {
@@ -265,6 +271,14 @@
                 "source": "rdcomp_inf2_urd"
               }
             ],
+            "script": {
+              "greet": "السلام علیکم! آج آپ کو ایک چھوٹی سی کہانی پڑھنی ہے اور پھر کچھ سوالوں کے جواب دینے ہیں۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
+              "start": "یہ کہانی اونچی آواز میں پڑھیں۔ اب شروع کریں",
+              "go_on": "آگے پڑھیں",
+              "stop": "بس، شکریہ",
+              "questions_intro": "اب کہانی کے بارے میں کچھ سوالات سنیں",
+              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ الفاظ پڑھیں۔"
+            },
             "first_sounds": [
               {
                 "id": "u3A-fs1",
@@ -648,9 +662,49 @@
               },
               {
                 "id": "e3A-q2",
+                "prompt": "What did Imran take in a bag?",
+                "type": "literal",
+                "needs_line": 3,
+                "accept": [
+                  "a small plant",
+                  "small plant",
+                  "a plant",
+                  "plant",
+                  "a little plant",
+                  "a small tree",
+                  "a baby tree",
+                  "پودا",
+                  "پودہ",
+                  "پودے",
+                  "چھوٹا پودا",
+                  "ایک پودا",
+                  "ایک چھوٹا پودا",
+                  "چھوٹا درخت"
+                ],
+                "reject": [
+                  "books",
+                  "his books",
+                  "lunch",
+                  "food",
+                  "water",
+                  "seeds",
+                  "soil",
+                  "a bag",
+                  "کتابیں",
+                  "کھانا",
+                  "پانی",
+                  "بیج",
+                  "مٹی",
+                  "بستہ"
+                ],
+                "rubric": "Correct if the child says a plant or a small plant (a small or baby tree is the same thing). Just \"tree\" / درخت repeats question 1 and is not enough. Books, food, water, seeds or soil are wrong. An answer in Urdu or English is accepted.",
+                "source": "rdcomp_lit3_eng"
+              },
+              {
+                "id": "e3A-q3",
                 "prompt": "Why was the teacher happy with Imran?",
                 "type": "inferential",
-                "needs_line": 5,
+                "needs_line": 6,
                 "accept": [
                   "he planted the tree well",
                   "he showed the class how to plant it",
@@ -682,6 +736,13 @@
                 "source": "rdcomp_inf1_eng"
               }
             ],
+            "script": {
+              "start": "Read this story out loud. Please start reading",
+              "go_on": "Go on.",
+              "stop": "Stop, thank you",
+              "questions_intro": "Now listen to some questions about the story",
+              "fallback": "That's okay. Read these letters, then these words."
+            },
             "nonwords": [
               {
                 "id": "e3A-nw1",
@@ -1125,6 +1186,100 @@
               "prompt_ur": "علی کے پاس 15 کنچے تھے۔ اس نے 6 کنچے اپنی بہن کو دے دیے۔ اب علی کے پاس کتنے کنچے ہیں؟",
               "prompt_en": "Ali had 15 marbles. He gave 6 marbles to his sister. How many marbles does Ali have now?",
               "answer": 9
+            },
+            "oral": {
+              "set": "A",
+              "equated": true,
+              "compare": [
+                {
+                  "id": "m3A-oc1",
+                  "label": "A",
+                  "a": 11,
+                  "b": 16,
+                  "answer": 16,
+                  "source": "may2026-egma:identify_1a"
+                },
+                {
+                  "id": "m3A-oc2",
+                  "label": "B",
+                  "a": 93,
+                  "b": 77,
+                  "answer": 93,
+                  "source": "may2026-egma:identify_2a"
+                },
+                {
+                  "id": "m3A-oc3",
+                  "label": "C",
+                  "a": 625,
+                  "b": 638,
+                  "answer": 638,
+                  "source": "may2026-egma:identify_3a"
+                },
+                {
+                  "id": "m3A-oc4",
+                  "label": "D",
+                  "a": 3826,
+                  "b": 2863,
+                  "answer": 3826,
+                  "source": "may2026-egma:identify_4a"
+                }
+              ],
+              "sums": [
+                {
+                  "id": "m3A-os1",
+                  "label": "1",
+                  "prompt": "14 + 1",
+                  "answer": 15,
+                  "source": "may2026-egma:computation_1a"
+                },
+                {
+                  "id": "m3A-os2",
+                  "label": "2",
+                  "prompt": "19 - 6",
+                  "answer": 13,
+                  "source": "may2026-egma:computation_2a"
+                },
+                {
+                  "id": "m3A-os3",
+                  "label": "3",
+                  "prompt": "92 - 41",
+                  "answer": 51,
+                  "source": "may2026-egma:computation_3b"
+                },
+                {
+                  "id": "m3A-os4",
+                  "label": "4",
+                  "prompt": "85 + 37",
+                  "answer": 122,
+                  "source": "may2026-egma:computation_4a"
+                }
+              ],
+              "word_problems": [
+                {
+                  "id": "m3A-owp1",
+                  "prompt_ur": "آپ کے پاس ۳ بسکٹ ہیں۔ ثنا آپ کو ۳ بسکٹ اور دیتی ہے۔ اب آپ کے پاس کتنے بسکٹ ہیں؟",
+                  "prompt_en": "You have 3 biscuits. Sana gives you 3 more. How many biscuits do you have now?",
+                  "answer": 6,
+                  "source": "may2026-egma:word_problems_1a"
+                },
+                {
+                  "id": "m3A-owp2",
+                  "prompt_ur": "عائشہ کے پاس ۱۵ سیب ہیں۔ ان میں سے ۳ سیب لال ہیں، باقی سب ہرے ہیں۔ عائشہ کے پاس کتنے ہرے سیب ہیں؟",
+                  "prompt_en": "Ayesha has 15 apples. 3 of those apples are red. The rest are green. How many green apples does Ayesha have?",
+                  "answer": 12,
+                  "source": "may2026-egma:word_problems_2a"
+                }
+              ],
+              "script": {
+                "start": "اب سوال شروع کریں",
+                "compare": "ان دونوں میں سے بڑا نمبر کون سا ہے؟",
+                "sum": "اس کا جواب بتائیں",
+                "next": "اگلا",
+                "wp_intro": "اب کہانی والے دو سوال غور سے سنیں",
+                "stop": "بس، شکریہ"
+              },
+              "next_rule": "the child says nothing for about 5 seconds: the coach says «اگلا» and moves on; the item is scored as no answer",
+              "equated_note": "Set A is the May 2026 instrument itself."
             }
           }
         },
@@ -1328,6 +1483,14 @@
                 "source": "generated"
               }
             ],
+            "script": {
+              "greet": "السلام علیکم! آج آپ کو ایک چھوٹی سی کہانی پڑھنی ہے اور پھر کچھ سوالوں کے جواب دینے ہیں۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
+              "start": "یہ کہانی اونچی آواز میں پڑھیں۔ اب شروع کریں",
+              "go_on": "آگے پڑھیں",
+              "stop": "بس، شکریہ",
+              "questions_intro": "اب کہانی کے بارے میں کچھ سوالات سنیں",
+              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ الفاظ پڑھیں۔"
+            },
             "first_sounds": [
               {
                 "id": "u3B-fs1",
@@ -1700,6 +1863,39 @@
               },
               {
                 "id": "e3B-q2",
+                "prompt": "What did Hina pack for lunch?",
+                "type": "literal",
+                "needs_line": 3,
+                "accept": [
+                  "bread and eggs",
+                  "bread and two eggs",
+                  "some bread and two eggs",
+                  "bread",
+                  "eggs",
+                  "two eggs",
+                  "egg",
+                  "روٹی",
+                  "ڈبل روٹی",
+                  "انڈے",
+                  "دو انڈے",
+                  "روٹی اور انڈے",
+                  "ڈبل روٹی اور انڈے"
+                ],
+                "reject": [
+                  "rice",
+                  "apples",
+                  "ducks",
+                  "water",
+                  "a box",
+                  "چاول",
+                  "سیب",
+                  "بطخیں"
+                ],
+                "rubric": "Correct if the child names the bread or the eggs (either one is enough). Anything else, or only \"a box\", is wrong. An answer in Urdu or English is accepted.",
+                "source": "generated"
+              },
+              {
+                "id": "e3B-q3",
                 "prompt": "Why did everyone laugh?",
                 "type": "inferential",
                 "needs_line": 7,
@@ -1722,6 +1918,13 @@
                 "source": "generated"
               }
             ],
+            "script": {
+              "start": "Read this story out loud. Please start reading",
+              "go_on": "Go on.",
+              "stop": "Stop, thank you",
+              "questions_intro": "Now listen to some questions about the story",
+              "fallback": "That's okay. Read these letters, then these words."
+            },
             "nonwords": [
               {
                 "id": "e3B-nw1",
@@ -2165,6 +2368,100 @@
               "prompt_ur": "ایک دکان میں 24 انڈے تھے۔ ان میں سے 8 انڈے ٹوٹ گئے۔ اب کتنے انڈے باقی ہیں؟",
               "prompt_en": "A shop had 24 eggs. 8 of the eggs broke. How many eggs are left?",
               "answer": 16
+            },
+            "oral": {
+              "set": "B",
+              "equated": false,
+              "compare": [
+                {
+                  "id": "m3B-oc1",
+                  "label": "A",
+                  "a": 13,
+                  "b": 18,
+                  "answer": 18,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m3B-oc2",
+                  "label": "B",
+                  "a": 84,
+                  "b": 69,
+                  "answer": 84,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m3B-oc3",
+                  "label": "C",
+                  "a": 547,
+                  "b": 562,
+                  "answer": 562,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m3B-oc4",
+                  "label": "D",
+                  "a": 5913,
+                  "b": 3951,
+                  "answer": 5913,
+                  "source": "generated-parallel"
+                }
+              ],
+              "sums": [
+                {
+                  "id": "m3B-os1",
+                  "label": "1",
+                  "prompt": "16 + 1",
+                  "answer": 17,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m3B-os2",
+                  "label": "2",
+                  "prompt": "18 - 5",
+                  "answer": 13,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m3B-os3",
+                  "label": "3",
+                  "prompt": "87 - 32",
+                  "answer": 55,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m3B-os4",
+                  "label": "4",
+                  "prompt": "76 + 48",
+                  "answer": 124,
+                  "source": "generated-parallel"
+                }
+              ],
+              "word_problems": [
+                {
+                  "id": "m3B-owp1",
+                  "prompt_ur": "آپ کے پاس ۴ پنسلیں ہیں۔ علی آپ کو ۳ پنسلیں اور دیتا ہے۔ اب آپ کے پاس کتنی پنسلیں ہیں؟",
+                  "prompt_en": "You have 4 pencils. Ali gives you 3 more. How many pencils do you have now?",
+                  "answer": 7,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m3B-owp2",
+                  "prompt_ur": "زینب کے پاس ۱۷ غبارے ہیں۔ ان میں سے ۴ غبارے نیلے ہیں، باقی سب پیلے ہیں۔ زینب کے پاس کتنے پیلے غبارے ہیں؟",
+                  "prompt_en": "Zainab has 17 balloons. 4 of those balloons are blue. The rest are yellow. How many yellow balloons does Zainab have?",
+                  "answer": 13,
+                  "source": "generated-parallel"
+                }
+              ],
+              "script": {
+                "start": "اب سوال شروع کریں",
+                "compare": "ان دونوں میں سے بڑا نمبر کون سا ہے؟",
+                "sum": "اس کا جواب بتائیں",
+                "next": "اگلا",
+                "wp_intro": "اب کہانی والے دو سوال غور سے سنیں",
+                "stop": "بس، شکریہ"
+              },
+              "next_rule": "the child says nothing for about 5 seconds: the coach says «اگلا» and moves on; the item is scored as no answer",
+              "equated_note": "Parallel items (same structure, different numbers and contexts); not yet equated with Set A."
             }
           }
         }
@@ -2535,6 +2832,14 @@
                 "source": "generated"
               }
             ],
+            "script": {
+              "greet": "السلام علیکم! آج آپ کو ایک چھوٹی سی کہانی پڑھنی ہے اور پھر کچھ سوالوں کے جواب دینے ہیں۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
+              "start": "یہ کہانی اونچی آواز میں پڑھیں۔ اب شروع کریں",
+              "go_on": "آگے پڑھیں",
+              "stop": "بس، شکریہ",
+              "questions_intro": "اب کہانی کے بارے میں کچھ سوالات سنیں",
+              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ الفاظ پڑھیں۔"
+            },
             "first_sounds": [
               {
                 "id": "u5A-fs1",
@@ -3078,6 +3383,48 @@
               },
               {
                 "id": "e5A-q2",
+                "prompt": "What did Imran take in a bag?",
+                "type": "literal",
+                "needs_line": 3,
+                "accept": [
+                  "a small plant",
+                  "small plant",
+                  "a plant",
+                  "plant",
+                  "a little plant",
+                  "a small tree",
+                  "a baby tree",
+                  "پودا",
+                  "پودہ",
+                  "پودے",
+                  "چھوٹا پودا",
+                  "ایک پودا",
+                  "ایک چھوٹا پودا",
+                  "چھوٹا درخت"
+                ],
+                "reject": [
+                  "books",
+                  "his books",
+                  "lunch",
+                  "food",
+                  "water",
+                  "seeds",
+                  "soil",
+                  "a bag",
+                  "a list",
+                  "کتابیں",
+                  "کھانا",
+                  "پانی",
+                  "بیج",
+                  "مٹی",
+                  "بستہ",
+                  "فہرست"
+                ],
+                "rubric": "Correct if the child says a plant or a small plant (a small or baby tree is the same thing). Just \"tree\" / درخت repeats question 1 and is not enough. Books, food, water, seeds, soil or a list are wrong. An answer in Urdu or English is accepted.",
+                "source": "rdcomp_lit3_eng"
+              },
+              {
+                "id": "e5A-q3",
                 "prompt": "Why did Imran make a list of children?",
                 "type": "inferential",
                 "needs_line": 12,
@@ -3093,19 +3440,44 @@
                   "تاکہ بچے باری باری پانی دیں",
                   "تاکہ درخت سوکھ نہ جائے",
                   "تاکہ درخت کو پانی ملتا رہے",
-                  "کیونکہ بہن نے پوچھا کہ پانی کون دے گا"
+                  "کیونکہ بہن نے پوچھا کہ پانی کون دے گا",
+                  "to water it",
+                  "to water the tree",
+                  "so they could water the tree",
+                  "so the tree would not die",
+                  "so somebody waters it in the holidays",
+                  "پانی دینے کے لیے",
+                  "درخت کو پانی دینے کے لیے",
+                  "تاکہ درخت مر نہ جائے",
+                  "چھٹیوں میں پانی دینے کے لیے",
+                  "تاکہ سب باری باری پانی دیں"
                 ],
                 "reject": [
                   "to plant more trees",
                   "to give it to his sister",
                   "because the teacher told him",
                   "to show the teacher",
-                  "to put on the wall"
+                  "to put on the wall",
+                  "to take turns",
+                  "for the holidays",
+                  "for the tree",
+                  "باری باری",
+                  "استاد کو دکھانے کے لیے",
+                  "دیوار پر لگانے کے لیے",
+                  "چھٹیوں کے لیے",
+                  "درخت کے لیے"
                 ],
-                "rubric": "Correct if the child says the list was so the tree would keep getting water (in the holidays) with children taking turns, or that his sister had asked who would water it. \"To take turns\" alone, without saying what for, is wrong. Evidence is lines 10-12. An answer in Urdu or English is accepted.",
+                "rubric": "Correct if the child says the list was so the tree would keep getting water (in the holidays), with children taking turns, or that his sister had asked who would water it. Saying the purpose was watering is enough (\"to water it\", \"پانی دینے کے لیے\"); so is keeping the tree alive. \"To take turns\", \"for the holidays\" or \"for the tree\" alone, without watering, is wrong. Evidence is lines 10-12. An answer in Urdu or English is accepted.",
                 "source": "generated"
               }
             ],
+            "script": {
+              "start": "Read this story out loud. Please start reading",
+              "go_on": "Go on.",
+              "stop": "Stop, thank you",
+              "questions_intro": "Now listen to some questions about the story",
+              "fallback": "That's okay. Read these letters, then these words."
+            },
             "nonwords": [
               {
                 "id": "e5A-nw1",
@@ -3554,6 +3926,100 @@
               "prompt_ur": "اسکول کی ایک بس ہر چکر میں 36 بچوں کو لے کر جاتی ہے۔ آج بس نے 4 چکر لگائے۔ آج بس سب ملا کر کتنے بچوں کو لے کر گئی؟",
               "prompt_en": "A school bus takes 36 children on each trip. Today it made 4 trips. How many children did it take altogether today?",
               "answer": 144
+            },
+            "oral": {
+              "set": "A",
+              "equated": true,
+              "compare": [
+                {
+                  "id": "m5A-oc1",
+                  "label": "A",
+                  "a": 11,
+                  "b": 16,
+                  "answer": 16,
+                  "source": "may2026-egma:identify_1a"
+                },
+                {
+                  "id": "m5A-oc2",
+                  "label": "B",
+                  "a": 93,
+                  "b": 77,
+                  "answer": 93,
+                  "source": "may2026-egma:identify_2a"
+                },
+                {
+                  "id": "m5A-oc3",
+                  "label": "C",
+                  "a": 625,
+                  "b": 638,
+                  "answer": 638,
+                  "source": "may2026-egma:identify_3a"
+                },
+                {
+                  "id": "m5A-oc4",
+                  "label": "D",
+                  "a": 3826,
+                  "b": 2863,
+                  "answer": 3826,
+                  "source": "may2026-egma:identify_4a"
+                }
+              ],
+              "sums": [
+                {
+                  "id": "m5A-os1",
+                  "label": "1",
+                  "prompt": "92 - 41",
+                  "answer": 51,
+                  "source": "may2026-egma:computation_3b"
+                },
+                {
+                  "id": "m5A-os2",
+                  "label": "2",
+                  "prompt": "85 + 37",
+                  "answer": 122,
+                  "source": "may2026-egma:computation_4a"
+                },
+                {
+                  "id": "m5A-os3",
+                  "label": "3",
+                  "prompt": "8 × 9",
+                  "answer": 72,
+                  "source": "may2026-egma:computation_3a"
+                },
+                {
+                  "id": "m5A-os4",
+                  "label": "4",
+                  "prompt": "72 ÷ 6",
+                  "answer": 12,
+                  "source": "may2026-egma:computation_4b"
+                }
+              ],
+              "word_problems": [
+                {
+                  "id": "m5A-owp1",
+                  "prompt_ur": "احمد نے ایک تھیلے میں ۴ گیندیں ڈالیں۔ اب تھیلے میں ۲۵ گیندیں ہیں۔ شروع میں تھیلے میں کتنی گیندیں تھیں؟",
+                  "prompt_en": "Ahmed puts 4 balls in a bag. Now there are 25 balls in the bag. How many balls were in the bag to begin with?",
+                  "answer": 21,
+                  "source": "may2026-egma:word_problems_3a"
+                },
+                {
+                  "id": "m5A-owp2",
+                  "prompt_ur": "یہاں ۵ لڑکیاں اور ۲۵ کیلے ہیں۔ لڑکیاں کیلے آپس میں برابر برابر بانٹ لیتی ہیں۔ ہر لڑکی کو کتنے کیلے ملیں گے؟",
+                  "prompt_en": "There are 5 girls and 25 bananas. The girls share the bananas equally. How many bananas does each girl get?",
+                  "answer": 5,
+                  "source": "may2026-egma:word_problems_4b"
+                }
+              ],
+              "script": {
+                "start": "اب سوال شروع کریں",
+                "compare": "ان دونوں میں سے بڑا نمبر کون سا ہے؟",
+                "sum": "اس کا جواب بتائیں",
+                "next": "اگلا",
+                "wp_intro": "اب کہانی والے دو سوال غور سے سنیں",
+                "stop": "بس، شکریہ"
+              },
+              "next_rule": "the child says nothing for about 5 seconds: the coach says «اگلا» and moves on; the item is scored as no answer",
+              "equated_note": "Set A is the May 2026 instrument itself."
             }
           }
         },
@@ -3911,6 +4377,14 @@
                 "source": "generated"
               }
             ],
+            "script": {
+              "greet": "السلام علیکم! آج آپ کو ایک چھوٹی سی کہانی پڑھنی ہے اور پھر کچھ سوالوں کے جواب دینے ہیں۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
+              "start": "یہ کہانی اونچی آواز میں پڑھیں۔ اب شروع کریں",
+              "go_on": "آگے پڑھیں",
+              "stop": "بس، شکریہ",
+              "questions_intro": "اب کہانی کے بارے میں کچھ سوالات سنیں",
+              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ الفاظ پڑھیں۔"
+            },
             "first_sounds": [
               {
                 "id": "u5B-fs1",
@@ -4433,59 +4907,102 @@
             "questions": [
               {
                 "id": "e5B-q1",
-                "prompt": "What did Amna's group use to make the water filter?",
+                "prompt": "What old thing did Amna's group use to make the water filter?",
                 "type": "literal",
                 "needs_line": 3,
                 "accept": [
                   "an old plastic bottle",
+                  "old plastic bottle",
                   "plastic bottle",
                   "a bottle",
                   "bottle",
-                  "stones, sand and cotton",
-                  "sand",
-                  "stones",
-                  "cotton",
+                  "an old bottle",
                   "بوتل",
                   "پلاسٹک کی بوتل",
-                  "پتھر، ریت اور روئی",
-                  "ریت",
-                  "روئی"
+                  "پرانی بوتل",
+                  "پرانی پلاسٹک کی بوتل"
                 ],
                 "reject": [
                   "a cup",
                   "a bucket",
                   "muddy water",
                   "water",
-                  "mud"
+                  "mud",
+                  "a box"
                 ],
-                "rubric": "Correct if the child names the bottle, or any one of the stones, sand or cotton they filled it with. Water or mud alone is wrong. An answer in Urdu or English is accepted.",
+                "rubric": "Correct if the child names the bottle (an old plastic bottle). The stones, sand or cotton are what went inside it and are not the answer to this question. An answer in Urdu or English is accepted.",
                 "source": "generated"
               },
               {
                 "id": "e5B-q2",
-                "prompt": "Why did Amna want to tell her grandma about the prize?",
-                "type": "inferential",
-                "needs_line": 12,
+                "prompt": "What did they fill the filter with?",
+                "type": "literal",
+                "needs_line": 5,
                 "accept": [
-                  "her grandma gave her the idea",
-                  "the idea came from her grandma",
-                  "grandma told her how people cleaned water",
-                  "grandma would be proud because it was her idea",
-                  "کیونکہ دادی نے اسے یہ طریقہ بتایا تھا",
-                  "نانی نے آئیڈیا دیا تھا",
-                  "یہ دادی کا طریقہ تھا"
+                  "stones sand and cotton",
+                  "small stones sand and cotton",
+                  "stones",
+                  "small stones",
+                  "sand",
+                  "cotton",
+                  "stones and sand",
+                  "پتھر",
+                  "چھوٹے پتھر",
+                  "ریت",
+                  "روئی",
+                  "پتھر ریت اور روئی"
                 ],
                 "reject": [
-                  "she was hungry",
-                  "her grandma was ill",
-                  "because she won",
-                  "because she was happy",
-                  "to make her grandma happy"
+                  "water",
+                  "muddy water",
+                  "clear water",
+                  "mud",
+                  "a bottle",
+                  "paper",
+                  "پانی",
+                  "گندا پانی",
+                  "مٹی"
                 ],
-                "rubric": "Correct if the child links telling grandma to the idea coming from her (grandma told her how villages cleaned water). 'Happy' or 'proud' counts only when tied to it being grandma's idea. Wrong if the answer only restates that she won or was happy, or gives a reason not in the story. Grandma = دادی / نانی / grandmother. An answer in Urdu or English is accepted.",
+                "rubric": "Correct if the child names at least one of the stones, the sand or the cotton. Water (muddy or clear) or mud is wrong: the muddy water was poured in afterwards. An answer in Urdu or English is accepted.",
+                "source": "generated"
+              },
+              {
+                "id": "e5B-q3",
+                "prompt": "How did Amna's grandma help the group win the prize?",
+                "type": "inferential",
+                "needs_line": 13,
+                "accept": [
+                  "she gave them the idea",
+                  "she gave Amna the idea",
+                  "the idea came from her grandma",
+                  "she told Amna how people cleaned water",
+                  "she told her how villages cleaned water",
+                  "it was grandma's idea",
+                  "دادی نے طریقہ بتایا تھا",
+                  "نانی نے آئیڈیا دیا تھا",
+                  "یہ دادی کا طریقہ تھا",
+                  "دادی نے بتایا تھا کہ گاؤں میں پانی کیسے صاف کرتے تھے"
+                ],
+                "reject": [
+                  "she made the filter",
+                  "she came to the fair",
+                  "she gave a hug",
+                  "she gave them money",
+                  "she was proud",
+                  "اس نے فلٹر بنایا",
+                  "وہ میلے میں آئیں"
+                ],
+                "rubric": "Correct if the child says grandma gave the idea: she had told Amna how people in villages once cleaned water this way. Making the filter, coming to the fair, or the hug at the end is wrong. Grandma = دادی / نانی / grandmother. An answer in Urdu or English is accepted.",
                 "source": "generated"
               }
             ],
+            "script": {
+              "start": "Read this story out loud. Please start reading",
+              "go_on": "Go on.",
+              "stop": "Stop, thank you",
+              "questions_intro": "Now listen to some questions about the story",
+              "fallback": "That's okay. Read these letters, then these words."
+            },
             "nonwords": [
               {
                 "id": "e5B-nw1",
@@ -4935,6 +5452,100 @@
               "prompt_ur": "استاد نے 56 پنسلیں 7 بچوں میں برابر بانٹیں۔ ہر بچے کو کتنی پنسلیں ملیں؟",
               "prompt_en": "A teacher shared 56 pencils equally among 7 children. How many pencils did each child get?",
               "answer": 8
+            },
+            "oral": {
+              "set": "B",
+              "equated": false,
+              "compare": [
+                {
+                  "id": "m5B-oc1",
+                  "label": "A",
+                  "a": 13,
+                  "b": 18,
+                  "answer": 18,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m5B-oc2",
+                  "label": "B",
+                  "a": 84,
+                  "b": 69,
+                  "answer": 84,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m5B-oc3",
+                  "label": "C",
+                  "a": 547,
+                  "b": 562,
+                  "answer": 562,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m5B-oc4",
+                  "label": "D",
+                  "a": 5913,
+                  "b": 3951,
+                  "answer": 5913,
+                  "source": "generated-parallel"
+                }
+              ],
+              "sums": [
+                {
+                  "id": "m5B-os1",
+                  "label": "1",
+                  "prompt": "87 - 32",
+                  "answer": 55,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m5B-os2",
+                  "label": "2",
+                  "prompt": "76 + 48",
+                  "answer": 124,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m5B-os3",
+                  "label": "3",
+                  "prompt": "7 × 8",
+                  "answer": 56,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m5B-os4",
+                  "label": "4",
+                  "prompt": "84 ÷ 7",
+                  "answer": 12,
+                  "source": "generated-parallel"
+                }
+              ],
+              "word_problems": [
+                {
+                  "id": "m5B-owp1",
+                  "prompt_ur": "سارہ نے ایک الماری میں ۵ کتابیں رکھیں۔ اب الماری میں ۲۷ کتابیں ہیں۔ شروع میں الماری میں کتنی کتابیں تھیں؟",
+                  "prompt_en": "Sara puts 5 books on a shelf. Now there are 27 books on the shelf. How many books were on the shelf to begin with?",
+                  "answer": 22,
+                  "source": "generated-parallel"
+                },
+                {
+                  "id": "m5B-owp2",
+                  "prompt_ur": "یہاں ۴ لڑکے اور ۲۸ آم ہیں۔ لڑکے آم آپس میں برابر برابر بانٹ لیتے ہیں۔ ہر لڑکے کو کتنے آم ملیں گے؟",
+                  "prompt_en": "There are 4 boys and 28 mangoes. The boys share the mangoes equally. How many mangoes does each boy get?",
+                  "answer": 7,
+                  "source": "generated-parallel"
+                }
+              ],
+              "script": {
+                "start": "اب سوال شروع کریں",
+                "compare": "ان دونوں میں سے بڑا نمبر کون سا ہے؟",
+                "sum": "اس کا جواب بتائیں",
+                "next": "اگلا",
+                "wp_intro": "اب کہانی والے دو سوال غور سے سنیں",
+                "stop": "بس، شکریہ"
+              },
+              "next_rule": "the child says nothing for about 5 seconds: the coach says «اگلا» and moves on; the item is scored as no answer",
+              "equated_note": "Parallel items (same structure, different numbers and contexts); not yet equated with Set A."
             }
           }
         }
