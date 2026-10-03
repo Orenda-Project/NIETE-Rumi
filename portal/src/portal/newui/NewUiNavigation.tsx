@@ -2,14 +2,15 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import {
-  Award, BarChart3, BookOpen, ChevronRight, CircleUserRound, ClipboardList, GraduationCap, House, ListChecks, LogOut, Mic,
-  MoreHorizontal, Users, X,
+  BookOpen, ChevronRight, CircleUserRound, ClipboardList, GraduationCap, House, LogOut, Mic, MoreHorizontal, X,
 } from 'lucide-react';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
 import { NAV_COPY } from './copy';
 import { closeAccountSheet, openAccountSheet, useAccountSheet } from './accountSheet';
+import { PullUpMenu } from './PullUpMenu';
+import { initials, useSwipe } from './pullup';
 
 /**
  * bd-5rz1v.12 — the new UI's menu (Direction B, option 2: "indigo menu bar").
@@ -19,12 +20,12 @@ import { closeAccountSheet, openAccountSheet, useAccountSheet } from './accountS
  * TEACHER (operator's menu decision, 2026-10-03):
  *   phone   — an indigo bottom bar: Home / Lessons / Assessment / Training /
  *             Coaching. No More: what was under it (My Classes, Analytics, My
- *             account, Logout) sits behind an AVATAR — her initials — in a slim
- *             indigo strip at the top, which opens an account sheet (+
- *             Certificates). The strip holds the avatar until the page heading
- *             band (DESIGN.md) is built; then the band carries it.
+ *             account, Logout) is in the PULL-UP MENU (bd-5rz1v.18,
+ *             PullUpMenu.tsx), opened from the grab handle on top of the bar
+ *             or from her AVATAR — her initials — in a slim indigo strip at the
+ *             top (or a page's heading band, which then carries it).
  *   desktop — an indigo top bar: Home / Lesson Plans / Assessment / Training /
- *             Coaching, then the avatar (the same sheet).
+ *             Coaching, then the avatar (the same panel, as a card).
  *   Assessment is its own page, /portal/assessment (bd-5rz1v.13).
  *
  * LEADER ROLES keep their own items — the bar, the More sheet, the desktop
@@ -50,6 +51,14 @@ const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-nu-focus
  * bar is TIGHT: 10.5px labels and a 50px pill; the leader bar keeps 11.5px / 56px.
  */
 const BAR = 'md:hidden fixed inset-x-0 bottom-0 z-50 flex items-stretch bg-nu-ink px-[6px] pt-[10px] pb-[calc(14px+env(safe-area-inset-bottom))] shadow-nu-nav';
+/**
+ * bd-5rz1v.18 — the teacher's bar carries the pull-up menu's grab handle in a 16px strip on top
+ * (mockup `.nav.handle`). The bottom gives the 6px back, so the bar is still 80px plus the safe
+ * area and everything placed above it (BottomActions, the recording bar, the page's padding)
+ * stays where it is. `touch-none`: a swipe on the bar is the menu's, not the page's.
+ */
+const TEACHER_BAR = 'md:hidden fixed inset-x-0 bottom-0 z-50 flex touch-none items-stretch bg-nu-ink px-[6px] pt-[16px] pb-[calc(8px+env(safe-area-inset-bottom))]';
+const MENU_PANEL_ID = 'newui-pullup-menu';
 const BAR_ITEM = 'flex min-h-[56px] min-w-[56px] flex-1 flex-col items-center justify-start gap-1 rounded-2xl transition-colors';
 
 function BarItemContent({ icon: Icon, label, active, tight }: { icon: LucideIcon; label: string; active: boolean; tight?: boolean }) {
@@ -167,24 +176,10 @@ const TEACHER_ITEMS: TeacherItem[] = [
   { key: 'coaching', title: NAV_COPY.items.coaching, desktopTitle: NAV_COPY.items.coaching, to: '/portal/coaching', icon: Mic, match: under('/portal/coaching') },
 ];
 
-/** Behind the avatar: everything the old nav reached that the bar does not, plus Certificates. */
-const ACCOUNT_ROWS: Array<{ to: string; title: string; icon: LucideIcon }> = [
-  { to: '/portal/classes', title: NAV_COPY.accountRows.myClasses, icon: Users },
-  { to: '/portal/coaching/analytics', title: NAV_COPY.accountRows.analytics, icon: BarChart3 },
-  { to: '/portal/training/certificates', title: NAV_COPY.accountRows.certificates, icon: Award },
-  // bd-5rz1v.25 — the band picker left the Training page; it lives here now.
-  { to: '/portal/training/grades', title: NAV_COPY.accountRows.myGrades, icon: ListChecks },
-];
-
-/** Her initials: the first letter of the first two words of her name. */
-function initials(name?: string | null): string {
-  return (name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2)
-    .map((w) => Array.from(w)[0]).join('').toUpperCase();
-}
-
 /**
- * Her initials, a 40px green circle in a 56px target. Every avatar opens the same account sheet
- * (accountSheet.ts) — bd-5rz1v.17: Home's heading band shows one too.
+ * Her initials, a 40px green circle in a 56px target. Every avatar opens the same panel — the
+ * pull-up menu (bd-5rz1v.18; accountSheet.ts holds whether it is open). bd-5rz1v.17: Home's
+ * heading band shows one too.
  */
 export function AccountAvatar({ name, testId }: { name?: string | null; testId: string }) {
   const letters = initials(name);
@@ -203,16 +198,18 @@ export function AccountAvatar({ name, testId }: { name?: string | null; testId: 
   );
 }
 
-function TeacherNavigation({ accountPath, firstName, onLogout, hideStrip }: {
-  accountPath: string; firstName?: string | null; onLogout: () => void; hideStrip?: boolean;
+function TeacherNavigation({ accountPath, firstName, lastName, schoolName, onLogout, hideStrip }: {
+  accountPath: string; firstName?: string | null; lastName?: string | null; schoolName?: string | null;
+  onLogout: () => void; hideStrip?: boolean;
 }) {
-  const [accountOpen, setAccountOpen] = useAccountSheet();
-  // Every page mounts its own menu; a sheet left open does not follow her to the next page
-  // (as it did not when this was local state).
+  const [menuOpen, setMenuOpen] = useAccountSheet();
+  // Every page mounts its own menu; a panel left open does not follow her to the next page.
   useEffect(() => () => closeAccountSheet(), []);
   const { pathname, search } = useLocation();
   const tab = new URLSearchParams(search).get('tab');
-  const close = () => setAccountOpen(false);
+  const close = () => setMenuOpen(false);
+  // bd-5rz1v.18 — a swipe up on the bar opens the pull-up menu; a swipe down closes it.
+  const barSwipe = useSwipe({ onUp: () => setMenuOpen(true), onDown: close });
 
   return (
     <>
@@ -249,61 +246,59 @@ function TeacherNavigation({ accountPath, firstName, onLogout, hideStrip }: {
         </div>
       )}
 
-      {/* Phone — indigo bottom bar */}
-      <nav data-testid="newui-bottom-nav" aria-label={NAV_COPY.menu} className={BAR}>
+      {/* bd-5rz1v.18 — the pull-up menu: the one place for everything else. */}
+      <PullUpMenu
+        id={MENU_PANEL_ID}
+        open={menuOpen}
+        onClose={close}
+        firstName={firstName}
+        lastName={lastName}
+        schoolName={schoolName}
+        pathname={pathname}
+        accountPath={accountPath}
+        onLogout={onLogout}
+      />
+
+      {/* Phone — indigo bottom bar, with the grab handle on top. Open, the panel rises from it and
+          the bar stays as the menu row at its foot, above the dimmed page. */}
+      <nav
+        data-testid="newui-bottom-nav"
+        aria-label={NAV_COPY.menu}
+        className={cn(TEACHER_BAR, menuOpen ? 'border-t border-nu-pullup-tile' : 'shadow-nu-nav')}
+        {...barSwipe}
+      >
+        {/* The handle: the bar's own empty space is its button, behind the five items. */}
+        <button
+          type="button"
+          data-testid="newui-menu-handle"
+          aria-label={NAV_COPY.openMenu}
+          aria-expanded={menuOpen}
+          aria-controls={MENU_PANEL_ID}
+          onClick={() => setMenuOpen(!menuOpen)}
+          className={cn('absolute inset-0 min-h-[56px] w-full', FOCUS)}
+        />
+        {menuOpen ? null : (
+          <span
+            data-testid="newui-menu-grab"
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-[6px] mx-auto h-1 w-[38px] rounded bg-nu-pullup-grab"
+          />
+        )}
         {TEACHER_ITEMS.map((item) => {
           const active = item.match(pathname, tab);
           return (
             <Link
               key={item.key}
               to={item.to}
+              onClick={close}
               aria-current={active ? 'page' : undefined}
-              className={cn(BAR_ITEM, FOCUS, active ? 'text-white' : 'text-nu-nav-label')}
+              className={cn(BAR_ITEM, 'relative z-[1]', FOCUS, active ? 'text-white' : 'text-nu-nav-label')}
             >
               <BarItemContent icon={item.icon} label={item.title} active={active} tight />
             </Link>
           );
         })}
       </nav>
-
-      {/* The account sheet — from the bottom on a phone, a card under the avatar on a desktop */}
-      <Sheet open={accountOpen} onOpenChange={setAccountOpen}>
-        <SheetContent
-          side="bottom"
-          className={cn(SHEET, 'md:inset-x-auto md:bottom-auto md:end-6 md:top-[72px] md:w-[380px] md:rounded-2xl md:pt-4')}
-        >
-          <SheetBody
-            title={firstName || NAV_COPY.account}
-            footer={(
-              <button
-                type="button"
-                onClick={() => { close(); onLogout(); }}
-                data-testid="mobile-nav-logout"
-                className={cn(
-                  'mt-3 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full border-2 border-nu-button-secondary-border bg-nu-button-secondary text-base font-extrabold text-nu-button-destructive',
-                  FOCUS,
-                )}
-              >
-                <LogOut className="h-5 w-5 rtl:-scale-x-100" aria-hidden="true" />
-                <span>{NAV_COPY.logout}</span>
-              </button>
-            )}
-          >
-            {ACCOUNT_ROWS.map((r) => (
-              <SheetRow key={r.to} to={r.to} icon={r.icon} title={r.title} current={pathname === r.to} onGo={close} />
-            ))}
-            {/* bd-3wb0s — My account (privacy policy, account deletion) stays one tap from here. */}
-            <SheetRow
-              to={accountPath}
-              icon={CircleUserRound}
-              title={NAV_COPY.myAccount}
-              current={pathname === accountPath}
-              onGo={close}
-              testId="mobile-nav-account"
-            />
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
     </>
   );
 }
@@ -321,12 +316,15 @@ interface Props {
   isActive: (path: string) => boolean;
   accountPath: string;
   firstName?: string | null;
+  /** bd-5rz1v.18 — the pull-up menu's who row: the rest of her name, her school. */
+  lastName?: string | null;
+  schoolName?: string | null;
   onLogout: () => void;
   /** The page draws its own heading band, which carries the avatar: no phone strip. */
   hideStrip?: boolean;
 }
 
-function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accountPath, firstName, onLogout }: Omit<Props, 'leader' | 'hideStrip'>) {
+function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accountPath, firstName, onLogout }: Omit<Props, 'leader' | 'hideStrip' | 'lastName' | 'schoolName'>) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreActive = mobileOverflow.some((i) => isActive(i.path)) || isActive(accountPath);
   const close = () => setMoreOpen(false);
@@ -433,6 +431,15 @@ function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accou
 const NewUiNavigation = ({ leader, ...rest }: Props) =>
   (leader
     ? <LeaderNavigation {...rest} />
-    : <TeacherNavigation accountPath={rest.accountPath} firstName={rest.firstName} onLogout={rest.onLogout} hideStrip={rest.hideStrip} />);
+    : (
+      <TeacherNavigation
+        accountPath={rest.accountPath}
+        firstName={rest.firstName}
+        lastName={rest.lastName}
+        schoolName={rest.schoolName}
+        onLogout={rest.onLogout}
+        hideStrip={rest.hideStrip}
+      />
+    ));
 
 export default NewUiNavigation;

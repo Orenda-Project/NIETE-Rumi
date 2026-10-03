@@ -9,11 +9,12 @@ import { MemoryRouter } from "react-router-dom";
  *
  *   teacher, phone   — indigo bottom bar: Home / Lessons / Assessment / Training /
  *                      Coaching. No More: what was under it (My Classes,
- *                      Analytics, My account, Logout) is behind an AVATAR (her
- *                      initials) in a slim indigo strip at the top, which opens an
- *                      account sheet (+ Certificates). Labels 10.5px, pill 50px.
+ *                      Analytics, My account, Logout) is in the PULL-UP MENU
+ *                      (bd-5rz1v.18; newui/pullup.test.tsx), opened from the
+ *                      bar's grab handle or her AVATAR (her initials) in a slim
+ *                      indigo strip at the top. Labels 10.5px, pill 50px.
  *   teacher, desktop — indigo top bar: Home / Lesson Plans / Assessment /
- *                      Training / Coaching, then the avatar (same sheet).
+ *                      Training / Coaching, then the avatar (the same panel).
  *   leaders          — their own items, bar + More sheet, recoloured only.
  *   Urdu             — RTL keeps working; labels are English literals, the way
  *                      the nav renders them today (the portal has no nav catalog).
@@ -24,7 +25,11 @@ import { MemoryRouter } from "react-router-dom";
  */
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
-vi.mock("../services/api", () => ({ portal: { getConfig: vi.fn() } }));
+vi.mock("../services/api", () => ({
+  portal: { getConfig: vi.fn() },
+  // bd-5rz1v.18 — the pull-up menu reads her language when it opens.
+  language: { get: vi.fn().mockResolvedValue({ language: "en", locked: false }), set: vi.fn() },
+}));
 import { useAuth } from "../hooks/useAuth";
 import { portal } from "../services/api";
 import { resetNewUiMemory } from "../lib/useNewUi";
@@ -57,7 +62,7 @@ const PHYSICAL = /(^|\s)(-?m[lr]-|p[lr]-|left-|right-|text-left|text-right|borde
 async function openAccount(from: "phone" | "desktop" = "phone") {
   const holder = from === "phone" ? await topStrip() : await topBar();
   await userEvent.setup().click(within(holder).getByRole("button", { name: "Account" }));
-  return screen.findByRole("dialog");
+  return screen.findByRole("dialog", { name: "Menu" });
 }
 
 beforeEach(() => {
@@ -70,11 +75,13 @@ afterEach(() => {
 });
 
 describe("flag on — teacher, phone bottom bar", () => {
-  it("is indigo, square, and follows the spacing spec (10/6/14px + safe area)", async () => {
+  it("is indigo, square, and follows the spacing spec (16/6/8px + safe area: the grab handle's 16px on top, still 80px)", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
     const cls = (await bottomBar()).className;
     expect(cls).toMatch(/\bbg-nu-ink\b/);
-    for (const c of ["pt-[10px]", "px-[6px]", "pb-[calc(14px+env(safe-area-inset-bottom))]"]) expect(cls).toContain(c);
+    // bd-5rz1v.18 — the mockup's .nav.handle: 16px above the items for the grab mark. The bottom
+    // gives the 6px back, so the bar stays 80px and everything placed above it stays put.
+    for (const c of ["pt-[16px]", "px-[6px]", "pb-[calc(8px+env(safe-area-inset-bottom))]"]) expect(cls).toContain(c);
     expect(cls).not.toMatch(/\brounded/);
   });
 
@@ -88,7 +95,8 @@ describe("flag on — teacher, phone bottom bar", () => {
       ["Training", "/portal/training"],
       ["Coaching", "/portal/coaching"],
     ]);
-    expect(within(bar).queryByRole("button")).toBeNull();
+    // bd-5rz1v.18 — the one button on the bar is the pull-up menu's handle.
+    expect(within(bar).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual(["Open menu"]);
     expect(screen.queryByTestId("mobile-nav-more")).toBeNull();
   });
 
@@ -146,7 +154,7 @@ describe("flag on — teacher, phone bottom bar", () => {
   });
 });
 
-describe("flag on — teacher, the avatar and the account sheet", () => {
+describe("flag on — teacher, the avatar and the pull-up menu", () => {
   it("the phone shows a slim indigo strip with the NIETE mark and her initials, a 56px target", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
     const strip = await topStrip();
@@ -170,56 +178,47 @@ describe("flag on — teacher, the avatar and the account sheet", () => {
     expect(avatar.querySelector("svg")).not.toBeNull();
   });
 
-  it("opens an account sheet titled with her name: My Classes, Analytics, Certificates, My grades, My account, Logout", async () => {
+  it("opens the pull-up menu (bd-5rz1v.18), not a separate account sheet", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
-    const sheet = await openAccount("phone");
-    expect(within(sheet).getByRole("heading", { name: "Ayesha Khan" })).toBeInTheDocument();
-    const rows = within(sheet).getByTestId("newui-sheet-rows");
-    expect(linksOf(rows)).toEqual([
+    const panel = await openAccount("phone");
+    expect(panel).toHaveAttribute("data-state", "open");
+    expect(within(panel).getByTestId("newui-menu-who")).toHaveTextContent("Ayesha Khan");
+    expect(linksOf(within(panel).getByTestId("newui-menu-grid"))).toEqual([
       ["My Classes", "/portal/classes"],
-      ["Analytics", "/portal/coaching/analytics"],
       ["Certificates", "/portal/training/certificates"],
       // bd-5rz1v.25 — the band picker left the Training page; it lives here now.
       ["My grades", "/portal/training/grades"],
       ["My account", "/portal/account"],
+      ["Analytics", "/portal/coaching/analytics"],
     ]);
-    for (const row of within(rows).getAllByRole("link")) expect(row.className).toMatch(/\bmin-h-\[56px\]/);
-    expect(within(sheet).getByTestId("mobile-nav-account")).toHaveAttribute("href", "/portal/account");
+    expect(screen.queryByTestId("newui-sheet-rows")).toBeNull();
+    expect(within(panel).getByTestId("mobile-nav-account")).toHaveAttribute("href", "/portal/account");
   });
 
-  it("Logout is a red outline button, 56px, and logs her out", async () => {
+  it("Logout is a light-red tile, 56px or more, and logs her out", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
-    const sheet = await openAccount("phone");
-    const btn = within(sheet).getByTestId("mobile-nav-logout");
+    const panel = await openAccount("phone");
+    const btn = within(panel).getByTestId("mobile-nav-logout");
     expect(btn).toHaveTextContent("Logout");
-    expect(btn.className).toMatch(/\btext-nu-button-destructive\b/);
-    expect(btn.className).toMatch(/\bmin-h-\[56px\]/);
+    expect(btn.className).toMatch(/\btext-nu-pullup-out\b/);
+    expect(btn.className).toMatch(/\bmin-h-\[(56|84)px\]/);
     await userEvent.setup().click(btn);
     expect(logout).toHaveBeenCalledTimes(1);
   });
 
-  it("the sheet's icons are neutral grey and the current page's row is selected indigo", async () => {
+  it("the panel's tiles carry no feature colour, and the current page's tile is lit", async () => {
     renderNav(TEACHER, "/portal/classes", true);
-    const sheet = await openAccount("phone");
-    const rows = within(sheet).getByTestId("newui-sheet-rows");
-    expect(rows.innerHTML).not.toMatch(/nu-f-/);
-    const tiles = rows.querySelectorAll("[data-tile]");
-    // bd-5rz1v.25 — My Classes, Analytics, Certificates, My grades, My account.
-    expect(tiles.length).toBe(5);
-    for (const t of tiles) expect(t.getAttribute("class")).toMatch(/\bbg-nu-neutral-tile\b/);
-    const current = within(rows).getByRole("link", { name: /My Classes/ });
+    const panel = await openAccount("phone");
+    expect(panel.innerHTML).not.toMatch(/nu-f-/);
+    const current = within(panel).getByRole("link", { name: /My Classes/ });
     expect(current).toHaveAttribute("aria-current", "page");
-    expect(current.className).toMatch(/\bbg-nu-select-tint\b/);
+    expect(current.className).toMatch(/\bbg-nu-frame-translucent\b/);
   });
 
-  it("closes from a 56px button in its title row (the shared 16px × is hidden)", async () => {
+  it("closes on Escape, the way Android Back closes it", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
-    const sheet = await openAccount("phone");
-    expect(sheet.className).toContain("[&>button:last-child]:hidden");
-    const close = within(sheet).getByTestId("newui-sheet-close");
-    expect(close.className).toMatch(/\bh-14\b/);
-    expect(close.className).toMatch(/\bw-14\b/);
-    await userEvent.setup().click(close);
+    await openAccount("phone");
+    await userEvent.setup().keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });
@@ -249,7 +248,7 @@ describe("flag on — teacher, desktop top bar", () => {
     expect(within(bar).getByRole("link", { name: "Lesson Plans" })).not.toHaveAttribute("aria-current");
   });
 
-  it("ends with the avatar, which opens the same account sheet (Logout lives there)", async () => {
+  it("ends with the avatar, which opens the same pull-up menu (Logout lives there)", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
     const bar = await topBar();
     expect(within(bar).queryByRole("button", { name: "Logout" })).toBeNull();
@@ -337,15 +336,12 @@ describe("flag on — Urdu (RTL)", () => {
     }
   });
 
-  it("the account sheet's rows use logical spacing and the chevrons turn round", async () => {
+  it("the pull-up menu uses logical spacing, so it mirrors", async () => {
     document.documentElement.setAttribute("dir", "rtl");
     renderNav(TEACHER, "/portal/dashboard", true);
-    const sheet = await openAccount("phone");
-    const rows = within(sheet).getByTestId("newui-sheet-rows");
-    for (const el of [rows, ...rows.querySelectorAll<HTMLElement>("*")]) {
+    const panel = await openAccount("phone");
+    for (const el of [panel, ...panel.querySelectorAll<HTMLElement>("*")]) {
       expect(el.getAttribute("class") || "").not.toMatch(PHYSICAL);
     }
-    const chevron = within(sheet).getByTestId("mobile-nav-account").querySelectorAll("svg")[1];
-    expect(chevron.getAttribute("class")).toMatch(/rtl:rotate-180/);
   });
 });

@@ -77,6 +77,16 @@ export const NAV_COPY = {
     certificates: 'Certificates',
     myGrades: 'My grades',
   },
+  /** bd-5rz1v.18 — the pull-up menu: the bar's grab handle, the who row, the Language tile. */
+  openMenu: 'Open menu',
+  teacher: 'Teacher',
+  /**
+   * The Language tile names the language it switches TO, in that language's own script (the
+   * offer is flat en/ur in NIETE — language-protocol §1). The words of the new UI are still
+   * English (bd-5rz1v.20 translates them), so today a switch turns the page's direction.
+   */
+  languages: { ur: 'اردو', en: 'English' },
+  notSaved: 'Not saved',
 } as const;
 
 /** n and the word for one or many: "1 Visit", "2 Visits". */
