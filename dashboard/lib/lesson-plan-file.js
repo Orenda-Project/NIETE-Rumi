@@ -13,9 +13,25 @@
  * WHAT KEEPS IT FROM BEING AN OPEN PROXY.
  *   - The URL is never the caller's: the routes get it from the same bot lookup that mints
  *     today's links, for the signed-in teacher.
- *   - Only https to the lesson plan storage host (the configured R2 endpoint, or an R2 account
- *     host) is fetched, with no credentials in the URL and no redirects followed.
+ *   - Only https to the lesson plan bucket is fetched (see "WHICH URLS ARE STORAGE" below), with
+ *     no credentials in the URL and no redirects followed.
  *   - The body is streamed, never buffered, and anything far larger than a lesson plan is refused.
+ *
+ * WHICH URLS ARE STORAGE (bd-5rz1v.22). Derived from this service's own R2_ENDPOINT and
+ * R2_BUCKET_NAME — the same two variables the bot signs with, set to the same values on the bot
+ * and the portal in every environment (Railway, 3 Oct 2026: one endpoint host; bucket
+ * digital-coach-audio on production and staging, rumi-sandbox on sandbox). An S3-style link to
+ * one object in one bucket has exactly two forms, and both are accepted:
+ *   virtual-hosted  https://<bucket>.<endpoint host>/<key>   ← what the bot's S3 client signs.
+ *                   Axiom, 3 Oct 2026: 20,984 presigns on production in 7 days and every one is
+ *                   digital-coach-audio.<account>.r2.cloudflarestorage.com; sandbox's are all
+ *                   rumi-sandbox.<account>.r2.cloudflarestorage.com.
+ *   path-style      https://<endpoint host>/<bucket>/<key>   ← what a client with forcePathStyle
+ *                   signs (the portal's own S3 client is one).
+ * Anything else is refused: another bucket on the same account, another R2 account, a look-alike
+ * host, and everything when either variable is unset. The first version accepted the endpoint
+ * host or ANY single-label *.r2.cloudflarestorage.com host — so it refused every lesson plan the
+ * bot signs (502, and the viewer fell back to another app) while accepting any R2 account's host.
  */
 
 const { Readable } = require('stream');
@@ -23,19 +39,27 @@ const { Readable } = require('stream');
 /** Lesson plans are 0.2-2 MB (measured: a grade 4 plan 1.9 MB, a grade 6 plan 0.2 MB). */
 const MAX_LESSON_PLAN_BYTES = 60 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 30_000;
-const R2_ACCOUNT_HOST = /^[a-z0-9-]+\.r2\.cloudflarestorage\.com$/;
-
-function configuredStorageHost() {
+/**
+ * The lesson plan bucket as this environment configures it, or null when it is not configured
+ * (then nothing is storage, and the viewer falls back to the presigned link as before).
+ * Read on every call, not at load, so the value is always the service's current env.
+ */
+function configuredStorage() {
+  const bucket = String(process.env.R2_BUCKET_NAME || '').trim().toLowerCase();
+  if (!process.env.R2_ENDPOINT || !bucket) return null;
   try {
-    return process.env.R2_ENDPOINT ? new URL(process.env.R2_ENDPOINT).hostname.toLowerCase() : null;
+    const host = new URL(process.env.R2_ENDPOINT).hostname.toLowerCase();
+    return host ? { host, bucket } : null;
   } catch {
     return null;
   }
 }
 
-/** True only for an https URL on the lesson plan storage host. */
+/** True only for an https URL to an object in the configured lesson plan bucket. */
 function isLessonPlanStorageUrl(raw) {
   if (typeof raw !== 'string' || !raw) return false;
+  const storage = configuredStorage();
+  if (!storage) return false;
   let url;
   try {
     url = new URL(raw);
@@ -45,7 +69,10 @@ function isLessonPlanStorageUrl(raw) {
   if (url.protocol !== 'https:') return false;
   if (url.username || url.password) return false;
   const host = url.hostname.toLowerCase();
-  return host === configuredStorageHost() || R2_ACCOUNT_HOST.test(host);
+  // Virtual-hosted: the bucket is the only label in front of the endpoint host.
+  if (host === `${storage.bucket}.${storage.host}`) return true;
+  // Path-style: the endpoint host itself, and the bucket is the first path segment.
+  return host === storage.host && url.pathname.startsWith(`/${storage.bucket}/`);
 }
 
 function refuse(res, status, error) {
