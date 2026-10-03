@@ -3280,15 +3280,16 @@ const UX_STRINGS = {
   },
   // Two children with one name and no roll to tell them apart: the father's name, in the row description.
   childTestFatherHint: { en: 'father: {name}', ur: 'والد: {name}' },
-  // L20 (bd-s1oo0.38, CONTRACT §18): every strip line names the child (name first, childLabel) and the
+  // L20 (bd-s1oo0.38, CONTRACT §18). Urdu lines isolate {child} (FSI…PDI): the roster names are Latin script.
+  // Every strip line names the child (name first, childLabel) and the
   // child's number on today's list, which the coach writes in the strip's «بچہ نمبر / Child no.» box.
   childTestStripHandOverNo: {
     en: 'While waiting, give {child} the maths strip: write {no} in its Child no. box first.',
-    ur: 'انتظار کے دوران {child} کو ریاضی کی پٹی دیں؛ پہلے «بچہ نمبر» کے خانے میں {no} لکھیں۔',
+    ur: 'انتظار کے دوران ⁨{child}⁩ کو ریاضی کی پٹی دیں؛ پہلے «بچہ نمبر» کے خانے میں {no} لکھیں۔',
   },
   childTestPhotoAskNo: {
     en: '{child}\'s strip (Child no. {no}): send its photo once it is written, or send all the strips at the end. Tap the next child now.',
-    ur: '{child} کی پٹی (بچہ نمبر {no}): لکھی جا چکے تو تصویر بھیجیں، یا آخر میں سب پٹیاں ایک ساتھ۔ ابھی اگلے بچے پر ٹیپ کریں۔',
+    ur: '⁨{child}⁩ کی پٹی (بچہ نمبر {no}): لکھ لی جائے تو تصویر بھیجیں، یا آخر میں سب پٹیاں ایک ساتھ۔ ابھی اگلے بچے پر ٹیپ کریں۔',
   },
   childTestStripsBatchNo: {
     en: 'Send the strip photos now, one per child, in any order. Each strip needs its Child no. written clearly: {children}',
@@ -3297,35 +3298,35 @@ const UX_STRINGS = {
   childTestStripItem: { en: '{child} (no. {no})', ur: '{child} (نمبر {no})' },
   childTestPhotoSavedNo: {
     en: '📷 Strip no. {no} saved for {child}.',
-    ur: '📷 پٹی نمبر {no}، {child} کے لیے محفوظ۔',
+    ur: '📷 پٹی نمبر {no}، ⁨{child}⁩ کے لیے محفوظ۔',
   },
   childTestPhotoSavedOrder: {
     en: '📷 I couldn\'t read a child number on this strip, so it is saved for the next in order: {child} (no. {no}).',
-    ur: '📷 اس پٹی پر بچہ نمبر پڑھا نہیں جا سکا، اس لیے یہ ترتیب میں اگلے بچے کے لیے محفوظ: {child} (نمبر {no})۔',
+    ur: '📷 اس پٹی پر بچہ نمبر پڑھا نہیں جا سکا، اس لیے یہ ترتیب میں اگلے بچے کے لیے محفوظ: ⁨{child}⁩ (نمبر {no})۔',
   },
   childTestPhotoSavedOrderOther: {
     en: '📷 Child no. {read} is not waiting for a strip, so this one is saved for the next in order: {child} (no. {no}).',
-    ur: '📷 بچہ نمبر {read} کی پٹی باقی نہیں، اس لیے یہ ترتیب میں اگلے بچے کے لیے محفوظ: {child} (نمبر {no})۔',
+    ur: '📷 بچہ نمبر {read} کی پٹی باقی نہیں، اس لیے یہ ترتیب میں اگلے بچے کے لیے محفوظ: ⁨{child}⁩ (نمبر {no})۔',
   },
   childTestPhotoNotOverwritten: {
     en: '📷 {child}\'s strip (no. {no}) is already in, so this photo was not used. If it is another child\'s strip, correct the number on it and send it again.',
-    ur: '📷 {child} کی پٹی (نمبر {no}) پہلے ہی مل چکی ہے، اس لیے یہ تصویر استعمال نہیں ہوئی۔ اگر یہ کسی اور بچے کی پٹی ہے تو اس پر نمبر درست کر کے دوبارہ بھیجیں۔',
+    ur: '📷 ⁨{child}⁩ کی پٹی (نمبر {no}) پہلے ہی مل چکی ہے، اس لیے یہ تصویر استعمال نہیں ہوئی۔ اگر یہ کسی اور بچے کی پٹی ہے تو اس پر نمبر درست کر کے دوبارہ بھیجیں۔',
   },
   childTestPhotoAlreadyInNo: {
     en: '📷 {child}\'s strip photo is already in.',
-    ur: '📷 {child} کی پٹی کی تصویر پہلے ہی مل چکی ہے۔',
+    ur: '📷 ⁨{child}⁩ کی پٹی کی تصویر پہلے ہی مل چکی ہے۔',
   },
   childTestPhotoSaveFailedNo: {
     en: '⚠️ The strip photo for {child} did not save. Please send it again.',
-    ur: '⚠️ {child} کی پٹی کی تصویر محفوظ نہیں ہو سکی۔ دوبارہ بھیجیں۔',
+    ur: '⚠️ ⁨{child}⁩ کی پٹی کی تصویر محفوظ نہیں ہو سکی۔ دوبارہ بھیجیں۔',
   },
   childTestNoPhotoAckNo: {
     en: 'OK, no strip photo for {child}. The written sums stay blank.',
-    ur: 'ٹھیک ہے، {child} کی پٹی کی تصویر نہیں۔ لکھے ہوئے سوال خالی رہیں گے۔',
+    ur: 'ٹھیک ہے، ⁨{child}⁩ کی پٹی کی تصویر نہیں۔ لکھے ہوئے سوال خالی رہیں گے۔',
   },
   childTestChildDoneNo: {
     en: '✅ All three parts for {child} are in. The marks are being worked out; a Check button follows.',
-    ur: '✅ {child} کے تینوں حصے مل گئے۔ نمبر لگنے کے بعد چیک کا بٹن آئے گا۔',
+    ur: '✅ ⁨{child}⁩ کے تینوں حصے مل گئے۔ نمبر لگنے کے بعد چیک کا بٹن آئے گا۔',
   },
 };
 
