@@ -14,9 +14,18 @@
  *
  * `downloaded` mirrors the ✓ tick the WhatsApp picker shows — the same
  * per-teacher record, so the two surfaces agree about what she already has.
+ *
+ * bd-5rz1v.10 — every lesson plan here (grades 1-5 lesson and answer key, a
+ * ready 6-12 lesson, one that finishes writing while she waits, My lesson
+ * plans) opens in the portal's own viewer, OVER this page: the viewer is a
+ * history entry on this same path, so Back closes it and her four picks are
+ * still made. Which way a lesson plan opens is ONE switch, in
+ * lib/lessonPlanOpen.ts (IN_APP_LESSON_PLANS); today's window.open way is kept
+ * there, for "Open in another app" and as the viewer's fallback.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { BookOpen, ExternalLink, Loader2 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
@@ -31,6 +40,11 @@ import AssessmentGeneratorPanel from '../components/AssessmentGeneratorPanel';
 import AssessmentGeneratorComingSoon from '../components/AssessmentGeneratorComingSoon';
 import AssessmentPapersPanel from '../components/AssessmentPapersPanel';
 import MyLesson612Panel from '../components/MyLesson612Panel';
+import LessonPlanViewer from '../components/LessonPlanViewer';
+import { useRecordingSession } from '../lib/recordingSession';
+import {
+  openLessonPlanOutside, shouldOpenInApp, useLessonPlanOpener, type LessonPlanView,
+} from '../lib/lessonPlanOpen';
 
 /**
  * ONE GRADE LIST, TWO CORPORA BEHIND IT.
@@ -75,8 +89,25 @@ type LessonPlan = {
   subtitle: string | null;
 };
 
+const NOT_PUBLISHED = {
+  title: 'Not ready yet',
+  description: 'This lesson has not been published. Please try another, or check back soon.',
+};
+
 const PortalCurriculum = () => {
   const { toast } = useToast();
+  const location = useLocation();
+  // bd-5rz1v.12 — the new UI's menu has its own Assessment item; until
+  // Assessment is a page of its own it opens this page with ?tab=assessment.
+  // Keyed below, so tapping it while already on Lesson Plans switches the tab.
+  // No parameter (every existing link): Lesson Plans, as before.
+  const openTab = new URLSearchParams(location.search).get('tab') === 'assessment' ? 'assessment' : 'library';
+  const navigate = useNavigate();
+  const recording = !!useRecordingSession()?.active;
+  const inApp = shouldOpenInApp(recording);
+  const openLessonPlan = useLessonPlanOpener();
+  // bd-5rz1v.10 — the lesson plan open in the viewer, if any (this history entry's state).
+  const viewing = (location.state as { lessonPlan?: LessonPlanView } | null)?.lessonPlan ?? null;
 
   // bd-2460 — null while loading, so the tab never flashes a form that is off.
   const [assessmentEnabled, setAssessmentEnabled] = useState<boolean | null>(null);
@@ -253,34 +284,28 @@ const PortalCurriculum = () => {
 
   const chosenLp: LessonPlan | undefined = lps.find(lp => lp.id === selectedLp);
 
-  // ─── Open the lesson's PDF in a new tab (presigned R2 URL) ─────────────
+  // ─── Open the lesson's PDF ─────────────────────────────────────────────
+  // In the portal's viewer (bd-5rz1v.10), or — with the switch off — in a new
+  // tab from a presigned R2 URL, exactly as before.
   const openPdf = useCallback(async (kind: 'lesson' | 'answer_key' = 'lesson') => {
     if (!chosenLp) return;
+    const source = { lane: 'k5' as const, lessonId: chosenLp.id, assetKind: kind };
+    const title = kind === 'answer_key' ? `${chosenLp.title} · Answer key` : chosenLp.title;
+    if (inApp) { void openLessonPlan(source, title); return; }
     setOpening(true);
     try {
-      const { data } = await api.get(`/curriculum/lp/${chosenLp.id}/pdf`, { params: { kind } });
-      if (data.available && data.url) {
-        window.open(data.url, '_blank', 'noopener');
-      } else {
-        toast({
-          title: 'Not ready yet',
-          description: 'This lesson has not been published. Please try another, or check back soon.',
-        });
-      }
+      const result = await openLessonPlanOutside(source);
+      if (result === 'not_ready') toast(NOT_PUBLISHED);
     } catch {
       toast({ title: 'Could not open this lesson plan', variant: 'destructive' });
     } finally { setOpening(false); }
-  }, [chosenLp, toast]);
+  }, [chosenLp, inApp, openLessonPlan, toast]);
 
   /** Open a finished 6-12 render. The link is minted per click — a presigned URL expires. */
-  const open612 = useCallback(async (renderId: string) => {
-    const { data } = await api.get(`/lp612/status/${renderId}`);
-    if (data.state === 'ready' && data.url) {
-      window.open(data.url, '_blank', 'noopener,noreferrer');
-      return true;
-    }
-    return false;
-  }, []);
+  const open612 = useCallback(async (renderId: string, title: string) => {
+    if (inApp) { void openLessonPlan({ lane: 'g612', renderId }, title); return true; }
+    return (await openLessonPlanOutside({ lane: 'g612', renderId })) === 'opened';
+  }, [inApp, openLessonPlan]);
 
   /**
    * Poll one 6-12 render to completion, widening the interval as the wait lengthens.
@@ -288,7 +313,7 @@ const PortalCurriculum = () => {
    * A three-minute job polled every two seconds is ninety requests for one answer that changes
    * once. Start responsive so a fast render does not feel slow, then back off.
    */
-  const poll612 = useCallback((renderId: string, startedAt: number) => {
+  const poll612 = useCallback((renderId: string, startedAt: number, title: string) => {
     const tick = async () => {
       try {
         const { data } = await api.get(`/lp612/status/${renderId}`);
@@ -296,7 +321,8 @@ const PortalCurriculum = () => {
           setWaitingRender(null); setWaitingSince(null); setOpening(false);
           setLessons612RefreshKey((k) => k + 1);
           toast({ title: 'Your lesson plan is ready' });
-          if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+          if (inApp) void openLessonPlan({ lane: 'g612', renderId }, title);
+          else if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer');
           return;
         }
         if (data.state === 'failed') {
@@ -317,7 +343,7 @@ const PortalCurriculum = () => {
       pollTimer.current = setTimeout(tick, waited < 30_000 ? 3_000 : waited < 120_000 ? 6_000 : 12_000);
     };
     pollTimer.current = setTimeout(tick, 3_000);
-  }, [toast]);
+  }, [inApp, openLessonPlan, toast]);
 
   /** The 6-12 action: open it if it exists, otherwise ask for it to be written. */
   const request612 = useCallback(async () => {
@@ -326,7 +352,7 @@ const PortalCurriculum = () => {
     try {
       const { data } = await api.post('/lp612/request', { segment_id: chosenLp.id, lang: 'en' });
       if (data.state === 'ready') {
-        await open612(data.renderId);
+        await open612(data.renderId, chosenLp.title);
         setOpening(false);
         return;
       }
@@ -334,7 +360,7 @@ const PortalCurriculum = () => {
       setWaitingSince(Date.now());
       // Listed as "Writing…" straight away, so leaving the page now still leaves a trail back.
       setLessons612RefreshKey((k) => k + 1);
-      poll612(data.renderId, Date.now());
+      poll612(data.renderId, Date.now(), chosenLp.title);
     } catch (err: unknown) {
       setOpening(false);
       const status = (err as { response?: { status?: number } })?.response?.status;
@@ -346,6 +372,37 @@ const PortalCurriculum = () => {
       });
     }
   }, [chosenLp, open612, poll612, toast]);
+
+  /** Back: the viewer was pushed over this page, so going back closes it. */
+  const closeViewer = useCallback(() => {
+    if (location.key !== 'default') navigate(-1);
+    else navigate(location.pathname, { replace: true, state: null });
+  }, [location.key, location.pathname, navigate]);
+
+  // A lesson plan opens at its top, wherever she had scrolled the picker to.
+  const viewingKey = viewing ? JSON.stringify(viewing.source) : null;
+  useEffect(() => {
+    if (!viewingKey) return;
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [viewingKey]);
+
+  if (viewing) {
+    return (
+      <PortalLayout>
+        <LessonPlanViewer
+          key={JSON.stringify(viewing.source)}
+          view={viewing}
+          recording={recording}
+          onClose={closeViewer}
+          onNotReady={() => {
+            toast(viewing.source.lane === 'k5' ? NOT_PUBLISHED : { title: 'That lesson is not ready yet' });
+            closeViewer();
+          }}
+        />
+      </PortalLayout>
+    );
+  }
 
   if (loadingGrades) {
     return <PortalLayout><LoadingState type="full" /></PortalLayout>;
@@ -365,7 +422,7 @@ const PortalCurriculum = () => {
           </p>
         </div>
 
-        <Tabs defaultValue="library" className="w-full">
+        <Tabs key={openTab} defaultValue={openTab} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="library">Lesson Plans</TabsTrigger>
             <TabsTrigger value="assessment">Assessment Generator</TabsTrigger>

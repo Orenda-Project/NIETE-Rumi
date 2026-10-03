@@ -363,6 +363,7 @@ export const portal = {
           selfObservation: false,
           childTest: false,
           coachObservation: false,
+          newUi: false,
         },
       };
     }
@@ -488,6 +489,8 @@ export type PortalConfig = {
     childTest?: boolean;
     /** bd-5rz1v.6 — a coach can run an /observe observation from the portal (fail-closed). */
     coachObservation?: boolean;
+    /** bd-5rz1v.12 — the new UI (Direction B) is on for THIS user (fail-closed). */
+    newUi?: boolean;
   };
 };
 

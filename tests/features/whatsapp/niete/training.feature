@@ -1256,7 +1256,10 @@ Feature: NIETE (ICT) Teacher Training
     When I tap "Not now"
     Then a 👌 appears on my tap and no message is sent
     And the 👌 still appears when several messages have just reached me (it is never skipped for pacing)
+    And the chat header does not show "typing…" before the 👌
     # ADDED 2026-10-02 (FX4, bd-w2daa.26): a reaction that is the only answer is sent as a sole ack.
     # FX1 (bd-w2daa.22): 👌, not 👍 — the webhook's automatic 👍 on every message would answer nothing.
     # transcript-quiz-offer handleOfferButton: the offer already ends "You can make one for any lesson
     # anytime by sending /quiz"; tqDeclined is sent only when the reaction cannot be. @wip.
+    # UPDATED 2026-10-02 (FX7, bd-w2daa.31): handleOfferButton settles the turn as soon as it has found a live
+    # offer, before the decline write (an expired offer still says so, in text). Unit: fx7-reaction-only-taps.test.js.

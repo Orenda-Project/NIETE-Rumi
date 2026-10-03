@@ -9,12 +9,12 @@ import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import BottomSheet from '../components/coaching/BottomSheet';
 import SoundBars from '../components/coaching/SoundBars';
+import { RecordingContinuesChip } from '../components/RecordingBar';
 import LibraryPicker, { type PickedPlan } from '../components/coaching/LibraryPicker';
 import { portal } from '../services/api';
 import { acceptFor, checkFile, formatSize, MAX_PHOTOS, minutesText, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
-import { pickRecordingType } from '../lib/recordingSupport';
-import { keepScreenOn } from '../lib/keepAwake';
-import { LessonRecorder } from '../lib/lessonRecorder';
+import { useRecordingClock, useRecordingSession, type RecordingSession } from '../lib/recordingSession';
+import { clockText } from '../lib/clockText';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../lib/recordingStore';
 import { takeHandedOffRecording } from '../lib/lessonHandoff';
 import type { RecordStart } from '../components/coaching/CoachingHome';
@@ -38,6 +38,11 @@ import { sendLesson, SendError, type LibraryPick } from '../lib/coachingSend';
  * screen, few words, nothing that can end a lesson by accident.
  *
  *   recording  big clock, sound bars, Pause, Finish — Finish asks first
+ *              (bd-5rz1v.10: the recording itself lives in lib/recordingSession,
+ *              above the routes. This page is a VIEW onto it: leaving the page
+ *              leaves the lesson recording, a bar on every other page leads
+ *              back, and Back is no longer trapped here. A tip says she can
+ *              open her lesson plan meanwhile.)
  *   check      listen, redo, lesson plan (library | photo | file), board photos
  *   sending    progress; the recording stays on the phone until it has arrived
  *   sent       Open this lesson
@@ -67,8 +72,12 @@ const COPY = {
   minutesWord: 'minutes',
   hearing: 'We can hear your class.',
   pausedNote: 'Recording is paused.',
-  keepOpen: 'Keep this screen open. Put the phone face up, near you.',
-  screenWentOff: 'The screen went off for a while. Part of the lesson may be silent. Keep this screen open.',
+  // bd-5rz1v.10 — "this screen" no longer: she may use other pages now. What
+  // silences the microphone is the phone sleeping or another app in front.
+  // Labels, not sentences (operator, 2026-10-03).
+  keepOpen: 'Phone on, face up · stay in this app',
+  screenWentOff: 'Screen went off · part may be silent',
+  lessonPlans: 'Lesson plans',
   finish: 'Finish',
   pause: 'Pause',
   resume: 'Continue',
@@ -141,16 +150,6 @@ type Plan =
 type Stage =
   | 'starting' | 'micBlocked' | 'recording' | 'check' | 'library' | 'sending' | 'failed' | 'busy' | 'sent';
 
-function clockText(ms: number): string {
-  const total = Math.floor(ms / 1000);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const mm = String(m).padStart(2, '0');
-  const ss = String(s).padStart(2, '0');
-  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
-}
-
 function lessonFilename(ext: string, at = new Date()): string {
   const d = at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const t = `${String(at.getHours()).padStart(2, '0')}.${String(at.getMinutes()).padStart(2, '0')}`;
@@ -202,22 +201,44 @@ const Warning = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
+/** A page of this app behind this one in the browser's history (React Router's own index). */
+function hasHistoryBehind(): boolean {
+  try {
+    const idx = (window.history.state as { idx?: unknown } | null)?.idx;
+    return typeof idx === 'number' && idx > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Where this page lives: a recording started here returns here (RecordingBar). */
+export const RECORD_PATH = '/portal/coaching/new';
+
+/**
+ * The session from App.tsx's provider. Rendered without one (a page on its own),
+ * there is nothing to record into: say so loudly rather than half-work.
+ */
+function useSession(): RecordingSession {
+  const session = useRecordingSession();
+  if (!session) throw new Error('PortalCoachingRecord needs a RecordingSessionProvider above it');
+  return session;
+}
+
 const PortalCoachingRecord = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [enabled, setEnabled] = useState<boolean | null>(null);
-  const [stage, setStage] = useState<Stage>('starting');
+  const session = useSession();
+  // Back from elsewhere to a lesson still recording: it is on for her, no need to ask /config.
+  const [enabled, setEnabled] = useState<boolean | null>(() => (session.active ? true : null));
+  const [stage, setStage] = useState<Stage>(() => (session.active ? 'recording' : 'starting'));
   const [fileError, setFileError] = useState<string | null>(null);
   const begun = useRef(false);
 
-  // recording
-  const recorderRef = useRef<LessonRecorder | null>(null);
-  const releaseScreen = useRef<(() => Promise<void>) | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [paused, setPaused] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  // recording — owned by the session; this page only shows it
+  const paused = session.paused;
+  const elapsed = useRecordingClock(session);
   const [confirmFinish, setConfirmFinish] = useState(false);
-  const [screenWentOff, setScreenWentOff] = useState(false);
+  const finishingHere = useRef(false);
 
   // check
   const [audio, setAudio] = useState<Audio | null>(null);
@@ -244,15 +265,18 @@ const PortalCoachingRecord = () => {
   const planFileInput = useRef<HTMLInputElement>(null);
   const photosInput = useRef<HTMLInputElement>(null);
 
-  const level = useMicLevel(stream, stage === 'recording' && !paused);
+  const level = useMicLevel(session.stream, stage === 'recording' && !paused);
 
   // ── first load: is it on for her? ─────────────────────────────────────────
   useEffect(() => {
+    if (session.active) return undefined;
     let live = true;
     Promise.resolve().then(() => portal.getConfig())
       .then((cfg) => { if (live) setEnabled(cfg?.features?.selfObservation === true); })
       .catch(() => { if (live) setEnabled(false); });
     return () => { live = false; };
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The recording's playback url follows the audio and is released with it.
@@ -264,27 +288,9 @@ const PortalCoachingRecord = () => {
     return () => { if (url) URL.revokeObjectURL(url); };
   }, [audio]);
 
-  // The clock, and a guard against leaving while recording.
-  useEffect(() => {
-    if (stage !== 'recording') return undefined;
-    const tick = setInterval(() => setElapsed(recorderRef.current?.elapsedMs() ?? 0), 500);
-    setElapsed(recorderRef.current?.elapsedMs() ?? 0);
-    const leave = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
-    const onHide = () => { if (document.visibilityState === 'hidden') setScreenWentOff(true); };
-    window.addEventListener('beforeunload', leave);
-    document.addEventListener('visibilitychange', onHide);
-    return () => {
-      clearInterval(tick);
-      window.removeEventListener('beforeunload', leave);
-      document.removeEventListener('visibilitychange', onHide);
-    };
-  }, [stage]);
-
-  // Never leave the microphone or the screen hold on when she leaves the page.
-  useEffect(() => () => {
-    void releaseScreen.current?.();
-    if (recorderRef.current) void recorderRef.current.stop().catch(() => {});
-  }, []);
+  // bd-5rz1v.10 — the clock, the reload guard, the screen hold and the "screen
+  // went off" warning all live in the session now, and leaving this page does
+  // NOT stop the recorder: the lesson carries on while she uses other pages.
 
   const toCoaching = useCallback(
     () => navigate('/portal/coaching', { replace: true, state: { sendSheet: true } }),
@@ -293,33 +299,8 @@ const PortalCoachingRecord = () => {
 
   // ── start ─────────────────────────────────────────────────────────────────
   const startRecording = async () => {
-    const type = pickRecordingType();
-    if (!type) { setStage('micBlocked'); return; }
-    let media: MediaStream;
-    try {
-      media = await navigator.mediaDevices.getUserMedia({
-        // A classroom, not a call: call-style echo and noise suppression would
-        // also suppress children answering from across the room.
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true },
-      });
-    } catch {
-      setStage('micBlocked');
-      return;
-    }
-    const rec = new LessonRecorder({ stream: media, type });
-    recorderRef.current = rec;
-    setStream(media);
-    setPaused(false);
-    setScreenWentOff(false);
-    setElapsed(0);
-    try {
-      await rec.start();
-    } catch {
-      setStage('micBlocked');
-      return;
-    }
-    releaseScreen.current = await keepScreenOn();
-    setStage('recording');
+    const result = await session.start({ returnTo: RECORD_PATH });
+    setStage(result === 'recording' ? 'recording' : 'micBlocked');
   };
 
   /** A recording file she picked; false (and a message) when it is not one. */
@@ -365,6 +346,9 @@ const PortalCoachingRecord = () => {
     begun.current = true;
     const start = (location.state as Partial<RecordStart> | null)?.start;
     navigate(location.pathname, { replace: true, state: null });
+    // A lesson already recording (Return, Send a lesson, Back) is shown, never
+    // a second one started next to it.
+    if (session.active) { setStage('recording'); return; }
     if (start === 'record') { void startRecording(); return; }
     if (start === 'file') {
       const file = takeHandedOffRecording();
@@ -385,21 +369,15 @@ const PortalCoachingRecord = () => {
 
   // ── recording ─────────────────────────────────────────────────────────────
   const togglePause = () => {
-    const rec = recorderRef.current;
-    if (!rec) return;
-    if (paused) { rec.resume(); setPaused(false); } else { rec.pause(); setPaused(true); }
-    setElapsed(rec.elapsedMs());
+    if (paused) session.resume(); else session.pause();
   };
 
   const finishRecording = async () => {
-    const rec = recorderRef.current;
     setConfirmFinish(false);
-    if (!rec) return;
-    const out = await rec.stop();
-    recorderRef.current = null;
-    setStream(null);
-    void releaseScreen.current?.();
-    releaseScreen.current = null;
+    finishingHere.current = true;
+    const out = await session.finish();
+    finishingHere.current = false;
+    if (!out) return;
     setAudio({
       blob: out.blob,
       filename: lessonFilename(out.type.ext),
@@ -410,6 +388,12 @@ const PortalCoachingRecord = () => {
     });
     setStage('check');
   };
+
+  // Finished somewhere else (Logout's "Finish and log out") while this page
+  // showed it: it is on the phone, and Coaching offers to Continue it.
+  useEffect(() => {
+    if (stage === 'recording' && !session.active && !finishingHere.current) toCoaching();
+  }, [stage, session.active, toCoaching]);
 
   // ── check ─────────────────────────────────────────────────────────────────
   // A recording made here: delete it and go back to Coaching's sheet, to record
@@ -495,6 +479,9 @@ const PortalCoachingRecord = () => {
       if (libraryLevel > 0) setLibraryBack((n) => n + 1); else setStage('check');
       return;
     }
+    // bd-5rz1v.10 — while recording, Back simply goes back: the lesson carries
+    // on and the bar on the next page leads here again.
+    if (recordingNow && hasHistoryBehind()) { navigate(-1); return; }
     navigate('/portal/coaching');
   };
 
@@ -514,16 +501,16 @@ const PortalCoachingRecord = () => {
   const native = Capacitor.isNativePlatform();
 
   return (
-    <PortalLayout bare={recordingNow || stage === 'sending'}>
+    <PortalLayout bare={stage === 'sending'}>
       <div className="mx-auto flex w-full max-w-md flex-col pb-6">
         <div className="mb-3 flex h-12 items-center gap-1">
-          {!recordingNow && stage !== 'sending' && (
+          {stage !== 'sending' && (
             <button type="button" onClick={back} aria-label="Back"
               className="flex h-11 w-11 items-center justify-center rounded-lg text-primary">
               <ChevronLeft className="h-6 w-6" />
             </button>
           )}
-          <h1 className={`text-lg font-bold text-primary ${recordingNow || stage === 'sending' ? 'pl-2' : ''}`}>{title}</h1>
+          <h1 className={`text-lg font-bold text-primary ${stage === 'sending' ? 'pl-2' : ''}`}>{title}</h1>
         </div>
 
         {stage === 'starting' && <LoadingState type="full" />}
@@ -565,7 +552,7 @@ const PortalCoachingRecord = () => {
             <div className="-mt-2 text-base text-[#5b6170]">{COPY.minutesWord}</div>
             <SoundBars live={!paused} level={level} />
             <div className="-mt-1 text-base text-[#3a3f4b]">{paused ? COPY.pausedNote : COPY.hearing}</div>
-            {screenWentOff && <Warning>{COPY.screenWentOff}</Warning>}
+            {session.screenWentOff && <Warning>{COPY.screenWentOff}</Warning>}
             <div className="flex w-full items-center gap-3 rounded-xl bg-[#f4f5f6] p-3.5 text-[15px] leading-snug text-[#3a3f4b]">
               <Smartphone className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
               <span>{COPY.keepOpen}</span>
@@ -581,14 +568,24 @@ const PortalCoachingRecord = () => {
               {paused ? <Mic className="h-5 w-5" aria-hidden="true" /> : <Pause className="h-5 w-5" aria-hidden="true" />}
               {paused ? COPY.resume : COPY.pause}
             </button>
+            {/* bd-5rz1v.10 — the recording outlives this page: one obvious way to
+                the thing she is most likely to need, and a chip, not a sentence. */}
+            <div className="flex w-full flex-col items-center gap-2">
+              <button type="button" onClick={() => navigate('/portal/curriculum')}
+                className="flex h-14 w-full items-center justify-center gap-2.5 rounded-[14px] border-2 border-[#1f6b46] bg-[#e8f5ee] text-lg font-bold text-[#1f6b46]">
+                <BookOpen className="h-6 w-6" aria-hidden="true" />
+                {COPY.lessonPlans}
+              </button>
+              <RecordingContinuesChip />
+            </div>
           </div>
         )}
 
         {confirmFinish && (
           <BottomSheet label={COPY.finishQ} onClose={() => setConfirmFinish(false)}>
             <div className="text-[23px] font-bold">{COPY.finishQ}</div>
-            <div className="text-[17px] text-[#3a3f4b]">{COPY.youRecorded(minutesText(recorderRef.current?.elapsedMs() ?? elapsed))}</div>
-            {(recorderRef.current?.elapsedMs() ?? elapsed) < SHORT_RECORDING_SECONDS * 1000 && <Warning>{COPY.thatIsShort}</Warning>}
+            <div className="text-[17px] text-[#3a3f4b]">{COPY.youRecorded(minutesText(session.elapsedMs() || elapsed))}</div>
+            {(session.elapsedMs() || elapsed) < SHORT_RECORDING_SECONDS * 1000 && <Warning>{COPY.thatIsShort}</Warning>}
             <button type="button" onClick={finishRecording} className="h-[60px] rounded-[14px] bg-primary text-[19px] font-bold text-white">{COPY.yesFinish}</button>
             <button type="button" onClick={() => setConfirmFinish(false)}
               className="h-14 rounded-[14px] border-2 border-primary bg-white text-lg font-bold text-primary">{COPY.keepRecording}</button>

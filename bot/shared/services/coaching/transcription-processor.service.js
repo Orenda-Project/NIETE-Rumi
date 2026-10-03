@@ -122,7 +122,12 @@ class TranscriptionProcessorService {
       //       sweeper's localised "started analysing" notice — so the billed Step 1/5
       //       text would repeat it. Only those two callers set it; every retry without
       //       it is unchanged.
-      if (session.observation_type === 'leader_observation') {
+      // bd-5rz1v.6.9 — a coach's PORTAL observation is followed in the portal; the
+      // explicit skip (rather than the leader-observation rule below) is what
+      // staging and production carry, where that rule does not exist yet.
+      if (require('./portal-coaching.service').isPortalObservation(session)) {
+        logToFile('🔕 Step 1/5 not sent — a portal observation (the portal shows its progress)', { coachingSessionId });
+      } else if (session.observation_type === 'leader_observation') {
         logToFile('🔕 Step 1/5 not sent — a leader observation (the coach was told the wait on capture)', { coachingSessionId });
       } else if (!payload.step1Announced) {
         await this.sendProgressUpdate(
