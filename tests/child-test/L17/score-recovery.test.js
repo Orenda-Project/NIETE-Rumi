@@ -98,6 +98,7 @@ describe('scoring survives a restart (bd-s1oo0.22)', () => {
     seed.observation_field_forms[0] = { ...seed.observation_field_forms[0], teacher_user_id: 'teacher-1', created_at: new Date().toISOString() };
     mockDb = createFakeSupabase(seed, { unique: CHILD_TEST_UNIQUE });
     process.env.CHILD_TEST_ENABLED = 'true';
+    process.env.CHILD_TEST_OBSERVE_LINK = 'true';   // these scenarios open the list through the observe2 visit
     process.env.CHILD_TEST_DRAW_SECRET = 'test-secret';
     process.env.RAILWAY_ENVIRONMENT = 'sandbox';
     delete process.env.CHILD_TEST_SCORE_RECOVERY_OFF;
@@ -302,6 +303,7 @@ describe('scoring survives a restart (bd-s1oo0.22)', () => {
     expect(await recovery.sweepOnce({ now: later(5 * MIN) })).toMatchObject({ skipped: 'disabled' });
     expect(recovery.start()).toBe(false);
     process.env.CHILD_TEST_ENABLED = 'true';
+    process.env.CHILD_TEST_OBSERVE_LINK = 'true';   // these scenarios open the list through the observe2 visit
     process.env.CHILD_TEST_SCORE_RECOVERY_OFF = '1';
     expect(await recovery.sweepOnce({ now: later(5 * MIN) })).toMatchObject({ skipped: 'off' });
     expect(recovery.start()).toBe(false);
