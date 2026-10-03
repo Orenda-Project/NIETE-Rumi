@@ -92,11 +92,19 @@ describe('the offer after the report is delivered', () => {
 
   it('gated on: after "sent", the offer carries the coaching session', async () => {
     process.env.CHILD_TEST_ENABLED = 'true';
+    process.env.CHILD_TEST_OBSERVE_LINK = 'true';
     await ObserveSend.processTeacherReport(SESSION_ID, { phase: 'deliver', from: COACH });
     const offer = mockSend.sendInteractiveButtons.mock.calls.find((c) => c[1].buttons.some((b) => b.id.startsWith('ctst_offer:')));
     expect(offer).toBeTruthy();
     expect(offer[0]).toBe(COACH);
     expect(offer[1].buttons.map((b) => b.id)).toEqual([`ctst_offer:s:${SESSION_ID}`, `ctst_later:s:${SESSION_ID}`]);
+  });
+
+  it('kept separate (CHILD_TEST_OBSERVE_LINK unset): no offer after the report', async () => {
+    process.env.CHILD_TEST_ENABLED = 'true';
+    delete process.env.CHILD_TEST_OBSERVE_LINK;
+    await ObserveSend.processTeacherReport(SESSION_ID, { phase: 'deliver', from: COACH });
+    expect(mockSend.sendInteractiveButtons.mock.calls.some((c) => c[1].buttons.some((b) => b.id.startsWith('ctst_')))).toBe(false);
   });
 
   it('gated off: no offer', async () => {

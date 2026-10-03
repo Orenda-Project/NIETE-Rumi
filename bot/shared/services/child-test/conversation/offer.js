@@ -15,11 +15,12 @@
 const supabase = require('../../../config/supabase');
 const WhatsAppService = require('../../whatsapp.service');
 const { logToFile, logError } = require('../../../utils/logger');
-const { isChildTestAvailable } = require('./gate');
+const { isChildTestAvailable, isObserveLinkOn } = require('./gate');
 const { langOf, t, clip } = require('./copy');
 
 /** → true when the offer was sent. */
 async function sendOffer({ coachUserId, kind = 'f', id }) {
+  if (!isObserveLinkOn()) return false;   // kept separate from the observation (gate.js)
   try {
     const { data: coach } = await supabase.from('users')
       .select('id, role, region, preferred_language, phone_number').eq('id', coachUserId).maybeSingle();

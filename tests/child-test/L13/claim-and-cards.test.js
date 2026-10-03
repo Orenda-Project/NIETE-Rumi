@@ -68,6 +68,7 @@ function nineCards(variant) {
 beforeEach(() => {
   process.env = { ...SAVED };
   process.env.CHILD_TEST_ENABLED = 'true';
+  process.env.CHILD_TEST_OBSERVE_LINK = 'true';   // these scenarios open the list through the observe2 visit
   process.env.DEFAULT_REGION = 'niete-sandbox';
   process.env.RAILWAY_ENVIRONMENT = 'sandbox';
   delete process.env.CHILD_TEST_INCHAT_CARDS;
