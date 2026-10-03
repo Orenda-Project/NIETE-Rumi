@@ -14,12 +14,14 @@ import { FOCUS, TAP, radioKeyDown } from './styles';
  *   error     red    — failed
  *   info      grey-indigo — everything else ("Grade 4", "p.14–15", "Oct")
  *   selected  indigo — the chosen one in a set
+ *   recording red, led by a dot that pulses — a lesson being recorded (bd-5rz1v.26; the one
+ *             place red means something other than an error)
  *
  * FilterChips are the one tappable kind: a radio group of outlined pills, the picked one
  * filled indigo, each inside a 56px target.
  */
 
-export type ChipTone = 'done' | 'waiting' | 'error' | 'info' | 'selected';
+export type ChipTone = 'done' | 'waiting' | 'error' | 'info' | 'selected' | 'recording';
 
 const TONE: Record<ChipTone, string> = {
   done: 'bg-nu-chip-done-bg text-nu-chip-done',
@@ -27,6 +29,7 @@ const TONE: Record<ChipTone, string> = {
   error: 'bg-nu-chip-error-bg text-nu-chip-error',
   info: 'bg-nu-chip-info-bg text-nu-chip-info',
   selected: 'bg-nu-chip-selected-bg text-nu-chip-selected',
+  recording: 'bg-nu-record-bg text-nu-record',
 };
 
 export interface ChipProps {
@@ -50,6 +53,9 @@ export function Chip({ children, tone = 'info', icon: Icon, surface = 'light' }:
           : cn('px-2 py-px text-[11.5px] rtl:px-[9px] rtl:py-0 rtl:text-xs', TONE[tone]),
       )}
     >
+      {tone === 'recording' && surface === 'light' ? (
+        <span data-dot aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-nu-record motion-safe:animate-pulse" />
+      ) : null}
       {Icon ? <Icon className="h-3 w-3 shrink-0" aria-hidden="true" /> : null}
       {children}
     </span>

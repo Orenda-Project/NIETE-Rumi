@@ -84,8 +84,12 @@ export function tapWidthOk(className: string): boolean {
   return baseClasses(className).some((c) => c === 'w-full' || c === 'flex-1' || (pxOf(c, ['min-w', 'w', 'size']) ?? 0) >= TAP_MIN_PX);
 }
 
+/**
+ * What a finger can reach. An element with the `hidden` attribute is not on screen — a file
+ * input that a row's tap opens (bd-5rz1v.26) — so it is not a target.
+ */
 export const INTERACTIVE = [
-  'button', 'a[href]', 'input:not([type="hidden"])', 'select', 'textarea',
+  'button', 'a[href]', 'input:not([type="hidden"]):not([hidden])', 'select', 'textarea',
   '[role="button"]', '[role="link"]', '[role="radio"]', '[role="checkbox"]', '[role="tab"]', '[role="switch"]',
 ].join(', ');
 
