@@ -7,13 +7,14 @@
  *
  * Urdu addresses the coach with imperatives and impersonal forms only (coaches are women and men). The
  * bot never names itself here: marks are "from the recording" / "read from the photo", which is both
- * what the coach needs to know and free of a gendered verb ("جانچی نہیں جا سکی"). Children are the
- * child or the roll number, never "she"/"he".
+ * what the coach needs to know and free of a gendered verb ("جانچی نہیں جا سکی"). Children are named
+ * full name first, roll as a hint (conversation/identity.js, CONTRACT §18), never "she"/"he".
  * Caps, in code points (tests/child-test/L6/check-flow-contract.test.js): input labels 20, group labels
  * 30, helpers 80, footers 35, option titles 30, headings 80, the chat button 20, header 60.
  */
 
 const { clampLanguage } = require('../../../config/ux-strings');
+const { digits } = require('../conversation/copy');
 
 const STRINGS = {
   en: {
@@ -95,14 +96,33 @@ const STRINGS = {
     err_pick: 'Pick one',
 
     child_line: (who, grade) => `${who} · Grade ${grade}`,
-    roll: (n) => `roll ${n}`,
+    roll: (n) => `roll ${n}`,   // the Flow JSON's example only; runtime labels come from conversation/identity.js
     check_header: (who) => `Check: ${who}`,
-    check_body: ({ who, urdu, english, maths }) => `Marks from the recording for ${who}: Urdu ${urdu}, English ${english}, maths ${maths}. Open the check, change anything you heard differently, and save. About a minute.`,
     words_line: (n) => `${n} words`,
     letters_line: (n) => `${n}/10 letters`,
     sums_line: (n) => `${n} quick sums`,
-    not_marked: '—',
     check_cta: 'Check marks',
+    // L21 (bd-s1oo0.27): the check message names only what the form shows filled in, and says what the
+    // coach fills in. The check took 107–144 s per child on sandbox (sandbox5-syn-2032), so "2 minutes".
+    msg_intro: (who) => `${who}: marks from the recording.`,
+    msg_filled: (list) => `Filled in: ${list}.`,
+    msg_unsure: (list) => `Filled in, please check: ${list}.`,
+    msg_none_filled: 'Nothing could be filled in from the recording.',
+    msg_fill: (list) => `You fill in: ${list}.`,
+    msg_all_filled: 'Every field is filled in.',
+    msg_tail: 'Open the check, change anything you heard differently, and save. About 2 minutes.',
+    block_name: { urdu: 'Urdu', english: 'English', maths: 'maths' },
+    block_sep: '; ',
+    f_story: () => 'story count',
+    f_fb: () => 'letters and words',
+    f_q: (n) => (n === 1 ? '1 question' : `${n} questions`),
+    f_fs: (n) => (n === 1 ? '1 first sound' : `${n} first sounds`),
+    f_nw: (n) => (n === 1 ? '1 made-up word' : `${n} made-up words`),
+    f_num: (n) => (n === 1 ? '1 number' : `${n} numbers`),
+    f_qs: () => 'quick sums count',
+    f_w: (n) => (n === 1 ? '1 written sum' : `${n} written sums`),
+    f_wp: () => 'word problem',
+    f_all: 'all of it (no marks from the recording)',
     completion_saved: (who) => `✓ Marks for ${who} saved.`,
     completion_not_saved: (who) => `The check for ${who} didn't save. Tap the check button above to open it again; nothing you saved is lost.`,
   },
@@ -183,15 +203,33 @@ const STRINGS = {
     err_out_of: (n) => `زیادہ سے زیادہ ${n}`,
     err_pick: 'ایک چنیں',
 
-    child_line: (who, grade) => `${who} · جماعت ${grade}`,
-    roll: (n) => `رول نمبر ${n}`,
+    child_line: (who, grade) => `${who} · جماعت ${digits('ur', grade)}`,   // L21: Urdu digits, as the roll in `who`
+    roll: (n) => `رول نمبر ${n}`,   // the Flow JSON's example only; runtime labels come from conversation/identity.js
     check_header: (who) => `جانچ: ${who}`,
-    check_body: ({ who, urdu, english, maths }) => `${who} کے لیے ریکارڈنگ سے نمبر: اردو ${urdu}، انگریزی ${english}، حساب ${maths}۔ جانچ کھولیں، جو مختلف سنا ہو بدلیں، اور محفوظ کریں۔ تقریباً ایک منٹ۔`,
     words_line: (n) => `${n} الفاظ`,
     letters_line: (n) => `${n}/10 حروف`,
     sums_line: (n) => `${n} فوری سوال`,
-    not_marked: '—',
     check_cta: 'جانچ کریں',
+    // L21 (bd-s1oo0.27)
+    msg_intro: (who) => `${who}: ریکارڈنگ سے نمبر۔`,
+    msg_filled: (list) => `بھرے ہوئے: ${list}۔`,
+    msg_unsure: (list) => `بھرے ہوئے، براہِ کرم دیکھ لیں: ${list}۔`,
+    msg_none_filled: 'ریکارڈنگ سے کچھ نہیں بھرا جا سکا۔',
+    msg_fill: (list) => `آپ خود بھریں: ${list}۔`,
+    msg_all_filled: 'کوئی خانہ خالی نہیں۔',
+    msg_tail: 'جانچ کھولیں، جو مختلف سنا ہو بدلیں، اور محفوظ کریں۔ تقریباً دو منٹ۔',
+    block_name: { urdu: 'اردو', english: 'انگریزی', maths: 'حساب' },
+    block_sep: '؛ ',
+    f_story: () => 'کہانی کی گنتی',
+    f_fb: () => 'حروف اور الفاظ',
+    f_q: (n) => `${n} سوال`,
+    f_fs: (n) => (n === 1 ? '1 پہلی آواز' : `${n} پہلی آوازیں`),
+    f_nw: (n) => (n === 1 ? '1 بے معنی لفظ' : `${n} بے معنی الفاظ`),
+    f_num: (n) => `${n} نمبر`,
+    f_qs: () => 'فوری سوالوں کی گنتی',
+    f_w: (n) => `${n} لکھے ہوئے سوال`,
+    f_wp: () => 'عبارتی سوال',
+    f_all: 'سب کچھ (ریکارڈنگ سے نمبر نہیں)',
     completion_saved: (who) => `✓ ${who} کے نمبر محفوظ ہو گئے۔`,
     completion_not_saved: (who) => `${who} کی جانچ محفوظ نہیں ہوئی۔ اوپر جانچ کا بٹن دبا کر دوبارہ کھولیں؛ پہلے محفوظ کیا ہوا برقرار ہے۔`,
   },

@@ -174,11 +174,12 @@ async function main() {
   const res = await runVisit({ transport, timeline: tl, fixtures, absentRolls, checks, checkPlayer, realtime: run.realtime,
     timeoutMs: Number(a.timeout || (mode === 'sandbox' ? 180000 : 30000)) });
   await teardown();
-  const summary = { ...summarise(tl.events), result: res };
+  const summary = { ...summarise(tl.events), result: res,
+    ...(typeof transport.signals === 'function' && transport.signals() ? { signals: transport.signals() } : {}) };
   fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(summary, null, 1));
   console.log(JSON.stringify({ ok: res.ok, error: res.error, children: res.children.length, checks: res.checksSubmitted, checks_failed: res.checksFailed,
     check_s: summary.checks,
-    total_s: summary.total_s, rtt: summary.rtt_stats, run: runDir }, null, 1));
+    total_s: summary.total_s, rtt: summary.rtt_stats, ...(summary.signals ? { signals: summary.signals } : {}), run: runDir }, null, 1));
   process.exit(res.ok ? 0 : 1);
 }
 

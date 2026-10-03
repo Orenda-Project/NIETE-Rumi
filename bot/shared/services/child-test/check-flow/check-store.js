@@ -9,7 +9,7 @@
  * block that never got a recording) and recordTiming. Until it lands, the same semantics run here on
  * the same columns, so the check behaves identically either way.
  *
- * The draw's roll number (the coach-facing label) comes from store.getDraw. One read stays here because
+ * The draw's roll number comes from store.getDraw, the child's name from the roster (getChild). One read stays here because
  * store.js has no function for it: the coach's phone and language (users is not a child-test table).
  *
  * Nothing here writes ai_marks. Every function returns { ok, ... } and logs its own failure.
@@ -142,6 +142,37 @@ async function getRollNumber(drawId) {
   return draw && draw.roll_number != null ? String(draw.roll_number) : null;
 }
 
+/**
+ * The child as the coach knows them (CONTRACT §18): roll from the draw, names from the roster. The
+ * names go to the coach's WhatsApp only — never into a log line here. Missing pieces stay null.
+ * @returns {Promise<{rollNumber: string|null, displayName: string|null, displayNameUrdu: string|null}>}
+ */
+async function getChild(session) {
+  const out = { rollNumber: null, displayName: null, displayNameUrdu: null };
+  if (!session) return out;
+  let draw = null;
+  if (session.draw_id) {
+    if (viaStore('getDraw')) {
+      const r = await viaStore('getDraw')(session.draw_id);
+      draw = r.ok ? r.draw : null;
+    } else {
+      const { data, error } = await supabase.from('child_test_draws').select('roll_number, student_id').eq('id', session.draw_id).maybeSingle();
+      draw = error ? null : data;
+    }
+  }
+  if (draw && draw.roll_number != null) out.rollNumber = String(draw.roll_number);
+  const studentId = session.student_id || (draw && draw.student_id) || null;
+  if (!studentId) return out;
+  const { data, error } = await supabase.from('students').select('id, student_name, student_name_urdu').eq('id', studentId).maybeSingle();
+  if (error) {
+    logError('[child-test] check: child read failed', { sessionId: session.id, error: error.message });
+    return out;
+  }
+  out.displayName = (data && data.student_name) || null;
+  out.displayNameUrdu = (data && data.student_name_urdu) || null;
+  return out;
+}
+
 async function getCoach(userId) {
   const { data, error } = await supabase.from('users').select('id, phone_number, preferred_language').eq('id', userId).maybeSingle();
   if (error) {
@@ -151,4 +182,4 @@ async function getCoach(userId) {
   return data || null;
 }
 
-module.exports = { getSession, getBlocks, saveCoachBlock, stamp, markCheckSubmitted, getRollNumber, getCoach };
+module.exports = { getSession, getBlocks, saveCoachBlock, stamp, markCheckSubmitted, getRollNumber, getChild, getCoach };

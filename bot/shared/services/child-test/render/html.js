@@ -263,9 +263,10 @@ html,body{margin:0;padding:0;background:#fff;color:${INK}}
 .fid{position:absolute;width:9mm;height:9mm;background:#000}
 .fid.tl{top:6mm;left:6mm}.fid.tr{top:6mm;right:6mm}.fid.bl{bottom:6mm;left:6mm}.fid.br{bottom:6mm;right:6mm}
 .code{position:absolute;top:6mm;right:20mm;font:700 26pt/1 ${LATIN_STACK};border:.8mm solid #000;padding:2mm 4mm;direction:ltr;letter-spacing:.04em}
-.roll{display:flex;gap:4mm;align-items:center;font:14pt/1 ${LATIN_STACK};margin:12mm 0 8mm;direction:ltr}
-.roll .ur{font-size:14pt;line-height:1.6}
-.roll .blank{flex:0 0 55mm;height:11mm;border:.5mm solid #000;border-radius:2mm}
+.childno{display:flex;gap:4mm;align-items:center;font:700 16pt/1 ${LATIN_STACK};margin:10mm 0 7mm;direction:ltr}
+.childno .ur{font-size:17pt;line-height:1.6}
+.childno .cells{display:flex;gap:2.5mm}
+.childno .digit{width:17mm;height:21mm;border:.8mm solid #000;border-radius:2mm;box-sizing:border-box}
 .sums{display:grid;grid-template-columns:1fr 1fr;gap:8mm;direction:ltr}
 .sum{border:.5mm solid #6B7280;border-radius:3mm;height:52mm;padding:5mm 6mm;box-sizing:border-box;font:32pt/1.2 ${LATIN_STACK}}
 .wp{margin-top:9mm;border:.5mm solid #6B7280;border-radius:3mm;padding:5mm 6mm;display:flex;flex-direction:column;gap:3mm}
@@ -345,8 +346,10 @@ function fallbackPage(grade, code, form) {
 /**
  * The page the child writes on and the coach photographs. Four black corner squares let the
  * vision model square the photo up; the form code in the corner says which answer key applies.
- * A roll-number blank, not a name blank: the photo goes to a vision model, and no child's name
- * may go into a model prompt (PLAN §8).
+ * A child-number box, not a name or roll blank (L20, CONTRACT §18): the coach writes the child's
+ * number on today's list (one or two digits, one per cell) and the bot attaches the photo to that
+ * child. Rolls renumber monthly and some children have none; no child's name may go into a model
+ * prompt (PLAN §8).
  */
 function stripPage(grade, code, form) {
   const m = need(form, 'maths');
@@ -357,7 +360,8 @@ function stripPage(grade, code, form) {
   return `<section class="page strip" data-page="maths-strip" dir="ltr" lang="ur" data-code="${esc(formCode(grade, code))}">`
     + '<div class="fid tl"></div><div class="fid tr"></div><div class="fid bl"></div><div class="fid br"></div>'
     + `<div class="code">${esc(formCode(grade, code))}</div>`
-    + '<div class="roll"><span class="ur" dir="rtl">رول نمبر</span><span>Roll no.</span><span class="blank" data-field="roll"></span></div>'
+    + '<div class="childno"><span class="ur" dir="rtl">بچہ نمبر</span><span>Child no.</span>'
+    + '<span class="cells" data-field="child-no"><span class="digit"></span><span class="digit"></span></span></div>'
     + `<div class="sums">${sums}</div>`
     + '<div class="wp">'
     + `<div class="ur" dir="rtl">${esc(wp.prompt_ur)}</div>`

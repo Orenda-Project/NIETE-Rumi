@@ -42,7 +42,7 @@ describe('the bar is L5\'s, in the block\'s language', () => {
     expect(render('urdu', F.urduConfident()).wc_i).toBe('');
   });
 
-  test('an Urdu question at 0.8 is pre-selected (Urdu bar 0.7), not raised to English\'s 0.9', () => {
+  test('an Urdu question at 0.9 is pre-selected under the pinned Urdu bar 0.7', () => {
     expect(render('urdu', F.urduConfident()).q2_i).toBe('wrong');
   });
 

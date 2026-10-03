@@ -274,7 +274,7 @@ describe('scoreBlock (L4 → L5 contract)', () => {
     expect(m.quick_sums).toMatchObject({ correct: 3, attempted: 4 });
     expect(m.written.map((w) => [w.read_answer, w.verdict])).toEqual([['62', 'correct'], ['44', 'wrong'], ['', 'blank'], ['', 'unreadable']]);
     expect(m.word_problem).toMatchObject({ verdict: 'correct', read_answer: '9' });
-    expect(both.saved[0].aiMarks.meta.photo).toEqual({ form_code: 'G3-A', form_code_ok: true, expected_code: 'G3-A' });
+    expect(both.saved[0].aiMarks.meta.photo).toEqual({ form_code: 'G3-A', form_code_ok: true, expected_code: 'G3-A', child_no: null, child_no_confidence: 0 });
     // the vision model is told the printed sums, never the answers
     const vision = mockCreate.mock.calls.find(([r]) => prompt(r).includes('answer strip'))[0];
     expect(vision.model).toBe('google/gemini-3.1-pro-preview');

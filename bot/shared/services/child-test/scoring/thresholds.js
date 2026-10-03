@@ -37,7 +37,7 @@ const NEVER = 1.01;
  */
 const FIELD_BARS_BY_LANG = Object.freeze({
   'story.words_correct': Object.freeze({ urdu: NEVER, english: 0.7 }),
-  questions: Object.freeze({ urdu: 0.7, english: 0.9 }),
+  questions: Object.freeze({ urdu: 0.9, english: 0.9 }),
   nonwords: Object.freeze({ urdu: 0.65, english: NEVER }),
 });
 
@@ -45,7 +45,7 @@ const BAR_EVIDENCE = Object.freeze({
   'story.words_correct': 'Urdu real: confidence anti-calibrated (>=0.70: 56% within +-5, n 9; all: 71%). English real >=0.70: 88% within +-5 (n 16), synthetic 100% (n 6).',
   'story.flagged': 'Real per-word precision 0.25 at every bar (Urdu n 163, English n 159) vs study 0.48/0.31: chips are shown, never pre-ticked.',
   fallback: 'Letters r 0.19 MAE 3.9/10, words r 0.26 MAE 5.3/10 (n 30): coach marks.',
-  questions: 'Urdu real >=0.70: 79% (n 67) vs floor 73%. English real >=0.70: 58% (n 19), >=0.90: 71% (n 7). Synthetic 100%.',
+  questions: 'Urdu (L23, 185 real children): >=0.70 fills 98% at 73% right, only the 73% floor; >=0.90 fills 55% at 86% (n 92), 90% lower bound 79%. L5 run 3 >=0.70: 79% (n 67). English real >=0.70: 58% (n 19), >=0.90: 71% (n 7); L23 >=0.90: 82% (n 11). Synthetic 100%.',
   first_sounds: 'Hint only (coach marks); synthetic agreement 92% (n 60).',
   nonwords: 'English real 41-43% at any bar (n 304) vs floor 52%; synthetic English worse when confident (67% vs 78%). Urdu synthetic 97% (n 60), no real Urdu made-up words yet. Urdu confidence (L16): 0.85 where Gemini (>= 0.9) and the Soniox transcript heard the same word, 98% right (n 40); else capped at 0.6, 91% (n 80).',
   'maths.numbers': 'Synthetic >=0.65: 98% (n 48); real not keyed (May items were magnitude comparisons).',

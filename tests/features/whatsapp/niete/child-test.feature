@@ -72,11 +72,12 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     # L4: sent right after sendBrief in observe2-check-endpoint.js; string key childTestOfferBody.
 
   @e2e @wip @draft @destructive @config-gated @P1 @CT03
-  Scenario: Today's list shows five drawn children with roll numbers, the returning child marked, and two alternates
+  Scenario: Today's list shows five drawn children by full name, the returning child marked, and two alternates
     Given a COACH account in an ICT region at the SIM school on a visit day, with the child test enabled
     When I open today's list
-    Then one interactive list arrives headed "Grade <3|5> · Class <section>" with a "Today's children" section of 5 rows "Roll <n> · <name>" and an "Alternates" section of 2 rows
-    And each child row is marked "New" or "Returning (Form B)"
+    Then one interactive list arrives headed "Grade <3|5> · Class <section>" with a "Today's children" section of 5 rows titled with each child's full name and an "Alternates" section of 2 rows
+    And each child row's description is "Roll <n> · New" or "Roll <n> · Returning (Form B)", without the roll when the roster has none
+    And a name longer than 24 characters is clipped in the title and given in full at the start of the description
     And the body says the children were picked by the server and cannot be changed, and "Done: 0 of 5"
     And child_test_draws holds those 7 children with list_slot main/alternate and last_listed_visit_id = this visit
     # In the first weeks of a cycle no child is eligible to return, so all 5 are "New" (CT11).
@@ -87,8 +88,8 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given today's list is open
     When I tap the first child and tap "Present"
     Then a child_test_sessions row is created for that draw with status "in_progress"
-    And the next message is ONE line "Child 1 of 5 · Urdu 1/3 · Form <A|B> card, Urdu page · Say «<item-bank cue.urdu.start>» · one locked note, flip pages without stopping"
-    And a second line says "Give Roll <next child's roll> the maths strip to write while waiting."
+    And the next message is ONE line "Child 1 of 5 · <name> · roll <n> · Urdu 1/3 · Form <A|B> card, Urdu page · Say «<item-bank cue.urdu.start>» · one locked note, flip pages without stopping"
+    And a second line says "While waiting, give <next child's name> · roll <roll> the maths strip: write <next child's number> in its Child no. box first."
     And the message offers "No printed card", "Stop this child" and "Menu"
     And no card image is sent
     And no AI scoring has started yet
@@ -111,17 +112,18 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: The maths voice note is followed by the strip-photo ask, and the photo completes the child
     Given child 1 is on the maths block
     When I send the maths voice note
-    Then the bot acknowledges "🎧 Got it · Maths" and says "Roll <n>'s strip: send its photo once it is written, or send all the strips at the end. Tap the next child now.", with a "No strip photo" button
+    Then the bot acknowledges "🎧 Got it · Maths" and says "<name> · roll <n>'s strip (Child no. <k>): send its photo once it is written, or send all the strips at the end. Tap the next child now.", with a "No strip photo" button
     And maths ai_status stays "pending" with reason "awaiting_photo" and ai_marks is still empty
     When I send a photo of the maths strip
-    Then the bot replies "📷 Strip saved for Roll <n>." and then "All three parts for Roll <n> are in"
+    Then the bot replies "📷 Strip no. <k> saved for <name> · roll <n>." and then "All three parts for <name> · roll <n> are in"
     And child_test_blocks.photo_r2_key = child-test/<env>/<school_id>/<session_id>/maths-strip.jpg and maths is scored once, with both the spoken and the written items
     # CR-1 (CONTRACT §10): maths ai_marks are written only when audio AND photo are both present.
 
   @e2e @wip @draft @flow @destructive @config-gated @P1 @CT07
   Scenario: When a child's marks are in, a Check button opens a pre-filled check Flow
     Given child 1's three blocks are scored
-    Then the bot sends a check message for Roll <n> with the child's three headline numbers and the button «جانچ کریں»
+    Then the bot sends a check message naming the child (full name first, roll as a hint) with the button «جانچ کریں»
+    And it states only the numbers the check form shows filled in, and names what I must fill in
     When I open the check Flow
     Then the URDU screen shows story words correct and words attempted pre-filled from ai_marks.story
     And the words the model heard wrong are pre-ticked chips (at most 20)
@@ -172,7 +174,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario Outline: An absent or refused child is recorded with its reason and the first alternate joins the list
     Given today's list is open
     When I tap child 2 and tap "<button>"
-    Then the bot replies "Roll <n> <recorded>" and "Roll <alt> from the alternates joins today's list."
+    Then the bot replies "<name> · roll <n> <recorded>" and "<alt name> · roll <alt> from the alternates joins today's list."
     And child 2's draw row has status "<status>", attempts + 1, and no session was created for it
     And the list now holds 5 main children with the promoted alternate, and the alternates are topped up to 2 in rank order
     Examples:
@@ -203,7 +205,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given child 1 has sent the maths voice note but not the strip photo
     When I tap child 2, tap "Present" and send child 2's Urdu voice note
     And I then send child 1's strip photo
-    Then the photo is saved to child 1's maths block, not child 2's, with "📷 Strip saved for Roll <child 1>."
+    Then the photo is saved to child 1's maths block, not child 2's, with "📷 Strip no. 1 saved for <child 1's name> · roll <roll>."
     And child 2 is still waiting on its English block
     # L4: the photo state is per session, not per "current child".
 
@@ -211,7 +213,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: A strip photo that never comes is scored with force, written items left for the coach
     Given child 1 has sent the maths voice note
     When I tap "No strip photo"
-    Then the bot replies "OK, no strip photo for Roll <n>. The written sums stay blank."
+    Then the bot replies "OK, no strip photo for <name> · roll <n>. The written sums stay blank."
     And scoring is called with force: true, maths ai_status is "partial" and every written item is "unreadable" with confidence 0
     And in the check Flow the written answers arrive empty and required
     # CR-1: L4 also forces at the end of the visit when the coach moved on without a photo.
@@ -324,7 +326,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: A child already done cannot be retested, and an old list's button is refused politely
     Given child 1 is "Done ✓" today
     When I tap child 1 again
-    Then the bot replies "Roll <n> is already done today." and no second session is created
+    Then the bot replies "<name> · roll <n> is already done today." and no second session is created
     And tapping a button from a previous day's list replies "That button is from an older list. Send /egra for today's list."
 
   # ═══════════════════════════════════ EDGE ═══════════════════════════════════
@@ -353,25 +355,27 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   # ---- the five-minute protocol (bd-s1oo0.12, lane L11) ----
 
   @e2e @wip @draft @destructive @config-gated @P1 @CT33
-  Scenario: The list tells the coach to give the class teacher the roll numbers in order, and "Send to teacher" sends them
+  Scenario: The list tells the coach which children to ask the class teacher for, by name in order, and "Send to teacher" sends them
     Given today's list is open after an observe2 visit of the class teacher of the drawn class
-    Then the list body says "Give the class teacher these roll numbers, in this order, to send one child at a time: <rolls>"
+    Then the list body says "Ask the class teacher for these children, one at a time, in this order: <name> · roll <n>, …"
     And one message with a "Send to teacher" button follows, once per visit
     When I tap "Send to teacher"
-    Then the class teacher receives ONE message with "Roll <n> (<name>)" for each child still to test, in list order
+    Then the class teacher receives ONE message with "<name> · roll <n>" for each child still to test, in list order
     And I get "Sent the order to the class teacher." and nobody outside the visit is messaged
-    # The button appears only when class_teachers links the observed teacher to a class on the list; the
-    # tap re-checks it. A failed send says "I couldn't reach the class teacher on WhatsApp…".
+    # With CHILD_TEST_OBSERVE_LINK=true: the button appears when class_teachers links the observed teacher
+    # to a class on the list; the tap re-checks it. A failed send says "I couldn't reach the class teacher
+    # on WhatsApp…". Without the link (the default), see CT62: the class teacher comes from the drawn class.
 
   @e2e @wip @draft @destructive @config-gated @P1 @CT34
   Scenario: Strip photos are claimed in list order, any time during the visit or as a batch at the end
-    Given child 1 is present, so Roll <child 2> was handed the strip to write while waiting
+    Given child 1 is present, so child 2 was handed the strip to write while waiting
+    And neither strip's "Child no." box can be read
     When I send two strip photos during child 1's Urdu block
     Then the first is saved for child 1's session and the second is held for child 2 under child-test/<env>/<school_id>/held/<draw_id>/maths-strip.jpg
     And child 1's maths voice note finishes child 1 at once (no strip ask), and child 2's held strip is attached when child 2 is marked "Present"
     When the last child's maths note arrives and strips are still missing
-    Then the bot says "Send the strip photos now, one per child, in list order: Roll …"
-    And each photo I send is claimed for the oldest child on the list whose strip is missing, and maths is scored once with force
+    Then the bot says "Send the strip photos now, one per child, in any order. Each strip needs its Child no. written clearly: <name> · roll <n> (no. <k>), …"
+    And each photo whose number cannot be read is claimed for the oldest child on the list whose strip is missing, and maths is scored once with force
 
   @e2e @wip @draft @audio @destructive @config-gated @P2 @CT35
   Scenario: One locked voice note keeps recording through card flips
@@ -400,7 +404,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: A fourth voice note for a child whose three notes are in is not stored
     Given child 1's three voice notes have been received and the maths note is still being stored
     When I send a fourth voice note
-    Then the bot replies "Roll <roll>'s three voice notes are already in, so I did not use this one."
+    Then the bot replies "All three voice notes for <name> · roll <roll> are already in, so I did not use this one."
     And no block's audio key changes
 
   @e2e @wip @draft @audio @negative @destructive @config-gated @P1 @CT39
@@ -447,3 +451,88 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When I send "/egra" on the same day
     Then today's list is drawn for my school on the day key, not on the observe2 visit
     # bd-s1oo0.25 (operator, 3 Oct 2026: "for now keep both separate"); the same holds after classic /observe.
+
+  # ---- names first, never broken by a missing roll (bd-s1oo0.37, bd-s1oo0.36, lane L19; CONTRACT §18) ----
+
+  @e2e @wip @draft @negative @destructive @config-gated @P1 @CT45
+  Scenario: A drawn child with no roll number is named on the list and through the test, and nothing breaks
+    Given the SIM class has children with no roll number in the register and one of them is drawn
+    When I send "/egra"
+    Then today's list arrives, the roll-less child's row is titled with the full name and its description has no roll
+    And no line anywhere says "null" or "Roll —"
+    When I tap that child
+    Then the presence prompt reads "<name>" then "Is the child here and willing to read?"
+    And "/egra" again shows the same list
+    # NIETE roster 3 Oct: 3.4% of Grade 3/5 children have no roll; before bd-s1oo0.36 one on the list made
+    # resolveUx throw "missing param roll", the coach got no list, and every /egra that quarter threw again.
+
+  @e2e @wip @draft @destructive @config-gated @P2 @CT46
+  Scenario: Two children with the same name are told apart by the roll, or by the father's name when neither has a roll
+    Given two children called the same name are drawn for today
+    When I send "/egra"
+    Then each row shows its roll when the roster has one
+    And a same-name row with no roll starts its description with "father: <father's name>" when the roster has it
+    # students.father_name; with neither roll nor father the rows still differ by their tap ids.
+
+  # ── L20 (bd-s1oo0.38, CONTRACT §18): each strip carries the child's number and goes to that child ──
+  # The child number is the child's place on today's list as first sent (main 1–5, alternates after) and
+  # never moves. The coach writes it in the strip's «بچہ نمبر / Child no.» box. A quick vision read at
+  # receipt (Gemini 3.8 Flash, cut off at 8 s, no names in the prompt) attaches the photo to that child.
+
+  @e2e @wip @draft @destructive @config-gated @P1 @CT47
+  Scenario: Strip photos sent out of order land on the children whose numbers they carry
+    Given all five children on today's list have sent their three voice notes and no strip photo
+    And each strip has its child's number written in the "Child no." box
+    When I send the five strip photos together in the order 3, 1, 5, 2, 4
+    Then each photo is saved to the maths block of the child whose number it carries
+    And each reply names the child it was saved for: "📷 Strip no. <k> saved for <name> · roll <n>."
+    And each child's maths is scored once, and each child's check arrives once
+
+  @e2e @wip @draft @negative @destructive @config-gated @P1 @CT48
+  Scenario: A strip whose number cannot be read goes to the next child in order, and the reply says so
+    Given child 1 and child 2 have each sent their maths voice note and no strip photo
+    When I send a strip photo whose "Child no." box is empty
+    Then the photo is saved for child 1 and the bot replies "📷 I couldn't read a child number on this strip, so it is saved for the next in order: <child 1's name> · roll <n> (no. 1)."
+    When I send a strip photo whose box says 9, a number not on today's list
+    Then the photo is saved for child 2 and the reply says "Child no. 9 is not waiting for a strip"
+
+  @e2e @wip @draft @negative @destructive @config-gated @P1 @CT49
+  Scenario: A number for a child whose strip is already in is not overwritten
+    Given child 2's strip photo has been saved
+    When I send another strip photo with 2 in its "Child no." box
+    Then nothing is saved and child 2's maths block keeps its first photo
+    And the bot replies "📷 <child 2's name> · roll <n>'s strip (no. 2) is already in, so this photo was not used. If it is another child's strip, correct the number on it and send it again."
+
+  @e2e @wip @draft @config-gated @P2 @CT50
+  Scenario: The child number stays the same when a child is absent and an alternate steps in
+    Given today's list is open with children 1–5 and alternates 6 and 7
+    When I mark child 2 "Absent"
+    Then the alternate who joins keeps number 6, and every other child keeps their number
+    And the hand-over line for that alternate says "write 6 in its Child no. box"
+
+  # ---- L21: the check message tells the truth; "Send to teacher" without an observation (bd-s1oo0.27/.28) ----
+
+  @e2e @wip @draft @flow @config-gated @P1 @CT61
+  Scenario: The check message states only the numbers the form shows filled in, names the child, and promises two minutes
+    Given child 1's three blocks are scored, and the Urdu story count is under its bar so the form leaves it empty
+    When the check message arrives
+    Then its header is "Check: <full name> · roll <n>" (60 code points at most; the name alone when there is no roll)
+    And it states the English and maths numbers that arrive filled in, and does not state the Urdu story count
+    And it says "You fill in: Urdu: story count, …" with every field the form leaves empty, per block
+    And it ends "About 2 minutes"
+    And the check Flow's heading reads "<full name> · roll <n> · Grade <g>"
+    # Sandbox run sandbox5-syn-2032 child 1 said "Urdu 57 words … About a minute" while the form's Urdu count
+    # was empty (0.69 < 0.7) and the check took 107–144 s. In assist mode an unsure number is stated as
+    # "Filled in, please check: …". The Flow JSON is unchanged: the heading is data_exchange data.
+
+  @e2e @wip @draft @config-gated @P1 @CT62
+  Scenario: Without an observation, "Send to <name>" offers the drawn class's class teacher
+    Given CHILD_TEST_OBSERVE_LINK is unset and the drawn class has one active class teacher with a WhatsApp number
+    When I send "/egra" and today's list arrives
+    Then one message follows with the button "Send to <first name>", once per visit
+    When I tap it
+    Then that teacher receives ONE message with the children still to test, in list order
+    And I get "Sent the order to <their name>."
+    # Several class teachers (the list spans sections): one button each up to 3, a list beyond. None: no
+    # offer and the list is unchanged. The flagged class teacher (is_class_teacher) is preferred; without
+    # one, the class's active teacher. The tap re-checks the teacher against the list's classes.

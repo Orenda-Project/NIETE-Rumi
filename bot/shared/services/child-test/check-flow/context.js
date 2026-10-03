@@ -9,11 +9,18 @@ const Store = require('./check-store');
 const { formItems } = require('./items');
 const { checkStrings } = require('./strings');
 const { parseToken, enabled } = require('./token');
+const { childLabel } = require('../conversation/identity');
 
-/** How the coach sees the child: the roll number (a name only where L4 passes one, never stored here). */
-function whoOf(S, roll, displayName) {
-  if (displayName) return String(displayName);
-  return S.roll(roll != null ? roll : '—');
+/** The coach's language for a child label: NIETE offers exactly en and ur. */
+const labelLang = (lang) => (lang === 'en' ? 'en' : 'ur');
+
+/**
+ * How the coach sees the child (CONTRACT §18): full name first, the roll as a hint, null-safe.
+ * @param {{child?: object, lang?: string}} ctx  a loaded session
+ * @param {string} [lang] overrides ctx.lang (the completion reads the webhook's fresher language)
+ */
+function whoOf(ctx, lang) {
+  return childLabel(labelLang(lang || (ctx && ctx.lang)), (ctx && ctx.child) || {});
 }
 
 /** The block's AI state as the screen should name it (CONTRACT §3 ai_status, or no row at all). */
@@ -24,7 +31,7 @@ function aiStatusOf(row) {
 }
 
 /**
- * @returns {Promise<null|{session, coach, blocks, items, lang, roll, S}>} null when the check is off,
+ * @returns {Promise<null|{session, coach, blocks, items, lang, child, roll, S}>} null when the check is off,
  *   the token is not one of ours, the session is gone, or it belongs to another coach.
  */
 async function loadForToken(flowToken) {
@@ -38,10 +45,10 @@ async function loadSession(sessionId, coachUserId) {
   const got = await Store.getSession(sessionId);
   const session = got.ok ? got.session : null;
   if (!session || (coachUserId && session.coach_user_id !== coachUserId)) return null;
-  const [coach, blocks, roll] = await Promise.all([
+  const [coach, blocks, child] = await Promise.all([
     Store.getCoach(session.coach_user_id),
     Store.getBlocks(session.id),
-    Store.getRollNumber(session.draw_id),
+    Store.getChild(session),
   ]);
   const lang = (coach && coach.preferred_language) || 'ur';
   return {
@@ -51,7 +58,8 @@ async function loadSession(sessionId, coachUserId) {
     blocksOk: blocks.ok,
     items: formItems(session.grade, session.form),
     lang,
-    roll,
+    child,
+    roll: child.rollNumber,
     S: checkStrings(lang),
   };
 }

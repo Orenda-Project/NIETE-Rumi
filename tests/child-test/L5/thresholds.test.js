@@ -49,10 +49,11 @@ describe('child-test thresholds (exported for L6)', () => {
       }
     });
 
-    test('comprehension: Urdu 0.70 (79% ≥ floor 73%), English 0.90 (58% at 0.70, 71% at 0.90)', () => {
-      expect(th.barFor('questions', 'urdu')).toBe(0.7);
+    test('comprehension: Urdu 0.90 (L24/CR-1: L23 found 0.70 only at the 73% floor; 0.90 → 86%), English 0.90 (58% at 0.70, 71% at 0.90)', () => {
+      expect(th.barFor('questions', 'urdu')).toBe(0.9);
       expect(th.barFor('questions', 'english')).toBe(0.9);
-      expect(th.prefill('questions', 0.8, { lang: 'urdu' })).toBe(true);
+      expect(th.prefill('questions', 0.9, { lang: 'urdu' })).toBe(true);
+      expect(th.prefill('questions', 0.8, { lang: 'urdu' })).toBe(false);
       expect(th.prefill('questions', 0.8, { lang: 'english' })).toBe(false);
     });
 

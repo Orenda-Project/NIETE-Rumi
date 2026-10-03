@@ -34,6 +34,10 @@ jest.mock('../../../bot/shared/utils/structured-logger', () => ({
   ...jest.requireActual('../../../bot/shared/utils/structured-logger'),
   logEvent: jest.fn(),
 }));
+// L20: the strip's child-number read goes to OpenRouter (network boundary): it reads no number here,
+// so strip photos fall back to list order, as these scenarios expect.
+process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
+jest.mock('openai', () => jest.fn().mockImplementation(() => ({ chat: { completions: { create: async () => ({ choices: [{ message: { content: '{"child_no":null,"confidence":0}' } }], usage: { cost: 0 } }) } } })));
 
 const COACH = { id: 'coach-1', role: 'coach', region: 'niete', preferred_language: 'en', phone_number: '923000000001' };
 const PHONE = COACH.phone_number;

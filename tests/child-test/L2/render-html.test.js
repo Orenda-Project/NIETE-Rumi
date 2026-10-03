@@ -168,14 +168,14 @@ describe('printable A4 card', () => {
     }
   });
 
-  it('the maths strip: corner code, four sums, the word problem, a roll-number blank, fiducials', () => {
+  it('the maths strip: corner code, four sums, the word problem, a child-number box, fiducials', () => {
     const strip = pages[4];
     const text = visibleText(strip);
     expect(text).toContain('G3-A');
     for (const w of form.maths.written) expect(text).toContain(html.mathsDisplay(w.prompt));
     expect(text).toContain(form.maths.word_problem.prompt_ur);
     expect(text).toContain(form.maths.word_problem.prompt_en);
-    expect(strip).toMatch(/data-field="roll"/);
+    expect(strip).toMatch(/data-field="child-no"/);
     expect((strip.match(/class="fid /g) || []).length).toBe(4);
   });
 

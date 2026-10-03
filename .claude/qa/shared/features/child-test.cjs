@@ -47,7 +47,7 @@ const B = (reason) => ['BLOCKED', { reason }];
 const SCENARIOS = [
   ['CT01', 'A coach tests five children after an observation, end to end, with timings recorded', 'L6'],
   ['CT02', 'The observe2 brief ends with the child-test offer, carrying the visit', 'L4'],
-  ['CT03', "Today's list shows five drawn children with roll numbers, the returning child marked, and two alternates", 'L3'],
+  ['CT03', "Today's list shows five drawn children by full name, the returning child marked, and two alternates", 'L3'],
   ['CT04', 'Tapping a present child sends the Urdu coach script with the exact cue phrase and waits for one voice note', 'L4'],
   ['CT05', "Each block's voice note is acknowledged at once, stored, scored off the critical path, and moves to the next block", 'L5'],
   ['CT06', 'The maths voice note is followed by the strip-photo ask, and the photo completes the child', 'L5'],
@@ -76,7 +76,7 @@ const SCENARIOS = [
   ['CT29', 'A child already done cannot be retested, and an old list\'s button is refused politely', 'L4'],
   ['CT30', 'A school with no Grade 3 or Grade 5 class list is told what to do, not shown an empty list', 'L3'],
   ['CT31', 'An absent child with no alternate left is recorded, and the list carries on with fewer children', 'L3'],
-  ['CT33', 'The list tells the coach to give the class teacher the roll numbers in order, and "Send to teacher" sends them', 'L4'],
+  ['CT33', 'The list tells the coach which children to ask the class teacher for, by name in order, and "Send to teacher" sends them', 'L4'],
   ['CT34', 'Strip photos are claimed in list order, any time during the visit or as a batch at the end', 'L4'],
   ['CT35', 'One locked voice note keeps recording through card flips', 'L4'],
   ['CT36', 'Quick sums run for the one configured number of seconds', 'L4'],
@@ -88,6 +88,14 @@ const SCENARIOS = [
   ['CT42', 'A block that cannot be marked is retried, and after the last try the check still opens', 'L4'],
   ['CT43', 'In assist mode every mark Rumi made arrives filled, and the unsure ones are named', 'L6'],
   ['CT44', 'Kept separate from the observation by default: no offer after observe2, and /egra stands alone', 'L4'],
+  ['CT45', 'A drawn child with no roll number is named on the list and through the test, and nothing breaks', 'L4'],
+  ['CT46', "Two children with the same name are told apart by the roll, or by the father's name when neither has a roll", 'L4'],
+  ['CT47', 'Strip photos sent out of order land on the children whose numbers they carry', 'L4'],
+  ['CT48', 'A strip whose number cannot be read goes to the next child in order, and the reply says so', 'L4'],
+  ['CT49', 'A number for a child whose strip is already in is not overwritten', 'L4'],
+  ['CT50', 'The child number stays the same when a child is absent and an alternate steps in', 'L3'],
+  ['CT61', 'The check message states only the numbers the form shows filled in, names the child, and promises two minutes', 'L6'],
+  ['CT62', 'Without an observation, "Send to <name>" offers the drawn class\'s class teacher', 'L4'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -115,11 +123,11 @@ const RX = {
   list: /picked by the server|cannot be changed|آج کے بچے|Today's children/i,
   listHeader: /Grade\s*[35]|جماعت\s*[35]/,
   presence: /Is the child here|موجود/i,
-  urduScript: /Child 1 of \d+ · Urdu 1\/3|بچہ 1 از \d+/,
+  urduScript: /Child 1 of \d+ · .+ · Urdu 1\/3|بچہ 1 از \d+/,   // L19: the child's name sits between
   english: /English 2\/3|انگریزی 2\/3/,
   maths: /Maths 3\/3|ریاضی 3\/3/,
   ack: /🎧/,
-  photoAsk: /photo of the strip|پٹی/i,
+  photoAsk: /strip \(Child no\.|photo of the strip|پٹی/i,
   photoSaved: /📷/,
   allIn: /All three parts|تینوں/i,
   noPhotoAck: /no strip photo|written sums stay blank|تصویر نہیں/i,
@@ -182,7 +190,8 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
   // One turn: everything the bot sent in reply, joined.
   const turn = async (fn) => { await api.freshReset(); const r = await fn(); const rest = await api.fresh(); return { r, txt: [r && r.txt, ...rest.map((m) => m.txt)].filter(Boolean).join('\n'), list: (r && r.list) || (rest.find((m) => m.list) || {}).list || null, all: [r, ...rest].filter(Boolean) }; };
   const rowsOf = (list) => (list && (list.rows || (list.sections || []).flatMap((s) => s.rows || []))) || [];
-  const ROLL = /^(?:Roll|رول)\s*(\d+)/;
+  // L19 (CONTRACT §18): the row title is the child's full name; the roll, when the roster has one, leads the description.
+  const ROLL = /^(?:Roll|رول)\s*([\d۰-۹]+)/;
   const t = () => Date.now();
   let s;
 
@@ -232,9 +241,9 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     const drawIds = main1.map((r) => r.id.split(':')[1]);
     const draws = drawIds.length ? await get(`child_test_draws?select=id,list_slot,last_listed_visit_id,draw_rank,status,form,sample_role&id=in.(${drawIds.join(',')})`) : [];
     record('CT03', ...V(main1.length === 5 && alt1.length === 2 && RX.list.test(L1.txt)
-      && main1.every((r) => ROLL.test(r.title) && /New|Returning|نیا|دوبارہ/.test(r.description || ''))
+      && main1.every((r) => !!r.title && !ROLL.test(r.title) && !/null|undefined/.test(`${r.title} ${r.description || ''}`) && /New|Returning|نیا|دوبارہ/.test(r.description || ''))
       && draws.length === 5 && draws.every((d) => d.list_slot === 'main'),
-      { main: main1.length, alternates: alt1.length, rolls: main1.map((r) => (ROLL.exec(r.title) || [])[1]), roles: draws.map((d) => d.sample_role) }), t() - s);
+      { main: main1.length, alternates: alt1.length, rolls: main1.map((r) => (ROLL.exec(r.description || '') || [])[1] || null), roles: draws.map((d) => d.sample_role) }), t() - s);
 
     s = t();
     const aliasSame = [];
@@ -387,6 +396,19 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT43', ...B('needs the local stack restarted with CHILD_TEST_PREFILL_MODE=assist'));
     // Separation (bd-s1oo0.25): proven by tests/child-test/L3b/machine-visit-key + L4 offer suites.
     record('CT44', ...B('needs the observe2 Flows stored for the emulator (as CT02) to drive the brief end'));
+    // Names first (L19, CONTRACT §18): proven by tests/child-test/L19 on L3's real draw with roll-less rows.
+    record('CT45', ...B('needs a SIM class seeded with roll-less register lines (seed-sandbox.js gives every child a roll)'));
+    record('CT46', ...B('needs two SIM children with one name; the seeded placeholder names are unique'));
+    // Child number on the strip (L20, bd-s1oo0.38): proven by tests/child-test/L20 (out-of-order batch, fallback,
+    // no overwrite, stable numbers). The mock lane needs child-numbered strip fixtures (golive/fixtures/strips-childno)
+    // mapped to the run's drawn children and a recorded OpenRouter cassette for the quick read.
+    record('CT47', ...B('drive not written yet: needs strips-childno fixtures matched to the drawn children and an OpenRouter cassette for the child-number read'));
+    record('CT48', ...B('drive not written yet: needs an empty-box strip fixture and an OpenRouter cassette'));
+    record('CT49', ...B('drive not written yet: needs a second photo of a saved strip and an OpenRouter cassette'));
+    record('CT50', ...B(env.CT_DEEP === '1' ? 'CT_DEEP drive not written yet' : 'consumes an alternate per run; set CT_DEEP=1'));
+    // L21 (bd-s1oo0.27/.28): proven by tests/child-test/L21 (check-message, teacher-offer).
+    record('CT61', ...B('needs recorded vendor answers and the stored check Flow fixture, as CT07'));
+    record('CT62', ...B('drive not written yet: needs a SIM class_teachers row and an outbound send to a second synthetic number, as CT33'));
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}
