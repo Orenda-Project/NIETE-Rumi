@@ -3271,6 +3271,22 @@ const UX_STRINGS = {
   childTestExpired: {
     en: 'That button is from an older list. Send /egra for today\'s list.',
     ur: 'یہ بٹن پرانی فہرست کا ہے۔ آج کی فہرست کے لیے ⁦/egra⁩ بھیجیں۔',
+  },  // L21 (bd-s1oo0.28): "Send to teacher" when /egra runs without an observation — the class teacher
+  // comes from the drawn class. The teacher's own message (childTestTeacherMessage) is L19's.
+  childTestTeacherOfferOne: {
+    en: '{name} is the class teacher. Send them today\'s children, in order, so they come one at a time?',
+    ur: '{name} اس جماعت کے کلاس ٹیچر ہیں۔ آج کے بچوں کی ترتیب انہیں بھیج دیں، تاکہ ایک وقت میں ایک بچہ آئے؟',
+  },
+  childTestTeacherOfferPick: {
+    en: 'Today\'s children have more than one class teacher. Who should get the order, so the children come one at a time?',
+    ur: 'آج کے بچوں کے ایک سے زیادہ کلاس ٹیچر ہیں۔ ترتیب کسے بھیجیں، تاکہ ایک وقت میں ایک بچہ آئے؟',
+  },
+  childTestSendToNamed: { en: 'Send to {name}', ur: '{name} کو بھیجیں' },
+  childTestTeacherPickButton: { en: 'Choose teacher', ur: 'ٹیچر چنیں' },
+  childTestTeacherPickSection: { en: 'Class teachers', ur: 'کلاس ٹیچر' },
+  childTestTeacherSentTo: {
+    en: 'Sent the order to {name}.',
+    ur: 'ترتیب {name} کو بھیج دی گئی۔',
   },
   // L19 (CONTRACT §18): the child is named in full, the roll only as a hint.
   // {child} is conversation/identity.js childLabel(); never hand-roll a label.

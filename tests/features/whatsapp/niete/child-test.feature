@@ -122,7 +122,8 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   @e2e @wip @draft @flow @destructive @config-gated @P1 @CT07
   Scenario: When a child's marks are in, a Check button opens a pre-filled check Flow
     Given child 1's three blocks are scored
-    Then the bot sends a check message for Roll <n> with the child's three headline numbers and the button «جانچ کریں»
+    Then the bot sends a check message naming the child (full name first, roll as a hint) with the button «جانچ کریں»
+    And it states only the numbers the check form shows filled in, and names what I must fill in
     When I open the check Flow
     Then the URDU screen shows story words correct and words attempted pre-filled from ai_marks.story
     And the words the model heard wrong are pre-ticked chips (at most 20)
@@ -361,8 +362,9 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When I tap "Send to teacher"
     Then the class teacher receives ONE message with "<name> · roll <n>" for each child still to test, in list order
     And I get "Sent the order to the class teacher." and nobody outside the visit is messaged
-    # The button appears only when class_teachers links the observed teacher to a class on the list; the
-    # tap re-checks it. A failed send says "I couldn't reach the class teacher on WhatsApp…".
+    # With CHILD_TEST_OBSERVE_LINK=true: the button appears when class_teachers links the observed teacher
+    # to a class on the list; the tap re-checks it. A failed send says "I couldn't reach the class teacher
+    # on WhatsApp…". Without the link (the default), see CT62: the class teacher comes from the drawn class.
 
   @e2e @wip @draft @destructive @config-gated @P1 @CT34
   Scenario: Strip photos are claimed in list order, any time during the visit or as a batch at the end
@@ -507,3 +509,30 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When I mark child 2 "Absent"
     Then the alternate who joins keeps number 6, and every other child keeps their number
     And the hand-over line for that alternate says "write 6 in its Child no. box"
+
+  # ---- L21: the check message tells the truth; "Send to teacher" without an observation (bd-s1oo0.27/.28) ----
+
+  @e2e @wip @draft @flow @config-gated @P1 @CT61
+  Scenario: The check message states only the numbers the form shows filled in, names the child, and promises two minutes
+    Given child 1's three blocks are scored, and the Urdu story count is under its bar so the form leaves it empty
+    When the check message arrives
+    Then its header is "Check: <full name> · roll <n>" (60 code points at most; the name alone when there is no roll)
+    And it states the English and maths numbers that arrive filled in, and does not state the Urdu story count
+    And it says "You fill in: Urdu: story count, …" with every field the form leaves empty, per block
+    And it ends "About 2 minutes"
+    And the check Flow's heading reads "<full name> · roll <n> · Grade <g>"
+    # Sandbox run sandbox5-syn-2032 child 1 said "Urdu 57 words … About a minute" while the form's Urdu count
+    # was empty (0.69 < 0.7) and the check took 107–144 s. In assist mode an unsure number is stated as
+    # "Filled in, please check: …". The Flow JSON is unchanged: the heading is data_exchange data.
+
+  @e2e @wip @draft @config-gated @P1 @CT62
+  Scenario: Without an observation, "Send to <name>" offers the drawn class's class teacher
+    Given CHILD_TEST_OBSERVE_LINK is unset and the drawn class has one active class teacher with a WhatsApp number
+    When I send "/egra" and today's list arrives
+    Then one message follows with the button "Send to <first name>", once per visit
+    When I tap it
+    Then that teacher receives ONE message with the children still to test, in list order
+    And I get "Sent the order to <their name>."
+    # Several class teachers (the list spans sections): one button each up to 3, a list beyond. None: no
+    # offer and the list is unchanged. The flagged class teacher (is_class_teacher) is preferred; without
+    # one, the class's active teacher. The tap re-checks the teacher against the list's classes.

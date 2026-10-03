@@ -94,6 +94,8 @@ const SCENARIOS = [
   ['CT48', 'A strip whose number cannot be read goes to the next child in order, and the reply says so', 'L4'],
   ['CT49', 'A number for a child whose strip is already in is not overwritten', 'L4'],
   ['CT50', 'The child number stays the same when a child is absent and an alternate steps in', 'L3'],
+  ['CT61', 'The check message states only the numbers the form shows filled in, names the child, and promises two minutes', 'L6'],
+  ['CT62', 'Without an observation, "Send to <name>" offers the drawn class\'s class teacher', 'L4'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -404,6 +406,9 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT48', ...B('drive not written yet: needs an empty-box strip fixture and an OpenRouter cassette'));
     record('CT49', ...B('drive not written yet: needs a second photo of a saved strip and an OpenRouter cassette'));
     record('CT50', ...B(env.CT_DEEP === '1' ? 'CT_DEEP drive not written yet' : 'consumes an alternate per run; set CT_DEEP=1'));
+    // L21 (bd-s1oo0.27/.28): proven by tests/child-test/L21 (check-message, teacher-offer).
+    record('CT61', ...B('needs recorded vendor answers and the stored check Flow fixture, as CT07'));
+    record('CT62', ...B('drive not written yet: needs a SIM class_teachers row and an outbound send to a second synthetic number, as CT33'));
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}

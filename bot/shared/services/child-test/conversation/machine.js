@@ -318,33 +318,102 @@ async function openList(user, from, ctx) {
 
 // ------------------------------------------------------------------ the class teacher sends the children
 
-/** Once per visit, and only when the observed teacher is a class teacher of a class on the list. */
+/**
+ * Who may be sent today's order. With the observation linked (CHILD_TEST_OBSERVE_LINK), the observed
+ * teacher when they teach a class on the list, as before. Otherwise — /egra on its own, the default
+ * since 3 Oct — the class teachers of the drawn classes (C.classTeachersOf, bd-s1oo0.28).
+ */
+async function teacherCandidates(ctx, list) {
+  const classIds = listClassIds(list);
+  if (ctx.teacherUserId && (await C.isClassTeacherOf(ctx.teacherUserId, classIds))) {
+    return { observed: true, teachers: [{ userId: ctx.teacherUserId, name: null }] };
+  }
+  return { observed: false, teachers: await C.classTeachersOf(classIds) };
+}
+
+// Words before a Pakistani given name that do not tell two teachers apart on a 20-character button.
+const NAME_PREFIXES = new Set(['muhammad', 'mohammad', 'muhammed', 'mohammed', 'muhamad', 'mohamed', 'md', 'mohd', 'muh', 'm',
+  'syed', 'syeda', 'sayed', 'sayyed', 'sayyid', 'mst', 'mrs', 'ms', 'miss', 'mr', 'hafiz', 'qari', 'dr', 'sir', 'madam']);
+
+/** The name a coach would call the teacher by: the first word that is not a prefix ("Muhammad Imran" → "Imran"). */
+function firstNameOf(name) {
+  const words = String(name || '').split(/\s+/).filter(Boolean);
+  return words.find((w) => !NAME_PREFIXES.has(w.toLowerCase().replace(/\./g, ''))) || words[0] || '';
+}
+
+/** "Send to <first name>"; the full name when two teachers share a first name; inside 20 code points. */
+function sendToTitle(lang, teacher, all) {
+  const first = firstNameOf(teacher.name);
+  const shared = all.filter((x) => firstNameOf(x.name) === first).length > 1;
+  const name = shared ? teacher.name : first;
+  if (!name) return clip(t(lang, 'childTestSendToTeacher'), 20);
+  return clip(t(lang, 'childTestSendToNamed', { name }), 20);
+}
+
+/** Once per visit: the "Send to …" offer, when there is a class teacher Rumi can reach. */
 async function offerTeacherSend(user, from, state, list) {
-  if (!state.ctx.teacherUserId || !(await C.isClassTeacherOf(state.ctx.teacherUserId, listClassIds(list)))) return;
+  const cand = await teacherCandidates(state.ctx, list);
+  if (!cand.teachers.length) return;
   const fresh = (await S.get(user.id)) || state;
   await S.set(user.id, { ...fresh, teacherOffered: true });
   const lang = langOf(user);
-  await buttons(from, t(lang, 'childTestTeacherOfferBody'),
-    [{ id: 'ctst_tsend', title: clip(t(lang, 'childTestSendToTeacher'), 20) }]);
+  if (cand.observed) {
+    await buttons(from, t(lang, 'childTestTeacherOfferBody'),
+      [{ id: 'ctst_tsend', title: clip(t(lang, 'childTestSendToTeacher'), 20) }]);
+    return;
+  }
+  const { teachers } = cand;
+  logToFile('child_test.teacher_offered', { visitId: state.ctx.visitId, visitKey: state.ctx.visitKey, teachers: teachers.length });
+  if (teachers.length === 1) {
+    const [only] = teachers;
+    const body = only.name ? t(lang, 'childTestTeacherOfferOne', { name: only.name }) : t(lang, 'childTestTeacherOfferPick');
+    await buttons(from, body, [{ id: `ctst_tsend:${only.userId}`, title: sendToTitle(lang, only, teachers) }]);
+    return;
+  }
+  if (teachers.length <= 3) {
+    await buttons(from, t(lang, 'childTestTeacherOfferPick'),
+      teachers.map((tc) => ({ id: `ctst_tsend:${tc.userId}`, title: sendToTitle(lang, tc, teachers) })));
+    return;
+  }
+  const ok = await WhatsAppService.sendInteractiveMessage(from, {
+    body: { text: t(lang, 'childTestTeacherOfferPick') },
+    action: {
+      button: clip(t(lang, 'childTestTeacherPickButton'), 20),
+      sections: [{
+        title: clip(t(lang, 'childTestTeacherPickSection'), 24),
+        rows: teachers.slice(0, 10).map((tc) => ({
+          id: `ctst_tsend:${tc.userId}`, title: clip(tc.name || t(lang, 'childTestSendToTeacher'), 24),
+        })),
+      }],
+    },
+  });
+  if (ok === false) logError('child_test.send_failed', { kind: 'teacher_pick', teachers: teachers.length });
 }
 
-/** "Send to teacher": one short message to the class teacher with the roll numbers still to come, in order. */
-async function onSendToTeacher(user, from) {
+/**
+ * "Send to …": one short message to the class teacher with the children still to come, in order.
+ * `teacherId` is the teacher the coach tapped (separate mode); without it, the observed teacher.
+ */
+async function onSendToTeacher(user, from, teacherId) {
   const lang = langOf(user);
   const state = await S.get(user.id);
-  if (!state || !state.ctx || !state.ctx.teacherUserId) return say(from, t(lang, 'childTestExpired'));
+  if (!state || !state.ctx || (!teacherId && !state.ctx.teacherUserId)) return say(from, t(lang, 'childTestExpired'));
   const { ctx } = state;
   const res = await fetchList(user, ctx);
   if (!res || !res.ok) return say(from, t(lang, 'childTestListFailed'));
   // Re-checked at the tap: the button is only a pointer, never a permission.
-  if (!(await C.isClassTeacherOf(ctx.teacherUserId, listClassIds(res)))) {
-    logToFile('child_test.teacher_send_refused', { visitId: ctx.visitId, teacherUserId: ctx.teacherUserId }, 'warn');
+  const targetId = teacherId || ctx.teacherUserId;
+  const allowed = teacherId
+    ? (await teacherCandidates(ctx, res)).teachers.some((tc) => tc.userId === teacherId)
+    : await C.isClassTeacherOf(ctx.teacherUserId, listClassIds(res));
+  if (!allowed) {
+    logToFile('child_test.teacher_send_refused', { visitId: ctx.visitId, teacherUserId: targetId }, 'warn');
     return say(from, t(lang, 'childTestExpired'));
   }
   const waiting = active(res.children).filter((c) => c.status === 'listed');
-  const teacher = await C.teacherContact(ctx.teacherUserId);
+  const teacher = await C.teacherContact(targetId);
   if (!teacher || !waiting.length) {
-    logError('child_test.teacher_send_failed', { visitId: ctx.visitId, teacherUserId: ctx.teacherUserId, reason: teacher ? 'nothing_waiting' : 'no_phone' });
+    logError('child_test.teacher_send_failed', { visitId: ctx.visitId, teacherUserId: targetId, reason: teacher ? 'nothing_waiting' : 'no_phone' });
     return say(from, t(lang, 'childTestTeacherSendFailed'));
   }
   const tl = teacher.preferred_language === 'en' ? 'en' : 'ur';
@@ -352,11 +421,12 @@ async function onSendToTeacher(user, from) {
   const ok = await WhatsAppService.sendMessage(teacher.phone_number,
     t(tl, 'childTestTeacherMessage', { children: childLabels(tl, waiting) }));
   if (ok === false) {
-    logError('child_test.teacher_send_failed', { visitId: ctx.visitId, teacherUserId: ctx.teacherUserId, reason: 'send' });
+    logError('child_test.teacher_send_failed', { visitId: ctx.visitId, teacherUserId: targetId, reason: 'send' });
     return say(from, t(lang, 'childTestTeacherSendFailed'));
   }
-  logToFile('child_test.teacher_order_sent', { visitId: ctx.visitId, teacherUserId: ctx.teacherUserId, children: waiting.length });
-  return say(from, t(lang, 'childTestTeacherSent'));
+  logToFile('child_test.teacher_order_sent', { visitId: ctx.visitId, teacherUserId: targetId, children: waiting.length });
+  const name = teacherId && teacher.name ? String(teacher.name).replace(/\s+/g, ' ').trim() : '';
+  return say(from, name ? t(lang, 'childTestTeacherSentTo', { name }) : t(lang, 'childTestTeacherSent'));
 }
 
 // ------------------------------------------------------------------ entry
@@ -1122,7 +1192,7 @@ async function handleButton(user, from, buttonId) {
       return true;
     }
     case 'ctst_nophoto': await onNoPhoto(user, from, a); return true;
-    case 'ctst_tsend': await onSendToTeacher(user, from); return true;
+    case 'ctst_tsend': await onSendToTeacher(user, from, a); return true;
     default:
       logToFile('child_test.unknown_button', { buttonId }, 'warn');
       return true;
@@ -1135,6 +1205,7 @@ async function handleList(user, from, listId) {
   if (head === 'ctst_child') await onChildTapped(user, from, a);
   else if (head === 'ctst_alt') await onChildTapped(user, from, a, { alternate: true });
   else if (head === 'ctst_school') await onSchoolPicked(user, from, a);
+  else if (head === 'ctst_tsend') await onSendToTeacher(user, from, a);
   else logToFile('child_test.unknown_list_row', { listId }, 'warn');
   return true;
 }
