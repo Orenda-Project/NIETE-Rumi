@@ -3353,7 +3353,7 @@ const UX_STRINGS = {
   // جوڑا (a compare pair), سوال (a sum on the card), عبارتی سوال (a word problem read aloud),
   // کہانی کے سوال (story questions). Latin atoms the phone or the card shows (1:05, A–D, 1–4) are isolated.
   childTestL26StartButton: { en: 'Start', ur: 'شروع کریں' },
-  childTestL26SendTeachersButton: { en: 'Send to the teachers', ur: 'ٹیچرز کو بھیجیں' },
+  childTestL26SendTeachersButton: { en: 'Send to teachers', ur: 'ٹیچرز کو بھیجیں' },
   // The list, until L25's conversation/list.js lands (its own copy replaces these).
   childTestL26ListHeader: { en: 'Grade {grade} · {n} children', ur: 'جماعت {grade} · {n} بچے' },
   childTestL26ListIntro: {
@@ -3406,8 +3406,8 @@ const UX_STRINGS = {
   childTestL26StepTitle: { en: '*{b}/3 {part} · {name}*', ur: '*{b}/۳ {part} · ⁨{name}⁩*' },
   // The Urdu and the English story: the same steps. {questions} is one line per question, ① ② ③.
   childTestL26StepStory: {
-    en: '{title}\n{card} card, *{side}* side up, in front of the child.\n1. Tap 🎤 and slide up to lock. Don\'t stop until step 5.\n2. Say: «{start}»\n   Stay quiet. Stuck for 3 seconds? Point to the next word: «{go_on}»\n3. When the mic shows *1:05*, say «{stop}» and turn the card *face down*.\n4. Say «{qintro}», then ask each one and wait:\n{questions}\n5. Send ➤\n_Can\'t read any word of the first line?_ Turn the card over and say «{fallback}». Skip the questions; send.',
-    ur: '{title}\n{card} کا کارڈ، *{side}* والا رخ اوپر، بچے کے سامنے رکھیں۔\n۱۔ 🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔ مرحلہ ۵ تک نہ روکیں۔\n۲۔ کہیں: «{start}»\n   خاموش رہیں۔ بچہ ۳ سیکنڈ اٹکے تو اگلے لفظ کی طرف اشارہ کریں: «{go_on}»\n۳۔ جب مائیک پر *⁦1:05⁩* ہو تو کہیں «{stop}» اور کارڈ *الٹا* کر دیں۔\n۴۔ کہیں «{qintro}»، پھر ہر سوال پوچھیں اور جواب کا انتظار کریں:\n{questions}\n۵۔ بھیجیں ➤\n_بچہ پہلی سطر کا کوئی لفظ نہ پڑھ پائے تو؟_ کارڈ پلٹیں اور کہیں «{fallback}»۔ کہانی کے سوال چھوڑ دیں؛ بھیج دیں۔',
+    en: '{title}\n{card} card, *{side}* side up, in front of the child.\n1. Tap 🎤 and slide up to lock. Don\'t stop until step 5.\n2. Say: «{start}»\n   Stay quiet. Stuck for 3 seconds? Point to the next word: «{go_on}»\n3. When the mic shows *1:05*, say «{stop}» and turn the card *face down*.\n4. Say «{qintro}», then ask each one and wait:\n{questions}\n5. Send ➤\n_Can\'t read any word of the first line?_ Turn the card over, say «{fallback}» and skip the questions. Then send.',
+    ur: '{title}\n{card} کا کارڈ، *{side}* والا رخ اوپر، بچے کے سامنے رکھیں۔\n۱۔ 🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔ مرحلہ ۵ تک نہ روکیں۔\n۲۔ کہیں: «{start}»\n   خاموش رہیں۔ بچہ ۳ سیکنڈ اٹکے تو اگلے لفظ کی طرف اشارہ کریں: «{go_on}»\n۳۔ جب مائیک پر *⁦1:05⁩* ہو تو کہیں «{stop}» اور کارڈ *الٹا* کر دیں۔\n۴۔ کہیں «{qintro}»، پھر ہر سوال پوچھیں اور جواب کا انتظار کریں:\n{questions}\n۵۔ بھیجیں ➤\n_بچہ پہلی سطر کا کوئی لفظ نہ پڑھ پائے تو؟_ کارڈ پلٹیں، کہیں «{fallback}» اور کہانی کے سوال چھوڑ دیں۔ پھر بھیج دیں۔',
   },
   // Maths, oral (the May set): the child reads the pairs and sums off the card; the coach reads the word problems.
   childTestL26StepMaths: {

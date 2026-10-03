@@ -154,7 +154,7 @@ describe('1. list and start', () => {
     expect(m.body).toContain('Grade 3 · 5 children');
     expect(m.body).toContain('1. Ayesha Khan');
     expect(m.buttons.map((b) => b.id)).toEqual(['ctst_start', 'ctst_send_teachers']);
-    expect(m.buttons.map((b) => b.title)).toEqual(['Start', 'Send to the teachers']);
+    expect(m.buttons.map((b) => b.title)).toEqual(['Start', 'Send to teachers']);
     for (const b of m.buttons) expect([...b.title].length).toBeLessThanOrEqual(20);
     // no separate "Send to …" offer in v2: the button replaces it
     expect(sent().filter((x) => x.kind === 'buttons')).toHaveLength(1);

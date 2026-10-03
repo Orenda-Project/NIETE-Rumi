@@ -97,6 +97,16 @@ const SCENARIOS = [
   ['CT61', 'The check message states only the numbers the form shows filled in, names the child, and promises two minutes', 'L6'],
   ['CT62', 'Without an observation, "Send to <name>" offers the drawn class\'s class teacher', 'L4'],
   ['CT63', 'A count typed in the check is accepted, in Latin or Urdu digits', 'L6'],
+  // L26 (bd-s1oo0.46.2): the coach journey v2, the default since CONTRACT v0.14.
+  ['CT90', 'v2 list — one message by classroom with Start and Send to teachers', 'L4'],
+  ['CT91', 'v2 Send to teachers — each class teacher gets only their own room, in their own language', 'L4'],
+  ['CT92', 'v2 before the first child — the setup picture, once per visit', 'L4'],
+  ['CT93', 'v2 presence — "Child n of 5 · <name · class · teacher>" with the greeting to say', 'L4'],
+  ['CT94', 'v2 steps — three plain-text messages, no buttons, the words to say in «quotes»', 'L4'],
+  ['CT95', 'v2 auto-advance — the next child follows the third note', 'L5'],
+  ['CT96', 'v2 end of the visit — minutes, results, one review', 'L5'],
+  ['CT97', 'v2 unsent-draft nudge — once, 4 minutes after a step with no note', 'L4'],
+  ['CT98', 'v2 resume — /egra mid-child says where the child is', 'L4'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -126,7 +136,7 @@ const RX = {
   presence: /Is the child here|موجود/i,
   urduScript: /Child 1 of \d+ · .+ · Urdu 1\/3|بچہ 1 از \d+/,   // L19: the child's name sits between
   english: /English 2\/3|انگریزی 2\/3/,
-  maths: /Maths 3\/3|ریاضی 3\/3/,
+  maths: /Maths 3\/3|(?:ریاضی|حساب) 3\/3/,
   ack: /🎧/,
   photoAsk: /strip \(Child no\.|photo of the strip|پٹی/i,
   photoSaved: /📷/,
@@ -412,6 +422,11 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT62', ...B('drive not written yet: needs a SIM class_teachers row and an outbound send to a second synthetic number, as CT33'));
     // bd-s1oo0.43: proven by tests/child-test/L0/check-count-inputs.test.js; the client-side check needs a real WhatsApp client.
     record('CT63', ...B('client-side Flow validation only runs in a real WhatsApp client (Chrome lane); the endpoint half is jest-proven'));
+    // L26 (bd-s1oo0.46.2): v2 is proven by tests/child-test/L26 (journey-v2 + integration-l3-v2). The v1
+    // scenarios above are driven with CHILD_TEST_BATTERY=v1 on the stack; a v2 drive is not written yet.
+    for (const id of ['CT90', 'CT91', 'CT92', 'CT93', 'CT94', 'CT95', 'CT96', 'CT97', 'CT98']) {
+      record(id, ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
+    }
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}

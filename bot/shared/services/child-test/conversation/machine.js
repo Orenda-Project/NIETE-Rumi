@@ -26,6 +26,13 @@
  * is outstanding, else to the oldest child whose strip is missing (held under the draw until that
  * child's session exists). The ack names the child it was saved for.
  *
+ * v2 (bd-s1oo0.46.2, CONTRACT §19, the default): see "v2: the coach journey" below — the list by classroom,
+ * a setup picture, then one child at a time through three plain-text step messages (no buttons, so the
+ * step stays the last bubble above the recorder), oral maths scored straight after its note, auto-advance
+ * to the next child, the end of the visit with L28's summary and review, and the unsent-draft nudge
+ * (nudge.js, on recovery.js's sweep). Everything above stays reachable with CHILD_TEST_BATTERY=v1 or
+ * CHILD_TEST_MATHS_MODE=strip (switches.js).
+ *
  * /cancel and /menu work in every state; stopping a child never releases the draw (no markOutcome),
  * and tapping the child again resumes at the first block without a recording. Every save failure is
  * told to the coach and logged at error. Every step is time-stamped in the session's timings.
@@ -845,11 +852,11 @@ async function processVoice(message, from, user, state, audioId) {
           await sendStepV2(user, from, moved.state, ack);
         }
       } else {
-      await say(from, t(lang, 'childTestVoiceAck', { block: blockName(lang, block) }));
-      // The ack may have waited on the send pacer; a note that came in meanwhile may hold the next block.
-      if (moved && moved.block && BLOCKS.indexOf(moved.block) > bi && !(await S.blockClaim(sid, moved.block))) {
-        await openBlock(user, from, moved.state);
-      }
+        await say(from, t(lang, 'childTestVoiceAck', { block: blockName(lang, block) }));
+        // The ack may have waited on the send pacer; a note that came in meanwhile may hold the next block.
+        if (moved && moved.block && BLOCKS.indexOf(moved.block) > bi && !(await S.blockClaim(sid, moved.block))) {
+          await openBlock(user, from, moved.state);
+        }
       }
     } catch (err) {
       logError('child_test.voice_failed', { sessionId: sid, block, stage: 'reply', error: err.message });
