@@ -84,7 +84,7 @@ describe("flag on — teacher, phone bottom bar", () => {
     expect(linksOf(bar)).toEqual([
       ["Home", "/portal/dashboard"],
       ["Lessons", "/portal/curriculum"],
-      ["Assessment", "/portal/curriculum?tab=assessment"],
+      ["Assessment", "/portal/assessment"],
       ["Training", "/portal/training"],
       ["Coaching", "/portal/coaching"],
     ]);
@@ -113,6 +113,10 @@ describe("flag on — teacher, phone bottom bar", () => {
     ["/portal/dashboard", "Home"],
     ["/portal/curriculum", "Lessons"],
     ["/portal/curriculum?tab=assessment", "Assessment"],
+    // bd-5rz1v.13 — Assessment is its own page now, with pages inside it.
+    ["/portal/assessment", "Assessment"],
+    ["/portal/assessment/mine", "Assessment"],
+    ["/portal/assessment/request/r-1", "Assessment"],
     ["/portal/training", "Training"],
     ["/portal/training/certificates", "Training"],
     ["/portal/coaching/new", "Coaching"],
@@ -226,14 +230,14 @@ describe("flag on — teacher, desktop top bar", () => {
     expect(linksOf(bar)).toEqual([
       ["Home", "/portal/dashboard"],
       ["Lesson Plans", "/portal/curriculum"],
-      ["Assessment", "/portal/curriculum?tab=assessment"],
+      ["Assessment", "/portal/assessment"],
       ["Training", "/portal/training"],
       ["Coaching", "/portal/coaching"],
     ]);
   });
 
   it("highlights the active item", async () => {
-    renderNav(TEACHER, "/portal/curriculum?tab=assessment", true);
+    renderNav(TEACHER, "/portal/assessment", true);
     const bar = await topBar();
     const active = within(bar).getByRole("link", { name: "Assessment" });
     expect(active).toHaveAttribute("aria-current", "page");

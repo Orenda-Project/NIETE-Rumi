@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FOCUS, TAP, radioKeyDown } from './styles';
 
@@ -83,15 +84,56 @@ export function FilterChips<K extends string>({ label, options, value, onChange 
             onKeyDown={(e) => radioKeyDown(e, keys, value, onChange)}
             className={cn('flex items-center rounded-full', TAP, FOCUS)}
           >
-            <span
-              data-pill
-              className={cn(
-                'inline-flex h-9 items-center whitespace-nowrap rounded-full border-[1.5px] px-3.5 text-[13px] font-extrabold rtl:font-semibold',
-                on
-                  ? 'border-nu-select bg-nu-chip-selected-bg text-nu-chip-selected'
-                  : 'border-nu-surface-line bg-nu-surface-card text-nu-surface-text active:bg-nu-ink-xlight',
-              )}
-            >
+            <span data-pill className={pill(on)}>
+              {o.label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The outlined pill of FilterChips and ToggleChips; the one(s) picked are indigo. */
+function pill(on: boolean) {
+  return cn(
+    'inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-full border-[1.5px] px-3.5 text-[13px] font-extrabold rtl:font-semibold',
+    on
+      ? 'border-nu-select bg-nu-chip-selected-bg text-nu-chip-selected'
+      : 'border-nu-surface-line bg-nu-surface-card text-nu-surface-text active:bg-nu-ink-xlight',
+  );
+}
+
+export interface ToggleChipsProps<K extends string> {
+  /** The group's name for a screen reader. */
+  label: string;
+  options: ReadonlyArray<FilterOption<K>>;
+  value: readonly K[];
+  onChange: (keys: K[]) => void;
+}
+
+/**
+ * bd-5rz1v.13 — ANY number of chips on at once (the Assessment page's question types): a group
+ * of checkboxes that look like FilterChips. An "on" chip is selected, so it is indigo, with a
+ * check so it reads as "picked" without its colour; off is outlined white. Each is a 56px target.
+ */
+export function ToggleChips<K extends string>({ label, options, value, onChange }: ToggleChipsProps<K>) {
+  const toggle = (k: K) => onChange(value.includes(k) ? value.filter((v) => v !== k) : [...value, k]);
+  return (
+    <div role="group" aria-label={label} className="-my-2.5 flex flex-wrap gap-x-1.5">
+      {options.map((o) => {
+        const on = value.includes(o.key);
+        return (
+          <button
+            key={o.key}
+            type="button"
+            role="checkbox"
+            aria-checked={on}
+            onClick={() => toggle(o.key)}
+            className={cn('flex items-center rounded-full', TAP, FOCUS)}
+          >
+            <span data-pill className={pill(on)}>
+              {on ? <Check className="-ms-1 h-4 w-4 shrink-0" strokeWidth={3} aria-hidden="true" /> : null}
               {o.label}
             </span>
           </button>

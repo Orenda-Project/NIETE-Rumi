@@ -28,7 +28,8 @@ import { countOf, getProgress, type ProgressCounts } from './progressApi';
 
 const HOME_TILE_LINKS = {
   training: '/portal/training',
-  assessments: '/portal/curriculum?tab=assessment',
+  // bd-5rz1v.13 — the assessments she made, on the Assessment page.
+  assessments: '/portal/assessment/mine',
   attendance: '/portal/classes',
 } as const;
 
