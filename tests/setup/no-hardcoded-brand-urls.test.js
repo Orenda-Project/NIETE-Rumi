@@ -49,8 +49,17 @@ const FORBIDDEN_PATTERNS = [
 
 // Allowlist: exact (project-root-relative) file paths we won't flag, with a
 // human reason. Empty by default — keep it that way.
+//
+// The one exception: the app's legal links. Google Play's User Data policy
+// needs the privacy policy linked in the app and a contact for account
+// deletion. The operator's decision is that this deployment's policy of record
+// IS the operator's own page, and deletion requests go to its mailbox, so the
+// domain is not upstream brand drift here, it is the legally required
+// destination. An env var was rejected because a missing value on any one
+// environment would silently drop the link from the app and fail the Play
+// review. The file holds only these constants, so the exception cannot spread.
 const ALLOWLIST = new Map([
-  // (no entries)
+  ['portal/src/portal/lib/legalLinks.ts', 'Play User Data policy: privacy-policy URL and deletion-request mailbox (operator decision)'],
 ]);
 
 function findScannedFiles(dir) {
@@ -100,11 +109,12 @@ describe('Brand-URL hygiene — no hardcoded upstream brand domains in source', 
     expect(violations).toEqual([]);
   });
 
-  it('the allowlist stays empty (ratchet)', () => {
-    // The point of the empty allowlist is to make every new brand reference
-    // a deliberate test edit. If a real exception comes up, document the
-    // reason in this comment and the ALLOWLIST entry — and try the
-    // env-driven path first.
-    expect(ALLOWLIST.size).toBe(0);
+  it('the allowlist holds only the documented legal-links exception (ratchet)', () => {
+    // The point of the near-empty allowlist is to make every new brand
+    // reference a deliberate test edit. If a real exception comes up, document
+    // the reason in this comment and the ALLOWLIST entry — and try the
+    // env-driven path first. The one entry is the Play-required legal links
+    // (see the ALLOWLIST comment for why env-driven was not enough).
+    expect([...ALLOWLIST.keys()]).toEqual(['portal/src/portal/lib/legalLinks.ts']);
   });
 });
