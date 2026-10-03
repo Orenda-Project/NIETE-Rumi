@@ -9,7 +9,7 @@
       "data": {
         "heading": {
           "type": "string",
-          "__example__": "جواب جو آپ نے چیک کرنے ہیں"
+          "__example__": "یہ جواب چیک کریں"
         },
         "intro": {
           "type": "string",
@@ -61,7 +61,7 @@
         },
         "i1_who": {
           "type": "string",
-          "__example__": "⁨Child A⁩ · اردو سوال ۲"
+          "__example__": "‏⁨Child A⁩ کا اردو سوال ۲"
         },
         "i1_q": {
           "type": "string",
@@ -81,7 +81,7 @@
         },
         "i2_who": {
           "type": "string",
-          "__example__": "⁨Child A⁩ · ریاضی سوال ۳"
+          "__example__": "‏⁨Child A⁩ کا ریاضی سوال ۳"
         },
         "i2_q": {
           "type": "string",

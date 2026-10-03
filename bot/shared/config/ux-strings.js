@@ -3348,7 +3348,7 @@ const UX_STRINGS = {
   // L28 (bd-s1oo0.46.4, CONTRACT §19): the end-of-visit results and the one review form. The coach is
   // never asked for a count; the form lists only answers the recording did not settle.
   // Results, one line per child: "{child} — {parts}", parts joined with " · ".
-  childTestSumLine: { en: '{child} — {parts}', ur: '⁨{child}⁩ — {parts}' },
+  childTestSumLine: { en: '{child} — {parts}', ur: '⁨{child}⁩ کے نمبر: {parts}' },
   childTestSumWords: { en: '{block} {wpm} words/min', ur: '{block} {wpm} الفاظ فی منٹ' },
   childTestSumAnswers: { en: '{right} of {of} answers', ur: '{of} میں سے {right} جواب' },
   childTestSumLetters: { en: '{block} letters {letters} of {lof}, words {words} of {wof}', ur: '{block} حروف {lof} میں سے {letters}، الفاظ {wof} میں سے {words}' },
@@ -3366,7 +3366,7 @@ const UX_STRINGS = {
   },
   childTestReviewCta: { en: 'Check answers', ur: 'جواب چیک کریں' },
   // The form (one screen). Item heading ≤ 80, radio label ≤ 30, description ≤ 300, footer ≤ 35.
-  childTestReviewHeading: { en: 'Answers to check', ur: 'جواب جو آپ نے چیک کرنے ہیں' },
+  childTestReviewHeading: { en: 'Answers to check', ur: 'یہ جواب چیک کریں' },
   childTestReviewIntro: {
     en: 'The recording did not settle these answers. Mark what the child said. You can play the voice note in the chat first.',
     ur: 'ریکارڈنگ سے ان جوابوں کا فیصلہ نہیں ہو سکا۔ بتائیں کہ بچے نے کیا کہا۔ چاہیں تو پہلے چیٹ میں وائس نوٹ سن لیں۔',
@@ -3376,7 +3376,7 @@ const UX_STRINGS = {
   childTestReviewWrong: { en: 'Wrong', ur: 'غلط' },
   childTestReviewNone: { en: "Didn't answer", ur: 'جواب نہیں دیا' },
   childTestReviewSave: { en: 'Save answers', ur: 'جواب محفوظ کریں' },
-  childTestReviewWho: { en: '{child} · {part}', ur: '⁨{child}⁩ · {part}' },
+  childTestReviewWho: { en: '{child} · {part}', ur: '⁨{child}⁩ کا {part}' },
   childTestReviewPartQuestion: { en: '{block} question {n}', ur: '{block} سوال {n}' },
   childTestReviewPartCompare: { en: 'Maths which is bigger {n}', ur: 'ریاضی بڑا نمبر {n}' },
   childTestReviewPartSum: { en: 'Maths sum {n}', ur: 'ریاضی سوال {n}' },

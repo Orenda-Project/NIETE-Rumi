@@ -97,6 +97,12 @@ const SCENARIOS = [
   ['CT61', 'The check message states only the numbers the form shows filled in, names the child, and promises two minutes', 'L6'],
   ['CT62', 'Without an observation, "Send to <name>" offers the drawn class\'s class teacher', 'L4'],
   ['CT63', 'A count typed in the check is accepted, in Latin or Urdu digits', 'L6'],
+  // L28 (bd-s1oo0.46.4): the v2 end-of-visit review.
+  ['CT90', 'After the last child, one form asks only the answers the recording did not settle', 'L6'],
+  ['CT91', 'Submitting the review saves every child\'s marks once', 'L6'],
+  ['CT92', 'Sending the review form a second time changes nothing', 'L6'],
+  ['CT93', 'Nothing doubtful — no form, the visit is finished at once', 'L6'],
+  ['CT94', 'More than 15 doubtful answers — the 15 least certain are asked', 'L6'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -412,6 +418,9 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT62', ...B('drive not written yet: needs a SIM class_teachers row and an outbound send to a second synthetic number, as CT33'));
     // bd-s1oo0.43: proven by tests/child-test/L0/check-count-inputs.test.js; the client-side check needs a real WhatsApp client.
     record('CT63', ...B('client-side Flow validation only runs in a real WhatsApp client (Chrome lane); the endpoint half is jest-proven'));
+    // L28 (bd-s1oo0.46.4): proven by tests/child-test/L28 (review.test.js). The drive needs L26's end-of-visit
+    // call to sendReview and the review Flow PUBLISHED on sandbox (CHILD_TEST_REVIEW_FLOW_ID); its submit is an nfm_reply.
+    for (const id of ['CT90', 'CT91', 'CT92', 'CT93', 'CT94']) record(id, ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}
