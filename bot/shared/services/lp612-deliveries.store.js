@@ -24,6 +24,8 @@
  *     lp612-browse) — any surface for the check: a teacher who received this render on WhatsApp
  *     may open it in the portal too.
  *   - the portal Home (dashboard lp-activity) reads the table in SQL — WhatsApp/backfill only.
+ *   - the portal's lesson list (`sentSegmentIds`, via lp612-browse, bd-5rz1v.14): ✓✓ Sent —
+ *     WhatsApp/backfill only.
  *
  * WHY A PORTAL ROW AT ALL (bd-5rz1v.21). The portal reads a lesson by RENDER id, and a render is
  * shared: `requested_by` names the first requester and `waiters` is emptied when it completes. A
@@ -208,11 +210,44 @@ async function portalRenderIds(userId, { limit = 50 } = {}, opts = {}) {
   }
 }
 
+/**
+ * bd-5rz1v.14 — which of these segments reached this teacher on WhatsApp (or the migration's
+ * backfill of that): the portal's ✓✓ Sent on a 6-12 lesson, as `downloaded` is for 1-5. A
+ * 'portal' row is her claim on a render she asked for in the portal, not a lesson sent to her.
+ * Any language counts — the plan reached her. Never throws: "Sent" is a mark on a list, so a
+ * ledger that cannot be read marks nothing and is said at error level.
+ * Load: one read of idx_lp612_deliveries_user_recent (her rows), bounded by one chapter's ids.
+ * @returns {Promise<Set<string>>} segment ids
+ */
+async function sentSegmentIds(userId, segmentIds, opts = {}) {
+  const ids = Array.isArray(segmentIds) ? segmentIds.filter(Boolean) : [];
+  if (!userId || !ids.length) return new Set();
+  try {
+    const { data, error } = await client(opts).from(TABLE)
+      .select('segment_id')
+      .eq('user_id', userId)
+      .in('surface', QUIZ_SURFACES)
+      .in('segment_id', ids)
+      // Bounded: a re-tapped lesson is a row per tap, so allow a few per id, never the whole ledger.
+      .limit(ids.length * 20);
+    if (error) {
+      if (isMissingTable(error)) { sayMissing('read', error); return new Set(); }
+      logToFile(`❌ ${TABLE}: could not read which 6-12 lessons reached a teacher — none marked Sent`, { code: error.code, error: error.message }, 'error');
+      return new Set();
+    }
+    return new Set((data || []).map((r) => r.segment_id).filter(Boolean));
+  } catch (err) {
+    logToFile(`❌ ${TABLE}: reading which 6-12 lessons reached a teacher threw — none marked Sent`, { error: err.message }, 'error');
+    return new Set();
+  }
+}
+
 function __resetForTests() { missingUntil = 0; missingSaidAt = -Infinity; }
 
 module.exports = {
   record,
   recentForTeacher,
+  sentSegmentIds,
   byIdForTeacher,
   claimsRender,
   portalRenderIds,

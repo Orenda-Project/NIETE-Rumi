@@ -2047,7 +2047,8 @@ router.get('/lp612/lessons', requirePortalAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'grade + subject + chapter_key required' });
     }
     const lang = req.query.lang === 'ur' ? 'ur' : 'en';
-    res.json({ success: true, lessons: await Lp612.listLessons(grade, subject, chapterKey, lang) });
+    // bd-5rz1v.14 — and `sent` per lesson: it reached HER on WhatsApp (the session's teacher).
+    res.json({ success: true, lessons: await Lp612.listLessons(grade, subject, chapterKey, lang, req.session.portalUserId) });
   } catch (error) {
     console.error('❌ Portal lp612/lessons failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not load lessons' });
