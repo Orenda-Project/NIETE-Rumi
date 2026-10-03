@@ -103,6 +103,14 @@ const SCENARIOS = [
   ['CT92', 'Sending the review form a second time changes nothing', 'L6'],
   ['CT93', 'Nothing doubtful — no form, the visit is finished at once', 'L6'],
   ['CT94', 'More than 15 doubtful answers — the 15 least certain are asked', 'L6'],
+  // L25 (bd-s1oo0.46.1): find the child without rolls — the v2 list, teachers, shift and term set.
+  ['CT70', 'Today\'s list is grouped by classroom, each room with its class teacher, and no roll anywhere', 'L4'],
+  ['CT71', '"Send to the teachers" sends each class teacher only their own room\'s children', 'L4'],
+  ['CT72', 'A room with no reachable class teacher tells the coach to ask the head teacher', 'L4'],
+  ['CT73', 'Class labels use the roster\'s own words', 'L4'],
+  ['CT74', 'A same-name classmate is resolved by the father\'s name, or flagged with the count in the class', 'L4'],
+  ['CT75', 'A school-grade with morning and evening classes is drawn from the morning shift only', 'L3'],
+  ['CT76', 'Every child in a term reads the term\'s card set; a returning child never reads a set twice', 'L3'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -421,6 +429,9 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     // L28 (bd-s1oo0.46.4): proven by tests/child-test/L28 (review.test.js). The drive needs L26's end-of-visit
     // call to sendReview and the review Flow PUBLISHED on sandbox (CHILD_TEST_REVIEW_FLOW_ID); its submit is an nfm_reply.
     for (const id of ['CT90', 'CT91', 'CT92', 'CT93', 'CT94']) record(id, ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
+    // L25 (bd-s1oo0.46.1): proven by tests/child-test/L25 (draw-v2, list-identity, no-roll). The drive needs a SIM
+    // roster with two sections, two class teachers, an evening class and a namesake pair.
+    for (const id of ['CT70', 'CT71', 'CT72', 'CT73', 'CT74', 'CT75', 'CT76']) record(id, ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}

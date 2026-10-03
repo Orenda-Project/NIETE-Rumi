@@ -40,6 +40,7 @@ const { logEvent } = require('../../../utils/structured-logger');
 const ports = require('./ports');
 const S = require('./state');
 const { langOf, t } = require('./copy');
+const { childLabel, childName } = require('./identity');
 const { isEnabled } = require('./gate');
 
 const BLOCKS = ['urdu', 'english', 'maths'];
@@ -107,17 +108,36 @@ async function getSession(sessionId) {
 async function coachOf(session) {
   if (!session || session.channel !== 'whatsapp') return null;
   const CS = require('../check-flow/check-store');
-  const [coach, roll] = await Promise.all([CS.getCoach(session.coach_user_id), CS.getRollNumber(session.draw_id)]);
+  const coach = await CS.getCoach(session.coach_user_id);
   if (!coach || !coach.phone_number) {
     logError('child_test.score_recovery_no_coach', { sessionId: session.id });
     return null;
   }
-  return { from: coach.phone_number, lang: langOf(coach), rollNumber: roll != null ? roll : '—' };
+  return { from: coach.phone_number, lang: langOf(coach) };
+}
+
+/**
+ * The child as the coach knows them, for a line about this session: "Ayesha Khan · 3-A" (L25, never a
+ * roll). `who` may already be a label or a list child; anything else (an old caller's roll, nothing) is
+ * looked up from the session. A child the roster cannot name is "this child".
+ */
+async function childLabelFor(sessionId, lang, who) {
+  if (who && typeof who === 'object') return childLabel(lang, who);
+  if (typeof who === 'string' && who.trim() && !/^[\d\s—-]*$/.test(who)) return who;
+  try {
+    const session = await getSession(sessionId);
+    const child = session ? await require('../check-flow/check-store').getChild(session) : null;
+    if (child && childName(lang, child)) return childLabel(lang, child);
+  } catch (err) {
+    logError('child_test.check_child_read_failed', { sessionId, error: err.message });
+  }
+  return t(lang, 'childTestThisChild');
 }
 
 // ------------------------------------------------------------------ the check
 
-async function openCheck(sessionId, from, lang, rollNumber) {
+/** Send the check; on failure tell the coach which child it was for. `who`: a label or list child (see childLabelFor). */
+async function openCheck(sessionId, from, lang, who) {
   let ok;
   try {
     ok = await ports.checkFlow.sendCheck(sessionId);
@@ -128,7 +148,7 @@ async function openCheck(sessionId, from, lang, rollNumber) {
   if (!ok || ok.ok === false) {
     logError('child_test.check_send_failed', { sessionId });
     await timing(sessionId, 'check.send_failed');
-    return say(from, t(lang, 'childTestCheckFailed', { roll: rollNumber }));
+    return say(from, t(lang, 'childTestCheckFailed', { child: await childLabelFor(sessionId, lang, who) }));
   }
   await timing(sessionId, 'check.sent');
   logToFile('child_test.check_sent', { sessionId });
@@ -146,13 +166,13 @@ async function checkReady(sessionId) {
   return BLOCKS.every((x) => isDone(byBlock.get(x)));
 }
 
-/** Open the check once, when the store says so. `notify` = { from, lang, rollNumber } (live path). */
+/** Open the check once, when the store says so. `notify` = { from, lang, child? } (live path). */
 async function maybeOpenCheck(sessionId, notify = null, session = null) {
   if (!(await checkReady(sessionId))) return false;
   const to = notify || await coachOf(session || await getSession(sessionId));
   if (!to) return false;
   if (!(await S.claimCheck(sessionId))) return false;
-  await openCheck(sessionId, to.from, to.lang, to.rollNumber);
+  await openCheck(sessionId, to.from, to.lang, to.child);
   return true;
 }
 
@@ -286,7 +306,7 @@ async function recoverCheck(session, nowMs) {
   const to = await coachOf(session);
   if (!to) return false;
   logEvent('child_test.check_recovered', { sessionId: session.id });
-  await openCheck(session.id, to.from, to.lang, to.rollNumber);
+  await openCheck(session.id, to.from, to.lang, to.child);
   return true;
 }
 
