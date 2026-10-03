@@ -152,6 +152,9 @@ describe('identity comes from the session', () => {
     for (const marker of ['/lp612/request', '/lp612/status/:render_id', '/lp612/mine']) {
       expect(block).toContain(marker);
     }
+    // bd-5rz1v.14 — and the lessons list, whose ✓✓ Sent is hers: the session's teacher.
+    const lessons = block.slice(block.indexOf("router.get('/lp612/lessons'"), block.indexOf("router.post('/lp612/request'"));
+    expect(lessons).toMatch(/Lp612\.listLessons\([^)]*req\.session\.portalUserId\)/);
     expect(block).toContain('req.session.portalUserId');
     // Never req.portalUser: that is set only by the leader gate, which 403s teachers. Reading
     // it yields undefined — the exact shape that made every Generate answer "userId is required".

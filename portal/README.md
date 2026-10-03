@@ -28,6 +28,17 @@ npm run build  # Production build
 
 Deploy the `dist/` folder to any static hosting service.
 
+## New UI (behind the `portal_new_ui` flag)
+
+Screens move to the new UI one at a time, behind a per-user flag. Before building or changing one,
+read [src/portal/newui/DESIGN.md](src/portal/newui/DESIGN.md): the rules (icons plus 1–3 words, no
+sentences, 56px taps, what each colour means), the shared kit in `src/portal/newui/`, and the
+checks that fail CI when a rule is broken:
+
+```bash
+npx vitest run src/portal/newui
+```
+
 ## Tech Stack
 
 - React + TypeScript

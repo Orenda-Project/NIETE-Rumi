@@ -14,7 +14,12 @@ import PortalLogin from "./portal/pages/PortalLogin";
 import PortalRoot from "./portal/pages/PortalRoot";
 import PortalPasswordReset from "./portal/pages/PortalPasswordReset";
 import PortalPasswordResetVerify from "./portal/pages/PortalPasswordResetVerify";
+import PortalDeleteAccount from "./portal/pages/PortalDeleteAccount";
+import PortalAccount from "./portal/pages/PortalAccount";
 import PortalDashboard from "./portal/pages/PortalDashboard";
+import PortalHomeList from "./portal/pages/PortalHomeList";
+import PortalAssessment from "./portal/pages/PortalAssessment";
+import { ASSESSMENT_ROUTES } from "./portal/lib/assessmentRoutes";
 import PortalClasses from "./portal/pages/PortalClasses";
 import PortalCurriculum from "./portal/pages/PortalCurriculum";
 import PortalTraining from "./portal/pages/PortalTraining";
@@ -38,6 +43,8 @@ import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
 import AppLinkListener from "./portal/components/AppLinkListener";
 import BackButtonHandler from "./portal/components/BackButtonHandler";
+// bd-5rz1v.10 — a lesson recording that outlives the page it started on.
+import { RecordingSessionProvider } from "./portal/lib/recordingSession";
 // bd-60121 — every observed lesson, its own page.
 import SchoolLessons from "./portal/pages/SchoolLessons";
 /* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
@@ -78,6 +85,10 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          {/* bd-5rz1v.10 — the lesson being recorded lives here, above the
+              routes, so moving between pages never stops it. Inside the router
+              so its bar's Return and the back key can navigate. */}
+          <RecordingSessionProvider>
           {/* Android app only: routes a tapped portal link to its page. */}
           <AppLinkListener />
           {/* Android app only: the hardware back key (close / back / leave). */}
@@ -95,7 +106,18 @@ const App = () => {
           <Route path="/portal/login" element={<PortalLogin />} />
           <Route path="/portal/reset-password" element={<PortalPasswordReset />} />
           <Route path="/portal/reset-password/verify" element={<PortalPasswordResetVerify />} />
+          {/* bd-3wb0s — Google Play's account-deletion URL. PUBLIC like the
+              routes above: no PortalLayout, no session check, so it works
+              signed out, signed in, and without the app. */}
+          <Route path="/portal/delete-account" element={<PortalDeleteAccount />} />
           <Route path="/portal/dashboard" element={<PortalDashboard />} />
+          {/* bd-5rz1v.17 — the lists behind the new Home's tiles (new UI only; flag off → the dashboard). */}
+          <Route path="/portal/dashboard/:metric" element={<PortalHomeList />} />
+          {/* bd-5rz1v.13 — Assessment, its own pages (new UI only; flag off → the Curriculum tab). */}
+          {ASSESSMENT_ROUTES.map((r) => <Route key={r.path} path={r.path} element={<PortalAssessment view={r.view} />} />)}
+          {/* bd-3wb0s — My account: her name and school, the privacy policy,
+              account deletion and Logout. Signed-in only (PortalLayout). */}
+          <Route path="/portal/account" element={<PortalAccount />} />
             {/* bd-60078 — My Plans is retired. It listed a teacher's own
                 Gamma-generated plans, and custom generation is off, so the page
                 could only ever show older work with no way to make more.
@@ -160,6 +182,7 @@ const App = () => {
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </RecordingSessionProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

@@ -298,3 +298,29 @@ describe('legacy pre_generated_lps fallback for grades 1-5 — deploy-day guard'
     expect(res.data.error).toBeDefined();
   });
 });
+
+describe('screen headers name the book, not its key (bd-6640j.1.3)', () => {
+  const SST_UR = {
+    stem: 'grade_4_social_studies', grade: 4, subject: 'Social Studies (Urdu)', subject_key: 'social_studies_ur', rtl: true,
+    chapters: [{ number: 1, title: 'شہریت', title_short: 'شہریت', lessons: [{
+      lesson_id: 'grade_4_social_studies_ch1_seg1', segment_index: 1, lp_type: 'content', day_label: 'Day 1',
+      section: 'شہریت', section_short: 'شہریت', topic: 't', topic_short: 't', pages: [1], pages_label: 'p.1',
+      row: { title: '‏شہریت', description: 'Day 1', metadata: 't' },
+    }] }],
+  };
+  beforeAll(() => V8Catalog.__setCatalogForTests({ ...CATALOG, books: [...CATALOG.books, SST_UR] }));
+  afterAll(() => V8Catalog.__setCatalogForTests(CATALOG));
+  beforeEach(() => mockV8Available.add('grade_4_social_studies_ch1_seg1'));
+
+  test('chapter screen', async () => {
+    const res = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_SUBJECT', { step: 'subject', grade: '4', subject: 'social_studies_ur' });
+    expect(res.data.header_text).toBe('Grade 4 — Social Studies (Urdu)');
+  });
+
+  test('lesson screen', async () => {
+    const res = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_CHAPTER', {
+      step: 'chapter', grade: '4', subject: 'social_studies_ur', chapter: '1',
+    });
+    expect(res.data.header_text).toMatch(/^Grade 4 Social Studies \(Urdu\) · Ch 1/);
+  });
+});

@@ -551,7 +551,9 @@ const LeaderObserveRecord = () => {
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-[#eef0f4]"><Camera className="h-[30px] w-[30px]" aria-hidden="true" /></span>
               <span className="flex flex-col gap-1"><span className="text-xl font-bold">{COPY.takePhoto}</span><span className="text-[15px] text-[#5b6170]">{COPY.takePhotoSub}</span></span>
             </button>
-            <input ref={planPhotoInput} data-testid="plan-photo-input" type="file" accept="image/jpeg,image/png" capture="environment" className="hidden"
+            {/* accept must be exactly image/*: Capacitor opens the camera only then (any
+                other list gets the file picker). The type is still checked on arrival. */}
+            <input ref={planPhotoInput} data-testid="plan-photo-input" type="file" accept="image/*" capture="environment" className="hidden"
               onChange={(e) => { onPlanFile(e.target.files?.[0], true); e.target.value = ''; }} />
             <button type="button" onClick={() => planFileInput.current?.click()} className="h-11 text-base font-semibold text-primary underline">{COPY.orFile}</button>
             <input ref={planFileInput} data-testid="plan-file-input" type="file" accept={acceptFor('lesson_plan')} className="hidden"
