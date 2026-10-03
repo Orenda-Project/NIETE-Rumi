@@ -389,6 +389,36 @@ old code). The mockup has no Coaching section; these screens follow Home's and A
   `BottomActions` stands: they never overlap (bd-5rz1v.24). On a desktop it floats in the corner
   (`shadow-nu-float`). The old menu's bar is unchanged.
 
+## Training (built, bd-5rz1v.25)
+
+`newui/training/`, routes in `lib/trainingRoutes.ts` (`TRAINING_ROUTES`), picked by
+`pages/PortalTrainingPage.tsx`. With the flag off, for a leader, or while the flag loads, every
+training address renders `PortalTrainingV2` byte for byte (`PortalTrainingV2.flagOff.test.tsx`), and
+an address only the new UI has (`/grades`, `/level/:id/exam`) goes to the old page it stands for. A
+screen not built yet renders the old page at the same address. The endpoints are the old page's; the
+screens hold no training rule. Teachers see "Part"; the code's word is "module".
+
+- `/portal/training`: `MainHeading` with "NIETE 24%" (the provider she is continuing) and her
+  certificate count on the band; a `Row` per provider (initials in a neutral tile, a green bar, the %,
+  a check when done; NIETE, I-SAPS, Beacon House, Oxbridge); a Certificates row; **Continue
+  <provider>**. Continue (`continue.ts`): the only timestamps are each part's `completed_at`, so among
+  the started levels it reads the courses she is part-way through (two API calls in the usual case),
+  takes the course with her latest completion, and opens its next part (not done, not locked); a
+  finished course opens the level's next unfinished course, a finished level its page (the exam). A
+  failed read opens the level page. Nothing assigned: "No training yet" and a My grades row.
+- `/provider/:key`: an `InnerBar` (crumb Training) and a row per level. A ladder (NIETE): Certified
+  chip, or number + "2/5" + bar, or lock + "Pass 2" with the row off; Continue Level n. Subjects
+  (Beacon House) are unnumbered and never locked. A one-level provider (I-SAPS, Oxbridge) replaces
+  itself with its level page, and the main page links straight there.
+- `/provider/:key/level/:id`: the level exam as a row on top, from the grand-quiz gate ("3 more
+  courses" as information; Ready, Wait 18h or Passed open `/exam`); "Courses 2/5" and a row each
+  (Done, or "3/7" with a bar). I-SAPS: no exam row; the level certificate as a row (exams passed and a
+  bar; Receive asks the server; then Download) and My scores in a sheet. Beacon House: the written
+  quiz result as a row; a tap shows her answers and the feedback.
+- `/provider/:key/level/:id/course/:id`: "Parts 3/7"; done = green check tile, duration and best score
+  chips; next = play icon and "Next"; locked = off. I-SAPS: the module exam row (the gate's own word as
+  a chip) and Recommended reading (a sheet). Continue opens the next part.
+
 ## Urdu and RTL
 
 - Use logical spacing only: `ms-`, `me-`, `ps-`, `pe-`, `start-`, `end-`, `text-start` and `inset-x-`.

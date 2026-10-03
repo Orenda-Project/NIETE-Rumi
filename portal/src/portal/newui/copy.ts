@@ -429,3 +429,72 @@ export const COACHING_COPY = {
   reportPicture: 'Report picture',
   showAll: 'Show all',
 } as const;
+
+/**
+ * Training (bd-5rz1v.25; deep-screens.html, Training). Teachers see "Part"; the code's word is
+ * "module". Provider, level, course and part names are data, shown as the server sends them.
+ */
+export const TRAINING_COPY = {
+  title: 'Training',
+  providers: 'Providers',
+  levels: 'Levels',
+  courses: 'Courses',
+  parts: 'Parts',
+  certificates: 'Certificates',
+  myGrades: 'My grades',
+  noTraining: 'No training yet',
+  done: 'Done',
+  certified: 'Certified',
+  ready: 'Ready',
+  next: 'Next',
+  locked: 'Locked',
+  passed: 'Passed',
+  notPassed: 'Not passed',
+  beingGraded: 'Being graded',
+  /** The bottom button: "Continue NIETE", "Continue Level 2", "Continue". */
+  continue: 'Continue',
+  continueTo: (name?: string | null) => `Continue ${name ?? ''}`.trim(),
+  continueLevel: (n?: number) => `Continue Level ${n ?? ''}`.trim(),
+  /** "24%" and, on the band, "NIETE 24%". */
+  pct: (n?: number) => `${n ?? 0}%`,
+  providerPct: (name?: string | null, n?: number) => `${name ?? ''} ${n ?? 0}%`.trim(),
+  /** "2/5", "9/10". */
+  of: (done?: number | null, total?: number | null) => `${done ?? 0}/${total ?? 0}`,
+  /** A locked level: "Pass 2" (the level before it). On a level page: "Pass Level 1". */
+  pass: (n?: number) => `Pass ${n ?? ''}`.trim(),
+  passLevel: (n?: number) => `Pass Level ${n ?? ''}`.trim(),
+  /** "Level 2 · Emerging"; the crumbs "Training · NIETE · Level 2". */
+  levelN: (n?: number) => `Level ${n ?? ''}`.trim(),
+  levelTitle: (n?: number, name?: string | null) => joined(n != null ? `Level ${n}` : null, name),
+  crumb: (...parts: Array<string | null | undefined>) => joined('Training', ...parts),
+  /** "12 min"; under a minute, "40 sec". */
+  minutes: (seconds?: number | null) => {
+    const s = Math.max(0, Math.round(Number(seconds) || 0));
+    return s > 0 && s < 60 ? `${s} sec` : `${Math.round(s / 60)} min`;
+  },
+  levelExam: 'Level exam',
+  moreCourses: (n?: number) => `${n ?? 0} more ${n === 1 ? 'course' : 'courses'}`,
+  /** "Wait 18h": a failed exam's cooldown. */
+  waitHours: (h?: number) => `Wait ${h ?? 0}h`,
+  moduleExam: 'Module exam',
+  reading: 'Recommended reading',
+  available: (n?: number) => `${n ?? 0} available`,
+  comingSoon: 'Coming soon',
+  writtenQuiz: 'Written quiz',
+  onWhatsApp: 'On WhatsApp',
+  /** Beacon House capstone answers: "4/5" per answer. */
+  outOfFive: (n?: number | null) => `${n ?? '—'}/5`,
+  levelCertificate: 'Level certificate',
+  exams: (done?: number, total?: number) => `${done ?? 0}/${total ?? 0} exams`,
+  receive: 'Receive',
+  download: 'Download',
+  myScores: 'My scores',
+  notTaken: 'Not taken',
+  written: (earned?: number | null, max?: number | null) => `Written ${earned ?? '—'}/${max ?? 0}`,
+  choice: (earned?: number | null, possible?: number | null) => `MCQ ${earned ?? 0}/${possible ?? 0}`,
+  loading: 'Loading…',
+  notLoaded: 'Not loaded',
+  retry: 'Try again',
+  empty: 'Nothing yet',
+  notFound: 'Not found',
+} as const;
