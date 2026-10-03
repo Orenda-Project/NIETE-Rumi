@@ -30,6 +30,8 @@ process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
 jest.mock('openai', () => jest.fn().mockImplementation(() => ({ chat: { completions: { create: async () => ({ choices: [{ message: { content: '{"child_no":null,"confidence":0}' } }], usage: { cost: 0 } }) } } })));
 
 const maybe = HAVE_L3 ? describe : describe.skip;
+// L26 (bd-s1oo0.46.2): the v2 journey is the default now; these scenarios drive today's (v1) conversation.
+const V1_SWITCHES = { CHILD_TEST_BATTERY: 'v1', CHILD_TEST_MATHS_MODE: 'strip', CHILD_TEST_CHECK_MODE: 'per_child' };
 
 maybe('with L3\'s real draw and store', () => {
   const COACH = { id: 'coach-1', role: 'coach', region: 'niete', preferred_language: 'en', phone_number: '923000000001' };
@@ -53,6 +55,7 @@ maybe('with L3\'s real draw and store', () => {
     seed.observation_field_forms[0] = { ...seed.observation_field_forms[0], teacher_user_id: 'teacher-1', created_at: new Date().toISOString() };
     mockDb = createFakeSupabase(seed, { unique: CHILD_TEST_UNIQUE });
     process.env.CHILD_TEST_ENABLED = 'true';
+    Object.assign(process.env, V1_SWITCHES);
     process.env.CHILD_TEST_OBSERVE_LINK = 'true';   // these scenarios open the list through the observe2 visit
     process.env.CHILD_TEST_DRAW_SECRET = 'test-secret';
     process.env.RAILWAY_ENVIRONMENT = 'sandbox';
@@ -142,6 +145,7 @@ maybe('with L3\'s real draw and store, no observe2 visit (visit key)', () => {
     seed.leader_schools = seed.leader_schools.map((r) => ({ ...r, school_name: 'SIM — Test School' }));
     mockDb = createFakeSupabase(seed, { unique: CHILD_TEST_UNIQUE });
     process.env.CHILD_TEST_ENABLED = 'true';
+    Object.assign(process.env, V1_SWITCHES);
     process.env.CHILD_TEST_OBSERVE_LINK = 'true';   // these scenarios open the list through the observe2 visit
     process.env.CHILD_TEST_DRAW_SECRET = 'test-secret';
     process.env.RAILWAY_ENVIRONMENT = 'sandbox';
