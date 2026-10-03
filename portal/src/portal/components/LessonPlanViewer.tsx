@@ -34,6 +34,12 @@ import {
  *
  * Labels, not sentences (operator, 2026-10-03). All of the viewer's look is in
  * VIEWER_STYLE below, so a restyle is an edit to that one object.
+ *
+ * bd-5rz1v.14 — `chrome="none"`: the new UI draws the heading (its light InnerBar, with
+ * "Open in another app" as a small action on it), so the viewer leaves out its own back + title
+ * and its toolbar's outside button, and its zoom buttons sit in 56px targets (the new UI's tap
+ * rule). Everything else — loading, the fallback, recording — is the same viewer. The default
+ * ("own") is the viewer exactly as it was.
  */
 
 const COPY = {
@@ -63,6 +69,9 @@ export const VIEWER_STYLE = {
   toolbar: 'flex items-center gap-1.5',
   zoomButton: 'flex h-11 w-11 items-center justify-center rounded-lg border border-[#d6d9de] bg-white text-primary disabled:text-[#c4c8cf]',
   zoomLabel: 'min-w-[3rem] px-1 text-sm tabular-nums text-muted-foreground',
+  /** bd-5rz1v.14 — chrome "none" (the new UI): the same 44px button inside a 56px target. */
+  zoomTarget: 'group flex min-h-[56px] min-w-[56px] items-center justify-center',
+  zoomFace: 'flex h-11 w-11 items-center justify-center rounded-lg border border-[#d6d9de] bg-white text-primary group-disabled:text-[#c4c8cf]',
   outsideButton: 'ms-auto flex h-11 items-center gap-1.5 rounded-lg border border-[#d6d9de] bg-white px-3 text-sm font-semibold text-primary',
   pages: 'flex flex-col items-start gap-3',
   page: 'mx-auto shrink-0 bg-white shadow-sm',
@@ -148,6 +157,8 @@ const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed }: {
 
 type Props = {
   view: LessonPlanView;
+  /** "own": its back + title and its outside button (the old pages). "none": the page draws them. */
+  chrome?: 'own' | 'none';
   /** A lesson is recording: say it continues; never hand off to another app by itself. */
   recording: boolean;
   onClose: () => void;
@@ -155,7 +166,7 @@ type Props = {
   onNotReady: () => void;
 };
 
-const LessonPlanViewer = ({ view, recording, onClose, onNotReady }: Props) => {
+const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own' }: Props) => {
   const { toast } = useToast();
   const { source, title } = view;
   const key = sourceKey(source);
@@ -256,12 +267,14 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady }: Props) => {
 
   return (
     <div data-testid="lesson-plan-viewer" className={VIEWER_STYLE.frame}>
-      <div className={VIEWER_STYLE.header}>
-        <button type="button" onClick={onClose} aria-label={COPY.back} className={VIEWER_STYLE.back}>
-          <ChevronLeft className="h-6 w-6 rtl:rotate-180" aria-hidden="true" />
-        </button>
-        <h1 className={VIEWER_STYLE.title} dir="auto">{title}</h1>
-      </div>
+      {chrome === 'own' && (
+        <div className={VIEWER_STYLE.header}>
+          <button type="button" onClick={onClose} aria-label={COPY.back} className={VIEWER_STYLE.back}>
+            <ChevronLeft className="h-6 w-6 rtl:rotate-180" aria-hidden="true" />
+          </button>
+          <h1 className={VIEWER_STYLE.title} dir="auto">{title}</h1>
+        </div>
+      )}
 
       {recording && <div className={VIEWER_STYLE.chipRow}><RecordingContinuesChip /></div>}
 
@@ -297,7 +310,7 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady }: Props) => {
         </div>
       )}
 
-      {state === 'ready' && doc && (
+      {state === 'ready' && doc && chrome === 'own' && (
         <div className={VIEWER_STYLE.toolbar}>
           <button type="button" aria-label={COPY.zoomOut} disabled={zoom === 0} onClick={() => setZoom((z) => Math.max(0, z - 1))}
             className={VIEWER_STYLE.zoomButton}>
@@ -314,6 +327,20 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady }: Props) => {
               {COPY.openOutside}
             </button>
           )}
+        </div>
+      )}
+
+      {state === 'ready' && doc && chrome === 'none' && (
+        <div className={VIEWER_STYLE.toolbar}>
+          <button type="button" aria-label={COPY.zoomOut} disabled={zoom === 0} onClick={() => setZoom((z) => Math.max(0, z - 1))}
+            className={VIEWER_STYLE.zoomTarget}>
+            <span className={VIEWER_STYLE.zoomFace}><ZoomOut className="h-5 w-5" aria-hidden="true" /></span>
+          </button>
+          <button type="button" aria-label={COPY.zoomIn} disabled={zoom === ZOOMS.length - 1} onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))}
+            className={VIEWER_STYLE.zoomTarget}>
+            <span className={VIEWER_STYLE.zoomFace}><ZoomIn className="h-5 w-5" aria-hidden="true" /></span>
+          </button>
+          <span className={VIEWER_STYLE.zoomLabel}>{Math.round(ZOOMS[zoom] * 100)}%</span>
         </div>
       )}
 

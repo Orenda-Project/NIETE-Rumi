@@ -42,6 +42,11 @@ import AssessmentPapersPanel from '../components/AssessmentPapersPanel';
 import MyLesson612Panel from '../components/MyLesson612Panel';
 import LessonPlanViewer from '../components/LessonPlanViewer';
 import { useRecordingSession } from '../lib/recordingSession';
+import { useAuth } from '../hooks/useAuth';
+import { AuthContext } from '../hooks/authContext';
+import { isLeader } from '../lib/leaderRole';
+import { useNewUi } from '../lib/useNewUi';
+import NewLessonPlans from '../newui/lessons/NewLessonPlans';
 import {
   openLessonPlanOutside, shouldOpenInApp, useLessonPlanOpener, type LessonPlanView,
 } from '../lib/lessonPlanOpen';
@@ -94,7 +99,8 @@ const NOT_PUBLISHED = {
   description: 'This lesson has not been published. Please try another, or check back soon.',
 };
 
-const PortalCurriculum = () => {
+/** The Curriculum page every teacher had before the new UI — and still has with the flag off. */
+const ClassicCurriculum = () => {
   const { toast } = useToast();
   const location = useLocation();
   // bd-5rz1v.12 — the new UI's menu has its own Assessment item; until
@@ -640,6 +646,29 @@ const PortalCurriculum = () => {
         </Tabs>
       </div>
     </PortalLayout>
+  );
+};
+
+/**
+ * bd-5rz1v.14 — with `portal_new_ui` on, a teacher's Lessons is the new Lesson Plans
+ * (newui/lessons/NewLessonPlans): one flow for grades 1–12. The Assessment tab
+ * (?tab=assessment, the new menu's Assessment until it is a page of its own) stays this
+ * page, as does a leader's visit. Off, loading or unreadable: the page above, unchanged
+ * (PortalCurriculum.flagOff.test.tsx pins its markup).
+ *
+ * The user read here is PROVIDED to everything below, so the page and its layout share one
+ * sign-in read (as PortalDashboard does).
+ */
+const PortalCurriculum = () => {
+  const auth = useAuth();
+  const { user, loading } = auth;
+  const { search } = useLocation();
+  const assessmentTab = new URLSearchParams(search).get('tab') === 'assessment';
+  const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user);
+  return (
+    <AuthContext.Provider value={auth}>
+      {newUi === true && user && !isLeader(user) && !assessmentTab ? <NewLessonPlans /> : <ClassicCurriculum />}
+    </AuthContext.Provider>
   );
 };
 
