@@ -319,7 +319,8 @@ describe('4. the three step messages', () => {
     await note();
     const eng = last().text;
     expect(eng).toMatch(/^🎧 Got it · Urdu\n\*2\/3 English story · Ayesha Khan\*/);
-    expect(eng).toContain('«Please read this story aloud. Please start reading.»');
+    // the words to the child are the item bank's v2 script line (L27), whatever its final wording
+    expect(eng).toContain(`«${require('../../../bot/shared/services/child-test/item-bank').getScript(3, 'A', 'english').start}»`);
     expect(eng).toContain('What was the class planting?');
     await note();
     const maths = last().text;
