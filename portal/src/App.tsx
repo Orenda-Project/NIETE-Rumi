@@ -39,6 +39,8 @@ import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
 import AppLinkListener from "./portal/components/AppLinkListener";
 import BackButtonHandler from "./portal/components/BackButtonHandler";
+// bd-5rz1v.10 — a lesson recording that outlives the page it started on.
+import { RecordingSessionProvider } from "./portal/lib/recordingSession";
 // bd-60121 — every observed lesson, its own page.
 import SchoolLessons from "./portal/pages/SchoolLessons";
 /* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
@@ -79,6 +81,10 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          {/* bd-5rz1v.10 — the lesson being recorded lives here, above the
+              routes, so moving between pages never stops it. Inside the router
+              so its bar's Return and the back key can navigate. */}
+          <RecordingSessionProvider>
           {/* Android app only: routes a tapped portal link to its page. */}
           <AppLinkListener />
           {/* Android app only: the hardware back key (close / back / leave). */}
@@ -165,6 +171,7 @@ const App = () => {
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </RecordingSessionProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

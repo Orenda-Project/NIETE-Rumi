@@ -3,6 +3,7 @@ import { ChevronRight, ExternalLink, LogOut, School, ShieldCheck, UserMinus, Use
 import { Skeleton } from '@/components/ui/skeleton';
 import PortalLayout from '../components/PortalLayout';
 import { useAuth } from '../hooks/useAuth';
+import { useLogoutGuard } from '../lib/recordingSession';
 import { DELETE_ACCOUNT_PATH, EXTERNAL_LINK_PROPS, PRIVACY_POLICY_URL } from '../lib/legalLinks';
 import type { User } from '../types/portal';
 
@@ -76,6 +77,8 @@ const AccountSkeleton = () => (
 
 const AccountView = () => {
   const { user, logout } = useAuth();
+  // bd-5rz1v.10 — Logout would end a lesson still recording, so it asks first then.
+  const guardedLogout = useLogoutGuard(logout);
   if (!user) return <AccountSkeleton />;
 
   const name = fullName(user);
@@ -133,7 +136,7 @@ const AccountView = () => {
 
       <button
         type="button"
-        onClick={logout}
+        onClick={guardedLogout}
         className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-[#d6d9de] bg-white text-[16px] font-semibold text-primary transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <LogOut className="h-5 w-5 rtl:-scale-x-100" aria-hidden="true" />

@@ -12,6 +12,9 @@
  *
  * It holds no lp612 rules — it lists what the bot says she has asked for, and mints a download
  * link per click because a presigned URL expires.
+ *
+ * bd-5rz1v.10 — Open goes through lib/lessonPlanOpen's one switch: the portal's own viewer
+ * (today: always), or the presigned link in a new window as before.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -19,6 +22,7 @@ import { BookOpen, Download, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
+import { useLessonPlanOpener } from '../lib/lessonPlanOpen';
 
 type MyLesson = {
   renderId: string;
@@ -35,6 +39,7 @@ const MyLesson612Panel = ({ refreshKey = 0 }: { refreshKey?: number }) => {
   const { toast } = useToast();
   const [lessons, setLessons] = useState<MyLesson[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const openLessonPlan = useLessonPlanOpener();
 
   useEffect(() => {
     let cancelled = false;
@@ -51,18 +56,14 @@ const MyLesson612Panel = ({ refreshKey = 0 }: { refreshKey?: number }) => {
     return () => { cancelled = true; };
   }, [refreshKey]);
 
-  const open = useCallback(async (renderId: string) => {
+  const open = useCallback(async (m: MyLesson) => {
     try {
-      const { data } = await api.get(`/lp612/status/${renderId}`);
-      if (data.state === 'ready' && data.url) {
-        window.open(data.url, '_blank', 'noopener,noreferrer');
-        return;
-      }
-      toast({ title: 'That lesson is not ready yet' });
+      const result = await openLessonPlan({ lane: 'g612', renderId: m.renderId }, m.title || m.segmentId);
+      if (result === 'not_ready') toast({ title: 'That lesson is not ready yet' });
     } catch {
       toast({ title: 'Could not open that lesson', variant: 'destructive' });
     }
-  }, [toast]);
+  }, [openLessonPlan, toast]);
 
   // Nothing asked for yet, and nothing to explain. An empty panel on a tab whose main lane
   // (grades 1-5) never populates it would just be noise.
@@ -90,7 +91,7 @@ const MyLesson612Panel = ({ refreshKey = 0 }: { refreshKey?: number }) => {
             </div>
 
             {m.state === 'ready' && (
-              <Button size="sm" variant="outline" onClick={() => open(m.renderId)}>
+              <Button size="sm" variant="outline" onClick={() => open(m)}>
                 <Download className="h-4 w-4 mr-1" /> Open
               </Button>
             )}
