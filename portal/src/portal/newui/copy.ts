@@ -280,3 +280,51 @@ export const ASSESSMENT_COPY = {
     'Comprehension Passage': 'Comprehension',
   } as Record<string, string>,
 } as const;
+
+/**
+ * Coaching (bd-5rz1v.26). deep-screens.html has no Coaching section: these follow the other
+ * screens' patterns. A lesson's topic, its subject and the coach's words are data, not copy.
+ */
+export const COACHING_COPY = {
+  title: 'Coaching',
+  /** Band chips: "8 lessons", "1 analysing". */
+  lessons: count('lesson', 'lessons'),
+  analysingCount: (n: number) => `${n} analysing`,
+  /** What is waiting for her, above the list. */
+  answer: 'Answer your question',
+  waiting: (n: number) => `${n} waiting`,
+  continue: 'Continue',
+  notSent: 'Not sent',
+  delete: 'Delete',
+  /** "31 min" */
+  minutes: (n: number) => `${n} min`,
+  /** A row's title when the lesson has no topic yet. */
+  newRecording: 'New recording',
+  yourLesson: 'Your lesson',
+  observation: 'Coach observation',
+  coachVisit: 'Coach visit',
+  /** Where a lesson on its way is (amber), and a lesson with no band. */
+  states: {
+    analysing: 'Analysing',
+    yourAnswer: 'Your answer',
+    onWhatsApp: 'On WhatsApp',
+    notRated: 'Not rated',
+  },
+  /** The band, as a word (lib/scoreBands.ts); the same words as Home. */
+  bands: HOME_COPY.bands,
+  subjects: 'Subjects',
+  all: 'All',
+  recordings: 'Recordings',
+  more: 'More',
+  empty: 'No lessons yet',
+  loading: 'Loading…',
+  notLoaded: 'Not loaded',
+  retry: 'Try again',
+  /** The one button, and its sheet. */
+  send: 'Send a lesson',
+  record: 'Record live lecture',
+  upload: 'Upload recording',
+  cancel: 'Cancel',
+  notAudio: 'Not a recording',
+  tooLarge: 'Too large',
+} as const;
