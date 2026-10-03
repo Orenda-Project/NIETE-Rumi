@@ -108,9 +108,10 @@ describe('register-all-flows', () => {
     // Flow (Student Join Localized), every word supplied in the quiz language.
     // Re-armed at 22 on 2026-09-30: /observe2 — the live field form and the evidence check.
     // Re-armed at 23 on 2026-10-02: the child test's check Flow (the coach confirms the marks).
-    it('exports an array of all 23 registerable flow configurations', () => {
+    // Re-armed at 24 on 2026-10-04: the child test's end-of-visit review Flow (bd-s1oo0.46, L28).
+    it('exports an array of all 24 registerable flow configurations (24th: Child Test Review, bd-s1oo0.46)', () => {
       expect(Array.isArray(FLOW_CONFIGS)).toBe(true);
-      expect(FLOW_CONFIGS).toHaveLength(23);
+      expect(FLOW_CONFIGS).toHaveLength(24);
     });
 
     it('gives every flow a unique name, envVar and endpointPath', () => {
