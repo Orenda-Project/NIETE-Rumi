@@ -360,7 +360,7 @@ async function selectSubject(screenData) {
           items,
           grade_value: String(grade),
           subject_value: subject,
-          header_text: `${gradeTitle(grade)} — ${subject}`,
+          header_text: `${gradeTitle(grade)} — ${V8Catalog.subjectTitle(grade, subject)}`,
         },
       };
     }
@@ -518,7 +518,7 @@ async function v8LessonScreen(flowToken, grade, subject, chapter, page, screenId
       grade_value: String(grade),
       subject_value: subject,
       chapter_value: String(chapter),
-      header_text: `${gradeTitle(grade)} ${subject} · Ch ${chapter}: ${ch ? ch.title : ''}`.trim(),
+      header_text: `${gradeTitle(grade)} ${V8Catalog.subjectTitle(grade, subject)} · Ch ${chapter}: ${ch ? ch.title : ''}`.trim(),
       lesson_total: String(total),
     },
   };
