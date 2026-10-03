@@ -1,8 +1,8 @@
 # Portal new UI — design rules (DRAFT)
 
 > **Draft.** Expanded screen by screen as each screen moves to the new UI. Built so far: the flag, the
-> tokens and the menu bar. The colour rule, the spacing and the landing-page heading are recorded here for
-> the screens that come next. Bead: bd-5rz1v.12 (parent bd-5rz1v). Reference mockup:
+> tokens and the menu bar. The colour rule, the spacing and the two page headings are recorded here for the
+> screens that come next. The headings will be built with those screens. Bead: bd-5rz1v.12 (parent bd-5rz1v). Reference mockup:
 > `versions/v6_deep-screens/deep-screens.html` in the NIETE Portal Coaching report folder.
 
 The chosen direction is **Direction B, option 2 ("indigo menu bar")**: light screens, big rows, one action
@@ -28,11 +28,11 @@ one-colour-per-feature notes.
 
 | Colour | Where it goes | Token |
 |---|---|---|
-| **Indigo** `#333748` | The frame (the heading band and the menu bar). Anything **selected**: a picked number, a quiz answer, a toggle, a selected filter chip, the current row. | `FRAME`, `SELECTION` |
+| **Indigo** `#333748` | The frame (a main page's flat heading band and the menu bar). Anything **selected**: a picked number, a quiz answer, a toggle, a selected filter chip, the current row. | `FRAME`, `SELECTION` |
 | **Green** | Every **primary button**, every **progress bar**, and **done** (check icons; Done, Sent and Ready chips). | `BUTTON.primary`, `PROGRESS`, `DONE`, `STATUS.done` |
 | **Amber** | Waiting or warning ("3 min", "Writing", "24h wait"). | `STATUS.warning`, `BUTTON.warning` |
 | **Red** | Errors and destructive actions. | `STATUS.error`, `BUTTON.destructive` |
-| **Feature colour** | **Only** the small icon in the page heading, in a light tint on a soft white tile (`rgba(255,255,255,.12)`). | `FEATURE_ICON` |
+| **Feature colour** | **Only** the feature's own icon: in its light tint on the soft white tile of a main page's band, or in its hue at the start of an inner page's breadcrumb. | `FEATURE_ICON` |
 | **Neutral grey** | **Everything else:** row icons, subject icons, provider badges, trophies, scores and values. | `NEUTRAL`, `STATUS.info` |
 
 Values in rows are dark text (`nu-surface-text`). Buttons look the same in every feature: a feature colour
@@ -66,7 +66,7 @@ raw hex in a component.
 | Indigo light | `#e8e9f0` | `nu-ink-light` | the selection tint, the progress track |
 | Indigo extra-light | `#f3f3f7` | `nu-ink-xlight` | a pressed row |
 | Indigo edge | `#1d2030` | `nu-ink-edge` | the shadow under an indigo button |
-| Frame translucent | `rgba(255,255,255,.14)` | `nu-frame-translucent` | the active menu pill, the back button, chips on the band |
+| Frame translucent | `rgba(255,255,255,.14)` | `nu-frame-translucent` | the active menu pill, chips on the band |
 | Logo green | `#48b078` | `nu-leaf` | the active menu icon |
 | Logo green light | `#e2f3e9` | `nu-leaf-light` | the background of a "done" chip or icon |
 | Focus | `#fdb022` | `nu-focus` | keyboard focus ring |
@@ -110,19 +110,27 @@ raw hex in a component.
 | Error chip | `#c8331f` | `#fde6e2` | `text-nu-chip-error`, `bg-nu-chip-error-bg` |
 | Information chip | `#333748` | `#e8e9f0` | `text-nu-chip-info`, `bg-nu-chip-info-bg` |
 
-### Feature colour: the page-heading icon only
+### Feature colour: the feature's own icon only
 
-| Feature | Icon tint (on indigo) | Tailwind |
+| Feature | On the indigo band (tile icon) | In a light bar's breadcrumb | Tailwind |
+|---|---|---|---|
+| Lesson Plans | `#7fd6a6` | `#2e7d57` | `text-nu-f-lesson-plans`, `text-nu-f-lesson-plans-crumb` |
+| Training | `#8bb8f7` | `#1d6fd8` | `text-nu-f-training`, `-crumb` |
+| Assessment | `#b8a8f8` | `#6e52e0` | `text-nu-f-assessment`, `-crumb` |
+| The tile behind it (band) | `rgba(255,255,255,.12)` | n/a | `bg-nu-f-tile` |
+
+The Dashboard's band shows the NIETE mark rather than a feature icon. My Classes, Results and Certificates
+have no icon colours yet. Their hues (orange `#d9530b`, teal `#0b8a7c`, amber `#b54708`) are kept in
+`FEATURE_HUE` for when their screens move over.
+
+### Light bar (pages inside a flow)
+
+| Token | Hex | Tailwind |
 |---|---|---|
-| Lesson Plans | `#7fd6a6` | `text-nu-f-lesson-plans` |
-| Training | `#8bb8f7` | `text-nu-f-training` |
-| Assessment | `#b8a8f8` | `text-nu-f-assessment` |
-| The tile behind it | `rgba(255,255,255,.12)` | `bg-nu-f-tile` |
-
-My Classes, Results and Certificates have no heading tint yet. Pick one when their screens move over. Each
-feature's original hue (Lessons green, Training blue `#1d6fd8`, My Classes orange `#d9530b`, Assessment
-purple `#6e52e0`, Results teal `#0b8a7c`, Certificates amber `#b54708`) is kept in `FEATURE_HUE` as the
-source for that tint. It is never drawn on screen, so it is not a Tailwind class.
+| Bar | `#ffffff` | `bg-nu-inner` |
+| 1px bottom line | `#e3e5ec` | `border-nu-inner-border` |
+| Back button (circle) | `#f3f3f7`, icon `#333748` | `bg-nu-inner-back`, `text-nu-inner-back-icon` |
+| Breadcrumb text | `#666b80` | `text-nu-inner-crumb` |
 
 ## Spacing
 
@@ -136,9 +144,9 @@ source for that tint. It is never drawn on screen, so it is not a Tailwind class
 - Its height is 80px plus the safe area. With the flag on, the layout pads the page by 96px and docks the
   recording bar 88px up (plus the safe area). The old values (80px and 72px) are kept for flag-off.
 
-### Heading band (landing page)
+### Heading band (feature main pages)
 
-- The bottom corners are rounded 24px, followed by a 14px gap before the content.
+- The band is flat, with **square** corners, and sits 14px above the content.
 - The status row has 10px 20px 0 padding.
 - The title row has 10px 16px 14px padding, 12px gaps and a minimum height of 64px.
 - The context-chip row has 0 16px 16px padding.
@@ -164,21 +172,30 @@ source for that tint. It is never drawn on screen, so it is not a Tailwind class
   `/portal/curriculum` with no route of its own, so the menu cannot link to it yet. Add the entry in the same
   change that gives Assessment its page. The phone bar stays Home, Lessons, Training, Coaching, More.
 
-## Page heading (not built yet)
+## Page headings (decided, not built yet)
 
-The operator found the old headings "bland", and rejected a feature-coloured band ("blue heading + green
-page looks bad"). **Indigo frames the screen at the top and the bottom, the content stays light, and every
-primary button is green.**
+The operator found the old headings "bland" and rejected a feature-coloured band ("blue heading + green page
+looks bad"). Indigo frames the screen, the content stays light, and every primary button is green. The
+headings will be built with their screens; this bead only builds the flag, the tokens and the menu.
 
-- **Landing page = indigo band:** white text on `bg-nu-ink`, with the status-bar area also on indigo. The
-  bottom corners are rounded 24px. There is a 44px tile with the feature's icon in its tint
-  (`text-nu-f-<feature>` on `bg-nu-f-tile`), and the title is 24px, weight 800. An optional row of context
-  chips (e.g. "Last: Day 2 · Plants") is translucent white on indigo and is information, never tappable.
-  Spacing is above.
-- **Inner pages = TBD.** The operator is still deciding. Do not build an inner-page heading until it is
-  settled.
+1. **Feature main pages** (Dashboard, Lesson Plans, Assessment, Training, Coaching) use a **flat indigo band**
+   (`bg-nu-ink`) with square corners, and the status-bar area sits on indigo too. Inside it are:
+   - a 44px soft-white tile (`bg-nu-f-tile`) holding the feature's icon in its light tint
+     (`text-nu-f-<feature>`). The Dashboard shows the NIETE mark instead;
+   - a 24px/800 white title;
+   - a row of context chips below (e.g. "Last: Day 2 · Plants"), translucent white
+     (`bg-nu-frame-translucent`). They are information and never look tappable.
+2. **Pages inside a flow** use a **light bar**: white (`bg-nu-inner`) with a 1px bottom border
+   (`border-nu-inner-border`). Inside it are:
+   - a circular back button with a soft indigo tint (`bg-nu-inner-back text-nu-inner-back-icon`). It is a
+     56px target, and its arrow flips in RTL;
+   - a small breadcrumb line, 12px and muted (`text-nu-inner-crumb`), led by the feature's icon in its hue
+     (`text-nu-f-<feature>-crumb`), e.g. "Training · NIETE · Level 2";
+   - a 20px/800 title (`nu-surface-text`).
+3. **Bottom menu bar:** square, as built.
+4. **Desktop:** the indigo top nav, then the flat indigo band on main pages, or the light bar on inner pages.
 
-Build the landing heading as one shared component when the first screen moves over, not per page.
+Build each heading as one shared component when the first screen moves over, not per page.
 
 ## Urdu and RTL
 
@@ -186,7 +203,7 @@ Build the landing heading as one shared component when the first screen moves ov
   `pr-`, `left-` or `text-left` on the new UI's own markup. A test checks the menu bar for this.
 - Anything with a direction (›, ←, the logout arrow) flips with `rtl:rotate-180` or `rtl:-scale-x-100`.
 - **Labels:** the portal's navigation has no string catalog. Its labels are English literals, and in Urdu the
-  page turns RTL around them (`src/i18n/config.ts` sets `dir`/`lang`; the landing page alone uses `t()`).
+  page turns RTL around them (`src/i18n/config.ts` sets `dir`/`lang`; only the public marketing page uses `t()`).
   The mockup shows Urdu menu words. Adding them is a language change: read the `language-protocol` skill
   first, and give both languages the same reviewed keys.
 - Nastaliq, and the serif fallback it forces on Latin text, needs a taller line height. The menu labels use

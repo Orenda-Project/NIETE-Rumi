@@ -11,7 +11,7 @@
  *   indigo  the frame (heading band, menu bar) and anything SELECTED
  *   green   every primary button, every progress bar, and "done"
  *   amber   waiting / warning        red   errors and destructive actions
- *   feature colour  ONLY the small icon in the page heading, on a soft white tile
+ *   feature colour  ONLY the feature's own icon (heading tile / breadcrumb)
  *   everything else neutral grey — row icons, subject icons, badges, scores, values
  *
  * tailwind.config.ts builds the `nu-*` colours from `tailwindColors` below, so a
@@ -66,14 +66,29 @@ export const SURFACE = {
   handle: '#c9ccd6',
 } as const;
 
-/** INDIGO, part 1 — the frame: the page-heading band and the menu bar, white on indigo. */
+/**
+ * INDIGO, part 1 — the frame: the flat heading band of a feature's MAIN page
+ * and the menu bar, white on indigo, square corners on both.
+ */
 export const FRAME = {
   background: BRAND.ink,
   text: '#ffffff',
-  /** Back button, context chips, and the active menu item's pill. */
+  /** Context chips on the band, and the active menu item's pill. */
   translucent: 'rgba(255,255,255,0.14)',
-  /** The heading band's bottom corners, in px. The menu bar's corners are square. */
-  headingRadius: 24,
+} as const;
+
+/**
+ * Pages INSIDE a flow get a light bar instead of the band: white with a 1px
+ * bottom line, a soft indigo-tint circular back button, a small muted
+ * breadcrumb ("Training · NIETE · Level 2") led by the feature's icon in its
+ * hue (FEATURE_ICON.onLight), then the title.
+ */
+export const INNER_BAR = {
+  background: '#ffffff',
+  border: SURFACE.line,
+  back: BRAND.inkXLight,
+  backIcon: BRAND.ink,
+  crumb: SURFACE.muted,
 } as const;
 
 /**
@@ -119,23 +134,10 @@ export const STATUS = {
 export const NEUTRAL = { tile: BRAND.inkXLight, icon: BRAND.ink, quietTile: '#f1f2f5', quietIcon: SURFACE.muted } as const;
 
 /**
- * FEATURE COLOUR — ONLY the small icon in the page heading, drawn in a light
- * tint on a soft white tile over the indigo band. Nowhere else: not on buttons,
- * values, chips, rows, the menu, or icons inside the feature. The mockup sets
- * three; My Classes, Results and Certificates get theirs when their screens move.
- */
-export const FEATURE_ICON = {
-  tile: 'rgba(255,255,255,0.12)',
-  lessonPlans: '#7fd6a6',
-  training: '#8bb8f7',
-  assessment: '#b8a8f8',
-} as const;
-
-/**
- * The hue each feature owns, kept ON RECORD only (Direction B's first pass). It
- * is NOT drawn on screen under the colour rule above — it is what a feature's
- * heading-icon tint is picked from. Deliberately not exported to Tailwind.
- * "Tests" / "Assessment Generator" is called Assessment.
+ * The hue each feature owns ("Tests" / "Assessment Generator" is called
+ * Assessment). Drawn ONLY as that feature's icon in a light bar's breadcrumb
+ * (FEATURE_ICON.onLight); never on buttons, values, chips, rows or the menu.
+ * My Classes, Results and Certificates are on record for when their screens move.
  */
 export const FEATURE_HUE = {
   lessonPlans: { colour: BRAND.button, tint: BRAND.leafLight },
@@ -144,6 +146,23 @@ export const FEATURE_HUE = {
   assessment: { colour: '#6e52e0', tint: '#ece8fd' },
   results: { colour: '#0b8a7c', tint: '#d3f6ee' },
   certificates: { colour: '#b54708', tint: '#fef0c7' },
+} as const;
+
+/**
+ * FEATURE COLOUR — ONLY a feature's own icon, in one of two places:
+ *   onIndigo  the 44px soft-white tile on a main page's flat indigo band, in
+ *             the feature's LIGHT tint (the Dashboard shows the NIETE mark);
+ *   onLight   the breadcrumb icon on a light inner-page bar, in its hue.
+ * Nowhere else. The mockup sets these three; the others come with their screens.
+ */
+export const FEATURE_ICON = {
+  tile: 'rgba(255,255,255,0.12)',
+  onIndigo: { lessonPlans: '#7fd6a6', training: '#8bb8f7', assessment: '#b8a8f8' },
+  onLight: {
+    lessonPlans: FEATURE_HUE.lessonPlans.colour,
+    training: FEATURE_HUE.training.colour,
+    assessment: FEATURE_HUE.assessment.colour,
+  },
 } as const;
 
 /** Every tap target is at least this tall and wide (DESIGN.md rule 3). */
@@ -185,15 +204,20 @@ export const tailwindColors = {
   done: { DEFAULT: DONE.icon, bg: DONE.background },
   // bg-nu-neutral-tile + text-nu-neutral-icon (NEUTRAL)
   neutral: { tile: NEUTRAL.tile, icon: NEUTRAL.icon, quiet: NEUTRAL.quietTile, 'quiet-icon': NEUTRAL.quietIcon },
-  // bg-nu-f-tile + text-nu-f-training: the page-heading icon ONLY (FEATURE_ICON)
+  // A feature's own icon ONLY (FEATURE_ICON): text-nu-f-training on bg-nu-f-tile
+  // on the indigo band; text-nu-f-training-crumb in a light bar's breadcrumb.
   f: {
     tile: FEATURE_ICON.tile,
-    'lesson-plans': FEATURE_ICON.lessonPlans,
-    training: FEATURE_ICON.training,
-    assessment: FEATURE_ICON.assessment,
+    'lesson-plans': { DEFAULT: FEATURE_ICON.onIndigo.lessonPlans, crumb: FEATURE_ICON.onLight.lessonPlans },
+    training: { DEFAULT: FEATURE_ICON.onIndigo.training, crumb: FEATURE_ICON.onLight.training },
+    assessment: { DEFAULT: FEATURE_ICON.onIndigo.assessment, crumb: FEATURE_ICON.onLight.assessment },
   },
-  // bg-nu-frame-translucent: back button, context chips, the active menu pill (FRAME)
+  // bg-nu-frame-translucent: context chips on the band, the active menu pill (FRAME)
   frame: { translucent: FRAME.translucent },
+  // the light inner-page bar: bg-nu-inner, border-nu-inner-border, bg-nu-inner-back, text-nu-inner-crumb (INNER_BAR)
+  inner: {
+    DEFAULT: INNER_BAR.background, border: INNER_BAR.border, back: INNER_BAR.back, 'back-icon': INNER_BAR.backIcon, crumb: INNER_BAR.crumb,
+  },
   focus: BRAND.focus,
   'nav-label': NAV.label,
   surface: {
