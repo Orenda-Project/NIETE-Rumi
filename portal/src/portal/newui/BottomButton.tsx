@@ -13,6 +13,8 @@ import { FOCUS, TAP } from './styles';
  *   outline  white with a 2px grey border (a second, quieter choice)
  *   warn     amber, on its own edge
  *   danger   red, on its own edge (destructive)
+ *   dangerOutline  the outline button with red words: a destructive SECOND choice next to a
+ *            green primary (Delete under Continue; the account sheet's Logout look)
  *   disabled grey, no edge, no press
  * A 58px pill (outline 56px), 17.5px/800 label, a 23px icon. The press only ANIMATES under
  * motion-safe; with reduced motion it still moves, instantly.
@@ -24,13 +26,14 @@ import { FOCUS, TAP } from './styles';
  * when the bar shows (RecordingBarShownContext).
  */
 
-export type BottomButtonTone = 'primary' | 'outline' | 'warn' | 'danger';
+export type BottomButtonTone = 'primary' | 'outline' | 'warn' | 'danger' | 'dangerOutline';
 
 const TONE: Record<BottomButtonTone, string> = {
   primary: 'h-[58px] bg-nu-button text-white shadow-nu-button active:translate-y-[3px] active:shadow-nu-button-pressed',
   outline: 'h-14 border-2 border-nu-button-secondary-border bg-nu-button-secondary text-base text-nu-surface-text active:bg-nu-ink-xlight',
   warn: 'h-[58px] bg-nu-button-warning text-white shadow-nu-warning active:translate-y-[3px] active:shadow-nu-warning-pressed',
   danger: 'h-[58px] bg-nu-button-destructive text-white shadow-nu-destructive active:translate-y-[3px] active:shadow-nu-destructive-pressed',
+  dangerOutline: 'h-14 border-2 border-nu-button-secondary-border bg-nu-button-secondary text-base text-nu-button-destructive active:bg-nu-ink-xlight',
 };
 
 const DISABLED = 'h-[58px] bg-nu-button-disabled text-nu-button-disabled-text shadow-none';

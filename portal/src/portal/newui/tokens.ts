@@ -137,6 +137,13 @@ export const STATUS = {
 } as const;
 
 /**
+ * RED, the one exception to "red = errors" (bd-5rz1v.26): RECORDING. The live "Recording" chip
+ * and its dot, the Record live lecture icon and the recording bar's tile. The same red as an
+ * error, named for what it means here, so a screen says `recording` and never borrows `error`.
+ */
+export const RECORDING = { colour: BUTTON.destructive.background, background: STATUS.error.background } as const;
+
+/**
  * NEUTRAL GREY — everything else: row icons, subject icons, provider badges,
  * trophies, scores. `quiet` is for a secondary, muted tile.
  */
@@ -241,6 +248,8 @@ export const tailwindColors = {
     done: chip(STATUS.done), warning: chip(STATUS.warning), error: chip(STATUS.error), info: chip(STATUS.info),
     selected: { DEFAULT: SELECTION.text, bg: SELECTION.colour },
   },
+  // text-nu-record on bg-nu-record-bg; bg-nu-record for the live dot (RECORDING)
+  record: { DEFAULT: RECORDING.colour, bg: RECORDING.background },
   // bg-nu-progress on bg-nu-progress-track (PROGRESS)
   progress: { DEFAULT: PROGRESS.bar, track: PROGRESS.track },
   // text-nu-done on bg-nu-done-bg (DONE)
