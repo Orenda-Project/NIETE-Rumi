@@ -153,6 +153,17 @@ export function nextPart(modules: ModuleSummary[]): ModuleSummary | null {
   return [...modules].sort((a, b) => a.order_index - b.order_index).find((m) => !m.completed_at && m.lock !== 'locked') ?? null;
 }
 
+/**
+ * The part after this one: the next in order that is not done and not locked; failing that, the
+ * course's next part anywhere (nextPart). What "Continue" and "Up next" open after a part.
+ */
+export function partAfter(modules: ModuleSummary[], id: string): ModuleSummary | null {
+  const list = [...modules].sort((a, b) => a.order_index - b.order_index);
+  const at = list.findIndex((m) => m.id === id);
+  const later = list.slice(at + 1).find((m) => !m.completed_at && m.lock !== 'locked');
+  return later ?? list.find((m) => m.id !== id && !m.completed_at && m.lock !== 'locked') ?? null;
+}
+
 /* ── addresses ────────────────────────────────────────────────────────────── */
 
 /** /portal/training, or /portal/training/v2 when she came in on the review URL (bd-60160). */

@@ -63,11 +63,12 @@ describe("the route table", () => {
     for (const p of TRAINING_V2_PATHS) expect(served).toContain(p);
   });
 
-  it("adds My grades and the level exam page, under both bases", () => {
+  it("adds My grades, the level exam page and the quick check, under both bases", () => {
     const served = TRAINING_ROUTES.map((r) => r.path);
     for (const base of ["/portal/training", "/portal/training/v2"]) {
       expect(served).toContain(`${base}/grades`);
       expect(served).toContain(`${base}/provider/:vendorKey/level/:levelId/exam`);
+      expect(served).toContain(`${base}/unit/:moduleId/quiz`);
     }
   });
 });
@@ -81,6 +82,8 @@ describe("flag on, a teacher", () => {
     ["/portal/training/provider/TALEEMABAD", "newui-inner-bar"],
     ["/portal/training/provider/TALEEMABAD/level/2", "newui-inner-bar"],
     ["/portal/training/provider/TALEEMABAD/level/2/course/c-3", "newui-inner-bar"],
+    ["/portal/training/unit/m-4", "newui-inner-bar"],
+    ["/portal/training/unit/m-4/quiz", "newui-inner-bar"],
   ])("%s is a new screen", async (path, testId) => {
     renderAt(path);
     expect(await screen.findByTestId(testId)).toBeInTheDocument();
@@ -88,7 +91,6 @@ describe("flag on, a teacher", () => {
   });
 
   it.each([
-    "/portal/training/unit/m-4",
     "/portal/training/exam/c-9",
   ])("%s, not built yet, is the old page at the same address", async (path) => {
     renderAt(path);
@@ -115,6 +117,7 @@ describe("flag off", () => {
     ["/portal/training/grades", "/portal/training"],
     ["/portal/training/v2/grades", "/portal/training/v2"],
     ["/portal/training/provider/TALEEMABAD/level/2/exam", "/portal/training/provider/TALEEMABAD/level/2"],
+    ["/portal/training/unit/m-4/quiz", "/portal/training/unit/m-4"],
   ])("a new address, %s, goes to the old page it stands for (%s)", async (path, to) => {
     renderAt(path);
     await waitFor(() => expect(where()).toBe(to));

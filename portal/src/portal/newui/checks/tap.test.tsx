@@ -16,6 +16,7 @@ import { NumberGrid } from "../NumberGrid";
 import { ToggleList } from "../ToggleList";
 import { Sheet } from "../Sheet";
 import { Hero } from "../Hero";
+import { AnswerChoices } from "../Answers";
 
 /**
  * bd-5rz1v.19 — CHECK 2: every tap target is at least 56px (DESIGN.md rule 3, TAP_MIN_PX).
@@ -81,6 +82,9 @@ describe("every interactive kit component is at least 56px", () => {
         <ToggleList label="Grades" options={[{ key: "p", label: "Primary" }, { key: "m", label: "Middle" }]} value="p" onChange={() => {}} />
         <ToggleList mode="multi" compact label="Grades" options={[{ key: "p", label: "Primary" }]} value={[]} onChange={() => {}} />
         <Hero title="Ready" icon={Award} tone="done" />
+        {/* bd-5rz1v.25 — answering one question per screen. */}
+        <AnswerChoices label="Answers" options={["Shout louder", "Use the quiet signal"]} value={[1]} onChange={() => {}} />
+        <AnswerChoices mode="multi" label="Answers" options={["A raised hand", "A clap"]} value={[]} onChange={() => {}} />
         <BottomActions>
           <BottomButton>Open</BottomButton>
           <BottomButton tone="outline" to="/key">Answer key</BottomButton>

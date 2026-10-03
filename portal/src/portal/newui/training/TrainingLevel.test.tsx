@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, within, waitFor, fireEvent, configure } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { copyProblem, tapProblems } from "../checks/rules";
 import { GATE_INCOMPLETE, httpError, trainingGet } from "../../../test/trainingFixtures";
@@ -10,6 +10,9 @@ import { GATE_INCOMPLETE, httpError, trainingGet } from "../../../test/trainingF
  * The I-SAPS level certificate and Beacon House's written-quiz result stay, as rows.
  * No sentences.
  */
+
+// The first render of a file loads the whole page module; give it longer than 1s under a busy run.
+configure({ asyncUtilTimeout: 5000 });
 
 vi.mock("../../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("../../components/PortalLayout", () => ({
