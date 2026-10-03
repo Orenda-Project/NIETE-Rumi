@@ -43,6 +43,11 @@ const axios = require('axios');
 const { fetchAllPaged } = require('../lib/fetch-all-paged');
 // bd-5rz1v.10 — lesson plan PDFs, relayed through this origin for the portal's viewer.
 const { relayLessonPlanPdf } = require('../lib/lesson-plan-file');
+// bd-5rz1v.15 — every lesson plan she opens here is recorded (niete_lp_opens), fire-and-forget,
+// and read back as her recent plans; bd-5rz1v.17 — the Home's counts for a Pakistan-time range.
+const LpActivity = require('../services/lp-activity.service');
+const Progress = require('../services/progress.service');
+const { resolveRange, RangeInputError } = require('../lib/pk-range');
 // bd-2469 — the portal's single source of training decisions. Asks the bot;
 // holds no rules of its own. See dashboard/services/training-rules.service.js.
 const TrainingRules = require('../services/training-rules.service');
@@ -77,6 +82,8 @@ const { getOverall } = require('../services/coaching-frameworks.service');
 // Leader "patch" resolver (leader_teachers → Rumi users + activity) needs the
 // pg pool — the LATERAL-join SQL can't be expressed through supabase-js.
 const pool = require('../config/database');
+/** The pool as a plain (sql, params) function — what the activity and progress services take. */
+const dbQuery = (sql, params) => pool.query(sql, params);
 // TERMINAL is imported rather than respelled: two spellings of "finished" is
 // exactly how 629 observations went missing once.
 const { getPatchTeachers, TERMINAL } = require('../services/leader-patch.service');
@@ -1504,6 +1511,77 @@ router.get('/my-analytics', requirePortalAuth, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// MY PROGRESS — the new Home (bd-5rz1v.17, server half)
+// ───────────────────────────────────────────────────────────────────────────
+// Five activity counts for a date range — lesson plans used, training modules completed, Digital
+// Coaching + observations, assessments made, attendance marked — and the list behind each tile.
+// Activity, not ratings: a rating appears only inside the coaching list, as a band. Every rule is
+// in services/progress.service.js; the range (calendar periods in Pakistan time) in
+// lib/pk-range.js. The teacher is the SESSION's user — there is no id parameter to trust.
+
+/** A bad range is hers to fix (400); anything else is ours (500). */
+function rangeFrom(req, res) {
+  try {
+    return resolveRange(req.query);
+  } catch (error) {
+    if (error instanceof RangeInputError) {
+      res.status(400).json({ success: false, error: error.message });
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * GET /api/portal/progress?range=this_week|this_month|last_3_months|this_year|all|custom&from=&to=
+ * → { success, range: { key, from, to, timezone },
+ *     lessonPlans: { used, opened, received, days }, training: { completed },
+ *     coaching: { total, digitalCoach, observations }, assessments: { made },
+ *     attendance: { days, registers, unit: 'days' } }
+ * Default range: this_month.
+ */
+router.get('/progress', requirePortalAuth, async (req, res) => {
+  const range = rangeFrom(req, res);
+  if (!range) return undefined;
+  try {
+    const counts = await Progress.progressCounts(dbQuery, req.session.portalUserId, range);
+    return res.json({ success: true, range, ...counts });
+  } catch (error) {
+    console.error('❌ Portal progress failed', { error: error?.message });
+    return res.status(500).json({ success: false, error: 'Could not load your progress' });
+  }
+});
+
+/**
+ * GET /api/portal/progress/:metric?range=…&limit=
+ *   :metric = lesson-plans | coaching | training | assessments | attendance
+ * → { success, range, metric, total, truncated, items: [...] }
+ * The items behind one tile for the SAME range; `total` is the tile's own number. ?limit=
+ * defaults to 50, at most 200, newest first.
+ */
+router.get('/progress/:metric', requirePortalAuth, async (req, res) => {
+  const metric = String(req.params.metric || '');
+  if (!Progress.METRICS.includes(metric)) {
+    return res.status(404).json({ success: false, error: 'No such progress list' });
+  }
+  const range = rangeFrom(req, res);
+  if (!range) return undefined;
+  let out;
+  try {
+    out = await Progress.progressList(dbQuery, req.session.portalUserId, metric, range, {
+      limit: parseInt(req.query.limit, 10),
+      describe: LpCatalogue.describePlans,
+    });
+  } catch (error) {
+    // Lesson plans are named by the bot: unreachable is a 502 she can retry, never an empty list.
+    const status = metric === 'lesson-plans' ? 502 : 500;
+    console.error('❌ Portal progress list failed', { metric, error: error?.message });
+    return res.status(status).json({ success: false, error: 'Could not load this list' });
+  }
+  return res.json({ success: true, range, ...out });
+});
+
 /**
  * GET /api/portal/leader/observations
  * The coach's /observe world in one payload — upcoming scheduled observations
@@ -1836,6 +1914,11 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
     if (!hit) {
       return res.status(200).json({ success: true, available: false });
     }
+    // bd-5rz1v.15 — the link is minted to be opened in another app: that is an open.
+    // Not awaited: logging never delays or fails the open.
+    LpActivity.logOpen(dbQuery, {
+      userId: req.session.portalUserId, kind: 'k5', ref: lessonId, source: 'external',
+    });
     res.json({ success: true, available: true, ...hit });
   } catch (error) {
     console.error('❌ Portal curriculum/lp/pdf failed', { error: error?.message });
@@ -1870,7 +1953,15 @@ router.get('/curriculum/lp/:lesson_id/file', requirePortalAuth, async (req, res)
   if (!hit || !hit.url) {
     return res.status(404).json({ success: true, available: false });
   }
-  return relayLessonPlanPdf(hit.url, res);
+  await relayLessonPlanPdf(hit.url, res);
+  // bd-5rz1v.15 — recorded only once the PDF has gone out whole (a refused link, a storage error
+  // or a dropped connection is not an open). After the response, so it can never delay it.
+  if (res.statusCode === 200 && res.writableFinished) {
+    LpActivity.logOpen(dbQuery, {
+      userId: req.session.portalUserId, kind: 'k5', ref: lessonId, source: 'viewer',
+    });
+  }
+  return undefined;
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1897,6 +1988,9 @@ router.get('/curriculum/lp/:lesson_id/file', requirePortalAuth, async (req, res)
 // /curriculum/lps before that.
 
 const Lp612 = require('../services/lp612.service');
+
+/** ?open=1 — the client's mark that this status call IS an open (bd-5rz1v.15). */
+const isOpenHint = (v) => v === '1' || v === 'true';
 
 /** GET /api/portal/lp612/grades → { success, grades: [{ grade }] } */
 router.get('/lp612/grades', requirePortalAuth, async (req, res) => {
@@ -2007,6 +2101,14 @@ router.get('/lp612/status/:render_id', requirePortalAuth, async (req, res) => {
     if (out.notFound) {
       return res.status(404).json({ success: false, error: 'No such lesson request' });
     }
+    // bd-5rz1v.15 — this route is ALSO the poll that waits for a lesson to be written, so only a
+    // call the client marks as an open (?open=1, lib/lessonPlanOpen's "another app" path) on a
+    // READY lesson is recorded. The segment + language is the plan; a render id is not stable.
+    if (isOpenHint(req.query.open) && out.state === 'ready' && out.url) {
+      LpActivity.logOpen(dbQuery, {
+        userId: req.session.portalUserId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'external',
+      });
+    }
     res.json({ success: true, ...out });
   } catch (error) {
     console.error('❌ Portal lp612/status failed', { error: error?.message });
@@ -2040,7 +2142,14 @@ router.get('/lp612/file/:render_id', requirePortalAuth, async (req, res) => {
   if (out.state !== 'ready' || !out.url) {
     return res.status(409).json({ success: true, state: out.state || 'authoring' });
   }
-  return relayLessonPlanPdf(out.url, res);
+  await relayLessonPlanPdf(out.url, res);
+  // bd-5rz1v.15 — as for grades 1-5: recorded once the PDF went out whole, after the response.
+  if (res.statusCode === 200 && res.writableFinished) {
+    LpActivity.logOpen(dbQuery, {
+      userId: req.session.portalUserId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'viewer',
+    });
+  }
+  return undefined;
 });
 
 /**
@@ -2055,6 +2164,31 @@ router.get('/lp612/mine', requirePortalAuth, async (req, res) => {
   } catch (error) {
     console.error('❌ Portal lp612/mine failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not load your lesson plans' });
+  }
+});
+
+/**
+ * GET /api/portal/lesson-plans/recent?limit=10 → { success, plans: [...] }
+ *
+ * bd-5rz1v.15 — her lesson plans, most recently used first, across BOTH grade bands and BOTH ways
+ * a plan reaches her: opened here (niete_lp_opens) or received on WhatsApp. Feeds "Last opened"
+ * on the Lesson Plans page and "recent lesson plans" in Coaching. Each plan carries its stable
+ * key (k5:<lesson_id> | g612:<segment_id>), what it is (named by the bot), lastOpenedAt (portal),
+ * lastReceivedAt (WhatsApp), lastUsedAt, and `open` — what the portal needs to open it again,
+ * which is also what Coaching's lesson-plan pick takes ({lessonId} | {segmentId, lang}).
+ * The teacher is the session's; ?limit= defaults to 10, at most 50.
+ */
+router.get('/lesson-plans/recent', requirePortalAuth, async (req, res) => {
+  const asked = parseInt(req.query.limit, 10);
+  const limit = Number.isFinite(asked) && asked > 0 ? Math.min(asked, 50) : 10;
+  try {
+    const plans = await LpActivity.recentPlans(dbQuery, req.session.portalUserId, {
+      limit, describe: LpCatalogue.describePlans,
+    });
+    res.json({ success: true, plans });
+  } catch (error) {
+    console.error('❌ Portal lesson-plans/recent failed', { error: error?.message });
+    res.status(502).json({ success: false, error: 'Could not load your recent lesson plans' });
   }
 });
 

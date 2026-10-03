@@ -53,6 +53,20 @@ const LISTED_FOR_TEACHER_OR = [
 const VISIBLE_TO_TEACHER_SQL = `(observation_type IS NULL OR observation_type <> '${OBSERVATION_TYPE}' `
   + `OR analysis_data->'teacher_delivery'->>'status' IN (${SENT_TO_TEACHER.map((s) => `'${s}'`).join(', ')}))`;
 
+/**
+ * LISTED_FOR_TEACHER_OR as SQL, for the pool (bd-5rz1v.17 — the Home's coaching count and its
+ * list): her own lessons once completed, and every observation the coach sent her, whatever its
+ * status. Term for term the same three arms, built from the same constants, so the Home's number
+ * and her Coaching list cannot drift apart. `alias` qualifies the columns (e.g. 'c').
+ */
+function listedForTeacherSql(alias) {
+  const col = (name) => (alias ? `${alias}.${name}` : name);
+  const sent = SENT_TO_TEACHER.map((s) => `'${s}'`).join(', ');
+  return `((${col('observation_type')} IS NULL AND ${col('status')} = 'completed')`
+    + ` OR (${col('observation_type')} <> '${OBSERVATION_TYPE}' AND ${col('status')} = 'completed')`
+    + ` OR ${col('analysis_data')}->'teacher_delivery'->>'status' IN (${sent}))`;
+}
+
 /** PostgREST or=(): her own sessions only — what is in flight is never a coach's. */
 const NOT_AN_OBSERVATION_OR = ['observation_type.is.null', `observation_type.neq.${OBSERVATION_TYPE}`].join(',');
 
@@ -91,6 +105,7 @@ module.exports = {
   VISIBLE_TO_TEACHER_OR,
   LISTED_FOR_TEACHER_OR,
   VISIBLE_TO_TEACHER_SQL,
+  listedForTeacherSql,
   NOT_AN_OBSERVATION_OR,
   isObservation,
   teacherMaySee,
