@@ -93,7 +93,9 @@ export function Sheet({ open, title, onClose, children, closeLabel = KIT_COPY.cl
         <span data-testid="newui-sheet-handle" aria-hidden="true" className="h-1 w-10 shrink-0 self-center rounded bg-nu-surface-handle md:hidden" />
         <div className="-my-1 flex items-center justify-between gap-2 ps-1">
           <h2 id={titleId} className="min-w-0 truncate text-xl font-extrabold text-nu-surface-text rtl:font-bold rtl:leading-[2]">
-            {title}
+            {/* Its own direction (bd-5rz1v.26.4): an English title in an Urdu page keeps its "?" or
+                "…" at its end. The title still starts the row. */}
+            <bdi>{title}</bdi>
           </h2>
           <button
             type="button"
