@@ -25,8 +25,7 @@ import { closeAccountSheet, openAccountSheet, useAccountSheet } from './accountS
  *             band (DESIGN.md) is built; then the band carries it.
  *   desktop — an indigo top bar: Home / Lesson Plans / Assessment / Training /
  *             Coaching, then the avatar (the same sheet).
- *   Assessment is still a tab of /portal/curriculum, so its item opens
- *   ?tab=assessment until it becomes a page of its own.
+ *   Assessment is its own page, /portal/assessment (bd-5rz1v.13).
  *
  * LEADER ROLES keep their own items — the bar, the More sheet, the desktop
  * name + Logout — recoloured only.
@@ -159,9 +158,10 @@ const TEACHER_ITEMS: TeacherItem[] = [
     key: 'lessons', title: NAV_COPY.items.lessons, desktopTitle: NAV_COPY.items.lessonPlans, to: '/portal/curriculum', icon: BookOpen,
     match: (p, tab) => p === '/portal/curriculum' && tab !== 'assessment',
   },
+  // bd-5rz1v.13 — Assessment is its own page; an old link to the Curriculum tab still lights it.
   {
-    key: 'assessment', title: NAV_COPY.items.assessment, desktopTitle: NAV_COPY.items.assessment, to: '/portal/curriculum?tab=assessment', icon: ClipboardList,
-    match: (p, tab) => p === '/portal/curriculum' && tab === 'assessment',
+    key: 'assessment', title: NAV_COPY.items.assessment, desktopTitle: NAV_COPY.items.assessment, to: '/portal/assessment', icon: ClipboardList,
+    match: (p, tab) => under('/portal/assessment')(p) || (p === '/portal/curriculum' && tab === 'assessment'),
   },
   { key: 'training', title: NAV_COPY.items.training, desktopTitle: NAV_COPY.items.training, to: '/portal/training', icon: GraduationCap, match: under('/portal/training') },
   { key: 'coaching', title: NAV_COPY.items.coaching, desktopTitle: NAV_COPY.items.coaching, to: '/portal/coaching', icon: Mic, match: under('/portal/coaching') },

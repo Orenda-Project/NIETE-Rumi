@@ -132,7 +132,8 @@ describe("Home — five tiles, no rating", () => {
     expect(tile(/Lesson plans used/)).toHaveAttribute("href", "/portal/dashboard/lesson-plans");
     expect(tile(/Coaching & observations/)).toHaveAttribute("href", "/portal/dashboard/coaching");
     expect(tile(/Training modules done/)).toHaveAttribute("href", "/portal/training");
-    expect(tile(/Assessments made/)).toHaveAttribute("href", "/portal/curriculum?tab=assessment");
+    // bd-5rz1v.13 — Assessments made opens her list on the Assessment page.
+    expect(tile(/Assessments made/)).toHaveAttribute("href", "/portal/assessment/mine");
     expect(tile(/Attendance marked/)).toHaveAttribute("href", "/portal/classes");
   });
 

@@ -87,12 +87,14 @@ props, use only `nu-*` tokens and logical spacing, and keep every target at 56px
 | `SectionLabel`, `ProgressBar` | A heading over a list; a green bar | |
 | `Chip` | Information on a row or band | `tone`: `done`, `waiting`, `error`, `info` (default) or `selected`. `surface="band"` on indigo. Never tappable. |
 | `FilterChips` | One choice among a few filters | A radio group. The picked chip is indigo and the others are outlined. |
+| `ToggleChips` | Any number of choices among a few (question types) | Checkboxes that look like `FilterChips`. An on chip is indigo with a check. |
 | `BottomButton` | The action | `tone`: `primary` (default), `outline`, `warn` or `danger`. Also `disabled`, `icon` (`iconFlips` for ›), and `to` for a link. |
 | `BottomActions` | Holding the action(s) | Fixed above the menu bar on a phone, inline on a desktop; it reserves its own space. |
 | `MetricTile`, `MetricGrid` | Home's counts | `feature` (its icon in the feature's hue on a grey tile), `value` (`null` shows "—"), `label`, `to`/`onClick`, `wide` + `chips`. The grid is two columns on a phone, four on a desktop. |
 | `Sheet` | A choice that rises from the bottom | `open`, `title`, `onClose`. Android Back, Escape, the 56px close and a tap on the dim all close it. Focus stays inside. |
 | `DateRangeButton`, `DateRangeSheet` | Picking a period | This week, This month (default), Last 3 months, This year, All time, Pick dates. A preset applies at once. Pick dates opens From, To and Done. `range.ts` has `rangeQuery()` for the API. |
 | `NumberGrid` | Picking a number (Grade 1–12) | Four across, 58px tiles, the picked one indigo; `required` dashes a border. |
+| `Stepper` | A count, never typed ("− 15 +") | Two 56px squares and a 34px/800 number. `min`/`max` are the caller's (the server's); a button at its bound is disabled. |
 | `ToggleList` | Big options with a tick box | `mode="single"` (radio) or `"multi"` (checkbox). On = indigo. `compact` = 56px rows. |
 | `Hero` | A status screen | `ring` ({value 0–1, text}) or `icon` + `tone` (`done`, `waiting`, `neutral`), `spinning`, `chips`, `live`. |
 | `FeatureIcon`, `HeadingTile` | A feature's icon | The only place a feature colour is drawn. |
@@ -256,8 +258,8 @@ listed so a reviewer can check a screenshot against them.
 operator decided on 2026-10-03.
 
 - **Teacher, phone:** the indigo bottom bar has five items: **Home, Lessons, Assessment, Training,
-  Coaching**. There is no More. **Assessment** opens `/portal/curriculum?tab=assessment` until it becomes
-  a page of its own.
+  Coaching**. There is no More. **Assessment** opens `/portal/assessment` (bd-5rz1v.13); an old link to
+  the Curriculum page's `?tab=assessment` still lights it.
 - **Teacher, avatar:** her initials in a 40px circle inside a 56px target open the **account sheet**:
   My Classes, Analytics, Certificates and My account, then a red outline Logout. On a phone the avatar
   sits in a slim indigo strip at the top of pages that have no heading band yet. A page that draws its
@@ -288,6 +290,28 @@ My Patch, and flag off renders the old dashboard byte for byte (`PortalDashboard
   its language first). A session opens its page. The coaching list is the only place a rating shows,
   and only as a band word. The other three tiles go to their existing pages for now. Without the flag,
   these addresses go back to the dashboard.
+
+## Assessment (built, bd-5rz1v.13)
+
+`newui/assessment/`, routes in `lib/assessmentRoutes.ts`, picked by `pages/PortalAssessment.tsx`. With the
+flag off (or for a leader) every `/portal/assessment*` address goes to the Curriculum page's Assessment
+tab, which is unchanged. The endpoints are the old panels' (`/assessment/options`, `/chapters`,
+`/generate`, `/status/:id`, `/paper/:id/download`, `/papers`); the screens hold no assessment rule.
+
+- `/portal/assessment`: `MainHeading` with "n made" and "Last: 3 Oct"; `Row`s Class, Subject and Chapter,
+  each opening a `Sheet` (`NumberGrid`, `ToggleList`, chapter rows); the Questions `Stepper` inside the
+  server's maximum, starting on its default; a More row (`ToggleChips` for question types, `FilterChips`
+  for where questions come from, Answer lines); a My assessments row; the Make assessment button.
+  `features.assessmentGenerator` off: a Coming soon `Hero` and nothing else.
+- `/portal/assessment/request/:id`: an `InnerBar` page. Writing is a `Hero` ring with the time so far;
+  it asks for the status every 4s and stops after 5 minutes ("Still writing"). Ready is a tick, "15 Q",
+  "30 marks", then Download, Answer key and Make another. Not made shows the server's code as a short
+  red chip (`ASSESSMENT_COPY.failures`), then Try again and Change choices.
+- `/portal/assessment/mine`: `FilterChips` for the class, then its subjects; a row per paper (its subject's
+  icon in neutral grey, "Science · Ch 2", "15 Q", "3 Oct", a download icon); a tap offers Download and
+  Answer key in a sheet; a More row pages.
+- Files open the way certificates do (`openFile`): a new tab on the web; in the Android app no `_blank`,
+  so the WebView hands the file to Android and the portal stays on its page.
 
 ## Urdu and RTL
 
