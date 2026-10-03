@@ -138,7 +138,8 @@ have no icon colours yet. Their hues (orange `#d9530b`, teal `#0b8a7c`, amber `#
 
 - Padding 10px 6px 14px, plus `env(safe-area-inset-bottom)` at the bottom. The corners are **square**.
 - The items share the width (`flex-1`), with 4px between the icon and the label.
-- The icon is 23px; the label is 11.5px, weight 700.
+- The icon is 23px; the label is 11.5px, weight 700. On the five-item teacher bar the label is 10.5px and
+  the pill is 50px wide.
 - The active item's icon sits in a 56×32 pill (radius 16) on `rgba(255,255,255,.14)`. The icon is logo
   green and the label is white. Inactive labels are `#b9bccb`.
 - Its height is 80px plus the safe area. With the flag on, the layout pads the page by 96px and docks the
@@ -156,21 +157,34 @@ have no icon colours yet. Their hues (orange `#d9530b`, teal `#0b8a7c`, amber `#
 
 - It sits above the menu bar with 2px 14px 14px padding, and 10px between stacked buttons.
 
-## The menu bar (built)
+## The menu (built)
 
-`NewUiNavigation.tsx`, rendered by `PortalNavigation` while the flag is on.
+`NewUiNavigation.tsx`, rendered by `PortalNavigation` while the flag is on. This is the teacher menu the
+operator decided on 2026-10-03 (reference: the Home section of `versions/v6_deep-screens/deep-screens.html`).
 
-- **Phone:** the indigo bottom bar above: Home, Lessons, Training, Coaching and More. More opens the sheet
-  with the other places, My account and Logout. Each is a 56px row with a **neutral grey** icon tile, and
-  the current page's row is selected indigo. The sheet has its own 56px close button at the end of the
-  title row, and hides the shared 16px one.
-- **Desktop:** an indigo top bar with the NIETE mark, the same places, the active item on a translucent pill
-  with a green icon, then My account (her name) and Logout.
-- **Leader roles:** the same colours. Their items stay as they are.
-- **Assessment (planned).** Lesson Plans and Assessment are becoming two separate pages. Assessment will go
-  under More on a phone and get its own item in the desktop top bar. Today it is a tab inside
-  `/portal/curriculum` with no route of its own, so the menu cannot link to it yet. Add the entry in the same
-  change that gives Assessment its page. The phone bar stays Home, Lessons, Training, Coaching, More.
+- **Teacher, phone:** the indigo bottom bar has five items: **Home, Lessons, Assessment, Training, Coaching**.
+  There is no More. Five long labels make the bar *tight*: labels are 10.5px and the pill is 50px wide.
+  **Assessment** opens `/portal/curriculum?tab=assessment` (the page opens on its Assessment tab) until
+  Assessment becomes a page of its own. Lessons and Assessment are lit by that parameter. A tab switched
+  inside the page does not change the URL, so after that the menu still lights Lessons.
+- **Teacher, avatar:** what used to sit under More now sits behind an avatar, a 40px circle with her
+  initials inside a 56px target. On a phone it lives in a slim indigo strip at the top of the page, next to
+  the NIETE mark. When the page heading band (below) is built, the band carries the avatar and the strip
+  goes. On a desktop the avatar ends the top bar. It opens the **account sheet**, titled with her name:
+  My Classes, Analytics, Certificates and My account, each a 56px row with a neutral icon. Below them sits
+  a red outline Logout button. On a desktop the sheet is a card under the avatar.
+  - *Analytics* will move into Home. Until then the sheet links to the existing page, so nothing becomes
+    unreachable.
+  - *Language* is in the mockup but not built. There is no page to send it to, and a language picker is a
+    language change (`language-protocol`).
+- **Teacher, desktop:** an indigo top bar with the NIETE mark, then **Home, Lesson Plans, Assessment,
+  Training, Coaching**, then the avatar.
+- **Leader roles:** the same colours, with their own items unchanged: the bar (today just Training) plus
+  More, whose sheet holds the rest, My account and Logout. On desktop, their name links to My account,
+  followed by Logout.
+- The item you are on is white, with its icon logo green in a translucent pill. The current page's row in
+  a sheet is selected indigo. Every sheet has its own 56px close at the end of the title row, and the
+  shared 16px one is hidden.
 
 ## Page headings (decided, not built yet)
 
