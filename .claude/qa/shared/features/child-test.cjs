@@ -438,16 +438,32 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT63', ...B('client-side Flow validation only runs in a real WhatsApp client (Chrome lane); the endpoint half is jest-proven'));
     // L26 (bd-s1oo0.46.2): v2 is proven by tests/child-test/L26 (journey-v2 + integration-l3-v2). The v1
     // scenarios above are driven with CHILD_TEST_BATTERY=v1 on the stack; a v2 drive is not written yet.
-    for (const id of ['CT80', 'CT81', 'CT82', 'CT83', 'CT84', 'CT85', 'CT86', 'CT87', 'CT88']) {
-      record(id, ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
-    }
+    record('CT80', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
+    record('CT81', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
+    record('CT82', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
+    record('CT83', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
+    record('CT84', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
+    record('CT85', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
+    record('CT86', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
+    record('CT87', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
+    record('CT88', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
     // L28 (bd-s1oo0.46.4): proven by tests/child-test/L28 (review.test.js). The drive needs L26's end-of-visit
     // call to sendReview and the review Flow PUBLISHED on sandbox (CHILD_TEST_REVIEW_FLOW_ID); its submit is an nfm_reply.
-    for (const id of ['CT90', 'CT91', 'CT92', 'CT93', 'CT94']) record(id, ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
-    // L25 (bd-s1oo0.46.1): proven by tests/child-test/L25 (draw-v2, list-identity, no-roll). The drive needs a SIM
+    record('CT90', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
+    record('CT91', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
+    record('CT92', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
+    record('CT93', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
+    record('CT94', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
+// L25 (bd-s1oo0.46.1): proven by tests/child-test/L25 (draw-v2, list-identity, no-roll). The drive needs a SIM
     // roster with two sections, two class teachers, an evening class and a namesake pair.
-    for (const id of ['CT70', 'CT71', 'CT72', 'CT73', 'CT74', 'CT75', 'CT76']) record(id, ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
-  } finally {
+    record('CT70', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
+    record('CT71', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
+    record('CT72', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
+    record('CT73', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
+    record('CT74', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
+    record('CT75', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
+    record('CT76', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
+} finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}
     blockRest('not reached: an earlier step stopped the run');
