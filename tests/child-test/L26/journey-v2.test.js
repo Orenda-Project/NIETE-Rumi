@@ -223,6 +223,15 @@ describe('2. before the first child', () => {
     expect(last().body).toMatch(/Child 1 of 5 · Ayesha Khan/);
   });
 
+  test('by default the picture L29 committed is sent (bot/shared/data/child-test/setup-picture-<lang>.png)', async () => {
+    delete process.env.CHILD_TEST_SETUP_PICTURE_DIR;
+    const file = path.join(__dirname, '../../../bot/shared/data/child-test/setup-picture-ur.png');
+    await openList(COACH_UR);
+    await H.handleButton(COACH_UR, PHONE, 'ctst_start');
+    expect(last().kind).toBe('imageButtons');
+    expect(last().bytes).toBe(fs.statSync(file).size);
+  });
+
   test('no picture committed yet: the caption goes as text with the same button, logged at warn', async () => {
     fs.rmSync(path.join(tmpDir, 'setup-picture-ur.png'));
     await openList(COACH_UR);
