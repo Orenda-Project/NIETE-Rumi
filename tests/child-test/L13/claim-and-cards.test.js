@@ -120,7 +120,7 @@ describe('claim before store (bd-s1oo0.14)', () => {
     // Each ack names its own block; the maths branch (photo ask) ran exactly once.
     const acks = sent().filter((m) => m.kind === 'text' && /^🎧 Got it/.test(m.text)).map((m) => m.text).sort();
     expect(acks).toEqual(['🎧 Got it · English', '🎧 Got it · Maths', '🎧 Got it · Urdu']);
-    expect(sent().filter((m) => m.kind === 'buttons' && /Roll 1's strip: send its photo/.test(m.body))).toHaveLength(1);
+    expect(sent().filter((m) => m.kind === 'buttons' && /Child 3A-01 · roll 1's strip \(Child no\. 1\): send its photo/.test(m.body))).toHaveLength(1);
     const state = JSON.parse(mockRedis.__data.get('ctst:state:coach-1'));
     expect(state.step).toBe('list');
     expect(state.pendingPhotos.map((p) => p.sessionId)).toEqual(['sess-1']);
@@ -153,7 +153,7 @@ describe('claim before store (bd-s1oo0.14)', () => {
     await H.__drain();
     expect(audioAttaches()).toHaveLength(3);
     expect(mockR2.uploadBuffer).toHaveBeenCalledTimes(3);
-    expect(sent().filter((m) => m.kind === 'text' && /Roll 1's three voice notes are already in/.test(m.text))).toHaveLength(1);
+    expect(sent().filter((m) => m.kind === 'text' && /All three voice notes for Child 3A-01 · roll 1 are already in/.test(m.text))).toHaveLength(1);
   });
 
   test('an English upload failure releases the claim, tells the coach, and the next note lands as English', async () => {
@@ -177,7 +177,7 @@ describe('claim before store (bd-s1oo0.14)', () => {
     await H.__drain();
     expect(audioAttaches().filter((a) => a.block === 'english')).toHaveLength(1);
     expect(lanes.blocks['sess-1:english'].audio_r2_key).toMatch(/english\.ogg$/);
-    expect(sent().filter((m) => m.kind === 'buttons' && /Roll 1's strip: send its photo/.test(m.body))).toHaveLength(1);
+    expect(sent().filter((m) => m.kind === 'buttons' && /Child 3A-01 · roll 1's strip \(Child no\. 1\): send its photo/.test(m.body))).toHaveLength(1);
   });
 
   test('resume after a restart: the first block with no audio is where both the prompt and the next note go', async () => {
@@ -283,6 +283,6 @@ describe('printed card by default (bd-s1oo0.15)', () => {
       expect(s).not.toMatch(/childTest/);
       expect([...s].length).toBeLessThanOrEqual(20);
     }
-    for (const lang of ['en', 'ur']) expect(getString('childTestVoiceAllIn', lang, { roll: '12' })).toMatch(/12|۱۲/);
+    for (const lang of ['en', 'ur']) expect(getString('childTestVoiceAllIn', lang, { child: 'Child 3A-12 · roll 12' })).toMatch(/Child 3A-12/);
   });
 });

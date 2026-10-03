@@ -16,8 +16,11 @@ describe('story: attempted is capped by what the child actually said', () => {
 
 describe('windows: reconcile after the labeller fills gaps', () => {
   test('a timed window ends where the next section starts; an untimed one runs to the next section or the end', () => {
+    const c = reconcileWindows('english', { story: { start: 1, end: 34.5 }, nonwords: { start: 27, end: 35 } }, 40);
+    expect(c.story.end).toBe(27);
+    // a section only the labeller placed does not end the story minute (L24, CR-3)
     const w = reconcileWindows('english', { story: { start: 1, end: 34.5 }, nonwords: { start: 27, end: 35, source: 'labeller' } }, 40);
-    expect(w.story.end).toBe(27);
+    expect(w.story.end).toBe(34.5);
     expect(w.nonwords.end).toBe(40);
     const u = reconcileWindows('urdu', { story: { start: 1, end: 61 }, questions: { start: 67, end: 92, source: 'labeller' } }, 96);
     expect(u.questions.end).toBe(96);

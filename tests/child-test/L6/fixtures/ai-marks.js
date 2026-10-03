@@ -16,7 +16,7 @@ const urduConfident = () => ({
   fallback: null,
   questions: [
     { id: 'u3A-q1', verdict: 'correct', heard: 'والد کے ساتھ', confidence: 0.9 },
-    { id: 'u3A-q2', verdict: 'wrong', heard: 'پتھر', confidence: 0.8 },
+    { id: 'u3A-q2', verdict: 'wrong', heard: 'پتھر', confidence: 0.9 },
     { id: 'u3A-q3', verdict: 'none', heard: '', confidence: 0.4 },
   ],
   first_sounds: [

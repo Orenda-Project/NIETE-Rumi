@@ -155,7 +155,7 @@ async function runMaths({ spec, cue, grade, form, row, audioFile, durationSec, c
   const [, strip] = await Promise.all([spoken, written]);
   if (strip) {
     parts.maths.written = strip.part.written; ok.written = true;
-    parts.photo = { form_code: strip.formCode, form_code_ok: strip.formCodeOk, expected_code: strip.expectedCode };
+    parts.photo = { form_code: strip.formCode, form_code_ok: strip.formCodeOk, expected_code: strip.expectedCode, child_no: strip.childNo, child_no_confidence: strip.childNoConfidence };
   }
   // The word problem is answered on the strip; the spoken answer is the fallback.
   const photoWp = strip && strip.part.word_problem;

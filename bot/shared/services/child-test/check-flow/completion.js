@@ -25,8 +25,9 @@ async function handleCheckCompletion(responseJson = {}, from, user) {
     return { ok: false };
   }
   // The webhook's user row is the freshest read of the coach's language.
+  const lang = user.preferred_language || ctx.lang;
   const S = user.preferred_language ? checkStrings(user.preferred_language) : ctx.S;
-  const who = whoOf(S, ctx.roll);
+  const who = whoOf(ctx, lang);
   // Checked = every block's coach marks are stored (checked_at), whatever the session's status says.
   const checked = ['urdu', 'english', 'maths'].every((b) => ctx.blocks[b] && ctx.blocks[b].checked_at);
   if (!checked) logError('[child_test] check completed but not every block is saved', { sessionId: t.sessionId });

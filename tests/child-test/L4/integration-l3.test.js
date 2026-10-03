@@ -24,6 +24,10 @@ jest.mock('../../../bot/shared/services/whatsapp.service', () => mockWa);
 jest.mock('../../../bot/shared/storage/r2', () => ({ uploadBuffer: jest.fn(async (b, key) => `https://r2.example/${key}`) }));
 jest.mock('../../../bot/shared/config/supabase', () => ({ from: (...a) => mockDb.from(...a) }));
 jest.mock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
+// L20: the strip's child-number read goes to OpenRouter (network boundary): it reads no number here,
+// so strip photos fall back to list order, as these scenarios expect.
+process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
+jest.mock('openai', () => jest.fn().mockImplementation(() => ({ chat: { completions: { create: async () => ({ choices: [{ message: { content: '{"child_no":null,"confidence":0}' } }], usage: { cost: 0 } }) } } })));
 
 const maybe = HAVE_L3 ? describe : describe.skip;
 

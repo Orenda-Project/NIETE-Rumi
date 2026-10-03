@@ -102,6 +102,8 @@ function sandboxTransport(cfg) {
     },
     submitFlow: (flowId, response) => webhook(sim.flowReply(flowId, response, { from: driver })),
     poll: (after) => replies.poll(after),
+    // what the reader saw but did not deliver as replies (the bot's reactions, by outcome)
+    signals: () => (typeof replies.signals === 'function' ? replies.signals() : null),
     reset: async () => ({ ok: true }),
   };
 }

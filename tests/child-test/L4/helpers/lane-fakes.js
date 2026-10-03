@@ -12,11 +12,11 @@
 function makeChildren(n, start = 1, role = 'new') {
   return Array.from({ length: n }, (_, i) => ({
     drawId: `d${start + i}`, studentId: `s${start + i}`, rollNumber: String(start + i), classId: 'class-3a', section: 'A',
-    displayName: `Child 3A-${String(start + i).padStart(2, '0')}`, role, form: role === 'returning' ? 'B' : 'A', status: 'listed', attempts: 0,
+    displayName: `Child 3A-${String(start + i).padStart(2, '0')}`, childNo: start + i, role, form: role === 'returning' ? 'B' : 'A', status: 'listed', attempts: 0,
   }));
 }
 
-function createLaneFakes({ noClassList = false } = {}) {
+function createLaneFakes({ noClassList = false, shapeList = null } = {}) {
   const calls = [];
   const lists = {};          // visitId → list
   const sessions = {};       // id → session
@@ -26,8 +26,10 @@ function createLaneFakes({ noClassList = false } = {}) {
 
   const freshList = () => {
     const children = [...makeChildren(4, 1), ...makeChildren(1, 5, 'returning')];
-    return { ok: true, cycleId: 'ICT-2026-Q4', grade: 3, classId: 'class-3a', classIds: ['class-3a'], gradeFallback: false,
+    const list = { ok: true, cycleId: 'ICT-2026-Q4', grade: 3, classId: 'class-3a', classIds: ['class-3a'], gradeFallback: false,
       children, alternates: makeChildren(2, 6), reused: false };
+    // bd-s1oo0.37 (L19): a test may reshape the roster's children (names, rolls) before the list is kept.
+    return shapeList ? shapeList(list) : list;
   };
   const clone = (x) => JSON.parse(JSON.stringify(x));
   let tick = 0;

@@ -57,6 +57,7 @@ async function runVisit(opts) {
   const absentRolls = new Set(opts.absentRolls || []);
   const checksMode = opts.checks || 'batch';
   const realtime = !!opts.realtime;                   // hold each voice note's own length before sending it
+  const noteSeconds = opts.audioSeconds || audioSeconds;
   const sleep = opts.sleep || sleepMs;
   const inbox = []; const pendingChecks = []; let cursor = 0;
   const names = new Set();
@@ -178,20 +179,28 @@ async function runVisit(opts) {
         await transport.tapButton(b.id, b.title);
         const presentAt = Date.now();
         tl.log({ dir: 'out', kind: 'button', step: 'present', child: fx.id, roll });
-        if (l4) await ready('urdu prompt', match.l4Prompt, presentAt, { child: fx.id, block: 'urdu' });
-        else await waitFor('urdu prompt', match.ack, { child: fx.id });
+        // the bot's send time of the prompt the next note answers: the child starts speaking when the
+        // phone shows it, not when Axiom shows it to the driver (median 4 s later; bd-s1oo0.30)
+        let promptSentMs = null;
+        const promptSent = (it) => { promptSentMs = it && typeof it.sent_ms === 'number' ? it.sent_ms : null; };
+        if (l4) promptSent(await ready('urdu prompt', match.l4Prompt, presentAt, { child: fx.id, block: 'urdu' }));
+        else promptSent(await waitFor('urdu prompt', match.ack, { child: fx.id }));
         byRoll[roll] = fx.id;
         const NEXT = { urdu: 'english', english: 'maths', maths: 'photo' };
         for (const block of ['urdu', 'english', 'maths']) {
           const file = path.join(fx.dir, `${block}.ogg`);
           if (!fs.existsSync(file)) throw new Error(`fixture ${fx.id} has no ${block}.ogg`);
-          if (realtime) await sleep(audioSeconds(file) * 1000);
+          if (realtime) {
+            const fullMs = noteSeconds(file) * 1000;
+            const already = promptSentMs === null ? 0 : Math.max(0, Date.now() - promptSentMs);
+            await sleep(Math.max(0, fullMs - already));
+          }
           const sentAt = Date.now();
           await transport.sendMedia('audio', file);
           tl.log({ dir: 'out', kind: 'audio', step: 'block', child: fx.id, block, bytes: fs.statSync(file).size });
-          if (!l4) { await waitFor(`${block} ack`, match.ack, { child: fx.id }); continue; }
+          if (!l4) { promptSent(await waitFor(`${block} ack`, match.ack, { child: fx.id })); continue; }
           await waitFor(`${block} ack`, match.l4Text, { child: fx.id });
-          await ready(`${NEXT[block]} ready`, block === 'maths' ? match.l4PhotoAsk : match.l4Prompt, sentAt, { child: fx.id, block: NEXT[block] });
+          promptSent(await ready(`${NEXT[block]} ready`, block === 'maths' ? match.l4PhotoAsk : match.l4Prompt, sentAt, { child: fx.id, block: NEXT[block] }));
         }
         if (fx.strip) {
           await transport.sendMedia('image', fx.strip);

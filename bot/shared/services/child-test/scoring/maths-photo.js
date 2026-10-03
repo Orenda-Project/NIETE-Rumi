@@ -16,6 +16,7 @@ const prompts = require('./prompts');
 const { modelFor } = require('./models');
 const { chatJSON } = require('./llm');
 const { asciiDigits } = require('./number-grammar');
+const { toChildNo } = require('./child-no');
 
 const WRONG_STRIP_CONFIDENCE = 0.2;
 
@@ -66,7 +67,10 @@ async function scoreStrip({ spec, grade, form, image, mime = 'image/jpeg', calls
     const j = judge(wp.id, wp.answer);
     part.word_problem = { verdict: j.verdict === 'correct' ? 'correct' : (j.verdict === 'wrong' ? 'wrong' : 'none'), read_answer: j.read_answer, confidence: j.confidence, photo_verdict: j.verdict };
   }
-  return { ok: true, part, formCode: r.json.form_code || null, formCodeOk, expectedCode: code, modelVersion: model, raw: items };
+  // L20: the number the coach wrote in the strip's box — a cross-check on which child it was attached to.
+  const childNo = toChildNo(r.json.child_no);
+  const childNoConfidence = childNo === null ? 0 : Math.max(0, Math.min(1, Number(r.json.child_no_confidence) || 0));
+  return { ok: true, part, formCode: r.json.form_code || null, formCodeOk, expectedCode: code, childNo, childNoConfidence, modelVersion: model, raw: items };
 }
 
 module.exports = { scoreStrip, expectedCode };

@@ -254,6 +254,19 @@ async function claimInOrder(candidates, cursor, need, slot, visitId, at, extra) 
   return { ok: true, rows: got };
 }
 
+// ── The child number (L20, CONTRACT §18) ───────────────────────────────────────────────────────
+// Each child on a visit's list has a number the coach writes on the maths strip: its place in the
+// list as first sent (main 1–5, then the alternates). It is read off the rows, not stored: this
+// visit's first "listed" entry gives when the child joined and in which slot; children who joined
+// together are in list order. A later change (absence, promotion, top-up) never moves a number.
+function childNumbers(rows, visitId, order) {
+  const joined = (d) => (d.history || []).find((h) => h.event === 'listed' && visitOfEntry(h) === visitId) || {};
+  const slotRank = (d) => ((joined(d).slot || d.list_slot) === 'main' ? 0 : 1);
+  const sorted = [...rows].sort((a, b) => String(joined(a).at || '').localeCompare(String(joined(b).at || ''))
+    || slotRank(a) - slotRank(b) || order(a, b));
+  return new Map(sorted.map((d, i) => [d.id, i + 1]));
+}
+
 // ── The list as the coach sees it ──────────────────────────────────────────────────────────────
 
 async function listFor(visitId, extra = {}) {
@@ -279,10 +292,14 @@ async function listFor(visitId, extra = {}) {
       section: sectionOf.get(d.class_id) || null,
       displayName: s.student_name || null,
       displayNameUrdu: s.student_name_urdu || null,
+      // Only to tell two same-name, roll-less children apart on the list (CONTRACT §18); may be absent.
+      fatherName: s.father_name || null,
+      fatherNameUrdu: s.father_name_urdu || null,
       role: d.sample_role,
       form: d.form,
       status: d.status,
       attempts: d.attempts,
+      childNo: childNos.get(d.id) || null,
     };
   };
   const order = (a, b) => (a.sample_role === b.sample_role ? 0 : a.sample_role === 'new' ? -1 : 1)
@@ -290,6 +307,7 @@ async function listFor(visitId, extra = {}) {
     || a.draw_rank - b.draw_rank;
   const main = rows.filter((d) => d.list_slot === 'main').sort(order);
   const alts = rows.filter((d) => d.list_slot === 'alternate' && d.status === 'listed').sort(order);
+  const childNos = childNumbers(rows, visitId, order);
   const listedHere = rows.flatMap((d) => (d.history || []).filter((h) => h.event === 'listed' && visitOfEntry(h) === visitId));
   const children = main.map(item);
   return {

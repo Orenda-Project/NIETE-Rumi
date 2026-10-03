@@ -445,7 +445,7 @@ describe('the check', () => {
     story: { words_correct: 41, words_attempted: 45, seconds: 60, finished_early: false, confidence: 0.9,
       flagged: [{ idx: 3, word: 'w3', verdict: 'wrong', confidence: 0.8 }, { idx: 9, word: 'w9', verdict: 'skipped', confidence: 0.3 }] },
     fallback: null,
-    questions: [{ id: 'u3A-q1', verdict: 'correct', heard: 'x', confidence: 0.85 }, { id: 'u3A-q2', verdict: 'wrong', heard: 'y', confidence: 0.4 }],
+    questions: [{ id: 'u3A-q1', verdict: 'correct', heard: 'x', confidence: 0.95 }, { id: 'u3A-q2', verdict: 'wrong', heard: 'y', confidence: 0.4 }],
     first_sounds: [{ id: 'u3A-fs1', verdict: 'correct', heard: 'm', confidence: 0.9, hint_only: true }],
     nonwords: [{ id: 'u3A-nw1', verdict: 'wrong', heard: 'z', confidence: 0.6 }],
   };

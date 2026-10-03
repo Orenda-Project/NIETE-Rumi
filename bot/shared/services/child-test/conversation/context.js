@@ -84,9 +84,42 @@ async function isClassTeacherOf(teacherUserId, classIds) {
   return (data || []).some((r) => r.is_active !== false && classIds.includes(r.class_id));
 }
 
-/** The teacher's phone and language, for the one message the coach asks Rumi to send. */
+/**
+ * The class teachers of the drawn classes who can be sent today's order (bd-s1oo0.28) — the offer's
+ * source when /egra runs without an observation (no observed teacher). Per class: the active teachers
+ * with a WhatsApp number (users row not deleted), the flagged class teacher (is_class_teacher) first,
+ * else every one of them. NIETE roster 3 Oct, 975 Grade 3/5 classes: 961 have exactly one, 14 none.
+ * Never throws; a failed read is logged and that class gives nobody.
+ * @returns {Promise<Array<{userId: string, name: string|null, classId: string}>>} one per teacher, in class order
+ */
+async function classTeachersOf(classIds) {
+  const out = [];
+  const seen = new Set();
+  for (const classId of [...new Set((classIds || []).filter(Boolean))]) {
+    const { data, error } = await supabase.from('class_teachers').select('teacher_user_id, is_class_teacher, is_active, ended_on')
+      .eq('class_id', classId).eq('is_active', true);
+    if (error) { logError('child_test.context_class_teachers_failed', { classId, error: error.message }); continue; }
+    const reachable = [];
+    for (const r of data || []) {
+      if (!r.teacher_user_id || r.is_active === false || r.ended_on) continue;
+      const { data: u, error: uErr } = await supabase.from('users').select('id, name, phone_number, deleted_at')
+        .eq('id', r.teacher_user_id).maybeSingle();
+      if (uErr) { logError('child_test.context_teacher_failed', { teacherUserId: r.teacher_user_id, error: uErr.message }); continue; }
+      if (u && u.phone_number && !u.deleted_at) reachable.push({ row: r, user: u });
+    }
+    const flagged = reachable.filter((x) => x.row.is_class_teacher === true);
+    for (const x of (flagged.length ? flagged : reachable)) {
+      if (seen.has(x.user.id)) continue;
+      seen.add(x.user.id);
+      out.push({ userId: x.user.id, name: x.user.name ? String(x.user.name).replace(/\s+/g, ' ').trim() || null : null, classId });
+    }
+  }
+  return out;
+}
+
+/** The teacher's phone, language and name, for the one message the coach asks Rumi to send. */
 async function teacherContact(teacherUserId) {
-  const { data, error } = await supabase.from('users').select('id, phone_number, preferred_language')
+  const { data, error } = await supabase.from('users').select('id, name, phone_number, preferred_language')
     .eq('id', teacherUserId).maybeSingle();
   if (error) { logError('child_test.context_teacher_failed', { teacherUserId, error: error.message }); return null; }
   return data && data.phone_number ? data : null;
@@ -121,4 +154,4 @@ async function fromSchool({ coachUserId, schoolId }) {
   return { ok: true, ctx: { visitId: null, schoolId, observedGrade: null, observedClassId: null } };
 }
 
-module.exports = { fromVisit, fromCoachingSession, fromSchool, todaysVisitId, coachSchools, observedClass, startOfTodayPkt, isClassTeacherOf, teacherContact };
+module.exports = { fromVisit, fromCoachingSession, fromSchool, todaysVisitId, coachSchools, observedClass, startOfTodayPkt, isClassTeacherOf, classTeachersOf, teacherContact };

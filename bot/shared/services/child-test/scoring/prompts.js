@@ -87,8 +87,15 @@ ${transcript}`;
 const STRIP = ({ written, wordProblem, expectedCode }) => `This is a photo of a printed maths answer strip that a grade 3-5 child in Pakistan has written on. Read exactly what the child WROTE as the answer to each item; do not solve the sums yourself. Items printed on the strip:
 ${written.map((w, i) => `${i + 1}. [${w.id}] ${w.prompt} = ?`).join('\n')}
 ${wordProblem ? `${written.length + 1}. [${wordProblem.id}] word problem: ${wordProblem.prompt_en}` : ''}
-Also read the small form code printed in a corner of the strip (expected "${expectedCode}").
+Also read the small form code printed in a corner of the strip (expected "${expectedCode}"), and the number an adult wrote in the two boxes labelled "بچہ نمبر / Child no." near the top (one or two digits; a crossed-out digit does not count; "03" is 3; null if empty or unclear).
 For each item return what the child wrote as digits ("" if blank), a status: "written" | "blank" | "unreadable" (crossed out with no clear final answer, illegible, or covered), and your confidence (0-1) that you read it right. Return ONLY JSON:
-{"form_code":"<as printed or null>","items":[{"id":"<id>","read":"<digits>","status":"written|blank|unreadable","confidence":<0-1>}]}`;
+{"form_code":"<as printed or null>","child_no":<integer or null>,"child_no_confidence":<0-1>,"items":[{"id":"<id>","read":"<digits>","status":"written|blank|unreadable","confidence":<0-1>}]}`;
 
-module.exports = { STORY, STORY_SCHEMA, COMPREHENSION, PHONICS, FALLBACK, LABELLER, WORD_PROBLEM, STRIP, LANG_NAME };
+// L20 (bd-s1oo0.38): the quick read at receipt — the box only, nothing else on the page, no names.
+const CHILD_NO = () => `This is a photo of a printed maths worksheet. Near the top of the page is a printed label "بچہ نمبر / Child no." followed by two empty boxes, where an adult has handwritten a number of one or two digits.
+Read ONLY the number handwritten in those two boxes. Ignore every other number on the page (the sums, the answers, the code like "G3-A" in the corner).
+A digit that is crossed out does not count. A leading zero is ignored ("03" is 3). One digit may sit in either box or across both.
+If the boxes are empty, or you cannot tell the digits apart, return null.
+Return ONLY JSON: {"child_no": <integer or null>, "confidence": <0-1, how sure you are of the digits>}`;
+
+module.exports = { CHILD_NO, STORY, STORY_SCHEMA, COMPREHENSION, PHONICS, FALLBACK, LABELLER, WORD_PROBLEM, STRIP, LANG_NAME };
