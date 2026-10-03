@@ -6,7 +6,8 @@ import { tapHeightOk, tapProblems, tapWidthOk } from "./rules";
 import { MainHeading } from "../MainHeading";
 import { InnerBar } from "../InnerBar";
 import { List, Row } from "../List";
-import { Chip, FilterChips } from "../Chip";
+import { Chip, FilterChips, ToggleChips } from "../Chip";
+import { Stepper } from "../Stepper";
 import { BottomActions, BottomButton } from "../BottomButton";
 import { MetricGrid, MetricTile } from "../MetricTile";
 import { DateRangeButton, DateRangeSheet } from "../DateRange";
@@ -68,6 +69,9 @@ describe("every interactive kit component is at least 56px", () => {
           <Row title="Science · Ch 2" end={Download} onClick={() => {}} />
         </List>
         <FilterChips label="Show" options={[{ key: "a", label: "All 3" }, { key: "b", label: "Coach" }]} value="a" onChange={() => {}} />
+        {/* bd-5rz1v.13 — the Assessment page's pieces. */}
+        <ToggleChips label="Question types" options={[{ key: "m", label: "MCQ" }, { key: "f", label: "Fill in" }]} value={["m"]} onChange={() => {}} />
+        <Stepper label="Questions" value={15} min={1} max={25} onChange={() => {}} />
         <MetricGrid label="This month">
           <MetricTile feature="lessonPlans" value={14} label="Lesson plans used" to="/lp" />
           <MetricTile feature="assessment" value={4} label="Assessments made" onClick={() => {}} />
