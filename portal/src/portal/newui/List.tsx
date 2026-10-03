@@ -15,7 +15,7 @@ import { FOCUS, PRESS } from './styles';
  *   - a row with neither only informs: no chevron, no press colour, not focusable.
  *
  * Row: 60px minimum, 10px 12px padding, 12px gaps; a 42px icon tile (neutral grey; `done` is the
- * green check tile, `quiet` the muted one); a 15.5px bold title; chips; an optional progress bar;
+ * green check tile, `quiet` the muted one, `recording` the recording red); a 15.5px bold title; chips; an optional progress bar;
  * a value in dark 15px/800; the chevron in #a0a4b4, turned round in RTL.
  * States: `off` (dimmed to 55%, not tappable) and `selected` (indigo tint).
  */
@@ -31,12 +31,14 @@ export function List({ children, label, className }: { children: ReactNode; labe
   );
 }
 
-export type RowTile = 'neutral' | 'quiet' | 'done';
+export type RowTile = 'neutral' | 'quiet' | 'done' | 'recording';
 
 const TILE: Record<RowTile, string> = {
   neutral: 'bg-nu-neutral-tile text-nu-neutral-icon',
   quiet: 'bg-nu-neutral-quiet text-nu-neutral-quiet-icon',
   done: 'bg-nu-done-bg text-nu-done',
+  /** bd-5rz1v.26 — Record live lecture, and the lesson being recorded: the recording red. */
+  recording: 'bg-nu-record-bg text-nu-record',
 };
 
 export interface RowProps {

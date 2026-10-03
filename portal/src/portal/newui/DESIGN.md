@@ -43,7 +43,7 @@ From the operator, 2026-10-03, after "still too much colour".
 | **Indigo** `#333748` | The frame: a main page's flat heading band and the menu bar. Anything **selected**: a picked number, a quiz answer, a toggle that is on, a picked filter chip, the current row. | `FRAME`, `SELECTION` |
 | **Green** `#2e7d57` (edge `#1e5c3f`) | **Every** primary button, every progress bar, and "done" (check tiles; Done, Sent and Ready chips). | `BUTTON.primary`, `PROGRESS`, `DONE`, `STATUS.done` |
 | **Amber** | Waiting or warning ("~2 min", "Writing", "24h wait"). | `STATUS.warning`, `BUTTON.warning` |
-| **Red** | Errors and destructive actions. | `STATUS.error`, `BUTTON.destructive` |
+| **Red** | Errors and destructive actions. **One exception: recording** (bd-5rz1v.26). A lesson being recorded is red: the "Recording" chip and its dot, the Record live lecture icon and the recording bar's tile. It is the same red, named `RECORDING`, so a screen says `recording` and never borrows `error` for it. | `STATUS.error`, `BUTTON.destructive`, `RECORDING` |
 | **Feature colour** | **Only** the feature's own icon: the heading tile on its band (light tint), its tiles on Home and the start of a breadcrumb (its hue). Drawn by `FeatureIcon` and nothing else. | `FEATURE_ICON` |
 | **Neutral grey** | **Everything else:** row icons, subject icons, badges, trophies, scores and values. | `NEUTRAL`, `STATUS.info` |
 
@@ -83,12 +83,12 @@ props, use only `nu-*` tokens and logical spacing, and keep every target at 56px
 |---|---|---|
 | `MainHeading` | A feature's main page | `feature`, `title`, `right` (the avatar on Home), `context` (chips, the date range). Flat indigo band, 44px tile, 24px/800 title. Home shows the NIETE mark. |
 | `InnerBar` | A page inside a flow | `feature`, `crumb` ("Training · NIETE · Level 2"), `title`, `backTo`. Back goes to the previous page. With nothing behind it, Back goes to `backTo`. |
-| `List`, `Row` | Lists of things | `to` makes a link with ›, `onClick` a button with ›, neither an information row (no ›). `icon` or `lead` ("3", "D1") in a 42px tile (`tile`: neutral, quiet, done). `chips`, `value`, `progress`, `end` (an icon in place of ›). `state`: `off` (dimmed, not tappable) or `selected` (indigo tint). |
+| `List`, `Row` | Lists of things | `to` makes a link with ›, `onClick` a button with ›, neither an information row (no ›). `icon` or `lead` ("3", "D1") in a 42px tile (`tile`: neutral, quiet, done, or `recording`, the recording red). `chips`, `value`, `progress`, `end` (an icon in place of ›). `state`: `off` (dimmed, not tappable) or `selected` (indigo tint). |
 | `SectionLabel`, `ProgressBar` | A heading over a list; a green bar | |
-| `Chip` | Information on a row or band | `tone`: `done`, `waiting`, `error`, `info` (default) or `selected`. `surface="band"` on indigo. Never tappable. |
+| `Chip` | Information on a row or band | `tone`: `done`, `waiting`, `error`, `info` (default), `selected`, or `recording` (red, led by a dot that pulses under `motion-safe:`). `surface="band"` on indigo. Never tappable. |
 | `FilterChips` | One choice among a few filters | A radio group. The picked chip is indigo and the others are outlined. |
 | `ToggleChips` | Any number of choices among a few (question types) | Checkboxes that look like `FilterChips`. An on chip is indigo with a check. |
-| `BottomButton` | The action | `tone`: `primary` (default), `outline`, `warn` or `danger`. Also `disabled`, `icon` (`iconFlips` for ›), and `to` for a link. |
+| `BottomButton` | The action | `tone`: `primary` (default), `outline`, `warn`, `danger`, or `dangerOutline` (the outline button with red words: a destructive second choice under a green one, such as Delete under Continue). Also `disabled`, `icon` (`iconFlips` for ›), and `to` for a link. |
 | `BottomActions` | Holding the action(s) | Fixed above the menu bar on a phone, inline on a desktop; it reserves its own space. While a lesson records, it stands above the recording bar (`PortalLayout` says when the bar shows, `lib/recordingBarShown.ts`). |
 | `MetricTile`, `MetricGrid` | Home's counts | `feature` (its icon in the feature's hue on a grey tile), `value` (`null` shows "—"), `label`, `to`/`onClick`, `wide` + `chips`. The grid is two columns on a phone, four on a desktop. |
 | `Sheet` | A choice that rises from the bottom | `open`, `title`, `onClose`. Android Back, Escape, the 56px close and a tap on the dim all close it. Focus stays inside. |
@@ -134,7 +134,7 @@ violations.
 | Check | Fails when |
 |---|---|
 | **copy** (`copy.test.ts`) | A string in `copy.ts` has more than 4 words, or ends in `.` `?` `!` `۔` or `؟` (what each function returns is checked too). New-UI source has JSX text or a string-literal child. A literal `title`, `label`, `aria-label`, `alt`, `placeholder` or `crumb` breaks the same rule. The allowlist (`COPY_ALLOWLIST` in `rules.ts`) is empty, and every entry needs a reason. |
-| **tap** (`tap.test.tsx`) | Any button, link, input, radio or checkbox that a kit component renders lacks a phone-size height of 56px or more (`min-h-[56px]`, `h-14`, `h-[58px]` and so on). An icon with no text also needs that width. jsdom has no layout, so this checks the class contract. `md:` classes do not count. |
+| **tap** (`tap.test.tsx`) | Any button, link, input, radio or checkbox that a kit component renders lacks a phone-size height of 56px or more (`min-h-[56px]`, `h-14`, `h-[58px]` and so on). An icon with no text also needs that width. jsdom has no layout, so this checks the class contract. `md:` classes do not count. An input with the `hidden` attribute (a file picker a row opens) is not on screen and is skipped. |
 | **style** (`style.test.tsx`) | A primary `BottomButton` is not `bg-nu-button` on `shadow-nu-button`, or any tone wears a feature colour, the leaf or the frame indigo. A `nu-f-*` class appears outside `FeatureIcon.tsx`. Source has a raw hex, rgb or hsl colour (use tokens; `theme(…)` is fine). A left/right class appears (`ml-`, `pr-`, `left-`, `rounded-l`, `border-r`, `text-left`, `space-x`). `animate-*`, `transition` or `transition-transform` appears without `motion-safe:`. A bare `grid` or `rounded-lg`/`md`/`sm` appears (see "Two classes that lie here"). |
 
 Only code is read. A comment may mention a hex or a margin.
@@ -169,6 +169,12 @@ it, so do not write a raw hex in a component (the style check fails).
 | Handle | `#c9ccd6` | `nu-surface-handle` | a sheet's grab handle |
 | Box | `#c7cad6` | `nu-surface-box` | an unticked toggle's box |
 | Scrim | `rgba(20,24,38,.5)` | `nu-surface-scrim` | the dimmed page behind a sheet |
+
+### Recording
+
+| Token | Hex | Tailwind | Use |
+|---|---|---|---|
+| Recording | `#c8331f` on `#fde6e2` | `text-nu-record` on `bg-nu-record-bg`, `bg-nu-record` (the dot) | the Recording chip, the Record live lecture tile, the recording bar's tile |
 
 ### Selection and neutral
 
@@ -336,6 +342,26 @@ tab, which is unchanged. The endpoints are the old panels' (`/assessment/options
   Answer key in a sheet; a More row pages.
 - Files open the way certificates do (`openFile`): a new tab on the web; in the Android app no `_blank`,
   so the WebView hands the file to Android and the portal stays on its page.
+
+## Coaching (built, bd-5rz1v.26)
+
+`newui/coaching/`, picked by `pages/PortalCoaching.tsx` through `lib/coachingUi.ts`: the new screens need
+`portal_new_ui` **and** `portal_self_observation` (every endpoint of the flow is behind the second), and a
+teacher. Otherwise every coaching page renders what it did (`PortalCoaching.flagOff.test.tsx`, recorded on the
+old code). The mockup has no Coaching section; these screens follow Home's and Assessment's patterns.
+
+- `/portal/coaching` (`CoachingMain`): `MainHeading` "Coaching" with the mic tile, "8 lessons" and "1 analysing"
+  on the band. Above the list, what waits for her: **Answer your question** ("2 waiting", to the oldest) and
+  **Continue** for a recording left on the phone ("Not sent", "31 min", "2 Oct"), whose sheet holds Continue and a
+  red-outline Delete. Her subjects as `FilterChips` (two or more). The lessons newest first under a month label:
+  the day in the tile, the topic (data), the subject, then the band as a word (Good and above green, below amber),
+  or where a lesson is (Analysing, Your answer, On WhatsApp: amber). Ten, then a More row. No search box: typing
+  is the hardest thing on the screen. One green **Send a lesson**.
+- **Send a lesson** (`SendSheet`): Record live lecture (the mic on the recording red, only where the phone can
+  record: `canRecordHere`), Upload recording (the picker opens from this tap; a file that is not a recording
+  shows "Not a recording" here), Cancel. The record page is told the choice in the route state
+  (`{ start: record | file | resume }`), as before.
+- Desktop: what waits for her and the button on the left, her lessons on the right.
 
 ## Urdu and RTL
 
