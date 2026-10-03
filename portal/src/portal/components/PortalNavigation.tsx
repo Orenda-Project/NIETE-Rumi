@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, BookOpen, ClipboardCheck } from 'lucide-react';
+import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, BookOpen, ClipboardCheck, ShieldCheck, UserX, ExternalLink } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader, resolveRole } from '../lib/leaderRole';
+import { DELETE_ACCOUNT_PATH, EXTERNAL_LINK_PROPS, PRIVACY_POLICY_URL } from '../lib/legalLinks';
 import { useChildTest } from '../lib/useChildTest';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
@@ -123,7 +124,33 @@ const PortalNavigation = () => {
               ))}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" data-testid="desktop-nav-account">
+              {/*
+                bd-3wb0s: Google Play wants the privacy policy and an account-
+                deletion path findable in the app, for every role. Icon-only
+                below 2xl (with an accessible name and a tooltip): at xl the
+                labels wrapped and squeezed the signed-in name; labelled only
+                where there is room.
+              */}
+              <a
+                href={PRIVACY_POLICY_URL}
+                {...EXTERNAL_LINK_PROPS}
+                aria-label="Privacy policy"
+                title="Privacy policy"
+                className="flex items-center gap-2 px-2 py-2 text-sm whitespace-nowrap text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+                <span className="hidden 2xl:inline">Privacy policy</span>
+              </a>
+              <Link
+                to={DELETE_ACCOUNT_PATH}
+                aria-label="Delete my account"
+                title="Delete my account"
+                className="flex items-center gap-2 px-2 py-2 text-sm whitespace-nowrap text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+              >
+                <UserX className="w-4 h-4" aria-hidden="true" />
+                <span className="hidden 2xl:inline">Delete my account</span>
+              </Link>
               {/*
                 bd-2558: the name shares the Logout button's vertical metrics
                 (py-2) and the nav's opacity (white/70), so the header carries
@@ -204,6 +231,29 @@ const PortalNavigation = () => {
                     <span className="truncate">{item.title}</span>
                   </Link>
                 ))}
+                {/* bd-3wb0s — for every role, above Logout. The privacy policy
+                    is Taleemabad's page and opens outside the app. */}
+                <div className="my-2 border-t border-border" aria-hidden="true" />
+                <a
+                  href={PRIVACY_POLICY_URL}
+                  {...EXTERNAL_LINK_PROPS}
+                  onClick={() => setMoreOpen(false)}
+                  data-testid="mobile-nav-privacy"
+                  className="flex items-center gap-3 rounded-md px-3 py-3 text-sm text-foreground hover:bg-muted transition-colors"
+                >
+                  <ShieldCheck className="w-5 h-5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">Privacy policy</span>
+                  <ExternalLink className="ml-auto w-4 h-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                </a>
+                <Link
+                  to={DELETE_ACCOUNT_PATH}
+                  onClick={() => setMoreOpen(false)}
+                  data-testid="mobile-nav-delete-account"
+                  className="flex items-center gap-3 rounded-md px-3 py-3 text-sm text-foreground hover:bg-muted transition-colors"
+                >
+                  <UserX className="w-5 h-5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">Delete my account</span>
+                </Link>
                 <button
                   type="button"
                   onClick={() => { setMoreOpen(false); logout(); }}
