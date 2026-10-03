@@ -36,7 +36,7 @@ const S = require('./state');
 const R = require('./recovery');
 const C = require('./context');
 const { langOf, t, clip, blockName, digits } = require('./copy');
-const { evaluateChildTestTrigger, isChildTestAvailable } = require('./gate');
+const { evaluateChildTestTrigger, isChildTestAvailable, isObserveLinkOn } = require('./gate');
 const { visitKeyFor, parseVisitKey, pktDate } = require('../draw/visit-key');
 
 const BLOCKS = ['urdu', 'english', 'maths'];
@@ -316,7 +316,8 @@ async function start(user, from, arg) {
     const midTest = prev && prev.ctx && (prev.step === 'block' || prev.step === 'presence');
     if (midTest) ctx = prev.ctx;
     else {
-      const visitId = await C.todaysVisitId(user.id);
+      // Kept separate from observe2 unless CHILD_TEST_OBSERVE_LINK=true: then no visit is borrowed.
+      const visitId = isObserveLinkOn() ? await C.todaysVisitId(user.id) : null;
       if (visitId && prev && prev.ctx && prev.ctx.visitId === visitId) ctx = prev.ctx;
       else if (visitId) {
         const v = await C.fromVisit({ coachUserId: user.id, visitId });

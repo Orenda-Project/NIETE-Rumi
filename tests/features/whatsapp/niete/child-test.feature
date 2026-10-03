@@ -65,7 +65,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
 
   @e2e @wip @draft @destructive @config-gated @P1 @CT02
   Scenario: The observe2 brief ends with the child-test offer, carrying the visit
-    Given the NIETE bot chat is open on a COACH account in an ICT region, with the child test enabled
+    Given the NIETE bot chat is open on a COACH account in an ICT region, with the child test enabled and linked to the observation (CHILD_TEST_OBSERVE_LINK=true)
     When I submit the observe2 "What Rumi heard" check and the brief arrives
     Then the next message is the offer "Test 5 children now? About 25 minutes." with buttons "Yes, test now" and "Not now"
     And the "Yes, test now" button id is "ctst_offer:<kind>:<visit id>" for this visit's observation_field_forms row
@@ -438,3 +438,12 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then every field Rumi marked arrives filled, including the flagged story words
     And one line on each screen lists the marks Rumi is unsure of, for me to look at
     And a field Rumi did not mark arrives empty
+
+  @e2e @wip @draft @config-gated @P1 @CT44
+  Scenario: Kept separate from the observation by default: no offer after observe2, and /egra stands alone
+    Given a COACH account in an ICT region at the SIM school, with the child test enabled and CHILD_TEST_OBSERVE_LINK unset
+    When I submit the observe2 "What Rumi heard" check and the brief arrives
+    Then no child-test offer follows the brief
+    When I send "/egra" on the same day
+    Then today's list is drawn for my school on the day key, not on the observe2 visit
+    # bd-s1oo0.25 (operator, 3 Oct 2026: "for now keep both separate"); the same holds after classic /observe.
