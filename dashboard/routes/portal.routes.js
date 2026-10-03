@@ -65,6 +65,7 @@ const {
   isFlagEnabledForUser,
   PORTAL_SELF_OBSERVATION_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
+  PORTAL_NEW_UI_KEY,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
@@ -6896,6 +6897,10 @@ router.get('/config', async (req, res) => {
     const coachObservation = await isFlagEnabledForUser(
       supabase, PORTAL_COACH_OBSERVATION_KEY, req.session && req.session.portalUserId,
     );
+    // bd-5rz1v.12: the new UI, per user — designed screen by screen behind it.
+    const newUi = await isFlagEnabledForUser(
+      supabase, PORTAL_NEW_UI_KEY, req.session && req.session.portalUserId,
+    );
     return res.json({
       success: true,
       features: {
@@ -6903,6 +6908,7 @@ router.get('/config', async (req, res) => {
         assessmentGeneratorMessage: assessmentGenerator ? null : ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation,
         coachObservation,
+        newUi,
       },
     });
   } catch (error) {
@@ -6915,6 +6921,7 @@ router.get('/config', async (req, res) => {
         assessmentGeneratorMessage: ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation: false,
         coachObservation: false,
+        newUi: false,
       },
     });
   }
