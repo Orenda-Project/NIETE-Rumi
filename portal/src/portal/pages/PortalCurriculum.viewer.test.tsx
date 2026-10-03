@@ -259,7 +259,7 @@ describe("bd-5rz1v.10 — when the viewer cannot show it, today's way takes over
     fireEvent.click(screen.getByRole("button", { name: /open lesson plan/i }));
     const v = await viewer();
     await waitFor(() => expect(openSpy).toHaveBeenCalledWith(PRESIGNED, "_blank", "noopener"));
-    expect(within(v).getByText(/could not be shown here/i)).toBeInTheDocument();
+    expect(within(v).getByText(/can't show it here/i)).toBeInTheDocument();
     expect(within(v).getByRole("button", { name: /open in another app/i })).toBeInTheDocument();
   });
 
@@ -356,7 +356,7 @@ describe("bd-5rz1v.10 — while a lesson is recording", () => {
     await pickK5();
     fireEvent.click(screen.getByRole("button", { name: /open lesson plan/i }));
     const v = await viewer();
-    expect(within(v).getByText("Opened inside the app, so recording continues")).toBeInTheDocument();
+    expect(within(v).getByText("Recording continues")).toBeInTheDocument();
     await waitFor(() => expect(doc.getPage).toHaveBeenCalledWith(1));
     expect(within(v).queryByRole("button", { name: /open in another app/i })).not.toBeInTheDocument();
     expect(openSpy).not.toHaveBeenCalled();
@@ -369,8 +369,8 @@ describe("bd-5rz1v.10 — while a lesson is recording", () => {
     await pickK5();
     fireEvent.click(screen.getByRole("button", { name: /open lesson plan/i }));
     const v = await viewer();
-    expect(await within(v).findByText(/could not be shown here/i)).toBeInTheDocument();
-    expect(within(v).getByText(/your recording may go silent/i)).toBeInTheDocument();
+    expect(await within(v).findByText(/can't show it here/i)).toBeInTheDocument();
+    expect(within(v).getByText(/recording may go silent/i)).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 30));
     expect(openSpy).not.toHaveBeenCalled();
     fireEvent.click(within(v).getByRole("button", { name: /open in another app/i }));

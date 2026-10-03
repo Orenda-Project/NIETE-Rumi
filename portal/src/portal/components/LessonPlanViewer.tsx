@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertTriangle, ChevronLeft, ExternalLink, FileText, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ExternalLink, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { loadPdfjs } from '../lib/pdfjs';
+import { RecordingContinuesChip } from './RecordingBar';
 import {
   fetchLessonPlanPdf, LessonPlanNotReady, openLessonPlanOutside, sourceKey, type LessonPlanView,
 } from '../lib/lessonPlanOpen';
@@ -11,7 +12,7 @@ import {
  * Coaching v1 mockups, Change 2, phone 3).
  *
  *   ‹ Plants: parts and their jobs
- *   ▤ Opened inside the app, so recording continues      (only while recording)
+ *   ● Recording continues                                (only while recording)
  *   [−] [+] 100%                     [↗ Open in another app] (not while recording)
  *   ┌───────────┐
  *   │  page 1   │   pages drawn by pdf.js as they scroll near, fitted to the width
@@ -30,20 +31,41 @@ import {
  * opened outside — by itself, so nobody is left on a blank screen. Except while
  * a lesson is recording: another app in front silences the microphone, so then
  * it asks instead, with the reason.
+ *
+ * Labels, not sentences (operator, 2026-10-03). All of the viewer's look is in
+ * VIEWER_STYLE below, so a restyle is an edit to that one object.
  */
 
 const COPY = {
   back: 'Back',
-  opening: 'Opening the lesson plan…',
-  inApp: 'Opened inside the app, so recording continues',
+  opening: 'Opening…',
   openOutside: 'Open in another app',
-  failed: 'The lesson plan could not be shown here.',
-  failedHint: 'Open it in another app instead.',
-  failedRecording: 'If you open it in another app, your recording may go silent until you come back.',
+  failed: "Can't show it here",
+  failedRecording: 'Recording may go silent',
   couldNotOpen: 'Could not open this lesson plan',
   zoomIn: 'Zoom in',
   zoomOut: 'Zoom out',
   page: (n: number) => `Page ${n}`,
+};
+
+export const VIEWER_STYLE = {
+  frame: 'mx-auto flex w-full max-w-3xl flex-col gap-2.5 pb-4',
+  header: 'flex min-h-12 items-center gap-1',
+  back: 'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-primary',
+  title: 'line-clamp-2 text-lg font-bold leading-snug text-primary',
+  chipRow: 'px-1',
+  loading: 'flex flex-col items-center gap-3 rounded-xl bg-white px-4 py-12 text-center text-[15px] text-[#3a3f4b]',
+  progressTrack: 'h-2 w-40 overflow-hidden rounded-full bg-[#e5e7eb]',
+  progressFill: 'h-full rounded-full bg-accent transition-[width]',
+  failedCard: 'flex flex-col gap-3 rounded-xl bg-white p-4',
+  failedNote: 'flex items-center gap-2.5 rounded-xl bg-[#fff6e0] px-3.5 py-3 text-[16px] font-semibold text-[#7a5600]',
+  failedButton: 'flex h-14 items-center justify-center gap-2 rounded-[14px] border-2 border-primary bg-white text-lg font-bold text-primary',
+  toolbar: 'flex items-center gap-1.5',
+  zoomButton: 'flex h-11 w-11 items-center justify-center rounded-lg border border-[#d6d9de] bg-white text-primary disabled:text-[#c4c8cf]',
+  zoomLabel: 'min-w-[3rem] px-1 text-sm tabular-nums text-muted-foreground',
+  outsideButton: 'ms-auto flex h-11 items-center gap-1.5 rounded-lg border border-[#d6d9de] bg-white px-3 text-sm font-semibold text-primary',
+  pages: 'flex flex-col items-start gap-3',
+  page: 'mx-auto shrink-0 bg-white shadow-sm',
 };
 
 const ZOOMS = [1, 1.25, 1.5, 2, 3];
@@ -118,7 +140,7 @@ const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed }: {
   }, [near, width, doc, pageNumber, onRatio, onFailed]);
 
   return (
-    <div ref={box} data-testid="lp-page" className="mx-auto shrink-0 bg-white shadow-sm" style={{ width, height: Math.round(width * ratio) }}>
+    <div ref={box} data-testid="lp-page" className={VIEWER_STYLE.page} style={{ width, height: Math.round(width * ratio) }}>
       <canvas ref={canvas} role="img" aria-label={COPY.page(pageNumber)} className="block h-full w-full" />
     </div>
   );
@@ -233,79 +255,73 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady }: Props) => {
   const defaultRatio = ratios[1] ?? DEFAULT_RATIO;
 
   return (
-    <div data-testid="lesson-plan-viewer" className="mx-auto flex w-full max-w-3xl flex-col gap-2.5 pb-4">
-      <div className="flex min-h-12 items-center gap-1">
-        <button type="button" onClick={onClose} aria-label={COPY.back}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-primary">
+    <div data-testid="lesson-plan-viewer" className={VIEWER_STYLE.frame}>
+      <div className={VIEWER_STYLE.header}>
+        <button type="button" onClick={onClose} aria-label={COPY.back} className={VIEWER_STYLE.back}>
           <ChevronLeft className="h-6 w-6 rtl:rotate-180" aria-hidden="true" />
         </button>
-        <h1 className="line-clamp-2 text-lg font-bold leading-snug text-primary" dir="auto">{title}</h1>
+        <h1 className={VIEWER_STYLE.title} dir="auto">{title}</h1>
       </div>
 
-      {recording && (
-        <p className="flex items-center gap-1.5 px-1 text-[13px] text-muted-foreground">
-          <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {COPY.inApp}
-        </p>
-      )}
+      {recording && <div className={VIEWER_STYLE.chipRow}><RecordingContinuesChip /></div>}
 
       {state === 'loading' && (
-        <div className="flex flex-col items-center gap-3 rounded-xl bg-white px-4 py-12 text-center text-[15px] text-[#3a3f4b]">
+        <div className={VIEWER_STYLE.loading}>
           <Loader2 className="h-8 w-8 text-primary motion-safe:animate-spin" aria-hidden="true" />
           <span>{COPY.opening}</span>
           {progress != null && (
-            <div className="h-2 w-40 overflow-hidden rounded-full bg-[#e5e7eb]" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
-              <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${Math.max(4, progress)}%` }} />
+            <div className={VIEWER_STYLE.progressTrack} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+              <div className={VIEWER_STYLE.progressFill} style={{ width: `${Math.max(4, progress)}%` }} />
             </div>
           )}
         </div>
       )}
 
       {state === 'failed' && (
-        <div className="flex flex-col gap-3 rounded-xl bg-white p-4">
-          <div className="flex gap-2.5 rounded-xl bg-[#fff6e0] px-3.5 py-3 text-[15px] leading-snug text-[#7a5600]">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-            <span className="flex flex-col gap-1">
-              <span>{COPY.failed} {recording ? '' : COPY.failedHint}</span>
-              {recording && <span>{COPY.failedRecording}</span>}
-            </span>
+        <div className={VIEWER_STYLE.failedCard}>
+          <div className={VIEWER_STYLE.failedNote}>
+            <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span>{COPY.failed}</span>
           </div>
-          <button type="button" onClick={openOutside}
-            className="flex h-12 items-center justify-center gap-2 rounded-[12px] border-2 border-primary bg-white text-base font-bold text-primary">
+          <button type="button" onClick={openOutside} className={VIEWER_STYLE.failedButton}>
             <ExternalLink className="h-5 w-5" aria-hidden="true" />
             {COPY.openOutside}
           </button>
+          {/* Another app in front silences the microphone: say it, in three words. */}
+          {recording && (
+            <div className={VIEWER_STYLE.failedNote}>
+              <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span>{COPY.failedRecording}</span>
+            </div>
+          )}
         </div>
       )}
 
       {state === 'ready' && doc && (
-        <>
-          <div className="flex items-center gap-1.5">
-            <button type="button" aria-label={COPY.zoomOut} disabled={zoom === 0} onClick={() => setZoom((z) => Math.max(0, z - 1))}
-              className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#d6d9de] bg-white text-primary disabled:text-[#c4c8cf]">
-              <ZoomOut className="h-5 w-5" aria-hidden="true" />
+        <div className={VIEWER_STYLE.toolbar}>
+          <button type="button" aria-label={COPY.zoomOut} disabled={zoom === 0} onClick={() => setZoom((z) => Math.max(0, z - 1))}
+            className={VIEWER_STYLE.zoomButton}>
+            <ZoomOut className="h-5 w-5" aria-hidden="true" />
+          </button>
+          <button type="button" aria-label={COPY.zoomIn} disabled={zoom === ZOOMS.length - 1} onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))}
+            className={VIEWER_STYLE.zoomButton}>
+            <ZoomIn className="h-5 w-5" aria-hidden="true" />
+          </button>
+          <span className={VIEWER_STYLE.zoomLabel}>{Math.round(ZOOMS[zoom] * 100)}%</span>
+          {!recording && (
+            <button type="button" onClick={openOutside} className={VIEWER_STYLE.outsideButton}>
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              {COPY.openOutside}
             </button>
-            <button type="button" aria-label={COPY.zoomIn} disabled={zoom === ZOOMS.length - 1} onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))}
-              className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#d6d9de] bg-white text-primary disabled:text-[#c4c8cf]">
-              <ZoomIn className="h-5 w-5" aria-hidden="true" />
-            </button>
-            <span className="min-w-[3rem] px-1 text-sm tabular-nums text-muted-foreground">{Math.round(ZOOMS[zoom] * 100)}%</span>
-            {!recording && (
-              <button type="button" onClick={openOutside}
-                className="ms-auto flex h-11 items-center gap-1.5 rounded-lg border border-[#d6d9de] bg-white px-3 text-sm font-semibold text-primary">
-                <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                {COPY.openOutside}
-              </button>
-            )}
-          </div>
-        </>
+          )}
+        </div>
       )}
 
       {/* Always mounted while loading or ready, so its width is known before the first page. */}
       {state !== 'failed' && (
         <div ref={scroller} className={`w-full ${zoom > 0 ? 'overflow-x-auto' : 'overflow-x-hidden'}`}>
           {state === 'ready' && doc && (
-            <div className="flex flex-col items-start gap-3" style={{ width: pageWidth }}>
+            <div className={VIEWER_STYLE.pages} style={{ width: pageWidth }}>
               {Array.from({ length: doc.numPages }, (_, i) => i + 1).map((n) => (
                 <PdfPage key={n} doc={doc} pageNumber={n} width={pageWidth}
                   ratio={ratios[n] ?? defaultRatio} onRatio={onRatio} onFailed={onFailed} />

@@ -9,6 +9,7 @@ import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import BottomSheet from '../components/coaching/BottomSheet';
 import SoundBars from '../components/coaching/SoundBars';
+import { RecordingContinuesChip } from '../components/RecordingBar';
 import LibraryPicker, { type PickedPlan } from '../components/coaching/LibraryPicker';
 import { portal } from '../services/api';
 import { acceptFor, checkFile, formatSize, MAX_PHOTOS, minutesText, readAudioDuration, SHORT_RECORDING_SECONDS } from '../lib/coachingUpload';
@@ -73,10 +74,10 @@ const COPY = {
   pausedNote: 'Recording is paused.',
   // bd-5rz1v.10 — "this screen" no longer: she may use other pages now. What
   // silences the microphone is the phone sleeping or another app in front.
-  keepOpen: 'Keep the phone on and stay in this app. Put it face up, near you.',
-  screenWentOff: 'The screen went off for a while. Part of the lesson may be silent. Keep the phone on and stay in this app.',
-  tip: 'You can open your lesson plan while you record. The recording keeps going.',
-  openPlans: 'Open lesson plans',
+  // Labels, not sentences (operator, 2026-10-03).
+  keepOpen: 'Phone on, face up · stay in this app',
+  screenWentOff: 'Screen went off · part may be silent',
+  lessonPlans: 'Lesson plans',
   finish: 'Finish',
   pause: 'Pause',
   resume: 'Continue',
@@ -567,15 +568,15 @@ const PortalCoachingRecord = () => {
               {paused ? <Mic className="h-5 w-5" aria-hidden="true" /> : <Pause className="h-5 w-5" aria-hidden="true" />}
               {paused ? COPY.resume : COPY.pause}
             </button>
-            {/* bd-5rz1v.10 — the recording outlives this page, so say so, and
-                give the way to the thing she is most likely to need. */}
-            <div className="flex w-full flex-col gap-2.5 rounded-xl bg-[#e8f5ee] p-3.5 text-[15px] leading-snug text-[#1f6b46]">
-              <span>{COPY.tip}</span>
+            {/* bd-5rz1v.10 — the recording outlives this page: one obvious way to
+                the thing she is most likely to need, and a chip, not a sentence. */}
+            <div className="flex w-full flex-col items-center gap-2">
               <button type="button" onClick={() => navigate('/portal/curriculum')}
-                className="flex h-12 items-center justify-center gap-2 rounded-[12px] border-2 border-[#1f6b46] bg-white text-base font-bold text-[#1f6b46]">
-                <BookOpen className="h-5 w-5" aria-hidden="true" />
-                {COPY.openPlans}
+                className="flex h-14 w-full items-center justify-center gap-2.5 rounded-[14px] border-2 border-[#1f6b46] bg-[#e8f5ee] text-lg font-bold text-[#1f6b46]">
+                <BookOpen className="h-6 w-6" aria-hidden="true" />
+                {COPY.lessonPlans}
               </button>
+              <RecordingContinuesChip />
             </div>
           </div>
         )}
