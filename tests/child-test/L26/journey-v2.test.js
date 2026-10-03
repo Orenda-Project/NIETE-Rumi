@@ -406,6 +406,15 @@ describe('6. auto-advance and the end of the visit', () => {
     expect(txt).not.toMatch(/Child 6/);
   });
 
+  test('nobody tested (all absent, no alternate left): no "All 0 children done", no summary, no review', async () => {
+    await startVisit();
+    for (const d of ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7']) await H.handleButton(COACH, PHONE, `ctst_pres:${d}:a`);
+    await H.__drain();
+    expect(allText()).not.toMatch(/🎉|All 0/);
+    expect(last().text).toMatch(/No child was tested on this visit/);
+    expect(review.sendReview).not.toHaveBeenCalled();
+  });
+
   test('CHILD_TEST_CHECK_MODE=per_child: the per-child check is still sent, and no review at the end', async () => {
     process.env.CHILD_TEST_CHECK_MODE = 'per_child';
     await startVisit();

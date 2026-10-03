@@ -3419,6 +3419,10 @@ const UX_STRINGS = {
     en: '🎉 All {n} children done ({min} min). Thank the teachers.',
     ur: '🎉 تمام {n} بچے مکمل ({min} منٹ)۔ ٹیچرز کا شکریہ ادا کریں۔',
   },
+  childTestL26NoneTested: {
+    en: 'No child was tested on this visit: everyone on today\'s list was absent or did not want to. Send /egra on your next visit.',
+    ur: 'اس دورے میں کسی بچے کا ٹیسٹ نہیں ہوا: آج کی فہرست کے سب بچے غیر حاضر تھے یا رضامند نہیں تھے۔ اگلے دورے پر ⁦/egra⁩ بھیجیں۔',
+  },
   childTestL26Nudge: {
     en: '{title}\nDid the recording stop? Look for an unsent voice note above the keyboard and press send. If it\'s gone, record this part again.',
     ur: '{title}\nکیا ریکارڈنگ رک گئی؟ کی بورڈ کے اوپر رکا ہوا وائس نوٹ دیکھیں اور بھیج دیں۔ اگر وہ نہیں ہے تو یہ حصہ دوبارہ ریکارڈ کریں۔',

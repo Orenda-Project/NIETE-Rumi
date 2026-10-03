@@ -1420,9 +1420,13 @@ async function onResume(user, from) {
 async function visitEnd(user, from, state) {
   const lang = langOf(user);
   const visit = visitOfState(state.ctx);
-  if (visit && !(await S.claimVisitEnd(visit))) return say(from, t(lang, 'childTestListAllDone'));
   const sess = await sessionsByDraw(state.ctx);
   const completed = Object.values(sess).filter((s) => s.status === 'completed');
+  if (!completed.length) {
+    logToFile('child_test.visit_end_none_tested', { visitKey: state.ctx && state.ctx.visitKey });
+    return say(from, t(lang, 'childTestL26NoneTested'));
+  }
+  if (visit && !(await S.claimVisitEnd(visit))) return say(from, t(lang, 'childTestListAllDone'));
   const since = Date.parse(state.visitStartedAt || state.listOpenedAt || nowIso());
   const min = Math.max(1, Math.round((Date.now() - since) / 60000));
   await say(from, t(lang, 'childTestL26VisitEnd', { n: completed.length, min }));
