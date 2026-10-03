@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { BookOpen, ChevronRight } from "lucide-react";
 import { BottomButton, BottomActions } from "./BottomButton";
+import { RecordingBarShownContext } from "../lib/recordingBarShown";
 import { MetricGrid, MetricTile } from "./MetricTile";
 import { Chip } from "./Chip";
 
@@ -78,6 +79,17 @@ describe("BottomActions", () => {
       "px-[14px]", "pb-[14px]", "pt-0.5", "gap-2.5", "flex-col", "md:static", "md:px-0",
     ]));
     expect(screen.getAllByRole("button")).toHaveLength(2);
+  });
+
+  it("bd-5rz1v.14: while the recording bar shows, it rises above the bar (88px + 56px bar + 8px)", () => {
+    render(
+      <RecordingBarShownContext.Provider value>
+        <BottomActions><BottomButton>Open</BottomButton></BottomActions>
+      </RecordingBarShownContext.Provider>,
+    );
+    const panel = screen.getByTestId("newui-bottom-actions");
+    expect(classes(panel)).toContain("bottom-[calc(152px+env(safe-area-inset-bottom))]");
+    expect(classes(panel)).not.toContain("bottom-[calc(80px+env(safe-area-inset-bottom))]");
   });
 
   it("keeps room in the page for itself, so it never covers the last row", () => {
