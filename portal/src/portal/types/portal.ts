@@ -12,6 +12,12 @@ export interface User {
    * See src/portal/lib/leaderRole.ts (LEADER_ROLES / isLeader).
    */
   role?: string | null;
+  /**
+   * bd-3wb0s: her own school's name, for the My account page (/dashboard only;
+   * users.school_id → schools.name, else the legacy users.school_name). Null
+   * when unknown — a coach who covers many schools has none.
+   */
+  schoolName?: string | null;
 }
 
 /**

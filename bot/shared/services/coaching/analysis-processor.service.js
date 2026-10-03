@@ -139,7 +139,10 @@ class AnalysisProcessorService {
       //                that notice actually went out);
       //   NC3 (N2-C02) the LP step's outcome line ("✅ Lesson plan linked!…") opens
       //                Step 2/5 instead of arriving as its own text seconds earlier.
-      if (session.observation_type === 'leader_observation') {
+      // bd-5rz1v.6.9 — see the same skip on Step 1/5 in transcription-processor.
+      if (require('./portal-coaching.service').isPortalObservation(session)) {
+        logToFile('🔕 Step 2/5 not sent — a portal observation (the portal shows its progress)', { coachingSessionId });
+      } else if (session.observation_type === 'leader_observation') {
         logToFile('🔕 Step 2/5 not sent — a leader observation (the pre-filled form is next)', { coachingSessionId });
       } else if (payload.skipReflection && payload.progressNoticeSent) {
         logToFile('🔕 Step 2/5 not sent — the recovery notice already said it', { coachingSessionId });

@@ -82,6 +82,18 @@ beforeEach(() => {
 });
 
 describe("LeaderObserveRecord", () => {
+  it("Take a photo of her plan opens the back camera in the app too (accept must be exactly image/*)", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByText("Sadia Noor"));
+    await screen.findByRole("dialog", { name: "Record Sadia’s lesson" });
+    fireEvent.change(screen.getByTestId("send-audio-input"), { target: { files: [file("Period 3.m4a", 30_000_000)] } });
+    await screen.findByText("Period 3.m4a");
+    fireEvent.click(screen.getByRole("button", { name: "Add the lesson plan" }));
+    const input = await screen.findByTestId("plan-photo-input");
+    expect(input).toHaveAttribute("capture", "environment");
+    expect(input).toHaveAttribute("accept", "image/*");
+  });
+
   it("is dark when the flag is off for her", async () => {
     P.getConfig.mockResolvedValue({ features: { coachObservation: false } });
     renderPage();
