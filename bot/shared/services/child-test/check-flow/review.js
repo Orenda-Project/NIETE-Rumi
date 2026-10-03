@@ -33,7 +33,7 @@ const Store = require('./check-store');
 const { formItems } = require('./items');
 const { t } = require('../conversation/copy');
 const {
-  BLOCKS, VERDICTS, MAX_ITEMS, langOf, selectDoubtful, publicItem, summaryText, reviewScreenData, reviewMessage,
+  BLOCKS, VERDICTS, MAX_ITEMS, langOf, questionsSkipped, reviewTime, selectDoubtful, publicItem, summaryText, reviewScreenData, reviewMessage,
 } = require('./review-view');
 const { MARKER, enabled } = require('./token');
 
@@ -144,6 +144,14 @@ function coachMarksFor(block, row, asked, aiOnly) {
     };
   }
   const marks = JSON.parse(JSON.stringify(ai));
+  // A non-reader's questions were skipped by design: 'not_asked', never wrong (L31). Not a coach edit.
+  const notAsked = [];
+  if (questionsSkipped(ai) && Array.isArray(marks.questions)) {
+    marks.questions.forEach((q, i) => {
+      notAsked.push(`questions[${q.id || `#${i + 1}`}].verdict`);
+      q.verdict = 'not_asked';
+    });
+  }
   const edits = [];
   const reviewed = [];
   const unanswered = [];
@@ -162,6 +170,7 @@ function coachMarksFor(block, row, asked, aiOnly) {
     reviewed,
     ai_only: aiOnly.map((c) => c.path),
     ...(unanswered.length ? { unanswered } : {}),
+    ...(notAsked.length ? { not_asked: notAsked } : {}),
   };
   return { coachMarks: marks, edits };
 }
@@ -315,6 +324,7 @@ module.exports = {
   selectDoubtful,
   reviewScreenData,
   reviewMessage,
+  reviewTime,
   summaryText,
   coachMarksFor,
   MAX_ITEMS,

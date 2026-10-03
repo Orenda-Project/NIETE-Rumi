@@ -109,7 +109,25 @@ function cardName(lang, grade) {
 const partName = (lang, block) => t(lang, PART_KEY[block]);
 const stepTitle = (lang, block, name) => t(lang, 'childTestL26StepTitle', { b: B_OF[block], part: partName(lang, block), name });
 
-const numbered = (lines) => lines.map((s, i) => `   ${CIRCLED[i] || '•'} ${clean(s)}`).join('\n');
+// Said lines (L31, language-protocol §9). Each words-to-the-child line stands alone on its line. When its
+// script runs the other way from the message's (Urdu in an English message, English in an Urdu one), the
+// guillemets go INSIDE an isolate — RLI «…» PDI or LRI «…» PDI — so a phone paints the quote as one unit
+// and a line break can never land between a guillemet and its words (shot_v2 05).
+const RLI = '\u2067';
+const LRI = '\u2066';
+const PDI = '\u2069';
+const RTL_TEXT = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+
+function said(lang, text) {
+  const s = clean(text).replace(/^«|»$/g, '');
+  const rtl = RTL_TEXT.test(s);
+  if (lang === 'en' && rtl) return `${RLI}«${s}»${PDI}`;
+  if (lang !== 'en' && !rtl) return `${LRI}«${s}»${PDI}`;
+  return `«${s}»`;
+}
+
+/** One said line per question or problem; its number sits in its own LTR isolate, never glued to an RTL run. */
+const numbered = (lang, lines) => lines.map((s, i) => `   ${LRI}${CIRCLED[i] || '•'}${PDI} ${said(lang, s)}`).join('\n');
 
 /** One step: plain text, no buttons; it stays the last bubble, right above the recorder. */
 function stepMessage(lang, block, { name, grade, form, bankForm } = {}) {
@@ -118,16 +136,18 @@ function stepMessage(lang, block, { name, grade, form, bankForm } = {}) {
   const card = cardName(lang, grade);
   const s = scriptFor(block, bf);
   if (block === 'maths') {
-    const problems = wordProblemsFor(grade, bf).map((p) => `«${clean(p.prompt_ur || p.prompt)}»`);
+    const problems = wordProblemsFor(grade, bf).map((p) => p.prompt_ur || p.prompt);
+    const q = (k) => said(lang, s[k]);
     return t(lang, 'childTestL26StepMaths', {
-      title, card, start: s.start, compare: s.compare, sum: s.sum, next: s.next, wp_intro: s.wp_intro, stop: s.stop,
-      problems: numbered(problems),
+      title, card, start: q('start'), compare: q('compare'), sum: q('sum'), next: q('next'), wp_intro: q('wp_intro'), stop: q('stop'),
+      problems: numbered(lang, problems),
     });
   }
   const questions = ((bf && bf[block] && bf[block].questions) || []).map((q) => q.prompt);
+  const q = (k) => said(lang, s[k]);
   return t(lang, 'childTestL26StepStory', {
-    title, card, side: t(lang, SIDE_KEY[block]), start: s.start, go_on: s.go_on, stop: s.stop,
-    qintro: s.questions_intro, fallback: s.fallback, questions: numbered(questions),
+    title, card, side: t(lang, SIDE_KEY[block]), start: q('start'), go_on: q('go_on'), stop: q('stop'),
+    qintro: q('questions_intro'), fallback: q('fallback'), questions: numbered(lang, questions),
   });
 }
 
@@ -150,7 +170,7 @@ function childLine(lang, c) {
 }
 
 function presenceBody(lang, { n, total, child, greet }) {
-  return t(lang, 'childTestL26Presence', { n, total, line: childLine(lang, child), greet });
+  return t(lang, 'childTestL26Presence', { n, total, line: childLine(lang, child), greet: said(lang, greet) });
 }
 
 /** The list's children in collection order: by `classes[]` when the draw gives it, else as listed. */
@@ -218,5 +238,5 @@ function teacherMessages(lang, list) {
 
 module.exports = {
   stepMessage, stepTitle, partName, cardName, presenceBody, childLine, nameOf, collectionOrder,
-  listMessage, teacherMessages, scriptFor, greetFor, stubbed, bankFormFor, B_OF, STUB,
+  listMessage, teacherMessages, scriptFor, greetFor, stubbed, bankFormFor, said, B_OF, STUB,
 };
