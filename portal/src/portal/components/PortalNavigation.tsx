@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, BookOpen } from 'lucide-react';
+import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, BookOpen, CircleUserRound, ChevronRight } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader, resolveRole } from '../lib/leaderRole';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
+
+/** bd-3wb0s — My account: name, school, privacy policy, account deletion, Logout. */
+const ACCOUNT_PATH = '/portal/account';
 
 const PortalNavigation = () => {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -120,20 +123,30 @@ const PortalNavigation = () => {
               {/*
                 bd-2558: the name shares the Logout button's vertical metrics
                 (py-2) and the nav's opacity (white/70), so the header carries
-                one type treatment rather than three. No hover state — it is a
-                label, not a control, and giving it one would imply it is
-                clickable. `truncate` + a max-width keep a long name from pushing
-                the logout control sideways, and the fallback keeps the slot
-                from collapsing before the profile resolves — an empty span
-                left Logout floating with no sign of who was logged in.
+                one type treatment rather than three. `truncate` + a max-width
+                keep a long name from pushing the logout control sideways, and
+                the fallback keeps the slot from collapsing before the profile
+                resolves — an empty span left Logout floating with no sign of
+                who was logged in.
+
+                bd-3wb0s: the name is now also the way into My account (where
+                the privacy policy and account deletion live), so it IS a
+                control: a link with a user icon, a hover state, and the
+                accessible name "My account".
               */}
-              <span
+              <Link
+                to={ACCOUNT_PATH}
                 data-testid="portal-user-name"
-                title={user?.firstName}
-                className="px-2 py-2 text-sm font-medium text-white/70 max-w-[12rem] truncate"
+                aria-label="My account"
+                title="My account"
+                className={cn(
+                  "flex items-center gap-2 px-2 py-2 text-sm font-medium max-w-[12rem] truncate rounded-md transition-colors hover:text-white hover:bg-white/10",
+                  isActive(ACCOUNT_PATH) ? "bg-white/20 text-white" : "text-white/70"
+                )}
               >
-                {user?.firstName || "Signed in"}
-              </span>
+                <CircleUserRound className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">{user?.firstName || "Signed in"}</span>
+              </Link>
               <button
                 onClick={logout}
                 className="flex items-center gap-2 px-4 py-2 text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
@@ -171,7 +184,7 @@ const PortalNavigation = () => {
                 data-testid="mobile-nav-more"
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 px-1 py-2 flex-1 min-w-0 transition-colors",
-                  mobileOverflow.some((i) => isActive(i.path)) ? "text-accent" : "text-muted-foreground"
+                  mobileOverflow.some((i) => isActive(i.path)) || isActive(ACCOUNT_PATH) ? "text-accent" : "text-muted-foreground"
                 )}
               >
                 <MoreHorizontal className="w-5 h-5 shrink-0" />
@@ -197,6 +210,21 @@ const PortalNavigation = () => {
                     <span className="truncate">{item.title}</span>
                   </Link>
                 ))}
+                {/* bd-3wb0s — My account, for every role, right above Logout.
+                    The privacy policy and account deletion live on that page. */}
+                <Link
+                  to={ACCOUNT_PATH}
+                  onClick={() => setMoreOpen(false)}
+                  data-testid="mobile-nav-account"
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-3 text-sm transition-colors",
+                    isActive(ACCOUNT_PATH) ? "text-accent bg-accent/10" : "text-foreground hover:bg-muted"
+                  )}
+                >
+                  <CircleUserRound className="w-5 h-5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">My account</span>
+                  <ChevronRight className="ms-auto w-4 h-4 shrink-0 text-muted-foreground rtl:rotate-180" aria-hidden="true" />
+                </Link>
                 <button
                   type="button"
                   onClick={() => { setMoreOpen(false); logout(); }}

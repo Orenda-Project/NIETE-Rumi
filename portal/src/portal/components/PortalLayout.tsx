@@ -8,9 +8,16 @@ interface PortalLayoutProps {
   children: ReactNode;
   /** Hide the navigation (bd-5rz1v: while a lesson is recorded or sent). */
   bare?: boolean;
+  /**
+   * What to show while the session loads, inside the page's own frame, instead
+   * of the full-screen spinner (bd-3wb0s: My account holds its layout with a
+   * skeleton). The desktop nav's 64px is reserved so nothing moves when the
+   * real page replaces it. Optional: every other page keeps the spinner.
+   */
+  loadingFallback?: ReactNode;
 }
 
-const PortalLayout = ({ children, bare = false }: PortalLayoutProps) => {
+const PortalLayout = ({ children, bare = false, loadingFallback }: PortalLayoutProps) => {
   const auth = useAuth();
   const { user, loading } = auth;
   const navigate = useNavigate();
@@ -20,6 +27,17 @@ const PortalLayout = ({ children, bare = false }: PortalLayoutProps) => {
       navigate('/portal/login');
     }
   }, [user, loading, navigate]);
+
+  if (loading && loadingFallback) {
+    return (
+      <div className="min-h-screen bg-secondary" aria-busy="true">
+        {!bare && <div className="hidden md:block h-16 bg-primary" aria-hidden="true" />}
+        <main className={bare ? 'px-4 md:px-6 lg:px-8 pt-4 pb-8' : 'px-4 md:px-6 lg:px-8 pt-4 pb-20 md:pb-8'}>
+          {loadingFallback}
+        </main>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
