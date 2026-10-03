@@ -23,8 +23,8 @@ import { ASSESSMENT_ROUTES } from "./portal/lib/assessmentRoutes";
 import PortalClasses from "./portal/pages/PortalClasses";
 import PortalCurriculum from "./portal/pages/PortalCurriculum";
 import PortalTraining from "./portal/pages/PortalTraining";
-import PortalTrainingV2 from "./portal/pages/PortalTrainingV2";
-import { TRAINING_V2_PATHS } from "./portal/lib/trainingRoutes";
+import PortalTrainingPage from "./portal/pages/PortalTrainingPage";
+import { TRAINING_ROUTES } from "./portal/lib/trainingRoutes";
 import PortalCoaching from "./portal/pages/PortalCoaching";
 import PortalCoachingAnalytics from "./portal/pages/PortalCoachingAnalytics";
 import PortalCoachingDetail from "./portal/pages/PortalCoachingDetail";
@@ -148,9 +148,11 @@ const App = () => {
                 certificates page, a provider, a level, a course (bd-klecr),
                 and the unit and exam pages (bd-60152). One list, shared with
                 the page tests, so a URL the page navigates to cannot go
-                unserved. /v2 stays alive because it was handed out. */}
-            {TRAINING_V2_PATHS.map(path => (
-              <Route key={path} path={path} element={<PortalTrainingV2 />} />
+                unserved. /v2 stays alive because it was handed out.
+                bd-5rz1v.25 — through PortalTrainingPage: the new Training screens
+                with portal_new_ui on, PortalTrainingV2 unchanged otherwise. */}
+            {TRAINING_ROUTES.map(r => (
+              <Route key={r.path} path={r.path} element={<PortalTrainingPage view={r.view} />} />
             ))}
             <Route path="/portal/coaching" element={<PortalCoaching />} />
             <Route path="/portal/coaching/analytics" element={<PortalCoachingAnalytics />} />
