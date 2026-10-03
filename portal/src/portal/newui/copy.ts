@@ -69,6 +69,7 @@ export const NAV_COPY = {
     myClasses: 'My Classes',
     analytics: 'Analytics',
     certificates: 'Certificates',
+    myGrades: 'My grades',
   },
 } as const;
 
@@ -509,6 +510,38 @@ export const TRAINING_COPY = {
   submit: 'Submit',
   sending: 'Sending…',
   notSent: 'Not sent',
+  /** Exams (bd-5rz1v.25.3): "Level 2 exam", "English exam", "Module 1 exam". */
+  levelExamTitle: (n?: number) => `Level ${n ?? ''} exam`.replace(/\s+/g, ' ').trim(),
+  examOf: (name?: string | null) => `${name ?? ''} exam`.trim(),
+  moduleExamN: (n?: number | null) => (n != null ? `Module ${n} exam` : 'Module exam'),
+  startExam: 'Start exam',
+  /** The rules, as chips — numbers only from the gate (bd-2489). */
+  toPass: (pct?: number) => `${pct ?? 0}% to pass`,
+  waitIfFailed: (h?: number) => `${h ?? 0}h wait if failed`,
+  wait: 'Wait',
+  noExam: 'No exam',
+  writtenAnswer: 'Written answer',
+  certificate: 'Certificate',
+  myAnswers: 'My answers',
+  earlier: 'Earlier',
+  saving: 'Saving…',
+  saved: 'Saved',
+  /** The module exam's multiple-choice tally: "MCQ 1/2", "Need 2". */
+  mcq: (correct?: number, served?: number) => `MCQ ${correct ?? 0}/${served ?? 0}`,
+  need: (n?: number) => `Need ${n ?? 0}`,
+  /** Certificates: filters "All 4", "Beacon 2"; a row "NIETE · Aspiring". */
+  all: (n?: number) => `All ${n ?? 0}`,
+  providerCount: (name?: string | null, n?: number) => `${name ?? ''} ${n ?? 0}`.trim(),
+  view: 'View',
+  notAvailable: 'Not available',
+  /** "NIETE · Aspiring": the provider and the level, both data. */
+  certTitle: (provider?: string | null, levelName?: string | null) => joined(provider, levelName),
+  /** My grades: the band's grade range chip ("1–5"), the lock chips, Save. */
+  grades: 'Grades',
+  range: (from?: number | string, to?: number | string) => `${from ?? ''}–${to ?? ''}`,
+  lockedAfterSave: 'Locked 48h after save',
+  lockedFor: (h?: number) => `Locked · ${h ?? 0}h`,
+  save: 'Save',
   loading: 'Loading…',
   notLoaded: 'Not loaded',
   retry: 'Try again',

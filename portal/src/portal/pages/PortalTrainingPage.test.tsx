@@ -84,19 +84,16 @@ describe("flag on, a teacher", () => {
     ["/portal/training/provider/TALEEMABAD/level/2/course/c-3", "newui-inner-bar"],
     ["/portal/training/unit/m-4", "newui-inner-bar"],
     ["/portal/training/unit/m-4/quiz", "newui-inner-bar"],
+    ["/portal/training/certificates", "newui-inner-bar"],
+    ["/portal/training/grades", "newui-inner-bar"],
+    ["/portal/training/provider/TALEEMABAD/level/2/exam", "newui-inner-bar"],
+    ["/portal/training/exam/c-9", "newui-inner-bar"],
   ])("%s is a new screen", async (path, testId) => {
     renderAt(path);
     expect(await screen.findByTestId(testId)).toBeInTheDocument();
     expect(screen.queryByTestId("training-v2-root")).not.toBeInTheDocument();
   });
 
-  it.each([
-    "/portal/training/exam/c-9",
-  ])("%s, not built yet, is the old page at the same address", async (path) => {
-    renderAt(path);
-    expect(await screen.findByTestId("training-v2-root")).toBeInTheDocument();
-    expect(where()).toBe(path);
-  });
 });
 
 describe("flag off", () => {

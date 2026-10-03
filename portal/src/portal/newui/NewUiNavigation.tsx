@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import {
-  Award, BarChart3, BookOpen, ChevronRight, CircleUserRound, ClipboardList, GraduationCap, House, LogOut, Mic,
+  Award, BarChart3, BookOpen, ChevronRight, CircleUserRound, ClipboardList, GraduationCap, House, ListChecks, LogOut, Mic,
   MoreHorizontal, Users, X,
 } from 'lucide-react';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -172,6 +172,8 @@ const ACCOUNT_ROWS: Array<{ to: string; title: string; icon: LucideIcon }> = [
   { to: '/portal/classes', title: NAV_COPY.accountRows.myClasses, icon: Users },
   { to: '/portal/coaching/analytics', title: NAV_COPY.accountRows.analytics, icon: BarChart3 },
   { to: '/portal/training/certificates', title: NAV_COPY.accountRows.certificates, icon: Award },
+  // bd-5rz1v.25 — the band picker left the Training page; it lives here now.
+  { to: '/portal/training/grades', title: NAV_COPY.accountRows.myGrades, icon: ListChecks },
 ];
 
 /** Her initials: the first letter of the first two words of her name. */

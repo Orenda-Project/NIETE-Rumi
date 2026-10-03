@@ -26,17 +26,20 @@ interface Common<K extends string> {
   label: string;
   options: ReadonlyArray<ToggleOption<K>>;
   compact?: boolean;
+  /** Every option off-limits (bd-5rz1v.25: My grades inside the server's 48-hour window). */
+  disabled?: boolean;
 }
 interface Single<K extends string> extends Common<K> { mode?: 'single'; value: K | null; onChange: (key: K) => void }
 interface Multi<K extends string> extends Common<K> { mode: 'multi'; value: readonly K[]; onChange: (keys: K[]) => void }
 export type ToggleListProps<K extends string> = Single<K> | Multi<K>;
 
 export function ToggleList<K extends string>(props: ToggleListProps<K>) {
-  const { label, options, compact } = props;
+  const { label, options, compact, disabled } = props;
   const keys = options.map((o) => o.key);
   const multi = props.mode === 'multi';
   const isOn = (k: K) => (props.mode === 'multi' ? props.value.includes(k) : props.value === k);
   const toggle = (k: K) => {
+    if (disabled) return;
     if (props.mode === 'multi') {
       props.onChange(props.value.includes(k) ? props.value.filter((v) => v !== k) : [...props.value, k]);
     } else {
@@ -55,6 +58,7 @@ export function ToggleList<K extends string>(props: ToggleListProps<K>) {
             type="button"
             role={multi ? 'checkbox' : 'radio'}
             aria-checked={on}
+            disabled={disabled}
             tabIndex={multi || on || (singleValue === null && o.key === keys[0]) ? 0 : -1}
             data-radio-key={o.key}
             onClick={() => toggle(o.key)}
@@ -64,6 +68,7 @@ export function ToggleList<K extends string>(props: ToggleListProps<K>) {
               'rtl:font-bold rtl:leading-[1.9]',
               compact ? 'min-h-[56px]' : 'min-h-[64px]',
               on ? 'border-nu-select bg-nu-select-tint' : 'border-nu-surface-line bg-nu-surface-card active:bg-nu-ink-xlight',
+              disabled && 'opacity-55',
               FOCUS,
             )}
           >
