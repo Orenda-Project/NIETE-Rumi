@@ -87,6 +87,8 @@ function Value({ text }: { text: string }) {
   return <span dir="auto" className="block max-w-[44vw] truncate md:max-w-[420px]">{text}</span>;
 }
 
+const valueOf = (text?: string | null) => (text ? <Value text={text} /> : undefined);
+
 function MainPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -124,7 +126,7 @@ function MainPage() {
   };
   const pickSubject = (s: LpSubject) => {
     if (!picks.grade) return;
-    if (s.key !== picks.subject) setPicks({ grade: picks.grade, subject: s.key, chapter: null, lesson: null });
+    if (s.key !== picks.subject) setPicks({ grade: picks.grade, subject: s.key, subjectName: s.name, chapter: null, lesson: null });
     setSheet(null);
     navigate(pageUrl('chapters', { grade: picks.grade, subject: s.key }));
   };
@@ -155,7 +157,7 @@ function MainPage() {
             testId="lp-row-subject"
             icon={subjectIcon(subject?.name)}
             title={LESSONS_COPY.rows.subject}
-            value={picks.subject ? (subject ? <Value text={subject.name} /> : undefined) : LESSONS_COPY.none}
+            value={picks.subject ? valueOf(subject?.name ?? picks.subjectName) : LESSONS_COPY.none}
             valueMuted={!picks.subject}
             state={picks.grade ? undefined : 'off'}
             onClick={() => setSheet('subject')}
@@ -164,7 +166,7 @@ function MainPage() {
             testId="lp-row-chapter"
             icon={Layers}
             title={LESSONS_COPY.rows.chapter}
-            value={picks.chapter ? (chapter ? <Value text={chapter.title} /> : undefined) : LESSONS_COPY.none}
+            value={picks.chapter ? valueOf(chapter?.title ?? picks.chapterTitle) : LESSONS_COPY.none}
             valueMuted={!picks.chapter}
             state={picks.grade && picks.subject ? undefined : 'off'}
             to={chaptersTo ?? undefined}

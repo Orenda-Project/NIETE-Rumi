@@ -286,9 +286,18 @@ export let lessonPlans: LessonPlansApi = createLessonPlansApi();
  * shows all four whichever way she came back to it — as the old page kept her four dropdowns.
  * sessionStorage when it works (the tab, a reload), memory when it does not.
  */
-export type Picks = { grade: number | null; subject: string | null; chapter: string | null; lesson: LpLesson | null };
+export type Picks = {
+  grade: number | null;
+  subject: string | null;
+  chapter: string | null;
+  lesson: LpLesson | null;
+  /** The names, kept with the keys: the main page shows them at once, before the catalogue
+   *  answers (on sandbox it took over 1.5s after a reload, and the rows sat blank). */
+  subjectName?: string | null;
+  chapterTitle?: string | null;
+};
 
-export const NO_PICKS: Picks = { grade: null, subject: null, chapter: null, lesson: null };
+export const NO_PICKS: Picks = { grade: null, subject: null, chapter: null, lesson: null, subjectName: null, chapterTitle: null };
 const PICKS_KEY = 'nu-lesson-plans-picks';
 let memoryPicks: Picks = NO_PICKS;
 
@@ -302,6 +311,8 @@ export function readPicks(): Picks {
         subject: str(p.subject),
         chapter: str(p.chapter),
         lesson: p.lesson && typeof p.lesson === 'object' && typeof p.lesson.id === 'string' ? p.lesson as LpLesson : null,
+        subjectName: str(p.subjectName),
+        chapterTitle: str(p.chapterTitle),
       };
     }
   } catch { /* storage blocked: memory below */ }
