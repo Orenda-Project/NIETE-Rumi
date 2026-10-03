@@ -77,8 +77,11 @@ function screenWith(id, children, data, initValues) {
   };
 }
 
+// Counts are plain text inputs (bd-s1oo0.43): "phone" kept string init-values publishable but the WhatsApp
+// client then validated every count as a phone number ("60" → "Enter a valid phone number") and the coach
+// could not save. The endpoint parses the digits (Latin, Urdu or Arabic-Indic) and refuses anything else.
 const number = (name, label, helper, visible) => ({
-  type: 'TextInput', name, label: d(label), 'input-type': 'phone', required: true, ...(helper ? { 'helper-text': d(helper) } : {}), ...(visible ? { visible: d(visible) } : {}),
+  type: 'TextInput', name, label: d(label), 'input-type': 'text', 'max-chars': 3, required: true, ...(helper ? { 'helper-text': d(helper) } : {}), ...(visible ? { visible: d(visible) } : {}),
 });
 const radio = (name, key, source) => ({
   type: 'RadioButtonsGroup', name, label: d(`${key}_t`), description: d(`${key}_d`), required: true, visible: d(`${key}_v`), 'data-source': d(source),

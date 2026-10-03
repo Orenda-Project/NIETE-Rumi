@@ -536,3 +536,14 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     # Several class teachers (the list spans sections): one button each up to 3, a list beyond. None: no
     # offer and the list is unchanged. The flagged class teacher (is_class_teacher) is preferred; without
     # one, the class's active teacher. The tap re-checks the teacher against the list's classes.
+
+  @e2e @wip @draft @P0 @CT63
+  Scenario: A count typed in the check is accepted, in Latin or Urdu digits
+    Given child 1's check Flow is open and the Urdu story count arrived empty
+    When I type "58" in words correct and "۶۰" in words attempted
+    Then neither field shows a phone-number error and the screen's save button is enabled
+    And when I save, the stored coach marks read 58 and 60
+    # Found in the real WhatsApp capture on sandbox (3 Oct, WhatsApp Web): the count inputs were
+    # input-type phone, so "60" showed "Enter a valid phone number" and save stayed disabled for every
+    # child. Counts are now text inputs (3 characters); the endpoint reads Latin, Urdu and Arabic-Indic
+    # digits and still refuses letters ("Enter a whole number"). bd-s1oo0.43.
