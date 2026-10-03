@@ -13,7 +13,9 @@ import { portal } from '../services/api';
 import { useToast } from '@/hooks/use-toast';
 import type { CoachingSession } from '../types/portal';
 import CoachingHome from '../components/coaching/CoachingHome';
-import { useSelfObservation } from '../lib/useSelfObservation';
+import CoachingMain from '../newui/coaching/CoachingMain';
+import { AuthContext } from '../hooks/authContext';
+import { useCoachingUi } from '../lib/coachingUi';
 
 /**
  * Today's Coaching page — what every teacher without portal_self_observation
@@ -179,13 +181,22 @@ const LegacyCoaching = () => {
  * bd-5rz1v — the redesigned Coaching page ships dark: CoachingHome only once
  * /config says self-observation is on for her; today's page otherwise,
  * including when /config cannot be read.
+ *
+ * bd-5rz1v.26 — with portal_new_ui on as well (a teacher), the new UI's
+ * Coaching (newui/coaching). Flag off, every page here is what it was
+ * (PortalCoaching.flagOff.test.tsx). The user read for the flag is handed to
+ * the layout inside, so it is not read twice.
  */
 const PortalCoaching = () => {
-  const on = useSelfObservation();
-  if (on === null) {
-    return <PortalLayout><LoadingState type="full" /></PortalLayout>;
-  }
-  return on ? <PortalLayout><CoachingHome /></PortalLayout> : <LegacyCoaching />;
+  const { ui, auth } = useCoachingUi();
+  return (
+    <AuthContext.Provider value={auth}>
+      {ui === 'loading' ? <PortalLayout><LoadingState type="full" /></PortalLayout>
+        : ui === 'new' ? <CoachingMain />
+          : ui === 'self' ? <PortalLayout><CoachingHome /></PortalLayout>
+            : <LegacyCoaching />}
+    </AuthContext.Provider>
+  );
 };
 
 export default PortalCoaching;
