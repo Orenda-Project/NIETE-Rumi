@@ -105,6 +105,17 @@ describe("Sheet", () => {
     expect(document.activeElement).toBe(inside);
   });
 
+  it("bd-5rz1v.26.4 — its title is isolated, so an English title keeps its ? at the end in an Urdu page", () => {
+    // Seen at 390px RTL: "Stop recording?" drew as "?Stop recording" (the bidi algorithm moves a
+    // trailing neutral to the start of a right-to-left line). A <bdi> takes its direction from its
+    // own words; the title still sits at the start of the row.
+    render(<div dir="rtl"><Sheet open title="Stop recording?" onClose={() => {}}><span>body</span></Sheet></div>);
+    const heading = screen.getByRole("heading", { name: "Stop recording?" });
+    const isolate = heading.querySelector("bdi");
+    expect(isolate).not.toBeNull();
+    expect(isolate).toHaveTextContent("Stop recording?");
+  });
+
   it("renders nothing when closed", () => {
     render(<Sheet open={false} title="Date range" onClose={() => {}}><span>body</span></Sheet>);
     expect(screen.queryByRole("dialog")).toBeNull();
