@@ -89,13 +89,14 @@ props, use only `nu-*` tokens and logical spacing, and keep every target at 56px
 | `FilterChips` | One choice among a few filters | A radio group. The picked chip is indigo and the others are outlined. |
 | `ToggleChips` | Any number of choices among a few (question types) | Checkboxes that look like `FilterChips`. An on chip is indigo with a check. |
 | `BottomButton` | The action | `tone`: `primary` (default), `outline`, `warn`, `danger`, or `dangerOutline` (the outline button with red words: a destructive second choice under a green one, such as Delete under Continue). Also `disabled`, `icon` (`iconFlips` for ›), and `to` for a link. |
-| `BottomActions` | Holding the action(s) | Fixed above the menu bar on a phone, inline on a desktop; it reserves its own space. While a lesson records, it stands above the recording bar (`PortalLayout` says when the bar shows, `lib/recordingBarShown.ts`). |
+| `BottomActions` | Holding the action(s) | Fixed above the menu bar on a phone, inline on a desktop; it reserves its own space. While a lesson records, it stands on top of the recording bar's strip, 144px + the safe area up (`PortalLayout` says when the bar shows, `lib/recordingBarShown.ts`). |
 | `MetricTile`, `MetricGrid` | Home's counts | `feature` (its icon in the feature's hue on a grey tile), `value` (`null` shows "—"), `label`, `to`/`onClick`, `wide` + `chips`. The grid is two columns on a phone, four on a desktop. |
 | `Sheet` | A choice that rises from the bottom | `open`, `title`, `onClose`. Android Back, Escape, the 56px close and a tap on the dim all close it. Focus stays inside. |
 | `DateRangeButton`, `DateRangeSheet` | Picking a period | This week, This month (default), Last 3 months, This year, All time, Pick dates. A preset applies at once. Pick dates opens From, To and Done. `range.ts` has `rangeQuery()` for the API. |
 | `NumberGrid` | Picking a number (Grade 1–12) | Four across, 58px tiles, the picked one indigo; `required` dashes a border; `disabled` numbers are shown flat grey, cannot be picked, and the arrow keys skip them. |
 | `Stepper` | A count, never typed ("− 15 +") | Two 56px squares and a 34px/800 number. `min`/`max` are the caller's (the server's); a button at its bound is disabled. |
 | `ToggleList` | Big options with a tick box | `mode="single"` (radio) or `"multi"` (checkbox). On = indigo. `compact` = 56px rows. |
+| `Panel`, `Fold` | A section of content (a report's feedback, a transcript) | `icon` + a short `title` (one heading, 1–3 words) over the content. `Panel` is the list card with a 42px neutral tile; `Fold` is the same card whose heading is a 60px button with ⌄ (`aria-expanded`), closed by default (`defaultOpen`). The words inside are data, shown as they are. |
 | `Hero` | A status screen | `ring` ({value 0–1, text}) or `icon` + `tone` (`done`, `waiting`, `neutral`), `spinning`, `chips`, `live`. |
 | `FeatureIcon`, `HeadingTile` | A feature's icon | The only place a feature colour is drawn. |
 
@@ -196,7 +197,7 @@ it, so do not write a raw hex in a component (the style check fails).
 | Destructive | `#c8331f` | edge `#8a1f12` | white | `bg-nu-button-destructive`, `shadow-nu-destructive` |
 | Disabled | `#d7d9e0` | none | `#8c90a0` | `bg-nu-button-disabled`, `text-nu-button-disabled-text` |
 
-`shadow-nu-nav` is the menu bar's upward shadow.
+`shadow-nu-nav` is the menu bar's upward shadow. `shadow-nu-float` is something floating over the page (the recording bar in a desktop corner).
 
 ### Progress, done and status chips
 
@@ -362,6 +363,31 @@ old code). The mockup has no Coaching section; these screens follow Home's and A
   shows "Not a recording" here), Cancel. The record page is told the choice in the route state
   (`{ start: record | file | resume }`), as before.
 - Desktop: what waits for her and the button on the left, her lessons on the right.
+- `/portal/coaching/new` (`RecordPage`, behaviour in `useSendFlow`, today's page's): inner pages under
+  Coaching. **Record live lecture**: the Recording chip (red dot) or Paused (amber), a 64px clock, the sound
+  bars (`LevelBars`, recording red), "Keep app open", a Lesson plans row with "Recording continues"; Finish
+  (green, a sheet asks first: "38 min", "Short lesson" under 10 minutes, Yes, finish / Keep recording) and Pause
+  or Continue (outline). The microphone refused: "Microphone blocked", where to allow it as a path ("Lock ›
+  Microphone › Allow"), Try again, Upload recording. **Check and send**: her recording (minutes, Just now /
+  the day / the size, Listen, Record again or Change file); Optional: Lesson plan (a sheet: Recent lesson plans
+  from `GET /lesson-plans/recent`, From the library, Take a photo, Choose a file) and Board photos (n/3, each
+  removable); Send to Digital Coach. The library is one step a page (`LibraryStep`: Grade on a `NumberGrid`,
+  then Subject, Chapter, Lesson rows; the crumb says what she chose, Back steps up). **Sending**: a ring and the
+  percentage, no menu. Then Sent (Open lesson replaces the page), No internet (Saved on phone, Try again),
+  Lesson plan not used (Change lesson plan), Not accepted, Another lesson analysing (Open that lesson).
+- `/portal/coaching/session/:id` (`LessonView`): an inner page under Coaching, the topic its title. On its
+  way: the three steps as rows (done green, the current one turning with "~10 min", the rest dimmed); her
+  question, a box and Send; or "Answer on WhatsApp". The report: subject, day, minutes and band chips, then one
+  short heading per section — Digital Coach (her debrief), Try next time, Went well, Rubric (each part's band),
+  Your recording — and the long ones `Fold`: Your reflection, All tips, What was said (six lines, Show all);
+  Report picture opens as a file. A coach's observation, once sent: Coach visit, who, when, Sent, then the
+  picture, caption and text as WhatsApp delivered them. A Next question row leads to the oldest other lesson
+  waiting for her answer.
+- **The recording bar** on the new menu (`RecordingBar.tsx`, `NEW_BAR_STYLE`): a white kit card — the
+  recording-red mic tile (amber pause tile when paused), Recording, the clock (amber if the screen went off), ›.
+  On a phone an opaque strip from the top of the menu (8px, then the 56px bar) ends 144px up, where a page's
+  `BottomActions` stands: they never overlap (bd-5rz1v.24). On a desktop it floats in the corner
+  (`shadow-nu-float`). The old menu's bar is unchanged.
 
 ## Urdu and RTL
 

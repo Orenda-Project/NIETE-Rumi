@@ -83,7 +83,8 @@ describe("flag ON — room for the taller indigo bar", () => {
   it("docks the recording bar above the indigo bar, not on it", async () => {
     const { container } = await renderLayout(true, true);
     const d = dock().className.split(/\s+/);
-    expect(d).toContain("bottom-[calc(88px+env(safe-area-inset-bottom))]");
+    // bd-5rz1v.26 — an opaque strip from the top of the indigo bar; the bar itself 8px (pt-2) above it.
+    expect(d).toEqual(expect.arrayContaining(["bottom-[calc(80px+env(safe-area-inset-bottom))]", "pt-2", "bg-nu-surface"]));
     expect(d).not.toContain(OLD_DOCK);
     expect(main(container).className).toContain("pb-[calc(176px+env(safe-area-inset-bottom))]");
   });
@@ -113,7 +114,7 @@ describe("bd-5rz1v.14 — a page's bottom action button and the recording bar", 
 
   it("while a lesson records, the layout tells the button to stand above the bar", async () => {
     const cls = await renderWithAction(true);
-    expect(cls).toContain("bottom-[calc(152px+env(safe-area-inset-bottom))]");
+    expect(cls).toContain("bottom-[calc(144px+env(safe-area-inset-bottom))]");
     expect(screen.getByTestId("recording-bar")).toBeInTheDocument();
   });
 

@@ -205,6 +205,8 @@ export const SHADOW = {
   destructive: `0 4px 0 ${BUTTON.destructive.edge}`,
   destructivePressed: `0 1px 0 ${BUTTON.destructive.edge}`,
   nav: '0 -6px 18px rgba(20,22,29,0.18)',
+  /** bd-5rz1v.26 — something floating over the page: the recording bar in a desktop corner. */
+  float: '0 6px 16px rgba(20,24,38,0.16)',
 } as const;
 
 /** tailwind.config.ts adds these to `boxShadow`: shadow-nu-button, shadow-nu-nav, … */
@@ -216,6 +218,7 @@ export const tailwindShadows = {
   'nu-destructive': SHADOW.destructive,
   'nu-destructive-pressed': SHADOW.destructivePressed,
   'nu-nav': SHADOW.nav,
+  'nu-float': SHADOW.float,
 };
 
 const chip = (c: { text: string; background: string }) => ({ DEFAULT: c.text, bg: c.background });

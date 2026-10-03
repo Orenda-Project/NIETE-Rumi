@@ -14,7 +14,9 @@ import { useToast } from '@/hooks/use-toast';
 import type { SessionDetail } from '../types/portal';
 import { withoutScore } from '../lib/coachingCard';
 import LessonPage from '../components/coaching/LessonPage';
-import { useSelfObservation } from '../lib/useSelfObservation';
+import LessonView from '../newui/coaching/LessonView';
+import { AuthContext } from '../hooks/authContext';
+import { useCoachingUi } from '../lib/coachingUi';
 
 
 /**
@@ -373,14 +375,17 @@ const LegacyDetail = () => {
  */
 const PortalCoachingDetail = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const on = useSelfObservation();
-  if (on === null) {
-    return <PortalLayout><LoadingState type="full" /></PortalLayout>;
-  }
-  if (on && sessionId) {
-    return <PortalLayout><LessonPage key={sessionId} sessionId={sessionId} /></PortalLayout>;
-  }
-  return <LegacyDetail />;
+  // bd-5rz1v.26 — with portal_new_ui on as well (a teacher), the new UI's lesson page. Flag off,
+  // exactly as before (PortalCoaching.flagOff.test.tsx).
+  const { ui, auth } = useCoachingUi();
+  return (
+    <AuthContext.Provider value={auth}>
+      {ui === 'loading' ? <PortalLayout><LoadingState type="full" /></PortalLayout>
+        : ui === 'new' && sessionId ? <LessonView key={sessionId} sessionId={sessionId} />
+          : ui !== 'legacy' && sessionId ? <PortalLayout><LessonPage key={sessionId} sessionId={sessionId} /></PortalLayout>
+            : <LegacyDetail />}
+    </AuthContext.Provider>
+  );
 };
 
 export default PortalCoachingDetail;
