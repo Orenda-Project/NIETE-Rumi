@@ -11,7 +11,9 @@
  *
  *   niete_lp_opens          she opened it in the PORTAL (written here; V1.6.1)
  *   niete_lp_downloads      a grades 1-5 plan reached her on WHATSAPP (status 'sent')
- *   niete_lp612_deliveries  a grades 6-12 plan reached her on WHATSAPP
+ *   niete_lp612_deliveries  a grades 6-12 plan reached her on WHATSAPP (surface whatsapp/backfill;
+ *                           its 'portal' rows are the bot's per-render claims, bd-5rz1v.21, and
+ *                           are not read here)
  *
  * Every read below is the union of the three, keyed by the stable PLAN KEY `<kind>:<ref>`:
  * `k5:<catalogue lesson_id>` or `g612:<segment_id>`. That is the one definition of "a lesson
@@ -117,6 +119,11 @@ const { pkInstantWindow, pkDaySql } = require('../lib/pk-range');
  * Every use of a plan by teacher $1 inside the Pakistan-day window [$2, $3] (either end open when
  * NULL): one row per open or delivery, `via` portal | whatsapp. Each branch is a per-teacher index
  * range scan — idx_lp_opens_user_recent, idx_lp_downloads_user_time, idx_lp612_deliveries_user_recent.
+ *
+ * bd-5rz1v.21 — `surface <> 'portal'`: a portal row in niete_lp612_deliveries is the bot's record of
+ * her CLAIM on a shared render (she asked for it in the portal), not a lesson that reached her on
+ * WhatsApp, and her portal open is counted from niete_lp_opens when the PDF actually goes out.
+ * Counting it here would call a portal request "received on WhatsApp".
  */
 const ACTIVITY_CTE = `
   lp_activity AS (
@@ -130,7 +137,7 @@ const ACTIVITY_CTE = `
     UNION ALL
     SELECT 'g612', g.segment_id, g.lang, g.delivered_at, 'whatsapp'
       FROM niete_lp612_deliveries g
-     WHERE g.user_id = $1::uuid AND ${pkInstantWindow('g.delivered_at', '$2', '$3')}
+     WHERE g.user_id = $1::uuid AND g.surface <> 'portal' AND ${pkInstantWindow('g.delivered_at', '$2', '$3')}
   )`;
 
 /** The count columns, over lp_activity — selected by the Home's single counts statement. */

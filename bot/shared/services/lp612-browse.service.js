@@ -43,6 +43,8 @@
 
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
+// bd-5rz1v.21 — the per-teacher record of who has which render, for claims the row cannot hold.
+const Deliveries = require('./lp612-deliveries.store');
 const {
   isReligiousEnabled, LP612_MIN_GRADE, LP612_MAX_GRADE, templateVersion,
 } = require('../config/lp612-flags');
@@ -263,14 +265,23 @@ async function renderStatus(renderId, userId) {
   // Filtered in JS rather than in the query on purpose — see `claims()`. The waiter list is
   // EMPTIED the moment the render completes, so a `.contains('waiters', …)` predicate would
   // stop matching at exactly the moment she is polling for the good news.
-  if (!claims(data, userId)) return null;
+  //
+  // bd-5rz1v.21 — and when the row itself says no, the delivery ledger is asked: a teacher who
+  // asked for this render after it was ready (a portal cache hit), or waited on it from the portal
+  // behind somebody else, or received it on WhatsApp, has a delivery of THIS render. Only then —
+  // the in-row check is free, the ledger read is not.
+  if (!claims(data, userId) && !(await Deliveries.claimsRender(renderId, userId))) return null;
 
   const { requested_by: _rb, waiters: _w, ...row } = data;
   return row;
 }
 
 /**
- * Is this teacher entitled to this render?
+ * Is this teacher entitled to this render — on the evidence IN THE ROW?
+ *
+ * (bd-5rz1v.21: the row is not the whole answer. Both fields below describe the run that WROTE the
+ * render, and say nothing about a teacher who asked for it once it was ready — on a shared render
+ * that is most of them. `renderStatus` falls back to the delivery ledger for her; see there.)
  *
  * TWO FIELDS, BECAUSE NEITHER ONE IS ENOUGH — and this is the trap that nearly shipped.
  *
@@ -312,14 +323,26 @@ async function myRenders(userId, limit = 50) {
   // to raw filter syntax that is easy to get subtly wrong. Two indexed reads and a merge is the
   // boring, obviously-correct version.
   const columns = 'id, segment_id, status, r2_key, lang, error_code, started_at, completed_at';
-  const [mine, waiting] = await Promise.all([
+  const [mine, waiting, portalIds] = await Promise.all([
     supabase.from(RENDERS).select(columns)
       .eq('requested_by', userId)
       .order('started_at', { ascending: false }).limit(limit),
     supabase.from(RENDERS).select(columns)
       .contains('waiters', [{ user_id: userId }])
       .order('started_at', { ascending: false }).limit(limit),
+    // bd-5rz1v.21 — the third claim: renders she asked for in the portal once they were ready, or
+    // waited on behind somebody else (neither requester nor, after completion, a waiter).
+    Deliveries.portalRenderIds(userId, { limit }),
   ]);
+
+  let claimed = { data: [], error: null };
+  if (portalIds.length) {
+    claimed = await supabase.from(RENDERS).select(columns).in('id', portalIds).limit(portalIds.length);
+    if (claimed.error) {
+      logToFile('LP 6-12 browse: my portal renders lookup failed', { error: claimed.error.message }, 'error');
+      claimed = { data: [], error: claimed.error };
+    }
+  }
 
   if (mine.error && waiting.error) {
     logToFile('LP 6-12 browse: my renders lookup failed', { error: mine.error.message });
@@ -328,9 +351,10 @@ async function myRenders(userId, limit = 50) {
 
   // Deduped by id: a teacher who tapped first is BOTH the requester and (via the atomic
   // self-append in the serving path) a waiter, so she would otherwise see her own lesson twice
-  // while the run is still in flight.
+  // while the run is still in flight — and a teacher who asks for a ready lesson twice has two
+  // portal deliveries of the one render.
   const byId = new Map();
-  for (const r of [...(mine.data || []), ...(waiting.data || [])]) byId.set(r.id, r);
+  for (const r of [...(mine.data || []), ...(waiting.data || []), ...(claimed.data || [])]) byId.set(r.id, r);
 
   return [...byId.values()]
     .sort((a, b) => String(b.started_at || '').localeCompare(String(a.started_at || '')))

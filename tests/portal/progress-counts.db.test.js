@@ -129,6 +129,15 @@ maybe('Home counts against a real database (sandbox, rolled back)', () => {
        VALUES ($1, $2, 'en', 'v-test', '2026-10-02T09:00:00Z')`,
       [T, seg],
     );
+    // bd-5rz1v.21 — a PORTAL delivery (a ready 6-12 lesson she asked for in the portal: her claim on
+    // the render). It is not a WhatsApp receipt, and an open is counted from niete_lp_opens when the
+    // PDF actually goes out, so this row must change no count and no list below.
+    const seg2 = (await one(`SELECT segment_id FROM niete_lp612_segments WHERE is_current AND segment_id <> $1 LIMIT 1`, [seg])).segment_id;
+    await query(
+      `INSERT INTO niete_lp612_deliveries (user_id, segment_id, lang, template_version, surface, delivered_at)
+       VALUES ($1, $2, 'en', 'v-test', 'portal', '2026-10-02T10:00:00Z')`,
+      [T, seg2],
+    );
     await query(
       `INSERT INTO niete_lp_opens (user_id, plan_kind, plan_ref, lang, source, opened_at) VALUES
          ($1, 'k5', 'grade_4_science_ch2_seg1', NULL, 'viewer',   '2026-10-02T08:00:00Z'),
