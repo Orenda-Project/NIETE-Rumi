@@ -12,9 +12,11 @@ import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 // leaving the page ended the lesson, and Back was trapped on the page to stop
 // that happening. Now the recording lives above the routes:
 //
-//   record page     a view onto the session: clock, Pause, Finish, a tip
+//   record page     a view onto the session: clock, Pause, Finish, "Lesson plans"
 //   any other page  a dark bar above the menu: "Recording · 12:34", Return
-//   Logout          asks first, because it really would end the recording
+//   Logout          asks first ("Stop recording?"), because it really would end it
+//
+// Labels, not sentences (operator, 2026-10-03).
 //
 // Mounted through the REAL PortalLayout and navigation, so the bar and the
 // Logout buttons are the ones a teacher taps. The recorder and the network are
@@ -166,7 +168,8 @@ describe("bd-5rz1v.10 — the recording bar", () => {
     await goToCurriculum();
     const bar = await screen.findByTestId("recording-bar");
     expect(bar).toHaveTextContent("Recording · 12:34");
-    expect(bar).toHaveTextContent("Your lesson is still recording");
+    // Labels, not sentences: no explanatory line under the time.
+    expect(bar).not.toHaveTextContent(/still recording/i);
     expect(bar).toHaveTextContent("Return");
     // A real button, big enough to hit: the whole bar is the tap target.
     expect(bar.tagName).toBe("BUTTON");
@@ -228,10 +231,10 @@ describe("bd-5rz1v.10 — Pause and Finish after coming back", () => {
 });
 
 describe("bd-5rz1v.10 — the tip on the record screen", () => {
-  it("says the lesson plan can be opened, and Open lesson plans goes to Curriculum while recording carries on", async () => {
+  it("one Lesson plans button (and a 'Recording continues' chip) goes to Curriculum while recording carries on", async () => {
     await recording();
-    expect(screen.getByText("You can open your lesson plan while you record. The recording keeps going.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /open lesson plans/i }));
+    expect(screen.getByText("Recording continues")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^lesson plans$/i }));
     await screen.findByText("Curriculum page");
     expect(recorder.stop).not.toHaveBeenCalled();
     expect(await screen.findByTestId("recording-bar")).toBeInTheDocument();
@@ -273,24 +276,24 @@ describe("bd-5rz1v.10 — Logout while recording asks first", () => {
     await goToCurriculum();
     const sheet = await openOtherSheet();
     await userEvent.setup().click(within(sheet).getByTestId("mobile-nav-logout"));
-    const ask = await screen.findByRole("dialog", { name: /you're recording a lesson/i });
-    expect(ask).toHaveTextContent("Finish it before logging out?");
+    const ask = await screen.findByRole("dialog", { name: /stop recording\?/i });
+    expect(within(ask).getByRole("button", { name: /stop & log out/i })).toBeInTheDocument();
     expect(auth.logout).not.toHaveBeenCalled();
 
     fireEvent.click(within(ask).getByRole("button", { name: /keep recording/i }));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: /you're recording a lesson/i })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: /stop recording\?/i })).not.toBeInTheDocument());
     expect(auth.logout).not.toHaveBeenCalled();
     expect(recorder.stop).not.toHaveBeenCalled();
     expect(screen.getByTestId("recording-bar")).toBeInTheDocument();
   });
 
-  it("Finish and log out keeps the recording on the phone, then logs out", async () => {
+  it("Stop & log out keeps the recording on the phone, then logs out", async () => {
     await recording();
     await goToCurriculum();
     // The desktop header's Logout, this time.
     fireEvent.click(screen.getByRole("button", { name: "Logout" }));
-    const ask = await screen.findByRole("dialog", { name: /you're recording a lesson/i });
-    fireEvent.click(within(ask).getByRole("button", { name: /finish and log out/i }));
+    const ask = await screen.findByRole("dialog", { name: /stop recording\?/i });
+    fireEvent.click(within(ask).getByRole("button", { name: /stop & log out/i }));
     await waitFor(() => expect(auth.logout).toHaveBeenCalledTimes(1));
     expect(recorder.stop).toHaveBeenCalledTimes(1);
     expect(recorder.discard).not.toHaveBeenCalled();
@@ -306,7 +309,7 @@ describe("bd-5rz1v.10 — Logout while recording asks first", () => {
     await goToCurriculum();
     fireEvent.click(screen.getByRole("button", { name: "Logout" }));
     await waitFor(() => expect(auth.logout).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole("dialog", { name: /you're recording a lesson/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: /stop recording\?/i })).not.toBeInTheDocument();
   });
 });
 
@@ -329,7 +332,7 @@ describe("bd-5rz1v.10 — the session owns the screen hold and the leave guard",
     Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
     document.dispatchEvent(new Event("visibilitychange"));
     fireEvent.click(await screen.findByTestId("recording-bar"));
-    expect(await screen.findByText(/the screen went off for a while/i)).toBeInTheDocument();
+    expect(await screen.findByText(/screen went off/i)).toBeInTheDocument();
   });
 });
 
@@ -362,7 +365,8 @@ describe("bd-5rz1v.10 — nothing new where recording is not possible", () => {
     api.getConfig.mockResolvedValue({ features: { selfObservation: false } });
     renderApp({ start: "record" });
     await screen.findByText(/isn.t available on your account yet/i);
-    expect(screen.queryByText(/you can open your lesson plan while you record/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Recording continues")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^lesson plans$/i })).not.toBeInTheDocument();
     await goToCurriculum();
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByTestId("recording-bar")).not.toBeInTheDocument();

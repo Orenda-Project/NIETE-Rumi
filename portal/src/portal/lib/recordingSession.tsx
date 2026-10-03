@@ -54,10 +54,11 @@ export type RecordingSession = {
   askBeforeLogout: (logout: () => unknown) => void;
 };
 
+// Labels, not sentences (operator, 2026-10-03). "Stop & log out" stops and
+// KEEPS the recording: it stays on the phone, and Coaching offers Continue.
 const COPY = {
-  logoutTitle: "You're recording a lesson",
-  logoutBody: 'Finish it before logging out? It stays on this phone, so you can send it later.',
-  finishAndLogout: 'Finish and log out',
+  logoutTitle: 'Stop recording?',
+  stopAndLogout: 'Stop & log out',
   keepRecording: 'Keep recording',
 };
 
@@ -223,11 +224,10 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
       {logoutAsk && (
         <BottomSheet label={COPY.logoutTitle} onClose={() => setLogoutAsk(null)}>
           <div className="text-[23px] font-bold">{COPY.logoutTitle}</div>
-          <div className="text-[17px] text-[#3a3f4b]">{COPY.logoutBody}</div>
-          <button type="button" onClick={finishThenLogout}
-            className="h-[60px] rounded-[14px] bg-primary text-[19px] font-bold text-white">{COPY.finishAndLogout}</button>
           <button type="button" onClick={() => setLogoutAsk(null)}
-            className="h-14 rounded-[14px] border-2 border-primary bg-white text-lg font-bold text-primary">{COPY.keepRecording}</button>
+            className="h-[60px] rounded-[14px] bg-primary text-[19px] font-bold text-white">{COPY.keepRecording}</button>
+          <button type="button" onClick={finishThenLogout}
+            className="h-14 rounded-[14px] border-2 border-primary bg-white text-lg font-bold text-primary">{COPY.stopAndLogout}</button>
         </BottomSheet>
       )}
     </RecordingSessionContext.Provider>
