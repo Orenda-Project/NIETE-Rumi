@@ -105,7 +105,7 @@ function findOralWindows({ words, cue = {}, oral, durationSec }) {
 
   const anchorSpeaker = (start || intro || (firstHead || {})).speaker;
   const coachSpeaker = anchorSpeaker != null && distinctSpeakers(words) > 1 ? anchorSpeaker : null;
-  return { windows, coachSpeaker, flags, missing, anchors: { start, intro, word_problems: found, stop } };
+  return { windows, coachSpeaker, flags, missing, cue, anchors: { start, intro, word_problems: found, stop } };
 }
 
 // ------------------------------------------------------------------------------------------- the card
@@ -130,6 +130,8 @@ const CONF = {
   sumRight: 0.9,
   sumRightReadAloud: 0.85,
   sumWrong: 0.65,
+  misheard: 0.5,           // wrong, but a known speech-to-text confusion of the right answer
+  counted: 0.6,            // the child counted up to the answer
   noneNext: 0.85,          // the coach moved on
   noneSilent: 0.6,         // nothing heard for this item, the coach did not say «اگلا»
   noneEmpty: 0.3,          // the note has no words at all
@@ -139,15 +141,65 @@ function operands(prompt) {
   return (String(prompt || '').match(/\d+/g) || []).map(Number);
 }
 
-/** Card events in time order: numbers the child said, and the coach's «اگلا». */
-function cardEvents(words, window, coachSpeaker) {
+/** Indexes of `words` inside any occurrence of the coach's script lines (none of them holds a number). */
+function scriptSpans(words, lines) {
+  const out = new Set();
+  for (const line of lines.filter(Boolean)) {
+    let after = -1;
+    for (let hit = findPhrase(words, line, { after }); hit; hit = findPhrase(words, line, { after })) {
+      for (let k = hit.idx; k <= hit.lastIdx; k += 1) out.add(k);
+      after = hit.end;
+    }
+  }
+  return out;
+}
+
+const ECHO_SECONDS = 2.5;
+
+/**
+ * Card events in time order: the numbers said, and the coach's «اگلا».
+ *
+ * Numbers are taken from EVERY speaker, minus the coach's script lines: on the synthetic notes Soniox gave
+ * a child's short answers («گیارہ», «ترانوے») to the coach's speaker, and dropping the coach's speaker
+ * dropped the answers. Two guards instead: a number labelled «نمبر …» is the coach naming an item, and the
+ * same number said again by another speaker within 2.5 s is an echo, not a second answer.
+ */
+function cardEvents(words, window, coachSpeaker, cue = {}) {
   const inCard = wordsIn(words, window);
-  const child = inCard.filter((w) => !coachSpeaker || w.speaker !== coachSpeaker);
-  const nums = wordsToNumbers(child.map((w) => w.raw || w.w))
-    .filter((n) => !(n.from > 0 && same(child[n.from - 1].w, LABEL_WORD)))      // «نمبر ایک»: a label, not an answer
-    .map((n) => ({ type: 'num', value: n.value, t: child[n.from].start }));
+  const script = scriptSpans(inCard, [cue.compare, cue.sum, cue.start, cue.word_problems]);
+  const said = inCard.filter((w, k) => !script.has(k) && !isNext(w));
+  const nums = [];
+  for (const n of wordsToNumbers(said.map((w) => w.raw || w.w))) {
+    if (n.from > 0 && same(said[n.from - 1].w, LABEL_WORD)) continue;           // «نمبر ایک»: a label, not an answer
+    const w = said[n.from];
+    const prev = nums[nums.length - 1];
+    if (prev && prev.value === n.value && w.start - prev.t <= ECHO_SECONDS && prev.speaker !== w.speaker) continue;   // an echo
+    nums.push({ type: 'num', value: n.value, t: w.start, speaker: w.speaker });
+  }
   const nexts = inCard.filter(isNext).map((w) => ({ type: 'next', t: w.start }));
   return [...nums, ...nexts].sort((a, b) => a.t - b.t);
+}
+
+// Urdu number words speech-to-text confuses with each other (سات / ساٹھ, سترہ / ستر, نو / نوے).
+const CONFUSABLE = [[7, 60], [17, 70], [9, 90]];
+
+/**
+ * A wrong answer that is more likely a mishearing of the right one: a known confusion, or a number of three
+ * or more digits that differs from it only in the leading digit (the «ایک سو» / «چھ سو» word).
+ */
+function confusable(heard, answer) {
+  const h = Number(heard); const a = Number(answer);
+  if (!Number.isFinite(h) || !Number.isFinite(a) || h === a) return false;
+  if (CONFUSABLE.some(([x, y]) => (h === x && a === y) || (h === y && a === x))) return true;
+  const hs = String(h); const as = String(a);
+  return hs.length >= 3 && hs.length === as.length && hs.slice(1) === as.slice(1);
+}
+
+/** The child counted up to the answer («تین، چار، پانچ، چھ»): where the count stopped is easy to mishear. */
+function countedTo(values) {
+  if (values.length < 3) return false;
+  const tail = values.slice(-3);
+  return tail[1] === tail[0] + 1 && tail[2] === tail[1] + 1;
 }
 
 /** Score one run of numbers given to one item; null when the run cannot be this item's answer. */
@@ -156,7 +208,8 @@ function answerRun(item, vals) {
     const pair = [Number(item.a), Number(item.b)];
     const big = Math.max(...pair);
     const inPair = vals.every((v) => pair.includes(v));
-    if (vals.length === 1 && !inPair) return { score: -0.1, verdict: 'wrong', heard: vals[0], confidence: CONF.compareOther };
+    // a number in neither pair scores below skipping the item: it more likely belongs to a neighbour
+    if (vals.length === 1 && !inPair) return { score: -0.8, verdict: 'wrong', heard: vals[0], confidence: CONF.compareOther };
     if (!inPair || vals.length > 3) return null;
     if (vals.includes(big)) {
       const only = vals.every((v) => v === big);
@@ -169,12 +222,13 @@ function answerRun(item, vals) {
   const right = last === ans;
   // a wrong answer near the right one is a child's slip; one far from it more likely belongs to another item
   const wrongScore = Math.abs(last - ans) <= Math.max(10, ans / 2) ? 0 : -0.3;
-  if (vals.length === 1) return { score: right ? 1 : wrongScore, verdict: right ? 'correct' : 'wrong', heard: last, confidence: right ? CONF.sumRight : CONF.sumWrong };
+  const wrongConf = confusable(last, ans) ? CONF.misheard : CONF.sumWrong;
+  if (vals.length === 1) return { score: right ? 1 : wrongScore, verdict: right ? 'correct' : 'wrong', heard: last, confidence: right ? CONF.sumRight : wrongConf };
   if (vals.length > 3) return null;
   const ops = operands(item.prompt);
   const prefix = vals.slice(0, -1);
   if (!prefix.some((v, k) => v === ops[k] || ops.includes(v))) return null;    // read aloud: the prefix is the sum's own numbers
-  return { score: (right ? 1 : wrongScore) + 0.05 * prefix.length, verdict: right ? 'correct' : 'wrong', heard: last, confidence: right ? CONF.sumRightReadAloud : CONF.sumWrong };
+  return { score: (right ? 1 : wrongScore) + 0.05 * prefix.length, verdict: right ? 'correct' : 'wrong', heard: last, confidence: right ? CONF.sumRightReadAloud : wrongConf };
 }
 
 /**
@@ -186,7 +240,7 @@ function scoreOralCard({ words, cut, oral, coachSpeaker = cut && cut.coachSpeake
     ...((oral && oral.compare) || []).map((c) => ({ ...c, kind: 'compare' })),
     ...((oral && oral.sums) || []).map((s) => ({ ...s, kind: 'sum' })),
   ];
-  const ev = cut && cut.windows && cut.windows.card ? cardEvents(words || [], cut.windows.card, coachSpeaker) : [];
+  const ev = cut && cut.windows && cut.windows.card ? cardEvents(words || [], cut.windows.card, coachSpeaker, cut.cue) : [];
   const n = items.length; const m = ev.length;
   const NEG = -Infinity;
   const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(NEG));
@@ -243,7 +297,14 @@ async function scoreOralWordProblems({ words, cut, oral, calls }) {
     const w = cut.windows.word_problems[i];
     if (!w) return { id: wp.id, verdict: 'none', heard: '', confidence: 0 };   // the problem was not found: the coach decides
     const inside = wordsIn(words, w);
-    const child = inside.filter((x) => !coach || x.speaker !== coach);
+    let child = inside.filter((x) => !coach || x.speaker !== coach);
+    const promptNums = new Set((toWestern(wp.prompt_ur).match(/\d+/g) || []).map(Number));
+    if (!wordsToNumbers(child.map((x) => x.raw || x.w)).length) {
+      // the answer may have been given to the coach's speaker; the problem's own numbers are the coach re-reading it
+      const coachSaid = inside.filter((x) => !isNext(x));
+      if (wordsToNumbers(coachSaid.map((x) => x.raw || x.w)).some((n) => !promptNums.has(n.value))) child = coachSaid;
+    }
+    const values = wordsToNumbers(child.map((x) => x.raw || x.w)).map((n) => n.value);
     const grammar = lastNumber(child);
     if (grammar == null) {
       const moved = inside.some(isNext);
@@ -260,9 +321,11 @@ async function scoreOralWordProblems({ words, cut, oral, calls }) {
     let ans; let confidence;
     if (Number.isFinite(llm)) { ans = llm; confidence = llm === grammar ? 0.85 : 0.6; }
     else { ans = grammar; confidence = r.json ? 0.5 : 0.55; }
+    if (countedTo(values)) confidence = Math.min(confidence, CONF.counted);
+    if (ans !== Number(wp.answer) && confusable(ans, wp.answer)) confidence = Math.min(confidence, CONF.misheard);
     return { id: wp.id, verdict: ans === Number(wp.answer) ? 'correct' : 'wrong', heard: String(ans), confidence };
   }));
   return { rows, modelVersion: modelUsed };
 }
 
-module.exports = { findOralWindows, scoreOralCard, scoreOralWordProblems, cardEvents, spoken, CONF };
+module.exports = { findOralWindows, scoreOralCard, scoreOralWordProblems, cardEvents, spoken, confusable, countedTo, CONF };
