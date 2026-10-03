@@ -83,8 +83,8 @@ describe("flag ON — room for the taller indigo bar", () => {
   it("docks the recording bar above the indigo bar, not on it", async () => {
     const { container } = await renderLayout(true, true);
     const d = dock().className.split(/\s+/);
-    // bd-5rz1v.26 — an opaque strip from the top of the indigo bar; the bar itself 8px (pt-2) above it.
-    expect(d).toEqual(expect.arrayContaining(["bottom-[calc(80px+env(safe-area-inset-bottom))]", "pt-2", "bg-nu-surface"]));
+    // bd-5rz1v.26 — an opaque strip from the top of the indigo bar; the bar itself 8px (pb-2) above it.
+    expect(d).toEqual(expect.arrayContaining(["bottom-[calc(80px+env(safe-area-inset-bottom))]", "pb-2", "bg-nu-surface"]));
     expect(d).not.toContain(OLD_DOCK);
     expect(main(container).className).toContain("pb-[calc(176px+env(safe-area-inset-bottom))]");
   });

@@ -45,7 +45,7 @@ export const BAR_STYLE = {
  */
 export const NEW_BAR_STYLE = {
   dock: 'fixed inset-x-0 z-40 md:inset-x-auto md:bottom-6 md:end-6 md:w-[360px] md:bg-transparent md:p-0',
-  dockAboveMenu: 'bottom-[calc(80px+env(safe-area-inset-bottom))] bg-nu-surface px-[14px] pt-2',
+  dockAboveMenu: 'bottom-[calc(80px+env(safe-area-inset-bottom))] bg-nu-surface px-[14px] pb-2',
   dockNoMenu: 'bottom-3 px-[14px]',
   bar: 'flex h-14 w-full items-center gap-3 rounded-2xl border-[1.5px] border-nu-surface-line bg-nu-surface-card pe-2.5 ps-2 text-start text-nu-surface-text md:shadow-nu-float outline-none focus-visible:ring-[3px] focus-visible:ring-nu-focus active:bg-nu-ink-xlight',
   tile: 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
