@@ -4,7 +4,7 @@ import { portal } from '../../services/api';
 import type { LibraryGrade, LibraryLesson, LibraryOption } from '../../services/api';
 import type { LibraryPick } from '../../lib/coachingSend';
 import { COACHING_COPY } from '../copy';
-import { List, Row, SectionLabel } from '../List';
+import { List, Row } from '../List';
 import { Chip } from '../Chip';
 import { NumberGrid } from '../NumberGrid';
 import { Hero } from '../Hero';
@@ -150,16 +150,14 @@ export function LibraryStep({ onPick, onStepChange, backSignal }: {
 
   if (step.level === 0) {
     if (!grades) return loading;
+    // The page's bar already says "Grade": the grid needs no heading of its own.
     return (
-      <>
-        <SectionLabel>{COACHING_COPY.steps.grade}</SectionLabel>
-        <NumberGrid
-          label={COACHING_COPY.steps.grade}
-          numbers={grades.map((g) => g.grade)}
-          value={null}
-          onChange={(n) => { const g = grades.find((x) => x.grade === n); if (g) setStep({ level: 1, grade: g }); }}
-        />
-      </>
+      <NumberGrid
+        label={COACHING_COPY.steps.grade}
+        numbers={grades.map((g) => g.grade)}
+        value={null}
+        onChange={(n) => { const g = grades.find((x) => x.grade === n); if (g) setStep({ level: 1, grade: g }); }}
+      />
     );
   }
 

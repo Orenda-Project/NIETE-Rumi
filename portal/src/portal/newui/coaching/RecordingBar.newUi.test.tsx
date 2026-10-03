@@ -95,8 +95,11 @@ describe("the bar and a page's bottom button never overlap (bd-5rz1v.24)", () =>
   it("the bar's strip ends exactly where the bottom button starts", () => {
     renderBar();
     const dock = classes(screen.getByTestId("recording-bar").parentElement!);
-    expect(dock).toEqual(expect.arrayContaining(["bg-nu-surface", "pt-2"]));
-    const stripTop = bottomPx(dock) + 8 /* pt-2 */ + 56 /* h-14 */;
+    // The strip's 8px is UNDER the bar, between it and the menu (measured live: with the 8px on top
+    // the bar sat on the menu, bd-5rz1v.26.3); nothing on top, where the button stands.
+    expect(dock).toEqual(expect.arrayContaining(["bg-nu-surface", "pb-2"]));
+    expect(dock.some((c) => /^(pt|py|p)-/.test(c))).toBe(false);
+    const stripTop = bottomPx(dock) + 8 /* pb-2 */ + 56 /* h-14 */;
 
     render(
       <MemoryRouter>

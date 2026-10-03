@@ -410,6 +410,9 @@ describe("check and send — the lesson plan", () => {
     const sheet = await openPlanSheet();
     fireEvent.click(within(sheet).getByRole("button", { name: "From the library" }));
     expect(within(bar()).getByRole("heading", { level: 1 })).toHaveTextContent("Grade");
+    await screen.findByRole("radio", { name: "4" });
+    // One heading says the step: the bar's (a label over the grid repeated it, seen on sandbox).
+    expect(screen.getAllByRole("heading", { name: /^grade$/i })).toHaveLength(1);
     fireEvent.click(await screen.findByRole("radio", { name: "4" }));
     fireEvent.click(await screen.findByRole("button", { name: "Social Studies" }));
     expect(within(bar()).getByRole("heading", { level: 1 })).toHaveTextContent("Chapter");
