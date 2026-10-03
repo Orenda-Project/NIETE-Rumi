@@ -402,6 +402,19 @@ describe("Send a lesson", () => {
   });
 });
 
+describe("the layout", () => {
+  it("on a phone the button's space ends the page: it never opens a gap between what waits and the list", async () => {
+    vi.mocked(latestUnsent).mockResolvedValue(UNSENT);
+    renderPage();
+    await screen.findByTestId("coaching-unsent");
+    await loaded();
+    const spacer = screen.getByTestId("newui-bottom-actions-spacer");
+    const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(screen.getByTestId("coaching-unsent"), screen.getByTestId("coaching-recordings"))).toBe(true);
+    expect(follows(screen.getByTestId("coaching-recordings"), spacer)).toBe(true);
+  });
+});
+
 describe("the rules", () => {
   it("every target is 56px, sheets included", async () => {
     vi.mocked(latestUnsent).mockResolvedValue(UNSENT);
