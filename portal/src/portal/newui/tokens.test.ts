@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import resolveConfig from "tailwindcss/resolveConfig";
 import tailwindConfig from "../../../tailwind.config";
 import * as tokens from "./tokens";
-import { BRAND, BUTTON, DONE, FEATURE_HUE, FEATURE_ICON, FRAME, INNER_BAR, NAV, NEUTRAL, PROGRESS, SELECTION, STATUS, SURFACE, TAP_MIN_PX, tailwindColors } from "./tokens";
+import { BRAND, BUTTON, DONE, FEATURE_HUE, FEATURE_ICON, FRAME, INNER_BAR, NAV, NEUTRAL, PROGRESS, SELECTION, SHADOW, STATUS, SURFACE, TAP_MIN_PX, tailwindColors, tailwindShadows } from "./tokens";
 
 /**
  * bd-5rz1v.12 — the new UI's colours live in ONE place (tokens.ts) and the
@@ -29,7 +29,7 @@ describe("new UI tokens", () => {
   // versions/v6_deep-screens/deep-screens.html.
   it("indigo is the frame (heading band + menu bar) and the selection", () => {
     // Flat: the main-page heading band and the menu bar both have square corners.
-    expect(FRAME).toEqual({ background: "#333748", text: "#ffffff", translucent: "rgba(255,255,255,0.14)" });
+    expect(FRAME).toMatchObject({ background: "#333748", text: "#ffffff", translucent: "rgba(255,255,255,0.14)" });
     expect(SELECTION).toEqual({ colour: "#333748", tint: "#e8e9f0", text: "#ffffff" });
   });
 
@@ -57,10 +57,37 @@ describe("new UI tokens", () => {
     expect(FEATURE_ICON).toEqual({
       tile: "rgba(255,255,255,0.12)",
       onIndigo: { lessonPlans: "#7fd6a6", training: "#8bb8f7", assessment: "#b8a8f8" },
-      onLight: { lessonPlans: "#2e7d57", training: "#1d6fd8", assessment: "#6e52e0" },
+      // bd-5rz1v.19 — Home's tiles and crumb (deep-screens.html `FC`, `FEAT.home`): Home and
+      // Coaching draw in indigo, attendance (My Classes) in its orange.
+      onLight: {
+        lessonPlans: "#2e7d57", training: "#1d6fd8", assessment: "#6e52e0",
+        myClasses: "#d9530b", coaching: "#333748", home: "#333748",
+      },
     });
     // The breadcrumb colour IS the feature's hue — one source, not a second copy.
     expect(FEATURE_ICON.onLight.training).toBe(FEATURE_HUE.training.colour);
+    expect(FEATURE_ICON.onLight.myClasses).toBe(FEATURE_HUE.myClasses.colour);
+  });
+
+  it("the band's own controls and chips, and the sheet's scrim, are tokens too (bd-5rz1v.19)", () => {
+    // deep-screens.html: `.band .chip` text #e9eaf2; `.rangebtn` rgba(255,255,255,.12) with a
+    // rgba(255,255,255,.3) border; `.scrim` rgba(20,24,38,.5); `.tog .box` border #c7cad6.
+    expect(FRAME).toMatchObject({ chip: "#e9eaf2", control: "rgba(255,255,255,0.12)", controlBorder: "rgba(255,255,255,0.3)" });
+    expect(SURFACE).toMatchObject({ scrim: "rgba(20,24,38,0.5)", box: "#c7cad6" });
+  });
+
+  it("the button edges and the menu bar's shadow are tokens, built from the button colours (bd-5rz1v.19)", () => {
+    // `.cta` box-shadow: 0 4px 0 <edge>, 0 8px 16px rgba(46,125,87,.22); pressed 0 1px 0 <edge>.
+    expect(SHADOW).toEqual({
+      button: "0 4px 0 #1e5c3f, 0 8px 16px rgba(46,125,87,0.22)",
+      buttonPressed: "0 1px 0 #1e5c3f",
+      warning: "0 4px 0 #7a2e04",
+      warningPressed: "0 1px 0 #7a2e04",
+      destructive: "0 4px 0 #8a1f12",
+      destructivePressed: "0 1px 0 #8a1f12",
+      nav: "0 -6px 18px rgba(20,22,29,0.18)",
+    });
+    expect(SHADOW.button.startsWith(`0 4px 0 ${BUTTON.primary.edge}`)).toBe(true);
   });
 
   it("pages inside a flow get a light bar: white, 1px bottom line, soft indigo back button, muted breadcrumb", () => {
@@ -122,6 +149,12 @@ describe("the Tailwind theme is built from the tokens", () => {
       "lesson-plans": { DEFAULT: "#7fd6a6", crumb: "#2e7d57" },
       training: { DEFAULT: "#8bb8f7", crumb: "#1d6fd8" },
       assessment: { DEFAULT: "#b8a8f8", crumb: "#6e52e0" },
+      "my-classes": { crumb: "#d9530b" },
+      coaching: { crumb: "#333748" },
+      home: { crumb: "#333748" },
+    });
+    expect(colors.nu.frame).toEqual({
+      translucent: "rgba(255,255,255,0.14)", chip: "#e9eaf2", control: "rgba(255,255,255,0.12)", "control-border": "rgba(255,255,255,0.3)",
     });
     expect(colors.nu.inner).toEqual({ DEFAULT: "#ffffff", border: "#e3e5ec", back: "#f3f3f7", "back-icon": "#333748", crumb: "#666b80" });
     expect(colors.nu).not.toHaveProperty("subject");
@@ -139,6 +172,22 @@ describe("the Tailwind theme is built from the tokens", () => {
     expect(colors.nu.progress).toEqual({ DEFAULT: "#48b078", track: "#e8e9f0" });
     expect(colors.nu.done).toEqual({ DEFAULT: "#2e7d57", bg: "#e2f3e9" });
     expect(colors.nu.neutral).toEqual({ tile: "#f3f3f7", icon: "#333748", quiet: "#f1f2f5", "quiet-icon": "#666b80" });
+  });
+
+  it("exposes the shadows as shadow-nu-* (bd-5rz1v.19)", () => {
+    const shadows = resolveConfig(tailwindConfig).theme.boxShadow as unknown as Record<string, string>;
+    expect(tailwindShadows).toEqual({
+      "nu-button": SHADOW.button,
+      "nu-button-pressed": SHADOW.buttonPressed,
+      "nu-warning": SHADOW.warning,
+      "nu-warning-pressed": SHADOW.warningPressed,
+      "nu-destructive": SHADOW.destructive,
+      "nu-destructive-pressed": SHADOW.destructivePressed,
+      "nu-nav": SHADOW.nav,
+    });
+    for (const [name, value] of Object.entries(tailwindShadows)) expect(shadows[name]).toBe(value);
+    // Tailwind's own shadows are still there for every old page.
+    expect(shadows.md).toBeTruthy();
   });
 
   it("keeps the colours every existing page uses", () => {
