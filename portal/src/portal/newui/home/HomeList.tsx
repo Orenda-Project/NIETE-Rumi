@@ -1,20 +1,28 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
-import { BookOpen, CalendarDays, CircleAlert, FlaskConical, Inbox, Loader2 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import {
+  BookOpen, CalendarCheck, CalendarDays, CircleAlert, ClipboardList, Download, FlaskConical, GraduationCap, Inbox, Loader2,
+} from 'lucide-react';
 import PortalLayout from '../../components/PortalLayout';
 import { useLessonPlanOpener } from '../../lib/lessonPlanOpen';
 import type { BandKey } from '../../lib/scoreBands';
-import { HOME_COPY } from '../copy';
+import type { AssessmentPaper } from '../../services/api';
+import { ASSESSMENT_COPY, HOME_COPY } from '../copy';
 import { InnerBar } from '../InnerBar';
 import { List, Row } from '../List';
 import { Chip, FilterChips, type ChipTone } from '../Chip';
 import { DateRangeButton, DateRangeSheet } from '../DateRange';
 import { Hero } from '../Hero';
 import { BottomButton } from '../BottomButton';
-import { pkDayMonth, rangeFromSearch, rangeSearch, type DateRange } from '../range';
+import { pkDayMonth, rangeFromSearch, rangeSearch, shortDate, type DateRange } from '../range';
+import { subjectIcon } from '../assessment/assessmentApi';
+import { PaperSheet } from '../assessment/MyAssessments';
+import { providerShort, trainingPaths } from '../training/trainingApi';
 import {
-  countOf, getProgress, getProgressList, requestPlan612,
-  type CoachingDone, type HomeMetric, type LessonPlanUsed, type ProgressCounts, type ProgressList,
+  HOME_METRICS, countOf, getProgress, getProgressList, requestPlan612,
+  type AssessmentMade, type AttendanceDay, type CoachingDone, type HomeMetric, type LessonPlanUsed, type ProgressCounts,
+  type ProgressList, type TrainingDone,
 } from './progressApi';
 
 /**
@@ -29,15 +37,40 @@ import {
  *                 the day, the band as a word (good green, average amber), the month. Tapping
  *                 opens the session. The only place on Home a rating appears.
  *
- * Loading: a spinner word. Failed: "Not loaded" and Try again. Empty: "Nothing yet".
+ * bd-5rz1v.17.2 — the other three tiles' lists, which used to be other pages:
+ *   training      "n modules"; a row per module done — the done tile, its title, the provider
+ *                 (as teachers know it, trainingApi's providerShort) and the day. Tapping opens
+ *                 the part in the new Training screens (/portal/training/unit/:id).
+ *   assessments   "n made"; a row per paper — its subject's icon (neutral grey), "Science · Ch 2",
+ *                 Grade and the day, a download icon. Tapping opens My assessments' paper sheet
+ *                 (Download, Answer key when it has one). Not My assessments itself: that list is
+ *                 one entry per paper family with no date filter, and this one is the papers the
+ *                 tile counted in the range.
+ *   attendance    "n days" "n registers"; a row per day — the date, each class as a chip, the
+ *                 register count. Tapping opens that day on the Attendance tab of Analytics, the
+ *                 existing attendance view.
+ *
+ * Loading: a spinner word. Failed: "Not loaded" and Try again. Empty: a small Hero, "Nothing yet".
  */
 
 const METRICS: Record<HomeMetric, string> = {
   'lesson-plans': HOME_COPY.tiles.lessonPlans,
   coaching: HOME_COPY.tiles.coaching,
+  training: HOME_COPY.tiles.training,
+  assessments: HOME_COPY.tiles.assessments,
+  attendance: HOME_COPY.tiles.attendance,
 };
 
-const isMetric = (m: string | undefined): m is HomeMetric => m === 'lesson-plans' || m === 'coaching';
+/** The empty Hero's icon: the list's own subject, in neutral grey. */
+const EMPTY_ICON: Record<HomeMetric, LucideIcon> = {
+  'lesson-plans': Inbox,
+  coaching: Inbox,
+  training: GraduationCap,
+  assessments: ClipboardList,
+  attendance: CalendarCheck,
+};
+
+const isMetric = (m: string | undefined): m is HomeMetric => (HOME_METRICS as readonly string[]).includes(m ?? '');
 
 type State<M extends HomeMetric> =
   | { status: 'loading' }
@@ -79,7 +112,19 @@ function ListPage({ metric, range, search, onRange }: { metric: HomeMetric; rang
       <div className="mx-auto flex max-w-[1120px] flex-col gap-3 px-[14px] pb-[14px] md:px-10">
         {metric === 'lesson-plans'
           ? <LessonPlans range={range} state={state as State<'lesson-plans'>} onPick={() => setPicking(true)} onRetry={retry} />
-          : <Coaching range={range} state={state as State<'coaching'>} onPick={() => setPicking(true)} onRetry={retry} />}
+          : null}
+        {metric === 'coaching'
+          ? <Coaching range={range} state={state as State<'coaching'>} onPick={() => setPicking(true)} onRetry={retry} />
+          : null}
+        {metric === 'training'
+          ? <Training range={range} state={state as State<'training'>} onPick={() => setPicking(true)} onRetry={retry} />
+          : null}
+        {metric === 'assessments'
+          ? <Assessments range={range} state={state as State<'assessments'>} onPick={() => setPicking(true)} onRetry={retry} />
+          : null}
+        {metric === 'attendance'
+          ? <Attendance range={range} state={state as State<'attendance'>} onPick={() => setPicking(true)} onRetry={retry} />
+          : null}
       </div>
       <DateRangeSheet open={picking} value={range} onChange={onRange} onClose={() => setPicking(false)} />
     </PortalLayout>
@@ -87,7 +132,9 @@ function ListPage({ metric, range, search, onRange }: { metric: HomeMetric; rang
 }
 
 /** Loading / failed / empty, the same on every list. */
-function NotAList({ state, empty, onRetry }: { state: State<HomeMetric>; empty: boolean; onRetry: () => void }) {
+function NotAList({ state, empty, onRetry, emptyIcon = Inbox }: {
+  state: State<HomeMetric>; empty: boolean; onRetry: () => void; emptyIcon?: LucideIcon;
+}) {
   if (state.status === 'loading') return <Hero title={HOME_COPY.loading} icon={Loader2} spinning live />;
   if (state.status === 'error') {
     return (
@@ -97,9 +144,25 @@ function NotAList({ state, empty, onRetry }: { state: State<HomeMetric>; empty: 
       </>
     );
   }
-  if (empty) return <Hero title={HOME_COPY.empty} icon={Inbox} />;
+  if (empty) return <Hero title={HOME_COPY.empty} icon={emptyIcon} />;
   return null;
 }
+
+/** The range on a light button, then the list's own counts as chips. */
+function RangeRow({ range, onPick, children }: { range: DateRange; onPick: () => void; children?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <DateRangeButton value={range} surface="light" onClick={onPick} />
+      {children}
+    </div>
+  );
+}
+
+/** "2 Oct": a moment's day in Pakistan. */
+const pkShort = (iso: string | null | undefined): string | null => {
+  const d = iso ? pkDayMonth(iso) : null;
+  return d ? `${d.day} ${d.month}` : null;
+};
 
 /* ── Lesson plans used ───────────────────────────────────────────────────── */
 
@@ -235,6 +298,136 @@ function Coaching({ range, state, onPick, onRetry }: {
         </List>
       ) : null}
       {ok && ok.list.items.length && !shown.length ? <Hero title={HOME_COPY.empty} icon={Inbox} /> : null}
+    </>
+  );
+}
+
+/* ── Training modules done (bd-5rz1v.17.2) ──────────────────────────────────── */
+
+function Training({ range, state, onPick, onRetry }: {
+  range: DateRange; state: State<'training'>; onPick: () => void; onRetry: () => void;
+}) {
+  const ok = state.status === 'ok' ? state : null;
+  const paths = trainingPaths();
+  return (
+    <>
+      <RangeRow range={range} onPick={onPick}>
+        {ok ? <Chip icon={GraduationCap}>{HOME_COPY.modules(ok.list.total)}</Chip> : null}
+      </RangeRow>
+      <NotAList state={state} empty={!ok?.list.items.length} onRetry={onRetry} emptyIcon={EMPTY_ICON.training} />
+      {ok && ok.list.items.length ? (
+        <List label={HOME_COPY.tiles.training}>
+          {ok.list.items.map((m: TrainingDone) => {
+            const when = pkShort(m.completedAt);
+            return (
+              <Row
+                key={m.moduleId}
+                tile="done"
+                title={m.title || HOME_COPY.moduleFallback}
+                to={paths.unit(m.moduleId)}
+                chips={(
+                  <>
+                    {m.vendorKey ? <Chip>{providerShort(m.vendorKey, m.vendorName)}</Chip> : null}
+                    {when ? <Chip>{when}</Chip> : null}
+                  </>
+                )}
+              />
+            );
+          })}
+        </List>
+      ) : null}
+    </>
+  );
+}
+
+/* ── Assessments made (bd-5rz1v.17.2) ───────────────────────────────────────── */
+
+/** The paper sheet takes My assessments' paper; this list's item says the same things. */
+const asPaper = (a: AssessmentMade): AssessmentPaper => ({
+  paper_id: a.paperId,
+  grade: a.grade,
+  subject_key: a.subjectKey ?? '',
+  subject: a.subject ?? '',
+  chapter_number: a.chapterNumber,
+  question_count: a.questionCount,
+  total_marks: a.totalMarks,
+  ready_at: a.createdAt,
+  has_answer_key: a.hasAnswerKey,
+});
+
+function Assessments({ range, state, onPick, onRetry }: {
+  range: DateRange; state: State<'assessments'>; onPick: () => void; onRetry: () => void;
+}) {
+  const [open, setOpen] = useState<AssessmentPaper | null>(null);
+  const ok = state.status === 'ok' ? state : null;
+  return (
+    <>
+      <RangeRow range={range} onPick={onPick}>
+        {ok ? <Chip icon={ClipboardList}>{HOME_COPY.made(ok.list.total)}</Chip> : null}
+      </RangeRow>
+      <NotAList state={state} empty={!ok?.list.items.length} onRetry={onRetry} emptyIcon={EMPTY_ICON.assessments} />
+      {ok && ok.list.items.length ? (
+        <List label={HOME_COPY.tiles.assessments}>
+          {ok.list.items.map((a: AssessmentMade) => {
+            const when = pkShort(a.createdAt);
+            return (
+              <Row
+                key={a.paperId}
+                icon={subjectIcon(a.subjectKey)}
+                title={ASSESSMENT_COPY.paperName(a.subject, a.chapterNumber)}
+                end={Download}
+                onClick={() => setOpen(asPaper(a))}
+                chips={(
+                  <>
+                    {a.grade != null ? <Chip>{HOME_COPY.grade(a.grade)}</Chip> : null}
+                    {when ? <Chip>{when}</Chip> : null}
+                  </>
+                )}
+              />
+            );
+          })}
+        </List>
+      ) : null}
+      <PaperSheet paper={open} onClose={() => setOpen(null)} />
+    </>
+  );
+}
+
+/* ── Attendance marked (bd-5rz1v.17.2) ──────────────────────────────────────── */
+
+/** That day on the existing attendance view: the Attendance tab of Analytics (lib/analyticsView). */
+const attendanceDay = (date: string) => `/portal/coaching/analytics?from=${date}&to=${date}#attendance`;
+
+function Attendance({ range, state, onPick, onRetry }: {
+  range: DateRange; state: State<'attendance'>; onPick: () => void; onRetry: () => void;
+}) {
+  const ok = state.status === 'ok' ? state : null;
+  const registers = countOf(ok?.counts?.attendance?.registers);
+  return (
+    <>
+      <RangeRow range={range} onPick={onPick}>
+        {ok ? <Chip icon={CalendarDays}>{HOME_COPY.days(ok.list.total)}</Chip> : null}
+        {ok && registers !== null ? <Chip icon={CalendarCheck}>{HOME_COPY.registers(registers)}</Chip> : null}
+      </RangeRow>
+      <NotAList state={state} empty={!ok?.list.items.length} onRetry={onRetry} emptyIcon={EMPTY_ICON.attendance} />
+      {ok && ok.list.items.length ? (
+        <List label={HOME_COPY.tiles.attendance}>
+          {ok.list.items.map((d: AttendanceDay) => (
+            <Row
+              key={d.date}
+              icon={CalendarCheck}
+              title={shortDate(d.date)}
+              to={attendanceDay(d.date)}
+              chips={(
+                <>
+                  {(d.classes || []).map((c) => <Chip key={c}>{c}</Chip>)}
+                  <Chip>{HOME_COPY.registers(d.registers)}</Chip>
+                </>
+              )}
+            />
+          ))}
+        </List>
+      ) : null}
     </>
   );
 }

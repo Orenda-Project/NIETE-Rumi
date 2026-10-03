@@ -58,9 +58,44 @@ export type CoachingDone = {
   subject: string | null;
 };
 
-export type HomeMetric = 'lesson-plans' | 'coaching';
+/** bd-5rz1v.17.2 — one training module she completed. The provider is the level's vendor. */
+export type TrainingDone = {
+  moduleId: string;
+  title: string | null;
+  courseTitle: string | null;
+  vendorKey: string | null;
+  vendorName: string | null;
+  completedAt: string | null;
+};
 
-type ItemOf<M extends HomeMetric> = M extends 'lesson-plans' ? LessonPlanUsed : CoachingDone;
+/** bd-5rz1v.17.2 — one paper she made (an edit is a version of it, not another paper). */
+export type AssessmentMade = {
+  /** The id GET /assessment/paper/:id/download takes. */
+  paperId: string;
+  grade: number | null;
+  subjectKey: string | null;
+  /** The subject's printable name, from the server. */
+  subject: string | null;
+  chapterNumber: number | null;
+  questionCount: number | null;
+  totalMarks: number | null;
+  hasAnswerKey: boolean;
+  createdAt: string;
+};
+
+/** bd-5rz1v.17.2 — one day she marked registers: a Pakistan date, how many, which classes. */
+export type AttendanceDay = { date: string; registers: number; classes: string[] };
+
+export type HomeMetric = 'lesson-plans' | 'coaching' | 'training' | 'assessments' | 'attendance';
+
+export const HOME_METRICS: readonly HomeMetric[] = ['lesson-plans', 'coaching', 'training', 'assessments', 'attendance'];
+
+type ItemOf<M extends HomeMetric> =
+  M extends 'lesson-plans' ? LessonPlanUsed
+    : M extends 'coaching' ? CoachingDone
+      : M extends 'training' ? TrainingDone
+        : M extends 'assessments' ? AssessmentMade
+          : AttendanceDay;
 
 export type ProgressList<M extends HomeMetric> = {
   metric: M;
