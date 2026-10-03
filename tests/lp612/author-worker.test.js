@@ -42,6 +42,13 @@ jest.mock('../../bot/shared/services/lp612-serving.service', () => {
   };
 });
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({ sendMessage: mockSendMessage }));
+// bd-5rz1v.21 — the portal waiter's durable claim. A boundary for THIS suite (the worker only has to
+// hand it the right facts); what the ledger then grants is proven against one stateful database in
+// portal-claim.test.js.
+const mockRecordDelivery = jest.fn();
+jest.mock('../../bot/shared/services/lp612-deliveries.store', () => ({
+  record: (...a) => mockRecordDelivery(...a),
+}));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: (...a) => mockLogEvent(...a) }));
 jest.mock('fs', () => ({
@@ -128,6 +135,7 @@ beforeEach(() => {
   mockDbResults.length = 0;
   mockRpc.mockReset().mockImplementation(() => Promise.resolve({ data: TWO_WAITERS, error: null }));
   mockReadFile.mockResolvedValue(Buffer.from('%PDF-1.7 fake'));
+  mockRecordDelivery.mockResolvedValue(true);
   mockUploadBuffer.mockResolvedValue('lp612/v9.1/en/seg.pdf');
   mockAuthorLessonPlan.mockResolvedValue({
     lpDoc: { lesson_id: 'x' }, lintClean: true, fails: [], warns: [], rounds: 1,
@@ -301,6 +309,43 @@ describe('a waiter who collects the lesson herself is not a failed delivery', ()
     // Counted, not merely ignored: `delivered + deliveryFailures` no longer accounts for every
     // waiter once the portal is live, so the missing one has to be nameable.
     expect(done[1].selfServe).toBe(1);
+  });
+
+  /**
+   * bd-5rz1v.21 — SKIPPING HER SEND MUST NOT SKIP HER CLAIM.
+   *
+   * `lp612_claim_waiters` empties the list in the same statement that hands it to this loop, and
+   * `requested_by` names only the FIRST requester. So a portal teacher who joined somebody else's
+   * run was, the instant her lesson was ready, a teacher with no claim on it: her next poll got
+   * "No such lesson request". The loop already knows exactly who she is and what she is owed, so
+   * it records the delivery the WhatsApp waiters get through deliverRender.
+   */
+  test('the portal waiter is recorded as having this render, so her next poll can open it', async () => {
+    seed({ waiters: MIXED });
+    mockRpc.mockImplementation(() => Promise.resolve({ data: MIXED, error: null }));
+
+    await Worker.process(JOB);
+
+    expect(mockRecordDelivery).toHaveBeenCalledTimes(1);
+    expect(mockRecordDelivery).toHaveBeenCalledWith({
+      userId: 'u2',
+      renderId: 'render-1',
+      segmentId: JOB.segmentId,
+      lang: 'en',
+      templateVersion: 'v9.1',
+      surface: 'portal',
+    });
+  });
+
+  test('a ledger that cannot be written costs nobody their lesson', async () => {
+    seed({ waiters: MIXED });
+    mockRpc.mockImplementation(() => Promise.resolve({ data: MIXED, error: null }));
+    mockRecordDelivery.mockResolvedValue(false);
+
+    const out = await Worker.process(JOB);
+
+    expect(out.status).toBe('ready');
+    expect(mockDeliverRender).toHaveBeenCalledTimes(2);
   });
 });
 
