@@ -98,6 +98,7 @@ props, use only `nu-*` tokens and logical spacing, and keep every target at 56px
 | `ToggleList` | Big options with a tick box | `mode="single"` (radio) or `"multi"` (checkbox). On = indigo. `compact` = 56px rows. |
 | `Panel`, `Fold` | A section of content (a report's feedback, a transcript) | `icon` + a short `title` (one heading, 1–3 words) over the content. `Panel` is the list card with a 42px neutral tile; `Fold` is the same card whose heading is a 60px button with ⌄ (`aria-expanded`), closed by default (`defaultOpen`). The words inside are data, shown as they are. |
 | `Hero` | A status screen | `ring` ({value 0–1, text}) or `icon` + `tone` (`done`, `waiting`, `neutral`), `spinning`, `chips`, `live`. |
+| `AnswerChoices`, `QuestionDots` | One question per screen (bd-5rz1v.25) | Big answers: a 32px letter tile then the answer, 58px+, 16px corners, 2px edge; the picked one indigo (edge, tint, letter). `mode="multi"` = checkboxes ("Pick all"); `images` for picture answers; `value` is 0-based positions. `QuestionDots`: a bar per question, indigo up to the current one, a progressbar, never a button. |
 | `FeatureIcon`, `HeadingTile` | A feature's icon | The only place a feature colour is drawn. |
 
 Shared class strings: `FOCUS` (the amber focus ring), `TAP`, `TAP_SQUARE`, `PRESS` and `GRID` in `styles.ts`.
@@ -418,6 +419,15 @@ screens hold no training rule. Teachers see "Part"; the code's word is "module".
 - `/provider/:key/level/:id/course/:id`: "Parts 3/7"; done = green check tile, duration and best score
   chips; next = play icon and "Next"; locked = off. I-SAPS: the module exam row (the gate's own word as
   a chip) and Recommended reading (a sheet). Continue opens the next part.
+- `/unit/:id` (a part): "Part 4/7", its length and Done as chips; the video and audio players; Handout
+  (PDF, a new tab as before) and Quick check ("5 Q", her best score) rows — no "Practice" chip: since
+  bd-2450 only a pass completes the part and opens the next; the part's text; Up next once done. Start quick check, or with no quiz Mark done
+  (the old page's POST `/complete`), then Continue.
+- `/unit/:id/quiz` (new address; flag off goes to the part): ONE question per screen, `QuestionDots`, the
+  question, `AnswerChoices`, "1/5" at the bar's end. Next once answered; Back returns to the previous
+  question with its answer kept; Submit on the last posts ModuleQuizPanel's exact answer set. The result:
+  a green `Hero` ring with the score, Passed or Not passed, the %, an Up next row (the parts are read
+  again: a pass may open the next one), Continue and Try again (outline).
 
 ## Urdu and RTL
 

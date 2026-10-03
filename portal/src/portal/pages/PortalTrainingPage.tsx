@@ -10,6 +10,8 @@ import TrainingHome from '../newui/training/TrainingHome';
 import TrainingLevels from '../newui/training/TrainingLevels';
 import TrainingLevel from '../newui/training/TrainingLevel';
 import TrainingCourse from '../newui/training/TrainingCourse';
+import TrainingPart from '../newui/training/TrainingPart';
+import TrainingQuiz from '../newui/training/TrainingQuiz';
 
 /**
  * bd-5rz1v.25 — every /portal/training address goes through here (App.tsx mounts
@@ -31,6 +33,8 @@ const SCREENS: Partial<Record<TrainingView, ComponentType>> = {
   provider: TrainingLevels,
   level: TrainingLevel,
   course: TrainingCourse,
+  unit: TrainingPart,
+  quiz: TrainingQuiz,
 };
 
 const PortalTrainingPage = ({ view }: { view: TrainingView }) => {

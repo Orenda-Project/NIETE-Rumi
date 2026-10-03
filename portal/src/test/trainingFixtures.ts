@@ -113,3 +113,20 @@ export function trainingGet(overrides: Routes = {}) {
 export function httpError(status: number, data: Record<string, unknown> = {}) {
   return Object.assign(new Error(`HTTP ${status}`), { response: { status, data } });
 }
+
+/** GET /training/module/m-4: Noise and rules — video, audio, a handout, a quick check. */
+export const DETAIL_M4 = {
+  id: "m-4", title: "Noise and rules", content_html: "<p>Agree a quiet signal before groups start.</p>",
+  video_url: "https://r2.example/noise.mp4", audio_url: "https://r2.example/noise.mp3", pdf_url: "https://r2.example/noise.pdf",
+  has_questions: true, duration_seconds: 540, order_index: 3, completed_at: null,
+  course: { id: "c-3", title: "Group Work" }, level: { id: 2, name: "Emerging" },
+};
+
+/** GET /training/module/m-4/questions: five, the fourth a pick-all. */
+export const QUESTIONS_M4 = [
+  { id: 41, question_text: "A group is too loud. What first?", options: ["Shout louder", "Use the quiet signal", "Stop the activity", "Ignore it"], order_index: 0 },
+  { id: 42, question_text: "When do you agree the rules?", options: ["Before groups start", "When it gets loud", "At the end"], order_index: 1 },
+  { id: 43, question_text: "Who keeps the noise down?", options: ["Only the teacher", "A noise monitor in each group", "Nobody"], order_index: 2 },
+  { id: 44, question_text: "Which are good quiet signals?", options: ["A raised hand", "Shouting", "A clap pattern", "Switching off the lights"], order_index: 3, multi: true },
+  { id: 45, question_text: "After the signal, children should", options: ["stop and look", "keep talking", "leave the room"], order_index: 4 },
+];

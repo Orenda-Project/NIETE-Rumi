@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, within, waitFor, fireEvent, configure } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { copyProblem, tapProblems } from "../checks/rules";
 import { MODULES_C3, trainingGet } from "../../../test/trainingFixtures";
@@ -13,6 +13,9 @@ import { MODULES_C3, trainingGet } from "../../../test/trainingFixtures";
  *   locked off, not tappable (the bot's lock)
  * Then the I-SAPS module-exam row and Recommended reading, and Continue at the bottom.
  */
+
+// The first render of a file loads the whole page module; give it longer than 1s under a busy run.
+configure({ asyncUtilTimeout: 5000 });
 
 vi.mock("../../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("../../components/PortalLayout", () => ({
