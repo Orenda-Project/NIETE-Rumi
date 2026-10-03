@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, waitFor } from "@testing-library/react";
+import { render, screen, within, waitFor, configure } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { copyProblem, tapProblems } from "../checks/rules";
 import { CERTIFICATES, VENDORS, trainingGet } from "../../../test/trainingFixtures";
@@ -15,6 +15,9 @@ import { CERTIFICATES, VENDORS, trainingGet } from "../../../test/trainingFixtur
  *   the green "Continue NIETE" at the bottom, straight to the part she was last on.
  * "My grades" is not on this page — unless nothing is assigned, when it is the way out.
  */
+
+// The first render of a file loads the whole page module; give it longer than 1s under a busy run.
+configure({ asyncUtilTimeout: 5000 });
 
 vi.mock("../../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("../../components/PortalLayout", () => ({

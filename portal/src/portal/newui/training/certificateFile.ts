@@ -42,3 +42,8 @@ export function viewCertificate(downloadUrl: string): void {
 
 /** The download route for a certificate code (LevelCertificateRow's link). */
 export const certificateUrl = (code: string) => `/api/portal/training/certificates/${encodeURIComponent(code)}/download`;
+
+/** A file that is not ours to sign (a part's handout on R2): a new tab, as the old page's link did. */
+export function openInNewTab(url: string): void {
+  follow(url, true);
+}
