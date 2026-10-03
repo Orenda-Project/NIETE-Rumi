@@ -17,7 +17,9 @@
  * ctst:check_retry:<sessionId> (a check whose sender died is re-sent once), ctst:media:<mediaId> (a webhook re-send
  * is not stored twice), ctst:block:<sessionId>:<block> (the voice note that claimed this block, set
  * before any ack or upload so quick notes fill distinct blocks — bd-s1oo0.14), ctst:done:<sessionId>
- * (the child's three notes are stored and the after-maths step ran — set once).
+ * (the child's three notes are stored and the after-maths step ran — set once),
+ * ctst:strip:<visit>:<drawId> (L20: the strip photo this child got — claimed atomically before the
+ * upload, so photos sent together never land on one child; then { imageId, key, at, sessionId }).
  */
 
 const redis = require('../../cache/railway-redis.service');
@@ -85,7 +87,30 @@ async function claimDone(sessionId) {
   return redis.setNX(`ctst:done:${sessionId}`, new Date().toISOString(), 7 * 24 * 3600);
 }
 
+const stripKey = (visit, drawId) => `ctst:strip:${visit}:${drawId}`;
+const STRIP_TTL = 12 * 3600;
+
+/** Atomic across instances: true for the one photo that takes this child's strip on this visit. */
+async function claimStrip(visit, drawId, imageId) {
+  return redis.setNX(stripKey(visit, drawId), JSON.stringify({ imageId, at: new Date().toISOString() }), STRIP_TTL);
+}
+/** The saved strip ({ imageId, key, at, sessionId }) once stored. */
+async function setStrip(visit, drawId, value) {
+  return redis.set(stripKey(visit, drawId), JSON.stringify(value), STRIP_TTL);
+}
+async function releaseStrip(visit, drawId) {
+  return redis.delete(stripKey(visit, drawId));
+}
+/** → the claim object, or null when this child has no strip yet. */
+async function stripClaim(visit, drawId) {
+  const raw = await redis.get(stripKey(visit, drawId));
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw;
+  try { return JSON.parse(raw); } catch { return { imageId: String(raw) }; }
+}
+
 module.exports = {
+  claimStrip, setStrip, releaseStrip, stripClaim,
   get, set, clear, firstSight, forget, claimCheck, checkSent, checkClaimedAt, claimCheckRetry,
   claimBlock, releaseBlock, blockClaim, claimDone, TTL_SECONDS,
 };

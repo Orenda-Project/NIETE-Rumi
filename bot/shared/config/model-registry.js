@@ -113,6 +113,11 @@ const JOBS = {
     env: 'CHILD_TEST_MODEL_VISION', default: 'google/gemini-3.1-pro-preview',
     site: 'shared/services/child-test/scoring/maths-photo.js',
   },
+  // bd-s1oo0.38 (L20): the child number off a strip photo, read at receipt (bounded, one attempt).
+  'childTest.childNo': {
+    env: 'CHILD_TEST_MODEL_CHILD_NO', default: 'google/gemini-3.8-flash',
+    site: 'shared/services/child-test/scoring/child-no.js',
+  },
   'platform.default': {
     env: 'LLM_MODEL', default: 'openai/gpt-4o',
     site: 'shared/services/llm-client.js:34',

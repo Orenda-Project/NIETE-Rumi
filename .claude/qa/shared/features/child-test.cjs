@@ -90,6 +90,10 @@ const SCENARIOS = [
   ['CT44', 'Kept separate from the observation by default: no offer after observe2, and /egra stands alone', 'L4'],
   ['CT45', 'A drawn child with no roll number is named on the list and through the test, and nothing breaks', 'L4'],
   ['CT46', "Two children with the same name are told apart by the roll, or by the father's name when neither has a roll", 'L4'],
+  ['CT47', 'Strip photos sent out of order land on the children whose numbers they carry', 'L4'],
+  ['CT48', 'A strip whose number cannot be read goes to the next child in order, and the reply says so', 'L4'],
+  ['CT49', 'A number for a child whose strip is already in is not overwritten', 'L4'],
+  ['CT50', 'The child number stays the same when a child is absent and an alternate steps in', 'L3'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -121,7 +125,7 @@ const RX = {
   english: /English 2\/3|انگریزی 2\/3/,
   maths: /Maths 3\/3|ریاضی 3\/3/,
   ack: /🎧/,
-  photoAsk: /photo of the strip|پٹی/i,
+  photoAsk: /strip \(Child no\.|photo of the strip|پٹی/i,
   photoSaved: /📷/,
   allIn: /All three parts|تینوں/i,
   noPhotoAck: /no strip photo|written sums stay blank|تصویر نہیں/i,
@@ -393,6 +397,13 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     // Names first (L19, CONTRACT §18): proven by tests/child-test/L19 on L3's real draw with roll-less rows.
     record('CT45', ...B('needs a SIM class seeded with roll-less register lines (seed-sandbox.js gives every child a roll)'));
     record('CT46', ...B('needs two SIM children with one name; the seeded placeholder names are unique'));
+    // Child number on the strip (L20, bd-s1oo0.38): proven by tests/child-test/L20 (out-of-order batch, fallback,
+    // no overwrite, stable numbers). The mock lane needs child-numbered strip fixtures (golive/fixtures/strips-childno)
+    // mapped to the run's drawn children and a recorded OpenRouter cassette for the quick read.
+    record('CT47', ...B('drive not written yet: needs strips-childno fixtures matched to the drawn children and an OpenRouter cassette for the child-number read'));
+    record('CT48', ...B('drive not written yet: needs an empty-box strip fixture and an OpenRouter cassette'));
+    record('CT49', ...B('drive not written yet: needs a second photo of a saved strip and an OpenRouter cassette'));
+    record('CT50', ...B(env.CT_DEEP === '1' ? 'CT_DEEP drive not written yet' : 'consumes an alternate per run; set CT_DEEP=1'));
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}

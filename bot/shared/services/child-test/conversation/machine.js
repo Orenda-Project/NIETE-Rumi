@@ -20,8 +20,11 @@
  * numbers in order (and "Send to teacher" does it, only for the class teacher of the drawn class); each
  * block prompt is one line (card page + exact cue + locked note) because the full script is on the
  * printed coach sheet; at Present the coach hands the maths strip to the next child to write while
- * waiting; strip photos are taken any time or batched at the end and each is claimed for the oldest
- * child on the list whose strip is missing (held under the draw until that child's session exists).
+ * waiting; strip photos are taken any time or batched at the end. Each strip carries the child's
+ * number on today's list (L20, CONTRACT §18: the coach writes it in the «Child no.» box); a quick
+ * vision read at receipt attaches the photo to that child when the read is confident and their strip
+ * is outstanding, else to the oldest child whose strip is missing (held under the draw until that
+ * child's session exists). The ack names the child it was saved for.
  *
  * /cancel and /menu work in every state; stopping a child never releases the draw (no markOutcome),
  * and tapping the child again resumes at the first block without a recording. Every save failure is
@@ -39,6 +42,7 @@ const { langOf, t, clip, blockName } = require('./copy');
 const { childName, childLabel, childLabels, childRow, rollOf } = require('./identity');
 const { evaluateChildTestTrigger, isChildTestAvailable, isObserveLinkOn } = require('./gate');
 const { visitKeyFor, parseVisitKey, pktDate } = require('../draw/visit-key');
+const childNoReader = require('../scoring/child-no');
 
 const BLOCKS = ['urdu', 'english', 'maths'];
 const CUE_KEY = { urdu: 'childTestCueUrdu', english: 'childTestCueEnglish', maths: 'childTestCueMaths' };
@@ -65,6 +69,46 @@ const heldPhotoKey = (schoolId, drawId) => `child-test/${r2Env()}/${schoolId}/he
 const rollsLine = (lang, children) => childLabels(lang, children);
 const listClassIds = (list) => (list.classIds && list.classIds.length ? list.classIds
   : [...new Set((list.children || []).map((c) => c.classId).filter(Boolean))]);
+
+// ------------------------------------------------------------------ L20: the child's number on the strip
+
+const onList = (list) => (list ? [...(list.children || []), ...(list.alternates || [])] : []);
+const childOf = (list, drawId) => onList(list).find((c) => c.drawId === drawId) || null;
+/** The child's number on today's list (L3's childNo; a list without one uses the child's place in it). */
+function numberOf(list, drawId) {
+  const c = childOf(list, drawId);
+  if (c && Number.isInteger(c.childNo) && c.childNo > 0) return c.childNo;
+  const i = onList(list).findIndex((x) => x.drawId === drawId);
+  return i >= 0 ? i + 1 : null;
+}
+/** The child's label (name first, CONTRACT §18) from the list; a ref the list no longer shows keeps its roll. */
+const labelOf = (lang, list, ref) => childLabel(lang, childOf(list, ref.drawId) || ref);
+const visitOfCtx = (ctx) => (ctx && (ctx.visitId || ctx.visitKey)) || 'none';
+async function listOrNull(user, ctx) {
+  try {
+    const r = ctx ? await fetchList(user, ctx) : null;
+    return r && r.ok ? r : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+// Strip photos sent together run concurrently: their read-modify-writes of the coach's state go one at a time.
+const chains = new Map();
+function updateState(userId, fn) {
+  const run = (chains.get(userId) || Promise.resolve()).then(async () => {
+    const fresh = await S.get(userId);
+    if (!fresh) return null;
+    const next = fn(fresh);
+    if (next === null) return S.clear(userId);
+    if (next) await S.set(userId, next);
+    return next;
+  });
+  const tail = run.catch(() => {});
+  chains.set(userId, tail);
+  tail.then(() => { if (chains.get(userId) === tail) chains.delete(userId); });
+  return run;
+}
 
 // ------------------------------------------------------------------ off the critical path
 
@@ -421,7 +465,7 @@ async function onChildTapped(user, from, drawId, { alternate = false } = {}) {
   const nextUp = five.slice(idx + 1).find((c) => c.status === 'listed' && !handed.includes(c.drawId));
   const base = { drawId, ...who(child), childNo: idx + 1, total: five.length, tappedAt: nowIso(),
     listIds: res.children.map((c) => c.drawId),
-    handOver: nextUp ? { drawId: nextUp.drawId, ...who(nextUp) } : null };
+    handOver: nextUp ? { drawId: nextUp.drawId, ...who(nextUp), number: numberOf(res, nextUp.drawId) } : null };
   if (child.status === 'tested') {
     const r = await ports.store.getSessionByDraw(drawId);
     const sess = r && r.ok ? r.session : null;
@@ -623,7 +667,11 @@ async function sendPrompt(user, from, state) {
     seconds: ports.quickSumsSeconds(cur.grade, cur.form),
   });
   let body = `*${progressBlock(lang, cur)}* · ${cue}`;
-  if (cur.block === 'urdu' && cur.handOver) body += `\n${t(lang, 'childTestStripHandOver', { roll: cur.handOver.rollNumber })}`;
+  if (cur.block === 'urdu' && cur.handOver) {
+    const list = await listOrNull(user, state.ctx);
+    const no = cur.handOver.number || numberOf(list, cur.handOver.drawId);
+    body += `\n${t(lang, 'childTestStripHandOverNo', { child: labelOf(lang, list, cur.handOver), no: no || '—' })}`;
+  }
   const btns = [{ id: 'ctst_fb', title: clip(t(lang, 'childTestCardsButton'), 20) }];
   btns.push({ id: 'ctst_stop', title: clip(t(lang, 'childTestStopChild'), 20) });
   btns.push({ id: 'ctst_menu', title: clip(t(lang, 'childTestMenu'), 20) });
@@ -759,57 +807,72 @@ async function afterAllStored(user, from, cur, lang) {
   const fresh = (await S.get(user.id)) || {};
   const ctx = fresh.ctx;
   const ref = { sessionId: cur.sessionId, grade: cur.grade, form: cur.form, rollNumber: cur.rollNumber, schoolId: cur.schoolId, drawId: cur.drawId };
-  const stripIn = fresh.strips && fresh.strips[cur.drawId] && fresh.strips[cur.drawId].sessionId === cur.sessionId;
+  const claim = ctx ? await S.stripClaim(visitOfCtx(ctx), cur.drawId) : null;
+  const stripIn = (fresh.strips && fresh.strips[cur.drawId] && fresh.strips[cur.drawId].sessionId === cur.sessionId)
+    || !!(claim && claim.sessionId === cur.sessionId);
   const already = (fresh.pendingPhotos || []).some((p) => p.sessionId === cur.sessionId);
   const pending = stripIn || already ? (fresh.pendingPhotos || []) : [...(fresh.pendingPhotos || []), ref];
   const mine = fresh.current && fresh.current.sessionId === cur.sessionId;
   const next = { ...fresh, step: mine ? 'list' : fresh.step, current: mine ? null : fresh.current, pendingPhotos: pending };
   await S.set(user.id, next);
   const res = ctx ? await fetchList(user, ctx) : null;
+  const list = res && res.ok ? res : null;
+  const child = labelOf(lang, list, cur);
   if (stripIn) {
-    await say(from, t(lang, 'childTestPhotoAlreadyIn', { roll: cur.rollNumber }));
-    await finishChild(ref, from, lang);
+    await say(from, t(lang, 'childTestPhotoAlreadyInNo', { child }));
+    await finishChild(ref, from, lang, child);
   } else {
-    await buttons(from, t(lang, 'childTestPhotoAsk', { roll: cur.rollNumber }),
+    await buttons(from, t(lang, 'childTestPhotoAskNo', { child, no: numberOf(list, cur.drawId) || '—' }),
       [{ id: `ctst_nophoto:${cur.sessionId}`, title: clip(t(lang, 'childTestNoPhoto'), 20) }]);
     await timing(cur.sessionId, 'maths.photo_requested');
   }
-  // Nobody left to test: ask for the strips still missing, all together, in list order.
-  if (res && res.ok && !active(res.children).some((c) => c.status === 'listed') && pending.length) {
-    const order = active(res.children).map((c) => c.drawId);
+  // Nobody left to test: ask for the strips still missing, all together (each carries its number, so any order).
+  if (list && !active(list.children).some((c) => c.status === 'listed') && pending.length) {
+    const order = active(list.children).map((c) => c.drawId);
     const missing = [...pending].sort((a, b) => order.indexOf(a.drawId) - order.indexOf(b.drawId));
-    await say(from, t(lang, 'childTestStripsBatch', { rolls: rollsLine(lang, missing) }));
+    const items = missing.map((p) => t(lang, 'childTestStripItem', { child: labelOf(lang, list, p), no: numberOf(list, p.drawId) || '—' }));
+    await say(from, t(lang, 'childTestStripsBatchNo', { children: items.join(lang === 'en' ? ', ' : '، ') }));
   }
-  if (res && res.ok && mine) await sendList(user, from, ctx, res, next);
+  if (list && mine) await sendList(user, from, ctx, list, next);
   return true;
 }
 
 /**
- * Which child a strip photo is for: the oldest child on today's list whose strip is still missing,
- * among the children who have one (tested, or handed the strip to write while waiting).
- * → { child, session } | null
+ * Who could a strip photo be for? (L20)
+ *   open    — every child on today's list whose strip is outstanding: active, no strip yet on this visit,
+ *             and not finished without one. A confident child number picks among these.
+ *   byOrder — the fallback, oldest first: the open children who have a strip in hand (tested, or handed
+ *             it while waiting), then any child whose maths note is in but who the list no longer shows.
+ * → { list, open: [{ child, session }], byOrder: [{ child, session }] }
  */
-async function stripTarget(user, state) {
-  // A child whose maths note is in and whose strip is awaited is never left without a target:
-  // when the list cannot be read (or does not show them), the oldest such child takes the photo.
-  const p0 = (state.pendingPhotos || [])[0];
-  const pendingFallback = p0 ? { child: { drawId: p0.drawId, rollNumber: p0.rollNumber }, session: { id: p0.sessionId, school_id: p0.schoolId } } : null;
+async function stripCandidates(user, state) {
+  const visit = visitOfCtx(state.ctx);
+  const pending = state.pendingPhotos || [];
+  const fromPending = (p) => ({ child: { drawId: p.drawId, rollNumber: p.rollNumber }, session: { id: p.sessionId, school_id: p.schoolId } });
+  const free = async (drawId) => !((state.strips || {})[drawId]) && !(await S.stripClaim(visit, drawId));
   const res = await fetchList(user, state.ctx);
-  if (!res || !res.ok) return pendingFallback;
-  const strips = state.strips || {};
-  const handed = new Set(state.handed || []);
-  const pendingByDraw = new Map((state.pendingPhotos || []).map((p) => [p.drawId, p]));
-  for (const child of active(res.children)) {
-    if (strips[child.drawId]) continue;
-    const hasStrip = child.status === 'tested' || handed.has(child.drawId);
-    if (!hasStrip) continue;
-    const r = child.status === 'tested' ? await ports.store.getSessionByDraw(child.drawId) : null;
-    const session = r && r.ok ? r.session : null;
-    // A tested child whose photo was declined (no longer pending, completed) is not waiting for one.
-    if (session && session.status === 'completed' && !pendingByDraw.has(child.drawId)) continue;
-    return { child, session };
+  const list = res && res.ok ? res : null;
+  const open = [];
+  const byOrder = [];
+  if (list) {
+    const handed = new Set(state.handed || []);
+    const pendingByDraw = new Map(pending.map((p) => [p.drawId, p]));
+    for (const child of active(list.children)) {
+      if (!(await free(child.drawId))) continue;
+      const r = child.status === 'tested' ? await ports.store.getSessionByDraw(child.drawId) : null;
+      const session = r && r.ok ? r.session : null;
+      // A tested child whose photo was declined (no longer pending, completed) is not waiting for one.
+      if (session && session.status === 'completed' && !pendingByDraw.has(child.drawId)) continue;
+      open.push({ child, session });
+      if (child.status === 'tested' || handed.has(child.drawId)) byOrder.push({ child, session });
+    }
   }
-  return pendingFallback;
+  // A child whose maths note is in and whose strip is awaited is never left without a target.
+  for (const p of pending) {
+    if (byOrder.some((e) => e.child.drawId === p.drawId) || !(await free(p.drawId))) continue;
+    byOrder.push(fromPending(p));
+  }
+  return { list, open, byOrder };
 }
 
 async function handleImage(message, from, user) {
@@ -819,23 +882,91 @@ async function handleImage(message, from, user) {
   if (!(state.pendingPhotos || []).length && !(state.handed || []).length) return false;
   const imageId = message.image && message.image.id;
   if (!imageId) return false;
-  const target = await stripTarget(user, state);
-  if (!target) return false;
+  const cands = await stripCandidates(user, state);
+  if (!cands.byOrder.length) return false;
   if (!(await S.firstSight(imageId))) return true;
   try {
-    await processImage(from, user, state, target, imageId);
+    await processImage(from, user, state, cands, imageId, (message.image && message.image.mime_type) || 'image/jpeg');
   } catch (err) {
-    logError('child_test.photo_failed', { sessionId: target.session && target.session.id, drawId: target.child.drawId, error: err.message });
+    logError('child_test.photo_failed', { visitId: state.ctx.visitId, ...(err.target || {}), error: err.message });
   }
   return true;
 }
 
-async function processImage(from, user, state, { child, session }, imageId) {
+/**
+ * Which child this photo goes to (L20). The number read off the strip wins when the read is confident
+ * and that child's strip is outstanding; a number naming a child whose strip is already in (or who
+ * finished without one) is never overwritten; anything else falls back to list order. Each target is
+ * claimed atomically, so photos sent together never land on one child.
+ * → { child, session, by: 'number'|'order', reason?, read? } | { refused: child } | { none: true }
+ */
+async function pickStrip(state, cands, read, imageId) {
+  const visit = visitOfCtx(state.ctx);
+  const confident = read.childNo !== null && read.confidence >= childNoReader.CHILD_NO_BAR;
+  const named = confident && cands.list
+    ? active(cands.list.children).find((c) => numberOf(cands.list, c.drawId) === read.childNo) : null;
+  if (named) {
+    const entry = cands.open.find((e) => e.child.drawId === named.drawId);
+    if (entry && await S.claimStrip(visit, named.drawId, imageId)) return { ...entry, by: 'number' };
+    return { refused: named };
+  }
+  let reason = 'unread';
+  if (confident) reason = 'not_waiting';
+  else if (read.childNo !== null) reason = 'low_confidence';
+  else if (read.timedOut) reason = 'timeout';
+  for (const e of cands.byOrder) {
+    if (await S.claimStrip(visit, e.child.drawId, imageId)) return { ...e, by: 'order', reason, read: confident ? read.childNo : null };
+  }
+  return { none: true };
+}
+
+async function processImage(from, user, state, cands, imageId, mime) {
   const lang = langOf(user);
+  const visit = visitOfCtx(state.ctx);
+  const firstUp = cands.byOrder[0];
+  let buf;
+  try {
+    buf = await WhatsAppService.downloadMedia(imageId);
+    if (!buf || !buf.length) throw new Error('empty media');
+  } catch (err) {
+    logError('child_test.photo_save_failed', { stage: 'download', drawId: firstUp.child.drawId, error: err.message });
+    await S.forget(imageId);
+    await say(from, t(lang, 'childTestPhotoSaveFailedNo', { child: labelOf(lang, cands.list, firstUp.child) }));
+    return true;
+  }
+  const read = await childNoReader.readChildNo({ image: buf, mime });
+  if (read.error || read.timedOut) {
+    logToFile('child_test.strip_read_failed', { visitId: state.ctx.visitId, timedOut: !!read.timedOut, error: read.error, seconds: read.seconds }, 'warn');
+  }
+  const pick = await pickStrip(state, cands, read, imageId);
+  if (pick.refused) {
+    logToFile('child_test.strip_refused', { drawId: pick.refused.drawId, childNo: read.childNo, reason: 'already_in' });
+    await say(from, t(lang, 'childTestPhotoNotOverwritten', { child: labelOf(lang, cands.list, pick.refused), no: read.childNo }));
+    return true;
+  }
+  if (pick.none) {
+    logToFile('child_test.strip_no_target', { visitId: state.ctx.visitId, childNo: read.childNo }, 'warn');
+    await say(from, t(lang, 'childTestPhotoNotOverwritten', { child: labelOf(lang, cands.list, firstUp.child), no: numberOf(cands.list, firstUp.child.drawId) || '—' }));
+    return true;
+  }
+  try {
+    return await saveStrip(from, user, state, cands, pick, imageId, buf, read);
+  } catch (err) {
+    err.target = { sessionId: pick.session && pick.session.id, drawId: pick.child.drawId };
+    throw err;
+  }
+}
+
+/** Store the strip for the child it was matched to, ack it by the child's name, and finish that child if waiting. */
+async function saveStrip(from, user, state, cands, pick, imageId, buf, read) {
+  const lang = langOf(user);
+  const visit = visitOfCtx(state.ctx);
+  const { child, session } = pick;
+  const label = labelOf(lang, cands.list, child);
+  const no = numberOf(cands.list, child.drawId) || '—';
   const schoolId = (session && session.school_id) || state.ctx.schoolId;
   const key = session ? photoKey(schoolId, session.id) : heldPhotoKey(schoolId, child.drawId);
   try {
-    const buf = await WhatsAppService.downloadMedia(imageId);
     await r2.uploadBuffer(buf, key, 'image/jpeg');
     if (session) {
       const r = await ports.store.attachBlockMedia({ sessionId: session.id, block: 'maths', photoR2Key: key });
@@ -843,20 +974,26 @@ async function processImage(from, user, state, { child, session }, imageId) {
     }
   } catch (err) {
     logError('child_test.photo_save_failed', { sessionId: session && session.id, drawId: child.drawId, error: err.message });
+    await S.releaseStrip(visit, child.drawId);
     await S.forget(imageId);
-    await say(from, t(lang, 'childTestPhotoSaveFailed', { roll: child.rollNumber }));
+    await say(from, t(lang, 'childTestPhotoSaveFailedNo', { child: label }));
     return true;
   }
   const at = nowIso();
+  const saved = { key, at, sessionId: session ? session.id : null };
+  await S.setStrip(visit, child.drawId, { imageId, ...saved });
   if (session) await timing(session.id, 'maths.photo_received', at);
-  const fresh = (await S.get(user.id)) || state;
-  await S.set(user.id, { ...fresh, strips: { ...(fresh.strips || {}), [child.drawId]: { key, at, sessionId: session ? session.id : null } } });
+  const fresh = (await updateState(user.id, (st) => ({ ...st, strips: { ...(st.strips || {}), [child.drawId]: saved } }))) || state;
   logToFile('child_test.strip_saved', { sessionId: session && session.id, drawId: child.drawId, held: !session });
-  await say(from, t(lang, 'childTestPhotoSaved', { roll: child.rollNumber }));
+  logToFile('child_test.strip_matched', { sessionId: session && session.id, drawId: child.drawId, by: pick.by, reason: pick.reason || null,
+    readNo: read.childNo, readConfidence: read.confidence, readSeconds: read.seconds });
+  if (pick.by === 'number') await say(from, t(lang, 'childTestPhotoSavedNo', { child: label, no }));
+  else if (pick.reason === 'not_waiting') await say(from, t(lang, 'childTestPhotoSavedOrderOther', { child: label, no, read: pick.read }));
+  else await say(from, t(lang, 'childTestPhotoSavedOrder', { child: label, no }));
   const p = session && (fresh.pendingPhotos || []).find((x) => x.sessionId === session.id);
   if (p) {
     await dropPending(user.id, session.id);
-    await finishChild(p, from, lang);
+    await finishChild(p, from, lang, label);
   }
   return true;
 }
@@ -864,26 +1001,31 @@ async function processImage(from, user, state, { child, session }, imageId) {
 /** A strip photographed while its child waited is attached once the child's session exists. → strips */
 async function attachHeldStrip(state, drawId, session) {
   const strips = { ...(state.strips || {}) };
-  const held = strips[drawId];
+  const visit = visitOfCtx(state.ctx);
+  const claim = await S.stripClaim(visit, drawId);
+  // The state map may have lost a write to a concurrent photo; the strip claim has the key too.
+  const held = strips[drawId] || (claim && claim.key ? { key: claim.key, at: claim.at, sessionId: claim.sessionId || null } : null);
   if (!held || held.sessionId) return strips;
   const r = await ports.store.attachBlockMedia({ sessionId: session.id, block: 'maths', photoR2Key: held.key });
   if (!r || (!r.ok && !r.alreadyScored)) {
     // Not attached: the maths block will ask for the photo again (it stays visible, never silent).
     logError('child_test.held_strip_attach_failed', { sessionId: session.id, drawId, error: r && r.error });
     delete strips[drawId];
+    await S.releaseStrip(visit, drawId);
     return strips;
   }
   await timing(session.id, 'maths.photo_received', held.at || nowIso());
   strips[drawId] = { ...held, sessionId: session.id };
+  await S.setStrip(visit, drawId, { ...(claim || {}), ...strips[drawId] });
   return strips;
 }
 
 async function dropPending(userId, sessionId) {
-  const fresh = await S.get(userId);
-  if (!fresh) return;
-  const pendingPhotos = (fresh.pendingPhotos || []).filter((x) => x.sessionId !== sessionId);
-  if (fresh.step === 'closed' && !pendingPhotos.length) return S.clear(userId);
-  return S.set(userId, { ...fresh, pendingPhotos });
+  return updateState(userId, (fresh) => {
+    const pendingPhotos = (fresh.pendingPhotos || []).filter((x) => x.sessionId !== sessionId);
+    if (fresh.step === 'closed' && !pendingPhotos.length) return null;
+    return { ...fresh, pendingPhotos };
+  });
 }
 
 async function onNoPhoto(user, from, sessionId) {
@@ -893,15 +1035,16 @@ async function onNoPhoto(user, from, sessionId) {
   if (!p) return say(from, t(lang, 'childTestExpired'));
   await dropPending(user.id, sessionId);
   await timing(sessionId, 'maths.photo_declined');
-  await say(from, t(lang, 'childTestNoPhotoAck', { roll: p.rollNumber }));
-  return finishChild(p, from, lang);
+  const child = labelOf(lang, await listOrNull(user, state.ctx), p);
+  await say(from, t(lang, 'childTestNoPhotoAckNo', { child }));
+  return finishChild(p, from, lang, child);
 }
 
 /** All the coach's work for this child is in: the session is complete and maths is scored. */
-async function finishChild(p, from, lang) {
+async function finishChild(p, from, lang, child) {
   const r = await ports.store.setSessionStatus(p.sessionId, 'completed');
   if (!r || !r.ok) logError('child_test.session_complete_failed', { sessionId: p.sessionId, error: r && r.error });
-  await say(from, t(lang, 'childTestChildDone', { roll: p.rollNumber }));
+  await say(from, t(lang, 'childTestChildDoneNo', { child: child || childLabel(lang, { rollNumber: p.rollNumber }) }));
   // Maths is scored once, after the strip photo is in or the coach declined it (CONTRACT §12 CR-2).
   // `force` tells L5 to score what is there; without it a photo-less maths block stays 'pending' forever.
   offPath('score', () => R.runScoring({ sessionId: p.sessionId, grade: p.grade, form: p.form }, 'maths',

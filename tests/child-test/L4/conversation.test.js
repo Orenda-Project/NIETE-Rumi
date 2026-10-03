@@ -18,6 +18,10 @@ jest.mock('../../../bot/shared/storage/r2', () => mockR2);
 jest.mock('../../../bot/shared/config/supabase', () => ({ from: (t) => mockDb.from(t) }));
 jest.mock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../../bot/shared/services/menu.service', () => ({ sendMenu: jest.fn(async () => true) }));
+// L20: the strip's child-number read goes to OpenRouter (network boundary): it reads no number here,
+// so strip photos fall back to list order, as these scenarios expect.
+process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
+jest.mock('openai', () => jest.fn().mockImplementation(() => ({ chat: { completions: { create: async () => ({ choices: [{ message: { content: '{"child_no":null,"confidence":0}' } }], usage: { cost: 0 } }) } } })));
 
 const { logError } = require('../../../bot/shared/utils/logger');
 const MenuService = require('../../../bot/shared/services/menu.service');
@@ -188,14 +192,14 @@ describe('a child, start to finish', () => {
     // maths is scored once, after the photo (ai_marks are written once)
     expect(lanes.calls.filter((c) => c[0] === 'scoreBlock').map((c) => c[1].block)).toEqual(['urdu', 'english']);
     expect(lanes.calls.filter((c) => c[0] === 'scoreBlock')[0][1]).toEqual({ sessionId: 'sess-1', block: 'urdu', grade: 3, form: 'A' });
-    expect(sent().some((m) => m.kind === 'buttons' && /Roll 1's strip: send its photo once it is written/.test(m.body))).toBe(true);
+    expect(sent().some((m) => m.kind === 'buttons' && /Child 3A-01 · roll 1's strip \(Child no\. 1\): send its photo once it is written/.test(m.body))).toBe(true);
     expect(last('list')).toBeTruthy();
     expect(lanes.calls.find((c) => c[0] === 'sendCheck')).toBeUndefined();
 
     // The strip photo may come later; it is claimed for the child it belongs to.
     expect(await H.handleImage(image('img-1'), PHONE, COACH)).toBe(true);
     expect(mockR2.uploadBuffer).toHaveBeenCalledWith(expect.any(Buffer), 'child-test/sandbox/school-1/sess-1/maths-strip.jpg', 'image/jpeg');
-    expect(sent().some((m) => m.kind === 'text' && /Strip saved for Roll 1/.test(m.text))).toBe(true);
+    expect(sent().some((m) => m.kind === 'text' && /saved for the next in order: Child 3A-01 · roll 1 \(no\. 1\)/.test(m.text))).toBe(true);
     await H.__drain();
     expect(lanes.calls.filter((c) => c[0] === 'scoreBlock').map((c) => c[1].block)).toEqual(['urdu', 'english', 'maths']);
     expect(lanes.calls.filter((c) => c[0] === 'sendCheck')).toEqual([['sendCheck', 'sess-1']]);
@@ -354,10 +358,10 @@ describe('failures are visible', () => {
     for (const b of ['u', 'e', 'm']) await H.handleVoice(voice(`p-${b}`), PHONE, COACH);
     lanes.fail.attachBlockMedia = true;
     expect(await H.handleImage(image('p1'), PHONE, COACH)).toBe(true);
-    expect(last('text').text).toMatch(/strip photo for Roll 1 did not save/);
+    expect(last('text').text).toMatch(/strip photo for Child 3A-01 · roll 1 did not save/);
     lanes.fail.attachBlockMedia = false;
     expect(await H.handleImage(image('p1'), PHONE, COACH)).toBe(true);
-    expect(sent().some((m) => m.kind === 'text' && /Strip saved/.test(m.text))).toBe(true);
+    expect(sent().some((m) => m.kind === 'text' && /saved for/.test(m.text))).toBe(true);
   });
 });
 
