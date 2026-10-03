@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isNativeApp, isNativePluginAvailable } from '@/lib/runtime';
+import { useRecordingSession } from '../lib/recordingSession';
 // @ts-expect-error - CommonJS module shared with the Jest test suite
 import { OVERLAY_SELECTOR, resolveBackAction } from '@/lib/back-button.cjs';
 
@@ -19,6 +20,9 @@ import { OVERLAY_SELECTOR, resolveBackAction } from '@/lib/back-button.cjs';
  *
  * A no-op in the browser, and on any app build without the plugin: under OTA
  * this bundle also runs on older APKs, where the plugin does not exist.
+ *
+ * bd-5rz1v.10 — while a lesson is recording, the back that would leave the app
+ * goes to the recording instead (rule 5 in back-button.cjs).
  */
 const BackButtonHandler = () => {
   const navigate = useNavigate();
@@ -29,6 +33,9 @@ const BackButtonHandler = () => {
   const pathRef = useRef(location.pathname);
   navigateRef.current = navigate;
   pathRef.current = location.pathname;
+  const session = useRecordingSession();
+  const recordingPathRef = useRef<string | null>(null);
+  recordingPathRef.current = session?.active ? session.returnTo : null;
 
   useEffect(() => {
     if (!isNativeApp() || !isNativePluginAvailable('App')) return;
@@ -43,6 +50,7 @@ const BackButtonHandler = () => {
             path: pathRef.current,
             canGoBack,
             overlayOpen: Boolean(document.querySelector(OVERLAY_SELECTOR)),
+            recordingPath: recordingPathRef.current,
           });
           if (action === 'close-overlay') {
             (document.activeElement ?? document.body).dispatchEvent(
@@ -50,6 +58,10 @@ const BackButtonHandler = () => {
             );
           } else if (action === 'history-back') {
             navigateRef.current(-1);
+          } else if (action === 'to-recording') {
+            if (recordingPathRef.current) navigateRef.current(recordingPathRef.current);
+          } else if (action === 'stay') {
+            // On the recording itself, with nothing behind: leaving would silence it.
           } else {
             App.minimizeApp().catch(() => {});
           }

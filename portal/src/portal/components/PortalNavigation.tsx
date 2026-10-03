@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useAuth } from '../hooks/useAuth';
 import { isLeader, resolveRole } from '../lib/leaderRole';
 import { useChildTest } from '../lib/useChildTest';
+import { useLogoutGuard } from '../lib/recordingSession';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
 
@@ -15,6 +16,8 @@ const PortalNavigation = () => {
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const { logout, user } = useAuth();
+  // bd-5rz1v.10 — Logout would end a lesson still recording, so it asks first then.
+  const guardedLogout = useLogoutGuard(logout);
   const childTestOn = useChildTest() === true;
   const currentPath = location.pathname;
 
@@ -155,7 +158,7 @@ const PortalNavigation = () => {
                 <span className="truncate">{user?.firstName || "Signed in"}</span>
               </Link>
               <button
-                onClick={logout}
+                onClick={guardedLogout}
                 className="flex items-center gap-2 px-4 py-2 text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
               >
                 <LogOut className="w-4 h-4" />
@@ -234,7 +237,7 @@ const PortalNavigation = () => {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => { setMoreOpen(false); logout(); }}
+                  onClick={() => { setMoreOpen(false); guardedLogout(); }}
                   data-testid="mobile-nav-logout"
                   className="flex items-center gap-3 rounded-md px-3 py-3 text-sm text-muted-foreground hover:bg-muted transition-colors"
                 >
