@@ -101,7 +101,7 @@ describe('corrections become edits, path by path', () => {
 
 describe('no AI marks: the coach marks everything, and every mark is recorded against null', () => {
   test('a block that failed to score', () => {
-    const posted = { e_wc: '20', e_wa: '25', e_q1: 'correct', e_q2: 'wrong', e_sw: 'correct' };
+    const posted = { e_wc: '20', e_wa: '25', e_q1: 'correct', e_q2: 'wrong', e_q3: 'correct', e_sw: 'correct' };
     for (let i = 1; i <= 8; i += 1) posted[`e_nw${i}`] = i === 2 ? 'wrong' : 'correct';
     const r = readScreen('english', posted, { aiMarks: null, items });
     expect(r.ok).toBe(true);

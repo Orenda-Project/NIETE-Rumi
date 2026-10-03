@@ -20,6 +20,14 @@
  * Maths is written once, after BOTH the voice note and the strip photo are in
  * (`pending` until then). `force: true` scores whatever is there, for a photo
  * that never came.
+ *
+ * v2 switches (bd-s1oo0.46.3, CONTRACT §19), read per call, v2 by default:
+ *   CHILD_TEST_BATTERY=v2   Urdu/English are scored for story, questions and the
+ *                           non-reader fallback only; first sounds and made-up words
+ *                           are neither looked for nor scored (v1: as above).
+ *   CHILD_TEST_MATHS_MODE=oral  maths is scored from its voice note alone (May set:
+ *                           compare, sums, two word problems; maths-oral.js), no photo
+ *                           is awaited (strip: as above).
  */
 
 const { logToFile, logError } = require('../../../utils/logger');
@@ -33,7 +41,9 @@ const { scoreQuestions } = require('./comprehension');
 const { scorePhonics } = require('./phonics');
 const { scoreSpoken, scoreSpokenWordProblem } = require('./maths');
 const { scoreStrip } = require('./maths-photo');
-const { assembleMarks, aiStatusFor } = require('./assemble');
+const { assembleMarks, aiStatusFor, sectionsFor } = require('./assemble');
+const { findOralWindows, scoreOralCard, scoreOralWordProblems } = require('./maths-oral');
+const { batteryVersion, mathsMode: mathsModeOf } = require('../item-bank');
 const { modelFor } = require('./models');
 
 const BLOCKS = new Set(['urdu', 'english', 'maths']);
@@ -59,8 +69,8 @@ async function transcribeBlock(file, block, durationSec, calls) {
   return res;
 }
 
-async function cutWindows({ block, spec, cue, words, durationSec, calls, modelVersions }) {
-  const cut = findCueWindows({ words, block, form: { [block]: spec }, cue, durationSec });
+async function cutWindows({ block, spec, cue, words, durationSec, calls, modelVersions, sections }) {
+  const cut = findCueWindows({ words, block, form: { [block]: spec }, cue, durationSec, sections });
   if (cut.missing.length) {
     const lab = await labelMissing({ block, spec, words, cut, durationSec, calls });
     modelVersions.labeller = lab.modelVersion;
@@ -81,18 +91,20 @@ function compactTranscript(res) {
   return { language: res.language, model: res.model, words: res.words.map((w) => [w.raw, w.start, w.end, w.speaker]) };
 }
 
-async function runReading({ block, spec, cue, file, durationSec, calls, errors, modelVersions }) {
+async function runReading({ block, spec, cue, file, durationSec, calls, errors, modelVersions, battery }) {
   const res = await transcribeBlock(file, block, durationSec, calls);
   modelVersions.stt = res.model;
   const words = res.words;
-  const cut = await cutWindows({ block, spec, cue, words, durationSec, calls, modelVersions });
+  const withPhonics = battery !== 'v2';
+  const cut = await cutWindows({ block, spec, cue, words, durationSec, calls, modelVersions, sections: sectionsFor(block, { battery }) });
   const w = cut.windows;
   const parts = {}; const ok = {};
 
   const [story, questions, phonics] = await Promise.all([
     w.story ? scoreStory({ lang: block, spec: spec.story || {}, file, window: w.story, words, coachSpeaker: cut.coachSpeaker, flags: cut.flags, calls }) : { ok: false, error: 'no_window' },
     w.questions ? scoreQuestions({ lang: block, spec, words, window: w.questions, calls }) : { ok: false, error: 'no_window' },
-    (w.first_sounds || w.nonwords) ? scorePhonics({ lang: block, spec, file, windows: w, words, calls }) : { ok: false, error: 'no_window' },
+    !withPhonics ? null
+      : (w.first_sounds || w.nonwords) ? scorePhonics({ lang: block, spec, file, windows: w, words, calls }) : { ok: false, error: 'no_window' },
   ]);
 
   if (story.ok) { parts.story = story.part; modelVersions.counts = story.modelVersion; }
@@ -110,11 +122,11 @@ async function runReading({ block, spec, cue, file, durationSec, calls, errors, 
   else errors.push({ job: 'comprehension', error: questions.error });
   ok.questions = !!questions.ok;
 
-  if (phonics.ok) {
+  if (phonics && phonics.ok) {
     parts.first_sounds = phonics.part.first_sounds; parts.nonwords = phonics.part.nonwords;
     modelVersions.phonics = phonics.modelVersion;
-  } else errors.push({ job: 'phonics', error: phonics.error });
-  ok.first_sounds = !!phonics.ok; ok.nonwords = !!phonics.ok;
+  } else if (phonics) errors.push({ job: 'phonics', error: phonics.error });
+  if (phonics) { ok.first_sounds = !!phonics.ok; ok.nonwords = !!phonics.ok; }
 
   return { parts, ok, flags: cut.flags, transcript: compactTranscript(res), windows: cut.windows };
 }
@@ -169,6 +181,24 @@ async function runMaths({ spec, cue, grade, form, row, audioFile, durationSec, c
   return { parts, ok, flags, transcript, windows };
 }
 
+/** v2 oral maths: the voice note alone (maths-oral.js). */
+async function runMathsOral({ spec, cue, audioFile, durationSec, calls, modelVersions }) {
+  if (!spec.oral) throw new Fatal('form_not_found', 'item bank has no maths.oral');
+  const res = await transcribeBlock(audioFile, 'maths', durationSec, calls);
+  modelVersions.stt = res.model;
+  const cut = findOralWindows({ words: res.words, cue, oral: spec.oral, durationSec });
+  const card = scoreOralCard({ words: res.words, cut, oral: spec.oral });
+  const wp = await scoreOralWordProblems({ words: res.words, cut, oral: spec.oral, calls });
+  if (wp.modelVersion) modelVersions.word_problem = wp.modelVersion;
+  return {
+    parts: { maths: { oral: { compare: card.compare, sums: card.sums, word_problems: wp.rows } } },
+    ok: { compare: true, sums: true, word_problems: true },
+    flags: cut.flags,
+    transcript: compactTranscript(res),
+    windows: { ...cut.windows, ...(cut.missing.length ? { missing: cut.missing } : {}) },
+  };
+}
+
 async function persistFailure(store, { sessionId, block }, reason) {
   try {
     if (store && typeof store.setAiStatus === 'function') await store.setAiStatus({ sessionId, block, aiStatus: 'failed', reason });
@@ -205,8 +235,15 @@ async function scoreBlock(args, deps = {}) {
     if (!spec) { await persistFailure(store, ids, 'form_not_found'); return { ok: false, aiStatus: 'failed', reason: 'form_not_found' }; }
     const cueAll = itemBank.cue || (typeof itemBank.getCue === 'function' ? itemBank.getCue() : null) || {};
     const cue = cueAll[block] || {};
+    const battery = batteryVersion();
+    const mathsMode = mathsModeOf();
+    const oral = block === 'maths' && mathsMode === 'oral';
 
-    if (block === 'maths' && !force && !(row.audio_r2_key && row.photo_r2_key)) {
+    if (oral && !row.audio_r2_key) {
+      await persistFailure(store, ids, 'no_media');
+      return { ok: false, aiStatus: 'failed', reason: 'no_media' };
+    }
+    if (block === 'maths' && !oral && !force && !(row.audio_r2_key && row.photo_r2_key)) {
       return { ok: true, aiStatus: 'pending', reason: row.audio_r2_key ? 'awaiting_photo' : 'awaiting_audio' };
     }
     if (!row.audio_r2_key && !(block === 'maths' && row.photo_r2_key)) {
@@ -225,11 +262,12 @@ async function scoreBlock(args, deps = {}) {
       durationSec = await media.probeDuration(audioFile);
     }
 
-    const result = block === 'maths'
-      ? await runMaths({ spec, cue, grade, form, row, audioFile, durationSec, calls, errors, modelVersions, fetchMedia })
-      : await runReading({ block, spec, cue, file: audioFile, durationSec, calls, errors, modelVersions });
+    let result;
+    if (oral) result = await runMathsOral({ spec, cue, audioFile, durationSec, calls, modelVersions });
+    else if (block === 'maths') result = await runMaths({ spec, cue, grade, form, row, audioFile, durationSec, calls, errors, modelVersions, fetchMedia });
+    else result = await runReading({ block, spec, cue, file: audioFile, durationSec, calls, errors, modelVersions, battery });
 
-    const aiStatus = aiStatusFor(block, result.ok);
+    const aiStatus = aiStatusFor(block, result.ok, { battery, mathsMode });
     const meta = {
       item_bank_version: itemBank.version || null,
       duration_sec: durationSec,
@@ -247,7 +285,7 @@ async function scoreBlock(args, deps = {}) {
       return { ok: false, aiStatus: 'failed', reason };
     }
 
-    const aiMarks = assembleMarks({ block, form: { [block]: spec }, parts: result.parts, flags: result.flags, modelVersions, meta });
+    const aiMarks = assembleMarks({ block, form: { [block]: spec }, parts: result.parts, flags: result.flags, modelVersions, meta, battery, mathsMode });
     const saved = await store.saveAiMarks({ sessionId, block, aiMarks, aiStatus, modelVersions, transcript: result.transcript });
     if (!saved || !saved.ok) {
       if (saved && saved.alreadyScored) return { ok: true, aiStatus: (saved.block && saved.block.ai_status) || 'scored', reason: 'already_scored' };

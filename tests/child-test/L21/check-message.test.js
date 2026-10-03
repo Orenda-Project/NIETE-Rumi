@@ -39,7 +39,8 @@ function seed({ lang = 'en', blocks, roll = '8', name = NAME, nameUrdu = null } 
   const b = blocks || { urdu: F.urduConfident(), english: F.englishConfident(), maths: F.mathsConfident() };
   mockFake = createFakeSupabase({
     users: [{ id: 'coach-1', phone_number: '923000000001', preferred_language: lang }],
-    child_test_sessions: [{ id: 'sess-1', coach_user_id: 'coach-1', grade: 3, form: 'A', student_id: 'stu-1', draw_id: 'draw-1', status: 'in_progress', timings: {} }],
+    child_test_sessions: [{ id: 'sess-1', coach_user_id: 'coach-1', grade: 3, form: 'A', student_id: 'stu-1', draw_id: 'draw-1', class_id: 'cls-3a', status: 'in_progress', timings: {} }],
+    classes: [{ id: 'cls-3a', grade_code: 'grade_3', section: 'A', shift_code: 'morning' }],
     child_test_draws: [{ id: 'draw-1', student_id: 'stu-1', roll_number: roll }],
     students: [{ id: 'stu-1', student_name: name, student_name_urdu: nameUrdu, roll_number: roll, is_active: true }],
     child_test_blocks: Object.entries(b).map(([block, ai]) => ({
@@ -165,24 +166,24 @@ describe('the time it promises', () => {
   });
 });
 
-describe('the child is named, full name first (CONTRACT §18)', () => {
-  test('header and body lead with the full name; the roll follows as a hint', async () => {
+describe('the child is named, full name first, then the class — never a roll (CONTRACT §18–§19, L25)', () => {
+  test('header and body lead with the full name; the class follows', async () => {
     seed();
     await sendCheck('sess-1');
-    expect(flowMsg().header).toBe(`Check: ${NAME} · roll 8`);
+    expect(flowMsg().header).toBe(`Check: ${NAME} · 3-A`);
     expect(flowMsg().body.startsWith(NAME)).toBe(true);
   });
 
-  test('Urdu: the Urdu-script name when the roster has one, roll in Urdu digits', async () => {
+  test('Urdu: the Urdu-script name when the roster has one, the class in Urdu digits, no roll', async () => {
     seed({ lang: 'ur', nameUrdu: 'آزمائشی بچہ' });
     await sendCheck('sess-1');
-    expect(flowMsg().header).toBe('جانچ: آزمائشی بچہ · رول ۸');
+    expect(flowMsg().header.replace(/[\u200e\u200f\u2066-\u2069]/g, '')).toBe('جانچ: آزمائشی بچہ · ۳-A');
   });
 
   test('no roll: the name alone — never "null", never a dash for a roll', async () => {
     seed({ roll: null });
     await sendCheck('sess-1');
-    expect(flowMsg().header).toBe(`Check: ${NAME}`);
+    expect(flowMsg().header).toBe(`Check: ${NAME} · 3-A`);
     expect(flowMsg().body).not.toMatch(/null|undefined|roll/);
   });
 
@@ -195,10 +196,10 @@ describe('the child is named, full name first (CONTRACT §18)', () => {
     expect(flowMsg().body).toContain(long);
   });
 
-  test('the check Flow heading (data_exchange INIT) is name-first: "<name> · roll 8 · Grade 3"', async () => {
+  test('the check Flow heading (data_exchange INIT) is name-first: "<name> · 3-A · Grade 3", no roll', async () => {
     seed();
     const out = await Check.handleChildTestCheckInit('coach-1:child-test-check:sess-1');
-    expect(out.data.child_line).toBe(`${NAME} · roll 8 · Grade 3`);
+    expect(out.data.child_line).toBe(`${NAME} · 3-A · Grade 3`);
   });
 
   test('Urdu Flow heading: name first, no "رول نمبر" lead', async () => {
@@ -206,7 +207,7 @@ describe('the child is named, full name first (CONTRACT §18)', () => {
     const out = await Check.handleChildTestCheckInit('coach-1:child-test-check:sess-1');
     // the catalog isolates a Latin name inside an Urdu line (RLM + FSI … PDI): compare without them
     const shown = out.data.child_line.replace(/[\u200e\u200f\u2066-\u2069]/g, '');
-    expect(shown).toBe(`${NAME} · رول ۸ · جماعت ۳`);
+    expect(shown).toBe(`${NAME} · ۳-A · جماعت ۳`);
     expect(shown).not.toMatch(/^رول نمبر/);
   });
 
@@ -214,6 +215,6 @@ describe('the child is named, full name first (CONTRACT §18)', () => {
     seed();
     for (const b of mockFake.__tables.child_test_blocks) b.checked_at = '2026-10-03T10:00:00.000Z';
     await handleCheckCompletion({ flow_token: 'coach-1:child-test-check:sess-1' }, '923000000001', { id: 'coach-1', preferred_language: 'en' });
-    expect(WhatsAppService.sendMessage.mock.calls[0][1]).toBe(`✓ Marks for ${NAME} · roll 8 saved.`);
+    expect(WhatsAppService.sendMessage.mock.calls[0][1]).toBe(`✓ Marks for ${NAME} · 3-A saved.`);
   });
 });

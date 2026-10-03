@@ -5,12 +5,18 @@
  * (with answer keys), first sounds, made-up words, fallback rows and maths items for Grades 3 and 5,
  * Forms A (new children) and B (returning children). The bank is loaded once and deep-frozen, so a
  * caller that mutates what it gets back throws instead of corrupting the bank for the next caller.
+ *
+ * v2 (child-test-items-v2, bd-s1oo0.46.3, CONTRACT §19), additive: `<block>.script` (the coach's words to
+ * the child), `maths.oral` (May EGMA set: compare A–D, sums 1–4, two word problems read aloud; Form A =
+ * Set A, Form B = Set B) and a third English question. In the v2 design a form letter is the term's card
+ * set, not new-vs-returning.
  */
 const BANK = require('../../data/child-test/item-bank.v1.json');
 
 const GRADES = ['3', '5'];
 const FORMS = ['A', 'B'];
 const BLOCKS = ['urdu', 'english', 'maths'];
+const ORAL_KINDS = ['compare', 'sums', 'word_problems'];
 
 function deepFreeze(x) {
   if (x && typeof x === 'object' && !Object.isFrozen(x)) {
@@ -34,6 +40,11 @@ for (const grade of GRADES) {
           }
         }
       }
+    }
+    // v2 oral maths: maths.oral.{compare,sums,word_problems} → kind 'oral.compare' etc.
+    const oral = BANK.grades[grade].forms[form].maths.oral || {};
+    for (const kind of ORAL_KINDS) {
+      for (const item of oral[kind] || []) INDEX.set(item.id, Object.freeze({ grade, form, block: 'maths', kind: `oral.${kind}`, item }));
     }
   }
 }
@@ -59,6 +70,29 @@ function getForm(grade, form) {
 function getBlock(grade, form, block) {
   if (!BLOCKS.includes(block)) throw new Error(`child-test item bank: unknown block "${block}" (expected urdu, english or maths)`);
   return getForm(grade, form)[block];
+}
+
+/** v2: the oral maths set of a form: { compare[4], sums[4], word_problems[2], script, equated, … }. */
+function getOral(grade, form) {
+  return getBlock(grade, form, 'maths').oral || null;
+}
+
+/** v2: the exact words the coach says to the child in one block (maths: the oral set's script). */
+function getScript(grade, form, block) {
+  const b = getBlock(grade, form, block);
+  return (block === 'maths' ? b.oral && b.oral.script : b.script) || null;
+}
+
+// ------------------------------------------------------------------ the v2 switches (CONTRACT §19)
+// v2 is the default; v1 is reached only by setting the switch to exactly its v1 value.
+/** CHILD_TEST_BATTERY: 'v2' (story + questions + fallback) unless set to 'v1' (adds first sounds, made-up words). */
+function batteryVersion(env = process.env) {
+  return String(env.CHILD_TEST_BATTERY || '').trim().toLowerCase() === 'v1' ? 'v1' : 'v2';
+}
+
+/** CHILD_TEST_MATHS_MODE: 'oral' (May set, one voice note) unless set to 'strip' (v1: numbers, quick sums, photo). */
+function mathsMode(env = process.env) {
+  return String(env.CHILD_TEST_MATHS_MODE || '').trim().toLowerCase() === 'strip' ? 'strip' : 'oral';
 }
 
 /** Any item by id (e.g. 'u3A-q1', 'e5B-story', 'm3A-qs12') → { grade, form, block, kind, item } or null. */
@@ -107,6 +141,10 @@ module.exports = {
   getForm,
   getBlock,
   getItem,
+  getOral,
+  getScript,
+  batteryVersion,
+  mathsMode,
   quickSumsSeconds,
   sandboxQuickSumsOverride,
   isSandbox,

@@ -52,6 +52,22 @@ function nameOf(c: ChildTestChild, lang: Lang) {
   return (lang === 'ur' ? (c.displayNameUrdu || c.displayName) : c.displayName) || '';
 }
 
+/** "Grade 3 - B · Teacher: Imran Khan", led by the same-name hint when the class has two (L25, CONTRACT §19). */
+function placeOf(c: ChildTestChild, lang: Lang) {
+  const copy = COPY[lang];
+  const hint = (c.namesakes ?? 1) > 1
+    ? (c.fatherTellsApart && c.fatherName ? copy.father(c.fatherName) : copy.inThisClass(c.namesakes as number))
+    : '';
+  const room = (lang === 'ur' ? (c.classLabelUr || c.classLabel) : c.classLabel) || '';
+  const teacher = c.teacherName ? copy.teacher(c.teacherName) : '';
+  return [hint, room, teacher].filter(Boolean).join(' · ');
+}
+
+/** An alternate: "Usman Ghani (3-A)". */
+function shortOf(c: ChildTestChild, lang: Lang) {
+  return c.classShort ? `${nameOf(c, lang)} (${c.classShort})` : nameOf(c, lang);
+}
+
 function reasonOf(err: unknown): string | null {
   const r = (err as { response?: { data?: { reason?: string }; status?: number } })?.response;
   return r?.data?.reason || null;
@@ -257,7 +273,7 @@ export default function LeaderChildTest() {
                       <span className="flex-1 min-w-0">
                         <span className="block font-semibold text-slate-900 truncate">{nameOf(c, lang)}</span>
                         <span className="block text-sm text-slate-600">
-                          {c.rollNumber ? copy.roll(c.rollNumber) : ''}{c.section ? ` · ${c.section}` : ''}
+                          {placeOf(c, lang)}
                         </span>
                       </span>
                       <span className="flex flex-col items-end gap-1 text-xs">
@@ -273,7 +289,7 @@ export default function LeaderChildTest() {
               {list.alternates.length > 0 && (
                 <div className="text-sm text-slate-600">
                   <p>{copy.alternates}</p>
-                  <p>{list.alternates.map((a) => (a.rollNumber ? copy.roll(a.rollNumber) : nameOf(a, lang))).join(' · ')}</p>
+                  <p>{list.alternates.map((a) => shortOf(a, lang)).join(' · ')}</p>
                 </div>
               )}
             </div>
@@ -285,7 +301,7 @@ export default function LeaderChildTest() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center">
             <UserCheck className="h-10 w-10 mx-auto text-slate-500" aria-hidden />
             <p className="mt-2 text-2xl font-bold text-slate-900">{nameOf(c, lang)}</p>
-            {c.rollNumber && <p className="text-slate-600">{copy.roll(c.rollNumber)}</p>}
+            {placeOf(c, lang) && <p className="text-slate-600">{placeOf(c, lang)}</p>}
           </div>
           <p className="text-lg text-slate-800 text-center">{copy.isHere}</p>
           <button type="button" disabled={busy} onClick={() => outcome(c, 'present')} className="w-full rounded-2xl py-5 text-2xl font-semibold bg-emerald-600 text-white">{copy.present}</button>

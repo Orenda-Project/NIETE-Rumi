@@ -11,7 +11,7 @@ const RAW = JSON.parse(fs.readFileSync(
 
 describe('child-test item bank accessor', () => {
   test('version is the bank version string', () => {
-    expect(bank.version).toBe('child-test-items-v1');
+    expect(bank.version).toBe('child-test-items-v2');
     expect(bank.version).toBe(RAW.version);
   });
 

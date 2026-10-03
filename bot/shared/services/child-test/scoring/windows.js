@@ -106,7 +106,7 @@ function firstAnchor(words, phrases, opts) {
  * @param {number} p.durationSec length of the voice note
  * @returns {{ windows, missing, flags, coachSpeaker, anchors }}
  */
-function findCueWindows({ words, block, form, cue = {}, durationSec }) {
+function findCueWindows({ words, block, form, cue = {}, durationSec, sections = SECTIONS[block] }) {
   const end = Number.isFinite(durationSec) ? durationSec : (words.length ? words[words.length - 1].end + 1 : 0);
   const spec = (form && form[block]) || {};
   const anchors = {};
@@ -134,19 +134,22 @@ function findCueWindows({ words, block, form, cue = {}, durationSec }) {
     anchors.questions = firstAnchor(words, [cue.questions], { after: qAfter })
       || questionTextAnchor(words, qs[0], { after: qAfter, story: anchors.story, cue, spec });
     const lastQ = lastQuestionAnchor(words, qs, anchors.questions);
-    if (block === 'urdu') {
+    // battery v2 (bd-s1oo0.46.3): no first sounds or made-up words are given, so none are looked for —
+    // a first-sound word or a made-up-word cue heard in an answer must not cut the questions short
+    const wants = (sec) => (sections || []).includes(sec);
+    if (block === 'urdu' && wants('first_sounds')) {
       const fsAfter = lastQ ? lastQ.end : (anchors.questions ? anchors.questions.end : qAfter);
       const fs = spec.first_sounds || [];
       anchors.first_sounds = firstAnchor(words, [cue.first_sounds, fs[0] && fs[0].word], { after: fsAfter });
       const nwAfter = anchors.first_sounds ? anchors.first_sounds.end : fsAfter;
       anchors.nonwords = firstAnchor(words, [cue.nonwords], { after: nwAfter });
-    } else {
+    } else if (wants('nonwords')) {
       const nwAfter = lastQ ? lastQ.end : (anchors.questions ? anchors.questions.end : qAfter);
       anchors.nonwords = firstAnchor(words, [cue.nonwords], { after: nwAfter });
     }
   }
 
-  const order = SECTIONS[block] || [];
+  const order = (sections || SECTIONS[block] || []).filter((s) => (SECTIONS[block] || []).includes(s));
   const missing = order.filter((s) => !anchors[s]);
   if (block !== 'maths' && !anchors.story) flags.push('no_cue_phrase');
   if (block === 'maths' && !anchors.quick_sums) flags.push('no_cue_phrase');

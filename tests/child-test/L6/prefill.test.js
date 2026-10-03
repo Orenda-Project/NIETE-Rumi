@@ -125,11 +125,11 @@ describe('at most 20 chips', () => {
 });
 
 describe('ENGLISH', () => {
-  test('two questions, eight made-up words, no first sounds; English labels for an English coach', () => {
+  test('three questions (item bank v2), eight made-up words, no first sounds; English labels for an English coach', () => {
     const { screen, data } = renderScreen('english', { aiMarks: F.englishConfident(), items, lang: 'en', child, aiStatus: 'scored' });
     expect(screen).toBe('ENGLISH');
     expect(data.t_wc).toBe('Words correct');
-    expect(data.q3_v).toBe(false);
+    expect(data.q3_v).toBe(true);
     expect(data.fs_sec_v).toBeUndefined();
     expect(data.fs1_t).toBeUndefined();
     expect(data.nwc_opts).toHaveLength(7);

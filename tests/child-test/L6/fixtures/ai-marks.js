@@ -46,6 +46,7 @@ const englishConfident = () => ({
   questions: [
     { id: 'e3A-q1', verdict: 'correct', heard: 'trees', confidence: 0.95 },
     { id: 'e3A-q2', verdict: 'wrong', heard: 'he woke up', confidence: 0.75 },
+    { id: 'e3A-q3', verdict: 'correct', heard: 'he planted it well', confidence: 0.95 },   // v2 bank: three English questions
   ],
   first_sounds: [],
   nonwords: ['correct', 'wrong', 'correct', 'correct', 'wrong', 'correct', 'correct', 'none'].map((v, i) => ({

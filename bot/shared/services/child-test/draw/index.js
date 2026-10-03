@@ -8,10 +8,20 @@
  *   Order    one seeded shuffle per class per cycle (draw/shuffle.js); every rank is written to
  *            child_test_draws before any name is shown.
  *   A visit  the observed grade if it is 3 or 5, else Grade 3 and Grade 5 alternate by the school's
- *            visits this cycle. 1 returning child (earliest first test in the school and grade, last
- *            test ≥ 42 days ago, not yet retested this cycle; reads Form B) + new children in rank
- *            order, round-robin across the grade's sections, to 5 (Form A); then 2 alternates.
- *            A child already tested in any cycle is never drawn as new again.
+ *            visits this cycle. 1 returning child + new children in rank order, round-robin across the
+ *            grade's sections, to 5; then 2 alternates. A child already tested in any cycle is never
+ *            drawn as new again.
+ *   Shift    one shift per school-grade: the morning classes, or the evening ones only when the grade
+ *            has no morning class with children (R1 §7.5) — a coach never chases a child who is not in
+ *            school at that hour.
+ *   Forms    CHILD_TEST_FORM_POLICY (CONTRACT §19):
+ *            term (default)  every child in a cycle reads the cycle's set (draw/term-set.js). A child
+ *                            returns only from an earlier cycle, never to a set already read, and never
+ *                            when a same-name classmate makes "which child" uncertain (R1 §7.4 A).
+ *            returning_b     v1: new children Form A; the returning child (earliest first test, last
+ *                            test ≥ 42 days ago, not yet retested this cycle) Form B.
+ *   Naming   no roll is written or shown (operator, 3 Oct). Each listed child carries the roster's class
+ *            label, the class teacher and a same-name count against the class roster (L25, R1 §7).
  *   Absent   absent or refused: coded, the first alternate moves up, the alternates are topped up,
  *            and the child goes back in the queue at their rank — absent_final after two tries.
  *   Reopen   the visit's list is stored on the rows (last_listed_visit_id, or visit_key for a visit
@@ -29,6 +39,8 @@ const store = require('../store');
 const { cycleFor, sessionCodeFor } = require('./cycle');
 const { ALGO_VERSION, seedFor, seedDigest, shuffle } = require('./shuffle');
 const { logToFile } = require('../../../utils/logger');
+const { classLabels, shiftOf } = require('./class-label');
+const { formPolicy, termSet } = require('./term-set');
 const { isVisitKey, parseVisitKey, pktDate, oneVisit } = require('./visit-key');
 
 const REGION = 'ict';
@@ -47,6 +59,8 @@ const DAY_MS = 86400000;
 // The visit a row is listed at, a history entry names, and the columns/fields that name it.
 const visitOf = (d) => d.last_listed_visit_id || d.visit_key || null;
 const visitOfEntry = (h) => h.visit_id || h.visit_key || null;
+// Lists first claimed with this marker are ordered by classroom (L25); older lists keep their order.
+const LIST_ORDER = 'room';
 const visitRef = (visit) => (isVisitKey(visit) ? { visit_key: visit } : { visit_id: visit });
 const visitColumns = (visit) => (isVisitKey(visit)
   ? { last_listed_visit_id: null, visit_key: visit }
@@ -60,6 +74,33 @@ function normaliseGrade(g) {
 }
 const gradeOfClass = (c) => normaliseGrade(c.grade_code);
 const bySectionThenId = (a, b) => String(a.section || '').localeCompare(String(b.section || '')) || String(a.id).localeCompare(String(b.id));
+
+// Same-name children (R1 §4): names compared lower-cased with punctuation and digits removed.
+const nameKey = (s) => String(s == null ? '' : s).toLowerCase().replace(/[^\p{L}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+const fatherKey = nameKey;
+
+/**
+ * A child's classmates with the same name, counted on the class roster (not the list), and whether the
+ * father's name tells this child apart from every one of them.
+ * @param {Map<string, object>} enrolled  student_id → enrolment (student_name, father_name) of one class
+ */
+function namesakeOf(enrolled, studentId) {
+  const me = enrolled && enrolled.get(studentId);
+  const key = me && nameKey(me.student_name);
+  if (!key) return { namesakes: 1, fatherTellsApart: false };
+  const same = [...enrolled.values()].filter((e) => nameKey(e.student_name) === key);
+  if (same.length < 2) return { namesakes: 1, fatherTellsApart: false };
+  const mine = fatherKey(me.father_name);
+  const apart = Boolean(mine) && same.every((e) => e.student_id === studentId || (fatherKey(e.father_name) && fatherKey(e.father_name) !== mine));
+  return { namesakes: same.length, fatherTellsApart: apart };
+}
+const unresolvedNamesake = (n) => n.namesakes > 1 && !n.fatherTellsApart;
+
+/** One shift per grade: the morning classes, else (no morning class with children) the evening ones. */
+function oneShift(classes) {
+  const morning = classes.filter((c) => shiftOf(c) === 'morning');
+  return morning.length ? morning : classes;
+}
 
 function visitsListedBefore(draws, visit) {
   const visits = new Set();
@@ -89,7 +130,7 @@ async function loadContext({ schoolId, cycleId, now }) {
     const g = gradeOfClass(c);
     if (g && enrolledByClass.has(c.id)) classesByGrade.get(g).push(c);
   }
-  for (const list of classesByGrade.values()) list.sort(bySectionThenId);
+  for (const [g, list] of classesByGrade) classesByGrade.set(g, oneShift(list).sort(bySectionThenId));
 
   const draws = await store.listSchoolDraws(schoolId, cycleId);
   if (!draws.ok) return draws;
@@ -119,13 +160,12 @@ async function ensureFrames(ctx, grade, secret) {
       class_id: c.id,
       grade,
       student_id: sid,
-      roll_number: ctx.enrolledByClass.get(c.id).get(sid).roll_number ?? null,
       frame_size: order.length,
       draw_rank: i + 1,
       seed_digest: digest,
       algo_version: ALGO_VERSION,
       sample_role: 'new',
-      form: 'A',
+      form: formPolicy() === 'term' ? termSet(ctx.cycleId) : 'A',
       status: 'pending',
       attempts: 0,
       history: [],
@@ -179,6 +219,8 @@ function currentClassOf(ctx, grade, studentId) {
 // The returning slot: a queued returning row of this cycle first (an absent returning child is
 // sought again), else the earliest-tested eligible child, for whom a returning row is written.
 async function returningChild(ctx, grade, visitId) {
+  const term = formPolicy() === 'term';
+  const set = term ? termSet(ctx.cycleId) : 'B';
   const thisCycle = ctx.draws.filter((d) => d.sample_role === 'returning' && d.grade === grade);
   const queued = thisCycle
     .filter((d) => QUEUED.includes(d.status) && visitOf(d) !== visitId && currentClassOf(ctx, grade, d.student_id))
@@ -187,22 +229,36 @@ async function returningChild(ctx, grade, visitId) {
 
   const retestedThisCycle = new Set(thisCycle.map((d) => d.student_id));
   const cutoff = ctx.now.getTime() - RETURN_AFTER_DAYS * DAY_MS;
+  // term: nobody reads a set twice, and a child who was a namesake when listed (or is one now) is
+  // never brought back — the teacher may have sent the other child (R1 §7.4 A).
+  const barred = new Set();
+  if (term) {
+    for (const d of ctx.tested) {
+      if (d.form === set || d.cycle_id === ctx.cycleId) barred.add(d.student_id);
+      if ((d.history || []).some((h) => h.event === 'listed' && h.namesake === true)) barred.add(d.student_id);
+    }
+  }
   const byStudent = new Map();
   for (const d of ctx.tested) {
-    if (d.grade !== grade || !d.tested_at) continue;
+    if (d.grade !== grade || !d.tested_at || barred.has(d.student_id)) continue;
     const t = new Date(d.tested_at).getTime();
     const s = byStudent.get(d.student_id) || { first: null, last: -Infinity };
     if (!s.first || t < new Date(s.first.tested_at).getTime()) s.first = d;
     s.last = Math.max(s.last, t);
     byStudent.set(d.student_id, s);
   }
+  const namesakeNow = (sid) => {
+    const at = currentClassOf(ctx, grade, sid);
+    return Boolean(at) && unresolvedNamesake(namesakeOf(ctx.enrolledByClass.get(at.cls.id), sid));
+  };
   const eligible = [...byStudent.entries()]
-    .filter(([sid, s]) => s.last <= cutoff && !retestedThisCycle.has(sid) && currentClassOf(ctx, grade, sid))
+    .filter(([sid, s]) => s.last <= cutoff && !retestedThisCycle.has(sid) && currentClassOf(ctx, grade, sid)
+      && !(term && namesakeNow(sid)))
     .sort(([a, x], [b, y]) => String(x.first.tested_at).localeCompare(String(y.first.tested_at)) || String(a).localeCompare(String(b)));
   if (!eligible.length) return { ok: true, draw: null };
 
   const [sid, s] = eligible[0];
-  const { cls, enrollment } = currentClassOf(ctx, grade, sid);
+  const { cls } = currentClassOf(ctx, grade, sid);
   const frameRow = ctx.draws.find((d) => d.sample_role === 'new' && d.class_id === cls.id);
   const ownRow = ctx.draws.find((d) => d.sample_role === 'new' && d.student_id === sid);
   const ins = await store.insertDraws([{
@@ -212,13 +268,12 @@ async function returningChild(ctx, grade, visitId) {
     class_id: cls.id,
     grade,
     student_id: sid,
-    roll_number: enrollment.roll_number ?? null,
     frame_size: frameRow ? frameRow.frame_size : ctx.enrolledByClass.get(cls.id).size,
     draw_rank: ownRow ? ownRow.draw_rank : s.first.draw_rank,
     seed_digest: s.first.seed_digest,
     algo_version: RETURNING_ALGO,
     sample_role: 'returning',
-    form: 'B',
+    form: set,
     status: 'pending',
     attempts: 0,
     source_draw_id: s.first.id,
@@ -232,7 +287,8 @@ async function returningChild(ctx, grade, visitId) {
 // Claim one row for the visit, compare-and-set on what was read: a child another visit claimed in
 // the meantime is not taken from it ({ won: false }); the caller moves on to the next in order.
 async function claim(d, slot, visitId, at, extra = {}) {
-  const history = [...(d.history || []), { event: 'listed', ...visitRef(visitId), slot, at, ...extra }];
+  const more = typeof extra === 'function' ? extra(d) : extra;
+  const history = [...(d.history || []), { event: 'listed', ...visitRef(visitId), slot, at, ...more }];
   const upd = await store.updateDraw(
     d.id,
     { status: 'listed', list_slot: slot, ...visitColumns(visitId), history },
@@ -269,32 +325,92 @@ function childNumbers(rows, visitId, order) {
 
 // ── The list as the coach sees it ──────────────────────────────────────────────────────────────
 
+/**
+ * Who each listed room's class teacher is: the flagged class teacher, else the only reachable one,
+ * else nobody (the coach asks the head teacher). Mirrors conversation/context.js classTeachersOf.
+ */
+function pickTeachers(links) {
+  const byClass = new Map();
+  for (const l of links) {
+    if (!l.reachable) continue;
+    if (!byClass.has(l.class_id)) byClass.set(l.class_id, []);
+    byClass.get(l.class_id).push(l);
+  }
+  const out = new Map();
+  for (const [classId, reachable] of byClass) {
+    const flagged = reachable.filter((l) => l.is_class_teacher).sort((a, b) => String(a.teacher_user_id).localeCompare(String(b.teacher_user_id)));
+    const pick = flagged.length ? flagged[0] : (reachable.length === 1 ? reachable[0] : null);
+    const name = pick ? String(pick.name || '').replace(/\s+/g, ' ').trim() : '';
+    if (pick && name) out.set(classId, { teacherUserId: pick.teacher_user_id, teacherName: name });
+  }
+  return out;
+}
+
 async function listFor(visitId, extra = {}) {
   const v = await store.listVisitDraws(visitId);
   if (!v.ok) return v;
   const rows = v.draws.filter((d) => d.list_slot);
   if (!rows.length) return { ok: true, empty: true };
-  const [students, classes] = await Promise.all([
+  const classIds = [...new Set(rows.map((d) => d.class_id))];
+  const [students, classes, enr, teachers] = await Promise.all([
     store.listStudents(rows.map((d) => d.student_id)),
-    store.getClassesByIds(rows.map((d) => d.class_id)),
+    store.getClassesByIds(classIds),
+    store.listActiveEnrollments(classIds),
+    store.listClassTeachers(classIds),
   ]);
-  if (!students.ok) return students;
-  if (!classes.ok) return classes;
+  for (const r of [students, classes, enr, teachers]) if (!r.ok) return r;
   const nameOf = new Map(students.students.map((s) => [s.id, s]));
-  const sectionOf = new Map(classes.classes.map((c) => [c.id, c.section || null]));
+  const classOf = new Map(classes.classes.map((c) => [c.id, c]));
+  const rosterOf = new Map();
+  for (const e of enr.enrollments) {
+    if (!rosterOf.has(e.class_id)) rosterOf.set(e.class_id, new Map());
+    rosterOf.get(e.class_id).set(e.student_id, e);
+  }
+  const teacherOf = pickTeachers(teachers.links);
+
+  // "Grade 3 (no section)" only when an unsectioned class sits beside other classes of its grade and shift.
+  const sessions = new Map();
+  for (const c of classes.classes) if (!c.section && c.school_id && c.session_code) sessions.set(`${c.school_id}|${c.session_code}`, c);
+  const siblings = [];
+  for (const c of sessions.values()) {
+    const g = await store.listGradeClasses(c.school_id, c.session_code);
+    if (!g.ok) return g;
+    siblings.push(...g.classes);
+  }
+  const hasSiblings = (c) => siblings.some((x) => x.id !== c.id && x.grade_code === c.grade_code && shiftOf(x) === shiftOf(c) && x.school_id === c.school_id);
+
+  const roomOf = new Map(classIds.map((id) => {
+    const c = classOf.get(id) || { id };
+    const t = teacherOf.get(id) || { teacherUserId: null, teacherName: null };
+    return [id, {
+      classId: id,
+      grade: normaliseGrade(c.grade_code),
+      section: c.section || null,
+      shift: c.grade_code ? shiftOf(c) : null,
+      ...classLabels(c, { noSectionSiblings: !c.section && hasSiblings(c) }),
+      ...t,
+    }];
+  }));
   const item = (d) => {
     const s = nameOf.get(d.student_id) || {};
+    const room = roomOf.get(d.class_id);
     return {
       drawId: d.id,
       studentId: d.student_id,
-      rollNumber: d.roll_number,
       classId: d.class_id,
-      section: sectionOf.get(d.class_id) || null,
+      grade: room.grade || d.grade,
+      section: room.section,
+      shift: room.shift,
+      classLabel: room.classLabel,
+      classLabelUr: room.classLabelUr,
+      classShort: room.classShort,
+      teacherName: room.teacherName,
+      teacherUserId: room.teacherUserId,
       displayName: s.student_name || null,
       displayNameUrdu: s.student_name_urdu || null,
-      // Only to tell two same-name, roll-less children apart on the list (CONTRACT §18); may be absent.
       fatherName: s.father_name || null,
       fatherNameUrdu: s.father_name_urdu || null,
+      ...namesakeOf(rosterOf.get(d.class_id), d.student_id),
       role: d.sample_role,
       form: d.form,
       status: d.status,
@@ -302,25 +418,54 @@ async function listFor(visitId, extra = {}) {
       childNo: childNos.get(d.id) || null,
     };
   };
-  const order = (a, b) => (a.sample_role === b.sample_role ? 0 : a.sample_role === 'new' ? -1 : 1)
-    || String(sectionOf.get(a.class_id) || '').localeCompare(String(sectionOf.get(b.class_id) || ''))
-    || a.draw_rank - b.draw_rank;
+  const listedHere = rows.flatMap((d) => (d.history || []).filter((h) => h.event === 'listed' && visitOfEntry(h) === visitId));
+  // Lists claimed since L25 are ordered room by room (section order, morning first), the returning
+  // child inside their own room; a list first sent before keeps its order and its child numbers.
+  const byRoom = listedHere.some((h) => h.list_order === LIST_ORDER);
+  const roomRank = new Map([...classes.classes].sort((a, b) => (shiftOf(a) === 'morning' ? 0 : 1) - (shiftOf(b) === 'morning' ? 0 : 1)
+    || bySectionThenId(a, b)).map((c, i) => [c.id, i]));
+  const sectionOf = (d) => String((classOf.get(d.class_id) || {}).section || '');
+  const roleRank = (d) => (d.sample_role === 'new' ? 0 : 1);
+  const order = byRoom
+    ? (a, b) => ((roomRank.get(a.class_id) ?? 99) - (roomRank.get(b.class_id) ?? 99)) || roleRank(a) - roleRank(b) || a.draw_rank - b.draw_rank
+    : (a, b) => roleRank(a) - roleRank(b) || sectionOf(a).localeCompare(sectionOf(b)) || a.draw_rank - b.draw_rank;
   const main = rows.filter((d) => d.list_slot === 'main').sort(order);
   const alts = rows.filter((d) => d.list_slot === 'alternate' && d.status === 'listed').sort(order);
   const childNos = childNumbers(rows, visitId, order);
-  const listedHere = rows.flatMap((d) => (d.history || []).filter((h) => h.event === 'listed' && visitOfEntry(h) === visitId));
   const children = main.map(item);
+  const alternates = alts.map(item);
+  const rooms = [...new Set([...children, ...alternates].map((k) => k.classId))]
+    .sort((a, b) => (roomRank.get(a) ?? 99) - (roomRank.get(b) ?? 99))
+    .map((id) => {
+      const { grade, section, shift, classLabel, classLabelUr, classShort, teacherName, teacherUserId } = roomOf.get(id);
+      return {
+        classId: id, grade, section, shift, classLabel, classLabelUr, classShort, teacherName, teacherUserId,
+        drawIds: children.filter((k) => k.classId === id).map((k) => k.drawId),
+        alternateDrawIds: alternates.filter((k) => k.classId === id).map((k) => k.drawId),
+      };
+    });
   return {
     ok: true,
     cycleId: rows[0].cycle_id,
     grade: rows[0].grade,
+    formPolicy: formPolicy(),
+    termSet: termSet(rows[0].cycle_id),
     classId: children.length ? children[0].classId : rows[0].class_id,
     classIds: [...new Set(rows.map((d) => d.class_id))],
+    classes: rooms,
     gradeFallback: listedHere.some((h) => h.grade_fallback),
     reused: false,
     children,
-    alternates: alts.map(item),
+    alternates,
     ...extra,
+  };
+}
+
+/** What a claim writes on the "listed" history entry: the room-order marker, and a namesake flag (R1 §7.4 A). */
+function listedExtra(ctx, base) {
+  return (d) => {
+    const n = namesakeOf(ctx.enrolledByClass.get(d.class_id), d.student_id);
+    return { ...base, list_order: LIST_ORDER, ...(unresolvedNamesake(n) ? { namesake: true } : {}) };
   };
 }
 
@@ -374,7 +519,7 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
     if (!ret.draw && !seq.length) { firstReason = firstReason || 'frame_exhausted'; continue; }
 
     const at = iso(now);
-    const extra = grade !== primary ? { grade_fallback: true } : {};
+    const extra = listedExtra(ctx, grade !== primary ? { grade_fallback: true } : {});
     const main = [];
     if (ret.draw) {
       const c = await claim(ret.draw, 'main', visitId, at, extra);
@@ -465,7 +610,7 @@ async function promoteAndTopUp(d, visit, now) {
   const prior = visitsListedBefore(ctx.draws, visit);
   const rotation = prior.size % Math.max(1, ctx.classesByGrade.get(d.grade).length);
   const more = newSequence(ctx, d.grade, { visitId: visit, exclude: onThisVisit, rotation });
-  const got = await claimInOrder(more, { i: 0 }, need, 'alternate', visit, at, { top_up: true });
+  const got = await claimInOrder(more, { i: 0 }, need, 'alternate', visit, at, listedExtra(ctx, { top_up: true }));
   return got.ok ? { ok: true } : got;
 }
 
