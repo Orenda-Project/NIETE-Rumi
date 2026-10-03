@@ -97,6 +97,11 @@ const NOT_PUBLISHED = {
 const PortalCurriculum = () => {
   const { toast } = useToast();
   const location = useLocation();
+  // bd-5rz1v.12 — the new UI's menu has its own Assessment item; until
+  // Assessment is a page of its own it opens this page with ?tab=assessment.
+  // Keyed below, so tapping it while already on Lesson Plans switches the tab.
+  // No parameter (every existing link): Lesson Plans, as before.
+  const openTab = new URLSearchParams(location.search).get('tab') === 'assessment' ? 'assessment' : 'library';
   const navigate = useNavigate();
   const recording = !!useRecordingSession()?.active;
   const inApp = shouldOpenInApp(recording);
@@ -417,7 +422,7 @@ const PortalCurriculum = () => {
           </p>
         </div>
 
-        <Tabs defaultValue="library" className="w-full">
+        <Tabs key={openTab} defaultValue={openTab} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="library">Lesson Plans</TabsTrigger>
             <TabsTrigger value="assessment">Assessment Generator</TabsTrigger>
