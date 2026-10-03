@@ -4,17 +4,19 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
 /**
- * bd-5rz1v.12 — with `portal_new_ui` on, the first visible piece of the new UI
- * (Direction B, option 2) is the INDIGO MENU BAR:
+ * bd-5rz1v.12 — with `portal_new_ui` on, the menu is the new UI's INDIGO BAR
+ * (Direction B, option 2), with the operator's menu decision of 2026-10-03:
  *
- *   phone   — indigo bottom bar; Home / Lessons / Training / Coaching / More;
- *             labels #b9bccb, the active item white with its icon in logo green;
- *             every target at least 56px; More opens the existing sheet.
- *   desktop — indigo top bar with the NIETE mark, the same destinations, the
- *             active item highlighted, My account and Logout kept.
- *   leaders — the same colours, their own items untouched.
- *   Urdu    — RTL keeps working; labels are rendered the way the nav renders
- *             them today (English literals — the portal has no nav catalog).
+ *   teacher, phone   — indigo bottom bar: Home / Lessons / Assessment / Training /
+ *                      Coaching. No More: what was under it (My Classes,
+ *                      Analytics, My account, Logout) is behind an AVATAR (her
+ *                      initials) in a slim indigo strip at the top, which opens an
+ *                      account sheet (+ Certificates). Labels 10.5px, pill 50px.
+ *   teacher, desktop — indigo top bar: Home / Lesson Plans / Assessment /
+ *                      Training / Coaching, then the avatar (same sheet).
+ *   leaders          — their own items, bar + More sheet, recoloured only.
+ *   Urdu             — RTL keeps working; labels are English literals, the way
+ *                      the nav renders them today (the portal has no nav catalog).
  *
  * jsdom does not apply Tailwind, so colours are asserted through the classes
  * built from the tokens (tokens.test.ts proves class → hex), and sizes through
@@ -28,7 +30,7 @@ import { portal } from "../services/api";
 import { resetNewUiMemory } from "../lib/useNewUi";
 import PortalNavigation from "./PortalNavigation";
 
-const TEACHER = { id: "t-1", firstName: "Ayesha", role: "teacher" };
+const TEACHER = { id: "t-1", firstName: "Ayesha Khan", role: "teacher" };
 const COACH = { id: "c-1", firstName: "Noor", role: "coach" };
 const PRINCIPAL = { id: "p-1", firstName: "Sana", role: "principal" };
 
@@ -47,8 +49,16 @@ function renderNav(user: Record<string, unknown>, path: string, newUi: boolean) 
 
 const bottomBar = () => screen.findByTestId("newui-bottom-nav");
 const topBar = () => screen.findByTestId("newui-top-nav");
+const topStrip = () => screen.findByTestId("newui-top-strip");
 const linksOf = (el: HTMLElement) =>
   within(el).getAllByRole("link").map((a) => [a.textContent?.trim(), a.getAttribute("href")]);
+const PHYSICAL = /(^|\s)(-?m[lr]-|p[lr]-|left-|right-|text-left|text-right|border-[lr](\s|-|$)|rounded-[lr]-)/;
+
+async function openAccount(from: "phone" | "desktop" = "phone") {
+  const holder = from === "phone" ? await topStrip() : await topBar();
+  await userEvent.setup().click(within(holder).getByRole("button", { name: "Account" }));
+  return screen.findByRole("dialog");
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -59,140 +69,70 @@ afterEach(() => {
   document.documentElement.removeAttribute("lang");
 });
 
-describe("flag on — phone bottom bar (teacher)", () => {
-  it("is indigo", async () => {
+describe("flag on — teacher, phone bottom bar", () => {
+  it("is indigo, square, and follows the spacing spec (10/6/14px + safe area)", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
-    expect((await bottomBar()).className).toMatch(/\bbg-nu-ink\b/);
+    const cls = (await bottomBar()).className;
+    expect(cls).toMatch(/\bbg-nu-ink\b/);
+    for (const c of ["pt-[10px]", "px-[6px]", "pb-[calc(14px+env(safe-area-inset-bottom))]"]) expect(cls).toContain(c);
+    expect(cls).not.toMatch(/\brounded/);
   });
 
-  it("reads Home / Lessons / Training / Coaching / More and goes where the old bar went", async () => {
+  it("reads Home / Lessons / Assessment / Training / Coaching — no More", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
     const bar = await bottomBar();
     expect(linksOf(bar)).toEqual([
       ["Home", "/portal/dashboard"],
       ["Lessons", "/portal/curriculum"],
+      ["Assessment", "/portal/curriculum?tab=assessment"],
       ["Training", "/portal/training"],
       ["Coaching", "/portal/coaching"],
     ]);
-    const more = within(bar).getByRole("button", { name: "More" });
-    expect(more.textContent?.trim()).toBe("More");
+    expect(within(bar).queryByRole("button")).toBeNull();
+    expect(screen.queryByTestId("mobile-nav-more")).toBeNull();
   });
 
-  it("every target is at least 56px", async () => {
+  it("every item is a 56px target with a 10.5px label and a 50px-wide pill", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
     const bar = await bottomBar();
-    const targets = [...within(bar).getAllByRole("link"), within(bar).getByRole("button", { name: "More" })];
-    expect(targets).toHaveLength(5);
-    for (const t of targets) {
-      expect(t.className, t.textContent ?? "").toMatch(/\bmin-h-\[56px\]/);
-      expect(t.className, t.textContent ?? "").toMatch(/\bmin-w-\[56px\]/);
-    }
-  });
-
-  it("follows the bar spacing spec: 10/6/14px padding plus the safe area, square corners", async () => {
-    renderNav(TEACHER, "/portal/dashboard", true);
-    const cls = (await bottomBar()).className;
-    for (const c of ["pt-[10px]", "px-[6px]", "pb-[calc(14px+env(safe-area-inset-bottom))]"]) {
-      expect(cls).toContain(c);
-    }
-    expect(cls).not.toMatch(/\brounded/);
-  });
-
-  it("each item: 4px between icon and label, a 23px icon, an 11.5px bold label, spread evenly", async () => {
-    renderNav(TEACHER, "/portal/dashboard", true);
-    const bar = await bottomBar();
-    for (const item of [...within(bar).getAllByRole("link"), within(bar).getByRole("button", { name: "More" })]) {
+    const items = within(bar).getAllByRole("link");
+    expect(items).toHaveLength(5);
+    for (const item of items) {
+      expect(item.className).toMatch(/\bmin-h-\[56px\]/);
+      expect(item.className).toMatch(/\bmin-w-\[56px\]/);
       expect(item.className).toMatch(/\bflex-1\b/);
       expect(item.className).toMatch(/\bgap-1\b/);
+      expect((item.querySelector("[data-label]") as HTMLElement).className).toMatch(/\btext-\[10\.5px\]/);
+      const pill = (item.querySelector("[data-pill]") as HTMLElement).className.split(/\s+/);
+      expect(pill).toEqual(expect.arrayContaining(["h-8", "w-[50px]", "rounded-2xl"]));
       expect(item.querySelector("svg")?.getAttribute("class")).toMatch(/\bh-\[23px\].*\bw-\[23px\]/);
-      const label = item.querySelector("[data-label]") as HTMLElement;
-      expect(label.className).toMatch(/\btext-\[11\.5px\]/);
-      expect(label.className).toMatch(/\bfont-bold\b/);
     }
   });
 
-  it("the active item's icon sits in a 56x32 translucent pill (radius 16); the others have no pill fill", async () => {
-    renderNav(TEACHER, "/portal/training", true);
+  it.each([
+    ["/portal/dashboard", "Home"],
+    ["/portal/curriculum", "Lessons"],
+    ["/portal/curriculum?tab=assessment", "Assessment"],
+    ["/portal/training", "Training"],
+    ["/portal/training/certificates", "Training"],
+    ["/portal/coaching/new", "Coaching"],
+  ])("on %s only %s is lit: white, green icon in a translucent pill", async (path, lit) => {
+    renderNav(TEACHER, path, true);
     const bar = await bottomBar();
-    const pill = within(bar).getByRole("link", { name: "Training" }).querySelector("[data-pill]") as HTMLElement;
-    for (const c of ["h-8", "w-14", "rounded-2xl", "bg-nu-frame-translucent"]) expect(pill.className.split(/\s+/)).toContain(c);
-    expect(pill.querySelector("svg")?.getAttribute("class")).toMatch(/\btext-nu-leaf\b/);
-    const idle = within(bar).getByRole("link", { name: "Home" }).querySelector("[data-pill]") as HTMLElement;
-    expect(idle.className).not.toMatch(/\bbg-/);
-  });
-
-  it("the active item is white with its icon in logo green; the rest are the muted label colour", async () => {
-    renderNav(TEACHER, "/portal/curriculum", true);
-    const bar = await bottomBar();
-    const active = within(bar).getByRole("link", { name: "Lessons" });
-    expect(active).toHaveAttribute("aria-current", "page");
-    expect(active.className).toMatch(/\btext-white\b/);
-    expect(active.querySelector("svg")?.getAttribute("class")).toMatch(/\btext-nu-leaf\b/);
-
-    for (const name of ["Home", "Training", "Coaching"]) {
-      const link = within(bar).getByRole("link", { name });
-      expect(link).not.toHaveAttribute("aria-current");
-      expect(link.className).toMatch(/\btext-nu-nav-label\b/);
-      expect(link.className).not.toMatch(/\btext-white\b/);
+    for (const link of within(bar).getAllByRole("link")) {
+      const name = link.textContent?.trim();
+      const pill = link.querySelector("[data-pill]") as HTMLElement;
+      if (name === lit) {
+        expect(link).toHaveAttribute("aria-current", "page");
+        expect(link.className).toMatch(/\btext-white\b/);
+        expect(pill.className.split(/\s+/)).toContain("bg-nu-frame-translucent");
+        expect(pill.querySelector("svg")?.getAttribute("class")).toMatch(/\btext-nu-leaf\b/);
+      } else {
+        expect(link, name).not.toHaveAttribute("aria-current");
+        expect(link.className).toMatch(/\btext-nu-nav-label\b/);
+        expect(pill.className).not.toMatch(/\bbg-/);
+      }
     }
-  });
-
-  it("More opens the existing sheet: the other items, My account, Logout", async () => {
-    renderNav(TEACHER, "/portal/dashboard", true);
-    const bar = await bottomBar();
-    await userEvent.setup().click(within(bar).getByRole("button", { name: "More" }));
-    const sheet = await screen.findByRole("dialog");
-    expect(within(sheet).getByRole("link", { name: /My Classes/ })).toHaveAttribute("href", "/portal/classes");
-    expect(within(sheet).getByRole("link", { name: /Analytics/ })).toHaveAttribute("href", "/portal/coaching/analytics");
-    expect(within(sheet).getByRole("link", { name: /My account/ })).toHaveAttribute("href", "/portal/account");
-    for (const row of within(sheet).getAllByRole("link")) expect(row.className).toMatch(/\bmin-h-\[56px\]/);
-
-    await userEvent.setup().click(within(sheet).getByTestId("mobile-nav-logout"));
-    expect(logout).toHaveBeenCalledTimes(1);
-  });
-
-  it("the sheet closes from a 56px button in its title row (the shared 16px × is hidden)", async () => {
-    renderNav(TEACHER, "/portal/dashboard", true);
-    await userEvent.setup().click(within(await bottomBar()).getByRole("button", { name: "More" }));
-    const sheet = await screen.findByRole("dialog");
-    expect(sheet.className).toContain("[&>button:last-child]:hidden");
-    const close = within(sheet).getByTestId("newui-sheet-close");
-    expect(close.className).toMatch(/\bh-14\b/);
-    expect(close.className).toMatch(/\bw-14\b/);
-    await userEvent.setup().click(close);
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  });
-
-  it("the sheet's icons are neutral grey — a feature colour is only ever a page-heading icon", async () => {
-    renderNav(TEACHER, "/portal/dashboard", true);
-    await userEvent.setup().click(within(await bottomBar()).getByRole("button", { name: "More" }));
-    const rows = within(await screen.findByRole("dialog")).getByTestId("newui-sheet-rows");
-    expect(rows.innerHTML).not.toMatch(/nu-f-/);
-    const tiles = rows.querySelectorAll("[data-tile]");
-    expect(tiles.length).toBe(4); // My Classes, Analytics, My account, Logout
-    for (const t of tiles) expect(t.getAttribute("class")).toMatch(/\bbg-nu-neutral-tile\b.*\btext-nu-neutral-icon\b|\btext-nu-neutral-icon\b.*\bbg-nu-neutral-tile\b/);
-  });
-
-  it("the current page's row in the sheet is selected the indigo way", async () => {
-    renderNav(TEACHER, "/portal/classes", true);
-    await userEvent.setup().click(within(await bottomBar()).getByRole("button", { name: "More" }));
-    const row = within(await screen.findByRole("dialog")).getByRole("link", { name: /My Classes/ });
-    expect(row).toHaveAttribute("aria-current", "page");
-    expect(row.className).toMatch(/\bbg-nu-select-tint\b/);
-  });
-
-  it("More is the active item while she is on a page inside the sheet", async () => {
-    renderNav(TEACHER, "/portal/classes", true);
-    const bar = await bottomBar();
-    const more = within(bar).getByRole("button", { name: "More" });
-    expect(more.className).toMatch(/\btext-white\b/);
-    expect(more.querySelector("svg")?.getAttribute("class")).toMatch(/\btext-nu-leaf\b/);
-  });
-
-  it("keeps the test ids the screenshot and recording-bar scripts use", async () => {
-    renderNav(TEACHER, "/portal/dashboard", true);
-    await bottomBar();
-    expect(screen.getByTestId("mobile-nav-more")).toBeInTheDocument();
   });
 
   it("the old white bar is gone", async () => {
@@ -202,37 +142,121 @@ describe("flag on — phone bottom bar (teacher)", () => {
   });
 });
 
-describe("flag on — desktop top bar (teacher)", () => {
-  it("is indigo, carries the NIETE mark, and goes to the same places in the same order", async () => {
+describe("flag on — teacher, the avatar and the account sheet", () => {
+  it("the phone shows a slim indigo strip with the NIETE mark and her initials, a 56px target", async () => {
+    renderNav(TEACHER, "/portal/dashboard", true);
+    const strip = await topStrip();
+    expect(strip.className).toMatch(/\bbg-nu-ink\b/);
+    expect(strip.className).toMatch(/\bmd:hidden\b/);
+    expect(within(strip).getByAltText("NIETE logo")).toBeInTheDocument();
+    const avatar = within(strip).getByRole("button", { name: "Account" });
+    expect(avatar).toHaveTextContent("AK");
+    expect(avatar.className).toMatch(/\bmin-h-\[56px\]/);
+    expect(avatar.className).toMatch(/\bmin-w-\[56px\]/);
+  });
+
+  it("a one-word name gives one initial; no name gives the person icon", async () => {
+    renderNav({ ...TEACHER, firstName: "Ayesha" }, "/portal/dashboard", true);
+    expect(within(await topStrip()).getByRole("button", { name: "Account" })).toHaveTextContent(/^A$/);
+    cleanup();
+    resetNewUiMemory();
+    renderNav({ ...TEACHER, firstName: "" }, "/portal/dashboard", true);
+    const avatar = within(await topStrip()).getByRole("button", { name: "Account" });
+    expect(avatar.textContent?.trim()).toBe("");
+    expect(avatar.querySelector("svg")).not.toBeNull();
+  });
+
+  it("opens an account sheet titled with her name: My Classes, Analytics, Certificates, My account, Logout", async () => {
+    renderNav(TEACHER, "/portal/dashboard", true);
+    const sheet = await openAccount("phone");
+    expect(within(sheet).getByRole("heading", { name: "Ayesha Khan" })).toBeInTheDocument();
+    const rows = within(sheet).getByTestId("newui-sheet-rows");
+    expect(linksOf(rows)).toEqual([
+      ["My Classes", "/portal/classes"],
+      ["Analytics", "/portal/coaching/analytics"],
+      ["Certificates", "/portal/training/certificates"],
+      ["My account", "/portal/account"],
+    ]);
+    for (const row of within(rows).getAllByRole("link")) expect(row.className).toMatch(/\bmin-h-\[56px\]/);
+    expect(within(sheet).getByTestId("mobile-nav-account")).toHaveAttribute("href", "/portal/account");
+  });
+
+  it("Logout is a red outline button, 56px, and logs her out", async () => {
+    renderNav(TEACHER, "/portal/dashboard", true);
+    const sheet = await openAccount("phone");
+    const btn = within(sheet).getByTestId("mobile-nav-logout");
+    expect(btn).toHaveTextContent("Logout");
+    expect(btn.className).toMatch(/\btext-nu-button-destructive\b/);
+    expect(btn.className).toMatch(/\bmin-h-\[56px\]/);
+    await userEvent.setup().click(btn);
+    expect(logout).toHaveBeenCalledTimes(1);
+  });
+
+  it("the sheet's icons are neutral grey and the current page's row is selected indigo", async () => {
+    renderNav(TEACHER, "/portal/classes", true);
+    const sheet = await openAccount("phone");
+    const rows = within(sheet).getByTestId("newui-sheet-rows");
+    expect(rows.innerHTML).not.toMatch(/nu-f-/);
+    const tiles = rows.querySelectorAll("[data-tile]");
+    expect(tiles.length).toBe(4);
+    for (const t of tiles) expect(t.getAttribute("class")).toMatch(/\bbg-nu-neutral-tile\b/);
+    const current = within(rows).getByRole("link", { name: /My Classes/ });
+    expect(current).toHaveAttribute("aria-current", "page");
+    expect(current.className).toMatch(/\bbg-nu-select-tint\b/);
+  });
+
+  it("closes from a 56px button in its title row (the shared 16px × is hidden)", async () => {
+    renderNav(TEACHER, "/portal/dashboard", true);
+    const sheet = await openAccount("phone");
+    expect(sheet.className).toContain("[&>button:last-child]:hidden");
+    const close = within(sheet).getByTestId("newui-sheet-close");
+    expect(close.className).toMatch(/\bh-14\b/);
+    expect(close.className).toMatch(/\bw-14\b/);
+    await userEvent.setup().click(close);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+});
+
+describe("flag on — teacher, desktop top bar", () => {
+  it("is indigo with the NIETE mark: Home / Lesson Plans / Assessment / Training / Coaching", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
     const bar = await topBar();
     expect(bar.className).toMatch(/\bbg-nu-ink\b/);
     expect(within(bar).getByAltText("NIETE logo")).toBeInTheDocument();
-    const destinations = linksOf(bar).map(([, href]) => href);
-    expect(destinations).toEqual([
-      "/portal/dashboard", "/portal/curriculum", "/portal/training", "/portal/classes",
-      "/portal/coaching", "/portal/coaching/analytics", "/portal/account",
+    expect(linksOf(bar)).toEqual([
+      ["Home", "/portal/dashboard"],
+      ["Lesson Plans", "/portal/curriculum"],
+      ["Assessment", "/portal/curriculum?tab=assessment"],
+      ["Training", "/portal/training"],
+      ["Coaching", "/portal/coaching"],
     ]);
   });
 
   it("highlights the active item", async () => {
-    renderNav(TEACHER, "/portal/training", true);
+    renderNav(TEACHER, "/portal/curriculum?tab=assessment", true);
     const bar = await topBar();
-    const active = within(bar).getByRole("link", { name: "Training" });
+    const active = within(bar).getByRole("link", { name: "Assessment" });
     expect(active).toHaveAttribute("aria-current", "page");
-    expect(active.className).toMatch(/\btext-white\b/);
+    expect(active.className).toMatch(/\bbg-nu-frame-translucent\b/);
     expect(active.querySelector("svg")?.getAttribute("class")).toMatch(/\btext-nu-leaf\b/);
-    expect(within(bar).getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
+    expect(within(bar).getByRole("link", { name: "Lesson Plans" })).not.toHaveAttribute("aria-current");
   });
 
-  it("keeps the My account link (her name) and Logout", async () => {
+  it("ends with the avatar, which opens the same account sheet (Logout lives there)", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
     const bar = await topBar();
-    const account = within(bar).getByTestId("portal-user-name");
-    expect(account).toHaveAttribute("href", "/portal/account");
-    expect(account).toHaveTextContent("Ayesha");
-    await userEvent.setup().click(within(bar).getByRole("button", { name: "Logout" }));
+    expect(within(bar).queryByRole("button", { name: "Logout" })).toBeNull();
+    const sheet = await openAccount("desktop");
+    await userEvent.setup().click(within(sheet).getByTestId("mobile-nav-logout"));
     expect(logout).toHaveBeenCalledTimes(1);
+  });
+
+  it("every desktop target is at least 56px", async () => {
+    renderNav(TEACHER, "/portal/dashboard", true);
+    const bar = await topBar();
+    for (const t of [...within(bar).getAllByRole("link"), within(bar).getByRole("button", { name: "Account" })]) {
+      expect(t.className, t.textContent ?? "").toMatch(/\bmin-h-\[56px\]/);
+    }
   });
 });
 
@@ -260,53 +284,61 @@ describe("flag on — leader roles: new colours, their own items", () => {
     expect(before.desktop.length).toBeGreaterThan(0);
   });
 
-  it("a coach's bars are indigo, and her active place is lit the new way", async () => {
+  it("a coach's bars are indigo, she keeps More + the sheet, and has no avatar strip", async () => {
     renderNav(COACH, "/portal/leader", true);
     expect((await topBar()).className).toMatch(/\bbg-nu-ink\b/);
-    expect((await bottomBar()).className).toMatch(/\bbg-nu-ink\b/);
-    expect(within(await topBar()).getByRole("link", { name: "My Patch" })).toHaveAttribute("aria-current", "page");
+    const bar = await bottomBar();
+    expect(bar.className).toMatch(/\bbg-nu-ink\b/);
+    expect(screen.queryByTestId("newui-top-strip")).toBeNull();
     // Today a leader's phone bar holds only the titles named in MOBILE_PRIMARY
     // (just Training) and the rest sit behind the tray — unchanged here, so
     // My Patch is in the sheet and the More button is the lit one.
-    const more = within(await bottomBar()).getByRole("button", { name: "More" });
+    const more = within(bar).getByRole("button", { name: "More" });
     expect(more.className).toMatch(/\btext-white\b/);
+    await userEvent.setup().click(more);
+    const sheet = await screen.findByRole("dialog");
+    expect(within(sheet).getByRole("link", { name: /My Patch/ })).toHaveAttribute("href", "/portal/leader");
+    expect(within(sheet).getByTestId("mobile-nav-account")).toHaveAttribute("href", "/portal/account");
+    await userEvent.setup().click(within(sheet).getByTestId("mobile-nav-logout"));
+    expect(logout).toHaveBeenCalledTimes(1);
+  });
+
+  it("a coach's desktop keeps her name (My account) and Logout", async () => {
+    renderNav(COACH, "/portal/leader", true);
+    const bar = await topBar();
+    expect(within(bar).getByTestId("portal-user-name")).toHaveAttribute("href", "/portal/account");
+    expect(within(bar).getByRole("button", { name: "Logout" })).toBeInTheDocument();
   });
 });
 
 describe("flag on — Urdu (RTL)", () => {
-  const PHYSICAL = /(^|\s)(-?m[lr]-|p[lr]-|left-|right-|text-left|text-right|border-[lr](\s|-|$)|rounded-[lr]-)/;
-
   it("renders the same labels under dir=rtl, the way the nav renders them today", async () => {
     document.documentElement.setAttribute("dir", "rtl");
     document.documentElement.setAttribute("lang", "ur");
     renderNav(TEACHER, "/portal/dashboard", true);
     const bar = await bottomBar();
-    expect(linksOf(bar).map(([label]) => label)).toEqual(["Home", "Lessons", "Training", "Coaching"]);
-    expect(within(bar).getByRole("button", { name: "More" })).toBeInTheDocument();
+    expect(linksOf(bar).map(([label]) => label)).toEqual(["Home", "Lessons", "Assessment", "Training", "Coaching"]);
   });
 
-  it("uses only logical (start/end) spacing, so the bars mirror themselves in RTL", async () => {
+  it("uses only logical (start/end) spacing, so the bars and the strip mirror themselves", async () => {
     document.documentElement.setAttribute("dir", "rtl");
     renderNav(TEACHER, "/portal/dashboard", true);
-    for (const bar of [await bottomBar(), await topBar()]) {
-      for (const el of [bar, ...bar.querySelectorAll<HTMLElement>("*")]) {
-        const cls = el.getAttribute("class") || "";
-        expect(cls, el.outerHTML.slice(0, 120)).not.toMatch(PHYSICAL);
+    for (const el0 of [await bottomBar(), await topBar(), await topStrip()]) {
+      for (const el of [el0, ...el0.querySelectorAll<HTMLElement>("*")]) {
+        expect(el.getAttribute("class") || "", el.outerHTML.slice(0, 120)).not.toMatch(PHYSICAL);
       }
     }
   });
 
-  it("the sheet's rows use logical spacing and the chevron turns round in RTL", async () => {
+  it("the account sheet's rows use logical spacing and the chevrons turn round", async () => {
     document.documentElement.setAttribute("dir", "rtl");
     renderNav(TEACHER, "/portal/dashboard", true);
-    await userEvent.setup().click(within(await bottomBar()).getByRole("button", { name: "More" }));
-    const sheet = await screen.findByRole("dialog");
+    const sheet = await openAccount("phone");
     const rows = within(sheet).getByTestId("newui-sheet-rows");
     for (const el of [rows, ...rows.querySelectorAll<HTMLElement>("*")]) {
       expect(el.getAttribute("class") || "").not.toMatch(PHYSICAL);
     }
-    const account = within(sheet).getByTestId("mobile-nav-account");
-    const chevron = account.querySelectorAll("svg")[1];
+    const chevron = within(sheet).getByTestId("mobile-nav-account").querySelectorAll("svg")[1];
     expect(chevron.getAttribute("class")).toMatch(/rtl:rotate-180/);
   });
 });
