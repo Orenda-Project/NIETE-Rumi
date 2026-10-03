@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { findContinue } from "./continue";
+import type { ModuleSummary } from "./trainingApi";
 import { COURSES_L2, LEVELS, MODULES_C3, VENDORS, level } from "../../../test/trainingFixtures";
 
 /**
@@ -109,9 +110,27 @@ describe("findContinue", () => {
     expect(t).toEqual({ vendorKey: "TALEEMABAD", levelId: 2, to: "/portal/training/provider/TALEEMABAD/level/2" });
   });
 
-  it("everything certified or locked: nothing to continue", async () => {
+  it("a certified level with parts left still continues (sandbox: I-SAPS certified at 53/54, bd-5rz1v.25.5)", async () => {
+    const levels = [level({ id: 26, name: "Level 1: Novice", vendor_key: "ISAPS", order_index: 0, state: "certified", unlock_logic: "all_modules", module_count: 54, completed_count: 53, courses_total: 9, courses_completed: 8 })];
+    const courses = [
+      { id: "58", title: "Module 1", order_index: 0, module_count: 6, completed_count: 6 },
+      { id: "66", title: "Module 9", order_index: 8, module_count: 6, completed_count: 5 },
+    ];
+    const parts: ModuleSummary[] = [
+      ...["433", "434", "435", "436", "437"].map((id, i): ModuleSummary => ({ id, title: `Unit ${i}`, order_index: i, duration_seconds: 60, has_video: true, has_audio: false, has_pdf: false, completed_at: "2026-10-01T00:00:00Z", lock: "passed" })),
+      { id: "438", title: "Unit 606", order_index: 5, duration_seconds: 60, has_video: true, has_audio: false, has_pdf: false, completed_at: null, lock: "next" },
+    ];
+    const { get } = fakeGet({
+      "/training/courses": () => ({ courses }),
+      "/training/modules": (p) => ({ modules: p.course_id === "66" ? parts : [] }),
+    });
+    const t = await findContinue(VENDORS, levels, "/portal/training", get);
+    expect(t).toEqual({ vendorKey: "ISAPS", levelId: 26, to: "/portal/training/unit/438" });
+  });
+
+  it("everything done or locked: nothing to continue", async () => {
     const levels = [
-      level({ id: 1, name: "Aspiring", vendor_key: "TALEEMABAD", order_index: 0, state: "certified" }),
+      level({ id: 1, name: "Aspiring", vendor_key: "TALEEMABAD", order_index: 0, state: "certified", module_count: 30, completed_count: 30 }),
       level({ id: 2, name: "Emerging", vendor_key: "TALEEMABAD", order_index: 1, state: "locked" }),
     ];
     const { get, calls } = fakeGet({});
