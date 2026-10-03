@@ -52,8 +52,9 @@ maybe('v2 with L3\'s real draw and store', () => {
     const { createFakeSupabase, CHILD_TEST_UNIQUE } = require('../L3/helpers/fake-supabase');
     const { buildRoster } = require('../L3/helpers/roster');
     const seed = buildRoster({ classes: [{ id: 'g3a', grade: 3, section: 'A', size: 25 }, { id: 'g5a', grade: 5, section: 'A', size: 25 }] });
-    seed.users = [COACH, { id: 'teacher-1', role: 'teacher', school_id: 'school-1' }];
-    seed.class_teachers = [{ teacher_user_id: 'teacher-1', class_id: 'g3a', is_active: true }];
+    // A reachable, named class teacher (L25's draw names a room's teacher only when reachable: a phone, not deleted).
+    seed.users = [COACH, { id: 'teacher-1', role: 'teacher', school_id: 'school-1', name: 'Test Teacher', phone_number: '923009990399' }];
+    seed.class_teachers = [{ teacher_user_id: 'teacher-1', class_id: 'g3a', is_active: true, is_class_teacher: true }];
     seed.observation_field_forms[0] = { ...seed.observation_field_forms[0], teacher_user_id: 'teacher-1', created_at: new Date().toISOString() };
     mockDb = createFakeSupabase(seed, { unique: CHILD_TEST_UNIQUE });
     for (const k of ['CHILD_TEST_BATTERY', 'CHILD_TEST_MATHS_MODE', 'CHILD_TEST_CHECK_MODE', 'CHILD_TEST_STEP_NUDGE_MS']) delete process.env[k];

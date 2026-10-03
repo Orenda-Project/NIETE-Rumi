@@ -26,8 +26,10 @@ const T = () => mockFake.__tables;
 const list = (visit, extra = {}) => draw.todaysList({ coachUserId: 'coach-1', schoolId: 'school-1', visitId: visit, observedGrade: 3, now: NOW, ...extra });
 const ids = (kids) => kids.map((k) => k.studentId);
 
-beforeEach(() => { process.env.CHILD_TEST_DRAW_SECRET = 'test-secret'; jest.clearAllMocks(); });
-afterAll(() => { delete process.env.CHILD_TEST_DRAW_SECRET; });
+// These are the v1 rules (Form A new, Form B returning after 42 days in the same cycle): pinned to
+// CHILD_TEST_FORM_POLICY=returning_b. The v2 default (term) is tested in L25/draw-v2.test.js.
+beforeEach(() => { process.env.CHILD_TEST_DRAW_SECRET = 'test-secret'; process.env.CHILD_TEST_FORM_POLICY = 'returning_b'; jest.clearAllMocks(); });
+afterAll(() => { delete process.env.CHILD_TEST_DRAW_SECRET; delete process.env.CHILD_TEST_FORM_POLICY; });
 
 describe('the first list of a visit', () => {
   test('5 new children and 2 alternates, Form A, from the observed grade; every rank saved first', async () => {
@@ -41,7 +43,7 @@ describe('the first list of a visit', () => {
     for (const k of [...r.children, ...r.alternates]) {
       expect(k).toMatchObject({ role: 'new', form: 'A', classId: 'g3a' });
       expect(k.displayName).toMatch(/^Child 3A-\d\d$/);
-      expect(typeof k.rollNumber).toBe('number');
+      expect(k).not.toHaveProperty('rollNumber');   // L25: rolls are never carried or shown
     }
     const frame = T().child_test_draws.filter((d) => d.class_id === 'g3a');
     expect(frame).toHaveLength(25);

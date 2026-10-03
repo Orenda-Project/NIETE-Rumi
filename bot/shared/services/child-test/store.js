@@ -49,7 +49,7 @@ const iso = (at) => (at instanceof Date ? at : new Date(at || Date.now())).toISO
  */
 async function listGradeClasses(schoolId, sessionCode) {
   const { data, error } = await supabase.from('classes')
-    .select('id, school_id, grade_code, section, session_code, is_active')
+    .select('id, school_id, grade_code, section, shift_code, session_code, is_active')
     .eq('school_id', schoolId)
     .eq('session_code', sessionCode)
     .eq('is_active', true)
@@ -66,7 +66,7 @@ async function listGradeClasses(schoolId, sessionCode) {
 async function listActiveEnrollments(classIds) {
   if (!classIds.length) return { ok: true, enrollments: [] };
   const { data, error } = await supabase.from('class_enrollments')
-    .select('class_id, student_id, roll_number, is_active, left_on')
+    .select('class_id, student_id, is_active, left_on')
     .in('class_id', classIds)
     .eq('is_active', true)
     .is('left_on', null);
@@ -82,7 +82,7 @@ async function listActiveEnrollments(classIds) {
     })
     .map((r) => {
       const s = byId.get(r.student_id);
-      return { ...r, student_name: s.student_name, student_name_urdu: s.student_name_urdu || null };
+      return { ...r, student_name: s.student_name, student_name_urdu: s.student_name_urdu || null, father_name: s.father_name || null };
     });
   return { ok: true, enrollments };
 }
@@ -90,7 +90,7 @@ async function listActiveEnrollments(classIds) {
 async function getClassesByIds(ids) {
   const unique = [...new Set(ids)];
   if (!unique.length) return { ok: true, classes: [] };
-  const { data, error } = await supabase.from('classes').select('id, school_id, grade_code, section').in('id', unique);
+  const { data, error } = await supabase.from('classes').select('id, school_id, grade_code, section, shift_code, session_code').in('id', unique);
   if (error) return fail('getClassesByIds', error, { classes: unique.length });
   return { ok: true, classes: data || [] };
 }
@@ -100,10 +100,47 @@ async function listStudents(ids) {
   if (!unique.length) return { ok: true, students: [] };
   const { data, error } = await supabase.from('students')
     // Only columns 00_complete-schema declares: a fresh database has no students.status/merged_into.
-    .select('id, roll_number, student_name, student_name_urdu, father_name, father_name_urdu, is_active')
+    .select('id, student_name, student_name_urdu, father_name, father_name_urdu, is_active')
     .in('id', unique);
   if (error) return fail('listStudents', error, { students: unique.length });
   return { ok: true, students: data || [] };
+}
+
+/**
+ * The teacher links of the classes, with each linked user's name and whether they can be reached
+ * (a phone, not deleted) — the draw names one class teacher per room from these (the same rule as
+ * conversation/context.js classTeachersOf). Names go to the coach's screen only, never to a log.
+ * @returns {Promise<{ok: true, links: Array<{class_id, teacher_user_id, is_class_teacher, ended_on, name, reachable}>}|{ok: false}>}
+ */
+async function listClassTeachers(classIds) {
+  const unique = [...new Set((classIds || []).filter(Boolean))];
+  if (!unique.length) return { ok: true, links: [] };
+  const { data, error } = await supabase.from('class_teachers')
+    .select('class_id, teacher_user_id, is_class_teacher, is_active, ended_on')
+    .in('class_id', unique)
+    .eq('is_active', true);
+  if (error) return fail('listClassTeachers', error, { classes: unique.length });
+  const rows = (data || []).filter((r) => r.teacher_user_id && r.is_active !== false && !r.ended_on);
+  const userIds = [...new Set(rows.map((r) => r.teacher_user_id))];
+  let users = [];
+  if (userIds.length) {
+    const u = await supabase.from('users').select('id, name, phone_number, deleted_at').in('id', userIds);
+    if (u.error) return fail('listClassTeachers.users', u.error, { users: userIds.length });
+    users = u.data || [];
+  }
+  const byId = new Map(users.map((x) => [x.id, x]));
+  const links = rows.map((r) => {
+    const x = byId.get(r.teacher_user_id);
+    return {
+      class_id: r.class_id,
+      teacher_user_id: r.teacher_user_id,
+      is_class_teacher: r.is_class_teacher === true,
+      ended_on: r.ended_on || null,
+      name: x && x.name != null ? String(x.name) : null,
+      reachable: Boolean(x && x.phone_number && !x.deleted_at),
+    };
+  });
+  return { ok: true, links };
 }
 
 async function getVisit(visitId) {
@@ -478,6 +515,7 @@ module.exports = {
   getClassesByIds,
   listActiveEnrollments,
   listStudents,
+  listClassTeachers,
   getVisit,
   findCoachSchool,
   findSchoolByEmis,

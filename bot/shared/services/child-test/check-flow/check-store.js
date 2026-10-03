@@ -9,7 +9,7 @@
  * block that never got a recording) and recordTiming. Until it lands, the same semantics run here on
  * the same columns, so the check behaves identically either way.
  *
- * The draw's roll number comes from store.getDraw, the child's name from the roster (getChild). One read stays here because
+ * The child's name and classroom come from the roster (getChild); no roll is read or shown (L25). One read stays here because
  * store.js has no function for it: the coach's phone and language (users is not a child-test table).
  *
  * Nothing here writes ai_marks. Every function returns { ok, ... } and logs its own failure.
@@ -17,6 +17,7 @@
 
 const supabase = require('../../../config/supabase');
 const { logError } = require('../../../utils/logger');
+const { classLabels } = require('../draw/class-label');
 
 let L3 = null;
 try {
@@ -126,41 +127,31 @@ async function stamp(sessionId, key, at = new Date()) {
 /** The check is finished: every block is saved. */
 const markCheckSubmitted = (sessionId, at) => stamp(sessionId, 'check.submitted', at);
 
-/** Roll number for the coach-facing label; null when the draw row is not there. */
-async function getRollNumber(drawId) {
-  if (!drawId) return null;
-  let draw;
-  if (viaStore('getDraw')) {
-    const r = await viaStore('getDraw')(drawId);
-    if (!r.ok) return null;
-    draw = r.draw;
-  } else {
-    const { data, error } = await supabase.from('child_test_draws').select('roll_number').eq('id', drawId).maybeSingle();
-    if (error) return null;
-    draw = data;
-  }
-  return draw && draw.roll_number != null ? String(draw.roll_number) : null;
-}
-
 /**
- * The child as the coach knows them (CONTRACT §18): roll from the draw, names from the roster. The
+ * The child as the coach knows them (CONTRACT §19): full name from the roster, the classroom from the
+ * session's class (conversation/identity.js turns these into "Ayesha Khan · 3-A"). No roll (L25). The
  * names go to the coach's WhatsApp only — never into a log line here. Missing pieces stay null.
- * @returns {Promise<{rollNumber: string|null, displayName: string|null, displayNameUrdu: string|null}>}
+ * @returns {Promise<{displayName: string|null, displayNameUrdu: string|null, classShort: string|null, classLabel: string|null, classLabelUr: string|null}>}
  */
 async function getChild(session) {
-  const out = { rollNumber: null, displayName: null, displayNameUrdu: null };
+  const out = { displayName: null, displayNameUrdu: null, classShort: null, classLabel: null, classLabelUr: null };
   if (!session) return out;
   let draw = null;
-  if (session.draw_id) {
+  if (session.draw_id && (!session.student_id || !session.class_id)) {
     if (viaStore('getDraw')) {
       const r = await viaStore('getDraw')(session.draw_id);
       draw = r.ok ? r.draw : null;
     } else {
-      const { data, error } = await supabase.from('child_test_draws').select('roll_number, student_id').eq('id', session.draw_id).maybeSingle();
+      const { data, error } = await supabase.from('child_test_draws').select('student_id, class_id').eq('id', session.draw_id).maybeSingle();
       draw = error ? null : data;
     }
   }
-  if (draw && draw.roll_number != null) out.rollNumber = String(draw.roll_number);
+  const classId = session.class_id || (draw && draw.class_id) || null;
+  if (classId) {
+    const { data: cls, error: cErr } = await supabase.from('classes').select('id, grade_code, section, shift_code').eq('id', classId).maybeSingle();
+    if (cErr) logError('[child-test] check: class read failed', { sessionId: session.id, error: cErr.message });
+    else if (cls) Object.assign(out, classLabels(cls));
+  }
   const studentId = session.student_id || (draw && draw.student_id) || null;
   if (!studentId) return out;
   const { data, error } = await supabase.from('students').select('id, student_name, student_name_urdu').eq('id', studentId).maybeSingle();
@@ -182,4 +173,4 @@ async function getCoach(userId) {
   return data || null;
 }
 
-module.exports = { getSession, getBlocks, saveCoachBlock, stamp, markCheckSubmitted, getRollNumber, getChild, getCoach };
+module.exports = { getSession, getBlocks, saveCoachBlock, stamp, markCheckSubmitted, getChild, getCoach };

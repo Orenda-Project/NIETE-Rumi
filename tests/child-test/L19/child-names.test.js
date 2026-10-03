@@ -124,7 +124,8 @@ describe('a roll-less child on the real draw (bd-s1oo0.36)', () => {
     expect(rollless).toBeTruthy();
     await H.handleList(COACH, PHONE, `ctst_child:${rollless}`);
     const pres = last('buttons');
-    expect(pres.body).toMatch(/Child 3A-\d\d\nIs the child here/);
+    // L25: name · class. The L3 fixture names differ only in digits, which the same-name check drops (R1 §4).
+    expect(pres.body).toMatch(/Child 3A-\d\d( \(\d+ in this class\))? · 3-A\nIs the child here/);
     expect(pres.body).not.toMatch(/null|Roll/);
     await H.handleButton(COACH, PHONE, `ctst_pres:${rollless}:p`);
     for (const b of ['u', 'e', 'm']) expect(await H.handleVoice(voice(`l19-${b}`), PHONE, COACH)).toBe(true);
@@ -171,50 +172,50 @@ function setup(overrides, opts = {}) {
 }
 
 describe('name first, roll as a hint (CONTRACT §18)', () => {
-  test('list rows: the full name is the title, roll and status are the description', async () => {
+  test('list rows: the full name is the title, the status is the description — never a roll (L25)', async () => {
     setup();
     await H.handleText(PHONE, '/egra', COACH);
     const list = last('list');
     expectListSane(list);
     const [main, alts] = list.action.sections;
-    expect(main.rows[0]).toMatchObject({ title: 'Ayesha Noor', description: 'Roll 8 · New' });
+    expect(main.rows[0]).toMatchObject({ title: 'Ayesha Noor', description: 'New' });
     expect(main.rows[1]).toMatchObject({ title: 'Bilal Ahmed', description: 'New' });
     // 32 code points: clipped title, the full name leads the description.
     expect(main.rows[2].title).toBe('Muhammad Abdul Rehman K…');
-    expect(main.rows[2].description).toBe('Muhammad Abdul Rehman Khan Niazi · Roll 31 · New');
-    expect(main.rows[4].description).toBe('Roll 25 · Returning (Form B)');
+    expect(main.rows[2].description).toBe('Muhammad Abdul Rehman Khan Niazi · New');
+    expect(main.rows[4].description).toBe('Returning (Form B)');
     const ALT = UX_STRINGS.childTestAlternateRow.en;
     expect(alts.rows[0]).toMatchObject({ title: 'Zainab Ali', description: ALT });
     expect(alts.rows[1].title).toBe('Omar Farooq');
-    expect(alts.rows[1].description.startsWith('Roll 3 · Alternate:')).toBe(true);
+    expect(alts.rows[1].description.startsWith('Alternate:')).toBe(true);
   });
 
-  test('list rows in Urdu: the Urdu name when the roster has one, Urdu digits, within caps', async () => {
+  test('list rows in Urdu: the Urdu name when the roster has one, no roll, within caps', async () => {
     setup();
     await H.handleText(PHONE, '/egra', COACH_UR);
     const list = last('list');
     expectListSane(list);
     const main = list.action.sections[0].rows;
     expect(main[0].title).toBe('عائشہ نور');
-    expect(main[0].description).toMatch(/^رول ۸ · /);
+    expect(main[0].description).not.toMatch(/رول|۸/);
     expect(main[1].title).toBe('Bilal Ahmed');
-    expect(main[2].description.startsWith('محمد عبدالرحمٰن خان نیازی صاحبزادہ گل · رول ۳۱')).toBe(true);
+    expect(main[2].description.startsWith('محمد عبدالرحمٰن خان نیازی صاحبزادہ گل')).toBe(true);
   });
 
-  test('the teacher line in the list body names the children in order, roll as a hint', async () => {
+  test('the teacher line in the list body names the children in order, never a roll', async () => {
     setup();
     await H.handleText(PHONE, '/egra', COACH);
     expect(last('list').body.text).toContain('Ask the class teacher for these children, one at a time, in this order: '
-      + 'Ayesha Noor · roll 8, Bilal Ahmed, Muhammad Abdul Rehman Khan Niazi · roll 31, Sana Iqbal · roll 12, Hamza Tariq · roll 25');
+      + 'Ayesha Noor, Bilal Ahmed, Muhammad Abdul Rehman Khan Niazi, Sana Iqbal, Hamza Tariq');
     await H.handleText(PHONE, '/egra', COACH_UR);
-    expect(last('list').body.text).toContain('کلاس ٹیچر سے یہ بچے ایک ایک کر کے اسی ترتیب سے بلوائیں: عائشہ نور · رول ۸، Bilal Ahmed،');
+    expect(last('list').body.text).toContain('کلاس ٹیچر سے یہ بچے ایک ایک کر کے اسی ترتیب سے بلوائیں: \u2068عائشہ نور\u2069، \u2068Bilal Ahmed\u2069،');
   });
 
   test('the presence prompt leads with the name; a roll-less child has no roll at all', async () => {
     setup();
     await H.handleText(PHONE, '/egra', COACH);
     await H.handleList(COACH, PHONE, 'ctst_child:d1');
-    expect(last('buttons').body).toBe('*Child 1 of 5*\nAyesha Noor · roll 8\nIs the child here and willing to read?');
+    expect(last('buttons').body).toBe('*Child 1 of 5*\nAyesha Noor\nIs the child here and willing to read?');
     await H.handleText(PHONE, '/egra', COACH);
     await H.handleList(COACH, PHONE, 'ctst_child:d2');
     expect(last('buttons').body).toBe('*Child 2 of 5*\nBilal Ahmed\nIs the child here and willing to read?');
@@ -234,7 +235,10 @@ describe('name first, roll as a hint (CONTRACT §18)', () => {
     await H.handleText(PHONE, '/egra', COACH_UR);
     await H.handleList(COACH_UR, PHONE, 'ctst_child:d1');
     await H.handleButton(COACH_UR, PHONE, 'ctst_pres:d1:r');
-    expect(last('text').text.split('\n')[0]).toBe('عائشہ نور · رول ۸ انکار درج۔');
+    const line = last('text').text.split('\n')[0];
+    expect(line).toContain('عائشہ نور');                 // isolated (FSI…PDI) inside the Urdu line (L25)
+    expect(line).toContain('انکار درج۔');
+    expect(line).not.toMatch(/رول|۸/);
   });
 
   test('busy: tapping another child mid-test names the child still in progress', async () => {
@@ -260,7 +264,7 @@ describe('name first, roll as a hint (CONTRACT §18)', () => {
     await H.handleList(COACH, PHONE, 'ctst_child:d1');
     await H.handleButton(COACH, PHONE, 'ctst_pres:d1:p');
     await H.handleButton(COACH, PHONE, 'ctst_stop');
-    expect(texts()).toContain('Stopped the test for Ayesha Noor · roll 8. The child stays on today\'s list.');
+    expect(texts()).toContain('Stopped the test for Ayesha Noor. The child stays on today\'s list.');
   });
 
   test('three notes for a roll-less child: every ack and line is free of "null"', async () => {
@@ -277,13 +281,13 @@ describe('name first, roll as a hint (CONTRACT §18)', () => {
     expect(texts()).not.toMatch(/null/);
   });
 
-  test('"Send to teacher": the teacher gets names in order with the roll as a hint', async () => {
+  test('"Send to teacher": the teacher gets names in order, never a roll', async () => {
     setup();
     await H.handleText(PHONE, '/egra', COACH);
     await H.handleButton(COACH, PHONE, 'ctst_tsend');
     const msg = sent().find((m) => m.to === '923000000009');
     expect(msg.text).toBe('For today\'s child test, please send these children to the coach one at a time, in this order: '
-      + 'Ayesha Noor · roll 8, Bilal Ahmed, Muhammad Abdul Rehman Khan Niazi · roll 31, Sana Iqbal · roll 12, Hamza Tariq · roll 25. '
+      + 'Ayesha Noor, Bilal Ahmed, Muhammad Abdul Rehman Khan Niazi, Sana Iqbal, Hamza Tariq. '
       + 'When one comes back, send the next.');
   });
 
@@ -299,7 +303,7 @@ describe('name first, roll as a hint (CONTRACT §18)', () => {
 });
 
 describe('two children with the same name', () => {
-  test('rolls separate them; with no roll the father\'s name is added', async () => {
+  test('same names on the list: the father\'s name is added when the roster has it; no roll ever (L25)', async () => {
     setup({
       d1: { displayName: 'Ali Raza', rollNumber: '4', fatherName: 'Raza Khan' },
       d2: { displayName: 'Ali Raza', rollNumber: null, fatherName: 'Imran Shah' },
@@ -310,11 +314,11 @@ describe('two children with the same name', () => {
     const list = last('list');
     expectListSane(list);
     const [main, alts] = list.action.sections;
-    expect(main.rows[0].description).toBe('Roll 4 · New');
+    expect(main.rows[0].description).toBe('father: Raza Khan · New');
     expect(main.rows[1].description).toBe('father: Imran Shah · New');
     expect(main.rows[2].description).toBe('New');                      // no roll, no father: graceful
     expect(alts.rows[0].description.startsWith('father: Tahir Mehmood · Alternate:')).toBe(true);
-    expect(main.rows[3].description).toBe('Roll 12 · New');            // a unique name gets no father
+    expect(main.rows[3].description).toBe('New');                      // a unique name gets no father
   });
 
   test('in Urdu the father hint is Urdu', async () => {
@@ -353,14 +357,14 @@ describe('edge names and caps', () => {
     expect(en.length).toBeGreaterThan(0);
   });
 
-  test('the presence prompt for a nameless child uses the roll, then the no-name label', async () => {
+  test('the presence prompt for a nameless child uses the no-name label, even when the roster has a roll', async () => {
     setup({ d1: { displayName: null, displayNameUrdu: null, rollNumber: null }, d2: { displayName: null, rollNumber: '7' } });
     await H.handleText(PHONE, '/egra', COACH);
     await H.handleList(COACH, PHONE, 'ctst_child:d1');
     expect(last('buttons').body).toContain('(no name on the class list)\nIs the child here');
     await H.handleText(PHONE, '/egra', COACH);
     await H.handleList(COACH, PHONE, 'ctst_child:d2');
-    expect(last('buttons').body).toContain('Roll 7\nIs the child here');
+    expect(last('buttons').body).toContain('(no name on the class list)\nIs the child here');
   });
 });
 

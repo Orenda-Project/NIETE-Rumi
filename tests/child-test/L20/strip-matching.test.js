@@ -166,18 +166,18 @@ describe('every strip line names the child, name first', () => {
   test('the hand-over line names the next child and the number to write', async () => {
     await openList(); await startChild('d1');
     const prompt = sent().filter((m) => m.kind === 'buttons' && /^\*Child 1 of 5/.test(m.body)).pop().body;
-    expect(prompt.split('\n')[1]).toBe(`While waiting, give ${name(2)} · roll 2 the maths strip: write 2 in its Child no. box first.`);
+    expect(prompt.split('\n')[1]).toBe(`While waiting, give ${name(2)} the maths strip: write 2 in its Child no. box first.`);
   });
 
   test('the strip ask, the batch line, "saved" and "three parts" name the child', async () => {
     await testAll();
-    expect(texts().some((t) => t.startsWith(`${name(1)} · roll 1's strip (Child no. 1)`))).toBe(true);
+    expect(texts().some((t) => t.startsWith(`${name(1)}'s strip (Child no. 1)`))).toBe(true);
     const batch = texts().filter((t) => /Send the strip photos now/.test(t)).pop();
-    expect(batch).toMatch(`${name(1)} · roll 1 (no. 1), ${name(2)} · roll 2 (no. 2)`);
+    expect(batch).toMatch(`${name(1)} (no. 1), ${name(2)} (no. 2)`);
     expect(batch).toMatch(/in any order/);
     READS.p = { child_no: 3, confidence: 0.9 };
     await H.handleImage(image('p'), PHONE, COACH);
-    expect(texts()).toContain(`✅ All three parts for ${name(3)} · roll 3 are in. The marks are being worked out; a Check button follows.`);
+    expect(texts()).toContain(`✅ All three parts for ${name(3)} are in. The marks are being worked out; a Check button follows.`);
   });
 
   test('Urdu: the hand-over line, with Urdu digits', async () => {

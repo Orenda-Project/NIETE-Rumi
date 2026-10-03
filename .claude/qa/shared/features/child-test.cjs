@@ -98,15 +98,29 @@ const SCENARIOS = [
   ['CT62', 'Without an observation, "Send to <name>" offers the drawn class\'s class teacher', 'L4'],
   ['CT63', 'A count typed in the check is accepted, in Latin or Urdu digits', 'L6'],
   // L26 (bd-s1oo0.46.2): the coach journey v2, the default since CONTRACT v0.14.
-  ['CT90', 'v2 list — one message by classroom with Start and Send to teachers', 'L4'],
-  ['CT91', 'v2 Send to teachers — each class teacher gets only their own room, in their own language', 'L4'],
-  ['CT92', 'v2 before the first child — the setup picture, once per visit', 'L4'],
-  ['CT93', 'v2 presence — "Child n of 5 · <name · class · teacher>" with the greeting to say', 'L4'],
-  ['CT94', 'v2 steps — three plain-text messages, no buttons, the words to say in «quotes»', 'L4'],
-  ['CT95', 'v2 auto-advance — the next child follows the third note', 'L5'],
-  ['CT96', 'v2 end of the visit — minutes, results, one review', 'L5'],
-  ['CT97', 'v2 unsent-draft nudge — once, 4 minutes after a step with no note', 'L4'],
-  ['CT98', 'v2 resume — /egra mid-child says where the child is', 'L4'],
+  ['CT80', 'v2 list — one message by classroom with Start and Send to teachers', 'L4'],
+  ['CT81', 'v2 Send to teachers — each class teacher gets only their own room, in their own language', 'L4'],
+  ['CT82', 'v2 before the first child — the setup picture, once per visit', 'L4'],
+  ['CT83', 'v2 presence — "Child n of 5 · <name · class · teacher>" with the greeting to say', 'L4'],
+  ['CT84', 'v2 steps — three plain-text messages, no buttons, the words to say in «quotes»', 'L4'],
+  ['CT85', 'v2 auto-advance — the next child follows the third note', 'L5'],
+  ['CT86', 'v2 end of the visit — minutes, results, one review', 'L5'],
+  ['CT87', 'v2 unsent-draft nudge — once, 4 minutes after a step with no note', 'L4'],
+  ['CT88', 'v2 resume — /egra mid-child says where the child is', 'L4'],
+  // L28 (bd-s1oo0.46.4): the v2 end-of-visit review.
+  ['CT90', 'After the last child, one form asks only the answers the recording did not settle', 'L6'],
+  ['CT91', 'Submitting the review saves every child\'s marks once', 'L6'],
+  ['CT92', 'Sending the review form a second time changes nothing', 'L6'],
+  ['CT93', 'Nothing doubtful — no form, the visit is finished at once', 'L6'],
+  ['CT94', 'More than 15 doubtful answers — the 15 least certain are asked', 'L6'],
+  // L25 (bd-s1oo0.46.1): find the child without rolls — the v2 list, teachers, shift and term set.
+  ['CT70', 'Today\'s list is grouped by classroom, each room with its class teacher, and no roll anywhere', 'L4'],
+  ['CT71', '"Send to the teachers" sends each class teacher only their own room\'s children', 'L4'],
+  ['CT72', 'A room with no reachable class teacher tells the coach to ask the head teacher', 'L4'],
+  ['CT73', 'Class labels use the roster\'s own words', 'L4'],
+  ['CT74', 'A same-name classmate is resolved by the father\'s name, or flagged with the count in the class', 'L4'],
+  ['CT75', 'A school-grade with morning and evening classes is drawn from the morning shift only', 'L3'],
+  ['CT76', 'Every child in a term reads the term\'s card set; a returning child never reads a set twice', 'L3'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -424,9 +438,15 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT63', ...B('client-side Flow validation only runs in a real WhatsApp client (Chrome lane); the endpoint half is jest-proven'));
     // L26 (bd-s1oo0.46.2): v2 is proven by tests/child-test/L26 (journey-v2 + integration-l3-v2). The v1
     // scenarios above are driven with CHILD_TEST_BATTERY=v1 on the stack; a v2 drive is not written yet.
-    for (const id of ['CT90', 'CT91', 'CT92', 'CT93', 'CT94', 'CT95', 'CT96', 'CT97', 'CT98']) {
+    for (const id of ['CT80', 'CT81', 'CT82', 'CT83', 'CT84', 'CT85', 'CT86', 'CT87', 'CT88']) {
       record(id, ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
     }
+    // L28 (bd-s1oo0.46.4): proven by tests/child-test/L28 (review.test.js). The drive needs L26's end-of-visit
+    // call to sendReview and the review Flow PUBLISHED on sandbox (CHILD_TEST_REVIEW_FLOW_ID); its submit is an nfm_reply.
+    for (const id of ['CT90', 'CT91', 'CT92', 'CT93', 'CT94']) record(id, ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
+    // L25 (bd-s1oo0.46.1): proven by tests/child-test/L25 (draw-v2, list-identity, no-roll). The drive needs a SIM
+    // roster with two sections, two class teachers, an evening class and a namesake pair.
+    for (const id of ['CT70', 'CT71', 'CT72', 'CT73', 'CT74', 'CT75', 'CT76']) record(id, ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
   } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}

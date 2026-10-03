@@ -3172,10 +3172,6 @@ const UX_STRINGS = {
     en: 'Form {form} card, Maths page · Say «{numbersCue}», then «{cue}» for {seconds} s of quick sums · one locked note',
     ur: 'فارم ⁦{form}⁩ کارڈ، حساب صفحہ · «{numbersCue}» کہیں، پھر «{cue}» اور {seconds} سیکنڈ زبانی سوال · ایک لاک وائس نوٹ',
   },
-  childTestStripHandOver: {
-    en: 'Give Roll {roll} the maths strip to write while waiting.',
-    ur: 'انتظار کے دوران رول {roll} کو حساب کی پٹی لکھنے کو دیں۔',
-  },
   childTestCardTextHeader: {
     en: '(The picture did not send. Here is the same text.)',
     ur: '(تصویر نہیں جا سکی۔ یہی متن یہ ہے۔)',
@@ -3201,25 +3197,14 @@ const UX_STRINGS = {
     en: 'That voice note was sent before the {block} card, so I kept the first {prev} note. Record {block} now.',
     ur: 'یہ وائس نوٹ {block} کارڈ سے پہلے بھیجا گیا، اس لیے {prev} کا پہلا نوٹ رکھا گیا۔ اب {block} ریکارڈ کریں۔',
   },
-  childTestPhotoAsk: {
-    en: 'Roll {roll}\'s strip: send its photo once it is written, or send all the strips at the end. Tap the next child now.',
-    ur: 'رول {roll} کی پٹی: لکھی جا چکے تو تصویر بھیجیں، یا آخر میں سب پٹیاں ایک ساتھ۔ ابھی اگلے بچے پر ٹیپ کریں۔',
-  },
-  childTestStripsBatch: {
-    en: 'Send the strip photos now, one per child, in list order: {rolls}',
-    ur: 'اب پٹیوں کی تصاویر بھیجیں، ہر بچے کی ایک، فہرست کی ترتیب سے: {rolls}',
-  },
-  childTestRollItem: { en: 'Roll {roll}', ur: 'رول {roll}' },
-  // CONTRACT §18: the full name leads; the roll is only a hint (rolls renumber monthly).
-  childTestChildNameRoll: { en: '{name} · roll {roll}', ur: '{name} · رول {roll}' },
   childTestChildNoName: { en: '(no name on the class list)', ur: '(کلاس کی فہرست میں نام نہیں)' },
   childTestListTeacherLine: {
     en: 'Ask the class teacher for these children, one at a time, in this order: {children}',
     ur: 'کلاس ٹیچر سے یہ بچے ایک ایک کر کے اسی ترتیب سے بلوائیں: {children}',
   },
   childTestTeacherOfferBody: {
-    en: 'The observed teacher is this class\'s teacher. Send them today\'s order of roll numbers?',
-    ur: 'مشاہدے والے ٹیچر اسی جماعت کے کلاس ٹیچر ہیں۔ آج کے رول نمبر ترتیب سے انہیں بھیج دیں؟',
+    en: 'The observed teacher is this class\'s teacher. Send them today\'s children, in order?',
+    ur: 'مشاہدے والے ٹیچر اسی جماعت کے کلاس ٹیچر ہیں۔ آج کے بچے ترتیب سے انہیں بھیج دیں؟',
   },
   childTestSendToTeacher: { en: 'Send to teacher', ur: 'ٹیچر کو بھیجیں' },
   childTestTeacherMessage: {
@@ -3235,26 +3220,9 @@ const UX_STRINGS = {
     ur: '⚠️ کلاس ٹیچر تک واٹس ایپ پیغام نہیں جا سکا۔ بچوں کے نام فہرست کی ترتیب سے خود دے دیں۔',
   },
   childTestNoPhoto: { en: 'No strip photo', ur: 'تصویر نہیں' },
-  childTestNoPhotoAck: {
-    en: 'OK, no strip photo for Roll {roll}. The written sums stay blank.',
-    ur: 'ٹھیک ہے، رول {roll} کی پٹی کی تصویر نہیں۔ لکھے ہوئے سوال خالی رہیں گے۔',
-  },
-  childTestPhotoSaved: { en: '📷 Strip saved for Roll {roll}.', ur: '📷 رول {roll} کی پٹی محفوظ۔' },
-  childTestPhotoAlreadyIn: {
-    en: '📷 Roll {roll}\'s strip photo is already in.',
-    ur: '📷 رول {roll} کی پٹی کی تصویر پہلے ہی مل چکی ہے۔',
-  },
-  childTestPhotoSaveFailed: {
-    en: '⚠️ The strip photo for Roll {roll} did not save. Please send it again.',
-    ur: '⚠️ رول {roll} کی پٹی کی تصویر محفوظ نہیں ہو سکی۔ دوبارہ بھیجیں۔',
-  },
-  childTestChildDone: {
-    en: '✅ All three parts for Roll {roll} are in. The marks are being worked out; a Check button follows.',
-    ur: '✅ رول {roll} کے تینوں حصے مل گئے۔ نمبر لگنے کے بعد چیک کا بٹن آئے گا۔',
-  },
   childTestCheckFailed: {
-    en: '⚠️ The check for Roll {roll} is ready but did not open. Send /egra and tap the child to open it.',
-    ur: '⚠️ رول {roll} کا چیک تیار ہے مگر کھل نہیں سکا۔ ⁦/egra⁩ بھیجیں اور بچے پر ٹیپ کریں۔',
+    en: '⚠️ The check for {child} is ready but did not open. Send /egra and tap the child to open it.',
+    ur: '⚠️ ⁨{child}⁩ کا چیک تیار ہے مگر کھل نہیں سکا۔ ⁦/egra⁩ بھیجیں اور بچے پر ٹیپ کریں۔',
   },
   childTestCancelledChild: {
     en: 'Stopped the test for {child}. The child stays on today\'s list.',
@@ -3289,13 +3257,13 @@ const UX_STRINGS = {
     en: 'Sent the order to {name}.',
     ur: 'ترتیب {name} کو بھیج دی گئی۔',
   },
-  // L19 (CONTRACT §18): the child is named in full, the roll only as a hint.
+  // L19 (CONTRACT §18): the child is named in full; L25 removed the roll (never shown).
   // {child} is conversation/identity.js childLabel(); never hand-roll a label.
   childTestProgressNamed: {
     en: 'Child {n} of {total} · {child} · {block} {b}/3',
     ur: 'بچہ {n} از {total} · {child} · {block} {b}/۳',
   },
-  // Two children with one name and no roll to tell them apart: the father's name, in the row description.
+  // Same-name classmates: the father's name, when it tells them apart (conversation/identity.js namesakeHint).
   childTestFatherHint: { en: 'father: {name}', ur: 'والد: {name}' },
   // L20 (bd-s1oo0.38, CONTRACT §18). Urdu lines isolate {child} (FSI…PDI): the roster names are Latin script.
   // Every strip line names the child (name first, childLabel) and the
@@ -3432,6 +3400,83 @@ const UX_STRINGS = {
   childTestL26Busy: {
     en: '{name} is still on part {b}/3. Finish that child first, or send /cancel to stop.',
     ur: '⁨{name}⁩ کا حصہ {b}/۳ ابھی جاری ہے۔ پہلے یہ بچہ مکمل کریں، یا روکنے کے لیے ⁦/cancel⁩ بھیجیں۔',
+  },
+  // L28 (bd-s1oo0.46.4, CONTRACT §19): the end-of-visit results and the one review form. The coach is
+  // never asked for a count; the form lists only answers the recording did not settle.
+  // Results, one line per child: "{child} — {parts}", parts joined with " · ".
+  childTestSumLine: { en: '{child} — {parts}', ur: '⁨{child}⁩ کے نمبر: {parts}' },
+  childTestSumWords: { en: '{block} {wpm} words/min', ur: '{block} {wpm} الفاظ فی منٹ' },
+  childTestSumAnswers: { en: '{right} of {of} answers', ur: '{of} میں سے {right} جواب' },
+  childTestSumLetters: { en: '{block} letters {letters} of {lof}, words {words} of {wof}', ur: '{block} حروف {lof} میں سے {letters}، الفاظ {wof} میں سے {words}' },
+  childTestSumStoryNotScored: { en: '{block} story not scored', ur: '{block} کہانی کے نمبر نہیں لگے' },
+  childTestSumMaths: { en: '{block} {right} of {of}', ur: '{block} {of} میں سے {right}' },
+  childTestSumNotScored: { en: '{block} not scored', ur: '{block} کے نمبر نہیں لگے' },
+  childTestSumNone: { en: 'No child was tested on this visit.', ur: 'اس دورے میں کسی بچے کا ٹیسٹ نہیں ہوا۔' },
+  // The review message (Flow CTA): header ≤ 60, button ≤ 20.
+  childTestReviewHeader: { en: '{n} answers need your ear', ur: '{n} جواب آپ خود سن کر بتائیں' },
+  childTestReviewHeaderOne: { en: '1 answer needs your ear', ur: '۱ جواب آپ خود سن کر بتائیں' },
+  childTestReviewResults: { en: 'Results:', ur: 'نتائج:' },
+  childTestReviewAsk: {
+    en: '{n} answers need your ear (about a minute). The recording did not settle them. Tap «Check answers» and mark what the child said.',
+    ur: '{n} جواب آپ خود سن کر بتائیں (تقریباً ایک منٹ)۔ ریکارڈنگ سے ان کا فیصلہ نہیں ہو سکا۔ «جواب چیک کریں» دبائیں اور بتائیں کہ بچے نے کیا کہا۔',
+  },
+  childTestReviewCta: { en: 'Check answers', ur: 'جواب چیک کریں' },
+  // The form (one screen). Item heading ≤ 80, radio label ≤ 30, description ≤ 300, footer ≤ 35.
+  childTestReviewHeading: { en: 'Answers to check', ur: 'یہ جواب چیک کریں' },
+  childTestReviewIntro: {
+    en: 'The recording did not settle these answers. Mark what the child said. You can play the voice note in the chat first.',
+    ur: 'ریکارڈنگ سے ان جوابوں کا فیصلہ نہیں ہو سکا۔ بتائیں کہ بچے نے کیا کہا۔ چاہیں تو پہلے چیٹ میں وائس نوٹ سن لیں۔',
+  },
+  childTestReviewMark: { en: "The child's answer", ur: 'بچے کا جواب' },
+  childTestReviewRight: { en: 'Right', ur: 'صحیح' },
+  childTestReviewWrong: { en: 'Wrong', ur: 'غلط' },
+  childTestReviewNone: { en: "Didn't answer", ur: 'جواب نہیں دیا' },
+  childTestReviewSave: { en: 'Save answers', ur: 'جواب محفوظ کریں' },
+  childTestReviewWho: { en: '{child} · {part}', ur: '⁨{child}⁩ کا {part}' },
+  childTestReviewPartQuestion: { en: '{block} question {n}', ur: '{block} سوال {n}' },
+  childTestReviewPartCompare: { en: 'Maths which is bigger {n}', ur: 'حساب بڑا نمبر {n}' },
+  childTestReviewPartSum: { en: 'Maths sum {n}', ur: 'حساب سوال {n}' },
+  childTestReviewPartWordProblem: { en: 'Maths word problem {n}', ur: 'حساب عبارتی سوال {n}' },
+  childTestReviewCompareText: { en: 'Which is bigger: {a} or {b}?', ur: 'کون سا نمبر بڑا ہے: {a} یا {b}؟' },
+  childTestReviewHeard: { en: 'Heard: «{heard}»', ur: 'سنا گیا: «{heard}»' },
+  childTestReviewHeardNothing: { en: 'Heard: nothing clear', ur: 'سنا گیا: کچھ واضح نہیں' },
+  childTestReviewNoText: { en: '(question text not found)', ur: '(سوال کا متن نہیں ملا)' },
+  // After the form is sent.
+  childTestReviewSaved: {
+    en: '✓ Saved. The marks for this visit are complete. Thank you.',
+    ur: '✓ محفوظ ہو گیا۔ اس دورے کے نمبر مکمل ہیں۔ شکریہ۔',
+  },
+  childTestReviewAlready: {
+    en: 'These answers were saved earlier. Nothing was changed.',
+    ur: 'یہ جواب پہلے ہی محفوظ ہو چکے ہیں۔ کچھ تبدیل نہیں ہوا۔',
+  },
+  childTestReviewNotSaved: {
+    en: "The answers didn't save. Tap «Check answers» above and send them again.",
+    ur: 'جواب محفوظ نہیں ہوئے۔ اوپر «جواب چیک کریں» دبائیں اور دوبارہ بھیجیں۔',
+  },
+  // L25 (bd-s1oo0.46.1, CONTRACT §19, R1 §7): children are found by full name, the roster's class
+  // label and the class teacher — never a roll. Names are isolated (FSI…PDI) by conversation/identity.js
+  // and conversation/list.js, which build these lines. No "Ms"/"Sir": the roster has no gender.
+  childTestNoSection: { en: 'no section', ur: 'سیکشن نہیں' },
+  childTestThisChild: { en: 'this child', ur: 'اس بچے' },
+  childTestTeacherIs: { en: 'Teacher: {name}', ur: 'ٹیچر: {name}' },
+  childTestNamesakeCount: { en: '{n} in this class', ur: 'اس جماعت میں {n}' },
+  childTestListV2Header: { en: '{grade} · {n} children', ur: '{grade} · {n} بچے' },
+  childTestListV2Intro: {
+    en: 'Today\'s children, by classroom. Ask each class teacher to send them *one at a time*.',
+    ur: 'آج کے بچے، جماعت وار۔ ہر کلاس ٹیچر سے کہیں کہ بچے *ایک ایک کر کے* بھیجیں۔',
+  },
+  childTestListV2NoTeacher: { en: 'ask the head teacher for this room', ur: 'اس جماعت کے لیے ہیڈ ٹیچر سے پوچھیں' },
+  childTestListV2Alternates: { en: 'Only if someone is absent: {children}', ur: 'صرف اگر کوئی غیر حاضر ہو: {children}' },
+  childTestListV2Returning: { en: 'returning · Form B', ur: 'دوبارہ · فارم B' },
+  childTestListV2Done: { en: 'done ✓', ur: 'مکمل ✓' },
+  childTestListV2Absent: { en: 'absent', ur: 'غیر حاضر' },
+  childTestListV2Refused: { en: 'doesn\'t want to', ur: 'آمادہ نہیں' },
+  childTestListV2Start: { en: 'Start', ur: 'شروع کریں' },
+  childTestListV2SendTeachers: { en: 'Send to the teachers', ur: 'ٹیچرز کو بھیجیں' },
+  childTestTeacherMessageRoom: {
+    en: 'For today\'s reading and maths check, please send these children from {cls} to the coach one at a time, in this order:\n{children}\nWhen one comes back, send the next.',
+    ur: 'آج کے پڑھائی اور حساب کے جائزے کے لیے {cls} کے یہ بچے ایک ایک کر کے اسی ترتیب سے کوچ کے پاس بھیجیں:\n{children}\nایک بچہ واپس آئے تو اگلا بھیجیں۔',
   },
 };
 
