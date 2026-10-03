@@ -140,6 +140,12 @@ describe("bd-3wb0s — what the deletion page says", () => {
     expect(when).toHaveTextContent(/confirm/i);
   });
 
+  it("opened directly (no in-app history), Back goes to the portal's front door", async () => {
+    renderAppAt(PATH);
+    const back = await screen.findByRole("link", { name: /back to the niete portal/i });
+    expect(back).toHaveAttribute("href", "/portal/login");
+  });
+
   it("links the privacy policy on taleemabad.com, opening outside the app", async () => {
     renderAppAt(PATH);
     await screen.findByRole("heading", { level: 1, name: "Delete your NIETE account" });
