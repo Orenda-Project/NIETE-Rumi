@@ -3211,6 +3211,9 @@ const UX_STRINGS = {
     ur: 'اب پٹیوں کی تصاویر بھیجیں، ہر بچے کی ایک، فہرست کی ترتیب سے: {rolls}',
   },
   childTestRollItem: { en: 'Roll {roll}', ur: 'رول {roll}' },
+  // CONTRACT §18: the full name leads; the roll is only a hint (rolls renumber monthly).
+  childTestChildNameRoll: { en: '{name} · roll {roll}', ur: '{name} · رول {roll}' },
+  childTestChildNoName: { en: '(no name on the class list)', ur: '(کلاس کی فہرست میں نام نہیں)' },
   childTestRollItemNamed: { en: 'Roll {roll} ({name})', ur: 'رول {roll} ({name})' },
   childTestListTeacherLine: {
     en: 'Give the class teacher these roll numbers, in this order, to send one child at a time: {rolls}',
