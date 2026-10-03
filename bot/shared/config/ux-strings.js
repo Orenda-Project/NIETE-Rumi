@@ -3357,8 +3357,8 @@ const UX_STRINGS = {
   },
   childTestL26StartWith: { en: 'Start with {name}', ur: '{name} سے شروع' },
   childTestL26Presence: {
-    en: '*Child {n} of {total} · {line}*\nBefore recording, say: «{greet}»',
-    ur: '*بچہ {n} از {total} · {line}*\nریکارڈنگ سے پہلے کہیں: «{greet}»',
+    en: '*Child {n} of {total} · {line}*\nBefore recording, say:\n{greet}',
+    ur: '*بچہ {n} از {total} · {line}*\nریکارڈنگ سے پہلے کہیں:\n{greet}',
   },
   childTestL26Here: { en: 'Here, start', ur: 'حاضر، شروع کریں' },
   childTestL26Absent: { en: 'Absent', ur: 'غیر حاضر' },
@@ -3373,14 +3373,16 @@ const UX_STRINGS = {
   childTestL26PartMaths: { en: 'Maths', ur: 'حساب' },
   childTestL26StepTitle: { en: '*{b}/3 {part} · {name}*', ur: '*{b}/۳ {part} · ⁨{name}⁩*' },
   // The Urdu and the English story: the same steps. {questions} is one line per question, ① ② ③.
+  // L31 (bd-s1oo0.46.7): every line said TO the child is a placeholder alone on its own line; steps.said()
+  // wraps it «…» inside a direction isolate when its script differs from the message's (language-protocol §9).
   childTestL26StepStory: {
-    en: '{title}\n{card} card, *{side}* side up, in front of the child.\n1. Tap 🎤 and slide up to lock. Don\'t stop until step 5.\n2. Say: «{start}»\n   Stay quiet. Stuck for 3 seconds? Point to the next word: «{go_on}»\n3. When the mic shows *1:05*, say «{stop}» and turn the card *face down*.\n4. Say «{qintro}», then ask each one and wait:\n{questions}\n5. Send ➤\n_Can\'t read any word of the first line?_ Turn the card over, say «{fallback}» and skip the questions. Then send.',
-    ur: '{title}\n{card} کا کارڈ، *{side}* والا رخ اوپر، بچے کے سامنے رکھیں۔\n۱۔ 🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔ مرحلہ ۵ تک نہ روکیں۔\n۲۔ کہیں: «{start}»\n   خاموش رہیں۔ بچہ ۳ سیکنڈ اٹکے تو اگلے لفظ کی طرف اشارہ کریں: «{go_on}»\n۳۔ جب مائیک پر *⁦1:05⁩* ہو تو کہیں «{stop}» اور کارڈ *الٹا* کر دیں۔\n۴۔ کہیں «{qintro}»، پھر ہر سوال پوچھیں اور جواب کا انتظار کریں:\n{questions}\n۵۔ بھیجیں ➤\n_بچہ پہلی سطر کا کوئی لفظ نہ پڑھ پائے تو؟_ کارڈ پلٹیں، کہیں «{fallback}» اور کہانی کے سوال چھوڑ دیں۔ پھر بھیج دیں۔',
+    en: '{title}\n{card} card, *{side}* side up, in front of the child.\n1. Tap 🎤 and slide up to lock. Don\'t stop until step 5.\n2. Say:\n   {start}\n   Stay quiet. Stuck for 3 seconds? Point to the next word and say:\n   {go_on}\n3. When the mic shows *1:05*, say:\n   {stop}\n   Then turn the card *face down*.\n4. Say:\n   {qintro}\n   Then ask each question and wait for the answer:\n{questions}\n5. Send ➤\n_Can\'t read any word of the first line?_ Turn the card over and say:\n   {fallback}\n   Skip the questions. Then send.',
+    ur: '{title}\n{card} کا کارڈ، *{side}* والا رخ اوپر، بچے کے سامنے رکھیں۔\n۱۔ 🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔ مرحلہ ۵ تک نہ روکیں۔\n۲۔ کہیں:\n   {start}\n   خاموش رہیں۔ بچہ ۳ سیکنڈ اٹکے تو اگلے لفظ کی طرف اشارہ کریں اور کہیں:\n   {go_on}\n۳۔ جب مائیک پر *⁦1:05⁩* ہو تو کہیں:\n   {stop}\n   پھر کارڈ *الٹا* کر دیں۔\n۴۔ کہیں:\n   {qintro}\n   پھر ہر سوال پوچھیں اور جواب کا انتظار کریں:\n{questions}\n۵۔ بھیجیں ➤\n_بچہ پہلی سطر کا کوئی لفظ نہ پڑھ پائے تو؟_ کارڈ پلٹیں اور کہیں:\n   {fallback}\n   کہانی کے سوال چھوڑ دیں۔ پھر بھیج دیں۔',
   },
   // Maths, oral (the May set): the child reads the pairs and sums off the card; the coach reads the word problems.
   childTestL26StepMaths: {
-    en: '{title}\n{card} *maths* card in front of the child. Paper and pencil beside it.\n1. Tap 🎤 and slide up to lock.\n2. Say «{start}». Point to each pair *A–D*: «{compare}»\n3. Point to each sum *1–4*: «{sum}». The child may use the paper. No answer after a slow count of 5? Say «{next}»\n4. Turn the card face down. Say «{wp_intro}», then read each word problem slowly and wait for the answer:\n{problems}\n5. Say «{stop}». Send ➤',
-    ur: '{title}\n{card} کا *حساب* والا کارڈ بچے کے سامنے رکھیں۔ کاغذ اور پنسل ساتھ رکھیں۔\n۱۔ 🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔\n۲۔ کہیں «{start}»۔ ہر جوڑے *⁦A–D⁩* کی طرف اشارہ کریں: «{compare}»\n۳۔ ہر سوال *⁦1–4⁩* کی طرف اشارہ کریں: «{sum}»۔ بچہ کاغذ پر حل کرے تو ٹھیک ہے۔ آہستہ ۵ تک گننے پر جواب نہ آئے تو کہیں «{next}»\n۴۔ کارڈ الٹا کر دیں۔ کہیں «{wp_intro}»، پھر ہر عبارتی سوال آہستہ پڑھیں اور جواب کا انتظار کریں:\n{problems}\n۵۔ کہیں «{stop}»۔ بھیجیں ➤',
+    en: '{title}\n{card} *maths* card in front of the child. Paper and pencil beside it.\n1. Tap 🎤 and slide up to lock.\n2. Say:\n   {start}\n   Point to each pair *A–D* and say:\n   {compare}\n3. Point to each sum *1–4* and say:\n   {sum}\n   The child may use the paper. No answer after a slow count of 5? Say:\n   {next}\n4. Turn the card face down. Say:\n   {wp_intro}\n   Then read each word problem slowly and wait for the answer:\n{problems}\n5. Say:\n   {stop}\n   Send ➤',
+    ur: '{title}\n{card} کا *حساب* والا کارڈ بچے کے سامنے رکھیں۔ کاغذ اور پنسل ساتھ رکھیں۔\n۱۔ 🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔\n۲۔ کہیں:\n   {start}\n   ہر جوڑے *⁦A–D⁩* کی طرف اشارہ کریں اور کہیں:\n   {compare}\n۳۔ ہر سوال *⁦1–4⁩* کی طرف اشارہ کریں اور کہیں:\n   {sum}\n   بچہ کاغذ پر حل کرے تو ٹھیک ہے۔ آہستہ ۵ تک گننے پر جواب نہ آئے تو کہیں:\n   {next}\n۴۔ کارڈ الٹا کر دیں۔ کہیں:\n   {wp_intro}\n   پھر ہر عبارتی سوال آہستہ پڑھیں اور جواب کا انتظار کریں:\n{problems}\n۵۔ کہیں:\n   {stop}\n   بھیجیں ➤',
   },
   childTestL26Done: { en: '✅ {name} done. Thank the child.', ur: '✅ ⁨{name}⁩ مکمل۔ بچے کا شکریہ ادا کریں۔' },
   childTestL26VisitEnd: {
@@ -3417,9 +3419,12 @@ const UX_STRINGS = {
   childTestReviewHeaderOne: { en: '1 answer needs your ear', ur: '۱ جواب آپ خود سن کر بتائیں' },
   childTestReviewResults: { en: 'Results:', ur: 'نتائج:' },
   childTestReviewAsk: {
-    en: '{n} answers need your ear (about a minute). The recording did not settle them. Tap «Check answers» and mark what the child said.',
-    ur: '{n} جواب آپ خود سن کر بتائیں (تقریباً ایک منٹ)۔ ریکارڈنگ سے ان کا فیصلہ نہیں ہو سکا۔ «جواب چیک کریں» دبائیں اور بتائیں کہ بچے نے کیا کہا۔',
+    en: '{n} answers need your ear ({time}). The recording did not settle them. Tap «Check answers» and mark what the child said.',
+    ur: '{n} جواب آپ خود سن کر بتائیں ({time})۔ ریکارڈنگ سے ان کا فیصلہ نہیں ہو سکا۔ «جواب چیک کریں» دبائیں اور بتائیں کہ بچے نے کیا کہا۔',
   },
+  // {time} above, from review-view.reviewTime: about 6 s per item (L31).
+  childTestReviewTimeMinute: { en: 'about a minute', ur: 'تقریباً ایک منٹ' },
+  childTestReviewTimeMinutes: { en: 'about {m} minutes', ur: 'تقریباً {m} منٹ' },
   childTestReviewCta: { en: 'Check answers', ur: 'جواب چیک کریں' },
   // The form (one screen). Item heading ≤ 80, radio label ≤ 30, description ≤ 300, footer ≤ 35.
   childTestReviewHeading: { en: 'Answers to check', ur: 'یہ جواب چیک کریں' },

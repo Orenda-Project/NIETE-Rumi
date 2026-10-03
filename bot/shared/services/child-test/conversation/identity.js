@@ -81,13 +81,15 @@ function teacherLine(lang, c, { firstNameOnly = false } = {}) {
 }
 
 /** "Ayesha Khan · 3-A" — every mention after the first. */
+// The class labels are isolated in Urdu too (L31): "Grade 3 - A" is Latin, and "۳-A" mixes an Urdu digit
+// with a Latin letter, which an RTL line paints as "A-۳" (language-protocol §9.3, the range trap).
 function childLabel(lang, c) {
-  return [nameWithHint(lang, c || {}), classShort(lang, c)].filter(Boolean).join(SEP);
+  return [nameWithHint(lang, c || {}), iso(lang, classShort(lang, c))].filter(Boolean).join(SEP);
 }
 
 /** "Grade 3 - A · Teacher: Saima Bibi" — the line under a child's first mention; '' when unknown. */
 function childPlace(lang, c) {
-  return [classLong(lang, c), teacherLine(lang, c)].filter(Boolean).join(SEP);
+  return [iso(lang, classLong(lang, c)), teacherLine(lang, c)].filter(Boolean).join(SEP);
 }
 
 /** "Ayesha Khan · Grade 3 - A · Teacher: Saima Bibi" — the first mention, on one line. */

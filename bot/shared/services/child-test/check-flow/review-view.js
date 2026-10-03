@@ -20,6 +20,9 @@ const MAX_ITEMS = 15;
 const ORAL_DEFAULT_BAR = 0.75;
 const QUESTIONS_DEFAULT_BAR = 0.9;
 const COMPARE_LABELS = ['A', 'B', 'C', 'D', 'E', 'F'];
+// The review's length, said in the message: about 6 s per item (a tap after the coach has heard the note),
+// so "about a minute" holds up to 10 items and anything longer is said in whole minutes (L31).
+const SECONDS_PER_ITEM = 6;
 
 const langOf = (l) => (l === 'en' ? 'en' : 'ur');
 
@@ -36,12 +39,20 @@ function barOf(item) {
   return b == null ? ORAL_DEFAULT_BAR : b;
 }
 
+/**
+ * The non-reader fallback ran on this block, so the coach skipped its questions by design ("Skip the
+ * questions"): they were never asked, so they are never review items, never counted in the summary, and
+ * coach_marks scores them 'not_asked' (L31, shot_v2 10).
+ */
+const questionsSkipped = (ai) => Boolean(ai && ai.fallback);
+
 /** Every verdict the review could ask about, for one child, in test order. */
 function candidates(entry) {
   const sid = entry.session.id;
   const out = [];
   for (const block of READING) {
     const ai = entry.blocks[block] && entry.blocks[block].ai_marks;
+    if (questionsSkipped(ai)) continue;
     (ai && Array.isArray(ai.questions) ? ai.questions : []).forEach((mark, i) => {
       const itemId = mark.id || `#${i + 1}`;
       out.push({ sessionId: sid, block, field: 'questions', group: 'questions', kind: 'question', number: i + 1, itemId, mark, path: `questions[${itemId}].verdict` });
@@ -94,7 +105,7 @@ function readingPart(lang, block, ai) {
   const B = blockName(lang, block);
   if (!ai) return t(lang, 'childTestSumNotScored', { block: B });
   const fb = ai.fallback;
-  if (fb && (fb.letters || fb.words)) {
+  if (questionsSkipped(ai)) {
     const l = fb.letters || {};
     const w = fb.words || {};
     return t(lang, 'childTestSumLetters', { block: B, letters: num(l.correct), lof: num(l.of ?? 10), words: num(w.correct), wof: num(w.of ?? 10) });
@@ -185,15 +196,21 @@ function reviewScreenData(lang, items, ref) {
   return data;
 }
 
+/** "about a minute" up to 10 items, then "about 2 minutes" (whole minutes, rounded up). */
+function reviewTime(lang, n) {
+  const minutes = Math.max(1, Math.ceil((Number(n) * SECONDS_PER_ITEM) / 60));
+  return minutes === 1 ? t(lang, 'childTestReviewTimeMinute') : t(lang, 'childTestReviewTimeMinutes', { m: minutes });
+}
+
 function reviewMessage(lang, n, summary, intro) {
   const header = clip(n === 1 ? t(lang, 'childTestReviewHeaderOne') : t(lang, 'childTestReviewHeader', { n }), 60);
-  const tail = t(lang, 'childTestReviewAsk', { n });
+  const tail = t(lang, 'childTestReviewAsk', { n, time: reviewTime(lang, n) });
   const head = [intro, t(lang, 'childTestReviewResults'), summary].filter(Boolean).join('\n');
   const room = 1024 - [...tail].length - 2;
   return { header, body: `${clip(head, room)}\n\n${tail}` };
 }
 
 module.exports = {
-  BLOCKS, READING, ORAL, VERDICTS, MAX_ITEMS, ORAL_DEFAULT_BAR, langOf,
-  candidates, isDoubtful, selectDoubtful, publicItem, summaryText, reviewScreenData, reviewMessage,
+  BLOCKS, READING, ORAL, VERDICTS, MAX_ITEMS, ORAL_DEFAULT_BAR, SECONDS_PER_ITEM, langOf,
+  questionsSkipped, reviewTime, candidates, isDoubtful, selectDoubtful, publicItem, summaryText, reviewScreenData, reviewMessage,
 };

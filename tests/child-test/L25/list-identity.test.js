@@ -93,7 +93,9 @@ describe('identity: name · class · teacher, never a roll (CONTRACT §19, R1 §
     expect(s).toContain(`${FSI}Saima Bibi${PDI}`);
     expect(s).toContain('جماعت سوم - A');
     expect(s).toContain('ٹیچر:');
-    expect(identity.childLabel('ur', kid('A', 'Ayesha Khan'))).toBe(`${FSI}Ayesha Khan${PDI} · ۳-A`);
+    // L31: "۳-A" is isolated too, or an RTL line paints it "A-۳" (language-protocol §9.3)
+    expect(identity.childLabel('ur', kid('A', 'Ayesha Khan'))).toBe(`${FSI}Ayesha Khan${PDI} · ${FSI}۳-A${PDI}`);
+    expect(s).toContain(`${FSI}جماعت سوم - A${PDI}`);
   });
   test('rollOf no longer finds a roll; childRow never shows one and carries the class and teacher', () => {
     const c = kid('B', 'Hamza Ali');
