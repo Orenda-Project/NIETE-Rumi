@@ -402,7 +402,7 @@ stands for. The endpoints are the old page's; the screens hold no training rule.
   certificate count on the band; a `Row` per provider (initials in a neutral tile, a green bar, the %,
   a check when done; NIETE, I-SAPS, Beacon House, Oxbridge); a Certificates row; **Continue
   <provider>**. Continue (`continue.ts`): the only timestamps are each part's `completed_at`, so among
-  the started levels it reads the courses she is part-way through (two API calls in the usual case),
+  the started levels (not locked and not finished; a certified level with parts left counts) it reads the courses she is part-way through (two API calls in the usual case),
   takes the course with her latest completion, and opens its next part (not done, not locked); a
   finished course opens the level's next unfinished course, a finished level its page (the exam). A
   failed read opens the level page. Nothing assigned: "No training yet" and a My grades row.
