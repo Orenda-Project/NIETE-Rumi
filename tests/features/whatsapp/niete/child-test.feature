@@ -548,6 +548,83 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     # child. Counts are now text inputs (3 characters); the endpoint reads Latin, Urdu and Arabic-Indic
     # digits and still refuses letters ("Enter a whole number"). bd-s1oo0.43.
 
+  # ---- L26: the coach journey v2 (bd-s1oo0.46.2, design/COACH_JOURNEY_V2.md §3.1, CONTRACT §19) ----
+  # v2 is the default: CHILD_TEST_BATTERY=v2 and CHILD_TEST_MATHS_MODE=oral. Either v1 value
+  # (CHILD_TEST_BATTERY=v1 or CHILD_TEST_MATHS_MODE=strip) brings back the whole v1 conversation above.
+  # Jest-proven in tests/child-test/L26 (journey-v2 + integration-l3-v2); the mock-lane drive is not written yet.
+
+  @e2e @wip @draft @config-gated @P0 @CT80
+  Scenario: v2 list — one message by classroom with Start and Send to teachers
+    Given CHILD_TEST_ENABLED is true and the v2 switches are at their defaults
+    When I send "/egra"
+    Then one buttons message arrives: "Grade <g> · 5 children", the children grouped by classroom with each room's teacher, the alternates last
+    And its buttons are "Start" and "Send to teachers"
+    And no child is shown with a roll number, and no list rows are sent
+
+  @e2e @wip @draft @config-gated @P1 @CT81
+  Scenario: v2 Send to teachers — each class teacher gets only their own room, in their own language
+    Given today's list spans two classrooms with a reachable class teacher each
+    When I tap "Send to teachers"
+    Then each teacher receives one message with only their room's children still to test, in order
+    And I get "Sent to <teacher>, <teacher>."
+
+  @e2e @wip @draft @config-gated @P1 @CT82
+  Scenario: v2 before the first child — the setup picture, once per visit
+    When I tap "Start"
+    Then the setup picture arrives with the caption naming the card colour and grade, and the button "Start with <first name>"
+    When I tap "Start" again later in the visit
+    Then no picture is sent again; the next child's "here?" prompt comes instead
+
+  @e2e @wip @draft @config-gated @P0 @CT83
+  Scenario: v2 presence — "Child n of 5 · <name · class · teacher>" with the greeting to say
+    When I tap "Start with <first name>"
+    Then the prompt reads "Child 1 of 5 · <full name> · <class> · Teacher: <name>" and the greeting to say in «quotes»
+    And its buttons are "Here, start", "Absent" and "Doesn't want to"
+    When I tap "Absent"
+    Then I am told the child is absent and which alternate joins, and the next child's prompt follows (no list)
+
+  @e2e @wip @draft @config-gated @P0 @CT84
+  Scenario: v2 steps — three plain-text messages, no buttons, the words to say in «quotes»
+    When I tap "Here, start"
+    Then "1/3 Urdu story · <name>" arrives as plain text with no buttons: the card by colour, grade and side, numbered steps, the start, go-on and stop lines and the three questions in «quotes»
+    When I send one voice note
+    Then "2/3 English story · <name>" arrives the same way, with the English lines in «quotes»
+    When I send one voice note
+    Then "3/3 Maths · <name>" arrives: point at pairs A–D and sums 1–4, then the two word problems to read aloud
+    And no step mentions a roll, a child number, a form, a strip or a photo, and none carries a Menu button
+    # An English-set coach gets English steps with Urdu words for the child; an Urdu-set coach gets Urdu steps.
+
+  @e2e @wip @draft @config-gated @P0 @CT85
+  Scenario: v2 auto-advance — the next child follows the third note
+    When I send the maths voice note
+    Then maths is scored once, straight away, with no photo asked for
+    And one message arrives: "✅ <name> done. Thank the child." above the next child's "here?" prompt
+
+  @e2e @wip @draft @config-gated @P0 @CT86
+  Scenario: v2 end of the visit — minutes, results, one review
+    Given CHILD_TEST_CHECK_MODE is end_review (the default)
+    When the last child's third note is in
+    Then "🎉 All 5 children done (<n> min). Thank the teachers." arrives
+    And the visit summary follows once the marks are in, then one review message (L28) if any answer needs the coach's ear
+    And no per-child check message is sent during the visit
+    # With CHILD_TEST_CHECK_MODE=per_child the per-child check is sent as in v1 and there is no review.
+
+  @e2e @wip @draft @config-gated @P1 @CT87
+  Scenario: v2 unsent-draft nudge — once, 4 minutes after a step with no note
+    Given a step message is the last bubble and no voice note arrives
+    When 4 minutes pass (CHILD_TEST_STEP_NUDGE_MS, default 240000)
+    Then "<b>/3 <part> · <name>" and "Did the recording stop? Look for an unsent voice note above the keyboard and press send. If it's gone, record this part again." arrive once
+    And a later sweep does not repeat it, and a step whose note arrived is never nudged
+    # Runs on the child test's existing 30 s recovery sweep (restart-safe); reads open sessions from the DB.
+
+  @e2e @wip @draft @config-gated @P1 @CT88
+  Scenario: v2 resume — /egra mid-child says where the child is
+    Given a child is on part 2 of 3
+    When I send "/egra"
+    Then "<name> is on part 2/3 (English)." arrives with "Continue" and "Stop this child"
+    When I tap "Continue"
+    Then the English step is sent again as the last bubble
+
   # ── L28 (bd-s1oo0.46.4): the end-of-visit review, v2 (CHILD_TEST_CHECK_MODE=end_review, the default) ──
   # Ids CT90–CT94 are reserved for L28 so the v2 lanes appending here do not collide.
 

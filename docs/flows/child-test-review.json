@@ -81,7 +81,7 @@
         },
         "i2_who": {
           "type": "string",
-          "__example__": "‏⁨Child A⁩ کا ریاضی سوال ۳"
+          "__example__": "‏⁨Child A⁩ کا حساب سوال ۳"
         },
         "i2_q": {
           "type": "string",

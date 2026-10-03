@@ -3132,7 +3132,7 @@ const UX_STRINGS = {
   childTestProgressChild: { en: 'Child {n} of {total}', ur: 'بچہ {n} از {total}' },
   childTestBlockUrdu: { en: 'Urdu', ur: 'اردو' },
   childTestBlockEnglish: { en: 'English', ur: 'انگریزی' },
-  childTestBlockMaths: { en: 'Maths', ur: 'ریاضی' },
+  childTestBlockMaths: { en: 'Maths', ur: 'حساب' },
   childTestPresenceBody: {
     en: '{child}\nIs the child here and willing to read?',
     ur: '{child}\nکیا بچہ موجود ہے اور پڑھنے پر آمادہ ہے؟',
@@ -3170,7 +3170,7 @@ const UX_STRINGS = {
   },
   childTestCueMaths: {
     en: 'Form {form} card, Maths page · Say «{numbersCue}», then «{cue}» for {seconds} s of quick sums · one locked note',
-    ur: 'فارم ⁦{form}⁩ کارڈ، ریاضی صفحہ · «{numbersCue}» کہیں، پھر «{cue}» اور {seconds} سیکنڈ زبانی سوال · ایک لاک وائس نوٹ',
+    ur: 'فارم ⁦{form}⁩ کارڈ، حساب صفحہ · «{numbersCue}» کہیں، پھر «{cue}» اور {seconds} سیکنڈ زبانی سوال · ایک لاک وائس نوٹ',
   },
   childTestCardTextHeader: {
     en: '(The picture did not send. Here is the same text.)',
@@ -3270,7 +3270,7 @@ const UX_STRINGS = {
   // child's number on today's list, which the coach writes in the strip's «بچہ نمبر / Child no.» box.
   childTestStripHandOverNo: {
     en: 'While waiting, give {child} the maths strip: write {no} in its Child no. box first.',
-    ur: 'انتظار کے دوران ⁨{child}⁩ کو ریاضی کی پٹی دیں؛ پہلے «بچہ نمبر» کے خانے میں {no} لکھیں۔',
+    ur: 'انتظار کے دوران ⁨{child}⁩ کو حساب کی پٹی دیں؛ پہلے «بچہ نمبر» کے خانے میں {no} لکھیں۔',
   },
   childTestPhotoAskNo: {
     en: '{child}\'s strip (Child no. {no}): send its photo once it is written, or send all the strips at the end. Tap the next child now.',
@@ -3313,6 +3313,94 @@ const UX_STRINGS = {
     en: '✅ All three parts for {child} are in. The marks are being worked out; a Check button follows.',
     ur: '✅ ⁨{child}⁩ کے تینوں حصے مل گئے۔ نمبر لگنے کے بعد چیک کا بٹن آئے گا۔',
   },
+
+  // L26 (bd-s1oo0.46.2, CONTRACT §19, design/COACH_JOURNEY_V2.md §3.1) — the coach conversation, v2.
+  // Coach-facing lines follow the coach's language; the words said TO the child arrive as values in
+  // «quotes» (Urdu for the Urdu story and maths, English for the English story) from the item bank.
+  // One Urdu word per thing: حساب (maths), کارڈ (card), وائس نوٹ (voice note), ٹیچر (teacher),
+  // جوڑا (a compare pair), سوال (a sum on the card), عبارتی سوال (a word problem read aloud),
+  // کہانی کے سوال (story questions). Latin atoms the phone or the card shows (1:05, A–D, 1–4) are isolated.
+  childTestL26StartButton: { en: 'Start', ur: 'شروع کریں' },
+  childTestL26SendTeachersButton: { en: 'Send to teachers', ur: 'ٹیچرز کو بھیجیں' },
+  // The list, until L25's conversation/list.js lands (its own copy replaces these).
+  childTestL26ListHeader: { en: 'Grade {grade} · {n} children', ur: 'جماعت {grade} · {n} بچے' },
+  childTestL26ListIntro: {
+    en: 'Today\'s children, by classroom. Ask each class teacher to send them *one at a time*.',
+    ur: 'آج کے بچے، کلاس روم کے مطابق۔ ہر کلاس ٹیچر سے کہیں کہ بچوں کو *ایک ایک کر کے* بھیجیں۔',
+  },
+  childTestL26ListRoom: { en: '*{room}* · Teacher: {teacher}', ur: '*⁨{room}⁩* · ٹیچر: ⁨{teacher}⁩' },
+  childTestL26ListRoomNoTeacher: { en: '*{room}* · ask the head teacher for this room', ur: '*⁨{room}⁩* · اس کمرے کے لیے ہیڈ ٹیچر سے پوچھیں' },
+  childTestL26ListItem: { en: '{n}. {name}', ur: '{n}۔ ⁨{name}⁩' },
+  childTestL26ListAlternates: { en: 'Only if someone is absent: {children}', ur: 'صرف اگر کوئی غیر حاضر ہو: {children}' },
+  childTestL26ChildLine: { en: '{name} · {room} · Teacher: {teacher}', ur: '⁨{name}⁩ · ⁨{room}⁩ · ٹیچر: ⁨{teacher}⁩' },
+  childTestL26NameMissing: { en: '(name missing on the class list)', ur: '(کلاس کی فہرست میں نام نہیں)' },
+  childTestL26TeacherMessage: {
+    en: 'For today\'s child test, please send these children to the coach *one at a time*, in this order:\n{children}',
+    ur: 'آج کے بچوں کے ٹیسٹ کے لیے یہ بچے *ایک ایک کر کے*، اسی ترتیب سے کوچ کے پاس بھیجیں:\n{children}',
+  },
+  childTestL26TeachersSent: { en: 'Sent to {names}.', ur: '⁨{names}⁩ کو بھیج دیا۔' },
+  childTestL26TeachersFailed: {
+    en: '⚠️ I couldn\'t reach {names} on WhatsApp. Please tell them their children yourself.',
+    ur: '⚠️ ⁨{names}⁩ تک واٹس ایپ پر پیغام نہیں پہنچا۔ بچوں کے نام انہیں خود بتا دیں۔',
+  },
+  childTestL26NoTeachers: {
+    en: 'No class teacher on today\'s list can be reached on WhatsApp. Please ask the head teacher to send the children, one at a time.',
+    ur: 'آج کی فہرست کا کوئی کلاس ٹیچر واٹس ایپ پر نہیں ملا۔ ہیڈ ٹیچر سے کہیں کہ بچوں کو ایک ایک کر کے بھیجیں۔',
+  },
+  // The card, named by colour + grade (the colour band on every printed card, L29).
+  childTestL26CardG3: { en: '🟩 Green Grade 3', ur: '🟩 جماعت ۳ (سبز)' },
+  childTestL26CardG5: { en: '🟦 Blue Grade 5', ur: '🟦 جماعت ۵ (نیلا)' },
+  childTestL26CardOther: { en: 'Grade {grade}', ur: 'جماعت {grade}' },
+  childTestL26SetupCaption: {
+    en: 'You need the *{card}* cards: Urdu, English, Maths. Paper and a pencil.\nSit where other children can\'t hear. About 6 minutes per child.\nThe recording does the marking: you never count anything.',
+    ur: 'یہ کارڈ ساتھ رکھیں: *{card}* — اردو، انگریزی، حساب۔ کاغذ اور پنسل بھی۔\nایسی جگہ بیٹھیں جہاں دوسرے بچے نہ سن سکیں۔ ہر بچے کو تقریباً ۶ منٹ لگیں گے۔\nنمبر ریکارڈنگ سے لگیں گے: آپ کو کچھ بھی گننا نہیں۔',
+  },
+  childTestL26StartWith: { en: 'Start with {name}', ur: '{name} سے شروع' },
+  childTestL26Presence: {
+    en: '*Child {n} of {total} · {line}*\nBefore recording, say: «{greet}»',
+    ur: '*بچہ {n} از {total} · {line}*\nریکارڈنگ سے پہلے کہیں: «{greet}»',
+  },
+  childTestL26Here: { en: 'Here, start', ur: 'حاضر، شروع کریں' },
+  childTestL26Absent: { en: 'Absent', ur: 'غیر حاضر' },
+  childTestL26NotWilling: { en: 'Doesn\'t want to', ur: 'رضامند نہیں' },
+  childTestL26AbsentLine: { en: '{name}: absent.', ur: '⁨{name}⁩: غیر حاضر۔' },
+  childTestL26NotWillingLine: { en: '{name}: doesn\'t want to today.', ur: '⁨{name}⁩: آج رضامند نہیں۔' },
+  childTestL26Promoted: { en: '{name} joins today\'s children.', ur: '⁨{name}⁩ آج کے بچوں میں شامل۔' },
+  childTestL26NoAlternate: { en: 'No alternate is left for today.', ur: 'آج کے لیے کوئی متبادل بچہ باقی نہیں۔' },
+  // The three parts. {b} is 1–3; the title also leads the nudge and the resume line.
+  childTestL26PartUrdu: { en: 'Urdu story', ur: 'اردو کہانی' },
+  childTestL26PartEnglish: { en: 'English story', ur: 'انگریزی کہانی' },
+  childTestL26PartMaths: { en: 'Maths', ur: 'حساب' },
+  childTestL26StepTitle: { en: '*{b}/3 {part} · {name}*', ur: '*{b}/۳ {part} · ⁨{name}⁩*' },
+  // The Urdu and the English story: the same steps. {questions} is one line per question, ① ② ③.
+  childTestL26StepStory: {
+    en: '{title}\n{card} card, *{side}* side up, in front of the child.\n1. Tap 🎤 and slide up to lock. Don\'t stop until step 5.\n2. Say: «{start}»\n   Stay quiet. Stuck for 3 seconds? Point to the next word: «{go_on}»\n3. When the mic shows *1:05*, say «{stop}» and turn the card *face down*.\n4. Say «{qintro}», then ask each one and wait:\n{questions}\n5. Send ➤\n_Can\'t read any word of the first line?_ Turn the card over, say «{fallback}» and skip the questions. Then send.',
+    ur: '{title}\n{card} کا کارڈ، *{side}* والا رخ اوپر، بچے کے سامنے رکھیں۔\n۱۔ 🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔ مرحلہ ۵ تک نہ روکیں۔\n۲۔ کہیں: «{start}»\n   خاموش رہیں۔ بچہ ۳ سیکنڈ اٹکے تو اگلے لفظ کی طرف اشارہ کریں: «{go_on}»\n۳۔ جب مائیک پر *⁦1:05⁩* ہو تو کہیں «{stop}» اور کارڈ *الٹا* کر دیں۔\n۴۔ کہیں «{qintro}»، پھر ہر سوال پوچھیں اور جواب کا انتظار کریں:\n{questions}\n۵۔ بھیجیں ➤\n_بچہ پہلی سطر کا کوئی لفظ نہ پڑھ پائے تو؟_ کارڈ پلٹیں، کہیں «{fallback}» اور کہانی کے سوال چھوڑ دیں۔ پھر بھیج دیں۔',
+  },
+  // Maths, oral (the May set): the child reads the pairs and sums off the card; the coach reads the word problems.
+  childTestL26StepMaths: {
+    en: '{title}\n{card} *maths* card in front of the child. Paper and pencil beside it.\n1. Tap 🎤 and slide up to lock.\n2. Say «{start}». Point to each pair *A–D*: «{compare}»\n3. Point to each sum *1–4*: «{sum}». The child may use the paper. No answer after a slow count of 5? Say «{next}»\n4. Turn the card face down. Say «{wp_intro}», then read each word problem slowly and wait for the answer:\n{problems}\n5. Say «{stop}». Send ➤',
+    ur: '{title}\n{card} کا *حساب* والا کارڈ بچے کے سامنے رکھیں۔ کاغذ اور پنسل ساتھ رکھیں۔\n۱۔ 🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔\n۲۔ کہیں «{start}»۔ ہر جوڑے *⁦A–D⁩* کی طرف اشارہ کریں: «{compare}»\n۳۔ ہر سوال *⁦1–4⁩* کی طرف اشارہ کریں: «{sum}»۔ بچہ کاغذ پر حل کرے تو ٹھیک ہے۔ آہستہ ۵ تک گننے پر جواب نہ آئے تو کہیں «{next}»\n۴۔ کارڈ الٹا کر دیں۔ کہیں «{wp_intro}»، پھر ہر عبارتی سوال آہستہ پڑھیں اور جواب کا انتظار کریں:\n{problems}\n۵۔ کہیں «{stop}»۔ بھیجیں ➤',
+  },
+  childTestL26Done: { en: '✅ {name} done. Thank the child.', ur: '✅ ⁨{name}⁩ مکمل۔ بچے کا شکریہ ادا کریں۔' },
+  childTestL26VisitEnd: {
+    en: '🎉 All {n} children done ({min} min). Thank the teachers.',
+    ur: '🎉 تمام {n} بچے مکمل ({min} منٹ)۔ ٹیچرز کا شکریہ ادا کریں۔',
+  },
+  childTestL26NoneTested: {
+    en: 'No child was tested on this visit: everyone on today\'s list was absent or did not want to. Send /egra on your next visit.',
+    ur: 'اس دورے میں کسی بچے کا ٹیسٹ نہیں ہوا: آج کی فہرست کے سب بچے غیر حاضر تھے یا رضامند نہیں تھے۔ اگلے دورے پر ⁦/egra⁩ بھیجیں۔',
+  },
+  childTestL26Nudge: {
+    en: '{title}\nDid the recording stop? Look for an unsent voice note above the keyboard and press send. If it\'s gone, record this part again.',
+    ur: '{title}\nکیا ریکارڈنگ رک گئی؟ کی بورڈ کے اوپر رکا ہوا وائس نوٹ دیکھیں اور بھیج دیں۔ اگر وہ نہیں ہے تو یہ حصہ دوبارہ ریکارڈ کریں۔',
+  },
+  childTestL26Resume: { en: '{name} is on part {b}/3 ({block}).', ur: '⁨{name}⁩ کا حصہ {b}/۳ ({block}) جاری ہے۔' },
+  childTestL26Continue: { en: 'Continue', ur: 'جاری رکھیں' },
+  childTestL26Busy: {
+    en: '{name} is still on part {b}/3. Finish that child first, or send /cancel to stop.',
+    ur: '⁨{name}⁩ کا حصہ {b}/۳ ابھی جاری ہے۔ پہلے یہ بچہ مکمل کریں، یا روکنے کے لیے ⁦/cancel⁩ بھیجیں۔',
+  },
   // L28 (bd-s1oo0.46.4, CONTRACT §19): the end-of-visit results and the one review form. The coach is
   // never asked for a count; the form lists only answers the recording did not settle.
   // Results, one line per child: "{child} — {parts}", parts joined with " · ".
@@ -3346,9 +3434,9 @@ const UX_STRINGS = {
   childTestReviewSave: { en: 'Save answers', ur: 'جواب محفوظ کریں' },
   childTestReviewWho: { en: '{child} · {part}', ur: '⁨{child}⁩ کا {part}' },
   childTestReviewPartQuestion: { en: '{block} question {n}', ur: '{block} سوال {n}' },
-  childTestReviewPartCompare: { en: 'Maths which is bigger {n}', ur: 'ریاضی بڑا نمبر {n}' },
-  childTestReviewPartSum: { en: 'Maths sum {n}', ur: 'ریاضی سوال {n}' },
-  childTestReviewPartWordProblem: { en: 'Maths word problem {n}', ur: 'ریاضی عبارتی سوال {n}' },
+  childTestReviewPartCompare: { en: 'Maths which is bigger {n}', ur: 'حساب بڑا نمبر {n}' },
+  childTestReviewPartSum: { en: 'Maths sum {n}', ur: 'حساب سوال {n}' },
+  childTestReviewPartWordProblem: { en: 'Maths word problem {n}', ur: 'حساب عبارتی سوال {n}' },
   childTestReviewCompareText: { en: 'Which is bigger: {a} or {b}?', ur: 'کون سا نمبر بڑا ہے: {a} یا {b}؟' },
   childTestReviewHeard: { en: 'Heard: «{heard}»', ur: 'سنا گیا: «{heard}»' },
   childTestReviewHeardNothing: { en: 'Heard: nothing clear', ur: 'سنا گیا: کچھ واضح نہیں' },
@@ -3388,7 +3476,7 @@ const UX_STRINGS = {
   childTestListV2SendTeachers: { en: 'Send to the teachers', ur: 'ٹیچرز کو بھیجیں' },
   childTestTeacherMessageRoom: {
     en: 'For today\'s reading and maths check, please send these children from {cls} to the coach one at a time, in this order:\n{children}\nWhen one comes back, send the next.',
-    ur: 'آج کے پڑھائی اور ریاضی کے جائزے کے لیے {cls} کے یہ بچے ایک ایک کر کے اسی ترتیب سے کوچ کے پاس بھیجیں:\n{children}\nایک بچہ واپس آئے تو اگلا بھیجیں۔',
+    ur: 'آج کے پڑھائی اور حساب کے جائزے کے لیے {cls} کے یہ بچے ایک ایک کر کے اسی ترتیب سے کوچ کے پاس بھیجیں:\n{children}\nایک بچہ واپس آئے تو اگلا بھیجیں۔',
   },
 };
 

@@ -327,6 +327,20 @@ async function recordTiming(sessionId, key, at = new Date()) {
   return { ok: true, timings: ((data || [])[0] || {}).timings || timings };
 }
 
+/**
+ * WhatsApp sessions still in progress that started since `since` (L26's unsent-draft nudge, every 30 s).
+ * Narrow rows only; the table grows by one row per child tested.
+ */
+async function listOpenSessions({ since, limit = 50 } = {}) {
+  const { data, error } = await supabase.from(SESSIONS).select('id, coach_user_id, channel, status, started_at')
+    .eq('status', 'in_progress').eq('channel', 'whatsapp')
+    .gte('started_at', iso(since))
+    .order('started_at', { ascending: true })
+    .limit(limit);
+  if (error) return fail('listOpenSessions', error, {});
+  return { ok: true, sessions: data || [] };
+}
+
 // ── Blocks ─────────────────────────────────────────────────────────────────────────────────────
 
 async function getBlock(sessionId, block) {
@@ -487,6 +501,7 @@ module.exports = {
   saveCoachMarks,
   // scoring recovery (conversation/recovery.js)
   listBlocksToRecover,
+  listOpenSessions,
   listRecentlyScoredBlocks,
   claimBlockStatus,
   // the draw's own reads and writes (draw/index.js)

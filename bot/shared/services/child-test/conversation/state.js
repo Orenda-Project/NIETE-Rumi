@@ -83,6 +83,11 @@ async function blockClaim(sessionId, block) {
   try { return JSON.parse(raw); } catch { return { audioId: String(raw) }; }
 }
 
+/** The end of a visit (v2 "All 5 children done") is announced once (12 h). */
+async function claimVisitEnd(visit) {
+  return redis.setNX(`ctst:visit_end:${visit}`, new Date().toISOString(), 12 * 3600);
+}
+
 async function claimDone(sessionId) {
   return redis.setNX(`ctst:done:${sessionId}`, new Date().toISOString(), 7 * 24 * 3600);
 }
@@ -112,5 +117,5 @@ async function stripClaim(visit, drawId) {
 module.exports = {
   claimStrip, setStrip, releaseStrip, stripClaim,
   get, set, clear, firstSight, forget, claimCheck, checkSent, checkClaimedAt, claimCheckRetry,
-  claimBlock, releaseBlock, blockClaim, claimDone, TTL_SECONDS,
+  claimBlock, releaseBlock, blockClaim, claimDone, claimVisitEnd, TTL_SECONDS,
 };
