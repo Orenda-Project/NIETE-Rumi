@@ -126,15 +126,15 @@ describe("Home — five tiles, no rating", () => {
     expect(text).not.toMatch(/Excellent|Good|Average|Needs support|Below average|%|score/i);
   });
 
-  it("each tile goes to its list: lesson plans and coaching inside Home, the rest to their pages", async () => {
+  it("each tile goes to its own list inside Home", async () => {
     renderHome();
     await screen.findByText("14");
     expect(tile(/Lesson plans used/)).toHaveAttribute("href", "/portal/dashboard/lesson-plans");
     expect(tile(/Coaching & observations/)).toHaveAttribute("href", "/portal/dashboard/coaching");
-    expect(tile(/Training modules done/)).toHaveAttribute("href", "/portal/training");
-    // bd-5rz1v.13 — Assessments made opens her list on the Assessment page.
-    expect(tile(/Assessments made/)).toHaveAttribute("href", "/portal/assessment/mine");
-    expect(tile(/Attendance marked/)).toHaveAttribute("href", "/portal/classes");
+    // bd-5rz1v.17.2 — the last three tiles open lists inside Home too, not the old pages.
+    expect(tile(/Training modules done/)).toHaveAttribute("href", "/portal/dashboard/training");
+    expect(tile(/Assessments made/)).toHaveAttribute("href", "/portal/dashboard/assessments");
+    expect(tile(/Attendance marked/)).toHaveAttribute("href", "/portal/dashboard/attendance");
   });
 
   it("every target on the page is at least 56px", async () => {
@@ -182,6 +182,9 @@ describe("Home — the date range", () => {
     expect(screen.getByRole("button", { name: "Date range: This week" })).toBeInTheDocument();
     expect(tile(/Lesson plans used/)).toHaveAttribute("href", "/portal/dashboard/lesson-plans?range=this_week");
     expect(tile(/Coaching & observations/)).toHaveAttribute("href", "/portal/dashboard/coaching?range=this_week");
+    expect(tile(/Training modules done/)).toHaveAttribute("href", "/portal/dashboard/training?range=this_week");
+    expect(tile(/Assessments made/)).toHaveAttribute("href", "/portal/dashboard/assessments?range=this_week");
+    expect(tile(/Attendance marked/)).toHaveAttribute("href", "/portal/dashboard/attendance?range=this_week");
   });
 
   it("reads a custom range from the address", async () => {

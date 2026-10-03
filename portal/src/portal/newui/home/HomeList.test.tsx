@@ -13,16 +13,45 @@ import { tapProblems } from "../checks/rules";
 vi.mock("../../components/PortalLayout", () => ({
   default: ({ children }: { children: React.ReactNode }) => <div data-testid="layout">{children}</div>,
 }));
-vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
-import api from "../../services/api";
+vi.mock("../../services/api", () => ({
+  default: { get: vi.fn(), post: vi.fn() },
+  portal: { getAssessmentDownload: vi.fn() },
+}));
+import api, { portal } from "../../services/api";
 import HomeList from "./HomeList";
 
 const RANGE = { key: "this_month", from: "2026-10-01", to: "2026-10-03", timezone: "Asia/Karachi" };
 const COUNTS = {
   success: true, range: RANGE,
   lessonPlans: { used: 4, opened: 3, received: 2, days: 3 },
-  training: { completed: 0 }, coaching: { total: 3, digitalCoach: 1, observations: 2 },
-  assessments: { made: 0 }, attendance: { days: 0, registers: 0, unit: "days" },
+  training: { completed: 2 }, coaching: { total: 3, digitalCoach: 1, observations: 2 },
+  assessments: { made: 2 }, attendance: { days: 2, registers: 3, unit: "days" },
+};
+
+// bd-5rz1v.17.2 — the three lists that used to be other pages.
+const TRAINING = {
+  success: true, range: RANGE, metric: "training", total: 2, truncated: false,
+  items: [
+    // 20:30 UTC on 1 Oct is 01:30 on 2 Oct in Pakistan.
+    { moduleId: "41", title: "Group work", courseTitle: "Classroom routines", vendorKey: "TALEEMABAD", vendorName: "Taleemabad", completedAt: "2026-10-01T20:30:00.000Z" },
+    { moduleId: "7", title: "Reading aloud", courseTitle: null, vendorKey: null, vendorName: null, completedAt: "2026-09-29T05:00:00.000Z" },
+  ],
+};
+
+const ASSESSMENTS = {
+  success: true, range: RANGE, metric: "assessments", total: 2, truncated: false,
+  items: [
+    { paperId: "p-1", grade: 4, subjectKey: "science", subject: "Science", chapterNumber: 2, questionCount: 15, totalMarks: 30, hasAnswerKey: true, createdAt: "2026-10-02T05:00:00.000Z" },
+    { paperId: "p-2", grade: 2, subjectKey: "maths", subject: "Maths", chapterNumber: 5, questionCount: 10, totalMarks: 20, hasAnswerKey: false, createdAt: "2026-10-01T05:00:00.000Z" },
+  ],
+};
+
+const ATTENDANCE = {
+  success: true, range: RANGE, metric: "attendance", total: 2, truncated: false,
+  items: [
+    { date: "2026-10-02", registers: 2, classes: ["4-A", "5-B"] },
+    { date: "2026-10-01", registers: 1, classes: ["4-A"] },
+  ],
 };
 
 const plan = (over: Record<string, unknown>) => ({
@@ -199,6 +228,139 @@ describe("Coaching & observations", () => {
     const { BAND_THRESHOLDS } = await import("../../lib/scoreBands");
     const { HOME_COPY } = await import("../copy");
     expect(Object.fromEntries(BAND_THRESHOLDS.map((b) => [b.key, b.label]))).toEqual(HOME_COPY.bands);
+  });
+});
+
+describe("Training modules done (bd-5rz1v.17.2)", () => {
+  it("is an inner page under Home on the same range, with the module count", async () => {
+    answer(TRAINING);
+    renderList("/portal/dashboard/training?range=this_week");
+    expect(screen.getByTestId("newui-crumb")).toHaveTextContent("Home");
+    expect(screen.getByRole("heading", { level: 1, name: "Training modules done" })).toBeInTheDocument();
+    await screen.findByText("Group work");
+    expect(api.get).toHaveBeenCalledWith("/progress/training", { params: { range: "this_week" } });
+    expect(screen.getByRole("button", { name: "Date range: This week" })).toBeInTheDocument();
+    expect(screen.getByText("2 modules")).toBeInTheDocument();
+  });
+
+  it("each module: a done tile, its title, the provider and the day (Pakistan time); it opens the part in Training", async () => {
+    answer(TRAINING);
+    renderList("/portal/dashboard/training");
+    const row = (await screen.findByText("Group work")).closest("a")!;
+    expect(row).toHaveAttribute("href", "/portal/training/unit/41");
+    expect(within(row).getByTestId("newui-row-tile").className).toMatch(/bg-nu-done-bg/);
+    // The provider as teachers know it (TALEEMABAD is NIETE), never the server's vendor name.
+    expect(within(row).getByText("NIETE")).toBeInTheDocument();
+    expect(within(row).getByText("2 Oct")).toBeInTheDocument();
+    const other = screen.getByText("Reading aloud").closest("a")!;
+    expect(other).toHaveAttribute("href", "/portal/training/unit/7");
+    expect(other.textContent).not.toMatch(/NIETE|Taleemabad/);
+    expect(within(other).getByText("29 Sep")).toBeInTheDocument();
+  });
+
+  it("an empty range is a small Hero, no sentence", async () => {
+    answer({ ...TRAINING, total: 0, items: [] }, { ...COUNTS, training: { completed: 0 } });
+    renderList("/portal/dashboard/training");
+    expect(await screen.findByText("Nothing yet")).toBeInTheDocument();
+    expect(screen.getByTestId("newui-hero")).toBeInTheDocument();
+    expect(screen.queryByRole("list")).toBeNull();
+  });
+
+  it("every target is at least 56px", async () => {
+    answer(TRAINING);
+    renderList("/portal/dashboard/training");
+    await screen.findByText("Group work");
+    expect(tapProblems(document.body)).toEqual([]);
+  });
+});
+
+describe("Assessments made (bd-5rz1v.17.2)", () => {
+  it("is an inner page under Home on the same range, with how many were made", async () => {
+    answer(ASSESSMENTS);
+    renderList("/portal/dashboard/assessments?range=all");
+    expect(screen.getByTestId("newui-crumb")).toHaveTextContent("Home");
+    expect(screen.getByRole("heading", { level: 1, name: "Assessments made" })).toBeInTheDocument();
+    await screen.findByText("Science · Ch 2");
+    expect(api.get).toHaveBeenCalledWith("/progress/assessments", { params: { range: "all" } });
+    expect(screen.getByText("2 made")).toBeInTheDocument();
+  });
+
+  it("each paper: subject and chapter, Grade and the day, a download icon", async () => {
+    answer(ASSESSMENTS);
+    renderList("/portal/dashboard/assessments");
+    const row = (await screen.findByText("Science · Ch 2")).closest("button")!;
+    expect(row).toHaveTextContent("Grade 4");
+    expect(row).toHaveTextContent("2 Oct");
+    expect(row.querySelector("[data-end]")).not.toBeNull();
+  });
+
+  it("a tap opens the paper sheet: Download, and the Answer key when it has one", async () => {
+    answer(ASSESSMENTS);
+    vi.mocked(portal.getAssessmentDownload).mockResolvedValue({ success: true, available: true, url: "https://files.example/p-1.pdf" } as never);
+    renderList("/portal/dashboard/assessments");
+    fireEvent.click(await screen.findByRole("button", { name: /Science · Ch 2/ }));
+    const sheet = await screen.findByTestId("assessment-paper-sheet");
+    expect(within(sheet).getByRole("heading", { name: "Science · Ch 2" })).toBeInTheDocument();
+    expect(within(sheet).getByText("15 Q")).toBeInTheDocument();
+    expect(within(sheet).getByText("30 marks")).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Answer key" })).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole("button", { name: "Download" }));
+    await waitFor(() => expect(portal.getAssessmentDownload).toHaveBeenCalledWith("p-1", "paper"));
+  });
+
+  it("a paper with no answer key does not offer one", async () => {
+    answer(ASSESSMENTS);
+    renderList("/portal/dashboard/assessments");
+    fireEvent.click(await screen.findByRole("button", { name: /Maths · Ch 5/ }));
+    const sheet = await screen.findByTestId("assessment-paper-sheet");
+    expect(within(sheet).getByRole("button", { name: "Download" })).toBeInTheDocument();
+    expect(within(sheet).queryByRole("button", { name: "Answer key" })).toBeNull();
+  });
+
+  it("every target is at least 56px", async () => {
+    answer(ASSESSMENTS);
+    renderList("/portal/dashboard/assessments");
+    await screen.findByText("Science · Ch 2");
+    expect(tapProblems(document.body)).toEqual([]);
+  });
+});
+
+describe("Attendance marked (bd-5rz1v.17.2)", () => {
+  it("is an inner page under Home on the same range, with the days and registers", async () => {
+    answer(ATTENDANCE);
+    renderList("/portal/dashboard/attendance?range=last_3_months");
+    expect(screen.getByTestId("newui-crumb")).toHaveTextContent("Home");
+    expect(screen.getByRole("heading", { level: 1, name: "Attendance marked" })).toBeInTheDocument();
+    await screen.findByText("2 Oct");
+    expect(api.get).toHaveBeenCalledWith("/progress/attendance", { params: { range: "last_3_months" } });
+    expect(screen.getByText("2 days")).toBeInTheDocument();
+    expect(screen.getByText("3 registers")).toBeInTheDocument();
+  });
+
+  it("a row per day: the day, each class as a chip, the register count; it opens that day's attendance", async () => {
+    answer(ATTENDANCE);
+    renderList("/portal/dashboard/attendance");
+    const row = (await screen.findByText("2 Oct")).closest("a")!;
+    expect(within(row).getByText("4-A")).toBeInTheDocument();
+    expect(within(row).getByText("5-B")).toBeInTheDocument();
+    expect(within(row).getByText("2 registers")).toBeInTheDocument();
+    expect(row).toHaveAttribute("href", "/portal/coaching/analytics?from=2026-10-02&to=2026-10-02#attendance");
+    const one = screen.getByText("1 Oct").closest("a")!;
+    expect(within(one).getByText("1 register")).toBeInTheDocument();
+  });
+
+  it("an empty range is a small Hero, no sentence", async () => {
+    answer({ ...ATTENDANCE, total: 0, items: [] }, { ...COUNTS, attendance: { days: 0, registers: 0, unit: "days" } });
+    renderList("/portal/dashboard/attendance");
+    expect(await screen.findByText("Nothing yet")).toBeInTheDocument();
+    expect(screen.queryByRole("list")).toBeNull();
+  });
+
+  it("every target is at least 56px", async () => {
+    answer(ATTENDANCE);
+    renderList("/portal/dashboard/attendance");
+    await screen.findByText("2 Oct");
+    expect(tapProblems(document.body)).toEqual([]);
   });
 });
 

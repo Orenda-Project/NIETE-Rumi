@@ -102,6 +102,12 @@ export const HOME_COPY = {
   visits: count('Visit', 'Visits'),
   plans: count('plan', 'plans'),
   days: count('day', 'days'),
+  /** bd-5rz1v.17.2 — the Training, Assessments and Attendance lists' counts. */
+  modules: count('module', 'modules'),
+  made: (n: number) => `${n} made`,
+  registers: count('register', 'registers'),
+  /** A module whose title the catalogue no longer has. */
+  moduleFallback: 'Training module',
   grade: (n: number | string) => `Grade ${n}`,
   /** A plan whose name the catalogue no longer has. */
   planFallback: 'Lesson plan',

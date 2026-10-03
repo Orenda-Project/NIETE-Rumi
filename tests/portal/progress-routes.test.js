@@ -227,6 +227,74 @@ describe('GET /progress/:metric — the list behind a tile', () => {
     }
   });
 
+  // bd-5rz1v.17.2 — the Training, Assessments and Attendance lists inside Home.
+  test('training: each module done names its provider, so the row can carry the provider chip', async () => {
+    poolQuery.mockImplementation(async (sql) => {
+      if (/AS lp_used/.test(sql)) return { rows: [COUNTS_ROW] };
+      if (/ORDER BY p\.completed_at/.test(sql)) {
+        return { rows: [
+          { module_id: 41, completed_at: '2026-10-02T05:00:00Z', module_title: 'Group work', course_title: 'Classroom routines',
+            vendor_key: 'TALEEMABAD', vendor_name: 'Taleemabad' },
+          { module_id: 7, completed_at: '2026-10-01T05:00:00Z', module_title: 'Reading aloud', course_title: null,
+            vendor_key: null, vendor_name: null },
+        ] };
+      }
+      return { rows: [] };
+    });
+    const { statusCode, payload } = await invoke('/progress/:metric', { params: { metric: 'training' } });
+    expect(statusCode).toBe(200);
+    expect(payload.total).toBe(6);
+    expect(payload.items).toEqual([
+      { moduleId: '41', title: 'Group work', courseTitle: 'Classroom routines', vendorKey: 'TALEEMABAD', vendorName: 'Taleemabad',
+        completedAt: '2026-10-02T05:00:00.000Z' },
+      { moduleId: '7', title: 'Reading aloud', courseTitle: null, vendorKey: null, vendorName: null,
+        completedAt: '2026-10-01T05:00:00.000Z' },
+    ]);
+    const [sql] = poolQuery.mock.calls.find(([s]) => /ORDER BY p\.completed_at/.test(s));
+    // The provider is the level's vendor: module → course → level → vendor.
+    expect(sql).toMatch(/JOIN training_levels tl ON tl\.id = tc\.level_id/);
+    expect(sql).toMatch(/JOIN training_vendors tv ON tv\.id = tl\.vendor_id/);
+  });
+
+  test('assessments: each paper carries what its sheet shows — subject name, questions, marks, whether it has a key', async () => {
+    poolQuery.mockImplementation(async (sql) => {
+      if (/AS lp_used/.test(sql)) return { rows: [COUNTS_ROW] };
+      if (/ORDER BY ap\.created_at/.test(sql)) {
+        return { rows: [
+          { paper_id: 'p-1', grade_code: 'grade_4', subject_code: 'science', chapter_number: 2, created_at: '2026-10-02T05:00:00Z',
+            question_count: 15, total_marks: 30, has_answer_key: true },
+          { paper_id: 'p-2', grade_code: 'grade_2', subject_code: 'general_knowledge', chapter_number: null, created_at: '2026-10-01T05:00:00Z',
+            question_count: null, total_marks: null, has_answer_key: false },
+        ] };
+      }
+      return { rows: [] };
+    });
+    const { statusCode, payload } = await invoke('/progress/:metric', { params: { metric: 'assessments' } });
+    expect(statusCode).toBe(200);
+    expect(payload.total).toBe(4);
+    expect(payload.items).toEqual([
+      { paperId: 'p-1', grade: 4, subjectKey: 'science', subject: 'Science', chapterNumber: 2,
+        questionCount: 15, totalMarks: 30, hasAnswerKey: true, createdAt: '2026-10-02T05:00:00.000Z' },
+      { paperId: 'p-2', grade: 2, subjectKey: 'general_knowledge', subject: 'General Knowledge', chapterNumber: null,
+        questionCount: null, totalMarks: null, hasAnswerKey: false, createdAt: '2026-10-01T05:00:00.000Z' },
+    ]);
+    const [sql] = poolQuery.mock.calls.find(([s]) => /ORDER BY ap\.created_at/.test(s));
+    expect(sql).toMatch(/ap\.answer_key_r2_key IS NOT NULL/);
+  });
+
+  test('attendance: a day each, its registers and the classes marked', async () => {
+    poolQuery.mockImplementation(async (sql) => {
+      if (/AS lp_used/.test(sql)) return { rows: [COUNTS_ROW] };
+      if (/GROUP BY s\.session_date/.test(sql)) {
+        return { rows: [{ date: '2026-10-02', registers: '2', classes: ['4-A', '5-B'] }] };
+      }
+      return { rows: [] };
+    });
+    const { payload } = await invoke('/progress/:metric', { params: { metric: 'attendance' } });
+    expect(payload.total).toBe(18);
+    expect(payload.items).toEqual([{ date: '2026-10-02', registers: 2, classes: ['4-A', '5-B'] }]);
+  });
+
   test('an unknown metric is a 404', async () => {
     const { statusCode } = await invoke('/progress/:metric', { params: { metric: 'salaries' } });
     expect(statusCode).toBe(404);

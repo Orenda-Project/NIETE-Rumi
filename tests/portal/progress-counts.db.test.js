@@ -181,6 +181,14 @@ maybe('Home counts against a real database (sandbox, rolled back)', () => {
     const out = await Progress.progressList(query, ids.teacher, 'training', OCT, {});
     expect(out.items.map((i) => i.moduleId)).toEqual([String(ids.modules[0])]);
     expect(out.total).toBe(1);
+    // bd-5rz1v.17.2 — the provider chip: the module's level's vendor, read through the real joins.
+    const { key, name } = await one(
+      `SELECT tv.key, tv.name FROM training_modules m JOIN training_courses tc ON tc.id = m.course_id
+         JOIN training_levels tl ON tl.id = tc.level_id JOIN training_vendors tv ON tv.id = tl.vendor_id WHERE m.id = $1`,
+      [ids.modules[0]],
+    );
+    expect(out.items[0]).toMatchObject({ vendorKey: key, vendorName: name });
+    expect(typeof out.items[0].title).toBe('string');
   });
 
   test('assessments: generated papers that finished — an edit is a version, not a new paper', async () => {
@@ -188,6 +196,10 @@ maybe('Home counts against a real database (sandbox, rolled back)', () => {
     expect(c.assessments.made).toBe(1);
     const out = await Progress.progressList(query, ids.teacher, 'assessments', OCT, {});
     expect(out.items.map((i) => i.paperId)).toEqual([ids.paperOct]);
+    // bd-5rz1v.17.2 — what the paper sheet shows, from the real columns.
+    expect(out.items[0]).toMatchObject({ subjectKey: 'science', subject: 'Science', chapterNumber: 3, hasAnswerKey: false });
+    expect(out.items[0]).toHaveProperty('questionCount');
+    expect(out.items[0]).toHaveProperty('totalMarks');
   });
 
   test('attendance: the days she marked a register (two classes on one day is one day)', async () => {

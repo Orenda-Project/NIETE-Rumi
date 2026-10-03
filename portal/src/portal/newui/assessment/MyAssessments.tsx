@@ -189,7 +189,7 @@ function Papers() {
 }
 
 /** One paper: Download, and its Answer key when it has one. */
-function PaperSheet({ paper, onClose }: { paper: AssessmentPaper | null; onClose: () => void }) {
+export function PaperSheet({ paper, onClose }: { paper: AssessmentPaper | null; onClose: () => void }) {
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => { setProblem(null); }, [paper?.paper_id]);
   if (!paper) return null;
