@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -9,6 +9,7 @@ import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger 
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
 import { NAV_COPY } from './copy';
+import { closeAccountSheet, openAccountSheet, useAccountSheet } from './accountSheet';
 
 /**
  * bd-5rz1v.12 — the new UI's menu (Direction B, option 2: "indigo menu bar").
@@ -79,7 +80,7 @@ const TOP_OFF = 'text-nu-nav-label hover:bg-white/[0.08] hover:text-white';
 function Mark({ className }: { className?: string }) {
   return (
     <div className={cn('flex shrink-0 items-center gap-2.5', className)}>
-      <img src={nieteLogo} alt={NAV_COPY.logoAlt} className="h-9 w-9 rounded-lg object-contain" />
+      <img src={nieteLogo} alt={NAV_COPY.logoAlt} className="h-9 w-9 rounded-2xl object-contain" />
       <span className="text-lg font-extrabold">{NAV_COPY.brand}</span>
     </div>
   );
@@ -152,7 +153,8 @@ type TeacherItem = {
 const under = (base: string) => (p: string) => p === base || p.startsWith(`${base}/`);
 
 const TEACHER_ITEMS: TeacherItem[] = [
-  { key: 'home', title: NAV_COPY.items.home, desktopTitle: NAV_COPY.items.home, to: '/portal/dashboard', icon: House, match: (p) => p === '/portal/dashboard' },
+  // bd-5rz1v.17 — Home's lists (/portal/dashboard/lesson-plans, /coaching) are Home's own pages.
+  { key: 'home', title: NAV_COPY.items.home, desktopTitle: NAV_COPY.items.home, to: '/portal/dashboard', icon: House, match: under('/portal/dashboard') },
   {
     key: 'lessons', title: NAV_COPY.items.lessons, desktopTitle: NAV_COPY.items.lessonPlans, to: '/portal/curriculum', icon: BookOpen,
     match: (p, tab) => p === '/portal/curriculum' && tab !== 'assessment',
@@ -178,14 +180,18 @@ function initials(name?: string | null): string {
     .map((w) => Array.from(w)[0]).join('').toUpperCase();
 }
 
-function Avatar({ name, onOpen, testId }: { name?: string | null; onOpen: () => void; testId: string }) {
+/**
+ * Her initials, a 40px green circle in a 56px target. Every avatar opens the same account sheet
+ * (accountSheet.ts) — bd-5rz1v.17: Home's heading band shows one too.
+ */
+export function AccountAvatar({ name, testId }: { name?: string | null; testId: string }) {
   const letters = initials(name);
   return (
     <button
       type="button"
       aria-label={NAV_COPY.account}
       data-testid={testId}
-      onClick={onOpen}
+      onClick={openAccountSheet}
       className={cn('flex min-h-[56px] min-w-[56px] shrink-0 items-center justify-center rounded-full', FOCUS)}
     >
       <span className="flex h-10 w-10 items-center justify-center rounded-full bg-nu-button text-sm font-extrabold text-white ring-2 ring-white/25">
@@ -195,12 +201,16 @@ function Avatar({ name, onOpen, testId }: { name?: string | null; onOpen: () => 
   );
 }
 
-function TeacherNavigation({ accountPath, firstName, onLogout }: { accountPath: string; firstName?: string | null; onLogout: () => void }) {
-  const [accountOpen, setAccountOpen] = useState(false);
+function TeacherNavigation({ accountPath, firstName, onLogout, hideStrip }: {
+  accountPath: string; firstName?: string | null; onLogout: () => void; hideStrip?: boolean;
+}) {
+  const [accountOpen, setAccountOpen] = useAccountSheet();
+  // Every page mounts its own menu; a sheet left open does not follow her to the next page
+  // (as it did not when this was local state).
+  useEffect(() => () => closeAccountSheet(), []);
   const { pathname, search } = useLocation();
   const tab = new URLSearchParams(search).get('tab');
   const close = () => setAccountOpen(false);
-  const open = () => setAccountOpen(true);
 
   return (
     <>
@@ -220,19 +230,22 @@ function TeacherNavigation({ accountPath, firstName, onLogout }: { accountPath: 
                 );
               })}
             </div>
-            <Avatar name={firstName} onOpen={open} testId="newui-avatar-desktop" />
+            <AccountAvatar name={firstName} testId="newui-avatar-desktop" />
           </div>
         </div>
       </nav>
 
-      {/* Phone — a slim indigo strip with the NIETE mark and her avatar */}
-      <div
-        data-testid="newui-top-strip"
-        className="md:hidden flex items-center justify-between bg-nu-ink pe-1 ps-4 pt-[env(safe-area-inset-top)] text-white"
-      >
-        <Mark />
-        <Avatar name={firstName} onOpen={open} testId="newui-avatar" />
-      </div>
+      {/* Phone — a slim indigo strip with the NIETE mark and her avatar, on pages that have no
+          heading band yet. A page with a MainHeading carries the avatar itself (hideStrip). */}
+      {hideStrip ? null : (
+        <div
+          data-testid="newui-top-strip"
+          className="md:hidden flex items-center justify-between bg-nu-ink pe-1 ps-4 pt-[env(safe-area-inset-top)] text-white"
+        >
+          <Mark />
+          <AccountAvatar name={firstName} testId="newui-avatar" />
+        </div>
+      )}
 
       {/* Phone — indigo bottom bar */}
       <nav data-testid="newui-bottom-nav" aria-label={NAV_COPY.menu} className={BAR}>
@@ -307,9 +320,11 @@ interface Props {
   accountPath: string;
   firstName?: string | null;
   onLogout: () => void;
+  /** The page draws its own heading band, which carries the avatar: no phone strip. */
+  hideStrip?: boolean;
 }
 
-function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accountPath, firstName, onLogout }: Omit<Props, 'leader'>) {
+function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accountPath, firstName, onLogout }: Omit<Props, 'leader' | 'hideStrip'>) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreActive = mobileOverflow.some((i) => isActive(i.path)) || isActive(accountPath);
   const close = () => setMoreOpen(false);
@@ -416,6 +431,6 @@ function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accou
 const NewUiNavigation = ({ leader, ...rest }: Props) =>
   (leader
     ? <LeaderNavigation {...rest} />
-    : <TeacherNavigation accountPath={rest.accountPath} firstName={rest.firstName} onLogout={rest.onLogout} />);
+    : <TeacherNavigation accountPath={rest.accountPath} firstName={rest.firstName} onLogout={rest.onLogout} hideStrip={rest.hideStrip} />);
 
 export default NewUiNavigation;

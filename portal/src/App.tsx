@@ -17,6 +17,7 @@ import PortalPasswordResetVerify from "./portal/pages/PortalPasswordResetVerify"
 import PortalDeleteAccount from "./portal/pages/PortalDeleteAccount";
 import PortalAccount from "./portal/pages/PortalAccount";
 import PortalDashboard from "./portal/pages/PortalDashboard";
+import PortalHomeList from "./portal/pages/PortalHomeList";
 import PortalClasses from "./portal/pages/PortalClasses";
 import PortalCurriculum from "./portal/pages/PortalCurriculum";
 import PortalTraining from "./portal/pages/PortalTraining";
@@ -108,6 +109,8 @@ const App = () => {
               signed out, signed in, and without the app. */}
           <Route path="/portal/delete-account" element={<PortalDeleteAccount />} />
           <Route path="/portal/dashboard" element={<PortalDashboard />} />
+          {/* bd-5rz1v.17 — the lists behind the new Home's tiles (new UI only; flag off → the dashboard). */}
+          <Route path="/portal/dashboard/:metric" element={<PortalHomeList />} />
           {/* bd-3wb0s — My account: her name and school, the privacy policy,
               account deletion and Logout. Signed-in only (PortalLayout). */}
           <Route path="/portal/account" element={<PortalAccount />} />

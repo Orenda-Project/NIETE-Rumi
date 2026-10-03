@@ -15,6 +15,8 @@ import { newUiSourceFiles, scanStyle, type StyleRule } from "./source";
  *   raw      no hex / rgb / hsl in a component; colours come from tokens.ts
  *   physical no ml-/pr-/left-/text-left…: start/end only, so a screen mirrors in Urdu
  *   motion   animate-* and transform/all transitions only under motion-safe:
+ *   theme    no `grid` (index.css forces .grid LTR in Urdu) and no rounded-lg/md/sm (the old
+ *            theme's var(--radius)) — classes that do not mean what they say here
  */
 
 const classes = (el: Element) => (el.getAttribute("class") || "").split(/\s+/);
@@ -48,14 +50,17 @@ describe("the new UI's source keeps the colour rule, logical spacing and reduced
       "const b = <div className=\"bg-[#2e7d57] ml-2 text-left\" style={{ color: '#333748' }} />;",
       "const c = 'shadow-[0_2px_4px_rgba(0,0,0,0.2)] pr-4 rounded-l-xl left-0 border-r';",
       "const d = 'animate-spin transition md:transition-transform';",
+      "const e = 'grid grid-cols-2 rounded-lg md:rounded-md';",
     ].join("\n");
     const rules = new Set<StyleRule>(scanStyle("Planted.tsx", planted).map((p) => p.rule));
-    expect([...rules].sort()).toEqual(["feature-colour", "motion", "physical", "raw-colour"]);
+    expect([...rules].sort()).toEqual(["feature-colour", "motion", "physical", "raw-colour", "theme"]);
     const tokens = scanStyle("Planted.tsx", planted).map((p) => p.text);
     expect(tokens).toEqual(expect.arrayContaining([
       "text-nu-f-training", "bg-nu-f-tile", "bg-[#2e7d57]", "#333748", "ml-2", "text-left",
       "pr-4", "rounded-l-xl", "left-0", "border-r", "animate-spin", "transition", "md:transition-transform",
+      "grid", "rounded-lg", "md:rounded-md",
     ]));
+    expect(tokens).not.toContain("grid-cols-2");
   });
 
   it("allows what it should: logical spacing, RTL flips, arbitrary variants, motion-safe, theme() colours", () => {
@@ -64,6 +69,7 @@ describe("the new UI's source keeps the colour rule, logical spacing and reduced
       "const b = '[&>*:last-child]:border-b-0 [&>button:last-child]:hidden md:end-6 -me-1';",
       "const c = 'motion-safe:animate-spin motion-safe:transition-transform transition-colors animate-none';",
       "const d = 'bg-[conic-gradient(theme(colors.nu.progress.DEFAULT)_var(--nu-ring),theme(colors.nu.progress.track)_0)]';",
+      "const e = '[display:grid] grid-cols-4 md:grid-cols-2 rounded-xl rounded-2xl rounded-[8px] rounded-full';",
       "// a comment may say #333748 or ml-2; only code counts",
     ].join("\n");
     expect(scanStyle("Fine.tsx", fine)).toEqual([]);

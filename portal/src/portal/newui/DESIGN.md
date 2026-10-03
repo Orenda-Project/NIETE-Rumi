@@ -97,7 +97,17 @@ props, use only `nu-*` tokens and logical spacing, and keep every target at 56px
 | `Hero` | A status screen | `ring` ({value 0–1, text}) or `icon` + `tone` (`done`, `waiting`, `neutral`), `spinning`, `chips`, `live`. |
 | `FeatureIcon`, `HeadingTile` | A feature's icon | The only place a feature colour is drawn. |
 
-Shared class strings: `FOCUS` (the amber focus ring), `TAP`, `TAP_SQUARE` and `PRESS` in `styles.ts`.
+Shared class strings: `FOCUS` (the amber focus ring), `TAP`, `TAP_SQUARE`, `PRESS` and `GRID` in `styles.ts`.
+
+**Two classes that lie here.** The old theme redefines them, so the style check refuses them in
+new-UI code:
+- `grid`: `src/index.css` forces every `.grid` to `direction: ltr` under `[dir="rtl"]`, so a grid's
+  first item stays on the left in Urdu. Use `GRID` (`[display:grid]`), which mirrors.
+- `rounded-lg`, `rounded-md` and `rounded-sm` are `var(--radius)` (1rem) in `tailwind.config.ts`, so a
+  28px "rounded-lg" box comes out a circle. Write the pixels (`rounded-[8px]`), or use `rounded-xl`,
+  `rounded-2xl` or `rounded-full`.
+
+`Chip` sets `dir="auto"`, so "2 Visits" still reads that way inside an Urdu page.
 
 ### Do and don't
 
@@ -123,7 +133,7 @@ violations.
 |---|---|
 | **copy** (`copy.test.ts`) | A string in `copy.ts` has more than 4 words, or ends in `.` `?` `!` `۔` or `؟` (what each function returns is checked too). New-UI source has JSX text or a string-literal child. A literal `title`, `label`, `aria-label`, `alt`, `placeholder` or `crumb` breaks the same rule. The allowlist (`COPY_ALLOWLIST` in `rules.ts`) is empty, and every entry needs a reason. |
 | **tap** (`tap.test.tsx`) | Any button, link, input, radio or checkbox that a kit component renders lacks a phone-size height of 56px or more (`min-h-[56px]`, `h-14`, `h-[58px]` and so on). An icon with no text also needs that width. jsdom has no layout, so this checks the class contract. `md:` classes do not count. |
-| **style** (`style.test.tsx`) | A primary `BottomButton` is not `bg-nu-button` on `shadow-nu-button`, or any tone wears a feature colour, the leaf or the frame indigo. A `nu-f-*` class appears outside `FeatureIcon.tsx`. Source has a raw hex, rgb or hsl colour (use tokens; `theme(…)` is fine). A left/right class appears (`ml-`, `pr-`, `left-`, `rounded-l`, `border-r`, `text-left`, `space-x`). `animate-*`, `transition` or `transition-transform` appears without `motion-safe:`. |
+| **style** (`style.test.tsx`) | A primary `BottomButton` is not `bg-nu-button` on `shadow-nu-button`, or any tone wears a feature colour, the leaf or the frame indigo. A `nu-f-*` class appears outside `FeatureIcon.tsx`. Source has a raw hex, rgb or hsl colour (use tokens; `theme(…)` is fine). A left/right class appears (`ml-`, `pr-`, `left-`, `rounded-l`, `border-r`, `text-left`, `space-x`). `animate-*`, `transition` or `transition-transform` appears without `motion-safe:`. A bare `grid` or `rounded-lg`/`md`/`sm` appears (see "Two classes that lie here"). |
 
 Only code is read. A comment may mention a hex or a margin.
 
@@ -250,13 +260,34 @@ operator decided on 2026-10-03.
   a page of its own.
 - **Teacher, avatar:** her initials in a 40px circle inside a 56px target open the **account sheet**:
   My Classes, Analytics, Certificates and My account, then a red outline Logout. On a phone the avatar
-  sits in a slim indigo strip at the top of pages that have no heading band yet. A page with a
-  `MainHeading` carries it in the band, and the strip goes. On a desktop it ends the top bar.
+  sits in a slim indigo strip at the top of pages that have no heading band yet. A page that draws its
+  own heading passes `ownHeading` to `PortalLayout`: the strip goes and the band carries the avatar
+  (`AccountAvatar`, which opens the same sheet through `accountSheet.ts`). Home does this. On a desktop
+  the avatar ends the top bar.
 - **Teacher, desktop:** an indigo top bar with the NIETE mark, then **Home, Lesson Plans, Assessment,
   Training, Coaching**, then the avatar.
 - **Leader roles:** the same colours, with their own items: the bar plus More, whose sheet holds the rest,
   My account and Logout.
 - The item you are on is white with its icon logo green in a translucent pill.
+
+## Home (built, bd-5rz1v.17)
+
+`newui/home/`. With the flag on, a teacher's `/portal/dashboard` is `NewHome`; a leader still goes to
+My Patch, and flag off renders the old dashboard byte for byte (`PortalDashboard.flagOff.test.tsx`).
+
+- `MainHeading` with the NIETE mark, "Salaam, <first name>", her avatar (phone only; the desktop bar has
+  one) and the `DateRangeButton`, This month by default.
+- Five `MetricTile`s from `GET /api/portal/progress`: Lesson plans used, Training modules done,
+  Assessments made, Attendance marked, and the wide Coaching & observations with "n Digital Coach" and
+  "n Visits". No rating. While loading, or if the API fails, every tile shows "—".
+- The range lives in the address (`?range=…&from=&to=`, `range.ts`). The lists open on the same range
+  and Back keeps it.
+- `/portal/dashboard/lesson-plans` and `/portal/dashboard/coaching` (`HomeList`): an `InnerBar` with
+  the breadcrumb Home, the range on a light button, and the items from
+  `GET /api/portal/progress/:metric`. A plan opens in the portal's viewer (a 6–12 plan is asked for in
+  its language first). A session opens its page. The coaching list is the only place a rating shows,
+  and only as a band word. The other three tiles go to their existing pages for now. Without the flag,
+  these addresses go back to the dashboard.
 
 ## Urdu and RTL
 

@@ -31,7 +31,7 @@ export function MainHeading({ feature, title, right, context }: MainHeadingProps
       <div
         data-testid="newui-heading-row"
         className={cn(
-          'mx-auto grid max-w-[1120px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-[10px] px-4 pt-[10px]',
+          'mx-auto [display:grid] max-w-[1120px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-[10px] px-4 pt-[10px]',
           context ? 'pb-4' : 'pb-[14px]',
           'md:gap-x-4 md:gap-y-2 md:px-10 md:pb-[22px] md:pt-5',
         )}

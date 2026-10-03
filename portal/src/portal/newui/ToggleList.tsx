@@ -46,7 +46,7 @@ export function ToggleList<K extends string>(props: ToggleListProps<K>) {
   const singleValue = props.mode === 'multi' ? null : props.value;
 
   return (
-    <div role={multi ? 'group' : 'radiogroup'} aria-label={label} className="grid gap-2.5">
+    <div role={multi ? 'group' : 'radiogroup'} aria-label={label} className="[display:grid] gap-2.5">
       {options.map((o) => {
         const on = isOn(o.key);
         return (
@@ -71,7 +71,7 @@ export function ToggleList<K extends string>(props: ToggleListProps<K>) {
               data-box
               aria-hidden="true"
               className={cn(
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2',
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-2',
                 on ? 'border-nu-select bg-nu-select text-white' : 'border-nu-surface-box',
               )}
             >
