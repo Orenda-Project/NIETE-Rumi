@@ -55,6 +55,12 @@ function bookFor(grade, subjectKey) {
   return catalog().books.find((b) => b.grade === Number(grade) && b.subject_key === subjectKey) || null;
 }
 
+/** The book's menu name ("Social Studies (Urdu)"); the key itself when no book matches. */
+function subjectTitle(grade, subjectKey) {
+  const book = bookFor(grade, subjectKey);
+  return book ? book.subject : subjectKey;
+}
+
 function chapterFor(grade, subjectKey, chapterNumber) {
   const book = bookFor(grade, subjectKey);
   if (!book) return null;
@@ -286,6 +292,7 @@ module.exports = {
   lessonById,
   gradesWithContent,
   bookFor,
+  subjectTitle,
   chapterFor,
   catalog,
   clip,
