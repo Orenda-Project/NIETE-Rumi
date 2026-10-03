@@ -87,6 +87,23 @@ export const FRAME = {
 } as const;
 
 /**
+ * bd-5rz1v.18 — the PULL-UP MENU (deep-screens.html, "Menu bar · pull up"): a grab mark on top of
+ * the teacher's indigo bar (`.nav.handle`), and the indigo panel that rises from it (`.pullup`)
+ * with a 3-column grid of tiles (`.ptile`). Indigo is FRAME.background; the who row's school and
+ * role are the menu's label grey (NAV.label).
+ */
+export const PULLUP = {
+  /** The grab mark, on the bar and on the panel (38×4). */
+  grab: 'rgba(255,255,255,0.4)',
+  /** A tile's fill, and the line between the panel and the menu row. */
+  tile: 'rgba(255,255,255,0.08)',
+  /** A tile's icon. */
+  icon: '#dfe1ea',
+  /** Logout: light red on indigo (`.ptile.out`). */
+  out: '#ffb4a8',
+} as const;
+
+/**
  * Pages INSIDE a flow get a light bar instead of the band: white with a 1px
  * bottom line, a soft indigo-tint circular back button, a small muted
  * breadcrumb ("Training · NIETE · Level 2") led by the feature's icon in its
@@ -207,6 +224,8 @@ export const SHADOW = {
   nav: '0 -6px 18px rgba(20,22,29,0.18)',
   /** bd-5rz1v.26 — something floating over the page: the recording bar in a desktop corner. */
   float: '0 6px 16px rgba(20,24,38,0.16)',
+  /** bd-5rz1v.18 — the pull-up menu rising from the bar (mockup `.pullup`). */
+  pullup: '0 -10px 30px rgba(0,0,0,0.25)',
 } as const;
 
 /** tailwind.config.ts adds these to `boxShadow`: shadow-nu-button, shadow-nu-nav, … */
@@ -219,6 +238,7 @@ export const tailwindShadows = {
   'nu-destructive-pressed': SHADOW.destructivePressed,
   'nu-nav': SHADOW.nav,
   'nu-float': SHADOW.float,
+  'nu-pullup': SHADOW.pullup,
 };
 
 const chip = (c: { text: string; background: string }) => ({ DEFAULT: c.text, bg: c.background });
@@ -274,6 +294,8 @@ export const tailwindColors = {
   // bg-nu-frame-translucent: context chips on the band, the active menu pill; text-nu-frame-chip;
   // bg-nu-frame-control + border-nu-frame-control-border: the date-range button on the band (FRAME)
   frame: { translucent: FRAME.translucent, chip: FRAME.chip, control: FRAME.control, 'control-border': FRAME.controlBorder },
+  // bd-5rz1v.18 — the pull-up menu: bg-nu-pullup-grab, bg-nu-pullup-tile, text-nu-pullup-icon, text-nu-pullup-out (PULLUP)
+  pullup: { grab: PULLUP.grab, tile: PULLUP.tile, icon: PULLUP.icon, out: PULLUP.out },
   // the light inner-page bar: bg-nu-inner, border-nu-inner-border, bg-nu-inner-back, text-nu-inner-crumb (INNER_BAR)
   inner: {
     DEFAULT: INNER_BAR.background, border: INNER_BAR.border, back: INNER_BAR.back, 'back-icon': INNER_BAR.backIcon, crumb: INNER_BAR.crumb,

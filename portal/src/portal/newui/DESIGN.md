@@ -172,6 +172,10 @@ it, so do not write a raw hex in a component (the style check fails).
 | Handle | `#c9ccd6` | `nu-surface-handle` | a sheet's grab handle |
 | Box | `#c7cad6` | `nu-surface-box` | an unticked toggle's box |
 | Scrim | `rgba(20,24,38,.5)` | `nu-surface-scrim` | the dimmed page behind a sheet |
+| Pull-up grab | `rgba(255,255,255,.4)` | `nu-pullup-grab` | the pull-up menu's grab marks (bd-5rz1v.18) |
+| Pull-up tile | `rgba(255,255,255,.08)` | `nu-pullup-tile` | a tile's fill on the indigo panel, the line above the menu row |
+| Pull-up icon | `#dfe1ea` | `nu-pullup-icon` | a tile's icon |
+| Pull-up out | `#ffb4a8` | `nu-pullup-out` | Logout, light red on indigo |
 
 ### Recording
 
@@ -199,7 +203,7 @@ it, so do not write a raw hex in a component (the style check fails).
 | Destructive | `#c8331f` | edge `#8a1f12` | white | `bg-nu-button-destructive`, `shadow-nu-destructive` |
 | Disabled | `#d7d9e0` | none | `#8c90a0` | `bg-nu-button-disabled`, `text-nu-button-disabled-text` |
 
-`shadow-nu-nav` is the menu bar's upward shadow. `shadow-nu-float` is something floating over the page (nothing today: the recording bar docks on a desktop since bd-5rz1v.26.4).
+`shadow-nu-nav` is the menu bar's upward shadow. `shadow-nu-float` is something floating over the page (nothing today: the recording bar docks on a desktop since bd-5rz1v.26.4). `shadow-nu-pullup` is the pull-up menu rising from the bar (bd-5rz1v.18).
 
 ### Progress, done and status chips
 
@@ -258,23 +262,47 @@ listed so a reviewer can check a screenshot against them.
 - **Toggles**: 64px rows (56px compact), 16px corners, 2px borders, a 28px box. **Numbers**: four across,
   8px apart, 58px tiles, 22px/800.
 - **Bottom menu bar** (built): 10px 6px 14px plus the safe area, square corners; a 23px icon in a 56×32
-  pill (50px on the five-item teacher bar); 10.5px labels on the teacher bar. Its height is 80px plus
-  the safe area, and with the flag on the layout pads the page by 96px.
+  pill (50px on the five-item teacher bar); 10.5px labels on the teacher bar. The teacher's bar carries
+  the pull-up menu's grab handle (bd-5rz1v.18), so it is 16px 6px 8px: the mockup's 16px strip on top,
+  and the bottom gives the 6px back. Its height is 80px plus the safe area either way, and with the flag
+  on the layout pads the page by 96px.
+- **Pull-up menu** (bd-5rz1v.18): a 38×4 grab mark 6px from the bar's top; the panel has 24px top
+  corners, a 38×4 grab mark (10px above, 4px below), the who row 8px 18px 12px (a 40px avatar, an
+  18px/800 name, 12px/600 school · role), then three columns 10px apart with 0 14px 14px around them;
+  tiles at least 84px, 16px corners, a 24px icon and a 13px/700 label.
 
 ## The menu (built)
 
 `NewUiNavigation.tsx`, rendered by `PortalNavigation` while the flag is on. This is the teacher menu the
-operator decided on 2026-10-03.
+operator decided on 2026-10-03, with the pull-up menu (bd-5rz1v.18, `PullUpMenu.tsx`) as the one place for
+everything else.
 
 - **Teacher, phone:** the indigo bottom bar has five items: **Home, Lessons, Assessment, Training,
   Coaching**. There is no More. **Assessment** opens `/portal/assessment` (bd-5rz1v.13); an old link to
   the Curriculum page's `?tab=assessment` still lights it.
-- **Teacher, avatar:** her initials in a 40px circle inside a 56px target open the **account sheet**:
-  My Classes, Analytics, Certificates, My grades (bd-5rz1v.25) and My account, then a red outline Logout. On a phone the avatar
-  sits in a slim indigo strip at the top of pages that have no heading band yet. A page that draws its
-  own heading passes `ownHeading` to `PortalLayout`: the strip goes and the band carries the avatar
-  (`AccountAvatar`, which opens the same sheet through `accountSheet.ts`). Home does this. On a desktop
-  the avatar ends the top bar.
+- **Teacher, pull-up menu** (bd-5rz1v.18; deep-screens.html "Menu bar · pull up"): a grab handle on top
+  of the bottom bar. The bar's own empty space is the handle's button (`Open menu`, behind the five
+  items); a tap there, or a swipe up anywhere on the bar, opens an indigo panel rising from the bar over a
+  dimmed page: a grab mark, the who row (her initials, her name, school · Teacher), then a 3-column grid
+  of tiles: **My Classes, Certificates** (the new Training certificates page), **My grades** (the band
+  picker, kept reachable), **Language, My account, Analytics** (the old page, until Home replaces it),
+  and **Logout** in light red across the last row (the guarded logout: "Stop recording?" while a lesson
+  records). The menu row stays at the bottom, above the dim. It is `role="dialog"` with
+  `data-state="open"`, so Android Back closes it (Back sends Escape); so do a tap on the dim, a swipe
+  down, the handle again, and going to a tile. Leaders do not get it.
+- **Teacher, avatar:** her initials in a 40px circle inside a 56px target open the **same pull-up menu**
+  (the separate account sheet is gone). On a phone the avatar sits in a slim indigo strip at the top of
+  pages that have no heading band yet. A page that draws its own heading passes `ownHeading` to
+  `PortalLayout`: the strip goes and the band carries the avatar (`AccountAvatar`, which opens the panel
+  through `accountSheet.ts`). Home does this. On a desktop the avatar ends the top bar, and the panel is
+  a card under it.
+- **Language tile:** the portal's one language setting, `GET/PUT /api/portal/me/language` (the PUT goes
+  through the bot's `setUserLanguage`, the one writer; read the `language-protocol` skill). The tile names
+  the language it switches to (اردو / English). A tap writes first and only then turns the page (i18n
+  sets `lang` and `dir`); a failed write leaves the page and shows "Not saved". When the panel reads a
+  **locked** choice (she chose it) that the page is not showing, the page follows it, with no write; an
+  unlocked value changes nothing. The new UI's words are English until bd-5rz1v.20, so today a switch
+  turns the direction (RTL) and the words stay English.
 - **Teacher, desktop:** an indigo top bar with the NIETE mark, then **Home, Lesson Plans, Assessment,
   Training, Coaching**, then the avatar.
 - **Leader roles:** the same colours, with their own items: the bar plus More, whose sheet holds the rest,
