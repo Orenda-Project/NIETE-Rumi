@@ -68,6 +68,7 @@ const {
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
 const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role');
+const { resolveUserSchoolName } = require('../lib/user-school-name');
 // A coach's observation of her is the teacher's to see only once it is SENT to her.
 const TeacherObservation = require('../lib/teacher-observation');
 const { getOverall } = require('../services/coaching-frameworks.service');
@@ -842,6 +843,10 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
       throw err;  // User is critical, must fail
     });
 
+    // Her own school, for the My account page. Started now so it runs alongside
+    // the counts below; it never rejects (null when unknown or unreadable).
+    const schoolNamePromise = resolveUserSchoolName(supabase, user);
+
     // Counts, gathered with allSettled so one dead table cannot blank the page.
     //
     // bd-60079 — the lesson_plans count is gone. It counted her own
@@ -945,7 +950,7 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
     res.json({
       success: true,
       // bd-2434: includes `role` (+ contact fields) via the shared shaper.
-      user: publicUserPayload(user, { includeContact: true }),
+      user: { ...publicUserPayload(user, { includeContact: true }), schoolName: await schoolNamePromise },
       stats: {
         totalCoachingSessions: coachingSessionsResult.status === 'fulfilled' ? (coachingSessionsResult.value.count || 0) : 0,
         totalAssessments: assessmentsResult.status === 'fulfilled' ? (assessmentsResult.value.count || 0) : 0,

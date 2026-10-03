@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, ExternalLink, Mail, Archive, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import nieteLogo from '@/assets/niete-logo.png';
@@ -26,6 +26,13 @@ import {
  * policy ("Your Rights", "Data Retention"), which is the policy of record.
  */
 const PortalDeleteAccount = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  // The router gives the first page of a visit the key "default". Any other
+  // key means she got here inside the app (from My account, say), so Back
+  // returns her there; opened directly, it goes to the portal's front door.
+  const cameFromInApp = location.key !== 'default';
+
   return (
     <div className="min-h-screen bg-secondary px-4 py-8 sm:py-12">
       <div className="mx-auto w-full max-w-2xl">
@@ -140,9 +147,18 @@ const PortalDeleteAccount = () => {
         </div>
 
         <div className="mt-6 text-center">
-          {/* /portal/login forwards a signed-in user to her home, so this is the
-              right "back" for everyone without this page reading the session. */}
-          <Link to="/portal/login" className="inline-flex items-center gap-2 text-sm text-accent hover:text-accent/80">
+          {/* Back: to the page she came from in the app (My account), else to
+              /portal/login, which forwards a signed-in user to her home — so it
+              is right for everyone without this page reading the session. */}
+          <Link
+            to="/portal/login"
+            onClick={(e) => {
+              if (!cameFromInApp) return;
+              e.preventDefault();
+              navigate(-1);
+            }}
+            className="inline-flex items-center gap-2 text-sm text-accent hover:text-accent/80"
+          >
             <ArrowLeft className="w-4 h-4" />
             Back to the NIETE Portal
           </Link>
