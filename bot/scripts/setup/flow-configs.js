@@ -290,6 +290,18 @@ const FLOW_CONFIGS = [
     envVar: 'CHILD_TEST_CHECK_FLOW_ID',
     categories: ['OTHER'],
   },
+  {
+    // Child test v2 — the one end-of-visit review (bd-s1oo0.46, L28): only the answers the recording did
+    // not settle, Right / Wrong / Didn't answer. Navigate mode (no endpoint): the message carries the items
+    // and the submit arrives as an nfm_reply. Sandbox only for now: create or update the draft with
+    // bot/scripts/setup/create-child-test-review-flow-draft.js (refuses any other account), publish after
+    // the deploy. Regenerate the JSON with bot/scripts/generate-child-test-review-flow-json.js.
+    name: 'Child Test Review',
+    jsonPath: path.join(FLOWS_DIR, 'child-test-review.json'),
+    type: 'navigate',
+    envVar: 'CHILD_TEST_REVIEW_FLOW_ID',
+    categories: ['OTHER'],
+  },
 ];
 
 /** The flow names that a complete setup must have registered. */
