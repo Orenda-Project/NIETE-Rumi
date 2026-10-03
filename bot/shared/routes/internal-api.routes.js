@@ -1646,7 +1646,8 @@ router.post('/lp612/chapters', requireInternalKey, lp612Route('chapters', async 
 
 /**
  * POST /api/internal/lp612/lessons
- * Body { grade, subject, chapterKey, lang? } → { success, lessons: [{ …, ready }] }
+ * Body { grade, subject, chapterKey, lang?, userId? } → { success, lessons: [{ …, ready, sent }] }
+ * (`sent`: reached `userId` on WhatsApp — bd-5rz1v.14; false for all without a userId)
  *
  * `ready` is the field the UI must not drop. ~92% of taps are a cold miss, and
  * a teacher is entitled to know she is starting a three-minute job BEFORE she
@@ -1662,7 +1663,9 @@ router.post('/lp612/lessons', requireInternalKey, lp612Route('lessons', async (B
   if (!chapterKey) return res.status(400).json({ success: false, error: 'chapterKey is required' });
 
   const lang = clampLanguage(body.lang);
-  const lessons = await Browse.listLessons(grade, subject, chapterKey, lang);
+  // bd-5rz1v.14 — the teacher whose ✓✓ Sent marks the list (the portal passes its session's).
+  const userId = String(body.userId || '').trim() || null;
+  const lessons = await Browse.listLessons(grade, subject, chapterKey, lang, userId);
   return res.json({ success: true, lessons });
 }));
 
