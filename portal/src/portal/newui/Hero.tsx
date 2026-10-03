@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
  *
  *   ring  116px: a GREEN arc (progress) on the indigo-light track, a white centre, the count
  *         28px/800 in the middle. Read as a progress bar named by the title.
- *   icon  84px circle: done green, waiting amber, neutral grey; `spinning` turns the icon,
+ *   icon  84px circle: done green, waiting amber, error red, neutral grey; `spinning` turns the icon,
  *         only when motion is allowed.
  * Title 22px/800. `live` announces a change (a spinner turning into "Ready").
  */
@@ -17,7 +17,7 @@ export interface HeroProps {
   /** value 0–1 fills the arc; text sits in the middle ("1:10", "4/5"). */
   ring?: { value: number; text: string };
   icon?: LucideIcon;
-  tone?: 'done' | 'waiting' | 'neutral';
+  tone?: 'done' | 'waiting' | 'error' | 'neutral';
   spinning?: boolean;
   chips?: ReactNode;
   live?: boolean;
@@ -26,6 +26,7 @@ export interface HeroProps {
 const TONE = {
   done: 'bg-nu-done-bg text-nu-done',
   waiting: 'bg-nu-chip-warning-bg text-nu-chip-warning',
+  error: 'bg-nu-chip-error-bg text-nu-chip-error',
   neutral: 'bg-nu-neutral-tile text-nu-neutral-icon',
 } as const;
 

@@ -104,7 +104,7 @@ export function scanCopy(rel: string, text: string): CopyProblem[] {
 
 /* ── style: colour rule, logical spacing, reduced motion ─────────────────── */
 
-export type StyleRule = 'feature-colour' | 'raw-colour' | 'physical' | 'motion';
+export type StyleRule = 'feature-colour' | 'raw-colour' | 'physical' | 'motion' | 'theme';
 export type StyleProblem = { file: string; line: number; rule: StyleRule; text: string };
 
 /** The one file allowed to draw a feature colour. */
@@ -114,6 +114,13 @@ const RAW_COLOUR = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/;
 
 /** Physical (left/right) utilities: in Urdu they point the wrong way. Use start/end. */
 const PHYSICAL = /^-?(?:m[lr]|p[lr]|left|right|rounded-(?:[lr]|tl|tr|bl|br)|border-[lr]|scroll-[mp][lr]|space-x)(?:-|$)|^(?:text|float|clear)-(?:left|right)$/;
+
+/**
+ * Classes the OLD theme redefines, so they do not mean in the new UI what they say:
+ *   grid         index.css forces `.grid` to direction:ltr in Urdu — use [display:grid] (GRID)
+ *   rounded-lg/md/sm  tailwind.config.ts maps them to var(--radius) (1rem) — say the px
+ */
+const THEME_TRAP = /^(?:grid|rounded-(?:lg|md|sm))$/;
 
 /** Utilities that MOVE something: only under motion-safe:. Colour transitions are fine. */
 const MOTION = /^(?:animate-(?!none$)|transition$|transition-(?:all|transform)$)/;
@@ -148,6 +155,7 @@ export function scanStyle(rel: string, text: string): StyleProblem[] {
       if (RAW_COLOUR.test(token) && !/theme\(/.test(token)) out.push({ file: rel, line, rule: 'raw-colour', text: token });
       if (PHYSICAL.test(utility)) out.push({ file: rel, line, rule: 'physical', text: token });
       if (MOTION.test(utility) && !/(?:^|:)motion-safe(?::|$)/.test(variants)) out.push({ file: rel, line, rule: 'motion', text: token });
+      if (THEME_TRAP.test(utility)) out.push({ file: rel, line, rule: 'theme', text: token });
     }
   };
 

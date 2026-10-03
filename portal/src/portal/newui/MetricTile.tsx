@@ -73,7 +73,7 @@ export function MetricTile({ feature, value, label, to, onClick, wide, chips, em
 /** Home's grid of tiles: two across on a phone, four on a desktop, 10px apart. */
 export function MetricGrid({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <div role="group" aria-label={label} className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+    <div role="group" aria-label={label} className="[display:grid] grid-cols-2 gap-2.5 md:grid-cols-4">
       {children}
     </div>
   );

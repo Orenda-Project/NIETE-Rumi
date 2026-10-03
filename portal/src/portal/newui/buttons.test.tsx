@@ -139,6 +139,8 @@ describe("MetricGrid", () => {
   it("two columns on a phone, four on a desktop, 10px apart", () => {
     render(<MetricGrid label="This month"><span>x</span></MetricGrid>);
     const grid = screen.getByRole("group", { name: "This month" });
-    expect(classes(grid)).toEqual(expect.arrayContaining(["grid", "grid-cols-2", "md:grid-cols-4", "gap-2.5"]));
+    expect(classes(grid)).toEqual(expect.arrayContaining(["[display:grid]", "grid-cols-2", "md:grid-cols-4", "gap-2.5"]));
+    // Not `.grid`: index.css forces that LTR in Urdu, and Home's first tile must sit on the right.
+    expect(classes(grid)).not.toContain("grid");
   });
 });

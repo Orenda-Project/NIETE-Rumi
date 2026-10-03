@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { DateRangeButton, DateRangeSheet } from "./DateRange";
-import { DEFAULT_RANGE, RANGE_PRESETS, rangeLabel, rangeQuery, type DateRange } from "./range";
+import { DEFAULT_RANGE, pkDayMonth, RANGE_PRESETS, rangeFromSearch, rangeLabel, rangeQuery, rangeSearch, type DateRange } from "./range";
 
 /**
  * bd-5rz1v.19 — Home's date range (deep-screens.html `.rangebtn` and the "Date range" sheet).
@@ -32,6 +32,35 @@ describe("the ranges", () => {
   it("turn into the query the API takes", () => {
     expect(rangeQuery({ key: "this_week" })).toEqual({ range: "this_week" });
     expect(rangeQuery({ key: "custom", from: "2026-10-01", to: "2026-10-03" })).toEqual({ range: "custom", from: "2026-10-01", to: "2026-10-03" });
+  });
+});
+
+describe("the range in the address (bd-5rz1v.17: Home and its lists share it)", () => {
+  it.each([
+    ["", { key: "this_month" }],
+    ["?range=this_week", { key: "this_week" }],
+    ["?range=all", { key: "all" }],
+    ["?range=custom&from=2026-09-01&to=2026-09-30", { key: "custom", from: "2026-09-01", to: "2026-09-30" }],
+    ["?range=forever", { key: "this_month" }],
+    ["?range=custom&from=2026-09-30&to=2026-09-01", { key: "this_month" }],
+    ["?range=custom&from=2026-02-30&to=2026-03-01", { key: "this_month" }],
+    ["?range=custom&from=yesterday", { key: "this_month" }],
+  ] as Array<[string, DateRange]>)("%j reads as %j", (search, range) => {
+    expect(rangeFromSearch(new URLSearchParams(search))).toEqual(range);
+  });
+
+  it.each([
+    [{ key: "this_month" }, ""],
+    [{ key: "this_week" }, "?range=this_week"],
+    [{ key: "custom", from: "2026-09-01", to: "2026-09-30" }, "?range=custom&from=2026-09-01&to=2026-09-30"],
+  ] as Array<[DateRange, string]>)("%j writes %j (the default leaves the address clean)", (range, search) => {
+    expect(rangeSearch(range)).toBe(search);
+  });
+
+  it("a moment's day and month are Pakistan's", () => {
+    expect(pkDayMonth("2026-10-02T20:30:00Z")).toEqual({ day: "3", month: "Oct" });
+    expect(pkDayMonth("2026-10-02T05:00:00Z")).toEqual({ day: "2", month: "Oct" });
+    expect(pkDayMonth("not a date")).toBeNull();
   });
 });
 
