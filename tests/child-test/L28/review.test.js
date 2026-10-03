@@ -110,7 +110,7 @@ describe('visitSummary', () => {
 });
 
 describe('doubtfulItems', () => {
-  test('questions and maths.oral items under their bar, in visit order; story and fallback counts never', async () => {
+  test('questions and maths.oral items under their bar, in visit order; story and fallback counts never; a non-reader\'s skipped questions never (L31)', async () => {
     seed([
       { id: 's1', name: 'Ayesha Khan', blocks: { urdu: M.urdu({ qConf: [0.95, 0.5, 0.92], storyConf: 0.1 }), english: M.english({ qConf: [0.95, 0.95, 0.4] }), maths: M.maths({ lowConf: ['sums', 1] }) } },
       { id: 's2', name: 'Bilal Ahmed', blocks: { urdu: M.urdu({ qConf: [0.3, 0.95, 0.95], fallback: { letters: { correct: 2, of: 10, confidence: 0.1 }, words: { correct: 0, of: 10, confidence: 0.1 } } }), english: M.english(), maths: M.maths() } },
@@ -120,10 +120,10 @@ describe('doubtfulItems', () => {
       's1:questions[u3A-q2].verdict',
       's1:questions[e3A-q3].verdict',
       's1:maths.oral.sums[m3A-s2].verdict',
-      's2:questions[u3A-q1].verdict',
     ]);
     expect(aiOnly).toEqual([]);
     expect(items.some((i) => /story|fallback/.test(i.path))).toBe(false);
+    expect(items.some((i) => i.sessionId === 's2')).toBe(false);
     expect(items[0]).toMatchObject({ block: 'urdu', kind: 'question', number: 2, heard: expect.any(String) });
   });
 

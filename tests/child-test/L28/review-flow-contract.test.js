@@ -83,13 +83,13 @@ describe('review copy caps (code points)', () => {
     const { header, body } = review.reviewMessage(lang, 15, 'x'.repeat(2000), null);
     expect(cp(header)).toBeLessThanOrEqual(60);
     expect(cp(body)).toBeLessThanOrEqual(1024);
-    expect(body).toContain(r('childTestReviewAsk', { n: lang === 'en' ? '15' : '۱۵' }, lang));
+    expect(body).toContain(r('childTestReviewAsk', { n: lang === 'en' ? '15' : '۱۵', time: review.reviewTime(lang, 15) }, lang));
   });
 
   test('Urdu coach copy is gender-neutral (no gendered person-verbs addressed to the coach or child)', () => {
     const keys = ['childTestReviewAsk', 'childTestReviewIntro', 'childTestReviewSaved', 'childTestReviewAlready', 'childTestReviewNotSaved', 'childTestReviewHeading'];
     for (const k of keys) {
-      const s = r(k, { n: '۳' }, 'ur');
+      const s = r(k, { n: '۳', time: 'تقریباً ایک منٹ' }, 'ur');
       expect(s).not.toMatch(/(کرتی|کرتا|سکتی|سکتا|گئی|گیا) (ہیں|ہو)/);
     }
   });

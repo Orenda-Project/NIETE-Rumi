@@ -1211,7 +1211,8 @@ async function closeList(user, from, state, { quiet }) {
 //   Here, start → 1/3 Urdu story → note → 2/3 English story → note → 3/3 Maths → note
 //     each step is plain text with NO buttons: it must stay the last bubble, above the recorder (R3 §2a)
 //   the third note → maths scored once → "✅ <name> done. Thank the child." + the next child's prompt
-//   no child left → "🎉 All n children done (m min)" → review.visitSummary + review.sendReview (L28)
+//   no child left → "🎉 All n children done (m min)" → review.sendReview (L28), whose Flow message carries the
+//   results; review.visitSummary as text only when no Flow went out (L31: the results are sent once)
 // One child at a time: no message names another child until the current one is done.
 
 const VISIT_WAIT_MS = 2 * 60 * 1000;   // the last child's maths is being scored when the visit ends
@@ -1448,13 +1449,24 @@ async function afterVisit(coachUserId, from, lang, visit, sessionIds) {
     }
     await new Promise((r) => setTimeout(r, VISIT_POLL_MS));
   }
+  // The results reach the coach exactly once (L31, CONTRACT v0.14b CR-L28-2). With doubtful answers the review
+  // Flow message carries them; with none (or no end review, or a review that could not be sent) they go as text.
+  if (SW.endReview()) {
+    const r = await ports.review.sendReview(coachUserId, visit);
+    if (r && r.ok && r.items > 0) {
+      logToFile('child_test.review_sent', { visit, items: r.items });
+      return;
+    }
+    if (!r || !r.ok) logError('child_test.review_send_failed', { visit, error: r && (r.error || r.reason) });
+    else logToFile('child_test.review_sent', { visit, items: 0 });
+    if (r && r.ok && r.summary) {
+      await say(from, r.summary);
+      return;
+    }
+  }
   const summary = await ports.review.visitSummary(lang, visit);
   if (summary) await say(from, summary);
   else logToFile('child_test.visit_summary_missing', { visit }, 'warn');
-  if (!SW.endReview()) return;
-  const r = await ports.review.sendReview(coachUserId, visit);
-  if (!r || !r.ok) logError('child_test.review_send_failed', { visit, error: r && (r.error || r.reason) });
-  else logToFile('child_test.review_sent', { visit, items: r.items });
 }
 
 // ------------------------------------------------------------------ routers
