@@ -18,6 +18,7 @@ export { NumberGrid, type NumberGridProps } from './NumberGrid';
 export { Stepper, type StepperProps } from './Stepper';
 export { ToggleList, type ToggleListProps, type ToggleOption } from './ToggleList';
 export { Hero, type HeroProps } from './Hero';
+export { Panel, Fold, type PanelProps, type FoldProps } from './Panel';
 export { FeatureIcon, HeadingTile, type Feature } from './FeatureIcon';
 export { KIT_COPY, NAV_COPY, MONTHS, ASSESSMENT_COPY } from './copy';
 export { FOCUS, TAP, TAP_SQUARE, PRESS } from './styles';

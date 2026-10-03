@@ -86,6 +86,8 @@ describe("new UI tokens", () => {
       destructive: "0 4px 0 #8a1f12",
       destructivePressed: "0 1px 0 #8a1f12",
       nav: "0 -6px 18px rgba(20,22,29,0.18)",
+      // bd-5rz1v.26 — the recording bar floating in a desktop corner.
+      float: "0 6px 16px rgba(20,24,38,0.16)",
     });
     expect(SHADOW.button.startsWith(`0 4px 0 ${BUTTON.primary.edge}`)).toBe(true);
   });
@@ -184,6 +186,7 @@ describe("the Tailwind theme is built from the tokens", () => {
       "nu-destructive": SHADOW.destructive,
       "nu-destructive-pressed": SHADOW.destructivePressed,
       "nu-nav": SHADOW.nav,
+      "nu-float": SHADOW.float,
     });
     for (const [name, value] of Object.entries(tailwindShadows)) expect(shadows[name]).toBe(value);
     // Tailwind's own shadows are still there for every old page.
