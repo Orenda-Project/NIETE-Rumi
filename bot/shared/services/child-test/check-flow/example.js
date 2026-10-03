@@ -43,7 +43,7 @@ const MARKS = {
       flagged: [{ idx: 4, word: 'والد', verdict: 'wrong', confidence: 0.8 }, { idx: 8, word: 'گیا', verdict: 'skipped', confidence: 0.75 }, { idx: 10, word: 'کشتی', verdict: 'wrong', confidence: 0.4 }],
     },
     fallback: null,
-    questions: [row('u3A-q1', 'correct', 0.9, 'والد کے ساتھ'), row('u3A-q2', 'wrong', 0.8, 'پتھر'), row('u3A-q3', 'none', 0.4)],
+    questions: [row('u3A-q1', 'correct', 0.9, 'والد کے ساتھ'), row('u3A-q2', 'wrong', 0.9, 'پتھر'), row('u3A-q3', 'none', 0.4)],
     first_sounds: [row('u3A-fs1', 'correct', 0.4, 'م'), row('u3A-fs2', 'wrong', 0.4, 'ج'), row('u3A-fs3', 'correct', 0.4, 'ب'), row('u3A-fs4', 'none', 0), row('u3A-fs5', 'correct', 0.4, 'گ')],
     nonwords: [row('u3A-nw1', 'correct', 0.9), row('u3A-nw2', 'wrong', 0.8, 'نوری'), row('u3A-nw3', 'correct', 0.7), row('u3A-nw4', 'wrong', 0.5, 'بولو'), row('u3A-nw5', 'correct', 0.8)],
     maths: null,

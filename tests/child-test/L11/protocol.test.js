@@ -21,6 +21,10 @@ jest.mock('../../../bot/shared/storage/r2', () => mockR2);
 jest.mock('../../../bot/shared/config/supabase', () => ({ from: (t) => mockDb.from(t) }));
 jest.mock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../../bot/shared/services/menu.service', () => ({ sendMenu: jest.fn(async () => true) }));
+// L20: the strip's child-number read goes to OpenRouter (network boundary): it reads no number here,
+// so strip photos fall back to list order, as these scenarios expect.
+process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
+jest.mock('openai', () => jest.fn().mockImplementation(() => ({ chat: { completions: { create: async () => ({ choices: [{ message: { content: '{"child_no":null,"confidence":0}' } }], usage: { cost: 0 } }) } } })));
 
 const { logError } = require('../../../bot/shared/utils/logger');
 const ports = require('../../../bot/shared/services/child-test/conversation/ports');
@@ -84,22 +88,22 @@ async function threeNotes(tag) {
 // ------------------------------------------------------------------ 1. the class teacher sends the children
 
 describe('the class teacher sends the children', () => {
-  test('the list tells the coach to give the class teacher the roll numbers in order', async () => {
+  test('the list tells the coach which children to ask the class teacher for, name first, in order', async () => {
     await openList();
-    expect(last('list').body.text).toMatch(/class teacher.*in this order.*1, 2, 3, 4, 5/s);
+    expect(last('list').body.text).toMatch(/class teacher.*in this order: Child 3A-01 · roll 1, Child 3A-02 · roll 2, Child 3A-03 · roll 3, Child 3A-04 · roll 4, Child 3A-05 · roll 5/s);
   });
 
   test('Urdu list line: Urdu digits, list order', async () => {
     const UR = { ...COACH, preferred_language: 'ur' };
     await H.handleText(PHONE, '/egra', UR);
-    expect(last('list').body.text).toMatch(/کلاس ٹیچر.*۱، ۲، ۳، ۴، ۵/s);
+    expect(last('list').body.text).toMatch(/کلاس ٹیچر.*Child 3A-01.* · رول ۱، .*Child 3A-02.* · رول ۲، .*رول ۳، .*رول ۴، .*رول ۵/s);
   });
 
   test('the line drops a child already tested and shows the promoted alternate in order', async () => {
     await openList(); await startChild('d1'); await threeNotes('a');
     await H.handleList(COACH, PHONE, 'ctst_child:d2');
     await H.handleButton(COACH, PHONE, 'ctst_pres:d2:a');
-    expect(last('list').body.text).toMatch(/in this order[^\n]*: 3, 4, 6, 5/);
+    expect(last('list').body.text).toMatch(/in this order[^\n]*: Child 3A-03 · roll 3, Child 3A-04 · roll 4, Child 3A-06 · roll 6, Child 3A-05 · roll 5/);
   });
 
   test('observed teacher is the class teacher of the drawn class: one "Send to teacher" button, once per visit', async () => {
@@ -118,7 +122,7 @@ describe('the class teacher sends the children', () => {
     expect(last('list').body.text).toMatch(/class teacher/);
   });
 
-  test('"Send to teacher" sends the teacher ONE message with the roll numbers in order, to nobody else', async () => {
+  test('"Send to teacher" sends the teacher ONE message with the children in order, name first, to nobody else', async () => {
     await openList();
     const before = sent().length;
     expect(await H.handleButton(COACH, PHONE, 'ctst_tsend')).toBe(true);
@@ -126,7 +130,7 @@ describe('the class teacher sends the children', () => {
     const toTeacher = out.filter((m) => m.to === TEACHER.phone_number);
     expect(toTeacher).toHaveLength(1);
     expect(toTeacher[0].kind).toBe('text');
-    expect(toTeacher[0].text).toMatch(/Roll 1.*Roll 2.*Roll 3.*Roll 4.*Roll 5/s);
+    expect(toTeacher[0].text).toMatch(/Child 3A-01 · roll 1, Child 3A-02 · roll 2, Child 3A-03 · roll 3, Child 3A-04 · roll 4, Child 3A-05 · roll 5\./);
     expect(out.every((m) => m.to === TEACHER.phone_number || m.to === PHONE)).toBe(true);
     expect(out.find((m) => m.to === PHONE).text).toMatch(/Sent the order to the class teacher/);
   });
@@ -156,7 +160,7 @@ describe('one short cue line per block', () => {
     for (const b of ['u', 'e']) await H.handleVoice(voice(`s-${b}`), PHONE, COACH);
     const [u, e, m] = prompts();
     for (const p of [u, e, m]) expect(p.body.split('\n')).toHaveLength(1);
-    expect(u.body).toMatch(/^\*Child 5 of 5 · Urdu 1\/3\* · Form B card, Urdu page · Say «شروع» · /);
+    expect(u.body).toMatch(/^\*Child 5 of 5 · Child 3A-05 · roll 5 · Urdu 1\/3\* · Form B card, Urdu page · Say «شروع» · /);
     expect(e.body).toMatch(/English page · Say «start»/);
     expect(u.body).toMatch(/locked/i);
     expect(u.buttons.map((b) => b.id)).toEqual(['ctst_fb', 'ctst_stop', 'ctst_menu']);
@@ -182,7 +186,7 @@ describe('the waiting child writes the strip; photos any time or batched', () =>
     await openList(); await startChild('d1');
     const u = prompts().pop().body.split('\n');
     expect(u).toHaveLength(2);
-    expect(u[1]).toMatch(/Give Roll 2 the maths strip to write while waiting/);
+    expect(u[1]).toBe('While waiting, give Child 3A-02 · roll 2 the maths strip: write 2 in its Child no. box first.');   // L20
   });
 
   test('a strip photo sent mid-visit is claimed for the oldest child whose strip is missing; held until that child starts', async () => {
@@ -190,10 +194,10 @@ describe('the waiting child writes the strip; photos any time or batched', () =>
     // child 1 is on Urdu; two photos arrive: the first is child 1's, the second child 2's (handed over)
     expect(await H.handleImage(image('p1'), PHONE, COACH)).toBe(true);
     expect(calls('attachBlockMedia').pop()[1]).toEqual({ sessionId: 'sess-1', block: 'maths', photoR2Key: 'child-test/sandbox/school-1/sess-1/maths-strip.jpg' });
-    expect(last('text').text).toMatch(/Strip saved for Roll 1/);
+    expect(last('text').text).toMatch(/saved for the next in order: Child 3A-01 · roll 1 \(no\. 1\)/);   // L20: no number read → list order
     expect(await H.handleImage(image('p2'), PHONE, COACH)).toBe(true);
     expect(mockR2.uploadBuffer).toHaveBeenLastCalledWith(expect.any(Buffer), 'child-test/sandbox/school-1/held/d2/maths-strip.jpg', 'image/jpeg');
-    expect(last('text').text).toMatch(/Strip saved for Roll 2/);
+    expect(last('text').text).toMatch(/saved for the next in order: Child 3A-02 · roll 2 \(no\. 2\)/);
     // a third photo: nobody else has a strip (child 3 has not been handed one) → not the child test's
     expect(await H.handleImage(image('p3'), PHONE, COACH)).toBe(false);
 
@@ -213,9 +217,9 @@ describe('the waiting child writes the strip; photos any time or batched', () =>
   test('the coach moves on without waiting; at the end, a batch of photos is claimed in list order', async () => {
     await openList();
     for (const [i, d] of ['d1', 'd2', 'd3', 'd4', 'd5'].entries()) { await startChild(d); await threeNotes(`b${i}`); }
-    const batch = sent().filter((m) => /Send the strip photos now, one per child, in list order/.test(m.body || m.text || '')).pop();
+    const batch = sent().filter((m) => /Send the strip photos now, one per child, in any order/.test(m.body || m.text || '')).pop();
     expect(batch).toBeTruthy();
-    expect(batch.body || batch.text).toMatch(/Roll 1, Roll 2, Roll 3, Roll 4, Roll 5/);
+    expect(batch.body || batch.text).toMatch(/Child 3A-01 · roll 1 \(no\. 1\), Child 3A-02 · roll 2 \(no\. 2\), Child 3A-03 · roll 3 \(no\. 3\), Child 3A-04 · roll 4 \(no\. 4\), Child 3A-05 · roll 5 \(no\. 5\)/);
     expect(calls('sendCheck')).toHaveLength(0);
     for (let i = 1; i <= 5; i++) expect(await H.handleImage(image(`end-${i}`), PHONE, COACH)).toBe(true);
     await H.__drain();

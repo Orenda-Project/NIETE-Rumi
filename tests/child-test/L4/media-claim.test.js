@@ -48,6 +48,10 @@ jest.mock('../../../bot/shared/services/observe/observe-audio-router', () => ({
 jest.mock('../../../bot/shared/services/coaching/media-attach.service', () => ({
   handlePhotoArrival: jest.fn(async () => true),
 }));
+// L20: the strip's child-number read goes to OpenRouter (network boundary): it reads no number here,
+// so strip photos fall back to list order, as these scenarios expect.
+process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
+jest.mock('openai', () => jest.fn().mockImplementation(() => ({ chat: { completions: { create: async () => ({ choices: [{ message: { content: '{"child_no":null,"confidence":0}' } }], usage: { cost: 0 } }) } } })));
 
 const redis = require('../../../bot/shared/services/cache/railway-redis.service');
 const WhatsAppService = require('../../../bot/shared/services/whatsapp.service');

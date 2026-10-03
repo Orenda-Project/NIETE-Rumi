@@ -100,7 +100,7 @@ async function listStudents(ids) {
   if (!unique.length) return { ok: true, students: [] };
   const { data, error } = await supabase.from('students')
     // Only columns 00_complete-schema declares: a fresh database has no students.status/merged_into.
-    .select('id, roll_number, student_name, student_name_urdu, is_active')
+    .select('id, roll_number, student_name, student_name_urdu, father_name, father_name_urdu, is_active')
     .in('id', unique);
   if (error) return fail('listStudents', error, { students: unique.length });
   return { ok: true, students: data || [] };

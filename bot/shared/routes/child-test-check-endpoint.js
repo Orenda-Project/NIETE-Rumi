@@ -43,7 +43,7 @@ function screenFor(ctx, block, extra = {}) {
     coachMarks: (row && row.coach_marks) || null,
     items: ctx.items,
     lang: ctx.lang,
-    child: { label: ctx.S.child_line(whoOf(ctx.S, ctx.roll), ctx.session.grade) },
+    child: { label: ctx.S.child_line(whoOf(ctx), ctx.session.grade) },
     aiStatus: aiStatusOf(row),
     ...extra,
   });
@@ -114,7 +114,7 @@ async function handleChildTestCheckDataExchange(flowToken, screen, screenData = 
     return notSaved(ctx.S, ctx.session.id);
   }
   logEvent('child_test.check_done', { sessionId: ctx.session.id });
-  return doneScreen(ctx.S, { done_line: ctx.S.done_saved, next_line: ctx.S.done_next(whoOf(ctx.S, ctx.roll)) }, ctx.session.id);
+  return doneScreen(ctx.S, { done_line: ctx.S.done_saved, next_line: ctx.S.done_next(whoOf(ctx)) }, ctx.session.id);
 }
 
 /** The decrypted request → the screen to send back (the route encrypts it). */
