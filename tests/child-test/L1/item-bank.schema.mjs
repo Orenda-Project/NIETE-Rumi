@@ -257,7 +257,7 @@ test('Urdu text sanity: Urdu letters (not Arabic look-alikes), no stray Latin, n
 // ------------------------------------------------------------------ v2 (CONTRACT §19, COACH_JOURNEY_V2 §3.1)
 const URDU_SCRIPT = /[؀-ۿ]/;
 // Words said to the child are the same for every child: no gendered address, no gendered first person.
-const UR_GENDERED = /(^|\s)(بیٹا|بیٹی|بیٹے|بچی|بچہ|لڑکی|لڑکا|بھائی|بہن)(?=$|[\s،۔؟!])|ں (گا|گی)(?=$|[\s،۔؟!])/u;
+const UR_GENDERED = /(^|\s)(بیٹا|بیٹی|بیٹے|بچی|بچہ|لڑکی|لڑکا|بھائی|بہن)(?=$|[\s،۔؟!])|ں (گا|گی|گے)(?=$|[\s،۔؟!])/u;   // a future ending carries the gender of whoever does it
 const EN_GENDERED = /\b(he|she|him|her|his|boy|girl|son|beta)\b/i;
 const sameLine = (a, b) => String(a).replace(/[.؟?۔!]+$/u, '').trim() === String(b).replace(/[.؟?۔!]+$/u, '').trim();
 

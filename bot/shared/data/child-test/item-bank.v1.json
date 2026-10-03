@@ -272,12 +272,12 @@
               }
             ],
             "script": {
-              "greet": "السلام علیکم! ہم مل کر ایک چھوٹی سی کہانی پڑھیں گے۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
+              "greet": "السلام علیکم! آج آپ کو ایک چھوٹی سی کہانی پڑھنی ہے اور پھر کچھ سوالوں کے جواب دینے ہیں۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
               "start": "یہ کہانی اونچی آواز میں پڑھیں۔ اب شروع کریں",
               "go_on": "آگے پڑھیں",
               "stop": "بس، شکریہ",
               "questions_intro": "اب کہانی کے بارے میں کچھ سوالات سنیں",
-              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ لفظ پڑھیں۔"
+              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ الفاظ پڑھیں۔"
             },
             "first_sounds": [
               {
@@ -674,6 +674,8 @@
                   "a small tree",
                   "a baby tree",
                   "پودا",
+                  "پودہ",
+                  "پودے",
                   "چھوٹا پودا",
                   "ایک پودا",
                   "ایک چھوٹا پودا",
@@ -690,16 +692,19 @@
                   "a bag",
                   "کتابیں",
                   "کھانا",
-                  "پانی"
+                  "پانی",
+                  "بیج",
+                  "مٹی",
+                  "بستہ"
                 ],
-                "rubric": "Correct if the child says a plant or a small plant (a small or baby tree is the same thing). Books, food, water, seeds or soil are wrong. An answer in Urdu or English is accepted.",
+                "rubric": "Correct if the child says a plant or a small plant (a small or baby tree is the same thing). Just \"tree\" / درخت repeats question 1 and is not enough. Books, food, water, seeds or soil are wrong. An answer in Urdu or English is accepted.",
                 "source": "rdcomp_lit3_eng"
               },
               {
                 "id": "e3A-q3",
                 "prompt": "Why was the teacher happy with Imran?",
                 "type": "inferential",
-                "needs_line": 5,
+                "needs_line": 6,
                 "accept": [
                   "he planted the tree well",
                   "he showed the class how to plant it",
@@ -732,11 +737,11 @@
               }
             ],
             "script": {
-              "start": "Please read this story aloud. Please start reading",
+              "start": "Read this story out loud. Please start reading",
               "go_on": "Go on.",
               "stop": "Stop, thank you",
               "questions_intro": "Now listen to some questions about the story",
-              "fallback": "That's okay. Now read these letters, then these words."
+              "fallback": "That's okay. Read these letters, then these words."
             },
             "nonwords": [
               {
@@ -1273,7 +1278,7 @@
                 "wp_intro": "اب کہانی والے دو سوال غور سے سنیں",
                 "stop": "بس، شکریہ"
               },
-              "next_rule": "no answer after a slow count of 5: the coach says the next line and moves on; the item is scored as no answer",
+              "next_rule": "the child says nothing for about 5 seconds: the coach says «اگلا» and moves on; the item is scored as no answer",
               "equated_note": "Set A is the May 2026 instrument itself."
             }
           }
@@ -1479,12 +1484,12 @@
               }
             ],
             "script": {
-              "greet": "السلام علیکم! ہم مل کر ایک چھوٹی سی کہانی پڑھیں گے۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
+              "greet": "السلام علیکم! آج آپ کو ایک چھوٹی سی کہانی پڑھنی ہے اور پھر کچھ سوالوں کے جواب دینے ہیں۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
               "start": "یہ کہانی اونچی آواز میں پڑھیں۔ اب شروع کریں",
               "go_on": "آگے پڑھیں",
               "stop": "بس، شکریہ",
               "questions_intro": "اب کہانی کے بارے میں کچھ سوالات سنیں",
-              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ لفظ پڑھیں۔"
+              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ الفاظ پڑھیں۔"
             },
             "first_sounds": [
               {
@@ -1914,11 +1919,11 @@
               }
             ],
             "script": {
-              "start": "Please read this story aloud. Please start reading",
+              "start": "Read this story out loud. Please start reading",
               "go_on": "Go on.",
               "stop": "Stop, thank you",
               "questions_intro": "Now listen to some questions about the story",
-              "fallback": "That's okay. Now read these letters, then these words."
+              "fallback": "That's okay. Read these letters, then these words."
             },
             "nonwords": [
               {
@@ -2441,9 +2446,9 @@
                 },
                 {
                   "id": "m3B-owp2",
-                  "prompt_ur": "زینب کے پاس ۱۴ غبارے ہیں۔ ان میں سے ۵ غبارے نیلے ہیں، باقی سب پیلے ہیں۔ زینب کے پاس کتنے پیلے غبارے ہیں؟",
-                  "prompt_en": "Zainab has 14 balloons. 5 of those balloons are blue. The rest are yellow. How many yellow balloons does Zainab have?",
-                  "answer": 9,
+                  "prompt_ur": "زینب کے پاس ۱۷ غبارے ہیں۔ ان میں سے ۴ غبارے نیلے ہیں، باقی سب پیلے ہیں۔ زینب کے پاس کتنے پیلے غبارے ہیں؟",
+                  "prompt_en": "Zainab has 17 balloons. 4 of those balloons are blue. The rest are yellow. How many yellow balloons does Zainab have?",
+                  "answer": 13,
                   "source": "generated-parallel"
                 }
               ],
@@ -2455,7 +2460,7 @@
                 "wp_intro": "اب کہانی والے دو سوال غور سے سنیں",
                 "stop": "بس، شکریہ"
               },
-              "next_rule": "no answer after a slow count of 5: the coach says the next line and moves on; the item is scored as no answer",
+              "next_rule": "the child says nothing for about 5 seconds: the coach says «اگلا» and moves on; the item is scored as no answer",
               "equated_note": "Parallel items (same structure, different numbers and contexts); not yet equated with Set A."
             }
           }
@@ -2828,12 +2833,12 @@
               }
             ],
             "script": {
-              "greet": "السلام علیکم! ہم مل کر ایک چھوٹی سی کہانی پڑھیں گے۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
+              "greet": "السلام علیکم! آج آپ کو ایک چھوٹی سی کہانی پڑھنی ہے اور پھر کچھ سوالوں کے جواب دینے ہیں۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
               "start": "یہ کہانی اونچی آواز میں پڑھیں۔ اب شروع کریں",
               "go_on": "آگے پڑھیں",
               "stop": "بس، شکریہ",
               "questions_intro": "اب کہانی کے بارے میں کچھ سوالات سنیں",
-              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ لفظ پڑھیں۔"
+              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ الفاظ پڑھیں۔"
             },
             "first_sounds": [
               {
@@ -3390,6 +3395,8 @@
                   "a small tree",
                   "a baby tree",
                   "پودا",
+                  "پودہ",
+                  "پودے",
                   "چھوٹا پودا",
                   "ایک پودا",
                   "ایک چھوٹا پودا",
@@ -3407,9 +3414,13 @@
                   "a list",
                   "کتابیں",
                   "کھانا",
-                  "پانی"
+                  "پانی",
+                  "بیج",
+                  "مٹی",
+                  "بستہ",
+                  "فہرست"
                 ],
-                "rubric": "Correct if the child says a plant or a small plant (a small or baby tree is the same thing). Books, food, water, seeds, soil or a list are wrong. An answer in Urdu or English is accepted.",
+                "rubric": "Correct if the child says a plant or a small plant (a small or baby tree is the same thing). Just \"tree\" / درخت repeats question 1 and is not enough. Books, food, water, seeds, soil or a list are wrong. An answer in Urdu or English is accepted.",
                 "source": "rdcomp_lit3_eng"
               },
               {
@@ -3429,25 +3440,43 @@
                   "تاکہ بچے باری باری پانی دیں",
                   "تاکہ درخت سوکھ نہ جائے",
                   "تاکہ درخت کو پانی ملتا رہے",
-                  "کیونکہ بہن نے پوچھا کہ پانی کون دے گا"
+                  "کیونکہ بہن نے پوچھا کہ پانی کون دے گا",
+                  "to water it",
+                  "to water the tree",
+                  "so they could water the tree",
+                  "so the tree would not die",
+                  "so somebody waters it in the holidays",
+                  "پانی دینے کے لیے",
+                  "درخت کو پانی دینے کے لیے",
+                  "تاکہ درخت مر نہ جائے",
+                  "چھٹیوں میں پانی دینے کے لیے",
+                  "تاکہ سب باری باری پانی دیں"
                 ],
                 "reject": [
                   "to plant more trees",
                   "to give it to his sister",
                   "because the teacher told him",
                   "to show the teacher",
-                  "to put on the wall"
+                  "to put on the wall",
+                  "to take turns",
+                  "for the holidays",
+                  "for the tree",
+                  "باری باری",
+                  "استاد کو دکھانے کے لیے",
+                  "دیوار پر لگانے کے لیے",
+                  "چھٹیوں کے لیے",
+                  "درخت کے لیے"
                 ],
-                "rubric": "Correct if the child says the list was so the tree would keep getting water (in the holidays) with children taking turns, or that his sister had asked who would water it. \"To take turns\" alone, without saying what for, is wrong. Evidence is lines 10-12. An answer in Urdu or English is accepted.",
+                "rubric": "Correct if the child says the list was so the tree would keep getting water (in the holidays), with children taking turns, or that his sister had asked who would water it. Saying the purpose was watering is enough (\"to water it\", \"پانی دینے کے لیے\"); so is keeping the tree alive. \"To take turns\", \"for the holidays\" or \"for the tree\" alone, without watering, is wrong. Evidence is lines 10-12. An answer in Urdu or English is accepted.",
                 "source": "generated"
               }
             ],
             "script": {
-              "start": "Please read this story aloud. Please start reading",
+              "start": "Read this story out loud. Please start reading",
               "go_on": "Go on.",
               "stop": "Stop, thank you",
               "questions_intro": "Now listen to some questions about the story",
-              "fallback": "That's okay. Now read these letters, then these words."
+              "fallback": "That's okay. Read these letters, then these words."
             },
             "nonwords": [
               {
@@ -3989,7 +4018,7 @@
                 "wp_intro": "اب کہانی والے دو سوال غور سے سنیں",
                 "stop": "بس، شکریہ"
               },
-              "next_rule": "no answer after a slow count of 5: the coach says the next line and moves on; the item is scored as no answer",
+              "next_rule": "the child says nothing for about 5 seconds: the coach says «اگلا» and moves on; the item is scored as no answer",
               "equated_note": "Set A is the May 2026 instrument itself."
             }
           }
@@ -4349,12 +4378,12 @@
               }
             ],
             "script": {
-              "greet": "السلام علیکم! ہم مل کر ایک چھوٹی سی کہانی پڑھیں گے۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
+              "greet": "السلام علیکم! آج آپ کو ایک چھوٹی سی کہانی پڑھنی ہے اور پھر کچھ سوالوں کے جواب دینے ہیں۔ یہ کوئی امتحان نہیں ہے۔ کیا آپ تیار ہیں؟",
               "start": "یہ کہانی اونچی آواز میں پڑھیں۔ اب شروع کریں",
               "go_on": "آگے پڑھیں",
               "stop": "بس، شکریہ",
               "questions_intro": "اب کہانی کے بارے میں کچھ سوالات سنیں",
-              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ لفظ پڑھیں۔"
+              "fallback": "کوئی بات نہیں۔ اب یہ حروف پڑھیں، پھر یہ الفاظ پڑھیں۔"
             },
             "first_sounds": [
               {
@@ -4878,37 +4907,35 @@
             "questions": [
               {
                 "id": "e5B-q1",
-                "prompt": "What did Amna's group use to make the water filter?",
+                "prompt": "What old thing did Amna's group use to make the water filter?",
                 "type": "literal",
                 "needs_line": 3,
                 "accept": [
                   "an old plastic bottle",
+                  "old plastic bottle",
                   "plastic bottle",
                   "a bottle",
                   "bottle",
-                  "stones, sand and cotton",
-                  "sand",
-                  "stones",
-                  "cotton",
+                  "an old bottle",
                   "بوتل",
                   "پلاسٹک کی بوتل",
-                  "پتھر، ریت اور روئی",
-                  "ریت",
-                  "روئی"
+                  "پرانی بوتل",
+                  "پرانی پلاسٹک کی بوتل"
                 ],
                 "reject": [
                   "a cup",
                   "a bucket",
                   "muddy water",
                   "water",
-                  "mud"
+                  "mud",
+                  "a box"
                 ],
-                "rubric": "Correct if the child names the bottle, or any one of the stones, sand or cotton they filled it with. Water or mud alone is wrong. An answer in Urdu or English is accepted.",
+                "rubric": "Correct if the child names the bottle (an old plastic bottle). The stones, sand or cotton are what went inside it and are not the answer to this question. An answer in Urdu or English is accepted.",
                 "source": "generated"
               },
               {
                 "id": "e5B-q2",
-                "prompt": "What did they fill the bottle with?",
+                "prompt": "What did they fill the filter with?",
                 "type": "literal",
                 "needs_line": 5,
                 "accept": [
@@ -4941,35 +4968,40 @@
               },
               {
                 "id": "e5B-q3",
-                "prompt": "Why did Amna want to tell her grandma about the prize?",
+                "prompt": "How did Amna's grandma help the group win the prize?",
                 "type": "inferential",
-                "needs_line": 12,
+                "needs_line": 13,
                 "accept": [
-                  "her grandma gave her the idea",
+                  "she gave them the idea",
+                  "she gave Amna the idea",
                   "the idea came from her grandma",
-                  "grandma told her how people cleaned water",
-                  "grandma would be proud because it was her idea",
-                  "کیونکہ دادی نے اسے یہ طریقہ بتایا تھا",
+                  "she told Amna how people cleaned water",
+                  "she told her how villages cleaned water",
+                  "it was grandma's idea",
+                  "دادی نے طریقہ بتایا تھا",
                   "نانی نے آئیڈیا دیا تھا",
-                  "یہ دادی کا طریقہ تھا"
+                  "یہ دادی کا طریقہ تھا",
+                  "دادی نے بتایا تھا کہ گاؤں میں پانی کیسے صاف کرتے تھے"
                 ],
                 "reject": [
-                  "she was hungry",
-                  "her grandma was ill",
-                  "because she won",
-                  "because she was happy",
-                  "to make her grandma happy"
+                  "she made the filter",
+                  "she came to the fair",
+                  "she gave a hug",
+                  "she gave them money",
+                  "she was proud",
+                  "اس نے فلٹر بنایا",
+                  "وہ میلے میں آئیں"
                 ],
-                "rubric": "Correct if the child links telling grandma to the idea coming from her (grandma told her how villages cleaned water). 'Happy' or 'proud' counts only when tied to it being grandma's idea. Wrong if the answer only restates that she won or was happy, or gives a reason not in the story. Grandma = دادی / نانی / grandmother. An answer in Urdu or English is accepted.",
+                "rubric": "Correct if the child says grandma gave the idea: she had told Amna how people in villages once cleaned water this way. Making the filter, coming to the fair, or the hug at the end is wrong. Grandma = دادی / نانی / grandmother. An answer in Urdu or English is accepted.",
                 "source": "generated"
               }
             ],
             "script": {
-              "start": "Please read this story aloud. Please start reading",
+              "start": "Read this story out loud. Please start reading",
               "go_on": "Go on.",
               "stop": "Stop, thank you",
               "questions_intro": "Now listen to some questions about the story",
-              "fallback": "That's okay. Now read these letters, then these words."
+              "fallback": "That's okay. Read these letters, then these words."
             },
             "nonwords": [
               {
@@ -5483,17 +5515,17 @@
                 {
                   "id": "m5B-os4",
                   "label": "4",
-                  "prompt": "91 ÷ 7",
-                  "answer": 13,
+                  "prompt": "84 ÷ 7",
+                  "answer": 12,
                   "source": "generated-parallel"
                 }
               ],
               "word_problems": [
                 {
                   "id": "m5B-owp1",
-                  "prompt_ur": "سارہ نے ایک الماری میں ۵ کتابیں رکھیں۔ اب الماری میں ۲۳ کتابیں ہیں۔ شروع میں الماری میں کتنی کتابیں تھیں؟",
-                  "prompt_en": "Sara puts 5 books on a shelf. Now there are 23 books on the shelf. How many books were on the shelf to begin with?",
-                  "answer": 18,
+                  "prompt_ur": "سارہ نے ایک الماری میں ۵ کتابیں رکھیں۔ اب الماری میں ۲۷ کتابیں ہیں۔ شروع میں الماری میں کتنی کتابیں تھیں؟",
+                  "prompt_en": "Sara puts 5 books on a shelf. Now there are 27 books on the shelf. How many books were on the shelf to begin with?",
+                  "answer": 22,
                   "source": "generated-parallel"
                 },
                 {
@@ -5512,7 +5544,7 @@
                 "wp_intro": "اب کہانی والے دو سوال غور سے سنیں",
                 "stop": "بس، شکریہ"
               },
-              "next_rule": "no answer after a slow count of 5: the coach says the next line and moves on; the item is scored as no answer",
+              "next_rule": "the child says nothing for about 5 seconds: the coach says «اگلا» and moves on; the item is scored as no answer",
               "equated_note": "Parallel items (same structure, different numbers and contexts); not yet equated with Set A."
             }
           }
