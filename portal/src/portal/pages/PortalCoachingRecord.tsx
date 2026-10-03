@@ -20,6 +20,10 @@ import { takeHandedOffRecording } from '../lib/lessonHandoff';
 import type { RecordStart } from '../components/coaching/CoachingHome';
 import { withDuration } from '../lib/webmDuration';
 import { sendLesson, SendError, type LibraryPick } from '../lib/coachingSend';
+import { hasHistoryBehind, lessonFilename, useMicLevel } from '../lib/recordFlow';
+import { useCoachingUi } from '../lib/coachingUi';
+import { AuthContext } from '../hooks/authContext';
+import RecordPage from '../newui/coaching/RecordPage';
 
 /**
  * bd-5rz1v — recording and sending a lesson. Reached from Coaching's "Send a
@@ -150,46 +154,6 @@ type Plan =
 type Stage =
   | 'starting' | 'micBlocked' | 'recording' | 'check' | 'library' | 'sending' | 'failed' | 'busy' | 'sent';
 
-function lessonFilename(ext: string, at = new Date()): string {
-  const d = at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  const t = `${String(at.getHours()).padStart(2, '0')}.${String(at.getMinutes()).padStart(2, '0')}`;
-  return `Lesson ${d} ${t}${ext}`;
-}
-
-/** A live 0..1 microphone level, or null where Web Audio is unavailable. */
-function useMicLevel(stream: MediaStream | null, active: boolean): number | null {
-  const [level, setLevel] = useState<number | null>(null);
-  useEffect(() => {
-    if (!stream || !active) return undefined;
-    const Ctx = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext })
-      .AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return undefined;
-    let ctx: AudioContext | null = null;
-    let timer: ReturnType<typeof setInterval> | null = null;
-    try {
-      ctx = new Ctx();
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      source.connect(analyser);
-      const buf = new Uint8Array(analyser.fftSize);
-      timer = setInterval(() => {
-        analyser.getByteTimeDomainData(buf);
-        let sum = 0;
-        for (let i = 0; i < buf.length; i += 1) { const v = (buf[i] - 128) / 128; sum += v * v; }
-        setLevel(Math.sqrt(sum / buf.length));
-      }, 120);
-    } catch {
-      setLevel(null);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-      try { void ctx?.close(); } catch { /* closed */ }
-    };
-  }, [stream, active]);
-  return level;
-}
-
 const Card = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
   <div className={`rounded-[14px] border border-[#e5e7eb] bg-white p-3.5 ${className}`}>{children}</div>
 );
@@ -200,16 +164,6 @@ const Warning = ({ children }: { children: ReactNode }) => (
     <span>{children}</span>
   </div>
 );
-
-/** A page of this app behind this one in the browser's history (React Router's own index). */
-function hasHistoryBehind(): boolean {
-  try {
-    const idx = (window.history.state as { idx?: unknown } | null)?.idx;
-    return typeof idx === 'number' && idx > 0;
-  } catch {
-    return false;
-  }
-}
 
 /** Where this page lives: a recording started here returns here (RecordingBar). */
 export const RECORD_PATH = '/portal/coaching/new';
@@ -224,12 +178,13 @@ function useSession(): RecordingSession {
   return session;
 }
 
-const PortalCoachingRecord = () => {
+const LegacyRecord = ({ known }: { known?: boolean }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const session = useSession();
   // Back from elsewhere to a lesson still recording: it is on for her, no need to ask /config.
-  const [enabled, setEnabled] = useState<boolean | null>(() => (session.active ? true : null));
+  // bd-5rz1v.26 — nor when the page in front of this one has just read it (`known`).
+  const [enabled, setEnabled] = useState<boolean | null>(() => (session.active ? true : known ?? null));
   const [stage, setStage] = useState<Stage>(() => (session.active ? 'recording' : 'starting'));
   const [fileError, setFileError] = useState<string | null>(null);
   const begun = useRef(false);
@@ -269,7 +224,7 @@ const PortalCoachingRecord = () => {
 
   // ── first load: is it on for her? ─────────────────────────────────────────
   useEffect(() => {
-    if (session.active) return undefined;
+    if (session.active || known != null) return undefined;
     let live = true;
     Promise.resolve().then(() => portal.getConfig())
       .then((cfg) => { if (live) setEnabled(cfg?.features?.selfObservation === true); })
@@ -802,6 +757,23 @@ const PortalCoachingRecord = () => {
         )}
       </div>
     </PortalLayout>
+  );
+};
+
+/**
+ * bd-5rz1v.26 — with portal_new_ui on as well (a teacher), the new UI's record-and-send page
+ * (newui/coaching/RecordPage). Otherwise this page, unchanged (PortalCoaching.flagOff.test.tsx),
+ * which reads /config for itself as it always did. The user read for the flag is handed to the
+ * layout inside, so it is not read twice.
+ */
+const PortalCoachingRecord = () => {
+  const { ui, auth } = useCoachingUi();
+  return (
+    <AuthContext.Provider value={auth}>
+      {ui === 'loading' ? <PortalLayout><LoadingState type="full" /></PortalLayout>
+        : ui === 'new' ? <RecordPage />
+          : <LegacyRecord known={ui === 'self'} />}
+    </AuthContext.Provider>
   );
 };
 

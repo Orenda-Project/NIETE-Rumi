@@ -81,14 +81,16 @@ describe("BottomActions", () => {
     expect(screen.getAllByRole("button")).toHaveLength(2);
   });
 
-  it("bd-5rz1v.14: while the recording bar shows, it rises above the bar (88px + 56px bar + 8px)", () => {
+  // bd-5rz1v.26 — the bar is now an opaque strip on the menu (80px, 8px, the 56px bar): the
+  // buttons stand exactly on its top, 144px up, with their own 14px below the button.
+  it("bd-5rz1v.14: while the recording bar shows, it rises above the bar (80px + 8px + 56px bar)", () => {
     render(
       <RecordingBarShownContext.Provider value>
         <BottomActions><BottomButton>Open</BottomButton></BottomActions>
       </RecordingBarShownContext.Provider>,
     );
     const panel = screen.getByTestId("newui-bottom-actions");
-    expect(classes(panel)).toContain("bottom-[calc(152px+env(safe-area-inset-bottom))]");
+    expect(classes(panel)).toContain("bottom-[calc(144px+env(safe-area-inset-bottom))]");
     expect(classes(panel)).not.toContain("bottom-[calc(80px+env(safe-area-inset-bottom))]");
   });
 

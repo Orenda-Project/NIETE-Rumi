@@ -1,7 +1,7 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { portal } from '../services/api';
 import { isLeader } from './leaderRole';
-import { useNewUi } from './useNewUi';
-import { useSelfObservation } from './useSelfObservation';
 
 /**
  * bd-5rz1v.26 — which Coaching screens she gets.
@@ -11,28 +11,38 @@ import { useSelfObservation } from './useSelfObservation';
  *              portal_self_observation guards (requireSelfObservation).
  *   'self'     self-observation only, or a school leader: CoachingHome / LessonPage, unchanged
  *   'legacy'   neither: today's list and report page, unchanged
- *   'loading'  /config (or the user, for the new-UI answer) is still being read
+ *   'loading'  /config is still being read (or, with both flags on, the user)
  *
- * Fail-CLOSED, as both flags are: a /config that cannot be read is 'legacy', exactly as before.
- * Same reads as before — useSelfObservation's /config, and useNewUi's (shared with the layout
- * and the menu, and remembered per user so pages do not flash).
+ * ONE /config read gives both flags, as useSelfObservation's one read did: with the new UI off
+ * the pages wait for nothing they did not wait for before. Fail-CLOSED, as both flags are: a
+ * /config that cannot be read, or a client that throws, is 'legacy', exactly as before.
  *
  * The auth it returns is the page's own; the page hands it to everything inside
  * (AuthContext.Provider), so the layout does not read the user a second time.
  */
 export type CoachingUi = 'loading' | 'new' | 'self' | 'legacy';
 
+type Flags = { self: boolean; newUi: boolean };
+
 export function useCoachingUi(): { ui: CoachingUi; auth: ReturnType<typeof useAuth> } {
   const auth = useAuth();
   const { user, loading } = auth;
-  const self = useSelfObservation();
-  const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user);
+  const [flags, setFlags] = useState<Flags | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    // Promise.resolve().then: a config client that throws synchronously is "off", not a crash.
+    Promise.resolve().then(() => portal.getConfig())
+      .then((cfg) => { if (live) setFlags({ self: cfg?.features?.selfObservation === true, newUi: cfg?.features?.newUi === true }); })
+      .catch(() => { if (live) setFlags({ self: false, newUi: false }); });
+    return () => { live = false; };
+  }, []);
 
   let ui: CoachingUi;
-  if (self === null) ui = 'loading';
-  else if (!self) ui = 'legacy';
-  else if (user && isLeader(user)) ui = 'self';
-  else if (newUi === null && (loading || user)) ui = 'loading';
-  else ui = newUi === true && user ? 'new' : 'self';
+  if (!flags) ui = 'loading';
+  else if (!flags.self) ui = 'legacy';
+  else if (!flags.newUi) ui = 'self';
+  else if (loading && !user) ui = 'loading';
+  else ui = user && !isLeader(user) ? 'new' : 'self';
   return { ui, auth };
 }

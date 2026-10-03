@@ -21,9 +21,10 @@ import { FOCUS, TAP } from './styles';
  *
  * BottomActions holds one (or a stack of) these above the menu bar on a phone — 2px 14px 14px,
  * 10px apart — and inline on a desktop. It keeps an equal space in the page so it never covers
- * the last row. While a lesson records, the recording bar sits above the menu (88px + the safe
- * area, 56px tall); the buttons then stand above IT, 8px clear (bd-5rz1v.14). PortalLayout says
- * when the bar shows (RecordingBarShownContext).
+ * the last row. While a lesson records, the recording bar sits above the menu (bd-5rz1v.14): on
+ * the new menu it is an opaque strip from 80px (8px, then the 56px bar), so it ends at 144px + the
+ * safe area and the buttons stand exactly there (bd-5rz1v.26, bd-5rz1v.24): no overlap, no gap
+ * to see the page through. PortalLayout says when the bar shows (RecordingBarShownContext).
  */
 
 export type BottomButtonTone = 'primary' | 'outline' | 'warn' | 'danger' | 'dangerOutline';
@@ -105,7 +106,7 @@ export function BottomActions({ children }: { children: ReactNode }) {
         data-testid="newui-bottom-actions"
         className={cn(
           'fixed inset-x-0 z-40 flex flex-col gap-2.5 bg-nu-surface px-[14px] pb-[14px] pt-0.5',
-          aboveRecordingBar ? 'bottom-[calc(152px+env(safe-area-inset-bottom))]' : 'bottom-[calc(80px+env(safe-area-inset-bottom))]',
+          aboveRecordingBar ? 'bottom-[calc(144px+env(safe-area-inset-bottom))]' : 'bottom-[calc(80px+env(safe-area-inset-bottom))]',
           'md:static md:z-auto md:bg-transparent md:px-0 md:pb-0 md:pt-3',
         )}
       >
