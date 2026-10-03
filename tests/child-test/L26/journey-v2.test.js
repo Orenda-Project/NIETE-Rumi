@@ -303,7 +303,7 @@ describe('4. the three step messages', () => {
     expect(s).toContain('«یہ کہانی اونچی آواز میں پڑھیں۔ اب شروع کریں»');
     expect(s).toContain('«آگے پڑھیں»');
     expect(s).toContain('«بس، شکریہ»');
-    expect(s).toContain('1:05');
+    expect(s).toContain('1:10'); // a full minute even when «شروع» comes a few seconds after the tap (L30 §3)
     expect(s).toContain('بلال کس کے ساتھ دریائے جہلم گیا؟');
     expect(s).toContain('بلال خوش کیوں تھا؟');
     expect(s).toMatch(/Can't read any word of the first line\?/);
