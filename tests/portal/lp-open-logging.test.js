@@ -26,8 +26,10 @@
 const { PassThrough } = require('stream');
 
 const R2 = 'https://0123abcd.r2.cloudflarestorage.com';
-const SIGNED = `${R2}/niete-bucket/lp-cache/v8/grade_4_english_ch1_seg2/899e05ff4a3d.pdf?X-Amz-Signature=abc`;
-const SIGNED_612 = `${R2}/niete-bucket/lp612/v9.2/en/grade_9_physics.c02.p010.pdf?X-Amz-Signature=def`;
+const BUCKET = 'niete-bucket';
+// bd-5rz1v.22 — the shape the bot really signs: the bucket as a subdomain of the R2 endpoint host.
+const SIGNED = `https://${BUCKET}.0123abcd.r2.cloudflarestorage.com/lp-cache/v8/grade_4_english_ch1_seg2/899e05ff4a3d.pdf?X-Amz-Signature=abc`;
+const SIGNED_612 = `https://${BUCKET}.0123abcd.r2.cloudflarestorage.com/lp612/v9.2/en/grade_9_physics.c02.p010.pdf?X-Amz-Signature=def`;
 const PDF = Buffer.from('%PDF-1.5\n% a lesson plan\n%%EOF\n');
 const TEACHER = '6f1c2a7e-0b8d-4c55-9a51-2d7f0e3b9c10';
 
@@ -36,6 +38,7 @@ let requestStatus;
 let fetchMock;
 let savedFetch;
 let savedEndpoint;
+let savedBucket;
 let poolQuery;
 let consoleError;
 
@@ -94,7 +97,9 @@ beforeEach(() => {
   jest.resetModules();
   savedFetch = global.fetch;
   savedEndpoint = process.env.R2_ENDPOINT;
+  savedBucket = process.env.R2_BUCKET_NAME;
   process.env.R2_ENDPOINT = R2;
+  process.env.R2_BUCKET_NAME = BUCKET;
   fetchMock = jest.fn(async () => upstream(PDF, { headers: { 'content-length': String(PDF.length) } }));
   global.fetch = fetchMock;
 
@@ -127,6 +132,7 @@ beforeEach(() => {
 afterEach(() => {
   global.fetch = savedFetch;
   if (savedEndpoint === undefined) delete process.env.R2_ENDPOINT; else process.env.R2_ENDPOINT = savedEndpoint;
+  if (savedBucket === undefined) delete process.env.R2_BUCKET_NAME; else process.env.R2_BUCKET_NAME = savedBucket;
   jest.restoreAllMocks();
   jest.resetModules();
 });
