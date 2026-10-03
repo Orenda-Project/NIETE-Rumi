@@ -64,6 +64,10 @@ export const SURFACE = {
   /** The chevron at the end of a row, and a sheet's grab handle. */
   chevron: '#a0a4b4',
   handle: '#c9ccd6',
+  /** The border of an unticked toggle's box (bd-5rz1v.19; mockup `.tog .box`). */
+  box: '#c7cad6',
+  /** The dimmed page behind a sheet (bd-5rz1v.19; mockup `.scrim`). */
+  scrim: 'rgba(20,24,38,0.5)',
 } as const;
 
 /**
@@ -75,6 +79,11 @@ export const FRAME = {
   text: '#ffffff',
   /** Context chips on the band, and the active menu item's pill. */
   translucent: 'rgba(255,255,255,0.14)',
+  /** The text of a context chip on the band (bd-5rz1v.19; mockup `.band .chip`). */
+  chip: '#e9eaf2',
+  /** A control ON the band — the date-range button — and its border (mockup `.rangebtn`). */
+  control: 'rgba(255,255,255,0.12)',
+  controlBorder: 'rgba(255,255,255,0.3)',
 } as const;
 
 /**
@@ -158,15 +167,49 @@ export const FEATURE_HUE = {
 export const FEATURE_ICON = {
   tile: 'rgba(255,255,255,0.12)',
   onIndigo: { lessonPlans: '#7fd6a6', training: '#8bb8f7', assessment: '#b8a8f8' },
+  /**
+   * onLight is also the icon on Home's metric tiles (bd-5rz1v.19, mockup `FC`): Lesson plans
+   * green, Training blue, Assessment purple, Attendance in My Classes' orange, Coaching and
+   * Home itself (the breadcrumb of Home's inner pages) in the logo indigo.
+   */
   onLight: {
     lessonPlans: FEATURE_HUE.lessonPlans.colour,
     training: FEATURE_HUE.training.colour,
     assessment: FEATURE_HUE.assessment.colour,
+    myClasses: FEATURE_HUE.myClasses.colour,
+    coaching: BRAND.ink,
+    home: BRAND.ink,
   },
 } as const;
 
 /** Every tap target is at least this tall and wide (DESIGN.md rule 3). */
 export const TAP_MIN_PX = 56;
+
+/**
+ * bd-5rz1v.19 — shadows, as `shadow-nu-*`. A filled button stands on a 4px edge of its own
+ * darker colour and drops onto 1px of it when pressed (mockup `.cta`, `.cta:active`); the
+ * menu bar casts a soft shadow upwards.
+ */
+export const SHADOW = {
+  button: `0 4px 0 ${BUTTON.primary.edge}, 0 8px 16px rgba(46,125,87,0.22)`,
+  buttonPressed: `0 1px 0 ${BUTTON.primary.edge}`,
+  warning: `0 4px 0 ${BUTTON.warning.edge}`,
+  warningPressed: `0 1px 0 ${BUTTON.warning.edge}`,
+  destructive: `0 4px 0 ${BUTTON.destructive.edge}`,
+  destructivePressed: `0 1px 0 ${BUTTON.destructive.edge}`,
+  nav: '0 -6px 18px rgba(20,22,29,0.18)',
+} as const;
+
+/** tailwind.config.ts adds these to `boxShadow`: shadow-nu-button, shadow-nu-nav, … */
+export const tailwindShadows = {
+  'nu-button': SHADOW.button,
+  'nu-button-pressed': SHADOW.buttonPressed,
+  'nu-warning': SHADOW.warning,
+  'nu-warning-pressed': SHADOW.warningPressed,
+  'nu-destructive': SHADOW.destructive,
+  'nu-destructive-pressed': SHADOW.destructivePressed,
+  'nu-nav': SHADOW.nav,
+};
 
 const chip = (c: { text: string; background: string }) => ({ DEFAULT: c.text, bg: c.background });
 
@@ -211,9 +254,14 @@ export const tailwindColors = {
     'lesson-plans': { DEFAULT: FEATURE_ICON.onIndigo.lessonPlans, crumb: FEATURE_ICON.onLight.lessonPlans },
     training: { DEFAULT: FEATURE_ICON.onIndigo.training, crumb: FEATURE_ICON.onLight.training },
     assessment: { DEFAULT: FEATURE_ICON.onIndigo.assessment, crumb: FEATURE_ICON.onLight.assessment },
+    // Light only (Home's tiles and its breadcrumb); they have no band tint yet.
+    'my-classes': { crumb: FEATURE_ICON.onLight.myClasses },
+    coaching: { crumb: FEATURE_ICON.onLight.coaching },
+    home: { crumb: FEATURE_ICON.onLight.home },
   },
-  // bg-nu-frame-translucent: context chips on the band, the active menu pill (FRAME)
-  frame: { translucent: FRAME.translucent },
+  // bg-nu-frame-translucent: context chips on the band, the active menu pill; text-nu-frame-chip;
+  // bg-nu-frame-control + border-nu-frame-control-border: the date-range button on the band (FRAME)
+  frame: { translucent: FRAME.translucent, chip: FRAME.chip, control: FRAME.control, 'control-border': FRAME.controlBorder },
   // the light inner-page bar: bg-nu-inner, border-nu-inner-border, bg-nu-inner-back, text-nu-inner-crumb (INNER_BAR)
   inner: {
     DEFAULT: INNER_BAR.background, border: INNER_BAR.border, back: INNER_BAR.back, 'back-icon': INNER_BAR.backIcon, crumb: INNER_BAR.crumb,
@@ -222,6 +270,6 @@ export const tailwindColors = {
   'nav-label': NAV.label,
   surface: {
     DEFAULT: SURFACE.page, card: SURFACE.card, text: SURFACE.text, muted: SURFACE.muted, line: SURFACE.line,
-    chevron: SURFACE.chevron, handle: SURFACE.handle,
+    chevron: SURFACE.chevron, handle: SURFACE.handle, box: SURFACE.box, scrim: SURFACE.scrim,
   },
 };

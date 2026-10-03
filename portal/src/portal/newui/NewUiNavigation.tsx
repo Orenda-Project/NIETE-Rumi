@@ -8,6 +8,7 @@ import {
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
+import { NAV_COPY } from './copy';
 
 /**
  * bd-5rz1v.12 — the new UI's menu (Direction B, option 2: "indigo menu bar").
@@ -33,7 +34,8 @@ import nieteLogo from '@/assets/niete-logo.png';
  * logo green, in a translucent pill; the others are a muted lilac-grey. Icons in
  * the sheets are neutral grey — a feature colour is only ever its own heading
  * icon. Labels are English literals, like the old nav's: the portal has no
- * catalog for its navigation, and in Urdu the page turns RTL around them.
+ * catalog for its navigation, and in Urdu the page turns RTL around them. bd-5rz1v.19: the
+ * words now live in copy.ts (NAV_COPY) with the rest of the new UI's, ready for Urdu.
  * Spacing is logical (start/end) only, so everything mirrors itself.
  */
 
@@ -47,7 +49,7 @@ const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-nu-focus
  * sits in a translucent pill. With five long labels ("Assessment") the teacher
  * bar is TIGHT: 10.5px labels and a 50px pill; the leader bar keeps 11.5px / 56px.
  */
-const BAR = 'md:hidden fixed inset-x-0 bottom-0 z-50 flex items-stretch bg-nu-ink px-[6px] pt-[10px] pb-[calc(14px+env(safe-area-inset-bottom))] shadow-[0_-6px_18px_rgba(20,22,29,0.18)]';
+const BAR = 'md:hidden fixed inset-x-0 bottom-0 z-50 flex items-stretch bg-nu-ink px-[6px] pt-[10px] pb-[calc(14px+env(safe-area-inset-bottom))] shadow-nu-nav';
 const BAR_ITEM = 'flex min-h-[56px] min-w-[56px] flex-1 flex-col items-center justify-start gap-1 rounded-2xl transition-colors';
 
 function BarItemContent({ icon: Icon, label, active, tight }: { icon: LucideIcon; label: string; active: boolean; tight?: boolean }) {
@@ -77,8 +79,8 @@ const TOP_OFF = 'text-nu-nav-label hover:bg-white/[0.08] hover:text-white';
 function Mark({ className }: { className?: string }) {
   return (
     <div className={cn('flex shrink-0 items-center gap-2.5', className)}>
-      <img src={nieteLogo} alt="NIETE logo" className="h-9 w-9 rounded-lg object-contain" />
-      <span className="text-lg font-extrabold">NIETE</span>
+      <img src={nieteLogo} alt={NAV_COPY.logoAlt} className="h-9 w-9 rounded-lg object-contain" />
+      <span className="text-lg font-extrabold">{NAV_COPY.brand}</span>
     </div>
   );
 }
@@ -103,7 +105,7 @@ function SheetBody({ title, children, footer }: { title: string; children: React
         <SheetTitle className="min-w-0 truncate text-xl font-extrabold text-nu-surface-text">{title}</SheetTitle>
         <SheetClose
           data-testid="newui-sheet-close"
-          aria-label="Close"
+          aria-label={NAV_COPY.close}
           className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-nu-surface-muted active:bg-nu-ink-xlight', FOCUS)}
         >
           <X className="h-6 w-6" aria-hidden="true" />
@@ -150,24 +152,24 @@ type TeacherItem = {
 const under = (base: string) => (p: string) => p === base || p.startsWith(`${base}/`);
 
 const TEACHER_ITEMS: TeacherItem[] = [
-  { key: 'home', title: 'Home', desktopTitle: 'Home', to: '/portal/dashboard', icon: House, match: (p) => p === '/portal/dashboard' },
+  { key: 'home', title: NAV_COPY.items.home, desktopTitle: NAV_COPY.items.home, to: '/portal/dashboard', icon: House, match: (p) => p === '/portal/dashboard' },
   {
-    key: 'lessons', title: 'Lessons', desktopTitle: 'Lesson Plans', to: '/portal/curriculum', icon: BookOpen,
+    key: 'lessons', title: NAV_COPY.items.lessons, desktopTitle: NAV_COPY.items.lessonPlans, to: '/portal/curriculum', icon: BookOpen,
     match: (p, tab) => p === '/portal/curriculum' && tab !== 'assessment',
   },
   {
-    key: 'assessment', title: 'Assessment', desktopTitle: 'Assessment', to: '/portal/curriculum?tab=assessment', icon: ClipboardList,
+    key: 'assessment', title: NAV_COPY.items.assessment, desktopTitle: NAV_COPY.items.assessment, to: '/portal/curriculum?tab=assessment', icon: ClipboardList,
     match: (p, tab) => p === '/portal/curriculum' && tab === 'assessment',
   },
-  { key: 'training', title: 'Training', desktopTitle: 'Training', to: '/portal/training', icon: GraduationCap, match: under('/portal/training') },
-  { key: 'coaching', title: 'Coaching', desktopTitle: 'Coaching', to: '/portal/coaching', icon: Mic, match: under('/portal/coaching') },
+  { key: 'training', title: NAV_COPY.items.training, desktopTitle: NAV_COPY.items.training, to: '/portal/training', icon: GraduationCap, match: under('/portal/training') },
+  { key: 'coaching', title: NAV_COPY.items.coaching, desktopTitle: NAV_COPY.items.coaching, to: '/portal/coaching', icon: Mic, match: under('/portal/coaching') },
 ];
 
 /** Behind the avatar: everything the old nav reached that the bar does not, plus Certificates. */
 const ACCOUNT_ROWS: Array<{ to: string; title: string; icon: LucideIcon }> = [
-  { to: '/portal/classes', title: 'My Classes', icon: Users },
-  { to: '/portal/coaching/analytics', title: 'Analytics', icon: BarChart3 },
-  { to: '/portal/training/certificates', title: 'Certificates', icon: Award },
+  { to: '/portal/classes', title: NAV_COPY.accountRows.myClasses, icon: Users },
+  { to: '/portal/coaching/analytics', title: NAV_COPY.accountRows.analytics, icon: BarChart3 },
+  { to: '/portal/training/certificates', title: NAV_COPY.accountRows.certificates, icon: Award },
 ];
 
 /** Her initials: the first letter of the first two words of her name. */
@@ -181,7 +183,7 @@ function Avatar({ name, onOpen, testId }: { name?: string | null; onOpen: () => 
   return (
     <button
       type="button"
-      aria-label="Account"
+      aria-label={NAV_COPY.account}
       data-testid={testId}
       onClick={onOpen}
       className={cn('flex min-h-[56px] min-w-[56px] shrink-0 items-center justify-center rounded-full', FOCUS)}
@@ -203,7 +205,7 @@ function TeacherNavigation({ accountPath, firstName, onLogout }: { accountPath: 
   return (
     <>
       {/* Desktop — indigo top bar */}
-      <nav data-testid="newui-top-nav" aria-label="Menu" className="hidden md:block bg-nu-ink text-white">
+      <nav data-testid="newui-top-nav" aria-label={NAV_COPY.menu} className="hidden md:block bg-nu-ink text-white">
         <div className="container mx-auto px-6">
           <div className="flex h-16 items-center gap-6">
             <Mark />
@@ -233,7 +235,7 @@ function TeacherNavigation({ accountPath, firstName, onLogout }: { accountPath: 
       </div>
 
       {/* Phone — indigo bottom bar */}
-      <nav data-testid="newui-bottom-nav" aria-label="Menu" className={BAR}>
+      <nav data-testid="newui-bottom-nav" aria-label={NAV_COPY.menu} className={BAR}>
         {TEACHER_ITEMS.map((item) => {
           const active = item.match(pathname, tab);
           return (
@@ -256,7 +258,7 @@ function TeacherNavigation({ accountPath, firstName, onLogout }: { accountPath: 
           className={cn(SHEET, 'md:inset-x-auto md:bottom-auto md:end-6 md:top-[72px] md:w-[380px] md:rounded-2xl md:pt-4')}
         >
           <SheetBody
-            title={firstName || 'Account'}
+            title={firstName || NAV_COPY.account}
             footer={(
               <button
                 type="button"
@@ -268,7 +270,7 @@ function TeacherNavigation({ accountPath, firstName, onLogout }: { accountPath: 
                 )}
               >
                 <LogOut className="h-5 w-5 rtl:-scale-x-100" aria-hidden="true" />
-                <span>Logout</span>
+                <span>{NAV_COPY.logout}</span>
               </button>
             )}
           >
@@ -279,7 +281,7 @@ function TeacherNavigation({ accountPath, firstName, onLogout }: { accountPath: 
             <SheetRow
               to={accountPath}
               icon={CircleUserRound}
-              title="My account"
+              title={NAV_COPY.myAccount}
               current={pathname === accountPath}
               onGo={close}
               testId="mobile-nav-account"
@@ -315,7 +317,7 @@ function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accou
   return (
     <>
       {/* Desktop — indigo top bar */}
-      <nav data-testid="newui-top-nav" aria-label="Menu" className="hidden md:block bg-nu-ink text-white">
+      <nav data-testid="newui-top-nav" aria-label={NAV_COPY.menu} className="hidden md:block bg-nu-ink text-white">
         <div className="container mx-auto px-6">
           <div className="flex h-16 items-center gap-6">
             <Mark />
@@ -334,17 +336,17 @@ function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accou
               <Link
                 to={accountPath}
                 data-testid="portal-user-name"
-                aria-label="My account"
-                title="My account"
+                aria-label={NAV_COPY.myAccount}
+                title={NAV_COPY.myAccount}
                 aria-current={isActive(accountPath) ? 'page' : undefined}
                 className={cn(TOP_ITEM, 'max-w-[12rem] lg:px-3', FOCUS, isActive(accountPath) ? TOP_ON : TOP_OFF)}
               >
                 <CircleUserRound className={cn('h-5 w-5 shrink-0', isActive(accountPath) && 'text-nu-leaf')} aria-hidden="true" />
-                <span className="truncate">{firstName || 'Signed in'}</span>
+                <span className="truncate">{firstName || NAV_COPY.signedIn}</span>
               </Link>
               <button type="button" onClick={onLogout} className={cn(TOP_ITEM, 'lg:px-3', FOCUS, TOP_OFF)}>
                 <LogOut className="h-5 w-5 shrink-0 rtl:-scale-x-100" aria-hidden="true" />
-                <span>Logout</span>
+                <span>{NAV_COPY.logout}</span>
               </button>
             </div>
           </div>
@@ -352,7 +354,7 @@ function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accou
       </nav>
 
       {/* Phone — indigo bottom bar, their items + More */}
-      <nav data-testid="newui-bottom-nav" aria-label="Menu" className={BAR}>
+      <nav data-testid="newui-bottom-nav" aria-label={NAV_COPY.menu} className={BAR}>
         {mobileNav.map((item) => {
           const active = isActive(item.path);
           return (
@@ -371,15 +373,15 @@ function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accou
           <SheetTrigger asChild>
             <button
               type="button"
-              aria-label="More"
+              aria-label={NAV_COPY.more}
               data-testid="mobile-nav-more"
               className={cn(BAR_ITEM, FOCUS, moreActive ? 'text-white' : 'text-nu-nav-label')}
             >
-              <BarItemContent icon={MoreHorizontal} label="More" active={moreActive} />
+              <BarItemContent icon={MoreHorizontal} label={NAV_COPY.more} active={moreActive} />
             </button>
           </SheetTrigger>
           <SheetContent side="bottom" className={SHEET}>
-            <SheetBody title="More">
+            <SheetBody title={NAV_COPY.more}>
               {mobileOverflow.map((item) => (
                 <SheetRow key={item.path} to={item.path} icon={item.icon} title={item.title} current={isActive(item.path)} onGo={close} />
               ))}
@@ -387,7 +389,7 @@ function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accou
               <SheetRow
                 to={accountPath}
                 icon={CircleUserRound}
-                title="My account"
+                title={NAV_COPY.myAccount}
                 current={isActive(accountPath)}
                 onGo={close}
                 testId="mobile-nav-account"
@@ -401,7 +403,7 @@ function LeaderNavigation({ navItems, mobileNav, mobileOverflow, isActive, accou
                 <span data-tile className={TILE}>
                   <LogOut className="h-5 w-5 rtl:-scale-x-100" aria-hidden="true" />
                 </span>
-                <span>Logout</span>
+                <span>{NAV_COPY.logout}</span>
               </button>
             </SheetBody>
           </SheetContent>

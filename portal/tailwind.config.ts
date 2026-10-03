@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 // bd-5rz1v.12 — the new UI's colours come from ONE file; see src/portal/newui/DESIGN.md.
-import { tailwindColors as newUiColors } from "./src/portal/newui/tokens";
+import { tailwindColors as newUiColors, tailwindShadows as newUiShadows } from "./src/portal/newui/tokens";
 
 export default {
   darkMode: ["class"],
@@ -65,6 +65,8 @@ export default {
         // bd-5rz1v.12 — new UI (Direction B): bg-nu-ink, text-nu-leaf, text-nu-nav-label, …
         nu: newUiColors,
       },
+      // bd-5rz1v.19 — the new UI's button edges and menu-bar shadow: shadow-nu-button, shadow-nu-nav, …
+      boxShadow: newUiShadows,
       fontFamily: {
         'urdu': ['"Noto Nastaliq Urdu"', 'serif'],
         'arabic': ['"Noto Sans Arabic"', 'sans-serif'],
