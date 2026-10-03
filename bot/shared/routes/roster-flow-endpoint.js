@@ -34,8 +34,9 @@
 
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
-const { isSchoolLeader, LEADER_ROLES } = require('../services/observe/observe-gate');
-const { SHIFT_LABELS } = require('../config/ux-strings');
+const { isSchoolLeader } = require('../services/observe/observe-gate');
+const { SHIFT_LABELS, resolveUx, gradeLabelFor } = require('../config/ux-strings');
+const { displayNameOf } = require('../services/observe/patch-resolver.service');
 const { decryptMedia } = require('../services/roster/roster-media');
 const { extractPages } = require('../services/roster/roster-extraction.service');
 const { toChunks, parseChunk, reconcile, pairMoves, renderList, MAX_BOXES } = require('../services/roster/roster-lines');
@@ -82,9 +83,23 @@ function getCurrentAcademicYear() {
   return now.getMonth() >= 7 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
 }
 
+/** Meta's Dropdown option-title cap, in CODE POINTS. */
+const OPTION_TITLE_CAP = 30;
+
+/**
+ * Code points, not UTF-16 units.
+ *
+ * `String.prototype.slice` counts units, so a name carrying one astral character
+ * is measured two units per character and can be cut mid-surrogate — which sends
+ * Meta a lone surrogate in a field it validates. `[...s]` iterates code points,
+ * which is the unit every WhatsApp cap is actually expressed in.
+ */
+const cps = (value) => [...String(value == null ? '' : value)];
+const clampTitle = (value) => cps(value).slice(0, OPTION_TITLE_CAP).join('');
+
 /** Dropdown chrome must stay Latin and short — Meta truncates and its list
  *  secondary text fails outright on Urdu script. */
-const opt = (id, title) => ({ id: String(id), title: String(title || '').slice(0, 30) });
+const opt = (id, title) => ({ id: String(id), title: clampTitle(title) });
 
 /**
  * A class's identity is (school, grade, SECTION, SHIFT, session) — ClassService is
@@ -113,6 +128,48 @@ const TEACHER_HELP = 'Without a class teacher, nobody can mark attendance for th
 const TEACHER_KEEP_TITLE = 'Not listed \u2014 leave as is';
 /** The mark a teacherless class carries in the status list (a Dropdown title is 30 code points). */
 const NO_TEACHER_MARK = '\u26a0 ';
+
+/**
+ * bd-37lyd \u2014 the roles that genuinely cannot be the class teacher of a class.
+ *
+ * This is DELIBERATELY NOT `LEADER_ROLES`, and `principal` is DELIBERATELY ABSENT.
+ *
+ * In a NIETE school the principal very often teaches a class \u2014 and /observe, the
+ * other screen a coach picks a person on, already says so: its `PATCH_ROLES` is
+ * `{teacher, principal}`, and it offers principals on purpose ("354 principals
+ * gain a coach \u2026 they belong in the patch"). Skipping every `LEADER_ROLES` entry
+ * here meant the same person was observable and unnameable from two screens the
+ * same coach uses on the same visit: 262 principals and 21 blank-name users
+ * across 229 schools, hidden from the ONE screen that decides whether anybody can
+ * mark their children's attendance.
+ *
+ * `LEADER_ROLES` itself must not be narrowed to fix that. Four other consumers
+ * read it \u2014 `observe-gate`'s own `isSchoolLeader` (used below to decide who may
+ * open /roster at all), `dashboard/lib/leader-role.js`, `config/role-features.js`
+ * \u2014 and every one of them would change meaning with it. A coach, a supervisor, an
+ * AEO and a school leader are at the school but are not its class teachers, so
+ * this list is that one minus the principal.
+ */
+const NOT_CLASS_TEACHER_ROLES = Object.freeze(['school_leader', 'supervisor', 'coach', 'aeo']);
+
+/**
+ * The label a principal carries in the picker, the way /observe labels theirs.
+ *
+ * "An unlabelled principal in a teacher picker is how the wrong person gets
+ * observed" (patch-resolver). /observe can afford a separate metadata line; this
+ * is a Dropdown, which has nothing but a 30-code-point title \u2014 so the label goes
+ * IN the title and the NAME is what gets truncated to make room for it. Truncating
+ * the suffix off the end would silently turn a labelled row back into an
+ * unlabelled one on exactly the long names most likely to need it.
+ */
+const PRINCIPAL_LABEL = ' (Principal)';
+
+/** One picker row for one person, labelled when they are a principal. */
+function teacherOption(id, name, isPrincipal) {
+  if (!isPrincipal) return opt(id, name);
+  const budget = OPTION_TITLE_CAP - cps(PRINCIPAL_LABEL).length;
+  return opt(id, `${cps(name).slice(0, budget).join('').trimEnd()}${PRINCIPAL_LABEL}`);
+}
 
 /** English, like every other label on this Flow, but keyed off the ONE label map. */
 const shiftTitle = (code) => (SHIFT_LABELS[code] && SHIFT_LABELS[code].en) || code;
@@ -179,6 +236,7 @@ async function schoolsFor(user) {
  * school. A principal has no patch, so the second source is what serves them.
  */
 async function teachersFor(user, schoolId, skip = opt('none', TEACHER_SKIP_TITLE)) {
+  /** user id -> { name, isPrincipal }. The label needs the role, so carry it. */
   const byId = new Map();
 
   const { data: mapped } = await supabase
@@ -191,29 +249,45 @@ async function teachersFor(user, schoolId, skip = opt('none', TEACHER_SKIP_TITLE
   const phones = [...new Set((mapped || []).map((t) => t.teacher_phone_e164).filter(Boolean))];
   if (phones.length) {
     const { data: accounts } = await supabase
-      .from('users').select('id, phone_number, name').in('phone_number', phones);
+      .from('users').select('id, phone_number, name, role').in('phone_number', phones);
     const byPhone = new Map((accounts || []).map((u) => [u.phone_number, u]));
     for (const t of mapped || []) {
       const u = byPhone.get(t.teacher_phone_e164);
-      if (u && !byId.has(u.id)) byId.set(u.id, t.teacher_name || fullName(u));
+      // The roster name first (it is what the coach wrote down), then the ONE
+      // display-name helper /observe renders its own pickers with — never a bare
+      // `name`, which is empty for the 21 people this screen used to drop.
+      if (u && !byId.has(u.id)) {
+        byId.set(u.id, {
+          name: fullName({ name: t.teacher_name }) || displayNameOf(u),
+          isPrincipal: u.role === 'principal',
+        });
+      }
     }
   }
 
   const { data: atSchool } = await supabase
     .from('users')
-    .select('id, role, name')
+    // `phone_number` is read for displayNameOf's degradation (role + last four
+    // digits) — without it a nameless person renders as "Teacher (name not on
+    // file)", which is honest but unidentifiable when a school has two of them.
+    .select('id, role, name, phone_number')
     .eq('school_id', schoolId)
     .limit(OPTION_CAP * 2);
   for (const u of atSchool || []) {
-    // Coaches and principals are at the school too; they are not its class teachers.
-    if (LEADER_ROLES.includes(u.role)) continue;
-    if (!byId.has(u.id)) byId.set(u.id, fullName(u));
+    // Coaches, supervisors, AEOs and school leaders are at the school too; they
+    // are not its class teachers. A PRINCIPAL often is — see NOT_CLASS_TEACHER_ROLES.
+    if (NOT_CLASS_TEACHER_ROLES.includes(u.role)) continue;
+    if (!byId.has(u.id)) {
+      byId.set(u.id, { name: displayNameOf(u), isPrincipal: u.role === 'principal' });
+    }
   }
 
+  // displayNameOf never returns empty, so this is now a belt-and-braces guard
+  // rather than the filter that silently dropped 21 people.
   const list = [...byId.entries()]
-    .filter(([, name]) => name && name.trim())
+    .filter(([, p]) => p.name && p.name.trim())
     .slice(0, OPTION_CAP - 1)
-    .map(([id, name]) => opt(id, name));
+    .map(([id, p]) => teacherOption(id, p.name, p.isPrincipal));
 
   // ALWAYS offer the way out. The Flow field is REQUIRED (rev 3 of the asset):
   // WhatsApp prints "(Optional)" beside any non-required field, and coaches read
@@ -238,7 +312,9 @@ function fullName(u) {
 
 async function handleRosterInit(userId) {
   const { data: user } = await supabase
-    .from('users').select('id, role, school_id, name').eq('id', userId).maybeSingle();
+    // `preferred_language` is the ONE language column (never the dead `user.language`).
+    // It travels in the pending state so every screen built from it can resolve copy.
+    .from('users').select('id, role, school_id, name, preferred_language').eq('id', userId).maybeSingle();
 
   if (!user || !isSchoolLeader(user)) {
     return err('This is for coaches and school leaders.');
@@ -587,15 +663,27 @@ async function gradeCoverage(schoolId) {
   return { done, doneOrdinals, missingOrdinals };
 }
 
-/** The completion nudge, appended to every confirmation. Best-effort by design. */
-async function coverageLine(schoolId) {
+/**
+ * The completion nudge, appended to every confirmation. Best-effort by design.
+ *
+ * `who` is the leader this screen is being built for, and it DEFAULTS TO ABSENT
+ * so the four callers that do not pass it resolve at the catalog floor (`en`) and
+ * render byte-identically to before. Only the screens that pass a user follow the
+ * reader's language — the rest of this endpoint is still English, and a sentence
+ * half in each language is worse than either.
+ */
+async function coverageLine(schoolId, who) {
   try {
     const cov = await gradeCoverage(schoolId);
     if (cov.doneOrdinals.size >= 5) {
-      return '\n\nAll 5 grades are scanned at this school — it is complete. Thank you.';
+      return `\n\n${resolveUx('rosterCoverageComplete', { user: who })}`;
     }
-    const missing = cov.missingOrdinals.map((o) => `Grade ${o}`).join(', ');
-    return `\n\nNow ${cov.doneOrdinals.size} of 5 grades scanned at this school — ${missing} remaining.`;
+    const missing = cov.missingOrdinals
+      .map((o) => gradeLabelFor(`grade_${o}`, who) || `Grade ${o}`)
+      .join(', ');
+    return `\n\n${resolveUx('rosterCoverageRemaining', {
+      user: who, params: { count: cov.doneOrdinals.size, missing },
+    })}`;
   } catch (e) {
     return '';
   }
@@ -1382,25 +1470,65 @@ async function saveRoster(state, screenData) {
     },
   });
 
-  // Saying nothing when no teacher was named is how 45 classes and 1,526 children
-  // came to sit unreachable. The positive was already said; the negative was not.
-  const teacherLine = saved.classTeacherAssigned
-    ? ' The class teacher can see them in their attendance now.'
-    : ' No class teacher was named, so nobody can mark attendance for these children.'
-      + ' Scan this class again and name one.';
-  const skippedLine = saved.skipped ? ` ${saved.skipped} were already there.` : '';
-  // The completion nudge: every save says how far this school is from all of 1-5.
-  const coverage = await coverageLine(state.schoolId);
-  // What the coach cares about is how many children are on the class roster now,
+  // What the coach cares about is how many children are ON the class roster now,
   // not how many rows this particular submit inserted — a re-scan that adds nobody
   // is a successful confirmation, not "0 students".
-  const onRoster = (saved.added || 0) + (saved.skipped || 0);
+  //
+  // bd-37lyd — but it is not `added + skipped` either. That sum counts a SKIPPED
+  // line as saved. On a re-scan a skipped line IS a child who is already enrolled,
+  // so the sum happened to be right; on a class this save CREATED, a skipped line
+  // was not stored at all. Measured: a 13 Sep save logged
+  // `students: 36, added: 35, skipped: 1` and told the coach 36, and 32 first-saves
+  // fleet-wide carry a skipped of 1-3 — 41 children reported onto rosters they are
+  // not on. So re-READ the stored count, from the same `class_enrollments` count
+  // the coverage screen already trusts.
+  //
+  // BEST-EFFORT, like coverageLine beside it: the children are already written by
+  // the time we get here, so a count that fails must not turn a successful save
+  // into a dead end. A failed count is NOT zero either — the rule enrollmentCounts
+  // itself follows — so it falls back to the old sum and SAYS SO in the log,
+  // because a silent fallback is a regression mask.
+  let stored;
+  try {
+    stored = (await enrollmentCounts([saved.classId])).get(saved.classId);
+  } catch (e) {
+    stored = undefined;
+  }
+  const onRoster = stored === undefined ? (saved.added || 0) + (saved.skipped || 0) : stored;
+  if (stored === undefined) {
+    logToFile('⚠️ [roster] stored count unreadable — reported the submit sum', {
+      runId: state.runId, classId: saved.classId, reported: onRoster,
+    });
+  }
+
+  // Saying nothing when no teacher was named is how 45 classes and 1,526 children
+  // came to sit unreachable. The positive was already said; the negative was not.
+  const sentences = [resolveUx('rosterSavedOnRoster', {
+    user: state.user, params: { count: onRoster },
+  })];
+  if (saved.skipped) {
+    // `created` is true when THIS save made the class. "Already there" cannot be
+    // true of anything on a class that did not exist a second ago, and that
+    // wording sent the 13 Sep report at the wrong layer for three weeks.
+    const one = saved.skipped === 1;
+    // eslint-disable-next-line no-nested-ternary
+    const key = saved.created
+      ? (one ? 'rosterSavedNotSavedOne' : 'rosterSavedNotSavedMany')
+      : (one ? 'rosterSavedAlreadyThereOne' : 'rosterSavedAlreadyThereMany');
+    sentences.push(resolveUx(key, { user: state.user, params: { count: saved.skipped } }));
+  }
+  sentences.push(resolveUx(
+    saved.classTeacherAssigned ? 'rosterSavedTeacherNamed' : 'rosterSavedNoTeacher',
+    { user: state.user },
+  ));
+  // The completion nudge: every save says how far this school is from all of 1-5.
+  const coverage = await coverageLine(state.schoolId, state.user);
 
   return {
     screen: 'SAVED',
     data: {
       heading: `${classLabel} saved`,
-      body: `${onRoster} students are on the roster.${skippedLine}${teacherLine}${coverage}`,
+      body: `${sentences.join(' ')}${coverage}`,
       // FLAT, not nested. The first version put these inside an
       // extension_message_response whose `properties` were declared `{}`; Meta
       // dropped the whole sub-object, flow-type-detector answered 'unknown', and a
@@ -1417,7 +1545,9 @@ const HAND_OVER_FAILURES = {
   unknown_class: 'That class is no longer active.',
   wrong_school: 'That class is not at this school.',
   unknown_teacher: 'That teacher has no account yet.',
-  not_a_teacher: 'A coach or principal cannot be named as the class teacher.',
+  // bd-37lyd — a PRINCIPAL can be. This sentence is now only about a coach, a
+  // supervisor, an AEO or a school leader (NOT_CLASS_TEACHER_ROLES).
+  not_a_teacher: 'A coach cannot be named as the class teacher.',
   unknown_grade: 'That class has a grade this school does not use.',
   save_in_progress: 'This class is being saved right now — give it a minute and try again.',
   missing_actor: 'Your account could not be read. Send /roster again.',
