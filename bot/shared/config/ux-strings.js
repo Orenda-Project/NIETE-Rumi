@@ -3271,7 +3271,8 @@ const UX_STRINGS = {
   childTestExpired: {
     en: 'That button is from an older list. Send /egra for today\'s list.',
     ur: 'یہ بٹن پرانی فہرست کا ہے۔ آج کی فہرست کے لیے ⁦/egra⁩ بھیجیں۔',
-  },  // L21 (bd-s1oo0.28): "Send to teacher" when /egra runs without an observation — the class teacher
+  },
+  // L21 (bd-s1oo0.28): "Send to teacher" when /egra runs without an observation — the class teacher
   // comes from the drawn class. The teacher's own message (childTestTeacherMessage) is L19's.
   childTestTeacherOfferOne: {
     en: '{name} is the class teacher. Send them today\'s children, in order, so they come one at a time?',
