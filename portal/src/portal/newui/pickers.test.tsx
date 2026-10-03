@@ -39,6 +39,28 @@ describe("NumberGrid — e.g. Grade 1–12", () => {
     expect(classes(screen.getByRole("radio", { name: "6" }))).toContain("border-dashed");
   });
 
+  it("bd-5rz1v.14: a number with nothing behind it is shown but cannot be picked, and the arrows skip it", () => {
+    const onChange = vi.fn();
+    render(<NumberGrid label="Grade" numbers={numbers} value={4} disabled={[2, 3, 5, 7, 8, 10, 11, 12]} onChange={onChange} />);
+    const five = screen.getByRole("radio", { name: "5" });
+    expect(five).toBeDisabled();
+    expect(classes(five)).toEqual(expect.arrayContaining(["h-[58px]", "min-h-[56px]", "bg-nu-surface", "text-nu-surface-chevron"]));
+    expect(classes(five)).not.toContain("active:bg-nu-ink-xlight");
+    fireEvent.click(five);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("radio", { name: "6" })).toBeEnabled();
+    fireEvent.keyDown(screen.getByRole("radio", { name: "4" }), { key: "ArrowRight" });
+    expect(onChange).toHaveBeenLastCalledWith(6);
+    fireEvent.keyDown(screen.getByRole("radio", { name: "4" }), { key: "ArrowLeft" });
+    expect(onChange).toHaveBeenLastCalledWith(1);
+  });
+
+  it("bd-5rz1v.14: with nothing picked, the first number that can be picked takes the focus", () => {
+    render(<NumberGrid label="Grade" numbers={numbers} value={null} disabled={[1, 2, 3]} onChange={() => {}} />);
+    expect(screen.getByRole("radio", { name: "1" })).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("radio", { name: "4" })).toHaveAttribute("tabindex", "0");
+  });
+
   it("tapping picks; arrow keys move the pick", () => {
     const onChange = vi.fn();
     render(<NumberGrid label="Grade" numbers={numbers} value={4} onChange={onChange} />);

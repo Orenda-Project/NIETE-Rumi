@@ -126,6 +126,49 @@ export const HOME_COPY = {
   empty: 'Nothing yet',
 } as const;
 
+/** Lesson Plans (bd-5rz1v.14; deep-screens.html, Lesson Plans): one flow for grades 1–12. */
+export const LESSONS_COPY = {
+  title: 'Lesson Plans',
+  /** The band's chip: her most recent plan ("Last: Day 2 · Plants"). What follows is data. */
+  last: (what?: string | null) => (what ? `Last: ${what}` : 'Last'),
+  /** "Lesson Plans · Grade 4", "Lesson Plans · Plants": where an inner page sits. */
+  crumb: (...parts: Array<string | null | undefined>) => ['Lesson Plans', ...parts.filter(Boolean)].join(' · '),
+  rows: { grade: 'Grade', subject: 'Subject', chapter: 'Chapter', lesson: 'Lesson' },
+  /** The Grade row before a grade is picked. */
+  choose: 'Choose',
+  /** A row whose step is not reached yet. */
+  none: '—',
+  sheets: { grade: 'Grade', subject: 'Subject' },
+  grade: (n: number | string) => `Grade ${n}`,
+  day: (n: number | string) => `Day ${n}`,
+  /** The day badge on a lesson row: D1, D2… */
+  dayBadge: (n: number | string) => `D${n}`,
+  part: (n: number | string) => `Part ${n}`,
+  /** A grades 6–12 lesson, by its place in the chapter. */
+  lesson: (n: number | string) => `Lesson ${n}`,
+  worksheet: 'Worksheet',
+  revision: 'Revision',
+  sent: 'Sent',
+  open: 'Open',
+  answerKey: 'Answer key',
+  openOutside: 'Open in another app',
+  preparing: 'Preparing…',
+  aboutTwoMinutes: '~2 min',
+  opensByItself: 'Opens by itself',
+  otherLessons: 'Other lessons',
+  failed: 'Failed',
+  notPrepared: 'Could not prepare',
+  tryAgain: 'Try again',
+  loading: 'Loading…',
+  notLoaded: 'Not loaded',
+  empty: 'Nothing yet',
+  /** Toasts. */
+  notAvailable: 'Not available yet',
+  notReady: 'Not ready yet',
+  couldNotOpen: 'Could not open',
+  planFallback: 'Lesson plan',
+} as const;
+
 /** "Science · Ch 2 · v2": data joined, with the words that are ours. */
 const joined = (...parts: Array<string | number | null | undefined>) =>
   parts.filter((p) => p !== null && p !== undefined && String(p).trim() !== '').join(' · ');

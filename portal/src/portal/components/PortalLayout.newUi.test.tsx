@@ -26,6 +26,7 @@ vi.mock("../services/api", () => ({
 import { portal } from "../services/api";
 import { resetNewUiMemory } from "../lib/useNewUi";
 import PortalLayout from "./PortalLayout";
+import { BottomActions, BottomButton } from "../newui/BottomButton";
 
 const api = portal as unknown as { getDashboard: ReturnType<typeof vi.fn>; getConfig: ReturnType<typeof vi.fn> };
 
@@ -92,5 +93,32 @@ describe("flag ON — room for the taller indigo bar", () => {
     const newUiReads = api.getConfig.mock.calls.length;
     // useChildTest also reads /config; the two useNewUi callers share one read.
     expect(newUiReads).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("bd-5rz1v.14 — a page's bottom action button and the recording bar", () => {
+  async function renderWithAction(recording: boolean) {
+    api.getConfig.mockResolvedValue({ success: true, features: { assessmentGenerator: false, assessmentGeneratorMessage: null, newUi: true } });
+    if (recording) session = { active: true, paused: false, screenWentOff: false, returnTo: "/portal/coaching/record", elapsedMs: () => 754000 };
+    render(
+      <MemoryRouter initialEntries={["/portal/curriculum"]}>
+        <PortalLayout ownHeading>
+          <BottomActions><BottomButton>Open</BottomButton></BottomActions>
+        </PortalLayout>
+      </MemoryRouter>,
+    );
+    await screen.findByTestId("newui-bottom-nav");
+    return screen.getByTestId("newui-bottom-actions").className.split(/\s+/);
+  }
+
+  it("while a lesson records, the layout tells the button to stand above the bar", async () => {
+    const cls = await renderWithAction(true);
+    expect(cls).toContain("bottom-[calc(152px+env(safe-area-inset-bottom))]");
+    expect(screen.getByTestId("recording-bar")).toBeInTheDocument();
+  });
+
+  it("with nothing recording, it sits just above the menu", async () => {
+    const cls = await renderWithAction(false);
+    expect(cls).toContain("bottom-[calc(80px+env(safe-area-inset-bottom))]");
   });
 });

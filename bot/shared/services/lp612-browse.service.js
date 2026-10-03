@@ -171,7 +171,7 @@ async function listChapters(grade, subject) {
  * tap either, and reporting it as ready here would promise an instant download that then takes
  * three minutes.
  */
-async function listLessons(grade, subject, chapterKey, lang = 'en') {
+async function listLessons(grade, subject, chapterKey, lang = 'en', userId = null) {
   const rows = await readAll(
     () => servable(
       'segment_id, subtopic_title, menu_title, printed_page_start, printed_page_end, order_index',
@@ -181,7 +181,12 @@ async function listLessons(grade, subject, chapterKey, lang = 'en') {
   if (!rows.length) return [];
 
   const ids = rows.map((r) => r.segment_id);
-  const ready = await readyFor(ids, lang);
+  // bd-5rz1v.14 — `sent`: it reached HER on WhatsApp (✓✓ in the portal), from the deliveries
+  // ledger, for the teacher the caller names (the portal's session). No teacher, nothing read.
+  const [ready, sent] = await Promise.all([
+    readyFor(ids, lang),
+    userId ? Deliveries.sentSegmentIds(userId, ids) : Promise.resolve(new Set()),
+  ]);
 
   return rows
     .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
@@ -191,6 +196,7 @@ async function listLessons(grade, subject, chapterKey, lang = 'en') {
       menu_title: r.menu_title,
       pages_label: pagesLabel(r),
       ready: ready.has(r.segment_id),
+      sent: sent.has(r.segment_id),
     }));
 }
 
