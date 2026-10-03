@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import BottomSheet from '../components/coaching/BottomSheet';
+import { LogoutWhileRecording } from '../newui/coaching/LogoutWhileRecording';
 import { keepScreenOn } from './keepAwake';
+import { newUiRemembered } from './newUiMemory';
 import { LessonRecorder, type FinishedRecording } from './lessonRecorder';
 import { pickRecordingType } from './recordingSupport';
 
@@ -18,7 +20,10 @@ import { pickRecordingType } from './recordingSupport';
  *                             the reload guard and the "screen went off" flag
  *   the record page           a view onto it: clock, sound bars, Pause, Finish
  *   every other page          RecordingBar ("Recording · 12:34", Return)
- *   Logout                    asks first (askBeforeLogout): it really would end it
+ *   Logout                    asks first (askBeforeLogout): it really would end it — in
+ *                             the new UI's kit Sheet when portal_new_ui is on for her
+ *                             (bd-5rz1v.26.4, newui/coaching/LogoutWhileRecording), the old
+ *                             sheet otherwise, unchanged
  *
  * Chunks are still written to the phone as they arrive: that is LessonRecorder's
  * job, unchanged, and it no longer matters which page is on screen.
@@ -84,7 +89,11 @@ export function useRecordingClock(session: RecordingSession | null): number {
   return ms;
 }
 
-/** Logout that asks first while a lesson is recording; plain logout otherwise. */
+/**
+ * Logout that asks first while a lesson is recording; plain logout otherwise. Any Logout button,
+ * anywhere under the provider, goes through this (or newui/useGuardedLogout, which brings the
+ * signed-in user's logout): the question then looks like the menu she is in.
+ */
 export function useLogoutGuard(logout: () => unknown): () => void {
   const session = useRecordingSession();
   return useCallback(() => {
@@ -109,7 +118,9 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
   const releaseScreen = useRef<(() => Promise<void>) | null>(null);
   const finishing = useRef<Promise<FinishedRecording | null> | null>(null);
   const [live, setLive] = useState<Live>(IDLE);
-  const [logoutAsk, setLogoutAsk] = useState<(() => unknown) | null>(null);
+  // The pending Logout, and which look asks about it: the new UI's (portal_new_ui on for her)
+  // or the old one. Decided when she taps, from the flag the layout last read for her.
+  const [logoutAsk, setLogoutAsk] = useState<{ logout: () => unknown; newUi: boolean } | null>(null);
 
   const elapsedMs = useCallback(() => recorderRef.current?.elapsedMs() ?? 0, []);
 
@@ -180,7 +191,7 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
 
   const askBeforeLogout = useCallback((logout: () => unknown) => {
     if (!recorderRef.current) { void logout(); return; }
-    setLogoutAsk(() => logout);
+    setLogoutAsk({ logout, newUi: newUiRemembered() });
   }, []);
 
   // While recording: a reload or closing the tab asks first, and a hidden page
@@ -212,7 +223,7 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
   }), [live, elapsedMs, start, pause, resume, finish, askBeforeLogout]);
 
   const finishThenLogout = async () => {
-    const logout = logoutAsk;
+    const logout = logoutAsk?.logout;
     setLogoutAsk(null);
     try { await finish(); } catch { /* its chunks are already on the phone */ }
     if (logout) await logout();
@@ -221,7 +232,16 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
   return (
     <RecordingSessionContext.Provider value={value}>
       {children}
-      {logoutAsk && (
+      {logoutAsk?.newUi ? (
+        <LogoutWhileRecording
+          open
+          paused={live.paused}
+          elapsedMs={elapsedMs}
+          onKeep={() => setLogoutAsk(null)}
+          onStop={() => { void finishThenLogout(); }}
+        />
+      ) : null}
+      {logoutAsk && !logoutAsk.newUi && (
         <BottomSheet label={COPY.logoutTitle} onClose={() => setLogoutAsk(null)}>
           <div className="text-[23px] font-bold">{COPY.logoutTitle}</div>
           <button type="button" onClick={() => setLogoutAsk(null)}

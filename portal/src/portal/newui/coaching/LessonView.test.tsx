@@ -228,6 +228,22 @@ describe("the report", () => {
     expect(sources).toEqual(["https://r2/debrief.mp3", "https://r2/lesson.webm"]);
   });
 
+  it("bd-5rz1v.26.4 — through the kit's AudioPlayer, never the browser's own dark bar", async () => {
+    renderAt();
+    const report = await screen.findByTestId("lesson-report");
+    expect(report.querySelector("audio[controls]")).toBeNull();
+    const players = within(report).getAllByTestId("newui-audio");
+    expect(players).toHaveLength(2);
+    // Inside its section's card: the row alone, no second card.
+    expect(within(report).getByRole("region", { name: "Digital Coach" })).toContainElement(players[0]);
+    expect(within(report).getByRole("region", { name: "Your recording" })).toContainElement(players[1]);
+    expect(players[0].className).not.toMatch(/border-\[1\.5px\]/);
+    // Her recording's length is known before it loads (28 min): the total shows at once.
+    expect(within(players[1]).getByRole("slider")).toHaveAccessibleName("Your recording");
+    expect(within(players[1]).getByTestId("newui-audio-time")).toHaveTextContent("00:00 / 28:00");
+    expect(tapProblems(report)).toEqual([]);
+  });
+
   it("the coach's words are content: the action, and three strengths", async () => {
     renderAt();
     const report = await screen.findByTestId("lesson-report");
