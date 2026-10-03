@@ -35,11 +35,16 @@ function verdictsFrom(json, n) {
  * child who said five words "attempted" the whole passage. Nobody attempts more words than
  * they spoke: cap at the words Soniox heard from the child in the window, plus a little slack
  * for words it merged or missed.
+ *
+ * The cap only trims WRONG verdicts: it never goes below the last word Gemini heard read correctly.
+ * Soniox's child-only word count is not a reliable floor. It collapses when diarisation puts the child on
+ * the coach's speaker, or when it drops a halting reader's words, and the cap then cut real readers to
+ * 2 words and sent them to letters + words (L30, bd-s1oo0.46.6: sandbox 3 Oct, keys 46, 10 and 7).
  */
 const ATTEMPT_SLACK = 2;
 function capAttempted(verdicts, spokenCount) {
   if (!Number.isFinite(spokenCount)) return verdicts;
-  const cap = spokenCount + ATTEMPT_SLACK;
+  const cap = Math.max(spokenCount + ATTEMPT_SLACK, verdicts.lastIndexOf('correct') + 1);
   return verdicts.map((v, i) => (i >= cap ? 'skipped' : v));
 }
 
