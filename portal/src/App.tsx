@@ -14,6 +14,7 @@ import PortalLogin from "./portal/pages/PortalLogin";
 import PortalRoot from "./portal/pages/PortalRoot";
 import PortalPasswordReset from "./portal/pages/PortalPasswordReset";
 import PortalPasswordResetVerify from "./portal/pages/PortalPasswordResetVerify";
+import PortalDeleteAccount from "./portal/pages/PortalDeleteAccount";
 import PortalDashboard from "./portal/pages/PortalDashboard";
 import PortalClasses from "./portal/pages/PortalClasses";
 import PortalCurriculum from "./portal/pages/PortalCurriculum";
@@ -94,6 +95,10 @@ const App = () => {
           <Route path="/portal/login" element={<PortalLogin />} />
           <Route path="/portal/reset-password" element={<PortalPasswordReset />} />
           <Route path="/portal/reset-password/verify" element={<PortalPasswordResetVerify />} />
+          {/* bd-3wb0s — Google Play's account-deletion URL. PUBLIC like the
+              routes above: no PortalLayout, no session check, so it works
+              signed out, signed in, and without the app. */}
+          <Route path="/portal/delete-account" element={<PortalDeleteAccount />} />
           <Route path="/portal/dashboard" element={<PortalDashboard />} />
             {/* bd-60078 — My Plans is retired. It listed a teacher's own
                 Gamma-generated plans, and custom generation is off, so the page
