@@ -74,7 +74,9 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
   //
   // The recording bar (bd-5rz1v.10) sits above the bottom menu on a phone, so
   // the page's own bottom padding grows by the bar's height to keep the last
-  // thing on the page reachable; on a desktop it floats in a corner instead.
+  // thing on the page reachable. On a desktop the old menu's bar floats in a
+  // corner; the new menu's docks in an 81px strip on the bottom edge
+  // (bd-5rz1v.26.4), and md:pb-24 (96px) keeps the page's end above it.
   const pad = bare
     ? (showBar ? 'pb-24 md:pb-24' : 'pb-8')
     : newUi

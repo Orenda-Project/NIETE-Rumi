@@ -44,6 +44,12 @@ export const KIT_COPY = {
     decrease: 'Minus',
     increase: 'Plus',
   },
+  /** AudioPlayer (bd-5rz1v.26.4): its button, and the chip when a file will not play. */
+  audio: {
+    play: 'Play',
+    pause: 'Pause',
+    cantPlay: "Can't play",
+  },
 } as const;
 
 /** The new menu (NewUiNavigation.tsx, bd-5rz1v.12). */
@@ -344,6 +350,12 @@ export const COACHING_COPY = {
   yesFinish: 'Yes, finish',
   keepRecording: 'Keep recording',
   shortLesson: 'Short lesson',
+  /**
+   * Logout while recording (bd-5rz1v.10's question in the kit, bd-5rz1v.26.4). The title is the
+   * operator's words and the one question in the new UI: it is on COPY_ALLOWLIST, with why.
+   */
+  stopRecordingTitle: 'Stop recording?',
+  stopAndLogout: 'Stop & log out',
   /** The microphone was refused: where to allow it, as a path, never instructions. */
   micBlocked: 'Microphone blocked',
   micApp: ['Settings › Apps › NIETE', 'Microphone › Allow'],

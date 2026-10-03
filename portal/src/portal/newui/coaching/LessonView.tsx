@@ -19,6 +19,7 @@ import { Chip } from '../Chip';
 import { BottomActions, BottomButton } from '../BottomButton';
 import { Hero } from '../Hero';
 import { Fold, Panel } from '../Panel';
+import { AudioPlayer } from '../AudioPlayer';
 import { FOCUS } from '../styles';
 import { pkDayMonth } from '../range';
 import { openFile } from '../assessment/assessmentApi';
@@ -294,7 +295,7 @@ function Report({ detail }: { detail: SessionDetail }) {
 
       {detail.debriefAudioUrl ? (
         <Panel icon={Headphones} title={COACHING_COPY.sections.digitalCoach}>
-          <audio controls preload="none" src={detail.debriefAudioUrl} className="w-full" />
+          <AudioPlayer bare src={detail.debriefAudioUrl} label={COACHING_COPY.sections.digitalCoach} />
         </Panel>
       ) : null}
 
@@ -330,7 +331,8 @@ function Report({ detail }: { detail: SessionDetail }) {
 
       {detail.lessonAudioUrl ? (
         <Panel icon={Mic} title={COACHING_COPY.sections.recording}>
-          <audio controls preload="none" src={detail.lessonAudioUrl} className="w-full" />
+          {/* Her lesson's length is known, so the total shows before anything is fetched. */}
+          <AudioPlayer bare src={detail.lessonAudioUrl} label={COACHING_COPY.sections.recording} durationHint={detail.duration} />
         </Panel>
       ) : null}
 
