@@ -95,7 +95,7 @@ props, use only `nu-*` tokens and logical spacing, and keep every target at 56px
 | `DateRangeButton`, `DateRangeSheet` | Picking a period | This week, This month (default), Last 3 months, This year, All time, Pick dates. A preset applies at once. Pick dates opens From, To and Done. `range.ts` has `rangeQuery()` for the API. |
 | `NumberGrid` | Picking a number (Grade 1–12) | Four across, 58px tiles, the picked one indigo; `required` dashes a border; `disabled` numbers are shown flat grey, cannot be picked, and the arrow keys skip them. |
 | `Stepper` | A count, never typed ("− 15 +") | Two 56px squares and a 34px/800 number. `min`/`max` are the caller's (the server's); a button at its bound is disabled. |
-| `ToggleList` | Big options with a tick box | `mode="single"` (radio) or `"multi"` (checkbox). On = indigo. `compact` = 56px rows. |
+| `ToggleList` | Big options with a tick box | `mode="single"` (radio) or `"multi"` (checkbox). On = indigo. `compact` = 56px rows. `disabled` dims every option and ignores taps (My grades inside the server's 48h window). |
 | `Panel`, `Fold` | A section of content (a report's feedback, a transcript) | `icon` + a short `title` (one heading, 1–3 words) over the content. `Panel` is the list card with a 42px neutral tile; `Fold` is the same card whose heading is a 60px button with ⌄ (`aria-expanded`), closed by default (`defaultOpen`). The words inside are data, shown as they are. |
 | `Hero` | A status screen | `ring` ({value 0–1, text}) or `icon` + `tone` (`done`, `waiting`, `neutral`), `spinning`, `chips`, `live`. |
 | `AnswerChoices`, `QuestionDots` | One question per screen (bd-5rz1v.25) | Big answers: a 32px letter tile then the answer, 58px+, 16px corners, 2px edge; the picked one indigo (edge, tint, letter). `mode="multi"` = checkboxes ("Pick all"); `images` for picture answers; `value` is 0-based positions. `QuestionDots`: a bar per question, indigo up to the current one, a progressbar, never a button. |
@@ -269,7 +269,7 @@ operator decided on 2026-10-03.
   Coaching**. There is no More. **Assessment** opens `/portal/assessment` (bd-5rz1v.13); an old link to
   the Curriculum page's `?tab=assessment` still lights it.
 - **Teacher, avatar:** her initials in a 40px circle inside a 56px target open the **account sheet**:
-  My Classes, Analytics, Certificates and My account, then a red outline Logout. On a phone the avatar
+  My Classes, Analytics, Certificates, My grades (bd-5rz1v.25) and My account, then a red outline Logout. On a phone the avatar
   sits in a slim indigo strip at the top of pages that have no heading band yet. A page that draws its
   own heading passes `ownHeading` to `PortalLayout`: the strip goes and the band carries the avatar
   (`AccountAvatar`, which opens the same sheet through `accountSheet.ts`). Home does this. On a desktop
@@ -395,15 +395,14 @@ old code). The mockup has no Coaching section; these screens follow Home's and A
 `newui/training/`, routes in `lib/trainingRoutes.ts` (`TRAINING_ROUTES`), picked by
 `pages/PortalTrainingPage.tsx`. With the flag off, for a leader, or while the flag loads, every
 training address renders `PortalTrainingV2` byte for byte (`PortalTrainingV2.flagOff.test.tsx`), and
-an address only the new UI has (`/grades`, `/level/:id/exam`) goes to the old page it stands for. A
-screen not built yet renders the old page at the same address. The endpoints are the old page's; the
-screens hold no training rule. Teachers see "Part"; the code's word is "module".
+an address only the new UI has (`/grades`, `/level/:id/exam`, `/unit/:id/quiz`) goes to the old page it
+stands for. The endpoints are the old page's; the screens hold no training rule. Teachers see "Part"; the code's word is "module".
 
 - `/portal/training`: `MainHeading` with "NIETE 24%" (the provider she is continuing) and her
   certificate count on the band; a `Row` per provider (initials in a neutral tile, a green bar, the %,
   a check when done; NIETE, I-SAPS, Beacon House, Oxbridge); a Certificates row; **Continue
   <provider>**. Continue (`continue.ts`): the only timestamps are each part's `completed_at`, so among
-  the started levels it reads the courses she is part-way through (two API calls in the usual case),
+  the started levels (not locked and not finished; a certified level with parts left counts) it reads the courses she is part-way through (two API calls in the usual case),
   takes the course with her latest completion, and opens its next part (not done, not locked); a
   finished course opens the level's next unfinished course, a finished level its page (the exam). A
   failed read opens the level page. Nothing assigned: "No training yet" and a My grades row.
@@ -428,6 +427,27 @@ screens hold no training rule. Teachers see "Part"; the code's word is "module".
   question with its answer kept; Submit on the last posts ModuleQuizPanel's exact answer set. The result:
   a green `Hero` ring with the score, Passed or Not passed, the %, an Up next row (the parts are read
   again: a pass may open the next one), Continue and Try again (outline).
+- `/provider/:key/level/:id/exam` (new address; flag off goes to the level): LevelExamCard and
+  CapstoneExamForm as a page. Ready: a neutral trophy `Hero` with the gate's rules as chips ("20 Q",
+  "80% to pass", amber "24h wait if failed"; a number the gate does not send is not shown, bd-2489) and
+  Start exam. Courses left: Locked, "3 more courses". Cooldown: an amber Wait. Passed: the certificate as
+  a card (level, code, date; a tap downloads). The exam is one question per screen; the written exam
+  (Beacon House capstone) one answer per screen with the server's character floor as a chip. Pass and
+  fail are `Hero` states; a fail shows the wait as an amber chip.
+- `/exam/:courseId` (I-SAPS module exam): one question per screen with the written answer as a text box;
+  the attempt resumes and the draft is restored; each answer saves on its own 800ms after the last change
+  (`PUT /exam/draft`), shown as a chip (Saving…, Saved, Not saved). Her latest sitting is the `Hero`
+  (Being graded, Not passed with "MCQ 1/2" and "Need 2", Passed), her answers are in a sheet, and earlier
+  sittings are rows. Try again only after a failed sitting. A closed gate shows Locked and the gate's own
+  short word; its sentence is not shown.
+- `/certificates`: `FilterChips` (All 4, NIETE 1, Beacon 2…), a row per certificate (neutral award,
+  "NIETE · Aspiring", the date, a download icon). Web: a tap opens a sheet with the code, View (in place,
+  `?view=1`) and Download (a new tab). The app: a tap downloads in place, with no View and no `_blank`
+  (`certificateFile.ts` keeps CertificatesPanel's rules).
+- `/grades` (My grades, from the account sheet; from Training only when nothing is assigned): a multi
+  `ToggleList` (Primary 1–5, Middle 6–8, High 9–10, split from the server's titles), an amber lock chip
+  ("Locked 48h after save", or "Locked · 31h" inside the window), and Save. A 429 becomes that chip. The
+  server's notice sentences are not shown.
 
 ## Urdu and RTL
 

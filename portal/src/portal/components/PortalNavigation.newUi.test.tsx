@@ -170,7 +170,7 @@ describe("flag on — teacher, the avatar and the account sheet", () => {
     expect(avatar.querySelector("svg")).not.toBeNull();
   });
 
-  it("opens an account sheet titled with her name: My Classes, Analytics, Certificates, My account, Logout", async () => {
+  it("opens an account sheet titled with her name: My Classes, Analytics, Certificates, My grades, My account, Logout", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
     const sheet = await openAccount("phone");
     expect(within(sheet).getByRole("heading", { name: "Ayesha Khan" })).toBeInTheDocument();
@@ -179,6 +179,8 @@ describe("flag on — teacher, the avatar and the account sheet", () => {
       ["My Classes", "/portal/classes"],
       ["Analytics", "/portal/coaching/analytics"],
       ["Certificates", "/portal/training/certificates"],
+      // bd-5rz1v.25 — the band picker left the Training page; it lives here now.
+      ["My grades", "/portal/training/grades"],
       ["My account", "/portal/account"],
     ]);
     for (const row of within(rows).getAllByRole("link")) expect(row.className).toMatch(/\bmin-h-\[56px\]/);
@@ -202,7 +204,8 @@ describe("flag on — teacher, the avatar and the account sheet", () => {
     const rows = within(sheet).getByTestId("newui-sheet-rows");
     expect(rows.innerHTML).not.toMatch(/nu-f-/);
     const tiles = rows.querySelectorAll("[data-tile]");
-    expect(tiles.length).toBe(4);
+    // bd-5rz1v.25 — My Classes, Analytics, Certificates, My grades, My account.
+    expect(tiles.length).toBe(5);
     for (const t of tiles) expect(t.getAttribute("class")).toMatch(/\bbg-nu-neutral-tile\b/);
     const current = within(rows).getByRole("link", { name: /My Classes/ });
     expect(current).toHaveAttribute("aria-current", "page");

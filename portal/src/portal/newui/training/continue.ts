@@ -11,8 +11,10 @@ import {
  * (GET /training/modules), so "where she was last" is the course holding her most recent
  * completion, and "continue" is the next part in it.
  *
- *   1. Open levels: not locked, not certified (GET /training/levels, already on the page).
- *      Started: an open level with something done in it (or its exam waiting).
+ *   1. Open levels: not locked, and not finished — a certified level with parts left still counts
+ *      (sandbox, bd-5rz1v.25.5: I-SAPS certified at 53/54, Module 9's last unit next). From
+ *      GET /training/levels, already on the page. Started: an open level with something done in
+ *      it (or its exam waiting).
  *   2. Nothing started: the first open level of the first provider, in the page's order
  *      (NIETE, I-SAPS, Beacon House, Oxbridge), at its first unfinished course.
  *   3. Otherwise, for each started level (four at most): its courses (GET /training/courses);
@@ -57,7 +59,8 @@ export async function findContinue(
   const order = sortVendors(vendors).map((v) => v.vendor_key);
   const rank = (k?: string | null) => { const i = order.indexOf(String(k || '')); return i < 0 ? order.length : i; };
 
-  const open = levels.filter((l) => l.vendor_key && l.state !== 'locked' && l.state !== 'certified');
+  const unfinished = (l: Level) => l.state !== 'certified' || (l.completed_count || 0) < (l.module_count || 0);
+  const open = levels.filter((l) => l.vendor_key && l.state !== 'locked' && unfinished(l));
   if (!open.length) return null;
 
   const atLevel = (l: Level): ContinueTarget => ({ vendorKey: String(l.vendor_key), levelId: l.id, to: paths.level(String(l.vendor_key), l.id) });
