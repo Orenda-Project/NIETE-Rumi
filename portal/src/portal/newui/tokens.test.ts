@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import resolveConfig from "tailwindcss/resolveConfig";
 import tailwindConfig from "../../../tailwind.config";
 import * as tokens from "./tokens";
-import { BRAND, BUTTON, DONE, FEATURE_HUE, FEATURE_ICON, FRAME, NAV, NEUTRAL, PROGRESS, SELECTION, STATUS, SURFACE, TAP_MIN_PX, tailwindColors } from "./tokens";
+import { BRAND, BUTTON, DONE, FEATURE_HUE, FEATURE_ICON, FRAME, INNER_BAR, NAV, NEUTRAL, PROGRESS, SELECTION, STATUS, SURFACE, TAP_MIN_PX, tailwindColors } from "./tokens";
 
 /**
  * bd-5rz1v.12 — the new UI's colours live in ONE place (tokens.ts) and the
@@ -28,8 +28,8 @@ describe("new UI tokens", () => {
   // Final colour rule (operator, 2026-10-03, "still too much colour"); values from
   // versions/v6_deep-screens/deep-screens.html.
   it("indigo is the frame (heading band + menu bar) and the selection", () => {
-    // The heading band's bottom corners are rounded; the menu bar's are square.
-    expect(FRAME).toEqual({ background: "#333748", text: "#ffffff", translucent: "rgba(255,255,255,0.14)", headingRadius: 24 });
+    // Flat: the main-page heading band and the menu bar both have square corners.
+    expect(FRAME).toEqual({ background: "#333748", text: "#ffffff", translucent: "rgba(255,255,255,0.14)" });
     expect(SELECTION).toEqual({ colour: "#333748", tint: "#e8e9f0", text: "#ffffff" });
   });
 
@@ -53,13 +53,18 @@ describe("new UI tokens", () => {
     expect(BUTTON.primary.background).toBe(BRAND.button);
   });
 
-  it("a feature colour is ONLY the heading icon, on a soft white tile", () => {
+  it("a feature colour is ONLY its own icon: light tint on the indigo band, its hue in a light bar's breadcrumb", () => {
     expect(FEATURE_ICON).toEqual({
       tile: "rgba(255,255,255,0.12)",
-      lessonPlans: "#7fd6a6",
-      training: "#8bb8f7",
-      assessment: "#b8a8f8",
+      onIndigo: { lessonPlans: "#7fd6a6", training: "#8bb8f7", assessment: "#b8a8f8" },
+      onLight: { lessonPlans: "#2e7d57", training: "#1d6fd8", assessment: "#6e52e0" },
     });
+    // The breadcrumb colour IS the feature's hue — one source, not a second copy.
+    expect(FEATURE_ICON.onLight.training).toBe(FEATURE_HUE.training.colour);
+  });
+
+  it("pages inside a flow get a light bar: white, 1px bottom line, soft indigo back button, muted breadcrumb", () => {
+    expect(INNER_BAR).toEqual({ background: "#ffffff", border: "#e3e5ec", back: "#f3f3f7", backIcon: "#333748", crumb: "#666b80" });
   });
 
   it("everything else is neutral grey: row icons, subject icons, badges, scores, values; info chips too", () => {
@@ -112,7 +117,13 @@ describe("the Tailwind theme is built from the tokens", () => {
   });
 
   it("feature classes are only the heading-icon tints and their tile", () => {
-    expect(colors.nu.f).toEqual({ tile: "rgba(255,255,255,0.12)", "lesson-plans": "#7fd6a6", training: "#8bb8f7", assessment: "#b8a8f8" });
+    expect(colors.nu.f).toEqual({
+      tile: "rgba(255,255,255,0.12)",
+      "lesson-plans": { DEFAULT: "#7fd6a6", crumb: "#2e7d57" },
+      training: { DEFAULT: "#8bb8f7", crumb: "#1d6fd8" },
+      assessment: { DEFAULT: "#b8a8f8", crumb: "#6e52e0" },
+    });
+    expect(colors.nu.inner).toEqual({ DEFAULT: "#ffffff", border: "#e3e5ec", back: "#f3f3f7", "back-icon": "#333748", crumb: "#666b80" });
     expect(colors.nu).not.toHaveProperty("subject");
   });
 
