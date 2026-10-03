@@ -169,7 +169,7 @@ describe('a child, start to finish', () => {
     expect(lanes.calls.find((c) => c[0] === 'createSession')[1]).toMatchObject({ drawId: 'd1', coachUserId: 'coach-1', visitId: 'form-1', channel: 'whatsapp' });
     // The printed card is the stimulus: no card images unless CHILD_TEST_INCHAT_CARDS=on (bd-s1oo0.15).
     expect(sent().filter((m) => m.kind === 'image')).toHaveLength(0);
-    expect(last('buttons').body).toMatch(/^\*Child 1 of 5 · Urdu 1\/3\*/);
+    expect(last('buttons').body).toMatch(/^\*Child 1 of 5 · Child 3A-01 · roll 1 · Urdu 1\/3\*/);   // L19: the child is named
     expect(last('buttons').body).toMatch(/«شروع»/);
 
     // Urdu voice note: acknowledged at once, stored under CONTRACT §4, scored off the critical path.
@@ -179,10 +179,10 @@ describe('a child, start to finish', () => {
     expect(mockR2.uploadBuffer).toHaveBeenCalledWith(expect.any(Buffer), 'child-test/sandbox/school-1/sess-1/urdu.ogg', 'audio/ogg');
     expect(lanes.calls.find((c) => c[0] === 'attachBlockMedia')[1]).toEqual({ sessionId: 'sess-1', block: 'urdu', audioR2Key: 'child-test/sandbox/school-1/sess-1/urdu.ogg' });
     expect(last('buttons').body).toMatch(/Urdu|English/);
-    expect(last('buttons').body).toMatch(/^\*Child 1 of 5 · English 2\/3\*/);
+    expect(last('buttons').body).toMatch(/^\*Child 1 of 5 · Child 3A-01 · roll 1 · English 2\/3\*/);
 
     expect(await H.handleVoice(voice('a-eng'), PHONE, COACH)).toBe(true);
-    expect(last('buttons').body).toMatch(/^\*Child 1 of 5 · Maths 3\/3\*/);
+    expect(last('buttons').body).toMatch(/^\*Child 1 of 5 · Child 3A-01 · roll 1 · Maths 3\/3\*/);
     expect(await H.handleVoice(voice('a-maths'), PHONE, COACH)).toBe(true);
     await H.__drain();
     // maths is scored once, after the photo (ai_marks are written once)
@@ -212,7 +212,7 @@ describe('a child, start to finish', () => {
     await startChild('d1');
     for (const b of ['u', 'e', 'm']) await H.handleVoice(voice(`c1-${b}`), PHONE, COACH);
     await startChild('d2');
-    expect(last('buttons').body).toMatch(/^\*Child 2 of 5 · Urdu 1\/3\*/);
+    expect(last('buttons').body).toMatch(/^\*Child 2 of 5 · Child 3A-02 · roll 2 · Urdu 1\/3\*/);
     await H.handleImage(image('strip-1'), PHONE, COACH);   // child 1's strip, sent while child 2 is on Urdu
     await H.__drain();
     expect(lanes.calls.filter((c) => c[0] === 'sendCheck')).toEqual([['sendCheck', 'sess-1']]);
@@ -272,7 +272,7 @@ describe('absent and refused', () => {
     expect(await H.handleButton(COACH, PHONE, `ctst_pres:d2:${code}`)).toBe(true);
     expect(lanes.calls.find((c) => c[0] === 'markOutcome')[1]).toMatchObject({ drawId: 'd2', outcome });
     expect(lanes.calls.find((c) => c[0] === 'createSession')).toBeUndefined();
-    expect(sent().some((m) => m.kind === 'text' && rx.test(m.text) && /Roll 6 from the alternates/.test(m.text))).toBe(true);
+    expect(sent().some((m) => m.kind === 'text' && rx.test(m.text) && /Child 3A-06 · roll 6 from the alternates/.test(m.text))).toBe(true);
     const rows = last('list').action.sections[0].rows;
     // the five to test first, then the absent/refused child, marked; "of 5" counts only the five
     expect(rows.map((r) => r.id)).toEqual(['ctst_child:d1', 'ctst_child:d3', 'ctst_child:d4', 'ctst_child:d6', 'ctst_child:d5', 'ctst_child:d2']);
@@ -387,7 +387,7 @@ describe('/cancel and /menu work in every state', () => {
   test('at the presence question', async () => {
     await openList(); await H.handleList(COACH, PHONE, 'ctst_child:d1');
     expect(await H.handleText(PHONE, '/cancel', COACH)).toBe(true);
-    expect(last('text').text).toMatch(/Stopped the test for Roll 1/);
+    expect(last('text').text).toMatch(/Stopped the test for Child 3A-01 · roll 1\./);
     expect(await H.handleButton(COACH, PHONE, 'ctst_pres:d1:p')).toBe(true);   // a stale tap is not a start
     expect(lanes.calls.find((c) => c[0] === 'createSession')).toBeUndefined();
     noRelease();
@@ -481,7 +481,7 @@ describe('Urdu', () => {
     expect(last('list').body.text).toMatch(/مکمل: ۵ میں سے ۰/);
     await H.handleList(UR, PHONE, 'ctst_child:d1');
     await H.handleButton(UR, PHONE, 'ctst_pres:d1:p');
-    expect(last('buttons').body).toMatch(/بچہ ۱ از ۵ · اردو ۱\/۳/);
+    expect(last('buttons').body).toMatch(/بچہ ۱ از ۵ · .*Child 3A-01.* · رول ۱ · اردو ۱\/۳/);
     for (const b of last('buttons').buttons) expect([...b.title].length).toBeLessThanOrEqual(20);
   });
 });

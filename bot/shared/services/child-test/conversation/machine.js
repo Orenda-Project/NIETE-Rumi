@@ -35,7 +35,8 @@ const ports = require('./ports');
 const S = require('./state');
 const R = require('./recovery');
 const C = require('./context');
-const { langOf, t, clip, blockName, digits } = require('./copy');
+const { langOf, t, clip, blockName } = require('./copy');
+const { childName, childLabel, childLabels, childRow, rollOf } = require('./identity');
 const { evaluateChildTestTrigger, isChildTestAvailable, isObserveLinkOn } = require('./gate');
 const { visitKeyFor, parseVisitKey, pktDate } = require('../draw/visit-key');
 
@@ -47,7 +48,8 @@ const MENU_RX = /^\/menu$/i;
 // L3 keeps an absent or refused child on the visit's main list, marked; they are not one of "the five".
 const INACTIVE = new Set(['absent', 'refused', 'absent_final']);
 const active = (children) => (children || []).filter((c) => !INACTIVE.has(c.status));
-const nameFor = (lang, c) => (lang === 'en' ? c.displayName : (c.displayNameUrdu || c.displayName)) || '';
+// CONTRACT §18: what the conversation keeps of a child to name it later (Redis state only, never logs).
+const who = (c) => ({ rollNumber: c.rollNumber, displayName: c.displayName || null, displayNameUrdu: c.displayNameUrdu || null });
 
 const nowIso = () => new Date().toISOString();
 // This process's claims: a claim with no audio from another boot (or older than CLAIM_STALE_MS) died mid-upload.
@@ -60,12 +62,7 @@ const audioKey = (schoolId, sessionId, block) => `child-test/${r2Env()}/${school
 const photoKey = (schoolId, sessionId) => `child-test/${r2Env()}/${schoolId}/${sessionId}/maths-strip.jpg`;
 // A strip photographed before its child's session exists (the child wrote it while waiting).
 const heldPhotoKey = (schoolId, drawId) => `child-test/${r2Env()}/${schoolId}/held/${drawId}/maths-strip.jpg`;
-const rollsLine = (lang, children, { named = false } = {}) => children
-  .map((c) => (named && nameFor(lang, c)
-    ? t(lang, 'childTestRollItemNamed', { roll: c.rollNumber, name: nameFor(lang, c) })
-    : t(lang, 'childTestRollItem', { roll: c.rollNumber })))
-  .join(lang === 'en' ? ', ' : '، ');
-const bareRolls = (lang, children) => children.map((c) => digits(lang, c.rollNumber)).join(lang === 'en' ? ', ' : '، ');
+const rollsLine = (lang, children) => childLabels(lang, children);
 const listClassIds = (list) => (list.classIds && list.classIds.length ? list.classIds
   : [...new Set((list.children || []).map((c) => c.classId).filter(Boolean))]);
 
@@ -107,8 +104,8 @@ async function buttons(to, body, btns) {
 }
 
 const progressChild = (lang, cur) => t(lang, 'childTestProgressChild', { n: cur.childNo, total: cur.total });
-const progressBlock = (lang, cur) => t(lang, 'childTestProgress', {
-  n: cur.childNo, total: cur.total, block: blockName(lang, cur.block), b: BLOCKS.indexOf(cur.block) + 1,
+const progressBlock = (lang, cur) => t(lang, 'childTestProgressNamed', {
+  n: cur.childNo, total: cur.total, child: childLabel(lang, cur), block: blockName(lang, cur.block), b: BLOCKS.indexOf(cur.block) + 1,
 });
 
 const cardCache = new Map();
@@ -177,8 +174,28 @@ function rowDescription(lang, child, sess, currentDrawId) {
     parts.push(t(lang, 'childTestStatusTested'));
     if (sess.checkWaiting) parts.push(t(lang, 'childTestStatusCheckWaiting'));
   } else if (sess) parts.push(t(lang, 'childTestStatusInProgress'));
-  return clip(parts.join(' · '), 72);
+  return parts.join(' · ');
 }
+
+/**
+ * Two children on one list with the same name and no roll to tell them apart: the row status starts
+ * with the father's name (students.father_name), when the roster has one.
+ */
+function fatherHints(lang, children) {
+  const count = new Map();
+  for (const c of children) {
+    const n = childName(lang, c).toLowerCase();
+    if (n) count.set(n, (count.get(n) || 0) + 1);
+  }
+  const hints = new Map();
+  for (const c of children) {
+    if (count.get(childName(lang, c).toLowerCase()) < 2 || rollOf(c) !== null) continue;
+    const father = String((lang === 'en' ? c.fatherName : (c.fatherNameUrdu || c.fatherName)) || '').replace(/\s+/g, ' ').trim();
+    if (father) hints.set(c.drawId, t(lang, 'childTestFatherHint', { name: father }));
+  }
+  return hints;
+}
+const withHint = (hints, c, status) => [hints.get(c.drawId), status].filter(Boolean).join(' · ');
 
 async function sendList(user, from, ctx, list, state) {
   const lang = langOf(user);
@@ -189,29 +206,28 @@ async function sendList(user, from, ctx, list, state) {
   const done = children.filter((c) => sess[c.drawId] && sess[c.drawId].status === 'completed').length;
   const shown = [...children, ...inactive].slice(0, 10);
   const checks = Object.values(sess).filter((s) => s.checkWaiting).length;
+  const alts = (list.alternates || []).slice(0, Math.max(0, 10 - shown.length));
+  const hints = fatherHints(lang, [...shown, ...alts]);
   const sections = [{
     title: clip(t(lang, 'childTestSectionChildren'), 24),
     rows: shown.map((c) => ({
       id: `ctst_child:${c.drawId}`,
-      title: clip(t(lang, 'childTestRowTitle', { roll: c.rollNumber, name: nameFor(lang, c) }), 24),
-      description: rowDescription(lang, c, sess[c.drawId], currentDrawId),
+      ...childRow(lang, c, withHint(hints, c, rowDescription(lang, c, sess[c.drawId], currentDrawId))),
     })),
   }];
-  const alts = (list.alternates || []).slice(0, Math.max(0, 10 - shown.length));
   if (alts.length) {
     sections.push({
       title: clip(t(lang, 'childTestSectionAlternates'), 24),
       rows: alts.map((c) => ({
         id: `ctst_alt:${c.drawId}`,
-        title: clip(t(lang, 'childTestRowTitle', { roll: c.rollNumber, name: nameFor(lang, c) }), 24),
-        description: clip(t(lang, 'childTestAlternateRow'), 72),
+        ...childRow(lang, c, withHint(hints, c, t(lang, 'childTestAlternateRow'))),
       })),
     });
   }
   const sectionsLabel = [...new Set(children.map((c) => c.section).filter(Boolean))].join(', ') || '—';
   let body = t(lang, 'childTestListBody', { done, total: children.length });
   const waiting = children.filter((c) => c.status === 'listed');
-  if (waiting.length) body += `\n${t(lang, 'childTestListTeacherLine', { rolls: bareRolls(lang, waiting) })}`;
+  if (waiting.length) body += `\n${t(lang, 'childTestListTeacherLine', { children: childLabels(lang, waiting) })}`;
   if (checks) body += `\n${t(lang, 'childTestListChecks', { n: checks })}`;
   if (children.length && done === children.length) body += `\n${t(lang, 'childTestListAllDone')}`;
   const ok = await WhatsAppService.sendInteractiveMessage(from, {
@@ -288,9 +304,9 @@ async function onSendToTeacher(user, from) {
     return say(from, t(lang, 'childTestTeacherSendFailed'));
   }
   const tl = teacher.preferred_language === 'en' ? 'en' : 'ur';
-  // The teacher's own class: roll + the name the teacher already has, nothing else.
+  // The teacher's own class: the name the teacher already has, the roll as a hint, nothing else.
   const ok = await WhatsAppService.sendMessage(teacher.phone_number,
-    t(tl, 'childTestTeacherMessage', { rolls: rollsLine(tl, waiting, { named: true }) }));
+    t(tl, 'childTestTeacherMessage', { children: childLabels(tl, waiting) }));
   if (ok === false) {
     logError('child_test.teacher_send_failed', { visitId: ctx.visitId, teacherUserId: ctx.teacherUserId, reason: 'send' });
     return say(from, t(lang, 'childTestTeacherSendFailed'));
@@ -384,7 +400,7 @@ async function onChildTapped(user, from, drawId, { alternate = false } = {}) {
   }
   const marked = (res.children || []).find((c) => c.drawId === drawId && INACTIVE.has(c.status));
   if (marked) {
-    return say(from, t(lang, marked.status === 'refused' ? 'childTestOutcomeRefused' : 'childTestOutcomeAbsent', { roll: marked.rollNumber }));
+    return say(from, t(lang, marked.status === 'refused' ? 'childTestOutcomeRefused' : 'childTestOutcomeAbsent', { child: childLabel(lang, marked) }));
   }
   const five = active(res.children);
   const idx = five.findIndex((c) => c.drawId === drawId);
@@ -396,16 +412,16 @@ async function onChildTapped(user, from, drawId, { alternate = false } = {}) {
   const child = five[idx];
   const cur = state.current;
   if (state.step === 'block' && cur && cur.drawId !== drawId) {
-    return say(from, t(lang, 'childTestBusy', { roll: cur.rollNumber, block: blockName(lang, cur.block) }));
+    return say(from, t(lang, 'childTestBusy', { child: childLabel(lang, cur), block: blockName(lang, cur.block) }));
   }
   if (state.step === 'block' && cur && cur.drawId === drawId) return sendPrompt(user, from, state);
 
   // The next child on the list who has not been tested or handed a strip writes the strip while waiting.
   const handed = state.handed || [];
   const nextUp = five.slice(idx + 1).find((c) => c.status === 'listed' && !handed.includes(c.drawId));
-  const base = { drawId, rollNumber: child.rollNumber, childNo: idx + 1, total: five.length, tappedAt: nowIso(),
+  const base = { drawId, ...who(child), childNo: idx + 1, total: five.length, tappedAt: nowIso(),
     listIds: res.children.map((c) => c.drawId),
-    handOver: nextUp ? { drawId: nextUp.drawId, rollNumber: nextUp.rollNumber } : null };
+    handOver: nextUp ? { drawId: nextUp.drawId, ...who(nextUp) } : null };
   if (child.status === 'tested') {
     const r = await ports.store.getSessionByDraw(drawId);
     const sess = r && r.ok ? r.session : null;
@@ -415,13 +431,13 @@ async function onChildTapped(user, from, drawId, { alternate = false } = {}) {
         const allChecked = b && b.ok && (b.blocks || []).length && b.blocks.every((x) => x.checked_at);
         if (!allChecked) return R.openCheck(sess.id, from, lang, child.rollNumber);
       }
-      return say(from, t(lang, 'childTestAlreadyDone', { roll: child.rollNumber }));
+      return say(from, t(lang, 'childTestAlreadyDone', { child: childLabel(lang, child) }));
     }
     return beginSession(user, from, { ...state, step: 'presence', current: base });
   }
   await S.set(user.id, { ...state, step: 'presence', current: base });
   return buttons(from,
-    `*${progressChild(lang, base)}*\n${t(lang, 'childTestPresenceBody', { roll: child.rollNumber, name: nameFor(lang, child) })}`,
+    `*${progressChild(lang, base)}*\n${t(lang, 'childTestPresenceBody', { child: childLabel(lang, child) })}`,
     [
       { id: `ctst_pres:${drawId}:p`, title: clip(t(lang, 'childTestPresent'), 20) },
       { id: `ctst_pres:${drawId}:a`, title: clip(t(lang, 'childTestAbsent'), 20) },
@@ -451,8 +467,8 @@ async function onPresence(user, from, drawId, code) {
   const next = { ...state, step: 'list', current: null };
   await S.set(user.id, next);
   await say(from, [
-    t(lang, outcome === 'absent' ? 'childTestOutcomeAbsent' : 'childTestOutcomeRefused', { roll: cur.rollNumber }),
-    promoted ? t(lang, 'childTestPromoted', { roll: promoted.rollNumber }) : t(lang, 'childTestNoAlternate'),
+    t(lang, outcome === 'absent' ? 'childTestOutcomeAbsent' : 'childTestOutcomeRefused', { child: childLabel(lang, cur) }),
+    promoted ? t(lang, 'childTestPromoted', { child: childLabel(lang, promoted) }) : t(lang, 'childTestNoAlternate'),
   ].join('\n'));
   return sendList(user, from, state.ctx, list, next);
 }
@@ -660,7 +676,7 @@ async function processVoice(message, from, user, state, audioId) {
   const block = await claimNext(sid, { audioId, sentAt: sentAtMs, at: nowIso(), boot: BOOT });
   if (!block) {
     logToFile('child_test.voice_all_in', { sessionId: sid });
-    await say(from, t(lang, 'childTestVoiceAllIn', { roll: cur.rollNumber }));
+    await say(from, t(lang, 'childTestVoiceAllIn', { child: childLabel(lang, cur) }));
     return true;
   }
   let stored = false;
@@ -913,7 +929,7 @@ async function cancel(user, from, { quiet = false } = {}) {
     }
     await S.set(user.id, { ...state, step: 'list', current: null });
     logToFile('child_test.child_stopped', { drawId: cur.drawId, step: state.step });
-    if (!quiet) await say(from, t(lang, 'childTestCancelledChild', { roll: cur.rollNumber }));
+    if (!quiet) await say(from, t(lang, 'childTestCancelledChild', { child: childLabel(lang, cur) }));
     if (quiet) return closeList(user, from, { ...state, step: 'list', current: null }, { quiet });
     return true;
   }

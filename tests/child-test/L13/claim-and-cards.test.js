@@ -153,7 +153,7 @@ describe('claim before store (bd-s1oo0.14)', () => {
     await H.__drain();
     expect(audioAttaches()).toHaveLength(3);
     expect(mockR2.uploadBuffer).toHaveBeenCalledTimes(3);
-    expect(sent().filter((m) => m.kind === 'text' && /Roll 1's three voice notes are already in/.test(m.text))).toHaveLength(1);
+    expect(sent().filter((m) => m.kind === 'text' && /All three voice notes for Child 3A-01 · roll 1 are already in/.test(m.text))).toHaveLength(1);
   });
 
   test('an English upload failure releases the claim, tells the coach, and the next note lands as English', async () => {
@@ -283,6 +283,6 @@ describe('printed card by default (bd-s1oo0.15)', () => {
       expect(s).not.toMatch(/childTest/);
       expect([...s].length).toBeLessThanOrEqual(20);
     }
-    for (const lang of ['en', 'ur']) expect(getString('childTestVoiceAllIn', lang, { roll: '12' })).toMatch(/12|۱۲/);
+    for (const lang of ['en', 'ur']) expect(getString('childTestVoiceAllIn', lang, { child: 'Child 3A-12 · roll 12' })).toMatch(/Child 3A-12/);
   });
 });

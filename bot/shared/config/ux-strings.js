@@ -3098,7 +3098,6 @@ const UX_STRINGS = {
   childTestListButton: { en: 'Today\'s children', ur: 'آج کے بچے' },
   childTestSectionChildren: { en: 'Today\'s children', ur: 'آج کے بچے' },
   childTestSectionAlternates: { en: 'Alternates', ur: 'متبادل' },
-  childTestRowTitle: { en: 'Roll {roll} · {name}', ur: 'رول {roll} · {name}' },
   childTestRoleNew: { en: 'New', ur: 'نیا' },
   childTestRoleReturning: { en: 'Returning (Form B)', ur: 'دوبارہ (فارم B)' },
   childTestStatusTested: { en: 'Done ✓', ur: 'مکمل ✓' },
@@ -3115,16 +3114,16 @@ const UX_STRINGS = {
     ur: 'یہ متبادل ہے۔ فہرست کا کوئی بچہ غیر حاضر ہو یا انکار کرے تو یہ متبادل خود فہرست میں شامل ہو جائے گا۔',
   },
   childTestAlreadyDone: {
-    en: 'Roll {roll} is already done today.',
-    ur: 'رول {roll} کا ٹیسٹ آج ہو چکا ہے۔',
+    en: '{child} is already done today.',
+    ur: '{child} کا ٹیسٹ آج ہو چکا ہے۔',
   },
   childTestNotOnList: {
     en: 'That child is not on today\'s list any more. Here is the list.',
     ur: 'یہ بچہ اب آج کی فہرست میں نہیں۔ فہرست یہ ہے۔',
   },
   childTestBusy: {
-    en: 'Roll {roll} is still in progress ({block}). Finish that child first, or send /cancel to stop.',
-    ur: 'رول {roll} کا ٹیسٹ ابھی جاری ہے ({block})۔ پہلے یہ مکمل کریں، یا روکنے کے لیے ⁦/cancel⁩ بھیجیں۔',
+    en: '{child} is still in progress ({block}). Finish that child first, or send /cancel to stop.',
+    ur: '{child} کا ٹیسٹ ابھی جاری ہے ({block})۔ پہلے یہ مکمل کریں، یا روکنے کے لیے ⁦/cancel⁩ بھیجیں۔',
   },
   childTestProgress: {
     en: 'Child {n} of {total} · {block} {b}/3',
@@ -3135,17 +3134,17 @@ const UX_STRINGS = {
   childTestBlockEnglish: { en: 'English', ur: 'انگریزی' },
   childTestBlockMaths: { en: 'Maths', ur: 'ریاضی' },
   childTestPresenceBody: {
-    en: 'Roll {roll} · {name}\nIs the child here and willing to read?',
-    ur: 'رول {roll} · {name}\nکیا بچہ موجود ہے اور پڑھنے پر آمادہ ہے؟',
+    en: '{child}\nIs the child here and willing to read?',
+    ur: '{child}\nکیا بچہ موجود ہے اور پڑھنے پر آمادہ ہے؟',
   },
   childTestPresent: { en: 'Present', ur: 'موجود' },
   childTestAbsent: { en: 'Absent', ur: 'غیر حاضر' },
   childTestRefused: { en: 'Refused', ur: 'انکار' },
-  childTestOutcomeAbsent: { en: 'Roll {roll} marked absent.', ur: 'رول {roll} غیر حاضر درج۔' },
-  childTestOutcomeRefused: { en: 'Roll {roll} marked as refused.', ur: 'رول {roll} انکار درج۔' },
+  childTestOutcomeAbsent: { en: '{child} marked absent.', ur: '{child} غیر حاضر درج۔' },
+  childTestOutcomeRefused: { en: '{child} marked as refused.', ur: '{child} انکار درج۔' },
   childTestPromoted: {
-    en: 'Roll {roll} from the alternates joins today\'s list.',
-    ur: 'متبادل میں سے رول {roll} آج کی فہرست میں شامل۔',
+    en: '{child} from the alternates joins today\'s list.',
+    ur: 'متبادل میں سے {child} آج کی فہرست میں شامل۔',
   },
   childTestNoAlternate: {
     en: 'No alternate is left for today.',
@@ -3195,8 +3194,8 @@ const UX_STRINGS = {
     ur: '⚠️ {block} کا وائس نوٹ محفوظ نہیں ہو سکا۔ وہی وائس نوٹ دوبارہ بھیجیں۔',
   },
   childTestVoiceAllIn: {
-    en: 'Roll {roll}\'s three voice notes are already in, so I did not use this one.',
-    ur: 'رول {roll} کے تینوں وائس نوٹ پہلے ہی مل چکے ہیں، اس لیے یہ نوٹ استعمال نہیں ہوا۔',
+    en: 'All three voice notes for {child} are already in, so I did not use this one.',
+    ur: '{child} کے تینوں وائس نوٹ پہلے ہی مل چکے ہیں، اس لیے یہ نوٹ استعمال نہیں ہوا۔',
   },
   childTestVoiceEarly: {
     en: 'That voice note was sent before the {block} card, so I kept the first {prev} note. Record {block} now.',
@@ -3214,10 +3213,9 @@ const UX_STRINGS = {
   // CONTRACT §18: the full name leads; the roll is only a hint (rolls renumber monthly).
   childTestChildNameRoll: { en: '{name} · roll {roll}', ur: '{name} · رول {roll}' },
   childTestChildNoName: { en: '(no name on the class list)', ur: '(کلاس کی فہرست میں نام نہیں)' },
-  childTestRollItemNamed: { en: 'Roll {roll} ({name})', ur: 'رول {roll} ({name})' },
   childTestListTeacherLine: {
-    en: 'Give the class teacher these roll numbers, in this order, to send one child at a time: {rolls}',
-    ur: 'کلاس ٹیچر کو یہ رول نمبر اسی ترتیب سے دیں، تاکہ ایک وقت میں ایک بچہ آئے: {rolls}',
+    en: 'Ask the class teacher for these children, one at a time, in this order: {children}',
+    ur: 'کلاس ٹیچر سے یہ بچے ایک ایک کر کے اسی ترتیب سے بلوائیں: {children}',
   },
   childTestTeacherOfferBody: {
     en: 'The observed teacher is this class\'s teacher. Send them today\'s order of roll numbers?',
@@ -3225,16 +3223,16 @@ const UX_STRINGS = {
   },
   childTestSendToTeacher: { en: 'Send to teacher', ur: 'ٹیچر کو بھیجیں' },
   childTestTeacherMessage: {
-    en: 'For today\'s child test, please send these children to the coach one at a time, in this order: {rolls}. When one comes back, send the next.',
-    ur: 'آج کے بچوں کے ٹیسٹ کے لیے یہ بچے ایک ایک کر کے اسی ترتیب سے کوچ کے پاس بھیجیں: {rolls}۔ ایک بچہ واپس آئے تو اگلا بھیجیں۔',
+    en: 'For today\'s child test, please send these children to the coach one at a time, in this order: {children}. When one comes back, send the next.',
+    ur: 'آج کے بچوں کے ٹیسٹ کے لیے یہ بچے ایک ایک کر کے اسی ترتیب سے کوچ کے پاس بھیجیں: {children}۔ ایک بچہ واپس آئے تو اگلا بھیجیں۔',
   },
   childTestTeacherSent: {
     en: 'Sent the order to the class teacher.',
     ur: 'ترتیب کلاس ٹیچر کو بھیج دی گئی۔',
   },
   childTestTeacherSendFailed: {
-    en: '⚠️ I couldn\'t reach the class teacher on WhatsApp. Please give them the roll numbers yourself.',
-    ur: '⚠️ کلاس ٹیچر تک واٹس ایپ پیغام نہیں جا سکا۔ رول نمبر خود دے دیں۔',
+    en: '⚠️ I couldn\'t reach the class teacher on WhatsApp. Please give them the children\'s names yourself, in list order.',
+    ur: '⚠️ کلاس ٹیچر تک واٹس ایپ پیغام نہیں جا سکا۔ بچوں کے نام فہرست کی ترتیب سے خود دے دیں۔',
   },
   childTestNoPhoto: { en: 'No strip photo', ur: 'تصویر نہیں' },
   childTestNoPhotoAck: {
@@ -3259,8 +3257,8 @@ const UX_STRINGS = {
     ur: '⚠️ رول {roll} کا چیک تیار ہے مگر کھل نہیں سکا۔ ⁦/egra⁩ بھیجیں اور بچے پر ٹیپ کریں۔',
   },
   childTestCancelledChild: {
-    en: 'Stopped the test for Roll {roll}. The child stays on today\'s list.',
-    ur: 'رول {roll} کا ٹیسٹ روک دیا گیا۔ نام آج کی فہرست میں رہے گا۔',
+    en: 'Stopped the test for {child}. The child stays on today\'s list.',
+    ur: '{child} کا ٹیسٹ روک دیا گیا۔ نام آج کی فہرست میں رہے گا۔',
   },
   childTestClosed: {
     en: 'Child test closed. Send /egra to reopen the same list.',
@@ -3274,6 +3272,14 @@ const UX_STRINGS = {
     en: 'That button is from an older list. Send /egra for today\'s list.',
     ur: 'یہ بٹن پرانی فہرست کا ہے۔ آج کی فہرست کے لیے ⁦/egra⁩ بھیجیں۔',
   },
+  // L19 (CONTRACT §18): the child is named in full, the roll only as a hint.
+  // {child} is conversation/identity.js childLabel(); never hand-roll a label.
+  childTestProgressNamed: {
+    en: 'Child {n} of {total} · {child} · {block} {b}/3',
+    ur: 'بچہ {n} از {total} · {child} · {block} {b}/۳',
+  },
+  // Two children with one name and no roll to tell them apart: the father's name, in the row description.
+  childTestFatherHint: { en: 'father: {name}', ur: 'والد: {name}' },
 };
 
 /**
