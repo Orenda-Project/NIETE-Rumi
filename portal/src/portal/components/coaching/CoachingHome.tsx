@@ -10,6 +10,7 @@ import { canRecordHere } from '../../lib/recordingSupport';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../../lib/recordingStore';
 import { handOffRecording } from '../../lib/lessonHandoff';
 import { minutesText } from '../../lib/coachingUpload';
+import { useRecordingSession } from '../../lib/recordingSession';
 import type { ActiveCoachingSession } from '../../services/api';
 import type { CoachingSession } from '../../types/portal';
 import { scoreBandFor, bandLabel, type BandKey } from '../../lib/scoreBands';
@@ -29,6 +30,11 @@ import { useToast } from '@/hooks/use-toast';
  *   Analysing N lessons…       a quiet line, not a card
  *   Your recordings            search, subject, newest first, grouped by month;
  *                              lessons still in flight are rows in the same list
+ *
+ * bd-5rz1v.10 — while a lesson is still recording (the recording bar is on
+ * screen), the not-sent banner stays away: the newest recording on the phone IS
+ * that lesson, and Delete would throw its chunks away mid-lesson. Send a lesson
+ * takes her back to the lesson being recorded instead of starting a second one.
  */
 
 const COPY = {
@@ -144,6 +150,7 @@ const CoachingHome = () => {
   const [query, setQuery] = useState('');
   const [subject, setSubject] = useState<string | null>(null);
   const [shown, setShown] = useState(PAGE);
+  const recordingNow = !!useRecordingSession()?.active;
 
   useEffect(() => {
     let live = true;
@@ -238,7 +245,7 @@ const CoachingHome = () => {
         </Link>
       </div>
 
-      {unsent && (
+      {unsent && !recordingNow && (
         <div className="mb-3.5 flex flex-col gap-3 rounded-2xl border-2 border-[#f0c36d] bg-[#fff6e0] p-4">
           <div className="flex items-start gap-3">
             <Clock className="mt-0.5 h-6 w-6 shrink-0 text-[#7a5600]" aria-hidden="true" />
@@ -258,7 +265,8 @@ const CoachingHome = () => {
         </div>
       )}
 
-      <SendLessonButton title={COPY.send} sub={COPY.sendSub} onClick={() => setSheet(true)} testId="send-a-lesson" />
+      <SendLessonButton title={COPY.send} sub={COPY.sendSub} testId="send-a-lesson"
+        onClick={() => (recordingNow ? navigate(RECORD_PAGE) : setSheet(true))} />
 
       {sheet && (
         <SendLessonSheet

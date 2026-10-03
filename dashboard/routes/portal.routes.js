@@ -41,6 +41,8 @@ const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { generatePresignedUrl, generatePresignedUrls, isValidR2Url } = require('../services/r2.service');
 const axios = require('axios');
 const { fetchAllPaged } = require('../lib/fetch-all-paged');
+// bd-5rz1v.10 — lesson plan PDFs, relayed through this origin for the portal's viewer.
+const { relayLessonPlanPdf } = require('../lib/lesson-plan-file');
 // bd-2469 — the portal's single source of training decisions. Asks the bot;
 // holds no rules of its own. See dashboard/services/training-rules.service.js.
 const TrainingRules = require('../services/training-rules.service');
@@ -1841,6 +1843,36 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
   }
 });
 
+/**
+ * GET /api/portal/curriculum/lp/:lesson_id/file?kind=lesson|answer_key
+ * → the lesson plan PDF itself (application/pdf), streamed from storage.
+ *
+ * bd-5rz1v.10 — what the portal's own lesson plan viewer reads. The same lookup
+ * as /pdf above (the bot mints the link, for the signed-in teacher), but the
+ * bytes come through this origin, so the viewer never depends on the bucket's
+ * CORS naming whichever host the portal is served from. 404 `{ available: false }`
+ * is "not published yet", exactly as /pdf answers it; anything else that goes
+ * wrong is a 5xx the viewer falls back from (to /pdf, today's way).
+ */
+router.get('/curriculum/lp/:lesson_id/file', requirePortalAuth, async (req, res) => {
+  const lessonId = String(req.params.lesson_id || '').trim();
+  const kind = req.query.kind === 'answer_key' ? 'answer_key' : 'lesson';
+  if (!lessonId) {
+    return res.status(400).json({ success: false, error: 'lesson_id required' });
+  }
+  let hit;
+  try {
+    hit = await LpCatalogue.lessonPdf(lessonId, kind, req.session.portalUserId);
+  } catch (error) {
+    console.error('❌ Portal curriculum/lp/file lookup failed', { error: error?.message });
+    return res.status(502).json({ success: false, error: 'Could not open this lesson plan' });
+  }
+  if (!hit || !hit.url) {
+    return res.status(404).json({ success: true, available: false });
+  }
+  return relayLessonPlanPdf(hit.url, res);
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // LESSON PLANS, GRADES 6-12 — the other corpus, same delegation
 // ───────────────────────────────────────────────────────────────────────────
@@ -1980,6 +2012,35 @@ router.get('/lp612/status/:render_id', requirePortalAuth, async (req, res) => {
     console.error('❌ Portal lp612/status failed', { error: error?.message });
     res.status(502).json({ success: false, error: 'Could not check that lesson' });
   }
+});
+
+/**
+ * GET /api/portal/lp612/file/:render_id → the written lesson's PDF (application/pdf).
+ *
+ * bd-5rz1v.10 — the 6-12 twin of /curriculum/lp/:lesson_id/file: the same poll
+ * as /lp612/status (so only HER request, by the session's user id), with the
+ * bytes relayed through this origin for the portal's viewer. Still being written
+ * is a 409 answer; no such request (or someone else's) a 404.
+ */
+router.get('/lp612/file/:render_id', requirePortalAuth, async (req, res) => {
+  const renderId = String(req.params.render_id || '').trim();
+  if (!renderId) {
+    return res.status(400).json({ success: false, error: 'render_id required' });
+  }
+  let out;
+  try {
+    out = await Lp612.requestStatus(renderId, req.session.portalUserId);
+  } catch (error) {
+    console.error('❌ Portal lp612/file lookup failed', { error: error?.message });
+    return res.status(502).json({ success: false, error: 'Could not check that lesson' });
+  }
+  if (!out || out.notFound) {
+    return res.status(404).json({ success: false, error: 'No such lesson request' });
+  }
+  if (out.state !== 'ready' || !out.url) {
+    return res.status(409).json({ success: true, state: out.state || 'authoring' });
+  }
+  return relayLessonPlanPdf(out.url, res);
 });
 
 /**
