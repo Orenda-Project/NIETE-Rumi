@@ -20,7 +20,8 @@ describe("NumberGrid — e.g. Grade 1–12", () => {
   it("is one choice laid out four across, 8px apart", () => {
     render(<NumberGrid label="Grade" numbers={numbers} value={4} onChange={() => {}} />);
     const group = screen.getByRole("radiogroup", { name: "Grade" });
-    expect(classes(group)).toEqual(expect.arrayContaining(["grid", "grid-cols-4", "gap-2"]));
+    expect(classes(group)).toEqual(expect.arrayContaining(["[display:grid]", "grid-cols-4", "gap-2"]));
+    expect(classes(group)).not.toContain("grid");
     expect(within(group).getAllByRole("radio").map((r) => r.textContent)).toEqual(numbers.map(String));
   });
 
@@ -64,7 +65,7 @@ describe("ToggleList", () => {
     expect(classes(on)).toEqual(expect.arrayContaining(["min-h-[64px]", "rounded-2xl", "border-2", "border-nu-select", "bg-nu-select-tint", "font-extrabold"]));
     expect(classes(off)).toEqual(expect.arrayContaining(["border-nu-surface-line", "bg-nu-surface-card"]));
     const box = on.querySelector("[data-box]")!;
-    expect(classes(box)).toEqual(expect.arrayContaining(["h-7", "w-7", "rounded-lg", "bg-nu-select", "border-nu-select", "text-white"]));
+    expect(classes(box)).toEqual(expect.arrayContaining(["h-7", "w-7", "rounded-[8px]", "bg-nu-select", "border-nu-select", "text-white"]));
     expect(box.querySelector("svg")).not.toBeNull();
     expect(classes(off.querySelector("[data-box]")!)).toContain("border-nu-surface-box");
     expect(on).toHaveTextContent("1–5");
@@ -118,6 +119,11 @@ describe("Hero — the status screen", () => {
     expect(classes(circle)).toEqual(expect.arrayContaining(["bg-nu-chip-warning-bg", "text-nu-chip-warning"]));
     expect(classes(circle.querySelector("svg")!)).toContain("motion-safe:animate-spin");
     expect(circle.querySelector("svg")!.getAttribute("class")).not.toMatch(/(^|\s)animate-spin/);
+  });
+
+  it("error is red (bd-5rz1v.17: a list that did not load)", () => {
+    render(<Hero title="Not loaded" icon={Clock} tone="error" />);
+    expect(classes(screen.getByTestId("newui-hero-icon"))).toEqual(expect.arrayContaining(["bg-nu-chip-error-bg", "text-nu-chip-error"]));
   });
 
   it("announces itself when its state changes (live)", () => {

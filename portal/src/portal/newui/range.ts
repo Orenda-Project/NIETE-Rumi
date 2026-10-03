@@ -51,3 +51,40 @@ export function rangeQuery(range: DateRange): { range: RangeKey; from?: string; 
 export function pkToday(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
 }
+
+/** A real calendar date: 2026-02-30 is not one (Date would roll it into March). */
+function realDate(value: string | null): string | null {
+  if (!value || !isIsoDate(value)) return null;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value ? value : null;
+}
+
+/**
+ * bd-5rz1v.17 — the range lives in the address (?range=…&from=&to=), so Home and its lists share
+ * it, Back keeps it, and a reload shows the same numbers. Anything it cannot read is This month.
+ */
+export function rangeFromSearch(params: URLSearchParams): DateRange {
+  const key = params.get('range');
+  if (key && (RANGE_PRESETS as readonly string[]).includes(key)) return { key: key as RangePreset };
+  if (key === 'custom') {
+    const from = realDate(params.get('from'));
+    const to = realDate(params.get('to'));
+    if (from && to && from <= to) return { key: 'custom', from, to };
+  }
+  return DEFAULT_RANGE;
+}
+
+/** The address's query for a range: "" for the default, so Home's own address stays clean. */
+export function rangeSearch(range: DateRange): string {
+  if (range.key === DEFAULT_RANGE.key) return '';
+  const q = new URLSearchParams(rangeQuery(range) as Record<string, string>);
+  return `?${q.toString()}`;
+}
+
+/** The day of the month and the short month of a moment, in Pakistan ("3", "Oct"). */
+export function pkDayMonth(iso: string, months: readonly string[] = MONTHS): { day: string; month: string } | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const [, m, day] = pkToday(d).split('-').map(Number);
+  return { day: String(day), month: months[m - 1] };
+}

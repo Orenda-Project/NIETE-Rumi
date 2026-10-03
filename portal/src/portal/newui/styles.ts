@@ -17,6 +17,14 @@ export const TAP = 'min-h-[56px]';
 /** A 56px square target, for something with only an icon. */
 export const TAP_SQUARE = 'min-h-[56px] min-w-[56px]';
 
+/**
+ * A grid that mirrors in Urdu. NOT Tailwind's `grid` class: src/index.css (from the first
+ * commit) forces every `.grid` to direction:ltr under [dir="rtl"], so a `grid` would keep its
+ * first item on the left in Urdu. `[display:grid]` is the same display without that class.
+ * checks/style.test.tsx refuses a bare `grid` in new-UI source.
+ */
+export const GRID = '[display:grid]';
+
 /** What a row, tile or option does under a finger. */
 export const PRESS = 'active:bg-nu-ink-xlight';
 

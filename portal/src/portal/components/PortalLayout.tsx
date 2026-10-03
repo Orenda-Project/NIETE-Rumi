@@ -18,9 +18,15 @@ interface PortalLayoutProps {
    * real page replaces it. Optional: every other page keeps the spinner.
    */
   loadingFallback?: ReactNode;
+  /**
+   * bd-5rz1v.17 — a new-UI page that draws its own heading (MainHeading / InnerBar, which bleed
+   * to the screen's edges): the main area has no side or top padding, the page is the new UI's
+   * light surface, and the phone's slim top strip goes (the band carries her avatar).
+   */
+  ownHeading?: boolean;
 }
 
-const PortalLayout = ({ children, bare = false, loadingFallback }: PortalLayoutProps) => {
+const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = false }: PortalLayoutProps) => {
   const auth = useAuth();
   const { user, loading } = auth;
   const navigate = useNavigate();
@@ -76,10 +82,10 @@ const PortalLayout = ({ children, bare = false, loadingFallback }: PortalLayoutP
   return (
     // The loaded user, to everything inside: the navigation never starts from "no user".
     <AuthContext.Provider value={auth}>
-    <div className="min-h-screen bg-secondary">
-      {!bare && <PortalNavigation />}
+    <div className={ownHeading ? 'min-h-screen bg-nu-surface' : 'min-h-screen bg-secondary'}>
+      {!bare && <PortalNavigation hideStrip={ownHeading} />}
       {/* Issue #22: Added consistent padding for content */}
-      <main className={`px-4 md:px-6 lg:px-8 pt-4 ${pad}`}>
+      <main className={ownHeading ? pad : `px-4 md:px-6 lg:px-8 pt-4 ${pad}`}>
         {children}
       </main>
       {showBar && session && <RecordingBar session={session} aboveMenu={!bare} newMenu={newUi} />}

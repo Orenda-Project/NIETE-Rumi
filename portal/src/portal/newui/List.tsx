@@ -162,9 +162,9 @@ export function ProgressBar({ value, label }: { value: number; label: string }) 
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={v}
-      className="block h-1.5 w-full overflow-hidden rounded-md bg-nu-progress-track"
+      className="block h-1.5 w-full overflow-hidden rounded-[6px] bg-nu-progress-track"
     >
-      <span className="block h-full rounded-md bg-nu-progress" style={{ width: `${v}%` }} />
+      <span className="block h-full rounded-[6px] bg-nu-progress" style={{ width: `${v}%` }} />
     </span>
   );
 }

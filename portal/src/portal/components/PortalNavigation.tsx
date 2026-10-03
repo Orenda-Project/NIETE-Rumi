@@ -13,7 +13,11 @@ import nieteLogo from '@/assets/niete-logo.png';
 /** bd-3wb0s — My account: name, school, privacy policy, account deletion, Logout. */
 const ACCOUNT_PATH = '/portal/account';
 
-const PortalNavigation = () => {
+/**
+ * hideStrip (bd-5rz1v.17): the page draws its own heading band with her avatar in it, so the new
+ * UI's slim top strip is not shown. No effect on the old navigation.
+ */
+const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) => {
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const { logout, user } = useAuth();
@@ -105,6 +109,7 @@ const PortalNavigation = () => {
         accountPath={ACCOUNT_PATH}
         firstName={user?.firstName}
         onLogout={guardedLogout}
+        hideStrip={hideStrip}
       />
     );
   }

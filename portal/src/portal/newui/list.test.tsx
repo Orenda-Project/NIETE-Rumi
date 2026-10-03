@@ -111,7 +111,7 @@ describe("ProgressBar", () => {
   it("is green on an indigo-light track, 6px, and clamps to 0-100", () => {
     const { rerender } = render(<ProgressBar value={140} label="NIETE" />);
     const bar = screen.getByRole("progressbar", { name: "NIETE" });
-    expect(classes(bar)).toEqual(expect.arrayContaining(["h-1.5", "bg-nu-progress-track", "rounded-md"]));
+    expect(classes(bar)).toEqual(expect.arrayContaining(["h-1.5", "bg-nu-progress-track", "rounded-[6px]"]));
     expect(bar).toHaveAttribute("aria-valuenow", "100");
     expect(classes(bar.firstElementChild!)).toContain("bg-nu-progress");
     expect((bar.firstElementChild as HTMLElement).style.width).toBe("100%");
@@ -149,6 +149,11 @@ describe("Chip — information, never a button", () => {
     expect(classes(chip)).toEqual(expect.arrayContaining(["rounded-full", "text-[11.5px]", "font-extrabold", "bg-nu-chip-info-bg"]));
     expect(chip.className).not.toMatch(/\bborder\b|active:|shadow/);
     expect(chip.querySelector("svg")).not.toBeNull();
+  });
+
+  it("finds its own direction, so \"2 Visits\" reads 2 Visits inside an Urdu page", () => {
+    render(<div dir="rtl"><Chip>2 Visits</Chip></div>);
+    expect(screen.getByText("2 Visits")).toHaveAttribute("dir", "auto");
   });
 
   it("on the indigo band it is translucent white", () => {

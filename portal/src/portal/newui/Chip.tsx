@@ -40,6 +40,7 @@ export function Chip({ children, tone = 'info', icon: Icon, surface = 'light' }:
   return (
     <span
       data-chip
+      dir="auto"
       className={cn(
         'inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-full font-extrabold',
         'rtl:font-semibold rtl:leading-[1.9]',

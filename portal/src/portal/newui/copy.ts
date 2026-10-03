@@ -66,3 +66,57 @@ export const NAV_COPY = {
     certificates: 'Certificates',
   },
 } as const;
+
+/** n and the word for one or many: "1 Visit", "2 Visits". */
+const count = (one: string, many: string) => (n: number) => `${n} ${n === 1 ? one : many}`;
+
+/** Home = My progress (bd-5rz1v.17; deep-screens.html, Home). */
+export const HOME_COPY = {
+  /** The band's title: "Salaam, Hataf". */
+  greeting: (firstName?: string | null) => {
+    const name = String(firstName || '').trim().split(/\s+/)[0];
+    return name ? `Salaam, ${name}` : 'Salaam';
+  },
+  /** The breadcrumb of Home's inner pages. */
+  home: 'Home',
+  tiles: {
+    lessonPlans: 'Lesson plans used',
+    training: 'Training modules done',
+    assessments: 'Assessments made',
+    attendance: 'Attendance marked',
+    coaching: 'Coaching & observations',
+  },
+  digitalCoach: (n: number) => `${n} Digital Coach`,
+  visits: count('Visit', 'Visits'),
+  plans: count('plan', 'plans'),
+  days: count('day', 'days'),
+  grade: (n: number | string) => `Grade ${n}`,
+  /** A plan whose name the catalogue no longer has. */
+  planFallback: 'Lesson plan',
+  /** A 6-12 plan that has to be written again before it opens. */
+  preparing: 'Preparing',
+  filters: {
+    all: (n: number) => `All ${n}`,
+    digitalCoach: 'Digital Coach',
+    coach: 'Coach',
+    principal: 'Principal',
+  },
+  rows: {
+    digitalCoach: 'Digital Coach',
+    coach: 'Coach visit',
+    principal: 'Principal visit',
+    other: 'Visit',
+  },
+  /** The rating, only inside the coaching list, and only as a band (lib/scoreBands.ts). */
+  bands: {
+    excellent: 'Excellent',
+    good: 'Good',
+    average: 'Average',
+    below_average: 'Below average',
+    needs_support: 'Needs support',
+  },
+  loading: 'Loading…',
+  notLoaded: 'Not loaded',
+  retry: 'Try again',
+  empty: 'Nothing yet',
+} as const;

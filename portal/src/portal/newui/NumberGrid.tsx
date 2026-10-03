@@ -19,7 +19,7 @@ export interface NumberGridProps {
 
 export function NumberGrid({ label, numbers, value, onChange, required = [] }: NumberGridProps) {
   return (
-    <div role="radiogroup" aria-label={label} className="grid grid-cols-4 gap-2">
+    <div role="radiogroup" aria-label={label} className="[display:grid] grid-cols-4 gap-2">
       {numbers.map((n, i) => {
         const on = n === value;
         return (
