@@ -18,3 +18,36 @@ export const TRAINING_V2_PATHS: string[] = ['/portal/training', '/portal/trainin
   `${base}/unit/:moduleId`,
   `${base}/exam/:courseId`,
 ]);
+
+/**
+ * bd-5rz1v.25 — the same addresses, each named for the screen it shows, plus the addresses only
+ * the new UI has (My grades, the level exam page). App.tsx mounts exactly this list through
+ * PortalTrainingPage, which picks the new screen (flag on, a teacher) or PortalTrainingV2.
+ *
+ * With the flag off a new-only address goes to the old page it stands for (NEW_ONLY_FALLBACK),
+ * so a link handed out from the new UI never dead-ends.
+ */
+export type TrainingView =
+  | 'home' | 'certificates' | 'grades' | 'provider' | 'level' | 'levelExam' | 'course' | 'unit' | 'exam';
+
+const VIEWS: ReadonlyArray<[suffix: string, view: TrainingView]> = [
+  ['', 'home'],
+  ['/certificates', 'certificates'],
+  ['/grades', 'grades'],
+  ['/provider/:vendorKey', 'provider'],
+  ['/provider/:vendorKey/level/:levelId', 'level'],
+  ['/provider/:vendorKey/level/:levelId/exam', 'levelExam'],
+  ['/provider/:vendorKey/level/:levelId/course/:browseCourseId', 'course'],
+  ['/unit/:moduleId', 'unit'],
+  ['/exam/:courseId', 'exam'],
+];
+
+export const TRAINING_ROUTES: ReadonlyArray<{ path: string; view: TrainingView }> = ['/portal/training', '/portal/training/v2']
+  .flatMap(base => VIEWS.map(([suffix, view]) => ({ path: `${base}${suffix}`, view })));
+
+/** Where a new-only address goes with the flag off: the old page it stands for. */
+export function newOnlyFallback(view: TrainingView, pathname: string): string | null {
+  if (view === 'grades') return pathname.replace(/\/grades\/?$/, '');
+  if (view === 'levelExam') return pathname.replace(/\/exam\/?$/, '');
+  return null;
+}

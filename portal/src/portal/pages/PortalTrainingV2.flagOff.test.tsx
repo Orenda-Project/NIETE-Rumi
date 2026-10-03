@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, cleanup } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { resetNewUiMemory } from "../lib/useNewUi";
-import { TRAINING_V2_PATHS } from "../lib/trainingRoutes";
+import { TRAINING_ROUTES } from "../lib/trainingRoutes";
 
 /**
  * bd-5rz1v.25 — the new Training screens ship behind `portal_new_ui`, and with the flag OFF
@@ -28,7 +28,7 @@ vi.mock("../services/api", () => ({
 
 import { useAuth } from "../hooks/useAuth";
 import api, { portal } from "../services/api";
-import PortalTrainingV2 from "./PortalTrainingV2";
+import PortalTrainingPage from "./PortalTrainingPage";
 
 type ConfigMode = "off" | "absent" | "loading" | "fails" | "on";
 
@@ -135,7 +135,7 @@ function mount(path: string) {
   return (
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        {TRAINING_V2_PATHS.map((p) => <Route key={p} path={p} element={<PortalTrainingV2 />} />)}
+        {TRAINING_ROUTES.map((r) => <Route key={r.path} path={r.path} element={<PortalTrainingPage view={r.view} />} />)}
       </Routes>
     </MemoryRouter>
   );
