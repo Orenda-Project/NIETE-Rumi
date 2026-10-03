@@ -41,6 +41,7 @@ const ports = require('./ports');
 const S = require('./state');
 const { langOf, t } = require('./copy');
 const { isEnabled } = require('./gate');
+const SW = require('./switches');
 
 const BLOCKS = ['urdu', 'english', 'maths'];
 const MAX_ATTEMPTS = 3;
@@ -148,6 +149,8 @@ async function checkReady(sessionId) {
 
 /** Open the check once, when the store says so. `notify` = { from, lang, rollNumber } (live path). */
 async function maybeOpenCheck(sessionId, notify = null, session = null) {
+  // v2 (CHILD_TEST_CHECK_MODE=end_review): no per-child check; one review at the end of the visit (L28).
+  if (SW.endReview()) return false;
   if (!(await checkReady(sessionId))) return false;
   const to = notify || await coachOf(session || await getSession(sessionId));
   if (!to) return false;
@@ -375,12 +378,19 @@ async function sweepOnce({ now = new Date() } = {}) {
 
 const __internals = {
   async tick() {
+    let out = null;
     try {
-      return await sweepOnce();
+      out = await sweepOnce();
     } catch (err) {
       logError('child_test.score_sweep_failed', { error: err.message });
-      return null;
     }
+    // The same tick runs L26's unsent-draft nudge (conversation/nudge.js): one trusted timer, not two.
+    try {
+      await require('./nudge').sweepOnce();
+    } catch (err) {
+      logError('child_test.nudge_sweep_failed', { error: err.message });
+    }
+    return out;
   },
 };
 

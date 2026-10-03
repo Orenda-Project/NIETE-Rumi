@@ -65,8 +65,13 @@ function nineCards(variant) {
   }));
 }
 
+// L26 (bd-s1oo0.46.2): the v2 journey is the default now; these scenarios drive today's (v1) conversation.
+const V1_SWITCHES = { CHILD_TEST_BATTERY: 'v1', CHILD_TEST_MATHS_MODE: 'strip', CHILD_TEST_CHECK_MODE: 'per_child' };
+beforeAll(() => { Object.assign(process.env, V1_SWITCHES); });
+afterAll(() => { for (const k of Object.keys(V1_SWITCHES)) delete process.env[k]; });
+
 beforeEach(() => {
-  process.env = { ...SAVED };
+  process.env = { ...SAVED, ...V1_SWITCHES };
   process.env.CHILD_TEST_ENABLED = 'true';
   process.env.CHILD_TEST_OBSERVE_LINK = 'true';   // these scenarios open the list through the observe2 visit
   process.env.DEFAULT_REGION = 'niete-sandbox';

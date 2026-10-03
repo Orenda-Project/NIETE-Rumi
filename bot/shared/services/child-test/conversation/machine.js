@@ -43,6 +43,10 @@ const { childName, childLabel, childLabels, childRow, rollOf } = require('./iden
 const { evaluateChildTestTrigger, isChildTestAvailable, isObserveLinkOn } = require('./gate');
 const { visitKeyFor, parseVisitKey, pktDate } = require('../draw/visit-key');
 const childNoReader = require('../scoring/child-no');
+const fs = require('fs');
+const path = require('path');
+const SW = require('./switches');
+const steps = require('./steps');
 
 const BLOCKS = ['urdu', 'english', 'maths'];
 const CUE_KEY = { urdu: 'childTestCueUrdu', english: 'childTestCueEnglish', maths: 'childTestCueMaths' };
@@ -310,6 +314,18 @@ async function openList(user, from, ctx) {
     teacherOffered: !!(sameCtx && prev.teacherOffered),
     listOpenedAt: (sameCtx && prev.listOpenedAt) || nowIso(),
   };
+  if (SW.journeyV2()) {
+    // v2: a child mid-test is picked up where they are, never re-listed under the coach's thumb.
+    state.setupShown = !!(sameCtx && prev.setupShown);
+    if (sameCtx && prev.visitStartedAt) state.visitStartedAt = prev.visitStartedAt;
+    if (sameCtx && prev.step === 'presence' && prev.current) {
+      await S.set(user.id, { ...state, step: 'presence', current: prev.current });
+      return presenceV2(user, from, { ...state, step: 'presence', current: prev.current }, { drawId: prev.current.drawId });
+    }
+    await S.set(user.id, state);
+    if (state.step === 'block' && state.current) return resumePrompt(user, from, state);
+    return sendListV2(user, from, res);
+  }
   await S.set(user.id, state);
   const ok = await sendList(user, from, ctx, res, state);
   if (!state.teacherOffered) await offerTeacherSend(user, from, state, res);
@@ -512,6 +528,10 @@ async function onChildTapped(user, from, drawId, { alternate = false } = {}) {
     logError('child_test.list_failed', { coachUserId: user.id, reason: res && (res.reason || res.error) });
     return say(from, t(lang, 'childTestListFailed'));
   }
+  if (SW.journeyV2()) {
+    if (state.step === 'block' && state.current) return resumePrompt(user, from, state);
+    return presenceV2(user, from, state, { drawId });
+  }
   const marked = (res.children || []).find((c) => c.drawId === drawId && INACTIVE.has(c.status));
   if (marked) {
     return say(from, t(lang, marked.status === 'refused' ? 'childTestOutcomeRefused' : 'childTestOutcomeAbsent', { child: childLabel(lang, marked) }));
@@ -526,7 +546,7 @@ async function onChildTapped(user, from, drawId, { alternate = false } = {}) {
   const child = five[idx];
   const cur = state.current;
   if (state.step === 'block' && cur && cur.drawId !== drawId) {
-    return say(from, t(lang, 'childTestBusy', { child: childLabel(lang, cur), block: blockName(lang, cur.block) }));
+    return say(from, t(lang, 'childTestBusy', { child: v2Label(lang, cur), block: blockName(lang, cur.block) }));
   }
   if (state.step === 'block' && cur && cur.drawId === drawId) return sendPrompt(user, from, state);
 
@@ -577,6 +597,7 @@ async function onPresence(user, from, drawId, code) {
   if (outcome === 'present') return beginSession(user, from, state);
 
   const list = res.list;
+  if (SW.journeyV2()) return afterOutcomeV2(user, from, state, cur, outcome, list);
   const promoted = (list.children || []).find((c) => !(cur.listIds || []).includes(c.drawId));
   const next = { ...state, step: 'list', current: null };
   await S.set(user.id, next);
@@ -612,7 +633,7 @@ async function beginSession(user, from, state) {
   await timing(session.id, 'child.present');
   const strips = await attachHeldStrip(state, cur.drawId, session);
   const handed = [...(state.handed || [])];
-  const handOver = block === 'urdu' && cs.created !== false ? cur.handOver : null;
+  const handOver = !SW.journeyV2() && block === 'urdu' && cs.created !== false ? cur.handOver : null;
   if (handOver && !handed.includes(handOver.drawId)) handed.push(handOver.drawId);
   const next = {
     ...state, step: 'block', handed, strips,
@@ -622,7 +643,7 @@ async function beginSession(user, from, state) {
   if (allStored) {
     // All three notes were stored before a stop or a restart: what follows maths is all that is left.
     await S.set(user.id, next);
-    return afterAllStored(user, from, next.current, lang);
+    return SW.journeyV2() ? afterAllStoredV2(user, from, next.current, lang) : afterAllStored(user, from, next.current, lang);
   }
   return sendBlock(user, from, next);
 }
@@ -728,6 +749,7 @@ async function sendCardPage(user, from, cur, page) {
 
 /** One line: progress · card page · the exact cue · the locked note (+ the strip hand-over on Urdu). */
 async function sendPrompt(user, from, state) {
+  if (SW.journeyV2()) return sendStepV2(user, from, state);
   const lang = langOf(user);
   const cur = state.current;
   const cue = t(lang, CUE_KEY[cur.block], {
@@ -794,7 +816,7 @@ async function processVoice(message, from, user, state, audioId) {
   const block = await claimNext(sid, { audioId, sentAt: sentAtMs, at: nowIso(), boot: BOOT });
   if (!block) {
     logToFile('child_test.voice_all_in', { sessionId: sid });
-    await say(from, t(lang, 'childTestVoiceAllIn', { child: childLabel(lang, cur) }));
+    await say(from, t(lang, 'childTestVoiceAllIn', { child: v2Label(lang, cur) }));
     return true;
   }
   let stored = false;
@@ -815,10 +837,19 @@ async function processVoice(message, from, user, state, audioId) {
     // 2. The state moves on at once; the ack names the claimed block; the next line follows. Then the I/O.
     const moved = await moveTo(user.id, sid);
     try {
+      if (SW.journeyV2()) {
+        // v2: the ack rides on the next step, so the step stays the last bubble; after maths, nothing yet
+        // (the "done" line follows the save).
+        const ack = t(lang, 'childTestVoiceAck', { block: blockName(lang, block) });
+        if (moved && moved.block && BLOCKS.indexOf(moved.block) > bi && !(await S.blockClaim(sid, moved.block))) {
+          await sendStepV2(user, from, moved.state, ack);
+        }
+      } else {
       await say(from, t(lang, 'childTestVoiceAck', { block: blockName(lang, block) }));
       // The ack may have waited on the send pacer; a note that came in meanwhile may hold the next block.
       if (moved && moved.block && BLOCKS.indexOf(moved.block) > bi && !(await S.blockClaim(sid, moved.block))) {
         await openBlock(user, from, moved.state);
+      }
       }
     } catch (err) {
       logError('child_test.voice_failed', { sessionId: sid, block, stage: 'reply', error: err.message });
@@ -850,12 +881,19 @@ async function processVoice(message, from, user, state, audioId) {
 
   const sessionRef = { sessionId: sid, grade: cur.grade, form: cur.form };
   const notify = { from, lang, rollNumber: cur.rollNumber };
-  if (block !== 'maths') offPath('score', () => R.runScoring(sessionRef, block, { notify }), { sessionId: sid, block });
+  // v2 (oral maths): every block, maths included, is scored once straight after its note; v1 maths waits for the strip.
+  if (block !== 'maths' || SW.journeyV2()) {
+    const opts = { notify, ...(block === 'maths' ? { force: true } : {}) };
+    offPath('score', () => R.runScoring(sessionRef, block, opts), { sessionId: sid, block });
+  }
 
   // 3. Whichever note completes the three runs what follows maths — once.
   const b = await ports.store.listBlocks(sid);
   const recorded = new Set(((b && b.blocks) || []).filter((x) => x.audio_r2_key).map((x) => x.block));
-  if (BLOCKS.every((x) => recorded.has(x)) && await S.claimDone(sid)) await afterAllStored(user, from, cur, lang);
+  if (BLOCKS.every((x) => recorded.has(x)) && await S.claimDone(sid)) {
+    if (SW.journeyV2()) await afterAllStoredV2(user, from, cur, lang);
+    else await afterAllStored(user, from, cur, lang);
+  }
   return true;
 }
 
@@ -1142,7 +1180,7 @@ async function cancel(user, from, { quiet = false } = {}) {
     }
     await S.set(user.id, { ...state, step: 'list', current: null });
     logToFile('child_test.child_stopped', { drawId: cur.drawId, step: state.step });
-    if (!quiet) await say(from, t(lang, 'childTestCancelledChild', { child: childLabel(lang, cur) }));
+    if (!quiet) await say(from, t(lang, 'childTestCancelledChild', { child: v2Label(lang, cur) }));
     if (quiet) return closeList(user, from, { ...state, step: 'list', current: null }, { quiet });
     return true;
   }
@@ -1154,6 +1192,258 @@ async function closeList(user, from, state, { quiet }) {
   else await S.clear(user.id);
   if (!quiet) await say(from, t(langOf(user), 'childTestClosed'));
   return true;
+}
+
+// ------------------------------------------------------------------ v2: the coach journey (bd-s1oo0.46.2)
+//
+// design/COACH_JOURNEY_V2.md §3.1, CONTRACT §19. Runs when SW.journeyV2() (battery v2 + oral maths, the
+// defaults); every v1 function above stays reachable behind CHILD_TEST_BATTERY=v1 / CHILD_TEST_MATHS_MODE=strip.
+//
+//   /egra → the list by classroom (L25 list.buildListMessage) [Start] [Send to the teachers]
+//   Start → once per visit, the setup picture [Start with <name>] → the next child's presence prompt
+//   Here, start → 1/3 Urdu story → note → 2/3 English story → note → 3/3 Maths → note
+//     each step is plain text with NO buttons: it must stay the last bubble, above the recorder (R3 §2a)
+//   the third note → maths scored once → "✅ <name> done. Thank the child." + the next child's prompt
+//   no child left → "🎉 All n children done (m min)" → review.visitSummary + review.sendReview (L28)
+// One child at a time: no message names another child until the current one is done.
+
+const VISIT_WAIT_MS = 2 * 60 * 1000;   // the last child's maths is being scored when the visit ends
+const VISIT_POLL_MS = 500;
+const PICTURE_DIR = () => process.env.CHILD_TEST_SETUP_PICTURE_DIR || path.join(__dirname, '../../../data/child-test');
+const v2Label = (lang, c) => (SW.journeyV2() ? steps.nameOf(lang, c) : childLabel(lang, c));
+const visitOfState = (ctx) => (ctx && (ctx.visitKey || ctx.visitId)) || null;
+
+async function sendListV2(user, from, list) {
+  const lang = langOf(user);
+  let msg;
+  try {
+    msg = await ports.list.buildListMessage(lang, list);
+  } catch (err) {
+    logError('child_test.list_build_failed', { error: err.message });
+    msg = steps.listMessage(lang, list);
+  }
+  const TITLE = { ctst_start: 'childTestL26StartButton', ctst_send_teachers: 'childTestL26SendTeachersButton' };
+  const btns = (msg.buttons || []).map((b) => ({ id: b.id, title: clip(b.title || t(lang, TITLE[b.id] || 'childTestL26StartButton'), 20) }));
+  const body = clip([msg.header ? `*${msg.header}*` : null, msg.body].filter(Boolean).join('\n'), 1024);
+  const ok = await buttons(from, body, btns);
+  logToFile('child_test.list_sent', { coachUserId: user.id, v2: true, children: active(list.children).length });
+  return ok;
+}
+
+/** The draw's class teachers for this list (from the server-side list, never from the button). */
+function listTeachers(list) {
+  const out = new Map();
+  for (const k of (list.classes || [])) if (k.teacherUserId) out.set(k.teacherUserId, k.teacherName || null);
+  for (const c of (list.children || [])) if (c.teacherUserId && !out.has(c.teacherUserId)) out.set(c.teacherUserId, c.teacherName || null);
+  return [...out.entries()].map(([userId, name]) => ({ userId, name }));
+}
+
+/** "Send to the teachers": each class teacher gets only their own room's children still to come, in their language. */
+async function onSendTeachersV2(user, from) {
+  const lang = langOf(user);
+  const state = await S.get(user.id);
+  if (!state || !state.ctx) return say(from, t(lang, 'childTestExpired'));
+  const res = await fetchList(user, state.ctx);
+  if (!res || !res.ok) return say(from, t(lang, 'childTestListFailed'));
+  const teachers = listTeachers(res);
+  if (!teachers.length) return say(from, t(lang, 'childTestL26NoTeachers'));
+  const sentTo = [];
+  const failed = [];
+  for (const tc of teachers) {
+    const contact = await C.teacherContact(tc.userId);
+    const name = String(tc.name || (contact && contact.name) || '').replace(/\s+/g, ' ').trim() || t(lang, 'childTestSendToTeacher');
+    if (!contact) { failed.push(name); continue; }
+    const tl = contact.preferred_language === 'en' ? 'en' : 'ur';
+    let mine;
+    try {
+      mine = ((await ports.list.buildTeacherMessages(tl, res)) || []).find((m) => m.teacherUserId === tc.userId);
+    } catch (err) {
+      logError('child_test.teacher_message_build_failed', { teacherUserId: tc.userId, error: err.message });
+      failed.push(name);
+      continue;
+    }
+    if (!mine) continue;   // nobody of theirs is still to come
+    const ok = await WhatsAppService.sendMessage(contact.phone_number, mine.body);
+    if (ok === false) {
+      logError('child_test.teacher_send_failed', { visitKey: state.ctx.visitKey, teacherUserId: tc.userId, reason: 'send' });
+      failed.push(name);
+    } else sentTo.push(name);
+  }
+  logToFile('child_test.teacher_order_sent', { visitKey: state.ctx.visitKey, sent: sentTo.length, failed: failed.length });
+  const sep = lang === 'en' ? ', ' : '، ';
+  const lines = [];
+  if (sentTo.length) lines.push(t(lang, 'childTestL26TeachersSent', { names: sentTo.join(sep) }));
+  if (failed.length) lines.push(t(lang, 'childTestL26TeachersFailed', { names: failed.join(sep) }));
+  if (!lines.length) lines.push(t(lang, 'childTestL26TeachersSent', { names: '—' }));
+  return say(from, lines.join('\n'));
+}
+
+/** Who comes next: the first child still to test in collection order (a stopped child only after the rest). */
+async function nextUp(ctx, list, drawId = null) {
+  const sess = await sessionsByDraw(ctx);
+  const order = steps.collectionOrder(list).filter((c) => !INACTIVE.has(c.status));
+  const done = order.filter((c) => sess[c.drawId] && sess[c.drawId].status === 'completed').length;
+  const unfinished = (c) => c.status === 'tested' && !(sess[c.drawId] && sess[c.drawId].status === 'completed');
+  const child = drawId ? order.find((c) => c.drawId === drawId && (c.status === 'listed' || unfinished(c)))
+    : (order.find((c) => c.status === 'listed') || order.find(unfinished));
+  return { child: child || null, n: done + 1, total: order.length, done, sess };
+}
+
+/** "Start": the setup picture once per visit, then the first child. */
+async function onStartV2(user, from) {
+  const lang = langOf(user);
+  const state = await S.get(user.id);
+  if (!state || !state.ctx) return say(from, t(lang, 'childTestExpired'));
+  if (state.step === 'block' && state.current) return resumePrompt(user, from, state);
+  if (state.setupShown) return presenceV2(user, from, state);
+  const res = await fetchList(user, state.ctx);
+  if (!res || !res.ok) return say(from, t(lang, 'childTestListFailed'));
+  const up = await nextUp(state.ctx, res);
+  if (!up.child) return visitEnd(user, from, state);
+  await S.set(user.id, { ...state, setupShown: true });
+  const caption = t(lang, 'childTestL26SetupCaption', { card: steps.cardName(lang, res.grade) });
+  const btns = [{ id: 'ctst_go', title: clip(t(lang, 'childTestL26StartWith', { name: firstNameOf(steps.nameOf(lang, up.child)) }), 20) }];
+  const file = path.join(PICTURE_DIR(), `setup-picture-${lang}.png`);
+  let png = null;
+  try { png = fs.readFileSync(file); } catch (err) { png = null; }
+  if (!png || !png.length) {
+    logToFile('child_test.setup_picture_missing', { lang, file: path.basename(file) }, 'warn');
+    return buttons(from, caption, btns);
+  }
+  const ok = await WhatsAppService.sendImageBufferWithButtons(from, png, caption, btns);
+  if (ok === false) {
+    logError('child_test.send_failed', { kind: 'setup_picture' });
+    return buttons(from, caption, btns);
+  }
+  return ok;
+}
+
+/**
+ * The next child's "here?" prompt (or `drawId`'s), with `prefix` above it ("✅ … done."). No child
+ * left: the prefix alone, then the end of the visit.
+ */
+async function presenceV2(user, from, state, { prefix = null, drawId = null } = {}) {
+  const lang = langOf(user);
+  const res = await fetchList(user, state.ctx);
+  if (!res || !res.ok) {
+    logError('child_test.list_failed', { coachUserId: user.id, reason: res && (res.reason || res.error) });
+    if (prefix) await say(from, prefix);
+    return say(from, t(lang, 'childTestListFailed'));
+  }
+  const up = await nextUp(state.ctx, res, drawId);
+  if (!up.child) {
+    if (drawId) return say(from, t(lang, 'childTestNotOnList'));
+    if (prefix) await say(from, prefix);
+    return visitEnd(user, from, state);
+  }
+  const child = up.child;
+  const current = { drawId: child.drawId, ...who(child), childNo: up.n, total: up.total, tappedAt: nowIso(),
+    listIds: (res.children || []).map((c) => c.drawId) };
+  const fresh = (await S.get(user.id)) || state;
+  await S.set(user.id, { ...fresh, ctx: state.ctx, step: 'presence', current, visitStartedAt: fresh.visitStartedAt || nowIso() });
+  const greet = steps.greetFor(steps.bankFormFor(res.grade, child.form));
+  const body = steps.presenceBody(lang, { n: up.n, total: up.total, child, greet });
+  return buttons(from, clip(prefix ? `${prefix}\n\n${body}` : body, 1024), [
+    { id: `ctst_pres:${child.drawId}:p`, title: clip(t(lang, 'childTestL26Here'), 20) },
+    { id: `ctst_pres:${child.drawId}:a`, title: clip(t(lang, 'childTestL26Absent'), 20) },
+    { id: `ctst_pres:${child.drawId}:r`, title: clip(t(lang, 'childTestL26NotWilling'), 20) },
+  ]);
+}
+
+/** One step: plain text, no buttons (R3 §2a). `ack` ("🎧 Got it · Urdu") rides in the same bubble. */
+async function sendStepV2(user, from, state, ack = null) {
+  const lang = langOf(user);
+  const cur = state.current;
+  const bankForm = steps.bankFormFor(cur.grade, cur.form);
+  const missing = steps.stubbed(bankForm);
+  if (missing.length && cur.block === 'urdu') logToFile('child_test.item_bank_v2_missing', { sessionId: cur.sessionId, missing }, 'warn');
+  const text = steps.stepMessage(lang, cur.block, { name: steps.nameOf(lang, cur), grade: cur.grade, form: cur.form, bankForm });
+  const ok = await say(from, ack ? `${ack}\n${text}` : text);
+  await timing(cur.sessionId, `${cur.block}.prompt_sent`);
+  return ok;
+}
+
+/** The third note is stored: the child is complete; thank them and bring the next one. */
+async function afterAllStoredV2(user, from, cur, lang) {
+  const r = await ports.store.setSessionStatus(cur.sessionId, 'completed');
+  if (!r || !r.ok) logError('child_test.session_complete_failed', { sessionId: cur.sessionId, error: r && r.error });
+  await timing(cur.sessionId, 'child.done');
+  const fresh = (await S.get(user.id)) || {};
+  const done = t(lang, 'childTestL26Done', { name: steps.nameOf(lang, cur) });
+  if (!fresh.ctx || !(fresh.current && fresh.current.sessionId === cur.sessionId)) return say(from, done);
+  const next = { ...fresh, step: 'list', current: null };
+  await S.set(user.id, next);
+  return presenceV2(user, from, next, { prefix: done });
+}
+
+/** Absent / doesn't want to: the reason line, the alternate who joins, then the next child. */
+async function afterOutcomeV2(user, from, state, cur, outcome, list) {
+  const lang = langOf(user);
+  const promoted = (list.children || []).find((c) => !(cur.listIds || []).includes(c.drawId));
+  const next = { ...state, step: 'list', current: null };
+  await S.set(user.id, next);
+  await say(from, [
+    t(lang, outcome === 'absent' ? 'childTestL26AbsentLine' : 'childTestL26NotWillingLine', { name: steps.nameOf(lang, cur) }),
+    promoted ? t(lang, 'childTestL26Promoted', { name: steps.nameOf(lang, promoted) }) : t(lang, 'childTestL26NoAlternate'),
+  ].join('\n'));
+  return presenceV2(user, from, next);
+}
+
+/** /egra or Start while a child is mid-test: where they are, [Continue] [Stop this child]. */
+async function resumePrompt(user, from, state) {
+  const lang = langOf(user);
+  const cur = state.current;
+  return buttons(from, t(lang, 'childTestL26Resume', { name: steps.nameOf(lang, cur), b: steps.B_OF[cur.block] || 1, block: blockName(lang, cur.block || 'urdu') }), [
+    { id: 'ctst_resume', title: clip(t(lang, 'childTestL26Continue'), 20) },
+    { id: 'ctst_stop', title: clip(t(lang, 'childTestStopChild'), 20) },
+  ]);
+}
+
+async function onResume(user, from) {
+  const state = await S.get(user.id);
+  if (state && state.step === 'block' && state.current && state.current.sessionId) return sendStepV2(user, from, state);
+  if (state && state.step === 'presence' && state.current) return presenceV2(user, from, state, { drawId: state.current.drawId });
+  return say(from, t(langOf(user), 'childTestNothingOpen'));
+}
+
+/**
+ * No child left: the visit's end, once. The minutes run from the first presence prompt. The summary
+ * and the review wait (off the critical path) for the last child's marks.
+ */
+async function visitEnd(user, from, state) {
+  const lang = langOf(user);
+  const visit = visitOfState(state.ctx);
+  if (visit && !(await S.claimVisitEnd(visit))) return say(from, t(lang, 'childTestListAllDone'));
+  const sess = await sessionsByDraw(state.ctx);
+  const completed = Object.values(sess).filter((s) => s.status === 'completed');
+  const since = Date.parse(state.visitStartedAt || state.listOpenedAt || nowIso());
+  const min = Math.max(1, Math.round((Date.now() - since) / 60000));
+  await say(from, t(lang, 'childTestL26VisitEnd', { n: completed.length, min }));
+  logToFile('child_test.visit_end', { visitKey: state.ctx && state.ctx.visitKey, children: completed.length, minutes: min });
+  if (visit && completed.length) {
+    offPath('visit_end', () => afterVisit(user.id, from, lang, visit, completed.map((s) => s.id)), { visit });
+  }
+  return true;
+}
+
+async function afterVisit(coachUserId, from, lang, visit, sessionIds) {
+  const deadline = Date.now() + VISIT_WAIT_MS;
+  for (;;) {
+    const ready = await Promise.all(sessionIds.map((id) => R.checkReady(id)));
+    if (ready.every(Boolean)) break;
+    if (Date.now() > deadline) {
+      logToFile('child_test.visit_summary_partial', { visit, ready: ready.filter(Boolean).length, of: sessionIds.length }, 'warn');
+      break;
+    }
+    await new Promise((r) => setTimeout(r, VISIT_POLL_MS));
+  }
+  const summary = await ports.review.visitSummary(lang, visit);
+  if (summary) await say(from, summary);
+  else logToFile('child_test.visit_summary_missing', { visit }, 'warn');
+  if (!SW.endReview()) return;
+  const r = await ports.review.sendReview(coachUserId, visit);
+  if (!r || !r.ok) logError('child_test.review_send_failed', { visit, error: r && (r.error || r.reason) });
+  else logToFile('child_test.review_sent', { visit, items: r.items });
 }
 
 // ------------------------------------------------------------------ routers
@@ -1192,6 +1482,16 @@ async function handleButton(user, from, buttonId) {
       return true;
     }
     case 'ctst_nophoto': await onNoPhoto(user, from, a); return true;
+    case 'ctst_start': await onStartV2(user, from); return true;
+    case 'ctst_go': {
+      const st = await S.get(user.id);
+      if (!st || !st.ctx) await say(from, t(langOf(user), 'childTestExpired'));
+      else if (st.step === 'block' && st.current) await resumePrompt(user, from, st);
+      else await presenceV2(user, from, st);
+      return true;
+    }
+    case 'ctst_send_teachers': await onSendTeachersV2(user, from); return true;
+    case 'ctst_resume': await onResume(user, from); return true;
     case 'ctst_tsend': await onSendToTeacher(user, from, a); return true;
     default:
       logToFile('child_test.unknown_button', { buttonId }, 'warn');

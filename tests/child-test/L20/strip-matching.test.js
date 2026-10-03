@@ -55,8 +55,13 @@ const calls = (name) => lanes.calls.filter((c) => c[0] === name);
 const photoAttaches = () => calls('attachBlockMedia').filter((c) => c[1].photoR2Key).map((c) => [c[1].sessionId, c[1].photoR2Key]);
 const name = (n) => `Child 3A-${String(n).padStart(2, '0')}`;
 
+// L26 (bd-s1oo0.46.2): the v2 journey is the default now; these scenarios drive today's (v1) conversation.
+const V1_SWITCHES = { CHILD_TEST_BATTERY: 'v1', CHILD_TEST_MATHS_MODE: 'strip', CHILD_TEST_CHECK_MODE: 'per_child' };
+beforeAll(() => { Object.assign(process.env, V1_SWITCHES); });
+afterAll(() => { for (const k of Object.keys(V1_SWITCHES)) delete process.env[k]; });
+
 beforeEach(() => {
-  process.env = { ...SAVED };
+  process.env = { ...SAVED, ...V1_SWITCHES };
   Object.assign(process.env, { CHILD_TEST_ENABLED: 'true', CHILD_TEST_OBSERVE_LINK: 'true', DEFAULT_REGION: 'niete-sandbox', RAILWAY_ENVIRONMENT: 'sandbox', OPENROUTER_API_KEY: 'k' });
   mockRedis.__data.clear();
   mockWa.__sent.length = 0;

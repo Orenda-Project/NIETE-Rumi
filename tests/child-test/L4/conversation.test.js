@@ -49,6 +49,11 @@ const last = (kind) => [...sent()].reverse().find((m) => !kind || m.kind === kin
 const voice = (id, ts = Math.floor(Date.now() / 1000) + 5) => ({ id: `wamid.${id}`, timestamp: String(ts), audio: { id, mime_type: 'audio/ogg' } });
 const image = (id) => ({ id: `wamid.${id}`, image: { id, mime_type: 'image/jpeg' } });
 
+// L26 (bd-s1oo0.46.2): the v2 journey is the default now; these scenarios drive today's (v1) conversation.
+const V1_SWITCHES = { CHILD_TEST_BATTERY: 'v1', CHILD_TEST_MATHS_MODE: 'strip', CHILD_TEST_CHECK_MODE: 'per_child' };
+beforeAll(() => { Object.assign(process.env, V1_SWITCHES); });
+afterAll(() => { for (const k of Object.keys(V1_SWITCHES)) delete process.env[k]; });
+
 beforeEach(() => {
   process.env.CHILD_TEST_ENABLED = 'true';
   process.env.CHILD_TEST_OBSERVE_LINK = 'true';   // these scenarios open the list through the observe2 visit
