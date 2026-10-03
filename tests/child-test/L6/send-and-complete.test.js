@@ -37,6 +37,7 @@ function seed({ lang = 'ur', checked = false, blocks } = {}) {
     users: [{ id: 'coach-1', phone_number: '923000000001', preferred_language: lang }],
     child_test_sessions: [{ id: 'sess-1', coach_user_id: 'coach-1', grade: 3, form: 'A', draw_id: 'draw-1', status: 'in_progress' }],
     child_test_draws: [{ id: 'draw-1', roll_number: '14' }],
+    students: [],
     child_test_blocks: Object.entries(b).map(([block, ai]) => ({ session_id: 'sess-1', block, ai_marks: ai, ai_status: ai ? 'scored' : 'failed', checked_at: checked ? '2026-10-02T10:00:00.000Z' : null })),
   });
 }
@@ -57,26 +58,36 @@ describe('sendCheck', () => {
     expect(to).toBe('923000000001');
     expect(msg).toMatchObject({ flowId: 'flow-123', flowToken: 'coach-1:child-test-check:sess-1', buttonText: 'جانچ کریں' });
     expect(msg.screen).toBeUndefined();
-    expect(msg.header).toContain('14');
-    expect(msg.body).toContain('41');
-    expect(msg.body).toContain('17');
-    expect(msg.body).toContain('12');
+    // a child with no name on the roster: the roll alone, in Urdu digits (CONTRACT §18, bd-s1oo0.27)
+    expect(msg.header).toContain('۱۴');
+    // Real bars (scoring/thresholds.js): the Urdu story count and quick sums are NEVER pre-filled, so the
+    // message states only English 17 and tells the coach to fill the other two (bd-s1oo0.27).
+    expect(msg.body).toContain('انگریزی ۱۷ الفاظ');
+    expect(msg.body).not.toContain('۴۱');
+    expect(msg.body).not.toContain('حساب ۱۲');
+    expect(msg.body).toMatch(/آپ خود بھریں: اردو: کہانی کی گنتی/);
+    expect(msg.body).toMatch(/فوری سوالوں کی گنتی/);
+    expect(msg.body).toMatch(/تقریباً دو منٹ/);
     expect([...msg.header].length).toBeLessThanOrEqual(60);
     expect([...msg.body].length).toBeLessThanOrEqual(1024);
   });
 
-  test('a display name from L4 goes in the header for the coach; English for an English coach', async () => {
+  test('the child\'s roster name leads the header (bd-s1oo0.27); English for an English coach', async () => {
     seed({ lang: 'en' });
-    await sendCheck('sess-1', { displayName: 'Child A' });
+    mockFake.__tables.child_test_sessions[0].student_id = 'stu-1';
+    mockFake.__tables.students.push({ id: 'stu-1', student_name: 'Child A' });
+    await sendCheck('sess-1');
     const [, msg] = WhatsAppService.sendFlow.mock.calls[0];
-    expect(msg.header).toBe('Check: Child A');
+    expect(msg.header).toBe('Check: Child A · roll 14');
     expect(msg.buttonText).toBe('Check marks');
   });
 
-  test('a block not yet marked shows a dash, not a zero', async () => {
+  test('a block not yet marked: no number for it, and the coach is told to mark all of it (bd-s1oo0.27)', async () => {
     seed({ blocks: { urdu: F.urduConfident(), english: F.englishConfident(), maths: null } });
     await sendCheck('sess-1');
-    expect(WhatsAppService.sendFlow.mock.calls[0][1].body).toMatch(/—/);
+    const { body } = WhatsAppService.sendFlow.mock.calls[0][1];
+    expect(body).not.toMatch(/فوری سوال۔|حساب ۱۲/);
+    expect(body).toMatch(/حساب: سب کچھ/);
   });
 
   test('no Flow id configured: nothing sent, error logged, a reason returned', async () => {
@@ -126,7 +137,7 @@ describe('handleCheckCompletion', () => {
     const r = await handleCheckCompletion({ child_test: 'checked', session_id: 'sess-1', flow_token: 'coach-1:child-test-check:sess-1' }, '923000000001', { id: 'coach-1', preferred_language: 'ur' });
     expect(r).toEqual({ ok: true, sessionId: 'sess-1', checked: true });
     expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
-    expect(WhatsAppService.sendMessage.mock.calls[0][1]).toContain('14');
+    expect(WhatsAppService.sendMessage.mock.calls[0][1]).toContain('۱۴');
   });
 
   test('a session that did not get checked: the coach is told to open it again, and it is logged as an error', async () => {
