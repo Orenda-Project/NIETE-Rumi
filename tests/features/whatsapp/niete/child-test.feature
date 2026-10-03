@@ -89,7 +89,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When I tap the first child and tap "Present"
     Then a child_test_sessions row is created for that draw with status "in_progress"
     And the next message is ONE line "Child 1 of 5 · <name> · roll <n> · Urdu 1/3 · Form <A|B> card, Urdu page · Say «<item-bank cue.urdu.start>» · one locked note, flip pages without stopping"
-    And a second line says "Give Roll <next child's roll> the maths strip to write while waiting."
+    And a second line says "While waiting, give <next child's name> · roll <roll> the maths strip: write <next child's number> in its Child no. box first."
     And the message offers "No printed card", "Stop this child" and "Menu"
     And no card image is sent
     And no AI scoring has started yet
@@ -112,10 +112,10 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: The maths voice note is followed by the strip-photo ask, and the photo completes the child
     Given child 1 is on the maths block
     When I send the maths voice note
-    Then the bot acknowledges "🎧 Got it · Maths" and says "Roll <n>'s strip: send its photo once it is written, or send all the strips at the end. Tap the next child now.", with a "No strip photo" button
+    Then the bot acknowledges "🎧 Got it · Maths" and says "<name> · roll <n>'s strip (Child no. <k>): send its photo once it is written, or send all the strips at the end. Tap the next child now.", with a "No strip photo" button
     And maths ai_status stays "pending" with reason "awaiting_photo" and ai_marks is still empty
     When I send a photo of the maths strip
-    Then the bot replies "📷 Strip saved for Roll <n>." and then "All three parts for Roll <n> are in"
+    Then the bot replies "📷 Strip no. <k> saved for <name> · roll <n>." and then "All three parts for <name> · roll <n> are in"
     And child_test_blocks.photo_r2_key = child-test/<env>/<school_id>/<session_id>/maths-strip.jpg and maths is scored once, with both the spoken and the written items
     # CR-1 (CONTRACT §10): maths ai_marks are written only when audio AND photo are both present.
 
@@ -204,7 +204,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given child 1 has sent the maths voice note but not the strip photo
     When I tap child 2, tap "Present" and send child 2's Urdu voice note
     And I then send child 1's strip photo
-    Then the photo is saved to child 1's maths block, not child 2's, with "📷 Strip saved for Roll <child 1>."
+    Then the photo is saved to child 1's maths block, not child 2's, with "📷 Strip no. 1 saved for <child 1's name> · roll <roll>."
     And child 2 is still waiting on its English block
     # L4: the photo state is per session, not per "current child".
 
@@ -212,7 +212,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: A strip photo that never comes is scored with force, written items left for the coach
     Given child 1 has sent the maths voice note
     When I tap "No strip photo"
-    Then the bot replies "OK, no strip photo for Roll <n>. The written sums stay blank."
+    Then the bot replies "OK, no strip photo for <name> · roll <n>. The written sums stay blank."
     And scoring is called with force: true, maths ai_status is "partial" and every written item is "unreadable" with confidence 0
     And in the check Flow the written answers arrive empty and required
     # CR-1: L4 also forces at the end of the visit when the coach moved on without a photo.
@@ -366,13 +366,14 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
 
   @e2e @wip @draft @destructive @config-gated @P1 @CT34
   Scenario: Strip photos are claimed in list order, any time during the visit or as a batch at the end
-    Given child 1 is present, so Roll <child 2> was handed the strip to write while waiting
+    Given child 1 is present, so child 2 was handed the strip to write while waiting
+    And neither strip's "Child no." box can be read
     When I send two strip photos during child 1's Urdu block
     Then the first is saved for child 1's session and the second is held for child 2 under child-test/<env>/<school_id>/held/<draw_id>/maths-strip.jpg
     And child 1's maths voice note finishes child 1 at once (no strip ask), and child 2's held strip is attached when child 2 is marked "Present"
     When the last child's maths note arrives and strips are still missing
-    Then the bot says "Send the strip photos now, one per child, in list order: Roll …"
-    And each photo I send is claimed for the oldest child on the list whose strip is missing, and maths is scored once with force
+    Then the bot says "Send the strip photos now, one per child, in any order. Each strip needs its Child no. written clearly: <name> · roll <n> (no. <k>), …"
+    And each photo whose number cannot be read is claimed for the oldest child on the list whose strip is missing, and maths is scored once with force
 
   @e2e @wip @draft @audio @destructive @config-gated @P2 @CT35
   Scenario: One locked voice note keeps recording through card flips
@@ -470,3 +471,39 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then each row shows its roll when the roster has one
     And a same-name row with no roll starts its description with "father: <father's name>" when the roster has it
     # students.father_name; with neither roll nor father the rows still differ by their tap ids.
+
+  # ── L20 (bd-s1oo0.38, CONTRACT §18): each strip carries the child's number and goes to that child ──
+  # The child number is the child's place on today's list as first sent (main 1–5, alternates after) and
+  # never moves. The coach writes it in the strip's «بچہ نمبر / Child no.» box. A quick vision read at
+  # receipt (Gemini 3.8 Flash, cut off at 8 s, no names in the prompt) attaches the photo to that child.
+
+  @e2e @wip @draft @destructive @config-gated @P1 @CT47
+  Scenario: Strip photos sent out of order land on the children whose numbers they carry
+    Given all five children on today's list have sent their three voice notes and no strip photo
+    And each strip has its child's number written in the "Child no." box
+    When I send the five strip photos together in the order 3, 1, 5, 2, 4
+    Then each photo is saved to the maths block of the child whose number it carries
+    And each reply names the child it was saved for: "📷 Strip no. <k> saved for <name> · roll <n>."
+    And each child's maths is scored once, and each child's check arrives once
+
+  @e2e @wip @draft @negative @destructive @config-gated @P1 @CT48
+  Scenario: A strip whose number cannot be read goes to the next child in order, and the reply says so
+    Given child 1 and child 2 have each sent their maths voice note and no strip photo
+    When I send a strip photo whose "Child no." box is empty
+    Then the photo is saved for child 1 and the bot replies "📷 I couldn't read a child number on this strip, so it is saved for the next in order: <child 1's name> · roll <n> (no. 1)."
+    When I send a strip photo whose box says 9, a number not on today's list
+    Then the photo is saved for child 2 and the reply says "Child no. 9 is not waiting for a strip"
+
+  @e2e @wip @draft @negative @destructive @config-gated @P1 @CT49
+  Scenario: A number for a child whose strip is already in is not overwritten
+    Given child 2's strip photo has been saved
+    When I send another strip photo with 2 in its "Child no." box
+    Then nothing is saved and child 2's maths block keeps its first photo
+    And the bot replies "📷 <child 2's name> · roll <n>'s strip (no. 2) is already in, so this photo was not used. If it is another child's strip, correct the number on it and send it again."
+
+  @e2e @wip @draft @config-gated @P2 @CT50
+  Scenario: The child number stays the same when a child is absent and an alternate steps in
+    Given today's list is open with children 1–5 and alternates 6 and 7
+    When I mark child 2 "Absent"
+    Then the alternate who joins keeps number 6, and every other child keeps their number
+    And the hand-over line for that alternate says "write 6 in its Child no. box"

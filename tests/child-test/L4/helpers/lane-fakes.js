@@ -12,7 +12,7 @@
 function makeChildren(n, start = 1, role = 'new') {
   return Array.from({ length: n }, (_, i) => ({
     drawId: `d${start + i}`, studentId: `s${start + i}`, rollNumber: String(start + i), classId: 'class-3a', section: 'A',
-    displayName: `Child 3A-${String(start + i).padStart(2, '0')}`, role, form: role === 'returning' ? 'B' : 'A', status: 'listed', attempts: 0,
+    displayName: `Child 3A-${String(start + i).padStart(2, '0')}`, childNo: start + i, role, form: role === 'returning' ? 'B' : 'A', status: 'listed', attempts: 0,
   }));
 }
 
