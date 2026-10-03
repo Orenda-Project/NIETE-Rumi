@@ -22,7 +22,9 @@ import LeaderChildTest from "./LeaderChildTest";
 
 const api = childTest as any;
 const child = (n: number, extra: any = {}) => ({
-  drawId: `d${n}`, studentId: `st${n}`, rollNumber: String(10 + n), displayName: `Child ${n}`, role: n === 5 ? "returning" : "new", form: "A", status: "listed", ...extra,
+  drawId: `d${n}`, studentId: `st${n}`, rollNumber: String(10 + n), displayName: `Child ${n}`, role: n === 5 ? "returning" : "new", form: "A", status: "listed",
+  classLabel: n % 2 ? "Grade 3 - A" : "Grade 3 - B", classLabelUr: n % 2 ? "جماعت سوم - A" : "جماعت سوم - B", classShort: n % 2 ? "3-A" : "3-B",
+  teacherName: n % 2 ? "Saima Bibi" : null, namesakes: 1, ...extra,
 });
 const LIST = { cycleId: "ICT-2026-Q4", grade: 3, classId: "c1", children: [1, 2, 3, 4, 5].map((n) => child(n)), alternates: [child(6), child(7)] };
 const urduCard = {
@@ -60,7 +62,24 @@ describe("LeaderChildTest", () => {
     expect(await screen.findByText("Child 1")).toBeInTheDocument();
     expect(api.getList).toHaveBeenCalledWith("v1");
     expect(screen.getAllByText("Returning")).toHaveLength(1);
-    expect(screen.getByText(/Roll no\. 16 · Roll no\. 17/)).toBeInTheDocument();
+    // Alternates by name and room, never by roll (L25).
+    expect(screen.getByText("Child 6 (3-B) · Child 7 (3-A)")).toBeInTheDocument();
+  });
+
+  it("names each child by room and class teacher, and shows no roll anywhere (L25)", async () => {
+    const twins = { ...LIST, children: [child(1, { namesakes: 2, fatherTellsApart: true, fatherName: "Ahmed Raza" }), child(2, { namesakes: 2 }), child(3), child(4), child(5)] };
+    api.getList.mockResolvedValue({ list: twins });
+    const { container } = renderPage();
+    expect(await screen.findByText("Child 1")).toBeInTheDocument();
+    expect(screen.getAllByText("Grade 3 - A · Teacher: Saima Bibi").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Grade 3 - B").length).toBeGreaterThan(0);
+    expect(screen.getByText("father: Ahmed Raza · Grade 3 - A · Teacher: Saima Bibi")).toBeInTheDocument();
+    expect(screen.getByText("2 in this class · Grade 3 - B")).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/roll|رول|1[1-7]/i);
+    fireEvent.click(screen.getByTestId("child-d1"));
+    expect(await screen.findByText("father: Ahmed Raza · Grade 3 - A · Teacher: Saima Bibi")).toBeInTheDocument();
+    expect(screen.getByText("Is this child here?")).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/roll|رول|1[1-7]/i);
   });
 
   it("present opens the Urdu block with the card; absent goes back to the list", async () => {
