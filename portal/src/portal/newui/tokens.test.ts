@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import resolveConfig from "tailwindcss/resolveConfig";
 import tailwindConfig from "../../../tailwind.config";
 import * as tokens from "./tokens";
-import { BRAND, BUTTON, DONE, FEATURE_HUE, FEATURE_ICON, FRAME, INNER_BAR, NAV, NEUTRAL, PROGRESS, SELECTION, SHADOW, STATUS, SURFACE, TAP_MIN_PX, tailwindColors, tailwindShadows } from "./tokens";
+import { BRAND, BUTTON, DONE, FEATURE_HUE, FEATURE_ICON, FRAME, INNER_BAR, NAV, NEUTRAL, PROGRESS, PULLUP, SELECTION, SHADOW, STATUS, SURFACE, TAP_MIN_PX, tailwindColors, tailwindShadows } from "./tokens";
 
 /**
  * bd-5rz1v.12 — the new UI's colours live in ONE place (tokens.ts) and the
@@ -88,6 +88,8 @@ describe("new UI tokens", () => {
       nav: "0 -6px 18px rgba(20,22,29,0.18)",
       // bd-5rz1v.26 — the recording bar floating in a desktop corner.
       float: "0 6px 16px rgba(20,24,38,0.16)",
+      // bd-5rz1v.18 — the pull-up menu rising from the bar (mockup `.pullup`).
+      pullup: "0 -10px 30px rgba(0,0,0,0.25)",
     });
     expect(SHADOW.button.startsWith(`0 4px 0 ${BUTTON.primary.edge}`)).toBe(true);
   });
@@ -162,6 +164,12 @@ describe("the Tailwind theme is built from the tokens", () => {
     expect(colors.nu).not.toHaveProperty("subject");
   });
 
+  it("has the pull-up menu's colours (bd-5rz1v.18; mockup .nav.handle, .pullup, .ptile)", () => {
+    expect(PULLUP).toEqual({ grab: "rgba(255,255,255,0.4)", tile: "rgba(255,255,255,0.08)", icon: "#dfe1ea", out: "#ffb4a8" });
+    expect(colors.nu.pullup).toEqual({ grab: "rgba(255,255,255,0.4)", tile: "rgba(255,255,255,0.08)", icon: "#dfe1ea", out: "#ffb4a8" });
+    expect(SHADOW.pullup).toBe("0 -10px 30px rgba(0,0,0,0.25)");
+  });
+
   it("has the button, chip, progress, done and neutral families", () => {
     expect(colors.nu.button).toMatchObject({ DEFAULT: "#2e7d57", edge: "#1e5c3f", warning: "#b54708", destructive: "#c8331f" });
     expect(colors.nu.chip).toEqual({
@@ -187,6 +195,8 @@ describe("the Tailwind theme is built from the tokens", () => {
       "nu-destructive-pressed": SHADOW.destructivePressed,
       "nu-nav": SHADOW.nav,
       "nu-float": SHADOW.float,
+      // bd-5rz1v.18 — the pull-up menu rising from the bar (mockup `.pullup`).
+      "nu-pullup": SHADOW.pullup,
     });
     for (const [name, value] of Object.entries(tailwindShadows)) expect(shadows[name]).toBe(value);
     // Tailwind's own shadows are still there for every old page.

@@ -5,11 +5,15 @@ import { MemoryRouter } from "react-router-dom";
 /**
  * bd-5rz1v.17 — Home's band carries her avatar (DESIGN.md "The menu"): on a page that draws
  * its own heading the phone's slim indigo strip goes, and the avatar in the band opens the SAME
- * account sheet the menu owns. Home stays lit on Home's own inner pages.
+ * panel the menu owns (bd-5rz1v.18: the pull-up menu). Home stays lit on Home's own inner pages.
  */
 
 vi.mock("../../hooks/useAuth", () => ({ useAuth: vi.fn() }));
-vi.mock("../../services/api", () => ({ portal: { getConfig: vi.fn() } }));
+vi.mock("../../services/api", () => ({
+  portal: { getConfig: vi.fn() },
+  // bd-5rz1v.18 — the pull-up menu reads her language when it opens.
+  language: { get: vi.fn().mockResolvedValue({ language: "en", locked: false }), set: vi.fn() },
+}));
 import { useAuth } from "../../hooks/useAuth";
 import { portal } from "../../services/api";
 import { resetNewUiMemory } from "../../lib/useNewUi";
@@ -50,12 +54,13 @@ describe("the account sheet is shared", () => {
     expect(within(sheet).getByText("My account")).toBeInTheDocument();
   });
 
-  it("closing the sheet closes it for everyone", async () => {
+  it("closing it closes it for everyone", async () => {
     renderNav("/portal/dashboard", true);
     await screen.findByTestId("newui-bottom-nav");
     act(() => openAccountSheet());
-    const sheet = await screen.findByRole("dialog");
-    fireEvent.click(within(sheet).getByTestId("newui-sheet-close"));
+    await screen.findByRole("dialog");
+    // bd-5rz1v.18 — the pull-up menu: a tap on the dimmed page closes it.
+    fireEvent.click(screen.getByTestId("newui-menu-scrim"));
     expect(isAccountSheetOpen()).toBe(false);
   });
 });

@@ -108,6 +108,8 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
         isActive={isActive}
         accountPath={ACCOUNT_PATH}
         firstName={user?.firstName}
+        lastName={user?.lastName}
+        schoolName={user?.schoolName}
         onLogout={guardedLogout}
         hideStrip={hideStrip}
       />
