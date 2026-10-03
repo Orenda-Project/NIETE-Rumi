@@ -8,6 +8,8 @@
  *   checkFlow     L6   ../check-flow       sendCheck(sessionId)
  *   render        L2   ../render           renderInlineCards({ grade, form, block, variant })
  *   itemBank      L1   ../item-bank        cue phrases
+ *   list          L25  ./list              buildListMessage(lang, list), buildTeacherMessages(lang, list)
+ *   review        L28  ../check-flow/review visitSummary(lang, visitKey), sendReview(coachUserId, visitKey)
  *
  * Each is required lazily. A module that is not on this branch yet resolves to a stand-in that
  * FAILS LOUDLY in the result (ok:false / false / throw) — never a silent success — so a deploy
@@ -26,6 +28,13 @@ const STAND_INS = {
   checkFlow: { sendCheck: async () => false },
   render: { renderInlineCards: async () => { throw new Error('render_not_landed'); } },
   itemBank: {},
+  // L25's list.js: until it lands the v2 conversation builds the list itself (steps.js), so this
+  // stand-in is a working one, not a failure (CONTRACT §19 asks L26 to stub it).
+  list: (() => { const steps = require('./steps'); return { buildListMessage: steps.listMessage, buildTeacherMessages: steps.teacherMessages }; })(),
+  review: {
+    visitSummary: async () => null,
+    sendReview: async () => ({ ok: false, error: 'review_not_landed' }),
+  },
 };
 
 const PATHS = {
@@ -35,6 +44,8 @@ const PATHS = {
   checkFlow: '../check-flow',
   render: '../render',
   itemBank: '../item-bank',
+  list: './list',
+  review: '../check-flow/review',
 };
 
 let injected = null;
@@ -46,7 +57,7 @@ function load(name) {
   try {
     cache[name] = require(PATHS[name]);
   } catch (err) {
-    if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(PATHS[name].slice(3))) throw err;
+    if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(PATHS[name].replace(/^\.\.?\//, ''))) throw err;
     logError('child_test.lane_module_missing', { module: name });
     cache[name] = STAND_INS[name];
   }
@@ -101,6 +112,8 @@ module.exports = {
   get scoring() { return load('scoring'); },
   get checkFlow() { return load('checkFlow'); },
   get render() { return load('render'); },
+  get list() { return load('list'); },
+  get review() { return load('review'); },
   cueFor,
   sectionCueFor,
   quickSumsSeconds,

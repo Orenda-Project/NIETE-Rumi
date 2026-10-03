@@ -9,8 +9,12 @@
  */
 
 const { HINT_CONFIDENCE_CAP, clamp01 } = require('./thresholds');
+const { batteryVersion, mathsMode: mathsModeOf } = require('../item-bank');
 
 const VERSION = 'ai-marks-v1';
+// v2 (bd-s1oo0.46.3, CONTRACT §19): battery v2 reading blocks (story, questions, fallback) and oral maths
+// (maths.oral = { compare, sums, word_problems }); additive to v1, so v1 readers find every v1 key.
+const VERSION_V2 = 'ai-marks-v2';
 const ITEM_VERDICTS = new Set(['correct', 'wrong', 'none']);
 const WRITTEN_VERDICTS = new Set(['correct', 'wrong', 'blank', 'unreadable']);
 const FLAG_VERDICTS = new Set(['wrong', 'skipped']);
@@ -21,6 +25,14 @@ const BLOCK_SECTIONS = {
   english: ['story', 'questions', 'nonwords'],
   maths: ['numbers', 'quick_sums', 'written', 'word_problem'],
 };
+const V2_SECTIONS = { urdu: ['story', 'questions'], english: ['story', 'questions'] };
+const ORAL_SECTIONS = ['compare', 'sums', 'word_problems'];
+
+/** The sections a block is scored on under the switches (what aiStatusFor counts). */
+function sectionsFor(block, { battery = batteryVersion(), mathsMode = mathsModeOf() } = {}) {
+  if (block === 'maths') return mathsMode === 'oral' ? ORAL_SECTIONS : BLOCK_SECTIONS.maths;
+  return battery === 'v2' ? V2_SECTIONS[block] || [] : BLOCK_SECTIONS[block] || [];
+}
 
 function conf(x) { return Math.round(clamp01(Number(x)) * 100) / 100; }
 
@@ -51,6 +63,20 @@ function story(s) {
     flagged: (s.flagged || []).filter((f) => f && FLAG_VERDICTS.has(f.verdict) && Number.isInteger(f.idx))
       .map((f) => ({ idx: f.idx, word: String(f.word || ''), verdict: f.verdict, confidence: conf(f.confidence) })),
     confidence: conf(s.confidence),
+  };
+}
+
+function oralMaths(m, spec) {
+  const o = (spec && spec.oral) || {};
+  const got = (m && m.oral) || {};
+  return {
+    oral: {
+      compare: itemRows(o.compare, got.compare),
+      sums: itemRows(o.sums, got.sums),
+      word_problems: itemRows(o.word_problems, got.word_problems),
+    },
+    // the strip design's keys, empty: nothing of it is given in oral mode
+    numbers: [], quick_sums: null, written: [], word_problem: null,
   };
 }
 
@@ -85,12 +111,15 @@ function maths(m, spec) {
  * @param {object} p.form  FORM from the item bank
  * @param {object} p.parts scorer outputs keyed by section
  */
-function assembleMarks({ block, form, parts = {}, flags = [], modelVersions = {}, meta = {} }) {
+function assembleMarks({ block, form, parts = {}, flags = [], modelVersions = {}, meta = {}, battery = batteryVersion(), mathsMode = mathsModeOf() }) {
   const spec = (form && form[block]) || {};
   const reading = block === 'urdu' || block === 'english';
+  const v2 = reading ? battery === 'v2' : mathsMode === 'oral';
+  const phonics = reading && !v2;
   return {
-    version: VERSION,
+    version: v2 ? VERSION_V2 : VERSION,
     block,
+    ...(reading ? { battery } : { maths_mode: mathsMode }),
     story: reading ? story(parts.story) : null,
     fallback: reading && parts.fallback ? {
       letters: { correct: Math.round(Number(parts.fallback.letters && parts.fallback.letters.correct) || 0), of: (spec.fallback && spec.fallback.letters || []).length },
@@ -98,9 +127,9 @@ function assembleMarks({ block, form, parts = {}, flags = [], modelVersions = {}
       confidence: conf(parts.fallback.confidence),
     } : null,
     questions: reading ? itemRows(spec.questions, parts.questions) : [],
-    first_sounds: block === 'urdu' ? itemRows(spec.first_sounds, parts.first_sounds, { hintOnly: true }) : [],
-    nonwords: reading ? itemRows(spec.nonwords, parts.nonwords) : [],
-    maths: block === 'maths' ? maths(parts.maths, spec) : null,
+    first_sounds: block === 'urdu' && phonics ? itemRows(spec.first_sounds, parts.first_sounds, { hintOnly: true }) : [],
+    nonwords: phonics ? itemRows(spec.nonwords, parts.nonwords) : [],
+    maths: block === 'maths' ? (v2 ? oralMaths(parts.maths, spec) : maths(parts.maths, spec)) : null,
     protocol_flags: [...new Set((flags || []).filter((f) => KNOWN_FLAGS.has(f)))],
     model_versions: { ...modelVersions },
     meta: { ...meta },
@@ -108,11 +137,11 @@ function assembleMarks({ block, form, parts = {}, flags = [], modelVersions = {}
 }
 
 /** ok-map of section → scored? → contract ai_status. */
-function aiStatusFor(block, ok) {
-  const sections = BLOCK_SECTIONS[block] || [];
+function aiStatusFor(block, ok, switches) {
+  const sections = sectionsFor(block, switches);
   const n = sections.filter((s) => ok[s]).length;
   if (n === 0) return 'failed';
   return n === sections.length ? 'scored' : 'partial';
 }
 
-module.exports = { assembleMarks, aiStatusFor, BLOCK_SECTIONS, VERSION };
+module.exports = { assembleMarks, aiStatusFor, sectionsFor, BLOCK_SECTIONS, VERSION, VERSION_V2 };

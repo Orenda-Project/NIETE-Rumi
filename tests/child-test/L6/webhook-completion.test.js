@@ -140,13 +140,13 @@ describe('the check\'s completion on the real webhook', () => {
     mockDb = makeDb(seed(true));
     await deliver({ child_test: 'checked', session_id: 'sess-1', flow_token: TOKEN });
     expect(sent().some((b) => CATCH_ALL.test(b))).toBe(false);
-    expect(sent()).toEqual(['✓ Marks for Roll 14 saved.']);
+    expect(sent()).toEqual(['✓ Marks for (no name on the class list) saved.'] /* L25: never the roll */);
   });
 
   test('only the token arrives (Meta dropped the flat keys): still claimed', async () => {
     mockDb = makeDb(seed(true));
     await deliver({ flow_token: TOKEN });
-    expect(sent()).toEqual(['✓ Marks for Roll 14 saved.']);
+    expect(sent()).toEqual(['✓ Marks for (no name on the class list) saved.'] /* L25: never the roll */);
   });
 
   test('a block without coach marks: the coach is told it did not save', async () => {

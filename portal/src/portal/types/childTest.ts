@@ -15,9 +15,22 @@ export type ChildTestVisit = {
 export type ChildTestChild = {
   drawId: string;
   studentId: string;
-  rollNumber: string | null;
+  /** Never shown (L25): the bot no longer sends it; kept optional for lists drawn before. */
+  rollNumber?: string | null;
   classId?: string;
   section?: string | null;
+  /** The roster's class label, e.g. "Grade 3 - B", "Grade 3 - B (evening)", "Grade 3" (L25, CONTRACT §19). */
+  classLabel?: string | null;
+  classLabelUr?: string | null;
+  /** "3-B" — the short form after the first mention. */
+  classShort?: string | null;
+  /** The room's class teacher (flagged, else the only reachable one); null → ask the head teacher. */
+  teacherName?: string | null;
+  teacherUserId?: string | null;
+  fatherName?: string | null;
+  /** Children in the class with this name (1 = unique); fatherTellsApart: the father's name separates them. */
+  namesakes?: number;
+  fatherTellsApart?: boolean;
   /** Shown to the coach only — never logged or sent anywhere else. */
   displayName: string;
   /** The roster's Urdu spelling, when it has one (CONTRACT v0.8 §13). */

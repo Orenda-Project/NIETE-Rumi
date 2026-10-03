@@ -143,6 +143,10 @@ function createLaneFakes({ noClassList = false, shapeList = null } = {}) {
       return { ok: true, block: clone(b) };
     },
     async listBlocksToRecover() { return { ok: true, blocks: [] }; },
+    // L26: the nudge sweep's read (store.listOpenSessions).
+    async listOpenSessions() {
+      return { ok: true, sessions: Object.values(sessions).filter((s) => s.status === 'in_progress' && s.channel === 'whatsapp').map(clone) };
+    },
     async listRecentlyScoredBlocks() { return { ok: true, blocks: [] }; },
   };
 

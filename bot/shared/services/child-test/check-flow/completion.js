@@ -12,6 +12,7 @@ const { loadSession, whoOf } = require('./context');
 const { parseToken } = require('./token');
 const { checkStrings } = require('./strings');
 const Store = require('./check-store');
+const review = require('./review');
 
 async function handleCheckCompletion(responseJson = {}, from, user) {
   const t = parseToken(responseJson.flow_token);
@@ -19,6 +20,8 @@ async function handleCheckCompletion(responseJson = {}, from, user) {
     logToFile('[child_test] check completion with a token that is not this coach\'s', {}, 'warn');
     return { ok: false };
   }
+  // The end-of-visit review (v2) shares the marker; its ref names a visit, not a session.
+  if (review.isReviewRef(t.sessionId)) return review.handleReviewCompletion(responseJson, from, user, t.sessionId);
   const ctx = await loadSession(t.sessionId, t.userId);
   if (!ctx) {
     logToFile('[child_test] check completion for a session this coach does not have', { sessionId: t.sessionId }, 'warn');

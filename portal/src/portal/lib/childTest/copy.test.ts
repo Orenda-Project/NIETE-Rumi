@@ -18,6 +18,22 @@ function strings(o: Record<string, unknown>): string[] {
 }
 
 describe("child-test copy", () => {
+  it("no roll number anywhere (L25, operator 3 Oct): no roll key, no 'Roll'/«رول» in any string", () => {
+    for (const lang of ["ur", "en"] as const) {
+      expect(COPY[lang]).not.toHaveProperty("roll");
+      const all = strings(COPY[lang] as unknown as Record<string, unknown>).join("\n");
+      expect(all).not.toMatch(/\broll\b/i);
+      expect(all).not.toMatch(/رول/);
+    }
+  });
+
+  it("the child's room line: class label and class teacher, and the same-name hints (L25)", () => {
+    expect(COPY.en.teacher("Saima Bibi")).toBe("Teacher: Saima Bibi");
+    expect(COPY.ur.teacher("Saima Bibi")).toBe("ٹیچر: \u2068Saima Bibi\u2069");
+    expect(COPY.en.father("Ahmed Raza")).toBe("father: Ahmed Raza");
+    expect(COPY.en.inThisClass(2)).toBe("2 in this class");
+  });
+
   it("Urdu and English carry the same keys, of the same kind", () => {
     expect(shape(COPY.ur).sort()).toEqual(shape(COPY.en).sort());
   });

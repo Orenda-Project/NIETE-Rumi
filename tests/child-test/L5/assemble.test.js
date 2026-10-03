@@ -5,6 +5,12 @@ const thresholds = require('../../../bot/shared/services/child-test/scoring/thre
 
 const form = bank.grades['3'].forms.A;
 
+// This file tests the v1 battery (first sounds, made-up words) and the v1 strip maths; v2 is the default
+// since bd-s1oo0.46.3 (CONTRACT §19), so the v1 switches are pinned for this file only.
+const PINNED_SWITCHES = { CHILD_TEST_BATTERY: process.env.CHILD_TEST_BATTERY, CHILD_TEST_MATHS_MODE: process.env.CHILD_TEST_MATHS_MODE };
+beforeAll(() => { process.env.CHILD_TEST_BATTERY = 'v1'; process.env.CHILD_TEST_MATHS_MODE = 'strip'; });
+afterAll(() => { for (const [k, v] of Object.entries(PINNED_SWITCHES)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } });
+
 describe('child-test ai_marks assembler (ai-marks-v1)', () => {
   test('urdu block: every contract key present, maths null, first sounds hint-only', () => {
     const m = assembleMarks({

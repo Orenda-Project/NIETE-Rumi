@@ -52,7 +52,8 @@ async function main() {
 
     const a = await draw.todaysList({ coachUserId, schoolId, visitId, observedGrade: 3 });
     check('todaysList ok, Grade 3, 5 children + 2 alternates', a.ok && a.grade === 3 && a.children.length === 5 && a.alternates.length === 2);
-    check('all new, Form A, roll numbers present', a.children.every((k) => k.role === 'new' && k.form === 'A' && Number.isInteger(k.rollNumber)));
+    // L25: no roll is carried; each child carries the roster's class label (Form A = this term's set, CHILD_TEST_FORM_POLICY=term).
+    check('all new, Form A, class label and no roll', a.children.every((k) => k.role === 'new' && k.form === 'A' && k.classLabel && !('rollNumber' in k)));
     const { data: frame } = await supabase.from('child_test_draws').select('draw_rank, frame_size').eq('school_id', schoolId).eq('grade', 3);
     check('frame of 25 written with ranks 1..25', frame.length === 25 && new Set(frame.map((r) => r.draw_rank)).size === 25 && frame.every((r) => r.frame_size === 25));
 

@@ -66,11 +66,12 @@ beforeEach(() => {
 });
 
 describe('INIT', () => {
-  test('opens URDU pre-filled from the urdu block, the child by roll number, in the coach\'s language', async () => {
+  test('opens URDU pre-filled from the urdu block, the child never by roll (L25), in the coach\'s language', async () => {
     const out = await Check.handleChildTestCheckInit(token());
     expect(out.screen).toBe('URDU');
     expect(out.data).toMatchObject({ wc_i: '41', wa_i: '45', flag_on: ['w4', 'w8'], q1_i: 'correct', q3_i: '' });
-    expect(out.data.child_line).toContain('۱۴');   // Urdu digits (bd-s1oo0.27)
+    expect(out.data.child_line).not.toMatch(/۱۴|رول/);   // the roster has a roll; it is never shown (L25)
+    expect(out.data.child_line).toContain('جماعت ۳');     // Urdu digits (bd-s1oo0.27)
     expect(out.data.t_wc).toBe('درست الفاظ');
   });
 

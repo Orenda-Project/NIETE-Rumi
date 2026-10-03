@@ -23,33 +23,29 @@ describe('child identity — full name first, roll as a hint (CONTRACT §18)', (
     expect(childName('ur', null)).toBe('');
   });
 
-  test('only a positive whole number is a roll', () => {
-    for (const r of [null, undefined, '', '  ', 'abc', 0, -3, '4a', 2.5]) expect(rollOf({ rollNumber: r })).toBeNull();
-    expect(rollOf({ rollNumber: 8 })).toBe(8);
-    expect(rollOf({ rollNumber: ' 25 ' })).toBe(25);
+  // L25 (operator, 3 Oct): rolls are never shown — rollOf finds none, whatever the roster holds.
+  test('rollOf never finds a roll', () => {
+    for (const r of [null, undefined, '', '  ', 'abc', 0, -3, '4a', 2.5, 8, ' 25 ']) expect(rollOf({ rollNumber: r })).toBeNull();
   });
 
-  test('name and roll: the name leads, the roll follows in the coach\'s digits', () => {
+  test('a child with a roll is named by name alone (no class on this record): no roll, no digits', () => {
     const c = { displayName: 'Ayesha Bibi', rollNumber: 8 };
+    expect(childLabel('en', c)).toBe('Ayesha Bibi');
     const ur = childLabel('ur', c);
-    expect(ur.indexOf('Ayesha Bibi')).toBeGreaterThanOrEqual(0);
-    expect(ur.indexOf('رول')).toBeGreaterThan(ur.indexOf('Ayesha Bibi'));
-    expect(ur).toContain('۸');
-    expect(childLabel('en', c)).toBe('Ayesha Bibi · roll 8');
+    expect(ur).toContain('Ayesha Bibi');
+    expect(ur).not.toMatch(/رول|۸|8/);
   });
 
-  test('a child with no roll is named alone, in every shape the roster gives — never "null", never a throw', () => {
+  test('every shape of a missing roll is named the same way — never "null", never a throw', () => {
     for (const rollNumber of [null, undefined, '']) {
-      for (const lang of ['ur', 'en']) {
-        const s = childLabel(lang, { displayName: 'Ayesha Bibi', rollNumber });
-        expect(s).toBe('Ayesha Bibi');
-      }
+      expect(childLabel('en', { displayName: 'Ayesha Bibi', rollNumber })).toBe('Ayesha Bibi');
+      expect(childLabel('ur', { displayName: 'Ayesha Bibi', rollNumber })).toBe('\u2068Ayesha Bibi\u2069');
     }
   });
 
-  test('no name falls back to the roll, then to a plain "no name" label', () => {
-    expect(childLabel('en', { rollNumber: 8 })).toBe('Roll 8');
-    expect(childLabel('ur', { rollNumber: 8 })).toContain('۸');
+  test('no name: the plain "no name" label, never the roll', () => {
+    expect(childLabel('en', { rollNumber: 8 })).toBe('(no name on the class list)');
+    expect(childLabel('ur', { rollNumber: 8 })).not.toContain('۸');
     for (const lang of ['ur', 'en']) {
       const s = childLabel(lang, {});
       expect(s.length).toBeGreaterThan(0);
@@ -59,15 +55,15 @@ describe('child identity — full name first, roll as a hint (CONTRACT §18)', (
 
   test('a one-line list of children uses the language\'s comma', () => {
     const kids = [{ displayName: 'Ayesha Bibi', rollNumber: 8 }, { displayName: 'Ali Raza', rollNumber: null }];
-    expect(childLabels('en', kids)).toBe('Ayesha Bibi · roll 8, Ali Raza');
+    expect(childLabels('en', kids)).toBe('Ayesha Bibi, Ali Raza');
     expect(childLabels('ur', kids)).toContain('، ');
   });
 
   describe('list rows fit WhatsApp (title 24, description 72 code points) and always show the full name', () => {
-    test('a short name is the title; the description carries the roll and the caller\'s status', () => {
+    test('a short name is the title; the description carries the caller\'s status, never the roll', () => {
       const r = childRow('en', { displayName: 'Ayesha Bibi', rollNumber: 8 }, 'New');
       expect(r.title).toBe('Ayesha Bibi');
-      expect(r.description).toBe('Roll 8 · New');
+      expect(r.description).toBe('New');
     });
 
     test('a long name is clipped in the title and given in full in the description', () => {

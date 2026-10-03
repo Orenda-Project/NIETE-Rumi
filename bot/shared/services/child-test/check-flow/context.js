@@ -15,7 +15,8 @@ const { childLabel } = require('../conversation/identity');
 const labelLang = (lang) => (lang === 'en' ? 'en' : 'ur');
 
 /**
- * How the coach sees the child (CONTRACT §18): full name first, the roll as a hint, null-safe.
+ * How the coach sees the child (CONTRACT §19): "Ayesha Khan · 3-A" — full name and classroom, never a
+ * roll (L25), null-safe.
  * @param {{child?: object, lang?: string}} ctx  a loaded session
  * @param {string} [lang] overrides ctx.lang (the completion reads the webhook's fresher language)
  */
@@ -31,7 +32,7 @@ function aiStatusOf(row) {
 }
 
 /**
- * @returns {Promise<null|{session, coach, blocks, items, lang, child, roll, S}>} null when the check is off,
+ * @returns {Promise<null|{session, coach, blocks, items, lang, child, S}>} null when the check is off,
  *   the token is not one of ours, the session is gone, or it belongs to another coach.
  */
 async function loadForToken(flowToken) {
@@ -59,7 +60,6 @@ async function loadSession(sessionId, coachUserId) {
     items: formItems(session.grade, session.form),
     lang,
     child,
-    roll: child.rollNumber,
     S: checkStrings(lang),
   };
 }

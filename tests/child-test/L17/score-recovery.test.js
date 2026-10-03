@@ -81,6 +81,11 @@ function contractScoring(plan = () => 'ok') {
   };
 }
 
+// L26 (bd-s1oo0.46.2): the v2 journey is the default now; these scenarios drive today's (v1) conversation.
+const V1_SWITCHES = { CHILD_TEST_BATTERY: 'v1', CHILD_TEST_MATHS_MODE: 'strip', CHILD_TEST_CHECK_MODE: 'per_child' };
+beforeAll(() => { Object.assign(process.env, V1_SWITCHES); });
+afterAll(() => { for (const k of Object.keys(V1_SWITCHES)) delete process.env[k]; });
+
 describe('scoring survives a restart (bd-s1oo0.22)', () => {
   let H; let M; let ports; let lanes; let recovery; let logEvent;
   const SAVED = { ...process.env };

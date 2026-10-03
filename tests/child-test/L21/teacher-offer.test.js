@@ -64,8 +64,13 @@ const offers = () => sent().filter((m) => m.kind === 'buttons' && m.buttons.some
 const pickLists = () => sent().filter((m) => m.kind === 'list' && m.action.sections.some((s) => s.rows.some((r) => r.id.startsWith('ctst_tsend'))));
 const openList = async (who = COACH) => expect(await H.handleText(PHONE, '/egra', who)).toBe(true);
 
+// L26 (bd-s1oo0.46.2): the v2 journey is the default now; these scenarios drive today's (v1) conversation.
+const V1_SWITCHES = { CHILD_TEST_BATTERY: 'v1', CHILD_TEST_MATHS_MODE: 'strip', CHILD_TEST_CHECK_MODE: 'per_child' };
+beforeAll(() => { Object.assign(process.env, V1_SWITCHES); });
+afterAll(() => { for (const k of Object.keys(V1_SWITCHES)) delete process.env[k]; });
+
 beforeEach(() => {
-  process.env = { ...SAVED };
+  process.env = { ...SAVED, ...V1_SWITCHES };
   process.env.CHILD_TEST_ENABLED = 'true';
   delete process.env.CHILD_TEST_OBSERVE_LINK;   // the default since 3 Oct: /egra is separate
   process.env.DEFAULT_REGION = 'niete-sandbox';

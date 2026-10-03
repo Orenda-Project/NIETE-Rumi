@@ -52,6 +52,11 @@ const BAR_EVIDENCE = Object.freeze({
   'maths.quick_sums': 'Confidence is a constant 0.7. After the alignment fix (714ebe70): real MAE 3.5, within +-3 62% (n 42), synthetic 50% (n 12) vs floor 90%.',
   'maths.written': 'Strips >=0.85: 98.3% (n 240) vs 97.2% at 0.75 (n 246); floor 88%.',
   'maths.word_problem': 'Strip misses were all unreadable at confidence 0; floor 87%.',
+  // v2 oral maths (bd-s1oo0.46.3): 8 synthetic notes (ElevenLabs child voices, classroom noise, phone band; exact keys),
+  // golive/lanes/L27/oral_results.json. Every miss was speech-to-text losing or mishearing the child, all at <= 0.6.
+  'maths.oral.compare': 'Synthetic: all items 91% (n 32); >=0.70 100% (n 25). Floor (May identify items) 87%. Real recordings not yet measured.',
+  'maths.oral.sums': 'Synthetic: all items 94% (n 32); >=0.70 100% (n 21). Floor (May computation) 88%. Real recordings not yet measured.',
+  'maths.oral.word_problems': 'Synthetic: all items 88% (n 16); >=0.70 100% (n 11). Floor (May word problems) 87%. Real recordings not yet measured.',
 });
 
 const BASE_BARS = {
@@ -62,6 +67,9 @@ const BASE_BARS = {
   'maths.quick_sums': NEVER,
   'maths.written': 0.85,
   'maths.word_problem': 0.7,
+  'maths.oral.compare': 0.7,
+  'maths.oral.sums': 0.7,
+  'maths.oral.word_problems': 0.7,
 };
 // Read without a language (L6's check Flow reads this flat), a field gets the strictest of its languages.
 for (const [f, by] of Object.entries(FIELD_BARS_BY_LANG)) BASE_BARS[f] = Math.max(...Object.values(by));
