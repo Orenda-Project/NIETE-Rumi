@@ -1280,6 +1280,32 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   return res.json({ success: true, available: true, ...hit });
 }));
 
+/**
+ * POST /api/internal/lp/describe
+ * Body { plans: [{ kind: 'k5'|'g612', ref, lang? }] } (at most 200)
+ *   → { success, plans: [{ kind, ref, lang, found, title, grade, subject, chapterNumber,
+ *                          chapterTitle, dayLabel, pagesLabel }] }  in the order asked
+ *
+ * bd-5rz1v.15 — names the plans in the portal's activity lists (her recent lesson plans, the
+ * Home's "Lesson plans used"), which hold only a plan key. Same catalogue and segments WhatsApp
+ * names them from; the portal holds no catalogue. Names only — no identity, no links.
+ */
+router.post('/lp/describe', requireInternalKey, async (req, res) => {
+  const Describe = require('../services/lp-describe.service');
+  let plans;
+  try {
+    plans = Describe.parsePlans((req.body || {}).plans);
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
+  }
+  try {
+    return res.json({ success: true, plans: await Describe.describePlans(plans) });
+  } catch (error) {
+    logToFile('❌ Internal LP describe failed', { count: plans.length, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Lesson-plan lookup failed' });
+  }
+});
+
 // ─── assessment generator ───────────────────────────────────────────────────
 //
 // The portal's Assessment Generator tab has been rendering a real form against
@@ -1723,6 +1749,9 @@ router.post('/lp612/status', requireInternalKey, lp612Route('status', async (Bro
       url: await getPresignedUrl(buildR2PublicUrl(row.r2_key)),
       oneScreen: row.one_screen || null,
       segmentId: row.segment_id,
+      // bd-5rz1v.15 — the document's language: with segmentId, the plan the portal records an
+      // open against (a render id is not stable across template versions).
+      lang: row.lang || null,
     });
   }
 

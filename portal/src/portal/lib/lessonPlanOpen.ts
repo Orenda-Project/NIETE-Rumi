@@ -90,7 +90,9 @@ export async function openLessonPlanOutside(source: LessonPlanSource): Promise<'
     }
     return 'not_ready';
   }
-  const { data } = await api.get(`/lp612/status/${source.renderId}`);
+  // `open: 1` — this status call IS an open, so the server records it (bd-5rz1v.15). The same
+  // route is the poll that waits for a lesson to be written, which must record nothing.
+  const { data } = await api.get(`/lp612/status/${source.renderId}`, { params: { open: 1 } });
   if (data.state === 'ready' && data.url) {
     window.open(data.url, '_blank', 'noopener,noreferrer');
     return 'opened';
