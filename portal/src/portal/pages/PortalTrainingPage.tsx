@@ -12,6 +12,10 @@ import TrainingLevel from '../newui/training/TrainingLevel';
 import TrainingCourse from '../newui/training/TrainingCourse';
 import TrainingPart from '../newui/training/TrainingPart';
 import TrainingQuiz from '../newui/training/TrainingQuiz';
+import TrainingLevelExam from '../newui/training/TrainingLevelExam';
+import TrainingModuleExam from '../newui/training/TrainingModuleExam';
+import TrainingCertificates from '../newui/training/TrainingCertificates';
+import TrainingGrades from '../newui/training/TrainingGrades';
 
 /**
  * bd-5rz1v.25 — every /portal/training address goes through here (App.tsx mounts
@@ -28,13 +32,17 @@ import TrainingQuiz from '../newui/training/TrainingQuiz';
  * The old page is rendered in the same place for every address, so its state carries from one
  * training address to the next as it did when App.tsx mounted it directly.
  */
-const SCREENS: Partial<Record<TrainingView, ComponentType>> = {
+const SCREENS: Record<TrainingView, ComponentType> = {
   home: TrainingHome,
   provider: TrainingLevels,
   level: TrainingLevel,
   course: TrainingCourse,
   unit: TrainingPart,
   quiz: TrainingQuiz,
+  levelExam: TrainingLevelExam,
+  exam: TrainingModuleExam,
+  certificates: TrainingCertificates,
+  grades: TrainingGrades,
 };
 
 const PortalTrainingPage = ({ view }: { view: TrainingView }) => {

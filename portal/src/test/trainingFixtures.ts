@@ -130,3 +130,44 @@ export const QUESTIONS_M4 = [
   { id: 44, question_text: "Which are good quiet signals?", options: ["A raised hand", "Shouting", "A clap pattern", "Switching off the lights"], order_index: 3, multi: true },
   { id: 45, question_text: "After the signal, children should", options: ["stop and look", "keep talking", "leave the room"], order_index: 4 },
 ];
+
+/** GET /training/level/2/grand-quiz/questions: four of the twenty, options as strings and as objects. */
+export const EXAM_QUESTIONS = [
+  { id: 201, question_text: "What makes a group task work?", question_urdu: null, options: ["Clear roles", "A long task", "No time limit", "One leader only"], order_index: 0 },
+  { id: 202, question_text: "When should feedback come?", question_urdu: null, options: [{ key: "1", text: "Soon after the work" }, { key: "2", text: "At term end" }, { key: "3", text: "Never" }], order_index: 1 },
+  { id: 203, question_text: "A child is stuck. What first?", question_urdu: null, options: ["Give the answer", "Ask a question back", "Move on"], order_index: 2 },
+  { id: 204, question_text: "Exit tickets show", question_urdu: null, options: ["what each child learnt", "who is absent", "the timetable"], order_index: 3 },
+];
+
+export function gate(state: string, over: Record<string, unknown> = {}) {
+  return { ...GATE_INCOMPLETE, state, ...over };
+}
+
+/** GET /training/level/18/capstone/questions — Beacon House's written exam. */
+export const CAPSTONE_PAPER = {
+  questions: [
+    { id: 301, question_text: "How do you open a reading lesson?", order_index: 0 },
+    { id: 302, question_text: "How do you check every child understood?", order_index: 1 },
+  ],
+  min_answer_chars: 20, points_per_question: 5, pass_mark_pct: 70,
+};
+
+/** I-SAPS module exam (course c-9): two MCQs and one written answer. */
+export const MODULE_EXAM_GATE = { available: true, body: "Two scenario questions and one written answer.", caption: "", cta: "📝 Take the exam", module_no: 1 };
+export const MODULE_EXAM_PAPER = {
+  attempt_id: "mx-1",
+  questions: [
+    { id: 501, index: 0, question_text: "A pupil disrupts the lesson. Best first step?", options: ["Send them out", "Quietly redirect", "Ignore"], option_images: null, is_open_ended: false },
+    { id: 502, index: 1, question_text: "Which objective is measurable?", options: ["Understand fractions", "Add two fractions with like denominators"], option_images: null, is_open_ended: false },
+    { id: 503, index: 2, question_text: "Describe a lesson plan you taught this week.", options: [], option_images: null, is_open_ended: true },
+  ],
+};
+export const BANDS_STATE = {
+  options: [
+    { id: "PRIMARY", title: "Primary (Grades 1-5)" },
+    { id: "MIDDLE", title: "Middle (Grades 6-8)" },
+    { id: "HIGH", title: "High (Grades 9-10)" },
+  ],
+  selected: ["PRIMARY"], can_change: true, is_first_selection: false, hours_remaining: 0,
+  notice: "Once you save this, it cannot be changed again for 48 hours.",
+};
