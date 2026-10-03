@@ -49,6 +49,7 @@ maybe('with L3\'s real draw and store', () => {
     seed.observation_field_forms[0] = { ...seed.observation_field_forms[0], teacher_user_id: 'teacher-1', created_at: new Date().toISOString() };
     mockDb = createFakeSupabase(seed, { unique: CHILD_TEST_UNIQUE });
     process.env.CHILD_TEST_ENABLED = 'true';
+    process.env.CHILD_TEST_OBSERVE_LINK = 'true';   // these scenarios open the list through the observe2 visit
     process.env.CHILD_TEST_DRAW_SECRET = 'test-secret';
     process.env.RAILWAY_ENVIRONMENT = 'sandbox';
     mockRedis.__data.clear();
@@ -137,6 +138,7 @@ maybe('with L3\'s real draw and store, no observe2 visit (visit key)', () => {
     seed.leader_schools = seed.leader_schools.map((r) => ({ ...r, school_name: 'SIM — Test School' }));
     mockDb = createFakeSupabase(seed, { unique: CHILD_TEST_UNIQUE });
     process.env.CHILD_TEST_ENABLED = 'true';
+    process.env.CHILD_TEST_OBSERVE_LINK = 'true';   // these scenarios open the list through the observe2 visit
     process.env.CHILD_TEST_DRAW_SECRET = 'test-secret';
     process.env.RAILWAY_ENVIRONMENT = 'sandbox';
     mockRedis.__data.clear();

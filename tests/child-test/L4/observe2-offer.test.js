@@ -79,6 +79,7 @@ describe('the offer after the brief', () => {
 
   test('gated on: the offer follows the brief, carrying the form id', async () => {
     process.env.CHILD_TEST_ENABLED = 'true';
+    process.env.CHILD_TEST_OBSERVE_LINK = 'true';
     const id = await checkable();
     await toPriority(id);
     await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: '' });
@@ -93,6 +94,17 @@ describe('the offer after the brief', () => {
     expect(WhatsAppService.sendInteractiveButtons.mock.invocationCallOrder[0]).toBeGreaterThan(briefOrder);
   });
 
+  test('kept separate (CHILD_TEST_OBSERVE_LINK unset): the brief only, no child-test offer', async () => {
+    process.env.CHILD_TEST_ENABLED = 'true';
+    delete process.env.CHILD_TEST_OBSERVE_LINK;
+    const id = await checkable();
+    await toPriority(id);
+    await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: '' });
+    await flush();
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+  });
+
   test('gated off: the brief only', async () => {
     delete process.env.CHILD_TEST_ENABLED;
     const id = await checkable();
@@ -105,6 +117,7 @@ describe('the offer after the brief', () => {
 
   test('a teacher observer (not a coach) gets no offer', async () => {
     process.env.CHILD_TEST_ENABLED = 'true';
+    process.env.CHILD_TEST_OBSERVE_LINK = 'true';
     mockFake.__tables.users[0].role = 'teacher';
     const id = await checkable();
     await toPriority(id);
