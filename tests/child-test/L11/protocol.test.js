@@ -84,22 +84,22 @@ async function threeNotes(tag) {
 // ------------------------------------------------------------------ 1. the class teacher sends the children
 
 describe('the class teacher sends the children', () => {
-  test('the list tells the coach to give the class teacher the roll numbers in order', async () => {
+  test('the list tells the coach which children to ask the class teacher for, name first, in order', async () => {
     await openList();
-    expect(last('list').body.text).toMatch(/class teacher.*in this order.*1, 2, 3, 4, 5/s);
+    expect(last('list').body.text).toMatch(/class teacher.*in this order: Child 3A-01 · roll 1, Child 3A-02 · roll 2, Child 3A-03 · roll 3, Child 3A-04 · roll 4, Child 3A-05 · roll 5/s);
   });
 
   test('Urdu list line: Urdu digits, list order', async () => {
     const UR = { ...COACH, preferred_language: 'ur' };
     await H.handleText(PHONE, '/egra', UR);
-    expect(last('list').body.text).toMatch(/کلاس ٹیچر.*۱، ۲، ۳، ۴، ۵/s);
+    expect(last('list').body.text).toMatch(/کلاس ٹیچر.*Child 3A-01.* · رول ۱، .*Child 3A-02.* · رول ۲، .*رول ۳، .*رول ۴، .*رول ۵/s);
   });
 
   test('the line drops a child already tested and shows the promoted alternate in order', async () => {
     await openList(); await startChild('d1'); await threeNotes('a');
     await H.handleList(COACH, PHONE, 'ctst_child:d2');
     await H.handleButton(COACH, PHONE, 'ctst_pres:d2:a');
-    expect(last('list').body.text).toMatch(/in this order[^\n]*: 3, 4, 6, 5/);
+    expect(last('list').body.text).toMatch(/in this order[^\n]*: Child 3A-03 · roll 3, Child 3A-04 · roll 4, Child 3A-06 · roll 6, Child 3A-05 · roll 5/);
   });
 
   test('observed teacher is the class teacher of the drawn class: one "Send to teacher" button, once per visit', async () => {
@@ -118,7 +118,7 @@ describe('the class teacher sends the children', () => {
     expect(last('list').body.text).toMatch(/class teacher/);
   });
 
-  test('"Send to teacher" sends the teacher ONE message with the roll numbers in order, to nobody else', async () => {
+  test('"Send to teacher" sends the teacher ONE message with the children in order, name first, to nobody else', async () => {
     await openList();
     const before = sent().length;
     expect(await H.handleButton(COACH, PHONE, 'ctst_tsend')).toBe(true);
@@ -126,7 +126,7 @@ describe('the class teacher sends the children', () => {
     const toTeacher = out.filter((m) => m.to === TEACHER.phone_number);
     expect(toTeacher).toHaveLength(1);
     expect(toTeacher[0].kind).toBe('text');
-    expect(toTeacher[0].text).toMatch(/Roll 1.*Roll 2.*Roll 3.*Roll 4.*Roll 5/s);
+    expect(toTeacher[0].text).toMatch(/Child 3A-01 · roll 1, Child 3A-02 · roll 2, Child 3A-03 · roll 3, Child 3A-04 · roll 4, Child 3A-05 · roll 5\./);
     expect(out.every((m) => m.to === TEACHER.phone_number || m.to === PHONE)).toBe(true);
     expect(out.find((m) => m.to === PHONE).text).toMatch(/Sent the order to the class teacher/);
   });
@@ -156,7 +156,7 @@ describe('one short cue line per block', () => {
     for (const b of ['u', 'e']) await H.handleVoice(voice(`s-${b}`), PHONE, COACH);
     const [u, e, m] = prompts();
     for (const p of [u, e, m]) expect(p.body.split('\n')).toHaveLength(1);
-    expect(u.body).toMatch(/^\*Child 5 of 5 · Urdu 1\/3\* · Form B card, Urdu page · Say «شروع» · /);
+    expect(u.body).toMatch(/^\*Child 5 of 5 · Child 3A-05 · roll 5 · Urdu 1\/3\* · Form B card, Urdu page · Say «شروع» · /);
     expect(e.body).toMatch(/English page · Say «start»/);
     expect(u.body).toMatch(/locked/i);
     expect(u.buttons.map((b) => b.id)).toEqual(['ctst_fb', 'ctst_stop', 'ctst_menu']);

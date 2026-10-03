@@ -279,6 +279,9 @@ async function listFor(visitId, extra = {}) {
       section: sectionOf.get(d.class_id) || null,
       displayName: s.student_name || null,
       displayNameUrdu: s.student_name_urdu || null,
+      // Only to tell two same-name, roll-less children apart on the list (CONTRACT §18); may be absent.
+      fatherName: s.father_name || null,
+      fatherNameUrdu: s.father_name_urdu || null,
       role: d.sample_role,
       form: d.form,
       status: d.status,

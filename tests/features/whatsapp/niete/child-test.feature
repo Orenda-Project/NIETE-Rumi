@@ -72,11 +72,12 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     # L4: sent right after sendBrief in observe2-check-endpoint.js; string key childTestOfferBody.
 
   @e2e @wip @draft @destructive @config-gated @P1 @CT03
-  Scenario: Today's list shows five drawn children with roll numbers, the returning child marked, and two alternates
+  Scenario: Today's list shows five drawn children by full name, the returning child marked, and two alternates
     Given a COACH account in an ICT region at the SIM school on a visit day, with the child test enabled
     When I open today's list
-    Then one interactive list arrives headed "Grade <3|5> · Class <section>" with a "Today's children" section of 5 rows "Roll <n> · <name>" and an "Alternates" section of 2 rows
-    And each child row is marked "New" or "Returning (Form B)"
+    Then one interactive list arrives headed "Grade <3|5> · Class <section>" with a "Today's children" section of 5 rows titled with each child's full name and an "Alternates" section of 2 rows
+    And each child row's description is "Roll <n> · New" or "Roll <n> · Returning (Form B)", without the roll when the roster has none
+    And a name longer than 24 characters is clipped in the title and given in full at the start of the description
     And the body says the children were picked by the server and cannot be changed, and "Done: 0 of 5"
     And child_test_draws holds those 7 children with list_slot main/alternate and last_listed_visit_id = this visit
     # In the first weeks of a cycle no child is eligible to return, so all 5 are "New" (CT11).
@@ -87,7 +88,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given today's list is open
     When I tap the first child and tap "Present"
     Then a child_test_sessions row is created for that draw with status "in_progress"
-    And the next message is ONE line "Child 1 of 5 · Urdu 1/3 · Form <A|B> card, Urdu page · Say «<item-bank cue.urdu.start>» · one locked note, flip pages without stopping"
+    And the next message is ONE line "Child 1 of 5 · <name> · roll <n> · Urdu 1/3 · Form <A|B> card, Urdu page · Say «<item-bank cue.urdu.start>» · one locked note, flip pages without stopping"
     And a second line says "Give Roll <next child's roll> the maths strip to write while waiting."
     And the message offers "No printed card", "Stop this child" and "Menu"
     And no card image is sent
@@ -172,7 +173,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario Outline: An absent or refused child is recorded with its reason and the first alternate joins the list
     Given today's list is open
     When I tap child 2 and tap "<button>"
-    Then the bot replies "Roll <n> <recorded>" and "Roll <alt> from the alternates joins today's list."
+    Then the bot replies "<name> · roll <n> <recorded>" and "<alt name> · roll <alt> from the alternates joins today's list."
     And child 2's draw row has status "<status>", attempts + 1, and no session was created for it
     And the list now holds 5 main children with the promoted alternate, and the alternates are topped up to 2 in rank order
     Examples:
@@ -324,7 +325,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: A child already done cannot be retested, and an old list's button is refused politely
     Given child 1 is "Done ✓" today
     When I tap child 1 again
-    Then the bot replies "Roll <n> is already done today." and no second session is created
+    Then the bot replies "<name> · roll <n> is already done today." and no second session is created
     And tapping a button from a previous day's list replies "That button is from an older list. Send /egra for today's list."
 
   # ═══════════════════════════════════ EDGE ═══════════════════════════════════
@@ -353,12 +354,12 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   # ---- the five-minute protocol (bd-s1oo0.12, lane L11) ----
 
   @e2e @wip @draft @destructive @config-gated @P1 @CT33
-  Scenario: The list tells the coach to give the class teacher the roll numbers in order, and "Send to teacher" sends them
+  Scenario: The list tells the coach which children to ask the class teacher for, by name in order, and "Send to teacher" sends them
     Given today's list is open after an observe2 visit of the class teacher of the drawn class
-    Then the list body says "Give the class teacher these roll numbers, in this order, to send one child at a time: <rolls>"
+    Then the list body says "Ask the class teacher for these children, one at a time, in this order: <name> · roll <n>, …"
     And one message with a "Send to teacher" button follows, once per visit
     When I tap "Send to teacher"
-    Then the class teacher receives ONE message with "Roll <n> (<name>)" for each child still to test, in list order
+    Then the class teacher receives ONE message with "<name> · roll <n>" for each child still to test, in list order
     And I get "Sent the order to the class teacher." and nobody outside the visit is messaged
     # The button appears only when class_teachers links the observed teacher to a class on the list; the
     # tap re-checks it. A failed send says "I couldn't reach the class teacher on WhatsApp…".
@@ -400,7 +401,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   Scenario: A fourth voice note for a child whose three notes are in is not stored
     Given child 1's three voice notes have been received and the maths note is still being stored
     When I send a fourth voice note
-    Then the bot replies "Roll <roll>'s three voice notes are already in, so I did not use this one."
+    Then the bot replies "All three voice notes for <name> · roll <roll> are already in, so I did not use this one."
     And no block's audio key changes
 
   @e2e @wip @draft @audio @negative @destructive @config-gated @P1 @CT39
@@ -447,3 +448,25 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When I send "/egra" on the same day
     Then today's list is drawn for my school on the day key, not on the observe2 visit
     # bd-s1oo0.25 (operator, 3 Oct 2026: "for now keep both separate"); the same holds after classic /observe.
+
+  # ---- names first, never broken by a missing roll (bd-s1oo0.37, bd-s1oo0.36, lane L19; CONTRACT §18) ----
+
+  @e2e @wip @draft @negative @destructive @config-gated @P1 @CT45
+  Scenario: A drawn child with no roll number is named on the list and through the test, and nothing breaks
+    Given the SIM class has children with no roll number in the register and one of them is drawn
+    When I send "/egra"
+    Then today's list arrives, the roll-less child's row is titled with the full name and its description has no roll
+    And no line anywhere says "null" or "Roll —"
+    When I tap that child
+    Then the presence prompt reads "<name>" then "Is the child here and willing to read?"
+    And "/egra" again shows the same list
+    # NIETE roster 3 Oct: 3.4% of Grade 3/5 children have no roll; before bd-s1oo0.36 one on the list made
+    # resolveUx throw "missing param roll", the coach got no list, and every /egra that quarter threw again.
+
+  @e2e @wip @draft @destructive @config-gated @P2 @CT46
+  Scenario: Two children with the same name are told apart by the roll, or by the father's name when neither has a roll
+    Given two children called the same name are drawn for today
+    When I send "/egra"
+    Then each row shows its roll when the roster has one
+    And a same-name row with no roll starts its description with "father: <father's name>" when the roster has it
+    # students.father_name; with neither roll nor father the rows still differ by their tap ids.
