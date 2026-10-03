@@ -38,9 +38,9 @@ describe('check Flow passes Meta\'s init-value type rule', () => {
     });
   }
 
-  test('count inputs keep a numeric keypad (input-type phone takes string data, so "" stays "not pre-filled")', () => {
+  test('count inputs take string data, so "" stays "not pre-filled" (input-type text since bd-s1oo0.43; phone failed client validation)', () => {
     const counts = components(flow.screens).filter((c) => c.type === 'TextInput');
     expect(counts.length).toBeGreaterThan(0);
-    for (const c of counts) expect(c['input-type']).toBe('phone');
+    for (const c of counts) expect(c['input-type']).toBe('text');
   });
 });
