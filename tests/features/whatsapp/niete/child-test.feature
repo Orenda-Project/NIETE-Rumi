@@ -548,6 +548,51 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     # child. Counts are now text inputs (3 characters); the endpoint reads Latin, Urdu and Arabic-Indic
     # digits and still refuses letters ("Enter a whole number"). bd-s1oo0.43.
 
+  # ── L28 (bd-s1oo0.46.4): the end-of-visit review, v2 (CHILD_TEST_CHECK_MODE=end_review, the default) ──
+  # Ids CT90–CT94 are reserved for L28 so the v2 lanes appending here do not collide.
+
+  @e2e @wip @draft @flow @config-gated @P0 @CT90
+  Scenario: After the last child, one form asks only the answers the recording did not settle
+    Given I have tested 5 children on this visit and every part is marked
+    And 3 answers across the visit are under their confidence bar
+    When the last child's maths note is marked
+    Then I get ONE message with each child's results and "3 answers need your ear (about a minute)"
+    And its button "Check answers" opens a single screen with exactly 3 items
+    And each item shows the child's full name and part ("Ayesha Khan · Urdu question 2"), the question, and "Heard: «…»"
+    And each item offers Right / Wrong / Didn't answer, none pre-selected
+    And no item asks for a count (story words, letters or words)
+    # Navigate mode: the form opens from the message itself, with no server round trip, on weak data.
+
+  @e2e @wip @draft @config-gated @P0 @CT91
+  Scenario: Submitting the review saves every child's marks once
+    Given the review form from CT90 is open
+    When I mark the 3 items and tap "Save answers"
+    Then I get "✓ Saved. The marks for this visit are complete. Thank you."
+    And every part of every child on the visit has my marks stored next to the AI's, with what I changed
+    And the AI's own marks are unchanged
+
+  @e2e @wip @draft @config-gated @P1 @CT92
+  Scenario: Sending the review form a second time changes nothing
+    Given I have already saved the review for this visit
+    When I open the same form again and save different answers
+    Then I get "These answers were saved earlier. Nothing was changed."
+    And the stored marks are the ones from my first save
+
+  @e2e @wip @draft @config-gated @P1 @CT93
+  Scenario: Nothing doubtful — no form, the visit is finished at once
+    Given every answer on the visit is above its confidence bar
+    When the last child's maths note is marked
+    Then I get the results with no "Check answers" button
+    And every part of every child is stored as checked, marked "not reviewed by the coach"
+
+  @e2e @wip @draft @config-gated @P2 @CT94
+  Scenario: More than 15 doubtful answers — the 15 least certain are asked
+    Given 18 answers across the visit are under their bar
+    When the review arrives
+    Then the form has 15 items, in the order the children were tested
+    And the 3 most certain of the doubtful answers keep the AI's verdict and are listed as AI-only
+    # A part whose scoring failed reads "not scored" in the results; it is never a review item.
+
   # ── L25 (bd-s1oo0.46.1, CONTRACT §19, R1 §7, design §3.1): find the child without rolls ──
   # Children are named the way a school names them: full name · the roster's class label · class teacher.
   # The list is grouped by classroom; each class teacher gets only their own room. One shift per list.

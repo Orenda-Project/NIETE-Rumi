@@ -3313,6 +3313,59 @@ const UX_STRINGS = {
     en: '✅ All three parts for {child} are in. The marks are being worked out; a Check button follows.',
     ur: '✅ ⁨{child}⁩ کے تینوں حصے مل گئے۔ نمبر لگنے کے بعد چیک کا بٹن آئے گا۔',
   },
+  // L28 (bd-s1oo0.46.4, CONTRACT §19): the end-of-visit results and the one review form. The coach is
+  // never asked for a count; the form lists only answers the recording did not settle.
+  // Results, one line per child: "{child} — {parts}", parts joined with " · ".
+  childTestSumLine: { en: '{child} — {parts}', ur: '⁨{child}⁩ کے نمبر: {parts}' },
+  childTestSumWords: { en: '{block} {wpm} words/min', ur: '{block} {wpm} الفاظ فی منٹ' },
+  childTestSumAnswers: { en: '{right} of {of} answers', ur: '{of} میں سے {right} جواب' },
+  childTestSumLetters: { en: '{block} letters {letters} of {lof}, words {words} of {wof}', ur: '{block} حروف {lof} میں سے {letters}، الفاظ {wof} میں سے {words}' },
+  childTestSumStoryNotScored: { en: '{block} story not scored', ur: '{block} کہانی کے نمبر نہیں لگے' },
+  childTestSumMaths: { en: '{block} {right} of {of}', ur: '{block} {of} میں سے {right}' },
+  childTestSumNotScored: { en: '{block} not scored', ur: '{block} کے نمبر نہیں لگے' },
+  childTestSumNone: { en: 'No child was tested on this visit.', ur: 'اس دورے میں کسی بچے کا ٹیسٹ نہیں ہوا۔' },
+  // The review message (Flow CTA): header ≤ 60, button ≤ 20.
+  childTestReviewHeader: { en: '{n} answers need your ear', ur: '{n} جواب آپ خود سن کر بتائیں' },
+  childTestReviewHeaderOne: { en: '1 answer needs your ear', ur: '۱ جواب آپ خود سن کر بتائیں' },
+  childTestReviewResults: { en: 'Results:', ur: 'نتائج:' },
+  childTestReviewAsk: {
+    en: '{n} answers need your ear (about a minute). The recording did not settle them. Tap «Check answers» and mark what the child said.',
+    ur: '{n} جواب آپ خود سن کر بتائیں (تقریباً ایک منٹ)۔ ریکارڈنگ سے ان کا فیصلہ نہیں ہو سکا۔ «جواب چیک کریں» دبائیں اور بتائیں کہ بچے نے کیا کہا۔',
+  },
+  childTestReviewCta: { en: 'Check answers', ur: 'جواب چیک کریں' },
+  // The form (one screen). Item heading ≤ 80, radio label ≤ 30, description ≤ 300, footer ≤ 35.
+  childTestReviewHeading: { en: 'Answers to check', ur: 'یہ جواب چیک کریں' },
+  childTestReviewIntro: {
+    en: 'The recording did not settle these answers. Mark what the child said. You can play the voice note in the chat first.',
+    ur: 'ریکارڈنگ سے ان جوابوں کا فیصلہ نہیں ہو سکا۔ بتائیں کہ بچے نے کیا کہا۔ چاہیں تو پہلے چیٹ میں وائس نوٹ سن لیں۔',
+  },
+  childTestReviewMark: { en: "The child's answer", ur: 'بچے کا جواب' },
+  childTestReviewRight: { en: 'Right', ur: 'صحیح' },
+  childTestReviewWrong: { en: 'Wrong', ur: 'غلط' },
+  childTestReviewNone: { en: "Didn't answer", ur: 'جواب نہیں دیا' },
+  childTestReviewSave: { en: 'Save answers', ur: 'جواب محفوظ کریں' },
+  childTestReviewWho: { en: '{child} · {part}', ur: '⁨{child}⁩ کا {part}' },
+  childTestReviewPartQuestion: { en: '{block} question {n}', ur: '{block} سوال {n}' },
+  childTestReviewPartCompare: { en: 'Maths which is bigger {n}', ur: 'ریاضی بڑا نمبر {n}' },
+  childTestReviewPartSum: { en: 'Maths sum {n}', ur: 'ریاضی سوال {n}' },
+  childTestReviewPartWordProblem: { en: 'Maths word problem {n}', ur: 'ریاضی عبارتی سوال {n}' },
+  childTestReviewCompareText: { en: 'Which is bigger: {a} or {b}?', ur: 'کون سا نمبر بڑا ہے: {a} یا {b}؟' },
+  childTestReviewHeard: { en: 'Heard: «{heard}»', ur: 'سنا گیا: «{heard}»' },
+  childTestReviewHeardNothing: { en: 'Heard: nothing clear', ur: 'سنا گیا: کچھ واضح نہیں' },
+  childTestReviewNoText: { en: '(question text not found)', ur: '(سوال کا متن نہیں ملا)' },
+  // After the form is sent.
+  childTestReviewSaved: {
+    en: '✓ Saved. The marks for this visit are complete. Thank you.',
+    ur: '✓ محفوظ ہو گیا۔ اس دورے کے نمبر مکمل ہیں۔ شکریہ۔',
+  },
+  childTestReviewAlready: {
+    en: 'These answers were saved earlier. Nothing was changed.',
+    ur: 'یہ جواب پہلے ہی محفوظ ہو چکے ہیں۔ کچھ تبدیل نہیں ہوا۔',
+  },
+  childTestReviewNotSaved: {
+    en: "The answers didn't save. Tap «Check answers» above and send them again.",
+    ur: 'جواب محفوظ نہیں ہوئے۔ اوپر «جواب چیک کریں» دبائیں اور دوبارہ بھیجیں۔',
+  },
   // L25 (bd-s1oo0.46.1, CONTRACT §19, R1 §7): children are found by full name, the roster's class
   // label and the class teacher — never a roll. Names are isolated (FSI…PDI) by conversation/identity.js
   // and conversation/list.js, which build these lines. No "Ms"/"Sir": the roster has no gender.
