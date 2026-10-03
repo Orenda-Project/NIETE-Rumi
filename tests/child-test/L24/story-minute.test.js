@@ -104,6 +104,18 @@ describe('CR-3a: a question\'s text heard inside the minute does not end the sto
     expect(r.windows.story.end).toBeCloseTo(33, 1);
   });
 
+  test('the child finished the passage, then talk before question 1 (28 fluent L23 readers): question 1 stands', () => {
+    const block = 'urdu'; const grade = 3;
+    const spec = itemBank.getForm(grade, 'A')[block];
+    const cue = itemBank.cue[block];
+    // the whole passage in 36 s, then 15 words of other talk (taken from the passage's opening, so nothing new), then question 1
+    const chatter = spec.story.tokens.slice(0, 15).join(' ');
+    const words = [...say(COACH, 0, cue.start), ...spec.story.tokens.flatMap((tok, k) => say(CHILD, 1.5 + k * 0.6, tok)),
+      ...say('3', 38, chatter), ...say('3', 46, spec.questions[0].prompt)];
+    const r = findCueWindows({ words, block, form: { [block]: spec }, cue, durationSec: 90 });
+    expect(r.anchors.questions.start).toBeCloseTo(46, 1);
+  });
+
   test('the questions CUE said inside the minute still ends the story (only the text-match is held back)', () => {
     const block = 'english';
     const cue = itemBank.cue[block];

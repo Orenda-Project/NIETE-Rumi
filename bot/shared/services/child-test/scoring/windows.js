@@ -20,7 +20,7 @@
  * the next section.
  */
 
-const { clean, same } = require('./text-norm');
+const { clean, same, align, refWords } = require('./text-norm');
 const itemBank = require('../item-bank');
 
 const TIMED_SECONDS = 60;   // the story; quick sums: timedSecondsFor('quick_sums', spec)
@@ -239,11 +239,21 @@ function questionTextAnchor(words, q, { after, story, cue, spec }) {
   return findPhrase(words, q.prompt, { after: minuteEnd, minScore: PROMPT_MIN_SCORE });
 }
 
-/** The child read the whole passage: its last word, after most of its words (a story's last word, e.g. «تھا», recurs in it). */
-const FINISHED_SHARE = 0.8;
+/**
+ * The child read the whole passage: the words heard, aligned to the printed text, reach its last word
+ * or the one before. Alignment, not "the last word was said": a story's last word recurs in it (e.g.
+ * «تھا»), and a child who finished often talks with the coach before question 1 (28 L23 readers).
+ */
+const FINISHED_SHARE = 0.5;
 function finishedPassage(childWords, spec) {
-  const n = ((spec && spec.story && spec.story.tokens) || []).length;
-  return n > 0 && childWords.length >= FINISHED_SHARE * n && reachedEnd('story', childWords, spec);
+  const tokens = (spec && spec.story && spec.story.tokens) || [];
+  if (!tokens.length || !childWords.length) return false;
+  const { status } = align(refWords(tokens), childWords.map((x) => x.w));
+  let reach = 0;
+  for (let i = status.length - 1; i >= 0; i -= 1) if (status[i] !== 'omit') { reach = i + 1; break; }
+  // a few words can align anywhere (short words recur): most of the text must have been read right too
+  const right = status.filter((x) => x === 'correct').length;
+  return reach >= tokens.length - 1 && right >= FINISHED_SHARE * tokens.length;
 }
 
 function lastQuestionAnchor(words, qs, first) {
