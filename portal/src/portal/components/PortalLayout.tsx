@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AuthContext } from '../hooks/authContext';
 import { useRecordingSession } from '../lib/recordingSession';
+import { RecordingBarShownContext } from '../lib/recordingBarShown';
 import { useNewUi } from '../lib/useNewUi';
 import PortalNavigation from './PortalNavigation';
 import RecordingBar from './RecordingBar';
@@ -86,7 +87,10 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
       {!bare && <PortalNavigation hideStrip={ownHeading} />}
       {/* Issue #22: Added consistent padding for content */}
       <main className={ownHeading ? pad : `px-4 md:px-6 lg:px-8 pt-4 ${pad}`}>
-        {children}
+        {/* bd-5rz1v.14 — a new-UI page's bottom action stands above the bar while it shows. */}
+        <RecordingBarShownContext.Provider value={showBar && !bare}>
+          {children}
+        </RecordingBarShownContext.Provider>
       </main>
       {showBar && session && <RecordingBar session={session} aboveMenu={!bare} newMenu={newUi} />}
     </div>

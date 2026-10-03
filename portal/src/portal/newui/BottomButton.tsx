@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { RecordingBarShownContext } from '../lib/recordingBarShown';
 import { FOCUS, TAP } from './styles';
 
 /**
@@ -18,7 +19,9 @@ import { FOCUS, TAP } from './styles';
  *
  * BottomActions holds one (or a stack of) these above the menu bar on a phone — 2px 14px 14px,
  * 10px apart — and inline on a desktop. It keeps an equal space in the page so it never covers
- * the last row.
+ * the last row. While a lesson records, the recording bar sits above the menu (88px + the safe
+ * area, 56px tall); the buttons then stand above IT, 8px clear (bd-5rz1v.14). PortalLayout says
+ * when the bar shows (RecordingBarShownContext).
  */
 
 export type BottomButtonTone = 'primary' | 'outline' | 'warn' | 'danger';
@@ -74,6 +77,7 @@ export function BottomButton({
 
 export function BottomActions({ children }: { children: ReactNode }) {
   const panel = useRef<HTMLDivElement>(null);
+  const aboveRecordingBar = useContext(RecordingBarShownContext);
   const [height, setHeight] = useState(0);
 
   // The panel is fixed on a phone, so the page reserves its height — measured, because one
@@ -97,7 +101,8 @@ export function BottomActions({ children }: { children: ReactNode }) {
         ref={panel}
         data-testid="newui-bottom-actions"
         className={cn(
-          'fixed inset-x-0 bottom-[calc(80px+env(safe-area-inset-bottom))] z-40 flex flex-col gap-2.5 bg-nu-surface px-[14px] pb-[14px] pt-0.5',
+          'fixed inset-x-0 z-40 flex flex-col gap-2.5 bg-nu-surface px-[14px] pb-[14px] pt-0.5',
+          aboveRecordingBar ? 'bottom-[calc(152px+env(safe-area-inset-bottom))]' : 'bottom-[calc(80px+env(safe-area-inset-bottom))]',
           'md:static md:z-auto md:bg-transparent md:px-0 md:pb-0 md:pt-3',
         )}
       >
