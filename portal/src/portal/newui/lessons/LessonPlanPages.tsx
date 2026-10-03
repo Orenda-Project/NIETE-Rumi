@@ -14,7 +14,7 @@ import { Chip } from '../Chip';
 import { Hero } from '../Hero';
 import { BottomActions, BottomButton } from '../BottomButton';
 import { FOCUS, TAP_SQUARE } from '../styles';
-import { lessonPlans, readPicks, writePicks, type LpLesson } from './lessonPlansApi';
+import { lessonPlans, readPicks, writePicks, type LpLesson, type Picks } from './lessonPlansApi';
 import {
   LESSON_PLANS_PATH, clock, dataOf, lessonBadge, lessonName, lessonRowTitle, pageUrl, useLoad, useOpenLesson,
   type At,
@@ -54,6 +54,21 @@ function useNames(at: At) {
   };
 }
 
+/** Her picks for this page, with the names it knows (or the ones already kept for the same keys). */
+function picksHere(at: AtChapter, names: { subject: string | null; chapter: string | null }, lesson: LpLesson | null): Picks {
+  const kept = readPicks();
+  const sameSubject = kept.grade === at.grade && kept.subject === at.subject;
+  const sameChapter = sameSubject && kept.chapter === at.chapter;
+  return {
+    grade: at.grade,
+    subject: at.subject,
+    subjectName: names.subject ?? (sameSubject ? kept.subjectName : null) ?? null,
+    chapter: at.chapter,
+    chapterTitle: names.chapter ?? (sameChapter ? kept.chapterTitle : null) ?? null,
+    lesson,
+  };
+}
+
 function useLessons(at: AtChapter) {
   return useLoad(() => lessonPlans.lessons(at.grade, at.subject, at.chapter), `l:${at.grade}:${at.subject}:${at.chapter}`);
 }
@@ -90,7 +105,7 @@ export function ChaptersPage({ at }: { at: At }) {
                 )}
                 onClick={() => {
                   const same = here && picks.chapter === c.key;
-                  writePicks({ grade: at.grade, subject: at.subject, chapter: c.key, lesson: same ? picks.lesson : null });
+                  writePicks(picksHere({ ...at, chapter: c.key }, { subject: names.subject, chapter: c.title }, same ? picks.lesson : null));
                   navigate(pageUrl('lessons', { ...at, chapter: c.key }));
                 }}
               />
@@ -134,7 +149,7 @@ export function LessonsPage({ at }: { at: AtChapter }) {
                   </>
                 )}
                 onClick={() => {
-                  writePicks({ grade: at.grade, subject: at.subject, chapter: at.chapter, lesson: l });
+                  writePicks(picksHere(at, names, l));
                   navigate(pageUrl('lesson', { ...at, lesson: l.id }));
                 }}
               />
@@ -156,10 +171,10 @@ export function ReadyPage({ at }: { at: AtLesson }) {
 
   // Opened straight from an address (a reload, a link): the main page shows this pick too.
   useEffect(() => {
-    if (lesson) writePicks({ grade: at.grade, subject: at.subject, chapter: at.chapter, lesson });
-    // One write per lesson found.
+    if (lesson) writePicks(picksHere(at, names, lesson));
+    // One write per lesson found, and again when the names arrive.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lesson?.id]);
+  }, [lesson?.id, names.subject, names.chapter]);
 
   return (
     <PortalLayout ownHeading>
