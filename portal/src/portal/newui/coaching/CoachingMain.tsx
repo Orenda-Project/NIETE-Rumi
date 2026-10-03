@@ -139,11 +139,12 @@ export default function CoachingMain() {
           </>
         ) : null}
       />
-      {/* Desktop: what waits for her and the button on the left, her lessons on the right. A phone
-          keeps one column, the button fixed above the menu. */}
-      <div className="mx-auto flex max-w-[1120px] flex-col gap-3 px-[14px] pb-[14px] md:[display:grid] md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-start md:gap-x-6 md:px-10 md:pt-[10px]">
-        <div className="flex flex-col gap-3">
-          {waiting.length > 0 || showUnsent ? (
+      {/* One column on a phone, in reading order: what waits for her, her lessons, then the button
+          (fixed above the menu; its spacer ends the page). A desktop puts what waits for her and the
+          button on the left, her lessons on the right. */}
+      <div className="mx-auto flex max-w-[1120px] flex-col gap-3 px-[14px] pb-[14px] md:[display:grid] md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:grid-rows-[auto_1fr] md:items-start md:gap-x-6 md:px-10 md:pt-[10px]">
+        {waiting.length > 0 || showUnsent ? (
+          <div className="md:col-start-1 md:row-start-1">
             <List>
               {waiting.length > 0 ? (
                 <Row
@@ -170,13 +171,10 @@ export default function CoachingMain() {
                 />
               ) : null}
             </List>
-          ) : null}
-          <BottomActions>
-            <BottomButton icon={Send} onClick={sendALesson} testId="coaching-send">{COACHING_COPY.send}</BottomButton>
-          </BottomActions>
-        </div>
+          </div>
+        ) : null}
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 md:col-start-2 md:row-span-2 md:row-start-1">
           {load === 'loading' ? <Hero title={COACHING_COPY.loading} icon={Loader2} spinning live /> : null}
           {load === 'error' ? (
             <>
@@ -222,6 +220,12 @@ export default function CoachingMain() {
               <Row title={COACHING_COPY.more} icon={ChevronDown} end={ChevronDown} onClick={() => setShown((n) => n + PAGE)} testId="coaching-more" />
             </List>
           ) : null}
+        </div>
+
+        <div className="md:col-start-1 md:row-start-2">
+          <BottomActions>
+            <BottomButton icon={Send} onClick={sendALesson} testId="coaching-send">{COACHING_COPY.send}</BottomButton>
+          </BottomActions>
         </div>
       </div>
 
