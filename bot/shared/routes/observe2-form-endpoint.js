@@ -266,7 +266,7 @@ async function asJpeg(buf) {
   }
 }
 
-async function storePhotos(form, photos, { convert = false } = {}) {
+async function storePhotos(form, photos, { convert = false, how = null } = {}) {
   const { decryptMedia } = require('../services/roster/roster-media');
   const { uploadBuffer } = require('../storage/r2');
   const keys = [];
@@ -282,6 +282,15 @@ async function storePhotos(form, photos, { convert = false } = {}) {
       keys.push(key);
     } catch (err) {
       logToFile('[observe2] a photo was not stored', { formId: form.id, index: i, error: err.message }, 'error');
+    }
+  }
+  if (keys.length && how) {
+    // The coach may have gone back and changed the photo step while these were being stored.
+    const now = await Store.getForm(form.id);
+    const a = (now.ok && now.form && now.form.answers) || {};
+    if (a.photo_how !== how || Number(a.photo_count) !== Math.min(photos.length, MAX_PHOTOS)) {
+      logToFile('[observe2] photos stored after the photo step changed: not kept', { formId: form.id, how, now: a.photo_how || null });
+      return [];
     }
   }
   if (keys.length) await Store.setPhotos(form.id, keys);
@@ -458,7 +467,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     if (!saved.ok) return renderAdd(step, { error: saved.sealed ? 'This record is already sealed. Close the form.' : 'Not saved. Tap Next again.', has_error: true });
     logToFile('[observe2] classroom photos added', { formId: form.id, how, photos: media.length });
     setImmediate(() => {
-      storePhotos(form, media, { convert: how === 'files' }).catch((err) => {
+      storePhotos(form, media, { convert: how === 'files', how }).catch((err) => {
         logToFile('[observe2] storing the classroom photos failed', { formId: form.id, error: err.message }, 'error');
       });
     });
