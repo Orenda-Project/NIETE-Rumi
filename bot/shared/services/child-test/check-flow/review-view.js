@@ -46,6 +46,15 @@ function barOf(item) {
  */
 const questionsSkipped = (ai) => Boolean(ai && ai.fallback);
 
+/**
+ * CONTRACT §20: a question counts only when the child reached it AND the coach asked it. Older marks carry
+ * neither flag and read as reached and asked.
+ */
+const reachedOf = (q) => !(q && q.reached === false);
+const askedOf = (q) => !(q && q.asked === false);
+const counts = (q) => reachedOf(q) && askedOf(q);
+const hasReach = (qs) => qs.some((q) => q && ('reached' in q || 'asked' in q));
+
 /** Every verdict the review could ask about, for one child, in test order. */
 function candidates(entry) {
   const sid = entry.session.id;
@@ -54,6 +63,7 @@ function candidates(entry) {
     const ai = entry.blocks[block] && entry.blocks[block].ai_marks;
     if (questionsSkipped(ai)) continue;
     (ai && Array.isArray(ai.questions) ? ai.questions : []).forEach((mark, i) => {
+      if (!counts(mark)) return; // not reached or not asked: never a review item (§20)
       const itemId = mark.id || `#${i + 1}`;
       out.push({ sessionId: sid, block, field: 'questions', group: 'questions', kind: 'question', number: i + 1, itemId, mark, path: `questions[${itemId}].verdict` });
     });
@@ -101,6 +111,16 @@ const publicItem = ({ entry, mark, seq, ...rest }) => ({ ...rest, verdict: mark.
 const nameFor = (lang, child) => childName(lang, child) || childLabel(lang, child);
 const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Math.round(Number(v)) : '—');
 
+/** "answers 2 of 2 asked (1 not reached)": correct out of the questions reached and asked (§20). */
+function answersAsked(lang, qs) {
+  const asked = qs.filter(counts);
+  const notReached = qs.filter((q) => !reachedOf(q)).length;
+  const head = asked.length
+    ? t(lang, 'childTestSumAnswersAsked', { right: asked.filter((q) => q.verdict === 'correct').length, asked: asked.length })
+    : t(lang, 'childTestSumNoneAsked');
+  return notReached ? `${head} ${t(lang, 'childTestSumNotReached', { n: notReached })}` : head;
+}
+
 function readingPart(lang, block, ai) {
   const B = blockName(lang, block);
   if (!ai) return t(lang, 'childTestSumNotScored', { block: B });
@@ -118,7 +138,8 @@ function readingPart(lang, block, ai) {
     parts.push(t(lang, 'childTestSumWords', { block: B, wpm: Math.round(wpm) }));
   } else parts.push(t(lang, 'childTestSumStoryNotScored', { block: B }));
   const qs = Array.isArray(ai.questions) ? ai.questions : [];
-  if (qs.length) parts.push(t(lang, 'childTestSumAnswers', { right: qs.filter((q) => q.verdict === 'correct').length, of: qs.length }));
+  if (qs.length && hasReach(qs)) parts.push(answersAsked(lang, qs));
+  else if (qs.length) parts.push(t(lang, 'childTestSumAnswers', { right: qs.filter((q) => q.verdict === 'correct').length, of: qs.length }));
   return parts.join(lang === 'en' ? ', ' : '، ');
 }
 
@@ -212,5 +233,5 @@ function reviewMessage(lang, n, summary, intro) {
 
 module.exports = {
   BLOCKS, READING, ORAL, VERDICTS, MAX_ITEMS, ORAL_DEFAULT_BAR, SECONDS_PER_ITEM, langOf,
-  questionsSkipped, reviewTime, candidates, isDoubtful, selectDoubtful, publicItem, summaryText, reviewScreenData, reviewMessage,
+  questionsSkipped, reachedOf, askedOf, reviewTime, candidates, isDoubtful, selectDoubtful, publicItem, summaryText, reviewScreenData, reviewMessage,
 };

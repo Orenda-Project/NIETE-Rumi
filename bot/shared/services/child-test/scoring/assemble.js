@@ -10,6 +10,7 @@
 
 const { HINT_CONFIDENCE_CAP, clamp01 } = require('./thresholds');
 const { batteryVersion, mathsMode: mathsModeOf } = require('../item-bank');
+const { reachedQuestions } = require('./reach');
 
 const VERSION = 'ai-marks-v1';
 // v2 (bd-s1oo0.46.3, CONTRACT §19): battery v2 reading blocks (story, questions, fallback) and oral maths
@@ -50,6 +51,31 @@ function itemRows(items, rows, { hintOnly = false } = {}) {
     if (hintOnly) { row.hint_only = true; row.confidence = Math.min(row.confidence, HINT_CONFIDENCE_CAP); }
     return row;
   });
+}
+
+/**
+ * CONTRACT §20: each question row gains `reached` (the reach rule on this child's story) and `asked` (the
+ * grader's); a row asked but not reached is kept, marked `beyond_reach`, and left out of the score.
+ * comp_correct = reached && asked && correct; comp_asked = reached && asked; comp_total = questions in the form.
+ */
+function questionRows(spec, parts) {
+  const rows = itemRows(spec.questions, parts.questions);
+  const byId = new Map((parts.questions || []).filter((r) => r && r.id).map((r) => [r.id, r]));
+  const reached = reachedQuestions(spec, { story: parts.story || null, fallback: parts.fallback || null });
+  for (const row of rows) {
+    const r = byId.get(row.id);
+    row.reached = reached.has(row.id);
+    row.asked = !(r && r.asked === false);
+    if (row.asked && !row.reached) row.beyond_reach = true;
+  }
+  const counted = rows.filter((q) => q.reached && q.asked);
+  return {
+    questions: rows,
+    comp_correct: counted.filter((q) => q.verdict === 'correct').length,
+    comp_asked: counted.length,
+    comp_total: rows.length,
+    comp_not_reached: rows.filter((q) => !q.reached).length,
+  };
 }
 
 function story(s) {
@@ -116,6 +142,7 @@ function assembleMarks({ block, form, parts = {}, flags = [], modelVersions = {}
   const reading = block === 'urdu' || block === 'english';
   const v2 = reading ? battery === 'v2' : mathsMode === 'oral';
   const phonics = reading && !v2;
+  const comp = reading ? questionRows(spec, parts) : null;
   return {
     version: v2 ? VERSION_V2 : VERSION,
     block,
@@ -126,7 +153,8 @@ function assembleMarks({ block, form, parts = {}, flags = [], modelVersions = {}
       words: { correct: Math.round(Number(parts.fallback.words && parts.fallback.words.correct) || 0), of: (spec.fallback && spec.fallback.words || []).length },
       confidence: conf(parts.fallback.confidence),
     } : null,
-    questions: reading ? itemRows(spec.questions, parts.questions) : [],
+    questions: comp ? comp.questions : [],
+    ...(comp ? { comp_correct: comp.comp_correct, comp_asked: comp.comp_asked, comp_total: comp.comp_total, comp_not_reached: comp.comp_not_reached } : {}),
     first_sounds: block === 'urdu' && phonics ? itemRows(spec.first_sounds, parts.first_sounds, { hintOnly: true }) : [],
     nonwords: phonics ? itemRows(spec.nonwords, parts.nonwords) : [],
     maths: block === 'maths' ? (v2 ? oralMaths(parts.maths, spec) : maths(parts.maths, spec)) : null,

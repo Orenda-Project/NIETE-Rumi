@@ -251,15 +251,22 @@ describe('v2, Urdu non-reader', () => {
 });
 
 describe('review follows ai_marks.fallback on the sandbox block', () => {
-  test('no switch → the English questions stay review candidates and the summary shows words/min, not letters', async () => {
+  // L34 (CONTRACT §20): the questions stay review candidates only as far as the child read. This child read
+  // a handful of words, short of every question's line, so none is asked or reviewed; the summary says so.
+  test('no switch → the summary shows words/min, not letters; questions are review candidates only where reached', async () => {
     const { aiMarks } = await run({ words: SANDBOX.words, story: SANDBOX_STORY });
     aiMarks.questions = aiMarks.questions.map((q) => ({ ...q, verdict: 'none', confidence: 0.5 }));
     const entry = { session: { id: 's1' }, child: {}, blocks: { english: { ai_marks: aiMarks } } };
     expect(review.questionsSkipped(aiMarks)).toBe(false);
-    expect(review.candidates(entry).filter((c) => c.block === 'english').length).toBe(aiMarks.questions.length);
+    const reached = aiMarks.questions.filter((q) => q.reached).length;
+    expect(review.candidates(entry).filter((c) => c.block === 'english').length).toBe(reached);
     const line = review.summaryText('en', [entry]);
     expect(line).toContain('English 6 words/min');
     expect(line).not.toContain('letters');
+    if (reached < aiMarks.questions.length) expect(line).toContain(`(${aiMarks.questions.length - reached} not reached)`);
+    // the same block with every question reached and asked is reviewed in full, as before
+    const all = { ...aiMarks, questions: aiMarks.questions.map((q) => ({ ...q, reached: true, asked: true })) };
+    expect(review.candidates({ ...entry, blocks: { english: { ai_marks: all } } }).length).toBe(aiMarks.questions.length);
   });
 });
 

@@ -1,7 +1,8 @@
 /**
  * Driver for real-render-v2.test.js: renders the v2 print pack with the real Chromium and prints
  * one JSON line `{"result": …}` — PDF page counts and sizes, the fit pass's overflow list, and the
- * setup picture's pixel size. Bank: CHILD_TEST_BANK, else the L2 test fixture.
+ * setup picture's pixel size, and the coach cards (L33). Bank: CHILD_TEST_BANK, else the committed
+ * v2 bank (the coach cards need its coach lines and oral maths).
  */
 
 const fs = require('fs');
@@ -12,7 +13,7 @@ const v2 = require(path.join(ROOT, 'bot/shared/services/child-test/render/v2'));
 const { closeBrowser } = require(path.join(ROOT, 'bot/shared/utils/html-to-pdf'));
 const { PDFDocument } = require(path.join(ROOT, 'bot/node_modules/pdf-lib'));
 
-const bankPath = process.env.CHILD_TEST_BANK || path.join(__dirname, '../L2/fixtures/item-bank.fixture.json');
+const bankPath = process.env.CHILD_TEST_BANK || path.join(ROOT, 'bot/shared/data/child-test/item-bank.v1.json');
 const itemBank = JSON.parse(fs.readFileSync(bankPath, 'utf8'));
 
 async function pdfInfo(buf) {
@@ -26,11 +27,13 @@ function pngSize(buf) {
 }
 
 (async () => {
-  const result = { cards: [], printMe: [], coach: null, pictures: {} };
+  const result = { cards: [], printMe: [], coach: null, pictures: {}, coachCards: [] };
   for (const set of ['A', 'B']) {
     for (const grade of [3, 5]) {
       const r = await v2.renderCards({ grade, set, itemBank, notYet: set === 'B' });
       result.cards.push({ grade, set, ...(await pdfInfo(r.pdf)), overflow: r.layout.overflow });
+      const cc = await v2.renderCoachCard({ grade, set, itemBank, notYet: set === 'B' });
+      result.coachCards.push({ grade, set, ...(await pdfInfo(cc.pdf)), overflow: cc.layout.overflow, scale: cc.layout.scales[`g${grade}/coachcard`] });
     }
     const p = await v2.renderPrintMe({ itemBank, set });
     result.printMe.push({ set, ...(await pdfInfo(p.pdf)), overflow: p.layout.overflow });

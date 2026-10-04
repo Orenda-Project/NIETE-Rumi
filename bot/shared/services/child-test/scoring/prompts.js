@@ -5,7 +5,8 @@
  * STORY is the May 2026 study prompt verbatim (harness/10_window_scorers.py),
  * the one Gemini 3.8 Flash was measured with in HARNESS_RESULTS §3b; changing a
  * word of it invalidates that measurement. COMPREHENSION is the study's
- * harness/11 prompt with each question's accept/reject list and rubric added.
+ * harness/11 prompt with each question's accept/reject list and rubric added, and (L34, CONTRACT §20)
+ * an "asked" flag per question: the coach asks only the questions the child reached.
  *
  * Children are referred to as "the child". No prompt ever carries a name: the
  * inputs are item text, transcripts and audio only.
@@ -39,10 +40,11 @@ const STORY_SCHEMA = {
 
 const COMPREHENSION = ({ lang, passage, questions, transcript }) => `You are marking an oral reading-comprehension test in ${LANG_NAME[lang] || lang} for a grade 1-5 child in Pakistan. The child has just read this passage aloud:
 ${passage}
-Below is a timestamped, diarised transcript of the coach asking ${questions.length} questions about the passage and the child answering. Speech-to-text errors are possible; judge the meaning. An answer is CORRECT if it conveys the right information from the passage in any language or wording; WRONG if it is incorrect, off-topic, or the child says they do not know; NO_ANSWER if no audible answer. Use each question's accepted and rejected answers and rubric. Mark each question in order.
+Below is a timestamped, diarised transcript of the coach asking up to ${questions.length} questions about the passage and the child answering. Speech-to-text errors are possible; judge the meaning. An answer is CORRECT if it conveys the right information from the passage in any language or wording; WRONG if it is incorrect, off-topic, or the child says they do not know; NO_ANSWER if no audible answer. Use each question's accepted and rejected answers and rubric. Mark each question in order.
+The coach asks a question only if the child read far enough in the passage, so some questions may not be asked. For each question say whether the coach ASKED it (any wording, in any language). If the coach did not ask it, set "asked":false and verdict NO_ANSWER.
 QUESTIONS:
 ${questions.map((q, i) => `${i + 1}. [${q.id}] ${q.prompt}\n   accept: ${(q.accept || []).join(' | ') || '-'}\n   reject: ${(q.reject || []).join(' | ') || '-'}\n   rubric: ${q.rubric || '-'}`).join('\n')}
-Return ONLY JSON: {"questions":[{"id":"<id>","answer":"<child's answer as heard>","verdict":"correct|wrong|no_answer","confidence":<0-1>}, ...]}
+Return ONLY JSON: {"questions":[{"id":"<id>","asked":true|false,"answer":"<child's answer as heard>","verdict":"correct|wrong|no_answer","confidence":<0-1>}, ...]}
 TRANSCRIPT:
 ${transcript}`;
 

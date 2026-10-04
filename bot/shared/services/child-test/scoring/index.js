@@ -30,6 +30,12 @@
  *   CHILD_TEST_MATHS_MODE=oral  maths is scored from its voice note alone (May set:
  *                           compare, sums, two word problems; maths-oral.js), no photo
  *                           is awaited (strip: as above).
+ *
+ * Battery v3 (bd-s1oo0.50.3, lane L37, CONTRACT §21.5): a `block` that is a v3 task id (tasks.js TASKS_V3,
+ * e.g. 'ur.letters', 'ma.add1') is one task's row. The same job runner (conversation/recovery.js
+ * runScoring → scoreBlock) scores it through scoreTask (scoring/tasks/), which writes `ai-marks-v3`.
+ * `form` is the term set letter (item-bank.v3 getTaskSpec({ grade, set, task })). A row the coach skipped,
+ * or a bank gap, gets { skipped_by_coach: true } with no model call.
  */
 
 const { logToFile, logError } = require('../../../utils/logger');
@@ -47,6 +53,8 @@ const { assembleMarks, aiStatusFor, sectionsFor } = require('./assemble');
 const { findOralWindows, scoreOralCard, scoreOralWordProblems } = require('./maths-oral');
 const { batteryVersion, mathsMode: mathsModeOf } = require('../item-bank');
 const { modelFor } = require('./models');
+const { scoreTask } = require('./tasks');
+const { isTask } = require('../tasks');
 
 const BLOCKS = new Set(['urdu', 'english', 'maths']);
 const STT_LANGUAGE = { urdu: 'ur', english: 'en', maths: 'ur' };
@@ -235,6 +243,7 @@ async function scoreBlock(args, deps = {}) {
   let store = null;
   const tmp = [];
   try {
+    if (isTask(block)) return await scoreTaskRow(args, deps);
     if (!BLOCKS.has(block)) return { ok: false, aiStatus: 'failed', reason: 'bad_block' };
     store = deps.store || require('../store');
     // R2 by default; the offline evaluation passes a local-file reader instead.
@@ -328,4 +337,78 @@ async function scoreBlock(args, deps = {}) {
   }
 }
 
-module.exports = { scoreBlock };
+// ------------------------------------------------------------------ battery v3: one task row
+
+/** The coach typed skip (L36 stores it on the row: ai_reason, or a marker in coach_marks / transcript). */
+function skippedRow(row) {
+  return row.skipped_by_coach === true || row.ai_reason === 'skipped_by_coach'
+    || !!(row.coach_marks && row.coach_marks.skipped_by_coach) || !!(row.transcript && row.transcript.skipped_by_coach);
+}
+
+function taskSpecFrom(itemBank, { grade, form, task }) {
+  if (typeof itemBank.getTaskSpec !== 'function') return null;
+  try { return itemBank.getTaskSpec({ grade: Number(grade), set: form || 'A', task }); } catch (_) { return null; }
+}
+
+async function scoreTaskRow(args, deps) {
+  const started = Date.now();
+  const { sessionId, block: task, grade, form, lang } = args;
+  const ids = { sessionId, block: task };
+  const store = deps.store || require('../store');
+  const fetchMedia = deps.fetchMedia || media.downloadToTemp;
+  const itemBank = deps.itemBank || require('../item-bank');
+  let audioFile = null;
+  try {
+    let got;
+    try { got = await store.getBlock(sessionId, task); } catch (e) { got = { ok: false, error: e.message }; }
+    if (!got || !got.ok) {
+      logError('[child-test] scoring: block read failed', { ...ids, error: got && got.error });
+      return { ok: false, aiStatus: 'failed', reason: 'block_read_failed' };
+    }
+    const row = got.block;
+    if (!row) return { ok: false, aiStatus: 'failed', reason: 'block_not_found' };
+    if (row.ai_marks) return { ok: true, aiStatus: row.ai_status || 'scored', reason: 'already_scored' };
+
+    const spec = taskSpecFrom(itemBank, { grade, form, task });
+    const skip = skippedRow(row) || !!(spec && spec.gap);
+    if (!spec && !skip) { await persistFailure(store, ids, 'form_not_found'); return { ok: false, aiStatus: 'failed', reason: 'form_not_found' }; }
+    if (!skip && !row.audio_r2_key) { await persistFailure(store, ids, 'no_media'); return { ok: false, aiStatus: 'failed', reason: 'no_media' }; }
+
+    let mediaIn = { skipped_by_coach: true };
+    if (!skip) {
+      if (typeof store.setAiStatus === 'function') {
+        try { await store.setAiStatus({ sessionId, block: task, aiStatus: 'scoring' }); } catch (_) { /* advisory */ }
+      }
+      try { audioFile = await fetchMedia(row.audio_r2_key, 'ogg'); } catch (e) { throw new Fatal('audio_download_failed', e.message); }
+      mediaIn = { file: audioFile, durationSec: await media.probeDuration(audioFile) };
+    }
+    const aiMarks = await scoreTask({ task, spec: spec || {}, media: mediaIn, lang, grade });
+    if (aiMarks.ok === false) {
+      logError('[child-test] scoring: task not scored', { ...ids, reason: aiMarks.reason, detail: aiMarks.detail });
+      await persistFailure(store, ids, aiMarks.reason);
+      return { ok: false, aiStatus: 'failed', reason: aiMarks.reason };
+    }
+    aiMarks.meta = { ...(aiMarks.meta || {}), item_bank_version: itemBank.version || null, duration_sec: mediaIn.durationSec ?? null };
+    const aiStatus = (aiMarks.flags || []).includes('task_not_found') ? 'partial' : 'scored';
+    const transcript = Array.isArray(mediaIn.words) ? { language: task.split('.')[0], model: mediaIn.sttModel || null, words: mediaIn.words.map((w) => [w.raw, w.start, w.end, w.speaker]) } : null;
+    const saved = await store.saveAiMarks({ sessionId, block: task, aiMarks, aiStatus, modelVersions: aiMarks.model_versions, transcript, reason: skip ? 'skipped_by_coach' : null });
+    if (!saved || !saved.ok) {
+      if (saved && saved.alreadyScored) return { ok: true, aiStatus: (saved.block && saved.block.ai_status) || 'scored', reason: 'already_scored' };
+      logError('[child-test] scoring: saveAiMarks failed', { ...ids, error: saved && saved.error });
+      await persistFailure(store, ids, 'save_failed');
+      return { ok: false, aiStatus: 'failed', reason: 'save_failed' };
+    }
+    logEvent('child_test.task.scored', { ...ids, aiStatus, skipped: skip, seconds: (aiMarks.meta && aiMarks.meta.seconds) || 0, costUsd: (aiMarks.meta && aiMarks.meta.cost_usd) || 0, flags: aiMarks.flags, review: (aiMarks.review || []).length });
+    return { ok: true, aiStatus };
+  } catch (e) {
+    const reason = e instanceof Fatal ? e.reason : 'internal_error';
+    logError('[child-test] task scoring failed', { ...ids, reason, error: (e.detail || e.message || '').slice(0, 200) });
+    await persistFailure(store, ids, reason);
+    return { ok: false, aiStatus: 'failed', reason };
+  } finally {
+    media.cleanup(audioFile);
+    logToFile('[child-test] scoreTaskRow done', { ...ids, ms: Date.now() - started });
+  }
+}
+
+module.exports = { scoreBlock, scoreTask };

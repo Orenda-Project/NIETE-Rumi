@@ -19,6 +19,7 @@
 
 const { t } = require('./copy');
 const identity = require('./identity');
+const { anchorFor } = require('../scoring/reach');
 
 const CIRCLED = ['①', '②', '③', '④', '⑤', '⑥'];
 
@@ -129,6 +130,21 @@ function said(lang, text) {
 /** One said line per question or problem; its number sits in its own LTR isolate, never glued to an RTL run. */
 const numbered = (lang, lines) => lines.map((s, i) => `   ${LRI}${CIRCLED[i] || '•'}${PDI} ${said(lang, s)}`).join('\n');
 
+/**
+ * The story's questions (CONTRACT §20): each one the child must have read past a line for — every question
+ * after the first, and the first when its needs_line > 1 — is preceded by "Only if the child read past:"
+ * and the last words of that line as a said line of their own (so a cross-script anchor is isolated alone).
+ */
+function storyQuestions(lang, spec) {
+  const qs = (spec && spec.questions) || [];
+  return qs.map((q, i) => {
+    const line = `   ${LRI}${CIRCLED[i] || '•'}${PDI} ${said(lang, q.prompt)}`;
+    const gated = i > 0 || Number(q.needs_line) > 1;
+    const anchor = gated ? anchorFor(spec, q) : '';
+    return anchor ? `   ${t(lang, 'childTestL34OnlyIfPast')}\n   ${said(lang, anchor)}\n${line}` : line;
+  }).join('\n');
+}
+
 /** One step: plain text, no buttons; it stays the last bubble, right above the recorder. */
 function stepMessage(lang, block, { name, grade, form, bankForm } = {}) {
   const bf = bankForm === undefined ? bankFormFor(grade, form) : bankForm;
@@ -143,11 +159,10 @@ function stepMessage(lang, block, { name, grade, form, bankForm } = {}) {
       problems: numbered(lang, problems),
     });
   }
-  const questions = ((bf && bf[block] && bf[block].questions) || []).map((q) => q.prompt);
   const q = (k) => said(lang, s[k]);
   return t(lang, 'childTestL26StepStory', {
     title, card, side: t(lang, SIDE_KEY[block]), start: q('start'), go_on: q('go_on'), stop: q('stop'),
-    qintro: q('questions_intro'), fallback: q('fallback'), questions: numbered(lang, questions),
+    qintro: q('questions_intro'), fallback: q('fallback'), questions: storyQuestions(lang, bf && bf[block]),
   });
 }
 

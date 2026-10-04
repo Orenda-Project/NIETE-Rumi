@@ -23,6 +23,11 @@
  * marker, so the existing completion detector routes it and completion.js hands it here.
  *
  * Names go to the coach's WhatsApp only, never into a log line or a model prompt. Rolls are never shown (v2).
+ *
+ * Battery v3 (CONTRACT §21.6, bd-s1oo0.50.5): a visit whose rows are tasks (block = task id) goes to the v3 path,
+ * same entry points. Its results are sent as text first (split per child under 4096 code points), then the review
+ * comes in pages of whole tasks, one Flow message each on the same REVIEW screen; page p+1 is sent when page p is
+ * saved, and saving page p settles that page's task rows. The ref carries the page: rv_<base64url(visitKey#p<n>)>.
  */
 
 const WhatsAppService = require('../../whatsapp.service');
@@ -33,9 +38,11 @@ const Store = require('./check-store');
 const { formItems } = require('./items');
 const { t } = require('../conversation/copy');
 const {
-  BLOCKS, VERDICTS, MAX_ITEMS, langOf, questionsSkipped, reviewTime, selectDoubtful, publicItem, summaryText, reviewScreenData, reviewMessage,
+  BLOCKS, VERDICTS, MAX_ITEMS, langOf, questionsSkipped, reachedOf, askedOf, reviewTime, selectDoubtful, publicItem, summaryText, reviewScreenData, reviewMessage,
 } = require('./review-view');
 const { MARKER, enabled } = require('./token');
+const V3 = require('./review-v3');
+const itemBank = require('../item-bank');
 
 const REF_PREFIX = 'rv_';
 const POLL_MS = 3000;
@@ -50,10 +57,24 @@ function checkMode(env = process.env) {
 const b64 = (s) => Buffer.from(String(s), 'utf8').toString('base64url');
 const unb64 = (s) => Buffer.from(String(s), 'base64url').toString('utf8');
 
-const reviewRef = (visitKey) => `${REF_PREFIX}${b64(visitKey)}`;
+// v3 pages: '#p<n>' after the visit key (a visit key or a field form id never holds '#').
+const PAGE_RX = /#p(\d+)$/;
+const reviewRef = (visitKey, page = null) => `${REF_PREFIX}${b64(page ? `${visitKey}#p${page}` : visitKey)}`;
 const isReviewRef = (ref) => typeof ref === 'string' && ref.startsWith(REF_PREFIX) && ref.length > REF_PREFIX.length;
-const visitOfRef = (ref) => (isReviewRef(ref) ? unb64(ref.slice(REF_PREFIX.length)) : null);
-const buildReviewToken = (coachUserId, visitKey) => `${coachUserId}:${MARKER}:${reviewRef(visitKey)}`;
+const decodedRef = (ref) => (isReviewRef(ref) ? unb64(ref.slice(REF_PREFIX.length)) : null);
+const visitOfRef = (ref) => { const v = decodedRef(ref); return v == null ? null : v.replace(PAGE_RX, ''); };
+const pageOfRef = (ref) => { const m = PAGE_RX.exec(decodedRef(ref) || ''); return m ? Number(m[1]) : null; };
+const buildReviewToken = (coachUserId, visitKey, page = null) => `${coachUserId}:${MARKER}:${reviewRef(visitKey, page)}`;
+
+/** The v3 task's spec from the item bank (L35's getTaskSpec), or null until the bank has it. */
+function specFor(entry, task) {
+  if (typeof itemBank.getTaskSpec !== 'function') return null;
+  try {
+    return itemBank.getTaskSpec({ grade: entry.session.grade, set: entry.session.form, task }) || null;
+  } catch (err) {
+    return null;
+  }
+}
 
 // ── reads ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -96,7 +117,7 @@ async function loadSessions(sessionIds) {
 function pendingBlocks(entries) {
   let n = 0;
   for (const e of entries) {
-    for (const b of BLOCKS) {
+    for (const b of (V3.isV3Entry(e) ? Object.keys(e.blocks) : BLOCKS)) {
       const row = e.blocks[b];
       if (row && !row.ai_marks && !String(row.ai_reason || '').startsWith('final:')) n += 1;
     }
@@ -116,7 +137,16 @@ async function doubtfulItems(sessionIds) {
 async function visitSummary(lang, visitKey, { coachUserId = null } = {}) {
   const loaded = await loadVisit(visitKey, coachUserId);
   if (!loaded.ok) return null;
+  if (loaded.entries.some(V3.isV3Entry)) return V3.summaryText(langOf(lang), loaded.entries, specFor);
   return summaryText(langOf(lang), loaded.entries);
+}
+
+/** v3: the results as text messages, each ≤ 4096 code points, split between children. v2: one message. */
+async function visitSummaryMessages(lang, visitKey, { coachUserId = null } = {}) {
+  const loaded = await loadVisit(visitKey, coachUserId);
+  if (!loaded.ok) return null;
+  if (loaded.entries.some(V3.isV3Entry)) return V3.summaryMessages(langOf(lang), loaded.entries, specFor);
+  return [summaryText(langOf(lang), loaded.entries)];
 }
 
 // ── writes ────────────────────────────────────────────────────────────────────────────────────
@@ -152,6 +182,15 @@ function coachMarksFor(block, row, asked, aiOnly) {
       q.verdict = 'not_asked';
     });
   }
+  // §20: a reached-or-not question the coach did not ask is 'not_asked'; one asked beyond the child's reading
+  // keeps the AI's verdict, is listed, and stays out of the score.
+  const beyondReach = [];
+  if (!questionsSkipped(ai) && Array.isArray(marks.questions)) {
+    marks.questions.forEach((q, i) => {
+      const path = `questions[${q.id || `#${i + 1}`}].verdict`;
+      if (!askedOf(q)) { notAsked.push(path); q.verdict = 'not_asked'; } else if (!reachedOf(q)) beyondReach.push(path);
+    });
+  }
   const edits = [];
   const reviewed = [];
   const unanswered = [];
@@ -171,6 +210,7 @@ function coachMarksFor(block, row, asked, aiOnly) {
     ai_only: aiOnly.map((c) => c.path),
     ...(unanswered.length ? { unanswered } : {}),
     ...(notAsked.length ? { not_asked: notAsked } : {}),
+    ...(beyondReach.length ? { beyond_reach: beyondReach } : {}),
   };
   return { coachMarks: marks, edits };
 }
@@ -233,6 +273,7 @@ async function sendReview(coachUserId, visitKey, { intro = null, waitMs = 0 } = 
 
   const coach = await Store.getCoach(coachUserId);
   const lang = langOf(coach && coach.preferred_language);
+  if (entries.some(V3.isV3Entry)) return sendReviewV3(coachUserId, visitKey, coach, lang, entries, intro);
   const sel = selectDoubtful(entries);
   const summary = summaryText(lang, entries);
 
@@ -283,6 +324,7 @@ async function handleReviewCompletion(responseJson = {}, from, user, ref) {
   if (!enabled() || !visitKey || !user) return { ok: false, review: true };
   const lang = langOf(user.preferred_language);
   const loaded = await loadVisit(visitKey, user.id);
+  if (loaded.ok && loaded.entries.some(V3.isV3Entry)) return completeV3(responseJson, from, user, lang, visitKey, pageOfRef(ref) || 1, loaded.entries);
   if (!loaded.ok || !loaded.entries.length) {
     logToFile('[child_test] review completion for a visit this coach has no sessions in', {}, 'warn');
     if (!loaded.ok) {
@@ -310,9 +352,162 @@ async function handleReviewCompletion(responseJson = {}, from, user, ref) {
   return { ok: !r.failed, review: true, ...r };
 }
 
+// ── battery v3 ────────────────────────────────────────────────────────────────────────────────
+
+/** Settle v3 task rows once. rows: [{entry, task}]; asked: [{c, verdict}]. @returns {{saved, already, failed}} */
+async function settleTasks(rows, asked, aiOnly) {
+  const out = { saved: 0, already: 0, failed: 0 };
+  for (const { entry, task } of rows) {
+    const sid = entry.session.id;
+    const row = entry.blocks[task] || null;
+    const mine = asked.filter((a) => a.c.sessionId === sid && a.c.task === task);
+    const extra = aiOnly.filter((c) => c.sessionId === sid && c.task === task);
+    const { coachMarks, edits } = V3.coachMarksForTask(task, row, mine, extra);
+    let r;
+    try {
+      r = await Store.saveCoachBlock(sid, task, { coachMarks, coachEdits: edits, rowExists: Boolean(row) });
+    } catch (err) {
+      r = { ok: false, error: err.message };
+    }
+    if (r.ok) out.saved += 1;
+    else if (r.alreadyChecked) out.already += 1;
+    else {
+      out.failed += 1;
+      logError('[child_test] review: a task row was not saved', { sessionId: sid, task, error: r.error || r.reason || null });
+    }
+  }
+  return out;
+}
+
+/** Every v3 row of the visit, and which of them a review page holds. */
+function v3Rows(entries, pages) {
+  const onPage = new Map();
+  pages.forEach((page, p) => page.forEach((c) => onPage.set(`${c.sessionId}|${c.task}`, p + 1)));
+  const rows = [];
+  for (const entry of entries) {
+    for (const task of Object.keys(entry.blocks)) {
+      if (V3.isV3Row(entry.blocks[task])) rows.push({ entry, task, page: onPage.get(`${entry.session.id}|${task}`) || 0 });
+    }
+  }
+  return rows;
+}
+
+async function sendPage(coachUserId, coach, lang, visitKey, pages, page, intro = null) {
+  const items = pages[page - 1];
+  const n = items.length;
+  const total = pages.length;
+  const header = clipHeader(total > 1 ? t(lang, 'childTestL39ReviewHeader', { n, p: page, pages: total }) : (n === 1 ? t(lang, 'childTestReviewHeaderOne') : t(lang, 'childTestReviewHeader', { n })));
+  const body = [
+    intro,
+    page === 1 ? t(lang, 'childTestL39ReviewResultsAbove') : null,
+    t(lang, 'childTestReviewAsk', { n, time: reviewTime(lang, n) }),
+    total > 1 ? t(lang, 'childTestL39ReviewPart', { p: page, pages: total }) : null,
+  ].filter(Boolean).join('\n\n');
+  return WhatsAppService.sendFlow(coach.phone_number, {
+    flowId: process.env.CHILD_TEST_REVIEW_FLOW_ID,
+    header,
+    body,
+    buttonText: t(lang, 'childTestReviewCta'),
+    flowToken: buildReviewToken(coachUserId, visitKey, page),
+    screen: 'REVIEW',
+    screenData: V3.pageScreenData(lang, items, reviewRef(visitKey, page), page, total),
+  });
+}
+
+const clipHeader = (s) => ([...s].length <= 60 ? s : `${[...s].slice(0, 59).join('')}…`);
+
+/**
+ * v3: the results as text, then page 1 of the review. Rows with nothing to review are settled now
+ * ('ai_unreviewed'); the others when their page is saved.
+ * @returns {Promise<{ok: true, items: number, pages: number, aiOnly: number, summarySent: true} | {ok: false, reason: string}>}
+ */
+async function sendReviewV3(coachUserId, visitKey, coach, lang, entries, intro) {
+  const { pages, all, aiOnly } = V3.paginate(entries, specFor);
+  if (all.length && !process.env.CHILD_TEST_REVIEW_FLOW_ID) {
+    logError('[child_test] review not sent: CHILD_TEST_REVIEW_FLOW_ID is not set', { coachUserId, items: all.length });
+    return { ok: false, reason: 'flow_not_configured' };
+  }
+  if (!coach || !coach.phone_number) {
+    logError('[child_test] review not sent: the coach has no phone number', { coachUserId });
+    return { ok: false, reason: 'no_coach' };
+  }
+  const texts = V3.summaryMessages(lang, entries, specFor);
+  for (let i = 0; i < texts.length; i += 1) {
+    const body = i === 0 && intro ? `${intro}\n\n${texts[i]}` : texts[i];
+    const ok = await WhatsAppService.sendMessage(coach.phone_number, [...body].length > V3.TEXT_CAP ? texts[i] : body);
+    if (!ok) {
+      logError('[child_test] results not sent: WhatsApp refused the text', { coachUserId, part: i + 1, of: texts.length });
+      return { ok: false, reason: 'send_failed' };
+    }
+  }
+  const rows = v3Rows(entries, pages);
+  const r = await settleTasks(rows.filter((x) => !x.page), [], aiOnly);
+  if (!all.length) {
+    for (const e of entries) await Store.stamp(e.session.id, 'review.submitted');
+    logEvent('child_test.review_settled', { battery: 'v3', sessions: entries.length, items: 0, saved: r.saved, already: r.already, failed: r.failed });
+    if (r.failed) return { ok: false, reason: 'save_failed' };
+    return { ok: true, items: 0, pages: 0, aiOnly: aiOnly.length, summarySent: true };
+  }
+  const sent = await sendPage(coachUserId, coach, lang, visitKey, pages, 1);
+  if (!sent) {
+    logError('[child_test] review not sent: WhatsApp refused the Flow message', { coachUserId, items: all.length, page: 1 });
+    return { ok: false, reason: 'send_failed' };
+  }
+  for (const e of entries) await Store.stamp(e.session.id, 'review.sent');
+  logEvent('child_test.review_sent', { battery: 'v3', sessions: entries.length, items: all.length, pages: pages.length, aiOnly: aiOnly.length });
+  return { ok: true, items: all.length, pages: pages.length, aiOnly: aiOnly.length, summarySent: true };
+}
+
+/** v3: one page saved → its task rows get coach_marks; the next page follows, or "saved" after the last. */
+async function completeV3(responseJson, from, user, lang, visitKey, page, entries) {
+  const { pages, aiOnly } = V3.paginate(entries, specFor);
+  const items = pages[page - 1] || [];
+  const byKey = new Map(items.map((c) => [c.key, c]));
+  const asked = [];
+  const seen = new Set();
+  for (let i = 1; i <= V3.PAGE_SLOTS; i += 1) {
+    const c = byKey.get(String(responseJson[`k${i}`] || ''));
+    if (!c || seen.has(c.key)) continue;
+    seen.add(c.key);
+    asked.push({ c, verdict: String(responseJson[`r${i}`] || '') });
+  }
+  const rows = v3Rows(entries, pages);
+  const r = await settleTasks(rows.filter((x) => x.page === page), asked, aiOnly);
+  const last = page >= pages.length;
+  if (last) {
+    // Rows sendReview settled up front: once more, in case that write failed then.
+    const late = await settleTasks(rows.filter((x) => !x.page), [], aiOnly);
+    r.failed += late.failed;
+    for (const e of entries) await Store.stamp(e.session.id, 'review.submitted');
+  }
+  logEvent('child_test.review_submitted', { battery: 'v3', page, pages: pages.length, asked: asked.length, saved: r.saved, already: r.already, failed: r.failed });
+  if (r.failed) {
+    await WhatsAppService.sendMessage(from, t(lang, 'childTestReviewNotSaved'));
+    return { ok: false, review: true, page, pages: pages.length, ...r };
+  }
+  if (!r.saved && r.already) {
+    await WhatsAppService.sendMessage(from, t(lang, 'childTestReviewAlready'));
+    return { ok: true, review: true, page, pages: pages.length, ...r };
+  }
+  if (!last) {
+    const coach = { phone_number: from };
+    const sent = await sendPage(user.id, coach, lang, visitKey, pages, page + 1);
+    if (!sent) {
+      logError('[child_test] review: the next page was not sent', { userId: user.id, page: page + 1 });
+      await WhatsAppService.sendMessage(from, t(lang, 'childTestReviewNotSaved'));
+      return { ok: false, review: true, page, pages: pages.length, ...r };
+    }
+    return { ok: true, review: true, page, pages: pages.length, ...r };
+  }
+  await WhatsAppService.sendMessage(from, t(lang, 'childTestReviewSaved'));
+  return { ok: true, review: true, page, pages: pages.length, ...r };
+}
+
 module.exports = {
   checkMode,
   visitSummary,
+  visitSummaryMessages,
+  pageOfRef,
   doubtfulItems,
   sendReview,
   handleReviewCompletion,

@@ -37,9 +37,9 @@ describe('English coach: every Urdu line the coach says is alone on its line, in
     for (const line of urduLines) expect(line).toMatch(URDU_SAY_LINE);
   });
 
-  test('the Urdu story: start, go-on, stop, the question intro, the 3 questions and the fallback are 8 said lines', () => {
+  test('the Urdu story: start, go-on, stop, the question intro, the 3 questions, 2 reach anchors (L34) and the fallback are 10 said lines', () => {
     const said = m.urdu.split('\n').filter((l) => URDU_SAY_LINE.test(l));
-    expect(said).toHaveLength(8);
+    expect(said).toHaveLength(10);
     // questions numbered ① ② ③, each number in its own LTR isolate, never glued to the RTL run
     expect(said.filter((l) => l.includes(`${LRI}①${PDI} ${RLI}`))).toHaveLength(1);
     expect(said.filter((l) => l.includes(`${LRI}③${PDI} ${RLI}`))).toHaveLength(1);
