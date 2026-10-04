@@ -12,6 +12,7 @@ const { untimedTask } = require('./engine');
 const OP_OF = { add2: '+', sub2: '-' };
 
 function questionOf(kind, it, lang) {
+  if (it.text) return { text: String(it.text).replace(/\s+/g, ' ').trim(), answer: it.answer };   // the bank's printed wording
   if (kind === 'discrimination') return { text: `Which is bigger: ${it.a} or ${it.b}?`, answer: it.answer != null ? it.answer : Math.max(it.a, it.b) };
   if (kind === 'missing') return { text: (it.seq || []).map((x) => (x == null ? '__' : x)).join(', '), answer: it.answer };
   if (kind === 'word_problems') return { text: String(lang === 'en' ? (it.prompt_en || it.prompt_ur) : (it.prompt_ur || it.prompt_en)).replace(/\s+/g, ' ').trim(), answer: it.answer };
@@ -29,7 +30,8 @@ async function score(ctx) {
   const qs = spec.items.map((it) => questionOf(kind, it, ctx.coachLang));
   const m = await untimedTask(ctx, {
     refs: spec.items.map((it, k) => refOf(kind, it, qs[k])),
-    prompt: P.ORAL_ITEMS({ grade, kind, questions: qs }),
+    // a card mixing item types (the May 2026 RWP magnitude card) gets the generic EGMA header
+    prompt: P.ORAL_ITEMS({ grade, kind: spec.mixed ? null : kind, questions: qs }),
     schema: P.ORAL_SCHEMA,
   });
   return m;

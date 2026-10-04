@@ -86,7 +86,8 @@ function sumText(it) {
 }
 
 function FLUENCY_SUMS({ grade, op, items }) {
-  const o = OP[op] || OP['+'];
+  const ops = new Set(items.map((it) => it.op || (String(it.prompt || '').includes('-') ? '-' : op || '+')));
+  const o = ops.size > 1 ? { name: 'ADDITION AND SUBTRACTION', en: 'plus', ur: 'جمع', word: 'sums' } : (OP[[...ops][0]] || OP['+']);
   return `A child in a Pakistani government school (grade ${grade}) is doing the timed EGMA ${o.name} (level 1) task with an adult assessor, recorded on a phone. The child answers ${items.length} printed ${o.word} aloud, in order, for up to 60 seconds. The child may read each sum aloud before answering ("one ${o.en} four, five" / "ایک ${o.ur} چار، پانچ") or say only the answers; numbers may be in Urdu, Punjabi or English words or digits. The assessor says start, may say "next" / "اگلا" to move the child on after a pause, and says stop when the minute ends. The clip may begin with the instructions and practice items: judge only the timed run.
 The ${items.length} sums in order, with answers:
 ${items.map((it, i) => `${i + 1}. ${sumText(it)} = ${it.answer}`).join('\n')}
@@ -115,7 +116,7 @@ const ORAL_WHAT = {
 };
 
 function ORAL_ITEMS({ grade, kind, questions }) {
-  return `A child in a Pakistani government school (grade ${grade}) is doing the EGMA ${ORAL_WHAT[kind] || 'maths task'} with an adult assessor, recorded on a phone. The assessor shows a printed card and asks each question aloud (in Urdu, Punjabi or English); the child answers aloud. Numbers may be said in Urdu, Punjabi or English words, or as digits. The clip may begin with the end of the previous task and end with the start of the next one. The questions, in the order asked, with the correct answer:
+  return `A child in a Pakistani government school (grade ${grade}) is doing ${ORAL_WHAT[kind] ? `the EGMA ${ORAL_WHAT[kind]}` : 'an EGMA maths task'} with an adult assessor, recorded on a phone. The assessor shows a printed card and asks each question aloud (in Urdu, Punjabi or English); the child answers aloud. Numbers may be said in Urdu, Punjabi or English words, or as digits. The clip may begin with the end of the previous task and end with the start of the next one. The questions, in the order asked, with the correct answer:
 ${questions.map((q, i) => `${i + 1}. ${q.text} -> ${q.answer}`).join('\n')}
 For each question judge the CHILD's final answer: v = "c" (correct), "w" (a different answer, or the child says they do not know), "n" (no audible answer from the child: silence, or the child only points), "s" (the question was never asked, e.g. the assessor stopped the task). Self-corrections count. heard = the child's answer as heard ("" if none), conf = your confidence 0-1. found = whether the clip contains this task at all.
 Return ONLY JSON: {"found": true, "items": [{"i": 1, "heard": "...", "v": "c|w|n|s", "conf": 0.9}, ...]}  (i = question number 1-${questions.length} as listed)`;

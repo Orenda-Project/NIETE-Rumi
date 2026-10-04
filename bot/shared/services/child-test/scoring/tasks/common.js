@@ -155,12 +155,19 @@ function byPosition(list, n) {
 
 // ------------------------------------------------------------------ stop rules
 
-/** EGRA auto-stop: nothing right in the first `n` items → the rest are not_reached. Mutates rows. */
+/**
+ * EGRA auto-stop: nothing right in the first `n` items → the rest are not_reached. Mutates rows.
+ * Returns true (stopped), false, or 'unclear': the model marks row 1 all wrong yet the child got a whole
+ * row's worth right after it. The coach applies this rule live, so a child who read on was not stopped:
+ * row 1 is the model's error (May re-measure: a G3 reader keyed 83 was zeroed). Nothing is cut; the
+ * caller flags the count for the coach (the same reasoning as story.js needsFallback, L24).
+ */
 function applyFirstRowStop(rows, n) {
   if (!n || !rows.length) return false;
   const head = rows.slice(0, n);
   if (head.some((r) => r.verdict === 'correct')) return false;
   if (!head.some((r) => r.verdict !== 'not_reached')) return false;     // the child never started: nothing to stop
+  if (rows.slice(n).filter((r) => r.verdict === 'correct').length >= n) return 'unclear';
   for (const r of rows.slice(n)) if (r.verdict !== 'not_reached') { r.verdict = 'not_reached'; r.after_stop = true; r.settled = true; }
   return true;
 }

@@ -41,9 +41,14 @@ async function timedTask(ctx, p) {
     const rows = C.timedRows(primary.raw, p.refs);
     const stopRule = spec.stop || {};
     let stopped = false;
-    if (stopRule.type === 'first_row') stopped = C.applyFirstRowStop(rows, Number(stopRule.n) || Number(spec.per_row) || 0);
+    let unclear = false;
+    if (stopRule.type === 'first_row') {
+      const r = C.applyFirstRowStop(rows, Number(stopRule.n) || Number(spec.per_row) || 0);
+      unclear = r === 'unclear'; stopped = r === true;
+    }
     const timed = C.timedSummary({ rows, clock, words, durationSec: media.durationSec, stopped });
     const m = C.marks({ task, spec, timed, stopped, items: rows, modelVersions: { counts: model, ...(media.sttModel ? { stt: media.sttModel } : {}) } });
+    if (unclear) { m.flags.push('first_row_unclear'); m.count_flag = { reason: 'first_row_unclear' }; }
     if (primary.json && primary.json.found === false) m.flags.push('task_not_found');
     if (clock.clock !== 'cue') m.flags.push(clock.clock === 'inferred' ? 'no_begin_line' : 'clock_given');
     m.second_opinion = others.map((o, k) => ({ name: p.variants[k + 1].name, correct: C.timedRows(o.raw, p.refs).filter((r) => r.verdict === 'correct').length }));

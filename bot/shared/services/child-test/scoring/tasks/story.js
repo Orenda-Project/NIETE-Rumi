@@ -35,7 +35,8 @@ async function score(ctx) {
     return { i: k + 1, ref: w, verdict, heard: '', conf: null, settled: true };
   });
   const line1 = (story.lines || [])[0];
-  const stopped = (spec.stop || {}).type === 'first_line' && C.applyFirstRowStop(items, line1 ? line1.to - line1.from + 1 : 0);
+  const stopRes = (spec.stop || {}).type === 'first_line' ? C.applyFirstRowStop(items, line1 ? line1.to - line1.from + 1 : 0) : false;
+  const stopped = stopRes === true;
   const remaining = !stopped && part.finished_early ? Math.max(0, Math.round((C.SECONDS - part.seconds) * 10) / 10) : 0;
   const attempted = stopped ? Math.min(part.words_attempted, line1.to + 1) : part.words_attempted;
   const correct = stopped ? 0 : part.words_correct;
@@ -65,9 +66,10 @@ async function score(ctx) {
   const m = C.marks({ task, spec, timed, score, stopped, items, extra: { comprehension: comp, story_confidence: part.confidence },
     modelVersions: { counts: r.modelVersion, ...(compModel ? { comprehension: compModel } : {}), ...(media.sttModel ? { stt: media.sttModel } : {}) } });
   if (clock.clock !== 'cue') m.flags.push(clock.clock === 'inferred' ? 'no_begin_line' : 'clock_given');
+  if (stopRes === 'unclear') m.flags.push('first_row_unclear');
   if (m.quality === 'ai_review') {
     m.review = counted.filter((q) => q.verdict === 'none' || !(q.confidence >= COMP_BAR)).map((q) => `q:${q.id}`);
-    if (lang === 'ur' || part.confidence < EN_COUNT_BAR) m.count_flag = { reason: 'confirm_count' };
+    if (lang === 'ur' || part.confidence < EN_COUNT_BAR || stopRes === 'unclear') m.count_flag = { reason: stopRes === 'unclear' ? 'first_row_unclear' : 'confirm_count' };
   }
   return m;
 }

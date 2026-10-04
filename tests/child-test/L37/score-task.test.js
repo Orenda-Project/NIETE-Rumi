@@ -159,11 +159,11 @@ describe('timed tasks: the clock, attempted, correct, time remaining, rate (EGRA
 });
 
 describe('stop rules', () => {
-  test('letters: nothing right in row 1 (10) → stopped_by_rule, score 0, every later letter not_reached', async () => {
+  test('letters: nothing right in row 1 (10) and the child stopped there → stopped_by_rule, score 0', async () => {
     H.sonioxReturns(axios, [BEGIN_EN, [2, 4, 'a b c']]);
     route([
-      ['Work row by row', H.rows(['wwwwwwwwww', 'cccccccccc', ...Array(8).fill('ssssssssss')])],
-      ['LETTER IDENTIFICATION', H.items(H.rep('w', 10) + H.rep('c', 10) + H.rep('s', 80))],
+      ['Work row by row', H.rows(['wwwwwwwwww', 'cccsssssss', ...Array(8).fill('ssssssssss')])],
+      ['LETTER IDENTIFICATION', H.items(H.rep('w', 10) + H.rep('c', 3) + H.rep('s', 87))],
     ]);
     const m = await scoreTask({ task: 'en.letters', spec: spec('en.letters'), media: media(), lang: 'en', grade: 3 });
     expect(m.stopped_by_rule).toBe(true);
@@ -171,6 +171,20 @@ describe('stop rules', () => {
     expect(m.timed.rate).toBe(0);
     expect(m.items.slice(0, 10).every((x) => x.verdict === 'wrong')).toBe(true);
     expect(m.items.slice(10).every((x) => x.verdict === 'not_reached')).toBe(true);
+  });
+
+  test('letters: row 1 marked all wrong but the child read on (a full row right after it) → the coach did not stop them: no auto-stop, count flagged', async () => {
+    // May re-measure, G3 child keyed 83: the grid prompt misjudged row 1 and the stop zeroed a reader
+    H.sonioxReturns(axios, [BEGIN_EN, [2, 4, 'a b c']]);
+    route([
+      ['Work row by row', H.rows(['cccccccccc', 'cccccccccc', 'ccccccssss', ...Array(7).fill('ssssssssss')])],
+      ['LETTER IDENTIFICATION', H.items(H.rep('w', 10) + H.rep('c', 16) + H.rep('s', 74))],
+    ]);
+    const m = await scoreTask({ task: 'en.letters', spec: spec('en.letters'), media: media(), lang: 'en', grade: 3 });
+    expect(m.stopped_by_rule).toBe(false);
+    expect(m.timed.correct).toBe(16);
+    expect(m.flags).toContain('first_row_unclear');
+    expect(m.count_flag).toEqual(expect.objectContaining({ reason: expect.stringMatching(/first_row_unclear|prompts_disagree/) }));
   });
 
   test('words: one right in the first 5 → not stopped', async () => {
@@ -375,5 +389,25 @@ describe('skipped and gap tasks: no model call', () => {
     const m = await scoreTask({ task: 'ur.nonwords', spec: { gap: true, reason: 'no official Urdu list' }, media: media(), lang: 'ur', grade: 3 });
     expect(m).toEqual(expect.objectContaining({ version: 'ai-marks-v3', skipped_by_coach: true, gap: true }));
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('item wording from the bank', () => {
+  test('a fluency card that mixes + and − is named ADDITION AND SUBTRACTION (as the May RWP card)', async () => {
+    H.sonioxReturns(axios, [BEGIN_UR, [2, 4, 'چار']]);
+    const s = { ...spec('ma.add1'), items: [...spec('ma.add1').items.slice(0, 10), ...spec('ma.sub1').items.slice(0, 10)] };
+    route([['', H.items(H.rep('c', 20))]]);
+    await scoreTask({ task: 'ma.add1', spec: s, media: media(), lang: 'ur', grade: 3 });
+    expect(prompts()[0]).toContain('timed EGMA ADDITION AND SUBTRACTION (level 1)');
+    expect(prompts()[0]).toContain('11. 4-3 = 1');
+  });
+
+  test('an untimed item with printed text is asked in that wording; a mixed card gets the generic header', async () => {
+    H.sonioxReturns(axios, [[1, 1, 'x']]);
+    const s = { ...spec('ma.discrimination'), mixed: true, items: [{ id: 'identify_1a', text: 'Choose the larger number: 11 or 16', answer: '16' }, { id: 'identify_1b', text: 'What number comes next? 10, 12, 14, 16 __', answer: '18' }] };
+    route([['', H.items('cc')]]);
+    await scoreTask({ task: 'ma.discrimination', spec: s, media: media(), lang: 'ur', grade: 3 });
+    expect(prompts()[0]).toContain('1. Choose the larger number: 11 or 16 -> 16');
+    expect(prompts()[0]).toContain('is doing an EGMA maths task with');
   });
 });
