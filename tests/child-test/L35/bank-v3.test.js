@@ -278,6 +278,17 @@ describe('item bank v3: maths', () => {
     }
   });
 
+  it('every Grade 5 item that differs from Grade 3 cites its own source', () => {
+    for (const k of ['discrimination', 'missing']) {
+      const g3 = bank.sets.A.maths['3'][k].items;
+      bank.sets.A.maths['5'][k].items.forEach((it, i) => {
+        if (JSON.stringify({ ...it, source: undefined }) !== JSON.stringify({ ...g3[i], source: undefined })) {
+          expect({ k, i, source: Boolean(it.source && bank.sources[sourceKey(it.source)]) }).toEqual({ k, i, source: true });
+        }
+      });
+    }
+  });
+
   it('Grade 3 maths is Core EGMA: shared timed runs are identical across grades', () => {
     for (const k of ['number_id', 'add1', 'sub1']) {
       expect(bank.sets.A.maths['5'][k].items).toEqual(bank.sets.A.maths['3'][k].items);

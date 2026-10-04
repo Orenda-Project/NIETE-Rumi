@@ -24,6 +24,21 @@
       "title": "Core EGMA instrument (RTI International, March 2013; re-issued March 2014)",
       "url": "https://shared.rti.org/content/core-egma-instrument",
       "pages": "pp.2-11 (Tasks 1-6: items, practice, scripts)"
+    },
+    "egra_tk2009": {
+      "title": "Early Grade Reading Assessment Toolkit (RTI International for the World Bank, EdData II, 30 March 2009), Section IV sample assessment designs",
+      "url": "https://s3.us-west-2.amazonaws.com/ierc-v2-publicfiles/public/public/resources/EGRA_Toolkit_Mar09.pdf",
+      "pages": "familiar words: printed pp.29-30 (PDF pp.36-37); nonwords: printed p.31 (PDF p.38); landing page https://shared.rti.org/content/early-grade-reading-assessment-toolkit-2009"
+    },
+    "select2024": {
+      "title": "Early Grade Reading Assessment (EGRA) Sindh Baseline Report 2024, SELECT project (Government of Sindh, World Bank-financed), Annexure A: EGRA Urdu student response booklet and stimulus cards, Grade 2",
+      "url": "https://rsusindh.gov.pk/contents/SELECT/EGRA_Baseline_Assessment_Report_Sindh.pdf",
+      "pages": "nonwords: instructions + examples printed p.101 (PDF p.121), grid printed p.102 (PDF p.122), stimulus card printed p.112 (PDF p.132); oral reading instructions printed pp.103-104 (PDF pp.123-124); listening instructions printed p.105 (PDF p.125)"
+    },
+    "rti_rwanda2011": {
+      "title": "Early Grade Reading and Mathematics in Rwanda: Final Report (RTI International for USAID, EdData II Task Order 7, 2011), Annex C 'Sample Items from EGMA - P4/P6'",
+      "url": "https://s3.us-west-2.amazonaws.com/ierc-v2-publicfiles/public/public/resources/Rwanda_EGRA-EGMA-SSME_Final.pdf",
+      "pages": "printed p. C-4 (PDF p.48); landing page https://shared.rti.org/node/311"
     }
   },
   "sets": {
@@ -49,7 +64,7 @@
             "script": {
               "intro": {
                 "en": "I am going to read you a short story aloud TWICE and then ask you some questions. Please listen carefully and answer the questions as best as you can. You can answer the questions in whichever language you prefer. Ready? Let's begin.",
-                "ur": "میں آپ کو ایک چھوٹی سی کہانی دو بار اونچی آواز میں سناؤں گا، پھر کچھ سوال پوچھوں گا۔ دھیان سے سنیں اور جتنا اچھا ہو سکے جواب دیں۔ آپ جس زبان میں چاہیں جواب دے سکتے ہیں۔ تیار ہیں؟ چلیں شروع کرتے ہیں۔"
+                "ur": "میں آپ کو بلند آواز میں ایک مختصر سی کہانی سناؤں گا/گی اور اس کے بعد میں آپ سے کچھ سوال پوچھوں گا/گی۔ برائے مہربانی کہانی کو غور سے سنیں۔ اور جتنا بہتر ہو سکے سوالوں کے جواب دیں۔ کیا آپ سمجھ گئے کہ آپ کو کیا کرنا ہے؟ تیار ہو جائیں۔"
               },
               "after": {
                 "en": "Good effort! Let's go on to the next section.",
@@ -58,7 +73,8 @@
             },
             "source": {
               "items": "rwp2026:listcomp_passage_urd",
-              "script": "egra_tk2016:p.199"
+              "script": "egra_tk2016:p.199",
+              "script_ur": "select2024:p.105"
             },
             "quality": "ai_review",
             "story": {
@@ -190,7 +206,11 @@
             ],
             "script_note": "TK p.199 verbatim except \"ONCE\" -> \"TWICE\": RWP read the story twice (R7), kept for comparability.",
             "script_translation": {
-              "ur": "pending-native-review"
+              "ur": "pending-native-review",
+              "ur_official_keys": [
+                "intro"
+              ],
+              "note": "Urdu lines intro are the official Sindh SELECT 2024 Urdu EGRA wording (verbatim); the rest are renderings pending native review."
             },
             "question_timeout_s": 10,
             "practice_note": "EGRA listening comprehension has no practice item (TK p.199)."
@@ -323,7 +343,7 @@
               },
               "begin": {
                 "en": "Ready? Begin.",
-                "ur": "تیار ہیں؟ اب شروع کریں"
+                "ur": "تیار ہو جائیں۔ شروع کریں"
               },
               "go_on": {
                 "en": "Please go on.",
@@ -331,11 +351,11 @@
               },
               "stop": {
                 "en": "Stop.",
-                "ur": "بس، شکریہ"
+                "ur": "رک جائیں"
               },
               "early_stop": {
                 "en": "Thank you!",
-                "ur": "شکریہ!"
+                "ur": "رک جائیں"
               },
               "after": {
                 "en": "Good effort! Let's go on to the next section.",
@@ -358,9 +378,162 @@
               "en": "Made-up words",
               "ur": "بنائے ہوئے الفاظ"
             },
-            "gap": true,
-            "reason": "PROVISIONAL (search in progress): RWP had no Urdu made-up words (R7); no official Urdu EGRA list recorded yet.",
-            "searched": []
+            "timed_s": 60,
+            "per_row": 5,
+            "direction": "rtl",
+            "items": [
+              "زَب",
+              "زَق",
+              "درف",
+              "زرج",
+              "ترگ",
+              "آچ",
+              "موف",
+              "خیم",
+              "پوم",
+              "جھیٹ",
+              "نود",
+              "پھوج",
+              "تھاج",
+              "جوپ",
+              "راد",
+              "گھاپ",
+              "لاچھ",
+              "شاص",
+              "پاڑی",
+              "ٹوثی",
+              "گاسی",
+              "میج",
+              "شوپھا",
+              "خانگ",
+              "موغا",
+              "دھاجا",
+              "بُلات",
+              "غوطی",
+              "پھین",
+              "داچ",
+              "برشا",
+              "مید",
+              "جیس",
+              "دھاگ",
+              "چھوم",
+              "ڈھیم",
+              "پھید",
+              "زرم",
+              "ڈھوب",
+              "باچی",
+              "بھامڑ",
+              "گھوجا",
+              "بالھی",
+              "دھاپ",
+              "دبک",
+              "گھادی",
+              "کھوم",
+              "جھاف",
+              "ماتھی",
+              "وامر"
+            ],
+            "practice": [
+              {
+                "item": "پاگ",
+                "role": "example"
+              },
+              {
+                "item": "جوڈ",
+                "role": "practice"
+              },
+              {
+                "item": "زاچی",
+                "role": "practice"
+              }
+            ],
+            "stop": {
+              "type": "first_row",
+              "n": 5
+            },
+            "script": {
+              "intro": {
+                "en": "Here are some made-up words in Urdu. I would like you to read as many as you can. Do not spell the words, but read them.",
+                "ur": "یہ کچھ بے معنی لفظ ہیں۔ میں چاہتا/چاہتی ہوں کہ آپ ان بے معنی لفظوں کو جتنا ہو سکے اتنا پڑھیں! لفظوں کی ہجے نہ کریں صرف پڑھیں"
+              },
+              "example": {
+                "en": "For example, this made-up word is: \"پاگ\".",
+                "ur": "جیسے: یہ بے معنی لفظ \"پاگ\" ہے۔"
+              },
+              "practice_1": {
+                "en": "Let's practise: Please read this word [point to the word \"جوڈ\"].",
+                "ur": "اب آپ ایک اور کوشش کریں اور اگلا لفظ پڑھیں (دوسرے لفظ کی طرف اشارہ کریں)"
+              },
+              "practice_1_correct": {
+                "en": "Good, this made-up word is \"جوڈ\".",
+                "ur": "شاباش \"جوڈ\"۔"
+              },
+              "practice_1_wrong": {
+                "en": "This made-up word is \"جوڈ\".",
+                "ur": "یہ بے معنی لفظ \"جوڈ\" ہے۔ اب ایک اور کوشش کریں:"
+              },
+              "practice_2": {
+                "en": "Now try another one: please read this word [point to the word \"زاچی\"].",
+                "ur": "اب ایک اور: یہ لفظ پڑھیں [لفظ \"زاچی\" کی طرف اشارہ کریں]۔"
+              },
+              "practice_2_correct": {
+                "en": "Good, this made-up word is \"زاچی\".",
+                "ur": "شاباش \"زاچی\""
+              },
+              "practice_2_wrong": {
+                "en": "This made-up word is \"زاچی\".",
+                "ur": "یہ بے معنی لفظ \"زاچی\" ہے"
+              },
+              "instructions": {
+                "en": "When I say \"Begin,\" start here [point to first word] and read across the page [point]. Point to each word and read it in a loud voice. Read as quickly and carefully as you can. If you come to a word you do not know, go on to the next word. Put your finger on the first word.",
+                "ur": "کیا آپ سمجھ گئے کہ آپ کو کیا کرنا ہے؟ جب میں کہوں \"شروع کریں\" تو ان لفظوں کو جتنے اچھے طریقے سے پڑھ سکتے ہیں، پڑھیں۔ میں خاموش رہوں گا/گی اور آپ کو سنوں گا/گی۔ جب تک آپ کو میری مدد کی ضرورت ہو۔ اپنا ہاتھ پہلے لفظ پر رکھ کر پڑھیں اور پہلی سطر/لائن سے شروع کرتے ہوئے دوسری سطر/لائن کی طرف جائیں۔"
+              },
+              "begin": {
+                "en": "Ready? Begin.",
+                "ur": "کیا آپ تیار ہیں؟ شروع کریں"
+              },
+              "go_on": {
+                "en": "Please go on.",
+                "ur": "آگے پڑھیں"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "رک جائیں"
+              },
+              "early_stop": {
+                "en": "Thank you!",
+                "ur": "رک جائیں"
+              },
+              "after": {
+                "en": "Good effort! Let's go on to the next section.",
+                "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔"
+              }
+            },
+            "source": {
+              "items": "select2024:p.102",
+              "practice": "select2024:p.101",
+              "script": "egra_tk2016:pp.195-197",
+              "script_ur": "select2024:p.101"
+            },
+            "quality": "provisional",
+            "script_translation": {
+              "ur": "pending-native-review",
+              "ur_official_keys": [
+                "begin",
+                "early_stop",
+                "example",
+                "instructions",
+                "intro",
+                "practice_1",
+                "practice_1_correct",
+                "practice_1_wrong",
+                "practice_2_correct",
+                "practice_2_wrong",
+                "stop"
+              ],
+              "note": "Urdu lines begin, early_stop, example, instructions, intro, practice_1, practice_1_correct, practice_1_wrong, practice_2_correct, practice_2_wrong, stop are the official Sindh SELECT 2024 Urdu EGRA wording (verbatim); the rest are renderings pending native review."
+            },
+            "choice_note": "The Sindh SELECT 2024 Grade 2 Urdu EGRA nonword grid (Government of Sindh / World Bank; not RTI or USAID): the only official Urdu list found that is printed in full AND legible. Items are listed in reading order (right to left within a row, top row first). The USAID Pakistan Reading Project KP endline (PA00Z7MW, PDF p.90) also prints a full 50-item Urdu grid, but six cells are illegible in the archived scan and one item appears twice, so it was not used. RWP had no Urdu nonwords, so there is no baseline to compare with."
           },
           "words": {
             "task": "ur.words",
@@ -439,7 +612,7 @@
               },
               "begin": {
                 "en": "Ready? Begin.",
-                "ur": "تیار ہیں؟ اب شروع کریں"
+                "ur": "تیار ہو جائیں۔ شروع کریں"
               },
               "go_on": {
                 "en": "Please go on.",
@@ -447,11 +620,11 @@
               },
               "stop": {
                 "en": "Stop.",
-                "ur": "بس، شکریہ"
+                "ur": "رک جائیں"
               },
               "early_stop": {
                 "en": "Thank you!",
-                "ur": "شکریہ!"
+                "ur": "رک جائیں"
               },
               "after": {
                 "en": "Good effort! Let's go on to the next section.",
@@ -545,11 +718,11 @@
             "script": {
               "intro": {
                 "en": "Here is a short story. I want you to read it aloud, quickly but carefully. When you finish, I will ask you some questions about what you have read. When I say \"Begin,\" read the story as best as you can. If you come to a word you do not know, go on to the next word. Put your finger on the first word.",
-                "ur": "یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں، جلدی مگر دھیان سے پڑھیں۔ جب آپ پڑھ لیں گے تو میں کہانی کے بارے میں کچھ سوال پوچھوں گا۔ جب میں کہوں \"شروع کریں\" تو جتنا اچھا ہو سکے کہانی پڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ پہلے لفظ پر انگلی رکھیں۔"
+                "ur": "یہ ایک مختصر کہانی ہے۔ میں چاہتا/چاہتی ہوں کہ آپ اسے بلند آواز سے پڑھیں۔ جب آپ کہانی پڑھ لیں گے/گی تو میں آپ سے چند سوال کروں گا/گی۔ اپنا ہاتھ کہانی کے پہلے لفظ پر رکھ کر پڑھیں اور پہلی سطر/لائن سے شروع کرتے ہوئے دوسری سطر/لائن کی طرف جائیں۔ کیا آپ سمجھ گئے ہیں کہ آپ کو کیا کرنا ہے؟ جب میں کہوں شروع کریں تو آپ جتنا اچھے طریقے سے ہو سکے کہانی پڑھیں۔ میں خاموش رہوں گا/گی اور آپ کو سنوں گا/گی جب تک آپ کو میری مدد کی ضرورت نہ ہو۔"
               },
               "begin": {
                 "en": "Ready? Begin.",
-                "ur": "تیار ہیں؟ اب شروع کریں"
+                "ur": "تیار ہو جائیں۔ شروع کریں"
               },
               "go_on": {
                 "en": "Please go on.",
@@ -557,15 +730,15 @@
               },
               "stop": {
                 "en": "Stop.",
-                "ur": "بس، شکریہ"
+                "ur": "رک جائیں"
               },
               "early_stop": {
                 "en": "Thank you!",
-                "ur": "شکریہ!"
+                "ur": "رک جائیں"
               },
               "questions_intro": {
                 "en": "Now I am going to ask you a few questions about the story you just read. Try to answer the questions as well as you can. You can provide your answers in whichever language you prefer.",
-                "ur": "اب میں آپ سے اس کہانی کے بارے میں کچھ سوال پوچھوں گا جو آپ نے ابھی پڑھی۔ جتنا اچھا ہو سکے جواب دیں۔ آپ جس زبان میں چاہیں جواب دے سکتے ہیں۔"
+                "ur": "آپ نے جو کہانی ابھی پڑھی ہے۔ اس کے بارے میں آپ سے کچھ سوالات پوچھوں گا/گی۔ آپ بہتر سے بہتر جواب دینے کی کوشش کریں۔"
               },
               "after": {
                 "en": "Good effort! Let's go on to the next section.",
@@ -574,7 +747,8 @@
             },
             "source": {
               "items": "rwp2026:orf_reading_urd",
-              "script": "egra_tk2016:pp.197-198"
+              "script": "egra_tk2016:pp.197-198",
+              "script_ur": "select2024:pp.103-104"
             },
             "quality": "ai_review",
             "story": {
@@ -818,7 +992,15 @@
             ],
             "practice_note": "EGRA oral reading has no practice item (TK p.197).",
             "script_translation": {
-              "ur": "pending-native-review"
+              "ur": "pending-native-review",
+              "ur_official_keys": [
+                "begin",
+                "early_stop",
+                "intro",
+                "questions_intro",
+                "stop"
+              ],
+              "note": "Urdu lines begin, early_stop, intro, questions_intro, stop are the official Sindh SELECT 2024 Urdu EGRA wording (verbatim); the rest are renderings pending native review."
             },
             "lines_note": "Lines are the story's sentences (v2 bank convention); line 1 is the first-line stop and the §20 reach unit."
           }
@@ -839,7 +1021,7 @@
             "script": {
               "intro": {
                 "en": "I am going to read you a short story aloud TWICE and then ask you some questions. Please listen carefully and answer the questions as best as you can. You can answer the questions in whichever language you prefer. Ready? Let's begin.",
-                "ur": "میں آپ کو ایک چھوٹی سی کہانی دو بار اونچی آواز میں سناؤں گا، پھر کچھ سوال پوچھوں گا۔ دھیان سے سنیں اور جتنا اچھا ہو سکے جواب دیں۔ آپ جس زبان میں چاہیں جواب دے سکتے ہیں۔ تیار ہیں؟ چلیں شروع کرتے ہیں۔"
+                "ur": "میں آپ کو ایک چھوٹی سی کہانی دو بار اونچی آواز میں سناؤں گا/گی، پھر کچھ سوال پوچھوں گا/گی۔ دھیان سے سنیں اور جتنا اچھا ہو سکے جواب دیں۔ آپ جس زبان میں چاہیں جواب دے سکتے ہیں۔ تیار ہیں؟ چلیں شروع کرتے ہیں۔"
               },
               "after": {
                 "en": "Good effort! Let's go on to the next section.",
@@ -1149,13 +1331,29 @@
                 "en": "Now try another one: Tell me the name of this letter [point to the letter S].",
                 "ur": "اب ایک اور: اس حرف [حرف S کی طرف اشارہ کریں] کا نام بتائیں۔"
               },
+              "practice_1_correct": {
+                "en": "Good, the name of this letter is \"em.\"",
+                "ur": "شاباش، اس حرف کا نام \"M\" ہے۔"
+              },
+              "practice_1_wrong": {
+                "en": "The name of this letter is \"em.\"",
+                "ur": "اس حرف کا نام \"M\" ہے۔"
+              },
+              "practice_2_correct": {
+                "en": "Good, the name of this letter is \"es.\"",
+                "ur": "شاباش، اس حرف کا نام \"S\" ہے۔"
+              },
+              "practice_2_wrong": {
+                "en": "The name of this letter is \"es.\"",
+                "ur": "اس حرف کا نام \"S\" ہے۔"
+              },
               "instructions": {
                 "en": "When I say \"Begin,\" start here [point to first letter] and go across the page [point]. Point to each letter and tell me the name of that letter in a loud voice. Read as quickly and carefully as you can. If you come to a letter you do not know, go on to the next letter. Put your finger on the first letter.",
                 "ur": "جب میں کہوں \"شروع کریں\" تو یہاں سے شروع کریں [پہلے حرف کی طرف اشارہ کریں] اور صفحے پر آگے بڑھیں۔ ہر حرف پر انگلی رکھیں اور اونچی آواز میں اس کا نام بتائیں۔ جتنا جلدی اور دھیان سے ہو سکے پڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ پہلے حرف پر انگلی رکھیں۔"
               },
               "begin": {
                 "en": "Ready? Begin.",
-                "ur": "تیار ہیں؟ اب شروع کریں"
+                "ur": "تیار ہو جائیں۔ شروع کریں"
               },
               "go_on": {
                 "en": "Please go on.",
@@ -1163,11 +1361,11 @@
               },
               "stop": {
                 "en": "Stop.",
-                "ur": "بس، شکریہ"
+                "ur": "رک جائیں"
               },
               "early_stop": {
                 "en": "Thank you!",
-                "ur": "شکریہ!"
+                "ur": "رک جائیں"
               },
               "after": {
                 "en": "Good effort! Let's go on to the next section.",
@@ -1194,9 +1392,147 @@
               "en": "Made-up words",
               "ur": "بنائے ہوئے الفاظ"
             },
-            "gap": true,
-            "reason": "PROVISIONAL (search in progress): RWP's English made-up word list survives only as a 30/50 audio reconstruction (R7), which is not 'in full'; no official list recorded yet.",
-            "searched": []
+            "timed_s": 60,
+            "per_row": 5,
+            "direction": "ltr",
+            "items": [
+              "fut",
+              "lus",
+              "dit",
+              "leb",
+              "gak",
+              "huz",
+              "jod",
+              "kib",
+              "lek",
+              "tob",
+              "nom",
+              "rop",
+              "hig",
+              "reg",
+              "san",
+              "tup",
+              "ral",
+              "wix",
+              "nep",
+              "nad",
+              "lut",
+              "yod",
+              "sim",
+              "tat",
+              "sig",
+              "en",
+              "mon",
+              "nup",
+              "sen",
+              "kad",
+              "taw",
+              "lew",
+              "paf",
+              "sal",
+              "zuv",
+              "ved",
+              "kag",
+              "vom",
+              "riz",
+              "gof",
+              "maz",
+              "kol",
+              "ver",
+              "et",
+              "beb",
+              "tib",
+              "lef",
+              "yag",
+              "lim",
+              "dov"
+            ],
+            "practice": [
+              {
+                "item": "ut",
+                "role": "example"
+              },
+              {
+                "item": "dif",
+                "role": "practice"
+              },
+              {
+                "item": "mab",
+                "role": "practice"
+              }
+            ],
+            "stop": {
+              "type": "first_row",
+              "n": 5
+            },
+            "script": {
+              "intro": {
+                "en": "Here are some made-up words in English. I would like you to read as many as you can. Do not spell the words, but read them.",
+                "ur": "یہ کچھ بنائے ہوئے انگریزی الفاظ ہیں۔ جتنے ہو سکیں پڑھیں۔ ہجے نہ کریں، پورا لفظ پڑھیں۔"
+              },
+              "example": {
+                "en": "For example, this made-up word is: \"ut\".",
+                "ur": "مثال کے طور پر، یہ بنایا ہوا لفظ ہے: \"ut\"۔"
+              },
+              "practice_1": {
+                "en": "Let's practise: Please read this word [point to the word \"dif\"].",
+                "ur": "آئیں مشق کریں: یہ لفظ پڑھیں [لفظ \"dif\" کی طرف اشارہ کریں]۔"
+              },
+              "practice_1_correct": {
+                "en": "Good, this made-up word is \"dif\".",
+                "ur": "شاباش \"dif\"۔"
+              },
+              "practice_1_wrong": {
+                "en": "This made-up word is \"dif\".",
+                "ur": "یہ بنایا ہوا لفظ \"dif\" ہے۔"
+              },
+              "practice_2": {
+                "en": "Now try another one: please read this word [point to the word \"mab\"].",
+                "ur": "اب ایک اور: یہ لفظ پڑھیں [لفظ \"mab\" کی طرف اشارہ کریں]۔"
+              },
+              "practice_2_correct": {
+                "en": "Good, this made-up word is \"mab\".",
+                "ur": "شاباش \"mab\"۔"
+              },
+              "practice_2_wrong": {
+                "en": "This made-up word is \"mab\".",
+                "ur": "یہ بنایا ہوا لفظ \"mab\" ہے۔"
+              },
+              "instructions": {
+                "en": "When I say \"Begin,\" start here [point to first word] and read across the page [point]. Point to each word and read it in a loud voice. Read as quickly and carefully as you can. If you come to a word you do not know, go on to the next word. Put your finger on the first word.",
+                "ur": "جب میں کہوں \"شروع کریں\" تو یہاں سے شروع کریں [پہلے لفظ کی طرف اشارہ کریں] اور صفحے پر آگے پڑھیں۔ ہر لفظ پر انگلی رکھیں اور اونچی آواز میں پڑھیں۔ جتنا جلدی اور دھیان سے ہو سکے پڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ پہلے لفظ پر انگلی رکھیں۔"
+              },
+              "begin": {
+                "en": "Ready? Begin.",
+                "ur": "تیار ہو جائیں۔ شروع کریں"
+              },
+              "go_on": {
+                "en": "Please go on.",
+                "ur": "آگے پڑھیں"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "رک جائیں"
+              },
+              "early_stop": {
+                "en": "Thank you!",
+                "ur": "رک جائیں"
+              },
+              "after": {
+                "en": "Good effort! Let's go on to the next section.",
+                "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔"
+              }
+            },
+            "source": {
+              "items": "egra_tk2009:p.31",
+              "practice": "egra_tk2009:p.31",
+              "script": "egra_tk2016:pp.195-197"
+            },
+            "quality": "provisional",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "choice_note": "RTI's published English sample nonword grid (TK 2009), copied as printed, including tat, taw, sal, en and et, which are real words or abbreviations. Only 8 of RWP's 30 audio-reconstructed nonwords appear in it, so en.nonwords is not item-comparable with the May baseline."
           },
           "words": {
             "task": "en.words",
@@ -1204,9 +1540,147 @@
               "en": "Familiar words",
               "ur": "جانے پہچانے الفاظ"
             },
-            "gap": true,
-            "reason": "PROVISIONAL (search in progress): RWP's English familiar-word list survives only as a 49/50 audio reconstruction (R7), which is not 'in full'; no official list recorded yet.",
-            "searched": []
+            "timed_s": 60,
+            "per_row": 5,
+            "direction": "ltr",
+            "items": [
+              "go",
+              "sad",
+              "up",
+              "find",
+              "come",
+              "help",
+              "two",
+              "run",
+              "see",
+              "down",
+              "red",
+              "and",
+              "play",
+              "at",
+              "you",
+              "chair",
+              "man",
+              "when",
+              "now",
+              "under",
+              "please",
+              "soon",
+              "like",
+              "they",
+              "good",
+              "thank",
+              "going",
+              "are",
+              "know",
+              "him",
+              "jump",
+              "once",
+              "ask",
+              "fly",
+              "want",
+              "must",
+              "green",
+              "sing",
+              "those",
+              "always",
+              "many",
+              "which",
+              "upon",
+              "sit",
+              "clean",
+              "stop",
+              "big",
+              "me",
+              "house",
+              "girl"
+            ],
+            "practice": [
+              {
+                "item": "cat",
+                "role": "example"
+              },
+              {
+                "item": "sick",
+                "role": "practice"
+              },
+              {
+                "item": "made",
+                "role": "practice"
+              }
+            ],
+            "stop": {
+              "type": "first_row",
+              "n": 5
+            },
+            "script": {
+              "intro": {
+                "en": "Here are some words in ENGLISH. I would like you to read as many words as you can. Do not spell the words, but read them.",
+                "ur": "یہ کچھ انگریزی الفاظ ہیں۔ جتنے الفاظ ہو سکیں پڑھیں۔ ہجے نہ کریں، پورا لفظ پڑھیں۔"
+              },
+              "example": {
+                "en": "For example, this word is: \"cat\".",
+                "ur": "مثال کے طور پر، یہ لفظ ہے: \"cat\"۔"
+              },
+              "practice_1": {
+                "en": "Let's practise: Please read this word [point to the word \"sick\"].",
+                "ur": "آئیں مشق کریں: یہ لفظ پڑھیں [لفظ \"sick\" کی طرف اشارہ کریں]۔"
+              },
+              "practice_1_correct": {
+                "en": "Good, this word is \"sick\".",
+                "ur": "شاباش \"sick\"۔"
+              },
+              "practice_1_wrong": {
+                "en": "This word is \"sick\".",
+                "ur": "یہ لفظ \"sick\" ہے۔"
+              },
+              "practice_2": {
+                "en": "Now try another one: please read this word [point to the word \"made\"].",
+                "ur": "اب ایک اور: یہ لفظ پڑھیں [لفظ \"made\" کی طرف اشارہ کریں]۔"
+              },
+              "practice_2_correct": {
+                "en": "Good, this word is \"made\".",
+                "ur": "شاباش \"made\"۔"
+              },
+              "practice_2_wrong": {
+                "en": "This word is \"made\".",
+                "ur": "یہ لفظ \"made\" ہے۔"
+              },
+              "instructions": {
+                "en": "When I say \"Begin,\" start here [point to first word] and read across the page [point]. Point to each word and read it in a loud voice. Read as quickly and carefully as you can. If you come to a word you do not know, go on to the next word. Put your finger on the first word.",
+                "ur": "جب میں کہوں \"شروع کریں\" تو یہاں سے شروع کریں [پہلے لفظ کی طرف اشارہ کریں] اور صفحے پر آگے پڑھیں۔ ہر لفظ پر انگلی رکھیں اور اونچی آواز میں پڑھیں۔ جتنا جلدی اور دھیان سے ہو سکے پڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ پہلے لفظ پر انگلی رکھیں۔"
+              },
+              "begin": {
+                "en": "Ready? Begin.",
+                "ur": "تیار ہو جائیں۔ شروع کریں"
+              },
+              "go_on": {
+                "en": "Please go on.",
+                "ur": "آگے پڑھیں"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "رک جائیں"
+              },
+              "early_stop": {
+                "en": "Thank you!",
+                "ur": "رک جائیں"
+              },
+              "after": {
+                "en": "Good effort! Let's go on to the next section.",
+                "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔"
+              }
+            },
+            "source": {
+              "items": "egra_tk2009:p.30",
+              "practice": "egra_tk2009:p.30",
+              "script": "egra_tk2016:pp.195-197"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "choice_note": "RTI's published English sample familiar-word grid (TK 2009, the only official full English list found; the 2016 Toolkit prints only Icibemba/Portuguese samples). It is the generic early-grade English design, which suits a Grade 2-3 English-as-second-language setting better than any one country's L1 list. It is NOT the RWP list: only 12 of RWP's 49 audio-reconstructed words appear in it, so en.words is not item-comparable with the May baseline."
           },
           "story": {
             "task": "en.story",
@@ -1285,11 +1759,11 @@
             "script": {
               "intro": {
                 "en": "Here is a short story. I want you to read it aloud, quickly but carefully. When you finish, I will ask you some questions about what you have read. When I say \"Begin,\" read the story as best as you can. If you come to a word you do not know, go on to the next word. Put your finger on the first word.",
-                "ur": "یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں، جلدی مگر دھیان سے پڑھیں۔ جب آپ پڑھ لیں گے تو میں کہانی کے بارے میں کچھ سوال پوچھوں گا۔ جب میں کہوں \"شروع کریں\" تو جتنا اچھا ہو سکے کہانی پڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ پہلے لفظ پر انگلی رکھیں۔"
+                "ur": "یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں، جلدی مگر دھیان سے پڑھیں۔ جب آپ پڑھ لیں گے تو میں کہانی کے بارے میں کچھ سوال پوچھوں گا/گی۔ جب میں کہوں \"شروع کریں\" تو جتنا اچھا ہو سکے کہانی پڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ پہلے لفظ پر انگلی رکھیں۔"
               },
               "begin": {
                 "en": "Ready? Begin.",
-                "ur": "تیار ہیں؟ اب شروع کریں"
+                "ur": "تیار ہو جائیں۔ شروع کریں"
               },
               "go_on": {
                 "en": "Please go on.",
@@ -1297,11 +1771,11 @@
               },
               "stop": {
                 "en": "Stop.",
-                "ur": "بس، شکریہ"
+                "ur": "رک جائیں"
               },
               "early_stop": {
                 "en": "Thank you!",
-                "ur": "شکریہ!"
+                "ur": "رک جائیں"
               },
               "questions_intro": {
                 "en": "Now I am going to ask you a few questions about the story you just read. Try to answer the questions as well as you can. You can provide your answers in whichever language you prefer.",
@@ -1649,7 +2123,7 @@
             "script": {
               "intro": {
                 "en": "Here are some numbers. I want you to point to each number and tell me what the number is. I will tell you when to begin and when to stop.",
-                "ur": "یہ کچھ نمبر ہیں۔ ہر نمبر پر انگلی رکھیں اور بتائیں کہ یہ کون سا نمبر ہے۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔"
+                "ur": "یہ کچھ نمبر ہیں۔ ہر نمبر پر انگلی رکھیں اور بتائیں کہ یہ کون سا نمبر ہے۔ میں بتاؤں گا/گی کب شروع کرنا ہے اور کب رکنا ہے۔"
               },
               "point": {
                 "en": "[point to first number] Start here.",
@@ -1669,7 +2143,7 @@
               },
               "stop": {
                 "en": "Stop.",
-                "ur": "بس، شکریہ"
+                "ur": "رک جائیں"
               }
             },
             "source": {
@@ -2076,7 +2550,7 @@
             "script": {
               "intro": {
                 "en": "Here are some addition problems [glide hand from top to bottom]. I will tell you when to start and when to stop. Say the answer for each problem. If you don't know an answer, move to the next problem.",
-                "ur": "یہ کچھ جمع کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
+                "ur": "یہ کچھ جمع کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا/گی کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
               },
               "begin": {
                 "en": "Are you ready? Start here [point to first problem].",
@@ -2088,7 +2562,7 @@
               },
               "stop": {
                 "en": "Stop.",
-                "ur": "بس، شکریہ"
+                "ur": "رک جائیں"
               }
             },
             "source": {
@@ -2217,7 +2691,7 @@
             "script": {
               "intro": {
                 "en": "Here are some subtraction problems [glide hand from top to bottom]. I will tell you when to start and when to stop. Say the answer for each problem. If you don't know an answer, move to the next problem.",
-                "ur": "یہ کچھ تفریق کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
+                "ur": "یہ کچھ تفریق کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا/گی کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
               },
               "begin": {
                 "en": "Are you ready? Start here [point to first problem].",
@@ -2229,7 +2703,7 @@
               },
               "stop": {
                 "en": "Stop.",
-                "ur": "بس، شکریہ"
+                "ur": "رک جائیں"
               }
             },
             "source": {
@@ -2470,7 +2944,7 @@
             "script": {
               "intro": {
                 "en": "I have some problems that I am going to ask you to solve for me. Here are some things to help you. You can use them if you need them, but you don't have to use them. Listen very carefully to each problem. If you need, I will repeat problem for you. Okay, let's get started.",
-                "ur": "میرے پاس کچھ سوال ہیں جو میں آپ سے حل کرواؤں گا۔ یہ کچھ چیزیں آپ کی مدد کے لیے ہیں۔ ضرورت ہو تو استعمال کریں، ضروری نہیں۔ ہر سوال بہت دھیان سے سنیں۔ اگر ضرورت ہو تو میں سوال دوبارہ سنا دوں گا۔ چلیں شروع کرتے ہیں۔"
+                "ur": "میرے پاس کچھ سوال ہیں جو میں آپ سے حل کرواؤں گا/گی۔ یہ کچھ چیزیں آپ کی مدد کے لیے ہیں۔ ضرورت ہو تو استعمال کریں، ضروری نہیں۔ ہر سوال بہت دھیان سے سنیں۔ اگر ضرورت ہو تو میں سوال دوبارہ سنا دوں گا/گی۔ چلیں شروع کرتے ہیں۔"
               },
               "practice": {
                 "en": "There are three children on the bus. [pause and check] One child gets out of the bus. [pause and check] How many children are left on the bus?",
@@ -2550,7 +3024,7 @@
             "script": {
               "intro": {
                 "en": "Here are some numbers. I want you to point to each number and tell me what the number is. I will tell you when to begin and when to stop.",
-                "ur": "یہ کچھ نمبر ہیں۔ ہر نمبر پر انگلی رکھیں اور بتائیں کہ یہ کون سا نمبر ہے۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔"
+                "ur": "یہ کچھ نمبر ہیں۔ ہر نمبر پر انگلی رکھیں اور بتائیں کہ یہ کون سا نمبر ہے۔ میں بتاؤں گا/گی کب شروع کرنا ہے اور کب رکنا ہے۔"
               },
               "point": {
                 "en": "[point to first number] Start here.",
@@ -2570,7 +3044,7 @@
               },
               "stop": {
                 "en": "Stop.",
-                "ur": "بس، شکریہ"
+                "ur": "رک جائیں"
               }
             },
             "source": {
@@ -2622,24 +3096,28 @@
                 "answer": 94
               },
               {
-                "a": 146,
-                "b": 153,
-                "answer": 153
+                "a": 0.6,
+                "b": 0.8,
+                "answer": 0.8,
+                "source": "rti_rwanda2011:p.C-4"
               },
               {
-                "a": 287,
-                "b": 534,
-                "answer": 534
+                "a": 1963,
+                "b": 1954,
+                "answer": 1963,
+                "source": "rti_rwanda2011:p.C-4"
               },
               {
-                "a": 623,
-                "b": 632,
-                "answer": 632
+                "a": 381,
+                "b": 279,
+                "answer": 381,
+                "source": "rti_rwanda2011:p.C-4"
               },
               {
-                "a": 867,
-                "b": 965,
-                "answer": 965
+                "a": 79.5,
+                "b": 80.5,
+                "answer": 80.5,
+                "source": "rti_rwanda2011:p.C-4"
               }
             ],
             "practice": [
@@ -2692,7 +3170,8 @@
             "quality": "ai_review",
             "script_translation": {
               "ur": "pending-native-review"
-            }
+            },
+            "grade_note": "Positions 1-6 are Core EGMA (shared with Grade 3, R9). Positions 7-10 are RTI Rwanda 2011 P6 EGMA items, in their printed order: the only official upper-grade EGMA items found in print (4 per subtask, printed as sample items; the panels are untitled and are identified by format). They include decimals (0.6/0.8, 79.5/80.5) and have no decreasing missing-number row, where Core positions 7 and 9 decrease. Rwanda tested them in P6, a grade above ours."
           },
           "missing": {
             "task": "ma.missing",
@@ -2758,39 +3237,43 @@
               },
               {
                 "seq": [
-                  28,
+                  222,
                   null,
-                  24,
-                  22
+                  226,
+                  228
                 ],
-                "answer": 26
+                "answer": 224,
+                "source": "rti_rwanda2011:p.C-4"
               },
               {
                 "seq": [
-                  30,
-                  35,
-                  null,
-                  45
-                ],
-                "answer": 40
-              },
-              {
-                "seq": [
-                  550,
-                  540,
-                  530,
+                  245,
+                  250,
+                  255,
                   null
                 ],
-                "answer": 520
+                "answer": 260,
+                "source": "rti_rwanda2011:p.C-4"
               },
               {
                 "seq": [
-                  3,
-                  8,
                   null,
-                  18
+                  400,
+                  500,
+                  600
                 ],
-                "answer": 13
+                "answer": 300,
+                "source": "rti_rwanda2011:p.C-4"
+              },
+              {
+                "seq": [
+                  null,
+                  900,
+                  910,
+                  920
+                ],
+                "answer": 890,
+                "source": "rti_rwanda2011:p.C-4"
               }
             ],
             "practice": [
@@ -2859,7 +3342,8 @@
             "quality": "ai_review",
             "script_translation": {
               "ur": "pending-native-review"
-            }
+            },
+            "grade_note": "Positions 1-6 are Core EGMA (shared with Grade 3, R9). Positions 7-10 are RTI Rwanda 2011 P6 EGMA items, in their printed order: the only official upper-grade EGMA items found in print (4 per subtask, printed as sample items; the panels are untitled and are identified by format). They include decimals (0.6/0.8, 79.5/80.5) and have no decreasing missing-number row, where Core positions 7 and 9 decrease. Rwanda tested them in P6, a grade above ours."
           },
           "add1": {
             "task": "ma.add1",
@@ -2977,7 +3461,7 @@
             "script": {
               "intro": {
                 "en": "Here are some addition problems [glide hand from top to bottom]. I will tell you when to start and when to stop. Say the answer for each problem. If you don't know an answer, move to the next problem.",
-                "ur": "یہ کچھ جمع کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
+                "ur": "یہ کچھ جمع کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا/گی کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
               },
               "begin": {
                 "en": "Are you ready? Start here [point to first problem].",
@@ -2989,7 +3473,7 @@
               },
               "stop": {
                 "en": "Stop.",
-                "ur": "بس، شکریہ"
+                "ur": "رک جائیں"
               }
             },
             "source": {
@@ -3118,7 +3602,7 @@
             "script": {
               "intro": {
                 "en": "Here are some subtraction problems [glide hand from top to bottom]. I will tell you when to start and when to stop. Say the answer for each problem. If you don't know an answer, move to the next problem.",
-                "ur": "یہ کچھ تفریق کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
+                "ur": "یہ کچھ تفریق کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا/گی کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
               },
               "begin": {
                 "en": "Are you ready? Start here [point to first problem].",
@@ -3130,7 +3614,7 @@
               },
               "stop": {
                 "en": "Stop.",
-                "ur": "بس، شکریہ"
+                "ur": "رک جائیں"
               }
             },
             "source": {
@@ -3371,7 +3855,7 @@
             "script": {
               "intro": {
                 "en": "I have some problems that I am going to ask you to solve for me. Here are some things to help you. You can use them if you need them, but you don't have to use them. Listen very carefully to each problem. If you need, I will repeat problem for you. Okay, let's get started.",
-                "ur": "میرے پاس کچھ سوال ہیں جو میں آپ سے حل کرواؤں گا۔ یہ کچھ چیزیں آپ کی مدد کے لیے ہیں۔ ضرورت ہو تو استعمال کریں، ضروری نہیں۔ ہر سوال بہت دھیان سے سنیں۔ اگر ضرورت ہو تو میں سوال دوبارہ سنا دوں گا۔ چلیں شروع کرتے ہیں۔"
+                "ur": "میرے پاس کچھ سوال ہیں جو میں آپ سے حل کرواؤں گا/گی۔ یہ کچھ چیزیں آپ کی مدد کے لیے ہیں۔ ضرورت ہو تو استعمال کریں، ضروری نہیں۔ ہر سوال بہت دھیان سے سنیں۔ اگر ضرورت ہو تو میں سوال دوبارہ سنا دوں گا/گی۔ چلیں شروع کرتے ہیں۔"
               },
               "practice": {
                 "en": "There are three children on the bus. [pause and check] One child gets out of the bus. [pause and check] How many children are left on the bus?",
