@@ -50,7 +50,9 @@ const BOOKLET_ORDER = ['ur', 'en', 'ma3', 'ma5'];
 const one = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
 const pt = (n) => `calc(var(--s)*${n}pt)`;
 const opSign = (op) => (op === '-' || op === '−' ? '−' : op === 'x' || op === '×' ? '×' : op === '/' || op === '÷' ? '÷' : '+');
-const sumText = (x) => `${x.a} ${opSign(x.op)} ${x.b}`;
+// The committed bank has no `op` on sums (CONTRACT §21.3): the task names the operation.
+const opOfKind = (kind) => (/^sub/.test(String(kind || '')) ? '−' : '+');
+const sumText = (x, kind) => `${x.a} ${x.op ? opSign(x.op) : opOfKind(kind)} ${x.b}`;
 
 /* ------------------------------------------------------------------------ the bank -- */
 
@@ -234,8 +236,8 @@ function mathsBody(t, kind) {
   const cols = t.items.length > 6 ? 2 : 1;
   const rows = Math.ceil(t.items.length / cols);
   const size = level1 ? CHILD_PT.sums1 : CHILD_PT.sums2;
-  return (prac.length ? practiceBox(grid(prac.map((x) => `${sumText(x)} =`), { cls: 'num sums', size, cols: 2, rows: Math.ceil(prac.length / 2) })) + '<hr class="sep">' : '')
-    + grid(t.items.map((x) => `${sumText(x)} =`), { cls: 'num sums', size, cols, rows, main: true });
+  return (prac.length ? practiceBox(grid(prac.map((x) => `${sumText(x, kind)} =`), { cls: 'num sums', size, cols: 2, rows: Math.ceil(prac.length / 2) })) + '<hr class="sep">' : '')
+    + grid(t.items.map((x) => `${sumText(x, kind)} =`), { cls: 'num sums', size, cols, rows, main: true });
 }
 
 function childBand({ bk, t, page, bank, set }) {
@@ -570,8 +572,8 @@ function mathsBlock({ bank, set, bk, kind, common }) {
     };
     items = `<div class="wps">${prac.map((w, i) => wp(w, i, true)).join('')}${t.items.map((w, i) => wp(w, i, false)).join('')}</div>`;
   } else {
-    items = `<div class="mrow">${prac.map((x) => `<span class="mi">${pr} ${esc(sumText(x))} = <b>${esc(x.answer)}</b></span>`).join('')}`
-      + `${t.items.map((x) => `<span class="mi">${esc(sumText(x))} = <b>${esc(x.answer)}</b></span>`).join('')}</div>`;
+    items = `<div class="mrow">${prac.map((x) => `<span class="mi">${pr} ${esc(sumText(x, kind))} = <b>${esc(x.answer)}</b></span>`).join('')}`
+      + `${t.items.map((x) => `<span class="mi">${esc(sumText(x, kind))} = <b>${esc(x.answer)}</b></span>`).join('')}</div>`;
   }
   const form = bank.sets[setOf(bank, set).S].maths[String(bk.grade)];
   const skipL2 = (kind === 'add2' || kind === 'sub2') && form.skip_level2_if_level1_zero;
