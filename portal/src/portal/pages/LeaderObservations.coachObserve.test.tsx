@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 // bd-5rz1v.6 — Observations gains ONE goal button (Option B, B3, deep green)
@@ -55,6 +55,9 @@ describe("LeaderObservations — send a lesson", () => {
     renderPage();
     const entry = await screen.findByTestId("coach-observe-entry");
     expect(entry.textContent).toContain("Record your Teacher’s Lesson");
+    // bd-5rz1v.9 — the same button as the teacher's: a white arrow at the end, no ripple
+    expect(within(entry).getByTestId("send-lesson-arrow")).toBeInTheDocument();
+    expect(entry.querySelector("[class*='animate-rec-wave']")).toBeNull();
     expect(await screen.findByText("Sadia Noor")).toBeInTheDocument();
     expect(screen.getByText("Check the draft")).toBeInTheDocument();
     expect(screen.queryByText("Kiran Javed")).toBeNull(); // finished ones are not "in progress"

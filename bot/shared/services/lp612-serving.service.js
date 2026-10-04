@@ -1175,6 +1175,25 @@ async function requestLessonImpl(
       logToFile('LP 6-12: cache hit served to a non-WhatsApp surface', {
         segmentId, lang: language, tv, surface, correlationId,
       });
+      // bd-5rz1v.21 — HER CLAIM ON THE RENDER, before the answer goes back. The portal reads the
+      // lesson by render id next (/lp612/status, /lp612/file), and those reads are allowed only to a
+      // teacher with a claim. A shared render's `requested_by` is whoever asked FIRST and its
+      // `waiters` were emptied when it completed, so without this row every teacher after the first
+      // was told "No such lesson request" about the lesson this answer calls ready (production,
+      // 3 Sep–3 Oct 2026: 98 of 114 portal cache hits). Awaited, because her first poll follows
+      // this answer immediately. Never throws: a ledger that cannot be written leaves her where she
+      // was before this fix, and the store says why at error level.
+      if (surface === 'portal' && userId) {
+        const Deliveries = require('./lp612-deliveries.store');
+        await Deliveries.record({
+          userId,
+          renderId: existing.id,
+          segmentId,
+          lang: language,
+          templateVersion: templateVersionOfKey(existing.r2_key) || tv,
+          surface: 'portal',
+        });
+      }
       return {
         outcome: 'cache_hit',
         renderId: existing.id,

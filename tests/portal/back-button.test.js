@@ -60,6 +60,45 @@ describe('resolveBackAction', () => {
   });
 });
 
+// bd-5rz1v.10 — a lesson can now keep recording while the teacher uses other
+// pages, so Back can walk her to a home page, where Back leaves the app. Android
+// silences the microphone of an app in the background, so while a lesson is
+// recording (`recordingPath` = where its screen is) the Back that would leave
+// goes to the recording instead. Every other Back is unchanged: not trapped.
+describe('resolveBackAction while a lesson is recording', () => {
+  const recordingPath = '/portal/coaching/new';
+
+  it.each(['/portal/dashboard', '/portal/leader', '/'])(
+    'from the home page %s goes to the recording instead of leaving the app',
+    (home) => {
+      expect(resolveBackAction({ path: home, canGoBack: true, recordingPath })).toBe('to-recording');
+      expect(resolveBackAction({ path: home, canGoBack: false, recordingPath })).toBe('to-recording');
+    }
+  );
+
+  it('from an inner page with nothing behind it goes to the recording', () => {
+    expect(resolveBackAction({ path: '/portal/curriculum', canGoBack: false, recordingPath })).toBe('to-recording');
+  });
+
+  it('still just goes back where there is a page behind — Back is not trapped', () => {
+    expect(resolveBackAction({ path: '/portal/curriculum', canGoBack: true, recordingPath })).toBe('history-back');
+    expect(resolveBackAction({ path: recordingPath, canGoBack: true, recordingPath })).toBe('history-back');
+  });
+
+  it('on the recording itself with nothing behind, stays rather than going silent in the background', () => {
+    expect(resolveBackAction({ path: recordingPath, canGoBack: false, recordingPath })).toBe('stay');
+    expect(resolveBackAction({ path: `${recordingPath}/`, canGoBack: false, recordingPath })).toBe('stay');
+  });
+
+  it('an open dialog still closes first', () => {
+    expect(resolveBackAction({ path: '/portal/dashboard', canGoBack: true, overlayOpen: true, recordingPath })).toBe('close-overlay');
+  });
+
+  it('with no recording, nothing changes', () => {
+    expect(resolveBackAction({ path: '/portal/dashboard', canGoBack: true, recordingPath: null })).toBe('leave-app');
+  });
+});
+
 describe('OVERLAY_SELECTOR', () => {
   it('matches the open Radix overlays the portal uses (dialog, alert dialog, menu, select list)', () => {
     for (const role of ['dialog', 'alertdialog', 'menu', 'listbox']) {

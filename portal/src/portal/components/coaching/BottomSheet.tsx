@@ -4,6 +4,10 @@ import { useEffect, useRef, type ReactNode } from 'react';
  * bd-5rz1v — a sheet that rises from the bottom of the screen, over a dimmed
  * page. Used for one decision at a time ("Finish recording?", "Add your lesson
  * plan"). Escape or a tap on the dimmed page closes it, when `onClose` is given.
+ *
+ * data-state="open" (bd-5rz1v.8) is the Radix convention the app's Back key
+ * looks for (lib/back-button.cjs OVERLAY_SELECTOR): Back closes the sheet first,
+ * by the same Escape, instead of leaving the page under it.
  */
 const BottomSheet = ({ label, onClose, children }: { label: string; onClose?: () => void; children: ReactNode }) => {
   const panel = useRef<HTMLDivElement>(null);
@@ -21,6 +25,7 @@ const BottomSheet = ({ label, onClose, children }: { label: string; onClose?: ()
       <div
         ref={panel}
         role="dialog"
+        data-state="open"
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}

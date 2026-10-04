@@ -32,9 +32,14 @@
               The host placeholder is the host of VITE_API_BASE_URL
               (app/build.gradle), so each build claims the portal it talks to.
 
-              Scope is deliberately exact paths. The web side (AppLinkListener)
-              already accepts any /portal/ page, so widening this list is the
-              only change needed later, but it IS a Play release.
+              Scope: the exact paths /portal/dashboard and /portal/login, plus
+              the areas a teacher or coach is sent to (bd-q4g7s.2): Training,
+              Lesson plans / Curriculum (the assessment generator is one of its
+              tabs), Coaching, and the coach's Observations. Each is a prefix,
+              so its inner pages open in the app too. Never a bare /portal/
+              prefix: reset-password and setup links stay in the browser. The
+              web side (AppLinkListener) accepts any /portal/ page; widening
+              this list is a Play release.
             -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -43,6 +48,12 @@
                 <data android:scheme="https" android:host="${deepLinkHost}" />
                 <data android:path="/portal/dashboard" />
                 <data android:path="/portal/login" />
+                <data android:pathPrefix="/portal/training" />
+                <data android:pathPrefix="/portal/curriculum" />
+                <data android:pathPrefix="/portal/lesson-plans" />
+                <data android:pathPrefix="/portal/coaching" />
+                <data android:pathPrefix="/portal/leader/observations" />
+                <data android:pathPrefix="/portal/leader/observe" />
             </intent-filter>
 
         </activity>
