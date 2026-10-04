@@ -27,7 +27,8 @@ async function audioCall({ model, prompt, schema, clip, job, calls }) {
  * @param ctx { task, kind, spec, media, lang, grade, calls }
  * @param p   { refs: string[], firstItems: string[], variants: [{ name, prompt, schema, parse(json) -> raw[] }],
  *              onClock?(clock, words) }
- *            variant 0 is the score; the others are second opinions (counts only).
+ *            pick?: 'max_correct'. Variant 0 is the score unless pick says otherwise; every variant's count
+ *            is kept in second_opinion.
  */
 async function timedTask(ctx, p) {
   const { task, kind, spec, media, calls } = ctx;
@@ -43,8 +44,12 @@ async function timedTask(ctx, p) {
     const w = media.window || { start: Math.max(0, clock.begin_at_s - PRE_ROLL), end: clock.begin_at_s + C.SECONDS + 2 };
     clip = await cutClip(media.file, w.start, w.end, 'mp3');
     const replies = await Promise.all(p.variants.map((v) => audioCall({ model, prompt: v.prompt, schema: v.schema, clip, job: `child_test.${kind}${v.name ? `_${v.name}` : ''}`, calls })));
-    const [primary, ...others] = replies.map((json, k) => ({ json, raw: p.variants[k].parse(json) }));
-    const rows = C.timedRows(primary.raw, p.refs);
+    const sets = replies.map((json, k) => ({ json, name: p.variants[k].name || 'grid', rows: C.timedRows(p.variants[k].parse(json), p.refs) }));
+    const correctOf = (x) => x.rows.filter((r) => r.verdict === 'correct').length;
+    // p.pick 'max_correct': the variant that heard the most right is the score (letters: the model's failures
+    // are dropped rows and early stops, never invented letters; May re-measure). Otherwise variant 0.
+    const primary = p.pick === 'max_correct' ? sets.reduce((a, b) => (correctOf(b) > correctOf(a) ? b : a)) : sets[0];
+    const rows = primary.rows;
     const stopRule = spec.stop || {};
     let stopped = false;
     let unclear = false;
@@ -57,7 +62,7 @@ async function timedTask(ctx, p) {
     if (unclear) { m.flags.push('first_row_unclear'); m.count_flag = { reason: 'first_row_unclear' }; }
     if (primary.json && primary.json.found === false) m.flags.push('task_not_found');
     if (clock.clock !== 'cue') m.flags.push(clock.clock === 'inferred' ? 'no_begin_line' : 'clock_given');
-    m.second_opinion = others.map((o, k) => ({ name: p.variants[k + 1].name, correct: C.timedRows(o.raw, p.refs).filter((r) => r.verdict === 'correct').length }));
+    if (sets.length > 1) m.second_opinion = sets.map((x) => ({ name: x.name, correct: correctOf(x), used: x === primary }));
     return m;
   } finally {
     if (clip) cleanup(clip.path);

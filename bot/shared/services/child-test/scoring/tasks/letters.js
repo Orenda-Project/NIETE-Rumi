@@ -2,7 +2,9 @@
 /**
  * v3 `<lang>.letters` — 100 letters, 60 s, nothing right in row 1 → stop (EGRA Toolkit p.188).
  * R8's best arm: Gemini 3.8 Flash with the exact grid, plus the row-by-row variant as a second opinion.
- * The grid prompt's verdicts are the score; when the two counts differ by more than the R8 tolerance
+ * The variant that heard more letters right is the score (the model undercounts by dropping a row or
+ * stopping near 70, R8 §3; on the May re-measure the higher of the two cut English MAE 7.5 → 7.0 and Urdu
+ * 14.2 → 12.0, bias toward 0). When the two counts differ by more than the R8 tolerance
  * (English 3, Urdu 2) the count is flagged for the coach (en.letters is `ai_review`); per-letter flags are
  * never shown. Urdu letters are `provisional`: the disagreement is kept as a hidden audit only.
  */
@@ -33,13 +35,13 @@ async function score(ctx) {
   const m = await timedTask(ctx, {
     refs: items,
     firstItems: items.slice(0, 2),
+    pick: 'max_correct',
     variants: [
       { name: '', prompt: P.LETTERS({ grade, lang, items }), schema: P.LETTERS_SCHEMA, parse: (j) => gridRaw(j, items.length) },
       { name: 'rows', prompt: P.LETTER_ROWS({ grade, lang, items, perRow }), schema: P.ROWS_SCHEMA, parse: (j) => rowsRaw(j, items.length, perRow) },
     ],
   });
-  const second = m.second_opinion[0];
-  const counts = [m.items.filter((r) => r.verdict === 'correct').length, second.correct];
+  const counts = m.second_opinion.map((x) => x.correct);
   if (Math.abs(counts[0] - counts[1]) > TOLERANCE[lang]) {
     m.flags.push('prompts_disagree');
     if (m.quality === 'ai_review') m.count_flag = { reason: 'prompts_disagree', counts };

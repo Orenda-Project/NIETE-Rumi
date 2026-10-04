@@ -188,7 +188,7 @@ describe('stop rules', () => {
     // May re-measure, G3 child keyed 83: the grid prompt misjudged row 1 and the stop zeroed a reader
     H.sonioxReturns(axios, [BEGIN_EN, [2, 4, 'a b c']]);
     route([
-      ['Work row by row', H.rows(['cccccccccc', 'cccccccccc', 'ccccccssss', ...Array(7).fill('ssssssssss')])],
+      ['Work row by row', H.rows(['wwwwwwwwww', 'cccccccccc', 'ccccccssss', ...Array(7).fill('ssssssssss')])],
       ['LETTER IDENTIFICATION', H.items(H.rep('w', 10) + H.rep('c', 16) + H.rep('s', 74))],
     ]);
     const m = await scoreTask({ task: 'en.letters', spec: spec('en.letters'), media: media(), lang: 'en', grade: 3 });
@@ -336,6 +336,20 @@ describe('quality and review flags (R8 §4)', () => {
     expect(m.timed.correct).toBe(40);
     expect(m.count_flag).toEqual({ reason: 'prompts_disagree', counts: [40, 34] });
     expect(m.review).toEqual([]);       // never per-letter flags
+  });
+
+  test('letters: the higher of the two prompt counts is the score (the model\'s failures are dropped rows; May re-measure)', async () => {
+    H.sonioxReturns(axios, [BEGIN_EN, [2, 4, 'a b c']]);
+    route([
+      ['Work row by row', H.rows([...Array(4).fill('cccccccccc'), ...Array(6).fill('ssssssssss')])],      // 40
+      ['LETTER IDENTIFICATION', H.items(H.rep('c', 30) + H.rep('s', 70))],                               // 30: a row dropped
+    ]);
+    const m = await scoreTask({ task: 'en.letters', spec: spec('en.letters'), media: media(), lang: 'en', grade: 3 });
+    expect(m.timed.correct).toBe(40);
+    expect(m.timed.attempted).toBe(40);
+    expect(m.items[35].verdict).toBe('correct');
+    expect(m.count_flag).toEqual({ reason: 'prompts_disagree', counts: [30, 40] });
+    expect(m.second_opinion.map((x) => x.correct).sort()).toEqual([30, 40]);
   });
 
   test('en.letters: counts within 3 → no flag', async () => {
