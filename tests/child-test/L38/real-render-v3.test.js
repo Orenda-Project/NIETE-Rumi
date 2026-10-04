@@ -42,18 +42,19 @@ d('print pack v3 — real render (Chromium)', () => {
     }
   });
 
-  it('each coach card: one sheet (two A4 sides), nothing overflowing, body type at least 13 pt', () => {
+  it('each coach card: whole sheets (two or four A4 sides), nothing overflowing, body type at least 13 pt', () => {
     for (const [c, x] of Object.entries(r.coachCards)) {
-      expect([c, x.pages]).toEqual([c, 2]);
+      expect([c, [2, 4].includes(x.pages)]).toEqual([c, true]);
       expect(x.a4).toBe(true);
       expect([c, x.overflow]).toEqual([c, []]);
       for (const s of allScales(x)) expect(s).toBeGreaterThanOrEqual(1);
     }
   });
 
-  it('PRINT_ME_v3: cover + blank + 4 coach sheets + the booklets, all A4, nothing overflowing', () => {
+  it('PRINT_ME_v3: cover + blank + the coach cards + the booklets, all A4, nothing overflowing', () => {
     const booklets = Object.values(r.expected).reduce((a, b) => a + b, 0);
-    expect(r.printMe.pages).toBe(2 + 8 + booklets);
+    const coach = Object.values(r.coachCards).reduce((a, x) => a + x.pages, 0);
+    expect(r.printMe.pages).toBe(2 + coach + booklets);
     expect(r.printMe.a4).toBe(true);
     expect(r.printMe.overflow).toEqual([]);
     for (const s of allScales(r.printMe)) expect(s).toBeGreaterThanOrEqual(1);
@@ -80,7 +81,7 @@ d('print pack v3 script', () => {
       expect(fs.existsSync(path.join(out, n))).toBe(true);
       expect([n, layout.files[n].overflow]).toEqual([n, []]);
     }
-    expect(layout.files['PRINT_ME_v3.pdf'].pages).toBe(34);
+    expect(layout.files['PRINT_ME_v3.pdf'].pages).toBe(34); // the fixture's cards fit one sheet each: sheet 2 dropped
     expect(layout.gaps.map((g) => g.task)).toEqual(['ur.nonwords']);
     expect(layout.pages['ur.letters']).toEqual({ booklet: 'ur', page: 1 });
   });

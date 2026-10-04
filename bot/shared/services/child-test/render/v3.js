@@ -65,7 +65,8 @@ function setLabel(bank, set) {
   const { S, s } = setOf(bank, set);
   const term = s.term && s.term.en;
   if (!term) throw new Error(`child-test print v3: set ${S} has no term`);
-  return `Set ${S} · ${term}`;
+  // L35's term already reads "Set A (2026-27, term 1)"; a bare term ("Oct–Dec 2026") gets the set in front.
+  return /^set\b/i.test(term) ? term : `Set ${S} · ${term}`;
 }
 
 /** The task spec for a booklet slot, or throws: a missing slot is a broken bank, a gap is `{gap:true}`. */
@@ -174,6 +175,9 @@ const CHILD_PT = {
 };
 const CHILD_MAX = { letters: 1.3, nonwords: 1.35, words: 1.35, story: 1.45, number_id: 1.5, discrimination: 1.4, missing: 1.4, sums1: 1.3, sums2: 1.4 };
 
+/** A reading practice row as text: the bank stores `{ item, role: 'example'|'practice' }` (L35) or a plain string. */
+const practiceText = (list) => (list || []).map((x) => (x && typeof x === 'object' && 'item' in x ? String(x.item) : String(x)));
+
 function practiceBox(inner) {
   return `<div class="practice"><div class="plabel"><span>${esc(ux('childTestPrintV3Practice', 'en'))}</span>`
     + `<span class="ur" lang="ur" dir="rtl">${esc(ux('childTestPrintV3Practice', 'ur'))}</span></div>${inner}</div>`;
@@ -198,11 +202,12 @@ function readingBody(t, kind, lang) {
       : [one(s.text)];
     const body = `<div class="story ${lang}" lang="${lang}" dir="${lang === 'ur' ? 'rtl' : 'ltr'}" style="font-size:${pt(size)}">`
       + lines.map((l) => `<div class="sl">${esc(l)}</div>`).join('') + '</div>';
-    return (t.practice && t.practice.length ? practiceBox(grid(t.practice, { cls: lang, size, cols: Math.min(5, t.practice.length) })) + '<hr class="sep">' : '') + body;
+    const prac = practiceText(t.practice);
+    return (prac.length ? practiceBox(grid(prac, { cls: lang, size, cols: Math.min(5, prac.length) })) + '<hr class="sep">' : '') + body;
   }
   const cols = Number(t.per_row) || (kind === 'letters' ? 10 : 5);
   if (!Array.isArray(t.items) || !t.items.length) throw new Error(`child-test print v3: ${t.task} has no items`);
-  const prac = (t.practice || []).map(String);
+  const prac = practiceText(t.practice);
   return (prac.length ? practiceBox(grid(prac, { cls: lang, size, cols })) + '<hr class="sep">' : '')
     + grid(t.items.map(String), { cls: lang, size, cols, main: true });
 }
@@ -363,6 +368,19 @@ const URDU_RE = /[؀-ۿ]/;
 // The tag shown before each scripted line, by bank script key; any other key prints as "Say".
 const SAY_TAG = {
   intro: 'childTestPrintV3SayIntro',
+  instructions: 'childTestPrintV3SayIntro',
+  example: 'childTestPrintV3SayExample',
+  practice_correct: 'childTestPrintV3SayPracticeRight',
+  practice_wrong: 'childTestPrintV3SayPracticeWrong',
+  questions_intro: 'childTestCoachCardSayQuestions',
+  early_stop: 'childTestPrintV3SayEarlyStop',
+  after: 'childTestPrintV3SayAfter',
+  point: 'childTestPrintV3SayPoint',
+  item: 'childTestPrintV3SayItem',
+  name_prompt: 'childTestPrintV3SayNamePrompt',
+  another_way: 'childTestPrintV3SayAnotherWay',
+  more: 'childTestPrintV3SayIntro',
+  next_problem: 'childTestCoachCardNext',
   practice: 'childTestPrintV3SayPractice',
   practice_right: 'childTestPrintV3SayPracticeRight',
   practice_wrong: 'childTestPrintV3SayPracticeWrong',
@@ -377,7 +395,10 @@ const SAY_TAG = {
 /** One line the coach says, verbatim; the English card also gives the bank's Urdu wording. */
 function sayRow(lang, key, line, { untimed = false, both = false } = {}) {
   const T = SCRIPT[lang];
-  const tagKey = key === 'stop' && untimed ? 'childTestCoachCardEnd' : (SAY_TAG[key] || 'childTestPrintV3SayOther');
+  const numbered = /^practice_\d+(_correct|_wrong)?$/.exec(key);
+  const tagKey = key === 'stop' && untimed ? 'childTestCoachCardEnd'
+    : numbered ? SAY_TAG[`practice${numbered[1] ? (numbered[1] === '_correct' ? '_right' : '_wrong') : ''}`]
+      : (SAY_TAG[key] || 'childTestPrintV3SayOther');
   const text = line && line[lang];
   if (!text) throw new Error(`child-test print v3: script line "${key}" has no ${lang} text`);
   const wide = !both && [...one(text)].length > (lang === 'ur' ? 18 : 22);
@@ -389,8 +410,9 @@ function sayRow(lang, key, line, { untimed = false, both = false } = {}) {
 
 // A line said the same way in several tasks of one card (begin, go on, thank you…) prints once, in the
 // card's "lines for every task" block, so the card stays one sheet; every other line stays with its task.
-const COMMON_KEYS = ['begin', 'start', 'go_on', 'stop', 'next', 'practice_right'];
-const lineSig = (key, t, line, lang, both) => [key, t.timed_s ? 1 : 0, one(line && line[lang]), both ? one(line && line.ur) : ''].join('|');
+const COMMON_KEYS = ['begin', 'start', 'go_on', 'stop', 'next', 'practice_right', 'early_stop', 'after', 'next_problem'];
+// Only "stop" changes its tag with timing ("At 1:00" vs "End"), so only it is keyed on it.
+const lineSig = (key, t, line, lang, both) => [key, key === 'stop' && t.timed_s ? 1 : 0, one(line && line[lang]), both ? one(line && line.ur) : ''].join('|');
 
 function commonLines(specs, lang, both) {
   const seen = new Map();
@@ -489,7 +511,9 @@ function readingBlock({ bank, set, bk, kind, common }) {
   if (t.gap) {
     return `${open}${blockHead({ ...t, title: null }, lang, { sheet: null })}<div class="stop">${esc(ux('childTestPrintV3GapSkip', lang))}</div></div>`;
   }
-  const both = lang === 'en';
+  // The words said to the child are in the task's language, as the step message sends them (L36:
+  // Urdu for ur.* and maths, English for en.*), so the card and the phone never disagree.
+  const both = false;
   let body = blockHead(t, lang, { sheet: sheetLabel(bank, set, bk, kind, lang) });
   if (kind === 'listening') {
     if (!t.story || !t.story.text) throw new Error(`child-test print v3: ${t.task} has no story text`);
@@ -568,7 +592,9 @@ function coachCardSections({ bank, set, card }) {
   const bk = BOOKLETS[c.booklet];
   const kinds = bk.kind === 'reading' ? READING_ALL : MATHS_ALL;
   const lang = bk.kind === 'reading' ? bk.lang : 'ur';
-  const both = lang === 'en';
+  // The words said to the child are in the task's language, as the step message sends them (L36:
+  // Urdu for ur.* and maths, English for en.*), so the card and the phone never disagree.
+  const both = false;
   const common = commonLines(kinds.map((k) => specOf(bank, set, bk, k)).filter((t) => !t.gap), lang, both);
   const blocks = [commonBlock(common, lang, both), ...kinds.map((kind) => (bk.kind === 'reading'
     ? readingBlock({ bank, set, bk, kind, common }) : mathsBlock({ bank, set, bk, kind, common })))].filter(Boolean);
@@ -578,10 +604,17 @@ function coachCardSections({ bank, set, card }) {
     + `<div class="dont"><span>${esc(ux('childTestCoachCardDontShow', 'en'))}</span><span class="ur" lang="ur" dir="rtl">${esc(ux('childTestCoachCardDontShow', 'ur'))}</span></div></div>`
     + '</header>';
   const id = `coach-${card}`;
-  const sec = (side, body, flowTo) => `<section class="page cc" data-page="${id}/${side}" data-part="${id}" data-audience="coach" data-card="${card}" data-side="${side}"`
-    + `${flowTo ? ` data-flow-to="${flowTo}"` : ''} style="--band:${bk.colour.hex};--tint:${bk.colour.tint}">`
+  const sec = (side, body, flowTo, drop) => `<section class="page cc" data-page="${id}/${side}" data-part="${id}" data-audience="coach" data-card="${card}" data-side="${side}"`
+    + `${flowTo ? ` data-flow-to="${flowTo}"` : ''}${drop ? ' data-drop-if-empty="sheet"' : ''} style="--band:${bk.colour.hex};--tint:${bk.colour.tint}">`
     + `${head}<div class="fit cc" data-max="1.2" data-min="1">${body}</div><div class="foot cc"></div></section>`;
-  return [sec('front', blocks.join(''), `${id}/back`), sec('back', '')];
+  // Front → back → a second sheet: the browser moves trailing blocks on while a side overflows at
+  // scale 1, then drops the second sheet if nothing reached it (most cards stay one sheet).
+  return [
+    sec('front', blocks.join(''), `${id}/back`),
+    sec('back', '', `${id}/front-2`),
+    sec('front-2', '', `${id}/back-2`, true),
+    sec('back-2', '', null, true),
+  ];
 }
 
 /* --------------------------------------------------------------------------- cover -- */
@@ -654,6 +687,13 @@ window.__beforeCapture = async function () {
     pg.style.setProperty('--s', 1);
     to.parentNode.style.setProperty('--s', 1);
     while (over(fit) && fit.children.length > 1) to.insertBefore(fit.lastElementChild, to.firstChild);
+  });
+  var drop = Array.prototype.filter.call(document.querySelectorAll('.page[data-drop-if-empty]'), function (pg) { return true; });
+  var parts = {};
+  drop.forEach(function (pg) { var k = pg.getAttribute('data-part'); (parts[k] = parts[k] || []).push(pg); });
+  Object.keys(parts).forEach(function (k) {
+    var empty = parts[k].every(function (pg) { var f = pg.querySelector('.fit'); return !f || !f.children.length; });
+    if (empty) parts[k].forEach(function (pg) { pg.parentNode.removeChild(pg); });
   });
   document.querySelectorAll('.page').forEach(function (pg) {
     var fit = pg.querySelector('.fit');

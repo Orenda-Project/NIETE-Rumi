@@ -250,8 +250,10 @@ describe('coach protocol cards — the coach\'s hand, never the child\'s', () =>
     const all = ps.map((p) => p.raw).join('');
     const block = (task) => ps.map((p) => blockOf(p, task)).find(Boolean);
 
-    it(`${lang}: one sheet (two sides), coach audience, "don't show the child" on every side`, () => {
-      expect(ps).toHaveLength(2);
+    it(`${lang}: a sheet (two sides) plus a second sheet the browser drops when empty; coach audience, "don't show the child" on every side`, () => {
+      expect(ps.map((p) => p.attrs.side)).toEqual(['front', 'back', 'front-2', 'back-2']);
+      expect(ps.slice(2).every((p) => p.attrs['drop-if-empty'] === 'sheet')).toBe(true);
+      expect(ps.slice(0, 2).some((p) => p.attrs['drop-if-empty'])).toBe(false);
       for (const p of ps) {
         expect(p.attrs.audience).toBe('coach');
         expect(p.text).toContain(resolveUx('childTestCoachCardDontShow', { language: 'en' }));
@@ -281,14 +283,14 @@ describe('coach protocol cards — the coach\'s hand, never the child\'s', () =>
       });
     });
 
-    it(`${lang}: every task's lines to say, verbatim from the bank (the English card also gives the Urdu)`, () => {
+    it(`${lang}: every task's lines to say, verbatim from the bank, in the task's language (as the step message, L36)`, () => {
       for (const kind of ['listening', 'letters', 'nonwords', 'words', 'story']) {
         const t = R[kind];
         if (t.gap) continue;
         const b = visibleText(block(t.task)) + ' ' + visibleText(block('common') || '');
         for (const [key, line] of Object.entries(t.script)) {
           expect([key, b]).toEqual([key, expect.stringContaining(one(lang === 'ur' ? urDigits(line.ur) : line.en))]);
-          if (lang === 'en') expect([key, b]).toEqual([key, expect.stringContaining(one(urDigits(line.ur)))]);
+          if (lang === 'en') expect([key, b.includes(one(urDigits(line.ur)))]).toEqual([key, false]);
         }
       }
     });
@@ -321,8 +323,8 @@ describe('coach protocol cards — the coach\'s hand, never the child\'s', () =>
     const ps = ofCard(`ma${g}`);
     const block = (task) => ps.map((p) => blockOf(p, task)).find(Boolean);
 
-    it(`maths G${g}: one sheet in the grade's colour`, () => {
-      expect(ps).toHaveLength(2);
+    it(`maths G${g}: in the grade's colour on every side`, () => {
+      expect(ps).toHaveLength(4);
       for (const p of ps) expect(p.style).toContain(`--band:${v3.GRADE_COLOUR[g].hex}`);
     });
 
@@ -394,8 +396,8 @@ describe('coach protocol cards — the coach\'s hand, never the child\'s', () =>
 describe('PRINT_ME_v3: cover, coach cards, then the booklets, each part starting on a fresh sheet', () => {
   const ps = pages(v3.buildPrintMeHtml({ bank: BANK, set: 'A' }));
 
-  it('34 sides in print order', () => {
-    expect(ps).toHaveLength(34);
+  it('cover + blank, 4 coach cards (2 sheets each before the browser drops empty ones), 24 booklet sides, in print order', () => {
+    expect(ps).toHaveLength(2 + 4 * 4 + 24);
     expect(ps[0].attrs.page).toBe('cover');
     const parts = [];
     ps.forEach((p, i) => { if (p.attrs.part && (!parts.length || parts[parts.length - 1].part !== p.attrs.part)) parts.push({ part: p.attrs.part, at: i }); });
@@ -410,5 +412,66 @@ describe('PRINT_ME_v3: cover, coach cards, then the booklets, each part starting
     expect(c).toMatch(/laminate/i);
     expect(c).toMatch(/Kit per coach/);
     expect(c).toMatch(/counters/i);
+  });
+});
+
+describe('the committed v3 bank (L35, item-bank.v3.json)', () => {
+  const REAL = require('../../../bot/shared/data/child-test/item-bank.v3.json');
+  const RA = REAL.sets.A;
+  const itemOf = (x) => (x && typeof x === 'object' && 'item' in x ? String(x.item) : String(x));
+
+  it('practice rows print the bank\'s example and practice items as text (the bank stores {item, role})', () => {
+    for (const lang of ['ur', 'en']) {
+      const ps = pages(v3.buildBookletHtml({ bank: REAL, set: 'A', booklet: lang }));
+      for (const kind of ['letters', 'nonwords', 'words']) {
+        const t = RA.reading[lang][kind];
+        if (t.gap || !(t.practice || []).length) continue;
+        const p = ps.find((x) => x.attrs.task === t.task);
+        expect([t.task, items(divs(p.raw, 'class="practice')[0])]).toEqual([t.task, t.practice.map(itemOf)]);
+        expect(p.raw).not.toContain('[object Object]');
+      }
+    }
+  });
+
+  it('pageFor agrees with the conversation\'s pageOf (L36) for every task and grade', () => {
+    const conv = require('../../../bot/shared/services/child-test/conversation/bank-v3');
+    conv.__setForTest(REAL);
+    try {
+      const { TASKS_V3 } = require('../../../bot/shared/services/child-test/tasks');
+      for (const grade of [3, 5]) {
+        for (const task of TASKS_V3) {
+          const mine = v3.pageFor({ bank: REAL, set: 'A', grade, task });
+          expect([grade, task, mine ? mine.page : null]).toEqual([grade, task, conv.pageOf({ grade, set: 'A', task })]);
+        }
+      }
+    } finally { conv.__setForTest(null); }
+  });
+
+  it('every coach card carries every script line of every task, labelled (no bare key names)', () => {
+    for (const card of ['ur', 'en', 'ma3', 'ma5']) {
+      const html = v3.buildCoachCardHtml({ bank: REAL, set: 'A', card });
+      const text = visibleText(html);
+      const form = card.startsWith('ma') ? RA.maths[card.slice(2)] : RA.reading[card];
+      const lang = card === 'en' ? 'en' : 'ur';
+      for (const t of Object.values(form)) {
+        if (!t || typeof t !== 'object' || t.gap) continue;
+        for (const [key, line] of Object.entries(t.script || {})) {
+          expect([t.task, key, text.includes(one(lang === 'ur' ? urDigits(line.ur) : line.en))]).toEqual([t.task, key, true]);
+        }
+      }
+      expect(text).not.toMatch(/\b(practice_\d|early_stop|questions_intro|name_prompt|another_way|next_problem)\b/);
+    }
+  });
+
+  it('the set label never repeats "Set A" when the bank\'s term already names the set', () => {
+    const html = v3.buildBookletHtml({ bank: REAL, set: 'A', booklet: 'ma3' });
+    expect(visibleText(html)).not.toMatch(/Set A · Set A/);
+    expect(visibleText(html)).toContain(RA.term.en.startsWith('Set') ? RA.term.en : `Set A · ${RA.term.en}`);
+  });
+
+  it('a card that needs a second sheet gets one: front, back, then a second sheet the browser drops if empty', () => {
+    const ps = pages(v3.buildCoachCardHtml({ bank: REAL, set: 'A', card: 'en' }));
+    expect(ps.map((p) => p.attrs.side)).toEqual(['front', 'back', 'front-2', 'back-2']);
+    expect(ps[2].attrs['drop-if-empty']).toBe('sheet');
   });
 });
