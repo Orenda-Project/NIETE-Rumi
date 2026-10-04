@@ -577,12 +577,14 @@ describe('9. copy', () => {
       expect([k, /ریاضی/.test(UX_STRINGS[k].ur)]).toEqual([k, false]);
     }
   });
-  test('every rendered step, both languages, both grades, fits a 1024 body', () => {
+  // The step is plain text (machine.say → sendMessage), whose cap is 4096; the reach conditions (L34, CONTRACT
+  // §20) took the longest story step past 1024 (UR, G5 Set B English: 1108), so the measure is the real cap.
+  test('every rendered step, both languages, both grades, fits the 4096 text cap', () => {
     for (const lang of ['en', 'ur']) {
       for (const grade of [3, 5]) {
         for (const block of ['urdu', 'english', 'maths']) {
           const s = steps.stepMessage(lang, block, { name: 'Muhammad Abdullah Khan Niazi', grade, form: 'A' });
-          expect([...s].length).toBeLessThanOrEqual(1024);
+          expect([...s].length).toBeLessThanOrEqual(4096);
         }
       }
     }

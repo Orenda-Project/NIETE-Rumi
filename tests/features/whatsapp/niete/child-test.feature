@@ -670,6 +670,37 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the 3 most certain of the doubtful answers keep the AI's verdict and are listed as AI-only
     # A part whose scoring failed reads "not scored" in the results; it is never a review item.
 
+  # ── L34 (bd-s1oo0.47, CONTRACT §20): ask only the comprehension questions the child reached (EGRA) ──
+  # A question with needs_line = k is reached iff the child attempted every word up to the end of story line k.
+  # The step message and the coach card show, before each gated question, "Only if the child read past:"
+  # and the last words of that line. Scored correct out of those reached AND asked; the review never lists
+  # an unreached or not-asked question.
+
+  @e2e @wip @draft @config-gated @P0 @CT95
+  Scenario: A child who read the whole story is asked every question, scored out of those asked
+    Given the Urdu step for a Grade 5 child is on screen
+    Then step 3 says "Look where the child's finger is, then turn the card face down."
+    And step 4 lists question ① with no condition, and before ② and ③ "Only if the child read past:" with the last words of the line each one needs
+    When the child reads past the line question ③ needs and I ask all 3
+    Then the results read "Urdu <n> words/min, answers <right> of 3 asked" with no "not reached"
+    # scoring/reach.js reachedQuestions; ai_marks comp_correct / comp_asked / comp_total.
+
+  @e2e @wip @draft @config-gated @P0 @CT96
+  Scenario: A child who stops early is asked only the questions they reached
+    Given a Grade 5 child stops reading before the line question ③ needs
+    When I ask questions ① and ② only and send the note
+    Then the results read "answers <right> of 2 asked (1 not reached)"
+    And the review form never shows question ③ of that child
+    And question ③ is stored as not asked, never as wrong
+    # A child who reached no question reads "no questions asked (3 not reached)", never "0 of 0".
+
+  @e2e @wip @draft @negative @config-gated @P1 @CT97
+  Scenario: A question asked beyond what the child read is kept but not scored
+    Given a Grade 5 child stops reading before the line question ③ needs
+    When I ask all 3 questions anyway
+    Then the results read "answers <right> of 2 asked (1 not reached)"
+    And question ③ keeps the AI's verdict, is marked beyond reach, and is not a review item
+
   # ── L25 (bd-s1oo0.46.1, CONTRACT §19, R1 §7, design §3.1): find the child without rolls ──
   # Children are named the way a school names them: full name · the roster's class label · class teacher.
   # The list is grouped by classroom; each class teacher gets only their own room. One shift per list.
