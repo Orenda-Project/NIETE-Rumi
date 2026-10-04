@@ -663,7 +663,7 @@ function successDone(flowToken, screenData, lang = 'en') {
 
 // ── bind + start (shared by both UIs) ────────────────────────────────────────
 
-async function bindAndStart(userId, screenData, user) {
+async function bindAndStart(userId, screenData, user, opts = {}) {
   const teacherExtId = screenData && (screenData.teacher_ext_id || screenData.teacher_ext);
   const schoolExtId = screenData && screenData.school_ext_id;
   let teacher = null;
@@ -678,6 +678,8 @@ async function bindAndStart(userId, screenData, user) {
     // school_ext_id rides along so the capture lifecycle can retire the
     // matching observation_schedules row (bd-2445).
     boundTeacher: teacher ? { ...teacher, school_ext_id: String(schoolExtId || '') } : null,
+    // Which flow this Start belongs to: an /observe2 recording joins its field form, a classic one never does.
+    origin: opts.observe2 ? 'observe2' : 'observe',
   });
   // bd-5n1a2: this line used to say "teacher bound" even when resolveTeacher
   // returned null — which is exactly the case that silently breaks the capture
@@ -761,7 +763,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
   }
 
   if (action === 'complete') {
-    return bindAndStart(userId, screenData, user);
+    return bindAndStart(userId, screenData, user, { observe2: String(flowToken || '').endsWith(':observe2-visit') });
   }
 
   // bd-88krt — the coach's language for Flow screen text, taken from the user
@@ -1291,7 +1293,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       }
       return briefScreen(userId, screenData, 'BRIEF');
     }
-    if (step === 'start') return bindAndStart(userId, screenData, user);
+    if (step === 'start') return bindAndStart(userId, screenData, user, { observe2: String(flowToken || '').endsWith(':observe2-visit') });
     if (step === 'back') {
       const { schoolExtId, page } = await rememberedPick(userId, screenData);
       return teachersScreen(userId, schoolExtId, page);

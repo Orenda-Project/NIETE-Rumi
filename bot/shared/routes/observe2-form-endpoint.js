@@ -15,12 +15,15 @@
  *               plan's moves by → AFTER, which names it (the coach goes back to change it; the plan is
  *               locked with the seal). "Upload new" asks how → LP_PHOTOS, LP_FILE or LP_TEXT
  *   LP_*        the added plan: photos or a file are stored to R2 after the reply, typed text is kept
- *               as typed → AFTER. It is read and graded after the recording (observe2/added-plan.js).
+ *               as typed → PHOTOS. It is read and graded after the recording (observe2/added-plan.js).
+ *   PHOTOS      how the classroom photos are added: taken now (PHOTO_TAKE, the photo picker), uploaded
+ *               from saved ones (PHOTO_FILES, a file picker, which opens a chooser on every client), or
+ *               none → AFTER. Photos are stored to R2 after the reply, before the seal.
  *   AFTER     checked → sealed once (compare-and-set) → SEALED; then, after the response, the
- *             recording steps go to the chat, the check opens if the recording's moments are
- *             already in, and up to ten photos are stored.
- *   CONTINUE  → PART_TWO, LESSON_PLAN, AFTER or SEALED, from the record (a plan whose added files never
- *               arrived goes back to LESSON_PLAN).
+ *             recording steps go to the chat and the check opens if the recording's moments are
+ *             already in. (A form opened before the photo step carries its photos here: still stored.)
+ *   CONTINUE  → PART_TWO, LESSON_PLAN, PHOTOS, AFTER or SEALED, from the record (a plan whose added
+ *               files never arrived goes back to LESSON_PLAN; an unanswered photo step to PHOTOS).
  *
  * The screens are English for the pilot; the chat message after the seal is in the coach's language.
  */
@@ -28,7 +31,7 @@
 const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { validate } = require('../services/observe/observe2/rules');
-const { FIELDS, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES } = require('../services/observe/observe2/field-form.flow');
+const { FIELDS, FORM_VERSION, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES } = require('../services/observe/observe2/field-form.flow');
 const { observe2Strings } = require('../services/observe/observe2/strings');
 const { logToFile } = require('../utils/logger');
 
@@ -39,6 +42,8 @@ const NOT_IN_LIST = 'other';
 // /observe's own row for a plan the coach sends (lp-selection-list: "Upload new").
 const UPLOAD_OPTION = { id: UPLOAD, title: 'Upload new', description: 'Photos of a paper plan, a PDF or Word file, or typed text' };
 const ADD_SCREEN = { photos: 'LP_PHOTOS', file: 'LP_FILE', text: 'LP_TEXT' };
+const PHOTO_SCREEN = { take: 'PHOTO_TAKE', files: 'PHOTO_FILES' };
+const PHOTO_FIELD = { PHOTO_TAKE: 'photos', PHOTO_FILES: 'photo_files' };
 const NO_ERRORS = { error_messages: {}, error: '', has_error: false };
 
 function parseToken(flowToken) {
@@ -186,8 +191,38 @@ function renderAdd(screen, extra = {}) {
   return { screen, data: { ...NO_ERRORS, ...extra } };
 }
 
+function photoLine(answers) {
+  const a = answers || {};
+  if (a.photo_how === 'none') return 'No photos. To add some, go back.';
+  const n = Number(a.photo_count) || 0;
+  if (n) return `${n} photo${n === 1 ? '' : 's'} added. To change them, go back.`;
+  return '';
+}
+
+// Has the photo step been answered? A choice to add photos whose photos never arrived has not.
+function photosDone(answers) {
+  const a = answers || {};
+  return a.photo_how === 'none' || (Boolean(PHOTO_SCREEN[a.photo_how]) && Number(a.photo_count) > 0);
+}
+
 function renderAfter(form, extra = {}) {
+  const a = form && form.answers;
+  return { screen: 'AFTER', data: { lp_line: planLine(a), photo_line: photoLine(a), ...NO_ERRORS, ...extra } };
+}
+
+// A form opened before the photo step was published: its seal screen has the photo picker and no
+// photo line, and nothing routes to the photo step.
+function renderAfterOld(form, extra = {}) {
   return { screen: 'AFTER', data: { lp_line: planLine(form && form.answers), ...NO_ERRORS, ...extra } };
+}
+
+const newForm = (screenData) => Boolean(screenData && screenData.fv === FORM_VERSION);
+
+// After the plan: the photo step, unless it was already answered (the coach went back to the plan);
+// straight to the seal screen on a form still running the old Flow.
+function afterPlan(form, screenData) {
+  if (!newForm(screenData)) return renderAfterOld(form);
+  return photosDone(form && form.answers) ? renderAfter(form) : renderAdd('PHOTOS');
 }
 
 function renderSealed(form, lines) {
@@ -220,7 +255,18 @@ function refused(errors) {
 
 // ------------------------------------------------------------------ after the seal
 
-async function storePhotos(form, photos) {
+// A photo uploaded as a file may be a PNG: stored as JPEG like every other classroom photo (the vision
+// reader and the report read JPEG). One that cannot be converted is stored as it came.
+async function asJpeg(buf) {
+  try {
+    const sharp = require('sharp');
+    return await sharp(buf).rotate().jpeg({ quality: 85 }).toBuffer();
+  } catch (_) {
+    return buf;
+  }
+}
+
+async function storePhotos(form, photos, { convert = false, how = null } = {}) {
   const { decryptMedia } = require('../services/roster/roster-media');
   const { uploadBuffer } = require('../storage/r2');
   const keys = [];
@@ -230,10 +276,21 @@ async function storePhotos(form, photos) {
       const media = await decryptMedia(photos[i]);
       const key = `observe2/${form.id}/photo-${i + 1}.jpg`;
       // eslint-disable-next-line no-await-in-loop
-      await uploadBuffer(media.data, key, 'image/jpeg');
+      const data = convert ? await asJpeg(media.data) : media.data;
+      // eslint-disable-next-line no-await-in-loop
+      await uploadBuffer(data, key, 'image/jpeg');
       keys.push(key);
     } catch (err) {
       logToFile('[observe2] a photo was not stored', { formId: form.id, index: i, error: err.message }, 'error');
+    }
+  }
+  if (keys.length && how) {
+    // The coach may have gone back and changed the photo step while these were being stored.
+    const now = await Store.getForm(form.id);
+    const a = (now.ok && now.form && now.form.answers) || {};
+    if (a.photo_how !== how || Number(a.photo_count) !== Math.min(photos.length, MAX_PHOTOS)) {
+      logToFile('[observe2] photos stored after the photo step changed: not kept', { formId: form.id, how, now: a.photo_how || null });
+      return [];
     }
   }
   if (keys.length) await Store.setPhotos(form.id, keys);
@@ -293,7 +350,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
 
   if (step === 'CONTINUE') {
     if (!form || form.sealed_at) return renderSealed(form, form ? null : { sealed_line: 'Nothing to fill in', next_line: 'Send /observe2 in the chat to start a new visit.' });
-    if (form.part2_done_at) return planDone(form.answers) ? renderAfter(form) : renderPlan(form);
+    if (form.part2_done_at) return planDone(form.answers) ? afterPlan(form, screenData) : renderPlan(form);
     return renderPart2(form);
   }
 
@@ -301,7 +358,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     const again = { error: 'Something went wrong on our side. Tap the button again.', has_error: true };
     if (step === 'PART_TWO') return renderPart2(null, again);
     if (step === 'LESSON_PLAN') return renderPlan(null, again, []);
-    if (step.startsWith('LP_')) return renderAdd(step, again);
+    if (step.startsWith('LP_') || step.startsWith('PHOTO')) return renderAdd(step, again);
     if (step === 'AFTER') return renderAfter(null, again);
     return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...again } };
   }
@@ -309,7 +366,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     const gone = { error: 'This form is not available. Close it and send /observe2 in the chat.', has_error: true };
     if (step === 'PART_TWO') return renderPart2(null, gone);
     if (step === 'LESSON_PLAN') return renderPlan(null, gone, []);
-    if (step.startsWith('LP_')) return renderAdd(step, gone);
+    if (step.startsWith('LP_') || step.startsWith('PHOTO')) return renderAdd(step, gone);
     if (step === 'AFTER') return renderAfter(null, gone);
     return { screen: 'PART_ONE', data: { teacher_line: '', part_hint: '', ...NO_ERRORS, ...gone } };
   }
@@ -355,7 +412,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     }
     logToFile('[observe2] lesson plan saved', { formId: form.id, lp: answers.lp, lessonId: lpRef && lpRef.lesson_id, upload: answers.lp_pick === UPLOAD ? answers.lp_how : null });
     if (answers.lp !== 'none' && answers.lp_pick === UPLOAD) return renderAdd(ADD_SCREEN[answers.lp_how]);
-    return renderAfter(saved.form);
+    return afterPlan(saved.form, screenData);
   }
 
   if (ADD_SCREEN.photos === step || ADD_SCREEN.file === step || ADD_SCREEN.text === step) {
@@ -385,6 +442,35 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
         });
       });
     }
+    return afterPlan(saved.form, screenData);
+  }
+
+  if (step === 'PHOTOS') {
+    const answers = Store.pick(screenData, FIELDS.PHOTOS);
+    const errors = validate('PHOTOS', answers);
+    if (Object.keys(errors).length) return renderAdd('PHOTOS', refused(errors));
+    if (PHOTO_SCREEN[answers.photo_how]) return renderAdd(PHOTO_SCREEN[answers.photo_how]);
+    const saved = await Store.savePhotoChoice(form, { photo_how: 'none' });
+    if (!saved.ok) return renderAdd('PHOTOS', { error: saved.sealed ? 'This record is already sealed. Close the form.' : 'Not saved. Tap Next again.', has_error: true });
+    await Store.setPhotos(form.id, []);
+    logToFile('[observe2] no classroom photos', { formId: form.id });
+    return renderAfter(saved.form);
+  }
+
+  if (PHOTO_FIELD[step]) {
+    const field = PHOTO_FIELD[step];
+    const errors = validate(step, { [field]: screenData[field] });
+    if (Object.keys(errors).length) return renderAdd(step, refused(errors));
+    const media = screenData[field].slice(0, MAX_PHOTOS);
+    const how = step === 'PHOTO_FILES' ? 'files' : 'take';
+    const saved = await Store.savePhotoChoice(form, { photo_how: how, photo_count: media.length });
+    if (!saved.ok) return renderAdd(step, { error: saved.sealed ? 'This record is already sealed. Close the form.' : 'Not saved. Tap Next again.', has_error: true });
+    logToFile('[observe2] classroom photos added', { formId: form.id, how, photos: media.length });
+    setImmediate(() => {
+      storePhotos(form, media, { convert: how === 'files', how }).catch((err) => {
+        logToFile('[observe2] storing the classroom photos failed', { formId: form.id, error: err.message }, 'error');
+      });
+    });
     return renderAfter(saved.form);
   }
 

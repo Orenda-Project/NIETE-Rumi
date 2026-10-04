@@ -92,6 +92,17 @@ describe("Coaching — one button that names the goal", () => {
     expect(screen.queryByText("Record your class")).not.toBeInTheDocument();
   });
 
+  // bd-5rz1v.9 — it reads as a button: a white arrow at the end, and tapping
+  // anywhere on it (the arrow included) still opens the sheet.
+  it("ends in a white arrow, and tapping the arrow opens the Send a lesson sheet", async () => {
+    renderPage();
+    const cta = await screen.findByTestId("send-a-lesson");
+    const arrow = within(cta).getByTestId("send-lesson-arrow");
+    expect(cta.querySelector("[class*='animate-rec-wave']")).toBeNull();
+    fireEvent.click(arrow);
+    expect(await screen.findByRole("dialog", { name: /send a lesson/i })).toBeInTheDocument();
+  });
+
   it("opens a 'Send a lesson' sheet with Record Live Lecture and Upload Recording, and Cancel closes it", async () => {
     const sheet = await openSheet();
     expect(await within(sheet).findByRole("button", { name: /record live lecture/i })).toBeInTheDocument();

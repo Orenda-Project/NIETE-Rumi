@@ -244,7 +244,7 @@ async function findPriorLeaderObservation(supabase, opts) {
  * Close an already-analysed resubmission and tell the coach.
  *
  * @param {object} ctx  { coachingSessionId, from, observerUserId, audioHash, prior }
- * @param {object} opts { updateIfNotTerminal, sendMessage, getLanguage, getStrings, log }
+ * @param {object} opts { updateIfNotTerminal, sendMessage, getLanguage, getStrings, log, afterApplied? }
  * @returns {Promise<boolean>} always true — the caller must not transcribe
  */
 async function refuseDuplicateObservation(ctx, opts) {
@@ -267,7 +267,15 @@ async function refuseDuplicateObservation(ctx, opts) {
   // The COACH's language — the row's user may be the bound teacher. No floor
   // here: observeStrings already resolves an unknown language to the catalog's.
   const lang = await opts.getLanguage(observerUserId);
-  await opts.sendMessage(from, opts.getStrings(lang).capture_duplicate_recording);
+  // /observe2 gives the visit's form back and says so (afterApplied returns the extra line, or null).
+  let extra = null;
+  if (opts.afterApplied) {
+    try { extra = await opts.afterApplied(lang); } catch (err) {
+      log('⚠️ duplicate observation: the after-refusal step failed', { coachingSessionId, error: err && err.message });
+    }
+  }
+  const refusal = opts.getStrings(lang).capture_duplicate_recording;
+  await opts.sendMessage(from, extra ? `${refusal}\n\n${extra}` : refusal);
 
   log('🔁 observe: recording already analysed — resubmission refused', {
     coachingSessionId, priorSessionId: prior.id, priorStatus: prior.status, audioHash,

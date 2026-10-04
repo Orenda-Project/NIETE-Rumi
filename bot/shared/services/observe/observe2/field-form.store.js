@@ -114,6 +114,14 @@ async function saveUpload(current, lpUpload) {
   return writePlan(current, { ...(current.answers || {}), lp_upload: lpUpload }, 'saveUpload');
 }
 
+// The photo step, before the seal: how the photos were added and how many (or none).
+async function savePhotoChoice(current, choice) {
+  if (!current || current.sealed_at) return { ok: false, sealed: Boolean(current && current.sealed_at) };
+  const merged = { ...(current.answers || {}), photo_how: String(choice.photo_how) };
+  if (choice.photo_count != null) merged.photo_count = Number(choice.photo_count); else delete merged.photo_count;
+  return writePlan(current, merged, 'savePhotoChoice');
+}
+
 async function writePlan(current, merged, label) {
   const { data, error } = await supabase.from('observation_field_forms')
     .update({ answers: merged }).eq('id', current.id).is('sealed_at', null).select('*');
@@ -144,11 +152,13 @@ async function setPhotos(id, photos) {
   return { ok: true };
 }
 
-// The coach's most recent form that has no recording yet, started within the link window.
+// The coach's most recent form that has no recording yet, started within the link window. It runs
+// on every unarmed leader audio, so it reads only what the link and the capture need.
+const CAPTURE_COLUMNS = 'id, observer_user_id, teacher_user_id, visit_context, sealed_at, coaching_session_id, created_at';
 async function findOpenFormForCapture(observerUserId, now = Date.now()) {
   const since = new Date(now - LINK_WINDOW_HOURS * 3600 * 1000).toISOString();
   const { data, error } = await supabase.from('observation_field_forms')
-    .select('*')
+    .select(CAPTURE_COLUMNS)
     .eq('observer_user_id', observerUserId)
     .is('coaching_session_id', null)
     .gte('created_at', since)
@@ -165,6 +175,16 @@ async function linkSession(id, sessionId) {
   return { ok: (data || []).length === 1 };
 }
 
+// A recording refused after it was linked (the worker's duplicate check): the form waits again. Only
+// the link written for that session is undone.
+async function unlinkSession(sessionId) {
+  const { data, error } = await supabase.from('observation_field_forms')
+    .update({ coaching_session_id: null }).eq('coaching_session_id', sessionId).select('id, created_at');
+  if (error) return fail('unlinkSession', error, { sessionId });
+  const row = (data || [])[0] || {};
+  return { ok: true, formId: row.id || null, createdAt: row.created_at || null };
+}
+
 async function findBySession(sessionId) {
   const { data, error } = await supabase.from('observation_field_forms').select('*').eq('coaching_session_id', sessionId).maybeSingle();
   if (error) return fail('findBySession', error, { sessionId });
@@ -176,6 +196,13 @@ async function setMoments(id, moments, levels) {
     .update({ rumi_moments: moments, rumi_levels: levels, moments_ready_at: new Date().toISOString() })
     .eq('id', id);
   if (error) return fail('setMoments', error, { id });
+  return { ok: true };
+}
+
+// The moments' record rewritten whole (the plan graded at the seal for a recording that came first).
+async function setRumiMoments(id, moments) {
+  const { error } = await supabase.from('observation_field_forms').update({ rumi_moments: moments }).eq('id', id);
+  if (error) return fail('setRumiMoments', error, { id });
   return { ok: true };
 }
 
@@ -203,6 +230,6 @@ async function markChecked(current, finalLevels, patch) {
 
 module.exports = {
   TABLE, RUBRIC_VERSION, LINK_WINDOW_HOURS, PART_KEYS, pick,
-  createForm, getForm, setPeriod, markOpened, savePart, savePlan, saveUpload, seal, setPhotos,
-  findOpenFormForCapture, linkSession, findBySession, setMoments, saveReview, markChecked,
+  createForm, getForm, setPeriod, markOpened, savePart, savePlan, saveUpload, savePhotoChoice, seal, setPhotos,
+  findOpenFormForCapture, linkSession, unlinkSession, findBySession, setMoments, setRumiMoments, saveReview, markChecked,
 };

@@ -166,3 +166,30 @@ jobs:
             exit 1
           fi
           echo "Security check passed."
+
+  # The portal's new UI: its kit, its screens and the design rules as tests
+  # (portal/src/portal/newui/DESIGN.md — no sentences, 56px taps, green buttons,
+  # feature colour only on a feature's icon, start/end spacing, motion-safe).
+  # The portal's vitest suite is not part of `npm test` above (root Jest), so
+  # without this job nothing in CI would notice a rule being broken.
+  portal-newui:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: portal/package-lock.json
+
+      - name: Install portal dependencies
+        working-directory: portal
+        run: npm ci
+
+      - name: New UI kit, screens and design checks
+        working-directory: portal
+        run: npx vitest run src/portal/newui
