@@ -853,6 +853,7 @@ module.exports = {
   buildCoachCardHtml,
   COACH_CARD_PT,
   COACH_ACCEPT_MAX,
+  coachAccepts,
   buildPrintMeHtml,
   setupPictureSvg,
   buildSetupPictureHtml,
