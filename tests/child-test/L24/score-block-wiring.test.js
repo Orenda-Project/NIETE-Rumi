@@ -121,7 +121,8 @@ describe('CR-2 through scoreBlock: a reader whose line 1 came back `skipped` kee
 
   test('a child who could not read line 1 still gets the letters + words fallback', async () => {
     global.__noteSeconds = 75;
-    sonioxReturns([[1, 0.1, bank.cue.english.start], [2, 2, 'the'], [1, 50, bank.cue.english.stop]]);
+    // battery v2 (L32): the switch is the coach's, so the coach says the bank's switch line after line 1
+    sonioxReturns([[1, 0.1, bank.cue.english.start], [2, 2, 'the'], [1, 8, bank.getScript(3, 'A', 'english').fallback], [1, 50, bank.cue.english.stop]]);
     const jobs = routeModels({ story: (i) => (i === 0 ? 'correct' : 'skipped') });
     const store = fakeStore({ id: 'blk-24b', block: 'english', audio_r2_key: 'k', ai_marks: null });
 
