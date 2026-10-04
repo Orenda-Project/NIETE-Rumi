@@ -3652,8 +3652,9 @@ const UX_STRINGS = {
   childTestL39TaskAdd2: { en: 'harder +', ur: 'مشکل جمع' },
   childTestL39TaskSub2: { en: 'harder −', ur: 'مشکل تفریق' },
   childTestL39TaskWordProblems: { en: 'problems', ur: 'عبارتی سوال' },
-  // The review form: "{child} · {part}" (≤ 80), part = "{block} {task}" with the task's full name.
-  childTestL39Part: { en: '{block} {task}', ur: '{block} میں {task}' },
+  // The review form: "{child} · {part}" (≤ 80), part = "{block} {task}" with the task's full name. Urdu reads
+  // "<child> کا حصہ: اردو، کہانی": حصہ is masculine, so the v2 «کا» agrees whatever the task's noun.
+  childTestL39Part: { en: '{block} {task}', ur: 'حصہ: {block}، {task}' },
   childTestL39NameListening: { en: 'listening', ur: 'سننا' },
   childTestL39NameLetters: { en: 'letters', ur: 'حروف' },
   childTestL39NameNonwords: { en: 'made-up words', ur: 'بے معنی الفاظ' },

@@ -267,3 +267,14 @@ describe('review (v3)', () => {
     expect(row('s1', 'ma.number_id').coach_marks.meta.ai_only).toEqual(['items[15].verdict']);
   });
 });
+
+describe('review (v3), Urdu coach', () => {
+  test('the slot heading reads "<child> کا حصہ: <block>، <task>", Urdu digits in the item', async () => {
+    seed([{ id: 's1', name: 'Ayesha Khan', tasks: F.child() }], { lang: 'ur' });
+    await review.sendReview(COACH.id, VISIT);
+    const d = flowCall(0).screenData;
+    expect(d.i3_who).toContain('کا حصہ: حساب، بڑا نمبر');
+    expect(d.i3_q).toMatch(/^کون سا نمبر بڑا ہے: [۰-۹]+ یا [۰-۹]+؟$/);
+    expect(d.heading).toBe('یہ جواب چیک کریں');
+  });
+});
