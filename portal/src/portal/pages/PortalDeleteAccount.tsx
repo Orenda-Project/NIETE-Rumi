@@ -1,13 +1,14 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, ExternalLink, Mail, Archive, Trash2 } from 'lucide-react';
+import { ArrowLeft, Clock, Mail, Archive, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import nieteLogo from '@/assets/niete-logo.png';
 import {
+  DELETION_DAYS,
   DELETION_EMAIL,
   DELETION_MAILTO,
   DELETION_SUBJECT,
-  EXTERNAL_LINK_PROPS,
-  PRIVACY_POLICY_URL,
+  PRIVACY_POLICY_PATH,
+  PUBLISHER,
 } from '../lib/legalLinks';
 
 /**
@@ -22,8 +23,8 @@ import {
  *
  * The request is an email (Play accepts that), so the steps are the first
  * thing on the page, with a one-tap mailto. The wording on what is deleted,
- * what may be kept and when must stay consistent with Taleemabad's privacy
- * policy ("Your Rights", "Data Retention"), which is the policy of record.
+ * what may be kept and when must stay consistent with the NIETE privacy policy
+ * (PortalPrivacy, "How long we keep it, and deleting it"); bd-nvnf2.
  */
 const PortalDeleteAccount = () => {
   const navigate = useNavigate();
@@ -123,22 +124,23 @@ const PortalDeleteAccount = () => {
               How long it takes
             </h2>
             <p className="text-base leading-relaxed text-foreground">
-              We delete your account and its data within 30 days of your request, and email you to
-              confirm when it is done.
+              We delete your account and its data within {DELETION_DAYS} days of your request, and email
+              you to confirm when it is done.
             </p>
           </section>
 
           <div className="border-t border-border pt-5 text-sm text-muted-foreground space-y-2">
+            {/* bd-nvnf2 — the same publisher the privacy policy and the Play
+                listing name, from one constant. */}
             <p className="text-sm leading-normal">
-              The NIETE app (on Google Play, developer NIETE) and the NIETE Portal at
-              portal.niete.edu.pk are operated for NIETE by Orenda Welfare Trust (Taleemabad).
+              The {PUBLISHER.appName} app (on Google Play, developer {PUBLISHER.developerName}) and the
+              NIETE Portal at portal.niete.edu.pk are published by {PUBLISHER.legalEntity}.
             </p>
             <p className="text-sm leading-normal">
               How we handle your data:{' '}
-              <a href={PRIVACY_POLICY_URL} {...EXTERNAL_LINK_PROPS} className="inline-flex items-center gap-1 font-medium text-accent underline">
+              <Link to={PRIVACY_POLICY_PATH} className="font-medium text-accent underline">
                 Privacy policy
-                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-              </a>
+              </Link>
             </p>
             <p className="text-sm leading-normal">
               Questions? Email <a href={`mailto:${DELETION_EMAIL}`} className="text-accent underline">{DELETION_EMAIL}</a>.

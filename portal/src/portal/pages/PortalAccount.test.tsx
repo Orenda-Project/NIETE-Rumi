@@ -35,7 +35,7 @@ beforeAll(() => {
   }
 });
 
-const PRIVACY_URL = "https://taleemabad.com/privacy-policy/";
+const PRIVACY_PATH = "/portal/privacy";
 const PHONE = "923001234567";
 
 type DashboardUser = { firstName: string; lastName?: string | null; phoneNumber?: string; role?: string | null; schoolName?: string | null };
@@ -144,13 +144,12 @@ describe("bd-3wb0s — who she is: name and school, nothing else", () => {
 describe("bd-3wb0s — what she can do", () => {
   beforeEach(() => signedInAs({ firstName: "Ayesha Khan", role: "teacher", phoneNumber: PHONE, schoolName: "IMSG G-7/2" }));
 
-  it("opens the privacy policy on taleemabad.com, outside the app", async () => {
+  it("opens the NIETE privacy policy inside the app (bd-nvnf2)", async () => {
     renderAppAt("/portal/account");
     const page = await accountPage();
     const link = within(page).getByRole("link", { name: /privacy policy/i });
-    expect(link).toHaveAttribute("href", PRIVACY_URL);
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(link).toHaveAttribute("href", PRIVACY_PATH);
+    expect(link).not.toHaveAttribute("target");
   });
 
   it("takes 'Delete my account' to the deletion page, and Back returns to My account", async () => {
