@@ -63,7 +63,7 @@ async function score(ctx) {
   const counted = comp.filter((q) => q.reached && q.asked);
   const score = { correct: counted.filter((q) => q.verdict === 'correct').length, of: qs.length, asked: counted.length };
 
-  const m = C.marks({ task, spec, timed, score, stopped, items, extra: { comprehension: comp, story_confidence: part.confidence, stt_words: words.length, align_correct: part.align_correct == null ? null : part.align_correct },
+  const m = C.marks({ task, spec, timed, score, stopped, items, extra: { comprehension: comp, story_confidence: part.confidence },
     modelVersions: { counts: r.modelVersion, ...(compModel ? { comprehension: compModel } : {}), ...(media.sttModel ? { stt: media.sttModel } : {}) } });
   if (clock.clock !== 'cue') m.flags.push(clock.clock === 'inferred' ? 'no_begin_line' : 'clock_given');
   if (stopRes === 'unclear') m.flags.push('first_row_unclear');

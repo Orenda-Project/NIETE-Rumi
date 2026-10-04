@@ -132,6 +132,36 @@ function quickSumsSeconds(grade = 3, form = 'A') {
   return Number.isFinite(v) && v > 0 ? v : QS_DEFAULT;
 }
 
+// ------------------------------------------------------------------ battery v3 (CONTRACT §21.3)
+// item-bank.v3.json: the full EGRA/EGMA battery, one task spec per task id (tasks.js TASKS_V3).
+// Reading is ONE form for Grades 3 and 5 (as RWP); maths has a form per grade. Every item cites a key
+// in `sources`; a slot with no official or RWP source is `{ gap: true, reason }` and is never filled.
+const BANK_V3 = deepFreeze(require('../../data/child-test/item-bank.v3.json'));
+const { TASKS_V3, isTask, blockOf, kindOf } = require('./tasks');
+
+const V3_LANG = { urdu: 'ur', english: 'en' };
+
+/** The whole v3 bank (deep-frozen). */
+function bankV3() {
+  return BANK_V3;
+}
+
+/** The 18 task ids in visit order. The battery is the same for both grades; only the maths items differ. */
+function tasksFor({ grade } = {}) {
+  normGrade(grade);
+  return [...TASKS_V3];
+}
+
+/** One task's spec: { task, title, timed_s, items, practice, stop, script, source, quality, … } or { gap, reason }. */
+function getTaskSpec({ grade, set = 'A', task } = {}) {
+  const g = normGrade(grade);
+  if (!isTask(task)) throw new Error(`child-test item bank v3: unknown task "${task}"`);
+  const s = BANK_V3.sets[String(set || '').toUpperCase()];
+  if (!s) throw new Error(`child-test item bank v3: unknown set "${set}"`);
+  const block = blockOf(task);
+  return block === 'maths' ? s.maths[g][kindOf(task)] : s.reading[V3_LANG[block]][kindOf(task)];
+}
+
 module.exports = {
   version: BANK.version,
   cue: BANK.cue,
@@ -148,4 +178,8 @@ module.exports = {
   quickSumsSeconds,
   sandboxQuickSumsOverride,
   isSandbox,
+  versionV3: BANK_V3.version,
+  bankV3,
+  tasksFor,
+  getTaskSpec,
 };

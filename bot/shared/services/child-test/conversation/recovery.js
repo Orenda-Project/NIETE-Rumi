@@ -43,6 +43,7 @@ const { langOf, t } = require('./copy');
 const { childLabel, childName } = require('./identity');
 const { isEnabled } = require('./gate');
 const SW = require('./switches');
+const { TASKS_V3, isTask } = require('../tasks');
 
 const BLOCKS = ['urdu', 'english', 'maths'];
 const MAX_ATTEMPTS = 3;
@@ -164,7 +165,10 @@ async function checkReady(sessionId) {
     return false;
   }
   const byBlock = new Map((b.blocks || []).map((x) => [x.block, x]));
-  return BLOCKS.every((x) => isDone(byBlock.get(x)));
+  // v3 (L36, CONTRACT §21.2): a session whose rows are tasks is complete when all 18 are (a skipped or gap
+  // task carries ai_marks { skipped_by_coach }, so it counts as done without audio).
+  const units = (b.blocks || []).some((x) => isTask(x.block)) ? TASKS_V3 : BLOCKS;
+  return units.every((x) => isDone(byBlock.get(x)));
 }
 
 /** Open the check once, when the store says so. `notify` = { from, lang, child? } (live path). */

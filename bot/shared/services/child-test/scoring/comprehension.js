@@ -35,7 +35,7 @@ async function scoreQuestions({ lang, spec, words, window, calls }) {
   rows.forEach((q, i) => byId.set(q.id || (questions[i] && questions[i].id), q));
   const part = questions.map((q) => {
     const a = byId.get(q.id);
-    if (!a) return { id: q.id, verdict: 'none', heard: '', confidence: 0 };
+    if (!a) return { id: q.id, verdict: 'none', heard: '', confidence: 0, asked: true };
     const verdict = VERDICT[a.verdict] || 'none';
     const self = Number.isFinite(Number(a.confidence)) ? clamp01(Number(a.confidence)) : 0.7;
     let c = 0.6 * self + 0.4 * STUDY_AGREEMENT.comprehension_within1;
@@ -43,7 +43,9 @@ async function scoreQuestions({ lang, spec, words, window, calls }) {
     if (verdict === 'correct' && mentions(a.answer, q.accept)) c += 0.1;
     if (verdict === 'wrong' && mentions(a.answer, q.reject)) c += 0.1;
     if (verdict === 'correct' && mentions(a.answer, q.reject) && !mentions(a.answer, q.accept)) c -= 0.25;
-    return { id: q.id, verdict, heard: String(a.answer || ''), confidence: Math.round(clamp01(c) * 100) / 100 };
+    // CONTRACT §20: the grader says whether the coach asked it; a reply without the flag reads as asked
+    const asked = !(a.asked === false || a.asked === 'false');
+    return { id: q.id, verdict, heard: String(a.answer || ''), confidence: Math.round(clamp01(c) * 100) / 100, asked };
   });
   return { ok: true, part, modelVersion: model };
 }

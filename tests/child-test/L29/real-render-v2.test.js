@@ -39,11 +39,21 @@ d('print pack v2 — real render (Chromium)', () => {
     }
   });
 
-  it('PRINT_ME: cover + blank + coach sheet + 12 card sides = 16 A4 pages, per set', () => {
+  it('PRINT_ME: cover + blank + coach sheet + 2 coach cards with blank backs + 12 card sides = 20 A4 pages, per set', () => {
     for (const p of r.printMe) {
-      expect(p.pages).toBe(16);
+      expect(p.pages).toBe(20);
       expect(p.a4).toBe(true);
       expect(p.overflow).toEqual([]);
+    }
+  });
+
+  it('coach card (L33): one A4 side per grade and set, nothing overflowing, type never below the 13 pt body', () => {
+    expect(r.coachCards).toHaveLength(4);
+    for (const c of r.coachCards) {
+      expect(c.pages).toBe(1);
+      expect(c.a4).toBe(true);
+      expect(c.overflow).toEqual([]);
+      expect(c.scale).toBeGreaterThanOrEqual(1);
     }
   });
 
@@ -59,5 +69,33 @@ d('print pack v2 — real render (Chromium)', () => {
       expect(p.width).toBeLessThanOrEqual(1080);
       expect(p.height / p.width).toBeLessThanOrEqual(1.24);
     }
+  });
+});
+
+d('print pack v2 script — coach card files (L33)', () => {
+  const fs = require('fs');
+  const os = require('os');
+  let out;
+  let layout;
+  beforeAll(() => {
+    out = fs.mkdtempSync(path.join(os.tmpdir(), 'pack-v2-'));
+    execFileSync(process.execPath, [path.join(ROOT, 'bot/scripts/child-test/build-print-pack-v2.js'), '--out', out], {
+      cwd: ROOT,
+      env: { ...process.env, NODE_PATH: path.join(ROOT, 'bot/node_modules'), NODE_OPTIONS: '' },
+      maxBuffer: 64 * 1024 * 1024,
+      timeout: 280000,
+    });
+    layout = JSON.parse(fs.readFileSync(path.join(out, 'layout.json'), 'utf8'));
+  }, 290000);
+  afterAll(() => { if (out) fs.rmSync(out, { recursive: true, force: true }); });
+
+  it('writes a one-page coach card per grade and set, Set B named for next term, none overflowing', () => {
+    for (const name of ['coach-card_G3_SetA', 'coach-card_G5_SetA', 'coach-card_G3_SetB_NEXT-TERM', 'coach-card_G5_SetB_NEXT-TERM']) {
+      const file = `${name}.pdf`;
+      expect(fs.existsSync(path.join(out, file))).toBe(true);
+      expect(layout.files[file].pages).toBe(1);
+      expect(layout.files[file].overflow).toEqual([]);
+    }
+    expect(layout.files['PRINT_ME.pdf'].pages).toBe(20);
   });
 });
