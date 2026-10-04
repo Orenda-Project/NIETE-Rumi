@@ -580,10 +580,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And the "Was this coaching report useful to you?" survey is on screen
     When I tap the yes button
     Then a 🙏 appears on my tap and no message is sent
+    And the chat header does not show "typing…" before the 🙏, however long the answer takes to record
     And my answer is recorded as useful
     And when the 🙏 cannot be sent, the bot sends "Thanks — glad it was useful." in my selected language instead
     # coaching-feedback.service handleFeedbackButton → ack-reaction reactOrSay (soleAck). Urdu fallback:
     # «شکریہ — خوشی ہے کہ یہ کام آئی۔» Unit: tests/meta-bill-cut/fx4-round3.test.js (FX4-2).
+    # UPDATED 2026-10-02 (FX7, bd-w2daa.31): reaction-only taps are settled at the webhook door
+    # (reaction-only-taps.js) before the handler's writes — a 3 s write no longer puts "typing…" up first
+    # (sandbox 18:03:56Z, TRIAGE #46). Axiom: inbound_typing.reaction_only_tap. Unit: fx7-reaction-only-taps.test.js.
 
   @e2e @wip @draft @P2 @COA73
   Scenario: The reason I type after "👎 Not really" is answered with a 🙏
@@ -665,6 +669,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When I tap "<answer>" on the commitment card
     Then my answer is recorded
     And my tap gets a <reaction> reaction and no message is sent
+    And the chat header does not show "typing…" before the reaction
     And when the reaction cannot be sent, the bot sends "<text>" in my selected language instead
 
     Examples:
@@ -673,6 +678,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
       | Maybe later     | 👌       | No problem — it will be here whenever you are ready.                    |
       | Not for me      | 🙏       | Thanks for telling us — we will suggest something different next time. |
     # card-response.service ACK_REACTION. Unit: tests/meta-bill-cut/fx6-round4.test.js (FX6-1).
+    # UPDATED 2026-10-02 (FX7, bd-w2daa.31): reaction-only taps are settled at the webhook door
+    # (reaction-only-taps.js) before the handler's writes — a 3 s write no longer puts "typing…" up first
+    # (sandbox 18:03:56Z, TRIAGE #46). Axiom: inbound_typing.reaction_only_tap. Unit: fx7-reaction-only-taps.test.js.
 
   @e2e @wip @draft @P1 @COA72
   Scenario: The lesson-plan list says a photo, a PDF, or typing the plan all work
@@ -1024,9 +1032,13 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And the coaching pipeline has asked whether I want to add another photo
     When I tap "Add another"
     Then my tap gets a 📸 reaction and no "Send the next classroom photo" text
+    And the chat header does not show "typing…" before the 📸
     When I send a classroom photo while my recording is still being transcribed
     Then my photo gets a 📸 reaction and no "Got your classroom photo" text
     # A parked photo re-attached after "which teacher is this for?" has no wamid → the text, as before.
+    # UPDATED 2026-10-02 (FX7, bd-w2daa.31): "Add another" can also answer with a message (closed / at the cap),
+    # so it is not in the door registry; add-another.service settles the turn once the session is re-openable,
+    # before its writes. Unit: fx7-reaction-only-taps.test.js (FX7-2).
 
   @e2e @wip @draft @P2 @COA66
   Scenario: Last time's commitment opens the photo question

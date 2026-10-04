@@ -51,7 +51,7 @@ const PART_2_OK = {
   screen: 'PART_TWO', p2_spoke: '10', p2_new: '5', p2_picked: 'often', p2_groups: 'combine', p2_listen: ['once'],
   p2_listen_other: '', p2_materials: 'children', p2_change: 'no', p2_notes: '',
 };
-const PLAN_NONE = { screen: 'LESSON_PLAN', lp: 'none' };
+const PLAN_NONE = { screen: 'LESSON_PLAN', fv: '4', lp: 'none' };
 const AFTER_OK = { screen: 'AFTER', incident: 'none', detail: '', note: '', priority: 'C8', seal_ok: true };
 const photo = (n) => ({ media_id: `m${n}`, file_name: `p${n}.jpg`, cdn_url: 'https://cdn.example/x', encryption_metadata: {} });
 
@@ -216,11 +216,12 @@ describe('Continue, on a reopened form', () => {
   test.each([
     [{ part1_done_at: 'x' }, 'PART_TWO'],
     [{ part1_done_at: 'x', part2_done_at: 'x' }, 'LESSON_PLAN'],
-    [{ part1_done_at: 'x', part2_done_at: 'x', answers: { lp: 'none' } }, 'AFTER'],
+    [{ part1_done_at: 'x', part2_done_at: 'x', answers: { lp: 'none' } }, 'PHOTOS'],
+    [{ part1_done_at: 'x', part2_done_at: 'x', answers: { lp: 'none', photo_how: 'none' } }, 'AFTER'],
     [{ part1_done_at: 'x', part2_done_at: 'x', sealed_at: '2026-09-30T05:39:00.000Z' }, 'SEALED'],
   ])('%j goes on to %s', async (patch, next) => {
     const id = await newForm(patch);
-    const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'CONTINUE', { screen: 'CONTINUE' });
+    const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'CONTINUE', { screen: 'CONTINUE', fv: '4' });
     expect(out.screen).toBe(next);
   });
 });

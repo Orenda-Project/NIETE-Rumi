@@ -133,6 +133,10 @@ async function handleAddAnotherPhotoTap({ sessionId, from, user, messageId = nul
     return;
   }
 
+  // FX7 (bd-w2daa.31): from here the answer is the 📸 reaction alone (its text only if the reaction
+  // cannot go) — settle the turn before the re-anchor write and the media-target set.
+  require('../../inbound-typing').nothingComing({ reason: 'photo_add_another' });
+
   // Re-anchor BEFORE prompting. If the send fails she is not told, but her photo
   // still lands on the photo gate; prompting first and failing to write would
   // send the photo she was just asked for into the lesson-plan branch — the bug.

@@ -10,8 +10,29 @@
  * 2026 that was 1,439 of 3,392 serves with no per-teacher record, a share that grows as the cache
  * fills.
  *
- * ONE WRITER: `lp612-serving.deliverRender`, after the document send succeeded — the one function
- * both the cache-hit path and the worker's waiter loop call. READERS: the lp612 /quiz provider.
+ * WRITERS, by surface:
+ *   whatsapp  `lp612-serving.deliverRender`, after the document send succeeded — the one function
+ *             both the cache-hit path and the worker's waiter loop call.
+ *   portal    (bd-5rz1v.21) the portal's claim on a render she asked for: `lp612-serving`'s cache
+ *             hit for the portal, and the worker's loop for a portal waiter (who has no phone, so is
+ *             never sent to) when it claims the waiter list.
+ * READERS:
+ *   - the lp612 /quiz provider (`recentForTeacher`, `byIdForTeacher`) — WhatsApp and backfill rows
+ *     ONLY. /quiz is a WhatsApp menu of lessons she received there; a portal request is not that,
+ *     and the K-5 portal opens (niete_lp_opens) do not reach /quiz either.
+ *   - the portal's access check and "My lesson plans" (`claimsRender`, `portalRenderIds`, via
+ *     lp612-browse) — any surface for the check: a teacher who received this render on WhatsApp
+ *     may open it in the portal too.
+ *   - the portal Home (dashboard lp-activity) reads the table in SQL — WhatsApp/backfill only.
+ *   - the portal's lesson list (`sentSegmentIds`, via lp612-browse, bd-5rz1v.14): ✓✓ Sent —
+ *     WhatsApp/backfill only.
+ *
+ * WHY A PORTAL ROW AT ALL (bd-5rz1v.21). The portal reads a lesson by RENDER id, and a render is
+ * shared: `requested_by` names the first requester and `waiters` is emptied when it completes. A
+ * portal cache hit recorded nothing for her, so every teacher after the first was told "No such
+ * lesson request" about the lesson the request had just called ready — production 3 Sep–3 Oct
+ * 2026: 98 of 114 portal cache-hit (render, teacher) pairs, 212 × 404 on /lp612/status. A row
+ * here is her durable, per-render claim; the column comment of V1.5.5 reserved 'portal' for it.
  *
  * THE TABLE MAY NOT BE THERE YET. Code ships before its migration is applied in each environment,
  * so a missing table (PostgREST PGRST205 / Postgres 42P01) is said at error level at most once per
@@ -26,6 +47,8 @@ const { logToFile } = require('../utils/logger');
 
 const TABLE = 'niete_lp612_deliveries';
 const SURFACES = Object.freeze(['whatsapp', 'portal', 'backfill']);
+/** What /quiz lists: lessons that reached her on WhatsApp (and the migration's backfill of them). */
+const QUIZ_SURFACES = Object.freeze(['whatsapp', 'backfill']);
 
 /** How long a missing table is believed before the writer tries again, and the log's own quiet period. */
 const MISSING_RETRY_MS = 10 * 60 * 1000;
@@ -91,7 +114,8 @@ async function recentForTeacher(userId, { since = null, limit = 20 } = {}, opts 
   if (!userId) return [];
   let q = client(opts).from(TABLE)
     .select('id, user_id, render_id, segment_id, lang, template_version, delivered_at')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .in('surface', QUIZ_SURFACES);
   if (since) q = q.gte('delivered_at', new Date(since).toISOString());
   // Over-read: a teacher re-taps a lesson, and each tap is a delivery row.
   const { data, error } = await q.order('delivered_at', { ascending: false }).limit(Math.max(1, limit) * 4);
@@ -111,12 +135,13 @@ async function recentForTeacher(userId, { since = null, limit = 20 } = {}, opts 
   return out;
 }
 
-/** One delivery, only if it is this teacher's. */
+/** One delivery, only if it is this teacher's and one /quiz may use (see QUIZ_SURFACES). */
 async function byIdForTeacher(id, userId, opts = {}) {
   if (!id || !userId) return null;
   const { data, error } = await client(opts).from(TABLE)
     .select('id, user_id, render_id, segment_id, lang, template_version, delivered_at')
-    .eq('id', id).eq('user_id', userId).maybeSingle();
+    .eq('id', id).eq('user_id', userId).in('surface', QUIZ_SURFACES)
+    .maybeSingle();
   if (error) {
     if (isMissingTable(error)) { sayMissing('read', error); return null; }
     throw new Error(`${TABLE}: ${error.message || error}`);
@@ -124,8 +149,111 @@ async function byIdForTeacher(id, userId, opts = {}) {
   return data || null;
 }
 
+/**
+ * bd-5rz1v.21 — has this render reached this teacher, on any surface? The portal's per-render claim
+ * once `requested_by` (first requester only) and `waiters` (emptied on completion) are no help.
+ *
+ * Never throws, and FAILS CLOSED: a read that failed is not a claim. It is said at error level, so
+ * a teacher refused because the ledger could not be read shows up as a fault, not as a quiet 404.
+ * Load: one probe of idx_lp612_deliveries_user_recent (one teacher's rows), only when the cheaper
+ * in-row claims have already said no.
+ */
+async function claimsRender(renderId, userId, opts = {}) {
+  if (!renderId || !userId) return false;
+  try {
+    const { data, error } = await client(opts).from(TABLE)
+      .select('id')
+      .eq('user_id', userId)
+      .eq('render_id', renderId)
+      .limit(1);
+    if (error) {
+      if (isMissingTable(error)) { sayMissing('claim', error); return false; }
+      logToFile(`❌ ${TABLE}: could not check a 6-12 render claim — refused`, { renderId, code: error.code, error: error.message }, 'error');
+      return false;
+    }
+    return Array.isArray(data) && data.length > 0;
+  } catch (err) {
+    logToFile(`❌ ${TABLE}: checking a 6-12 render claim threw — refused`, { renderId, error: err.message }, 'error');
+    return false;
+  }
+}
+
+/**
+ * bd-5rz1v.21 — the renders this teacher asked for in the PORTAL, newest first, deduplicated: the
+ * cache hits that "My lesson plans" could not see (she is neither `requested_by` nor a waiter).
+ * Never throws; a read that failed is logged and lists nothing extra.
+ * @returns {Promise<string[]>} render ids
+ */
+async function portalRenderIds(userId, { limit = 50 } = {}, opts = {}) {
+  if (!userId) return [];
+  try {
+    const { data, error } = await client(opts).from(TABLE)
+      .select('render_id, delivered_at')
+      .eq('user_id', userId)
+      .eq('surface', 'portal')
+      .order('delivered_at', { ascending: false })
+      .limit(Math.max(1, limit) * 4);
+    if (error) {
+      if (isMissingTable(error)) { sayMissing('read', error); return []; }
+      logToFile(`❌ ${TABLE}: could not list a teacher's portal 6-12 lessons`, { code: error.code, error: error.message }, 'error');
+      return [];
+    }
+    const ids = [];
+    for (const row of data || []) {
+      if (row.render_id && !ids.includes(row.render_id)) ids.push(row.render_id);
+      if (ids.length >= limit) break;
+    }
+    return ids;
+  } catch (err) {
+    logToFile(`❌ ${TABLE}: listing a teacher's portal 6-12 lessons threw`, { error: err.message }, 'error');
+    return [];
+  }
+}
+
+/**
+ * bd-5rz1v.14 — which of these segments reached this teacher on WhatsApp (or the migration's
+ * backfill of that): the portal's ✓✓ Sent on a 6-12 lesson, as `downloaded` is for 1-5. A
+ * 'portal' row is her claim on a render she asked for in the portal, not a lesson sent to her.
+ * Any language counts — the plan reached her. Never throws: "Sent" is a mark on a list, so a
+ * ledger that cannot be read marks nothing and is said at error level.
+ * Load: one read of idx_lp612_deliveries_user_recent (her rows), bounded by one chapter's ids.
+ * @returns {Promise<Set<string>>} segment ids
+ */
+async function sentSegmentIds(userId, segmentIds, opts = {}) {
+  const ids = Array.isArray(segmentIds) ? segmentIds.filter(Boolean) : [];
+  if (!userId || !ids.length) return new Set();
+  try {
+    const { data, error } = await client(opts).from(TABLE)
+      .select('segment_id')
+      .eq('user_id', userId)
+      .in('surface', QUIZ_SURFACES)
+      .in('segment_id', ids)
+      // Bounded: a re-tapped lesson is a row per tap, so allow a few per id, never the whole ledger.
+      .limit(ids.length * 20);
+    if (error) {
+      if (isMissingTable(error)) { sayMissing('read', error); return new Set(); }
+      logToFile(`❌ ${TABLE}: could not read which 6-12 lessons reached a teacher — none marked Sent`, { code: error.code, error: error.message }, 'error');
+      return new Set();
+    }
+    return new Set((data || []).map((r) => r.segment_id).filter(Boolean));
+  } catch (err) {
+    logToFile(`❌ ${TABLE}: reading which 6-12 lessons reached a teacher threw — none marked Sent`, { error: err.message }, 'error');
+    return new Set();
+  }
+}
+
 function __resetForTests() { missingUntil = 0; missingSaidAt = -Infinity; }
 
 module.exports = {
-  record, recentForTeacher, byIdForTeacher, isMissingTable, TABLE, SURFACES, MISSING_RETRY_MS, __resetForTests,
+  record,
+  recentForTeacher,
+  sentSegmentIds,
+  byIdForTeacher,
+  claimsRender,
+  portalRenderIds,
+  isMissingTable,
+  TABLE,
+  SURFACES,
+  MISSING_RETRY_MS,
+  __resetForTests,
 };

@@ -167,7 +167,7 @@ function confirmedPlan(lp, edits) {
 function renderDone(form, lines) {
   const l = lines || {
     done_line: `Saved at ${clock(form.checked_at)}`,
-    next_line: 'Your brief for the conversation with the teacher is in the chat.',
+    next_line: 'Next, in the chat: the debrief with the teacher.',
   };
   return { screen: 'DONE', data: { ...l, record_id: String((form && form.id) || '') } };
 }
@@ -203,29 +203,86 @@ function pickFields(screenData, keys) {
 
 // ------------------------------------------------------------------ after Submit
 
-async function sendBrief(form) {
+/**
+ * The checked record joins /observe's end. The session is saved the way /observe saves a submitted
+ * form: status observer_review_complete and the analysis its debrief, coach card and teacher report
+ * read (observe2/analysis.js), with the brief as this visit's debrief guide and the seal's photos
+ * as the report's classroom photos. Guarded like /observe's own write: never over a cancelled visit.
+ * @returns {Promise<{ok:boolean, coach?:object}>}
+ */
+async function handOver(form) {
+  const sessionId = form.coaching_session_id;
+  if (!sessionId) return { ok: false };
+  const { buildBrief } = require('../services/observe/observe2/brief');
+  const { buildAnalysis } = require('../services/observe/observe2/analysis');
+  const { TERMINAL_IN_FILTER } = require('../services/coaching/session-terminal');
+  const { data: coach } = await supabase.from('users')
+    .select('id, phone_number, preferred_language, name').eq('id', form.observer_user_id).maybeSingle();
+  const { data: row, error: readErr } = await supabase.from('coaching_sessions')
+    .select('analysis_data, user_id').eq('id', sessionId).maybeSingle();
+  if (readErr) {
+    logToFile('[observe2] checked, but the session could not be read for the hand-off', { formId: form.id, sessionId, error: readErr.message }, 'error');
+    return { ok: false, coach };
+  }
+  // The teacher: the form's, or the one the coach named after the recording ("who did you observe?").
+  const teacherId = form.teacher_user_id
+    || (row && row.user_id && row.user_id !== form.observer_user_id ? row.user_id : null);
+  let teacherName = null;
+  if (teacherId) {
+    const { data: t } = await supabase.from('users').select('name').eq('id', teacherId).maybeSingle();
+    teacherName = (t && t.name) || null;
+  }
+  const brief = buildBrief(form, { teacherName, lang: coach && coach.preferred_language });
+  const analysis = buildAnalysis(form, { brief });
+  const photos = Array.isArray(form.photos) ? form.photos.filter(Boolean) : [];
+  const patch = {
+    status: 'observer_review_complete',
+    analysis_data: { ...((row && row.analysis_data) || {}), ...analysis },
+    ...(photos.length ? { classroom_photos: photos.map((url) => ({ url })) } : {}),
+  };
+  const { data, error } = await supabase.from('coaching_sessions')
+    .update(patch).eq('id', sessionId).not('status', 'in', TERMINAL_IN_FILTER).select('id');
+  if (error || !(data || []).length) {
+    logToFile('[observe2] checked, but the session was not handed to the debrief', {
+      formId: form.id, sessionId, error: error && error.message, noRow: !error,
+    }, 'error');
+    return { ok: false, coach };
+  }
+  logToFile('[observe2] checked record handed to the debrief', {
+    formId: form.id, sessionId, pct: analysis.scores && analysis.scores.overall_percentage, sectionB: analysis.lp_fidelity.status,
+  });
+  return { ok: true, coach };
+}
+
+// Was the visit already handed over (a repeat Submit)? Read failures count as not yet, so the hand-off
+// is tried again: it is safe to repeat (the analysis is merged, the status write is guarded).
+async function handedOver(form) {
+  if (!form.coaching_session_id) return true;
+  const { data } = await supabase.from('coaching_sessions').select('status').eq('id', form.coaching_session_id).maybeSingle();
+  return Boolean(data && ['observer_review_complete', 'completed', 'cancelled', 'abandoned'].includes(data.status));
+}
+
+const NOT_HANDED = {
+  done_line: 'Saved',
+  next_line: 'Your answers are saved, but the next step did not start. Open this check again from the chat and tap Submit.',
+};
+
+// "Saved. Debrief now or later?", as after /observe's form, then the child test offer
+// (bd-s1oo0.4: gated inside sendOffer; never throws).
+async function askDebrief(form, coach) {
   try {
-    const { buildBrief } = require('../services/observe/observe2/brief');
-    const WhatsAppService = require('../services/whatsapp.service');
-    const { data: coach } = await supabase.from('users')
-      .select('phone_number, preferred_language').eq('id', form.observer_user_id).maybeSingle();
     if (!coach || !coach.phone_number) {
-      logToFile('[observe2] checked, but the coach could not be found for the brief', { formId: form.id }, 'error');
+      logToFile('[observe2] checked, but the coach could not be found to ask about the debrief', { formId: form.id }, 'error');
       return;
     }
-    let teacherName = null;
-    if (form.teacher_user_id) {
-      const { data: t } = await supabase.from('users').select('name').eq('id', form.teacher_user_id).maybeSingle();
-      teacherName = (t && t.name) || null;
-    }
-    await WhatsAppService.sendMessage(coach.phone_number, buildBrief(form, { teacherName, lang: coach.preferred_language }));
-    logToFile('[observe2] brief sent', { formId: form.id });
-    // The child test (bd-s1oo0.4): "Test 5 children now?", carrying this visit so the school and
-    // the observed class are pre-filled. Gated inside sendOffer (flag + coach role + ICT); never throws.
+    const Debrief = require('../services/observe/observe-debrief.service');
+    const { observeStrings, observeLang } = require('../services/observe/observe-strings');
+    await Debrief.acknowledgeFormSubmitted(coach.phone_number, form.coaching_session_id, observeStrings(observeLang(coach)));
+    logToFile('[observe2] debrief offered', { formId: form.id, sessionId: form.coaching_session_id });
     const ChildTestOffer = require('../services/child-test/conversation/offer');
     await ChildTestOffer.sendOffer({ coachUserId: form.observer_user_id, kind: 'f', id: form.id });
   } catch (err) {
-    logToFile('[observe2] the brief failed', { formId: form.id, error: err.message }, 'error');
+    logToFile('[observe2] asking about the debrief failed', { formId: form.id, error: err.message }, 'error');
   }
 }
 
@@ -292,7 +349,18 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
   }
 
   if (step === 'PRIORITY') {
-    if (form.checked_at) return renderDone(form);
+    if (form.checked_at) {
+      // A repeat Submit: if the first one saved the answers but could not hand the visit over, try again.
+      if (!(await handedOver(form))) {
+        const again = await handOver(form);
+        if (again.ok) {
+          setImmediate(() => { askDebrief(form, again.coach); });
+          return renderDone(form);
+        }
+        return renderDone(form, NOT_HANDED);
+      }
+      return renderDone(form);
+    }
     const review = form.evidence_review || {};
     const added = review.added || {};
     const finalLevels = {};
@@ -307,11 +375,14 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
       return renderDone(form, { done_line: 'Not saved', next_line: 'Something went wrong. Close this and open the check again from the chat.' });
     }
     logToFile('[observe2] record checked', { formId: form.id });
-    if (form.coaching_session_id) {
-      const Moments = require('../services/observe/observe2/moments');
-      await Moments.setStatus(form.coaching_session_id, 'observe2_checked');
+    let handed = { ok: false };
+    try {
+      handed = await handOver(checked.form);
+    } catch (err) {
+      logToFile('[observe2] the hand-off to the debrief threw', { formId: form.id, error: err.message }, 'error');
     }
-    setImmediate(() => { sendBrief(checked.form); });
+    if (!handed.ok) return renderDone(checked.form, { ...NOT_HANDED, done_line: `Saved at ${clock(checked.form.checked_at)}` });
+    setImmediate(() => { askDebrief(checked.form, handed.coach); });
     return renderDone(checked.form);
   }
 

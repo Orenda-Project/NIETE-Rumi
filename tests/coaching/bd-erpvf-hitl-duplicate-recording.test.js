@@ -42,11 +42,14 @@ const mockSessionRow = {
 
 let mockPriorRow = { id: 'prior-obs', status: 'completed', created_at: '2026-09-20T08:00:00Z' };
 let mockLookupThrows = false;
+// /observe2 (bd-ra8xu.33): the rows an UPDATE returns — the field form a refused recording was linked
+// to. null = no form (a classic /observe recording).
+let mockUpdatedRows = null;
 jest.mock('../../bot/shared/config/supabase', () => ({
   from() {
     const q = {
       select() { return q; },
-      update() { return q; },
+      update() { q.isUpdate = true; return q; },
       eq() { return q; },
       is() { return q; },
       gte() { return q; },
@@ -59,7 +62,7 @@ jest.mock('../../bot/shared/config/supabase', () => ({
         if (mockLookupThrows) throw new Error('column audio_hash does not exist');
         return { data: mockPriorRow, error: null };
       },
-      then(resolve) { return Promise.resolve({ data: null, error: null }).then(resolve); },
+      then(resolve) { return Promise.resolve({ data: q.isUpdate ? mockUpdatedRows : null, error: null }).then(resolve); },
     };
     return q;
   },
@@ -217,6 +220,19 @@ describe('the REAL processTranscription on a leader observation', () => {
     expect(mockSendMessage).toHaveBeenCalledWith('923339998887', UR);
     expect(mockSendImageFromUrl).not.toHaveBeenCalled();   // no prior report is resent
     expect(mockSendDocumentFromUrl).not.toHaveBeenCalled();
+  });
+
+  // /observe2: the refused recording had already joined the visit's field form. The real call site
+  // gives the form back and adds that it still waits, in the coach's language.
+  test('an /observe2 recording refused as a duplicate gives its form back, and the coach is told it still waits', async () => {
+    mockUpdatedRows = [{ id: 'form-9', created_at: new Date().toISOString() }];
+    try {
+      await run();
+      const waiting = require('../../bot/shared/services/observe/observe2/strings').observe2Strings('ur').duplicate_form_waiting;
+      expect(mockSendMessage).toHaveBeenCalledWith('923339998887', `${UR}\n\n${waiting}`);
+    } finally {
+      mockUpdatedRows = null;
+    }
   });
 
   test('an observation the coach already cancelled is not messaged about', async () => {

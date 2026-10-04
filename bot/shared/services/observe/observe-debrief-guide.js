@@ -230,6 +230,8 @@ function validateGuide(guide, S, language = 'sw') {
 const SECTION_EMOJI = { strengths: '💪', growth: '🌱', action: '📋' };
 
 function renderGuideMessage(guide, S) {
+  // A guide written whole (the /observe2 brief) is sent as written.
+  if (guide && typeof guide.text === 'string' && guide.text) return guide.text;
   const lines = [`🌱 ${guide.intro || ''}`.trim(), ''];
 
   // bd-y7jr8 — the 3+1 shape. Three headings she reads out, then the question

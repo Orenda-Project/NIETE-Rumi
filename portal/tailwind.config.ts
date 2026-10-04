@@ -1,4 +1,6 @@
 import type { Config } from "tailwindcss";
+// bd-5rz1v.12 — the new UI's colours come from ONE file; see src/portal/newui/DESIGN.md.
+import { tailwindColors as newUiColors, tailwindShadows as newUiShadows } from "./src/portal/newui/tokens";
 
 export default {
   darkMode: ["class"],
@@ -60,7 +62,11 @@ export default {
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         error: "hsl(var(--error))",
+        // bd-5rz1v.12 — new UI (Direction B): bg-nu-ink, text-nu-leaf, text-nu-nav-label, …
+        nu: newUiColors,
       },
+      // bd-5rz1v.19 — the new UI's button edges and menu-bar shadow: shadow-nu-button, shadow-nu-nav, …
+      boxShadow: newUiShadows,
       fontFamily: {
         'urdu': ['"Noto Nastaliq Urdu"', 'serif'],
         'arabic': ['"Noto Sans Arabic"', 'sans-serif'],
@@ -111,6 +117,18 @@ export default {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(250%)" },
         },
+        // bd-5rz1v.9 — the "Send a lesson" button: a soft light that sweeps
+        // across it (rests for the first 55% of each 4s), and a ring that
+        // pulses out of its arrow. Transform and box-shadow only; each use
+        // pairs them with motion-reduce:.
+        "send-sheen": {
+          "0%, 55%": { transform: "translateX(-135%) skewX(-18deg)" },
+          "100%": { transform: "translateX(290%) skewX(-18deg)" },
+        },
+        "send-halo": {
+          "0%": { boxShadow: "0 0 0 0 rgba(255,255,255,0.65)" },
+          "100%": { boxShadow: "0 0 0 14px rgba(255,255,255,0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -120,8 +138,11 @@ export default {
         "attention-ring": "attention-ring 1.6s ease-out infinite",
         "sound-level": "sound-level 0.9s ease-in-out infinite",
         "progress-stripe": "progress-stripe 1.4s ease-in-out infinite",
+        "send-sheen": "send-sheen 4s ease-in-out infinite",
+        "send-halo": "send-halo 2s ease-out infinite",
       },
     },
   },
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- unchanged since the scaffold; lint flagged it once this file was touched
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;
