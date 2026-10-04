@@ -209,6 +209,28 @@ describe('2. eighteen tasks, one step and one note each', () => {
     expect(lanes.calls.filter((c) => c[0] === 'sendCheck')).toHaveLength(0);
   });
 
+  // L39's v3 review sends the results itself (summarySent) and splits long results (visitSummaryMessages).
+  test('the visit end hands to L39: results it already sent are never sent again', async () => {
+    review.sendReview.mockImplementation(async () => ({ ok: true, items: 0, pages: 0, summarySent: true }));
+    await startVisit();
+    for (const d of ['d1', 'd2', 'd3', 'd4', 'd5']) await testChild(d);
+    await H.__drain();
+    expect(review.visitSummary).not.toHaveBeenCalled();
+    expect(allText()).not.toMatch(/^summary$/m);
+  });
+
+  test('the review could not be sent: the results go as L39\'s split messages, each one sent', async () => {
+    review.sendReview.mockImplementation(async () => ({ ok: false, reason: 'send_failed' }));
+    review.visitSummaryMessages = jest.fn(async () => ['results part 1', 'results part 2']);
+    await startVisit();
+    for (const d of ['d1', 'd2', 'd3', 'd4', 'd5']) await testChild(d);
+    await H.__drain();
+    expect(review.visitSummaryMessages).toHaveBeenCalledWith('en', expect.stringMatching(/^day:/), expect.objectContaining({ coachUserId: COACH_ID }));
+    const txt = sent().filter((m) => m.kind === 'text').map((m) => m.text);
+    expect(txt).toEqual(expect.arrayContaining(['results part 1', 'results part 2']));
+    expect(review.visitSummary).not.toHaveBeenCalled();
+  });
+
   test('an Urdu coach: Urdu header with Urdu digits, Urdu step copy', async () => {
     await startVisit(COACH_UR);
     await present('d1', COACH_UR);

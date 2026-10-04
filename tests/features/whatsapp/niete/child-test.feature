@@ -771,3 +771,61 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a child tested in ICT-2026-Q4 can return in ICT-2027-Q1, but no child is drawn back in the same term or into a set they already read
     And with CHILD_TEST_FORM_POLICY=returning_b new children read Form A and the returning child Form B, as before
 
+  # ── L36 (bd-s1oo0.50.2, CONTRACT §21.4, design/COACH_JOURNEY_V3.md §3): battery v3, CHILD_TEST_BATTERY=v3 ──
+  # The unit is the task: 18 per child (ur.* 5, en.* 5, ma.* 8), one plain step message (no buttons, so it stays
+  # the last bubble above the recorder) and one voice note each. The words to the child come verbatim from the
+  # item bank's script. v3 implies oral maths and the end-of-visit review. The default battery stays v2.
+
+  @e2e @wip @draft @config-gated @P0 @CT51
+  Scenario: v3 order — eighteen tasks per child, Urdu 5, English 5, Maths 8, one step and one note each
+    Given CHILD_TEST_BATTERY is v3 and I tapped "Here, start" for Ayesha Khan
+    Then the step "*Ayesha Khan* · Urdu 1 of 5 · Listening" arrives as plain text with no buttons
+    When I send one voice note per step
+    Then the steps come in the order Urdu 1–5, English 1–5, Maths 1–8, each starting with "🎧 Got it · <the task just sent>"
+    And each note is stored as its own task row (ur.listening … ma.word_problems) and scored by task
+    And after the 18th task "✅ Ayesha Khan done. Thank the child." arrives with the next child's prompt
+    # conversation/steps-v3.js taskStep; machine.js unitsOf(); the visit end is the v2 one, handed to L39's review.
+
+  @e2e @wip @draft @config-gated @P0 @CT52
+  Scenario: v3 timed step — practice first, then 🎤, the begin line, stop at 1:00, send at about 1:05
+    Given the Urdu letters step for Ayesha Khan is on screen
+    Then it names "Urdu booklet, page 1: letters"
+    And it gives the bank's intro and instructions to say before recording, and the practice row (marked "not recorded") when the bank has one
+    And it says to tap 🎤 and lock, say the bank's begin line, and «آگے پڑھیں» after 3 seconds stuck
+    And "At 1:00 on the mic" say «بس، شکریہ», and send at about 1:05
+    And one line gives the stop rule: "Nothing right in the first row? Say «شکریہ!» and send."
+
+  @e2e @wip @draft @config-gated @P0 @CT53
+  Scenario: v3 untimed step — record the whole task, stop after 4 wrong in a row
+    Given the "Which is bigger" step for a Grade 3 child is on screen
+    Then it says "Maths 2 of 8 · Which is bigger" and "Maths booklet Grade 3, page 2"
+    And it gives the practice pairs before the mic, then says to record the whole task
+    And it gives the bank's line to ask for each pair, and «اگلا» after 5 seconds with no answer
+    And one line says "Stop after 4 wrong in a row"
+    And the step has no 1:00 or 1:05
+    # Word problems: no booklet page; the six problems are listed in Urdu for the coach to read aloud.
+
+  @e2e @wip @draft @config-gated @P0 @CT54
+  Scenario: v3 skip — "skip" stores the task as skipped by the coach and sends the next step
+    Given the "Harder addition" step is open because the quick additions were all wrong
+    When I type "skip"
+    Then "⏭️ Skipped: <title>." arrives on top of the "Maths 7 of 8" step, in one bubble
+    And the task row is stored with ai-marks-v3 { skipped_by_coach: true }, no audio and no model call
+    And «چھوڑیں», "next" and «اگلا» do the same
+    And "skip" when no step is open is not taken by the child test
+
+  @e2e @wip @draft @config-gated @P1 @CT55
+  Scenario: v3 gap — a task with no official items is skipped with an honest line
+    Given the item bank marks Urdu made-up words as { gap: true }
+    When I send the voice note for Urdu letters
+    Then "⏭️ Made-up words: not part of this test yet, so it is skipped." arrives on top of the "Urdu 4 of 5 · Familiar words" step
+    And the gap task is stored with { skipped_by_coach: true, gap: true } and never counted as wrong
+
+  @e2e @wip @draft @config-gated @P1 @CT56
+  Scenario: v3 nudge and resume name the task
+    Given the "Urdu 2 of 5 · Letters" step has been open for 4 minutes with no note
+    Then "*Ayesha Khan* · Urdu 2 of 5 · Letters" arrives with "Did the recording stop?…", once
+    When I send "/egra"
+    Then "Ayesha Khan is on Urdu 2 of 5 (Letters)." arrives with "Continue" and "Stop this child"
+    When I tap "Continue"
+    Then the letters step is sent again as the last bubble

@@ -1486,10 +1486,22 @@ async function afterVisit(coachUserId, from, lang, visit, sessionIds) {
     }
     if (!r || !r.ok) logError('child_test.review_send_failed', { visit, error: r && (r.error || r.reason) });
     else logToFile('child_test.review_sent', { visit, items: 0 });
+    // v3 (L39): the review sends the results itself, split per child, and says so.
+    if (r && r.ok && r.summarySent) return;
     if (r && r.ok && r.summary) {
       await say(from, r.summary);
       return;
     }
+  }
+  // L39's split results (each ≤ 4096 code points: a v3 visit outgrows one message), else the one v2 text.
+  if (typeof ports.review.visitSummaryMessages === 'function') {
+    const parts = await ports.review.visitSummaryMessages(lang, visit, { coachUserId });
+    if (parts && parts.length) {
+      for (const part of parts) await say(from, part);
+      return;
+    }
+    logToFile('child_test.visit_summary_missing', { visit }, 'warn');
+    return;
   }
   const summary = await ports.review.visitSummary(lang, visit);
   if (summary) await say(from, summary);
