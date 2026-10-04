@@ -161,10 +161,12 @@ test('runVisitV3 plays five children against the real bot: every note lands on i
   const rows = T().child_test_blocks;
   expect(rows).toHaveLength(90);
   expect(rows.every((b) => b.checked_at)).toBe(true);
-  // the coach answered each slot from its child's key: odd items wrong, even items right, questions right
+  // the coach answered each slot from its child's key: odd item NUMBERS wrong, even right, questions right.
+  // items[] positions are 0-based; their i (the item number) is 1-based, as L37 writes it (bd-s1oo0.50.8):
+  // discrimination reviewed item 3 (position 2), missing reviewed item 8 (position 7).
   const s0 = T().child_test_sessions[0].id;
-  expect(rows.find((b) => b.session_id === s0 && b.block === 'ma.discrimination').coach_marks.items[2].verdict).toBe('correct');
-  expect(rows.find((b) => b.session_id === s0 && b.block === 'ma.missing').coach_marks.items[7].verdict).toBe('wrong');
+  expect(rows.find((b) => b.session_id === s0 && b.block === 'ma.discrimination').coach_marks.items[2].verdict).toBe('wrong');
+  expect(rows.find((b) => b.session_id === s0 && b.block === 'ma.missing').coach_marks.items[7].verdict).toBe('correct');
   expect(rows.find((b) => b.session_id === s0 && b.block === 'ur.story').coach_marks.comprehension[3].verdict).toBe('correct');
   const s2 = T().child_test_sessions[WEAK].id;
   expect(rows.find((b) => b.session_id === s2 && b.block === 'ma.add2').ai_marks.skipped_by_coach).toBe(true);

@@ -3,7 +3,8 @@
  * placeholders shaped like the bank's (§21.3), not the bank. No child data.
  *
  * Assumptions this fixture makes about §21.5, stated in lanes/L39/CHANGE_REQUEST.md:
- *   - items[].i is the 0-based position in the task's printed items (spec.items, or spec.questions for listening);
+ *   - items[].i is the 1-based item number, as L37 writes it (spec.items[i - 1], or spec.questions for listening);
+ *     review[] names items by that number, and story questions as "q:<id>" (bd-s1oo0.50.8);
  *   - items[].ref is the item as printed: a string (letter, word, number) or the bank object ({a, b}, {seq}, {prompt_ur, prompt_en});
  *   - review[] holds item positions i; for a story, a comprehension row is named by its id.
  */
@@ -22,7 +23,7 @@ function timed(task, { correct, attempted, total, timeRemaining = 0, refs, revie
   const items = Array.from({ length: total }, (_, i) => {
     let verdict = 'not_reached';
     if (i < attempted) verdict = i < correct ? 'correct' : 'wrong';
-    return { i, ref: refs ? refs(i) : `item${i + 1}`, verdict, heard: heard[i] || (verdict === 'not_reached' ? '' : `h${i + 1}`), conf: 0.9, settled: verdict !== 'not_reached' };
+    return { i: i + 1, ref: refs ? refs(i) : `item${i + 1}`, verdict, heard: heard[i] || (verdict === 'not_reached' ? '' : `h${i + 1}`), conf: 0.9, settled: verdict !== 'not_reached' };
   });
   const used = 60 - timeRemaining;
   return {
@@ -34,7 +35,7 @@ function timed(task, { correct, attempted, total, timeRemaining = 0, refs, revie
 
 function untimed(task, { verdicts, refs, review = [], heard = {}, unsettled = [] }) {
   const items = verdicts.map((verdict, i) => ({
-    i, ref: refs(i), verdict, heard: heard[i] != null ? heard[i] : (verdict === 'none' ? '' : `h${i + 1}`),
+    i: i + 1, ref: refs(i), verdict, heard: heard[i] != null ? heard[i] : (verdict === 'none' ? '' : `h${i + 1}`),
     conf: unsettled.includes(i) ? 0.3 : 0.92, settled: !unsettled.includes(i) && verdict !== 'none' && verdict !== 'not_reached',
   }));
   const reached = items.filter((x) => x.verdict !== 'not_reached');
@@ -68,24 +69,24 @@ const sumRef = (op) => (i) => ({ a: 3 + i, b: 2 + (i % 5), answer: op === '+' ? 
  */
 function child(o = {}) {
   const m = {
-    'ur.listening': untimed('ur.listening', { verdicts: vs('ccwccn'), refs: (i) => q('ur', i + 1).id, review: [5], unsettled: [5] }),
+    'ur.listening': untimed('ur.listening', { verdicts: vs('ccwccn'), refs: (i) => q('ur', i + 1).id, review: [6], unsettled: [5] }),
     'ur.letters': timed('ur.letters', { correct: 57, attempted: 62, total: 100, refs: (i) => `ل${i}` }),
     'ur.nonwords': timed('ur.nonwords', { correct: 12, attempted: 15, total: 50 }),
     'ur.words': timed('ur.words', { correct: 20, attempted: 24, total: 50 }),
-    'ur.story': story('ur.story', 'ur', { correct: 29, attempted: 33, comp: [{ v: 'correct' }, { v: 'correct' }, { v: 'correct' }, { v: 'wrong', conf: 0.5, heard: 'پانی' }, { v: 'none', reached: false, asked: false }, { v: 'none', reached: false, asked: false }], review: ['ur.story.q4'] }),
-    'en.listening': untimed('en.listening', { verdicts: vs('cwwccn'), refs: (i) => q('en', i + 1).id, review: [5] }),
+    'ur.story': story('ur.story', 'ur', { correct: 29, attempted: 33, comp: [{ v: 'correct' }, { v: 'correct' }, { v: 'correct' }, { v: 'wrong', conf: 0.5, heard: 'پانی' }, { v: 'none', reached: false, asked: false }, { v: 'none', reached: false, asked: false }], review: ['q:ur.story.q4'] }),
+    'en.listening': untimed('en.listening', { verdicts: vs('cwwccn'), refs: (i) => q('en', i + 1).id, review: [6] }),
     'en.letters': timed('en.letters', { correct: 31, attempted: 36, total: 100 }),
     'en.nonwords': timed('en.nonwords', { correct: 6, attempted: 9, total: 50 }),
     'en.words': timed('en.words', { correct: 14, attempted: 18, total: 50 }),
     'en.story': story('en.story', 'en', { correct: 22, attempted: 25, comp: [{ v: 'correct' }, { v: 'wrong' }, { v: 'none', reached: false, asked: false }] }),
     'ma.number_id': timed('ma.number_id', { correct: 14, attempted: 16, total: 20, refs: (i) => String(10 + i * 7) }),
-    'ma.discrimination': untimed('ma.discrimination', { verdicts: vs('ccnccwwccc'), refs: (i) => ({ a: 140 + i, b: 153 - i, answer: Math.max(140 + i, 153 - i) }), review: [2], unsettled: [2], heard: { 2: '' } }),
-    'ma.missing': untimed('ma.missing', { verdicts: vs('cccwwccnww'), refs: (i) => ({ seq: [i + 1, i + 2, null, i + 4], answer: i + 3 }), review: [7], unsettled: [7] }),
+    'ma.discrimination': untimed('ma.discrimination', { verdicts: vs('ccnccwwccc'), refs: (i) => ({ a: 140 + i, b: 153 - i, answer: Math.max(140 + i, 153 - i) }), review: [3], unsettled: [2], heard: { 2: '' } }),
+    'ma.missing': untimed('ma.missing', { verdicts: vs('cccwwccnww'), refs: (i) => ({ seq: [i + 1, i + 2, null, i + 4], answer: i + 3 }), review: [8], unsettled: [7] }),
     'ma.add1': timed('ma.add1', { correct: 9, attempted: 11, total: 20, refs: sumRef('+') }),
     'ma.sub1': timed('ma.sub1', { correct: 6, attempted: 9, total: 20, refs: sumRef('-') }),
     'ma.add2': untimed('ma.add2', { verdicts: vs('ccwcw'), refs: (i) => ({ a: 18 + i, b: 7 + i, answer: 25 + 2 * i }) }),
     'ma.sub2': untimed('ma.sub2', { verdicts: vs('cwcww'), refs: (i) => ({ a: 28 + i, b: 9 + i, answer: 19 }) }),
-    'ma.word_problems': untimed('ma.word_problems', { verdicts: vs('cccwcn'), refs: (i) => ({ prompt_ur: `عبارتی سوال ${i + 1}`, prompt_en: `Word problem ${i + 1}`, answer: i + 2 }), review: [5], unsettled: [5] }),
+    'ma.word_problems': untimed('ma.word_problems', { verdicts: vs('cccwcn'), refs: (i) => ({ prompt_ur: `عبارتی سوال ${i + 1}`, prompt_en: `Word problem ${i + 1}`, answer: i + 2 }), review: [6], unsettled: [5] }),
   };
   return { ...m, ...o };
 }
