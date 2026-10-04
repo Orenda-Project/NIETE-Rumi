@@ -837,6 +837,16 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # here". From the check on, /observe's own code runs (observe-debrief, observe-send, observe-completion).
     # "Later" keeps the visit in /observe's list of debriefs to do.
 
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: Choosing someone else after the report preview shows a new preview for that teacher
+    Given I tapped "Send report" and the preview for the observed teacher arrived
+    When I tap "Someone else", choose to add a new teacher and type their name and number
+    Then the bot says it is preparing the report
+    And within a few minutes the preview for that teacher arrives with "Send now"
+    # 4 Oct sandbox E2E: the second preview was dropped by the job queue's 1-hour duplicate guard
+    # (one key per session and phase). coaching-job-queue.service.js queueObserveTeacherReport now
+    # tells previews apart by the teacher's number; the same teacher twice is still one job.
+
   @e2e @config-gated @wip @draft @negative @P2
   Scenario: A teacher's /observe2 is refused
     Given the NIETE bot chat is open on a TEACHER account on sandbox
