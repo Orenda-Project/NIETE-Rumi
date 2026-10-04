@@ -20,8 +20,9 @@
  *   coachMarksForTask                coach_marks in the coach-marks-v2 shape, generalised to a task: ai_marks with
  *                                    the reviewed verdicts replaced and the task's score recomputed from them.
  *
- * Assumed of §21.5 (lanes/L39/CHANGE_REQUEST.md): items[].i is the 0-based position in the printed items
- * (spec.items; spec.questions for listening); review[] names items by i, and story questions by their id.
+ * As L37 writes §21.5 (lanes/L37/CHANGE_REQUEST.md): items[].i is the 1-based NUMBER of the printed item
+ * (spec.items[i - 1]; spec.questions for listening); review[] names items by i, and story questions as
+ * "q:<id>" (a bare id is accepted too). bd-s1oo0.50.8: the 0-based reading showed the coach the next item.
  * Names go to the coach's WhatsApp only, never into a log line.
  */
 
@@ -136,14 +137,16 @@ function candidates(entry, specFor = () => null) {
     for (const ref of ai.review) {
       let c = null;
       if (typeof ref === 'string' && comp.length) {
-        const k = comp.findIndex((q) => q && q.id === ref);
+        const id = ref.replace(/^q:/, '');
+        const k = comp.findIndex((q) => q && q.id === id);
         if (k >= 0 && COUNTED(comp[k])) {
-          c = { field: 'comprehension', itemId: ref, number: k + 1, mark: comp[k], path: `comprehension[${ref}].verdict` };
+          c = { field: 'comprehension', itemId: id, number: k + 1, mark: comp[k], path: `comprehension[${id}].verdict` };
         }
       } else if (isNum(ref)) {
         const mark = items.find((x) => x && Number(x.i) === Number(ref));
         if (mark && mark.verdict !== 'not_reached') {
-          c = { field: 'items', itemId: `i${mark.i}`, number: Number(mark.i) + 1, mark, path: `items[${mark.i}].verdict` };
+          // path: the mark's position in ai_marks.items (a real JSON path); number: the printed item number
+          c = { field: 'items', itemId: `i${mark.i}`, number: Number(mark.i), mark, path: `items[${items.indexOf(mark)}].verdict` };
         }
       }
       if (!c || seen.has(c.path)) continue;
@@ -196,9 +199,9 @@ function printedItem(c) {
     const qs = spec && Array.isArray(spec.questions) ? spec.questions : [];
     return qs.find((q) => q && q.id === c.itemId) || c.mark;
   }
-  const i = Number(c.mark.i);
+  const i = Number(c.mark.i) - 1; // items[].i is the 1-based item number
   const list = c.kind === 'listening' ? spec && spec.questions : spec && spec.items;
-  const fromBank = Array.isArray(list) ? list[i] : null;
+  const fromBank = Array.isArray(list) && i >= 0 ? list[i] : null;
   if (fromBank != null) return fromBank;
   if (c.kind === 'listening' && Array.isArray(spec && spec.questions)) {
     const q = spec.questions.find((x) => x && x.id === c.mark.ref);

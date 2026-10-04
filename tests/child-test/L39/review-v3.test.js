@@ -159,7 +159,7 @@ describe('review (v3)', () => {
     expect(d.i4_q).toBe(`Missing number: ${miss.seq.map((x) => (x == null ? '_' : x)).join(', ')}`);
     expect(d.i5_q).toBe(`Problem 6: ${bankItem('ma.word_problems', 5).prompt_en}`);
     expect(d.i11_v).toBe(false);
-    // en.listening (provisional) had review [5]: never asked
+    // en.listening (provisional) had review [6]: never asked
     expect(Object.values(d).join('\n')).not.toMatch(/English listening/);
     // rows with nothing to review are settled at once; rows under review are not
     expect(row('s1', 'ma.add1').coach_marks.meta.source).toBe('ai_unreviewed');
@@ -169,7 +169,7 @@ describe('review (v3)', () => {
 
   test('a sum reads "Sum 4: a + b", from the bank', async () => {
     const tasks = F.child();
-    tasks['ma.add2'] = { ...tasks['ma.add2'], review: [3] };
+    tasks['ma.add2'] = { ...tasks['ma.add2'], review: [4] };
     seed([{ id: 's1', name: 'Ayesha Khan', tasks }]);
     await review.sendReview(COACH.id, VISIT);
     const d = flowCall(0).screenData;
