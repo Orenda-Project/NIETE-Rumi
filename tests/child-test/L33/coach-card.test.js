@@ -127,9 +127,16 @@ describe('coach card (v2, L33)', () => {
                 expect(shown.some((a) => URDU.test(a))).toBe(false);
                 expect(accText.includes(norm(resolveUx('childTestCoachCardAcceptAlsoUrdu', { language: 'en' })))).toBe(hasUrdu);
               }
-              for (const a of expected) {
-                const covered = shown.includes(a) || shown.some((o) => ` ${a} `.includes(` ${o} `));
-                expect({ a, covered }).toEqual({ a, covered: true });
+              // at most COACH_ACCEPT_MAX examples (bd-j41md): beyond that, "…" says more answers count
+              // (the AI scores against the whole list; the card is the coach's reminder)
+              const more = /class="more"/.test(acc);
+              expect(shown.length).toBeLessThanOrEqual(v2.COACH_ACCEPT_MAX);
+              if (more) expect(shown).toHaveLength(v2.COACH_ACCEPT_MAX);
+              else {
+                for (const a of expected) {
+                  const covered = shown.includes(a) || shown.some((o) => ` ${a} `.includes(` ${o} `));
+                  expect({ a, covered }).toEqual({ a, covered: true });
+                }
               }
               expect(shown.length).toBeGreaterThan(0);
               for (const a of shown) expect(accText).toContain(a);
@@ -291,5 +298,51 @@ describe('PRINT_ME with coach cards (L33)', () => {
     expect(cc.text).toContain(v2.setLabel('B'));
     expect(cc.text).toContain(v2.NOT_YET);
     expect(cc.text).toContain(norm(formOf(BANK, 5, 'B').maths.oral.word_problems[1].prompt_ur));
+  });
+});
+
+describe('coach card: Urdu lines have room for Nastaliq (bd-j41md)', () => {
+  // Nastaliq hangs deep below its baseline. At 1.65 / 1.5 line spacing a question's descenders ran
+  // into its accepted answers, and the answers into each other (seen at 300 dpi on the Set A pack,
+  // 4 Oct). Every other Urdu text in the pack is set at 1.9 or more.
+  const lineHeight = (css, selector) => {
+    let found;
+    const re = /([^{}]+)\{([^}]*)\}/g;
+    let m;
+    while ((m = re.exec(css))) {
+      if (!m[1].split(',').map((s) => s.trim()).includes(selector)) continue;
+      const lh = m[2].match(/line-height:\s*([\d.]+)\s*(;|$)/);
+      if (lh) found = Number(lh[1]);
+    }
+    return found;
+  };
+
+  for (const g of [3, 5]) {
+    it(`grade ${g}: Urdu question, accepted answers and said lines are set at 1.9 or more`, () => {
+      const html = v2.buildCoachCardHtml({ grade: g, set: 'A', form: formOf(BANK, g, 'A') });
+      const css = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1];
+      expect(css).toBeDefined();
+      for (const sel of ['.blk.ur .p', '.blk.ur .acc', '.blk.ur .line']) {
+        const lh = lineHeight(css, sel);
+        expect({ sel, lh: lh === undefined ? 'missing' : lh >= 1.9 }).toEqual({ sel, lh: true });
+      }
+    });
+  }
+});
+
+describe('coach card: a handful of accepted answers, not the whole list (bd-j41md)', () => {
+  // The bank holds up to 22 accepted answers for one question; printed in full they pushed the
+  // Grade 5 card off one A4 side once the Urdu lines got Nastaliq room. The coach needs examples.
+  it('prints the first 4 distinct answers in bank order, then … when the bank has more', () => {
+    const f = clone(formOf(BANK, 5, 'A'));
+    f.english.questions[2].accept = ['alpha one', 'bravo two', 'charlie three', 'delta four', 'echo five', 'foxtrot six'];
+    f.urdu.questions[0].accept = ['الف', 'بے'];
+    const html = v2.buildCoachCardHtml({ grade: 5, set: 'A', form: f });
+    const en = part(html, 'accept', f.english.questions[2].id);
+    const shown = [...en.matchAll(/<bdi>([\s\S]*?)<\/bdi>/g)].map((m) => visibleText(m[1]));
+    expect(shown).toEqual(['alpha one', 'bravo two', 'charlie three', 'delta four']);
+    expect(en).toMatch(/class="more"[^>]*>…</);
+    const ur = part(html, 'accept', f.urdu.questions[0].id);
+    expect(ur).not.toMatch(/class="more"/);
   });
 });

@@ -291,7 +291,7 @@ const COACH_CARD_CSS = `
 .blk.en .tag{font-family:${LATIN_STACK};line-height:1.5}
 .blk.ur .tag{font-family:${URDU_STACK};line-height:1.65}
 .line{font-size:calc(var(--s)*${COACH_CARD_PT.body}pt)}
-.blk.ur .line,.blk.ur .p{line-height:1.65}
+.blk.ur .line,.blk.ur .p{line-height:2}
 .blk.en .line,.blk.en .p{line-height:1.4}
 .q{display:flex;gap:2.5mm;align-items:baseline;margin-top:.3mm}
 .q .num{flex:0 0 6.5mm;height:6.5mm;border-radius:50%;background:var(--band);color:#fff;text-align:center;font:700 11pt/6.5mm ${LATIN_STACK}}
@@ -300,7 +300,7 @@ const COACH_CARD_CSS = `
 .qb{flex:1 1 auto;min-width:0}
 .p{font-weight:700;font-size:calc(var(--s)*${COACH_CARD_PT.body}pt)}
 .acc{font-size:calc(var(--s)*${COACH_CARD_PT.acc}pt);color:#475467}
-.blk.ur .acc{line-height:1.5;font-size:calc(var(--s)*${COACH_CARD_PT.accUr}pt)}
+.blk.ur .acc{line-height:1.95;font-size:calc(var(--s)*${COACH_CARD_PT.accUr}pt)}
 .blk.en .acc{line-height:1.25;font-family:'CTAndika','CTNastaliq',sans-serif}
 .acc .k{font-weight:700;color:#344054}
 .acc bdi{unicode-bidi:isolate}
@@ -354,6 +354,10 @@ const URDU_RE = /[\u0600-\u06FF]/;
  * words ("a small plant" ⊃ "plant") adds nothing for the coach's ear, so only the shorter is shown.
  * Order is the bank's. Nothing is added: every printed answer is a bank answer.
  */
+// The card shows the coach a few examples, not the bank's whole list (up to 22 for one question): the
+// AI scores against every accepted answer; a "…" after the last example says more count (bd-j41md).
+const COACH_ACCEPT_MAX = 4;
+
 function coachAccepts(accept, { latinOnly = false } = {}) {
   let n = [...new Set((accept || []).map(one))];
   if (latinOnly && n.some((a) => !URDU_RE.test(a))) n = n.filter((a) => !URDU_RE.test(a));
@@ -386,7 +390,8 @@ function ccStory(block, b) {
   const qs = b.questions.map((q, i) => '<div class="q">'
     + `<span class="num">${num(i)}</span><div class="qb"><div class="p">${esc(fix(q.prompt))}</div>`
     + `<div class="acc" data-accept="${esc(q.id)}"><span class="k">${esc(L(lang === 'en' && q.accept.some((a) => URDU_RE.test(a)) ? 'childTestCoachCardAcceptAlsoUrdu' : 'childTestCoachCardAccept'))}:</span> `
-    + coachAccepts(q.accept, { latinOnly: lang === 'en' }).map((a) => `<bdi>${esc(a)}</bdi>`).join(sep)
+    + ((all) => all.slice(0, COACH_ACCEPT_MAX).map((a) => `<bdi>${esc(a)}</bdi>`).join(sep)
+      + (all.length > COACH_ACCEPT_MAX ? `${sep}<span class="more" aria-label="more answers count">…</span>` : ''))(coachAccepts(q.accept, { latinOnly: lang === 'en' }))
     + '</div></div></div>').join('');
   const title = block === 'urdu' ? 'childTestCoachCardUrduStory' : 'childTestCoachCardEnglishStory';
   return `<div class="blk ${lang}" data-block="${block}" dir="${T.dir}" lang="${lang}">`
@@ -831,6 +836,7 @@ module.exports = {
   buildCoachPageHtml,
   buildCoachCardHtml,
   COACH_CARD_PT,
+  COACH_ACCEPT_MAX,
   buildPrintMeHtml,
   setupPictureSvg,
   buildSetupPictureHtml,
