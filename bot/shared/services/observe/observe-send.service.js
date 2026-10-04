@@ -246,7 +246,7 @@ async function startSendFlow(sessionId, from, user) {
       await ObserveState.setState(user.id, 'awaiting_send_confirm', { sessionId });
       await WhatsAppService.sendMessage(
         from, fillPreviewComing(S, picked.name, picked.phone));
-      await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview' });
+      await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview', teacherPhone: picked.phone });
       logToFile('📤 observe send: bound teacher carried — no pick asked', {
         sessionId, observerId: user.id, recipientSource: 'session_binding',
       });
@@ -432,7 +432,7 @@ async function handleTeacherPick(user, from, listId) {
     await ObserveState.setState(user.id, 'awaiting_send_confirm', { sessionId });
     await WhatsAppService.sendMessage(
       from, fillPreviewComing(S, picked.name, picked.phone));
-    await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview' });
+    await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview', teacherPhone: picked.phone });
     logToFile('🎯 observe send: recipient chosen from the roster', {
       sessionId, observerId: user.id, recipientSource: 'roster_pick',
     });
@@ -696,7 +696,7 @@ async function handleTeacherDetailsText(user, from, text, observeState) {
     await ObserveState.setState(user.id, 'awaiting_send_confirm', { sessionId });
     await WhatsAppService.sendMessage(
       from, fillPreviewComing(S, parsed.name, parsed.phone));
-    await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview' });
+    await CoachingJobQueueService.queueObserveTeacherReport(sessionId, { from, phase: 'preview', teacherPhone: parsed.phone });
   } catch (err) {
     logToFile('❌ observe send: details capture failed', { sessionId, error: err.message });
     await WhatsAppService.sendMessage(from, S.debrief_load_error);
