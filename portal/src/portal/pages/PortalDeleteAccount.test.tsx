@@ -41,7 +41,7 @@ beforeAll(() => {
 });
 
 const PATH = "/portal/delete-account";
-const PRIVACY_URL = "https://taleemabad.com/privacy-policy/";
+const PRIVACY_PATH = "/portal/privacy";
 
 function renderAppAt(path: string) {
   window.history.pushState({}, "", path);
@@ -93,10 +93,12 @@ describe("bd-3wb0s — /portal/delete-account is public", () => {
 });
 
 describe("bd-3wb0s — what the deletion page says", () => {
-  it("names NIETE and the operator, Orenda Welfare Trust (Taleemabad)", async () => {
+  it("names NIETE and the portal it covers", async () => {
     renderAppAt(PATH);
     await screen.findByRole("heading", { level: 1, name: "Delete your NIETE account" });
-    expect(document.body).toHaveTextContent("Orenda Welfare Trust (Taleemabad)");
+    // bd-nvnf2: the publisher is the legal entity on the Play developer account
+    // (asserted below), no longer "Orenda Welfare Trust (Taleemabad)".
+    expect(document.body).not.toHaveTextContent("Orenda Welfare Trust");
     expect(document.body).toHaveTextContent("portal.niete.edu.pk");
   });
 
@@ -146,12 +148,18 @@ describe("bd-3wb0s — what the deletion page says", () => {
     expect(back).toHaveAttribute("href", "/portal/login");
   });
 
-  it("links the privacy policy on taleemabad.com, opening outside the app", async () => {
+  it("links the NIETE privacy policy inside the app (bd-nvnf2)", async () => {
     renderAppAt(PATH);
     await screen.findByRole("heading", { level: 1, name: "Delete your NIETE account" });
     const link = within(document.body).getByRole("link", { name: /privacy policy/i });
-    expect(link).toHaveAttribute("href", PRIVACY_URL);
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(link).toHaveAttribute("href", PRIVACY_PATH);
+    expect(link).not.toHaveAttribute("target");
+  });
+
+  it("names the publisher on the Play listing, as the privacy policy does (bd-nvnf2)", async () => {
+    renderAppAt(PATH);
+    await screen.findByRole("heading", { level: 1, name: "Delete your NIETE account" });
+    expect(document.body).toHaveTextContent(/developer NIETE/);
+    expect(document.body).toHaveTextContent("ORENDA PRIVATE LIMITED");
   });
 });

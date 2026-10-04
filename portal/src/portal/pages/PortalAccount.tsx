@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight, ExternalLink, LogOut, School, ShieldCheck, UserMinus, UserRound } from 'lucide-react';
+import { ChevronRight, LogOut, School, ShieldCheck, UserMinus, UserRound } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import PortalLayout from '../components/PortalLayout';
 import { useAuth } from '../hooks/useAuth';
 import { useLogoutGuard } from '../lib/recordingSession';
-import { DELETE_ACCOUNT_PATH, EXTERNAL_LINK_PROPS, PRIVACY_POLICY_URL } from '../lib/legalLinks';
+import { DELETE_ACCOUNT_PATH, PRIVACY_POLICY_PATH } from '../lib/legalLinks';
 import type { User } from '../types/portal';
 
 /**
@@ -113,14 +113,13 @@ const AccountView = () => {
       <nav aria-label="Account" className="overflow-hidden rounded-2xl bg-white">
         <ul className="divide-y divide-[#eceef1]">
           <li>
-            <a href={PRIVACY_POLICY_URL} {...EXTERNAL_LINK_PROPS} className={`${ROW} text-foreground`}>
+            <Link to={PRIVACY_POLICY_PATH} className={`${ROW} text-foreground`}>
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/[0.06] text-primary">
                 <ShieldCheck className="h-5 w-5" aria-hidden="true" />
               </span>
               <span className="flex-1 text-[17px] font-medium">Privacy policy</span>
-              <span className="sr-only">(opens outside the app)</span>
-              <ExternalLink className="h-[18px] w-[18px] shrink-0 text-[#9aa0aa] rtl:-scale-x-100" aria-hidden="true" />
-            </a>
+              <ChevronRight className="h-5 w-5 shrink-0 text-[#9aa0aa] rtl:rotate-180" aria-hidden="true" />
+            </Link>
           </li>
           <li>
             <Link to={DELETE_ACCOUNT_PATH} className={`${ROW} text-[#a8423b]`}>

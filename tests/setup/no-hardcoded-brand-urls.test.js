@@ -51,15 +51,19 @@ const FORBIDDEN_PATTERNS = [
 // human reason. Empty by default — keep it that way.
 //
 // The one exception: the app's legal links. Google Play's User Data policy
-// needs the privacy policy linked in the app and a contact for account
-// deletion. The operator's decision is that this deployment's policy of record
-// IS the operator's own page, and deletion requests go to its mailbox, so the
+// needs a contact for account deletion and privacy questions, and the
+// operator's decision is that those go to the operator's own mailbox, so the
 // domain is not upstream brand drift here, it is the legally required
 // destination. An env var was rejected because a missing value on any one
-// environment would silently drop the link from the app and fail the Play
+// environment would silently drop the contact from the app and fail the Play
 // review. The file holds only these constants, so the exception cannot spread.
+//
+// bd-nvnf2: the privacy policy itself is NOT the operator's web page any more.
+// Play rejected taleemabad.com/privacy-policy/ because it never names the app
+// or its developer; the policy is the portal's own /portal/privacy. Only the
+// mailbox may use the domain (see the ratchet test below).
 const ALLOWLIST = new Map([
-  ['portal/src/portal/lib/legalLinks.ts', 'Play User Data policy: privacy-policy URL and deletion-request mailbox (operator decision)'],
+  ['portal/src/portal/lib/legalLinks.ts', 'Play User Data policy: deletion-request and privacy-contact mailbox (operator decision)'],
 ]);
 
 function findScannedFiles(dir) {
@@ -116,5 +120,17 @@ describe('Brand-URL hygiene — no hardcoded upstream brand domains in source', 
     // env-driven path first. The one entry is the Play-required legal links
     // (see the ALLOWLIST comment for why env-driven was not enough).
     expect([...ALLOWLIST.keys()]).toEqual(['portal/src/portal/lib/legalLinks.ts']);
+  });
+
+  it('the legal-links exception covers the mailbox only, never a taleemabad.com web page (bd-nvnf2)', () => {
+    // Play rejected the NIETE app for linking taleemabad.com/privacy-policy/,
+    // which names neither the app nor its developer. The policy lives on the
+    // portal; a web URL on the operator's domain here would bring that back.
+    const src = fs.readFileSync(path.join(ROOT, 'portal/src/portal/lib/legalLinks.ts'), 'utf-8');
+    // Strip comments (block, and whole-line //) so the history in the doc
+    // comment doesn't count; a trailing // would also eat the `//` in `https://`.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    expect(code).not.toMatch(/https?:\/\/[^'"`\s]*taleemabad\.com/i);
+    expect(code).toMatch(/info@taleemabad\.com/);
   });
 });
