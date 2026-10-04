@@ -113,9 +113,10 @@ describe('timed tasks: the clock, attempted, correct, time remaining, rate (EGRA
     expect(m.timed.clock).toBe('cue');
     expect(m.timed.seconds_given).toBe(60);
     expect(m.timed.end_at_s).toBeCloseTo(BEGIN_END + 60, 1);
+    // 5 s of pre-roll (a late cue match must not cut off the child's first items), 2 s after the minute
     const [s, e] = global.__cuts[0];
-    expect(s).toBeCloseTo(BEGIN_END - 0.5, 1);
-    expect(e).toBeCloseTo(BEGIN_END + 61, 1);
+    expect(s).toBeCloseTo(0, 1);                      // max(0, 2.9 − 5)
+    expect(e).toBeCloseTo(BEGIN_END + 62, 1);
     expect(m.timed.attempted).toBe(15);
     expect(m.timed.correct).toBe(12);
     expect(m.timed.time_remaining).toBe(0);
@@ -148,6 +149,16 @@ describe('timed tasks: the clock, attempted, correct, time remaining, rate (EGRA
     // EGMA: 3-digit numbers need "hundred" (سو)
     expect(prompts()[0]).toMatch(/hundred/i);
     expect(prompts()[0]).toContain('17. 245');
+  });
+
+  test('pre-roll is 5 s when the begin line is later in the note; an evaluation window overrides the cut', async () => {
+    H.sonioxReturns(axios, [[1, 8.0, bank.BEGIN.ur], [2, 10, 'چار']]);
+    route([['ADDITION', H.items(H.rep('c', 5) + H.rep('s', 15))]]);
+    await scoreTask({ task: 'ma.add1', spec: spec('ma.add1'), media: media(), lang: 'ur', grade: 3 });
+    expect(global.__cuts[0][0]).toBeCloseTo(8.9 - 5, 1);
+    global.__cuts = [];
+    await scoreTask({ task: 'ma.add1', spec: spec('ma.add1'), media: media({ window: { start: 1, end: 75 } }), lang: 'ur', grade: 3 });
+    expect(global.__cuts[0]).toEqual([1, 75]);
   });
 
   test('rate formula is EGRA Toolkit §10.3 exactly', () => {

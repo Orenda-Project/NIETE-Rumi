@@ -5,8 +5,9 @@
  *   scoreTask({ task, spec, media, lang, grade }) → ai-marks-v3
  *     task   a v3 task id (tasks.js TASKS_V3), dispatched on kindOf(task)
  *     spec   the bank's task spec (item-bank.v3, getTaskSpec)
- *     media  { file, durationSec, words?, beginAtS?, skipped_by_coach? } — a local audio file; `words`
- *            (Soniox) when already transcribed; `beginAtS` when the clock is known (offline evaluation)
+ *     media  { file, durationSec, words?, beginAtS?, window?, skipped_by_coach? } — a local audio file;
+ *            `words` (Soniox) when already transcribed; `beginAtS` / `window` (the clip) only for offline
+ *            evaluation on study recordings, where the clock and cut are known
  *     lang   reading tasks: their own language; maths: the coach's language (word-problem text)
  *   A skipped task or a bank gap returns { skipped_by_coach: true } without a model call.
  *   Failures return { ok: false, reason } (never throws); `calls` (cost per call) rides on the marks' meta.

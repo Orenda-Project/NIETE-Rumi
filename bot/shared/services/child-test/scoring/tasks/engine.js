@@ -2,7 +2,7 @@
 /**
  * Child test v3 (bd-s1oo0.50.3) — the two engines the per-kind scorers run on.
  *
- *   timedTask   Soniox words → the clock → one clip [begin − 0.5, begin + 61] → one or more audio-model
+ *   timedTask   Soniox words → the clock → one clip [begin − 5, begin + 62] → one or more audio-model
  *               calls with the exact item list → per-item rows → first-row stop → attempted, correct,
  *               time remaining, rate.
  *   untimedTask the whole note → one audio-model call with the items and answers → rows → 4-in-a-row stop
@@ -13,6 +13,8 @@ const { chatJSON } = require('../llm');
 const { modelFor } = require('../models');
 const { cutClip, cleanup } = require('../media');
 const C = require('./common');
+
+const PRE_ROLL = 5;
 
 async function audioCall({ model, prompt, schema, clip, job, calls }) {
   const r = await chatJSON({ model, prompt, schema, audio: { data: clip.base64, format: 'mp3' }, job, maxTokens: 12000 });
@@ -35,7 +37,11 @@ async function timedTask(ctx, p) {
   const model = modelFor('counts');
   let clip = null;
   try {
-    clip = await cutClip(media.file, clock.begin_at_s - 0.5, clock.begin_at_s + C.SECONDS + 1, 'mp3');
+    // 5 s of pre-roll: practice is done before recording, so nothing scoreable sits there, and a cue matched
+    // a little late must not cut off the child's first items (each would read as passed over = wrong).
+    // `media.window` is for offline evaluation only: the study's own cut of a longer recording.
+    const w = media.window || { start: Math.max(0, clock.begin_at_s - PRE_ROLL), end: clock.begin_at_s + C.SECONDS + 2 };
+    clip = await cutClip(media.file, w.start, w.end, 'mp3');
     const replies = await Promise.all(p.variants.map((v) => audioCall({ model, prompt: v.prompt, schema: v.schema, clip, job: `child_test.${kind}${v.name ? `_${v.name}` : ''}`, calls })));
     const [primary, ...others] = replies.map((json, k) => ({ json, raw: p.variants[k].parse(json) }));
     const rows = C.timedRows(primary.raw, p.refs);
