@@ -1,0 +1,3419 @@
+{
+  "version": "child-test-items-v3",
+  "built_by": "lane L35 (bd-s1oo0.50.1), golive/lanes/L35/build/build_bank_v3.py",
+  "rule": "All test material from official EGRA/EGMA sources or the RWP study where it held the material in full. Nothing authored; a slot with no source is {gap:true, reason}.",
+  "conventions": {
+    "source_ref": "\"<sourceKey>:<field-or-page>\"; the key resolves in `sources`. Object items with their own `source` override the task's `source.items`.",
+    "translation": "Urdu renderings of English scripts and word problems are marked translation.ur = pending-native-review.",
+    "grades": "Reading is one form for Grades 3 and 5 (as RWP). Maths has one form per grade; G3 is Core EGMA.",
+    "tokens": "Story tokens are the scored words in reading order, punctuation stripped (v2 convention).",
+    "digits": "Maths items on the child's card use Western digits; Urdu prose read aloud uses Urdu digits (v2 convention)."
+  },
+  "sources": {
+    "rwp2026": {
+      "title": "Rawalpindi/ICT May 2026 EGRA/EGMA instrument (Tabadlab/Akademos, SurveyCTO codebook v109), as transcribed in egra-egma-real-items.json and cross-checked against the export (lane R7)",
+      "url": "local:06_Logs & Misc/Reports/Active/EGRA Student Assessment - Sep 2026/review-staging-build/src_v2/shared/data/egra-egma-real-items.json",
+      "pages": "fields cited per item (e.g. rwp2026:letterid_fl_urd)"
+    },
+    "egra_tk2016": {
+      "title": "Early Grade Reading Assessment (EGRA) Toolkit, Second Edition (RTI International for USAID, 2016)",
+      "url": "https://ierc-publicfiles.s3.amazonaws.com/public/resources/EGRA%20Toolkit%20V2%202016.pdf",
+      "pages": "Annex H, printed pp.186-199 (child instructions, example and practice items)"
+    },
+    "core_egma": {
+      "title": "Core EGMA instrument (RTI International, March 2013; re-issued March 2014)",
+      "url": "https://shared.rti.org/content/core-egma-instrument",
+      "pages": "pp.2-11 (Tasks 1-6: items, practice, scripts)"
+    }
+  },
+  "sets": {
+    "A": {
+      "term": {
+        "en": "Set A (2026-27, term 1)",
+        "ur": "سیٹ A (۲۰۲۶-۲۷، پہلی ٹرم)"
+      },
+      "reading": {
+        "ur": {
+          "listening": {
+            "task": "ur.listening",
+            "title": {
+              "en": "Listening",
+              "ur": "سن کر سمجھنا"
+            },
+            "timed_s": null,
+            "items": [],
+            "practice": [],
+            "stop": {
+              "type": "none"
+            },
+            "script": {
+              "intro": {
+                "en": "I am going to read you a short story aloud TWICE and then ask you some questions. Please listen carefully and answer the questions as best as you can. You can answer the questions in whichever language you prefer. Ready? Let's begin.",
+                "ur": "میں آپ کو ایک چھوٹی سی کہانی دو بار اونچی آواز میں سناؤں گا، پھر کچھ سوال پوچھوں گا۔ دھیان سے سنیں اور جتنا اچھا ہو سکے جواب دیں۔ آپ جس زبان میں چاہیں جواب دے سکتے ہیں۔ تیار ہیں؟ چلیں شروع کرتے ہیں۔"
+              },
+              "after": {
+                "en": "Good effort! Let's go on to the next section.",
+                "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔"
+              }
+            },
+            "source": {
+              "items": "rwp2026:listcomp_passage_urd",
+              "script": "egra_tk2016:p.199"
+            },
+            "quality": "ai_review",
+            "story": {
+              "text": "کل عائشہ کے اسکول میں صفائی کا دن تھا۔ تمام بچوں نے اپنی کلاس صاف کی۔ عائشہ نے میزوں کو کپڑے سے صاف کیا اور کوڑا ڈبے میں ڈالا۔ اس کی سہیلی نے دیواروں پر لگے چارٹ سیدھے کیے۔ جب استاد آئے تو کلاس بہت صاف تھی۔ استاد نے بچوں کی محنت کی تعریف کی۔ سب بچے خوش نظر آئے۔"
+            },
+            "read_times": 2,
+            "questions": [
+              {
+                "id": "ur.listening.q1",
+                "prompt": "اسکول میں کون سا دن تھا؟",
+                "type": "literal",
+                "accept": [
+                  "صفائی کا دن",
+                  "صفائی",
+                  "صفائی والا دن",
+                  "کلاس کی صفائی کا دن"
+                ],
+                "reject": [
+                  "چھٹی کا دن",
+                  "کھیل کا دن",
+                  "امتحان کا دن"
+                ],
+                "rubric": "Correct if the child says it was the cleaning day (صفائی کا دن).",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "صفائی کا دن",
+                "source": "rwp2026:listcomp_lit1_urd"
+              },
+              {
+                "id": "ur.listening.q2",
+                "prompt": "عائشہ نے کیا صاف کیا؟",
+                "type": "literal",
+                "accept": [
+                  "میزیں",
+                  "میزوں کو صاف کیا",
+                  "میز",
+                  "میزیں صاف کیں"
+                ],
+                "reject": [
+                  "دیواریں",
+                  "چارٹ",
+                  "کلاس",
+                  "فرش"
+                ],
+                "rubric": "Correct if the child says the tables/desks (میزیں). The whole class, the walls or the charts are wrong.",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "میزیں / میزوں کو صاف کیا",
+                "source": "rwp2026:listcomp_lit2_urd"
+              },
+              {
+                "id": "ur.listening.q3",
+                "prompt": "سہیلی نے کیا سیدھا کیا؟",
+                "type": "literal",
+                "accept": [
+                  "چارٹ",
+                  "دیواروں پر لگے چارٹ",
+                  "چارٹس"
+                ],
+                "reject": [
+                  "میزیں",
+                  "کوڑا",
+                  "دیواریں",
+                  "کتابیں"
+                ],
+                "rubric": "Correct if the child says the charts (چارٹ).",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "چارٹ",
+                "source": "rwp2026:listcomp_lit3_urd"
+              },
+              {
+                "id": "ur.listening.q4",
+                "prompt": "استاد نے کس چیز کی تعریف کی؟",
+                "type": "literal",
+                "accept": [
+                  "بچوں کی محنت",
+                  "محنت",
+                  "محنت کی تعریف کی",
+                  "بچوں کے کام کی"
+                ],
+                "reject": [
+                  "عائشہ کی",
+                  "صاف کلاس",
+                  "چارٹ کی"
+                ],
+                "rubric": "Correct if the child says the children's hard work (محنت). A clean class alone is wrong: the question asks what was praised.",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "بچوں کی محنت / محنت کی تعریف کی",
+                "source": "rwp2026:listcomp_lit4_urd"
+              },
+              {
+                "id": "ur.listening.q5",
+                "prompt": "کلاس صاف ہونے کے بعد استاد خوش کیوں ہوئے؟",
+                "type": "inferential",
+                "accept": [
+                  "کیونکہ کلاس صاف تھی",
+                  "بچوں نے محنت کی",
+                  "کلاس صاف تھی",
+                  "بچوں نے کلاس صاف کی",
+                  "صفائی ہو گئی تھی"
+                ],
+                "reject": [
+                  "معلوم نہیں",
+                  "کیونکہ وہ خوش تھے"
+                ],
+                "rubric": "Correct if the child links the happiness to the clean class or the children's effort. A circular answer (\"because they were happy\") is wrong.",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "کیونکہ کلاس صاف تھی / بچوں نے محنت کی",
+                "source": "rwp2026:listcomp_inf1_urd"
+              },
+              {
+                "id": "ur.listening.q6",
+                "prompt": "کیا بچوں نے مل کر کام کیا؟ آپ کیسے جانتے ہیں؟",
+                "type": "inferential",
+                "accept": [
+                  "ہاں، سب بچوں نے مل کر کلاس صاف کی",
+                  "ہاں",
+                  "ہاں، سب نے مل کر صفائی کی",
+                  "سب بچوں نے صفائی کی",
+                  "سب نے کام کیا"
+                ],
+                "reject": [
+                  "نہیں",
+                  "صرف عائشہ نے کام کیا"
+                ],
+                "rubric": "Correct if the child says yes and gives the story's evidence that all the children cleaned together (a bare \"yes\" is accepted, as in the RWP key). \"No\" or \"only Ayesha\" is wrong.",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "ہاں، سب بچوں نے مل کر کلاس صاف کی",
+                "source": "rwp2026:listcomp_inf2_urd"
+              }
+            ],
+            "script_note": "TK p.199 verbatim except \"ONCE\" -> \"TWICE\": RWP read the story twice (R7), kept for comparability.",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "question_timeout_s": 10,
+            "practice_note": "EGRA listening comprehension has no practice item (TK p.199)."
+          },
+          "letters": {
+            "task": "ur.letters",
+            "title": {
+              "en": "Letters",
+              "ur": "حروف"
+            },
+            "timed_s": 60,
+            "per_row": 10,
+            "kind": "names",
+            "direction": "rtl",
+            "items": [
+              "ر",
+              "د",
+              "م",
+              "ک",
+              "س",
+              "ج",
+              "پ",
+              "ت",
+              "ب",
+              "ا",
+              "ش",
+              "ح",
+              "ع",
+              "گ",
+              "ف",
+              "ق",
+              "ل",
+              "و",
+              "ہ",
+              "ن",
+              "ص",
+              "ث",
+              "ظ",
+              "ز",
+              "ذ",
+              "خ",
+              "ڑ",
+              "ڈ",
+              "ٹ",
+              "چ",
+              "ؤ",
+              "ئ",
+              "ں",
+              "ے",
+              "ض",
+              "ط",
+              "غ",
+              "آ",
+              "ء",
+              "ی",
+              "ہ",
+              "و",
+              "ن",
+              "ر",
+              "ل",
+              "س",
+              "ک",
+              "ت",
+              "م",
+              "ب",
+              "ی",
+              "ش",
+              "ح",
+              "گ",
+              "ع",
+              "ق",
+              "ف",
+              "د",
+              "پ",
+              "ج",
+              "ظ",
+              "ث",
+              "ص",
+              "ز",
+              "ذ",
+              "خ",
+              "ڑ",
+              "ڈ",
+              "ٹ",
+              "چ",
+              "م",
+              "ک",
+              "و",
+              "ہ",
+              "ں",
+              "ے",
+              "ی",
+              "ء",
+              "ا",
+              "آ",
+              "ق",
+              "ف",
+              "ج",
+              "ت",
+              "پ",
+              "ب",
+              "ن",
+              "ل",
+              "ر",
+              "س",
+              "ڈ",
+              "ٹ",
+              "چ",
+              "د",
+              "ف",
+              "ض",
+              "ط",
+              "ع",
+              "ح",
+              "گ"
+            ],
+            "practice": [],
+            "stop": {
+              "type": "first_row",
+              "n": 10
+            },
+            "script": {
+              "intro": {
+                "en": "Here is a page full of letters of the URDU alphabet. Please tell me the NAMES of as many letters of the alphabet as you can. Not their sounds, but their names.",
+                "ur": "یہ صفحہ اردو حروفِ تہجی سے بھرا ہوا ہے۔ جتنے حروف ہو سکیں، ان کے نام بتائیں۔ آواز نہیں، صرف نام۔"
+              },
+              "instructions": {
+                "en": "When I say \"Begin,\" start here [point to first letter] and go across the page [point]. Point to each letter and tell me the name of that letter in a loud voice. Read as quickly and carefully as you can. If you come to a letter you do not know, go on to the next letter. Put your finger on the first letter.",
+                "ur": "جب میں کہوں \"شروع کریں\" تو یہاں سے شروع کریں [پہلے حرف کی طرف اشارہ کریں] اور صفحے پر آگے بڑھیں۔ ہر حرف پر انگلی رکھیں اور اونچی آواز میں اس کا نام بتائیں۔ جتنا جلدی اور دھیان سے ہو سکے پڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ پہلے حرف پر انگلی رکھیں۔"
+              },
+              "begin": {
+                "en": "Ready? Begin.",
+                "ur": "تیار ہیں؟ اب شروع کریں"
+              },
+              "go_on": {
+                "en": "Please go on.",
+                "ur": "آگے پڑھیں"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "بس، شکریہ"
+              },
+              "early_stop": {
+                "en": "Thank you!",
+                "ur": "شکریہ!"
+              },
+              "after": {
+                "en": "Good effort! Let's go on to the next section.",
+                "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔"
+              }
+            },
+            "source": {
+              "items": "rwp2026:letterid_fl_urd",
+              "script": "egra_tk2016:p.189"
+            },
+            "quality": "provisional",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "practice_note": "No Urdu practice letters: RWP did not record them (R7) and no official Urdu EGRA instrument publishing them was found (SOURCES.md)."
+          },
+          "nonwords": {
+            "task": "ur.nonwords",
+            "title": {
+              "en": "Made-up words",
+              "ur": "بنائے ہوئے الفاظ"
+            },
+            "gap": true,
+            "reason": "PROVISIONAL (search in progress): RWP had no Urdu made-up words (R7); no official Urdu EGRA list recorded yet.",
+            "searched": []
+          },
+          "words": {
+            "task": "ur.words",
+            "title": {
+              "en": "Familiar words",
+              "ur": "جانے پہچانے الفاظ"
+            },
+            "timed_s": 60,
+            "per_row": 5,
+            "direction": "rtl",
+            "items": [
+              "بچہ",
+              "دروازہ",
+              "پانی",
+              "کتاب",
+              "گھر",
+              "قلم",
+              "بستہ",
+              "کمرہ",
+              "استاد",
+              "سکول",
+              "باغ",
+              "کھڑکی",
+              "کرسی",
+              "میز",
+              "کاپی",
+              "چائے",
+              "دودھ",
+              "روٹی",
+              "درخت",
+              "پھول",
+              "دوست",
+              "بہن",
+              "بھائی",
+              "باپ",
+              "ماں",
+              "ہاتھ",
+              "جوتا",
+              "کپڑا",
+              "گیند",
+              "کھیل",
+              "منہ",
+              "سر",
+              "ناک",
+              "کان",
+              "آنکھ",
+              "ستارہ",
+              "چاند",
+              "سورج",
+              "رات",
+              "دن",
+              "دکان",
+              "بازار",
+              "سڑک",
+              "بس",
+              "گاڑی",
+              "گھڑی",
+              "مچھلی",
+              "پرندہ",
+              "کتا",
+              "بلی"
+            ],
+            "practice": [],
+            "stop": {
+              "type": "first_row",
+              "n": 5
+            },
+            "script": {
+              "intro": {
+                "en": "Here are some words in URDU. I would like you to read as many words as you can. Do not spell the words, but read them.",
+                "ur": "یہ کچھ اردو الفاظ ہیں۔ جتنے الفاظ ہو سکیں پڑھیں۔ ہجے نہ کریں، پورا لفظ پڑھیں۔"
+              },
+              "instructions": {
+                "en": "When I say \"Begin,\" start here [point to first word] and read across the page [point]. Point to each word and read it in a loud voice. Read as quickly and carefully as you can. If you come to a word you do not know, go on to the next word. Put your finger on the first word.",
+                "ur": "جب میں کہوں \"شروع کریں\" تو یہاں سے شروع کریں [پہلے لفظ کی طرف اشارہ کریں] اور صفحے پر آگے پڑھیں۔ ہر لفظ پر انگلی رکھیں اور اونچی آواز میں پڑھیں۔ جتنا جلدی اور دھیان سے ہو سکے پڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ پہلے لفظ پر انگلی رکھیں۔"
+              },
+              "begin": {
+                "en": "Ready? Begin.",
+                "ur": "تیار ہیں؟ اب شروع کریں"
+              },
+              "go_on": {
+                "en": "Please go on.",
+                "ur": "آگے پڑھیں"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "بس، شکریہ"
+              },
+              "early_stop": {
+                "en": "Thank you!",
+                "ur": "شکریہ!"
+              },
+              "after": {
+                "en": "Good effort! Let's go on to the next section.",
+                "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔"
+              }
+            },
+            "source": {
+              "items": "rwp2026:idwrd_reading_urd",
+              "script": "egra_tk2016:p.195"
+            },
+            "quality": "ai",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "practice_note": "No Urdu practice words: RWP did not record them (R7) and no official Urdu EGRA instrument publishing them was found (SOURCES.md)."
+          },
+          "story": {
+            "task": "ur.story",
+            "title": {
+              "en": "Story reading",
+              "ur": "کہانی پڑھنا"
+            },
+            "timed_s": 60,
+            "direction": "rtl",
+            "items": [
+              "آج",
+              "بلال",
+              "اپنے",
+              "والد",
+              "کے",
+              "ساتھ",
+              "دریائے",
+              "جہلم",
+              "کے",
+              "کنارے",
+              "گیا",
+              "وہاں",
+              "ٹھنڈی",
+              "ہوا",
+              "چل",
+              "رہی",
+              "تھی",
+              "اور",
+              "پانی",
+              "آہستہ",
+              "بہہ",
+              "رہا",
+              "تھا",
+              "بلال",
+              "نے",
+              "کشتی",
+              "کو",
+              "حرکت",
+              "کرتے",
+              "دیکھا",
+              "اس",
+              "کے",
+              "والد",
+              "نے",
+              "اسے",
+              "بتایا",
+              "کہ",
+              "دریا",
+              "ہمارے",
+              "ملک",
+              "کے",
+              "لیے",
+              "اہم",
+              "ہیں",
+              "واپسی",
+              "پر",
+              "بلال",
+              "نے",
+              "خوبصورت",
+              "پتھر",
+              "جمع",
+              "کیے",
+              "اور",
+              "مسکراتا",
+              "رہا",
+              "وہ",
+              "بہت",
+              "خوش",
+              "بھی",
+              "تھا"
+            ],
+            "practice": [],
+            "stop": {
+              "type": "first_line"
+            },
+            "script": {
+              "intro": {
+                "en": "Here is a short story. I want you to read it aloud, quickly but carefully. When you finish, I will ask you some questions about what you have read. When I say \"Begin,\" read the story as best as you can. If you come to a word you do not know, go on to the next word. Put your finger on the first word.",
+                "ur": "یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں، جلدی مگر دھیان سے پڑھیں۔ جب آپ پڑھ لیں گے تو میں کہانی کے بارے میں کچھ سوال پوچھوں گا۔ جب میں کہوں \"شروع کریں\" تو جتنا اچھا ہو سکے کہانی پڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ پہلے لفظ پر انگلی رکھیں۔"
+              },
+              "begin": {
+                "en": "Ready? Begin.",
+                "ur": "تیار ہیں؟ اب شروع کریں"
+              },
+              "go_on": {
+                "en": "Please go on.",
+                "ur": "آگے پڑھیں"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "بس، شکریہ"
+              },
+              "early_stop": {
+                "en": "Thank you!",
+                "ur": "شکریہ!"
+              },
+              "questions_intro": {
+                "en": "Now I am going to ask you a few questions about the story you just read. Try to answer the questions as well as you can. You can provide your answers in whichever language you prefer.",
+                "ur": "اب میں آپ سے اس کہانی کے بارے میں کچھ سوال پوچھوں گا جو آپ نے ابھی پڑھی۔ جتنا اچھا ہو سکے جواب دیں۔ آپ جس زبان میں چاہیں جواب دے سکتے ہیں۔"
+              },
+              "after": {
+                "en": "Good effort! Let's go on to the next section.",
+                "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔"
+              }
+            },
+            "source": {
+              "items": "rwp2026:orf_reading_urd",
+              "script": "egra_tk2016:pp.197-198"
+            },
+            "quality": "ai_review",
+            "story": {
+              "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہیں۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔",
+              "lines": [
+                {
+                  "n": 1,
+                  "from": 0,
+                  "to": 10
+                },
+                {
+                  "n": 2,
+                  "from": 11,
+                  "to": 22
+                },
+                {
+                  "n": 3,
+                  "from": 23,
+                  "to": 29
+                },
+                {
+                  "n": 4,
+                  "from": 30,
+                  "to": 43
+                },
+                {
+                  "n": 5,
+                  "from": 44,
+                  "to": 54
+                },
+                {
+                  "n": 6,
+                  "from": 55,
+                  "to": 59
+                }
+              ],
+              "tokens": [
+                "آج",
+                "بلال",
+                "اپنے",
+                "والد",
+                "کے",
+                "ساتھ",
+                "دریائے",
+                "جہلم",
+                "کے",
+                "کنارے",
+                "گیا",
+                "وہاں",
+                "ٹھنڈی",
+                "ہوا",
+                "چل",
+                "رہی",
+                "تھی",
+                "اور",
+                "پانی",
+                "آہستہ",
+                "بہہ",
+                "رہا",
+                "تھا",
+                "بلال",
+                "نے",
+                "کشتی",
+                "کو",
+                "حرکت",
+                "کرتے",
+                "دیکھا",
+                "اس",
+                "کے",
+                "والد",
+                "نے",
+                "اسے",
+                "بتایا",
+                "کہ",
+                "دریا",
+                "ہمارے",
+                "ملک",
+                "کے",
+                "لیے",
+                "اہم",
+                "ہیں",
+                "واپسی",
+                "پر",
+                "بلال",
+                "نے",
+                "خوبصورت",
+                "پتھر",
+                "جمع",
+                "کیے",
+                "اور",
+                "مسکراتا",
+                "رہا",
+                "وہ",
+                "بہت",
+                "خوش",
+                "بھی",
+                "تھا"
+              ]
+            },
+            "questions": [
+              {
+                "id": "ur.story.q1",
+                "prompt": "بلال کس کے ساتھ دریائے جہلم گیا؟",
+                "type": "literal",
+                "accept": [
+                  "اپنے والد کے ساتھ",
+                  "والد کے ساتھ",
+                  "ابو کے ساتھ",
+                  "ابا کے ساتھ",
+                  "باپ کے ساتھ",
+                  "پاپا کے ساتھ",
+                  "اپنے ابو کے ساتھ",
+                  "والد",
+                  "ابو",
+                  "ابا",
+                  "باپ"
+                ],
+                "reject": [
+                  "امی کے ساتھ",
+                  "والدہ کے ساتھ",
+                  "بھائی کے ساتھ",
+                  "دوست کے ساتھ",
+                  "اکیلا"
+                ],
+                "rubric": "Correct if the child says Bilal went with his father (والد / ابو / ابا / باپ).",
+                "key_from": "item-bank v2 u3A-q1",
+                "answer_note": "اپنے والد کے ساتھ / والد کے ساتھ",
+                "needs_line": 1,
+                "source": "rwp2026:rdcomp_lit1_urd"
+              },
+              {
+                "id": "ur.story.q2",
+                "prompt": "وہاں کیا بہہ رہا تھا؟",
+                "type": "literal",
+                "accept": [
+                  "پانی",
+                  "دریا کا پانی",
+                  "دریا"
+                ],
+                "reject": [
+                  "کشتی",
+                  "ہوا",
+                  "پتھر"
+                ],
+                "rubric": "Correct if the child says the water (پانی). The breeze, the boat or stones are wrong.",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "پانی",
+                "needs_line": 2,
+                "source": "rwp2026:rdcomp_lit2_urd"
+              },
+              {
+                "id": "ur.story.q3",
+                "prompt": "بلال نے کیا حرکت کرتے دیکھا؟",
+                "type": "literal",
+                "accept": [
+                  "کشتی",
+                  "ایک کشتی"
+                ],
+                "reject": [
+                  "پانی",
+                  "ہوا",
+                  "مچھلی",
+                  "دریا"
+                ],
+                "rubric": "Correct only if the child says a boat (کشتی).",
+                "key_from": "item-bank v2 u3A-q2",
+                "answer_note": "کشتی",
+                "needs_line": 3,
+                "source": "rwp2026:rdcomp_lit3_urd"
+              },
+              {
+                "id": "ur.story.q4",
+                "prompt": "واپسی پر بلال نے کیا جمع کیے؟",
+                "type": "literal",
+                "accept": [
+                  "پتھر",
+                  "خوبصورت پتھر",
+                  "پتھروں"
+                ],
+                "reject": [
+                  "کشتی",
+                  "پانی",
+                  "پھول",
+                  "سیپیاں"
+                ],
+                "rubric": "Correct if the child says stones or beautiful stones (پتھر).",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "پتھر / خوبصورت پتھر",
+                "needs_line": 5,
+                "source": "rwp2026:rdcomp_lit4_urd"
+              },
+              {
+                "id": "ur.story.q5",
+                "prompt": "والد نے دریا کے بارے میں کیوں بتایا ہوگا؟",
+                "type": "inferential",
+                "accept": [
+                  "دریا کی اہمیت سمجھانے کے لیے",
+                  "سکھانے کے لیے",
+                  "معلومات دینے کے لیے",
+                  "کیونکہ دریا اہم ہیں",
+                  "بتانے کے لیے کہ دریا ملک کے لیے اہم ہیں",
+                  "تاکہ بلال کو پتا چلے"
+                ],
+                "reject": [
+                  "معلوم نہیں",
+                  "کیونکہ کشتی چل رہی تھی"
+                ],
+                "rubric": "Correct if the child says the father wanted to teach or explain why rivers matter for the country, as in the RWP key.",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "دریا کی اہمیت سمجھانے کے لیے / سکھانے کے لیے / معلومات دینے کے لیے",
+                "needs_line": 4,
+                "source": "rwp2026:rdcomp_inf1_urd"
+              },
+              {
+                "id": "ur.story.q6",
+                "prompt": "بلال خوش کیوں تھا؟",
+                "type": "inferential",
+                "accept": [
+                  "سیر کرنے کی وجہ سے",
+                  "دریا کی سیر کی",
+                  "پتھر جمع کرنے کی وجہ سے",
+                  "خوبصورت پتھر ملے",
+                  "دریا دیکھ کر",
+                  "والد کے ساتھ دریا پر گیا تھا",
+                  "ابو کے ساتھ سیر کی",
+                  "کشتی دیکھ کر",
+                  "ٹھنڈی ہوا چل رہی تھی"
+                ],
+                "reject": [
+                  "معلوم نہیں",
+                  "کیونکہ وہ خوش تھا",
+                  "کیونکہ وہ مسکرا رہا تھا",
+                  "اسکول سے چھٹی تھی"
+                ],
+                "rubric": "Correct if the reason comes from the story: the trip to the river with his father, the cool breeze, seeing the river or the boat, or collecting beautiful stones. A circular answer (\"because he was happy / smiling\") is wrong. Evidence is spread over lines 1-5; needs_line marks the stones (line 5).",
+                "key_from": "item-bank v2 u3A-q3",
+                "answer_note": "سیر کرنے کی وجہ سے / پتھر جمع کرنے کی وجہ سے / دریا دیکھ کر خوش تھا",
+                "needs_line": 5,
+                "source": "rwp2026:rdcomp_inf2_urd"
+              }
+            ],
+            "practice_note": "EGRA oral reading has no practice item (TK p.197).",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "lines_note": "Lines are the story's sentences (v2 bank convention); line 1 is the first-line stop and the §20 reach unit."
+          }
+        },
+        "en": {
+          "listening": {
+            "task": "en.listening",
+            "title": {
+              "en": "Listening",
+              "ur": "سن کر سمجھنا"
+            },
+            "timed_s": null,
+            "items": [],
+            "practice": [],
+            "stop": {
+              "type": "none"
+            },
+            "script": {
+              "intro": {
+                "en": "I am going to read you a short story aloud TWICE and then ask you some questions. Please listen carefully and answer the questions as best as you can. You can answer the questions in whichever language you prefer. Ready? Let's begin.",
+                "ur": "میں آپ کو ایک چھوٹی سی کہانی دو بار اونچی آواز میں سناؤں گا، پھر کچھ سوال پوچھوں گا۔ دھیان سے سنیں اور جتنا اچھا ہو سکے جواب دیں۔ آپ جس زبان میں چاہیں جواب دے سکتے ہیں۔ تیار ہیں؟ چلیں شروع کرتے ہیں۔"
+              },
+              "after": {
+                "en": "Good effort! Let's go on to the next section.",
+                "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔"
+              }
+            },
+            "source": {
+              "items": "rwp2026:listcomp_passage_eng",
+              "script": "egra_tk2016:p.199"
+            },
+            "quality": "provisional",
+            "story": {
+              "text": "Sara woke up early on Sunday. Her mother asked her to buy bread from the shop near their home. Sara took some money and walked with her brother. The shopkeeper gave her fresh bread in a bag. On the way back, they saw a small kitten. Sara smiled and ran home happily. She gave the bread to her mother quickly."
+            },
+            "read_times": 2,
+            "questions": [
+              {
+                "id": "en.listening.q1",
+                "prompt": "On what day did Sara wake up early?",
+                "type": "literal",
+                "prompt_as_fielded": "On what did did Sara wake up early?",
+                "accept": [
+                  "Sunday",
+                  "on Sunday",
+                  "اتوار",
+                  "اتوار کو"
+                ],
+                "reject": [
+                  "Monday",
+                  "Friday",
+                  "school day"
+                ],
+                "rubric": "Correct if the child says Sunday (in English or Urdu).",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "Sunday",
+                "source": "rwp2026:listcomp_lit1_eng"
+              },
+              {
+                "id": "en.listening.q2",
+                "prompt": "What did her mother ask her to buy?",
+                "type": "literal",
+                "accept": [
+                  "bread",
+                  "some bread",
+                  "روٹی",
+                  "ڈبل روٹی",
+                  "بریڈ"
+                ],
+                "reject": [
+                  "milk",
+                  "eggs",
+                  "money",
+                  "a kitten"
+                ],
+                "rubric": "Correct if the child says bread (in English or Urdu).",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "Bread",
+                "source": "rwp2026:listcomp_lit2_eng"
+              },
+              {
+                "id": "en.listening.q3",
+                "prompt": "Who walked with Sara to the shop?",
+                "type": "literal",
+                "prompt_as_fielded": "WHo walked with Sara to the shop?",
+                "accept": [
+                  "her brother",
+                  "brother",
+                  "بھائی",
+                  "اس کا بھائی"
+                ],
+                "reject": [
+                  "her mother",
+                  "mother",
+                  "her sister",
+                  "friend",
+                  "امی",
+                  "بہن"
+                ],
+                "rubric": "Correct if the child says her brother (in English or Urdu).",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "Her brother",
+                "source": "rwp2026:listcomp_lit3_eng"
+              },
+              {
+                "id": "en.listening.q4",
+                "prompt": "What did they see on the way back?",
+                "type": "literal",
+                "accept": [
+                  "a small kitten",
+                  "kitten",
+                  "a kitten",
+                  "a cat",
+                  "cat",
+                  "بلی",
+                  "بلی کا بچہ",
+                  "چھوٹی بلی"
+                ],
+                "reject": [
+                  "a dog",
+                  "a bird",
+                  "bread",
+                  "the shop"
+                ],
+                "rubric": "Correct if the child says a kitten or a small cat (in English or Urdu).",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "A small kitten, kitten",
+                "source": "rwp2026:listcomp_lit4_eng"
+              },
+              {
+                "id": "en.listening.q5",
+                "prompt": "Why did Sara run home happily?",
+                "type": "inferential",
+                "accept": [
+                  "she was happy",
+                  "she felt happy",
+                  "she was excited",
+                  "she saw a kitten",
+                  "because of the kitten",
+                  "she got the bread",
+                  "وہ خوش تھی",
+                  "بلی دیکھ کر"
+                ],
+                "reject": [
+                  "she was late",
+                  "she was scared",
+                  "it was raining"
+                ],
+                "rubric": "Correct if the child gives a happy or excited reason, or links it to the kitten or getting the bread, as in the RWP key. Fear or lateness is wrong.",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "She was happy / She felt happy / She was excited",
+                "source": "rwp2026:listcomp_inf1_eng"
+              },
+              {
+                "id": "en.listening.q6",
+                "prompt": "Why did Sara take money with her?",
+                "type": "inferential",
+                "accept": [
+                  "to buy bread",
+                  "to pay for the bread",
+                  "to buy",
+                  "for the bread",
+                  "روٹی خریدنے کے لیے",
+                  "پیسے دینے کے لیے"
+                ],
+                "reject": [
+                  "to buy a kitten",
+                  "to give her brother",
+                  "to buy toys"
+                ],
+                "rubric": "Correct if the child says the money was to buy or pay for the bread (in English or Urdu).",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "To buy bread / To pay for the bread",
+                "source": "rwp2026:listcomp_inf2_eng"
+              }
+            ],
+            "script_note": "TK p.199 verbatim except \"ONCE\" -> \"TWICE\": RWP read the story twice (R7), kept for comparability.",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "question_timeout_s": 10,
+            "practice_note": "EGRA listening comprehension has no practice item (TK p.199)."
+          },
+          "letters": {
+            "task": "en.letters",
+            "title": {
+              "en": "Letters",
+              "ur": "حروف"
+            },
+            "timed_s": 60,
+            "per_row": 10,
+            "kind": "names",
+            "direction": "ltr",
+            "items": [
+              "L",
+              "i",
+              "h",
+              "R",
+              "S",
+              "y",
+              "E",
+              "O",
+              "n",
+              "T",
+              "i",
+              "e",
+              "T",
+              "D",
+              "A",
+              "t",
+              "a",
+              "d",
+              "e",
+              "w",
+              "h",
+              "O",
+              "e",
+              "m",
+              "U",
+              "r",
+              "L",
+              "G",
+              "R",
+              "u",
+              "G",
+              "R",
+              "B",
+              "E",
+              "i",
+              "f",
+              "m",
+              "t",
+              "s",
+              "r",
+              "S",
+              "T",
+              "C",
+              "N",
+              "p",
+              "A",
+              "F",
+              "c",
+              "G",
+              "E",
+              "y",
+              "Q",
+              "A",
+              "M",
+              "C",
+              "O",
+              "t",
+              "n",
+              "P",
+              "s",
+              "e",
+              "A",
+              "b",
+              "s",
+              "O",
+              "F",
+              "h",
+              "u",
+              "A",
+              "t",
+              "R",
+              "z",
+              "H",
+              "e",
+              "S",
+              "i",
+              "g",
+              "m",
+              "i",
+              "L",
+              "o",
+              "I",
+              "N",
+              "O",
+              "e",
+              "L",
+              "E",
+              "r",
+              "p",
+              "X",
+              "H",
+              "A",
+              "c",
+              "D",
+              "d",
+              "t",
+              "O",
+              "j",
+              "e",
+              "n"
+            ],
+            "practice": [
+              {
+                "item": "T",
+                "role": "example"
+              },
+              {
+                "item": "M",
+                "role": "practice"
+              },
+              {
+                "item": "S",
+                "role": "practice"
+              }
+            ],
+            "stop": {
+              "type": "first_row",
+              "n": 10
+            },
+            "script": {
+              "intro": {
+                "en": "Here is a page full of letters of the ENGLISH alphabet. Please tell me the NAMES of as many letters of the alphabet as you can. Not their sounds, but their names.",
+                "ur": "یہ صفحہ انگریزی حروفِ تہجی سے بھرا ہوا ہے۔ جتنے حروف ہو سکیں، ان کے نام بتائیں۔ آواز نہیں، صرف نام۔"
+              },
+              "example": {
+                "en": "For example, the name of this letter [point to the letter T] is \"T\".",
+                "ur": "مثال کے طور پر، اس حرف [حرف T کی طرف اشارہ کریں] کا نام \"T\" ہے۔"
+              },
+              "practice_1": {
+                "en": "Let's practice: Tell me the name of this letter [point to the letter M].",
+                "ur": "آئیں مشق کریں: اس حرف [حرف M کی طرف اشارہ کریں] کا نام بتائیں۔"
+              },
+              "practice_2": {
+                "en": "Now try another one: Tell me the name of this letter [point to the letter S].",
+                "ur": "اب ایک اور: اس حرف [حرف S کی طرف اشارہ کریں] کا نام بتائیں۔"
+              },
+              "instructions": {
+                "en": "When I say \"Begin,\" start here [point to first letter] and go across the page [point]. Point to each letter and tell me the name of that letter in a loud voice. Read as quickly and carefully as you can. If you come to a letter you do not know, go on to the next letter. Put your finger on the first letter.",
+                "ur": "جب میں کہوں \"شروع کریں\" تو یہاں سے شروع کریں [پہلے حرف کی طرف اشارہ کریں] اور صفحے پر آگے بڑھیں۔ ہر حرف پر انگلی رکھیں اور اونچی آواز میں اس کا نام بتائیں۔ جتنا جلدی اور دھیان سے ہو سکے پڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ پہلے حرف پر انگلی رکھیں۔"
+              },
+              "begin": {
+                "en": "Ready? Begin.",
+                "ur": "تیار ہیں؟ اب شروع کریں"
+              },
+              "go_on": {
+                "en": "Please go on.",
+                "ur": "آگے پڑھیں"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "بس، شکریہ"
+              },
+              "early_stop": {
+                "en": "Thank you!",
+                "ur": "شکریہ!"
+              },
+              "after": {
+                "en": "Good effort! Let's go on to the next section.",
+                "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔"
+              },
+              "name_prompt": {
+                "en": "Please tell me the NAME of the letter.",
+                "ur": "براہِ مہربانی حرف کا نام بتائیں۔"
+              }
+            },
+            "source": {
+              "items": "rwp2026:letterid_fl_eng",
+              "practice": "egra_tk2016:p.189",
+              "script": "egra_tk2016:p.189"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            }
+          },
+          "nonwords": {
+            "task": "en.nonwords",
+            "title": {
+              "en": "Made-up words",
+              "ur": "بنائے ہوئے الفاظ"
+            },
+            "gap": true,
+            "reason": "PROVISIONAL (search in progress): RWP's English made-up word list survives only as a 30/50 audio reconstruction (R7), which is not 'in full'; no official list recorded yet.",
+            "searched": []
+          },
+          "words": {
+            "task": "en.words",
+            "title": {
+              "en": "Familiar words",
+              "ur": "جانے پہچانے الفاظ"
+            },
+            "gap": true,
+            "reason": "PROVISIONAL (search in progress): RWP's English familiar-word list survives only as a 49/50 audio reconstruction (R7), which is not 'in full'; no official list recorded yet.",
+            "searched": []
+          },
+          "story": {
+            "task": "en.story",
+            "title": {
+              "en": "Story reading",
+              "ur": "کہانی پڑھنا"
+            },
+            "timed_s": 60,
+            "direction": "ltr",
+            "items": [
+              "Imran",
+              "woke",
+              "up",
+              "early",
+              "for",
+              "school",
+              "Today",
+              "his",
+              "class",
+              "was",
+              "planting",
+              "trees",
+              "He",
+              "took",
+              "a",
+              "small",
+              "plant",
+              "in",
+              "a",
+              "bag",
+              "The",
+              "teacher",
+              "asked",
+              "Imran",
+              "to",
+              "show",
+              "the",
+              "class",
+              "how",
+              "to",
+              "plant",
+              "it",
+              "Imran",
+              "dug",
+              "a",
+              "hole",
+              "put",
+              "the",
+              "plant",
+              "in",
+              "the",
+              "soil",
+              "and",
+              "put",
+              "water",
+              "in",
+              "it",
+              "slowly",
+              "The",
+              "teacher",
+              "was",
+              "happy",
+              "with",
+              "his",
+              "work",
+              "His",
+              "friends",
+              "clapped",
+              "for",
+              "him"
+            ],
+            "practice": [],
+            "stop": {
+              "type": "first_line"
+            },
+            "script": {
+              "intro": {
+                "en": "Here is a short story. I want you to read it aloud, quickly but carefully. When you finish, I will ask you some questions about what you have read. When I say \"Begin,\" read the story as best as you can. If you come to a word you do not know, go on to the next word. Put your finger on the first word.",
+                "ur": "یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں، جلدی مگر دھیان سے پڑھیں۔ جب آپ پڑھ لیں گے تو میں کہانی کے بارے میں کچھ سوال پوچھوں گا۔ جب میں کہوں \"شروع کریں\" تو جتنا اچھا ہو سکے کہانی پڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ پہلے لفظ پر انگلی رکھیں۔"
+              },
+              "begin": {
+                "en": "Ready? Begin.",
+                "ur": "تیار ہیں؟ اب شروع کریں"
+              },
+              "go_on": {
+                "en": "Please go on.",
+                "ur": "آگے پڑھیں"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "بس، شکریہ"
+              },
+              "early_stop": {
+                "en": "Thank you!",
+                "ur": "شکریہ!"
+              },
+              "questions_intro": {
+                "en": "Now I am going to ask you a few questions about the story you just read. Try to answer the questions as well as you can. You can provide your answers in whichever language you prefer.",
+                "ur": "اب میں آپ سے اس کہانی کے بارے میں کچھ سوال پوچھوں گا جو آپ نے ابھی پڑھی۔ جتنا اچھا ہو سکے جواب دیں۔ آپ جس زبان میں چاہیں جواب دے سکتے ہیں۔"
+              },
+              "after": {
+                "en": "Good effort! Let's go on to the next section.",
+                "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔"
+              }
+            },
+            "source": {
+              "items": "rwp2026:orf_reading_eng",
+              "script": "egra_tk2016:pp.197-198"
+            },
+            "quality": "ai_review",
+            "story": {
+              "text": "Imran woke up early for school. Today his class was planting trees. He took a small plant in a bag. The teacher asked Imran to show the class how to plant it. Imran dug a hole, put the plant in the soil and put water in it slowly. The teacher was happy with his work. His friends clapped for him.",
+              "lines": [
+                {
+                  "n": 1,
+                  "from": 0,
+                  "to": 5
+                },
+                {
+                  "n": 2,
+                  "from": 6,
+                  "to": 11
+                },
+                {
+                  "n": 3,
+                  "from": 12,
+                  "to": 19
+                },
+                {
+                  "n": 4,
+                  "from": 20,
+                  "to": 31
+                },
+                {
+                  "n": 5,
+                  "from": 32,
+                  "to": 47
+                },
+                {
+                  "n": 6,
+                  "from": 48,
+                  "to": 54
+                },
+                {
+                  "n": 7,
+                  "from": 55,
+                  "to": 59
+                }
+              ],
+              "tokens": [
+                "Imran",
+                "woke",
+                "up",
+                "early",
+                "for",
+                "school",
+                "Today",
+                "his",
+                "class",
+                "was",
+                "planting",
+                "trees",
+                "He",
+                "took",
+                "a",
+                "small",
+                "plant",
+                "in",
+                "a",
+                "bag",
+                "The",
+                "teacher",
+                "asked",
+                "Imran",
+                "to",
+                "show",
+                "the",
+                "class",
+                "how",
+                "to",
+                "plant",
+                "it",
+                "Imran",
+                "dug",
+                "a",
+                "hole",
+                "put",
+                "the",
+                "plant",
+                "in",
+                "the",
+                "soil",
+                "and",
+                "put",
+                "water",
+                "in",
+                "it",
+                "slowly",
+                "The",
+                "teacher",
+                "was",
+                "happy",
+                "with",
+                "his",
+                "work",
+                "His",
+                "friends",
+                "clapped",
+                "for",
+                "him"
+              ]
+            },
+            "questions": [
+              {
+                "id": "en.story.q1",
+                "prompt": "Why did Imran wake up early?",
+                "type": "literal",
+                "accept": [
+                  "for school",
+                  "he woke up for school",
+                  "to go to school",
+                  "school",
+                  "سکول کے لیے",
+                  "سکول جانے کے لیے"
+                ],
+                "reject": [
+                  "to plant trees",
+                  "to play",
+                  "he was hungry"
+                ],
+                "rubric": "Correct if the child says for school (in English or Urdu).",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "For school / He woke up for school",
+                "needs_line": 1,
+                "source": "rwp2026:rdcomp_lit1_eng"
+              },
+              {
+                "id": "en.story.q2",
+                "prompt": "What was the class planting?",
+                "type": "literal",
+                "accept": [
+                  "trees",
+                  "tree",
+                  "plants",
+                  "plant",
+                  "small plants",
+                  "planting trees",
+                  "درخت",
+                  "درختوں",
+                  "پودے",
+                  "پودا",
+                  "درخت لگا رہے تھے"
+                ],
+                "reject": [
+                  "flowers",
+                  "seeds",
+                  "grass"
+                ],
+                "rubric": "Correct if the child says trees or plants. An answer in Urdu or English is accepted.",
+                "key_from": "item-bank v2 e3A-q1",
+                "answer_note": "Trees",
+                "needs_line": 2,
+                "source": "rwp2026:rdcomp_lit2_eng"
+              },
+              {
+                "id": "en.story.q3",
+                "prompt": "What did Imran take in a bag?",
+                "type": "literal",
+                "accept": [
+                  "a small plant",
+                  "small plant",
+                  "a plant",
+                  "plant",
+                  "a little plant",
+                  "a small tree",
+                  "a baby tree",
+                  "پودا",
+                  "پودہ",
+                  "پودے",
+                  "چھوٹا پودا",
+                  "ایک پودا",
+                  "ایک چھوٹا پودا",
+                  "چھوٹا درخت"
+                ],
+                "reject": [
+                  "books",
+                  "his books",
+                  "lunch",
+                  "food",
+                  "water",
+                  "seeds",
+                  "soil",
+                  "a bag",
+                  "کتابیں",
+                  "کھانا",
+                  "پانی",
+                  "بیج",
+                  "مٹی",
+                  "بستہ"
+                ],
+                "rubric": "Correct if the child says a plant or a small plant (a small or baby tree is the same thing). Just \"tree\" / درخت repeats question 1 and is not enough. Books, food, water, seeds or soil are wrong. An answer in Urdu or English is accepted.",
+                "key_from": "item-bank v2 e3A-q2",
+                "answer_note": "A small plant",
+                "needs_line": 3,
+                "source": "rwp2026:rdcomp_lit3_eng"
+              },
+              {
+                "id": "en.story.q4",
+                "prompt": "What did Imran put in the soil?",
+                "type": "literal",
+                "accept": [
+                  "the plant",
+                  "a plant",
+                  "plant",
+                  "the small plant",
+                  "پودا",
+                  "پودے کو"
+                ],
+                "reject": [
+                  "water",
+                  "a bag",
+                  "seeds",
+                  "the tree",
+                  "پانی",
+                  "بیج"
+                ],
+                "rubric": "Correct if the child says the plant (in English or Urdu). Water alone is wrong: water went in after the plant.",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "The plant",
+                "needs_line": 5,
+                "source": "rwp2026:rdcomp_lit4_eng"
+              },
+              {
+                "id": "en.story.q5",
+                "prompt": "Why was the teacher happy with Imran?",
+                "type": "inferential",
+                "accept": [
+                  "he planted the tree well",
+                  "he showed the class how to plant it",
+                  "he did good work",
+                  "his work was good",
+                  "because of his work",
+                  "he dug a hole",
+                  "he planted it",
+                  "he put water in the plant",
+                  "اس نے اچھا کام کیا",
+                  "اس نے پودا لگایا",
+                  "اس نے گڑھا کھودا",
+                  "اس نے کلاس کو پودا لگانا سکھایا",
+                  "he watered it",
+                  "he put the plant in the soil",
+                  "he planted it well",
+                  "اس نے پانی ڈالا",
+                  "اس نے اچھی طرح پودا لگایا",
+                  "اس نے پودا مٹی میں لگایا"
+                ],
+                "reject": [
+                  "he woke up early",
+                  "he was clapping",
+                  "he brought a plant",
+                  "his friends clapped",
+                  "he is a good boy"
+                ],
+                "rubric": "Correct if the child gives any reason linked to Imran's planting work: he did good work, planted it well, showed the class how, or names a step he did (dug a hole, put the plant in the soil, watered it). Bringing a plant, or waking early, is wrong. An answer in Urdu or English is accepted.",
+                "key_from": "item-bank v2 e3A-q3",
+                "answer_note": "Because he planted the tree well / he showed the class how to plant it / he did good work",
+                "needs_line": 6,
+                "source": "rwp2026:rdcomp_inf1_eng"
+              },
+              {
+                "id": "en.story.q6",
+                "prompt": "Why did his friends clap for him?",
+                "type": "inferential",
+                "accept": [
+                  "because he did a good job",
+                  "he planted the tree well",
+                  "he showed the class",
+                  "he did good work",
+                  "the teacher was happy",
+                  "he planted it",
+                  "اس نے اچھا کام کیا",
+                  "اس نے پودا لگایا"
+                ],
+                "reject": [
+                  "he woke up early",
+                  "it was his birthday",
+                  "he is a good boy"
+                ],
+                "rubric": "Correct if the child links the clapping to Imran's planting or good work, as in the RWP key.",
+                "key_from": "derived from the RWP answer note (L35)",
+                "answer_note": "Because he did a good job / he planted the tree well / he showed the class",
+                "needs_line": 7,
+                "source": "rwp2026:rdcomp_inf2_eng"
+              }
+            ],
+            "practice_note": "EGRA oral reading has no practice item (TK p.197).",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "lines_note": "Lines are the story's sentences (v2 bank convention); line 1 is the first-line stop and the §20 reach unit."
+          }
+        }
+      },
+      "maths": {
+        "3": {
+          "number_id": {
+            "task": "ma.number_id",
+            "title": {
+              "en": "Number identification",
+              "ur": "نمبر پہچاننا"
+            },
+            "timed_s": 60,
+            "per_row": 5,
+            "items": [
+              "2",
+              "9",
+              "0",
+              "12",
+              "30",
+              "22",
+              "45",
+              "39",
+              "23",
+              "48",
+              "91",
+              "33",
+              "74",
+              "87",
+              "65",
+              "108",
+              "245",
+              "587",
+              "731",
+              "989"
+            ],
+            "practice": [],
+            "stop": {
+              "type": "none"
+            },
+            "script": {
+              "intro": {
+                "en": "Here are some numbers. I want you to point to each number and tell me what the number is. I will tell you when to begin and when to stop.",
+                "ur": "یہ کچھ نمبر ہیں۔ ہر نمبر پر انگلی رکھیں اور بتائیں کہ یہ کون سا نمبر ہے۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔"
+              },
+              "point": {
+                "en": "[point to first number] Start here.",
+                "ur": "[پہلے نمبر کی طرف اشارہ کریں] یہاں سے شروع کریں۔"
+              },
+              "begin": {
+                "en": "Are you ready? Start.",
+                "ur": "کیا آپ تیار ہیں؟ اب شروع کریں"
+              },
+              "item": {
+                "en": "What number is this?",
+                "ur": "یہ کون سا نمبر ہے؟"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "بس، شکریہ"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.2",
+              "script": "core_egma:p.2"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "practice_note": "Core EGMA Number Identification has no practice items (p.2)."
+          },
+          "discrimination": {
+            "task": "ma.discrimination",
+            "title": {
+              "en": "Which is bigger",
+              "ur": "کون سا بڑا ہے"
+            },
+            "timed_s": null,
+            "items": [
+              {
+                "a": 7,
+                "b": 5,
+                "answer": 7
+              },
+              {
+                "a": 11,
+                "b": 24,
+                "answer": 24
+              },
+              {
+                "a": 39,
+                "b": 23,
+                "answer": 39
+              },
+              {
+                "a": 58,
+                "b": 49,
+                "answer": 58
+              },
+              {
+                "a": 65,
+                "b": 67,
+                "answer": 67
+              },
+              {
+                "a": 94,
+                "b": 78,
+                "answer": 94
+              },
+              {
+                "a": 146,
+                "b": 153,
+                "answer": 153
+              },
+              {
+                "a": 287,
+                "b": 534,
+                "answer": 534
+              },
+              {
+                "a": 623,
+                "b": 632,
+                "answer": 632
+              },
+              {
+                "a": 867,
+                "b": 965,
+                "answer": 965
+              }
+            ],
+            "practice": [
+              {
+                "a": 8,
+                "b": 4,
+                "answer": 8
+              },
+              {
+                "a": 10,
+                "b": 12,
+                "answer": 12
+              }
+            ],
+            "stop": {
+              "type": "consecutive_errors",
+              "n": 4
+            },
+            "script": {
+              "item": {
+                "en": "Look at these numbers. Tell me which number is bigger.",
+                "ur": "ان نمبروں کو دیکھیں۔ بتائیں کون سا نمبر بڑا ہے؟"
+              },
+              "practice_1_correct": {
+                "en": "That's correct, 8 is bigger. Let's do another one.",
+                "ur": "بالکل ٹھیک، ۸ بڑا ہے۔ چلیں ایک اور کرتے ہیں۔"
+              },
+              "practice_1_wrong": {
+                "en": "The bigger number is 8. [Point to 8] This is 8. [Point to 4] This is 4. 8 is bigger than 4. Let's do another one.",
+                "ur": "بڑا نمبر ۸ ہے۔ [۸ کی طرف اشارہ کریں] یہ ۸ ہے۔ [۴ کی طرف اشارہ کریں] یہ ۴ ہے۔ ۸، ۴ سے بڑا ہے۔ چلیں ایک اور کرتے ہیں۔"
+              },
+              "practice_2_correct": {
+                "en": "That's right, 12 is bigger. Let's continue.",
+                "ur": "ٹھیک ہے، ۱۲ بڑا ہے۔ چلیں آگے بڑھتے ہیں۔"
+              },
+              "practice_2_wrong": {
+                "en": "The bigger number is 12. [Point to 10] This number is 10. [Point to 12] This is 12. 12 is bigger than 10. Let's continue.",
+                "ur": "بڑا نمبر ۱۲ ہے۔ [۱۰ کی طرف اشارہ کریں] یہ نمبر ۱۰ ہے۔ [۱۲ کی طرف اشارہ کریں] یہ ۱۲ ہے۔ ۱۲، ۱۰ سے بڑا ہے۔ چلیں آگے بڑھتے ہیں۔"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.3",
+              "script": "core_egma:p.3",
+              "practice": "core_egma:p.3"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            }
+          },
+          "missing": {
+            "task": "ma.missing",
+            "title": {
+              "en": "Missing number",
+              "ur": "گمشدہ نمبر"
+            },
+            "timed_s": null,
+            "items": [
+              {
+                "seq": [
+                  5,
+                  6,
+                  7,
+                  null
+                ],
+                "answer": 8
+              },
+              {
+                "seq": [
+                  14,
+                  15,
+                  null,
+                  17
+                ],
+                "answer": 16
+              },
+              {
+                "seq": [
+                  20,
+                  null,
+                  40,
+                  50
+                ],
+                "answer": 30
+              },
+              {
+                "seq": [
+                  null,
+                  300,
+                  400,
+                  500
+                ],
+                "answer": 200
+              },
+              {
+                "seq": [
+                  2,
+                  4,
+                  6,
+                  null
+                ],
+                "answer": 8
+              },
+              {
+                "seq": [
+                  348,
+                  349,
+                  null,
+                  351
+                ],
+                "answer": 350
+              },
+              {
+                "seq": [
+                  28,
+                  null,
+                  24,
+                  22
+                ],
+                "answer": 26
+              },
+              {
+                "seq": [
+                  30,
+                  35,
+                  null,
+                  45
+                ],
+                "answer": 40
+              },
+              {
+                "seq": [
+                  550,
+                  540,
+                  530,
+                  null
+                ],
+                "answer": 520
+              },
+              {
+                "seq": [
+                  3,
+                  8,
+                  null,
+                  18
+                ],
+                "answer": 13
+              }
+            ],
+            "practice": [
+              {
+                "seq": [
+                  1,
+                  2,
+                  null,
+                  4
+                ],
+                "answer": 3
+              },
+              {
+                "seq": [
+                  5,
+                  10,
+                  15,
+                  null
+                ],
+                "answer": 20
+              }
+            ],
+            "stop": {
+              "type": "consecutive_errors",
+              "n": 4
+            },
+            "script": {
+              "practice_1": {
+                "en": "Here are some numbers. 1, 2, and 4, what number goes here?",
+                "ur": "یہ کچھ نمبر ہیں۔ ۱، ۲ اور ۴، یہاں کون سا نمبر آئے گا؟"
+              },
+              "practice_1_correct": {
+                "en": "That's correct, 3. Let's do another one.",
+                "ur": "بالکل ٹھیک، ۳۔ چلیں ایک اور کرتے ہیں۔"
+              },
+              "practice_1_wrong": {
+                "en": "The number 3 goes here. Say the numbers with me. [Point to each number] 1, 2, 3, 4. 3 goes here. Let's do another one.",
+                "ur": "یہاں ۳ آئے گا۔ میرے ساتھ نمبر بولیں۔ [ہر نمبر کی طرف اشارہ کریں] ۱، ۲، ۳، ۴۔ یہاں ۳ آئے گا۔ چلیں ایک اور کرتے ہیں۔"
+              },
+              "practice_2": {
+                "en": "Here are some numbers. 5, 10, and 15, what number goes here?",
+                "ur": "یہ کچھ نمبر ہیں۔ ۵، ۱۰ اور ۱۵، یہاں کون سا نمبر آئے گا؟"
+              },
+              "practice_2_correct": {
+                "en": "That's correct, 20. Let's do some more.",
+                "ur": "بالکل ٹھیک، ۲۰۔ چلیں کچھ اور کرتے ہیں۔"
+              },
+              "practice_2_wrong": {
+                "en": "The number 20 goes here. Say the numbers with me. [Point to each number] 5, 10, 15, 20. 20 goes here. Let's do some more.",
+                "ur": "یہاں ۲۰ آئے گا۔ میرے ساتھ نمبر بولیں۔ [ہر نمبر کی طرف اشارہ کریں] ۵، ۱۰، ۱۵، ۲۰۔ یہاں ۲۰ آئے گا۔ چلیں کچھ اور کرتے ہیں۔"
+              },
+              "item": {
+                "en": "Here are some more numbers. [Point to the box] What number goes here?",
+                "ur": "یہ کچھ اور نمبر ہیں۔ [خالی خانے کی طرف اشارہ کریں] یہاں کون سا نمبر آئے گا؟"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.5",
+              "script": "core_egma:p.5",
+              "practice": "core_egma:p.4"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            }
+          },
+          "add1": {
+            "task": "ma.add1",
+            "title": {
+              "en": "Addition, quick",
+              "ur": "جمع، فوری"
+            },
+            "timed_s": 60,
+            "items": [
+              {
+                "a": 1,
+                "b": 3,
+                "answer": 4
+              },
+              {
+                "a": 2,
+                "b": 3,
+                "answer": 5
+              },
+              {
+                "a": 6,
+                "b": 2,
+                "answer": 8
+              },
+              {
+                "a": 4,
+                "b": 5,
+                "answer": 9
+              },
+              {
+                "a": 3,
+                "b": 3,
+                "answer": 6
+              },
+              {
+                "a": 8,
+                "b": 1,
+                "answer": 9
+              },
+              {
+                "a": 7,
+                "b": 3,
+                "answer": 10
+              },
+              {
+                "a": 3,
+                "b": 9,
+                "answer": 12
+              },
+              {
+                "a": 2,
+                "b": 8,
+                "answer": 10
+              },
+              {
+                "a": 9,
+                "b": 3,
+                "answer": 12
+              },
+              {
+                "a": 7,
+                "b": 8,
+                "answer": 15
+              },
+              {
+                "a": 4,
+                "b": 7,
+                "answer": 11
+              },
+              {
+                "a": 7,
+                "b": 5,
+                "answer": 12
+              },
+              {
+                "a": 8,
+                "b": 6,
+                "answer": 14
+              },
+              {
+                "a": 9,
+                "b": 8,
+                "answer": 17
+              },
+              {
+                "a": 6,
+                "b": 7,
+                "answer": 13
+              },
+              {
+                "a": 8,
+                "b": 8,
+                "answer": 16
+              },
+              {
+                "a": 8,
+                "b": 5,
+                "answer": 13
+              },
+              {
+                "a": 10,
+                "b": 2,
+                "answer": 12
+              },
+              {
+                "a": 8,
+                "b": 10,
+                "answer": 18
+              }
+            ],
+            "practice": [],
+            "stop": {
+              "type": "none"
+            },
+            "script": {
+              "intro": {
+                "en": "Here are some addition problems [glide hand from top to bottom]. I will tell you when to start and when to stop. Say the answer for each problem. If you don't know an answer, move to the next problem.",
+                "ur": "یہ کچھ جمع کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
+              },
+              "begin": {
+                "en": "Are you ready? Start here [point to first problem].",
+                "ur": "کیا آپ تیار ہیں؟ یہاں سے شروع کریں [پہلے سوال کی طرف اشارہ کریں]"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "بس، شکریہ"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.6",
+              "script": "core_egma:p.6"
+            },
+            "quality": "ai",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "practice_note": "Core EGMA Level 1 has no practice items."
+          },
+          "sub1": {
+            "task": "ma.sub1",
+            "title": {
+              "en": "Subtraction, quick",
+              "ur": "تفریق، فوری"
+            },
+            "timed_s": 60,
+            "items": [
+              {
+                "a": 4,
+                "b": 3,
+                "answer": 1
+              },
+              {
+                "a": 5,
+                "b": 3,
+                "answer": 2
+              },
+              {
+                "a": 8,
+                "b": 2,
+                "answer": 6
+              },
+              {
+                "a": 9,
+                "b": 5,
+                "answer": 4
+              },
+              {
+                "a": 6,
+                "b": 3,
+                "answer": 3
+              },
+              {
+                "a": 9,
+                "b": 1,
+                "answer": 8
+              },
+              {
+                "a": 10,
+                "b": 3,
+                "answer": 7
+              },
+              {
+                "a": 12,
+                "b": 9,
+                "answer": 3
+              },
+              {
+                "a": 10,
+                "b": 8,
+                "answer": 2
+              },
+              {
+                "a": 12,
+                "b": 3,
+                "answer": 9
+              },
+              {
+                "a": 15,
+                "b": 8,
+                "answer": 7
+              },
+              {
+                "a": 11,
+                "b": 7,
+                "answer": 4
+              },
+              {
+                "a": 12,
+                "b": 5,
+                "answer": 7
+              },
+              {
+                "a": 14,
+                "b": 6,
+                "answer": 8
+              },
+              {
+                "a": 17,
+                "b": 8,
+                "answer": 9
+              },
+              {
+                "a": 13,
+                "b": 7,
+                "answer": 6
+              },
+              {
+                "a": 16,
+                "b": 8,
+                "answer": 8
+              },
+              {
+                "a": 13,
+                "b": 5,
+                "answer": 8
+              },
+              {
+                "a": 12,
+                "b": 2,
+                "answer": 10
+              },
+              {
+                "a": 18,
+                "b": 10,
+                "answer": 8
+              }
+            ],
+            "practice": [],
+            "stop": {
+              "type": "none"
+            },
+            "script": {
+              "intro": {
+                "en": "Here are some subtraction problems [glide hand from top to bottom]. I will tell you when to start and when to stop. Say the answer for each problem. If you don't know an answer, move to the next problem.",
+                "ur": "یہ کچھ تفریق کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
+              },
+              "begin": {
+                "en": "Are you ready? Start here [point to first problem].",
+                "ur": "کیا آپ تیار ہیں؟ یہاں سے شروع کریں [پہلے سوال کی طرف اشارہ کریں]"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "بس، شکریہ"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.8",
+              "script": "core_egma:p.8"
+            },
+            "quality": "ai",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "practice_note": "Core EGMA Level 1 has no practice items."
+          },
+          "add2": {
+            "task": "ma.add2",
+            "title": {
+              "en": "Addition, harder",
+              "ur": "جمع، مشکل"
+            },
+            "timed_s": null,
+            "items": [
+              {
+                "a": 13,
+                "b": 6,
+                "answer": 19
+              },
+              {
+                "a": 18,
+                "b": 7,
+                "answer": 25
+              },
+              {
+                "a": 12,
+                "b": 14,
+                "answer": 26
+              },
+              {
+                "a": 22,
+                "b": 37,
+                "answer": 59
+              },
+              {
+                "a": 38,
+                "b": 26,
+                "answer": 64
+              }
+            ],
+            "practice": [],
+            "stop": {
+              "type": "consecutive_errors",
+              "n": 4
+            },
+            "script": {
+              "intro": {
+                "en": "Here are more addition problems. You may use this paper and pencil if you want to. You do not have to do so. Start here [point to first problem].",
+                "ur": "یہ جمع کے کچھ اور سوال ہیں۔ اگر آپ چاہیں تو یہ کاغذ اور پنسل استعمال کر سکتے ہیں۔ ضروری نہیں ہے۔ یہاں سے شروع کریں [پہلے سوال کی طرف اشارہ کریں]۔"
+              },
+              "another_way": {
+                "en": "Do you know another way to solve the problem?",
+                "ur": "کیا آپ یہ سوال کسی اور طریقے سے حل کر سکتے ہیں؟"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.7",
+              "script": "core_egma:p.7"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "skip_if_zero": "ma.add1",
+            "materials": {
+              "en": "Paper and pencil",
+              "ur": "کاغذ اور پنسل"
+            },
+            "practice_note": "Core EGMA Level 2 has no practice items."
+          },
+          "sub2": {
+            "task": "ma.sub2",
+            "title": {
+              "en": "Subtraction, harder",
+              "ur": "تفریق، مشکل"
+            },
+            "timed_s": null,
+            "items": [
+              {
+                "a": 19,
+                "b": 6,
+                "answer": 13
+              },
+              {
+                "a": 25,
+                "b": 7,
+                "answer": 18
+              },
+              {
+                "a": 26,
+                "b": 14,
+                "answer": 12
+              },
+              {
+                "a": 59,
+                "b": 37,
+                "answer": 22
+              },
+              {
+                "a": 64,
+                "b": 26,
+                "answer": 38
+              }
+            ],
+            "practice": [],
+            "stop": {
+              "type": "consecutive_errors",
+              "n": 4
+            },
+            "script": {
+              "intro": {
+                "en": "Here are more subtraction problems. You may use this paper and pencil if you want to. You do not have to do so. Start here [point to first problem].",
+                "ur": "یہ تفریق کے کچھ اور سوال ہیں۔ اگر آپ چاہیں تو یہ کاغذ اور پنسل استعمال کر سکتے ہیں۔ ضروری نہیں ہے۔ یہاں سے شروع کریں [پہلے سوال کی طرف اشارہ کریں]۔"
+              },
+              "another_way": {
+                "en": "Do you know another way to solve the problem?",
+                "ur": "کیا آپ یہ سوال کسی اور طریقے سے حل کر سکتے ہیں؟"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.9",
+              "script": "core_egma:p.9"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "skip_if_zero": "ma.sub1",
+            "materials": {
+              "en": "Paper and pencil",
+              "ur": "کاغذ اور پنسل"
+            },
+            "practice_note": "Core EGMA Level 2 has no practice items."
+          },
+          "word_problems": {
+            "task": "ma.word_problems",
+            "title": {
+              "en": "Word problems",
+              "ur": "زبانی سوال"
+            },
+            "timed_s": null,
+            "items": [
+              {
+                "i": 1,
+                "type": "change_result_unknown",
+                "prompt_en": "You have 3 biscuits. Sana gives you 3 more. How many biscuits do you have now?",
+                "prompt_ur": "آپ کے پاس ۳ بسکٹ ہیں۔ ثنا آپ کو ۳ بسکٹ اور دیتی ہے۔ اب آپ کے پاس کتنے بسکٹ ہیں؟",
+                "answer": 6,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_1a"
+              },
+              {
+                "i": 2,
+                "type": "combine_part_unknown",
+                "prompt_en": "There are 4 children on a bus. 2 are boys. The rest are girls. How many girls are on the bus?",
+                "prompt_ur": "ایک بس میں ۴ بچے ہیں۔ ۲ لڑکے ہیں۔ باقی لڑکیاں ہیں۔ بس میں کتنی لڑکیاں ہیں؟",
+                "answer": 2,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_1b"
+              },
+              {
+                "i": 3,
+                "type": "compare_change_unknown",
+                "prompt_en": "Zoya has 3 oranges. Sara has 2 oranges. How many more oranges does Sara need to have the same number of oranges as Zoya?",
+                "prompt_ur": "زویا کے پاس ۳ مالٹے ہیں۔ سارہ کے پاس ۲ مالٹے ہیں۔ سارہ کو کتنے اور مالٹے چاہییں تاکہ اس کے پاس زویا جتنے مالٹے ہو جائیں؟",
+                "answer": 1,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_3b"
+              },
+              {
+                "i": 4,
+                "type": "change_start_unknown",
+                "prompt_en": "Ahmed puts 4 balls in a bag. Now there are 25 balls in the bag. How many balls were in the bag to begin with?",
+                "prompt_ur": "احمد ایک تھیلے میں ۴ گیندیں ڈالتا ہے۔ اب تھیلے میں ۲۵ گیندیں ہیں۔ شروع میں تھیلے میں کتنی گیندیں تھیں؟",
+                "answer": 21,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_3a"
+              },
+              {
+                "i": 5,
+                "type": "sharing",
+                "prompt_en": "There are 5 girls and 25 bananas. The girls share the bananas equally. How many bananas does each girl get?",
+                "prompt_ur": "۵ لڑکیاں اور ۲۵ کیلے ہیں۔ لڑکیاں کیلے برابر بانٹ لیتی ہیں۔ ہر لڑکی کو کتنے کیلے ملتے ہیں؟",
+                "answer": 5,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_4b"
+              },
+              {
+                "i": 6,
+                "type": "groups_of",
+                "prompt_en": "Salman has 2 boxes of toy cars. Each box has 4 cars in it. How many cars does Salman have in total?",
+                "prompt_ur": "سلمان کے پاس کھلونا گاڑیوں کے ۲ ڈبے ہیں۔ ہر ڈبے میں ۴ گاڑیاں ہیں۔ سلمان کے پاس کل کتنی گاڑیاں ہیں؟",
+                "answer": 8,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_4a"
+              }
+            ],
+            "practice": [
+              {
+                "prompt_en": "There are three children on the bus. One child gets out of the bus. How many children are left on the bus?",
+                "prompt_ur": "بس میں تین بچے ہیں۔ ایک بچہ بس سے اتر جاتا ہے۔ اب بس میں کتنے بچے رہ گئے ہیں؟",
+                "answer": 2,
+                "translation": {
+                  "ur": "pending-native-review"
+                }
+              }
+            ],
+            "stop": {
+              "type": "consecutive_errors",
+              "n": 4
+            },
+            "script": {
+              "intro": {
+                "en": "I have some problems that I am going to ask you to solve for me. Here are some things to help you. You can use them if you need them, but you don't have to use them. Listen very carefully to each problem. If you need, I will repeat problem for you. Okay, let's get started.",
+                "ur": "میرے پاس کچھ سوال ہیں جو میں آپ سے حل کرواؤں گا۔ یہ کچھ چیزیں آپ کی مدد کے لیے ہیں۔ ضرورت ہو تو استعمال کریں، ضروری نہیں۔ ہر سوال بہت دھیان سے سنیں۔ اگر ضرورت ہو تو میں سوال دوبارہ سنا دوں گا۔ چلیں شروع کرتے ہیں۔"
+              },
+              "practice": {
+                "en": "There are three children on the bus. [pause and check] One child gets out of the bus. [pause and check] How many children are left on the bus?",
+                "ur": "بس میں تین بچے ہیں۔ [رکیں اور دیکھیں] ایک بچہ بس سے اتر جاتا ہے۔ [رکیں اور دیکھیں] اب بس میں کتنے بچے رہ گئے ہیں؟"
+              },
+              "practice_correct": {
+                "en": "That's right. There are two children left on the bus. Let's do some more.",
+                "ur": "ٹھیک ہے۔ بس میں دو بچے رہ گئے ہیں۔ چلیں کچھ اور کرتے ہیں۔"
+              },
+              "practice_wrong": {
+                "en": "Pretend these counters are children. Count out three children. These children are on the bus. One child gets out of the bus. Show me one child getting out of the bus with the counters. How many children are left on the bus? That's right. There are two children left on the bus. Let's do some more.",
+                "ur": "فرض کریں یہ گوٹیاں بچے ہیں۔ تین بچے گنیں۔ یہ بچے بس میں ہیں۔ ایک بچہ بس سے اتر جاتا ہے۔ گوٹیوں سے دکھائیں کہ ایک بچہ بس سے اتر رہا ہے۔ اب بس میں کتنے بچے رہ گئے ہیں؟ ٹھیک ہے۔ بس میں دو بچے رہ گئے ہیں۔ چلیں کچھ اور کرتے ہیں۔"
+              },
+              "more": {
+                "en": "Now I have some more problems for you.",
+                "ur": "اب میرے پاس آپ کے لیے کچھ اور سوال ہیں۔"
+              },
+              "next_problem": {
+                "en": "Let's try another problem.",
+                "ur": "چلیں اگلا سوال کرتے ہیں۔"
+              }
+            },
+            "source": {
+              "items": "rwp2026:word_problems_*",
+              "practice": "core_egma:p.10",
+              "script": "core_egma:pp.10-11"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "materials": {
+              "en": "Counters, paper and pencil",
+              "ur": "گوٹیاں، کاغذ اور پنسل"
+            },
+            "read_aloud": true,
+            "types_source": "egma_tk2014:p.14",
+            "mapping_note": "Core EGMA's six types in Core order, each filled with the RWP item of that type (May baseline comparability). RWP prompts are English in the transcription; the Urdu readings are renderings pending native review (1a reuses the v2 bank's)."
+          },
+          "skip_level2_if_level1_zero": true
+        },
+        "5": {
+          "number_id": {
+            "task": "ma.number_id",
+            "title": {
+              "en": "Number identification",
+              "ur": "نمبر پہچاننا"
+            },
+            "timed_s": 60,
+            "per_row": 5,
+            "items": [
+              "2",
+              "9",
+              "0",
+              "12",
+              "30",
+              "22",
+              "45",
+              "39",
+              "23",
+              "48",
+              "91",
+              "33",
+              "74",
+              "87",
+              "65",
+              "108",
+              "245",
+              "587",
+              "731",
+              "989"
+            ],
+            "practice": [],
+            "stop": {
+              "type": "none"
+            },
+            "script": {
+              "intro": {
+                "en": "Here are some numbers. I want you to point to each number and tell me what the number is. I will tell you when to begin and when to stop.",
+                "ur": "یہ کچھ نمبر ہیں۔ ہر نمبر پر انگلی رکھیں اور بتائیں کہ یہ کون سا نمبر ہے۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔"
+              },
+              "point": {
+                "en": "[point to first number] Start here.",
+                "ur": "[پہلے نمبر کی طرف اشارہ کریں] یہاں سے شروع کریں۔"
+              },
+              "begin": {
+                "en": "Are you ready? Start.",
+                "ur": "کیا آپ تیار ہیں؟ اب شروع کریں"
+              },
+              "item": {
+                "en": "What number is this?",
+                "ur": "یہ کون سا نمبر ہے؟"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "بس، شکریہ"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.2",
+              "script": "core_egma:p.2"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "practice_note": "Core EGMA Number Identification has no practice items (p.2)."
+          },
+          "discrimination": {
+            "task": "ma.discrimination",
+            "title": {
+              "en": "Which is bigger",
+              "ur": "کون سا بڑا ہے"
+            },
+            "timed_s": null,
+            "items": [
+              {
+                "a": 7,
+                "b": 5,
+                "answer": 7
+              },
+              {
+                "a": 11,
+                "b": 24,
+                "answer": 24
+              },
+              {
+                "a": 39,
+                "b": 23,
+                "answer": 39
+              },
+              {
+                "a": 58,
+                "b": 49,
+                "answer": 58
+              },
+              {
+                "a": 65,
+                "b": 67,
+                "answer": 67
+              },
+              {
+                "a": 94,
+                "b": 78,
+                "answer": 94
+              },
+              {
+                "a": 146,
+                "b": 153,
+                "answer": 153
+              },
+              {
+                "a": 287,
+                "b": 534,
+                "answer": 534
+              },
+              {
+                "a": 623,
+                "b": 632,
+                "answer": 632
+              },
+              {
+                "a": 867,
+                "b": 965,
+                "answer": 965
+              }
+            ],
+            "practice": [
+              {
+                "a": 8,
+                "b": 4,
+                "answer": 8
+              },
+              {
+                "a": 10,
+                "b": 12,
+                "answer": 12
+              }
+            ],
+            "stop": {
+              "type": "consecutive_errors",
+              "n": 4
+            },
+            "script": {
+              "item": {
+                "en": "Look at these numbers. Tell me which number is bigger.",
+                "ur": "ان نمبروں کو دیکھیں۔ بتائیں کون سا نمبر بڑا ہے؟"
+              },
+              "practice_1_correct": {
+                "en": "That's correct, 8 is bigger. Let's do another one.",
+                "ur": "بالکل ٹھیک، ۸ بڑا ہے۔ چلیں ایک اور کرتے ہیں۔"
+              },
+              "practice_1_wrong": {
+                "en": "The bigger number is 8. [Point to 8] This is 8. [Point to 4] This is 4. 8 is bigger than 4. Let's do another one.",
+                "ur": "بڑا نمبر ۸ ہے۔ [۸ کی طرف اشارہ کریں] یہ ۸ ہے۔ [۴ کی طرف اشارہ کریں] یہ ۴ ہے۔ ۸، ۴ سے بڑا ہے۔ چلیں ایک اور کرتے ہیں۔"
+              },
+              "practice_2_correct": {
+                "en": "That's right, 12 is bigger. Let's continue.",
+                "ur": "ٹھیک ہے، ۱۲ بڑا ہے۔ چلیں آگے بڑھتے ہیں۔"
+              },
+              "practice_2_wrong": {
+                "en": "The bigger number is 12. [Point to 10] This number is 10. [Point to 12] This is 12. 12 is bigger than 10. Let's continue.",
+                "ur": "بڑا نمبر ۱۲ ہے۔ [۱۰ کی طرف اشارہ کریں] یہ نمبر ۱۰ ہے۔ [۱۲ کی طرف اشارہ کریں] یہ ۱۲ ہے۔ ۱۲، ۱۰ سے بڑا ہے۔ چلیں آگے بڑھتے ہیں۔"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.3",
+              "script": "core_egma:p.3",
+              "practice": "core_egma:p.3"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            }
+          },
+          "missing": {
+            "task": "ma.missing",
+            "title": {
+              "en": "Missing number",
+              "ur": "گمشدہ نمبر"
+            },
+            "timed_s": null,
+            "items": [
+              {
+                "seq": [
+                  5,
+                  6,
+                  7,
+                  null
+                ],
+                "answer": 8
+              },
+              {
+                "seq": [
+                  14,
+                  15,
+                  null,
+                  17
+                ],
+                "answer": 16
+              },
+              {
+                "seq": [
+                  20,
+                  null,
+                  40,
+                  50
+                ],
+                "answer": 30
+              },
+              {
+                "seq": [
+                  null,
+                  300,
+                  400,
+                  500
+                ],
+                "answer": 200
+              },
+              {
+                "seq": [
+                  2,
+                  4,
+                  6,
+                  null
+                ],
+                "answer": 8
+              },
+              {
+                "seq": [
+                  348,
+                  349,
+                  null,
+                  351
+                ],
+                "answer": 350
+              },
+              {
+                "seq": [
+                  28,
+                  null,
+                  24,
+                  22
+                ],
+                "answer": 26
+              },
+              {
+                "seq": [
+                  30,
+                  35,
+                  null,
+                  45
+                ],
+                "answer": 40
+              },
+              {
+                "seq": [
+                  550,
+                  540,
+                  530,
+                  null
+                ],
+                "answer": 520
+              },
+              {
+                "seq": [
+                  3,
+                  8,
+                  null,
+                  18
+                ],
+                "answer": 13
+              }
+            ],
+            "practice": [
+              {
+                "seq": [
+                  1,
+                  2,
+                  null,
+                  4
+                ],
+                "answer": 3
+              },
+              {
+                "seq": [
+                  5,
+                  10,
+                  15,
+                  null
+                ],
+                "answer": 20
+              }
+            ],
+            "stop": {
+              "type": "consecutive_errors",
+              "n": 4
+            },
+            "script": {
+              "practice_1": {
+                "en": "Here are some numbers. 1, 2, and 4, what number goes here?",
+                "ur": "یہ کچھ نمبر ہیں۔ ۱، ۲ اور ۴، یہاں کون سا نمبر آئے گا؟"
+              },
+              "practice_1_correct": {
+                "en": "That's correct, 3. Let's do another one.",
+                "ur": "بالکل ٹھیک، ۳۔ چلیں ایک اور کرتے ہیں۔"
+              },
+              "practice_1_wrong": {
+                "en": "The number 3 goes here. Say the numbers with me. [Point to each number] 1, 2, 3, 4. 3 goes here. Let's do another one.",
+                "ur": "یہاں ۳ آئے گا۔ میرے ساتھ نمبر بولیں۔ [ہر نمبر کی طرف اشارہ کریں] ۱، ۲، ۳، ۴۔ یہاں ۳ آئے گا۔ چلیں ایک اور کرتے ہیں۔"
+              },
+              "practice_2": {
+                "en": "Here are some numbers. 5, 10, and 15, what number goes here?",
+                "ur": "یہ کچھ نمبر ہیں۔ ۵، ۱۰ اور ۱۵، یہاں کون سا نمبر آئے گا؟"
+              },
+              "practice_2_correct": {
+                "en": "That's correct, 20. Let's do some more.",
+                "ur": "بالکل ٹھیک، ۲۰۔ چلیں کچھ اور کرتے ہیں۔"
+              },
+              "practice_2_wrong": {
+                "en": "The number 20 goes here. Say the numbers with me. [Point to each number] 5, 10, 15, 20. 20 goes here. Let's do some more.",
+                "ur": "یہاں ۲۰ آئے گا۔ میرے ساتھ نمبر بولیں۔ [ہر نمبر کی طرف اشارہ کریں] ۵، ۱۰، ۱۵، ۲۰۔ یہاں ۲۰ آئے گا۔ چلیں کچھ اور کرتے ہیں۔"
+              },
+              "item": {
+                "en": "Here are some more numbers. [Point to the box] What number goes here?",
+                "ur": "یہ کچھ اور نمبر ہیں۔ [خالی خانے کی طرف اشارہ کریں] یہاں کون سا نمبر آئے گا؟"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.5",
+              "script": "core_egma:p.5",
+              "practice": "core_egma:p.4"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            }
+          },
+          "add1": {
+            "task": "ma.add1",
+            "title": {
+              "en": "Addition, quick",
+              "ur": "جمع، فوری"
+            },
+            "timed_s": 60,
+            "items": [
+              {
+                "a": 1,
+                "b": 3,
+                "answer": 4
+              },
+              {
+                "a": 2,
+                "b": 3,
+                "answer": 5
+              },
+              {
+                "a": 6,
+                "b": 2,
+                "answer": 8
+              },
+              {
+                "a": 4,
+                "b": 5,
+                "answer": 9
+              },
+              {
+                "a": 3,
+                "b": 3,
+                "answer": 6
+              },
+              {
+                "a": 8,
+                "b": 1,
+                "answer": 9
+              },
+              {
+                "a": 7,
+                "b": 3,
+                "answer": 10
+              },
+              {
+                "a": 3,
+                "b": 9,
+                "answer": 12
+              },
+              {
+                "a": 2,
+                "b": 8,
+                "answer": 10
+              },
+              {
+                "a": 9,
+                "b": 3,
+                "answer": 12
+              },
+              {
+                "a": 7,
+                "b": 8,
+                "answer": 15
+              },
+              {
+                "a": 4,
+                "b": 7,
+                "answer": 11
+              },
+              {
+                "a": 7,
+                "b": 5,
+                "answer": 12
+              },
+              {
+                "a": 8,
+                "b": 6,
+                "answer": 14
+              },
+              {
+                "a": 9,
+                "b": 8,
+                "answer": 17
+              },
+              {
+                "a": 6,
+                "b": 7,
+                "answer": 13
+              },
+              {
+                "a": 8,
+                "b": 8,
+                "answer": 16
+              },
+              {
+                "a": 8,
+                "b": 5,
+                "answer": 13
+              },
+              {
+                "a": 10,
+                "b": 2,
+                "answer": 12
+              },
+              {
+                "a": 8,
+                "b": 10,
+                "answer": 18
+              }
+            ],
+            "practice": [],
+            "stop": {
+              "type": "none"
+            },
+            "script": {
+              "intro": {
+                "en": "Here are some addition problems [glide hand from top to bottom]. I will tell you when to start and when to stop. Say the answer for each problem. If you don't know an answer, move to the next problem.",
+                "ur": "یہ کچھ جمع کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
+              },
+              "begin": {
+                "en": "Are you ready? Start here [point to first problem].",
+                "ur": "کیا آپ تیار ہیں؟ یہاں سے شروع کریں [پہلے سوال کی طرف اشارہ کریں]"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "بس، شکریہ"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.6",
+              "script": "core_egma:p.6"
+            },
+            "quality": "ai",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "practice_note": "Core EGMA Level 1 has no practice items."
+          },
+          "sub1": {
+            "task": "ma.sub1",
+            "title": {
+              "en": "Subtraction, quick",
+              "ur": "تفریق، فوری"
+            },
+            "timed_s": 60,
+            "items": [
+              {
+                "a": 4,
+                "b": 3,
+                "answer": 1
+              },
+              {
+                "a": 5,
+                "b": 3,
+                "answer": 2
+              },
+              {
+                "a": 8,
+                "b": 2,
+                "answer": 6
+              },
+              {
+                "a": 9,
+                "b": 5,
+                "answer": 4
+              },
+              {
+                "a": 6,
+                "b": 3,
+                "answer": 3
+              },
+              {
+                "a": 9,
+                "b": 1,
+                "answer": 8
+              },
+              {
+                "a": 10,
+                "b": 3,
+                "answer": 7
+              },
+              {
+                "a": 12,
+                "b": 9,
+                "answer": 3
+              },
+              {
+                "a": 10,
+                "b": 8,
+                "answer": 2
+              },
+              {
+                "a": 12,
+                "b": 3,
+                "answer": 9
+              },
+              {
+                "a": 15,
+                "b": 8,
+                "answer": 7
+              },
+              {
+                "a": 11,
+                "b": 7,
+                "answer": 4
+              },
+              {
+                "a": 12,
+                "b": 5,
+                "answer": 7
+              },
+              {
+                "a": 14,
+                "b": 6,
+                "answer": 8
+              },
+              {
+                "a": 17,
+                "b": 8,
+                "answer": 9
+              },
+              {
+                "a": 13,
+                "b": 7,
+                "answer": 6
+              },
+              {
+                "a": 16,
+                "b": 8,
+                "answer": 8
+              },
+              {
+                "a": 13,
+                "b": 5,
+                "answer": 8
+              },
+              {
+                "a": 12,
+                "b": 2,
+                "answer": 10
+              },
+              {
+                "a": 18,
+                "b": 10,
+                "answer": 8
+              }
+            ],
+            "practice": [],
+            "stop": {
+              "type": "none"
+            },
+            "script": {
+              "intro": {
+                "en": "Here are some subtraction problems [glide hand from top to bottom]. I will tell you when to start and when to stop. Say the answer for each problem. If you don't know an answer, move to the next problem.",
+                "ur": "یہ کچھ تفریق کے سوال ہیں [اوپر سے نیچے ہاتھ پھیریں]۔ میں بتاؤں گا کب شروع کرنا ہے اور کب رکنا ہے۔ ہر سوال کا جواب بولیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔"
+              },
+              "begin": {
+                "en": "Are you ready? Start here [point to first problem].",
+                "ur": "کیا آپ تیار ہیں؟ یہاں سے شروع کریں [پہلے سوال کی طرف اشارہ کریں]"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              },
+              "stop": {
+                "en": "Stop.",
+                "ur": "بس، شکریہ"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.8",
+              "script": "core_egma:p.8"
+            },
+            "quality": "ai",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "practice_note": "Core EGMA Level 1 has no practice items."
+          },
+          "add2": {
+            "task": "ma.add2",
+            "title": {
+              "en": "Addition, harder",
+              "ur": "جمع، مشکل"
+            },
+            "timed_s": null,
+            "items": [
+              {
+                "a": 13,
+                "b": 6,
+                "answer": 19
+              },
+              {
+                "a": 18,
+                "b": 7,
+                "answer": 25
+              },
+              {
+                "a": 12,
+                "b": 14,
+                "answer": 26
+              },
+              {
+                "a": 22,
+                "b": 37,
+                "answer": 59
+              },
+              {
+                "a": 38,
+                "b": 26,
+                "answer": 64
+              }
+            ],
+            "practice": [],
+            "stop": {
+              "type": "consecutive_errors",
+              "n": 4
+            },
+            "script": {
+              "intro": {
+                "en": "Here are more addition problems. You may use this paper and pencil if you want to. You do not have to do so. Start here [point to first problem].",
+                "ur": "یہ جمع کے کچھ اور سوال ہیں۔ اگر آپ چاہیں تو یہ کاغذ اور پنسل استعمال کر سکتے ہیں۔ ضروری نہیں ہے۔ یہاں سے شروع کریں [پہلے سوال کی طرف اشارہ کریں]۔"
+              },
+              "another_way": {
+                "en": "Do you know another way to solve the problem?",
+                "ur": "کیا آپ یہ سوال کسی اور طریقے سے حل کر سکتے ہیں؟"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.7",
+              "script": "core_egma:p.7"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "skip_if_zero": "ma.add1",
+            "materials": {
+              "en": "Paper and pencil",
+              "ur": "کاغذ اور پنسل"
+            },
+            "practice_note": "Core EGMA Level 2 has no practice items."
+          },
+          "sub2": {
+            "task": "ma.sub2",
+            "title": {
+              "en": "Subtraction, harder",
+              "ur": "تفریق، مشکل"
+            },
+            "timed_s": null,
+            "items": [
+              {
+                "a": 19,
+                "b": 6,
+                "answer": 13
+              },
+              {
+                "a": 25,
+                "b": 7,
+                "answer": 18
+              },
+              {
+                "a": 26,
+                "b": 14,
+                "answer": 12
+              },
+              {
+                "a": 59,
+                "b": 37,
+                "answer": 22
+              },
+              {
+                "a": 64,
+                "b": 26,
+                "answer": 38
+              }
+            ],
+            "practice": [],
+            "stop": {
+              "type": "consecutive_errors",
+              "n": 4
+            },
+            "script": {
+              "intro": {
+                "en": "Here are more subtraction problems. You may use this paper and pencil if you want to. You do not have to do so. Start here [point to first problem].",
+                "ur": "یہ تفریق کے کچھ اور سوال ہیں۔ اگر آپ چاہیں تو یہ کاغذ اور پنسل استعمال کر سکتے ہیں۔ ضروری نہیں ہے۔ یہاں سے شروع کریں [پہلے سوال کی طرف اشارہ کریں]۔"
+              },
+              "another_way": {
+                "en": "Do you know another way to solve the problem?",
+                "ur": "کیا آپ یہ سوال کسی اور طریقے سے حل کر سکتے ہیں؟"
+              },
+              "go_on": {
+                "en": "Go on.",
+                "ur": "اگلا"
+              }
+            },
+            "source": {
+              "items": "core_egma:p.9",
+              "script": "core_egma:p.9"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "skip_if_zero": "ma.sub1",
+            "materials": {
+              "en": "Paper and pencil",
+              "ur": "کاغذ اور پنسل"
+            },
+            "practice_note": "Core EGMA Level 2 has no practice items."
+          },
+          "word_problems": {
+            "task": "ma.word_problems",
+            "title": {
+              "en": "Word problems",
+              "ur": "زبانی سوال"
+            },
+            "timed_s": null,
+            "items": [
+              {
+                "i": 1,
+                "type": "change_result_unknown",
+                "prompt_en": "You have 3 biscuits. Sana gives you 3 more. How many biscuits do you have now?",
+                "prompt_ur": "آپ کے پاس ۳ بسکٹ ہیں۔ ثنا آپ کو ۳ بسکٹ اور دیتی ہے۔ اب آپ کے پاس کتنے بسکٹ ہیں؟",
+                "answer": 6,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_1a"
+              },
+              {
+                "i": 2,
+                "type": "combine_part_unknown",
+                "prompt_en": "There are 4 children on a bus. 2 are boys. The rest are girls. How many girls are on the bus?",
+                "prompt_ur": "ایک بس میں ۴ بچے ہیں۔ ۲ لڑکے ہیں۔ باقی لڑکیاں ہیں۔ بس میں کتنی لڑکیاں ہیں؟",
+                "answer": 2,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_1b"
+              },
+              {
+                "i": 3,
+                "type": "compare_change_unknown",
+                "prompt_en": "Zoya has 3 oranges. Sara has 2 oranges. How many more oranges does Sara need to have the same number of oranges as Zoya?",
+                "prompt_ur": "زویا کے پاس ۳ مالٹے ہیں۔ سارہ کے پاس ۲ مالٹے ہیں۔ سارہ کو کتنے اور مالٹے چاہییں تاکہ اس کے پاس زویا جتنے مالٹے ہو جائیں؟",
+                "answer": 1,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_3b"
+              },
+              {
+                "i": 4,
+                "type": "change_start_unknown",
+                "prompt_en": "Ahmed puts 4 balls in a bag. Now there are 25 balls in the bag. How many balls were in the bag to begin with?",
+                "prompt_ur": "احمد ایک تھیلے میں ۴ گیندیں ڈالتا ہے۔ اب تھیلے میں ۲۵ گیندیں ہیں۔ شروع میں تھیلے میں کتنی گیندیں تھیں؟",
+                "answer": 21,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_3a"
+              },
+              {
+                "i": 5,
+                "type": "sharing",
+                "prompt_en": "There are 5 girls and 25 bananas. The girls share the bananas equally. How many bananas does each girl get?",
+                "prompt_ur": "۵ لڑکیاں اور ۲۵ کیلے ہیں۔ لڑکیاں کیلے برابر بانٹ لیتی ہیں۔ ہر لڑکی کو کتنے کیلے ملتے ہیں؟",
+                "answer": 5,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_4b"
+              },
+              {
+                "i": 6,
+                "type": "groups_of",
+                "prompt_en": "Salman has 2 boxes of toy cars. Each box has 4 cars in it. How many cars does Salman have in total?",
+                "prompt_ur": "سلمان کے پاس کھلونا گاڑیوں کے ۲ ڈبے ہیں۔ ہر ڈبے میں ۴ گاڑیاں ہیں۔ سلمان کے پاس کل کتنی گاڑیاں ہیں؟",
+                "answer": 8,
+                "translation": {
+                  "ur": "pending-native-review"
+                },
+                "source": "rwp2026:word_problems_4a"
+              }
+            ],
+            "practice": [
+              {
+                "prompt_en": "There are three children on the bus. One child gets out of the bus. How many children are left on the bus?",
+                "prompt_ur": "بس میں تین بچے ہیں۔ ایک بچہ بس سے اتر جاتا ہے۔ اب بس میں کتنے بچے رہ گئے ہیں؟",
+                "answer": 2,
+                "translation": {
+                  "ur": "pending-native-review"
+                }
+              }
+            ],
+            "stop": {
+              "type": "consecutive_errors",
+              "n": 4
+            },
+            "script": {
+              "intro": {
+                "en": "I have some problems that I am going to ask you to solve for me. Here are some things to help you. You can use them if you need them, but you don't have to use them. Listen very carefully to each problem. If you need, I will repeat problem for you. Okay, let's get started.",
+                "ur": "میرے پاس کچھ سوال ہیں جو میں آپ سے حل کرواؤں گا۔ یہ کچھ چیزیں آپ کی مدد کے لیے ہیں۔ ضرورت ہو تو استعمال کریں، ضروری نہیں۔ ہر سوال بہت دھیان سے سنیں۔ اگر ضرورت ہو تو میں سوال دوبارہ سنا دوں گا۔ چلیں شروع کرتے ہیں۔"
+              },
+              "practice": {
+                "en": "There are three children on the bus. [pause and check] One child gets out of the bus. [pause and check] How many children are left on the bus?",
+                "ur": "بس میں تین بچے ہیں۔ [رکیں اور دیکھیں] ایک بچہ بس سے اتر جاتا ہے۔ [رکیں اور دیکھیں] اب بس میں کتنے بچے رہ گئے ہیں؟"
+              },
+              "practice_correct": {
+                "en": "That's right. There are two children left on the bus. Let's do some more.",
+                "ur": "ٹھیک ہے۔ بس میں دو بچے رہ گئے ہیں۔ چلیں کچھ اور کرتے ہیں۔"
+              },
+              "practice_wrong": {
+                "en": "Pretend these counters are children. Count out three children. These children are on the bus. One child gets out of the bus. Show me one child getting out of the bus with the counters. How many children are left on the bus? That's right. There are two children left on the bus. Let's do some more.",
+                "ur": "فرض کریں یہ گوٹیاں بچے ہیں۔ تین بچے گنیں۔ یہ بچے بس میں ہیں۔ ایک بچہ بس سے اتر جاتا ہے۔ گوٹیوں سے دکھائیں کہ ایک بچہ بس سے اتر رہا ہے۔ اب بس میں کتنے بچے رہ گئے ہیں؟ ٹھیک ہے۔ بس میں دو بچے رہ گئے ہیں۔ چلیں کچھ اور کرتے ہیں۔"
+              },
+              "more": {
+                "en": "Now I have some more problems for you.",
+                "ur": "اب میرے پاس آپ کے لیے کچھ اور سوال ہیں۔"
+              },
+              "next_problem": {
+                "en": "Let's try another problem.",
+                "ur": "چلیں اگلا سوال کرتے ہیں۔"
+              }
+            },
+            "source": {
+              "items": "rwp2026:word_problems_*",
+              "practice": "core_egma:p.10",
+              "script": "core_egma:pp.10-11"
+            },
+            "quality": "ai_review",
+            "script_translation": {
+              "ur": "pending-native-review"
+            },
+            "materials": {
+              "en": "Counters, paper and pencil",
+              "ur": "گوٹیاں، کاغذ اور پنسل"
+            },
+            "read_aloud": true,
+            "types_source": "egma_tk2014:p.14",
+            "mapping_note": "Core EGMA's six types in Core order, each filled with the RWP item of that type (May baseline comparability). RWP prompts are English in the transcription; the Urdu readings are renderings pending native review (1a reuses the v2 bank's)."
+          },
+          "skip_level2_if_level1_zero": true
+        }
+      }
+    }
+  }
+}
