@@ -25,29 +25,6 @@ function refOf(kind, it, q) {
   return q.text;
 }
 
-// The model returns both what it heard and a verdict; when the heard answer is a plain number (Western or
-// Urdu digits) the verdict follows from the answer key, and code says so (bd-s1oo0.50.10: "534" heard for
-// 287-or-534, marked wrong at 0.95). Only correct/wrong are flipped; none and not-reached are left alone.
-const URDU_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
-const asNumber = (s) => {
-  const t = String(s == null ? '' : s).trim().replace(/[۰-۹]/g, (d) => String(URDU_DIGITS.indexOf(d))).replace(/[,\s]/g, '');
-  return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : null;
-};
-function reconcileWith(qs) {
-  return (rows) => {
-    let n = 0;
-    rows.forEach((r, k) => {
-      if (r.verdict !== 'correct' && r.verdict !== 'wrong') return;
-      const heard = asNumber(r.heard);
-      const answer = asNumber(qs[k] && qs[k].answer);
-      if (heard == null || answer == null) return;
-      const v = heard === answer ? 'correct' : 'wrong';
-      if (v !== r.verdict) { r.verdict = v; r.reconciled = true; n += 1; }
-    });
-    return n;
-  };
-}
-
 async function score(ctx) {
   const { spec, grade, kind } = ctx;
   const qs = spec.items.map((it) => questionOf(kind, it, ctx.coachLang));
@@ -56,9 +33,8 @@ async function score(ctx) {
     // a card mixing item types (the May 2026 RWP magnitude card) gets the generic EGMA header
     prompt: P.ORAL_ITEMS({ grade, kind: spec.mixed ? null : kind, questions: qs }),
     schema: P.ORAL_SCHEMA,
-    reconcile: kind === 'word_problems' ? null : reconcileWith(qs),
   });
   return m;
 }
 
-module.exports = { score, questionOf, reconcileWith, asNumber };
+module.exports = { score, questionOf };
