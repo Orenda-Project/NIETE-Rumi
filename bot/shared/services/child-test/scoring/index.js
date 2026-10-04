@@ -24,7 +24,9 @@
  * v2 switches (bd-s1oo0.46.3, CONTRACT §19), read per call, v2 by default:
  *   CHILD_TEST_BATTERY=v2   Urdu/English are scored for story, questions and the
  *                           non-reader fallback only; first sounds and made-up words
- *                           are neither looked for nor scored (v1: as above).
+ *                           are neither looked for nor scored (v1: as above). The
+ *                           fallback is scored only when the coach's switch line is
+ *                           heard (meta.fallback_switch); v1 infers it from line 1.
  *   CHILD_TEST_MATHS_MODE=oral  maths is scored from its voice note alone (May set:
  *                           compare, sums, two word problems; maths-oral.js), no photo
  *                           is awaited (strip: as above).
@@ -34,7 +36,7 @@ const { logToFile, logError } = require('../../../utils/logger');
 const { logEvent } = require('../../../utils/structured-logger');
 const media = require('./media');
 const stt = require('./stt');
-const { findCueWindows, reconcileWindows, defaultTimedWindow } = require('./windows');
+const { findCueWindows, findSwitchLine, reconcileWindows, defaultTimedWindow } = require('./windows');
 const { labelMissing } = require('./labeller');
 const { scoreStory, scoreFallback, needsFallback } = require('./story');
 const { scoreQuestions } = require('./comprehension');
@@ -100,6 +102,14 @@ async function runReading({ block, spec, cue, file, durationSec, calls, errors, 
   const w = cut.windows;
   const parts = {}; const ok = {};
 
+  // v2: the switch to letters + words is the coach's, said aloud (L32). Heard: the story is what the child
+  // read before it. v1 infers the switch from line 1 (needsFallback), unchanged.
+  const coachSwitches = battery === 'v2';
+  const switchLine = coachSwitches && spec.fallback
+    ? findSwitchLine(words, spec.script && spec.script.fallback, { after: w.story ? w.story.start : -1 })
+    : null;
+  if (switchLine && w.story && switchLine.start < w.story.end) w.story.end = Math.max(w.story.start, switchLine.start);
+
   const [story, questions, phonics] = await Promise.all([
     w.story ? scoreStory({ lang: block, spec: spec.story || {}, file, window: w.story, words, coachSpeaker: cut.coachSpeaker, flags: cut.flags, calls }) : { ok: false, error: 'no_window' },
     w.questions ? scoreQuestions({ lang: block, spec, words, window: w.questions, calls }) : { ok: false, error: 'no_window' },
@@ -111,12 +121,23 @@ async function runReading({ block, spec, cue, file, durationSec, calls, errors, 
   else errors.push({ job: 'story', error: story.error, ...(story.detail ? { detail: story.detail } : {}) });
   ok.story = !!story.ok;
 
-  // the child could not read the first line, so the coach switched to letters + words (PLAN §3)
-  if (story.ok && spec.fallback && needsFallback(story.part, spec.story)) {
-    const fbWindow = { start: w.story.start, end: w.story.sectionEnd || w.story.end };
+  // the child could not read the first line, so the coach switched to letters + words (PLAN §3):
+  // v2 when the coach's switch line is heard, v1 when line 1's count says so
+  const inferred = !!(story.ok && spec.fallback && needsFallback(story.part, spec.story));
+  let fbWindow = null;
+  if (coachSwitches && switchLine) {
+    const end = (w.story && w.story.sectionEnd) || durationSec;
+    fbWindow = { start: switchLine.start, end: end > switchLine.end ? end : durationSec };
+  } else if (!coachSwitches && inferred) {
+    fbWindow = { start: w.story.start, end: w.story.sectionEnd || w.story.end };
+  }
+  if (fbWindow) {
     const fb = await scoreFallback({ lang: block, spec, file, window: fbWindow, calls });
     if (fb.ok) parts.fallback = fb.part; else errors.push({ job: 'fallback', error: fb.error });
   }
+  const fallbackSwitch = !coachSwitches || !spec.fallback ? null
+    : switchLine ? { heard: true, start: switchLine.start, end: switchLine.end, phrase: switchLine.phrase, inferred }
+      : { heard: false, inferred };
 
   if (questions.ok) { parts.questions = questions.part; modelVersions.comprehension = questions.modelVersion || modelFor('comprehension'); }
   else errors.push({ job: 'comprehension', error: questions.error });
@@ -128,7 +149,7 @@ async function runReading({ block, spec, cue, file, durationSec, calls, errors, 
   } else if (phonics) errors.push({ job: 'phonics', error: phonics.error });
   if (phonics) { ok.first_sounds = !!phonics.ok; ok.nonwords = !!phonics.ok; }
 
-  return { parts, ok, flags: cut.flags, transcript: compactTranscript(res), windows: cut.windows };
+  return { parts, ok, flags: cut.flags, transcript: compactTranscript(res), windows: cut.windows, fallbackSwitch };
 }
 
 async function runMaths({ spec, cue, grade, form, row, audioFile, durationSec, calls, errors, modelVersions, fetchMedia }) {
@@ -277,6 +298,7 @@ async function scoreBlock(args, deps = {}) {
       errors,
       windows: result.windows,
       ...(result.parts.photo ? { photo: result.parts.photo } : {}),
+      ...(result.fallbackSwitch ? { fallback_switch: result.fallbackSwitch } : {}),
     };
     if (aiStatus === 'failed') {
       const reason = errors[0] ? `${errors[0].job}_failed` : 'nothing_scored';

@@ -185,7 +185,8 @@ describe('through scoreBlock: the sandbox shapes keep their story count and get 
 
   test('a non-reader is still sent to letters + words: Gemini marks the passage wrong, nothing right', async () => {
     global.__noteSeconds = 90;
-    sonioxReturns([[1, 0.2, bank.cue.urdu.start], [2, 3, 'ب ل'], [1, 20, bank.cue.urdu.stop]], 0.6);
+    // battery v2 (L32): the coach switches the child to letters + words, aloud
+    sonioxReturns([[1, 0.2, bank.cue.urdu.start], [2, 3, 'ب ل'], [1, 10, bank.getScript(3, 'A', 'urdu').fallback], [1, 20, bank.cue.urdu.stop]], 0.6);
     const jobs = routeModels({ story: () => 'wrong' });
     const store = fakeStore({ id: 'blk-30d', block: 'urdu', audio_r2_key: 'k', ai_marks: null });
 
