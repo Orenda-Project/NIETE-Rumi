@@ -36,6 +36,10 @@
 const { PRIORITY, MOMENTS, PLAIN } = require('./fico17');
 
 const FLOW_VERSION = '7.3';
+// This form's own version, sent by the footers whose next screen changed with the photo step. A form
+// opened before it was published sends none, and the endpoint keeps that form on the old routes.
+const FORM_VERSION = '4';
+const VERSIONED = new Set(['LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES']);
 // Coaches photograph what helps the analysis, without the teachers' cap of three (2 Oct call).
 const MAX_PHOTOS = 10;
 // An added lesson plan: pages photographed, a file, or typed. The typed floor is the uploaded-plan
@@ -168,6 +172,7 @@ const FIELDS = {
 
 function screen(id, title, children, footerLabel, extraData) {
   const payload = { screen: id };
+  if (VERSIONED.has(id)) payload.fv = FORM_VERSION;
   for (const f of FIELDS[id]) payload[f] = `\${form.${f}}`;
   // A picker's value may only travel as a top-level string property of a data_exchange (Meta).
   if (id === 'PHOTO_TAKE') payload.photos = '${form.photos}';
@@ -332,7 +337,7 @@ function buildFieldFormFlow() {
       children: [
         { type: 'TextHeading', text: '${data.continue_heading}' },
         { type: 'TextBody', text: '${data.continue_line}' },
-        { type: 'Footer', label: 'Continue', 'on-click-action': { name: 'data_exchange', payload: { screen: 'CONTINUE' } } },
+        { type: 'Footer', label: 'Continue', 'on-click-action': { name: 'data_exchange', payload: { screen: 'CONTINUE', fv: FORM_VERSION } } },
       ],
     },
   };
@@ -342,10 +347,11 @@ function buildFieldFormFlow() {
     routing_model: {
       PART_ONE: ['PART_TWO'],
       PART_TWO: ['LESSON_PLAN'],
-      LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS'],
-      LP_PHOTOS: ['PHOTOS'],
-      LP_FILE: ['PHOTOS'],
-      LP_TEXT: ['PHOTOS'],
+      // AFTER too: going back to the plan once the photo step is answered lands on the seal screen again.
+      LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'AFTER'],
+      LP_PHOTOS: ['PHOTOS', 'AFTER'],
+      LP_FILE: ['PHOTOS', 'AFTER'],
+      LP_TEXT: ['PHOTOS', 'AFTER'],
       PHOTOS: ['PHOTO_TAKE', 'PHOTO_FILES', 'AFTER'],
       PHOTO_TAKE: ['AFTER'],
       PHOTO_FILES: ['AFTER'],
@@ -388,4 +394,4 @@ function buildFieldFormFlow() {
   };
 }
 
-module.exports = { buildFieldFormFlow, FIELDS, FLOW_VERSION, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN };
+module.exports = { buildFieldFormFlow, FIELDS, FLOW_VERSION, FORM_VERSION, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN };

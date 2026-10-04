@@ -12,7 +12,7 @@ function createFakeSupabase(seed = {}) {
   let failNext = null;
 
   function builder(table) {
-    const q = { table, action: 'select', values: null, filters: [], order: null, limit: null, range: null, mode: 'many' };
+    const q = { table, action: 'select', values: null, columns: null, filters: [], order: null, limit: null, range: null, mode: 'many' };
     const rowsOf = () => (tables[table] = tables[table] || []);
     const matches = (row) => q.filters.every(([op, col, val]) => {
       if (op === 'eq') return row[col] === val;
@@ -24,7 +24,7 @@ function createFakeSupabase(seed = {}) {
       return true;
     });
     const run = () => {
-      calls.push({ table, action: q.action, values: q.values, filters: q.filters.slice() });
+      calls.push({ table, action: q.action, values: q.values, columns: q.columns, filters: q.filters.slice() });
       if (failNext) { const e = failNext; failNext = null; return { data: null, error: e }; }
       let out;
       if (q.action === 'insert') {
@@ -48,7 +48,7 @@ function createFakeSupabase(seed = {}) {
     const api = {
       insert(values) { q.action = 'insert'; q.values = values; return api; },
       update(values) { q.action = 'update'; q.values = values; return api; },
-      select() { return api; },
+      select(cols) { if (cols !== undefined) q.columns = cols; return api; },
       eq(col, val) { q.filters.push(['eq', col, val]); return api; },
       is(col, val) { q.filters.push(['is', col, val]); return api; },
       gte(col, val) { q.filters.push(['gte', col, val]); return api; },

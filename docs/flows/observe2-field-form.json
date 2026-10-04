@@ -12,16 +12,20 @@
       "LP_PHOTOS",
       "LP_FILE",
       "LP_TEXT",
-      "PHOTOS"
+      "PHOTOS",
+      "AFTER"
     ],
     "LP_PHOTOS": [
-      "PHOTOS"
+      "PHOTOS",
+      "AFTER"
     ],
     "LP_FILE": [
-      "PHOTOS"
+      "PHOTOS",
+      "AFTER"
     ],
     "LP_TEXT": [
-      "PHOTOS"
+      "PHOTOS",
+      "AFTER"
     ],
     "PHOTOS": [
       "PHOTO_TAKE",
@@ -779,6 +783,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LESSON_PLAN",
+                    "fv": "4",
                     "lp": "${form.lp}",
                     "lp_pick": "${form.lp_pick}",
                     "lp_how": "${form.lp_how}"
@@ -845,6 +850,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_PHOTOS",
+                    "fv": "4",
                     "lp_photos": "${form.lp_photos}"
                   }
                 }
@@ -915,6 +921,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_FILE",
+                    "fv": "4",
                     "lp_file": "${form.lp_file}"
                   }
                 }
@@ -977,6 +984,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_TEXT",
+                    "fv": "4",
                     "lp_text": "${form.lp_text}"
                   }
                 }
@@ -1053,6 +1061,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PHOTOS",
+                    "fv": "4",
                     "photo_how": "${form.photo_how}"
                   }
                 }
@@ -1113,6 +1122,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PHOTO_TAKE",
+                    "fv": "4",
                     "photos": "${form.photos}"
                   }
                 }
@@ -1180,6 +1190,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PHOTO_FILES",
+                    "fv": "4",
                     "photo_files": "${form.photo_files}"
                   }
                 }
@@ -1475,7 +1486,8 @@
             "on-click-action": {
               "name": "data_exchange",
               "payload": {
-                "screen": "CONTINUE"
+                "screen": "CONTINUE",
+                "fv": "4"
               }
             }
           }

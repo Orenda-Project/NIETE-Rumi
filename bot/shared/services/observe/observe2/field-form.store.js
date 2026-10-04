@@ -152,11 +152,13 @@ async function setPhotos(id, photos) {
   return { ok: true };
 }
 
-// The coach's most recent form that has no recording yet, started within the link window.
+// The coach's most recent form that has no recording yet, started within the link window. It runs
+// on every unarmed leader audio, so it reads only what the link and the capture need.
+const CAPTURE_COLUMNS = 'id, observer_user_id, teacher_user_id, visit_context, sealed_at, coaching_session_id, created_at';
 async function findOpenFormForCapture(observerUserId, now = Date.now()) {
   const since = new Date(now - LINK_WINDOW_HOURS * 3600 * 1000).toISOString();
   const { data, error } = await supabase.from('observation_field_forms')
-    .select('*')
+    .select(CAPTURE_COLUMNS)
     .eq('observer_user_id', observerUserId)
     .is('coaching_session_id', null)
     .gte('created_at', since)
@@ -177,9 +179,10 @@ async function linkSession(id, sessionId) {
 // the link written for that session is undone.
 async function unlinkSession(sessionId) {
   const { data, error } = await supabase.from('observation_field_forms')
-    .update({ coaching_session_id: null }).eq('coaching_session_id', sessionId).select('id');
+    .update({ coaching_session_id: null }).eq('coaching_session_id', sessionId).select('id, created_at');
   if (error) return fail('unlinkSession', error, { sessionId });
-  return { ok: true, formId: ((data || [])[0] || {}).id || null };
+  const row = (data || [])[0] || {};
+  return { ok: true, formId: row.id || null, createdAt: row.created_at || null };
 }
 
 async function findBySession(sessionId) {

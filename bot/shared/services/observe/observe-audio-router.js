@@ -102,6 +102,8 @@ function hasDeclaredDcIntent(user) {
  * The coach's /observe2 form still waiting for its recording, or null. A failed lookup is logged and
  * reads as none: the recording then takes today's path (parked and asked about when lesson-length).
  */
+const OBSERVE2_MIN_RECORDING_SECONDS = 120;
+
 async function _waitingObserve2Form(userId) {
   try {
     const found = await require('./observe2/field-form.store').findOpenFormForCapture(userId);
@@ -172,10 +174,13 @@ async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = 
   }
 
   // /observe2: a field form waiting for its recording is an armed observation too, kept in the
-  // database rather than in the Redis state (which every capture clears and which lives 2 h). Any
-  // length is accepted, as for an armed /observe. Riffat, 4 Oct: with the state gone, an 11-minute
-  // recording for her sealed form was answered by general chat with a voice note.
-  const waiting = await _waitingObserve2Form(user.id);
+  // database rather than in the Redis state (which every capture clears and which lives 2 h).
+  // Riffat, 4 Oct: with the state gone, an 11-minute recording for her sealed form was answered by
+  // general chat with a voice note. Below a lesson's length a voice note is still the coach talking
+  // to Rumi, so only a recording of OBSERVE2_MIN_RECORDING_SECONDS or more (or one that already
+  // looks like a classroom recording) is taken for the form.
+  const recordingLength = looksLikeClassroom || dur >= OBSERVE2_MIN_RECORDING_SECONDS;
+  const waiting = recordingLength ? await _waitingObserve2Form(user.id) : null;
   if (waiting) {
     try {
       const ObserveCapture = require('./observe-capture.service');
