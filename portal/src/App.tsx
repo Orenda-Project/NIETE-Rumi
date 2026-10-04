@@ -15,6 +15,7 @@ import PortalRoot from "./portal/pages/PortalRoot";
 import PortalPasswordReset from "./portal/pages/PortalPasswordReset";
 import PortalPasswordResetVerify from "./portal/pages/PortalPasswordResetVerify";
 import PortalDeleteAccount from "./portal/pages/PortalDeleteAccount";
+import PortalPrivacy from "./portal/pages/PortalPrivacy";
 import PortalAccount from "./portal/pages/PortalAccount";
 import PortalDashboard from "./portal/pages/PortalDashboard";
 import PortalHomeList from "./portal/pages/PortalHomeList";
@@ -109,6 +110,9 @@ const App = () => {
               routes above: no PortalLayout, no session check, so it works
               signed out, signed in, and without the app. */}
           <Route path="/portal/delete-account" element={<PortalDeleteAccount />} />
+          {/* bd-nvnf2 — the NIETE privacy policy, the URL in Play Console. PUBLIC
+              for the same reason: Play opens it signed out, outside the app. */}
+          <Route path="/portal/privacy" element={<PortalPrivacy />} />
           <Route path="/portal/dashboard" element={<PortalDashboard />} />
           {/* bd-5rz1v.17 — the lists behind the new Home's tiles (new UI only; flag off → the dashboard). */}
           <Route path="/portal/dashboard/:metric" element={<PortalHomeList />} />

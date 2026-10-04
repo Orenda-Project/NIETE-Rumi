@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader } from '../lib/leaderRole';
 import { isValidPkMobile, PK_MOBILE_HINT } from '../lib/phone';
-import { DELETE_ACCOUNT_PATH, EXTERNAL_LINK_PROPS, PRIVACY_POLICY_URL } from '../lib/legalLinks';
+import { DELETE_ACCOUNT_PATH, PRIVACY_POLICY_PATH } from '../lib/legalLinks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -162,9 +162,9 @@ const PortalLogin = () => {
             deletion reachable in the app; this is the one screen everyone
             sees, including someone who can no longer sign in. */}
         <p data-testid="login-legal-footer" className="mt-6 text-center text-sm text-primary-foreground/80">
-          <a href={PRIVACY_POLICY_URL} {...EXTERNAL_LINK_PROPS} className="underline-offset-4 hover:underline hover:text-primary-foreground">
+          <Link to={PRIVACY_POLICY_PATH} className="underline-offset-4 hover:underline hover:text-primary-foreground">
             Privacy policy
-          </a>
+          </Link>
           <span aria-hidden="true"> · </span>
           <Link to={DELETE_ACCOUNT_PATH} className="underline-offset-4 hover:underline hover:text-primary-foreground">
             Delete account
