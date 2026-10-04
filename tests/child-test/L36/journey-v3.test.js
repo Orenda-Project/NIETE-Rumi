@@ -193,6 +193,22 @@ describe('2. eighteen tasks, one step and one note each', () => {
     expect(lanes.calls.find((c) => c[0] === 'setSessionStatus' && c[2] === 'completed')).toBeTruthy();
   });
 
+  test('with L35\'s real bank (item-bank.js tasksFor/getTaskSpec): a whole child, 18 steps in order, then doneNext', async () => {
+    bank.__setForTest(null);
+    const ib = require('../../../bot/shared/services/child-test/item-bank');
+    await startVisit();
+    const from = sent().length;
+    await present('d1');
+    const tasks = bank.tasksFor({ grade: 3 });
+    expect(tasks).toEqual(TASKS_V3);
+    const recorded = tasks.filter((x) => !ib.getTaskSpec({ grade: 3, set: 'A', task: x }).gap);
+    for (let i = 0; i < recorded.length; i += 1) await note();
+    await H.__drain();
+    expect(lanes.calls.filter((c) => c[0] === 'attachBlockMedia').map((c) => c[1].block)).toEqual(recorded);
+    expect(stepHeaders(sent().slice(from))).toHaveLength(recorded.length);
+    expect(last().body).toMatch(/^✅ Ayesha Khan done/);
+  });
+
   test('the ack names the task just received and rides on the next step', async () => {
     await startVisit();
     await present('d1');
