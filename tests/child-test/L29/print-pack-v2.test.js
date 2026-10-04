@@ -249,12 +249,16 @@ describe('setup picture (v2)', () => {
 });
 
 describe('PRINT_ME (v2)', () => {
-  const out = v2.buildPrintMeHtml({ itemBank: bank, set: 'A' });
+  // PRINT_ME carries the coach cards (L33), which need the v2 bank's coach lines and oral maths:
+  // the committed bank, not the v1-shaped L2 fixture.
+  const realBank = require('../../../bot/shared/data/child-test/item-bank.v1.json');
+  const out = v2.buildPrintMeHtml({ itemBank: realBank, set: 'A' });
   const ps = pages(out);
 
   it('is everything for one coach, in print order, behind a cover', () => {
     expect(ps.map((p) => p.attrs.page)).toEqual([
       'cover', 'cover-back', 'coach/en', 'coach/ur',
+      'g3/coachcard', 'g3/coachcard-back', 'g5/coachcard', 'g5/coachcard-back',
       'g3/urdu/front', 'g3/urdu/back', 'g3/english/front', 'g3/english/back', 'g3/maths/front', 'g3/maths/back',
       'g5/urdu/front', 'g5/urdu/back', 'g5/english/front', 'g5/english/back', 'g5/maths/front', 'g5/maths/back',
     ]);
@@ -269,7 +273,7 @@ describe('PRINT_ME (v2)', () => {
   });
 
   it('Set B pack says "next term — do not print yet" on the cover', () => {
-    const b = pages(v2.buildPrintMeHtml({ itemBank: bank, set: 'B' }));
+    const b = pages(v2.buildPrintMeHtml({ itemBank: realBank, set: 'B' }));
     expect(b[0].text).toMatch(/Next term — do not print yet/);
     expect(b[0].text).toContain('Set B · Jan–Mar 2027');
   });

@@ -113,6 +113,10 @@ const SCENARIOS = [
   ['CT92', 'Sending the review form a second time changes nothing', 'L6'],
   ['CT93', 'Nothing doubtful — no form, the visit is finished at once', 'L6'],
   ['CT94', 'More than 15 doubtful answers — the 15 least certain are asked', 'L6'],
+  // L34 (bd-s1oo0.47, CONTRACT §20): ask only the questions the child reached.
+  ['CT95', 'A child who read the whole story is asked every question, scored out of those asked', 'L5'],
+  ['CT96', 'A child who stops early is asked only the questions they reached', 'L5'],
+  ['CT97', 'A question asked beyond what the child read is kept but not scored', 'L5'],
   // L25 (bd-s1oo0.46.1): find the child without rolls — the v2 list, teachers, shift and term set.
   ['CT70', 'Today\'s list is grouped by classroom, each room with its class teacher, and no roll anywhere', 'L4'],
   ['CT71', '"Send to the teachers" sends each class teacher only their own room\'s children', 'L4'],
@@ -121,6 +125,16 @@ const SCENARIOS = [
   ['CT74', 'A same-name classmate is resolved by the father\'s name, or flagged with the count in the class', 'L4'],
   ['CT75', 'A school-grade with morning and evening classes is drawn from the morning shift only', 'L3'],
   ['CT76', 'Every child in a term reads the term\'s card set; a returning child never reads a set twice', 'L3'],
+  // L36 (bd-s1oo0.50.2, CONTRACT §21.4): battery v3, one step and one voice note per task.
+  ['CT51', 'v3 order — eighteen tasks per child, Urdu 5, English 5, Maths 8, one step and one note each', 'L4'],
+  ['CT52', 'v3 timed step — practice first, then 🎤, the begin line, stop at 1:00, send at about 1:05', 'L4'],
+  ['CT53', 'v3 untimed step — record the whole task, stop after 4 wrong in a row', 'L4'],
+  ['CT54', 'v3 skip — "skip" stores the task as skipped by the coach and sends the next step', 'L4'],
+  ['CT55', 'v3 gap — a task with no official items is skipped with an honest line', 'L4'],
+  ['CT56', 'v3 nudge and resume name the task', 'L4'],
+  // L39 (bd-s1oo0.50.5, CONTRACT §21.6): battery v3 results and the paged end-of-visit review.
+  ['CT57', 'v3 results — one line per block per child, rates per minute, ≈ for provisional tasks', 'L4'],
+  ['CT58', 'v3 review — the unsettled items, child by child, in pages of 15, saved once per task', 'L4'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -454,6 +468,21 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT92', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
     record('CT93', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
     record('CT94', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
+    // L34 (bd-s1oo0.47, CONTRACT §20): proven by tests/child-test/L34 (reach, comprehension-reach, step-reach,
+    // coach-card-reach, review-reach). The drive needs fixtures of a child stopping before a question's line.
+    record('CT95', ...B('drive not written yet: needs a full-story reader fixture and the review Flow on sandbox; jest-proven in tests/child-test/L34'));
+    record('CT96', ...B('drive not written yet: needs an early-stop reader fixture and the review Flow on sandbox; jest-proven in tests/child-test/L34'));
+    record('CT97', ...B('drive not written yet: needs an early-stop reader fixture with all 3 questions asked; jest-proven in tests/child-test/L34'));
+    // L36 (bd-s1oo0.50.2): proven by tests/child-test/L36 (journey-v3). The drive needs the bot restarted with
+    // CHILD_TEST_BATTERY=v3, L35's bank and V1.6.1 on sandbox, and 18 fixture notes per child (L39's synthetic_v3).
+    record('CT51', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and synthetic_v3 notes; jest-proven in tests/child-test/L36'));
+    record('CT52', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and synthetic_v3 notes; jest-proven in tests/child-test/L36'));
+    record('CT53', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and synthetic_v3 notes; jest-proven in tests/child-test/L36'));
+    record('CT54', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and synthetic_v3 notes; jest-proven in tests/child-test/L36'));
+    record('CT55', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and a bank with a gap task; jest-proven in tests/child-test/L36'));
+    record('CT56', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and a 4-minute wait; jest-proven in tests/child-test/L36'));
+    record('CT57', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 and V1.6.1 on the stack and synthetic_v3 notes (coach.js --battery v3); jest-proven in tests/child-test/L39 + tests/e2e-mock/child-test-v3-visit'));
+    record('CT58', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3, V1.6.1 and CHILD_TEST_REVIEW_FLOW_ID on the stack; jest-proven in tests/child-test/L39 + tests/e2e-mock/child-test-v3-visit'));
 // L25 (bd-s1oo0.46.1): proven by tests/child-test/L25 (draw-v2, list-identity, no-roll). The drive needs a SIM
     // roster with two sections, two class teachers, an evening class and a namesake pair.
     record('CT70', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));

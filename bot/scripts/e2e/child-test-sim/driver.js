@@ -23,6 +23,13 @@
  * caught at <marked> when the screen says "unsure, please check", else <unmarked>), plus
  * --coach-blind-accuracy A (an EMPTY field filled right with probability A; default 1). The bot's
  * pre-fill mode is the stack's CHILD_TEST_PREFILL_MODE (sim-stack.sh passes it through).
+ *
+ * Battery v3 (L39, bd-s1oo0.50.5): --battery v3 plays coach.runVisitV3 — 18 tasks a child, one note per task from
+ * fixtures/synthetic_v3/<id>/ (key.json says which tasks have a note, which the coach skips, which are gaps), then the
+ * review pages answered from the keys. --ids or the first --pick children of <fixtures>/_manifest.json (--grade to
+ * filter). Task titles (how a step is recognised) come from the item bank's getTaskSpec, or --bank <item-bank.v3.json>.
+ *   --mode dry   no bot at all: fake-bot-v3.js, in process (proves the coach's side and the fixtures)
+ *   --mode mock / sandbox   as for v1/v2. L0 runs sandbox after the drop; the drone never does.
  */
 'use strict';
 const fs = require('fs');
@@ -30,7 +37,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const { createTimeline, summarise } = require('./timeline');
 const { mockTransport, sandboxTransport } = require('./transports');
-const { runVisit } = require('./coach');
+const { runVisit, runVisitV3, TASKS_V3 } = require('./coach');
 
 function args(argv) {
   const a = {};
@@ -132,8 +139,72 @@ function attachStrips(fixtures, stripsDir) {
   });
 }
 
+/** v3 fixtures: --ids, else the manifest's children (synthetic_v3/_manifest.json: { children: [...] }). */
+function pickFixturesV3(dir, n, ids, grade) {
+  if (ids) return ids.split(',').map((id) => ({ id, dir: path.join(dir, id) }));
+  const man = JSON.parse(fs.readFileSync(path.join(dir, '_manifest.json'), 'utf8'));
+  const kids = (man.children || man).filter((m) => grade == null || Number(m.grade) === Number(grade));
+  const out = [];
+  for (let i = 0; out.length < n && kids.length; i += 1) out.push(kids[i % kids.length]);
+  return out.map((m) => ({ id: m.fixture_id, dir: path.join(dir, m.fixture_id), grade: m.grade }));
+}
+
+/** Each task's title in both coach languages: the bank accessor when it has v3, else --bank. */
+function taskTitles(bankPath, grade = 3) {
+  let spec = null;
+  try {
+    const ib = require('../../../shared/services/child-test/item-bank');
+    if (typeof ib.getTaskSpec === 'function') spec = (task) => ib.getTaskSpec({ grade, set: 'A', task });
+  } catch (e) { spec = null; }
+  if (!spec && bankPath) {
+    const bank = JSON.parse(fs.readFileSync(bankPath, 'utf8'));
+    spec = (task) => { const [l, k] = task.split('.'); return l === 'ma' ? bank.sets.A.maths[String(grade)][k] : bank.sets.A.reading[l][k]; };
+  }
+  if (!spec) throw new Error('--battery v3 needs the v3 item bank (repo accessor or --bank <item-bank.v3.json>) for the task titles');
+  return Object.fromEntries(TASKS_V3.map((t) => [t, (spec(t) || {}).title || {}]));
+}
+
+async function mainV3(a) {
+  const mode = a.mode || 'dry';
+  const runDir = path.resolve(a.run || path.join('sim-runs', `v3-${new Date().toISOString().replace(/[:.]/g, '-')}`));
+  fs.mkdirSync(runDir, { recursive: true });
+  const grade = a.grade != null ? Number(a.grade) : null;
+  const fixtures = pickFixturesV3(a.fixtures, Number(a.pick || 5), a.ids, grade);
+  const titles = taskTitles(a.bank, grade || fixtures[0].grade || 3);
+  let transport;
+  if (mode === 'dry') {
+    const { createFakeBotV3 } = require('./fake-bot-v3');
+    const gaps = TASKS_V3.filter((t) => fixtures.every((f) => (JSON.parse(fs.readFileSync(path.join(f.dir, 'key.json'), 'utf8')).tasks[t] || {}).gap));
+    transport = createFakeBotV3({ titles, gaps, children: fixtures.length, reviewItemsPerChild: Number(a['review-items'] || 4) });
+  } else if (mode === 'mock') {
+    transport = mockTransport({ baseUrl: a['mock-url'] || process.env.E2E_MOCK_URL || 'http://127.0.0.1:4010', driver: String(a.driver || '923000000077') });
+  } else if (mode === 'sandbox') {
+    const cfg = JSON.parse(fs.readFileSync(a['sandbox-config'], 'utf8'));
+    const replies = require(resolveReplies(a['sandbox-config'], cfg.replies.module));
+    transport = sandboxTransport({ ...cfg, wabaToken: process.env[cfg.wabaTokenEnv], appSecret: cfg.appSecretEnv ? process.env[cfg.appSecretEnv] : undefined,
+      driver: cfg.driver, replies: typeof replies.create === 'function' ? replies.create(cfg) : replies });
+  } else {
+    throw new Error('unknown --mode ' + mode);
+  }
+  let sha = null; try { sha = execSync('git rev-parse HEAD', { cwd: __dirname }).toString().trim(); } catch (e) { /* not a checkout */ }
+  const run = { battery: 'v3', mode, started: new Date().toISOString(), driver_sha: sha, realtime: !!a.realtime,
+    fixtures: fixtures.map((f) => ({ id: f.id, grade: f.grade })) };
+  fs.writeFileSync(path.join(runDir, 'run.json'), JSON.stringify(run, null, 1));
+  const tl = createTimeline(path.join(runDir, 'timeline.jsonl'));
+  const res = await runVisitV3({ transport, timeline: tl, fixtures, titles, realtime: run.realtime,
+    timeoutMs: Number(a.timeout || (mode === 'sandbox' ? 180000 : 30000)), ...(mode === 'dry' ? { sleep: async () => {} } : {}) });
+  const notes = tl.events.filter((e) => e.dir === 'out' && e.kind === 'audio').length;
+  const summary = { ...summarise(tl.events), result: res, notes_sent: notes,
+    skips: tl.events.filter((e) => e.step === 'skip').map((e) => `${e.child}:${e.task}`) };
+  fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(summary, null, 1));
+  console.log(JSON.stringify({ ok: res.ok, error: res.error, battery: 'v3', mode, children: res.children.length, notes_sent: notes,
+    skips: summary.skips, review: res.review, run: runDir }, null, 1));
+  return res.ok ? 0 : 1;
+}
+
 async function main() {
   const a = args(process.argv);
+  if (String(a.battery || '') === 'v3') process.exit(await mainV3(a));
   const mode = a.mode || 'fake';
   const runDir = path.resolve(a.run || path.join('sim-runs', new Date().toISOString().replace(/[:.]/g, '-')));
   fs.mkdirSync(runDir, { recursive: true });
@@ -185,4 +256,4 @@ async function main() {
 
 if (require.main === module) main().catch((e) => { console.error('driver failed: ' + e.message); process.exit(2); });
 
-module.exports = { pickFixtures, attachStrips, resolveReplies, checksMode, makeCheckPlayer };
+module.exports = { pickFixtures, attachStrips, resolveReplies, checksMode, makeCheckPlayer, pickFixturesV3, taskTitles, mainV3 };

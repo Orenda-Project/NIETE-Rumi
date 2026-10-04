@@ -6414,7 +6414,9 @@ CREATE INDEX IF NOT EXISTS idx_child_test_sessions_coach_recent
 CREATE TABLE IF NOT EXISTS child_test_blocks (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id         uuid NOT NULL REFERENCES child_test_sessions(id) ON DELETE CASCADE,
-  block              text NOT NULL CHECK (block IN ('urdu', 'english', 'maths')),
+  -- v1/v2 blocks and the v3 task ids (V1.6.1; tasks.BLOCK_NAMES)
+  block              text NOT NULL
+                     CONSTRAINT child_test_blocks_block_check CHECK (block IN ('urdu', 'english', 'maths', 'ur.listening', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.story', 'en.listening', 'en.letters', 'en.nonwords', 'en.words', 'en.story', 'ma.number_id', 'ma.discrimination', 'ma.missing', 'ma.add1', 'ma.sub1', 'ma.add2', 'ma.sub2', 'ma.word_problems')),
   audio_r2_key       text,
   photo_r2_key       text,
   transcript         jsonb,

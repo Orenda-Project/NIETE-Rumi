@@ -230,4 +230,155 @@ async function runVisit(opts) {
   return result;
 }
 
-module.exports = { runVisit, DEFAULT_MATCH, rollOf };
+// ── battery v3 (L39, bd-s1oo0.50.5, CONTRACT §21.4/§21.6/§21.8) ─────────────────────────────────────────
+// The v2 journey with 18 tasks a child: /egra → list [ctst_start] → setup [ctst_go] → presence [ctst_pres:<draw>:p]
+// → one plain step text per task, answered by that task's own voice note (fixtures/synthetic_v3/<id>/<task>.ogg),
+// or by "skip" for a task the key marks skipped_by_coach; a gap task is skipped by the bot, so the coach waits for
+// nothing there. After the last child: the results text and the review, page by page (one Flow message each),
+// answered from the fixture key, until "saved". Children are fixture ids in the timeline; names stay in memory only.
+
+const { TASKS_V3 } = require('../../../shared/services/child-test/tasks');
+
+const V3_MATCH = {
+  list: (it) => it.type === 'interactive.button' && buttonsOf(it).some((b) => b.id === 'ctst_start'),
+  go: (it) => it.type === 'interactive.button' && buttonsOf(it).some((b) => b.id === 'ctst_go'),
+  presence: (it) => it.type === 'interactive.button' && buttonsOf(it).some((b) => /^ctst_pres:.*:p$/.test(b.id || '')),
+  // a step names its task's title (bank `title`, either coach language)
+  step: (titles, task) => {
+    const ts = Object.values((titles && titles[task]) || {}).filter(Boolean);
+    return (it) => it.type === 'text' && (ts.length ? ts.some((x) => String(it.txt || '').includes(x)) : true);
+  },
+  reviewCard: (it) => it.type === 'interactive.flow' && !!it.flow,
+  saved: (it) => it.type === 'text' && /saved|محفوظ/i.test(it.txt || '') && !/didn't save|محفوظ نہیں/i.test(it.txt || ''),
+};
+
+const flowDataOf = (it) => (it.flow && it.flow.data)
+  || (it.raw && it.raw.interactive && it.raw.interactive.action && it.raw.interactive.action.parameters
+    && it.raw.interactive.action.parameters.flow_action_payload && it.raw.interactive.action.parameters.flow_action_payload.data) || {};
+const pagesOf = (it) => { const m = /(\d+)\s*\/\s*(\d+)/.exec(asciiDigits(it.txt || '')); return m ? Number(m[2]) : 1; };
+
+/** The verdict a fixture key holds for a review slot's key "<session>|<task>|i<n>" or "<session>|<task>|<question id>". */
+function keyVerdict(key, slotKey) {
+  const [, task, ...rest] = String(slotKey || '').split('|');
+  const ref = rest.join('|');
+  const t = key && key.tasks && key.tasks[task];
+  if (!t) return '';
+  let mark = null;
+  const m = /^i(\d+)$/.exec(ref);
+  if (m) mark = (t.items || []).find((x) => Number(x.i) === Number(m[1]));
+  else mark = (t.comprehension || []).find((x) => x.id === ref) || (t.items || []).find((x) => x.ref === ref);
+  return mark && ['correct', 'wrong', 'none'].includes(mark.verdict) ? mark.verdict : '';
+}
+
+async function runVisitV3(opts) {
+  const { transport, timeline: tl, fixtures, titles } = opts;
+  const match = { ...V3_MATCH, ...(opts.match || {}) };
+  const timeoutMs = opts.timeoutMs || 120000;
+  const reviewWaitMs = opts.reviewWaitMs || timeoutMs;
+  const realtime = !!opts.realtime;
+  const noteSeconds = opts.audioSeconds || audioSeconds;
+  const sleep = opts.sleep || sleepMs;
+  const inbox = []; let cursor = 0;
+  const labels = [];          // [{ fixture, label }] — the presence line's child label, in memory only
+  const result = { ok: false, children: [], review: { pages: 0, submitted: 0, items: 0 } };
+  const keys = {};
+  const sids = [];
+
+  async function pump() {
+    const items = await transport.poll(cursor);
+    for (const it of items) {
+      cursor = Math.max(cursor, it.seq || cursor + 1);
+      tl.log({ dir: 'in', kind: it.type, seq: it.seq, ...(typeof it.sent_ms === 'number' ? { at: it.sent_ms } : {}) });
+      inbox.push(it);
+    }
+  }
+  async function waitFor(label, pred, extra = {}, ms = timeoutMs) {
+    const deadline = Date.now() + ms;
+    for (;;) {
+      const i = inbox.findIndex(pred);
+      if (i !== -1) return inbox.splice(i, 1)[0];
+      if (Date.now() > deadline) throw new Error(`timeout waiting for: ${label}` + (extra.child ? ` (${extra.child}${extra.task ? ` ${extra.task}` : ''})` : ''));
+      await pump();
+      if (inbox.findIndex(pred) === -1) await sleep(transport.pollMs || 300);
+    }
+  }
+  const tap = async (it, pred) => { const b = buttonsOf(it).find(pred); await transport.tapButton(b.id, b.title); return b; };
+
+  /** The child a review slot names: by the presence label, else by first appearance of its session. */
+  function fixtureOfSlot(who, slotKey) {
+    const head = String(who || '').split(' · ')[0].split(' کا ')[0].replace(/[⁦-⁩‎‏*]/g, '').trim();
+    const byLabel = head && labels.find((l) => l.label && l.label.includes(head));
+    if (byLabel) return byLabel.fixture;
+    const sid = String(slotKey || '').split('|')[0];
+    if (!sids.includes(sid)) sids.push(sid);
+    return (result.children[sids.indexOf(sid)] || {}).fixture || null;
+  }
+
+  try {
+    if (!opts.keepBacklog) {
+      const backlog = await transport.poll(0);
+      for (const it of backlog) cursor = Math.max(cursor, it.seq || 0);
+    }
+    await transport.sendText(opts.startText || '/egra');
+    tl.log({ dir: 'out', kind: 'text', step: 'start' });
+    await tap(await waitFor("today's list", match.list), (b) => b.id === 'ctst_start');
+    tl.log({ dir: 'out', kind: 'button', step: 'start_list' });
+    await tap(await waitFor('setup picture', match.go), (b) => b.id === 'ctst_go');
+    tl.log({ dir: 'out', kind: 'button', step: 'go' });
+    for (const fx of fixtures) {
+      const key = JSON.parse(fs.readFileSync(path.join(fx.dir, 'key.json'), 'utf8'));
+      keys[fx.id] = key;
+      const pres = await waitFor('presence', match.presence, { child: fx.id });
+      const m = /·\s*([^·*]+?)\s*·/.exec(String(pres.txt || ''));
+      labels.push({ fixture: fx.id, label: m ? m[1].trim() : null });
+      await tap(pres, (b) => /^ctst_pres:.*:p$/.test(b.id));
+      tl.log({ dir: 'out', kind: 'button', step: 'present', child: fx.id });
+      for (const task of TASKS_V3) {
+        const entry = (key.tasks && key.tasks[task]) || {};
+        if (entry.gap) { tl.log({ dir: 'mark', step: 'gap', child: fx.id, task }); continue; }
+        const step = await waitFor('step', match.step(titles, task), { child: fx.id, task });
+        const stepAt = typeof step.sent_ms === 'number' ? step.sent_ms : Date.now();
+        if (entry.skipped_by_coach) {
+          await transport.sendText(opts.skipText || 'skip');
+          tl.log({ dir: 'out', kind: 'text', step: 'skip', child: fx.id, task });
+          continue;
+        }
+        const file = path.join(fx.dir, entry.audio || `${task}.ogg`);
+        if (!fs.existsSync(file)) throw new Error(`fixture ${fx.id} has no ${task}.ogg`);
+        if (realtime) await sleep(Math.max(0, noteSeconds(file) * 1000 - Math.max(0, Date.now() - stepAt)));
+        await transport.sendMedia('audio', file);
+        tl.log({ dir: 'out', kind: 'audio', step: 'task', child: fx.id, task, bytes: fs.statSync(file).size });
+      }
+      tl.log({ dir: 'mark', step: 'child_done', child: fx.id });
+      result.children.push({ fixture: fx.id });
+    }
+    // the review: page after page, until "saved" (or none at all when nothing was doubtful)
+    let card = null;
+    try { card = await waitFor('review page 1', match.reviewCard, {}, reviewWaitMs); } catch (e) { card = null; }
+    while (card) {
+      const data = flowDataOf(card);
+      result.review.pages = Math.max(result.review.pages, pagesOf(card));
+      const response = { child_test: 'review', flow_token: card.flow.token, review_ref: data.review_ref };
+      for (let i = 1; i <= 15; i += 1) {
+        const k = data[`i${i}_k`] || '';
+        response[`k${i}`] = k;
+        const fx = k ? fixtureOfSlot(data[`i${i}_who`], k) : null;
+        response[`r${i}`] = fx ? keyVerdict(keys[fx], k) : '';
+        if (k) result.review.items += 1;
+      }
+      await transport.submitFlow(card.flow.id, response);
+      result.review.submitted += 1;
+      tl.log({ dir: 'out', kind: 'flow', step: 'review_page', page: result.review.submitted });
+      const next = await waitFor('next review page or saved', (it) => match.reviewCard(it) || match.saved(it));
+      card = match.reviewCard(next) ? next : null;
+    }
+    tl.log({ dir: 'mark', step: 'visit_done' });
+    result.ok = true;
+  } catch (e) {
+    tl.log({ dir: 'mark', step: 'error', detail: e.message });
+    result.error = e.message;
+  }
+  return result;
+}
+
+module.exports = { runVisit, DEFAULT_MATCH, rollOf, runVisitV3, V3_MATCH, keyVerdict, TASKS_V3 };

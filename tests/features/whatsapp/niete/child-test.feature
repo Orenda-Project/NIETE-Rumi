@@ -671,6 +671,37 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the 3 most certain of the doubtful answers keep the AI's verdict and are listed as AI-only
     # A part whose scoring failed reads "not scored" in the results; it is never a review item.
 
+  # ── L34 (bd-s1oo0.47, CONTRACT §20): ask only the comprehension questions the child reached (EGRA) ──
+  # A question with needs_line = k is reached iff the child attempted every word up to the end of story line k.
+  # The step message and the coach card show, before each gated question, "Only if the child read past:"
+  # and the last words of that line. Scored correct out of those reached AND asked; the review never lists
+  # an unreached or not-asked question.
+
+  @e2e @wip @draft @config-gated @P0 @CT95
+  Scenario: A child who read the whole story is asked every question, scored out of those asked
+    Given the Urdu step for a Grade 5 child is on screen
+    Then step 3 says "Look where the child's finger is, then turn the card face down."
+    And step 4 lists question ① with no condition, and before ② and ③ "Only if the child read past:" with the last words of the line each one needs
+    When the child reads past the line question ③ needs and I ask all 3
+    Then the results read "Urdu <n> words/min, answers <right> of 3 asked" with no "not reached"
+    # scoring/reach.js reachedQuestions; ai_marks comp_correct / comp_asked / comp_total.
+
+  @e2e @wip @draft @config-gated @P0 @CT96
+  Scenario: A child who stops early is asked only the questions they reached
+    Given a Grade 5 child stops reading before the line question ③ needs
+    When I ask questions ① and ② only and send the note
+    Then the results read "answers <right> of 2 asked (1 not reached)"
+    And the review form never shows question ③ of that child
+    And question ③ is stored as not asked, never as wrong
+    # A child who reached no question reads "no questions asked (3 not reached)", never "0 of 0".
+
+  @e2e @wip @draft @negative @config-gated @P1 @CT97
+  Scenario: A question asked beyond what the child read is kept but not scored
+    Given a Grade 5 child stops reading before the line question ③ needs
+    When I ask all 3 questions anyway
+    Then the results read "answers <right> of 2 asked (1 not reached)"
+    And question ③ keeps the AI's verdict, is marked beyond reach, and is not a review item
+
   # ── L25 (bd-s1oo0.46.1, CONTRACT §19, R1 §7, design §3.1): find the child without rolls ──
   # Children are named the way a school names them: full name · the roster's class label · class teacher.
   # The list is grouped by classroom; each class teacher gets only their own room. One shift per list.
@@ -741,3 +772,80 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a child tested in ICT-2026-Q4 can return in ICT-2027-Q1, but no child is drawn back in the same term or into a set they already read
     And with CHILD_TEST_FORM_POLICY=returning_b new children read Form A and the returning child Form B, as before
 
+  # ── L36 (bd-s1oo0.50.2, CONTRACT §21.4, design/COACH_JOURNEY_V3.md §3): battery v3, CHILD_TEST_BATTERY=v3 ──
+  # The unit is the task: 18 per child (ur.* 5, en.* 5, ma.* 8), one plain step message (no buttons, so it stays
+  # the last bubble above the recorder) and one voice note each. The words to the child come verbatim from the
+  # item bank's script. v3 implies oral maths and the end-of-visit review. The default battery stays v2.
+
+  @e2e @wip @draft @config-gated @P0 @CT51
+  Scenario: v3 order — eighteen tasks per child, Urdu 5, English 5, Maths 8, one step and one note each
+    Given CHILD_TEST_BATTERY is v3 and I tapped "Here, start" for Ayesha Khan
+    Then the step "*Ayesha Khan* · Urdu 1 of 5 · Listening" arrives as plain text with no buttons
+    When I send one voice note per step
+    Then the steps come in the order Urdu 1–5, English 1–5, Maths 1–8, each starting with "🎧 Got it · <the task just sent>"
+    And each note is stored as its own task row (ur.listening … ma.word_problems) and scored by task
+    And after the 18th task "✅ Ayesha Khan done. Thank the child." arrives with the next child's prompt
+    # conversation/steps-v3.js taskStep; machine.js unitsOf(); the visit end is the v2 one, handed to L39's review.
+
+  @e2e @wip @draft @config-gated @P0 @CT52
+  Scenario: v3 timed step — practice first, then 🎤, the begin line, stop at 1:00, send at about 1:05
+    Given the Urdu letters step for Ayesha Khan is on screen
+    Then it names "Urdu booklet, page 1: letters"
+    And it gives the bank's intro and instructions to say before recording, and the practice row (marked "not recorded") when the bank has one
+    And it says to tap 🎤 and lock, say the bank's begin line, and «آگے پڑھیں» after 3 seconds stuck
+    And "At 1:00 on the mic" say «بس، شکریہ», and send at about 1:05
+    And one line gives the stop rule: "Nothing right in the first row? Say «شکریہ!» and send."
+
+  @e2e @wip @draft @config-gated @P0 @CT53
+  Scenario: v3 untimed step — record the whole task, stop after 4 wrong in a row
+    Given the "Which is bigger" step for a Grade 3 child is on screen
+    Then it says "Maths 2 of 8 · Which is bigger" and "Maths booklet Grade 3, page 2"
+    And it gives the practice pairs before the mic, then says to record the whole task
+    And it gives the bank's line to ask for each pair, and «اگلا» after 5 seconds with no answer
+    And one line says "Stop after 4 wrong in a row"
+    And the step has no 1:00 or 1:05
+    # Word problems: no booklet page; the six problems are listed in Urdu for the coach to read aloud.
+
+  @e2e @wip @draft @config-gated @P0 @CT54
+  Scenario: v3 skip — "skip" stores the task as skipped by the coach and sends the next step
+    Given the "Harder addition" step is open because the quick additions were all wrong
+    When I type "skip"
+    Then "⏭️ Skipped: <title>." arrives on top of the "Maths 7 of 8" step, in one bubble
+    And the task row is stored with ai-marks-v3 { skipped_by_coach: true }, no audio and no model call
+    And «چھوڑیں», "next" and «اگلا» do the same
+    And "skip" when no step is open is not taken by the child test
+
+  @e2e @wip @draft @config-gated @P1 @CT55
+  Scenario: v3 gap — a task with no official items is skipped with an honest line
+    Given the item bank marks Urdu made-up words as { gap: true }
+    When I send the voice note for Urdu letters
+    Then "⏭️ Made-up words: not part of this test yet, so it is skipped." arrives on top of the "Urdu 4 of 5 · Familiar words" step
+    And the gap task is stored with { skipped_by_coach: true, gap: true } and never counted as wrong
+
+  @e2e @wip @draft @config-gated @P1 @CT56
+  Scenario: v3 nudge and resume name the task
+    Given the "Urdu 2 of 5 · Letters" step has been open for 4 minutes with no note
+    Then "*Ayesha Khan* · Urdu 2 of 5 · Letters" arrives with "Did the recording stop?…", once
+    When I send "/egra"
+    Then "Ayesha Khan is on Urdu 2 of 5 (Letters)." arrives with "Continue" and "Stop this child"
+    When I tap "Continue"
+    Then the letters step is sent again as the last bubble
+
+  # L39 (bd-s1oo0.50.5, CONTRACT §21.6): battery v3 results and the end-of-visit review, from ai-marks-v3 task rows.
+  @e2e @wip @draft @config-gated @P0 @CT57
+  Scenario: v3 results — one line per block per child, rates per minute, ≈ for provisional tasks
+    Given CHILD_TEST_BATTERY is "v3" and all five children's tasks are scored
+    When the last child's last task is stored
+    Then the results arrive as text, each message at most 4096 characters, never split inside a child
+    And each child reads "Urdu: listening 4/6 · letters ≈57/min · made-up ≈12/min · words 20/min · story 29/min, answers 3 of 4 asked (2 not reached)"
+    And a task the coach skipped reads "skipped", e.g. "harder + skipped"
+    And an Urdu coach reads Urdu digits, e.g. "حروف ≈۵۷ فی منٹ"
+
+  @e2e @wip @draft @config-gated @P0 @CT58
+  Scenario: v3 review — the unsettled items, child by child, in pages of 15, saved once per task
+    Given the AI could not settle 25 items across the visit (provisional tasks are never asked)
+    Then "25 answers need your ear · 1/2" arrives as a form listing "Ayesha Khan · Maths which is bigger" with "Which is bigger: 39 or 23?", "Heard: nothing clear" and Right / Wrong / Didn't answer
+    When I mark the 15 items and tap "Save answers"
+    Then those tasks are saved with my verdicts next to the AI's, and page "2/2" arrives
+    When I save page 2
+    Then "✓ Saved. The marks for this visit are complete. Thank you." arrives and every task row is checked
