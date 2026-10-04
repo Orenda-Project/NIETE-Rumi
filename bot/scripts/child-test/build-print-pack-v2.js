@@ -8,9 +8,11 @@
  *   PRINT_ME.pdf                                   Set A, everything for one coach, in print order
  *   PRINT_ME_SetB_NEXT-TERM_do-not-print-yet.pdf   Set B, the same, stamped
  *   cards_G{3,5}_Set{A,B}*.pdf                     the six card sides per grade and set
+ *   coach-card_G{3,5}_Set{A,B}*.pdf                the coach card (L33): one side, the coach's hand only
  *   coach-page_en-ur.pdf                           English front, Urdu back
  *   setup-picture-{en,ur}.png                      the "before the first child" picture
- *   png/…                                          a preview of every PDF page (needs pdftoppm)
+ *   png/…                                          a preview of every PDF page (needs pdftoppm; coach cards
+ *                                                  at 110 dpi so the small accepted answers can be read)
  *   layout.json                                    fit scales, overflows, where the maths items came from
  * and, with --data-dir, setup-picture-{en,ur}.png there too (the bot sends them).
  */
@@ -47,6 +49,10 @@ async function main() {
       const name = write(`cards_G${grade}_Set${set}${notYet ? '_NEXT-TERM' : ''}.pdf`, r.pdf);
       layout.files[name] = r.layout;
       pdfs.push(name);
+      const cc = await v2.renderCoachCard({ grade, set, itemBank, notYet });
+      const ccName = write(`coach-card_G${grade}_Set${set}${notYet ? '_NEXT-TERM' : ''}.pdf`, cc.pdf);
+      layout.files[ccName] = cc.layout;
+      pdfs.push(ccName);
     }
     const p = await v2.renderPrintMe({ itemBank, set });
     const name = write(set === 'A' ? 'PRINT_ME.pdf' : 'PRINT_ME_SetB_NEXT-TERM_do-not-print-yet.pdf', p.pdf);
@@ -65,7 +71,8 @@ async function main() {
 
   for (const name of pdfs) {
     try {
-      execFileSync('pdftoppm', ['-png', '-r', '70', path.join(out, name), path.join(out, 'png', name.replace(/\.pdf$/, ''))]);
+      const dpi = name.startsWith('coach-card_') ? '110' : '70';
+      execFileSync('pdftoppm', ['-png', '-r', dpi, path.join(out, name), path.join(out, 'png', name.replace(/\.pdf$/, ''))]);
     } catch (err) {
       layout.previews = `pdftoppm failed or missing: ${err.message}`;
     }

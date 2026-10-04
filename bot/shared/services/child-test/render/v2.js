@@ -151,8 +151,9 @@ window.__beforeCapture = async function () {
     var s = 1;
     if (fit && fit.children.length) {
       s = Number(fit.getAttribute('data-max')) || 1.5;
+      var min = Number(fit.getAttribute('data-min')) || 0.6;
       pg.style.setProperty('--s', s);
-      while (over(fit) && s > 0.6) { s = Math.round((s - 0.02) * 100) / 100; pg.style.setProperty('--s', s); }
+      while (over(fit) && s > min) { s = Math.max(min, Math.round((s - 0.02) * 100) / 100); pg.style.setProperty('--s', s); }
       if (over(fit)) overflow.push(pg.getAttribute('data-page'));
     } else if (pg.scrollHeight > pg.clientHeight + 1) overflow.push(pg.getAttribute('data-page'));
     scales[pg.getAttribute('data-page')] = s;
@@ -247,7 +248,7 @@ function cardSections({ grade, set, form, termLabel, notYet, prefix }) {
 }
 
 function doc(body, { coach = false } = {}) {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${fontFaceCss({ latin: true, urdu: true, bold: true })}${CARD_CSS}${coach ? COACH_CSS : ''}</style></head>`
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${fontFaceCss({ latin: true, urdu: true, bold: true })}${CARD_CSS}${COACH_CARD_CSS}${coach ? COACH_CSS : ''}</style></head>`
     + `<body>${body}<script>${FIT_SCRIPT}</script></body></html>`;
 }
 
@@ -257,6 +258,217 @@ function doc(body, { coach = false } = {}) {
  */
 function buildCardsHtml({ grade, set, form, termLabel, notYet = false }) {
   return doc(cardSections({ grade, set, form, termLabel, notYet }).join(''));
+}
+
+/* ---------------------------------------------------------------------- coach card -- */
+
+// The EGRA/EGMA assessor's own sheet, simplified (L33, bd-s1oo0.46.10): one laminated A4 side per
+// grade and set, held by the coach, never shown to the child. Paper twin of the phone's step
+// messages, and the backup when a phone can't scroll during a locked recording. Every question,
+// accepted answer, line and number comes from the form; chrome comes from the catalog.
+
+const COACH_CARD_PT = { body: 13, label: 10.5, acc: 9.5, accUr: 10.5, maths: 13, wp: 16, rule: 13 };
+
+const COACH_CARD_CSS = `
+.page.cc{background:#fff}
+.band.cc{height:auto;padding:1.5mm 7mm 0;display:block}
+.band.cc .row{display:flex;align-items:center;justify-content:space-between;gap:6mm}
+.band.cc .lab{font-size:21pt}
+.band.cc .set{font-size:15pt}
+.dont{margin:1mm -7mm 0;background:#101828;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:6mm;padding:0 7mm;font:700 14pt/1.55 ${LATIN_STACK}}
+.dont .ur{font:700 14pt/1.6 ${URDU_STACK};direction:rtl;unicode-bidi:isolate}
+.fit.cc{padding:1.5mm 7mm 1mm;justify-content:flex-start;gap:calc(var(--s)*1.2mm)}
+.blk{padding:0 0 calc(var(--s)*1.2mm);border-bottom:.8mm solid var(--tint)}
+.blk:last-child{border-bottom:0}
+.blk.ur{font-family:${URDU_STACK};direction:rtl;text-align:right}
+.blk.en{font-family:${LATIN_STACK};direction:ltr;text-align:left}
+.blk h3{margin:0;color:var(--band);font-size:calc(var(--s)*14pt);display:inline-flex;gap:2mm;align-items:baseline;white-space:nowrap}
+.blk h3 .en{font:700 calc(var(--s)*14pt)/1.4 ${LATIN_STACK}}
+.blk h3 .ur{font:700 calc(var(--s)*14pt)/1.8 ${URDU_STACK}}
+.says{display:flex;flex-wrap:wrap;gap:0 4mm;align-items:baseline}
+.say{display:inline-flex;gap:2mm;align-items:baseline;max-width:100%}
+.tag{flex:0 0 auto;font-weight:700;font-size:${COACH_CARD_PT.label}pt;background:var(--tint);color:var(--band);border-radius:1.5mm;padding:0 1.8mm;white-space:nowrap}
+.blk.en .tag{font-family:${LATIN_STACK};line-height:1.5}
+.blk.ur .tag{font-family:${URDU_STACK};line-height:1.65}
+.line{font-size:calc(var(--s)*${COACH_CARD_PT.body}pt)}
+.blk.ur .line,.blk.ur .p{line-height:1.65}
+.blk.en .line,.blk.en .p{line-height:1.4}
+.q{display:flex;gap:2.5mm;align-items:baseline;margin-top:.3mm}
+.q .num{flex:0 0 6.5mm;height:6.5mm;border-radius:50%;background:var(--band);color:#fff;text-align:center;font:700 11pt/6.5mm ${LATIN_STACK}}
+.blk.ur .q{gap:4.5mm}
+.blk.ur .q .num{font:700 11pt/7.5mm ${URDU_STACK}}
+.qb{flex:1 1 auto;min-width:0}
+.p{font-weight:700;font-size:calc(var(--s)*${COACH_CARD_PT.body}pt)}
+.acc{font-size:calc(var(--s)*${COACH_CARD_PT.acc}pt);color:#475467}
+.blk.ur .acc{line-height:1.5;font-size:calc(var(--s)*${COACH_CARD_PT.accUr}pt)}
+.blk.en .acc{line-height:1.25;font-family:'CTAndika','CTNastaliq',sans-serif}
+.acc .k{font-weight:700;color:#344054}
+.acc bdi{unicode-bidi:isolate}
+.fb{margin-top:.8mm;padding-top:.8mm;border-top:.4mm dashed #D0D5DD}
+.mcols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1mm 6mm;margin-top:.5mm}
+.mcol .say{margin-bottom:.5mm}
+.mbox{direction:ltr;display:flex;align-items:center;gap:2.5mm;font:calc(var(--s)*${COACH_CARD_PT.maths}pt)/1.05 ${LATIN_STACK};padding:0;white-space:nowrap;border-bottom:.3mm solid #EAECF0}
+.mbox .tag{font:700 11pt/1.5 ${LATIN_STACK}}
+.mbox .n{flex:1 1 auto}
+.mbox .arrow{color:#98A2B3}
+.mbox .ans,.mbox b{font-weight:700;color:var(--band)}
+.mbox .ans{border:.6mm solid var(--band);border-radius:4mm;padding:0 2.5mm}
+.wps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 5mm;border-top:.4mm dashed #D0D5DD}
+.wp{display:block;font-size:calc(var(--s)*${COACH_CARD_PT.wp}pt);line-height:1.75;padding:0}
+.wp .num{display:inline-block;width:7mm;height:7mm;border-radius:50%;background:var(--band);color:#fff;text-align:center;font:700 12pt/8mm ${URDU_STACK};margin-inline-end:2mm}
+.wp .ansb{display:inline-block;margin-inline-start:2mm;line-height:1.5;font-weight:700;background:var(--band);color:#fff;border-radius:2mm;padding:0 3mm;white-space:nowrap}
+.ccrule{flex:0 0 auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6mm;align-items:center;padding:1.5mm 7mm;background:#FEF3F2;border-top:1mm solid #B42318;color:#7A271A}
+.ccrule .en{font:700 ${COACH_CARD_PT.rule}pt/1.3 ${LATIN_STACK}}
+.ccrule .ur{font:700 ${COACH_CARD_PT.rule}pt/1.8 ${URDU_STACK};direction:rtl;text-align:right}
+.foot.cc{flex:0 0 3mm}
+.stamp.cc{margin:1mm 7mm 0;padding:0 2mm;font-size:13pt;border-width:.6mm}
+`;
+
+const ux = (key, language, params) => require('../../../config/ux-strings').resolveUx(key, { language, params });
+
+function ccNeed(form, grade, set) {
+  const miss = (what) => { throw new Error(`child-test coach card: grade ${grade} set ${set} has no ${what} in the item bank`); };
+  for (const block of ['urdu', 'english']) {
+    const b = form && form[block];
+    if (!b || !b.script) miss(`${block}.script`);
+    for (const k of ['start', 'go_on', 'stop', 'questions_intro', 'fallback']) if (!b.script[k]) miss(`${block}.script.${k}`);
+    if (!Array.isArray(b.questions) || !b.questions.length) miss(`${block}.questions`);
+    for (const q of b.questions) if (!q.prompt || !Array.isArray(q.accept) || !q.accept.length) miss(`${block} question ${q.id} prompt/accept`);
+  }
+  const oral = form.maths && form.maths.oral;
+  if (!oral) miss('maths.oral');
+  if (!Array.isArray(oral.compare) || oral.compare.length !== 4) miss('maths.oral.compare (4 pairs)');
+  if (!Array.isArray(oral.sums) || oral.sums.length !== 4) miss('maths.oral.sums (4 sums)');
+  if (!Array.isArray(oral.word_problems) || !oral.word_problems.length) miss('maths.oral.word_problems');
+  for (const w of oral.word_problems) if (!w.prompt_ur || w.answer === undefined) miss(`word problem ${w.id} prompt_ur/answer`);
+  if (!oral.script) miss('maths.oral.script');
+  for (const k of ['start', 'compare', 'sum', 'next', 'wp_intro', 'stop']) if (!oral.script[k]) miss(`maths.oral.script.${k}`);
+  return oral;
+}
+
+const one = (s) => String(s).replace(/\s+/g, ' ').trim();
+const URDU_RE = /[\u0600-\u06FF]/;
+
+/**
+ * The accepted answers worth printing: a longer answer that contains a shorter accepted one as whole
+ * words ("a small plant" ⊃ "plant") adds nothing for the coach's ear, so only the shorter is shown.
+ * Order is the bank's. Nothing is added: every printed answer is a bank answer.
+ */
+function coachAccepts(accept, { latinOnly = false } = {}) {
+  let n = [...new Set((accept || []).map(one))];
+  if (latinOnly && n.some((a) => !URDU_RE.test(a))) n = n.filter((a) => !URDU_RE.test(a));
+  return n.filter((a) => !n.some((o) => o !== a && o.length < a.length && ` ${a} `.includes(` ${o} `)));
+}
+
+// Typography per script (not wording: that is the catalog's). Urdu prose takes Urdu digits (§9.4).
+const SCRIPT = {
+  ur: { dir: 'rtl', other: 'en', quote: ['«', '»'], sep: '، ', prose: (t) => urDigits(one(t)), num: (n) => urDigits(n) },
+  en: { dir: 'ltr', other: 'ur', quote: ['“', '”'], sep: ' · ', prose: (t) => one(t), num: (n) => String(n) },
+};
+
+/** A line the coach says aloud, quoted in its own language; `tag` says when (`atom`: an isolated Latin label). */
+function sayLine(lang, tag, line, atom) {
+  const q = SCRIPT[lang].quote;
+  const words = SCRIPT[lang].prose(line);
+  return `<span class="say"><span class="tag">${esc(tag)}${atom ? `&nbsp;&nbsp;<bdi dir="ltr">${esc(atom)}</bdi>` : ''}</span>`
+    + (line == null ? '' : `<span class="line">${q[0]}${esc(words)}${q[1]}</span>`)
+    + '</span>';
+}
+
+function ccStory(block, b) {
+  const lang = block === 'urdu' ? 'ur' : 'en';
+  const T = SCRIPT[lang];
+  const L = (key) => ux(key, lang);
+  const s = b.script;
+  const num = (i) => T.num(i + 1);
+  const sep = T.sep;
+  const fix = T.prose;
+  const qs = b.questions.map((q, i) => '<div class="q">'
+    + `<span class="num">${num(i)}</span><div class="qb"><div class="p">${esc(fix(q.prompt))}</div>`
+    + `<div class="acc" data-accept="${esc(q.id)}"><span class="k">${esc(L(lang === 'en' && q.accept.some((a) => URDU_RE.test(a)) ? 'childTestCoachCardAcceptAlsoUrdu' : 'childTestCoachCardAccept'))}:</span> `
+    + coachAccepts(q.accept, { latinOnly: lang === 'en' }).map((a) => `<bdi>${esc(a)}</bdi>`).join(sep)
+    + '</div></div></div>').join('');
+  const title = block === 'urdu' ? 'childTestCoachCardUrduStory' : 'childTestCoachCardEnglishStory';
+  return `<div class="blk ${lang}" data-block="${block}" dir="${T.dir}" lang="${lang}">`
+    + '<div class="says">'
+    + `<h3><span class="${lang}">${esc(ux(title, lang))}</span><span class="${T.other}" lang="${T.other}">${esc(ux(title, T.other))}</span></h3>`
+    + sayLine(lang, L('childTestCoachCardSayStart'), s.start)
+    + sayLine(lang, L('childTestCoachCardSayFallback'), s.fallback)
+    + sayLine(lang, L('childTestCoachCardSayGoOn'), s.go_on)
+    + sayLine(lang, L('childTestCoachCardSayStop'), s.stop)
+    + sayLine(lang, L('childTestCoachCardFaceDown'), null)
+    + sayLine(lang, L('childTestCoachCardSayQuestions'), s.questions_intro)
+    + '</div>'
+    + qs
+    + '</div>';
+}
+
+function ccMaths(oral) {
+  const L = (key) => ux(key, 'ur');
+  const s = oral.script;
+  const pairs = oral.compare.map((c, i) => {
+    const l = c.label || 'ABCD'[i];
+    const big = c.answer !== undefined ? c.answer : Math.max(c.a, c.b);
+    return `<div class="mbox" data-pair="${esc(l)}"><span class="tag">${esc(l)}</span><span class="n">${esc(c.a)} · ${esc(c.b)}</span>`
+      + `<span class="arrow">→</span><div class="ans" data-bigger="${esc(l)}">${esc(big)}</div></div>`;
+  }).join('');
+  const sums = oral.sums.map((x, i) => {
+    const l = x.label || String(i + 1);
+    return `<div class="mbox" data-sum="${esc(l)}"><span class="tag">${esc(l)}</span><span class="n">${esc(mathsDisplay(x.prompt))} = <b>${esc(x.answer)}</b></span></div>`;
+  }).join('');
+  const wps = oral.word_problems.map((w, i) => `<div class="wp" data-wp="${esc(w.id)}" dir="rtl" lang="ur">`
+    + `<span class="num">${urDigits(i + 1)}</span><span class="txt">«${esc(urDigits(one(w.prompt_ur)))}»</span>`
+    + `<span class="ansb">${esc(L('childTestCoachCardAnswer'))}: ${urDigits(w.answer)}</span></div>`).join('');
+  return '<div class="blk ur" data-block="maths" dir="rtl" lang="ur">'
+    + '<div class="says">'
+    + `<h3><span class="ur">${esc(ux('childTestCoachCardMaths', 'ur'))}</span><span class="en" lang="en">${esc(ux('childTestCoachCardMaths', 'en'))}</span></h3>`
+    + `${sayLine('ur', L('childTestCoachCardSayStart'), s.start)}${sayLine('ur', L('childTestCoachCardNext'), s.next)}</div>`
+    + '<div class="mcols">'
+    + `<div class="mcol">${sayLine('ur', L('childTestCoachCardBigger'), s.compare, 'A–D')}${pairs}</div>`
+    // «۱ تا ۴», not «۱–۴»: a dash between Urdu digits paints reversed (language-protocol §9.3)
+    + `<div class="mcol">${sayLine('ur', `${L('childTestCoachCardSums')} ${urDigits(1)} تا ${urDigits(4)}`, s.sum)}${sums}</div>`
+    + '</div>'
+    + `<div class="says">${sayLine('ur', L('childTestCoachCardFaceDown'), null)}${sayLine('ur', L('childTestCoachCardWordProblems'), s.wp_intro)}${sayLine('ur', L('childTestCoachCardEnd'), s.stop)}</div>`
+    + `<div class="wps">${wps}</div>`
+    + '</div>';
+}
+
+function coachCardSection({ grade, set, form, termLabel, notYet, prefix }) {
+  const g = Number(grade);
+  const c = GRADE_COLOUR[g];
+  if (!c) throw new Error(`child-test coach card: no colour for grade ${grade}`);
+  const s = String(set || '').toUpperCase();
+  const oral = ccNeed(form, g, s);
+  const id = prefix ? `${prefix}/coachcard` : `g${g}/coachcard`;
+  const right = `<span class="set">${esc(setLabel(s, termLabel))}</span>`;
+  const head = '<header>'
+    + `<div class="band cc"><div class="row"><span class="lab">${esc(ux('childTestCoachCardTitle', 'en', { grade: g }))}</span><span class="right">${right}</span></div>`
+    + `<div class="dont"><span>${esc(ux('childTestCoachCardDontShow', 'en'))}</span><span class="ur" lang="ur" dir="rtl">${esc(ux('childTestCoachCardDontShow', 'ur'))}</span></div></div>`
+    + (notYet ? `<div class="stamp cc">${NOT_YET}</div>` : '')
+    + '</header>';
+  const body = ccStory('urdu', form.urdu) + ccStory('english', form.english) + ccMaths(oral);
+  const rule = `<div class="ccrule" data-rule="facedown"><span class="en">${esc(ux('childTestCoachCardRule', 'en'))}</span>`
+    + `<span class="ur" lang="ur" dir="rtl">${esc(ux('childTestCoachCardRule', 'ur'))}</span></div>`;
+  return `<section class="page cc" data-page="${id}" data-audience="coach" data-grade="${g}" data-card="coachcard" data-side="front" style="--band:${c.hex};--tint:${c.tint}">`
+    + head
+    + `<div class="fit cc" data-max="1.25" data-min="1">${body}</div>`
+    + rule
+    + '<div class="foot cc"></div></section>';
+}
+
+function coachCardBack({ grade, prefix }) {
+  const g = Number(grade);
+  return `<section class="page blankside" data-page="${prefix || `g${g}`}/coachcard-back" data-audience="coach" data-grade="${g}" data-card="coachcard" data-side="back">`
+    + `<div style="text-align:center">${esc(ux('childTestCoachCardBlankBack', 'en', { grade: g }))}<br><span lang="ur" dir="rtl" style="font-family:${URDU_STACK};line-height:2">${esc(ux('childTestCoachCardBlankBack', 'ur', { grade: urDigits(g) }))}</span></div></section>`;
+}
+
+/**
+ * One A4 side for the coach, one grade and set: the lines to say, the questions with accepted
+ * answers, the maths answers and the word problems. Never shown to the child.
+ * @param {{grade:3|5, set:'A'|'B', form:object, termLabel?:string, notYet?:boolean}} a
+ */
+function buildCoachCardHtml({ grade, set, form, termLabel, notYet = false }) {
+  return doc(coachCardSection({ grade, set, form, termLabel, notYet }));
 }
 
 /* ------------------------------------------------------------------- setup picture -- */
@@ -496,11 +708,11 @@ function buildCoachPageHtml() {
 
 const COVER_CSS = `
 .cover{padding:16mm 18mm;font-family:${LATIN_STACK};display:block}
-.cover h1{font-size:24pt;margin:0 0 2mm}
+.cover h1{font-size:22pt;margin:0 0 2mm}
 .cover .lead{font-size:13pt;margin:0 0 5mm;color:#344054}
 .cover .warn{border:1.2mm solid #B42318;color:#B42318;font-size:22pt;font-weight:700;text-align:center;padding:4mm;border-radius:3mm;margin:0 0 5mm}
 .cover table{border-collapse:collapse;width:100%;font-size:12pt}
-.cover td,.cover th{border:.4mm solid #D0D5DD;padding:2mm 3mm;text-align:left;vertical-align:middle}
+.cover td,.cover th{border:.4mm solid #D0D5DD;padding:1.6mm 3mm;text-align:left;vertical-align:middle}
 .cover th{background:#F2F4F7}
 .cover .sw{display:inline-block;width:6mm;height:6mm;border-radius:1mm;vertical-align:middle;margin-right:2mm}
 .cover ul{font-size:12pt;line-height:1.5;padding-left:6mm}
@@ -511,6 +723,11 @@ function coverSection({ set, termLabel, notYet, grades }) {
   const label = setLabel(set, termLabel);
   let p = 5;
   const rows = [`<tr><td>3–4</td><td>Coach page (English front, Urdu back)</td><td>Yes</td><td>1</td></tr>`];
+  for (const g of grades) {
+    const c = GRADE_COLOUR[g];
+    rows.push(`<tr><td>${p}–${p + 1}</td><td><span class="sw" style="background:${c.hex}"></span>Grade ${g} · Coach card (${c.name}), back is blank. Coach only.</td><td>Yes</td><td>1</td></tr>`);
+    p += 2;
+  }
   for (const g of grades) {
     const c = GRADE_COLOUR[g];
     for (const card of ['urdu', 'english', 'maths']) {
@@ -525,16 +742,17 @@ function coverSection({ set, termLabel, notYet, grades }) {
     + '<ul>'
     + '<li><b>Printer:</b> A4, colour, <b>double-sided, flip on the long edge</b>. Pages 1–2 are this cover: don\'t laminate them.</li>'
     + '<li><b>Then laminate</b> every sheet after the cover, one sheet = one card (front and back).</li>'
-    + `<li><b>Kit per coach:</b> ${grades.length * 3} laminated cards (${grades.map((g) => `Grade ${g} ${GRADE_COLOUR[g].name}`).join(', ')}) + 1 laminated coach page. No strips, no pads, no coach copy.</li>`
+    + `<li><b>Kit per coach:</b> ${grades.length * 3} laminated cards (${grades.map((g) => `Grade ${g} ${GRADE_COLOUR[g].name}`).join(', ')}) + 1 laminated coach page + ${grades.length} laminated coach cards (one per grade, for the coach's hand, never shown to the child). No strips, no pads.</li>`
     + '<li><b>Check before laminating:</b> each card\'s band is its grade\'s colour, and the band says the same set as this cover.</li>'
     + '</ul>'
-    + `<table><tr><th>Pages</th><th>What</th><th>Laminate</th><th>Copies per coach</th></tr>${rows.join('')}</table>`
+    + `<table><tr><th style="width:14mm">Pages</th><th>What</th><th style="width:22mm">Laminate</th><th style="width:22mm">Per coach</th></tr>${rows.join('')}</table>`
     + '</section>';
 }
 
 /**
- * Everything for one coach for a term, in print order: cover (+ blank back), coach page, then each
- * grade's Urdu, English and Maths cards, front then back.
+ * Everything for one coach for a term, in print order: cover (+ blank back), coach page, the coach
+ * card per grade (Grade 3 then 5, each with a blank back), then each grade's Urdu, English and Maths
+ * cards, front then back.
  * @param {{itemBank?:object, set:'A'|'B', grades?:number[], termLabel?:string, notYet?:boolean}} a
  *   notYet defaults to true for Set B (next term).
  */
@@ -548,10 +766,13 @@ function buildPrintMeHtml({ itemBank, set = 'A', grades = [3, 5], termLabel, not
     coachSection('ur'),
   ];
   for (const g of grades) {
+    parts.push(coachCardSection({ grade: g, set: s, form: formFrom(itemBank, g, s), termLabel, notYet: stamp, prefix: `g${g}` }), coachCardBack({ grade: g, prefix: `g${g}` }));
+  }
+  for (const g of grades) {
     const form = formFrom(itemBank, g, s);
     parts.push(...cardSections({ grade: g, set: s, form, termLabel, notYet: stamp, prefix: `g${g}` }));
   }
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${fontFaceCss({ latin: true, urdu: true, bold: true })}${CARD_CSS}${COACH_CSS}${COVER_CSS}</style></head>`
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${fontFaceCss({ latin: true, urdu: true, bold: true })}${CARD_CSS}${COACH_CARD_CSS}${COACH_CSS}${COVER_CSS}</style></head>`
     + `<body>${parts.join('')}<script>${FIT_SCRIPT}</script></body></html>`;
 }
 
@@ -580,6 +801,12 @@ async function renderCards({ grade, set, itemBank, termLabel, notYet } = {}) {
   return pdfOf(buildCardsHtml({ grade: Number(grade), set, form, termLabel, notYet }));
 }
 
+/** @returns {Promise<{pdf: Buffer, layout: object|null}>} the coach card: one A4 side, one grade and set */
+async function renderCoachCard({ grade, set, itemBank, termLabel, notYet } = {}) {
+  const form = formFrom(itemBank, grade, String(set).toUpperCase());
+  return pdfOf(buildCoachCardHtml({ grade: Number(grade), set, form, termLabel, notYet }));
+}
+
 async function renderCoachPage() { return pdfOf(buildCoachPageHtml()); }
 
 async function renderPrintMe(opts = {}) { return pdfOf(buildPrintMeHtml(opts)); }
@@ -602,11 +829,14 @@ module.exports = {
   oralMaths,
   buildCardsHtml,
   buildCoachPageHtml,
+  buildCoachCardHtml,
+  COACH_CARD_PT,
   buildPrintMeHtml,
   setupPictureSvg,
   buildSetupPictureHtml,
   renderCards,
   renderCoachPage,
+  renderCoachCard,
   renderPrintMe,
   renderSetupPicture,
 };
