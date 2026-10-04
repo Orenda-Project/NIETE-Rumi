@@ -70,6 +70,7 @@ import { latestUnsent, deleteRecording } from "../lib/recordingStore";
 import { readAudioDuration } from "../lib/coachingUpload";
 import { keepScreenOn } from "../lib/keepAwake";
 import { handOffRecording, takeHandedOffRecording } from "../lib/lessonHandoff";
+import { RecordingSessionProvider } from "../lib/recordingSession";
 import PortalCoachingRecord from "./PortalCoachingRecord";
 
 const api = portal as any;
@@ -92,11 +93,14 @@ const HistoryState = () => <div data-testid="history-state">{JSON.stringify(useL
 function renderPage(state: unknown = null) {
   return render(
     <MemoryRouter initialEntries={[{ pathname: "/portal/coaching/new", state }]}>
-      <HistoryState />
-      <Routes>
-        <Route path="/portal/coaching/new" element={<PortalCoachingRecord />} />
-        <Route path="/portal/coaching" element={<CoachingPage />} />
-      </Routes>
+      {/* bd-5rz1v.10 — the recording lives above the routes, as in App.tsx. */}
+      <RecordingSessionProvider>
+        <HistoryState />
+        <Routes>
+          <Route path="/portal/coaching/new" element={<PortalCoachingRecord />} />
+          <Route path="/portal/coaching" element={<CoachingPage />} />
+        </Routes>
+      </RecordingSessionProvider>
     </MemoryRouter>,
   );
 }
@@ -200,14 +204,14 @@ describe("Record your class — recording", () => {
     expect(keepScreenOn).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /^finish$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^pause$/i })).toBeInTheDocument();
-    expect(screen.getByText(/keep this screen open/i)).toBeInTheDocument();
-    // No navigation to tap away from the lesson by mistake.
-    expect(screen.getByTestId("layout")).toHaveAttribute("data-bare", "yes");
+    expect(screen.getByText(/stay in this app/i)).toBeInTheDocument();
+    // bd-5rz1v.10 — the menu stays: leaving this page no longer ends the lesson.
+    expect(screen.getByTestId("layout")).toHaveAttribute("data-bare", "no");
   });
 
-  it("brings the navigation back once the recording is finished", async () => {
+  it("keeps the navigation through the recording and after it (bd-5rz1v.10)", async () => {
     await recording();
-    expect(screen.getByTestId("layout")).toHaveAttribute("data-bare", "yes");
+    expect(screen.getByTestId("layout")).toHaveAttribute("data-bare", "no");
     fireEvent.click(screen.getByRole("button", { name: /^finish$/i }));
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /yes, finish/i }));
     await screen.findByRole("button", { name: /send to digital coach/i });
@@ -228,6 +232,19 @@ describe("Record your class — recording", () => {
     expect(await screen.findByText("Paused")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
     expect(recorder.resume).toHaveBeenCalled();
+  });
+
+  // bd-5rz1v.10 — Back used to be trapped here ("Finish recording?"), because
+  // leaving the page stopped the recorder. The recording now outlives the page,
+  // so Back just goes back; PortalCoachingRecord.session.test.tsx covers it.
+  it("Back is no longer trapped: no guard entry on the history while recording", async () => {
+    await recording();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(window.history.state && window.history.state.recordingGuard).toBeFalsy();
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByRole("dialog", { name: /finish recording/i })).not.toBeInTheDocument();
+    expect(recorder.stop).not.toHaveBeenCalled();
   });
 
   it("Finish asks first, so one stray tap cannot end the lesson", async () => {

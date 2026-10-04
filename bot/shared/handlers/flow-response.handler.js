@@ -814,6 +814,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
       // observation for a visit she just cancelled.
       try { await ObserveState.clearState(userId); } catch (_) { /* best effort */ }
       await WhatsAppService.sendMessage(phoneNumber, buildVisitCancelledAck(observeLang(user || {}), {
+        command: loopToken ? '/observe2' : '/observe',
         teacherName: responseJson.teacher_name,
       }));
       await _continueObserveLoop(_visitNextTarget(responseJson.visit_next), user, phoneNumber, userId, loopToken);
@@ -822,6 +823,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
 
     if (visitAction === 'rescheduled') {
       await WhatsAppService.sendMessage(phoneNumber, buildVisitRescheduledAck(observeLang(user || {}), {
+        command: loopToken ? '/observe2' : '/observe',
         teacherName: responseJson.teacher_name,
         date: responseJson.sched_date || responseJson.date,
         slot: responseJson.sched_slot || responseJson.slot,
@@ -832,6 +834,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
 
     if (visitAction === 'done') {
       await WhatsAppService.sendMessage(phoneNumber, buildScheduleDoneAck(observeLang(user || {}), {
+        command: loopToken ? '/observe2' : '/observe',
         teacherName: responseJson.teacher_name,
         date: responseJson.sched_date,
         slot: responseJson.sched_slot,
@@ -850,6 +853,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
         phoneNumber,
         boundTeacher: result && result.boundTeacher,
         schoolExtId: responseJson.school_ext_id,
+        teacherExtId: responseJson.teacher_ext_id || responseJson.teacher_ext,
       });
       return true;
     }
