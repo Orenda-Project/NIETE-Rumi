@@ -5,7 +5,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import { useAuth } from '../hooks/useAuth';
+import { AuthContext } from '../hooks/authContext';
 import { isLeader } from '../lib/leaderRole';
+import { useNewUi } from '../lib/useNewUi';
+import NewHome from '../newui/home/NewHome';
 import { portal } from '../services/api';
 import PortalLayout from '../components/PortalLayout';
 import StatCard from '../components/StatCard';
@@ -17,7 +20,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { DashboardStats, CoachingSession } from '../types/portal';
 
-const PortalDashboard = () => {
+/** The dashboard every teacher had before the new UI — and still has with the flag off. */
+const ClassicDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -58,7 +62,7 @@ const PortalDashboard = () => {
         } catch (error) {
           console.log('Analytics not available');
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error('Dashboard fetch error:', error);
         toast({
           title: "Error Loading Data",
@@ -309,6 +313,25 @@ const PortalDashboard = () => {
         </div>
       </div>
     </PortalLayout>
+  );
+};
+
+/**
+ * bd-5rz1v.17 — with `portal_new_ui` on, a teacher's Home is the new one (newui/home/NewHome).
+ * Off, loading or unreadable: the dashboard above, unchanged (PortalDashboard.flagOff.test.tsx
+ * pins its markup). A leader is sent to My Patch by the classic dashboard, as before.
+ *
+ * The user this reads is PROVIDED to everything below (both dashboards and their layout), so
+ * they share one sign-in read instead of each fetching its own.
+ */
+const PortalDashboard = () => {
+  const auth = useAuth();
+  const { user, loading } = auth;
+  const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user);
+  return (
+    <AuthContext.Provider value={auth}>
+      {newUi === true && user && !isLeader(user) ? <NewHome /> : <ClassicDashboard />}
+    </AuthContext.Provider>
   );
 };
 

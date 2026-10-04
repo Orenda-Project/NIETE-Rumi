@@ -14,6 +14,10 @@ import { useEffect, useRef } from 'react';
  *
  * The entry keeps the current state (React Router's own keys included) and
  * adds one flag; the URL does not change, so the router stays on this page.
+ *
+ * bd-5rz1v.10 — the TEACHER's record page no longer uses this: her recording
+ * lives in lib/recordingSession and outlives the page, so Back just goes back.
+ * The coach's recorder (CoachRecorder) still stops on leaving, and keeps it.
  */
 
 const GUARD = 'recordingGuard';

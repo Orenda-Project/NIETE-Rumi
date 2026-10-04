@@ -6385,3 +6385,32 @@ CREATE TABLE IF NOT EXISTS niete_lp_ab_assignment (
   seed       TEXT NOT NULL,
   drawn_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ─── niete_lp_opens (migration V1.6.1) — lesson plans a teacher opened in the portal ──
+-- Mirrors infrastructure/supabase/migrations/V1.6.1__niete_lp_opens.sql. One row per portal open
+-- (same teacher + plan + lang within 5 minutes stored once). Written by the portal service after the
+-- open succeeded; read for "last opened", recent lesson plans and the Home's lesson-plans-used count.
+CREATE TABLE IF NOT EXISTS niete_lp_opens (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  plan_kind   text NOT NULL CHECK (plan_kind IN ('k5', 'g612')),
+  plan_ref    text NOT NULL CHECK (length(plan_ref) BETWEEN 1 AND 200),
+  lang        text CHECK (lang IN ('en', 'ur')),
+  source      text NOT NULL CHECK (source IN ('viewer', 'external')),
+  opened_at   timestamptz NOT NULL DEFAULT now(),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_lp_opens_user_recent
+  ON niete_lp_opens (user_id, opened_at DESC);
+ALTER TABLE niete_lp_opens ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE niete_lp_opens IS
+  'Internal. One row per lesson plan a teacher opened in the portal (append-only; same teacher + plan + lang within 5 minutes is stored once). Written by the portal service after the open succeeded; read for "last opened", recent lesson plans and the Home''s lesson-plans-used count. Ids only — no phone, name or message text. Owner: Digital Coach team.';
+COMMENT ON COLUMN niete_lp_opens.plan_kind IS
+  'Internal. k5 = grades 1-5 (plan_ref is a catalogue lesson_id); g612 = grades 6-12 (plan_ref is a niete_lp612_segments.segment_id).';
+COMMENT ON COLUMN niete_lp_opens.plan_ref IS
+  'Internal. The plan within its kind: a K-5 catalogue lesson_id or a 6-12 segment_id. With plan_kind, the stable plan key <kind>:<ref>.';
+COMMENT ON COLUMN niete_lp_opens.lang IS
+  'Internal. The 6-12 document language (en | ur); NULL for K-5.';
+COMMENT ON COLUMN niete_lp_opens.source IS
+  'Internal. viewer = the portal''s own PDF viewer; external = handed to another app by a presigned link.';
+

@@ -4,16 +4,28 @@ import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users,
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader, resolveRole } from '../lib/leaderRole';
+import { useLogoutGuard } from '../lib/recordingSession';
+import { useNewUi } from '../lib/useNewUi';
+import NewUiNavigation from '../newui/NewUiNavigation';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
 
 /** bd-3wb0s — My account: name, school, privacy policy, account deletion, Logout. */
 const ACCOUNT_PATH = '/portal/account';
 
-const PortalNavigation = () => {
+/**
+ * hideStrip (bd-5rz1v.17): the page draws its own heading band with her avatar in it, so the new
+ * UI's slim top strip is not shown. No effect on the old navigation.
+ */
+const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) => {
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const { logout, user } = useAuth();
+  // bd-5rz1v.10 — Logout would end a lesson still recording, so it asks first then.
+  const guardedLogout = useLogoutGuard(logout);
+  // bd-5rz1v.12 — the new UI's indigo menu bar, only while portal_new_ui is on
+  // for her. Off, loading or unreadable: the markup below, unchanged.
+  const newUiOn = useNewUi(user?.phoneNumber || null) === true;
   const currentPath = location.pathname;
 
   // bd-2434 (Leader Portal): the school-leader family gets the leader nav
@@ -86,6 +98,24 @@ const PortalNavigation = () => {
 
   const isActive = (path: string) => currentPath === path;
 
+  if (newUiOn) {
+    return (
+      <NewUiNavigation
+        leader={isLeader(user)}
+        navItems={navItems}
+        mobileNav={mobileNav}
+        mobileOverflow={mobileOverflow}
+        isActive={isActive}
+        accountPath={ACCOUNT_PATH}
+        firstName={user?.firstName}
+        lastName={user?.lastName}
+        schoolName={user?.schoolName}
+        onLogout={guardedLogout}
+        hideStrip={hideStrip}
+      />
+    );
+  }
+
   return (
     <>
       {/* Desktop Navigation - Top */}
@@ -148,7 +178,7 @@ const PortalNavigation = () => {
                 <span className="truncate">{user?.firstName || "Signed in"}</span>
               </Link>
               <button
-                onClick={logout}
+                onClick={guardedLogout}
                 className="flex items-center gap-2 px-4 py-2 text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
               >
                 <LogOut className="w-4 h-4" />
@@ -227,7 +257,7 @@ const PortalNavigation = () => {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => { setMoreOpen(false); logout(); }}
+                  onClick={() => { setMoreOpen(false); guardedLogout(); }}
                   data-testid="mobile-nav-logout"
                   className="flex items-center gap-3 rounded-md px-3 py-3 text-sm text-muted-foreground hover:bg-muted transition-colors"
                 >

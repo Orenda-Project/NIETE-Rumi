@@ -284,3 +284,54 @@ describe('ownership survives the waiter list being emptied', () => {
     expect(out).toHaveLength(1);
   });
 });
+
+/**
+ * bd-5rz1v.14 — the portal's new Lesson Plans shows ✓✓ Sent on a lesson that reached her on
+ * WhatsApp, for grades 6–12 as for 1–5 (whose `downloaded` comes from niete_lp_downloads). The
+ * 6–12 record is niete_lp612_deliveries, and only its WhatsApp and backfill rows mean "sent": a
+ * 'portal' row is the bot's claim on a render she ASKED FOR in the portal (bd-5rz1v.21).
+ */
+describe('Sent: a 6-12 lesson that reached her on WhatsApp', () => {
+  const DELIVERIES = 'niete_lp612_deliveries';
+  const deliveryQueries = () => queries.filter((q) => q.table === DELIVERIES);
+  const SEGS = [
+    { segment_id: 'g9.c02.p010', subtopic_title: 'Speed', order_index: 1 },
+    { segment_id: 'g9.c02.p013', subtopic_title: 'Newton', order_index: 2 },
+  ];
+
+  test('marks the lessons in her WhatsApp deliveries, read for her alone and only WhatsApp/backfill rows', async () => {
+    responder = (q) => {
+      if (q.table === SEGMENTS) return { data: SEGS, error: null };
+      if (q.table === DELIVERIES) return { data: [{ segment_id: 'g9.c02.p013' }, { segment_id: 'g9.c02.p013' }], error: null };
+      return { data: [], error: null };
+    };
+    const lessons = await Browse.listLessons(9, 'Physics', 'c02', 'en', 'teacher-1');
+    expect(lessons.map((l) => [l.segment_id, l.sent])).toEqual([['g9.c02.p010', false], ['g9.c02.p013', true]]);
+
+    expect(deliveryQueries()).toHaveLength(1);
+    const q = deliveryQueries()[0];
+    expect(q.filters.user_id).toBe('teacher-1');
+    expect(q.filters['surface in']).toEqual(['whatsapp', 'backfill']);
+    expect(q.filters['segment_id in']).toEqual(['g9.c02.p010', 'g9.c02.p013']);
+    // Bounded (pre-merge Class R): a few rows per lesson at most, never her whole ledger.
+    expect(q.limited).toBe(40);
+  });
+
+  test('no teacher named: nothing is sent and her ledger is not read', async () => {
+    responder = (q) => (q.table === SEGMENTS ? { data: SEGS, error: null } : { data: [], error: null });
+    const lessons = await Browse.listLessons(9, 'Physics', 'c02', 'en');
+    expect(lessons.every((l) => l.sent === false)).toBe(true);
+    expect(deliveryQueries()).toHaveLength(0);
+  });
+
+  test('a ledger that cannot be read leaves every lesson unsent, never an error — and says so', async () => {
+    responder = (q) => {
+      if (q.table === SEGMENTS) return { data: SEGS, error: null };
+      if (q.table === DELIVERIES) return { data: null, error: { code: 'XX000', message: 'boom' } };
+      return { data: [], error: null };
+    };
+    const lessons = await Browse.listLessons(9, 'Physics', 'c02', 'en', 'teacher-1');
+    expect(lessons.map((l) => l.sent)).toEqual([false, false]);
+    expect(mockLogToFile).toHaveBeenCalledWith(expect.stringContaining(DELIVERIES), expect.anything(), 'error');
+  });
+});
