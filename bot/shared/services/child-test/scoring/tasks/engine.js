@@ -78,9 +78,11 @@ async function untimedTask(ctx, p) {
     clip = await cutClip(media.file, 0, end, 'mp3');
     const json = await audioCall({ model, prompt: p.prompt, schema: p.schema, clip, job: `child_test.${kind}`, calls });
     const rows = C.untimedRows(C.byPosition(json.items, p.refs.length), p.refs);
+    const reconciled = typeof p.reconcile === 'function' ? p.reconcile(rows) : 0;   // before the stop rule
     const stop = (spec.stop && spec.stop.type === 'consecutive_errors') ? C.applyConsecutiveStop(rows, Number(spec.stop.n) || 4) : { stopped: false };
     const m = C.marks({ task, spec, score: C.untimedScore(rows), stopped: stop.stopped, items: rows, modelVersions: { counts: model } });
     if (json.found === false) m.flags.push('task_not_found');
+    if (reconciled) m.flags.push('verdict_reconciled');
     return m;
   } finally {
     if (clip) cleanup(clip.path);
