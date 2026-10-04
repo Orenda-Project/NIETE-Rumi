@@ -132,6 +132,9 @@ const SCENARIOS = [
   ['CT54', 'v3 skip — "skip" stores the task as skipped by the coach and sends the next step', 'L4'],
   ['CT55', 'v3 gap — a task with no official items is skipped with an honest line', 'L4'],
   ['CT56', 'v3 nudge and resume name the task', 'L4'],
+  // L39 (bd-s1oo0.50.5, CONTRACT §21.6): battery v3 results and the paged end-of-visit review.
+  ['CT57', 'v3 results — one line per block per child, rates per minute, ≈ for provisional tasks', 'L4'],
+  ['CT58', 'v3 review — the unsettled items, child by child, in pages of 15, saved once per task', 'L4'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -478,6 +481,8 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT54', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and synthetic_v3 notes; jest-proven in tests/child-test/L36'));
     record('CT55', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and a bank with a gap task; jest-proven in tests/child-test/L36'));
     record('CT56', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and a 4-minute wait; jest-proven in tests/child-test/L36'));
+    record('CT57', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 and V1.6.1 on the stack and synthetic_v3 notes (coach.js --battery v3); jest-proven in tests/child-test/L39 + tests/e2e-mock/child-test-v3-visit'));
+    record('CT58', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3, V1.6.1 and CHILD_TEST_REVIEW_FLOW_ID on the stack; jest-proven in tests/child-test/L39 + tests/e2e-mock/child-test-v3-visit'));
 // L25 (bd-s1oo0.46.1): proven by tests/child-test/L25 (draw-v2, list-identity, no-roll). The drive needs a SIM
     // roster with two sections, two class teachers, an evening class and a namesake pair.
     record('CT70', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));

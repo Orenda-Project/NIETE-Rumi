@@ -18,12 +18,13 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { isVisitKey, oneVisit } = require('./draw/visit-key');
+const { BLOCK_NAMES } = require('./tasks');
 
 const DRAWS = 'child_test_draws';
 const SESSIONS = 'child_test_sessions';
 const BLOCKS = 'child_test_blocks';
 
-const BLOCK_NAMES = ['urdu', 'english', 'maths'];
+// The v1/v2 blocks and the v3 task ids (CONTRACT §21.2): one list, the one migration V1.6.1 allows.
 const CHANNELS = ['whatsapp', 'app'];
 const SESSION_STATUSES = ['in_progress', 'completed', 'abandoned'];
 const AI_INTERIM_STATUSES = ['pending', 'scoring', 'failed'];
