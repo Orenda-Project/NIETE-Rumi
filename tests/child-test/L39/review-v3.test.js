@@ -26,6 +26,11 @@ const review = require('../../../bot/shared/services/child-test/check-flow/revie
 const { handleCheckCompletion } = require('../../../bot/shared/services/child-test/check-flow');
 const { detectFlowType } = require('../../../bot/shared/utils/flow-type-detector');
 const F = require('./fixtures/marks-v3');
+const itemBank = require('../../../bot/shared/services/child-test/item-bank');
+
+// The printed item comes from the v3 bank (L35) by position; the fixture's own ref is only the fallback.
+const bankItem = (task, i) => itemBank.getTaskSpec({ grade: 3, set: 'A', task }).items[i];
+const bankQuestion = (task, id) => itemBank.getTaskSpec({ grade: 3, set: 'A', task }).questions.find((q) => q.id === id);
 
 const VISIT = '11111111-1111-4111-8111-111111111111';
 const COACH = { id: 'coach-1', phone_number: '923000000001', preferred_language: 'en' };
@@ -143,12 +148,16 @@ describe('review (v3)', () => {
       'Ayesha Khan · Maths word problems',
       'Bilal Ahmed · Urdu listening',
     ]);
-    expect(d.i2_q).toMatch(/^Question 4: /);
+    const q1 = bankQuestion('ur.listening', 'ur.listening.q6');
+    expect(d.i1_q).toBe(`Question 6: ${q1.prompt}`);
+    expect(d.i2_q).toBe(`Question 4: ${bankQuestion('ur.story', 'ur.story.q4').prompt}`);
     expect(d.i2_h).toBe('Heard: «پانی»');
-    expect(d.i3_q).toBe('Which is bigger: 142 or 151?');
+    const cmp = bankItem('ma.discrimination', 2);
+    expect(d.i3_q).toBe(`Which is bigger: ${cmp.a} or ${cmp.b}?`);
     expect(d.i3_h).toBe('Heard: nothing clear');
-    expect(d.i4_q).toBe('Missing number: 8, 9, _, 11');
-    expect(d.i5_q).toBe('Problem 6: Word problem 6');
+    const miss = bankItem('ma.missing', 7);
+    expect(d.i4_q).toBe(`Missing number: ${miss.seq.map((x) => (x == null ? '_' : x)).join(', ')}`);
+    expect(d.i5_q).toBe(`Problem 6: ${bankItem('ma.word_problems', 5).prompt_en}`);
     expect(d.i11_v).toBe(false);
     // en.listening (provisional) had review [5]: never asked
     expect(Object.values(d).join('\n')).not.toMatch(/English listening/);
@@ -158,7 +167,7 @@ describe('review (v3)', () => {
     expect(row('s1', 'ma.discrimination').checked_at).toBeNull();
   });
 
-  test('a sum reads "Sum 7: 9 + 4"', async () => {
+  test('a sum reads "Sum 4: a + b", from the bank', async () => {
     const tasks = F.child();
     tasks['ma.add2'] = { ...tasks['ma.add2'], review: [3] };
     seed([{ id: 's1', name: 'Ayesha Khan', tasks }]);
@@ -166,7 +175,8 @@ describe('review (v3)', () => {
     const d = flowCall(0).screenData;
     const slot = [1, 2, 3, 4, 5, 6].find((i) => /harder/.test(d[`i${i}_who`]));
     expect(d[`i${slot}_who`]).toBe('Ayesha Khan · Maths harder +');
-    expect(d[`i${slot}_q`]).toBe('Sum 4: 21 + 10');
+    const sum = bankItem('ma.add2', 3);
+    expect(d[`i${slot}_q`]).toBe(`Sum 4: ${sum.a} + ${sum.b}`);
   });
 
   test('more than 15 items: pages of whole tasks; each page is its own Flow message, sent when the last is saved', async () => {
@@ -214,7 +224,7 @@ describe('review (v3)', () => {
     const s = row('s1', 'ur.story');
     expect(s.coach_marks.comprehension[3].verdict).toBe('correct');
     expect(s.coach_marks.score).toMatchObject({ correct: 4, asked: 4 });
-    expect(s.coach_edits).toEqual([{ path: 'comprehension[ur-S-q4].verdict', ai: 'wrong', coach: 'correct' }]);
+    expect(s.coach_edits).toEqual([{ path: 'comprehension[ur.story.q4].verdict', ai: 'wrong', coach: 'correct' }]);
     const l = row('s1', 'ur.listening');
     expect(l.coach_marks.meta.unanswered).toEqual(['items[5].verdict']);
     expect(l.coach_edits).toEqual([]);

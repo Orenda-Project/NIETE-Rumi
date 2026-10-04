@@ -46,12 +46,12 @@ function untimed(task, { verdicts, refs, review = [], heard = {}, unsettled = []
 }
 
 const vs = (s) => s.split('').map((c) => ({ c: 'correct', w: 'wrong', n: 'none', '-': 'not_reached' }[c]));
-const q = (lang, k) => ({ id: `${lang}-L-q${k}`, prompt: lang === 'ur' ? `سننے کا سوال ${k}؟` : `Listening question ${k}?` });
+const q = (lang, k) => ({ id: `${lang}.listening.q${k}`, prompt: lang === 'ur' ? `سننے کا سوال ${k}؟` : `Listening question ${k}?` });
 
 function story(task, lang, { correct, attempted, timeRemaining = 0, comp, review = [] }) {
   const m = timed(task, { correct, attempted, total: 60, timeRemaining, refs: (i) => `${lang}w${i + 1}` });
   m.comprehension = comp.map((r, k) => ({
-    id: `${lang}-S-q${k + 1}`, prompt: lang === 'ur' ? `کہانی کا سوال ${k + 1}؟` : `Story question ${k + 1}?`,
+    id: `${lang}.story.q${k + 1}`, prompt: lang === 'ur' ? `کہانی کا سوال ${k + 1}؟` : `Story question ${k + 1}?`,
     verdict: r.v, heard: r.heard || '', confidence: r.conf == null ? 0.95 : r.conf, reached: r.reached !== false, asked: r.asked !== false,
   }));
   m.score = { correct: m.comprehension.filter((r) => r.reached && r.asked && r.verdict === 'correct').length, of: comp.length, asked: m.comprehension.filter((r) => r.reached && r.asked).length };
@@ -72,7 +72,7 @@ function child(o = {}) {
     'ur.letters': timed('ur.letters', { correct: 57, attempted: 62, total: 100, refs: (i) => `ل${i}` }),
     'ur.nonwords': timed('ur.nonwords', { correct: 12, attempted: 15, total: 50 }),
     'ur.words': timed('ur.words', { correct: 20, attempted: 24, total: 50 }),
-    'ur.story': story('ur.story', 'ur', { correct: 29, attempted: 33, comp: [{ v: 'correct' }, { v: 'correct' }, { v: 'correct' }, { v: 'wrong', conf: 0.5, heard: 'پانی' }, { v: 'none', reached: false, asked: false }, { v: 'none', reached: false, asked: false }], review: ['ur-S-q4'] }),
+    'ur.story': story('ur.story', 'ur', { correct: 29, attempted: 33, comp: [{ v: 'correct' }, { v: 'correct' }, { v: 'correct' }, { v: 'wrong', conf: 0.5, heard: 'پانی' }, { v: 'none', reached: false, asked: false }, { v: 'none', reached: false, asked: false }], review: ['ur.story.q4'] }),
     'en.listening': untimed('en.listening', { verdicts: vs('cwwccn'), refs: (i) => q('en', i + 1).id, review: [5] }),
     'en.letters': timed('en.letters', { correct: 31, attempted: 36, total: 100 }),
     'en.nonwords': timed('en.nonwords', { correct: 6, attempted: 9, total: 50 }),
