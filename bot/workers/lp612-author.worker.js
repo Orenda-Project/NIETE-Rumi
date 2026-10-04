@@ -50,6 +50,8 @@ const { pageCapsFor } = require('../vendor/lp-v9/render_lp.js');
 const { oneScreenShapeDefects, overlayChromeGaps } = require('../vendor/lp-v9/lint_lp.js');
 const { refsFromDoc, stageFigures } = require('../shared/services/lp612-pagetruth.service');
 const Serving = require('../shared/services/lp612-serving.service');
+// bd-5rz1v.21 — a portal waiter's claim on the render she waited for (see the waiter loop).
+const Deliveries = require('../shared/services/lp612-deliveries.store');
 const {
   resolveAuthorModel, authorTierFor, authorRounds, authorTimeoutMs, overlayTimeoutMs,
   overlayPassOff,
@@ -1493,6 +1495,21 @@ async function process(payload) {
       // teachers who actually need them.
       if (!w.phone) {
         selfServe += 1;
+        // bd-5rz1v.21 — SKIPPING HER SEND MUST NOT SKIP HER CLAIM. The claim above emptied the list
+        // she was on, and `requested_by` names only the first requester, so a portal teacher who
+        // joined somebody else's run had no claim left the moment her lesson was ready: her next
+        // poll answered "No such lesson request". The WhatsApp waiters get their delivery row from
+        // deliverRender; this is hers. Never throws, so it cannot cost anyone below her a send.
+        if (w.surface === 'portal' && w.user_id) {
+          await Deliveries.record({
+            userId: w.user_id,
+            renderId,
+            segmentId,
+            lang,
+            templateVersion,
+            surface: 'portal',
+          });
+        }
         continue;
       }
       try {

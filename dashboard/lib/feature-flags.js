@@ -80,6 +80,14 @@ const PORTAL_SELF_OBSERVATION_KEY = 'portal_self_observation';
 const PORTAL_COACH_OBSERVATION_KEY = 'portal_coach_observation';
 
 /**
+ * bd-5rz1v.12 — app_settings key for the portal's NEW UI (Direction B: light
+ * screens, big rows, one bottom button, an indigo menu bar). It is designed and
+ * shipped screen by screen behind this one row. Same shape and rule as the keys
+ * above: true = everyone, a list of users.id = a pilot, absent = off.
+ */
+const PORTAL_NEW_UI_KEY = 'portal_new_ui';
+
+/**
  * bd-3bvfj — a flag that can be on for EVERYONE or for a PILOT.
  *
  *   true (or "true")            → on for every user
@@ -121,6 +129,7 @@ async function isFlagEnabledForUser(supabase, key, userId) {
 module.exports = {
   PORTAL_SELF_OBSERVATION_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
+  PORTAL_NEW_UI_KEY,
   isFlagEnabledForUser,
   ASSESSMENT_GENERATOR_KEY,
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
