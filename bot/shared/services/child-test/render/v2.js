@@ -21,6 +21,7 @@
 
 const { fontFaceCss, LATIN_STACK, URDU_STACK } = require('./fonts');
 const { esc } = require('./html');
+const { anchorFor } = require('../scoring/reach');
 
 const INK = '#111111';
 const GRADE_COLOUR = {
@@ -304,6 +305,11 @@ const COACH_CARD_CSS = `
 .blk.en .acc{line-height:1.25;font-family:'CTAndika','CTNastaliq',sans-serif}
 .acc .k{font-weight:700;color:#344054}
 .acc bdi{unicode-bidi:isolate}
+.reach{float:inline-end;margin-inline-start:3mm;font-size:calc(var(--s)*${COACH_CARD_PT.acc}pt);font-weight:700;color:#9a3412}
+.blk.ur .reach{line-height:1.95;font-size:calc(var(--s)*${COACH_CARD_PT.accUr}pt)}
+.blk.en .reach{line-height:1.25}
+.blk.en .reach.onp{margin-top:calc(var(--s)*3pt)}
+.reach bdi{unicode-bidi:isolate}
 .fb{margin-top:.8mm;padding-top:.8mm;border-top:.4mm dashed #D0D5DD}
 .mcols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1mm 6mm;margin-top:.5mm}
 .mcol .say{margin-bottom:.5mm}
@@ -357,6 +363,8 @@ const URDU_RE = /[\u0600-\u06FF]/;
 // The card shows the coach a few examples, not the bank's whole list (up to 22 for one question): the
 // AI scores against every accepted answer; a "…" after the last example says more count (bd-j41md).
 const COACH_ACCEPT_MAX = 4;
+// L34: the longest prompt (code points) that still leaves room on its row for the reach note at full type.
+const REACH_PROMPT_MAX = { en: 40, ur: 48 };
 
 function coachAccepts(accept, { latinOnly = false } = {}) {
   let n = [...new Set((accept || []).map(one))];
@@ -387,8 +395,16 @@ function ccStory(block, b) {
   const num = (i) => T.num(i + 1);
   const sep = T.sep;
   const fix = T.prose;
+  // L34 (CONTRACT §20): the step message's condition and anchor in small type, floated to the far end of a
+  // row with room, so it costs no line (the card stays one A4 side at full type): the question's own row
+  // when the prompt is short, else the accepted-answers row under it (measured on the real render, L29).
+  const onPromptRow = (q) => [...one(q.prompt)].length <= REACH_PROMPT_MAX[lang];
+  const reachNote = (q, i) => (i > 0 || Number(q.needs_line) > 1
+    ? `<span class="reach${onPromptRow(q) ? ' onp' : ''}" data-reach="${esc(q.id)}">${esc(L('childTestL34OnlyIfPast'))} <bdi>${T.quote[0]}${esc(fix(anchorFor(b, q)))}${T.quote[1]}</bdi></span>`
+    : '');
   const qs = b.questions.map((q, i) => '<div class="q">'
-    + `<span class="num">${num(i)}</span><div class="qb"><div class="p">${esc(fix(q.prompt))}</div>`
+    + `<span class="num">${num(i)}</span><div class="qb">${onPromptRow(q) ? reachNote(q, i) : ''}<div class="p">${esc(fix(q.prompt))}</div>`
+    + (onPromptRow(q) ? '' : reachNote(q, i))
     + `<div class="acc" data-accept="${esc(q.id)}"><span class="k">${esc(L(lang === 'en' && q.accept.some((a) => URDU_RE.test(a)) ? 'childTestCoachCardAcceptAlsoUrdu' : 'childTestCoachCardAccept'))}:</span> `
     + ((all) => all.slice(0, COACH_ACCEPT_MAX).map((a) => `<bdi>${esc(a)}</bdi>`).join(sep)
       + (all.length > COACH_ACCEPT_MAX ? `${sep}<span class="more" aria-label="more answers count">…</span>` : ''))(coachAccepts(q.accept, { latinOnly: lang === 'en' }))

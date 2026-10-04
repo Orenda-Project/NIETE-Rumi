@@ -3401,9 +3401,12 @@ const UX_STRINGS = {
   // L31 (bd-s1oo0.46.7): every line said TO the child is a placeholder alone on its own line; steps.said()
   // wraps it «…» inside a direction isolate when its script differs from the message's (language-protocol §9).
   childTestL26StepStory: {
-    en: '{title}\n{card} card, *{side}* side up, in front of the child.\n1. Tap 🎤 and slide up to lock. Don\'t stop until step 5.\n2. Say:\n   {start}\n   Stay quiet. Stuck for 3 seconds? Point to the next word and say:\n   {go_on}\n3. When the mic shows *1:10*, say:\n   {stop}\n   Then turn the card *face down*.\n4. Say:\n   {qintro}\n   Then ask each question and wait for the answer:\n{questions}\n5. Send ➤\n_Can\'t read any word of the first line?_ Turn the card over and say:\n   {fallback}\n   Skip the questions. Then send.',
-    ur: '{title}\n{card} کا کارڈ، *{side}* والا رخ اوپر، بچے کے سامنے رکھیں۔\n۱۔ 🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔ مرحلہ ۵ تک نہ روکیں۔\n۲۔ کہیں:\n   {start}\n   خاموش رہیں۔ بچہ ۳ سیکنڈ اٹکے تو اگلے لفظ کی طرف اشارہ کریں اور کہیں:\n   {go_on}\n۳۔ جب مائیک پر *⁦1:10⁩* ہو تو کہیں:\n   {stop}\n   پھر کارڈ *الٹا* کر دیں۔\n۴۔ کہیں:\n   {qintro}\n   پھر ہر سوال پوچھیں اور جواب کا انتظار کریں:\n{questions}\n۵۔ بھیجیں ➤\n_بچہ پہلی سطر کا کوئی لفظ نہ پڑھ پائے تو؟_ کارڈ پلٹیں اور کہیں:\n   {fallback}\n   کہانی کے سوال چھوڑ دیں۔ پھر بھیج دیں۔',
+    en: '{title}\n{card} card, *{side}* side up, in front of the child.\n1. Tap 🎤 and slide up to lock. Don\'t stop until step 5.\n2. Say:\n   {start}\n   Stay quiet. Stuck for 3 seconds? Point to the next word and say:\n   {go_on}\n3. When the mic shows *1:10*, say:\n   {stop}\n   Look where the child\'s finger is, then turn the card *face down*.\n4. Say:\n   {qintro}\n   Then ask each question and wait for the answer:\n{questions}\n5. Send ➤\n_Can\'t read any word of the first line?_ Turn the card over and say:\n   {fallback}\n   Skip the questions. Then send.',
+    ur: '{title}\n{card} کا کارڈ، *{side}* والا رخ اوپر، بچے کے سامنے رکھیں۔\n۱۔ 🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔ مرحلہ ۵ تک نہ روکیں۔\n۲۔ کہیں:\n   {start}\n   خاموش رہیں۔ بچہ ۳ سیکنڈ اٹکے تو اگلے لفظ کی طرف اشارہ کریں اور کہیں:\n   {go_on}\n۳۔ جب مائیک پر *⁦1:10⁩* ہو تو کہیں:\n   {stop}\n   دیکھیں بچے کی انگلی کہاں ہے، پھر کارڈ *الٹا* کر دیں۔\n۴۔ کہیں:\n   {qintro}\n   پھر ہر سوال پوچھیں اور جواب کا انتظار کریں:\n{questions}\n۵۔ بھیجیں ➤\n_بچہ پہلی سطر کا کوئی لفظ نہ پڑھ پائے تو؟_ کارڈ پلٹیں اور کہیں:\n   {fallback}\n   کہانی کے سوال چھوڑ دیں۔ پھر بھیج دیں۔',
   },
+  // L34 (bd-s1oo0.47, CONTRACT §20): a question is asked only if the child read the words its answer needs;
+  // this line stands before the question, and the anchor words (the end of that line) follow on their own line.
+  childTestL34OnlyIfPast: { en: 'Only if the child read past:', ur: 'صرف اگر بچہ یہ الفاظ پڑھ چکا ہو:' },
   // Maths, oral (the May set): the child reads the pairs and sums off the card; the coach reads the word problems.
   childTestL26StepMaths: {
     en: '{title}\n{card} *maths* card in front of the child. Paper and pencil beside it.\n1. Tap 🎤 and slide up to lock.\n2. Say:\n   {start}\n   Point to each pair *A–D* and say:\n   {compare}\n3. Point to each sum *1–4* and say:\n   {sum}\n   The child may use the paper. No answer after a slow count of 5? Say:\n   {next}\n4. Turn the card face down. Say:\n   {wp_intro}\n   Then read each word problem slowly and wait for the answer:\n{problems}\n5. Say:\n   {stop}\n   Send ➤',
@@ -3434,6 +3437,10 @@ const UX_STRINGS = {
   childTestSumLine: { en: '{child} — {parts}', ur: '⁨{child}⁩ کے نمبر: {parts}' },
   childTestSumWords: { en: '{block} {wpm} words/min', ur: '{block} {wpm} الفاظ فی منٹ' },
   childTestSumAnswers: { en: '{right} of {of} answers', ur: '{of} میں سے {right} جواب' },
+  // L34 (bd-s1oo0.47, CONTRACT §20): only the questions the child reached are asked; scored out of those asked.
+  childTestSumAnswersAsked: { en: 'answers {right} of {asked} asked', ur: 'پوچھے گئے {asked} میں سے {right} جواب درست' },
+  childTestSumNoneAsked: { en: 'no questions asked', ur: 'کوئی سوال نہیں پوچھا گیا' },
+  childTestSumNotReached: { en: '({n} not reached)', ur: '({n} سوال تک نہیں پہنچے)' },
   childTestSumLetters: { en: '{block} letters {letters} of {lof}, words {words} of {wof}', ur: '{block} حروف {lof} میں سے {letters}، الفاظ {wof} میں سے {words}' },
   childTestSumStoryNotScored: { en: '{block} story not scored', ur: '{block} کہانی کے نمبر نہیں لگے' },
   childTestSumMaths: { en: '{block} {right} of {of}', ur: '{block} {of} میں سے {right}' },

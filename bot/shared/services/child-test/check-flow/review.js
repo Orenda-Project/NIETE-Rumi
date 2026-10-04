@@ -33,7 +33,7 @@ const Store = require('./check-store');
 const { formItems } = require('./items');
 const { t } = require('../conversation/copy');
 const {
-  BLOCKS, VERDICTS, MAX_ITEMS, langOf, questionsSkipped, reviewTime, selectDoubtful, publicItem, summaryText, reviewScreenData, reviewMessage,
+  BLOCKS, VERDICTS, MAX_ITEMS, langOf, questionsSkipped, reachedOf, askedOf, reviewTime, selectDoubtful, publicItem, summaryText, reviewScreenData, reviewMessage,
 } = require('./review-view');
 const { MARKER, enabled } = require('./token');
 
@@ -152,6 +152,15 @@ function coachMarksFor(block, row, asked, aiOnly) {
       q.verdict = 'not_asked';
     });
   }
+  // §20: a reached-or-not question the coach did not ask is 'not_asked'; one asked beyond the child's reading
+  // keeps the AI's verdict, is listed, and stays out of the score.
+  const beyondReach = [];
+  if (!questionsSkipped(ai) && Array.isArray(marks.questions)) {
+    marks.questions.forEach((q, i) => {
+      const path = `questions[${q.id || `#${i + 1}`}].verdict`;
+      if (!askedOf(q)) { notAsked.push(path); q.verdict = 'not_asked'; } else if (!reachedOf(q)) beyondReach.push(path);
+    });
+  }
   const edits = [];
   const reviewed = [];
   const unanswered = [];
@@ -171,6 +180,7 @@ function coachMarksFor(block, row, asked, aiOnly) {
     ai_only: aiOnly.map((c) => c.path),
     ...(unanswered.length ? { unanswered } : {}),
     ...(notAsked.length ? { not_asked: notAsked } : {}),
+    ...(beyondReach.length ? { beyond_reach: beyondReach } : {}),
   };
   return { coachMarks: marks, edits };
 }

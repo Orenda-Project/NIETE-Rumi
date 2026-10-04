@@ -454,6 +454,11 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     record('CT92', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
     record('CT93', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
     record('CT94', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
+    // L34 (bd-s1oo0.47, CONTRACT §20): proven by tests/child-test/L34 (reach, comprehension-reach, step-reach,
+    // coach-card-reach, review-reach). The drive needs fixtures of a child stopping before a question's line.
+    record('CT95', ...B('drive not written yet: needs a full-story reader fixture and the review Flow on sandbox; jest-proven in tests/child-test/L34'));
+    record('CT96', ...B('drive not written yet: needs an early-stop reader fixture and the review Flow on sandbox; jest-proven in tests/child-test/L34'));
+    record('CT97', ...B('drive not written yet: needs an early-stop reader fixture with all 3 questions asked; jest-proven in tests/child-test/L34'));
 // L25 (bd-s1oo0.46.1): proven by tests/child-test/L25 (draw-v2, list-identity, no-roll). The drive needs a SIM
     // roster with two sections, two class teachers, an evening class and a namesake pair.
     record('CT70', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
