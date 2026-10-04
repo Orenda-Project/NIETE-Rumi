@@ -12,7 +12,13 @@
  *   LP_PHOTOS    photos of the paper plan, one per page
  *   LP_FILE      a PDF or Word file
  *   LP_TEXT      the plan, typed
- *   AFTER        before leaving the room        (anything to report, photos, what to work on first, the seal)
+ *   PHOTOS       classroom photos: taken now, uploaded from the ones already on the phone, or none
+ *                (Riffat, 4 Oct: coaches take photos at several moments of the lesson). A photo picker
+ *                offers the gallery only on a phone; WhatsApp Web and Desktop show "Take photo" alone,
+ *                so saved photos go through a file picker, which opens a chooser on every client:
+ *   PHOTO_TAKE   the photo picker (camera, or the gallery on a phone)
+ *   PHOTO_FILES  the file picker, images only
+ *   AFTER        before leaving the room        (anything to report, what to work on first, the seal)
  *   SEALED       the record is locked
  *   CONTINUE     a reopened form: where the record stands, then on to the right screen
  *
@@ -38,6 +44,7 @@ const MAX_PLAN_PHOTOS = 10;
 const MAX_PLAN_FILES = 3;
 const LP_TEXT_MIN = 40;
 const LP_TEXT_MAX = 600; // the TextArea cap the contract test holds every box to
+const PHOTO_FILE_TYPES = ['image/jpeg', 'image/png'];
 const PLAN_FILE_TYPES = [
   'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'image/jpeg', 'image/png',
@@ -95,6 +102,11 @@ const PLAN_HOW = [
   opt('file', 'A PDF or Word file', "From the phone's files."),
   opt('text', 'Type it', 'The steps the teacher planned, in order.'),
 ];
+const PHOTO_HOW = [
+  opt('take', 'Take photos now', 'With the camera. On a phone you can also pick from the gallery.'),
+  opt('files', 'Upload saved photos', 'Photos already taken: choose them from the gallery or files.'),
+  opt('none', 'No photos'),
+];
 const YES_NO = [opt('yes', 'Yes'), opt('no', 'No')];
 
 const ERR_DATA = {
@@ -148,6 +160,9 @@ const FIELDS = {
   LP_PHOTOS: [],
   LP_FILE: [],
   LP_TEXT: ['lp_text'],
+  PHOTOS: ['photo_how'],
+  PHOTO_TAKE: [],
+  PHOTO_FILES: [],
   AFTER: ['incident', 'detail', 'note', 'priority', 'seal_ok'],
 };
 
@@ -155,7 +170,8 @@ function screen(id, title, children, footerLabel, extraData) {
   const payload = { screen: id };
   for (const f of FIELDS[id]) payload[f] = `\${form.${f}}`;
   // A picker's value may only travel as a top-level string property of a data_exchange (Meta).
-  if (id === 'AFTER') payload.photos = '${form.photos}';
+  if (id === 'PHOTO_TAKE') payload.photos = '${form.photos}';
+  if (id === 'PHOTO_FILES') payload.photo_files = '${form.photo_files}';
   if (id === 'LP_PHOTOS') payload.lp_photos = '${form.lp_photos}';
   if (id === 'LP_FILE') payload.lp_file = '${form.lp_file}';
   return {
@@ -197,6 +213,7 @@ function buildFieldFormFlow() {
     { type: 'TextHeading', text: 'Before you seal' },
     { type: 'TextCaption', text: 'About two minutes, before you leave the room.' },
     { type: 'TextBody', text: '${data.lp_line}' },
+    { type: 'TextBody', text: '${data.photo_line}' },
     radio('incident', 'Anything to report?', INCIDENT, 'Something that should never happen in a classroom, or a recording that failed.'),
     {
       type: 'If',
@@ -205,11 +222,6 @@ function buildFieldFormFlow() {
       else: [],
     },
     { type: 'TextArea', name: 'note', label: 'Not in the recording', required: false, 'max-length': 600, 'helper-text': "What you saw that a recording can't catch: the back rows, the board, reactions" },
-    {
-      type: 'PhotoPicker', name: 'photos', label: 'Photos (optional)',
-      description: `Up to ${MAX_PHOTOS}. The ones that help: the board, the materials, children using them, groups at work, and the board at the end. Never faces.`,
-      'photo-source': 'camera_gallery', 'min-uploaded-photos': 0, 'max-uploaded-photos': MAX_PHOTOS, 'max-file-size-kb': 10240,
-    },
     { type: 'Dropdown', name: 'priority', label: 'Work on first', required: true, 'data-source': PRIORITY_ORDER.map((c) => opt(c, PRIORITY[c])) },
     { type: 'OptIn', name: 'seal_ok', label: "Seal this record. I can't change it afterwards, and the recording's moments open only after I seal.", required: true },
     ERR_LINE,
@@ -260,6 +272,30 @@ function buildFieldFormFlow() {
     { type: 'TextArea', name: 'lp_text', label: 'The lesson plan', required: true, 'max-length': LP_TEXT_MAX, 'helper-text': 'One step per line is easiest to check.' },
     ERR_LINE,
   ];
+  const photos = [
+    { type: 'TextHeading', text: 'Classroom photos' },
+    { type: 'TextBody', text: `Up to ${MAX_PHOTOS}. The ones that help: the board, the materials, children using them, groups at work, and the board at the end. Never faces.` },
+    radio('photo_how', 'How will you add photos?', PHOTO_HOW),
+    ERR_LINE,
+  ];
+  // One picker per screen (Meta), as for the plan.
+  const photoTake = [
+    { type: 'TextHeading', text: 'Take the photos' },
+    {
+      type: 'PhotoPicker', name: 'photos', label: 'Classroom photos', description: `Up to ${MAX_PHOTOS}.`,
+      'photo-source': 'camera_gallery', 'min-uploaded-photos': 1, 'max-uploaded-photos': MAX_PHOTOS, 'max-file-size-kb': 10240,
+    },
+    ERR_LINE,
+  ];
+  const photoFiles = [
+    { type: 'TextHeading', text: 'Upload saved photos' },
+    { type: 'TextBody', text: 'Choose the photos you took during the lesson, from the gallery or the files. JPG or PNG.' },
+    {
+      type: 'DocumentPicker', name: 'photo_files', label: 'Classroom photos', description: `Up to ${MAX_PHOTOS}, 10 MB each.`,
+      'min-uploaded-documents': 1, 'max-uploaded-documents': MAX_PHOTOS, 'max-file-size-kb': 10240, 'allowed-mime-types': PHOTO_FILE_TYPES,
+    },
+    ERR_LINE,
+  ];
   const sealed = {
     id: 'SEALED',
     title: 'Sealed',
@@ -306,13 +342,16 @@ function buildFieldFormFlow() {
     routing_model: {
       PART_ONE: ['PART_TWO'],
       PART_TWO: ['LESSON_PLAN'],
-      LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER'],
-      LP_PHOTOS: ['AFTER'],
-      LP_FILE: ['AFTER'],
-      LP_TEXT: ['AFTER'],
+      LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS'],
+      LP_PHOTOS: ['PHOTOS'],
+      LP_FILE: ['PHOTOS'],
+      LP_TEXT: ['PHOTOS'],
+      PHOTOS: ['PHOTO_TAKE', 'PHOTO_FILES', 'AFTER'],
+      PHOTO_TAKE: ['AFTER'],
+      PHOTO_FILES: ['AFTER'],
       AFTER: ['SEALED'],
       SEALED: [],
-      CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'AFTER', 'SEALED'],
+      CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'PHOTOS', 'AFTER', 'SEALED'],
     },
     screens: [
       screen('PART_ONE', 'Part 1', part1, 'Part 1 done', {
@@ -336,8 +375,12 @@ function buildFieldFormFlow() {
       screen('LP_PHOTOS', 'Plan photos', planPhotos, 'Next'),
       screen('LP_FILE', 'Plan file', planFile, 'Next'),
       screen('LP_TEXT', 'Type the plan', planText, 'Next'),
+      screen('PHOTOS', 'Photos', photos, 'Next'),
+      screen('PHOTO_TAKE', 'Take photos', photoTake, 'Next'),
+      screen('PHOTO_FILES', 'Upload photos', photoFiles, 'Next'),
       screen('AFTER', 'Before you seal', after, 'Seal and send', {
         lp_line: { type: 'string', __example__: 'Lesson plan: Comparing & ordering unlike fractions, Grade 4 Math, Ch5 Day 3. To change it, go back.' },
+        photo_line: { type: 'string', __example__: '3 photos added. To change them, go back.' },
       }),
       sealed,
       resume,

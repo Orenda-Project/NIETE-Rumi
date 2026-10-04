@@ -98,6 +98,20 @@ function hasDeclaredDcIntent(user) {
  *                                    real container extension
  * @returns {Promise<boolean>} handled? (true → caller returns immediately)
  */
+/**
+ * The coach's /observe2 form still waiting for its recording, or null. A failed lookup is logged and
+ * reads as none: the recording then takes today's path (parked and asked about when lesson-length).
+ */
+async function _waitingObserve2Form(userId) {
+  try {
+    const found = await require('./observe2/field-form.store').findOpenFormForCapture(userId);
+    return (found && found.ok && found.form) || null;
+  } catch (err) {
+    logToFile('⚠️ observe2: waiting-form lookup failed (routing as /observe)', { userId, error: err.message }, 'warn');
+    return null;
+  }
+}
+
 async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = false, durationSeconds = null, sha256 = null, mimeType = null }) {
   // FEAT-102 dark-safe gate: no published observe Flow → the whole capability
   // is off and leaders' audio flows through normal coaching exactly as before.
@@ -155,6 +169,24 @@ async function routeLeaderAudio({ user, from, audioId, sessionId, isLongAudio = 
     });
     await WhatsAppService.sendMessage(from, S.debrief_load_error);
     return true;   // never fall through into teacher coaching on an error
+  }
+
+  // /observe2: a field form waiting for its recording is an armed observation too, kept in the
+  // database rather than in the Redis state (which every capture clears and which lives 2 h). Any
+  // length is accepted, as for an armed /observe. Riffat, 4 Oct: with the state gone, an 11-minute
+  // recording for her sealed form was answered by general chat with a voice note.
+  const waiting = await _waitingObserve2Form(user.id);
+  if (waiting) {
+    try {
+      const ObserveCapture = require('./observe-capture.service');
+      await ObserveCapture.startFromAudio(user, from, audioId, sessionId, dur || null, { observe2Form: waiting });
+      logToFile('🔭 observe2: recording captured for the waiting form', { userId: user.id, audioId, formId: waiting.id, dur });
+      return true;
+    } catch (err) {
+      logToFile('❌ observe2: capture for the waiting form failed', { userId: user.id, formId: waiting.id, error: err.message }, 'error');
+      await WhatsAppService.sendMessage(from, S.debrief_load_error);
+      return true;
+    }
   }
 
   // Nothing armed. Before treating this as an observation, honour what she

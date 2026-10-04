@@ -128,11 +128,11 @@ describe('the field form: a lesson-plan screen before the seal', () => {
   const flow = buildFieldFormFlow();
   const screens = Object.fromEntries(flow.screens.map((s) => [s.id, s]));
 
-  test('Part 2 leads to the lesson plan, then to the seal; a reopened form can land on it', () => {
-    expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER', 'SEALED', 'CONTINUE']);
+  test('Part 2 leads to the lesson plan, then the photos, then the seal; a reopened form can land on it', () => {
+    expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES', 'AFTER', 'SEALED', 'CONTINUE']);
     expect(flow.routing_model).toMatchObject({
-      PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER'], AFTER: ['SEALED'],
-      CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'AFTER', 'SEALED'],
+      PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS'], AFTER: ['SEALED'],
+      CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'PHOTOS', 'AFTER', 'SEALED'],
     });
   });
 
@@ -157,11 +157,12 @@ describe('the field form: a lesson-plan screen before the seal', () => {
   });
 
   test('up to ten photos, with a line on which photos help', () => {
-    const picker = comps(screens.AFTER).find((x) => x.type === 'PhotoPicker');
+    const picker = comps(screens.PHOTO_TAKE).find((x) => x.type === 'PhotoPicker');
     expect(picker['max-uploaded-photos']).toBe(10);
-    expect(picker.description).toMatch(/board/i);
-    expect(picker.description).toMatch(/materials/i);
-    expect(picker.description).toMatch(/never faces/i);
+    const help = comps(screens.PHOTOS).find((x) => x.type === 'TextBody').text;
+    expect(help).toMatch(/board/i);
+    expect(help).toMatch(/materials/i);
+    expect(help).toMatch(/never faces/i);
   });
 
   test('plainer wording: no "Ready before being told", no "name sticks"; the check uses the same words', () => {
@@ -203,7 +204,9 @@ describe('picking the lesson plan in the form', () => {
   test('a picked plan is saved with the keys the fidelity grader needs, and the seal screen names it', async () => {
     const id = await newForm();
     await throughPart2(id);
-    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'used', lp_pick: 'asset-3' });
+    const step = await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'used', lp_pick: 'asset-3' });
+    expect(step.screen).toBe('PHOTOS');
+    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', photo_how: 'none' });
     expect(out.screen).toBe('AFTER');
     expect(out.data.lp_line).toMatch(/Comparing & ordering unlike fractions/);
     expect(out.data.lp_line).toMatch(/go back/i);
@@ -215,13 +218,14 @@ describe('picking the lesson plan in the form', () => {
   test('"No plan for this lesson" goes straight on, and the seal screen says so', async () => {
     const id = await newForm();
     await throughPart2(id);
-    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'none' });
+    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'none' })).screen).toBe('PHOTOS');
+    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', photo_how: 'none' });
     expect(out.screen).toBe('AFTER');
     expect(out.data.lp_line).toMatch(/no lesson plan/i);
     expect(formRow(id).answers.lp_ref).toBeUndefined();
   });
 
-  test('a reopened form after Part 2 continues to the lesson plan; after the plan, to the seal', async () => {
+  test('a reopened form after Part 2 continues to the lesson plan; after the plan, to the photos, then the seal', async () => {
     const id = await newForm();
     await throughPart2(id);
     const init = await Form.handleObserve2FormInit(formToken(id));
@@ -229,6 +233,8 @@ describe('picking the lesson plan in the form', () => {
     expect(init.data.continue_line).toMatch(/lesson plan/i);
     expect((await Form.handleObserve2FormDataExchange(formToken(id), 'CONTINUE', { screen: 'CONTINUE' })).screen).toBe('LESSON_PLAN');
     await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'used', lp_pick: 'asset-3' });
+    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'CONTINUE', { screen: 'CONTINUE' })).screen).toBe('PHOTOS');
+    await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', photo_how: 'none' });
     expect((await Form.handleObserve2FormDataExchange(formToken(id), 'CONTINUE', { screen: 'CONTINUE' })).screen).toBe('AFTER');
   });
 
@@ -282,6 +288,45 @@ describe('fidelity is graded from the recording against the picked plan', () => 
     expect(grader).not.toHaveBeenCalled();
     expect(formRow(id).rumi_moments.fidelity).toBeNull();
     expect(formRow(id).rumi_moments.moments).toHaveLength(3);
+  });
+
+  // Riffat, 4 Oct: her recording came right after Start, the moments were read at once with no plan on
+  // the form, and the PDF she attached three minutes later was never graded. The plan is locked only by
+  // the seal, so a recording that comes first waits for it.
+  test('a recording that arrives before the seal: the plan is graded at the seal, with the plan the coach attached', async () => {
+    const id = await newForm({ answers: { ...PART_1, ...PART_2 } });
+    mockFake.__tables.coaching_sessions = [{ id: 'sess-1', status: 'transcription_complete', transcript_text: TRANSCRIPT, audio_duration_seconds: 215, observation_type: 'leader_observation', observer_user_id: 'coach-1', user_id: 'teacher-1' }];
+    await Store.linkSession(id, 'sess-1');
+    const grader = jest.fn(() => Promise.resolve(GRADED));
+    const deps = { llm: () => Promise.resolve(MODEL_OUT), fidelityDeps: { analyzeFidelity: grader } };
+    const out = await Moments.runForSession('sess-1', '923000000001', deps);
+    expect(out).toMatchObject({ handled: true, action: 'waiting_for_seal' });
+    expect(grader).not.toHaveBeenCalled();
+    expect(formRow(id).rumi_moments.moments).toHaveLength(3);
+
+    // The coach picks the plan, then seals.
+    Object.assign(formRow(id).answers, { incident: 'none', priority: 'C1', lp: 'used', lp_ref: { asset_id: 'asset-3', lesson_id: LESSON, ...VERSION, grade: '4', subject: 'math', label: 'Comparing' } });
+    formRow(id).sealed_at = '2026-10-04T16:18:00.000Z';
+    const sent = await Moments.onSealed(formRow(id), deps);
+    expect(sent).toBe(true);
+    expect(grader).toHaveBeenCalledTimes(1);
+    expect(grader.mock.calls[0][0].map((m) => m.move_id)).toEqual(['m1', 'm2', 'm3', 'm4']);
+    expect(formRow(id).rumi_moments.fidelity).toMatchObject({ status: 'ok', fidelity_pct: 62.5 });
+    expect(formRow(id).rumi_moments.moments).toHaveLength(3);
+    expect(mockFake.__tables.coaching_sessions[0].status).toBe('observe2_checking');
+  });
+
+  test('a recording before the seal, and no plan at the seal: nothing to grade, the check opens', async () => {
+    const id = await newForm({ answers: { ...PART_1, ...PART_2 } });
+    mockFake.__tables.coaching_sessions = [{ id: 'sess-1', status: 'transcription_complete', transcript_text: TRANSCRIPT, audio_duration_seconds: 215, observation_type: 'leader_observation', observer_user_id: 'coach-1', user_id: 'teacher-1' }];
+    await Store.linkSession(id, 'sess-1');
+    const grader = jest.fn(() => Promise.resolve(GRADED));
+    const deps = { llm: () => Promise.resolve(MODEL_OUT), fidelityDeps: { analyzeFidelity: grader } };
+    await Moments.runForSession('sess-1', '923000000001', deps);
+    Object.assign(formRow(id).answers, { incident: 'none', priority: 'C1', lp: 'none' });
+    formRow(id).sealed_at = '2026-10-04T16:18:00.000Z';
+    expect(await Moments.onSealed(formRow(id), deps)).toBe(true);
+    expect(grader).not.toHaveBeenCalled();
   });
 
   test('a grader failure never costs the moments or the check', async () => {
@@ -418,7 +463,11 @@ describe('checking the plan in the check', () => {
     await Check.handleObserve2CheckDataExchange(checkToken(id), 'ADDED_TWO', { screen: 'ADDED_TWO' });
     await Check.handleObserve2CheckDataExchange(checkToken(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C1' });
     await flush();
-    const brief = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).find((t) => /brief/i.test(t));
+    // The brief is this visit's debrief guide: kept on the session, sent with "Debrief now"
+    // (end-of-visit.test.js). The plan the coach confirmed is Section B, as /observe scores it.
+    const analysis = mockFake.__tables.coaching_sessions[0].analysis_data;
+    expect(analysis.domains.lesson_plan_fidelity).toMatchObject({ assessed: true, fidelity_pct: 75, domain_score: 21, domain_max: 28 });
+    const brief = analysis.observe2.brief;
     expect(brief).toMatch(/Open with questions/);
     expect(brief).toMatch(/How do you think the lesson went\?/);
     expect(brief).toMatch(/The lesson plan: 3 of 4 planned steps done \(75%\)/);

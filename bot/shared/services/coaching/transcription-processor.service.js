@@ -239,6 +239,14 @@ class TranscriptionProcessorService {
                 getLanguage: (uid) => getUserLanguage(uid),
                 getStrings: observeStrings,
                 log: logToFile,
+                // /observe2: the refused recording had already joined the visit's form; give it back
+                // so the right recording can attach, and tell the coach it is still waiting.
+                afterApplied: async (lang) => {
+                  const { releaseRefusedRecording } = require('../observe/observe2/capture-link');
+                  const out = await releaseRefusedRecording(coachingSessionId);
+                  if (!out.released) return null;
+                  return require('../observe/observe2/strings').observe2Strings(lang).duplicate_form_waiting;
+                },
               },
             );
           }
