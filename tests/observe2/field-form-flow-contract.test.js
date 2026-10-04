@@ -62,8 +62,8 @@ describe('the flow is internally consistent', () => {
   test('the parts in order, forward-only routing, one terminal', () => {
     expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES', 'AFTER', 'SEALED', 'CONTINUE']);
     expect(flow.routing_model).toEqual({
-      PART_ONE: ['PART_TWO'], PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS'],
-      LP_PHOTOS: ['PHOTOS'], LP_FILE: ['PHOTOS'], LP_TEXT: ['PHOTOS'],
+      PART_ONE: ['PART_TWO'], PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'AFTER'],
+      LP_PHOTOS: ['PHOTOS', 'AFTER'], LP_FILE: ['PHOTOS', 'AFTER'], LP_TEXT: ['PHOTOS', 'AFTER'],
       PHOTOS: ['PHOTO_TAKE', 'PHOTO_FILES', 'AFTER'], PHOTO_TAKE: ['AFTER'], PHOTO_FILES: ['AFTER'], AFTER: ['SEALED'], SEALED: [],
       CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'PHOTOS', 'AFTER', 'SEALED'],
     });
@@ -78,7 +78,7 @@ describe('the flow is internally consistent', () => {
     const incoming = new Set(Object.values(flow.routing_model).flat());
     expect(flow.screens.map((s) => s.id).filter((id) => !incoming.has(id))).toEqual(['PART_ONE', 'CONTINUE']);
     const footer = components(screens.CONTINUE).find((c) => c.type === 'Footer');
-    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'CONTINUE' } });
+    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'CONTINUE', fv: '4' } });
     expect(Object.keys(screens.CONTINUE.data).sort()).toEqual(['continue_heading', 'continue_line']);
   });
 
@@ -169,7 +169,8 @@ describe('the form agrees with the endpoint', () => {
       const pickers = components(screens[id]).filter((c) => ['PhotoPicker', 'DocumentPicker'].includes(c.type)).map((c) => c.name);
       for (const name of pickers) expect(payload[name]).toBe(`\${form.${name}}`);
       const shown = components(screens[id]).filter((c) => c.name && !['PhotoPicker', 'DocumentPicker', 'Form'].includes(c.type)).map((c) => c.name).sort();
-      expect(Object.keys(payload).filter((k) => k !== 'screen' && !pickers.includes(k)).sort()).toEqual(shown);
+      // fv: the form's version, sent by the footers whose next screen changed with the photo step.
+      expect(Object.keys(payload).filter((k) => k !== 'screen' && k !== 'fv' && !pickers.includes(k)).sort()).toEqual(shown);
       expect([...fields].sort()).toEqual(shown);
     }
   });

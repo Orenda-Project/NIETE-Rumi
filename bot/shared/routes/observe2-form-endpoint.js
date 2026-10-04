@@ -31,7 +31,7 @@
 const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { validate } = require('../services/observe/observe2/rules');
-const { FIELDS, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES } = require('../services/observe/observe2/field-form.flow');
+const { FIELDS, FORM_VERSION, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES } = require('../services/observe/observe2/field-form.flow');
 const { observe2Strings } = require('../services/observe/observe2/strings');
 const { logToFile } = require('../utils/logger');
 
@@ -210,8 +210,18 @@ function renderAfter(form, extra = {}) {
   return { screen: 'AFTER', data: { lp_line: planLine(a), photo_line: photoLine(a), ...NO_ERRORS, ...extra } };
 }
 
-// After the plan: the photo step, unless it was already answered (the coach went back to the plan).
-function afterPlan(form) {
+// A form opened before the photo step was published: its seal screen has the photo picker and no
+// photo line, and nothing routes to the photo step.
+function renderAfterOld(form, extra = {}) {
+  return { screen: 'AFTER', data: { lp_line: planLine(form && form.answers), ...NO_ERRORS, ...extra } };
+}
+
+const newForm = (screenData) => Boolean(screenData && screenData.fv === FORM_VERSION);
+
+// After the plan: the photo step, unless it was already answered (the coach went back to the plan);
+// straight to the seal screen on a form still running the old Flow.
+function afterPlan(form, screenData) {
+  if (!newForm(screenData)) return renderAfterOld(form);
   return photosDone(form && form.answers) ? renderAfter(form) : renderAdd('PHOTOS');
 }
 
@@ -331,7 +341,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
 
   if (step === 'CONTINUE') {
     if (!form || form.sealed_at) return renderSealed(form, form ? null : { sealed_line: 'Nothing to fill in', next_line: 'Send /observe2 in the chat to start a new visit.' });
-    if (form.part2_done_at) return planDone(form.answers) ? afterPlan(form) : renderPlan(form);
+    if (form.part2_done_at) return planDone(form.answers) ? afterPlan(form, screenData) : renderPlan(form);
     return renderPart2(form);
   }
 
@@ -393,7 +403,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     }
     logToFile('[observe2] lesson plan saved', { formId: form.id, lp: answers.lp, lessonId: lpRef && lpRef.lesson_id, upload: answers.lp_pick === UPLOAD ? answers.lp_how : null });
     if (answers.lp !== 'none' && answers.lp_pick === UPLOAD) return renderAdd(ADD_SCREEN[answers.lp_how]);
-    return afterPlan(saved.form);
+    return afterPlan(saved.form, screenData);
   }
 
   if (ADD_SCREEN.photos === step || ADD_SCREEN.file === step || ADD_SCREEN.text === step) {
@@ -423,7 +433,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
         });
       });
     }
-    return afterPlan(saved.form);
+    return afterPlan(saved.form, screenData);
   }
 
   if (step === 'PHOTOS') {

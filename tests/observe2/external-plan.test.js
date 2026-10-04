@@ -116,7 +116,7 @@ async function throughPart2(id) {
   await Form.handleObserve2FormDataExchange(formToken(id), 'PART_ONE', PART_1);
   return Form.handleObserve2FormDataExchange(formToken(id), 'PART_TWO', PART_2);
 }
-const plan = (id, data) => Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', ...data });
+const plan = (id, data) => Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', fv: '4', ...data });
 
 // ------------------------------------------------------------------ the form
 
@@ -126,21 +126,21 @@ describe('the form: three ways to add a plan the bot did not give the teacher', 
 
   test('"Upload new" asks how, then opens photos, a file, or typed text; each goes on to the classroom photos, then the seal', () => {
     expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES', 'AFTER', 'SEALED', 'CONTINUE']);
-    expect(flow.routing_model.LESSON_PLAN).toEqual(['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS']);
-    for (const s of ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT']) expect(flow.routing_model[s]).toEqual(['PHOTOS']);
+    expect(flow.routing_model.LESSON_PLAN).toEqual(['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'AFTER']);
+    for (const s of ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT']) expect(flow.routing_model[s]).toEqual(['PHOTOS', 'AFTER']);
     const c = comps(screens.LESSON_PLAN);
     const how = c.find((x) => x.name === 'lp_how');
     expect(how).toMatchObject({ type: 'RadioButtonsGroup' });
     expect(how['data-source'].map((o) => o.id)).toEqual(['photos', 'file', 'text']);
     expect(JSON.stringify(c.filter((x) => x.type === 'If'))).toContain("${form.lp_pick} == 'upload'");
-    expect(c.find((x) => x.type === 'Footer')['on-click-action'].payload).toEqual({ screen: 'LESSON_PLAN', lp: '${form.lp}', lp_pick: '${form.lp_pick}', lp_how: '${form.lp_how}' });
+    expect(c.find((x) => x.type === 'Footer')['on-click-action'].payload).toEqual({ screen: 'LESSON_PLAN', fv: '4', lp: '${form.lp}', lp_pick: '${form.lp_pick}', lp_how: '${form.lp_how}' });
   });
 
   test('photos: one picker, camera or gallery, one page per photo, up to ten', () => {
     const p = comps(screens.LP_PHOTOS).find((x) => x.type === 'PhotoPicker');
     expect(p).toMatchObject({ name: 'lp_photos', 'photo-source': 'camera_gallery', 'min-uploaded-photos': 1, 'max-uploaded-photos': 10 });
     const footer = comps(screens.LP_PHOTOS).find((x) => x.type === 'Footer');
-    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'LP_PHOTOS', lp_photos: '${form.lp_photos}' } });
+    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'LP_PHOTOS', fv: '4', lp_photos: '${form.lp_photos}' } });
   });
 
   test('a file: PDF or Word (or a photo saved as a file)', () => {
@@ -151,7 +151,7 @@ describe('the form: three ways to add a plan the bot did not give the teacher', 
     ]));
     expect(d['min-uploaded-documents']).toBe(1);
     const footer = comps(screens.LP_FILE).find((x) => x.type === 'Footer');
-    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'LP_FILE', lp_file: '${form.lp_file}' } });
+    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'LP_FILE', fv: '4', lp_file: '${form.lp_file}' } });
   });
 
   test('typed text: one box, required', () => {
@@ -220,12 +220,12 @@ describe('the plan list reads like /observe\'s, and "Upload new" adds a plan', (
     const id = await newForm();
     await throughPart2(id);
     await plan(id, { lp: 'used', lp_pick: 'upload', lp_how: 'photos' });
-    const none = await Form.handleObserve2FormDataExchange(formToken(id), 'LP_PHOTOS', { screen: 'LP_PHOTOS', lp_photos: [] });
+    const none = await Form.handleObserve2FormDataExchange(formToken(id), 'LP_PHOTOS', { screen: 'LP_PHOTOS', fv: '4', lp_photos: [] });
     expect(none.screen).toBe('LP_PHOTOS');
     expect(none.data.error).toMatch(/photo/i);
     const photos = [{ media_id: 'p1' }, { media_id: 'p2' }, { media_id: 'p3' }];
-    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'LP_PHOTOS', { screen: 'LP_PHOTOS', lp_photos: photos })).screen).toBe('PHOTOS');
-    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', photo_how: 'none' });
+    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'LP_PHOTOS', { screen: 'LP_PHOTOS', fv: '4', lp_photos: photos })).screen).toBe('PHOTOS');
+    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', fv: '4', photo_how: 'none' });
     expect(out.screen).toBe('AFTER');
     expect(out.data.lp_line).toMatch(/3 photos of the plan/);
     expect(out.data.lp_line).toMatch(/go back/i);
@@ -240,20 +240,20 @@ describe('the plan list reads like /observe\'s, and "Upload new" adds a plan', (
     const id = await newForm();
     await throughPart2(id);
     await plan(id, { lp: 'used', lp_pick: 'upload', lp_how: 'file' });
-    let out = await Form.handleObserve2FormDataExchange(formToken(id), 'LP_FILE', { screen: 'LP_FILE', lp_file: [{ media_id: 'f1', file_name: 'plan.pdf' }] });
+    let out = await Form.handleObserve2FormDataExchange(formToken(id), 'LP_FILE', { screen: 'LP_FILE', fv: '4', lp_file: [{ media_id: 'f1', file_name: 'plan.pdf' }] });
     expect(out.screen).toBe('PHOTOS');
-    out = await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', photo_how: 'none' });
+    out = await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', fv: '4', photo_how: 'none' });
     expect(out.screen).toBe('AFTER');
     expect(out.data.lp_line).toMatch(/the file you added/i);
     expect(formRow(id).answers.lp_upload).toMatchObject({ kind: 'file', count: 1, keys: [`observe2/${id}/plan-1`] });
 
     await plan(id, { lp: 'used', lp_pick: 'upload', lp_how: 'text' });
-    out = await Form.handleObserve2FormDataExchange(formToken(id), 'LP_TEXT', { screen: 'LP_TEXT', lp_text: 'Fractions.' });
+    out = await Form.handleObserve2FormDataExchange(formToken(id), 'LP_TEXT', { screen: 'LP_TEXT', fv: '4', lp_text: 'Fractions.' });
     expect(out.screen).toBe('LP_TEXT');
     expect(out.data.error_messages.lp_text).toBeTruthy();
     await flush(); // the file above is stored after its reply
     uploadBuffer.mockClear();
-    out = await Form.handleObserve2FormDataExchange(formToken(id), 'LP_TEXT', { screen: 'LP_TEXT', lp_text: TYPED });
+    out = await Form.handleObserve2FormDataExchange(formToken(id), 'LP_TEXT', { screen: 'LP_TEXT', fv: '4', lp_text: TYPED });
     expect(out.screen).toBe('AFTER');
     expect(out.data.lp_line).toMatch(/the plan you typed/i);
     expect(formRow(id).answers.lp_upload).toEqual(expect.objectContaining({ kind: 'text', text: TYPED }));
@@ -266,7 +266,7 @@ describe('the plan list reads like /observe\'s, and "Upload new" adds a plan', (
     const id = await newForm();
     await throughPart2(id);
     await plan(id, { lp: 'used', lp_pick: 'upload', lp_how: 'text' });
-    await Form.handleObserve2FormDataExchange(formToken(id), 'LP_TEXT', { screen: 'LP_TEXT', lp_text: TYPED });
+    await Form.handleObserve2FormDataExchange(formToken(id), 'LP_TEXT', { screen: 'LP_TEXT', fv: '4', lp_text: TYPED });
     await plan(id, { lp: 'used', lp_pick: 'asset-3' });
     let a = formRow(id).answers;
     expect(a.lp_ref.lesson_id).toBe(LESSON);
@@ -283,7 +283,7 @@ describe('the plan list reads like /observe\'s, and "Upload new" adds a plan', (
     await plan(id, { lp: 'used', lp_pick: 'upload', lp_how: 'photos' });
     const init = await Form.handleObserve2FormInit(formToken(id));
     expect(init.screen).toBe('CONTINUE');
-    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'CONTINUE', { screen: 'CONTINUE' })).screen).toBe('LESSON_PLAN');
+    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'CONTINUE', { screen: 'CONTINUE', fv: '4' })).screen).toBe('LESSON_PLAN');
   });
 });
 

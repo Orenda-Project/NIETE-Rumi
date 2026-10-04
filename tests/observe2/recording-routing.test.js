@@ -103,6 +103,25 @@ describe('a recording while an /observe2 form waits for it', () => {
     expect(sessions()).toHaveLength(0);
   });
 
+  // Review, 4 Oct: below a lesson's length, a voice note is the coach talking to Rumi, form or no form.
+  test('a short voice note to Rumi while a form waits stays chat, and the form keeps waiting', async () => {
+    expect(await send({ durationSeconds: 30 })).toBe(false);
+    expect(sessions()).toHaveLength(0);
+    expect(forms()[0].coaching_session_id).toBe(null);
+  });
+
+  test('a three-minute recording reaches the waiting form', async () => {
+    expect(await send({ durationSeconds: 203 })).toBe(true);
+    expect(forms()[0].coaching_session_id).toBe(sessions()[0].id);
+  });
+
+  test('the waiting-form lookup reads only the columns it needs (it runs on every unarmed leader audio)', async () => {
+    await send();
+    const lookup = mockDb.__calls.find((c) => c.table === 'observation_field_forms' && c.action === 'select');
+    expect(lookup.columns).not.toBe('*');
+    expect(lookup.columns).not.toMatch(/rumi_moments|answers|evidence_review/);
+  });
+
   test('with no form waiting, a short recording is still the coach talking to Rumi', async () => {
     mockDb = createFakeSupabase({ observation_field_forms: [form({ coaching_session_id: 'already' })], coaching_sessions: [] });
     expect(await send()).toBe(false);
@@ -137,9 +156,9 @@ describe('who the recording belongs to', () => {
 });
 
 describe('a classic /observe recording is not pulled into an /observe2 form', () => {
-  test('a recording started from /observe\'s Start (no /observe2 marker) stays a classic observation', async () => {
+  test('a recording started from /observe\'s Start stays a classic observation', async () => {
     ObserveState.getState.mockResolvedValue({
-      state: 'awaiting_audio',
+      state: 'awaiting_audio', origin: 'observe',
       boundTeacher: { user_id: 'teacher-7', teacher_ext_id: '923001112223', school_ext_id: 'niete:1', teacher_name: 'Sana' },
     });
     await send({ durationSeconds: 2449 });
@@ -161,6 +180,18 @@ describe('a classic /observe recording is not pulled into an /observe2 form', ()
     await send({ durationSeconds: 2449 });
     expect(forms()[0].coaching_session_id).toBe(sessions()[0].id);
     expect(sessions()[0].user_id).toBe('teacher-7');
+  });
+
+  test('a state armed before this change (no origin) links the newest waiting form, as before', async () => {
+    ObserveState.getState.mockResolvedValue({ state: 'awaiting_audio', boundTeacher: null });
+    await send({ durationSeconds: 2449 });
+    expect(forms()[0].coaching_session_id).toBe(sessions()[0].id);
+  });
+
+  test('an /observe2 Start whose form id never reached the state still links the waiting form', async () => {
+    ObserveState.getState.mockResolvedValue({ state: 'awaiting_audio', origin: 'observe2', boundTeacher: null });
+    await send({ durationSeconds: 2449 });
+    expect(forms()[0].coaching_session_id).toBe(sessions()[0].id);
   });
 
   test('a marked form for another teacher is still not linked: never a recording filed on the wrong teacher', async () => {
@@ -185,6 +216,12 @@ describe('a recording refused as a duplicate gives the form back', () => {
     mockDb.__tables.coaching_sessions = [];
     expect(await send()).toBe(true);
     expect(forms()[0].coaching_session_id).toBe(mockDb.__tables.coaching_sessions[0].id);
+  });
+
+  test('a form past the link window is given back silently: it can no longer take a recording, so nothing says it waits', async () => {
+    mockDb = createFakeSupabase({ observation_field_forms: [form({ coaching_session_id: 'refused-1', created_at: minutesAgo(7 * 60) })] });
+    expect(await releaseRefusedRecording('refused-1')).toEqual({ released: false, formId: 'form-2' });
+    expect(forms()[0].coaching_session_id).toBe(null);
   });
 
   test('a refused classic recording (no form) releases nothing', async () => {

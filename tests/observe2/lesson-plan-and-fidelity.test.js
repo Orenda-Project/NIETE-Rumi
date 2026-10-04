@@ -131,7 +131,7 @@ describe('the field form: a lesson-plan screen before the seal', () => {
   test('Part 2 leads to the lesson plan, then the photos, then the seal; a reopened form can land on it', () => {
     expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES', 'AFTER', 'SEALED', 'CONTINUE']);
     expect(flow.routing_model).toMatchObject({
-      PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS'], AFTER: ['SEALED'],
+      PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'AFTER'], AFTER: ['SEALED'],
       CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'PHOTOS', 'AFTER', 'SEALED'],
     });
   });
@@ -146,7 +146,7 @@ describe('the field form: a lesson-plan screen before the seal', () => {
     expect(conditional).toContain("${form.lp} != 'none'");
     expect(conditional).toContain('lp_pick');
     const footer = c.find((x) => x.type === 'Footer');
-    expect(footer['on-click-action'].payload).toEqual({ screen: 'LESSON_PLAN', lp: '${form.lp}', lp_pick: '${form.lp_pick}', lp_how: '${form.lp_how}' });
+    expect(footer['on-click-action'].payload).toEqual({ screen: 'LESSON_PLAN', fv: '4', lp: '${form.lp}', lp_pick: '${form.lp_pick}', lp_how: '${form.lp_how}' });
   });
 
   test('the seal screen no longer asks about the plan; it shows the plan that was picked', () => {
@@ -193,7 +193,7 @@ describe('picking the lesson plan in the form', () => {
   test('"Followed a lesson plan" without picking one is refused when there are plans to pick', async () => {
     const id = await newForm();
     await throughPart2(id);
-    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'used', lp_pick: '' });
+    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', fv: '4', lp: 'used', lp_pick: '' });
     expect(out.screen).toBe('LESSON_PLAN');
     expect(out.data.error_messages.lp_pick).toMatch(/Pick the plan/);
     // WhatsApp shows no message under a Dropdown (sandbox E2E, 2 Oct): the line at the bottom must say it.
@@ -204,9 +204,9 @@ describe('picking the lesson plan in the form', () => {
   test('a picked plan is saved with the keys the fidelity grader needs, and the seal screen names it', async () => {
     const id = await newForm();
     await throughPart2(id);
-    const step = await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'used', lp_pick: 'asset-3' });
+    const step = await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', fv: '4', lp: 'used', lp_pick: 'asset-3' });
     expect(step.screen).toBe('PHOTOS');
-    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', photo_how: 'none' });
+    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', fv: '4', photo_how: 'none' });
     expect(out.screen).toBe('AFTER');
     expect(out.data.lp_line).toMatch(/Comparing & ordering unlike fractions/);
     expect(out.data.lp_line).toMatch(/go back/i);
@@ -218,8 +218,8 @@ describe('picking the lesson plan in the form', () => {
   test('"No plan for this lesson" goes straight on, and the seal screen says so', async () => {
     const id = await newForm();
     await throughPart2(id);
-    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'none' })).screen).toBe('PHOTOS');
-    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', photo_how: 'none' });
+    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', fv: '4', lp: 'none' })).screen).toBe('PHOTOS');
+    const out = await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', fv: '4', photo_how: 'none' });
     expect(out.screen).toBe('AFTER');
     expect(out.data.lp_line).toMatch(/no lesson plan/i);
     expect(formRow(id).answers.lp_ref).toBeUndefined();
@@ -231,17 +231,17 @@ describe('picking the lesson plan in the form', () => {
     const init = await Form.handleObserve2FormInit(formToken(id));
     expect(init.screen).toBe('CONTINUE');
     expect(init.data.continue_line).toMatch(/lesson plan/i);
-    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'CONTINUE', { screen: 'CONTINUE' })).screen).toBe('LESSON_PLAN');
-    await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'used', lp_pick: 'asset-3' });
-    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'CONTINUE', { screen: 'CONTINUE' })).screen).toBe('PHOTOS');
-    await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', photo_how: 'none' });
-    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'CONTINUE', { screen: 'CONTINUE' })).screen).toBe('AFTER');
+    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'CONTINUE', { screen: 'CONTINUE', fv: '4' })).screen).toBe('LESSON_PLAN');
+    await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', fv: '4', lp: 'used', lp_pick: 'asset-3' });
+    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'CONTINUE', { screen: 'CONTINUE', fv: '4' })).screen).toBe('PHOTOS');
+    await Form.handleObserve2FormDataExchange(formToken(id), 'PHOTOS', { screen: 'PHOTOS', fv: '4', photo_how: 'none' });
+    expect((await Form.handleObserve2FormDataExchange(formToken(id), 'CONTINUE', { screen: 'CONTINUE', fv: '4' })).screen).toBe('AFTER');
   });
 
   test('the seal keeps the plan, and up to ten photos are stored', async () => {
     const id = await newForm();
     await throughPart2(id);
-    await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', lp: 'used', lp_pick: 'asset-3' });
+    await Form.handleObserve2FormDataExchange(formToken(id), 'LESSON_PLAN', { screen: 'LESSON_PLAN', fv: '4', lp: 'used', lp_pick: 'asset-3' });
     const photos = Array.from({ length: 12 }, (_, i) => ({ media_id: `m${i + 1}` }));
     const out = await Form.handleObserve2FormDataExchange(formToken(id), 'AFTER', { ...AFTER, photos });
     expect(out.screen).toBe('SEALED');

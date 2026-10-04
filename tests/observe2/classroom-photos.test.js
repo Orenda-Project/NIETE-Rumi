@@ -41,7 +41,9 @@ const row = (id) => mockFake.__tables.observation_field_forms.find((r) => r.id =
 // so none lands in the next test's database.
 const flush = async () => { for (let i = 0; i < 200; i += 1) await new Promise((r) => setImmediate(r)); };
 const media = (n) => ({ media_id: `m${n}`, file_name: `p${n}.jpg`, cdn_url: 'https://cdn.example/x', encryption_metadata: {} });
-const send = (id, screen, data) => Endpoint.handleObserve2FormDataExchange(token(id), screen, { screen, ...data });
+// The new Flow's plan, photo and continue footers carry fv: '4'; a form opened on the old Flow does not.
+const send = (id, screen, data) => Endpoint.handleObserve2FormDataExchange(token(id), screen, { screen, fv: '4', ...data });
+const sendOld = (id, screen, data) => Endpoint.handleObserve2FormDataExchange(token(id), screen, { screen, ...data });
 
 const flow = buildFieldFormFlow();
 const screens = Object.fromEntries(flow.screens.map((s) => [s.id, s]));
@@ -77,8 +79,8 @@ describe('the Flow', () => {
   test('a photo step after the plan: take them, upload saved ones, or none; then the seal', () => {
     expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES', 'AFTER', 'SEALED', 'CONTINUE']);
     expect(flow.routing_model).toMatchObject({
-      LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS'],
-      LP_PHOTOS: ['PHOTOS'], LP_FILE: ['PHOTOS'], LP_TEXT: ['PHOTOS'],
+      LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'AFTER'],
+      LP_PHOTOS: ['PHOTOS', 'AFTER'], LP_FILE: ['PHOTOS', 'AFTER'], LP_TEXT: ['PHOTOS', 'AFTER'],
       PHOTOS: ['PHOTO_TAKE', 'PHOTO_FILES', 'AFTER'], PHOTO_TAKE: ['AFTER'], PHOTO_FILES: ['AFTER'],
       CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'PHOTOS', 'AFTER', 'SEALED'],
     });
@@ -110,13 +112,37 @@ describe('the Flow', () => {
 
   test('each picker\'s value travels only on its own screen\'s data_exchange', () => {
     const footer = (s) => components(s).find((c) => c.type === 'Footer')['on-click-action'];
-    expect(footer(screens.PHOTO_TAKE)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTO_TAKE', photos: '${form.photos}' } });
-    expect(footer(screens.PHOTO_FILES)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTO_FILES', photo_files: '${form.photo_files}' } });
-    expect(footer(screens.PHOTOS)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTOS', photo_how: '${form.photo_how}' } });
+    expect(footer(screens.PHOTO_TAKE)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTO_TAKE', fv: '4', photos: '${form.photos}' } });
+    expect(footer(screens.PHOTO_FILES)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTO_FILES', fv: '4', photo_files: '${form.photo_files}' } });
+    expect(footer(screens.PHOTOS)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTOS', fv: '4', photo_how: '${form.photo_how}' } });
   });
 });
 
 describe('the endpoint', () => {
+  test('going back to the plan after the photo step lands on the seal screen again (a route the Flow allows)', async () => {
+    const id = await planned({ answers: { present: '30', p1_spoke: '5', p2_spoke: '8', p2_new: '3', lp: 'none', photo_how: 'none' } });
+    const out = await send(id, 'LESSON_PLAN', { lp: 'none' });
+    expect(out.screen).toBe('AFTER');
+    expect(flow.routing_model.LESSON_PLAN).toContain(out.screen);
+  });
+
+  test('the new plan, photo and continue footers carry the form version', () => {
+    for (const id of ['LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES', 'CONTINUE']) {
+      const f = components(screens[id]).find((c) => c.type === 'Footer');
+      expect([id, f['on-click-action'].payload.fv]).toEqual([id, '4']);
+    }
+  });
+
+  // A form opened before the new Flow was published runs the old screens until it closes: no photo
+  // step and the photo picker on the seal screen. It gets the old routes and the old data.
+  test('a form still on the old Flow goes from the plan straight to the seal screen, as before', async () => {
+    const id = await planned({ answers: { present: '30', p1_spoke: '5', p2_spoke: '8', p2_new: '3' } });
+    const out = await sendOld(id, 'LESSON_PLAN', { lp: 'none' });
+    expect(out.screen).toBe('AFTER');
+    expect(out.data).not.toHaveProperty('photo_line');
+    expect((await sendOld(id, 'CONTINUE', {})).screen).toBe('AFTER');
+  });
+
   test('a plan picked (or "no plan") leads to the photo step, not straight to the seal', async () => {
     const id = await planned({ answers: { present: '30', p1_spoke: '5', p2_spoke: '8', p2_new: '3' } });
     expect((await send(id, 'LESSON_PLAN', { lp: 'none' })).screen).toBe('PHOTOS');

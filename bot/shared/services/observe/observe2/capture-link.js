@@ -7,9 +7,11 @@
  * other /observe steps during a lesson, and the record is the thing that lasts. Which form:
  *   - the one the audio router found waiting for this recording (ctx.form), or
  *   - the one the /observe2 Start marked in the observe state (ctx.formId), or
- *   - with neither, the coach's newest form that has no recording yet, started within the link window.
- * A recording started from /observe's own planner (ctx.classicStart) never joins an /observe2 form:
- * the coach chose the classic flow for it. If the capture knows the observed teacher and the form
+ *   - with neither, the coach's newest form that has no recording yet, started within the link window
+ *     (an /observe2 Start whose form id never reached the state; a state armed before Starts said
+ *     where they came from; the "whose recording?" pick).
+ * A recording armed by a Start from /observe's own planner (ctx.origin 'observe') never joins an
+ * /observe2 form: the coach chose the classic flow for it. If the capture knows the observed teacher and the form
  * names a different one, it is not linked either: better a classic /observe than a recording filed
  * against the wrong teacher's record.
  *
@@ -30,7 +32,7 @@ async function candidateForm(user, ctx) {
     if (form && form.observer_user_id === user.id && !form.coaching_session_id) return form;
     return null;
   }
-  if (ctx.classicStart) return null;
+  if (ctx.origin === 'observe') return null;
   const found = await Store.findOpenFormForCapture(user.id);
   return found.ok ? found.form : null;
 }
@@ -68,8 +70,15 @@ async function linkRecording(user, session, boundTeacher, ctx = {}) {
  * A recording refused as already analysed: the form it was linked to waits for a recording again.
  * @returns {Promise<{released:boolean, formId:string|null}>}
  */
-async function releaseRefusedRecording(sessionId) {
+async function releaseRefusedRecording(sessionId, now = Date.now()) {
   const out = await Store.unlinkSession(sessionId);
+  // Only a form still inside the link window can take the next recording; past it, saying it waits
+  // would send the coach's next recording somewhere it cannot arrive.
+  const open = out.createdAt && now - Date.parse(out.createdAt) < Store.LINK_WINDOW_HOURS * 3600 * 1000;
+  if (out.ok && out.formId && !open) {
+    logToFile('[observe2] duplicate recording refused; its form is past the link window', { sessionId, formId: out.formId });
+    return { released: false, formId: out.formId };
+  }
   if (out.ok && out.formId) {
     logToFile('[observe2] duplicate recording refused: the form waits for a recording again', { sessionId, formId: out.formId });
     return { released: true, formId: out.formId };

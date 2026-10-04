@@ -109,9 +109,9 @@ async function afterStart({ user, phoneNumber, boundTeacher, schoolExtId, teache
 }
 
 /**
- * The bind left the observe state armed (awaiting_audio + the teacher). Name this record in it, so the
- * recording that follows joins this form and a classic /observe Start (no name) is told apart. A
- * failure is logged: the audio router still finds the form waiting in the database.
+ * The bind left the observe state armed (awaiting_audio, origin 'observe2', the teacher). Name this
+ * record in it, so the recording that follows joins exactly this form. If the write fails, the capture
+ * still links the coach's newest waiting form (the state says origin 'observe2'); logged at error.
  */
 async function markStateWithForm(userId, formId) {
   try {
@@ -119,7 +119,7 @@ async function markStateWithForm(userId, formId) {
     const { state, ...data } = st || {};
     await ObserveState.setState(userId, state || 'awaiting_audio', { ...data, observe2FormId: formId });
   } catch (err) {
-    logToFile('⚠️ /observe2: the observe state was not marked with the record', { userId, formId, error: err.message }, 'warn');
+    logToFile('❌ /observe2: the observe state was not marked with the record', { userId, formId, error: err.message }, 'error');
   }
 }
 

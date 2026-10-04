@@ -130,9 +130,9 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
     observe2 = await require('./observe2/capture-link').linkRecording(user, session, boundTeacher, {
       form: observe2Form,
       formId: st && st.observe2FormId,
-      // A Start from /observe's own planner arms the state without the /observe2 marker: that
-      // recording is a classic observation and never joins an /observe2 form.
-      classicStart: Boolean(st && st.state === 'awaiting_audio' && !st.observe2FormId),
+      // The visit planner's Start says which flow armed the recording ('observe' | 'observe2'). A
+      // classic /observe Start never joins an /observe2 form.
+      origin: st && st.state === 'awaiting_audio' ? st.origin : undefined,
     });
   } catch (err) {
     logToFile('❌ observe2: linking the recording failed (capture goes on as /observe)', {
