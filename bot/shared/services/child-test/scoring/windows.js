@@ -324,10 +324,46 @@ function defaultTimedWindow(words, durationSec) {
   return { start, end, source: 'default' };
 }
 
+/**
+ * The coach's switch to letters + words (battery v2): the item bank's `script.fallback` line, found with the
+ * same phrase matcher as the cues. The coach decides the switch and says it («کوئی بات نہیں۔ اب یہ حروف پڑھیں،
+ * پھر یہ الفاظ پڑھیں۔» / "That's okay. Read these letters, then these words."), so the line in the recording is
+ * the evidence, not a rule on line 1 (L32, bd-s1oo0.46.9).
+ *
+ * Close variants count: the whole line; the line without its opening reassurance ("That's okay" / «کوئی بات
+ * نہیں» is said to any halting reader, so it is never evidence alone); and the letters clause on its own,
+ * which must then be heard whole ("now read these letters", «اب یہ حروف پڑھیں»). Returns the earliest hit
+ * after `after`, as findPhrase's { start, end, speaker, … } plus the `phrase` matched, or null.
+ */
+const SENTENCE_END = /[.!?۔؟]+/;
+const CLAUSE_END = /[,،;]+/;
+const MIN_CLAUSE_WORDS = 3;
+function switchLineVariants(line) {
+  const text = String(line || '').trim();
+  if (!text) return [];
+  const count = (x) => x.split(/\s+/).filter(Boolean).length;
+  const sentences = text.split(SENTENCE_END).map((x) => x.trim()).filter(Boolean);
+  const out = [{ phrase: text }];
+  const rest = sentences.length > 1 ? sentences.slice(1).join('. ') : null;
+  if (rest && count(rest) >= MIN_CLAUSE_WORDS) out.push({ phrase: rest });
+  const clause = (rest || text).split(CLAUSE_END).map((x) => x.trim()).filter(Boolean)[0];
+  if (clause && count(clause) >= MIN_CLAUSE_WORDS && clause !== rest) out.push({ phrase: clause, minScore: 1 });
+  return out;
+}
+
+function findSwitchLine(words, line, { after = -1 } = {}) {
+  let best = null;
+  for (const v of switchLineVariants(line)) {
+    const hit = findPhrase(words, v.phrase, { after, minScore: v.minScore });
+    if (hit && (!best || hit.start < best.start)) best = { ...hit, phrase: v.phrase };
+  }
+  return best;
+}
+
 /** Words inside a window, optionally without the coach. */
 function wordsIn(words, w, { excludeSpeaker } = {}) {
   if (!w) return [];
   return words.filter((x) => x.start >= w.start - 0.2 && x.start < w.end && (!excludeSpeaker || x.speaker !== excludeSpeaker));
 }
 
-module.exports = { findCueWindows, findPhrase, wordsIn, reconcileWindows, defaultTimedWindow, timedSecondsFor, SECTIONS, TIMED_SECONDS };
+module.exports = { findCueWindows, findPhrase, findSwitchLine, switchLineVariants, wordsIn, reconcileWindows, defaultTimedWindow, timedSecondsFor, SECTIONS, TIMED_SECONDS };
