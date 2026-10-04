@@ -8,8 +8,9 @@ import { MemoryRouter } from "react-router-dom";
  * or not, and someone who no longer remembers her password still needs a way
  * to ask for her account to be deleted.
  *
- * The privacy policy is Taleemabad's, on taleemabad.com, and opens outside the
- * app; account deletion is the portal's own public page.
+ * Both are the portal's own public pages and open inside the app. bd-nvnf2:
+ * the privacy policy used to be taleemabad.com's, which Play rejected for not
+ * naming the app or its developer.
  */
 
 vi.mock("../hooks/useAuth", () => ({
@@ -20,13 +21,12 @@ vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 import PortalLogin from "./PortalLogin";
 
 describe("bd-3wb0s — the login screen's legal footer", () => {
-  it("links the privacy policy, opening outside the app", () => {
+  it("links the NIETE privacy policy inside the app", () => {
     render(<MemoryRouter><PortalLogin /></MemoryRouter>);
     const footer = screen.getByTestId("login-legal-footer");
     const link = within(footer).getByRole("link", { name: "Privacy policy" });
-    expect(link).toHaveAttribute("href", "https://taleemabad.com/privacy-policy/");
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(link).toHaveAttribute("href", "/portal/privacy");
+    expect(link).not.toHaveAttribute("target");
   });
 
   it("links the account-deletion page inside the app", () => {
