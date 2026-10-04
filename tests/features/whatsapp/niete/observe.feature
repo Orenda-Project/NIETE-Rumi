@@ -774,9 +774,12 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When I send an 11-minute lesson recording from the recorder app as a file
     Then the bot says "Recording received" and that the moments come here to check
     And no voice note comes back
-    # 4 Oct (Riffat): with the observe state gone, a short recording was answered by general chat with
-    # a voice note. observe-audio-router.js now finds the form waiting in the database (any length, as an
-    # armed /observe). A recording started from /observe's own planner never joins an /observe2 form.
+    When I send Rumi a 30-second voice note while the form waits
+    Then it is answered as chat and the form keeps waiting for the lesson recording
+    # 4 Oct (Riffat): with the observe state gone, an 11-minute recording was answered by general chat
+    # with a voice note. observe-audio-router.js now finds the form waiting in the database; a recording
+    # of 2 minutes or more (or one that looks like a classroom recording) is taken for it. A recording
+    # started from /observe's own planner never joins an /observe2 form.
 
   @e2e @audio @config-gated @destructive @wip @draft @P1
   Scenario: A recording that was already analysed is refused and the form keeps waiting
