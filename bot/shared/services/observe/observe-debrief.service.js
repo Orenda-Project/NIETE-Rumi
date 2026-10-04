@@ -480,6 +480,11 @@ async function buildDebriefGuide(session, lang) {
   const sessionId = session.id;
   const v2 = session.analysis_data || {};
 
+  // /observe2: the brief the coach's check produced is this visit's guide, as written (no model call).
+  // The portal reads intro; WhatsApp sends text (renderGuideMessage).
+  const brief = v2.observe2 && typeof v2.observe2.brief === 'string' ? v2.observe2.brief : '';
+  if (brief) return { kind: 'observe2_brief', text: brief, intro: brief, sections: {}, outro: '' };
+
   let guide;
   try {
     const prompt = buildGuidePrompt(v2, { language: lang });

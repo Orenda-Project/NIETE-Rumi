@@ -18,7 +18,7 @@
  *   observe2_moments        reading the recording
  *   observe2_ready          moments stored, waiting for the seal
  *   observe2_checking       the check was sent
- *   observe2_checked        the coach submitted it
+ *   (then)                  the check hands the visit to /observe's debrief: observer_review_complete
  *   observe2_no_timestamps  the transcript has no [MM:SS] timings, so no moment can be placed
  *   observe2_failed         the model call or the write failed (logged at error)
  */
@@ -297,7 +297,8 @@ async function finish(sessionId, form) {
     return { handled: true, action: 'waiting_for_seal' };
   }
   if (form.checked_at) {
-    await setStatus(sessionId, 'observe2_checked');
+    // The check handed the visit to /observe's debrief (observer_review_complete and on): a late
+    // moments job must not write over that.
     return { handled: true, action: 'already_checked' };
   }
   const sent = await openCheck(form);
@@ -337,13 +338,18 @@ async function runForSession(sessionId, from, deps = {}) {
 
   try {
     // The plan's fidelity is graded from the same transcript, at the same time, by the grader /observe
-    // uses. It never fails the moments: the orchestrator returns a status instead of throwing.
+    // uses. It never fails the moments: the orchestrator returns a status instead of throwing. The plan
+    // is locked only by the seal, so a recording that comes first leaves the grading to the seal
+    // (onSealed): graded now, it would miss a plan attached after it (Riffat, 4 Oct).
+    const sealed = Boolean(form.sealed_at);
     const [raw, fidelity] = await Promise.all([
       (deps.llm || defaultLlm)(buildPrompt(transcript, form)),
-      gradeFidelity(form, transcript, row && row.audio_duration_seconds, deps.fidelityDeps, deps.planDeps, deps.photoDeps),
+      sealed ? gradeFidelity(form, transcript, row && row.audio_duration_seconds, deps.fidelityDeps, deps.planDeps, deps.photoDeps) : null,
     ]);
     const { moments, counts } = normalise(raw);
-    const stored = await Store.setMoments(form.id, { moments, counts, prompt_version: PROMPT_VERSION, fidelity }, heardLevels(moments, counts));
+    const stored = await Store.setMoments(form.id, {
+      moments, counts, prompt_version: PROMPT_VERSION, fidelity, ...(sealed ? {} : { fidelity_at_seal: true }),
+    }, heardLevels(moments, counts));
     if (!stored.ok) throw new Error(stored.error || 'moments not stored');
     const again = await Store.getForm(form.id);
     form = (again.ok && again.form) || form;
@@ -360,9 +366,38 @@ async function runForSession(sessionId, from, deps = {}) {
   return finish(sessionId, form);
 }
 
+/**
+ * The plan for a recording that came before the seal, graded now that the seal has locked it.
+ * The result is stored with the moments; a failure is a status, never a lost check.
+ */
+async function gradeAtSeal(form, deps = {}) {
+  const { data: row, error } = await supabase.from('coaching_sessions')
+    .select('transcript_text, audio_duration_seconds').eq('id', form.coaching_session_id).maybeSingle();
+  if (error || !row) {
+    logToFile('[observe2] the recording could not be read to grade the plan at the seal', { formId: form.id, error: error && error.message }, 'error');
+    return form;
+  }
+  const fidelity = await gradeFidelity(form, row.transcript_text || '', row.audio_duration_seconds, deps.fidelityDeps, deps.planDeps, deps.photoDeps);
+  const { fidelity_at_seal: _waited, ...rest } = form.rumi_moments || {};
+  const stored = await Store.setRumiMoments(form.id, { ...rest, fidelity });
+  logToFile('[observe2] plan graded at the seal', {
+    formId: form.id, fidelity: fidelity ? fidelity.status : 'no_plan', stored: stored.ok,
+    fidelityPct: fidelity && fidelity.fidelity_pct != null ? fidelity.fidelity_pct : null,
+  });
+  const again = await Store.getForm(form.id);
+  return (again.ok && again.form) || { ...form, rumi_moments: { ...rest, fidelity } };
+}
+
 /** After the seal: the moments may already be in (the recording came first). */
-async function onSealed(form) {
+async function onSealed(form, deps = {}) {
   if (!form || !form.moments_ready_at || form.checked_at) return false;
+  if (form.rumi_moments && form.rumi_moments.fidelity_at_seal && form.coaching_session_id) {
+    try {
+      form = await gradeAtSeal(form, deps);
+    } catch (err) {
+      logToFile('[observe2] grading the plan at the seal threw', { formId: form.id, error: err.message }, 'error');
+    }
+  }
   const sent = await openCheck(form);
   if (sent && form.coaching_session_id) await setStatus(form.coaching_session_id, 'observe2_checking');
   return sent;

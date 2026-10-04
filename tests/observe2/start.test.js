@@ -93,6 +93,22 @@ describe('after Start: the record, then the period', () => {
     expect(msg.buttons.map((b) => b.id)).toEqual(['obs2_period:form-1:30', 'obs2_period:form-1:35', 'obs2_period:form-1:40']);
     for (const b of msg.buttons) expect([...b.title].length).toBeLessThanOrEqual(20);
   });
+  // Riffat, 4 Oct: the observe state is the only place the recording learnt which form it was for,
+  // and a classic /observe Start looks the same. The Start now names its form in the state.
+  test('marks the observe state with the new record, keeping what the bind wrote', async () => {
+    const ObserveState = require('../../bot/shared/services/observe/observe-state.service');
+    const bound = { teacher_ext_id: 'tx1', school_ext_id: 'sx1', teacher_name: 'Rabia', user_id: 'teacher-1' };
+    ObserveState.getState.mockResolvedValueOnce({ state: 'awaiting_audio', arm: 'functional', boundTeacher: bound });
+    await Start.afterStart({ user: COACH, phoneNumber: '923000000001', boundTeacher: bound });
+    expect(ObserveState.setState).toHaveBeenCalledWith('coach-1', 'awaiting_audio', { arm: 'functional', boundTeacher: bound, observe2FormId: 'form-1' });
+  });
+  test('a teacher the bind could not resolve is still named on the record (the planner\'s pick)', async () => {
+    await Start.afterStart({ user: COACH, phoneNumber: '923000000001', boundTeacher: null, schoolExtId: 'test:9001', teacherExtId: 'name:test-nadia-perveen' });
+    expect(Store.createForm).toHaveBeenCalledWith({
+      observerUserId: 'coach-1', teacherUserId: null,
+      visitContext: { teacher_ext_id: 'name:test-nadia-perveen', school_ext_id: 'test:9001' },
+    });
+  });
   test('a record that cannot be created is said plainly', async () => {
     Store.createForm.mockResolvedValueOnce({ ok: false, error: 'x' });
     await Start.afterStart({ user: COACH, phoneNumber: '923000000001', boundTeacher: {} });
@@ -134,6 +150,17 @@ describe('the visit planner\'s Start completion branches on the marker', () => {
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalled();
     const texts = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
     expect(texts).not.toMatch(/record it and send me the audio|draft the FICO form/i);
+  });
+  test('an /observe2 Start whose bind failed keeps the teacher the coach picked', async () => {
+    VisitHandler.handle.mockResolvedValueOnce({ action: 'bound', boundTeacher: null });
+    await handleObserveVisitFlow(reply('coach-1:observe2-visit'), '923000000001', 'coach-1');
+    expect(Store.createForm).toHaveBeenCalledWith(expect.objectContaining({ visitContext: { teacher_ext_id: 'tx1', school_ext_id: 'sx1' } }));
+  });
+  test('a visit scheduled from /observe2 points back to /observe2, not /observe', async () => {
+    const scheduled = { interactive: { nfm_reply: { response_json: JSON.stringify({ observe_visit_action: 'done', visit_next: 'menu', teacher_name: 'Rabia', sched_date: '2026-10-06', sched_slot: '09:00', flow_token: 'coach-1:observe2-visit' }) } } };
+    await handleObserveVisitFlow(scheduled, '923000000001', 'coach-1');
+    const ack = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).find((t) => /scheduled/i.test(t));
+    expect(ack).toMatch(/\/observe2\b/);
   });
   test('a classic /observe Start still gets today\'s capture prompt and no record', async () => {
     await handleObserveVisitFlow(reply('coach-1'), '923000000001', 'coach-1');

@@ -60,11 +60,12 @@ describe('the flow is internally consistent', () => {
   });
 
   test('the parts in order, forward-only routing, one terminal', () => {
-    expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER', 'SEALED', 'CONTINUE']);
+    expect(flow.screens.map((s) => s.id)).toEqual(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES', 'AFTER', 'SEALED', 'CONTINUE']);
     expect(flow.routing_model).toEqual({
-      PART_ONE: ['PART_TWO'], PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER'],
-      LP_PHOTOS: ['AFTER'], LP_FILE: ['AFTER'], LP_TEXT: ['AFTER'], AFTER: ['SEALED'], SEALED: [],
-      CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'AFTER', 'SEALED'],
+      PART_ONE: ['PART_TWO'], PART_TWO: ['LESSON_PLAN'], LESSON_PLAN: ['LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS'],
+      LP_PHOTOS: ['PHOTOS'], LP_FILE: ['PHOTOS'], LP_TEXT: ['PHOTOS'],
+      PHOTOS: ['PHOTO_TAKE', 'PHOTO_FILES', 'AFTER'], PHOTO_TAKE: ['AFTER'], PHOTO_FILES: ['AFTER'], AFTER: ['SEALED'], SEALED: [],
+      CONTINUE: ['PART_TWO', 'LESSON_PLAN', 'PHOTOS', 'AFTER', 'SEALED'],
     });
     expect(flow.screens.filter((s) => s.terminal).map((s) => s.id)).toEqual(['SEALED']);
   });
@@ -99,7 +100,7 @@ describe('the flow is internally consistent', () => {
   });
 
   test('each part and the seal screen return server checks through the Form error-messages', () => {
-    for (const id of ['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'AFTER']) {
+    for (const id of ['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES', 'AFTER']) {
       const form = screens[id].layout.children.find((c) => c.type === 'Form');
       expect(form['error-messages']).toBe('${data.error_messages}');
       for (const k of ['error_messages', 'error', 'has_error']) expect(screens[id].data[k]).toBeDefined();
@@ -172,14 +173,18 @@ describe('the form agrees with the endpoint', () => {
       expect([...fields].sort()).toEqual(shown);
     }
   });
-  test('at most ten photos, each within the size cap', () => {
-    const picker = components(screens.AFTER).find((c) => c.type === 'PhotoPicker');
+  test('at most ten photos, each within the size cap, taken or uploaded (classroom-photos.test.js)', () => {
+    const picker = components(screens.PHOTO_TAKE).find((c) => c.type === 'PhotoPicker');
     expect(picker['max-uploaded-photos']).toBe(10);
     expect(picker['max-file-size-kb']).toBeLessThanOrEqual(10240);
+    const files = components(screens.PHOTO_FILES).find((c) => c.type === 'DocumentPicker');
+    expect(files['max-uploaded-documents']).toBe(10);
+    expect(files['max-file-size-kb']).toBeLessThanOrEqual(10240);
   });
-  test('photos travel only on the seal, never in a navigate payload', () => {
-    expect(components(screens.AFTER).some((c) => c.type === 'PhotoPicker')).toBe(true);
-    const footer = components(screens.AFTER).find((c) => c.type === 'Footer');
-    expect(footer['on-click-action'].payload.photos).toBe('${form.photos}');
+  test('photos travel only on their own screen\'s data_exchange, never in a navigate payload', () => {
+    const footer = (id) => components(screens[id]).find((c) => c.type === 'Footer');
+    expect(footer('PHOTO_TAKE')['on-click-action']).toMatchObject({ name: 'data_exchange', payload: { photos: '${form.photos}' } });
+    expect(footer('PHOTO_FILES')['on-click-action']).toMatchObject({ name: 'data_exchange', payload: { photo_files: '${form.photo_files}' } });
+    expect(footer('AFTER')['on-click-action'].payload.photos).toBeUndefined();
   });
 });

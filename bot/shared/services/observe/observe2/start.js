@@ -72,11 +72,14 @@ async function handleObserve2Command(user, from, messageBody) {
  * After Start in an /observe2 planner: the teacher is bound (the recording will attach to them);
  * create the record and ask the period.
  */
-async function afterStart({ user, phoneNumber, boundTeacher, schoolExtId }) {
+async function afterStart({ user, phoneNumber, boundTeacher, schoolExtId, teacherExtId }) {
   const S = stringsFor(user);
   const teacher = boundTeacher || null;
   const visitContext = {};
-  if (teacher && teacher.teacher_ext_id != null) visitContext.teacher_ext_id = String(teacher.teacher_ext_id);
+  // The planner's pick is kept even when the bind could not resolve it, so the record still says who
+  // was observed (and a classic recording for another teacher is never linked to it).
+  const pickedExt = teacher && teacher.teacher_ext_id != null ? teacher.teacher_ext_id : teacherExtId;
+  if (pickedExt != null && pickedExt !== '') visitContext.teacher_ext_id = String(pickedExt);
   const school = schoolExtId != null && schoolExtId !== '' ? schoolExtId : teacher && teacher.school_ext_id;
   if (school != null && school !== '') visitContext.school_ext_id = String(school);
 
@@ -92,6 +95,7 @@ async function afterStart({ user, phoneNumber, boundTeacher, schoolExtId }) {
 
   const formId = created.form.id;
   logToFile('🔭 /observe2: record created, asking the period', { userId: user.id, formId, teacherBound: Boolean(teacher) });
+  await markStateWithForm(user.id, formId);
   const asked = await WhatsAppService.sendInteractiveButtons(phoneNumber, {
     body: S.period_body(teacher && teacher.teacher_name),
     buttons: PERIODS.map((m) => ({ id: `obs2_period:${formId}:${m}`, title: S.period_button(m) })),
@@ -102,6 +106,21 @@ async function afterStart({ user, phoneNumber, boundTeacher, schoolExtId }) {
     return { ok: false, formId };
   }
   return { ok: true, formId };
+}
+
+/**
+ * The bind left the observe state armed (awaiting_audio + the teacher). Name this record in it, so the
+ * recording that follows joins this form and a classic /observe Start (no name) is told apart. A
+ * failure is logged: the audio router still finds the form waiting in the database.
+ */
+async function markStateWithForm(userId, formId) {
+  try {
+    const st = await ObserveState.getState(userId);
+    const { state, ...data } = st || {};
+    await ObserveState.setState(userId, state || 'awaiting_audio', { ...data, observe2FormId: formId });
+  } catch (err) {
+    logToFile('⚠️ /observe2: the observe state was not marked with the record', { userId, formId, error: err.message }, 'warn');
+  }
 }
 
 function parsePeriodButton(buttonId) {
