@@ -316,6 +316,47 @@ describe('fidelity is graded from the recording against the picked plan', () => 
     expect(mockFake.__tables.coaching_sessions[0].status).toBe('observe2_checking');
   });
 
+  // Review, 4 Oct: the seal can land while the moments are being read; the moments step then finds the
+  // form sealed when it stores them, and must grade the plan itself (onSealed saw no moments yet).
+  test('a seal that lands while the moments are being read still gets the plan graded', async () => {
+    const id = await newForm({ answers: { ...PART_1, ...PART_2 } });
+    mockFake.__tables.coaching_sessions = [{ id: 'sess-1', status: 'transcription_complete', transcript_text: TRANSCRIPT, audio_duration_seconds: 215, observation_type: 'leader_observation', observer_user_id: 'coach-1', user_id: 'teacher-1' }];
+    await Store.linkSession(id, 'sess-1');
+    const grader = jest.fn(() => Promise.resolve(GRADED));
+    const llm = () => {
+      Object.assign(formRow(id).answers, { incident: 'none', priority: 'C1', lp: 'used', lp_ref: { asset_id: 'asset-3', lesson_id: LESSON, ...VERSION, grade: '4', subject: 'math', label: 'Comparing' } });
+      formRow(id).sealed_at = '2026-10-04T16:18:00.000Z';
+      return Promise.resolve(MODEL_OUT);
+    };
+    const out = await Moments.runForSession('sess-1', '923000000001', { llm, fidelityDeps: { analyzeFidelity: grader } });
+    expect(out.action).toBe('check_sent');
+    expect(grader).toHaveBeenCalledTimes(1);
+    expect(formRow(id).rumi_moments.fidelity).toMatchObject({ status: 'ok', fidelity_pct: 62.5 });
+  });
+
+  test('photos stored after the seal message was built are still read for the plan grading', async () => {
+    process.env.LP_FIDELITY_PHOTO = 'on';
+    process.env.COACHING_PHOTO_VISION = 'v2';
+    try {
+      const id = await newForm({ answers: { ...PART_1, ...PART_2 } });
+      mockFake.__tables.coaching_sessions = [{ id: 'sess-1', status: 'transcription_complete', transcript_text: TRANSCRIPT, audio_duration_seconds: 215, observation_type: 'leader_observation', observer_user_id: 'coach-1', user_id: 'teacher-1' }];
+      await Store.linkSession(id, 'sess-1');
+      const grader = jest.fn(() => Promise.resolve(GRADED));
+      const read = jest.fn(() => Promise.resolve({ ok: true, exclude: null, evidence: { kind: 'board', visible_text: '3/4' } }));
+      const deps = { llm: () => Promise.resolve(MODEL_OUT), fidelityDeps: { analyzeFidelity: grader }, photoDeps: { download: () => Promise.resolve(Buffer.from('x')), read } };
+      await Moments.runForSession('sess-1', '923000000001', deps);
+      Object.assign(formRow(id).answers, { incident: 'none', priority: 'C1', lp: 'used', lp_ref: { asset_id: 'asset-3', lesson_id: LESSON, ...VERSION, grade: '4', subject: 'math', label: 'Comparing' } });
+      formRow(id).sealed_at = '2026-10-04T16:18:00.000Z';
+      const stale = { ...formRow(id), photos: [] };
+      formRow(id).photos = [`observe2/${id}/photo-1.jpg`, `observe2/${id}/photo-2.jpg`];
+      await Moments.onSealed(stale, deps);
+      expect(read).toHaveBeenCalledTimes(2);
+    } finally {
+      delete process.env.LP_FIDELITY_PHOTO;
+      delete process.env.COACHING_PHOTO_VISION;
+    }
+  });
+
   test('a recording before the seal, and no plan at the seal: nothing to grade, the check opens', async () => {
     const id = await newForm({ answers: { ...PART_1, ...PART_2 } });
     mockFake.__tables.coaching_sessions = [{ id: 'sess-1', status: 'transcription_complete', transcript_text: TRANSCRIPT, audio_duration_seconds: 215, observation_type: 'leader_observation', observer_user_id: 'coach-1', user_id: 'teacher-1' }];

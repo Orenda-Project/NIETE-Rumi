@@ -144,6 +144,12 @@ describe('Submit hands the visit to /observe\'s end', () => {
     expect(WhatsAppService.sendMessage.mock.calls.flat().join(' ')).not.toContain('Open with questions');
   });
 
+  test('the brief names the teacher the coach named after the recording ("who did you observe?")', async () => {
+    const id = await checkable({ teacher_user_id: null });
+    await submit(id);
+    expect(session().analysis_data.observe2.brief).toContain('Rabia');
+  });
+
   test('a second Submit writes nothing again and asks nothing again', async () => {
     const id = await checkable();
     await submit(id);
@@ -158,6 +164,22 @@ describe('Submit hands the visit to /observe\'s end', () => {
     await submit(id);
     const rows = await Debrief.listPendingDebriefs('coach-1');
     expect(rows.map((r) => r.id)).toEqual(['sess-1']);
+  });
+});
+
+describe('when the hand-off cannot be saved', () => {
+  test('the coach is told plainly, and submitting again hands the visit over', async () => {
+    const id = await checkable();
+    const saved = mockFake.__tables.coaching_sessions.splice(0, 1);       // the session can't be written
+    const done = await submit(id);
+    expect(done.data.next_line).not.toMatch(/debrief/i);
+    expect(done.data.next_line).toMatch(/again/i);
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+    mockFake.__tables.coaching_sessions.push(...saved);                  // the database is back
+    await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: '' });
+    await flush();
+    expect(session().status).toBe('observer_review_complete');
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
   });
 });
 

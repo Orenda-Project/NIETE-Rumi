@@ -187,6 +187,16 @@ describe('the endpoint', () => {
     expect(row(id).photos).toEqual([]);
   });
 
+  test('photos still being stored never come back after the coach goes back and picks "No photos"', async () => {
+    const id = await planned();
+    await send(id, 'PHOTOS', { photo_how: 'files' });
+    await send(id, 'PHOTO_FILES', { photo_files: [media(1), media(2)] });
+    await send(id, 'PHOTOS', { photo_how: 'none' });
+    await flush();
+    expect(row(id).photos).toEqual([]);
+    expect(row(id).answers.photo_how).toBe('none');
+  });
+
   test('a reopened form whose photo step was never answered goes back to it', async () => {
     const id = await planned();
     expect((await send(id, 'CONTINUE', {})).screen).toBe('PHOTOS');

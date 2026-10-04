@@ -353,6 +353,10 @@ async function runForSession(sessionId, from, deps = {}) {
     if (!stored.ok) throw new Error(stored.error || 'moments not stored');
     const again = await Store.getForm(form.id);
     form = (again.ok && again.form) || form;
+    // Sealed while the moments were being read: onSealed found no moments then, so grade it here.
+    if (!sealed && form.sealed_at && form.rumi_moments && form.rumi_moments.fidelity_at_seal) {
+      form = await gradeAtSeal(form, deps);
+    }
     logToFile('[observe2] moments stored', {
       sessionId, formId: form.id, moments: moments.length,
       fidelity: fidelity ? fidelity.status : 'no_plan', fidelityPct: fidelity && fidelity.fidelity_pct != null ? fidelity.fidelity_pct : null,
@@ -371,6 +375,9 @@ async function runForSession(sessionId, from, deps = {}) {
  * The result is stored with the moments; a failure is a status, never a lost check.
  */
 async function gradeAtSeal(form, deps = {}) {
+  // The record as it is now: photos stored at the photo step may have landed after the caller read it.
+  const fresh = await Store.getForm(form.id);
+  if (fresh.ok && fresh.form) form = fresh.form;
   const { data: row, error } = await supabase.from('coaching_sessions')
     .select('transcript_text, audio_duration_seconds').eq('id', form.coaching_session_id).maybeSingle();
   if (error || !row) {

@@ -218,19 +218,22 @@ async function handOver(form) {
   const { TERMINAL_IN_FILTER } = require('../services/coaching/session-terminal');
   const { data: coach } = await supabase.from('users')
     .select('id, phone_number, preferred_language, name').eq('id', form.observer_user_id).maybeSingle();
-  let teacherName = null;
-  if (form.teacher_user_id) {
-    const { data: t } = await supabase.from('users').select('name').eq('id', form.teacher_user_id).maybeSingle();
-    teacherName = (t && t.name) || null;
-  }
-  const brief = buildBrief(form, { teacherName, lang: coach && coach.preferred_language });
-  const analysis = buildAnalysis(form, { brief });
   const { data: row, error: readErr } = await supabase.from('coaching_sessions')
-    .select('analysis_data').eq('id', sessionId).maybeSingle();
+    .select('analysis_data, user_id').eq('id', sessionId).maybeSingle();
   if (readErr) {
     logToFile('[observe2] checked, but the session could not be read for the hand-off', { formId: form.id, sessionId, error: readErr.message }, 'error');
     return { ok: false, coach };
   }
+  // The teacher: the form's, or the one the coach named after the recording ("who did you observe?").
+  const teacherId = form.teacher_user_id
+    || (row && row.user_id && row.user_id !== form.observer_user_id ? row.user_id : null);
+  let teacherName = null;
+  if (teacherId) {
+    const { data: t } = await supabase.from('users').select('name').eq('id', teacherId).maybeSingle();
+    teacherName = (t && t.name) || null;
+  }
+  const brief = buildBrief(form, { teacherName, lang: coach && coach.preferred_language });
+  const analysis = buildAnalysis(form, { brief });
   const photos = Array.isArray(form.photos) ? form.photos.filter(Boolean) : [];
   const patch = {
     status: 'observer_review_complete',
@@ -241,8 +244,8 @@ async function handOver(form) {
     .update(patch).eq('id', sessionId).not('status', 'in', TERMINAL_IN_FILTER).select('id');
   if (error || !(data || []).length) {
     logToFile('[observe2] checked, but the session was not handed to the debrief', {
-      formId: form.id, sessionId, error: error && error.message, cancelled: !error,
-    }, error ? 'error' : 'warn');
+      formId: form.id, sessionId, error: error && error.message, noRow: !error,
+    }, 'error');
     return { ok: false, coach };
   }
   logToFile('[observe2] checked record handed to the debrief', {
@@ -250,6 +253,19 @@ async function handOver(form) {
   });
   return { ok: true, coach };
 }
+
+// Was the visit already handed over (a repeat Submit)? Read failures count as not yet, so the hand-off
+// is tried again: it is safe to repeat (the analysis is merged, the status write is guarded).
+async function handedOver(form) {
+  if (!form.coaching_session_id) return true;
+  const { data } = await supabase.from('coaching_sessions').select('status').eq('id', form.coaching_session_id).maybeSingle();
+  return Boolean(data && ['observer_review_complete', 'completed', 'cancelled', 'abandoned'].includes(data.status));
+}
+
+const NOT_HANDED = {
+  done_line: 'Saved',
+  next_line: 'Your answers are saved, but the next step did not start. Open this check again from the chat and tap Submit.',
+};
 
 // "Saved. Debrief now or later?", as after /observe's form.
 async function askDebrief(form, coach) {
@@ -337,7 +353,18 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
   }
 
   if (step === 'PRIORITY') {
-    if (form.checked_at) return renderDone(form);
+    if (form.checked_at) {
+      // A repeat Submit: if the first one saved the answers but could not hand the visit over, try again.
+      if (!(await handedOver(form))) {
+        const again = await handOver(form);
+        if (again.ok) {
+          setImmediate(() => { askDebrief(form, again.coach); });
+          return renderDone(form);
+        }
+        return renderDone(form, NOT_HANDED);
+      }
+      return renderDone(form);
+    }
     const review = form.evidence_review || {};
     const added = review.added || {};
     const finalLevels = {};
@@ -358,7 +385,8 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     } catch (err) {
       logToFile('[observe2] the hand-off to the debrief threw', { formId: form.id, error: err.message }, 'error');
     }
-    if (handed.ok) setImmediate(() => { askDebrief(checked.form, handed.coach); });
+    if (!handed.ok) return renderDone(checked.form, { ...NOT_HANDED, done_line: `Saved at ${clock(checked.form.checked_at)}` });
+    setImmediate(() => { askDebrief(checked.form, handed.coach); });
     return renderDone(checked.form);
   }
 
