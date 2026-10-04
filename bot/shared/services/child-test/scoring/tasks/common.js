@@ -70,8 +70,12 @@ function beginLines(spec) {
     if (typeof v === 'string') out.push(v);
     else if (v && typeof v === 'object') out.push(...[v.ur, v.en].filter(Boolean));
   }
-  return out;
+  // Bracketed stage directions ("[point to the first problem]") are not said aloud: matching them never hits
+  // (bd-s1oo0.50.9: quick-sum clocks were found 0 of 10 times).
+  return out.map((l) => String(l).replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s+([.,،۔?؟!])/g, '$1').replace(/\s+/g, ' ').trim()).filter(Boolean);
 }
+
+const INFER_WINDOW_S = 20;
 
 const distinctSpeakers = (words) => new Set(words.map((w) => w.speaker).filter((s) => s != null)).size;
 
@@ -92,10 +96,14 @@ function findClock({ words, spec, firstItems = [], beginAtS = null }) {
   }
   // No begin line: the child's first item response. The note opens with the coach, so with two speakers
   // the first word from the OTHER speaker is the child's; an item word heard first wins outright.
+  // Only the opening of the note is searched: a timed note starts at the begin line by design, so an
+  // "item" heard a minute in is noise, and starting the clock there misses the task (bd-s1oo0.50.9).
   const targets = firstItems.map(clean).filter(Boolean);
+  const t0 = words.length ? words[0].start : 0;
+  const early = words.filter((w) => w.start - t0 <= INFER_WINDOW_S);
   const opener = words.length && distinctSpeakers(words) > 1 ? words[0].speaker : null;
-  const first = words.find((w) => targets.some((t) => same(w.w, t)))
-    || (opener != null ? words.find((w) => w.speaker !== opener) : null) || words[0];
+  const first = early.find((w) => targets.some((t) => same(w.w, t)))
+    || (opener != null ? early.find((w) => w.speaker !== opener) : null) || words[0];
   return { begin_at_s: first ? first.start : 0, clock: 'inferred', coachSpeaker: null };
 }
 
