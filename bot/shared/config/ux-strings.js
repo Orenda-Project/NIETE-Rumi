@@ -3431,6 +3431,103 @@ const UX_STRINGS = {
     en: '{name} is still on part {b}/3. Finish that child first, or send /cancel to stop.',
     ur: '⁨{name}⁩ کا حصہ {b}/۳ ابھی جاری ہے۔ پہلے یہ بچہ مکمل کریں، یا روکنے کے لیے ⁦/cancel⁩ بھیجیں۔',
   },
+  // L36 (bd-s1oo0.50.2, CONTRACT §21.4, design/COACH_JOURNEY_V3.md §3) — battery v3: one plain step message per task.
+  // steps-v3.js numbers the steps (1. / ۱۔) and joins these pieces; the words said TO the child arrive as {say}
+  // values from the item bank's script, already in «» with their isolate (steps.said). Same words as L26:
+  // کتابچہ (the child's booklet), صفحہ (page), مشق (practice), حساب (maths), وائس نوٹ (voice note).
+  // Latin atoms the phone shows (1:00, 1:05) are isolated. Gender-neutral throughout.
+  childTestL36BlockUrdu: { en: 'Urdu', ur: 'اردو' },
+  childTestL36BlockEnglish: { en: 'English', ur: 'انگریزی' },
+  childTestL36BlockMaths: { en: 'Maths', ur: 'حساب' },
+  childTestL36Header: { en: '*{name}* · {block} {k} of {n} · {title}', ur: '*⁨{name}⁩* · {block} {k} از {n} · {title}' },
+  // Task titles when the bank has none for the task (the bank's own `title` wins).
+  childTestL36TitleListening: { en: 'Listening', ur: 'سن کر سمجھنا' },
+  childTestL36TitleLetters: { en: 'Letters', ur: 'حروف' },
+  childTestL36TitleNonwords: { en: 'Made-up words', ur: 'فرضی الفاظ' },
+  childTestL36TitleWords: { en: 'Familiar words', ur: 'جانے پہچانے الفاظ' },
+  childTestL36TitleStory: { en: 'Story', ur: 'کہانی' },
+  childTestL36TitleNumberId: { en: 'Number identification', ur: 'نمبر پہچاننا' },
+  childTestL36TitleDiscrimination: { en: 'Which is bigger', ur: 'کون سا بڑا ہے' },
+  childTestL36TitleMissing: { en: 'Missing number', ur: 'گمشدہ نمبر' },
+  childTestL36TitleAdd1: { en: 'Addition', ur: 'جمع' },
+  childTestL36TitleSub1: { en: 'Subtraction', ur: 'تفریق' },
+  childTestL36TitleAdd2: { en: 'Harder addition', ur: 'مشکل جمع' },
+  childTestL36TitleSub2: { en: 'Harder subtraction', ur: 'مشکل تفریق' },
+  childTestL36TitleWordProblems: { en: 'Word problems', ur: 'عبارتی سوال' },
+  // The card line: which booklet, which page (one task per side, L38; a gap gets no page).
+  childTestL36BookletUrdu: { en: '📖 Urdu booklet, page {page}: {what}', ur: '📖 اردو کتابچہ، صفحہ {page}: {what}' },
+  childTestL36BookletEnglish: { en: '📖 English booklet, page {page}: {what}', ur: '📖 انگریزی کتابچہ، صفحہ {page}: {what}' },
+  childTestL36BookletMaths: { en: '📖 Maths booklet Grade {grade}, page {page}: {what}', ur: '📖 حساب کا کتابچہ، جماعت {grade}، صفحہ {page}: {what}' },
+  childTestL36NoBooklet: { en: '📖 No booklet page: you read aloud. Keep the booklet closed.', ur: '📖 اس حصے کا کوئی صفحہ نہیں: آپ پڑھ کر سنائیں۔ کتابچہ بند رکھیں۔' },
+  childTestL36NoBookletWp: {
+    en: '📖 No booklet page: you read each problem aloud. Paper, pencil and counters beside the child.',
+    ur: '📖 اس حصے کا کوئی صفحہ نہیں: ہر سوال آپ پڑھ کر سنائیں۔ کاغذ، پنسل اور گنتی کی چیزیں بچے کے پاس رکھیں۔',
+  },
+  // The numbered steps.
+  childTestL36Practice: { en: 'Practice row first (not recorded). Point to it and say:\n   {say}', ur: 'پہلے مشق والی لائن (یہ ریکارڈ نہیں ہوتی)۔ اس کی طرف اشارہ کریں اور کہیں:\n   {say}' },
+  childTestL36PracticeOnly: { en: 'Practice row first (not recorded): let the child try it.', ur: 'پہلے مشق والی لائن (یہ ریکارڈ نہیں ہوتی): بچے سے کروائیں۔' },
+  childTestL36PracticeItems: { en: '   Practice: {items}', ur: '   مشق: {items}' },
+  childTestL36SayFirst: { en: 'Before recording, say:\n   {say}', ur: 'ریکارڈنگ سے پہلے کہیں:\n   {say}' },
+  childTestL36PracticeHelp: { en: '   Wrong? Show the right answer, as your coach card says.', ur: '   جواب غلط ہو تو صحیح جواب بتائیں، جیسا کوچ کارڈ پر لکھا ہے۔' },
+  childTestL36NoAnswer: {
+    en: '   No answer after {s} seconds? Point to the next one and say:\n   {say}',
+    ur: '   {s} سیکنڈ تک جواب نہ آئے تو اگلے کی طرف اشارہ کریں اور کہیں:\n   {say}',
+  },
+  childTestL36WpPractice: {
+    en: 'Practice problem first (wrong? use the counters, as your coach card says):\n   {say}',
+    ur: 'پہلے مشق والا سوال (جواب غلط ہو تو گنتی کی چیزوں سے سمجھائیں، جیسا کوچ کارڈ پر لکھا ہے):\n   {say}',
+  },
+  childTestL36Mic: { en: 'Tap 🎤 and slide up to lock.', ur: '🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔' },
+  childTestL36MicWhole: { en: 'Tap 🎤 and slide up to lock. Record the whole task.', ur: '🎤 دبا کر اوپر سلائیڈ کریں تاکہ مائیک لاک ہو جائے۔ پورا حصہ ریکارڈ کریں۔' },
+  childTestL36Say: { en: 'Say:\n   {say}', ur: 'کہیں:\n   {say}' },
+  childTestL36GoOn: {
+    en: '   Stuck for {s} seconds? Point to the next one and say:\n   {say}',
+    ur: '   بچہ {s} سیکنڈ اٹکے تو اگلے کی طرف اشارہ کریں اور کہیں:\n   {say}',
+  },
+  childTestL36Ask: { en: '   Point to each one and ask:\n   {say}', ur: '   ہر ایک کی طرف اشارہ کریں اور پوچھیں:\n   {say}' },
+  childTestL36StopAt: { en: 'At *1:00* on the mic, say:\n   {say}', ur: 'جب مائیک پر *⁦1:00⁩* ہو تو کہیں:\n   {say}' },
+  childTestL36SendAt: { en: '   Send ➤ at about *1:05*.', ur: '   تقریباً *⁦1:05⁩* پر بھیجیں ➤' },
+  childTestL36Finger: { en: '   Look where the child\'s finger is, then close the booklet.', ur: '   دیکھیں بچے کی انگلی کہاں ہے، پھر کتابچہ بند کر دیں۔' },
+  childTestL36Questions: {
+    en: 'Say:\n   {say}\n   Then ask each question and wait for the answer:\n{questions}',
+    ur: 'کہیں:\n   {say}\n   پھر ہر سوال پوچھیں اور جواب کا انتظار کریں:\n{questions}',
+  },
+  childTestL36QuestionsNoIntro: { en: 'Ask each question and wait for the answer:\n{questions}', ur: 'ہر سوال پوچھیں اور جواب کا انتظار کریں:\n{questions}' },
+  childTestL36ReadStory: { en: 'Read the story {times}, slowly:\n   {story}', ur: 'کہانی آہستہ آہستہ {times} پڑھ کر سنائیں:\n   {story}' },
+  childTestL36Times1: { en: 'once', ur: 'ایک بار' },
+  childTestL36Times2: { en: 'twice', ur: 'دو بار' },
+  childTestL36TimesN: { en: '{n} times', ur: '{n} بار' },
+  childTestL36ReadProblems: { en: 'Read each problem slowly and wait for the answer:\n{problems}', ur: 'ہر سوال آہستہ پڑھیں اور جواب کا انتظار کریں:\n{problems}' },
+  childTestL36ReadProblemsThen: { en: '   Then read each problem slowly and wait for the answer:\n{problems}', ur: '   پھر ہر سوال آہستہ پڑھیں اور جواب کا انتظار کریں:\n{problems}' },
+  childTestL36NoAttempt: { en: '   No attempt after {s} seconds? Say:\n   {say}', ur: '   {s} سیکنڈ تک کوشش نہ ہو تو کہیں:\n   {say}' },
+  childTestL36Send: { en: 'Send ➤', ur: 'بھیجیں ➤' },
+  childTestL36EndSend: { en: 'At the end, say:\n   {say}\n   Send ➤', ur: 'آخر میں کہیں:\n   {say}\n   بھیجیں ➤' },
+  // The stop rule, one line under the steps.
+  childTestL36RuleFirstRow: { en: '_Nothing right in the first row? Say {say} and send._', ur: '_پہلی لائن میں کچھ بھی درست نہ ہو تو کہیں {say} اور بھیج دیں۔_' },
+  childTestL36RuleFirstLine: {
+    en: '_Nothing right in the first line? Say {say}, skip the questions and send._',
+    ur: '_پہلی سطر میں کچھ بھی درست نہ ہو تو کہیں {say}، سوال چھوڑ دیں اور بھیج دیں۔_',
+  },
+  childTestL36RuleConsecutive: { en: '_Stop after {n} wrong in a row: say {say} and send._', ur: '_لگاتار {n} جواب غلط ہوں تو رک جائیں: کہیں {say} اور بھیج دیں۔_' },
+  childTestL36RuleFirstRowNoSay: { en: '_Nothing right in the first row? Stop there and send._', ur: '_پہلی لائن میں کچھ بھی درست نہ ہو تو وہیں روک کر بھیج دیں۔_' },
+  childTestL36RuleFirstLineNoSay: { en: '_Nothing right in the first line? Stop there, skip the questions and send._', ur: '_پہلی سطر میں کچھ بھی درست نہ ہو تو وہیں روکیں، سوال چھوڑ دیں اور بھیج دیں۔_' },
+  childTestL36RuleConsecutiveNoSay: { en: '_Stop after {n} wrong in a row, then send._', ur: '_لگاتار {n} جواب غلط ہوں تو وہیں روک کر بھیج دیں۔_' },
+  childTestL36StopAtNoSay: { en: 'At *1:00* on the mic, stop the child.', ur: 'جب مائیک پر *⁦1:00⁩* ہو تو بچے کو روک دیں۔' },
+  childTestL36SkipHint: { en: '_Can\'t do this one? Type *skip*._', ur: '_یہ حصہ نہ ہو سکے تو *چھوڑیں* لکھ کر بھیجیں۔_' },
+  childTestL36SpecMissing: {
+    en: 'The instructions for this part did not load. Use your coach card, record the part, and send.',
+    ur: 'اس حصے کی ہدایات نہیں کھلیں۔ اپنا کوچ کارڈ دیکھیں، یہ حصہ ریکارڈ کریں اور بھیج دیں۔',
+  },
+  // Replies and the lines that ride on the next step.
+  childTestL36Ack: { en: '🎧 Got it · {title}', ur: '🎧 ملا · {title}' },
+  childTestL36Skipped: { en: '⏭️ Skipped: {title}.', ur: '⏭️ چھوڑ دیا: {title}۔' },
+  childTestL36Gap: { en: '⏭️ {title}: not part of this test yet, so it is skipped.', ur: '⏭️ {title}: یہ حصہ ابھی اس ٹیسٹ میں شامل نہیں، اس لیے چھوڑ دیا۔' },
+  childTestL36SkipTaken: { en: '{title}: this part is already recorded. Go on with the next part.', ur: '{title}: یہ حصہ پہلے ہی ریکارڈ ہو چکا ہے۔ اگلا حصہ کریں۔' },
+  childTestL36SkipFailed: {
+    en: '⚠️ I couldn\'t save the skip for {title}. Please type *skip* again, or record it.',
+    ur: '⚠️ {title} کو چھوڑنا محفوظ نہیں ہوا۔ دوبارہ *چھوڑیں* لکھیں، یا یہ حصہ ریکارڈ کریں۔',
+  },
+  childTestL36Resume: { en: '{name} is on {block} {k} of {n} ({title}).', ur: '⁨{name}⁩ کا {block} {k} از {n} ({title}) جاری ہے۔' },
   // L28 (bd-s1oo0.46.4, CONTRACT §19): the end-of-visit results and the one review form. The coach is
   // never asked for a count; the form lists only answers the recording did not settle.
   // Results, one line per child: "{child} — {parts}", parts joined with " · ".
