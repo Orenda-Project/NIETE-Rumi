@@ -64,12 +64,13 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     # L4 store.recordTiming (first write of a key wins), L3 STORE_API "sessions".
 
   @e2e @wip @draft @destructive @config-gated @P1 @CT02
-  Scenario: The observe2 brief ends with the child-test offer, carrying the visit
+  Scenario: The observe2 check ends with the child-test offer, carrying the visit
     Given the NIETE bot chat is open on a COACH account in an ICT region, with the child test enabled and linked to the observation (CHILD_TEST_OBSERVE_LINK=true)
-    When I submit the observe2 "What Rumi heard" check and the brief arrives
+    When I submit the observe2 "What Rumi heard" check and the "Debrief now" / "Later" question arrives
     Then the next message is the offer "Test 5 children now? About 25 minutes." with buttons "Yes, test now" and "Not now"
     And the "Yes, test now" button id is "ctst_offer:<kind>:<visit id>" for this visit's observation_field_forms row
-    # L4: sent right after sendBrief in observe2-check-endpoint.js; string key childTestOfferBody.
+    # L4: sent right after askDebrief in observe2-check-endpoint.js (since bd-ra8xu.33 the check hands
+    # the visit to /observe's debrief; the brief comes with "Debrief now"); string key childTestOfferBody.
 
   @e2e @wip @draft @destructive @config-gated @P1 @CT03
   Scenario: Today's list shows five drawn children by full name, the returning child marked, and two alternates
@@ -251,7 +252,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the NIETE bot chat is open on a COACH account in an ICT region
     When I send "/egra"
     Then no child-test message, list or button arrives and the message is handled as ordinary chat
-    And after an observe2 brief no child-test offer is sent
+    And after an observe2 check no child-test offer is sent
     # L4 gate.js isEnabled() → {match:false}. Mock lane: restart the bot with CHILD_TEST_ENABLED= .
 
   @e2e @wip @draft @negative @config-gated @P1 @CT21
@@ -446,8 +447,8 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   @e2e @wip @draft @config-gated @P1 @CT44
   Scenario: Kept separate from the observation by default: no offer after observe2, and /egra stands alone
     Given a COACH account in an ICT region at the SIM school, with the child test enabled and CHILD_TEST_OBSERVE_LINK unset
-    When I submit the observe2 "What Rumi heard" check and the brief arrives
-    Then no child-test offer follows the brief
+    When I submit the observe2 "What Rumi heard" check and the "Debrief now" / "Later" question arrives
+    Then no child-test offer follows it
     When I send "/egra" on the same day
     Then today's list is drawn for my school on the day key, not on the observe2 visit
     # bd-s1oo0.25 (operator, 3 Oct 2026: "for now keep both separate"); the same holds after classic /observe.

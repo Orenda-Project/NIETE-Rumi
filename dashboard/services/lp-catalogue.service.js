@@ -57,22 +57,27 @@ function config() {
   };
 }
 
-async function ask(path, body) {
+/** POST to the bot's internal API; `route` is the full path, e.g. /api/internal/lp/v8/grades. */
+async function post(route, body) {
   const { baseUrl, apiKey } = config();
   if (!baseUrl || !apiKey) {
     throw new Error('LP catalogue API is not configured (MAIN_BOT_URL / INTERNAL_API_KEY)');
   }
 
-  const res = await axios.post(`${baseUrl}/api/internal/lp/v8/${path}`, body, {
+  const res = await axios.post(`${baseUrl}${route}`, body, {
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
     timeout: TIMEOUT_MS,
   });
 
   const data = res && res.data;
   if (!data || data.success !== true) {
-    throw new Error(`LP catalogue API returned failure for ${path}`);
+    throw new Error(`LP catalogue API returned failure for ${route}`);
   }
   return data;
+}
+
+async function ask(path, body) {
+  return post(`/api/internal/lp/v8/${path}`, body);
 }
 
 /** Grades with at least one servable lesson. */
@@ -113,4 +118,19 @@ async function lessonPdf(lessonId, kind = 'lesson', userId = null) {
   return { url: data.url, asset_kind: data.asset_kind, version_stamp: data.version_stamp };
 }
 
-module.exports = { listGrades, listSubjects, listChapters, listLessons, lessonPdf };
+/**
+ * bd-5rz1v.15 — what each plan IS, for lists built from activity rows that hold only a plan key
+ * (her recent lesson plans, the Home's "Lesson plans used"). Both grade bands, one call.
+ *
+ * @param {Array<{kind: 'k5'|'g612', ref: string, lang?: string|null}>} plans
+ * @returns {Promise<Array<{kind, ref, lang, found, title, grade, subject, chapterNumber,
+ *   chapterTitle, dayLabel, pagesLabel}>>} in the order asked; `found: false` for a plan the
+ *   catalogue no longer has. THROWS on a transport failure, like every read here.
+ */
+async function describePlans(plans) {
+  if (!Array.isArray(plans) || !plans.length) return [];
+  const data = await post('/api/internal/lp/describe', { plans });
+  return data.plans || [];
+}
+
+module.exports = { listGrades, listSubjects, listChapters, listLessons, lessonPdf, describePlans };

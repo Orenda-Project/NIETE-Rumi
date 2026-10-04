@@ -18,7 +18,11 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn(() => Promise.resolve(true)),
   sendFlow: jest.fn(() => Promise.resolve(true)),
 }));
-jest.mock('../../bot/shared/services/observe/observe-debrief.service', () => ({ displayTimeZone: () => 'Asia/Karachi' }));
+jest.mock('../../bot/shared/services/observe/observe-debrief.service', () => ({
+  displayTimeZone: () => 'Asia/Karachi',
+  acknowledgeFormSubmitted: jest.fn(() => Promise.resolve()),
+}));
+jest.mock('../../bot/shared/services/child-test/conversation/offer', () => ({ sendOffer: jest.fn(() => Promise.resolve(false)) }));
 
 const WhatsAppService = require('../../bot/shared/services/whatsapp.service');
 const Store = require('../../bot/shared/services/observe/observe2/field-form.store');
@@ -136,7 +140,10 @@ describe('Submit, and the brief', () => {
     await Check.handleObserve2CheckDataExchange(token(id), 'ADDED_TWO', { screen: 'ADDED_TWO', C4_final: '1', C5_final: '2', C7_final: '3', C8_final: '2', D3_final: '2', F1_final: '3', F2_final: '2', F3_final: '2', F4_final: '1' });
   }
 
-  test('Submit checks the record once, closes on DONE, and the brief arrives', async () => {
+  // Submit hands the visit to /observe's end (end-of-visit.test.js runs that part for real): the
+  // session is saved as a submitted /observe form, the coach is asked "debrief now or later?", and the
+  // brief is kept as this visit's debrief guide.
+  test('Submit checks the record once, closes on DONE, and hands the visit to the debrief with its brief', async () => {
     const id = await checkable();
     await toPriority(id);
     const done = await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: 'the wrong answers mattered more' });
@@ -148,26 +155,28 @@ describe('Submit, and the brief', () => {
     expect(Object.keys(f.final_levels).sort()).toEqual([...CODES].sort());
     expect(f.final_levels).toMatchObject({ C2: '1', D2: '4', D4: 'IE' });
     expect(f.evidence_review).toMatchObject({ priority_final: 'C2', why: 'the wrong answers mattered more' });
-    expect(mockFake.__tables.coaching_sessions[0].status).toBe('observe2_checked');
+    expect(mockFake.__tables.coaching_sessions[0].status).toBe('observer_review_complete');
 
     await flush();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
-    const [to, brief] = WhatsAppService.sendMessage.mock.calls[0];
-    expect(to).toBe('923000000001');
+    const Debrief = require('../../bot/shared/services/observe/observe-debrief.service');
+    expect(Debrief.acknowledgeFormSubmitted).toHaveBeenCalledTimes(1);
+    expect(Debrief.acknowledgeFormSubmitted.mock.calls[0].slice(0, 2)).toEqual(['923000000001', 'sess-1']);
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+    const brief = mockFake.__tables.coaching_sessions[0].analysis_data.observe2.brief;
     expect(brief).toContain('Rabia');
     expect(brief).toContain(PRIORITY.C2);
     expect(brief).toContain('No, that is wrong. Who else?');
     expect(brief).toContain('How many children spoke');
   });
 
-  test('a second Submit changes nothing and sends no second brief', async () => {
+  test('a second Submit changes nothing and asks nothing again', async () => {
     const id = await checkable();
     await toPriority(id);
     await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: '' });
     const again = await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'F1', why: 'x' });
     expect(again.screen).toBe('DONE');
     await flush();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
+    expect(require('../../bot/shared/services/observe/observe-debrief.service').acknowledgeFormSubmitted).toHaveBeenCalledTimes(1);
     expect(row(id).evidence_review.priority_final).toBe('C2');
   });
 

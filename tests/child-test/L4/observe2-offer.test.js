@@ -1,5 +1,6 @@
 /**
- * The child-test offer at the end of /observe2 (bd-s1oo0.4): after the brief, "Test 5 children
+ * The child-test offer at the end of /observe2 (bd-s1oo0.4): after the check (since bd-ra8xu.33 the
+ * check is followed by /observe's "debrief now or later?", and the brief comes with "Debrief now"), "Test 5 children
  * now? About 25 minutes" with a button carrying the visit (form) id — only when the child test is
  * gated on for this coach. Drives the real check endpoint through Submit (same setup as
  * tests/observe2/check-endpoint.test.js). Mocked: the database (in-memory), WhatsApp.
@@ -14,9 +15,13 @@ jest.mock('../../../bot/shared/services/whatsapp.service', () => ({
   sendFlow: jest.fn(() => Promise.resolve(true)),
   sendInteractiveButtons: jest.fn(() => Promise.resolve(true)),
 }));
-jest.mock('../../../bot/shared/services/observe/observe-debrief.service', () => ({ displayTimeZone: () => 'Asia/Karachi' }));
+jest.mock('../../../bot/shared/services/observe/observe-debrief.service', () => ({
+  displayTimeZone: () => 'Asia/Karachi',
+  acknowledgeFormSubmitted: jest.fn(() => Promise.resolve()),
+}));
 
 const WhatsAppService = require('../../../bot/shared/services/whatsapp.service');
+const Debrief = require('../../../bot/shared/services/observe/observe-debrief.service');
 const Store = require('../../../bot/shared/services/observe/observe2/field-form.store');
 const Check = require('../../../bot/shared/routes/observe2-check-endpoint');
 const { FIELDS } = require('../../../bot/shared/services/observe/observe2/field-form.flow');
@@ -64,7 +69,7 @@ beforeEach(() => {
   });
 });
 
-describe('the offer after the brief', () => {
+describe('the offer after the check', () => {
   async function toPriority(id) {
     for (const s of ['HEARD_ASK', 'HEARD_WRONG', 'HEARD_WORK', 'HEARD_EXPLAIN']) {
       // eslint-disable-next-line no-await-in-loop
@@ -77,41 +82,41 @@ describe('the offer after the brief', () => {
   const SAVED = { ...process.env };
   afterEach(() => { process.env = SAVED; });
 
-  test('gated on: the offer follows the brief, carrying the form id', async () => {
+  test('gated on: the offer follows the debrief question, carrying the form id', async () => {
     process.env.CHILD_TEST_ENABLED = 'true';
     process.env.CHILD_TEST_OBSERVE_LINK = 'true';
     const id = await checkable();
     await toPriority(id);
     await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: '' });
     await flush();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);           // the brief
+    expect(Debrief.acknowledgeFormSubmitted).toHaveBeenCalledTimes(1);     // "debrief now or later?"
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
     const [to, msg] = WhatsAppService.sendInteractiveButtons.mock.calls[0];
     expect(to).toBe('923000000001');
     expect(msg.body).toMatch(/Test 5 children now\? About 25 minutes/);
     expect(msg.buttons.map((b) => b.id)).toEqual([`ctst_offer:f:${id}`, `ctst_later:f:${id}`]);
-    const briefOrder = WhatsAppService.sendMessage.mock.invocationCallOrder[0];
-    expect(WhatsAppService.sendInteractiveButtons.mock.invocationCallOrder[0]).toBeGreaterThan(briefOrder);
+    const askOrder = Debrief.acknowledgeFormSubmitted.mock.invocationCallOrder[0];
+    expect(WhatsAppService.sendInteractiveButtons.mock.invocationCallOrder[0]).toBeGreaterThan(askOrder);
   });
 
-  test('kept separate (CHILD_TEST_OBSERVE_LINK unset): the brief only, no child-test offer', async () => {
+  test('kept separate (CHILD_TEST_OBSERVE_LINK unset): the debrief question only, no child-test offer', async () => {
     process.env.CHILD_TEST_ENABLED = 'true';
     delete process.env.CHILD_TEST_OBSERVE_LINK;
     const id = await checkable();
     await toPriority(id);
     await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: '' });
     await flush();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
+    expect(Debrief.acknowledgeFormSubmitted).toHaveBeenCalledTimes(1);
     expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
   });
 
-  test('gated off: the brief only', async () => {
+  test('gated off: the debrief question only', async () => {
     delete process.env.CHILD_TEST_ENABLED;
     const id = await checkable();
     await toPriority(id);
     await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: '' });
     await flush();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
+    expect(Debrief.acknowledgeFormSubmitted).toHaveBeenCalledTimes(1);
     expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
   });
 

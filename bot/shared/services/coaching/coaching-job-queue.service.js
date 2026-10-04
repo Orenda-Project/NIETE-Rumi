@@ -38,8 +38,16 @@ class CoachingJobQueueService {
 
   // FEAT-102 — combined FICO report render/delivery to the teacher.
   // metadata.phase: 'preview' | 'deliver' | 'teacher_tap' (folded into the dedup key upstream).
+  // A preview is told apart by its recipient (dedupNonce from the teacher's number): "Someone else"
+  // after a preview queues a preview for another teacher, which the session+phase key alone dropped
+  // as a duplicate for an hour (sandbox E2E, 4 Oct). The same teacher twice is still one job.
   static async queueObserveTeacherReport(coachingSessionId, metadata) {
-    return await this.queueJob(coachingSessionId, 'observe_teacher_report', metadata);
+    const payload = { ...metadata };
+    if (payload.phase === 'preview' && payload.teacherPhone) {
+      const crypto = require('crypto');
+      payload.dedupNonce = crypto.createHash('sha1').update(String(payload.teacherPhone)).digest('hex').slice(0, 16);
+    }
+    return await this.queueJob(coachingSessionId, 'observe_teacher_report', payload);
   }
 
   /**

@@ -12,15 +12,30 @@
       "LP_PHOTOS",
       "LP_FILE",
       "LP_TEXT",
+      "PHOTOS",
       "AFTER"
     ],
     "LP_PHOTOS": [
+      "PHOTOS",
       "AFTER"
     ],
     "LP_FILE": [
+      "PHOTOS",
       "AFTER"
     ],
     "LP_TEXT": [
+      "PHOTOS",
+      "AFTER"
+    ],
+    "PHOTOS": [
+      "PHOTO_TAKE",
+      "PHOTO_FILES",
+      "AFTER"
+    ],
+    "PHOTO_TAKE": [
+      "AFTER"
+    ],
+    "PHOTO_FILES": [
       "AFTER"
     ],
     "AFTER": [
@@ -30,6 +45,7 @@
     "CONTINUE": [
       "PART_TWO",
       "LESSON_PLAN",
+      "PHOTOS",
       "AFTER",
       "SEALED"
     ]
@@ -767,6 +783,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LESSON_PLAN",
+                    "fv": "4",
                     "lp": "${form.lp}",
                     "lp_pick": "${form.lp_pick}",
                     "lp_how": "${form.lp_how}"
@@ -833,6 +850,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_PHOTOS",
+                    "fv": "4",
                     "lp_photos": "${form.lp_photos}"
                   }
                 }
@@ -903,6 +921,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_FILE",
+                    "fv": "4",
                     "lp_file": "${form.lp_file}"
                   }
                 }
@@ -965,7 +984,214 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_TEXT",
+                    "fv": "4",
                     "lp_text": "${form.lp_text}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PHOTOS",
+      "title": "Photos",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "photos_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Classroom photos"
+              },
+              {
+                "type": "TextBody",
+                "text": "Up to 10. The ones that help: the board, the materials, children using them, groups at work, and the board at the end. Never faces."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "photo_how",
+                "label": "How will you add photos?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "take",
+                    "title": "Take photos now",
+                    "description": "With the camera. On a phone you can also pick from the gallery."
+                  },
+                  {
+                    "id": "files",
+                    "title": "Upload saved photos",
+                    "description": "Photos already taken: choose them from the gallery or files."
+                  },
+                  {
+                    "id": "none",
+                    "title": "No photos"
+                  }
+                ]
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "PHOTOS",
+                    "fv": "4",
+                    "photo_how": "${form.photo_how}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PHOTO_TAKE",
+      "title": "Take photos",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "photo_take_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Take the photos"
+              },
+              {
+                "type": "PhotoPicker",
+                "name": "photos",
+                "label": "Classroom photos",
+                "description": "Up to 10.",
+                "photo-source": "camera_gallery",
+                "min-uploaded-photos": 1,
+                "max-uploaded-photos": 10,
+                "max-file-size-kb": 10240
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "PHOTO_TAKE",
+                    "fv": "4",
+                    "photos": "${form.photos}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PHOTO_FILES",
+      "title": "Upload photos",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "photo_files_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Upload saved photos"
+              },
+              {
+                "type": "TextBody",
+                "text": "Choose the photos you took during the lesson, from the gallery or the files. JPG or PNG."
+              },
+              {
+                "type": "DocumentPicker",
+                "name": "photo_files",
+                "label": "Classroom photos",
+                "description": "Up to 10, 10 MB each.",
+                "min-uploaded-documents": 1,
+                "max-uploaded-documents": 10,
+                "max-file-size-kb": 10240,
+                "allowed-mime-types": [
+                  "image/jpeg",
+                  "image/png"
+                ]
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "PHOTO_FILES",
+                    "fv": "4",
+                    "photo_files": "${form.photo_files}"
                   }
                 }
               }
@@ -981,6 +1207,10 @@
         "lp_line": {
           "type": "string",
           "__example__": "Lesson plan: Comparing & ordering unlike fractions, Grade 4 Math, Ch5 Day 3. To change it, go back."
+        },
+        "photo_line": {
+          "type": "string",
+          "__example__": "3 photos added. To change them, go back."
         },
         "error_messages": {
           "type": "object",
@@ -1014,6 +1244,10 @@
               {
                 "type": "TextBody",
                 "text": "${data.lp_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.photo_line}"
               },
               {
                 "type": "RadioButtonsGroup",
@@ -1070,16 +1304,6 @@
                 "required": false,
                 "max-length": 600,
                 "helper-text": "What you saw that a recording can't catch: the back rows, the board, reactions"
-              },
-              {
-                "type": "PhotoPicker",
-                "name": "photos",
-                "label": "Photos (optional)",
-                "description": "Up to 10. The ones that help: the board, the materials, children using them, groups at work, and the board at the end. Never faces.",
-                "photo-source": "camera_gallery",
-                "min-uploaded-photos": 0,
-                "max-uploaded-photos": 10,
-                "max-file-size-kb": 10240
               },
               {
                 "type": "Dropdown",
@@ -1179,8 +1403,7 @@
                     "detail": "${form.detail}",
                     "note": "${form.note}",
                     "priority": "${form.priority}",
-                    "seal_ok": "${form.seal_ok}",
-                    "photos": "${form.photos}"
+                    "seal_ok": "${form.seal_ok}"
                   }
                 }
               }
@@ -1263,7 +1486,8 @@
             "on-click-action": {
               "name": "data_exchange",
               "payload": {
-                "screen": "CONTINUE"
+                "screen": "CONTINUE",
+                "fv": "4"
               }
             }
           }
