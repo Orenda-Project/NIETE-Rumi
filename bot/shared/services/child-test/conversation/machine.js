@@ -54,8 +54,21 @@ const fs = require('fs');
 const path = require('path');
 const SW = require('./switches');
 const steps = require('./steps');
+const stepsV3 = require('./steps-v3');
+const bankV3 = require('./bank-v3');
+const { isTask } = require('../tasks');
 
 const BLOCKS = ['urdu', 'english', 'maths'];
+// v3 (CONTRACT §21, L36): the unit is the task — 18 per child, one note and one child_test_blocks row each.
+// A child's battery is fixed when their session starts (cur.battery), so flipping the switch mid-child never
+// changes the units under a note already in flight.
+const isV3 = (cur) => !!cur && (cur.battery === 'v3' || isTask(cur.block));
+const unitsOf = (cur) => (isV3(cur) ? bankV3.tasksFor({ grade: cur.grade }) : BLOCKS);
+const lastUnit = (units) => units[units.length - 1];
+// A row the coach skipped, or a gap the bank has no items for: complete without audio (CONTRACT §21.4).
+const skippedRow = (x) => !!(x && x.ai_marks && x.ai_marks.skipped_by_coach);
+const completeRow = (x) => !!(x && (x.audio_r2_key || skippedRow(x)));
+const SKIP_RX = /^(?:skip|next|چھوڑیں|چھوڑ دیں|اگلا)[.!۔]?$/i;
 const CUE_KEY = { urdu: 'childTestCueUrdu', english: 'childTestCueEnglish', maths: 'childTestCueMaths' };
 const OUTCOME_OF = { p: 'present', a: 'absent', r: 'refused' };
 const CANCEL_RX = /^(?:\/cancel|cancel|stop|منسوخ|روکیں)$/i;
@@ -627,12 +640,14 @@ async function beginSession(user, from, state) {
     return say(from, t(lang, 'childTestSessionFailed'));
   }
   const session = cs.session;
-  let block = 'urdu';
+  const battery = cur.battery || (SW.v3() ? 'v3' : null);
+  const units = unitsOf({ battery, grade: session.grade });
+  let block = units[0];
   let allStored = false;
   if (cs.created === false) {
-    const recorded = await reconcileClaims(session.id);
-    block = (await firstFree(session.id)) || 'maths';
-    allStored = BLOCKS.every((x) => recorded.has(x));
+    const recorded = await reconcileClaims(session.id, units);
+    block = (await firstFree(session.id, units)) || lastUnit(units);
+    allStored = units.every((x) => recorded.has(x));
     if (session.status !== 'in_progress') await ports.store.setSessionStatus(session.id, 'in_progress');
   }
   await timing(session.id, 'list.opened', state.listOpenedAt || nowIso());
@@ -644,7 +659,8 @@ async function beginSession(user, from, state) {
   if (handOver && !handed.includes(handOver.drawId)) handed.push(handOver.drawId);
   const next = {
     ...state, step: 'block', handed, strips,
-    current: { ...cur, handOver, sessionId: session.id, grade: session.grade, form: session.form, schoolId: session.school_id, block, claims: true },
+    current: { ...cur, handOver, sessionId: session.id, grade: session.grade, form: session.form, schoolId: session.school_id, block, claims: true,
+      ...(battery ? { battery } : {}) },
   };
   logToFile('child_test.session_started', { sessionId: session.id, drawId: cur.drawId, block, resumed: cs.created === false });
   if (allStored) {
@@ -661,10 +677,10 @@ async function beginSession(user, from, state) {
  * The claims agree with the store: a block with audio is held ('stored'); a claim with no audio is
  * released unless an upload for it may still be running in this process. → Set of recorded blocks.
  */
-async function reconcileClaims(sessionId) {
+async function reconcileClaims(sessionId, units = BLOCKS) {
   const b = await ports.store.listBlocks(sessionId);
-  const recorded = new Set(((b && b.blocks) || []).filter((x) => x.audio_r2_key).map((x) => x.block));
-  for (const block of BLOCKS) {
+  const recorded = new Set(((b && b.blocks) || []).filter(completeRow).map((x) => x.block));
+  for (const block of units) {
     if (recorded.has(block)) {
       await S.claimBlock(sessionId, block, { audioId: 'stored', at: nowIso() });
       continue;
@@ -680,23 +696,24 @@ async function reconcileClaims(sessionId) {
 }
 
 /** The earliest of the child's blocks no note has claimed (a released hole comes first). → block | null */
-async function firstFree(sessionId) {
-  for (const block of BLOCKS) if (!(await S.blockClaim(sessionId, block))) return block;
+async function firstFree(sessionId, units = BLOCKS) {
+  for (const block of units) if (!(await S.blockClaim(sessionId, block))) return block;
   return null;
 }
 
 /** Atomically take the earliest free block for this note, in BLOCKS order. → block | null (all taken). */
-async function claimNext(sessionId, claim) {
-  for (const block of BLOCKS) if (await S.claimBlock(sessionId, block, claim)) return block;
+async function claimNext(sessionId, claim, units = BLOCKS) {
+  for (const block of units) if (await S.claimBlock(sessionId, block, claim)) return block;
   return null;
 }
 
 /** Re-read the state and point it at the first free block — only while it is still this session's. */
 async function moveTo(userId, sessionId, { stamp = false } = {}) {
-  const block = await firstFree(sessionId);
   const fresh = await S.get(userId);
   if (!fresh || fresh.step !== 'block' || !fresh.current || fresh.current.sessionId !== sessionId) return null;
-  const target = block || 'maths';
+  const units = unitsOf(fresh.current);
+  const block = await firstFree(sessionId, units);
+  const target = block || lastUnit(units);
   const changed = fresh.current.block !== target;
   const next = { ...fresh, current: { ...fresh.current, block: target, promptAt: changed || stamp ? nowIso() : fresh.current.promptAt } };
   await S.set(userId, next);
@@ -714,7 +731,7 @@ async function sendBlock(user, from, state) {
 /** The prompt goes first, so a card image never holds it up behind the send pacer (bd-s1oo0.15). */
 async function openBlock(user, from, state) {
   const ok = await sendPrompt(user, from, state);
-  if (inchatCards()) await sendCardPage(user, from, state.current, 0);
+  if (inchatCards() && !isV3(state.current)) await sendCardPage(user, from, state.current, 0);
   return ok;
 }
 
@@ -817,10 +834,11 @@ async function processVoice(message, from, user, state, audioId) {
   const cur = state.current;
   const sid = cur.sessionId;
   const sentAtMs = Number(message.timestamp) * 1000 || null;
-  if (!cur.claims) await reconcileClaims(sid);   // a child started before claims existed
+  const units = unitsOf(cur);
+  if (!cur.claims) await reconcileClaims(sid, units);   // a child started before claims existed
 
   // 1. Claim the block before any I/O: N quick notes take N distinct blocks, in arrival order.
-  const block = await claimNext(sid, { audioId, sentAt: sentAtMs, at: nowIso(), boot: BOOT });
+  const block = await claimNext(sid, { audioId, sentAt: sentAtMs, at: nowIso(), boot: BOOT }, units);
   if (!block) {
     logToFile('child_test.voice_all_in', { sessionId: sid });
     await say(from, t(lang, 'childTestVoiceAllIn', { child: v2Label(lang, cur) }));
@@ -829,14 +847,14 @@ async function processVoice(message, from, user, state, audioId) {
   let stored = false;
   try {
     // A re-delivered older note is not the next block's: it was sent before the previous block's note.
-    const bi = BLOCKS.indexOf(block);
+    const bi = units.indexOf(block);
     if (bi > 0 && sentAtMs) {
-      const prev = await S.blockClaim(sid, BLOCKS[bi - 1]);
+      const prev = await S.blockClaim(sid, units[bi - 1]);
       const ref = prev && prev.sentAt ? prev.sentAt : (cur.promptAt ? Date.parse(cur.promptAt) - 2000 : null);
       if (ref && sentAtMs < ref) {
         await S.releaseBlock(sid, block);
         logToFile('child_test.voice_before_prompt', { sessionId: sid, block });
-        await say(from, t(lang, 'childTestVoiceEarly', { block: blockName(lang, block), prev: blockName(lang, BLOCKS[bi - 1]) }));
+        await say(from, t(lang, 'childTestVoiceEarly', { block: unitName(lang, cur, block), prev: unitName(lang, cur, units[bi - 1]) }));
         return true;
       }
     }
@@ -847,8 +865,9 @@ async function processVoice(message, from, user, state, audioId) {
       if (SW.journeyV2()) {
         // v2: the ack rides on the next step, so the step stays the last bubble; after maths, nothing yet
         // (the "done" line follows the save).
-        const ack = t(lang, 'childTestVoiceAck', { block: blockName(lang, block) });
-        if (moved && moved.block && BLOCKS.indexOf(moved.block) > bi && !(await S.blockClaim(sid, moved.block))) {
+        const ack = isV3(cur) ? t(lang, 'childTestL36Ack', { title: stepsV3.titleOf(lang, block, specOf(cur, block)) })
+          : t(lang, 'childTestVoiceAck', { block: blockName(lang, block) });
+        if (moved && moved.block && units.indexOf(moved.block) > bi && !(await S.blockClaim(sid, moved.block))) {
           await sendStepV2(user, from, moved.state, ack);
         }
       } else {
@@ -880,7 +899,7 @@ async function processVoice(message, from, user, state, audioId) {
       await S.releaseBlock(sid, block);
       await S.forget(audioId);
       await moveTo(user.id, sid);
-      await say(from, t(lang, 'childTestVoiceSaveFailed', { block: blockName(lang, block) }));
+      await say(from, t(lang, 'childTestVoiceSaveFailed', { block: unitName(lang, cur, block) }));
     }
   }
   await timing(sid, `${block}.audio_saved`);
@@ -894,14 +913,19 @@ async function processVoice(message, from, user, state, audioId) {
     offPath('score', () => R.runScoring(sessionRef, block, opts), { sessionId: sid, block });
   }
 
-  // 3. Whichever note completes the three runs what follows maths — once.
-  const b = await ports.store.listBlocks(sid);
-  const recorded = new Set(((b && b.blocks) || []).filter((x) => x.audio_r2_key).map((x) => x.block));
-  if (BLOCKS.every((x) => recorded.has(x)) && await S.claimDone(sid)) {
-    if (SW.journeyV2()) await afterAllStoredV2(user, from, cur, lang);
+  // 3. Whichever note completes the three (v3: the eighteen) runs what follows — once.
+  if (await allComplete(sid, units) && await S.claimDone(sid)) {
+    if (SW.journeyV2() || isV3(cur)) await afterAllStoredV2(user, from, cur, lang);
     else await afterAllStored(user, from, cur, lang);
   }
   return true;
+}
+
+/** Every unit has its note stored, or was skipped (v3). Read from the store, never from a counter. */
+async function allComplete(sessionId, units) {
+  const b = await ports.store.listBlocks(sessionId);
+  const done = new Set(((b && b.blocks) || []).filter(completeRow).map((x) => x.block));
+  return units.every((x) => done.has(x));
 }
 
 /** The note did not save: its block is free again, the coach is told, and the next note fills it first. */
@@ -909,7 +933,7 @@ async function saveFailed(user, from, cur, block, audioId, lang) {
   await S.releaseBlock(cur.sessionId, block);
   await S.forget(audioId);
   await moveTo(user.id, cur.sessionId);
-  await say(from, t(lang, 'childTestVoiceSaveFailed', { block: blockName(lang, block) }));
+  await say(from, t(lang, 'childTestVoiceSaveFailed', { block: unitName(lang, cur, block) }));
   return true;
 }
 
@@ -1360,6 +1384,7 @@ async function presenceV2(user, from, state, { prefix = null, drawId = null } = 
 
 /** One step: plain text, no buttons (R3 §2a). `ack` ("🎧 Got it · Urdu") rides in the same bubble. */
 async function sendStepV2(user, from, state, ack = null) {
+  if (isV3(state.current)) return sendStepV3(user, from, state, ack ? [ack] : []);
   const lang = langOf(user);
   const cur = state.current;
   const bankForm = steps.bankFormFor(cur.grade, cur.form);
@@ -1401,7 +1426,9 @@ async function afterOutcomeV2(user, from, state, cur, outcome, list) {
 async function resumePrompt(user, from, state) {
   const lang = langOf(user);
   const cur = state.current;
-  return buttons(from, t(lang, 'childTestL26Resume', { name: steps.nameOf(lang, cur), b: steps.B_OF[cur.block] || 1, block: blockName(lang, cur.block || 'urdu') }), [
+  const body = isV3(cur) ? resumeLineV3(lang, cur)
+    : t(lang, 'childTestL26Resume', { name: steps.nameOf(lang, cur), b: steps.B_OF[cur.block] || 1, block: blockName(lang, cur.block || 'urdu') });
+  return buttons(from, body, [
     { id: 'ctst_resume', title: clip(t(lang, 'childTestL26Continue'), 20) },
     { id: 'ctst_stop', title: clip(t(lang, 'childTestStopChild'), 20) },
   ]);
@@ -1469,6 +1496,122 @@ async function afterVisit(coachUserId, from, lang, visit, sessionIds) {
   else logToFile('child_test.visit_summary_missing', { visit }, 'warn');
 }
 
+// ------------------------------------------------------------------ v3: one step per task (bd-s1oo0.50.2)
+//
+// CONTRACT §21.4, design/COACH_JOURNEY_V3.md §3. Runs when the child's session started under
+// CHILD_TEST_BATTERY=v3 (cur.battery). Everything else is the v2 journey: presence, the nudge, resume, doneNext,
+// the visit end. Only the unit changes: the 18 tasks of tasksFor({ grade }) in place of the three blocks.
+//
+//   each note claims the current task (S.claimBlock, as v2) → its row → scored by task id (L37)
+//   "skip" / «چھوڑیں» / "next" / «اگلا» → the task is stored { skipped_by_coach: true } (no audio) → next step
+//   a task the bank marks { gap: true } (no official items) is skipped automatically, with an honest line
+//   the 18th task complete (stored or skipped) → afterAllStoredV2 (v2 doneNext + the next child)
+
+const specOf = (cur, task) => bankV3.specFor({ grade: cur.grade, set: cur.form || 'A', task });
+const v3Who = (lang, cur) => ({ name: steps.nameOf(lang, cur), grade: cur.grade, set: cur.form || 'A' });
+
+/** A unit's name for the coach: the task's title on v3, the block's name before. */
+function unitName(lang, cur, unit) {
+  return isTask(unit) ? stepsV3.titleOf(lang, unit, specOf(cur, unit)) : blockName(lang, unit);
+}
+
+function resumeLineV3(lang, cur) {
+  const { block, k, n } = stepsV3.position(cur.block, cur.grade);
+  return t(lang, 'childTestL36Resume', {
+    name: steps.nameOf(lang, cur), block: t(lang, `childTestL36Block${block[0].toUpperCase()}${block.slice(1)}`), k, n,
+    title: stepsV3.titleOf(lang, cur.block, specOf(cur, cur.block)),
+  });
+}
+
+/** ai-marks-v3 for a task that was never recorded (CONTRACT §21.5: skipped_by_coach, no model call). */
+function skipMarks(task, spec, { gap = false } = {}) {
+  return {
+    version: 'ai-marks-v3', task, quality: (spec && spec.quality) || null, skipped_by_coach: true,
+    ...(gap ? { gap: true, reason: (spec && spec.reason) || null } : {}),
+    timed: null, score: null, stopped_by_rule: false, items: [], review: [], model_versions: {},
+  };
+}
+
+/**
+ * Store a task as skipped (by the coach, or a gap): claim it first, as a note would, so a note and a skip
+ * racing for one task never both land. → 'ok' | 'taken' (a note holds it) | 'failed' (claim released).
+ */
+async function storeSkip(cur, task, { gap = false } = {}) {
+  const sid = cur.sessionId;
+  if (!(await S.claimBlock(sid, task, { skipped: true, gap, at: nowIso(), boot: BOOT }))) return 'taken';
+  const r = await ports.store.saveAiMarks({ sessionId: sid, block: task, aiMarks: skipMarks(task, specOf(cur, task), { gap }), aiStatus: 'scored' });
+  if (!r || (!r.ok && !r.alreadyScored)) {
+    await S.releaseBlock(sid, task);
+    logError('child_test.skip_save_failed', { sessionId: sid, task, gap, error: r && (r.error || r.reason) });
+    return 'failed';
+  }
+  await timing(sid, `${task}.${gap ? 'gap_skipped' : 'skipped'}`);
+  logToFile('child_test.task_skipped', { sessionId: sid, task, gap });
+  return 'ok';
+}
+
+/**
+ * The open task's step, `lines` (the ack, a skip line) riding above it in one bubble. A gap task on the way is
+ * skipped here with its honest line, so the coach never gets a step for a task with no items. All tasks
+ * complete: the lines go alone and the child is finished.
+ */
+async function sendStepV3(user, from, state, lines = []) {
+  const lang = langOf(user);
+  let st = state;
+  const out = [...lines];
+  for (;;) {
+    const cur = st.current;
+    const spec = specOf(cur, cur.block);
+    if (!bankV3.isGap(spec)) break;
+    const r = await storeSkip(cur, cur.block, { gap: true });
+    if (r === 'failed') {
+      out.push(t(lang, 'childTestL36SkipFailed', { title: stepsV3.titleOf(lang, cur.block, spec) }));
+      break;
+    }
+    if (r === 'ok') out.push(t(lang, 'childTestL36Gap', { title: stepsV3.titleOf(lang, cur.block, spec) }));
+    const moved = await moveTo(user.id, cur.sessionId);
+    if (!moved || !moved.block) {
+      if (out.length) await say(from, out.join('\n'));
+      return finishIfComplete(user, from, cur, lang);
+    }
+    st = moved.state;
+  }
+  const cur = st.current;
+  const text = stepsV3.taskStep(lang, cur.block, v3Who(lang, cur));
+  const ok = await say(from, [...out, text].join('\n'));
+  await timing(cur.sessionId, `${cur.block}.prompt_sent`);
+  return ok;
+}
+
+/** The child's tasks are all stored or skipped: finish them once (the same claim a note's completion takes). */
+async function finishIfComplete(user, from, cur, lang) {
+  if (await allComplete(cur.sessionId, unitsOf(cur)) && await S.claimDone(cur.sessionId)) {
+    return afterAllStoredV2(user, from, cur, lang);
+  }
+  return true;
+}
+
+/** "skip" / «چھوڑیں»: the open task is stored skipped and the next step follows. Not ours outside a v3 step. */
+async function onSkip(user, from) {
+  const state = await S.get(user.id);
+  const cur = state && state.current;
+  if (!state || state.step !== 'block' || !cur || !cur.sessionId || !isV3(cur) || !isTask(cur.block)) return false;
+  const lang = langOf(user);
+  const title = stepsV3.titleOf(lang, cur.block, specOf(cur, cur.block));
+  const r = await storeSkip(cur, cur.block);
+  if (r === 'taken') return say(from, t(lang, 'childTestL36SkipTaken', { title }));
+  if (r === 'failed') return say(from, t(lang, 'childTestL36SkipFailed', { title }));
+  const line = t(lang, 'childTestL36Skipped', { title });
+  const moved = await moveTo(user.id, cur.sessionId);
+  if (moved && moved.block && !(await S.blockClaim(cur.sessionId, moved.block))) {
+    await sendStepV3(user, from, moved.state, [line]);
+    return true;
+  }
+  await say(from, line);
+  await finishIfComplete(user, from, cur, lang);
+  return true;
+}
+
 // ------------------------------------------------------------------ routers
 
 async function handleText(from, messageBody, user) {
@@ -1484,6 +1627,7 @@ async function handleText(from, messageBody, user) {
   if (!isChildTestAvailable(user)) return false;
   if (CANCEL_RX.test(trimmed)) return cancel(user, from);
   if (MENU_RX.test(trimmed)) { await cancel(user, from, { quiet: true }); return false; }
+  if (SKIP_RX.test(trimmed)) return onSkip(user, from);
   return false;
 }
 

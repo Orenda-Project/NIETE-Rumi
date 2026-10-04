@@ -25,6 +25,7 @@ const steps = require('./steps');
 const { langOf, t } = require('./copy');
 const { isEnabled } = require('./gate');
 const redis = require('../../cache/railway-redis.service');
+const { isTask } = require('../tasks');
 
 const LOOKBACK_MS = 3 * 3600 * 1000;
 const LIMIT = 50;
@@ -70,7 +71,11 @@ async function nudgeIfDue(session, now, delay) {
     return false;
   }
   const lang = langOf(coach);
-  const text = t(lang, 'childTestL26Nudge', { title: steps.stepTitle(lang, cur.block, steps.nameOf(lang, cur)) });
+  // v3 (L36): the task's header names the task ("*Ayesha Khan* · Urdu 2 of 5 · Letters").
+  const title = isTask(cur.block)
+    ? require('./steps-v3').header(lang, cur.block, { name: steps.nameOf(lang, cur), grade: cur.grade, set: cur.form || 'A' })
+    : steps.stepTitle(lang, cur.block, steps.nameOf(lang, cur));
+  const text = t(lang, 'childTestL26Nudge', { title });
   const ok = await WhatsAppService.sendMessage(coach.phone_number, text);
   if (ok === false) {
     logError('child_test.nudge_send_failed', { sessionId: session.id, block: cur.block });
