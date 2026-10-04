@@ -829,3 +829,22 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then "Ayesha Khan is on Urdu 2 of 5 (Letters)." arrives with "Continue" and "Stop this child"
     When I tap "Continue"
     Then the letters step is sent again as the last bubble
+
+  # L39 (bd-s1oo0.50.5, CONTRACT §21.6): battery v3 results and the end-of-visit review, from ai-marks-v3 task rows.
+  @e2e @wip @draft @config-gated @P0 @CT57
+  Scenario: v3 results — one line per block per child, rates per minute, ≈ for provisional tasks
+    Given CHILD_TEST_BATTERY is "v3" and all five children's tasks are scored
+    When the last child's last task is stored
+    Then the results arrive as text, each message at most 4096 characters, never split inside a child
+    And each child reads "Urdu: listening 4/6 · letters ≈57/min · made-up ≈12/min · words 20/min · story 29/min, answers 3 of 4 asked (2 not reached)"
+    And a task the coach skipped reads "skipped", e.g. "harder + skipped"
+    And an Urdu coach reads Urdu digits, e.g. "حروف ≈۵۷ فی منٹ"
+
+  @e2e @wip @draft @config-gated @P0 @CT58
+  Scenario: v3 review — the unsettled items, child by child, in pages of 15, saved once per task
+    Given the AI could not settle 25 items across the visit (provisional tasks are never asked)
+    Then "25 answers need your ear · 1/2" arrives as a form listing "Ayesha Khan · Maths which is bigger" with "Which is bigger: 39 or 23?", "Heard: nothing clear" and Right / Wrong / Didn't answer
+    When I mark the 15 items and tap "Save answers"
+    Then those tasks are saved with my verdicts next to the AI's, and page "2/2" arrives
+    When I save page 2
+    Then "✓ Saved. The marks for this visit are complete. Thank you." arrives and every task row is checked
