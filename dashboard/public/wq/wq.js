@@ -846,13 +846,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function video() {
     var v = B.video;
     var h = bar() + jug('hello', T.vSay) + '<h2>' + esc(T.vT) + '</h2>' +
-      '<video class="wq-video" controls playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url) + '"></video>' +
+      // A cover over the box until the first play: a tap anywhere starts the video (the native button
+      // is small), and with no poster the child sees Jugnu and a big play button, not a dark box.
+      '<div class="wq-vbox"><video class="wq-video" controls playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url) + '"></video>' +
+      '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button" aria-label="' + esc(T.vT) + '">' +
+      (v.poster ? '' : '<img src="' + IMG + 'hello.webp" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">▶</span></button></div>' +
       '<ul class="wq-how">' + T.how.map(function (x) { return '<li><span>' + x[0] + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
       '<button class="wq-btn wq-go" id="wq-skip">' + esc(T.skip) + '</button>';
     render(h, 'M5');
     wireBar();
     var vid = $('video');
-    if (vid) vid.addEventListener('play', function () { ev('video_play', {}); });
+    var cover = $('.wq-vcover');
+    if (vid) vid.addEventListener('play', function () { if (cover) cover.hidden = true; ev('video_play', {}); });
+    on('.wq-vcover', function () {
+      if (!vid || !vid.paused) return;
+      try { var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
+    });
     on('#wq-skip', function () { try { vid.pause(); } catch (e) {} ev('video_skip', { pct: vid && vid.duration ? Math.round(100 * vid.currentTime / vid.duration) : 0 }); nextQuestion(); });
   }
 
