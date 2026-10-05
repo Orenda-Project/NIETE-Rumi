@@ -70,6 +70,17 @@ describe('Urdu pages load the Nastaliq font from the portal, early', () => {
     expect(rule(':root')).toMatch(/--fu:"WQ Nastaliq",/);
   });
 
+  test('Latin letters and digits in Urdu screens come from the page sans, never a locally installed Nastaliq\'s serif digits', () => {
+    // The face covers Urdu only (unicode-range), so 0-9 and A-Z fall to the next family. A phone or Mac with
+    // Noto Nastaliq installed drew "8/15" on the scorecard in its serif digits when Noto came second.
+    const fu = rule(':root').match(/--fu:([^;]+)/)[1].split(',').map((x) => x.trim().replace(/"/g, ''));
+    expect(fu[0]).toBe('WQ Nastaliq');
+    const sans = fu.indexOf('system-ui');
+    const noto = fu.indexOf('Noto Nastaliq Urdu');
+    expect(sans).toBeGreaterThan(0);
+    if (noto >= 0) expect(noto).toBeGreaterThan(sans);
+  });
+
   test('the portal serves the font file with a font type and a long cache', async () => {
     const app = express();
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async () => { throw new Error('no network'); } }));
