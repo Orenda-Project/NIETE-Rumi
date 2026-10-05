@@ -40,6 +40,9 @@ const KID_B = '55555555-5555-4555-8555-555555555555';
 const qid = (n) => `9999999${n}-9999-4999-8999-999999999999`;
 const future = new Date(Date.now() + 86400000 * 10).toISOString();
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
+// A moment that is always "today" in Pakistan, never in the future: the live counts are per PKT day,
+// so a fixed "N hours ago" seed stops counting as today for part of every day.
+const todayPkt = () => new Date(Math.max(Date.parse(WQ.pktMidnightIso()) + 1000, Date.now() - 60000)).toISOString();
 
 let fake;
 function seed() {
@@ -62,10 +65,10 @@ function seed() {
     quizzes: [{ id: QUIZ, topic: 'Parts of a plant', grade: '3', subject: 'Science', language: 'en', meta: { web_arm: 'web' }, quiz_source: 'transcript' }],
     quiz_questions: questions,
     quiz_sessions: [
-      // KID_A played on WhatsApp yesterday (has a phone row) — a chip.
+      // KID_A played on WhatsApp earlier today (has a phone row): a chip, and today's one finisher.
       { id: 's-a1', quiz_id: QUIZ, share_code_id: SC, student_id: KID_A, student_name: 'Zara Example', user_id: null,
         status: 'completed', correct_answers: 3, total_questions_answered: 4, mastery_percentage: 75,
-        completed_at: ago(20), created_at: ago(21), invited_by_student_id: null, device_ref: null, parent_phone: '0000', source: 'share_link' },
+        completed_at: todayPkt(), created_at: todayPkt(), invited_by_student_id: null, device_ref: null, parent_phone: '0000', source: 'share_link' },
       // The teacher's own run — never a chip, never on the board.
       { id: 's-t', quiz_id: QUIZ, share_code_id: SC, student_id: null, student_name: 'Ms Example Teacher', user_id: TEACHER,
         status: 'completed', correct_answers: 4, total_questions_answered: 4, mastery_percentage: 100,
