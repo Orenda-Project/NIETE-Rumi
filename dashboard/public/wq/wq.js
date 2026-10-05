@@ -278,7 +278,7 @@ var WQI = (function () {
         '<button class="wq-btn wq-navy" id="wq-check" disabled>' + esc(T.check) + '</button>';
     } else if (k === 'match') {
       body = '<p class="wq-small">' + esc(T.matchHelp) + '</p><div class="wq-mgrid"><div class="wq-mcol">' + (q.left || []).map(function (l, i) {
-        return '<button class="wq-ml" data-i="' + i + '"><span class="wq-lab">' + tex(l.text) + '</span><span class="wq-mto"></span></button>';
+        return '<button class="wq-ml' + (l.pic ? ' wq-mlp' : '') + '" data-i="' + i + '">' + (l.pic ? picHtml(l, l.name) : '') + '<span class="wq-lab">' + tex(l.text) + '</span><span class="wq-mto"></span></button>';
       }).join('') + '</div><div class="wq-mcol">' + o.map(function (x, i) {
         return '<button class="wq-mr" data-slot="' + esc(x.slot) + '">' + picHtml(x, x.name) + '<span class="wq-lab">' + tex(x.text || x.name || '') + '</span></button>';
       }).join('') + '</div></div><button class="wq-btn wq-navy" id="wq-check" disabled>' + esc(T.check) + '</button>';

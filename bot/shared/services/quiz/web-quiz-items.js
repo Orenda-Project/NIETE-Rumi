@@ -400,7 +400,10 @@ function capNewTypes(items) {
 
 function webOf(q) {
   const w = q && q.media && q.media.web;
-  return w && w.v === 2 && TYPES.has(w.type) && w.key ? w : null;
+  if (w && w.v === 2 && TYPES.has(w.type) && w.key) return w;
+  // A WhatsApp match question (a lettered drawing, options coding whole pairings)
+  // plays as the page's tap-to-match, decoded from its own figure and key.
+  return q ? require('./web-quiz-figure').matchItem(q) : null;
 }
 
 /** One grader for both channels' rows: the web key when there is a web item, else the row's. */

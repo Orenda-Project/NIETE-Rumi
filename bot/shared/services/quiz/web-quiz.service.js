@@ -264,6 +264,7 @@ function questionPayload(row, i, code, audio) {
   if (audio && audio[q.id]) out.audio = audio[q.id];
   // Last, after anything that fills options: picture options become drawings.
   Figure.drawOptionPics(out.options, mediaLang(q.media));
+  if (Array.isArray(out.left)) out.left = Figure.drawOptionPics(out.left.map((l) => ({ ...l })), mediaLang(q.media));
   return out;
 }
 

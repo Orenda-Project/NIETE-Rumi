@@ -1424,6 +1424,24 @@ Feature: NIETE (ICT) Teacher Training
     And the WhatsApp quiz is unchanged
     # web-quiz-figure pictureHidden (media.picture_check.verdict contradicts|ignores); web-quiz.service questionImageOf + figureFor + playable + media(). Unit: bot/tests/quiz/web-quiz/web-quiz-picture-check.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P2 @T201 @no-mock-driver
+  Scenario: Graphs and place-value blocks on my web quiz are big enough for a child to read on a phone
+    Given a quiz question with a drawn graph or a place-value mat of hundreds, tens and ones blocks
+    When a child plays it on the web page on a phone
+    Then the graph's numbers and labels are big enough to read without zooming
+    And the place-value blocks are stacked so the tens rods are wide enough to count
+    And the WhatsApp picture and the lesson plan drawing stay as they were
+    # web-quiz-figure forPage (graph width 380; base_ten blocks stack:true, vendor SYNC.md 3.32), draw() falls back to the stored spec. Unit: bot/tests/quiz/web-quiz/web-quiz-figure-phone.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T202 @no-mock-driver
+  Scenario: A matching question on my web quiz lets the child join each pair
+    Given a quiz question that asks the child to match animals to their sounds, written for WhatsApp with answers like "A-1, B-2, C-3"
+    When a child plays it on the web page
+    Then the child sees each animal's picture with its letter and taps it, then taps its sound
+    And the child is marked right only when every pair is joined correctly
+    And the WhatsApp quiz still asks it with the lettered picture and the coded answers
+    # web-quiz-figure matchItem (decodes the coded options + key from media.figure match); web-quiz-items webOf fallback (E2 + grader); figureFor null for it; wq.js left tile picture. Unit: bot/tests/quiz/web-quiz/web-quiz-match-codes.test.js, dashboard/tests/web-quiz-page-match-pictures.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T170 @no-mock-driver
   Scenario: The recorded "why" of a web quiz question is its reason, never praise
     Given a quiz question whose correct-answer feedback is only "Well done!" and whose explanation gives the reason
