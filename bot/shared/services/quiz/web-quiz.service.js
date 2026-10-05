@@ -159,7 +159,7 @@ function questionPayload(q, i, code, audio) {
   return out;
 }
 
-/** W30d's media helpers; absent or failing = no audio / no video, never an error. */
+/** The sibling media helpers (read-aloud clips, lesson video); absent or failing = no audio / no video, never an error. */
 function mediaHelpers() {
   try { return require('./web-quiz-media'); } catch { return null; }
 }

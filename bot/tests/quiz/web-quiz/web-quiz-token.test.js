@@ -86,7 +86,7 @@ describe('web-quiz-token', () => {
     expect(T.newDeviceRef()).not.toBe(a);
     expect(T.cleanDeviceRef(a)).toBe(a);
     expect(T.cleanDeviceRef('<script>')).toBeNull();
-    expect(T.cleanDeviceRef('+923001234567')).toBeNull();
+    expect(T.cleanDeviceRef('+920000000000')).toBeNull();
   });
 
   test('animal is derived from the student id, stable, one of twelve', () => {
