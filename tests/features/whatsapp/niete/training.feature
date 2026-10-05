@@ -1661,7 +1661,7 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-generate replaceFromSource, used by runSourceFidelity, runKeyCheck and runKeyVerify; REPLACE_RULE in
     # transcript-quiz-rewrite. Unit: tests/quiz/quiz-author-gates-fail-soft.test.js. @wip.
 
-  @api @quiz @wip @draft @config-gated @P2 @T182 @no-mock-driver
+  @api @quiz @wip @draft @config-gated @P2 @T222 @no-mock-driver
   Scenario: With the author gates on, one question never gives away the answer to a later one
     Given app_settings "quiz_author_gates_v2" is true
     And an earlier question or its explanation already states the answer a later question asks for
@@ -1674,7 +1674,7 @@ Feature: NIETE (ICT) Teacher Training
     # generate LEAK_FAULT (soft, re-asked in place); LEAK_REPAIR in transcript-quiz-rewrite.
     # Unit: tests/quiz/quiz-author-gates-answer-leak.test.js. @wip.
 
-  @api @quiz @wip @draft @config-gated @P2 @T183 @no-mock-driver
+  @api @quiz @wip @draft @config-gated @P2 @T223 @no-mock-driver
   Scenario: With the author gates on, a question asks about the idea, not about what the lesson said
     Given app_settings "quiz_author_gates_v2" is true
     And a question begins "The lesson mentioned that…" or asks "according to the lesson"
@@ -1687,7 +1687,7 @@ Feature: NIETE (ICT) Teacher Training
     # generate META_FAULT (soft, in place); META_REPAIR in transcript-quiz-rewrite.
     # Unit: tests/quiz/quiz-author-gates-meta-stem.test.js. @wip.
 
-  @api @quiz @wip @draft @config-gated @P2 @T184 @no-mock-driver
+  @api @quiz @wip @draft @config-gated @P2 @T224 @no-mock-driver
   Scenario: With the author gates on, a named character in my lesson keeps their own words
     Given app_settings "quiz_author_gates_v2" is true
     And my lesson plan says "Ahmed WAS WRITING his letter, the phone rang"
@@ -1697,6 +1697,17 @@ Feature: NIETE (ICT) Teacher Training
     And with the setting absent or false, the quiz is made exactly as before
     # transcript-quiz-named-pronouns namedAntecedent; lp-quiz-digest degender/carry/lessonExcerpts { authorGates };
     # transcript-quiz-pedagogy genderedTeacherForms { authorGates }. Unit: tests/quiz/quiz-author-gates-named-pronouns.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P2 @T225 @no-mock-driver
+  Scenario: With the author gates on, a "why" question's answer gives the lesson's own reason
+    Given app_settings "quiz_author_gates_v2" is true
+    And a question asks why or how, and its answer gives a reason whose words my lesson never says
+    When my class quiz is made from my lesson
+    Then that question is rewritten on what my lesson says, or left out, or replaced from another moment of my lesson
+    And an answer in Urdu is not held to this word check
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-source-fidelity inventedReason (SOURCE_QUOTE_NO_REASON) in questionFaults, run by runSourceFidelity.
+    # Unit: tests/quiz/quiz-source-fidelity-reason.test.js. @wip.
 
   @api @quiz @web @wip @draft @P1 @T110 @no-mock-driver
   Scenario: A question that sends the child to a picture it does not have is left out of my web quiz
