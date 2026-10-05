@@ -79,10 +79,6 @@ function wordsFor(type, lang) {
   return [resolveUx(`wqFig${k}Alt`, { language: lang }), resolveUx(`wqFig${k}Say`, { language: lang })];
 }
 
-function escText(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 function escAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
@@ -204,16 +200,12 @@ function optionPic(pic, language, { word } = {}) {
     }
   }
   if (pic.kind === 'glyph') {
+    // Sent as TEXT: the page sets it in its own Nastaliq at tile size. Drawn
+    // inside an SVG the marks (shadda, zer) clipped at the tile's edge.
     const text = String(pic.text == null ? '' : pic.text).trim();
     if (!text || [...text].length > 4) return null;
     const name = said || text;
-    const dir = dirOf(lang);
-    const svg = safeSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-label="' + escAttr(name) + '">'
-      + '<rect x="2" y="2" width="68" height="68" rx="10" fill="#FFFFFF" stroke="var(--line, #D7DBE1)" stroke-width="2"/>'
-      + '<foreignObject x="2" y="2" width="68" height="68"><div xmlns="http://www.w3.org/1999/xhtml" dir="' + dir + '" '
-      + 'style="width:68px;height:68px;display:flex;align-items:center;justify-content:center;font-size:40px;line-height:1;color:var(--ink, #232735)">'
-      + escText(text) + '</div></foreignObject></svg>');
-    return svg ? { svg, name, alt: name } : null;
+    return { kind: 'glyph', glyph: text, text, name, alt: name, dir: dirOf(lang) };
   }
   if (pic.kind === 'figure' && pic.spec && typeof pic.spec === 'object') {
     const svg = draw(pic.spec, lang);
@@ -233,7 +225,7 @@ function optionPic(pic, language, { word } = {}) {
  */
 function drawOptionPics(options, language) {
   for (const o of Array.isArray(options) ? options : []) {
-    if (!o || !o.pic || typeof o.pic !== 'object' || o.pic.svg) continue;
+    if (!o || !o.pic || typeof o.pic !== 'object' || o.pic.svg || o.pic.glyph) continue;
     const drawn = optionPic(o.pic, language, { word: o.name || o.text });
     if (drawn) o.pic = drawn;
     else delete o.pic;
