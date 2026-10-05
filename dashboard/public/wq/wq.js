@@ -159,6 +159,9 @@ var WQI = (function () {
     opts(q).forEach(function (o) { add(o.img); });
     return out;
   }
+  // A magnifier with a plus: the zoom control is an icon in the picture's corner (its words are for screen readers).
+  var ZOOM_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/>' +
+    '<path d="M15.5 15.5L21 21M10.5 7.5v6M7.5 10.5h6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
   function figureHtml(q, T) {
     var f = figureOf(q);
     if (!f) return '';
@@ -179,7 +182,7 @@ var WQI = (function () {
       ? '<div class="wq-svg" role="img" aria-label="' + esc(f.alt || '') + '"' + (f.dir ? ' dir="' + esc(f.dir) + '"' : '') + '>' + cleanSvg(f.svg) + '</div>'
       : '<img src="' + esc(f.url) + '" alt="' + esc(f.alt || '') + '"' + LOADING + '>';
     return '<figure class="wq-fig' + (hot ? ' wq-labelfig' : '') + (f.type ? ' wq-f-' + esc(String(f.type).replace(/[^a-z0-9_-]/gi, '')) : '') + '"><div class="wq-figbox"' + box + '>' + draw + hot + '</div>' +
-      '<button class="wq-zoom" aria-label="' + esc(T.zoom || 'Zoom') + '"><span aria-hidden="true">⤢</span> ' + esc(T.zoom || '') + '</button></figure>';
+      '<button class="wq-zoom" aria-label="' + esc(T.zoom || 'Zoom') + '">' + ZOOM_ICON + '</button></figure>';
   }
 
   /* ---- what each option is called (spoken, and in the "not yet" line) ---- */
@@ -225,7 +228,11 @@ var WQI = (function () {
   function picHtml(o, nm) {
     var g = o.pic && (o.pic.glyph || (o.pic.kind === 'glyph' && o.pic.text));
     if (g) return '<span class="wq-glyph" dir="auto">' + esc(g) + '</span>';
-    if (o.pic && o.pic.svg) return '<span class="wq-pic" role="img" aria-label="' + esc(o.pic.alt || nm || '') + '">' + cleanSvg(o.pic.svg) + '</span>';
+    if (o.pic && o.pic.svg) {
+      // An unnamed picture (an emoji option drawn as a picture) is hidden from screen readers; its button carries the shape's name.
+      var al = o.pic.alt != null ? o.pic.alt : nm;
+      return '<span class="wq-pic"' + (al ? ' role="img" aria-label="' + esc(al) + '"' : ' aria-hidden="true"') + '>' + cleanSvg(o.pic.svg) + '</span>';
+    }
     if (o.img) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '"' + LOADING + '>';
     return '';
   }
