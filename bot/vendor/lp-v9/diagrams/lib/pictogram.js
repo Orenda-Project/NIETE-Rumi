@@ -212,6 +212,18 @@ function descLine() {
  */
 function drawPictogram(svg, x, y, size, name, o = {}) {
   const s = size / GRID;
+  // VENDOR DIVERGENCE (SYNC.md §3.31): a caller may draw its nouns in another
+  // style for the whole of one synchronous render (withPainter below). A row
+  // the spec coloured on purpose keeps the line art in that colour, and the
+  // drawn manipulatives (counter, tile, stick, date, samosa, bangle) are never
+  // repainted.
+  const k = key(name);
+  const painted = PAINTER && !Object.prototype.hasOwnProperty.call(LOCAL_GLYPHS, k)
+    && (!o.color || o.color === PLAIN_INK) ? PAINTER(k) : null;
+  if (painted) {
+    const r3 = (v) => Math.round(v * 1000) / 1000;
+    return svg.add(`<g transform="translate(${r3(x)},${r3(y)}) scale(${r3(s)})">${painted}</g>`);
+  }
   let body = inner(name);
   // A literal colour, substituted here rather than inherited. This SVG is
   // screenshotted standalone; a `currentColor` that depends on an ancestor's
@@ -230,4 +242,17 @@ function drawPictogram(svg, x, y, size, name, o = {}) {
   return svg.add(`<g transform="translate(${r2(x)},${r2(y)}) scale(${r2(s)})">${body}</g>`);
 }
 
-module.exports = { names, has, key, inner, drawPictogram, descLine, GRID, INDEX };
+// ─── VENDOR DIVERGENCE — see SYNC.md §3.31 ───────────────────────────────────
+// The web quiz page draws the same nouns in colour (a flat colour picture bank
+// on this 72-unit grid); the WhatsApp PNG and the LP renderer never set a
+// painter and keep the line art. Scoped to one synchronous call and restored
+// in `finally`, so a painter can never leak into another render.
+let PAINTER = null;
+const PLAIN_INK = require("./tokens").C.ink;
+function withPainter(painter, fn) {
+  const prev = PAINTER;
+  PAINTER = typeof painter === "function" ? painter : null;
+  try { return fn(); } finally { PAINTER = prev; }
+}
+
+module.exports = { names, has, key, inner, drawPictogram, descLine, withPainter, GRID, INDEX };

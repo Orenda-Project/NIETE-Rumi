@@ -1177,6 +1177,19 @@ still not a divergence. Verify with §6's diff command.
 
 ---
 
+### 3.31 A scoped painter for pictograms — `lib/pictogram.js` (2026-10-05)
+
+The web child quiz draws the engine's nouns in colour; the WhatsApp PNG and the LP renderer keep the
+OpenMoji line art. `withPainter(painter, fn)` sets a painter for ONE synchronous render and restores
+the previous one in `finally`. While it is set, `drawPictogram` asks `painter(key)` for the noun's
+inner markup (72-unit grid) and draws that instead, except for (a) the locally drawn manipulatives
+(`LOCAL_GLYPHS`: counter, tile, stick, date, samosa, bangle) and (b) a call that passes a colour
+other than the plain ink (a compare row coloured on purpose keeps its colour, because the difference
+is the question). A painter that returns null for a noun leaves the line art. With no painter set
+the output is byte-identical. The painter is supplied by `bot/shared/services/quiz/pictures/`
+(Microsoft Fluent Emoji Flat, MIT). Test: `bot/tests/quiz/web-quiz/web-quiz-pictures.test.js`.
+Upstream has no web page, so this stays local; keep it at the next re-sync.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
