@@ -63,6 +63,10 @@ JS_RPC="const {data,error}=await sb.rpc('count_items'); console.log(error?('ERR 
 got=$(client "$env1" "$JS_LABELS"); t "AC1 select sees the seed" "$got" "seeded"
 got=$(client "$env1" "$JS_INSERT"); t "AC1 insert as service_role (bypasses RLS)" "$got" "ok"
 got=$(client "$env1" "$JS_RPC");    t "AC1 rpc" "$got" "2"
+# The proxy records every table/RPC a run touches — the inventory the seed list is drafted from.
+t "request log names the table read" "$(grep -c '^GET items$' "$r1/requests.log" 2>/dev/null)" "1"
+t "request log names the table written" "$(grep -c '^POST items$' "$r1/requests.log" 2>/dev/null)" "1"
+t "request log names the rpc" "$(grep -c '^POST rpc/count_items$' "$r1/requests.log" 2>/dev/null)" "1"
 bash "$LDB" down "$r1" >/dev/null 2>&1
 t "down exits 0" "$?" "0"
 

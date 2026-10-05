@@ -20,7 +20,10 @@
 #
 # Exit codes: 10 modules unavailable for this commit · 11 worktree failed · 12 bot not healthy in time · 13 /health sha
 # mismatch · 14 keys/niete-local.env missing · 15 mock not healthy · 16 redis-server missing/unhealthy ·
-# 17 worker not healthy.
+# 17 worker not healthy · 18 local database (E2E_LOCAL_DB=1) did not come up.
+#
+# E2E_LOCAL_DB=1 (bd-z3ze4): the bot runs on a clean per-run local database (local-db.sh) instead of the
+# shared sandbox Supabase; the keys file's SUPABASE_URL/SERVICE_ROLE_KEY are replaced by the run's own.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
@@ -101,8 +104,16 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   local redis_port="${E2E_REDIS_PORT:-6390}" worker_port="${E2E_WORKER_HEALTH_PORT:-3201}"
   command -v redis-server >/dev/null 2>&1 || { log "redis-server not found — the queue worker needs it (brew install redis)"; exit 16; }
   local cassette_dir="${E2E_CASSETTE_DIR:-$REPO/.claude/qa/fixtures/cassettes}"; mkdir -p "$cassette_dir"   # committed fixture: recorded once, replayed by every run/clone
+  # The database: the sandbox lines from the keys file, or (E2E_LOCAL_DB=1) this run's own local database.
+  # dotenv keeps the FIRST value, so the keys file's SUPABASE_* must be REMOVED, not overridden below it.
+  local db_kind=sandbox db_lines
+  if [ "${E2E_LOCAL_DB:-0}" = 1 ]; then
+    bash "$HERE/local-db.sh" up "$run_dir/db" >&2 || { log "local database did not come up — see $run_dir/db/"; exit 18; }
+    db_lines=$(grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$run_dir/db/db.env")
+    db_kind=local
+  fi
   {
-    cat "$keys"
+    if [ "$db_kind" = local ]; then grep -vE '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$keys"; echo; echo "$db_lines"; else cat "$keys"; fi
     echo
     echo "# --- set by local-stack.sh for run $(basename "$run_dir") ---"
     echo "PORT=$bot_port"
@@ -205,12 +216,12 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   local running; running=$(printf '%s' "$health" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit") or "")')
   if [ "$running" != "$full" ]; then log "/health reports commit '${running:-null}', wanted $full — refusing to drive"; down "$run_dir"; exit 13; fi
 
-  STACK_CASSETTE_MODE="$cassette_mode" python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$bot_root/bot/node_modules" "$cassette_dir" "$run_dir/flow-public-key.b64" "$REPO/.claude/qa/fixtures/flows" <<'PY'
+  STACK_CASSETTE_MODE="$cassette_mode" STACK_DB="$db_kind" python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$bot_root/bot/node_modules" "$cassette_dir" "$run_dir/flow-public-key.b64" "$REPO/.claude/qa/fixtures/flows" <<'PY'
 import json, sys, datetime, os
 p, sha, src, bot, mock, phone, lock, nm, cas, pubkey_file, flows_dir = sys.argv[1:]
 json.dump({"commit_sha": sha, "worktree": src, "bot_url": "http://127.0.0.1:%s" % bot, "mock_url": "http://127.0.0.1:%s" % mock, "worker": True, "queue": "bullmq",
            "flow_public_key_file": pubkey_file, "flows_dir": flows_dir, "flows": "emulated",
-           "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": os.environ.get("STACK_CASSETTE_MODE", "replay-strict"),
+           "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": os.environ.get("STACK_CASSETTE_MODE", "replay-strict"), "db": os.environ.get("STACK_DB", "sandbox"),
            "started_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")}, open(p, "w"), indent=1)
 PY
   log "up: bot $full on :$bot_port ← mock :$mock_port · worker :$worker_port · redis :$redis_port (worktree $src)"
@@ -234,6 +245,7 @@ down() {
     git -C "$REPO" worktree remove --force "$run_dir/src" >/dev/null 2>&1 || rm -rf "$run_dir/src"
   fi
   git -C "$REPO" worktree prune >/dev/null 2>&1 || true
+  [ -d "$run_dir/db" ] && bash "$HERE/local-db.sh" down "$run_dir/db" >/dev/null 2>&1
   log "down: $run_dir"
 }
 

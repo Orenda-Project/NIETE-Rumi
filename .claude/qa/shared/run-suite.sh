@@ -157,6 +157,13 @@ for c in (os.path.join(main, "keys", "niete-local.env"), os.path.join(os.path.di
 PY
 )
   [ -f "$KEYS_FILE" ] && eval "$(grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$KEYS_FILE" | sed 's/^SUPABASE_/export NIETE_SANDBOX_SUPABASE_/')"
+  # E2E_LOCAL_DB=1 (bd-z3ze4): the bot is on this run's own local database, so every DB tool must be too —
+  # --env local resolves only from NIETE_LOCAL_SUPABASE_* and only accepts a 127.0.0.1 URL.
+  if [ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("db",""))' "$RUN_DIR/stack.json")" = local ]; then
+    eval "$(grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$RUN_DIR/db/db.env" | sed 's/^SUPABASE_/export NIETE_LOCAL_SUPABASE_/')"
+    ENV=local; export E2E_ENV=local
+    say "db: local per-run database ($(sed -nE 's/^LOCAL_DB_NAME=//p' "$RUN_DIR/db/db.env")) — table log $RUN_DIR/db/requests.log"
+  fi
   say "stack: $(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print("bot", d["bot_url"], "commit", d["commit_sha"][:12], "← mock", d["mock_url"])' "$RUN_DIR/stack.json")"
   python3 "$QA/niete_sandbox_driver.py" ensure --phone "$DRIVER" --yes-write 2>&1 | tee -a "$LOG" | tail -1
 else

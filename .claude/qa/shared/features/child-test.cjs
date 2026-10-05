@@ -202,7 +202,7 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
   // 2. Stack + data preconditions. Anything missing blocks the remaining ids with the reason.
   let stack = stackArg;
   if (!stack) { try { stack = require('../stack-control.cjs'); } catch (_) { stack = null; } }
-  const sbUrl = env.NIETE_SANDBOX_SUPABASE_URL, sbKey = env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY, driver = env.E2E_DRIVER;
+  const { url: sbUrl, key: sbKey } = require('../db-target.cjs').dbCreds(env), driver = env.E2E_DRIVER;
   if (!stack || !stack.runDir || !stack.runDir()) return blockRest('no RUN_DIR: the CHILD_TEST_ENABLED switch is flipped with stack-control.restart, which needs a local stack (commit-e2e.sh)');
   if (!sbUrl || !sbKey || !driver) return blockRest('no sandbox creds (NIETE_SANDBOX_SUPABASE_*) or E2E_DRIVER — the SIM-school assignment and the DB assertions need them');
   if (/ihzciabopbttygxxgrkm|jlpenspfdcwxkopaidys/.test(sbUrl)) return blockRest('refused: the Supabase URL is a production project, not sandbox');

@@ -13,6 +13,7 @@
 // The lane's resolver fallback (bot/scripts/e2e/dns-pin.js): the runner's own Supabase calls survive a router DNS drop too.
 try { require(require('path').resolve(__dirname, '..', '..', '..', 'bot', 'scripts', 'e2e', 'dns-pin.js')); } catch (_) { /* older checkout */ }
 const path = require('path');
+const { dbCreds } = require('./db-target.cjs');
 const PORT = Number((process.argv.find(a => a.startsWith('--port=')) || '').split('=')[1] || process.env.CDP_PORT || 9223);
 const FEATURE = process.argv[2];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -471,8 +472,8 @@ function makeApi(c) {
      *  so a driver just calls setRole/setUser. Same signature as the mock lane. No creds → no-op {ok:false}. */
     async setUser(patch) {
       trace('setUser ' + Object.keys(patch || {}).join(','));
-      const url = process.env.NIETE_SANDBOX_SUPABASE_URL, key = process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY;
-      if (!url || !key) return { ok: false, err: 'no sandbox creds (NIETE_SANDBOX_SUPABASE_*)' };
+      const { url, key } = dbCreds();   // sandbox, or this run's local DB (db-target.cjs)
+      if (!url || !key) return { ok: false, err: 'no DB creds (NIETE_SANDBOX_SUPABASE_* / NIETE_LOCAL_SUPABASE_*)' };
       try {
         const res = await fetch(`${url}/rest/v1/users?phone_number=eq.${process.env.E2E_DRIVER}`, { method: 'PATCH',
           headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
@@ -630,7 +631,7 @@ function makeApi(c) {
   // Generic role/persona support: snapshot the driver's mutable identity (role, language) so a feature
   // that switches role via api.setRole/api.setUser cannot leak that onto the next feature's run on this
   // ONE shared driver. Restored in the finally below — a role-based suite never has to clean up itself.
-  const _SB = { url: process.env.NIETE_SANDBOX_SUPABASE_URL, key: process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY, drv: process.env.E2E_DRIVER };
+  const _SB = { ...dbCreds(), drv: process.env.E2E_DRIVER };
   const snapshotIdentity = async () => {
     if (!_SB.url || !_SB.key || !_SB.drv) return null;
     try {

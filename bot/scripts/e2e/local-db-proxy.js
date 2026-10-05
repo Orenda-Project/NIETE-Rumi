@@ -6,6 +6,7 @@
 // loud 501: the bot does not use them, and a silent 404 would hide it if that ever changed.
 //
 //   node local-db-proxy.js <listen_port> <postgrest_port>
+const fs = require('fs');
 const http = require('http');
 
 const [listenPort, restPort] = process.argv.slice(2).map(Number);
@@ -14,6 +15,14 @@ if (!listenPort || !restPort) {
   process.exit(2);
 }
 const PREFIX = '/rest/v1';
+// One line per request, `<METHOD> <table|rpc/fn>` — what a run actually touched (the seed list is drafted
+// from it). Set by local-db.sh to <run_dir>/requests.log.
+const REQUEST_LOG = process.env.LOCAL_DB_REQUEST_LOG;
+const record = (method, rest) => {
+  if (!REQUEST_LOG) return;
+  const target = decodeURIComponent(rest.split('?')[0].replace(/^\/+/, '')) || '/';
+  try { fs.appendFileSync(REQUEST_LOG, `${method} ${target}\n`); } catch (_) { /* never fail a request over the log */ }
+};
 
 http.createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200, { 'content-type': 'application/json' }); return res.end('{"ok":true}'); }
@@ -21,6 +30,7 @@ http.createServer((req, res) => {
     res.writeHead(501, { 'content-type': 'application/json' });
     return res.end(JSON.stringify({ message: `local-db: ${req.url.split('?')[0]} is not served (only ${PREFIX})` }));
   }
+  record(req.method, req.url.slice(PREFIX.length));
   const upstream = http.request({
     host: '127.0.0.1', port: restPort, method: req.method,
     path: req.url.slice(PREFIX.length) || '/',

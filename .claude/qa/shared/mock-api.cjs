@@ -18,6 +18,7 @@
 const path = require('path');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
+const { dbCreds } = require('./db-target.cjs');
 
 /** Endpoint path for a Flow: the registry (flow-configs.js) first; else the env var's stem when the
  *  bot's flow-endpoint.routes.js mounts router.post('/<stem>') — hand-published Flows like Teacher
@@ -343,8 +344,8 @@ function makeMockApi(opts) {
      *  call setUser/setRole freely. Generic: any column, e.g. {role,preferred_language,language_locked}. */
     async setUser(patch) {
       trace('setUser ' + Object.keys(patch || {}).join(','));
-      const url = process.env.NIETE_SANDBOX_SUPABASE_URL, key = process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY;
-      if (!url || !key) return { ok: false, err: 'no sandbox creds (NIETE_SANDBOX_SUPABASE_*)' };
+      const { url, key } = dbCreds();   // sandbox, or this run's local DB (db-target.cjs)
+      if (!url || !key) return { ok: false, err: 'no DB creds (NIETE_SANDBOX_SUPABASE_* / NIETE_LOCAL_SUPABASE_*)' };
       try {
         const res = await fetch(`${url}/rest/v1/users?phone_number=eq.${driver}`, { method: 'PATCH',
           headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
@@ -368,8 +369,8 @@ function makeMockApi(opts) {
      *  from the driver (92399 + its last 6 digits + n), so parallel slots never share a teacher. What the
      *  harness tears down is the ASSIGNMENT (clearRoster), which is what makes the roster visible. */
     async setRoster(opts = {}) {
-      const url = process.env.NIETE_SANDBOX_SUPABASE_URL, key = process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY;
-      if (!url || !key) return { ok: false, err: 'no sandbox creds (NIETE_SANDBOX_SUPABASE_*)' };
+      const { url, key } = dbCreds();   // sandbox, or this run's local DB (db-target.cjs)
+      if (!url || !key) return { ok: false, err: 'no DB creds (NIETE_SANDBOX_SUPABASE_* / NIETE_LOCAL_SUPABASE_*)' };
       const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
       const em = 'E2EOBS' + driver, sx = 'niete:' + em;
       const schoolName = opts.schoolName || ('E2E Observe School ' + driver.slice(-4));
@@ -442,7 +443,7 @@ function makeMockApi(opts) {
     /** Remove this driver's roster ASSIGNMENT (idempotent); the school and teacher users stay as fixtures.
      *  Also clears the pre-2026-10-06 seed's rows (E2E-OBS-<driver>), which nothing reads any more. */
     async clearRoster() {
-      const url = process.env.NIETE_SANDBOX_SUPABASE_URL, key = process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY;
+      const { url, key } = dbCreds();   // sandbox, or this run's local DB (db-target.cjs)
       if (!url || !key) return { ok: false };
       const H = { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'return=minimal' };
       const del = (path) => fetch(`${url}/rest/v1/${path}`, { method: 'DELETE', headers: H }).catch(() => {});
