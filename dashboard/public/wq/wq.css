@@ -66,7 +66,7 @@ html[lang=ur] .wq-btn{font-weight:700;font-size:19px;line-height:1.9}
 .wq-key{min-height:64px;border-radius:18px;border:2px solid var(--line);border-bottom-width:5px;background:var(--card);font:900 30px/1 var(--f);color:var(--navy);cursor:pointer;touch-action:manipulation}
 .wq-key:active{transform:translateY(2px);border-bottom-width:3px}
 .wq-key-del{background:var(--paper-2);font-size:26px}
-.wq-key-go{background:var(--green);border-color:var(--green-d);color:#fff;font-size:22px}
+.wq-key-go{background:var(--green);border-color:var(--green-d);color:var(--navy);font-size:22px}
 html[lang=ur] .wq-key-go{font-family:var(--fu);line-height:1.6}
 .wq-key-go:disabled{background:var(--star-off);border-color:var(--line);color:var(--muted);cursor:default}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
