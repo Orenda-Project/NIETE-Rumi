@@ -64,17 +64,18 @@ function whyText(q) {
   return spoken(fb.correct) || spoken(q.explanation);
 }
 
+// Something a voice can say. A picture option is stored as an emoji (no letter,
+// no digit): the voices strip it to nothing and the gateway would fall through
+// to a different voice, so it gets no clip — the page shows the picture.
+const SAYABLE = /[\p{L}\p{N}]/u;
+
 /** The clips one question needs, in order: [{ part, text }]. */
 function partsFor(q) {
   const parts = [];
-  const qt = spoken(q.question_text);
-  if (qt) parts.push({ part: 'q', text: qt });
-  PARTS_OPTS.forEach((p) => {
-    const t = spoken(q[`option_${p}`]);
-    if (t) parts.push({ part: p, text: t });
-  });
-  const why = whyText(q);
-  if (why) parts.push({ part: 'why', text: why });
+  const add = (part, text) => { if (text && SAYABLE.test(text)) parts.push({ part, text }); };
+  add('q', spoken(q.question_text));
+  PARTS_OPTS.forEach((p) => add(p, spoken(q[`option_${p}`])));
+  add('why', whyText(q));
   return parts;
 }
 
