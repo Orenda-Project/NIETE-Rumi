@@ -110,6 +110,11 @@ describe('Urdu spacing rules', () => {
     expect(rule('html[lang=ur] button')).toMatch(/word-spacing:inherit/);
   });
 
+  test('the big score and count numbers sit on the sans baseline (a Nastaliq line box pushed "8/15" into the stars)', () => {
+    // .wq-big is also a class on the big mascot (.wq-jug.wq-big), whose speech bubble must keep the Urdu face.
+    expect(rule('html[lang=ur] .wq-big:not(.wq-jug)')).toMatch(/font-family:var\(--f\)/);
+  });
+
   test('icons and emoji in Urdu screens keep the emoji font and a tight line box (no Nastaliq line box)', () => {
     const r = rule('html[lang=ur] .wq-icon,html[lang=ur] .wq-spk,html[lang=ur] .wq-emoji,html[lang=ur] .wq-tfi,html[lang=ur] .wq-let,html[lang=ur] .wq-place b');
     expect(r).not.toBeNull();
