@@ -1638,7 +1638,7 @@ Feature: NIETE (ICT) Teacher Training
     # existing targeted rewrite); STRICT_KEY_RULE in transcript-quiz-key-verify; readTextFaults in web-quiz-items normaliseItem.
     # Unit: tests/quiz/quiz-author-gates-v2.test.js. @wip.
 
-  @api @quiz @wip @draft @config-gated @P1 @T180 @no-mock-driver
+  @api @quiz @wip @draft @config-gated @P1 @T220 @no-mock-driver
   Scenario: With the author gates on, a question that is only too long or uses a word the class said in English letters never costs my class the quiz
     Given app_settings "quiz_author_gates_v2" is true
     And my lesson is for grade 2 and the quiz writer keeps a question longer than eight words
@@ -1649,7 +1649,7 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-validator termScriptErrors (URDU_TRANSLITERATED / URDU_ROMAN), generate IN_PLACE_FAULT + isSoft,
     # runSourceFidelity kept_soft. Unit: tests/quiz/quiz-author-gates-translit-soft.test.js, quiz-author-gates-fail-soft.test.js. @wip.
 
-  @api @quiz @wip @draft @config-gated @P1 @T181 @no-mock-driver
+  @api @quiz @wip @draft @config-gated @P1 @T221 @no-mock-driver
   Scenario: With the author gates on, a wrong answer the quiz cannot afford to lose is replaced by a new question from my lesson
     Given app_settings "quiz_author_gates_v2" is true
     And the checks find more wrong answers than the quiz can leave out and still keep six questions
