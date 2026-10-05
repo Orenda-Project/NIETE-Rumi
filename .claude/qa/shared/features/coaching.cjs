@@ -716,4 +716,10 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('COA76', 'Each commitment-card answer gets its own reaction', 'BLOCKED',
       { reason: 'the mock lane does not observe reactions (feature-runner filters them out) — verify on the sandbox handset; '
           + 'pinned by tests/meta-bill-cut/fx6-round4.test.js (FX6-1: ✅ / 👌 / 🙏, refusal → each answer\'s own text, en + ur)' }, 0);
+
+  // bd-x74wv (2026-10-05) — not drivable on any lane; replace BLOCKED with V(...) only if one can race two senders.
+  rec('COA77', 'Two teachers\' voice notes arriving in the same moment are each heard from their own voice', 'BLOCKED',
+      { reason: 'needs two teachers\' voice notes processed by one container in the same millisecond — no lane can race '
+          + 'two senders that tightly; pinned by tests/handlers/voice-note-temp-collision.test.js (real handler + '
+          + 'AudioService, Date.now pinned) and tests/handlers/audio-service-temp-collision.test.js' }, 0);
 };
