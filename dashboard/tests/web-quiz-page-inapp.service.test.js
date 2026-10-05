@@ -98,6 +98,17 @@ describe('a reload in the middle of the lesson video', () => {
     expect(p.wq.S.vt).toBe(42);
   });
 
+  test('a pause keeps the exact second, between the every-few-seconds saves', () => {
+    const p = page({ lang: 'en', video: VIDEO, store: { wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [] } } });
+    p.wq.video();
+    const vid = p.els['video'];
+    vid.currentTime = 1.2; vid.fire('timeupdate');
+    vid.currentTime = 3.6; vid.fire('timeupdate');
+    expect(p.wq.S.vt).toBe(1);
+    vid.fire('pause');
+    expect(p.wq.S.vt).toBe(3);
+  });
+
   test('after the reload the child continues the video where it was, without picking their name again', () => {
     const p = page({ lang: 'en', video: VIDEO, store: { wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [], vt: 42 } } });
     expect(p.moment()).toBe('M3-continue');

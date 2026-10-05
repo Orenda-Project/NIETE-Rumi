@@ -916,6 +916,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
 
   /* ---------------- M5 video (optional) ---------------- */
+  // Where the lesson video is, kept every few seconds and whenever it pauses or the page hides.
+  function keepVideoAt(vid, now) {
+    var t = Math.floor((vid && vid.currentTime) || 0);
+    if (!t || S.vdone || t === S.vt) return;
+    if (now || !(S.vt > 0) || Math.abs(t - S.vt) >= 3) { S.vt = t; save(); }
+  }
+  window.addEventListener('pagehide', function () { if (ROOT.getAttribute('data-m') === 'M5') keepVideoAt($('video'), true); });
   // The lesson video plays once per attempt: skipped or watched to the end, a reload goes on to the questions.
   function wantsVideo() { return Boolean(B.video && B.video.url && !answeredCount() && !S.vdone); }
   function video() {
@@ -935,11 +942,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var vid = $('video');
     var cover = $('.wq-vcover');
     if (vid) vid.addEventListener('play', function () { if (cover) cover.hidden = true; ev('video_play', at ? { t: at } : {}); });
-    var savedAt = 0;
-    if (vid) vid.addEventListener('timeupdate', function () {
-      var t = Math.floor(vid.currentTime || 0);
-      if (Math.abs(t - savedAt) >= 5 || !savedAt) { savedAt = t; S.vt = t; save(); }
-    });
+    if (vid) vid.addEventListener('timeupdate', function () { keepVideoAt(vid, false); });
+    if (vid) vid.addEventListener('pause', function () { keepVideoAt(vid, true); });
     if (vid) vid.addEventListener('ended', function () { S.vdone = 1; S.vt = 0; save(); ev('video_end', {}); });
     on('.wq-vcover', function () {
       if (!vid || !vid.paused) return;
