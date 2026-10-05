@@ -1319,6 +1319,13 @@ here too until it is folded back. `VENDOR DIVERGENCE` comments mark all four sit
 sentence upstream at the next re-sync, and regenerate the flash briefs there with
 `build_flash_brief.py` rather than hand-copying this local edit over a future regeneration.
 
+### 3.29 `lib/overlay.js` — the mistakes-box label is "What pupils say or write" (2026-10-05, bd-k3ry8) — NOT a divergence, identical hunk
+
+Amena, on GK G1 day 1 (an oral lesson): "no writing in this lesson, its the first, and remember this
+is grade 1!" `LABELS.en.pupilSays` printed "What pupils write" on every plan. It is now "What pupils
+say or write", UR "طلبہ کیا کہتے یا لکھتے ہیں". The same two lines changed upstream in the same pass,
+so a re-vendor keeps them. Test: `tests/lp-v8/bd-k3ry8-pupil-says-label.test.js`.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
