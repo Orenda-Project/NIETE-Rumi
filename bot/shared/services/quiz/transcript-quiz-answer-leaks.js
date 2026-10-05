@@ -265,6 +265,7 @@ const qIndex = (e) => Number(/^q(\d+)/.exec(String(e))[1]);
 async function finalLeakRepair({ questions, rewrite, check, isSoft, floor }) {
   const leaks = answerLeakErrors(questions);
   if (!leaks.length) return { record: null };
+  const t0 = Date.now();
   const record = {
     found: leaks.length, asked: [...new Set(leaks.map(qIndex))], fixed: 0, dropped: [], remaining: 0, cost_usd: 0,
   };
@@ -298,6 +299,7 @@ async function finalLeakRepair({ questions, rewrite, check, isSoft, floor }) {
     } else record.drop = 'what_survived_did_not_validate';
   }
   record.remaining = left.length;
+  record.latency_ms = Date.now() - t0;
   return {
     record, changed: current !== questions, questions: current, dropped: record.dropped, faults: left,
   };
