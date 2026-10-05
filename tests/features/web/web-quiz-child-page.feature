@@ -235,3 +235,9 @@ Feature: Web child quiz page on the portal
     Then the page says "Not yet. The answer is" with the right option, then "You mixed up X. Z."
     And no option letter, no "the correct answer is", no praise or cheering is shown or spoken, in English or in Urdu
     And an Urdu sentence that addresses the child with a gendered verb is left out
+
+  Scenario: A wrong true/false answer says which the sentence is
+    Given a true/false question whose sentence is true
+    When a child taps "False"
+    Then the voice plays a recorded "Not yet. This sentence is true." («ابھی نہیں۔ یہ بات درست ہے۔») and the screen shows the same words
+    And the landing invites the child to play the quiz, and a short quiz says "about 1 minute"
