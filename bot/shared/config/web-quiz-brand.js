@@ -81,7 +81,7 @@ const BRANDS = {
     deco: RUMI_MOTIF,
     // The product system: navy + ONE warm accent (coral).
     tokens: {
-      brand: '#F06E42', 'brand-d': '#C4502A', 'brand-l': '#FDEBE4',
+      brand: '#F06E42', 'brand-d': '#B5461F', 'brand-l': '#FDEBE4',
       'brand-ink': '#0E2058', 'brand-ink-d': '#060F33', 'brand-on': '#0E2058',
       ground: '#F9FAFB', card: '#FFFFFF', line: '#E5E7EB', tint: '#F1F3F8', muted: '#5B6275', ink: '#1D2025',
       theme: '#0E2058',
