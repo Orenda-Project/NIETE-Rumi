@@ -29,6 +29,7 @@ const {
 } = require('./transcript-quiz-validator');
 const { peopleSpellings, spellText, logRedactor } = require('./transcript-quiz-people');
 const { duplicateQuestionErrors, confirmsSameFact, solverDuplicateComplaint } = require('./transcript-quiz-duplicates');
+const { answerLeakErrors, finalLeakRepair, settleLeakFaults } = require('./transcript-quiz-answer-leaks');
 const {
   teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
 } = require('./transcript-quiz-language');
@@ -2814,6 +2815,49 @@ async function processQuiz(quizId, payload, flight) {
       // The recorded in-place faults are the ones in what ships, at the indices it ships with.
       meta.soft_faults = [...(meta.soft_faults || []).filter((e) => !FINAL_REPAIRABLE.test(String(e))), ...(fr.faults || [])];
       if (!meta.soft_faults.length) delete meta.soft_faults;
+    }
+    // ── ONE QUESTION GIVING AWAY ANOTHER'S ANSWER, IN WHAT SHIPS (gates v2) ──
+    // After every step that can write a question, on the set about to ship
+    // (transcript-quiz-answer-leaks): one more targeted rewrite of each leaking
+    // LATER question, else it is dropped while the quiz keeps MIN_QUESTIONS,
+    // else it ships counted. Never fails a quiz; off, nothing runs.
+    if (authorGates) {
+      const lk = await finalLeakRepair({
+        questions,
+        rewrite: (qs, errors) => api.rewriteRejected({
+          questions: qs, errors, digest, language, gradeBand: digest.grade_band || meta.grade, quizId,
+          lessonSummary: readyLessonSummary, planned: isLp, partial: true, knownNames: nameSpellings,
+        }),
+        check: (qs) => validate(qs, {
+          language, subject: digest.subject, digest, quizId, lessonSummary: readyLessonSummary, nExpected: qs.length,
+        }),
+        isSoft,
+        floor: MIN_QUESTIONS,
+      });
+      if (lk.record) {
+        let { dropped, faults } = lk;
+        if (lk.changed) {
+          try {
+            const rows = toRows(quizId, lk.questions);
+            ({ figureUrls, cardUrls } = await renderFor(api, {
+              questions: lk.questions, rows, language, teacherId: quiz.teacher_id, quizId,
+            }));
+            draftedRows = rows;
+            questions = lk.questions;
+          } catch (err) {
+            // the set as it was ships, its leaks counted
+            lk.record.render = 'failed';
+            dropped = [];
+            faults = answerLeakErrors(questions);
+            lk.record.remaining = faults.length;
+          }
+        }
+        meta.answer_leaks = lk.record;
+        meta.cost_usd = (meta.cost_usd || 0) + (lk.record.cost_usd || 0);
+        meta.soft_faults = settleLeakFaults(meta.soft_faults, dropped, faults);
+        if (!meta.soft_faults.length) delete meta.soft_faults;
+        logEvent('transcript_quiz.answer_leaks', { quizId, quiz_source: quizSource, ...lk.record });
+      }
     }
     // ── A NAME STILL IN ENGLISH LETTERS WHEN THE QUIZ SHIPS (recorded) ──────
     // Repaired in place while authoring (NAME_FAULT); this records whatever the
