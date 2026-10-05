@@ -86,6 +86,14 @@ describe('questionFaults', () => {
     expect(SF.stemWords('What is $\\frac{1}{2}$ of 8?')).toBe(5);
   });
 
+  test('moments joined with "…" pass when every piece is in the lesson; a question piece is not evidence', () => {
+    const joined = q({ source_quote: 'We add the ones first, then the tens … 146 plus 27 is 173' });
+    expect(SF.questionFaults(joined, TX)).toEqual([]);
+    expect(SF.questionFaults(q({ source_quote: 'We add the ones first … 146 plus 27 is 999' }), TX).map((f) => f.code)).toEqual(['SOURCE_QUOTE_NOT_FOUND']);
+    const onlyAsked = q({ source_quote: 'What was Pinky told not to eat? … Read the dialogue again and find the line where the answer is' });
+    expect(SF.questionFaults(onlyAsked, LP).map((f) => f.code)).toEqual(['SOURCE_QUOTE_OFF_KEY']);
+  });
+
   test('Urdu: digits and diacritics are normalised before the lookup', () => {
     const src = 'استاد: ۲۴ حروف کی آدھی شکل ہوتی ہے۔';
     const ur = {

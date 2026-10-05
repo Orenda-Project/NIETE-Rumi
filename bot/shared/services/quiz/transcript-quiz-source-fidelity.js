@@ -113,6 +113,16 @@ function quoteFound(quote, sourceText) {
 
 const isQuestionQuote = (quote) => /[?؟]\s*["'»”’)\]]*\s*$/.test(String(quote || '').trim());
 
+/**
+ * A quote may join moments of the lesson with "…" (a worked example said over
+ * three lines). Each piece is held to the source on its own; the pieces that
+ * are questions are not evidence and do not count toward the answer.
+ */
+const ELLIPSIS = /\s*(?:\.\.\.+|…)\s*/;
+function pieces(quote) {
+  return String(quote || '').split(ELLIPSIS).map((p) => p.trim()).filter((p) => tokens(p).length > 0);
+}
+
 function correctIndices(q) {
   if (Array.isArray(q.correct_indices) && q.correct_indices.length) return q.correct_indices.map(Number);
   if (Array.isArray(q.correct_index)) return q.correct_index.map(Number);
@@ -160,12 +170,13 @@ function questionFaults(q, sourceText, { gradeBand } = {}) {
   const quote = String((q && q.source_quote) || '').trim();
   if (!quote) {
     faults.push({ code: CODES.MISSING, detail: 'no "source_quote": copy the moment of the lesson that carries this answer' });
-  } else if (isQuestionQuote(quote)) {
+  } else if (pieces(quote).every(isQuestionQuote)) {
     faults.push({ code: CODES.IS_QUESTION, detail: 'the quote is a question, and a question is not evidence of its answer' });
-  } else if (!quoteFound(quote, sourceText)) {
+  } else if (!pieces(quote).every((p) => quoteFound(p, sourceText))) {
     faults.push({ code: CODES.NOT_FOUND, detail: 'the quote is not in the lesson; copy the lesson\'s words exactly' });
   } else {
-    const qs = contentSet(quote);
+    const evidence = pieces(quote).filter((p) => !isQuestionQuote(p)).join(' ');
+    const qs = contentSet(evidence);
     const answer = contentSet(`${keyText(q)} ${q.explanation || ''}`);
     let shared = false;
     qs.forEach((w) => { if (answer.has(w)) shared = true; });
@@ -177,7 +188,7 @@ function questionFaults(q, sourceText, { gradeBand } = {}) {
       // class's slip, not the fact); a quote of the rule beside a stem of
       // numbers the lesson never used is an invented example.
       const keyNums = numbersIn(keyText(q));
-      const quoteNums = numbersIn(quote);
+      const quoteNums = numbersIn(evidence);
       if (keyNums.size && quoteNums.size) {
         const stemNums = numbersIn(q.question);
         const overlaps = [...quoteNums].some((x) => keyNums.has(x) || stemNums.has(x));
