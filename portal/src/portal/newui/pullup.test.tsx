@@ -276,6 +276,15 @@ describe("the avatar opens the same panel; the account sheet is gone", () => {
     expect(screen.queryByTestId("newui-sheet-rows")).toBeNull();
   });
 
+  it("bd-5rz1v.32 — on a desktop the card stays under the avatar: its end is the menu's column end, not the window's 24px", async () => {
+    renderNav();
+    fireEvent.click(await screen.findByTestId("newui-avatar-desktop"));
+    const cls = (await panel()).className.split(/\s+/);
+    // The menu's column (DESK_COLUMN): 40px each side, or the 1040px-wide middle once the window passes 1120px.
+    expect(cls).toContain("md:end-[max(2.5rem,calc(50%_-_520px))]");
+    expect(cls).not.toContain("md:end-6");
+  });
+
   it("an avatar on a page's own heading (Home's band) opens it too", async () => {
     renderNav(TEACHER, "/portal/dashboard");
     await bar();

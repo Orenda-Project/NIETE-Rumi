@@ -25,6 +25,14 @@ export const TAP_SQUARE = 'min-h-[56px] min-w-[56px]';
  */
 export const GRID = '[display:grid]';
 
+/**
+ * bd-5rz1v.32 — the page's desktop column: centred, 1120px at most, 40px each side (1040px of
+ * content at a 1280 window; a 40px gutter below 1120). It is the desktop half of every page body
+ * (`mx-auto max-w-[1120px] px-[14px] md:px-10`), and the menu, the heading card and the inner bar
+ * stand in it too, so their edges are the content's at every desktop width. Phone: nothing.
+ */
+export const DESK_COLUMN = 'md:mx-auto md:max-w-[1120px] md:px-10';
+
 /** What a row, tile or option does under a finger. */
 export const PRESS = 'active:bg-nu-ink-xlight';
 

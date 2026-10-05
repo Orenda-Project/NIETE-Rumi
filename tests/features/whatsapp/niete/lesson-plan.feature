@@ -275,6 +275,35 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # medium is Urdu already write the board in Urdu, so they get no extra line. A reused plan
     # missing the line is still delivered, and the top-up pass adds the line later.
 
+  @e2e @content-driven @language @P2
+  Scenario: An Urdu 6-12 plan numbers its sections and support pages in Urdu, not Latin letters
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    When I complete it for a 6-12 segment
+    Then a lesson-plan PDF is delivered to the chat
+    And the five section bands carry the badges ۱ to ۵, in lesson order
+    And the support-page bands carry the badges الف، ب، ج in turn
+    And the board-order list is numbered in Urdu digits
+    And an English plan for the same segment still shows the badges A to E and A, B, C
+    # bd-psa3u. The Urdu initials collide (تعارف and تدریس both start with ت), so the Urdu section
+    # badge is the section's place, not its first letter. Renderer change in vendor/lp-v9
+    # (lib/template.js, lib/overlay.js); English output is unchanged.
+
+  @e2e @content-driven @language @P2
+  Scenario: The common-mistakes box asks what pupils say or write, in both languages
+    Given the NIETE bot chat is open on a teacher whose language is <language>
+    And I have opened the LP Flow
+    When I complete it for a 6-12 segment whose plan lists common mistakes
+    Then a lesson-plan PDF is delivered to the chat
+    And the mistakes box column is headed "<label>"
+
+    Examples:
+      | language | label                     |
+      | English  | What pupils say or write  |
+      | Urdu     | طلبہ کیا کہتے یا لکھتے ہیں |
+    # bd-k3ry8. The column lists what a pupil actually says or writes when they get it wrong, so
+    # the teacher can recognise the mistake in class.
+
   @e2e @content-driven @P2
   Scenario: Diagram labels on a 6-12 plan stay readable on a phone
     Given the NIETE bot chat is open on a teacher whose language is English

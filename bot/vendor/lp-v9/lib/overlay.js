@@ -207,7 +207,7 @@ const LABELS = {
     // questions — the author brief forbids repeating it inside the bank.
     p2Diff: "Differentiation", p2Exam: "FBISE format Questions - (Optional)", p2Hw: "Homework, in full",
     p2Next: "Next period", p2NotGoing: "Not going today", p2Coach: "Coaching corner",
-    pupilSays: "What pupils write", youAsk: "You ask",
+    pupilSays: "What pupils say or write", youAsk: "You ask",
     stuck: "If stuck", barrier: "If the method is the barrier", early: "If they finish early",
     mcq: "MCQs — distractor-coded",
     // The SRQ label follows the GRADE. FBISE's examining remit starts at SSC, so on a
@@ -256,6 +256,10 @@ const LABELS = {
     objectives: "تدریسی مقاصد", warmup: "ابتدائی دہرائی",
     introduction: "تعارف", development: "تدریس", activity: "سرگرمی",
     conclusion: "اختتام", homework: "گھر کا کام",
+    // bd-psa3u: the printed badges. Urdu initials collide (تعارف / تدریس), so a section band
+    // carries its place in Urdu digits and a support-page band the Urdu list letter.
+    badge: { introduction: "۱", development: "۲", activity: "۳", conclusion: "۴", homework: "۵" },
+    p2Badge: ["الف", "ب", "ج", "د", "ہ", "و", "ز", "ح"],
     min: "منٹ", say: "کہیے", ask: "اس سوال سے آغاز کریں", askPlain: "یہ سوال پوچھیں", lookFor: "جواب میں یہ دیکھیں",
     watch: "خیال رکھیے", board: "تختۂ سیاہ پر", keywords: "کلیدی الفاظ",
     keyPoints: "اہم نکات", worked: "حل شدہ مثال", faded: "نیم حل شدہ مثال",
@@ -272,7 +276,7 @@ const LABELS = {
     // still frozen to the book's language by the ur_overlay rule; only the heading is translated.
     p2Diff: "انفرادی فرق کے مطابق", p2Exam: "ایف بی آئی ایس ای طرز کے سوالات — (اختیاری)", p2Hw: "گھر کے کام کے مکمل جوابات",
     p2Next: "اگلا پیریڈ", p2NotGoing: "آج نہیں پڑھانا", p2Coach: "کوچنگ کارنر",
-    pupilSays: "طلبہ کیا لکھتے ہیں", youAsk: "آپ پوچھیں",
+    pupilSays: "طلبہ کیا کہتے یا لکھتے ہیں", youAsk: "آپ پوچھیں",
     stuck: "اگر بچے اٹک جائیں", barrier: "اگر طریقہ رکاوٹ بنے", early: "اگر جلد فارغ ہو جائیں",
     mcq: "کثیر الانتخابی سوالات",
     srq: "مختصر جواب — بورڈ کے الفاظ میں", srqEarly: "مختصر جواب — امتحانی انداز",
