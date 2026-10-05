@@ -19,6 +19,7 @@ html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-famil
    the screens were designed at; its space is narrow, so words get extra room. Latin and 0-9 come from --f. */
 @font-face{font-family:"WQ Nastaliq";src:url(fonts/wq-nastaliq-1.woff2) format("woff2");font-display:swap;size-adjust:155%;unicode-range:U+0600-06FF,U+00A0,U+00AB,U+00BB,U+200C-200F,U+2066-2069,U+25CC,U+0020}
 html[lang=ur] body{font-family:var(--fu);word-spacing:.2em}
+html[lang=ur] button{word-spacing:inherit}
 html[lang=ur] .wq-icon,html[lang=ur] .wq-spk,html[lang=ur] .wq-emoji,html[lang=ur] .wq-tfi,html[lang=ur] .wq-let,html[lang=ur] .wq-place b{font-family:var(--f);line-height:1;word-spacing:normal}
 /* Urdu labels the figure engine writes inside a figure carry an inline Noto stack Android does not have. */
 .wq-svg [lang=ur]{font-family:var(--fu)!important;word-spacing:normal}

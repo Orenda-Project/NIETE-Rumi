@@ -95,6 +95,10 @@ describe('Urdu spacing rules', () => {
     expect(rule('html[lang=ur] body')).toMatch(/word-spacing:0?\.\d+em/);
   });
 
+  test('buttons keep the word spacing too (the browser resets word-spacing on <button>, so answers, chips and lists glued words)', () => {
+    expect(rule('html[lang=ur] button')).toMatch(/word-spacing:inherit/);
+  });
+
   test('icons and emoji in Urdu screens keep the emoji font and a tight line box (no Nastaliq line box)', () => {
     const r = rule('html[lang=ur] .wq-icon,html[lang=ur] .wq-spk,html[lang=ur] .wq-emoji,html[lang=ur] .wq-tfi,html[lang=ur] .wq-let,html[lang=ur] .wq-place b');
     expect(r).not.toBeNull();
