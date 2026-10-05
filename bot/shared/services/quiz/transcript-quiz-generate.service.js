@@ -522,11 +522,12 @@ function withFigureSvgs(rows, questions, language) {
 // "Teacher Rifat" / "استاد رفعت" — shared with the web quiz page (quiz-teacher-label.js).
 const { teacherLabel } = require('./quiz-teacher-label');
 
-function studentMessage({ teacherName, topic, date, link, language }) {
+function studentMessage({ teacherName, topic, date, link, language, web = false }) {
   // The message a teacher forwards to the class is text: a topic carrying TeX
-  // maths reads "1/2", never "$\frac{1}{2}$" (quiz-math.js).
+  // maths reads "1/2", never "$\frac{1}{2}$" (quiz-math.js). The web page asks
+  // only the child's name, so a web link gets its own last line.
   const { mathForChat } = require('./quiz-math');
-  return resolveUx('tqStudentMessage', {
+  return resolveUx(web ? 'tqStudentMessageWeb' : 'tqStudentMessage', {
     language,
     params: {
       teacher: teacherLabel(teacherName, language),
