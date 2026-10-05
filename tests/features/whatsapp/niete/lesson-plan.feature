@@ -563,6 +563,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the message has the buttons "Make the quiz" and "No thanks"
     And the message says "planned", never "taught" or "recorded"
 
+  @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: A lesson with no quiz source is not offered
+    Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
+    And the version of that lesson the teacher received has no slide script in the lesson source store
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the bot sends the teacher no afternoon quiz offer
+    And the teacher's offer row for today is skipped with the reason "no_quiz_source", not "no_lesson"
+    And the day's lp_quiz.cohort_built event counts that teacher under skipped.no_quiz_source
+    # The cohort uses the same exact-version check /quiz uses (lp-asset-source.store resolvableVersions, which /quiz also calls:
+    # lesson_id, version_stamp, content_hash). A script for an OLDER version of the same lesson does not
+    # count — a quiz from it would ask about a page the teacher does not hold. A teacher with one lesson
+    # that has a script and one that does not is still offered, for the lesson that has one.
+
   @e2e @quiz @wip @draft @config-gated @P2
   Scenario: A teacher who planned lessons for two classes gets a list to pick from
     Given the NIETE bot chat is open on a teacher who took lesson plans for Grade 4 Maths and Grade 5 Urdu today

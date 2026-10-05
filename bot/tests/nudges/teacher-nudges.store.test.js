@@ -147,11 +147,11 @@ beforeEach(() => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('SKIP_REASONS — the closed vocabulary of "we deliberately did not ask"', () => {
-  test('is exported, frozen, and holds the fifteen reasons the plan names', () => {
+  test('is exported, frozen, and holds the fifteen reasons the plan names, plus no_quiz_source', () => {
     expect(store.SKIP_REASONS).toEqual([
       'coached_today', 'offered_today', 'sent_today', 'coaching_yes_today', 'window_closed',
       'weekly_cap', 'declined_streak', 'consecutive_day', 'quiet_hours', 'assessment_day',
-      'no_lesson', 'disabled', 'sector_not_piloted', 'not_school_day', 'in_progress_coaching',
+      'no_lesson', 'no_quiz_source', 'disabled', 'sector_not_piloted', 'not_school_day', 'in_progress_coaching',
     ]);
     expect(Object.isFrozen(store.SKIP_REASONS)).toBe(true);
   });

@@ -45,6 +45,7 @@ const { resolveUx } = require('../../config/ux-strings');
 const { normalizeSubject, SUBJECT_NAMES_UR } = require('../../config/lp612-subject-order');
 const { teacherLanguageFor, needsLanguageAsk, quizLanguageFor } = require('../quiz/transcript-quiz-language');
 const Catalog = require('../lp-v8-catalog.service');
+const SourceStore = require('../quiz/lp-asset-source.store');
 const { LP_V8 } = require('../quiz/quiz-sources');
 const Funnel = require('../quiz/quiz-funnel');
 const LessonClaim = require('../quiz/lp-lesson-claim');
@@ -83,6 +84,9 @@ const SKIP_REASONS_USED = [
   'not_school_day',
   'sector_not_piloted',
   'no_lesson',
+  // Build time only: lessons were taken, but none has a slide script for the
+  // exact version served, so no quiz can be made (the /quiz source rule).
+  'no_quiz_source',
   'coaching_yes_today',
   'coached_today',
   'offered_today',
@@ -437,8 +441,16 @@ async function buildCohort({ nudgeDate, now }) {
   }
 
   const lessonAssets = await lessonAssetIds(downloads.map((r) => r.asset_id));
-  const quizzable = downloads.filter((r) => lessonAssets.has(r.asset_id)
+  const lessons = downloads.filter((r) => lessonAssets.has(r.asset_id)
     && !String(r.lesson_id || '').endsWith(ASSESSMENT_SUFFIX));
+  // The same exact-version source check /quiz uses: a lesson whose served
+  // version has no slide script cannot be made into a quiz, so it is never
+  // offered. A teacher left with none is skipped as `no_quiz_source`, not
+  // `no_lesson`, so the funnel can tell a missing script from no lesson.
+  const sourced = lessons.length ? await SourceStore.resolvableVersions(lessons) : new Set();
+  const quizzable = lessons.filter((r) => sourced.has(SourceStore.versionKey(r)));
+  const hasQuizzable = new Set(quizzable.map((r) => r.user_id));
+  const noQuizSource = new Set(lessons.map((r) => r.user_id).filter((id) => !hasQuizzable.has(id)));
 
   // The candidate set is the RAW download rows: a teacher whose only lesson
   // was an assessment still earns a `no_lesson` row, which is how the funnel
@@ -474,7 +486,7 @@ async function buildCohort({ nudgeDate, now }) {
     const user = teachers.get(userId);
     const classes = byTeacher.get(userId) || [];
     const sector = sectorFor(user, bySchool);
-    const reason = preChecks({
+    const check = preChecks({
       isSchoolDay: true,
       sectorAllowed: !sectors || (sector !== null && sectors.has(sector)),
       lessonCount: classes.reduce((n, c) => n + c.lessons.length, 0),
@@ -482,6 +494,7 @@ async function buildCohort({ nudgeDate, now }) {
       coachedToday: coached.has(userId),
       offeredToday: offered.has(userId),
     });
+    const reason = check === 'no_lesson' && noQuizSource.has(userId) ? 'no_quiz_source' : check;
 
     // eslint-disable-next-line no-await-in-loop
     const { row, created } = await Store.schedule({

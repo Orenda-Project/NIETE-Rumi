@@ -39,6 +39,47 @@ function client(opts = {}) {
   return opts.client || require('../../config/supabase');
 }
 
+/** The version triple this store is keyed on, as one string. */
+const versionKey = (r) => `${r.lesson_id}|${r.version_stamp}|${r.content_hash}`;
+
+const IN_CHUNK = 200;
+
+/** PostgREST's answer for a table this database does not have (PGRST205 / 42P01). */
+function isMissingTable(error) {
+  const code = String((error && error.code) || '');
+  return code === 'PGRST205' || code === '42P01'
+    || /does not exist|schema cache/i.test(String((error && error.message) || ''));
+}
+
+/**
+ * Which of these served versions have a slide script — the existence check behind
+ * BOTH doors that offer a lesson-plan quiz (the /quiz list and the 15:00 offer), so
+ * the two can never disagree about what a quiz can be made from. Exact version only,
+ * like resolveSlideScript. Reads the key columns only (never the script), IN-chunked.
+ *
+ * @param {Array<{lesson_id:string, version_stamp:string, content_hash:string}>} rows
+ * @returns {Promise<Set<string>>} versionKey()s that have a row
+ *   Throws on a DB error (err.missingTable set when the table itself is absent).
+ */
+async function resolvableVersions(rows, opts = {}) {
+  const found = new Set();
+  const lessonIds = [...new Set((rows || []).map((r) => r.lesson_id).filter(Boolean))];
+  for (let i = 0; i < lessonIds.length; i += IN_CHUNK) {
+    // eslint-disable-next-line no-await-in-loop
+    const { data, error } = await client(opts)
+      .from(TABLE)
+      .select('lesson_id, version_stamp, content_hash')
+      .in('lesson_id', lessonIds.slice(i, i + IN_CHUNK));
+    if (error) {
+      const err = new Error(`${TABLE}: ${error.message || error}`);
+      err.missingTable = isMissingTable(error);
+      throw err;
+    }
+    (data || []).forEach((s) => found.add(versionKey(s)));
+  }
+  return found;
+}
+
 /**
  * Resolve the slide script for the LP version a teacher actually holds.
  *
@@ -103,4 +144,6 @@ async function upsertSource(row, opts = {}) {
   return data;
 }
 
-module.exports = { resolveSlideScript, upsertSource, TABLE, VERIFIED, REQUIRED };
+module.exports = {
+  resolveSlideScript, resolvableVersions, versionKey, upsertSource, TABLE, VERIFIED, REQUIRED,
+};
