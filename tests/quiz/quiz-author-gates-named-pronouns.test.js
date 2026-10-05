@@ -116,8 +116,9 @@ describe('on the generate path (a lesson-plan quiz), flag on', () => {
       },
     }));
     const authorPrompts = [];
+    const digestPrompts = [];
     completeJson.mockImplementation(async ({ label, prompt }) => {
-      if (label === 'lp_quiz.digest') return { json: F.MODEL_DIGEST, model: 'dm', costUsd: 0.001, latencyMs: 5 };
+      if (label === 'lp_quiz.digest') { digestPrompts.push(prompt); return { json: F.MODEL_DIGEST, model: 'dm', costUsd: 0.001, latencyMs: 5 }; }
       if (label === 'transcript_quiz.author') { authorPrompts.push(prompt); throw new Error('stop after the author prompt'); }
       throw new Error(`unexpected LLM call: ${label}`);
     });
@@ -125,5 +126,9 @@ describe('on the generate path (a lesson-plan quiz), flag on', () => {
     expect(authorPrompts.length).toBeGreaterThan(0);
     expect(authorPrompts[0]).toContain('Ahmed WAS WRITING his letter');
     expect(authorPrompts[0]).not.toContain('Ahmed WAS WRITING their letter');
+    // …and so is the DIGEST pass, whose "examples_used" the author and the rewrite also copy from
+    expect(digestPrompts).toHaveLength(1);
+    expect(digestPrompts[0]).toContain('Ahmed WAS WRITING his letter');
+    expect(digestPrompts[0]).toContain('Zainab CLEANED her room');
   });
 });
