@@ -20,7 +20,10 @@
 
 const { AsyncLocalStorage } = require('async_hooks');
 // The ONE reader of the flag lives in config/feature-flags (it also checks the row's key).
-const { QUIZ_AUTHOR_GATES_V2_KEY, isQuizAuthorGatesV2 } = require('../../config/feature-flags');
+// Required lazily: feature-flags loads config/supabase, which exits the process
+// without DB config, and the validator (which requires this module) has offline callers.
+const QUIZ_AUTHOR_GATES_V2_KEY = 'quiz_author_gates_v2';
+const isQuizAuthorGatesV2 = () => require('../../config/feature-flags').isQuizAuthorGatesV2();
 
 const scope = new AsyncLocalStorage();
 
