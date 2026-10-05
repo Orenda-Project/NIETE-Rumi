@@ -823,6 +823,167 @@ async function runFigureDensity(api, {
 }
 
 /**
+ * SOURCE FIDELITY (app_settings quiz_author_gates_v2; off by default) — every
+ * question's `source_quote` held against the source it was written from, after
+ * the author's loop and the picture step and before the key checks, on every
+ * source (a recording's transcript, an lp_v8 slide script, a 6-12 plan).
+ *
+ * WHY. A key the lesson never gave (an answer invented for a question the plan
+ * only asked), a word problem with numbers the lesson never used, a quote of the
+ * class's slip instead of the fact: each passed every check that existed, and
+ * the same row goes to the web and to WhatsApp (transcript-quiz-source-fidelity).
+ *
+ * WHAT. A refused question is re-authored through the same targeted rewrite
+ * every other rejected question goes through (five per call, a second call for
+ * the rest), its complaint naming the lesson's own nearest moments; the merged
+ * set is validated in full and the replacements gated again. What is still
+ * refused is DROPPED, worst first, as far as the quiz's floor allows (the
+ * salvage's own rule) — never shipped as the invented row it was. Only what the
+ * floor cannot spare ships, counted as `kept_unfixed`.
+ * Every count lands in quizzes.meta.source_fidelity, so the weekly numbers show
+ * how often authoring invents content. A teaching error the author recorded is
+ * kept there for the teacher's report to read later.
+ */
+async function runSourceFidelity(api, {
+  questions, sourceText, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts, knownNames = null,
+  planned = false, quizSource = TRANSCRIPT,
+}) {
+  const SF = require('./transcript-quiz-source-fidelity');
+  const startedAt = Date.now();
+  const record = {
+    status: 'clean', checked: questions.length, refused: 0, rewritten: 0, dropped: 0, kept_unfixed: 0,
+    by_reason: {}, items: [], teaching_errors: [], cost_usd: 0,
+  };
+  const finish = (out) => {
+    const final = (out && out.questions) || questions;
+    record.teaching_errors = SF.teachingErrors(final);
+    record.latency_ms = Date.now() - startedAt;
+    record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
+    logEvent('transcript_quiz.source_fidelity', {
+      quizId, quiz_source: quizSource, status: record.status, checked: record.checked, refused: record.refused,
+      rewritten: record.rewritten, dropped: record.dropped, keptUnfixed: record.kept_unfixed, byReason: record.by_reason,
+      teachingErrors: record.teaching_errors.length, costUsd: record.cost_usd, latencyMs: record.latency_ms,
+    });
+    return { record, ...out };
+  };
+
+  const first = SF.sourceFaults(questions, sourceText, { gradeBand });
+  const bad = Object.keys(first.byIndex).map(Number);
+  record.refused = bad.length;
+  bad.forEach((i) => {
+    const codes = first.byIndex[i].map((f) => f.code);
+    codes.forEach((c) => { record.by_reason[c] = (record.by_reason[c] || 0) + 1; });
+    record.items.push({ index: i, reasons: codes, quote: String(questions[i].source_quote || '').slice(0, 200) });
+  });
+  if (!bad.length) return finish({ changed: false });
+  attempts.push({ attempt: 'source_fidelity', errors: first.errors });
+
+  // ── the targeted rewrite, the lesson's own moments in the complaint ────────
+  const stillBad = new Set(bad);
+  let current = questions;
+  let softFaults = null;
+  // Five per call (rewriteTargets); what the first call left is the second batch.
+  let prefer = [];
+  for (let batch = 0; batch < 2; batch += 1) {
+    const { errors } = SF.sourceFaults(current, sourceText, { gradeBand });
+    if (!errors.length) break;
+    // eslint-disable-next-line no-await-in-loop
+    // What the set already carried before this call (accepted by the loop) is not the replacement's fault.
+    const carried = new Set(validate(current, {
+      language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
+    }).errors.map(String));
+    const rw = await api.rewriteRejected({
+      questions: current, errors, digest, language, gradeBand, quizId, lessonSummary, planned, knownNames, partial: true,
+      authorGates: true, prefer,
+    });
+    if (!rw.attempted) break;
+    record.cost_usd += Number(rw.costUsd) || 0;
+    let verrs = null;
+    const replacedBad = (rw.replaced || []).filter((i) => stillBad.has(i));
+    if (rw.merged && replacedBad.length) {
+      const v = validate(rw.merged, {
+        language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
+      });
+      verrs = v.errors;
+      // Judged on what the rewrite CHANGED: a soft fault, one the set already
+      // carried, or one on a question it did not touch is not the replacement's.
+      const own = (e) => {
+        const m = /^q(\d+):/.exec(String(e));
+        return m ? replacedBad.includes(Number(m[1])) : !carried.has(String(e));
+      };
+      if (v.errors.every((e) => SOFT_FAULT.test(String(e)) || !own(e))) {
+        current = v.questions;
+        softFaults = v.errors.length ? v.errors : null;
+        replacedBad.forEach((i) => {
+          if (SF.questionFaults(current[i] || {}, sourceText, { gradeBand }).length) return;
+          stillBad.delete(i);
+          record.rewritten += 1;
+        });
+      }
+    }
+    attempts.push({
+      attempt: 'rewrite', after: 'source_fidelity', indices: rw.indices, replaced: rw.replaced,
+      model: rw.model || null, cost_usd: rw.costUsd || null, latency_ms: rw.latencyMs || null,
+      errors: verrs || [rw.error || 'the rewrite returned no usable replacement'],
+    });
+    logEvent('transcript_quiz.rewrite_attempted', {
+      quizId, after: 'source_fidelity', indices: rw.indices, replaced: rw.replaced, ok: stillBad.size === 0, errors: verrs ? verrs.length : null,
+    });
+    if (!rw.deferred || !rw.deferred.length) break;
+    prefer = rw.deferred;
+  }
+
+  // ── drop what is still refused; ship it only when the quiz would break ─────
+  // Worst first: a quote that does not carry the answer before a stem that is only long.
+  const onlyLong = (i) => SF.questionFaults(current[i] || {}, sourceText, { gradeBand }).every((f) => f.code === SF.CODES.STEM_LONG);
+  const gone = [...stillBad].sort((a, b) => (onlyLong(a) - onlyLong(b)) || (a - b));
+  const outcome = (i) => (stillBad.has(i) ? null : 'rewritten');
+  let cand = { questions: current, dropped: [], softFaults };
+  if (gone.length) {
+    const ctx = { language, subject: digest.subject, digest, quizId, lessonSummary };
+    // As many as the quiz's floor allows; what is left over ships, counted.
+    const room = Math.max(0, current.length - MIN_QUESTIONS);
+    const s = room ? salvageWithoutBadFigures(current, gone.slice(0, room).map((i) => `q${i}: SOURCE_UNFIXED — still not carried by the lesson`), ctx) : null;
+    if (s && !s.refused) {
+      cand = { questions: s.questions, dropped: s.dropped, softFaults: (s.softFaults && s.softFaults.length) ? s.softFaults : softFaults };
+    } else {
+      record.refused_drop = (s && s.refused) || `no room under the floor of ${MIN_QUESTIONS}`;
+    }
+  }
+  if (current === questions && !cand.dropped.length) {
+    record.kept_unfixed = gone.length;
+    record.status = 'kept_unfixed';
+    record.items.forEach((it) => { it.outcome = outcome(it.index) || 'kept_unfixed'; });
+    return finish({ changed: false });
+  }
+  try {
+    const drafted = toRows(quizId, cand.questions);
+    const { figureUrls, cardUrls } = await renderFor(api, {
+      questions: cand.questions, rows: drafted, language, teacherId, quizId,
+    });
+    record.dropped = cand.dropped.length;
+    record.kept_unfixed = gone.length - cand.dropped.length;
+    record.status = record.kept_unfixed ? 'kept_unfixed' : (record.dropped ? 'dropped' : 'rewritten');
+    record.items.forEach((it) => {
+      it.outcome = outcome(it.index) || (cand.dropped.includes(it.index) ? 'dropped' : 'kept_unfixed');
+    });
+    attempts.push({ attempt: 'source_fidelity_result', status: record.status, dropped: cand.dropped, errors: cand.softFaults || [] });
+    return finish({
+      changed: true, questions: cand.questions, figureUrls, cardUrls, draftedRows: drafted, softFaults: cand.softFaults,
+    });
+  } catch (figErr) {
+    // The repaired set cannot be drawn: the authored set ships as it was, counted.
+    record.render_error = String(figErr.message || figErr).slice(0, 200);
+    record.rewritten = 0;
+    record.kept_unfixed = bad.length;
+    record.status = 'kept_unfixed';
+    record.items.forEach((it) => { it.outcome = 'kept_unfixed'; });
+    logToFile('❌ transcript quiz: the source-checked set could not be drawn', { quizId, error: record.render_error }, 'error');
+    return finish({ changed: false });
+  }
+}
+
+/**
  * THE KEY CHECK — an lp_v8 quiz's keys, held against the lesson it was written
  * from, after every authoring and repair step and before a single row is stored.
  *
@@ -1590,7 +1751,7 @@ async function lookUpCache(api, { quiz, quizId, language, payload, flight, quizS
 }
 
 async function processQuiz(quizId, payload, flight) {
-  const api = module.exports;
+  let api = module.exports;
   const { data: quiz, error } = await supabase.from('quizzes')
     .select('id, teacher_id, coaching_session_id, quiz_source, topic, subject, language, status, meta, grade')
     .eq('id', quizId).maybeSingle();
@@ -1863,6 +2024,14 @@ async function processQuiz(quizId, payload, flight) {
     // WHAT THE LESSON DREW — an lp_v8 lesson's own manipulatives (the slide
     // script's counters, bundles and tiles), so a picture draws what the class saw.
     const lessonDrew = isLp ? LpDigest.lessonDrewBlock(slideScript) : '';
+    // app_settings quiz_author_gates_v2, read ONCE per quiz (fail-closed). On, the
+    // author and every targeted rewrite return each question's source_quote, and
+    // runSourceFidelity holds the set to its source below. Off, nothing changes.
+    const authorGates = await api.authorGatesOn();
+    if (authorGates) {
+      const base = module.exports;
+      api = { ...base, rewriteRejected: (args) => base.rewriteRejected({ ...args, authorGates: true }) };
+    }
     for (let attempt = 1; attempt <= attemptsAllowed; attempt += 1) {
       let out;
       try {
@@ -1873,6 +2042,7 @@ async function processQuiz(quizId, payload, flight) {
           // lesson — the same picker the digest used, so the exit MCQ and the
           // plan's gendered prose are absent here too.
           ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript), lessonDrew } : {}),
+          ...(authorGates ? { authorGates: true } : {}),
         });
       } catch (err) {
         attempts.push({ attempt, error: err.message });
@@ -2285,6 +2455,23 @@ async function processQuiz(quizId, payload, flight) {
       }
       if (dens.record.complaint) meta.soft_faults = [...(meta.soft_faults || []), dens.record.complaint];
     }
+    // ── SOURCE FIDELITY (quiz_author_gates_v2 only, every source) ────────────
+    if (authorGates) {
+      const sf = await runSourceFidelity(api, {
+        questions, digest, language, quizId, teacherId: quiz.teacher_id, lessonSummary: readyLessonSummary,
+        gradeBand: digest.grade_band || meta.grade, attempts, knownNames: nameSpellings, planned: isLp, quizSource,
+        sourceText: isLp ? (slideScript ? LpDigest.lessonExcerpts(slideScript) : '') : (session && session.transcript_text) || '',
+      });
+      meta.source_fidelity = sf.record;
+      meta.cost_usd = (meta.cost_usd || 0) + (sf.record.cost_usd || 0);
+      if (sf.changed) {
+        questions = sf.questions;
+        figureUrls = sf.figureUrls;
+        cardUrls = sf.cardUrls;
+        draftedRows = sf.draftedRows;
+        if (sf.softFaults) meta.soft_faults = sf.softFaults;
+      }
+    }
     // ── THE KEY CHECK (lp_v8 only) ───────────────────────────────────────────
     // Every key held against the lesson it was written from, after every repair
     // and before anything is stored (see runKeyCheck). A transcript quiz has no
@@ -2470,6 +2657,10 @@ module.exports = {
   salvageWithoutBadFigures,
   failureCopyKey, tellTeacherFailed,
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
+  // the source-fidelity step, exported for the offline measurement of its gates
+  runSourceFidelity,
+  // app_settings quiz_author_gates_v2 (fail-closed), read once per quiz.
+  authorGatesOn: () => require('../../config/feature-flags').isQuizAuthorGatesV2(),
   rewriteTeacherFields: (args) => require('./transcript-quiz-rewrite').rewriteTeacherFields(args),
   // Grade 1-5 maths only — the one rewrite that may add a picture (runFigureDensity).
   addPictures: (args) => require('./transcript-quiz-rewrite').addPictures(args),
