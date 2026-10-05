@@ -12,7 +12,8 @@
   --fu:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq","Noto Naskh Arabic",system-ui,sans-serif;
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--f);-webkit-text-size-adjust:100%}
+/* touch-action: manipulation = no double-tap zoom, so a quick second tap (the ORDER item: B then A) always lands; pinch zoom stays. */
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--f);-webkit-text-size-adjust:100%;touch-action:manipulation}
 html[lang=ur] body{font-family:var(--fu)}
 button,input{font:inherit;color:inherit}
 img{max-width:100%}
