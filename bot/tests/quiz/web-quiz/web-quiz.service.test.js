@@ -110,7 +110,9 @@ describe('E2 GET quiz', () => {
     expect(out.live).toEqual({ class_today: 1, ict_today_floor: 1 });
     expect(out.video).toBeNull();
     expect(out.preview).toBe(false);
-    expect(JSON.stringify(out)).not.toMatch(/0000|Example Teacher/);
+    // The teacher is named as the forwarded WhatsApp text names them; the parent's phone never leaves.
+    expect(out.cls.teacher).toBe('Teacher Ms Example Teacher');
+    expect(JSON.stringify(out)).not.toMatch(/0000/);
   });
 
   test('unknown code 404, expired code 410 with the language', async () => {
