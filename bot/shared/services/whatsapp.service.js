@@ -4,6 +4,8 @@ const fs = require('fs');
 const { WHATSAPP_TOKEN, PHONE_NUMBER_ID } = require('../utils/constants');
 const { logToFile, logError } = require('../utils/logger');
 const { downloadFromR2, downloadMedia, extractKeyFromUrl } = require('../storage/r2');
+// bd-c00np: every media send writes into its OWN temp directory — see private-temp.js.
+const { privateTempPath, removePrivateTemp } = require('../utils/private-temp');
 const { getOfferedLanguages } = require('../config/languages');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { featureMenuRows } = require('../config/role-features');
@@ -306,7 +308,7 @@ class WhatsAppService {
   static async sendAudioFromUrlReturningId(to, audioUrl) {
     const path = require('path');
     const tempDir = path.join(__dirname, '../../temp');
-    let audioPath = null;
+    let tmp = null;
     try {
       const audioBuffer = await downloadMedia(audioUrl);
 
@@ -316,8 +318,8 @@ class WhatsAppService {
       const ext = isOgg ? 'ogg' : 'mp3';
       const contentType = isOgg ? 'audio/ogg' : 'audio/mpeg';
 
-      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-      audioPath = path.join(tempDir, `qaudio_${Date.now()}.${ext}`);
+      tmp = privateTempPath(tempDir, `qaudio_${Date.now()}.${ext}`);
+      const audioPath = tmp.filePath;
       fs.writeFileSync(audioPath, audioBuffer);
 
       const formData = new FormData();
@@ -343,7 +345,7 @@ class WhatsAppService {
       }, 'error');
       return null;
     } finally {
-      try { if (audioPath && fs.existsSync(audioPath)) fs.unlinkSync(audioPath); } catch { /* best effort */ }
+      removePrivateTemp(tmp);
     }
   }
 
@@ -595,8 +597,8 @@ class WhatsAppService {
    * @returns {Promise<boolean>}
    */
   static async sendAudio(to, audioBuffer, tempDir) {
-    const path = require('path');
     let mediaId = null;
+    let tmp = null;
 
     try {
       // Sniff the container instead of assuming MP3: every voice provider
@@ -611,8 +613,10 @@ class WhatsAppService {
       // Save audio to temp file. Every other sender here creates its temp dir
       // first; this one did not, so on a worker where the directory had never
       // been made the write threw ENOENT and the voice note was never uploaded.
-      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-      const audioPath = path.join(tempDir, `audio_${Date.now()}.${ext}`);
+      // privateTempPath makes it if absent, and gives this send a directory of its
+      // own (bd-c00np): two voice notes in one millisecond shared `audio_<ms>.ogg`.
+      tmp = privateTempPath(tempDir, `audio_${Date.now()}.${ext}`);
+      const audioPath = tmp.filePath;
       fs.writeFileSync(audioPath, audioBuffer);
 
       // Upload media to WhatsApp
@@ -657,9 +661,6 @@ class WhatsAppService {
         }
       );
 
-      // Clean up temp file
-      fs.unlinkSync(audioPath);
-
       // The media id is the one handle Meta returns the uploaded bytes by, so it
       // is what lets anyone fetch back exactly what the teacher heard.
       logToFile('Audio message sent successfully', {
@@ -680,6 +681,8 @@ class WhatsAppService {
         bytes: audioBuffer ? audioBuffer.length : null,
       });
       return false;
+    } finally {
+      removePrivateTemp(tmp);
     }
   }
 
@@ -694,28 +697,23 @@ class WhatsAppService {
   static async sendDocumentFromUrl(to, documentUrl, filename, caption) {
     const path = require('path');
     const tempDir = path.join(__dirname, '../../temp');
+    let tmp = null;
 
     try {
       // Extract R2 key from URL and download using R2 client
       logToFile('Downloading document from R2', { documentUrl });
       const documentBuffer = await downloadMedia(documentUrl);
 
-      // Save to temp file
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-      const tempFilePath = path.join(tempDir, `temp_${Date.now()}_${filename}`);
+      // Save to temp file — in a directory of its own (bd-c00np), so a second send
+      // of the same file name in the same millisecond cannot overwrite it.
+      tmp = privateTempPath(tempDir, `temp_${Date.now()}_${filename}`);
+      const tempFilePath = tmp.filePath;
       fs.writeFileSync(tempFilePath, documentBuffer);
 
       logToFile('Document downloaded from R2, sending to WhatsApp', { tempFilePath, size: documentBuffer.length });
 
       // Use existing sendDocument method
       const result = await this.sendDocument(to, tempFilePath, filename, caption);
-
-      // Clean up temp file
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
 
       return result;
     } catch (error) {
@@ -725,6 +723,8 @@ class WhatsAppService {
         stack: error.stack
       });
       return false;
+    } finally {
+      removePrivateTemp(tmp);
     }
   }
 
@@ -773,12 +773,13 @@ class WhatsAppService {
   static async sendVoicenoteFromR2Key(to, r2KeyOrUrl) {
     const path = require('path');
     const tempDir = path.join(__dirname, '../../temp');
+    let tmp = null;
 
     try {
       const oggBuffer = await downloadMedia(r2KeyOrUrl);
 
-      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-      const voicePath = path.join(tempDir, `voice_${Date.now()}.ogg`);
+      tmp = privateTempPath(tempDir, `voice_${Date.now()}.ogg`); // bd-c00np: own directory
+      const voicePath = tmp.filePath;
       fs.writeFileSync(voicePath, oggBuffer);
 
       const formData = new FormData();
@@ -800,7 +801,6 @@ class WhatsAppService {
         { headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
       );
 
-      try { fs.unlinkSync(voicePath); } catch (_) { /* best-effort */ }
       // Name only what this function holds. A reference to a variable that is not
       // in scope here throws AFTER Meta has accepted the message, and the catch
       // below then reports a delivered voicenote as a failure.
@@ -812,6 +812,8 @@ class WhatsAppService {
         errorDetails: error.response?.data,
       });
       return false;
+    } finally {
+      removePrivateTemp(tmp);
     }
   }
 
@@ -829,28 +831,22 @@ class WhatsAppService {
   static async sendImageFromUrl(to, imageUrl, caption = '') {
     const path = require('path');
     const tempDir = path.join(__dirname, '../../temp');
+    let tmp = null;
 
     try {
       // Extract R2 key from URL and download using R2 client
       logToFile('Downloading image from R2', { imageUrl });
       const imageBuffer = await downloadMedia(imageUrl);
 
-      // Save to temp file
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-      const tempFilePath = path.join(tempDir, `img_${Date.now()}.png`);
+      // Save to temp file — in a directory of its own (bd-c00np).
+      tmp = privateTempPath(tempDir, `img_${Date.now()}.png`);
+      const tempFilePath = tmp.filePath;
       fs.writeFileSync(tempFilePath, imageBuffer);
 
       logToFile('Image downloaded from R2, sending to WhatsApp', { tempFilePath, size: imageBuffer.length });
 
       // tempFilePath contains '/' so sendImage takes the upload-file branch.
       const result = await this.sendImage(to, tempFilePath, caption);
-
-      // Clean up temp file
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
 
       return result;
     } catch (error) {
@@ -860,6 +856,8 @@ class WhatsAppService {
         stack: error.stack
       });
       return false;
+    } finally {
+      removePrivateTemp(tmp);
     }
   }
 
@@ -931,11 +929,13 @@ class WhatsAppService {
    * @returns {Promise<boolean>}
    */
   static async sendVideo(to, videoBuffer, tempDir, caption = '') {
-    const path = require('path');
+    let tmp = null;
 
     try {
-      // Save video to temp file
-      const videoPath = path.join(tempDir, `video_${Date.now()}.mp4`);
+      // Save video to temp file — in a directory of its own (bd-c00np): two videos
+      // in one millisecond shared `video_<ms>.mp4`.
+      tmp = privateTempPath(tempDir, `video_${Date.now()}.mp4`);
+      const videoPath = tmp.filePath;
       fs.writeFileSync(videoPath, videoBuffer);
 
       logToFile('Uploading video to WhatsApp', { size: videoBuffer.length, path: videoPath });
@@ -988,9 +988,6 @@ class WhatsAppService {
         }
       );
 
-      // Clean up temp file
-      fs.unlinkSync(videoPath);
-
       logToFile('✅ Video message sent successfully', { response: sendResponse.data });
       return true;
     } catch (error) {
@@ -999,6 +996,8 @@ class WhatsAppService {
         errorDetails: error.response?.data
       });
       return false;
+    } finally {
+      removePrivateTemp(tmp);
     }
   }
 
@@ -1421,6 +1420,7 @@ class WhatsAppService {
   static async sendImageWithButtons(to, imageUrl, bodyText, buttons) {
     const path = require('path');
     const tempDir = path.join(__dirname, '../../temp');
+    let tmp = null;
 
     try {
       // WhatsApp allows max 3 buttons
@@ -1451,11 +1451,9 @@ class WhatsAppService {
         const key = extractKeyFromUrl(imageUrl);
         const imageBuffer = await downloadFromR2(key);
 
-        // Save to temp file
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
-        const tempFilePath = path.join(tempDir, `vocab_${Date.now()}.png`);
+        // Save to temp file — in a directory of its own (bd-c00np).
+        tmp = privateTempPath(tempDir, `vocab_${Date.now()}.png`);
+        const tempFilePath = tmp.filePath;
         fs.writeFileSync(tempFilePath, imageBuffer);
 
         logToFile('📤 Uploading image to WhatsApp Media API', { size: imageBuffer.length });
@@ -1482,10 +1480,8 @@ class WhatsAppService {
         const mediaId = uploadResponse.data.id;
         logToFile('✅ Image uploaded to WhatsApp', { mediaId });
 
-        // Clean up temp file
-        if (fs.existsSync(tempFilePath)) {
-          fs.unlinkSync(tempFilePath);
-        }
+        removePrivateTemp(tmp);
+        tmp = null;
 
         // Use media ID instead of link
         imageHeader = { id: mediaId };
@@ -1537,6 +1533,8 @@ class WhatsAppService {
         imageUrl
       });
       return false;
+    } finally {
+      removePrivateTemp(tmp);
     }
   }
 
@@ -1564,6 +1562,7 @@ class WhatsAppService {
   static async sendVideoWithButtons(to, videoUrl, bodyText, buttons, opts = {}) {
     const path = require('path');
     const tempDir = path.join(__dirname, '../../temp');
+    let tmp = null;
     try {
       if (!videoUrl || !Array.isArray(buttons) || !buttons.length || buttons.length > 3) {
         logToFile('⚠️ sendVideoWithButtons: bad arguments', { hasVideo: Boolean(videoUrl), count: buttons?.length });
@@ -1581,8 +1580,8 @@ class WhatsAppService {
       } else {
         const key = extractKeyFromUrl(videoUrl);
         const buffer = await downloadFromR2(key);
-        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-        const tempFilePath = path.join(tempDir, `hdr_${Date.now()}.mp4`);
+        tmp = privateTempPath(tempDir, `hdr_${Date.now()}.mp4`); // bd-c00np: own directory
+        const tempFilePath = tmp.filePath;
         fs.writeFileSync(tempFilePath, buffer);
         const formData = new FormData();
         formData.append('file', fs.createReadStream(tempFilePath), { contentType: 'video/mp4', filename: 'intro.mp4' });
@@ -1591,7 +1590,8 @@ class WhatsAppService {
           `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`, formData,
           { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, ...formData.getHeaders() } },
         );
-        try { fs.unlinkSync(tempFilePath); } catch { /* best effort */ }
+        removePrivateTemp(tmp);
+        tmp = null;
         videoHeader = { id: uploadResponse.data.id };
       }
 
@@ -1625,6 +1625,8 @@ class WhatsAppService {
         error: error.message, errorDetails: error.response?.data, videoUrl,
       }, 'error');
       return false;
+    } finally {
+      removePrivateTemp(tmp);
     }
   }
 
