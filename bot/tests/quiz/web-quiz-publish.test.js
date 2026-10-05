@@ -45,7 +45,8 @@ jest.mock('@aws-sdk/client-s3', () => {
 });
 
 const axios = require('axios');
-const { publishQuizAudio, audioKey } = require('../../shared/services/quiz/web-quiz-publish.service');
+const Publish = require('../../shared/services/quiz/web-quiz-publish.service');
+const { publishQuizAudio, audioKey } = Publish;
 const { presignAudio, presignVideo } = require('../../shared/services/quiz/web-quiz-media');
 
 const QUIZ_ID = '11111111-1111-4111-8111-111111111111';
@@ -142,6 +143,7 @@ describe('publishQuizAudio', () => {
       q: audioKey(QUIZ_ID, Q1, 'q', 'Which part of a plant takes in water?', 'en'),
       opts: [audioKey(QUIZ_ID, Q1, 'a', 'Roots', 'en'), audioKey(QUIZ_ID, Q1, 'b', 'Leaves', 'en'), audioKey(QUIZ_ID, Q1, 'c', 'Flower', 'en'), null],
       why: audioKey(QUIZ_ID, Q1, 'why', 'Roots drink water from the soil.', 'en'),
+      fbs: [null, null, null, null],
     });
     expect(mockLogEvent).toHaveBeenCalledWith('web_quiz.publish_audio', expect.objectContaining({
       quizId: QUIZ_ID, synthesized: 9, skipped: 0, failed: 0, providers: { elevenlabs: 9 },
@@ -321,6 +323,69 @@ describe('publishQuizAudio: the why clip is the reason, never praise (it is play
   });
 });
 
+describe('publishQuizAudio: the feedback for each wrong option is recorded too (the page says it after that pick)', () => {
+  const missing = async (cmd) => {
+    if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+    return {};
+  };
+  const said = () => axios.post.mock.calls.map((c) => c[1].text);
+
+  test('a row\'s option_feedback.wrong lines get clips on their option\'s slot (fbs), praise never', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.questions = [{ ...rows.questions[0], option_feedback: { correct: 'Well done!', wrong: { 1: 'Leaves make food from sunlight.', 2: 'Flowers make seeds.' } },
+      explanation: 'Roots drink water.' }];
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(said()).toEqual(expect.arrayContaining(['Leaves make food from sunlight.', 'Flowers make seeds.']));
+    expect(rows.quiz.meta.web.audio[Q1].fbs).toEqual([null, audioKey(QUIZ_ID, Q1, 'xb', 'Leaves make food from sunlight.', 'en'),
+      audioKey(QUIZ_ID, Q1, 'xc', 'Flowers make seeds.', 'en'), null]);
+  });
+
+  test('SCHEMA_v2: each option\'s own fb is recorded on that option\'s slot', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.questions = [{ ...rows.questions[1], media: { web: { v: 2, type: 'order', key: 'B,A', stem: 'Put them in order.', why: 'Seeds come first.',
+      options: [{ slot: 'A', text: 'Plant', fb: 'A plant grows from a seed.' }, { slot: 'B', text: 'Seed' }], read: { stem: 'Put them in order.', opts: ['plant', 'seed'] } } } }];
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(rows.quiz.meta.web.audio[Q2].fbs).toEqual([audioKey(QUIZ_ID, Q2, 'xa', 'A plant grows from a seed.', 'en'), null, null, null]);
+  });
+
+  test('a complete publish stamps the voice version, so it is not redone; a partial one does not', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(rows.quiz.meta.web.audio_v).toBe(2);
+    const rows2 = quizRows();
+    axios.post.mockReset(); axios.post.mockRejectedValue(new Error('vendor down'));
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows2) });
+    expect(rows2.quiz.meta.web.audio_v).toBeUndefined();
+  });
+});
+
+describe('ensureQuizAudio: a quiz gets its clips the first time its page is opened, once', () => {
+  test('publishes a quiz whose clips are missing or older than this voice version, once even when asked twice at once', async () => {
+    const publish = jest.fn().mockResolvedValue({ ok: true });
+    const a = Publish.ensureQuizAudio('quiz-1', { meta: { web: { audio: {} } }, publish });
+    const b = Publish.ensureQuizAudio('quiz-1', { meta: {}, publish });
+    await Promise.all([a, b]);
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenCalledWith('quiz-1', expect.any(Object));
+  });
+
+  test('a quiz already at this voice version is left alone', async () => {
+    const publish = jest.fn().mockResolvedValue({ ok: true });
+    await Publish.ensureQuizAudio('quiz-2', { meta: { web: { audio_v: Publish.AUDIO_VERSION } }, publish });
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  test('never throws, and does not retry a failing quiz on every page open', async () => {
+    const publish = jest.fn().mockRejectedValue(new Error('boom'));
+    await expect(Publish.ensureQuizAudio('quiz-3', { meta: {}, publish })).resolves.toBeDefined();
+    await Publish.ensureQuizAudio('quiz-3', { meta: {}, publish });
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('presignAudio / presignVideo', () => {
   test('turns stored keys into signed links per question, nulls kept', async () => {
     const meta = { web: { audio: { [Q1]: { q: `web-quiz/audio/${QUIZ_ID}/${Q1}/q.ogg`, opts: [`web-quiz/audio/${QUIZ_ID}/${Q1}/a.ogg`, null], why: null } } } };
@@ -329,6 +394,13 @@ describe('presignAudio / presignVideo', () => {
     expect(out[Q1].opts[0]).toMatch(/X-Amz-Expires=21600/);
     expect(out[Q1].opts[1]).toBeNull();
     expect(out[Q1].why).toBeNull();
+  });
+
+  test('signs the wrong-option feedback clips (fbs) too', async () => {
+    const meta = { web: { audio: { [Q1]: { q: null, opts: [], why: null, fbs: [null, `web-quiz/audio/${QUIZ_ID}/${Q1}/xb-abc.ogg`] } } } };
+    const out = await presignAudio(meta);
+    expect(out[Q1].fbs[0]).toBeNull();
+    expect(out[Q1].fbs[1]).toMatch(/xb-abc\.ogg\?.*X-Amz-Signature=/);
   });
 
   test('no audio in meta -> empty map (page falls back to the phone voice)', async () => {

@@ -24,7 +24,7 @@ async function sign(key, expiresIn) {
 
 /**
  * @param {object} meta  quizzes.meta
- * @returns {Promise<Object<string, {q: string|null, opts: Array<string|null>, why: string|null}>>}
+ * @returns {Promise<Object<string, {q: string|null, opts: Array<string|null>, why: string|null, fbs?: Array<string|null>}>>}
  */
 async function presignAudio(meta, { expiresIn = DEFAULT_EXPIRES } = {}) {
   const audio = meta && meta.web && meta.web.audio;
@@ -32,12 +32,13 @@ async function presignAudio(meta, { expiresIn = DEFAULT_EXPIRES } = {}) {
   const out = {};
   await Promise.all(Object.entries(audio).map(async ([qid, entry]) => {
     if (!entry || typeof entry !== 'object') return;
-    const [q, why, opts] = await Promise.all([
+    const [q, why, opts, fbs] = await Promise.all([
       sign(entry.q, expiresIn),
       sign(entry.why, expiresIn),
       Promise.all((Array.isArray(entry.opts) ? entry.opts : []).map((k) => sign(k, expiresIn))),
+      Promise.all((Array.isArray(entry.fbs) ? entry.fbs : []).map((k) => sign(k, expiresIn))),
     ]);
-    out[qid] = { q, opts, why };
+    out[qid] = fbs.some(Boolean) ? { q, opts, why, fbs } : { q, opts, why };
   }));
   return out;
 }
