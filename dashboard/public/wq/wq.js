@@ -124,7 +124,10 @@
   function kids() { return sget('wq_kids', []) || []; }
   function rememberKid(c) {
     if (!c || !c.chip) return;
-    var list = kids().filter(function (k) { return k.chip !== c.chip; });
+    // A remembered child playing the teacher's next quiz comes back under that quiz's chip.
+    // Same first name and same animal (the animal is fixed per child) is the same button on
+    // "Whose turn?", so it is kept once, with the newest chip.
+    var list = kids().filter(function (k) { return k.chip !== c.chip && !(k.first === c.first && k.animal === c.animal); });
     list.unshift({ chip: c.chip, first: c.first, animal: c.animal });
     sset('wq_kids', list.slice(0, 6));
   }
