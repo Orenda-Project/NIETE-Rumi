@@ -531,7 +531,7 @@ async function buildVersion({ parentId, userId, tree, schoolName: knownSchool })
     };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
-    logToFile('[assessment-revision] build failed', { userId, paperId, parentId, code, error: err.message });
+    logToFile('[assessment-revision] build failed', { userId, paperId, parentId, code, error: err.message }, 'error');
     await _patch(paperId, { status: 'failed', error_code: code, error_detail: String(err.message || '').slice(0, 200) });
     return { status: 'failed', code, paperId };
   }
