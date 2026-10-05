@@ -309,6 +309,23 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # bd-2508 — text-message.handler.js:1276: any slash command ends the reflective
     # conversation (status → abandoned) and falls through to the command.
 
+  @e2e @wip @new @edge @P1 @COA77
+  Scenario: Two teachers' voice notes arriving in the same moment are each heard from their own voice
+    Given two teachers at the coaching reflective step (or simply chatting by voice)
+    When both send a voice note that the bot processes in the same millisecond
+    Then each teacher's answer is transcribed from their own voice note and filed to their own session
+    And each teacher is answered about their own question — never the other teacher's
+    # ADDED 2026-10-05 (bd-x74wv). voice-message.handler.js staged every inbound voice note as
+    # TEMP_DIR/audio_${Date.now()}.ogg|.wav (comprehension_…, attendance_…, reading_… likewise) and
+    # AudioService.convertToWav staged its ffmpeg input as input_${Date.now()}.ogg; ffmpeg and the
+    # Soniox upload read those files after they were written, so two notes in one millisecond shared
+    # a path and the first teacher was transcribed and answered from the second teacher's voice.
+    # Each note now gets its own directory (bot/shared/utils/private-temp.js), removed in finally.
+    # Two real teachers cannot be raced to the millisecond by hand; the proof is jest —
+    # tests/handlers/voice-note-temp-collision.test.js (real handler + WhatsAppService + AudioService,
+    # Date.now pinned, network faked at axios/S3, Soniox upload reads its stream 200 ms late) and
+    # tests/handlers/audio-service-temp-collision.test.js.
+
   # ── NEGATIVE ──
   @e2e @wip @draft @negative @P2 @COA11
   Scenario: A teacher's under-15-minute recording does not start a coaching analysis
