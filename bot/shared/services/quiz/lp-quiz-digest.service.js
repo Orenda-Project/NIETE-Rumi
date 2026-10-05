@@ -508,8 +508,8 @@ function lessonDrewFor(slideScript, { authorGates = false } = {}) {
   return [drew, lessonDiagramsBlock(slideScript)].filter(Boolean).join('\n\n');
 }
 
-function buildLpDigestPrompt({ slideScript, language, grade, subject }) {
-  const c = carry(slideScript);
+function buildLpDigestPrompt({ slideScript, language, grade, subject, authorGates = false }) {
+  const c = carry(slideScript, { authorGates });
   return `You are reading the LESSON PLAN a teacher in a Pakistani government school was given and taught from today. Your job is to write a faithful DIGEST of what that lesson set out to teach — nothing more, nothing less. This digest will be used to write a short quiz for the children who sat in that lesson, so anything you invent will be tested on children who never met it.
 
 WHAT YOU KNOW ABOUT THIS LESSON:
@@ -544,7 +544,7 @@ Return ONLY this JSON object:
 }
 
 THE LESSON PLAN:
-${lessonExcerpts(slideScript)}`;
+${lessonExcerpts(slideScript, { authorGates })}`;
 }
 
 /**
@@ -570,7 +570,7 @@ ${lessonExcerpts(slideScript)}`;
  */
 async function run({
   slideScript, language = null, grade = null, subject = null, lessonId = null, lessonName: givenName = null,
-  quizSource = LP_V8,
+  quizSource = LP_V8, authorGates = false,
 }) {
   if (!isUsable(slideScript)) {
     // Loudly, and before the LLM call: an empty digest authored into a quiz is
@@ -582,7 +582,7 @@ async function run({
     err.code = SOURCE_UNUSABLE_CODE;
     throw err;
   }
-  const prompt = buildLpDigestPrompt({ slideScript, language, grade, subject });
+  const prompt = buildLpDigestPrompt({ slideScript, language, grade, subject, authorGates });
   const {
     json, model, costUsd, latencyMs,
   } = await completeJson({ prompt, label: 'lp_quiz.digest' });
