@@ -1423,6 +1423,13 @@ Feature: NIETE (ICT) Teacher Training
     And the WhatsApp quiz is unchanged
     # web-quiz-figure pictureHidden (media.picture_check.verdict contradicts|ignores); web-quiz.service questionImageOf + figureFor + playable + media(). Unit: bot/tests/quiz/web-quiz/web-quiz-picture-check.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P2 @T199 @no-mock-driver
+  Scenario: Pictures on my web quiz wear my organisation's colours
+    Given my organisation's web quiz is set to its own brand colours
+    When a child plays a question with a drawn picture, such as a fraction bar or a clock
+    Then the picture's main colour and its lines use the brand's colours, and the marks for right and not yet keep their usual colours
+    # wq.css .wq-svg svg (--amber/--amber-soft/--navy -> --brand/--brand-l/--brand-ink, !important over the inline palette). Unit: dashboard/tests/web-quiz-page-figure-theme.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T170 @no-mock-driver
   Scenario: The recorded "why" of a web quiz question is its reason, never praise
     Given a quiz question whose correct-answer feedback is only "Well done!" and whose explanation gives the reason
