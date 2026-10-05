@@ -128,6 +128,7 @@ html[lang=ur] .wq-why{line-height:2.3}
 .wq-star path{fill:var(--star-off)}
 .wq-star.wq-on path{fill:var(--gold);stroke:var(--gold-d);stroke-width:1}
 .wq-big{font-size:64px;font-weight:900;color:var(--navy);text-align:center;line-height:1}
+html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-center{text-align:center}
 .wq-scorecard{background:var(--card);border-radius:24px;box-shadow:0 4px 0 var(--line);overflow:hidden;text-align:center}
 .wq-scorecard header{background:var(--navy);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px;font-weight:900;letter-spacing:.06em;font-size:13px}
