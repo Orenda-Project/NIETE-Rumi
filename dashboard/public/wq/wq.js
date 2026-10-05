@@ -717,6 +717,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   function ani(a) { return '<span class="wq-ani">' + (ANIMALS[a] || '⭐') + '</span>'; }
   function fmtN(n) { return Number(n || 0).toLocaleString('en'); }
+  // Joins the non-empty parts with a middle dot, so a missing class label or topic never leaves "NIETE ·".
+  function dotJoin() { return Array.prototype.filter.call(arguments, function (x) { return x != null && String(x) !== ''; }).map(esc).join(' · '); }
   function link(path) { return location.origin + path; }
 
   /* ---------------- M3 landing ---------------- */
@@ -1083,7 +1085,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var c = res.card || {};
     var total = c.total || N;
     var h = bar() +
-      '<div class="wq-scorecard"><header><i></i>NIETE · ' + esc(CLS.label || '') + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard"><header><i></i>' + dotJoin('NIETE', CLS.label) + '</header><div class="wq-in">' +
       '<img src="' + IMG + 'celebrate.webp" alt="">' +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
       '<p class="wq-sub">' + esc(Q.topic) + '</p>' +
@@ -1122,7 +1124,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + esc(you.correct) + '/' + esc(you.total) + ' ⭐</td></tr>';
       }
       var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
-      var h = bar() + '<h2>' + esc(T.leagueT(CLASS_LABEL)) + '</h2><p class="wq-sub">' + esc(Q.topic) + ' · ' + esc(T.finN(b.finishers_n || 0)) + '</p>' +
+      var h = bar() + '<h2>' + esc(T.leagueT(CLASS_LABEL)) + '</h2><p class="wq-sub">' + dotJoin(Q.topic, T.finN(b.finishers_n || 0)) + '</p>' +
         (rows ? '<table class="wq-table"><tbody>' + rows + '</tbody></table>' : '<div class="wq-card">' + esc(T.noRows) + '</div>') +
         (b.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(b.more_n)) + '</p>' : '') +
         '<div class="wq-card wq-cmp">' +
@@ -1157,7 +1159,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         return '<li><span>' + esc(x.topic) + '<br><small class="wq-small">' + esc(x.date) + '</small></span><span>' + esc(x.correct) + '/' + esc(x.total) + ' ⭐</span></li>';
       }).join('') + '</ul>' +
         (fr.length ? '<p class="wq-sub">' + esc(T.friends) + '</p><ul class="wq-hist">' + fr.slice(0, 6).map(function (x) {
-          return '<li><span>' + esc(x.first) + ' · ' + esc(x.topic) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
+          return '<li><span>' + dotJoin(x.first, x.topic) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
         }).join('') + '</ul>' : '') +
         '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
       render(h, 'M13');
