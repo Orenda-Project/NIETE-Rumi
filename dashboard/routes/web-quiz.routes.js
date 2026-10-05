@@ -68,15 +68,16 @@ function ogText(payload, view) {
   const q = (payload && payload.quiz) || {};
   const cls = (payload && payload.cls) || {};
   const ur = q.lang === 'ur';
+  const label = cls.label || (ur ? 'جماعت' : 'Class');
   const n = q.n || (q.questions || []).length || 0;
   if (view === 'class') {
     return {
-      title: ur ? `${q.topic || ''} · ${cls.label || ''} کی لیگ ٹیبل` : `${q.topic || ''} · ${cls.label || ''} league table`,
+      title: ur ? `${q.topic || ''} · ${label} کی لیگ ٹیبل` : `${q.topic || ''} · ${label} league table`,
       desc: ur ? 'ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے۔' : 'Not played yet? Same link, still open.',
     };
   }
   return {
-    title: ur ? `${q.topic || ''} · ${cls.label || ''} کا کوئز` : `${q.topic || ''} · ${cls.label || ''} quiz`,
+    title: ur ? `${q.topic || ''} · ${label} کا کوئز` : `${q.topic || ''} · ${label} quiz`,
     desc: ur ? `${n} سوال · جگنو کے ساتھ پڑھیں` : `${n} questions · Jugnu reads it with you`,
   };
 }
