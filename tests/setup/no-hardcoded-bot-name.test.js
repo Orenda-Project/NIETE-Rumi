@@ -39,7 +39,12 @@ const SCANNED_FILES = [path.join(ROOT, 'bot', 'whatsapp-bot.js')];
 
 // `branding.js` is the DEFINITION of the name; its `|| 'Rumi'` open-source
 // template default is intentional (env overrides it) and must not be flagged.
-const SKIP_FILES = new Set([path.join(ROOT, 'bot', 'shared', 'config', 'branding.js')]);
+// `web-quiz-brand.js` is the web quiz's brand TABLE: each brand's name is data a
+// deployment selects by configuration (app_settings / ORG_NAME), not a self-name.
+const SKIP_FILES = new Set([
+  path.join(ROOT, 'bot', 'shared', 'config', 'branding.js'),
+  path.join(ROOT, 'bot', 'shared', 'config', 'web-quiz-brand.js'),
+]);
 
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '__mocks__', '__snapshots__']);
 
