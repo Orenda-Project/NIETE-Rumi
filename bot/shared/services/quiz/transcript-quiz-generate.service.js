@@ -207,6 +207,10 @@ const SOFT_FAULT = new RegExp('^('
   // Too few pictures in a grade 1-5 maths quiz (runFigureDensity): a quiz with
   // one picture is still a quiz, and refusals cost teachers quizzes.
   + '|FIGURE_FEW\\b'
+  // An English term in Urdu letters or Roman Urdu, named on its question
+  // (quiz_author_gates_v2 only — off, the validator never writes these codes):
+  // repaired in place (IN_PLACE_FAULT, below), never a reason to send nothing.
+  + '|q\\d+: URDU_(TRANSLITERATED|ROMAN)\\b'
   + ')');
 
 /**
@@ -247,8 +251,24 @@ const DUPLICATE_FAULT = /^q\d+: DUPLICATE_QUESTION\b/;
  * ships in English letters on transcript_quiz.latin_name.
  */
 const NAME_FAULT = /^q\d+: URDU_NAME_LATIN\b/;
+/**
+ * An English term in Urdu letters, or Roman Urdu, named on its question
+ * (URDU_TRANSLITERATED / URDU_ROMAN — quiz_author_gates_v2 only). The class may
+ * have said «انرجی»; the question is sound. Repaired in place by the same one
+ * targeted rewrite, shipped whatever that leaves, counted in meta.soft_faults.
+ */
+const TERM_SCRIPT_FAULT = /^q\d+: URDU_(TRANSLITERATED|ROMAN)\b/;
 /** A fault that is repaired IN PLACE and then shipped — never re-rolled, never dropped, never fatal. */
-const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}`);
+const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}|${TERM_SCRIPT_FAULT.source}`);
+/**
+ * SOFT WITH THE GATES ON. "SLOs uncovered" is a property of the SET: six sound
+ * questions covering four of five objectives beat sending nothing (the 7 Sep
+ * production watch named it the next refusal to tone down). With
+ * quiz_author_gates_v2 on it ships, counted; off, it is what it was.
+ */
+const SOFT_V2_ONLY = /^SLOs uncovered: /;
+/** A complaint the quiz may ship with, recorded. One definition for every step. */
+const isSoft = (e) => SOFT_FAULT.test(String(e)) || (GatesV2.enabled() && SOFT_V2_ONLY.test(String(e)));
 const inPlaceOnly = (errors) => Array.isArray(errors) && errors.length > 0 && errors.every((e) => IN_PLACE_FAULT.test(String(e)));
 /**
  * The teacher's notes on an Urdu quiz written in English (URDU_TEACHER_FIELDS).
@@ -639,13 +659,13 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
     if (IN_PLACE_FAULT.test(e)) return;
     const m = perQuestion.exec(e);
     if (m) bad.add(Number(m[1]));
-    else if (!setLevelSoft.test(e) && !SOFT_FAULT.test(e)) other = true;
+    else if (!setLevelSoft.test(e) && !isSoft(e)) other = true;
   });
   if (other) return { refused: 'a complaint about the set, not a question', errors };
   if (!bad.size) return { refused: 'nothing named a question to drop', errors };
   const kept = questions.filter((_, i) => !bad.has(i));
   if (kept.length < MIN_QUESTIONS) {
-    return { refused: `dropping ${bad.size} would leave ${kept.length}, under the floor of ${MIN_QUESTIONS}`, errors };
+    return { refused: `dropping ${bad.size} would leave ${kept.length}, under the floor of ${MIN_QUESTIONS}`, errors, floor: true };
   }
   const v = validate(kept, { ...ctx, nExpected: kept.length });
   // ONE definition of "shippable", shared with the soft-fault ship above: no
@@ -653,7 +673,7 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
   // These two used to disagree — the ship path allowed a set-level level-mix
   // fault and the drop path demanded a spotless remainder — so a drop that left
   // a soft fault was refused and the teacher got nothing.
-  const soft = v.errors.filter((e) => !SOFT_FAULT.test(String(e)));
+  const soft = v.errors.filter((e) => !isSoft(e));
   if (soft.length) return { refused: 'what survived did not validate', errors: soft, dropped: [...bad].sort((a, b) => a - b) };
   // sorted, so the event and the meta read the same way every time
   return { questions: v.questions, dropped: [...bad].sort((a, b) => a - b), softFaults: v.errors };
@@ -673,6 +693,93 @@ async function renderFor(api, { questions, rows, language, teacherId, quizId }) 
     api.renderCards({ rows, questions, language, teacherId, quizId }),
   ]);
   return { figureUrls, cardUrls };
+}
+
+/**
+ * REPLACE, DON'T REFUSE (quiz_author_gates_v2 only).
+ *
+ * The checks after the author — the source check, the key check, the blind
+ * solve — each rewrite what they reject and DROP what the rewrite could not
+ * fix, as far as the quiz's floor allows. Stacked, they ran out of floor: on a
+ * real grade 2 lesson the source check spent the two-question margin, the key
+ * check then found one contradiction it could not drop, and the teacher got no
+ * quiz (sandbox re-score, 5 Oct 2026). With the gates on, a hard fault the floor
+ * cannot spare gets ONE targeted call that writes a NEW question for each such
+ * slot from another moment of the lesson (REPLACE_FROM_SOURCE). A replacement
+ * is kept only when it passes the whole validator, carries its answer in the
+ * lesson (the source check, when the lesson text is known) and passes the
+ * caller's own re-check; anything else keeps the original in its slot and
+ * stays in `left`, for the caller to drop or refuse — with that reason.
+ *
+ * @returns {Promise<{questions:object[], replaced:number[], left:number[], costUsd:number, softFaults:string[]|null, error?:string}>}
+ */
+async function replaceFromSource(api, {
+  questions, indices, why, after, digest, language, gradeBand, quizId, lessonSummary, planned = false, knownNames = null,
+  sourceText = '', recheck, attempts,
+}) {
+  const out = {
+    questions, replaced: [], left: [...indices], costUsd: 0, softFaults: null, rejected: {},
+  };
+  const ctx = { language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId };
+  const errors = indices.map((i) => `q${i}: REPLACE_FROM_SOURCE — ${why}; write a different question for this slot from another moment of the lesson`);
+  let rw;
+  try {
+    rw = await api.rewriteRejected({
+      questions, errors, digest, language, gradeBand, quizId, lessonSummary, planned, knownNames, partial: true, authorGates: true,
+    });
+  } catch (err) {
+    out.error = String((err && err.message) || err).slice(0, 200);
+    rw = { attempted: false };
+  }
+  out.costUsd = Number(rw.costUsd) || 0;
+  const got = (rw.replaced || []).filter((i) => indices.includes(i));
+  if (got.length < indices.length) out.rejected.NOT_RETURNED = indices.length - got.length;
+  if (rw.attempted && rw.merged && got.length) {
+    const SF = require('./transcript-quiz-source-fidelity');
+    const carried = new Set(validate(questions, ctx).errors.map(String));
+    const v = validate(rw.merged, ctx);
+    const fresh = v.errors.filter((e) => !isSoft(e) && !carried.has(String(e)));
+    const named = new Set(fresh.map((e) => (/^q(\d+):/.exec(String(e)) || [])[1]).filter(Boolean).map(Number));
+    // a new fault on the SET, or on a question the call did not touch, is the call's: nothing is taken
+    const setFault = fresh.some((e) => { const m = /^q(\d+):/.exec(String(e)); return !m || !got.includes(Number(m[1])); });
+    // Why each slot's replacement was not taken: codes only (no lesson text, no names), for meta and the event.
+    const codeOf = (e) => String(e).replace(/^q\d+:\s*/, '').split(/\s|—/)[0];
+    if (setFault) fresh.forEach((e) => { out.rejected[codeOf(e)] = (out.rejected[codeOf(e)] || 0) + 1; });
+    let ok = setFault ? [] : got.filter((i) => {
+      if (!named.has(i)) return true;
+      fresh.filter((e) => new RegExp(`^q${i}:`).test(String(e))).forEach((e) => { out.rejected[codeOf(e)] = (out.rejected[codeOf(e)] || 0) + 1; });
+      return false;
+    });
+    if (sourceText) {
+      ok = ok.filter((i) => {
+        const hard = SF.questionFaults(v.questions[i] || {}, sourceText, { gradeBand }).filter((f) => f.code !== SF.CODES.STEM_LONG);
+        hard.forEach((f) => { out.rejected[f.code] = (out.rejected[f.code] || 0) + 1; });
+        return !hard.length;
+      });
+    }
+    const stillBad = ok.length ? await recheck(v.questions, ok) : new Set();
+    if (stillBad.size) out.rejected.RECHECK = stillBad.size;
+    ok = ok.filter((i) => !stillBad.has(i));
+    if (ok.length) {
+      const merged = v.questions.map((q, i) => (indices.includes(i) && !ok.includes(i) ? questions[i] : q));
+      const vf = validate(merged, ctx);
+      out.questions = vf.questions;
+      out.softFaults = vf.errors.length ? vf.errors : null;
+      out.replaced = ok;
+      out.left = indices.filter((i) => !ok.includes(i));
+    }
+  }
+  if (attempts) {
+    attempts.push({
+      attempt: 'replacement', after, indices, replaced: out.replaced, model: rw.model || null, cost_usd: rw.costUsd || null,
+      latency_ms: rw.latencyMs || null, rejected: out.rejected,
+      errors: out.left.length ? [rw.error || out.error || 'a replacement did not pass its checks'] : [],
+    });
+  }
+  logEvent('transcript_quiz.replacement', {
+    quizId, after, asked: indices.length, replaced: out.replaced.length, left: out.left.length, costUsd: out.costUsd, rejected: out.rejected,
+  });
+  return out;
 }
 
 /**
@@ -730,7 +837,7 @@ async function runFigureDensity(api, {
   const ctx = {
     language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
   };
-  const hard = (errs) => errs.filter((e) => !SOFT_FAULT.test(String(e)));
+  const hard = (errs) => errs.filter((e) => !isSoft(e));
   const qIndex = (e) => { const m = /^q(\d+):/.exec(String(e)); return m ? Number(m[1]) : null; };
   let current = questions;
   let currentV = null;
@@ -914,7 +1021,7 @@ async function runSourceFidelity(api, {
         const m = /^q(\d+):/.exec(String(e));
         return m ? replacedBad.includes(Number(m[1])) : !carried.has(String(e));
       };
-      if (v.errors.every((e) => SOFT_FAULT.test(String(e)) || !own(e))) {
+      if (v.errors.every((e) => isSoft(e) || !own(e))) {
         current = v.questions;
         softFaults = v.errors.length ? v.errors : null;
         replacedBad.forEach((i) => {
@@ -939,8 +1046,37 @@ async function runSourceFidelity(api, {
   // ── drop what is still refused; ship it only when the quiz would break ─────
   // Worst first: a quote that does not carry the answer before a stem that is only long.
   const onlyLong = (i) => SF.questionFaults(current[i] || {}, sourceText, { gradeBand }).every((f) => f.code === SF.CODES.STEM_LONG);
-  const gone = [...stillBad].sort((a, b) => (onlyLong(a) - onlyLong(b)) || (a - b));
-  const outcome = (i) => (stillBad.has(i) ? null : 'rewritten');
+  // quiz_author_gates_v2 — A SOFT FAULT NEVER SPENDS THE MARGIN. A stem the
+  // rewrite could not bring under eight words is a sound question a grade 1-2
+  // child hears read aloud on the web: it ships, counted as `kept_soft`, and the
+  // floor's room is kept for the hard faults the checks after this one find.
+  const v2 = GatesV2.enabled();
+  const softLeft = v2 ? [...stillBad].filter(onlyLong) : [];
+  let gone = [...stillBad].filter((i) => !softLeft.includes(i)).sort((a, b) => (onlyLong(a) - onlyLong(b)) || (a - b));
+  let replacedIdx = [];
+  const outcome = (i) => {
+    if (replacedIdx.includes(i)) return 'replaced';
+    if (softLeft.includes(i)) return 'kept_soft';
+    return stillBad.has(i) ? null : 'rewritten';
+  };
+  if (softLeft.length) record.kept_soft = softLeft.length;
+  // A hard fault the floor cannot spare: new questions from the lesson first.
+  if (v2 && gone.length > Math.max(0, current.length - MIN_QUESTIONS)) {
+    const r = await replaceFromSource(api, {
+      questions: current, indices: gone, why: 'its answer is still not carried by the lesson', after: 'source_fidelity',
+      digest, language, gradeBand, quizId, lessonSummary, planned, knownNames, sourceText, attempts,
+      recheck: async () => new Set(),
+    });
+    record.cost_usd += r.costUsd;
+    record.replaced = r.replaced.length;
+    if (r.replaced.length) {
+      current = r.questions;
+      softFaults = r.softFaults;
+      replacedIdx = r.replaced;
+      r.replaced.forEach((i) => stillBad.delete(i));
+      gone = gone.filter((i) => !r.replaced.includes(i));
+    }
+  }
   let cand = { questions: current, dropped: [], softFaults };
   if (gone.length) {
     const ctx = { language, subject: digest.subject, digest, quizId, lessonSummary };
@@ -954,8 +1090,8 @@ async function runSourceFidelity(api, {
     }
   }
   if (current === questions && !cand.dropped.length) {
-    record.kept_unfixed = gone.length;
-    record.status = 'kept_unfixed';
+    record.kept_unfixed = gone.length + softLeft.length;
+    record.status = (gone.length || !softLeft.length) ? 'kept_unfixed' : 'kept_soft';
     record.items.forEach((it) => { it.outcome = outcome(it.index) || 'kept_unfixed'; });
     return finish({ changed: false });
   }
@@ -965,8 +1101,9 @@ async function runSourceFidelity(api, {
       questions: cand.questions, rows: drafted, language, teacherId, quizId,
     });
     record.dropped = cand.dropped.length;
-    record.kept_unfixed = gone.length - cand.dropped.length;
-    record.status = record.kept_unfixed ? 'kept_unfixed' : (record.dropped ? 'dropped' : 'rewritten');
+    record.kept_unfixed = gone.length - cand.dropped.length + softLeft.length;
+    record.status = (gone.length - cand.dropped.length) ? 'kept_unfixed'
+      : (record.dropped ? 'dropped' : (replacedIdx.length ? 'replaced' : (softLeft.length ? 'kept_soft' : 'rewritten')));
     record.items.forEach((it) => {
       it.outcome = outcome(it.index) || (cand.dropped.includes(it.index) ? 'dropped' : 'kept_unfixed');
     });
@@ -1019,7 +1156,7 @@ async function runSourceFidelity(api, {
  */
 async function runKeyCheck(api, {
   questions, slideScript, digest, language, quizId, teacherId, lessonSummary, gradeBand, attempts, knownNames = null,
-  quizSource = LP_V8,
+  quizSource = LP_V8, sourceText = '',
 }) {
   const KeyCheck = require('./lp-quiz-key-check.service');
   const startedAt = Date.now();
@@ -1097,7 +1234,7 @@ async function runKeyCheck(api, {
       });
       verrs = v.errors;
       // The same bar every other shipped set meets: no hard fault left.
-      if (v.errors.every((e) => SOFT_FAULT.test(String(e)))) {
+      if (v.errors.every((e) => isSoft(e))) {
         let again = new Set();
         try {
           const re = await api.checkKeys({ questions: v.questions, slideScript, language, quizId, indices: replacedBad });
@@ -1125,17 +1262,47 @@ async function runKeyCheck(api, {
     });
   }
 
-  // ── 3. drop what still contradicts, or fail ─────────────────────────────────
+  // ── 3. drop what still contradicts — or, under the floor, replace it ──────
   const ctx = { language, subject: digest.subject, digest, quizId, lessonSummary };
-  const dropFrom = (set, indices) => {
+  let replacedOnce = false;
+  const dropFrom = async (set, indices) => {
     if (!indices.length) return { questions: set, dropped: [], softFaults };
     const errs = indices.map((i) => `q${i}: KEY_CONFLICT — still contradicts the lesson`);
     const s = salvageWithoutBadFigures(set, errs, ctx);
-    if (!s || s.refused) {
-      record.refused = (s && s.refused) || 'nothing could be dropped';
+    if (s && !s.refused) {
+      return { questions: s.questions, dropped: s.dropped, softFaults: (s.softFaults && s.softFaults.length) ? s.softFaults : null };
+    }
+    // quiz_author_gates_v2: under the floor, ONE call writes new questions from the lesson (replaceFromSource).
+    if (s && s.floor && GatesV2.enabled() && !replacedOnce) {
+      replacedOnce = true;
+      const r = await replaceFromSource(api, {
+        questions: set, indices, why: 'the lesson contradicts its key, and a repair did not fix it', after: 'key_check',
+        digest, language, gradeBand, quizId, lessonSummary, planned: true, knownNames, sourceText, attempts,
+        recheck: async (qs, idx) => {
+          try {
+            const re = await api.checkKeys({ questions: qs, slideScript, language, quizId, indices: idx });
+            record.cost_usd += Number(re.costUsd) || 0;
+            return new Set(re.verdicts.filter((x) => x.verdict === 'contradicts').map((x) => x.index));
+          } catch (err) {
+            record.recheck_error = failOpen('re-check', err);
+            return new Set();
+          }
+        },
+      });
+      record.cost_usd += r.costUsd;
+      record.replaced = r.replaced.length;
+      if (!r.left.length) return { questions: r.questions, dropped: [], softFaults: r.softFaults, replaced: r.replaced };
+      const s2 = r.replaced.length ? salvageWithoutBadFigures(r.questions, r.left.map((i) => `q${i}: KEY_CONFLICT — still contradicts the lesson`), ctx) : null;
+      if (s2 && !s2.refused) {
+        return {
+          questions: s2.questions, dropped: s2.dropped, softFaults: (s2.softFaults && s2.softFaults.length) ? s2.softFaults : null, replaced: r.replaced,
+        };
+      }
+      record.refused = `a replacement from the lesson was tried and ${r.left.length} of ${indices.length} still contradict it: ${(s2 && s2.refused) || s.refused}`;
       return null;
     }
-    return { questions: s.questions, dropped: s.dropped, softFaults: (s.softFaults && s.softFaults.length) ? s.softFaults : null };
+    record.refused = (s && s.refused) || 'nothing could be dropped';
+    return null;
   };
   const allBad = bad.map((v) => v.index);
   const candidates = [{ gone: [...stillBad].sort((a, b) => a - b), make: () => dropFrom(current, [...stillBad].sort((a, b) => a - b)) }];
@@ -1143,7 +1310,8 @@ async function runKeyCheck(api, {
   // flagged item. (When nothing was repaired it is the same set — not retried.)
   if (current !== questions) candidates.push({ gone: allBad, repairsLost: true, make: () => dropFrom(questions, allBad) });
   for (const { gone, repairsLost, make } of candidates) {
-    const cand = make();
+    // eslint-disable-next-line no-await-in-loop
+    const cand = await make();
     if (!cand) continue;
     try {
       const drafted = toRows(quizId, cand.questions);
@@ -1152,9 +1320,13 @@ async function runKeyCheck(api, {
         questions: cand.questions, rows: drafted, language, teacherId, quizId,
       });
       if (repairsLost) record.fixed = 0;
+      const replaced = cand.replaced || [];
       record.dropped = cand.dropped.length;
-      record.status = cand.dropped.length ? 'dropped' : 'fixed';
-      record.conflicts.forEach((c) => { c.outcome = gone.includes(c.index) ? 'dropped' : 'fixed'; });
+      record.status = replaced.length ? 'replaced' : (cand.dropped.length ? 'dropped' : 'fixed');
+      record.conflicts.forEach((c) => {
+        if (replaced.includes(c.index)) c.outcome = 'replaced';
+        else c.outcome = gone.includes(c.index) ? 'dropped' : 'fixed';
+      });
       attempts.push({ attempt: 'key_check_result', status: record.status, dropped: cand.dropped, errors: cand.softFaults || [] });
       return finish({
         changed: true, questions: cand.questions, figureUrls, cardUrls, draftedRows: drafted, softFaults: cand.softFaults,
@@ -1262,7 +1434,7 @@ async function runFinalSoftRepair(api, {
   const candidate = questions.map((q, i) => ((rw.replaced || []).includes(i)
     ? (textOnlyRepair(q, rw.merged[i], fieldsFor(i), { namesOnly: namesOnly(i) }) || q) : q));
   const after = validate(candidate, { ...ctx, nExpected: candidate.length });
-  const hard = after.errors.filter((e) => !SOFT_FAULT.test(String(e)));
+  const hard = after.errors.filter((e) => !isSoft(e));
   const inPlaceBefore = before.errors.filter((e) => FINAL_REPAIRABLE.test(e)).length;
   const inPlaceAfter = after.errors.filter((e) => FINAL_REPAIRABLE.test(e));
   if (hard.length) return keep('merged_set_invalid');
@@ -1416,6 +1588,7 @@ async function runSummaryTruth(api, {
  */
 async function runKeyVerify(api, {
   questions, digest, language, quizId, teacherId, lessonSummary, gradeBand, grade, quizSource, attempts, knownNames = null,
+  sourceText = '',
 }) {
   const KeyVerify = require('./transcript-quiz-key-verify.service');
   const startedAt = Date.now();
@@ -1611,7 +1784,7 @@ async function runKeyVerify(api, {
       });
       verrs = v.errors;
       // The same bar every other shipped set meets: no hard fault left.
-      if (v.errors.every((e) => SOFT_FAULT.test(String(e)))) {
+      if (v.errors.every((e) => isSoft(e))) {
         let again = new Set();
         if (replacedBad.length) {
           try {
@@ -1654,17 +1827,51 @@ async function runKeyVerify(api, {
     return finish({ changed: false, repeatFaults: repeatLeft() });
   }
 
-  // ── 3. drop what still disagrees, or fail ──────────────────────────────────
+  // ── 3. drop what still disagrees — or, under the floor, replace it ────────
   const ctx = { language, subject: digest.subject, digest, quizId, lessonSummary };
-  const dropFrom = (set, indices) => {
+  let replacedOnce = false;
+  const dropFrom = async (set, indices) => {
     if (!indices.length) return { questions: set, dropped: [], softFaults };
     const errs = indices.map((i) => `q${i}: KEY_DISAGREEMENT — a blind solver still disagrees with the key`);
     const s = salvageWithoutBadFigures(set, errs, ctx);
-    if (!s || s.refused) {
-      record.refused = (s && s.refused) || 'nothing could be dropped';
+    if (s && !s.refused) {
+      return { questions: s.questions, dropped: s.dropped, softFaults: (s.softFaults && s.softFaults.length) ? s.softFaults : null };
+    }
+    // quiz_author_gates_v2: under the floor, ONE call writes new questions from the lesson (replaceFromSource).
+    if (s && s.floor && GatesV2.enabled() && !replacedOnce) {
+      replacedOnce = true;
+      const r = await replaceFromSource(api, {
+        questions: set, indices, why: 'a blind solver still finds its key wrong after a repair', after: 'key_verify',
+        digest, language, gradeBand, quizId, lessonSummary, planned: isPlanQuiz(quizSource), knownNames, sourceText, attempts,
+        recheck: async (qs, idx) => {
+          try {
+            const re = await solve(qs, idx);
+            record.cost_usd += Number(re.costUsd) || 0;
+            // held to both solves, as the item it replaces was
+            const reBare = await withoutLesson(qs, re.verdicts, null);
+            record.cost_usd += reBare.costUsd;
+            return new Set(reBare.verdicts.filter(flagged).map((x) => x.index));
+          } catch (err) {
+            record.recheck_error = failOpen('re-solve', err);
+            return new Set();
+          }
+        },
+      });
+      record.cost_usd += r.costUsd;
+      record.replaced = r.replaced.length;
+      r.replaced.forEach((i) => repeatAt.delete(i));
+      if (!r.left.length) return { questions: r.questions, dropped: [], softFaults: r.softFaults, replaced: r.replaced };
+      const s2 = r.replaced.length ? salvageWithoutBadFigures(r.questions, r.left.map((i) => `q${i}: KEY_DISAGREEMENT — a blind solver still disagrees with the key`), ctx) : null;
+      if (s2 && !s2.refused) {
+        return {
+          questions: s2.questions, dropped: s2.dropped, softFaults: (s2.softFaults && s2.softFaults.length) ? s2.softFaults : null, replaced: r.replaced,
+        };
+      }
+      record.refused = `a replacement from the lesson was tried and ${r.left.length} of ${indices.length} still fail the blind solve: ${(s2 && s2.refused) || s.refused}`;
       return null;
     }
-    return { questions: s.questions, dropped: s.dropped, softFaults: (s.softFaults && s.softFaults.length) ? s.softFaults : null };
+    record.refused = (s && s.refused) || 'nothing could be dropped';
+    return null;
   };
   const allBad = bad.map((v) => v.index);
   const remaining = () => [...stillBad].sort((a, b) => a - b);
@@ -1673,7 +1880,8 @@ async function runKeyVerify(api, {
   // flagged item. (When nothing was repaired it is the same set — not retried.)
   if (current !== questions) candidates.push({ gone: allBad, repairsLost: true, make: () => dropFrom(questions, allBad) });
   for (const { gone, repairsLost, make } of candidates) {
-    const cand = make();
+    // eslint-disable-next-line no-await-in-loop
+    const cand = await make();
     if (!cand) continue;
     try {
       const drafted = toRows(quizId, cand.questions);
@@ -1686,10 +1894,14 @@ async function runKeyVerify(api, {
         record.same_fact.fixed = [];
         record.same_fact.shipped = [...new Set(record.same_fact.confirmed.map(([, j]) => j))].sort((a, b) => a - b);
       }
+      const replaced = cand.replaced || [];
       record.dropped = cand.dropped.length;
       // keys that were all true stay 'clean'; the repeats have their own record
-      record.status = !bad.length ? 'clean' : (cand.dropped.length ? 'dropped' : 'fixed');
-      record.disagreements.forEach((d) => { d.outcome = gone.includes(d.index) ? 'dropped' : 'fixed'; });
+      record.status = !bad.length ? 'clean' : (replaced.length ? 'replaced' : (cand.dropped.length ? 'dropped' : 'fixed'));
+      record.disagreements.forEach((d) => {
+        if (replaced.includes(d.index)) d.outcome = 'replaced';
+        else d.outcome = gone.includes(d.index) ? 'dropped' : 'fixed';
+      });
       attempts.push({ attempt: 'key_verify_result', status: record.status, dropped: cand.dropped, errors: cand.softFaults || [] });
       return finish({
         changed: true, questions: cand.questions, figureUrls, cardUrls, draftedRows: drafted, softFaults: cand.softFaults,
@@ -2412,11 +2624,11 @@ async function processQuiz(quizId, payload, flight) {
     // died on its third attempt with "only 3 of 8 at understand or apply").
     if (!questions && lastRejected && lastErrors) {
       const cand = rewritten || { questions: lastRejected, errors: lastErrors, lessonSummary: lastLessonSummary };
-      if (cand.errors.length && cand.errors.every((e) => SOFT_FAULT.test(String(e)))) {
+      if (cand.errors.length && cand.errors.every((e) => isSoft(e))) {
         const v = validate(cand.questions, {
           language, subject: digest.subject, digest, nExpected: N_QUESTIONS, lessonSummary: cand.lessonSummary || lastLessonSummary, quizId,
         });
-        if (v.errors.every((e) => SOFT_FAULT.test(String(e)))) {
+        if (v.errors.every((e) => isSoft(e))) {
           try {
             const drafted = toRows(quizId, v.questions);
             ({ figureUrls, cardUrls } = await renderFor(api, {
@@ -2466,11 +2678,15 @@ async function processQuiz(quizId, payload, flight) {
       if (dens.record.complaint) meta.soft_faults = [...(meta.soft_faults || []), dens.record.complaint];
     }
     // ── SOURCE FIDELITY (quiz_author_gates_v2 only, every source) ────────────
+    // The lesson's text, for the source check and — gates on — the replacement
+    // questions the key checks may ask for (replaceFromSource). Off: unused.
+    const lessonSourceText = !authorGates ? ''
+      : (isLp ? (slideScript ? LpDigest.lessonExcerpts(slideScript) : '') : (session && session.transcript_text) || '');
     if (authorGates) {
       const sf = await runSourceFidelity(api, {
         questions, digest, language, quizId, teacherId: quiz.teacher_id, lessonSummary: readyLessonSummary,
         gradeBand: digest.grade_band || meta.grade, attempts, knownNames: nameSpellings, planned: isLp, quizSource,
-        sourceText: isLp ? (slideScript ? LpDigest.lessonExcerpts(slideScript) : '') : (session && session.transcript_text) || '',
+        sourceText: lessonSourceText,
       });
       meta.source_fidelity = sf.record;
       meta.cost_usd = (meta.cost_usd || 0) + (sf.record.cost_usd || 0);
@@ -2490,7 +2706,7 @@ async function processQuiz(quizId, payload, flight) {
       const kc = await runKeyCheck(api, {
         questions, slideScript, digest, language, quizId, teacherId: quiz.teacher_id,
         lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade, attempts, knownNames: nameSpellings,
-        quizSource,
+        quizSource, sourceText: lessonSourceText,
       });
       meta.key_check = kc.record;
       meta.cost_usd = (meta.cost_usd || 0) + (kc.record.cost_usd || 0);
@@ -2516,6 +2732,7 @@ async function processQuiz(quizId, payload, flight) {
       questions, digest, language, quizId, teacherId: quiz.teacher_id,
       lessonSummary: readyLessonSummary, gradeBand: digest.grade_band || meta.grade,
       grade: quiz.grade || meta.grade || digest.grade_band || null, quizSource, attempts, knownNames: nameSpellings,
+      sourceText: lessonSourceText,
     });
     meta.key_verify = kv.record;
     meta.cost_usd = (meta.cost_usd || 0) + (kv.record.cost_usd || 0);
@@ -2669,6 +2886,8 @@ module.exports = {
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
   // the source-fidelity step, exported for the offline measurement of its gates
   runSourceFidelity,
+  // the key check and the blind solve, exported for their floor-replacement tests and offline measurement
+  runKeyCheck, runKeyVerify,
   // app_settings quiz_author_gates_v2 (fail-closed), read once per quiz.
   // The flag is read ONCE per quiz, at process() entry (runWithAuthorGates); this returns that value, no second read.
   authorGatesOn: async () => require('./quiz-author-gates').authorGatesOn({}),
