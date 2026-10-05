@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(KeepScreenPlugin.class);
+        registerPlugin(CertificateFilePlugin.class);
         super.onCreate(savedInstanceState);
     }
 
