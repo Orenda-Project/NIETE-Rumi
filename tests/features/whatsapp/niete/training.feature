@@ -1498,6 +1498,27 @@ Feature: NIETE (ICT) Teacher Training
     And a video the child skipped or finished does not come back; the questions do
     # wq.js video() S.vt/S.vdone + resume(). Unit: dashboard/tests/web-quiz-page-inapp.service.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T193 @no-mock-driver
+  Scenario: After the quiz, a child watches another lesson video and takes its quiz without leaving the page
+    Given a child has finished a web quiz whose class has a grade
+    When the child taps "Watch another video" on the results, the scorecard or the "today" screen
+    Then the page lists up to 8 lessons of the class's grade, the quiz's subject first, each with its title, minutes and size, a poster or a subject picture, and "Done" on lessons the child already finished
+    When the child picks a lesson
+    Then the same view opens that lesson's quiz, plays its video first and then its questions, as the same child with no name to pick
+    And the score joins the child's history
+    And Back on the list returns to the scorecard
+    # web-quiz-videos.js list/start (E11/E12), wq.js moreVideos/pickVideo/handover. @wip.
+    # Unit: bot/tests/quiz/web-quiz/web-quiz-videos.test.js, dashboard/tests/web-quiz-page-more.service.test.js.
+
+  @api @quiz @web @wip @draft @P1 @T194 @no-mock-driver
+  Scenario: A lesson picked from "Watch another video" keeps the teacher's name and sends the teacher no extra report
+    Given a child of my class picks a lesson from "Watch another video"
+    Then that lesson plays under ONE code for my class and that video, made the first time a child of my class picks it, carrying my name
+    And every later child of my class who picks it plays under the same code, with its own league table
+    And no 12-hour report is scheduled for that code, because I did not send it
+    And a friend's challenge code still counts toward the class it came from, as before
+    # web-quiz.service resolveCode (collapse only with an inviter) + startSession (from_st; no schedule for a "more videos" code). @wip.
+
   @api @quiz @wip @draft @config-gated @P1 @T130 @no-mock-driver
   Scenario: With the author gates on, every quiz question carries the moment of my lesson that holds its answer
     Given app_settings "quiz_author_gates_v2" is true

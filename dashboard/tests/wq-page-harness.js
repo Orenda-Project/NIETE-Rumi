@@ -29,7 +29,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '' } = {}) {
+function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3 } = {}) {
   const els = {};
   const root = fakeEl('#wq');
   root.innerHTML = '';
@@ -41,7 +41,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const boot = {
     textContent: JSON.stringify({
       code: 'TEST', cls, live: {}, video,
-      quiz: { code: 'TEST', lang, topic, grade: 3, questions: [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
+      quiz: { code: 'TEST', lang, topic, grade, questions: [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
     }),
   };
   const ls = new Map(Object.entries(store).map(([k, v]) => [k, JSON.stringify(v)]));

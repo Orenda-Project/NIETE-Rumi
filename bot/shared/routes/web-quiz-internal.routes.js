@@ -13,11 +13,14 @@
  *   POST /me                    E7 a phone's children: past scores, friends finished
  *   POST /e                     E8 page events -> logs (allow-listed, no PII)
  *   GET  /media/:code/:qid      E10 302 to a presigned picture (or the bytes)
+ *   GET  /videos/:code          E11 "watch another video": lessons of the quiz's grade
+ *   POST /videos/start          E12 the code for one of them (minted once per class code)
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
 const { logToFile } = require('../utils/logger');
 const WebQuiz = require('../services/quiz/web-quiz.service');
+const WebQuizVideos = require('../services/quiz/web-quiz-videos');
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -51,5 +54,7 @@ router.post('/who', handle((req) => WebQuiz.whoPlayed(req.body || {})));
 router.post('/who/fix', handle((req) => WebQuiz.fixWho(req.body || {})));
 router.post('/e', handle(async (req, res) => { WebQuiz.events(req.body || {}); res.status(204).end(); }));
 router.get('/media/:code/:qid', handle((req) => WebQuiz.media(req.params.code, req.params.qid, { k: req.query.k })));
+router.get('/videos/:code', handle((req) => WebQuizVideos.list(req.params.code, { st: req.query.st })));
+router.post('/videos/start', handle((req) => WebQuizVideos.start(req.body || {})));
 
 module.exports = router;

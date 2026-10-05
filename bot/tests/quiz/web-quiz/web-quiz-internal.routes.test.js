@@ -54,3 +54,11 @@ test("the teacher's who-played routes are mounted and keep the service's refusal
   const fix = await fetch(`${base}/who/fix`, { method: 'POST', headers: KEY, body: JSON.stringify({ code: 'EXPD01', p: 'x', ref: 's', roll: 1 }) });
   expect(fix.status).toBe(410);
 });
+
+test('"watch another video": list and start are mounted behind the key, service errors keep their status', async () => {
+  expect((await fetch(`${base}/videos/EXPD01`)).status).toBe(401);
+  const gone = await fetch(`${base}/videos/EXPD01`, { headers: KEY });
+  expect(gone.status).toBe(410);
+  const bad = await fetch(`${base}/videos/start`, { method: 'POST', headers: KEY, body: JSON.stringify({ code: 'NOPE99', st: 'x', vid: 'y' }) });
+  expect(bad.status).toBe(404);
+});
