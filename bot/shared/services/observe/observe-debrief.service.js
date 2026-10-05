@@ -243,9 +243,13 @@ function sendReportRowMeta(sess) {
  */
 const STAGE_A_STATUSES = ['confirmed', 'transcribing', 'analyzing', 'analysis_started',
   'analysis_complete', 'awaiting_photo', 'awaiting_classroom_photo', 'awaiting_lesson_plan',
-  'awaiting_observer_review', 'failed'];
+  'awaiting_observer_review', 'failed',
+  // /observe2: waiting for the coach at its own step (the check, or the form still to seal). When that
+  // message never reached the coach, this list is the only way back to the visit (5 Oct 2026).
+  'observe2_ready', 'observe2_checking'];
 
 function resumeKindFor(status, updatedAt, nowMs = Date.now()) {
+  if (String(status || '').startsWith('observe2_')) return 'observe2';
   if (['awaiting_photo', 'awaiting_classroom_photo', 'awaiting_lesson_plan'].includes(status)) return 'gate';
   if (status === 'awaiting_observer_review') return 'form';
   if (status === 'failed') return 'retry';
