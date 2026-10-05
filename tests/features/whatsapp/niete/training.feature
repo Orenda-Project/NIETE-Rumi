@@ -1491,6 +1491,24 @@ Feature: NIETE (ICT) Teacher Training
     # wq.js mascot block (jugImg, jugWake, jugStop); assets dashboard/public/wq/jugnu/<pose>_<k>.webm|.webp.
     # Unit: dashboard/tests/web-quiz-mascot.service.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T201 @no-mock-driver
+  Scenario: An Urdu quiz opens in a Nastaliq font a child can read, from the first screen
+    Given a web quiz in Urdu, opened on an Android phone on a slow connection
+    When the first screen appears
+    Then its Urdu is already in the quiz's Nastaliq font, never first in an Arabic-style font that later jumps
+    And the font comes from the portal itself as one small file, and an English quiz does not download it
+    # web-quiz.routes head(): preload /wq/fonts/wq-nastaliq-1.woff2 (Beaconhouse Nastaliq, OFL, Urdu subset);
+    # wq.css @font-face "WQ Nastaliq". Unit: dashboard/tests/web-quiz-urdu-font.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T202 @no-mock-driver
+  Scenario: No Urdu line sits on another on any quiz screen
+    Given a web quiz in Urdu with long questions, numbers, fractions and English words in its questions and reasons
+    When the child plays it to the end on a small phone and on a large phone
+    Then no line of Urdu touches the line above or below it, and no letter, badge or animal spills out of its button, chip or card
+    And there is a clear space between words
+    # wq.css html[lang=ur] rules (word-spacing, line-heights, emoji/icon line boxes, feedback width).
+    # Unit: dashboard/tests/web-quiz-urdu-font.service.test.js; screen-by-screen measure in the PR. @wip.
+
   @api @quiz @web @wip @draft @P2 @T161 @no-mock-driver
   Scenario: A tap anywhere on the lesson video starts it, and a video with no poster is not a dark box
     Given a web quiz with a lesson video
