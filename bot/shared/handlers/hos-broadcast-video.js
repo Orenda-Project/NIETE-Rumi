@@ -29,15 +29,29 @@ function matchHosVideoButton({ buttonPayload, buttonText } = {}) {
   return null;
 }
 
-/** Sends the video for `kind`; on any miss, says so instead of going silent. */
-async function sendHosVideo(kind, to, { sendVideoByLink, sendMessage, env = process.env, log = () => {} }) {
+/**
+ * Sends the video for `kind`; on any miss, says so instead of going silent.
+ * `resolveUrl` signs a private-bucket link at tap time, so the stored link
+ * never expires while the broadcast is still being tapped.
+ */
+async function sendHosVideo(kind, to, {
+  sendVideoByLink, sendMessage, resolveUrl = async (u) => u, env = process.env, log = () => {},
+}) {
   const url = env[HOS_VIDEO_BUTTONS[kind].urlEnv];
   if (!url) {
     log('hos.video.unconfigured', { kind, to });
     await sendMessage(to, SEND_FAILED_TEXT);
     return false;
   }
-  const ok = await sendVideoByLink(to, url);
+  let link;
+  try {
+    link = await resolveUrl(url);
+  } catch (error) {
+    log('hos.video.failed', { kind, to, error: error.message });
+    await sendMessage(to, SEND_FAILED_TEXT);
+    return false;
+  }
+  const ok = await sendVideoByLink(to, link);
   log(ok ? 'hos.video.sent' : 'hos.video.failed', { kind, to });
   if (!ok) await sendMessage(to, SEND_FAILED_TEXT);
   return ok;
