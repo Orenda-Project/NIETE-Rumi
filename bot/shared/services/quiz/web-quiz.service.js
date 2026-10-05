@@ -82,7 +82,9 @@ const SC_COLS = 'id, code, quiz_id, video_id, teacher_user_id, teacher_name, top
 /**
  * Resolve a class code or a friend's challenge code. A challenge code collapses
  * to its PARENT (the teacher's code), exactly as resolveInvite does for
- * WhatsApp, so the child counts toward the same class report.
+ * WhatsApp, so the child counts toward the same class report. A code with a
+ * parent and NO inviter is a "watch another video" code (web-quiz-videos.js):
+ * it plays its own video quiz, so it is not collapsed.
  */
 async function resolveCode(rawCode) {
   const code = String(rawCode || '').trim().toUpperCase();
@@ -94,7 +96,7 @@ async function resolveCode(rawCode) {
   // The same test beginFromCode applies to the code that was used.
   if (!sc.active || (sc.expires_at && new Date(sc.expires_at) < new Date())) fail(410, 'expired', { lang });
   let parent = sc;
-  if (sc.parent_share_code_id) {
+  if (sc.parent_share_code_id && sc.invited_by_student_id) {
     const { data: p } = await supabase.from('quiz_share_codes').select(SC_COLS).eq('id', sc.parent_share_code_id).maybeSingle();
     if (p) parent = p;
   }
@@ -104,6 +106,7 @@ async function resolveCode(rawCode) {
     quizId: parent.quiz_id || sc.quiz_id,
     teacherUserId: parent.teacher_user_id,
     invitedByStudentId: sc.invited_by_student_id || null,
+    moreVideosOf: sc.parent_share_code_id && !sc.invited_by_student_id ? sc.parent_share_code_id : null,
   };
 }
 
@@ -369,7 +372,8 @@ async function getQuiz(code, { p } = {}) {
   // report's class heading for this code (null until a child has finished).
   let label = null;
   try {
-    const cls = await require('./video-quiz-report.service').loadClassRows(ctx.shareCodeId);
+    // A "watch another video" code is named after the class code it came from.
+    const cls = await require('./video-quiz-report.service').loadClassRows(ctx.moreVideosOf || ctx.shareCodeId);
     label = (cls && cls.className) || null;
   } catch { label = null; }
   const out = {
@@ -586,6 +590,22 @@ async function startSession(body = {}) {
       const listed = roster ? roster.kids.find((k) => k.id === hit.studentId) : null;
       if (listed) student = { ...student, self_reported_class: Roster.classOf(roster, listed) };
     }
+  } else if (body.from_st) {
+    // "Watch another video": the session token of the quiz the child just played says who they
+    // are. Accepted only for a session on a code of the same teacher.
+    const tok = T.verify(body.from_st, 's');
+    if (!tok || !tok.sid) fail(401, 'bad_token');
+    const { data: prev } = await supabase.from('quiz_sessions').select('student_id, share_code_id, user_id').eq('id', tok.sid).maybeSingle();
+    if (!prev || !prev.student_id || prev.user_id) fail(401, 'bad_token');
+    const { data: prevCode } = await supabase.from('quiz_share_codes').select('teacher_user_id').eq('id', prev.share_code_id).maybeSingle();
+    if (!prevCode || prevCode.teacher_user_id !== ctx.teacherUserId) fail(401, 'bad_token');
+    const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class').eq('id', prev.student_id).maybeSingle();
+    if (!st) fail(401, 'bad_token');
+    student = st;
+    // A class-list child keeps the list's class (as the chip branch does).
+    const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
+    const listed = roster ? roster.kids.find((k) => k.id === st.id) : null;
+    if (listed) student = { ...student, self_reported_class: Roster.classOf(roster, listed) };
   } else if (body.new && typeof body.new === 'object') {
     const name = cleanName(body.new.name);
     if (!name) fail(400, 'bad_request', { why: 'name' });
@@ -654,15 +674,16 @@ async function startSession(body = {}) {
   // the first join of a code schedules the teacher's 12-hour report; later
   // joins are de-duplicated inside scheduleForShareCode.
   try {
-    const report = require('./video-quiz-report.service');
-    await report.scheduleForShareCode(ctx.shareCodeId);
+    // A "watch another video" code was never sent by the teacher: no report of its own (a paid message).
+    if (!ctx.moreVideosOf) await require('./video-quiz-report.service').scheduleForShareCode(ctx.shareCodeId);
   } catch (e) {
     logToFile('⚠️ web-quiz: report scheduling failed (the quiz still runs)', { shareCodeId: ctx.shareCodeId, error: e.message });
   }
   const counted = countedFor(prior, deviceRef, Boolean(userId));
   logEvent('web_quiz.session_started', {
     sessionId: session.id, shareCodeId: ctx.shareCodeId, quizId: ctx.quizId,
-    preview: Boolean(userId), returning: Boolean(body.chip), counted: counted.counted,
+    preview: Boolean(userId), returning: Boolean(body.chip || body.from_st), counted: counted.counted,
+    ...(ctx.moreVideosOf ? { moreVideos: true } : {}),
     // How the page identified the child (roll / name / remembered / chips / new): measures each path.
     via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
   });
