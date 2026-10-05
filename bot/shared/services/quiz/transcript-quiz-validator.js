@@ -924,7 +924,7 @@ function validate(rawQuestions, ctx = {}) {
   // it is quiz-level, so it is checked here beside the questions rather than in
   // a second pass a caller could forget.
   pedagogyDefects(qs.map(plainView), {
-    language, digest, quizId, ...(checkD4 ? { lessonSummary } : {}),
+    language, digest, quizId, ...(checkD4 ? { lessonSummary } : {}), authorGates: GatesV2.enabled(ctx.authorGates),
   }).forEach((d) => errs.push(d.message));
 
   return { ok: errs.length === 0, errors: errs, questions: qs };

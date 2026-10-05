@@ -2283,7 +2283,7 @@ async function processQuiz(quizId, payload, flight) {
           // An lp_v8 quiz has no transcript: the author reads the planned
           // lesson — the same picker the digest used, so the exit MCQ and the
           // plan's gendered prose are absent here too.
-          ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript), lessonDrew } : {}),
+          ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript, { authorGates }), lessonDrew } : {}),
           ...(authorGates ? { authorGates: true } : {}),
         });
       } catch (err) {
@@ -2701,7 +2701,7 @@ async function processQuiz(quizId, payload, flight) {
     // The lesson's text, for the source check and — gates on — the replacement
     // questions the key checks may ask for (replaceFromSource). Off: unused.
     const lessonSourceText = !authorGates ? ''
-      : (isLp ? (slideScript ? LpDigest.lessonExcerpts(slideScript) : '') : (session && session.transcript_text) || '');
+      : (isLp ? (slideScript ? LpDigest.lessonExcerpts(slideScript, { authorGates }) : '') : (session && session.transcript_text) || '');
     if (authorGates) {
       const sf = await runSourceFidelity(api, {
         questions, digest, language, quizId, teacherId: quiz.teacher_id, lessonSummary: readyLessonSummary,

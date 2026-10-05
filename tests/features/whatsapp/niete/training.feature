@@ -1799,3 +1799,14 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-meta-stem metaStemError (META_STEM), wired in transcript-quiz-validator validate();
     # generate META_FAULT (soft, in place); META_REPAIR in transcript-quiz-rewrite.
     # Unit: tests/quiz/quiz-author-gates-meta-stem.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P2 @T184 @no-mock-driver
+  Scenario: With the author gates on, a named character in my lesson keeps their own words
+    Given app_settings "quiz_author_gates_v2" is true
+    And my lesson plan says "Ahmed WAS WRITING his letter, the phone rang"
+    When my class quiz is made from my lesson
+    Then a question built on that sentence says "his letter", not "their letter"
+    And a pronoun about me, the teacher, is still never sent ("She says…" becomes "The teacher says…")
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-named-pronouns namedAntecedent; lp-quiz-digest degender/carry/lessonExcerpts { authorGates };
+    # transcript-quiz-pedagogy genderedTeacherForms { authorGates }. Unit: tests/quiz/quiz-author-gates-named-pronouns.test.js. @wip.
