@@ -1506,7 +1506,7 @@ Feature: NIETE (ICT) Teacher Training
     When the child plays it to the end on a small phone and on a large phone
     Then no line of Urdu touches the line above or below it, and no letter, badge or animal spills out of its button, chip or card
     And there is a clear space between words
-    # wq.css html[lang=ur] rules (word-spacing, line-heights, emoji/icon line boxes, feedback width).
+    # wq.css html[lang=ur] rules (word-spacing on body and buttons, line-heights, emoji/icon line boxes, feedback width).
     # Unit: dashboard/tests/web-quiz-urdu-font.service.test.js; screen-by-screen measure in the PR. @wip.
 
   @api @quiz @web @wip @draft @P2 @T161 @no-mock-driver
