@@ -118,6 +118,34 @@ function wire({ quiz = LP612_QUIZ } = {}) {
 }
 const quizUpdates = () => supabase.from.callsFor('quizzes').flat().filter((c) => c[0] === 'update').map((u) => u[1]);
 
+describe('process — quiz_author_gates_v2 hands the author the lesson\'s own diagrams', () => {
+  const gatesRow = (on) => (calls) => (calls.some((c) => c[0] === 'eq' && c[2] === 'quiz_author_gates_v2')
+    ? { data: on ? [{ key: 'quiz_author_gates_v2', value: true }] : [] } : { data: [] });
+  function wireGates(on) {
+    installFrom(supabase.from, ({
+      quizzes: (calls) => (calls.some((c) => c[0] === 'update') ? { data: [{ id: QID }] } : { data: [LP612_QUIZ] }),
+      quiz_questions: (calls) => (calls.some((c) => c[0] === 'insert') ? { data: null, error: null } : { data: [] }),
+      users: { data: [USER] },
+      app_settings: gatesRow(on),
+    }));
+  }
+  test('flag on: the board diagram and the development diagram reach the author as specs', async () => {
+    wireGates(true);
+    await Gen.process(QID, {});
+    const { lessonDrew } = Author.author.mock.calls[0][0];
+    expect(lessonDrew).toContain("THE LESSON'S OWN DIAGRAMS");
+    expect(lessonDrew).toContain('"type":"grid","rows":10,"cols":10,"shaded":25');
+    expect(lessonDrew).toContain('"type":"geometry"');
+  });
+  test('flag off: the author is told exactly what it is told today', async () => {
+    wireGates(false);
+    await Gen.process(QID, {});
+    const { lessonDrew } = Author.author.mock.calls[0][0];
+    expect(lessonDrew).toBe(LpDigest.lessonDrewBlock(Source.toSlideScript(DOC, { lang: 'en' })));
+    expect(lessonDrew).not.toContain('OWN DIAGRAMS');
+  });
+});
+
 describe('process — an lp612 quiz is written from the 6-12 lesson the teacher was served', () => {
   test('reads that exact document, digests it through the LP path, authors, checks keys and ships', async () => {
     wire();

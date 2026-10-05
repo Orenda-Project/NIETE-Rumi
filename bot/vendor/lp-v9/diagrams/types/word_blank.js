@@ -33,6 +33,10 @@
 //   letters  ["c","a","t"]                  optional explicit split (digraphs)
 //   picto    "cat"                          optional pictogram name (lib/pictogram.js)
 //   style    "inline" | "tiles"             default inline for Latin, tiles for Urdu
+//   keepMarks true: a blank tile still shows the MARKS of the hidden letter
+//             (shadda, zer, zabar…) on a kashida — for a lesson about the mark,
+//             where hiding it hides the thing being taught. Never set it when
+//             the options differ by that mark: then the mark is the answer.
 //   lang     "en" | "ur"
 
 const { Svg, C, SIZE, measure, hasUrdu } = require("../lib/svg");
@@ -123,7 +127,17 @@ function render(spec) {
           sw: blank ? 2.6 : 1.6,
           dash: blank ? "7 6" : undefined,
         });
-        if (blank) return; // an empty box IS the question; never print the answer
+        if (blank) {
+          // an empty box IS the question; never print the answer — except the
+          // mark the lesson is about, on a kashida, when the spec asks for it
+          const marks = spec.keepMarks === true ? [...letter].filter((ch) => COMBINING.test(ch)).join("") : "";
+          if (marks) {
+            svg.text(tx + TILE / 2, y + TILE / 2, `\u0640${marks}`, {
+              size: LETTER, weight: 700, anchor: "middle", baseline: "middle", fill: C.accent,
+            });
+          }
+          return;
+        }
         svg.text(tx + TILE / 2, y + TILE / 2, letter, {
           size: LETTER, weight: 700, anchor: "middle", baseline: "middle", fill: C.ink,
         });

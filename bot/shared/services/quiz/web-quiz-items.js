@@ -36,6 +36,7 @@ const {
   languageRule, MATH_NOTATION_RULE, ADJACENT_TERMS_RULE_TEXT, CHILD_ADDRESS_RULE_TEXT,
 } = require('./web-quiz-items-rules');
 
+const AuthorGates = require('./quiz-author-gates');
 const ITEMS_KEY = 'web_quiz_items_v2';
 const SLOTS = ['A', 'B', 'C', 'D'];
 
@@ -268,6 +269,7 @@ function normaliseItem(raw, row, index, ctx = {}) {
   const r = raw && typeof raw === 'object' ? raw : {};
   const language = ctx.language || 'en';
   const band = bandOf(ctx.gradeBand);
+  const gates = AuthorGates.authorGatesOn(ctx);
   if (NOT_IN_PILOT.has(r.type)) return { item: null, reason: 'not_in_pilot' };
   let type = TYPES.has(r.type) ? r.type : 'single';
   const rowIsMulti = String(row.correct_option || '').includes(',');
@@ -285,7 +287,9 @@ function normaliseItem(raw, row, index, ctx = {}) {
 
   if (SAME_TYPES.has(type)) {
     const pics = Array.isArray(r.pics) ? r.pics.map(validPic) : [];
-    const allPics = base.length > 0 && base.every((o, i) => pics[i] && picFits(o.text, pics[i]));
+    // quiz_author_gates_v2: two options drawn with the same pictogram are the same picture.
+    const samePic = gates && new Set(pics.filter(Boolean).map((p) => p.name)).size < pics.filter(Boolean).length;
+    const allPics = !samePic && base.length > 0 && base.every((o, i) => pics[i] && picFits(o.text, pics[i]));
     // Options that ARE letters or marks: glyph tiles, heard by name (a pre-reader's letter question).
     const glyphs = base.length > 0 && base.every((o) => isGlyph(o.text));
     if (glyphs) {
@@ -293,7 +297,9 @@ function normaliseItem(raw, row, index, ctx = {}) {
       type = band === '1-2' ? 'listen' : 'picture';
     } else if ((type === 'picture' || type === 'listen') && !allPics) type = 'single';
     if (type === 'listen' && band !== '1-2') type = 'picture';
-    const readOpts = Array.isArray(r.read && r.read.opts) ? r.read.opts : [];
+    let readOpts = Array.isArray(r.read && r.read.opts) ? r.read.opts : [];
+    // quiz_author_gates_v2: the voice says the label that is DRAWN (P, Q, R), never "Picture A".
+    if (gates) readOpts = readOpts.map((t) => (AuthorGates.PICTURE_N.test(str(t)) ? '' : t));
     const fbDistinct = distinctFeedback(base.map((_, i) => str(rowWrong[String(i)])));
     item = {
       v: 2, type, stem: String(row.question_text || '').trim(),
