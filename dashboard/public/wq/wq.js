@@ -490,7 +490,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       half: 'آدھا راستہ طے!',
       tricky: function (n) { return n + ' مشکل سوال'; }, trickySay: 'جشن سے پہلے، آئیں اسے مل کر ٹھیک کریں۔', fixGo: 'جگنو کے ساتھ ٹھیک کریں', later: 'بعد میں',
       second: 'دوسری کوشش · جگنو کے ساتھ', fixed: 'ٹھیک ہو گیا!', tryAgain: 'دوبارہ دیکھیں۔ آپ کر سکتے ہیں۔',
-      got: function (s, n) { return 'آپ نے ' + n + ' میں سے ' + s + ' درست کیے'; }, fixedLine: function (k) { return 'جگنو کے ساتھ ' + k + ' مشکل سوال ٹھیک کیے'; },
+      got: function (s, n) { return 'آپ نے ' + n + ' میں سے ' + s + (s === 1 ? ' درست کیا' : ' درست کیے'); }, fixedLine: function (k) { return 'جگنو کے ساتھ ' + k + ' مشکل سوال ٹھیک کیے'; },
       scoreNote: 'اسکور پہلی کوشش کا ہے۔', praise: function (s, n) { return s === n ? 'زبردست!' : s >= n * 0.8 ? 'بہت خوب!' : 'اچھی کوشش!'; },
       done: 'کوئز مکمل', seeCard: 'میرا کارڈ دیکھیں', classBtn: 'اپنی کلاس دیکھیں',
       prac: 'یہ نام کسی اور فون پر مکمل ہو چکا ہے۔ یہ باری مشق ہے؛ پہلا مکمل اسکور ہی رہے گا۔',
