@@ -1673,3 +1673,26 @@ Feature: NIETE (ICT) Teacher Training
     # quiz-author-gates-v2.js questionErrors, wired in transcript-quiz-validator validate() (q-named complaints -> the
     # existing targeted rewrite); STRICT_KEY_RULE in transcript-quiz-key-verify; readTextFaults in web-quiz-items normaliseItem.
     # Unit: tests/quiz/quiz-author-gates-v2.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P1 @T180 @no-mock-driver
+  Scenario: With the author gates on, a question that is only too long or uses a word the class said in English letters never costs my class the quiz
+    Given app_settings "quiz_author_gates_v2" is true
+    And my lesson is for grade 2 and the quiz writer keeps a question longer than eight words
+    When my class quiz is made from my lesson
+    Then that question is shortened if it can be, and otherwise sent as it is and counted, never left out
+    And in an Urdu quiz a technical word written in Urdu letters, or Urdu written in English letters, is named on its own question, repaired in place, and the quiz is sent whatever the repair leaves
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-validator termScriptErrors (URDU_TRANSLITERATED / URDU_ROMAN), generate IN_PLACE_FAULT + isSoft,
+    # runSourceFidelity kept_soft. Unit: tests/quiz/quiz-author-gates-translit-soft.test.js, quiz-author-gates-fail-soft.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P1 @T181 @no-mock-driver
+  Scenario: With the author gates on, a wrong answer the quiz cannot afford to lose is replaced by a new question from my lesson
+    Given app_settings "quiz_author_gates_v2" is true
+    And the checks find more wrong answers than the quiz can leave out and still keep six questions
+    When my class quiz is made from my lesson
+    Then one call writes a new question for each of those places from another moment of my lesson
+    And each new question is checked like every other before it is sent
+    And my class gets the quiz; it is refused only when the new questions are wrong too, with that reason recorded
+    And with the setting absent or false, the quiz fails exactly as before
+    # transcript-quiz-generate replaceFromSource, used by runSourceFidelity, runKeyCheck and runKeyVerify; REPLACE_RULE in
+    # transcript-quiz-rewrite. Unit: tests/quiz/quiz-author-gates-fail-soft.test.js. @wip.
