@@ -74,11 +74,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22      # the Capacitor 8 CLI requires Node >=22 (bd-4ryvw)
           cache: npm
           cache-dependency-path: portal/package-lock.json
 
-      - uses: android-actions/setup-android@v3
+      # bd-4ryvw — android-actions/setup-android@v3 now stops on an interactive
+      # license prompt ("6 of 7 SDK package licenses not accepted") and fails the
+      # job. The hosted runner already ships an Android SDK at $ANDROID_HOME, so
+      # accept its licenses non-interactively and let Gradle fetch what it needs.
+      - name: Accept Android SDK licenses
+        run: (yes || true) | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
 
       - name: Install portal dependencies
         working-directory: portal
