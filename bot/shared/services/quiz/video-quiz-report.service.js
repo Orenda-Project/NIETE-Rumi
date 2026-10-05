@@ -39,7 +39,7 @@ const { addressForms } = require('./transcript-quiz-address');
 
 // One attempt per child: the rule lives in its own module so /quiz (the list,
 // the Flow's lesson screen, the nudge) counts children exactly as this report does.
-const { oneAttemptPerChild } = require('./one-attempt-per-child');
+const { oneAttemptPerChild, attemptRuleFor } = require('./one-attempt-per-child');
 const { scriptOf } = require('../../templates/niete-brand');
 const crypto = require('crypto');
 const { onUnlessOff } = require('../nudges/flags');
@@ -800,7 +800,10 @@ async function loadClassRows(shareCodeId) {
       .is('invited_by_student_id', null),
     supabase.from('quizzes').select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle(),
   ]);
-  const all = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id));
+  // A web-arm quiz counts each child's FIRST finish (a replay on another phone
+  // is practice); every other quiz keeps the latest, as before.
+  const rule = attemptRuleFor(quizRow && quizRow.meta);
+  const all = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id), { rule });
   const done = all.filter((s) => s.status === 'completed');
   const language = clampLanguage(sc.language || (quizRow && quizRow.language) || 'en');
   const className = classHeading(classesTaught(done), language);
@@ -947,7 +950,10 @@ async function sendLateClassCards(shareCodeId) {
       .is('invited_by_student_id', null),
     supabase.from('quizzes').select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle(),
   ]);
-  const all = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id));
+  // A web-arm quiz counts each child's FIRST finish (a replay on another phone
+  // is practice); every other quiz keeps the latest, as before.
+  const rule = attemptRuleFor(quizRow && quizRow.meta);
+  const all = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id), { rule });
   const done = all.filter((s) => s.status === 'completed');
   const language = clampLanguage(sc.language || (quizRow && quizRow.language) || 'en');
   const className = classHeading(classesTaught(done), language);
