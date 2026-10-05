@@ -197,6 +197,13 @@ describe('web quiz edge: GET /q/:code server-side render', () => {
     expect(res.body).toContain('This quiz has closed');
   });
 
+  it('a bot 404 without the contract error (endpoint not deployed) is "not open", not "closed"', async () => {
+    next = { status: 404, ok: false, headers: { get: () => 'text/html' }, text: async () => '<!DOCTYPE html><pre>Cannot GET</pre>' };
+    const res = await req(srv, 'GET', '/q/AB12CD');
+    expect(res.status).toBe(503);
+    expect(res.body).toContain('The quiz is not open right now');
+  });
+
   it('a malformed code never reaches the bot', async () => {
     const res = await req(srv, 'GET', '/q/..%2Fadmin');
     expect(res.status).toBe(404);

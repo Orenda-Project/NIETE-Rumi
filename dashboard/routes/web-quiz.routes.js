@@ -250,10 +250,13 @@ function createWebQuizRouter(opts = {}) {
       return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url }));
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
-    if (out.status === 404 || out.status === 410) {
+    // A 404/410 is "closed" only when it is the contract's answer; a bare 404 means the bot
+    // endpoint is not deployed yet, which is "not open right now", not the child's fault.
+    const contractAnswer = out.body && typeof out.body.error === 'string';
+    if ((out.status === 404 || out.status === 410) && contractAnswer) {
       return res.status(out.status).type('html').send(renderClosedPage({ lang, kind: 'closed', origin, assetV: version() }));
     }
-    return res.status(out.status === 503 ? 503 : 502).type('html').send(renderClosedPage({ lang, kind: 'off', origin, assetV: version() }));
+    return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(renderClosedPage({ lang, kind: 'off', origin, assetV: version() }));
   }
 
   router.get('/q/:code', limiters.read, unknownCode, (req, res) => page(req, res, 'quiz'));
