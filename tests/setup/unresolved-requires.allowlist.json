@@ -2,7 +2,7 @@
   {
     "from": "bot/shared/services/pic-to-lp/lp-handoff.service.js",
     "spec": "../lesson-plan-prompts.service",
-    "reason": "OSS-stripped Gamma 'Detailed' path. The require is INSIDE a try/catch inside generateAndDeliver() \u2014 load + pickBackend() both work without it. The file's own JSDoc documents this as an explicit OSS-strip."
+    "reason": "OSS-stripped Gamma 'Detailed' path. The require is INSIDE a try/catch inside generateAndDeliver() — load + pickBackend() both work without it. The file's own JSDoc documents this as an explicit OSS-strip."
   },
   {
     "from": "bot/workers/homework-bundle.worker.js",
