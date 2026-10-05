@@ -258,7 +258,7 @@ var WQI = (function () {
         var aria = speakable(x.text || nm) ? '' : ' aria-label="' + esc(SHAPE_NAMES[lang === 'ur' ? 'ur' : 'en'][i % 4]) + '"';
         return '<button class="wq-opt wq-ptile wq-s' + (i % 4 + 1) + '" data-slot="' + esc(x.slot) + '"' + aria + '><span class="wq-shp">' + SHAPES[i % 4] + (quiet || !LETTERS ? '' : '<b class="wq-let">' + 'ABCD'.charAt(i) + '</b>') + '</span>' +
           (picHtml(x, nm) || '<span class="wq-emoji">' + esc(x.text) + '</span>') +
-          (!quiet && speakable(x.text || nm) ? '<span class="wq-pname">' + tex(x.text || nm) + '</span>' : '') + '</button>';
+          (!quiet && speakable(x.text || nm) && !(x.pic && (x.pic.glyph || x.pic.text) === (x.text || nm)) ? '<span class="wq-pname">' + tex(x.text || nm) + '</span>' : '') + '</button>';
       }).join('') + '</div>';
     } else if (k === 'tf') {
       body = '<div class="wq-tf" role="group">' + o.slice(0, 2).map(function (x, i) {
