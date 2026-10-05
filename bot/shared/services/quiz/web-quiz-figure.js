@@ -27,7 +27,7 @@
  */
 
 const { logToFile } = require('../../utils/logger');
-const { clampLanguage } = require('../../config/ux-strings');
+const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { getLanguage } = require('../../config/languages');
 
 const dirOf = (lang) => ((getLanguage(lang) || {}).direction === 'rtl' ? 'rtl' : 'ltr');
@@ -67,21 +67,18 @@ function safeSvg(svg) {
 // number or a label value: the picture may be the question, so the words that
 // introduce it must not answer it.
 const WORDS = {
-  fraction_bar: { en: ['Fraction bars', 'Look at the bars.'], ur: ['کسر کی پٹیاں', 'پٹیوں کو دیکھیں۔'] },
-  numberline: { en: ['A number line', 'Look at the number line.'], ur: ['عددی لکیر', 'عددی لکیر کو دیکھیں۔'] },
-  clock: { en: ['A clock face', 'Look at the clock.'], ur: ['گھڑی', 'گھڑی کو دیکھیں۔'] },
-  money: { en: ['Coins and notes', 'Look at the money.'], ur: ['سکے اور نوٹ', 'پیسوں کو دیکھیں۔'] },
-  geometry: { en: ['A shape drawing', 'Look at the shape.'], ur: ['شکل', 'شکل کو دیکھیں۔'] },
-  graph: { en: ['A graph', 'Look at the graph.'], ur: ['گراف', 'گراف کو دیکھیں۔'] },
-  flow: { en: ['Steps in order', 'Look at the steps.'], ur: ['مراحل', 'مراحل کو دیکھیں۔'] },
-  timeline: { en: ['A timeline', 'Look at the timeline.'], ur: ['وقت کی لکیر', 'وقت کی لکیر کو دیکھیں۔'] },
-  word_blank: { en: ['A picture and a word with a missing letter', 'Look at the picture and the word.'], ur: ['تصویر اور لفظ', 'تصویر اور لفظ کو دیکھیں۔'] },
-  _: { en: ['A picture', 'Look at the picture.'], ur: ['تصویر', 'تصویر کو دیکھیں۔'] },
+  fraction_bar: 'Bars', numberline: 'Numberline', clock: 'Clock', money: 'Money', geometry: 'Shape',
+  graph: 'Graph', flow: 'Steps', timeline: 'Timeline', word_blank: 'Word',
 };
 
+/** [alt, say] for a figure type, from the string catalog. */
 function wordsFor(type, lang) {
-  const w = WORDS[type] || WORDS._;
-  return w[clampLanguage(lang)] || w.en;
+  const k = WORDS[type] || 'Picture';
+  return [resolveUx(`wqFig${k}Alt`, { language: lang }), resolveUx(`wqFig${k}Say`, { language: lang })];
+}
+
+function escText(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function escAttr(s) {
@@ -171,29 +168,52 @@ function figureFor(row) {
 }
 
 /**
- * A picture option: a roster pictogram or a small engine drawing, as SVG.
- * Never emoji, never model-written SVG. null when it cannot be drawn — the
- * option then stays a word, never a blank button.
+ * A picture option: a roster pictogram, a small engine drawing, or a GLYPH tile
+ * (a letter or a mark — بّ, c_t — drawn big in the page's own font, for the
+ * early literacy lessons whose answers are marks, not things), as SVG.
+ *
+ * The NAME is what the voice says and the screen reader reads, so it must be in
+ * the quiz language: the item's own word for the option (`word`, normally the
+ * option text) wins; the roster's English name is used only for an English quiz.
+ *
+ * Never emoji, never model-written SVG. null when it cannot be drawn or named —
+ * the option then stays a word, never a blank or an English voice on Urdu.
  */
-function optionPic(pic, language) {
+function optionPic(pic, language, { word } = {}) {
   if (!pic || typeof pic !== 'object') return null;
   const lang = clampLanguage(language);
+  const said = (typeof pic.say === 'string' && pic.say.trim()) || (typeof word === 'string' && word.trim()) || '';
   if (pic.kind === 'pictogram') {
     try {
       const P = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
       if (!P.has(pic.name)) return null;
+      // The roster names are English words: they may be spoken only on an English quiz.
+      const rosterName = (lang === 'en' && String(pic.name).replace(/_/g, ' ')) || '';
+      const name = said || rosterName;
+      if (!name) return null;
       const body = P.inner(pic.name).replace(/currentColor/g, 'var(--ink, #1A1A1A)');
-      const name = String(pic.say || pic.name).replace(/_/g, ' ');
       const svg = safeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${P.GRID} ${P.GRID}" role="img" aria-label="${escAttr(name)}">${body}</svg>`);
       return svg ? { svg, name, alt: name } : null;
     } catch (_) {
       return null;
     }
   }
+  if (pic.kind === 'glyph') {
+    const text = String(pic.text == null ? '' : pic.text).trim();
+    if (!text || [...text].length > 4) return null;
+    const name = said || text;
+    const dir = dirOf(lang);
+    const svg = safeSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-label="' + escAttr(name) + '">'
+      + '<rect x="2" y="2" width="68" height="68" rx="10" fill="#FFFFFF" stroke="var(--line, #D7DBE1)" stroke-width="2"/>'
+      + '<foreignObject x="2" y="2" width="68" height="68"><div xmlns="http://www.w3.org/1999/xhtml" dir="' + dir + '" '
+      + 'style="width:68px;height:68px;display:flex;align-items:center;justify-content:center;font-size:40px;line-height:1;color:var(--ink, #232735)">'
+      + escText(text) + '</div></foreignObject></svg>');
+    return svg ? { svg, name, alt: name } : null;
+  }
   if (pic.kind === 'figure' && pic.spec && typeof pic.spec === 'object') {
     const svg = draw(pic.spec, lang);
     if (!svg) return null;
-    const name = String(pic.name || pic.say || wordsFor(String(pic.spec.type || ''), lang)[0]);
+    const name = said || String(pic.name || wordsFor(String(pic.spec.type || ''), lang)[0]);
     return { svg: withTokens(withLabel(svg, name)), name, alt: name };
   }
   return null;

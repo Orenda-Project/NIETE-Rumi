@@ -184,7 +184,7 @@ function questionPayload(q, i, code, audio) {
     if (text == null || String(text).trim() === '') return;
     const o = { slot: SLOTS[idx], text: String(text) };
     if (optionImageOf(q.media, idx)) o.img = mediaUrl(code, q.id, SLOTS[idx]);
-    const pic = Figure.optionPic(webOptionPic(q.media, SLOTS[idx]), mediaLang(q.media));
+    const pic = Figure.optionPic(webOptionPic(q.media, SLOTS[idx]), mediaLang(q.media), { word: String(text) });
     if (pic) o.pic = pic;
     const fb = feedbackFor(q, idx);
     if (fb) o.fb = fb;
