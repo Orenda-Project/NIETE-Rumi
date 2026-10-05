@@ -372,7 +372,8 @@ async function getQuiz(code, { p } = {}) {
   // report's class heading for this code (null until a child has finished).
   let label = null;
   try {
-    const cls = await require('./video-quiz-report.service').loadClassRows(ctx.shareCodeId);
+    // A "watch another video" code is named after the class code it came from.
+    const cls = await require('./video-quiz-report.service').loadClassRows(ctx.moreVideosOf || ctx.shareCodeId);
     label = (cls && cls.className) || null;
   } catch { label = null; }
   const out = {
