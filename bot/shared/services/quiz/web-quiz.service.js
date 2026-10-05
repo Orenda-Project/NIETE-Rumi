@@ -36,6 +36,7 @@ const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
 const { clampLanguage } = require('../../config/ux-strings');
 const { teacherLabel } = require('./quiz-teacher-label');
+const Roster = require('./web-quiz-roster');
 
 const QUESTIONS_MAX = 15;          // = video-quiz.service QUESTIONS_PER_SESSION
 const CHIPS_MAX = 40;
@@ -296,6 +297,13 @@ async function classChips(ctx) {
 
 const publicChip = (c) => ({ chip: c.chip, first: c.first, animal: c.animal });
 
+/** A roster child as a public chip: first name and animal, the class label only when it tells two classes apart. */
+function rosterChip(ctx, { kid, label }) {
+  const c = { chip: T.chipId(ctx.shareCodeId, kid.id), first: firstName(kid.student_name), animal: T.animalFor(kid.id) };
+  if (label) c.cls = label;
+  return c;
+}
+
 // ─── live counts ────────────────────────────────────────────────────────────
 
 async function liveCounts(ctx) {
@@ -336,7 +344,9 @@ async function getQuiz(code, { p } = {}) {
   }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
-  const chips = await classChips(ctx);
+  // A teacher with a class list: the child gives a roll number, so no classmates' names ship.
+  const roster = await Roster.loadRoster(ctx.teacherUserId);
+  const chips = roster ? [] : await classChips(ctx);
   const preview = Boolean(p) && isPreviewFor(p, ctx);
   // The class and the teacher are named exactly as the teacher's own texts
   // name them: the forwarded WhatsApp message's "Teacher <name>", and the
@@ -354,13 +364,20 @@ async function getQuiz(code, { p } = {}) {
       n: questions.length,
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio)),
     },
-    cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip) },
+    cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip), ...(roster ? { roster: { lists: roster.lists.length } } : {}) },
     live: await liveCounts(ctx),
     video,
     preview,
   };
   if (ctx.invitedByStudentId) out.challenge = await challengeOf(ctx);
   return out;
+}
+
+async function gradeOf(quizId) {
+  try {
+    const { data } = await supabase.from('quizzes').select('grade').eq('id', quizId).maybeSingle();
+    return (data && data.grade) || null;
+  } catch { return null; }
 }
 
 function isPreviewFor(p, ctx) {
@@ -473,13 +490,30 @@ async function startSession(body = {}) {
     if (!isPreviewFor(body.p, ctx)) fail(401, 'bad_token');
     userId = ctx.teacherUserId;           // the self-test marker: never a child
     takerName = ctx.parent.teacher_name || null;
+  } else if (body.roll != null) {
+    // "What is your roll number?" -> "Are you <first name>?": the page confirms with the chip.
+    const roster = await Roster.loadRoster(ctx.teacherUserId);
+    if (!roster) fail(400, 'bad_request', { why: 'who' });
+    const roll = Roster.cleanRoll(body.roll);
+    if (!roll) fail(400, 'bad_request', { why: 'roll' });
+    const quizGrade = await gradeOf(ctx.quizId);
+    const found = Roster.byRoll(roster, roll, quizGrade);
+    logEvent('web_quiz.roll_lookup', { shareCodeId: ctx.shareCodeId, matches: found.length });
+    if (!found.length) fail(404, 'roll_unknown');
+    fail(409, 'is_this_you', { candidates: found.map((f) => rosterChip(ctx, f)) });
   } else if (body.chip) {
-    const chips = await classChips(ctx);
     const want = String(body.chip);
-    const hit = chips.find((c) => c.chip === want) || chips.find((c) => c.aliases.has(want));
-    if (!hit) fail(404, 'chip_unknown');
-    const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class').eq('id', hit.studentId).maybeSingle();
-    student = st || { id: hit.studentId, student_name: hit.name };
+    const roster = await Roster.loadRoster(ctx.teacherUserId);
+    const fromRoster = roster ? roster.kids.find((k) => T.chipId(ctx.shareCodeId, k.id) === want) : null;
+    if (fromRoster) {
+      student = { id: fromRoster.id, student_name: fromRoster.student_name, self_reported_class: Roster.classOf(roster, fromRoster) };
+    } else {
+      const chips = await classChips(ctx);
+      const hit = chips.find((c) => c.chip === want) || chips.find((c) => c.aliases.has(want));
+      if (!hit) fail(404, 'chip_unknown');
+      const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class').eq('id', hit.studentId).maybeSingle();
+      student = st || { id: hit.studentId, student_name: hit.name };
+    }
   } else if (body.new && typeof body.new === 'object') {
     const name = cleanName(body.new.name);
     if (!name) fail(400, 'bad_request', { why: 'name' });
@@ -487,7 +521,12 @@ async function startSession(body = {}) {
     if (!body.new.force) {
       const chips = await classChips(ctx);
       const mine = norm(firstName(name));
-      const candidates = chips.filter((c) => norm(c.first) === mine).map(publicChip);
+      const roster = await Roster.loadRoster(ctx.teacherUserId);
+      // With a class list, a typo still finds the child ("Aysha" -> Ayesha); without one, today's exact match.
+      const fromRoster = roster ? Roster.byName(roster, firstName(name)).map((f) => rosterChip(ctx, f)) : [];
+      const fromChips = chips.filter((c) => (roster ? Roster.nearName(c.first, firstName(name)) : norm(c.first) === mine))
+        .filter((c) => !fromRoster.some((r) => r.chip === c.chip)).map(publicChip);
+      const candidates = fromRoster.concat(fromChips).slice(0, Roster.MAX_CANDIDATES);
       if (candidates.length) fail(409, 'maybe_you', { candidates });
     }
     const { data: created, error } = await supabase.from('students').insert({
