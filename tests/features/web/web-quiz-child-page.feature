@@ -49,3 +49,33 @@ Feature: Web child quiz page on the portal
     When the question is shown
     Then the question is read by the phone's own voice
     And an "audio_fallback" event is logged with the reason
+
+  Scenario: The landing names the teacher and the class as the teacher's own texts do
+    Given the teacher's stored name is "Example Teacher" and finished children typed class "3"
+    When the link is opened
+    Then the landing says "From Teacher Example Teacher · Class 3"
+    And the class page link preview names "Class 3"
+    But before anyone has finished, the landing shows no class
+
+  Scenario: A quick tap never brings back the old line
+    Given a question whose recorded clip has not started yet
+    When the child taps an answer at once
+    Then the feedback is read and the old question is not read again
+    And no "audio_fallback" event is logged for the stopped clip
+
+  Scenario: A child remembered on this phone is listed once
+    Given a child played the teacher's earlier quiz on this phone
+    When the child plays the teacher's next quiz with "Play as <first name>"
+    Then "Whose turn?" lists the child's name once
+
+  Scenario: The teacher's report counts the first finish of a web quiz
+    Given a child played the quiz on the web page
+    And finished it once and then again on another phone
+    When the teacher's report is written
+    Then the report shows the first finished score, as the league table does
+
+  Scenario: The answer buttons come in the same order as the WhatsApp quiz and the teacher's answer key
+    Given a question whose options were shuffled when the quiz was made
+    When the question is shown on the page
+    Then the buttons are in that same shuffled order
+    And tapping the right answer is marked right, and each wrong answer gets its own feedback

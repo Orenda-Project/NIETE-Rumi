@@ -32,6 +32,7 @@ const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
 const { clampLanguage } = require('../../config/ux-strings');
+const { teacherLabel } = require('./quiz-teacher-label');
 
 const QUESTIONS_MAX = 15;          // = video-quiz.service QUESTIONS_PER_SESSION
 const CHIPS_MAX = 40;
@@ -139,6 +140,26 @@ function feedbackFor(q, i) {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
 }
 
+/**
+ * The options in the ONE order every other surface shows them in — the
+ * WhatsApp quiz, the question card's letters, the teacher's PDF answer key
+ * (video-quiz-render displayOrder: the stored media.display_order, else the
+ * same seeded shuffle). Each option keeps its stored slot, so the answer key,
+ * the feedback and the media links are untouched. Options the render module
+ * counts differently from this payload keep the stored order.
+ */
+function inDisplayOrder(q, options) {
+  try {
+    const render = require('./video-quiz-render.service');
+    const order = render.displayOrder(q, render.optionLabels(q));
+    if (order.length !== options.length) return options;
+    return order.map((k) => options[k]);
+  } catch (e) {
+    logToFile('⚠️ web-quiz: display order unavailable, stored order kept', { error: e.message });
+    return options;
+  }
+}
+
 function questionPayload(q, i, code, audio) {
   const options = [];
   [q.option_a, q.option_b, q.option_c, q.option_d].forEach((text, idx) => {
@@ -151,7 +172,7 @@ function questionPayload(q, i, code, audio) {
   });
   const out = {
     qid: q.id, i: i + 1, text: q.question_text || '', pattern: q.render_pattern || null,
-    options, correct_slot: normSlots(q.correct_option), why: q.explanation || null,
+    options: inDisplayOrder(q, options), correct_slot: normSlots(q.correct_option), why: q.explanation || null,
   };
   if (out.correct_slot.includes(',')) out.multi = true;
   if (questionImageOf(q.media)) out.img = mediaUrl(code, q.id, 'q');
@@ -245,6 +266,14 @@ async function getQuiz(code, { p } = {}) {
   }
   const chips = await classChips(ctx);
   const preview = Boolean(p) && isPreviewFor(p, ctx);
+  // The class and the teacher are named exactly as the teacher's own texts
+  // name them: the forwarded WhatsApp message's "Teacher <name>", and the
+  // report's class heading for this code (null until a child has finished).
+  let label = null;
+  try {
+    const cls = await require('./video-quiz-report.service').loadClassRows(ctx.shareCodeId);
+    label = (cls && cls.className) || null;
+  } catch { label = null; }
   const out = {
     quiz: {
       id: ctx.quizId, code: ctx.code, topic: ctx.parent.topic || (quizRow && quizRow.topic) || '',
@@ -253,7 +282,7 @@ async function getQuiz(code, { p } = {}) {
       n: questions.length,
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio)),
     },
-    cls: { label: null, teacher: firstName(ctx.parent.teacher_name) || null, chips: chips.map(publicChip) },
+    cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip) },
     live: await liveCounts(ctx),
     video,
     preview,
@@ -318,6 +347,26 @@ async function countJoin(shareCodeId) {
     if (error) logToFile('⚠️ web-quiz: increment_share_code_uses failed', { shareCodeId, error: error.message });
   } catch (e) {
     logToFile('⚠️ web-quiz: increment_share_code_uses threw', { shareCodeId, error: e.message });
+  }
+}
+
+/**
+ * A child played this quiz on the web, so the teacher's report counts each
+ * child's FIRST finish (quizzes.meta.web_arm, read by attemptRuleFor) — the
+ * rule the page's league table already shows. Once per quiz; the rest of meta
+ * is kept. A failure is logged and never stops the child's quiz.
+ */
+async function markWebArm(quizId) {
+  try {
+    const { data: q, error } = await supabase.from('quizzes').select('id, meta').eq('id', quizId).maybeSingle();
+    if (error || !q) return;
+    const meta = (q.meta && typeof q.meta === 'object') ? q.meta : {};
+    if (meta.web_arm === 'web') return;
+    const { error: uErr } = await supabase.from('quizzes').update({ meta: { ...meta, web_arm: 'web' } }).eq('id', quizId);
+    if (uErr) logToFile('⚠️ web-quiz: could not mark the quiz as web arm', { quizId, error: uErr.message });
+    else logEvent('web_quiz.web_arm_marked', { quizId });
+  } catch (e) {
+    logToFile('⚠️ web-quiz: could not mark the quiz as web arm', { quizId, error: e.message });
   }
 }
 
@@ -408,6 +457,7 @@ async function startSession(body = {}) {
   }
 
   await countJoin(ctx.shareCodeId);
+  if (!userId) await markWebArm(ctx.quizId);
   let quizSource = null;
   try {
     const { data: q } = await supabase.from('quizzes').select('quiz_source').eq('id', ctx.quizId).maybeSingle();
