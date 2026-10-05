@@ -26,6 +26,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import AssessmentEditor from './assessment-edit/AssessmentEditor';
 import AssessmentVersionsDialog from './assessment-edit/AssessmentVersionsDialog';
 import { portal } from '../services/api';
 import type { AssessmentPaper, AssessmentSubject } from '../services/api';
@@ -243,6 +244,19 @@ const AssessmentPapersPanel = ({ refreshKey = 0, editing = false }: Props) => {
           open
           onOpenChange={(o) => { if (!o) setVersionsFor(null); }}
           onEdit={(id) => { setVersionsFor(null); setEditFor(id); }}
+        />
+      )}
+
+      {editFor && (
+        <AssessmentEditor
+          paperId={editFor}
+          open
+          onClose={() => setEditFor(null)}
+          onSaved={({ version }) => {
+            setEditFor(null);
+            toast({ title: `Version ${version} is ready`, description: 'Download it from My papers.' });
+            load();
+          }}
         />
       )}
 
