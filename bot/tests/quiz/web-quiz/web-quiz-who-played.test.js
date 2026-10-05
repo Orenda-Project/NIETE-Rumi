@@ -33,7 +33,9 @@ const future = new Date(Date.now() + 86400000 * 10).toISOString();
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 const done = (id, studentId, name, correct, h, extra = {}) => ({ id, quiz_id: QUIZ, share_code_id: SC, student_id: studentId, student_name: name,
   user_id: null, status: 'completed', correct_answers: correct, total_questions_answered: 5, mastery_percentage: correct * 20,
-  completed_at: ago(h), created_at: ago(h + 0.1), invited_by_student_id: null, ...extra });
+  completed_at: ago(h), created_at: ago(h + 0.1), invited_by_student_id: null,
+  // A child's web play always carries its phone's device_ref; the report picks the first-finish rule per class code from that.
+  device_ref: extra.user_id ? null : `dev-${id}`, ...extra });
 
 let fake;
 let P;
