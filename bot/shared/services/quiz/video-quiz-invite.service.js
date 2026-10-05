@@ -219,7 +219,11 @@ async function handleInviteButton(buttonId, phone) {
     return true;
   }
 
-  const link = `https://wa.me/${share.botNumber()}?text=QUIZ-${minted.code}`;
+  // The friend gets the same kind of link the class got: decided by the
+  // teacher whose quiz it is.
+  const link = await require('./web-quiz-link').quizLink(minted.code, {
+    teacherUserId: parent.teacher_user_id, whatsapp: `https://wa.me/${share.botNumber()}?text=QUIZ-${minted.code}`,
+  });
   await WhatsAppService.sendMessage(phone, ux('vqInviteForwardThis'));
   await WhatsAppService.sendMessage(phone, ux('vqInviteMessage', {
     name: firstName(me?.student_name, ux('vqInviteFriend')),

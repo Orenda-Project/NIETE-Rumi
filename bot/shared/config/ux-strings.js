@@ -2210,6 +2210,12 @@ const UX_STRINGS = {
     en: 'You will get a report on how the class did about 12 hours after the first student starts (at 7 am if that falls at night). To get it sooner, send /quiz, pick this lesson and ask for its report.',
     ur: 'پہلے طالب علم کے quiz شروع کرنے کے تقریباً 12 گھنٹے بعد کلاس کی رپورٹ آئے گی (اگر یہ وقت رات کا ہو تو صبح 7 بجے)۔ رپورٹ اس سے پہلے چاہیے تو ⁦/quiz⁩ بھیجیں، یہی سبق چنیں اور رپورٹ منگوائیں۔',
   },
+  // The teacher-only preview of the web quiz page (caption, never forwarded).
+  // Urdu: دیکھیں is the polite imperative; no gendered stem.
+  tqWebPreview: {
+    en: '👀 Try the quiz page yourself before you forward it: {link}',
+    ur: '\u200F👀 آگے بھیجنے سے پہلے quiz کا صفحہ خود دیکھیں: {link}',
+  },
   tqListBody: {
     en: 'Your lessons, newest first. Pick one to make a quiz, resend its link, or get its report.',
     ur: 'آپ کے اسباق، نئے سے پرانے۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',

@@ -121,7 +121,10 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     }
     code = minted.code;
     shareCodeId = minted.id;
-    link = `https://wa.me/${share.botNumber()}?text=QUIZ-${code}`;
+    // The web quiz page when it is switched on for this teacher, else wa.me.
+    link = await require('./web-quiz-link').quizLink(code, {
+      teacherUserId: quiz.teacher_id, whatsapp: `https://wa.me/${share.botNumber()}?text=QUIZ-${code}`,
+    });
     const lessonDate = formatLessonDate(session.created_at, language);
     const Gen = require('./transcript-quiz-generate.service');
     forwardable = Gen.studentMessage({ teacherName: minted.teacherName || teacherName, topic: quiz.topic, date: lessonDate, link, language });
@@ -188,8 +191,13 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
   // the link. The forwardable stays alone and LAST. Only past Meta's 1,024-
   // code-point caption cap does it go separately, after the link, as before.
   const promise = firstSend ? resolveUx('tqReportPromise', { language: teacherLang }) : null;
-  const promiseInCaption = Boolean(promise) && [...`${intro}\n\n${promise}`].length <= CAPTION_MAX;
-  const caption = promiseInCaption ? `${intro}\n\n${promise}` : intro;
+  // The teacher's own preview of the web quiz page, when it is on for them —
+  // in the caption only, so it is never forwarded to the class.
+  const preview = await require('./web-quiz-link').previewLink(code, { shareCodeId, teacherUserId: quiz.teacher_id });
+  const previewLine = preview ? resolveUx('tqWebPreview', { language: teacherLang, params: { link: preview } }) : null;
+  const head = previewLine && [...`${intro}\n\n${previewLine}`].length <= CAPTION_MAX ? `${intro}\n\n${previewLine}` : intro;
+  const promiseInCaption = Boolean(promise) && [...`${head}\n\n${promise}`].length <= CAPTION_MAX;
+  const caption = promiseInCaption ? `${head}\n\n${promise}` : head;
   let pdfSent = false;
   if (tempPath) {
     const { pdfFilename } = require('./transcript-quiz-generate.service');

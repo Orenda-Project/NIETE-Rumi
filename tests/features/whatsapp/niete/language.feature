@@ -258,6 +258,16 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # the English mirror case). Proven over every placeholder-led paragraph in the catalog by
     # tests/config/ux-strings-paragraph-direction.test.js. @wip.
 
+  @e2e @language @quiz @wip @draft @config-gated @P2
+  Scenario: The "try it yourself" line in my quiz caption is in my language
+    Given the NIETE bot chat is open
+    And my language is set to Urdu
+    And the web quiz is switched on for me
+    When I make a class quiz for one of my lessons
+    Then the PDF's caption tells me in Urdu to try the quiz page myself before forwarding it, with the link on the same line
+    # ADDED 2026-10-05: ux-strings tqWebPreview (en/ur, دیکھیں = polite imperative, no gendered stem),
+    # resolved in the teacher's language by transcript-quiz-handoff sendHandoff. @wip.
+
   # ── E2. Still leaks English on an Urdu account (@known-issue) ──
 
   @e2e @language @known-issue @P1
