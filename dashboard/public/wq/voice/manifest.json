@@ -54,6 +54,12 @@
   ],
   "notyetpic": [
    "Not yet. Look, this one is right."
+  ],
+  "tftrue": [
+   "Not yet. This sentence is true."
+  ],
+  "tffalse": [
+   "Not yet. This sentence is false."
   ]
  },
  "ur": {
@@ -111,6 +117,12 @@
   ],
   "notyetpic": [
    "ابھی نہیں۔ دیکھیں، یہ والا صحیح ہے۔"
+  ],
+  "tftrue": [
+   "ابھی نہیں۔ یہ بات درست ہے۔"
+  ],
+  "tffalse": [
+   "ابھی نہیں۔ یہ بات غلط ہے۔"
   ]
  }
 }
