@@ -721,7 +721,17 @@ async function replaceFromSource(api, {
     questions, replaced: [], left: [...indices], costUsd: 0, softFaults: null, rejected: {},
   };
   const ctx = { language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId };
-  const errors = indices.map((i) => `q${i}: REPLACE_FROM_SOURCE — ${why}; write a different question for this slot from another moment of the lesson`);
+  // The lesson's own statements no staying question already uses, a few per slot: the rewrite
+  // is shown the digest, not the lesson, and a quote it cannot see it cannot copy.
+  const SFm = require('./transcript-quiz-source-fidelity');
+  // every quote the quiz already uses, the slots being replaced included: a new question asks about another moment
+  const used = questions.map((q) => q && q.source_quote).filter(Boolean);
+  const moments = sourceText ? SFm.freshMoments(sourceText, used, indices.length * 3) : [];
+  const errors = indices.map((i, k) => {
+    const mine = moments.filter((_, j) => j % indices.length === k);
+    return `q${i}: REPLACE_FROM_SOURCE — ${why}; write a different question for this slot from another moment of the lesson`
+      + (mine.length ? `, and copy that moment word for word as its "source_quote" — these moments are not used yet: ${mine.map((m) => `«${m}»`).join(' / ')}` : '');
+  });
   let rw;
   try {
     rw = await api.rewriteRejected({

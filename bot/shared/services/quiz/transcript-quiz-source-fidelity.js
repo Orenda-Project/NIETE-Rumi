@@ -162,6 +162,33 @@ function nearestLines(q, sourceText, n = 2) {
 }
 
 /**
+ * Statements of the lesson no staying question already quotes — what a
+ * REPLACEMENT question is written from (generate replaceFromSource). Sentences,
+ * not lines: a transcript line can be a minute of speech. Questions are left
+ * out (a quoted question is not evidence of its answer), and so is anything
+ * under five words; the longest come first (they carry an answer more often
+ * than "Very good."). Each is a verbatim slice of the source, so the quote the
+ * model copies from it is found.
+ */
+function freshMoments(sourceText, usedQuotes = [], n = 6) {
+  const used = (usedQuotes || []).map((u) => normalise(u)).filter(Boolean);
+  const seen = new Set();
+  return String(sourceText || '')
+    .replace(/\[\d{1,2}:\d{2}(?::\d{2})?\]/g, '\n')
+    .split(/\n+|(?<=[.۔!])\s+/)
+    .map((x) => x.replace(/^[^:\n]{0,40}:\s+/, '').trim())
+    .filter((x) => tokens(x).length >= 5 && x.length <= 220 && !isQuestionQuote(x) && /[.۔!]$/.test(x))
+    .filter((x) => {
+      const k = normalise(x);
+      if (seen.has(k) || used.some((u) => u && (u.includes(k) || k.includes(u)))) return false;
+      seen.add(k);
+      return true;
+    })
+    .sort((a, b) => tokens(b).length - tokens(a).length)
+    .slice(0, n);
+}
+
+/**
  * The faults of ONE question against its source. Returns [{code, detail}] —
  * empty when the question may ship.
  */
@@ -265,7 +292,7 @@ function sourceFidelityRule({ lessonPlan = false, gradeBand = null } = {}) {
 }
 
 module.exports = {
-  CODES, SOURCE_FAULT, G12_MAX_WORDS,
+  CODES, SOURCE_FAULT, G12_MAX_WORDS, freshMoments,
   normalise, contentSet, quoteFound, isQuestionQuote, keyText, stemWords, isGradeOneTwo, nearestLines,
   questionFaults, complaints, sourceFaults, teachingErrors, sourceFidelityRule,
 };
