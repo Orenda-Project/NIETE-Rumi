@@ -46,6 +46,14 @@ const ASSESSMENT_DOCX_KEY = 'assessment_docx_enabled';
  */
 const ASSESSMENT_VERSIONS_KEY = 'assessment_versions_enabled';
 
+/**
+ * The quiz author's source gates (every question quotes the moment that carries
+ * its answer; grade 1-2 stems at most 8 words; a teaching error recorded). Off
+ * by default: with it off, quiz authoring is exactly what it was. One key and
+ * one reader for every lane that adds a gate behind it.
+ */
+const QUIZ_AUTHOR_GATES_V2_KEY = 'quiz_author_gates_v2';
+
 async function isFlagEnabled(key) {
   try {
     const { data, error } = await supabase
@@ -71,9 +79,34 @@ const isAssessmentGeneratorEnabled = () => isFlagEnabled(ASSESSMENT_GENERATOR_KE
 const isAssessmentEditingEnabled = () => isFlagEnabled(ASSESSMENT_EDITING_KEY);
 const isAssessmentDocxEnabled = () => isFlagEnabled(ASSESSMENT_DOCX_KEY);
 const isAssessmentVersionsEnabled = () => isFlagEnabled(ASSESSMENT_VERSIONS_KEY);
+/**
+ * Same rules as isFlagEnabled, and the row must BE this key: a reader that took
+ * whatever row came back would turn the author's gates on from another flag.
+ */
+async function isQuizAuthorGatesV2() {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .eq('key', QUIZ_AUTHOR_GATES_V2_KEY)
+      .maybeSingle();
+    if (error || !data || data.key !== QUIZ_AUTHOR_GATES_V2_KEY) return false;
+    let value = data.value;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch (_) { /* keep the raw string */ }
+    }
+    if (value === true) return true;
+    if (typeof value === 'string') return value.trim().toLowerCase() === 'true';
+    return false;
+  } catch (err) {
+    logToFile('⚠️ Feature-flag lookup failed — treating as off', { key: QUIZ_AUTHOR_GATES_V2_KEY, error: err?.message });
+    return false;
+  }
+}
 
 module.exports = {
   ASSESSMENT_GENERATOR_KEY, ASSESSMENT_EDITING_KEY, ASSESSMENT_DOCX_KEY, ASSESSMENT_VERSIONS_KEY,
   isFlagEnabled, isAssessmentGeneratorEnabled, isAssessmentEditingEnabled,
   isAssessmentDocxEnabled, isAssessmentVersionsEnabled,
+  QUIZ_AUTHOR_GATES_V2_KEY, isQuizAuthorGatesV2,
 };
