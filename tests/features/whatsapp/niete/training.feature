@@ -1294,6 +1294,15 @@ Feature: NIETE (ICT) Teacher Training
     But when that key is missing from this deployment's bucket, or the row names a host that is not ours, there is no video and the quiz starts at question 1
     # ADDED 2026-10-05: web-quiz-media presignVideo -> videoKey (path after the bucket segment, HEAD in our bucket). @wip.
 
+  @api @quiz @web @wip @draft @P1 @T170 @no-mock-driver
+  Scenario: The recorded "why" of a web quiz question is its reason, never praise
+    Given a quiz question whose correct-answer feedback is only "Well done!" and whose explanation gives the reason
+    When the read-aloud clips are published
+    Then the "why" clip says the explanation, and no clip says "Well done!" or «شاباش!»
+    And praise in front of a reason is cut off and the reason is kept
+    And a web item's own why is voiced, not its praise line
+    # ADDED 2026-10-05: web-quiz-publish.service whyText/withoutPraise; the page plays the why clip after a wrong answer too. @wip.
+
   @e2e @quiz @wip @draft @config-gated @P1 @T100
   Scenario: With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat
     Given the web quiz is switched on and I am one of the teachers it is on for
