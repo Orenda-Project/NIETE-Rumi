@@ -11,13 +11,17 @@
  *             question has an answer (the backend rejects partial answer sets).
  *   submitting POST /training/module/:id/quiz-attempts — server-side grading.
  *   result    Score card (X / Y) using the same green ≥80 / amber ≥50 / red
- *             colour ladder as the QuizScoreBadge, plus a Retake button.
+ *             colour ladder as the QuizScoreBadge, plus a Retake button. The
+ *             tick and the green tone are reserved for a PASS (bd-zgme6): a
+ *             NIETE 4/5 is 80% and still a fail.
  *
- * Non-blocking semantics: the quiz is a self-check. Submitting any answer set
- * marks the module complete server-side (same as WhatsApp); teachers can skip
- * it entirely and complete the module by other means. Retakes are allowed —
- * the WhatsApp side lets teachers re-run module quizzes, and the score badge
- * shows the best of all attempts.
+ * The quiz is the module's gate, not a self-check (bd-zgme6). The server
+ * writes module progress ONLY on a pass (bd-2450), against the vendor's
+ * module bar: 100% for NIETE, 70% for Beacon House and Oxbridge, and none for
+ * a vendor that runs its unit quizzes ungated (I-SAPS, bd-60163). The bar is
+ * the bot's and arrives on the submit response as `pass_pct`; this file never
+ * holds one. Retakes are allowed and immediate, as on WhatsApp, and the score
+ * badge shows the best of all attempts.
  *
  * chosen_option is the 1-indexed option position as a string ('1', '2', …) —
  * the same convention the WhatsApp quiz buttons use, which is what
@@ -61,8 +65,25 @@ export type SubmittedAttempt = {
   score: number;
   max_score: number;
   is_passed: boolean;
+  /** The vendor's module bar the server marked against (bd-2483). Absent from
+   *  older responses, so treat it as optional and never invent a value. */
+  pass_pct?: number | null;
   completed_at: string;
 };
+
+/**
+ * The line under a failed result. The number is the bar the server marked
+ * against; with no bar in the response the copy names none rather than guess.
+ */
+function notPassedCopy(passPct: number | null | undefined): string {
+  if (typeof passPct === 'number' && passPct >= 100) {
+    return 'Not passed yet. You need to get every answer right to complete this module. Review the content above and try again.';
+  }
+  if (typeof passPct === 'number' && passPct > 0) {
+    return `Not passed yet. You need ${passPct}% or more to complete this module. Review the content above and try again.`;
+  }
+  return 'Not passed yet. Review the content above and try again.';
+}
 
 type Phase = 'idle' | 'taking' | 'submitting' | 'result';
 
@@ -72,6 +93,13 @@ function scoreTone(pct: number): string {
   if (pct >= 80) return 'text-green-700 bg-green-50 border-green-200';
   if (pct >= 50) return 'text-amber-700 bg-amber-50 border-amber-200';
   return 'text-red-700 bg-red-50 border-red-200';
+}
+
+// bd-zgme6 — the result card's tone. A failed attempt is never green, however
+// high the percentage: NIETE's bar is 100%, so 4/5 (80%) is a fail.
+function resultTone(pct: number, passed: boolean): string {
+  if (passed) return scoreTone(pct);
+  return pct >= 50 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-red-700 bg-red-50 border-red-200';
 }
 
 const ModuleQuizPanel = ({
@@ -167,7 +195,7 @@ const ModuleQuizPanel = ({
           {hasAttempts ? 'Retake Quiz' : 'Take Quiz'}
         </Button>
         <span className="ml-3 text-xs text-muted-foreground">
-          {total} question{total === 1 ? '' : 's'} · self-check, not graded for certification
+          {total} question{total === 1 ? '' : 's'} · pass this quiz to complete this module
         </span>
       </div>
     );
@@ -178,8 +206,8 @@ const ModuleQuizPanel = ({
     const pct = result.max_score > 0 ? Math.round((result.score / result.max_score) * 100) : 0;
     return (
       <div className="border-t pt-4 space-y-3" data-testid="quiz-panel-result">
-        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border font-medium ${scoreTone(pct)}`} data-testid="quiz-result-score">
-          {pct >= 80 ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border font-medium ${resultTone(pct, result.is_passed)}`} data-testid="quiz-result-score">
+          {result.is_passed ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
           Quiz result: {result.score} / {result.max_score} ({pct}%)
         </div>
         <p className="text-sm text-muted-foreground">
@@ -191,7 +219,7 @@ const ModuleQuizPanel = ({
             ? (result.score === result.max_score
               ? 'Perfect score — great work!'
               : 'Passed — nice work!')
-            : 'This quiz is a self-check — your module still counts as complete. Review the content above and retake any time.'}
+            : notPassedCopy(result.pass_pct)}
         </p>
         <Button variant="outline" size="sm" onClick={handleStart} data-testid="quiz-retake-button">
           <RotateCcw className="w-4 h-4 mr-2" /> Retake Quiz
