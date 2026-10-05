@@ -468,7 +468,10 @@ async function handleTeacherPick(user, from, listId) {
  */
 async function _sendReportTemplate(delivery, foName, sessionId) {
   const tpl = reportTemplateConfig();
-  return WhatsAppService.sendTemplate(delivery.teacher_phone, tpl.name, tpl.lang, [
+  // sendTemplate answers false when Meta refuses (no such template on this account, a bad
+  // parameter): it never throws. Every caller treats a throw as the failure, so a refusal must
+  // throw too, or it is filed and told to the coach as an invite that went out.
+  const sent = await WhatsAppService.sendTemplate(delivery.teacher_phone, tpl.name, tpl.lang, [
     { type: 'body',
       parameters: [
         { type: 'text', text: delivery.teacher_name },
@@ -477,6 +480,10 @@ async function _sendReportTemplate(delivery, foName, sessionId) {
     { type: 'button', sub_type: 'quick_reply', index: '0',
       parameters: [{ type: 'payload', payload: `${TEMPLATE_PAYLOAD_PREFIX}${sessionId}` }] },
   ]);
+  if (sent === false) {
+    throw new Error(`observe send: the report invite template was refused (${tpl.name}/${tpl.lang})`);
+  }
+  return sent;
 }
 
 /**
