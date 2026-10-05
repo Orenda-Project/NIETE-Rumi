@@ -224,4 +224,21 @@ function optionPic(pic, language, { word } = {}) {
   return null;
 }
 
-module.exports = { figureFor, optionPic, safeSvg, wordsFor };
+/**
+ * The last step of an E2 question: every option whose `pic` is still a stored
+ * description ({kind, name|text|spec}) is drawn now, named in the quiz language
+ * (o.name, else the option's text). One that cannot be drawn loses its pic and
+ * stays a word. A pic that is already a drawing ({svg}) is left alone. Runs
+ * after every writer of `options`, so it does not matter which one filled them.
+ */
+function drawOptionPics(options, language) {
+  for (const o of Array.isArray(options) ? options : []) {
+    if (!o || !o.pic || typeof o.pic !== 'object' || o.pic.svg) continue;
+    const drawn = optionPic(o.pic, language, { word: o.name || o.text });
+    if (drawn) o.pic = drawn;
+    else delete o.pic;
+  }
+  return options;
+}
+
+module.exports = { figureFor, optionPic, drawOptionPics, safeSvg, wordsFor };
