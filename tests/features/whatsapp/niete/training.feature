@@ -1621,6 +1621,32 @@ Feature: NIETE (ICT) Teacher Training
     And a friend's challenge code still counts toward the class it came from, as before
     # web-quiz.service resolveCode (collapse only with an inviter) + startSession (from_st; no schedule for a "more videos" code). @wip.
 
+  @api @quiz @web @wip @draft @P2 @T185 @no-mock-driver
+  Scenario: The web quiz wears this deployment's brand, chosen by configuration
+    Given nothing names a brand for the web quiz
+    When a child opens my web quiz link, or the link's preview shows in the class group
+    Then the page, its bar, its scorecard, its closed page, its tab icon and its link preview carry the NIETE mark and colours
+    And the bar shows the NIETE monogram over "FOR STUDENTS", and the count says how many children in Islamabad played today
+    # bot/shared/config/web-quiz-brand.js (DEFAULT_BRAND), dashboard/routes/web-quiz.routes.js (head, boot brand, closed page).
+    # Unit: bot/tests/quiz/web-quiz/web-quiz-brand.test.js, dashboard/tests/web-quiz-edge.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @config-gated @P2 @T186 @no-mock-driver
+  Scenario: A deployment that names another brand gets that brand on every screen, with no NIETE left
+    Given app_settings "web_quiz_brand" is "rumi", or ORG_NAME names Rumi and no setting is stored
+    When a child opens a web quiz link
+    Then the page wears the Rumi mark, navy and coral, and the Rumi link preview
+    And no screen, preview or page title says NIETE or Islamabad
+    And a brand the configuration does not know is ignored and the default brand is used
+    # web-quiz-brand.js brandKey (setting, then ORG_NAME, then default; 5-minute cache of the app_settings row).
+    # Unit: bot/tests/quiz/web-quiz/web-quiz-brand.test.js, bot/tests/quiz/web-quiz/web-quiz.service.test.js (E2 brand). @wip.
+
+  @api @quiz @web @wip @draft @P3 @T187 @no-mock-driver
+  Scenario: Right and wrong keep their own colours whatever the brand
+    Given the web quiz wears any brand
+    When a child answers right, answers wrong or finishes
+    Then right answers and praise are green, "not yet" is amber and stars are gold, never the brand's colour
+    # wq.css semantic tokens (--right, --notyet, --star) are not overridden by the brand. @wip.
+
   @api @quiz @wip @draft @config-gated @P1 @T130 @no-mock-driver
   Scenario: With the author gates on, every quiz question carries the moment of my lesson that holds its answer
     Given app_settings "quiz_author_gates_v2" is true
