@@ -27,6 +27,10 @@
  */
 
 const { logToFile } = require('../../utils/logger');
+const { clampLanguage } = require('../../config/ux-strings');
+const { getLanguage } = require('../../config/languages');
+
+const dirOf = (lang) => ((getLanguage(lang) || {}).direction === 'rtl' ? 'rtl' : 'ltr');
 
 const CACHE_MAX = 400;
 const cache = new Map();
@@ -77,7 +81,7 @@ const WORDS = {
 
 function wordsFor(type, lang) {
   const w = WORDS[type] || WORDS._;
-  return w[lang === 'ur' ? 'ur' : 'en'];
+  return w[clampLanguage(lang)] || w.en;
 }
 
 function escAttr(s) {
@@ -107,6 +111,31 @@ function draw(spec, lang) {
   return svg;
 }
 
+/**
+ * The NIETE palette, set as custom properties on the drawing's own root. The
+ * engine paints with var(--amber, <default>) etc.; on WhatsApp the PNG frame
+ * sets them, and on the page nothing would, so the child would see the
+ * engine's default colours instead of the ones the WhatsApp picture has.
+ */
+let _tokenCss = null;
+function tokenCss() {
+  if (_tokenCss === null) {
+    try {
+      const { NIETE_TOKENS } = require('./transcript-quiz-figure');
+      _tokenCss = Object.entries(NIETE_TOKENS).map(([k, v]) => `--${k}:${v}`).join(';') + ';';
+    } catch (_) { _tokenCss = ''; }
+  }
+  return _tokenCss;
+}
+
+function withTokens(svg) {
+  const css = tokenCss();
+  if (!css) return svg;
+  return /^<svg[^>]*\sstyle="/.test(svg)
+    ? svg.replace(/^(<svg[^>]*\s)style="/, `$1style="${css}`)
+    : svg.replace(/^<svg/, `<svg style="${css}"`);
+}
+
 function withLabel(svg, alt) {
   const label = escAttr(alt);
   return /^<svg[^>]*\saria-label="/.test(svg)
@@ -120,8 +149,8 @@ function withLabel(svg, alt) {
  */
 function figureFor(row) {
   const media = (row && row.media) || {};
-  const lang = media.language === 'ur' ? 'ur' : 'en';
-  const dir = lang === 'ur' ? 'rtl' : 'ltr';
+  const lang = clampLanguage(media.language);
+  const dir = dirOf(lang);
   const v2 = media.web && media.web.figure && typeof media.web.figure === 'object' ? media.web.figure : null;
   const spec = (v2 && v2.spec) || (media.figure && typeof media.figure === 'object' ? media.figure : null);
   const type = spec ? String(spec.type || '') : '';
@@ -132,7 +161,7 @@ function figureFor(row) {
   if (spec) {
     const svg = draw(spec, lang);
     if (svg) {
-      const out = { kind: 'svg', svg: withLabel(svg, alt), type, ...boxOf(svg), alt, say, dir };
+      const out = { kind: 'svg', svg: withTokens(withLabel(svg, alt)), type, ...boxOf(svg), alt, say, dir };
       if (v2 && Array.isArray(v2.hotspots)) out.hotspots = v2.hotspots;
       return out;
     }
@@ -148,7 +177,7 @@ function figureFor(row) {
  */
 function optionPic(pic, language) {
   if (!pic || typeof pic !== 'object') return null;
-  const lang = language === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(language);
   if (pic.kind === 'pictogram') {
     try {
       const P = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
@@ -165,7 +194,7 @@ function optionPic(pic, language) {
     const svg = draw(pic.spec, lang);
     if (!svg) return null;
     const name = String(pic.name || pic.say || wordsFor(String(pic.spec.type || ''), lang)[0]);
-    return { svg: withLabel(svg, name), name, alt: name };
+    return { svg: withTokens(withLabel(svg, name)), name, alt: name };
   }
   return null;
 }

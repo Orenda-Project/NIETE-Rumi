@@ -142,7 +142,7 @@ function optionImageOf(media, i) {
   return Array.isArray(list) ? list[i] || null : null;
 }
 
-const mediaLang = (m) => (m && m.language === 'ur' ? 'ur' : 'en');
+const mediaLang = (m) => clampLanguage(m && m.language);
 
 /** The v2 item's picture for this slot (media.web.options[].pic), if any. */
 function webOptionPic(media, slot) {
