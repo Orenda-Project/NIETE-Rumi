@@ -19,7 +19,7 @@ function page(result, lang = 'en') {
   const ctx = {
     LANG: lang, CODE: 'AB12CD', N: 5, Q: { topic: 'Plants' }, CLS: { label: '3-B' }, IMG: '/wq/', S: { result, child: { first: 'Danish' } },
     T: { cardPriv: 'p', shareBtn: 'Share', challenge: 'Challenge', classBtn: 'Class', praise: () => 'Well played',
-      shareLine: (f, c, t) => `${f} got ${c}/${t}` },
+      shareLine: (f, c, t) => `${f} got ${c}/${t}`, sharePlayed: (f) => `${f} played` },
     esc: (s) => String(s == null ? '' : s), ani: (a) => `[${a}]`, bar: () => '', dotJoin: (a, b) => `${a} · ${b}`,
     stars: (n, t) => `<stars ${n}/${t}>`, render: (h, n) => out.screens.push({ h, n }), wireBar: () => {}, ev: () => {},
     on: (sel, fn) => { out[sel] = fn; }, share: (line) => out.shared.push(line), link: (p) => p, board: () => {},
