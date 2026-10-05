@@ -15,7 +15,7 @@ const { modelFor } = require('./models');
 const { chatJSON } = require('./llm');
 const { cutClip, cleanup } = require('./media');
 const { align, refWords, same, clean } = require('./text-norm');
-const { wordsIn } = require('./windows');
+const { wordsIn, lastWordsHeard } = require('./windows');
 const speechace = require('./speechace');
 const th = require('./thresholds');
 
@@ -112,12 +112,16 @@ async function scoreStory({ lang, spec, file, window, words, coachSpeaker, flags
       });
     }
 
-    // finished early: the child reached the last word before the minute was up
+    // finished early: the child reached the last word before the minute was up. The end is where the passage's
+    // last words are heard, from any speaker; the child's last copy of the final word is only the fallback. Alone,
+    // that word («تھا») is said all through the passage, and the true last one is often misheard: the latest
+    // child-labelled «تھا» then sat 17 s in, and a 65-a-minute reader was shown 177 (bd-s1oo0.50.11).
     let seconds = Math.min(60, window.end - window.start);
     let finishedEarly = false;
     if (attempted >= tokens.length) {
       const last = clean(tokens[tokens.length - 1]);
-      const hit = [...hyp].reverse().find((h) => same(h.w, last));
+      const ending = lastWordsHeard(words, tokens, { after: window.start - 0.5, before: window.end + 2 });
+      const hit = ending || [...hyp].reverse().find((h) => same(h.w, last));
       const endAt = hit ? hit.end : (hyp.length ? hyp[hyp.length - 1].end : window.end);
       const used = Math.max(1, endAt - window.start);
       if (used < FINISHED_EARLY_BEFORE) { seconds = Math.round(used * 10) / 10; finishedEarly = true; }

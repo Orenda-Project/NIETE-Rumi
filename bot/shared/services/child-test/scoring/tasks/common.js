@@ -21,7 +21,7 @@
 
 const stt = require('../stt');
 const { renderTurns } = require('../stt');
-const { findPhrase } = require('../windows');
+const { findPhrase, lastWordsHeard } = require('../windows');
 const { clean, same } = require('../text-norm');
 
 const VERSION = 'ai-marks-v3';
@@ -246,25 +246,15 @@ function untimedScore(rows) {
 }
 
 /**
- * A finished child's time left, from where the LAST WORDS of the printed text are heard (the latest match of
- * the final 3 items after the begin line). Speaker labels are not used: when diarization puts the reading on
- * the coach's speaker, "the child's last word" lands early and a 65-per-minute reader shows 184
- * (bd-s1oo0.50.11). null when the ending is not heard (or the items are not words), so the caller falls back.
+ * A finished child's time left, from where the LAST WORDS of the printed text are heard (windows.lastWordsHeard:
+ * the latest match of the final 3 items after the begin line, any speaker). Speaker labels are not used: when
+ * diarization puts the reading on the coach's speaker, "the child's last word" lands early and a 65-per-minute
+ * reader shows 184 (bd-s1oo0.50.11). null when the ending is not heard (or the items are not words), so the
+ * caller falls back.
  */
 function endByPassage({ words, begin, rows }) {
-  const refs = rows.map((r) => r.ref).filter((x) => typeof x === 'string' && /\S/.test(x));
-  if (refs.length < 3 || refs.length !== rows.length) return null;
-  const phrase = refs.slice(-3).join(' ');
-  let hit = null;
-  let after = begin - 0.5;
-  for (let guard = 0; guard < 50; guard += 1) {
-    const h = findPhrase(words, phrase, { after, before: begin + SECONDS + 2 });
-    if (!h) break;
-    hit = h;
-    after = h.start + 0.01;
-  }
-  if (!hit) return null;
-  return Math.max(0, round1(SECONDS - (hit.end - begin)));
+  const hit = lastWordsHeard(words, rows.map((r) => r.ref), { after: begin - 0.5, before: begin + SECONDS + 2 });
+  return hit ? Math.max(0, round1(SECONDS - (hit.end - begin))) : null;
 }
 
 /** Timed summary from rows + clock. */
