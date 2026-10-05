@@ -150,6 +150,17 @@ describe('Urdu copy on the after-quiz screens', () => {
     expect(line).toMatch(/ٹھیک کیے$/);
   });
 
+  test('one right answer takes the singular verb («1 درست کیا»), more take the plural', async () => {
+    const one = page({ lang: 'ur', store: store(), api: { '/finish': { score: { correct: 1, total: 5 }, counted: true } } });
+    one.ctx.__wq.results(0);
+    await flush(); await flush();
+    expect(one.html()).toMatch(/1 درست کیا</);
+    const four = page({ lang: 'ur', store: store(), api: { '/finish': { score: { correct: 4, total: 5 }, counted: true } } });
+    four.ctx.__wq.results(0);
+    await flush(); await flush();
+    expect(four.html()).toMatch(/4 درست کیے</);
+  });
+
   test('"today" in Urdu says "today" once, and its home button says where it goes', () => {
     const p = page({ lang: 'ur', store: store() });
     p.ctx.__wq.today();
