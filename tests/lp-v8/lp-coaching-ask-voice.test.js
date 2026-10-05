@@ -59,6 +59,8 @@ jest.mock('../../bot/shared/services/audio.service', () => ({
 // ── everything else the handler touches, stubbed so the branch can run ───────
 jest.mock('fs', () => ({
   writeFileSync: jest.fn(), unlinkSync: jest.fn(), existsSync: jest.fn(() => false),
+  // bd-x74wv: each voice note is staged in a private temp directory (bot/shared/utils/private-temp.js).
+  mkdirSync: jest.fn(), mkdtempSync: jest.fn((prefix) => `${prefix}test`), rmSync: jest.fn(),
   readFileSync: jest.requireActual('fs').readFileSync,
   readdirSync: jest.requireActual('fs').readdirSync,
   statSync: jest.requireActual('fs').statSync,
