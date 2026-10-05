@@ -41,6 +41,7 @@
 const crypto = require('crypto');
 const tts = require('../tts');
 const { mathToText } = require('./quiz-math');
+const { cleanWrongFeedback } = require('./web-quiz-feedback');
 const r2 = require('../../storage/r2');
 const { logEvent } = require('../../utils/structured-logger');
 const { logError } = require('../../utils/logger');
@@ -124,7 +125,7 @@ function partsFor(q) {
     add('why', spoken(w.why) || whyText(q) || withoutPraise(w.fb_right));
     w.options.forEach((o) => {
       const x = PARTS_FB['ABCD'.indexOf(String((o && o.slot) || '').charAt(0))];
-      if (x) add(x, spoken(o && o.fb));
+      if (x) add(x, spoken(cleanWrongFeedback(o && o.fb)));
     });
     return parts;
   }
@@ -132,7 +133,7 @@ function partsFor(q) {
   PARTS_OPTS.forEach((p) => add(p, spoken(q[`option_${p}`])));
   add('why', whyText(q));
   const wrong = (q.option_feedback && typeof q.option_feedback === 'object' && q.option_feedback.wrong) || {};
-  PARTS_FB.forEach((x, i) => add(x, spoken(wrong[String(i)])));
+  PARTS_FB.forEach((x, i) => add(x, spoken(cleanWrongFeedback(wrong[String(i)]))));
   return parts;
 }
 
