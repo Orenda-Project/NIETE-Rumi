@@ -1,13 +1,20 @@
-/* Web child quiz: Picture-book look. No framework, no build step. */
+/* Web child quiz. No framework, no build step.
+   BRAND tokens: the values below are the NIETE defaults; the server overrides them per deployment brand
+   in <style id="wq-brand"> (bot/shared/config/web-quiz-brand.js). Use the NAMES, never hex.
+   SEMANTIC tokens (right / not yet / stars / option shapes) are the same in every brand. */
 :root{
-  --green:#47BA7D;--green-d:#23794D;--green-l:#E3F5EA;
-  --navy:#333748;--ink:#2A2D3A;--muted:#5F6374;
-  --paper:#FFF8EA;--paper-2:#FFF1D6;--card:#FFFFFF;--line:#EADFC8;
-  --gold:#F6B73C;--gold-d:#B37A0C;--star-off:#E6DCC6;
+  --brand:#47BA7D;--brand-d:#23794D;--brand-l:#E3F5EA;
+  --brand-ink:#333748;--brand-ink-d:#1F2230;--brand-on:#333748;
+  --ground:#F5F8F6;--card:#FFFFFF;--line:#DCE5DF;--tint:#ECF4EF;--ink:#2A2D3A;--muted:#5F6374;
+  --mk1:#47BA7D;--mk2:#333748;--mk1-t:#47BA7D;--mk2-t:#FFFFFF;--deco:none;
+  /* aliases kept for the other sections of this file */
+  --green:var(--brand);--green-d:var(--brand-d);--green-l:var(--brand-l);--navy:var(--brand-ink);
+  --paper:var(--ground);--paper-2:var(--tint);
+  --gold:#F6B73C;--gold-d:#B37A0C;--star:var(--gold);--star-d:var(--gold-d);--star-off:#E2E5E3;
   --right:#23794D;--right-bg:#E3F5EA;--notyet:#9A6A08;--notyet-bg:#FFF2CF;
   --s1:#6D3FC0;--s2:#1F5FBF;--s3:#A3478F;--s4:#0E7C86;
   --s1-bg:#EEE8FA;--s2-bg:#E4ECFA;--s3-bg:#F6E6F1;--s4-bg:#E0F2F3;
-  --hill:#DCEFD9;--tap:48px;
+  --tap:48px;
   --f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --fu:"WQ Nastaliq",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Nastaliq Urdu",sans-serif;
 }
@@ -26,14 +33,26 @@ html[lang=ur] .wq-icon,html[lang=ur] .wq-spk,html[lang=ur] .wq-emoji,html[lang=u
 button,input{font:inherit;color:inherit}
 img{max-width:100%}
 .wq-app{min-height:100vh;min-height:100dvh;max-width:480px;margin:0 auto;display:flex;flex-direction:column;position:relative;overflow-x:hidden}
-.wq-app::after{content:"";position:fixed;left:-30px;right:-30px;bottom:-70px;height:150px;border-radius:50% 50% 0 0;background:var(--hill);z-index:0;pointer-events:none}
+/* The brand's ground motif (NIETE: the diamond lattice; Rumi: dots and smiles), whisper-quiet, fading up from the bottom. */
+.wq-app::after{content:"";position:fixed;left:0;right:0;bottom:0;height:150px;background-image:var(--deco);background-size:auto;opacity:.32;-webkit-mask-image:linear-gradient(to top,#000 20%,transparent);mask-image:linear-gradient(to top,#000 20%,transparent);z-index:0;pointer-events:none}
 .wq-boot{flex:1;display:grid;place-items:center}
 .wq-screen{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;gap:14px;padding:12px 16px 120px}
 .wq-closed{align-items:center;justify-content:center;text-align:center}
 .wq-closed h1{font-size:26px;color:var(--navy);margin:0}
 .wq-bar{display:flex;align-items:center;gap:8px;min-height:var(--tap)}
-.wq-brand{display:flex;align-items:center;gap:8px;font:900 13px var(--f);color:var(--navy);letter-spacing:.06em}
-.wq-brand i{width:12px;height:12px;background:var(--green);transform:rotate(45deg);display:inline-block}
+.wq-topbar{position:relative;z-index:1;padding:12px 16px 0}
+/* The brand lockup: the mark, the name over the product line (NIETE book p15: "FOR STUDENTS"). Always Latin, LTR. */
+.wq-brand{display:flex;align-items:center;gap:8px;color:var(--brand-ink);direction:ltr;font-family:var(--f)}
+.wq-mark{display:inline-block;line-height:0;flex:0 0 auto}
+.wq-mark svg{display:block;width:100%;height:100%}
+.wq-tile{width:34px;height:34px;padding:6px;border-radius:9px;background:var(--brand-ink);--mk1:var(--mk1-t);--mk2:var(--mk2-t)}
+.wq-bare{height:18px;width:auto;aspect-ratio:691/285}
+.wq-lock{display:flex;flex-direction:column;line-height:1.05}
+.wq-lock b{font:900 15px var(--f);letter-spacing:.08em}
+.wq-lock small{display:flex;align-items:center;gap:3px;font:800 9px var(--f);letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin-top:2px}
+.wq-tile+.wq-lock small::after{content:"";width:5px;height:5px;background:var(--brand);transform:rotate(45deg);box-shadow:7px 0 0 var(--brand);margin-inline-start:4px}
+.wq-scorecard header .wq-tile{width:26px;height:26px;padding:4px;border-radius:7px;background:transparent}
+.wq-scorecard header .wq-bare{height:14px;--mk1:var(--mk1-t);--mk2:var(--mk2-t)}
 .wq-grow{flex:1}
 .wq-icon{min-width:var(--tap);min-height:var(--tap);border-radius:50%;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--navy);font-size:22px}
 .wq-icon[aria-pressed=false]{opacity:.55}
@@ -60,9 +79,9 @@ html[lang=ur] .wq-say{font-weight:600;font-size:17px;line-height:1.95}
 .wq-card{background:var(--card);border-radius:20px;padding:14px;box-shadow:0 3px 0 var(--line)}
 .wq-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:60px;border-radius:18px;border:0;font-weight:900;font-size:20px;cursor:pointer;padding:8px 18px;text-decoration:none;text-align:center}
 html[lang=ur] .wq-btn{font-weight:700;font-size:19px;line-height:1.9}
-.wq-go{background:var(--green);color:var(--navy);box-shadow:0 5px 0 var(--green-d)}
+.wq-go{background:var(--brand);color:var(--brand-on);box-shadow:0 5px 0 var(--brand-d)}
 .wq-go:active{transform:translateY(3px);box-shadow:0 2px 0 var(--green-d)}
-.wq-navy{background:var(--navy);color:#fff;box-shadow:0 5px 0 #1F2230}
+.wq-navy{background:var(--brand-ink);color:#fff;box-shadow:0 5px 0 var(--brand-ink-d)}
 .wq-soft{background:var(--card);color:var(--navy);border:2px solid var(--line);min-height:52px;font-size:17px}
 .wq-ghost{background:transparent;color:var(--navy);min-height:48px;font-size:16px;font-weight:800;text-decoration:underline;text-underline-offset:4px}
 .wq-stack>*+*{margin-top:12px}
@@ -134,17 +153,16 @@ html[lang=ur] .wq-why{line-height:2.3}
 .wq-stars{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .wq-star{width:40px;height:40px}
 .wq-star path{fill:var(--star-off)}
-.wq-star.wq-on path{fill:var(--gold);stroke:var(--gold-d);stroke-width:1}
+.wq-star.wq-on path{fill:var(--star);stroke:var(--star-d);stroke-width:1}
 .wq-big{font-size:64px;font-weight:900;color:var(--navy);text-align:center;line-height:1}
 html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-center{text-align:center}
 .wq-scorecard{background:var(--card);border-radius:24px;box-shadow:0 4px 0 var(--line);overflow:hidden;text-align:center}
 .wq-scorecard header{background:var(--navy);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px;font-weight:900;letter-spacing:.06em;font-size:13px}
-.wq-scorecard header i{width:12px;height:12px;background:var(--green);transform:rotate(45deg);display:inline-block}
 .wq-scorecard .wq-in{padding:14px;display:flex;flex-direction:column;gap:8px;align-items:center}
 .wq-scorecard img{width:110px;height:110px}
 .wq-name{font-size:26px;font-weight:900;color:var(--navy)}
-.wq-praise{font-size:22px;font-weight:900;color:var(--green-d)}
+.wq-praise{font-size:22px;font-weight:900;color:var(--right)}
 .wq-table{width:100%;border-collapse:separate;border-spacing:0 6px}
 .wq-table td{background:var(--card);padding:10px 8px;font-weight:800;font-size:17px}
 .wq-table td:first-child{border-start-start-radius:12px;border-end-start-radius:12px;width:44px;text-align:center;color:var(--muted)}
