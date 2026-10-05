@@ -33,6 +33,7 @@ const CODES = {
   OFF_KEY: 'SOURCE_QUOTE_OFF_KEY',
   WRONG_MOMENT: 'SOURCE_QUOTE_WRONG_MOMENT',
   STEM_LONG: 'STEM_TOO_LONG_G12',
+  NO_REASON: 'SOURCE_QUOTE_NO_REASON',
 };
 const SOURCE_FAULT = /^q(\d+): (SOURCE_QUOTE_[A-Z_]+|STEM_TOO_LONG_G12)\b/;
 const G12_MAX_WORDS = 8;
@@ -188,6 +189,38 @@ function freshMoments(sourceText, usedQuotes = [], n = 6) {
     .slice(0, n);
 }
 
+// ── a "why" answered with words the lesson never says ───────────────────────
+// The quote can be real and share a word with the key while the REASON in the
+// key is the author's own ("hide from predators and ambush prey" for a lesson
+// that says only camouflage and predators: the red team's BLOCKING chameleon
+// item, 5 Oct 2026). For a why/how question with an English answer, the key's
+// own content words — beyond the stem's — are looked for anywhere in the
+// lesson; when half or more of them (two at least) never appear, the reason is
+// not the lesson's. English only: a code-switched Urdu transcript paraphrases,
+// and its words would not match. Measured on the 22 English why/how items of
+// the re-score's 47 quizzes: 2 refused, the chameleon and a desert fox that
+// "saves energy" (the lesson says only that it avoids the heat).
+const ASKS_WHY = /\b(?:why|how (?:does|do|can|is|are)|reason|explain)\b/i;
+const REASON_STOP = new Set(('that this these those with from they them their there because would could should '
+  + 'which what when where while than then into also just only very more most some such each it\'s helps help makes make '
+  + 'have has had been being were will does doing done').split(' '));
+const reasonWords = (s) => (String(s ?? '').toLowerCase().match(/[a-z]{4,}/g) || [])
+  .filter((w) => !REASON_STOP.has(w)).map((w) => w.slice(0, 5));
+function inventedReason(q, sourceText) {
+  if (!ASKS_WHY.test(String(q.question || ''))) return null;
+  const key = keyText(q);
+  if (/[\u0600-\u06ff]/.test(key)) return null;
+  const inStem = new Set(reasonWords(q.question));
+  // stem (first five letters) → the word as the key wrote it
+  const said = new Map();
+  (key.toLowerCase().match(/[a-z]{4,}/g) || []).forEach((w) => { if (!said.has(w.slice(0, 5))) said.set(w.slice(0, 5), w); });
+  const want = [...new Set(reasonWords(key))].filter((w) => !inStem.has(w));
+  if (want.length < 2) return null;
+  const have = new Set(reasonWords(sourceText));
+  const missing = want.filter((w) => !have.has(w));
+  return missing.length * 2 >= want.length && missing.length >= 2 ? missing.map((w) => said.get(w) || w) : null;
+}
+
 /**
  * The faults of ONE question against its source. Returns [{code, detail}] —
  * empty when the question may ship.
@@ -223,6 +256,12 @@ function questionFaults(q, sourceText, { gradeBand } = {}) {
           faults.push({ code: CODES.WRONG_MOMENT, detail: `the quote's numbers (${[...quoteNums].join(', ')}) are neither the answer's nor the question's: quote the moment that says the correct fact, or ask about the lesson's own numbers` });
         }
       }
+    }
+  }
+  if (!faults.length) {
+    const missing = inventedReason(q || {}, sourceText);
+    if (missing) {
+      faults.push({ code: CODES.NO_REASON, detail: `the answer's reason is not the lesson's: "${missing.join('", "')}" never appear in it; answer "why" with what the lesson itself says, and quote that moment` });
     }
   }
   if (isGradeOneTwo(gradeBand)) {
