@@ -454,6 +454,14 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     When the child writes an English question
     Then the reply is in English
 
+  @api @language @quiz @wip @draft @config-gated @P2
+  Scenario: The web quiz's forwarded message is in the quiz's language and says only the name is asked
+    Given the web quiz is on for a teacher, and the quiz is in Urdu or in English
+    When the teacher gets the message to forward to the class
+    Then it is wholly in the quiz's language and says the child will be asked their name first
+    And the WhatsApp quiz's message is unchanged
+    # ux-strings tqStudentMessageWeb (en + ur) beside tqStudentMessage. Unit: tests/quiz/web-quiz-forward-message.test.js. @wip.
+
   @e2e @language @persona:student @wip @draft @seeded @P2
   Scenario: A child whose quiz was in English and who writes Roman Urdu is answered in Urdu script
     Given a child whose last quiz was in English
