@@ -61,10 +61,11 @@ async function loadRoster(teacherUserId) {
     if (error) throw new Error(error.message);
     if (!lists || !lists.length) return null;
     const { data: kids, error: kErr } = await supabase.from('students')
-      .select('id, list_id, roll_number, student_name, student_name_urdu, status')
+      .select('id, list_id, roll_number, student_name, student_name_urdu')
       .in('list_id', lists.map((l) => l.id)).eq('is_active', true);
     if (kErr) throw new Error(kErr.message);
-    const live = (kids || []).filter((k) => !k.status || k.status === 'active');
+    // is_active is the roster's own switch (a merged or removed child is inactive).
+    const live = kids || [];
     if (!live.length) return null;
     return {
       lists: lists.map((l) => ({ id: l.id, label: listLabel(l), grade: digits(l.class_name) })),
