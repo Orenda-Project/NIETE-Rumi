@@ -383,6 +383,24 @@ describe('E8 POST e', () => {
   });
 });
 
+describe('E8 iab: the in-app-browser flag the page sends on page_open', () => {
+  test('iab 1/0 (what wq.js sends) reaches the log as 0/1; anything else is dropped', () => {
+    WQ.events({ events: [
+      { n: 'page_open', iab: 1, store: 1 },
+      { n: 'page_open', iab: 0 },
+      { n: 'page_open', iab: true },
+      { n: 'page_open', iab: 7 },
+      { n: 'page_open', iab: '1' },
+    ] });
+    const calls = logEvent.mock.calls;
+    expect(calls[0]).toEqual(['web_quiz.page_open', { iab: 1, store: 1 }]);
+    expect(calls[1]).toEqual(['web_quiz.page_open', { iab: 0 }]);
+    expect(calls[2]).toEqual(['web_quiz.page_open', { iab: 1 }]);
+    expect(calls[3]).toEqual(['web_quiz.page_open', {}]);
+    expect(calls[4]).toEqual(['web_quiz.page_open', {}]);
+  });
+});
+
 describe('E8 page props the edge needs (probe, ua, store, path, audio_fallback)', () => {
   test('ua capped at 300, store 0/1, path from a fixed set; probe carries a flat object under 4 KB', () => {
     WQ.events({ events: [

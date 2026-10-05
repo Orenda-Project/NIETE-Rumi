@@ -715,8 +715,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     ROOT.appendChild(t);
     setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 2600);
   }
-  function ani(a) { return ANIMALS[a] || '⭐'; }
+  function ani(a) { return '<span class="wq-ani">' + (ANIMALS[a] || '⭐') + '</span>'; }
   function fmtN(n) { return Number(n || 0).toLocaleString('en'); }
+  // Joins the non-empty parts with a middle dot, so a missing class label or topic never leaves "NIETE ·".
+  function dotJoin() { return Array.prototype.filter.call(arguments, function (x) { return x != null && String(x) !== ''; }).map(esc).join(' · '); }
   function link(path) { return location.origin + path; }
 
   /* ---------------- M3 landing ---------------- */
@@ -751,7 +753,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function who() {
     var here = kids();
     var chips = (CLS.chips || []).filter(function (c) { return !here.some(function (k) { return k.chip === c.chip; }); });
-    function kidBtn(k, src) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '" data-src="' + src + '"><span class="wq-ani">' + ani(k.animal) + '</span>' + esc(k.first) + '</button>'; }
+    function kidBtn(k, src) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '" data-src="' + src + '">' + ani(k.animal) + esc(k.first) + '</button>'; }
     var h = bar() + jug('idle', T.whoSay) + '<h2>' + esc(T.whoT) + '</h2>' +
       (here.length ? '<p class="wq-sub">' + esc(T.onPhone) + '</p><div class="wq-chips">' + here.map(function (k) { return kidBtn(k, 'phone'); }).join('') + '</div>' : '') +
       (chips.length ? '<p class="wq-sub">' + esc(T.inClass(CLASS_LABEL)) + '</p><div class="wq-chips">' + chips.map(function (k) { return kidBtn(k, 'class'); }).join('') + '</div>' : '') +
@@ -846,13 +848,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function video() {
     var v = B.video;
     var h = bar() + jug('hello', T.vSay) + '<h2>' + esc(T.vT) + '</h2>' +
-      '<video class="wq-video" controls playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url) + '"></video>' +
+      // A cover over the box until the first play: a tap anywhere starts the video (the native button
+      // is small), and with no poster the child sees Jugnu and a big play button, not a dark box.
+      '<div class="wq-vbox"><video class="wq-video" controls playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url) + '"></video>' +
+      '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button" aria-label="' + esc(T.vT) + '">' +
+      (v.poster ? '' : '<img src="' + IMG + 'hello.webp" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">▶</span></button></div>' +
       '<ul class="wq-how">' + T.how.map(function (x) { return '<li><span>' + x[0] + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
       '<button class="wq-btn wq-go" id="wq-skip">' + esc(T.skip) + '</button>';
     render(h, 'M5');
     wireBar();
     var vid = $('video');
-    if (vid) vid.addEventListener('play', function () { ev('video_play', {}); });
+    var cover = $('.wq-vcover');
+    if (vid) vid.addEventListener('play', function () { if (cover) cover.hidden = true; ev('video_play', {}); });
+    on('.wq-vcover', function () {
+      if (!vid || !vid.paused) return;
+      try { var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
+    });
     on('#wq-skip', function () { try { vid.pause(); } catch (e) {} ev('video_skip', { pct: vid && vid.duration ? Math.round(100 * vid.currentTime / vid.duration) : 0 }); nextQuestion(); });
   }
 
@@ -1074,7 +1085,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var c = res.card || {};
     var total = c.total || N;
     var h = bar() +
-      '<div class="wq-scorecard"><header><i></i>NIETE · ' + esc(CLS.label || '') + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard"><header><i></i>' + dotJoin('NIETE', CLS.label) + '</header><div class="wq-in">' +
       '<img src="' + IMG + 'celebrate.webp" alt="">' +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
       '<p class="wq-sub">' + esc(Q.topic) + '</p>' +
@@ -1113,7 +1124,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + esc(you.correct) + '/' + esc(you.total) + ' ⭐</td></tr>';
       }
       var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
-      var h = bar() + '<h2>' + esc(T.leagueT(CLASS_LABEL)) + '</h2><p class="wq-sub">' + esc(Q.topic) + ' · ' + esc(T.finN(b.finishers_n || 0)) + '</p>' +
+      var h = bar() + '<h2>' + esc(T.leagueT(CLASS_LABEL)) + '</h2><p class="wq-sub">' + dotJoin(Q.topic, T.finN(b.finishers_n || 0)) + '</p>' +
         (rows ? '<table class="wq-table"><tbody>' + rows + '</tbody></table>' : '<div class="wq-card">' + esc(T.noRows) + '</div>') +
         (b.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(b.more_n)) + '</p>' : '') +
         '<div class="wq-card wq-cmp">' +
@@ -1148,7 +1159,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         return '<li><span>' + esc(x.topic) + '<br><small class="wq-small">' + esc(x.date) + '</small></span><span>' + esc(x.correct) + '/' + esc(x.total) + ' ⭐</span></li>';
       }).join('') + '</ul>' +
         (fr.length ? '<p class="wq-sub">' + esc(T.friends) + '</p><ul class="wq-hist">' + fr.slice(0, 6).map(function (x) {
-          return '<li><span>' + esc(x.first) + ' · ' + esc(x.topic) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
+          return '<li><span>' + dotJoin(x.first, x.topic) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
         }).join('') + '</ul>' : '') +
         '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
       render(h, 'M13');
