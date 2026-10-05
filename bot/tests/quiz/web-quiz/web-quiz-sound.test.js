@@ -90,7 +90,8 @@ describe('E2 carries the sound item\'s own clips', () => {
     ['زبر، زیر، پیش کے استعمال سے ہم الف، چھوٹی ی، اور واؤ کی آواز نکال سکتے ہیں۔', false],
     ['Count the number of squares in the picture', false],
   ])('the sound is sent only when the child needs it to answer: %s', async (stem, sent) => {
-    seed([row(1, stem, CLIPS)]);
+    // A stem that sends the child to a picture is only served with its picture (the E2 guard).
+    seed([row(1, stem, /picture/.test(stem) ? { ...CLIPS, question_image: 'https://r2/squares.png' } : CLIPS)]);
     const q = (await WQ.getQuiz('AB12CD')).quiz.questions[0];
     expect(Boolean(q.audio && q.audio.stim)).toBe(sent);
   });
