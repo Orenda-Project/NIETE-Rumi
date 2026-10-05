@@ -1513,3 +1513,13 @@ Feature: NIETE (ICT) Teacher Training
     And a question with no web item is read from its own text with the maths written as words
     And when a question's words change, the next recording says the new words
     # web-quiz-publish.service partsFor (read.stem / read.opts, mathToText fallback), audioKey (hash of the words). Unit: tests/quiz/web-quiz-publish.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T165 @no-mock-driver
+  Scenario: With my class list, my quiz children are the children on my list
+    Given app_settings "web_quiz_roster_id" is true and I keep a class list with roll numbers
+    When a child of my class opens my quiz link, types their roll number and confirms their first name
+    Then the child plays as the child on my class list, not as a new name
+    And my report shows the name and class from my class list, counting each child's first finished score
+    And the quiz page never receives my class list: one roll number answers with at most three first names and their animals
+    But with the switch off, or without a class list, children pick or type their names as before
+    # ADDED 2026-10-05: web-quiz-roster.js (rosterOn, loadRoster, byRoll, byName, nearName); web-quiz.service getQuiz cls.roster + startSession body.roll / roster chips. Unit: tests/quiz/web-quiz/web-quiz-roster.test.js. @wip.
