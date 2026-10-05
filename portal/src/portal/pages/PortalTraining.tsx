@@ -31,6 +31,7 @@ import { GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardChe
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import ModuleQuizPanel, { type SubmittedAttempt } from '../components/ModuleQuizPanel';
+import { completesModule } from '../lib/moduleQuiz';
 import ModuleExamPanel, { type ExamGate } from '../components/ModuleExamPanel';
 import LevelExamCard from '../components/LevelExamCard';
 import CapstoneResultCard from '../components/CapstoneResultCard';
@@ -431,8 +432,8 @@ const PortalTraining = () => {
   }, [selectedCourse, toast]);
 
   // After a portal quiz submit: refresh the module's attempt list (so the
-  // score badge updates) and mark the module complete locally (the backend
-  // upserts teacher_training_progress as part of the submit).
+  // score badge updates) and, on a PASS only, mark the module complete locally
+  // (the backend upserts teacher_training_progress only for a pass, bd-2450).
   const handleQuizSubmitted = useCallback((attempt: SubmittedAttempt) => {
     const moduleId = selectedModule;
     if (!moduleId) return;
@@ -450,6 +451,10 @@ const PortalTraining = () => {
           ],
         }));
       });
+    // bd-zgme6 — tick the module only on a pass. The server writes progress
+    // only then (bd-2450); ticking a failed attempt showed "Completed" for a
+    // module the database still holds as not done.
+    if (!completesModule(attempt)) return;
     const completedAt = attempt.completed_at || new Date().toISOString();
     setModules(prev => prev.map(m => (m.id === moduleId && !m.completed_at ? { ...m, completed_at: completedAt } : m)));
     setModuleDetail(prev => (prev && prev.id === moduleId && !prev.completed_at ? { ...prev, completed_at: completedAt } : prev));

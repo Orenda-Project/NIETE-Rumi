@@ -8,8 +8,10 @@
  *
  * NOT the same thing as ModuleQuizPanel, and the difference matters:
  *
- *   ModuleQuizPanel  a UNIT's quick self-check. Non-blocking, retakeable,
- *                    MCQs only, marked instantly against a stored key.
+ *   ModuleQuizPanel  a UNIT's quick check. Retakeable at once, MCQs only,
+ *                    marked instantly against a stored key; the unit counts
+ *                    as complete only on a pass at the vendor's bar (I-SAPS
+ *                    runs it ungated). bd-zgme6.
  *   ModuleExamPanel  the MODULE's summative. 2 scenario MCQs + 1 written
  *                    answer (ISAPS §5.1), and passing it is what UNLOCKS THE
  *                    NEXT MODULE — so it is deliberately not something you can
