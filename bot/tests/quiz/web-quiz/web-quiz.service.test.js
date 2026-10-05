@@ -311,7 +311,9 @@ describe('E6 GET board (the class league table)', () => {
   const done = (id, student, name, correct, total, hoursAgo, extra = {}) => ({
     id, quiz_id: QUIZ, share_code_id: SC, student_id: student, student_name: name, user_id: null, status: 'completed',
     correct_answers: correct, total_questions_answered: total, mastery_percentage: Math.round((100 * correct) / total),
-    completed_at: ago(hoursAgo), created_at: ago(hoursAgo + 0.1), invited_by_student_id: null, ...extra,
+    completed_at: ago(hoursAgo), created_at: ago(hoursAgo + 0.1), invited_by_student_id: null,
+    device_ref: `dev-${id}`, // played on the web page: the class code's own sessions choose the first-finish rule
+    ...extra,
   });
 
   test('ranked, ties share a place, top 7 then more_n, average, no teacher, no invited friend, first finish for a web quiz', () => {

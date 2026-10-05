@@ -16,7 +16,7 @@
  *     handset": it tells a replay on the same phone from one on a sibling's.
  *   - The FIRST finished attempt per child counts (first_completed), so a
  *     replay is practice and cannot raise a class score. WhatsApp keeps its
- *     latest-attempt rule; the report picks the rule per quiz (meta.web_arm).
+ *     latest-attempt rule; the report picks the rule per class code (attemptRuleFor).
  *   - The teacher's own preview (a signed `p` token) is stored with
  *     user_id = the teacher — the existing self-test marker — so it never
  *     reaches the roster, the average or the league table.
@@ -528,26 +528,6 @@ async function countJoin(shareCodeId) {
   }
 }
 
-/**
- * A child played this quiz on the web, so the teacher's report counts each
- * child's FIRST finish (quizzes.meta.web_arm, read by attemptRuleFor) — the
- * rule the page's league table already shows. Once per quiz; the rest of meta
- * is kept. A failure is logged and never stops the child's quiz.
- */
-async function markWebArm(quizId) {
-  try {
-    const { data: q, error } = await supabase.from('quizzes').select('id, meta').eq('id', quizId).maybeSingle();
-    if (error || !q) return;
-    const meta = (q.meta && typeof q.meta === 'object') ? q.meta : {};
-    if (meta.web_arm === 'web') return;
-    const { error: uErr } = await supabase.from('quizzes').update({ meta: { ...meta, web_arm: 'web' } }).eq('id', quizId);
-    if (uErr) logToFile('⚠️ web-quiz: could not mark the quiz as web arm', { quizId, error: uErr.message });
-    else logEvent('web_quiz.web_arm_marked', { quizId });
-  } catch (e) {
-    logToFile('⚠️ web-quiz: could not mark the quiz as web arm', { quizId, error: e.message });
-  }
-}
-
 async function startSession(body = {}) {
   requireOn();
   const ctx = await resolveCode(body.code);
@@ -661,7 +641,6 @@ async function startSession(body = {}) {
   }
 
   await countJoin(ctx.shareCodeId);
-  if (!userId) await markWebArm(ctx.quizId);
   let quizSource = null;
   try {
     const { data: q } = await supabase.from('quizzes').select('quiz_source').eq('id', ctx.quizId).maybeSingle();

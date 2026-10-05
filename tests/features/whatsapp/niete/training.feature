@@ -1316,7 +1316,7 @@ Feature: NIETE (ICT) Teacher Training
     Then the page is told the run will not count because it was finished elsewhere
     And on the same phone the page is told it was already finished
     And the class league table and the teacher's report keep the first finished score for a web quiz
-    # one-attempt-per-child rule 'first_completed', chosen by quizzes.meta.web_arm = 'web'. @wip.
+    # one-attempt-per-child rule 'first_completed', chosen per class code by attemptRuleFor (the code's own web sessions). @wip.
 
   @api @quiz @web @wip @draft @P1 @T103 @no-mock-driver
   Scenario: The class league table
@@ -1354,13 +1354,12 @@ Feature: NIETE (ICT) Teacher Training
     # ADDED 2026-10-05: web-quiz.service getQuiz -> quiz-teacher-label teacherLabel + report loadClassRows().className. @wip.
 
   @api @quiz @web @wip @draft @P1 @T108 @no-mock-driver
-  Scenario: A web quiz's report counts each child's first finish
-    Given a quiz whose children play on the web page
-    When the first child starts a web session
-    Then the quiz is marked as a web quiz, and nothing else about it changes
-    And the teacher's report then counts each child's first finished score, as the class league table does
-    But the teacher's own preview does not mark the quiz
-    # ADDED 2026-10-05: web-quiz.service startSession -> markWebArm (quizzes.meta.web_arm = 'web'); attemptRuleFor reads it. @wip.
+  Scenario: A web quiz's report counts each child's first finish, for my class only
+    Given my class code's children play on the web page
+    Then my report counts each child's first finished score, as the class league table does
+    And the quiz itself is not changed, so another teacher's WhatsApp class on the same lesson video keeps counting each child's latest finish
+    But my own preview on the web does not make my WhatsApp class a web class
+    # CHANGED 2026-10-05: the rule is chosen per class code from that code's sessions (attemptRuleFor: a child session with a device_ref), never stored on quizzes.meta (a video-bank quiz is one row shared by every teacher). Unit: tests/quiz/web-quiz/report-web-arm-first-finish.test.js. @wip.
 
   @api @quiz @web @wip @draft @P1 @T109 @no-mock-driver
   Scenario: The quiz page lists the options in the one order every other surface uses
@@ -1500,6 +1499,14 @@ Feature: NIETE (ICT) Teacher Training
     When the child taps anywhere on the box
     Then the video starts, the cover goes away and the video's own controls take over
     # wq.js video() .wq-vcover. Unit: dashboard/tests/web-quiz-page-video.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T189 @no-mock-driver
+  Scenario: The web quiz plays the lighter web copy of a lesson video when one exists
+    Given a video-bank lesson has a web copy beside it (the same picture, its sound stored smaller)
+    When a child opens that lesson's quiz on the web
+    Then the page plays the web copy and the size the child sees is the web copy's size
+    And a lesson with no web copy plays the original, and WhatsApp always sends the original
+    # web-quiz-media presignVideo (<key>_web.mp4 preferred). Unit: bot/tests/quiz/web-quiz-publish.test.js. @wip.
 
   @api @quiz @web @wip @draft @P2 @T162 @no-mock-driver
   Scenario: A class with no label never leaves a dangling dot on the card or the league table
