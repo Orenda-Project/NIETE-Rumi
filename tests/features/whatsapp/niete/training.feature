@@ -1531,3 +1531,22 @@ Feature: NIETE (ICT) Teacher Training
     But with the switch off, or without a class list, children pick or type their names as before
     # ADDED 2026-10-05: web-quiz-roster.js (rosterOn, loadRoster, byRoll, byName, nearName); web-quiz.service getQuiz cls.roster + startSession body.roll / roster chips. Unit: tests/quiz/web-quiz/web-quiz-roster.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T210 @no-mock-driver
+  Scenario: On my own preview link I see who played and can fix a child who typed a name not on my list
+    Given app_settings "web_quiz_roster_id" is true, I keep a class list, and a child typed "Dansh" instead of giving a roll number
+    When I open my preview link and tap "Who played?"
+    Then I see each counted child by first name and roll number only, with "Dansh" first and marked "Not on your class list"
+    When I tap "Set roll no." for "Dansh", type 12 and confirm "Is this Danish?"
+    Then that play becomes Danish's, and my report shows Danish with the class list's name and class
+    And if Danish had already finished, my report keeps Danish's first finish
+    But nobody without my preview link can see or change the list
+    # ADDED 2026-10-05: web-quiz.service whoPlayed / fixWho (E11, signed p token), routes /api/internal/wq/who + /who/fix. Unit: tests/quiz/web-quiz/web-quiz-who-played.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T211 @no-mock-driver
+  Scenario: A child's practice round never shows a score the class league does not keep
+    Given a child already finished my quiz once
+    When the child plays it again, on this phone or another, and finishes
+    Then the child's card says it is a practice round and shows the first score, which is the one my report and the league keep
+    And sharing the card shares the first score
+    # ADDED 2026-10-05: web-quiz.service finishSession card.practice + card.kept; wq.js card(). Unit: web-quiz-roster.test.js, dashboard/tests/web-quiz-practice-card.service.test.js. @wip.
+

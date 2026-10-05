@@ -201,3 +201,15 @@ Feature: Web child quiz page on the portal
     Given an Urdu quiz and the roster switch is on
     When the child opens "Whose turn is it?"
     Then the keys and the "no one has number" line use Urdu digits
+
+  Scenario: The teacher fixes a child who typed a name instead of a roll number
+    Given the teacher opens their own preview link of a quiz with a class list
+    When the teacher taps "Who played?"
+    Then children not on the class list come first, each with "Set roll no."
+    When the teacher sets roll number 12 and confirms "Is this Danish?"
+    Then the list reloads with Danish at "Roll 12"
+
+  Scenario: A practice round's card says so
+    Given a child already finished the quiz
+    When the child plays it again and finishes
+    Then the card says "Practice round" with the first score, and sharing it shares the first score
