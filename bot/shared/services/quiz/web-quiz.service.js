@@ -168,6 +168,10 @@ function mediaUrl(code, qid, k) {
  */
 function questionImageOf(media) {
   const m = media || {};
+  // A picture the review judged misleading (Figure.pictureHidden) is not shown: the
+  // question plays on its text, or, when its stem sends the child to the picture, is
+  // left out like any picture question with no picture (playable).
+  if (Figure.pictureHidden(m)) return null;
   if (m.question_image) return m.question_image;
   // The grid is WhatsApp's collage of the picture OPTIONS ("1. word" painted
   // under each). When the options carry their own pictures the page shows those
