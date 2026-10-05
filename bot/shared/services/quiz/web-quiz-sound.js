@@ -19,14 +19,17 @@
 const { logToFile } = require('../../utils/logger');
 
 // The WhatsApp rule (video-quiz-render LISTEN_AND_IDENTIFY), plus stems that
-// ask WHICH sound it is: on the page the child can only answer them by hearing it.
-const ASKS_ABOUT_A_SOUND = /\bsounds?\b|\bhear\b|آواز|سنی|سنو|سنیں/i;
+// ask about something only the clip carries: "which sound is this?", "how is
+// this word written?", "the word with the following sound:". A statement (it
+// ends with a full stop) only mentions sounds; its clip says the answer.
+const ASKS_ABOUT_THE_CLIP = /\bsounds?\b|\bhear\b|\bthis word\b|\bfollowing\b|آواز|سنیں|سنو|یہ لفظ|کون سا لفظ|اس لفظ/i;
+const IS_STATEMENT = /[.۔]\s*$/;
 
 function stemAsksForSound(stem) {
-  const s = String(stem || '');
+  const s = String(stem || '').trim();
   let listen = false;
   try { listen = require('./video-quiz-render.service').isListenAndIdentify(s); } catch { listen = false; }
-  return listen || ASKS_ABOUT_A_SOUND.test(s);
+  return listen || (ASKS_ABOUT_THE_CLIP.test(s) && !IS_STATEMENT.test(s));
 }
 
 /** The recorded clip URLs a row carries for the page: {q?, stim?, why?}. */
