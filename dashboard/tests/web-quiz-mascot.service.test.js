@@ -23,7 +23,7 @@ const ASSETS = path.join(__dirname, '..', 'public', 'wq', 'jugnu');
 class El {
   constructor(tag) {
     this.tagName = tag.toUpperCase(); this.children = []; this.attrs = {}; this.className = '';
-    this.parentNode = null; this.listeners = {}; this.paused = true;
+    this.parentNode = null; this.listeners = {}; this.paused = true; this.style = {};
   }
   setAttribute(k, v) { this.attrs[k] = String(v); }
   getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
@@ -31,7 +31,7 @@ class El {
   appendChild(c) { c.parentNode = this; this.children.push(c); return c; }
   removeChild(c) { this.children = this.children.filter((x) => x !== c); c.parentNode = null; return c; }
   addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); }
-  fire(n) { (this.listeners[n] || []).forEach((fn) => fn({ type: n })); if (this['on' + n]) this['on' + n]({ type: n }); }
+  fire(n, target) { const e = { type: n, target: target || this }; (this.listeners[n] || []).forEach((fn) => fn(e)); if (this['on' + n]) this['on' + n](e); }
   all() { return this.children.reduce((a, c) => a.concat([c], c.all()), []); }
   querySelectorAll(sel) {
     const all = this.all();
@@ -59,8 +59,9 @@ function page(opts = {}) {
     ev: (n, props) => events.push({ n, props }),
     Math: Object.assign(Object.create(Math), { random: () => (opts.random != null ? opts.random : 0) }),
     navigator: { userAgent: opts.ua || 'Mozilla/5.0 (Linux; Android 11; wv) Chrome/120', connection: opts.connection },
+    Date: opts.now != null ? { now: () => opts.now } : Date,
     document: {
-      readyState: 'complete',
+      readyState: opts.readyState || 'complete',
       createElement: (t) => (t === 'video' ? new Video(t) : new El(t)),
       addEventListener: (n, fn) => { (docL[n] = docL[n] || []).push(fn); },
       visibilityState: 'visible',
@@ -69,7 +70,7 @@ function page(opts = {}) {
       matchMedia: (q) => ({ matches: !!opts.reduce && /reduce/.test(q) }),
       addEventListener: (n, fn) => { (winL[n] = winL[n] || []).push(fn); },
     },
-    setTimeout: (fn) => { fn(); return 1; },
+    setTimeout: (fn, ms) => { if (opts.timers) opts.timers.push({ fn, ms }); else fn(); return 1; },
     clearTimeout: () => {},
     esc: (s) => String(s),
   };
@@ -78,12 +79,13 @@ function page(opts = {}) {
   }
   vm.createContext(ctx);
   vm.runInContext(`${SRC.slice(START, END)}
-    this.jug = jug; this.jugImg = jugImg; this.jugWake = jugWake; this.jugStop = jugStop; this.jugResume = jugResume;
+    this.jug = jug; this.jugImg = jugImg; this.jugWake = jugWake; this.jugStop = jugStop; this.jugResume = jugResume; this.jugSoon = jugSoon;
     this.JUG_V = JUG_V; this.wqJug = window.wqJug;`, ctx);
   const mount = (html) => {
     // the page renders markup; the test builds the same tree the markup describes
     const m = /data-jpose="([a-z]+)"/.exec(html);
     const span = new El('span'); span.className = 'wq-jimg'; span.setAttribute('data-jpose', m[1]);
+    if (/data-jloop="1"/.test(html)) span.setAttribute('data-jloop', '1');
     const still = new El('img'); still.setAttribute('src', /<img src="([^"]+)"/.exec(html)[1]); span.appendChild(still);
     ROOT.appendChild(span);
     return span;
@@ -108,13 +110,13 @@ test('jug() draws the pose still as the poster, inside a box the loop can play o
   expect(html).toContain('<div class="wq-say">Hello</div>');
 });
 
-test('on Android a random variant loop plays as a muted inline looping video over the still', async () => {
-  const p = page({ random: 0.5 });
-  const span = p.mount(p.ctx.jug('correct', 'Yes'));
+test("on Android the day's variant loop plays as a muted inline looping video over the still", async () => {
+  const p = page({ now: 20001 * 86400000 });
+  const span = p.mount(p.ctx.jug('correct', 'Yes', false, true));
   p.ctx.jugWake();
   const [v] = anims(span);
   expect(v.tagName).toBe('VIDEO');
-  expect(v.getAttribute('src') || v.src).toBe('/wq/jugnu/correct_b.webm');
+  expect(v.getAttribute('src') || v.src).toBe('/wq/jugnu/correct_' + 'abc'.charAt(20001 % 3) + '.webm');
   expect(v.muted).toBe(true);
   expect(v.loop).toBe(true);
   expect(v.getAttribute('playsinline')).toBe('');
@@ -123,17 +125,9 @@ test('on Android a random variant loop plays as a muted inline looping video ove
   expect(span.className).toContain('wq-live');
 });
 
-test('the same pose twice in a row never repeats the same variant', () => {
-  const p = page({ random: 0 });
-  const a = p.mount(p.ctx.jug('idle', '')); p.ctx.jugWake();
-  const b = p.mount(p.ctx.jug('idle', '')); p.ctx.jugWake();
-  expect(anims(a)[0].src).toBe('/wq/jugnu/idle_a.webm');
-  expect(anims(b)[0].src).toBe('/wq/jugnu/idle_b.webm');
-});
-
-test('a refused autoplay falls back to the animated WebP of the same loop', async () => {
-  const p = page({ random: 0 });
-  const span = p.mount(p.ctx.jug('hello', ''));
+test('a refused autoplay of the celebration falls back to the animated WebP of the same loop', async () => {
+  const p = page({ now: 20000 * 86400000 });
+  const span = p.mount(p.ctx.jug('celebrate', '', true, true));
   p.ctx.jugWake();
   const e = new Error('play() requires a user gesture'); e.name = 'NotAllowedError';
   p.plays[0].reject(e);
@@ -141,19 +135,29 @@ test('a refused autoplay falls back to the animated WebP of the same loop', asyn
   const a = anims(span);
   expect(a).toHaveLength(1);
   expect(a[0].tagName).toBe('IMG');
-  expect(a[0].src).toBe('/wq/jugnu/hello_a.webp');
+  expect(a[0].src).toBe('/wq/jugnu/celebrate_a.webp');
   a[0].fire('load');
   expect(span.className).toContain('wq-live');
   // logged once, so the logs say how often an in-app browser refuses muted autoplay
   expect(p.events).toEqual([{ n: 'jug_fallback', props: { reason: 'notallowederror' } }]);
 });
 
+test('a refused autoplay of any other loop keeps the still (its WebP is ~3x the bytes)', async () => {
+  const p = page();
+  const span = p.mount(p.ctx.jug('hello', '', true, true));
+  p.ctx.jugWake();
+  const e = new Error('play() requires a user gesture'); e.name = 'NotAllowedError';
+  p.plays[0].reject(e);
+  await p.flush();
+  expect(anims(span)).toHaveLength(0);
+});
+
 test('iPhone gets the animated WebP, never the WebM (no VP9 alpha in WebKit)', () => {
-  const p = page({ ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1' });
-  const span = p.mount(p.ctx.jug('thinking', ''));
+  const p = page({ now: 20000 * 86400000, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1' });
+  const span = p.mount(p.ctx.jug('celebrate', '', true, true));
   p.ctx.jugWake();
   expect(anims(span)[0].tagName).toBe('IMG');
-  expect(anims(span)[0].src).toBe('/wq/jugnu/thinking_a.webp');
+  expect(anims(span)[0].src).toBe('/wq/jugnu/celebrate_a.webp');
 });
 
 test.each([
@@ -162,14 +166,14 @@ test.each([
   ['2G', { connection: { effectiveType: 'slow-2g' } }],
 ])('%s keeps the still pose: no loop is fetched', (_, opts) => {
   const p = page(opts);
-  const span = p.mount(p.ctx.jug('celebrate', '', true));
+  const span = p.mount(p.ctx.jug('celebrate', '', true, true));
   p.ctx.jugWake();
   expect(anims(span)).toHaveLength(0);
 });
 
 test('hiding the page removes the loops (no decoding in the background) and showing it again restarts them', () => {
   const p = page();
-  const span = p.mount(p.ctx.jug('idle', ''));
+  const span = p.mount(p.ctx.jug('idle', '', false, true));
   p.ctx.jugWake();
   const v = anims(span)[0];
   v.fire('playing');
@@ -185,7 +189,7 @@ test('hiding the page removes the loops (no decoding in the background) and show
 
 test('pagehide (the in-app browser closing) and freeze stop the loops; stop/resume are exposed for the audio stop', () => {
   const p = page();
-  const span = p.mount(p.ctx.jug('idle', ''));
+  const span = p.mount(p.ctx.jug('idle', '', false, true));
   p.ctx.jugWake();
   p.fire('win', 'pagehide');
   expect(anims(span)).toHaveLength(0);
@@ -199,7 +203,7 @@ test('pagehide (the in-app browser closing) and freeze stop the loops; stop/resu
 
 test('a loop stopped while the page hides does not fall back to the WebP when its play() is aborted', async () => {
   const p = page();
-  const span = p.mount(p.ctx.jug('idle', ''));
+  const span = p.mount(p.ctx.jug('idle', '', false, true));
   p.ctx.jugWake();
   p.fire('win', 'pagehide');
   const e = new Error('The play() request was interrupted'); e.name = 'AbortError';
@@ -210,7 +214,7 @@ test('a loop stopped while the page hides does not fall back to the WebP when it
 
 test('an off-screen mascot is not animated; it starts when it scrolls into view', () => {
   const p = page({ io: true });
-  const span = p.mount(p.ctx.jug('idle', ''));
+  const span = p.mount(p.ctx.jug('idle', '', false, true));
   p.ctx.jugWake();
   expect(anims(span)).toHaveLength(0);
   const o = p.observed.find((x) => x.el === span);
@@ -246,4 +250,100 @@ test('on the answer screen Jugnu is smaller, so a long reason (Urdu above all) k
   expect(m).not.toBeNull();
   expect(Number(m[1])).toBeLessThanOrEqual(72);
   expect(Number(m[2])).toBe(Number(m[1]));
+});
+
+/* ---- data diet: a child's bundle is money (loops only where they matter, stills elsewhere) ---- */
+
+test('a loop plays only where jug() is told it matters; every other mascot is the still and fetches nothing more', () => {
+  const p = page();
+  const quiet = p.mount(p.ctx.jug('idle', 'Tap your name.'));
+  const loud = p.mount(p.ctx.jug('hello', 'Hello', true, true));
+  p.ctx.jugWake();
+  expect(anims(quiet)).toHaveLength(0);
+  expect(anims(loud)).toHaveLength(1);
+});
+
+test('jugImg marks a looping slot in its markup, and only then', () => {
+  const p = page();
+  expect(p.ctx.jugImg('correct', true)).toContain('data-jloop="1"');
+  expect(p.ctx.jugImg('notyet')).not.toContain('data-jloop');
+});
+
+test('3G keeps the still too: no loop is fetched', () => {
+  const p = page({ connection: { effectiveType: '3g' } });
+  const span = p.mount(p.ctx.jug('celebrate', '', true, true));
+  p.ctx.jugWake();
+  expect(anims(span)).toHaveLength(0);
+});
+
+test('a pose plays the same variant all day, so a second quiz on the phone downloads no new loop', () => {
+  const day = 86400000;
+  const pick = (t) => {
+    const p = page({ now: t, random: 0.99 });
+    const span = p.mount(p.ctx.jug('correct', '', false, true));
+    p.ctx.jugWake();
+    return anims(span)[0].src;
+  };
+  const t0 = 20000 * day + 3600000;
+  expect(pick(t0)).toBe(pick(t0 + 5 * 3600000));
+  // and over three days every variant of a pose comes round, so it still feels alive
+  expect(new Set([pick(t0), pick(t0 + day), pick(t0 + 2 * day)]).size).toBe(3);
+});
+
+test('iPhone (animated WebP, ~3x the bytes of a WebM) loops only the results celebration', () => {
+  const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1';
+  const p = page({ ua });
+  const hello = p.mount(p.ctx.jug('hello', '', true, true));
+  const party = p.mount(p.ctx.jug('celebrate', '', true, true));
+  p.ctx.jugWake();
+  expect(anims(hello)).toHaveLength(0);
+  expect(anims(party)[0].src).toMatch(/\/wq\/jugnu\/celebrate_[a-z]\.webp$/);
+});
+
+test('a loop never starts until the page has loaded, and waits a second after the screen is drawn', () => {
+  const timers = [];
+  const p = page({ readyState: 'loading', timers });
+  const span = p.mount(p.ctx.jug('hello', '', true, true));
+  p.ctx.jugSoon();
+  expect(anims(span)).toHaveLength(0);
+  expect(timers).toHaveLength(0); // nothing scheduled before load
+  p.fire('win', 'load');
+  expect(timers.map((t) => t.ms)).toEqual([1000]);
+  timers[0].fn();
+  expect(anims(span)).toHaveLength(1);
+});
+
+/* ---- a mascot file that fails (patchy data, 404/500) is never a broken-image box ---- */
+
+test('a still that fails to load falls back to the old still, and if that fails too the slot is hidden', () => {
+  const p = page();
+  const span = p.mount(p.ctx.jug('hello', '', true));
+  const still = span.children[0];
+  p.ROOT.fire('error', still);
+  expect(still.src).toBe('/wq/jugnu_hello.webp');
+  expect(span.className).not.toContain('wq-jgone');
+  p.ROOT.fire('error', still);
+  expect(span.className).toContain('wq-jgone');
+});
+
+test('any other mascot picture on the page (card, hint, waiting screen) is hidden when it fails, never a broken box', () => {
+  const p = page();
+  const img = new (p.ROOT.constructor)('img');
+  img.setAttribute('src', '/wq/jugnu/celebrate.webp');
+  p.ROOT.appendChild(img);
+  p.ROOT.fire('error', img);
+  expect(img.src).toBe('/wq/jugnu_celebrate.webp');
+  p.ROOT.fire('error', img);
+  expect(img.style.display).toBe('none');
+});
+
+test('the page draws its other mascot pictures from the same stills as jug(), so no pose is fetched twice', () => {
+  expect(SRC).toMatch(/var IMG = '\/wq\/jugnu\/';/);
+  expect(CSS).toMatch(/\.wq-jgone\{[^}]*display:none/);
+});
+
+test('the re-encoded WebM loops stay small: under 70 KB each', () => {
+  fs.readdirSync(ASSETS).filter((f) => f.endsWith('.webm')).forEach((f) => {
+    expect([f, fs.statSync(path.join(ASSETS, f)).size < 70 * 1024]).toEqual([f, true]);
+  });
 });
