@@ -199,6 +199,18 @@ describe('the grade threshold (app_settings web_quiz_roster_from_grade)', () => 
   });
 });
 
+describe('a grade range like "1-2" or "3-5" reads as its first grade', () => {
+  test('"1-2" is below a threshold of 3; "3-5" picks the grade-3 list', async () => {
+    fake.db.app_settings.push({ key: 'web_quiz_roster_from_grade', value: 3 });
+    fake.db.quizzes[0].grade = '1-2';
+    expect((await WQ.getQuiz('AB12CD')).cls.roster).toBeUndefined();
+    seed({ lists: 'two' });
+    fake.db.quizzes[0].grade = '3-5';
+    await expect(WQ.startSession({ code: 'AB12CD', roll: 1 }))
+      .rejects.toMatchObject({ status: 409, body: { candidates: [{ chip: chipOf(kid(1)), first: 'Ayesha' }] } });
+  });
+});
+
 describe("a roster child's chip from the teacher's EARLIER code (the phone remembers it; the next quiz or a lesson video's quiz)", () => {
   test('still plays as the roster row, with the class label', async () => {
     const SC0 = '77777777-7777-4777-8777-777777777777';
