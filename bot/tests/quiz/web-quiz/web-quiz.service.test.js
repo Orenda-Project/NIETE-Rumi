@@ -186,6 +186,19 @@ describe('E3 POST session', () => {
     expect(fake.db.quiz_sessions.length).toBe(n);
   });
 
+  test("a remembered child opens the same teacher's NEXT quiz: the chip saved from the first code still starts a session", async () => {
+    // The phone stored the chip it was given on code AB12CD; the teacher then sends a new quiz (code EF34GH).
+    const SC2 = '66666666-6666-4666-8666-666666666666';
+    fake.db.quiz_share_codes.push({ id: SC2, code: 'EF34GH', quiz_id: QUIZ, video_id: null, teacher_user_id: TEACHER,
+      teacher_name: 'Ms Example Teacher', topic: 'Parts of a plant', language: 'en', active: true, expires_at: future,
+      invited_by_student_id: null, parent_share_code_id: null, uses_count: 0, created_at: ago(2) });
+    const out = await WQ.startSession({ code: 'EF34GH', chip: chipOf(KID_A) });
+    expect(out.child).toEqual({ chip: T.chipId(SC2, KID_A), first: 'Zara', animal: T.animalFor(KID_A) });
+    expect(fake.db.quiz_sessions.filter((s) => s.share_code_id === SC2 && s.student_id === KID_A)).toHaveLength(1);
+    // a chip minted for a child this teacher never had is still unknown
+    await expect(WQ.startSession({ code: 'EF34GH', chip: T.chipId(SC, KID_B) })).rejects.toMatchObject({ status: 404, body: { error: 'chip_unknown' } });
+  });
+
   test('unknown chip 404; nobody named 400', async () => {
     await expect(WQ.startSession({ code: 'AB12CD', chip: 'ffffffffffffffff' })).rejects.toMatchObject({ status: 404, body: { error: 'chip_unknown' } });
     await expect(WQ.startSession({ code: 'AB12CD' })).rejects.toMatchObject({ status: 400 });
