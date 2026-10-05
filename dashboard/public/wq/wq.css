@@ -188,3 +188,5 @@ html[lang=ur] .wq-ml,html[lang=ur] .wq-mr,html[lang=ur] .wq-place{font-weight:70
 .wq-opt .wq-m,.wq-ml .wq-m,.wq-mr .wq-m{font-size:1.45em}
 .wq-shp{position:relative}
 .wq-let{position:absolute;bottom:-5px;inset-inline-end:-5px;min-width:18px;height:18px;border-radius:9px;background:#fff;color:var(--navy);font:900 11px/18px var(--f);text-align:center;box-shadow:0 0 0 1px var(--line)}
+.wq-glyph{display:grid;place-items:center;width:100px;height:100px;background:#fff;border-radius:16px;font:700 56px/1.9 var(--fu);color:var(--navy);overflow:visible}
+.wq-mr .wq-glyph{width:56px;height:56px;font-size:32px}

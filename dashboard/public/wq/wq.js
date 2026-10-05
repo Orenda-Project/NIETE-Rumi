@@ -29,7 +29,7 @@ var WQI = (function () {
     if (k) return k;
     if (q.multi) return 'multi';
     var o = opts(q);
-    if (o.length && o.every(function (x) { return x.img || (x.pic && x.pic.svg); })) return 'picture';
+    if (o.length && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')); })) return 'picture';
     return 'single';
   }
   function slots(v) { return String(v || '').toUpperCase().split(',').map(function (s) { return s.trim(); }).filter(Boolean); }
@@ -211,6 +211,8 @@ var WQI = (function () {
   }
   /* ---- markup per type ---- */
   function picHtml(o, nm) {
+    var g = o.pic && (o.pic.glyph || (o.pic.kind === 'glyph' && o.pic.text));
+    if (g) return '<span class="wq-glyph" dir="auto">' + esc(g) + '</span>';
     if (o.pic && o.pic.svg) return '<span class="wq-pic" role="img" aria-label="' + esc(o.pic.alt || nm || '') + '">' + cleanSvg(o.pic.svg) + '</span>';
     if (o.img) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '">';
     return '';
@@ -235,7 +237,7 @@ var WQI = (function () {
       ? '<div class="wq-qcard wq-listen"><button class="wq-spk wq-spk-big" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">🔊</button><p class="wq-qtext wq-qsmall">' + tex(q.text) + '</p>' + stim + '</div>'
       : '<div class="wq-qcard"><p class="wq-qtext">' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">🔊</button></div>' + stim;
     var body = '';
-    var pics = o.length && o.every(function (x) { return x.img || (x.pic && x.pic.svg); });
+    var pics = o.length && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')); });
     if (k === 'picture' || (k === 'listen' && pics)) {
       var quiet = k === 'listen';
       body = '<div class="wq-pgrid" role="group">' + o.map(function (x, i) {

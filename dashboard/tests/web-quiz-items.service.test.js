@@ -259,3 +259,13 @@ describe('letters never clash with a figure', () => {
     expect(WQI.itemHtml(q, T, 'en')).not.toContain('wq-let');
   });
 });
+
+describe('glyph tiles drawn by the page', () => {
+  it('pic {kind:glyph, text} is drawn as big HTML text in the page font (no SVG box to clip the marks)', () => {
+    const q = { type: 'picture', text: 'Q', options: [{ slot: 'A', text: 'بّ', name: 'tashdeed', pic: { kind: 'glyph', text: 'بّ' } }, { slot: 'B', text: 'بِ', pic: { kind: 'glyph', text: 'بِ' } }] };
+    expect(WQI.kind(q)).toBe('picture');
+    const h = WQI.itemHtml(q, T, 'ur');
+    expect(h).toContain('<span class="wq-glyph" dir="auto">بّ</span>');
+    expect(h).not.toContain('<svg viewBox="0 0 72');
+  });
+});
