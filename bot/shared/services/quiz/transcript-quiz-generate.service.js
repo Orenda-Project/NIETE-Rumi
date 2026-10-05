@@ -211,6 +211,9 @@ const SOFT_FAULT = new RegExp('^('
   // (quiz_author_gates_v2 only — off, the validator never writes these codes):
   // repaired in place (IN_PLACE_FAULT, below), never a reason to send nothing.
   + '|q\\d+: URDU_(TRANSLITERATED|ROMAN)\\b'
+  // One question giving away another's answer (ANSWER_LEAK, quiz_author_gates_v2
+  // only): the later one is re-asked in place like a repeat, and ships if not.
+  + '|q\\d+: ANSWER_LEAK\\b'
   + ')');
 
 /**
@@ -258,8 +261,10 @@ const NAME_FAULT = /^q\d+: URDU_NAME_LATIN\b/;
  * targeted rewrite, shipped whatever that leaves, counted in meta.soft_faults.
  */
 const TERM_SCRIPT_FAULT = /^q\d+: URDU_(TRANSLITERATED|ROMAN)\b/;
+/** A later question whose answer an earlier one states (quiz_author_gates_v2): re-asked like a repeat, shipped if not. */
+const LEAK_FAULT = /^q\d+: ANSWER_LEAK\b/;
 /** A fault that is repaired IN PLACE and then shipped — never re-rolled, never dropped, never fatal. */
-const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}|${TERM_SCRIPT_FAULT.source}`);
+const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}|${TERM_SCRIPT_FAULT.source}|${LEAK_FAULT.source}`);
 /**
  * SOFT WITH THE GATES ON. "SLOs uncovered" is a property of the SET: six sound
  * questions covering four of five objectives beat sending nothing (the 7 Sep
