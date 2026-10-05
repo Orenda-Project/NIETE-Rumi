@@ -22,6 +22,11 @@ const AttendanceRegister = require('./attendance-register.service');
 const { loadStaffRoster } = require('./attendance-write.service');
 const { rosterLabel } = require('./classes/roster-label');
 
+/** First 12 hex chars of a sha256 — enough to tell two registers apart in a log line. */
+function shortSha256(buf) {
+  return require('crypto').createHash('sha256').update(buf).digest('hex').slice(0, 12);
+}
+
 /** First and last calendar day of the month a date falls in. */
 function monthBounds(date) {
   const [year, month] = String(date).split('-').map(Number);
@@ -217,22 +222,34 @@ async function deliverRegister({
     // services mkdir it defensively for the same reason; without it the register is
     // generated and then lost to ENOENT.
     if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
-    const tempPath = path.join(TEMP_DIR, fileName);
-    fs.writeFileSync(tempPath, buffer);
+    // bd-c00np — ONE DIRECTORY PER DELIVERY. The file name carries no school ("Grade 5 A,
+    // September 2026" is the same name everywhere), and sendDocument's upload reads the
+    // file lazily, after the HTTP connection is up. Written straight into TEMP_DIR, a
+    // second delivery of the same name overwrote the first one's file before it was
+    // read, and the first principal received the other school's register. The file
+    // keeps its display name; only the directory is unique.
+    const dir = fs.mkdtempSync(path.join(TEMP_DIR, 'reg-'));
+    const tempPath = path.join(dir, fileName);
+    let fileSha256 = null;
 
     try {
+      fs.writeFileSync(tempPath, buffer);
+      // What is on disk at the moment the upload is handed the path — the bytes the
+      // principal is sent. Logged beside the buffer's so a mismatch is visible.
+      fileSha256 = shortSha256(fs.readFileSync(tempPath));
       const WhatsAppService = require('./whatsapp.service');
       await WhatsAppService.sendDocument(
         recipient.phone_number, tempPath, fileName,
         buildCaption(label, bounds, date, todayTally, resolvedSubject),
       );
     } finally {
-      try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch { /* a temp file is not worth an error */ }
+      try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temp file is not worth an error */ }
     }
 
     logToFile('✅ Register delivered', {
       userId: who, subject: resolvedSubject, target, fileName,
       records: records.length, roster: people.length,
+      bufferSha256: shortSha256(buffer), fileSha256,
     });
     return { delivered: true, fileName, url };
   } catch (error) {
