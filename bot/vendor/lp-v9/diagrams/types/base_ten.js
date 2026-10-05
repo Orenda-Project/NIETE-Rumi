@@ -39,6 +39,8 @@
 //   labels    {thousands, hundreds, tens, ones}  the column heads; defaults by `lang`
 //             false: no heads at all — for a question that asks WHICH place a
 //             digit is in, where the head over the pieces is the answer
+//   stack     true: hundreds and thousands one above the other in their column (a
+//             narrow mat for a phone screen; SYNC.md §3.32). Default false.
 //   lang      "en" | "ur"
 
 const { Svg, C, SIZE, measure, hasUrdu, n } = require("../lib/svg");
@@ -216,13 +218,17 @@ function render(spec) {
   const PAD = 14;        // around the mat
   const ROWGAP = 14;
 
+  // A stacked mat puts each hundred and thousand on its own line: the mat gets
+  // narrower, so on a phone every piece (the tens rods most) draws bigger.
+  const STACKED = new Set(["hundreds", "thousands"]);
   const layout = cols.map((place) => {
-    const g = GEOMETRY[model][place];
+    const g0 = GEOMETRY[model][place];
+    const g = spec.stack === true && STACKED.has(place) ? { ...g0, perRow: 1 } : g0;
     const k = counts[place];
     const perLine = Math.min(g.perRow, Math.max(1, k));
     const lines = Math.max(1, Math.ceil(k / g.perRow));
     const itemsW = perLine * g.w + (perLine - 1) * g.gap;
-    const innerW = Math.max(itemsW, g.w * 2, headW(heads[place]));
+    const innerW = Math.max(itemsW, g.w * Math.min(2, g.perRow), headW(heads[place]));
     return {
       place, g, k, perLine, lines, itemsW, w: innerW + PADC * 2, h: lines * g.h + (lines - 1) * ROWGAP,
     };

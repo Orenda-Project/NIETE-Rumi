@@ -201,6 +201,10 @@ html[lang=ur] .wq-zoom{font-family:var(--fu);font-weight:700}
 .wq-ptile .wq-shp svg{width:16px;height:16px}
 .wq-pic{display:block;width:116px;height:116px}.wq-pic svg{width:100%;height:100%}
 .wq-mr .wq-pic{width:56px;height:56px}
+/* A match question whose rows are pictures (a WhatsApp match: cat, dog, cow): the picture, its letter beside it. */
+.wq-ml.wq-mlp{flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:8px}
+.wq-mlp .wq-pic{width:64px;height:64px}
+.wq-mlp .wq-mto{flex-basis:100%}
 .wq-opt.wq-ptile img{width:100%;max-width:120px;height:100px;object-fit:contain;background:transparent}
 .wq-emoji{font-size:64px;line-height:1.1}
 .wq-pname{font-size:18px;color:var(--navy)}
