@@ -44,6 +44,16 @@ describe('which brand: setting, then ORG_NAME, then the code default', () => {
     expect(Brand.brandKey({ orgName: 'Some Other School' })).toBe('niete');
   });
 
+  test('the open platform defaults (ORG_NAME "Rumi Education", BOT_NAME "Rumi") pick Rumi with no setting', () => {
+    expect(Brand.brandKey({ orgName: 'Rumi Education' })).toBe('rumi');
+    expect(Brand.brandKey({ orgName: 'NIETE Teaching Assistant' })).toBe('niete');
+    expect(Brand.brandKey({ botName: 'Rumi' })).toBe('rumi');
+    expect(Brand.brandKey({ orgName: 'Acme Schools', botName: 'Rumi' })).toBe('rumi');
+    expect(Brand.brandKey({ orgName: 'NIETE', botName: 'Rumi' })).toBe('niete');
+    // A word that merely contains a brand key is not that brand.
+    expect(Brand.brandKey({ orgName: 'Rumination Academy' })).toBe('niete');
+  });
+
   test('an app_settings value wins over ORG_NAME; an unknown value is ignored', () => {
     expect(Brand.brandKey({ setting: 'rumi', orgName: 'NIETE' })).toBe('rumi');
     expect(Brand.brandKey({ setting: '"niete"', orgName: 'Rumi' })).toBe('niete');

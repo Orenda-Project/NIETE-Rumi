@@ -9,7 +9,8 @@
  * code path and never by a new environment variable:
  *
  *   1. the app_settings row `web_quiz_brand` ("niete" | "rumi"), if present;
- *   2. else ORG_NAME (the existing brand setting read by config/branding.js);
+ *   2. else ORG_NAME, then BOT_NAME (the existing settings read by config/branding.js; a name
+ *      that carries a brand key as a word counts, so the open platform's "Rumi Education" is Rumi);
  *   3. else DEFAULT_BRAND — this fork's brand.
  *
  * Both services read this file: the bot names the brand key in the quiz
@@ -96,23 +97,28 @@ function normalise(v) {
   return s.toLowerCase();
 }
 
-/** Pure: which brand, from a stored setting and the deployment's ORG_NAME. */
-function brandKey({ setting, orgName } = {}) {
+// A deployment name names a brand when it IS one of the brand's names or carries the
+// brand's key as a whole word ("Rumi Education", "NIETE Teaching Assistant").
+function brandFromName(name) {
+  const n = normalise(name);
+  if (!n) return null;
+  const words = n.split(/[^a-z0-9]+/).filter(Boolean);
+  const hit = Object.values(BRANDS).find((b) => b.orgNames.includes(n) || words.includes(b.key));
+  return hit ? hit.key : null;
+}
+
+/** Pure: which brand, from a stored setting, then ORG_NAME, then BOT_NAME, then the default. */
+function brandKey({ setting, orgName, botName } = {}) {
   const s = normalise(setting);
   if (s && BRANDS[s]) return s;
-  const o = normalise(orgName);
-  if (o) {
-    const hit = Object.values(BRANDS).find((b) => b.orgNames.includes(o));
-    if (hit) return hit.key;
-  }
-  return DEFAULT_BRAND;
+  return brandFromName(orgName) || brandFromName(botName) || DEFAULT_BRAND;
 }
 
 let cache = null; // { at, setting }
 
 /** Reads the app_settings row once per CACHE_MS; any failure means "no setting". */
-async function resolveBrandKey({ db, orgName = process.env.ORG_NAME } = {}) {
-  if (cache && Date.now() - cache.at < CACHE_MS) return brandKey({ setting: cache.setting, orgName });
+async function resolveBrandKey({ db, orgName = process.env.ORG_NAME, botName = process.env.BOT_NAME } = {}) {
+  if (cache && Date.now() - cache.at < CACHE_MS) return brandKey({ setting: cache.setting, orgName, botName });
   let setting = null;
   if (db && typeof db.from === 'function') {
     try {
@@ -121,7 +127,7 @@ async function resolveBrandKey({ db, orgName = process.env.ORG_NAME } = {}) {
     } catch (_) { setting = null; }
   }
   cache = { at: Date.now(), setting };
-  return brandKey({ setting, orgName });
+  return brandKey({ setting, orgName, botName });
 }
 
 /** The brand as the page sees it (boot JSON). Unknown keys get the default brand. */
