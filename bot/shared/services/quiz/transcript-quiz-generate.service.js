@@ -43,6 +43,7 @@ const Store = require('./lp-asset-source.store');
 const Funnel = require('./quiz-funnel');
 const LpCache = require('./lp-quiz-cache');
 const DailyCap = require('./quiz-daily-cap');
+const AuthorGates = require('./quiz-author-gates');
 const Lp612Source = require('./lp612-quiz-source');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
@@ -1711,7 +1712,9 @@ async function runKeyVerify(api, {
 async function process(quizId, payload = {}) {
   const flight = { key: null };
   try {
-    return await processQuiz(quizId, payload, flight);
+    // quiz_author_gates_v2 is read ONCE per quiz and held for the whole run.
+    const gates = await AuthorGates.isQuizAuthorGatesV2();
+    return await AuthorGates.runWithAuthorGates(gates, () => processQuiz(quizId, payload, flight));
   } finally {
     if (flight.key) await LpCache.release(flight.key, quizId);
   }
@@ -2024,7 +2027,6 @@ async function processQuiz(quizId, payload, flight) {
     let authorReplies = 0;
     // WHAT THE LESSON DREW — an lp_v8 lesson's own manipulatives (the slide
     // script's counters, bundles and tiles), so a picture draws what the class saw.
-    const lessonDrew = isLp ? LpDigest.lessonDrewBlock(slideScript) : '';
     // app_settings quiz_author_gates_v2, read ONCE per quiz (fail-closed). On, the
     // author and every targeted rewrite return each question's source_quote, and
     // runSourceFidelity holds the set to its source below. Off, nothing changes.
@@ -2033,6 +2035,10 @@ async function processQuiz(quizId, payload, flight) {
       const base = module.exports;
       api = { ...base, rewriteRejected: (args) => base.rewriteRejected({ ...args, authorGates: true }) };
     }
+    // quiz_author_gates_v2 adds a 6-12 lesson's own diagram specs (lessonDrewFor).
+    const lessonDrew = !isLp ? ''
+      : authorGates ? LpDigest.lessonDrewFor(slideScript, { authorGates: true })
+        : LpDigest.lessonDrewBlock(slideScript);
     for (let attempt = 1; attempt <= attemptsAllowed; attempt += 1) {
       let out;
       try {
@@ -2661,7 +2667,8 @@ module.exports = {
   // the source-fidelity step, exported for the offline measurement of its gates
   runSourceFidelity,
   // app_settings quiz_author_gates_v2 (fail-closed), read once per quiz.
-  authorGatesOn: () => require('../../config/feature-flags').isQuizAuthorGatesV2(),
+  // The flag is read ONCE per quiz, at process() entry (runWithAuthorGates); this returns that value, no second read.
+  authorGatesOn: async () => require('./quiz-author-gates').authorGatesOn({}),
   rewriteTeacherFields: (args) => require('./transcript-quiz-rewrite').rewriteTeacherFields(args),
   // Grade 1-5 maths only — the one rewrite that may add a picture (runFigureDensity).
   addPictures: (args) => require('./transcript-quiz-rewrite').addPictures(args),

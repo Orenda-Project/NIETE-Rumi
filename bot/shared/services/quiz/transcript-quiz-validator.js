@@ -15,7 +15,8 @@
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
 const { peopleSpellings, spellQuestion, logRedactor } = require('./transcript-quiz-people');
-const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES, singleThingNotACount, drawsEmptySet } = require('./transcript-quiz-figure');
+const AuthorGates = require('./quiz-author-gates');
+const { svgText, renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES, singleThingNotACount, drawsEmptySet } = require('./transcript-quiz-figure');
 
 /** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
 const FRACTION_BAR_MAX_PARTS = 24;
@@ -674,6 +675,23 @@ function validate(rawQuestions, ctx = {}) {
     // lesson-plan lane shares that contract and must still hear about a spec
     // it wrote wrong.
     q.figure = expandImproperBar(normaliseWordBlank(cleanedFigure, { stem, language, quizId, index: i }).spec);
+    // quiz_author_gates_v2 (off by default): what the picture SHOWS. A place-value
+    // question over a mat whose heads name the places, a word_blank that hides
+    // the mark the lesson is about, and pictures a child cannot tell apart.
+    if (AuthorGates.authorGatesOn(ctx)) {
+      q.figure = AuthorGates.placeValueFix(q.figure, { stem })
+        || AuthorGates.markFix(q.figure, { stem, options: opts }) || q.figure;
+      const unmarked = AuthorGates.markMissing(q.figure, stem);
+      if (unmarked) {
+        errs.push(`q${i}: FIGURE_MARK_MISSING — ${unmarked}`);
+        return;
+      }
+      const alike = AuthorGates.indistinctParts(q.figure, stem, opts);
+      if (alike) {
+        errs.push(`q${i}: FIGURE_INDISTINCT — ${alike}; a child cannot tell these pictures apart: draw different things, or make them differ by something drawn that the question names (a colour, a count, a size)`);
+        return;
+      }
+    }
     if (MATHS_ONLY_TYPES.has(String(q.figure.type || '').toLowerCase()) && canonSubj(subject) !== 'maths') {
       errs.push(`q${i}: FIGURE_TYPE — "${q.figure.type}" draws mathematics only; for this subject use flow, timeline, fraction_bar, grid, numberline, or no picture`);
       return;
@@ -775,6 +793,14 @@ function validate(rawQuestions, ctx = {}) {
     if (twin) errs.push(`q${i}: duplicate options — ${twin}`);
     if (!modelsTheStem(q, subject, gradeBand) && figureIsRedundant(q.figure, stem)) {
       errs.push(`q${i}: FIGURE_REDUNDANT — the stem already states the numbers the picture shows; ask the child to READ them from the picture instead`);
+    }
+    // quiz_author_gates_v2: options that name pictures must name pictures that
+    // are DRAWN, and a picture of one quantity must not be the key.
+    if (AuthorGates.authorGatesOn(ctx)) {
+      const undrawn = AuthorGates.handlesNotDrawn(svgText(svg), opts);
+      if (undrawn) errs.push(`q${i}: FIGURE_HANDLE_UNDRAWN — the options name ${undrawn.join(', ')} but the picture draws no part with that label; draw every part the options name, labelled exactly as the option`);
+      const shows = AuthorGates.drawnCountIsKey(q.figure, stem, opts, ci);
+      if (shows) errs.push(`q${i}: FIGURE_SHOWS_KEY — ${shows}; draw the situation (all the numbers in the options, or the groups), never only the answer`);
     }
     // The DRAWING is checked, not only the spec: several types compute a label
     // the spec never mentions, and a fraction bar's "3/4" is the whole answer.

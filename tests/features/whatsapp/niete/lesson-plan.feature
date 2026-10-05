@@ -656,3 +656,32 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I send "make me a lesson plan on fractions for grade 4"
     Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
     And no lesson-plan menu opens
+
+  # ──────────────── Quiz pictures a child can use (quiz_author_gates_v2) ───────────────
+  # Behind app_settings quiz_author_gates_v2, off by default (production authoring is unchanged
+  # until it is turned on). With it on, the same rules hold for the WhatsApp row and the web item.
+  # Unit: tests/quiz/quiz-author-gates-figures.test.js, tests/quiz/lp612-quiz-generate.test.js.
+
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: A Grades 6-12 quiz can draw the lesson's own diagram
+    Given quiz_author_gates_v2 is on
+    And the NIETE bot chat is open on a teacher who took a Grades 6-12 lesson plan with a diagram in it
+    When the teacher asks for a quiz on that lesson
+    Then the quiz author is shown that lesson's diagrams as drawable specs
+    And a picture question about the lesson's diagram shows the drawing the class saw
+
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: Pictures a child cannot tell apart are never shipped
+    Given quiz_author_gates_v2 is on
+    When a quiz question offers pictures P, Q and R that are the same drawing in different colours
+    And the question does not ask about colour
+    Then that question is refused and written again or left out
+    And no option names a picture label that is not drawn
+
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: A place-value picture does not print the answer, and a mark lesson shows its mark
+    Given quiz_author_gates_v2 is on
+    When a question asks which place a digit is in over a place-value mat
+    Then the mat is drawn without its column names
+    When a question about tashdeed shows a word with a missing letter
+    Then the shadda is drawn on the empty box, or the question is written again when the word has no shadda
