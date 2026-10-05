@@ -167,6 +167,15 @@ test('Urdu: Urdu digits on the keys and in the "no one has number" line', async 
   expect(p.last().h).toContain('نمبر ۳۱ کسی کا نہیں');
 });
 
+test('Urdu: a class label like 3-B is an LTR isolate, so it never paints as B-3', async () => {
+  const p = page({ lang: 'ur', replies: [{ status: 409, ok: false, body: { error: 'is_this_you', candidates: [
+    { chip: 'a', first: 'x', animal: 'owl', cls: '3-B' }, { chip: 'b', first: 'y', animal: 'cat', cls: '4-A' }] } }] });
+  p.ctx.who();
+  p.key('1'); p.key('go');
+  await flush();
+  expect(p.last().h).toContain('<bdi dir="ltr">3-B</bdi>');
+});
+
 test('no class list: the name chips as today', () => {
   const p = page({ cls: { chips: [{ chip: 'z', first: 'Zara', animal: 'owl' }] } });
   p.ctx.who();

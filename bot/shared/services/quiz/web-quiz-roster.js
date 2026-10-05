@@ -61,7 +61,7 @@ async function loadRoster(teacherUserId) {
     if (error) throw new Error(error.message);
     if (!lists || !lists.length) return null;
     const { data: kids, error: kErr } = await supabase.from('students')
-      .select('id, list_id, roll_number, student_name, status')
+      .select('id, list_id, roll_number, student_name, student_name_urdu, status')
       .in('list_id', lists.map((l) => l.id)).eq('is_active', true);
     if (kErr) throw new Error(kErr.message);
     const live = (kids || []).filter((k) => !k.status || k.status === 'active');
@@ -142,8 +142,14 @@ function byName(roster, typedFirst) {
   if (!roster || !typedFirst) return [];
   const firstOf = (n) => String(n || '').trim().split(/\s+/)[0] || '';
   const labelOf = (k) => (roster.lists.length > 1 ? (roster.lists.find((l) => l.id === k.list_id) || {}).label || null : null);
-  return roster.kids.filter((k) => nearName(firstOf(k.student_name), typedFirst))
+  // A child may type their name in either script; the list may hold an Urdu spelling too.
+  return roster.kids.filter((k) => nearName(firstOf(k.student_name), typedFirst) || nearName(firstOf(k.student_name_urdu), typedFirst))
     .slice(0, MAX_CANDIDATES).map((k) => ({ kid: k, label: labelOf(k) }));
+}
+
+/** The name a child is asked about: the list's Urdu spelling on an Urdu quiz, when the list has one. */
+function displayName(kid, lang) {
+  return lang === 'ur' && kid.student_name_urdu && String(kid.student_name_urdu).trim() ? kid.student_name_urdu : kid.student_name;
 }
 
 /** The class label of a roster child (for the session's student_class). */
@@ -154,6 +160,6 @@ function classOf(roster, kid) {
 
 module.exports = {
   FLAG_KEY, MAX_CANDIDATES,
-  rosterOn, loadRoster, cleanRoll, byRoll, byName, nearName, classOf,
+  rosterOn, loadRoster, cleanRoll, byRoll, byName, nearName, classOf, displayName,
   _resetCache: () => { cache = null; },
 };
