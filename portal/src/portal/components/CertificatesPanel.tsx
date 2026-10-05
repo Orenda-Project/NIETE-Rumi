@@ -50,6 +50,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Award, Download, Eye, Loader2, AlertCircle, Lock } from 'lucide-react';
 import api from '../services/api';
 import { getApiBaseUrl, isNativeApp } from '@/lib/runtime';
+import { downloadCertificate } from '../newui/training/certificateFile';
 
 /**
  * Resolve the API's `download_url` for the environment we are actually in.
@@ -385,19 +386,16 @@ export default function CertificatesPanel({
                         </a>
                       )}
                       {/*
-                        _blank ON THE WEB ONLY. The url returns a file rather
-                        than a page, so a new tab keeps the teacher's place in
-                        the SPA. In the native shell the same attribute sent the
-                        url to external Chrome, which carries none of the
-                        WebView's cookies — the request arrived with no session
-                        and the portal answered 401 "Not authenticated". That is
-                        the failure a handset showed; the download manager is
-                        already a background errand there, so nothing is lost by
-                        navigating in place.
+                        bd-4ryvw — the click saves the file without leaving the
+                        portal (downloadCertificate): the web follows the signed
+                        link in place, the app hands it to the native
+                        CertificateFile plugin. The route itself 302s to R2, and
+                        in the WebView that navigation went to Chrome. The href
+                        stays for a middle-click or a long-press.
                       */}
                       <a
                         href={resolveDownloadUrl(c.download_url)}
-                        {...(native ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+                        onClick={(e) => { e.preventDefault(); void downloadCertificate(c.download_url); }}
                         data-testid="certificate-download"
                         className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
                       >
