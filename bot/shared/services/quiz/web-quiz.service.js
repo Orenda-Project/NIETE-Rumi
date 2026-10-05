@@ -16,7 +16,7 @@
  *     handset": it tells a replay on the same phone from one on a sibling's.
  *   - The FIRST finished attempt per child counts (first_completed), so a
  *     replay is practice and cannot raise a class score. WhatsApp keeps its
- *     latest-attempt rule; the report picks the rule per quiz (meta.web_arm).
+ *     latest-attempt rule; the report picks the rule per class code (attemptRuleFor).
  *   - The teacher's own preview (a signed `p` token) is stored with
  *     user_id = the teacher — the existing self-test marker — so it never
  *     reaches the roster, the average or the league table.
@@ -30,12 +30,14 @@ const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const WebItems = require('./web-quiz-items');
 const Figure = require('./web-quiz-figure');
+const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
 const { clampLanguage } = require('../../config/ux-strings');
 const { teacherLabel } = require('./quiz-teacher-label');
+const Roster = require('./web-quiz-roster');
 
 const QUESTIONS_MAX = 15;          // = video-quiz.service QUESTIONS_PER_SESSION
 const CHIPS_MAX = 40;
@@ -167,7 +169,16 @@ function mediaUrl(code, qid, k) {
  */
 function questionImageOf(media) {
   const m = media || {};
-  return m.question_image || m.grid || null;
+  // A picture the review judged misleading (Figure.pictureHidden) is not shown: the
+  // question plays on its text, or, when its stem sends the child to the picture, is
+  // left out like any picture question with no picture (playable).
+  if (Figure.pictureHidden(m)) return null;
+  if (m.question_image) return m.question_image;
+  // The grid is WhatsApp's collage of the picture OPTIONS ("1. word" painted
+  // under each). When the options carry their own pictures the page shows those
+  // as the answer tiles, so the grid would show every option twice.
+  const ownPictures = Array.isArray(m.option_images) && m.option_images.some(Boolean);
+  return ownPictures ? null : m.grid || null;
 }
 
 function optionImageOf(media, i) {
@@ -230,6 +241,12 @@ function questionPayload(row, i, code, audio) {
     if (fb) o.fb = fb;
     options.push(o);
   });
+  // Today's WhatsApp picture question sends its options as emoji (🌸 🍃 🌰 🥕).
+  // On the page each becomes a colour picture tile, unnamed: the picture is the option.
+  const nouns = options.map((o) => (o.img || o.pic ? null : Pictures.emojiNoun(o.text)));
+  if (options.length >= 2 && nouns.every(Boolean)) {
+    options.forEach((o, k) => { o.pic = { kind: 'pictogram', name: nouns[k], unnamed: true }; });
+  }
   const out = {
     qid: q.id, i: i + 1, text: q.question_text || '', pattern: q.render_pattern || null,
     options: inDisplayOrder(q, options), correct_slot: normSlots(q.correct_option), why: q.explanation || null,
@@ -296,6 +313,13 @@ async function classChips(ctx) {
 
 const publicChip = (c) => ({ chip: c.chip, first: c.first, animal: c.animal });
 
+/** A roster child as a public chip: first name and animal, the class label only when it tells two classes apart. */
+function rosterChip(ctx, { kid, label }) {
+  const c = { chip: T.chipId(ctx.shareCodeId, kid.id), first: firstName(Roster.displayName(kid, ctx.lang)), animal: T.animalFor(kid.id) };
+  if (label) c.cls = label;
+  return c;
+}
+
 // ─── live counts ────────────────────────────────────────────────────────────
 
 async function liveCounts(ctx) {
@@ -336,7 +360,9 @@ async function getQuiz(code, { p } = {}) {
   }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
-  const chips = await classChips(ctx);
+  // A teacher with a class list: the child gives a roll number, so no classmates' names ship.
+  const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
+  const chips = roster ? [] : await classChips(ctx);
   const preview = Boolean(p) && isPreviewFor(p, ctx);
   // The class and the teacher are named exactly as the teacher's own texts
   // name them: the forwarded WhatsApp message's "Teacher <name>", and the
@@ -354,13 +380,20 @@ async function getQuiz(code, { p } = {}) {
       n: questions.length,
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio)),
     },
-    cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip) },
+    cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip), ...(roster ? { roster: { lists: roster.lists.length } } : {}) },
     live: await liveCounts(ctx),
     video,
     preview,
   };
   if (ctx.invitedByStudentId) out.challenge = await challengeOf(ctx);
   return out;
+}
+
+async function gradeOf(quizId) {
+  try {
+    const { data } = await supabase.from('quizzes').select('grade').eq('id', quizId).maybeSingle();
+    return (data && data.grade) || null;
+  } catch { return null; }
 }
 
 function isPreviewFor(p, ctx) {
@@ -422,26 +455,6 @@ async function countJoin(shareCodeId) {
   }
 }
 
-/**
- * A child played this quiz on the web, so the teacher's report counts each
- * child's FIRST finish (quizzes.meta.web_arm, read by attemptRuleFor) — the
- * rule the page's league table already shows. Once per quiz; the rest of meta
- * is kept. A failure is logged and never stops the child's quiz.
- */
-async function markWebArm(quizId) {
-  try {
-    const { data: q, error } = await supabase.from('quizzes').select('id, meta').eq('id', quizId).maybeSingle();
-    if (error || !q) return;
-    const meta = (q.meta && typeof q.meta === 'object') ? q.meta : {};
-    if (meta.web_arm === 'web') return;
-    const { error: uErr } = await supabase.from('quizzes').update({ meta: { ...meta, web_arm: 'web' } }).eq('id', quizId);
-    if (uErr) logToFile('⚠️ web-quiz: could not mark the quiz as web arm', { quizId, error: uErr.message });
-    else logEvent('web_quiz.web_arm_marked', { quizId });
-  } catch (e) {
-    logToFile('⚠️ web-quiz: could not mark the quiz as web arm', { quizId, error: e.message });
-  }
-}
-
 async function startSession(body = {}) {
   requireOn();
   const ctx = await resolveCode(body.code);
@@ -473,13 +486,33 @@ async function startSession(body = {}) {
     if (!isPreviewFor(body.p, ctx)) fail(401, 'bad_token');
     userId = ctx.teacherUserId;           // the self-test marker: never a child
     takerName = ctx.parent.teacher_name || null;
+  } else if (body.roll != null) {
+    // "What is your roll number?" -> "Are you <first name>?": the page confirms with the chip.
+    const quizGrade = await gradeOf(ctx.quizId);
+    const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
+    if (!roster) fail(400, 'bad_request', { why: 'who' });
+    const roll = Roster.cleanRoll(body.roll);
+    if (!roll) fail(400, 'bad_request', { why: 'roll' });
+    const found = Roster.byRoll(roster, roll, quizGrade);
+    logEvent('web_quiz.roll_lookup', { shareCodeId: ctx.shareCodeId, matches: found.length });
+    if (!found.length) fail(404, 'roll_unknown');
+    fail(409, 'is_this_you', { candidates: found.map((f) => rosterChip(ctx, f)) });
   } else if (body.chip) {
-    const chips = await classChips(ctx);
     const want = String(body.chip);
-    const hit = chips.find((c) => c.chip === want) || chips.find((c) => c.aliases.has(want));
-    if (!hit) fail(404, 'chip_unknown');
-    const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class').eq('id', hit.studentId).maybeSingle();
-    student = st || { id: hit.studentId, student_name: hit.name };
+    const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
+    const fromRoster = roster ? roster.kids.find((k) => T.chipId(ctx.shareCodeId, k.id) === want) : null;
+    if (fromRoster) {
+      student = { id: fromRoster.id, student_name: fromRoster.student_name, self_reported_class: Roster.classOf(roster, fromRoster) };
+    } else {
+      const chips = await classChips(ctx);
+      const hit = chips.find((c) => c.chip === want) || chips.find((c) => c.aliases.has(want));
+      if (!hit) fail(404, 'chip_unknown');
+      const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class').eq('id', hit.studentId).maybeSingle();
+      student = st || { id: hit.studentId, student_name: hit.name };
+      // A class-list child remembered from an earlier code of this teacher keeps the list's class.
+      const listed = roster ? roster.kids.find((k) => k.id === hit.studentId) : null;
+      if (listed) student = { ...student, self_reported_class: Roster.classOf(roster, listed) };
+    }
   } else if (body.new && typeof body.new === 'object') {
     const name = cleanName(body.new.name);
     if (!name) fail(400, 'bad_request', { why: 'name' });
@@ -487,7 +520,12 @@ async function startSession(body = {}) {
     if (!body.new.force) {
       const chips = await classChips(ctx);
       const mine = norm(firstName(name));
-      const candidates = chips.filter((c) => norm(c.first) === mine).map(publicChip);
+      const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
+      // With a class list, a typo still finds the child ("Aysha" -> Ayesha); without one, today's exact match.
+      const fromRoster = roster ? Roster.byName(roster, firstName(name)).map((f) => rosterChip(ctx, f)) : [];
+      const fromChips = chips.filter((c) => (roster ? Roster.nearName(c.first, firstName(name)) : norm(c.first) === mine))
+        .filter((c) => !fromRoster.some((r) => r.chip === c.chip)).map(publicChip);
+      const candidates = fromRoster.concat(fromChips).slice(0, Roster.MAX_CANDIDATES);
       if (candidates.length) fail(409, 'maybe_you', { candidates });
     }
     const { data: created, error } = await supabase.from('students').insert({
@@ -529,7 +567,6 @@ async function startSession(body = {}) {
   }
 
   await countJoin(ctx.shareCodeId);
-  if (!userId) await markWebArm(ctx.quizId);
   let quizSource = null;
   try {
     const { data: q } = await supabase.from('quizzes').select('quiz_source').eq('id', ctx.quizId).maybeSingle();
@@ -552,6 +589,8 @@ async function startSession(body = {}) {
   logEvent('web_quiz.session_started', {
     sessionId: session.id, shareCodeId: ctx.shareCodeId, quizId: ctx.quizId,
     preview: Boolean(userId), returning: Boolean(body.chip), counted: counted.counted,
+    // How the page identified the child (roll / name / remembered / chips / new): measures each path.
+    via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
   });
   return {
     st: T.signSession({ sessionId: session.id, deviceRef, shareCodeId: ctx.shareCodeId }),

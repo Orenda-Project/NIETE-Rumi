@@ -159,6 +159,9 @@ var WQI = (function () {
     opts(q).forEach(function (o) { add(o.img); });
     return out;
   }
+  // A magnifier with a plus: the zoom control is an icon in the picture's corner (its words are for screen readers).
+  var ZOOM_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/>' +
+    '<path d="M15.5 15.5L21 21M10.5 7.5v6M7.5 10.5h6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
   function figureHtml(q, T) {
     var f = figureOf(q);
     if (!f) return '';
@@ -179,7 +182,7 @@ var WQI = (function () {
       ? '<div class="wq-svg" role="img" aria-label="' + esc(f.alt || '') + '"' + (f.dir ? ' dir="' + esc(f.dir) + '"' : '') + '>' + cleanSvg(f.svg) + '</div>'
       : '<img src="' + esc(f.url) + '" alt="' + esc(f.alt || '') + '"' + LOADING + '>';
     return '<figure class="wq-fig' + (hot ? ' wq-labelfig' : '') + (f.type ? ' wq-f-' + esc(String(f.type).replace(/[^a-z0-9_-]/gi, '')) : '') + '"><div class="wq-figbox"' + box + '>' + draw + hot + '</div>' +
-      '<button class="wq-zoom" aria-label="' + esc(T.zoom || 'Zoom') + '"><span aria-hidden="true">⤢</span> ' + esc(T.zoom || '') + '</button></figure>';
+      '<button class="wq-zoom" aria-label="' + esc(T.zoom || 'Zoom') + '">' + ZOOM_ICON + '</button></figure>';
   }
 
   /* ---- what each option is called (spoken, and in the "not yet" line) ---- */
@@ -225,7 +228,11 @@ var WQI = (function () {
   function picHtml(o, nm) {
     var g = o.pic && (o.pic.glyph || (o.pic.kind === 'glyph' && o.pic.text));
     if (g) return '<span class="wq-glyph" dir="auto">' + esc(g) + '</span>';
-    if (o.pic && o.pic.svg) return '<span class="wq-pic" role="img" aria-label="' + esc(o.pic.alt || nm || '') + '">' + cleanSvg(o.pic.svg) + '</span>';
+    if (o.pic && o.pic.svg) {
+      // An unnamed picture (an emoji option drawn as a picture) is hidden from screen readers; its button carries the shape's name.
+      var al = o.pic.alt != null ? o.pic.alt : nm;
+      return '<span class="wq-pic"' + (al ? ' role="img" aria-label="' + esc(al) + '"' : ' aria-hidden="true"') + '>' + cleanSvg(o.pic.svg) + '</span>';
+    }
     if (o.img) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '"' + LOADING + '>';
     return '';
   }
@@ -454,7 +461,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!',
       histT: 'Your scores', todayT: 'Today in Islamabad', rest: 'Time to rest. See you tomorrow!', back: 'Back', sounds: 'Sounds',
       cont: function (i, n) { return 'Continue ' + i + '/' + n; }, contSay: function (n) { return 'Welcome back, ' + n + '! Your answers are saved.'; }, restart: 'Start again',
-      fbT: 'Share', fbSub: 'This browser cannot open the share menu.', fbWa: 'Open WhatsApp with the message', fbCopy: 'Copy the message', copied: 'Message copied',
+      fbT: 'Send it on WhatsApp', fbSub: 'Tap the green button, then pick the chat.', fbWa: 'Send on WhatsApp', fbCopy: 'Copy the message', copied: 'Message copied',
+      backAgain: 'Your answers are saved. Press back again to leave.',
+      todaySub: 'children played today', myScores: 'My scores',
+      sharePlayed: function (w, t) { return w + ' played ' + t + '. Your turn!'; },
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
@@ -492,7 +502,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!',
       histT: 'آپ کے اسکور', todayT: 'آج اسلام آباد میں', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', back: 'واپس', sounds: 'آوازیں',
       cont: function (i, n) { return 'جاری رکھیں ' + i + '/' + n; }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں',
-      fbT: 'بھیجیں', fbSub: 'یہ براؤزر شیئر کا مینو نہیں کھول سکتا۔', fbWa: 'واٹس ایپ میں پیغام کھولیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا',
+      fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'ہرا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا',
+      backAgain: 'آپ کے جواب محفوظ ہیں۔ باہر جانے کے لیے دوبارہ بیک دبائیں۔',
+      todaySub: 'بچوں نے آج کھیلا', myScores: 'میرے اسکور',
+      sharePlayed: function (w, t) { return w + ' نے ' + t + ' کھیلا۔ اب آپ کی باری!'; },
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + t + ' میں سے ' + s + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
@@ -702,9 +715,138 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       this.setAttribute('aria-pressed', SOUND); this.textContent = SOUND ? '🔔' : '🔕';
     });
   }
-  function jug(pose, line, big) {
-    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '"><img src="' + IMG + pose + '.webp" alt="" width="92" height="92"><div class="wq-say">' + esc(line) + '</div></div>';
+  /* ---------------- mascot (Jugnu): a still pose that comes alive ----------------
+   * Each pose has a few short seamless loops (first frame = last frame), one picked at random so it never
+   * feels canned. The still is the poster and the fallback, so the first question never waits on a loop:
+   * a loop loads only once the screen is up and in view, plays muted and inline, and gives way to the still
+   * on reduced motion, Save-Data or 2G, a refused autoplay, off-screen, or a hidden / closing page.
+   * Android plays VP9-with-alpha WebM; WebKit has no WebM alpha, so iPhones get the animated WebP. */
+  var JUG_DIR = '/wq/jugnu/';
+  var JUG_V = { idle: 'abc', hello: 'ab', thinking: 'ab', correct: 'abc', notyet: 'ab', celebrate: 'ab', sleep: 'ab' };
+  var jugLast = {};
+  var jugOn = true;
+  var jugIO = null;
+  var JUG_WEBM = (function () {
+    try {
+      var ua = navigator.userAgent || '';
+      if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && /Safari\//.test(ua) && !/Chrome|Chromium|Edg|Firefox/.test(ua))) return false;
+      var v = document.createElement('video');
+      return !!(v.canPlayType && v.canPlayType('video/webm; codecs="vp9"'));
+    } catch (e) { return false; }
+  })();
+  function jugImg(pose) {
+    return '<span class="wq-jimg" data-jpose="' + pose + '"><img src="' + JUG_DIR + pose + '.webp" alt="" width="92" height="92"></span>';
   }
+  function jug(pose, line, big) {
+    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '">' + jugImg(pose) + '<div class="wq-say">' + esc(line) + '</div></div>';
+  }
+  function jugMotion() {
+    try { if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false; } catch (e) {}
+    var c = navigator.connection || {};
+    return !(c.saveData || /2g$/.test(c.effectiveType || ''));
+  }
+  function jugPick(pose) {
+    var v = JUG_V[pose] || 'a';
+    var k = v.charAt(Math.min(v.length - 1, Math.floor(Math.random() * v.length)));
+    if (v.length > 1 && k === jugLast[pose]) k = v.charAt((v.indexOf(k) + 1) % v.length);
+    jugLast[pose] = k;
+    return pose + '_' + k;
+  }
+  function jugLive(el) { if (!/ wq-live/.test(el.className)) el.className += ' wq-live'; }
+  // put the still back: drop the loop element so nothing decodes in the background
+  function jugQuiet(el) {
+    el.className = el.className.replace(/ wq-live/g, '');
+    el.removeAttribute('data-jon');
+    var kids = [];
+    for (var i = 0; i < el.children.length; i++) if (/wq-anim/.test(el.children[i].className)) kids.push(el.children[i]);
+    kids.forEach(function (a) {
+      try { if (a.pause) a.pause(); } catch (e) {}
+      try { a.removeAttribute('src'); } catch (e) {}
+      el.removeChild(a);
+    });
+  }
+  function jugStart(el) {
+    if (!jugOn || el.getAttribute('data-jon')) return;
+    el.setAttribute('data-jon', '1');
+    var name = jugPick(el.getAttribute('data-jpose'));
+    var webp = function () {
+      if (!jugOn || el.getAttribute('data-jon') !== '1') return;
+      var im = document.createElement('img');
+      im.alt = ''; im.className = 'wq-anim';
+      im.onload = function () { jugLive(el); };
+      im.src = JUG_DIR + name + '.webp';
+      el.appendChild(im);
+    };
+    if (!JUG_WEBM) { webp(); return; }
+    var v = document.createElement('video');
+    v.muted = true; v.loop = true; v.preload = 'auto';
+    v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', ''); v.setAttribute('aria-hidden', 'true');
+    v.className = 'wq-anim';
+    var gone = function () { return v.parentNode !== el; };
+    v.addEventListener('playing', function () { if (!gone()) jugLive(el); });
+    // logged so the page's events say how often a browser (e.g. an in-app one) refuses the WebM loop
+    var fellBack = function (why) { try { ev('jug_fallback', { reason: String(why || 'error').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 40) || 'error' }); } catch (e) {} };
+    v.addEventListener('error', function () { if (gone()) return; el.removeChild(v); fellBack('media_error'); webp(); });
+    v.src = JUG_DIR + name + '.webm';
+    el.appendChild(v);
+    var p = null;
+    try { p = v.play(); } catch (e) {}
+    // autoplay refused (some in-app browsers): the animated WebP needs no permission. A play() aborted
+    // because the page was hidden is not a refusal.
+    if (p && p.catch) p.catch(function (e) { if (gone() || !jugOn || (e && e.name === 'AbortError')) return; el.removeChild(v); fellBack(e && e.name); webp(); });
+  }
+  function jugWake() {
+    if (!ROOT || !jugOn || !jugMotion()) return;
+    var els = ROOT.querySelectorAll('.wq-jimg');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (jugIO) {
+        if (!el.getAttribute('data-jio')) { el.setAttribute('data-jio', '1'); jugIO.observe(el); }
+        else if (el.getAttribute('data-jin')) jugStart(el);
+      } else jugStart(el);
+    }
+  }
+  function jugStop() {
+    jugOn = false;
+    if (!ROOT) return;
+    var els = ROOT.querySelectorAll('.wq-jimg');
+    for (var i = 0; i < els.length; i++) jugQuiet(els[i]);
+  }
+  function jugResume() {
+    if (jugOn) return;
+    jugOn = true;
+    jugWake();
+  }
+  try {
+    if (window.IntersectionObserver) {
+      jugIO = new window.IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (e.isIntersecting) { e.target.setAttribute('data-jin', '1'); if (jugMotion()) jugStart(e.target); }
+          else { e.target.removeAttribute('data-jin'); jugQuiet(e.target); }
+        });
+      });
+    }
+  } catch (e) { jugIO = null; }
+  window.addEventListener('pagehide', jugStop);
+  window.addEventListener('pageshow', jugResume);
+  document.addEventListener('freeze', jugStop);
+  document.addEventListener('resume', jugResume);
+  document.addEventListener('wq-silence', jugStop);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') jugStop(); else jugResume(); });
+  // a new screen is drawn into ROOT: wake its mascot a moment later, after the page has loaded
+  try {
+    if (window.MutationObserver && ROOT) {
+      var jugT = null;
+      new window.MutationObserver(function () {
+        if (jugT) return;
+        jugT = setTimeout(function () { jugT = null; jugWake(); }, 250);
+      }).observe(ROOT, { childList: true, subtree: true });
+    }
+    if (document.readyState === 'complete') setTimeout(jugWake, 250);
+    else window.addEventListener('load', function () { setTimeout(jugWake, 250); });
+  } catch (e) {}
+  window.wqJug = { stop: jugStop, resume: jugResume };
+  /* ---------------- end mascot ---------------- */
   function stars(n, total) {
     var h = '';
     for (var i = 0; i < total; i++) h += STAR.replace('{on}', i < n ? ' wq-on' : '');
@@ -747,14 +889,49 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-play', who);
     on('#wq-notme', who);
     on('#wq-preview', function () { ev('identity_pick', { src: 'preview' }); startSession({}, null, ''); });
-    on('#wq-play-as', function () { ev('identity_pick', { src: 'remembered' }); startSession({ chip: last.chip }, last); });
+    on('#wq-play-as', function () { ev('identity_pick', { src: 'remembered' }); startSession({ chip: last.chip, via: 'remembered' }, last); });
   }
 
   /* ---------------- M4 who's playing ---------------- */
+  // A teacher with a class list (CLS.roster): the child gives a roll number on a big pad and confirms
+  // "Are you <name>?"; no classmates' names are shown. Without one, today's name chips.
+  var TW = ({
+    en: {
+      rollT: 'What is your roll number?', rollSay: 'Tap your roll number, then Go.', go: 'Go', del: 'Delete',
+      noRoll: "I don't know my number", onPhoneOr: 'Or tap your name',
+      unknown: function (n) { return 'No one in this class has number ' + n + '. Try again!'; },
+      isYouSub: 'Is this you?', tryAgain: 'No, try again', none: 'None of these is me'
+    },
+    ur: {
+      rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
+      noRoll: 'مجھے اپنا نمبر نہیں پتا', onPhoneOr: 'یا اپنے نام پر ٹیپ کریں',
+      unknown: function (n) { return 'اس کلاس میں نمبر ' + n + ' کسی کا نہیں۔ دوبارہ کوشش کریں!'; },
+      isYouSub: 'کیا یہ آپ ہیں؟', tryAgain: 'نہیں، دوبارہ', none: 'ان میں سے کوئی نہیں'
+    }
+  })[LANG === 'ur' ? 'ur' : 'en'];
+  var UDIG = '۰۱۲۳۴۵۶۷۸۹';
+  function digitsFor(n) { return LANG === 'ur' ? String(n).replace(/[0-9]/g, function (d) { return UDIG[+d]; }) : String(n); }
+  function padNext(cur, key) {
+    if (key === 'del') return cur.slice(0, -1);
+    if (!/^[0-9]$/.test(key) || cur.length >= 3 || (cur === '' && key === '0')) return cur;
+    return cur + key;
+  }
+  function kidBtn(k, src) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '" data-src="' + src + '">' + ani(k.animal) + esc(k.first) + '</button>'; }
+  function wireKids(list) {
+    Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-kid'), function (b) {
+      b.addEventListener('click', function () {
+        var chip = b.getAttribute('data-chip');
+        var k = list.filter(function (x) { return x.chip === chip; })[0];
+        ev('identity_pick', { src: b.getAttribute('data-src') });
+        startSession({ chip: chip, via: b.getAttribute('data-src') === 'phone' ? 'remembered' : 'chips' }, k);
+      });
+    });
+  }
+
   function who() {
+    if (CLS.roster) return rollPad('', '');
     var here = kids();
     var chips = (CLS.chips || []).filter(function (c) { return !here.some(function (k) { return k.chip === c.chip; }); });
-    function kidBtn(k, src) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '" data-src="' + src + '">' + ani(k.animal) + esc(k.first) + '</button>'; }
     var h = bar() + jug('idle', T.whoSay) + '<h2>' + esc(T.whoT) + '</h2>' +
       (here.length ? '<p class="wq-sub">' + esc(T.onPhone) + '</p><div class="wq-chips">' + here.map(function (k) { return kidBtn(k, 'phone'); }).join('') + '</div>' : '') +
       (chips.length ? '<p class="wq-sub">' + esc(T.inClass(CLASS_LABEL)) + '</p><div class="wq-chips">' + chips.map(function (k) { return kidBtn(k, 'class'); }).join('') + '</div>' : '') +
@@ -762,15 +939,40 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
     render(h, 'M4');
     wireBar();
-    Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-kid'), function (b) {
+    wireKids(here.concat(CLS.chips || []));
+    on('#wq-new', newKid);
+    on('#wq-back', landing);
+  }
+
+  /* The roll-number pad: numbers only, so a child who cannot read yet can still say who they are. */
+  function rollPad(cur, note) {
+    var here = kids();
+    var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'go'];
+    var h = bar() + jug('idle', note || TW.rollSay) + '<h2>' + esc(TW.rollT) + '</h2>' +
+      '<div class="wq-roll" aria-live="polite">' + (cur ? esc(digitsFor(cur)) : '<span class="wq-roll-ph">–</span>') + '</div>' +
+      '<div class="wq-pad">' + keys.map(function (k) {
+        if (k === 'del') return '<button class="wq-key wq-key-del" data-k="del" aria-label="' + esc(TW.del) + '">⌫</button>';
+        if (k === 'go') return '<button class="wq-key wq-key-go" data-k="go"' + (cur ? '' : ' disabled') + '>' + esc(TW.go) + '</button>';
+        return '<button class="wq-key" data-k="' + k + '">' + esc(digitsFor(k)) + '</button>';
+      }).join('') + '</div>' +
+      (here.length ? '<p class="wq-sub">' + esc(TW.onPhoneOr) + '</p><div class="wq-chips">' + here.map(function (k) { return kidBtn(k, 'phone'); }).join('') + '</div>' : '') +
+      '<button class="wq-btn wq-soft" id="wq-noroll">' + esc(TW.noRoll) + '</button>' +
+      '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
+    render(h, 'M4-roll');
+    wireBar();
+    wireKids(here);
+    Array.prototype.forEach.call(ROOT.querySelectorAll('[data-k]'), function (b) {
       b.addEventListener('click', function () {
-        var chip = b.getAttribute('data-chip');
-        var k = here.concat(CLS.chips || []).filter(function (x) { return x.chip === chip; })[0];
-        ev('identity_pick', { src: b.getAttribute('data-src') });
-        startSession({ chip: chip }, k);
+        var k = b.getAttribute('data-k');
+        if (k === 'go') {
+          if (!cur) return;
+          ev('identity_pick', { src: 'roll_try' });
+          return startSession({ roll: cur }, null, '', cur);
+        }
+        rollPad(padNext(cur, k), '');
       });
     });
-    on('#wq-new', newKid);
+    on('#wq-noroll', function () { ev('identity_pick', { src: 'no_roll' }); newKid(); });
     on('#wq-back', landing);
   }
 
@@ -795,28 +997,34 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     newKid.force = function () { go(true); };
   }
 
-  function isThisYou(cands, typed) {
-    var h = bar() + jug('thinking', T.isYouSub) +
+  /* "Are you Ayesha?" — after a roll number (roll set) or a typed name that is near a known child. */
+  function isThisYou(cands, typed, roll) {
+    var h = bar() + jug('thinking', roll ? TW.isYouSub : T.isYouSub) +
       cands.map(function (c) {
         return '<div class="wq-card wq-stack"><h2>' + esc(T.isYou(c.first)) + ' ' + ani(c.animal) + '</h2>' +
+          (c.cls ? '<p class="wq-sub"><bdi dir="ltr">' + esc(c.cls) + '</bdi></p>' : '') +
           '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(T.yesMe) + '</button></div>';
       }).join('') +
-      '<button class="wq-btn wq-soft" id="wq-diff">' + esc(T.diff(typed.split(' ')[0])) + '</button>';
+      (roll ? '<button class="wq-btn wq-soft" id="wq-diff">' + esc(cands.length > 1 ? TW.none : TW.tryAgain) + '</button>'
+        : '<button class="wq-btn wq-soft" id="wq-diff">' + esc(T.diff(typed.split(' ')[0])) + '</button>');
     render(h, 'M4-isyou');
     wireBar();
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-chip]'), function (b) {
       b.addEventListener('click', function () {
         var c = cands.filter(function (x) { return x.chip === b.getAttribute('data-chip'); })[0];
-        ev('identity_pick', { src: 'is_this_you' });
-        startSession({ chip: c.chip }, c);
+        ev('identity_pick', { src: roll ? 'roll' : 'is_this_you' });
+        startSession({ chip: c.chip, via: roll ? 'roll' : 'name' }, c);
       });
     });
-    on('#wq-diff', function () { startSession({ new: { name: typed, cls: String(Q.grade || ''), force: true } }, null, typed); });
+    on('#wq-diff', function () {
+      if (roll) { ev('identity_pick', { src: 'roll_not_me' }); return rollPad('', ''); }
+      startSession({ new: { name: typed, cls: String(Q.grade || ''), force: true } }, null, typed);
+    });
   }
 
   /* ---------------- E3 session ---------------- */
   var busy = false;
-  function startSession(who, kid, typed) {
+  function startSession(who, kid, typed, roll) {
     if (busy) return;
     busy = true;
     var body = { code: CODE };
@@ -828,30 +1036,43 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     api('POST', 'session', body).then(function (r) {
       busy = false;
       if (r.status === 409 && r.body.error === 'maybe_you') return isThisYou(r.body.candidates || [], typed || '');
+      if (r.status === 409 && r.body.error === 'is_this_you') return isThisYou(r.body.candidates || [], '', roll);
+      if (r.status === 404 && r.body.error === 'roll_unknown') { ev('identity_pick', { src: 'roll_unknown' }); return rollPad('', TW.unknown(digitsFor(roll))); }
       if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
       var sameChild = S.child && child.chip && S.child.chip === child.chip;
-      if (!sameChild) { S.answers = {}; S.queue = []; S.seq = 0; S.wrong = []; S.result = null; }
+      if (!sameChild) { S.answers = {}; S.queue = []; S.seq = 0; S.wrong = []; S.result = null; S.vt = 0; S.vdone = 0; }
       S.st = b.st; S.child = child; S.counted = b.counted !== false; S.reason = b.reason || null;
       ((b.resume && b.resume.answered) || []).forEach(function (q) { if (!S.answers[q]) S.answers[q] = { slot: '?', ok: null }; });
       save();
       rememberKid(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
-      if (B.video && B.video.url && !answeredCount()) video(); else nextQuestion();
+      if (wantsVideo()) video(); else nextQuestion();
     }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); });
   }
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
+  // The lesson video plays once per attempt: skipped or watched to the end, a reload goes on to the questions.
+  function wantsVideo() { return Boolean(B.video && B.video.url && !answeredCount() && !S.vdone); }
 
   /* ---------------- M5 video (optional) ---------------- */
+  // Where the lesson video is, kept every few seconds and whenever it pauses or the page hides.
+  function keepVideoAt(vid, now) {
+    var t = Math.floor((vid && vid.currentTime) || 0);
+    if (!t || S.vdone || t === S.vt) return;
+    if (now || !(S.vt > 0) || Math.abs(t - S.vt) >= 3) { S.vt = t; save(); }
+  }
+  window.addEventListener('pagehide', function () { if (ROOT.getAttribute('data-m') === 'M5') keepVideoAt($('video'), true); });
   function video() {
     var v = B.video;
+    // A reload mid-video picks up where it was (#t= is a media fragment; the server never sees it).
+    var at = S.vt > 0 ? Math.floor(S.vt) : 0;
     var h = bar() + jug('hello', T.vSay) + '<h2>' + esc(T.vT) + '</h2>' +
       // A cover over the box until the first play: a tap anywhere starts the video (the native button
       // is small), and with no poster the child sees Jugnu and a big play button, not a dark box.
-      '<div class="wq-vbox"><video class="wq-video" controls playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url) + '"></video>' +
+      '<div class="wq-vbox"><video class="wq-video" controls playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
       '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button" aria-label="' + esc(T.vT) + '">' +
       (v.poster ? '' : '<img src="' + IMG + 'hello.webp" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">▶</span></button></div>' +
       '<ul class="wq-how">' + T.how.map(function (x) { return '<li><span>' + x[0] + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
@@ -860,12 +1081,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     wireBar();
     var vid = $('video');
     var cover = $('.wq-vcover');
-    if (vid) vid.addEventListener('play', function () { if (cover) cover.hidden = true; ev('video_play', {}); });
+    if (vid) vid.addEventListener('play', function () { if (cover) cover.hidden = true; ev('video_play', at ? { t: at } : {}); });
+    if (vid) vid.addEventListener('timeupdate', function () { keepVideoAt(vid, false); });
+    if (vid) vid.addEventListener('pause', function () { keepVideoAt(vid, true); });
+    if (vid) vid.addEventListener('ended', function () { S.vdone = 1; S.vt = 0; save(); ev('video_end', {}); });
     on('.wq-vcover', function () {
       if (!vid || !vid.paused) return;
       try { var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
     });
-    on('#wq-skip', function () { try { vid.pause(); } catch (e) {} ev('video_skip', { pct: vid && vid.duration ? Math.round(100 * vid.currentTime / vid.duration) : 0 }); nextQuestion(); });
+    on('#wq-skip', function () {
+      try { vid.pause(); } catch (e) {}
+      ev('video_skip', { pct: vid && vid.duration ? Math.round(100 * vid.currentTime / vid.duration) : 0 });
+      S.vdone = 1; S.vt = 0; save();
+      nextQuestion();
+    });
   }
 
   /* ---------------- M6 / M7 questions ---------------- */
@@ -999,7 +1228,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var answered = answeredCount();
     var halfway = !retry && ok !== null && answered === Math.ceil(N / 2) && N >= 4;
     var fb = $('#wq-fb');
-    fb.innerHTML = '<div class="wq-jug"><img src="' + IMG + (ok ? 'correct' : 'notyet') + '.webp" alt=""><div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + esc(line) +
+    fb.innerHTML = '<div class="wq-jug">' + jugImg(ok ? 'correct' : 'notyet') + '<div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + esc(line) +
       (why ? '<div class="wq-why">' + WQI.tex(why) + '</div>' : '') +
       (!ok && !retry ? '<div class="wq-why">' + esc(T.again) + '</div>' : '') + '</div></div>' +
       (halfway ? '<p class="wq-proof">🎉 ' + esc(T.half) + '</p>' : '') +
@@ -1103,6 +1332,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-btn wq-soft" id="wq-copy">' + esc(T.fbCopy) + '</button>' +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
     var back = ROOT.getAttribute('data-m') === 'M11' ? board : card;
+    NAV.shareBack = back;
     render(h, 'M12-fallback');
     wireBar();
     on('#wq-wa', function () { ev('share_click', { src: what, step: 'wa', path: 'wa' }); });
@@ -1138,8 +1368,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     wireBar();
     ev('card_view', {});
     var chalUrl = link('/q/' + (res.challenge_code || CODE) + '?from=' + encodeURIComponent(c.first || ''));
-    on('#wq-share', function () { share(T.shareLine(c.first, c.correct, total, Q.topic), chalUrl, 'card'); });
-    on('#wq-chal', function () { share(T.shareLine(c.first, c.correct, total, Q.topic), chalUrl, 'challenge'); });
+    // The class group gets the CLASS link: a classmate who joined through a friend's challenge code would
+    // count as that child's friend and drop out of the teacher's class report.
+    var classUrl = link('/q/' + CODE);
+    // A zero is shared as "played", never as a score for the group to beat.
+    var line = c.correct ? T.shareLine(c.first, c.correct, total, Q.topic) : T.sharePlayed(c.first, Q.topic);
+    on('#wq-share', function () { share(line, classUrl, 'card'); });
+    on('#wq-chal', function () { share(line, chalUrl, 'challenge'); });
     on('#wq-class', board);
   }
 
@@ -1171,7 +1406,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<span>' + esc(T.avg) + '</span><span>' + esc(b.class_avg_pct || 0) + '%</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (b.class_avg_pct || 0) + '%"></b></div></div>' +
         '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
         '<button class="wq-btn wq-go" id="wq-share-t">' + esc(T.shareTable) + '</button>' +
-        (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.next) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
+        (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.myScores) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
       render(h, 'M11');
       wireBar();
       ev('board_view', { src: B.view === 'class' ? 'class_link' : 'page', i: b.finishers_n });
@@ -1211,7 +1446,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar() + jug('sleep', T.rest, true) +
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.todayT) + '</p>' +
       '<div class="wq-big">' + esc(fmtN(LIVE.ict_today_floor || 0)) + '</div>' +
-      '<p class="wq-sub">' + esc(T.proof(LIVE.ict_today_floor || 0)) + '</p></div>' +
+      '<p class="wq-sub">' + esc(T.todaySub) + '</p></div>' +
       '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
     render(h, 'M14');
     wireBar();
@@ -1228,9 +1463,49 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-btn wq-ghost" id="wq-restart">' + esc(T.notMe(S.child.first || '')) + '</button>';
     render(h, 'M3-continue');
     wireBar();
-    on('#wq-cont', function () { ev('resume', { i: n }); flushQueue(); nextQuestion(); });
+    on('#wq-cont', function () { ev('resume', { i: n }); flushQueue(); if (wantsVideo()) video(); else nextQuestion(); });
     on('#wq-restart', who);
   }
+
+  /* ---------------- the Android back button (in-app browser) ---------------- */
+  // WhatsApp's in-app browser closes on Back when the page has no history entry of its own, so a child who
+  // pressed it on a question lost the page. The page keeps ONE entry, added on a tap (Chrome skips entries
+  // a page adds without one): Back on a side screen goes to the screen it came from; during the quiz the
+  // first Back only warns (the answers are saved) and a second one leaves; on the end screens it leaves.
+  var NAV = { armed: false, warnAt: 0, leaving: false, shareBack: null };
+  var PLAYING = { M5: 1, M6: 1, M7: 1, 'M9-fix': 1, 'M9-tricky': 1 };
+  function afterResult() { if (S.result) card(); else landing(); }
+  function backTo(m) {
+    if (m === 'M4') return landing;
+    if (m === 'M4-new' || m === 'M4-isyou') return who;
+    if (m === 'M12-fallback') return NAV.shareBack || afterResult;
+    if (m === 'M11' || m === 'M13' || m === 'M14' || /^M15/.test(m)) return afterResult;
+    return null;
+  }
+  function navArm() {
+    if (NAV.armed || NAV.leaving) return;
+    try {
+      var h = window.history;   // not `history`: that name is the M13 screen in this file
+      if (!h || !h.pushState) return;
+      h.replaceState({ wq: 'base' }, '');
+      h.pushState({ wq: 'top' }, '');
+      NAV.armed = true;
+    } catch (e) {}
+  }
+  function navBack() {
+    NAV.armed = false;
+    var m = ROOT.getAttribute('data-m') || '';
+    var to = backTo(m);
+    var src = m.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (to) { ev('back', { src: src, step: 'screen' }); to(); return; }
+    if (PLAYING[m] && Date.now() - NAV.warnAt > 3000) { NAV.warnAt = Date.now(); ev('back', { src: src, step: 'warn' }); toast(T.backAgain); return; }
+    ev('back', { src: src, step: 'leave' });
+    flushEv(true);
+    NAV.leaving = true;
+    try { window.history.back(); } catch (e) {}
+  }
+  window.addEventListener('popstate', function () { if (!NAV.leaving) navBack(); });
+  document.addEventListener('click', navArm, true);
 
   /* ---------------- boot ---------------- */
   var conn = navigator.connection || {};
@@ -1238,6 +1513,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   if (S.queue.length) flushQueue();
   if (B.view === 'class') board();
   else if (S.result && S.st) card();
-  else if (S.st && S.child && answeredCount() > 0) resume();
+  else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();
   else landing();
 })();

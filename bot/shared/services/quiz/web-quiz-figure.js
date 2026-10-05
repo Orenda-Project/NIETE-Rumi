@@ -29,6 +29,7 @@
 const { logToFile } = require('../../utils/logger');
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { getLanguage } = require('../../config/languages');
+const Pictures = require('./pictures');
 
 const dirOf = (lang) => ((getLanguage(lang) || {}).direction === 'rtl' ? 'rtl' : 'ltr');
 
@@ -89,13 +90,41 @@ function boxOf(svg) {
   return m ? { w: Number(m[1]), h: Number(m[2]) } : { w: 0, h: 0 };
 }
 
+/**
+ * The page draws the engine's nouns in COLOUR (the picture bank): a row of
+ * grey outline apples or a line-art cat is hard to read at 360 px. The painter
+ * is scoped to this one synchronous render, so the WhatsApp PNG path, which
+ * calls the same engine, keeps its line art.
+ */
+function withColour(fn) {
+  let P = null;
+  try { P = require('../../../vendor/lp-v9/diagrams/lib/pictogram'); } catch (_) { return fn(); }
+  if (typeof P.withPainter !== 'function') return fn();
+  return P.withPainter((noun) => Pictures.colorInner(noun), fn);
+}
+
+/**
+ * Page-only drawing choices. The WhatsApp picture is a 1080x565 card; on the
+ * page a figure is as wide as the phone, so a one-bar fraction picture came out
+ * 312 x 26 px, a strip a child cannot count parts in. One or two bars are drawn
+ * taller here (the spec's own barHeight, and the circle model, are kept).
+ */
+function forPage(spec) {
+  if (spec && spec.type === 'fraction_bar' && spec.model !== 'circle' && spec.barHeight == null
+    && Array.isArray(spec.bars) && spec.bars.length >= 1 && spec.bars.length <= 2) {
+    return { ...spec, barHeight: 120 };
+  }
+  return spec;
+}
+
 /** The engine, through the quiz's own phone-tuned renderer (allowlist, font ladder, overlap gate). */
-function draw(spec, lang) {
-  const key = `${lang}|${JSON.stringify(spec)}`;
+function draw(rawSpec, lang) {
+  const spec = forPage(rawSpec);
+  const key = `c|${lang}|${JSON.stringify(spec)}`;
   if (cache.has(key)) return cache.get(key);
   let svg = null;
   try {
-    svg = require('./transcript-quiz-figure').renderFigureSvg(spec, lang);
+    svg = withColour(() => require('./transcript-quiz-figure').renderFigureSvg(spec, lang));
   } catch (err) {
     logToFile('⚠️ web quiz: figure not drawn', { type: spec && spec.type, error: String(err.message || err).slice(0, 160) });
     svg = null;
@@ -138,12 +167,24 @@ function withLabel(svg, alt) {
     : svg.replace(/^<svg/, `<svg aria-label="${label}"`);
 }
 
+// A review of the question's picture against its stem and key (media.picture_check,
+// written by the picture review). A picture that contradicts the key (the key says
+// the cat slept, the picture shows it awake) or ignores the question (asks who lived
+// in the forest, shows only trees) is never shown on the page, drawn or as a file.
+// WhatsApp does not read it.
+const PICTURE_HIDDEN = new Set(['contradicts', 'ignores']);
+function pictureHidden(media) {
+  const c = media && media.picture_check;
+  return Boolean(c && PICTURE_HIDDEN.has(c.verdict));
+}
+
 /**
  * The figure the page shows for one quiz_questions row, or null.
  * @returns {null | {kind:'svg', svg, type, w, h, alt, say, dir} | {kind:'img', src:'question_image', type, alt, say, dir}}
  */
 function figureFor(row) {
   const media = (row && row.media) || {};
+  if (pictureHidden(media)) return null;
   const lang = clampLanguage(media.language);
   const dir = dirOf(lang);
   const v2 = media.web && media.web.figure && typeof media.web.figure === 'object' ? media.web.figure : null;
@@ -187,13 +228,18 @@ function optionPic(pic, language, { word } = {}) {
   if (pic.kind === 'pictogram') {
     try {
       const P = require('../../../vendor/lp-v9/diagrams/lib/pictogram');
-      if (!P.has(pic.name)) return null;
+      const colour = Pictures.colorInner(P.key(pic.name));
+      if (!colour && !P.has(pic.name)) return null;
       // The roster names are English words: they may be spoken only on an English quiz.
       const rosterName = (lang === 'en' && String(pic.name).replace(/_/g, ' ')) || '';
-      const name = said || rosterName;
-      if (!name) return null;
-      const body = P.inner(pic.name).replace(/currentColor/g, 'var(--ink, #1A1A1A)');
-      const svg = safeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${P.GRID} ${P.GRID}" role="img" aria-label="${escAttr(name)}">${body}</svg>`);
+      // An emoji option has no word in any language (the picture IS the option,
+      // and "which one is a leaf?" must not be answered by a caption): it is
+      // drawn unnamed, and the page names its button by shape for screen readers.
+      const name = pic.unnamed ? '' : said || rosterName;
+      if (!name && !pic.unnamed) return null;
+      const body = colour || P.inner(pic.name).replace(/currentColor/g, 'var(--ink, #1A1A1A)');
+      const label = name ? ` aria-label="${escAttr(name)}"` : ' aria-hidden="true"';
+      const svg = safeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${P.GRID} ${P.GRID}" role="img"${label}>${body}</svg>`);
       return svg ? { svg, name, alt: name } : null;
     } catch (_) {
       return null;
@@ -284,4 +330,4 @@ function withPartLetters(row) {
   };
 }
 
-module.exports = { figureFor, optionPic, drawOptionPics, pictureOptionName, withPartLetters, safeSvg, wordsFor };
+module.exports = { pictureHidden, figureFor, optionPic, drawOptionPics, pictureOptionName, withPartLetters, safeSvg, wordsFor };
