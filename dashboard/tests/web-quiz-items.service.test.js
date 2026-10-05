@@ -233,3 +233,22 @@ describe('letters in feedback follow the letters on screen', () => {
     expect(WQI.letters(q, 'درست جواب A ہے')).toBe('درست جواب B ہے');
   });
 });
+
+describe('board round 2 (W32b, W32a)', () => {
+  it('maths inside Urdu text is an LTR island: <math dir="ltr"> so "4 × 8 = 32" never reverses', () => {
+    expect(WQI.tex('جواب $4\\times 8=32$ ہے')).toContain('<math class="wq-m" dir="ltr">');
+  });
+  it('figure.say is skipped when the stem already points at the picture', () => {
+    const f = { kind: 'svg', svg: '<svg viewBox="0 0 1 1"/>', say: 'Look at the bars.' };
+    expect(WQI.readParts({ text: 'Look at the picture. How many?', figure: f, options: [] }, 'en').length).toBe(1);
+    expect(WQI.readParts({ text: 'تصویر میں کتنے سیب ہیں؟', figure: f, options: [] }, 'ur').length).toBe(1);
+    expect(WQI.readParts({ text: 'How many apples?', figure: f, options: [] }, 'en').length).toBe(2);
+  });
+  it('a sound item plays its stimulus clip after the stem and shows a "play the sound" button', () => {
+    const q = { type: 'listen', text: 'Whose sound is this?', audio: { q: '/c/q', stim: '/c/s', opts: [] }, options: opts(['نُ', 'پَ']) };
+    const p = WQI.readParts(q, 'ur');
+    expect(p[0]).toEqual({ text: 'Whose sound is this?', url: '/c/q' });
+    expect(p[1]).toEqual({ text: '', url: '/c/s', stim: true });
+    expect(WQI.itemHtml(q, Object.assign({ playSound: 'Play the sound' }, T), 'en')).toContain('id="wq-stim"');
+  });
+});
