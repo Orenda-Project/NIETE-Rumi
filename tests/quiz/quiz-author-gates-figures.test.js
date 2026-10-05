@@ -239,6 +239,11 @@ describe('change 7 — a 6-12 lesson\'s own diagrams reach the author', () => {
     expect(LpDigest.lessonDrewFor(ss, { authorGates: false })).toBe(LpDigest.lessonDrewBlock(ss));
     expect(LpDigest.lessonDrewFor(ss, { authorGates: true })).toContain('"shaded":25');
   });
+  test('a lesson diagram the quiz validator would refuse as empty is not offered (it costs an attempt)', () => {
+    // Real grade 8 maths lesson: the board's speed/time table is a grid with cell text and nothing shaded.
+    const ss = { diagrams: [{ where: 'board', spec: { type: 'grid', rows: 2, cols: 5, shaded: 0, cellText: [[0, 0, '18']] } }] };
+    expect(LpDigest.lessonDiagramsBlock(ss)).toBe('');
+  });
   test('a K-5 slide script with no diagrams adds nothing', () => {
     expect(LpDigest.lessonDiagramsBlock({ goal: 'x' })).toBe('');
   });

@@ -477,12 +477,14 @@ const LESSON_DIAGRAM_CHARS = 700;
 function lessonDiagramsBlock(slideScript) {
   const ss = slideScript && typeof slideScript === 'object' ? slideScript : {};
   // eslint-disable-next-line global-require
-  const { ALLOWED_TYPES, canonicalType } = require('./transcript-quiz-figure');
+  const { ALLOWED_TYPES, canonicalType, figureEmptyReason } = require('./transcript-quiz-figure');
   const lines = [];
   arr(ss.diagrams).forEach((d) => {
     if (lines.length >= LESSON_DIAGRAMS_MAX || !d || !d.spec || typeof d.spec !== 'object') return;
     const type = canonicalType(d.spec.type);
     if (!type || !ALLOWED_TYPES.includes(type)) return;
+    // A drawing the quiz's own validator would refuse (a table drawn as an unshaded grid) costs an attempt.
+    if (figureEmptyReason({ ...d.spec, type })) return;
     const { caption, alt, source, title, note, ...drawn } = d.spec;
     const json = JSON.stringify({ ...drawn, type });
     if (json.length > LESSON_DIAGRAM_CHARS) return;
