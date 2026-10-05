@@ -39,6 +39,10 @@
  */
 
 const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { execFile } = require('child_process');
 const tts = require('../tts');
 const { mathToText } = require('./quiz-math');
 const { cleanWrongFeedback } = require('./web-quiz-feedback');
@@ -49,9 +53,9 @@ const { logError } = require('../../utils/logger');
 const PREFIX = 'web-quiz/audio';
 const PARTS_OPTS = ['a', 'b', 'c', 'd'];
 const DEFAULT_MAX_CLIPS = 120;
-// Bumped when what the clips SAY changes for every quiz (2: the why is the reason, wrong-option
-// feedback recorded), so already-published quizzes are brought up to date on their next open.
-const AUDIO_VERSION = 2;
+// Bumped when the clips of every quiz change (2: the why is the reason, wrong-option feedback
+// recorded; 3: stored small), so already-published quizzes are brought up to date on their next open.
+const AUDIO_VERSION = 3;
 const PARTS_FB = ['xa', 'xb', 'xc', 'xd'];
 // Spend estimate for the log line, by the provider that actually spoke:
 // ElevenLabs bills per character, Soniox per second of audio (tts/index.js).
@@ -64,8 +68,15 @@ function clipCostUsd(res, text) {
   return 0;
 }
 
+// Clips are stored as mono Opus at 24 kbps: a child pays for every byte, and at this rate the
+// bot's own speech-to-text hears exactly the words it hears in the vendor's ~57 kbps clip
+// (bake-off, 24 clips Urdu + English). The format is part of each clip's key, so a quiz recorded
+// in another format gets new clips on its next publish.
+const CLIP_KBPS = 24;
+const CLIP_FORMAT = `opus${CLIP_KBPS}m`;
+
 function audioKey(quizId, questionId, part, text, language) {
-  const h = crypto.createHash('sha1').update(`${language || ''}\n${text || ''}`).digest('hex').slice(0, 12);
+  const h = crypto.createHash('sha1').update(`${language || ''}\n${text || ''}\n${CLIP_FORMAT}`).digest('hex').slice(0, 12);
   return `${PREFIX}/${quizId}/${questionId}/${part}-${h}.ogg`;
 }
 
@@ -137,6 +148,29 @@ function partsFor(q) {
   return parts;
 }
 
+function ffmpegPath() {
+  if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
+  try { return require('@ffmpeg-installer/ffmpeg').path; } catch (_) { return 'ffmpeg'; }
+}
+
+/** The vendor's clip re-encoded to mono Opus at CLIP_KBPS; the original when ffmpeg fails or it would not be smaller. */
+function compactClip(audio) {
+  const base = path.join(os.tmpdir(), `wq-clip-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  const src = `${base}.in.ogg`;
+  const out = `${base}.ogg`;
+  const cleanup = () => { [src, out].forEach((f) => { try { fs.unlinkSync(f); } catch (_) { /* gone */ } }); };
+  return new Promise((resolve) => {
+    try { fs.writeFileSync(src, audio); } catch (_) { resolve(audio); return; }
+    execFile(ffmpegPath(), ['-y', '-loglevel', 'error', '-i', src, '-ac', '1', '-c:a', 'libopus', '-b:a', `${CLIP_KBPS}k`,
+      '-application', 'voip', '-f', 'ogg', out], { timeout: 20000 }, (err) => {
+      let small = null;
+      if (!err) { try { small = fs.readFileSync(out); } catch (_) { small = null; } }
+      cleanup();
+      resolve(small && small.length > 0 && small.length < audio.length && small.slice(0, 4).toString() === 'OggS' ? small : audio);
+    });
+  });
+}
+
 async function exists(key) {
   try {
     return (await r2.headObject(key)).exists;
@@ -189,10 +223,11 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
         } else {
           try {
             const res = await tts.synthesize({ text, language, useCase: 'reading', site: 'web_quiz_read_aloud' });
-            await r2.uploadBuffer(res.audio, key, 'audio/ogg');
+            const clip = await compactClip(res.audio);
+            await r2.uploadBuffer(clip, key, 'audio/ogg');
             stats.synthesized += 1;
             stats.chars += text.length;
-            stats.bytes += res.audio.length;
+            stats.bytes += clip.length;
             stats.audioSec += res.durationSec || 0;
             stats.providers[res.provider] = (stats.providers[res.provider] || 0) + 1;
             costUsd += clipCostUsd(res, text);
