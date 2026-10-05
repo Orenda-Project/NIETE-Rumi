@@ -117,6 +117,7 @@ const ClassicCurriculum = () => {
 
   // bd-2460 — null while loading, so the tab never flashes a form that is off.
   const [assessmentEnabled, setAssessmentEnabled] = useState<boolean | null>(null);
+  const [assessmentEditing, setAssessmentEditing] = useState(false);
   const [assessmentMessage, setAssessmentMessage] = useState<string | null>(null);
   // Bumped when a paper finishes so My papers refetches — she should not have
   // to reload the page to see the thing she just made.
@@ -160,6 +161,7 @@ const ClassicCurriculum = () => {
     portal.getConfig().then((cfg) => {
       if (cancelled) return;
       setAssessmentEnabled(!!cfg?.features?.assessmentGenerator);
+      setAssessmentEditing(!!cfg?.features?.assessmentEditing);
       setAssessmentMessage(cfg?.features?.assessmentGeneratorMessage ?? null);
     });
     return () => { cancelled = true; };
@@ -637,7 +639,7 @@ const ClassicCurriculum = () => {
                       <p className="mb-4 text-sm text-muted-foreground">
                         Everything you have made. Download it again any time.
                       </p>
-                      <AssessmentPapersPanel refreshKey={papersRefreshKey} />
+                      <AssessmentPapersPanel refreshKey={papersRefreshKey} editing={assessmentEditing} />
                     </section>
                   </div>
                 )
