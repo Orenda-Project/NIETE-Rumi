@@ -115,3 +115,34 @@ describe('E2 names the class with the heading of the teacher report', () => {
   });
 });
 
+describe('the first web session marks the quiz as the web arm', () => {
+  test('a child session stamps meta.web_arm = web and keeps the rest of meta', async () => {
+    seed({ meta: { web: { audio: { k: 1 } } } });
+    await WQ.startSession({ code: 'AB12CD', new: { name: 'Zara Example', cls: '3-B', force: true } });
+    expect(fake.db.quizzes[0].meta).toEqual({ web: { audio: { k: 1 } }, web_arm: 'web' });
+  });
+
+  test('the teacher preview does not mark the quiz', async () => {
+    seed({ meta: {} });
+    const p = T.signPreview({ shareCodeId: SC, teacherUserId: TEACHER });
+    await WQ.startSession({ code: 'AB12CD', p });
+    expect(fake.db.quizzes[0].meta).toEqual({});
+  });
+
+  test('then the teacher report counts the first finish, not the replay on another phone', async () => {
+    seed({
+      meta: {},
+      sessions: [
+        finished('s1', { device_ref: 'dev-a', correct_answers: 1, total_questions_answered: 2, mastery_percentage: 50,
+          created_at: '2026-10-05T08:00:00Z', completed_at: '2026-10-05T08:05:00Z' }),
+        finished('s2', { device_ref: 'dev-b', correct_answers: 2, total_questions_answered: 2, mastery_percentage: 100,
+          created_at: '2026-10-05T09:00:00Z', completed_at: '2026-10-05T09:05:00Z' }),
+      ],
+    });
+    await WQ.startSession({ code: 'AB12CD', chip: T.chipId(SC, KID_A) });
+    expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
+    const text = WhatsApp.sendMessage.mock.calls.map((c) => c[1]).join('\n');
+    expect(text).toContain('Zara Example — 1/2 (50%)');
+    expect(text).not.toContain('2/2 (100%)');
+  });
+});
