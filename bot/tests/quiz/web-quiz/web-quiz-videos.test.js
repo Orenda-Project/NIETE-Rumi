@@ -107,8 +107,8 @@ function seed() {
     })),
     quiz_sessions: [
       { id: 's-a1', quiz_id: QUIZ, share_code_id: SC, student_id: KID_A, student_name: 'Zara Testwala', user_id: null,
-        status: 'completed', correct_answers: 3, total_questions_answered: 4, completed_at: ago(1), created_at: ago(1),
-        invited_by_student_id: null, device_ref: 'd1', source: 'share_link' },
+        status: 'completed', correct_answers: 3, total_questions_answered: 4, mastery_percentage: 75, completed_at: ago(1), created_at: ago(1),
+        invited_by_student_id: null, device_ref: 'd1', source: 'share_link', student_class: '3' },
       // Zara already finished the quiz of video 2.
       { id: 's-a0', quiz_id: VQ(2), share_code_id: SC, student_id: KID_A, student_name: 'Zara Testwala', user_id: null,
         status: 'completed', correct_answers: 2, total_questions_answered: 3, completed_at: ago(20), created_at: ago(20),
@@ -234,6 +234,13 @@ describe('a "more videos" code in the rest of the web quiz', () => {
     const quiz = await WQ.getQuiz(code);
     expect(quiz.quiz.questions[0].text).toBe('Hen question 1');
     expect(quiz.challenge).toBeUndefined();
+  });
+
+  test('its page names the class as the class code does (the lesson code has no finishers of its own yet)', async () => {
+    const { code } = await Videos.start({ code: 'AB12CD', st: st(), vid: V(1) });
+    const root = await require('../../../shared/services/quiz/video-quiz-report.service').loadClassRows(SC);
+    expect(root.className).toBeTruthy();
+    expect((await WQ.getQuiz(code)).cls.label).toBe(root.className);
   });
 
   test('a friend\'s challenge code still plays its parent\'s quiz', async () => {
