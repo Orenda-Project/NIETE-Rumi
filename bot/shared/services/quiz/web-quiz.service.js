@@ -29,6 +29,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const WebItems = require('./web-quiz-items');
+const Figure = require('./web-quiz-figure');
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
@@ -141,6 +142,15 @@ function optionImageOf(media, i) {
   return Array.isArray(list) ? list[i] || null : null;
 }
 
+const mediaLang = (m) => (m && m.language === 'ur' ? 'ur' : 'en');
+
+/** The v2 item's picture for this slot (media.web.options[].pic), if any. */
+function webOptionPic(media, slot) {
+  const opts = media && media.web && Array.isArray(media.web.options) ? media.web.options : null;
+  const o = opts ? opts.find((x) => x && x.slot === slot) : null;
+  return o && o.pic ? o.pic : null;
+}
+
 function feedbackFor(q, i) {
   const fb = q.option_feedback;
   const wrong = fb && typeof fb === 'object' ? fb.wrong : null;
@@ -174,6 +184,8 @@ function questionPayload(q, i, code, audio) {
     if (text == null || String(text).trim() === '') return;
     const o = { slot: SLOTS[idx], text: String(text) };
     if (optionImageOf(q.media, idx)) o.img = mediaUrl(code, q.id, SLOTS[idx]);
+    const pic = Figure.optionPic(webOptionPic(q.media, SLOTS[idx]), mediaLang(q.media));
+    if (pic) o.pic = pic;
     const fb = feedbackFor(q, idx);
     if (fb) o.fb = fb;
     options.push(o);
@@ -187,6 +199,11 @@ function questionPayload(q, i, code, audio) {
   const web = WebItems.webPayload(q);
   if (web) Object.assign(out, web);
   if (questionImageOf(q.media)) out.img = mediaUrl(code, q.id, 'q');
+  const figure = Figure.figureFor(q);
+  if (figure) {
+    const { src, ...rest } = figure;
+    out.figure = src ? { ...rest, url: mediaUrl(code, q.id, 'q') } : rest;
+  }
   if (audio && audio[q.id]) out.audio = audio[q.id];
   return out;
 }
