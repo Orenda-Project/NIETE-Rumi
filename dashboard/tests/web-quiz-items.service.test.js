@@ -269,3 +269,32 @@ describe('glyph tiles drawn by the page', () => {
     expect(h).not.toContain('<svg viewBox="0 0 72');
   });
 });
+
+describe('a picture option with no name', () => {
+  it('gets its shape name as the button label (for screen readers), and the voice never says it', () => {
+    const q = { type: 'picture', text: 'Which one?', options: [{ slot: 'A', text: '', pic: { svg: '<svg viewBox="0 0 72 72"/>' } }, { slot: 'B', text: '', pic: { svg: '<svg viewBox="0 0 72 72"/>' } }] };
+    expect(WQI.itemHtml(q, T, 'en')).toContain('aria-label="circle"');
+    expect(WQI.itemHtml(q, T, 'ur')).toContain('aria-label="مربع"');
+    expect(WQI.readParts(q, 'en').length).toBe(1);
+  });
+});
+
+describe('pictures on slow data', () => {
+  it('imageUrls lists every picture file a question needs (figure, question image, option images), once each', () => {
+    const q = { img: '/m/q', figure: { kind: 'img', url: '/m/q' }, options: [{ slot: 'A', img: '/m/a' }, { slot: 'B', pic: { svg: '<svg/>' } }, { slot: 'C', img: '/m/c' }] };
+    expect(WQI.imageUrls(q)).toEqual(['/m/q', '/m/a', '/m/c']);
+    expect(WQI.imageUrls({ options: [] })).toEqual([]);
+  });
+  it('a picture file shows a loading state until it arrives', () => {
+    const h = WQI.itemHtml({ type: 'picture', text: 'Q', options: [{ slot: 'A', text: '', img: '/m/a' }, { slot: 'B', text: '', img: '/m/b' }] }, T, 'en');
+    expect(h).toContain('class="wq-ld"');
+    expect(h).toContain('onload="this.className=\'\'"');
+  });
+});
+
+describe('glyph tiles: no repeated caption', () => {
+  it('a glyph tile whose word is the glyph itself shows no caption under it', () => {
+    const q = { type: 'picture', text: 'Q', options: [{ slot: 'A', text: 'بّ', pic: { kind: 'glyph', glyph: 'بّ', text: 'بّ' } }, { slot: 'B', text: 'بِ', pic: { kind: 'glyph', glyph: 'بِ', text: 'بِ' } }] };
+    expect(WQI.itemHtml(q, T, 'ur')).not.toContain('wq-pname');
+  });
+});

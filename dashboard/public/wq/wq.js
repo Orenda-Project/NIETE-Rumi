@@ -12,6 +12,7 @@ var WQI = (function () {
     '<svg viewBox="0 0 24 24"><path d="M12 2 23 21H1z"/></svg>',
     '<svg viewBox="0 0 24 24"><path d="M12 1 22 12 12 23 2 12z"/></svg>'
   ];
+  var SHAPE_NAMES = { en: ['circle', 'square', 'triangle', 'diamond'], ur: ['دائرہ', 'مربع', 'تکون', 'معین'] };
   var KINDS = {
     single: 'single', mcq: 'single', choice: 'single', single_choice: 'single',
     multi: 'multi', multi_select: 'multi', multiple: 'multi',
@@ -147,6 +148,17 @@ var WQI = (function () {
     return null;
   }
   function pct(n) { return Math.round(n * 1000) / 10 + '%'; }
+  // A picture file shows a soft pulse until it arrives (slow data), then clears itself.
+  var LOADING = ' class="wq-ld" onload="this.className=\'\'" onerror="this.className=\'\'"';
+  // Every picture file a question needs, so the page can fetch the next question's while the child answers.
+  function imageUrls(q) {
+    var out = [], f = figureOf(q);
+    function add(u) { if (u && out.indexOf(u) < 0) out.push(u); }
+    if (f && f.url) add(f.url);
+    if (q.img) add(q.img);
+    opts(q).forEach(function (o) { add(o.img); });
+    return out;
+  }
   function figureHtml(q, T) {
     var f = figureOf(q);
     if (!f) return '';
@@ -165,7 +177,7 @@ var WQI = (function () {
     var box = vb ? ' style="aspect-ratio:' + vb.w + '/' + vb.h + ';max-width:calc(46vh * ' + vb.w + ' / ' + vb.h + ')"' : '';
     var draw = f.svg
       ? '<div class="wq-svg" role="img" aria-label="' + esc(f.alt || '') + '"' + (f.dir ? ' dir="' + esc(f.dir) + '"' : '') + '>' + cleanSvg(f.svg) + '</div>'
-      : '<img src="' + esc(f.url) + '" alt="' + esc(f.alt || '') + '">';
+      : '<img src="' + esc(f.url) + '" alt="' + esc(f.alt || '') + '"' + LOADING + '>';
     return '<figure class="wq-fig' + (hot ? ' wq-labelfig' : '') + (f.type ? ' wq-f-' + esc(String(f.type).replace(/[^a-z0-9_-]/gi, '')) : '') + '"><div class="wq-figbox"' + box + '>' + draw + hot + '</div>' +
       '<button class="wq-zoom" aria-label="' + esc(T.zoom || 'Zoom') + '"><span aria-hidden="true">⤢</span> ' + esc(T.zoom || '') + '</button></figure>';
   }
@@ -214,7 +226,7 @@ var WQI = (function () {
     var g = o.pic && (o.pic.glyph || (o.pic.kind === 'glyph' && o.pic.text));
     if (g) return '<span class="wq-glyph" dir="auto">' + esc(g) + '</span>';
     if (o.pic && o.pic.svg) return '<span class="wq-pic" role="img" aria-label="' + esc(o.pic.alt || nm || '') + '">' + cleanSvg(o.pic.svg) + '</span>';
-    if (o.img) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '">';
+    if (o.img) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '"' + LOADING + '>';
     return '';
   }
   // Options arrive in the order the child sees; letter k is the k-th shown option (as on WhatsApp and the
@@ -242,9 +254,11 @@ var WQI = (function () {
       var quiet = k === 'listen';
       body = '<div class="wq-pgrid" role="group">' + o.map(function (x, i) {
         var nm = x.name || (x.pic && x.pic.name) || x.text || '';
-        return '<button class="wq-opt wq-ptile wq-s' + (i % 4 + 1) + '" data-slot="' + esc(x.slot) + '"><span class="wq-shp">' + SHAPES[i % 4] + (quiet || !LETTERS ? '' : '<b class="wq-let">' + 'ABCD'.charAt(i) + '</b>') + '</span>' +
+        // A picture with no word anywhere: the button is named by its shape for screen readers only.
+        var aria = speakable(x.text || nm) ? '' : ' aria-label="' + esc(SHAPE_NAMES[lang === 'ur' ? 'ur' : 'en'][i % 4]) + '"';
+        return '<button class="wq-opt wq-ptile wq-s' + (i % 4 + 1) + '" data-slot="' + esc(x.slot) + '"' + aria + '><span class="wq-shp">' + SHAPES[i % 4] + (quiet || !LETTERS ? '' : '<b class="wq-let">' + 'ABCD'.charAt(i) + '</b>') + '</span>' +
           (picHtml(x, nm) || '<span class="wq-emoji">' + esc(x.text) + '</span>') +
-          (!quiet && speakable(x.text || nm) ? '<span class="wq-pname">' + tex(x.text || nm) + '</span>' : '') + '</button>';
+          (!quiet && speakable(x.text || nm) && !(x.pic && (x.pic.glyph || x.pic.text) === (x.text || nm)) ? '<span class="wq-pname">' + tex(x.text || nm) + '</span>' : '') + '</button>';
       }).join('') + '</div>';
     } else if (k === 'tf') {
       body = '<div class="wq-tf" role="group">' + o.slice(0, 2).map(function (x, i) {
@@ -384,7 +398,7 @@ var WQI = (function () {
     });
   }
   return { kind: kind, grade: grade, tex: tex, say: say, cleanSvg: cleanSvg, figureHtml: figureHtml, itemHtml: itemHtml, readParts: readParts,
-    rightText: rightText, joinSay: joinSay, letters: letters, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES };
+    rightText: rightText, joinSay: joinSay, letters: letters, imageUrls: imageUrls, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
@@ -876,6 +890,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     render(h, retry ? 'M9-fix' : 'M6');
     wireBar();
     WQI.wireZoom(ROOT, T);
+    // Fetch the next question's pictures now, so they are already here on slow data.
+    if (!retry && QS[i + 1]) WQI.imageUrls(QS[i + 1]).forEach(function (u) { try { new Image().src = u; } catch (e) {} });
     ev(retry ? 'retry_view' : 'question_view', { qid: q.qid, i: i + 1 });
 
     function armHelp() {
