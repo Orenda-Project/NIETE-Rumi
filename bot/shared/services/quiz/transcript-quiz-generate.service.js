@@ -518,13 +518,8 @@ function withFigureSvgs(rows, questions, language) {
 
 // ─── messages ────────────────────────────────────────────────────────────────
 
-/** "Teacher Rifat" / "استاد رفعت", or a language-appropriate "your teacher" when no name is stored. */
-function teacherLabel(teacherName, language) {
-  const name = String(teacherName || '').trim();
-  const generic = /^(your teacher|teacher|آپ کے استاد)$/i.test(name);
-  if (!name || generic) return resolveUx('tqYourTeacher', { language });
-  return resolveUx('tqTeacherNamed', { language, params: { name } });
-}
+// "Teacher Rifat" / "استاد رفعت" — shared with the web quiz page (quiz-teacher-label.js).
+const { teacherLabel } = require('./quiz-teacher-label');
 
 function studentMessage({ teacherName, topic, date, link, language }) {
   // The message a teacher forwards to the class is text: a topic carrying TeX

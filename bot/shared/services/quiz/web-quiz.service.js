@@ -32,6 +32,7 @@ const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
 const { clampLanguage } = require('../../config/ux-strings');
+const { teacherLabel } = require('./quiz-teacher-label');
 
 const QUESTIONS_MAX = 15;          // = video-quiz.service QUESTIONS_PER_SESSION
 const CHIPS_MAX = 40;
@@ -253,7 +254,7 @@ async function getQuiz(code, { p } = {}) {
       n: questions.length,
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio)),
     },
-    cls: { label: null, teacher: firstName(ctx.parent.teacher_name) || null, chips: chips.map(publicChip) },
+    cls: { label: null, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip) },
     live: await liveCounts(ctx),
     video,
     preview,
