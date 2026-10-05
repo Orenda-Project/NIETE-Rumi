@@ -1299,6 +1299,16 @@ Feature: NIETE (ICT) Teacher Training
     But a child who answered fewer than half the questions is told the quiz is not finished
     # web-quiz.service recordAnswers (unique session+question) and finishSession (today's floors). @wip.
 
+  @api @quiz @web @wip @draft @P1 @T106 @no-mock-driver
+  Scenario: A child remembered on a phone plays the same teacher's next quiz in one tap
+    Given a child finished one of the teacher's quiz links on this phone
+    And the teacher sends a new quiz with a new code
+    When the child taps "Play as" their name on the new quiz's page
+    Then a session starts for the same child, with no phone and no name typed
+    And the page is given the child's name button for the new code
+    But a name button from a child the teacher never had is still unknown
+    # web-quiz.service classChips accepts the chip minted on any of the child's earlier codes of this teacher. @wip.
+
   @api @quiz @web @wip @draft @P1 @T102 @no-mock-driver
   Scenario: The first finished attempt counts; a replay on another phone is practice
     Given a child who has finished the class quiz once
