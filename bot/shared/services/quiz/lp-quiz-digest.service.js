@@ -38,6 +38,7 @@ const { peopleDigestRule } = require('./transcript-quiz-people');
 const { canonicalSubject, LANG_NAME } = require('./transcript-quiz-language');
 const { logEvent } = require('../../utils/structured-logger');
 const { logToFile } = require('../../utils/logger');
+const { namedAntecedent } = require('./transcript-quiz-named-pronouns');
 const { LP_V8, SOURCE_UNUSABLE_CODE } = require('./quiz-sources');
 const Catalog = require('../lp-v8-catalog.service');
 
@@ -128,10 +129,12 @@ const PRONOUN = {
 };
 const PRONOUN_RE = /\b(she|he|hers|her|his|him|herself|himself)\b/gi;
 
-function degender(text) {
+function degender(text, { keepNamed = false } = {}) {
   const s = String(text == null ? '' : text);
   if (!s) return '';
-  return s.replace(PRONOUN_RE, (m) => {
+  return s.replace(PRONOUN_RE, (m, _w, at) => {
+    // quiz_author_gates_v2: a named character's pronoun is the content, not the teacher ("Ahmed WAS WRITING his letter").
+    if (keepNamed && namedAntecedent(s, at)) return m;
     const to = PRONOUN[m.toLowerCase()];
     // Keep the writer's capitalisation: a replacement at the head of a sentence
     // must not lower-case it.
@@ -326,7 +329,9 @@ function lessonManipulatives(ss) {
  * from here, so "we never forward the exit options" is a property of one
  * function rather than a promise repeated in two prompts.
  */
-function carry(slideScript) {
+function carry(slideScript, { authorGates = false } = {}) {
+  // quiz_author_gates_v2: a named character keeps their pronoun; the teacher's still goes.
+  const dg = (t) => degender(t, { keepNamed: authorGates });
   const ss = slideScript && typeof slideScript === 'object' ? slideScript : {};
   const meta = ss.meta || {};
   const iDo = ss.iDo || {};
@@ -338,28 +343,28 @@ function carry(slideScript) {
     meta: {
       grade: meta.grade ?? null,
       subject: meta.subject ?? null,
-      topic: degender(meta.topic),
-      chapter: degender(meta.chapterTitle),
+      topic: dg(meta.topic),
+      chapter: dg(meta.chapterTitle),
       minutes: meta.minutes ?? meta.durationMin ?? null,
-      slo_descriptions: arr(meta.sloDescriptions).map(degender).filter(Boolean),
+      slo_descriptions: arr(meta.sloDescriptions).map((t) => dg(t)).filter(Boolean),
       // meta.teacherGender is deliberately absent. So is meta.sourceFile — an
       // absolute path on somebody's laptop, and this repo is public.
     },
-    goal: degender(ss.goal),
-    slo_full: degender(ss.sloFull),
+    goal: dg(ss.goal),
+    slo_full: dg(ss.sloFull),
     slo_code: String(ss.sloCode || '').trim(),
     bloom: String(ss.bloom || '').trim(),
-    key_fact: degender(iDo.keyFact),
+    key_fact: dg(iDo.keyFact),
     worked: worked ? {
-      problem: degender(worked.problem),
-      work: arr(worked.work).map(degender).filter(Boolean),
-      answer: degender(worked.answer),
+      problem: dg(worked.problem),
+      work: arr(worked.work).map((t) => dg(t)).filter(Boolean),
+      answer: dg(worked.answer),
       // worked.diagram is never forwarded as it is — ASCII column-sum art with
       // its own row-mark legend reads as noise in a prompt. Its TOKENS are read
       // instead, below, into `manipulatives`.
     } : null,
     misconception: mis ? {
-      slip: degender(mis.slip), why: degender(mis.why), fix: degender(mis.fix),
+      slip: dg(mis.slip), why: dg(mis.why), fix: dg(mis.fix),
     } : null,
     // Any further mistakes the plan warns about. A K-5 slide script has one
     // (iDo.misconception) and no top-level list — 0 of 1,281 ingested scripts
@@ -367,11 +372,11 @@ function carry(slideScript) {
     // Grades 6-12 lesson warns about three or four (lp612-quiz-source.js), and
     // every one is material for a wrong option.
     more_misconceptions: arr(ss.misconceptions).map((m) => (m && typeof m === 'object'
-      ? { slip: degender(m.slip), why: degender(m.why), fix: degender(m.fix) }
-      : { slip: degender(m), why: '', fix: '' })).filter((m) => m.slip),
+      ? { slip: dg(m.slip), why: dg(m.why), fix: dg(m.fix) }
+      : { slip: dg(m), why: '', fix: '' })).filter((m) => m.slip),
     // PROMPTS ONLY — never the answers, and never as questions to reuse.
-    practice_prompts: arr(youDo.problems).map((p) => degender(p && p.prompt)).filter(Boolean),
-    key_facts: arr(wrap.keyFacts).map(degender).filter(Boolean),
+    practice_prompts: arr(youDo.problems).map((p) => dg(p && p.prompt)).filter(Boolean),
+    key_facts: arr(wrap.keyFacts).map((t) => dg(t)).filter(Boolean),
     // What the class counted with — parsed from the diagram fields of the
     // worked example, the modelled problem, the practice and the support work.
     // Never from wrap.exitOptions.
@@ -390,8 +395,8 @@ function isUsable(slideScript) {
  * around each SLO's evidence. Same picker, so the same three things are absent.
  * @returns {string}
  */
-function lessonExcerpts(slideScript) {
-  const c = carry(slideScript);
+function lessonExcerpts(slideScript, { authorGates = false } = {}) {
+  const c = carry(slideScript, { authorGates });
   const lines = [];
   const push = (label, value) => { if (value) lines.push(`${label}: ${value}`); };
   push('LESSON', [c.meta.topic, c.meta.chapter].filter(Boolean).join(' — '));
