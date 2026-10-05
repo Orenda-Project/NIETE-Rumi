@@ -741,7 +741,7 @@ const EVENT_PROPS = Object.freeze({
   src: /^[a-z0-9_]{1,32}$/, reason: /^[a-z0-9_]{1,40}$/, lang: /^(en|ur)$/, net: /^[a-z0-9_]{1,16}$/, err: /^[a-z0-9_]{1,40}$/,
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't'];
-const EVENT_BOOLS = ['ok', 'iab'];
+const EVENT_BOOLS = ['ok'];
 const SHARE_PATHS = ['native', 'wa', 'copy'];
 const UA_MAX = 300;
 const PROBE_MAX = 4096;
@@ -760,6 +760,9 @@ function cleanEvent(e) {
   for (const k of EVENT_BOOLS) if (typeof e[k] === 'boolean') props[k] = e[k];
   if (typeof e.ua === 'string' && e.ua) props.ua = e.ua.slice(0, UA_MAX);
   if (e.store === 0 || e.store === 1) props.store = e.store;
+  // In-app browser (WhatsApp's own browser): the page sends 1/0; kept as 0/1 so the logs can split on it.
+  if (e.iab === 0 || e.iab === 1) props.iab = e.iab;
+  else if (typeof e.iab === 'boolean') props.iab = e.iab ? 1 : 0;
   if (SHARE_PATHS.includes(e.path)) props.path = e.path;
   if (e.n === 'probe') {
     const probe = cleanProbe(e.probe);
