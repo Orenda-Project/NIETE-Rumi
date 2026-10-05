@@ -101,3 +101,17 @@ describe('E2 names the teacher as the forwarded WhatsApp text does', () => {
   });
 });
 
+describe('E2 names the class with the heading of the teacher report', () => {
+  test('the class the finished children typed', async () => {
+    seed({ sessions: [finished('s1', { completed_at: ago(2), created_at: ago(3), correct_answers: 2, total_questions_answered: 2, mastery_percentage: 100 })] });
+    const out = await WQ.getQuiz('AB12CD');
+    expect(out.cls.label).toBe('Class 3');
+    expect(out.cls.label).toBe((await report.loadClassRows(SC)).className);
+  });
+
+  test('nobody has finished yet: null (the page shows no class)', async () => {
+    seed();
+    expect((await WQ.getQuiz('AB12CD')).cls.label).toBeNull();
+  });
+});
+

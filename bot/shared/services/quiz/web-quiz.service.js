@@ -246,6 +246,14 @@ async function getQuiz(code, { p } = {}) {
   }
   const chips = await classChips(ctx);
   const preview = Boolean(p) && isPreviewFor(p, ctx);
+  // The class and the teacher are named exactly as the teacher's own texts
+  // name them: the forwarded WhatsApp message's "Teacher <name>", and the
+  // report's class heading for this code (null until a child has finished).
+  let label = null;
+  try {
+    const cls = await require('./video-quiz-report.service').loadClassRows(ctx.shareCodeId);
+    label = (cls && cls.className) || null;
+  } catch { label = null; }
   const out = {
     quiz: {
       id: ctx.quizId, code: ctx.code, topic: ctx.parent.topic || (quizRow && quizRow.topic) || '',
@@ -254,7 +262,7 @@ async function getQuiz(code, { p } = {}) {
       n: questions.length,
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio)),
     },
-    cls: { label: null, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip) },
+    cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip) },
     live: await liveCounts(ctx),
     video,
     preview,
