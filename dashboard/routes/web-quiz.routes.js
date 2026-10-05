@@ -139,7 +139,7 @@ function renderQuizPage({ payload, code, view, origin, assetV, url }) {
   return `${head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand })}
 </head>
 <body>
-<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu_hello.webp" alt="" width="120" height="120"></div></main>
+<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
