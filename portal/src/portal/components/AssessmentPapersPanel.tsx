@@ -26,6 +26,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import AssessmentVersionsDialog from './assessment-edit/AssessmentVersionsDialog';
 import { portal } from '../services/api';
 import type { AssessmentPaper, AssessmentSubject } from '../services/api';
 
@@ -43,10 +44,15 @@ function madeOn(iso: string | null): string {
 type Props = {
   /** Bumped by the generator when a paper finishes, so the list refetches. */
   refreshKey?: number;
+  /** Server flag features.assessmentEditing — shows Edit and Versions. */
+  editing?: boolean;
 };
 
-const AssessmentPapersPanel = ({ refreshKey = 0 }: Props) => {
+const AssessmentPapersPanel = ({ refreshKey = 0, editing = false }: Props) => {
   const { toast } = useToast();
+  const [versionsFor, setVersionsFor] = useState<string | null>(null);
+  // Read by the editor (Task 8/9); set here from Edit and from the dialog.
+  const [editFor, setEditFor] = useState<string | null>(null);
 
   const [papers, setPapers] = useState<AssessmentPaper[]>([]);
   const [total, setTotal] = useState(0);
@@ -210,6 +216,12 @@ const AssessmentPapersPanel = ({ refreshKey = 0 }: Props) => {
                   <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                   Download
                 </Button>
+                {editing && (
+                  <>
+                    <Button size="sm" onClick={() => setEditFor(p.paper_id)}>Edit</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setVersionsFor(p.paper_id)}>Versions</Button>
+                  </>
+                )}
                 {/* Drawn only when there is one to hand over. Papers made before
                     we stored the key's location report has_answer_key false, so
                     the button never promises something the API will refuse. */}
@@ -223,6 +235,15 @@ const AssessmentPapersPanel = ({ refreshKey = 0 }: Props) => {
             </li>
           ))}
         </ul>
+      )}
+
+      {versionsFor && (
+        <AssessmentVersionsDialog
+          paperId={versionsFor}
+          open
+          onOpenChange={(o) => { if (!o) setVersionsFor(null); }}
+          onEdit={(id) => { setVersionsFor(null); setEditFor(id); }}
+        />
       )}
 
       {lastPage > 1 && (
