@@ -715,7 +715,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     ROOT.appendChild(t);
     setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 2600);
   }
-  function ani(a) { return ANIMALS[a] || '⭐'; }
+  function ani(a) { return '<span class="wq-ani">' + (ANIMALS[a] || '⭐') + '</span>'; }
   function fmtN(n) { return Number(n || 0).toLocaleString('en'); }
   function link(path) { return location.origin + path; }
 
@@ -751,7 +751,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function who() {
     var here = kids();
     var chips = (CLS.chips || []).filter(function (c) { return !here.some(function (k) { return k.chip === c.chip; }); });
-    function kidBtn(k, src) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '" data-src="' + src + '"><span class="wq-ani">' + ani(k.animal) + '</span>' + esc(k.first) + '</button>'; }
+    function kidBtn(k, src) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '" data-src="' + src + '">' + ani(k.animal) + esc(k.first) + '</button>'; }
     var h = bar() + jug('idle', T.whoSay) + '<h2>' + esc(T.whoT) + '</h2>' +
       (here.length ? '<p class="wq-sub">' + esc(T.onPhone) + '</p><div class="wq-chips">' + here.map(function (k) { return kidBtn(k, 'phone'); }).join('') + '</div>' : '') +
       (chips.length ? '<p class="wq-sub">' + esc(T.inClass(CLASS_LABEL)) + '</p><div class="wq-chips">' + chips.map(function (k) { return kidBtn(k, 'class'); }).join('') + '</div>' : '') +
