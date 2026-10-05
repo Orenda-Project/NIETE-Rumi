@@ -425,16 +425,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var LANG = Q.lang === 'ur' ? 'ur' : 'en';
   var CLS = B.cls || {};
   var LIVE = B.live || {};
+  // The deployment's brand (boot JSON, from bot/shared/config/web-quiz-brand.js): marks, names, mascot, place.
+  var BR = B.brand || null;
+  var MASC = (BR && BR.mascot) || { en: 'Jugnu', ur: 'جگنو' };
+  var PLACE = (BR && BR.place) || null;
   var params = (function () { var o = {}; try { new URLSearchParams(location.search).forEach(function (v, k) { o[k] = v; }); } catch (e) {} return o; })();
 
   /* ---------------- copy (en + ur). Jugnu speaks one short line per screen. ---------------- */
   var T = {
     en: {
-      quiz: 'NIETE QUIZ', from: function (t, c) { return [t ? 'From ' + t : '', c].filter(Boolean).join(' · '); },
+      quiz: 'QUIZ', from: function (t, c) { return [t ? 'From ' + t : '', c].filter(Boolean).join(' · '); },
       meta: function (n) { return n + ' questions · about ' + Math.max(1, Math.round(n * 0.6)) + ' minutes'; },
       hello: 'Assalam o Alaikum! Let\'s read it together.', helloN: function (n) { return 'Welcome back, ' + n + '!'; },
       play: 'Play', playAs: function (n) { return 'Play as ' + n; }, notMe: function (n) { return 'Not ' + n + '?'; },
-      proof: function (n) { return n.toLocaleString('en') + ' children in Islamabad played today'; },
+      proof: function (n) { return n.toLocaleString('en') + (PLACE ? ' children in ' + PLACE.en + ' played today' : ' children played today'); },
       classToday: function (n) { return n + ' in your class played today'; },
       whoT: 'Whose turn is it?', whoSay: 'Tap your name.', onPhone: 'On this phone', inClass: function (c) { return 'Find your name in ' + c; },
       newKid: "I'm new", newT: 'Hello! What is your first name?', newSay: 'Just your first name.', start: 'Start', privacy: 'Only first names. No phone numbers.',
@@ -447,9 +451,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       right: ['Yes! You found it.', 'You checked carefully!', 'Right! Well looked.', 'Yes! You kept going.', 'You got it!'],
       notyet: function (r) { return 'Not yet. The answer is "' + r + '".'; }, notyetLead: 'Not yet. The answer is', notyetPlain: 'Not yet.', next: 'Next', again: 'This one comes back at the end, to fix together.',
       half: 'Halfway there!',
-      tricky: function (n) { return n === 1 ? '1 tricky one' : n + ' tricky ones'; }, trickySay: "Before we celebrate, let's fix it together.", fixGo: 'Fix it with Jugnu', later: 'Maybe later',
-      second: 'Second try · with Jugnu', fixed: 'Fixed it!', tryAgain: 'Look again. You can do it.',
-      got: function (s, n) { return 'You got ' + s + ' out of ' + n; }, fixedLine: function (k) { return '+ fixed ' + k + ' tricky one' + (k > 1 ? 's' : '') + ' with Jugnu'; },
+      tricky: function (n) { return n === 1 ? '1 tricky one' : n + ' tricky ones'; }, trickySay: "Before we celebrate, let's fix it together.", fixGo: 'Fix it with ' + MASC.en, later: 'Maybe later',
+      second: 'Second try · with ' + MASC.en, fixed: 'Fixed it!', tryAgain: 'Look again. You can do it.',
+      got: function (s, n) { return 'You got ' + s + ' out of ' + n; }, fixedLine: function (k) { return '+ fixed ' + k + ' tricky one' + (k > 1 ? 's' : '') + ' with ' + MASC.en; },
       scoreNote: 'Your score is your first try.', praise: function (s, n) { return s === n ? 'Brilliant!' : s >= n * 0.8 ? 'Great work!' : 'Good try!'; },
       done: 'QUIZ COMPLETE', seeCard: 'See my card', classBtn: 'See my class',
       prac: 'This name already finished on another phone. This round is practice; your first finished score stays.',
@@ -459,7 +463,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' league table'; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
       finN: function (n) { return n + ' finished'; }, yourScore: 'Your score', avg: 'Class average', firstOnly: 'First names only. Ties share a place.',
       shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!',
-      histT: 'Your scores', todayT: 'Today in Islamabad', rest: 'Time to rest. See you tomorrow!', back: 'Back', sounds: 'Sounds',
+      histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', back: 'Back', sounds: 'Sounds',
       cont: function (i, n) { return 'Continue ' + i + '/' + n; }, contSay: function (n) { return 'Welcome back, ' + n + '! Your answers are saved.'; }, restart: 'Start again',
       fbT: 'Send it on WhatsApp', fbSub: 'Tap the green button, then pick the chat.', fbWa: 'Send on WhatsApp', fbCopy: 'Copy the message', copied: 'Message copied',
       backAgain: 'Your answers are saved. Press back again to leave.',
@@ -473,11 +477,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child'
     },
     ur: {
-      quiz: 'NIETE QUIZ', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, '\u00A0') : ''].filter(Boolean).join(' · '); },
+      quiz: 'کوئز', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, '\u00A0') : ''].filter(Boolean).join(' · '); },
       meta: function (n) { return n + ' سوال · تقریباً ' + Math.max(1, Math.round(n * 0.6)) + ' منٹ'; },
       hello: 'السلام علیکم! آئیں، مل کر پڑھیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
       play: 'کھیلیں', playAs: function (n) { return n + '، شروع کریں'; }, notMe: function (n) { return n + ' نہیں؟'; },
-      proof: function (n) { return 'آج اسلام آباد میں ' + n.toLocaleString('en') + ' بچوں نے کھیلا'; },
+      proof: function (n) { return 'آج ' + (PLACE ? PLACE.ur + ' میں ' : '') + n.toLocaleString('en') + ' بچوں نے کھیلا'; },
       classToday: function (n) { return 'آج آپ کی کلاس میں ' + n + ' نے کھیلا'; },
       whoT: 'آج کس کی باری ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', onPhone: 'اس فون پر', inClass: function (c) { return c + ' میں اپنا نام ڈھونڈیں'; },
       newKid: 'نیا نام', newT: 'السلام علیکم! آپ کا پہلا نام کیا ہے؟', newSay: 'صرف پہلا نام لکھیں۔', start: 'شروع کریں', privacy: 'صرف پہلا نام۔ فون نمبر نہیں۔',
@@ -490,9 +494,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       right: ['جی ہاں! آپ نے ڈھونڈ لیا۔', 'آپ نے غور سے دیکھا!', 'بالکل درست!', 'جی ہاں! آپ نے کوشش جاری رکھی۔', 'شاباش، درست!'],
       notyet: function (r) { return 'ابھی نہیں۔ صحیح جواب ہے: ' + r; }, notyetLead: 'ابھی نہیں۔ صحیح جواب ہے:', notyetPlain: 'ابھی نہیں۔', next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
       half: 'آدھا راستہ طے!',
-      tricky: function (n) { return n + ' مشکل سوال'; }, trickySay: 'جشن سے پہلے، آئیں اسے مل کر ٹھیک کریں۔', fixGo: 'جگنو کے ساتھ ٹھیک کریں', later: 'بعد میں',
-      second: 'دوسری کوشش · جگنو کے ساتھ', fixed: 'ٹھیک ہو گیا!', tryAgain: 'دوبارہ دیکھیں۔ آپ کر سکتے ہیں۔',
-      got: function (s, n) { return 'آپ نے ' + n + ' میں سے ' + s + (s === 1 ? ' درست کیا' : ' درست کیے'); }, fixedLine: function (k) { return 'جگنو کے ساتھ ' + k + ' مشکل سوال ٹھیک کیے'; },
+      tricky: function (n) { return n + ' مشکل سوال'; }, trickySay: 'جشن سے پہلے، آئیں اسے مل کر ٹھیک کریں۔', fixGo: MASC.ur + ' کے ساتھ ٹھیک کریں', later: 'بعد میں',
+      second: 'دوسری کوشش · ' + MASC.ur + ' کے ساتھ', fixed: 'ٹھیک ہو گیا!', tryAgain: 'دوبارہ دیکھیں۔ آپ کر سکتے ہیں۔',
+      got: function (s, n) { return 'آپ نے ' + n + ' میں سے ' + s + (s === 1 ? ' درست کیا' : ' درست کیے'); }, fixedLine: function (k) { return MASC.ur + ' کے ساتھ ' + k + ' مشکل سوال ٹھیک کیے'; },
       scoreNote: 'اسکور پہلی کوشش کا ہے۔', praise: function (s, n) { return s === n ? 'زبردست!' : s >= n * 0.8 ? 'بہت خوب!' : 'اچھی کوشش!'; },
       done: 'کوئز مکمل', seeCard: 'میرا کارڈ دیکھیں', classBtn: 'اپنی کلاس دیکھیں',
       prac: 'یہ نام کسی اور فون پر مکمل ہو چکا ہے۔ یہ باری مشق ہے؛ پہلا مکمل اسکور ہی رہے گا۔',
@@ -502,7 +506,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + n + ' اور'; },
       finN: function (n) { return n + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!',
-      histT: 'آپ کے اسکور', todayT: 'آج اسلام آباد میں', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', back: 'واپس', sounds: 'آوازیں',
+      histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', back: 'واپس', sounds: 'آوازیں',
       cont: function (i, n) { return 'جاری رکھیں ' + i + '/' + n; }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں',
       fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'ہرا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا',
       backAgain: 'آپ کے جواب محفوظ ہیں۔ باہر جانے کے لیے دوبارہ بیک دبائیں۔',
@@ -709,8 +713,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     ROOT.setAttribute('data-m', moment);
     try { window.scrollTo(0, 0); } catch (e) {}
   }
+  // The brand mark (trusted inline SVG from the server's brand table) on its tile, or bare when it is a wide mark.
+  function markHtml() {
+    return BR ? '<span class="wq-mark ' + (BR.mark.tile ? 'wq-tile' : 'wq-bare') + '" aria-hidden="true">' + BR.mark.svg + '</span>' : '';
+  }
+  // The lockup: mark, name over the product line (the server always sends a brand; without one, just the product word).
+  function lockup() {
+    if (!BR) return '<span class="wq-brand"><span class="wq-lock"><b>' + esc(T.quiz) + '</b></span></span>';
+    return '<span class="wq-brand" aria-label="' + esc(BR.name) + '">' + markHtml() + '<span class="wq-lock"><b>' + esc(BR.label[LANG]) + '</b><small>' + esc(BR.sub[LANG]) + '</small></span></span>';
+  }
   function bar(extra) {
-    return '<div class="wq-bar"><span class="wq-brand"><i></i>' + esc(T.quiz) + '</span>' + (extra || '<span class="wq-grow"></span>') +
+    return '<div class="wq-bar">' + lockup() + (extra || '<span class="wq-grow"></span>') +
       '<button class="wq-icon" id="wq-snd" aria-label="' + esc(T.sounds) + '" aria-pressed="' + SOUND + '">' + (SOUND ? '🔔' : '🔕') + '</button></div>';
   }
   function wireBar() {
@@ -1435,7 +1448,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var kept = c.practice && c.kept ? c.kept : null;
     var shareC = kept ? kept.correct : c.correct, shareT = kept ? (kept.total || total) : total;
     var h = bar() +
-      '<div class="wq-scorecard"><header><i></i>' + dotJoin('NIETE', CLS.label) + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
       '<img src="' + IMG + 'celebrate.webp" alt="">' +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
       '<p class="wq-sub">' + esc(Q.topic) + '</p>' +

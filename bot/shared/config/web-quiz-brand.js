@@ -41,9 +41,10 @@ const NIETE_LATTICE = '<svg xmlns="http://www.w3.org/2000/svg" width="96" height
   + '<path d="M0 -8 8 0 0 8 -8 0Z"/><path d="M96 -8 104 0 96 8 88 0Z"/><path d="M0 88 8 96 0 104 -8 96Z"/><path d="M96 88 104 96 96 104 88 96Z"/>'
   + '<path d="M14 6 19 11 14 16 9 11Z"/><path d="M82 80 87 85 82 90 77 85Z"/></svg>';
 // The Rumi motif: a quiet constellation of small dots joined by thin smile curves.
-const RUMI_MOTIF = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="96" viewBox="0 0 120 96" fill="#0E2058" stroke="#0E2058" stroke-width="1.2">'
-  + '<circle cx="18" cy="30" r="3"/><circle cx="50" cy="30" r="3"/><path d="M18 30Q34 50 50 30" fill="none"/>'
-  + '<circle cx="78" cy="70" r="2.4"/><circle cx="104" cy="70" r="2.4"/><path d="M78 70Q91 86 104 70" fill="none"/></svg>';
+const RUMI_MOTIF = '<svg xmlns="http://www.w3.org/2000/svg" width="260" height="150" viewBox="0 0 260 150" fill="#0E2058" stroke="#0E2058" stroke-width="1.2">'
+  + '<circle cx="24" cy="40" r="3"/><circle cx="56" cy="40" r="3"/><path d="M24 40Q40 60 56 40" fill="none"/>'
+  + '<circle cx="170" cy="112" r="2.4"/><circle cx="196" cy="112" r="2.4"/><path d="M170 112Q183 128 196 112" fill="none"/>'
+  + '<circle cx="120" cy="22" r="1.6"/><circle cx="232" cy="58" r="1.6"/></svg>';
 
 const BRANDS = {
   niete: {
@@ -71,7 +72,8 @@ const BRANDS = {
     name: 'Rumi',
     orgNames: ['rumi', 'rumi global'],
     label: { en: 'Rumi', ur: 'Rumi' },
-    sub: { en: 'QUIZ', ur: 'کوئز' },
+    // The lockup is part of the logo: Latin in both languages (a 9px Nastaliq line is unreadable).
+    sub: { en: 'QUIZ', ur: 'QUIZ' },
     mascot: { en: 'Jugnu', ur: 'جگنو' },
     place: null,
     og: { image: '/wq/og-rumi.jpg', site: 'Rumi' },
