@@ -654,4 +654,10 @@ exports.run = async ({ api, rec, sleep }) => {
   rec('COA62', 'With coaching moved to the app, /coaching sends me to the Play Store instead of asking for a recording', 'BLOCKED',
       { reason: APP_REDIRECT_WHY }, 0);
 
+
+  // bd-x74wv (2026-10-05) — not drivable on any lane; replace BLOCKED with V(...) only if one can race two senders.
+  rec('COA77', 'Two teachers\' voice notes arriving in the same moment are each heard from their own voice', 'BLOCKED',
+      { reason: 'needs two teachers\' voice notes processed by one container in the same millisecond — no lane can race '
+          + 'two senders that tightly; pinned by tests/handlers/voice-note-temp-collision.test.js (real handler + '
+          + 'AudioService, Date.now pinned) and tests/handlers/audio-service-temp-collision.test.js' }, 0);
 };
