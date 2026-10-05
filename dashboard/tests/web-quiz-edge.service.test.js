@@ -180,6 +180,11 @@ describe('web quiz edge: GET /q/:code server-side render', () => {
     expect(boot.code).toBe('AB12CD');
   });
 
+  it('the loading Jugnu is the same still the landing then shows, so it is fetched once', async () => {
+    const res = await req(srv, 'GET', '/q/AB12CD', undefined, { host: 'portal.example' });
+    expect(res.body).toMatch(/<div class="wq-boot"><img src="\/wq\/jugnu\/hello\.webp"/);
+  });
+
   it('sets OG tags, noindex and no-cache', async () => {
     const res = await req(srv, 'GET', '/q/AB12CD', undefined, { host: 'portal.example' });
     expect(res.body).toMatch(/<meta property="og:title" content="Parts of a plant &lt;\/script&gt;&lt;b&gt;[^"]*"/);
