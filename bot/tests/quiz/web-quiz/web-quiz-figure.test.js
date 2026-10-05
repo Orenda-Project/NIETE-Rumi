@@ -162,6 +162,23 @@ describe('optionPic (picture options are drawings, never emoji)', () => {
   });
 });
 
+describe('drawOptionPics (the last step of an E2 question, whoever filled the options)', () => {
+  test('raw stored pics (the v2 item merge shape) become drawings named in the quiz language; an undrawable one is removed', () => {
+    const options = [
+      { slot: 'A', text: '', name: 'سیب', pic: { kind: 'pictogram', name: 'apple' } },
+      { slot: 'B', text: 'بلی', pic: { kind: 'pictogram', name: 'cat' } },
+      { slot: 'C', text: 'x', name: 'y', pic: { kind: 'emoji', name: '🚌' } },
+      { slot: 'D', text: 'kept', pic: { svg: '<svg viewBox="0 0 72 72"></svg>', name: 'kept' } },
+    ];
+    Fig.drawOptionPics(options, 'ur');
+    expect(options[0].pic.name).toBe('سیب');
+    expect(options[0].pic.svg).toMatch(/viewBox="0 0 72 72"/);
+    expect(options[1].pic.name).toBe('بلی');
+    expect(options[2].pic).toBeUndefined();
+    expect(options[3].pic.name).toBe('kept');
+  });
+});
+
 describe('E2 carries figures, not cards', () => {
   test('figure question: inline svg; img is the figure PNG, never the card', async () => {
     seed([row(1, { figure: BARS, question_image: 'https://r2/fig.png', question_card: 'https://r2/card.png', language: 'en' })]);
