@@ -266,3 +266,39 @@ describe('the portal route holds no certificate logic', () => {
     expect(block).not.toMatch(/R2_BUCKET_NAME|R2_ENDPOINT/);
   });
 });
+
+/**
+ * bd-4ryvw — "Download certificate" in the NIETE app sends the teacher to Chrome.
+ *
+ * The plain route 302s to a signed R2 url. In the app the WebView follows the 302 to
+ * R2's host, which is not in allowNavigation, so Capacitor hands it to Android and
+ * Chrome opens it; on the web the button opened a tab. The portal now asks for the
+ * signed link as JSON and saves the file itself. The plain route still redirects, so
+ * every older client keeps working.
+ */
+describe('bd-4ryvw — ?format=json returns the signed link instead of redirecting', () => {
+  const SIGNED = 'https://r2.example.com/bucket/certs/u/x.pdf?X-Amz-Signature=abc';
+
+  it('answers 200 with the signed url and a file name, no redirect', async () => {
+    const { statusCode, payload, redirectedTo } = await invoke(DL_PATH, {
+      userId: USER, params: { code: CODE }, query: { format: 'json' },
+    });
+    expect(statusCode).toBe(200);
+    expect(redirectedTo).toBeNull();
+    expect(payload).toEqual({ success: true, url: SIGNED, filename: `NIETE-certificate-${CODE}.pdf` });
+    expect(getCertificatePdf).toHaveBeenCalledWith(USER, CODE, 'attachment');
+  });
+
+  it('still needs a session', async () => {
+    const { statusCode } = await invoke(DL_PATH, { userId: null, params: { code: CODE }, query: { format: 'json' } });
+    expect(statusCode).toBe(401);
+    expect(getCertificatePdf).not.toHaveBeenCalled();
+  });
+
+  it('keeps the 404 / 502 split', async () => {
+    getCertificatePdf.mockResolvedValueOnce({ notFound: true });
+    expect((await invoke(DL_PATH, { userId: USER, params: { code: CODE }, query: { format: 'json' } })).statusCode).toBe(404);
+    getCertificatePdf.mockResolvedValueOnce(null);
+    expect((await invoke(DL_PATH, { userId: USER, params: { code: CODE }, query: { format: 'json' } })).statusCode).toBe(502);
+  });
+});
