@@ -105,3 +105,9 @@ Feature: Web child quiz page on the portal
     Then the question has a "Play the sound" button that plays that recorded sound
     And a question whose words already ask it never plays a clip that says the answer before the child answers
     But if the sound cannot be fetched, the question is read aloud by the phone's own voice
+
+  Scenario: Picture answers are named by what they show
+    Given a picture question whose answers were stored as "1. Table", "2. House" and "3. Chair"
+    When the question is shown on the page
+    Then each picture has its word "Table", "House" or "Chair" under it and the voice says that word
+    But a picture answer that was only ever stored as "Picture 1" shows the picture alone and is never read as "Picture 1"

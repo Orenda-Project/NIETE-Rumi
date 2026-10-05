@@ -241,4 +241,18 @@ function drawOptionPics(options, language) {
   return options;
 }
 
-module.exports = { figureFor, optionPic, drawOptionPics, safeSvg, wordsFor };
+/**
+ * What a picture option is CALLED on the page and by the voice. The importer
+ * stored the WhatsApp list label: "1. Table" (the number is the list row, the
+ * page has its own letter badge) or, when no name was ever recorded,
+ * "Picture 1". A placeholder is no name: the picture is the option, and the
+ * voice must never say "Picture 1".
+ * @returns {string|null}
+ */
+function pictureOptionName(text) {
+  const t = String(text == null ? '' : text).trim();
+  if (!t || /^(picture|sound|تصویر|آواز)\s*\d+$/i.test(t)) return null;
+  return t.replace(/^\d+\s*[.)]\s*/, '').trim() || null;
+}
+
+module.exports = { figureFor, optionPic, drawOptionPics, pictureOptionName, safeSvg, wordsFor };
