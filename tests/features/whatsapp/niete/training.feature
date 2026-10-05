@@ -1414,6 +1414,16 @@ Feature: NIETE (ICT) Teacher Training
     And the button that makes a picture bigger is a small icon at the side of the picture, never covering it
     # web-quiz-figure forPage (fraction_bar barHeight); wq.js figureHtml zoom icon, wq.css .wq-pgrid odd tile. Unit: web-quiz-pictures.test.js, dashboard/tests/web-quiz-page-pictures.service.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T200 @no-mock-driver
+  Scenario: A child on the web quiz never sees a question picture that contradicts or ignores the answer
+    Given a quiz question whose picture was reviewed against its question and answer and judged to contradict it or to show nothing the question asks about
+    When a child plays the quiz on the web page
+    Then the question is shown without that picture, on its text alone
+    And a question that tells the child to look at the picture is left out of the web quiz instead
+    And a picture that was reviewed and found fine, or never reviewed, is shown as before
+    And the WhatsApp quiz is unchanged
+    # web-quiz-figure pictureHidden (media.picture_check.verdict contradicts|ignores); web-quiz.service questionImageOf + figureFor + playable + media(). Unit: bot/tests/quiz/web-quiz/web-quiz-picture-check.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T170 @no-mock-driver
   Scenario: The recorded "why" of a web quiz question is its reason, never praise
     Given a quiz question whose correct-answer feedback is only "Well done!" and whose explanation gives the reason
