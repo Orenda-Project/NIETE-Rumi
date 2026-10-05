@@ -23,6 +23,12 @@ describe.each(WORKFLOWS)('bd-4ryvw — %s accepts SDK licenses without setup-and
     expect(read(file)).toMatch(/\(yes \|\| true\) \| "\$ANDROID_HOME\/cmdline-tools\/latest\/bin\/sdkmanager" --licenses/);
   });
 
+  test('runs Node 22+ — the Capacitor 8 CLI refuses older ("requires NodeJS >=22.0.0")', () => {
+    const versions = [...read(file).matchAll(/node-version:\s*'?(\d+)/g)].map((m) => Number(m[1]));
+    expect(versions.length).toBeGreaterThan(0);
+    versions.forEach((v) => expect(v).toBeGreaterThanOrEqual(22));
+  });
+
   test('accepts them before Gradle runs', () => {
     const src = read(file);
     expect(src.indexOf('sdkmanager" --licenses')).toBeLessThan(src.indexOf('gradlew'));
