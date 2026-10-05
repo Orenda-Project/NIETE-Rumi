@@ -28,7 +28,7 @@ describe('the lesson video box', () => {
     const p = page({ lang: 'ur', video: { url: 'https://r2.example/v.mp4' } });
     p.wq.video();
     expect(p.html()).toContain('class="wq-vcover"');
-    expect(p.html()).toContain('<img src="/wq/jugnu_hello.webp" alt="" class="wq-vjug">');
+    expect(p.html()).toContain('<img src="/wq/jugnu/hello.webp" alt="" class="wq-vjug">');
     expect(p.html()).toContain('class="wq-vplay"');
   });
 
@@ -37,7 +37,7 @@ describe('the lesson video box', () => {
     p.wq.video();
     expect(p.html()).toContain('poster="https://r2.example/p.jpg"');
     expect(p.html()).toContain('class="wq-vcover wq-vposter"');
-    expect(p.html()).not.toContain('/wq/jugnu_hello.webp" alt="" class');
+    expect(p.html()).not.toContain('/wq/jugnu/hello.webp" alt="" class');
   });
 
   test('the cover goes away once the video plays', () => {
