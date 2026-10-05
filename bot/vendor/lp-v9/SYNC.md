@@ -1334,6 +1334,23 @@ see §3.28 for the local-only L6 pronoun-rule edit. Verify with §6's diff comma
 
 ---
 
+### 3.29 Urdu section and support-page badges — `lib/overlay.js`, `lib/template.js` (2026-10-05, bd-psa3u)
+
+Amena (5 Oct): "Urdu should have everything in Urdu", then "change the badges too". Urdu LPs printed
+Latin I/D/A/C/H on the section bands, A/B/C on the support-page bands, and "1." in the board-order list.
+
+* **`lib/overlay.js`** — `LABELS.ur` gains `badge` (introduction ۱ … homework ۵: the section's place in
+  Urdu digits, because Urdu initials collide, تعارف / تدریس) and `p2Badge` (الف، ب، ج، د، ہ، و، ز، ح).
+* **`lib/template.js`** — new `secBadge(id, L)` / `p2Badge(letter, L)` fall back to the Latin letter when
+  the label set has no badge, so English is byte-identical. `bar`, `p2bar` (now takes `L`) and the
+  continued-bar rebuild print through them; the `data-sec="p2-A"` key stays Latin. In rtl the
+  board-order `<ol class="ord">` gets `style="list-style-type:persian"` (the vendor has no
+  `olListStyle`, so the value is literal), and `.p2bar .badge` is `width:auto; min-width:21px;
+  padding:0 5px`, because الف clips a fixed 21px square.
+
+Test: `tests/lp-v8/bd-psa3u-urdu-badges.test.js` on fixture `tests/fixtures/lp-v9/GK_g1_seg2.ur.lp.json`.
+The workbench renderer carries the same change (`lib/badge_ur.test.js`). Keep it at the next re-sync.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of

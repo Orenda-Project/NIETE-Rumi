@@ -256,6 +256,10 @@ const LABELS = {
     objectives: "تدریسی مقاصد", warmup: "ابتدائی دہرائی",
     introduction: "تعارف", development: "تدریس", activity: "سرگرمی",
     conclusion: "اختتام", homework: "گھر کا کام",
+    // bd-psa3u: the printed badges. Urdu initials collide (تعارف / تدریس), so a section band
+    // carries its place in Urdu digits and a support-page band the Urdu list letter.
+    badge: { introduction: "۱", development: "۲", activity: "۳", conclusion: "۴", homework: "۵" },
+    p2Badge: ["الف", "ب", "ج", "د", "ہ", "و", "ز", "ح"],
     min: "منٹ", say: "کہیے", ask: "اس سوال سے آغاز کریں", askPlain: "یہ سوال پوچھیں", lookFor: "جواب میں یہ دیکھیں",
     watch: "خیال رکھیے", board: "تختۂ سیاہ پر", keywords: "کلیدی الفاظ",
     keyPoints: "اہم نکات", worked: "حل شدہ مثال", faded: "نیم حل شدہ مثال",
