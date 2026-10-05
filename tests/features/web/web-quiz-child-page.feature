@@ -79,3 +79,49 @@ Feature: Web child quiz page on the portal
     When the question is shown on the page
     Then the buttons are in that same shuffled order
     And tapping the right answer is marked right, and each wrong answer gets its own feedback
+
+  Scenario: A figure question shows the drawing, not the WhatsApp card
+    Given a question whose WhatsApp card paints the stem and options into a picture
+    And the question carries a fraction bar figure
+    When the quiz is opened on the web page
+    Then the question shows the fraction bar drawn as a picture with no question text inside it
+    And the stem and the options are shown once, as text
+    And the read-aloud says "Look at the bars." before the question
+
+  Scenario: A question with long options shows no picture at all
+    Given a question that WhatsApp sends as a card only because its options are long
+    When the quiz is opened on the web page
+    Then the question shows no picture
+    And the stem and the options are shown as text
+
+  Scenario: Picture options are drawings, never emoji
+    Given a picture question whose options are an apple, a cat and a bus
+    When the quiz is opened on the web page
+    Then each option shows its drawing with its word under it
+
+  Scenario: A "whose sound is this?" question plays its own sound on the page
+    Given a question that asks which sound the child hears, with its recorded sound
+    When the quiz is opened on the web page
+    Then the question has a "Play the sound" button that plays that recorded sound
+    And a question whose words already ask it never plays a clip that says the answer before the child answers
+    But if the sound cannot be fetched, the question is read aloud by the phone's own voice
+
+  Scenario: Picture answers are named by what they show
+    Given a picture question whose answers were stored as "1. Table", "2. House" and "3. Chair"
+    When the question is shown on the page
+    Then each picture has its word "Table", "House" or "Chair" under it and the voice says that word
+    But a picture answer that was only ever stored as "Picture 1" shows the picture alone and is never read as "Picture 1"
+
+  Scenario: A match picture names its rows P, Q, R, never the answer letters
+    Given a matching question whose picture labels its rows A, B and C
+    And its answers read "A-2, B-1, C-3"
+    When the question is shown on the page
+    Then the picture labels the rows P, Q and R
+    And the question, the answers and the explanation say P, Q and R too
+    And the answer buttons keep their own A, B and C
+
+  Scenario: Letter answers are set as large page text so their marks are never cut off
+    Given an Urdu question whose answers are the letters بّ, بِ and بْ
+    When the question is shown on the page
+    Then each answer is a large letter tile drawn in the page's own Urdu font
+    And the shadda, zer and jazm marks are fully visible

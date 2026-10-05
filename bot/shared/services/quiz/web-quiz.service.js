@@ -29,6 +29,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const WebItems = require('./web-quiz-items');
+const Figure = require('./web-quiz-figure');
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
@@ -141,6 +142,15 @@ function optionImageOf(media, i) {
   return Array.isArray(list) ? list[i] || null : null;
 }
 
+const mediaLang = (m) => clampLanguage(m && m.language);
+
+/** The v2 item's picture for this slot (media.web.options[].pic), if any. */
+function webOptionPic(media, slot) {
+  const opts = media && media.web && Array.isArray(media.web.options) ? media.web.options : null;
+  const o = opts ? opts.find((x) => x && x.slot === slot) : null;
+  return o && o.pic ? o.pic : null;
+}
+
 function feedbackFor(q, i) {
   const fb = q.option_feedback;
   const wrong = fb && typeof fb === 'object' ? fb.wrong : null;
@@ -168,12 +178,21 @@ function inDisplayOrder(q, options) {
   }
 }
 
-function questionPayload(q, i, code, audio) {
+function questionPayload(row, i, code, audio) {
+  // A figure's own A-D part names become P-S everywhere the page shows them.
+  const q = Figure.withPartLetters(row);
   const options = [];
   [q.option_a, q.option_b, q.option_c, q.option_d].forEach((text, idx) => {
     if (text == null || String(text).trim() === '') return;
     const o = { slot: SLOTS[idx], text: String(text) };
-    if (optionImageOf(q.media, idx)) o.img = mediaUrl(code, q.id, SLOTS[idx]);
+    if (optionImageOf(q.media, idx)) {
+      o.img = mediaUrl(code, q.id, SLOTS[idx]);
+      const name = Figure.pictureOptionName(text);
+      o.text = name || '';
+      if (name) o.name = name;
+    }
+    const pic = webOptionPic(q.media, SLOTS[idx]);
+    if (pic) o.pic = pic;
     const fb = feedbackFor(q, idx);
     if (fb) o.fb = fb;
     options.push(o);
@@ -187,7 +206,14 @@ function questionPayload(q, i, code, audio) {
   const web = WebItems.webPayload(q);
   if (web) Object.assign(out, web);
   if (questionImageOf(q.media)) out.img = mediaUrl(code, q.id, 'q');
+  const figure = Figure.figureFor(q);
+  if (figure) {
+    const { src, ...rest } = figure;
+    out.figure = src ? { ...rest, url: mediaUrl(code, q.id, 'q') } : rest;
+  }
   if (audio && audio[q.id]) out.audio = audio[q.id];
+  // Last, after anything that fills options: picture options become drawings.
+  Figure.drawOptionPics(out.options, mediaLang(q.media));
   return out;
 }
 
@@ -275,6 +301,8 @@ async function getQuiz(code, { p } = {}) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
     }
   }
+  // The item's own recorded clips (the sound of a "whose sound is this?" item).
+  try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
   const chips = await classChips(ctx);
   const preview = Boolean(p) && isPreviewFor(p, ctx);
   // The class and the teacher are named exactly as the teacher's own texts
