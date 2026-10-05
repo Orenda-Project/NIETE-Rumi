@@ -161,6 +161,12 @@ describe('Urdu copy on the after-quiz screens', () => {
     expect(four.html()).toMatch(/4 درست کیے</);
   });
 
+  test('the class label on the landing never breaks across lines («جماعت 3 (ب)» keeps its «(ب)»)', () => {
+    const p = page({ lang: 'ur', cls: { label: 'جماعت 3 (ب)', teacher: 'استاد Testwala', chips: [] } });
+    p.ctx.__wq.landing();
+    expect(p.html()).toContain('جماعت\u00A03\u00A0(ب)');
+  });
+
   test('"today" in Urdu says "today" once, and its home button says where it goes', () => {
     const p = page({ lang: 'ur', store: store() });
     p.ctx.__wq.today();

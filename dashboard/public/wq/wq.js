@@ -471,7 +471,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child'
     },
     ur: {
-      quiz: 'NIETE QUIZ', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c].filter(Boolean).join(' · '); },
+      quiz: 'NIETE QUIZ', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, '\u00A0') : ''].filter(Boolean).join(' · '); },
       meta: function (n) { return n + ' سوال · تقریباً ' + Math.max(1, Math.round(n * 0.6)) + ' منٹ'; },
       hello: 'السلام علیکم! آئیں، مل کر پڑھیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
       play: 'کھیلیں', playAs: function (n) { return n + '، شروع کریں'; }, notMe: function (n) { return n + ' نہیں؟'; },
