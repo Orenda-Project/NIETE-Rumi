@@ -180,6 +180,16 @@ describe('the detector', () => {
   });
 });
 
+describe('repair priority', () => {
+  test('beside five hard faults, the give-away is the one left for a second batch — never a hard fault', () => {
+    // the give-away sits at q1, BEFORE the hard faults, so only the tier can push it out
+    const errs = ['q1: ANSWER_LEAK — its answer "x" is already given by q0\'s question'].concat([2, 3, 4, 5, 6].map((i) => `q${i}: duplicate options`));
+    const t = Rewrite.rewriteTargets(errs, { partial: true });
+    expect(t.indices).toEqual([2, 3, 4, 5, 6]);
+    expect(t.deferred).toEqual([1]);
+  });
+});
+
 describe('the validator', () => {
   test('flag on: the leak is a named complaint; flag off: nothing', () => {
     const qs = grammar(); qs[0] = LEAKS_Q2(qs[0]);

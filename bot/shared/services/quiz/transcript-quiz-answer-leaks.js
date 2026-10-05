@@ -28,7 +28,12 @@
  * strategy" before "which strategy is good?"; "each piece is one quarter"
  * before "what is each part called?") and 4 debatable — a definition in one
  * explanation, then a question applying it. Without the last two conditions
- * the same rule flagged category words named in passing.
+ * the same rule flagged category words named in passing. On every sandbox
+ * quiz (1,062, mostly 15-20-question video-bank quizzes) it names 538 in 340
+ * quizzes; of 25 drawn at random, 21 were give-aways ("Lungs take oxygen…"
+ * before "Lungs take _ from the air") and 4 debatable. Because it fires on a
+ * third of quizzes it is the LOWEST repair priority (rewriteTargets tier 5):
+ * it never takes a hard fault's place in the five-question repair.
  *
  * The complaint names the LATER question, so the targeted rewrite replaces it
  * with a question on another fact; it is a SOFT fault (generate's
