@@ -1344,6 +1344,24 @@ Feature: NIETE (ICT) Teacher Training
     And an expired or switched-off code answers "expired" with the quiz language, so the page can say "ask your teacher"
     # requireInternalKey; web-quiz-token fails closed with no secret (503 web_quiz_off). @wip.
 
+  @api @quiz @web @wip @draft @P1 @T107 @no-mock-driver
+  Scenario: The quiz page names the teacher and the class the way the teacher's own texts do
+    Given a teacher whose stored name carries a title, and children who finished the quiz typed their class
+    When the quiz is fetched for the page
+    Then the teacher is named exactly as the forwarded class message names them ("Teacher <name>", in the quiz language)
+    And the class is the heading the teacher's report uses for this code
+    But before anyone has finished the class is empty, never a guess
+    # ADDED 2026-10-05: web-quiz.service getQuiz -> quiz-teacher-label teacherLabel + report loadClassRows().className. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T108 @no-mock-driver
+  Scenario: A web quiz's report counts each child's first finish
+    Given a quiz whose children play on the web page
+    When the first child starts a web session
+    Then the quiz is marked as a web quiz, and nothing else about it changes
+    And the teacher's report then counts each child's first finished score, as the class league table does
+    But the teacher's own preview does not mark the quiz
+    # ADDED 2026-10-05: web-quiz.service startSession -> markWebArm (quizzes.meta.web_arm = 'web'); attemptRuleFor reads it. @wip.
+
   @e2e @quiz @wip @draft @config-gated @P1 @T100
   Scenario: With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat
     Given the web quiz is switched on and I am one of the teachers it is on for
