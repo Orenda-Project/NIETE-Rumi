@@ -31,6 +31,7 @@ const T = require('./web-quiz-token');
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const QUESTIONS_MAX = 15;          // = video-quiz.service QUESTIONS_PER_SESSION
 const CHIPS_MAX = 40;
@@ -83,7 +84,7 @@ async function resolveCode(rawCode) {
   const { data: sc, error } = await supabase.from('quiz_share_codes').select(SC_COLS).eq('code', code).maybeSingle();
   if (error) fail(502, 'db_unavailable');
   if (!sc) fail(404, 'not_found');
-  const lang = sc.language === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(sc.language);
   // The same test beginFromCode applies to the code that was used.
   if (!sc.active || (sc.expires_at && new Date(sc.expires_at) < new Date())) fail(410, 'expired', { lang });
   let parent = sc;
@@ -363,7 +364,7 @@ async function startSession(body = {}) {
       phone: null, list_id: null,
     }).select('id, student_name, self_reported_class').single();
     if (error || !created) {
-      logToFile('❌ web-quiz: could not create student', { error: error && error.message });
+      logToFile('❌ web-quiz: could not create student', { error: error && error.message }, 'error');
       fail(502, 'db_unavailable');
     }
     student = created;
@@ -392,7 +393,7 @@ async function startSession(body = {}) {
     expires_at: new Date(Date.now() + T.SESSION_TTL_S * 1000).toISOString(),
   }).select('id').single();
   if (sErr || !session) {
-    logToFile('❌ web-quiz: could not create session', { quizId: ctx.quizId, error: sErr && sErr.message });
+    logToFile('❌ web-quiz: could not create session', { quizId: ctx.quizId, error: sErr && sErr.message }, 'error');
     fail(502, 'db_unavailable');
   }
 
@@ -467,7 +468,7 @@ async function recordAnswers(body = {}) {
     // and a duplicate is an answer already recorded — the first one is the score.
     if (error && error.code === '23505') { out.dup.push(qid); already.add(qid); continue; }
     if (error) {
-      logToFile('❌ web-quiz: answer insert failed', { sessionId: s.id, error: error.message });
+      logToFile('❌ web-quiz: answer insert failed', { sessionId: s.id, error: error.message }, 'error');
       fail(502, 'db_unavailable');
     }
     already.add(qid);
@@ -528,7 +529,7 @@ async function finishSession(body = {}) {
       mastery_percentage: pct, mastery_level: level, completed_at: new Date().toISOString(),
     }).eq('id', s.id);
     if (error) {
-      logToFile('❌ web-quiz: could not complete session', { sessionId: s.id, error: error.message });
+      logToFile('❌ web-quiz: could not complete session', { sessionId: s.id, error: error.message }, 'error');
       fail(502, 'db_unavailable');
     }
     Funnel.emit('child_completed', {
