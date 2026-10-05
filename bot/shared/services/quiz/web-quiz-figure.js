@@ -107,27 +107,42 @@ function withColour(fn) {
  * Page-only drawing choices. The WhatsApp picture is a 1080x565 card; on the
  * page a figure is as wide as the phone, so a one-bar fraction picture came out
  * 312 x 26 px, a strip a child cannot count parts in. One or two bars are drawn
- * taller here (the spec's own barHeight, and the circle model, are kept).
+ * taller here (the spec's own barHeight, and the circle model, are kept). A graph
+ * is drawn narrower and a base-ten mat of blocks stacked, so their labels and rods
+ * read at phone size. If the page's choice crowds a figure, draw() falls back to
+ * the stored spec.
  */
 function forPage(spec) {
   if (spec && spec.type === 'fraction_bar' && spec.model !== 'circle' && spec.barHeight == null
     && Array.isArray(spec.bars) && spec.bars.length >= 1 && spec.bars.length <= 2) {
     return { ...spec, barHeight: 120 };
   }
+  // A graph drawn 620 wide put its labels at ~7 px in a 344 px box; drawn 380
+  // wide the same 13-unit labels are ~12 px. A spec that sets its width keeps it.
+  if (spec && spec.type === 'graph' && spec.width == null) return { ...spec, width: PAGE_GRAPH_W };
+  // Three flats side by side made a mat ~850 wide, its tens rods ~6 px on the
+  // phone; stacked (SYNC.md §3.32) they are ~9 px and every piece is bigger.
+  if (spec && spec.type === 'base_ten' && spec.model === 'blocks' && spec.stack == null) return { ...spec, stack: true };
   return spec;
 }
+const PAGE_GRAPH_W = 380;
 
 /** The engine, through the quiz's own phone-tuned renderer (allowlist, font ladder, overlap gate). */
 function draw(rawSpec, lang) {
   const spec = forPage(rawSpec);
   const key = `c|${lang}|${JSON.stringify(spec)}`;
   if (cache.has(key)) return cache.get(key);
+  const render = (sp) => withColour(() => require('./transcript-quiz-figure').renderFigureSvg(sp, lang));
   let svg = null;
   try {
-    svg = withColour(() => require('./transcript-quiz-figure').renderFigureSvg(spec, lang));
+    svg = render(spec);
   } catch (err) {
-    logToFile('⚠️ web quiz: figure not drawn', { type: spec && spec.type, error: String(err.message || err).slice(0, 160) });
-    svg = null;
+    // The page's own size (a narrower graph, a stacked mat) can crowd a figure the
+    // engine draws cleanly as stored: then the page shows the stored drawing.
+    if (spec !== rawSpec) {
+      try { svg = render(rawSpec); } catch (_) { svg = null; }
+    }
+    if (!svg) logToFile('⚠️ web quiz: figure not drawn', { type: spec && spec.type, error: String(err.message || err).slice(0, 160) });
   }
   svg = svg ? safeSvg(svg) : null;
   if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
