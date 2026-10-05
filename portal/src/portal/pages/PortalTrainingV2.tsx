@@ -140,14 +140,28 @@ type Level = {
   passed_at: string | null; cooldown_until: string | null;
   previous_level_order: number | null;
 };
-type Course = { id: string; title: string; course_type: string; order_index: number; module_count: number; completed_count: number };
-type ModuleSummary = { id: string; title: string; order_index: number; duration_seconds: number; has_video: boolean; has_audio: boolean; has_pdf: boolean; has_questions?: boolean; completed_at: string | null; lock?: UnitLock };
+/**
+ * bd-66wui — a course or module id, in whichever shape it arrived.
+ *
+ * The API sends training_courses.id and training_modules.id as JSON NUMBERS
+ * (bigint through PostgREST); the URL, and the selection state set from it,
+ * always holds a STRING. These types said `string` for both, so `m.id ===
+ * selectedModule` type-checked and was false for every row in production:
+ * no "Module N of M", no UP NEXT, a pass that never ticked the header, and a
+ * course page whose crumb read "Course". Compare ids only through sameId.
+ */
+type Id = string | number;
+const sameId = (a: Id | null | undefined, b: Id | null | undefined): boolean =>
+  a != null && b != null && String(a) === String(b);
+
+type Course = { id: Id; title: string; course_type: string; order_index: number; module_count: number; completed_count: number };
+type ModuleSummary = { id: Id; title: string; order_index: number; duration_seconds: number; has_video: boolean; has_audio: boolean; has_pdf: boolean; has_questions?: boolean; completed_at: string | null; lock?: UnitLock };
 type ModuleDetail = {
-  id: string; title: string; content_html: string;
+  id: Id; title: string; content_html: string;
   video_url: string | null; audio_url: string | null;
   pdf_url: string | null; has_questions: boolean;
   duration_seconds: number; order_index: number; completed_at: string | null;
-  course: { id: string; title: string } | null;
+  course: { id: Id; title: string } | null;
   level: { id: number; name: string } | null;
 };
 type QuizAttempt = {
@@ -581,7 +595,7 @@ const PortalTrainingV2 = () => {
     ? '/portal/training/v2'
     : '/portal/training';
 
-  const openUnit = useCallback((id: string) => {
+  const openUnit = useCallback((id: Id) => {
     navigate(`${routeBase}/unit/${id}`);
   }, [navigate, routeBase]);
   const openExam = useCallback((courseId: string) => {
@@ -613,8 +627,8 @@ const PortalTrainingV2 = () => {
     [providerUrl],
   );
   const courseUrl = useCallback(
-    (vendorKey: string, levelId: string | number, courseId: string) =>
-      `${levelUrl(vendorKey, levelId)}/course/${encodeURIComponent(courseId)}`,
+    (vendorKey: string, levelId: string | number, courseId: Id) =>
+      `${levelUrl(vendorKey, levelId)}/course/${encodeURIComponent(String(courseId))}`,
     [levelUrl],
   );
 
@@ -630,7 +644,8 @@ const PortalTrainingV2 = () => {
   useEffect(() => {
     if (!moduleDetail) return;
     if (moduleDetail.level && !selectedLevel) setSelectedLevel(String(moduleDetail.level.id));
-    if (moduleDetail.course && !selectedCourse) setSelectedCourse(moduleDetail.course.id);
+    // String(): the selection is compared with the URL's id, which is a string.
+    if (moduleDetail.course && !selectedCourse) setSelectedCourse(String(moduleDetail.course.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moduleDetail]);
 
@@ -945,8 +960,8 @@ const PortalTrainingV2 = () => {
     // module the database still holds as not done.
     if (!completesModule(attempt)) return;
     const completedAt = attempt.completed_at || new Date().toISOString();
-    setModules(prev => prev.map(m => (m.id === moduleId && !m.completed_at ? { ...m, completed_at: completedAt } : m)));
-    setModuleDetail(prev => (prev && prev.id === moduleId && !prev.completed_at ? { ...prev, completed_at: completedAt } : prev));
+    setModules(prev => prev.map(m => (sameId(m.id, moduleId) && !m.completed_at ? { ...m, completed_at: completedAt } : m)));
+    setModuleDetail(prev => (prev && sameId(prev.id, moduleId) && !prev.completed_at ? { ...prev, completed_at: completedAt } : prev));
   }, [selectedModule]);
 
   useEffect(() => {
@@ -973,7 +988,7 @@ const PortalTrainingV2 = () => {
       const { data } = await api.post(`/training/module/${moduleDetail.id}/complete`);
       const completedAt: string = data.completed_at;
       setModuleDetail(prev => (prev ? { ...prev, completed_at: completedAt } : prev));
-      setModules(prev => prev.map(m => (m.id === moduleDetail.id ? { ...m, completed_at: completedAt } : m)));
+      setModules(prev => prev.map(m => (sameId(m.id, moduleDetail.id) ? { ...m, completed_at: completedAt } : m)));
       toast({ title: 'Module marked complete' });
     } catch (err) {
       const resp = (err as { response?: { data?: { error?: string } } })?.response;
@@ -987,7 +1002,7 @@ const PortalTrainingV2 = () => {
   // already hold, so moving between modules costs no extra request beyond the
   // detail fetch that any selection triggers.
   const moduleIndex = useMemo(
-    () => (selectedModule ? modules.findIndex(m => m.id === selectedModule) : -1),
+    () => (selectedModule ? modules.findIndex(m => sameId(m.id, selectedModule)) : -1),
     [modules, selectedModule],
   );
   const prevModule = moduleIndex > 0 ? modules[moduleIndex - 1] : null;
@@ -1017,14 +1032,14 @@ const PortalTrainingV2 = () => {
   // identical to the module's, so a teacher mid-exam could not tell from the
   // trail which of the two she had open.
   const crumbCourse = routeExamCourseId
-    ? (courses.find(c => c.id === routeExamCourseId)?.title ?? null)
+    ? (courses.find(c => sameId(c.id, routeExamCourseId))?.title ?? null)
     : (moduleDetail?.course?.title ?? null);
   const crumbLeaf = routeExamCourseId
     ? 'Module exam'
     : (moduleDetail?.title ?? 'Session');
 
   const selectedCourseObj = useMemo(
-    () => courses.find(c => c.id === selectedCourse) ?? null,
+    () => courses.find(c => sameId(c.id, selectedCourse)) ?? null,
     [courses, selectedCourse],
   );
 
@@ -1378,7 +1393,7 @@ const PortalTrainingV2 = () => {
                   )}
 
                   {modules.map(m => {
-                    const active = m.id === selectedModule;
+                    const active = sameId(m.id, selectedModule);
                     const attempts = attemptsByModule[m.id];
                     const loading = m.id in attemptsByModule && attempts === null;
                     // The unit's own formative assessment is a separate row —
@@ -1695,7 +1710,7 @@ const PortalTrainingV2 = () => {
                 <div className="bg-muted/30 px-6 pb-6">
                   <ModuleQuizPanel
                     key={moduleDetail.id}
-                    moduleId={moduleDetail.id}
+                    moduleId={String(moduleDetail.id)}
                     hasAttempts={(attemptsByModule[moduleDetail.id] ?? []).length > 0}
                     hasQuestions={moduleDetail.has_questions}
                     onSubmitted={handleQuizSubmitted}
