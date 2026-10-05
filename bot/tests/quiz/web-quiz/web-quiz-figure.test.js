@@ -218,7 +218,9 @@ describe('E2 carries figures, not cards', () => {
     expect(unnamed.options.every((o) => o.img)).toBe(true);
   });
 
-  test('a match figure names its rows P, Q, R, so they cannot be mistaken for the A, B, C answer badges', async () => {
+  // Since the page decodes a WhatsApp match into its own tap-to-match (web-quiz-match-codes.test.js),
+  // the rows' letters are on the left tiles, not on a drawing; they are still P, Q, R.
+  test('a match question names its rows P, Q, R, so they cannot be mistaken for the A, B, C answer badges', async () => {
     const MATCH = { type: 'match', left: ['cat', 'dog', 'cow'], right: ['meow', 'woof', 'moo'] };
     seed([row(1, { language: 'en', display_order: [0, 1, 2], figure: MATCH }, {
       question_text: 'Match A, B and C to their sounds.',
@@ -226,11 +228,11 @@ describe('E2 carries figures, not cards', () => {
       explanation: 'A cat says meow, so A goes with 1.',
     })]);
     const q = (await WQ.getQuiz('AB12CD')).quiz.questions[0];
-    expect(q.figure.svg).toMatch(/>P</);
-    expect(q.figure.svg).not.toMatch(/>[ABC]</);
+    expect(q.type).toBe('match');
+    expect(q.left.map((l) => l.text)).toEqual(['P', 'Q', 'R']);
     expect(q.text).toBe('Match P, Q and R to their sounds.');
-    expect(q.options.map((o) => o.text)).toEqual(['P-2, Q-1, R-3', 'P-1, Q-2, R-3', 'P-3, Q-2, R-1']);
+    expect(q.options.map((o) => o.text)).toEqual(['1. meow', '2. woof', '3. moo']);
     expect(q.why).toBe('A cat says meow, so P goes with 1.');
-    expect(q.correct_slot).toBe('B');
+    expect(q.correct_slot).toBe('A,B,C');
   });
 });
