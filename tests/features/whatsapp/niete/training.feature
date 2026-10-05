@@ -1285,6 +1285,15 @@ Feature: NIETE (ICT) Teacher Training
     And each option keeps its own letter, so the right answer, the feedback and the pictures stay with it
     # ADDED 2026-10-05: web-quiz.service questionPayload -> inDisplayOrder (video-quiz-render displayOrder). @wip.
 
+  @api @quiz @web @wip @draft @P1 @T145 @no-mock-driver
+  Scenario: The quiz page shows the lesson video when the video bank's rows name another bucket of ours
+    Given a video-bank quiz whose lesson video row names a different bucket on our own R2 endpoint
+    And the same video key exists in this deployment's bucket
+    When the quiz is fetched for the page
+    Then the page gets a signed link to this deployment's copy of the video, so the lesson video shows before question 1
+    But when that key is missing from this deployment's bucket, or the row names a host that is not ours, there is no video and the quiz starts at question 1
+    # ADDED 2026-10-05: web-quiz-media presignVideo -> videoKey (path after the bucket segment, HEAD in our bucket). @wip.
+
   @e2e @quiz @wip @draft @config-gated @P1 @T100
   Scenario: With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat
     Given the web quiz is switched on and I am one of the teachers it is on for
