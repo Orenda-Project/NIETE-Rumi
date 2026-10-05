@@ -17,6 +17,8 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+// Dependency-free: the brand table both services read (the bot names the key, the edge dresses the page).
+const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
@@ -68,7 +70,21 @@ function originOf(req) {
   return `${req.protocol}://${req.get('host')}`;
 }
 
-function ogText(payload, view) {
+// The page's brand: only a KNOWN key from the bot is honoured, anything else is the default.
+function brandOf(key) {
+  return WebQuizBrand.publicBrand(Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, key) ? key : WebQuizBrand.DEFAULT_BRAND);
+}
+
+// The brand mark as inline SVG: on its tile (NIETE's app icon) or bare (a wide mark).
+function markHtml(brand, cls = '') {
+  return `<span class="wq-mark ${brand.mark.tile ? 'wq-tile' : 'wq-bare'}${cls ? ` ${cls}` : ''}" aria-hidden="true">${brand.mark.svg}</span>`;
+}
+
+function lockupHtml(brand, lang) {
+  return `<span class="wq-brand">${markHtml(brand)}<span class="wq-lock"><b>${esc(brand.label[lang])}</b><small>${esc(brand.sub[lang])}</small></span></span>`;
+}
+
+function ogText(payload, view, brand) {
   const q = (payload && payload.quiz) || {};
   const cls = (payload && payload.cls) || {};
   const ur = q.lang === 'ur';
@@ -82,7 +98,7 @@ function ogText(payload, view) {
   }
   return {
     title: ur ? `${q.topic || ''} · ${label} کا کوئز` : `${q.topic || ''} · ${label} quiz`,
-    desc: ur ? `${n} سوال · جگنو کے ساتھ پڑھیں` : `${n} questions · Jugnu reads it with you`,
+    desc: ur ? `${n} سوال · ${brand.mascot.ur} کے ساتھ پڑھیں` : `${n} questions · ${brand.mascot.en} reads it with you`,
   };
 }
 
@@ -91,34 +107,36 @@ function ogText(payload, view) {
 // The file name carries a version because /wq is served with a one-year immutable cache.
 const URDU_FONT = '/wq/fonts/wq-nastaliq-1.woff2';
 
-function head({ lang, dir, title, desc, origin, url, assetV }) {
+function head({ lang, dir, title, desc, origin, url, assetV, brand }) {
   return `<!doctype html>
 <html lang="${lang}" dir="${dir}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#47BA7D">
+<meta name="theme-color" content="${esc(brand.tokens.theme)}">
 <title>${esc(title)}</title>
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="NIETE">
+<meta property="og:site_name" content="${esc(brand.og.site)}">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(desc)}">
-<meta property="og:image" content="${esc(origin)}/wq/og.jpg">
+<meta property="og:image" content="${esc(origin)}${esc(brand.og.image)}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="${esc(url)}">
-<link rel="icon" href="/wq/jugnu_hello.webp">${lang === 'ur' ? `\n<link rel="preload" href="${URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
-<link rel="stylesheet" href="/wq/wq.css?v=${assetV}">`;
+<link rel="icon" href="${esc(WebQuizBrand.faviconHref(brand))}">${lang === 'ur' ? `\n<link rel="preload" href="${URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
+<link rel="stylesheet" href="/wq/wq.css?v=${assetV}">
+<style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>`;
 }
 
 function renderQuizPage({ payload, code, view, origin, assetV, url }) {
   const q = (payload && payload.quiz) || {};
   const lang = q.lang === 'ur' ? 'ur' : 'en';
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
-  const og = ogText(payload, view);
-  const boot = { ...payload, code, view };
-  return `${head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV })}
+  const brand = brandOf(payload && payload.brand);
+  const og = ogText(payload, view, brand);
+  const boot = { ...payload, code, view, brand };
+  return `${head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand })}
 </head>
 <body>
 <main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu_hello.webp" alt="" width="120" height="120"></div></main>
@@ -128,15 +146,16 @@ function renderQuizPage({ payload, code, view, origin, assetV, url }) {
 </html>`;
 }
 
-function renderClosedPage({ lang, kind, origin, assetV }) {
+function renderClosedPage({ lang, kind, origin, assetV, brandKey }) {
   const l = lang === 'ur' ? 'ur' : 'en';
+  const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME }));
   const c = CLOSED_COPY[l];
   const title = kind === 'off' ? c.off : c.title;
   const say = kind === 'off' ? c.offSay : c.say;
-  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title, desc: say, origin, url: origin, assetV })}
+  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title, desc: say, origin, url: origin, assetV, brand })}
 </head>
 <body>
-<main id="wq" class="wq-app"><section class="wq-screen wq-closed">
+<main id="wq" class="wq-app"><div class="wq-bar wq-topbar">${lockupHtml(brand, l)}</div><section class="wq-screen wq-closed">
 <img class="wq-jugnu" src="/wq/jugnu_sleep.webp" alt="" width="160" height="160">
 <h1>${esc(title)}</h1>
 <p class="wq-sub">${esc(say)}</p>
@@ -152,6 +171,8 @@ function createWebQuizRouter(opts = {}) {
   const router = express.Router();
   let assetV = null;
   const version = () => (assetV || (assetV = assetVersion()));
+  // The brand the bot last named: a closed or unreachable quiz still wears this deployment's brand.
+  let lastBrand = null;
 
   function clientIp(req) {
     return req.ip || (req.socket && req.socket.remoteAddress) || '';
@@ -245,17 +266,18 @@ function createWebQuizRouter(opts = {}) {
     pageHeaders(res);
     const origin = originOf(req);
     const code = String(req.params.code || '');
-    if (!CODE_RX.test(code)) return res.status(404).type('html').send(renderClosedPage({ lang: 'en', kind: 'closed', origin, assetV: version() }));
-    if (!botUrl || !apiKey) return res.status(503).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version() }));
+    if (!CODE_RX.test(code)) return res.status(404).type('html').send(renderClosedPage({ lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand }));
+    if (!botUrl || !apiKey) return res.status(503).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand }));
     const upper = code.toUpperCase();
     const p = typeof req.query.p === 'string' ? `?p=${encodeURIComponent(req.query.p.slice(0, 400))}` : '';
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
     } catch (_) {
-      return res.status(502).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version() }));
+      return res.status(502).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand }));
     }
     if (out.status === 200 && out.body && out.body.quiz) {
+      if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       const url = `${origin}/q/${upper}${view === 'class' ? '/class' : ''}`;
       return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url }));
     }
@@ -264,9 +286,9 @@ function createWebQuizRouter(opts = {}) {
     // endpoint is not deployed yet, which is "not open right now", not the child's fault.
     const contractAnswer = out.body && typeof out.body.error === 'string';
     if ((out.status === 404 || out.status === 410) && contractAnswer) {
-      return res.status(out.status).type('html').send(renderClosedPage({ lang, kind: 'closed', origin, assetV: version() }));
+      return res.status(out.status).type('html').send(renderClosedPage({ lang, kind: 'closed', origin, assetV: version(), brandKey: lastBrand }));
     }
-    return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(renderClosedPage({ lang, kind: 'off', origin, assetV: version() }));
+    return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(renderClosedPage({ lang, kind: 'off', origin, assetV: version(), brandKey: lastBrand }));
   }
 
   router.get('/q/:code', limiters.read, unknownCode, (req, res) => page(req, res, 'quiz'));

@@ -127,6 +127,15 @@ describe('E2 GET quiz', () => {
     await expect(WQ.getQuiz('bad code!')).rejects.toMatchObject({ status: 404 });
   });
 
+  test('the payload names the deployment brand: the code default, then the app_settings row', async () => {
+    require('../../../shared/config/web-quiz-brand')._resetCache();
+    expect((await WQ.getQuiz('AB12CD')).brand).toBe('niete');
+    fake.db.app_settings = [{ key: 'web_quiz_brand', value: 'rumi' }];
+    require('../../../shared/config/web-quiz-brand')._resetCache();
+    expect((await WQ.getQuiz('AB12CD')).brand).toBe('rumi');
+    require('../../../shared/config/web-quiz-brand')._resetCache();
+  });
+
   test('a valid preview token marks the payload as preview', async () => {
     const p = T.signPreview({ shareCodeId: SC, teacherUserId: TEACHER });
     expect((await WQ.getQuiz('AB12CD', { p })).preview).toBe(true);
