@@ -339,7 +339,8 @@ describe('presignAudio / presignVideo', () => {
   test('video-bank quiz -> signed video link with bytes; other quizzes -> null', async () => {
     mockS3Send.mockImplementation(async (cmd) => {
       if (cmd.constructor.name === 'HeadObjectCommand') {
-        if (cmd.input.Key.endsWith('.mp4')) return { ContentLength: 3500000, ContentType: 'video/mp4' };
+        // Only the original exists here (no lighter _web.mp4 copy beside it).
+        if (cmd.input.Key.endsWith('.mp4') && !cmd.input.Key.endsWith('_web.mp4')) return { ContentLength: 3500000, ContentType: 'video/mp4' };
         const e = new Error('nf'); e.name = 'NotFound'; throw e;
       }
       return {};
@@ -352,6 +353,25 @@ describe('presignAudio / presignVideo', () => {
     expect(v.bytes).toBe(3500000);
     expect(v.poster).toBeUndefined();
     expect(await presignVideo({ id: QUIZ_ID, video_id: null }, { db })).toBeNull();
+  });
+
+  test('a lighter web copy (<key>_web.mp4, same video, smaller audio) is served when it exists; the poster stays the original\'s', async () => {
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') {
+        if (cmd.input.Key === 'student-videos/g3/plants.mp4') return { ContentLength: 9700000, ContentType: 'video/mp4' };
+        if (cmd.input.Key === 'student-videos/g3/plants_web.mp4') return { ContentLength: 7400000, ContentType: 'video/mp4' };
+        if (cmd.input.Key === 'student-videos/g3/plants_poster.jpg') return { ContentLength: 6000, ContentType: 'image/jpeg' };
+        const e = new Error('nf'); e.name = 'NotFound'; throw e;
+      }
+      return {};
+    });
+    const db = fakeDb({ quiz: null, questions: [], videos: [
+      { id: 'v5', r2_url: 'https://acct.r2.example.com/test-bucket/student-videos/g3/plants.mp4', migration_status: 'done' },
+    ] });
+    const v = await presignVideo({ id: QUIZ_ID, video_id: 'v5' }, { db });
+    expect(v.url).toMatch(/student-videos\/g3\/plants_web\.mp4\?.*X-Amz-Signature=/);
+    expect(v.bytes).toBe(7400000);
+    expect(v.poster).toMatch(/plants_poster\.jpg\?/);
   });
 
   // A deployment whose bucket differs from the one the video bank's rows name
