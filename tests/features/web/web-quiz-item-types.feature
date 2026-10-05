@@ -52,3 +52,14 @@ Feature: Web quiz item types on the child page
     Given a "picture" or "listen" question
     When the question is read aloud
     Then the voice says the stem and then each picture's name
+
+  Scenario: Pictures on slow data
+    Given a question with picture options or a figure file
+    When its pictures have not arrived yet
+    Then each one shows a soft loading pulse instead of an empty tile
+    And while the child answers, the next question's pictures are fetched
+
+  Scenario: A picture option with no word
+    Given a picture option that has no stored name
+    Then its button is labelled with its shape's name for screen readers
+    And the voice does not say that name
