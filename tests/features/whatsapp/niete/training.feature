@@ -1264,6 +1264,76 @@ Feature: NIETE (ICT) Teacher Training
     # UPDATED 2026-10-02 (FX7, bd-w2daa.31): handleOfferButton settles the turn as soon as it has found a live
     # offer, before the decline write (an expired offer still says so, in text). Unit: fx7-reaction-only-taps.test.js.
 
+  # ─────────────────────── The web child quiz: the bot API (ADDED 2026-10-05) ───────────────────────
+  # Children play the class quiz on a web page; the portal forwards to the bot's /api/internal/wq/*
+  # (x-api-key). These scenarios are the API contract the page relies on; @no-mock-driver until the
+  # page is live on sandbox. Unit: bot/tests/quiz/web-quiz/*.test.js (fake Supabase, real scoring,
+  # real one-attempt and self-test rules, real report scheduler).
+
+  @api @quiz @web @wip @draft @P1 @T100 @no-mock-driver
+  Scenario: A returning child plays the class quiz on the web and the teacher's report is scheduled
+    Given a teacher's class code whose children have played before
+    When the page asks for the quiz by its code
+    Then it gets the questions with their options, the right option, the "why", and picture links
+    And it gets one name button per child of that teacher (first name and an animal), never a phone or a full name
+    When the child taps their name and the page starts a session
+    Then a share-link session is stored with no phone and a per-browser device reference
+    And the code's use count goes up by one
+    And the teacher's 12-hour class report is scheduled exactly as when a child joins in WhatsApp, once per code
+    And no WhatsApp message is sent to anyone
+    # web-quiz.service startSession -> increment_share_code_uses + video-quiz-report scheduleForShareCode. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T101 @no-mock-driver
+  Scenario: A new child types their name, answers offline, and finishes with a score card
+    Given a class code
+    When a new child types a first name that matches a child already in the class
+    Then the page is asked "is this you?" with that child's name button
+    When the child says they are a different child
+    Then a new student is stored with no phone, filed under the teacher
+    When the page sends the answers in one batch, and then sends the same batch again
+    Then each answer is stored once and the second batch is reported as already recorded
+    When the page finishes the quiz
+    Then the score is "N out of M" from the stored answers, with one star per right answer
+    And the review lists each question, the child's pick, the right option and why
+    And the child gets a challenge code to send a friend, the same code every time they finish
+    But a child who answered fewer than half the questions is told the quiz is not finished
+    # web-quiz.service recordAnswers (unique session+question) and finishSession (today's floors). @wip.
+
+  @api @quiz @web @wip @draft @P1 @T102 @no-mock-driver
+  Scenario: The first finished attempt counts; a replay on another phone is practice
+    Given a child who has finished the class quiz once
+    When the same child starts it again on another phone
+    Then the page is told the run will not count because it was finished elsewhere
+    And on the same phone the page is told it was already finished
+    And the class league table and the teacher's report keep the first finished score for a web quiz
+    # one-attempt-per-child rule 'first_completed', chosen by quizzes.meta.web_arm = 'web'. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T103 @no-mock-driver
+  Scenario: The class league table
+    Given several children have finished, two with the same score, and the teacher has tried their own link
+    When the page asks for the league table with the child's session
+    Then children are ranked by score, tied children share a place, first names only
+    And only the top 7 are listed, then how many more finished
+    And the class average is shown, and the child's own place and score
+    And the teacher's own run and friends who came through a challenge code are not in the table
+    # web-quiz.service board -> video-quiz-report loadClassRows (self-tests and invited friends out). @wip.
+
+  @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver
+  Scenario: The teacher's preview never counts as a child
+    Given the teacher's signed preview link
+    When the teacher plays it
+    Then the run is stored as the teacher's own test run and is never in the roster, the average or the league table
+    And a preview link signed for another teacher is refused
+    # p token -> quiz_sessions.user_id = teacher (the self-test marker). @wip.
+
+  @api @quiz @web @wip @draft @P2 @T105 @no-mock-driver
+  Scenario: The web quiz API is closed without its key or secret, and an old code is friendly
+    Given the bot has no internal key
+    Then every web quiz call is refused
+    And a call without the right key is refused
+    And an expired or switched-off code answers "expired" with the quiz language, so the page can say "ask your teacher"
+    # requireInternalKey; web-quiz-token fails closed with no secret (503 web_quiz_off). @wip.
+
   @e2e @quiz @wip @draft @config-gated @P1 @T100
   Scenario: With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat
     Given the web quiz is switched on and I am one of the teachers it is on for
@@ -1278,4 +1348,3 @@ Feature: NIETE (ICT) Teacher Training
     # base = WEB_QUIZ_BASE_URL else PORTAL_URL. previewLink() adds tqWebPreview to the caption only when the
     # token module signs one. The code is the same in both channels, so QUIZ-<code> still works in WhatsApp.
     # Unit: tests/quiz/web-quiz-link.test.js. @wip.
-

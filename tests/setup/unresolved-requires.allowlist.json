@@ -2,7 +2,7 @@
   {
     "from": "bot/shared/services/pic-to-lp/lp-handoff.service.js",
     "spec": "../lesson-plan-prompts.service",
-    "reason": "OSS-stripped Gamma 'Detailed' path. The require is INSIDE a try/catch inside generateAndDeliver() — load + pickBackend() both work without it. The file's own JSDoc documents this as an explicit OSS-strip."
+    "reason": "OSS-stripped Gamma 'Detailed' path. The require is INSIDE a try/catch inside generateAndDeliver() \u2014 load + pickBackend() both work without it. The file's own JSDoc documents this as an explicit OSS-strip."
   },
   {
     "from": "bot/workers/homework-bundle.worker.js",
@@ -15,8 +15,8 @@
     "reason": "Same OSS-stripped service as homework-bundle; lazy-required inside the post-delivery branch."
   },
   {
-    "from": "bot/shared/services/quiz/web-quiz-link.js",
-    "spec": "./web-quiz-token",
-    "reason": "The web quiz token module ships in a parallel change. The require is INSIDE a try/catch in previewLink(), which returns null without it, so the teacher's caption simply has no preview line. Remove this entry once that module is merged."
+    "from": "bot/shared/services/quiz/web-quiz.service.js",
+    "spec": "./web-quiz-media",
+    "reason": "The web quiz's audio/video presign helpers ship in a sibling change. The require is inside a try/catch (mediaHelpers()); without the module E2 serves no audio and no video, never an error."
   }
 ]
