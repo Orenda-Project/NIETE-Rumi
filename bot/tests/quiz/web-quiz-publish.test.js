@@ -186,6 +186,19 @@ describe('publishQuizAudio', () => {
     expect(rows.quiz.meta.share_code).toBe('AB12CD');
   });
 
+  test('a picture option (emoji, no letters or digits) gets no clip; the page shows the picture', async () => {
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      return {};
+    });
+    const rows = quizRows();
+    rows.questions = [{ ...rows.questions[0], option_a: '\u{1F338}', option_b: '\u{1F343}', option_c: '12', option_d: null }];
+    const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(out.synthesized).toBe(3); // q + "12" + why
+    expect(axios.post.mock.calls.map((c) => c[1].text)).not.toContain('\u{1F338}');
+    expect(rows.quiz.meta.web.audio[Q1].opts).toEqual([null, null, `web-quiz/audio/${QUIZ_ID}/${Q1}/c.ogg`, null]);
+  });
+
   test('an unknown quiz is an answer, not a throw', async () => {
     const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb({ quiz: null, questions: [] }) });
     expect(out).toEqual(expect.objectContaining({ ok: false, reason: 'quiz_not_found' }));
