@@ -2174,6 +2174,11 @@ async function processQuiz(quizId, payload, flight) {
     }
   }
 
+  // app_settings quiz_author_gates_v2, read ONCE per quiz (fail-closed) — here,
+  // before the digest, so a lesson plan's named characters keep their pronouns
+  // in the digest's examples too (lp-quiz-digest carry). Off, nothing changes.
+  const authorGates = await api.authorGatesOn();
+
   // ── digest (already there when the offer path claimed the row; /quiz path lands here without one)
   if (!meta.digest) {
     // The lp_v8 quiz's language is settled from the catalog subject BEFORE
@@ -2200,6 +2205,7 @@ async function processQuiz(quizId, payload, flight) {
           // A 6-12 lesson is named by its own heading (the K-5 catalog cannot know it).
           lessonName: quizSource === LP612 ? (served.title || quiz.topic || null) : null,
           quizSource,
+          ...(authorGates ? { authorGates: true } : {}),
         })
         : await Digest.run({ session, user });
     } catch (err) {
@@ -2260,10 +2266,9 @@ async function processQuiz(quizId, payload, flight) {
     let authorReplies = 0;
     // WHAT THE LESSON DREW — an lp_v8 lesson's own manipulatives (the slide
     // script's counters, bundles and tiles), so a picture draws what the class saw.
-    // app_settings quiz_author_gates_v2, read ONCE per quiz (fail-closed). On, the
-    // author and every targeted rewrite return each question's source_quote, and
+    // quiz_author_gates_v2 (read above, before the digest). On, the author and
+    // every targeted rewrite return each question's source_quote, and
     // runSourceFidelity holds the set to its source below. Off, nothing changes.
-    const authorGates = await api.authorGatesOn();
     // The same one read drives the code gates in validate(), the blind solve and the web items.
     GatesV2.setEnabled(authorGates);
     if (authorGates) {
