@@ -906,7 +906,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       whoNone: 'No child has finished yet.', offList: 'Not on your class list', roll: function (n) { return 'Roll ' + n; },
       setRoll: 'Set roll no.', noList: 'This quiz is not linked to a class list, so names stay as the children typed them.',
       fixT: function (n) { return 'Roll number for ' + n + '?'; }, fixSay: 'Type the roll number from your class list.',
-      isKid: function (n) { return 'Is this ' + n + '?'; }, yes: 'Yes', fixed: 'Fixed.'
+      isKid: function (n) { return 'Is this ' + n + '?'; }, yes: 'Yes', fixed: 'Fixed.',
+      practice: function (c, t) { return 'Practice round · your first score ' + c + '/' + t + ' is the one that counts'; }
     },
     ur: {
       rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
@@ -917,7 +918,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       whoNone: 'ابھی کسی بچے نے کوئز مکمل نہیں کیا۔', offList: 'کلاس لسٹ میں نہیں', roll: function (n) { return 'رول نمبر ' + n; },
       setRoll: 'رول نمبر دیں', noList: 'یہ کوئز کسی کلاس لسٹ سے جڑا نہیں، اس لیے نام ویسے ہی ہیں جیسے بچوں نے لکھے۔',
       fixT: function (n) { return n + ' کا رول نمبر؟'; }, fixSay: 'کلاس لسٹ سے رول نمبر لکھیں۔',
-      isKid: function (n) { return 'کیا یہ ' + n + ' ہے؟'; }, yes: 'جی ہاں', fixed: 'درست ہو گیا۔'
+      isKid: function (n) { return 'کیا یہ ' + n + ' ہے؟'; }, yes: 'جی ہاں', fixed: 'درست ہو گیا۔',
+      practice: function (c, t) { return 'مشق کا راؤنڈ · پہلی بار کا اسکور ' + c + '/' + t + ' شمار ہوتا ہے'; }
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
   var UDIG = '۰۱۲۳۴۵۶۷۸۹';
@@ -1423,6 +1425,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var res = S.result || {};
     var c = res.card || {};
     var total = c.total || N;
+    // A practice round: say so, and share the kept first-try score the class league shows.
+    var kept = c.practice && c.kept ? c.kept : null;
+    var shareC = kept ? kept.correct : c.correct, shareT = kept ? (kept.total || total) : total;
     var h = bar() +
       '<div class="wq-scorecard"><header><i></i>' + dotJoin('NIETE', CLS.label) + '</header><div class="wq-in">' +
       '<img src="' + IMG + 'celebrate.webp" alt="">' +
@@ -1430,6 +1435,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub">' + esc(Q.topic) + '</p>' +
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
+      (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '') +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
@@ -1442,7 +1448,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // count as that child's friend and drop out of the teacher's class report.
     var classUrl = link('/q/' + CODE);
     // A zero is shared as "played", never as a score for the group to beat.
-    var line = c.correct ? T.shareLine(c.first, c.correct, total, Q.topic) : T.sharePlayed(c.first, Q.topic);
+    // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
+    var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
     on('#wq-share', function () { share(line, classUrl, 'card'); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge'); });
     on('#wq-class', board);

@@ -512,7 +512,7 @@ function cleanName(raw) {
 /** Earlier completed attempts by this child on this class code (the first one counts). */
 async function priorFinish(shareCodeId, studentId, excludeId = null) {
   if (!studentId) return null;
-  const { data } = await supabase.from('quiz_sessions').select('id, device_ref, status, completed_at, created_at, student_id')
+  const { data } = await supabase.from('quiz_sessions').select('id, device_ref, status, completed_at, created_at, student_id, correct_answers, total_questions_answered')
     .eq('share_code_id', shareCodeId).eq('student_id', studentId).eq('status', 'completed');
   const rows = (data || []).filter((r) => r.id !== excludeId);
   const [first] = oneAttemptPerChild(rows, { rule: 'first_completed' });
@@ -795,7 +795,11 @@ async function finishSession(body = {}) {
       qid: q.id, picked: byQ.get(q.id).selected_option, correct_slot: WebItems.keyFor(q),
       ok: Boolean(byQ.get(q.id).is_correct), why: q.explanation || null,
     })),
-    card: { first, animal: T.animalFor(s.student_id || s.id), correct, total, stars: correct },
+    card: {
+      first, animal: T.animalFor(s.student_id || s.id), correct, total, stars: correct,
+      // A practice round: the card says so and carries the kept first-try score the league shows.
+      ...(earlier && !s.user_id ? { practice: true, kept: { correct: earlier.correct_answers || 0, total: earlier.total_questions_answered || 0 } } : {}),
+    },
     challenge_code: await challengeCodeFor(s),
   };
 }

@@ -159,6 +159,17 @@ describe('E3 by roll number', () => {
     expect(b).toMatchObject({ counted: false, reason: 'finished_elsewhere' });
   });
 
+  test("a practice round's card says practice and carries the kept first-try score (so a shared card never contradicts the league)", async () => {
+    const a = await WQ.startSession({ code: 'AB12CD', chip: chipOf(kid(3)) });
+    const sa = fake.db.quiz_sessions.find((s) => s.id === T.verify(a.st, 's').sid);
+    Object.assign(sa, { status: 'completed', completed_at: ago(0.5), correct_answers: 2, total_questions_answered: 2 });
+    const b = await WQ.startSession({ code: 'AB12CD', chip: chipOf(kid(3)) });
+    await WQ.recordAnswers({ st: b.st, a: [{ qid: '99999991-9999-4999-8999-999999999999', slot: 'A' }, { qid: '99999992-9999-4999-8999-999999999999', slot: 'A' }] });
+    const fin = await WQ.finishSession({ st: b.st });
+    expect(fin.counted).toBe(false);
+    expect(fin.card).toMatchObject({ first: 'Danish', correct: 0, total: 2, practice: true, kept: { correct: 2, total: 2 } });
+  });
+
   test('two classes: the quiz grade picks the list; one card, no class label', async () => {
     seed({ lists: 'two' });
     await expect(WQ.startSession({ code: 'AB12CD', roll: 1 }))
