@@ -232,6 +232,12 @@ function picFits(text, pic) {
   return true;
 }
 
+/** An option that IS a letter or a mark (خ, بّ, b): shown as a big tile in the page's own font, never as a drawing. */
+function isGlyph(text) {
+  const t = str(text);
+  return t.length > 0 && [...t].length <= 3 && /^[\p{L}\p{M}]+$/u.test(t);
+}
+
 function validPic(name) {
   const n = str(name).toLowerCase();
   return n && pictograms().has(n) ? { kind: 'pictogram', name: n } : null;
@@ -280,7 +286,12 @@ function normaliseItem(raw, row, index, ctx = {}) {
   if (SAME_TYPES.has(type)) {
     const pics = Array.isArray(r.pics) ? r.pics.map(validPic) : [];
     const allPics = base.length > 0 && base.every((o, i) => pics[i] && picFits(o.text, pics[i]));
-    if ((type === 'picture' || type === 'listen') && !allPics) type = 'single';
+    // Options that ARE letters or marks: glyph tiles, heard by name (a pre-reader's letter question).
+    const glyphs = base.length > 0 && base.every((o) => isGlyph(o.text));
+    if (glyphs) {
+      base.forEach((o, i) => { pics[i] = { kind: 'glyph', text: o.text }; });
+      type = band === '1-2' ? 'listen' : 'picture';
+    } else if ((type === 'picture' || type === 'listen') && !allPics) type = 'single';
     if (type === 'listen' && band !== '1-2') type = 'picture';
     const readOpts = Array.isArray(r.read && r.read.opts) ? r.read.opts : [];
     const fbDistinct = distinctFeedback(base.map((_, i) => str(rowWrong[String(i)])));

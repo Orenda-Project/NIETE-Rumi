@@ -86,9 +86,21 @@ describe('normaliseItem: a web item is checked in code, and falls back to the ro
     const letters = row({ question_text: 'Which letter does the fruit start with?', option_a: 'ب', option_b: 'الف', option_c: 'ت', correct_option: 'B' });
     const ur = { language: 'ur', source: { kind: 'transcript', text: '[01:00] الف سے انار، ب سے بکری، ت سے تختی' }, gradeBand: '1-2' };
     const out = W.normaliseItem({ type: 'picture', pics: ['ant', 'pomegranate', 'tree'], source_quote: 'الف سے انار، ب سے بکری' }, letters, 1, ur);
-    expect(out.item.type).toBe('single');
+    // never a pomegranate on «الف»: letters are shown as themselves (glyph tiles)
+    expect(out.item.options.map((o) => o.pic && o.pic.kind)).toEqual(['glyph', 'glyph', 'glyph']);
     const mismatch = W.normaliseItem({ type: 'picture', pics: ['rock', 'bottle', 'balloon'], source_quote: 'Water is a liquid. It flows and takes the shape of the glass' }, row(), 1, ctx);
     expect(mismatch.item.type).toBe('single');
+  });
+
+  test('options that ARE letters or marks become big glyph tiles (a picture item with no drawing), voiced by their names', () => {
+    const letters = row({ question_text: 'خرگوش کس حرف سے شروع ہوتا ہے؟', option_a: 'خ', option_b: 'ح', option_c: 'بّ', correct_option: 'A' });
+    const ur = { language: 'ur', source: { kind: 'transcript', text: '[02:10] خ، خ سے خرگوش۔ ح سے حلوہ' }, gradeBand: '1-2' };
+    const it = W.normaliseItem({ type: 'single', read: { stem: 'خرگوش کس حرف سے شروع ہوتا ہے؟', opts: ['خے', 'حے', 'بے پر تشدید'] }, source_quote: 'خ، خ سے خرگوش' }, letters, 1, ur).item;
+    expect(it.type).toBe('listen');
+    expect(it.options.map((o) => o.pic)).toEqual([{ kind: 'glyph', text: 'خ' }, { kind: 'glyph', text: 'ح' }, { kind: 'glyph', text: 'بّ' }]);
+    expect(it.options[2].name).toBe('بے پر تشدید');
+    const words = W.normaliseItem({ type: 'single', source_quote: 'Water is a liquid. It flows and takes the shape of the glass' }, row(), 1, { ...ur, language: 'en', source: { kind: 'transcript', text: TRANSCRIPT } }).item;
+    expect(words.options.every((o) => !o.pic)).toBe(true);
   });
 
   test('a pictogram name the roster does not have is never drawn', () => {
