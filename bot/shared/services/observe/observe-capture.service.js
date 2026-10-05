@@ -53,7 +53,28 @@ async function resolveBoundTeacherUserId(boundTeacher) {
   }
 }
 
-async function startFromAudio(user, from, audioId, sessionId, audioDurationSeconds = null) {
+/**
+ * The teacher an /observe2 form was started for, in the shape a visit-picker bind leaves in the observe
+ * state, for a capture that arrives after that state is gone (it lives 2 h and every capture clears it).
+ */
+function boundTeacherFromForm(form) {
+  if (!form || !form.teacher_user_id) return null;
+  const vc = form.visit_context || {};
+  return {
+    user_id: form.teacher_user_id,
+    teacher_ext_id: vc.teacher_ext_id || null,
+    teacher_name: vc.teacher_name || null,
+    school_ext_id: vc.school_ext_id || '',
+  };
+}
+
+/**
+ * @param {object} [opts]
+ * @param {object} [opts.observe2Form] the /observe2 form the audio router found waiting for this
+ *   recording (observation_field_forms row); it is linked, and its teacher owns the observation when
+ *   the observe state no longer says who it is.
+ */
+async function startFromAudio(user, from, audioId, sessionId, audioDurationSeconds = null, opts = {}) {
   const lang = observeLang(user);
   const S = observeStrings(lang);
 
@@ -61,11 +82,16 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   // the teacher owns the row; the observer split below is unchanged either way.
   let ownerUserId = user.id;
   let boundTeacher = null;
+  let st = null;
   try {
-    const st = await ObserveState.getState(user.id);
-    if (st && st.boundTeacher) {
-      boundTeacher = st.boundTeacher;
-      const teacherId = await resolveBoundTeacherUserId(st.boundTeacher);
+    st = await ObserveState.getState(user.id);
+  } catch (_) { /* unbound capture — today's behavior */ }
+  const observe2Form = (opts && opts.observe2Form) || null;
+  try {
+    const picked = (st && st.boundTeacher) || boundTeacherFromForm(observe2Form);
+    if (picked) {
+      boundTeacher = picked;
+      const teacherId = await resolveBoundTeacherUserId(picked);
       if (teacherId) ownerUserId = teacherId;
     }
   } catch (_) { /* unbound capture — today's behavior */ }
@@ -95,6 +121,23 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
     });
     await WhatsAppService.sendMessage(from, S.capture_failed || S.no_account);
     return null;
+  }
+
+  // /observe2: the recording joins the coach's open field form BEFORE transcription is queued, so
+  // the step after transcription finds the link. Never lets a failure cost the capture.
+  let observe2 = null;
+  try {
+    observe2 = await require('./observe2/capture-link').linkRecording(user, session, boundTeacher, {
+      form: observe2Form,
+      formId: st && st.observe2FormId,
+      // The visit planner's Start says which flow armed the recording ('observe' | 'observe2'). A
+      // classic /observe Start never joins an /observe2 form.
+      origin: st && st.state === 'awaiting_audio' ? st.origin : undefined,
+    });
+  } catch (err) {
+    logToFile('❌ observe2: linking the recording failed (capture goes on as /observe)', {
+      userId: user.id, sessionId: session.id, error: err.message,
+    }, 'error');
   }
 
   const CoachingJobQueueService = require('../coaching/coaching-job-queue.service');
@@ -128,7 +171,7 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   // Do not "optimise" it by moving the queue call without deciding that every
   // observation should wait on a human tap first.
   await WhatsAppService.sendInteractiveButtons(from, {
-    body: `${S.audio_received}\n\n${S.capture_next_hint || ''}`.trim(),
+    body: observe2 ? observe2.ack : `${S.audio_received}\n\n${S.capture_next_hint || ''}`.trim(),
     buttons: [
       { id: `observe_ok_${session.id}`, title: S.btn_ok_wait.slice(0, 20) },
       { id: `observe_cancel_${session.id}`, title: S.btn_cancel_obs.slice(0, 20) },
@@ -141,7 +184,9 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   // and the ack is sent, so analysis proceeds regardless and ignoring the
   // question leaves today's behaviour byte-for-byte. Never let it throw: a
   // missing name must never cost a coach her recording.
-  if (!boundTeacher) {
+  // /observe2 asks too when its form names no teacher (the bind at Start failed): without it the
+  // observation has no teacher to send the report to (Riffat, 4 Oct).
+  if (!boundTeacher && !(observe2 && observe2.form && observe2.form.teacher_user_id)) {
     try {
       const ObserveWho = require('./observe-who.service');
       await ObserveWho.maybeAskObservedTeacher(user, from, session.id);
@@ -156,4 +201,4 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   return session;
 }
 
-module.exports = { startFromAudio, resolveBoundTeacherUserId };
+module.exports = { startFromAudio, resolveBoundTeacherUserId, boundTeacherFromForm };

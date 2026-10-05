@@ -55,7 +55,8 @@ function walk(dir, acc = []) {
 // Every *_FLOW_ID the bot reads via process.env.
 function flowIdEnvVarsReadByBot() {
   const found = new Set();
-  const re = /process\.env\.([A-Z_]*FLOW_ID[A-Z_]*)/g;
+  // Digits too: an env name like OBSERVE2_FIELD_FORM_FLOW_ID is invisible to [A-Z_]*.
+  const re = /process\.env\.([A-Z0-9_]*FLOW_ID[A-Z0-9_]*)/g;
   for (const f of walk(BOT_DIR)) {
     const src = fs.readFileSync(f, 'utf8');
     let m;

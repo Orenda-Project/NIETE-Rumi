@@ -716,8 +716,8 @@ function buildVisitCapturePrompt(lang, opts = {}) {
 // Sent in chat after "I'm done for now" on CONFIRM_SCHEDULED: recap the saved
 // schedule in the coach's preferred/locked language + the /observe re-entry.
 const SCHEDULE_DONE_TEMPLATES = {
-  en: '✅ Observation scheduled for *{name}* on {date} at {slot}. Tap /observe anytime to see your schedule.',
-  ur: '✅ *{name}* کا مشاہدہ {date}، {slot} کے لیے شیڈول ہو گیا۔ اپنے تمام شیڈول دیکھنے کے لیے کبھی بھی /observe لکھیں۔',
+  en: '✅ Observation scheduled for *{name}* on {date} at {slot}. Tap {cmd} anytime to see your schedule.',
+  ur: '✅ *{name}* کا مشاہدہ {date}، {slot} کے لیے شیڈول ہو گیا۔ اپنے تمام شیڈول دیکھنے کے لیے کبھی بھی {cmd} لکھیں۔',
 };
 
 // bd-88krt — acks for cancelling and rescheduling a visit. Same per-language
@@ -726,15 +726,15 @@ const SCHEDULE_DONE_TEMPLATES = {
 // of these may mention recording — the operator cancelled a visit and was still
 // told to "record and send me the audio", which is the bug they close.
 const VISIT_CANCELLED_TEMPLATES = {
-  en: '🗑 Cancelled the visit for *{name}*. Nothing to record. Tap /observe to see what is left on your schedule.',
-  ur: '🗑 *{name}* کا مشاہدہ منسوخ کر دیا۔ اب کچھ ریکارڈ نہیں کرنا۔ باقی شیڈول دیکھنے کے لیے /observe لکھیں۔',
-  sw: '🗑 Umeghairi ziara ya *{name}*. Hakuna kurekodi. Bonyeza /observe kuona ratiba yako.',
+  en: '🗑 Cancelled the visit for *{name}*. Nothing to record. Tap {cmd} to see what is left on your schedule.',
+  ur: '🗑 *{name}* کا مشاہدہ منسوخ کر دیا۔ اب کچھ ریکارڈ نہیں کرنا۔ باقی شیڈول دیکھنے کے لیے {cmd} لکھیں۔',
+  sw: '🗑 Umeghairi ziara ya *{name}*. Hakuna kurekodi. Bonyeza {cmd} kuona ratiba yako.',
 };
 
 const VISIT_RESCHEDULED_TEMPLATES = {
-  en: '📅 Moved *{name}* to {date}{slot}. Tap /observe anytime to see your schedule.',
-  ur: '📅 *{name}* کا مشاہدہ {date}{slot} پر منتقل کر دیا۔ شیڈول دیکھنے کے لیے /observe لکھیں۔',
-  sw: '📅 Nimehamisha *{name}* hadi {date}{slot}. Bonyeza /observe kuona ratiba yako.',
+  en: '📅 Moved *{name}* to {date}{slot}. Tap {cmd} anytime to see your schedule.',
+  ur: '📅 *{name}* کا مشاہدہ {date}{slot} پر منتقل کر دیا۔ شیڈول دیکھنے کے لیے {cmd} لکھیں۔',
+  sw: '📅 Nimehamisha *{name}* hadi {date}{slot}. Bonyeza {cmd} kuona ratiba yako.',
 };
 
 const _ACK_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -752,6 +752,7 @@ function _ackDate(ymd) {
 function buildScheduleDoneAck(lang, opts = {}) {
   const l = clampLanguage(lang);
   return SCHEDULE_DONE_TEMPLATES[l]
+    .replace('{cmd}', opts.command || '/observe')
     .replace('{name}', opts.teacherName || '')
     .replace('{date}', _ackDate(opts.date))
     .replace('{slot}', opts.slot || '');
@@ -762,7 +763,8 @@ function buildScheduleDoneAck(lang, opts = {}) {
 function buildVisitCancelledAck(lang, opts = {}) {
   const l = clampLanguage(lang);
   const t = VISIT_CANCELLED_TEMPLATES[l] || VISIT_CANCELLED_TEMPLATES.en;
-  return t.replace('{name}', String((opts && opts.teacherName) || '').trim() || 'this teacher');
+  return t.replace('{cmd}', (opts && opts.command) || '/observe')
+    .replace('{name}', String((opts && opts.teacherName) || '').trim() || 'this teacher');
 }
 
 /** bd-88krt — "moved to …", in the coach's own language. Slot is optional. */
@@ -771,6 +773,7 @@ function buildVisitRescheduledAck(lang, opts = {}) {
   const t = VISIT_RESCHEDULED_TEMPLATES[l] || VISIT_RESCHEDULED_TEMPLATES.en;
   const slot = (opts && opts.slot) ? ` · ${opts.slot}` : '';
   return t
+    .replace('{cmd}', (opts && opts.command) || '/observe')
     .replace('{name}', String((opts && opts.teacherName) || '').trim() || 'this teacher')
     .replace('{date}', _ackDate((opts && opts.date) || ''))
     .replace('{slot}', slot);

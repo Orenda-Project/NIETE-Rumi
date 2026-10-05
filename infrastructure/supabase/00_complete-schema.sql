@@ -6371,6 +6371,100 @@ CREATE INDEX IF NOT EXISTS idx_lp612_deliveries_user_recent
 COMMENT ON TABLE niete_lp612_deliveries IS
   'One row per Grades 6-12 lesson a teacher received (append-only; written by lp612-serving.deliverRender after a confirmed send). Read by the lp612 /quiz lesson provider. Ids and the version triple only — no phone, name or message text.';
 
+-- ─── observation_field_forms (migration V1.5.7) — one row per /observe2 coach visit ──
+-- Mirrors infrastructure/supabase/migrations/V1.5.7__observation_field_forms.sql: the coach's live
+-- field form (sealed before anything from Rumi is shown), Rumi's moments and levels, and the coach's
+-- evidence review. Written by the /observe2 endpoints and the capture link.
+CREATE TABLE IF NOT EXISTS observation_field_forms (
+  id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  observer_user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- SET NULL, not CASCADE: the coach's record outlives the teacher's account and the session row.
+  teacher_user_id      uuid REFERENCES users(id) ON DELETE SET NULL,
+  coaching_session_id  uuid REFERENCES coaching_sessions(id) ON DELETE SET NULL,
+  rubric_version       text NOT NULL,
+  period_minutes       smallint CHECK (period_minutes BETWEEN 20 AND 90),
+  visit_context        jsonb NOT NULL DEFAULT '{}'::jsonb,
+  answers              jsonb NOT NULL DEFAULT '{}'::jsonb,
+  photos               jsonb NOT NULL DEFAULT '[]'::jsonb,
+  opened_at            timestamptz,
+  part1_done_at        timestamptz,
+  part2_done_at        timestamptz,
+  sealed_at            timestamptz,
+  rumi_moments         jsonb,
+  rumi_levels          jsonb,
+  moments_ready_at     timestamptz,
+  evidence_review      jsonb NOT NULL DEFAULT '{}'::jsonb,
+  final_levels         jsonb,
+  checked_at           timestamptz,
+  created_at           timestamptz NOT NULL DEFAULT now(),
+  updated_at           timestamptz NOT NULL DEFAULT now()
+);
+
+-- The coach's open form (the capture link and the resume), newest first.
+CREATE INDEX IF NOT EXISTS idx_observation_field_forms_observer_recent
+  ON observation_field_forms (observer_user_id, created_at DESC);
+-- One form per session; the lookup from the analysis branch.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_observation_field_forms_session
+  ON observation_field_forms (coaching_session_id) WHERE coaching_session_id IS NOT NULL;
+-- The teacher's foreign key.
+CREATE INDEX IF NOT EXISTS idx_observation_field_forms_teacher
+  ON observation_field_forms (teacher_user_id) WHERE teacher_user_id IS NOT NULL;
+
+DROP TRIGGER IF EXISTS update_observation_field_forms_updated_at ON observation_field_forms;
+CREATE TRIGGER update_observation_field_forms_updated_at
+  BEFORE UPDATE ON observation_field_forms
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- What the coach sealed cannot change afterwards, whoever writes. Photos are left out on purpose:
+-- their storage keys arrive after the seal, when the uploaded pictures have been copied across.
+CREATE OR REPLACE FUNCTION observation_field_forms_keep_seal() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.sealed_at IS NOT NULL AND (
+       NEW.sealed_at IS DISTINCT FROM OLD.sealed_at
+    OR NEW.answers IS DISTINCT FROM OLD.answers
+    OR NEW.period_minutes IS DISTINCT FROM OLD.period_minutes
+    OR NEW.part1_done_at IS DISTINCT FROM OLD.part1_done_at
+    OR NEW.part2_done_at IS DISTINCT FROM OLD.part2_done_at
+    OR NEW.observer_user_id IS DISTINCT FROM OLD.observer_user_id
+  ) THEN
+    RAISE EXCEPTION 'observation_field_forms %: a sealed record cannot change', OLD.id
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS observation_field_forms_keep_seal ON observation_field_forms;
+CREATE TRIGGER observation_field_forms_keep_seal
+  BEFORE UPDATE ON observation_field_forms
+  FOR EACH ROW
+  EXECUTE FUNCTION observation_field_forms_keep_seal();
+
+COMMENT ON TABLE observation_field_forms IS
+  'Internal. One row per /observe2 coach visit: the coach''s live field form (sealed before anything from Rumi is shown), Rumi''s moments and levels (never shown to the coach), and the coach''s evidence review and final levels. Owner: Digital Coach team.';
+COMMENT ON COLUMN observation_field_forms.id IS 'Internal. Primary key; the record id in both /observe2 flow tokens.';
+COMMENT ON COLUMN observation_field_forms.observer_user_id IS 'Internal. The coach (users.id).';
+COMMENT ON COLUMN observation_field_forms.teacher_user_id IS 'Internal. The observed teacher (users.id), when known at Start.';
+COMMENT ON COLUMN observation_field_forms.coaching_session_id IS 'Internal. The coaching_sessions row of the lesson recording, linked when the recording arrives.';
+COMMENT ON COLUMN observation_field_forms.rubric_version IS 'Internal. The FICO ICT rubric version the form and the rule were built from.';
+COMMENT ON COLUMN observation_field_forms.period_minutes IS 'Internal. The period length the coach chose; its halves are Part 1 and Part 2.';
+COMMENT ON COLUMN observation_field_forms.visit_context IS 'Internal. Ids from the visit planner (teacher_ext_id, school_ext_id); no names.';
+COMMENT ON COLUMN observation_field_forms.answers IS 'PII. The coach''s answers per part and at the seal; the free-text notes may name a child.';
+COMMENT ON COLUMN observation_field_forms.photos IS 'Confidential. Storage keys of the photos taken with the form (boards, notebooks; never faces).';
+COMMENT ON COLUMN observation_field_forms.opened_at IS 'Internal. When the coach first opened the form (server time).';
+COMMENT ON COLUMN observation_field_forms.part1_done_at IS 'Internal. When Part 1 was saved: the halfway mark (server time).';
+COMMENT ON COLUMN observation_field_forms.part2_done_at IS 'Internal. When Part 2 was saved (server time).';
+COMMENT ON COLUMN observation_field_forms.sealed_at IS 'Internal. When the coach sealed the record (server time); set once, never changed.';
+COMMENT ON COLUMN observation_field_forms.rumi_moments IS 'PII. The moments Rumi found in the recording, with the minute and the words; may name a child.';
+COMMENT ON COLUMN observation_field_forms.rumi_levels IS 'Internal. Rumi''s own levels on the 17, from all its moments; never shown to the coach.';
+COMMENT ON COLUMN observation_field_forms.moments_ready_at IS 'Internal. When Rumi''s moments were stored.';
+COMMENT ON COLUMN observation_field_forms.evidence_review IS 'PII. The coach''s yes/no on each moment, the levels chosen and why; the reason may name a child.';
+COMMENT ON COLUMN observation_field_forms.final_levels IS 'Internal. The final level on each of the 17 after the coach''s check.';
+COMMENT ON COLUMN observation_field_forms.checked_at IS 'Internal. When the coach submitted the check (server time).';
+COMMENT ON COLUMN observation_field_forms.created_at IS 'Internal. Row creation (UTC).';
+COMMENT ON COLUMN observation_field_forms.updated_at IS 'Internal. Last change (UTC), by trigger.';
+
 -- Cache reload LAST (infrastructure/CLAUDE.md): the blocks above were appended after the
 -- previous NOTIFY, and PostgREST cannot see a column it has not reloaded.
 NOTIFY pgrst, 'reload schema';
