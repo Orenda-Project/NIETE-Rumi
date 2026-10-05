@@ -12,7 +12,7 @@ import { FOCUS, TAP, radioKeyDown } from './styles';
  *   done      green  — done, sent, ready, a good result
  *   waiting   amber  — waiting, writing, a warning ("~2 min", "24h wait")
  *   error     red    — failed
- *   info      grey-indigo — everything else ("Grade 4", "p.14–15", "Oct")
+ *   info      grey-indigo — everything else ("Grade 4", "p.14–15", "Oct"); white on a selected row
  *   selected  indigo — the chosen one in a set
  *   recording red, led by a dot that pulses — a lesson being recorded (bd-5rz1v.26; the one
  *             place red means something other than an error)
@@ -27,7 +27,9 @@ const TONE: Record<ChipTone, string> = {
   done: 'bg-nu-chip-done-bg text-nu-chip-done',
   waiting: 'bg-nu-chip-warning-bg text-nu-chip-warning',
   error: 'bg-nu-chip-error-bg text-nu-chip-error',
-  info: 'bg-nu-chip-info-bg text-nu-chip-info',
+  // bd-5rz1v.32 — on a selected Row (aria-current, the `group/row` in List.tsx) the row's tint is
+  // this chip's own fill, so the pill vanished: there it is the white card surface instead.
+  info: 'bg-nu-chip-info-bg text-nu-chip-info group-aria-[current=true]/row:bg-nu-surface-card',
   selected: 'bg-nu-chip-selected-bg text-nu-chip-selected',
   recording: 'bg-nu-record-bg text-nu-record',
 };

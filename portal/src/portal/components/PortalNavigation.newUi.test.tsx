@@ -257,6 +257,27 @@ describe("flag on — teacher, desktop top bar", () => {
     expect(logout).toHaveBeenCalledTimes(1);
   });
 
+  it("bd-5rz1v.32 — its content is the page's column (centred, 1120px at most, 40px each side), not the old full-width container", async () => {
+    renderNav(TEACHER, "/portal/dashboard", true);
+    const inner = (await topBar()).firstElementChild!;
+    const cls = inner.className.split(/\s+/);
+    expect(cls).toEqual(expect.arrayContaining(["md:mx-auto", "md:max-w-[1120px]", "md:px-10"]));
+    expect(cls).not.toContain("container");
+    expect(cls).not.toContain("px-6");
+  });
+
+  it("bd-5rz1v.32 — below lg (a 768 tablet) the 40px gutters leave 688px, so the bar tightens: 16px gaps, 10px item padding; lg keeps 24px / 16px", async () => {
+    renderNav(TEACHER, "/portal/dashboard", true);
+    const bar = await topBar();
+    const row = bar.firstElementChild!.firstElementChild!;
+    expect(row.className.split(/\s+/)).toEqual(expect.arrayContaining(["gap-4", "lg:gap-6"]));
+    for (const link of within(bar).getAllByRole("link")) {
+      const cls = link.className.split(/\s+/);
+      expect(cls, link.textContent ?? "").toEqual(expect.arrayContaining(["px-2.5", "lg:px-4", "min-w-[56px]", "min-h-[56px]"]));
+      expect(cls).not.toContain("px-3");
+    }
+  });
+
   it("every desktop target is at least 56px", async () => {
     renderNav(TEACHER, "/portal/dashboard", true);
     const bar = await topBar();

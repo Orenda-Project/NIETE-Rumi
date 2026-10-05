@@ -209,7 +209,9 @@ export function PullUpMenu({ open, onClose, firstName, lastName, schoolName, pat
           'fixed inset-x-0 bottom-[calc(80px+env(safe-area-inset-bottom))] z-[46] flex max-h-[calc(100vh-96px)] flex-col overflow-y-auto',
           'rounded-t-[24px] bg-nu-ink text-white shadow-nu-pullup outline-none',
           'motion-safe:animate-in motion-safe:slide-in-from-bottom motion-safe:duration-200',
-          'md:inset-x-auto md:bottom-auto md:end-6 md:top-[72px] md:w-[380px] md:rounded-[24px] md:pt-2',
+          // bd-5rz1v.32 — a card under the avatar, which ends the menu's column (DESK_COLUMN): 40px
+          // from the window's end, or the 1040px-wide middle's end once the window passes 1120px.
+          'md:inset-x-auto md:bottom-auto md:end-[max(2.5rem,calc(50%_-_520px))] md:top-[72px] md:w-[380px] md:rounded-[24px] md:pt-2',
         )}
       >
         <span

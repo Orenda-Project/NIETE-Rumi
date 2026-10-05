@@ -110,7 +110,9 @@ export function Row({
     </>
   );
 
-  const base = 'flex min-h-[60px] w-full items-center gap-3 px-3 py-2.5 text-start';
+  // `group/row`: what a chip on the row keys on (bd-5rz1v.32 — an info chip is white on a selected
+  // row, whose tint is the info chip's own fill). Chip.tsx holds the variant; no prop is threaded.
+  const base = 'group/row flex min-h-[60px] w-full items-center gap-3 px-3 py-2.5 text-start';
   const look = cn(base, selected && 'bg-nu-select-tint', off && 'opacity-55');
   const li = 'border-b-[1.5px] border-nu-surface-line last:border-b-0';
 

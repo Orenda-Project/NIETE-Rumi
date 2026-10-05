@@ -11,6 +11,7 @@ import { NAV_COPY } from './copy';
 import { closeAccountSheet, openAccountSheet, useAccountSheet } from './accountSheet';
 import { PullUpMenu } from './PullUpMenu';
 import { initials, useSwipe } from './pullup';
+import { DESK_COLUMN } from './styles';
 
 /**
  * bd-5rz1v.12 — the new UI's menu (Direction B, option 2: "indigo menu bar").
@@ -213,16 +214,19 @@ function TeacherNavigation({ accountPath, firstName, lastName, schoolName, onLog
 
   return (
     <>
-      {/* Desktop — indigo top bar */}
+      {/* Desktop — indigo top bar. bd-5rz1v.32: its content stands in the page's column, so the
+          mark and the avatar line up with the heading card and the content at every width. */}
       <nav data-testid="newui-top-nav" aria-label={NAV_COPY.menu} className="hidden md:block bg-nu-ink text-white">
-        <div className="container mx-auto px-6">
-          <div className="flex h-16 items-center gap-6">
+        {/* The column's 40px gutters leave 688px on a 768 tablet: below lg the row's gaps are 16px
+            and each item's padding 10px, or Lesson Plans runs into Assessment. lg: as before. */}
+        <div className={DESK_COLUMN}>
+          <div className="flex h-16 items-center gap-4 lg:gap-6">
             <Mark />
             <div className="flex min-w-0 flex-1 items-center gap-1">
               {TEACHER_ITEMS.map((item) => {
                 const active = item.match(pathname, tab);
                 return (
-                  <Link key={item.key} to={item.to} aria-current={active ? 'page' : undefined} className={cn(TOP_ITEM, FOCUS, active ? TOP_ON : TOP_OFF)}>
+                  <Link key={item.key} to={item.to} aria-current={active ? 'page' : undefined} className={cn(TOP_ITEM, 'px-2.5', FOCUS, active ? TOP_ON : TOP_OFF)}>
                     <item.icon className={cn('h-5 w-5 shrink-0', active && 'text-nu-leaf')} aria-hidden="true" />
                     <span className="whitespace-nowrap">{item.desktopTitle}</span>
                   </Link>

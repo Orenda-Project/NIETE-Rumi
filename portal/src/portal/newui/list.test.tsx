@@ -162,6 +162,60 @@ describe("Chip — information, never a button", () => {
   });
 });
 
+/**
+ * bd-5rz1v.32 — a selected row's tint (`bg-nu-select-tint`, #e8e9f0) is the info chip's own fill
+ * (`bg-nu-chip-info-bg`, #e8e9f0), so on the chapter she opened last the chips lost their pill.
+ * Inside a selected row an info chip is the white card surface instead. The row carries it (a
+ * named group keyed on its aria-current), so no caller threads a prop through to the Chip.
+ */
+describe("Chip on a selected row — info chips turn white (bd-5rz1v.32)", () => {
+  const WHITE_IN_SELECTED = "group-aria-[current=true]/row:bg-nu-surface-card";
+  const chips = (
+    <>
+      <Chip>p.14-27</Chip>
+      <Chip tone="done">Done</Chip>
+      <Chip tone="waiting">~2 min</Chip>
+      <Chip tone="error">Failed</Chip>
+    </>
+  );
+
+  it("every row is the named group the chip keys on: a link, a button and an information row", () => {
+    inRouter(
+      <List>
+        <Row title="Plants" lead="2" to="/c/2" state="selected" chips={chips} />
+        <Row title="Animals" lead="3" onClick={() => {}} />
+        <Row title="Grade" value="4" testId="info-row" />
+      </List>,
+    );
+    expect(classes(screen.getByRole("link", { name: /Plants/ }))).toContain("group/row");
+    expect(classes(screen.getByRole("button", { name: /Animals/ }))).toContain("group/row");
+    expect(classes(screen.getByTestId("info-row"))).toContain("group/row");
+  });
+
+  it("an info chip takes the white card surface when its row is the selected one (aria-current=true)", () => {
+    inRouter(<List><Row title="Plants" lead="2" to="/c/2" state="selected" chips={chips} /></List>);
+    const row = screen.getByRole("link", { name: /Plants/ });
+    expect(row).toHaveAttribute("aria-current", "true");
+    const info = within(row).getByText("p.14-27");
+    expect(classes(info)).toEqual(expect.arrayContaining(["bg-nu-chip-info-bg", WHITE_IN_SELECTED]));
+  });
+
+  it("done, waiting and error chips keep their own tones on a selected row", () => {
+    inRouter(<List><Row title="Plants" lead="2" to="/c/2" state="selected" chips={chips} /></List>);
+    const row = screen.getByRole("link", { name: /Plants/ });
+    for (const [text, fill] of [["Done", "bg-nu-chip-done-bg"], ["~2 min", "bg-nu-chip-warning-bg"], ["Failed", "bg-nu-chip-error-bg"]] as const) {
+      const chip = within(row).getByText(text);
+      expect(classes(chip), text).toContain(fill);
+      expect(chip.className, text).not.toMatch(/group-aria-/);
+    }
+  });
+
+  it("a band chip is untouched (it never sits on a row)", () => {
+    render(<Chip surface="band">Last: Day 2</Chip>);
+    expect(screen.getByText("Last: Day 2").className).not.toMatch(/group-aria-/);
+  });
+});
+
 describe("FilterChips — a picked filter is indigo", () => {
   const options = [
     { key: "all", label: "All 3" },
