@@ -236,6 +236,9 @@ test('flag on: three keys a blind solver rejects, a rewrite that gives nothing �
   expect(replaceCalls).toHaveLength(1);                 // ONE targeted call
   expect(asked(replaceCalls[0])).toEqual([0, 2, 4]);         // "Question 1, 3, 5"
   expect(replaceCalls[0]).toMatch(/"source_quote"/);      // written from the lesson, quote and all
+  // …and it is SHOWN the lesson's unused moments to copy (the rewrite otherwise sees only the digest)
+  expect(replaceCalls[0]).toContain(said(11));
+  expect(replaceCalls[0]).not.toContain(`«${said(2)}.»`);   // a moment a staying question already quotes is not offered
   const rows = inserted();
   expect(rows).toHaveLength(8);
   rows.forEach((row) => expect(row.question_text).not.toMatch(/^Question [135]:/));
