@@ -1507,6 +1507,7 @@ app.post('/webhook', async (req, res) => {
       else if (matchHosVideoButton({ buttonPayload, buttonText })) {
         await sendHosVideo(matchHosVideoButton({ buttonPayload, buttonText }), from, {
           sendVideoByLink: (to, url) => WhatsAppService.sendVideoByLink(to, url),
+          resolveUrl: (url) => require('./shared/storage/r2').getPresignedUrl(url, 3600),
           sendMessage: (to, text) => WhatsAppService.sendMessage(to, text),
           log: (event, data) => logToFile('🎬 HoS broadcast video tap', { event, ...data, userId: user?.id || null }),
         });

@@ -72,6 +72,21 @@ describe('sendHosVideo', () => {
     expect(deps.log).toHaveBeenCalledWith('hos.video.unconfigured', expect.objectContaining({ kind: 'lp' }));
   });
 
+  test('signs the stored link at tap time, so a private-bucket video never expires', async () => {
+    deps.resolveUrl = jest.fn(async (u) => `${u}?X-Amz-Signature=fresh`);
+    await sendHosVideo('lp', HEAD_PHONE, deps);
+    expect(deps.resolveUrl).toHaveBeenCalledWith(LP_URL);
+    expect(deps.sendVideoByLink).toHaveBeenCalledWith(HEAD_PHONE, `${LP_URL}?X-Amz-Signature=fresh`);
+  });
+
+  test('a link that cannot be signed apologises instead of throwing', async () => {
+    deps.resolveUrl = jest.fn().mockRejectedValue(new Error('r2 down'));
+    await expect(sendHosVideo('lp', HEAD_PHONE, deps)).resolves.toBe(false);
+    expect(deps.sendVideoByLink).not.toHaveBeenCalled();
+    expect(deps.sendMessage).toHaveBeenCalledWith(HEAD_PHONE, expect.stringMatching(/try again/i));
+    expect(deps.log).toHaveBeenCalledWith('hos.video.failed', expect.objectContaining({ kind: 'lp' }));
+  });
+
   test('a failed send also apologises, so the tap never goes silent', async () => {
     deps.sendVideoByLink.mockResolvedValue(false);
     await expect(sendHosVideo('lp', HEAD_PHONE, deps)).resolves.toBe(false);
@@ -151,6 +166,10 @@ describe('a template tap through the real /webhook', () => {
       from: (...a) => mockDb.from(...a),
       rpc: (...a) => mockDb.rpc(...a),
     }));
+    // The storage boundary: signing is R2's job, the router must ask for it.
+    jest.doMock('../../bot/shared/storage/r2', () => ({
+      getPresignedUrl: jest.fn(async (u) => `${u}?X-Amz-Signature=fresh`),
+    }));
   }
 
   async function tap(text) {
@@ -196,6 +215,6 @@ describe('a template tap through the real /webhook', () => {
   ])('"%s" is answered with its video', async (text, url) => {
     await tap(text);
     expect(mockWa.sendVideoByLink).toHaveBeenCalledTimes(1);
-    expect(mockWa.sendVideoByLink).toHaveBeenCalledWith(HEAD_PHONE, url);
+    expect(mockWa.sendVideoByLink).toHaveBeenCalledWith(HEAD_PHONE, `${url}?X-Amz-Signature=fresh`);
   });
 });
