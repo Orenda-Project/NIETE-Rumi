@@ -177,7 +177,7 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-fig{position:relative;margin:0;display:flex;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 3px 0 var(--line);padding:8px}
 .wq-figbox{position:relative;line-height:0;margin:0 auto;width:100%}
 .wq-svg,.wq-svg svg{display:block;width:100%;height:100%}
-.wq-svg svg{height:auto;max-height:46vh}
+.wq-svg svg{height:auto;max-height:46vh;--amber:var(--brand, #47BA7D)!important;--amber-soft:var(--brand-l, #E4F5EC)!important;--navy:var(--brand-ink, #333748)!important}
 .wq-figbox img{display:block;width:100%;height:auto;max-height:46vh;object-fit:contain}
 .wq-labelfig .wq-figbox img{max-height:none}
 .wq-zoom{align-self:flex-end;display:grid;place-items:center;width:40px;height:40px;margin:2px 0 -2px;padding:0;border-radius:50%;border:2px solid var(--line);background:#fff;color:var(--navy);cursor:pointer}
