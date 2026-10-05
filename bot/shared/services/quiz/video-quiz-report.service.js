@@ -456,7 +456,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
 async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp }) {
   const { data: sessions } = await supabase
     .from('quiz_sessions')
-    .select('id, user_id, student_id, student_name, student_class, parent_phone, status, '
+    .select('id, user_id, student_id, student_name, student_class, parent_phone, status, device_ref, '
             + 'total_questions_answered, correct_answers, mastery_percentage, completed_at, created_at')
     .eq('share_code_id', shareCodeId)
     .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
@@ -471,14 +471,10 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
       shareCodeId, n: rawAll.length - noSelfTests.length,
     });
   }
-  // One attempt per child, before anything is counted. A web-arm
-  // quiz keeps each child's FIRST finish (a replay on another phone is
-  // practice); an unreadable quiz row keeps the default, as before.
-  let rule;
-  try {
-    const { data: armRow } = await supabase.from('quizzes').select('meta').eq('id', sc.quiz_id).maybeSingle();
-    rule = attemptRuleFor(armRow && armRow.meta);
-  } catch { rule = undefined; }
+  // One attempt per child, before anything is counted. A class code its
+  // children played on the web keeps each child's FIRST finish (a replay on
+  // another phone is practice); every other code keeps the latest, as before.
+  const rule = attemptRuleFor(noSelfTests);
   const all = oneAttemptPerChild(noSelfTests, { rule });
   if (all.length < noSelfTests.length) {
     logEvent('video_quiz.retakes_collapsed', {
@@ -801,16 +797,16 @@ async function loadClassRows(shareCodeId) {
   if (!sc) return null;
   const [{ data: sessions }, { data: quizRow }] = await Promise.all([
     supabase.from('quiz_sessions')
-      .select('id, user_id, student_id, student_name, student_class, parent_phone, status, '
+      .select('id, user_id, student_id, student_name, student_class, parent_phone, status, device_ref, '
               + 'total_questions_answered, correct_answers, mastery_percentage, completed_at, created_at')
       .eq('share_code_id', shareCodeId)
       .is('invited_by_student_id', null),
     supabase.from('quizzes').select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle(),
   ]);
-  // A web-arm quiz counts each child's FIRST finish (a replay on another phone
-  // is practice); every other quiz keeps the latest, as before.
-  const rule = attemptRuleFor(quizRow && quizRow.meta);
-  const all = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id), { rule });
+  // A class code its children played on the web counts each child's FIRST
+  // finish (a replay on another phone is practice); every other code keeps the latest.
+  const kids = excludeSelfTests(sessions || [], sc.teacher_user_id);
+  const all = oneAttemptPerChild(kids, { rule: attemptRuleFor(kids) });
   const done = all.filter((s) => s.status === 'completed');
   const language = clampLanguage(sc.language || (quizRow && quizRow.language) || 'en');
   const className = classHeading(classesTaught(done), language);
@@ -951,16 +947,16 @@ async function sendLateClassCards(shareCodeId) {
   if (!sc.report_sent_at) return { sent: 0, skipped: 0, why: 'no_report_yet' };
   const [{ data: sessions }, { data: quizRow }] = await Promise.all([
     supabase.from('quiz_sessions')
-      .select('id, user_id, student_id, student_name, student_class, parent_phone, status, '
+      .select('id, user_id, student_id, student_name, student_class, parent_phone, status, device_ref, '
               + 'total_questions_answered, correct_answers, mastery_percentage, completed_at, created_at')
       .eq('share_code_id', shareCodeId)
       .is('invited_by_student_id', null),
     supabase.from('quizzes').select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle(),
   ]);
-  // A web-arm quiz counts each child's FIRST finish (a replay on another phone
-  // is practice); every other quiz keeps the latest, as before.
-  const rule = attemptRuleFor(quizRow && quizRow.meta);
-  const all = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id), { rule });
+  // A class code its children played on the web counts each child's FIRST
+  // finish (a replay on another phone is practice); every other code keeps the latest.
+  const kids = excludeSelfTests(sessions || [], sc.teacher_user_id);
+  const all = oneAttemptPerChild(kids, { rule: attemptRuleFor(kids) });
   const done = all.filter((s) => s.status === 'completed');
   const language = clampLanguage(sc.language || (quizRow && quizRow.language) || 'en');
   const className = classHeading(classesTaught(done), language);

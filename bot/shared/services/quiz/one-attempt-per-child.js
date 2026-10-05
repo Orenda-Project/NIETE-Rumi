@@ -25,8 +25,8 @@
  * RULES. `latest_completed` (the default — every caller above) as described.
  * `first_completed` keeps the EARLIEST completed attempt instead, else the
  * latest row: the web quiz's rule, where a replay on a sibling's phone is
- * practice and must not raise the class score. It is chosen per quiz by the
- * caller (quizzes.meta.web_arm === 'web'), never globally.
+ * practice and must not raise the class score. It is chosen per class code by
+ * attemptRuleFor (that code's own sessions), never globally and never per quiz.
  */
 function oneAttemptPerChild(sessions, { rule = 'latest_completed' } = {}) {
   const first = rule === 'first_completed';
@@ -57,9 +57,18 @@ function oneAttemptPerChild(sessions, { rule = 'latest_completed' } = {}) {
   return [...byChild.values(), ...loose];
 }
 
-/** The rule for a quiz: first_completed for the web arm (meta.web_arm === 'web'), else the default. */
-function attemptRuleFor(meta) {
-  return meta && meta.web_arm === 'web' ? 'first_completed' : 'latest_completed';
+/**
+ * The rule for ONE class code, from that code's own sessions: a code its children
+ * played on the web page (a child session with a device_ref — the web channel
+ * marker, web_quiz_v1.sql) counts each child's first finish; every other code
+ * keeps the latest, as before. Chosen per code, never stored on the quiz row: a
+ * video-bank quiz is one quizzes row shared by every teacher, so a flag there
+ * would switch every teacher's WhatsApp report. The teacher's own preview
+ * (user_id set) does not make a class a web class.
+ */
+function attemptRuleFor(sessions) {
+  const web = Array.isArray(sessions) && sessions.some((s) => s && s.device_ref && !s.user_id);
+  return web ? 'first_completed' : 'latest_completed';
 }
 
 module.exports = { oneAttemptPerChild, attemptRuleFor };

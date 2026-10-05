@@ -35,12 +35,14 @@ const SESSIONS = [
     created_at: '2026-09-14T08:30:00Z', completed_at: '2026-09-14T08:36:00Z' },
 ];
 
-function seed(meta) {
+function seed(meta, sessions = SESSIONS) {
   const fake = makeFake({
     quiz_share_codes: [{ id: SC, code: 'K7RM2', quiz_id: 'q1', teacher_user_id: 'u1', teacher_name: 'Teacher Example',
+      topic: 'Proper Fractions', language: 'en', report_sent_at: null },
+    { id: 'sc-2', code: 'K7RM3', quiz_id: 'q1', teacher_user_id: 'u2', teacher_name: 'Other Example',
       topic: 'Proper Fractions', language: 'en', report_sent_at: null }],
     users: [{ id: 'u1', phone_number: '000', preferred_language: 'en' }],
-    quiz_sessions: SESSIONS.map((s) => ({ ...s })), quiz_answers: [], quiz_questions: [],
+    quiz_sessions: sessions.map((s) => ({ ...s })), quiz_answers: [], quiz_questions: [],
     quizzes: [{ id: 'q1', meta, quiz_source: 'video', language: 'en' }],
   });
   supabase.from.mockImplementation(fake.from);
@@ -49,8 +51,8 @@ function seed(meta) {
 
 beforeEach(() => jest.clearAllMocks());
 
-test('web arm: the report keeps the first finish (3/8), not the replay', async () => {
-  seed({ web_arm: 'web' });
+test('a class code its children played on the web: the report keeps the first finish (3/8), not the replay', async () => {
+  seed({});
   expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
   const text = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
   expect(text).toContain('2 of 2 students finished.');
@@ -58,9 +60,26 @@ test('web arm: the report keeps the first finish (3/8), not the replay', async (
   expect(text).not.toContain('6/8');
 });
 
-test('WhatsApp arm (no web_arm): unchanged, the latest finish (6/8)', async () => {
-  seed({});
+const whatsapp = () => SESSIONS.map((s) => ({ ...s, device_ref: null, parent_phone: '000' }));
+
+test("WhatsApp children on a quiz row another teacher's web play once marked: still the latest finish (6/8)", async () => {
+  seed({ web_arm: 'web' }, whatsapp());
   expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
   const text = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
   expect(text).toContain('Ayesha — 6/8 (75%)');
+});
+
+test("the teacher's own web preview does not make a WhatsApp class a web class", async () => {
+  seed({}, [...whatsapp(), { ...SESSIONS[0], id: 's-t', student_id: null, user_id: 'u1', student_name: 'Teacher Example', device_ref: 'dev-t' }]);
+  expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
+  const text = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
+  expect(text).toContain('Ayesha — 6/8 (75%)');
+});
+
+test('two teachers, one video-bank quiz: the web class keeps first finishes, the WhatsApp class keeps latest', async () => {
+  seed({}, [...SESSIONS.map((s) => ({ ...s })), ...whatsapp().map((s) => ({ ...s, id: `w-${s.id}`, share_code_id: 'sc-2' }))]);
+  const rows1 = (await report.loadClassRows(SC)).rows;
+  const rows2 = (await report.loadClassRows('sc-2')).rows;
+  expect(rows1.find((r) => r.name === 'Ayesha').correct).toBe(3);
+  expect(rows2.find((r) => r.name === 'Ayesha').correct).toBe(6);
 });
