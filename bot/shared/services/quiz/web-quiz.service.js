@@ -30,6 +30,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const WebItems = require('./web-quiz-items');
 const Figure = require('./web-quiz-figure');
+const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
@@ -167,7 +168,12 @@ function mediaUrl(code, qid, k) {
  */
 function questionImageOf(media) {
   const m = media || {};
-  return m.question_image || m.grid || null;
+  if (m.question_image) return m.question_image;
+  // The grid is WhatsApp's collage of the picture OPTIONS ("1. word" painted
+  // under each). When the options carry their own pictures the page shows those
+  // as the answer tiles, so the grid would show every option twice.
+  const ownPictures = Array.isArray(m.option_images) && m.option_images.some(Boolean);
+  return ownPictures ? null : m.grid || null;
 }
 
 function optionImageOf(media, i) {
@@ -230,6 +236,12 @@ function questionPayload(row, i, code, audio) {
     if (fb) o.fb = fb;
     options.push(o);
   });
+  // Today's WhatsApp picture question sends its options as emoji (🌸 🍃 🌰 🥕).
+  // On the page each becomes a colour picture tile, unnamed: the picture is the option.
+  const nouns = options.map((o) => (o.img || o.pic ? null : Pictures.emojiNoun(o.text)));
+  if (options.length >= 2 && nouns.every(Boolean)) {
+    options.forEach((o, k) => { o.pic = { kind: 'pictogram', name: nouns[k], unnamed: true }; });
+  }
   const out = {
     qid: q.id, i: i + 1, text: q.question_text || '', pattern: q.render_pattern || null,
     options: inDisplayOrder(q, options), correct_slot: normSlots(q.correct_option), why: q.explanation || null,
