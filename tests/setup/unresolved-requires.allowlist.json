@@ -13,5 +13,10 @@
     "from": "bot/workers/pic-lp-kieai.worker.js",
     "spec": "../shared/services/lp-feedback.service",
     "reason": "Same OSS-stripped service as homework-bundle; lazy-required inside the post-delivery branch."
+  },
+  {
+    "from": "bot/shared/services/quiz/web-quiz-link.js",
+    "spec": "./web-quiz-token",
+    "reason": "The web quiz token module ships in a parallel change. The require is INSIDE a try/catch in previewLink(), which returns null without it, so the teacher's caption simply has no preview line. Remove this entry once that module is merged."
   }
 ]
