@@ -269,6 +269,39 @@ describe('E4 POST answers + E5 POST finish', () => {
   });
 });
 
+describe('SCHEMA_v2 web items (media.web) in E2 and in grading', () => {
+  const ORDER = {
+    v: 2, type: 'order', stem: 'Put the growth of a plant in order.',
+    options: [{ slot: 'A', text: 'leaves come', name: 'leaves come' }, { slot: 'B', text: 'seed is planted', name: 'seed is planted' },
+      { slot: 'C', text: 'roots grow', name: 'roots grow' }, { slot: 'D', text: 'a shoot comes out', name: 'a shoot comes out' }],
+    key: 'B,C,D,A', why: 'A plant grows from the seed up.', fb_right: 'Yes, seed first and leaves last.',
+    read: { stem: 'Put the growth of a plant in order.', opts: ['leaves come', 'seed is planted', 'roots grow', 'a shoot comes out'] },
+    source: { kind: 'transcript', quote: 'first the seed is planted then it grows roots', ok: true, at: '[07:05]' }, wa: { from: 'projected' },
+  };
+  beforeEach(() => { fake.db.quiz_questions[1].media = { web: ORDER }; });
+
+  test('E2 sends the web item (type, its own options and ordered key) and never the source quote', async () => {
+    const q2 = (await WQ.getQuiz('AB12CD')).quiz.questions[1];
+    expect(q2).toMatchObject({ type: 'order', text: 'Put the growth of a plant in order.', correct_slot: 'B,C,D,A', source: { at: '[07:05]' } });
+    expect(q2.options.map((o) => o.text)).toEqual(['leaves come', 'seed is planted', 'roots grow', 'a shoot comes out']);
+    expect(JSON.stringify(q2)).not.toMatch(/grows roots/);
+  });
+
+  test('an order answer is graded IN ORDER against the web key, and the review shows the ordered key', async () => {
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Order Example', force: true } });
+    const rec = await WQ.recordAnswers({ st: s.st, a: [{ qid: qid(1), slot: 'B' }, { qid: qid(2), slot: 'B,C,D,A' }, { qid: qid(3), slot: 'B' }] });
+    expect(rec.recorded).toHaveLength(3);
+    const sid = T.verify(s.st, 's').sid;
+    expect(fake.db.quiz_answers.find((r) => r.session_id === sid && r.question_id === qid(2)).is_correct).toBe(true);
+    const out = await WQ.finishSession({ st: s.st });
+    expect(out.review[1]).toMatchObject({ correct_slot: 'B,C,D,A', ok: true });
+    const s2 = await WQ.startSession({ code: 'AB12CD', new: { name: 'Sorted Example', force: true } });
+    await WQ.recordAnswers({ st: s2.st, a: [{ qid: qid(2), slot: 'A,B,C,D' }] });
+    const sid2 = T.verify(s2.st, 's').sid;
+    expect(fake.db.quiz_answers.find((r) => r.session_id === sid2 && r.question_id === qid(2)).is_correct).toBe(false);
+  });
+});
+
 describe('E6 GET board (the class league table)', () => {
   const done = (id, student, name, correct, total, hoursAgo, extra = {}) => ({
     id, quiz_id: QUIZ, share_code_id: SC, student_id: student, student_name: name, user_id: null, status: 'completed',

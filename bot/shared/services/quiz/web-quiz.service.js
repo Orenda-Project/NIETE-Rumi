@@ -28,6 +28,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
+const WebItems = require('./web-quiz-items');
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
@@ -175,6 +176,9 @@ function questionPayload(q, i, code, audio) {
     options: inDisplayOrder(q, options), correct_slot: normSlots(q.correct_option), why: q.explanation || null,
   };
   if (out.correct_slot.includes(',')) out.multi = true;
+  // SCHEMA_v2: a web item (media.web) carries its own type/options/key; absent = today's question.
+  const web = WebItems.webPayload(q);
+  if (web) Object.assign(out, web);
   if (questionImageOf(q.media)) out.img = mediaUrl(code, q.id, 'q');
   if (audio && audio[q.id]) out.audio = audio[q.id];
   return out;
@@ -521,7 +525,7 @@ async function recordAnswers(body = {}) {
     const ms = Number(a.ms);
     const { error } = await supabase.from('quiz_answers').insert({
       session_id: s.id, question_id: qid, selected_option: slot,
-      is_correct: normSlots(slot) === normSlots(q.correct_option),
+      is_correct: WebItems.isCorrect(q, slot),
       response_time_seconds: Number.isFinite(ms) && ms >= 0 ? Math.min(3600, Math.round(ms / 1000)) : null,
     });
     // The unique (session, question) index makes a retried flush a duplicate,
@@ -608,7 +612,7 @@ async function finishSession(body = {}) {
     score: { correct, total, pct, level },
     ...counted,
     review: served.map((q) => ({
-      qid: q.id, picked: byQ.get(q.id).selected_option, correct_slot: normSlots(q.correct_option),
+      qid: q.id, picked: byQ.get(q.id).selected_option, correct_slot: WebItems.keyFor(q),
       ok: Boolean(byQ.get(q.id).is_correct), why: q.explanation || null,
     })),
     card: { first, animal: T.animalFor(s.student_id || s.id), correct, total, stars: correct },
