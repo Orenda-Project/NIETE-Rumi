@@ -167,28 +167,36 @@
   }
 
   // The offline answer queue: every answer is stored first, then sent in one call.
-  var flushing = false;
+  // A caller that arrives while a flush is in flight waits for it (finish must never
+  // race the last answer), then flushes whatever is still queued.
+  var flushP = null;
   function flushQueue(beacon) {
-    if (!S.st || !S.queue.length || flushing) return Promise.resolve();
-    var batch = S.queue.slice(0, 20);
-    var payload = { st: S.st, a: batch };
-    if (beacon && navigator.sendBeacon) {
-      try { navigator.sendBeacon('/api/wq/answers', new Blob([JSON.stringify(payload)], { type: 'application/json' })); } catch (e) {}
+    if (beacon) {
+      if (S.st && S.queue.length && navigator.sendBeacon) {
+        try { navigator.sendBeacon('/api/wq/answers', new Blob([JSON.stringify({ st: S.st, a: S.queue.slice(0, 20) })], { type: 'application/json' })); } catch (e) {}
+      }
       return Promise.resolve();
     }
-    flushing = true;
-    return api('POST', 'answers', payload).then(function (r) {
-      flushing = false;
+    if (flushP) return flushP.then(function () { return S.queue.length ? flushQueue() : null; });
+    if (!S.st || !S.queue.length) return Promise.resolve();
+    var batch = S.queue.slice(0, 20);
+    var progressed = false;
+    flushP = api('POST', 'answers', { st: S.st, a: batch }).then(function (r) {
       if (r.ok) {
         var done = {};
         (r.body.recorded || []).concat(r.body.dup || [], r.body.unknown || []).forEach(function (q) { done[q] = 1; });
+        var before = S.queue.length;
         S.queue = S.queue.filter(function (a) { return !done[a.qid]; });
+        progressed = S.queue.length < before;
         save();
-        if (S.queue.length) return flushQueue();
       } else if (r.status === 401) {
         ev('error', { err: 'answers_401' });
       }
-    }, function () { flushing = false; });
+    }, function () {}).then(function () {
+      flushP = null;
+      if (progressed && S.queue.length) return flushQueue();
+    });
+    return flushP;
   }
   window.addEventListener('online', function () { flushQueue(); });
 
