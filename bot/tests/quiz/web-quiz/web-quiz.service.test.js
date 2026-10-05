@@ -40,6 +40,14 @@ const KID_B = '55555555-5555-4555-8555-555555555555';
 const qid = (n) => `9999999${n}-9999-4999-8999-999999999999`;
 const future = new Date(Date.now() + 86400000 * 10).toISOString();
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
+// "Today" for the live counts is Pakistan's day (UTC+5): a finish 20 h ago is
+// yesterday whenever the suite runs in the first 20 h after PKT midnight. This
+// one stays inside today at any hour.
+const earlierToday = () => {
+  const pkt = new Date(Date.now() + 5 * 3600000);
+  pkt.setUTCHours(0, 1, 0, 0);
+  return new Date(Math.max(pkt.getTime() - 5 * 3600000, Date.now() - 20 * 3600000)).toISOString();
+};
 
 let fake;
 function seed() {
@@ -65,7 +73,7 @@ function seed() {
       // KID_A played on WhatsApp yesterday (has a phone row) — a chip.
       { id: 's-a1', quiz_id: QUIZ, share_code_id: SC, student_id: KID_A, student_name: 'Zara Example', user_id: null,
         status: 'completed', correct_answers: 3, total_questions_answered: 4, mastery_percentage: 75,
-        completed_at: ago(20), created_at: ago(21), invited_by_student_id: null, device_ref: null, parent_phone: '0000', source: 'share_link' },
+        completed_at: earlierToday(), created_at: ago(21), invited_by_student_id: null, device_ref: null, parent_phone: '0000', source: 'share_link' },
       // The teacher's own run — never a chip, never on the board.
       { id: 's-t', quiz_id: QUIZ, share_code_id: SC, student_id: null, student_name: 'Ms Example Teacher', user_id: TEACHER,
         status: 'completed', correct_answers: 4, total_questions_answered: 4, mastery_percentage: 100,
