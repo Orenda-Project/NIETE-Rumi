@@ -2857,6 +2857,10 @@ async function processQuiz(quizId, payload, flight) {
         meta.soft_faults = settleLeakFaults(meta.soft_faults, dropped, faults);
         if (!meta.soft_faults.length) delete meta.soft_faults;
         logEvent('transcript_quiz.answer_leaks', { quizId, quiz_source: quizSource, ...lk.record });
+      } else if (meta.soft_faults) {
+        // a leak an earlier step recorded that is not in what ships is not recorded as shipped
+        meta.soft_faults = settleLeakFaults(meta.soft_faults, [], []);
+        if (!meta.soft_faults.length) delete meta.soft_faults;
       }
     }
     // ── A NAME STILL IN ENGLISH LETTERS WHEN THE QUIZ SHIPS (recorded) ──────

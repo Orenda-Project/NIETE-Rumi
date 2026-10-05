@@ -140,6 +140,20 @@ describe('the detector: what is NOT a leak', () => {
   });
 });
 
+describe('the recorded faults once leaks are settled', () => {
+  const { settleLeakFaults } = require('../../bot/shared/services/quiz/transcript-quiz-answer-leaks');
+  test('an old ANSWER_LEAK line goes, a dropped question\'s lines go, the rest are renumbered, what still leaks is added', () => {
+    expect(settleLeakFaults([
+      'q2: ANSWER_LEAK — q0 gives away q2\'s answer «x»',
+      'q3: PEDAGOGY_GENDERED_TEACHER — …',
+      'q5: META_STEM — …',
+      'SLOs uncovered: S2',
+    ], [3], ['q4: ANSWER_LEAK — q1 gives away q4\'s answer «y»'])).toEqual([
+      'q4: META_STEM — …', 'SLOs uncovered: S2', 'q4: ANSWER_LEAK — q1 gives away q4\'s answer «y»',
+    ]);
+  });
+});
+
 // ── the generate path ────────────────────────────────────────────────────────
 const QID = '66666666-6666-4666-8666-666666666666';
 const SID = '55555555-5555-4555-8555-555555555555';
@@ -265,6 +279,19 @@ describe('on the generate path, flag on: repair, else drop within the floor, nev
     expect(storedRows()).toHaveLength(6);
     expect(lastMeta().answer_leaks).toEqual(expect.objectContaining({ found: 1, dropped: [], remaining: 1 }));
     expect((lastMeta().soft_faults || []).filter((e) => /^q2: ANSWER_LEAK/.test(e))).toHaveLength(1);
+  });
+
+  test('a leak the loop named that is gone from what ships is not recorded as shipped', async () => {
+    const bad = leaky();
+    let rewrites = 0;
+    mockCreate.mockImplementation((call) => {
+      if (!isRewrite(call)) return Promise.resolve(reply({ lesson_summary: EN_SUMMARY, questions: bad }));
+      rewrites += 1;
+      return Promise.resolve(reply({ questions: [{ index: 2, ...(rewrites > 1 ? FIXED_Q2 : bad[2]) }] }));
+    });
+    wire({ gates: true });
+    await Gen.process(QID, {});
+    expect((lastMeta().soft_faults || []).filter((e) => /ANSWER_LEAK/.test(e))).toEqual([]);
   });
 
   test('flag off: no leak step at all — eight rows, no record', async () => {
