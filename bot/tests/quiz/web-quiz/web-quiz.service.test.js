@@ -103,8 +103,9 @@ describe('E2 GET quiz', () => {
     expect(out.quiz).toMatchObject({ id: QUIZ, code: 'AB12CD', topic: 'Parts of a plant', lang: 'en', dir: 'ltr', n: 4 });
     const q1 = out.quiz.questions[0];
     expect(q1).toMatchObject({ qid: qid(1), i: 1, text: 'Question 1', correct_slot: 'B', why: 'Because 1', pattern: 'P1' });
-    expect(q1.options.map((o) => o.slot)).toEqual(['A', 'B', 'C']);
-    expect(q1.options[0]).toMatchObject({ fb: 'Roots hold the plant.', img: `/api/wq/media/AB12CD/${qid(1)}?k=A` });
+    // The WhatsApp quiz's own order (displayOrder); each option keeps its stored slot.
+    expect([...q1.options.map((o) => o.slot)].sort()).toEqual(['A', 'B', 'C']);
+    expect(q1.options.find((o) => o.slot === 'A')).toMatchObject({ fb: 'Roots hold the plant.', img: `/api/wq/media/AB12CD/${qid(1)}?k=A` });
     expect(q1.img).toBe(`/api/wq/media/AB12CD/${qid(1)}?k=q`);
     expect(out.cls.chips).toEqual([{ chip: chipOf(KID_A), first: 'Zara', animal: T.animalFor(KID_A) }]);
     expect(out.live).toEqual({ class_today: 1, ict_today_floor: 1 });

@@ -146,3 +146,36 @@ describe('the first web session marks the quiz as the web arm', () => {
     expect(text).not.toContain('2/2 (100%)');
   });
 });
+
+describe('E2 options follow the one stored display order', () => {
+  // A transcript-quiz row as generation stamps it: media.display_order is
+  // [storedIdx, ...] by display position — the order the WhatsApp child, the
+  // question card and the teacher's PDF answer key all use.
+  const row = (media) => ({
+    id: '99999991-9999-4999-8999-999999999999', quiz_id: QUIZ, external_id: 'tq:1', sort_order: 1,
+    question_text: 'Which part takes in water?', option_a: 'Leaf', option_b: 'Root', option_c: 'Stem', option_d: null,
+    correct_option: 'B', explanation: 'Roots take in water.',
+    option_feedback: { wrong: { 0: 'Leaves make food.', 2: 'The stem carries water up.' } },
+    media, render_pattern: 'P1',
+  });
+
+  test('the buttons come in the stored display order; each keeps its own letter, feedback and the answer key', async () => {
+    seed();
+    fake.db.quiz_questions = [row({ display_order: [2, 0, 1] })];
+    const [q] = (await WQ.getQuiz('AB12CD')).quiz.questions;
+    expect(q.options.map((o) => [o.slot, o.text])).toEqual([['C', 'Stem'], ['A', 'Leaf'], ['B', 'Root']]);
+    expect(q.correct_slot).toBe('B');
+    expect(q.options.find((o) => o.slot === 'A').fb).toBe('Leaves make food.');
+    expect(q.options.find((o) => o.slot === 'C').fb).toBe('The stem carries water up.');
+  });
+
+  test('a row without a stored order gets the same order the WhatsApp quiz would show', async () => {
+    seed();
+    fake.db.quiz_questions = [row({})];
+    const render = require('../../../shared/services/quiz/video-quiz-render.service');
+    const r = row({});
+    const expected = render.displayOrder(r, render.optionLabels(r)).map((i) => 'ABC'[i]);
+    const [q] = (await WQ.getQuiz('AB12CD')).quiz.questions;
+    expect(q.options.map((o) => o.slot)).toEqual(expected);
+  });
+});

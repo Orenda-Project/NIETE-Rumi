@@ -1277,6 +1277,14 @@ Feature: NIETE (ICT) Teacher Training
     But the teacher's own preview does not mark the quiz
     # ADDED 2026-10-05: web-quiz.service startSession -> markWebArm (quizzes.meta.web_arm = 'web'); attemptRuleFor reads it. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T109 @no-mock-driver
+  Scenario: The quiz page lists the options in the one order every other surface uses
+    Given a quiz question whose options carry a stored display order
+    When the quiz is fetched for the page
+    Then the options come in that display order, the order the WhatsApp quiz and the teacher's answer key use
+    And each option keeps its own letter, so the right answer, the feedback and the pictures stay with it
+    # ADDED 2026-10-05: web-quiz.service questionPayload -> inDisplayOrder (video-quiz-render displayOrder). @wip.
+
   @e2e @quiz @wip @draft @config-gated @P1 @T100
   Scenario: With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat
     Given the web quiz is switched on and I am one of the teachers it is on for
