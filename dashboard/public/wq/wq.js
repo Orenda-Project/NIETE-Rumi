@@ -747,7 +747,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-play', who);
     on('#wq-notme', who);
     on('#wq-preview', function () { ev('identity_pick', { src: 'preview' }); startSession({}, null, ''); });
-    on('#wq-play-as', function () { ev('identity_pick', { src: 'remembered' }); startSession({ chip: last.chip }, last); });
+    on('#wq-play-as', function () { ev('identity_pick', { src: 'remembered' }); startSession({ chip: last.chip, via: 'remembered' }, last); });
   }
 
   /* ---------------- M4 who's playing ---------------- */
@@ -781,7 +781,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         var chip = b.getAttribute('data-chip');
         var k = list.filter(function (x) { return x.chip === chip; })[0];
         ev('identity_pick', { src: b.getAttribute('data-src') });
-        startSession({ chip: chip }, k);
+        startSession({ chip: chip, via: b.getAttribute('data-src') === 'phone' ? 'remembered' : 'chips' }, k);
       });
     });
   }
@@ -871,7 +871,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       b.addEventListener('click', function () {
         var c = cands.filter(function (x) { return x.chip === b.getAttribute('data-chip'); })[0];
         ev('identity_pick', { src: roll ? 'roll' : 'is_this_you' });
-        startSession({ chip: c.chip }, c);
+        startSession({ chip: c.chip, via: roll ? 'roll' : 'name' }, c);
       });
     });
     on('#wq-diff', function () {

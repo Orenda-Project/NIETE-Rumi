@@ -18,6 +18,9 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 
 const FLAG_KEY = 'web_quiz_roster_id';
+// Quizzes of a lower grade keep today's name chips (1 = every grade); one setting, so the answer to
+// "can grade 1-2 children use a number pad?" is a one-row change.
+const FROM_GRADE_KEY = 'web_quiz_roster_from_grade';
 const TTL_MS = 30 * 1000;
 const MAX_CANDIDATES = 3;
 const ROLL_MAX = 999;
@@ -30,19 +33,26 @@ function isTrue(v) {
   return x === true || (typeof x === 'string' && x.trim().toLowerCase() === 'true');
 }
 
-/** True when roster identity is switched on. Never throws; fails closed. */
-async function rosterOn(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.on;
+/** { on, fromGrade }. Never throws; fails closed. */
+async function settings(now = Date.now()) {
+  if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, FROM_GRADE_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const row = (data || []).find((r) => r.key === FLAG_KEY);
-    cache = { at: now, on: Boolean(row) && isTrue(row.value) };
-    return cache.on;
+    const g = (data || []).find((r) => r.key === FROM_GRADE_KEY);
+    const from = g ? Number(digits(typeof g.value === 'string' ? g.value : JSON.stringify(g.value))) : 1;
+    cache = { at: now, on: Boolean(row) && isTrue(row.value), fromGrade: from >= 1 ? from : 1 };
+    return cache;
   } catch (err) {
     logToFile('⚠️ web quiz roster: settings lookup failed — no roster identity', { error: err.message });
-    return false;
+    return { on: false, fromGrade: 1 };
   }
+}
+
+/** True when roster identity is switched on. */
+async function rosterOn(now = Date.now()) {
+  return (await settings(now)).on;
 }
 
 const digits = (v) => String(v == null ? '' : v).replace(/\D/g, '');
@@ -53,8 +63,12 @@ const listLabel = (l) => [String(l.class_name || '').trim(), String(l.section ||
  * switch is off, the teacher keeps no list, or the read fails (the page then
  * falls back to today's name chips).
  */
-async function loadRoster(teacherUserId) {
-  if (!teacherUserId || !(await rosterOn())) return null;
+async function loadRoster(teacherUserId, { grade = null } = {}) {
+  if (!teacherUserId) return null;
+  const set = await settings();
+  if (!set.on) return null;
+  const g = Number(digits(grade));
+  if (g && g < set.fromGrade) return null;
   try {
     const { data: lists, error } = await supabase.from('student_lists')
       .select('id, class_name, section').eq('user_id', teacherUserId).eq('is_active', true);
@@ -160,7 +174,7 @@ function classOf(roster, kid) {
 }
 
 module.exports = {
-  FLAG_KEY, MAX_CANDIDATES,
+  FLAG_KEY, FROM_GRADE_KEY, MAX_CANDIDATES,
   rosterOn, loadRoster, cleanRoll, byRoll, byName, nearName, classOf, displayName,
   _resetCache: () => { cache = null; },
 };
