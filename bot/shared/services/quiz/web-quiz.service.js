@@ -299,7 +299,7 @@ const publicChip = (c) => ({ chip: c.chip, first: c.first, animal: c.animal });
 
 /** A roster child as a public chip: first name and animal, the class label only when it tells two classes apart. */
 function rosterChip(ctx, { kid, label }) {
-  const c = { chip: T.chipId(ctx.shareCodeId, kid.id), first: firstName(kid.student_name), animal: T.animalFor(kid.id) };
+  const c = { chip: T.chipId(ctx.shareCodeId, kid.id), first: firstName(Roster.displayName(kid, ctx.lang)), animal: T.animalFor(kid.id) };
   if (label) c.cls = label;
   return c;
 }

@@ -176,6 +176,17 @@ describe('E3 by roll number', () => {
   });
 });
 
+describe('an Urdu quiz', () => {
+  test("the roster child's Urdu first name is the one the child is asked about, when the list has it", async () => {
+    fake.db.quiz_share_codes[0].language = 'ur';
+    fake.db.students.find((k) => k.id === kid(3)).student_name_urdu = 'دانش ٹیسٹ والا';
+    await expect(WQ.startSession({ code: 'AB12CD', roll: 12 }))
+      .rejects.toMatchObject({ status: 409, body: { candidates: [{ chip: chipOf(kid(3)), first: 'دانش' }] } });
+    await expect(WQ.startSession({ code: 'AB12CD', roll: 2 }))
+      .rejects.toMatchObject({ status: 409, body: { candidates: [{ first: 'Bilal' }] } });
+  });
+});
+
 describe('E3 by typed name, with a roster', () => {
   test('a name one letter off a roster child asks "is this you?"', async () => {
     await expect(WQ.startSession({ code: 'AB12CD', new: { name: 'Aysha' } }))
