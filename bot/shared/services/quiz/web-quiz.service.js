@@ -123,9 +123,16 @@ function mediaUrl(code, qid, k) {
   return `/api/wq/media/${code}/${qid}?k=${k}`;
 }
 
+/**
+ * The picture file behind `img` and E10 ?k=q. Never media.question_card: that is
+ * the WhatsApp card, the stem and the lettered options painted into a PNG in
+ * display order; on the page the stem and options are already text, so the
+ * card repeated them and its letters could disagree with the buttons. A figure
+ * question's own PNG (question_image) is the drawing only.
+ */
 function questionImageOf(media) {
   const m = media || {};
-  return m.question_card || m.question_image || m.grid || null;
+  return m.question_image || m.grid || null;
 }
 
 function optionImageOf(media, i) {
