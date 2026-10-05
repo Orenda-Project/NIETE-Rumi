@@ -279,6 +279,23 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # attendance-delivery.service.js checkExistingSession (list+date+sessionType)
     # → friendly "already recorded".
 
+  @e2e @wip @excel @new @edge @destructive @P1
+  Scenario: Two registers with the same file name, delivered at once, each reach their own school
+    Given two principals at different schools whose monthly registers carry the same file name
+    When both save attendance within the same second
+    Then each principal receives the register of their own school — never the other school's names or marks
+    # ADDED 2026-10-05 (bd-c00np). formatMonthlyFileName carries no school
+    # ("Attendance_Grade_5_A_September_2026.xlsx"; a staff register is named for the school's NAME),
+    # and sendDocument's upload reads the temp file lazily, after the connection is up. Written to
+    # TEMP_DIR/<fileName>, the second delivery overwrote the first one's file before it was read and
+    # the first principal got the other school's register, both logging success (production: 9 same-name
+    # deliveries to different recipients within 1 s, Sept 2026). attendance-register-delivery.service.js
+    # deliverRegister now writes into its own fs.mkdtempSync(TEMP_DIR/reg-) per delivery. Live check:
+    # the "✅ Register delivered" log carries bufferSha256 + fileSha256 — equal on every row.
+    # Racing two real principals to the second is not drivable by hand; the proof is jest —
+    # tests/attendance/register-delivery-temp-race.test.js (real deliverRegister + real sendDocument,
+    # Graph API faked to read the upload stream 200 ms late).
+
   @e2e @wip @edge @P3
   Scenario: "Edit" at verification returns to marking
     Given a teacher (or principal) is at the verification step
