@@ -1547,11 +1547,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var HANDOVER_MS = 10 * 60 * 1000;
   function moreBtn() { return Q.grade ? '<button class="wq-btn wq-soft wq-more" id="wq-more">▶ ' + esc(T.moreBtn) + '</button>' : ''; }
   function vItem(v, i) {
-    var meta = [v.secs ? T.mins(Math.max(1, Math.round(v.secs / 60))) : '', v.mb ? v.mb + ' MB' : ''].filter(Boolean).join(' · ');
+    // Each atom isolated, so "3.2 MB" keeps its Latin order inside an Urdu line.
+    var meta = [v.secs ? esc(T.mins(Math.max(1, Math.round(v.secs / 60)))) : '', v.mb ? '<bdi dir="ltr">' + esc(v.mb + ' MB') + '</bdi>' : ''].filter(Boolean).join(' · ');
     var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy">'
       : '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[v.subject] || '▶') + '</span>';
     return '<li><button class="wq-vitem" data-vid="' + esc(v.vid) + '">' + pic +
-      '<span class="wq-vtext"><b>' + esc(v.title) + '</b><small>' + esc(meta) + '</small></span>' +
+      '<span class="wq-vtext"><b dir="auto">' + esc(v.title) + '</b><small>' + meta + '</small></span>' +
       (v.done ? '<span class="wq-vdone">' + esc(T.doneTag) + '</span>' : '') + '</button></li>';
   }
   function moreVideos() {

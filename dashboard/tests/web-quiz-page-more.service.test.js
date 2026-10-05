@@ -49,7 +49,7 @@ describe('the list (M15)', () => {
     const h = p.html();
     expect(h).toContain('Life Cycle of a &lt;Hen&gt;');
     expect(h).toContain('2 min');
-    expect(h).toContain('3.2 MB');
+    expect(h).toContain('<bdi dir="ltr">3.2 MB</bdi>');
     expect(h).toContain('src="https://r2.example/p2.jpg"');
     expect(h).toMatch(/class="wq-vtile[^"]*"[^>]*>🔬/);
     expect(h).toContain('Done');
