@@ -104,3 +104,13 @@ test('the input tree is never mutated', () => {
   applyChanges(TREE, { removed: ['unseen.objective.MCQs.0'], edits: [{ id: 'unseen.objective.MCQs.1', edit: { marks: '4' } }] }, CTX);
   expect(TREE).toEqual(copy);
 });
+
+test('an Urdu edit and an Urdu added question pass through unchanged', () => {
+  const out = applyChanges(TREE, {
+    edits: [{ id: 'unseen.subjective.Short Questions.0', edit: { question: 'اسم کیا ہے؟', answer: 'کسی چیز کا نام۔' } }],
+    added: [{ kind: 'short', edit: { question: 'فعل کیا ہے؟', answer: 'کام کو ظاہر کرنے والا لفظ۔' } }],
+  }, CTX);
+  expect(out.ok).toBe(true);
+  expect(q(out.tree, 'unseen.subjective.Short Questions.0')).toMatchObject({ question: 'اسم کیا ہے؟', answer: 'کسی چیز کا نام۔' });
+  expect(q(out.tree, 'unseen.subjective.Short Questions.1').question).toBe('فعل کیا ہے؟');
+});
