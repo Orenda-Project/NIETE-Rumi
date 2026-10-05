@@ -171,3 +171,24 @@ describe('figures: a one-bar fraction picture is tall enough to read at 360 px',
     expect(own.h / own.w).toBeLessThan(1 / 6);
   });
 });
+
+describe('the bank builder keeps only drawings the page can show whole', () => {
+  const { normalise } = require('../../../shared/services/quiz/pictures/build_color_bank');
+  test('a plain flat drawing is scaled to the 72-unit grid and every element is skipped by the overlap gate', () => {
+    const r = normalise('<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1h4v4z" fill="#F8312F"/><circle cx="3" cy="3" r="1" fill="#00D26A"/></svg>');
+    expect(r.inner).toMatch(/^<g data-ov="skip" transform="scale\(2\.25\)">/);
+    expect((r.inner.match(/<(path|circle) data-ov="skip"/g) || []).length).toBe(2);
+    expect(Fig.safeSvg(`<svg viewBox="0 0 72 72">${r.inner}</svg>`)).toBeTruthy();
+  });
+  test.each([
+    ['a filter', '<svg viewBox="0 0 32 32"><g filter="url(#f)"><path d="M1 1"/></g><defs><filter id="f"/></defs></svg>'],
+    ['a gradient', '<svg viewBox="0 0 32 32"><path d="M1 1" fill="url(#g)"/></svg>'],
+    ['another grid', '<svg viewBox="0 0 24 24"><path d="M1 1"/></svg>'],
+    ['text', '<svg viewBox="0 0 32 32"><text>A</text></svg>'],
+  ])('a drawing with %s is left out (the noun keeps its line art)', (_, svg) => {
+    expect(normalise(svg).error).toBeTruthy();
+  });
+  test('clip-rule (a fill rule, not a clip path) is not refused', () => {
+    expect(normalise('<svg viewBox="0 0 32 32"><path clip-rule="evenodd" fill-rule="evenodd" d="M1 1"/></svg>').inner).toBeTruthy();
+  });
+});
