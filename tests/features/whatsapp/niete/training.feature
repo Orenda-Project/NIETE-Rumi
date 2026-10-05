@@ -1345,6 +1345,24 @@ Feature: NIETE (ICT) Teacher Training
     Then the picture's main colour and its lines use the brand's colours, and the marks for right and not yet keep their usual colours
     # wq.css .wq-svg svg (--amber/--amber-soft/--navy -> --brand/--brand-l/--brand-ink, !important over the inline palette). Unit: dashboard/tests/web-quiz-page-figure-theme.service.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P2 @T201 @no-mock-driver
+  Scenario: Graphs and place-value blocks on my web quiz are big enough for a child to read on a phone
+    Given a quiz question with a drawn graph or a place-value mat of hundreds, tens and ones blocks
+    When a child plays it on the web page on a phone
+    Then the graph's numbers and labels are big enough to read without zooming
+    And the place-value blocks are stacked so the tens rods are wide enough to count
+    And the WhatsApp picture and the lesson plan drawing stay as they were
+    # web-quiz-figure forPage (graph width 380; base_ten blocks stack:true, vendor SYNC.md 3.32), draw() falls back to the stored spec. Unit: bot/tests/quiz/web-quiz/web-quiz-figure-phone.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T202 @no-mock-driver
+  Scenario: A matching question on my web quiz lets the child join each pair
+    Given a quiz question that asks the child to match animals to their sounds, written for WhatsApp with answers like "A-1, B-2, C-3"
+    When a child plays it on the web page
+    Then the child sees each animal's picture with its letter and taps it, then taps its sound
+    And the child is marked right only when every pair is joined correctly
+    And the WhatsApp quiz still asks it with the lettered picture and the coded answers
+    # web-quiz-figure matchItem (decodes the coded options + key from media.figure match); web-quiz-items webOf fallback (E2 + grader); figureFor null for it; wq.js left tile picture. Unit: bot/tests/quiz/web-quiz/web-quiz-match-codes.test.js, dashboard/tests/web-quiz-page-match-pictures.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T170 @no-mock-driver
   Scenario: The recorded "why" of a web quiz question is its reason, never praise
     Given a quiz question whose correct-answer feedback is only "Well done!" and whose explanation gives the reason
@@ -1498,6 +1516,27 @@ Feature: NIETE (ICT) Teacher Training
     And a video the child skipped or finished does not come back; the questions do
     # wq.js video() S.vt/S.vdone + resume(). Unit: dashboard/tests/web-quiz-page-inapp.service.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T193 @no-mock-driver
+  Scenario: After the quiz, a child watches another lesson video and takes its quiz without leaving the page
+    Given a child has finished a web quiz whose class has a grade
+    When the child taps "Watch another video" on the results, the scorecard or the "today" screen
+    Then the page lists up to 8 lessons of the class's grade, the quiz's subject first, each with its title, minutes and size, a poster or a subject picture, and "Done" on lessons the child already finished
+    When the child picks a lesson
+    Then the same view opens that lesson's quiz, plays its video first and then its questions, as the same child with no name to pick
+    And the score joins the child's history
+    And Back on the list returns to the scorecard
+    # web-quiz-videos.js list/start (E11/E12), wq.js moreVideos/pickVideo/handover. @wip.
+    # Unit: bot/tests/quiz/web-quiz/web-quiz-videos.test.js, dashboard/tests/web-quiz-page-more.service.test.js.
+
+  @api @quiz @web @wip @draft @P1 @T194 @no-mock-driver
+  Scenario: A lesson picked from "Watch another video" keeps the teacher's name and sends the teacher no extra report
+    Given a child of my class picks a lesson from "Watch another video"
+    Then that lesson plays under ONE code for my class and that video, made the first time a child of my class picks it, carrying my name
+    And every later child of my class who picks it plays under the same code, with its own league table
+    And no 12-hour report is scheduled for that code, because I did not send it
+    And a friend's challenge code still counts toward the class it came from, as before
+    # web-quiz.service resolveCode (collapse only with an inviter) + startSession (from_st; no schedule for a "more videos" code). @wip.
+
   @api @quiz @wip @draft @config-gated @P1 @T130 @no-mock-driver
   Scenario: With the author gates on, every quiz question carries the moment of my lesson that holds its answer
     Given app_settings "quiz_author_gates_v2" is true
@@ -1527,6 +1566,44 @@ Feature: NIETE (ICT) Teacher Training
     Then the question tests the correct fact and quotes the moment the correct fact was said
     And the slip is recorded on the quiz for my report to use later, and nothing in my report changes yet
     # teaching_error per question -> quizzes.meta.source_fidelity.teaching_errors [{question, said, correct, quote}]. @wip.
+
+  @api @quiz @wip @draft @config-gated @P1 @T121 @no-mock-driver
+  Scenario: With the author gates on, a question that is wrong, unanswerable or about the teacher is rewritten, never sent
+    Given app_settings "quiz_author_gates_v2" is true
+    When my class quiz is made from my lesson
+    Then a question whose sum the key does not answer, or whose explanation does a sum wrong, arrives at a wrong option, or claims a regroup no column needs, is rewritten before it is sent
+    And a question that points at a picture (the picture, the clock, the bar, the box, تصویر, خانے) is sent only with that picture, and the picture carries every number the question uses
+    And a question about what the teacher said, did or thought, or a letter question with a digit or an English letter among its options, is rewritten
+    And a question whose explanation says the lesson never gave its answer is rewritten
+    And a key that is only the closest option, not a fully correct answer, is flagged by the blind solve and rewritten
+    And a web item whose read-aloud text starts with an option letter ("A: …") plays as its row instead
+    And with the setting absent or false, the quiz is made exactly as before
+    # quiz-author-gates-v2.js questionErrors, wired in transcript-quiz-validator validate() (q-named complaints -> the
+    # existing targeted rewrite); STRICT_KEY_RULE in transcript-quiz-key-verify; readTextFaults in web-quiz-items normaliseItem.
+    # Unit: tests/quiz/quiz-author-gates-v2.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P1 @T180 @no-mock-driver
+  Scenario: With the author gates on, a question that is only too long or uses a word the class said in English letters never costs my class the quiz
+    Given app_settings "quiz_author_gates_v2" is true
+    And my lesson is for grade 2 and the quiz writer keeps a question longer than eight words
+    When my class quiz is made from my lesson
+    Then that question is shortened if it can be, and otherwise sent as it is and counted, never left out
+    And in an Urdu quiz a technical word written in Urdu letters, or Urdu written in English letters, is named on its own question, repaired in place, and the quiz is sent whatever the repair leaves
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-validator termScriptErrors (URDU_TRANSLITERATED / URDU_ROMAN), generate IN_PLACE_FAULT + isSoft,
+    # runSourceFidelity kept_soft. Unit: tests/quiz/quiz-author-gates-translit-soft.test.js, quiz-author-gates-fail-soft.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P1 @T181 @no-mock-driver
+  Scenario: With the author gates on, a wrong answer the quiz cannot afford to lose is replaced by a new question from my lesson
+    Given app_settings "quiz_author_gates_v2" is true
+    And the checks find more wrong answers than the quiz can leave out and still keep six questions
+    When my class quiz is made from my lesson
+    Then one call writes a new question for each of those places from another moment of my lesson
+    And each new question is checked like every other before it is sent
+    And my class gets the quiz; it is refused only when the new questions are wrong too, with that reason recorded
+    And with the setting absent or false, the quiz fails exactly as before
+    # transcript-quiz-generate replaceFromSource, used by runSourceFidelity, runKeyCheck and runKeyVerify; REPLACE_RULE in
+    # transcript-quiz-rewrite. Unit: tests/quiz/quiz-author-gates-fail-soft.test.js. @wip.
 
   @api @quiz @web @wip @draft @P1 @T110 @no-mock-driver
   Scenario: A question that sends the child to a picture it does not have is left out of my web quiz

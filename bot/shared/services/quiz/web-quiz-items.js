@@ -30,6 +30,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { texFaults, mathToText } = require('./quiz-math');
+const GatesV2 = require('./quiz-author-gates-v2');
 const { questionAddressForms } = require('./transcript-quiz-address');
 const { LANG_NAME } = require('./transcript-quiz-language');
 const {
@@ -370,6 +371,8 @@ function normaliseItem(raw, row, index, ctx = {}) {
     stem: spoken((r.read && r.read.stem) || item.stem),
     opts: item.options.map((o) => o.name),
   };
+  // Gates v2: the voice never reads an option letter ("A: …"); the row plays instead.
+  if (GatesV2.enabled(ctx.authorGates) && GatesV2.readTextFaults(item.read).length) return { item: null, reason: 'read_letter_prefix' };
   if (row.media && row.media.figure && item.wa.from === 'same') {
     item.figure = { spec: row.media.figure, origin: { kind: 'quiz' } };
   }
@@ -400,7 +403,10 @@ function capNewTypes(items) {
 
 function webOf(q) {
   const w = q && q.media && q.media.web;
-  return w && w.v === 2 && TYPES.has(w.type) && w.key ? w : null;
+  if (w && w.v === 2 && TYPES.has(w.type) && w.key) return w;
+  // A WhatsApp match question (a lettered drawing, options coding whole pairings)
+  // plays as the page's tap-to-match, decoded from its own figure and key.
+  return q ? require('./web-quiz-figure').matchItem(q) : null;
 }
 
 /** One grader for both channels' rows: the web key when there is a web item, else the row's. */

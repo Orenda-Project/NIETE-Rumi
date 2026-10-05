@@ -201,6 +201,10 @@ html[lang=ur] .wq-zoom{font-family:var(--fu);font-weight:700}
 .wq-ptile .wq-shp svg{width:16px;height:16px}
 .wq-pic{display:block;width:116px;height:116px}.wq-pic svg{width:100%;height:100%}
 .wq-mr .wq-pic{width:56px;height:56px}
+/* A match question whose rows are pictures (a WhatsApp match: cat, dog, cow): the picture, its letter beside it. */
+.wq-ml.wq-mlp{flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:8px}
+.wq-mlp .wq-pic{width:64px;height:64px}
+.wq-mlp .wq-mto{flex-basis:100%}
 .wq-opt.wq-ptile img{width:100%;max-width:120px;height:100px;object-fit:contain;background:transparent}
 .wq-emoji{font-size:64px;line-height:1.1}
 .wq-pname{font-size:18px;color:var(--navy)}
@@ -244,3 +248,19 @@ html[lang=ur] .wq-ptile .wq-glyph{margin-top:24px}
 img.wq-ld{min-height:60px;background:var(--paper-2);border-radius:12px;animation:wqpulse 1.2s ease-in-out infinite}
 .wq-labelfig .wq-figbox{margin-bottom:30px}
 .wq-hot{z-index:1}
+
+/* M15 "watch another video": a short list of lessons, each a big tap target (poster or subject tile, title, minutes · MB). */
+.wq-more{margin-top:2px}
+.wq-vlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.wq-vitem{display:flex;align-items:center;gap:12px;width:100%;min-height:76px;padding:8px 12px 8px 8px;border:2px solid var(--line);border-radius:18px;background:var(--card);cursor:pointer;text-align:start}
+.wq-vtile{flex:0 0 auto;width:96px;height:60px;border-radius:12px;object-fit:cover;display:grid;place-items:center;font-size:30px;line-height:1;font-family:var(--f);background:var(--green-l)}
+.wq-vt1{background:var(--s1-bg)}.wq-vt2{background:var(--s2-bg)}.wq-vt3{background:var(--s3-bg)}.wq-vt4{background:var(--s4-bg)}
+.wq-vtext{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.wq-vtext b{font-size:17px;line-height:1.3;color:var(--navy);overflow-wrap:anywhere}
+.wq-vtext small{font-size:14px;color:var(--muted);font-weight:700}
+.wq-vdone{flex:0 0 auto;font-size:13px;font-weight:900;color:var(--right);background:var(--right-bg);border-radius:999px;padding:4px 8px}
+html[lang=ur] .wq-vtext b{font-size:16px;line-height:1.9}
+html[lang=ur] .wq-vtext small{line-height:1.8}
+
+/* The share preview's link: its own left-to-right line, small, breaking anywhere (never wraps backwards in Urdu). */
+.wq-url{font-family:var(--f);font-size:14px;line-height:1.4;color:var(--muted);text-align:left;word-break:break-all;margin:6px 0 0}

@@ -36,6 +36,8 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/me', limiter: 'read' },
   { method: 'post', path: '/api/wq/who', limiter: 'read' },
   { method: 'post', path: '/api/wq/who/fix', limiter: 'session' },
+  { method: 'get', path: '/api/wq/videos/:code', limiter: 'read' },
+  { method: 'post', path: '/api/wq/videos/start', limiter: 'session' },
   { method: 'post', path: '/api/wq/e', limiter: 'events' },
 ];
 

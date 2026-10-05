@@ -53,6 +53,9 @@ const { completeJson } = require('./transcript-quiz-llm');
 const People = require('./transcript-quiz-people');
 const { PUPILS_RULE } = require('./transcript-quiz-pupils');
 const SourceFidelity = require('./transcript-quiz-source-fidelity');
+const GatesV2 = require('./quiz-author-gates-v2');
+/** Set-level complaints that are soft with quiz_author_gates_v2 on (see generate's isSoft). */
+const SOFT_SET_V2 = /^SLOs uncovered: /;
 /**
  * A question rejected for PEDAGOGY_PUPIL_AS_SUBJECT named a child from the
  * class, asked what a child said or did in class, or said something about a
@@ -131,6 +134,21 @@ const ADJACENT_TERMS = /^q\d+: URDU_ADJACENT_TERMS\b/;
 const DUPLICATE_REPAIR = 'ASKED TWICE. A question rejected for DUPLICATE_QUESTION asks what an earlier question — one that is STAYING — already asks, with the same answer, so a child would answer the same question twice. Write a NEW question for its slot: the same SLO and level, but a different example, number, word or case from the lesson, and a correct answer that is not the correct answer of any question that is staying. The same question with its options in another order, other wrong options, or a few words added to its stem is the same question, and is rejected again.';
 const DUPLICATE = /^q\d+: DUPLICATE_QUESTION\b/;
 /**
+ * An English term in Urdu letters, or Roman Urdu (quiz_author_gates_v2 names
+ * the question — URDU_TRANSLITERATED / URDU_ROMAN). The question is sound and
+ * the class may well have said the word that way: only the script of those
+ * words changes, in place.
+ */
+const TERM_SCRIPT_REPAIR = 'A TERM IN URDU LETTERS — REPAIR IN PLACE. A question rejected for URDU_TRANSLITERATED writes an English technical term in Urdu letters («انرجی»); one rejected for URDU_ROMAN writes Urdu words in English letters ("kya hai"). Keep the SAME question: the same idea, the same options in meaning, the same correct answer, the same explanation and feedback in meaning. Change ONLY those words, in every field: the technical term in English letters ("energy"), the Urdu words in Urdu script («کیا ہے»).';
+const TERM_SCRIPT = /^q\d+: URDU_(TRANSLITERATED|ROMAN)\b/;
+/**
+ * A question the checks after the author could neither repair nor drop —
+ * dropping it would take the quiz under its floor (quiz_author_gates_v2). Its
+ * slot gets a NEW question from another moment of the lesson.
+ */
+const REPLACE_RULE = 'A NEW QUESTION FROM THE LESSON. A question rejected for REPLACE_FROM_SOURCE was already repaired once and is still wrong. Do not repair it: write a DIFFERENT question for its slot, on the same SLO and level, about another moment of the lesson — one where the lesson itself states the answer — and copy that moment, word for word, as its "source_quote". Its correct answer must be the one the lesson states.';
+const REPLACE = /^q\d+: REPLACE_FROM_SOURCE\b/;
+/**
  * A question rejected for URDU_NAME_LATIN is a GOOD question that writes a
  * person's name from the lesson in English letters («‏Hira کی بوتل»): the Urdu
  * style rule keeps technical TERMS in English letters and the model read the
@@ -148,7 +166,7 @@ const NAME_IN = /^q\d+: URDU_NAME_LATIN — "([^"]+)"/;
  * change. Over the repair's cap, a question with only these is the one left
  * out — a hard fault never loses its place to it.
  */
-const IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN)\b/;
+const IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN|URDU_TRANSLITERATED|URDU_ROMAN)\b/;
 /**
  * A question whose EVERY complaint is one of these is kept: the repair changes
  * the words its complaints name and nothing else. Such a question is shown to
@@ -160,7 +178,7 @@ const IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_
  * rewritten explanation and feedback carried the same masculine verbs again,
  * and every rewritten `selected_because` came back in English.
  */
-const KEEP_IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN|URDU_TEACHER_FIELDS)\b/;
+const KEEP_IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN|URDU_TEACHER_FIELDS|URDU_TRANSLITERATED|URDU_ROMAN)\b/;
 /**
  * …and its PICTURE is kept too, when every complaint is one of these. A name in
  * English letters is left out on purpose: it has its own contract (the code
@@ -168,7 +186,7 @@ const KEEP_IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_
  * `swapOnly` in mergeReplacements — and without one the reply is taken as a
  * text question), which this does not change.
  */
-const KEEP_PICTURE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_TEACHER_FIELDS)\b/;
+const KEEP_PICTURE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_TEACHER_FIELDS|URDU_TRANSLITERATED|URDU_ROMAN)\b/;
 const TEACHER_FIELDS_RULE ='TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 // The model rewrote a question with two identical options three times in one
 // production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
@@ -243,7 +261,7 @@ function tierOf(e) {
   if (/^q\d+: KEY_[A-Z_]+\b/.test(e)) return 0;          // a key that is not true
   if (/^q\d+: PEDAGOGY_GENDERED_CHILD\b/.test(e)) return 2;
   if (/^q\d+: URDU_ADJACENT_TERMS\b/.test(e)) return 3;
-  if (/^q\d+: URDU_NAME_LATIN\b/.test(e)) return 4;
+  if (/^q\d+: URDU_(NAME_LATIN|TRANSLITERATED|ROMAN)\b/.test(e)) return 4;
   if (SOFT_ONLY.test(e)) return 5;                        // recorded and shipped anyway
   return 1;                                               // a hard fault: it cannot ship as it is
 }
@@ -277,6 +295,9 @@ function rewriteTargets(errors, { partial = false, prefer = [] } = {}) {
       // the quiz-level field this call can rewrite on its own
       if (QUIZ_LEVEL_REPAIRABLE.test(e)) { summary.push(e); continue; }
       if (LEVEL_SUMMARY.test(e)) continue;   // explained by the per-question lines beside it
+      // quiz_author_gates_v2: a set-level complaint that ships and is counted
+      // (SLO coverage) never stops the per-question repairs beside it.
+      if (SOFT_SET_V2.test(e) && GatesV2.enabled()) continue;
       return none;
     }
     const i = Number(m[1]);
@@ -423,6 +444,8 @@ ${why}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => ADJACENT_TERMS.test(e))) ? [ADJACENT_TERMS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => DUPLICATE.test(e))) ? [DUPLICATE_REPAIR] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => TERM_SCRIPT.test(e))) ? [TERM_SCRIPT_REPAIR] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => REPLACE.test(e))) ? [REPLACE_RULE] : []),
     ...(namesAsked ? [NAME_LATIN_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => PUPIL.test(e))) ? [PUPIL_REPAIR] : []),
     // EVERY replacement in an Urdu quiz writes a "selected_because" and the

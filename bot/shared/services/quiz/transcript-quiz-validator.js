@@ -31,6 +31,7 @@ const { questionAddressForms } = require('./transcript-quiz-address');
 const { lessonLexicon, questionAdjacentTerms } = require('./transcript-quiz-adjacent-terms');
 const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
 const { keyByAuthorityError } = require('./transcript-quiz-key-authority');
+const GatesV2 = require('./quiz-author-gates-v2');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -474,6 +475,30 @@ function normaliseFeedback(q) {
   return out;
 }
 
+/**
+ * The Urdu wording rules, question by question (quiz_author_gates_v2 only):
+ * an English technical term written in Urdu letters (URDU_TRANSLITERATED) and
+ * Roman Urdu (URDU_ROMAN, when the quiz carries the three tokens the set rule
+ * has always needed). One complaint per question, so the targeted rewrite can
+ * repair exactly that question in place.
+ */
+function termScriptErrors(textsByQ, { romanTotal = 0 } = {}) {
+  const out = [];
+  textsByQ.forEach((texts, i) => {
+    if (!Array.isArray(texts)) return;
+    const text = texts.join('\n');
+    const tl = TRANSLIT_TERMS.exec(text);
+    if (tl) {
+      out.push(`q${i}: URDU_TRANSLITERATED — "${tl[1].trim()}" is an English term written in Urdu letters; write it in English letters, as the lesson's other technical terms are`);
+    }
+    if (romanTotal >= 3) {
+      const roman = (text.match(/\b[a-zA-Z]{2,}\b/g) || []).filter((w) => ROMAN_URDU.has(w.toLowerCase()));
+      if (roman.length) out.push(`q${i}: URDU_ROMAN — Roman Urdu words (${roman.slice(0, 6).join(' ')}); write them in Urdu script`);
+    }
+  });
+  return out;
+}
+
 function validate(rawQuestions, ctx = {}) {
   const {
     language, subject, digest, nExpected, lessonSummary, quizId,
@@ -522,6 +547,9 @@ function validate(rawQuestions, ctx = {}) {
   const levelGap = [];
   let figured = 0;
   const allText = [];
+  // Each question's child-facing text, by index: with quiz_author_gates_v2 on,
+  // the Urdu wording rules below name the question that carries the fault.
+  const textsByQ = [];
   // bd-mg9c7.95 — the religious-marks scan runs PER QUESTION, so the complaint
   // names the question that carries the fault. It used to run once over every
   // question's text joined together, which made it a quiz-level complaint: the
@@ -645,11 +673,21 @@ function validate(rawQuestions, ctx = {}) {
       }
     }
     allText.push(...texts);
+    textsByQ[i] = texts;
     if (scanReligious) {
       checkReligiousMarks(texts.join('\n'))
         .forEach((d) => errs.push(`q${i}: RELIGIOUS_MARKS — ${d}`));
     }
     if (texts.some((t) => LETTER_REF.test(t))) errs.push(`q${i}: letter reference`);
+
+    // Gates v2 (app_settings quiz_author_gates_v2, off by default): the key and
+    // the why recomputed, the picture a stem points at, the prose rules. Each is
+    // a q-named complaint, so the targeted rewrite repairs it.
+    if (GatesV2.enabled(ctx.authorGates)) {
+      errs.push(...GatesV2.questionErrors({ ...p, figure: q.figure, media: q.media }, i, {
+        legacyPictureComplaint: q.figure == null && STEM_PROMISES_PICTURE.test(stem),
+      }));
+    }
 
     // ── the figure, if this question carries one ────────────────────────────
     // Each check gets its OWN error string: the retry prompt quotes these back
@@ -853,9 +891,19 @@ function validate(rawQuestions, ctx = {}) {
     }
     const latinWords = joined.match(/\b[a-zA-Z]{2,}\b/g) || [];
     const roman = latinWords.filter((w) => ROMAN_URDU.has(w.toLowerCase()));
-    if (roman.length >= 3) errs.push(`roman urdu tokens: ${roman.slice(0, 6).join(' ')}`);
     const tl = TRANSLIT_TERMS.exec(joined);
-    if (tl) errs.push(`transliterated English term in Urdu script: ${tl[1].trim()} — write it in English letters`);
+    if (GatesV2.enabled(ctx.authorGates)) {
+      // quiz_author_gates_v2: the same two rules, each complaint NAMING its
+      // question. As complaints about the whole set they were ones no targeted
+      // rewrite could reach and the salvage refused, so one word the class said
+      // («انرجی», as the transcript wrote it) cost a teacher the whole quiz on
+      // all three attempts (sandbox re-score, 5 Oct 2026). Named, each is a
+      // wording fault repaired in place and shipped whatever that leaves.
+      errs.push(...termScriptErrors(textsByQ, { romanTotal: roman.length }));
+    } else {
+      if (roman.length >= 3) errs.push(`roman urdu tokens: ${roman.slice(0, 6).join(' ')}`);
+      if (tl) errs.push(`transliterated English term in Urdu script: ${tl[1].trim()} — write it in English letters`);
+    }
   }
   // PEDAGOGY (PLAN_R5 D3). Structure says the question is well formed; these
   // say it is worth asking. Each defect keeps its own PEDAGOGY_ code and a
