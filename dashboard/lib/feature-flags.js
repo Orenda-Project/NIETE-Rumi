@@ -18,6 +18,9 @@
 /** app_settings key for the UG_EG-backed Assessment Generator. */
 const ASSESSMENT_GENERATOR_KEY = 'assessment_generator_enabled';
 
+/** app_settings key for editing a generated paper (bd-hb8qs). */
+const ASSESSMENT_EDITING_KEY = 'assessment_editing_enabled';
+
 /**
  * What every surface says while the Assessment Generator is off. Kept
  * character-identical to the bot's /assessment fallback
@@ -129,6 +132,10 @@ async function isFlagEnabledForUser(supabase, key, userId) {
   }
 }
 
+function isAssessmentEditingEnabled(supabase) {
+  return isFlagEnabled(supabase, ASSESSMENT_EDITING_KEY);
+}
+
 module.exports = {
   PORTAL_SELF_OBSERVATION_KEY,
   PORTAL_CHILD_TEST_KEY,
@@ -136,7 +143,9 @@ module.exports = {
   PORTAL_NEW_UI_KEY,
   isFlagEnabledForUser,
   ASSESSMENT_GENERATOR_KEY,
+  ASSESSMENT_EDITING_KEY,
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
   isFlagEnabled,
   isAssessmentGeneratorEnabled,
+  isAssessmentEditingEnabled,
 };

@@ -66,6 +66,7 @@ const { buildIsapsScoreSheet } = require('../../bot/shared/services/training/isa
 // bot via one app_settings row (see dashboard/lib/feature-flags.js).
 const {
   isAssessmentGeneratorEnabled,
+  isAssessmentEditingEnabled,
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
   isFlagEnabledForUser,
   PORTAL_SELF_OBSERVATION_KEY,
@@ -2361,6 +2362,46 @@ router.get('/assessment/papers', requirePortalAuth, async (req, res) => {
   } catch (error) {
     assessmentFailure(res, error, 'Could not load your papers');
   }
+});
+
+// ── Editing a paper (bd-hb8qs) — the bot owns every rule; this passes through. ──
+function editFailure(res, error) {
+  if (error && error.body && error.status) return res.status(error.status).json(error.body);
+  console.error('portal/assessment/edit error:', error && error.message);
+  return res.status(502).json({ success: false, code: 'UNREACHABLE', error: 'We could not reach the paper service.' });
+}
+
+router.get('/assessment/edit/:paper_id/versions', requirePortalAuth, async (req, res) => {
+  try { return res.json(await Assessment.editVersions(String(req.params.paper_id), req.session.portalUserId)); }
+  catch (error) { return editFailure(res, error); }
+});
+
+router.get('/assessment/edit/:paper_id/questions', requirePortalAuth, async (req, res) => {
+  try { return res.json(await Assessment.editQuestions(String(req.params.paper_id), req.session.portalUserId)); }
+  catch (error) { return editFailure(res, error); }
+});
+
+router.get('/assessment/edit/:paper_id/add-kinds', requirePortalAuth, async (req, res) => {
+  try { return res.json(await Assessment.editAddKinds(String(req.params.paper_id), req.session.portalUserId)); }
+  catch (error) { return editFailure(res, error); }
+});
+
+router.post('/assessment/edit/:paper_id/validate', requirePortalAuth, async (req, res) => {
+  const { id = null, kind = null, edit = {} } = req.body || {};
+  try {
+    return res.json(await Assessment.editValidate({
+      paperId: String(req.params.paper_id), userId: req.session.portalUserId, id, kind, edit,
+    }));
+  } catch (error) { return editFailure(res, error); }
+});
+
+router.post('/assessment/edit/:paper_id/save', requirePortalAuth, async (req, res) => {
+  const { changes = {} } = req.body || {};
+  try {
+    return res.json(await Assessment.editSave({
+      parentId: String(req.params.paper_id), userId: req.session.portalUserId, changes,
+    }));
+  } catch (error) { return editFailure(res, error); }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -7030,6 +7071,7 @@ router.put('/me/language', requirePortalAuth, async (req, res) => {
 router.get('/config', async (req, res) => {
   try {
     const assessmentGenerator = await isAssessmentGeneratorEnabled(supabase);
+    const assessmentEditing = await isAssessmentEditingEnabled(supabase);
     // bd-3bvfj: per USER — a pilot list is answered for whoever is logged in;
     // logged out, it is off. Read from the session, never from the request.
     const selfObservation = await isFlagEnabledForUser(
@@ -7051,6 +7093,7 @@ router.get('/config', async (req, res) => {
       success: true,
       features: {
         assessmentGenerator,
+        assessmentEditing,
         assessmentGeneratorMessage: assessmentGenerator ? null : ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation,
         childTest,
@@ -7065,6 +7108,7 @@ router.get('/config', async (req, res) => {
       success: true,
       features: {
         assessmentGenerator: false,
+        assessmentEditing: false,
         assessmentGeneratorMessage: ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation: false,
         childTest: false,

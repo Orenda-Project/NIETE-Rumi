@@ -1,0 +1,63 @@
+const fs = require('fs');
+const path = require('path');
+const ROOT = path.join(__dirname, '..', '..');
+const ROUTES = path.join(ROOT, 'dashboard', 'routes', 'portal.routes.js');
+const CLIENT = path.join(ROOT, 'dashboard', 'services', 'assessment.service.js');
+const read = (p) => fs.readFileSync(p, 'utf8');
+
+jest.mock('axios', () => ({ post: jest.fn() }));
+const axios = require('axios');
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  process.env.MAIN_BOT_URL = 'https://bot.test';
+  process.env.INTERNAL_API_KEY = 'k';
+});
+
+describe('client', () => {
+  const Client = () => require('../../dashboard/services/assessment.service');
+
+  test('editSave posts to the bot edit route with a longer timeout and passes the body through', async () => {
+    axios.post.mockResolvedValue({ status: 200, data: { success: true, status: 'ready', paperId: 'p2', version: 2 } });
+    const out = await Client().editSave({ parentId: 'p1', userId: 'u1', changes: { removed: ['x'] } });
+    const [url, body, opts] = axios.post.mock.calls[0];
+    expect(url).toBe('https://bot.test/api/internal/assessment/edit/save');
+    expect(body).toEqual({ parentId: 'p1', userId: 'u1', changes: { removed: ['x'] } });
+    expect(opts.headers['x-api-key']).toBe('k');
+    expect(opts.timeout).toBeGreaterThanOrEqual(45000);
+    expect(out).toMatchObject({ status: 'ready', version: 2 });
+  });
+
+  test('a bot refusal throws with its status and body', async () => {
+    axios.post.mockResolvedValue({ status: 400, data: { success: false, code: 'INVALID_CHANGES', errors: [{ id: 'x', message: 'm' }] } });
+    await expect(Client().editSave({ parentId: 'p1', userId: 'u1', changes: {} }))
+      .rejects.toMatchObject({ status: 400, body: { code: 'INVALID_CHANGES' } });
+  });
+
+  test('the client still reads no table and holds no edit rule', () => {
+    const src = read(CLIENT);
+    expect(src).not.toMatch(/supabase/i);
+    expect(src).not.toMatch(/SLOT_CAP|NEW_DEFAULTS|shapeOf|applyEdit/);
+  });
+});
+
+describe('routes', () => {
+  const block = () => { const s = read(ROUTES); return s.slice(s.indexOf('ASSESSMENT GENERATOR'), s.indexOf('TEACHER TRAINING BROWSER')); };
+
+  test.each([
+    "router.get('/assessment/edit/:paper_id/versions', requirePortalAuth",
+    "router.get('/assessment/edit/:paper_id/questions', requirePortalAuth",
+    "router.get('/assessment/edit/:paper_id/add-kinds', requirePortalAuth",
+    "router.post('/assessment/edit/:paper_id/validate', requirePortalAuth",
+    "router.post('/assessment/edit/:paper_id/save', requirePortalAuth",
+  ])('%s', (sig) => expect(block()).toContain(sig));
+
+  test('identity only from the session', () => {
+    expect(block()).not.toMatch(/userId:\s*(req\.body|body|req\.query)/);
+    expect(block()).not.toMatch(/body\.userId/);
+  });
+
+  test('/config exposes assessmentEditing', () => {
+    expect(read(ROUTES)).toMatch(/assessmentEditing/);
+  });
+});

@@ -161,4 +161,30 @@ async function listPapers(userId, { page = 1, pageSize = 10, grade = null, subje
   };
 }
 
-module.exports = { options, listChapters, create, status, download, listPapers };
+async function askEdit(path, body, { timeout = TIMEOUT_MS } = {}) {
+  const { baseUrl, apiKey } = config();
+  if (!baseUrl || !apiKey) {
+    throw new Error('Assessment API is not configured (MAIN_BOT_URL / INTERNAL_API_KEY)');
+  }
+  const res = await axios.post(`${baseUrl}/api/internal/assessment/edit/${path}`, body, {
+    headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
+    timeout,
+    validateStatus: () => true, // every bot answer is passed through; transport errors still throw
+  });
+  if (res.status >= 200 && res.status < 300 && res.data && res.data.success === true) return res.data;
+  const err = new Error((res.data && (res.data.error || res.data.code)) || `Assessment edit ${path} failed`);
+  err.status = res.status >= 400 ? res.status : 502;
+  err.body = res.data || { success: false };
+  throw err;
+}
+
+/** Rendering a version takes two PDFs; measured in Task 0 of bd-hb8qs. */
+const SAVE_TIMEOUT_MS = 45_000;
+
+const editVersions = (paperId, userId) => askEdit('versions', { paperId, userId });
+const editQuestions = (paperId, userId) => askEdit('questions', { paperId, userId });
+const editAddKinds = (paperId, userId) => askEdit('add-kinds', { paperId, userId });
+const editValidate = ({ paperId, userId, id = null, kind = null, edit = {} }) => askEdit('validate', { paperId, userId, id, kind, edit });
+const editSave = ({ parentId, userId, changes }) => askEdit('save', { parentId, userId, changes }, { timeout: SAVE_TIMEOUT_MS });
+
+module.exports = { options, listChapters, create, status, download, listPapers, editVersions, editQuestions, editAddKinds, editValidate, editSave };
