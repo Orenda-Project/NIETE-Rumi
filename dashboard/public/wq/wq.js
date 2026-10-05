@@ -219,21 +219,27 @@
     } catch (e) {}
   }
   var player = null;
+  var voiceGen = 0; // bumped on every stop: a line that was stopped or replaced never speaks again
   function stopVoice() {
+    voiceGen += 1;
     try { if (player) { player.pause(); player = null; } } catch (e) {}
     try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
   }
   // Recorded clip when the payload has one, else the phone's own voice. done() runs when it ends.
   function speak(text, url, done) {
     stopVoice();
+    var gen = voiceGen;
     var fin = false;
-    function end() { if (!fin) { fin = true; if (done) done(); } }
+    // A stopped line (cancel fires the utterance's onerror; its safety timer still runs) never calls done().
+    function end() { if (!fin && gen === voiceGen) { fin = true; if (done) done(); } }
     if (url) {
       // A clip that errors, will not play here, or stalls for more than 2 s counts as missing:
       // that line falls back to the phone's own voice, and we log why.
       var switched = false;
       var fallback = function (why) {
-        if (switched || fin) return;
+        // A clip stopped by the next screen (a fast tap, slow data) rejects its play() and
+        // fires its stalled timer: that is not a missing clip, and its old line stays quiet.
+        if (switched || fin || gen !== voiceGen) return;
         switched = true;
         try { if (player) player.pause(); } catch (e) {}
         player = null;
