@@ -182,3 +182,11 @@ test('no class list: the name chips as today', () => {
   expect(p.last().name).toBe('M4');
   expect(p.last().h).toContain('Zara');
 });
+
+test("the pad's Go key reads at AA contrast: the same text colour as the page's main green button", () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq.css'), 'utf8');
+  const rule = (sel) => (css.match(new RegExp(`(^|\\n)${sel.replace('.', '\\.')}\\{([^}]*)\\}`)) || [])[2] || '';
+  const goColor = (rule('.wq-go').match(/(?:^|;)color:([^;]+)/) || [])[1];
+  expect(goColor).toBeTruthy();
+  expect((rule('.wq-key-go').match(/(?:^|;)color:([^;]+)/) || [])[1]).toBe(goColor);
+});
