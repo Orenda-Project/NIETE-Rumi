@@ -172,6 +172,9 @@ jest.mock('../../bot/shared/services/redis-comprehension.service', () => ({
   abandonUserFlows: jest.fn(() => Promise.resolve()),
   recordAnswer: jest.fn(), clearFlow: jest.fn(),
 }));
+// Loaded by comprehension.service at module scope for picture questions; not on this path, and on
+// some branches it requires a bot-only SDK the root suite cannot resolve.
+jest.mock('../../bot/shared/services/reading/vocabulary-image.service', () => ({}));
 jest.mock('../../bot/shared/services/reading-assessment.service', () => ({ handleAudioReceipt: jest.fn(() => Promise.resolve()) }));
 jest.mock('../../bot/shared/services/voice-attendance.service', () => ({
   ...jest.requireActual('../../bot/shared/services/voice-attendance.service'),
