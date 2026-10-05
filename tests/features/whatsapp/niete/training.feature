@@ -1661,6 +1661,19 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-generate replaceFromSource, used by runSourceFidelity, runKeyCheck and runKeyVerify; REPLACE_RULE in
     # transcript-quiz-rewrite. Unit: tests/quiz/quiz-author-gates-fail-soft.test.js. @wip.
 
+  @api @quiz @wip @draft @config-gated @P2 @T182 @no-mock-driver
+  Scenario: With the author gates on, one question never gives away the answer to a later one
+    Given app_settings "quiz_author_gates_v2" is true
+    And an earlier question or its explanation already states the answer a later question asks for
+    When my class quiz is made from my lesson
+    Then the later question is rewritten to ask about a different fact of my lesson
+    And if the rewrite does not fix it the quiz is still sent, with the give-away counted
+    And a word for a kind of thing named in passing ("a structural adaptation") is not treated as a give-away
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-answer-leaks answerLeakErrors (ANSWER_LEAK), wired in transcript-quiz-validator validate();
+    # generate LEAK_FAULT (soft, re-asked in place); LEAK_REPAIR in transcript-quiz-rewrite.
+    # Unit: tests/quiz/quiz-author-gates-answer-leak.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T110 @no-mock-driver
   Scenario: A question that sends the child to a picture it does not have is left out of my web quiz
     Given my web quiz has four questions

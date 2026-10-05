@@ -148,6 +148,9 @@ const TERM_SCRIPT = /^q\d+: URDU_(TRANSLITERATED|ROMAN)\b/;
  */
 const REPLACE_RULE = 'A NEW QUESTION FROM THE LESSON. A question rejected for REPLACE_FROM_SOURCE was already repaired once and is still wrong. Do not repair it: write a DIFFERENT question for its slot, on the same SLO and level, about another moment of the lesson — one where the lesson itself states the answer — and copy that moment, word for word, as its "source_quote". Its correct answer must be the one the lesson states.';
 const REPLACE = /^q\d+: REPLACE_FROM_SOURCE\b/;
+/** A later question whose answer an earlier one already states (quiz_author_gates_v2). */
+const LEAK_REPAIR = 'GIVEN AWAY BY ANOTHER QUESTION. A question rejected for ANSWER_LEAK asks for an answer that an earlier question\'s words or explanation already state, so the child reads the answer before being asked. Write a NEW question for its slot: the same SLO and level, about a different fact or example of the lesson whose answer no other question, option or explanation in the quiz states.';
+const LEAK = /^q\d+: ANSWER_LEAK\b/;
 /**
  * A question rejected for URDU_NAME_LATIN is a GOOD question that writes a
  * person's name from the lesson in English letters («‏Hira کی بوتل»): the Urdu
@@ -446,6 +449,7 @@ ${why}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => DUPLICATE.test(e))) ? [DUPLICATE_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => TERM_SCRIPT.test(e))) ? [TERM_SCRIPT_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => REPLACE.test(e))) ? [REPLACE_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => LEAK.test(e))) ? [LEAK_REPAIR] : []),
     ...(namesAsked ? [NAME_LATIN_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => PUPIL.test(e))) ? [PUPIL_REPAIR] : []),
     // EVERY replacement in an Urdu quiz writes a "selected_because" and the
