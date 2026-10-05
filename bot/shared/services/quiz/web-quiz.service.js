@@ -643,6 +643,9 @@ const EVENT_PROPS = Object.freeze({
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't'];
 const EVENT_BOOLS = ['ok', 'iab'];
+const SHARE_PATHS = ['native', 'wa', 'copy'];
+const UA_MAX = 300;
+const PROBE_MAX = 4096;
 
 /** Keep only allow-listed props of the right shape: no names, no free text, no phone. Pure. */
 function cleanEvent(e) {
@@ -656,7 +659,31 @@ function cleanEvent(e) {
     if (e[k] !== undefined && Number.isFinite(v)) props[k === 'n' ? 'count' : k] = v;
   }
   for (const k of EVENT_BOOLS) if (typeof e[k] === 'boolean') props[k] = e[k];
+  if (typeof e.ua === 'string' && e.ua) props.ua = e.ua.slice(0, UA_MAX);
+  if (e.store === 0 || e.store === 1) props.store = e.store;
+  if (SHARE_PATHS.includes(e.path)) props.path = e.path;
+  if (e.n === 'probe') {
+    const probe = cleanProbe(e.probe);
+    if (probe) props.probe = probe;
+  }
   return { name: e.n, props };
+}
+
+/**
+ * The capability probe's results (storage, share, in-app-browser markers):
+ * one flat level of short strings, numbers and booleans, under 4 KB. Nested
+ * objects are dropped; an oversized probe is dropped whole.
+ */
+function cleanProbe(p) {
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+  const out = {};
+  for (const [k, v] of Object.entries(p).slice(0, 80)) {
+    if (!/^[A-Za-z0-9_.-]{1,40}$/.test(k)) continue;
+    if (typeof v === 'string') out[k] = v.slice(0, 200);
+    else if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+    else if (typeof v === 'boolean') out[k] = v;
+  }
+  return JSON.stringify(out).length <= PROBE_MAX ? out : null;
 }
 
 function events(body = {}) {

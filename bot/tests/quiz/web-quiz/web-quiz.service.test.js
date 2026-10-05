@@ -329,6 +329,24 @@ describe('E8 POST e', () => {
   });
 });
 
+describe('E8 page props the edge needs (probe, ua, store, path, audio_fallback)', () => {
+  test('ua capped at 300, store 0/1, path from a fixed set; probe carries a flat object under 4 KB', () => {
+    WQ.events({ events: [
+      { n: 'share_done', path: 'wa', store: 1, ua: 'x'.repeat(400) },
+      { n: 'share_done', path: 'somewhere-else', store: 7 },
+      { n: 'probe', probe: { storage: 'ok', share: 'no', iab: 'wa_android', nested: { no: 1 }, n: 3 } },
+      { n: 'probe', probe: Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`k${i}`, 'y'.repeat(150)])) },
+      { n: 'audio_fallback', reason: 'stalled', qid: qid(1) },
+    ] });
+    const calls = logEvent.mock.calls;
+    expect(calls[0]).toEqual(['web_quiz.share_done', { path: 'wa', store: 1, ua: 'x'.repeat(300) }]);
+    expect(calls[1]).toEqual(['web_quiz.share_done', {}]);
+    expect(calls[2]).toEqual(['web_quiz.probe', { probe: { storage: 'ok', share: 'no', iab: 'wa_android', n: 3 } }]);
+    expect(calls[3]).toEqual(['web_quiz.probe', {}]);
+    expect(calls[4]).toEqual(['web_quiz.audio_fallback', { reason: 'stalled', qid: qid(1) }]);
+  });
+});
+
 describe('E10 GET media', () => {
   test('a URL picture redirects; an inline option picture is served as bytes; unknown is 404', async () => {
     expect(await WQ.media('AB12CD', qid(1), { k: 'q' })).toEqual({ redirect: 'https://example.org/q1.png' });
