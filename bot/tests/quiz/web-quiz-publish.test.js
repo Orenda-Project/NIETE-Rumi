@@ -307,4 +307,46 @@ describe('presignAudio / presignVideo', () => {
     expect(v.poster).toBeUndefined();
     expect(await presignVideo({ id: QUIZ_ID, video_id: null }, { db })).toBeNull();
   });
+
+  // A deployment whose bucket differs from the one the video bank's rows name
+  // (the rows were migrated once, with path-style URLs on the same R2 account).
+  const OTHER_BUCKET_URL = 'https://acct.r2.example.com/video-bank-bucket/student-videos/g3/hen.mp4';
+
+  test('row names another bucket on our R2 endpoint, key present in ours -> signed link to OUR copy', async () => {
+    const heads = [];
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') {
+        heads.push(`${cmd.input.Bucket}/${cmd.input.Key}`);
+        if (cmd.input.Key === 'student-videos/g3/hen.mp4') return { ContentLength: 3170403, ContentType: 'video/mp4' };
+        const e = new Error('nf'); e.name = 'NotFound'; throw e;
+      }
+      return {};
+    });
+    const db = fakeDb({ quiz: null, questions: [], videos: [{ id: 'v2', r2_url: OTHER_BUCKET_URL, migration_status: 'done' }] });
+    const v = await presignVideo({ id: QUIZ_ID, video_id: 'v2' }, { db });
+    expect(v).not.toBeNull();
+    expect(v.url).toMatch(/\/test-bucket\/student-videos\/g3\/hen\.mp4\?.*X-Amz-Signature=|test-bucket\..*\/student-videos\/g3\/hen\.mp4\?.*X-Amz-Signature=/);
+    expect(v.bytes).toBe(3170403);
+    expect(heads).toContain('test-bucket/student-videos/g3/hen.mp4');
+  });
+
+  test('row names another bucket and the key is NOT in ours -> null, with the warn', async () => {
+    const { logWarn } = require('../../shared/utils/logger');
+    logWarn.mockClear();
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      return {};
+    });
+    const db = fakeDb({ quiz: null, questions: [], videos: [{ id: 'v3', r2_url: OTHER_BUCKET_URL, migration_status: 'done' }] });
+    expect(await presignVideo({ id: QUIZ_ID, video_id: 'v3' }, { db })).toBeNull();
+    expect(logWarn).toHaveBeenCalledWith('web_quiz.presign_video.failed', expect.objectContaining({ quizId: QUIZ_ID }));
+  });
+
+  test('row on a host that is not our R2 endpoint -> null (never signs a foreign host)', async () => {
+    mockS3Send.mockImplementation(async () => ({ ContentLength: 10, ContentType: 'video/mp4' }));
+    const db = fakeDb({ quiz: null, questions: [], videos: [
+      { id: 'v4', r2_url: 'https://elsewhere.example.org/video-bank-bucket/student-videos/g3/hen.mp4', migration_status: 'done' },
+    ] });
+    expect(await presignVideo({ id: QUIZ_ID, video_id: 'v4' }, { db })).toBeNull();
+  });
 });

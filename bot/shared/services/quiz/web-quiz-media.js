@@ -51,6 +51,24 @@ async function head(key) {
 }
 
 /**
+ * The R2 key of a video-bank row. The rows hold path-style URLs naming the
+ * bucket they were migrated into; a deployment with a different bucket on the
+ * same R2 endpoint keeps the same keys, so the key is the path after the
+ * bucket segment. Any other host is not ours to sign.
+ * @returns {{key: string, foreign: boolean}}
+ */
+function videoKey(r2Url) {
+  try {
+    return { key: r2.extractKeyFromUrl(r2Url), foreign: false };
+  } catch (error) {
+    const m = /^https?:\/\/([^/]+)\/[^/]+\/(.+)$/i.exec(String(r2Url).split('?')[0]);
+    const ours = /^https?:\/\/([^/]+)/i.exec(process.env.R2_ENDPOINT || '');
+    if (!m || !ours || m[1].toLowerCase() !== ours[1].toLowerCase()) throw error;
+    return { key: m[2], foreign: true };
+  }
+}
+
+/**
  * @param {{video_id?: string}} quiz
  * @param {{db?: object, expiresIn?: number}} [opts]
  * @returns {Promise<{url: string, poster?: string, bytes?: number, secs?: number} | null>}
@@ -63,7 +81,7 @@ async function presignVideo(quiz, { db, expiresIn = DEFAULT_EXPIRES } = {}) {
       .select('id, r2_url, migration_status').eq('id', quiz.video_id).maybeSingle();
     if (!row || row.migration_status !== 'done' || !row.r2_url) return null;
 
-    const key = r2.extractKeyFromUrl(row.r2_url);
+    const { key, foreign } = videoKey(row.r2_url);
     const url = await sign(key, expiresIn);
     if (!url) return null;
     const out = { url };
@@ -72,6 +90,8 @@ async function presignVideo(quiz, { db, expiresIn = DEFAULT_EXPIRES } = {}) {
       head(key),
       head(key.replace(/\.[a-z0-9]+$/i, '_poster.jpg')),
     ]);
+    // A row naming another bucket is served only from a copy we hold.
+    if (foreign && !video.exists) throw new Error(`video not in this bucket: ${key}`);
     if (video.exists && video.sizeBytes) out.bytes = video.sizeBytes;
     if (poster.exists) {
       const p = await sign(key.replace(/\.[a-z0-9]+$/i, '_poster.jpg'), expiresIn);
