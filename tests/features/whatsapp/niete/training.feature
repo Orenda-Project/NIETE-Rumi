@@ -1381,6 +1381,14 @@ Feature: NIETE (ICT) Teacher Training
     And a complete publish is stamped with the voice version so it is not redone, while a partial one is retried later
     # ADDED 2026-10-05: web-quiz-publish ensureQuizAudio (in-process dedupe, 15 min retry), PARTS_FB xa..xd, meta.web.audio_v; getQuiz calls it unawaited. @wip.
 
+  @api @quiz @web @wip @draft @P2 @T172 @no-mock-driver
+  Scenario: A web quiz's clips are stored small, so a child's data goes further
+    Given the voice vendor returns a clip at about 57 kbps
+    When the read-aloud clips are published
+    Then each clip is stored as mono Opus at 24 kbps (about 10 KB for a 3.5-second line), with the same words heard
+    And a quiz recorded in the older format gets the small clips on its next open
+    # ADDED 2026-10-06: web-quiz-publish compactClip (bundled ffmpeg; original kept if it fails), CLIP_FORMAT in the key, AUDIO_VERSION 3. @wip.
+
   @e2e @quiz @wip @draft @config-gated @P1 @T100
   Scenario: With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat
     Given the web quiz is switched on and I am one of the teachers it is on for
