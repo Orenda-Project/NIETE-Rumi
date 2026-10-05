@@ -524,7 +524,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var CLASS_LABEL = CLS.label || T.yourClass;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
   var STAR = '<svg class="wq-star{on}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
-  var IMG = '/wq/jugnu_';
+  var IMG = '/wq/jugnu/';
 
   /* ---------------- storage that survives being blocked ---------------- */
   var mem = {};
@@ -737,10 +737,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
    * feels canned. The still is the poster and the fallback, so the first question never waits on a loop:
    * a loop loads only once the screen is up and in view, plays muted and inline, and gives way to the still
    * on reduced motion, Save-Data or 2G, a refused autoplay, off-screen, or a hidden / closing page.
-   * Android plays VP9-with-alpha WebM; WebKit has no WebM alpha, so iPhones get the animated WebP. */
+   * Android plays VP9-with-alpha WebM; WebKit has no WebM alpha, so iPhones get the animated WebP.
+   * A child's data is money: a loop plays only where the screen asks for one (the landing hello, the first right
+   * answer, the results celebration), never on 3G or slower, never before the page has loaded. A pose plays the
+   * same variant all day, so a second quiz fetches no new loop. The animated WebP is ~3x a WebM, so iPhones loop
+   * only the celebration. A mascot file that fails falls back to the old still, then hides: never a broken box. */
   var JUG_DIR = '/wq/jugnu/';
   var JUG_V = { idle: 'abc', hello: 'ab', thinking: 'ab', correct: 'abc', notyet: 'ab', celebrate: 'ab', sleep: 'ab' };
-  var jugLast = {};
+  var JUG_OLD = '/wq/jugnu_';
+  var JUG_WEBP_LOOPS = { celebrate: 1 };
+  var jugRightDone = false; // only the FIRST right answer of the visit gets the loop
   var jugOn = true;
   var jugIO = null;
   var JUG_WEBM = (function () {
@@ -751,23 +757,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       return !!(v.canPlayType && v.canPlayType('video/webm; codecs="vp9"'));
     } catch (e) { return false; }
   })();
-  function jugImg(pose) {
-    return '<span class="wq-jimg" data-jpose="' + pose + '"><img src="' + JUG_DIR + pose + '.webp" alt="" width="92" height="92"></span>';
+  function jugImg(pose, loop) {
+    return '<span class="wq-jimg" data-jpose="' + pose + '"' + (loop ? ' data-jloop="1"' : '') + '><img src="' + JUG_DIR + pose + '.webp" alt="" width="92" height="92"></span>';
   }
-  function jug(pose, line, big) {
-    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '">' + jugImg(pose) + '<div class="wq-say">' + esc(line) + '</div></div>';
+  function jug(pose, line, big, loop) {
+    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '">' + jugImg(pose, loop) + '<div class="wq-say">' + esc(line) + '</div></div>';
   }
   function jugMotion() {
     try { if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false; } catch (e) {}
     var c = navigator.connection || {};
-    return !(c.saveData || /2g$/.test(c.effectiveType || ''));
+    return !(c.saveData || /(2g|3g)$/.test(c.effectiveType || ''));
   }
+  // one variant per pose per day (the phone caches it), and every variant comes round over the days
   function jugPick(pose) {
     var v = JUG_V[pose] || 'a';
-    var k = v.charAt(Math.min(v.length - 1, Math.floor(Math.random() * v.length)));
-    if (v.length > 1 && k === jugLast[pose]) k = v.charAt((v.indexOf(k) + 1) % v.length);
-    jugLast[pose] = k;
-    return pose + '_' + k;
+    var day = Math.floor(Date.now() / 86400000);
+    return pose + '_' + v.charAt(day % v.length);
   }
   function jugLive(el) { if (!/ wq-live/.test(el.className)) el.className += ' wq-live'; }
   // put the still back: drop the loop element so nothing decodes in the background
@@ -783,11 +788,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     });
   }
   function jugStart(el) {
-    if (!jugOn || el.getAttribute('data-jon')) return;
+    if (!jugOn || el.getAttribute('data-jon') || !el.getAttribute('data-jloop')) return;
+    var pose = el.getAttribute('data-jpose');
+    if (!JUG_WEBM && !JUG_WEBP_LOOPS[pose]) return;
     el.setAttribute('data-jon', '1');
-    var name = jugPick(el.getAttribute('data-jpose'));
+    var name = jugPick(pose);
     var webp = function () {
-      if (!jugOn || el.getAttribute('data-jon') !== '1') return;
+      if (!jugOn || el.getAttribute('data-jon') !== '1' || !JUG_WEBP_LOOPS[pose]) return;
       var im = document.createElement('img');
       im.alt = ''; im.className = 'wq-anim';
       im.onload = function () { jugLive(el); };
@@ -850,18 +857,33 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   document.addEventListener('resume', jugResume);
   document.addEventListener('wq-silence', jugStop);
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') jugStop(); else jugResume(); });
-  // a new screen is drawn into ROOT: wake its mascot a moment later, after the page has loaded
+  // a new screen is drawn into ROOT: wake its mascot a second later, and never before the page has loaded,
+  // so a loop never competes with the page, the first question or its audio for a slow connection
+  var jugT = null;
+  var jugLoaded = document.readyState === 'complete';
+  function jugSoon() {
+    if (!jugLoaded || jugT) return;
+    jugT = setTimeout(function () { jugT = null; jugWake(); }, 1000);
+  }
+  window.addEventListener('load', function () { jugLoaded = true; jugSoon(); });
   try {
-    if (window.MutationObserver && ROOT) {
-      var jugT = null;
-      new window.MutationObserver(function () {
-        if (jugT) return;
-        jugT = setTimeout(function () { jugT = null; jugWake(); }, 250);
-      }).observe(ROOT, { childList: true, subtree: true });
-    }
-    if (document.readyState === 'complete') setTimeout(jugWake, 250);
-    else window.addEventListener('load', function () { setTimeout(jugWake, 250); });
+    if (window.MutationObserver && ROOT) new window.MutationObserver(jugSoon).observe(ROOT, { childList: true, subtree: true });
+    jugSoon();
   } catch (e) {}
+  // a mascot picture that fails (patchy data, 404/500): the old still, then nothing; never a broken-image box.
+  // error does not bubble, so this listens in the capture phase.
+  function jugBroken(e) {
+    var im = e && e.target;
+    if (!im || im.tagName !== 'IMG') return;
+    var src = im.getAttribute('src') || '';
+    var slot = im.parentNode && /(^| )wq-jimg( |$)/.test(im.parentNode.className) ? im.parentNode : null;
+    if (/(^| )wq-anim( |$)/.test(im.className)) { try { im.parentNode.removeChild(im); } catch (x) {} return; }
+    var m = /\/wq\/jugnu\/([a-z]+)\.webp/.exec(src);
+    if (m && !im.getAttribute('data-jold')) { im.setAttribute('data-jold', '1'); im.src = JUG_OLD + m[1] + '.webp'; return; }
+    if (!m && src.indexOf(JUG_OLD) < 0 && !im.getAttribute('data-jold')) return;
+    if (slot) { if (!/ wq-jgone/.test(slot.className)) slot.className += ' wq-jgone'; } else im.style.display = 'none';
+  }
+  try { if (ROOT) ROOT.addEventListener('error', jugBroken, true); } catch (e) {}
   window.wqJug = { stop: jugStop, resume: jugResume };
   /* ---------------- end mascot ---------------- */
   function stars(n, total) {
@@ -891,7 +913,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var chLine = ch ? T.challenged(ch.first, ch.correct, ch.total) : (params.from ? T.challengedBy(String(params.from).slice(0, 20)) : '');
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
-      jug('hello', last ? T.helloN(last.first) : T.hello, true) +
+      jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
       '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
@@ -1317,7 +1339,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var answered = answeredCount();
     var halfway = !retry && ok !== null && answered === Math.ceil(N / 2) && N >= 4;
     var fb = $('#wq-fb');
-    fb.innerHTML = '<div class="wq-jug">' + jugImg(ok ? 'correct' : 'notyet') + '<div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + esc(line) +
+    var loopIt = !!ok && !jugRightDone;
+    if (ok) jugRightDone = true;
+    fb.innerHTML = '<div class="wq-jug">' + jugImg(ok ? 'correct' : 'notyet', loopIt) + '<div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + esc(line) +
       (why ? '<div class="wq-why">' + WQI.tex(why) + '</div>' : '') +
       (!ok && !retry ? '<div class="wq-why">' + esc(T.again) + '</div>' : '') + '</div></div>' +
       (halfway ? '<p class="wq-proof">🎉 ' + esc(T.half) + '</p>' : '') +
@@ -1379,7 +1403,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       S.fixed = fixed; save();
       var sc = res.score || {};
       var total = sc.total || N;
-      var h = bar() + jug('celebrate', T.praise(sc.correct, total), true) +
+      var h = bar() + jug('celebrate', T.praise(sc.correct, total), true, true) +
         '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
         '<h1>' + esc(T.got(sc.correct, total)) + '</h1>' + stars(sc.correct, total) +
         (fixed ? '<p class="wq-sub">' + esc(T.fixedLine(fixed)) + '</p>' : '') +
