@@ -9,7 +9,7 @@
   --s1-bg:#EEE8FA;--s2-bg:#E4ECFA;--s3-bg:#F6E6F1;--s4-bg:#E0F2F3;
   --hill:#DCEFD9;--tap:48px;
   --f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --fu:"WQ Nastaliq","Noto Nastaliq Urdu",system-ui,sans-serif;
+  --fu:"WQ Nastaliq",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Nastaliq Urdu",sans-serif;
 }
 *{box-sizing:border-box}
 /* touch-action: manipulation = no double-tap zoom, so a quick second tap (the ORDER item: B then A) always lands; pinch zoom stays. */
