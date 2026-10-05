@@ -438,6 +438,17 @@ describe('a stem that points at a picture it does not have is never served (E2 g
     expect(out.score).toMatchObject({ correct: 2, total: 3 });
   });
 
+  test('emoji options ARE the pictures (today\'s WhatsApp picture question): served in English and Urdu', async () => {
+    Object.assign(fake.db.quiz_questions.find((q) => q.id === qid(2)), {
+      question_text: 'Look at the pictures. Which one is a LEAF?', option_a: '\u{1F338}', option_b: '\u{1F343}', option_c: '\u{1F330}', option_d: '\u{1F955}', media: {},
+    });
+    Object.assign(fake.db.quiz_questions.find((q) => q.id === qid(3)), {
+      question_text: 'تصویریں دیکھیں۔ ان میں پتا کون سا ہے؟', option_a: '\u{1F338}', option_b: '\u{1F343}', option_c: '\u{1F330}', option_d: null, media: [],
+    });
+    const out = await WQ.getQuiz('AB12CD');
+    expect(out.quiz.n).toBe(4);
+  });
+
   test('words that only mention a picture, a quoted sentence, or a picture carried by the options still play', async () => {
     pointless(2, 'Why is a convex mirror image called virtual?');
     pointless(3, '“اس تصویر کو دیوار پر لٹکائیں” میں “لٹکائیں” کی جگہ کون سا لفظ آیا؟');
