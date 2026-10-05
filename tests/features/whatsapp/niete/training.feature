@@ -1322,3 +1322,33 @@ Feature: NIETE (ICT) Teacher Training
     Then the answer is right only in that order, and the review shows the order
     # web-quiz.service questionPayload (WebItems.webPayload), recordAnswers (WebItems.isCorrect), finishSession (keyFor). @wip.
 
+  @api @quiz @wip @draft @config-gated @P1 @T130 @no-mock-driver
+  Scenario: With the author gates on, every quiz question carries the moment of my lesson that holds its answer
+    Given app_settings "quiz_author_gates_v2" is true
+    When my class quiz is made from my lesson (a recording, a K-5 lesson plan or a 6-12 lesson plan)
+    Then every question is written with a quote of the moment in my lesson that carries its answer
+    And a question is re-written on my lesson's own example when its quote is missing, is not in my lesson, is itself a question, shares no word or number with the answer, or quotes numbers that are neither the answer's nor the question's
+    And a question the re-write still cannot ground is left out of the quiz, never sent as it was
+    And how many questions were refused, re-written, left out or kept is recorded on the quiz
+    And with the setting off, the quiz is made exactly as before
+    # transcript-quiz-source-fidelity.js (the gates) + transcript-quiz-generate runSourceFidelity (one targeted
+    # rewrite, then the salvage); counts in quizzes.meta.source_fidelity. Applies to the WhatsApp rows, so to both arms.
+    # Unit: tests/quiz/quiz-source-fidelity.test.js, tests/quiz/quiz-source-fidelity-generate.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P1 @T131 @no-mock-driver
+  Scenario: With the author gates on, a grade 1-2 question is short enough for a beginning reader
+    Given app_settings "quiz_author_gates_v2" is true
+    And my lesson is for grade 1 or 2
+    When my class quiz is made
+    Then no question is longer than 8 words, and a longer one is re-written shorter
+    # STEM_TOO_LONG_G12 in transcript-quiz-source-fidelity.js; the web page voices the stem (read.stem). @wip.
+
+  @api @quiz @wip @draft @config-gated @P2 @T132 @no-mock-driver
+  Scenario: With the author gates on, a slip in my lesson is not taught to the children
+    Given app_settings "quiz_author_gates_v2" is true
+    And something said in my lesson about a fact was wrong
+    When my class quiz is made
+    Then the question tests the correct fact and quotes the moment the correct fact was said
+    And the slip is recorded on the quiz for my report to use later, and nothing in my report changes yet
+    # teaching_error per question -> quizzes.meta.source_fidelity.teaching_errors [{question, said, correct, quote}]. @wip.
+
