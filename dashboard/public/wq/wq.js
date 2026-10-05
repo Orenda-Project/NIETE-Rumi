@@ -435,8 +435,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var T = {
     en: {
       quiz: 'QUIZ', from: function (t, c) { return [t ? 'From ' + t : '', c].filter(Boolean).join(' · '); },
-      meta: function (n) { return n + ' questions · about ' + Math.max(1, Math.round(n * 0.6)) + ' minutes'; },
-      hello: 'Assalam o Alaikum! Let\'s read it together.', helloN: function (n) { return 'Welcome back, ' + n + '!'; },
+      meta: function (n) { var m = Math.max(1, Math.round(n * 0.6)); return n + (n === 1 ? ' question' : ' questions') + ' · about ' + m + (m === 1 ? ' minute' : ' minutes'); },
+      hello: 'Assalam o Alaikum! Let\'s play the quiz together.', helloN: function (n) { return 'Welcome back, ' + n + '!'; },
       play: 'Play', playAs: function (n) { return 'Play as ' + n; }, notMe: function (n) { return 'Not ' + n + '?'; },
       proof: function (n) { return n.toLocaleString('en') + (PLACE ? ' children in ' + PLACE.en + ' played today' : ' children played today'); },
       classToday: function (n) { return n + ' in your class played today'; },
@@ -478,7 +478,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     ur: {
       quiz: 'کوئز', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, '\u00A0') : ''].filter(Boolean).join(' · '); },
       meta: function (n) { return n + ' سوال · تقریباً ' + Math.max(1, Math.round(n * 0.6)) + ' منٹ'; },
-      hello: 'السلام علیکم! آئیں، مل کر پڑھیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
+      hello: 'السلام علیکم! آئیں، مل کر کوئز کھیلیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
       play: 'کھیلیں', playAs: function (n) { return n + '، شروع کریں'; }, notMe: function (n) { return n + ' نہیں؟'; },
       proof: function (n) { return 'آج ' + (PLACE ? PLACE.ur + ' میں ' : '') + n.toLocaleString('en') + ' بچوں نے کھیلا'; },
       classToday: function (n) { return 'آج آپ کی کلاس میں ' + n + ' نے کھیلا'; },
@@ -628,8 +628,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
      exactly the recorded words (a test holds them to manifest.json); one is picked at random per
      answer, never the same one twice in a row. Urdu addresses the child only with imperatives or
      noun phrases; a not-yet line never praises. */
-  var VOICE_V = '848fcec0';
-  var VOICE = {"en": {"right": ["Yes! That's right!", "You got it!", "Correct! Well spotted.", "Yes! That's the one.", "Right answer! Good thinking.", "Yes! You checked carefully.", "That's it! Well done.", "Spot on!", "Yes! Keep it up.", "Brilliant, that's right!"], "notyet": ["Not yet. The answer is", "Not quite. The right answer is", "Not this one. The answer is", "Let's learn it together. The answer is", "That one was tricky. The answer is", "Not this time. The right answer is", "Hmm, not yet. The answer is", "No problem, let's see. The answer is"], "fixed": ["Fixed it!", "Now you've got it!", "Yes! That's it now.", "You worked it out!", "Second try, and it's right!", "That's the one!", "Now it's right. Well done!", "Yes! Fixed it."], "done": ["Quiz complete! Every question done.", "All done! Thank you for playing.", "You finished the whole quiz!", "The end! Let's see your stars.", "That was the last one. All done!", "Finished! Well played.", "Quiz complete! Let's look at your stars.", "Every question answered. Well done!"], "cheer": ["Halfway there! Keep going.", "Keep going!", "Take your time and listen carefully.", "On to the next one!", "Half the quiz done!", "Every question teaches something new.", "You're doing it, keep going!", "Half the questions done!"], "notyetpic": ["Not yet. Look, this one is right."]}, "ur": {"right": ["شاباش! بالکل صحیح!", "جی ہاں! یہی صحیح جواب ہے۔", "واہ! بالکل ٹھیک۔", "زبردست! صحیح جواب۔", "بہت خوب! یہی تو ہے۔", "صحیح! غور سے دیکھنا کام آیا۔", "جی ہاں! بہت عمدہ جواب۔", "کمال! بالکل درست۔", "ہاں! یہی ہے صحیح جواب۔", "شاباش! ایسے ہی آگے چلیں۔"], "notyet": ["ابھی نہیں۔ صحیح جواب ہے:", "یہ والا نہیں۔ صحیح جواب ہے:", "کوئی بات نہیں۔ صحیح جواب ہے:", "آئیں مل کر سیکھیں۔ صحیح جواب ہے:", "یہ سوال مشکل تھا۔ صحیح جواب ہے:", "اس بار نہیں۔ صحیح جواب ہے:", "ابھی نہیں۔ آئیں دیکھیں، صحیح جواب ہے:", "کوشش سے ہی سیکھتے ہیں۔ صحیح جواب ہے:"], "fixed": ["ٹھیک ہو گیا!", "اب بالکل صحیح!", "جی ہاں! اب ٹھیک ہے۔", "شاباش! دوسری کوشش میں صحیح۔", "زبردست! اب بات سمجھ میں آ گئی۔", "واہ! یہی ہے صحیح جواب۔", "کمال! اب درست ہے۔", "بہت خوب! اب جواب ٹھیک ہے۔"], "done": ["کوئز مکمل! سارے سوال ہو گئے۔", "شاباش! پورا کوئز مکمل۔", "کوئز ختم! آئیں ستارے دیکھیں۔", "واہ! آخری سوال بھی ہو گیا۔", "مکمل! کھیلنے کا شکریہ۔", "زبردست! پورا کوئز حل ہو گیا۔", "کوئز پورا ہو گیا! بہت خوب۔", "سارے سوال مکمل! شاباش۔"], "cheer": ["آدھا کوئز ہو گیا! چلتے رہیں۔", "بہت خوب، آگے چلیں!", "ہمت نہ ہاریں، اگلا سوال!", "آرام سے، غور سے سنیں۔", "چلیں، اگلا سوال دیکھیں!", "ہر سوال سے کچھ نیا سیکھیں۔", "شاباش، ایسے ہی چلتے رہیں!", "آدھے سوال ہو گئے!"], "notyetpic": ["ابھی نہیں۔ دیکھیں، یہ والا صحیح ہے۔"]}};
+  var VOICE_V = 'b6e4dfeb';
+  var VOICE = {"en": {"right": ["Yes! That's right!", "You got it!", "Correct! Well spotted.", "Yes! That's the one.", "Right answer! Good thinking.", "Yes! You checked carefully.", "That's it! Well done.", "Spot on!", "Yes! Keep it up.", "Brilliant, that's right!"], "notyet": ["Not yet. The answer is", "Not quite. The right answer is", "Not this one. The answer is", "Let's learn it together. The answer is", "That one was tricky. The answer is", "Not this time. The right answer is", "Hmm, not yet. The answer is", "No problem, let's see. The answer is"], "fixed": ["Fixed it!", "Now you've got it!", "Yes! That's it now.", "You worked it out!", "Second try, and it's right!", "That's the one!", "Now it's right. Well done!", "Yes! Fixed it."], "done": ["Quiz complete! Every question done.", "All done! Thank you for playing.", "You finished the whole quiz!", "The end! Let's see your stars.", "That was the last one. All done!", "Finished! Well played.", "Quiz complete! Let's look at your stars.", "Every question answered. Well done!"], "cheer": ["Halfway there! Keep going.", "Keep going!", "Take your time and listen carefully.", "On to the next one!", "Half the quiz done!", "Every question teaches something new.", "You're doing it, keep going!", "Half the questions done!"], "notyetpic": ["Not yet. Look, this one is right."], "tftrue": ["Not yet. This sentence is true."], "tffalse": ["Not yet. This sentence is false."]}, "ur": {"right": ["شاباش! بالکل صحیح!", "جی ہاں! یہی صحیح جواب ہے۔", "واہ! بالکل ٹھیک۔", "زبردست! صحیح جواب۔", "بہت خوب! یہی تو ہے۔", "صحیح! غور سے دیکھنا کام آیا۔", "جی ہاں! بہت عمدہ جواب۔", "کمال! بالکل درست۔", "ہاں! یہی ہے صحیح جواب۔", "شاباش! ایسے ہی آگے چلیں۔"], "notyet": ["ابھی نہیں۔ صحیح جواب ہے:", "یہ والا نہیں۔ صحیح جواب ہے:", "کوئی بات نہیں۔ صحیح جواب ہے:", "آئیں مل کر سیکھیں۔ صحیح جواب ہے:", "یہ سوال مشکل تھا۔ صحیح جواب ہے:", "اس بار نہیں۔ صحیح جواب ہے:", "ابھی نہیں۔ آئیں دیکھیں، صحیح جواب ہے:", "کوشش سے ہی سیکھتے ہیں۔ صحیح جواب ہے:"], "fixed": ["ٹھیک ہو گیا!", "اب بالکل صحیح!", "جی ہاں! اب ٹھیک ہے۔", "شاباش! دوسری کوشش میں صحیح۔", "زبردست! اب بات سمجھ میں آ گئی۔", "واہ! یہی ہے صحیح جواب۔", "کمال! اب درست ہے۔", "بہت خوب! اب جواب ٹھیک ہے۔"], "done": ["کوئز مکمل! سارے سوال ہو گئے۔", "شاباش! پورا کوئز مکمل۔", "کوئز ختم! آئیں ستارے دیکھیں۔", "واہ! آخری سوال بھی ہو گیا۔", "مکمل! کھیلنے کا شکریہ۔", "زبردست! پورا کوئز حل ہو گیا۔", "کوئز پورا ہو گیا! بہت خوب۔", "سارے سوال مکمل! شاباش۔"], "cheer": ["آدھا کوئز ہو گیا! چلتے رہیں۔", "بہت خوب، آگے چلیں!", "ہمت نہ ہاریں، اگلا سوال!", "آرام سے، غور سے سنیں۔", "چلیں، اگلا سوال دیکھیں!", "ہر سوال سے کچھ نیا سیکھیں۔", "شاباش، ایسے ہی چلتے رہیں!", "آدھے سوال ہو گئے!"], "notyetpic": ["ابھی نہیں۔ دیکھیں، یہ والا صحیح ہے۔"], "tftrue": ["ابھی نہیں۔ یہ بات درست ہے۔"], "tffalse": ["ابھی نہیں۔ یہ بات غلط ہے۔"]}};
   var lastPick = {};
   function vline(set) {
     var lang = VOICE[LANG] ? LANG : 'en';
@@ -1349,8 +1349,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // Not yet: the feedback for the option the child picked, else the reason. Never praise.
     var why = WQI.letters(q, ok ? (q.why || q.fb_right || '') : (picked.fb || q.why || ''));
     var named = speakable(optText(right));
-    var lead = vline(ok ? (retry ? 'fixed' : 'right') : named ? 'notyet' : 'notyetpic');
-    var line = !ok && named ? T.notyet(lead.text, optText(right)) : lead.text;
+    // A true/false item says which the sentence is ("Not yet. This sentence is true."): the true
+    // button is always shown first.
+    var tf = !ok && WQI.kind(q) === 'tf';
+    var tfTrue = tf && (q.options || [])[0] && String(q.correct_slot || '') === q.options[0].slot;
+    var lead = vline(ok ? (retry ? 'fixed' : 'right') : tf ? (tfTrue ? 'tftrue' : 'tffalse') : named ? 'notyet' : 'notyetpic');
+    var line = !ok && named && !tf ? T.notyet(lead.text, optText(right)) : lead.text;
+    if (tf) named = false; // the lead already names the answer
     var answered = answeredCount();
     var halfway = !retry && ok !== null && answered === Math.ceil(N / 2) && N >= 4;
     var cheer = halfway ? vline('cheer') : null;

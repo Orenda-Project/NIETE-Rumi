@@ -81,7 +81,7 @@ function page({ lang = 'en' } = {}) {
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { feedback: feedback, speak: speak, speakSeq: speakSeq, sfx: sfx, results: results, VOICE: typeof VOICE === \'undefined\' ? null : VOICE };\n})();'), ctx);
+  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { feedback: feedback, speak: speak, speakSeq: speakSeq, sfx: sfx, results: results, VOICE: typeof VOICE === \'undefined\' ? null : VOICE, T: T };\n})();'), ctx);
   // Moving the voice on: the current clip or phone-voice line ends by itself.
   const advance = () => {
     const last = voiced[voiced.length - 1];
@@ -248,5 +248,24 @@ describe('the feedback voice library', () => {
       for (let k = 0; k < 4; k += 1) await flush();
       expect(p.voiced.some((v) => clip('done').test(v.url || ''))).toBe(true);
     });
+  });
+});
+
+describe.each(['en', 'ur'])('small copy fixes (%s)', (lang) => {
+  test('a wrong true/false answer says which the sentence is, from a recorded line', () => {
+    const p = page({ lang });
+    const q = { qid: 'q1', i: 1, kind: 'tf', type: 'tf', text: lang === 'en' ? 'Roots take in water.' : 'جڑیں پانی لیتی ہیں۔',
+      options: [{ slot: 'A', text: lang === 'en' ? 'True' : 'درست' }, { slot: 'B', text: lang === 'en' ? 'False' : 'غلط' }], correct_slot: 'A', why: null, audio: {} };
+    p.wq.feedback(q, 0, 'B', false, false);
+    expect(p.voiced[0].url).toMatch(new RegExp(`^/wq/voice/${lang}/tftrue-0\\.mp3`));
+    expect(shown(p)).toContain(MANIFEST[lang].tftrue[0]);
+    const p2 = page({ lang });
+    p2.wq.feedback({ ...q, correct_slot: 'B' }, 0, 'A', false, false);
+    expect(p2.voiced[0].url).toMatch(new RegExp(`^/wq/voice/${lang}/tffalse-0\\.mp3`));
+  });
+  test('the landing line invites to the quiz, and one minute is singular', () => {
+    const p = page({ lang });
+    expect(p.wq.T.hello).not.toMatch(/read it together|مل کر پڑھیں/);
+    if (lang === 'en') { expect(p.wq.T.meta(1)).toBe('1 questions · about 1 minute'.replace('1 questions', '1 question')); expect(p.wq.T.meta(5)).toMatch(/about 3 minutes$/); }
   });
 });
