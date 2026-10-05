@@ -36,8 +36,14 @@ html[lang=ur] h1,html[lang=ur] h2{font-weight:700;line-height:2}
 .wq-sub{color:var(--muted);font-weight:700;font-size:16px;margin:0}
 .wq-small{color:var(--muted);font-size:14px;margin:0}
 .wq-jug{display:flex;align-items:flex-end;gap:10px}
-.wq-jug img{width:92px;height:92px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 6px 8px rgba(51,55,72,.2));animation:wq-bob 3s ease-in-out infinite}
-.wq-jug.wq-big img{width:140px;height:140px}
+.wq-jug>img{width:92px;height:92px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 6px 8px rgba(51,55,72,.2));animation:wq-bob 3s ease-in-out infinite}
+.wq-jimg{position:relative;display:block;width:92px;height:92px;flex:0 0 auto}
+.wq-jug.wq-big .wq-jimg{width:140px;height:140px}
+.wq-jimg>img,.wq-jimg>video{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;background:transparent}
+.wq-jimg>img:first-child{filter:drop-shadow(0 6px 8px rgba(51,55,72,.2));animation:wq-bob 3s ease-in-out infinite}
+.wq-jimg>.wq-anim{opacity:0;transition:opacity .2s;pointer-events:none}
+.wq-jimg.wq-live>.wq-anim{opacity:1}
+.wq-jimg.wq-live>img:first-child{opacity:0;animation:none}
 @keyframes wq-bob{50%{transform:translateY(-6px)}}
 .wq-say{position:relative;background:var(--card);border-radius:18px;padding:10px 14px;font-weight:800;font-size:18px;color:var(--navy);box-shadow:0 2px 0 var(--line);margin-bottom:20px;flex:1}
 html[lang=ur] .wq-say{font-weight:600;font-size:17px;line-height:1.95}

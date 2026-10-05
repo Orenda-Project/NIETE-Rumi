@@ -1469,6 +1469,19 @@ Feature: NIETE (ICT) Teacher Training
     # wq.js ani() wraps every animal in .wq-ani; wq.css .wq-ani keeps the system font and line-height 1.
     # Unit: dashboard/tests/web-quiz-page-badge.service.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P2 @T178 @no-mock-driver
+  Scenario: Jugnu moves on every screen, differently each time, and stays still when it should
+    Given a web quiz open on a child's phone
+    When a screen with Jugnu appears (hello, whose turn, a question's answer, the results, see you tomorrow)
+    Then Jugnu's still pose shows at once and a short looping animation of that pose takes over a moment later, one of several picked at random
+    And the first question never waits for an animation to load
+    When the phone asks for reduced motion, saves data or is on 2G
+    Then Jugnu stays as the still pose and no animation is downloaded
+    When the page is hidden or the in-app browser is closed
+    Then the animation stops with the sounds, and it starts again when the child comes back
+    # wq.js mascot block (jugImg, jugWake, jugStop); assets dashboard/public/wq/jugnu/<pose>_<k>.webm|.webp.
+    # Unit: dashboard/tests/web-quiz-mascot.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P2 @T161 @no-mock-driver
   Scenario: A tap anywhere on the lesson video starts it, and a video with no poster is not a dark box
     Given a web quiz with a lesson video

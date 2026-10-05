@@ -715,9 +715,138 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       this.setAttribute('aria-pressed', SOUND); this.textContent = SOUND ? '🔔' : '🔕';
     });
   }
-  function jug(pose, line, big) {
-    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '"><img src="' + IMG + pose + '.webp" alt="" width="92" height="92"><div class="wq-say">' + esc(line) + '</div></div>';
+  /* ---------------- mascot (Jugnu): a still pose that comes alive ----------------
+   * Each pose has a few short seamless loops (first frame = last frame), one picked at random so it never
+   * feels canned. The still is the poster and the fallback, so the first question never waits on a loop:
+   * a loop loads only once the screen is up and in view, plays muted and inline, and gives way to the still
+   * on reduced motion, Save-Data or 2G, a refused autoplay, off-screen, or a hidden / closing page.
+   * Android plays VP9-with-alpha WebM; WebKit has no WebM alpha, so iPhones get the animated WebP. */
+  var JUG_DIR = '/wq/jugnu/';
+  var JUG_V = { idle: 'abc', hello: 'ab', thinking: 'ab', correct: 'abc', notyet: 'ab', celebrate: 'ab', sleep: 'ab' };
+  var jugLast = {};
+  var jugOn = true;
+  var jugIO = null;
+  var JUG_WEBM = (function () {
+    try {
+      var ua = navigator.userAgent || '';
+      if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && /Safari\//.test(ua) && !/Chrome|Chromium|Edg|Firefox/.test(ua))) return false;
+      var v = document.createElement('video');
+      return !!(v.canPlayType && v.canPlayType('video/webm; codecs="vp9"'));
+    } catch (e) { return false; }
+  })();
+  function jugImg(pose) {
+    return '<span class="wq-jimg" data-jpose="' + pose + '"><img src="' + JUG_DIR + pose + '.webp" alt="" width="92" height="92"></span>';
   }
+  function jug(pose, line, big) {
+    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '">' + jugImg(pose) + '<div class="wq-say">' + esc(line) + '</div></div>';
+  }
+  function jugMotion() {
+    try { if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false; } catch (e) {}
+    var c = navigator.connection || {};
+    return !(c.saveData || /2g$/.test(c.effectiveType || ''));
+  }
+  function jugPick(pose) {
+    var v = JUG_V[pose] || 'a';
+    var k = v.charAt(Math.min(v.length - 1, Math.floor(Math.random() * v.length)));
+    if (v.length > 1 && k === jugLast[pose]) k = v.charAt((v.indexOf(k) + 1) % v.length);
+    jugLast[pose] = k;
+    return pose + '_' + k;
+  }
+  function jugLive(el) { if (!/ wq-live/.test(el.className)) el.className += ' wq-live'; }
+  // put the still back: drop the loop element so nothing decodes in the background
+  function jugQuiet(el) {
+    el.className = el.className.replace(/ wq-live/g, '');
+    el.removeAttribute('data-jon');
+    var kids = [];
+    for (var i = 0; i < el.children.length; i++) if (/wq-anim/.test(el.children[i].className)) kids.push(el.children[i]);
+    kids.forEach(function (a) {
+      try { if (a.pause) a.pause(); } catch (e) {}
+      try { a.removeAttribute('src'); } catch (e) {}
+      el.removeChild(a);
+    });
+  }
+  function jugStart(el) {
+    if (!jugOn || el.getAttribute('data-jon')) return;
+    el.setAttribute('data-jon', '1');
+    var name = jugPick(el.getAttribute('data-jpose'));
+    var webp = function () {
+      if (!jugOn || el.getAttribute('data-jon') !== '1') return;
+      var im = document.createElement('img');
+      im.alt = ''; im.className = 'wq-anim';
+      im.onload = function () { jugLive(el); };
+      im.src = JUG_DIR + name + '.webp';
+      el.appendChild(im);
+    };
+    if (!JUG_WEBM) { webp(); return; }
+    var v = document.createElement('video');
+    v.muted = true; v.loop = true; v.preload = 'auto';
+    v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', ''); v.setAttribute('aria-hidden', 'true');
+    v.className = 'wq-anim';
+    var gone = function () { return v.parentNode !== el; };
+    v.addEventListener('playing', function () { if (!gone()) jugLive(el); });
+    // logged so the page's events say how often a browser (e.g. an in-app one) refuses the WebM loop
+    var fellBack = function (why) { try { ev('jug_fallback', { reason: String(why || 'error').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 40) || 'error' }); } catch (e) {} };
+    v.addEventListener('error', function () { if (gone()) return; el.removeChild(v); fellBack('media_error'); webp(); });
+    v.src = JUG_DIR + name + '.webm';
+    el.appendChild(v);
+    var p = null;
+    try { p = v.play(); } catch (e) {}
+    // autoplay refused (some in-app browsers): the animated WebP needs no permission. A play() aborted
+    // because the page was hidden is not a refusal.
+    if (p && p.catch) p.catch(function (e) { if (gone() || !jugOn || (e && e.name === 'AbortError')) return; el.removeChild(v); fellBack(e && e.name); webp(); });
+  }
+  function jugWake() {
+    if (!ROOT || !jugOn || !jugMotion()) return;
+    var els = ROOT.querySelectorAll('.wq-jimg');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (jugIO) {
+        if (!el.getAttribute('data-jio')) { el.setAttribute('data-jio', '1'); jugIO.observe(el); }
+        else if (el.getAttribute('data-jin')) jugStart(el);
+      } else jugStart(el);
+    }
+  }
+  function jugStop() {
+    jugOn = false;
+    if (!ROOT) return;
+    var els = ROOT.querySelectorAll('.wq-jimg');
+    for (var i = 0; i < els.length; i++) jugQuiet(els[i]);
+  }
+  function jugResume() {
+    if (jugOn) return;
+    jugOn = true;
+    jugWake();
+  }
+  try {
+    if (window.IntersectionObserver) {
+      jugIO = new window.IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (e.isIntersecting) { e.target.setAttribute('data-jin', '1'); if (jugMotion()) jugStart(e.target); }
+          else { e.target.removeAttribute('data-jin'); jugQuiet(e.target); }
+        });
+      });
+    }
+  } catch (e) { jugIO = null; }
+  window.addEventListener('pagehide', jugStop);
+  window.addEventListener('pageshow', jugResume);
+  document.addEventListener('freeze', jugStop);
+  document.addEventListener('resume', jugResume);
+  document.addEventListener('wq-silence', jugStop);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') jugStop(); else jugResume(); });
+  // a new screen is drawn into ROOT: wake its mascot a moment later, after the page has loaded
+  try {
+    if (window.MutationObserver && ROOT) {
+      var jugT = null;
+      new window.MutationObserver(function () {
+        if (jugT) return;
+        jugT = setTimeout(function () { jugT = null; jugWake(); }, 250);
+      }).observe(ROOT, { childList: true, subtree: true });
+    }
+    if (document.readyState === 'complete') setTimeout(jugWake, 250);
+    else window.addEventListener('load', function () { setTimeout(jugWake, 250); });
+  } catch (e) {}
+  window.wqJug = { stop: jugStop, resume: jugResume };
+  /* ---------------- end mascot ---------------- */
   function stars(n, total) {
     var h = '';
     for (var i = 0; i < total; i++) h += STAR.replace('{on}', i < n ? ' wq-on' : '');
@@ -1099,7 +1228,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var answered = answeredCount();
     var halfway = !retry && ok !== null && answered === Math.ceil(N / 2) && N >= 4;
     var fb = $('#wq-fb');
-    fb.innerHTML = '<div class="wq-jug"><img src="' + IMG + (ok ? 'correct' : 'notyet') + '.webp" alt=""><div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + esc(line) +
+    fb.innerHTML = '<div class="wq-jug">' + jugImg(ok ? 'correct' : 'notyet') + '<div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + esc(line) +
       (why ? '<div class="wq-why">' + WQI.tex(why) + '</div>' : '') +
       (!ok && !retry ? '<div class="wq-why">' + esc(T.again) + '</div>' : '') + '</div></div>' +
       (halfway ? '<p class="wq-proof">🎉 ' + esc(T.half) + '</p>' : '') +
