@@ -363,11 +363,54 @@ describe('publishQuizAudio: the feedback for each wrong option is recorded too (
     mockS3Send.mockImplementation(missing);
     const rows = quizRows();
     await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
-    expect(rows.quiz.meta.web.audio_v).toBe(2);
+    expect(rows.quiz.meta.web.audio_v).toBe(3);
     const rows2 = quizRows();
     axios.post.mockReset(); axios.post.mockRejectedValue(new Error('vendor down'));
     await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows2) });
     expect(rows2.quiz.meta.web.audio_v).toBeUndefined();
+  });
+});
+
+describe('publishQuizAudio: clips are stored small (a child pays for every byte)', () => {
+  const { execFileSync } = require('child_process');
+  const ffmpeg = require('@ffmpeg-installer/ffmpeg').path;
+  // A real 3.5 s voice-like clip at the vendor's rate (~64 kbps Ogg Opus), as the gateway returns it.
+  const os = require('os');
+  const src = path.join(os.tmpdir(), `wq-pub-test-${process.pid}.ogg`);
+  beforeAll(() => {
+    execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=frequency=220:duration=3.5', '-f', 'lavfi', '-i', 'anoisesrc=d=3.5:a=0.05',
+      '-filter_complex', 'amix=inputs=2', '-ac', '2', '-c:a', 'libopus', '-b:a', '64k', src]);
+  });
+  afterAll(() => { try { fs.unlinkSync(src); } catch (_) {} });
+
+  test('each clip is re-encoded to mono Opus at 24 kbps before it is stored, and its key names the format', async () => {
+    const vendor = fs.readFileSync(src);
+    axios.post.mockReset(); axios.post.mockResolvedValue({ data: vendor });
+    const puts = [];
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      if (cmd.constructor.name === 'PutObjectCommand') puts.push(cmd.input);
+      return {};
+    });
+    const rows = quizRows();
+    rows.questions = [rows.questions[1]];
+    const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(out.ok).toBe(true);
+    expect(puts.length).toBeGreaterThan(0);
+    for (const put of puts) {
+      const body = Buffer.from(put.Body);
+      expect(body.slice(0, 4).toString()).toBe('OggS');
+      expect(body.length).toBeLessThan(vendor.length * 0.6);
+      const probe = path.join(os.tmpdir(), `wq-pub-probe-${process.pid}.ogg`);
+      fs.writeFileSync(probe, body);
+      let info = '';
+      try { execFileSync(ffmpeg, ['-hide_banner', '-i', probe], { stdio: 'pipe' }); } catch (e) { info = String(e.stderr); }
+      fs.unlinkSync(probe);
+      expect(info).toMatch(/Audio: opus, 48000 Hz, mono/);
+    }
+    expect(out.bytes).toBe(puts.reduce((n, p) => n + Buffer.from(p.Body).length, 0));
+    // The format is part of the key, so quizzes recorded before this change get new, small clips.
+    expect(audioKey(QUIZ_ID, Q2, 'q', 'x', 'en').match(/-([0-9a-f]{12})\.ogg$/)[1]).not.toBe(require('crypto').createHash('sha1').update('en\nx').digest('hex').slice(0, 12));
   });
 });
 
