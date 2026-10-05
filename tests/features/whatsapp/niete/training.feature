@@ -1456,6 +1456,15 @@ Feature: NIETE (ICT) Teacher Training
     And a web item's own why is voiced, not its praise line
     # ADDED 2026-10-05: web-quiz-publish.service whyText/withoutPraise; the page plays the why clip after a wrong answer too. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T171 @no-mock-driver
+  Scenario: A web quiz records its clips on first open, including the feedback for each wrong option
+    Given a web quiz whose read-aloud clips are missing or of an older voice version
+    When its quiz page is first opened
+    Then its clips are published once in the background, and the page is not kept waiting
+    And the feedback for each wrong option is recorded on that option's slot
+    And a complete publish is stamped with the voice version so it is not redone, while a partial one is retried later
+    # ADDED 2026-10-05: web-quiz-publish ensureQuizAudio (in-process dedupe, 15 min retry), PARTS_FB xa..xd, meta.web.audio_v; getQuiz calls it unawaited. @wip.
+
   @e2e @quiz @wip @draft @config-gated @P1 @T100
   Scenario: With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat
     Given the web quiz is switched on and I am one of the teachers it is on for

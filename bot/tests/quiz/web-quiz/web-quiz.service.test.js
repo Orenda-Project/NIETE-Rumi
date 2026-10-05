@@ -24,6 +24,12 @@ jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logErro
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 // The figure engine pulls in openchemlib (ESM); the repo's CJS stand-in lets a figure really draw here.
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
+// E2 asks for the quiz's read-aloud clips in the background; publishing has its own suite
+// (web-quiz-publish.test.js, network mocked at its edge), so here only the ask is observed.
+jest.mock('../../../shared/services/quiz/web-quiz-publish.service', () => ({
+  ...jest.requireActual('../../../shared/services/quiz/web-quiz-publish.service'),
+  ensureQuizAudio: jest.fn(() => Promise.resolve({ skipped: 'test' })),
+}));
 
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
@@ -103,6 +109,21 @@ describe('fail closed', () => {
 });
 
 describe('E2 GET quiz', () => {
+  test('a wrong option\'s stored WhatsApp feedback reaches the page cleaned: no letters, no "correct answer", no praise', async () => {
+    fake.db.quiz_questions[1].option_feedback = { wrong: { 0: 'A) Good try! Roots hold the plant. The correct answer is B) Leaf, because leaves make food. Keep going!' } };
+    const out = await WQ.getQuiz('AB12CD');
+    const root = out.quiz.questions[1].options.find((o) => o.slot === 'A');
+    expect(root.fb).toBe('Roots hold the plant. Leaves make food.');
+  });
+
+  test('opening the page asks for the quiz\'s read-aloud clips (published once, in the background, never awaited)', async () => {
+    const Publish = require('../../../shared/services/quiz/web-quiz-publish.service');
+    Publish.ensureQuizAudio.mockImplementationOnce(() => new Promise(() => {})); // never settles: E2 must not wait
+    const out = await WQ.getQuiz('AB12CD');
+    expect(out.quiz.id).toBe(QUIZ);
+    expect(Publish.ensureQuizAudio).toHaveBeenCalledWith(QUIZ, expect.objectContaining({ meta: { web_arm: 'web' } }));
+  });
+
   test('questions with options, correct slot, why, feedback and media links; chips; live counts', async () => {
     const out = await WQ.getQuiz('ab12cd');
     expect(out.quiz).toMatchObject({ id: QUIZ, code: 'AB12CD', topic: 'Parts of a plant', lang: 'en', dir: 'ltr', n: 4 });

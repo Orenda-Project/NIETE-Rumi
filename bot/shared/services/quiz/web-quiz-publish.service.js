@@ -7,7 +7,9 @@
  * (services/tts — the same voices as the teacher voice notes; no new provider).
  * Each clip is stored once in R2 at
  *
- *   web-quiz/audio/<quiz_id>/<question_id>/<part>-<hash>.ogg   part = q | a | b | c | d | why
+ *   web-quiz/audio/<quiz_id>/<question_id>/<part>-<hash>.ogg   part = q | a | b | c | d | why | xa | xb | xc | xd
+ *
+ * (xa..xd = the feedback said after a WRONG pick of that option).
  *
  * where <hash> is taken from the language and the exact words, so a question
  * whose words change gets a new clip on the next publish instead of keeping
@@ -20,7 +22,10 @@
  *
  * and the keys are written into quizzes.meta.web.audio as
  *
- *   { <question_id>: { q, opts: [a, b, c, d], why } }      (null where there is no clip)
+ *   { <question_id>: { q, opts: [a, b, c, d], why, fbs: [xa, xb, xc, xd] } }      (null where there is no clip)
+ *
+ * plus meta.web.audio_v = AUDIO_VERSION once every clip of the quiz is there, so
+ * ensureQuizAudio() (called when the page is opened) publishes each quiz once.
  *
  * merged into the existing meta, so nothing else in meta is touched.
  *
@@ -36,13 +41,18 @@
 const crypto = require('crypto');
 const tts = require('../tts');
 const { mathToText } = require('./quiz-math');
+const { cleanWrongFeedback } = require('./web-quiz-feedback');
 const r2 = require('../../storage/r2');
 const { logEvent } = require('../../utils/structured-logger');
 const { logError } = require('../../utils/logger');
 
 const PREFIX = 'web-quiz/audio';
 const PARTS_OPTS = ['a', 'b', 'c', 'd'];
-const DEFAULT_MAX_CLIPS = 60;
+const DEFAULT_MAX_CLIPS = 120;
+// Bumped when what the clips SAY changes for every quiz (2: the why is the reason, wrong-option
+// feedback recorded), so already-published quizzes are brought up to date on their next open.
+const AUDIO_VERSION = 2;
+const PARTS_FB = ['xa', 'xb', 'xc', 'xd'];
 // Spend estimate for the log line, by the provider that actually spoke:
 // ElevenLabs bills per character, Soniox per second of audio (tts/index.js).
 const USD_PER_CHAR = 0.10 / 1000;
@@ -113,11 +123,17 @@ function partsFor(q) {
       if (p) add(p, spoken(readOpts[i]) || spoken(o.name) || spoken(o.text));
     });
     add('why', spoken(w.why) || whyText(q) || withoutPraise(w.fb_right));
+    w.options.forEach((o) => {
+      const x = PARTS_FB['ABCD'.indexOf(String((o && o.slot) || '').charAt(0))];
+      if (x) add(x, spoken(cleanWrongFeedback(o && o.fb)));
+    });
     return parts;
   }
   add('q', spoken(q.question_text));
   PARTS_OPTS.forEach((p) => add(p, spoken(q[`option_${p}`])));
   add('why', whyText(q));
+  const wrong = (q.option_feedback && typeof q.option_feedback === 'object' && q.option_feedback.wrong) || {};
+  PARTS_FB.forEach((x, i) => add(x, spoken(cleanWrongFeedback(wrong[String(i)]))));
   return parts;
 }
 
@@ -162,7 +178,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     const language = quiz.language || undefined;
     const audio = {};
     for (const q of questions || []) {
-      const entry = { q: null, opts: [null, null, null, null], why: null };
+      const entry = { q: null, opts: [null, null, null, null], why: null, fbs: [null, null, null, null] };
       for (const { part, text } of partsFor(q)) {
         const key = audioKey(quizId, q.id, part, text, language);
         let have = await exists(key);
@@ -192,16 +208,18 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
         if (!have) continue;
         if (part === 'q') entry.q = key;
         else if (part === 'why') entry.why = key;
+        else if (PARTS_FB.includes(part)) entry.fbs[PARTS_FB.indexOf(part)] = key;
         else entry.opts[PARTS_OPTS.indexOf(part)] = key;
       }
-      if (entry.q || entry.why || entry.opts.some(Boolean)) audio[q.id] = entry;
+      if (entry.q || entry.why || entry.opts.some(Boolean) || entry.fbs.some(Boolean)) audio[q.id] = entry;
     }
 
     // Merge into the freshest meta, so a concurrent write to another key survives.
     const { data: fresh } = await client.from('quizzes').select('meta').eq('id', quizId).maybeSingle();
     const meta = (fresh && fresh.meta) || quiz.meta || {};
     const web = meta.web && typeof meta.web === 'object' ? meta.web : {};
-    const nextMeta = { ...meta, web: { ...web, audio: { ...(web.audio || {}), ...audio } } };
+    const complete = stats.failed === 0 && !stats.capped;
+    const nextMeta = { ...meta, web: { ...web, audio: { ...(web.audio || {}), ...audio }, ...(complete ? { audio_v: AUDIO_VERSION } : {}) } };
     const { error: uErr } = await client.from('quizzes').update({ meta: nextMeta }).eq('id', quizId);
     if (uErr) throw uErr;
 
@@ -214,4 +232,38 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
   }
 }
 
-module.exports = { publishQuizAudio, audioKey, partsFor, spoken, whyText, withoutPraise };
+// ─── publish on first open ──────────────────────────────────────────────────
+
+const inflight = new Map();   // quizId -> promise: one publish per quiz per process at a time
+const lastFail = new Map();   // quizId -> ms: a failing quiz is not retried on every page open
+const RETRY_AFTER_MS = 15 * 60 * 1000;
+
+/**
+ * Make sure a quiz has its read-aloud clips: called (not awaited) when its page is opened.
+ * A quiz already at AUDIO_VERSION is left alone; one being published is not started twice;
+ * a failure waits RETRY_AFTER_MS before the next try. Never throws.
+ * @param {string} quizId
+ * @param {object} opts
+ * @param {object} [opts.meta]     quizzes.meta as the caller already read it
+ * @param {Function} [opts.publish] publishQuizAudio (tests pass a fake)
+ */
+function ensureQuizAudio(quizId, { meta, db, publish = module.exports.publishQuizAudio } = {}) {
+  const web = (meta && meta.web) || {};
+  if (!quizId || Number(web.audio_v) >= AUDIO_VERSION) return Promise.resolve({ skipped: 'current' });
+  if (inflight.has(quizId)) return inflight.get(quizId);
+  const failedAt = lastFail.get(quizId);
+  if (failedAt && Date.now() - failedAt < RETRY_AFTER_MS) return Promise.resolve({ skipped: 'cooldown' });
+  const run = Promise.resolve()
+    .then(() => publish(quizId, { db }))
+    .then((out) => { if (!out || !out.ok) lastFail.set(quizId, Date.now()); else lastFail.delete(quizId); return out || {}; })
+    .catch((error) => {
+      lastFail.set(quizId, Date.now());
+      logError('web_quiz.publish_audio.ensure_failed', { event: 'web_quiz.publish_audio.ensure_failed', quizId, error: String(error.message || error).slice(0, 200) });
+      return { ok: false, reason: 'error' };
+    })
+    .finally(() => inflight.delete(quizId));
+  inflight.set(quizId, run);
+  return run;
+}
+
+module.exports = { publishQuizAudio, ensureQuizAudio, audioKey, partsFor, spoken, whyText, withoutPraise, AUDIO_VERSION };
