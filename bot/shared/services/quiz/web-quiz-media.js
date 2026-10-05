@@ -82,17 +82,21 @@ async function presignVideo(quiz, { db, expiresIn = DEFAULT_EXPIRES } = {}) {
     if (!row || row.migration_status !== 'done' || !row.r2_url) return null;
 
     const { key, foreign } = videoKey(row.r2_url);
-    const url = await sign(key, expiresIn);
-    if (!url) return null;
-    const out = { url };
-
-    const [video, poster] = await Promise.all([
+    // The page prefers a lighter web copy beside the original (<key>_web.mp4: the same video
+    // stream, the audio re-encoded smaller). WhatsApp keeps sending the original.
+    const webKey = key.replace(/\.[a-z0-9]+$/i, '_web.mp4');
+    const [video, poster, web] = await Promise.all([
       head(key),
       head(key.replace(/\.[a-z0-9]+$/i, '_poster.jpg')),
+      webKey !== key ? head(webKey) : Promise.resolve({ exists: false }),
     ]);
     // A row naming another bucket is served only from a copy we hold.
-    if (foreign && !video.exists) throw new Error(`video not in this bucket: ${key}`);
-    if (video.exists && video.sizeBytes) out.bytes = video.sizeBytes;
+    if (foreign && !video.exists && !web.exists) throw new Error(`video not in this bucket: ${key}`);
+    const url = await sign(web.exists ? webKey : key, expiresIn);
+    if (!url) return null;
+    const out = { url };
+    const chosen = web.exists ? web : video;
+    if (chosen.exists && chosen.sizeBytes) out.bytes = chosen.sizeBytes;
     if (poster.exists) {
       const p = await sign(key.replace(/\.[a-z0-9]+$/i, '_poster.jpg'), expiresIn);
       if (p) out.poster = p;

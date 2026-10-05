@@ -1500,6 +1500,14 @@ Feature: NIETE (ICT) Teacher Training
     Then the video starts, the cover goes away and the video's own controls take over
     # wq.js video() .wq-vcover. Unit: dashboard/tests/web-quiz-page-video.service.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P2 @T189 @no-mock-driver
+  Scenario: The web quiz plays the lighter web copy of a lesson video when one exists
+    Given a video-bank lesson has a web copy beside it (the same picture, its sound stored smaller)
+    When a child opens that lesson's quiz on the web
+    Then the page plays the web copy and the size the child sees is the web copy's size
+    And a lesson with no web copy plays the original, and WhatsApp always sends the original
+    # web-quiz-media presignVideo (<key>_web.mp4 preferred). Unit: bot/tests/quiz/web-quiz-publish.test.js. @wip.
+
   @api @quiz @web @wip @draft @P2 @T162 @no-mock-driver
   Scenario: A class with no label never leaves a dangling dot on the card or the league table
     Given a brand-new code whose class has no label yet
