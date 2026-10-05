@@ -79,3 +79,22 @@ Feature: Web child quiz page on the portal
     When the question is shown on the page
     Then the buttons are in that same shuffled order
     And tapping the right answer is marked right, and each wrong answer gets its own feedback
+
+  Scenario: A figure question shows the drawing, not the WhatsApp card
+    Given a question whose WhatsApp card paints the stem and options into a picture
+    And the question carries a fraction bar figure
+    When the quiz is opened on the web page
+    Then the question shows the fraction bar drawn as a picture with no question text inside it
+    And the stem and the options are shown once, as text
+    And the read-aloud says "Look at the bars." before the question
+
+  Scenario: A question with long options shows no picture at all
+    Given a question that WhatsApp sends as a card only because its options are long
+    When the quiz is opened on the web page
+    Then the question shows no picture
+    And the stem and the options are shown as text
+
+  Scenario: Picture options are drawings, never emoji
+    Given a picture question whose options are an apple, a cat and a bus
+    When the quiz is opened on the web page
+    Then each option shows its drawing with its word under it
