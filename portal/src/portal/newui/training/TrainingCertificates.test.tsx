@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within, fireEvent, configure } from "@testing-library/react";
+import { render, screen, within, fireEvent, configure, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { copyProblem, tapProblems } from "../checks/rules";
 import { CERTIFICATES, trainingGet } from "../../../test/trainingFixtures";
@@ -10,7 +10,7 @@ import { CERTIFICATES, trainingGet } from "../../../test/trainingFixtures";
  * neutral award icon, "NIETE · Aspiring", a date chip, a download action.
  *
  * View and Download keep CertificatesPanel's rules (bd-2397, bd-2676):
- *   web      a tap offers View (in place, ?view=1) and Download (a new tab)
+ *   web      a tap offers View (in place, ?view=1) and Download (bd-4ryvw: the signed link, in place)
  *   the app  no View (no PDF viewer in the WebView) and NO _blank (external Chrome has no session):
  *            a tap downloads in place, with the API's origin on the url
  */
@@ -98,7 +98,11 @@ describe("the list", () => {
 });
 
 describe("View and Download — CertificatesPanel's rules", () => {
-  it("web: a tap offers View (in place, ?view=1) and Download (a new tab)", async () => {
+  it("web: a tap offers View (in place, ?view=1) and Download (the signed link, in place — bd-4ryvw)", async () => {
+    const SIGNED = "https://r2.example.com/c.pdf?X-Amz-Signature=x";
+    vi.mocked(api.get).mockImplementation(trainingGet({
+      "/training/certificates/NIETE-ASP-1/download": { success: true, url: SIGNED, filename: "NIETE-certificate-NIETE-ASP-1.pdf" },
+    }) as never);
     renderAt();
     fireEvent.click(await screen.findByText("NIETE · Aspiring"));
     const sheet = await screen.findByRole("dialog");
@@ -106,10 +110,11 @@ describe("View and Download — CertificatesPanel's rules", () => {
     fireEvent.click(within(sheet).getByRole("button", { name: /View/ }));
     expect(clicks.at(-1)).toEqual({ href: "/api/portal/training/certificates/NIETE-ASP-1/download?view=1", target: "" });
     fireEvent.click(within(sheet).getByRole("button", { name: /Download/ }));
-    expect(clicks.at(-1)).toEqual({ href: "/api/portal/training/certificates/NIETE-ASP-1/download", target: "_blank" });
+    await waitFor(() => expect(clicks.at(-1)).toEqual({ href: SIGNED, target: "" }));
+    expect(api.get).toHaveBeenCalledWith("/training/certificates/NIETE-ASP-1/download", { params: { format: "json" } });
   });
 
-  it("the app: a tap downloads in place (no View, no _blank), on the API's origin", async () => {
+  it("an app without the CertificateFile plugin (older APK): a tap downloads in place (no View, no _blank), on the API's origin", async () => {
     runtime.native = true;
     renderAt();
     fireEvent.click(await screen.findByText("NIETE · Aspiring"));

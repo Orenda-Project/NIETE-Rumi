@@ -88,21 +88,19 @@ describe('bd-2676 — View is hidden in the native app, where nothing can render
     expect(src).toContain('data-testid="certificate-download"');
   });
 
-  it('Download does not carry target="_blank" in the native shell', () => {
-    // The observed 401: _blank in the WebView hands the url to external Chrome,
-    // which holds none of the session cookies. Web keeps _blank (the url returns
-    // a file, so a new tab preserves the teacher's place in the SPA), so the
-    // attribute has to be CONDITIONAL rather than present or absent outright.
+  it('Download never opens a new tab — the click saves the file in place (bd-4ryvw)', () => {
+    // bd-2676 kept _blank on the web behind `native ?`. bd-4ryvw drops it everywhere:
+    // the click goes through downloadCertificate, which follows the signed link in
+    // place on the web and hands it to the CertificateFile plugin in the app.
     const src = read(PANEL);
     const testid = src.indexOf('data-testid="certificate-download"');
     expect(testid).toBeGreaterThan(-1);
 
     const tagOpen = src.lastIndexOf('<a', testid);
-    const downloadTag = src.slice(tagOpen, src.indexOf('>', testid));
+    const downloadTag = src.slice(tagOpen, src.indexOf('data-testid', tagOpen));
 
-    // No unconditional target=; if a target is set at all it is behind `native`.
-    expect(downloadTag).not.toMatch(/target="_blank"/);
-    expect(downloadTag).toMatch(/native\s*\?/);
+    expect(downloadTag).not.toMatch(/target/);
+    expect(downloadTag).toMatch(/onClick=\{[^}]*preventDefault\(\);\s*void downloadCertificate\(c\.download_url\)/);
   });
 
   it('the View control does NOT eject the app to an external browser', () => {
