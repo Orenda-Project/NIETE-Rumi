@@ -771,14 +771,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     v.className = 'wq-anim';
     var gone = function () { return v.parentNode !== el; };
     v.addEventListener('playing', function () { if (!gone()) jugLive(el); });
-    v.addEventListener('error', function () { if (gone()) return; el.removeChild(v); webp(); });
+    // logged so the page's events say how often a browser (e.g. an in-app one) refuses the WebM loop
+    var fellBack = function (why) { try { ev('jug_fallback', { reason: String(why || 'error').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 40) || 'error' }); } catch (e) {} };
+    v.addEventListener('error', function () { if (gone()) return; el.removeChild(v); fellBack('media_error'); webp(); });
     v.src = JUG_DIR + name + '.webm';
     el.appendChild(v);
     var p = null;
     try { p = v.play(); } catch (e) {}
     // autoplay refused (some in-app browsers): the animated WebP needs no permission. A play() aborted
     // because the page was hidden is not a refusal.
-    if (p && p.catch) p.catch(function (e) { if (gone() || !jugOn || (e && e.name === 'AbortError')) return; el.removeChild(v); webp(); });
+    if (p && p.catch) p.catch(function (e) { if (gone() || !jugOn || (e && e.name === 'AbortError')) return; el.removeChild(v); fellBack(e && e.name); webp(); });
   }
   function jugWake() {
     if (!ROOT || !jugOn || !jugMotion()) return;
