@@ -45,6 +45,7 @@ const LpCache = require('./lp-quiz-cache');
 const DailyCap = require('./quiz-daily-cap');
 const AuthorGates = require('./quiz-author-gates');
 const Lp612Source = require('./lp612-quiz-source');
+const GatesV2 = require('./quiz-author-gates-v2');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
 const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taught, subjects_taught';
@@ -2031,6 +2032,8 @@ async function processQuiz(quizId, payload, flight) {
     // author and every targeted rewrite return each question's source_quote, and
     // runSourceFidelity holds the set to its source below. Off, nothing changes.
     const authorGates = await api.authorGatesOn();
+    // The same one read drives the code gates in validate(), the blind solve and the web items.
+    GatesV2.setEnabled(authorGates);
     if (authorGates) {
       const base = module.exports;
       api = { ...base, rewriteRejected: (args) => base.rewriteRejected({ ...args, authorGates: true }) };

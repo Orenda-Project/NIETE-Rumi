@@ -1659,3 +1659,17 @@ Feature: NIETE (ICT) Teacher Training
     Then the child's card says it is a practice round and shows the first score, which is the one my report and the league keep
     And sharing the card shares the first score
     # ADDED 2026-10-05: web-quiz.service finishSession card.practice + card.kept; wq.js card(). Unit: web-quiz-roster.test.js, dashboard/tests/web-quiz-practice-card.service.test.js. @wip.
+  @api @quiz @wip @draft @config-gated @P1 @T121 @no-mock-driver
+  Scenario: With the author gates on, a question that is wrong, unanswerable or about the teacher is rewritten, never sent
+    Given app_settings "quiz_author_gates_v2" is true
+    When my class quiz is made from my lesson
+    Then a question whose sum the key does not answer, or whose explanation does a sum wrong, arrives at a wrong option, or claims a regroup no column needs, is rewritten before it is sent
+    And a question that points at a picture (the picture, the clock, the bar, the box, تصویر, خانے) is sent only with that picture, and the picture carries every number the question uses
+    And a question about what the teacher said, did or thought, or a letter question with a digit or an English letter among its options, is rewritten
+    And a question whose explanation says the lesson never gave its answer is rewritten
+    And a key that is only the closest option, not a fully correct answer, is flagged by the blind solve and rewritten
+    And a web item whose read-aloud text starts with an option letter ("A: …") plays as its row instead
+    And with the setting absent or false, the quiz is made exactly as before
+    # quiz-author-gates-v2.js questionErrors, wired in transcript-quiz-validator validate() (q-named complaints -> the
+    # existing targeted rewrite); STRICT_KEY_RULE in transcript-quiz-key-verify; readTextFaults in web-quiz-items normaliseItem.
+    # Unit: tests/quiz/quiz-author-gates-v2.test.js. @wip.
