@@ -448,11 +448,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       qof: function (i, n) { return 'Question ' + i + ' of ' + n; }, listen: 'Listen again', helpAgain: 'Shall we listen again?',
       orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap one, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
       zoom: 'Make the picture bigger', close: 'Close', playSound: 'Play the sound', yes: 'True', no: 'False',
-      right: ['Yes! You found it.', 'You checked carefully!', 'Right! Well looked.', 'Yes! You kept going.', 'You got it!'],
-      notyet: function (r) { return 'Not yet. The answer is "' + r + '".'; }, notyetLead: 'Not yet. The answer is', notyetPlain: 'Not yet.', next: 'Next', again: 'This one comes back at the end, to fix together.',
+      notyet: function (lead, r) { return lead + ' "' + r + '".'; }, next: 'Next', again: 'This one comes back at the end, to fix together.',
       half: 'Halfway there!',
       tricky: function (n) { return n === 1 ? '1 tricky one' : n + ' tricky ones'; }, trickySay: "Before we celebrate, let's fix it together.", fixGo: 'Fix it with ' + MASC.en, later: 'Maybe later',
-      second: 'Second try · with ' + MASC.en, fixed: 'Fixed it!', tryAgain: 'Look again. You can do it.',
+      second: 'Second try · with ' + MASC.en, tryAgain: 'Look again. You can do it.',
       got: function (s, n) { return 'You got ' + s + ' out of ' + n; }, fixedLine: function (k) { return '+ fixed ' + k + ' tricky one' + (k > 1 ? 's' : '') + ' with ' + MASC.en; },
       scoreNote: 'Your score is your first try.', praise: function (s, n) { return s === n ? 'Brilliant!' : s >= n * 0.8 ? 'Great work!' : 'Good try!'; },
       done: 'QUIZ COMPLETE', seeCard: 'See my card', classBtn: 'See my class',
@@ -491,11 +490,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       qof: function (i, n) { return 'سوال ' + i + ' از ' + n; }, listen: 'دوبارہ سنیں', helpAgain: 'کیا دوبارہ سنیں؟',
       orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
       zoom: 'تصویر بڑی کریں', close: 'بند کریں', playSound: 'آواز سنیں', yes: 'درست', no: 'غلط',
-      right: ['جی ہاں! آپ نے ڈھونڈ لیا۔', 'آپ نے غور سے دیکھا!', 'بالکل درست!', 'جی ہاں! آپ نے کوشش جاری رکھی۔', 'شاباش، درست!'],
-      notyet: function (r) { return 'ابھی نہیں۔ صحیح جواب ہے: ' + r; }, notyetLead: 'ابھی نہیں۔ صحیح جواب ہے:', notyetPlain: 'ابھی نہیں۔', next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
+      notyet: function (lead, r) { return lead + ' ' + r; }, next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
       half: 'آدھا راستہ طے!',
       tricky: function (n) { return n + ' مشکل سوال'; }, trickySay: 'جشن سے پہلے، آئیں اسے مل کر ٹھیک کریں۔', fixGo: MASC.ur + ' کے ساتھ ٹھیک کریں', later: 'بعد میں',
-      second: 'دوسری کوشش · ' + MASC.ur + ' کے ساتھ', fixed: 'ٹھیک ہو گیا!', tryAgain: 'دوبارہ دیکھیں۔ آپ کر سکتے ہیں۔',
+      second: 'دوسری کوشش · ' + MASC.ur + ' کے ساتھ', tryAgain: 'دوبارہ دیکھیں۔ آپ کر سکتے ہیں۔',
       got: function (s, n) { return 'آپ نے ' + n + ' میں سے ' + s + (s === 1 ? ' درست کیا' : ' درست کیے'); }, fixedLine: function (k) { return MASC.ur + ' کے ساتھ ' + k + ' مشکل سوال ٹھیک کیے'; },
       scoreNote: 'اسکور پہلی کوشش کا ہے۔', praise: function (s, n) { return s === n ? 'زبردست!' : s >= n * 0.8 ? 'بہت خوب!' : 'اچھی کوشش!'; },
       done: 'کوئز مکمل', seeCard: 'میرا کارڈ دیکھیں', classBtn: 'اپنی کلاس دیکھیں',
@@ -623,6 +621,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return flushP;
   }
   window.addEventListener('online', function () { flushQueue(); });
+
+  /* ---------------- the shared feedback voice ----------------
+     Lines recorded ONCE for every quiz (public/wq/voice/<lang>/<set>-<i>.mp3, manifest.json beside them;
+     Urdu: Soniox, English: ElevenLabs v3, chosen by a blind listening bake-off). The words here are
+     exactly the recorded words (a test holds them to manifest.json); one is picked at random per
+     answer, never the same one twice in a row. Urdu addresses the child only with imperatives or
+     noun phrases; a not-yet line never praises. */
+  var VOICE_V = '848fcec0';
+  var VOICE = {"en": {"right": ["Yes! That's right!", "You got it!", "Correct! Well spotted.", "Yes! That's the one.", "Right answer! Good thinking.", "Yes! You checked carefully.", "That's it! Well done.", "Spot on!", "Yes! Keep it up.", "Brilliant, that's right!"], "notyet": ["Not yet. The answer is", "Not quite. The right answer is", "Not this one. The answer is", "Let's learn it together. The answer is", "That one was tricky. The answer is", "Not this time. The right answer is", "Hmm, not yet. The answer is", "No problem, let's see. The answer is"], "fixed": ["Fixed it!", "Now you've got it!", "Yes! That's it now.", "You worked it out!", "Second try, and it's right!", "That's the one!", "Now it's right. Well done!", "Yes! Fixed it."], "done": ["Quiz complete! Every question done.", "All done! Thank you for playing.", "You finished the whole quiz!", "The end! Let's see your stars.", "That was the last one. All done!", "Finished! Well played.", "Quiz complete! Let's look at your stars.", "Every question answered. Well done!"], "cheer": ["Halfway there! Keep going.", "Keep going!", "Take your time and listen carefully.", "On to the next one!", "Half the quiz done!", "Every question teaches something new.", "You're doing it, keep going!", "Half the questions done!"], "notyetpic": ["Not yet. Look, this one is right."]}, "ur": {"right": ["شاباش! بالکل صحیح!", "جی ہاں! یہی صحیح جواب ہے۔", "واہ! بالکل ٹھیک۔", "زبردست! صحیح جواب۔", "بہت خوب! یہی تو ہے۔", "صحیح! غور سے دیکھنا کام آیا۔", "جی ہاں! بہت عمدہ جواب۔", "کمال! بالکل درست۔", "ہاں! یہی ہے صحیح جواب۔", "شاباش! ایسے ہی آگے چلیں۔"], "notyet": ["ابھی نہیں۔ صحیح جواب ہے:", "یہ والا نہیں۔ صحیح جواب ہے:", "کوئی بات نہیں۔ صحیح جواب ہے:", "آئیں مل کر سیکھیں۔ صحیح جواب ہے:", "یہ سوال مشکل تھا۔ صحیح جواب ہے:", "اس بار نہیں۔ صحیح جواب ہے:", "ابھی نہیں۔ آئیں دیکھیں، صحیح جواب ہے:", "کوشش سے ہی سیکھتے ہیں۔ صحیح جواب ہے:"], "fixed": ["ٹھیک ہو گیا!", "اب بالکل صحیح!", "جی ہاں! اب ٹھیک ہے۔", "شاباش! دوسری کوشش میں صحیح۔", "زبردست! اب بات سمجھ میں آ گئی۔", "واہ! یہی ہے صحیح جواب۔", "کمال! اب درست ہے۔", "بہت خوب! اب جواب ٹھیک ہے۔"], "done": ["کوئز مکمل! سارے سوال ہو گئے۔", "شاباش! پورا کوئز مکمل۔", "کوئز ختم! آئیں ستارے دیکھیں۔", "واہ! آخری سوال بھی ہو گیا۔", "مکمل! کھیلنے کا شکریہ۔", "زبردست! پورا کوئز حل ہو گیا۔", "کوئز پورا ہو گیا! بہت خوب۔", "سارے سوال مکمل! شاباش۔"], "cheer": ["آدھا کوئز ہو گیا! چلتے رہیں۔", "بہت خوب، آگے چلیں!", "ہمت نہ ہاریں، اگلا سوال!", "آرام سے، غور سے سنیں۔", "چلیں، اگلا سوال دیکھیں!", "ہر سوال سے کچھ نیا سیکھیں۔", "شاباش، ایسے ہی چلتے رہیں!", "آدھے سوال ہو گئے!"], "notyetpic": ["ابھی نہیں۔ دیکھیں، یہ والا صحیح ہے۔"]}};
+  var lastPick = {};
+  function vline(set) {
+    var lang = VOICE[LANG] ? LANG : 'en';
+    var lines = VOICE[lang][set] || [];
+    if (!lines.length) return { text: '', url: null };
+    var i = Math.floor(Math.random() * lines.length);
+    if (lines.length > 1 && i === lastPick[set]) i = (i + 1) % lines.length;
+    lastPick[set] = i;
+    return { text: lines[i], url: '/wq/voice/' + lang + '/' + set + '-' + i + '.mp3?v=' + VOICE_V };
+  }
 
   /* ---------------- sound (off by default) + read-aloud ---------------- */
   var actx = null;
@@ -1232,20 +1249,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     })();
   }
 
-  // What the voice says after an answer, in order. The question's recorded "why" clip is its
-  // reason (the explanation), so it is played only where the reason is what is said; the
-  // feedback for a picked option has its own clip (fbs) or the phone's voice. Not yet = a kind
-  // lead-in, the right answer by name (its own option clip when it is one option), then why.
-  function feedbackParts(q, ok, line, why, picked, named) {
+  // What the voice says after an answer, in order: a recorded library line (right / fixed / not
+  // yet), for not yet the right answer by name (its own option clip when it is one option), then
+  // the why. The question's "why" clip is its reason (the explanation), so it is played only where
+  // the reason is what is said; a picked option's feedback has its own clip (fbs) or the phone's voice.
+  function feedbackParts(q, ok, lead, why, picked, named) {
     var au = q.audio || {};
     var rs = String(q.correct_slot || '');
     var si = 'ABCD'.indexOf(rs.charAt(0));
     var one = rs.length === 1 && si >= 0 && WQI.kind(q) !== 'order' && WQI.kind(q) !== 'match';
-    var parts = [];
-    if (ok) parts.push({ text: line, url: null });
-    else if (!named) parts.push({ text: T.notyetPlain, url: null });
-    else if (one && au.opts && au.opts[si]) parts.push({ text: T.notyetLead, url: null }, { text: WQI.rightText(q, LANG), url: au.opts[si] });
-    else parts.push({ text: line, url: null });
+    var parts = [lead];
+    if (!ok && named) parts.push({ text: WQI.rightText(q, LANG), url: (one && au.opts && au.opts[si]) || null });
     var said = WQI.say(why, LANG);
     if (!speakable(said)) return parts;
     var pi = 'ABCD'.indexOf(String(picked.slot || '').charAt(0));
@@ -1335,20 +1349,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // Not yet: the feedback for the option the child picked, else the reason. Never praise.
     var why = WQI.letters(q, ok ? (q.why || q.fb_right || '') : (picked.fb || q.why || ''));
     var named = speakable(optText(right));
-    var line = ok ? (retry ? T.fixed : T.right[i % T.right.length]) : named ? T.notyet(optText(right)) : T.notyetPlain;
+    var lead = vline(ok ? (retry ? 'fixed' : 'right') : named ? 'notyet' : 'notyetpic');
+    var line = !ok && named ? T.notyet(lead.text, optText(right)) : lead.text;
     var answered = answeredCount();
     var halfway = !retry && ok !== null && answered === Math.ceil(N / 2) && N >= 4;
+    var cheer = halfway ? vline('cheer') : null;
     var fb = $('#wq-fb');
     var loopIt = !!ok && !jugRightDone;
     if (ok) jugRightDone = true;
     fb.innerHTML = '<div class="wq-jug">' + jugImg(ok ? 'correct' : 'notyet', loopIt) + '<div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + esc(line) +
       (why ? '<div class="wq-why">' + WQI.tex(why) + '</div>' : '') +
       (!ok && !retry ? '<div class="wq-why">' + esc(T.again) + '</div>' : '') + '</div></div>' +
-      (halfway ? '<p class="wq-proof">🎉 ' + esc(T.half) + '</p>' : '') +
+      (cheer ? '<p class="wq-proof">🎉 ' + esc(cheer.text) + '</p>' : '') +
       '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
     ROOT.setAttribute('data-m', 'M7');
     ev('feedback_view', { qid: q.qid, ok: ok ? 1 : 0 });
-    speakSeq(feedbackParts(q, ok, line, why, picked, named), null);
+    speakSeq(feedbackParts(q, ok, lead, why, picked, named).concat(cheer ? [cheer] : []), null);
     var nx = $('#wq-next');
     try { nx.scrollIntoView({ block: 'nearest' }); } catch (e) {}
     nx.addEventListener('click', function () {
@@ -1403,7 +1419,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       S.fixed = fixed; save();
       var sc = res.score || {};
       var total = sc.total || N;
-      var h = bar() + jug('celebrate', T.praise(sc.correct, total), true, true) +
+      var done = vline('done');
+      var h = bar() + jug('celebrate', done.text, true, true) +
         '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
         '<h1>' + esc(T.got(sc.correct, total)) + '</h1>' + stars(sc.correct, total) +
         (fixed ? '<p class="wq-sub">' + esc(T.fixedLine(fixed)) + '</p>' : '') +
@@ -1414,6 +1431,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       render(h, 'M9');
       wireBar();
       sfx('done');
+      speak(done.text, done.url, null);
       on('#wq-card', card);
       on('#wq-class', board);
       on('#wq-more', moreVideos);

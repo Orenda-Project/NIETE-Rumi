@@ -213,3 +213,18 @@ Feature: Web child quiz page on the portal
     Given a child already finished the quiz
     When the child plays it again and finishes
     Then the card says "Practice round" with the first score, and sharing it shares the first score
+
+
+  Scenario: Feedback is spoken by recorded voices that every quiz shares
+    Given the feedback lines are recorded once per language (right, not yet, fixed on a second try, quiz complete, encouragement)
+    When a child answers right, answers wrong, fixes a tricky one, passes halfway or finishes the quiz
+    Then the page plays one of that set's recorded lines, picked at random and never the same one twice in a row
+    And the screen shows exactly the words the voice says
+    And a wrong answer whose right option is only a picture says "Not yet. Look, this one is right." with no empty quotes
+    And Urdu lines speak to the child only with imperatives or noun phrases, and no not-yet line praises
+
+  Scenario: A quiz gets its own read-aloud clips the first time its page is opened
+    Given a quiz with no read-aloud clips, or with clips of an older voice version
+    When its page is opened (the teacher's preview or the first child)
+    Then its question, option, why and wrong-option feedback clips are recorded in the background, once
+    And the page is never kept waiting for them; until they exist the phone's own voice reads
