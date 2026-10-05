@@ -383,6 +383,33 @@ async function listVersionItems({ paperId, userId }) {
   return { paper, version: await versionNumberOf(paper), items: Selection.indexQuestions(paper.exam_json) };
 }
 
+/** Every version of the paper `paperId` belongs to, newest first, numbered. Ownership-checked. */
+async function listFamily({ paperId, userId }) {
+  const { data: anchor, error } = await supabase.from('assessment_papers')
+    .select('id, request_id, assessment_requests!inner(id, user_id)')
+    .eq('id', paperId).maybeSingle();
+  if (error || !anchor || anchor.assessment_requests?.user_id !== userId) return { code: 'NOT_FOUND' };
+  const { data: rows, error: famErr } = await supabase.from('assessment_papers')
+    .select('id, status, edited_from, created_at, question_count, total_marks')
+    .eq('request_id', anchor.request_id);
+  if (famErr) return { code: 'NOT_FOUND' };
+  const asc = [...(rows || [])].sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+  let readyEdits = 0;
+  const numbered = asc.map((r) => {
+    let version = null;
+    if (!r.edited_from) version = r.status === 'ready' ? 1 : null;
+    else if (r.status === 'ready') { readyEdits += 1; version = 1 + readyEdits; }
+    return {
+      paperId: r.id, version, status: r.status, createdAt: r.created_at,
+      questionCount: r.question_count, marks: r.total_marks, editedFrom: r.edited_from,
+    };
+  });
+  const latestReady = [...numbered].reverse().find((v) => v.status === 'ready');
+  return {
+    versions: numbered.reverse().map((v) => ({ ...v, latest: !!latestReady && v.paperId === latestReady.paperId })),
+  };
+}
+
 async function _chapterTitle(req, grade, subject) {
   if (req?.chapter_number == null) return null;
   try {
@@ -636,5 +663,5 @@ async function resendVersion({ paperId, userId, phone: knownPhone, user = null, 
 
 module.exports = {
   rerender, listQuestions, saveEdit, fileName, TEACHER_MESSAGE,
-  loadVersion, versionNumberOf, listVersionItems, buildVersion, createVersion, resendVersion,
+  loadVersion, versionNumberOf, listVersionItems, listFamily, buildVersion, createVersion, resendVersion,
 };
