@@ -383,8 +383,13 @@ describe('getDraft / saveDraft against the real buildScreenPrefill + applyObserv
     const c = out.sections[1];
     expect(c.kind).toBe('indicators');
     const c1 = c.indicators.find((i) => i.id === 'C1');
-    expect(c1).toMatchObject({ field: 'C1', rating: '0', evidence: 'seen C1', improvement: 'try C1' });
-    expect(out.scale.map((o) => o.id)).toEqual(expect.arrayContaining(['0', '1', '2']));
+    expect(c1).toMatchObject({ field: 'C1', evidence: 'seen C1', improvement: 'try C1' });
+    // The rating scale is the framework's own: FICO V3 (1-4) on staging and
+    // production, v4 (0-2) on sandbox. The draft carries whichever is deployed,
+    // and the pre-filled rating is always one of its options.
+    const scaleIds = out.scale.map((o) => o.id);
+    expect(scaleIds.length).toBeGreaterThan(1);
+    expect(scaleIds).toContain(c1.rating);
   });
 
   test('saving the Flow\'s keys writes v2 and observer_review_complete, exactly as the Flow\'s submit', async () => {

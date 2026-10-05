@@ -88,8 +88,11 @@ beforeEach(() => {
 afterAll(() => { delete process.env.OBSERVE2_CHECK_FLOW_ID; });
 
 describe('the recording joins the open field form', () => {
+  // The /observe2 Start names its record in the observe state (start.test.js); a state without that
+  // name is a classic /observe Start, whose recording never joins an /observe2 form.
   test('same coach, same teacher: linked, and the ack is the /observe2 one', async () => {
     const id = await newForm({ sealed_at: '2026-09-30T05:39:00.000Z' });
+    global.__OBS2_STATE = { ...global.__OBS2_STATE, observe2FormId: id };
     const session = await ObserveCapture.startFromAudio(COACH, '923000000001', 'audio-1', 'chat-1', 2400);
     expect(formRow(id).coaching_session_id).toBe(session.id);
     const [, msg] = WhatsAppService.sendInteractiveButtons.mock.calls[0];
@@ -99,7 +102,8 @@ describe('the recording joins the open field form', () => {
   });
 
   test('an unsealed form: the ack asks for the seal first', async () => {
-    await newForm();
+    const id = await newForm();
+    global.__OBS2_STATE = { ...global.__OBS2_STATE, observe2FormId: id };
     await ObserveCapture.startFromAudio(COACH, '923000000001', 'audio-1', 'chat-1', 2400);
     const [, msg] = WhatsAppService.sendInteractiveButtons.mock.calls[0];
     expect(msg.body).toBe(observe2Strings('en').recording_received(false));

@@ -535,6 +535,11 @@ async function buildDebriefGuide(session, lang) {
   const sessionId = session.id;
   const v2 = session.analysis_data || {};
 
+  // /observe2: the brief the coach's check produced is this visit's guide, as written (no model call).
+  // The portal reads intro; WhatsApp sends text (renderGuideMessage).
+  const brief = v2.observe2 && typeof v2.observe2.brief === 'string' ? v2.observe2.brief : '';
+  if (brief) return { kind: 'observe2_brief', text: brief, intro: brief, sections: {}, outro: '' };
+
   // Feedback-uptake loop (flag-gated): the record from BEFORE this visit (what
   // the AI coach asked, which attempt) plus THIS visit's verdict on it (written
   // into this session's own record at form submit). previousFocus had no

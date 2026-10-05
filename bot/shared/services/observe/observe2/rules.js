@@ -273,6 +273,12 @@ function validate(screen, answers) {
   } else if (screen === 'LP_TEXT') {
     const { LP_TEXT_MIN } = require('./field-form.flow');
     if (String(a.lp_text || '').trim().length < LP_TEXT_MIN) e.lp_text = 'Type a little more: the steps the teacher planned, in order.';
+  } else if (screen === 'PHOTOS') {
+    need(e, a, 'photo_how', 'Choose how to add photos, or "No photos".');
+  } else if (screen === 'PHOTO_TAKE') {
+    if (!Array.isArray(a.photos) || !a.photos.length) e.photos = 'Add at least one photo, or go back and pick "No photos".';
+  } else if (screen === 'PHOTO_FILES') {
+    if (!Array.isArray(a.photo_files) || !a.photo_files.length) e.photo_files = 'Choose at least one photo, or go back and pick "No photos".';
   } else if (screen === 'AFTER') {
     need(e, a, 'incident', 'Choose one, or "Nothing to report".');
     if (a.incident && a.incident !== 'none') need(e, a, 'detail', 'Write what was said, and the minute.');

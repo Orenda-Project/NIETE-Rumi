@@ -54,6 +54,7 @@ const STRINGS = {
     check_cta: 'Check the moments',
     moments_untimed: 'The recording came through without timings, so I can\'t point to moments in it. Your sealed record is safe. Please send the recording again as a file from the recorder app.',
     moments_failed: 'I couldn\'t read the moments in this recording just now. Your sealed record is safe, and the team has been told.',
+    duplicate_form_waiting: 'Your form for this visit is still waiting for its recording: send the recording of this lesson here.',
   },
   ur: {
     deny_no_user: 'آپ کا اکاؤنٹ نہیں ملا۔ پہلے *register* لکھ کر بھیجیں، پھر دوبارہ /observe2 لکھیں۔',
@@ -97,6 +98,7 @@ const STRINGS = {
     check_cta: 'لمحات چیک کریں',
     moments_untimed: 'ریکارڈنگ وقت کے نشانات کے بغیر آئی، اس لیے اس میں لمحات کی نشاندہی نہیں ہو سکتی۔ آپ کا سیل شدہ ریکارڈ محفوظ ہے۔ ریکارڈر ایپ سے ریکارڈنگ فائل کے طور پر دوبارہ بھیجیں۔',
     moments_failed: 'ابھی اس ریکارڈنگ کے لمحات نہیں پڑھے جا سکے۔ آپ کا سیل شدہ ریکارڈ محفوظ ہے اور ٹیم کو بتا دیا گیا ہے۔',
+    duplicate_form_waiting: 'اس وزٹ کا فارم ابھی اپنی ریکارڈنگ کا منتظر ہے: اس سبق کی ریکارڈنگ یہیں بھیجیں۔',
   },
 };
 
