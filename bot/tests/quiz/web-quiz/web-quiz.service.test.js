@@ -109,6 +109,13 @@ describe('fail closed', () => {
 });
 
 describe('E2 GET quiz', () => {
+  test('a wrong option\'s stored WhatsApp feedback reaches the page cleaned: no letters, no "correct answer", no praise', async () => {
+    fake.db.quiz_questions[1].option_feedback = { wrong: { 0: 'A) Good try! Roots hold the plant. The correct answer is B) Leaf, because leaves make food. Keep going!' } };
+    const out = await WQ.getQuiz('AB12CD');
+    const root = out.quiz.questions[1].options.find((o) => o.slot === 'A');
+    expect(root.fb).toBe('Roots hold the plant. Leaves make food.');
+  });
+
   test('opening the page asks for the quiz\'s read-aloud clips (published once, in the background, never awaited)', async () => {
     const Publish = require('../../../shared/services/quiz/web-quiz-publish.service');
     Publish.ensureQuizAudio.mockImplementationOnce(() => new Promise(() => {})); // never settles: E2 must not wait

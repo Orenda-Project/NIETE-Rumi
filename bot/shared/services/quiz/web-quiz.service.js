@@ -204,7 +204,10 @@ function feedbackFor(q, i) {
   const fb = q.option_feedback;
   const wrong = fb && typeof fb === 'object' ? fb.wrong : null;
   const v = wrong ? wrong[String(i)] : null;
-  return typeof v === 'string' && v.trim() ? v.trim() : null;
+  // Stored for WhatsApp ("C) Good try! … The correct answer is B) …"): the page keeps the mix-up
+  // and the reason only — its letters differ, it names the answer itself, and never praises a miss.
+  const clean = typeof v === 'string' ? require('./web-quiz-feedback').cleanWrongFeedback(v) : '';
+  return clean || null;
 }
 
 /**
@@ -259,7 +262,15 @@ function questionPayload(row, i, code, audio) {
   if (out.correct_slot.includes(',')) out.multi = true;
   // SCHEMA_v2: a web item (media.web) carries its own type/options/key; absent = today's question.
   const web = WebItems.webPayload(q);
-  if (web) Object.assign(out, web);
+  if (web) {
+    Object.assign(out, web);
+    (out.options || []).forEach((o) => {
+      if (o && typeof o.fb === 'string') {
+        const clean = require('./web-quiz-feedback').cleanWrongFeedback(o.fb);
+        if (clean) o.fb = clean; else delete o.fb;
+      }
+    });
+  }
   if (questionImageOf(q.media)) out.img = mediaUrl(code, q.id, 'q');
   const figure = Figure.figureFor(q);
   if (figure) {
