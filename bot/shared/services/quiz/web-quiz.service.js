@@ -123,6 +123,9 @@ function hasPicture(q) {
   if (questionImageOf(m)) return true;
   if (Array.isArray(m.option_images) && m.option_images.some(Boolean)) return true;
   if (Array.isArray(w.options) && w.options.some((o) => o && (o.pic || o.img))) return true;
+  // Options that are pictures themselves (emoji, no letter or digit): today's WhatsApp picture question.
+  const texts = [q.option_a, q.option_b, q.option_c, q.option_d].map((t) => String(t == null ? '' : t).trim()).filter(Boolean);
+  if (texts.length >= 2 && texts.every((t) => !/[\p{L}\p{N}]/u.test(t))) return true;
   // Last, because it draws: a figure counts only if it actually draws (what E2 would send).
   try { return Boolean(Figure.figureFor(q)); } catch { return false; }
 }
