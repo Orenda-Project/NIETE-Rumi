@@ -109,7 +109,11 @@ function cleanRoll(v) {
  */
 function byRoll(roster, roll, quizGrade) {
   if (!roster) return [];
-  const hits = roster.kids.filter((k) => Number(k.roll_number) === roll);
+  return narrow(roster, roster.kids.filter((k) => Number(k.roll_number) === roll), quizGrade);
+}
+
+/** The quiz grade's class first (no label needed); else every class's match, labelled when 2+ lists. */
+function narrow(roster, hits, quizGrade) {
   const g = gradeNum(quizGrade);
   const gradeLists = g ? roster.lists.filter((l) => l.grade === g) : [];
   if (gradeLists.length === 1) {
@@ -154,14 +158,13 @@ function nearName(a, b) {
   return editDistance(x, y) <= allowed;
 }
 
-/** Roster children whose first name is near the typed first name. */
-function byName(roster, typedFirst) {
+/** Roster children whose first name is near the typed first name (the quiz grade's class first, as byRoll). */
+function byName(roster, typedFirst, quizGrade) {
   if (!roster || !typedFirst) return [];
   const firstOf = (n) => String(n || '').trim().split(/\s+/)[0] || '';
-  const labelOf = (k) => (roster.lists.length > 1 ? (roster.lists.find((l) => l.id === k.list_id) || {}).label || null : null);
   // A child may type their name in either script; the list may hold an Urdu spelling too.
-  return roster.kids.filter((k) => nearName(firstOf(k.student_name), typedFirst) || nearName(firstOf(k.student_name_urdu), typedFirst))
-    .slice(0, MAX_CANDIDATES).map((k) => ({ kid: k, label: labelOf(k) }));
+  const hits = roster.kids.filter((k) => nearName(firstOf(k.student_name), typedFirst) || nearName(firstOf(k.student_name_urdu), typedFirst));
+  return narrow(roster, hits, quizGrade);
 }
 
 /** The name a child is asked about: the list's Urdu spelling on an Urdu quiz, when the list has one. */

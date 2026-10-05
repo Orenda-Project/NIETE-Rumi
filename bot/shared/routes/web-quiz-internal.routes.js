@@ -46,6 +46,9 @@ router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));
 router.post('/finish', handle((req) => WebQuiz.finishSession(req.body || {})));
 router.get('/board/:code', handle((req) => WebQuiz.board(req.params.code, { st: req.query.st })));
 router.post('/me', handle((req) => WebQuiz.me(req.body || {})));
+// The teacher's "Who played?" on their own preview link (signed p token).
+router.post('/who', handle((req) => WebQuiz.whoPlayed(req.body || {})));
+router.post('/who/fix', handle((req) => WebQuiz.fixWho(req.body || {})));
 router.post('/e', handle(async (req, res) => { WebQuiz.events(req.body || {}); res.status(204).end(); }));
 router.get('/media/:code/:qid', handle((req) => WebQuiz.media(req.params.code, req.params.qid, { k: req.query.k })));
 

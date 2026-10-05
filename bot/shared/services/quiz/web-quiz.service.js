@@ -396,6 +396,79 @@ async function gradeOf(quizId) {
   } catch { return null; }
 }
 
+// ─── E11 the teacher's "Who played?" (their own preview link only) ──────────
+
+function requireTeacher(body, ctx) {
+  if (!body.p || !isPreviewFor(body.p, ctx)) fail(401, 'bad_token');
+}
+
+/** A counted row as the teacher sees it: first name and roll number only. */
+function whoRow(s, roster, lang) {
+  const listed = roster ? roster.kids.find((k) => k.id === s.student_id) : null;
+  return {
+    ref: s.id,
+    first: firstName(listed ? Roster.displayName(listed, lang) : s.student_name),
+    roll: listed && listed.roll_number != null ? Number(listed.roll_number) : null,
+    on_list: Boolean(listed),
+    correct: s.correct_answers || 0,
+    total: s.total_questions_answered || 0,
+  };
+}
+
+/**
+ * Every child counted on this class code (each child's first finish, the rule
+ * the league and the report use), children not on the class list first so the
+ * teacher sees what may need fixing. Nothing beyond first names + roll numbers.
+ */
+async function whoPlayed(body = {}) {
+  requireOn();
+  const ctx = await resolveCode(body.code);
+  requireTeacher(body, ctx);
+  const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
+  const { data } = await supabase.from('quiz_sessions')
+    .select('id, student_id, student_name, user_id, status, correct_answers, total_questions_answered, completed_at, created_at')
+    .eq('share_code_id', ctx.shareCodeId).is('invited_by_student_id', null).eq('status', 'completed');
+  const counted = oneAttemptPerChild(excludeSelfTests(data || [], ctx.teacherUserId), { rule: 'first_completed' })
+    .filter((s) => s.student_id);
+  const rows = counted.map((s) => whoRow(s, roster, ctx.lang))
+    .sort((a, b) => (a.on_list - b.on_list) || ((a.roll || 0) - (b.roll || 0)) || a.first.localeCompare(b.first));
+  return { roster: Boolean(roster), rows };
+}
+
+/**
+ * Move one of this code's sessions to the right class-list child: { ref, roll }
+ * answers "is this <first name>?" (409 is_this_you), { ref, chip } moves it. The
+ * report and the league recompute each child's first finish on read, so a move
+ * onto a child who already finished keeps that child's earlier finish.
+ */
+async function fixWho(body = {}) {
+  requireOn();
+  const ctx = await resolveCode(body.code);
+  requireTeacher(body, ctx);
+  const quizGrade = await gradeOf(ctx.quizId);
+  const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
+  if (!roster) fail(400, 'bad_request', { why: 'no_class_list' });
+  const { data: s } = await supabase.from('quiz_sessions')
+    .select('id, student_id, student_name, user_id, share_code_id, invited_by_student_id, status, correct_answers, total_questions_answered')
+    .eq('id', String(body.ref || '')).eq('share_code_id', ctx.shareCodeId).maybeSingle();
+  if (!s || s.user_id || s.invited_by_student_id || !s.student_id) fail(404, 'not_found');
+  if (body.roll != null && !body.chip) {
+    const roll = Roster.cleanRoll(body.roll);
+    if (!roll) fail(400, 'bad_request', { why: 'roll' });
+    const found = Roster.byRoll(roster, roll, quizGrade);
+    if (!found.length) fail(404, 'roll_unknown');
+    fail(409, 'is_this_you', { candidates: found.map((f) => rosterChip(ctx, f)) });
+  }
+  const want = String(body.chip || '');
+  const target = roster.kids.find((k) => T.chipId(ctx.shareCodeId, k.id) === want);
+  if (!target) fail(404, 'chip_unknown');
+  const patch = { student_id: target.id, student_name: target.student_name, student_class: Roster.classOf(roster, target) };
+  const { error } = await supabase.from('quiz_sessions').update(patch).eq('id', s.id).eq('share_code_id', ctx.shareCodeId);
+  if (error) fail(502, 'db_unavailable');
+  logEvent('web_quiz.identity_fixed', { sessionId: s.id, shareCodeId: ctx.shareCodeId, fromListed: roster.kids.some((k) => k.id === s.student_id) });
+  return { ok: true, row: whoRow({ ...s, ...patch }, roster, ctx.lang) };
+}
+
 function isPreviewFor(p, ctx) {
   const tok = T.verify(p, 'p');
   return Boolean(tok && tok.sc === ctx.shareCodeId && tok.t === ctx.teacherUserId);
@@ -439,7 +512,7 @@ function cleanName(raw) {
 /** Earlier completed attempts by this child on this class code (the first one counts). */
 async function priorFinish(shareCodeId, studentId, excludeId = null) {
   if (!studentId) return null;
-  const { data } = await supabase.from('quiz_sessions').select('id, device_ref, status, completed_at, created_at, student_id')
+  const { data } = await supabase.from('quiz_sessions').select('id, device_ref, status, completed_at, created_at, student_id, correct_answers, total_questions_answered')
     .eq('share_code_id', shareCodeId).eq('student_id', studentId).eq('status', 'completed');
   const rows = (data || []).filter((r) => r.id !== excludeId);
   const [first] = oneAttemptPerChild(rows, { rule: 'first_completed' });
@@ -520,9 +593,10 @@ async function startSession(body = {}) {
     if (!body.new.force) {
       const chips = await classChips(ctx);
       const mine = norm(firstName(name));
-      const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
+      const quizGrade = await gradeOf(ctx.quizId);
+      const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
       // With a class list, a typo still finds the child ("Aysha" -> Ayesha); without one, today's exact match.
-      const fromRoster = roster ? Roster.byName(roster, firstName(name)).map((f) => rosterChip(ctx, f)) : [];
+      const fromRoster = roster ? Roster.byName(roster, firstName(name), quizGrade).map((f) => rosterChip(ctx, f)) : [];
       const fromChips = chips.filter((c) => (roster ? Roster.nearName(c.first, firstName(name)) : norm(c.first) === mine))
         .filter((c) => !fromRoster.some((r) => r.chip === c.chip)).map(publicChip);
       const candidates = fromRoster.concat(fromChips).slice(0, Roster.MAX_CANDIDATES);
@@ -722,7 +796,11 @@ async function finishSession(body = {}) {
       qid: q.id, picked: byQ.get(q.id).selected_option, correct_slot: WebItems.keyFor(q),
       ok: Boolean(byQ.get(q.id).is_correct), why: q.explanation || null,
     })),
-    card: { first, animal: T.animalFor(s.student_id || s.id), correct, total, stars: correct },
+    card: {
+      first, animal: T.animalFor(s.student_id || s.id), correct, total, stars: correct,
+      // A practice round: the card says so and carries the kept first-try score the league shows.
+      ...(earlier && !s.user_id ? { practice: true, kept: { correct: earlier.correct_answers || 0, total: earlier.total_questions_answered || 0 } } : {}),
+    },
     challenge_code: await challengeCodeFor(s),
   };
 }
@@ -910,6 +988,6 @@ async function media(code, qid, { k } = {}) {
 module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media,
   // exported for tests and the router
-  WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips,
+  WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho,
   BOARD_TOP, QUESTIONS_MAX,
 };
