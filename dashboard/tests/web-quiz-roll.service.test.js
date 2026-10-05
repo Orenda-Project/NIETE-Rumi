@@ -107,7 +107,7 @@ test('typing 1 2 then Go asks the server for roll 12; the answer is "Are you Dan
   expect(p.last().h).toContain('No, try again');
   p.tap((n) => n.a['data-chip'] === 'c12');
   await flush();
-  expect(p.calls[1]).toMatchObject({ chip: 'c12' });
+  expect(p.calls[1]).toMatchObject({ chip: 'c12', via: 'roll' });
   expect(p.events.map((e) => e.p && e.p.src)).toEqual(expect.arrayContaining(['roll_try', 'roll']));
 });
 

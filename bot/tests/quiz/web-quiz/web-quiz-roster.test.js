@@ -144,6 +144,14 @@ describe('E3 by roll number', () => {
     expect(out).toMatchObject({ counted: true, child: { chip: chipOf(kid(3)), first: 'Danish' } });
   });
 
+  test('the session log says how the child was identified (a short token only, never a name)', async () => {
+    const { logEvent } = require('../../../shared/utils/structured-logger');
+    await WQ.startSession({ code: 'AB12CD', chip: chipOf(kid(3)), via: 'roll' });
+    await WQ.startSession({ code: 'AB12CD', chip: chipOf(kid(3)), via: '<script>Danish' });
+    const vias = logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.session_started').map((c) => c[1].via);
+    expect(vias).toEqual(['roll', null]);
+  });
+
   test('the first finish counts: the same roster child on a second phone is practice', async () => {
     const a = await WQ.startSession({ code: 'AB12CD', chip: chipOf(kid(3)) });
     Object.assign(fake.db.quiz_sessions.find((s) => s.id === T.verify(a.st, 's').sid), { status: 'completed', completed_at: ago(0.1) });
@@ -173,6 +181,34 @@ describe('E3 by roll number', () => {
     fake.db.students.find((s) => s.id === kid(21)).roll_number = 40;
     await expect(WQ.startSession({ code: 'AB12CD', roll: 40 }))
       .rejects.toMatchObject({ status: 409, body: { candidates: [{ chip: chipOf(kid(21)), first: 'Faizan', cls: '4-A' }] } });
+  });
+});
+
+describe('the grade threshold (app_settings web_quiz_roster_from_grade)', () => {
+  test('a quiz below the threshold grade keeps the name chips; at or above it, the pad', async () => {
+    fake.db.app_settings.push({ key: 'web_quiz_roster_from_grade', value: 3 });
+    fake.db.quizzes[0].grade = '2';
+    let out = await WQ.getQuiz('AB12CD');
+    expect(out.cls.roster).toBeUndefined();
+    expect(out.cls.chips.map((c) => c.first)).toEqual(['Zara']);
+    await expect(WQ.startSession({ code: 'AB12CD', roll: 12 })).rejects.toMatchObject({ status: 400 });
+    Roster._resetCache();
+    fake.db.quizzes[0].grade = '3';
+    out = await WQ.getQuiz('AB12CD');
+    expect(out.cls.roster).toEqual({ lists: 1 });
+  });
+});
+
+describe("a roster child's chip from the teacher's EARLIER code (the phone remembers it; the next quiz or a lesson video's quiz)", () => {
+  test('still plays as the roster row, with the class label', async () => {
+    const SC0 = '77777777-7777-4777-8777-777777777777';
+    fake.db.quiz_share_codes.push({ id: SC0, code: 'OLD222', quiz_id: QUIZ, teacher_user_id: TEACHER, language: 'en', active: true,
+      expires_at: future, invited_by_student_id: null, parent_share_code_id: null, created_at: ago(48) });
+    fake.db.quiz_sessions.push({ id: 's-prev', quiz_id: QUIZ, share_code_id: SC0, student_id: kid(3), student_name: 'Danish Testwala', user_id: null,
+      status: 'completed', completed_at: ago(47), created_at: ago(47), invited_by_student_id: null });
+    const out = await WQ.startSession({ code: 'AB12CD', chip: T.chipId(SC0, kid(3)) });
+    const row = fake.db.quiz_sessions.find((s) => s.id === T.verify(out.st, 's').sid);
+    expect(row).toMatchObject({ student_id: kid(3), student_class: '3-B' });
   });
 });
 

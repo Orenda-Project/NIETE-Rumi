@@ -345,7 +345,7 @@ async function getQuiz(code, { p } = {}) {
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
   // A teacher with a class list: the child gives a roll number, so no classmates' names ship.
-  const roster = await Roster.loadRoster(ctx.teacherUserId);
+  const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
   const chips = roster ? [] : await classChips(ctx);
   const preview = Boolean(p) && isPreviewFor(p, ctx);
   // The class and the teacher are named exactly as the teacher's own texts
@@ -492,18 +492,18 @@ async function startSession(body = {}) {
     takerName = ctx.parent.teacher_name || null;
   } else if (body.roll != null) {
     // "What is your roll number?" -> "Are you <first name>?": the page confirms with the chip.
-    const roster = await Roster.loadRoster(ctx.teacherUserId);
+    const quizGrade = await gradeOf(ctx.quizId);
+    const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
     if (!roster) fail(400, 'bad_request', { why: 'who' });
     const roll = Roster.cleanRoll(body.roll);
     if (!roll) fail(400, 'bad_request', { why: 'roll' });
-    const quizGrade = await gradeOf(ctx.quizId);
     const found = Roster.byRoll(roster, roll, quizGrade);
     logEvent('web_quiz.roll_lookup', { shareCodeId: ctx.shareCodeId, matches: found.length });
     if (!found.length) fail(404, 'roll_unknown');
     fail(409, 'is_this_you', { candidates: found.map((f) => rosterChip(ctx, f)) });
   } else if (body.chip) {
     const want = String(body.chip);
-    const roster = await Roster.loadRoster(ctx.teacherUserId);
+    const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
     const fromRoster = roster ? roster.kids.find((k) => T.chipId(ctx.shareCodeId, k.id) === want) : null;
     if (fromRoster) {
       student = { id: fromRoster.id, student_name: fromRoster.student_name, self_reported_class: Roster.classOf(roster, fromRoster) };
@@ -513,6 +513,9 @@ async function startSession(body = {}) {
       if (!hit) fail(404, 'chip_unknown');
       const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class').eq('id', hit.studentId).maybeSingle();
       student = st || { id: hit.studentId, student_name: hit.name };
+      // A class-list child remembered from an earlier code of this teacher keeps the list's class.
+      const listed = roster ? roster.kids.find((k) => k.id === hit.studentId) : null;
+      if (listed) student = { ...student, self_reported_class: Roster.classOf(roster, listed) };
     }
   } else if (body.new && typeof body.new === 'object') {
     const name = cleanName(body.new.name);
@@ -521,7 +524,7 @@ async function startSession(body = {}) {
     if (!body.new.force) {
       const chips = await classChips(ctx);
       const mine = norm(firstName(name));
-      const roster = await Roster.loadRoster(ctx.teacherUserId);
+      const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
       // With a class list, a typo still finds the child ("Aysha" -> Ayesha); without one, today's exact match.
       const fromRoster = roster ? Roster.byName(roster, firstName(name)).map((f) => rosterChip(ctx, f)) : [];
       const fromChips = chips.filter((c) => (roster ? Roster.nearName(c.first, firstName(name)) : norm(c.first) === mine))
@@ -591,6 +594,8 @@ async function startSession(body = {}) {
   logEvent('web_quiz.session_started', {
     sessionId: session.id, shareCodeId: ctx.shareCodeId, quizId: ctx.quizId,
     preview: Boolean(userId), returning: Boolean(body.chip), counted: counted.counted,
+    // How the page identified the child (roll / name / remembered / chips / new): measures each path.
+    via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
   });
   return {
     st: T.signSession({ sessionId: session.id, deviceRef, shareCodeId: ctx.shareCodeId }),
