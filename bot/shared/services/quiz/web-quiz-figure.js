@@ -72,6 +72,8 @@ const WORDS = {
 };
 
 /** [alt, say] for a figure type, from the string catalog. */
+const POINTS_AT_PICTURE = /\b(look|picture|diagram|figure|image|shown|drawn)\b|تصویر|شکل|خاکہ|دیکھ/i;
+
 function wordsFor(type, lang) {
   const k = WORDS[type] || 'Picture';
   return [resolveUx(`wqFig${k}Alt`, { language: lang }), resolveUx(`wqFig${k}Say`, { language: lang })];
@@ -153,7 +155,10 @@ function figureFor(row) {
   const type = spec ? String(spec.type || '') : '';
   const [defAlt, defSay] = wordsFor(type, lang);
   const alt = (v2 && typeof v2.alt === 'string' && v2.alt.trim()) || defAlt;
-  const say = (v2 && typeof v2.say === 'string' && v2.say.trim()) || defSay;
+  // A stem that already points at the picture ("Look at the picture…", "تصویر میں…")
+  // gets no second pointer: the child would hear the same words twice.
+  const stem = String((media.web && media.web.stem) || (row && row.question_text) || '');
+  const say = (v2 && typeof v2.say === 'string' && v2.say.trim()) || (POINTS_AT_PICTURE.test(stem) ? null : defSay);
 
   if (spec) {
     const svg = draw(spec, lang);
