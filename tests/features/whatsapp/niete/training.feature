@@ -1548,7 +1548,7 @@ Feature: NIETE (ICT) Teacher Training
 
   @api @quiz @web @wip @draft @config-gated @P2 @T186 @no-mock-driver
   Scenario: A deployment that names another brand gets that brand on every screen, with no NIETE left
-    Given app_settings "web_quiz_brand" is "rumi", or ORG_NAME names Rumi and no setting is stored
+    Given app_settings "web_quiz_brand" is "rumi", or ORG_NAME (else BOT_NAME) names Rumi, e.g. "Rumi Education", and no setting is stored
     When a child opens a web quiz link
     Then the page wears the Rumi mark, navy and coral, and the Rumi link preview
     And no screen, preview or page title says NIETE or Islamabad

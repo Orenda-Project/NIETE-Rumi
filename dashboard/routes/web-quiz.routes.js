@@ -148,7 +148,7 @@ function renderQuizPage({ payload, code, view, origin, assetV, url }) {
 
 function renderClosedPage({ lang, kind, origin, assetV, brandKey }) {
   const l = lang === 'ur' ? 'ur' : 'en';
-  const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME }));
+  const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME }));
   const c = CLOSED_COPY[l];
   const title = kind === 'off' ? c.off : c.title;
   const say = kind === 'off' ? c.offSay : c.say;

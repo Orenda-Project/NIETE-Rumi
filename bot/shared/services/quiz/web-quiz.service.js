@@ -39,7 +39,7 @@ const { clampLanguage } = require('../../config/ux-strings');
 const { teacherLabel } = require('./quiz-teacher-label');
 const Roster = require('./web-quiz-roster');
 const WebQuizBrand = require('../../config/web-quiz-brand');
-const { orgName } = require('../../config/branding');
+const { orgName, botName } = require('../../config/branding');
 
 const QUESTIONS_MAX = 15;          // = video-quiz.service QUESTIONS_PER_SESSION
 const CHIPS_MAX = 40;
@@ -392,7 +392,7 @@ async function getQuiz(code, { p } = {}) {
     video,
     preview,
     // Which brand the page wears: a key only; the edge owns the brand's look.
-    brand: await WebQuizBrand.resolveBrandKey({ db: supabase, orgName }),
+    brand: await WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName }),
   };
   if (ctx.invitedByStudentId) out.challenge = await challengeOf(ctx);
   return out;
