@@ -360,10 +360,32 @@ function findSwitchLine(words, line, { after = -1 } = {}) {
   return best;
 }
 
+/**
+ * Where a printed text's LAST WORDS are heard: the latest match of its final `n` words between `after` and
+ * `before`, any speaker. A finished reader's end (bd-s1oo0.50.11): speaker labels put the reading on the coach
+ * when diarization collapses, and a text's last word alone («تھا», «the») is said many times before the end.
+ * null when the ending is not heard, so the caller keeps its own fallback.
+ */
+const END_WORDS = 3;
+function lastWordsHeard(words, refs, { after = -Infinity, before = Infinity, n = END_WORDS } = {}) {
+  const ends = (refs || []).filter((x) => typeof x === 'string' && /\S/.test(x));
+  if (ends.length < n || ends.length !== refs.length) return null;
+  const phrase = ends.slice(-n).join(' ');
+  let hit = null;
+  let from = after;
+  for (let guard = 0; guard < 50; guard += 1) {
+    const h = findPhrase(words, phrase, { after: from, before });
+    if (!h) break;
+    hit = h;
+    from = h.start + 0.01;
+  }
+  return hit;
+}
+
 /** Words inside a window, optionally without the coach. */
 function wordsIn(words, w, { excludeSpeaker } = {}) {
   if (!w) return [];
   return words.filter((x) => x.start >= w.start - 0.2 && x.start < w.end && (!excludeSpeaker || x.speaker !== excludeSpeaker));
 }
 
-module.exports = { findCueWindows, findPhrase, findSwitchLine, switchLineVariants, wordsIn, reconcileWindows, defaultTimedWindow, timedSecondsFor, SECTIONS, TIMED_SECONDS };
+module.exports = { findCueWindows, findPhrase, lastWordsHeard, findSwitchLine, switchLineVariants, wordsIn, reconcileWindows, defaultTimedWindow, timedSecondsFor, SECTIONS, TIMED_SECONDS };
