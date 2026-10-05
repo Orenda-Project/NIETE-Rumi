@@ -1867,6 +1867,13 @@ const UX_STRINGS = {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name and class first.',
     ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
+  // The same message when the link opens the WEB quiz page, which asks only the
+  // child's name (the WhatsApp quiz asks name and class). Chosen where the link
+  // is chosen (transcript-quiz-handoff). Urdu: پوچھا جائے گا is passive, no gendered stem.
+  tqStudentMessageWeb: {
+    en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name first.',
+    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام پوچھا جائے گا۔',
+  },
   // WHEN the class report comes, as video-quiz-report schedules it: 12 hours
   // after the first child joins, moved to 07:00 PKT when that lands at night.
   // Nothing sends it early — the "sooner if everyone finishes" send was removed
@@ -1875,6 +1882,12 @@ const UX_STRINGS = {
   tqReportPromise: {
     en: 'You will get a report on how the class did about 12 hours after the first student starts (at 7 am if that falls at night). To get it sooner, send /quiz, pick this lesson and ask for its report.',
     ur: 'پہلے طالب علم کے quiz شروع کرنے کے تقریباً 12 گھنٹے بعد کلاس کی رپورٹ آئے گی (اگر یہ وقت رات کا ہو تو صبح 7 بجے)۔ رپورٹ اس سے پہلے چاہیے تو ⁦/quiz⁩ بھیجیں، یہی سبق چنیں اور رپورٹ منگوائیں۔',
+  },
+  // The teacher-only preview of the web quiz page (caption, never forwarded).
+  // Urdu: دیکھیں is the polite imperative; no gendered stem.
+  tqWebPreview: {
+    en: '👀 Try the quiz page yourself before you forward it: {link}',
+    ur: '\u200F👀 آگے بھیجنے سے پہلے quiz کا صفحہ خود دیکھیں: {link}',
   },
   tqListBody: {
     en: 'Your lessons, newest first. Pick one to make a quiz, resend its link, or get its report.',
@@ -2303,6 +2316,28 @@ const UX_STRINGS = {
   vqQuestionOf: { en: '*Question {i} of {n}*', ur: '*سوال {i} از {n}*' },
   vqChooseAnswer: { en: 'Choose answer', ur: 'جواب چنیں' },
   vqOptions: { en: 'Options', ur: 'جوابات' },
+  // Web quiz figures: the label on a drawing and the line the voice says before the stem.
+  // Never a count or a value — the picture may BE the question.
+  wqFigBarsAlt: { en: 'Fraction bars', ur: 'کسر کی پٹیاں' },
+  wqFigBarsSay: { en: 'Look at the bars.', ur: 'پٹیوں کو دیکھیں۔' },
+  wqFigNumberlineAlt: { en: 'A number line', ur: 'عددی لکیر' },
+  wqFigNumberlineSay: { en: 'Look at the number line.', ur: 'عددی لکیر کو دیکھیں۔' },
+  wqFigClockAlt: { en: 'A clock face', ur: 'گھڑی' },
+  wqFigClockSay: { en: 'Look at the clock.', ur: 'گھڑی کو دیکھیں۔' },
+  wqFigMoneyAlt: { en: 'Coins and notes', ur: 'سکے اور نوٹ' },
+  wqFigMoneySay: { en: 'Look at the money.', ur: 'پیسوں کو دیکھیں۔' },
+  wqFigShapeAlt: { en: 'A shape drawing', ur: 'شکل' },
+  wqFigShapeSay: { en: 'Look at the shape.', ur: 'شکل کو دیکھیں۔' },
+  wqFigGraphAlt: { en: 'A graph', ur: 'گراف' },
+  wqFigGraphSay: { en: 'Look at the graph.', ur: 'گراف کو دیکھیں۔' },
+  wqFigStepsAlt: { en: 'Steps in order', ur: 'مراحل' },
+  wqFigStepsSay: { en: 'Look at the steps.', ur: 'مراحل کو دیکھیں۔' },
+  wqFigTimelineAlt: { en: 'A timeline', ur: 'وقت کی لکیر' },
+  wqFigTimelineSay: { en: 'Look at the timeline.', ur: 'وقت کی لکیر کو دیکھیں۔' },
+  wqFigWordAlt: { en: 'A picture and a word with a missing letter', ur: 'تصویر اور لفظ' },
+  wqFigWordSay: { en: 'Look at the picture and the word.', ur: 'تصویر اور لفظ کو دیکھیں۔' },
+  wqFigPictureAlt: { en: 'A picture', ur: 'تصویر' },
+  wqFigPictureSay: { en: 'Look at the picture.', ur: 'تصویر کو دیکھیں۔' },
   vqDoneFallback: {
     en: '🎉 All done!\n\nYou got *{correct} out of {total}* right ({pct}%).\n\n{tier}',
     ur: '🎉 مکمل!\n\nآپ نے *{total} میں سے {correct}* صحیح کیے ({pct}%)۔\n\n{tier}',

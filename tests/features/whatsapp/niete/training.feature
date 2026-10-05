@@ -1178,3 +1178,356 @@ Feature: NIETE (ICT) Teacher Training
     When I send "/training"
     Then the bot does not reply
     # After the hour the next request gets the Play Store message again.
+
+  # ─────────────────────── The web child quiz: the bot API (ADDED 2026-10-05) ───────────────────────
+  # Children play the class quiz on a web page; the portal forwards to the bot's /api/internal/wq/*
+  # (x-api-key). These scenarios are the API contract the page relies on; @no-mock-driver until the
+  # page is live on sandbox. Unit: bot/tests/quiz/web-quiz/*.test.js (fake Supabase, real scoring,
+  # real one-attempt and self-test rules, real report scheduler).
+
+  @api @quiz @web @wip @draft @P1 @T100 @no-mock-driver
+  Scenario: A returning child plays the class quiz on the web and the teacher's report is scheduled
+    Given a teacher's class code whose children have played before
+    When the page asks for the quiz by its code
+    Then it gets the questions with their options, the right option, the "why", and picture links
+    And it gets one name button per child of that teacher (first name and an animal), never a phone or a full name
+    When the child taps their name and the page starts a session
+    Then a share-link session is stored with no phone and a per-browser device reference
+    And the code's use count goes up by one
+    And the teacher's 12-hour class report is scheduled exactly as when a child joins in WhatsApp, once per code
+    And no WhatsApp message is sent to anyone
+    # web-quiz.service startSession -> increment_share_code_uses + video-quiz-report scheduleForShareCode. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T101 @no-mock-driver
+  Scenario: A new child types their name, answers offline, and finishes with a score card
+    Given a class code
+    When a new child types a first name that matches a child already in the class
+    Then the page is asked "is this you?" with that child's name button
+    When the child says they are a different child
+    Then a new student is stored with no phone, filed under the teacher
+    When the page sends the answers in one batch, and then sends the same batch again
+    Then each answer is stored once and the second batch is reported as already recorded
+    When the page finishes the quiz
+    Then the score is "N out of M" from the stored answers, with one star per right answer
+    And the review lists each question, the child's pick, the right option and why
+    And the child gets a challenge code to send a friend, the same code every time they finish
+    But a child who answered fewer than half the questions is told the quiz is not finished
+    # web-quiz.service recordAnswers (unique session+question) and finishSession (today's floors). @wip.
+
+  @api @quiz @web @wip @draft @P1 @T106 @no-mock-driver
+  Scenario: A child remembered on a phone plays the same teacher's next quiz in one tap
+    Given a child finished one of the teacher's quiz links on this phone
+    And the teacher sends a new quiz with a new code
+    When the child taps "Play as" their name on the new quiz's page
+    Then a session starts for the same child, with no phone and no name typed
+    And the page is given the child's name button for the new code
+    But a name button from a child the teacher never had is still unknown
+    # web-quiz.service classChips accepts the chip minted on any of the child's earlier codes of this teacher. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T102 @no-mock-driver
+  Scenario: The first finished attempt counts; a replay on another phone is practice
+    Given a child who has finished the class quiz once
+    When the same child starts it again on another phone
+    Then the page is told the run will not count because it was finished elsewhere
+    And on the same phone the page is told it was already finished
+    And the class league table and the teacher's report keep the first finished score for a web quiz
+    # one-attempt-per-child rule 'first_completed', chosen per class code by attemptRuleFor (the code's own web sessions). @wip.
+
+  @api @quiz @web @wip @draft @P1 @T103 @no-mock-driver
+  Scenario: The class league table
+    Given several children have finished, two with the same score, and the teacher has tried their own link
+    When the page asks for the league table with the child's session
+    Then children are ranked by score, tied children share a place, first names only
+    And only the top 7 are listed, then how many more finished
+    And the class average is shown, and the child's own place and score
+    And the teacher's own run and friends who came through a challenge code are not in the table
+    # web-quiz.service board -> video-quiz-report loadClassRows (self-tests and invited friends out). @wip.
+
+  @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver
+  Scenario: The teacher's preview never counts as a child
+    Given the teacher's signed preview link
+    When the teacher plays it
+    Then the run is stored as the teacher's own test run and is never in the roster, the average or the league table
+    And a preview link signed for another teacher is refused
+    # p token -> quiz_sessions.user_id = teacher (the self-test marker). @wip.
+
+  @api @quiz @web @wip @draft @P2 @T105 @no-mock-driver
+  Scenario: The web quiz API is closed without its key or secret, and an old code is friendly
+    Given the bot has no internal key
+    Then every web quiz call is refused
+    And a call without the right key is refused
+    And an expired or switched-off code answers "expired" with the quiz language, so the page can say "ask your teacher"
+    # requireInternalKey; web-quiz-token fails closed with no secret (503 web_quiz_off). @wip.
+
+  @api @quiz @web @wip @draft @P1 @T107 @no-mock-driver
+  Scenario: The quiz page names the teacher and the class the way the teacher's own texts do
+    Given a teacher whose stored name carries a title, and children who finished the quiz typed their class
+    When the quiz is fetched for the page
+    Then the teacher is named exactly as the forwarded class message names them ("Teacher <name>", in the quiz language)
+    And the class is the heading the teacher's report uses for this code
+    But before anyone has finished the class is empty, never a guess
+    # ADDED 2026-10-05: web-quiz.service getQuiz -> quiz-teacher-label teacherLabel + report loadClassRows().className. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T108 @no-mock-driver
+  Scenario: A web quiz's report counts each child's first finish, for my class only
+    Given my class code's children play on the web page
+    Then my report counts each child's first finished score, as the class league table does
+    And the quiz itself is not changed, so another teacher's WhatsApp class on the same lesson video keeps counting each child's latest finish
+    But my own preview on the web does not make my WhatsApp class a web class
+    # CHANGED 2026-10-05: the rule is chosen per class code from that code's sessions (attemptRuleFor: a child session with a device_ref), never stored on quizzes.meta (a video-bank quiz is one row shared by every teacher). Unit: tests/quiz/web-quiz/report-web-arm-first-finish.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T109 @no-mock-driver
+  Scenario: The quiz page lists the options in the one order every other surface uses
+    Given a quiz question whose options carry a stored display order
+    When the quiz is fetched for the page
+    Then the options come in that display order, the order the WhatsApp quiz and the teacher's answer key use
+    And each option keeps its own letter, so the right answer, the feedback and the pictures stay with it
+    # ADDED 2026-10-05: web-quiz.service questionPayload -> inDisplayOrder (video-quiz-render displayOrder). @wip.
+
+  @api @quiz @web @wip @draft @P1 @T145 @no-mock-driver
+  Scenario: The quiz page shows the lesson video when the video bank's rows name another bucket of ours
+    Given a video-bank quiz whose lesson video row names a different bucket on our own R2 endpoint
+    And the same video key exists in this deployment's bucket
+    When the quiz is fetched for the page
+    Then the page gets a signed link to this deployment's copy of the video, so the lesson video shows before question 1
+    But when that key is missing from this deployment's bucket, or the row names a host that is not ours, there is no video and the quiz starts at question 1
+    # ADDED 2026-10-05: web-quiz-media presignVideo -> videoKey (path after the bucket segment, HEAD in our bucket). @wip.
+
+  @api @quiz @web @wip @draft @P1 @T195 @no-mock-driver
+  Scenario: The things a child counts or matches on my web quiz are colour pictures
+    Given my quiz asks "How many apples are in the picture?" with a drawing of 12 apples
+    When a child plays it on the web page
+    Then the apples are drawn as colour pictures a child can count on a small phone
+    And the same question sent on WhatsApp keeps the picture it has today
+    And a row the question coloured on purpose ("the red row and the blue row") keeps its colour
+    # web-quiz-figure draw() withColour -> vendor pictogram withPainter + pictures/color_glyphs.json (Fluent Emoji Flat, MIT). Unit: bot/tests/quiz/web-quiz/web-quiz-pictures.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T196 @no-mock-driver
+  Scenario: A picture question whose options are emoji shows big picture tiles on my web quiz
+    Given my quiz asks "Look at the pictures. Which one is a LEAF?" with the options 🌸 🍃 🌰 🥕
+    When a child plays it on the web page, in English or in Urdu
+    Then each option is a large colour picture tile, with no word under it that gives the answer away
+    And options that are signs such as "=", "<" and ">" stay as they are
+    # web-quiz.service questionPayload (pictures.emojiNoun -> pic {kind:pictogram, unnamed}). Unit: bot/tests/quiz/web-quiz/web-quiz-pictures.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T197 @no-mock-driver
+  Scenario: A question with picture options does not show the options twice on my web quiz
+    Given my video quiz has a question whose two options are pictures
+    And on WhatsApp the child also gets one collage of both pictures with their words written in
+    When a child plays it on the web page
+    Then the child sees the two picture options once, as the answer tiles, and no collage above them
+    And a question that has its own picture to compare with ("Which picture goes with this one?") still shows that picture
+    # web-quiz.service questionImageOf (grid never the question picture when option_images exist). Unit: bot/tests/quiz/web-quiz/web-quiz-pictures.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T198 @no-mock-driver
+  Scenario: Pictures on my web quiz are big enough on a small phone
+    Given my quiz has a one-bar fraction picture and a picture question with three options
+    When a child plays it on a phone 360 pixels wide
+    Then the fraction bar is drawn tall enough to count its parts
+    And the third picture option sits in the middle of its row, with no empty space beside it
+    And the button that makes a picture bigger is a small icon at the side of the picture, never covering it
+    # web-quiz-figure forPage (fraction_bar barHeight); wq.js figureHtml zoom icon, wq.css .wq-pgrid odd tile. Unit: web-quiz-pictures.test.js, dashboard/tests/web-quiz-page-pictures.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T200 @no-mock-driver
+  Scenario: A child on the web quiz never sees a question picture that contradicts or ignores the answer
+    Given a quiz question whose picture was reviewed against its question and answer and judged to contradict it or to show nothing the question asks about
+    When a child plays the quiz on the web page
+    Then the question is shown without that picture, on its text alone
+    And a question that tells the child to look at the picture is left out of the web quiz instead
+    And a picture that was reviewed and found fine, or never reviewed, is shown as before
+    And the WhatsApp quiz is unchanged
+    # web-quiz-figure pictureHidden (media.picture_check.verdict contradicts|ignores); web-quiz.service questionImageOf + figureFor + playable + media(). Unit: bot/tests/quiz/web-quiz/web-quiz-picture-check.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T170 @no-mock-driver
+  Scenario: The recorded "why" of a web quiz question is its reason, never praise
+    Given a quiz question whose correct-answer feedback is only "Well done!" and whose explanation gives the reason
+    When the read-aloud clips are published
+    Then the "why" clip says the explanation, and no clip says "Well done!" or «شاباش!»
+    And praise in front of a reason is cut off and the reason is kept
+    And a web item's own why is voiced, not its praise line
+    # ADDED 2026-10-05: web-quiz-publish.service whyText/withoutPraise; the page plays the why clip after a wrong answer too. @wip.
+
+  @e2e @quiz @wip @draft @config-gated @P1 @T100
+  Scenario: With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat
+    Given the web quiz is switched on and I am one of the teachers it is on for
+    When I make a class quiz for one of my lessons and receive the message to forward to my class
+    Then the message is word for word the one I would get today, except that its link opens the quiz page (…/q/<code>)
+    And the PDF's caption, which only I see, carries a link to try the quiz page myself before I forward it
+    And a child who taps "Invite a friend" forwards the same kind of link
+    But when the web quiz is off, or I am not on its list, every link is the WhatsApp one as before, and the caption has no preview line
+    # ADDED 2026-10-05: web-quiz-link quizLink(code, {teacherUserId, whatsapp}) at the three link builders
+    # (video-quiz-share deliverClassLink, transcript-quiz-handoff sendHandoff, video-quiz-invite
+    # handleInviteButton). app_settings web_quiz_enabled + web_quiz_teachers ("all" or user ids), fail closed;
+    # base = WEB_QUIZ_BASE_URL else PORTAL_URL. previewLink() adds tqWebPreview to the caption only when the
+    # token module signs one. The code is the same in both channels, so QUIZ-<code> still works in WhatsApp.
+    # Unit: tests/quiz/web-quiz-link.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T107 @no-mock-driver
+  Scenario: A web-arm quiz carries web items written from its own source, and WhatsApp is unchanged
+    Given the web quiz is switched on for me and app_settings "web_quiz_items_v2" is true
+    When my class quiz is made from my lesson
+    Then each question may carry a web item beside it (quiz_questions.media.web)
+    And every web item names the moment of my lesson it tests, and that quote is found in my transcript or lesson plan
+    And a web item whose quote is missing, off the question's topic, or fails the maths or Urdu address checks is not kept
+    And the question's own WhatsApp fields are exactly what they would have been without the web item
+    # web-quiz-items.js maybeAttach (one call after the quiz is final; never fails a quiz), wired in
+    # transcript-quiz-generate process() before the insert. Flag absent = no call, no media.web.
+    # Unit: bot/tests/quiz/web-quiz/web-quiz-items.test.js, tests/quiz/web-quiz-items-generate.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T108 @no-mock-driver
+  Scenario: A child plays picture, listen, order and match questions on the web
+    Given a web quiz whose questions carry web items
+    When the page loads the quiz
+    Then each question shows its type, its own options (pictures with spoken names where it has them) and what the voice reads
+    And the source of a question is named by its time or lesson section, never by the classroom words
+    When the child puts the steps of an order question in the right order
+    Then the answer is right only in that order, and the review shows the order
+    # web-quiz.service questionPayload (WebItems.webPayload), recordAnswers (WebItems.isCorrect), finishSession (keyFor). @wip.
+
+  @api @quiz @web @wip @draft @P2 @T160 @no-mock-driver
+  Scenario: In Urdu, each child's animal sits inside its circle on "Whose turn is it?"
+    Given a web quiz in Urdu, and names remembered on this phone and in the class
+    When the child opens "Whose turn is it?"
+    Then every name chip shows its animal inside its round badge, as it does in English
+    And the animal sits in line with the name on the "Is this you?" card, the scorecard and the class league table
+    # wq.js ani() wraps every animal in .wq-ani; wq.css .wq-ani keeps the system font and line-height 1.
+    # Unit: dashboard/tests/web-quiz-page-badge.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T178 @no-mock-driver
+  Scenario: Jugnu moves on every screen, differently each time, and stays still when it should
+    Given a web quiz open on a child's phone
+    When a screen with Jugnu appears (hello, whose turn, a question's answer, the results, see you tomorrow)
+    Then Jugnu's still pose shows at once and a short looping animation of that pose takes over a moment later, one of several picked at random
+    And the first question never waits for an animation to load
+    When the phone asks for reduced motion, saves data or is on 2G
+    Then Jugnu stays as the still pose and no animation is downloaded
+    When the page is hidden or the in-app browser is closed
+    Then the animation stops with the sounds, and it starts again when the child comes back
+    # wq.js mascot block (jugImg, jugWake, jugStop); assets dashboard/public/wq/jugnu/<pose>_<k>.webm|.webp.
+    # Unit: dashboard/tests/web-quiz-mascot.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T161 @no-mock-driver
+  Scenario: A tap anywhere on the lesson video starts it, and a video with no poster is not a dark box
+    Given a web quiz with a lesson video
+    When the child sees the video screen
+    Then the video box shows Jugnu and a big play button when the video has no poster, or the poster when it has one
+    When the child taps anywhere on the box
+    Then the video starts, the cover goes away and the video's own controls take over
+    # wq.js video() .wq-vcover. Unit: dashboard/tests/web-quiz-page-video.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T189 @no-mock-driver
+  Scenario: The web quiz plays the lighter web copy of a lesson video when one exists
+    Given a video-bank lesson has a web copy beside it (the same picture, its sound stored smaller)
+    When a child opens that lesson's quiz on the web
+    Then the page plays the web copy and the size the child sees is the web copy's size
+    And a lesson with no web copy plays the original, and WhatsApp always sends the original
+    # web-quiz-media presignVideo (<key>_web.mp4 preferred). Unit: bot/tests/quiz/web-quiz-publish.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T162 @no-mock-driver
+  Scenario: A class with no label never leaves a dangling dot on the card or the league table
+    Given a brand-new code whose class has no label yet
+    When the child finishes and sees the scorecard and the league table
+    Then the card's header reads "NIETE" with nothing after it, and no line starts or ends with a dot
+    # wq.js dotJoin(). Unit: dashboard/tests/web-quiz-page-card.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T163 @no-mock-driver
+  Scenario: The page records whether it was opened in WhatsApp's in-app browser
+    Given a child opens the web quiz in WhatsApp's own browser, or in the phone's browser
+    When the page reports that it opened
+    Then the log keeps iab as 1 for WhatsApp's browser and 0 for the phone's browser
+    # web-quiz.service cleanEvent. Unit: bot/tests/quiz/web-quiz/web-quiz.service.test.js (E8 iab). @wip.
+
+  @api @quiz @web @wip @draft @config-gated @P1 @T164 @no-mock-driver
+  Scenario: The message I forward for the web quiz says the child is asked only their name
+    Given the web quiz is on for me
+    When I get my class quiz and its message to forward
+    Then the message carries the web link and says the child will be asked their name first, in the quiz's language
+    And when the web quiz is off for me, the message carries the WhatsApp link and still says name and class, exactly as before
+    # transcript-quiz-handoff: the link and the text are chosen together (tqStudentMessageWeb vs tqStudentMessage).
+    # Unit: tests/quiz/web-quiz-forward-message.test.js, tests/quiz/web-quiz-link.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T190 @no-mock-driver
+  Scenario: The phone's Back button inside WhatsApp's browser never throws a child out of the quiz by accident
+    Given a child is playing the web quiz in WhatsApp's in-app browser
+    When the child presses Back on a side screen (who is playing, the share screen, the league table, history, today)
+    Then the page goes back to the screen the child came from
+    When the child presses Back on a question
+    Then the page stays, says the answers are saved, and a second Back leaves
+    And on the landing, the results and the scorecard Back leaves the page as before
+    # wq.js navArm/navBack (one history entry, added on a tap). Unit: dashboard/tests/web-quiz-page-inapp.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T191 @no-mock-driver
+  Scenario: Sharing the scorecard to the class group keeps classmates in the teacher's report
+    Given a child has finished the web quiz and sees the scorecard in a browser with no share menu
+    When the child taps "Share to class group"
+    Then WhatsApp opens with the score line and the CLASS link, in the same view
+    When the child taps "Challenge a friend"
+    Then WhatsApp opens with the child's own challenge link, and "Copy the message" is there if WhatsApp does not open
+    # wq.js card() classUrl vs chalUrl. Unit: dashboard/tests/web-quiz-page-inapp.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T192 @no-mock-driver
+  Scenario: A reload in the middle of the lesson video carries on where it was
+    Given a child is watching the lesson video on the web quiz
+    When the page reloads (or the child comes back to the link)
+    Then "Continue" takes the child back to the video at the point it reached, with no name to pick again
+    And a video the child skipped or finished does not come back; the questions do
+    # wq.js video() S.vt/S.vdone + resume(). Unit: dashboard/tests/web-quiz-page-inapp.service.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P1 @T130 @no-mock-driver
+  Scenario: With the author gates on, every quiz question carries the moment of my lesson that holds its answer
+    Given app_settings "quiz_author_gates_v2" is true
+    When my class quiz is made from my lesson (a recording, a K-5 lesson plan or a 6-12 lesson plan)
+    Then every question is written with a quote of the moment in my lesson that carries its answer
+    And a question is re-written on my lesson's own example when its quote is missing, is not in my lesson, is itself a question, shares no word or number with the answer, or quotes numbers that are neither the answer's nor the question's
+    And a question the re-write still cannot ground is left out of the quiz, never sent as it was
+    And how many questions were refused, re-written, left out or kept is recorded on the quiz
+    And with the setting off, the quiz is made exactly as before
+    # transcript-quiz-source-fidelity.js (the gates) + transcript-quiz-generate runSourceFidelity (one targeted
+    # rewrite, then the salvage); counts in quizzes.meta.source_fidelity. Applies to the WhatsApp rows, so to both arms.
+    # Unit: tests/quiz/quiz-source-fidelity.test.js, tests/quiz/quiz-source-fidelity-generate.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P1 @T131 @no-mock-driver
+  Scenario: With the author gates on, a grade 1-2 question is short enough for a beginning reader
+    Given app_settings "quiz_author_gates_v2" is true
+    And my lesson is for grade 1 or 2
+    When my class quiz is made
+    Then no question is longer than 8 words, and a longer one is re-written shorter
+    # STEM_TOO_LONG_G12 in transcript-quiz-source-fidelity.js; the web page voices the stem (read.stem). @wip.
+
+  @api @quiz @wip @draft @config-gated @P2 @T132 @no-mock-driver
+  Scenario: With the author gates on, a slip in my lesson is not taught to the children
+    Given app_settings "quiz_author_gates_v2" is true
+    And something said in my lesson about a fact was wrong
+    When my class quiz is made
+    Then the question tests the correct fact and quotes the moment the correct fact was said
+    And the slip is recorded on the quiz for my report to use later, and nothing in my report changes yet
+    # teaching_error per question -> quizzes.meta.source_fidelity.teaching_errors [{question, said, correct, quote}]. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T110 @no-mock-driver
+  Scenario: A question that sends the child to a picture it does not have is left out of my web quiz
+    Given my web quiz has four questions
+    And one says "Look at the pictures. Which one is a leaf?" but has no picture, no figure and no picture options
+    When a child opens the quiz from my link
+    Then the child plays three questions, and the score and the "answered at least half" rule count three
+    And a question that says "Look at the picture" and has its own picture is played with the picture
+    # web-quiz.service loadQuestions (playable: quiz-picture-words pointsAtPicture + hasPicture). Unit: tests/quiz/web-quiz/web-quiz.service.test.js, tests/quiz/quiz-picture-words.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T111 @no-mock-driver
+  Scenario: The recorded voice on my web quiz says plain words, never maths code
+    Given a question "What is $\frac{3}{4}$ of 8?" whose web item reads it as "What is three quarters of eight?"
+    When the read-aloud clips for my quiz are recorded
+    Then the question clip says "What is three quarters of eight?" and each option clip says that option's spoken words
+    And a question with no web item is read from its own text with the maths written as words
+    And when a question's words change, the next recording says the new words
+    # web-quiz-publish.service partsFor (read.stem / read.opts, mathToText fallback), audioKey (hash of the words). Unit: tests/quiz/web-quiz-publish.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T165 @no-mock-driver
+  Scenario: With my class list, my quiz children are the children on my list
+    Given app_settings "web_quiz_roster_id" is true and I keep a class list with roll numbers
+    When a child of my class opens my quiz link, types their roll number and confirms their first name
+    Then the child plays as the child on my class list, not as a new name
+    And my report shows the name and class from my class list, counting each child's first finished score
+    And the quiz page never receives my class list: one roll number answers with at most three first names and their animals
+    But with the switch off, or without a class list, children pick or type their names as before
+    # ADDED 2026-10-05: web-quiz-roster.js (rosterOn, loadRoster, byRoll, byName, nearName); web-quiz.service getQuiz cls.roster + startSession body.roll / roster chips. Unit: tests/quiz/web-quiz/web-quiz-roster.test.js. @wip.
+

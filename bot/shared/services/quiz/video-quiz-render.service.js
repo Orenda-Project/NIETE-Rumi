@@ -729,6 +729,7 @@ function parseAnswer(id) {
 
 module.exports = {
   build,
+  isListenAndIdentify,
   displayOrder,
   optionLabels,
   correctIndices,

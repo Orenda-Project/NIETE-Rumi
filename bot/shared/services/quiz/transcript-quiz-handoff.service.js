@@ -23,6 +23,8 @@ const { isPlanQuiz, lessonSessionFor, handoffIntroKey } = require('./quiz-source
 const Funnel = require('./quiz-funnel');
 
 const GAP_MS = 1200;
+// Meta's caption cap on a document, in code points.
+const CAPTION_MAX = 1024;
 // The nudge's wait belongs to the nudge service (one number for "when it is due"
 // and "which nudges are due"); re-exported below for existing readers.
 const { NUDGE_AFTER_MS } = require('./transcript-quiz-nudge.service');
@@ -119,10 +121,14 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     }
     code = minted.code;
     shareCodeId = minted.id;
-    link = `https://wa.me/${share.botNumber()}?text=QUIZ-${code}`;
+    // The web quiz page when it is switched on for this teacher, else wa.me.
+    const waLink = `https://wa.me/${share.botNumber()}?text=QUIZ-${code}`;
+    link = await require('./web-quiz-link').quizLink(code, { teacherUserId: quiz.teacher_id, whatsapp: waLink });
     const lessonDate = formatLessonDate(session.created_at, language);
     const Gen = require('./transcript-quiz-generate.service');
-    forwardable = Gen.studentMessage({ teacherName: minted.teacherName || teacherName, topic: quiz.topic, date: lessonDate, link, language });
+    forwardable = Gen.studentMessage({
+      teacherName: minted.teacherName || teacherName, topic: quiz.topic, date: lessonDate, link, language, web: link !== waLink,
+    });
   }
 
   // ── the PDF — the SAME object the teacher was sent, best effort ────────────
@@ -177,10 +183,15 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
   // ── send: document (or its text fallback), THEN the link alone, THEN (first
   // send only) the report promise — paced exactly as process() always paced it.
   // "what you taught" is true only of a recorded lesson; an lp_v8 quiz was planned.
-  const caption = resolveUx(handoffIntroKey(quiz.quiz_source), {
+  const intro = resolveUx(handoffIntroKey(quiz.quiz_source), {
     language: teacherLang,
     params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: qRows.length },
   });
+  // The teacher's own preview of the web quiz page, when it is on for them —
+  // in the caption only, so it is never forwarded to the class.
+  const preview = await require('./web-quiz-link').previewLink(code, { shareCodeId, teacherUserId: quiz.teacher_id });
+  const previewLine = preview ? resolveUx('tqWebPreview', { language: teacherLang, params: { link: preview } }) : null;
+  const caption = previewLine && [...`${intro}\n\n${previewLine}`].length <= CAPTION_MAX ? `${intro}\n\n${previewLine}` : intro;
   let pdfSent = false;
   if (tempPath) {
     const { pdfFilename } = require('./transcript-quiz-generate.service');

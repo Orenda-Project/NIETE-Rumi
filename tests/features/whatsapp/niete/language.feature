@@ -234,6 +234,16 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # the English mirror case). Proven over every placeholder-led paragraph in the catalog by
     # tests/config/ux-strings-paragraph-direction.test.js. @wip.
 
+  @e2e @language @quiz @wip @draft @config-gated @P2
+  Scenario: The "try it yourself" line in my quiz caption is in my language
+    Given the NIETE bot chat is open
+    And my language is set to Urdu
+    And the web quiz is switched on for me
+    When I make a class quiz for one of my lessons
+    Then the PDF's caption tells me in Urdu to try the quiz page myself before forwarding it, with the link on the same line
+    # ADDED 2026-10-05: ux-strings tqWebPreview (en/ur, دیکھیں = polite imperative, no gendered stem),
+    # resolved in the teacher's language by transcript-quiz-handoff sendHandoff. @wip.
+
   # ── E2. Still leaks English on an Urdu account (@known-issue) ──
 
   @e2e @language @known-issue @P1
@@ -443,6 +453,14 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     And the study-helper chat has already drifted into Urdu
     When the child writes an English question
     Then the reply is in English
+
+  @api @language @quiz @wip @draft @config-gated @P2
+  Scenario: The web quiz's forwarded message is in the quiz's language and says only the name is asked
+    Given the web quiz is on for a teacher, and the quiz is in Urdu or in English
+    When the teacher gets the message to forward to the class
+    Then it is wholly in the quiz's language and says the child will be asked their name first
+    And the WhatsApp quiz's message is unchanged
+    # ux-strings tqStudentMessageWeb (en + ur) beside tqStudentMessage. Unit: tests/quiz/web-quiz-forward-message.test.js. @wip.
 
   @e2e @language @persona:student @wip @draft @seeded @P2
   Scenario: A child whose quiz was in English and who writes Roman Urdu is answered in Urdu script

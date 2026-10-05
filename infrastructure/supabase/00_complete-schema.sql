@@ -6166,6 +6166,12 @@ ALTER TABLE quiz_sessions DROP CONSTRAINT IF EXISTS quiz_sessions_source_check;
 ALTER TABLE quiz_sessions ADD CONSTRAINT quiz_sessions_source_check
   CHECK (source IN ('roster', 'video_solo', 'share_link'));
 
+-- ── quiz_sessions for the web child quiz — from bot/database/migrations/web_quiz_v1.sql.
+-- device_ref: a server-random per-browser id (NULL = a WhatsApp session); a web session
+-- has no phone, so parent_phone is nullable. ──
+ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS device_ref TEXT;
+ALTER TABLE quiz_sessions ALTER COLUMN parent_phone DROP NOT NULL;
+
 -- =============================================================================
 -- Tables and columns that migrations create and this file had not declared. A clone is
 -- bootstrapped from this file alone, so each is mirrored from its migration here;

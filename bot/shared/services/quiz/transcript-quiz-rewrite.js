@@ -52,6 +52,7 @@
 const { completeJson } = require('./transcript-quiz-llm');
 const People = require('./transcript-quiz-people');
 const { PUPILS_RULE } = require('./transcript-quiz-pupils');
+const SourceFidelity = require('./transcript-quiz-source-fidelity');
 /**
  * A question rejected for PEDAGOGY_PUPIL_AS_SUBJECT named a child from the
  * class, asked what a child said or did in class, or said something about a
@@ -349,6 +350,10 @@ function buildRewritePrompt({
   // An lp_v8 quiz: the lesson was PLANNED, so its summary is rewritten in the
   // plan's voice (LP_SUMMARY_VOICE), never as "what you taught".
   planned = false,
+  // app_settings quiz_author_gates_v2: a replacement carries its source_quote
+  // and teaching_error like an authored question. Off (and no source
+  // complaint), the prompt is exactly what it was.
+  authorGates = false,
 }) {
   const qs = Array.isArray(questions) ? questions : [];
   const { indices, byIndex } = targets;
@@ -402,6 +407,7 @@ ${why}`;
       : 'You are FIXING the LESSON SUMMARY of a short WhatsApp quiz written for the children who sat in ONE real lesson. Every question is good and is staying exactly as it is — do not touch one, do not return one. You are rewriting the summary only.');
 
   const namesAsked = indices.some((i) => (byIndex[i] || []).some((e) => NAME_LATIN.test(e)));
+  const withSource = authorGates || indices.some((i) => (byIndex[i] || []).some((e) => SourceFidelity.SOURCE_FAULT.test(e)));
   const questionSections = nQ ? [
     `REWRITE THESE QUESTIONS: ${label(indices)}`,
     `THE QUESTIONS THAT ARE STAYING. A replacement must not ask one of these again, and must not have the same answer as one of them.\n${staying || '(none)'}`,
@@ -429,6 +435,7 @@ ${why}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_DISAGREEMENT.test(e))) ? [KEY_DISAGREEMENT_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_BY_AUTHORITY.test(e))) ? [KEY_BY_AUTHORITY_RULE] : []),
+    ...(withSource ? [SourceFidelity.sourceFidelityRule({ lessonPlan: planned, gradeBand })] : []),
   ] : [];
 
   const summarySection = summaryErrors.length ? [
@@ -446,7 +453,7 @@ ${planned
     "question": "", "options": ["", "", ""], "correct_index": 0,
     "explanation": "", "selected_because": "", "distractor_misconceptions": { "1": "", "2": "" },
     "option_feedback": { "correct": "", "wrong": { "1": "", "2": "" } },
-    "figure": null, "figure_role": null }`;
+    "figure": null, "figure_role": null${withSource ? ', "source_quote": "", "teaching_error": null' : ''} }`;
 
   const returnBlock = nQ
     ? `Return ONLY this JSON object, with exactly ${nQ} question entr${nQ === 1 ? 'y' : 'ies'}${summaryErrors.length ? ' and the new summary' : ''} and nothing else. "index" is the number after the q above, and must be one of: ${indices.join(', ')}.
@@ -615,6 +622,8 @@ async function rewriteRejected({
   // left out come back as `deferred`, for the caller's second batch, which
   // passes them back as `prefer`.
   partial = false, prefer = [],
+  // app_settings quiz_author_gates_v2, passed by the caller (buildRewritePrompt).
+  authorGates = false,
   // quizId is accepted and ignored here on purpose: the outcome event is emitted
   // by the caller, which is the only place that knows whether the merged set
   // validated.
@@ -627,7 +636,7 @@ async function rewriteRejected({
     };
   }
   const prompt = buildRewritePrompt({
-    digest, language, questions, targets, gradeBand, lessonSummary, planned,
+    digest, language, questions, targets, gradeBand, lessonSummary, planned, authorGates,
   });
   try {
     const { json, model, costUsd, latencyMs } = await completeJson({

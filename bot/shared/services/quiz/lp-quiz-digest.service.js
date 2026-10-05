@@ -463,6 +463,46 @@ ${lines.join('\n')}${size}
 Use your own numbers — never copy a practice problem's.`;
 }
 
+const LESSON_DIAGRAMS_MAX = 4;
+const LESSON_DIAGRAM_CHARS = 700;
+
+/**
+ * THE LESSON'S OWN DIAGRAMS, for the author (a Grades 6-12 lesson carries them
+ * as specs — lp612-quiz-source maps them to `diagrams`). A question about the
+ * lesson's own drawing is the most source-faithful picture a quiz can have, so
+ * the author may copy one as its figure. Only the types the quiz engine draws,
+ * at most four, each spec whole or not at all. '' when there are none.
+ * @returns {string}
+ */
+function lessonDiagramsBlock(slideScript) {
+  const ss = slideScript && typeof slideScript === 'object' ? slideScript : {};
+  // eslint-disable-next-line global-require
+  const { ALLOWED_TYPES, canonicalType, figureEmptyReason } = require('./transcript-quiz-figure');
+  const lines = [];
+  arr(ss.diagrams).forEach((d) => {
+    if (lines.length >= LESSON_DIAGRAMS_MAX || !d || !d.spec || typeof d.spec !== 'object') return;
+    const type = canonicalType(d.spec.type);
+    if (!type || !ALLOWED_TYPES.includes(type)) return;
+    // A drawing the quiz's own validator would refuse (a table drawn as an unshaded grid) costs an attempt.
+    if (figureEmptyReason({ ...d.spec, type })) return;
+    const { caption, alt, source, title, note, ...drawn } = d.spec;
+    const json = JSON.stringify({ ...drawn, type });
+    if (json.length > LESSON_DIAGRAM_CHARS) return;
+    const said = degender(caption || alt || '');
+    lines.push(`- ${d.where || 'lesson'}${said ? ` (${said})` : ''}: ${json}`);
+  });
+  if (!lines.length) return '';
+  return `THE LESSON'S OWN DIAGRAMS — the drawings this class saw, as specs the quiz engine draws. A picture question about one of them uses THAT drawing: copy its spec as the question's "figure" (you may leave out a label the question asks for, and change nothing else). A child recognises their own lesson in it.
+${lines.join('\n')}`;
+}
+
+/** What the author is told the lesson drew: today's manipulatives, plus (quiz_author_gates_v2) its own diagrams. */
+function lessonDrewFor(slideScript, { authorGates = false } = {}) {
+  const drew = lessonDrewBlock(slideScript);
+  if (!authorGates) return drew;
+  return [drew, lessonDiagramsBlock(slideScript)].filter(Boolean).join('\n\n');
+}
+
 function buildLpDigestPrompt({ slideScript, language, grade, subject }) {
   const c = carry(slideScript);
   return `You are reading the LESSON PLAN a teacher in a Pakistani government school was given and taught from today. Your job is to write a faithful DIGEST of what that lesson set out to teach — nothing more, nothing less. This digest will be used to write a short quiz for the children who sat in that lesson, so anything you invent will be tested on children who never met it.
@@ -623,5 +663,5 @@ async function run({
 
 module.exports = {
   run, lessonExcerpts, buildLpDigestPrompt, carry, degender, levelFromBloom, isUsable,
-  parseDiagram, lessonDrewBlock,
+  parseDiagram, lessonDrewBlock, lessonDiagramsBlock, lessonDrewFor,
 };
