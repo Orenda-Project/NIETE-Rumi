@@ -34,6 +34,22 @@ describe('client', () => {
       .rejects.toMatchObject({ status: 400, body: { code: 'INVALID_CHANGES' } });
   });
 
+  test.each([
+    ['a bot 401 (bad key)', 401, { success: false, error: 'Unauthorized' }],
+    ['a 500 without a code', 500, { success: false }],
+    ['a 400 without a code', 400, { success: false }],
+    ['a 403 whose body is not an object', 403, 'nope'],
+  ])('%s never reaches the portal as itself: 502 UNREACHABLE', async (_n, status, data) => {
+    axios.post.mockResolvedValue({ status, data });
+    await expect(Client().editSave({ parentId: 'p1', userId: 'u1', changes: {} }))
+      .rejects.toMatchObject({ status: 502, body: { success: false, code: 'UNREACHABLE', error: 'We could not reach the paper service.' } });
+  });
+
+  test.each([400, 403, 404, 409, 502])('a coded bot %i passes through', async (status) => {
+    axios.post.mockResolvedValue({ status, data: { success: false, code: 'NOT_FOUND' } });
+    await expect(Client().editVersions('p1', 'u1')).rejects.toMatchObject({ status, body: { code: 'NOT_FOUND' } });
+  });
+
   test('the client still reads no table and holds no edit rule', () => {
     const src = read(CLIENT);
     expect(src).not.toMatch(/supabase/i);

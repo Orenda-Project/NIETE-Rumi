@@ -57,7 +57,10 @@ export function loadDraft(parentId: string): Draft | null {
     const raw = localStorage.getItem(KEY(parentId));
     if (!raw) return null;
     const d = JSON.parse(raw) as Draft;
-    return d && d.parentId === parentId ? d : null;
+    const plain = (v: unknown) => v !== null && typeof v === 'object' && !Array.isArray(v);
+    const ok = d && d.parentId === parentId && plain(d.edits)
+      && Array.isArray(d.removed) && Array.isArray(d.restored) && Array.isArray(d.added);
+    return ok ? d : null;
   } catch { return null; }
 }
 

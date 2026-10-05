@@ -102,6 +102,51 @@ it('save failure keeps the draft and says the service could not be reached', asy
   expect(screen.getByRole('button', { name: 'Make my paper' })).not.toBeDisabled();
 });
 
+it('M1: a transport failure tells her the save may still have finished', async () => {
+  vi.mocked(portal.saveAssessmentVersion).mockRejectedValue(new Error('timeout'));
+  render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
+  await screen.findByText('What is a noun?');
+  fireEvent.click(within(card('What is a noun?')).getByRole('button', { name: 'Remove' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Make my paper' }));
+  expect(await screen.findByText(/Check Versions before trying again/)).toBeTruthy();
+});
+
+it('I3: reopening Edit shows her earlier text, and a second Done keeps both changes', async () => {
+  vi.mocked(portal.validateAssessmentEdit).mockResolvedValue({ ok: true, marks: 2, text: 'Define a noun.' } as never);
+  vi.mocked(portal.saveAssessmentVersion).mockResolvedValue({ status: 'ready', paperId: 'v2', version: 2, questionCount: 2, marks: 5 } as never);
+  render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
+  await screen.findByText('What is a noun?');
+  fireEvent.click(within(card('What is a noun?')).getByRole('button', { name: 'Edit' }));
+  fireEvent.change(screen.getByLabelText('Question'), { target: { value: 'Define a noun.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  await screen.findByText('Edited');
+  fireEvent.click(within(card('Define a noun.')).getByRole('button', { name: 'Edit' }));
+  expect((screen.getByLabelText('Question') as HTMLTextAreaElement).value).toBe('Define a noun.');
+  fireEvent.change(screen.getByLabelText('Marks'), { target: { value: '5' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  await waitFor(() => expect(screen.queryByLabelText('Marks')).toBeNull());
+  fireEvent.click(screen.getByRole('button', { name: 'Make my paper' }));
+  await waitFor(() => expect(portal.saveAssessmentVersion).toHaveBeenCalled());
+  const [, changes] = vi.mocked(portal.saveAssessmentVersion).mock.calls[0];
+  expect(changes.edits).toEqual([{ id: 'unseen.subjective.Short Questions.0', edit: expect.objectContaining({ question: 'Define a noun.', marks: '5' }) }]);
+});
+
+it('M2: Remove on a newly added question is disabled while a question is open for editing', async () => {
+  vi.mocked(portal.validateAssessmentEdit).mockResolvedValue({ ok: true, marks: 2, text: 'New one?' } as never);
+  render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
+  await screen.findByText('What is a noun?');
+  fireEvent.click(screen.getAllByRole('button', { name: /Add a question/ }).slice(-1)[0]);
+  fireEvent.click(await screen.findByRole('button', { name: 'Short question' }));
+  fireEvent.change(screen.getByLabelText('Question'), { target: { value: 'New one?' } });
+  fireEvent.change(screen.getByLabelText('Answer'), { target: { value: 'Yes' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  await screen.findByText('New');
+  const added = document.querySelector('[data-question="added-0"]') as HTMLElement;
+  expect(within(added).getByRole('button', { name: 'Remove' })).not.toBeDisabled();
+  fireEvent.click(within(card('What is a verb?')).getByRole('button', { name: 'Edit' }));
+  expect(within(added).getByRole('button', { name: 'Remove' })).toBeDisabled();
+});
+
 it('save with INVALID_CHANGES shows each message under its question', async () => {
   vi.mocked(portal.saveAssessmentVersion).mockRejectedValue({ response: { status: 400, data: { code: 'INVALID_CHANGES',
     errors: [{ id: 'unseen.subjective.Short Questions.1', message: 'The question cannot be empty.' }] } } });

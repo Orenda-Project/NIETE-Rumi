@@ -172,9 +172,18 @@ async function askEdit(path, body, { timeout = TIMEOUT_MS } = {}) {
     validateStatus: () => true, // every bot answer is passed through; transport errors still throw
   });
   if (res.status >= 200 && res.status < 300 && res.data && res.data.success === true) return res.data;
-  const err = new Error((res.data && (res.data.error || res.data.code)) || `Assessment edit ${path} failed`);
-  err.status = res.status >= 400 ? res.status : 502;
-  err.body = res.data || { success: false };
+  // Only a bot refusal that says what it is passes through. A 401 here is OUR key being wrong:
+  // forwarding it would make the portal's 401 handler log the teacher out on every click.
+  const coded = [400, 403, 404, 409, 502].includes(res.status) && res.data && typeof res.data === 'object' && typeof res.data.code === 'string';
+  if (coded) {
+    const err = new Error(res.data.error || res.data.code);
+    err.status = res.status;
+    err.body = res.data;
+    throw err;
+  }
+  const err = new Error(`Assessment edit ${path} failed (${res.status})`);
+  err.status = 502;
+  err.body = { success: false, code: 'UNREACHABLE', error: 'We could not reach the paper service.' };
   throw err;
 }
 

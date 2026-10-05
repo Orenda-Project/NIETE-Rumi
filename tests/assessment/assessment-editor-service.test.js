@@ -127,6 +127,38 @@ describe('questions', () => {
   });
 });
 
+describe('sub-question fields (bd-hb8qs final review I2)', () => {
+  test('a sub carries no correct-answer radios and no answer-lines picker; an options-shaped sub edits its answer text', async () => {
+    mockDb.tables.assessment_papers[0].exam_json = {
+      seen: { subjective: { 'Long Questions': [{
+        question: 'Parent', marks: 4,
+        questions: [{ question: 'Plain part', answer: 'x', marks: 2 }, { question: 'Pick', options: ['A) 1', 'B) 2'], answer: 'A) 1', marks: 2 }],
+      }] } },
+    };
+    const out = await Editor.questions({ userId: U, paperId: 'v1' });
+    const subs = out.items[0].subs;
+    expect(subs.length).toBe(2);
+    for (const s of subs) expect(s.fields).toMatchObject({ show_correct: false, show_lines: false });
+    const opt = subs.find((s) => s.fields.shape === 'options');
+    expect(opt.fields.show_answer_text).toBe(true);
+  });
+});
+
+describe('foreign owner (bd-hb8qs final review T3)', () => {
+  test('saveVersion on someone else\'s parent is NOT_FOUND and inserts nothing', async () => {
+    const out = await Editor.saveVersion({ userId: 'x', parentId: 'v1', changes: { removed: ['seen.objective.MCQs.0'] } });
+    expect(out).toMatchObject({ status: 'failed', code: 'NOT_FOUND' });
+    expect(mockDb.writes.filter((w) => w.op === 'insert')).toEqual([]);
+  });
+  test('validateEdit with a kind on someone else\'s paper is NOT_FOUND', async () => {
+    expect(await Editor.validateEdit({ userId: 'x', paperId: 'v1', kind: 'short', edit: { question: 'q' } })).toEqual({ code: 'NOT_FOUND' });
+  });
+  test('questions and addKinds on someone else\'s paper are NOT_FOUND', async () => {
+    expect(await Editor.questions({ userId: 'x', paperId: 'v1' })).toEqual({ code: 'NOT_FOUND' });
+    expect(await Editor.addKinds({ userId: 'x', paperId: 'v1' })).toEqual({ code: 'NOT_FOUND' });
+  });
+});
+
 describe('addKinds', () => {
   test('offers the four kinds the bot can add, with their defaults', async () => {
     const out = await Editor.addKinds({ userId: U, paperId: 'v1' });

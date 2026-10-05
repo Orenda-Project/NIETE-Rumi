@@ -26,13 +26,16 @@ const QuestionFields = ({ fields, rtl, error, busy, onDone, onCancel }: Props) =
   const [pairs, setPairs] = useState(fields.pairs || []);
   const [passage, setPassage] = useState(fields.passage ?? '');
 
+  const showCorrect = fields.shape === 'options' && fields.show_correct !== false && !fields.msq;
+  const showAnswerBox = fields.shape === 'options' && !showCorrect && (!!fields.msq || !!fields.show_answer_text);
+
   const done = () => {
     // question only when changed: the bot refuses '' and a passage parent often has none
     const edit: Record<string, unknown> = { marks };
     if (question !== fields.question) edit.question = question;
     if (fields.shape === 'options') {
       edit.slots = slots;
-      if (fields.msq) edit.answer = answer; else edit.correct = correct;
+      if (showCorrect) edit.correct = correct; else if (showAnswerBox) edit.answer = answer;
     } else if (fields.shape === 'columns') {
       edit.pairs = pairs;
     } else if (fields.shape === 'words') {
@@ -65,7 +68,7 @@ const QuestionFields = ({ fields, rtl, error, busy, onDone, onCancel }: Props) =
         <fieldset className="space-y-2">
           {slots.map((_, i) => (
             <div key={i} className="flex items-center gap-2">
-              {!fields.msq && (
+              {showCorrect && (
                 <input type="radio" name="qf-correct" aria-label={`Option ${i + 1} is correct`}
                   checked={correct === String(i)} onChange={() => setCorrect(String(i))} />
               )}
@@ -88,7 +91,7 @@ const QuestionFields = ({ fields, rtl, error, busy, onDone, onCancel }: Props) =
         </div>
       )}
 
-      {(fields.shape === 'standard' || fields.shape === 'passage' || fields.shape === 'words' || (fields.shape === 'options' && fields.msq)) && (
+      {(fields.shape === 'standard' || fields.shape === 'passage' || fields.shape === 'words' || showAnswerBox) && (
         <div><Label htmlFor="qf-answer">Answer</Label>
           <Textarea id="qf-answer" aria-label="Answer" value={answer} onChange={(e) => setAnswer(e.target.value)} rows={2} /></div>
       )}

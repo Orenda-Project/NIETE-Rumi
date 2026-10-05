@@ -81,3 +81,16 @@ it('msq options: sends answer, no correct, no correct radios', () => {
   expect(edit.answer).toBe('A');
   expect('correct' in edit).toBe(false);
 });
+
+it('options with show_correct:false (a sub-question) draw no radios and send the answer text, not correct', () => {
+  const onDone = vi.fn();
+  const fields: EditFields = { ...base, shape: 'options', answer: 'A) run', slots: ['A) run', 'B) cat', '', '', '', ''], correct: '0',
+    correct_options: [], msq: false, show_correct: false, show_answer_text: true };
+  render(<QuestionFields fields={fields} rtl={false} error={null} busy={false} onDone={onDone} onCancel={() => {}} />);
+  expect(screen.queryByLabelText('Option 1 is correct')).toBeNull();
+  fireEvent.change(screen.getByLabelText('Answer'), { target: { value: 'B) cat' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  const sent = onDone.mock.calls[0][0];
+  expect(sent.answer).toBe('B) cat');
+  expect(sent).not.toHaveProperty('correct');
+});

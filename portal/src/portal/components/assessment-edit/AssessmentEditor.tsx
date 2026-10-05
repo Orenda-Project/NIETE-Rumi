@@ -24,6 +24,20 @@ const SAVE_MESSAGE: Record<string, string> = {
   EDITING_DISABLED: 'Editing is not available right now.',
 };
 const UNREACHABLE = "We couldn't reach the paper service — your changes are kept. Please try again.";
+// A timed-out save may still have finished on the bot, so the save path sends her to Versions first.
+const SAVE_UNREACHABLE = "We couldn't reach the paper service — your changes are kept. Check Versions before trying again.";
+
+/** The server's boxes with her earlier (not yet saved) edit laid over them, so a reopened Edit shows what she typed. */
+function withStoredEdit(fields: EditItem['fields'], stored?: { edit: Record<string, unknown> }): EditItem['fields'] {
+  if (!stored) return fields;
+  const e = stored.edit;
+  const out: Record<string, unknown> = { ...fields };
+  for (const k of ['question', 'marks', 'answer', 'slots', 'correct', 'pairs', 'passage', 'lines'] as const) {
+    if (e[k] !== undefined) out[k] = e[k];
+  }
+  if (e.linesDefault !== undefined) out.lines_default = e.linesDefault;
+  return out as EditItem['fields'];
+}
 
 type Editing = { key: string; id?: string; subIndex?: number; kind?: AddKind['kind']; section?: 'objective' | 'subjective' } | null;
 
@@ -90,8 +104,10 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
   const locked = !!offerDraft;
   const canSave = isDirty(draft) && count > 0 && !busy && !editing && !locked;
 
-  const done = async (edit: Record<string, unknown>) => {
+  const done = async (newEdit: Record<string, unknown>) => {
     if (!editing) return;
+    // a re-edit merges over the earlier one: QuestionFields omits keys she did not change this time
+    const edit = editing.kind ? newEdit : { ...(draft.edits[editing.key]?.edit ?? {}), ...newEdit };
     setBusy(true); setFieldError(null);
     try {
       const body = editing.kind ? { kind: editing.kind, edit } : { id: editing.id, edit: editing.subIndex != null ? { ...edit, subIndex: editing.subIndex } : edit };
@@ -132,7 +148,7 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
         const hasCards = Object.keys(byKey).length > 0;
         setSaveError(orphans.length ? (hasCards ? `Some questions need fixing — see below. ${orphans.join(' ')}` : orphans.join(' ')) : 'Some questions need fixing — see below.');
       } else {
-        setSaveError(SAVE_MESSAGE[m.data?.code || ''] || UNREACHABLE);
+        setSaveError(SAVE_MESSAGE[m.data?.code || ''] || SAVE_UNREACHABLE);
       }
     } finally { setBusy(false); }
   };
@@ -165,7 +181,7 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
           </div>
           {itemErrors[it.id] && <p className="mt-2 text-sm text-destructive">{itemErrors[it.id]}</p>}
           {editing?.key === it.id && (
-            <div className="mt-3"><QuestionFields key={editing.key} fields={it.fields} rtl={!!paper?.rtl} error={fieldError} busy={busy} onDone={done} onCancel={() => setEditing(null)} /></div>
+            <div className="mt-3"><QuestionFields key={editing.key} fields={withStoredEdit(it.fields, draft.edits[it.id])} rtl={!!paper?.rtl} error={fieldError} busy={busy} onDone={done} onCancel={() => setEditing(null)} /></div>
           )}
           {!removed && it.subs && it.subs.map((s) => (
             <div key={s.index} className="ml-4 mt-2 border-l pl-3 text-sm">
@@ -174,7 +190,7 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
                 <Button size="sm" variant="ghost" disabled={!!editing || locked} onClick={() => { setFieldError(null); setEditing({ key: `${it.id}#${s.index}`, id: it.id, subIndex: s.index }); }}>Edit</Button>
               </div>
               {editing?.key === `${it.id}#${s.index}` && (
-                <QuestionFields key={editing.key} fields={s.fields} rtl={!!paper?.rtl} error={fieldError} busy={busy} onDone={done} onCancel={() => setEditing(null)} />
+                <QuestionFields key={editing.key} fields={withStoredEdit(s.fields, draft.edits[`${it.id}#${s.index}`])} rtl={!!paper?.rtl} error={fieldError} busy={busy} onDone={done} onCancel={() => setEditing(null)} />
               )}
             </div>
           ))}
@@ -184,7 +200,7 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
         <div key={`added-${i}`} data-question={`added-${i}`} dir={paper?.rtl ? 'rtl' : 'ltr'} className="rounded-lg border border-dashed p-3 text-sm">
           <div className="text-xs text-muted-foreground">{a.marks} marks <span className="ml-2 rounded bg-emerald-100 px-1 text-emerald-800">New</span></div>
           <div className="flex items-center justify-between gap-2"><span>{a.text}</span>
-            <Button size="sm" variant="ghost" onClick={() => { setDraft((d) => dropAdded(d, i)); setItemErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !k.startsWith('added#')))); }}>Remove</Button></div>
+            <Button size="sm" variant="ghost" disabled={locked || !!editing} onClick={() => { setDraft((d) => dropAdded(d, i)); setItemErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !k.startsWith('added#')))); }}>Remove</Button></div>
           {itemErrors[`added#${i}`] && <p className="mt-2 text-destructive">{itemErrors[`added#${i}`]}</p>}
         </div>
       ))}

@@ -48,6 +48,16 @@ describe('draft', () => {
     expect(loadDraft('p1')).toBeNull();
   });
 
+  it.each([
+    ['only a parentId', { parentId: 'p1' }],
+    ['edits an array', { parentId: 'p1', edits: [], removed: [], restored: [], added: [] }],
+    ['removed not an array', { parentId: 'p1', edits: {}, removed: 'x', restored: [], added: [] }],
+    ['added missing', { parentId: 'p1', edits: {}, removed: [], restored: [] }],
+  ])('a malformed stored draft (%s) is ignored', (_n, bad) => {
+    localStorage.setItem('assessment-edit-draft:p1', JSON.stringify(bad));
+    expect(loadDraft('p1')).toBeNull();
+  });
+
   it('storage that throws is ignored', () => {
     const orig = Storage.prototype.setItem;
     Storage.prototype.setItem = () => { throw new Error('blocked'); };

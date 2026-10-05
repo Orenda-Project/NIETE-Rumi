@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, KeyRound, Loader2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { portal, type EditVersion } from '../../services/api';
 
@@ -37,7 +37,10 @@ const AssessmentVersionsDialog = ({ paperId, open, onOpenChange, onEdit }: Props
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Versions</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Versions</DialogTitle>
+          <DialogDescription>Every version of this paper. Download any of them, or edit one to make a new version.</DialogDescription>
+        </DialogHeader>
         {versions === null ? (
           <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
         ) : (

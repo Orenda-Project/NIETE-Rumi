@@ -25,6 +25,12 @@ function _gradeOf(req) {
   return m ? Number(m[1]) : null;
 }
 
+/** applyEdit's sub branch reads question, slots, answer, marks only: no radios, no lines picker. */
+function _subFields(sub) {
+  const f = Edit.fieldsFor(sub, { type: '' });
+  return { ...f, show_correct: false, show_lines: false, ...(f.shape === 'options' ? { show_answer_text: true } : {}) };
+}
+
 function _item(q) {
   const section = q.id.split('.')[1] === 'subjective' ? 'subjective' : 'objective';
   const item = {
@@ -33,7 +39,7 @@ function _item(q) {
   };
   if (Array.isArray(q.question?.questions)) {
     item.subs = q.question.questions.map((sub, index) => ({
-      index, fields: Edit.fieldsFor(typeof sub === 'string' ? { question: sub } : sub, { type: '' }),
+      index, fields: _subFields(typeof sub === 'string' ? { question: sub } : sub),
     }));
   }
   return item;
