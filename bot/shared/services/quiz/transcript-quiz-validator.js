@@ -31,6 +31,7 @@ const { questionAddressForms } = require('./transcript-quiz-address');
 const { lessonLexicon, questionAdjacentTerms } = require('./transcript-quiz-adjacent-terms');
 const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
 const { answerLeakErrors } = require('./transcript-quiz-answer-leaks');
+const { metaStemError } = require('./transcript-quiz-meta-stem');
 const { keyByAuthorityError } = require('./transcript-quiz-key-authority');
 const GatesV2 = require('./quiz-author-gates-v2');
 
@@ -688,6 +689,9 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(...GatesV2.questionErrors({ ...p, figure: q.figure, media: q.media }, i, {
         legacyPictureComplaint: q.figure == null && STEM_PROMISES_PICTURE.test(stem),
       }));
+      // "The lesson mentioned…": a question about the lesson, not its idea (repaired in place, soft).
+      const meta = metaStemError(q, i);
+      if (meta) errs.push(meta);
     }
 
     // ── the figure, if this question carries one ────────────────────────────

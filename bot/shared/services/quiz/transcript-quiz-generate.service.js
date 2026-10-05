@@ -214,6 +214,9 @@ const SOFT_FAULT = new RegExp('^('
   // One question giving away another's answer (ANSWER_LEAK, quiz_author_gates_v2
   // only): the later one is re-asked in place like a repeat, and ships if not.
   + '|q\\d+: ANSWER_LEAK\\b'
+  // "The lesson mentioned…" (META_STEM, quiz_author_gates_v2 only): the framing
+  // is repaired in place; the question ships whatever the repair leaves.
+  + '|q\\d+: META_STEM\\b'
   + ')');
 
 /**
@@ -263,8 +266,10 @@ const NAME_FAULT = /^q\d+: URDU_NAME_LATIN\b/;
 const TERM_SCRIPT_FAULT = /^q\d+: URDU_(TRANSLITERATED|ROMAN)\b/;
 /** A later question whose answer an earlier one states (quiz_author_gates_v2): re-asked like a repeat, shipped if not. */
 const LEAK_FAULT = /^q\d+: ANSWER_LEAK\b/;
+/** "The lesson mentioned…" (quiz_author_gates_v2): the framing changed in place, shipped if not. */
+const META_FAULT = /^q\d+: META_STEM\b/;
 /** A fault that is repaired IN PLACE and then shipped — never re-rolled, never dropped, never fatal. */
-const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}|${TERM_SCRIPT_FAULT.source}|${LEAK_FAULT.source}`);
+const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}|${TERM_SCRIPT_FAULT.source}|${LEAK_FAULT.source}|${META_FAULT.source}`);
 /**
  * SOFT WITH THE GATES ON. "SLOs uncovered" is a property of the SET: six sound
  * questions covering four of five objectives beat sending nothing (the 7 Sep
