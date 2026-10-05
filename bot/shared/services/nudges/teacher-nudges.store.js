@@ -68,6 +68,9 @@ const SKIP_REASONS = Object.freeze([
   'quiet_hours',
   'assessment_day',
   'no_lesson',
+  // The teacher's lessons exist but none has a slide script for the version
+  // they were served, so no quiz can be made from them (the LP quiz offer).
+  'no_quiz_source',
   'disabled',
   'sector_not_piloted',
   'not_school_day',
