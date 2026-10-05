@@ -13,11 +13,11 @@ function requireInternalKey(req, res, next) {
   if (!expected) {
     logToFile('❌ Internal API called but INTERNAL_API_KEY is not set — refusing', {
       path: req.path,
-    });
+    }, 'warn');
     return res.status(401).json({ success: false, error: 'Unauthorized' });
   }
   if (req.headers['x-api-key'] !== expected) {
-    logToFile('❌ Unauthorized internal API call', { path: req.path, ip: req.ip });
+    logToFile('❌ Unauthorized internal API call', { path: req.path, ip: req.ip }, 'warn');
     return res.status(401).json({ success: false, error: 'Unauthorized' });
   }
   return next();
