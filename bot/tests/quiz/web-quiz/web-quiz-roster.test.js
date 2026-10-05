@@ -159,6 +159,17 @@ describe('E3 by roll number', () => {
     expect(b).toMatchObject({ counted: false, reason: 'finished_elsewhere' });
   });
 
+  test("a practice round's card says practice and carries the kept first-try score (so a shared card never contradicts the league)", async () => {
+    const a = await WQ.startSession({ code: 'AB12CD', chip: chipOf(kid(3)) });
+    const sa = fake.db.quiz_sessions.find((s) => s.id === T.verify(a.st, 's').sid);
+    Object.assign(sa, { status: 'completed', completed_at: ago(0.5), correct_answers: 2, total_questions_answered: 2 });
+    const b = await WQ.startSession({ code: 'AB12CD', chip: chipOf(kid(3)) });
+    await WQ.recordAnswers({ st: b.st, a: [{ qid: '99999991-9999-4999-8999-999999999999', slot: 'A' }, { qid: '99999992-9999-4999-8999-999999999999', slot: 'A' }] });
+    const fin = await WQ.finishSession({ st: b.st });
+    expect(fin.counted).toBe(false);
+    expect(fin.card).toMatchObject({ first: 'Danish', correct: 0, total: 2, practice: true, kept: { correct: 2, total: 2 } });
+  });
+
   test('two classes: the quiz grade picks the list; one card, no class label', async () => {
     seed({ lists: 'two' });
     await expect(WQ.startSession({ code: 'AB12CD', roll: 1 }))
@@ -239,6 +250,16 @@ describe('E3 by typed name, with a roster', () => {
   test('a name one letter off a roster child asks "is this you?"', async () => {
     await expect(WQ.startSession({ code: 'AB12CD', new: { name: 'Aysha' } }))
       .rejects.toMatchObject({ status: 409, body: { error: 'maybe_you', candidates: [{ chip: chipOf(kid(1)), first: 'Ayesha' }] } });
+  });
+
+  test("two classes: a near name in the quiz grade's class is asked about first, without the other class's namesake", async () => {
+    seed({ lists: 'two' });
+    fake.db.students.push({ id: kid(22), list_id: LIST_4A, roll_number: 2, student_name: 'Ayesha Testwala', is_active: true });
+    await expect(WQ.startSession({ code: 'AB12CD', new: { name: 'Aysha' } }))
+      .rejects.toMatchObject({ status: 409, body: { error: 'maybe_you', candidates: [{ chip: chipOf(kid(1)), first: 'Ayesha' }] } });
+    let err;
+    try { await WQ.startSession({ code: 'AB12CD', new: { name: 'Aysha' } }); } catch (e) { err = e; }
+    expect(err.body.candidates).toHaveLength(1);
   });
 
   test('no near name: a new child as today', async () => {

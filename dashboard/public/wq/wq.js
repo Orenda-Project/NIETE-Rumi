@@ -442,7 +442,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vT: 'Watch the lesson (optional)', vSay: 'Watch first, or go straight in.', skip: 'Go to the questions', watched: 'Done watching',
       how: [['🔊', 'Listen to each question'], ['👆', 'Tap a colour or a picture'], ['🙋', 'Stuck? Help comes']],
       qof: function (i, n) { return 'Question ' + i + ' of ' + n; }, listen: 'Listen again', helpAgain: 'Shall we listen again?',
-      orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap a word, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
+      orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap one, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
       zoom: 'Make the picture bigger', close: 'Close', playSound: 'Play the sound', yes: 'True', no: 'False',
       right: ['Yes! You found it.', 'You checked carefully!', 'Right! Well looked.', 'Yes! You kept going.', 'You got it!'],
       notyet: function (r) { return 'Not yet. The answer is "' + r + '".'; }, notyetLead: 'Not yet. The answer is', notyetPlain: 'Not yet.', next: 'Next', again: 'This one comes back at the end, to fix together.',
@@ -471,7 +471,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child'
     },
     ur: {
-      quiz: 'NIETE QUIZ', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c].filter(Boolean).join(' · '); },
+      quiz: 'NIETE QUIZ', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, '\u00A0') : ''].filter(Boolean).join(' · '); },
       meta: function (n) { return n + ' سوال · تقریباً ' + Math.max(1, Math.round(n * 0.6)) + ' منٹ'; },
       hello: 'السلام علیکم! آئیں، مل کر پڑھیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
       play: 'کھیلیں', playAs: function (n) { return n + '، شروع کریں'; }, notMe: function (n) { return n + ' نہیں؟'; },
@@ -483,14 +483,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vT: 'سبق دیکھیں (اختیاری)', vSay: 'پہلے دیکھیں، یا سیدھا سوالوں پر چلیں۔', skip: 'سوالوں پر چلیں', watched: 'دیکھ لیا',
       how: [['🔊', 'ہر سوال سنیں'], ['👆', 'رنگ یا تصویر پر ٹیپ کریں'], ['🙋', 'مشکل ہو تو مدد ملے گی']],
       qof: function (i, n) { return 'سوال ' + i + ' از ' + n; }, listen: 'دوبارہ سنیں', helpAgain: 'کیا دوبارہ سنیں؟',
-      orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک لفظ پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
+      orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
       zoom: 'تصویر بڑی کریں', close: 'بند کریں', playSound: 'آواز سنیں', yes: 'درست', no: 'غلط',
       right: ['جی ہاں! آپ نے ڈھونڈ لیا۔', 'آپ نے غور سے دیکھا!', 'بالکل درست!', 'جی ہاں! آپ نے کوشش جاری رکھی۔', 'شاباش، درست!'],
       notyet: function (r) { return 'ابھی نہیں۔ صحیح جواب ہے: ' + r; }, notyetLead: 'ابھی نہیں۔ صحیح جواب ہے:', notyetPlain: 'ابھی نہیں۔', next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
       half: 'آدھا راستہ طے!',
       tricky: function (n) { return n + ' مشکل سوال'; }, trickySay: 'جشن سے پہلے، آئیں اسے مل کر ٹھیک کریں۔', fixGo: 'جگنو کے ساتھ ٹھیک کریں', later: 'بعد میں',
       second: 'دوسری کوشش · جگنو کے ساتھ', fixed: 'ٹھیک ہو گیا!', tryAgain: 'دوبارہ دیکھیں۔ آپ کر سکتے ہیں۔',
-      got: function (s, n) { return 'آپ نے ' + n + ' میں سے ' + s + ' درست کیے'; }, fixedLine: function (k) { return '+ جگنو کے ساتھ ' + k + ' مشکل سوال ٹھیک کیا'; },
+      got: function (s, n) { return 'آپ نے ' + n + ' میں سے ' + s + (s === 1 ? ' درست کیا' : ' درست کیے'); }, fixedLine: function (k) { return 'جگنو کے ساتھ ' + k + ' مشکل سوال ٹھیک کیے'; },
       scoreNote: 'اسکور پہلی کوشش کا ہے۔', praise: function (s, n) { return s === n ? 'زبردست!' : s >= n * 0.8 ? 'بہت خوب!' : 'اچھی کوشش!'; },
       done: 'کوئز مکمل', seeCard: 'میرا کارڈ دیکھیں', classBtn: 'اپنی کلاس دیکھیں',
       prac: 'یہ نام کسی اور فون پر مکمل ہو چکا ہے۔ یہ باری مشق ہے؛ پہلا مکمل اسکور ہی رہے گا۔',
@@ -504,12 +504,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       cont: function (i, n) { return 'جاری رکھیں ' + i + '/' + n; }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں',
       fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'ہرا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا',
       backAgain: 'آپ کے جواب محفوظ ہیں۔ باہر جانے کے لیے دوبارہ بیک دبائیں۔',
-      todaySub: 'بچوں نے آج کھیلا', myScores: 'میرے اسکور',
+      todaySub: 'بچوں نے کھیلا', myScores: 'میرے اسکور',
       sharePlayed: function (w, t) { return w + ' نے ' + t + ' کھیلا۔ اب آپ کی باری!'; },
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + t + ' میں سے ' + s + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
-      friends: 'دوست جنہوں نے مکمل کیا', home: 'شروع', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں'
+      friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں'
     }
   }[LANG];
 
@@ -879,7 +879,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
-      (B.preview && params.p ? '<button class="wq-btn wq-go" id="wq-preview">' + esc(T.previewPlay) + '</button>' :
+      (B.preview && params.p ? '<button class="wq-btn wq-go" id="wq-preview">' + esc(T.previewPlay) + '</button><button class="wq-btn wq-navy" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' :
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
@@ -889,6 +889,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-play', who);
     on('#wq-notme', who);
     on('#wq-preview', function () { ev('identity_pick', { src: 'preview' }); startSession({}, null, ''); });
+    on('#wq-whoplayed', whoPlayed);
     on('#wq-play-as', function () { ev('identity_pick', { src: 'remembered' }); startSession({ chip: last.chip, via: 'remembered' }, last); });
   }
 
@@ -900,13 +901,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rollT: 'What is your roll number?', rollSay: 'Tap your roll number, then Go.', go: 'Go', del: 'Delete',
       noRoll: "I don't know my number", onPhoneOr: 'Or tap your name',
       unknown: function (n) { return 'No one in this class has number ' + n + '. Try again!'; },
-      isYouSub: 'Is this you?', tryAgain: 'No, try again', none: 'None of these is me'
+      isYouSub: 'Is this you?', tryAgain: 'No, try again', none: 'None of these is me',
+      whoBtn: 'Who played?', whoT: 'Who played', whoSub: 'Children not on your class list come first. Tap one to give their roll number.',
+      whoNone: 'No child has finished yet.', offList: 'Not on your class list', roll: function (n) { return 'Roll ' + n; },
+      setRoll: 'Set roll no.', noList: 'This quiz is not linked to a class list, so names stay as the children typed them.',
+      fixT: function (n) { return 'Roll number for ' + n + '?'; }, fixSay: 'Type the roll number from your class list.',
+      isKid: function (n) { return 'Is this ' + n + '?'; }, yes: 'Yes', fixed: 'Fixed.',
+      practice: function (c, t) { return 'Practice round · your first score ' + c + '/' + t + ' is the one that counts'; }
     },
     ur: {
       rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
       noRoll: 'مجھے اپنا نمبر نہیں پتا', onPhoneOr: 'یا اپنے نام پر ٹیپ کریں',
       unknown: function (n) { return 'اس کلاس میں نمبر ' + n + ' کسی کا نہیں۔ دوبارہ کوشش کریں!'; },
-      isYouSub: 'کیا یہ آپ ہیں؟', tryAgain: 'نہیں، دوبارہ', none: 'ان میں سے کوئی نہیں'
+      isYouSub: 'کیا یہ آپ ہیں؟', tryAgain: 'نہیں، دوبارہ', none: 'ان میں سے کوئی نہیں',
+      whoBtn: 'کس نے کھیلا؟', whoT: 'کس نے کھیلا', whoSub: 'جو بچے آپ کی کلاس لسٹ میں نہیں، وہ اوپر ہیں۔ رول نمبر دینے کے لیے نام پر ٹیپ کریں۔',
+      whoNone: 'ابھی کسی بچے نے کوئز مکمل نہیں کیا۔', offList: 'کلاس لسٹ میں نہیں', roll: function (n) { return 'رول نمبر ' + n; },
+      setRoll: 'رول نمبر دیں', noList: 'یہ کوئز کسی کلاس لسٹ سے جڑا نہیں، اس لیے نام ویسے ہی ہیں جیسے بچوں نے لکھے۔',
+      fixT: function (n) { return n + ' کا رول نمبر؟'; }, fixSay: 'کلاس لسٹ سے رول نمبر لکھیں۔',
+      isKid: function (n) { return 'کیا یہ ' + n + ' ہے؟'; }, yes: 'جی ہاں', fixed: 'درست ہو گیا۔',
+      practice: function (c, t) { return 'مشق کا راؤنڈ · پہلی بار کا اسکور ' + c + '/' + t + ' شمار ہوتا ہے'; }
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
   var UDIG = '۰۱۲۳۴۵۶۷۸۹';
@@ -945,10 +958,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   /* The roll-number pad: numbers only, so a child who cannot read yet can still say who they are. */
-  function rollPad(cur, note) {
-    var here = kids();
+  function rollPad(cur, note, opts) {
+    opts = opts || {};
+    var here = opts.teacher ? [] : kids();
     var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'go'];
-    var h = bar() + jug('idle', note || TW.rollSay) + '<h2>' + esc(TW.rollT) + '</h2>' +
+    var h = bar() + jug('idle', note || opts.say || TW.rollSay) + '<h2>' + esc(opts.title || TW.rollT) + '</h2>' +
       '<div class="wq-roll" aria-live="polite">' + (cur ? esc(digitsFor(cur)) : '<span class="wq-roll-ph">–</span>') + '</div>' +
       '<div class="wq-pad">' + keys.map(function (k) {
         if (k === 'del') return '<button class="wq-key wq-key-del" data-k="del" aria-label="' + esc(TW.del) + '">⌫</button>';
@@ -956,9 +970,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         return '<button class="wq-key" data-k="' + k + '">' + esc(digitsFor(k)) + '</button>';
       }).join('') + '</div>' +
       (here.length ? '<p class="wq-sub">' + esc(TW.onPhoneOr) + '</p><div class="wq-chips">' + here.map(function (k) { return kidBtn(k, 'phone'); }).join('') + '</div>' : '') +
-      '<button class="wq-btn wq-soft" id="wq-noroll">' + esc(TW.noRoll) + '</button>' +
+      (opts.teacher ? '' : '<button class="wq-btn wq-soft" id="wq-noroll">' + esc(TW.noRoll) + '</button>') +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
-    render(h, 'M4-roll');
+    render(h, opts.screen || 'M4-roll');
     wireBar();
     wireKids(here);
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-k]'), function (b) {
@@ -966,14 +980,72 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         var k = b.getAttribute('data-k');
         if (k === 'go') {
           if (!cur) return;
+          if (opts.onGo) return opts.onGo(cur);
           ev('identity_pick', { src: 'roll_try' });
           return startSession({ roll: cur }, null, '', cur);
         }
-        rollPad(padNext(cur, k), '');
+        rollPad(padNext(cur, k), '', opts);
       });
     });
     on('#wq-noroll', function () { ev('identity_pick', { src: 'no_roll' }); newKid(); });
-    on('#wq-back', landing);
+    on('#wq-back', opts.back || landing);
+  }
+
+  /* The teacher's "Who played?" (their own preview link): first names and roll numbers only; a child who
+     typed a name that is not on the class list can be moved to the right child by roll number. */
+  function whoPlayed() {
+    api('POST', 'who', { code: CODE, p: params.p }).then(function (r) {
+      if (!r.ok) { toast(T.oops); return; }
+      var b = r.body || {};
+      var rows = b.rows || [];
+      var h = bar() + '<h2>' + esc(TW.whoT) + '</h2>' +
+        (b.roster ? '<p class="wq-sub">' + esc(TW.whoSub) + '</p>' : '<p class="wq-sub">' + esc(TW.noList) + '</p>') +
+        (rows.length ? '<div class="wq-card wq-stack wq-who">' + rows.map(function (x) {
+          var tag = x.on_list ? '<span class="wq-tag">' + esc(TW.roll(digitsFor(x.roll))) + '</span>' : '<span class="wq-tag wq-tag-off">' + esc(TW.offList) + '</span>';
+          return '<div class="wq-who-row"><b>' + esc(x.first) + '</b> ' + tag + ' <span class="wq-small">' + esc(digitsFor(x.correct)) + '/' + esc(digitsFor(x.total)) + '</span>' +
+            (b.roster && !x.on_list ? '<button class="wq-btn wq-soft wq-who-fix" data-ref="' + esc(x.ref) + '">' + esc(TW.setRoll) + '</button>' : '') + '</div>';
+        }).join('') + '</div>' : '<p class="wq-small">' + esc(TW.whoNone) + '</p>') +
+        '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
+      render(h, 'M4-who-played');
+      wireBar();
+      Array.prototype.forEach.call(ROOT.querySelectorAll('[data-ref]'), function (btn) {
+        btn.addEventListener('click', function () {
+          var ref = btn.getAttribute('data-ref');
+          fixRow(rows.filter(function (x) { return x.ref === ref; })[0]);
+        });
+      });
+      on('#wq-back', landing);
+    }, function () { toast(T.offline); });
+  }
+
+  function fixRow(row) {
+    var padOpts = { teacher: true, screen: 'M4-who-fix', title: TW.fixT(row.first), say: TW.fixSay, back: whoPlayed, onGo: goFix };
+    rollPad('', '', padOpts);
+    function goFix(roll) {
+        api('POST', 'who/fix', { code: CODE, p: params.p, ref: row.ref, roll: roll }).then(function (r) {
+          if (r.status === 404 && r.body && r.body.error === 'roll_unknown') return rollPad('', TW.unknown(digitsFor(roll)), padOpts);
+          if (r.status !== 409 || !r.body || r.body.error !== 'is_this_you') { toast(T.oops); return; }
+          var cands = r.body.candidates || [];
+          var h = bar() + cands.map(function (c) {
+            return '<div class="wq-card wq-stack"><h2>' + esc(TW.isKid(c.first)) + ' ' + ani(c.animal) + '</h2>' +
+              (c.cls ? '<p class="wq-sub"><bdi dir="ltr">' + esc(c.cls) + '</bdi></p>' : '') +
+              '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(TW.yes) + '</button></div>';
+          }).join('') + '<button class="wq-btn wq-soft" id="wq-diff">' + esc(TW.tryAgain) + '</button>';
+          render(h, 'M4-who-confirm');
+          wireBar();
+          Array.prototype.forEach.call(ROOT.querySelectorAll('[data-chip]'), function (b) {
+            b.addEventListener('click', function () {
+              api('POST', 'who/fix', { code: CODE, p: params.p, ref: row.ref, chip: b.getAttribute('data-chip') }).then(function (r2) {
+                if (!r2.ok) { toast(T.oops); return; }
+                ev('identity_fixed', {});
+                toast(TW.fixed);
+                whoPlayed();
+              }, function () { toast(T.offline); });
+            });
+          });
+          on('#wq-diff', function () { fixRow(row); });
+        }, function () { toast(T.offline); });
+    }
   }
 
   function newKid() {
@@ -1353,6 +1425,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var res = S.result || {};
     var c = res.card || {};
     var total = c.total || N;
+    // A practice round: say so, and share the kept first-try score the class league shows.
+    var kept = c.practice && c.kept ? c.kept : null;
+    var shareC = kept ? kept.correct : c.correct, shareT = kept ? (kept.total || total) : total;
     var h = bar() +
       '<div class="wq-scorecard"><header><i></i>' + dotJoin('NIETE', CLS.label) + '</header><div class="wq-in">' +
       '<img src="' + IMG + 'celebrate.webp" alt="">' +
@@ -1360,6 +1435,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub">' + esc(Q.topic) + '</p>' +
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
+      (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '') +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
@@ -1372,7 +1448,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // count as that child's friend and drop out of the teacher's class report.
     var classUrl = link('/q/' + CODE);
     // A zero is shared as "played", never as a score for the group to beat.
-    var line = c.correct ? T.shareLine(c.first, c.correct, total, Q.topic) : T.sharePlayed(c.first, Q.topic);
+    // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
+    var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
     on('#wq-share', function () { share(line, classUrl, 'card'); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge'); });
     on('#wq-class', board);

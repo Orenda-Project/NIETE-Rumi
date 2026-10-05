@@ -46,3 +46,11 @@ test('events: 204 and logged', async () => {
   expect(r.status).toBe(204);
   expect(logEvent).toHaveBeenCalledWith('web_quiz.m3_view', { lang: 'en' });
 });
+
+test("the teacher's who-played routes are mounted and keep the service's refusals", async () => {
+  // An expired code answers 410 before any token check: the route reached the service.
+  const who = await fetch(`${base}/who`, { method: 'POST', headers: KEY, body: JSON.stringify({ code: 'EXPD01', p: 'x' }) });
+  expect(who.status).toBe(410);
+  const fix = await fetch(`${base}/who/fix`, { method: 'POST', headers: KEY, body: JSON.stringify({ code: 'EXPD01', p: 'x', ref: 's', roll: 1 }) });
+  expect(fix.status).toBe(410);
+});

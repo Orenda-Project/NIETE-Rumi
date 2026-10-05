@@ -1338,6 +1338,13 @@ Feature: NIETE (ICT) Teacher Training
     And the WhatsApp quiz is unchanged
     # web-quiz-figure pictureHidden (media.picture_check.verdict contradicts|ignores); web-quiz.service questionImageOf + figureFor + playable + media(). Unit: bot/tests/quiz/web-quiz/web-quiz-picture-check.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P2 @T199 @no-mock-driver
+  Scenario: Pictures on my web quiz wear my organisation's colours
+    Given my organisation's web quiz is set to its own brand colours
+    When a child plays a question with a drawn picture, such as a fraction bar or a clock
+    Then the picture's main colour and its lines use the brand's colours, and the marks for right and not yet keep their usual colours
+    # wq.css .wq-svg svg (--amber/--amber-soft/--navy -> --brand/--brand-l/--brand-ink, !important over the inline palette). Unit: dashboard/tests/web-quiz-page-figure-theme.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T170 @no-mock-driver
   Scenario: The recorded "why" of a web quiz question is its reason, never praise
     Given a quiz question whose correct-answer feedback is only "Well done!" and whose explanation gives the reason
@@ -1405,6 +1412,24 @@ Feature: NIETE (ICT) Teacher Training
     Then the animation stops with the sounds, and it starts again when the child comes back
     # wq.js mascot block (jugImg, jugWake, jugStop); assets dashboard/public/wq/jugnu/<pose>_<k>.webm|.webp.
     # Unit: dashboard/tests/web-quiz-mascot.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T201 @no-mock-driver
+  Scenario: An Urdu quiz opens in a Nastaliq font a child can read, from the first screen
+    Given a web quiz in Urdu, opened on an Android phone on a slow connection
+    When the first screen appears
+    Then its Urdu is already in the quiz's Nastaliq font, never first in an Arabic-style font that later jumps
+    And the font comes from the portal itself as one small file, and an English quiz does not download it
+    # web-quiz.routes head(): preload /wq/fonts/wq-nastaliq-1.woff2 (Beaconhouse Nastaliq, OFL, Urdu subset);
+    # wq.css @font-face "WQ Nastaliq". Unit: dashboard/tests/web-quiz-urdu-font.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T202 @no-mock-driver
+  Scenario: No Urdu line sits on another on any quiz screen
+    Given a web quiz in Urdu with long questions, numbers, fractions and English words in its questions and reasons
+    When the child plays it to the end on a small phone and on a large phone
+    Then no line of Urdu touches the line above or below it, and no letter, badge or animal spills out of its button, chip or card
+    And there is a clear space between words
+    # wq.css html[lang=ur] rules (word-spacing on body and buttons, line-heights, emoji/icon line boxes, feedback width).
+    # Unit: dashboard/tests/web-quiz-urdu-font.service.test.js; screen-by-screen measure in the PR. @wip.
 
   @api @quiz @web @wip @draft @P2 @T161 @no-mock-driver
   Scenario: A tap anywhere on the lesson video starts it, and a video with no poster is not a dark box
@@ -1530,4 +1555,23 @@ Feature: NIETE (ICT) Teacher Training
     And the quiz page never receives my class list: one roll number answers with at most three first names and their animals
     But with the switch off, or without a class list, children pick or type their names as before
     # ADDED 2026-10-05: web-quiz-roster.js (rosterOn, loadRoster, byRoll, byName, nearName); web-quiz.service getQuiz cls.roster + startSession body.roll / roster chips. Unit: tests/quiz/web-quiz/web-quiz-roster.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T210 @no-mock-driver
+  Scenario: On my own preview link I see who played and can fix a child who typed a name not on my list
+    Given app_settings "web_quiz_roster_id" is true, I keep a class list, and a child typed "Dansh" instead of giving a roll number
+    When I open my preview link and tap "Who played?"
+    Then I see each counted child by first name and roll number only, with "Dansh" first and marked "Not on your class list"
+    When I tap "Set roll no." for "Dansh", type 12 and confirm "Is this Danish?"
+    Then that play becomes Danish's, and my report shows Danish with the class list's name and class
+    And if Danish had already finished, my report keeps Danish's first finish
+    But nobody without my preview link can see or change the list
+    # ADDED 2026-10-05: web-quiz.service whoPlayed / fixWho (E11, signed p token), routes /api/internal/wq/who + /who/fix. Unit: tests/quiz/web-quiz/web-quiz-who-played.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T211 @no-mock-driver
+  Scenario: A child's practice round never shows a score the class league does not keep
+    Given a child already finished my quiz once
+    When the child plays it again, on this phone or another, and finishes
+    Then the child's card says it is a practice round and shows the first score, which is the one my report and the league keep
+    And sharing the card shares the first score
+    # ADDED 2026-10-05: web-quiz.service finishSession card.practice + card.kept; wq.js card(). Unit: web-quiz-roster.test.js, dashboard/tests/web-quiz-practice-card.service.test.js. @wip.
 

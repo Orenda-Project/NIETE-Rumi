@@ -62,7 +62,10 @@ const ALLOWLIST = {
   // camelCase key from a nested non-DB object (parser artifact).
   coaching_sessions: ['excerptlength'],
   // Mis-attributed by chain proximity; no quiz_sessions write references updated_at.
-  quiz_sessions: ['updated_at'],
+  // sessionid / sharecodeid / fromlisted: the scanner walks forward from `.update(patch)` (a variable) in the web quiz's
+  // "Who played?" fix and lands on the next object, the logEvent('web_quiz.identity_fixed', { sessionId, shareCodeId,
+  // fromListed }) payload. Not columns: the patch itself only sets student_id / student_name / student_class.
+  quiz_sessions: ['updated_at', 'sessionid', 'sharecodeid', 'fromlisted'],
   // Nested keys inside the users.preferences / screen-data objects (parser artifact);
   // users stores language in preferred_language + preferences, grade in grades_taught.
   users: ['grade', 'language'],

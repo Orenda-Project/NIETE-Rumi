@@ -34,6 +34,8 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/answers', limiter: 'answers' },
   { method: 'post', path: '/api/wq/finish', limiter: 'finish' },
   { method: 'post', path: '/api/wq/me', limiter: 'read' },
+  { method: 'post', path: '/api/wq/who', limiter: 'read' },
+  { method: 'post', path: '/api/wq/who/fix', limiter: 'session' },
   { method: 'post', path: '/api/wq/e', limiter: 'events' },
 ];
 
@@ -82,6 +84,11 @@ function ogText(payload, view) {
   };
 }
 
+// Urdu pages: the Nastaliq face (a subset of an OFL font, served from /wq like the rest of the page).
+// Android has no Nastaliq of its own, so it is fetched first, before the stylesheet that uses it.
+// The file name carries a version because /wq is served with a one-year immutable cache.
+const URDU_FONT = '/wq/fonts/wq-nastaliq-1.woff2';
+
 function head({ lang, dir, title, desc, origin, url, assetV }) {
   return `<!doctype html>
 <html lang="${lang}" dir="${dir}">
@@ -99,8 +106,8 @@ function head({ lang, dir, title, desc, origin, url, assetV }) {
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="${esc(url)}">
-<link rel="icon" href="/wq/jugnu_hello.webp">
-<link rel="stylesheet" href="/wq/wq.css?v=${assetV}">${lang === 'ur' ? '\n<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" media="print" onload="this.media=\'all\'">' : ''}`;
+<link rel="icon" href="/wq/jugnu_hello.webp">${lang === 'ur' ? `\n<link rel="preload" href="${URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
+<link rel="stylesheet" href="/wq/wq.css?v=${assetV}">`;
 }
 
 function renderQuizPage({ payload, code, view, origin, assetV, url }) {
