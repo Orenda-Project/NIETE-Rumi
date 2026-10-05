@@ -98,3 +98,10 @@ Feature: Web child quiz page on the portal
     Given a picture question whose options are an apple, a cat and a bus
     When the quiz is opened on the web page
     Then each option shows its drawing with its word under it
+
+  Scenario: A "whose sound is this?" question plays its own sound on the page
+    Given a question that asks which sound the child hears, with its recorded sound
+    When the quiz is opened on the web page
+    Then the question has a "Play the sound" button that plays that recorded sound
+    And a question whose words already ask it never plays a clip that says the answer before the child answers
+    But if the sound cannot be fetched, the question is read aloud by the phone's own voice
