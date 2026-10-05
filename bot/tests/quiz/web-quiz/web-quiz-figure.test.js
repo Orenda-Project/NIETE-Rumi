@@ -87,6 +87,14 @@ describe('figureFor (one question row → the page figure)', () => {
     expect(f.dir).toBe('rtl');
   });
 
+  test('no spoken pointer when the stem already points at the picture (said once, not twice)', () => {
+    const en = Fig.figureFor(row(1, { figure: BARS, language: 'en' }, { question_text: 'Look at the picture. How much is shaded?' }));
+    expect(en.say).toBeNull();
+    expect(en.alt).toMatch(/bar/i);
+    const ur = Fig.figureFor(row(1, { figure: BARS, language: 'ur' }, { question_text: 'تصویر میں کتنا حصہ رنگا ہوا ہے؟' }));
+    expect(ur.say).toBeNull();
+  });
+
   test('a text-only WhatsApp card is never a figure', () => {
     expect(Fig.figureFor(row(1, { question_card: 'https://r2/card.png', language: 'en' }))).toBeNull();
   });
