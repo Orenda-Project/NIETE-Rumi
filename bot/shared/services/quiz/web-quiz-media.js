@@ -51,6 +51,24 @@ async function head(key) {
 }
 
 /**
+ * A student_videos.r2_url written path-style on OUR R2 endpoint but under another
+ * bucket's name (https://<endpoint>/<other-bucket>/<key>): the same key in this
+ * environment's bucket. Null for any other shape (r2.extractKeyFromUrl handles those).
+ */
+function otherBucketKey(url) {
+  try {
+    const u = new URL(String(url));
+    const ours = new URL(String(process.env.R2_ENDPOINT || '')).host;
+    if (!ours || u.host !== ours) return null;
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length < 2 || parts[0] === process.env.R2_BUCKET_NAME) return null;
+    return parts.slice(1).map(decodeURIComponent).join('/');
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
  * @param {{video_id?: string}} quiz
  * @param {{db?: object, expiresIn?: number}} [opts]
  * @returns {Promise<{url: string, poster?: string, bytes?: number, secs?: number} | null>}
@@ -63,15 +81,18 @@ async function presignVideo(quiz, { db, expiresIn = DEFAULT_EXPIRES } = {}) {
       .select('id, r2_url, migration_status').eq('id', quiz.video_id).maybeSingle();
     if (!row || row.migration_status !== 'done' || !row.r2_url) return null;
 
-    const key = r2.extractKeyFromUrl(row.r2_url);
-    const url = await sign(key, expiresIn);
-    if (!url) return null;
-    const out = { url };
-
+    const fromOther = otherBucketKey(row.r2_url);
+    const key = fromOther || r2.extractKeyFromUrl(row.r2_url);
     const [video, poster] = await Promise.all([
       head(key),
       head(key.replace(/\.[a-z0-9]+$/i, '_poster.jpg')),
     ]);
+    // A key read out of another bucket's URL is used only when our bucket holds it.
+    if (fromOther && !video.exists) return null;
+    const url = await sign(key, expiresIn);
+    if (!url) return null;
+    const out = { url };
+
     if (video.exists && video.sizeBytes) out.bytes = video.sizeBytes;
     if (poster.exists) {
       const p = await sign(key.replace(/\.[a-z0-9]+$/i, '_poster.jpg'), expiresIn);

@@ -1436,3 +1436,12 @@ Feature: NIETE (ICT) Teacher Training
     Then the question tests the correct fact and quotes the moment the correct fact was said
     And the slip is recorded on the quiz for my report to use later, and nothing in my report changes yet
     # teaching_error per question -> quizzes.meta.source_fidelity.teaching_errors [{question, said, correct, quote}]. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T112 @no-mock-driver
+  Scenario: The lesson video plays on my web quiz even when its stored link names another storage bucket
+    Given my class quiz comes with a lesson video whose stored link is on our storage endpoint under another bucket's name
+    And the same video file is in this environment's bucket
+    When a child opens the quiz page
+    Then the video is offered before the first question
+    But a stored link whose file this environment does not hold offers no video, and the quiz starts as before
+    # web-quiz-media presignVideo (otherBucketKey + HEAD before signing). Unit: tests/quiz/web-quiz-publish.test.js. @wip.

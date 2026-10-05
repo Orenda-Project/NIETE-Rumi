@@ -237,4 +237,25 @@ describe('presignAudio / presignVideo', () => {
     expect(v.poster).toBeUndefined();
     expect(await presignVideo({ id: QUIZ_ID, video_id: null }, { db })).toBeNull();
   });
+
+  test('a video stored under ANOTHER bucket name on our R2 endpoint is found by its key in our bucket; a key we do not hold is null', async () => {
+    const held = 'student-videos/g3/hen.mp4';
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') {
+        if (cmd.input.Key === held && cmd.input.Bucket === 'test-bucket') return { ContentLength: 3170403, ContentType: 'video/mp4' };
+        const e = new Error('nf'); e.name = 'NotFound'; throw e;
+      }
+      return {};
+    });
+    const db = fakeDb({ quiz: null, questions: [], videos: [
+      { id: 'v2', r2_url: `https://acct.r2.example.com/other-audio-bucket/${held}`, migration_status: 'done' },
+      { id: 'v3', r2_url: 'https://acct.r2.example.com/other-audio-bucket/student-videos/g3/missing.mp4', migration_status: 'done' },
+      { id: 'v4', r2_url: 'https://elsewhere.example.org/other-audio-bucket/student-videos/g3/hen.mp4', migration_status: 'done' },
+    ] });
+    const v = await presignVideo({ id: QUIZ_ID, video_id: 'v2' }, { db });
+    expect(v && v.url).toMatch(/\/test-bucket\/student-videos\/g3\/hen\.mp4\?.*X-Amz-Signature=|test-bucket\..*\/student-videos\/g3\/hen\.mp4\?.*X-Amz-Signature=/);
+    expect(v.bytes).toBe(3170403);
+    expect(await presignVideo({ id: QUIZ_ID, video_id: 'v3' }, { db })).toBeNull();
+    expect(await presignVideo({ id: QUIZ_ID, video_id: 'v4' }, { db })).toBeNull();
+  });
 });
