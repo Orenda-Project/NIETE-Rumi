@@ -1352,3 +1352,21 @@ Feature: NIETE (ICT) Teacher Training
     And the slip is recorded on the quiz for my report to use later, and nothing in my report changes yet
     # teaching_error per question -> quizzes.meta.source_fidelity.teaching_errors [{question, said, correct, quote}]. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T110 @no-mock-driver
+  Scenario: A question that sends the child to a picture it does not have is left out of my web quiz
+    Given my web quiz has four questions
+    And one says "Look at the pictures. Which one is a leaf?" but has no picture, no figure and no picture options
+    When a child opens the quiz from my link
+    Then the child plays three questions, and the score and the "answered at least half" rule count three
+    And a question that says "Look at the picture" and has its own picture is played with the picture
+    # web-quiz.service loadQuestions (playable: quiz-picture-words pointsAtPicture + hasPicture). Unit: tests/quiz/web-quiz/web-quiz.service.test.js, tests/quiz/quiz-picture-words.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T111 @no-mock-driver
+  Scenario: The recorded voice on my web quiz says plain words, never maths code
+    Given a question "What is $\frac{3}{4}$ of 8?" whose web item reads it as "What is three quarters of eight?"
+    When the read-aloud clips for my quiz are recorded
+    Then the question clip says "What is three quarters of eight?" and each option clip says that option's spoken words
+    And a question with no web item is read from its own text with the maths written as words
+    And when a question's words change, the next recording says the new words
+    # web-quiz-publish.service partsFor (read.stem / read.opts, mathToText fallback), audioKey (hash of the words). Unit: tests/quiz/web-quiz-publish.test.js. @wip.
+
