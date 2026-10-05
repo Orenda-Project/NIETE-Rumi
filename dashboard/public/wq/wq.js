@@ -148,6 +148,17 @@ var WQI = (function () {
     return null;
   }
   function pct(n) { return Math.round(n * 1000) / 10 + '%'; }
+  // A picture file shows a soft pulse until it arrives (slow data), then clears itself.
+  var LOADING = ' class="wq-ld" onload="this.className=\'\'" onerror="this.className=\'\'"';
+  // Every picture file a question needs, so the page can fetch the next question's while the child answers.
+  function imageUrls(q) {
+    var out = [], f = figureOf(q);
+    function add(u) { if (u && out.indexOf(u) < 0) out.push(u); }
+    if (f && f.url) add(f.url);
+    if (q.img) add(q.img);
+    opts(q).forEach(function (o) { add(o.img); });
+    return out;
+  }
   function figureHtml(q, T) {
     var f = figureOf(q);
     if (!f) return '';
@@ -166,7 +177,7 @@ var WQI = (function () {
     var box = vb ? ' style="aspect-ratio:' + vb.w + '/' + vb.h + ';max-width:calc(46vh * ' + vb.w + ' / ' + vb.h + ')"' : '';
     var draw = f.svg
       ? '<div class="wq-svg" role="img" aria-label="' + esc(f.alt || '') + '"' + (f.dir ? ' dir="' + esc(f.dir) + '"' : '') + '>' + cleanSvg(f.svg) + '</div>'
-      : '<img src="' + esc(f.url) + '" alt="' + esc(f.alt || '') + '">';
+      : '<img src="' + esc(f.url) + '" alt="' + esc(f.alt || '') + '"' + LOADING + '>';
     return '<figure class="wq-fig' + (hot ? ' wq-labelfig' : '') + (f.type ? ' wq-f-' + esc(String(f.type).replace(/[^a-z0-9_-]/gi, '')) : '') + '"><div class="wq-figbox"' + box + '>' + draw + hot + '</div>' +
       '<button class="wq-zoom" aria-label="' + esc(T.zoom || 'Zoom') + '"><span aria-hidden="true">⤢</span> ' + esc(T.zoom || '') + '</button></figure>';
   }
@@ -215,7 +226,7 @@ var WQI = (function () {
     var g = o.pic && (o.pic.glyph || (o.pic.kind === 'glyph' && o.pic.text));
     if (g) return '<span class="wq-glyph" dir="auto">' + esc(g) + '</span>';
     if (o.pic && o.pic.svg) return '<span class="wq-pic" role="img" aria-label="' + esc(o.pic.alt || nm || '') + '">' + cleanSvg(o.pic.svg) + '</span>';
-    if (o.img) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '">';
+    if (o.img) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '"' + LOADING + '>';
     return '';
   }
   // Options arrive in the order the child sees; letter k is the k-th shown option (as on WhatsApp and the
@@ -387,7 +398,7 @@ var WQI = (function () {
     });
   }
   return { kind: kind, grade: grade, tex: tex, say: say, cleanSvg: cleanSvg, figureHtml: figureHtml, itemHtml: itemHtml, readParts: readParts,
-    rightText: rightText, joinSay: joinSay, letters: letters, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES };
+    rightText: rightText, joinSay: joinSay, letters: letters, imageUrls: imageUrls, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
@@ -879,6 +890,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     render(h, retry ? 'M9-fix' : 'M6');
     wireBar();
     WQI.wireZoom(ROOT, T);
+    // Fetch the next question's pictures now, so they are already here on slow data.
+    if (!retry && QS[i + 1]) WQI.imageUrls(QS[i + 1]).forEach(function (u) { try { new Image().src = u; } catch (e) {} });
     ev(retry ? 'retry_view' : 'question_view', { qid: q.qid, i: i + 1 });
 
     function armHelp() {
