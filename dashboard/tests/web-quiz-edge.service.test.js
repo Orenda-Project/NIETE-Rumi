@@ -94,6 +94,16 @@ describe('web quiz edge: forwarding /api/wq/* -> bot /api/internal/wq/*', () => 
     expect(calls[0].opts.method).toBe('GET');
   });
 
+  it('forwards "watch another video": the list (GET, with the session token) and the start (POST)', async () => {
+    await req(srv, 'GET', '/api/wq/videos/AB12CD?st=abc');
+    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/videos/AB12CD?st=abc`);
+    const body = { code: 'AB12CD', st: 'abc', vid: 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa' };
+    const res = await req(srv, 'POST', '/api/wq/videos/start', body);
+    expect(res.status).toBe(200);
+    expect(calls[1].url).toBe(`${BOT}/api/internal/wq/videos/start`);
+    expect(JSON.parse(calls[1].opts.body)).toEqual(body);
+  });
+
   it('passes a bot 4xx through with its body (the page needs 409 maybe_you)', async () => {
     next = jsonRes(409, { error: 'maybe_you', candidates: [] });
     const res = await req(srv, 'POST', '/api/wq/session', { code: 'AB12CD', new: { name: 'Ali' } });

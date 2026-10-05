@@ -465,6 +465,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       backAgain: 'Your answers are saved. Press back again to leave.',
       todaySub: 'children played today', myScores: 'My scores',
       sharePlayed: function (w, t) { return w + ' played ' + t + '. Your turn!'; },
+      moreBtn: 'Watch another video', moreT: 'More videos for you', moreSay: 'Pick a video. Its quiz comes right after.',
+      moreNone: 'No more videos for your class yet.', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done ✓',
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
@@ -506,6 +508,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       backAgain: 'آپ کے جواب محفوظ ہیں۔ باہر جانے کے لیے دوبارہ بیک دبائیں۔',
       todaySub: 'بچوں نے کھیلا', myScores: 'میرے اسکور',
       sharePlayed: function (w, t) { return w + ' نے ' + t + ' کھیلا۔ اب آپ کی باری!'; },
+      moreBtn: 'ایک اور ویڈیو دیکھیں', moreT: 'آپ کے لیے مزید ویڈیوز', moreSay: 'ایک ویڈیو چنیں۔ اس کے بعد اس کا کوئز آئے گا۔',
+      moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return n + ' منٹ'; }, doneTag: 'مکمل ✓',
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + t + ' میں سے ' + s + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
@@ -1110,7 +1114,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (r.status === 409 && r.body.error === 'maybe_you') return isThisYou(r.body.candidates || [], typed || '');
       if (r.status === 409 && r.body.error === 'is_this_you') return isThisYou(r.body.candidates || [], '', roll);
       if (r.status === 404 && r.body.error === 'roll_unknown') { ev('identity_pick', { src: 'roll_unknown' }); return rollPad('', TW.unknown(digitsFor(roll))); }
-      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); return; }
+      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (who.from_st) landing(); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
@@ -1122,7 +1126,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rememberKid(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
       if (wantsVideo()) video(); else nextQuestion();
-    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); });
+    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (who.from_st) landing(); });
   }
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
@@ -1369,12 +1373,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
         (res.counted === false ? '<div class="wq-banner">' + esc(T.prac) + '</div>' : '') +
         '<button class="wq-btn wq-go" id="wq-card">' + esc(T.seeCard) + '</button>' +
-        '<button class="wq-btn wq-navy" id="wq-class">' + esc(T.classBtn) + '</button>';
+        '<button class="wq-btn wq-navy" id="wq-class">' + esc(T.classBtn) + '</button>' + moreBtn();
       render(h, 'M9');
       wireBar();
       sfx('done');
       on('#wq-card', card);
       on('#wq-class', board);
+      on('#wq-more', moreVideos);
     }, function (e) {
       var tooFew = e && e.r && e.r.status === 409;
       var h = bar() + jug('notyet', tooFew ? T.tooFew : T.offline) +
@@ -1439,7 +1444,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
-      '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>';
+      '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' + moreBtn();
     render(h, 'M10');
     wireBar();
     ev('card_view', {});
@@ -1453,6 +1458,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-share', function () { share(line, classUrl, 'card'); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge'); });
     on('#wq-class', board);
+    on('#wq-more', moreVideos);
   }
 
   /* ---------------- M11 league table ---------------- */
@@ -1524,11 +1530,75 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.todayT) + '</p>' +
       '<div class="wq-big">' + esc(fmtN(LIVE.ict_today_floor || 0)) + '</div>' +
       '<p class="wq-sub">' + esc(T.todaySub) + '</p></div>' +
-      '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
+      moreBtn() + '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
     render(h, 'M14');
     wireBar();
     ev('today_view', {});
     on('#wq-home', function () { if (S.result) card(); else landing(); });
+    on('#wq-more', moreVideos);
+  }
+
+  /* ---------------- M15 watch another video -> its quiz ---------------- */
+  // The video bank is by grade: a quiz with no grade has nothing to offer. The list comes from the
+  // bot (E11); picking a lesson gets its code (E12) and opens it in the SAME view (the in-app
+  // browser has no reliable new tab). Who is playing goes along in this phone's storage, never in
+  // the link: the new page starts at once with the session token of the quiz just played.
+  var SUBJECT_TILE = { Science: '🔬', Maths: '➗', English: '🔤', Urdu: 'ا', 'Islamic Studies': '🕌', 'General Knowledge': '🌍', Geography: '🗺️', History: '📜' };
+  var HANDOVER_MS = 10 * 60 * 1000;
+  function moreBtn() { return Q.grade ? '<button class="wq-btn wq-soft wq-more" id="wq-more">▶ ' + esc(T.moreBtn) + '</button>' : ''; }
+  function vItem(v, i) {
+    var meta = [v.secs ? T.mins(Math.max(1, Math.round(v.secs / 60))) : '', v.mb ? v.mb + ' MB' : ''].filter(Boolean).join(' · ');
+    var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy">'
+      : '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[v.subject] || '▶') + '</span>';
+    return '<li><button class="wq-vitem" data-vid="' + esc(v.vid) + '">' + pic +
+      '<span class="wq-vtext"><b>' + esc(v.title) + '</b><small>' + esc(meta) + '</small></span>' +
+      (v.done ? '<span class="wq-vdone">' + esc(T.doneTag) + '</span>' : '') + '</button></li>';
+  }
+  function moreVideos() {
+    var from = ROOT.getAttribute('data-m') || '';
+    render(bar() + '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>', 'M15-wait');
+    wireBar();
+    api('GET', 'videos/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : '')).then(function (r) {
+      var vids = (r.ok && r.body && r.body.videos) || [];
+      var h = bar() + jug('hello', vids.length ? T.moreSay : T.moreNone) + '<h2>' + esc(T.moreT) + '</h2>' +
+        (vids.length ? '<ul class="wq-vlist">' + vids.map(vItem).join('') + '</ul>' : '') +
+        '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
+      render(h, 'M15');
+      wireBar();
+      ev('more_view', { src: from.toLowerCase().replace(/[^a-z0-9_]/g, '_') || undefined, i: vids.length });
+      on('#wq-back', afterResult);
+      vids.forEach(function (v, i) { on('[data-vid="' + v.vid + '"]', function () { pickVideo(v, i); }); });
+    }, function () {
+      render(bar() + jug('notyet', T.offline) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M15-error');
+      wireBar();
+      ev('error', { err: 'more_net' });
+      on('#wq-retry', moreVideos);
+    });
+  }
+  var picking = false;
+  function pickVideo(v, i) {
+    if (picking) return;
+    picking = true;
+    toast(T.moreWait);
+    ev('more_pick', { i: i, ok: !v.done });
+    api('POST', 'videos/start', { code: CODE, st: S.st, vid: v.vid }).then(function (r) {
+      if (!r.ok || !r.body || !r.body.code) throw new Error('more_start_' + r.status);
+      sset('wq_from', { code: r.body.code, st: S.st, at: Date.now() });
+      flushEv(true);
+      location.assign('/q/' + encodeURIComponent(r.body.code));
+    }).catch(function (e) {
+      picking = false;
+      toast(T.oops);
+      ev('error', { err: String((e && e.message) || 'more_start').replace(/[^a-z0-9_]/gi, '_').toLowerCase().slice(0, 40) });
+    });
+  }
+  // On the lesson's own page: the hand-over left by pickVideo, if it is for this code and fresh.
+  function handover() {
+    var f = sget('wq_from', null);
+    if (!f) return null;
+    sset('wq_from', null);
+    try { localStorage.removeItem('wq_from'); } catch (e) {}
+    return f.code === CODE && f.st && Date.now() - (f.at || 0) < HANDOVER_MS ? f : null;
   }
 
   /* ---------------- resume after reload ("Continue 3/5") ---------------- */
@@ -1588,7 +1658,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var conn = navigator.connection || {};
   ev('page_open', { ua: String(navigator.userAgent || '').slice(0, 300), iab: IAB, store: STORE_OK ? 1 : 0, net: conn.effectiveType || '', src: B.view || 'quiz', reason: params.from ? 'challenge' : undefined });
   if (S.queue.length) flushQueue();
+  var FROM = B.view === 'class' || S.st ? null : handover();
   if (B.view === 'class') board();
+  else if (FROM) { ev('more_arrive', {}); startSession({ from_st: FROM.st }, null, ''); }
   else if (S.result && S.st) card();
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();
   else landing();
