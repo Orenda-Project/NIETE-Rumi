@@ -636,6 +636,12 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe2/start.js handleObserve2Command: the /observe visit Flow, token <userId>:observe2-visit.
 
   @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A visit scheduled from /observe2 points back to /observe2
+    Given I opened the visit planner from /observe2
+    When I schedule a visit and finish
+    Then the bot confirms the visit and says to tap /observe2 to see my schedule
+
+  @e2e @flow @config-gated @wip @draft @P1
   Scenario: After Start, the coach chooses the period length
     Given I opened the visit planner from /observe2 and picked a school and a teacher
     When I tap "Start observation" in the brief
@@ -716,10 +722,29 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And the brief says the photos or file couldn't be read, so the plan's steps weren't checked
 
   @e2e @flow @config-gated @wip @draft @P2
-  Scenario: No lesson plan goes straight on to the seal
+  Scenario: No lesson plan goes on to the photos, then the seal
     Given I saved Part 2 of the live form
     When I choose "No plan for this lesson" and tap "Next"
-    Then "Before you seal" says there was no lesson plan for this lesson
+    Then the form asks "How will you add photos?"
+    When I choose "No photos" and tap "Next"
+    Then "Before you seal" says there was no lesson plan for this lesson, and no photos
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario Outline: Classroom photos are taken now, or uploaded from the ones already on the phone
+    Given I reached "How will you add photos?" in the live form
+    When I choose "<how>" and tap "Next"
+    Then the form opens "<screen>"
+    When I add 3 photos and tap "Next"
+    Then "Before you seal" says "3 photos added"
+    # 4 Oct (Riffat): coaches take photos at several moments of the lesson. A photo picker shows the
+    # gallery only on a phone (WhatsApp Web and Desktop show "Take photo" alone and open nothing), so
+    # saved photos go through a file picker (JPG or PNG), which opens a chooser on every client.
+    # Stored before the seal as observe2/<record>/photo-N.jpg, up to ten. observe2-form-endpoint.js PHOTOS.
+
+    Examples:
+      | how                 | screen              |
+      | Take photos now     | Take the photos     |
+      | Upload saved photos | Upload saved photos |
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: Sealing locks the record and the chat says what to do with the recording
@@ -729,8 +754,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And the bot says the record is sealed and to stop the recorder, then share the recording to this chat
     And tapping "Seal and send" again changes nothing
     # observe2-form-endpoint.js: seal is a compare-and-set; the database trigger refuses any later
-    # change to what was sealed. Up to ten photos are kept (observe2/<record>/photo-N.jpg); the photo
-    # line says which ones help (2 Oct: no cap of three for coaches).
+    # change to what was sealed. The photos were added on the step before (2 Oct: up to ten, no cap of
+    # three for coaches).
 
   @e2e @audio @config-gated @destructive @wip @draft @P1
   Scenario: The recording joins the sealed record and its moments come back to check
@@ -741,6 +766,37 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And a few minutes later a message with a "Check the moments" CTA arrives
     # capture-link.js links the recording to the open form; moments.js reads the timed transcript
     # (one model call) and opens the check because the record is sealed.
+
+  @e2e @audio @config-gated @destructive @wip @draft @P0
+  Scenario: A recording sent while the form waits for it always reaches the form, never general chat
+    Given my /observe2 record is sealed and has no recording yet
+    And the visit planner's Start was more than two hours ago
+    When I send an 11-minute lesson recording from the recorder app as a file
+    Then the bot says "Recording received" and that the moments come here to check
+    And no voice note comes back
+    When I send Rumi a 30-second voice note while the form waits
+    Then it is answered as chat and the form keeps waiting for the lesson recording
+    # 4 Oct (Riffat): with the observe state gone, an 11-minute recording was answered by general chat
+    # with a voice note. observe-audio-router.js now finds the form waiting in the database; a recording
+    # of 2 minutes or more (or one that looks like a classroom recording) is taken for it. A recording
+    # started from /observe's own planner never joins an /observe2 form.
+
+  @e2e @audio @config-gated @destructive @wip @draft @P1
+  Scenario: A recording that was already analysed is refused and the form keeps waiting
+    Given my /observe2 record is sealed and has no recording yet
+    When I send the recording of an earlier lesson that was already analysed
+    Then the bot says this classroom recording has already been analysed, and that the form for this visit is still waiting for its recording
+    When I send this lesson's recording
+    Then the bot says "Recording received" and the moments come back to check
+    # audio-hash-cache.refuseDuplicateObservation + capture-link.releaseRefusedRecording.
+
+  @e2e @audio @config-gated @destructive @wip @draft @P1
+  Scenario: A recording sent before the seal waits for it, and the plan attached afterwards is checked
+    Given I started an /observe2 visit and sent the recording before filling the form
+    When I attach the lesson plan and seal the record
+    Then the "Check the moments" message arrives with the plan's steps to check
+    # moments.js: the plan is locked by the seal, so a recording that comes first leaves the grading to
+    # onSealed (4 Oct: Riffat's PDF was attached after the recording and never checked).
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: With a picked plan, the check shows each step of the plan pre-rated from the recording
@@ -755,14 +811,41 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-draft.rescoreFidelityFromEdits). Without a graded plan, the levels come straight after the moments.
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
-  Scenario: The check pre-fills every level and Submit sends the brief
+  Scenario: The check pre-fills every level and Submit asks about the debrief, as /observe does
     Given the "Check the moments" form is open
     When I answer each moment "Yes, this happened" or "No, or not like this" and tap through
     Then every level is pre-filled with what my sealed answers and the confirmed moments add up to, with the reason
     And no level found by the recording alone is shown
     When I keep or change the levels, keep my sealed pick and tap "Submit"
     Then the form shows "Saved at" and the time
-    And the bot sends a brief naming the teacher, questions to open with, what went well, how much of the lesson plan was done, the thing to work on first and one moment to bring up
+    And the bot says the observation is saved and asks "Debrief now" or "Later", as after /observe's form
+    # observe2-check-endpoint.js handOver: the session is saved as a submitted /observe form
+    # (observer_review_complete, the FICO analysis from the 17 levels and the plan: observe2/analysis.js).
+
+  @e2e @flow @audio @config-gated @destructive @wip @draft @P0
+  Scenario: The visit ends as /observe's does: the debrief recording, the coach card, the teacher's report
+    Given I submitted the check of my /observe2 visit
+    When I tap "Debrief now"
+    Then the bot sends the brief naming the teacher, questions to open with, what went well, how much of the lesson plan was done, the thing to work on first and one moment to bring up
+    And it asks me to record my conversation with the teacher and send it here
+    When I send the debrief recording
+    Then the bot says the debrief recording was received
+    And a few minutes later I get my coach card and the offer to send the report to the teacher
+    When I send the report
+    Then the teacher gets today's report, with the levels from my record, and the visit is complete
+    # 4 Oct (Riffat): "after the coach submits, it should ask for the debrief recording; the flow stopped
+    # here". From the check on, /observe's own code runs (observe-debrief, observe-send, observe-completion).
+    # "Later" keeps the visit in /observe's list of debriefs to do.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: Choosing someone else after the report preview shows a new preview for that teacher
+    Given I tapped "Send report" and the preview for the observed teacher arrived
+    When I tap "Someone else", choose to add a new teacher and type their name and number
+    Then the bot says it is preparing the report
+    And within a few minutes the preview for that teacher arrives with "Send now"
+    # 4 Oct sandbox E2E: the second preview was dropped by the job queue's 1-hour duplicate guard
+    # (one key per session and phase). coaching-job-queue.service.js queueObserveTeacherReport now
+    # tells previews apart by the teacher's number; the same teacher twice is still one job.
 
   @e2e @config-gated @wip @draft @negative @P2
   Scenario: A teacher's /observe2 is refused

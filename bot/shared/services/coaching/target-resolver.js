@@ -29,6 +29,16 @@ function indicatorSpec(domainKey, id) {
  * @param {object} analysis - analysis_data (framework, domains, focus_area)
  * @returns {null|{indicator:string, domain:string, name:string, rung:number, rationale:string, try:string, title:string, count:string|null, levels:object|null}}
  */
+/**
+ * The rubric's own definition of an indicator. An /observe2 analysis carries the impact team's 17
+ * indicators (analysis.observe2), whose ids are also FICO V4 ids with other meanings: no V4 count bar
+ * or levels are attached to them.
+ */
+function specFor(analysis, domainKey, id) {
+  if (analysis && analysis.observe2) return {};
+  return indicatorSpec(domainKey, id) || {};
+}
+
 function resolveTarget(analysis) {
   if (!analysis || !analysis.domains || typeof analysis.domains !== 'object') return null;
   const fa = analysis.focus_area;
@@ -39,7 +49,7 @@ function resolveTarget(analysis) {
     for (const ind of (domain && Array.isArray(domain.indicators) ? domain.indicators : [])) {
       if (!ind || String(ind.id) !== id) continue;
       if (ind.applicable === false || ind.score === null || ind.score === undefined) return null;
-      const def = indicatorSpec(domainKey, id) || {};
+      const def = specFor(analysis, domainKey, id);
       return {
         indicator: id,
         domain: domainKey,
@@ -71,7 +81,7 @@ function resolveIndicator(analysis, indicatorId) {
     for (const ind of (domain && Array.isArray(domain.indicators) ? domain.indicators : [])) {
       if (!ind || String(ind.id) !== id) continue;
       if (ind.applicable === false || ind.score === null || ind.score === undefined) return null;
-      const def = indicatorSpec(domainKey, id) || {};
+      const def = specFor(analysis, domainKey, id);
       return {
         indicator: id,
         domain: domainKey,

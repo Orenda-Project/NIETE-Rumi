@@ -96,8 +96,9 @@ async function listChapters(grade, subject) {
  * `ready: false` is the common case — about 92% of the corpus — and it is not an error or an
  * absence. It means "tapping this writes it", which the UI must say out loud.
  */
-async function listLessons(grade, subject, chapterKey, lang = 'en') {
-  const data = await ask('lessons', { grade, subject, chapterKey, lang });
+async function listLessons(grade, subject, chapterKey, lang = 'en', userId = null) {
+  // bd-5rz1v.14 — `userId` (the caller's SESSION, never a request) marks her ✓✓ Sent lessons.
+  const data = await ask('lessons', { grade, subject, chapterKey, lang, userId });
   return data.lessons || [];
 }
 

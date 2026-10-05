@@ -49,8 +49,21 @@ const FORBIDDEN_PATTERNS = [
 
 // Allowlist: exact (project-root-relative) file paths we won't flag, with a
 // human reason. Empty by default — keep it that way.
+//
+// The one exception: the app's legal links. Google Play's User Data policy
+// needs a contact for account deletion and privacy questions, and the
+// operator's decision is that those go to the operator's own mailbox, so the
+// domain is not upstream brand drift here, it is the legally required
+// destination. An env var was rejected because a missing value on any one
+// environment would silently drop the contact from the app and fail the Play
+// review. The file holds only these constants, so the exception cannot spread.
+//
+// bd-nvnf2: the privacy policy itself is NOT the operator's web page any more.
+// Play rejected taleemabad.com/privacy-policy/ because it never names the app
+// or its developer; the policy is the portal's own /portal/privacy. Only the
+// mailbox may use the domain (see the ratchet test below).
 const ALLOWLIST = new Map([
-  // (no entries)
+  ['portal/src/portal/lib/legalLinks.ts', 'Play User Data policy: deletion-request and privacy-contact mailbox (operator decision)'],
 ]);
 
 function findScannedFiles(dir) {
@@ -100,11 +113,24 @@ describe('Brand-URL hygiene — no hardcoded upstream brand domains in source', 
     expect(violations).toEqual([]);
   });
 
-  it('the allowlist stays empty (ratchet)', () => {
-    // The point of the empty allowlist is to make every new brand reference
-    // a deliberate test edit. If a real exception comes up, document the
-    // reason in this comment and the ALLOWLIST entry — and try the
-    // env-driven path first.
-    expect(ALLOWLIST.size).toBe(0);
+  it('the allowlist holds only the documented legal-links exception (ratchet)', () => {
+    // The point of the near-empty allowlist is to make every new brand
+    // reference a deliberate test edit. If a real exception comes up, document
+    // the reason in this comment and the ALLOWLIST entry — and try the
+    // env-driven path first. The one entry is the Play-required legal links
+    // (see the ALLOWLIST comment for why env-driven was not enough).
+    expect([...ALLOWLIST.keys()]).toEqual(['portal/src/portal/lib/legalLinks.ts']);
+  });
+
+  it('the legal-links exception covers the mailbox only, never a taleemabad.com web page (bd-nvnf2)', () => {
+    // Play rejected the NIETE app for linking taleemabad.com/privacy-policy/,
+    // which names neither the app nor its developer. The policy lives on the
+    // portal; a web URL on the operator's domain here would bring that back.
+    const src = fs.readFileSync(path.join(ROOT, 'portal/src/portal/lib/legalLinks.ts'), 'utf-8');
+    // Strip comments (block, and whole-line //) so the history in the doc
+    // comment doesn't count; a trailing // would also eat the `//` in `https://`.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    expect(code).not.toMatch(/https?:\/\/[^'"`\s]*taleemabad\.com/i);
+    expect(code).toMatch(/info@taleemabad\.com/);
   });
 });

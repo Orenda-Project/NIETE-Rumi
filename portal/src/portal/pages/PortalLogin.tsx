@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader } from '../lib/leaderRole';
 import { isValidPkMobile, PK_MOBILE_HINT } from '../lib/phone';
+import { DELETE_ACCOUNT_PATH, PRIVACY_POLICY_PATH } from '../lib/legalLinks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -156,6 +157,19 @@ const PortalLogin = () => {
             </div>
           </div>
         </form>
+
+        {/* bd-3wb0s — Google Play wants the privacy policy and account
+            deletion reachable in the app; this is the one screen everyone
+            sees, including someone who can no longer sign in. */}
+        <p data-testid="login-legal-footer" className="mt-6 text-center text-sm text-primary-foreground/80">
+          <Link to={PRIVACY_POLICY_PATH} className="underline-offset-4 hover:underline hover:text-primary-foreground">
+            Privacy policy
+          </Link>
+          <span aria-hidden="true"> · </span>
+          <Link to={DELETE_ACCOUNT_PATH} className="underline-offset-4 hover:underline hover:text-primary-foreground">
+            Delete account
+          </Link>
+        </p>
       </div>
     </div>
   );
