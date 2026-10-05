@@ -130,6 +130,7 @@ beforeEach(() => {
   redis.__keys.clear();
   jest.clearAllMocks();
   Videos._metaCache.clear();
+  require('../../../shared/services/quiz/web-quiz-roster')._resetCache();
   mockS3Send.mockImplementation(async (cmd) => {
     if (cmd.constructor.name === 'HeadObjectCommand') {
       if (/_poster\.jpg$/.test(cmd.input.Key)) { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
@@ -258,6 +259,16 @@ describe('a "more videos" code in the rest of the web quiz', () => {
     const row = fake.db.quiz_share_codes.find((r) => r.code === code);
     const s = fake.db.quiz_sessions.find((x) => x.share_code_id === row.id);
     expect(s).toMatchObject({ student_id: KID_A, quiz_id: VQ(1), invited_by_student_id: null, source: 'share_link' });
+  });
+
+  test('a child on the teacher\'s class list keeps the list\'s class on the lesson\'s session (roster mode)', async () => {
+    fake.db.app_settings = [{ key: 'web_quiz_roster_id', value: true }];
+    fake.db.student_lists = [{ id: 'L1', user_id: TEACHER, class_name: '3', section: 'B', is_active: true }];
+    Object.assign(fake.db.students[0], { list_id: 'L1', roll_number: 5, is_active: true });
+    const { code } = await Videos.start({ code: 'AB12CD', st: st(), vid: V(1) });
+    await WQ.startSession({ code, from_st: st() });
+    const row = fake.db.quiz_share_codes.find((r) => r.code === code);
+    expect(fake.db.quiz_sessions.find((x) => x.share_code_id === row.id).student_class).toBe('3-B');
   });
 
   test('a token from another teacher\'s class does not carry the child over', async () => {
