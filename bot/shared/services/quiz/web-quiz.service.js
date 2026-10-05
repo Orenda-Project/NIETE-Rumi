@@ -178,17 +178,26 @@ async function classChips(ctx) {
   const ids = (codes || []).map((c) => c.id);
   if (!ids.includes(ctx.shareCodeId)) ids.push(ctx.shareCodeId);
   const { data: sessions } = await supabase.from('quiz_sessions')
-    .select('student_id, student_name, user_id, created_at')
+    .select('student_id, student_name, user_id, created_at, share_code_id')
     .in('share_code_id', ids).is('invited_by_student_id', null).not('student_id', 'is', null)
     .gte('created_at', since).order('created_at', { ascending: false }).limit(500);
   const seen = new Set();
   const chips = [];
+  // A phone remembers the chip it was given on an earlier link of this teacher;
+  // chips are minted per code, so keep every code's chip for the child as an alias.
+  const aliases = new Map();
+  for (const s of sessions || []) {
+    if (!s.student_id || !s.share_code_id) continue;
+    if (!aliases.has(s.student_id)) aliases.set(s.student_id, new Set());
+    aliases.get(s.student_id).add(T.chipId(s.share_code_id, s.student_id));
+  }
   for (const s of excludeSelfTests(sessions || [], ctx.teacherUserId)) {
     if (!s.student_id || seen.has(s.student_id)) continue;
     seen.add(s.student_id);
     const first = firstName(s.student_name);
     if (!first) continue;
-    chips.push({ chip: T.chipId(ctx.shareCodeId, s.student_id), first, animal: T.animalFor(s.student_id), studentId: s.student_id, name: s.student_name });
+    chips.push({ chip: T.chipId(ctx.shareCodeId, s.student_id), first, animal: T.animalFor(s.student_id), studentId: s.student_id, name: s.student_name,
+      aliases: aliases.get(s.student_id) || new Set() });
     if (chips.length >= CHIPS_MAX) break;
   }
   return chips;
@@ -345,7 +354,8 @@ async function startSession(body = {}) {
     takerName = ctx.parent.teacher_name || null;
   } else if (body.chip) {
     const chips = await classChips(ctx);
-    const hit = chips.find((c) => c.chip === String(body.chip));
+    const want = String(body.chip);
+    const hit = chips.find((c) => c.chip === want) || chips.find((c) => c.aliases.has(want));
     if (!hit) fail(404, 'chip_unknown');
     const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class').eq('id', hit.studentId).maybeSingle();
     student = st || { id: hit.studentId, student_name: hit.name };
