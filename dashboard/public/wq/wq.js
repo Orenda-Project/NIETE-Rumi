@@ -438,7 +438,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap a word, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
       zoom: 'Make the picture bigger', close: 'Close', playSound: 'Play the sound', yes: 'True', no: 'False',
       right: ['Yes! You found it.', 'You checked carefully!', 'Right! Well looked.', 'Yes! You kept going.', 'You got it!'],
-      notyet: function (r) { return 'Not yet. It\'s "' + r + '".'; }, next: 'Next', again: 'This one comes back at the end, to fix together.',
+      notyet: function (r) { return 'Not yet. The answer is "' + r + '".'; }, notyetLead: 'Not yet. The answer is', notyetPlain: 'Not yet.', next: 'Next', again: 'This one comes back at the end, to fix together.',
       half: 'Halfway there!',
       tricky: function (n) { return n === 1 ? '1 tricky one' : n + ' tricky ones'; }, trickySay: "Before we celebrate, let's fix it together.", fixGo: 'Fix it with Jugnu', later: 'Maybe later',
       second: 'Second try · with Jugnu', fixed: 'Fixed it!', tryAgain: 'Look again. You can do it.',
@@ -476,7 +476,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک لفظ پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
       zoom: 'تصویر بڑی کریں', close: 'بند کریں', playSound: 'آواز سنیں', yes: 'درست', no: 'غلط',
       right: ['جی ہاں! آپ نے ڈھونڈ لیا۔', 'آپ نے غور سے دیکھا!', 'بالکل درست!', 'جی ہاں! آپ نے کوشش جاری رکھی۔', 'شاباش، درست!'],
-      notyet: function (r) { return 'ابھی نہیں۔ جواب ہے: ' + r; }, next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
+      notyet: function (r) { return 'ابھی نہیں۔ صحیح جواب ہے: ' + r; }, notyetLead: 'ابھی نہیں۔ صحیح جواب ہے:', notyetPlain: 'ابھی نہیں۔', next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
       half: 'آدھا راستہ طے!',
       tricky: function (n) { return n + ' مشکل سوال'; }, trickySay: 'جشن سے پہلے، آئیں اسے مل کر ٹھیک کریں۔', fixGo: 'جگنو کے ساتھ ٹھیک کریں', later: 'بعد میں',
       second: 'دوسری کوشش · جگنو کے ساتھ', fixed: 'ٹھیک ہو گیا!', tryAgain: 'دوبارہ دیکھیں۔ آپ کر سکتے ہیں۔',
@@ -609,6 +609,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!SOUND) return;
     try {
       actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended' && actx.resume) actx.resume();
       var notes = kind === 'right' ? [660, 880] : kind === 'done' ? [523, 659, 784] : [330];
       notes.forEach(function (f, i) {
         var o = actx.createOscillator(), g = actx.createGain();
@@ -880,6 +881,43 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     })();
   }
 
+  // What the voice says after an answer, in order. The question's recorded "why" clip is its
+  // reason (the explanation), so it is played only where the reason is what is said; the
+  // feedback for a picked option has its own clip (fbs) or the phone's voice. Not yet = a kind
+  // lead-in, the right answer by name (its own option clip when it is one option), then why.
+  function feedbackParts(q, ok, line, why, picked, named) {
+    var au = q.audio || {};
+    var rs = String(q.correct_slot || '');
+    var si = 'ABCD'.indexOf(rs.charAt(0));
+    var one = rs.length === 1 && si >= 0 && WQI.kind(q) !== 'order' && WQI.kind(q) !== 'match';
+    var parts = [];
+    if (ok) parts.push({ text: line, url: null });
+    else if (!named) parts.push({ text: T.notyetPlain, url: null });
+    else if (one && au.opts && au.opts[si]) parts.push({ text: T.notyetLead, url: null }, { text: WQI.rightText(q, LANG), url: au.opts[si] });
+    else parts.push({ text: line, url: null });
+    var said = WQI.say(why, LANG);
+    if (!speakable(said)) return parts;
+    var pi = 'ABCD'.indexOf(String(picked.slot || '').charAt(0));
+    var url = null;
+    if (!ok && picked.fb) url = (au.fbs && pi >= 0 && au.fbs[pi]) || null;
+    else if (q.why && why === WQI.letters(q, q.why)) url = au.why || null;
+    parts.push({ text: said, url: url });
+    return parts;
+  }
+  // Leaving the page (closing the in-app browser, switching app, locking the phone) silences the
+  // voice, the sound effects and any playing media at once. Nothing starts again by itself when
+  // the child comes back: the next tap speaks. Other parts of the page can listen for 'wq-silence'.
+  function stopAll() {
+    stopVoice();
+    try { if (actx && actx.state === 'running') actx.suspend(); } catch (e) {}
+    try { Array.prototype.forEach.call(document.querySelectorAll('audio, video'), function (m) { try { m.pause(); } catch (e) {} }); } catch (e) {}
+    try { document.dispatchEvent(new CustomEvent('wq-silence')); } catch (e) {}
+  }
+  window.addEventListener('pagehide', stopAll);
+  window.addEventListener('beforeunload', stopAll);
+  document.addEventListener('freeze', stopAll);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') stopAll(); });
+
   function question(i, retry) {
     var q = QS[i];
     var shown = Date.now();
@@ -942,8 +980,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     sfx(ok ? 'right' : 'notyet');
     var right = { text: WQI.rightText(q, LANG) };
     var picked = (q.options || []).filter(function (o) { return o.slot === slot; })[0] || {};
-    var why = WQI.letters(q, (!ok && picked.fb) || (ok && q.fb_right) || q.why || '');
-    var line = ok ? (retry ? T.fixed : T.right[i % T.right.length]) : T.notyet(optText(right));
+    // Right: the reason (why), so the child hears WHY it is right; a praise-only fb_right is the fallback.
+    // Not yet: the feedback for the option the child picked, else the reason. Never praise.
+    var why = WQI.letters(q, ok ? (q.why || q.fb_right || '') : (picked.fb || q.why || ''));
+    var named = speakable(optText(right));
+    var line = ok ? (retry ? T.fixed : T.right[i % T.right.length]) : named ? T.notyet(optText(right)) : T.notyetPlain;
     var answered = answeredCount();
     var halfway = !retry && ok !== null && answered === Math.ceil(N / 2) && N >= 4;
     var fb = $('#wq-fb');
@@ -954,9 +995,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
     ROOT.setAttribute('data-m', 'M7');
     ev('feedback_view', { qid: q.qid, ok: ok ? 1 : 0 });
-    var au = q.audio || {};
-    var spoken = ok || speakable(optText(right)) ? line : '';
-    speak(WQI.joinSay([spoken, WQI.say(why, LANG)]), ok ? null : au.why || null, null);
+    speakSeq(feedbackParts(q, ok, line, why, picked, named), null);
     var nx = $('#wq-next');
     try { nx.scrollIntoView({ block: 'nearest' }); } catch (e) {}
     nx.addEventListener('click', function () {

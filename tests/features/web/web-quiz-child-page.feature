@@ -145,3 +145,18 @@ Feature: Web child quiz page on the portal
     And no clip says "dollar", "backslash" or "frac"
     And a question with no web item is read from its own text with the maths turned into words
     And a question whose words changed gets a new clip on the next publish
+
+  Scenario: A wrong answer is voiced as "not yet", never as praise
+    Given a question whose correct-answer feedback is only "Well done!" and whose explanation gives the reason
+    When the quiz is published, the recorded "why" says the reason, never the praise
+    And a child taps a wrong answer
+    Then the voice says "Not yet. The answer is" and then the right answer by name
+    And then the feedback for the option the child picked, or the reason
+    And no praise is spoken, in English or in Urdu
+    But a right answer is praised and then given the reason
+
+  Scenario: Closing the page or leaving it silences every sound
+    Given the voice is reading a question aloud and the lesson video may be playing
+    When the page is hidden, frozen or closed (the in-app browser is closed, the child switches app or locks the phone)
+    Then the recorded clip, the phone's voice, the sound effects and any playing video stop at once
+    And when the child comes back nothing starts again until the child taps
