@@ -268,6 +268,8 @@ function tierOf(e) {
   if (/^q\d+: PEDAGOGY_GENDERED_CHILD\b/.test(e)) return 2;
   if (/^q\d+: URDU_ADJACENT_TERMS\b/.test(e)) return 3;
   if (/^q\d+: (URDU_(NAME_LATIN|TRANSLITERATED|ROMAN)|META_STEM)\b/.test(e)) return 4;
+  // A give-away between questions ships if not repaired: it never takes a hard fault's place.
+  if (/^q\d+: ANSWER_LEAK\b/.test(e)) return 5;
   if (SOFT_ONLY.test(e)) return 5;                        // recorded and shipped anyway
   return 1;                                               // a hard fault: it cannot ship as it is
 }
