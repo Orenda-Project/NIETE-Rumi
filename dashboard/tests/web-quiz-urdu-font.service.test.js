@@ -135,3 +135,27 @@ describe('Urdu spacing rules', () => {
     expect(rule('.wq-m')).toMatch(/unicode-bidi:isolate/);
   });
 });
+
+describe('Urdu copy on the after-quiz screens', () => {
+  const { page, flush } = require('./wq-page-harness');
+  const store = () => ({ wq_s_TEST: { st: 's1', child: { chip: 'c1', first: 'زمزم', animal: 'owl' }, answers: {}, queue: [] } });
+
+  test('the fixed-with-the-mascot line has no stray "+" and a plural verb for the questions', async () => {
+    const p = page({ lang: 'ur', store: store(), api: { '/finish': { score: { correct: 4, total: 5 }, counted: true } } });
+    p.ctx.__wq.results(2);
+    await flush(); await flush();
+    const line = (p.html().match(/<p class="wq-sub">([^<]*مشکل سوال[^<]*)<\/p>/) || [])[1];
+    expect(line).toBeDefined();
+    expect(line).not.toMatch(/^\+/);
+    expect(line).toMatch(/ٹھیک کیے$/);
+  });
+
+  test('"today" in Urdu says "today" once, and its home button says where it goes', () => {
+    const p = page({ lang: 'ur', store: store() });
+    p.ctx.__wq.today();
+    const h = p.html();
+    expect(h).toContain('بچوں نے کھیلا');
+    expect(h).not.toContain('بچوں نے آج کھیلا');
+    expect(h).not.toMatch(/>شروع</);
+  });
+});
