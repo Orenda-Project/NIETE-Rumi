@@ -4,11 +4,12 @@
  *
  * A K-5 lesson-plan quiz is written from the slide script of the EXACT version
  * the teacher was served (lesson_id, version_stamp, content_hash). /quiz lists a
- * lesson only when that version has a script (lp-v8-lesson-provider
- * resolvableVersions); the 15:00 cohort must use the same check, or it offers a
- * lesson whose quiz then fails with "could not open the lesson plan".
+ * lesson only when that version has a script (lp-asset-source.store
+ * resolvableVersions, called by lp-v8-lesson-provider); the 15:00 cohort must use
+ * the same check, or it offers a lesson whose quiz then fails with "could not
+ * open the lesson plan".
  *
- * The supabase stub really filters; the lesson provider is the REAL module, so
+ * The supabase stub really filters; the source store is the REAL module, so
  * the rule under test is the one /quiz runs.
  */
 

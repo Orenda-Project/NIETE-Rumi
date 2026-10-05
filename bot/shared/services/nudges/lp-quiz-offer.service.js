@@ -45,7 +45,7 @@ const { resolveUx } = require('../../config/ux-strings');
 const { normalizeSubject, SUBJECT_NAMES_UR } = require('../../config/lp612-subject-order');
 const { teacherLanguageFor, needsLanguageAsk, quizLanguageFor } = require('../quiz/transcript-quiz-language');
 const Catalog = require('../lp-v8-catalog.service');
-const LessonProvider = require('../quiz/lp-v8-lesson-provider');
+const SourceStore = require('../quiz/lp-asset-source.store');
 const { LP_V8 } = require('../quiz/quiz-sources');
 const Funnel = require('../quiz/quiz-funnel');
 const LessonClaim = require('../quiz/lp-lesson-claim');
@@ -447,8 +447,8 @@ async function buildCohort({ nudgeDate, now }) {
   // version has no slide script cannot be made into a quiz, so it is never
   // offered. A teacher left with none is skipped as `no_quiz_source`, not
   // `no_lesson`, so the funnel can tell a missing script from no lesson.
-  const sourced = lessons.length ? await LessonProvider.resolvableVersions(lessons) : new Set();
-  const quizzable = lessons.filter((r) => sourced.has(LessonProvider.versionKey(r)));
+  const sourced = lessons.length ? await SourceStore.resolvableVersions(lessons) : new Set();
+  const quizzable = lessons.filter((r) => sourced.has(SourceStore.versionKey(r)));
   const hasQuizzable = new Set(quizzable.map((r) => r.user_id));
   const noQuizSource = new Set(lessons.map((r) => r.user_id).filter((id) => !hasQuizzable.has(id)));
 

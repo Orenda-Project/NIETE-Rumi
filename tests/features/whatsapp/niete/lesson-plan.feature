@@ -571,7 +571,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the bot sends the teacher no afternoon quiz offer
     And the teacher's offer row for today is skipped with the reason "no_quiz_source", not "no_lesson"
     And the day's lp_quiz.cohort_built event counts that teacher under skipped.no_quiz_source
-    # The cohort uses the same exact-version check /quiz uses (lp-v8-lesson-provider resolvableVersions:
+    # The cohort uses the same exact-version check /quiz uses (lp-asset-source.store resolvableVersions, which /quiz also calls:
     # lesson_id, version_stamp, content_hash). A script for an OLDER version of the same lesson does not
     # count — a quiz from it would ask about a page the teacher does not hold. A teacher with one lesson
     # that has a script and one that does not is still offered, for the lesson that has one.
