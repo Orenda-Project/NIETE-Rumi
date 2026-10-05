@@ -278,3 +278,16 @@ describe('a picture option with no name', () => {
     expect(WQI.readParts(q, 'en').length).toBe(1);
   });
 });
+
+describe('pictures on slow data', () => {
+  it('imageUrls lists every picture file a question needs (figure, question image, option images), once each', () => {
+    const q = { img: '/m/q', figure: { kind: 'img', url: '/m/q' }, options: [{ slot: 'A', img: '/m/a' }, { slot: 'B', pic: { svg: '<svg/>' } }, { slot: 'C', img: '/m/c' }] };
+    expect(WQI.imageUrls(q)).toEqual(['/m/q', '/m/a', '/m/c']);
+    expect(WQI.imageUrls({ options: [] })).toEqual([]);
+  });
+  it('a picture file shows a loading state until it arrives', () => {
+    const h = WQI.itemHtml({ type: 'picture', text: 'Q', options: [{ slot: 'A', text: '', img: '/m/a' }, { slot: 'B', text: '', img: '/m/b' }] }, T, 'en');
+    expect(h).toContain('class="wq-ld"');
+    expect(h).toContain('onload="this.className=\'\'"');
+  });
+});
