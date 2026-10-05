@@ -131,6 +131,22 @@ describe('optionPic (picture options are drawings, never emoji)', () => {
     expect(Fig.optionPic({ kind: 'emoji', name: '🍎' }, 'en')).toBeNull();
     expect(Fig.optionPic({ kind: 'svg', svg: '<svg><script/></svg>' }, 'en')).toBeNull();
   });
+  test('the spoken name is in the quiz language: the option word wins over the English roster name', () => {
+    const p = Fig.optionPic({ kind: 'pictogram', name: 'apple' }, 'ur', { word: 'سیب' });
+    expect(p.name).toBe('سیب');
+    expect(p.svg).toContain('aria-label="سیب"');
+    expect(Fig.optionPic({ kind: 'pictogram', name: 'apple' }, 'ur')).toBeNull();
+  });
+  test('a glyph option is a big letter or mark tile, right-to-left for Urdu, escaped', () => {
+    const p = Fig.optionPic({ kind: 'glyph', text: 'بّ' }, 'ur', { word: 'تشدید' });
+    expect(p.svg).toMatch(/^<svg[^>]*viewBox="0 0 72 72"/);
+    expect(p.svg).toContain('بّ');
+    expect(p.svg).toContain('dir="rtl"');
+    expect(p.name).toBe('تشدید');
+    expect(Fig.safeSvg(p.svg)).toBeTruthy();
+    expect(Fig.optionPic({ kind: 'glyph', text: '<b>' }, 'en', { word: 'x' }).svg).not.toContain('<b>');
+    expect(Fig.optionPic({ kind: 'glyph', text: 'too long for a tile' }, 'en')).toBeNull();
+  });
   test('a small engine drawing can be an option', () => {
     const p = Fig.optionPic({ kind: 'figure', spec: { type: 'clock', time: '3:00' }, name: 'three o\'clock' }, 'en');
     expect(p.svg.startsWith('<svg')).toBe(true);
@@ -163,6 +179,7 @@ describe('E2 carries figures, not cards', () => {
     ] } }, { option_a: 'apple', option_b: 'cat', option_c: 'bus' })]);
     const q = (await WQ.getQuiz('AB12CD')).quiz.questions[0];
     expect(q.options.map((o) => o.pic && o.pic.name)).toEqual(['apple', 'cat', 'bus']);
+    expect(q.options[1].pic.svg).toContain('aria-label="cat"');
     expect(q.options[0].pic.svg).toMatch(/viewBox="0 0 72 72"/);
   });
 });
