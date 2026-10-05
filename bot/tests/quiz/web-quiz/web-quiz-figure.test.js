@@ -207,4 +207,18 @@ describe('E2 carries figures, not cards', () => {
     expect(q.options[1].pic.svg).toContain('aria-label="cat"');
     expect(q.options[0].pic.svg).toMatch(/viewBox="0 0 72 72"/);
   });
+
+  test('picture options are named by what they show, never "Picture 1"', async () => {
+    const IMGS = [0, 1, 2].map((index) => ({ index, url: `https://r2/o${index}.jpg` }));
+    seed([
+      row(1, { language: 'en', display_order: [0, 1, 2], option_images: IMGS }, { option_a: '1. Table', option_b: '2. House', option_c: '3. Chair', render_pattern: 'P5' }),
+      row(2, { language: 'en', display_order: [0, 1, 2], option_images: IMGS }, { option_a: 'Picture 1', option_b: 'Picture 2', option_c: 'Picture 3', render_pattern: 'P5' }),
+    ]);
+    const [named, unnamed] = (await WQ.getQuiz('AB12CD')).quiz.questions;
+    expect(named.options.map((o) => [o.text, o.name])).toEqual([['Table', 'Table'], ['House', 'House'], ['Chair', 'Chair']]);
+    // No name was ever stored: the picture is the option, and nothing reads "Picture 1" aloud or under it.
+    expect(unnamed.options.map((o) => o.text)).toEqual(['', '', '']);
+    expect(unnamed.options.some((o) => /Picture/.test(JSON.stringify(o)))).toBe(false);
+    expect(unnamed.options.every((o) => o.img)).toBe(true);
+  });
 });
