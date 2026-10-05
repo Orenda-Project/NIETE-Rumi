@@ -1,9 +1,380 @@
 /* Web child quiz page. Vanilla JS, no framework, no build step.
  * Reads the quiz from <script id="boot">, talks to /api/wq/*, and keeps the
  * child's answers in a local queue so a weak connection never loses one. */
+/* Item renderer (WQI): how each question type looks, what the voice says, and how an answer is
+ * graded on the phone. Pure functions over the E2 question payload, so the page and the tests share
+ * them. A question with no `type` renders exactly as before (single, or multi when multi:true). */
+var WQI = (function () {
+  'use strict';
+  var SHAPES = [
+    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>',
+    '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
+    '<svg viewBox="0 0 24 24"><path d="M12 2 23 21H1z"/></svg>',
+    '<svg viewBox="0 0 24 24"><path d="M12 1 22 12 12 23 2 12z"/></svg>'
+  ];
+  var KINDS = {
+    single: 'single', mcq: 'single', choice: 'single', single_choice: 'single',
+    multi: 'multi', multi_select: 'multi', multiple: 'multi',
+    tf: 'tf', true_false: 'tf', truefalse: 'tf',
+    order: 'order', order_steps: 'order', sequence: 'order',
+    match: 'match', match_pairs: 'match', matching: 'match',
+    label: 'label', label_diagram: 'label', hotspot: 'label',
+    listen: 'listen', listen_choose: 'listen', listen_and_choose: 'listen',
+    picture: 'picture', picture_choice: 'picture', picture_grid: 'picture'
+  };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function opts(q) { return q.options || []; }
+  function kind(q) {
+    var k = KINDS[String(q.type || '').toLowerCase()];
+    if (k) return k;
+    if (q.multi) return 'multi';
+    var o = opts(q);
+    if (o.length && o.every(function (x) { return x.img || (x.pic && x.pic.svg); })) return 'picture';
+    return 'single';
+  }
+  function slots(v) { return String(v || '').toUpperCase().split(',').map(function (s) { return s.trim(); }).filter(Boolean); }
+  var ORDERED = { order: 1, match: 1 };
+  function grade(q, ans) {
+    var a = slots(ans), r = slots(q.correct_slot);
+    if (!ORDERED[kind(q)]) { a.sort(); r.sort(); }
+    return a.join(',') === r.join(',');
+  }
+
+  /* ---- maths: $...$ with a small TeX subset -> MathML (native in Chrome/WebView 109+) ---- */
+  var SYM = { times: '×', div: '÷', cdot: '·', pm: '±', le: '≤', ge: '≥', ne: '≠', pi: 'π', degree: '°', circ: '°', approx: '≈', to: '→', rightarrow: '→' };
+  function texTokens(s) {
+    var out = [], i = 0;
+    while (i < s.length) {
+      var c = s[i];
+      if (c === '\\') {
+        var m = /^\\([a-zA-Z]+|.)/.exec(s.slice(i));
+        out.push({ cmd: m[1] }); i += m[0].length;
+      } else if (c === '{' || c === '}' || c === '^' || c === '_') { out.push({ p: c }); i++; }
+      else if (/\s/.test(c)) { i++; }
+      else if (/[0-9.]/.test(c)) { var n = /^[0-9]+(\.[0-9]+)?/.exec(s.slice(i)) || [c]; out.push({ n: n[0] }); i += n[0].length; }
+      else if (/[A-Za-z؀-ۿ]/.test(c)) { out.push({ v: c }); i++; }
+      else { out.push({ o: c }); i++; }
+    }
+    return out;
+  }
+  function texParse(tk, st) {
+    // st.i walks tk; returns MathML for a run until '}' or end.
+    var parts = [];
+    function group() {
+      if (tk[st.i] && tk[st.i].p === '{') { st.i++; var g = texParse(tk, st); st.i++; return '<mrow>' + g + '</mrow>'; }
+      return atom();
+    }
+    function textArg() {
+      var t = '';
+      if (tk[st.i] && tk[st.i].p === '{') {
+        st.i++;
+        while (st.i < tk.length && !(tk[st.i].p === '}')) { var x = tk[st.i++]; t += x.n || x.v || x.o || (x.cmd ? '' : ''); }
+        st.i++;
+      }
+      return t;
+    }
+    function atom() {
+      var t = tk[st.i++];
+      if (!t) return '';
+      if (t.n) return '<mn>' + esc(t.n) + '</mn>';
+      if (t.v) return '<mi>' + esc(t.v) + '</mi>';
+      if (t.o) return '<mo>' + esc(t.o) + '</mo>';
+      if (t.cmd) {
+        if (t.cmd === 'frac') { var a = group(), b = group(); return '<mfrac>' + wrapRow(a) + wrapRow(b) + '</mfrac>'; }
+        if (t.cmd === 'sqrt') return '<msqrt>' + group() + '</msqrt>';
+        if (t.cmd === 'text' || t.cmd === 'mathrm') return '<mtext>' + esc(textArg()) + '</mtext>';
+        if (t.cmd === ',' || t.cmd === ';' || t.cmd === ' ') return '<mspace width="0.2em"/>';
+        if (SYM[t.cmd]) return '<mo>' + SYM[t.cmd] + '</mo>';
+        return '<mi>' + esc(t.cmd) + '</mi>';
+      }
+      return '';
+    }
+    while (st.i < tk.length && !(tk[st.i].p === '}')) {
+      var base = atom();
+      while (tk[st.i] && (tk[st.i].p === '^' || tk[st.i].p === '_')) {
+        var op = tk[st.i++].p, sup = group();
+        sup = /^<mrow>/.test(sup) ? sup : '<mrow>' + sup + '</mrow>';
+        base = op === '^' ? '<msup>' + base + sup + '</msup>' : '<msub>' + base + sup + '</msub>';
+      }
+      parts.push(base);
+    }
+    return parts.join('');
+  }
+  function wrapRow(x) { return /^<mrow>/.test(x) ? x : '<mrow>' + x + '</mrow>'; }
+  function tex(s) {
+    return String(s == null ? '' : s).split(/(\$[^$]*\$)/).map(function (seg) {
+      if (seg.length > 1 && seg[0] === '$' && seg[seg.length - 1] === '$') {
+        return '<math class="wq-m">' + texParse(texTokens(seg.slice(1, -1)), { i: 0 }) + '</math>';
+      }
+      return esc(seg);
+    }).join('');
+  }
+  // What the voice says for text that may carry maths.
+  function say(s, lang) {
+    return String(s == null ? '' : s).replace(/\$([^$]*)\$/g, function (m, body) {
+      return body
+        .replace(/\\frac\s*\{([^}]*)\}\s*\{([^}]*)\}/g, function (x, a, b) { return lang === 'ur' ? b + ' میں سے ' + a : a + ' over ' + b; })
+        .replace(/\\text\s*\{([^}]*)\}/g, ' $1')
+        .replace(/\\times/g, lang === 'ur' ? ' ضرب ' : ' times ')
+        .replace(/\\div/g, lang === 'ur' ? ' تقسیم ' : ' divided by ')
+        .replace(/\^\{?2\}?/g, lang === 'ur' ? ' کا مربع' : ' squared')
+        .replace(/\\[,; ]/g, ' ')
+        .replace(/\\[a-zA-Z]+/g, function (c) { return SYM[c.slice(1)] || ''; })
+        .replace(/[{}]/g, '')
+        .replace(/\s+/g, ' ').trim();
+    }).replace(/\s+/g, ' ').trim();
+  }
+
+  /* ---- figures: SCHEMA_v2 figure {kind:svg|img}. An SVG is drawn inline so its Urdu labels use the page's
+   * own fonts; the bot validates it against an allowlist, and the page strips anything executable again. ---- */
+  function cleanSvg(s) {
+    return String(s || '')
+      .replace(/<script[\s\S]*?<\/script\s*>/gi, '').replace(/<\/?script[^>]*>/gi, '')
+      .replace(/<iframe[\s\S]*?<\/iframe\s*>/gi, '').replace(/<\/?(iframe|object|embed|image|use)\b[^>]*>/gi, '')
+      .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/<a\b[^>]*>/gi, '').replace(/<\/a\s*>/gi, '')
+      .replace(/\s(href|xlink:href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/url\s*\([^)]*\)/gi, 'none').replace(/expression\s*\(/gi, '');
+  }
+  function viewBox(svg) {
+    var m = /viewBox\s*=\s*["']\s*([-\d.]+)[\s,]+([-\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(String(svg || ''));
+    return m ? { x: +m[1], y: +m[2], w: +m[3], h: +m[4] } : null;
+  }
+  function figureOf(q) {
+    var f = q.figure;
+    if (f && (f.svg || f.url)) return f;
+    if (q.img) return { kind: 'img', url: q.img, alt: (f && f.alt) || '' };
+    return null;
+  }
+  function pct(n) { return Math.round(n * 1000) / 10 + '%'; }
+  function figureHtml(q, T) {
+    var f = figureOf(q);
+    if (!f) return '';
+    var vb = f.svg ? viewBox(f.svg) : null;
+    if (f.w && f.h) vb = { x: vb ? vb.x : 0, y: vb ? vb.y : 0, w: +f.w, h: +f.h };
+    var hot = '';
+    if (kind(q) === 'label' && f.hotspots && vb) {
+      hot = f.hotspots.map(function (h, k) {
+        var o = opts(q).filter(function (x) { return x.slot === h.slot; })[0] || {};
+        return '<button class="wq-hot" data-slot="' + esc(h.slot) + '" style="left:' + pct((h.x - vb.x) / vb.w) + ';top:' + pct((h.y - vb.y) / vb.h) + '" aria-label="' +
+          esc(String(k + 1)) + '"><span>' + (k + 1) + '</span></button>';
+      }).join('');
+    }
+    var box = vb ? ' style="aspect-ratio:' + vb.w + '/' + vb.h + ';max-width:calc(46vh * ' + vb.w + ' / ' + vb.h + ')"' : '';
+    var draw = f.svg
+      ? '<div class="wq-svg" role="img" aria-label="' + esc(f.alt || '') + '"' + (f.dir ? ' dir="' + esc(f.dir) + '"' : '') + '>' + cleanSvg(f.svg) + '</div>'
+      : '<img src="' + esc(f.url) + '" alt="' + esc(f.alt || '') + '">';
+    return '<figure class="wq-fig' + (hot ? ' wq-labelfig' : '') + (f.type ? ' wq-f-' + esc(String(f.type).replace(/[^a-z0-9_-]/gi, '')) : '') + '"><div class="wq-figbox"' + box + '>' + draw + hot + '</div>' +
+      '<button class="wq-zoom" aria-label="' + esc(T.zoom || 'Zoom') + '"><span aria-hidden="true">⤢</span> ' + esc(T.zoom || '') + '</button></figure>';
+  }
+
+  /* ---- what each option is called (spoken, and in the "not yet" line) ---- */
+  function optName(o) { return (o && (o.name || o.text || (o.pic && o.pic.name))) || ''; }
+  function speakable(t) { return /[A-Za-z0-9؀-ۿ]/.test(String(t || '')); }
+  function rightText(q, lang) {
+    var o = opts(q), r = slots(q.correct_slot);
+    var by = function (s) { return o.filter(function (x) { return x.slot === s; })[0] || {}; };
+    var k = kind(q);
+    if (k === 'order') return r.map(function (s) { return say(optName(by(s)), lang); }).join(lang === 'ur' ? ' ← ' : ' → ');
+    if (k === 'match') return (q.left || []).map(function (l, i) { return say(l.text, lang) + ' – ' + say(optName(by(r[i])), lang); }).join(lang === 'ur' ? '، ' : ', ');
+    return r.map(function (s) { return say(optName(by(s)), lang); }).join(lang === 'ur' ? '، ' : ', ');
+  }
+  function readParts(q, lang) {
+    var au = q.audio || null;
+    var rd = q.read || {};
+    var parts = [];
+    var fg = q.figure || {};
+    if (fg.say && speakable(fg.say)) parts.push({ text: fg.say, url: null });
+    parts.push({ text: rd.stem || say(q.text, lang), url: (au && au.q) || null });
+    if (kind(q) === 'match') (q.left || []).forEach(function (l) { if (speakable(l.text)) parts.push({ text: say(l.text, lang), url: null }); });
+    if (kind(q) === 'label') return parts;
+    opts(q).forEach(function (o, k) {
+      var si = 'ABCD'.indexOf(String(o.slot || '').charAt(0));
+      var url = au && au.opts && si >= 0 ? au.opts[si] || null : null;
+      var t = (rd.opts && rd.opts[k]) || o.name || (o.pic && o.pic.name) || say(o.text, lang);
+      if (url || speakable(t)) parts.push({ text: t, url: url });
+    });
+    return parts;
+  }
+
+  // Lines for the voice, joined so a line that already ends a sentence is not followed by another stop.
+  function joinSay(list) {
+    return list.filter(function (x) { return x && String(x).trim(); }).map(function (x, i, a) {
+      x = String(x).trim();
+      return i < a.length - 1 && !/[.!?\u06D4\u061F]$/.test(x) ? x + '.' : x;
+    }).join(' ');
+  }
+  /* ---- markup per type ---- */
+  function picHtml(o, nm) {
+    if (o.pic && o.pic.svg) return '<span class="wq-pic" role="img" aria-label="' + esc(o.pic.alt || nm || '') + '">' + cleanSvg(o.pic.svg) + '</span>';
+    if (o.img) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '">';
+    return '';
+  }
+  function optBtn(o, k, extra) {
+    return '<button class="wq-opt wq-s' + (k % 4 + 1) + '" data-slot="' + esc(o.slot) + '"' + (extra || '') + '><span class="wq-shp">' + SHAPES[k % 4] + '</span>' +
+      picHtml(o, o.name) + '<span class="wq-lab">' + tex(o.text || o.name || '') + '</span></button>';
+  }
+  function itemHtml(q, T, lang) {
+    var k = kind(q), o = opts(q);
+    var stem = k === 'listen'
+      ? '<div class="wq-qcard wq-listen"><button class="wq-spk wq-spk-big" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">🔊</button><p class="wq-qtext wq-qsmall">' + tex(q.text) + '</p></div>'
+      : '<div class="wq-qcard"><p class="wq-qtext">' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">🔊</button></div>';
+    var body = '';
+    var pics = o.length && o.every(function (x) { return x.img || (x.pic && x.pic.svg); });
+    if (k === 'picture' || (k === 'listen' && pics)) {
+      var quiet = k === 'listen';
+      body = '<div class="wq-pgrid" role="group">' + o.map(function (x, i) {
+        var nm = x.name || (x.pic && x.pic.name) || x.text || '';
+        return '<button class="wq-opt wq-ptile wq-s' + (i % 4 + 1) + '" data-slot="' + esc(x.slot) + '"><span class="wq-shp">' + SHAPES[i % 4] + '</span>' +
+          (picHtml(x, nm) || '<span class="wq-emoji">' + esc(x.text) + '</span>') +
+          (!quiet && speakable(x.text || nm) ? '<span class="wq-pname">' + tex(x.text || nm) + '</span>' : '') + '</button>';
+      }).join('') + '</div>';
+    } else if (k === 'tf') {
+      body = '<div class="wq-tf" role="group">' + o.slice(0, 2).map(function (x, i) {
+        return '<button class="wq-opt wq-tf' + (i ? 'n' : 'y') + '" data-slot="' + esc(x.slot) + '"><span class="wq-tfi" aria-hidden="true">' + (i ? '✗' : '✓') + '</span><span class="wq-lab">' + tex(x.text || (i ? T.no : T.yes)) + '</span></button>';
+      }).join('') + '</div>';
+    } else if (k === 'order') {
+      body = '<p class="wq-small">' + esc(T.orderHelp) + '</p><ol class="wq-seq">' + o.map(function (x, i) {
+        return '<li class="wq-place" data-i="' + i + '"><b>' + (i + 1) + '</b><span></span></li>';
+      }).join('') + '</ol><div class="wq-pool" role="group">' + o.map(optBtn).join('') + '</div>' +
+        '<button class="wq-btn wq-navy" id="wq-check" disabled>' + esc(T.check) + '</button>';
+    } else if (k === 'match') {
+      body = '<p class="wq-small">' + esc(T.matchHelp) + '</p><div class="wq-mgrid"><div class="wq-mcol">' + (q.left || []).map(function (l, i) {
+        return '<button class="wq-ml" data-i="' + i + '"><span class="wq-lab">' + tex(l.text) + '</span><span class="wq-mto"></span></button>';
+      }).join('') + '</div><div class="wq-mcol">' + o.map(function (x, i) {
+        return '<button class="wq-mr" data-slot="' + esc(x.slot) + '">' + picHtml(x, x.name) + '<span class="wq-lab">' + tex(x.text || x.name || '') + '</span></button>';
+      }).join('') + '</div></div><button class="wq-btn wq-navy" id="wq-check" disabled>' + esc(T.check) + '</button>';
+    } else if (k === 'label') {
+      body = '<p class="wq-small">' + esc(T.labelHelp) + '</p>';
+    } else if (k === 'multi') {
+      body = '<div class="wq-opts" role="group">' + o.map(function (x, i) { return optBtn(x, i, ' aria-pressed="false"'); }).join('') + '</div>' +
+        '<p class="wq-small">' + esc(T.pickAll) + '</p><button class="wq-btn wq-navy" id="wq-check" disabled>' + esc(T.check) + '</button>';
+    } else {
+      body = '<div class="wq-opts" role="group">' + o.map(function (x, i) { return optBtn(x, i); }).join('') + '</div>';
+    }
+    return stem + figureHtml(q, T) + body;
+  }
+
+  /* ---- taps: wire(root, q, done) calls done(answerString) once ---- */
+  function each(root, sel, fn) { Array.prototype.forEach.call(root.querySelectorAll(sel), fn); }
+  function wire(root, q, done) {
+    var k = kind(q), sent = false;
+    function fire(a) { if (!sent) { sent = true; done(a); } }
+    var chk = root.querySelector('#wq-check');
+    if (k === 'single' || k === 'picture' || k === 'tf' || k === 'listen') {
+      each(root, '.wq-opt', function (b) { b.addEventListener('click', function () { fire(b.getAttribute('data-slot')); }); });
+    } else if (k === 'label') {
+      each(root, '.wq-hot', function (b) { b.addEventListener('click', function () { fire(b.getAttribute('data-slot')); }); });
+    } else if (k === 'multi') {
+      var chosen = {};
+      each(root, '.wq-opt', function (b) {
+        b.addEventListener('click', function () {
+          var s = b.getAttribute('data-slot');
+          if (chosen[s]) delete chosen[s]; else chosen[s] = 1;
+          b.setAttribute('aria-pressed', chosen[s] ? 'true' : 'false');
+          b.classList.toggle('wq-chosen', !!chosen[s]);
+          if (chk) chk.disabled = !Object.keys(chosen).length;
+        });
+      });
+      if (chk) chk.addEventListener('click', function () { var c = Object.keys(chosen).sort(); if (c.length) fire(c.join(',')); });
+    } else if (k === 'order') {
+      var seq = [];
+      var places = root.querySelectorAll('.wq-place');
+      var paint = function () {
+        Array.prototype.forEach.call(places, function (p, i) {
+          var s = seq[i]; var src = s ? root.querySelector('.wq-pool [data-slot="' + s + '"] .wq-lab') : null;
+          p.querySelector('span').innerHTML = src ? src.innerHTML : '';
+          p.classList.toggle('wq-filled', !!s);
+        });
+        each(root, '.wq-pool .wq-opt', function (b) { var used = seq.indexOf(b.getAttribute('data-slot')) >= 0; b.classList.toggle('wq-used', used); b.setAttribute('aria-pressed', used ? 'true' : 'false'); });
+        if (chk) chk.disabled = seq.length !== places.length;
+      };
+      each(root, '.wq-pool .wq-opt', function (b) {
+        b.addEventListener('click', function () {
+          var s = b.getAttribute('data-slot'), at = seq.indexOf(s);
+          if (at >= 0) seq.splice(at, 1); else if (seq.length < places.length) seq.push(s);
+          paint();
+        });
+      });
+      Array.prototype.forEach.call(places, function (p, i) { p.addEventListener('click', function () { if (seq[i]) { seq.splice(i, 1); paint(); } }); });
+      if (chk) chk.addEventListener('click', function () { if (seq.length === places.length) fire(seq.join(',')); });
+    } else if (k === 'match') {
+      var pairs = [], cur = null;
+      var lefts = root.querySelectorAll('.wq-ml');
+      var paintM = function () {
+        Array.prototype.forEach.call(lefts, function (l, i) {
+          var s = pairs[i];
+          l.classList.toggle('wq-sel', cur === i);
+          l.className = l.className.replace(/\bwq-p\d\b/g, '').trim() + (s ? ' wq-p' + (i % 4 + 1) : '');
+          var src = s ? root.querySelector('.wq-mr[data-slot="' + s + '"] .wq-lab') : null;
+          l.querySelector('.wq-mto').innerHTML = src ? src.innerHTML : '';
+        });
+        each(root, '.wq-mr', function (r) {
+          var i = pairs.indexOf(r.getAttribute('data-slot'));
+          r.className = r.className.replace(/\bwq-p\d\b/g, '').trim() + (i >= 0 ? ' wq-p' + (i % 4 + 1) : '');
+        });
+        var full = 0; for (var i = 0; i < lefts.length; i++) if (pairs[i]) full++;
+        if (chk) chk.disabled = full !== lefts.length;
+      };
+      Array.prototype.forEach.call(lefts, function (l, i) { l.addEventListener('click', function () { if (pairs[i]) pairs[i] = null; cur = i; paintM(); }); });
+      each(root, '.wq-mr', function (r) {
+        r.addEventListener('click', function () {
+          var s = r.getAttribute('data-slot');
+          var was = pairs.indexOf(s); if (was >= 0) pairs[was] = null;
+          if (cur == null) { for (var i = 0; i < lefts.length; i++) if (!pairs[i]) { cur = i; break; } }
+          if (cur == null) return;
+          pairs[cur] = s; cur = null;
+          for (var j = 0; j < lefts.length; j++) if (!pairs[j]) { cur = j; break; }
+          paintM();
+        });
+      });
+      if (lefts.length) { cur = 0; paintM(); }
+      if (chk) chk.addEventListener('click', function () { var a = []; for (var i = 0; i < lefts.length; i++) a.push(pairs[i]); if (a.every(Boolean)) fire(a.join(',')); });
+    }
+  }
+  // After an answer: lock every control and colour the right one(s).
+  function mark(root, q, ans) {
+    var k = kind(q), r = slots(q.correct_slot), p = slots(ans), ok = grade(q, ans);
+    var c = root.querySelector('#wq-check'); if (c && c.parentNode) c.parentNode.removeChild(c);
+    each(root, '.wq-opt, .wq-hot, .wq-ml, .wq-mr, .wq-place', function (b) { b.disabled = true; b.classList.add('wq-locked'); });
+    if (k === 'order' || k === 'match') {
+      root.querySelector(k === 'order' ? '.wq-seq' : '.wq-mgrid').classList.add(ok ? 'wq-right' : 'wq-picked');
+      return;
+    }
+    each(root, '[data-slot]', function (b) {
+      var s = b.getAttribute('data-slot');
+      if (r.indexOf(s) >= 0) b.classList.add('wq-right');
+      else if (p.indexOf(s) >= 0) b.classList.add('wq-picked');
+      else b.classList.add('wq-dim');
+    });
+  }
+  // Tap a figure to see it full screen; tap again (or Close) to go back.
+  function wireZoom(root, T) {
+    each(root, '.wq-fig:not(.wq-labelfig) .wq-figbox', function (fb) {
+      fb.addEventListener('click', function () { var z = fb.parentNode.querySelector('.wq-zoom'); if (z) z.click(); });
+    });
+    each(root, '.wq-zoom', function (z) {
+      z.addEventListener('click', function () {
+        var src = z.parentNode.querySelector('.wq-svg, img');
+        if (!src) return;
+        var ov = document.createElement('div');
+        ov.className = 'wq-zoomed'; ov.setAttribute('role', 'dialog');
+        ov.innerHTML = '<div class="wq-zbody"></div><button class="wq-icon wq-zclose" aria-label="' + esc(T.close || 'Close') + '">✕</button>';
+        ov.firstChild.appendChild(src.cloneNode(true));
+        ov.addEventListener('click', function () { if (ov.parentNode) ov.parentNode.removeChild(ov); });
+        document.body.appendChild(ov);
+      });
+    });
+  }
+  return { kind: kind, grade: grade, tex: tex, say: say, cleanSvg: cleanSvg, figureHtml: figureHtml, itemHtml: itemHtml, readParts: readParts,
+    rightText: rightText, joinSay: joinSay, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
+
 (function () {
   'use strict';
 
+  if (typeof document === 'undefined') return;
   var bootEl = document.getElementById('boot');
   var ROOT = document.getElementById('wq');
   if (!bootEl || !ROOT) return;
@@ -33,6 +404,8 @@
       vT: 'Watch the lesson (optional)', vSay: 'Watch first, or go straight in.', skip: 'Go to the questions', watched: 'Done watching',
       how: [['🔊', 'Listen to each question'], ['👆', 'Tap a colour or a picture'], ['🙋', 'Stuck? Help comes']],
       qof: function (i, n) { return 'Question ' + i + ' of ' + n; }, listen: 'Listen again', helpAgain: 'Shall we listen again?',
+      orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap a word, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
+      zoom: 'Make the picture bigger', close: 'Close', yes: 'True', no: 'False',
       right: ['Yes! You found it.', 'You checked carefully!', 'Right! Well looked.', 'Yes! You kept going.', 'You got it!'],
       notyet: function (r) { return 'Not yet. It\'s "' + r + '".'; }, next: 'Next', again: 'This one comes back at the end, to fix together.',
       half: 'Halfway there!',
@@ -69,6 +442,8 @@
       vT: 'سبق دیکھیں (اختیاری)', vSay: 'پہلے دیکھیں، یا سیدھا سوالوں پر چلیں۔', skip: 'سوالوں پر چلیں', watched: 'دیکھ لیا',
       how: [['🔊', 'ہر سوال سنیں'], ['👆', 'رنگ یا تصویر پر ٹیپ کریں'], ['🙋', 'مشکل ہو تو مدد ملے گی']],
       qof: function (i, n) { return 'سوال ' + i + ' از ' + n; }, listen: 'دوبارہ سنیں', helpAgain: 'کیا دوبارہ سنیں؟',
+      orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک لفظ پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
+      zoom: 'تصویر بڑی کریں', close: 'بند کریں', yes: 'درست', no: 'غلط',
       right: ['جی ہاں! آپ نے ڈھونڈ لیا۔', 'آپ نے غور سے دیکھا!', 'بالکل درست!', 'جی ہاں! آپ نے کوشش جاری رکھی۔', 'شاباش، درست!'],
       notyet: function (r) { return 'ابھی نہیں۔ جواب ہے: ' + r; }, next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
       half: 'آدھا راستہ طے!',
@@ -96,12 +471,6 @@
 
   var CLASS_LABEL = CLS.label || T.yourClass;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
-  var SHAPES = [
-    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>',
-    '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
-    '<svg viewBox="0 0 24 24"><path d="M12 2 23 21H1z"/></svg>',
-    '<svg viewBox="0 0 24 24"><path d="M12 1 22 12 12 23 2 12z"/></svg>'
-  ];
   var STAR = '<svg class="wq-star{on}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
   var IMG = '/wq/jugnu_';
 
@@ -470,16 +839,7 @@
   // An option that is only a picture (emoji) is never spoken by the phone's voice.
   function speakable(t) { return /[A-Za-z0-9\u0600-\u06FF]/.test(String(t || '')); }
   // The question, then each option: the recorded clip when there is one, else the phone's voice.
-  function readParts(q) {
-    var au = q.audio || null;
-    var parts = [{ text: q.text, url: au && au.q }];
-    (q.options || []).forEach(function (o, k) {
-      var si = 'ABCD'.indexOf(String(o.slot || '').charAt(0));
-      var url = au && au.opts && si >= 0 ? au.opts[si] : null;
-      if (url || speakable(o.text)) parts.push({ text: optText(o), url: url || null });
-    });
-    return parts;
-  }
+  function readParts(q) { return WQI.readParts(q, LANG); }
   function speakSeq(parts, done) {
     var i = 0;
     (function nextPart() {
@@ -494,16 +854,11 @@
     var shown = Date.now();
     var h = bar(retry ? '<span class="wq-grow wq-qof">' + esc(T.second) + '</span>' : dots(i)) +
       (retry ? '' : '<p class="wq-qof">' + esc(T.qof(i + 1, N)) + '</p>') +
-      '<div class="wq-qcard"><p class="wq-qtext">' + esc(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen) + '">🔊</button></div>' +
-      (q.img ? '<img class="wq-qimg" src="' + esc(q.img) + '" alt="">' : '') +
-      '<div class="wq-opts" role="group">' + (q.options || []).map(function (o, k) {
-        return '<button class="wq-opt wq-s' + (k % 4 + 1) + '" data-slot="' + esc(o.slot) + '"><span class="wq-shp">' + SHAPES[k % 4] + '</span>' +
-          (o.img ? '<img src="' + esc(o.img) + '" alt="">' : '') + '<span class="wq-lab">' + esc(optText(o)) + '</span></button>';
-      }).join('') + '</div>' +
-      (q.multi ? '<p class="wq-small">' + esc(T.pickAll) + '</p><button class="wq-btn wq-navy" id="wq-check" disabled>' + esc(T.check) + '</button>' : '') +
+      '<div class="wq-item" data-kind="' + WQI.kind(q) + '">' + WQI.itemHtml(q, T, LANG) + '</div>' +
       '<div id="wq-help"></div><div id="wq-fb"></div>';
     render(h, retry ? 'M9-fix' : 'M6');
     wireBar();
+    WQI.wireZoom(ROOT, T);
     ev(retry ? 'retry_view' : 'question_view', { qid: q.qid, i: i + 1 });
 
     function armHelp() {
@@ -524,40 +879,14 @@
     on('#wq-spk', function () { ev('listen', { qid: q.qid }); read(); });
     read();
 
-    var chosen = {};
-    function norm(x) { return String(x || '').split(',').map(function (y) { return y.trim(); }).filter(Boolean).sort().join(','); }
-    Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-opt'), function (btn) {
-      if (q.multi) {
-        btn.setAttribute('aria-pressed', 'false');
-        btn.addEventListener('click', function () {
-          var sl = btn.getAttribute('data-slot');
-          if (chosen[sl]) delete chosen[sl]; else chosen[sl] = 1;
-          btn.setAttribute('aria-pressed', chosen[sl] ? 'true' : 'false');
-          btn.classList.toggle('wq-chosen', !!chosen[sl]);
-          var c = $('#wq-check'); if (c) c.disabled = !Object.keys(chosen).length;
-        });
-      }
-    });
-    if (q.multi) on('#wq-check', function () { if (Object.keys(chosen).length) answer(norm(Object.keys(chosen).join(','))); });
-    Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-opt'), function (btn) {
-      if (!q.multi) btn.addEventListener('click', function () { answer(btn.getAttribute('data-slot')); });
-    });
+    WQI.wire(ROOT, q, answer);
     function answer(slot) {
       (function () {
-        var ok = q.multi ? norm(slot) === norm(q.correct_slot) : slot === q.correct_slot;
-        var rights = norm(q.correct_slot).split(',');
-        var picks = norm(slot).split(',');
-        var chk = $('#wq-check'); if (chk) chk.parentNode.removeChild(chk);
+        var ok = WQI.grade(q, slot);
         var ms = Date.now() - shown;
         clearTimers(); stopVoice();
         var help = $('#wq-help'); if (help) { help.setAttribute('data-done', '1'); help.innerHTML = ''; }
-        Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-opt'), function (b) {
-          b.disabled = true;
-          var s = b.getAttribute('data-slot');
-          if (rights.indexOf(s) >= 0) b.classList.add('wq-right');
-          else if (picks.indexOf(s) >= 0) b.classList.add('wq-picked');
-          else b.classList.add('wq-dim');
-        });
+        WQI.mark(ROOT, q, slot);
         if (retry) {
           lastRetryOk = ok;
           ev('retry_answer', { qid: q.qid, slot: slot, ok: ok ? 1 : 0, ms: ms });
@@ -577,17 +906,15 @@
 
   function feedback(q, i, slot, ok, retry) {
     sfx(ok ? 'right' : 'notyet');
-    var rightSlots = String(q.correct_slot || '').split(',');
-    var rightOpts = (q.options || []).filter(function (o) { return rightSlots.indexOf(o.slot) >= 0; });
-    var right = { text: rightOpts.map(optText).join(LANG === 'ur' ? '، ' : ', ') };
+    var right = { text: WQI.rightText(q, LANG) };
     var picked = (q.options || []).filter(function (o) { return o.slot === slot; })[0] || {};
-    var why = (!ok && picked.fb) || q.why || '';
+    var why = (!ok && picked.fb) || (ok && q.fb_right) || q.why || '';
     var line = ok ? (retry ? T.fixed : T.right[i % T.right.length]) : T.notyet(optText(right));
     var answered = answeredCount();
     var halfway = !retry && ok !== null && answered === Math.ceil(N / 2) && N >= 4;
     var fb = $('#wq-fb');
     fb.innerHTML = '<div class="wq-jug"><img src="' + IMG + (ok ? 'correct' : 'notyet') + '.webp" alt=""><div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + esc(line) +
-      (why ? '<div class="wq-why">' + esc(why) + '</div>' : '') +
+      (why ? '<div class="wq-why">' + WQI.tex(why) + '</div>' : '') +
       (!ok && !retry ? '<div class="wq-why">' + esc(T.again) + '</div>' : '') + '</div></div>' +
       (halfway ? '<p class="wq-proof">🎉 ' + esc(T.half) + '</p>' : '') +
       '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
@@ -595,7 +922,7 @@
     ev('feedback_view', { qid: q.qid, ok: ok ? 1 : 0 });
     var au = q.audio || {};
     var spoken = ok || speakable(optText(right)) ? line : '';
-    speak([spoken, why].filter(Boolean).join('. '), ok ? null : au.why || null, null);
+    speak(WQI.joinSay([spoken, WQI.say(why, LANG)]), ok ? null : au.why || null, null);
     var nx = $('#wq-next');
     try { nx.scrollIntoView({ block: 'nearest' }); } catch (e) {}
     nx.addEventListener('click', function () {
