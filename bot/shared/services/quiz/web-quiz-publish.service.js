@@ -71,9 +71,21 @@ function spoken(text) {
   return out.replace(/\s+/g, ' ').trim();
 }
 
+// Praise at the start of a feedback line ("Well done!", «شاباش!»). The why clip is played after a
+// WRONG answer too, so it carries the reason only; praise is the page's own line. A word counts as
+// praise only when punctuation follows it: "Right angles…" and «صحیح جواب…» are kept.
+const PRAISE_LEAD = /^\s*(?:(?:well done|very good|good job|great job|great work|great|excellent work|excellent|amazing|fantastic|super|good|nice|brilliant|awesome|correct|that's right|you got it|perfect|nice work|شاباش|بہت خوب|بہت اچھے|بہت اچھا|زبردست|بالکل درست|بالکل ٹھیک|درست|صحیح|جی ہاں|واہ)\s*[!.،,۔:]+\s*)+/i;
+
+function withoutPraise(text) {
+  const t = spoken(text);
+  const cut = t.replace(PRAISE_LEAD, '').trim();
+  return SAYABLE.test(cut) ? cut : '';
+}
+
+/** The reason the right answer is right: the explanation, else the correct-answer feedback minus its praise. */
 function whyText(q) {
   const fb = q.option_feedback && typeof q.option_feedback === 'object' ? q.option_feedback : {};
-  return spoken(fb.correct) || spoken(q.explanation);
+  return spoken(q.explanation) || withoutPraise(fb.correct);
 }
 
 // Something a voice can say. A picture option is stored as an emoji (no letter,
@@ -100,7 +112,7 @@ function partsFor(q) {
       const p = PARTS_OPTS['ABCD'.indexOf(String((o && o.slot) || '').charAt(0))];
       if (p) add(p, spoken(readOpts[i]) || spoken(o.name) || spoken(o.text));
     });
-    add('why', spoken(w.fb_right) || spoken(w.why) || whyText(q));
+    add('why', spoken(w.why) || whyText(q) || withoutPraise(w.fb_right));
     return parts;
   }
   add('q', spoken(q.question_text));
@@ -202,4 +214,4 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
   }
 }
 
-module.exports = { publishQuizAudio, audioKey, partsFor, spoken };
+module.exports = { publishQuizAudio, audioKey, partsFor, spoken, whyText, withoutPraise };

@@ -275,6 +275,52 @@ describe('publishQuizAudio: what the voice says (SCHEMA_v2 read text, never TeX)
   });
 });
 
+describe('publishQuizAudio: the why clip is the reason, never praise (it is played after a WRONG answer too)', () => {
+  const missing = async (cmd) => {
+    if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+    return {};
+  };
+  const said = () => axios.post.mock.calls.map((c) => c[1].text);
+  const PRAISE = /well done|great job|correct!|شاباش|بہت خوب|زبردست/i;
+
+  test.each([
+    ['en', 'Well done!', 'Roots grow under the soil and drink up water for the whole plant.'],
+    ['ur', 'شاباش!', 'جڑیں مٹی کے نیچے ہوتی ہیں اور پورے پودے کے لیے پانی لیتی ہیں۔'],
+  ])('%s: option_feedback.correct "%s" is not the why; the explanation is', async (lang, praise, explanation) => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.quiz.language = lang;
+    rows.questions = [{ ...rows.questions[0], option_feedback: { correct: praise, wrong: { 1: 'Leaves make food.' } }, explanation }];
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(said()).toContain(explanation);
+    said().forEach((t) => expect(t).not.toMatch(PRAISE));
+    expect(rows.quiz.meta.web.audio[Q1].why).toBe(audioKey(QUIZ_ID, Q1, 'why', explanation, lang));
+  });
+
+  test('praise in front of a reason is cut off; the reason is kept', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.questions = [{ ...rows.questions[0], option_feedback: { correct: 'Well done! Roots drink water from the soil.' }, explanation: null }];
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(said()).toContain('Roots drink water from the soil.');
+    said().forEach((t) => expect(t).not.toMatch(PRAISE));
+  });
+
+  test('SCHEMA_v2: the item\'s why is voiced, not its fb_right', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.questions = [{
+      ...rows.questions[0], option_feedback: { correct: 'Well done!' }, explanation: 'Roots take in water.',
+      media: { web: { v: 2, type: 'single', key: 'A', stem: 'Which part takes in water?', fb_right: 'Great job!',
+        why: 'Roots take in water from the soil.',
+        options: [{ slot: 'A', text: 'Roots' }, { slot: 'B', text: 'Leaves' }], read: { stem: 'Which part takes in water?', opts: ['Roots', 'Leaves'] } } },
+    }];
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(said()).toContain('Roots take in water from the soil.');
+    said().forEach((t) => expect(t).not.toMatch(PRAISE));
+  });
+});
+
 describe('presignAudio / presignVideo', () => {
   test('turns stored keys into signed links per question, nulls kept', async () => {
     const meta = { web: { audio: { [Q1]: { q: `web-quiz/audio/${QUIZ_ID}/${Q1}/q.ogg`, opts: [`web-quiz/audio/${QUIZ_ID}/${Q1}/a.ogg`, null], why: null } } } };
