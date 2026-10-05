@@ -115,14 +115,16 @@ describe('E2 names the class with the heading of the teacher report', () => {
   });
 });
 
-describe('the first web session marks the quiz as the web arm', () => {
-  test('a child session stamps meta.web_arm = web and keeps the rest of meta', async () => {
+describe('the attempt rule is chosen per class code, never written onto the shared quiz row', () => {
+  // A video-bank quiz is ONE quizzes row for every teacher (quizzes.video_id is unique):
+  // a web play from one teacher's code must not change another teacher's WhatsApp report.
+  test('a child web session leaves quizzes.meta untouched', async () => {
     seed({ meta: { web: { audio: { k: 1 } } } });
     await WQ.startSession({ code: 'AB12CD', new: { name: 'Zara Example', cls: '3-B', force: true } });
-    expect(fake.db.quizzes[0].meta).toEqual({ web: { audio: { k: 1 } }, web_arm: 'web' });
+    expect(fake.db.quizzes[0].meta).toEqual({ web: { audio: { k: 1 } } });
   });
 
-  test('the teacher preview does not mark the quiz', async () => {
+  test('the teacher preview does not touch the quiz either', async () => {
     seed({ meta: {} });
     const p = T.signPreview({ shareCodeId: SC, teacherUserId: TEACHER });
     await WQ.startSession({ code: 'AB12CD', p });
