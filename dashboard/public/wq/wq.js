@@ -751,10 +751,45 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   /* ---------------- M4 who's playing ---------------- */
+  // A teacher with a class list (CLS.roster): the child gives a roll number on a big pad and confirms
+  // "Are you <name>?"; no classmates' names are shown. Without one, today's name chips.
+  var TW = ({
+    en: {
+      rollT: 'What is your roll number?', rollSay: 'Tap your roll number, then Go.', go: 'Go', del: 'Delete',
+      noRoll: "I don't know my number", onPhoneOr: 'Or tap your name',
+      unknown: function (n) { return 'No one in this class has number ' + n + '. Try again!'; },
+      isYouSub: 'Is this you?', tryAgain: 'No, try again', none: 'None of these is me'
+    },
+    ur: {
+      rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
+      noRoll: 'مجھے اپنا نمبر نہیں پتا', onPhoneOr: 'یا اپنے نام پر ٹیپ کریں',
+      unknown: function (n) { return 'اس کلاس میں نمبر ' + n + ' کسی کا نہیں۔ دوبارہ کوشش کریں!'; },
+      isYouSub: 'کیا یہ آپ ہیں؟', tryAgain: 'نہیں، دوبارہ', none: 'ان میں سے کوئی نہیں'
+    }
+  })[LANG === 'ur' ? 'ur' : 'en'];
+  var UDIG = '۰۱۲۳۴۵۶۷۸۹';
+  function digitsFor(n) { return LANG === 'ur' ? String(n).replace(/[0-9]/g, function (d) { return UDIG[+d]; }) : String(n); }
+  function padNext(cur, key) {
+    if (key === 'del') return cur.slice(0, -1);
+    if (!/^[0-9]$/.test(key) || cur.length >= 3 || (cur === '' && key === '0')) return cur;
+    return cur + key;
+  }
+  function kidBtn(k, src) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '" data-src="' + src + '">' + ani(k.animal) + esc(k.first) + '</button>'; }
+  function wireKids(list) {
+    Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-kid'), function (b) {
+      b.addEventListener('click', function () {
+        var chip = b.getAttribute('data-chip');
+        var k = list.filter(function (x) { return x.chip === chip; })[0];
+        ev('identity_pick', { src: b.getAttribute('data-src') });
+        startSession({ chip: chip }, k);
+      });
+    });
+  }
+
   function who() {
+    if (CLS.roster) return rollPad('', '');
     var here = kids();
     var chips = (CLS.chips || []).filter(function (c) { return !here.some(function (k) { return k.chip === c.chip; }); });
-    function kidBtn(k, src) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '" data-src="' + src + '">' + ani(k.animal) + esc(k.first) + '</button>'; }
     var h = bar() + jug('idle', T.whoSay) + '<h2>' + esc(T.whoT) + '</h2>' +
       (here.length ? '<p class="wq-sub">' + esc(T.onPhone) + '</p><div class="wq-chips">' + here.map(function (k) { return kidBtn(k, 'phone'); }).join('') + '</div>' : '') +
       (chips.length ? '<p class="wq-sub">' + esc(T.inClass(CLASS_LABEL)) + '</p><div class="wq-chips">' + chips.map(function (k) { return kidBtn(k, 'class'); }).join('') + '</div>' : '') +
@@ -762,15 +797,40 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
     render(h, 'M4');
     wireBar();
-    Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-kid'), function (b) {
+    wireKids(here.concat(CLS.chips || []));
+    on('#wq-new', newKid);
+    on('#wq-back', landing);
+  }
+
+  /* The roll-number pad: numbers only, so a child who cannot read yet can still say who they are. */
+  function rollPad(cur, note) {
+    var here = kids();
+    var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'go'];
+    var h = bar() + jug('idle', note || TW.rollSay) + '<h2>' + esc(TW.rollT) + '</h2>' +
+      '<div class="wq-roll" aria-live="polite">' + (cur ? esc(digitsFor(cur)) : '<span class="wq-roll-ph">–</span>') + '</div>' +
+      '<div class="wq-pad">' + keys.map(function (k) {
+        if (k === 'del') return '<button class="wq-key wq-key-del" data-k="del" aria-label="' + esc(TW.del) + '">⌫</button>';
+        if (k === 'go') return '<button class="wq-key wq-key-go" data-k="go"' + (cur ? '' : ' disabled') + '>' + esc(TW.go) + '</button>';
+        return '<button class="wq-key" data-k="' + k + '">' + esc(digitsFor(k)) + '</button>';
+      }).join('') + '</div>' +
+      (here.length ? '<p class="wq-sub">' + esc(TW.onPhoneOr) + '</p><div class="wq-chips">' + here.map(function (k) { return kidBtn(k, 'phone'); }).join('') + '</div>' : '') +
+      '<button class="wq-btn wq-soft" id="wq-noroll">' + esc(TW.noRoll) + '</button>' +
+      '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
+    render(h, 'M4-roll');
+    wireBar();
+    wireKids(here);
+    Array.prototype.forEach.call(ROOT.querySelectorAll('[data-k]'), function (b) {
       b.addEventListener('click', function () {
-        var chip = b.getAttribute('data-chip');
-        var k = here.concat(CLS.chips || []).filter(function (x) { return x.chip === chip; })[0];
-        ev('identity_pick', { src: b.getAttribute('data-src') });
-        startSession({ chip: chip }, k);
+        var k = b.getAttribute('data-k');
+        if (k === 'go') {
+          if (!cur) return;
+          ev('identity_pick', { src: 'roll_try' });
+          return startSession({ roll: cur }, null, '', cur);
+        }
+        rollPad(padNext(cur, k), '');
       });
     });
-    on('#wq-new', newKid);
+    on('#wq-noroll', function () { ev('identity_pick', { src: 'no_roll' }); newKid(); });
     on('#wq-back', landing);
   }
 
@@ -795,28 +855,34 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     newKid.force = function () { go(true); };
   }
 
-  function isThisYou(cands, typed) {
-    var h = bar() + jug('thinking', T.isYouSub) +
+  /* "Are you Ayesha?" — after a roll number (roll set) or a typed name that is near a known child. */
+  function isThisYou(cands, typed, roll) {
+    var h = bar() + jug('thinking', roll ? TW.isYouSub : T.isYouSub) +
       cands.map(function (c) {
         return '<div class="wq-card wq-stack"><h2>' + esc(T.isYou(c.first)) + ' ' + ani(c.animal) + '</h2>' +
+          (c.cls ? '<p class="wq-sub">' + esc(c.cls) + '</p>' : '') +
           '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(T.yesMe) + '</button></div>';
       }).join('') +
-      '<button class="wq-btn wq-soft" id="wq-diff">' + esc(T.diff(typed.split(' ')[0])) + '</button>';
+      (roll ? '<button class="wq-btn wq-soft" id="wq-diff">' + esc(cands.length > 1 ? TW.none : TW.tryAgain) + '</button>'
+        : '<button class="wq-btn wq-soft" id="wq-diff">' + esc(T.diff(typed.split(' ')[0])) + '</button>');
     render(h, 'M4-isyou');
     wireBar();
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-chip]'), function (b) {
       b.addEventListener('click', function () {
         var c = cands.filter(function (x) { return x.chip === b.getAttribute('data-chip'); })[0];
-        ev('identity_pick', { src: 'is_this_you' });
+        ev('identity_pick', { src: roll ? 'roll' : 'is_this_you' });
         startSession({ chip: c.chip }, c);
       });
     });
-    on('#wq-diff', function () { startSession({ new: { name: typed, cls: String(Q.grade || ''), force: true } }, null, typed); });
+    on('#wq-diff', function () {
+      if (roll) { ev('identity_pick', { src: 'roll_not_me' }); return rollPad('', ''); }
+      startSession({ new: { name: typed, cls: String(Q.grade || ''), force: true } }, null, typed);
+    });
   }
 
   /* ---------------- E3 session ---------------- */
   var busy = false;
-  function startSession(who, kid, typed) {
+  function startSession(who, kid, typed, roll) {
     if (busy) return;
     busy = true;
     var body = { code: CODE };
@@ -828,6 +894,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     api('POST', 'session', body).then(function (r) {
       busy = false;
       if (r.status === 409 && r.body.error === 'maybe_you') return isThisYou(r.body.candidates || [], typed || '');
+      if (r.status === 409 && r.body.error === 'is_this_you') return isThisYou(r.body.candidates || [], '', roll);
+      if (r.status === 404 && r.body.error === 'roll_unknown') { ev('identity_pick', { src: 'roll_unknown' }); return rollPad('', TW.unknown(digitsFor(roll))); }
       if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);

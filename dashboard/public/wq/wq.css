@@ -59,6 +59,16 @@ html[lang=ur] .wq-btn{font-weight:700;font-size:19px;line-height:1.9}
 .wq-kid .wq-ani{font-size:28px;width:40px;height:40px;display:grid;place-items:center;background:var(--paper-2);border-radius:50%;line-height:1}
 .wq-input{width:100%;min-height:58px;border-radius:16px;border:2px solid var(--line);background:#fff;padding:8px 14px;font-size:22px;font-weight:800;color:var(--navy)}
 .wq-input:focus{outline:3px solid var(--green);outline-offset:1px}
+/* M4 roll-number pad: big keys, digits in the page's own font (the Nastaliq line box would push digits off-centre). */
+.wq-roll{align-self:center;min-width:150px;min-height:72px;padding:4px 18px;border-radius:18px;border:3px solid var(--green);background:#fff;display:grid;place-items:center;font:900 44px/1 var(--f);color:var(--navy);letter-spacing:.12em}
+.wq-roll-ph{color:var(--star-off)}
+.wq-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;direction:ltr}
+.wq-key{min-height:64px;border-radius:18px;border:2px solid var(--line);border-bottom-width:5px;background:var(--card);font:900 30px/1 var(--f);color:var(--navy);cursor:pointer;touch-action:manipulation}
+.wq-key:active{transform:translateY(2px);border-bottom-width:3px}
+.wq-key-del{background:var(--paper-2);font-size:26px}
+.wq-key-go{background:var(--green);border-color:var(--green-d);color:#fff;font-size:22px}
+html[lang=ur] .wq-key-go{font-family:var(--fu);line-height:1.6}
+.wq-key-go:disabled{background:var(--star-off);border-color:var(--line);color:var(--muted);cursor:default}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
 .wq-dots{display:flex;gap:6px;flex:1}
 .wq-dot{flex:1;height:12px;border-radius:999px;background:var(--star-off)}
