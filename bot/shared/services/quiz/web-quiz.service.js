@@ -613,9 +613,10 @@ async function startSession(body = {}) {
     if (!body.new.force) {
       const chips = await classChips(ctx);
       const mine = norm(firstName(name));
-      const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
+      const quizGrade = await gradeOf(ctx.quizId);
+      const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
       // With a class list, a typo still finds the child ("Aysha" -> Ayesha); without one, today's exact match.
-      const fromRoster = roster ? Roster.byName(roster, firstName(name)).map((f) => rosterChip(ctx, f)) : [];
+      const fromRoster = roster ? Roster.byName(roster, firstName(name), quizGrade).map((f) => rosterChip(ctx, f)) : [];
       const fromChips = chips.filter((c) => (roster ? Roster.nearName(c.first, firstName(name)) : norm(c.first) === mine))
         .filter((c) => !fromRoster.some((r) => r.chip === c.chip)).map(publicChip);
       const candidates = fromRoster.concat(fromChips).slice(0, Roster.MAX_CANDIDATES);
