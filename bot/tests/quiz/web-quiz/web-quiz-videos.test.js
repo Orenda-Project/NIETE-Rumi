@@ -273,6 +273,12 @@ describe('a "more videos" code in the rest of the web quiz', () => {
     expect(SQS.queueJob).not.toHaveBeenCalled();
   });
 
+  test('a video-bank quiz is shared by every teacher: playing it from "more videos" never changes its attempt rule for them', async () => {
+    const { code } = await Videos.start({ code: 'AB12CD', st: st(), vid: V(1) });
+    await WQ.startSession({ code, from_st: st() });
+    expect(fake.db.quizzes.find((q) => q.id === VQ(1)).meta).toBeNull();
+  });
+
   test('the teacher\'s own class code still schedules its report as before', async () => {
     await WQ.startSession({ code: 'AB12CD', chip: T.chipId(SC, KID_A) });
     expect(SQS.queueJob).toHaveBeenCalledTimes(1);
