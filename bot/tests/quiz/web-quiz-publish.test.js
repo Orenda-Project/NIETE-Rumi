@@ -341,6 +341,15 @@ describe('publishQuizAudio: the feedback for each wrong option is recorded too (
       audioKey(QUIZ_ID, Q1, 'xc', 'Flowers make seeds.', 'en'), null]);
   });
 
+  test('a video-bank feedback line is recorded cleaned (no letters, no "correct answer", no praise), as the page shows it', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.questions = [{ ...rows.questions[0], option_feedback: { wrong: { 1: 'B) Good try! Leaves make food. The correct answer is A) Roots, because roots drink water. Keep going!' } }, explanation: 'Roots drink water.' }];
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(said()).toContain('Leaves make food. Roots drink water.');
+    said().forEach((t) => expect(t).not.toMatch(/Good try|Keep going|correct answer|\b[A-D]\)/));
+  });
+
   test('SCHEMA_v2: each option\'s own fb is recorded on that option\'s slot', async () => {
     mockS3Send.mockImplementation(missing);
     const rows = quizRows();

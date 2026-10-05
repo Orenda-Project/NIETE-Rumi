@@ -228,3 +228,10 @@ Feature: Web child quiz page on the portal
     When its page is opened (the teacher's preview or the first child)
     Then its question, option, why and wrong-option feedback clips are recorded in the background, once
     And the page is never kept waiting for them; until they exist the phone's own voice reads
+
+  Scenario: A wrong pick on a video-bank question shows only the mix-up and the reason
+    Given a question whose stored WhatsApp feedback for the picked option reads "C) Good try! You mixed up X. The correct answer is B) Y, because Z. Keep going!"
+    When a child picks that option on the page
+    Then the page says "Not yet. The answer is" with the right option, then "You mixed up X. Z."
+    And no option letter, no "the correct answer is", no praise or cheering is shown or spoken, in English or in Urdu
+    And an Urdu sentence that addresses the child with a gendered verb is left out
