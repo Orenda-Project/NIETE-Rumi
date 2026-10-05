@@ -362,6 +362,7 @@ export const portal = {
           selfObservation: false,
           coachObservation: false,
           newUi: false,
+          assessmentEditing: false,
         },
       };
     }
@@ -442,6 +443,45 @@ export const portal = {
     const response = await api.get('/assessment/papers', { params });
     return response.data;
   },
+
+  // ── bd-hb8qs: edit a finished paper (saves a NEW version; the bot owns every rule) ──
+  getAssessmentVersions: async (paperId: string): Promise<{ versions: EditVersion[] }> => {
+    const response = await api.get(`/assessment/edit/${encodeURIComponent(paperId)}/versions`);
+    return response.data;
+  },
+
+  getAssessmentEditQuestions: async (
+    paperId: string
+  ): Promise<{ paper: EditPaper; items: EditItem[] }> => {
+    const response = await api.get(`/assessment/edit/${encodeURIComponent(paperId)}/questions`);
+    return response.data;
+  },
+
+  getAssessmentAddKinds: async (paperId: string): Promise<{ kinds: AddKind[]; slotCap: number }> => {
+    const response = await api.get(`/assessment/edit/${encodeURIComponent(paperId)}/add-kinds`);
+    return response.data;
+  },
+
+  /** Throws an axios error on 400; `error.response.data.error` is the message. */
+  validateAssessmentEdit: async (
+    paperId: string,
+    body: { id?: string; kind?: string; edit: Record<string, unknown> }
+  ): Promise<{ ok: true; marks: number; text: string }> => {
+    const response = await api.post(`/assessment/edit/${encodeURIComponent(paperId)}/validate`, body);
+    return response.data;
+  },
+
+  saveAssessmentVersion: async (
+    paperId: string,
+    changes: EditChanges
+  ): Promise<{ status: 'ready'; paperId: string; version: number; questionCount: number; marks: number }> => {
+    const response = await api.post(
+      `/assessment/edit/${encodeURIComponent(paperId)}/save`,
+      { changes },
+      { timeout: 60000 }
+    );
+    return response.data;
+  },
 };
 
 // ── Portal config ─────────────────────────────────────────────────────────
@@ -487,6 +527,8 @@ export type PortalConfig = {
     coachObservation?: boolean;
     /** bd-5rz1v.12 — the new UI (Direction B) is on for THIS user (fail-closed). */
     newUi?: boolean;
+    /** bd-hb8qs — she can edit a finished paper into a new version (fail-closed). */
+    assessmentEditing?: boolean;
   };
 };
 
@@ -635,6 +677,33 @@ export type AssessmentPaperList = {
   page: number;
   pageSize: number;
 };
+
+// ── bd-hb8qs: edit-a-paper types ──────────────────────────────────────────
+export type EditFields = {
+  shape: 'options' | 'columns' | 'words' | 'comprehension' | 'passage' | 'standard';
+  question: string; marks: string; answer: string; lines: string; lines_default: number | null;
+  lines_options: { id: string; title: string }[]; show_lines: boolean;
+  slots?: string[]; correct?: string; correct_options?: { id: string; title: string }[];
+  msq?: boolean; show_correct?: boolean; show_answer_text?: boolean;
+  pairs?: { left: string; right: string }[]; passage?: string;
+  subs?: { index: number; text: string; marks: number | null }[];
+};
+export type EditItem = {
+  id: string; number: number | null; removed: boolean; type: string;
+  section: 'objective' | 'subjective'; marks: number; text: string; fields: EditFields;
+  subs?: { index: number; fields: EditFields }[];
+};
+export type EditPaper = { paperId: string; version: number; grade: number; subject: string;
+  chapterNumber: number | null; rtl: boolean; questionCount: number; marks: number };
+export type EditVersion = { paperId: string; version: number | null; status: 'ready' | 'failed' | 'generating';
+  createdAt: string; questionCount: number | null; marks: number | null; editedFrom: string | null; latest: boolean };
+export type AddKind = { kind: 'mcq' | 'fill' | 'short' | 'long'; label: string; marks: number; lines: number; needsOptions: boolean };
+export type EditChanges = {
+  edits?: { id: string; edit: Record<string, unknown> }[];
+  removed?: string[]; restored?: string[];
+  added?: { kind: AddKind['kind']; edit: Record<string, unknown> }[];
+};
+export type EditError = { id?: string; subIndex?: number; addedIndex?: number; message: string };
 
 // Leader Portal endpoints (bd-2434) — school-leader family only.
 // The backend gate 403s non-leaders; the frontend also hides these via isLeader.

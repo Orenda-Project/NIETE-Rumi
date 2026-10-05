@@ -31,3 +31,18 @@ it("labels an edited paper with its version and leaves a first version plain", a
   const plain = await screen.findByText(/Grade 3 Maths/);
   expect(plain.textContent).not.toMatch(/Version/);
 });
+
+it("shows Edit and Versions only when editing is on", async () => {
+  vi.mocked(portal.getAssessmentPapers).mockResolvedValue({
+    success: true, total: 1, page: 1, pageSize: 10,
+    papers: [{ paper_id: "a3", grade: 4, subject_key: "science", subject: "Science", chapter_number: 3,
+      question_count: 21, total_marks: 44, ready_at: "2026-09-30T09:20:05Z", has_answer_key: true, version: 3, version_count: 3 }],
+  });
+  const { unmount } = render(<AssessmentPapersPanel />);
+  await screen.findByText(/Grade 4 Science/);
+  expect(screen.queryByRole("button", { name: /^Edit$/ })).toBeNull();
+  unmount();
+  render(<AssessmentPapersPanel editing />);
+  expect(await screen.findByRole("button", { name: /^Edit$/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /^Versions$/ })).toBeTruthy();
+});
