@@ -30,6 +30,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const WebItems = require('./web-quiz-items');
 const Figure = require('./web-quiz-figure');
+const { pointsAtPicture } = require('./quiz-picture-words');
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
@@ -109,8 +110,31 @@ async function resolveCode(rawCode) {
 const Q_COLS = 'id, external_id, sort_order, question_text, option_a, option_b, option_c, option_d, '
   + 'correct_option, explanation, option_feedback, media, render_pattern';
 
-/** The quiz's questions in the order a WhatsApp child gets them, capped like a session. */
-async function loadQuestions(quizId) {
+/**
+ * A question the page can play. A stem that sends the child to a picture
+ * ("Look at the pictures. Which one is a leaf?") needs one: the row's own
+ * picture file, a figure, or picture options. Without any, the child would be
+ * asked about a picture that is not there, so the web quiz leaves it out and
+ * the score counts only the questions that were played.
+ */
+function hasPicture(q) {
+  const m = (q && q.media) || {};
+  const w = m.web && typeof m.web === 'object' ? m.web : {};
+  if (questionImageOf(m)) return true;
+  if (Array.isArray(m.option_images) && m.option_images.some(Boolean)) return true;
+  if (Array.isArray(w.options) && w.options.some((o) => o && (o.pic || o.img))) return true;
+  // Last, because it draws: a figure counts only if it actually draws (what E2 would send).
+  try { return Boolean(Figure.figureFor(q)); } catch { return false; }
+}
+
+function playable(q) {
+  const web = WebItems.webPayload(q);
+  const stem = (web && web.text) || (q && q.question_text) || '';
+  return !pointsAtPicture(stem) || hasPicture(q);
+}
+
+/** The quiz's questions in the order a WhatsApp child gets them, capped like a session; only playable ones. */
+async function loadQuestions(quizId, { log = false } = {}) {
   const { data, error } = await supabase.from('quiz_questions').select(Q_COLS)
     .eq('quiz_id', quizId).order('external_id', { ascending: true }).order('sort_order', { ascending: true });
   if (error) fail(502, 'db_unavailable');
@@ -118,7 +142,13 @@ async function loadQuestions(quizId) {
   // One ordering rule for both channels (transcript bank by sort_order, video
   // bank legacy-first) — the WhatsApp engine's own function.
   const { orderForSession } = require('./video-quiz.service');
-  return orderForSession(rows).slice(0, QUESTIONS_MAX);
+  const served = orderForSession(rows).slice(0, QUESTIONS_MAX);
+  const out = served.filter(playable);
+  if (log && out.length < served.length) {
+    const qids = served.filter((q) => !playable(q)).map((q) => q.id);
+    logEvent('web_quiz.unplayable_skipped', { quizId, n: qids.length, qids, served: out.length });
+  }
+  return out;
 }
 
 function mediaUrl(code, qid, k) {
@@ -287,7 +317,7 @@ async function getQuiz(code, { p } = {}) {
   requireOn();
   const ctx = await resolveCode(code);
   const [questions, { data: quizRow }] = await Promise.all([
-    loadQuestions(ctx.quizId),
+    loadQuestions(ctx.quizId, { log: true }),
     supabase.from('quizzes').select('id, topic, grade, subject, language, meta, video_id').eq('id', ctx.quizId).maybeSingle(),
   ]);
   if (!questions.length) fail(404, 'no_questions');

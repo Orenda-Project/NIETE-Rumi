@@ -45,7 +45,7 @@ jest.mock('@aws-sdk/client-s3', () => {
 });
 
 const axios = require('axios');
-const { publishQuizAudio } = require('../../shared/services/quiz/web-quiz-publish.service');
+const { publishQuizAudio, audioKey } = require('../../shared/services/quiz/web-quiz-publish.service');
 const { presignAudio, presignVideo } = require('../../shared/services/quiz/web-quiz-media');
 
 const QUIZ_ID = '11111111-1111-4111-8111-111111111111';
@@ -124,12 +124,13 @@ describe('publishQuizAudio', () => {
     expect(out.synthesized).toBe(9);
     expect(axios.post).toHaveBeenCalledTimes(9);
     expect(putKeys()).toEqual(expect.arrayContaining([
-      `web-quiz/audio/${QUIZ_ID}/${Q1}/q.ogg`,
-      `web-quiz/audio/${QUIZ_ID}/${Q1}/a.ogg`,
-      `web-quiz/audio/${QUIZ_ID}/${Q1}/c.ogg`,
-      `web-quiz/audio/${QUIZ_ID}/${Q1}/why.ogg`,
-      `web-quiz/audio/${QUIZ_ID}/${Q2}/why.ogg`,
+      audioKey(QUIZ_ID, Q1, 'q', 'Which part of a plant takes in water?', 'en'),
+      audioKey(QUIZ_ID, Q1, 'a', 'Roots', 'en'),
+      audioKey(QUIZ_ID, Q1, 'c', 'Flower', 'en'),
+      audioKey(QUIZ_ID, Q1, 'why', 'Roots drink water from the soil.', 'en'),
+      audioKey(QUIZ_ID, Q2, 'why', 'Leaves make food from sunlight.', 'en'),
     ]));
+    putKeys().forEach((k) => expect(k).toMatch(new RegExp(`^web-quiz/audio/${QUIZ_ID}/[0-9a-f-]+/(q|a|b|c|d|why)-[0-9a-f]{12}\\.ogg$`)));
     // the why line is spoken without the stored letter (the page shuffles options)
     const spoken = axios.post.mock.calls.map((c) => c[1].text);
     expect(spoken).toContain('Roots drink water from the soil.');
@@ -138,9 +139,9 @@ describe('publishQuizAudio', () => {
     expect(meta.share_code).toBe('AB12CD');
     expect(meta.web.arm).toBe('web');
     expect(meta.web.audio[Q1]).toEqual({
-      q: `web-quiz/audio/${QUIZ_ID}/${Q1}/q.ogg`,
-      opts: [`web-quiz/audio/${QUIZ_ID}/${Q1}/a.ogg`, `web-quiz/audio/${QUIZ_ID}/${Q1}/b.ogg`, `web-quiz/audio/${QUIZ_ID}/${Q1}/c.ogg`, null],
-      why: `web-quiz/audio/${QUIZ_ID}/${Q1}/why.ogg`,
+      q: audioKey(QUIZ_ID, Q1, 'q', 'Which part of a plant takes in water?', 'en'),
+      opts: [audioKey(QUIZ_ID, Q1, 'a', 'Roots', 'en'), audioKey(QUIZ_ID, Q1, 'b', 'Leaves', 'en'), audioKey(QUIZ_ID, Q1, 'c', 'Flower', 'en'), null],
+      why: audioKey(QUIZ_ID, Q1, 'why', 'Roots drink water from the soil.', 'en'),
     });
     expect(mockLogEvent).toHaveBeenCalledWith('web_quiz.publish_audio', expect.objectContaining({
       quizId: QUIZ_ID, synthesized: 9, skipped: 0, failed: 0, providers: { elevenlabs: 9 },
@@ -196,12 +197,81 @@ describe('publishQuizAudio', () => {
     const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
     expect(out.synthesized).toBe(3); // q + "12" + why
     expect(axios.post.mock.calls.map((c) => c[1].text)).not.toContain('\u{1F338}');
-    expect(rows.quiz.meta.web.audio[Q1].opts).toEqual([null, null, `web-quiz/audio/${QUIZ_ID}/${Q1}/c.ogg`, null]);
+    expect(rows.quiz.meta.web.audio[Q1].opts).toEqual([null, null, audioKey(QUIZ_ID, Q1, 'c', '12', 'en'), null]);
   });
 
   test('an unknown quiz is an answer, not a throw', async () => {
     const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb({ quiz: null, questions: [] }) });
     expect(out).toEqual(expect.objectContaining({ ok: false, reason: 'quiz_not_found' }));
+  });
+});
+
+describe('publishQuizAudio: what the voice says (SCHEMA_v2 read text, never TeX)', () => {
+  const missing = async (cmd) => {
+    if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+    return {};
+  };
+  const said = () => axios.post.mock.calls.map((c) => c[1].text);
+
+  test('a question with a web item is voiced from read.stem and read.opts, each option clip on its slot', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.questions = [{
+      ...rows.questions[0],
+      question_text: 'What is $\\frac{3}{4}$ of 8?', option_a: '$6$', option_b: '$2$', option_c: '$4$',
+      media: { web: { v: 2, type: 'single', key: 'A', stem: 'What is $\\frac{3}{4}$ of 8?',
+        options: [{ slot: 'A', text: '$6$' }, { slot: 'B', text: '$2$' }, { slot: 'C', text: '$4$' }],
+        read: { stem: 'What is three quarters of eight?', opts: ['six', 'two', 'four'] } } },
+    }];
+    const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(out.ok).toBe(true);
+    expect(said()).toEqual(expect.arrayContaining(['What is three quarters of eight?', 'six', 'two', 'four']));
+    said().forEach((t) => { expect(t).not.toMatch(/[$\\]|frac/); });
+    const a = rows.quiz.meta.web.audio[Q1];
+    expect(a.q).toBe(audioKey(QUIZ_ID, Q1, 'q', 'What is three quarters of eight?', 'en'));
+    expect(a.opts).toEqual([audioKey(QUIZ_ID, Q1, 'a', 'six', 'en'), audioKey(QUIZ_ID, Q1, 'b', 'two', 'en'), audioKey(QUIZ_ID, Q1, 'c', 'four', 'en'), null]);
+  });
+
+  test('an order item (new options on the web) voices ITS steps, not the row\'s options', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.questions = [{
+      ...rows.questions[1],
+      media: { web: { v: 2, type: 'order', key: 'B,A,C', stem: 'Put the steps in order.',
+        options: [{ slot: 'A', text: 'Roast' }, { slot: 'B', text: 'Harvest' }, { slot: 'C', text: 'Temper' }],
+        read: { stem: 'Put the steps in order.', opts: ['roast the beans', 'harvest the beans', 'temper the chocolate'] } } },
+    }];
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(said()).toEqual(expect.arrayContaining(['Put the steps in order.', 'roast the beans', 'harvest the beans', 'temper the chocolate']));
+    expect(said()).not.toContain('Stones'); // the row's own option is not on this page
+    expect(rows.quiz.meta.web.audio[Q2].opts[2]).toBe(audioKey(QUIZ_ID, Q2, 'c', 'temper the chocolate', 'en'));
+  });
+
+  test('a row with no web item falls back to mathToText: never "dollar backslash frac"', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.questions = [{ ...rows.questions[0], question_text: 'What is $\\frac{1}{2}$ of 8?', option_a: '$4$', option_b: '$\\frac{1}{4}$', option_c: '2',
+      option_feedback: { correct: 'Half of $8$ is $4$.' } }];
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(said()).toEqual(expect.arrayContaining(['What is 1/2 of 8?', '4', '1/4', 'Half of 8 is 4.']));
+    said().forEach((t) => { expect(t).not.toMatch(/[$\\]|frac/); });
+  });
+
+  test('re-publish after the words changed records the new words (an old clip under the old words is not reused)', async () => {
+    const rows = quizRows();
+    rows.questions = [{ ...rows.questions[1], question_text: 'What do $leaves$ make?' }];
+    const oldKeys = new Set(['q', 'a', 'b', 'why'].map((p) => `web-quiz/audio/${QUIZ_ID}/${Q2}/${p}.ogg`));
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') {
+        if (oldKeys.has(cmd.input.Key)) return { ContentLength: 1000, ContentType: 'audio/ogg' };
+        const e = new Error('nf'); e.name = 'NotFound'; throw e;
+      }
+      return {};
+    });
+    const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(said()).toContain('What do leaves make?');
+    expect(out.synthesized).toBe(4);
+    expect(oldKeys.has(rows.quiz.meta.web.audio[Q2].q)).toBe(false);
   });
 });
 

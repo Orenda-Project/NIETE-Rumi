@@ -22,6 +22,8 @@ jest.mock('../../../shared/services/whatsapp.service', () => ({
 }));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
+// The figure engine pulls in openchemlib (ESM); the repo's CJS stand-in lets a figure really draw here.
+jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
@@ -407,5 +409,62 @@ describe('E10 GET media', () => {
     expect(opt.bytes.toString()).toBe('jpegbytes');
     await expect(WQ.media('AB12CD', qid(2), { k: 'q' })).rejects.toMatchObject({ status: 404 });
     await expect(WQ.media('AB12CD', 'video')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('a stem that points at a picture it does not have is never served (E2 guard)', () => {
+  const pointless = (n, text) => Object.assign(fake.db.quiz_questions.find((q) => q.id === qid(n)), { question_text: text, media: {} });
+
+  test('E2 leaves it out; n counts only playable questions; a picture-pointing stem WITH its picture still plays', async () => {
+    fake.db.quiz_questions.find((q) => q.id === qid(1)).question_text = 'Look at the picture. Which part takes in water?';
+    pointless(3, 'Look at the pictures. Which one is a LEAF?');
+    const out = await WQ.getQuiz('AB12CD');
+    expect(out.quiz.n).toBe(3);
+    expect(out.quiz.questions.map((q) => q.qid)).toEqual([qid(1), qid(2), qid(4)]);
+    expect(out.quiz.questions.map((q) => q.i)).toEqual([1, 2, 3]);
+    expect(out.quiz.questions[0].img).toBeTruthy();
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.unplayable_skipped', expect.objectContaining({ quizId: QUIZ, n: 1, qids: [qid(3)] }));
+  });
+
+  test('the score and the half-answered floor count only playable questions; its qid is not an answer', async () => {
+    pointless(3, 'تصویریں دیکھیں۔ ان میں پتا کون سا ہے؟');
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Hina Example', force: true } });
+    const rec = await WQ.recordAnswers({ st: s.st, a: [{ qid: qid(1), slot: 'B' }, { qid: qid(3), slot: 'B' }] });
+    expect(rec.unknown).toEqual([qid(3)]);
+    // 1 of 3 playable answered: under half of 3 (need 2), so not yet a score
+    await expect(WQ.finishSession({ st: s.st })).rejects.toMatchObject({ status: 409, body: { need: 2 } });
+    await WQ.recordAnswers({ st: s.st, a: [{ qid: qid(2), slot: 'B' }, { qid: qid(4), slot: 'A' }] });
+    const out = await WQ.finishSession({ st: s.st });
+    expect(out.score).toMatchObject({ correct: 2, total: 3 });
+  });
+
+  test('words that only mention a picture, a quoted sentence, or a picture carried by the options still play', async () => {
+    pointless(2, 'Why is a convex mirror image called virtual?');
+    pointless(3, '“اس تصویر کو دیوار پر لٹکائیں” میں “لٹکائیں” کی جگہ کون سا لفظ آیا؟');
+    Object.assign(fake.db.quiz_questions.find((q) => q.id === qid(4)), {
+      question_text: 'Which picture shows a leaf?',
+      media: { web: { v: 2, type: 'picture', key: 'B', stem: 'Which picture shows a leaf?',
+        options: [{ slot: 'A', text: 'Root', pic: { kind: 'pictogram', name: 'root' } }, { slot: 'B', text: 'Leaf', pic: { kind: 'pictogram', name: 'leaf' } }, { slot: 'C', text: 'Stem', pic: { kind: 'pictogram', name: 'stem' } }] } },
+    });
+    const out = await WQ.getQuiz('AB12CD');
+    expect(out.quiz.n).toBe(4);
+  });
+});
+
+describe('E2 guard and the figure the page draws', () => {
+  test('a picture-pointing stem with a figure spec that draws is served WITH the figure; one that cannot draw is left out', async () => {
+    Object.assign(fake.db.quiz_questions.find((q) => q.id === qid(2)), {
+      question_text: 'Look at the diagram. How many parts are shaded?',
+      media: { figure: { type: 'fraction_bar', bars: [{ parts: 4, shaded: 1 }] }, language: 'en' },
+    });
+    Object.assign(fake.db.quiz_questions.find((q) => q.id === qid(3)), {
+      question_text: 'Look at the diagram. Which part is the root?',
+      media: { figure: { type: 'no_such_figure_type' } },
+    });
+    const out = await WQ.getQuiz('AB12CD');
+    const ids = out.quiz.questions.map((q) => q.qid);
+    expect(ids).not.toContain(qid(3));
+    const two = out.quiz.questions.find((q) => q.qid === qid(2));
+    expect(two && two.figure && two.figure.svg).toBeTruthy();
   });
 });
