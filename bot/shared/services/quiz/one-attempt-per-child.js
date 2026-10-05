@@ -21,8 +21,15 @@
  * number for one class, wherever it is shown. A reader must select student_id,
  * status, completed_at and created_at for the rule to see the attempts: a row
  * without student_id is counted as its own child.
+ *
+ * RULES. `latest_completed` (the default — every caller above) as described.
+ * `first_completed` keeps the EARLIEST completed attempt instead, else the
+ * latest row: the web quiz's rule, where a replay on a sibling's phone is
+ * practice and must not raise the class score. It is chosen per quiz by the
+ * caller (quizzes.meta.web_arm === 'web'), never globally.
  */
-function oneAttemptPerChild(sessions) {
+function oneAttemptPerChild(sessions, { rule = 'latest_completed' } = {}) {
+  const first = rule === 'first_completed';
   const rank = (s) => [
     s.status === 'completed' ? 1 : 0,
     String(s.completed_at || ''),
@@ -30,9 +37,12 @@ function oneAttemptPerChild(sessions) {
   ];
   const better = (a, b) => {
     const ra = rank(a); const rb = rank(b);
-    for (let i = 0; i < ra.length; i += 1) {
-      if (ra[i] > rb[i]) return true;
-      if (ra[i] < rb[i]) return false;
+    if (ra[0] !== rb[0]) return ra[0] > rb[0];
+    // Two completed attempts: the earlier finish wins under first_completed.
+    const flip = first && ra[0] === 1 ? -1 : 1;
+    for (let i = 1; i < ra.length; i += 1) {
+      if (ra[i] > rb[i]) return flip > 0;
+      if (ra[i] < rb[i]) return flip < 0;
     }
     return false;
   };
@@ -47,4 +57,9 @@ function oneAttemptPerChild(sessions) {
   return [...byChild.values(), ...loose];
 }
 
-module.exports = { oneAttemptPerChild };
+/** The rule for a quiz: first_completed for the web arm (meta.web_arm === 'web'), else the default. */
+function attemptRuleFor(meta) {
+  return meta && meta.web_arm === 'web' ? 'first_completed' : 'latest_completed';
+}
+
+module.exports = { oneAttemptPerChild, attemptRuleFor };
