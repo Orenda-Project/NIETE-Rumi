@@ -1341,7 +1341,7 @@ see §3.28 for the local-only L6 pronoun-rule edit. Verify with §6's diff comma
 
 ---
 
-### 3.29 Urdu section and support-page badges — `lib/overlay.js`, `lib/template.js` (2026-10-05, bd-psa3u)
+### 3.30 Urdu section and support-page badges — `lib/overlay.js`, `lib/template.js` (2026-10-05, bd-psa3u)
 
 Amena (5 Oct): "Urdu should have everything in Urdu", then "change the badges too". Urdu LPs printed
 Latin I/D/A/C/H on the section bands, A/B/C on the support-page bands, and "1." in the board-order list.
