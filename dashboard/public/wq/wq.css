@@ -53,7 +53,7 @@ html[lang=ur] .wq-btn{font-weight:700;font-size:19px;line-height:1.9}
 .wq-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;font-weight:800;font-size:13px;background:var(--paper-2);color:var(--navy)}
 .wq-chips{display:flex;flex-wrap:wrap;gap:10px}
 .wq-kid{display:flex;align-items:center;gap:8px;min-height:56px;border-radius:16px;border:2px solid var(--line);background:var(--card);padding:6px 14px 6px 8px;font-weight:900;font-size:18px;color:var(--navy);cursor:pointer}
-.wq-kid .wq-ani{font-size:28px;width:40px;height:40px;display:grid;place-items:center;background:var(--paper-2);border-radius:50%}
+.wq-kid .wq-ani{font-family:var(--f);line-height:1;font-size:28px;width:40px;height:40px;display:grid;place-items:center;background:var(--paper-2);border-radius:50%}
 .wq-input{width:100%;min-height:58px;border-radius:16px;border:2px solid var(--line);background:#fff;padding:8px 14px;font-size:22px;font-weight:800;color:var(--navy)}
 .wq-input:focus{outline:3px solid var(--green);outline-offset:1px}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
