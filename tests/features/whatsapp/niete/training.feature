@@ -1436,3 +1436,18 @@ Feature: NIETE (ICT) Teacher Training
     Then the question tests the correct fact and quotes the moment the correct fact was said
     And the slip is recorded on the quiz for my report to use later, and nothing in my report changes yet
     # teaching_error per question -> quizzes.meta.source_fidelity.teaching_errors [{question, said, correct, quote}]. @wip.
+
+  @api @quiz @wip @draft @config-gated @P1 @T121 @no-mock-driver
+  Scenario: With the author gates on, a question that is wrong, unanswerable or about the teacher is rewritten, never sent
+    Given app_settings "quiz_author_gates_v2" is true
+    When my class quiz is made from my lesson
+    Then a question whose sum the key does not answer, or whose explanation does a sum wrong, arrives at a wrong option, or claims a regroup no column needs, is rewritten before it is sent
+    And a question that points at a picture (the picture, the clock, the bar, the box, تصویر, خانے) is sent only with that picture, and the picture carries every number the question uses
+    And a question about what the teacher said, did or thought, or a letter question with a digit or an English letter among its options, is rewritten
+    And a question whose explanation says the lesson never gave its answer is rewritten
+    And a key that is only the closest option, not a fully correct answer, is flagged by the blind solve and rewritten
+    And a web item whose read-aloud text starts with an option letter ("A: …") plays as its row instead
+    And with the setting absent or false, the quiz is made exactly as before
+    # quiz-author-gates-v2.js questionErrors, wired in transcript-quiz-validator validate() (q-named complaints -> the
+    # existing targeted rewrite); STRICT_KEY_RULE in transcript-quiz-key-verify; readTextFaults in web-quiz-items normaliseItem.
+    # Unit: tests/quiz/quiz-author-gates-v2.test.js. @wip.

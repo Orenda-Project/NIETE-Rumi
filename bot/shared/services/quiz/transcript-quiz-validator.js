@@ -30,6 +30,7 @@ const { questionAddressForms } = require('./transcript-quiz-address');
 const { lessonLexicon, questionAdjacentTerms } = require('./transcript-quiz-adjacent-terms');
 const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
 const { keyByAuthorityError } = require('./transcript-quiz-key-authority');
+const GatesV2 = require('./quiz-author-gates-v2');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -649,6 +650,15 @@ function validate(rawQuestions, ctx = {}) {
         .forEach((d) => errs.push(`q${i}: RELIGIOUS_MARKS — ${d}`));
     }
     if (texts.some((t) => LETTER_REF.test(t))) errs.push(`q${i}: letter reference`);
+
+    // Gates v2 (app_settings quiz_author_gates_v2, off by default): the key and
+    // the why recomputed, the picture a stem points at, the prose rules. Each is
+    // a q-named complaint, so the targeted rewrite repairs it.
+    if (GatesV2.enabled(ctx.authorGates)) {
+      errs.push(...GatesV2.questionErrors({ ...p, figure: q.figure, media: q.media }, i, {
+        legacyPictureComplaint: q.figure == null && STEM_PROMISES_PICTURE.test(stem),
+      }));
+    }
 
     // ── the figure, if this question carries one ────────────────────────────
     // Each check gets its OWN error string: the retry prompt quotes these back

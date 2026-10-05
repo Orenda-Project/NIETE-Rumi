@@ -69,6 +69,7 @@ const { completeJson } = require('./transcript-quiz-llm');
 const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
 const Multi = require('./transcript-quiz-multi');
 const { todaysModel } = require('../../config/model-registry');
+const GatesV2 = require('./quiz-author-gates-v2');
 
 const LABEL = 'transcript_quiz.key_verify';
 /** The second solve, without the lesson: its own label in the logs, the same job and spend line. */
@@ -175,6 +176,8 @@ function buildVerifyPrompt({
   items, language, grade = null, subject = null, digest = null, lessonSummary = null, withLesson = true,
   // the full solve with the lesson also names the questions asked twice (verifyKeys decides)
   askSameFact = false,
+  // gates v2: the key must be fully correct as a statement, never the closest option
+  strictKey = false,
 }) {
   const lang = LANG_NAME[language] || 'the quiz\'s own language';
   // Without the lesson, nothing about it reaches the prompt — not the summary,
@@ -205,6 +208,7 @@ function buildVerifyPrompt({
       : 'You are told NOTHING about the lesson, on purpose. Decide every question from the subject alone — the definition, the rule, the sum, the spelling, the picture\'s data — exactly as a careful teacher who knows the subject would. An option is correct only if it is right by the subject; never pick the least wrong one — a name the subject does not use for the thing asked about, a wrong formula or a wrong meaning is not correct because the other options are worse. If a question can only be answered from what happened in that class (a story read there, the class\'s own example, what was said or done in the room), set "unsure": true for it.',
     `THE QUESTIONS\n\n${blocks}`,
     `For EACH question, list in "correct" EVERY option number that is a correct answer to the question exactly as it is asked — every option a careful teacher would mark right. If two options are both right (for example, the same letters in a different order when the question does not ask about their order), list both. If no option is right, give an empty list. Judge what is written, not what the question-writer probably meant. If you cannot decide without something you were not given (the lesson itself, or a picture you cannot read from its data), set "unsure": true. In "note", say in one short line why — for a wrong or doubled option, name the fact (for example: "قلم is spelled ق ل م, not ک ل م").`,
+    strictKey ? GatesV2.STRICT_KEY_RULE : null,
     askSameFact ? SAME_FACT_RULE : null,
     `Return ONLY this JSON object, one entry per question above, "index" being the number after its q:
 { "answers": [ { "index": ${arr(items)[0] ? items[0].index : 0}, "correct": [0], "unsure": false, "note": "" } ]${askSameFact ? ', "same_fact": []' : ''} }`,
@@ -312,7 +316,7 @@ function disagreementComplaint(verdict, q) {
  */
 async function verifyKeys({
   questions, indices = null, language, grade = null, subject = null, digest = null, lessonSummary = null, quizId = null,
-  withLesson = true, again = false,
+  withLesson = true, again = false, strictKey = GatesV2.enabled(),
 }) {
   const qs = arr(questions);
   const idx = Array.isArray(indices) ? indices.filter((i) => Number.isInteger(i) && qs[i]) : qs.map((_, i) => i);
@@ -323,7 +327,7 @@ async function verifyKeys({
   // solver's slip between an option's position and its text cannot survive.
   const items = idx.map((i) => itemFor(qs[i], i, again ? `${quizId || ''}:again` : quizId));
   const prompt = buildVerifyPrompt({
-    items, language, grade, subject, digest, lessonSummary, withLesson, askSameFact,
+    items, language, grade, subject, digest, lessonSummary, withLesson, askSameFact, strictKey,
   });
   const label = withLesson ? LABEL : BARE_LABEL;
   const requested = verifyModel();
