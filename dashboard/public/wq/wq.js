@@ -104,7 +104,7 @@ var WQI = (function () {
   function tex(s) {
     return String(s == null ? '' : s).split(/(\$[^$]*\$)/).map(function (seg) {
       if (seg.length > 1 && seg[0] === '$' && seg[seg.length - 1] === '$') {
-        return '<math class="wq-m">' + texParse(texTokens(seg.slice(1, -1)), { i: 0 }) + '</math>';
+        return '<math class="wq-m" dir="ltr">' + texParse(texTokens(seg.slice(1, -1)), { i: 0 }) + '</math>';
       }
       return esc(seg);
     }).join('');
@@ -186,8 +186,11 @@ var WQI = (function () {
     var rd = q.read || {};
     var parts = [];
     var fg = q.figure || {};
-    if (fg.say && speakable(fg.say)) parts.push({ text: fg.say, url: null });
+    // A stem that already points at the picture does not need the figure's own pointer first.
+    var points = /\b(look|picture|diagram|figure|drawing)\b|تصویر|شکل|خاکہ/i.test(String(q.text || ''));
+    if (fg.say && speakable(fg.say) && !points) parts.push({ text: fg.say, url: null });
     parts.push({ text: rd.stem || say(q.text, lang), url: (au && au.q) || null });
+    if (au && au.stim) parts.push({ text: '', url: au.stim, stim: true });
     if (kind(q) === 'match') (q.left || []).forEach(function (l) { if (speakable(l.text)) parts.push({ text: say(l.text, lang), url: null }); });
     if (kind(q) === 'label') return parts;
     opts(q).forEach(function (o, k) {
@@ -225,9 +228,10 @@ var WQI = (function () {
   }
   function itemHtml(q, T, lang) {
     var k = kind(q), o = opts(q);
+    var stim = q.audio && q.audio.stim ? '<button class="wq-btn wq-soft" id="wq-stim"><span aria-hidden="true">🔔</span> ' + esc(T.playSound || '') + '</button>' : '';
     var stem = k === 'listen'
-      ? '<div class="wq-qcard wq-listen"><button class="wq-spk wq-spk-big" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">🔊</button><p class="wq-qtext wq-qsmall">' + tex(q.text) + '</p></div>'
-      : '<div class="wq-qcard"><p class="wq-qtext">' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">🔊</button></div>';
+      ? '<div class="wq-qcard wq-listen"><button class="wq-spk wq-spk-big" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">🔊</button><p class="wq-qtext wq-qsmall">' + tex(q.text) + '</p>' + stim + '</div>'
+      : '<div class="wq-qcard"><p class="wq-qtext">' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">🔊</button></div>' + stim;
     var body = '';
     var pics = o.length && o.every(function (x) { return x.img || (x.pic && x.pic.svg); });
     if (k === 'picture' || (k === 'listen' && pics)) {
@@ -414,7 +418,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       how: [['🔊', 'Listen to each question'], ['👆', 'Tap a colour or a picture'], ['🙋', 'Stuck? Help comes']],
       qof: function (i, n) { return 'Question ' + i + ' of ' + n; }, listen: 'Listen again', helpAgain: 'Shall we listen again?',
       orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap a word, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
-      zoom: 'Make the picture bigger', close: 'Close', yes: 'True', no: 'False',
+      zoom: 'Make the picture bigger', close: 'Close', playSound: 'Play the sound', yes: 'True', no: 'False',
       right: ['Yes! You found it.', 'You checked carefully!', 'Right! Well looked.', 'Yes! You kept going.', 'You got it!'],
       notyet: function (r) { return 'Not yet. It\'s "' + r + '".'; }, next: 'Next', again: 'This one comes back at the end, to fix together.',
       half: 'Halfway there!',
@@ -452,7 +456,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       how: [['🔊', 'ہر سوال سنیں'], ['👆', 'رنگ یا تصویر پر ٹیپ کریں'], ['🙋', 'مشکل ہو تو مدد ملے گی']],
       qof: function (i, n) { return 'سوال ' + i + ' از ' + n; }, listen: 'دوبارہ سنیں', helpAgain: 'کیا دوبارہ سنیں؟',
       orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک لفظ پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
-      zoom: 'تصویر بڑی کریں', close: 'بند کریں', yes: 'درست', no: 'غلط',
+      zoom: 'تصویر بڑی کریں', close: 'بند کریں', playSound: 'آواز سنیں', yes: 'درست', no: 'غلط',
       right: ['جی ہاں! آپ نے ڈھونڈ لیا۔', 'آپ نے غور سے دیکھا!', 'بالکل درست!', 'جی ہاں! آپ نے کوشش جاری رکھی۔', 'شاباش، درست!'],
       notyet: function (r) { return 'ابھی نہیں۔ جواب ہے: ' + r; }, next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
       half: 'آدھا راستہ طے!',
@@ -886,6 +890,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       speakSeq(readParts(q), function () { var b2 = $('#wq-spk'); if (b2) b2.classList.remove('wq-speaking'); armHelp(); });
     }
     on('#wq-spk', function () { ev('listen', { qid: q.qid }); read(); });
+    on('#wq-stim', function () { ev('listen', { qid: q.qid, stim: 1 }); var au = q.audio || {}; if (au.stim) speak('', au.stim, null); });
     read();
 
     WQI.wire(ROOT, q, answer);
