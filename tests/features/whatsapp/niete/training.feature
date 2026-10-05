@@ -1674,6 +1674,19 @@ Feature: NIETE (ICT) Teacher Training
     # generate LEAK_FAULT (soft, re-asked in place); LEAK_REPAIR in transcript-quiz-rewrite.
     # Unit: tests/quiz/quiz-author-gates-answer-leak.test.js. @wip.
 
+  @api @quiz @wip @draft @config-gated @P2 @T183 @no-mock-driver
+  Scenario: With the author gates on, a question asks about the idea, not about what the lesson said
+    Given app_settings "quiz_author_gates_v2" is true
+    And a question begins "The lesson mentioned that…" or asks "according to the lesson"
+    When my class quiz is made from my lesson
+    Then the same question is sent asking about the idea itself, with the same answer
+    And if that repair does not take the quiz is still sent, with the fault counted
+    And a word problem set in a class, a question about a story, or the moral of a story is left alone
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-meta-stem metaStemError (META_STEM), wired in transcript-quiz-validator validate();
+    # generate META_FAULT (soft, in place); META_REPAIR in transcript-quiz-rewrite.
+    # Unit: tests/quiz/quiz-author-gates-meta-stem.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T110 @no-mock-driver
   Scenario: A question that sends the child to a picture it does not have is left out of my web quiz
     Given my web quiz has four questions
