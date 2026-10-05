@@ -125,3 +125,30 @@ describe('a reload in the middle of the lesson video', () => {
     expect(p.moment()).toBe('M6');
   });
 });
+
+describe('small copy fixes on the after-quiz screens', () => {
+  test('"today" shows the number once: the caption does not repeat it', () => {
+    const p = page({ lang: 'en', store: finished() });
+    p.ctx.__wq.today();
+    const h = p.html();
+    expect(h).toContain('children played today');
+    expect(h).not.toMatch(/0 children in Islamabad played today/);
+  });
+
+  test('the league table\'s button after a finished quiz says where it goes ("My scores"), not just "Next"', async () => {
+    const { flush } = require('./wq-page-harness');
+    const p = page({ lang: 'ur', store: finished(), board: { finishers_n: 1, class_avg_pct: 60, rows: [] } });
+    p.ctx.__wq.board();
+    await flush();
+    expect(p.html()).toMatch(/id="wq-next">میرے اسکور</);
+  });
+
+  test('a zero score is shared as "played", never as a score to beat', () => {
+    const zero = { wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [], result: { ...RESULT, card: { ...RESULT.card, correct: 0, stars: 0 } } } };
+    const p = page({ lang: 'en', store: zero });
+    p.els['#wq-chal'].fire('click');
+    const href = waHref(p);
+    expect(href).toContain('Zara played Plants. Your turn!');
+    expect(href).not.toContain('0/5');
+  });
+});

@@ -456,6 +456,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       cont: function (i, n) { return 'Continue ' + i + '/' + n; }, contSay: function (n) { return 'Welcome back, ' + n + '! Your answers are saved.'; }, restart: 'Start again',
       fbT: 'Send it on WhatsApp', fbSub: 'Tap the green button, then pick the chat.', fbWa: 'Send on WhatsApp', fbCopy: 'Copy the message', copied: 'Message copied',
       backAgain: 'Your answers are saved. Press back again to leave.',
+      todaySub: 'children played today', myScores: 'My scores',
+      sharePlayed: function (w, t) { return w + ' played ' + t + '. Your turn!'; },
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
@@ -495,6 +497,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       cont: function (i, n) { return 'جاری رکھیں ' + i + '/' + n; }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں',
       fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'ہرا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا',
       backAgain: 'آپ کے جواب محفوظ ہیں۔ باہر جانے کے لیے دوبارہ بیک دبائیں۔',
+      todaySub: 'بچوں نے آج کھیلا', myScores: 'میرے اسکور',
+      sharePlayed: function (w, t) { return w + ' نے ' + t + ' کھیلا۔ اب آپ کی باری!'; },
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + t + ' میں سے ' + s + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
@@ -1231,8 +1235,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The class group gets the CLASS link: a classmate who joined through a friend's challenge code would
     // count as that child's friend and drop out of the teacher's class report.
     var classUrl = link('/q/' + CODE);
-    on('#wq-share', function () { share(T.shareLine(c.first, c.correct, total, Q.topic), classUrl, 'card'); });
-    on('#wq-chal', function () { share(T.shareLine(c.first, c.correct, total, Q.topic), chalUrl, 'challenge'); });
+    // A zero is shared as "played", never as a score for the group to beat.
+    var line = c.correct ? T.shareLine(c.first, c.correct, total, Q.topic) : T.sharePlayed(c.first, Q.topic);
+    on('#wq-share', function () { share(line, classUrl, 'card'); });
+    on('#wq-chal', function () { share(line, chalUrl, 'challenge'); });
     on('#wq-class', board);
   }
 
@@ -1264,7 +1270,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<span>' + esc(T.avg) + '</span><span>' + esc(b.class_avg_pct || 0) + '%</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (b.class_avg_pct || 0) + '%"></b></div></div>' +
         '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
         '<button class="wq-btn wq-go" id="wq-share-t">' + esc(T.shareTable) + '</button>' +
-        (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.next) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
+        (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.myScores) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
       render(h, 'M11');
       wireBar();
       ev('board_view', { src: B.view === 'class' ? 'class_link' : 'page', i: b.finishers_n });
@@ -1304,7 +1310,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar() + jug('sleep', T.rest, true) +
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.todayT) + '</p>' +
       '<div class="wq-big">' + esc(fmtN(LIVE.ict_today_floor || 0)) + '</div>' +
-      '<p class="wq-sub">' + esc(T.proof(LIVE.ict_today_floor || 0)) + '</p></div>' +
+      '<p class="wq-sub">' + esc(T.todaySub) + '</p></div>' +
       '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
     render(h, 'M14');
     wireBar();
