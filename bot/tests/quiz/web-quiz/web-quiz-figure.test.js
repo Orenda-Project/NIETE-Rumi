@@ -221,4 +221,20 @@ describe('E2 carries figures, not cards', () => {
     expect(unnamed.options.some((o) => /Picture/.test(JSON.stringify(o)))).toBe(false);
     expect(unnamed.options.every((o) => o.img)).toBe(true);
   });
+
+  test('a match figure names its rows P, Q, R, so they cannot be mistaken for the A, B, C answer badges', async () => {
+    const MATCH = { type: 'match', left: ['cat', 'dog', 'cow'], right: ['meow', 'woof', 'moo'] };
+    seed([row(1, { language: 'en', display_order: [0, 1, 2], figure: MATCH }, {
+      question_text: 'Match A, B and C to their sounds.',
+      option_a: 'A-2, B-1, C-3', option_b: 'A-1, B-2, C-3', option_c: 'A-3, B-2, C-1', correct_option: 'B',
+      explanation: 'A cat says meow, so A goes with 1.',
+    })]);
+    const q = (await WQ.getQuiz('AB12CD')).quiz.questions[0];
+    expect(q.figure.svg).toMatch(/>P</);
+    expect(q.figure.svg).not.toMatch(/>[ABC]</);
+    expect(q.text).toBe('Match P, Q and R to their sounds.');
+    expect(q.options.map((o) => o.text)).toEqual(['P-2, Q-1, R-3', 'P-1, Q-2, R-3', 'P-3, Q-2, R-1']);
+    expect(q.why).toBe('A cat says meow, so P goes with 1.');
+    expect(q.correct_slot).toBe('B');
+  });
 });

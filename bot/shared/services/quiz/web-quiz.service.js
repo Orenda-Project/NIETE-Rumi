@@ -178,7 +178,9 @@ function inDisplayOrder(q, options) {
   }
 }
 
-function questionPayload(q, i, code, audio) {
+function questionPayload(row, i, code, audio) {
+  // A figure's own A-D part names become P-S everywhere the page shows them.
+  const q = Figure.withPartLetters(row);
   const options = [];
   [q.option_a, q.option_b, q.option_c, q.option_d].forEach((text, idx) => {
     if (text == null || String(text).trim() === '') return;
