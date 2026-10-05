@@ -13,10 +13,5 @@
     "from": "bot/workers/pic-lp-kieai.worker.js",
     "spec": "../shared/services/lp-feedback.service",
     "reason": "Same OSS-stripped service as homework-bundle; lazy-required inside the post-delivery branch."
-  },
-  {
-    "from": "bot/shared/services/quiz/web-quiz.service.js",
-    "spec": "./web-quiz-media",
-    "reason": "The web quiz's audio/video presign helpers ship in a sibling change. The require is inside a try/catch (mediaHelpers()); without the module E2 serves no audio and no video, never an error."
   }
 ]
