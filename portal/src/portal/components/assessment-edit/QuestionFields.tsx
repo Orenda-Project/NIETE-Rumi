@@ -27,7 +27,9 @@ const QuestionFields = ({ fields, rtl, error, busy, onDone, onCancel }: Props) =
   const [passage, setPassage] = useState(fields.passage ?? '');
 
   const done = () => {
-    const edit: Record<string, unknown> = { question, marks };
+    // question only when changed: the bot refuses '' and a passage parent often has none
+    const edit: Record<string, unknown> = { marks };
+    if (question !== fields.question) edit.question = question;
     if (fields.shape === 'options') {
       edit.slots = slots;
       if (fields.msq) edit.answer = answer; else edit.correct = correct;

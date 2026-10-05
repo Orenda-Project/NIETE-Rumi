@@ -13,7 +13,7 @@ it('options: edits option text and the correct one', () => {
   fireEvent.change(screen.getByLabelText('Option 2'), { target: { value: 'B) jump' } });
   fireEvent.click(screen.getByLabelText('Option 2 is correct'));
   fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-  expect(onDone).toHaveBeenCalledWith({ question: 'Q', marks: '1', slots: ['A) run', 'B) jump', '', '', '', ''], correct: '1' });
+  expect(onDone).toHaveBeenCalledWith({ marks: '1', slots: ['A) run', 'B) jump', '', '', '', ''], correct: '1' });
 });
 
 it('columns: edits pairs', () => {
@@ -32,7 +32,7 @@ it('standard: answer and lines when the type has lines', () => {
     rtl={false} error={null} busy={false} onDone={onDone} onCancel={() => {}} />);
   fireEvent.change(screen.getByLabelText('Answer'), { target: { value: 'B' } });
   fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-  expect(onDone).toHaveBeenCalledWith({ question: 'Q', marks: '1', answer: 'B', lines: '4', linesDefault: 4 });
+  expect(onDone).toHaveBeenCalledWith({ marks: '1', answer: 'B', lines: '4', linesDefault: 4 });
 });
 
 it('passage and comprehension edit the passage', () => {
@@ -49,4 +49,35 @@ it('shows the bot error and rtl direction', () => {
     busy={false} onDone={() => {}} onCancel={() => {}} />);
   expect(screen.getByText('The question cannot be empty.')).toBeTruthy();
   expect(container.querySelector('[dir="rtl"]')).toBeTruthy();
+});
+
+it('comprehension with an empty parent question: only the passage change is sent, no question key', () => {
+  const onDone = vi.fn();
+  render(<QuestionFields fields={{ ...base, question: '', shape: 'comprehension', passage: 'P', subs: [] }}
+    rtl={false} error={null} busy={false} onDone={onDone} onCancel={() => {}} />);
+  fireEvent.change(screen.getByLabelText('Passage'), { target: { value: 'P2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  const edit = onDone.mock.calls[0][0];
+  expect(edit).toMatchObject({ passage: 'P2' });
+  expect('question' in edit).toBe(false);
+});
+
+it('a changed question is sent', () => {
+  const onDone = vi.fn();
+  render(<QuestionFields fields={{ ...base, shape: 'standard' }} rtl={false} error={null} busy={false} onDone={onDone} onCancel={() => {}} />);
+  fireEvent.change(screen.getByLabelText('Question'), { target: { value: '' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  expect(onDone.mock.calls[0][0].question).toBe('');
+});
+
+it('msq options: sends answer, no correct, no correct radios', () => {
+  const onDone = vi.fn();
+  render(<QuestionFields fields={{ ...base, shape: 'options', slots: ['A', 'B', '', '', '', ''], answer: 'A, B', msq: true, correct: '0' }}
+    rtl={false} error={null} busy={false} onDone={onDone} onCancel={() => {}} />);
+  expect(screen.queryByLabelText('Option 1 is correct')).toBeNull();
+  fireEvent.change(screen.getByLabelText('Answer'), { target: { value: 'A' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  const edit = onDone.mock.calls[0][0];
+  expect(edit.answer).toBe('A');
+  expect('correct' in edit).toBe(false);
 });
