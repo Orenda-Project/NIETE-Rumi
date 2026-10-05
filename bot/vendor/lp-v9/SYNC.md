@@ -1371,6 +1371,15 @@ the output is byte-identical. The painter is supplied by `bot/shared/services/qu
 (Microsoft Fluent Emoji Flat, MIT). Test: `bot/tests/quiz/web-quiz/web-quiz-pictures.test.js`.
 Upstream has no web page, so this stays local; keep it at the next re-sync.
 
+### 3.32 A narrow base-ten mat — `types/base_ten.js` `stack` (2026-10-06)
+
+`stack: true` puts each hundred and thousand on its own line in its column, so the mat is
+narrow and tall instead of wide. The web quiz page asks for it (web-quiz-figure `forPage`):
+three flats side by side made an 849-unit mat whose tens rods drew 6.5 px wide in a 344 px
+phone box; stacked they draw ~9 px (the mat is then bound by the page's 46% height). A
+stacked column's minimum width is one piece, not two. Absent (the lesson-plan lane, the
+WhatsApp PNG) the output is byte-identical.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
