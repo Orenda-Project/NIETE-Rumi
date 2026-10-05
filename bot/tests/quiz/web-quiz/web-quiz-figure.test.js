@@ -197,7 +197,7 @@ describe('E2 carries figures, not cards', () => {
   });
 
   test('picture options from the v2 item arrive as drawings on their slots', async () => {
-    seed([row(1, { language: 'en', web: { v: 2, type: 'picture', options: [
+    seed([row(1, { language: 'en', display_order: [0, 1, 2], web: { v: 2, type: 'picture', options: [
       { slot: 'A', text: 'apple', pic: { kind: 'pictogram', name: 'apple' } },
       { slot: 'B', text: 'cat', pic: { kind: 'pictogram', name: 'cat' } },
       { slot: 'C', text: 'bus', pic: { kind: 'pictogram', name: 'bus' } },
