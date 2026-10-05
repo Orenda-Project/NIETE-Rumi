@@ -16,6 +16,7 @@ const ReadingAssessmentService = require('./shared/services/reading-assessment.s
 
 // Import Handlers
 const { handleTextMessage, isSelectVideoButton } = require('./shared/handlers/text-message.handler');
+const { matchHosVideoButton, sendHosVideo } = require('./shared/handlers/hos-broadcast-video');
 // bd-ri5o9.1 — the report-invite template's QUICK_REPLY had no reader at all.
 const { matchObserveReportTap, isObserveReportTapText } = require('./shared/services/observe/report-tap-routing');
 const { handleVoiceMessage } = require('./shared/handlers/voice-message.handler');
@@ -1499,6 +1500,16 @@ app.post('/webhook', async (req, res) => {
       // Meta strips the payload on some registrations.
       else if (isSelectVideoButton({ buttonPayload, buttonText })) {
         await openStudentVideosFlowFromCta(message, from, user);
+      }
+      // bd-07cjd — head-of-school broadcast: "Lesson Plans video" /
+      // "Teacher Training video" reply with that video. MUST stay above the
+      // bd-kggts fallthrough, where "Lesson Plans video" reads as an LP request.
+      else if (matchHosVideoButton({ buttonPayload, buttonText })) {
+        await sendHosVideo(matchHosVideoButton({ buttonPayload, buttonText }), from, {
+          sendVideoByLink: (to, url) => WhatsAppService.sendVideoByLink(to, url),
+          sendMessage: (to, text) => WhatsAppService.sendMessage(to, text),
+          log: (event, data) => logToFile('🎬 HoS broadcast video tap', { event, ...data, userId: user?.id || null }),
+        });
       }
       // bd-ri5o9.1 — the teacher tapped "Get Report" on the report-invite
       // template. MUST stay above the bd-kggts fallthrough: below it this branch
