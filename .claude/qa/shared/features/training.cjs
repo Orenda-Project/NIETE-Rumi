@@ -1707,3 +1707,10 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       { reason: APP_REDIRECT_WHY }, 0);
 
 };
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T100', 'With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat', 'BLOCKED',
+      { reason: 'config-gated: needs app_settings web_quiz_enabled + web_quiz_teachers on the lane DB; unit-covered by tests/quiz/web-quiz-link.test.js' }, 0);
+
