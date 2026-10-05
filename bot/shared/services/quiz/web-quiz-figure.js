@@ -167,12 +167,24 @@ function withLabel(svg, alt) {
     : svg.replace(/^<svg/, `<svg aria-label="${label}"`);
 }
 
+// A review of the question's picture against its stem and key (media.picture_check,
+// written by the picture review). A picture that contradicts the key (the key says
+// the cat slept, the picture shows it awake) or ignores the question (asks who lived
+// in the forest, shows only trees) is never shown on the page, drawn or as a file.
+// WhatsApp does not read it.
+const PICTURE_HIDDEN = new Set(['contradicts', 'ignores']);
+function pictureHidden(media) {
+  const c = media && media.picture_check;
+  return Boolean(c && PICTURE_HIDDEN.has(c.verdict));
+}
+
 /**
  * The figure the page shows for one quiz_questions row, or null.
  * @returns {null | {kind:'svg', svg, type, w, h, alt, say, dir} | {kind:'img', src:'question_image', type, alt, say, dir}}
  */
 function figureFor(row) {
   const media = (row && row.media) || {};
+  if (pictureHidden(media)) return null;
   const lang = clampLanguage(media.language);
   const dir = dirOf(lang);
   const v2 = media.web && media.web.figure && typeof media.web.figure === 'object' ? media.web.figure : null;
@@ -318,4 +330,4 @@ function withPartLetters(row) {
   };
 }
 
-module.exports = { figureFor, optionPic, drawOptionPics, pictureOptionName, withPartLetters, safeSvg, wordsFor };
+module.exports = { pictureHidden, figureFor, optionPic, drawOptionPics, pictureOptionName, withPartLetters, safeSvg, wordsFor };
