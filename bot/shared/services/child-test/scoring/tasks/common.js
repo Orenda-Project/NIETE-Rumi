@@ -245,6 +245,28 @@ function untimedScore(rows) {
   };
 }
 
+/**
+ * A finished child's time left, from where the LAST WORDS of the printed text are heard (the latest match of
+ * the final 3 items after the begin line). Speaker labels are not used: when diarization puts the reading on
+ * the coach's speaker, "the child's last word" lands early and a 65-per-minute reader shows 184
+ * (bd-s1oo0.50.11). null when the ending is not heard (or the items are not words), so the caller falls back.
+ */
+function endByPassage({ words, begin, rows }) {
+  const refs = rows.map((r) => r.ref).filter((x) => typeof x === 'string' && /\S/.test(x));
+  if (refs.length < 3 || refs.length !== rows.length) return null;
+  const phrase = refs.slice(-3).join(' ');
+  let hit = null;
+  let after = begin - 0.5;
+  for (let guard = 0; guard < 50; guard += 1) {
+    const h = findPhrase(words, phrase, { after, before: begin + SECONDS + 2 });
+    if (!h) break;
+    hit = h;
+    after = h.start + 0.01;
+  }
+  if (!hit) return null;
+  return Math.max(0, round1(SECONDS - (hit.end - begin)));
+}
+
 /** Timed summary from rows + clock. */
 function timedSummary({ rows, clock, words, durationSec, stopped }) {
   const begin = clock.begin_at_s;
@@ -252,7 +274,8 @@ function timedSummary({ rows, clock, words, durationSec, stopped }) {
   rows.forEach((r) => { if (r.verdict !== 'not_reached') attempted = r.i; });
   const correct = stopped ? 0 : rows.filter((r) => r.verdict === 'correct').length;
   const finished = !stopped && rows.length > 0 && attempted === rows.length;
-  const remaining = timeRemaining({ words, begin, coachSpeaker: clock.coachSpeaker, finished });
+  const byPassage = finished ? endByPassage({ words, begin, rows }) : null;
+  const remaining = byPassage != null ? byPassage : timeRemaining({ words, begin, coachSpeaker: clock.coachSpeaker, finished });
   const endAt = Number.isFinite(durationSec) ? Math.min(begin + SECONDS, durationSec) : begin + SECONDS;
   return {
     seconds_given: SECONDS,
