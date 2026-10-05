@@ -68,20 +68,27 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
     return () => { cancelled = true; };
   }, [open, paperId]);
 
-  useEffect(() => { if (paper) saveDraft(draft); }, [draft, paper]);
+  useEffect(() => {
+    if (!paper || offerDraft) return;
+    if (isDirty(draft)) saveDraft(draft); else clearDraft(paperId);
+  }, [draft, paper, offerDraft, paperId]);
 
   const visible = useMemo(() => items.map((it) => ({
     it,
     removed: isRemovedNow(draft, it.id, it.removed),
     edited: Object.keys(draft.edits).some((k) => k.split('#')[0] === it.id),
-    marks: draft.edits[it.id]?.marks ?? it.marks,
+    marks: (draft.edits[it.id]?.marks ?? it.marks) + (it.subs ?? []).reduce((sum, s) => {
+      const e = draft.edits[`${it.id}#${s.index}`];
+      return e && e.edit.marks != null ? sum + (Number(e.edit.marks) - Number(s.fields.marks || 0)) : sum;
+    }, 0),
     text: draft.edits[it.id]?.text ?? it.text,
   })), [items, draft]);
 
   const kept = visible.filter((v) => !v.removed);
   const count = kept.length + draft.added.length;
   const marks = kept.reduce((s, v) => s + v.marks, 0) + draft.added.reduce((s, a) => s + a.marks, 0);
-  const canSave = isDirty(draft) && count > 0 && !busy && !editing;
+  const locked = !!offerDraft;
+  const canSave = isDirty(draft) && count > 0 && !busy && !editing && !locked;
 
   const done = async (edit: Record<string, unknown>) => {
     if (!editing) return;
@@ -90,7 +97,12 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
       const body = editing.kind ? { kind: editing.kind, edit } : { id: editing.id, edit: editing.subIndex != null ? { ...edit, subIndex: editing.subIndex } : edit };
       const r = await portal.validateAssessmentEdit(paperId, body);
       if (editing.kind) setDraft((d) => addQuestion(d, { kind: editing.kind!, edit, marks: r.marks, text: r.text }));
-      else setDraft((d) => setEdit(d, editing.key, { edit: body.edit as Record<string, unknown>, marks: r.marks, text: r.text }));
+      else {
+        const isSub = editing.subIndex != null;
+        const orig = isSub ? items.find((i) => i.id === editing.id)?.subs?.find((s) => s.index === editing.subIndex)?.fields.question : undefined;
+        const text = isSub ? String(edit.question ?? orig ?? '') : r.text;
+        setDraft((d) => setEdit(d, editing.key, { edit: body.edit as Record<string, unknown>, marks: r.marks, text }));
+      }
       setItemErrors((e) => { const n = { ...e }; delete n[editing.key]; return n; });
       setEditing(null);
     } catch (err) {
@@ -109,9 +121,16 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
       const m = messageOf(err);
       if (m.data?.code === 'INVALID_CHANGES' && m.data.errors) {
         const byKey: Record<string, string> = {};
-        for (const e of m.data.errors) byKey[e.id ?? `added#${e.addedIndex}`] = e.message;
+        const orphans: string[] = [];
+        for (const e of m.data.errors) {
+          const msg = e.subIndex != null ? `Part ${e.subIndex + 1}: ${e.message}` : e.message;
+          const key = e.id ?? (e.addedIndex != null ? `added#${e.addedIndex}` : null);
+          if (!key) { orphans.push(e.message); continue; }
+          byKey[key] = byKey[key] ? `${byKey[key]} ${msg}` : msg;
+        }
         setItemErrors(byKey);
-        setSaveError('Some questions need fixing — see below.');
+        const hasCards = Object.keys(byKey).length > 0;
+        setSaveError(orphans.length ? (hasCards ? `Some questions need fixing — see below. ${orphans.join(' ')}` : orphans.join(' ')) : 'Some questions need fixing — see below.');
       } else {
         setSaveError(SAVE_MESSAGE[m.data?.code || ''] || UNREACHABLE);
       }
@@ -135,11 +154,11 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
             </div>
             <div className="flex shrink-0 gap-1" dir="ltr">
               {removed ? (
-                <Button size="sm" variant="outline" onClick={() => setDraft((d) => toggleRemove(d, it.id, it.removed))}>Restore</Button>
+                <Button size="sm" variant="outline" disabled={locked} onClick={() => setDraft((d) => toggleRemove(d, it.id, it.removed))}>Restore</Button>
               ) : (
                 <>
-                  <Button size="sm" variant="outline" disabled={!!editing} onClick={() => { setFieldError(null); setEditing({ key: it.id, id: it.id }); }}>Edit</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setDraft((d) => toggleRemove(d, it.id, it.removed))}>Remove</Button>
+                  <Button size="sm" variant="outline" disabled={!!editing || locked} onClick={() => { setFieldError(null); setEditing({ key: it.id, id: it.id }); }}>Edit</Button>
+                  <Button size="sm" variant="ghost" disabled={locked} onClick={() => setDraft((d) => toggleRemove(d, it.id, it.removed))}>Remove</Button>
                 </>
               )}
             </div>
@@ -152,7 +171,7 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
             <div key={s.index} className="ml-4 mt-2 border-l pl-3 text-sm">
               <div className="flex items-center justify-between gap-2">
                 <span>{draft.edits[`${it.id}#${s.index}`]?.text ?? s.fields.question}</span>
-                <Button size="sm" variant="ghost" disabled={!!editing} onClick={() => { setFieldError(null); setEditing({ key: `${it.id}#${s.index}`, id: it.id, subIndex: s.index }); }}>Edit</Button>
+                <Button size="sm" variant="ghost" disabled={!!editing || locked} onClick={() => { setFieldError(null); setEditing({ key: `${it.id}#${s.index}`, id: it.id, subIndex: s.index }); }}>Edit</Button>
               </div>
               {editing?.key === `${it.id}#${s.index}` && (
                 <QuestionFields key={editing.key} fields={s.fields} rtl={!!paper?.rtl} error={fieldError} busy={busy} onDone={done} onCancel={() => setEditing(null)} />
@@ -165,19 +184,19 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
         <div key={`added-${i}`} data-question={`added-${i}`} dir={paper?.rtl ? 'rtl' : 'ltr'} className="rounded-lg border border-dashed p-3 text-sm">
           <div className="text-xs text-muted-foreground">{a.marks} marks <span className="ml-2 rounded bg-emerald-100 px-1 text-emerald-800">New</span></div>
           <div className="flex items-center justify-between gap-2"><span>{a.text}</span>
-            <Button size="sm" variant="ghost" onClick={() => setDraft((d) => dropAdded(d, i))}>Remove</Button></div>
+            <Button size="sm" variant="ghost" onClick={() => { setDraft((d) => dropAdded(d, i)); setItemErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !k.startsWith('added#')))); }}>Remove</Button></div>
           {itemErrors[`added#${i}`] && <p className="mt-2 text-destructive">{itemErrors[`added#${i}`]}</p>}
         </div>
       ))}
       {picking === name ? (
         <div className="flex flex-wrap gap-2">
-          {kinds.map((k) => (
+          {kinds.filter((k) => ((k.kind === 'mcq' || k.kind === 'fill') ? 'objective' : 'subjective') === name).map((k) => (
             <Button key={k.kind} size="sm" variant="outline"
               onClick={() => { setPicking(null); setFieldError(null); setEditing({ key: `new-${name}`, kind: k.kind, section: name }); }}>{k.label}</Button>
           ))}
         </div>
       ) : (
-        <Button size="sm" variant="ghost" disabled={!!editing} onClick={() => setPicking(name)}><Plus className="mr-1 h-4 w-4" />Add a question</Button>
+        <Button size="sm" variant="ghost" disabled={!!editing || locked} onClick={() => setPicking(name)}><Plus className="mr-1 h-4 w-4" />Add a question</Button>
       )}
       {editing?.key === `new-${name}` && editing.kind && (
         <div className="rounded-lg border border-dashed p-3">

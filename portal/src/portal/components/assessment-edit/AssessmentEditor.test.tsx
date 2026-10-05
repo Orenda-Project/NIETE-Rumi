@@ -82,7 +82,7 @@ it('adds a question of an offered kind', async () => {
   vi.mocked(portal.validateAssessmentEdit).mockResolvedValue({ ok: true, marks: 2, text: 'New one?' } as never);
   render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
   await screen.findByText('What is a noun?');
-  fireEvent.click(screen.getAllByRole('button', { name: /Add a question/ })[0]);
+  fireEvent.click(screen.getAllByRole('button', { name: /Add a question/ }).slice(-1)[0]); // Subjective (F5: short is only offered there)
   fireEvent.click(await screen.findByRole('button', { name: 'Short question' }));
   fireEvent.change(screen.getByLabelText('Question'), { target: { value: 'New one?' } });
   fireEvent.change(screen.getByLabelText('Answer'), { target: { value: 'Yes' } });
@@ -125,4 +125,64 @@ it('rtl for urdu', async () => {
   render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
   await screen.findByText('What is a noun?');
   expect(card('What is a noun?').getAttribute('dir')).toBe('rtl');
+});
+
+const COMP = {
+  id: 'unseen.subjective.Comprehension.0', number: 3, removed: false, type: 'Comprehension', section: 'subjective', marks: 2, text: 'Read the passage.',
+  fields: { ...field('Read the passage.'), shape: 'comprehension' },
+  subs: [
+    { index: 0, fields: { ...field('Who ran?'), marks: '1' } },
+    { index: 1, fields: { ...field('Where?'), marks: '1' } },
+  ],
+};
+
+it('F1: an unanswered stored draft survives close; edits are locked until answered', async () => {
+  const stored = JSON.stringify({ parentId: 'v1', edits: {}, removed: ['unseen.subjective.Short Questions.1'], restored: [], added: [] });
+  localStorage.setItem('assessment-edit-draft:v1', stored);
+  const { unmount } = render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
+  await screen.findByText(/unsaved changes from before/);
+  expect(within(card('What is a noun?')).getByRole('button', { name: 'Remove' })).toBeDisabled();
+  unmount();
+  expect(localStorage.getItem('assessment-edit-draft:v1')).toBe(stored);
+});
+
+it('F2/F3: a sub edit shows the sub text, keeps the parent text, and adds its marks delta', async () => {
+  vi.mocked(portal.getAssessmentEditQuestions).mockResolvedValue({ paper: PAPER, items: [COMP] } as never);
+  vi.mocked(portal.validateAssessmentEdit).mockResolvedValue({ ok: true, marks: 4, text: 'Read the passage.' } as never);
+  render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
+  await screen.findByText('Who ran?');
+  fireEvent.click(within(screen.getByText('Who ran?').closest('div')!.parentElement!).getByRole('button', { name: 'Edit' }));
+  fireEvent.change(screen.getByLabelText('Question'), { target: { value: 'Who won?' } });
+  fireEvent.change(screen.getByLabelText('Marks'), { target: { value: '3' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  expect(await screen.findByText('Who won?')).toBeTruthy();
+  expect(screen.getAllByText('Read the passage.').length).toBe(1);
+  expect(screen.getByText(/Comprehension · 4 marks/)).toBeTruthy();
+});
+
+it('F4/F5/F6: added errors do not go stale; picker is section-scoped; orphan errors reach the footer', async () => {
+  vi.mocked(portal.getAssessmentAddKinds).mockResolvedValue({ kinds: [
+    { kind: 'short', label: 'Short question', marks: 2, lines: 4, needsOptions: false },
+    { kind: 'mcq', label: 'Multiple choice', marks: 1, lines: 0, needsOptions: true },
+  ], slotCap: 6 } as never);
+  vi.mocked(portal.validateAssessmentEdit).mockResolvedValue({ ok: true, marks: 2, text: 'Added Q' } as never);
+  vi.mocked(portal.saveAssessmentVersion).mockRejectedValue({ response: { status: 400, data: { code: 'INVALID_CHANGES',
+    errors: [{ addedIndex: 1, message: 'Bad added.' }, { message: 'Orphan problem.' }] } } });
+  render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
+  await screen.findByText('What is a noun?');
+  for (let n = 0; n < 2; n++) {
+    const btns = screen.getAllByRole('button', { name: /Add a question/ });
+    fireEvent.click(btns[btns.length - 1]);
+    expect(screen.queryByRole('button', { name: 'Multiple choice' })).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Short question' }));
+    fireEvent.change(screen.getByLabelText('Question'), { target: { value: `Added Q` } });
+    fireEvent.change(screen.getByLabelText('Answer'), { target: { value: 'A' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(screen.getAllByText('New').length).toBe(n + 1));
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Make my paper' }));
+  expect(await screen.findByText('Bad added.')).toBeTruthy();
+  expect(screen.getByText(/Orphan problem\./)).toBeTruthy();
+  fireEvent.click(screen.getAllByRole('button', { name: 'Remove' }).filter((b) => b.closest('[data-question^="added-"]'))[0]);
+  expect(screen.queryByText('Bad added.')).toBeNull();
 });
