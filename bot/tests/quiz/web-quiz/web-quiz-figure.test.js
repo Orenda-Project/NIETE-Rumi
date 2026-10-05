@@ -74,6 +74,13 @@ describe('figureFor (one question row → the page figure)', () => {
     expect(f.svg).toContain(`aria-label="${f.alt}"`);
   });
 
+  test('the drawing wears the NIETE palette the WhatsApp picture wears, set on its own root (not the engine defaults)', () => {
+    const f = Fig.figureFor(row(1, { figure: BARS, language: 'en' }));
+    const root = /^<svg[^>]*>/.exec(f.svg)[0];
+    expect(root).toMatch(/--amber:\s*#47BA7D/i);
+    expect(root).toMatch(/--navy:\s*#333748/i);
+  });
+
   test('Urdu: the spoken line is Urdu and the direction is rtl', () => {
     const f = Fig.figureFor(row(1, { figure: BARS, language: 'ur' }));
     expect(f.say).toBe('پٹیوں کو دیکھیں۔');
