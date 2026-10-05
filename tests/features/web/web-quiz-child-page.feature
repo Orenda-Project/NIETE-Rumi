@@ -119,3 +119,9 @@ Feature: Web child quiz page on the portal
     Then the picture labels the rows P, Q and R
     And the question, the answers and the explanation say P, Q and R too
     And the answer buttons keep their own A, B and C
+
+  Scenario: Letter answers are set as large page text so their marks are never cut off
+    Given an Urdu question whose answers are the letters بّ, بِ and بْ
+    When the question is shown on the page
+    Then each answer is a large letter tile drawn in the page's own Urdu font
+    And the shadda, zer and jazm marks are fully visible

@@ -145,14 +145,10 @@ describe('optionPic (picture options are drawings, never emoji)', () => {
     expect(p.svg).toContain('aria-label="سیب"');
     expect(Fig.optionPic({ kind: 'pictogram', name: 'apple' }, 'ur')).toBeNull();
   });
-  test('a glyph option is a big letter or mark tile, right-to-left for Urdu, escaped', () => {
+  test('a glyph option goes to the page as text, drawn there in its own font so marks cannot clip', () => {
     const p = Fig.optionPic({ kind: 'glyph', text: 'بّ' }, 'ur', { word: 'تشدید' });
-    expect(p.svg).toMatch(/^<svg[^>]*viewBox="0 0 72 72"/);
-    expect(p.svg).toContain('بّ');
-    expect(p.svg).toContain('dir="rtl"');
-    expect(p.name).toBe('تشدید');
-    expect(Fig.safeSvg(p.svg)).toBeTruthy();
-    expect(Fig.optionPic({ kind: 'glyph', text: '<b>' }, 'en', { word: 'x' }).svg).not.toContain('<b>');
+    expect(p).toEqual({ kind: 'glyph', glyph: 'بّ', text: 'بّ', name: 'تشدید', alt: 'تشدید', dir: 'rtl' });
+    expect(p.svg).toBeUndefined();
     expect(Fig.optionPic({ kind: 'glyph', text: 'too long for a tile' }, 'en')).toBeNull();
   });
   test('a small engine drawing can be an option', () => {
