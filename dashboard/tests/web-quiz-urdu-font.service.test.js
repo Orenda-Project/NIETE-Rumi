@@ -102,6 +102,14 @@ describe('Urdu spacing rules', () => {
     expect(r).toMatch(/line-height:1(;|$)/);
   });
 
+  test('Urdu labels inside a figure use the same face, over the figure engine\'s inline Noto stack', () => {
+    // The engine writes <div lang="ur" style="font-family:'Noto Nastaliq Urdu',…"> inside foreignObject;
+    // Android has none of those fonts, so without this the labels fall back to Naskh.
+    const r = rule('.wq-svg [lang=ur]');
+    expect(r).not.toBeNull();
+    expect(r).toMatch(/font-family:var\(--fu\)!important/);
+  });
+
   test('digits and maths inside Urdu text are isolated left-to-right runs', () => {
     expect(rule('.wq-m')).toMatch(/direction:ltr/);
     expect(rule('.wq-m')).toMatch(/unicode-bidi:isolate/);
