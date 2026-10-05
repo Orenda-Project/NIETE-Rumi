@@ -29,7 +29,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null } = {}) {
+function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants' } = {}) {
   const els = {};
   const root = fakeEl('#wq');
   root.innerHTML = '';
@@ -41,7 +41,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const boot = {
     textContent: JSON.stringify({
       code: 'TEST', cls, live: {}, video,
-      quiz: { code: 'TEST', lang, topic: 'Plants', grade: 3, questions: [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
+      quiz: { code: 'TEST', lang, topic, grade: 3, questions: [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
     }),
   };
   const ls = new Map(Object.entries(store).map(([k, v]) => [k, JSON.stringify(v)]));
@@ -57,7 +57,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
     localStorage: { setItem: (k, v) => ls.set(k, String(v)), getItem: (k) => (ls.has(k) ? ls.get(k) : null), removeItem: (k) => ls.delete(k) },
     fetch: (url, init) => {
       fetches.push({ url, init });
-      const body = url.indexOf('/board/') >= 0 && board ? board : {};
+      const body = (url.indexOf('/board/') >= 0 && board) || (url.endsWith('/me') && me) || {};
       return Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve(JSON.stringify(body)) });
     },
     URLSearchParams,
@@ -66,7 +66,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { who: who, card: card, board: board, video: video, isThisYou: isThisYou };\n})();'), ctx);
+  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { who: who, card: card, board: board, video: video, isThisYou: isThisYou, history: history };\n})();'), ctx);
   return { ctx, root, els, fetches, wq: ctx.__wq, html: () => root.innerHTML };
 }
 const flush = () => new Promise((r) => setImmediate(r));
