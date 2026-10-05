@@ -81,6 +81,20 @@ describe('E2 carries the sound item\'s own clips', () => {
     expect(q.audio).toEqual(expect.objectContaining({ q: 'https://r2/gen-q.mp3', stim: 'https://r2/stim1.ogg', why: 'https://r2/why1.ogg' }));
   });
 
+  test.each([
+    ['یہ لفظ کیسے لکھتے ہیں؟', true],
+    ['Select the word with the following sound:', true],
+    ['What is the first letter of this word', true],
+    ['Listen and tap.', true],
+    // A statement to judge true or false that merely mentions sounds: its clip says the answer.
+    ['زبر، زیر، پیش کے استعمال سے ہم الف، چھوٹی ی، اور واؤ کی آواز نکال سکتے ہیں۔', false],
+    ['Count the number of squares in the picture', false],
+  ])('the sound is sent only when the child needs it to answer: %s', async (stem, sent) => {
+    seed([row(1, stem, CLIPS)]);
+    const q = (await WQ.getQuiz('AB12CD')).quiz.questions[0];
+    expect(Boolean(q.audio && q.audio.stim)).toBe(sent);
+  });
+
   test('a question with no clips has no audio block', async () => {
     seed([row(1, 'Which letter?', { language: 'ur' })]);
     const q = (await WQ.getQuiz('AB12CD')).quiz.questions[0];
