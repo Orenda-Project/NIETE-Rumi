@@ -88,7 +88,15 @@ function world(downloads) {
 }
 
 function install(tables) {
-  const db = makeSupabase(tables);
+  // Every served version here has a slide script unless a test says otherwise:
+  // the quiz-source gate has its own suite (lp-quiz-cohort-source-gate.test.js).
+  const withSources = tables.niete_lp_asset_sources ? tables : {
+    ...tables,
+    niete_lp_asset_sources: (tables.niete_lp_downloads || []).map((d) => ({
+      lesson_id: d.lesson_id, version_stamp: d.version_stamp, content_hash: d.content_hash,
+    })),
+  };
+  const db = makeSupabase(withSources);
   supabase.from.mockImplementation(db.from);
 }
 

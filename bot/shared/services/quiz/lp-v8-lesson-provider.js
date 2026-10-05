@@ -335,6 +335,10 @@ module.exports = {
   source: SOURCE,
   labelKey: LABEL_KEY,
   list,
+  // The quiz-source rule, shared with the 15:00 offer cohort so both doors
+  // offer exactly the lessons a quiz can be made from.
+  resolvableVersions,
+  versionKey,
   get,
   existingQuiz,
   start,
