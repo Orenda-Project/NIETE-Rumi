@@ -850,6 +850,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
+  // The lesson video plays once per attempt: skipped or watched to the end, a reload goes on to the questions.
+  function wantsVideo() { return Boolean(B.video && B.video.url && !answeredCount() && !S.vdone); }
 
   /* ---------------- M5 video (optional) ---------------- */
   // Where the lesson video is, kept every few seconds and whenever it pauses or the page hides.
@@ -859,8 +861,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (now || !(S.vt > 0) || Math.abs(t - S.vt) >= 3) { S.vt = t; save(); }
   }
   window.addEventListener('pagehide', function () { if (ROOT.getAttribute('data-m') === 'M5') keepVideoAt($('video'), true); });
-  // The lesson video plays once per attempt: skipped or watched to the end, a reload goes on to the questions.
-  function wantsVideo() { return Boolean(B.video && B.video.url && !answeredCount() && !S.vdone); }
   function video() {
     var v = B.video;
     // A reload mid-video picks up where it was (#t= is a media fragment; the server never sees it).
