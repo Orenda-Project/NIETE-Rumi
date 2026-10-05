@@ -1462,6 +1462,70 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-more', moreVideos);
   }
 
+  /* ---------------- M15 watch another video -> its quiz ---------------- */
+  // The video bank is by grade: a quiz with no grade has nothing to offer. The list comes from the
+  // bot (E11); picking a lesson gets its code (E12) and opens it in the SAME view (the in-app
+  // browser has no reliable new tab). Who is playing goes along in this phone's storage, never in
+  // the link: the new page starts at once with the session token of the quiz just played.
+  var SUBJECT_TILE = { Science: '🔬', Maths: '➗', English: '🔤', Urdu: 'ا', 'Islamic Studies': '🕌', 'General Knowledge': '🌍', Geography: '🗺️', History: '📜' };
+  var HANDOVER_MS = 10 * 60 * 1000;
+  function moreBtn() { return Q.grade ? '<button class="wq-btn wq-soft wq-more" id="wq-more">▶ ' + esc(T.moreBtn) + '</button>' : ''; }
+  function vItem(v, i) {
+    // Each atom isolated, so "3.2 MB" keeps its Latin order inside an Urdu line.
+    var meta = [v.secs ? esc(T.mins(Math.max(1, Math.round(v.secs / 60)))) : '', v.mb ? '<bdi dir="ltr">' + esc(v.mb + ' MB') + '</bdi>' : ''].filter(Boolean).join(' · ');
+    var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy">'
+      : '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[v.subject] || '▶') + '</span>';
+    return '<li><button class="wq-vitem" data-vid="' + esc(v.vid) + '">' + pic +
+      '<span class="wq-vtext"><b dir="auto">' + esc(v.title) + '</b><small>' + meta + '</small></span>' +
+      (v.done ? '<span class="wq-vdone">' + esc(T.doneTag) + '</span>' : '') + '</button></li>';
+  }
+  function moreVideos() {
+    var from = ROOT.getAttribute('data-m') || '';
+    render(bar() + '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>', 'M15-wait');
+    wireBar();
+    api('GET', 'videos/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : '')).then(function (r) {
+      var vids = (r.ok && r.body && r.body.videos) || [];
+      var h = bar() + jug('hello', vids.length ? T.moreSay : T.moreNone) + '<h2>' + esc(T.moreT) + '</h2>' +
+        (vids.length ? '<ul class="wq-vlist">' + vids.map(vItem).join('') + '</ul>' : '') +
+        '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
+      render(h, 'M15');
+      wireBar();
+      ev('more_view', { src: from.toLowerCase().replace(/[^a-z0-9_]/g, '_') || undefined, i: vids.length });
+      on('#wq-back', afterResult);
+      vids.forEach(function (v, i) { on('[data-vid="' + v.vid + '"]', function () { pickVideo(v, i); }); });
+    }, function () {
+      render(bar() + jug('notyet', T.offline) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M15-error');
+      wireBar();
+      ev('error', { err: 'more_net' });
+      on('#wq-retry', moreVideos);
+    });
+  }
+  var picking = false;
+  function pickVideo(v, i) {
+    if (picking) return;
+    picking = true;
+    toast(T.moreWait);
+    ev('more_pick', { i: i, ok: !v.done });
+    api('POST', 'videos/start', { code: CODE, st: S.st, vid: v.vid }).then(function (r) {
+      if (!r.ok || !r.body || !r.body.code) throw new Error('more_start_' + r.status);
+      sset('wq_from', { code: r.body.code, st: S.st, at: Date.now() });
+      flushEv(true);
+      location.assign('/q/' + encodeURIComponent(r.body.code));
+    }).catch(function (e) {
+      picking = false;
+      toast(T.oops);
+      ev('error', { err: String((e && e.message) || 'more_start').replace(/[^a-z0-9_]/gi, '_').toLowerCase().slice(0, 40) });
+    });
+  }
+  // On the lesson's own page: the hand-over left by pickVideo, if it is for this code and fresh.
+  function handover() {
+    var f = sget('wq_from', null);
+    if (!f) return null;
+    sset('wq_from', null);
+    try { localStorage.removeItem('wq_from'); } catch (e) {}
+    return f.code === CODE && f.st && Date.now() - (f.at || 0) < HANDOVER_MS ? f : null;
+  }
+
   /* ---------------- M11 league table ---------------- */
   function board() {
     render(bar() + '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>', 'M11-wait');
@@ -1537,70 +1601,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     ev('today_view', {});
     on('#wq-home', function () { if (S.result) card(); else landing(); });
     on('#wq-more', moreVideos);
-  }
-
-  /* ---------------- M15 watch another video -> its quiz ---------------- */
-  // The video bank is by grade: a quiz with no grade has nothing to offer. The list comes from the
-  // bot (E11); picking a lesson gets its code (E12) and opens it in the SAME view (the in-app
-  // browser has no reliable new tab). Who is playing goes along in this phone's storage, never in
-  // the link: the new page starts at once with the session token of the quiz just played.
-  var SUBJECT_TILE = { Science: '🔬', Maths: '➗', English: '🔤', Urdu: 'ا', 'Islamic Studies': '🕌', 'General Knowledge': '🌍', Geography: '🗺️', History: '📜' };
-  var HANDOVER_MS = 10 * 60 * 1000;
-  function moreBtn() { return Q.grade ? '<button class="wq-btn wq-soft wq-more" id="wq-more">▶ ' + esc(T.moreBtn) + '</button>' : ''; }
-  function vItem(v, i) {
-    // Each atom isolated, so "3.2 MB" keeps its Latin order inside an Urdu line.
-    var meta = [v.secs ? esc(T.mins(Math.max(1, Math.round(v.secs / 60)))) : '', v.mb ? '<bdi dir="ltr">' + esc(v.mb + ' MB') + '</bdi>' : ''].filter(Boolean).join(' · ');
-    var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy">'
-      : '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[v.subject] || '▶') + '</span>';
-    return '<li><button class="wq-vitem" data-vid="' + esc(v.vid) + '">' + pic +
-      '<span class="wq-vtext"><b dir="auto">' + esc(v.title) + '</b><small>' + meta + '</small></span>' +
-      (v.done ? '<span class="wq-vdone">' + esc(T.doneTag) + '</span>' : '') + '</button></li>';
-  }
-  function moreVideos() {
-    var from = ROOT.getAttribute('data-m') || '';
-    render(bar() + '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>', 'M15-wait');
-    wireBar();
-    api('GET', 'videos/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : '')).then(function (r) {
-      var vids = (r.ok && r.body && r.body.videos) || [];
-      var h = bar() + jug('hello', vids.length ? T.moreSay : T.moreNone) + '<h2>' + esc(T.moreT) + '</h2>' +
-        (vids.length ? '<ul class="wq-vlist">' + vids.map(vItem).join('') + '</ul>' : '') +
-        '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
-      render(h, 'M15');
-      wireBar();
-      ev('more_view', { src: from.toLowerCase().replace(/[^a-z0-9_]/g, '_') || undefined, i: vids.length });
-      on('#wq-back', afterResult);
-      vids.forEach(function (v, i) { on('[data-vid="' + v.vid + '"]', function () { pickVideo(v, i); }); });
-    }, function () {
-      render(bar() + jug('notyet', T.offline) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M15-error');
-      wireBar();
-      ev('error', { err: 'more_net' });
-      on('#wq-retry', moreVideos);
-    });
-  }
-  var picking = false;
-  function pickVideo(v, i) {
-    if (picking) return;
-    picking = true;
-    toast(T.moreWait);
-    ev('more_pick', { i: i, ok: !v.done });
-    api('POST', 'videos/start', { code: CODE, st: S.st, vid: v.vid }).then(function (r) {
-      if (!r.ok || !r.body || !r.body.code) throw new Error('more_start_' + r.status);
-      sset('wq_from', { code: r.body.code, st: S.st, at: Date.now() });
-      flushEv(true);
-      location.assign('/q/' + encodeURIComponent(r.body.code));
-    }).catch(function (e) {
-      picking = false;
-      toast(T.oops);
-      ev('error', { err: String((e && e.message) || 'more_start').replace(/[^a-z0-9_]/gi, '_').toLowerCase().slice(0, 40) });
-    });
-  }
-  // On the lesson's own page: the hand-over left by pickVideo, if it is for this code and fresh.
-  function handover() {
-    var f = sget('wq_from', null);
-    if (!f) return null;
-    sset('wq_from', null);
-    try { localStorage.removeItem('wq_from'); } catch (e) {}
-    return f.code === CODE && f.st && Date.now() - (f.at || 0) < HANDOVER_MS ? f : null;
   }
 
   /* ---------------- resume after reload ("Continue 3/5") ---------------- */
