@@ -1231,7 +1231,7 @@ Feature: NIETE (ICT) Teacher Training
     Then the page is told the run will not count because it was finished elsewhere
     And on the same phone the page is told it was already finished
     And the class league table and the teacher's report keep the first finished score for a web quiz
-    # one-attempt-per-child rule 'first_completed', chosen by quizzes.meta.web_arm = 'web'. @wip.
+    # one-attempt-per-child rule 'first_completed', chosen per class code by attemptRuleFor (the code's own web sessions). @wip.
 
   @api @quiz @web @wip @draft @P1 @T103 @no-mock-driver
   Scenario: The class league table
@@ -1269,13 +1269,12 @@ Feature: NIETE (ICT) Teacher Training
     # ADDED 2026-10-05: web-quiz.service getQuiz -> quiz-teacher-label teacherLabel + report loadClassRows().className. @wip.
 
   @api @quiz @web @wip @draft @P1 @T108 @no-mock-driver
-  Scenario: A web quiz's report counts each child's first finish
-    Given a quiz whose children play on the web page
-    When the first child starts a web session
-    Then the quiz is marked as a web quiz, and nothing else about it changes
-    And the teacher's report then counts each child's first finished score, as the class league table does
-    But the teacher's own preview does not mark the quiz
-    # ADDED 2026-10-05: web-quiz.service startSession -> markWebArm (quizzes.meta.web_arm = 'web'); attemptRuleFor reads it. @wip.
+  Scenario: A web quiz's report counts each child's first finish, for my class only
+    Given my class code's children play on the web page
+    Then my report counts each child's first finished score, as the class league table does
+    And the quiz itself is not changed, so another teacher's WhatsApp class on the same lesson video keeps counting each child's latest finish
+    But my own preview on the web does not make my WhatsApp class a web class
+    # CHANGED 2026-10-05: the rule is chosen per class code from that code's sessions (attemptRuleFor: a child session with a device_ref), never stored on quizzes.meta (a video-bank quiz is one row shared by every teacher). Unit: tests/quiz/web-quiz/report-web-arm-first-finish.test.js. @wip.
 
   @api @quiz @web @wip @draft @P1 @T109 @no-mock-driver
   Scenario: The quiz page lists the options in the one order every other surface uses
