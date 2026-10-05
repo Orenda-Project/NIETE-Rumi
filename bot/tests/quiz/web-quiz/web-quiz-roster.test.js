@@ -252,6 +252,16 @@ describe('E3 by typed name, with a roster', () => {
       .rejects.toMatchObject({ status: 409, body: { error: 'maybe_you', candidates: [{ chip: chipOf(kid(1)), first: 'Ayesha' }] } });
   });
 
+  test("two classes: a near name in the quiz grade's class is asked about first, without the other class's namesake", async () => {
+    seed({ lists: 'two' });
+    fake.db.students.push({ id: kid(22), list_id: LIST_4A, roll_number: 2, student_name: 'Ayesha Testwala', is_active: true });
+    await expect(WQ.startSession({ code: 'AB12CD', new: { name: 'Aysha' } }))
+      .rejects.toMatchObject({ status: 409, body: { error: 'maybe_you', candidates: [{ chip: chipOf(kid(1)), first: 'Ayesha' }] } });
+    let err;
+    try { await WQ.startSession({ code: 'AB12CD', new: { name: 'Aysha' } }); } catch (e) { err = e; }
+    expect(err.body.candidates).toHaveLength(1);
+  });
+
   test('no near name: a new child as today', async () => {
     const out = await WQ.startSession({ code: 'AB12CD', new: { name: 'Moiz' } });
     expect(out.child.first).toBe('Moiz');
