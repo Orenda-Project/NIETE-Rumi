@@ -56,6 +56,8 @@ async function rosterOn(now = Date.now()) {
 }
 
 const digits = (v) => String(v == null ? '' : v).replace(/\D/g, '');
+// A grade or class name's FIRST number: "3-5" -> "3", "Class 4" -> "4", "1-2" -> "1".
+const gradeNum = (v) => (String(v == null ? '' : v).match(/\d+/) || [''])[0];
 const listLabel = (l) => [String(l.class_name || '').trim(), String(l.section || '').trim()].filter(Boolean).join('-');
 
 /**
@@ -67,7 +69,7 @@ async function loadRoster(teacherUserId, { grade = null } = {}) {
   if (!teacherUserId) return null;
   const set = await settings();
   if (!set.on) return null;
-  const g = Number(digits(grade));
+  const g = Number(gradeNum(grade));
   if (g && g < set.fromGrade) return null;
   try {
     const { data: lists, error } = await supabase.from('student_lists')
@@ -82,7 +84,7 @@ async function loadRoster(teacherUserId, { grade = null } = {}) {
     const live = kids || [];
     if (!live.length) return null;
     return {
-      lists: lists.map((l) => ({ id: l.id, label: listLabel(l), grade: digits(l.class_name) })),
+      lists: lists.map((l) => ({ id: l.id, label: listLabel(l), grade: gradeNum(l.class_name) })),
       kids: live,
     };
   } catch (err) {
@@ -108,7 +110,7 @@ function cleanRoll(v) {
 function byRoll(roster, roll, quizGrade) {
   if (!roster) return [];
   const hits = roster.kids.filter((k) => Number(k.roll_number) === roll);
-  const g = digits(quizGrade);
+  const g = gradeNum(quizGrade);
   const gradeLists = g ? roster.lists.filter((l) => l.grade === g) : [];
   if (gradeLists.length === 1) {
     const inGrade = hits.filter((k) => k.list_id === gradeLists[0].id);
