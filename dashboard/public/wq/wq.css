@@ -192,3 +192,5 @@ html[lang=ur] .wq-ml,html[lang=ur] .wq-mr,html[lang=ur] .wq-place{font-weight:70
 .wq-mr .wq-glyph{width:56px;height:56px;font-size:32px}
 @keyframes wqpulse{0%,100%{opacity:.35}50%{opacity:.7}}
 img.wq-ld{min-height:60px;background:var(--paper-2);border-radius:12px;animation:wqpulse 1.2s ease-in-out infinite}
+.wq-labelfig .wq-figbox{margin-bottom:30px}
+.wq-hot{z-index:1}
