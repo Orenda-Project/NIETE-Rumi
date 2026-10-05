@@ -129,13 +129,14 @@ describe('process — quiz_author_gates_v2 hands the author the lesson\'s own di
       app_settings: gatesRow(on),
     }));
   }
-  test('flag on: the board diagram and the development diagram reach the author as specs', async () => {
+  test('flag on: the board diagram reaches the author as a spec; a bare polygon the validator would refuse does not', async () => {
     wireGates(true);
     await Gen.process(QID, {});
     const { lessonDrew } = Author.author.mock.calls[0][0];
     expect(lessonDrew).toContain("THE LESSON'S OWN DIAGRAMS");
     expect(lessonDrew).toContain('"type":"grid","rows":10,"cols":10,"shaded":25');
-    expect(lessonDrew).toContain('"type":"geometry"');
+    // The development diagram is an unlabelled polygon: the quiz validator refuses it as empty, so it is not offered.
+    expect(lessonDrew).not.toContain('"type":"geometry"');
   });
   test('flag off: the author is told exactly what it is told today', async () => {
     wireGates(false);
