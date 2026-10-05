@@ -240,3 +240,10 @@ test('the stylesheet hides the loop until it plays, and reduced motion keeps the
   expect(CSS).toMatch(/\.wq-jimg>\.wq-anim\{[^}]*opacity:0/);
   expect(CSS).toMatch(/\.wq-jimg\.wq-live>\.wq-anim\{[^}]*opacity:1/);
 });
+
+test('on the answer screen Jugnu is smaller, so a long reason (Urdu above all) keeps a wide column', () => {
+  const m = /#wq-fb \.wq-jimg\{[^}]*width:(\d+)px[^}]*height:(\d+)px/.exec(CSS);
+  expect(m).not.toBeNull();
+  expect(Number(m[1])).toBeLessThanOrEqual(72);
+  expect(Number(m[2])).toBe(Number(m[1]));
+});
