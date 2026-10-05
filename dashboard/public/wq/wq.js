@@ -1397,14 +1397,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     ev('share_click', { src: what, step: 'tap' });
     if (navigator.share) {
       navigator.share({ text: text, url: url }).then(function () { ev('share_click', { src: what, step: 'native', path: 'native' }); },
-        function (e) { if (e && e.name === 'AbortError') ev('share_click', { src: what, step: 'native_cancel' }); else fallback(full, what); });
+        function (e) { if (e && e.name === 'AbortError') ev('share_click', { src: what, step: 'native_cancel' }); else fallback(full, what, text, url); });
       return;
     }
-    fallback(full, what);
+    fallback(full, what, text, url);
   }
-  function fallback(full, what) {
+  // The preview shows the link on its own left-to-right line: inside an Urdu message it would wrap backwards.
+  function fallback(full, what, text, url) {
     var h = bar() + '<h2>' + esc(T.fbT) + '</h2><p class="wq-sub">' + esc(T.fbSub) + '</p>' +
-      '<div class="wq-card"><p>' + esc(full) + '</p></div>' +
+      '<div class="wq-card"><p>' + esc(text != null ? text : full) + '</p>' + (url ? '<p class="wq-url" dir="ltr">' + esc(url) + '</p>' : '') + '</div>' +
       '<a class="wq-btn wq-go" id="wq-wa" href="https://wa.me/?text=' + encodeURIComponent(full) + '">' + esc(T.fbWa) + '</a>' +
       '<button class="wq-btn wq-soft" id="wq-copy">' + esc(T.fbCopy) + '</button>' +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
