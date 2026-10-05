@@ -269,3 +269,12 @@ describe('glyph tiles drawn by the page', () => {
     expect(h).not.toContain('<svg viewBox="0 0 72');
   });
 });
+
+describe('a picture option with no name', () => {
+  it('gets its shape name as the button label (for screen readers), and the voice never says it', () => {
+    const q = { type: 'picture', text: 'Which one?', options: [{ slot: 'A', text: '', pic: { svg: '<svg viewBox="0 0 72 72"/>' } }, { slot: 'B', text: '', pic: { svg: '<svg viewBox="0 0 72 72"/>' } }] };
+    expect(WQI.itemHtml(q, T, 'en')).toContain('aria-label="circle"');
+    expect(WQI.itemHtml(q, T, 'ur')).toContain('aria-label="مربع"');
+    expect(WQI.readParts(q, 'en').length).toBe(1);
+  });
+});
