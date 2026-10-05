@@ -53,8 +53,10 @@ function page(opts = {}) {
     canPlayType(t) { return opts.webm === false ? '' : (/webm/.test(t) ? 'probably' : ''); }
   }
   const ROOT = new El('main');
+  const events = [];
   const ctx = {
     ROOT,
+    ev: (n, props) => events.push({ n, props }),
     Math: Object.assign(Object.create(Math), { random: () => (opts.random != null ? opts.random : 0) }),
     navigator: { userAgent: opts.ua || 'Mozilla/5.0 (Linux; Android 11; wv) Chrome/120', connection: opts.connection },
     document: {
@@ -88,7 +90,7 @@ function page(opts = {}) {
   };
   const fire = (target, n) => ((target === 'doc' ? docL : winL)[n] || []).forEach((fn) => fn({ type: n }));
   const flush = () => new Promise((r) => setImmediate(r));
-  return { ctx, ROOT, plays, observed, mount, fire, flush };
+  return { ctx, ROOT, plays, observed, mount, fire, flush, events };
 }
 const anims = (span) => span.children.filter((c) => /wq-anim/.test(c.className));
 
@@ -142,6 +144,8 @@ test('a refused autoplay falls back to the animated WebP of the same loop', asyn
   expect(a[0].src).toBe('/wq/jugnu/hello_a.webp');
   a[0].fire('load');
   expect(span.className).toContain('wq-live');
+  // logged once, so the logs say how often an in-app browser refuses muted autoplay
+  expect(p.events).toEqual([{ n: 'jug_fallback', props: { reason: 'notallowederror' } }]);
 });
 
 test('iPhone gets the animated WebP, never the WebM (no VP9 alpha in WebKit)', () => {
