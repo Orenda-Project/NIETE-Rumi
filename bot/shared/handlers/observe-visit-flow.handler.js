@@ -451,7 +451,7 @@ const workFormScreen = (userId, offset) => _stageScreen(userId, offset, {
   screen: _stageScreenId('WORK_FORM'), step: 'work_form',
   fetch: (D, u, o) => D.listUnfinished(u, o),
   metaOf: (s) => ({ gate: 'finish setup', form: 'form to submit',
-    retry: 'stopped - tap to retry', wait: 'analysing…' })[s.resume] || 'finish setup',
+    retry: 'stopped - tap to retry', wait: 'analysing…', observe2: 'next step waiting' })[s.resume] || 'finish setup',
   action: 'resume',
 });
 const debriefsScreen = (userId, offset) => _stageScreen(userId, offset, {
