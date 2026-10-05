@@ -160,3 +160,44 @@ Feature: Web child quiz page on the portal
     When the page is hidden, frozen or closed (the in-app browser is closed, the child switches app or locks the phone)
     Then the recorded clip, the phone's voice, the sound effects and any playing video stop at once
     And when the child comes back nothing starts again until the child taps
+  # Who is playing, by roll number (app_settings web_quiz_roster_id; off = the name chips above, unchanged)
+  Scenario: A teacher with a class list: the child gives a roll number, not a name from a list
+    Given the roster switch is on and the teacher keeps a class list with roll numbers
+    When the quiz link is opened
+    Then the page carries no classmates' names
+    When the child taps "Play"
+    Then the page asks "What is your roll number?" with a big number pad
+
+  Scenario: A roll number is confirmed with the child's first name and animal
+    Given the roster switch is on and roll number 12 in the class list is "Danish Testwala"
+    When the child types 1, 2 and taps "Go"
+    Then the page asks "Are you Danish?" with Danish's animal and nothing else about the child
+    When the child taps "Yes, it's me"
+    Then the quiz starts as the class-list child, and the teacher's report shows the class list's name and class
+
+  Scenario: A wrong or unknown roll number never starts a quiz as someone else
+    Given the roster switch is on
+    When the child types a roll number nobody in the class has
+    Then the pad stays and says no one in this class has that number
+    When the child types a number and answers "No, try again" to "Are you <name>?"
+    Then the pad is empty again
+
+  Scenario: Two classes share a roll number
+    Given the teacher keeps two class lists and the quiz's grade does not pick one
+    When the child types a roll number that is in both lists
+    Then the page shows one "Are you <name>?" card per class, each with its class label, and "None of these is me"
+
+  Scenario: A child who does not know their roll number types a name, and a near name is found
+    Given the roster switch is on and the class list has "Ayesha Testwala"
+    When the child taps "I don't know my number" and types "Aysha"
+    Then the page asks "Are you Ayesha?" before starting
+
+  Scenario: The first finish of a class-list child counts once, on any phone
+    Given a class-list child finished the quiz on one phone
+    When the same child confirms their roll number on another phone and plays again
+    Then the second play is practice and the teacher's report keeps the first finish
+
+  Scenario: The Urdu page shows the roll-number pad in Urdu digits
+    Given an Urdu quiz and the roster switch is on
+    When the child opens "Whose turn is it?"
+    Then the keys and the "no one has number" line use Urdu digits
