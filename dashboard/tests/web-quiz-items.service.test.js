@@ -291,3 +291,10 @@ describe('pictures on slow data', () => {
     expect(h).toContain('onload="this.className=\'\'"');
   });
 });
+
+describe('glyph tiles: no repeated caption', () => {
+  it('a glyph tile whose word is the glyph itself shows no caption under it', () => {
+    const q = { type: 'picture', text: 'Q', options: [{ slot: 'A', text: 'بّ', pic: { kind: 'glyph', glyph: 'بّ', text: 'بّ' } }, { slot: 'B', text: 'بِ', pic: { kind: 'glyph', glyph: 'بِ', text: 'بِ' } }] };
+    expect(WQI.itemHtml(q, T, 'ur')).not.toContain('wq-pname');
+  });
+});

@@ -188,7 +188,7 @@ html[lang=ur] .wq-ml,html[lang=ur] .wq-mr,html[lang=ur] .wq-place{font-weight:70
 .wq-opt .wq-m,.wq-ml .wq-m,.wq-mr .wq-m{font-size:1.45em}
 .wq-shp{position:relative}
 .wq-let{position:absolute;bottom:-5px;inset-inline-end:-5px;min-width:18px;height:18px;border-radius:9px;background:#fff;color:var(--navy);font:900 11px/18px var(--f);text-align:center;box-shadow:0 0 0 1px var(--line)}
-.wq-glyph{display:grid;place-items:center;width:100px;height:100px;background:#fff;border-radius:16px;font:700 56px/1.9 var(--fu);color:var(--navy);overflow:visible}
+.wq-glyph{display:grid;place-items:center;width:100px;min-height:120px;padding:4px 0 22px;box-sizing:border-box;background:#fff;border-radius:16px;font:700 52px/1.7 var(--fu);color:var(--navy)}
 .wq-mr .wq-glyph{width:56px;height:56px;font-size:32px}
 @keyframes wqpulse{0%,100%{opacity:.35}50%{opacity:.7}}
 img.wq-ld{min-height:60px;background:var(--paper-2);border-radius:12px;animation:wqpulse 1.2s ease-in-out infinite}
