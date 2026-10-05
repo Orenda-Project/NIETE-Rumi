@@ -140,6 +140,26 @@ function feedbackFor(q, i) {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
 }
 
+/**
+ * The options in the ONE order every other surface shows them in — the
+ * WhatsApp quiz, the question card's letters, the teacher's PDF answer key
+ * (video-quiz-render displayOrder: the stored media.display_order, else the
+ * same seeded shuffle). Each option keeps its stored slot, so the answer key,
+ * the feedback and the media links are untouched. Options the render module
+ * counts differently from this payload keep the stored order.
+ */
+function inDisplayOrder(q, options) {
+  try {
+    const render = require('./video-quiz-render.service');
+    const order = render.displayOrder(q, render.optionLabels(q));
+    if (order.length !== options.length) return options;
+    return order.map((k) => options[k]);
+  } catch (e) {
+    logToFile('⚠️ web-quiz: display order unavailable, stored order kept', { error: e.message });
+    return options;
+  }
+}
+
 function questionPayload(q, i, code, audio) {
   const options = [];
   [q.option_a, q.option_b, q.option_c, q.option_d].forEach((text, idx) => {
@@ -152,7 +172,7 @@ function questionPayload(q, i, code, audio) {
   });
   const out = {
     qid: q.id, i: i + 1, text: q.question_text || '', pattern: q.render_pattern || null,
-    options, correct_slot: normSlots(q.correct_option), why: q.explanation || null,
+    options: inDisplayOrder(q, options), correct_slot: normSlots(q.correct_option), why: q.explanation || null,
   };
   if (out.correct_slot.includes(',')) out.multi = true;
   if (questionImageOf(q.media)) out.img = mediaUrl(code, q.id, 'q');

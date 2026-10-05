@@ -73,3 +73,9 @@ Feature: Web child quiz page on the portal
     And finished it once and then again on another phone
     When the teacher's report is written
     Then the report shows the first finished score, as the league table does
+
+  Scenario: The answer buttons come in the same order as the WhatsApp quiz and the teacher's answer key
+    Given a question whose options were shuffled when the quiz was made
+    When the question is shown on the page
+    Then the buttons are in that same shuffled order
+    And tapping the right answer is marked right, and each wrong answer gets its own feedback
