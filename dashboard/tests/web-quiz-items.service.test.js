@@ -210,3 +210,26 @@ describe('listen = pre-readers: a picture grid with no printed words', () => {
     expect(WQI.readParts(q, 'en').map((p) => p.text)).toEqual(['Which is a flower?', 'Sun', 'Flower']);
   });
 });
+
+describe('W32r/W31a review fixes', () => {
+  it('a label hotspot is a see-through ring sized to the part (r), never a disc over it; its number sits beside it', () => {
+    const q = { type: 'label', figure: { kind: 'svg', svg: '<svg viewBox="0 0 200 100"></svg>', w: 200, h: 100, hotspots: [{ slot: 'A', x: 100, y: 50, r: 20 }] }, options: opts(['Root']) };
+    const h = WQI.figureHtml(q, T);
+    expect(h).toContain('width:20%');
+    expect(h).toContain('class="wq-hotn"');
+    expect(h).not.toContain('<span>1</span></button>');
+  });
+  it('options carry their letter, so a why that says "answer is B" matches what the child sees', () => {
+    const h = WQI.itemHtml({ text: 'Q', options: opts(['x', 'y']), correct_slot: 'A' }, T, 'en');
+    expect(h).toContain('<b class="wq-let">A</b>');
+    expect(h).toContain('<b class="wq-let">B</b>');
+  });
+});
+
+describe('letters in feedback follow the letters on screen', () => {
+  it('remaps a stored letter to the shown letter (options arrive in display order), only where it names an option', () => {
+    const q = { options: [{ slot: 'C', text: 'x' }, { slot: 'A', text: 'y' }, { slot: 'B', text: 'z' }] };
+    expect(WQI.letters(q, 'The answer is A, not option C. A plant needs (B).')).toBe('The answer is B, not option A. A plant needs (C).');
+    expect(WQI.letters(q, 'درست جواب A ہے')).toBe('درست جواب B ہے');
+  });
+});

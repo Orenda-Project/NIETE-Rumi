@@ -156,8 +156,10 @@ var WQI = (function () {
     if (kind(q) === 'label' && f.hotspots && vb) {
       hot = f.hotspots.map(function (h, k) {
         var o = opts(q).filter(function (x) { return x.slot === h.slot; })[0] || {};
-        return '<button class="wq-hot" data-slot="' + esc(h.slot) + '" style="left:' + pct((h.x - vb.x) / vb.w) + ';top:' + pct((h.y - vb.y) / vb.h) + '" aria-label="' +
-          esc(String(k + 1)) + '"><span>' + (k + 1) + '</span></button>';
+        // A see-through ring over the part (the part stays visible), sized to r, never under 48 px; its number sits outside it.
+        var w = h.r ? ';width:' + pct(2 * h.r / vb.w) : '';
+        return '<button class="wq-hot" data-slot="' + esc(h.slot) + '" style="left:' + pct((h.x - vb.x) / vb.w) + ';top:' + pct((h.y - vb.y) / vb.h) + w + '" aria-label="' +
+          esc(String(k + 1)) + '"><b class="wq-hotn">' + (k + 1) + '</b></button>';
       }).join('');
     }
     var box = vb ? ' style="aspect-ratio:' + vb.w + '/' + vb.h + ';max-width:calc(46vh * ' + vb.w + ' / ' + vb.h + ')"' : '';
@@ -210,8 +212,15 @@ var WQI = (function () {
     if (o.img) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '">';
     return '';
   }
+  // Options arrive in the order the child sees; letter k is the k-th shown option (as on WhatsApp and the
+  // teacher's answer key). A why/feedback naming a stored letter is remapped to the shown one.
+  function letters(q, t) {
+    var map = {};
+    opts(q).forEach(function (o, k) { map[String(o.slot).charAt(0)] = 'ABCD'.charAt(k); });
+    return String(t == null ? '' : t).replace(/(\b(?:answer is|answer|option|choice)\s+|\(|جواب\s+|آپشن\s+)([A-D])(?![A-Za-z])/gi, function (m, pre, l) { return pre + (map[l.toUpperCase()] || l); });
+  }
   function optBtn(o, k, extra) {
-    return '<button class="wq-opt wq-s' + (k % 4 + 1) + '" data-slot="' + esc(o.slot) + '"' + (extra || '') + '><span class="wq-shp">' + SHAPES[k % 4] + '</span>' +
+    return '<button class="wq-opt wq-s' + (k % 4 + 1) + '" data-slot="' + esc(o.slot) + '"' + (extra || '') + '><span class="wq-shp">' + SHAPES[k % 4] + '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b></span>' +
       picHtml(o, o.name) + '<span class="wq-lab">' + tex(o.text || o.name || '') + '</span></button>';
   }
   function itemHtml(q, T, lang) {
@@ -225,7 +234,7 @@ var WQI = (function () {
       var quiet = k === 'listen';
       body = '<div class="wq-pgrid" role="group">' + o.map(function (x, i) {
         var nm = x.name || (x.pic && x.pic.name) || x.text || '';
-        return '<button class="wq-opt wq-ptile wq-s' + (i % 4 + 1) + '" data-slot="' + esc(x.slot) + '"><span class="wq-shp">' + SHAPES[i % 4] + '</span>' +
+        return '<button class="wq-opt wq-ptile wq-s' + (i % 4 + 1) + '" data-slot="' + esc(x.slot) + '"><span class="wq-shp">' + SHAPES[i % 4] + (quiet ? '' : '<b class="wq-let">' + 'ABCD'.charAt(i) + '</b>') + '</span>' +
           (picHtml(x, nm) || '<span class="wq-emoji">' + esc(x.text) + '</span>') +
           (!quiet && speakable(x.text || nm) ? '<span class="wq-pname">' + tex(x.text || nm) + '</span>' : '') + '</button>';
       }).join('') + '</div>';
@@ -367,7 +376,7 @@ var WQI = (function () {
     });
   }
   return { kind: kind, grade: grade, tex: tex, say: say, cleanSvg: cleanSvg, figureHtml: figureHtml, itemHtml: itemHtml, readParts: readParts,
-    rightText: rightText, joinSay: joinSay, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES };
+    rightText: rightText, joinSay: joinSay, letters: letters, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
@@ -430,7 +439,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child'
     },
     ur: {
-      quiz: 'کوئز', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c].filter(Boolean).join(' · '); },
+      quiz: 'NIETE QUIZ', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c].filter(Boolean).join(' · '); },
       meta: function (n) { return n + ' سوال · تقریباً ' + Math.max(1, Math.round(n * 0.6)) + ' منٹ'; },
       hello: 'السلام علیکم! آئیں، مل کر پڑھیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
       play: 'کھیلیں', playAs: function (n) { return n + '، شروع کریں'; }, notMe: function (n) { return n + ' نہیں؟'; },
@@ -908,7 +917,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     sfx(ok ? 'right' : 'notyet');
     var right = { text: WQI.rightText(q, LANG) };
     var picked = (q.options || []).filter(function (o) { return o.slot === slot; })[0] || {};
-    var why = (!ok && picked.fb) || (ok && q.fb_right) || q.why || '';
+    var why = WQI.letters(q, (!ok && picked.fb) || (ok && q.fb_right) || q.why || '');
     var line = ok ? (retry ? T.fixed : T.right[i % T.right.length]) : T.notyet(optText(right));
     var answered = answeredCount();
     var halfway = !retry && ok !== null && answered === Math.ceil(N / 2) && N >= 4;
