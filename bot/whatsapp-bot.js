@@ -71,6 +71,9 @@ app.use('/api/flows', flowEndpointRoutes);
 // service-to-service API (portal → bot). Shared-secret auth lives
 // inside the router. Mounted before the inline /api/internal/send-password-reset
 // route below; Express falls through when no route in the router matches.
+// The web child quiz (portal -> bot), behind the same x-api-key check. Mounted
+// first so its paths never fall into the general internal router.
+app.use('/api/internal/wq', require('./shared/routes/web-quiz-internal.routes'));
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);
