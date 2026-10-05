@@ -1419,17 +1419,30 @@ Feature: NIETE (ICT) Teacher Training
     # Unit: dashboard/tests/web-quiz-page-badge.service.test.js. @wip.
 
   @api @quiz @web @wip @draft @P2 @T178 @no-mock-driver
-  Scenario: Jugnu moves on every screen, differently each time, and stays still when it should
+  Scenario: Jugnu comes alive only at the moments that matter, so a child's data goes on the quiz
     Given a web quiz open on a child's phone
-    When a screen with Jugnu appears (hello, whose turn, a question's answer, the results, see you tomorrow)
-    Then Jugnu's still pose shows at once and a short looping animation of that pose takes over a moment later, one of several picked at random
-    And the first question never waits for an animation to load
-    When the phone asks for reduced motion, saves data or is on 2G
+    When the landing hello, the child's first right answer or the results celebration appears
+    Then Jugnu's still pose shows at once and a short looping animation of that pose takes over about a second later
+    And every other screen with Jugnu (whose turn, other answers, see you tomorrow) shows only the still pose
+    And no animation starts before the page has loaded, so the first question never waits or shares the line with one
+    And a pose plays the same animation all day, so a second quiz on the same phone downloads no new animation
+    When the phone asks for reduced motion, saves data or is on 3G or slower
     Then Jugnu stays as the still pose and no animation is downloaded
+    When the phone is an iPhone (no light video format for it)
+    Then only the results celebration is animated
     When the page is hidden or the in-app browser is closed
     Then the animation stops with the sounds, and it starts again when the child comes back
-    # wq.js mascot block (jugImg, jugWake, jugStop); assets dashboard/public/wq/jugnu/<pose>_<k>.webm|.webp.
-    # Unit: dashboard/tests/web-quiz-mascot.service.test.js. @wip.
+    # wq.js mascot block (jugImg loop flag, jugPick by day, jugSoon, JUG_WEBP_LOOPS); assets dashboard/public/wq/jugnu/<pose>_<k>.webm|.webp.
+    # Unit: dashboard/tests/web-quiz-mascot.service.test.js, dashboard/tests/web-quiz-page-mascot-diet.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T206 @no-mock-driver
+  Scenario: A mascot picture that does not load is never a broken-image box
+    Given a web quiz open on a phone with patchy data
+    When one of Jugnu's pictures fails to load (no signal, or the server answers 404 or 500)
+    Then the page shows Jugnu's older still picture of the same pose instead
+    And when that fails too, Jugnu's place is left out and the screen still works, with no broken-image icon
+    # wq.js jugBroken (capture-phase error listener on the page root); wq.css .wq-jgone.
+    # Unit: dashboard/tests/web-quiz-mascot.service.test.js, dashboard/tests/web-quiz-page-mascot-diet.service.test.js. @wip.
 
   @api @quiz @web @wip @draft @P1 @T201 @no-mock-driver
   Scenario: An Urdu quiz opens in a Nastaliq font a child can read, from the first screen
