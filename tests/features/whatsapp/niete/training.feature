@@ -1263,3 +1263,19 @@ Feature: NIETE (ICT) Teacher Training
     # anytime by sending /quiz"; tqDeclined is sent only when the reaction cannot be. @wip.
     # UPDATED 2026-10-02 (FX7, bd-w2daa.31): handleOfferButton settles the turn as soon as it has found a live
     # offer, before the decline write (an expired offer still says so, in text). Unit: fx7-reaction-only-taps.test.js.
+
+  @e2e @quiz @wip @draft @config-gated @P1 @T100
+  Scenario: With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat
+    Given the web quiz is switched on and I am one of the teachers it is on for
+    When I make a class quiz for one of my lessons and receive the message to forward to my class
+    Then the message is word for word the one I would get today, except that its link opens the quiz page (…/q/<code>)
+    And the PDF's caption, which only I see, carries a link to try the quiz page myself before I forward it
+    And a child who taps "Invite a friend" forwards the same kind of link
+    But when the web quiz is off, or I am not on its list, every link is the WhatsApp one as before, and the caption has no preview line
+    # ADDED 2026-10-05: web-quiz-link quizLink(code, {teacherUserId, whatsapp}) at the three link builders
+    # (video-quiz-share deliverClassLink, transcript-quiz-handoff sendHandoff, video-quiz-invite
+    # handleInviteButton). app_settings web_quiz_enabled + web_quiz_teachers ("all" or user ids), fail closed;
+    # base = WEB_QUIZ_BASE_URL else PORTAL_URL. previewLink() adds tqWebPreview to the caption only when the
+    # token module signs one. The code is the same in both channels, so QUIZ-<code> still works in WhatsApp.
+    # Unit: tests/quiz/web-quiz-link.test.js. @wip.
+
