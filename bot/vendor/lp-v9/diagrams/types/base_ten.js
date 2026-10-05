@@ -37,6 +37,8 @@
 //   places    3 | 4      draw the empty hundreds (3) or thousands (4) column
 //                        even when there are none
 //   labels    {thousands, hundreds, tens, ones}  the column heads; defaults by `lang`
+//             false: no heads at all — for a question that asks WHICH place a
+//             digit is in, where the head over the pieces is the answer
 //   lang      "en" | "ur"
 
 const { Svg, C, SIZE, measure, hasUrdu, n } = require("../lib/svg");
@@ -200,13 +202,15 @@ function render(spec) {
     : counts.hundreds > 0 || places === 3 ? 1 : 2;
   const cols = PLACES.slice(first);
 
-  const heads = { ...DEFAULT_LABELS[isUr ? "ur" : "en"], ...((spec.labels && typeof spec.labels === "object") ? spec.labels : {}) };
+  const noHeads = spec.labels === false;
+  const heads = noHeads ? { thousands: "", hundreds: "", tens: "", ones: "" }
+    : { ...DEFAULT_LABELS[isUr ? "ur" : "en"], ...((spec.labels && typeof spec.labels === "object") ? spec.labels : {}) };
   // The heads are the mat's only text, so they carry its legibility: at 1.4 a four-place blocks
   // mat (1310 wide) put them at 7.05px on the phone, under the 8.74px floor. 1.75 gives 8.82px
   // there and widens no other mat past the floor (bd-oak77.15).
   const headSize = SIZE.label * 1.75;
-  const headW = (s) => measure(String(s), headSize, { lang: hasUrdu(String(s)) ? "ur" : "en" }) * (hasUrdu(String(s)) ? 1.3 : 1.05);
-  const headH = headSize * (isUr ? 2.2 : 1.5);
+  const headW = (s) => (!String(s) ? 0 : measure(String(s), headSize, { lang: hasUrdu(String(s)) ? "ur" : "en" }) * (hasUrdu(String(s)) ? 1.3 : 1.05));
+  const headH = noHeads ? 0 : headSize * (isUr ? 2.2 : 1.5);
   const PADC = 16;       // inside a column's panel
   const COLGAP = 20;     // between panels
   const PAD = 14;        // around the mat
@@ -235,9 +239,11 @@ function render(spec) {
   let x = PAD;
   const top = PAD + headH + 8;
   layout.forEach((c) => {
-    svg.text(x + c.w / 2, PAD + headH / 2, heads[c.place], {
-      size: headSize, weight: 700, anchor: "middle", baseline: "middle", fill: C.ink,
-    });
+    if (!noHeads) {
+      svg.text(x + c.w / 2, PAD + headH / 2, heads[c.place], {
+        size: headSize, weight: 700, anchor: "middle", baseline: "middle", fill: C.ink,
+      });
+    }
     svg.rect(x, top, c.w, panelH, { rx: 12, fill: C.panel, stroke: C.rule, sw: 1.6 });
     const items = [];
     for (let i = 0; i < c.k; i += 1) {

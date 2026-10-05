@@ -201,13 +201,16 @@ describe('the transcript quiz hand-off (first send mints the code)', () => {
     return { meta: sent.meta, caption };
   }
 
-  test('off = wa.me; on + allowed = web; the stored forwardable differs only in the link', async () => {
+  test('off = wa.me; on + allowed = web; the stored forwardable differs only in the link and the last line', async () => {
     const off = await studentMessage(settings({ enabled: false }));
     const on = await studentMessage(settings({ enabled: true, teachers: 'all' }));
     expect(off.link).toBe(WA_LINK('ABC234'));
     expect(on.link).toBe(WEB_LINK('ABC234'));
     expect(on.student_message).toContain(WEB_LINK('ABC234'));
-    expect(on.student_message.replace(WEB_LINK('ABC234'), '<L>')).toBe(off.student_message.replace(WA_LINK('ABC234'), '<L>'));
+    // The web page asks only the name; the WhatsApp quiz asks name and class.
+    const head = (m, l) => m.replace(l, '<L>').split('\n\n').slice(0, -1);
+    expect(head(on.student_message, WEB_LINK('ABC234'))).toEqual(head(off.student_message, WA_LINK('ABC234')));
+    expect(on.student_message.split('\n\n').pop()).not.toBe(off.student_message.split('\n\n').pop());
   });
 
   test('on + not allowed = wa.me', async () => {

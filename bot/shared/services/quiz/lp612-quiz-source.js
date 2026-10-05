@@ -34,6 +34,11 @@
  *   watch_out blocks             → iDo.misconception (the first) + misconceptions (the rest)
  *   exit_ticket + exam_bank MCQs → wrap.exitOptions
  *   homework + homework_key      → wrap.homework [{prompt, answer}]
+ *   diagram blocks + the board's
+ *   final diagram                → diagrams [{where, spec}] — the lesson's own
+ *                                  drawings, as specs the quiz engine can draw
+ *                                  (read only by lp-quiz-digest.lessonDiagramsBlock,
+ *                                  behind quiz_author_gates_v2). Never the homework's.
  *
  * THE ANSWERS NEVER REACH THE AUTHOR. Practice answers, the exit ticket, the
  * homework key and the exam bank are the 6-12 analogue of the K-5 exit MCQ
@@ -100,6 +105,14 @@ function toSlideScript(doc, { lang = null } = {}) {
     ...all.filter((b) => b.type === 'watch_out' && b.misconception === true).map((b) => mistake(b.text)),
   ].filter(Boolean);
 
+  // The lesson's own drawings, as specs (the same engine draws a quiz figure).
+  // A homework diagram is the homework, so it stays out like the homework key.
+  const diagrams = [
+    ...all.filter((b) => b.type === 'diagram' && b._section !== 'homework' && b.spec && typeof b.spec === 'object' && b.spec.type)
+      .map((b) => ({ where: b._section, spec: b.spec })),
+    ...((d.page2 && d.page2.board_final && d.page2.board_final.diagram && d.page2.board_final.diagram.type)
+      ? [{ where: 'board', spec: d.page2.board_final.diagram }] : []),
+  ];
   const sections = arr(d.sections);
   const exitTicket = sections.flatMap((s) => arr(s && s.exit_ticket));
   const examMcq = arr(d.page2 && d.page2.exam_bank && d.page2.exam_bank.mcq);
@@ -137,6 +150,7 @@ function toSlideScript(doc, { lang = null } = {}) {
       problems: practice.map((p) => ({ prompt: str(p && p.q), answer: str(p && p.a) })).filter((p) => p.prompt),
     },
     misconceptions: mistakes.slice(1),
+    diagrams,
     wrap: {
       keyFacts: [...keyPoints, ...boardLines],
       exitOptions: [

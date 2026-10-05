@@ -12,7 +12,8 @@
   --fu:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq","Noto Naskh Arabic",system-ui,sans-serif;
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--f);-webkit-text-size-adjust:100%}
+/* touch-action: manipulation = no double-tap zoom, so a quick second tap (the ORDER item: B then A) always lands; pinch zoom stays. */
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--f);-webkit-text-size-adjust:100%;touch-action:manipulation}
 html[lang=ur] body{font-family:var(--fu)}
 button,input{font:inherit;color:inherit}
 img{max-width:100%}
@@ -53,7 +54,9 @@ html[lang=ur] .wq-btn{font-weight:700;font-size:19px;line-height:1.9}
 .wq-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;font-weight:800;font-size:13px;background:var(--paper-2);color:var(--navy)}
 .wq-chips{display:flex;flex-wrap:wrap;gap:10px}
 .wq-kid{display:flex;align-items:center;gap:8px;min-height:56px;border-radius:16px;border:2px solid var(--line);background:var(--card);padding:6px 14px 6px 8px;font-weight:900;font-size:18px;color:var(--navy);cursor:pointer}
-.wq-kid .wq-ani{font-size:28px;width:40px;height:40px;display:grid;place-items:center;background:var(--paper-2);border-radius:50%}
+/* The animal badge is an emoji: keep it out of the Nastaliq stack and its tall line box (Urdu pushed it below its circle). */
+.wq-ani{font-family:var(--f);line-height:1;display:inline-block;font-weight:400}
+.wq-kid .wq-ani{font-size:28px;width:40px;height:40px;display:grid;place-items:center;background:var(--paper-2);border-radius:50%;line-height:1}
 .wq-input{width:100%;min-height:58px;border-radius:16px;border:2px solid var(--line);background:#fff;padding:8px 14px;font-size:22px;font-weight:800;color:var(--navy)}
 .wq-input:focus{outline:3px solid var(--green);outline-offset:1px}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
@@ -117,7 +120,13 @@ html[lang=ur] .wq-opt{font-weight:700;font-size:20px;line-height:1.9}
 .wq-hist li{display:flex;justify-content:space-between;gap:8px;background:var(--card);border-radius:12px;padding:10px 12px;margin-top:6px;font-weight:800}
 .wq-hist{list-style:none;margin:0;padding:0}
 .wq-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:14px;padding:10px 16px;font-weight:800;z-index:9;max-width:90%}
-.wq-video{width:100%;border-radius:16px;background:#000;aspect-ratio:16/9}
+.wq-video{width:100%;border-radius:16px;background:#000;aspect-ratio:16/9;display:block}
+.wq-vbox{position:relative;border-radius:16px;overflow:hidden}
+.wq-vcover{position:absolute;inset:0;width:100%;border:0;margin:0;padding:0;border-radius:16px;background:var(--green-l);display:grid;place-items:center;cursor:pointer}
+.wq-vcover.wq-vposter{background:transparent}
+.wq-vcover[hidden]{display:none}
+.wq-vjug{position:absolute;inset-inline-start:10px;bottom:6px;width:84px;height:84px;object-fit:contain}
+.wq-vplay{width:76px;height:76px;border-radius:50%;background:var(--green);color:var(--navy);display:grid;place-items:center;font:900 32px/1 var(--f);padding-inline-start:6px;box-shadow:0 5px 0 var(--green-d)}
 .wq-how{display:grid;gap:8px;list-style:none;padding:0;margin:0}
 .wq-how li{display:flex;gap:10px;align-items:center;font-weight:800;background:var(--card);border-radius:14px;padding:10px 12px}
 .wq-proof{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--green-d);font-size:15px}

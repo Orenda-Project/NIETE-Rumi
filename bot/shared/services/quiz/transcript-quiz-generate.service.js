@@ -43,6 +43,7 @@ const Store = require('./lp-asset-source.store');
 const Funnel = require('./quiz-funnel');
 const LpCache = require('./lp-quiz-cache');
 const DailyCap = require('./quiz-daily-cap');
+const AuthorGates = require('./quiz-author-gates');
 const Lp612Source = require('./lp612-quiz-source');
 const GatesV2 = require('./quiz-author-gates-v2');
 
@@ -523,11 +524,12 @@ function withFigureSvgs(rows, questions, language) {
 // "Teacher Rifat" / "استاد رفعت" — shared with the web quiz page (quiz-teacher-label.js).
 const { teacherLabel } = require('./quiz-teacher-label');
 
-function studentMessage({ teacherName, topic, date, link, language }) {
+function studentMessage({ teacherName, topic, date, link, language, web = false }) {
   // The message a teacher forwards to the class is text: a topic carrying TeX
-  // maths reads "1/2", never "$\frac{1}{2}$" (quiz-math.js).
+  // maths reads "1/2", never "$\frac{1}{2}$" (quiz-math.js). The web page asks
+  // only the child's name, so a web link gets its own last line.
   const { mathForChat } = require('./quiz-math');
-  return resolveUx('tqStudentMessage', {
+  return resolveUx(web ? 'tqStudentMessageWeb' : 'tqStudentMessage', {
     language,
     params: {
       teacher: teacherLabel(teacherName, language),
@@ -1711,7 +1713,9 @@ async function runKeyVerify(api, {
 async function process(quizId, payload = {}) {
   const flight = { key: null };
   try {
-    return await processQuiz(quizId, payload, flight);
+    // quiz_author_gates_v2 is read ONCE per quiz and held for the whole run.
+    const gates = await AuthorGates.isQuizAuthorGatesV2();
+    return await AuthorGates.runWithAuthorGates(gates, () => processQuiz(quizId, payload, flight));
   } finally {
     if (flight.key) await LpCache.release(flight.key, quizId);
   }
@@ -2024,7 +2028,6 @@ async function processQuiz(quizId, payload, flight) {
     let authorReplies = 0;
     // WHAT THE LESSON DREW — an lp_v8 lesson's own manipulatives (the slide
     // script's counters, bundles and tiles), so a picture draws what the class saw.
-    const lessonDrew = isLp ? LpDigest.lessonDrewBlock(slideScript) : '';
     // app_settings quiz_author_gates_v2, read ONCE per quiz (fail-closed). On, the
     // author and every targeted rewrite return each question's source_quote, and
     // runSourceFidelity holds the set to its source below. Off, nothing changes.
@@ -2035,6 +2038,10 @@ async function processQuiz(quizId, payload, flight) {
       const base = module.exports;
       api = { ...base, rewriteRejected: (args) => base.rewriteRejected({ ...args, authorGates: true }) };
     }
+    // quiz_author_gates_v2 adds a 6-12 lesson's own diagram specs (lessonDrewFor).
+    const lessonDrew = !isLp ? ''
+      : authorGates ? LpDigest.lessonDrewFor(slideScript, { authorGates: true })
+        : LpDigest.lessonDrewBlock(slideScript);
     for (let attempt = 1; attempt <= attemptsAllowed; attempt += 1) {
       let out;
       try {
@@ -2663,7 +2670,8 @@ module.exports = {
   // the source-fidelity step, exported for the offline measurement of its gates
   runSourceFidelity,
   // app_settings quiz_author_gates_v2 (fail-closed), read once per quiz.
-  authorGatesOn: () => require('../../config/feature-flags').isQuizAuthorGatesV2(),
+  // The flag is read ONCE per quiz, at process() entry (runWithAuthorGates); this returns that value, no second read.
+  authorGatesOn: async () => require('./quiz-author-gates').authorGatesOn({}),
   rewriteTeacherFields: (args) => require('./transcript-quiz-rewrite').rewriteTeacherFields(args),
   // Grade 1-5 maths only — the one rewrite that may add a picture (runFigureDensity).
   addPictures: (args) => require('./transcript-quiz-rewrite').addPictures(args),

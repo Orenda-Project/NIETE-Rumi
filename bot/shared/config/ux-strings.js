@@ -2201,6 +2201,13 @@ const UX_STRINGS = {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name and class first.',
     ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
+  // The same message when the link opens the WEB quiz page, which asks only the
+  // child's name (the WhatsApp quiz asks name and class). Chosen where the link
+  // is chosen (transcript-quiz-handoff). Urdu: پوچھا جائے گا is passive, no gendered stem.
+  tqStudentMessageWeb: {
+    en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name first.',
+    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام پوچھا جائے گا۔',
+  },
   // WHEN the class report comes, as video-quiz-report schedules it: 12 hours
   // after the first child joins, moved to 07:00 PKT when that lands at night.
   // Nothing sends it early — the "sooner if everyone finishes" send was removed

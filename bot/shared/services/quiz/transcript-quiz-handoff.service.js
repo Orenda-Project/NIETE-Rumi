@@ -122,12 +122,13 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     code = minted.code;
     shareCodeId = minted.id;
     // The web quiz page when it is switched on for this teacher, else wa.me.
-    link = await require('./web-quiz-link').quizLink(code, {
-      teacherUserId: quiz.teacher_id, whatsapp: `https://wa.me/${share.botNumber()}?text=QUIZ-${code}`,
-    });
+    const waLink = `https://wa.me/${share.botNumber()}?text=QUIZ-${code}`;
+    link = await require('./web-quiz-link').quizLink(code, { teacherUserId: quiz.teacher_id, whatsapp: waLink });
     const lessonDate = formatLessonDate(session.created_at, language);
     const Gen = require('./transcript-quiz-generate.service');
-    forwardable = Gen.studentMessage({ teacherName: minted.teacherName || teacherName, topic: quiz.topic, date: lessonDate, link, language });
+    forwardable = Gen.studentMessage({
+      teacherName: minted.teacherName || teacherName, topic: quiz.topic, date: lessonDate, link, language, web: link !== waLink,
+    });
   }
 
   // ── the PDF — the SAME object the teacher was sent, best effort ────────────

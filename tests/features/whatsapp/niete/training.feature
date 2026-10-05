@@ -1370,6 +1370,24 @@ Feature: NIETE (ICT) Teacher Training
     And each option keeps its own letter, so the right answer, the feedback and the pictures stay with it
     # ADDED 2026-10-05: web-quiz.service questionPayload -> inDisplayOrder (video-quiz-render displayOrder). @wip.
 
+  @api @quiz @web @wip @draft @P1 @T145 @no-mock-driver
+  Scenario: The quiz page shows the lesson video when the video bank's rows name another bucket of ours
+    Given a video-bank quiz whose lesson video row names a different bucket on our own R2 endpoint
+    And the same video key exists in this deployment's bucket
+    When the quiz is fetched for the page
+    Then the page gets a signed link to this deployment's copy of the video, so the lesson video shows before question 1
+    But when that key is missing from this deployment's bucket, or the row names a host that is not ours, there is no video and the quiz starts at question 1
+    # ADDED 2026-10-05: web-quiz-media presignVideo -> videoKey (path after the bucket segment, HEAD in our bucket). @wip.
+
+  @api @quiz @web @wip @draft @P1 @T170 @no-mock-driver
+  Scenario: The recorded "why" of a web quiz question is its reason, never praise
+    Given a quiz question whose correct-answer feedback is only "Well done!" and whose explanation gives the reason
+    When the read-aloud clips are published
+    Then the "why" clip says the explanation, and no clip says "Well done!" or «شاباش!»
+    And praise in front of a reason is cut off and the reason is kept
+    And a web item's own why is voiced, not its praise line
+    # ADDED 2026-10-05: web-quiz-publish.service whyText/withoutPraise; the page plays the why clip after a wrong answer too. @wip.
+
   @e2e @quiz @wip @draft @config-gated @P1 @T100
   Scenario: With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat
     Given the web quiz is switched on and I am one of the teachers it is on for
@@ -1407,6 +1425,47 @@ Feature: NIETE (ICT) Teacher Training
     Then the answer is right only in that order, and the review shows the order
     # web-quiz.service questionPayload (WebItems.webPayload), recordAnswers (WebItems.isCorrect), finishSession (keyFor). @wip.
 
+  @api @quiz @web @wip @draft @P2 @T160 @no-mock-driver
+  Scenario: In Urdu, each child's animal sits inside its circle on "Whose turn is it?"
+    Given a web quiz in Urdu, and names remembered on this phone and in the class
+    When the child opens "Whose turn is it?"
+    Then every name chip shows its animal inside its round badge, as it does in English
+    And the animal sits in line with the name on the "Is this you?" card, the scorecard and the class league table
+    # wq.js ani() wraps every animal in .wq-ani; wq.css .wq-ani keeps the system font and line-height 1.
+    # Unit: dashboard/tests/web-quiz-page-badge.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T161 @no-mock-driver
+  Scenario: A tap anywhere on the lesson video starts it, and a video with no poster is not a dark box
+    Given a web quiz with a lesson video
+    When the child sees the video screen
+    Then the video box shows Jugnu and a big play button when the video has no poster, or the poster when it has one
+    When the child taps anywhere on the box
+    Then the video starts, the cover goes away and the video's own controls take over
+    # wq.js video() .wq-vcover. Unit: dashboard/tests/web-quiz-page-video.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T162 @no-mock-driver
+  Scenario: A class with no label never leaves a dangling dot on the card or the league table
+    Given a brand-new code whose class has no label yet
+    When the child finishes and sees the scorecard and the league table
+    Then the card's header reads "NIETE" with nothing after it, and no line starts or ends with a dot
+    # wq.js dotJoin(). Unit: dashboard/tests/web-quiz-page-card.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T163 @no-mock-driver
+  Scenario: The page records whether it was opened in WhatsApp's in-app browser
+    Given a child opens the web quiz in WhatsApp's own browser, or in the phone's browser
+    When the page reports that it opened
+    Then the log keeps iab as 1 for WhatsApp's browser and 0 for the phone's browser
+    # web-quiz.service cleanEvent. Unit: bot/tests/quiz/web-quiz/web-quiz.service.test.js (E8 iab). @wip.
+
+  @api @quiz @web @wip @draft @config-gated @P1 @T164 @no-mock-driver
+  Scenario: The message I forward for the web quiz says the child is asked only their name
+    Given the web quiz is on for me
+    When I get my class quiz and its message to forward
+    Then the message carries the web link and says the child will be asked their name first, in the quiz's language
+    And when the web quiz is off for me, the message carries the WhatsApp link and still says name and class, exactly as before
+    # transcript-quiz-handoff: the link and the text are chosen together (tqStudentMessageWeb vs tqStudentMessage).
+    # Unit: tests/quiz/web-quiz-forward-message.test.js, tests/quiz/web-quiz-link.test.js. @wip.
+
   @api @quiz @wip @draft @config-gated @P1 @T130 @no-mock-driver
   Scenario: With the author gates on, every quiz question carries the moment of my lesson that holds its answer
     Given app_settings "quiz_author_gates_v2" is true
@@ -1437,6 +1496,23 @@ Feature: NIETE (ICT) Teacher Training
     And the slip is recorded on the quiz for my report to use later, and nothing in my report changes yet
     # teaching_error per question -> quizzes.meta.source_fidelity.teaching_errors [{question, said, correct, quote}]. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T110 @no-mock-driver
+  Scenario: A question that sends the child to a picture it does not have is left out of my web quiz
+    Given my web quiz has four questions
+    And one says "Look at the pictures. Which one is a leaf?" but has no picture, no figure and no picture options
+    When a child opens the quiz from my link
+    Then the child plays three questions, and the score and the "answered at least half" rule count three
+    And a question that says "Look at the picture" and has its own picture is played with the picture
+    # web-quiz.service loadQuestions (playable: quiz-picture-words pointsAtPicture + hasPicture). Unit: tests/quiz/web-quiz/web-quiz.service.test.js, tests/quiz/quiz-picture-words.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T111 @no-mock-driver
+  Scenario: The recorded voice on my web quiz says plain words, never maths code
+    Given a question "What is $\frac{3}{4}$ of 8?" whose web item reads it as "What is three quarters of eight?"
+    When the read-aloud clips for my quiz are recorded
+    Then the question clip says "What is three quarters of eight?" and each option clip says that option's spoken words
+    And a question with no web item is read from its own text with the maths written as words
+    And when a question's words change, the next recording says the new words
+    # web-quiz-publish.service partsFor (read.stem / read.opts, mathToText fallback), audioKey (hash of the words). Unit: tests/quiz/web-quiz-publish.test.js. @wip.
   @api @quiz @wip @draft @config-gated @P1 @T121 @no-mock-driver
   Scenario: With the author gates on, a question that is wrong, unanswerable or about the teacher is rewritten, never sent
     Given app_settings "quiz_author_gates_v2" is true

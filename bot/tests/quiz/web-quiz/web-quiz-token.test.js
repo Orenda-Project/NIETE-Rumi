@@ -10,6 +10,12 @@ const SAVED = { ...process.env };
 afterEach(() => { process.env = { ...SAVED }; });
 
 // The secret is read at call time, so `env` stays in force until afterEach.
+// Flip the signature's last character to one it is guaranteed not to be —
+// a fixed 'A' already matches 1 signature in 64, and that token verifies.
+function tamper(sig) {
+  return sig.slice(0, -1) + (sig.endsWith('A') ? 'B' : 'A');
+}
+
 function load(env) {
   jest.resetModules();
   delete process.env.WEB_QUIZ_TOKEN_SECRET;
@@ -48,11 +54,23 @@ describe('web-quiz-token', () => {
     const [body, sig] = st.split('.');
     const forged = Buffer.from(JSON.stringify({ ...p, sid: 'other' })).toString('base64url');
     expect(T.verify(`${forged}.${sig}`, 's')).toBeNull();
-    expect(T.verify(`${body}.${sig.slice(0, -1)}A`, 's')).toBeNull();
+    expect(T.verify(`${body}.${tamper(sig)}`, 's')).toBeNull();
     const old = T.sign({ k: 's', sid: 'x', exp: Math.floor(Date.now() / 1000) - 5 });
     expect(T.verify(old, 's')).toBeNull();
     expect(T.verify(null, 's')).toBeNull();
     expect(T.verify('garbage', 's')).toBeNull();
+  });
+
+  test('tamper still fails when the signature already ends in the replacement character', () => {
+    const T = load({ INTERNAL_API_KEY: 'k1' });
+    let st = null;
+    for (let i = 0; i < 5000 && !st; i++) {
+      const t = T.signSession({ sessionId: `sess-${i}`, deviceRef: 'dev-1', shareCodeId: 'sc-1' });
+      if (t.split('.')[1].endsWith('A')) st = t;
+    }
+    expect(st).not.toBeNull();
+    const [body, sig] = st.split('.');
+    expect(T.verify(`${body}.${tamper(sig)}`, 's')).toBeNull();
   });
 
   test('a token signed under another secret does not verify', () => {

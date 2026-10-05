@@ -125,3 +125,38 @@ Feature: Web child quiz page on the portal
     When the question is shown on the page
     Then each answer is a large letter tile drawn in the page's own Urdu font
     And the shadda, zer and jazm marks are fully visible
+
+  Scenario: A question that points at a picture it does not have is not served
+    Given a quiz with four questions
+    And one stem says "Look at the pictures. Which one is a leaf?" with no picture, no figure and no picture options
+    When the child opens the quiz
+    Then the quiz has three questions
+    And the score at the end is out of three
+
+  Scenario: A question that points at its own picture is served with it
+    Given a stem "Look at the picture. Which part takes in water?" whose row has its own picture
+    When the question is shown
+    Then the picture is on screen above the options
+
+  Scenario: The recorded voice says the words written for the voice, never maths code
+    Given a quiz whose question is "What is $\frac{3}{4}$ of 8?" and whose web item reads it as "What is three quarters of eight?"
+    When the read-aloud clips are published
+    Then the question clip says "What is three quarters of eight?"
+    And no clip says "dollar", "backslash" or "frac"
+    And a question with no web item is read from its own text with the maths turned into words
+    And a question whose words changed gets a new clip on the next publish
+
+  Scenario: A wrong answer is voiced as "not yet", never as praise
+    Given a question whose correct-answer feedback is only "Well done!" and whose explanation gives the reason
+    When the quiz is published, the recorded "why" says the reason, never the praise
+    And a child taps a wrong answer
+    Then the voice says "Not yet. The answer is" and then the right answer by name
+    And then the feedback for the option the child picked, or the reason
+    And no praise is spoken, in English or in Urdu
+    But a right answer is praised and then given the reason
+
+  Scenario: Closing the page or leaving it silences every sound
+    Given the voice is reading a question aloud and the lesson video may be playing
+    When the page is hidden, frozen or closed (the in-app browser is closed, the child switches app or locks the phone)
+    Then the recorded clip, the phone's voice, the sound effects and any playing video stop at once
+    And when the child comes back nothing starts again until the child taps

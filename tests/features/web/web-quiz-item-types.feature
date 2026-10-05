@@ -26,6 +26,12 @@ Feature: Web quiz item types on the child page
     And tapping a filled place takes that step back
     And "Check" sends the steps in the order the child chose
 
+  Scenario: A quick second tap on an order step always lands
+    Given an "order" question with three steps on a phone
+    When the child taps step B and then step A with no pause
+    Then B fills place 1 and A fills place 2
+    And the phone does not treat the two taps as a double-tap zoom
+
   Scenario: Match pairs by tapping a left item and then its partner
     Given a "match" question with three pairs
     When the child taps each partner in turn

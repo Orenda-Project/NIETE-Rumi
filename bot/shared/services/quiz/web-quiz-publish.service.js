@@ -7,7 +7,16 @@
  * (services/tts — the same voices as the teacher voice notes; no new provider).
  * Each clip is stored once in R2 at
  *
- *   web-quiz/audio/<quiz_id>/<question_id>/<part>.ogg     part = q | a | b | c | d | why
+ *   web-quiz/audio/<quiz_id>/<question_id>/<part>-<hash>.ogg   part = q | a | b | c | d | why
+ *
+ * where <hash> is taken from the language and the exact words, so a question
+ * whose words change gets a new clip on the next publish instead of keeping
+ * the old one.
+ *
+ * What is said: a question with a SCHEMA_v2 web item (media.web) is voiced from
+ * its read.stem / read.opts (plain words written for the voice; each option on
+ * its own slot). A row with no web item falls back to mathToText of the row's
+ * text. Neither path ever hands TeX ("$\frac{1}{2}$") to the voice.
  *
  * and the keys are written into quizzes.meta.web.audio as
  *
@@ -24,7 +33,9 @@
  * phase renderer reads media and sends what it finds there.
  */
 
+const crypto = require('crypto');
 const tts = require('../tts');
+const { mathToText } = require('./quiz-math');
 const r2 = require('../../storage/r2');
 const { logEvent } = require('../../utils/structured-logger');
 const { logError } = require('../../utils/logger');
@@ -43,14 +54,15 @@ function clipCostUsd(res, text) {
   return 0;
 }
 
-function audioKey(quizId, questionId, part) {
-  return `${PREFIX}/${quizId}/${questionId}/${part}.ogg`;
+function audioKey(quizId, questionId, part, text, language) {
+  const h = crypto.createHash('sha1').update(`${language || ''}\n${text || ''}`).digest('hex').slice(0, 12);
+  return `${PREFIX}/${quizId}/${questionId}/${part}-${h}.ogg`;
 }
 
-/** Text as it should be spoken: no Markdown markers, no stored option letters. */
+/** Text as it should be spoken: no TeX, no Markdown markers, no stored option letters. */
 function spoken(text) {
   if (text == null) return '';
-  let out = String(text);
+  let out = mathToText(String(text)).replace(/[\\$]/g, ' ');
   // "A) Roots drink water" -> "Roots drink water"; the page shuffles options, so
   // a stored letter can name a different option than the one the child sees.
   out = out.replace(/(^|\s)\(?[A-D]\)\s*/g, '$1');
@@ -59,9 +71,21 @@ function spoken(text) {
   return out.replace(/\s+/g, ' ').trim();
 }
 
+// Praise at the start of a feedback line ("Well done!", «شاباش!»). The why clip is played after a
+// WRONG answer too, so it carries the reason only; praise is the page's own line. A word counts as
+// praise only when punctuation follows it: "Right angles…" and «صحیح جواب…» are kept.
+const PRAISE_LEAD = /^\s*(?:(?:well done|very good|good job|great job|great work|great|excellent work|excellent|amazing|fantastic|super|good|nice|brilliant|awesome|correct|that's right|you got it|perfect|nice work|شاباش|بہت خوب|بہت اچھے|بہت اچھا|زبردست|بالکل درست|بالکل ٹھیک|درست|صحیح|جی ہاں|واہ)\s*[!.،,۔:]+\s*)+/i;
+
+function withoutPraise(text) {
+  const t = spoken(text);
+  const cut = t.replace(PRAISE_LEAD, '').trim();
+  return SAYABLE.test(cut) ? cut : '';
+}
+
+/** The reason the right answer is right: the explanation, else the correct-answer feedback minus its praise. */
 function whyText(q) {
   const fb = q.option_feedback && typeof q.option_feedback === 'object' ? q.option_feedback : {};
-  return spoken(fb.correct) || spoken(q.explanation);
+  return spoken(q.explanation) || withoutPraise(fb.correct);
 }
 
 // Something a voice can say. A picture option is stored as an emoji (no letter,
@@ -69,10 +93,28 @@ function whyText(q) {
 // to a different voice, so it gets no clip — the page shows the picture.
 const SAYABLE = /[\p{L}\p{N}]/u;
 
+function webItemOf(q) {
+  const w = q && q.media && q.media.web;
+  return w && w.v === 2 && Array.isArray(w.options) ? w : null;
+}
+
 /** The clips one question needs, in order: [{ part, text }]. */
 function partsFor(q) {
   const parts = [];
   const add = (part, text) => { if (text && SAYABLE.test(text)) parts.push({ part, text }); };
+  const w = webItemOf(q);
+  if (w) {
+    const read = w.read && typeof w.read === 'object' ? w.read : {};
+    const readOpts = Array.isArray(read.opts) ? read.opts : [];
+    add('q', spoken(read.stem) || spoken(w.stem));
+    // read.opts[i] belongs to options[i]; the clip goes on that option's slot (the page looks it up by slot).
+    w.options.forEach((o, i) => {
+      const p = PARTS_OPTS['ABCD'.indexOf(String((o && o.slot) || '').charAt(0))];
+      if (p) add(p, spoken(readOpts[i]) || spoken(o.name) || spoken(o.text));
+    });
+    add('why', spoken(w.why) || whyText(q) || withoutPraise(w.fb_right));
+    return parts;
+  }
   add('q', spoken(q.question_text));
   PARTS_OPTS.forEach((p) => add(p, spoken(q[`option_${p}`])));
   add('why', whyText(q));
@@ -113,7 +155,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     if (!quiz) return done({ ok: false, reason: 'quiz_not_found' });
 
     const { data: questions, error: qsErr } = await client.from('quiz_questions')
-      .select('id, question_text, option_a, option_b, option_c, option_d, correct_option, option_feedback, explanation, sort_order')
+      .select('id, question_text, option_a, option_b, option_c, option_d, correct_option, option_feedback, explanation, media, sort_order')
       .eq('quiz_id', quizId).order('sort_order', { ascending: true });
     if (qsErr) throw qsErr;
 
@@ -122,7 +164,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     for (const q of questions || []) {
       const entry = { q: null, opts: [null, null, null, null], why: null };
       for (const { part, text } of partsFor(q)) {
-        const key = audioKey(quizId, q.id, part);
+        const key = audioKey(quizId, q.id, part, text, language);
         let have = await exists(key);
         if (have) {
           stats.skipped += 1;
@@ -172,4 +214,4 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
   }
 }
 
-module.exports = { publishQuizAudio, audioKey, partsFor, spoken };
+module.exports = { publishQuizAudio, audioKey, partsFor, spoken, whyText, withoutPraise };
