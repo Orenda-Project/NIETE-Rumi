@@ -137,7 +137,7 @@ describe('the detector', () => {
       mcq('What does every sentence start with?', ['a capital letter', 'a comma', 'a number'], 'A sentence always starts with a capital letter and ends with a full stop.'),
       mcq('What comes at the end of a sentence?', ['a full stop', 'a comma', 'a question word'], 'A sentence ends with a full stop.'),
     ];
-    expect(answerLeakErrors(qs)).toEqual([expect.stringMatching(/^q1: ANSWER_LEAK — .*"a full stop".*q0's explanation/)]);
+    expect(answerLeakErrors(qs)).toEqual([expect.stringMatching(/^q1: ANSWER_LEAK — q0 gives away q1's answer «a full stop».*q0's explanation/)]);
   });
 
   test('an earlier STEM that states a later answer (Urdu)', () => {
@@ -145,7 +145,7 @@ describe('the detector', () => {
       mcq('اردو کو قومی زبان کیوں کہا جاتا ہے؟', ['یہ سب کو جوڑتی ہے', 'یہ سب سے پرانی ہے', 'یہ صرف ایک شہر میں بولی جاتی ہے']),
       mcq('پاکستان کی قومی زبان کون سی ہے؟', ['اردو', 'انگریزی', 'پنجابی']),
     ];
-    expect(answerLeakErrors(qs)).toEqual([expect.stringMatching(/^q1: ANSWER_LEAK — .*"اردو".*q0's question/)]);
+    expect(answerLeakErrors(qs)).toEqual([expect.stringMatching(/^q1: ANSWER_LEAK — q0 gives away q1's answer «اردو».*q0's question/)]);
   });
 
   test('a LATER question cannot leak to an earlier one: the child has already answered it', () => {
@@ -165,13 +165,16 @@ describe('the detector', () => {
   });
 
   test('a stem that offers the choice itself, a source that names a wrong option too, and a maths answer are left alone', () => {
+    // (a stem that names the later answer in passing — "between the crust and the outer core" before
+    // "which layer comes after the mantle?" — IS a give-away: the blind re-score counted it; see
+    // quiz-author-gates-cross-item-leaks.test.js)
     expect(answerLeakErrors([
       mcq('A cheetah has long legs to run fast. Is this a structural or behavioural adaptation?', ['structural adaptation', 'behavioural adaptation', 'neither']),
       mcq('Birds fly south in winter. Is this a structural or behavioural adaptation?', ['behavioural adaptation', 'structural adaptation', 'neither']),
     ])).toEqual([]);
     expect(answerLeakErrors([
-      mcq('Which layer lies between the crust and the outer core?', ['mantle', 'inner core', 'crust']),
-      mcq('Digging down from the crust, which layer comes after the mantle?', ['outer core', 'inner core', 'crust']),
+      mcq('Which layer is at the centre of the Earth?', ['inner core', 'crust', 'mantle'], 'From the outside in: crust, then mantle, then outer core, then inner core.'),
+      mcq('Which layer comes right after the crust?', ['mantle', 'outer core', 'inner core']),
     ])).toEqual([]);
     expect(answerLeakErrors([
       mcq('In the fraction $\\frac{2}{7}$, which number is the numerator?', ['2', '7', '9']),
@@ -194,13 +197,13 @@ describe('the validator', () => {
   test('flag on: the leak is a named complaint; flag off: nothing', () => {
     const qs = grammar(); qs[0] = LEAKS_Q2(qs[0]);
     expect(validate(qs, { ...CTX, authorGates: true }).errors.filter((e) => /ANSWER_LEAK/.test(e)))
-      .toEqual([expect.stringMatching(/^q2: ANSWER_LEAK — .*"Mother".*q0's explanation/)]);
+      .toEqual([expect.stringMatching(/^q2: ANSWER_LEAK — q0 gives away q2's answer «Mother».*q0's explanation/)]);
     expect(validate(qs, { ...CTX, authorGates: false }).errors.filter((e) => /ANSWER_LEAK/.test(e))).toEqual([]);
   });
 });
 
 describe('on the generate path, flag on', () => {
-  test('ONE targeted rewrite carrying the rule; a repair that leaves the leak SHIPS the quiz whole, the fault counted', async () => {
+  test('the targeted rewrite carries the rule; a leak no repair fixes is DROPPED within the floor and the quiz ships', async () => {
     const bad = grammar(); bad[0] = LEAKS_Q2(bad[0]);
     mockCreate.mockImplementation((call) => (isRewrite(call)
       ? Promise.resolve(reply({ questions: [{ index: 2, ...bad[2] }] }))   // the repair changes nothing
@@ -209,11 +212,13 @@ describe('on the generate path, flag on', () => {
     const r = await Gen.process(QID, {});
     expect(r.ok).toBe(true);
     const rw = mockCreate.mock.calls.map(promptOf).filter((p) => /REWRITE THESE QUESTIONS/.test(p));
-    expect(rw).toHaveLength(1);
+    // the loop's repair, then the last one on what ships
+    expect(rw).toHaveLength(2);
     expect(rw[0]).toContain('REWRITE THESE QUESTIONS: q2');
     expect(rw[0]).toContain('GIVEN AWAY BY ANOTHER QUESTION');
-    expect(storedRows()).toHaveLength(8);
-    expect((lastMeta().soft_faults || []).filter((e) => /^q2: ANSWER_LEAK/.test(e))).toHaveLength(1);
+    expect(storedRows()).toHaveLength(7);
+    expect((lastMeta().soft_faults || []).filter((e) => /ANSWER_LEAK/.test(e))).toHaveLength(0);
+    expect(lastMeta().answer_leaks).toEqual(expect.objectContaining({ found: 1, dropped: [2], remaining: 0 }));
     expect(logEvent.mock.calls.map((c) => c[0])).not.toContain('transcript_quiz.failed');
   });
 
