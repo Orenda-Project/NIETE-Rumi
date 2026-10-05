@@ -28,7 +28,8 @@ Most teachers are not comfortable with technology. Every rule below follows from
    shadow, no chevron, no button colour.
 5. **Colour has meaning** (the table below). A feature's colour is only ever its own icon.
 6. **Two headings.** A feature's main page gets the flat indigo band. A page inside a flow gets the light
-   bar with a back button and a breadcrumb.
+   bar with a back button and a breadcrumb. On a desktop both are a card under the menu, in the page's
+   column (see "The desktop column").
 7. **One bottom action button.** A green pill above the menu bar. A second choice is an outline button.
    Disabled is grey with no edge.
 8. **Urdu mirrors.** Use start/end spacing only, and turn directional icons round in RTL.
@@ -81,11 +82,11 @@ props, use only `nu-*` tokens and logical spacing, and keep every target at 56px
 
 | Component | Use it for | Notes |
 |---|---|---|
-| `MainHeading` | A feature's main page | `feature`, `title`, `right` (the avatar on Home), `context` (chips, the date range). Flat indigo band, 44px tile, 24px/800 title. Home shows the NIETE mark. |
-| `InnerBar` | A page inside a flow | `feature`, `crumb` ("Training · NIETE · Level 2"), `title`, `backTo`. Back goes to the previous page. With nothing behind it, Back goes to `backTo`. |
+| `MainHeading` | A feature's main page | `feature`, `title`, `right` (the avatar on Home), `context` (chips, the date range). Flat indigo band, 44px tile, 24px/800 title. Home shows the NIETE mark. On a desktop, an indigo card with 20px corners in the page's column (bd-5rz1v.32). |
+| `InnerBar` | A page inside a flow | `feature`, `crumb` ("Training · NIETE · Level 2"), `title`, `backTo`. Back goes to the previous page. With nothing behind it, Back goes to `backTo`. On a desktop, a white card with 16px corners and a full 1.5px line, in the page's column (bd-5rz1v.32). |
 | `List`, `Row` | Lists of things | `to` makes a link with ›, `onClick` a button with ›, neither an information row (no ›). `icon` or `lead` ("3", "D1") in a 42px tile (`tile`: neutral, quiet, done, or `recording`, the recording red). `chips`, `value`, `progress`, `end` (an icon in place of ›). `state`: `off` (dimmed, not tappable) or `selected` (indigo tint). |
 | `SectionLabel`, `ProgressBar` | A heading over a list; a green bar | |
-| `Chip` | Information on a row or band | `tone`: `done`, `waiting`, `error`, `info` (default), `selected`, or `recording` (red, led by a dot that pulses under `motion-safe:`). `surface="band"` on indigo. Never tappable. |
+| `Chip` | Information on a row or band | `tone`: `done`, `waiting`, `error`, `info` (default), `selected`, or `recording` (red, led by a dot that pulses under `motion-safe:`). `surface="band"` on indigo. Never tappable. On a selected `Row`, an `info` chip is white (see "A chip on a selected row"). |
 | `FilterChips` | One choice among a few filters | A radio group. The picked chip is indigo and the others are outlined. |
 | `ToggleChips` | Any number of choices among a few (question types) | Checkboxes that look like `FilterChips`. An on chip is indigo with a check. |
 | `BottomButton` | The action | `tone`: `primary` (default), `outline`, `warn`, `danger`, or `dangerOutline` (the outline button with red words: a destructive second choice under a green one, such as Delete under Continue). Also `disabled`, `icon` (`iconFlips` for ›), and `to` for a link. |
@@ -102,7 +103,15 @@ props, use only `nu-*` tokens and logical spacing, and keep every target at 56px
 | `AnswerChoices`, `QuestionDots` | One question per screen (bd-5rz1v.25) | Big answers: a 32px letter tile then the answer, 58px+, 16px corners, 2px edge; the picked one indigo (edge, tint, letter). `mode="multi"` = checkboxes ("Pick all"); `images` for picture answers; `value` is 0-based positions. `QuestionDots`: a bar per question, indigo up to the current one, a progressbar, never a button. |
 | `FeatureIcon`, `HeadingTile` | A feature's icon | The only place a feature colour is drawn. |
 
-Shared class strings: `FOCUS` (the amber focus ring), `TAP`, `TAP_SQUARE`, `PRESS` and `GRID` in `styles.ts`.
+Shared class strings: `FOCUS` (the amber focus ring), `TAP`, `TAP_SQUARE`, `PRESS`, `GRID` and `DESK_COLUMN`
+(the page's desktop column) in `styles.ts`.
+
+**A chip on a selected row** (bd-5rz1v.32). A selected row's tint (`bg-nu-select-tint`, `#e8e9f0`) is an
+info chip's own fill (`bg-nu-chip-info-bg`), so on the row she picked last the chips lost their pill. Inside
+a selected `Row` an info chip is the white card surface (`bg-nu-surface-card`). Every `Row` is the named
+group `group/row`, and the info tone carries `group-aria-[current=true]/row:bg-nu-surface-card`, so no
+caller passes a prop. It keys on `aria-current="true"`, which a selected tappable row carries. Done, waiting
+and error chips keep their tones.
 
 **Two classes that lie here.** The old theme redefines them, so the style check refuses them in
 new-UI code:
@@ -236,7 +245,7 @@ kept in `FEATURE_HUE` for when their screens move over.
 | Token | Hex | Tailwind |
 |---|---|---|
 | Bar | `#ffffff` | `bg-nu-inner` |
-| 1px bottom line | `#e3e5ec` | `border-nu-inner-border` |
+| 1px bottom line (phone); the desktop card's full 1.5px line | `#e3e5ec` | `border-nu-inner-border` |
 | Back button (circle) | `#f3f3f7`, icon `#333748` | `bg-nu-inner-back`, `text-nu-inner-back-icon` |
 | Breadcrumb text | `#666b80` | `text-nu-inner-crumb` |
 
@@ -247,11 +256,13 @@ listed so a reviewer can check a screenshot against them.
 
 - **Heading band** (`MainHeading`): flat, square corners, 14px above the content. Title row 10px 16px
   14px, 12px gaps, at least 64px with the 44px tile. Title 24px/800. Context row 10px under the title and
-  16px above the band's edge. Desktop: 20px 40px 22px, centred at 1120px, a 52px tile, a 28px title,
-  the context row under the title.
-- **Light bar** (`InnerBar`): 6px 14px 12px, 12px gaps, 12px above the content; a 40px back circle; a
-  12px breadcrumb with a 14px icon; a 20px/800 title. Desktop: 12px 40px and a 24px title.
-- **Content** under a band: 0 14px 14px, 12px between blocks.
+  16px above the band's edge. Desktop: a card (below), a 52px tile, a 28px title, the context row under
+  the title.
+- **Light bar** (`InnerBar`): 12px 14px 12px (bd-5rz1v.32; the mockup's 6px on top put the 40px circle 9px
+  under the bar's top and 16px over its bottom, so it looked cropped: now 15px and 16px with the line),
+  12px gaps, 12px above the content; a 40px back circle; a 12px breadcrumb with a 14px icon; a 20px/800
+  title. Desktop: a card (below) and a 24px title.
+- **Content** under a band: 0 14px 14px, 12px between blocks. Desktop: the page's column (below).
 - **Lists**: 16px corners, 1.5px borders. Rows are at least 60px, 10px 12px, 12px gaps, with a 42px tile.
 - **Chips**: 11.5px/800, 1px 8px; on the band 12px, 3px 10px.
 - **Metric tiles**: two columns 10px apart, at least 104px, 14px padding, 18px corners, a 40px icon tile,
@@ -270,6 +281,32 @@ listed so a reviewer can check a screenshot against them.
   corners, a 38×4 grab mark (10px above, 4px below), the who row 8px 18px 12px (a 40px avatar, an
   18px/800 name, 12px/600 school · role), then three columns 10px apart with 0 14px 14px around them;
   tiles at least 84px, 16px corners, a 24px icon and a 13px/700 label.
+
+### The desktop column (bd-5rz1v.32)
+
+Approved by the operator from the v13 "card-24" mockup (bd-5rz1v.32): on a desktop the page's title is a
+**card under the menu**, not one indigo block with the top bar.
+
+- **One column for everything.** Every page body is `mx-auto max-w-[1120px] px-[14px] md:px-10`: 1120px
+  at most with 40px each side, so 1040px of content at a 1280 window and a 40px gutter below 1120.
+  `DESK_COLUMN` in `styles.ts` (`md:mx-auto md:max-w-[1120px] md:px-10`) is its desktop half. The
+  teacher's top bar, `MainHeading` and `InnerBar` stand in it, so the menu's mark and avatar, the card
+  and the content share their edges at every desktop width. A page body uses the same column, and
+  `headings.test.tsx` fails when a 1120px column in new-UI source loses its `md:px-10`. Do not hard-code
+  1040px.
+- **Heading card** (`MainHeading`, md and up): 24px under the menu and 24px above the content (34px to the
+  first block on pages whose body adds `md:pt-[10px]`). The title row is the card: `bg-nu-ink`, 20px
+  corners, 20px 32px 24px. No safe-area padding on a desktop.
+- **Inner card** (`InnerBar`, md and up): 24px under the menu, 20px above the content. The row is the card:
+  `bg-nu-inner`, 16px corners, a full 1.5px `border-nu-inner-border` line (not only the bottom one), 12px
+  20px.
+- **The menu** (teacher, md and up): its content is the column, not the old full-width `container px-6`.
+  Below `lg`, where the gutters leave 688px on a 768 tablet, the row's gaps are 16px and each item's
+  padding is 10px; from `lg` they are 24px and 16px, as before. The desktop pull-up card ends where the
+  column ends (`md:end-[max(2.5rem,calc(50%_-_520px))]`), so it stays under the avatar.
+- **Phone (below md):** nothing changes. The band and the bar are full-bleed and square, with
+  `env(safe-area-inset-top)`.
+- **Leaders** keep the old full-width bar: their pages are still the old ones.
 
 ## The menu (built)
 
@@ -304,7 +341,7 @@ everything else.
   unlocked value changes nothing. The new UI's words are English until bd-5rz1v.20, so today a switch
   turns the direction (RTL) and the words stay English.
 - **Teacher, desktop:** an indigo top bar with the NIETE mark, then **Home, Lesson Plans, Assessment,
-  Training, Coaching**, then the avatar.
+  Training, Coaching**, then the avatar, all in the page's column (bd-5rz1v.32, "The desktop column").
 - **Leader roles:** the same colours, with their own items: the bar plus More, whose sheet holds the rest,
   My account and Logout.
 - The item you are on is white with its icon logo green in a translucent pill.

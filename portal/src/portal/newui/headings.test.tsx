@@ -4,6 +4,8 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { MainHeading } from "./MainHeading";
 import { InnerBar } from "./InnerBar";
 import { FeatureIcon } from "./FeatureIcon";
+import { DESK_COLUMN as DESK_COLUMN_CLASSES } from "./styles";
+import { newUiSourceFiles } from "./checks/source";
 
 /**
  * bd-5rz1v.19 — the two page headings (deep-screens.html, "bar spacing" + "inner-page
@@ -134,6 +136,83 @@ describe("InnerBar — a page inside a flow", () => {
     render(<MemoryRouter>{bar({ onBack })}</MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * bd-5rz1v.32 — on a desktop the page's title is a CARD under the menu (operator, approved from the
+ * v13 "card-24" mockup): no longer one indigo block with the top bar. The heading stands in the
+ * page content's own column — centred, 1120px at most, 40px each side (1040px of card at 1280; a
+ * 40px gutter below 1120) — 24px under the menu. The phone keeps today's full-bleed band and bar.
+ */
+const unprefixed = (el: Element) => classes(el).filter((c) => !c.includes(":"));
+const DESK_COLUMN = ["md:mx-auto", "md:max-w-[1120px]", "md:px-10"];
+
+describe("MainHeading on a desktop — an indigo card in the page's column (bd-5rz1v.32)", () => {
+  it("the band is the page's column: centred, 1120px at most, 40px each side, 24px above and below, no fill of its own", () => {
+    render(<MainHeading feature="training" title="Training" context={<span>ctx</span>} />);
+    const band = screen.getByTestId("newui-main-heading");
+    expect(classes(band)).toEqual(expect.arrayContaining([...DESK_COLUMN, "md:my-6", "md:bg-transparent", "md:pt-0", "md:pb-0"]));
+  });
+
+  it("the title row is the card: indigo, 20px corners, 32px each side", () => {
+    render(<MainHeading feature="training" title="Training" context={<span>ctx</span>} />);
+    const row = screen.getByTestId("newui-heading-row");
+    expect(classes(row)).toEqual(expect.arrayContaining(["md:bg-nu-ink", "md:rounded-[20px]", "md:px-8", "md:pt-5", "md:pb-6"]));
+    expect(classes(row)).not.toContain("md:px-10");
+  });
+
+  it("the column is the one every page body uses: each 1120px column in new-UI source has the 40px desktop gutter", () => {
+    // The heading's edges are the content's only while both use the same column. A page body is
+    // `mx-auto max-w-[1120px] px-[14px] md:px-10`; DESK_COLUMN (styles.ts) is its desktop half.
+    const columns = newUiSourceFiles().flatMap((f) =>
+      [...f.text.matchAll(/(['"`])((?:(?!\1)[^\n])*max-w-\[1120px\](?:(?!\1)[^\n])*)\1/g)].map((m) => [f.rel, m[2]]));
+    expect(columns.length).toBeGreaterThan(5);
+    for (const [rel, cls] of columns) expect(cls.split(/\s+/), rel).toContain("md:px-10");
+    expect(DESK_COLUMN_CLASSES.split(/\s+/)).toEqual(DESK_COLUMN);
+  });
+
+  it("the phone keeps the full-bleed square band, the status-bar area on indigo, 14px above the content", () => {
+    render(<MainHeading feature="training" title="Training" />);
+    const band = screen.getByTestId("newui-main-heading");
+    const row = screen.getByTestId("newui-heading-row");
+    expect(unprefixed(band)).toEqual(expect.arrayContaining(["bg-nu-ink", "pt-[env(safe-area-inset-top)]", "mb-[14px]", "pb-[2px]"]));
+    expect(unprefixed(band).join(" ")).not.toMatch(/\b(mx-|max-w-|px-|rounded)/);
+    expect(unprefixed(row).join(" ")).not.toMatch(/\brounded/);
+    expect(unprefixed(row)).toEqual(expect.arrayContaining(["px-4", "pt-[10px]", "pb-[14px]"]));
+  });
+});
+
+describe("InnerBar on a desktop — a white card in the page's column (bd-5rz1v.32)", () => {
+  const bar = () => render(<MemoryRouter><InnerBar feature="home" crumb="Home" title="Lesson plans used" /></MemoryRouter>);
+
+  it("the bar is the page's column: centred, 1120px at most, 40px each side, 24px above, 20px below, no line or fill of its own", () => {
+    bar();
+    const el = screen.getByTestId("newui-inner-bar");
+    expect(classes(el)).toEqual(expect.arrayContaining([...DESK_COLUMN, "md:mt-6", "md:mb-5", "md:pt-0", "md:border-b-0", "md:bg-transparent"]));
+  });
+
+  it("its row is the card: white, 16px corners, a FULL 1.5px line (not only the bottom one), 20px each side", () => {
+    bar();
+    const row = screen.getByTestId("newui-inner-bar").firstElementChild!;
+    expect(classes(row)).toEqual(expect.arrayContaining([
+      "md:bg-nu-inner", "md:rounded-2xl", "md:border-[1.5px]", "md:border-nu-inner-border", "md:px-5", "pt-3", "pb-3",
+    ]));
+    expect(classes(row)).not.toContain("md:px-10");
+  });
+
+  it("the phone keeps the full-bleed white bar with its bottom line and the status-bar area", () => {
+    bar();
+    const el = screen.getByTestId("newui-inner-bar");
+    expect(unprefixed(el)).toEqual(expect.arrayContaining(["bg-nu-inner", "border-b", "border-nu-inner-border", "pt-[env(safe-area-inset-top)]", "mb-3"]));
+    expect(unprefixed(el).join(" ")).not.toMatch(/\b(mx-|max-w-|px-|rounded)/);
+  });
+
+  it("its row has 12px on top, not 6px: the 40px back circle sits evenly (about 15px above, 16px below)", () => {
+    bar();
+    const row = screen.getByTestId("newui-inner-bar").firstElementChild!;
+    expect(unprefixed(row)).toEqual(expect.arrayContaining(["pt-3", "pb-3", "px-[14px]"]));
+    expect(classes(row)).not.toContain("pt-1.5");
   });
 });
 
