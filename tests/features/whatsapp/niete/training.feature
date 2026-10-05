@@ -1466,19 +1466,6 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-handoff: the link and the text are chosen together (tqStudentMessageWeb vs tqStudentMessage).
     # Unit: tests/quiz/web-quiz-forward-message.test.js, tests/quiz/web-quiz-link.test.js. @wip.
 
-  @api @quiz @web @wip @draft @P2 @T178 @no-mock-driver
-  Scenario: Jugnu moves on every screen, differently each time, and stays still when it should
-    Given a web quiz open on a child's phone
-    When a screen with Jugnu appears (hello, whose turn, a question's answer, the results, see you tomorrow)
-    Then Jugnu's still pose shows at once and a short looping animation of that pose takes over a moment later, one of several picked at random
-    And the first question never waits for an animation to load
-    When the phone asks for reduced motion, saves data or is on 2G
-    Then Jugnu stays as the still pose and no animation is downloaded
-    When the page is hidden or the in-app browser is closed
-    Then the animation stops with the sounds, and it starts again when the child comes back
-    # wq.js mascot block (jugImg, jugWake, jugStop); assets dashboard/public/wq/jugnu/<pose>_<k>.webm|.webp.
-    # Unit: dashboard/tests/web-quiz-mascot.service.test.js. @wip.
-
   @api @quiz @wip @draft @config-gated @P1 @T130 @no-mock-driver
   Scenario: With the author gates on, every quiz question carries the moment of my lesson that holds its answer
     Given app_settings "quiz_author_gates_v2" is true
@@ -1526,3 +1513,16 @@ Feature: NIETE (ICT) Teacher Training
     And a question with no web item is read from its own text with the maths written as words
     And when a question's words change, the next recording says the new words
     # web-quiz-publish.service partsFor (read.stem / read.opts, mathToText fallback), audioKey (hash of the words). Unit: tests/quiz/web-quiz-publish.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T178 @no-mock-driver
+  Scenario: Jugnu moves on every screen, differently each time, and stays still when it should
+    Given a web quiz open on a child's phone
+    When a screen with Jugnu appears (hello, whose turn, a question's answer, the results, see you tomorrow)
+    Then Jugnu's still pose shows at once and a short looping animation of that pose takes over a moment later, one of several picked at random
+    And the first question never waits for an animation to load
+    When the phone asks for reduced motion, saves data or is on 2G
+    Then Jugnu stays as the still pose and no animation is downloaded
+    When the page is hidden or the in-app browser is closed
+    Then the animation stops with the sounds, and it starts again when the child comes back
+    # wq.js mascot block (jugImg, jugWake, jugStop); assets dashboard/public/wq/jugnu/<pose>_<k>.webm|.webp.
+    # Unit: dashboard/tests/web-quiz-mascot.service.test.js. @wip.
