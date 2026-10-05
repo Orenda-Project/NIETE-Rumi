@@ -426,31 +426,27 @@ function _title({ grade, subject, chapterTitle }) {
 }
 
 /**
- * Make a NEW version from her draft tree and hand it over.
+ * A new version, made and stored — and given to nobody. The portal calls this
+ * directly; createVersion() calls it and then hands the result over on WhatsApp.
+ * Same split as the orchestrator's buildPaper()/process().
  *
  * INSERT, never UPDATE of the parent: the version she edited from stays exactly
  * as it was, and so does every older one. The new row is inserted `generating`
- * and becomes `ready` once its paper and key are stored; the paper then goes
- * out WITH its Edit button (token naming the new row) and the key after it.
+ * and becomes `ready` once its paper and key are stored.
+ *
+ * `schoolName` is optional: createVersion has already read the teacher, so it
+ * passes it down; left undefined, it is looked up here.
  */
-async function createVersion({ parentId, userId, tree, phone: knownPhone, user = null, budget = null }) {
+async function buildVersion({ parentId, userId, tree, schoolName: knownSchool }) {
   const loaded = await loadVersion({ paperId: parentId, userId });
-  const { phone, schoolName } = loaded.paper ? await _teacher(userId, knownPhone) : { phone: knownPhone || null };
-  const say = _say(phone, budget);
-  if (!loaded.paper) {
-    await say(loaded.code);
-    return { status: 'failed', code: loaded.code };
-  }
+  if (!loaded.paper) return { status: 'failed', code: loaded.code };
   const parent = loaded.paper;
   const req = parent.assessment_requests || {};
   const { grade, subject, pageRanges, format, answerLines } = coverageOf(req);
 
   const active = Selection.activeTree(tree);
   const questions = Renderer.collectQuestions(active);
-  if (!questions.length) {
-    await say('EMPTY_SELECTION');
-    return { status: 'failed', code: 'EMPTY_SELECTION' };
-  }
+  if (!questions.length) return { status: 'failed', code: 'EMPTY_SELECTION' };
   const marks = Renderer.totalMarks(questions);
 
   const { data: row, error: insErr } = await supabase.from('assessment_papers')
@@ -467,7 +463,6 @@ async function createVersion({ parentId, userId, tree, phone: knownPhone, user =
     .single();
   if (insErr || !row?.id) {
     logToFile('[assessment-revision] could not open the version row', { parentId, error: insErr?.message });
-    await say('UNKNOWN');
     return { status: 'failed', code: 'INSERT_FAILED' };
   }
   const paperId = row.id;
@@ -476,6 +471,7 @@ async function createVersion({ parentId, userId, tree, phone: knownPhone, user =
     const [version, parentVersion] = await Promise.all([versionNumberOf(row), versionNumberOf(parent)]);
     const chapterTitle = await _chapterTitle(req, grade, subject);
     const renderer = rendererFor(format);
+    const schoolName = knownSchool !== undefined ? knownSchool : (await _teacher(userId, null)).schoolName;
     const common = { examJson: active, grade, subject, schoolName, pageReference: pageRanges, chapterTitle };
 
     let buffer;
@@ -490,26 +486,56 @@ async function createVersion({ parentId, userId, tree, phone: knownPhone, user =
     const v = version ? `_v${version}` : '_Edited';
     const name = fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: v });
     const keyName = fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: `${v}_AnswerKey` });
-    let key;
+    let fileKey;
     let keyKey;
     try {
-      key = await r2.uploadExamBuffer({ buffer, userId, examId: paperId, filename: name });
+      fileKey = await r2.uploadExamBuffer({ buffer, userId, examId: paperId, filename: name });
       keyKey = await r2.uploadExamBuffer({ buffer: keyBuffer, userId, examId: paperId, filename: keyName });
     } catch (err) {
       throw Object.assign(err, { code: 'UPLOAD_FAILED' });
     }
 
     await _patch(paperId, {
-      status: 'ready', file_r2_key: key, answer_key_r2_key: keyKey, ready_at: new Date().toISOString(),
+      status: 'ready', file_r2_key: fileKey, answer_key_r2_key: keyKey, ready_at: new Date().toISOString(),
     });
+    return {
+      status: 'ready', paperId, version, parentVersion, questionCount: questions.length, marks,
+      fileKey, keyKey, fileName: name, keyFileName: keyName, title: _title({ grade, subject, chapterTitle }),
+    };
+  } catch (err) {
+    const code = err.code || 'UNKNOWN';
+    logToFile('[assessment-revision] build failed', { userId, paperId, parentId, code, error: err.message });
+    await _patch(paperId, { status: 'failed', error_code: code, error_detail: String(err.message || '').slice(0, 200) });
+    return { status: 'failed', code, paperId };
+  }
+}
 
-    const title = _title({ grade, subject, chapterTitle });
-    const caption = `${title} · ${questions.length} questions`;
+/**
+ * Make a NEW version from her draft tree and hand it over on WhatsApp: the paper
+ * goes out WITH its Edit button (token naming the new row) and the key after it.
+ */
+async function createVersion({ parentId, userId, tree, phone: knownPhone, user = null, budget = null }) {
+  const { phone, schoolName } = await _teacher(userId, knownPhone);
+  const built = await buildVersion({ parentId, userId, tree, schoolName });
+  if (built.status !== 'ready') {
+    // A paper that was not found / not ready was never the teacher's to hear
+    // about from a looked-up number: only the phone the caller handed us counts.
+    const notHers = built.code === 'NOT_FOUND' || built.code === 'NOT_READY';
+    await _say(notHers ? knownPhone || null : phone, budget)(built.code === 'INSERT_FAILED' ? 'UNKNOWN' : built.code);
+    return built;
+  }
+  const say = _say(phone, budget);
+  const { paperId, version, parentVersion, questionCount, marks, fileKey, keyKey, title } = built;
+  const name = built.fileName;
+  const keyName = built.keyFileName;
+
+  try {
+    const caption = `${title} · ${questionCount} questions`;
     const body = resolveUx('assessmentVersionBody', {
       user,
-      params: { title, version: version || '?', parent: parentVersion || '?', count: questions.length, marks },
+      params: { title, version: version || '?', parent: parentVersion || '?', count: questionCount, marks },
     });
-    const url = await r2.getPresignedUrl(r2.buildR2PublicUrl(key), 3600);
+    const url = await r2.getPresignedUrl(r2.buildR2PublicUrl(fileKey), 3600);
     const delivered = await Delivery.sendPaperWithEditButton({
       phone, url, filename: name, caption, body, user, budget,
       flowToken: `${userId}:assessment-review:${paperId}`,
@@ -524,11 +550,11 @@ async function createVersion({ parentId, userId, tree, phone: knownPhone, user =
     });
 
     logToFile('[assessment-revision] version delivered', {
-      userId, paperId, parentId, version, parentVersion, questions: questions.length, marks,
+      userId, paperId, parentId, version, parentVersion, questions: questionCount, marks,
       mode: delivered.mode, answerKeySent,
     });
     return {
-      status: 'ready', paperId, version, parentVersion, questionCount: questions.length, marks, answerKeySent,
+      status: 'ready', paperId, version, parentVersion, questionCount, marks, answerKeySent,
     };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
@@ -610,5 +636,5 @@ async function resendVersion({ paperId, userId, phone: knownPhone, user = null, 
 
 module.exports = {
   rerender, listQuestions, saveEdit, fileName, TEACHER_MESSAGE,
-  loadVersion, versionNumberOf, listVersionItems, createVersion, resendVersion,
+  loadVersion, versionNumberOf, listVersionItems, buildVersion, createVersion, resendVersion,
 };
