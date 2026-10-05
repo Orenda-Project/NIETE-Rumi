@@ -159,6 +159,12 @@ if (!ADMIN_PASSWORD_HASH) {
 const { ASSET_LINKS_PATH, assetLinksHandler } = require('./lib/asset-links');
 app.get(ASSET_LINKS_PATH, assetLinksHandler);
 
+// Web child quiz (/q/:code, /api/wq/*, /wq/*). Before the body parsers so its own
+// size cap applies, and before the static handlers and the SPA catch-all so they
+// never answer a quiz link.
+const { createWebQuizRouter } = require('./routes/web-quiz.routes');
+app.use(createWebQuizRouter());
+
 // Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
