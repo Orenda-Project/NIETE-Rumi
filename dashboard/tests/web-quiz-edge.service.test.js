@@ -226,6 +226,51 @@ describe('web quiz edge: GET /q/:code server-side render', () => {
     expect(calls).toHaveLength(0);
   });
 
+  it('brands the page from the payload brand key: NIETE by default', async () => {
+    const res = await req(srv, 'GET', '/q/AB12CD', undefined, { host: 'portal.example' });
+    const boot = JSON.parse(res.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+    expect(boot.brand.key).toBe('niete');
+    expect(boot.brand.mark.svg).toMatch(/^<svg /);
+    expect(res.body).toMatch(/<meta property="og:site_name" content="NIETE">/);
+    expect(res.body).toMatch(/<style id="wq-brand">:root\{[^<]*--brand:#47BA7D/);
+    expect(res.body).toMatch(/<link rel="icon" href="data:image\/svg\+xml,/);
+  });
+
+  it('a Rumi deployment gets the Rumi theme, preview image and name, and no NIETE anywhere in the shell', async () => {
+    next = jsonRes(200, { ...QUIZ, brand: 'rumi' });
+    const res = await req(srv, 'GET', '/q/AB12CD', undefined, { host: 'portal.example' });
+    const boot = JSON.parse(res.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+    expect(boot.brand.key).toBe('rumi');
+    expect(res.body).toMatch(/<meta property="og:site_name" content="Rumi">/);
+    expect(res.body).toMatch(/<meta property="og:image" content="http:\/\/portal\.example\/wq\/og-rumi\.jpg"/);
+    expect(res.body).toMatch(/--brand:#F06E42/);
+    expect(res.body).not.toMatch(/NIETE|Islamabad/);
+  });
+
+  it('an unknown brand key in the payload falls back to the default and is never echoed', async () => {
+    next = jsonRes(200, { ...QUIZ, brand: '"><script>x</script>' });
+    const res = await req(srv, 'GET', '/q/AB12CD');
+    const boot = JSON.parse(res.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+    expect(boot.brand.key).toBe('niete');
+    expect(res.body).not.toContain('<script>x');
+  });
+
+  it('the closed page carries the brand the bot last named, with its mark', async () => {
+    next = jsonRes(200, { ...QUIZ, brand: 'rumi' });
+    await req(srv, 'GET', '/q/AB12CD');
+    next = jsonRes(410, { error: 'expired', lang: 'en' });
+    const res = await req(srv, 'GET', '/q/AB12CD');
+    expect(res.status).toBe(410);
+    expect(res.body).toMatch(/<meta property="og:site_name" content="Rumi">/);
+    expect(res.body).toMatch(/class="wq-mark[^"]*"[^>]*><svg /);
+    expect(res.body).not.toMatch(/NIETE/);
+  });
+
+  it('the share preview names the brand mascot, not a literal', () => {
+    const html = renderQuizPage({ payload: { ...QUIZ, brand: 'niete' }, code: 'AB12CD', view: 'quiz', origin: 'https://x', assetV: 'v1' });
+    expect(html).toMatch(/<meta property="og:description" content="1 questions · Jugnu reads it with you">/);
+  });
+
   it('renderQuizPage puts the page language and direction on <html>', () => {
     const html = renderQuizPage({ payload: { ...QUIZ, quiz: { ...QUIZ.quiz, lang: 'ur', dir: 'rtl' } }, code: 'AB12CD', view: 'quiz', origin: 'https://x', assetV: 'v1' });
     expect(html).toMatch(/<html lang="ur" dir="rtl">/);
