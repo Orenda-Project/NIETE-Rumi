@@ -16,6 +16,7 @@ const ReadingAssessmentService = require('./shared/services/reading-assessment.s
 
 // Import Handlers
 const { handleTextMessage, isSelectVideoButton } = require('./shared/handlers/text-message.handler');
+const { matchHosVideoButton, sendHosVideo } = require('./shared/handlers/hos-broadcast-video');
 // bd-ri5o9.1 — the report-invite template's QUICK_REPLY had no reader at all.
 const { matchObserveReportTap, isObserveReportTapText } = require('./shared/services/observe/report-tap-routing');
 const { handleVoiceMessage } = require('./shared/handlers/voice-message.handler');
@@ -856,6 +857,12 @@ app.post('/webhook', async (req, res) => {
         const sessionId = buttonId.replace('coaching_cancel_', '');
         await CoachingService.handleConfirmation(sessionId, from, false);
       }
+      // /observe2 — "How long is this period?" → save it, send the live field form.
+      else if (buttonId.startsWith('obs2_period:')) {
+        const Observe2Start = require('./shared/services/observe/observe2/start');
+        const claimed = user ? await Observe2Start.handlePeriodButton(user, from, buttonId) : false;
+        if (!claimed) logToFile('⚠️ /observe2 period button not handled', { buttonId, hasUser: !!user }, 'warn');
+      }
       // bd-tju8f — resume / cancel family. ORDER: the *_yes_/_no_ variants must
       // precede the bare observe_cancel_ prefix they share.
       else if (buttonId.startsWith('observe_cancel_yes_')) {
@@ -1500,6 +1507,17 @@ app.post('/webhook', async (req, res) => {
       else if (isSelectVideoButton({ buttonPayload, buttonText })) {
         await openStudentVideosFlowFromCta(message, from, user);
       }
+      // bd-07cjd — head-of-school broadcast: "Lesson Plans video" /
+      // "Teacher Training video" reply with that video. MUST stay above the
+      // bd-kggts fallthrough, where "Lesson Plans video" reads as an LP request.
+      else if (matchHosVideoButton({ buttonPayload, buttonText })) {
+        await sendHosVideo(matchHosVideoButton({ buttonPayload, buttonText }), from, {
+          sendVideoByLink: (to, url) => WhatsAppService.sendVideoByLink(to, url),
+          resolveUrl: (url) => require('./shared/storage/r2').getPresignedUrl(url, 3600),
+          sendMessage: (to, text) => WhatsAppService.sendMessage(to, text),
+          log: (event, data) => logToFile('🎬 HoS broadcast video tap', { event, ...data, userId: user?.id || null }),
+        });
+      }
       // bd-ri5o9.1 — the teacher tapped "Get Report" on the report-invite
       // template. MUST stay above the bd-kggts fallthrough: below it this branch
       // is unreachable, which is exactly the bug. The payload carries the session,
@@ -1834,6 +1852,16 @@ app.post('/webhook', async (req, res) => {
           await FlowResponseHandler.handleObserveVisitFlow(message, from, user?.id);
         } catch (visitErr) {
           logToFile('❌ observe-visit completion handler failed', { from, error: visitErr.message });
+        }
+      } else if (flowType === 'observe2') {
+        // /observe2: the live field form (sealed) or the "What Rumi heard" check (checked). The
+        // endpoint already sent the follow-up in chat when the coach tapped Seal / Submit; this
+        // branch only claims the completion so it never lands on the generic catch-all below.
+        logToFile('📝 Detected observe2 flow submission', { from, responseFields: Object.keys(responseJson) });
+        try {
+          await FlowResponseHandler.handleObserve2Completion(responseJson, from, user);
+        } catch (observe2Err) {
+          logToFile('❌ observe2 completion handler failed', { from, error: observe2Err.message }, 'error');
         }
       } else if (flowType === 'status') {
         // /status. The endpoint did every write before the Flow closed,

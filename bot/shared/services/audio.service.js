@@ -19,6 +19,7 @@ const {
 const { logToFile } = require('../utils/logger');
 const OpenAI = require('openai');
 const { planWhisperChunks, WHISPER_UPLOAD_CAP_BYTES } = require('./whisper-chunk-planner');
+const { privateTempPath, removePrivateTemp } = require('../utils/private-temp');
 
 // bd-2kxxa.3 — the containers Whisper accepts (by extension). Anything else is
 // transcoded to mp3 before upload in _whisperSingleFile.
@@ -61,28 +62,25 @@ class AudioService {
    * @returns {Promise<string>} Output file path
    */
   static async convertToWav(inputBuffer, outputPath) {
-    return new Promise((resolve, reject) => {
-      const inputPath = path.join(TEMP_DIR, `input_${Date.now()}.ogg`);
+    // bd-x74wv: the input is staged in a directory of its own. It used to be
+    // `input_${Date.now()}.ogg`, and ffmpeg opens it only after it starts — so two
+    // voice notes in the same millisecond were both converted from the second one.
+    const input = privateTempPath(TEMP_DIR, 'input.ogg', 'wav-in-');
+    try {
+      fs.writeFileSync(input.filePath, inputBuffer);
 
-      // Write buffer to temp file
-      fs.writeFileSync(inputPath, inputBuffer);
-
-      ffmpeg(inputPath)
-        .toFormat('wav')
-        .audioFrequency(16000) // Soniox works best with 16kHz
-        .audioChannels(1) // Mono
-        .on('end', () => {
-          // Clean up input file
-          fs.unlinkSync(inputPath);
-          resolve(outputPath);
-        })
-        .on('error', (err) => {
-          // Clean up input file
-          if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-          reject(err);
-        })
-        .save(outputPath);
-    });
+      return await new Promise((resolve, reject) => {
+        ffmpeg(input.filePath)
+          .toFormat('wav')
+          .audioFrequency(16000) // Soniox works best with 16kHz
+          .audioChannels(1) // Mono
+          .on('end', () => resolve(outputPath))
+          .on('error', (err) => reject(err))
+          .save(outputPath);
+      });
+    } finally {
+      removePrivateTemp(input);
+    }
   }
 
   /**
@@ -415,21 +413,21 @@ class AudioService {
 
     const texts = [];
     let detectedLanguage = null;
-    const tmpChunks = [];
+    // bd-x74wv: one private directory for this recording's chunks. They used to be
+    // `whisper_chunk_${Date.now()}_${i}.mp3`, shared by any two recordings chunked in
+    // the same millisecond — one session transcribed from another's audio.
+    const chunks = privateTempPath(TEMP_DIR, 'chunk.mp3', 'whisper-chunks-');
     try {
       for (let i = 0; i < plan.length; i++) {
         const { startSec, durationSec: dur } = plan[i];
-        const chunkPath = path.join(TEMP_DIR, `whisper_chunk_${Date.now()}_${i}.mp3`);
-        tmpChunks.push(chunkPath);
+        const chunkPath = path.join(chunks.dir, `chunk_${i}.mp3`);
         await this._extractAudioSegment(audioPath, startSec, dur, chunkPath);
         const res = await this._whisperSingleFile(chunkPath);
         if (res && res.text) texts.push(String(res.text).trim());
         if (!detectedLanguage && res && res.language) detectedLanguage = res.language;
       }
     } finally {
-      for (const c of tmpChunks) {
-        try { if (fs.existsSync(c)) fs.unlinkSync(c); } catch (_e) { /* best-effort cleanup */ }
-      }
+      removePrivateTemp(chunks);
     }
 
     const combined = texts.filter(Boolean).join(' ').trim();
@@ -1169,42 +1167,39 @@ class AudioService {
    * @returns {Promise<number>} Duration in seconds
    */
   static async getAudioDuration(audioBuffer) {
-    return new Promise((resolve, reject) => {
-      const tempPath = path.join(TEMP_DIR, `duration_check_${Date.now()}.m4a`);
-
+    // bd-x74wv: probe a file no other call can share. It used to be
+    // `duration_check_${Date.now()}.m4a`; ffprobe reads it after it starts, so two
+    // probes in the same millisecond measured the same recording (a classroom
+    // recording could be taken for a short question, or the reverse).
+    const probe = privateTempPath(TEMP_DIR, 'duration_check.m4a', 'duration-');
+    try {
       try {
-        // Write buffer to temp file
-        fs.writeFileSync(tempPath, audioBuffer);
+        fs.writeFileSync(probe.filePath, audioBuffer);
+      } catch (error) {
+        logToFile('Error in getAudioDuration', { error: error.message });
+        throw error;
+      }
 
-        // Use ffprobe to get duration
-        ffmpeg.ffprobe(tempPath, (err, metadata) => {
-          // Clean up temp file
-          if (fs.existsSync(tempPath)) {
-            fs.unlinkSync(tempPath);
-          }
-
+      const metadata = await new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(probe.filePath, (err, data) => {
           if (err) {
             logToFile('Error getting audio duration with ffprobe', { error: err.message });
             reject(err);
             return;
           }
-
-          const duration = metadata?.format?.duration || 0;
-          logToFile('Audio duration extracted', {
-            duration,
-            durationMinutes: Math.round(duration / 60)
-          });
-          resolve(duration);
+          resolve(data);
         });
-      } catch (error) {
-        // Clean up temp file on error
-        if (fs.existsSync(tempPath)) {
-          fs.unlinkSync(tempPath);
-        }
-        logToFile('Error in getAudioDuration', { error: error.message });
-        reject(error);
-      }
-    });
+      });
+
+      const duration = metadata?.format?.duration || 0;
+      logToFile('Audio duration extracted', {
+        duration,
+        durationMinutes: Math.round(duration / 60)
+      });
+      return duration;
+    } finally {
+      removePrivateTemp(probe);
+    }
   }
 
   /**

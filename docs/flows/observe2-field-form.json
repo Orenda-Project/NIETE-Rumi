@@ -1,0 +1,1498 @@
+{
+  "version": "7.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "PART_ONE": [
+      "PART_TWO"
+    ],
+    "PART_TWO": [
+      "LESSON_PLAN"
+    ],
+    "LESSON_PLAN": [
+      "LP_PHOTOS",
+      "LP_FILE",
+      "LP_TEXT",
+      "PHOTOS",
+      "AFTER"
+    ],
+    "LP_PHOTOS": [
+      "PHOTOS",
+      "AFTER"
+    ],
+    "LP_FILE": [
+      "PHOTOS",
+      "AFTER"
+    ],
+    "LP_TEXT": [
+      "PHOTOS",
+      "AFTER"
+    ],
+    "PHOTOS": [
+      "PHOTO_TAKE",
+      "PHOTO_FILES",
+      "AFTER"
+    ],
+    "PHOTO_TAKE": [
+      "AFTER"
+    ],
+    "PHOTO_FILES": [
+      "AFTER"
+    ],
+    "AFTER": [
+      "SEALED"
+    ],
+    "SEALED": [],
+    "CONTINUE": [
+      "PART_TWO",
+      "LESSON_PLAN",
+      "PHOTOS",
+      "AFTER",
+      "SEALED"
+    ]
+  },
+  "screens": [
+    {
+      "id": "PART_ONE",
+      "title": "Part 1",
+      "data": {
+        "teacher_line": {
+          "type": "string",
+          "__example__": "Rabia's lesson · Grade 4 · Maths"
+        },
+        "part_hint": {
+          "type": "string",
+          "__example__": "Minutes 0 to 20. Tap \"Part 1 done\" at minute 20; your answers are saved then."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "part_one_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Fill this in as you watch"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.teacher_line}"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.part_hint}"
+              },
+              {
+                "type": "TextInput",
+                "name": "present",
+                "label": "Children present",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "Everyone in class today"
+              },
+              {
+                "type": "TextInput",
+                "name": "p1_spoke",
+                "label": "Children who spoke",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "Count each child once. You can change it as you go."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "p1_picked",
+                "label": "Who did the teacher ask?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "hands",
+                    "title": "Only children with hands up",
+                    "description": "The teacher asked only children who had a hand up."
+                  },
+                  {
+                    "id": "once",
+                    "title": "One child without a hand up",
+                    "description": "Once, the teacher asked a child who had not put a hand up."
+                  },
+                  {
+                    "id": "often",
+                    "title": "Several without hands up",
+                    "description": "More than once, the teacher asked children who had not put a hand up."
+                  },
+                  {
+                    "id": "varied",
+                    "title": "Other ways to include everyone",
+                    "description": "For example: names picked at random, talking to a partner first, or everyone writing an answer."
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "p1_groups",
+                "label": "Did children work together?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "none",
+                    "title": "No, alone or as a whole class",
+                    "description": "No pair or group task in this part."
+                  },
+                  {
+                    "id": "alone",
+                    "title": "Sat together, worked alone",
+                    "description": "Children sat in pairs or groups, but each did their own work."
+                  },
+                  {
+                    "id": "combine",
+                    "title": "Made one thing together",
+                    "description": "The task needed the group to work together, e.g. one chart or one answer per group."
+                  },
+                  {
+                    "id": "roles",
+                    "title": "Had roles and reported back",
+                    "description": "Each child had a job, and the group told the class what they did."
+                  },
+                  {
+                    "id": "cannot",
+                    "title": "The room can't seat groups",
+                    "description": "Fixed benches, or no space to sit together."
+                  }
+                ]
+              },
+              {
+                "type": "If",
+                "condition": "${form.p1_groups} != 'none'",
+                "then": [
+                  {
+                    "type": "If",
+                    "condition": "${form.p1_groups} != 'cannot'",
+                    "then": [
+                      {
+                        "type": "CheckboxGroup",
+                        "name": "p1_listen",
+                        "label": "When you sat with a group",
+                        "description": "Tick everything you saw",
+                        "required": false,
+                        "data-source": [
+                          {
+                            "id": "turns",
+                            "title": "Each spoke, no one replied",
+                            "description": "Children spoke in turn but did not answer each other."
+                          },
+                          {
+                            "id": "once",
+                            "title": "One child replied to another",
+                            "description": "Once, a child answered or added to another child's idea."
+                          },
+                          {
+                            "id": "often",
+                            "title": "Replied to each other often",
+                            "description": "Two or more times, children answered or added to each other's ideas."
+                          },
+                          {
+                            "id": "agreed",
+                            "title": "Disagreed, then agreed",
+                            "description": "Children gave reasons, questioned each other and agreed on one answer."
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TextInput",
+                        "name": "p1_listen_other",
+                        "label": "Something else",
+                        "required": false,
+                        "helper-text": "What the children did, in a few words"
+                      }
+                    ],
+                    "else": []
+                  }
+                ],
+                "else": []
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "p1_materials",
+                "label": "Who used books or materials?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "none",
+                    "title": "Nobody, though they would help",
+                    "description": "No book, board, chart or objects were used, though they would have helped."
+                  },
+                  {
+                    "id": "teacher",
+                    "title": "Only the teacher",
+                    "description": "The teacher showed or wrote; the children did not touch them."
+                  },
+                  {
+                    "id": "children",
+                    "title": "The children used them",
+                    "description": "Children used books, cards or objects, or wrote on the board."
+                  },
+                  {
+                    "id": "explain",
+                    "title": "Children explained with them",
+                    "description": "A child used a material to show or explain their thinking."
+                  },
+                  {
+                    "id": "nofit",
+                    "title": "Nothing suits this topic",
+                    "description": "No material would help with this topic."
+                  }
+                ],
+                "description": "Books, the board, charts, cards or objects."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "p1_change",
+                "label": "Did the class switch activity?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No"
+                  }
+                ],
+                "description": "For example: from listening to the teacher to writing, or from the whole class into groups."
+              },
+              {
+                "type": "If",
+                "condition": "${form.p1_change} == 'yes'",
+                "then": [
+                  {
+                    "type": "RadioButtonsGroup",
+                    "name": "p1_change_how",
+                    "label": "How did the switch go?",
+                    "required": true,
+                    "data-source": [
+                      {
+                        "id": "stalled",
+                        "title": "Took long, no clear signal",
+                        "description": "The teacher didn't clearly say it was time to change. Children kept chatting or wandering, and the lesson stopped."
+                      },
+                      {
+                        "id": "slow",
+                        "title": "Signal given, but took long",
+                        "description": "The teacher said it was time to change, but many children took more than a minute or had to be called back."
+                      },
+                      {
+                        "id": "clear",
+                        "title": "Changed within a minute",
+                        "description": "The teacher said it was time to change, and nearly every child was on the new task within about a minute."
+                      },
+                      {
+                        "id": "ahead",
+                        "title": "Children knew what came next",
+                        "description": "The children already knew the routine and moved to the next task on their own, without being told one by one."
+                      }
+                    ],
+                    "description": "If the class switched more than once, pick what happened most often."
+                  }
+                ],
+                "else": []
+              },
+              {
+                "type": "TextArea",
+                "name": "p1_notes",
+                "label": "Anything else",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "The minute and what you saw, e.g. 8 min: board wiped before copying"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Part 1 done",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "PART_ONE",
+                    "present": "${form.present}",
+                    "p1_spoke": "${form.p1_spoke}",
+                    "p1_picked": "${form.p1_picked}",
+                    "p1_groups": "${form.p1_groups}",
+                    "p1_listen": "${form.p1_listen}",
+                    "p1_listen_other": "${form.p1_listen_other}",
+                    "p1_materials": "${form.p1_materials}",
+                    "p1_change": "${form.p1_change}",
+                    "p1_change_how": "${form.p1_change_how}",
+                    "p1_notes": "${form.p1_notes}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PART_TWO",
+      "title": "Part 2",
+      "data": {
+        "part_hint": {
+          "type": "string",
+          "__example__": "Minutes 20 to 40. Answer only for what happens in this part."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "part_two_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Part 2: keep going"
+              },
+              {
+                "type": "TextCaption",
+                "text": "${data.part_hint}"
+              },
+              {
+                "type": "TextInput",
+                "name": "p2_spoke",
+                "label": "Children who spoke",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "Count each child once, including those from Part 1"
+              },
+              {
+                "type": "TextInput",
+                "name": "p2_new",
+                "label": "First time speaking",
+                "input-type": "number",
+                "required": true,
+                "helper-text": "Of these, how many hadn't spoken in Part 1?"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "p2_picked",
+                "label": "Who did the teacher ask?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "hands",
+                    "title": "Only children with hands up",
+                    "description": "The teacher asked only children who had a hand up."
+                  },
+                  {
+                    "id": "once",
+                    "title": "One child without a hand up",
+                    "description": "Once, the teacher asked a child who had not put a hand up."
+                  },
+                  {
+                    "id": "often",
+                    "title": "Several without hands up",
+                    "description": "More than once, the teacher asked children who had not put a hand up."
+                  },
+                  {
+                    "id": "varied",
+                    "title": "Other ways to include everyone",
+                    "description": "For example: names picked at random, talking to a partner first, or everyone writing an answer."
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "p2_groups",
+                "label": "Did children work together?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "none",
+                    "title": "No, alone or as a whole class",
+                    "description": "No pair or group task in this part."
+                  },
+                  {
+                    "id": "alone",
+                    "title": "Sat together, worked alone",
+                    "description": "Children sat in pairs or groups, but each did their own work."
+                  },
+                  {
+                    "id": "combine",
+                    "title": "Made one thing together",
+                    "description": "The task needed the group to work together, e.g. one chart or one answer per group."
+                  },
+                  {
+                    "id": "roles",
+                    "title": "Had roles and reported back",
+                    "description": "Each child had a job, and the group told the class what they did."
+                  },
+                  {
+                    "id": "cannot",
+                    "title": "The room can't seat groups",
+                    "description": "Fixed benches, or no space to sit together."
+                  }
+                ]
+              },
+              {
+                "type": "If",
+                "condition": "${form.p2_groups} != 'none'",
+                "then": [
+                  {
+                    "type": "If",
+                    "condition": "${form.p2_groups} != 'cannot'",
+                    "then": [
+                      {
+                        "type": "CheckboxGroup",
+                        "name": "p2_listen",
+                        "label": "When you sat with a group",
+                        "description": "Tick everything you saw",
+                        "required": false,
+                        "data-source": [
+                          {
+                            "id": "turns",
+                            "title": "Each spoke, no one replied",
+                            "description": "Children spoke in turn but did not answer each other."
+                          },
+                          {
+                            "id": "once",
+                            "title": "One child replied to another",
+                            "description": "Once, a child answered or added to another child's idea."
+                          },
+                          {
+                            "id": "often",
+                            "title": "Replied to each other often",
+                            "description": "Two or more times, children answered or added to each other's ideas."
+                          },
+                          {
+                            "id": "agreed",
+                            "title": "Disagreed, then agreed",
+                            "description": "Children gave reasons, questioned each other and agreed on one answer."
+                          }
+                        ]
+                      },
+                      {
+                        "type": "TextInput",
+                        "name": "p2_listen_other",
+                        "label": "Something else",
+                        "required": false,
+                        "helper-text": "What the children did, in a few words"
+                      }
+                    ],
+                    "else": []
+                  }
+                ],
+                "else": []
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "p2_materials",
+                "label": "Who used books or materials?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "none",
+                    "title": "Nobody, though they would help",
+                    "description": "No book, board, chart or objects were used, though they would have helped."
+                  },
+                  {
+                    "id": "teacher",
+                    "title": "Only the teacher",
+                    "description": "The teacher showed or wrote; the children did not touch them."
+                  },
+                  {
+                    "id": "children",
+                    "title": "The children used them",
+                    "description": "Children used books, cards or objects, or wrote on the board."
+                  },
+                  {
+                    "id": "explain",
+                    "title": "Children explained with them",
+                    "description": "A child used a material to show or explain their thinking."
+                  },
+                  {
+                    "id": "nofit",
+                    "title": "Nothing suits this topic",
+                    "description": "No material would help with this topic."
+                  }
+                ],
+                "description": "Books, the board, charts, cards or objects."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "p2_change",
+                "label": "Did the class switch activity?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "yes",
+                    "title": "Yes"
+                  },
+                  {
+                    "id": "no",
+                    "title": "No"
+                  }
+                ],
+                "description": "For example: from listening to the teacher to writing, or from the whole class into groups."
+              },
+              {
+                "type": "If",
+                "condition": "${form.p2_change} == 'yes'",
+                "then": [
+                  {
+                    "type": "RadioButtonsGroup",
+                    "name": "p2_change_how",
+                    "label": "How did the switch go?",
+                    "required": true,
+                    "data-source": [
+                      {
+                        "id": "stalled",
+                        "title": "Took long, no clear signal",
+                        "description": "The teacher didn't clearly say it was time to change. Children kept chatting or wandering, and the lesson stopped."
+                      },
+                      {
+                        "id": "slow",
+                        "title": "Signal given, but took long",
+                        "description": "The teacher said it was time to change, but many children took more than a minute or had to be called back."
+                      },
+                      {
+                        "id": "clear",
+                        "title": "Changed within a minute",
+                        "description": "The teacher said it was time to change, and nearly every child was on the new task within about a minute."
+                      },
+                      {
+                        "id": "ahead",
+                        "title": "Children knew what came next",
+                        "description": "The children already knew the routine and moved to the next task on their own, without being told one by one."
+                      }
+                    ],
+                    "description": "If the class switched more than once, pick what happened most often."
+                  }
+                ],
+                "else": []
+              },
+              {
+                "type": "TextArea",
+                "name": "p2_notes",
+                "label": "Anything else",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "The minute and what you saw, e.g. 8 min: board wiped before copying"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Part 2 done",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "PART_TWO",
+                    "p2_spoke": "${form.p2_spoke}",
+                    "p2_new": "${form.p2_new}",
+                    "p2_picked": "${form.p2_picked}",
+                    "p2_groups": "${form.p2_groups}",
+                    "p2_listen": "${form.p2_listen}",
+                    "p2_listen_other": "${form.p2_listen_other}",
+                    "p2_materials": "${form.p2_materials}",
+                    "p2_change": "${form.p2_change}",
+                    "p2_change_how": "${form.p2_change_how}",
+                    "p2_notes": "${form.p2_notes}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LESSON_PLAN",
+      "title": "Lesson plan",
+      "data": {
+        "lp_hint": {
+          "type": "string",
+          "__example__": "Rabia's most recent plans from the bot. If the plan isn't here, pick \"Upload new\" to add it."
+        },
+        "lp_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "asset-1",
+              "title": "Comparing & ordering un…",
+              "description": "Grade 4 Math · Ch5 Day 3 · p.79-81 · today"
+            },
+            {
+              "id": "upload",
+              "title": "Upload new",
+              "description": "Photos of a paper plan, a PDF or Word file, or typed text"
+            }
+          ]
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "lesson_plan_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "The lesson plan"
+              },
+              {
+                "type": "TextCaption",
+                "text": "So the recording can be checked against what the plan asked for."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "lp",
+                "label": "Was there a lesson plan?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "used",
+                    "title": "Followed a lesson plan"
+                  },
+                  {
+                    "id": "notfollowed",
+                    "title": "Had one, didn't follow it"
+                  },
+                  {
+                    "id": "none",
+                    "title": "No plan for this lesson"
+                  }
+                ]
+              },
+              {
+                "type": "If",
+                "condition": "${form.lp} != 'none'",
+                "then": [
+                  {
+                    "type": "TextCaption",
+                    "text": "${data.lp_hint}"
+                  },
+                  {
+                    "type": "Dropdown",
+                    "name": "lp_pick",
+                    "label": "Which plan?",
+                    "required": false,
+                    "data-source": "${data.lp_options}"
+                  },
+                  {
+                    "type": "If",
+                    "condition": "${form.lp_pick} == 'upload'",
+                    "then": [
+                      {
+                        "type": "RadioButtonsGroup",
+                        "name": "lp_how",
+                        "label": "How will you add it?",
+                        "required": false,
+                        "data-source": [
+                          {
+                            "id": "photos",
+                            "title": "Photos of the paper plan",
+                            "description": "One photo per page, up to 10."
+                          },
+                          {
+                            "id": "file",
+                            "title": "A PDF or Word file",
+                            "description": "From the phone's files."
+                          },
+                          {
+                            "id": "text",
+                            "title": "Type it",
+                            "description": "The steps the teacher planned, in order."
+                          }
+                        ]
+                      }
+                    ],
+                    "else": []
+                  }
+                ],
+                "else": []
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "LESSON_PLAN",
+                    "fv": "4",
+                    "lp": "${form.lp}",
+                    "lp_pick": "${form.lp_pick}",
+                    "lp_how": "${form.lp_how}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LP_PHOTOS",
+      "title": "Plan photos",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "lp_photos_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Photos of the lesson plan"
+              },
+              {
+                "type": "TextBody",
+                "text": "One photo per page, in order. Hold the phone over the page so every line is sharp and nothing is cut off."
+              },
+              {
+                "type": "PhotoPicker",
+                "name": "lp_photos",
+                "label": "Pages of the plan",
+                "description": "Up to 10, in order.",
+                "photo-source": "camera_gallery",
+                "min-uploaded-photos": 1,
+                "max-uploaded-photos": 10,
+                "max-file-size-kb": 10240
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "LP_PHOTOS",
+                    "fv": "4",
+                    "lp_photos": "${form.lp_photos}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LP_FILE",
+      "title": "Plan file",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "lp_file_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "The lesson plan file"
+              },
+              {
+                "type": "TextBody",
+                "text": "A PDF or Word file from the phone. A photo of the plan saved as a file works too."
+              },
+              {
+                "type": "DocumentPicker",
+                "name": "lp_file",
+                "label": "The plan",
+                "description": "PDF or Word, up to 25 MB.",
+                "min-uploaded-documents": 1,
+                "max-uploaded-documents": 3,
+                "max-file-size-kb": 25600,
+                "allowed-mime-types": [
+                  "application/pdf",
+                  "application/msword",
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "image/jpeg",
+                  "image/png"
+                ]
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "LP_FILE",
+                    "fv": "4",
+                    "lp_file": "${form.lp_file}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LP_TEXT",
+      "title": "Type the plan",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "lp_text_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Type the lesson plan"
+              },
+              {
+                "type": "TextBody",
+                "text": "The steps the teacher planned, in order: how the lesson starts, what the teacher explains, what the children do, and how it ends."
+              },
+              {
+                "type": "TextArea",
+                "name": "lp_text",
+                "label": "The lesson plan",
+                "required": true,
+                "max-length": 600,
+                "helper-text": "One step per line is easiest to check."
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "LP_TEXT",
+                    "fv": "4",
+                    "lp_text": "${form.lp_text}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PHOTOS",
+      "title": "Photos",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "photos_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Classroom photos"
+              },
+              {
+                "type": "TextBody",
+                "text": "Up to 10. The ones that help: the board, the materials, children using them, groups at work, and the board at the end. Never faces."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "photo_how",
+                "label": "How will you add photos?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "take",
+                    "title": "Take photos now",
+                    "description": "With the camera. On a phone you can also pick from the gallery."
+                  },
+                  {
+                    "id": "files",
+                    "title": "Upload saved photos",
+                    "description": "Photos already taken: choose them from the gallery or files."
+                  },
+                  {
+                    "id": "none",
+                    "title": "No photos"
+                  }
+                ]
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "PHOTOS",
+                    "fv": "4",
+                    "photo_how": "${form.photo_how}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PHOTO_TAKE",
+      "title": "Take photos",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "photo_take_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Take the photos"
+              },
+              {
+                "type": "PhotoPicker",
+                "name": "photos",
+                "label": "Classroom photos",
+                "description": "Up to 10.",
+                "photo-source": "camera_gallery",
+                "min-uploaded-photos": 1,
+                "max-uploaded-photos": 10,
+                "max-file-size-kb": 10240
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "PHOTO_TAKE",
+                    "fv": "4",
+                    "photos": "${form.photos}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "PHOTO_FILES",
+      "title": "Upload photos",
+      "data": {
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "photo_files_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Upload saved photos"
+              },
+              {
+                "type": "TextBody",
+                "text": "Choose the photos you took during the lesson, from the gallery or the files. JPG or PNG."
+              },
+              {
+                "type": "DocumentPicker",
+                "name": "photo_files",
+                "label": "Classroom photos",
+                "description": "Up to 10, 10 MB each.",
+                "min-uploaded-documents": 1,
+                "max-uploaded-documents": 10,
+                "max-file-size-kb": 10240,
+                "allowed-mime-types": [
+                  "image/jpeg",
+                  "image/png"
+                ]
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "PHOTO_FILES",
+                    "fv": "4",
+                    "photo_files": "${form.photo_files}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "AFTER",
+      "title": "Before you seal",
+      "data": {
+        "lp_line": {
+          "type": "string",
+          "__example__": "Lesson plan: Comparing & ordering unlike fractions, Grade 4 Math, Ch5 Day 3. To change it, go back."
+        },
+        "photo_line": {
+          "type": "string",
+          "__example__": "3 photos added. To change them, go back."
+        },
+        "error_messages": {
+          "type": "object",
+          "__example__": {}
+        },
+        "error": {
+          "type": "string",
+          "__example__": ""
+        },
+        "has_error": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "after_form",
+            "error-messages": "${data.error_messages}",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Before you seal"
+              },
+              {
+                "type": "TextCaption",
+                "text": "About two minutes, before you leave the room."
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.lp_line}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.photo_line}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "incident",
+                "label": "Anything to report?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "none",
+                    "title": "Nothing to report"
+                  },
+                  {
+                    "id": "sarcastic",
+                    "title": "Praise that sounded mocking",
+                    "description": "Words like 'well done' said in a way that made fun of a child."
+                  },
+                  {
+                    "id": "ridicule",
+                    "title": "A child was shamed or mocked",
+                    "description": "Any ridicule, humiliation or threat towards a child."
+                  },
+                  {
+                    "id": "error",
+                    "title": "Wrong fact left uncorrected",
+                    "description": "The teacher said or wrote something wrong and did not correct it."
+                  },
+                  {
+                    "id": "tech",
+                    "title": "The recording failed",
+                    "description": "The recorder stopped, or nothing was recorded."
+                  }
+                ],
+                "description": "Something that should never happen in a classroom, or a recording that failed."
+              },
+              {
+                "type": "If",
+                "condition": "${form.incident} != 'none'",
+                "then": [
+                  {
+                    "type": "TextArea",
+                    "name": "detail",
+                    "label": "What happened, when",
+                    "required": true,
+                    "max-length": 600,
+                    "helper-text": "The words used and the minute"
+                  }
+                ],
+                "else": []
+              },
+              {
+                "type": "TextArea",
+                "name": "note",
+                "label": "Not in the recording",
+                "required": false,
+                "max-length": 600,
+                "helper-text": "What you saw that a recording can't catch: the back rows, the board, reactions"
+              },
+              {
+                "type": "Dropdown",
+                "name": "priority",
+                "label": "Work on first",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "C1",
+                    "title": "Questions that make them think"
+                  },
+                  {
+                    "id": "C3",
+                    "title": "Picking quiet children too"
+                  },
+                  {
+                    "id": "D1",
+                    "title": "Children explaining why"
+                  },
+                  {
+                    "id": "D2",
+                    "title": "More children speaking"
+                  },
+                  {
+                    "id": "D5",
+                    "title": "Children asking questions"
+                  },
+                  {
+                    "id": "C2",
+                    "title": "Helping when a child is wrong"
+                  },
+                  {
+                    "id": "C6",
+                    "title": "Making it safe to be wrong"
+                  },
+                  {
+                    "id": "D4",
+                    "title": "Children trying when unsure"
+                  },
+                  {
+                    "id": "C4",
+                    "title": "Giving children real choices"
+                  },
+                  {
+                    "id": "C5",
+                    "title": "Smooth switches of activity"
+                  },
+                  {
+                    "id": "C7",
+                    "title": "Real group work"
+                  },
+                  {
+                    "id": "C8",
+                    "title": "Children using materials"
+                  },
+                  {
+                    "id": "D3",
+                    "title": "Children talking to each other"
+                  },
+                  {
+                    "id": "F1",
+                    "title": "Getting the content right"
+                  },
+                  {
+                    "id": "F2",
+                    "title": "Using subject words"
+                  },
+                  {
+                    "id": "F3",
+                    "title": "Explaining why it works"
+                  },
+                  {
+                    "id": "F4",
+                    "title": "Linking to real life"
+                  }
+                ]
+              },
+              {
+                "type": "OptIn",
+                "name": "seal_ok",
+                "label": "Seal this record. I can't change it afterwards, and the recording's moments open only after I seal.",
+                "required": true
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.error}",
+                "visible": "${data.has_error}"
+              },
+              {
+                "type": "Footer",
+                "label": "Seal and send",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "screen": "AFTER",
+                    "incident": "${form.incident}",
+                    "detail": "${form.detail}",
+                    "note": "${form.note}",
+                    "priority": "${form.priority}",
+                    "seal_ok": "${form.seal_ok}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SEALED",
+      "title": "Sealed",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "sealed_line": {
+          "type": "string",
+          "__example__": "Sealed at 10:39"
+        },
+        "next_line": {
+          "type": "string",
+          "__example__": "Next: send me the recording."
+        },
+        "record_id": {
+          "type": "string",
+          "__example__": "00000000-0000-4000-8000-000000000000"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.sealed_line}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.next_line}"
+          },
+          {
+            "type": "Footer",
+            "label": "Done",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "observe2": "sealed",
+                "record_id": "${data.record_id}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "CONTINUE",
+      "title": "Your record",
+      "data": {
+        "continue_heading": {
+          "type": "string",
+          "__example__": "Part 1 is saved"
+        },
+        "continue_line": {
+          "type": "string",
+          "__example__": "Carry on with Part 2, from minute 20 to 40."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "${data.continue_heading}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.continue_line}"
+          },
+          {
+            "type": "Footer",
+            "label": "Continue",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "screen": "CONTINUE",
+                "fv": "4"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -221,6 +221,14 @@ class TranscriptionProcessorService {
                 getLanguage: (uid) => getUserLanguage(uid),
                 getStrings: observeStrings,
                 log: logToFile,
+                // /observe2: the refused recording had already joined the visit's form; give it back
+                // so the right recording can attach, and tell the coach it is still waiting.
+                afterApplied: async (lang) => {
+                  const { releaseRefusedRecording } = require('../observe/observe2/capture-link');
+                  const out = await releaseRefusedRecording(coachingSessionId);
+                  if (!out.released) return null;
+                  return require('../observe/observe2/strings').observe2Strings(lang).duplicate_form_waiting;
+                },
               },
             );
           }
@@ -594,6 +602,16 @@ class TranscriptionProcessorService {
   static async observePostTranscription(coachingSessionId, session, from, deps = {}) {
     const env = deps.env || process.env;
     const gatesOn = env.OBSERVE_CAPTURE_GATES_ENABLED === 'true';
+
+    // /observe2: a recording linked to a field form goes to its own moments step. The coach took
+    // the photos and answered the lesson-plan question in the form, and the classic FICO draft is
+    // not what /observe2 sends, so the gates and the analysis below are skipped for it.
+    const observe2 = deps.observe2 || require('../observe/observe2/moments');
+    const o2 = await observe2.runForSession(coachingSessionId, from);
+    if (o2 && o2.handled) {
+      logToFile('✅ Transcription complete (observe2 path — moments step ran)', { coachingSessionId, action: o2.action });
+      return { action: 'observe2', result: o2 };
+    }
 
     // bd-5rz1v.6: an observation started in the PORTAL brought the teacher's plan
     // and the board photos with it, and the coach is not asked anything on
