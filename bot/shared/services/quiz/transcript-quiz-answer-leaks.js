@@ -4,128 +4,322 @@
  *
  * Every other check looks at one question at a time. The red team's blind
  * re-score of ten real sources (5 Oct 2026) found a later question's answer
- * stated by an earlier question in every transcript quiz: an earlier stem asks
- * "Why is Urdu called the national language?" before a later one asks which
- * the national language is; an explanation the child reads after one question
- * says "a sentence ends with a full stop" before the next asks what ends a
- * sentence. The child is not tested on the second; the class report counts it.
+ * stated by an earlier one in 8 of 10 quizzes: an earlier stem asks "Why is
+ * 4/8 the same as 1/2?" before a later one asks what fraction 4 of 8 parts is;
+ * a wrong option's feedback says "denominator is the number at the bottom"
+ * before the next question asks what the bottom number is called; a wrong
+ * option reads "A desert fox hunts at night" (its feedback: "a behavioural
+ * adaptation") before "Which is a behavioural adaptation of a desert fox?".
+ * The child is not tested on the second; the class report counts it.
  *
- * WHAT COUNTS. A LATER question j leaks from an EARLIER question i (the child
- * plays them in order and reads i's explanation before j) when
- *   - j's answer is a short term (one to five words, not a number, a maths
- *     expression, yes/no or true/false), and j's own stem does not offer it
- *     ("Is this a structural or behavioural adaptation?" is a choice, not a
- *     fact anything can give away);
- *   - i's stem, its explanation or the line it shows when right — each read on
- *     its own — contains that answer as words;
- *   - that text names NONE of j's wrong options (a line that lists the crust,
- *     the mantle and the core states an order, not one answer);
- *   - and it shares a topic word with j's stem beyond the answer itself
- *     ("Which of these is a structural adaptation?" names the category; it says
- *     nothing about the desert fox the later question asks about).
- * Measured on 47 quizzes authored from ten real sources (both arms of two
- * re-scores): 19 flagged, read by hand as 15 give-aways ("re-reading is a good
- * strategy" before "which strategy is good?"; "each piece is one quarter"
- * before "what is each part called?") and 4 debatable — a definition in one
- * explanation, then a question applying it. Without the last two conditions
- * the same rule flagged category words named in passing. On every sandbox
- * quiz (1,062, mostly 15-20-question video-bank quizzes) it names 538 in 340
- * quizzes; of 25 drawn at random, 21 were give-aways ("Lungs take oxygen…"
- * before "Lungs take _ from the air") and 4 debatable. Because it fires on a
- * third of quizzes it is the LOWEST repair priority (rewriteTargets tier 5):
- * it never takes a hard fault's place in the five-question repair.
+ * WHAT COUNTS. The child plays the questions in order and, after each one,
+ * reads its explanation and the line for the option they chose. A LATER
+ * question j leaks from an EARLIER question i when ONE SENTENCE of what i shows
+ * — its stem, any of its options, its explanation, its "right" line, the
+ * feedback of any of its wrong options — states j's answer:
+ *   - WORDS: the sentence carries j's answer's content words (all of them for
+ *     an answer of one or two words; seven in ten for a longer one — "the
+ *     smaller each part becomes" states "Each part gets smaller"), English
+ *     words compared by their stem (hunts / hunting, migrate / migrating);
+ *   - NUMBERS: an answer that is a number or a fraction is stated when the
+ *     sentence carries it together with every number of j's stem ("No,
+ *     19 − 7 = 12" before "Subtract 7 from 19"; "Why is 4/8 the same as 1/2?"
+ *     before "4 of 8 parts are covered: what fraction?");
+ *   - and the sentence names NONE of j's wrong options (a line that lists the
+ *     crust, the mantle and the core states an order, not one answer; a wrong
+ *     option made of the stem's own numbers does not count);
+ *   - a short answer (one or two content words) must also share a topic word
+ *     with j's stem: "Which of these is a structural adaptation?" names the
+ *     category; it says nothing about the desert fox a later question asks about;
+ *   - j's own stem must not offer the answer ("Is this structural or
+ *     behavioural?" is a choice, not a fact anything can give away).
+ * THE SAME STEM TWICE. A later question whose stem is word for word an earlier
+ * one's (with no picture to tell them apart) is the same question, whatever its
+ * key says — the G2 Urdu lesson shipped «'اہم میٹنگ' کا کیا مطلب ہے؟» twice,
+ * once keyed «ضروری ملاقات» and once «ضروری بات چیت». The precise repeat check
+ * (transcript-quiz-duplicates) asks for the same answer; this one does not.
  *
- * The complaint names the LATER question, so the targeted rewrite replaces it
- * with a question on another fact; it is a SOFT fault (generate's
- * IN_PLACE_FAULT): a quiz never fails over it.
+ * MEASURED on the ten re-score quizzes (build w35/k_leaks/measure): see the PR.
+ *
+ * The complaint names BOTH questions — the LATER one first, so the targeted
+ * rewrite gives that slot a question on another fact, and the earlier one with
+ * the words that give the answer away, so the rewrite can avoid them. It is a
+ * SOFT fault (generate's IN_PLACE_FAULT): a quiz never fails over it.
  */
+
+const { mathToText } = require('./quiz-math');
 
 const STOP = new Set([
   'the', 'a', 'an', 'of', 'to', 'in', 'on', 'is', 'are', 'was', 'were', 'and', 'or', 'what', 'which', 'who', 'whom',
   'how', 'why', 'when', 'where', 'this', 'that', 'these', 'those', 'it', 'its', 'be', 'by', 'for', 'with', 'as', 'at',
   'from', 'do', 'does', 'did', 'you', 'your', 'one', 'two', 'type', 'kind', 'called', 'name', 'there', 'their', 'they',
   'will', 'would', 'can', 'could', 'should', 'have', 'has', 'had', 'into', 'about', 'than', 'then', 'them', 'also',
+  'only', 'not', 'no', 'yes', 'get', 'gets', 'got', 'become', 'becomes', 'make', 'makes', 'more', 'most', 'very', 'just', 'so', 'because', 'if', 'all', 'each', 'every', 'some', 'many', 'much',
+  'lesson', 'teacher', 'class', 'example', 'question', 'answer', 'right', 'correct', 'wrong', 'true', 'false',
   'کی', 'کا', 'کے', 'ہے', 'ہیں', 'کو', 'میں', 'سے', 'نے', 'پر', 'اور', 'یا', 'کون', 'کونسا', 'کونسی', 'سا', 'سی',
   'کیا', 'کیوں', 'کیسے', 'کہاں', 'کب', 'یہ', 'وہ', 'ان', 'اس', 'ایک', 'جاتا', 'جاتی', 'جاتے', 'کہا', 'کہتے', 'ہوتا',
-  'ہوتی', 'ہوتے', 'لفظ', 'قسم',
+  'ہوتی', 'ہوتے', 'لفظ', 'قسم', 'نہیں', 'ہاں', 'بھی', 'تو', 'ہو', 'ہوں', 'تھا', 'تھی', 'تھے', 'گا', 'گی', 'گے', 'جو',
+  'جس', 'جب', 'کر', 'کرتا', 'کرتی', 'کرتے', 'کرنا', 'ہم', 'آپ', 'سبق', 'استاد', 'کلاس', 'جواب', 'سوال', 'صحیح', 'غلط',
+  'بالکل', 'شاباش', 'درست', 'مثال', 'لیے', 'لئے', 'والا', 'والی', 'والے',
 ]);
 const BINARY = new Set(['yes', 'no', 'true', 'false', 'ہاں', 'نہیں', 'صحیح', 'غلط', 'درست']);
+const LATIN = /^[a-z]+$/;
 
-/** Lower-cased words, any script; diacritics and direction marks dropped; Eastern digits to Western. */
-function words(s) {
-  return String(s ?? '')
+/** Lower-cased tokens, any script; maths flattened; diacritics and direction marks dropped; Eastern digits to Western. */
+function tokens(s) {
+  const text = String(s ?? '');
+  return (text.includes('$') || text.includes('\\') ? mathToText(text) : text)
     .normalize('NFKC')
     .toLowerCase()
-    .replace(/[ً-ٰٟ‌-‏‪-‮⁦-⁩]/g, '')
+    .replace(/[ً-ٰٟ‌-‏‪-‮⁦-⁩]/g, '')
     .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[يى]/g, 'ی').replace(/ك/g, 'ک')
     .match(/[\p{L}\p{N}]+/gu) || [];
 }
-const phrase = (s) => ` ${words(s).join(' ')} `;
-const contains = (text, term) => phrase(text).includes(` ${term} `);
-const topical = (w) => w.length >= 4 && !STOP.has(w) && !/^\d+$/.test(w);
+/** An English word by its stem (hunts, hunting -> hunt; migrate, migrating -> migrat); other scripts as written. */
+function stem(w) {
+  if (!LATIN.test(w)) return w;
+  if (w.length > 4) return w.replace(/(ing|ed|es|s|e)$/, '');
+  return w.length === 4 && /[^s]s$/.test(w) ? w.slice(0, -1) : w;   // ends -> end, ears -> ear
+}
+const isNum = (w) => /^\d+$/.test(w);
+/** The words that carry meaning: stemmed, function words and quiz filler left out. */
+const content = (s) => new Set(tokens(s).filter((w) => !STOP.has(w)).map(stem));
+const topical = (w) => !isNum(w) && w.length >= 3;
+/** The numbers of a text, as written (a fraction keeps its slash: "1/2"). */
+function numbers(s) {
+  const text = String(s ?? '');
+  const flat = (text.includes('$') || text.includes('\\') ? mathToText(text) : text)
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+  return flat.match(/\d+(?:\s*\/\s*\d+)?/g)?.map((n) => n.replace(/\s+/g, '')) || [];
+}
+/** A fraction's parts as well as the fraction: "4/8" -> 4/8, 4, 8. */
+const withParts = (nums) => new Set(nums.flatMap((n) => [n, ...n.split('/')]));
 
 function correctList(q) {
   if (Array.isArray(q.correct_indices) && q.correct_indices.length) return q.correct_indices.map(Number);
   if (Array.isArray(q.correct_index)) return q.correct_index.map(Number);
   return [Number(q.correct_index) || 0];
 }
+const optionsOf = (q) => (Array.isArray(q && q.options) ? q.options.map((o) => String(o ?? '')) : []);
+/** How many of `need`'s words must a sentence carry to state it: all of one or two, seven in ten of more. */
+const enough = (n) => (n <= 2 ? n : Math.ceil(n * 0.7));
+function carries(sentence, want) {
+  let hit = 0;
+  want.forEach((w) => { if (sentence.has(w)) hit += 1; });
+  return want.size > 0 && hit >= enough(want.size);
+}
 
-/** j's answer as a term a sentence could state, or null. */
-function answerTerm(q) {
+/** Everything question i shows the child, one sentence at a time, each with where it came from. */
+function sentencesOf(q) {
+  const out = [];
+  const add = (where, text) => String(text || '').split(/(?<=[.!?۔؟])\s+|\n+/).forEach((s) => {
+    if (s.trim()) out.push({ where, text: s.trim(), words: content(s), raw: new Set(tokens(s)), nums: numbers(s) });
+  });
+  add('question', q.question);
+  // its correct option, which the child is told is right — a wrong option is offered, never asserted
+  correctList(q).forEach((k) => add('correct option', optionsOf(q)[k]));
+  add('explanation', q.explanation);
+  const fb = (q.option_feedback && typeof q.option_feedback === 'object') ? q.option_feedback : {};
+  if (typeof fb.correct === 'string') add('right line', fb.correct);
+  const wrong = (fb.wrong && typeof fb.wrong === 'object') ? fb.wrong : {};
+  Object.values(wrong).forEach((t) => { if (typeof t === 'string') add('wrong-option feedback', t); });
+  if (typeof q.misconception_feedback === 'string') add('wrong-option feedback', q.misconception_feedback);
+  return out;
+}
+
+/** What j asks for, in the forms a sentence could state it, or null when nothing can give it away. */
+function targetOf(q) {
   const keys = correctList(q);
-  const opts = Array.isArray(q.options) ? q.options : [];
-  if (keys.length !== 1) return null;
-  const raw = String(opts[keys[0]] ?? '');
-  if (/\$|\\[a-z]+\{/.test(raw)) return null;            // a maths expression
-  const w = words(raw);
-  const term = w.join(' ');
-  if (!w.length || w.length > 5 || term.length < 4 || w.every((x) => /^\d+$/.test(x)) || BINARY.has(term)) return null;
-  if (!w.some((x) => !STOP.has(x))) return null;
-  return term;
+  const opts = optionsOf(q);
+  if (keys.length !== 1 || !opts[keys[0]]) return null;
+  const raw = opts[keys[0]];
+  const all = tokens(raw);
+  if (!all.length || BINARY.has(all.join(' '))) return null;
+  const stemText = q.question || '';
+  const stemNums = withParts(numbers(stemText));
+  const stemWords = content(stemText);
+  const topic = new Set([...stemWords].filter((w) => topical(w)));
+  const keyNums = numbers(raw);
+  const wrong = opts.map((o, k) => (keys.includes(k) || !o.trim() ? null : o)).filter(Boolean);
+  if (keyNums.length) {
+    // a picture question's number is about its own picture ("What time is it on the clock?")
+    if (hasPicture(q)) return null;
+    const stemAsWritten = new Set(numbers(stemText));
+    if (keyNums.every((n) => stemAsWritten.has(n))) return null;   // "compare 3/4 and 2/5": the stem offers it
+    // a number or a fraction: stated with every number of the stem, never when a wrong option is stated too
+    // a stem with no number of its own ("How many syllables in 'famous'?") needs its topic said too
+    return {
+      kind: 'number', shown: raw, keyNums, stemNums, topic: [...stemNums].length ? null : topic,
+      // a wrong option made of the stem's own numbers ("4/8" when 4 of 8 parts are covered) is the trap, not a rival answer
+      wrongNums: wrong.map(numbers).filter((n) => n.length && !n.flatMap((x) => x.split('/')).every((x) => stemNums.has(x))),
+    };
+  }
+  const want = content(raw);
+  if (!want.size) return null;
+  if ([...want].every((w) => stemWords.has(w))) return null;   // the stem offers it
+  return {
+    kind: 'words', shown: raw, want, keyRaw: new Set(tokens(raw)),
+    topic: new Set([...topic].filter((w) => !want.has(w))),
+    wrong: wrong.map((o) => ({ words: content(o), raw: new Set(tokens(o)) }))
+      .filter((w) => w.words.size && ![...w.words].every((x) => stemWords.has(x))),
+  };
 }
 
-/** What the child reads of question i, each on its own: its stem, then (after answering) its explanation and its "right" line. */
-function readOf(q) {
-  const fb = (q && q.option_feedback && typeof q.option_feedback === 'object') ? q.option_feedback : {};
-  return [
-    ['question', String(q.question || '')],
-    ['explanation', String(q.explanation || '')],
-    ['feedback', typeof fb.correct === 'string' ? fb.correct : ''],
-  ];
+/** The sentence names the topic of j's stem: two of its words (all of them, when the stem has fewer). */
+function onTopic(sentence, topic) {
+  if (!topic || !topic.size) return false;
+  let hit = 0;
+  sentence.words.forEach((w) => { if (topic.has(w)) hit += 1; });
+  return hit >= Math.min(2, topic.size);
 }
+/** Share of a phrase's words, as written, that a sentence carries. */
+function rawShare(sentence, raw) {
+  let hit = 0;
+  raw.forEach((w) => { if (sentence.raw.has(w)) hit += 1; });
+  return raw.size ? hit / raw.size : 0;
+}
+
+function states(sentence, t) {
+  if (t.kind === 'number') {
+    const has = new Set(sentence.nums);
+    const parts = withParts(sentence.nums);
+    if (!t.keyNums.every((n) => has.has(n))) return false;
+    if ([...sentence.raw].every(isNum)) return false;   // a bare "1/4" option offers a choice, it states nothing
+    if (![...t.stemNums].every((n) => parts.has(n))) return false;
+    if (t.topic && !onTopic(sentence, t.topic)) return false;
+    return !t.wrongNums.some((w) => w.every((n) => has.has(n)));
+  }
+  if (!carries(sentence.words, t.want)) return false;
+  // a wrong option said as fully as the answer: the sentence lists, it does not tell
+  // ("crust, then mantle, then outer core"); "Ahmed WAS WRITING" still tells "was writing", not "will write"
+  const keyShare = rawShare(sentence, t.keyRaw);
+  if (t.wrong.some((w) => carries(sentence.words, w.words) && rawShare(sentence, w.raw) >= keyShare)) return false;
+  if (t.want.size <= 2 && !onTopic(sentence, t.topic)) return false;
+  return true;
+}
+
+const stemKey = (q) => tokens(q && q.question).join(' ');
+const keyWords = (q) => { const k = correctList(q)[0]; return content(optionsOf(q)[k]); };
+function hasPicture(q) {
+  return Boolean(q && ((q.figure && typeof q.figure === 'object' && Object.keys(q.figure).length) || q.picture || q.image_url));
+}
+const clip = (s, n = 80) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /**
  * @param {object[]} questions the quiz in the order it is played
- * @returns {string[]} one `qN: ANSWER_LEAK — …` per leaking LATER question (the first source found)
+ * @returns {string[]} one `qJ: ANSWER_LEAK — … qI …` per leaking LATER question (the first earlier question found)
  */
 function answerLeakErrors(questions) {
   const qs = Array.isArray(questions) ? questions : [];
+  const seen = qs.map((q) => (q ? sentencesOf(q) : []));
   const out = [];
   qs.forEach((qj, j) => {
     if (!qj || j === 0) return;
-    const term = answerTerm(qj);
-    if (!term) return;
-    const termWords = new Set(term.split(' '));
-    const stemJ = words(qj.question);
-    if ([...termWords].every((w) => stemJ.includes(w))) return;   // the stem offers it
-    const opts = Array.isArray(qj.options) ? qj.options : [];
-    const keys = new Set(correctList(qj));
-    const wrong = opts.map((o, k) => (keys.has(k) ? null : words(o).join(' '))).filter((o) => o && o.length >= 3);
-    const topic = new Set(stemJ.filter((w) => topical(w) && !termWords.has(w)));
+    const sk = stemKey(qj);
+    if (sk && !hasPicture(qj)) {
+      // and answers that share a word: "Tap the 'air' word." over two different sounds keys "stair" and "chair"
+      const kj = keyWords(qj);
+      const i = qs.findIndex((qi, k) => k < j && qi && !hasPicture(qi) && stemKey(qi) === sk && [...keyWords(qi)].some((w) => kj.has(w)));
+      if (i >= 0) {
+        out.push(`q${j}: ANSWER_LEAK — q${j} asks word for word what q${i} already asks («${clip(String(qj.question))}»); replace q${j} with a question on a different fact of the lesson, one no other question states`);
+        return;
+      }
+    }
+    const t = targetOf(qj);
+    if (!t) return;
     for (let i = 0; i < j; i += 1) {
-      const qi = qs[i];
-      if (!qi) continue;
-      if (answerTerm(qi) === term) continue;   // the same answer: a repeat, which DUPLICATE_QUESTION judges
-      const hit = readOf(qi).find(([, text]) => contains(text, term)
-        && !wrong.some((o) => contains(text, o))
-        && words(text).some((w) => topic.has(w)));
+      const hit = seen[i].find((s) => states(s, t));
       if (!hit) continue;
-      const where = hit[0];
-      out.push(`q${j}: ANSWER_LEAK — its answer "${opts[[...keys][0]]}" is already given by q${i}'s ${where}, which the child reads first; ask about a different fact of the lesson, one no other question states`);
+      out.push(`q${j}: ANSWER_LEAK — q${i} gives away q${j}'s answer «${clip(t.shown, 60)}»: q${i}'s ${hit.where} says «${clip(hit.text)}», and the child reads it before q${j}; replace q${j} with a question on a different fact of the lesson, one no other question, option or explanation states`);
       return;
     }
   });
   return out;
 }
 
-module.exports = { answerLeakErrors };
+const qIndex = (e) => Number(/^q(\d+)/.exec(String(e))[1]);
+
+/**
+ * THE LAST WORD ON LEAKS, on what is about to ship (generate calls this after
+ * every step that can write a question, gates on). Repair, never kill a quiz:
+ *   1. ONE targeted rewrite of every leaking LATER question, its complaint
+ *      naming the earlier question and the words that give the answer away;
+ *      taken when the set stays shippable and leaks less;
+ *   2. what still leaks is DROPPED, the latest first, while the quiz keeps
+ *      `floor` questions — a question the child is told the answer to measures
+ *      nothing, and a quiz one shorter is still a quiz;
+ *   3. what is left ships, counted (the faults returned name it).
+ * Pure of drawing: the caller draws the set when `changed`.
+ *
+ * @param {object} p
+ * @param {object[]} p.questions the set about to ship, in play order
+ * @param {(questions:object[], errors:string[]) => Promise<object>} p.rewrite the targeted rewrite
+ *   ({ merged, replaced, costUsd, error })
+ * @param {(questions:object[]) => {questions:object[], errors:string[]}} p.check the validator on a candidate
+ * @param {(complaint:string) => boolean} p.isSoft a complaint the quiz may ship with
+ * @param {number} p.floor the fewest questions a quiz may have
+ * @returns {Promise<{record:object|null, changed?:boolean, questions?:object[], dropped?:number[], faults?:string[]}>}
+ */
+async function finalLeakRepair({ questions, rewrite, check, isSoft, floor }) {
+  const leaks = answerLeakErrors(questions);
+  if (!leaks.length) return { record: null };
+  const record = {
+    found: leaks.length, asked: [...new Set(leaks.map(qIndex))], fixed: 0, dropped: [], remaining: 0, cost_usd: 0,
+  };
+  const shippable = (v) => v.errors.every((e) => isSoft(e));
+  let current = questions;
+  try {
+    const rw = await rewrite(current, leaks);
+    record.cost_usd = Number(rw && rw.costUsd) || 0;
+    const replaced = (rw && Array.isArray(rw.replaced)) ? rw.replaced : [];
+    if (rw && Array.isArray(rw.merged) && replaced.length) {
+      const candidate = current.map((q, i) => (replaced.includes(i) && rw.merged[i] ? rw.merged[i] : q));
+      const v = check(candidate);
+      const left = answerLeakErrors(v.questions);
+      if (shippable(v) && left.length < leaks.length) {
+        current = v.questions;
+        record.fixed = leaks.length - left.length;
+      } else record.rewrite = shippable(v) ? 'nothing_fixed' : 'merged_set_invalid';
+    } else record.rewrite = (rw && rw.error) ? 'rewrite_failed' : 'nothing_usable';
+  } catch (err) {
+    record.rewrite = 'error';
+  }
+  let left = answerLeakErrors(current);
+  const room = Math.max(0, current.length - floor);
+  const drop = [...new Set(left.map(qIndex))].sort((a, b) => b - a).slice(0, room).sort((a, b) => a - b);
+  if (drop.length) {
+    const v = check(current.filter((_, i) => !drop.includes(i)));
+    if (shippable(v)) {
+      current = v.questions;
+      record.dropped = drop;
+      left = answerLeakErrors(current);
+    } else record.drop = 'what_survived_did_not_validate';
+  }
+  record.remaining = left.length;
+  return {
+    record, changed: current !== questions, questions: current, dropped: record.dropped, faults: left,
+  };
+}
+
+/**
+ * The recorded soft faults once leaks are settled: the old ANSWER_LEAK lines go,
+ * every other line about a dropped question goes, the rest are renumbered to the
+ * set that ships, and the leaks still in it are added.
+ */
+function settleLeakFaults(faults, dropped, leaks) {
+  const gone = new Set(dropped || []);
+  const kept = (Array.isArray(faults) ? faults : []).flatMap((e) => {
+    const s = String(e);
+    if (/^q\d+: ANSWER_LEAK\b/.test(s)) return [];
+    const m = /^q(\d+)(:.*)$/s.exec(s);
+    if (!m) return [s];
+    const i = Number(m[1]);
+    if (gone.has(i)) return [];
+    return [`q${i - [...gone].filter((d) => d < i).length}${m[2]}`];
+  });
+  return [...kept, ...(leaks || [])];
+}
+
+module.exports = { answerLeakErrors, finalLeakRepair, settleLeakFaults };
