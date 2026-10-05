@@ -1384,3 +1384,25 @@ Feature: NIETE (ICT) Teacher Training
     # base = WEB_QUIZ_BASE_URL else PORTAL_URL. previewLink() adds tqWebPreview to the caption only when the
     # token module signs one. The code is the same in both channels, so QUIZ-<code> still works in WhatsApp.
     # Unit: tests/quiz/web-quiz-link.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T107 @no-mock-driver
+  Scenario: A web-arm quiz carries web items written from its own source, and WhatsApp is unchanged
+    Given the web quiz is switched on for me and app_settings "web_quiz_items_v2" is true
+    When my class quiz is made from my lesson
+    Then each question may carry a web item beside it (quiz_questions.media.web)
+    And every web item names the moment of my lesson it tests, and that quote is found in my transcript or lesson plan
+    And a web item whose quote is missing, off the question's topic, or fails the maths or Urdu address checks is not kept
+    And the question's own WhatsApp fields are exactly what they would have been without the web item
+    # web-quiz-items.js maybeAttach (one call after the quiz is final; never fails a quiz), wired in
+    # transcript-quiz-generate process() before the insert. Flag absent = no call, no media.web.
+    # Unit: bot/tests/quiz/web-quiz/web-quiz-items.test.js, tests/quiz/web-quiz-items-generate.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T108 @no-mock-driver
+  Scenario: A child plays picture, listen, order and match questions on the web
+    Given a web quiz whose questions carry web items
+    When the page loads the quiz
+    Then each question shows its type, its own options (pictures with spoken names where it has them) and what the voice reads
+    And the source of a question is named by its time or lesson section, never by the classroom words
+    When the child puts the steps of an order question in the right order
+    Then the answer is right only in that order, and the review shows the order
+    # web-quiz.service questionPayload (WebItems.webPayload), recordAnswers (WebItems.isCorrect), finishSession (keyFor). @wip.

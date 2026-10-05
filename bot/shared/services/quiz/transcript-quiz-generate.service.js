@@ -37,6 +37,7 @@ const {
   TRANSCRIPT, LP_V8, LP612, isPlanQuiz, lp612SourceOn, lessonSessionFor, failureCopyKey, digestFailureReason,
 } = require('./quiz-sources');
 const LpDigest = require('./lp-quiz-digest.service');
+const WebItems = require('./web-quiz-items');
 const { summaryTruthEnabled } = require('./transcript-quiz-contract');
 const Store = require('./lp-asset-source.store');
 const Funnel = require('./quiz-funnel');
@@ -2409,7 +2410,18 @@ async function processQuiz(quizId, payload, flight) {
         indices: shippedRepeats.map((e) => Number(/^q(\d+)/.exec(e)[1])),
       });
     }
-    const rows = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
+    const drafted = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
+    // SCHEMA_v2 — the web arm's items ride BESIDE the rows (media.web), written by one
+    // call after the quiz is final; the row's own columns are untouched. Off unless the
+    // teacher is on the web arm and app_settings web_quiz_items_v2 is on. Never fails a quiz.
+    const web = await WebItems.maybeAttach(drafted, {
+      teacherId: quiz.teacher_id, quizId, language, gradeBand: digest.grade_band || meta.grade, subject: digest.subject,
+      source: isLp
+        ? { kind: 'lesson_plan', text: slideScript ? LpDigest.lessonExcerpts(slideScript) : '' }
+        : { kind: 'transcript', text: session && session.transcript_text },
+    });
+    const rows = web.rows;
+    if (web.stats) meta.cost_usd = (meta.cost_usd || 0) + (web.stats.cost_usd || 0);
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
     const { error: insErr } = await supabase.from('quiz_questions').insert(rows);
     if (insErr) throw new Error(`quiz_questions insert failed: ${insErr.message}`);
@@ -2422,6 +2434,7 @@ async function processQuiz(quizId, payload, flight) {
       step: 'ready',
       question_count: rows.length,
       ready_at: new Date().toISOString(),
+      ...(web.stats ? { web_items: web.stats } : {}),
       ...(readyLessonSummary ? { lesson_summary: spellSummary(readyLessonSummary) } : {}),
       // bd-2yyry.7 — the sheet's two one-liners, authored alongside the summary.
       ...(lastExtras.lesson_summary_short ? { lesson_summary_short: spellSummary(lastExtras.lesson_summary_short) } : {}),
