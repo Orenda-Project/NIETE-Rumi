@@ -471,7 +471,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
       shareCodeId, n: rawAll.length - noSelfTests.length,
     });
   }
-  // bd-2yyry.15 — one attempt per child, before anything is counted. A web-arm
+  // One attempt per child, before anything is counted. A web-arm
   // quiz keeps each child's FIRST finish (a replay on another phone is
   // practice); an unreadable quiz row keeps the default, as before.
   let rule;

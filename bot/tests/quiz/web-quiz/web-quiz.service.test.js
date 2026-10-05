@@ -319,7 +319,7 @@ describe('E7 POST me', () => {
 describe('E8 POST e', () => {
   test('only allow-listed props of the right shape reach the log: no names, no phones, no free text', () => {
     WQ.events({ events: [
-      { n: 'q_answered', code: 'AB12CD', qid: qid(1), slot: 'B', ms: 4200, ok: true, name: 'Zara Example', phone: '923001234567' },
+      { n: 'q_answered', code: 'AB12CD', qid: qid(1), slot: 'B', ms: 4200, ok: true, name: 'Zara Example', phone: '920000000000' },
       { n: 'Bad Name!', code: 'AB12CD' },
       { n: 'm3_view', reason: 'free text with spaces', lang: 'ur' },
     ] });
