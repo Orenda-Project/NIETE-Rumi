@@ -1294,7 +1294,7 @@ Feature: NIETE (ICT) Teacher Training
     But when that key is missing from this deployment's bucket, or the row names a host that is not ours, there is no video and the quiz starts at question 1
     # ADDED 2026-10-05: web-quiz-media presignVideo -> videoKey (path after the bucket segment, HEAD in our bucket). @wip.
 
-  @api @quiz @web @wip @draft @P1 @T185 @no-mock-driver
+  @api @quiz @web @wip @draft @P1 @T195 @no-mock-driver
   Scenario: The things a child counts or matches on my web quiz are colour pictures
     Given my quiz asks "How many apples are in the picture?" with a drawing of 12 apples
     When a child plays it on the web page
@@ -1303,7 +1303,7 @@ Feature: NIETE (ICT) Teacher Training
     And a row the question coloured on purpose ("the red row and the blue row") keeps its colour
     # web-quiz-figure draw() withColour -> vendor pictogram withPainter + pictures/color_glyphs.json (Fluent Emoji Flat, MIT). Unit: bot/tests/quiz/web-quiz/web-quiz-pictures.test.js. @wip.
 
-  @api @quiz @web @wip @draft @P1 @T186 @no-mock-driver
+  @api @quiz @web @wip @draft @P1 @T196 @no-mock-driver
   Scenario: A picture question whose options are emoji shows big picture tiles on my web quiz
     Given my quiz asks "Look at the pictures. Which one is a LEAF?" with the options 🌸 🍃 🌰 🥕
     When a child plays it on the web page, in English or in Urdu
@@ -1311,7 +1311,7 @@ Feature: NIETE (ICT) Teacher Training
     And options that are signs such as "=", "<" and ">" stay as they are
     # web-quiz.service questionPayload (pictures.emojiNoun -> pic {kind:pictogram, unnamed}). Unit: bot/tests/quiz/web-quiz/web-quiz-pictures.test.js. @wip.
 
-  @api @quiz @web @wip @draft @P1 @T187 @no-mock-driver
+  @api @quiz @web @wip @draft @P1 @T197 @no-mock-driver
   Scenario: A question with picture options does not show the options twice on my web quiz
     Given my video quiz has a question whose two options are pictures
     And on WhatsApp the child also gets one collage of both pictures with their words written in
@@ -1320,7 +1320,7 @@ Feature: NIETE (ICT) Teacher Training
     And a question that has its own picture to compare with ("Which picture goes with this one?") still shows that picture
     # web-quiz.service questionImageOf (grid never the question picture when option_images exist). Unit: bot/tests/quiz/web-quiz/web-quiz-pictures.test.js. @wip.
 
-  @api @quiz @web @wip @draft @P2 @T188 @no-mock-driver
+  @api @quiz @web @wip @draft @P2 @T198 @no-mock-driver
   Scenario: Pictures on my web quiz are big enough on a small phone
     Given my quiz has a one-bar fraction picture and a picture question with three options
     When a child plays it on a phone 360 pixels wide
