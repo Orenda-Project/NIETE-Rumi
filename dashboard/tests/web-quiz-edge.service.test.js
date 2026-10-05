@@ -82,6 +82,12 @@ describe('web quiz edge: forwarding /api/wq/* -> bot /api/internal/wq/*', () => 
     expect(JSON.parse(calls[0].opts.body)).toEqual(body);
   });
 
+  it("forwards the teacher's who-played calls", async () => {
+    await req(srv, 'POST', '/api/wq/who', { code: 'AB12CD', p: 'tok' });
+    await req(srv, 'POST', '/api/wq/who/fix', { code: 'AB12CD', p: 'tok', ref: 's1', roll: 12 });
+    expect(calls.map((c) => c.url)).toEqual([`${BOT}/api/internal/wq/who`, `${BOT}/api/internal/wq/who/fix`]);
+  });
+
   it('forwards GET with its query string', async () => {
     await req(srv, 'GET', '/api/wq/board/AB12CD?st=abc');
     expect(calls[0].url).toBe(`${BOT}/api/internal/wq/board/AB12CD?st=abc`);
