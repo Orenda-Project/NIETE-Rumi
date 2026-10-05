@@ -54,7 +54,7 @@
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
-      friends: 'Friends who finished', home: 'Home'
+      friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child'
     },
     ur: {
       quiz: 'کوئز', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c].filter(Boolean).join(' · '); },
@@ -90,10 +90,11 @@
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + t + ' میں سے ' + s + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
-      friends: 'دوست جنہوں نے مکمل کیا', home: 'شروع'
+      friends: 'دوست جنہوں نے مکمل کیا', home: 'شروع', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں'
     }
   }[LANG];
 
+  var CLASS_LABEL = CLS.label || T.yourClass;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
   var SHAPES = [
     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>',
@@ -233,18 +234,18 @@
       };
       try {
         var probe = document.createElement('audio');
-        if (/\.ogg(\?|$)/i.test(url) && probe.canPlayType && !probe.canPlayType('audio/ogg; codecs="opus"')) { fallback('cannot_play_ogg'); return; }
+        if (/\.ogg(\?|$)/i.test(url) && probe.canPlayType && !probe.canPlayType('audio/ogg; codecs="opus"')) { fallback('unsupported'); return; }
         var a = new Audio(url);
         player = a;
         var started = false;
         a.addEventListener('playing', function () { started = true; });
         a.onended = function () { if (!switched) end(); };
         a.onerror = function () { fallback('error'); };
-        setTimeout(function () { if (!started) fallback('stall'); }, 2000);
+        setTimeout(function () { if (!started) fallback('stalled'); }, 2000);
         var pr = a.play();
-        if (pr && pr.catch) pr.catch(function (e) { fallback('play_rejected' + (e && e.name ? ':' + e.name : '')); });
+        if (pr && pr.catch) pr.catch(function (e) { fallback('reject'); });
         return;
-      } catch (e) { fallback('exception'); return; }
+      } catch (e) { fallback('error'); return; }
     }
     speakTts(text, end);
   }
@@ -316,7 +317,8 @@
       '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
-      (last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
+      (B.preview && params.p ? '<button class="wq-btn wq-go" id="wq-preview">' + esc(T.previewPlay) + '</button>' :
+      last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
       (LIVE.class_today ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '');
@@ -324,6 +326,7 @@
     wireBar();
     on('#wq-play', who);
     on('#wq-notme', who);
+    on('#wq-preview', function () { ev('identity_pick', { src: 'preview' }); startSession({}, null, ''); });
     on('#wq-play-as', function () { ev('identity_pick', { src: 'remembered' }); startSession({ chip: last.chip }, last); });
   }
 
@@ -334,7 +337,7 @@
     function kidBtn(k, src) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '" data-src="' + src + '"><span class="wq-ani">' + ani(k.animal) + '</span>' + esc(k.first) + '</button>'; }
     var h = bar() + jug('idle', T.whoSay) + '<h2>' + esc(T.whoT) + '</h2>' +
       (here.length ? '<p class="wq-sub">' + esc(T.onPhone) + '</p><div class="wq-chips">' + here.map(function (k) { return kidBtn(k, 'phone'); }).join('') + '</div>' : '') +
-      (chips.length ? '<p class="wq-sub">' + esc(T.inClass(CLS.label || '')) + '</p><div class="wq-chips">' + chips.map(function (k) { return kidBtn(k, 'class'); }).join('') + '</div>' : '') +
+      (chips.length ? '<p class="wq-sub">' + esc(T.inClass(CLASS_LABEL)) + '</p><div class="wq-chips">' + chips.map(function (k) { return kidBtn(k, 'class'); }).join('') + '</div>' : '') +
       '<button class="wq-btn wq-navy" id="wq-new">' + esc(T.newKid) + '</button>' +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
     render(h, 'M4');
@@ -454,7 +457,8 @@
     var au = q.audio || null;
     var parts = [{ text: q.text, url: au && au.q }];
     (q.options || []).forEach(function (o, k) {
-      var url = au && au.opts ? au.opts[k] : null;
+      var si = 'ABCD'.indexOf(String(o.slot || '').charAt(0));
+      var url = au && au.opts && si >= 0 ? au.opts[si] : null;
       if (url || speakable(o.text)) parts.push({ text: optText(o), url: url || null });
     });
     return parts;
@@ -479,6 +483,7 @@
         return '<button class="wq-opt wq-s' + (k % 4 + 1) + '" data-slot="' + esc(o.slot) + '"><span class="wq-shp">' + SHAPES[k % 4] + '</span>' +
           (o.img ? '<img src="' + esc(o.img) + '" alt="">' : '') + '<span class="wq-lab">' + esc(optText(o)) + '</span></button>';
       }).join('') + '</div>' +
+      (q.multi ? '<p class="wq-small">' + esc(T.pickAll) + '</p><button class="wq-btn wq-navy" id="wq-check" disabled>' + esc(T.check) + '</button>' : '') +
       '<div id="wq-help"></div><div id="wq-fb"></div>';
     render(h, retry ? 'M9-fix' : 'M6');
     wireBar();
@@ -502,18 +507,38 @@
     on('#wq-spk', function () { ev('listen', { qid: q.qid }); read(); });
     read();
 
+    var chosen = {};
+    function norm(x) { return String(x || '').split(',').map(function (y) { return y.trim(); }).filter(Boolean).sort().join(','); }
     Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-opt'), function (btn) {
-      btn.addEventListener('click', function () {
-        var slot = btn.getAttribute('data-slot');
-        var ok = slot === q.correct_slot;
+      if (q.multi) {
+        btn.setAttribute('aria-pressed', 'false');
+        btn.addEventListener('click', function () {
+          var sl = btn.getAttribute('data-slot');
+          if (chosen[sl]) delete chosen[sl]; else chosen[sl] = 1;
+          btn.setAttribute('aria-pressed', chosen[sl] ? 'true' : 'false');
+          btn.classList.toggle('wq-chosen', !!chosen[sl]);
+          var c = $('#wq-check'); if (c) c.disabled = !Object.keys(chosen).length;
+        });
+      }
+    });
+    if (q.multi) on('#wq-check', function () { if (Object.keys(chosen).length) answer(norm(Object.keys(chosen).join(','))); });
+    Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-opt'), function (btn) {
+      if (!q.multi) btn.addEventListener('click', function () { answer(btn.getAttribute('data-slot')); });
+    });
+    function answer(slot) {
+      (function () {
+        var ok = q.multi ? norm(slot) === norm(q.correct_slot) : slot === q.correct_slot;
+        var rights = norm(q.correct_slot).split(',');
+        var picks = norm(slot).split(',');
+        var chk = $('#wq-check'); if (chk) chk.parentNode.removeChild(chk);
         var ms = Date.now() - shown;
         clearTimers(); stopVoice();
         var help = $('#wq-help'); if (help) { help.setAttribute('data-done', '1'); help.innerHTML = ''; }
         Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-opt'), function (b) {
           b.disabled = true;
           var s = b.getAttribute('data-slot');
-          if (s === q.correct_slot) b.classList.add('wq-right');
-          else if (s === slot) b.classList.add('wq-picked');
+          if (rights.indexOf(s) >= 0) b.classList.add('wq-right');
+          else if (picks.indexOf(s) >= 0) b.classList.add('wq-picked');
           else b.classList.add('wq-dim');
         });
         if (retry) {
@@ -529,13 +554,15 @@
           ev('answer', { qid: q.qid, slot: slot, ok: ok ? 1 : 0, ms: ms, i: i + 1 });
         }
         feedback(q, i, slot, ok, retry);
-      });
-    });
+      })();
+    }
   }
 
   function feedback(q, i, slot, ok, retry) {
     sfx(ok ? 'right' : 'notyet');
-    var right = (q.options || []).filter(function (o) { return o.slot === q.correct_slot; })[0] || {};
+    var rightSlots = String(q.correct_slot || '').split(',');
+    var rightOpts = (q.options || []).filter(function (o) { return rightSlots.indexOf(o.slot) >= 0; });
+    var right = { text: rightOpts.map(optText).join(LANG === 'ur' ? '، ' : ', ') };
     var picked = (q.options || []).filter(function (o) { return o.slot === slot; })[0] || {};
     var why = (!ok && picked.fb) || q.why || '';
     var line = ok ? (retry ? T.fixed : T.right[i % T.right.length]) : T.notyet(optText(right));
@@ -635,7 +662,7 @@
     var full = text + ' ' + url;
     ev('share_click', { src: what, step: 'tap' });
     if (navigator.share) {
-      navigator.share({ text: text, url: url }).then(function () { ev('share_click', { src: what, step: 'native' }); },
+      navigator.share({ text: text, url: url }).then(function () { ev('share_click', { src: what, step: 'native', path: 'native' }); },
         function (e) { if (e && e.name === 'AbortError') ev('share_click', { src: what, step: 'native_cancel' }); else fallback(full, what); });
       return;
     }
@@ -650,9 +677,9 @@
     var back = ROOT.getAttribute('data-m') === 'M11' ? board : card;
     render(h, 'M12-fallback');
     wireBar();
-    on('#wq-wa', function () { ev('share_click', { src: what, step: 'wa' }); });
+    on('#wq-wa', function () { ev('share_click', { src: what, step: 'wa', path: 'wa' }); });
     on('#wq-copy', function () {
-      function done() { ev('share_click', { src: what, step: 'copy' }); toast(T.copied); }
+      function done() { ev('share_click', { src: what, step: 'copy', path: 'copy' }); toast(T.copied); }
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(full).then(done, legacy); else legacy();
       function legacy() {
         var ta = document.createElement('textarea'); ta.value = full; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
@@ -708,7 +735,7 @@
         rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + esc(you.correct) + '/' + esc(you.total) + ' ⭐</td></tr>';
       }
       var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
-      var h = bar() + '<h2>' + esc(T.leagueT(CLS.label || '')) + '</h2><p class="wq-sub">' + esc(Q.topic) + ' · ' + esc(T.finN(b.finishers_n || 0)) + '</p>' +
+      var h = bar() + '<h2>' + esc(T.leagueT(CLASS_LABEL)) + '</h2><p class="wq-sub">' + esc(Q.topic) + ' · ' + esc(T.finN(b.finishers_n || 0)) + '</p>' +
         (rows ? '<table class="wq-table"><tbody>' + rows + '</tbody></table>' : '<div class="wq-card">' + esc(T.noRows) + '</div>') +
         (b.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(b.more_n)) + '</p>' : '') +
         '<div class="wq-card wq-cmp">' +
@@ -720,7 +747,7 @@
       render(h, 'M11');
       wireBar();
       ev('board_view', { src: B.view === 'class' ? 'class_link' : 'page', i: b.finishers_n });
-      on('#wq-share-t', function () { share(T.tableLine(Q.topic, CLS.label || ''), link('/q/' + CODE + '/class'), 'table'); });
+      on('#wq-share-t', function () { share(T.tableLine(Q.topic, CLASS_LABEL), link('/q/' + CODE + '/class'), 'table'); });
       on('#wq-next', history);
       on('#wq-play', landing);
     }).catch(function (e) {

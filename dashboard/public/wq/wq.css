@@ -82,6 +82,8 @@ html[lang=ur] .wq-opt{font-weight:700;font-size:20px;line-height:1.9}
 .wq-opt.wq-right{border-color:var(--right)!important;background:var(--right-bg)!important}
 .wq-opt.wq-picked{border-color:var(--notyet)!important;background:var(--notyet-bg)!important}
 .wq-opt.wq-dim{opacity:.55}
+.wq-opt.wq-chosen{border-color:var(--navy);box-shadow:0 0 0 3px var(--navy)}
+.wq-btn:disabled{opacity:.5;cursor:default}
 .wq-opt:disabled{cursor:default}
 .wq-fb{border-radius:18px;padding:12px 14px;font-weight:800;font-size:18px}
 .wq-fb.wq-ok{background:var(--right-bg);color:var(--right)}
