@@ -1381,6 +1381,33 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-handoff: the link and the text are chosen together (tqStudentMessageWeb vs tqStudentMessage).
     # Unit: tests/quiz/web-quiz-forward-message.test.js, tests/quiz/web-quiz-link.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T190 @no-mock-driver
+  Scenario: The phone's Back button inside WhatsApp's browser never throws a child out of the quiz by accident
+    Given a child is playing the web quiz in WhatsApp's in-app browser
+    When the child presses Back on a side screen (who is playing, the share screen, the league table, history, today)
+    Then the page goes back to the screen the child came from
+    When the child presses Back on a question
+    Then the page stays, says the answers are saved, and a second Back leaves
+    And on the landing, the results and the scorecard Back leaves the page as before
+    # wq.js navArm/navBack (one history entry, added on a tap). Unit: dashboard/tests/web-quiz-page-inapp.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T191 @no-mock-driver
+  Scenario: Sharing the scorecard to the class group keeps classmates in the teacher's report
+    Given a child has finished the web quiz and sees the scorecard in a browser with no share menu
+    When the child taps "Share to class group"
+    Then WhatsApp opens with the score line and the CLASS link, in the same view
+    When the child taps "Challenge a friend"
+    Then WhatsApp opens with the child's own challenge link, and "Copy the message" is there if WhatsApp does not open
+    # wq.js card() classUrl vs chalUrl. Unit: dashboard/tests/web-quiz-page-inapp.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T192 @no-mock-driver
+  Scenario: A reload in the middle of the lesson video carries on where it was
+    Given a child is watching the lesson video on the web quiz
+    When the page reloads (or the child comes back to the link)
+    Then "Continue" takes the child back to the video at the point it reached, with no name to pick again
+    And a video the child skipped or finished does not come back; the questions do
+    # wq.js video() S.vt/S.vdone + resume(). Unit: dashboard/tests/web-quiz-page-inapp.service.test.js. @wip.
+
   @api @quiz @wip @draft @config-gated @P1 @T130 @no-mock-driver
   Scenario: With the author gates on, every quiz question carries the moment of my lesson that holds its answer
     Given app_settings "quiz_author_gates_v2" is true
