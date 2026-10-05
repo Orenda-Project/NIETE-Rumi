@@ -111,3 +111,11 @@ Feature: Web child quiz page on the portal
     When the question is shown on the page
     Then each picture has its word "Table", "House" or "Chair" under it and the voice says that word
     But a picture answer that was only ever stored as "Picture 1" shows the picture alone and is never read as "Picture 1"
+
+  Scenario: A match picture names its rows P, Q, R, never the answer letters
+    Given a matching question whose picture labels its rows A, B and C
+    And its answers read "A-2, B-1, C-3"
+    When the question is shown on the page
+    Then the picture labels the rows P, Q and R
+    And the question, the answers and the explanation say P, Q and R too
+    And the answer buttons keep their own A, B and C

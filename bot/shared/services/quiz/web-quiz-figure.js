@@ -255,4 +255,41 @@ function pictureOptionName(text) {
   return t.replace(/^\d+\s*[.)]\s*/, '').trim() || null;
 }
 
-module.exports = { figureFor, optionPic, drawOptionPics, pictureOptionName, safeSvg, wordsFor };
+/**
+ * A figure that names its own parts A-D (a match figure's row handles, a
+ * labelled diagram) collides with the page's A/B/C answer badges: "B" in the
+ * picture is not answer B. The authoring gate already renames them for new
+ * items (transcript-quiz-figure relabelLetterParts); older rows were written
+ * before it. The same pure rename is applied here, to the figure AND every
+ * text the page shows (stem, options, why, feedback), so they keep agreeing.
+ * Answer slots are untouched. A v2 item's own figure was written after the gate.
+ */
+function withPartLetters(row) {
+  const media = (row && row.media) || {};
+  const spec = media.figure && typeof media.figure === 'object' && !Array.isArray(media.figure) ? media.figure : null;
+  if (!spec || (media.web && media.web.figure && media.web.figure.spec)) return row;
+  let r;
+  try {
+    r = require('./transcript-quiz-figure').relabelLetterParts({
+      figure: spec,
+      question: row.question_text,
+      options: [row.option_a, row.option_b, row.option_c, row.option_d],
+      explanation: row.explanation,
+      option_feedback: row.option_feedback,
+    });
+  } catch (e) {
+    logToFile('⚠️ web-quiz: figure part letters kept', { error: e.message });
+    return row;
+  }
+  if (!r || !r.renamed) return row;
+  const q = r.question;
+  const [a, b, c, d] = q.options;
+  return {
+    ...row,
+    question_text: q.question, option_a: a, option_b: b, option_c: c, option_d: d,
+    explanation: q.explanation, option_feedback: q.option_feedback === undefined ? row.option_feedback : q.option_feedback,
+    media: { ...media, figure: q.figure },
+  };
+}
+
+module.exports = { figureFor, optionPic, drawOptionPics, pictureOptionName, withPartLetters, safeSvg, wordsFor };
