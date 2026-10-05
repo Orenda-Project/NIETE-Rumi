@@ -50,7 +50,9 @@ function offer() {
   return require('../nudges/lp-quiz-offer.service');
 }
 
-const versionKey = (r) => `${r.lesson_id}|${r.version_stamp}|${r.content_hash}`;
+const SourceStore = require('./lp-asset-source.store');
+
+const { versionKey } = SourceStore;
 
 function chunks(list, size = IN_CHUNK) {
   const out = [];
@@ -96,17 +98,12 @@ async function lessonAssetIds(assetIds) {
   return found;
 }
 
-/** Version keys that have an ingested slide script — the quiz's only source. */
-async function resolvableVersions(rows) {
-  const found = new Set();
-  const lessonIds = [...new Set(rows.map((r) => r.lesson_id))];
-  for (const part of chunks(lessonIds)) {
-    // eslint-disable-next-line no-await-in-loop
-    const sources = mustRead('lp lesson provider: sources', await supabase.from('niete_lp_asset_sources')
-      .select('lesson_id, version_stamp, content_hash').in('lesson_id', part));
-    sources.forEach((s) => found.add(versionKey(s)));
-  }
-  return found;
+/**
+ * Version keys that have an ingested slide script — the quiz's only source. The
+ * check lives in the source store so the 15:00 offer reads the very same rule.
+ */
+function resolvableVersions(rows) {
+  return SourceStore.resolvableVersions(rows);
 }
 
 /** Catalog lesson ids some lp_v8 quiz of this teacher already covers. */
