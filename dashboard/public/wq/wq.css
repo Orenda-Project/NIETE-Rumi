@@ -76,6 +76,13 @@ html[lang=ur] .wq-btn{font-weight:700;font-size:19px;line-height:1.9}
 .wq-key-go{background:var(--green);border-color:var(--green-d);color:var(--navy);font-size:22px}
 html[lang=ur] .wq-key-go{font-family:var(--fu);line-height:1.6}
 .wq-key-go:disabled{background:var(--star-off);border-color:var(--line);color:var(--muted);cursor:default}
+/* The teacher's "Who played?" list */
+.wq-who{gap:0;padding:4px 14px}
+.wq-who-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.wq-who-row:last-child{border-bottom:0}
+.wq-who-row b{font-size:18px;color:var(--navy)}
+.wq-tag-off{background:var(--notyet-bg);color:var(--notyet)}
+.wq-who-fix{width:100%;min-height:44px;font-size:15px}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
 .wq-dots{display:flex;gap:6px;flex:1}
 .wq-dot{flex:1;height:12px;border-radius:999px;background:var(--star-off)}
