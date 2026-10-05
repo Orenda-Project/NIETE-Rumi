@@ -11,6 +11,8 @@
  *           older rubric shape must not prefill today's Flow (the D28 class)
  *   retry → CAS + re-queue analysis, bounded at MAX_RETRIES
  *   wait  → fresh pipeline — informational ack only
+ *   observe2 → an /observe2 visit waiting at its own step: the check is sent again (sealed, moments
+ *           in), or the live form (not sealed yet); otherwise the same "still working" ack
  *
  * Cancel (operator, 2026-08-24: "at any stage a coach can cancel"): every
  * resume prompt carries cancel as its last button; two-tap confirm; the guard
@@ -59,6 +61,7 @@ async function resume(sessionId, from, user) {
   if (kind === 'gate') return _resumeGate(s, from, user, S);
   if (kind === 'form') return _resumeForm(s, from, user, S);
   if (kind === 'retry') return _resumeRetry(s, from, user, S);
+  if (kind === 'observe2' && await _resumeObserve2(s, from, user)) return;
   return _sendButtons(from, S.resume_wait_ack, [
     { id: `observe_ok_${s.id}`, title: S.btn_ok_wait },
     { id: `observe_cancel_${s.id}`, title: S.btn_cancel_obs },
@@ -100,6 +103,29 @@ async function _resumeGate(s, from, user, S) {
     const { buildPhotoPrompt } = require('../coaching/classroom-photo/photo-prompt.service');
     await WhatsAppService.sendInteractiveButtons(from, buildPhotoPrompt(s.id, observeLang(user)));
   }
+}
+
+// An /observe2 visit, from the worklist: send the message it is waiting for. The check message is the
+// coach's only way into the check, and on 5 Oct WhatsApp refused it for every coach for 50 minutes
+// (Meta #131042); the visit then waited with nothing in the coach's chat to tap.
+// @returns {Promise<boolean>} false when there is nothing to open yet (the caller sends the wait ack).
+async function _resumeObserve2(s, from, user) {
+  const Store = require('./observe2/field-form.store');
+  const got = await Store.findBySession(s.id);
+  const form = got.ok ? got.form : null;
+  if (!form || form.checked_at) return false;
+  if (!form.sealed_at) {
+    const { sendLiveForm } = require('./observe2/start');
+    await sendLiveForm(user, from, form.id, form.period_minutes);
+    logToFile('🔁 observe-resume: /observe2 form re-sent', { sessionId: s.id, formId: form.id });
+    return true;
+  }
+  if (!form.moments_ready_at) return false;
+  const Moments = require('./observe2/moments');
+  const sent = await Moments.openCheck(form);
+  if (sent) await Moments.setStatus(s.id, 'observe2_checking');
+  logToFile('🔁 observe-resume: /observe2 check re-sent', { sessionId: s.id, formId: form.id, sent });
+  return sent;
 }
 
 async function _resumeForm(s, from, user, S) {
