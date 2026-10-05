@@ -1407,6 +1407,47 @@ Feature: NIETE (ICT) Teacher Training
     Then the answer is right only in that order, and the review shows the order
     # web-quiz.service questionPayload (WebItems.webPayload), recordAnswers (WebItems.isCorrect), finishSession (keyFor). @wip.
 
+  @api @quiz @web @wip @draft @P2 @T160 @no-mock-driver
+  Scenario: In Urdu, each child's animal sits inside its circle on "Whose turn is it?"
+    Given a web quiz in Urdu, and names remembered on this phone and in the class
+    When the child opens "Whose turn is it?"
+    Then every name chip shows its animal inside its round badge, as it does in English
+    And the animal sits in line with the name on the "Is this you?" card, the scorecard and the class league table
+    # wq.js ani() wraps every animal in .wq-ani; wq.css .wq-ani keeps the system font and line-height 1.
+    # Unit: dashboard/tests/web-quiz-page-badge.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T161 @no-mock-driver
+  Scenario: A tap anywhere on the lesson video starts it, and a video with no poster is not a dark box
+    Given a web quiz with a lesson video
+    When the child sees the video screen
+    Then the video box shows Jugnu and a big play button when the video has no poster, or the poster when it has one
+    When the child taps anywhere on the box
+    Then the video starts, the cover goes away and the video's own controls take over
+    # wq.js video() .wq-vcover. Unit: dashboard/tests/web-quiz-page-video.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T162 @no-mock-driver
+  Scenario: A class with no label never leaves a dangling dot on the card or the league table
+    Given a brand-new code whose class has no label yet
+    When the child finishes and sees the scorecard and the league table
+    Then the card's header reads "NIETE" with nothing after it, and no line starts or ends with a dot
+    # wq.js dotJoin(). Unit: dashboard/tests/web-quiz-page-card.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T163 @no-mock-driver
+  Scenario: The page records whether it was opened in WhatsApp's in-app browser
+    Given a child opens the web quiz in WhatsApp's own browser, or in the phone's browser
+    When the page reports that it opened
+    Then the log keeps iab as 1 for WhatsApp's browser and 0 for the phone's browser
+    # web-quiz.service cleanEvent. Unit: bot/tests/quiz/web-quiz/web-quiz.service.test.js (E8 iab). @wip.
+
+  @api @quiz @web @wip @draft @config-gated @P1 @T164 @no-mock-driver
+  Scenario: The message I forward for the web quiz says the child is asked only their name
+    Given the web quiz is on for me
+    When I get my class quiz and its message to forward
+    Then the message carries the web link and says the child will be asked their name first, in the quiz's language
+    And when the web quiz is off for me, the message carries the WhatsApp link and still says name and class, exactly as before
+    # transcript-quiz-handoff: the link and the text are chosen together (tqStudentMessageWeb vs tqStudentMessage).
+    # Unit: tests/quiz/web-quiz-forward-message.test.js, tests/quiz/web-quiz-link.test.js. @wip.
+
   @api @quiz @wip @draft @config-gated @P1 @T130 @no-mock-driver
   Scenario: With the author gates on, every quiz question carries the moment of my lesson that holds its answer
     Given app_settings "quiz_author_gates_v2" is true
