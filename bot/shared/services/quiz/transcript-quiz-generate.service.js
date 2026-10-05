@@ -888,6 +888,10 @@ async function runSourceFidelity(api, {
     const { errors } = SF.sourceFaults(current, sourceText, { gradeBand });
     if (!errors.length) break;
     // eslint-disable-next-line no-await-in-loop
+    // What the set already carried before this call (accepted by the loop) is not the replacement's fault.
+    const carried = new Set(validate(current, {
+      language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
+    }).errors.map(String));
     const rw = await api.rewriteRejected({
       questions: current, errors, digest, language, gradeBand, quizId, lessonSummary, planned, knownNames, partial: true,
       authorGates: true, prefer,
@@ -901,9 +905,12 @@ async function runSourceFidelity(api, {
         language, subject: digest.subject, digest, nExpected: questions.length, lessonSummary, quizId,
       });
       verrs = v.errors;
-      // Judged on what the rewrite CHANGED: a soft fault, or one on a question
-      // it did not touch, is not the replacement's.
-      const own = (e) => replacedBad.includes(Number((/^q(\d+):/.exec(String(e)) || [])[1]));
+      // Judged on what the rewrite CHANGED: a soft fault, one the set already
+      // carried, or one on a question it did not touch is not the replacement's.
+      const own = (e) => {
+        const m = /^q(\d+):/.exec(String(e));
+        return m ? replacedBad.includes(Number(m[1])) : !carried.has(String(e));
+      };
       if (v.errors.every((e) => SOFT_FAULT.test(String(e)) || !own(e))) {
         current = v.questions;
         softFaults = v.errors.length ? v.errors : null;
