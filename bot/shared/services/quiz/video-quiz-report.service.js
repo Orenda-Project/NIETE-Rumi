@@ -471,8 +471,15 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
       shareCodeId, n: rawAll.length - noSelfTests.length,
     });
   }
-  // bd-2yyry.15 — one attempt per child, before anything is counted.
-  const all = oneAttemptPerChild(noSelfTests);
+  // bd-2yyry.15 — one attempt per child, before anything is counted. A web-arm
+  // quiz keeps each child's FIRST finish (a replay on another phone is
+  // practice); an unreadable quiz row keeps the default, as before.
+  let rule;
+  try {
+    const { data: armRow } = await supabase.from('quizzes').select('meta').eq('id', sc.quiz_id).maybeSingle();
+    rule = attemptRuleFor(armRow && armRow.meta);
+  } catch { rule = undefined; }
+  const all = oneAttemptPerChild(noSelfTests, { rule });
   if (all.length < noSelfTests.length) {
     logEvent('video_quiz.retakes_collapsed', {
       shareCodeId, rows: noSelfTests.length, children: all.length,
