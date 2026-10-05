@@ -364,6 +364,12 @@ async function getQuiz(code, { p } = {}) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
     }
   }
+  // A quiz without its read-aloud clips (or with clips of an older voice version) gets them now,
+  // in the background: this child may hear the phone's voice, the next ones hear the clips.
+  try {
+    const Publish = require('./web-quiz-publish.service');
+    Publish.ensureQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
+  } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
   // A teacher with a class list: the child gives a roll number, so no classmates' names ship.

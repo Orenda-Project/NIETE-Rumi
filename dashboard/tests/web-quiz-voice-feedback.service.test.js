@@ -81,7 +81,7 @@ function page({ lang = 'en' } = {}) {
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { feedback: feedback, speak: speak, speakSeq: speakSeq, sfx: sfx };\n})();'), ctx);
+  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { feedback: feedback, speak: speak, speakSeq: speakSeq, sfx: sfx, results: results, VOICE: typeof VOICE === \'undefined\' ? null : VOICE };\n})();'), ctx);
   // Moving the voice on: the current clip or phone-voice line ends by itself.
   const advance = () => {
     const last = voiced[voiced.length - 1];
@@ -183,5 +183,70 @@ describe('leaving the page silences everything and nothing starts again by itsel
     await flush();
     expect(p.voiced.length).toBe(n);
     expect(done).not.toHaveBeenCalled();
+  });
+});
+
+/* ---------------- the shared feedback voice library (recorded once, used by every quiz) ---------------- */
+const VOICE_DIR = path.join(__dirname, '..', 'public', 'wq', 'voice');
+const MANIFEST = fs.existsSync(path.join(VOICE_DIR, 'manifest.json')) ? JSON.parse(fs.readFileSync(path.join(VOICE_DIR, 'manifest.json'), 'utf8')) : {};
+const shown = (p) => p.els['#wq-fb'].innerHTML;
+
+describe('the feedback voice library', () => {
+  test('every line the page can say has its recorded clip, and the page holds exactly the recorded words', () => {
+    const p = page({ lang: 'en' });
+    const lib = JSON.parse(JSON.stringify(p.wq.VOICE || {}));
+    expect(lib).toEqual(MANIFEST);
+    for (const lang of ['en', 'ur']) {
+      for (const set of ['right', 'notyet', 'fixed', 'done', 'cheer']) expect((lib[lang] || {})[set].length).toBeGreaterThanOrEqual(8);
+      Object.entries(lib[lang]).forEach(([set, lines]) => lines.forEach((_, i) => {
+        const f = path.join(VOICE_DIR, lang, `${set}-${i}.mp3`);
+        expect(fs.existsSync(f)).toBe(true);
+        expect(fs.statSync(f).size).toBeLessThan(40000);
+      }));
+    }
+  });
+
+  test('Urdu lines address the child without gendered verb stems, and no not-yet line praises', () => {
+    const ur = MANIFEST.ur || {};
+    Object.values(ur).flat().forEach((t) => expect(t).not.toMatch(/سکتے|سکتی|گئیں|آپ نے|کرتے ہو|کرتی ہو/));
+    [...(ur.notyet || []), ...(ur.notyetpic || [])].forEach((t) => expect(t).not.toMatch(/شاباش|بہت خوب|زبردست|کمال/));
+    [...((MANIFEST.en || {}).notyet || []), ...((MANIFEST.en || {}).notyetpic || [])].forEach((t) => expect(t).not.toMatch(/well done|great|brilliant|good job/i));
+  });
+
+  describe.each(['en', 'ur'])('%s', (lang) => {
+    const clip = (set) => new RegExp(`^/wq/voice/${lang}/${set}-\\d+\\.mp3(\\?v=\\w+)?$`);
+    test('a right answer plays a recorded praise line, and the screen shows those same words', () => {
+      const p = page({ lang });
+      p.wq.feedback(plantQ(lang), 0, 'B', true, false);
+      expect(p.voiced[0].url).toMatch(clip('right'));
+      const i = Number(p.voiced[0].url.match(/-(\d+)\.mp3/)[1]);
+      expect(shown(p)).toContain(MANIFEST[lang].right[i].replace(/'/g, '&#39;'));
+    });
+    test('a wrong answer plays a recorded "not yet" lead-in, then the right option\'s own clip, then why', () => {
+      const p = page({ lang });
+      p.wq.feedback(plantQ(lang), 0, 'A', false, false);
+      for (let k = 0; k < 6; k += 1) p.advance();
+      expect(p.voiced.map((v) => v.url || v.text)).toEqual([expect.stringMatching(clip('notyet')), 'https://r2.example/b.ogg', WHY_CLIP]);
+    });
+    test('a second try that is right plays a recorded "fixed it" line', () => {
+      const p = page({ lang });
+      p.wq.feedback(plantQ(lang), 0, 'B', true, true);
+      expect(p.voiced[0].url).toMatch(clip('fixed'));
+    });
+    test('a wrong answer whose right option is only a picture says "this one is right", never empty quotes', () => {
+      const p = page({ lang });
+      const q = plantQ(lang);
+      q.options = [{ slot: 'A', text: '' }, { slot: 'B', text: '' }];
+      q.why = null; q.audio = {};
+      p.wq.feedback(q, 0, 'A', false, false);
+      expect(p.voiced[0].url).toMatch(clip('notyetpic'));
+      expect(shown(p).replace(/alt=""/g, "")).not.toMatch(/""|«»|&quot;&quot;/);
+    });
+    test('the results screen plays a recorded "quiz complete" line', async () => {
+      const p = page({ lang });
+      p.wq.results(0);
+      for (let k = 0; k < 4; k += 1) await flush();
+      expect(p.voiced.some((v) => clip('done').test(v.url || ''))).toBe(true);
+    });
   });
 });
