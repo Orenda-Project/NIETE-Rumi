@@ -252,3 +252,10 @@ describe('board round 2 (W32b, W32a)', () => {
     expect(WQI.itemHtml(q, Object.assign({ playSound: 'Play the sound' }, T), 'en')).toContain('id="wq-stim"');
   });
 });
+
+describe('letters never clash with a figure', () => {
+  it('no letter badges on a question that has a figure (its own A/B/C labels would mean something else)', () => {
+    const q = { text: 'Q', figure: { kind: 'svg', svg: '<svg viewBox="0 0 1 1"/>' }, options: opts(['x', 'y']) };
+    expect(WQI.itemHtml(q, T, 'en')).not.toContain('wq-let');
+  });
+});
