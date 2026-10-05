@@ -3392,6 +3392,12 @@ router.get('/training/certificates/:code/download', requirePortalAuth, async (re
         error: 'Your certificate PDF could not be prepared. Please try again in a moment.',
       });
     }
+    // bd-4ryvw — `?format=json` hands the signed link back instead of redirecting,
+    // so the portal saves the file itself. A 302 inside the app's WebView goes to
+    // R2's host, which is not the app's own, and Capacitor opens it in Chrome.
+    if (req.query && req.query.format === 'json') {
+      return res.json({ success: true, url: result.download_url, filename: `NIETE-certificate-${code}.pdf` });
+    }
     return res.redirect(302, result.download_url);
   } catch (error) {
     console.error('training/certificates download error:', error.message);
