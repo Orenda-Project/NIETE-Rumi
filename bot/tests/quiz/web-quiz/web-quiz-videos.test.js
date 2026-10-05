@@ -111,8 +111,8 @@ function seed() {
         invited_by_student_id: null, device_ref: 'd1', source: 'share_link', student_class: '3' },
       // Zara already finished the quiz of video 2.
       { id: 's-a0', quiz_id: VQ(2), share_code_id: SC, student_id: KID_A, student_name: 'Zara Testwala', user_id: null,
-        status: 'completed', correct_answers: 2, total_questions_answered: 3, completed_at: ago(20), created_at: ago(20),
-        invited_by_student_id: null, device_ref: 'd1', source: 'share_link' },
+        status: 'completed', correct_answers: 2, total_questions_answered: 3, mastery_percentage: 67, completed_at: ago(20), created_at: ago(20),
+        invited_by_student_id: null, device_ref: 'd1', source: 'share_link', student_class: '3' },
     ],
     students: [{ id: KID_A, student_name: 'Zara Testwala', self_reported_class: '3', phone: null }],
     quiz_answers: [],
