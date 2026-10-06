@@ -181,6 +181,66 @@ async function questionStats(quizId, counted) {
 }
 
 /**
+ * WHO is in this quiz's class, from identity v2 (web-quiz-identity-roster
+ * nonAttempters): the hand-out's bound class, its deduplicated roster with list
+ * numbers, typed children who are not on it (provisional), and the opaque class
+ * keys /who/class takes. Null when v2 cannot answer (no class tables, no class
+ * for this teacher, a read error) — the teacher's class lists answer instead.
+ */
+async function fromIdentity(code, quizId) {
+  if (!code) return null;
+  let na = null;
+  try {
+    na = await require('./web-quiz-identity-roster').nonAttempters({ shareCodeId: code.id });
+  } catch (err) {
+    logToFile('⚠️ teacher report: identity v2 unavailable — class lists instead', { quizId, error: err.message });
+    return null;
+  }
+  if (!na || !na.class || na.class.state === 'none') return null;
+  const known = na.class.state === 'known';
+  const bySession = new Map((na.played || []).filter((p) => p.onList).map((p) => [p.sessionId, p]));
+  const byStudent = new Map((na.played || []).filter((p) => p.onList).map((p) => [p.studentId, p]));
+  return {
+    roster: {
+      state: known ? 'known' : 'ambiguous',
+      className: known ? na.class.label || null : null,
+      of: known ? na.class.of : null,
+      lists: (na.class.classes || []).map((c) => ({ key: c.key, label: c.label })),
+    },
+    listed: (s) => bySession.get(s.id) || (s.student_id ? byStudent.get(s.student_id) : null) || null,
+    notPlayed: known && na.notPlayed
+      ? na.notPlayed.map((k) => ({ studentId: k.studentId, first: k.first, roll: k.number != null ? Number(k.number) : null }))
+      : null,
+    provisional: known ? (na.provisional || []) : [],
+  };
+}
+
+/** The same answer from the teacher's legacy class lists (student_lists), for a teacher identity v2 cannot place. */
+async function fromLists(teacherId, quiz, listId, counted, lang) {
+  let roster = null;
+  try { roster = await readRoster(teacherId); } catch (err) {
+    logToFile('⚠️ teacher report: class list read failed — no not-played list', { quizId: quiz.id, error: err.message });
+  }
+  const { roster: view, one } = classOf(roster, quiz, listId);
+  const kidOf = new Map(((roster && roster.kids) || []).map((k) => [k.id, k]));
+  const inClass = (k) => Boolean(one && one.kids.some((x) => x.id === k.id));
+  const done = new Set(counted.map((s) => s.student_id).filter(Boolean));
+  return {
+    roster: view,
+    listed: (s) => {
+      const k = s.student_id ? kidOf.get(s.student_id) : null;
+      return k && inClass(k) ? { first: firstName(Roster.displayName(k, lang)), number: k.roll_number } : null;
+    },
+    notPlayed: one
+      ? one.kids.filter((k) => !done.has(k.id))
+        .map((k) => ({ studentId: k.id, first: firstName(Roster.displayName(k, lang)), roll: k.roll_number != null ? Number(k.roll_number) : null }))
+        .sort((a, b) => ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first))
+      : null,
+    provisional: [],
+  };
+}
+
+/**
  * @param {string} teacherId  from the verified token, never from the request
  * @param {string} quizId
  * @param {{listId?: string|null}} [opts] the class the teacher picked on the page
@@ -197,32 +257,28 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const codes = await classCodes(teacherId, [quiz.id]);
   const counted = countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId);
 
-  let roster = null;
-  try { roster = await readRoster(teacherId); } catch (err) {
-    logToFile('⚠️ teacher report: class list read failed — no not-played list', { quizId, error: err.message });
-  }
-  const { roster: rosterView, one } = classOf(roster, quiz, listId);
-  const rollOf = new Map(((roster && roster.kids) || []).map((k) => [k.id, k]));
   const lang = clampLanguage(quiz.language);
+  const primary = codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
+  // Identity v2 answers first. A legacy class list the teacher picked on the page,
+  // or the quiz's own list_id, still decides when v2 does not KNOW the class
+  // (a list with no class behind it: legacy-only teachers).
+  let who = await fromIdentity(primary, quizId);
+  if (!who || (who.roster.state !== 'known' && (listId || quiz.list_id))) {
+    who = await fromLists(teacherId, quiz, listId, counted, lang);
+  }
 
   const played = counted.map((s) => {
-    const listed = s.student_id ? rollOf.get(s.student_id) : null;
+    const listed = who.listed(s);
     const correct = s.correct_answers || 0;
     const total = s.total_questions_answered || 0;
     return {
-      first: firstName(listed ? Roster.displayName(listed, lang) : s.student_name),
-      roll: listed && listed.roll_number != null ? Number(listed.roll_number) : null,
-      onList: Boolean(listed && one && one.kids.some((k) => k.id === listed.id)),
+      first: listed ? listed.first : firstName(s.student_name),
+      roll: listed && listed.number != null ? Number(listed.number) : null,
+      onList: Boolean(listed),
       correct, total, pct: pct(correct, total),
     };
   }).sort((a, b) => (b.pct - a.pct) || ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first));
-
-  const done = new Set(counted.map((s) => s.student_id).filter(Boolean));
-  const notPlayed = one
-    ? one.kids.filter((k) => !done.has(k.id))
-      .map((k) => ({ first: firstName(Roster.displayName(k, lang)), roll: k.roll_number != null ? Number(k.roll_number) : null }))
-      .sort((a, b) => ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first))
-    : null;
+  const { roster: rosterView, notPlayed, provisional } = who;
 
   const questions = await questionStats(quiz.id, counted);
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
@@ -245,6 +301,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     },
     played,
     notPlayed,
+    provisional,
     questions,
     guidance: meta.report_guidance && typeof meta.report_guidance === 'object' ? meta.report_guidance : null,
     reminder: link ? { language: lang, text: reminderText({ topic: quiz.topic, link, language: lang }) } : null,

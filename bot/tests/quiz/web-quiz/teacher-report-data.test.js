@@ -30,6 +30,8 @@ const kid = (n) => `b0000000-0000-4000-8000-0000000000${String(n).padStart(2, '0
 const Q = (n) => `c0000000-0000-4000-8000-0000000000${String(n).padStart(2, '0')}`;
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 const LINK = 'https://portal.example.test/q/AB12CD';
+// Distinct synthetic first names: identity v2 dedupes children whose canonical full names match.
+const NAMES = ['Amna', 'Bilal', 'Chand', 'Dua', 'Esha', 'Fahad', 'Gul', 'Huma'];
 
 const session = (id, studentId, name, correct, h, extra = {}) => ({
   id, quiz_id: QUIZ, share_code_id: SC, student_id: studentId, student_name: name, user_id: null,
@@ -41,7 +43,7 @@ function seed({ lists = [{ id: LIST3B, class_name: '3', section: 'B' }], quizExt
   const students = [];
   lists.forEach((l, li) => {
     for (let r = 1; r <= 4; r += 1) {
-      students.push({ id: kid(li * 10 + r), list_id: l.id, roll_number: r, student_name: `Kid${li}${r} Testwala`, student_name_urdu: null, is_active: true });
+      students.push({ id: kid(li * 10 + r), list_id: l.id, roll_number: r, student_name: `${NAMES[li * 4 + r - 1]} Testwala`, student_name_urdu: null, is_active: true });
     }
   });
   const fake = makeFake({
@@ -62,17 +64,17 @@ function seed({ lists = [{ id: LIST3B, class_name: '3', section: 'B' }], quizExt
     student_lists: lists.map((l) => ({ ...l, user_id: TEACHER, is_active: true })),
     students,
     quiz_sessions: [
-      session('s1', kid(1), 'Kid01 Testwala', 4, 20),
-      session('s2', kid(2), 'Kid02 Testwala', 1, 19),
+      session('s1', kid(1), 'Amna Testwala', 4, 20),
+      session('s2', kid(2), 'Bilal Testwala', 1, 19),
       // kid 2 replays later and scores higher: on a web code the FIRST finish counts
-      session('s2b', kid(2), 'Kid02 Testwala', 4, 2),
+      session('s2b', kid(2), 'Bilal Testwala', 4, 2),
       // the teacher's own test run never counts
       session('s3', null, 'Teacher', 4, 18, { user_id: TEACHER, device_ref: null }),
       // an invited friend is not the class
       session('s4', 'b0000000-0000-4000-8000-0000000000ee', 'Friend Testwala', 4, 17, { invited_by_student_id: kid(1) }),
       // started, not finished: not "played"
-      session('s5', kid(3), 'Kid03 Testwala', 0, 16, { status: 'in_progress', completed_at: null }),
-      { ...session('t1', kid(11), 'Kid11 Testwala', 2, 200), quiz_id: QUIZ2, share_code_id: SC2, total_questions_answered: 4 },
+      session('s5', kid(3), 'Chand Testwala', 0, 16, { status: 'in_progress', completed_at: null }),
+      { ...session('t1', kid(11), 'Esha Testwala', 2, 200), quiz_id: QUIZ2, share_code_id: SC2, total_questions_answered: 4 },
     ],
     quiz_questions: [1, 2, 3, 4].map((n) => ({ id: Q(n), quiz_id: QUIZ, external_id: null, sort_order: n, question_text: `Question ${n}?`,
       option_a: 'A', option_b: 'B', option_c: 'C', option_d: 'D', correct_option: 'A' })),
@@ -110,11 +112,14 @@ describe('quizReport', () => {
   test('the one class is known: played by score, each child\'s first finish, not-played greyed list', async () => {
     seed();
     const r = await Data.quizReport(TEACHER, QUIZ);
-    expect(r.roster).toEqual({ state: 'known', className: '3-B', of: 4, lists: [{ id: LIST3B, label: '3-B' }] });
-    expect(r.played.map((p) => [p.first, p.roll, p.correct])).toEqual([['Kid01', 1, 4], ['Kid02', 2, 1]]);
+    expect(r.roster).toMatchObject({ state: 'known', className: '3-B', of: 4 });
+    expect(r.roster.lists).toEqual([expect.objectContaining({ label: '3-B' })]);
+    expect(r.played.map((p) => [p.first, p.roll, p.correct])).toEqual([['Amna', 1, 4], ['Bilal', 2, 1]]);
     expect(r.summary).toMatchObject({ played: 2, of: 4, avg: 63, total: 4 });
     // kid 3 started but did not finish; kid 4 never opened it — both still to play
-    expect(r.notPlayed).toEqual([{ first: 'Kid03', roll: 3 }, { first: 'Kid04', roll: 4 }]);
+    expect(r.notPlayed).toEqual([
+      { studentId: kid(3), first: 'Chand', roll: 3 }, { studentId: kid(4), first: 'Dua', roll: 4 },
+    ]);
     expect(r.quiz).toMatchObject({ id: QUIZ, topic: 'Plants', code: 'AB12CD', link: LINK, language: 'en' });
   });
 
@@ -137,7 +142,7 @@ describe('quizReport', () => {
     // the teacher picks the class on the page: the same report, now for 3-C
     const picked = await Data.quizReport(TEACHER, QUIZ, { listId: LIST3C });
     expect(picked.roster).toMatchObject({ state: 'known', className: '3-C', of: 4 });
-    expect(picked.notPlayed.map((k) => k.first)).toEqual(['Kid11', 'Kid12', 'Kid13', 'Kid14']);
+    expect(picked.notPlayed.map((k) => k.first)).toEqual(['Esha', 'Fahad', 'Gul', 'Huma']);
   });
 
   test('a quiz bound to its list is known even when the teacher keeps several', async () => {
@@ -195,7 +200,7 @@ describe('quizReport', () => {
     expect(r.reminder.text).toContain(LINK);
     expect(r.reminder.text).toContain('Plants');
     expect(r.reminder.language).toBe('en');
-    ['Kid01', 'Kid02', 'Kid03', 'Kid04'].forEach((n) => expect(r.reminder.text).not.toContain(n));
+    ['Amna', 'Bilal', 'Chand', 'Dua'].forEach((n) => expect(r.reminder.text).not.toContain(n));
     const ur = Data.reminderText({ topic: 'کسر', link: LINK, language: 'ur' });
     expect(ur).toContain(LINK);
     expect(ur).toMatch(/[؀-ۿ]/);
