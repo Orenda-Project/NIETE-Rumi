@@ -183,7 +183,7 @@ exports.SCENARIOS = SCENARIOS;
 exports.LANE_FILES = LANE_FILES;
 exports.lanesPresent = lanesPresent;
 
-exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) => {
+exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, want = () => true }) => {
   const env = envArg || process.env;
   const repo = path.resolve(__dirname, '..', '..', '..');
   const root = rootArg || (env.RUN_DIR && fs.existsSync(path.join(env.RUN_DIR, 'src')) ? path.join(env.RUN_DIR, 'src') : repo);
@@ -237,7 +237,7 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
   try {
     await api.resetFlow();
     // ── gate (text) ──
-    if (!done.has('CT20')) {
+    if (!done.has('CT20') && want('CT20')) {
       s = t();
       const off = await stack.restart('bot', { CHILD_TEST_ENABLED: '' });
       if (!off || !off.ok) record('CT20', ...B('stack-control.restart(bot) failed: ' + JSON.stringify(off).slice(0, 120)));
@@ -246,14 +246,14 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     const on = await stack.restart('bot', { CHILD_TEST_ENABLED: 'true', CHILD_TEST_DRAW_SECRET: env.CHILD_TEST_DRAW_SECRET || 'e2e-mock-lane-only' });
     if (!on || !on.ok) return blockRest('could not restart the bot with CHILD_TEST_ENABLED=true: ' + JSON.stringify(on).slice(0, 120));
 
-    if (!done.has('CT21')) {
+    if (!done.has('CT21') && want('CT21')) {
       s = t(); await api.setRole('teacher');
       const before = (await get(`child_test_draws?select=id&school_id=eq.${sim.id}`)).length;
       const r = await turn(() => api.sendWait('/egra'));
       const after = (await get(`child_test_draws?select=id&school_id=eq.${sim.id}`)).length;
       record('CT21', ...V(RX.denyRole.test(r.txt) && after === before, { reply: r.txt.slice(0, 160), drawsBefore: before, drawsAfter: after }), t() - s);
     }
-    if (!done.has('CT22')) {
+    if (!done.has('CT22') && want('CT22')) {
       s = t(); await api.setRole('coach'); await api.setUser({ region: 'tanzania' });
       const r = await turn(() => api.sendWait('/egra'));
       await api.setUser({ region: me.region });
@@ -261,7 +261,7 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
     }
 
     // ── CT30: a school with no class list (the observe roster seed has no classes) ──
-    if (!done.has('CT30')) {
+    if (!done.has('CT30') && want('CT30')) {
       s = t(); await api.setRole('coach');
       const ro = await api.setRoster();
       if (!ro || !ro.ok) record('CT30', ...B('api.setRoster failed: ' + JSON.stringify(ro).slice(0, 120)));
@@ -269,7 +269,9 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg }) 
       await api.clearRoster();
     }
 
-    // ── today's list ──
+    // ── today's list ── everything below is one chain (list → children → marks → check). When the commit
+    // selected none of it, stop here; the finally still unassigns the SIM school and restores the driver.
+    if (!want(SCENARIOS.map(([id]) => id).filter((id) => !['CT20', 'CT21', 'CT22', 'CT30'].includes(id)))) return;
     await api.setRole('coach'); await unassignSim(); await assignSim();
     s = t();
     const L1 = await turn(() => api.sendWait('/egra'));

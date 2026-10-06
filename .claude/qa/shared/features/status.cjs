@@ -25,7 +25,7 @@ const surfaceOf = txt => CARD.test(txt) ? 'flow-card'
                        : RUNNING.test(txt) ? 'running-template'
                        : IDLE.test(txt) ? 'idle-template' : 'neither';
 
-exports.run = async ({ api, rec }) => {
+exports.run = async ({ api, rec, want = () => true }) => {
   const t = () => Date.now();
   let s;
   await api.resetFlow();
@@ -84,63 +84,71 @@ exports.run = async ({ api, rec }) => {
             : ['BLOCKED', { via, reason: 'could not read a listing from the status surface',
                             screen: (flowText || txt).slice(0, 200) }]), t() - s);
 
-  // STA02 — case-insensitive + tolerates trailing text: same SURFACE either way.
-  s = t();
-  await api.resetFlow();
-  const loud = await api.sendWait('/STATUS now');
-  const loudSurface = surfaceOf(loud.txt || '');
-  rec('STA02', '/status is case-insensitive and tolerates trailing text',
-      ...V(loudSurface !== 'neither' && loudSurface === surface,
-           { lower: surface, upper: loudSurface,
-             note: 'compares the surface each produces, not a fixed template — idle text or a Flow card depending on state/env',
-             reply: (loud.txt || '').slice(0, 160) }), t() - s);
+  if (want('STA02')) {
+    // STA02 — case-insensitive + tolerates trailing text: same SURFACE either way.
+    s = t();
+    await api.resetFlow();
+    const loud = await api.sendWait('/STATUS now');
+    const loudSurface = surfaceOf(loud.txt || '');
+    rec('STA02', '/status is case-insensitive and tolerates trailing text',
+        ...V(loudSurface !== 'neither' && loudSurface === surface,
+             { lower: surface, upper: loudSurface,
+               note: 'compares the surface each produces, not a fixed template — idle text or a Flow card depending on state/env',
+               reply: (loud.txt || '').slice(0, 160) }), t() - s);
+  }
 
-  // STA03 — a bare "status" must NOT open the status surface (shape, never wording)
-  s = t();
-  const bare = await api.sendWait('status');
-  const bareSurface = surfaceOf(bare.txt || '');
-  rec('STA03', 'A bare "status" (no slash) does not open the status surface',
-      ...V(bareSurface === 'neither',
-           { observedSurface: bareSurface, reply: (bare.txt || '').slice(0, 180) }), t() - s);
+  if (want('STA03')) {
+    // STA03 — a bare "status" must NOT open the status surface (shape, never wording)
+    s = t();
+    const bare = await api.sendWait('status');
+    const bareSurface = surfaceOf(bare.txt || '');
+    rec('STA03', 'A bare "status" (no slash) does not open the status surface',
+        ...V(bareSurface === 'neither',
+             { observedSurface: bareSurface, reply: (bare.txt || '').slice(0, 180) }), t() - s);
+  }
 
-  // STA07 — the FIRST /status above came straight after /menu. A glance is not work: with
-  // nothing else in flight the answer must be the idle text, never a card claiming "1 thing".
-  s = t();
-  const menuListed = items.some(x => /^menu$|\bmenu\b/i.test(x)) || /You have 1 thing running/i.test(flowText);
-  rec('STA07', 'Opening the menu is a glance, not work — /status right after /menu still says nothing is running',
-      ...(surface === 'idle-template' && !menuListed
-          ? V(true, { reply: txt.slice(0, 160) })
-          : items.length && !menuListed
-            ? ['BLOCKED', { reason: 'real work was in flight (' + items.length + ' item(s)), so the idle answer is not '
-                                   + 'expected; the menu itself was NOT listed, which is the rule under test', items: items.slice(0, 5) }]
-            : V(false, { observedSurface: surface, menuListed, reply: (flowText || txt).slice(0, 200),
-                         note: 'a Flow card / "1 thing running" for a menu glance is the PR #801 defect' })), t() - s);
+  if (want('STA07')) {
+    // STA07 — the FIRST /status above came straight after /menu. A glance is not work: with
+    // nothing else in flight the answer must be the idle text, never a card claiming "1 thing".
+    s = t();
+    const menuListed = items.some(x => /^menu$|\bmenu\b/i.test(x)) || /You have 1 thing running/i.test(flowText);
+    rec('STA07', 'Opening the menu is a glance, not work — /status right after /menu still says nothing is running',
+        ...(surface === 'idle-template' && !menuListed
+            ? V(true, { reply: txt.slice(0, 160) })
+            : items.length && !menuListed
+              ? ['BLOCKED', { reason: 'real work was in flight (' + items.length + ' item(s)), so the idle answer is not '
+                                     + 'expected; the menu itself was NOT listed, which is the rule under test', items: items.slice(0, 5) }]
+              : V(false, { observedSurface: surface, menuListed, reply: (flowText || txt).slice(0, 200),
+                           note: 'a Flow card / "1 thing running" for a menu glance is the PR #801 defect' })), t() - s);
+  }
 
-  // STA05 — nothing running: the answer is words in the chat, and no Flow card, on every env.
-  s = t();
-  await api.resetFlow();
-  const idleReply = await api.sendWait('/status');
-  const idleTxt = idleReply.txt || '';
-  const idleSurface = surfaceOf(idleTxt);
-  const EN_IDLE = /Nothing's running right now\. Send \/menu to start something\./;
-  const UR_IDLE = /اس وقت کچھ نہیں چل رہا/;
-  rec('STA05', '/status with nothing running answers in the chat and does not open the Flow',
-      ...(idleSurface === 'idle-template'
-          ? V(EN_IDLE.test(idleTxt) || UR_IDLE.test(idleTxt), { reply: idleTxt.slice(0, 160), copyExact: EN_IDLE.test(idleTxt) || UR_IDLE.test(idleTxt) })
-          : (items.length || flowClaimedCount)
-            ? ['BLOCKED', { reason: 'something was in flight for this account, so "nothing running" cannot be observed', items: items.slice(0, 5) }]
-            : V(false, { observedSurface: idleSurface, reply: idleTxt.slice(0, 200),
-                         note: idleSurface === 'flow-card' ? 'Flow card for an empty store = the pre-PR-#801 behaviour; is the fix deployed here?' : null })), t() - s);
+  if (want('STA05', 'STA06')) {
+    // STA05 — nothing running: the answer is words in the chat, and no Flow card, on every env.
+    s = t();
+    await api.resetFlow();
+    const idleReply = await api.sendWait('/status');
+    const idleTxt = idleReply.txt || '';
+    const idleSurface = surfaceOf(idleTxt);
+    const EN_IDLE = /Nothing's running right now\. Send \/menu to start something\./;
+    const UR_IDLE = /اس وقت کچھ نہیں چل رہا/;
+    rec('STA05', '/status with nothing running answers in the chat and does not open the Flow',
+        ...(idleSurface === 'idle-template'
+            ? V(EN_IDLE.test(idleTxt) || UR_IDLE.test(idleTxt), { reply: idleTxt.slice(0, 160), copyExact: EN_IDLE.test(idleTxt) || UR_IDLE.test(idleTxt) })
+            : (items.length || flowClaimedCount)
+              ? ['BLOCKED', { reason: 'something was in flight for this account, so "nothing running" cannot be observed', items: items.slice(0, 5) }]
+              : V(false, { observedSurface: idleSurface, reply: idleTxt.slice(0, 200),
+                           note: idleSurface === 'flow-card' ? 'Flow card for an empty store = the pre-PR-#801 behaviour; is the fix deployed here?' : null })), t() - s);
 
-  // STA06 — the idle answer in the teacher's language. Language is locked per account, so on
-  // the shared English driver this is a state BLOCK, not a failure.
-  s = t();
-  rec('STA06', 'The nothing-running answer is in the teacher\'s language',
-      ...(UR_IDLE.test(idleTxt)
-          ? V(/کچھ شروع کرنے کے لیے \/menu بھیجیں/.test(idleTxt), { reply: idleTxt.slice(0, 160) })
-          : idleSurface === 'idle-template'
-            ? ['BLOCKED', { reason: 'driver account is English (language is locked once chosen); needs an Urdu account', reply: idleTxt.slice(0, 120) }]
-            : ['BLOCKED', { reason: 'no idle reply observed to check the language of', observedSurface: idleSurface }]), t() - s);
+    // STA06 — the idle answer in the teacher's language. Language is locked per account, so on
+    // the shared English driver this is a state BLOCK, not a failure.
+    s = t();
+    rec('STA06', 'The nothing-running answer is in the teacher\'s language',
+        ...(UR_IDLE.test(idleTxt)
+            ? V(/کچھ شروع کرنے کے لیے \/menu بھیجیں/.test(idleTxt), { reply: idleTxt.slice(0, 160) })
+            : idleSurface === 'idle-template'
+              ? ['BLOCKED', { reason: 'driver account is English (language is locked once chosen); needs an Urdu account', reply: idleTxt.slice(0, 120) }]
+              : ['BLOCKED', { reason: 'no idle reply observed to check the language of', observedSurface: idleSurface }]), t() - s);
+  }
 
   // STA08 — @draft: needs the principal persona part-way through attendance marking.
   s = t();
@@ -148,37 +156,39 @@ exports.run = async ({ api, rec }) => {
       'BLOCKED', { reason: '@draft — needs a principal account mid-attendance-marking (attendance.feature is @wip); '
                           + 'not drivable on the shared teacher driver', codeGrounded: 'teacher-state.service.js de-snakes unlabelled flow ids' }, t() - s);
 
-  // STA04 — more than one kind of work at once. The chrome lane relies on ordering (coaching leaves an
-  // analysis in flight). The mock lane can SET UP the precondition on its sandbox driver: start a coaching
-  // analysis (classroom recording → Yes, Analyze; it parks on the photo prompt, in flight) and open /menu
-  // (a resumable flow) — two different kinds — then read the Flow again.
-  s = t();
-  let seeded = null;
-  if ((flowClaimedCount || items.length) <= 1 && api.caps && api.caps.method === 'mock' && api.caps.upload) {
-    const MEDIA = require('path').resolve(__dirname, '..', '..', 'fixtures', 'whatsapp', 'niete', 'media');
-    const fs = require('fs');
-    const rec16 = fs.readdirSync(MEDIA).find((f) => /classroom|16|hameeda_full|lesson/i.test(f) && !/short/i.test(f) && /\.(m4a|mp3|ogg|mp4)$/i.test(f));
-    if (rec16) {
-      await api.resetFlow();
-      const up = await api.upload(require('path').join(MEDIA, rec16), 'Document', 180000);
-      if ((up.btns || []).some((b) => /Yes, Analyze/i.test(b))) await api.tapAndWait('Yes, Analyze', 120000);
-      await api.sendWait('/menu');
-      await api.sendWait('/status');
-      const op2 = await api.openFlow(CTA);
-      if (op2.ok) {
-        const p2 = await api.flowProbe();
-        const claimed2 = /You have (\d+) things? running/i.exec(p2.text || '');
-        flowClaimedCount = claimed2 ? Number(claimed2[1]) : flowClaimedCount;
-        items = (p2.items || []).map(i => (i.text || '').trim()).filter(Boolean).filter(x => !/^(Open status|Back|Close|Powered by|Done)/i.test(x)).filter((v, k, a) => a.indexOf(v) === k);
-        seeded = { via: 'mock precondition: coaching analysis + /menu', upload: (up.txt || '').slice(0, 80), claimed: flowClaimedCount };
-      } else seeded = { err: op2.err };
-      api.closeFlow();
-    } else seeded = { err: 'no classroom recording fixture under ' + MEDIA };
+  if (want('STA04')) {
+    // STA04 — more than one kind of work at once. The chrome lane relies on ordering (coaching leaves an
+    // analysis in flight). The mock lane can SET UP the precondition on its sandbox driver: start a coaching
+    // analysis (classroom recording → Yes, Analyze; it parks on the photo prompt, in flight) and open /menu
+    // (a resumable flow) — two different kinds — then read the Flow again.
+    s = t();
+    let seeded = null;
+    if ((flowClaimedCount || items.length) <= 1 && api.caps && api.caps.method === 'mock' && api.caps.upload) {
+      const MEDIA = require('path').resolve(__dirname, '..', '..', 'fixtures', 'whatsapp', 'niete', 'media');
+      const fs = require('fs');
+      const rec16 = fs.readdirSync(MEDIA).find((f) => /classroom|16|hameeda_full|lesson/i.test(f) && !/short/i.test(f) && /\.(m4a|mp3|ogg|mp4)$/i.test(f));
+      if (rec16) {
+        await api.resetFlow();
+        const up = await api.upload(require('path').join(MEDIA, rec16), 'Document', 180000);
+        if ((up.btns || []).some((b) => /Yes, Analyze/i.test(b))) await api.tapAndWait('Yes, Analyze', 120000);
+        await api.sendWait('/menu');
+        await api.sendWait('/status');
+        const op2 = await api.openFlow(CTA);
+        if (op2.ok) {
+          const p2 = await api.flowProbe();
+          const claimed2 = /You have (\d+) things? running/i.exec(p2.text || '');
+          flowClaimedCount = claimed2 ? Number(claimed2[1]) : flowClaimedCount;
+          items = (p2.items || []).map(i => (i.text || '').trim()).filter(Boolean).filter(x => !/^(Open status|Back|Close|Powered by|Done)/i.test(x)).filter((v, k, a) => a.indexOf(v) === k);
+          seeded = { via: 'mock precondition: coaching analysis + /menu', upload: (up.txt || '').slice(0, 80), claimed: flowClaimedCount };
+        } else seeded = { err: op2.err };
+        api.closeFlow();
+      } else seeded = { err: 'no classroom recording fixture under ' + MEDIA };
+    }
+    rec('STA04', '/status lists multiple concurrent items',
+        ...((flowClaimedCount || items.length) > 1
+            ? V(true, { count: items.length, flowClaimedCount, items: items.slice(0, 8), seeded })
+            : ['BLOCKED', { seeded, reason: items.length === 1
+                  ? 'only one item was in flight; this needs two kinds at once (e.g. a coaching analysis AND a lesson plan)'
+                  : 'nothing was in flight for this account', observed: items }]), t() - s);
   }
-  rec('STA04', '/status lists multiple concurrent items',
-      ...((flowClaimedCount || items.length) > 1
-          ? V(true, { count: items.length, flowClaimedCount, items: items.slice(0, 8), seeded })
-          : ['BLOCKED', { seeded, reason: items.length === 1
-                ? 'only one item was in flight; this needs two kinds at once (e.g. a coaching analysis AND a lesson plan)'
-                : 'nothing was in flight for this account', observed: items }]), t() - s);
 };

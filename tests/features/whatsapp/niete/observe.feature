@@ -53,7 +53,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
 
   # ═══════════════════════════ POSITIVE (happy path) ═══════════════════════════
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS01
   Scenario: A leader's /observe opens the capture/visit entry point
     Given the NIETE bot chat is open on a LEADER account
     When I send "/observe"
@@ -62,7 +62,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # Verified live on PROD (2026-08-04): coach account → visit entry + "Plan my visit".
     # observe-gate.js:70 action 'capture'; observe-command.handler.js:121-177.
 
-  @e2e @first-use @config-gated @P2
+  @e2e @first-use @config-gated @P2 @OBS02
   Scenario: First-ever /observe shows the one-time onboarding
     Given the NIETE bot chat is open on a LEADER account that has never used /observe
     When I send "/observe"
@@ -73,7 +73,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-command.handler.js action 'onboard'; arm from
     # preferences.observe_onboarding_arm; markOnboarded runs FIRST (idempotent).
 
-  @e2e @content-driven @flow @config-gated @P1
+  @e2e @content-driven @flow @config-gated @P1 @OBS03
   Scenario: The visit picker walks school → teacher → brief
     Given the NIETE bot chat is open on a LEADER account with school allocations
     When I open the observation visit Flow via "Plan my visit"
@@ -89,7 +89,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-visit-flow.handler.js: INIT → SELECT_SCHOOL → SELECT_TEACHER (18/page,
     # bd-2431) → BRIEF. Data from observe/assignment/leader-source.js.
 
-  @e2e @flow @scheduling @config-gated @P2
+  @e2e @flow @scheduling @config-gated @P2 @OBS04
   Scenario: The scheduling menu shows live pending-debrief and upcoming counts
     Given the NIETE bot chat is open on a LEADER account
     And OBSERVE_SCHEDULING_UI is enabled
@@ -99,7 +99,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # "My schedule / N upcoming" (went 0→1 after scheduling), "Schedule new observation
     # / Pick a school and teacher". observe-visit-flow.handler.js (v2) MENU live counts.
 
-  @e2e @flow @scheduling @destructive @config-gated @P2
+  @e2e @flow @scheduling @destructive @config-gated @P2 @OBS05
   Scenario: A leader schedules a future observation visit
     Given the NIETE bot chat is open on a LEADER account with OBSERVE_SCHEDULING_UI enabled
     When I open the visit Flow and choose "Schedule new observation"
@@ -113,7 +113,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # @destructive: writes an observation_schedules 'upcoming' row (bd cleanup: no
     # user-facing cancel — see @known-issue below). observe-schedule.service.js saveSchedule.
 
-  @e2e @wip @audio @destructive @config-gated @P1
+  @e2e @wip @audio @destructive @config-gated @P1 @OBS06
   Scenario: A leader's recording is captured without a Yes/No confirmation
     Given the NIETE bot chat is open on a LEADER account with a teacher bound (awaiting_audio)
     When I upload a classroom recording (Document, ≥ 15 min)
@@ -130,7 +130,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # debrief_status='pending', queues transcription, arms 'analyzing', sends
     # audio_received. Contrast with teacher coaching, which DOES confirm.
 
-  @e2e @wip @draft @audio @destructive @config-gated @P1
+  @e2e @wip @draft @audio @destructive @config-gated @P1 @OBS37
   Scenario: A classroom recording the coach already had analysed is not analysed again
     Given the NIETE bot chat is open on a LEADER account
     And a recording I sent earlier has already been analysed as an observation
@@ -143,7 +143,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # closes the new row (cancelled, duplicate_of_session_id = prior) before the R2
     # upload and transcription. No time window. Unlike DC, no prior report is resent.
 
-  @e2e @wip @draft @audio @i18n @destructive @config-gated @P2
+  @e2e @wip @draft @audio @i18n @destructive @config-gated @P2 @OBS38
   Scenario: The already-analysed reply is in the coach's own language, not the teacher's
     Given the NIETE bot chat is open on a LEADER account whose language is Urdu
     And a teacher whose language is English is bound to the observation
@@ -153,7 +153,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # audio-hash-cache.js refuseDuplicateObservation — language is read for
     # observer_user_id, never the row's user_id.
 
-  @e2e @wip @draft @audio @negative @destructive @config-gated @P2
+  @e2e @wip @draft @audio @negative @destructive @config-gated @P2 @OBS39
   Scenario: A recording whose earlier observation was cancelled is analysed normally
     Given the NIETE bot chat is open on a LEADER account
     And I cancelled the observation for a recording I sent earlier
@@ -163,7 +163,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # findPriorLeaderObservation excludes cancelled / abandoned / failed priors —
     # a recording that never produced an analysis must not be refused.
 
-  @e2e @wip @content-driven @flow @destructive @config-gated @P1
+  @e2e @wip @content-driven @flow @destructive @config-gated @P1 @OBS07
   Scenario: When analysis is ready the editable FICO form opens pre-filled
     Given a leader observation has finished analysis
     When the bot delivers the observer review
@@ -184,7 +184,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # mv_k TextBody line above the fid_e_k box; rescoreFidelityFromEdits compares the box
     # against the same prefill it served, so an untouched box is never an "edit".
 
-  @e2e @wip @flow @destructive @config-gated @P1
+  @e2e @wip @flow @destructive @config-gated @P1 @OBS08
   Scenario: The observer edits ratings then submits the FICO form
     Given the FICO form is open with the draft pre-filled
     When I adjust a rating and an evidence note on a domain screen
@@ -199,7 +199,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # v1→v2 diff, status observer_review_complete) → SUCCESS observe_action:'submitted'.
     # Ack: whatsapp-bot.js:1303-1326 → buildDebriefChoiceButtons (Now/Later).
 
-  @e2e @wip @debrief @destructive @config-gated @P1
+  @e2e @wip @debrief @destructive @config-gated @P1 @OBS09
   Scenario: "Debrief now" delivers the 6-step debrief guide
     Given a submitted FICO observation offering the debrief choice
     When I tap "Debrief now"
@@ -212,7 +212,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # commitment → agree return), hard _redactScores, validateGuide, per-lang
     # buildFallbackGuide → static scaffold. Arms awaiting_debrief_audio.
 
-  @e2e @wip @content-driven @debrief @harm-gate @audio @destructive @config-gated @P1
+  @e2e @wip @content-driven @debrief @harm-gate @audio @destructive @config-gated @P1 @OBS10
   Scenario: A respectful debrief recording yields two wins and one improvement
     Given a debrief is armed (awaiting_debrief_audio) for an observation
     When I upload a respectful debrief recording (Document)
@@ -228,7 +228,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # 2 wins (verbatim quote each) + 1 'try' targeting a rubric key judged FALSE
     # (no-resuggest, bd-2408). Card via observe-coach-card.js (Playwright PNG, niete brand).
 
-  @e2e @wip @destructive @config-gated @P1
+  @e2e @wip @destructive @config-gated @P1 @OBS11
   Scenario: The observer sends the finished report to the teacher
     Given an observation with completed observer review and debrief
     When I tap "Send report" and pick the teacher from the roster
@@ -259,7 +259,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # the number alone. Button ids observe_send_confirm_/other_/cancel_ unchanged.
     # Proven in bot/tests/observe/bd-zpyf0-confirm-names-recipient.test.js.
 
-  @e2e @wip @content-driven @P2 @config-gated
+  @e2e @wip @content-driven @P2 @config-gated @OBS12
   Scenario: The FICO report to the teacher carries no score and no accusatory verdicts
     Given a completed observation is delivered to a teacher
     When the teacher opens the report
@@ -271,7 +271,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
 
   # ═══════════════════════════════ EDGE cases ══════════════════════════════════
 
-  @e2e @wip @flow @edge @config-gated @P2
+  @e2e @wip @flow @edge @config-gated @P2 @OBS13
   Scenario: BACK on a FICO domain screen re-serves it without losing edits
     Given the FICO form is open past the first domain screen
     When I tap BACK
@@ -279,7 +279,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-mewaka-endpoint.js BACK re-serves; edits buffered in Redis
     # (observe:edits, 2h). Graceful loss → falls back to v1 values.
 
-  @e2e @wip @debrief @edge @config-gated @P2
+  @e2e @wip @debrief @edge @config-gated @P2 @OBS14
   Scenario: A pending debrief is offered the next time the leader opens /observe
     Given a leader has a submitted observation whose debrief is still pending
     When I send "/observe"
@@ -289,7 +289,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # Pending-list rows observe_debrief_<id> + an observe_new sentinel
     # (whatsapp-bot.js:1651-1677). Row times in Asia/Karachi (bd-2216).
 
-  @e2e @wip @debrief @edge @config-gated @P3
+  @e2e @wip @debrief @edge @config-gated @P3 @OBS15
   Scenario: Tapping "Debrief now" twice re-sends the same guide, no new analysis
     Given a debrief guide has already been sent for an observation
     When I tap "Debrief now" again
@@ -298,7 +298,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-debrief.service.js:282 startDebrief double-tap idempotency
     # (re-send stored guide, no new LLM call).
 
-  @e2e @wip @edge @config-gated @P3
+  @e2e @wip @edge @config-gated @P3 @OBS16
   Scenario: A leader with no saved roster is asked for the teacher's name and number
     Given a leader is sending a report and has an empty teacher roster
     When the bot asks for the teacher's details
@@ -308,14 +308,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # PK numbers; roster stored in users.preferences.observe_teachers
     # (observe-roster.js, backfill-once, move-to-front, cap 25).
 
-  @e2e @wip @edge @config-gated @P3
+  @e2e @wip @edge @config-gated @P3 @OBS17
   Scenario: The teacher picker paginates when a school has many teachers
     Given a leader is on the SELECT_TEACHER screen for a large school
     Then teachers are shown 18 per page with a way to page through them
     # observe-visit-flow.handler.js SELECT_TEACHER pagination 18/page (bd-2431);
     # ordering via assignment/prioritise.js.
 
-  @e2e @wip @edge @destructive @config-gated @P2
+  @e2e @wip @edge @destructive @config-gated @P2 @OBS18
   Scenario: A report send outside the 24h window goes via an approved template
     Given a completed observation whose teacher is outside the 24h WhatsApp window
     When the report is delivered
@@ -324,7 +324,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # window-closed → UTILITY template (observe_report_* payload);
     # OBSERVE_REVIEW_MODE=operator reroutes to a review number first.
 
-  @e2e @flow @scheduling @edge @known-issue @config-gated @P3
+  @e2e @flow @scheduling @edge @known-issue @config-gated @P3 @OBS19
   Scenario: A scheduled visit cannot be cancelled from the WhatsApp Flow
     Given a LEADER account with one upcoming scheduled visit
     When I open the visit Flow and drill into "My schedule" → the scheduled visit → "See the brief"
@@ -336,7 +336,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
 
   # ═════════════════════════════════ NEGATIVE ══════════════════════════════════
 
-  @e2e @wip @negative @config-gated @P1
+  @e2e @wip @negative @config-gated @P1 @OBS20
   Scenario: /observe from a teacher account is denied (and the teacher is unaffected)
     Given the NIETE bot chat is open on a TEACHER account
     When I send "/observe"
@@ -344,7 +344,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-gate.js:64 !isSchoolLeader → action 'deny_role' → role_denied copy
     # (observe-command.handler.js). LEADER_ROLES excludes 'teacher'.
 
-  @e2e @wip @negative @config-gated @P2
+  @e2e @wip @negative @config-gated @P2 @OBS21
   Scenario: /observe is inert when the observation Flow is not configured
     Given OBSERVE_MEWAKA_FLOW_ID is unset on the runtime
     When any user sends "/observe"
@@ -352,14 +352,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-gate.js:62 — !OBSERVE_MEWAKA_FLOW_ID → {match:false}; dark-safe, a
     # PK teacher's normal behaviour is unchanged. This is the capability gate.
 
-  @e2e @wip @negative @config-gated @P2
+  @e2e @wip @negative @config-gated @P2 @OBS22
   Scenario: /observe before an account exists reports no account
     Given a WhatsApp number with no NIETE account
     When it sends "/observe" while OBSERVE_MEWAKA_FLOW_ID is set
     Then the bot replies that it could not find the account
     # observe-gate.js:63 !user → action 'deny_no_user' → no_account copy.
 
-  @e2e @wip @negative @harm-gate @destructive @config-gated @P1
+  @e2e @wip @negative @harm-gate @destructive @config-gated @P1 @OBS23
   Scenario: A harmful debrief is gated — a concern, never praise, no card
     Given a debrief recording where the officer disparaged the teacher or gave the moves themselves
     When the coach-the-coach feedback is produced
@@ -368,7 +368,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # moves_not_teacher===false → programmatic gate: wins MUST be empty, no
     # praise_line, concern required (never praise cruelty). Card → null → text.
 
-  @e2e @wip @negative @flow @config-gated @P2
+  @e2e @wip @negative @flow @config-gated @P2 @OBS24
   Scenario: The FICO form refuses a session that is not the observer's own
     Given a FICO form token pointing at another leader's observation
     When it is submitted
@@ -376,7 +376,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-mewaka-endpoint.js token load guards: invalid token / not found /
     # not leader_observation / not-owner all refuse (owner-scoped).
 
-  @e2e @negative @audio @config-gated @P1
+  @e2e @negative @audio @config-gated @P1 @OBS25
   Scenario: A leader's long audio with no active state never starts teacher coaching
     Given a LEADER account with no observe state armed
     When I upload a long classroom recording
@@ -386,14 +386,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-audio-router.js routeLeaderAudio — INVARIANT (bd-2409 class): a leader's
     # long audio NEVER starts teacher coaching. routeLeaderAudio runs FIRST.
 
-  @e2e @wip @negative @destructive @config-gated @P2
+  @e2e @wip @negative @destructive @config-gated @P2 @OBS26
   Scenario: A capture whose DB write fails reports a capture failure, not "no account"
     Given a leader uploads a recording but the session row insert fails
     Then the bot reports that the capture failed
     # observe-capture.service.js startFromAudio DB failure → capture_failed
     # (bd-2136: must NOT surface as no_account).
 
-  @e2e @wip @negative @debrief @audio @config-gated @P3
+  @e2e @wip @negative @debrief @audio @config-gated @P3 @OBS27
   Scenario: A too-short debrief recording is refused and stays pending
     Given a debrief is armed for an observation
     When I upload a debrief recording shorter than the minimum
@@ -401,7 +401,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-debrief.service.js processDebriefRecording — transcript < MIN →
     # re-arm awaiting_debrief_audio + debrief_too_short (stays pending).
 
-  @e2e @wip @draft @debrief @audio @destructive @config-gated @P1
+  @e2e @wip @draft @debrief @audio @destructive @config-gated @P1 @OBS40
   Scenario: A debrief recording the coach was already coached on is not analysed again
     Given a debrief recording I sent for one observation has already been analysed
     And a debrief is armed for a different observation
@@ -415,7 +415,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # window. The row keeps debrief_status 'pending', audio_id is cleared so the
     # retry sweep never re-queues it, and awaiting_debrief_audio is re-armed.
 
-  @e2e @wip @draft @debrief @audio @i18n @destructive @config-gated @P2
+  @e2e @wip @draft @debrief @audio @i18n @destructive @config-gated @P2 @OBS41
   Scenario: The debrief already-analysed reply is in the coach's own language
     Given the NIETE bot chat is open on a LEADER account whose language is Urdu
     And a debrief recording I sent for one observation has already been analysed
@@ -423,7 +423,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When I send that exact same debrief recording file
     Then the bot replies "اس ڈی بریف ریکارڈنگ کا تجزیہ پہلے ہی کیا جا چکا ہے۔"
 
-  @e2e @wip @draft @debrief @audio @negative @destructive @config-gated @P2
+  @e2e @wip @draft @debrief @audio @negative @destructive @config-gated @P2 @OBS42
   Scenario: A debrief recording that was never coached is analysed normally when re-sent
     Given a debrief recording I sent earlier was too short to be coached
     And a debrief is armed for an observation
@@ -432,14 +432,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # A prior only counts once observer_debrief.feedback exists — a too-short or
     # failed debrief never produced an analysis and must not block the coach.
 
-  @e2e @wip @negative @destructive @config-gated @P1
+  @e2e @wip @negative @destructive @config-gated @P1 @OBS28
   Scenario: A failed report send is surfaced to the coach with a retry
     Given a completed observation whose delivery to the teacher fails
     Then the bot tells the coach the send failed and offers a one-tap retry
     # observe-send.service.js _handleDeliverFailure (bd-2411): status send_failed,
     # tell the coach, one-tap retry via /observe. No silent drop.
 
-  @e2e @wip @draft @negative @config-gated @P1
+  @e2e @wip @draft @negative @config-gated @P1 @OBS29
   Scenario: A cancelled observation stays cancelled whichever old button is tapped
     Given I cancelled an observation after its recording was accepted
     And the photo "Yes", "Continue", "Get Report Now" and lesson-plan buttons from before the cancel are still in my chat
@@ -451,7 +451,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # guard; a status read precedes every write and the write itself excludes
     # cancelled/abandoned. Copy: ux-strings coachingSessionCancelled.
 
-  @e2e @wip @draft @negative @config-gated @P1
+  @e2e @wip @draft @negative @config-gated @P1 @OBS30
   Scenario: Reopening a cancelled observation's form names the real reason, once
     Given I cancelled an observation whose FICO form had already been sent to me
     When I open that form from the old message
@@ -464,7 +464,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # Redis key. The Flow itself still shows Meta's generic "Something went wrong" until the
     # Flow JSON gains a terminal REFUSED screen and is re-published (scheduled on bd-rw4so).
 
-  @e2e @wip @known-fail @config-gated @P2
+  @e2e @wip @known-fail @config-gated @P2 @OBS31
   Scenario: The FICO report total reflects the real 148-point maximum
     Given a completed FICO observation (37 indicators, scale 1–4, max 148)
     When the report is rendered
@@ -487,7 +487,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   # never analysed (row 122, Asifa Ayub, 14 Sep 2026; 544 users on the role
   # family; zero leader self-DC sessions in production since 2026-08-24).
 
-  @e2e @observe @menu @config-gated @P1
+  @e2e @observe @menu @config-gated @P1 @OBS32
   Scenario: The Observe a Teacher menu row opens the same /observe entry
     Given the NIETE bot chat is open
     And my role is "coach"
@@ -497,7 +497,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then I get the same entry I would get from sending "/observe"
     # Delegation, not a second implementation — menu.service.js case 'menu_observe'.
 
-  @e2e @observe @coaching @config-gated @P1
+  @e2e @observe @coaching @config-gated @P1 @OBS33
   Scenario: A principal's OWN lesson recording reaches Digital Coach, not the binding list
     Given the NIETE bot chat is open
     And my role is "principal"
@@ -511,7 +511,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # (conversation_state flow='coaching', step='AWAITING_CLASSROOM_AUDIO'),
     # in a branch placed after the armed-state checks and before park().
 
-  @e2e @observe @config-gated @P1
+  @e2e @observe @config-gated @P1 @OBS34
   Scenario: A principal who HAS started an observation still captures it as an observation
     Given the NIETE bot chat is open
     And my role is "principal"
@@ -521,7 +521,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # An armed observation is the more specific declaration and wins over a
     # stale DC intent — the two armed-state branches return above the new one.
 
-  @e2e @observe @config-gated @P2
+  @e2e @observe @config-gated @P2 @OBS35
   Scenario: A leader recording with nothing declared is still asked whose it is
     Given the NIETE bot chat is open
     And my role is "coach"
@@ -532,7 +532,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # recording never starts teacher coaching. This is the scenario that must
     # keep passing — it is what row 122's fix was carefully placed NOT to break.
 
-  @e2e @observe @edge @config-gated @P3
+  @e2e @observe @edge @config-gated @P3 @OBS36
   Scenario: A coach never reaches her own Digital Coach, even after tapping an old DC row
     Given the NIETE bot chat is open
     And my role is "coach"
@@ -865,7 +865,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   # OBSERVE_TEACHER_NOTIFY_ENABLED; the portal routes reach it through
   # POST /api/internal/observe/notify-teacher.
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS62
   Scenario: The teacher gets the date and time on WhatsApp when a coach books her visit
     Given OBSERVE_TEACHER_NOTIFY_ENABLED is on and the visit-notice templates are approved
     And a coach has a teacher with a WhatsApp number in her patch
@@ -873,7 +873,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the teacher receives a message naming the coach, her school, the date and the time
     And the message is in the teacher's own language, not the coach's
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS63
   Scenario: Moving or cancelling a visit tells the teacher
     Given a teacher has been told about an upcoming visit
     When the coach moves the visit to a different date or time
@@ -881,7 +881,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When the coach cancels the visit
     Then the teacher receives a message that the visit is cancelled
 
-  @e2e @config-gated @negative @P2
+  @e2e @config-gated @negative @P2 @OBS64
   Scenario: Re-saving a visit unchanged, or a teacher with no number, sends nothing
     Given a coach has an upcoming visit booked for a teacher
     When the coach saves the same visit again on the same date and time slot

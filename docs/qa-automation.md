@@ -179,8 +179,16 @@ Tests for all of it: `npm run qa:test`.
 │ scenarios: coaching     ALL — bot/shared/services/llm-client.js: no coaching scenario names it — pin it under scenarios: to narrow
 ```
 
-The run reports only the selected ids, and the long drivers (coaching, training) skip the blocks whose
-scenarios were not selected, keeping any block whose state a selected one reads. A selected scenario a
+The run reports only the selected ids, and every mock-lane driver skips the blocks whose scenarios were not
+selected, keeping any block whose state a selected one reads: menu's M08 still runs M07 (it opens Ask
+Anything), language's LANG10 still switches the account to Urdu (LANG03), status's STA06 still reads the
+idle answer (STA05), lesson-plan's L10 still opens the Flow that L01 completes. Shared setup always runs.
+A driver gates a block with `want('ID', …)`, which `feature-runner.cjs` passes in; a new driver block
+should do the same, listing every id that reads its state.
+
+Selection needs id tags. A spec whose scenarios carry no `@ID` tag gives the selector nothing to map
+to, so its feature always runs whole. Every spec with a mock driver is now tagged, which also enrols it
+in `check-scenario-coverage.py`. A selected scenario a
 driver did not reach is recorded `BLOCKED` with that reason, never silently missing. The ledger row
 carries `scenario_scope.only`, so the PR's "E2E run recorded" column still fills for the feature.
 Two or more features still run side by side (`--parallel`). By hand: `run-suite.sh <feature> --only

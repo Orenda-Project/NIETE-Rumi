@@ -623,3 +623,10 @@ ignore:
 #   training:
 #     bot/shared/services/quiz/transcript-quiz-nudge.service.js: [T61, T52]
 
+
+scenarios:
+  lesson-plan:
+    # The bare-keyword matcher: decides whether a whole message opens the Lesson Plans Flow (L02, L08)
+    # or goes on to the LLM (L04). No lesson-plan scenario names the file, so without this pin every
+    # edit to it ran all eleven.
+    bot/shared/utils/lp-intent.js: [L02, L08, L04]

@@ -17,7 +17,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
 
   # ─────────────────────────── Positive / happy path ───────────────────────────
 
-  @e2e @flow @P1
+  @e2e @flow @P1 @L01
   Scenario: Completing the Pick Class Flow delivers the lesson-plan PDF
     Given the NIETE bot chat is open
     When I open the LP Flow and complete it for Grade 1 → English → "Ch 1: Hello World" → "Full Chapter Lesson Plan"
@@ -25,7 +25,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And a lesson-plan PDF is delivered to the chat within a few seconds (e.g. "Hello World — English.pdf")
     # Grades 1–5 = pre-generated Pakistan corpus. No feedback survey fires on the Flow path (by design).
 
-  @e2e @flow @P2
+  @e2e @flow @P2 @L02
   Scenario Outline: A recognised keyword opens the Lesson Plans Flow
     Given the NIETE bot chat is open
     When I send "<keyword>"
@@ -39,7 +39,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
       | لیسن پلان   |
     # The Meta ice-breaker "Plan Lesson - Create PDF lesson plans instantly" opens the same Flow.
 
-  @e2e @flow @content-driven @P2
+  @e2e @flow @content-driven @P2 @L03
   Scenario: A secondary grade delivers a Pakistan lesson plan, not an Oxbridge one
     Given the NIETE bot chat is open
     And I have opened the LP Flow
@@ -378,7 +378,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The menu tap, the bare "lp" keyword and the ice-breaker keep the plain body (no line).
     # Unit: tests/lp-v8/meta-bill-nl3-redirect-in-flow.test.js, bd-oak77-9-route-all.test.js.
 
-  @e2e @content-driven @P2
+  @e2e @content-driven @P2 @L04
   Scenario: A natural-language request returns the curriculum fallback, not a generated plan
     Given the NIETE bot chat is open
     When I send a free-text request like "make me a lesson plan for grade 4 science on the water cycle"
@@ -386,7 +386,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And it replies with the curriculum fallback inviting me to type "menu"
     # bd-2540 removed the teacher-triggerable freeform (Gamma) generation.
 
-  @e2e @voice @P2
+  @e2e @voice @P2 @L05
   Scenario: A voice lesson-plan request is transcribed and answered like the text path
     Given the NIETE bot chat is open
     When I send a voice note asking for a lesson plan
@@ -492,21 +492,21 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # (tests/lp612/overlay-topup-religious-gate.e2e.test.js), which doubles only supabase, R2, the
     # model and the renderer, and asserts the upload and row-update CALL COUNTS.
 
-  @e2e @flow @negative @P2
+  @e2e @flow @negative @P2 @L06
   Scenario: A grade with no lesson plans shows a friendly message
     Given the NIETE bot chat is open
     And I have opened the LP Flow
     When I pick a grade that has no lesson plans yet
     Then the bot replies that no lesson plans are available for that grade yet
 
-  @e2e @flow @negative @P3
+  @e2e @flow @negative @P3 @L07
   Scenario: A subject with no chapters for that grade is refused politely
     Given the NIETE bot chat is open
     And I have opened the LP Flow and picked a grade
     When I pick a subject that has no lesson plans for that grade
     Then the bot replies that no lesson plans exist for that subject and grade yet
 
-  @e2e @edge @negative @P3
+  @e2e @edge @negative @P3 @L08
   Scenario: "/lesson plan" is not a recognised keyword and falls through to natural language
     Given the NIETE bot chat is open
     When I send "/lesson plan"
@@ -514,7 +514,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And it handles the message as a natural-language request
     # Only "/lp" carries the slash; "/lesson plan" (slash + space) misses the keyword match.
 
-  @e2e @negative @known-fail @P2
+  @e2e @negative @known-fail @P2 @L09
   Scenario: A photo gets no reply when pic-to-LP is disabled
     Given the NIETE bot chat is open
     And pic-to-LP is not enabled on this deployment
@@ -524,7 +524,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
 
   # ─────────────────────────────── Known issue ───────────────────────────────
 
-  @e2e @flow @i18n @known-issue @P3
+  @e2e @flow @i18n @known-issue @P3 @L10
   Scenario: The Pick Class Flow renders in English for an Urdu-preference teacher
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     When I open the LP Flow
@@ -804,7 +804,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # the chip, the menu row, an open request the classifier reads as a lesson plan, a voice note —
   # asks it. Unit: tests/app-redirect/.
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @L11
   Scenario: With Lesson Plans moved to the app, asking for a lesson plan sends me to the Play Store instead
     Given the NIETE bot chat is open
     And Lesson Plans has been switched to the NIETE app

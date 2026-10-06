@@ -38,8 +38,9 @@ const CAPTURED = /Got your recording|Whose observation is this|Pick the teacher/
 const COACHING = /analyze your teaching|Step \d\/5|Transcribing your classroom|feedback on your OWN/i; // the WRONG lane
 const MEDIA = require('path').resolve(__dirname, '..', '..', 'fixtures', 'whatsapp', 'niete', 'media');
 
-exports.run = async ({ api, rec }) => {
+exports.run = async ({ api, rec, want = () => true }) => {
   await api.resetFlow();
+  let s;
 
   const observeAs = async (role, prefs) => {
     await api.setRole(role);
@@ -51,62 +52,74 @@ exports.run = async ({ api, rec }) => {
     return { ok: !!(last && last.ok), txt };
   };
 
-  // ── role gate (text) ──
-  let s = Date.now();
-  const r20 = await observeAs('teacher');
-  rec('OBS20', '/observe from a teacher account is denied (and the teacher is unaffected)',
-      ...V(r20.ok && DENIED.test(r20.txt) && !ENTRY.test(r20.txt), { reply: r20.txt.slice(0, 160) }), Date.now() - s);
+  if (want('OBS20')) {
+    // ── role gate (text) ──
+    s = Date.now();
+    const r20 = await observeAs('teacher');
+    rec('OBS20', '/observe from a teacher account is denied (and the teacher is unaffected)',
+        ...V(r20.ok && DENIED.test(r20.txt) && !ENTRY.test(r20.txt), { reply: r20.txt.slice(0, 160) }), Date.now() - s);
+  }
 
-  s = Date.now();
-  const r02 = await observeAs('coach', { observe_onboarded: false });
-  rec('OBS02', 'First-ever /observe shows the one-time onboarding',
-      ...V(r02.ok && !DENIED.test(r02.txt) && /Welcome to \/observe|how it works/i.test(r02.txt),
-        { reply: r02.txt.slice(0, 180) }), Date.now() - s);
+  if (want('OBS02')) {
+    s = Date.now();
+    const r02 = await observeAs('coach', { observe_onboarded: false });
+    rec('OBS02', 'First-ever /observe shows the one-time onboarding',
+        ...V(r02.ok && !DENIED.test(r02.txt) && /Welcome to \/observe|how it works/i.test(r02.txt),
+          { reply: r02.txt.slice(0, 180) }), Date.now() - s);
+  }
 
-  s = Date.now();
-  const r01 = await observeAs('coach');
-  rec('OBS01', "A leader's /observe opens the capture/visit entry point",
-      ...V(r01.ok && !DENIED.test(r01.txt) && ENTRY.test(r01.txt), { reply: r01.txt.slice(0, 180) }), Date.now() - s);
+  if (want('OBS01')) {
+    s = Date.now();
+    const r01 = await observeAs('coach');
+    rec('OBS01', "A leader's /observe opens the capture/visit entry point",
+        ...V(r01.ok && !DENIED.test(r01.txt) && ENTRY.test(r01.txt), { reply: r01.txt.slice(0, 180) }), Date.now() - s);
+  }
 
-  s = Date.now();
-  await api.setRole('coach'); await api.freshReset();
-  const tap = await api.injectList('menu_observe', 'Observe a Teacher');
-  const txt32 = [tap && tap.txt, ...(await api.fresh()).map((m) => m.txt)].filter(Boolean).join('\n');
-  rec('OBS32', 'The Observe a Teacher menu row opens the same /observe entry',
-      ...V(!!(tap && tap.ok) && !DENIED.test(txt32) && ENTRY.test(txt32), { reply: txt32.slice(0, 180) }), Date.now() - s);
+  if (want('OBS32')) {
+    s = Date.now();
+    await api.setRole('coach'); await api.freshReset();
+    const tap = await api.injectList('menu_observe', 'Observe a Teacher');
+    const txt32 = [tap && tap.txt, ...(await api.fresh()).map((m) => m.txt)].filter(Boolean).join('\n');
+    rec('OBS32', 'The Observe a Teacher menu row opens the same /observe entry',
+        ...V(!!(tap && tap.ok) && !DENIED.test(txt32) && ENTRY.test(txt32), { reply: txt32.slice(0, 180) }), Date.now() - s);
+  }
 
-  // ── OBS03 — the visit picker Flow OPENS to school selection (data_exchange via the emulator) ──
-  // Also EXERCISES the roster seed + harness teardown: api.setRoster() creates a dedicated E2E school +
-  // teachers (uniquely keyed to the driver), and feature-runner's finally removes them unconditionally.
-  s = Date.now();
-  await api.setRole('coach');
-  const seed = await api.setRoster();   // torn down by the harness even if the run fails — no DB pollution
-  await api.freshReset();
-  await api.sendWait('/observe', 120000);
-  const op = await api.openFlow('Plan my visit|plan your visit|Observe|Open');
-  const p1 = (op && op.ok) ? await api.flowProbe() : { text: '', items: [] };
-  rec('OBS03', 'The visit picker walks school → teacher → brief',
-      ...V(!!(op && op.ok) && /Pick a school|School/i.test(p1.text || ''),
-        { openedPicker: !!(op && op.ok), seedOk: !!(seed && seed.ok), screen: (p1.text || '').slice(0, 160),
-          note: 'the visit Flow OPENS to school selection via the emulator; seed+teardown exercised. The seeded school does not yet surface in the Flow dropdown (listSchools returns empty for the flow_token) — a flow_token/lazy-load issue that gates walking school→teacher→brief here.' }),
-      Date.now() - s);
-  api.closeFlow(); await api.resetFlow();
+  if (want('OBS03')) {
+    // ── OBS03 — the visit picker Flow OPENS to school selection (data_exchange via the emulator) ──
+    // Also EXERCISES the roster seed + harness teardown: api.setRoster() creates a dedicated E2E school +
+    // teachers (uniquely keyed to the driver), and feature-runner's finally removes them unconditionally.
+    s = Date.now();
+    await api.setRole('coach');
+    const seed = await api.setRoster();   // torn down by the harness even if the run fails — no DB pollution
+    await api.freshReset();
+    await api.sendWait('/observe', 120000);
+    const op = await api.openFlow('Plan my visit|plan your visit|Observe|Open');
+    const p1 = (op && op.ok) ? await api.flowProbe() : { text: '', items: [] };
+    rec('OBS03', 'The visit picker walks school → teacher → brief',
+        ...V(!!(op && op.ok) && /Pick a school|School/i.test(p1.text || ''),
+          { openedPicker: !!(op && op.ok), seedOk: !!(seed && seed.ok), screen: (p1.text || '').slice(0, 160),
+            note: 'the visit Flow OPENS to school selection via the emulator; seed+teardown exercised. The seeded school does not yet surface in the Flow dropdown (listSchools returns empty for the flow_token) — a flow_token/lazy-load issue that gates walking school→teacher→brief here.' }),
+        Date.now() - s);
+    api.closeFlow(); await api.resetFlow();
+  }
 
-  // ── audio capture (fixture upload → observe capture) ──
-  s = Date.now();
-  await api.setRole('coach');
-  const up = await api.upload(MEDIA + '/hameeda_16min.m4a', 'Audio', 180000);
-  const upTxt = up.txt || '';
-  const noYesNo = !(up.btns || []).some((b) => /Yes,?\s*Analyze/i.test(b));
-  rec('OBS06', "A leader's recording is captured without a Yes/No confirmation",
-      ...V(up.ok && CAPTURED.test(upTxt) && noYesNo,
-        { captured: CAPTURED.test(upTxt), noYesNo, reply: upTxt.slice(0, 160), btns: (up.btns || []).slice(0, 4) }), Date.now() - s);
-  rec('OBS35', 'A leader recording with nothing declared is still asked whose it is',
-      ...V(up.ok && /Whose observation is this|Pick the teacher/i.test(upTxt),
-        { reply: upTxt.slice(0, 160) }), 0);
-  rec('OBS25', "A leader's long audio with no active state never starts teacher coaching",
-      ...V(up.ok && CAPTURED.test(upTxt) && !COACHING.test(upTxt),
-        { wentToObserve: CAPTURED.test(upTxt), notCoaching: !COACHING.test(upTxt), reply: upTxt.slice(0, 160) }), 0);
+  if (want('OBS06', 'OBS35', 'OBS25')) {
+    // ── audio capture (fixture upload → observe capture) ──
+    s = Date.now();
+    await api.setRole('coach');
+    const up = await api.upload(MEDIA + '/hameeda_16min.m4a', 'Audio', 180000);
+    const upTxt = up.txt || '';
+    const noYesNo = !(up.btns || []).some((b) => /Yes,?\s*Analyze/i.test(b));
+    rec('OBS06', "A leader's recording is captured without a Yes/No confirmation",
+        ...V(up.ok && CAPTURED.test(upTxt) && noYesNo,
+          { captured: CAPTURED.test(upTxt), noYesNo, reply: upTxt.slice(0, 160), btns: (up.btns || []).slice(0, 4) }), Date.now() - s);
+    rec('OBS35', 'A leader recording with nothing declared is still asked whose it is',
+        ...V(up.ok && /Whose observation is this|Pick the teacher/i.test(upTxt),
+          { reply: upTxt.slice(0, 160) }), 0);
+    rec('OBS25', "A leader's long audio with no active state never starts teacher coaching",
+        ...V(up.ok && CAPTURED.test(upTxt) && !COACHING.test(upTxt),
+          { wentToObserve: CAPTURED.test(upTxt), notCoaching: !COACHING.test(upTxt), reply: upTxt.slice(0, 160) }), 0);
+  }
 
   // ── BLOCKED, each with a verified reason (see header) ──
   rec('OBS21', '/observe is inert when the observation Flow is not configured', ...OFF, 0);
