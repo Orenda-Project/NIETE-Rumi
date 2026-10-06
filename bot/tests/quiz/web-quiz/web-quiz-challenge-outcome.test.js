@@ -163,3 +163,20 @@ describe('a child who opens their own challenge link is never their own challeng
     expect(out.vs).toBeUndefined();
   });
 });
+
+describe('E2 on a challenge code ships none of the challenger\'s class context', () => {
+  test('no teacher, no class label, no class chips, no class count; the challenge itself is there', async () => {
+    addChallengeCode();
+    const q = await WQ.getQuiz('CH12AB');
+    expect(q.challenge).toMatchObject({ first: 'Zara' });
+    expect(q.cls.teacher).toBeNull();
+    expect(q.cls.label).toBeNull();
+    expect(q.cls.chips).toEqual([]);
+    expect(q.live.class_today).toBe(0);
+    expect(q.live.now).toBeUndefined();
+    // the class code itself is unchanged
+    const c = await WQ.getQuiz('AB12CD');
+    expect(c.cls.teacher).toBeTruthy();
+    expect(c.live.class_today).toBe(1);
+  });
+});

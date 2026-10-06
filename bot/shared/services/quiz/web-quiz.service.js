@@ -446,7 +446,9 @@ async function getQuiz(code, { p } = {}) {
   // A teacher with a class list: the child gives a roll number, so no classmates' names ship.
   const roster = idn ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
   // v2 ships no classmates' names at all: only this phone's remembered children (page storage).
-  const chips = idn || roster ? [] : await classChips(ctx);
+  // An invited friend is not in the class: no classmates' names, ever (a pick would score as a classmate).
+  const invited = Boolean(ctx.invitedByStudentId);
+  const chips = idn || roster || invited ? [] : await classChips(ctx);
   // A quiz whose class the server cannot tell (two lists, no grade match): the page asks the class first.
   const pick = roster ? Roster.pickList(roster, { listId: quizRow && quizRow.list_id, grade: quizRow && quizRow.grade }, (id) => classKey(ctx, id)) : null;
   const preview = Boolean(p) && isPreviewFor(p, ctx);
@@ -470,13 +472,15 @@ async function getQuiz(code, { p } = {}) {
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),
     },
     cls: {
-      label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip),
+      // A friend's challenge names only the challenger: never the challenger's teacher or class.
+      label: invited ? null : label, teacher: invited ? null : teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip),
       ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}),
       ...(idn ? { identity: await identityBoot(ctx, idn) } : {}),
     },
-    // now: classmates with a right answer in the last 2 minutes (peer pulse ring), sent only when there are some,
-    // and never on a friend's challenge code (the friend is not in the class).
-    live: { ...(await liveCounts(ctx)), ...(!ctx.invitedByStudentId && Pulse.liveNow(ctx.shareCodeId) ? { now: Pulse.liveNow(ctx.shareCodeId) } : {}) },
+    // now: classmates with a right answer in the last 2 minutes (peer pulse ring), sent only when there are some.
+    // A friend's challenge gets neither the class count nor who is playing now: the friend is not in the class.
+    live: invited ? { ...(await liveCounts(ctx)), class_today: 0 }
+      : { ...(await liveCounts(ctx)), ...(Pulse.liveNow(ctx.shareCodeId) ? { now: Pulse.liveNow(ctx.shareCodeId) } : {}) },
     video,
     preview,
     // Which brand the page wears: a key only; the edge owns the brand's look.
