@@ -17,7 +17,8 @@
  * service, so this is unit-testable without a live DB.
  */
 
-const SLOTS = ['09:00', '11:30', '14:00'];
+// bd-o15qnr.2: any half hour 07:00–18:30 plus these three (dashboard/lib/visit-time).
+const { isAllowedSlot, LEGACY_SLOTS: SLOTS } = require('../lib/visit-time');
 
 // teacher_ext_id is the phone — 980 of 992 live observation_schedules rows
 // already key on it — so a booking still resolves by the same value it always
@@ -100,7 +101,7 @@ async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
 
   if (!validDate(date)) throw new Error('Invalid date — expected YYYY-MM-DD');
   if (date < today) throw new Error('That date is in the past');
-  if (slot && !SLOTS.includes(slot)) throw new Error('Unknown time slot');
+  if (slot && !isAllowedSlot(slot)) throw new Error('Unknown time slot');
 
   // The teacher must be in THIS coach's patch. This is the authorisation check:
   // it stops a hand-posted id from scheduling against another coach's teacher,

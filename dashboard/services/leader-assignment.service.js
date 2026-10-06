@@ -63,7 +63,8 @@
  * service, so this is unit-testable without a live DB.
  */
 
-const SLOTS = ['09:00', '11:30', '14:00'];
+// bd-o15qnr.2: any half hour 07:00–18:30 plus these three (dashboard/lib/visit-time).
+const { isAllowedSlot, LEGACY_SLOTS: SLOTS } = require('../lib/visit-time');
 
 // Both tables carry CHECK (source = 'niete_ict') — verified against the live
 // schema, and the reason a 'coach_self_assign' value fails with a 23514 CHECK
@@ -251,7 +252,7 @@ async function editSchedule(query, leaderUserId, scheduleId, input = {}, opts = 
   const { date, slot } = input;
   if (!validDate(date)) throw new Error('Invalid date — expected YYYY-MM-DD');
   if (date < today) throw new Error('That date is in the past');
-  if (slot && !SLOTS.includes(slot)) throw new Error('Unknown time slot');
+  if (slot && !isAllowedSlot(slot)) throw new Error('Unknown time slot');
 
   const { rows } = await query(OWNED_SCHEDULE_SQL, [scheduleId]);
   const row = rows && rows[0];
