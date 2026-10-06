@@ -129,7 +129,7 @@ describe('library events and the video id on the lesson page', () => {
     const off = await WQ.getQuiz('VID001');
     expect(off.video.vid).toBeUndefined();
     WQ._resetQuizCache();
-    require('../../../shared/services/quiz/web-quiz-library')._reset();
+    require('../../../shared/services/quiz/web-quiz-library-flag')._reset();
     fake.db.app_settings.push({ key: 'web_quiz_library', value: true });
     const on = await WQ.getQuiz('VID001');
     expect(on.video.vid).toBe(V(1));
