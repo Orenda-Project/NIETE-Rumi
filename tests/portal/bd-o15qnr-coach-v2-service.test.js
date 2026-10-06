@@ -178,9 +178,10 @@ describe('getCoachTeacher — one teacher, her history', () => {
     const out = await SVC.getCoachTeacher(fakeQuery({ history }), ME, '923001110001', { today: TODAY });
     expect(out.teacher).toMatchObject({ name: 'Ayesha Bibi', avgHitl: 61 });
     expect(out.history).toEqual([
-      { id: 'h1', date: '2026-09-28T09:00:00Z', kind: 'DC', score: 63 },
-      { id: 'h2', date: '2026-09-14T09:00:00Z', kind: 'HITL', score: 61 },
-      { id: 'h3', date: '2026-09-10T09:00:00Z', kind: 'DC', score: null },
+      // bd-o15qnr.10: each row also says where it stands and what it opens
+      { id: 'h1', date: '2026-09-28T09:00:00Z', kind: 'DC', score: 63, step: null, open: null },
+      { id: 'h2', date: '2026-09-14T09:00:00Z', kind: 'HITL', score: 61, step: 'sent', open: 'report' },
+      { id: 'h3', date: '2026-09-10T09:00:00Z', kind: 'DC', score: null, step: null, open: null },
     ]);
     expect(out.nextVisit).toMatchObject({ id: 'v-next', scheduledFor: TODAY, scheduledSlot: '11:30' });
   });

@@ -4,7 +4,7 @@ import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, 
   AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
-import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData } from '../coach/types';
+import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData, ObservationReport } from '../coach/types';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
 // CORS and third-party cookies entirely. In the Capacitor app there is no
@@ -824,6 +824,11 @@ export const coach = {
   },
   getTeacher: async (teacherExtId: string): Promise<{ success: boolean } & TeacherData> => {
     const response = await api.get(`/coach/teacher/${encodeURIComponent(teacherExtId)}`, { params: { today: coachDay() } });
+    return response.data;
+  },
+  /** bd-o15qnr.10 — one sent HITL report from a teacher's History. */
+  getObservation: async (id: string): Promise<{ success: boolean } & ObservationReport> => {
+    const response = await api.get(`/coach/observation/${encodeURIComponent(id)}`, { params: { today: coachDay() } });
     return response.data;
   },
   getVisit: async (id: string): Promise<{ success: boolean } & VisitData> => {

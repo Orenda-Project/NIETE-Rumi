@@ -1,8 +1,8 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Clock, Eye, GraduationCap, MapPin, Mic, Plus } from "lucide-react";
 import { coach } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
-import { CoachPage, Card, SectionLabel, IconCircle, PageChip, BottomLink, Loading, Failed, useLoad } from "../ui";
+import { CoachPage, Card, SectionLabel, IconCircle, PageChip, BottomLink, Loading, Failed, useLoad, Chevron, Chip } from "../ui";
 import { formatSlot } from "../time";
 
 /**
@@ -79,13 +79,25 @@ const CoachTeacher = () => {
             <>
               <SectionLabel>{C.history}</SectionLabel>
               <Card className="overflow-hidden" data-testid="history">
-                {data.history.map((h, i) => (
-                  <div key={h.id} className={`flex min-h-[72px] items-center gap-3.5 px-3.5 py-2.5 ${i > 0 ? "border-t border-[#e5e7eb]" : ""}`}>
-                    <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${h.kind === "HITL" ? "bg-[#33374a] text-white" : "bg-[#f3f4f6] text-[#33374a]"}`}>{h.kind}</span>
-                    <span className="flex-1 text-[17px] font-semibold">{h.date ? new Date(h.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : C.dash}</span>
-                    <span className="text-lg font-bold tabular-nums">{C.pct(h.score)}</span>
-                  </div>
-                ))}
+                {data.history.map((h, i) => {
+                  // bd-o15qnr.10 — what this row opens: her own portal observation's
+                  // existing page (at its step), the v2 report, or nothing.
+                  const to = h.open === "observe" ? `/portal/leader/observe/${h.id}`
+                    : h.open === "report" ? `/portal/coach/observation/${h.id}` : null;
+                  const cls = `flex min-h-[72px] items-center gap-3.5 px-3.5 py-2.5 ${i > 0 ? "border-t border-[#e5e7eb]" : ""} ${to ? "transition-colors hover:bg-[#f9fafb]" : ""}`;
+                  const inner = (
+                    <>
+                      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${h.kind === "HITL" ? "bg-[#33374a] text-white" : "bg-[#f3f4f6] text-[#33374a]"}`}>{h.kind}</span>
+                      <span className="flex-1 text-[17px] font-semibold">{h.date ? new Date(h.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : C.dash}</span>
+                      {h.kind === "HITL" && (h.step === "draft" || h.step === "talk") && <Chip tone="warn">{C.stepLabel[h.step]}</Chip>}
+                      <span className="text-lg font-bold tabular-nums">{C.pct(h.score)}</span>
+                      {to && <span data-chevron className="flex"><Chevron /></span>}
+                    </>
+                  );
+                  return to
+                    ? <Link key={h.id} to={to} className={cls} data-testid={`history-${h.id}`}>{inner}</Link>
+                    : <div key={h.id} className={cls} data-testid={`history-${h.id}`}>{inner}</div>;
+                })}
               </Card>
             </>
           )}
