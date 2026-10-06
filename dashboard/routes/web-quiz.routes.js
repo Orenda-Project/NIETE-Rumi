@@ -19,7 +19,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
-const rateLimit = require('express-rate-limit');
+// express-rate-limit is required where the router is created, so this module (and renderQuizPage)
+// loads where the dashboard's dependencies are not installed (the root CI run).
 // Dependency-free: the brand table both services read (the bot names the key, the edge dresses the page).
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 
@@ -340,6 +341,7 @@ function renderChallengeNote({ lang, why, origin, assetV, brandKey }) {
 }
 
 function createWebQuizRouter(opts = {}) {
+  const rateLimit = require('express-rate-limit');
   const botUrl = String(opts.botUrl != null ? opts.botUrl : (process.env.MAIN_BOT_URL || '')).replace(/\/$/, '');
   const apiKey = opts.apiKey != null ? opts.apiKey : (process.env.INTERNAL_API_KEY || '');
   const fetchImpl = opts.fetchImpl || ((...a) => fetch(...a));
