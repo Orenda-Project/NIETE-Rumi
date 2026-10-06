@@ -7,7 +7,7 @@
  * exactly the behaviour before it existed). It is an environment variable, not an
  * app_settings row, because the bucket must match the R2 credentials of the
  * service that writes it. Set it on every service that records or signs quiz
- * audio (bot + sqs-worker). The bucket a quiz was recorded into is stored with
+ * audio (bot, sqs-worker, sqs-worker-video). The bucket a quiz was recorded into is stored with
  * its keys (quizzes.meta.web.audio_bucket), so a quiz recorded before a switch
  * keeps playing after it.
  *
