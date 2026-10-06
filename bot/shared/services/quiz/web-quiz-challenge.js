@@ -111,16 +111,6 @@ function kidChip(studentId) {
   return T.chipId('h', studentId);
 }
 
-// The hub's band-aware grade for this child (web-quiz-hub.js kidFromHub), when that module is deployed.
-async function hubGrade(token, chip) {
-  let Hub;
-  try { Hub = require('./web-quiz-hub'); } catch (_) { return null; }
-  try {
-    const k = typeof Hub.kidFromHub === 'function' ? await Hub.kidFromHub(token, chip) : null;
-    return k ? gradeNum(k.grade) : null;
-  } catch (_) { return null; }
-}
-
 // ── who is playing ─────────────────────────────────────────────────────────────────────────────────────
 
 async function entryOf(token, kid) {
@@ -132,10 +122,10 @@ async function entryOf(token, kid) {
     if (kid) {
       const hit = ids.find((id) => kidChip(id) === kid);
       if (!hit) fail(401, 'bad_token');
-      return { studentId: hit, via: 'hub', hubGrade: await hubGrade(token, kid) };
+      return { studentId: hit, via: 'hub' };
     }
     if (ids.length > 1) fail(400, 'pick_kid');
-    return { studentId: ids[0], via: 'hub', hubGrade: await hubGrade(token, kidChip(ids[0])) };
+    return { studentId: ids[0], via: 'hub' };
   }
   const s = T.verify(token, 's');
   if (s && s.sid) {
@@ -148,13 +138,11 @@ async function entryOf(token, kid) {
 }
 
 /**
- * The child's grade: the hub's own reading (when web-quiz-hub.js is deployed), then the class the child is
- * enrolled in, then the old class list, then the class the child gave themself, then their newest quiz session's
+ * The child's grade (the same sources the hub reads): the class the child is enrolled in, then the old class list, then the class the child gave themself, then their newest quiz session's
  * class, then that quiz's grade. Most quiz children are LOOSE students rows (no list, no enrolment). A band is
  * unknown, never its first digit.
  */
 async function gradeOf(entry) {
-  if (entry.hubGrade) return entry.hubGrade;
   const { data: enr } = await supabase.from('class_enrollments').select('id, class_id, student_id, is_active')
     .eq('student_id', entry.studentId).eq('is_active', true);
   if (enr && enr.length) {
