@@ -14,11 +14,11 @@ describe('the scorecard header', () => {
   });
   test('a class with a label keeps "brand · label"', () => {
     const p = page({ store, brand: niete });
-    expect(p.html()).toMatch(/<\/svg><\/span>NIETE · Class 3-B<\/header>/);
+    expect(p.html()).toMatch(/<\/svg><\/span>NIETE · (<span class="wq-lat" lang="en">)?Class 3-B(<\/span>)?<\/header>/);
   });
   test('another brand names itself, and NIETE is nowhere on the card', () => {
     const p = page({ store, brand: Brand.publicBrand('rumi') });
-    expect(p.html()).toMatch(/<span class="wq-mark wq-bare" aria-hidden="true"><svg [^]*?<\/svg><\/span>Rumi · Class 3-B<\/header>/);
+    expect(p.html()).toMatch(/<span class="wq-mark wq-bare" aria-hidden="true"><svg [^]*?<\/svg><\/span>Rumi · (<span class="wq-lat" lang="en">)?Class 3-B(<\/span>)?<\/header>/);
     expect(p.html()).not.toMatch(/NIETE/);
   });
 });
