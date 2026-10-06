@@ -755,3 +755,19 @@ Feature: Web child quiz page on the portal
     Then the picture shows places, animals and scores, how many children played and the class average
     And only the sharing child's own row carries a name, marked "(me)"
     And the picture is in Urdu, right to left with numbers left to right, when the quiz is Urdu
+
+  @T259
+  Scenario: A video quiz ends on the scorecard with "Watch more" first
+    Given a child finishes the quiz of a video (a teacher's video quiz or one picked from "Watch another video")
+    When the scorecard opens
+    Then it says "Video quiz" («ویڈیو کوئز») above the child's name
+    And "Watch another video" comes first, then "Share to class group", "Challenge a friend" and the class
+    And a quiz with no video keeps its scorecard as before
+
+  @T260
+  Scenario: The next video of the chapter waits on the scorecard
+    Given the bot names the next unfinished video of this chapter when the child finishes
+    When the scorecard opens
+    Then that video shows between the score and the share buttons under "Next in this chapter"
+    And tapping it opens that video and its quiz, the child still remembered
+    And nothing is shown when the chapter and the subject have nothing left
