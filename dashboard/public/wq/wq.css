@@ -155,6 +155,11 @@ html[lang=ur] .wq-why{line-height:2.3}
 .wq-star{width:40px;height:40px}
 .wq-star path{fill:var(--star-off)}
 .wq-star.wq-on path{fill:var(--star);stroke:var(--star-d);stroke-width:1}
+/* a league / my-scores row: the score, then its stars small enough for 10 on a 360 px row */
+.wq-rscore{display:block}
+.wq-rstars{gap:1px;justify-content:flex-end;flex-wrap:nowrap}
+.wq-rstars .wq-star{width:11px;height:11px}
+.wq-hist li>span:last-child{text-align:end;white-space:nowrap}
 .wq-big{font-size:64px;font-weight:900;color:var(--navy);text-align:center;line-height:1}
 html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-center{text-align:center}
