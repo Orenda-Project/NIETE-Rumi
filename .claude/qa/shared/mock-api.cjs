@@ -390,8 +390,10 @@ function makeMockApi(opts) {
           if (!school) return { ok: false, err: 'schools insert failed (' + r.status + ')' };
         }
         const have = await get(`users?select=id,phone_number&phone_number=in.(${teachers.map((t) => t.phone).join(',')})`);
-        for (const t of teachers) {
-          const row = { name: t.name, role: 'teacher', school_id: school.id };
+        for (const [i, t] of teachers.entries()) {
+          // opts.langs: each fixture teacher's preferred_language (the visit notice follows HER language)
+          const lang = (opts.langs || [])[i];
+          const row = { name: t.name, role: 'teacher', school_id: school.id, ...(lang ? { preferred_language: lang } : {}) };
           const r = have.some((u) => u.phone_number === t.phone)
             ? await send('PATCH', `users?phone_number=eq.${t.phone}`, row)
             : await send('POST', 'users', { ...row, phone_number: t.phone });
