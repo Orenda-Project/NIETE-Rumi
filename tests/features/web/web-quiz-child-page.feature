@@ -532,3 +532,10 @@ Feature: Web child quiz page on the portal
     Then the landing says "<challenger> challenged you. Can you beat their score?" («… نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!»)
     And it never says "0/5 stars. Can you beat it?"
     And the friend's landing never says how many of the class played today (the friend is not in that class)
+
+  @T448
+  Scenario: "Classmates are playing right now" shows on the name-first landing too
+    Given two children of a class answered a question right in the last two minutes
+    When a third child opens the class link on a quiz with the name-first identity screens
+    Then the landing says "2 classmates are playing right now — join them!" («ابھی 2 ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!»)
+    And it is never shown on a friend's challenge link, or with fewer than 2

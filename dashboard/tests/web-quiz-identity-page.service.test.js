@@ -380,3 +380,20 @@ describe('v2 landing on a challenge link', () => {
   });
 });
 
+describe('v2 landing: "classmates are playing right now"', () => {
+  test('shown with 2 or more on the class link, never on a challenge link, never below 2', () => {
+    const p = page();
+    p.ctx.T.liveNow = (n) => `${n} classmates are playing right now — join them!`;
+    p.ctx.LIVE.now = 3; // the page hands this same object to the identity module
+    p.ctx.landing();
+    expect(p.last().h).toContain('3 classmates are playing right now');
+    p.ctx.LIVE.now = 1;
+    p.ctx.landing();
+    expect(p.last().h).not.toContain('playing right now');
+    p.ctx.LIVE.now = 3;
+    p.ctx.B.challenge = { first: 'Ali', correct: 3, total: 5 };
+    p.ctx.T.challenged = (n, c, t) => `${n} got ${c}/${t}`;
+    p.ctx.landing();
+    expect(p.last().h).not.toContain('playing right now');
+  });
+});
