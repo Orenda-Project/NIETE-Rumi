@@ -1,0 +1,102 @@
+/** bd-o15qnr — what /api/portal/coach/* answers (dashboard/services/coach-v2.service.js). */
+
+export type CoachVisit = {
+  id: string;
+  teacherName: string | null;
+  schoolName: string | null;
+  schoolExtId?: string | null;
+  teacherExtId?: string | null;
+  scheduledFor: string | null;
+  scheduledSlot: string | null;
+  status: string;
+  sessionId?: string | null;
+  overdue?: boolean;
+  current?: boolean;
+};
+
+export type CoachTeacher = {
+  teacherExtId: string | null;
+  name: string;
+  phone: string | null;
+  onRumi?: boolean;
+  rumiUserId?: string | null;
+  schoolName: string | null;
+  emis: string | null;
+  schoolExtId: string | null;
+  hitl: number;
+  dc: number;
+  avgHitl: number | null;
+  lastVisitAt?: string | null;
+  daysSinceVisit: number | null;
+  lastVisitScore?: number | null;
+  lastTrainingAt?: string | null;
+  daysSinceTraining: number | null;
+  trainingModules?: number;
+};
+
+export type CoachSchool = {
+  schoolExtId: string;
+  emis: string | null;
+  name: string | null;
+  teachers: number;
+  visits: number;
+  daysSinceVisit: number | null;
+  avgHitl: number | null;
+};
+
+export type CoachHomeData = {
+  today: CoachVisit[];
+  counts: { week: number; overdue: number; waiting: number; inProgress: number; teachers: number; schools: number };
+};
+
+export type CoachScheduleData = { from: string; to: string; visits: CoachVisit[]; overdue: CoachVisit[] };
+
+export type TeamVisit = {
+  id: string;
+  coachId: string;
+  coachName: string | null;
+  mine: boolean;
+  teacherName: string | null;
+  schoolName: string | null;
+  status: string;
+  done: boolean;
+};
+
+export type TeamData = {
+  date: string;
+  totals: { today: number; week: number; month: number };
+  days: { date: string; count: number }[];
+  groups: { slot: string | null; visits: TeamVisit[] }[];
+  coaches: { id: string; name: string | null; me: boolean }[];
+};
+
+export type ReportStep = "draft" | "talk" | "analysing" | "sent";
+
+export type CoachReport = {
+  id: string;
+  createdAt: string | null;
+  teacherName: string | null;
+  teacherPhone: string | null;
+  teacherExtId: string | null;
+  schoolName: string | null;
+  schoolExtId: string | null;
+  status: string;
+  step: ReportStep;
+  score: number | null;
+  portal: boolean;
+};
+
+export type ReportsData = {
+  waiting: CoachReport[];
+  inProgress: CoachReport[];
+  all: { total: number; page: number; pageSize: number; items: CoachReport[] };
+};
+
+export type PeopleData = { teachers: CoachTeacher[]; schools: CoachSchool[] };
+export type SchoolData = { school: CoachSchool; teachers: CoachTeacher[] };
+export type TeacherData = {
+  teacher: CoachTeacher;
+  history: { id: string; date: string | null; kind: "HITL" | "DC"; score: number | null }[];
+  nextVisit: CoachVisit | null;
+};
+export type VisitData = { visit: CoachVisit; teacher: CoachTeacher | null; lastVisit: { date: string | null; score: number | null } | null };
