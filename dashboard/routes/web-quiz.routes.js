@@ -302,7 +302,7 @@ function createWebQuizRouter(opts = {}) {
     }
     if (out.status === 200 && out.body && out.body.quiz) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
-      const url = `${origin}/q/${upper}${view === 'class' ? '/class' : ''}`;
+      const url = `${origin}/q/${upper}${view === 'class' ? '/class' : view === 'schools' ? '/schools' : ''}`;
       return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url }));
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
