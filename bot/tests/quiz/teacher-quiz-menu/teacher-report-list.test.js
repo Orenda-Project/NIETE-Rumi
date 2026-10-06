@@ -94,6 +94,23 @@ describe('the reports list rows', () => {
     expect(row.description).toBe('Topic qA · 2/4 played · avg 75%');
   });
 
+  test('typed children not on the list never count against the class size (Q2): "2/4", the link "2 of 4 played · 2 still to play"', async () => {
+    world({
+      quizzes: [quiz('qA', 3)],
+      codes: [{ id: 'cA', code: 'AAAAAA', quiz_id: 'qA', teacher_user_id: T.id, invited_by_student_id: null }],
+      sessions: [session('s1', 'cA', 'k1', 8, 8), session('s2', 'cA', 'k2', 4, 8),
+        session('s4', 'cA', 'typed-1', 6, 8), session('s5', 'cA', 'typed-2', 6, 8)],
+      lists, kids,
+    });
+    await ReportList.showReports(T, FROM, 'en', 1);
+    expect(rowsOf()[0].description).toMatch(/· 2\/4 played ·/);
+    mockSent.length = 0;
+    await ReportList.handleReportsPick('tqr_qA', FROM, T);
+    const sent = mockSent.find((m) => m.kind === 'text' || m.kind === 'template');
+    expect(JSON.stringify(sent)).toContain('2 of 4 played');
+    expect(JSON.stringify(sent)).toContain('2 still to play');
+  });
+
   test('no class list: "topic · N played · avg %"; nobody yet: "topic · no one yet"', async () => {
     world({
       quizzes: [quiz('qA', 3), quiz('qB', 2)],

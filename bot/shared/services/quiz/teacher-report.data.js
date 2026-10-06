@@ -456,5 +456,5 @@ module.exports = {
   quizReport, classReport, reminderText, weekStart, gradesOf, listLabel,
   // The counting pieces, for /quiz "My quiz reports" (teacher-report-list): its rows must
   // show the numbers the report page shows, so they count with this module, not a copy.
-  readRoster, classOf, countedSessions, classCodes, sessionsFor,
+  readRoster, classOf, countedSessions, classCodes, sessionsFor, onePerChildAcrossCodes,
 };

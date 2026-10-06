@@ -56,11 +56,11 @@ async function statsFor(teacherId, quizzes) {
   const codes = await Data.classCodes(teacherId, quizzes.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
   const counted = Data.countedSessions(await Data.sessionsFor(codes.map((c) => c.id)), teacherId);
-  const scores = new Map();
+  const byQuiz = new Map();
   counted.forEach((s) => {
     const q = quizOfCode.get(s.share_code_id);
-    if (!scores.has(q)) scores.set(q, []);
-    scores.get(q).push(pct(s.correct_answers || 0, s.total_questions_answered || 0));
+    if (!byQuiz.has(q)) byQuiz.set(q, []);
+    byQuiz.get(q).push(s);
   });
   let roster = null;
   try { roster = await Data.readRoster(teacherId); } catch (err) {
@@ -68,9 +68,16 @@ async function statsFor(teacherId, quizzes) {
     logToFile('⚠️ quiz reports: class list read failed — rows without "of"', { userId: teacherId, error: err.message });
   }
   quizzes.forEach((q) => {
-    const s = scores.get(q.id) || [];
-    const { roster: r } = Data.classOf(roster, q, null);
-    out.set(q.id, { played: s.length, of: r.state === 'known' ? r.of : null, avg: mean(s) });
+    // One child per quiz across its codes (as the report page), and with the class known
+    // "played" is the children ON the list: a typed child is never set against the
+    // class size ("7 of 10" when 4 of the 10 played).
+    const mine = Data.onePerChildAcrossCodes(byQuiz.get(q.id) || []);
+    const scores = mine.map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
+    const { roster: r, one } = Data.classOf(roster, q, null);
+    const known = r.state === 'known' && one;
+    const ids = known ? new Set(one.kids.map((k) => k.id)) : null;
+    const played = ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)).length : mine.length;
+    out.set(q.id, { played, of: known ? r.of : null, avg: mean(scores) });
   });
   return out;
 }
