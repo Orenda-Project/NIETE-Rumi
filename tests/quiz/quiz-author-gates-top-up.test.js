@@ -139,7 +139,7 @@ describe('the top-up to seven (gates v2)', () => {
     // what the validator would refuse anyway (ABOUT_TEACHER, FIGURE_MISSING): asked for up front
     expect(line).toMatch(/never about the teacher/);
     expect(line).toMatch(/no picture/);
-    expect(lastMeta().top_up).toEqual(expect.objectContaining({ wanted: 1, added: 1, failed_reasons: {} }));
+    expect(lastMeta().top_up).toEqual(expect.objectContaining({ wanted: 1, candidates: 2, added: 1, failed_reasons: { NOT_RETURNED: 1 } }));
   });
 
   test('a replacement that repeats a question already in the quiz is not added, and no second call is made', async () => {
@@ -154,6 +154,32 @@ describe('the top-up to seven (gates v2)', () => {
     const tu = lastMeta().top_up;
     expect(tu).toEqual(expect.objectContaining({ wanted: 1, added: 0 }));
     expect(Object.keys(tu.failed_reasons).length).toBeGreaterThan(0);
+  });
+
+  test('the one call asks for two candidates per missing question; a failing first candidate leaves room for the second', async () => {
+    mockCreate.mockImplementation((call) => (isTopUp(call)
+      ? Promise.resolve(reply({ questions: [{ index: 6, ...grammar()[1] }, { index: 7, ...FIXED_Q2 }] }))
+      : Promise.resolve(reply({ lesson_summary: EN_SUMMARY, questions: SIX() }))));
+    wire({ gates: true });
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    expect(topUpPrompts()).toHaveLength(1);
+    expect(topUpPrompts()[0].split('\n').filter((l) => /TOP_UP/.test(l))).toHaveLength(2);
+    expect(storedRows()).toHaveLength(7);
+    expect(storedRows().some((row) => /Grandfather/.test(row.question_text))).toBe(true);
+    expect(lastMeta().top_up).toEqual(expect.objectContaining({ wanted: 1, candidates: 2, added: 1 }));
+  });
+
+  test('never more than the missing count is added, even when both candidates pass', async () => {
+    const SECOND = gq({ question: 'Nephew کا feminine noun کیا ہے؟', options: ['Niece', 'Aunt', 'Sister'] });
+    SECOND.source_quote = 'آج ہم نے Nephew اور Niece کے رشتے کو بھی غور سے پڑھا';
+    mockCreate.mockImplementation((call) => (isTopUp(call)
+      ? Promise.resolve(reply({ questions: [{ index: 6, ...FIXED_Q2 }, { index: 7, ...SECOND }] }))
+      : Promise.resolve(reply({ lesson_summary: EN_SUMMARY, questions: SIX() }))));
+    wire({ gates: true });
+    await Gen.process(QID, {});
+    expect(storedRows()).toHaveLength(7);
+    expect(lastMeta().top_up).toEqual(expect.objectContaining({ wanted: 1, added: 1 }));
   });
 
   test('a replacement the blind solver disagrees with is not added', async () => {
