@@ -71,8 +71,8 @@ const SQL = {
   `,
 
   // THIS coach's observations. The schedule join mirrors
-  // leader-observations.service (bd-2670): LATERAL + LIMIT 1 because markDone
-  // stamps session_id on every matching upcoming row.
+  // leader-observations.service: LATERAL + LIMIT 1 because markDone stamps
+  // session_id on every matching upcoming row.
   COACH_SESSIONS: `
     SELECT c.id, c.user_id, c.created_at, c.status, c.debrief_status, c.audio_url,
            jsonb_build_object('scores', c.analysis_data->'scores',
