@@ -18,6 +18,16 @@ const { editSchedule } = require('../../dashboard/services/leader-assignment.ser
 const { isAllowedSlot } = require('../../dashboard/lib/visit-time');
 const SVC = require('../../dashboard/services/coach-v2.service');
 
+// The value a column was inserted with, read from the INSERT's own column list,
+// so the test holds whatever other columns the branch's INSERT carries
+// (staging's has school_name; sandbox's did not).
+const insertedValue = (call, column) => {
+  const cols = call.sql.match(/\(([^)]*)\)\s*VALUES/)[1].split(',').map((s) => s.trim());
+  const i = cols.indexOf(column);
+  if (i < 0) throw new Error(`INSERT has no ${column} column`);
+  return call.params[i];
+};
+
 const TODAY = '2026-10-06';
 
 function createQuery(calls) {
@@ -49,7 +59,7 @@ describe('(2) a visit can be booked in the past', () => {
       { teacherExtId: '923001112222', date: '2026-10-02', slot: '09:00' }, { today: TODAY });
     expect(out).toMatchObject({ id: 'new-1', past: true });
     const insert = calls.find((c) => /INSERT INTO observation_schedules/.test(c.sql));
-    expect(insert.params[5]).toBe('2026-10-02');
+    expect(insertedValue(insert, 'scheduled_for')).toBe('2026-10-02');
   });
 
   test('today and later are not past', async () => {
