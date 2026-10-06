@@ -1798,7 +1798,8 @@ Feature: NIETE (ICT) Teacher Training
     Given app_settings "quiz_author_gates_v2" is true
     And the checks after the author leave my quiz with fewer than seven questions
     When my class quiz is made from my lesson
-    Then one more call writes the missing questions, each quoting a line of my lesson that no question uses yet and that is not itself a question
+    Then one more call writes two candidates for each missing question, each quoting a line of my lesson that no question uses yet and that is not itself a question
+    And candidates are tried in order and no more are added than are missing
     And each new question is checked like any other, and one that repeats, gives away or is given away by another question is left out
     And my quiz never ends up with fewer questions than it had, and no question it had is changed
     And with the setting absent or false, the quiz is made exactly as before
