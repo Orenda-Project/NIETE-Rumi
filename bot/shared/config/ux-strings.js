@@ -4290,6 +4290,13 @@ const STUDENT_TUTOR_STRINGS = {
     en: 'No class card for that quiz yet — finish it first, and the card comes with the class results.',
     ur: 'اس quiz کا class card ابھی نہیں — پہلے اسے مکمل کریں، card کلاس کے نتائج کے ساتھ آئے گا۔',
   },
+  // ─── the kid hub (web-quiz-hub.js; app_settings web_quiz_hub): ONE cta_url message ──
+  // Read by CHILDREN. Imperatives only; the button ≤ 20 code points.
+  sqHubBody: {
+    en: 'Your quizzes, videos and challenges are here.',
+    ur: 'آپ کے کوئز، ویڈیوز اور چیلنج یہاں ہیں۔',
+  },
+  sqHubBtn: { en: 'Open', ur: 'کھولیں' },
   studentOffTopicHint: {
     en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
     ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
