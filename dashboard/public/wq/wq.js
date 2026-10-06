@@ -463,7 +463,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       finN: function (n) { return n + ' finished'; }, yourScore: 'Your score', avg: 'Class average', firstOnly: 'First names only. Ties share a place.',
       shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!',
       histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', back: 'Back', sounds: 'Sounds',
-      cont: function (i, n) { return 'Continue ' + i + '/' + n; }, contSay: function (n) { return 'Welcome back, ' + n + '! Your answers are saved.'; }, restart: 'Start again',
+      cont: function (i, n) { return 'Go on: question ' + i + ' of ' + n; }, contSay: function (n) { return 'Welcome back, ' + n + '! Your answers are saved.'; }, restart: 'Start again', months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       fbT: 'Send it on WhatsApp', fbSub: 'Tap the WhatsApp button, then pick the chat.', fbWa: 'Send on WhatsApp', fbCopy: 'Copy the message', copied: 'Message copied',
       backAgain: 'Your answers are saved. Press back again to leave.',
       todaySub: 'children played today', myScores: 'My scores',
@@ -505,7 +505,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       finN: function (n) { return n + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!',
       histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', back: 'واپس', sounds: 'آوازیں',
-      cont: function (i, n) { return 'جاری رکھیں ' + i + '/' + n; }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں',
+      cont: function (i, n) { return 'جاری رکھیں: سوال ' + i + ' از ' + n; }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں', months: ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'],
       fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'واٹس ایپ والا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا',
       backAgain: 'آپ کے جواب محفوظ ہیں۔ باہر جانے کے لیے دوبارہ بیک دبائیں۔',
       todaySub: 'بچوں نے کھیلا', myScores: 'میرے اسکور',
@@ -1630,6 +1630,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   /* ---------------- M13 history (when the API has it) -> M14 today ---------------- */
+  // The server's ISO day ("2026-10-06") as a child reads it: "6 Oct" / «6 اکتوبر»; anything else as it came.
+  function dayMonth(d) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || ''));
+    var mon = m && T.months && T.months[+m[2] - 1];
+    return mon ? (+m[3]) + ' ' + mon : String(d || '');
+  }
   function history() {
     var chips = kids().map(function (k) { return k.chip; }).filter(Boolean).slice(0, 6);
     if (!chips.length) return today();
@@ -1638,7 +1644,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       var fr = (r.ok && r.body.friends_finished) || [];
       if (!hist.length && !fr.length) return today();
       var h = bar() + '<h2>' + esc(T.histT) + '</h2><ul class="wq-hist">' + hist.slice(0, 10).map(function (x) {
-        return '<li><span>' + esc(x.topic) + '<br><small class="wq-small">' + esc(x.date) + '</small></span><span>' + esc(x.correct) + '/' + esc(x.total) + ' ⭐</span></li>';
+        return '<li><span>' + esc(x.topic) + '<br><small class="wq-small">' + esc(dayMonth(x.date)) + '</small></span><span>' + esc(x.correct) + '/' + esc(x.total) + ' ⭐</span></li>';
       }).join('') + '</ul>' +
         (fr.length ? '<p class="wq-sub">' + esc(T.friends) + '</p><ul class="wq-hist">' + fr.slice(0, 6).map(function (x) {
           return '<li><span>' + dotJoin(x.first, x.topic) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';

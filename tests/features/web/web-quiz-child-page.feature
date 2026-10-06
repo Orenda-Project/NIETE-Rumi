@@ -241,3 +241,9 @@ Feature: Web child quiz page on the portal
     When a child taps "False"
     Then the voice plays a recorded "Not yet. This sentence is true." («ابھی نہیں۔ یہ بات درست ہے۔») and the screen shows the same words
     And the landing invites the child to play the quiz, and a short quiz says "about 1 minute"
+
+  Scenario: Numbers a child could misread are written out
+    Given a child left the quiz after answering the first question
+    When the child opens the link again
+    Then the resume button says "Go on: question 2 of 5" («جاری رکھیں: سوال 2 از 5»), never a score-shaped "2/5"
+    And "Your scores" shows each day as "6 Oct" («6 اکتوبر»), never "2026-10-06"
