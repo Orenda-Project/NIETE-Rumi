@@ -5,9 +5,8 @@
  *
  * Additive and nullable, so it is safe hours before the code that reads it — and the code
  * tolerates its absence (42703) until it is applied. The rollback removes exactly what the
- * forward file adds. A clone bootstraps from 00_complete-schema.sql, which does not declare
- * quiz_share_codes (it arrives with the video-quiz migrations), so the mirror there is guarded
- * on the table existing.
+ * forward file adds. A clone bootstraps from 00_complete-schema.sql alone, so the reference
+ * schema declares quiz_share_codes itself (from the video-quiz migration) with the new column.
  */
 const fs = require('fs');
 const path = require('path');
@@ -51,13 +50,15 @@ describe('web_quiz_v2_identity migration', () => {
     expect(sql.indexOf('DROP INDEX')).toBeLessThan(sql.indexOf('DROP COLUMN'));
   });
 
-  it('is mirrored in 00_complete-schema.sql, guarded on the table a clone may not have yet', () => {
-    const schema = read(SCHEMA);
-    const at = schema.indexOf('web_quiz_v2_identity.sql');
+  it('is mirrored in 00_complete-schema.sql with the table it alters (a clone bootstraps from that file alone)', () => {
+    const schema = code(read(SCHEMA));
+    const at = schema.search(/CREATE TABLE IF NOT EXISTS quiz_share_codes \(/);
     expect(at).toBeGreaterThan(-1);
-    const block = schema.slice(at, at + 1500);
-    expect(block).toMatch(/to_regclass\('public\.quiz_share_codes'\) IS NOT NULL/i);
-    expect(block).toMatch(/ADD COLUMN IF NOT EXISTS class_id uuid REFERENCES (public\.)?classes\(id\)/i);
-    expect(block).toMatch(/idx_quiz_share_codes_class/);
+    const table = schema.slice(at, schema.indexOf(');', at));
+    ['id', 'code', 'quiz_id', 'teacher_user_id', 'video_id', 'teacher_name', 'topic', 'language', 'active', 'uses_count',
+      'expires_at', 'created_at', 'report_sent_at', 'invited_by_student_id', 'parent_share_code_id']
+      .forEach((col) => expect(table).toMatch(new RegExp(`\\n\\s*${col}\\s`)));
+    expect(table).toMatch(/class_id\s+uuid REFERENCES classes\(id\)/i);
+    expect(schema).toMatch(/CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_class\s+ON quiz_share_codes\s*\(class_id\)\s+WHERE class_id IS NOT NULL/i);
   });
 });
