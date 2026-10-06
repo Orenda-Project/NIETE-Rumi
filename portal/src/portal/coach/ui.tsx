@@ -46,14 +46,17 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[]): { data: T |
 
 /** A v2 page: the gate, the live layout, a heading, the content, an optional bottom action. */
 export function CoachPage({
-  title, crumb, backTo, onBack, bare = false, chips, dock, children,
+  title, crumb, backTo, onBack, bare = false, chips, dock, action, children,
 }: {
   title: ReactNode; crumb?: ReactNode; backTo?: string;
   /** bd-o15qnr.9: the back arrow runs this instead of leaving (Record live asks first). */
   onBack?: () => void;
   /** bd-o15qnr.9: no menu — a screen where one stray tap must not leave (Record live). */
   bare?: boolean;
-  chips?: ReactNode; dock?: ReactNode; children: ReactNode;
+  chips?: ReactNode; dock?: ReactNode;
+  /** bd-o15qnr.11: a control at the right of an inner page's header (the teacher's Edit). */
+  action?: ReactNode;
+  children: ReactNode;
 }) {
   const circle = (
     <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#33374a]">
@@ -73,6 +76,7 @@ export function CoachPage({
                 {crumb && <div className="truncate text-[13px] font-medium text-[#6b7280]">{crumb}</div>}
                 <h1 className="truncate text-[26px] font-light leading-tight tracking-[-0.01em]">{title}</h1>
               </div>
+              {action}
             </header>
           ) : (
             <header className="flex flex-col gap-3 px-1 pb-2 pt-4">

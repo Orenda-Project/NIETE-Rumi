@@ -56,6 +56,7 @@ import CoachRecord from "./portal/coach/pages/CoachRecord";
 import CoachAttach from "./portal/coach/pages/CoachAttach";
 import CoachCheckSend from "./portal/coach/pages/CoachCheckSend";
 import CoachObservation from "./portal/coach/pages/CoachObservation";
+import CoachEditTeacher from "./portal/coach/pages/CoachEditTeacher";
 // bd-60117 — a principal's school-level Analytics tab.
 import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
@@ -213,6 +214,8 @@ const App = () => {
             <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
             {/* bd-o15qnr.10 — one HITL report, from a teacher's History */}
             <Route path="/portal/coach/observation/:id" element={<CoachObservation />} />
+            {/* bd-o15qnr.11 — Edit teacher (saved by the /observe teacher admin) */}
+            <Route path="/portal/coach/teacher/:ext/edit" element={<CoachEditTeacher />} />
             {/* bd-60117 — principals only; the endpoint 403s the rest of
                 the leader family and the page says so rather than showing
                 one school's numbers to a multi-school role. */}

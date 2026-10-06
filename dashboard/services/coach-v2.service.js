@@ -310,6 +310,8 @@ async function loadTeachers(query, leaderUserId, today) {
       lastTrainingAt: isoStamp(lastTrainingAt),
       daysSinceTraining: lastTrainingAt ? daysSince(lastTrainingAt, today) : null,
       trainingModules: p.trainingModules,
+      // bd-o15qnr.11 — shown (not edited) on Edit teacher
+      isPrincipal: !!p.isPrincipal,
       scores: mine.map(scoreOf).filter((s) => s != null),
       latest,
     };
