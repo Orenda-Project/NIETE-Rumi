@@ -501,6 +501,30 @@ function termScriptErrors(textsByQ, { romanTotal = 0 } = {}) {
   return out;
 }
 
+/**
+ * The key and a wrong option that name the same number (quiz_author_gates_v2):
+ * 4/8 beside 1/2, 0.5 beside 1/2, 1/4 beside 2/8. On all 12,938 sandbox
+ * questions this shape occurs 5 times: 2 are two right answers, 3 are fair
+ * "lowest form" questions, which is the one exception. Returns the complaint's
+ * tail, or null.
+ */
+const LOWEST_FORM = /\b(?:lowest|simplest|simplif\w*|reduced?)\b|سادہ ترین|مختصر ترین|آسان ترین/i;
+function numericValue(text) {
+  const s = String(text ?? '').replace(/\\[dt]?frac\s*\{\s*(\d+)\s*\}\s*\{\s*(\d+)\s*\}/g, '$1/$2').replace(/\$/g, '').trim();
+  let m = /^(\d+)\s*\/\s*(\d+)$/.exec(s);
+  if (m) return Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
+  m = /^\d+(?:\.\d+)?$/.exec(s);
+  return m ? Number(s) : null;
+}
+function equalValueOption(options, correctIndex, stem) {
+  if (LOWEST_FORM.test(String(stem || ''))) return null;
+  const opts = Array.isArray(options) ? options : [];
+  const key = numericValue(opts[correctIndex]);
+  if (key === null) return null;
+  const twin = opts.find((o, k) => k !== correctIndex && numericValue(o) !== null && Math.abs(numericValue(o) - key) < 1e-9);
+  return twin === undefined ? null : `"${opts[correctIndex]}" and "${twin}" are the same amount, so a child who picks either is right; make every wrong option a different amount`;
+}
+
 function validate(rawQuestions, ctx = {}) {
   const {
     language, subject, digest, nExpected, lessonSummary, quizId,
@@ -582,6 +606,12 @@ function validate(rawQuestions, ctx = {}) {
       if (opts.length !== 3) errs.push(`q${i}: ${opts.length} options`);
       if (opts.some((o) => !o)) errs.push(`q${i}: empty option`);
       if (new Set(opts).size !== opts.length) errs.push(`q${i}: duplicate options`);
+      // quiz_author_gates_v2: the key and a wrong option of the same VALUE are two right answers
+      // ("4/8" beside "1/2"), wherever the picture is — unless the stem asks for the lowest form.
+      else if (GatesV2.enabled(ctx.authorGates)) {
+        const twin = equalValueOption(opts, ci, String(p.question || ""));
+        if (twin) errs.push(`q${i}: duplicate options — ${twin}`);
+      }
       if (![0, 1, 2].includes(ci)) errs.push(`q${i}: bad correct_index ${ci}`);
       const need = [0, 1, 2].filter((k) => k !== ci).map(String).sort();
       const have = Object.keys(fb.wrong || {}).sort();

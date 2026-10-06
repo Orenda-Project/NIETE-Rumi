@@ -1821,3 +1821,14 @@ Feature: NIETE (ICT) Teacher Training
     And with the setting absent or false, the quiz is made exactly as before
     # transcript-quiz-source-fidelity inventedReason (SOURCE_QUOTE_NO_REASON) in questionFaults, run by runSourceFidelity.
     # Unit: tests/quiz/quiz-source-fidelity-reason.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P2 @T226 @no-mock-driver
+  Scenario: With the author gates on, a question never offers two options of the same amount
+    Given app_settings "quiz_author_gates_v2" is true
+    And a question's right answer is "4/8" and one of its wrong options is "1/2"
+    When my class quiz is made from my lesson
+    Then that question is rewritten so every wrong option is a different amount
+    And a question that asks for the lowest or simplest form keeps its equal fractions, because only one is in lowest form
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-validator equalValueOption (q-named "duplicate options" -> the distinct-options rewrite).
+    # Unit: tests/quiz/quiz-author-gates-equal-options.test.js. @wip.
