@@ -19,8 +19,11 @@ var WQID = function (P) {
   var CLASSES = (ID.class && ID.class.ask) || [];
   var hubDone = false;
   // A phone that remembers this many children is passed around (a teacher's or an older sibling's): "Someone else"
-  // comes first, and a card tapped gets a "Not X?" undo over the first question, logged as wrong_card.
+  // comes first, with the smaller cards.
   var CLASS_PHONE = 4;
+  // From 2 remembered children (siblings on a parent's phone) a tapped card gets a "Not X?" undo over the first
+  // question, logged as wrong_card.
+  var UNDO_PHONE = 2;
   var UNDO_MS = 20000;
   var pending = null;    // the card just tapped on a class phone, until its session starts
   var undoEl = null;
@@ -79,7 +82,7 @@ var WQID = function (P) {
     here.forEach(function (k, i) {
       on('#wq-kid-' + i, function () {
         P.ev('identity_pick', { src: 'remembered' });
-        pending = classPhone ? { first: k.first, t: Date.now() } : null;
+        pending = here.length >= UNDO_PHONE ? { first: k.first, t: Date.now() } : null;
         P.startSession({ chip: k.chip, via: 'remembered' }, k);
       });
     });
