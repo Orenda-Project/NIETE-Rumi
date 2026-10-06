@@ -157,8 +157,7 @@ describe('GET /remind/:token', () => {
     const loc = new URL(res.headers.get('location'));
     expect(loc.origin).toBe('https://wa.me');
     const text = loc.searchParams.get('text');
-    // the class count when the class is known ("1 of 3 in 3-B have played"), else the plain reminder
-    expect(text).toMatch(/your turn|still open/);
+    expect(text).toMatch(/still open/);
     expect(text).toContain(LINK);
     expect(text).not.toMatch(/Kid\d/);
     expect(events('teacher_report.reminder')).toEqual([{ teacherId: TEACHER, quizId: QUIZ, notPlayed: 2 }]);
