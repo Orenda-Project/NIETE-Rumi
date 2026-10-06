@@ -29,7 +29,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, connection, challenge = null } = {}) {
+function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, connection, challenge = null, nav = {}, art = null } = {}) {
   const els = {};
   const root = fakeEl('#wq');
   root.innerHTML = '';
@@ -40,7 +40,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   root.querySelectorAll = () => [];
   const boot = {
     textContent: JSON.stringify({
-      code: 'TEST', cls, live, video, brand, preview, view, challenge,
+      code: 'TEST', cls, live, video, brand, preview, view, challenge, ...(art ? { art } : {}),
       quiz: { code: 'TEST', lang, topic, grade, questions: questions || [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
     }),
   };
@@ -68,7 +68,9 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
     },
     history,
     location: { search, origin: 'https://example.test', pathname: '/q/TEST', assign(u) { hist.assigned.push(u); }, replace(u) { hist.assigned.push(u); } },
-    navigator: { userAgent: 'test', connection },
+    navigator: { userAgent: 'test', connection, ...nav },
+    // Web Share Level 2 needs File; a picture fetch answers a blob.
+    File: function File(parts, name, o) { this.parts = parts; this.name = name; this.type = (o && o.type) || ''; },
     localStorage: { setItem: (k, v) => ls.set(k, String(v)), getItem: (k) => (ls.has(k) ? ls.get(k) : null), removeItem: (k) => ls.delete(k) },
     fetch: (url, init) => {
       fetches.push({ url, init });
@@ -81,6 +83,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
         return Promise.resolve({ status, ok: status < 300, text: () => Promise.resolve(JSON.stringify(r)) });
       }
       const body = (url.indexOf('/board/') >= 0 && board) || (url.endsWith('/me') && me) || {};
+      if (url.indexOf('/art/') >= 0) return Promise.resolve({ status: 200, ok: true, blob: () => Promise.resolve({ size: 9, type: 'image/jpeg' }), text: () => Promise.resolve('') });
       return Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve(JSON.stringify(body)) });
     },
     URLSearchParams,

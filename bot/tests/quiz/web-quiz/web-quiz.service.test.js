@@ -305,6 +305,29 @@ describe('E4 POST answers + E5 POST finish', () => {
     }
   });
 
+  test('finish hands the page the signed ids of its share pictures: my card, and the invite on my challenge code', async () => {
+    const Art = require('../../../shared/services/quiz/web-quiz-art');
+    const { s } = await play('Sana Example', ['B', 'B', 'A', 'B']);
+    const out = await WQ.finishSession({ st: s.st });
+    expect(Art.parseArtId(out.art.card)).toEqual({ kind: 'c', ref: T.verify(s.st, 's').sid });
+    expect(Art.parseArtId(out.art.invite)).toEqual({ kind: 'i', ref: out.challenge_code });
+    // the class picture the child sends is theirs: their own row named "(me)"
+    expect(Art.parseArtId(out.art.class)).toEqual({ kind: 'l', ref: T.verify(s.st, 's').sid });
+  });
+
+  test("the quiz payload names its link's picture: the class picture, and the invite on a challenge code", async () => {
+    const Art = require('../../../shared/services/quiz/web-quiz-art');
+    const out = await WQ.getQuiz('AB12CD');
+    expect(Art.parseArtId(out.art.class)).toEqual({ kind: 'l', ref: 'AB12CD' });
+    expect(out.art.invite).toBeNull();
+    const { s } = await play('Sana Example', ['B', 'B', 'A', 'B']);
+    const fin = await WQ.finishSession({ st: s.st });
+    fake.db.quiz_share_codes.find((c) => c.code === fin.challenge_code).active = true; // the column's default in the real table
+    const viaFriend = await WQ.getQuiz(fin.challenge_code);
+    expect(Art.parseArtId(viaFriend.art.invite)).toEqual({ kind: 'i', ref: fin.challenge_code });
+    expect(Art.parseArtId(viaFriend.art.class)).toEqual({ kind: 'l', ref: 'AB12CD' });
+  });
+
   test('finish scores from the answers table, returns card with one star per right answer, review, challenge code', async () => {
     const { s } = await play('Sana Example', ['B', 'B', 'A', 'B']);
     const out = await WQ.finishSession({ st: s.st });

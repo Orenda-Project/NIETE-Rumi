@@ -526,7 +526,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       schoolsLine: function (s, p) { return p ? s + ' is #' + p + ' of all schools this week. Play and help us climb:' : 'No one from ' + s + ' has played yet this week. Be the first:'; },
       histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', todayMore: 'Great work today! Want to watch another video?', back: 'Back', sounds: 'Sounds',
       cont: function (i, n) { return 'Go on: question ' + i + ' of ' + n; }, contSay: function (n) { return 'Welcome back, ' + n + '! Your answers are saved.'; }, restart: 'Start again', months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-      fbT: 'Send it on WhatsApp', fbSub: 'Tap the WhatsApp button, then pick the chat.', fbWa: 'Send on WhatsApp', fbCopy: 'Copy the message', copied: 'Message copied',
+      fbT: 'Send it on WhatsApp', fbSub: 'Tap the WhatsApp button, then pick the chat.', fbWa: 'Send on WhatsApp', fbCopy: 'Copy the message', copied: 'Message copied', saveArt: 'Save the picture',
       backAgain: 'Your answers are saved. Press back again to leave.',
       todaySub: 'children played today', myScores: 'My scores',
       sharePlayed: function (w, t) { return w + ' played ' + t + '. Your turn!'; },
@@ -587,7 +587,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       schoolsLine: function (s, p) { return p ? s + ' اس ہفتے سب اسکولوں میں نمبر ' + p + ' پر ہے۔ کھیلیں اور اسے اوپر لے جائیں:' : 'اس ہفتے ' + s + ' سے ابھی کسی نے نہیں کھیلا۔ سب سے پہلے کھیلیں:'; },
       histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', todayMore: 'آج بہت اچھا کام کیا! ایک اور ویڈیو دیکھیں؟', back: 'واپس', sounds: 'آوازیں',
       cont: function (i, n) { return 'جاری رکھیں: سوال ' + i + ' از ' + n; }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں', months: ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'],
-      fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'واٹس ایپ والا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا',
+      fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'واٹس ایپ والا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا', saveArt: 'تصویر محفوظ کریں',
       backAgain: 'آپ کے جواب محفوظ ہیں۔ باہر جانے کے لیے دوبارہ بیک دبائیں۔',
       todaySub: 'بچوں نے کھیلا', myScores: 'میرے اسکور',
       sharePlayed: function (w, t) { return w + ' نے ' + t + ' کھیلا۔ اب آپ کی باری!'; },
@@ -1934,23 +1934,56 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   window.addEventListener('online', function () { syncNow(false); });
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') syncNow(false); });
 
-  /* ---------------- share: navigator.share -> wa.me -> copy ---------------- */
-  function share(text, url, what) {
+  /* ---------------- share pictures: the bot draws them (web-quiz-art.js) ---------------- */
+  // Every shared link previews as its own picture (the edge names it as og:image), so the picture reaches
+  // the group even from WhatsApp's own browser, which has no navigator.share. Where the browser CAN share a
+  // file, the square picture goes with the message: fetched when the screen opens, because a share must
+  // start inside the tap (a wait would lose it).
+  var ART = {};
+  function artUrl(id, f) {
+    var a = ART[id];
+    return '/q/' + encodeURIComponent(CODE) + '/art/' + (a ? a.kind : 'card') + '.jpg?a=' + encodeURIComponent(id) + (f ? '&f=' + f : '');
+  }
+  function warmArt(kind, id) {
+    if (!id || ART[id]) return;
+    ART[id] = { kind: kind, file: null };
+    try { fetch(artUrl(id)).catch(function () {}); } catch (e) { /* the preview draws on first ask */ }
+    var files = false;
+    try { files = !!(navigator.canShare && typeof File === 'function'); } catch (e) { files = false; }
+    if (!files) return;
+    fetch(artUrl(id, 'sq')).then(function (r) { return r && r.ok ? r.blob() : null; }).then(function (b) {
+      if (!b) return;
+      var f = new File([b], kind + '.jpg', { type: 'image/jpeg' });
+      try { if (navigator.canShare({ files: [f] })) ART[id].file = f; } catch (e) { /* text share */ }
+    }).catch(function () {});
+  }
+
+  /* ---------------- share: the picture as a file -> navigator.share -> wa.me -> copy ---------------- */
+  function share(text, url, what, art) {
     var full = text + ' ' + url;
     ev('share_click', { src: what, step: 'tap' });
-    if (navigator.share) {
-      navigator.share({ text: text, url: url }).then(function () { ev('share_click', { src: what, step: 'native', path: 'native' }); },
-        function (e) { if (e && e.name === 'AbortError') ev('share_click', { src: what, step: 'native_cancel' }); else fallback(full, what, text, url); });
+    var file = art && ART[art] && ART[art].file;
+    if (file && navigator.share) {
+      navigator.share({ files: [file], text: full }).then(function () { ev('share_click', { src: what, step: 'file', path: 'file' }); },
+        function (e) { if (e && e.name === 'AbortError') ev('share_click', { src: what, step: 'file_cancel' }); else fallback(full, what, text, url, art); });
       return;
     }
-    fallback(full, what, text, url);
+    if (navigator.share) {
+      navigator.share({ text: text, url: url }).then(function () { ev('share_click', { src: what, step: 'native', path: 'native' }); },
+        function (e) { if (e && e.name === 'AbortError') ev('share_click', { src: what, step: 'native_cancel' }); else fallback(full, what, text, url, art); });
+      return;
+    }
+    fallback(full, what, text, url, art);
   }
   // The preview shows the link on its own left-to-right line: inside an Urdu message it would wrap backwards.
-  function fallback(full, what, text, url) {
+  function fallback(full, what, text, url, art) {
+    var pic = art && ART[art];
     var h = bar() + '<h2>' + esc(T.fbT) + '</h2><p class="wq-sub">' + esc(T.fbSub) + '</p>' +
+      (pic ? '<img class="wq-artprev" src="' + esc(artUrl(art)) + '" alt="">' : '') +
       '<div class="wq-card"><p>' + esc(text != null ? text : full) + '</p>' + (url ? '<p class="wq-url" dir="ltr">' + esc(url) + '</p>' : '') + '</div>' +
       '<a class="wq-btn wq-go" id="wq-wa" href="https://wa.me/?text=' + encodeURIComponent(full) + '">' + esc(T.fbWa) + '</a>' +
       '<button class="wq-btn wq-soft" id="wq-copy">' + esc(T.fbCopy) + '</button>' +
+      (pic ? '<a class="wq-btn wq-soft" id="wq-save" href="' + esc(artUrl(art, 'sq')) + '" download="' + esc(pic.kind + '-' + CODE) + '.jpg">' + esc(T.saveArt) + '</a>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
     var at = ROOT.getAttribute('data-m');
     var back = at === 'M11' ? board : at === 'M16' ? drawSchools : card;
@@ -1958,6 +1991,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     render(h, 'M12-fallback');
     wireBar();
     on('#wq-wa', function () { ev('share_click', { src: what, step: 'wa', path: 'wa' }); });
+    on('#wq-save', function () { ev('share_click', { src: what, step: 'save', path: 'save' }); });
     on('#wq-copy', function () {
       function done() { ev('share_click', { src: what, step: 'copy', path: 'copy' }); toast(T.copied); }
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(full).then(done, legacy); else legacy();
@@ -2008,12 +2042,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var chalUrl = link('/q/' + (res.challenge_code || CODE));
     // The class group gets the CLASS link: a classmate who joined through a friend's challenge code would
     // count as that child's friend and drop out of the teacher's class report.
-    var classUrl = link('/q/' + CODE);
+    // The card link names its picture (?a=): the group's preview IS the card. Still the CLASS code.
+    var art = res.art || {};
+    var classUrl = link('/q/' + CODE + (art.card ? '?a=' + encodeURIComponent(art.card) : ''));
+    warmArt('card', art.card);
+    warmArt('invite', art.invite);
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
-    on('#wq-share', function () { share(line, classUrl, 'card'); });
-    on('#wq-chal', function () { share(line, chalUrl, 'challenge'); });
+    on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
+    on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
     on('#wq-class', board);
     on('#wq-schools', function () { schools(card); });
     on('#wq-more', moreVideos);
@@ -2150,7 +2188,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       render(h, 'M11');
       wireBar();
       ev('board_view', { src: B.view === 'class' ? 'class_link' : 'page', i: b.finishers_n });
-      on('#wq-share-t', function () { share(T.tableLine(Q.topic, CLASS_LABEL), link('/q/' + CODE + '/class'), 'table'); });
+      // The child's own class picture ("me" named) when they have finished; else the class's.
+      var tArt = (S.result && S.result.art && S.result.art.class) || (B.art && B.art.class) || null;
+      warmArt('class', tArt);
+      on('#wq-share-t', function () { share(T.tableLine(Q.topic, CLASS_LABEL), link('/q/' + CODE + '/class'), 'table', tArt); });
       on('#wq-schools', function () { schools(board); });
       on('#wq-next', history);
       on('#wq-play', landing);
