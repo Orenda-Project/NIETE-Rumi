@@ -4,13 +4,20 @@
 #   bash bot/scripts/e2e/local-db.sh up <run_dir>          # clone a fresh run database; writes <run_dir>/db.env
 #   bash bot/scripts/e2e/local-db.sh down <run_dir>        # stop this run's PostgREST + proxy, drop its database
 #   bash bot/scripts/e2e/local-db.sh baseline [out.sql]    # re-dump the sandbox schema (schema only, no rows)
+#   bash bot/scripts/e2e/local-db.sh seed-pull             # pull the REFERENCE tables' rows from the sandbox
+#   bash bot/scripts/e2e/local-db.sh seed-status           # missing | stale | ok  (the readiness check reads it)
 #   bash bot/scripts/e2e/local-db.sh status | stop          # the machine's cluster
 #
 # Three tiers, the same split the lane already uses for redis and node_modules:
 #   once per machine   a Postgres 17 cluster under $LOCAL_DB_HOME, started on first use and left running
 #                      (brew install postgresql@17 pgvector postgrest — no Docker).
-#   once per schema    a GOLDEN database = bootstrap + schema + seed, named by the hash of those three files.
-#                      A changed baseline or seed builds a new one; an unchanged one is reused.
+#   once per schema    a GOLDEN database = bootstrap + schema + seed snapshot, named by the hash of all three.
+#                      A changed baseline or a new snapshot builds a new one; an unchanged one is reused.
+#
+# The seed snapshot (seed-pull): rows of the tables named in supabase/baseline/seed-tables.txt — reference
+# content only (lesson-plan and training catalogues, settings), never a per-teacher table. The LIST is
+# committed; the DATA is not: each machine pulls its own into $LOCAL_DB_HOME/seed (part of it is the
+# restricted ICT corpus). seed-status says `stale` when the committed list no longer matches the pull.
 #   every run          CREATE DATABASE … TEMPLATE golden — a file-level copy, so every run starts from the
 #                      same state and nothing a run writes survives it. Then PostgREST on that database and a
 #                      proxy that adds the /rest/v1 prefix supabase-js expects.
@@ -18,7 +25,7 @@
 # Safety: `up` only ever writes a 127.0.0.1 SUPABASE_URL; `baseline` refuses any project ref but the sandbox
 # one before it connects (the same ENV_REFS the DB tooling asserts).
 #
-# Exit codes: 2 usage · 3 baseline source is not the sandbox · 4 no Postgres 17 / pgvector / postgrest ·
+# Exit codes: 2 usage · 3 baseline/seed source is not the sandbox, or the pull failed · 4 no Postgres 17 / pgvector / postgrest ·
 # 5 cluster failed to start · 6 golden build failed · 7 run database clone failed · 8 PostgREST/proxy not healthy.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,6 +37,8 @@ REST_PORT="${LOCAL_DB_REST_PORT:-54330}"
 API_PORT="${E2E_SUPABASE_PORT:-54321}"
 SCHEMA="${LOCAL_DB_SCHEMA:-$REPO/supabase/baseline/schema.sql}"
 SEED="${LOCAL_DB_SEED:-$REPO/supabase/baseline/seed.sql}"
+SEED_TABLES="${LOCAL_DB_SEED_TABLES:-$REPO/supabase/baseline/seed-tables.txt}"
+SEED_DIR="$LOCAL_DB_HOME/seed"
 BOOTSTRAP="$HERE/local-db-bootstrap.sql"
 PGDATA="$LOCAL_DB_HOME/pg17"
 
@@ -70,7 +79,8 @@ cluster_up() {   # once per machine: init on first use, start if stopped
 
 golden_name() {   # golden_<12 hex of bootstrap + schema + seed>
   local h
-  h=$(cat "$BOOTSTRAP" "$SCHEMA" "$([ -f "$SEED" ] && echo "$SEED" || echo /dev/null)" | shasum -a 256 | cut -c1-12)
+  h=$(cat "$BOOTSTRAP" "$SCHEMA" "$([ -f "$SEED" ] && echo "$SEED" || echo /dev/null)" \
+        "$([ -f "$SEED_DIR/manifest.json" ] && echo "$SEED_DIR/manifest.json" || echo /dev/null)" | shasum -a 256 | cut -c1-12)
   echo "golden_$h"
 }
 
@@ -95,6 +105,12 @@ golden_ensure() {   # once per schema hash
   for f in "${files[@]}"; do
     psql_ -d "$tmpdb" -f "$f" >"$LOCAL_DB_HOME/golden.log" 2>&1 || { log "golden build failed applying $f:"; tail -5 "$LOCAL_DB_HOME/golden.log" >&2; exit 6; }
   done
+  if [ -f "$SEED_DIR/seed.dump" ]; then
+    # Data only, triggers off: the snapshot is a subset of tables, so a foreign key into a table it does not
+    # carry (a catalogue row's author, say) must not reject the row. postgres is superuser here.
+    "$(dump_bin)/pg_restore" --data-only --disable-triggers --no-owner -h 127.0.0.1 -p "$PG_PORT" -U postgres -d "$tmpdb" \
+      "$SEED_DIR/seed.dump" >>"$LOCAL_DB_HOME/golden.log" 2>&1 || { log "golden build failed restoring the seed snapshot:"; tail -5 "$LOCAL_DB_HOME/golden.log" >&2; exit 6; }
+  fi
   # Freeze it: a template nobody can connect to cannot be written by accident.
   psql_ -d postgres -c "alter database $tmpdb rename to $g" -c "alter database $g with is_template true allow_connections false" >/dev/null || exit 6
   # Old goldens are dead weight once their schema is gone.
@@ -184,22 +200,85 @@ sandbox_ref() {   # one source of truth with the DB tooling (same lookup as prov
   printf '%s' "$line" | sed -nE 's/.*"sandbox": "([a-z0-9]+)".*/\1/p'
 }
 
-baseline() {
-  local out="${1:-$REPO/supabase/baseline/schema.sql}" url="${LOCAL_DB_BASELINE_URL:-}"
+dump_bin() {   # pg_dump/pg_restore at least as new as the sandbox's Postgres 17: libpq's (18) when present
+  local d
+  for d in /opt/homebrew/opt/libpq/bin /usr/local/opt/libpq/bin "$PGBIN"; do
+    [ -n "$d" ] && [ -x "$d/pg_dump" ] && [ -x "$d/pg_restore" ] && { echo "$d"; return 0; }
+  done
+  dirname "$(command -v pg_dump)"
+}
+
+# The sandbox's Postgres URL, asserted to BE the sandbox before anything connects. $1 = an explicit URL
+# (an env override), else the Railway sandbox environment's DATABASE_URL. Prints it (session pooler port);
+# exits 3 for any other project. LOCAL_DB_TEST_LOCAL_SOURCE=1 also admits a 127.0.0.1 URL — the tests' seam.
+sandbox_source() {
+  local url="${1:-}" what="$2"
   if [ -z "$url" ]; then
     # -p names the project, so this works from any checkout (a worktree is not `railway link`ed).
     url=$(railway variables -p "${LOCAL_DB_RAILWAY_PROJECT:-NIETE-Rumi Staging}" -s bot --environment sandbox --kv 2>/dev/null \
       | sed -nE 's/^DATABASE_URL=(.*)$/\1/p' | tr -d '"') || true
   fi
-  [ -n "$url" ] || { log "no source: set LOCAL_DB_BASELINE_URL or log in to railway (sandbox DATABASE_URL)"; exit 3; }
+  [ -n "$url" ] || { log "no $what source: log in to railway (the sandbox DATABASE_URL) — railway login"; exit 3; }
+  if [ "${LOCAL_DB_TEST_LOCAL_SOURCE:-}" = 1 ] && printf '%s' "$url" | grep -qE '^postgres(ql)?://[^@]*@127\.0\.0\.1:'; then
+    printf '%s' "$url"; return 0
+  fi
   local want ref
   want=$(sandbox_ref); [ -n "$want" ] || want="olvritwoqujtjvwfulbh"
   ref=$(printf '%s' "$url" | sed -nE 's#^postgres(ql)?://postgres\.([a-z0-9]+):.*#\2#p')
   [ -n "$ref" ] || ref=$(printf '%s' "$url" | sed -nE 's#.*@db\.([a-z0-9]+)\.supabase\.co.*#\1#p')
-  if [ "$ref" != "$want" ]; then log "REFUSED: baseline source is project '${ref:-?}', not the sandbox ($want). Nothing written."; exit 3; fi
-  local dump; dump="$(command -v pg_dump)"
-  [ -x /opt/homebrew/opt/libpq/bin/pg_dump ] && dump=/opt/homebrew/opt/libpq/bin/pg_dump
-  url=$(printf '%s' "$url" | sed -E 's#(pooler\.supabase\.com):6543#\1:5432#')   # session pooler: pg_dump needs a session
+  if [ "$ref" != "$want" ]; then log "REFUSED: $what source is project '${ref:-?}', not the sandbox ($want). Nothing written."; exit 3; fi
+  printf '%s' "$url" | sed -E 's#(pooler\.supabase\.com):6543#\1:5432#'   # session pooler: pg_dump needs a session
+}
+
+seed_tables() { grep -vE '^[[:space:]]*(#|$)' "$SEED_TABLES" 2>/dev/null | tr -d ' \t\r' | sort -u; }
+seed_tables_sha() { seed_tables | shasum -a 256 | cut -c1-16; }
+
+seed_pull() {
+  [ -f "$SEED_TABLES" ] || { log "no seed table list at $SEED_TABLES"; exit 2; }
+  local url; url=$(sandbox_source "${LOCAL_DB_SEED_SOURCE_URL:-}" seed) || exit 3
+  local bin; bin=$(dump_bin)
+  local tables; tables=$(seed_tables)
+  [ -n "$tables" ] || { log "the seed table list is empty"; exit 2; }
+  mkdir -p "$SEED_DIR"
+  local tmp="$SEED_DIR/.pull.$$" t0=$SECONDS args=() t
+  mkdir -p "$tmp"
+  for t in $tables; do args+=(-t "public.$t"); done
+  log "pulling $(echo "$tables" | wc -l | tr -d ' ') reference tables from the sandbox (data only)…"
+  "$bin/pg_dump" "$url" --data-only --format=custom --no-owner "${args[@]}" -f "$tmp/seed.dump" 2>"$tmp/pull.err" \
+    || { log "pg_dump failed: $(tail -2 "$tmp/pull.err")"; rm -rf "$tmp"; exit 3; }
+  # Row counts, for the manifest and for anyone checking what a machine actually holds.
+  local counts=""
+  for t in $tables; do
+    counts="$counts$t=$("$bin/psql" "$url" -X -Atc "select count(*) from public.\"$t\"" 2>/dev/null || echo '?')"$'\n'
+  done
+  PULL_COUNTS="$counts" python3 - "$tmp/manifest.json" "$(seed_tables_sha)" "$(sandbox_ref)" "$(shasum -a 256 "$tmp/seed.dump" | cut -c1-16)" <<'MANIFEST'
+import json, os, sys, datetime
+out, tsha, ref, dsha = sys.argv[1:]
+rows = {}
+for line in os.environ["PULL_COUNTS"].splitlines():
+    if "=" in line:
+        k, v = line.split("=", 1); rows[k] = int(v) if v.isdigit() else v
+json.dump({"source": "sandbox:" + ref, "pulled_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+           "tables_sha": tsha, "dump_sha": dsha, "rows": rows}, open(out, "w"), indent=1)
+MANIFEST
+  rm -f "$SEED_DIR/seed.dump" "$SEED_DIR/manifest.json"
+  mv "$tmp/seed.dump" "$SEED_DIR/seed.dump" && mv "$tmp/manifest.json" "$SEED_DIR/manifest.json"
+  chmod 600 "$SEED_DIR/seed.dump"
+  rm -rf "$tmp"
+  log "seed: $(du -h "$SEED_DIR/seed.dump" | cut -f1) in $((SECONDS - t0))s → $SEED_DIR (the next up rebuilds the golden)"
+}
+
+seed_status() {   # missing | stale | ok
+  { [ -f "$SEED_DIR/manifest.json" ] && [ -f "$SEED_DIR/seed.dump" ]; } || { echo missing; return 0; }
+  local have; have=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("tables_sha",""))' "$SEED_DIR/manifest.json" 2>/dev/null)
+  if [ "$have" = "$(seed_tables_sha)" ]; then echo ok; else echo stale; fi
+}
+
+baseline() {
+  local out="${1:-$REPO/supabase/baseline/schema.sql}"
+  local url; url=$(sandbox_source "${LOCAL_DB_BASELINE_URL:-}" baseline) || exit 3
+  local want; want=$(sandbox_ref); [ -n "$want" ] || want="olvritwoqujtjvwfulbh"
+  local dump; dump="$(dump_bin)/pg_dump"
   mkdir -p "$(dirname "$out")"
   local tmp="$out.tmp.$$"
   {
@@ -223,5 +302,6 @@ stop() { [ -n "$PGBIN" ] && "$PGBIN/pg_ctl" -D "$PGDATA" stop -m fast >/dev/null
 CMD="${1:-}"; shift || true
 case "$CMD" in
   up) up "$@";; down) down "$@";; baseline) baseline "$@";; status) status;; stop) stop;;
+  seed-pull) seed_pull;; seed-status) seed_status;;
   *) sed -n '2,7p' "$0" >&2; exit 2;;
 esac
