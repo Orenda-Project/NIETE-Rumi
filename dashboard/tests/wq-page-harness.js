@@ -29,7 +29,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view } = {}) {
+function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, connection } = {}) {
   const els = {};
   const root = fakeEl('#wq');
   root.innerHTML = '';
@@ -41,11 +41,12 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const boot = {
     textContent: JSON.stringify({
       code: 'TEST', cls, live, video, brand, preview, view,
-      quiz: { code: 'TEST', lang, topic, grade, questions: [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
+      quiz: { code: 'TEST', lang, topic, grade, questions: questions || [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
     }),
   };
   const ls = new Map(Object.entries(store).map(([k, v]) => [k, JSON.stringify(v)]));
   const fetches = [];
+  const timers = [];
   // window/document listeners and a fake history, so a test can press the Android back button.
   const wl = {};
   const created = [];
@@ -66,13 +67,15 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
     },
     history,
     location: { search, origin: 'https://example.test', pathname: '/q/TEST', assign(u) { hist.assigned.push(u); }, replace(u) { hist.assigned.push(u); } },
-    navigator: { userAgent: 'test' },
+    navigator: { userAgent: 'test', connection },
     localStorage: { setItem: (k, v) => ls.set(k, String(v)), getItem: (k) => (ls.has(k) ? ls.get(k) : null), removeItem: (k) => ls.delete(k) },
     fetch: (url, init) => {
       fetches.push({ url, init });
       const hit = Object.keys(api).find((k) => url.indexOf(k) >= 0);
       if (hit) {
         const r = typeof api[hit] === 'function' ? api[hit](url, init) : api[hit];
+        // { __offline: true } is a dropped connection: fetch itself rejects, as a phone with no signal does.
+        if (r && r.__offline) return Promise.reject(new TypeError('Failed to fetch'));
         const status = r && r.__status ? r.__status : 200;
         return Promise.resolve({ status, ok: status < 300, text: () => Promise.resolve(JSON.stringify(r)) });
       }
@@ -80,7 +83,8 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
       return Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve(JSON.stringify(body)) });
     },
     URLSearchParams,
-    setInterval: () => 0, setTimeout: () => 0, clearTimeout() {},
+    // Timers are recorded, never run by themselves: a test runs them with runTimers().
+    setInterval: () => 0, setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout(id) { if (timers[id - 1]) timers[id - 1].fn = null; },
     scrollTo() {}, addEventListener(n, fn) { (wl[n] = wl[n] || []).push(fn); },
   };
   ctx.window = ctx;
@@ -91,7 +95,9 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const moment = () => root.attrs['data-m'];
   const toasts = () => created.filter((e) => e.className === 'wq-toast').map((e) => e.textContent);
   const fireDoc = (n) => (dl[n] || []).forEach((fn) => fn({}));
-  return { ctx, root, els, fetches, wq: ctx.__wq, html: () => root.innerHTML, hist, tap, back, moment, toasts, fireDoc };
+  const runTimers = (maxMs = Infinity) => { const due = timers.filter((t) => t.fn && t.ms <= maxMs); due.forEach((t) => { const f = t.fn; t.fn = null; f(); }); return due.length; };
+  const fire = (n) => (wl[n] || []).forEach((fn) => fn({}));
+  return { ctx, root, els, fetches, wq: ctx.__wq, html: () => root.innerHTML, hist, tap, back, moment, toasts, fireDoc, timers, runTimers, fire, ls };
 }
 const flush = () => new Promise((r) => setImmediate(r));
 module.exports = { page, rule, flush, SRC, CSS, TAIL };

@@ -481,3 +481,38 @@ Feature: Web child quiz page on the portal
     When a quiz's page is opened
     Then no clip is recorded and the job does not retry, and the page reads with the words big
     And reaching the cap is logged as web_quiz_audio.capped
+
+  @T370
+  Scenario: A child who loses the internet at the end still sees their score
+    Given a child answered every question and the phone then lost its connection
+    When the quiz ends
+    Then the results screen shows the score the phone worked out ("You got 3 out of 5") with its stars
+    And it says "Your results will reach your teacher when you are back online." («انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔»)
+    And no "No internet right now" error screen is shown
+
+  @T371
+  Scenario: The result is sent by itself when the connection comes back
+    Given a child finished the quiz offline and the results screen says the result will reach the teacher
+    When the phone is back online (or the child taps "Send now", or a minute passes)
+    Then the result is sent without the child doing anything else
+    And the screen changes to the real results with "See my card" and "See my class"
+
+  @T372
+  Scenario: A tab closed before the result was sent sends it on the next open
+    Given a child finished the quiz offline and closed WhatsApp before the connection came back
+    When the child opens the same quiz link again with internet
+    Then the page sends the result and opens the results, never "Go on: question 5 of 5"
+
+  @T373
+  Scenario: A flapping or very slow connection loses no answer and records none twice
+    Given the connection drops and returns every few seconds, or each request takes over a second
+    When a child plays the whole quiz
+    Then every answer is recorded exactly once and the results arrive
+    And a result sent up to a week later is still accepted
+
+  @T374
+  Scenario: The next questions' pictures and voice are fetched ahead of time
+    Given a child is on question 1 of a quiz with pictures and recorded voice
+    When the question has been on screen for a moment
+    Then the pictures and recorded clips of questions 2 and 3 are already being fetched
+    And question 1's own voice is never kept waiting for them
