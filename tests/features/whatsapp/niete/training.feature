@@ -2124,3 +2124,73 @@ Feature: NIETE (ICT) Teacher Training
     # Server: isOpenEndedQuestion (nothing to pick from = written); submitModuleExamPaper / saveModuleExamDraft store answer_text.
     # Portal: TrainingModuleExam isWritten(). Unit: tests/training/portal-exam-no-options-is-written.test.js,
     # portal TrainingModuleExam.test.tsx.
+
+  # ── Which class is this hand-out for? (handout-class.service.js) ──────────────────────────────────
+  # A share code is bound to a class (quiz_share_codes.class_id, web_quiz_v2_identity.sql) so the web quiz
+  # matches a child against THAT class's roster and the report lists who has not played. The class comes
+  # from web-quiz-identity resolveQuizClass: known → bound at mint, silently; ambiguous → the hand-out goes
+  # out exactly as before (unbound), THEN one question, and a tap binds that code late; none → as before.
+  # The hand-out never waits on the question. One question for every source (video share, lesson /
+  # coaching quiz first send). Unit: bot/tests/quiz/handout-class-binding.test.js,
+  # bot/tests/quiz/handout-class-real-resolver.test.js, tests/quiz/handoff-class-binding.test.js.
+
+  @e2e @quiz @wip @draft @P1 @T400
+  Scenario: A teacher with one class matching the quiz gets the class link with no extra question
+    Given I teach one class, 4-A, and the quiz I am sending is for grade 4 or has no grade
+    When I send the quiz to my class
+    Then I get the two class messages exactly as before, and no question about the class
+    And the class link is bound to 4-A, so the children who open it are matched against the 4-A list
+    # resolveQuizClass state 'known' → mintCode({classId}) writes quiz_share_codes.class_id.
+
+  @e2e @quiz @wip @draft @P1 @T401
+  Scenario: A teacher with two sections gets the link first, then one question about the class
+    Given I teach 4-A and 4-B and the quiz I am sending is for grade 4
+    When I send the quiz to my class
+    Then I get the two class messages exactly as before
+    And after them I am asked "Which class is this quiz for?" with the buttons "4-A", "4-B" and "All / not sure"
+    When I tap "4-B"
+    Then I am told "Got it — this quiz is for 4-B." and the link I already have is now bound to 4-B
+    # ≤2 classes → reply buttons; ids vq_wc_<share code id>_<class id> / vq_wc_<share code id>_any
+    # (never the vq_<x>_<digits> answer shape), so a tap always binds the code it was asked about.
+
+  @e2e @quiz @wip @draft @P2 @T402
+  Scenario: Three or more matching classes are offered as a list, and "All / not sure" leaves the link unbound
+    Given I teach 4-A, 4-B and 5-A and the quiz I am sending is for grades 3-5
+    When I send the quiz to my class
+    Then after the class messages I get a list "Choose class" with 4-A, 4-B, 5-A and "All / not sure"
+    When I choose "All / not sure"
+    Then nothing else is sent, and the children are asked their class on the quiz page
+    # Meta caps reply buttons at 3 (two classes + Any) and list rows at 10 (nine classes + Any).
+
+  @e2e @quiz @wip @draft @P2 @T403
+  Scenario: A teacher whose only class is outside the quiz's grade is asked rather than bound to the wrong class
+    Given I teach only 3-B and the quiz I am sending is for grade 5
+    When I send the quiz to my class
+    Then I get the class messages, then "Which class is this quiz for?" with the buttons "3-B" and "All / not sure"
+
+  @e2e @quiz @wip @draft @P1 @T404
+  Scenario: Two hand-outs in a row each keep their own answer, and an old question binds nothing after a week
+    Given I sent two quizzes to my classes and was asked about each
+    When I tap "4-A" on the first question
+    Then only the first quiz's link is bound to 4-A, and the second question is still open
+    And a tap on a question more than a week old changes nothing
+    # The offered classes are kept per share code in Redis for 7 days (videoquiz:whichclass:<code id>).
+
+  @e2e @quiz @wip @draft @P1 @T405
+  Scenario: A lesson or coaching quiz gets its PDF and link first, then the same one question
+    Given I teach 4-A and 4-B and my quiz from a recorded lesson has just been written
+    When it is sent to me
+    Then the PDF and the class link arrive exactly as before, and then "Which class is this quiz for?"
+    When I tap "4-A"
+    Then I am told "Got it — this quiz is for 4-A." and that link is bound to 4-A
+    And a quiz that had no grade now carries grade 4, so it shows under grade 4 in the children's library
+    # transcript-quiz-handoff sendHandoff asks after the link on a first mint only (a resend reuses the code
+    # and asks nothing). Grade fill: quizzes.grade only when NULL, only the teacher's own non-video quiz.
+
+  @e2e @quiz @negative @wip @draft @P2 @T406
+  Scenario: An environment without the class column still hands every quiz out
+    Given the quiz_share_codes table has no class_id column yet on this environment
+    When a teacher whose class is known sends a quiz to the class
+    Then the class link is minted and sent as before, unbound
+    And "web_quiz.class_bind_unavailable" is logged once
+    # mintCode retries the insert without class_id on 42703 / PGRST204; a 23503 (not a classes row) too.
