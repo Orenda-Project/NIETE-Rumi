@@ -237,8 +237,21 @@ describe('web items: no "A: " letter prefix in the read-aloud text', () => {
     source_quote: 'Water is a liquid. It flows and takes the shape of the glass', why: 'A liquid flows and takes the shape of its cup.',
   };
   const ctx = (authorGates) => ({ language: 'en', source: { kind: 'transcript', text: TRANSCRIPT }, gradeBand: '3-5', authorGates });
-  test('gates on: refused (the row plays instead)', () => {
-    expect(W.normaliseItem(raw, row, 1, ctx(true))).toEqual({ item: null, reason: 'read_letter_prefix' });
+  // Measured on a real run (10 lessons): when the model copies the prompt's "A: stone" option format into
+  // read.opts it does so for EVERY item, and refusing them cost two quizzes all their web items (and hints).
+  test('gates on: a prefix that names the option\'s OWN slot is stripped and the item kept', () => {
+    const out = W.normaliseItem(raw, row, 1, ctx(true));
+    expect(out.item).toBeTruthy();
+    expect(out.item.read.opts).toEqual(['stone', 'milk', 'air']);
+    expect(out.item.options.map((o) => o.name)).toEqual(['stone', 'milk', 'air']);
+  });
+  test('gates on: a prefix that names ANOTHER slot is refused (the spoken options would be out of order)', () => {
+    const swapped = { ...raw, read: { ...raw.read, opts: ['B: stone', 'A: milk', 'C: air'] } };
+    expect(W.normaliseItem(swapped, row, 1, ctx(true))).toEqual({ item: null, reason: 'read_letter_prefix' });
+  });
+  test('gates on: a stem read as "A: …" is still refused', () => {
+    const stem = { ...raw, read: { stem: 'A: Which of these is a liquid?', opts: ['stone', 'milk', 'air'] } };
+    expect(W.normaliseItem(stem, row, 1, ctx(true))).toEqual({ item: null, reason: 'read_letter_prefix' });
   });
   test('gates off: today\'s behaviour', () => {
     expect(W.normaliseItem(raw, row, 1, ctx(false)).item).not.toBeNull();

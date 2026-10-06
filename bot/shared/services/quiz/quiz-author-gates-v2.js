@@ -427,6 +427,20 @@ const KEY_MARKS = /[\u064B-\u065F\u0670\u06D6-\u06ED\u0610-\u061A\u200C-\u200F]/
 const bareLetters = (t) => plain(t).normalize('NFC').toLowerCase().replace(KEY_MARKS, '').replace(/[^\p{L}\p{N}]/gu, '');
 const sameLetters = (a, b) => bareLetters(a) !== '' && bareLetters(a) === bareLetters(b);
 
+/**
+ * "A: stone" read for option A → "stone". The web item prompt lists options as "A: stone", and a model
+ * that copies the format does it for every option of every item: refused, a whole quiz lost its web items
+ * (2 of 10 lessons on a real run). A prefix naming the option's OWN slot is only noise and is cut; one naming
+ * another slot means the spoken options are out of order, and is left for readTextFaults to refuse.
+ */
+function stripOwnSlotPrefix(text, slot) {
+  const t = String(text == null ? '' : text);
+  const m = /^\s*[(\[]?([A-Da-d])[)\].:：]\s*/.exec(t);
+  if (!m || String(m[1]).toUpperCase() !== String(slot || '').toUpperCase()) return text;
+  const rest = t.slice(m[0].length);
+  return /\S/.test(rest) ? rest : text;
+}
+
 /** Faults in the text the voice reads for a web item: a letter prefix ("A: …"). */
 function readTextFaults(read) {
   if (!read || typeof read !== 'object') return [];
@@ -441,6 +455,7 @@ function readTextFaults(read) {
 const STRICT_KEY_RULE = 'FULLY CORRECT, NEVER THE CLOSEST. An option is correct only if it is a fully correct answer to the question exactly as asked — the right word form, tense, spelling, unit and number. If the true answer is not among the options (for example the past tense of "drink" is asked and only "drinking", "drinked", "drunk" are offered — "drunk" is the past participle, not the past tense), give an empty list. Never list the option that is merely closest.';
 
 module.exports = {
+  stripOwnSlotPrefix,
   refreshFlag,
   setEnabled,
   enabled,
