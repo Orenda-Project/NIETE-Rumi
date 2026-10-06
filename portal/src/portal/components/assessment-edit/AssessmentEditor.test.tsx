@@ -6,7 +6,7 @@ const field = (q: string) => ({ shape: 'standard', question: q, marks: '2', answ
 vi.mock('../../services/api', () => ({
   portal: {
     getAssessmentEditQuestions: vi.fn(),
-    getAssessmentAddKinds: vi.fn().mockResolvedValue({ kinds: [{ kind: 'short', label: 'Short question', marks: 2, lines: 4, needsOptions: false }], slotCap: 6 }),
+    getAssessmentAddKinds: vi.fn().mockResolvedValue({ kinds: [{ kind: 'short', label: 'Short question', layout: 'standard', section: 'subjective', marks: 2, lines: 4 }], slotCap: 6 }),
     validateAssessmentEdit: vi.fn(),
     saveAssessmentVersion: vi.fn(),
     getAssessmentDownload: vi.fn().mockResolvedValue({ available: true, url: 'https://x' }),
@@ -207,8 +207,8 @@ it('F2/F3: a sub edit shows the sub text, keeps the parent text, and adds its ma
 
 it('F4/F5/F6: added errors do not go stale; picker is section-scoped; orphan errors reach the footer', async () => {
   vi.mocked(portal.getAssessmentAddKinds).mockResolvedValue({ kinds: [
-    { kind: 'short', label: 'Short question', marks: 2, lines: 4, needsOptions: false },
-    { kind: 'mcq', label: 'Multiple choice', marks: 1, lines: 0, needsOptions: true },
+    { kind: 'short', label: 'Short question', layout: 'standard', section: 'subjective', marks: 2, lines: 4 },
+    { kind: 'mcq', label: 'Multiple choice', layout: 'options', section: 'objective', marks: 1, lines: 0 },
   ], slotCap: 6 } as never);
   vi.mocked(portal.validateAssessmentEdit).mockResolvedValue({ ok: true, marks: 2, text: 'Added Q' } as never);
   vi.mocked(portal.saveAssessmentVersion).mockRejectedValue({ response: { status: 400, data: { code: 'INVALID_CHANGES',
@@ -230,4 +230,53 @@ it('F4/F5/F6: added errors do not go stale; picker is section-scoped; orphan err
   expect(screen.getByText(/Orphan problem\./)).toBeTruthy();
   fireEvent.click(screen.getAllByRole('button', { name: 'Remove' }).filter((b) => b.closest('[data-question^="added-"]'))[0]);
   expect(screen.queryByText('Bad added.')).toBeNull();
+});
+
+const KINDS = [
+  { kind: 'MCQs', label: 'MCQs', layout: 'options', section: 'objective', marks: 1, lines: 0 },
+  { kind: 'Match the Column', label: 'Match the Column', layout: 'columns', section: 'objective', marks: 4, lines: 0 },
+  { kind: 'Essay Writing', label: 'Essay Writing', layout: 'standard', section: 'subjective', marks: 5, lines: 12 },
+];
+
+it('picker lists kinds by their section', async () => {
+  vi.mocked(portal.getAssessmentAddKinds).mockResolvedValue({ kinds: KINDS, slotCap: 6 } as never);
+  render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
+  await screen.findByText('What is a noun?');
+  const btns = screen.getAllByRole('button', { name: /Add a question/ });
+  fireEvent.click(btns[btns.length - 1]);
+  expect(await screen.findByRole('button', { name: 'Essay Writing' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'MCQs' })).toBeNull();
+  fireEvent.click(screen.getAllByRole('button', { name: /Add a question/ })[0]);
+  expect(await screen.findByRole('button', { name: 'Match the Column' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'MCQs' })).toBeTruthy();
+});
+
+it('adding a Match the Column validates with its pairs and shows the New card under Objective', async () => {
+  vi.mocked(portal.getAssessmentAddKinds).mockResolvedValue({ kinds: KINDS, slotCap: 6 } as never);
+  vi.mocked(portal.validateAssessmentEdit).mockResolvedValue({ ok: true, marks: 4, text: 'Match these' } as never);
+  render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
+  await screen.findByText('What is a noun?');
+  fireEvent.click(screen.getAllByRole('button', { name: /Add a question/ })[0]);
+  fireEvent.click(await screen.findByRole('button', { name: 'Match the Column' }));
+  fireEvent.change(screen.getByLabelText('Pair 1 left'), { target: { value: 'cat' } });
+  fireEvent.change(screen.getByLabelText('Pair 1 right'), { target: { value: 'meow' } });
+  fireEvent.change(screen.getByLabelText('Pair 2 left'), { target: { value: 'dog' } });
+  fireEvent.change(screen.getByLabelText('Pair 2 right'), { target: { value: 'woof' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  const added = await screen.findByText('Match these');
+  expect(vi.mocked(portal.validateAssessmentEdit).mock.calls[0][1]).toEqual({ kind: 'Match the Column',
+    edit: expect.objectContaining({ pairs: [{ left: 'cat', right: 'meow' }, { left: 'dog', right: 'woof' }] }) });
+  const objective = screen.getByText('Objective').closest('section')!;
+  expect(objective.contains(added)).toBe(true);
+  expect(screen.getByText('Subjective').closest('section')!.contains(added)).toBe(false);
+});
+
+it('a legacy stored draft entry without a section still renders under Subjective', async () => {
+  localStorage.setItem('assessment-edit-draft:v1', JSON.stringify({ parentId: 'v1', edits: {}, removed: [], restored: [],
+    added: [{ kind: 'short', edit: { question: 'Old one' }, marks: 2, text: 'Old one' }] }));
+  render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
+  await screen.findByText(/unsaved changes from before/);
+  fireEvent.click(screen.getByRole('button', { name: 'Keep them' }));
+  const old = await screen.findByText('Old one');
+  expect(screen.getByText('Subjective').closest('section')!.contains(old)).toBe(true);
 });

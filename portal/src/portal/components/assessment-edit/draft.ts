@@ -1,4 +1,4 @@
-import type { AddKind, EditChanges } from '../../services/api';
+import type { EditChanges } from '../../services/api';
 
 /**
  * Her unsaved changes to one version — a LIST OF CHANGES, never a rebuilt paper.
@@ -9,7 +9,7 @@ export type Draft = {
   edits: Record<string, { edit: Record<string, unknown>; marks: number; text: string }>;
   removed: string[];
   restored: string[];
-  added: { kind: AddKind['kind']; edit: Record<string, unknown>; marks: number; text: string }[];
+  added: { kind: string; section?: 'objective' | 'subjective'; edit: Record<string, unknown>; marks: number; text: string }[];
 };
 
 const KEY = (parentId: string) => `assessment-edit-draft:${parentId}`;
