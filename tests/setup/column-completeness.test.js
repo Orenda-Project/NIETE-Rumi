@@ -153,7 +153,9 @@ function schemaColumns(sql) {
     tables[name] = cols;
   }
   // idempotent reconcile section
-  const alterRe = /ALTER TABLE (\w+) ADD COLUMN (?:IF NOT EXISTS )?([a-z_][a-z0-9_]*)/gi;
+  // The reconcile section writes `ALTER TABLE public.x\n    ADD COLUMN IF NOT EXISTS y` — schema-qualified and
+  // over two lines — so the name and the column are matched across whitespace, not on one line.
+  const alterRe = /ALTER TABLE (?:public\.)?(\w+)\s+ADD COLUMN\s+(?:IF NOT EXISTS\s+)?([a-z_][a-z0-9_]*)/gi;
   let a;
   while ((a = alterRe.exec(sql)) !== null) {
     const name = a[1].toLowerCase();
