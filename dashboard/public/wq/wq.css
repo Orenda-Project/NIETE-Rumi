@@ -298,7 +298,7 @@ html[lang=ur] .wq-ml,html[lang=ur] .wq-mr,html[lang=ur] .wq-place{font-weight:70
 .wq-spk.wq-spk-big{width:96px;height:96px;font-size:44px}
 .wq-qtext.wq-qsmall{font-size:17px;color:var(--muted)}
 .wq-locked{cursor:default}
-.wq-opt .wq-m,.wq-ml .wq-m,.wq-mr .wq-m{font-size:1.45em}
+.wq-opt .wq-m,.wq-ml .wq-m,.wq-mr .wq-m,.wq-place .wq-m{font-size:1.45em}
 .wq-shp{position:relative}
 .wq-let{position:absolute;bottom:-5px;inset-inline-end:-5px;min-width:18px;height:18px;border-radius:9px;background:#fff;color:var(--navy);font:900 11px/18px var(--f);text-align:center;box-shadow:0 0 0 1px var(--line)}
 .wq-glyph{display:grid;place-items:center;width:100px;min-height:120px;padding:4px 0 22px;box-sizing:border-box;background:#fff;border-radius:16px;font:700 52px/1.7 var(--fu);color:var(--navy)}

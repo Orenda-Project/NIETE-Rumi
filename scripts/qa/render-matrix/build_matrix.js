@@ -234,6 +234,9 @@ function shapes(lang) {
       },
     }));
   });
+  add('order-maths', row(lang, {
+    media: { language: lang, web: webItem({ type: 'order', stem: lang === 'ur' ? 'چھوٹے سے بڑے کی ترتیب میں رکھیں۔' : 'Put these in order, smallest first.', key: 'B,D,A,C', why: w.why, options: ['$\\frac{1}{2}$', '$\\frac{1}{4}$', '$1$', '$\\frac{3}{8}$'].map((t, i) => ({ slot: 'ABCD'[i], text: t })) }) },
+  }), 'order item whose steps are maths');
   add('order-long', row(lang, {
     media: { language: lang, web: webItem({ type: 'order', stem: w.long, key: 'A,B,C,D', why: w.why, options: w.longOpt.map((t, i) => ({ slot: 'ABCD'[i], text: t })) }) },
   }));
