@@ -83,6 +83,14 @@ beforeEach(() => {
 
 const pdfHtml = () => htmlToPdf.mock.calls[0][0];
 const caption = () => WhatsAppService.sendDocument.mock.calls[0][3];
+// The text sent after the document that carries the report links, or undefined.
+const linksMsg = () => {
+  const i = WhatsAppService.sendMessage.mock.calls.findIndex((c) => String(c[1]).includes('/r/'));
+  if (i < 0) return undefined;
+  expect(WhatsAppService.sendMessage.mock.invocationCallOrder[i])
+    .toBeGreaterThan(WhatsAppService.sendDocument.mock.invocationCallOrder[0]);
+  return WhatsAppService.sendMessage.mock.calls[i][1];
+};
 const hrefs = (html) => [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
 // The document without its <style> (embedded font data is base64 and can hold any byte run).
 const body = (html) => html.replace(/<style[\s\S]*?<\/style>/g, '');
@@ -108,10 +116,13 @@ test('class known: the children still to play, greyed, name first then the list 
   expect(html).not.toContain(BASE);
   expect(visible).toContain('send /quiz, then tap “My quiz reports”');
 
-  // The live report and the reminder ride the teacher's own caption only.
-  const live = (caption().match(new RegExp(`${BASE}/r/[^/\\s]+(?=\\s|$)`)) || [])[0];
+  // Nor in the caption (it is forwarded with the document, COS 18:29Z): the
+  // live report and the reminder ride a SEPARATE text right after it.
+  expect(caption()).not.toContain('/r/');
+  const msg = linksMsg();
+  const live = (msg.match(new RegExp(`${BASE}/r/[^/\\s]+(?=\\s|$)`)) || [])[0];
   expect(Token.verifyTeacherReport(live.slice(`${BASE}/r/`.length))).toEqual({ teacherId: TEACHER, quizId: QUIZ });
-  expect(caption()).toContain(`${live}/remind`);
+  expect(msg).toContain(`${live}/remind`);
 });
 
 test('the old "not finished" box does not repeat a child the class list already shows', async () => {
@@ -147,7 +158,7 @@ test('teacher not on the list (or no setting): the PDF and caption are today\'s'
   expect(pdfHtml()).not.toContain(`${BASE}/r/`);
 });
 
-test('an Urdu quiz: the section in Urdu; the caption line in the teacher\'s own language', async () => {
+test('an Urdu quiz: the section in Urdu; the links text in the teacher\'s own language', async () => {
   seed({ language: 'ur', teacherLang: 'en' });
   await report.generate(SC, { reason: 'scheduled' });
   const html = pdfHtml();
@@ -155,7 +166,7 @@ test('an Urdu quiz: the section in Urdu; the caption line in the teacher\'s own 
   expect(html).toContain('میری کوئز رپورٹس');
   expect(html).not.toContain(BASE);
   expect(html).not.toContain('Not played yet');
-  expect(caption()).toMatch(/live report/i);
+  expect(linksMsg()).toMatch(/Live report/);   // the links text follows the teacher's language
 });
 
 test('no portal base URL: no section and no links (a link to nowhere is worse than none)', async () => {
@@ -167,38 +178,34 @@ test('no portal base URL: no section and no links (a link to nowhere is worse th
   expect(pdfHtml()).not.toMatch(/href="[^"]*\/r\//);
 });
 
-describe('the caption: with the class known, ONE class line replaces both counts (M3 173525)', () => {
-  // The reminder lives in the caption only: the PDF carries no report link.
-  const remindOf = () => (caption().match(new RegExp(`${BASE}/r/[^/\\s]+/remind`)) || [])[0];
+describe('caption = counts only; the links ride a separate text after the document (M3 173525, COS 18:29Z)', () => {
   const withHardQuestion = (fake) => {
     fake.db.quiz_questions.push({ id: 'q1', question_text: 'Which part takes in water?', option_a: 'Root', option_b: 'Leaf',
       option_c: 'Stem', option_d: 'Seed', correct_option: 'a' });
     fake.db.quiz_answers.push({ id: 'a1', session_id: 's1', question_id: 'q1', is_correct: true, selected_option: 'a' },
       { id: 'a2', session_id: 's2', question_id: 'q1', is_correct: false, selected_option: 'b' });
   };
+  const remindIn = (msg) => (msg.match(new RegExp(`${BASE}/r/[^/\\s]+/remind`)) || [])[0];
 
-  test('class known: "2 of 4 in 3-B played · 2 still to play — tap to remind: <remind link>", no session count', async () => {
+  test('class known: the caption counts the class and carries no link; the reminder + live report follow as text', async () => {
     seed();
     await report.generate(SC, { reason: 'scheduled' });
     const cap = caption();
-    const remind = remindOf();
-    expect(remind.startsWith(`${BASE}/r/`)).toBe(true);
-    expect(cap).toContain(`2 of 4 in 3-B played · 2 still to play — tap to remind: ${remind}`);
-    expect(cap).not.toMatch(/finished|have not played yet/);
-    expect(cap.startsWith('📊 Class results — *Plants*')).toBe(true);
-    expect(cap).toMatch(new RegExp(`${BASE}/r/[^/\\s]+(\\s|$)`));   // the live report still rides
+    expect(cap).toBe('📊 Class results — *Plants*\n\n2 of 4 in 3-B played · 2 still to play');
+    const msg = linksMsg();
+    expect(remindIn(msg)).toBeTruthy();
+    expect(msg).toMatch(/Remind the class/);
+    expect(msg).toMatch(/Live report/);
+    expect(msg).not.toMatch(/Kid|Testwala/);   // names no child
   });
 
-  test('the reteach pointer survives, on its own line ahead of the class line (the link ends its line)', async () => {
+  test('the reteach pointer sits above the class line', async () => {
     withHardQuestion(seed());
     await report.generate(SC, { reason: 'scheduled' });
-    const cap = caption();
-    expect(cap).toContain('1 question worth reteaching — inside');
-    expect(cap.indexOf('worth reteaching')).toBeLessThan(cap.indexOf('in 3-B played'));
-    expect(cap).not.toMatch(/\/remind ·/);
+    expect(caption()).toBe('📊 Class results — *Plants*\n\n1 question worth reteaching — inside\n2 of 4 in 3-B played · 2 still to play');
   });
 
-  test('an Urdu teacher: the class line in Urdu, numbers and the class name isolated', async () => {
+  test('an Urdu teacher: Urdu counts (numbers and class isolated) and an Urdu links message', async () => {
     seed({ teacherLang: 'ur' });
     await report.generate(SC, { reason: 'scheduled' });
     const cap = caption();
@@ -206,33 +213,36 @@ describe('the caption: with the class known, ONE class line replaces both counts
     expect(cap).toContain('⁦4⁩');
     expect(cap).toContain('⁨3-B⁩');
     expect(cap).toContain('ابھی باقی');
-    expect(cap).toContain(remindOf());
-    expect(cap).not.toContain('مکمل کیا');
-    expect(cap).not.toMatch(/played|finished/);
+    expect(cap).not.toMatch(/\/r\/|played|finished|مکمل کیا/);
+    const msg = linksMsg();
+    expect(remindIn(msg)).toBeTruthy();
+    expect(msg).toContain('کلاس کو یاد دلائیں');
+    expect(msg).not.toMatch(/Remind|Live report/);
   });
 
-  test('everyone on the list played: "4 of 4 in 3-B played", no reminder', async () => {
+  test('everyone on the list played: "4 of 4 in 3-B played"; the text carries the live report only', async () => {
     const fake = seed();
     fake.db.quiz_sessions.push(session('s3', 3, 3), session('s4', 4, 1));
     await report.generate(SC, { reason: 'scheduled' });
-    const cap = caption();
-    expect(cap).toContain('4 of 4 in 3-B played');
-    expect(cap).not.toMatch(/still to play|\/remind|finished/);
+    expect(caption()).toBe('📊 Class results — *Plants*\n\n4 of 4 in 3-B played');
+    const msg = linksMsg();
+    expect(msg).toMatch(new RegExp(`${BASE}/r/[^/\\s]+(\\s|$)`));
+    expect(msg).not.toMatch(/\/remind/);
   });
 
-  test('no class list: the sessions are all we have — today\'s "2 of 2 finished" + the live link', async () => {
+  test('no class list: today\'s "2 of 2 finished" caption; the reminder + live report as text', async () => {
     seed({ lists: false });
     await report.generate(SC, { reason: 'scheduled' });
-    const cap = caption();
-    expect(cap).toContain('2 of 2 finished');
-    expect(cap).not.toMatch(/ in 3-B|still to play/);
-    expect(cap).toMatch(new RegExp(`${BASE}/r/[^/\\s]+(\\s|$)`));
+    expect(caption()).toBe('📊 Class results — *Plants*\n\n2 of 2 finished');
+    expect(remindIn(linksMsg())).toBeTruthy();
   });
 
-  test('teacher not on the list: the caption is exactly today\'s', async () => {
+  test('teacher not on the list: exactly today\'s caption, and no links message', async () => {
     seed({ gate: null });
     await report.generate(SC, { reason: 'scheduled' });
     expect(caption()).toBe('📊 Class results — *Plants*\n\n2 of 2 finished');
+    expect(linksMsg()).toBeUndefined();
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
   });
 });
 

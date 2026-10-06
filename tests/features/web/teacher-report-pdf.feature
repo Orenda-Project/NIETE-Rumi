@@ -14,16 +14,18 @@ Feature: Teacher quiz report in the class report PDF and the "All my classes" ta
     When the scheduled class report is sent
     Then the PDF has a "Not played yet" section with the 9 children still to play, first names with their list no., in list order
     And the PDF carries NO report link (it is forwarded to class groups) — it says "send /quiz, then tap “My quiz reports”"
-    And only the caption, the teacher's own message, carries the live report link and the "/r/<token>/remind" reminder
+    And neither does its caption (a forwarded document carries its caption): the live report link and the "/r/<token>/remind" reminder follow as a separate text
 
   @T358
-  Scenario: With the class known, the caption counts the class in one line and links the reminder
+  Scenario: The caption counts the class and carries no link; the links follow as their own text
     When the scheduled class report is sent
-    Then the caption reads "6 of 15 in 3-B played · 9 still to play — tap to remind: <link>" with the "/r/<token>/remind" link
+    Then the caption reads "6 of 15 in 3-B played · 9 still to play" and contains no link
     And it no longer says how many sessions finished
-    And for an Urdu-speaking teacher the same line is Urdu with the numbers and the class name isolated
-    And when everyone on the list has played it reads "15 of 15 in 3-B played" with no reminder
+    And right after the PDF a text carries "Remind the class" with "/r/<token>/remind" and the live report "/r/<token>", naming no child
+    And for an Urdu-speaking teacher both are Urdu, the numbers and the class name isolated
+    And when everyone on the list has played the caption reads "15 of 15 in 3-B played" and the text carries the live report only
     And with no class list the caption keeps "<finished> of <started> finished"
+    And a teacher not on the teacher report list gets today's caption and no links text
 
   @T351
   Scenario: A child who started but did not finish is listed once
