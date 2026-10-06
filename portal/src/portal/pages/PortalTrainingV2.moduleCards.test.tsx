@@ -15,6 +15,12 @@
  *                       a lock, and "Finish Module N first" in words a phone
  *                       can see (the hint used to be a hover-only title)
  *   exam + reading      below the cards, in their own card
+ *
+ * Operator, 2026-10-06 (on sandbox): the green-filled done card "looks weird";
+ * design option 1 (versions/v3_done-state-options): every card stays white and
+ * done is a small green check badge, "Completed". The quiz is a "Quiz" chip at
+ * the foot. No "Up next" on the FIRST module: nothing is behind it yet, so
+ * "next" says nothing.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -96,7 +102,7 @@ describe("Course page — modules as cards", () => {
     renderCourse();
     const done = await screen.findByTestId("module-item-m-1");
     const line = within(done).getByTestId("module-assessment-m-1");
-    expect(line).toHaveTextContent("Assessment");
+    expect(line).toHaveTextContent("Quiz");
     expect(await within(line).findByTestId("quiz-score-badge")).toHaveTextContent("8 / 10");
     // A module with no questions promises no assessment.
     expect(screen.queryByTestId("module-assessment-m-3")).not.toBeInTheDocument();
@@ -130,5 +136,30 @@ describe("Course page — modules as cards", () => {
     renderCourse();
     await userEvent.click(await screen.findByTestId("module-item-m-2"));
     expect(screen.getByTestId("where").textContent).toBe("/portal/training/unit/m-2");
+  });
+
+  it("keeps a done card white, with a Completed check badge", async () => {
+    renderCourse();
+    const done = await screen.findByTestId("module-item-m-1");
+    expect(done.className).not.toMatch(/bg-green/);
+    expect(within(done).getByTestId("module-done-badge")).toHaveTextContent("Completed");
+    // An open module not yet quizzed says so in words, not a dash.
+    expect(await within(screen.getByTestId("module-assessment-m-2")).findByText("Not attempted")).toBeInTheDocument();
+  });
+
+  it("does not call the first module Up next", async () => {
+    const fresh = MODULES.map((m, i) => ({ ...m, completed_at: null, lock: i === 0 ? "next" : "locked" }));
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === "/training/vendors") return Promise.resolve({ data: { vendors: VENDORS } });
+      if (url === "/training/levels") return Promise.resolve({ data: { levels: LEVELS } });
+      if (url === "/training/courses") return Promise.resolve({ data: { courses: COURSES } });
+      if (url === "/training/modules") return Promise.resolve({ data: { modules: fresh, exam: null } });
+      if (/^\/training\/module\/.+\/attempts$/.test(url)) return Promise.resolve({ data: { attempts: [] } });
+      return Promise.resolve({ data: {} });
+    });
+    renderCourse();
+    const first = await screen.findByTestId("module-item-m-1");
+    expect(first).not.toHaveTextContent("Up next");
+    expect(first).not.toBeDisabled();
   });
 });

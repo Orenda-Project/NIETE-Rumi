@@ -53,7 +53,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'rea
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import {
-  GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck,
+  GraduationCap, Check, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck,
   Building2, FileText, ChevronLeft, ChevronRight, Clock, PlayCircle,
 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
@@ -1376,7 +1376,13 @@ const PortalTrainingV2 = () => {
                 and the second row cut long titles short on a phone). The lock
                 is still the bot's (bd-vej4h, unitRowState): a locked card is
                 disabled and says in words which module opens it, because the
-                hover hint never reached a phone. */}
+                hover hint never reached a phone.
+
+                Operator, 2026-10-06 (design option 1): a done card stays
+                WHITE, with a small green "Completed" badge; the green-filled
+                card turned the whole page green once most modules were done.
+                The very first module never says "Up next": nothing is behind
+                it, so "next" says nothing (its outline still marks the start). */}
             {screenKind === 'course' && (
               <section className="mb-8" data-testid="module-list">
                 <div className="flex items-baseline justify-between mb-3 gap-3">
@@ -1412,6 +1418,7 @@ const PortalTrainingV2 = () => {
                         const row = unitRowState(m);
                         const done = !!m.completed_at;
                         const isNext = !row.disabled && sameId(m.id, nextId);
+                        const showNextTag = isNext && i > 0;
                         const highlight = active || isNext;
                         return (
                           <button
@@ -1428,9 +1435,7 @@ const PortalTrainingV2 = () => {
                             className={`text-left rounded-xl border p-5 flex flex-col gap-2 transition-all ${
                               row.disabled
                                 ? 'border-dashed border-border bg-muted/40 cursor-not-allowed'
-                                : done
-                                  ? 'border-green-200 bg-green-50/60 hover:shadow-md hover:-translate-y-0.5'
-                                  : 'border-border bg-card shadow-sm hover:shadow-md hover:-translate-y-0.5'
+                                : 'border-border bg-card shadow-sm hover:shadow-md hover:-translate-y-0.5'
                             }`}
                             style={highlight && !done ? { borderColor: bar, boxShadow: `0 0 0 1px ${bar}` } : undefined}
                           >
@@ -1439,10 +1444,17 @@ const PortalTrainingV2 = () => {
                                 MODULE {i + 1}
                               </span>
                               {done
-                                ? <CheckCircle2 className="w-4 h-4 text-green-700 shrink-0" aria-label="Done" />
+                                ? (
+                                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-green-700 shrink-0" data-testid="module-done-badge">
+                                    <span className="w-5 h-5 rounded-full bg-green-700 text-white inline-flex items-center justify-center">
+                                      <Check className="w-3 h-3" strokeWidth={3.5} />
+                                    </span>
+                                    Completed
+                                  </span>
+                                )
                                 : row.disabled
                                   ? <Lock className="w-4 h-4 text-muted-foreground shrink-0" aria-label="Locked" />
-                                  : isNext
+                                  : showNextTag
                                     ? (
                                       <span
                                         className="text-xs font-semibold text-white rounded-full px-2 py-0.5 shrink-0"
@@ -1458,32 +1470,29 @@ const PortalTrainingV2 = () => {
                               {m.title}
                             </div>
 
-                            {m.duration_seconds > 0 && (
-                              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                                <Clock className="w-3.5 h-3.5" />
-                                {formatDuration(m.duration_seconds)}
-                              </span>
-                            )}
-
                             {row.disabled ? (
                               <div className="mt-auto pt-3 border-t flex items-center gap-2 text-sm text-muted-foreground">
                                 <Lock className="w-3.5 h-3.5 shrink-0" />
                                 {i > 0 ? `Finish Module ${i} first` : row.hint}
                               </div>
-                            ) : m.has_questions ? (
-                              <div
-                                className={`mt-auto pt-3 border-t flex items-center justify-between gap-2 text-sm ${done ? 'border-green-200' : ''}`}
-                                data-testid={`module-assessment-${m.id}`}
-                              >
-                                <span className="inline-flex items-center gap-2 text-foreground">
-                                  <ClipboardCheck className="w-4 h-4 text-muted-foreground shrink-0" />
-                                  Assessment
-                                </span>
-                                <QuizScoreBadge
-                                  attempts={attempts ?? null}
-                                  moduleCompleted={done}
-                                  loading={loading}
-                                />
+                            ) : (m.duration_seconds > 0 || m.has_questions) ? (
+                              <div className="mt-auto pt-3 border-t flex items-center justify-between gap-2 text-sm">
+                                {m.duration_seconds > 0 ? (
+                                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    {formatDuration(m.duration_seconds)}
+                                  </span>
+                                ) : <span />}
+                                {m.has_questions && (
+                                  <span
+                                    className="inline-flex items-center gap-1.5 text-muted-foreground"
+                                    data-testid={`module-assessment-${m.id}`}
+                                  >
+                                    Quiz
+                                    {/* Never a bare dash on a card: no attempt reads "Not attempted". */}
+                                    <QuizScoreBadge attempts={attempts ?? null} moduleCompleted loading={loading} />
+                                  </span>
+                                )}
                               </div>
                             ) : null}
                           </button>
