@@ -2987,14 +2987,20 @@ const UX_STRINGS = {
     en: '📈 Live report (it updates as more children play):\n{url}',
     ur: '\u200F📈 تازہ رپورٹ، جو مزید بچوں کے کھیلنے پر بدلتی رہتی ہے:\n{url}',
   },
-  // The count line above it, only when the quiz's one class list is known
-  // (M3 decision 5): how many on the list have not played, and the "Remind the
-  // class" share. Urdu numbers are isolated (U+2066…U+2069) so they never swap
-  // places around the Urdu words; «کھیلا» with نے is the ergative default, not
-  // a person's gender.
-  vqReportNotPlayedRemind: {
-    en: '{n} of {of} have not played yet · tap to remind the class: {url}',
-    ur: '\u200F\u2066{of}\u2069 میں سے \u2066{n}\u2069 بچوں نے ابھی نہیں کھیلا · کلاس کو یاد دلانے کے لیے دبائیں:\n{url}',
+  // With the quiz's one class list known, ONE class line replaces the session
+  // count in the caption (M3 decision): how many on the list played, how many
+  // are still to play, and the "Remind the class" share. The sessions count
+  // ("68 of 87 finished") stays only when the class is unknown. Urdu numbers
+  // are isolated (U+2066…U+2069) and the class name, typed by the teacher in
+  // any script, first-strong isolated (U+2068…U+2069); «نے کھیل لیا» is the
+  // ergative, no person's gender.
+  vqReportClassPlayed: {
+    en: '{played} of {of} in {cls} played · {left} still to play — tap to remind: {url}',
+    ur: '\u200F\u2068{cls}\u2069 کے \u2066{of}\u2069 میں سے \u2066{played}\u2069 نے کھیل لیا · \u2066{left}\u2069 ابھی باقی — یاد دلانے کے لیے دبائیں:\n{url}',
+  },
+  vqReportClassAllPlayed: {
+    en: '{of} of {of} in {cls} played',
+    ur: '\u200F\u2068{cls}\u2069 کے سب \u2066{of}\u2069 بچوں نے کھیل لیا',
   },
   vqReportNoOne: {
     en: 'No one has opened your quiz on \u201c{topic}\u201d yet. The link stays live for 30 days \u2014 worth a nudge in the class group.',
