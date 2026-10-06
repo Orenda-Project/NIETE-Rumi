@@ -260,7 +260,10 @@ var WQI = (function () {
       : '<div class="wq-qcard"><p class="wq-qtext">' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">🔊</button></div>' + stim;
     var body = '';
     var pics = o.length && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')); });
-    if (k === 'picture' || (k === 'listen' && pics)) {
+    // A picture grid needs every option to be a picture (or an emoji, drawn big): one the bot could not
+    // draw stays a word, and a word in a picture tile was painted twice (render matrix). Then: a list.
+    var grid = o.length && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')) || !speakable(x.text); });
+    if ((k === 'picture' && grid) || (k === 'listen' && pics)) {
       var quiet = k === 'listen';
       body = '<div class="wq-pgrid" role="group">' + o.map(function (x, i) {
         var nm = x.name || (x.pic && x.pic.name) || x.text || '';
