@@ -374,7 +374,7 @@ Feature: Web child quiz page on the portal
     And a question that needs the picture is left out, and the quiz still has at least three questions
     And a question that asks which letter fills the gap keeps its picture
 
-  @T310
+  @T370
   Scenario: A child who loses the internet at the end still sees their score
     Given a child answered every question and the phone then lost its connection
     When the quiz ends
@@ -382,27 +382,27 @@ Feature: Web child quiz page on the portal
     And it says "Your results will reach your teacher when you are back online." («انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔»)
     And no "No internet right now" error screen is shown
 
-  @T311
+  @T371
   Scenario: The result is sent by itself when the connection comes back
     Given a child finished the quiz offline and the results screen says the result will reach the teacher
     When the phone is back online (or the child taps "Send now", or a minute passes)
     Then the result is sent without the child doing anything else
     And the screen changes to the real results with "See my card" and "See my class"
 
-  @T312
+  @T372
   Scenario: A tab closed before the result was sent sends it on the next open
     Given a child finished the quiz offline and closed WhatsApp before the connection came back
     When the child opens the same quiz link again with internet
     Then the page sends the result and opens the results, never "Go on: question 5 of 5"
 
-  @T313
+  @T373
   Scenario: A flapping or very slow connection loses no answer and records none twice
     Given the connection drops and returns every few seconds, or each request takes over a second
     When a child plays the whole quiz
     Then every answer is recorded exactly once and the results arrive
     And a result sent up to a week later is still accepted
 
-  @T314
+  @T374
   Scenario: The next questions' pictures and voice are fetched ahead of time
     Given a child is on question 1 of a quiz with pictures and recorded voice
     When the question has been on screen for a moment
