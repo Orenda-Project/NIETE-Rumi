@@ -181,6 +181,23 @@ describe('POST /who/class — the teacher binds an unbound hand-out', () => {
     expect((await WQ.getQuiz('AB12CD')).cls.identity.class).toEqual({ state: 'known', label: '4-B', ask: null });
   });
 
+  test('a database without the column (PostgREST PGRST204 on the write) answers 503 not_ready, not a 502', async () => {
+    seed({ codeClass: null });
+    const { class: c } = await IdRoster.nonAttempters({ shareCodeId: F.SC });
+    const key = c.classes.find((x) => x.label === '4-B').key;
+    const realFrom = supabase.from;
+    supabase.from = (t) => {
+      const b = realFrom(t);
+      if (t !== 'quiz_share_codes') return b;
+      const upd = b.update;
+      b.update = () => ({ eq: async () => ({ data: null, error: { code: 'PGRST204', message: "Could not find the 'class_id' column of 'quiz_share_codes' in the schema cache" } }) });
+      void upd;
+      return b;
+    };
+    await expect(WQ.whoClass({ code: 'AB12CD', p: P, key })).rejects.toMatchObject({ status: 503, body: { error: 'not_ready' } });
+    supabase.from = realFrom;
+  });
+
   test('an unknown key is a 404, no token is a 401', async () => {
     seed({ codeClass: null });
     await expect(WQ.whoClass({ code: 'AB12CD', p: P, key: 'nope' })).rejects.toMatchObject({ status: 404 });
