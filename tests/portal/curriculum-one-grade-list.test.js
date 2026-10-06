@@ -49,11 +49,20 @@ describe('there is one Lesson Plans tab, not two', () => {
     ))).toBe(false);
   });
 
-  test('exactly two tabs remain: lesson plans and the assessment generator', () => {
-    const triggers = code.match(/<TabsTrigger value="([a-z0-9]+)"/g) || [];
-    expect(triggers).toHaveLength(2);
-    expect(triggers.join(' ')).toContain('"library"');
-    expect(triggers.join(' ')).toContain('"assessment"');
+  // bd-4n7p4 — the Assessment Generator left this page for its own (ClassicAssessment, at
+  // /portal/assessment), so the page holds exactly ONE lesson-plan list and no tabs at all.
+  test('the Curriculum page has no tabs: one lesson-plan list, no assessment tab', () => {
+    expect(code).not.toContain('<TabsTrigger');
+    expect(code).not.toContain('<Tabs');
+    expect(code).not.toContain('AssessmentGeneratorPanel');
+    expect((code.match(/1\. Grade/g) || []).length).toBe(1);
+  });
+
+  test('the assessment generator lives on its own page', () => {
+    const page = fs.readFileSync(path.join(
+      __dirname, '..', '..', 'portal', 'src', 'portal', 'pages', 'ClassicAssessment.tsx',
+    ), 'utf8');
+    expect(page).toContain('<AssessmentGeneratorPanel');
   });
 });
 
@@ -108,7 +117,7 @@ describe('each lane is addressed the way its own service expects', () => {
   test('the picker rows are normalised, so the JSX speaks one dialect', () => {
     // The mapping happens in the loaders. If the raw keys leaked into the markup, every row
     // would need a lane branch — four more places to get it wrong.
-    const jsx = code.slice(code.indexOf('<TabsContent value="library">'));
+    const jsx = code.slice(code.indexOf('Cascading picker'));
     expect(jsx).not.toContain('subject_key');
     expect(jsx).not.toContain('lesson_id');
     expect(jsx).not.toContain('lp.topic');

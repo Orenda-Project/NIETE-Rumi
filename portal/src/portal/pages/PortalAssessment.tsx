@@ -3,24 +3,28 @@ import { useAuth } from '../hooks/useAuth';
 import { AuthContext } from '../hooks/authContext';
 import { isLeader } from '../lib/leaderRole';
 import { useNewUi } from '../lib/useNewUi';
-import { OLD_ASSESSMENT_TAB, type AssessmentView } from '../lib/assessmentRoutes';
+import { ASSESSMENT_PATH, type AssessmentView } from '../lib/assessmentRoutes';
 import LoadingState from '../components/LoadingState';
+import ClassicAssessment from './ClassicAssessment';
 import AssessmentHome from '../newui/assessment/AssessmentHome';
 import AssessmentRequest from '../newui/assessment/AssessmentRequest';
 import MyAssessments from '../newui/assessment/MyAssessments';
 
 /**
  * bd-5rz1v.13 — /portal/assessment and the pages inside it. They exist only in the new UI
- * (`portal_new_ui`): with the flag off, unreadable, or for a school leader, every address goes
- * to the Curriculum page's Assessment tab, which renders exactly what it did before
- * (PortalHomeList's rule for Home's lists).
+ * (`portal_new_ui`). With the flag off, unreadable, or for a school leader, the home address is the
+ * old UI's own Assessment Generator page (ClassicAssessment — bd-4n7p4, it was a Curriculum tab
+ * before), and the inner addresses go to it (PortalHomeList's rule for Home's lists).
  */
 const PortalAssessment = ({ view }: { view: AssessmentView }) => {
   const auth = useAuth();
   const { user, loading } = auth;
   const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user);
   if (newUi === null && (loading || user)) return <LoadingState type="full" />;
-  if (newUi !== true || !user || isLeader(user)) return <Navigate to={OLD_ASSESSMENT_TAB} replace />;
+  if (newUi !== true || !user || isLeader(user)) {
+    // The home route IS the classic page; the inner routes land on it, so there is no loop.
+    return view === 'home' ? <ClassicAssessment /> : <Navigate to={ASSESSMENT_PATH} replace />;
+  }
   return (
     <AuthContext.Provider value={auth}>
       {view === 'home' ? <AssessmentHome /> : view === 'request' ? <AssessmentRequest /> : <MyAssessments />}

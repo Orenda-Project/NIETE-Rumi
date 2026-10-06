@@ -13,6 +13,7 @@ import { resolve } from "node:path";
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("../services/api", () => ({ portal: { getConfig: vi.fn() } }));
+vi.mock("./ClassicAssessment", () => ({ default: () => <p>classic assessment page</p> }));
 vi.mock("../newui/assessment/AssessmentHome", () => ({ default: () => <p>new assessment page</p> }));
 vi.mock("../newui/assessment/AssessmentRequest", () => ({ default: () => <p>new writing page</p> }));
 vi.mock("../newui/assessment/MyAssessments", () => ({ default: () => <p>new my assessments</p> }));
@@ -81,19 +82,46 @@ describe("flag on, a teacher", () => {
   });
 });
 
-describe("otherwise: the old Curriculum page's Assessment tab", () => {
+describe("otherwise: the old UI's Assessment Generator page (bd-4n7p4)", () => {
   it.each([
     ["flag off", TEACHER, false],
     ["flag absent", TEACHER, "absent"],
     ["config unreadable", TEACHER, "throws"],
     ["a school leader, flag on", COACH, true],
-  ] as const)("%s", async (_why, user, flag) => {
-    for (const path of ["/portal/assessment", "/portal/assessment/mine", "/portal/assessment/request/r-1"]) {
+  ] as const)("%s: home renders ClassicAssessment", async (_why, user, flag) => {
+    renderAt("/portal/assessment", user, flag);
+    expect(await screen.findByText("classic assessment page")).toBeInTheDocument();
+    expect(screen.queryByText(/new /)).toBeNull();
+  });
+
+  it.each([
+    ["flag off", TEACHER, false],
+    ["a school leader, flag on", COACH, true],
+  ] as const)("%s: request and mine redirect to /portal/assessment", async (_why, user, flag) => {
+    for (const path of ["/portal/assessment/mine", "/portal/assessment/request/r-1"]) {
       const view = renderAt(path, user, flag);
-      expect(await screen.findByTestId("where")).toHaveTextContent("/portal/curriculum?tab=assessment");
+      // The redirect lands on the home route, which renders the classic page (no loop).
+      expect(await screen.findByText("classic assessment page")).toBeInTheDocument();
       expect(screen.queryByText(/new /)).toBeNull();
       view.unmount();
       resetNewUiMemory();
     }
+  });
+
+  it("the redirect goes to the plain /portal/assessment", async () => {
+    let seen = "";
+    function Spy() { const l = useLocation(); seen = l.pathname + l.search; return <p>classic assessment page</p>; }
+    vi.mocked(useAuth).mockReturnValue({ user: TEACHER, loading: false, logout: vi.fn() } as unknown as ReturnType<typeof useAuth>);
+    vi.mocked(portal.getConfig).mockResolvedValue({ success: true, features: { newUi: false } } as never);
+    render(
+      <MemoryRouter initialEntries={["/portal/assessment/mine"]}>
+        <Routes>
+          <Route path="/portal/assessment" element={<Spy />} />
+          <Route path="/portal/assessment/mine" element={<PortalAssessment view="mine" />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByText("classic assessment page");
+    expect(seen).toBe("/portal/assessment");
   });
 });

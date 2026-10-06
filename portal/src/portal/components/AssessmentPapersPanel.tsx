@@ -187,7 +187,7 @@ const AssessmentPapersPanel = ({ refreshKey = 0, editing = false }: Props) => {
           <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">
             {gradeFilter === ALL && subjectFilter === ALL
-              ? 'No papers yet. Make one from the Assessment Generator tab.'
+              ? 'No papers yet. Make one above.'
               : 'No papers match these filters.'}
           </p>
         </div>

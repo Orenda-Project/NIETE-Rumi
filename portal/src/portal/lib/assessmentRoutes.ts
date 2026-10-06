@@ -15,6 +15,3 @@ export const ASSESSMENT_ROUTES: ReadonlyArray<{ path: string; view: AssessmentVi
   { path: `${ASSESSMENT_PATH}/request/:requestId`, view: 'request' },
   { path: `${ASSESSMENT_PATH}/mine`, view: 'mine' },
 ];
-
-/** Where every Assessment address goes when the new UI is off (or she is a school leader). */
-export const OLD_ASSESSMENT_TAB = '/portal/curriculum?tab=assessment';
