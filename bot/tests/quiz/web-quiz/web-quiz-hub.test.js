@@ -163,7 +163,28 @@ describe('hub(): from your teacher', () => {
 
   test('(b) else the class teacher\'s open code from the last 7 days for the list\'s grade (not grade 5, not 9 days old)', async () => {
     const out = await Hub.hub(T.signHub([KID]));
-    expect(out.teacher).toMatchObject({ code: 'NEWQ01', topic: 'Shapes', src: 'class', k: T.chipId('sc-new', KID) });
+    expect(out.teacher).toMatchObject({ code: 'NEWQ01', topic: 'Shapes', src: 'teacher', k: T.chipId('sc-new', KID) });
+  });
+
+  test('(b) a LOOSE child (no class list, as every prod quiz child today): the teachers whose links they played', async () => {
+    db.students[0].list_id = null;
+    db.students[0].self_reported_class = '3B';
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.teacher).toMatchObject({ code: 'NEWQ01', src: 'teacher' });
+  });
+
+  test('(b) a quiz with no grade, or a band without the child\'s grade, is never the teacher card', async () => {
+    db.quizzes.find((q) => q.id === 'q-new').grade = null;
+    expect((await Hub.hub(T.signHub([KID]))).teacher).toBeNull();
+    db.quizzes.find((q) => q.id === 'q-new').grade = '4-6';
+    expect((await Hub.hub(T.signHub([KID]))).teacher).toBeNull();
+    db.quizzes.find((q) => q.id === 'q-new').grade = '1-3';
+    expect((await Hub.hub(T.signHub([KID]))).teacher).toMatchObject({ code: 'NEWQ01' });
+  });
+
+  test('(b) another teacher\'s code is never shown', async () => {
+    db.quiz_share_codes.find((c) => c.id === 'sc-new').teacher_user_id = '11111111-1111-4111-8111-00000000000f';
+    expect((await Hub.hub(T.signHub([KID]))).teacher).toBeNull();
   });
 
   test('none: no open, unfinished code for the grade -> null (the page shows the warm empty state)', async () => {
@@ -231,6 +252,16 @@ describe('hub(): recommended for you', () => {
     const call = logEvent.mock.calls.find((c) => c[0] === 'web_quiz.hub_open');
     expect(call[1]).toMatchObject({ kids: 1, has_teacher: true, again_n: 2, recs_n: 3 });
     expect(JSON.stringify(call[1])).not.toMatch(/Sana|Testwala|4444/);
+  });
+});
+
+describe('kidFromHub (the library and challenge routes)', () => {
+  test('the chip\'s child, their grade and their class root code; a foreign chip or forged token is null', async () => {
+    const token = T.signHub([KID, SIB]);
+    expect(await Hub.kidFromHub(token, chipH(KID))).toEqual({ studentId: KID, grade: '3', rootId: 'sc-maths' });
+    expect(await Hub.kidFromHub(token, chipH(OTHER))).toBeNull();
+    expect(await Hub.kidFromHub('abc.def', chipH(KID))).toBeNull();
+    expect(await Hub.kidFromHub(token, chipH(SIB))).toEqual({ studentId: SIB, grade: '5', rootId: null });
   });
 });
 

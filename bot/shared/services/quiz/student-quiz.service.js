@@ -44,7 +44,7 @@ function pctOf(s) {
 /**
  * The quizzes taken on this handset, newest first, one entry per share code.
  * @returns {Promise<Array<{shareCodeId, code, active, quizId, topic, subject, language, studentId,
- *   studentName, className, attempts, latest, best, lastAt, teacherSent, sentAt, grade, videoId}>>}
+ *   studentName, className, attempts, latest, best, lastAt, teacherSent, sentAt, teacherUserId, grade, videoId}>>}
  */
 async function quizzesForHandset(phone) {
   return quizzesForStudents(await StudentIdentity.findByPhone(phone));
@@ -89,7 +89,7 @@ async function quizzesForStudents(known) {
 
   const [{ data: codes }, { data: quizzes }] = await Promise.all([
     supabase.from('quiz_share_codes')
-      .select('id, code, active, expires_at, topic, language, parent_share_code_id, invited_by_student_id, created_at')
+      .select('id, code, active, expires_at, topic, language, parent_share_code_id, invited_by_student_id, created_at, teacher_user_id')
       .in('id', list.map((g) => g.shareCodeId)),
     supabase.from('quizzes').select('id, topic, subject, language, grade, video_id')
       .in('id', list.map((g) => g.quizId)),
@@ -112,6 +112,7 @@ async function quizzesForStudents(known) {
       className: g.className || st.self_reported_class || null,
       teacherSent: Boolean(c.code) && !c.parent_share_code_id && !c.invited_by_student_id,
       sentAt: c.created_at || null,
+      teacherUserId: c.teacher_user_id || null,
       grade: q.grade || null,
       videoId: q.video_id || null,
     };

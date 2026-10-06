@@ -14,11 +14,12 @@
  *
  *   hub(token, {kid})      the page's boot JSON (contract: W37 M4 SPEC §1.3)
  *   hubLink(studentIds)    `<portal>/h/<token>` when the hub is on, else null
- *   kidOf(token, kid)      the student id a hub chip names (for other hub routes)
+ *   kidOf(token, kid)      the student id a hub chip names
+ *   kidFromHub(token, kid) {studentId, grade, rootId} for the library / challenge routes
  *
  * Teacher card: (a) a teacher-sent code this child opened and has not finished,
- * still open; else (b) an open code their class teacher sent in the last 7 days
- * for the class list's grade. Play again: finished, still-open codes, newest
+ * still open; else (b) an open code from the last 7 days, of the child's grade,
+ * from the child's teachers (the class list's, and those whose links they played). Play again: finished, still-open codes, newest
  * first, with the best score and the number of tries (the FIRST finish is the
  * one the teacher sees; every later one is practice — web-quiz.service countedFor).
  * Recommended: the last finished quiz's subject and grade, same chapter first,
@@ -132,25 +133,26 @@ async function teacherCard(kidRow, list, history, grade) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return { code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' };
-  // (b) the class teacher's open codes from the last 7 days for the list's grade.
-  if (!list || !list.user_id || !grade) return null;
+  // (b) an open code from the last 7 days, for the child's grade (band-aware), from the child's
+  // teachers: the class list's teacher, and the teachers whose links this child has played
+  // (every quiz child on prod is a loose students row with no list, so the second is the one that finds them).
+  const teachers = [...new Set([list && list.user_id, ...history.filter((e) => e.teacherSent).map((e) => e.teacherUserId)].filter(Boolean))];
+  if (!teachers.length || !grade) return null;
   const { data: codes } = await supabase.from('quiz_share_codes')
     .select('id, code, quiz_id, topic, active, expires_at, created_at')
-    .eq('teacher_user_id', list.user_id).eq('active', true)
+    .in('teacher_user_id', teachers.slice(0, 5)).eq('active', true)
     .is('parent_share_code_id', null).is('invited_by_student_id', null)
-    .gte('created_at', daysAgoIso(TEACHER_DAYS)).order('created_at', { ascending: false }).limit(20);
-  const open = (codes || []).filter(isOpen);
+    .gte('created_at', daysAgoIso(TEACHER_DAYS)).order('created_at', { ascending: false }).limit(30);
+  const seen = new Set(history.map((e) => e.shareCodeId));
+  const open = (codes || []).filter((c) => isOpen(c) && !seen.has(c.id));
   if (!open.length) return null;
   const { data: quizzes } = await supabase.from('quizzes').select('id, topic, subject, grade').in('id', [...new Set(open.map((c) => c.quiz_id))]);
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
-  const finished = new Set(history.filter((e) => e.latest).map((e) => e.shareCodeId));
-  const hit = open.find((c) => {
-    const q = quizById.get(c.quiz_id);
-    return q && !finished.has(c.id) && (Videos.gradesFor(q.grade).includes(grade) || gradeNum(q.grade) === grade);
-  });
+  // A quiz with no grade, or another grade, is never shown: it may be another class's.
+  const hit = open.find((c) => quizById.get(c.quiz_id) && Videos.gradesFor(quizById.get(c.quiz_id).grade).includes(grade));
   if (!hit) return null;
   const q = quizById.get(hit.quiz_id);
-  return { code: hit.code, topic: q.topic || hit.topic || '', subject: q.subject || '', sent_at: hit.created_at, k: T.chipId(hit.id, kidRow.id), src: 'class' };
+  return { code: hit.code, topic: q.topic || hit.topic || '', subject: q.subject || '', sent_at: hit.created_at, k: T.chipId(hit.id, kidRow.id), src: 'teacher' };
 }
 
 function againOf(history, kidId, teacherCode) {
@@ -217,6 +219,45 @@ async function recsFor(kidId, history, grade) {
   });
 }
 
+/**
+ * For the other hub routes (library, challenge): the child a hub chip names, their grade and
+ * their class root code (the newest teacher-sent code they played; "watch more" codes hang
+ * off it). Null when the token or the chip is not genuine.
+ */
+async function kidFromHub(token, chip) {
+  const studentId = kidOf(token, chip);
+  if (!studentId) return null;
+  const ctx = await kidContext(studentId);
+  if (!ctx) return null;
+  const root = ctx.history.find((e) => e.teacherSent) || null;
+  return { studentId, grade: ctx.grade, rootId: root ? root.shareCodeId : null };
+}
+
+async function kidContext(studentId) {
+  const { data: row } = await supabase.from('students')
+    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle();
+  if (!row || row.is_active === false) return null;
+  const { data: list } = row.list_id
+    ? await supabase.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle()
+    : { data: null };
+  const StudentQuiz = require('./student-quiz.service');
+  const history = await StudentQuiz.quizzesForStudents([row]);
+  const grade = gradeNum((list || {}).class_name) || gradeNum(row.self_reported_class)
+    || gradeNum((history.find((e) => e.className) || {}).className)
+    || (history[0] ? (Videos.gradesFor(history[0].grade)[0] || null) : null);
+  return { row, list, history, grade: grade || null };
+}
+
+async function brandKey() {
+  try {
+    const WebQuizBrand = require('../../config/web-quiz-brand');
+    const { orgName, botName } = require('../../config/branding');
+    return await WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName });
+  } catch (_) {
+    return null;
+  }
+}
+
 // ─── the hub ────────────────────────────────────────────────────────────────
 
 async function hub(token, { kid } = {}) {
@@ -235,8 +276,8 @@ async function hub(token, { kid } = {}) {
   const gradeOf = (r) => gradeNum((listOf(r) || {}).class_name) || gradeNum(r.self_reported_class) || null;
 
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
-  const StudentQuiz = require('./student-quiz.service');
-  const history = chosen ? await StudentQuiz.quizzesForStudents([chosen]) : [];
+  const ctx = chosen ? await kidContext(chosen.id) : null;
+  const history = ctx ? ctx.history : [];
   const lang = (history[0] && history[0].language) === 'ur' ? 'ur' : 'en';
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
@@ -244,13 +285,15 @@ async function hub(token, { kid } = {}) {
     kids: kidsRows.map((r) => ({ chip: kidChip(r.id), first: nameOf(r), animal: T.animalFor(r.id), grade: gradeOf(r) })),
     kid: chosen ? kidChip(chosen.id) : null,
     teacher: null, again: [], recs: [], challenge: null, lib: null,
+    // Which brand the page wears: a key only; the edge owns the look (as getQuiz).
+    brand: await brandKey(),
   };
   if (!chosen) {
     logEvent('web_quiz.hub_open', { kids: kidsRows.length, picked: false });
     return out;
   }
-  const grade = gradeOf(chosen) || (history[0] ? (Videos.gradesFor(history[0].grade)[0] || null) : null);
-  out.teacher = await teacherCard(chosen, listOf(chosen), history, grade);
+  const grade = ctx.grade;
+  out.teacher = await teacherCard(chosen, ctx.list, history, grade);
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
   try {
     out.recs = await recsFor(chosen.id, history, grade);
@@ -272,7 +315,7 @@ async function hub(token, { kid } = {}) {
 }
 
 module.exports = {
-  hub, hubLink, kidOf, flags, recOrder, firstOfEach,
+  hub, hubLink, kidOf, kidFromHub, flags, recOrder, firstOfEach,
   HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, AGAIN_MAX, RECS_MAX,
   _resetCache: () => { cache = null; },
 };
