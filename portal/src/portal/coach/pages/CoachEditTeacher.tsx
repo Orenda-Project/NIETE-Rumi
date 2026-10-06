@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Check, School, Trash2 } from "lucide-react";
 import { coach } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
-import { CoachPage, SelectBox, BottomButton, Chip, Loading, Failed, useLoad } from "../ui";
+import { CoachPage, SelectBox, BottomButton, Chip, Loading, Failed, useLoad, formatPhone } from "../ui";
 
 /**
  * bd-o15qnr.11 + .13 — Edit teacher (v22 EditTeacher.dc.html).
@@ -154,7 +154,7 @@ const CoachEditTeacher = () => {
             <span className={label}>{C.phoneLabel}</span>
             <div className="flex gap-2">
               <input aria-label={C.phoneLabel} className={`${input} flex-1`} type="tel" inputMode="tel" dir="ltr"
-                placeholder={t.phone ? `+${String(t.phone).replace(/^\+/, "")}` : ""}
+                placeholder={formatPhone(t.phone) || ""}
                 value={phone} onChange={(e) => { setPhone(e.target.value); setPhoneResult(null); }} />
               <button type="button" onClick={checkPhone} disabled={!phone.trim() || busy}
                 className="min-h-[56px] shrink-0 rounded-2xl border border-[#e5e7eb] bg-white px-4 text-[15px] font-semibold text-[#33374a] disabled:text-[#9ca3af]">

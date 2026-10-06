@@ -185,6 +185,12 @@ describe('phone — teacher_edit_phone_check (reads only)', () => {
     expect(audit()).toEqual([expect.objectContaining({ action: 'edit_phone_escalated' })]);
   });
 
+  test('03xx, +92 and 92 as typed: one stored E.164 number (bd-o15qnr.14 — display is 03xx, storage is not)', async () => {
+    for (const typed of ['0300 4445556', '+92 300 4445556', '923004445556']) {
+      expect(await svc().checkPhone({ ...base, phone: typed })).toMatchObject({ ok: true, outcome: 'free', phone: '923004445556' });
+    }
+  });
+
   test('not a Pakistani mobile: invalid_phone (the fail-closed normaliser)', async () => {
     expect(await svc().checkPhone({ ...base, phone: '12345' })).toEqual({ ok: false, reason: 'invalid_phone' });
   });
