@@ -1949,3 +1949,14 @@ Feature: NIETE (ICT) Teacher Training
     And with the setting absent or false, the quiz is made exactly as before
     # transcript-quiz-generate withLessonMoments, applied to every rewrite call with the gates on.
     # Unit: tests/quiz/quiz-author-gates-leak-moments.test.js. @wip.
+  @api @quiz @wip @draft @config-gated @P2 @T246 @no-mock-driver
+  Scenario: With the author gates on, my class quiz is topped back up to seven questions from my lesson
+    Given app_settings "quiz_author_gates_v2" is true
+    And the checks after the author leave my quiz with fewer than seven questions
+    When my class quiz is made from my lesson
+    Then one more call writes the missing questions, each quoting a line of my lesson that no question uses yet and that is not itself a question
+    And each new question is checked like any other, and one that repeats, gives away or is given away by another question is left out
+    And my quiz never ends up with fewer questions than it had, and no question it had is changed
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-generate runTopUp (replaceFromSource on appended slots), after the final leak step; meta.top_up.
+    # Unit: tests/quiz/quiz-author-gates-top-up.test.js. @wip.
