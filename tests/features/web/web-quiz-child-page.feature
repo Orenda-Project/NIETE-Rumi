@@ -182,10 +182,24 @@ Feature: Web child quiz page on the portal
     When the child types a number and answers "No, try again" to "Are you <name>?"
     Then the pad is empty again
 
-  Scenario: Two classes share a roll number
-    Given the teacher keeps two class lists and the quiz's grade does not pick one
-    When the child types a roll number that is in both lists
-    Then the page shows one "Are you <name>?" card per class, each with its class label, and "None of these is me"
+  Scenario: A quiz plays against ONE class list
+    Given the teacher keeps class lists "3-B" and "5-A" and the quiz is for grade 3
+    When the child types a roll number or a name that only "5-A" has
+    Then no child of "5-A" is offered: an unknown roll number says "Try again!" and a typed name plays as a new child
+
+  Scenario: The quiz's grade does not pick a class list, so the child picks the class first
+    Given the teacher keeps class lists "3-B" and "5-A" and the quiz is for grade 2
+    When the child taps "Play"
+    Then the page asks "Which class are you in?" with "3-B", "5-A" and "My class is not here"
+    When the child taps "5-A" and types a roll number
+    Then only "5-A" is searched
+    When another child taps "My class is not here" and types a name
+    Then that child plays as a new child, not on any list
+
+  Scenario: Never two green "Yes" buttons on one screen
+    Given a typed name is near two children of the class
+    Then the page asks about ONE child at a time with "Yes, it's me" and "No"
+    And "No" on the last one plays as a new child
 
   Scenario: A child who does not know their roll number types a name, and a near name is found
     Given the roster switch is on and the class list has "Ayesha Testwala"
