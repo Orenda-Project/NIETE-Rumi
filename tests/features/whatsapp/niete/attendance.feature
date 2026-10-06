@@ -119,6 +119,27 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # attendance-detector.service.js:171 detectAddClassIntent →
     # text-message.handler.js:2066 (header "Add New Class", always fires).
 
+  @e2e @wip @flow @P1
+  Scenario: A second paste that overlaps a longer paste on the same class still enrols every child
+    Given a teacher's class is part-way through a 20-child paste saved from another device
+    When the teacher saves a second paste of 5 children in the class manager (/class)
+    Then all 5 children are enrolled with roll numbers no other child holds
+    And no inactive students rows are left behind by the clash retries
+    # class.service.js addParsedStudents: a roll clash re-tries the ENROLMENT only (one students
+    # row per child) and jumps past the other writer (max roll + 2, + 4, + 8 ...), instead of
+    # re-trying max roll + 1, which is the roll the other writer takes next.
+    # Mock: tests/classes/add-students-long-race.test.js. Flow screens are emulated on the mock lane.
+
+  @e2e @wip @flow @P1
+  Scenario: A paste that could not be added is named on the saved screen, never "nothing changed"
+    Given a teacher saves a paste in the class manager (/class) and some children could not be enrolled
+    When the Flow lands on its saved screen
+    Then the heading says not everything was saved
+    And the detail names how many children could not be added and asks the teacher to paste them again, in the teacher's language
+    # class-manager-endpoint.js ROSTER save: classStudentsNotAdded / classStudentsAddFailed and
+    # classStudentsNotAddedHeading (en + ur) on the existing SAVED fields; classNoChanges only when
+    # nothing was asked for. Mock: tests/classes/roster-add-failure-named.test.js.
+
   @e2e @wip @flow @P2
   Scenario: /edit-class opens the roster editor
     Given the NIETE bot chat is open on a TEACHER account with a class
