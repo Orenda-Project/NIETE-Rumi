@@ -392,6 +392,7 @@ Feature: Web child quiz page on the portal
     Then the phone forgets that child and shows "who is playing?" (the roll-number pad when the class has a list)
     And no "Something went wrong" message is shown
 
+    And someone who has never played this quiz on that phone is offered "Play and add points for <school>", which opens the quiz
   @T422
   Scenario: A word picture that hides a letter the question does not ask about is not shown
     Given a sent quiz has a question whose picture hides a letter of a word, but the question asks something else (how many syllables the word has)
@@ -691,6 +692,7 @@ Feature: Web child quiz page on the portal
     When the league is counted
     Then only the child's first five quizzes that day add points, and only the first five friends of that challenge add points
     And the sixth quiz and the sixth friend still play and see their score
+    And one phone adds points for at most three children it created that day on one quiz (names typed that are not on the class list); a fourth still plays and is never told it added points
 
   @T254
   Scenario: The school league has its own link, in English and in Urdu
