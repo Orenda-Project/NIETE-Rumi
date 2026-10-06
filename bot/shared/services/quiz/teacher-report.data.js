@@ -334,6 +334,9 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     roster: rosterView,
     summary: {
       played: played.length,
+      // The class tile pairs the children ON the class list with the class size; typed
+      // children who are not on it are counted apart (never "76 of 10 played").
+      onList: rosterView.state === 'known' ? played.filter((p) => p.onList).length : null,
       of: rosterView.of,
       avg: mean(played.map((p) => p.pct)),
       total: questions.length || Math.max(0, ...played.map((p) => p.total)),
