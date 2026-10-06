@@ -6020,16 +6020,34 @@ ALTER TABLE quiz_sessions ADD CONSTRAINT quiz_sessions_source_check
 ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS device_ref TEXT;
 ALTER TABLE quiz_sessions ALTER COLUMN parent_phone DROP NOT NULL;
 
--- ── quiz_share_codes.class_id — from bot/database/migrations/web_quiz_v2_identity.sql.
--- The class a web-quiz hand-out was for (NULL = resolved at read time). quiz_share_codes is
--- created by the video-quiz migrations, not by this file, so the mirror waits for the table. ──
-DO $$
-BEGIN
-  IF to_regclass('public.quiz_share_codes') IS NOT NULL THEN
-    ALTER TABLE public.quiz_share_codes ADD COLUMN IF NOT EXISTS class_id uuid REFERENCES public.classes(id);
-    CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_class ON public.quiz_share_codes (class_id) WHERE class_id IS NOT NULL;
-  END IF;
-END $$;
+-- ── quiz_share_codes — the class link a teacher hands out (from bot/database/migrations/
+-- create_video_quiz_tables.sql), with class_id from web_quiz_v2_identity.sql: the class a
+-- hand-out was for (NULL = resolved at read time). A child's challenge code is a row whose
+-- parent_share_code_id is the teacher's code. ──
+CREATE TABLE IF NOT EXISTS quiz_share_codes (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code            TEXT NOT NULL UNIQUE,
+  quiz_id         UUID NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
+  teacher_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  video_id        UUID REFERENCES student_videos(id) ON DELETE SET NULL,
+  teacher_name    TEXT,
+  topic           TEXT,
+  language        TEXT NOT NULL DEFAULT 'en',
+  active          BOOLEAN NOT NULL DEFAULT TRUE,
+  uses_count      INTEGER NOT NULL DEFAULT 0,
+  expires_at      TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  report_sent_at  TIMESTAMPTZ,
+  invited_by_student_id UUID REFERENCES students(id),
+  parent_share_code_id  UUID REFERENCES quiz_share_codes(id),
+  class_id        uuid REFERENCES classes(id)
+);
+ALTER TABLE quiz_share_codes ADD COLUMN IF NOT EXISTS class_id uuid REFERENCES classes(id);
+CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_teacher ON quiz_share_codes(teacher_user_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_quiz    ON quiz_share_codes(quiz_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_report_pending
+  ON quiz_share_codes (created_at) WHERE report_sent_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_class ON quiz_share_codes (class_id) WHERE class_id IS NOT NULL;
 
 -- =============================================================================
 -- Tables and columns that migrations create and this file had not declared. A clone is
