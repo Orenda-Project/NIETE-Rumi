@@ -193,21 +193,32 @@ const ORIGINAL_135 = (q) => /^Question [135]:/.test(String(q && q.question));
 
 // ── 1. a soft fault never spends the margin ──────────────────────────────────
 
-test('flag on: grade 1-2 stems the rewrite could not shorten are SHIPPED and counted — never dropped', async () => {
+test('flag on: a long grade 1-2 stem is never CUT — no shortening rewrite; it ships whole and is counted', async () => {
+  // Live, 5 Oct: the shortening rewrite turned "Bunty lifts 7 toys onto the shelf. How many stay on the floor?"
+  // into "Bunty has 20 toys. Picks 7 up. How many?" — 7 and 13 both defensible. The web reads a stem aloud;
+  // a spoken long stem beats a cut one.
   wire({ gates: true });
   authorReply = { lesson_summary: 'You taught adding with carrying, ones first.', questions: EIGHT.map((q, i) => ([3, 5, 7].includes(i) ? LONG(q, i + 1) : q)) };
-  rewriteReply = { questions: [] };                     // the rewrite shortens nothing
   const r = await Gen.process(QID, { phone: PHONE });
   expect(r).toEqual(expect.objectContaining({ ok: true }));
-  expect(prompts.rewrite.length).toBeGreaterThan(0);   // the repair was asked for
-  expect(prompts.rewrite[0]).toMatch(/STEM_TOO_LONG_G12/);
+  expect(prompts.rewrite.filter((p) => /STEM_TOO_LONG_G12/.test(p))).toHaveLength(0);   // nobody is asked to cut it
   const rows = inserted();
   expect(rows).toHaveLength(8);                        // nothing dropped for length
+  expect(rows.map((x) => x.question_text)).toContain(LONG(EIGHT[3], 4).question);         // the stem as written
   expect(readyMeta().source_fidelity).toMatchObject({
     refused: 3, dropped: 0, kept_unfixed: 3, kept_soft: 3,
     by_reason: { STEM_TOO_LONG_G12: 3 },
   });
   readyMeta().source_fidelity.items.forEach((it) => expect(it.outcome).toBe('kept_soft'));
+});
+
+test('flag on: beside a real fault on the same question, the rewrite fixes the fault and is not told to shorten', async () => {
+  wire({ gates: true });
+  authorReply = { lesson_summary: 'You taught adding with carrying, ones first.', questions: [EIGHT[0], EIGHT[1], { ...LONG(EIGHT[2], 3), source_quote: 'Which column do we add first?' }, ...EIGHT.slice(3)] };
+  await Gen.process(QID, { phone: PHONE });
+  expect(prompts.rewrite.length).toBeGreaterThan(0);
+  expect(prompts.rewrite[0]).toMatch(/q2: SOURCE_QUOTE_IS_QUESTION/);
+  expect(prompts.rewrite[0]).not.toMatch(/STEM_TOO_LONG_G12/);
 });
 
 test('flag off: long grade 1-2 stems are not looked at (no source check), as today', async () => {
