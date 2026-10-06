@@ -7,9 +7,9 @@
  * (services/tts — the same voices as the teacher voice notes; no new provider).
  * Each clip is stored once in R2 at
  *
- *   web-quiz/audio/<quiz_id>/<question_id>/<part>-<hash>.ogg   part = q | a | b | c | d | why | xa | xb | xc | xd
+ *   web-quiz/audio/<quiz_id>/<question_id>/<part>-<hash>.ogg   part = q | a | b | c | d | why | xa | xb | xc | xd | hint
  *
- * (xa..xd = the feedback said after a WRONG pick of that option).
+ * (xa..xd = the feedback said after a WRONG pick of that option; hint = Jugnu's hint, web-quiz-hint).
  *
  * where <hash> is taken from the language and the exact words, so a question
  * whose words change gets a new clip on the next publish instead of keeping
@@ -22,7 +22,7 @@
  *
  * and the keys are written into quizzes.meta.web.audio as
  *
- *   { <question_id>: { q, opts: [a, b, c, d], why, fbs: [xa, xb, xc, xd] } }      (null where there is no clip)
+ *   { <question_id>: { q, opts: [a, b, c, d], why, fbs: [xa, xb, xc, xd], hint? } }      (null where there is no clip)
  *
  * plus meta.web.audio_v = AUDIO_VERSION once every clip of the quiz is there, so
  * ensureQuizAudio() (called when the page is opened) publishes each quiz once.
@@ -139,6 +139,7 @@ function partsFor(q) {
       const x = PARTS_FB['ABCD'.indexOf(String((o && o.slot) || '').charAt(0))];
       if (x) add(x, spoken(cleanWrongFeedback(o && o.fb)));
     });
+    if (w.hint && typeof w.hint === 'object') add('hint', spoken(w.hint.read) || spoken(w.hint.text));
     return parts;
   }
   add('q', spoken(q.question_text));
@@ -251,6 +252,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
       const entry = entries.get(q.id);
       if (part === 'q') entry.q = key;
       else if (part === 'why') entry.why = key;
+      else if (part === 'hint') entry.hint = key;
       else if (PARTS_FB.includes(part)) entry.fbs[PARTS_FB.indexOf(part)] = key;
       else entry.opts[PARTS_OPTS.indexOf(part)] = key;
     };
@@ -260,7 +262,8 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     }));
     const audio = {};
     for (const [qid, entry] of entries) {
-      if (entry.q || entry.why || entry.opts.some(Boolean) || entry.fbs.some(Boolean)) audio[qid] = entry;
+      if (!entry.hint) delete entry.hint;
+      if (entry.q || entry.why || entry.hint || entry.opts.some(Boolean) || entry.fbs.some(Boolean)) audio[qid] = entry;
     }
 
     // Merge into the freshest meta, so a concurrent write to another key survives.

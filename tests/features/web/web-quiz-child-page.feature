@@ -297,6 +297,28 @@ Feature: Web child quiz page on the portal
     Then the phone forgets that child and shows "who is playing?" (the roll-number pad when the class has a list)
     And no "Something went wrong" message is shown
 
+  @T290
+  Scenario: Jugnu gives a hint on a tap, never the answer
+    Given a question whose web item carries a hint written from the lesson ("Think about what you can pour into a glass.")
+    When the child taps the small thinking Jugnu ("Need a hint?" / «اشارہ چاہیے؟») under the options
+    Then the hint shows beside a thinking Jugnu and is spoken in the quiz's one voice from its own recorded clip
+    And the hint never says any option, the number that is the answer, the thing a picture option shows, or the word a missing-letter picture spells
+    And using the hint does not change the child's score
+
+  @T291
+  Scenario: A child who sits stuck is nudged once
+    Given a question with a hint that the child has not asked for
+    When twenty seconds pass after the voice has finished reading the question
+    Then Jugnu wiggles once and says "Stuck? Tap me for a hint." («مشکل لگ رہا ہے؟ اشارے کے لیے مجھے دبائیں۔»)
+    And a question with no hint offers "Shall we listen again?" as before
+
+  @T292
+  Scenario: A hint that would give the answer away is thrown out and the question still plays
+    Given the author writes a hint that names the right option (or a wrong one, or says "the answer is")
+    When the quiz is made
+    Then that question keeps its web item with no hint, and on the page Jugnu offers no hint for it
+    And the quiz's log line counts the hints kept and the hints dropped by reason
+
   @T248
   Scenario: A friend who plays a challenge learns who won
     Given a child finished the class quiz with 3 of 4 and sent a friend their challenge link
