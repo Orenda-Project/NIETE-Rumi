@@ -8,7 +8,11 @@ const { page } = require('./wq-page-harness');
 describe('landing: classmates playing right now', () => {
   test('two or more: a line on the landing, EN and UR', () => {
     expect(page({ lang: 'en', live: { now: 3 } }).html()).toContain('3 classmates are playing right now — join them!');
-    expect(page({ lang: 'ur', live: { now: 3 } }).html()).toContain('ابھی 3 ہم جماعت کھیل رہے ہیں — شامل ہوں!');
+    expect(page({ lang: 'ur', live: { now: 3 } }).html()).toContain('ابھی 3 ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!');
+  });
+  test('the Urdu line uses no gendered verb form (no رہے/رہی progressive)', () => {
+    const line = /<p class="wq-proof">[^<]*ابھی[^<]*<\/p>/.exec(page({ lang: 'ur', live: { now: 3 } }).html())[0];
+    expect(line).not.toMatch(/رہے|رہی|رہا/);
   });
   test('one (maybe the child themself) or none: no line', () => {
     expect(page({ lang: 'en', live: { now: 1 } }).html()).not.toContain('playing right now');
