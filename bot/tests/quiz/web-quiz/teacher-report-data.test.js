@@ -311,6 +311,18 @@ describe('teacher report token (kind tr)', () => {
     expect(Token.explain('garbage')).toBe('bad');
   });
 
+  test('a short-lived token for links printed in a PDF: 48 h, and never longer than 30 days', () => {
+    const now = Date.now();
+    const short = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, ttlS: 48 * 3600, now: now - 49 * 3600 * 1000 });
+    expect(Token.verifyTeacherReport(short)).toBeNull();
+    expect(Token.explain(short)).toBe('expired');
+    const fresh = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, ttlS: 48 * 3600, now: now - 47 * 3600 * 1000 });
+    expect(Token.verifyTeacherReport(fresh)).toMatchObject({ teacherId: TEACHER, quizId: QUIZ });
+    const greedy = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, ttlS: 365 * 86400, now: now - 31 * 86400 * 1000 });
+    expect(Token.verifyTeacherReport(greedy)).toBeNull();
+    expect(Token.PDF_TTL_S).toBe(48 * 3600);
+  });
+
   test('no secret: nothing is signed (fails closed)', () => {
     delete process.env.INTERNAL_API_KEY;
     jest.resetModules();

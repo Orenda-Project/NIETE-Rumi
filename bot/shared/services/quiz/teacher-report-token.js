@@ -17,15 +17,20 @@ const WQT = require('./web-quiz-token');
 
 const KIND = 'tr';
 const TTL_S = 30 * 24 * 60 * 60;
+// Links PRINTED in a PDF the teacher may forward to a group: short-lived, so a forwarded
+// PDF is not a month-long pass to the class's names and scores. The 30-day token rides
+// only in the teacher's own WhatsApp message.
+const PDF_TTL_S = 48 * 60 * 60;
 const ALL = '*';
 
 /**
- * @param {{teacherId: string, quizId?: string|null, now?: number}} args
+ * @param {{teacherId: string, quizId?: string|null, ttlS?: number, now?: number}} args  ttlS: PDF_TTL_S for printed links
  * @returns {string|null} null when there is no teacher or no secret (fails closed)
  */
-function signTeacherReport({ teacherId, quizId = null, now = Date.now() } = {}) {
+function signTeacherReport({ teacherId, quizId = null, ttlS = TTL_S, now = Date.now() } = {}) {
   if (!teacherId) return null;
-  return WQT.sign({ k: KIND, t: String(teacherId), q: quizId ? String(quizId) : ALL, exp: Math.floor(now / 1000) + TTL_S });
+  const life = Math.max(60, Math.min(TTL_S, Number(ttlS) || TTL_S)); // never longer than 30 days
+  return WQT.sign({ k: KIND, t: String(teacherId), q: quizId ? String(quizId) : ALL, exp: Math.floor(now / 1000) + life });
 }
 
 /** { teacherId, quizId|null } for a genuine, unexpired report token; else null. */
@@ -60,4 +65,4 @@ function explain(token) {
   }
 }
 
-module.exports = { signTeacherReport, verifyTeacherReport, explain, KIND, TTL_S };
+module.exports = { signTeacherReport, verifyTeacherReport, explain, KIND, TTL_S, PDF_TTL_S };
