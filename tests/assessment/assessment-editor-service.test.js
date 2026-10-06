@@ -160,11 +160,18 @@ describe('foreign owner (bd-hb8qs final review T3)', () => {
 });
 
 describe('addKinds', () => {
-  test('offers the four kinds the bot can add, with their defaults', async () => {
+  test('offers every text-only catalogue type for the paper, with layout, section and defaults', async () => {
     const out = await Editor.addKinds({ userId: U, paperId: 'v1' });
-    expect(out.kinds.map((k) => k.kind).sort()).toEqual(['fill', 'long', 'mcq', 'short']);
-    expect(out.kinds.find((k) => k.kind === 'mcq')).toMatchObject({ marks: 1, needsOptions: true });
     expect(out.slotCap).toBe(6);
+    // The paper is Maths, grade 3: its catalogue minus the picture types, in catalogue order.
+    expect(out.kinds.map((k) => k.kind)).toEqual([
+      'MCQs', 'Fill in the Blanks', 'True/False', 'Match the Column', 'Mental Math (Viva)', 'Sequences',
+      'Short Questions', 'Restricted Response Question', 'Word Problems',
+    ]);
+    expect(out.kinds.find((k) => k.kind === 'MCQs')).toEqual({ kind: 'MCQs', label: 'MCQs', layout: 'options', section: 'objective', marks: 1, lines: 0 });
+    expect(out.kinds.find((k) => k.kind === 'True/False')).toMatchObject({ layout: 'options', presetOptions: ['True', 'False'] });
+    expect(out.kinds.find((k) => k.kind === 'Match the Column')).toMatchObject({ layout: 'columns', marks: 2, lines: 0 });
+    expect(out.kinds.find((k) => k.kind === 'Word Problems')).toMatchObject({ layout: 'standard', section: 'subjective', marks: 2, lines: 4 });
   });
 });
 
@@ -178,6 +185,16 @@ describe('validateEdit', () => {
   test('a bad edit returns the bot message', async () => {
     const out = await Editor.validateEdit({ userId: U, paperId: 'v1', id: 'seen.objective.MCQs.0', edit: { slots: ['only', '', '', '', '', ''] } });
     expect(out).toEqual({ ok: false, message: 'A multiple-choice question needs at least two options.' });
+  });
+
+  test('a catalogue kind is validated by its layout', async () => {
+    const ok = await Editor.validateEdit({ userId: U, paperId: 'v1', kind: 'Match the Column', edit: { pairs: [{ left: 'a', right: 'b' }, { left: 'c', right: 'd' }] } });
+    expect(ok).toMatchObject({ ok: true, marks: 2, text: 'Match column A with column B.' });
+    expect(ok.question.column_b).toEqual(['d', 'b']);
+    expect(await Editor.validateEdit({ userId: U, paperId: 'v1', kind: 'Match the Column', edit: { pairs: [] } }))
+      .toEqual({ ok: false, message: 'Add at least one pair.' });
+    expect(await Editor.validateEdit({ userId: U, paperId: 'v1', kind: 'Mind Map', edit: { question: 'q', answer: 'a' } }))
+      .toEqual({ ok: false, message: "That kind of question can't be added to this paper." });
   });
 
   test('a new question is validated by kind', async () => {

@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { portal, type AddKind, type EditError, type EditItem, type EditPaper } from '../../services/api';
 import QuestionFields from './QuestionFields';
+import AddQuestionFields from './AddQuestionFields';
 import {
   addQuestion, clearDraft, dropAdded, emptyDraft, isDirty, isRemovedNow, loadDraft, saveDraft,
   setEdit, toChanges, toggleRemove, type Draft,
@@ -39,23 +40,18 @@ function withStoredEdit(fields: EditItem['fields'], stored?: { edit: Record<stri
   return out as EditItem['fields'];
 }
 
-type Editing = { key: string; id?: string; subIndex?: number; kind?: AddKind['kind']; section?: 'objective' | 'subjective' } | null;
+type Editing = { key: string; id?: string; subIndex?: number; kind?: string; section?: 'objective' | 'subjective' } | null;
 
 function messageOf(err: unknown): { status?: number; data?: { error?: string; code?: string; errors?: EditError[] } } {
   const r = (err as { response?: { status?: number; data?: never } })?.response;
   return r ? { status: r.status, data: r.data } : {};
 }
 
-const newFields = (k: AddKind) => ({
-  shape: k.needsOptions ? 'options' : 'standard', question: '', marks: String(k.marks), answer: '',
-  lines: String(k.lines), lines_default: k.lines, lines_options: [], show_lines: false,
-  ...(k.needsOptions ? { slots: ['', '', '', '', '', ''], correct: 'none', msq: false, show_correct: true } : {}),
-}) as EditItem['fields'];
-
 const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
   const [paper, setPaper] = useState<EditPaper | null>(null);
   const [items, setItems] = useState<EditItem[]>([]);
   const [kinds, setKinds] = useState<AddKind[]>([]);
+  const [slotCap, setSlotCap] = useState(6);
   const [draft, setDraft] = useState<Draft>(emptyDraft(paperId));
   const [offerDraft, setOfferDraft] = useState<Draft | null>(null);
   const [editing, setEditing] = useState<Editing>(null);
@@ -74,7 +70,7 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
     Promise.all([portal.getAssessmentEditQuestions(paperId), portal.getAssessmentAddKinds(paperId)])
       .then(([q, k]) => {
         if (cancelled) return;
-        setPaper(q.paper); setItems(q.items); setKinds(k.kinds);
+        setPaper(q.paper); setItems(q.items); setKinds(k.kinds); if (k.slotCap) setSlotCap(k.slotCap);
         const saved = loadDraft(paperId);
         if (saved && isDirty(saved)) setOfferDraft(saved);
       })
@@ -112,7 +108,7 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
     try {
       const body = editing.kind ? { kind: editing.kind, edit } : { id: editing.id, edit: editing.subIndex != null ? { ...edit, subIndex: editing.subIndex } : edit };
       const r = await portal.validateAssessmentEdit(paperId, body);
-      if (editing.kind) setDraft((d) => addQuestion(d, { kind: editing.kind!, edit, marks: r.marks, text: r.text }));
+      if (editing.kind) setDraft((d) => addQuestion(d, { kind: editing.kind!, section: editing.section, edit, marks: r.marks, text: r.text }));
       else {
         const isSub = editing.subIndex != null;
         const orig = isSub ? items.find((i) => i.id === editing.id)?.subs?.find((s) => s.index === editing.subIndex)?.fields.question : undefined;
@@ -196,7 +192,7 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
           ))}
         </div>
       ))}
-      {draft.added.map((a, i) => ({ a, i })).filter(({ a }) => (a.kind === 'mcq' || a.kind === 'fill' ? 'objective' : 'subjective') === name).map(({ a, i }) => (
+      {draft.added.map((a, i) => ({ a, i })).filter(({ a }) => (a.section ?? (a.kind === 'mcq' || a.kind === 'fill' ? 'objective' : 'subjective')) === name).map(({ a, i }) => (
         <div key={`added-${i}`} data-question={`added-${i}`} dir={paper?.rtl ? 'rtl' : 'ltr'} className="rounded-lg border border-dashed p-3 text-sm">
           <div className="text-xs text-muted-foreground">{a.marks} marks <span className="ml-2 rounded bg-emerald-100 px-1 text-emerald-800">New</span></div>
           <div className="flex items-center justify-between gap-2"><span>{a.text}</span>
@@ -205,19 +201,23 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
         </div>
       ))}
       {picking === name ? (
-        <div className="flex flex-wrap gap-2">
-          {kinds.filter((k) => ((k.kind === 'mcq' || k.kind === 'fill') ? 'objective' : 'subjective') === name).map((k) => (
+        <div className="flex flex-wrap gap-1.5">
+          {kinds.filter((k) => k.section === name).map((k) => (
             <Button key={k.kind} size="sm" variant="outline"
               onClick={() => { setPicking(null); setFieldError(null); setEditing({ key: `new-${name}`, kind: k.kind, section: name }); }}>{k.label}</Button>
           ))}
+          <Button size="sm" variant="ghost" onClick={() => setPicking(null)}>Cancel</Button>
         </div>
       ) : (
         <Button size="sm" variant="ghost" disabled={!!editing || locked} onClick={() => setPicking(name)}><Plus className="mr-1 h-4 w-4" />Add a question</Button>
       )}
       {editing?.key === `new-${name}` && editing.kind && (
         <div className="rounded-lg border border-dashed p-3">
-          <QuestionFields key={`${editing.key}-${editing.kind}`} fields={newFields(kinds.find((k) => k.kind === editing.kind)!)} rtl={!!paper?.rtl}
-            error={fieldError} busy={busy} onDone={done} onCancel={() => setEditing(null)} />
+          {(() => {
+            const k = kinds.find((x) => x.kind === editing.kind);
+            return k && <AddQuestionFields key={`${editing.key}-${editing.kind}`} kind={k} slotCap={slotCap} rtl={!!paper?.rtl}
+              error={fieldError} busy={busy} onDone={done} onCancel={() => setEditing(null)} />;
+          })()}
         </div>
       )}
     </section>

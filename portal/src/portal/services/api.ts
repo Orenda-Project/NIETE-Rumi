@@ -697,11 +697,20 @@ export type EditPaper = { paperId: string; version: number; grade: number; subje
   chapterNumber: number | null; rtl: boolean; questionCount: number; marks: number };
 export type EditVersion = { paperId: string; version: number | null; status: 'ready' | 'failed' | 'generating';
   createdAt: string; questionCount: number | null; marks: number | null; editedFrom: string | null; latest: boolean };
-export type AddKind = { kind: 'mcq' | 'fill' | 'short' | 'long'; label: string; marks: number; lines: number; needsOptions: boolean };
+export type AddLayout = 'standard' | 'options' | 'columns' | 'words' | 'comprehension';
+export type AddKind = {
+  kind: string;            // catalogue type id, sent back as `kind`
+  label: string;
+  layout: AddLayout;
+  section: 'objective' | 'subjective';
+  marks: number; lines: number;
+  msq?: boolean;           // several correct
+  presetOptions?: string[]; // True/False: ['True','False']
+};
 export type EditChanges = {
   edits?: { id: string; edit: Record<string, unknown> }[];
   removed?: string[]; restored?: string[];
-  added?: { kind: AddKind['kind']; edit: Record<string, unknown> }[];
+  added?: { kind: string; edit: Record<string, unknown> }[];
 };
 export type EditError = { id?: string; subIndex?: number; addedIndex?: number; message: string };
 

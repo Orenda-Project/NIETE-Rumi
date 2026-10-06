@@ -10,11 +10,12 @@
 const Revision = require('./assessment-revision.service');
 const Edit = require('./assessment-edit');
 const Selection = require('./assessment-selection');
-const { applyChanges } = require('./assessment-changes');
+const QuestionTypes = require('./question-types');
+const {
+  applyChanges, buildAdded, layoutOf, defaultsFor, isLegacyKind, PICTURE_TYPES,
+} = require('./assessment-changes');
 const { isRtl } = require('./assessment-paper.renderer');
 const { isAssessmentEditingEnabled } = require('../../config/feature-flags');
-
-const KIND_LABEL = { mcq: 'Multiple choice', fill: 'Fill in the blank', short: 'Short question', long: 'Long question' };
 
 async function _gate() {
   return (await isAssessmentEditingEnabled()) ? null : { code: 'EDITING_DISABLED' };
@@ -84,12 +85,23 @@ async function addKinds({ userId, paperId }) {
   const gate = await _gate(); if (gate) return gate;
   const loaded = await Revision.loadVersion({ paperId, userId });
   if (!loaded.paper) return { code: loaded.code };
-  return {
-    kinds: Object.entries(Edit.NEW_DEFAULTS).map(([kind, d]) => ({
-      kind, label: KIND_LABEL[kind] || kind, marks: d.marks, lines: d.lines, needsOptions: kind === 'mcq',
-    })),
-    slotCap: Edit.SLOT_CAP,
-  };
+  const req = loaded.paper.assessment_requests || {};
+  const subject = req.subject_code;
+  const grade = _gradeOf(req);
+  const kinds = QuestionTypes.forSubject(subject, grade)
+    .filter((t) => !PICTURE_TYPES.has(t.id))
+    .map((t) => {
+      const layout = layoutOf(t.id);
+      const d = defaultsFor(t.id, subject, grade);
+      const kind = {
+        kind: t.id, label: t.id, layout, section: QuestionTypes.categoryOf(t.id, subject, grade),
+        marks: d.marks, lines: d.lines,
+      };
+      if (t.id === 'MSQs') kind.msq = true;
+      if (t.id === 'True/False') kind.presetOptions = ['True', 'False'];
+      return kind;
+    });
+  return { kinds, slotCap: Edit.SLOT_CAP };
 }
 
 async function validateEdit({ userId, paperId, id, kind, edit }) {
@@ -99,7 +111,10 @@ async function validateEdit({ userId, paperId, id, kind, edit }) {
   try {
     let question;
     if (kind) {
-      question = Edit.newQuestion(kind, edit);
+      const req = loaded.paper.assessment_requests || {};
+      question = isLegacyKind(kind)
+        ? Edit.newQuestion(kind, edit)
+        : buildAdded(kind, edit, { subject: req.subject_code, grade: _gradeOf(req) });
     } else {
       const hit = Selection.indexQuestions(loaded.paper.exam_json).find((q) => q.id === id);
       if (!hit) return { ok: false, message: 'That question is no longer on this paper.' };
