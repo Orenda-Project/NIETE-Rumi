@@ -970,7 +970,8 @@ async function finishSession(body = {}) {
     },
     challenge_code: await challengeCodeFor(s),
     // A friend's challenge: who won against the score the landing showed them.
-    ...(s.invited_by_student_id ? await versus(s, { correct, total }) : {}),
+    // (Never against themselves: a child who opens their own challenge link is not their own challenger.)
+    ...(s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {}),
   };
 }
 
