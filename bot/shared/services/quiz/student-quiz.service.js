@@ -164,8 +164,7 @@ async function open(phone, { language = 'en' } = {}) {
 
 /** The hub's one cta_url message; false (send nothing) when the hub is off or the send failed. */
 async function sendHub(phone, known, lang) {
-  const Hub = require('./web-quiz-hub');
-  const url = await Hub.hubLink(known.map((s) => s.id));
+  const url = await require('./web-quiz-hub-flags').hubLink(known.map((s) => s.id));
   if (!url) return false;
   const sent = await WhatsAppService.sendCtaUrl(phone, {
     body: resolveUx('sqHubBody', { language: lang }),

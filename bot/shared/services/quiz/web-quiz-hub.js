@@ -32,55 +32,16 @@ const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Videos = require('./web-quiz-videos');
 const Order = require('./video-bank-order');
+const Flags = require('./web-quiz-hub-flags');
+const { clampLanguage } = require('../../config/ux-strings');
 
-const HUB_KEY = 'web_quiz_hub';
-const CHALLENGE_KEY = 'web_quiz_challenge';
-const LIBRARY_KEY = 'web_quiz_library';
-const TTL_MS = 30 * 1000;
 const AGAIN_MAX = 6;
 const RECS_MAX = 3;
 const TEACHER_DAYS = 7;
 const CHALLENGE_GRADES = ['2', '3', '4', '5'];
-let cache = null; // { at, hub, challenge, library }
 
 // The web quiz's own error type, so the internal router answers it as every other wq route does.
 const fail = (status, error) => { const { WqError } = require('./web-quiz.service'); throw new WqError(status, { error }); };
-
-// ─── switches (read like web-quiz-link.js: 30 s cache, fail closed) ─────────
-
-function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
-}
-
-async function flags(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache;
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    cache = { at: now, hub: isTrue(by[HUB_KEY]), challenge: isTrue(by[CHALLENGE_KEY]), library: isTrue(by[LIBRARY_KEY]) };
-    return cache;
-  } catch (err) {
-    logToFile('⚠️ web quiz hub: settings lookup failed — hub off', { error: err.message });
-    return { hub: false, challenge: false, library: false };
-  }
-}
-
-/** `<portal>/h/<token>` for these children, or null (hub off, no base URL, no secret, no child). Never throws. */
-async function hubLink(studentIds) {
-  try {
-    const Link = require('./web-quiz-link');
-    const base = Link.webBaseUrl();
-    if (!base || !(await flags()).hub) return null;
-    const token = T.signHub(studentIds);
-    return token ? `${base}/h/${token}` : null;
-  } catch (err) {
-    logToFile('⚠️ web quiz hub: no hub link', { error: err.message });
-    return null;
-  }
-}
 
 // ─── helpers (pure) ─────────────────────────────────────────────────────────
 
@@ -263,7 +224,7 @@ async function brandKey() {
 async function hub(token, { kid } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const ids = idsOf(token);
-  const f = await flags();
+  const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
 
   const { data: rows } = await supabase.from('students')
@@ -278,7 +239,7 @@ async function hub(token, { kid } = {}) {
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
   const ctx = chosen ? await kidContext(chosen.id) : null;
   const history = ctx ? ctx.history : [];
-  const lang = (history[0] && history[0].language) === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage((history[0] && history[0].language) || 'en');
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
     lang,
@@ -315,7 +276,8 @@ async function hub(token, { kid } = {}) {
 }
 
 module.exports = {
-  hub, hubLink, kidOf, kidFromHub, flags, recOrder, firstOfEach,
-  HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, AGAIN_MAX, RECS_MAX,
-  _resetCache: () => { cache = null; },
+  hub, kidOf, kidFromHub, recOrder, firstOfEach, AGAIN_MAX, RECS_MAX,
+  // the switches live in web-quiz-hub-flags.js (student-quiz reads them without loading this module)
+  hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
+  _resetCache: Flags._resetCache,
 };
