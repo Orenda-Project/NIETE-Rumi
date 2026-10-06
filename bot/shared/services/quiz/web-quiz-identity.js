@@ -271,13 +271,18 @@ function labelOf(cls, all) {
  *   known      one class in the band (or the teacher's only class and no grade on the quiz)
  *   ambiguous  two or more in the band, none in the band, or the teacher's ONLY class is outside the band
  *              (321 of 1,013 one-class hand-outs in 14 days) — `classes` are the ones to offer, labels only
+ * `gradeSoft`: the grade is a model's guess (a coaching digest read the transcript — quizzes.meta.grade_source
+ * 'digest'), not the teacher's or the catalogue's. A guess never overrules the one class the teacher actually
+ * keeps: one class ⇒ known (gradeSoft: true on the result so the monitors can tell). With 2+ classes the
+ * band still narrows; it never excludes down to none.
  */
-function pickClass(classes, { grade = null } = {}) {
+function pickClass(classes, { grade = null, gradeSoft = false } = {}) {
   const all = (classes || []).map((c) => ({ ...c, label: c.label || labelOf(c, classes) }));
   if (!all.length) return { state: 'none', class: null, classes: [] };
   const band = gradeBand(grade);
   if (all.length === 1) {
     if (!band.size || band.has(all[0].grade)) return { state: 'known', class: all[0], classes: all, bound: 'single' };
+    if (gradeSoft) return { state: 'known', class: all[0], classes: all, bound: 'single', gradeSoft: true };
     return { state: 'ambiguous', class: null, classes: all };
   }
   const inBand = band.size ? all.filter((c) => band.has(c.grade)) : [];
@@ -313,12 +318,14 @@ async function withList(cls) {
  * Which class is this quiz for — the DB-backed order:
  *   1. quiz_share_codes.class_id            (the hand-out's class; the column may not exist yet: fail open)
  *   2. quizzes.list_id → student_lists.class_id (a list bound to the quiz)
- *   3. the teacher's active classes (a merged class is inactive), narrowed by the quiz grade band (pickClass)
+ *   3. the teacher's active classes (a merged class is inactive), narrowed by the quiz grade band (pickClass);
+ *      a digest-sourced grade (quizzes.meta.grade_source 'digest') is soft and never overrules a teacher's only class
  * Pass { teacherUserId, grade } alone to evaluate step 3 before a quiz row exists.
  * → { state, class: {id, grade, section, shift, label, listId} | null, classes: [...], bound: 'code'|'quiz'|'single'|'grade'|null }
  */
-async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = null, grade = null } = {}) {
+async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = null, grade = null, gradeSoft = false } = {}) {
   let quizGrade = grade;
+  let soft = Boolean(gradeSoft);
   // 1. the hand-out's class
   if (shareCodeId) {
     try {
@@ -335,9 +342,11 @@ async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = nu
   }
   // 2. the quiz's list
   if (quizId) {
-    const { data: q } = await supabase.from('quizzes').select('grade, list_id').eq('id', quizId).maybeSingle();
+    const { data: q } = await supabase.from('quizzes').select('grade, list_id, meta').eq('id', quizId).maybeSingle();
     if (q) {
       if (quizGrade == null) quizGrade = q.grade || null;
+      // A coaching-born quiz's grade is the digest's reading of the transcript — a guess, not a fact.
+      if (grade == null && q.meta && q.meta.grade_source === 'digest') soft = true;
       if (q.list_id) {
         const { data: l } = await supabase.from('student_lists').select('id, class_id, class_name, section').eq('id', q.list_id).maybeSingle();
         if (l && l.class_id) {
@@ -364,7 +373,7 @@ async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = nu
   }
   classes = classes.map((c) => ({ ...c, label: labelOf(c, classes) }));
   classes.sort((a, b) => ((a.grade || 0) - (b.grade || 0)) || String(a.section || '').localeCompare(String(b.section || '')));
-  const picked = pickClass(classes, { grade: quizGrade });
+  const picked = pickClass(classes, { grade: quizGrade, gradeSoft: soft });
   return { ...picked, bound: picked.bound || null };
 }
 
