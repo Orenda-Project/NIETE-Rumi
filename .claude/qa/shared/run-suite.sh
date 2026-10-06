@@ -32,7 +32,13 @@ DRIVER="" ENV="sandbox" TARGET="" PORT="${CDP_PORT:-9223}" RUN_ID="" SEED=1 REFL
 # --commit <sha> behind bot/scripts/e2e/mock-graph-api.js, on the sandbox DB, vendors replay-strict. No
 # Chrome, no WhatsApp number. Default chrome — every existing invocation is unchanged.
 # --spec-sync <brief.json|none> and --validator-exit <n> are provenance for the ledger row (phase 1).
-METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manual}" PRINT_DRIVER="" SLOT="${E2E_SLOT:-0}" PARALLEL=""
+METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manual}" PRINT_DRIVER="" PRINT_PORTS="" SLOT="${E2E_SLOT:-0}" PARALLEL=""
+# slot_ports N → every port slot N's stack listens on, NAME=port per line. The ONE list: a child run exports it
+# and the parent's free-slot check probes it, so they cannot drift. The last two are the per-run local database
+# (E2E_LOCAL_DB=1, bd-z3ze4: the supabase-js proxy and PostgREST); unslotted they are 54321/54330, never reused here.
+slot_ports() { local n=$1
+  printf '%s\n' "MOCK_PORT=$((4010+n))" "E2E_BOT_PORT=$((3100+n))" "E2E_REDIS_PORT=$((6390+n))" "E2E_WORKER_HEALTH_PORT=$((3201+n))" \
+                 "E2E_SUPABASE_PORT=$((54400+n))" "LOCAL_DB_REST_PORT=$((54500+n))"; }
 while [ $# -gt 0 ]; do case "$1" in
   --driver) DRIVER="$2"; shift 2;; --env) ENV="$2"; shift 2;; --target) TARGET="$2"; shift 2;;
   --port) PORT="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --no-seed) SEED=0; shift;; --reflect) REFLECT="$2"; shift 2;;
@@ -41,6 +47,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --method) METHOD="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   --spec-sync) SPEC_SYNC="$2"; shift 2;; --validator-exit) VALIDATOR_EXIT="$2"; shift 2;;
   --print-driver) PRINT_DRIVER=1; shift;;   # resolve the driver exactly as a run would, print it, exit — touches nothing
+  --print-ports) PRINT_PORTS=1; shift;;     # the ports this --slot would export, then exit — touches nothing
   *) echo "unknown option $1"; exit 2;; esac; done
 if [ -z "$METHOD" ]; then METHOD=$(python3 "$QA/targets_lite.py" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" --where "env=$ENV" --where 'tenant~NIETE' --get method); METHOD="${METHOD:-chrome}"; fi
 case "$METHOD" in chrome|mock) ;; *) echo "ERROR: --method must be chrome or mock (got '$METHOD')"; exit 2;; esac
@@ -65,7 +72,7 @@ if [ "$METHOD" = mock ]; then
     i=0; PIDS=""; T0=$(date +%s)
     # a slot is free when none of its four ports is listening AND no run holds a lock on its driver — a second
     # parallel run (another commit, another session) takes the next free slots instead of colliding
-    slot_free() { local n=$1 p; for p in $((4010+n)) $((3100+n)) $((6390+n)) $((3201+n)); do lsof -ti tcp:$p -sTCP:LISTEN >/dev/null 2>&1 && return 1; done
+    slot_free() { local n=$1 p; for p in $(slot_ports "$n" | sed 's/^[A-Z_]*=//'); do lsof -ti tcp:$p -sTCP:LISTEN >/dev/null 2>&1 && return 1; done
                   [ -e "$PDIR/.slot-$n" ] && return 1; return 0; }
     for f in $PFEATS; do
       i=$((i+1)); while ! slot_free "$i"; do i=$((i+1)); [ "$i" -gt 40 ] && { echo "ERROR: no free slot under 40"; exit 3; }; done
@@ -96,12 +103,13 @@ if [ "$METHOD" = mock ]; then
   # ── --slot N: this run's own ports and its own synthetic driver (derived from the machine key + the slot),
   #    so two runs on one machine never share a port, a Redis, a stack or a driver row.
   if [ "${SLOT:-0}" != 0 ]; then
-    export MOCK_PORT=$((4010+SLOT)) E2E_BOT_PORT=$((3100+SLOT)) E2E_REDIS_PORT=$((6390+SLOT)) E2E_WORKER_HEALTH_PORT=$((3201+SLOT))
+    for _kv in $(slot_ports "$SLOT"); do export "$_kv"; done
     if [ -z "$DRIVER" ]; then
       export E2E_MOCK_DRIVER_MACHINE="${E2E_MOCK_DRIVER:-$(hostname)|$(id -un)}#slot$SLOT"; unset E2E_MOCK_DRIVER
     fi
     [ -n "$RUN_ID" ] || RUN_ID="$(date +%Y%m%d-%H%M)-$MODE-s$SLOT"
   fi
+  if [ -n "$PRINT_PORTS" ]; then [ "${SLOT:-0}" != 0 ] && slot_ports "$SLOT"; exit 0; fi
   # The mock driver is PER MACHINE (mock_driver.py: hostname|user → 92300XXXXXXX; E2E_MOCK_DRIVER pins it).
   # Two machines used to share the fixed yaml number on the same sandbox DB and interleave (bd-yj4e4).
   # The yaml test_driver stays only as the last-resort fallback if the resolver itself cannot run.

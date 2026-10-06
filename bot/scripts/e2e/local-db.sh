@@ -40,6 +40,9 @@ SCHEMA="${LOCAL_DB_SCHEMA:-$REPO/supabase/baseline/schema.sql}"
 SEED="${LOCAL_DB_SEED:-$REPO/supabase/baseline/seed.sql}"
 SEED_TABLES="${LOCAL_DB_SEED_TABLES:-$REPO/supabase/baseline/seed-tables.txt}"
 SEED_DIR="$LOCAL_DB_HOME/seed"
+# Applied on top of the snapshot: the lane's own state for GLOBAL switches the sandbox happens to have set
+# (app_redirect_* was on there from 2026-10-01, which turned every lesson-plan scenario into a Play Store card).
+SEED_OVERRIDES="${LOCAL_DB_SEED_OVERRIDES:-$REPO/supabase/baseline/seed-overrides.sql}"
 BOOTSTRAP="$HERE/local-db-bootstrap.sql"
 PGDATA="$LOCAL_DB_HOME/pg17"
 
@@ -63,6 +66,22 @@ need_tools() {
 }
 psql_() { "$PGBIN/psql" -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -p "$PG_PORT" -U postgres "$@"; }
 
+# mkdir is atomic on every filesystem (no flock on macOS). A lock whose holder is gone is taken over.
+SETUP_LOCK="$LOCAL_DB_HOME/.setup.lock"
+setup_lock() {
+  mkdir -p "$LOCAL_DB_HOME"
+  local waited=0 holder
+  until mkdir "$SETUP_LOCK" 2>/dev/null; do
+    holder=$(cat "$SETUP_LOCK/pid" 2>/dev/null)
+    if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then rm -rf "$SETUP_LOCK"; continue; fi
+    [ "$waited" -ge 600 ] && { log "setup lock held by pid ${holder:-?} for 10 min — giving up ($SETUP_LOCK)"; exit 6; }
+    sleep 1; waited=$((waited + 1))
+  done
+  echo $$ > "$SETUP_LOCK/pid"
+  trap 'rm -rf "$SETUP_LOCK"' EXIT   # an exit mid-build (exit 5/6) must not leave the lock behind
+}
+setup_unlock() { rm -rf "$SETUP_LOCK"; trap - EXIT; }
+
 cluster_up() {   # once per machine: init on first use, start if stopped
   mkdir -p "$LOCAL_DB_HOME"
   if [ ! -f "$PGDATA/PG_VERSION" ]; then
@@ -81,7 +100,8 @@ cluster_up() {   # once per machine: init on first use, start if stopped
 golden_name() {   # golden_<12 hex of bootstrap + schema + seed>
   local h
   h=$(cat "$BOOTSTRAP" "$SCHEMA" "$([ -f "$SEED" ] && echo "$SEED" || echo /dev/null)" \
-        "$([ -f "$SEED_DIR/manifest.json" ] && echo "$SEED_DIR/manifest.json" || echo /dev/null)" | shasum -a 256 | cut -c1-12)
+        "$([ -f "$SEED_DIR/manifest.json" ] && echo "$SEED_DIR/manifest.json" || echo /dev/null)" \
+        "$([ -f "$SEED_OVERRIDES" ] && echo "$SEED_OVERRIDES" || echo /dev/null)" | shasum -a 256 | cut -c1-12)
   echo "golden_$h"
 }
 
@@ -111,6 +131,9 @@ golden_ensure() {   # once per schema hash
     # carry (a catalogue row's author, say) must not reject the row. postgres is superuser here.
     "$(dump_bin)/pg_restore" --data-only --disable-triggers --no-owner -h 127.0.0.1 -p "$PG_PORT" -U postgres -d "$tmpdb" \
       "$SEED_DIR/seed.dump" >>"$LOCAL_DB_HOME/golden.log" 2>&1 || { log "golden build failed restoring the seed snapshot:"; tail -5 "$LOCAL_DB_HOME/golden.log" >&2; exit 6; }
+  fi
+  if [ -f "$SEED_OVERRIDES" ]; then
+    psql_ -d "$tmpdb" -f "$SEED_OVERRIDES" >>"$LOCAL_DB_HOME/golden.log" 2>&1 || { log "golden build failed applying $SEED_OVERRIDES:"; tail -5 "$LOCAL_DB_HOME/golden.log" >&2; exit 6; }
   fi
   # Freeze it: a template nobody can connect to cannot be written by accident.
   psql_ -d postgres -c "alter database $tmpdb rename to $g" -c "alter database $g with is_template true allow_connections false" >/dev/null || exit 6
@@ -147,8 +170,12 @@ up() {
   need_tools
   mkdir -p "$run_dir"; run_dir="$(cd "$run_dir" && pwd)"
   local t0=$SECONDS
+  # Parallel slots share ONE cluster: starting it and building the golden happen under one lock, so two
+  # slots never both initdb, both pg_ctl start, or both build golden_<hash> (run-suite.sh --parallel).
+  setup_lock
   cluster_up
   local g; g=$(golden_name); golden_ensure "$g"
+  setup_unlock
   local t1=$SECONDS
   local db="run_$(date +%s)_$$"
   psql_ -d postgres -c "create database $db template $g" >/dev/null 2>"$run_dir/db-clone.log" || { log "clone failed — $run_dir/db-clone.log"; exit 7; }

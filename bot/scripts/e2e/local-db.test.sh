@@ -37,6 +37,7 @@ grant all on public.catalog, public.private_notes to service_role;
 SQL
 echo "insert into public.items(label) values ('seeded');" > "$LOCAL_DB_SEED"
 export LOCAL_DB_SEED_TABLES="$tmp/seed-tables.txt"
+export LOCAL_DB_SEED_OVERRIDES="$tmp/seed-overrides.sql"; : > "$LOCAL_DB_SEED_OVERRIDES"   # hermetic: never the repo's file
 printf '# reference tables only\ncatalog\n' > "$LOCAL_DB_SEED_TABLES"
 PSQL17="$(ls -d /opt/homebrew/opt/postgresql@17/bin /usr/local/opt/postgresql@17/bin /usr/lib/postgresql/17/bin 2>/dev/null | head -1)/psql"
 
@@ -105,10 +106,13 @@ bash "$LDB" down "$r2" >/dev/null 2>&1
 # ---- AC8: a run after the pull carries the reference rows and NONE of the per-teacher rows
 JS_CATALOG="const {data,error}=await sb.from('catalog').select('title').order('id'); console.log(error?('ERR '+error.message):data.map(r=>r.title).join(','))"
 JS_NOTES="const {data,error}=await sb.from('private_notes').select('id'); console.log(error?('ERR '+error.message):data.length)"
+# Lane overrides go on top of the snapshot (seed-overrides.sql: a global switch copied from the sandbox —
+# app_redirect_* — must not decide what the lane tests). Changing the file rebuilds the golden.
+echo "update public.catalog set title = title || '+o' where id = 2;" > "$LOCAL_DB_SEED_OVERRIDES"
 r3="$tmp/run3"
 bash "$LDB" up "$r3" >"$tmp/up3.log" 2>&1
 t "AC8 run 3 up exits 0" "$?" "0"
-got=$(client "$r3/db.env" "$JS_CATALOG"); t "AC8 seeded reference rows are there" "$got" "cat-1,cat-2"
+got=$(client "$r3/db.env" "$JS_CATALOG"); t "AC8 seeded reference rows are there, with the lane overrides applied" "$got" "cat-1,cat-2+o"
 got=$(client "$r3/db.env" "$JS_NOTES");   t "AC8 per-teacher rows were never pulled" "$got" "0"
 bash "$LDB" down "$r3" >/dev/null 2>&1
 printf 'catalog\nprivate_notes\n' > "$LOCAL_DB_SEED_TABLES"
@@ -120,6 +124,23 @@ t "doctor names the stale seed" "$rc:$out" "1:seed stale (local-db.sh seed-pull)
 out=$(LOCAL_DB_BASELINE_URL="postgresql://postgres.ihzciabopbttygxxgrkm:x@127.0.0.1:1/postgres" bash "$LDB" baseline "$tmp/never.sql" 2>&1); rc=$?
 t "AC3 baseline refuses a non-sandbox ref (exit 3)" "$rc" "3"
 t "AC3 nothing written" "$([ -e "$tmp/never.sql" ] && echo written || echo none)" "none"
+
+# ---- AC10: parallel slots. Two `up`s at the SAME moment, on their own ports, while the golden must be
+# (re)built (the schema changed): exactly one build, both runs come up, each on its own database.
+echo "-- changed for the parallel case" >> "$LOCAL_DB_SCHEMA"
+pa="$tmp/par-a"; pb="$tmp/par-b"
+( E2E_SUPABASE_PORT=55440 LOCAL_DB_REST_PORT=55441 bash "$LDB" up "$pa" >"$tmp/par-a.log" 2>&1; echo $? > "$tmp/par-a.rc" ) &
+( E2E_SUPABASE_PORT=55450 LOCAL_DB_REST_PORT=55451 bash "$LDB" up "$pb" >"$tmp/par-b.log" 2>&1; echo $? > "$tmp/par-b.rc" ) &
+wait
+t "AC10 slot A up exits 0" "$(cat "$tmp/par-a.rc")" "0"
+t "AC10 slot B up exits 0" "$(cat "$tmp/par-b.rc")" "0"
+[ "$(cat "$tmp/par-a.rc")" = 0 ] || tail -5 "$tmp/par-a.log" | sed 's/^/      /'
+[ "$(cat "$tmp/par-b.rc")" = 0 ] || tail -5 "$tmp/par-b.log" | sed 's/^/      /'
+t "AC10 the golden was built exactly once" "$(cat "$tmp/par-a.log" "$tmp/par-b.log" | grep -c 'built golden_')" "1"
+t "AC10 each slot has its own database" "$([ "$(cat "$pa/db.name" 2>/dev/null)" != "$(cat "$pb/db.name" 2>/dev/null)" ] && [ -s "$pa/db.name" ] && echo distinct || echo same)" "distinct"
+got=$(client "$pa/db.env" "$JS_INSERT"); t "AC10 slot A writes" "$got" "ok"
+got=$(client "$pb/db.env" "$JS_LABELS"); t "AC10 slot B does not see slot A's row" "$got" "seeded"
+bash "$LDB" down "$pa" >/dev/null 2>&1; bash "$LDB" down "$pb" >/dev/null 2>&1
 
 bash "$LDB" stop >/dev/null 2>&1
 rm -rf "$tmp_root"
