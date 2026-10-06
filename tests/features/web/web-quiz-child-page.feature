@@ -732,3 +732,34 @@ Feature: Web child quiz page on the portal
     When the friend opens it on their own phone
     Then the page names only the challenger and their score
     And it shows no teacher name, no class label, no class names to pick from and no "N in your class played today"
+
+  @T255
+  Scenario: A child's shared card arrives in the group as a picture, even from WhatsApp's own browser
+    Given a child finished a quiz on the page inside WhatsApp (no share sheet)
+    When the child taps "Share to class group" and sends the WhatsApp message
+    Then the message carries the class link with the card's picture id ("/q/<CODE>?a=…")
+    And the group's link preview shows the child's card (name, animal, score, stars, topic) at 1200×630
+    And the link still opens the class quiz, so a classmate who taps it counts in the teacher's report
+    And the share screen shows the same picture and offers "Save the picture"
+
+  @T256
+  Scenario: A browser that can share files sends the picture with the message
+    Given a phone browser that supports sharing an image file
+    When the child taps "Share to class group", "Challenge a friend" or "Share the class table"
+    Then the square picture (card, invite or class) is attached to the message with the link
+    And when the picture is not ready yet the text and link go at once, never a wait
+
+  @T257
+  Scenario: A challenge link previews as the invite
+    Given a child scored 7/8 and sent "Challenge a friend"
+    When the friend's WhatsApp shows the link preview
+    Then the preview reads "Can you beat <first name>'s 7/8?" with the topic and the mascot, in the quiz's language
+    And no other child's name and no list number is on the picture
+
+  @T258
+  Scenario: The class picture never names a classmate
+    Given a class where several children have finished
+    When a child shares the class table
+    Then the picture shows places, animals and scores, how many children played and the class average
+    And only the sharing child's own row carries a name, marked "(me)"
+    And the picture is in Urdu, right to left with numbers left to right, when the quiz is Urdu

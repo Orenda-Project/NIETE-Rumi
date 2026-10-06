@@ -4,6 +4,8 @@
  *   GET  /q/:code          the child page, server-rendered with the quiz payload as boot JSON
  *   GET  /q/:code/class    the same page opened on the class league table (own URL, own link preview)
  *   GET  /q/:code/schools  the same page opened on the school league (own URL, own link preview)
+ *   GET  /q/:code/art/:kind.jpg?a=<id>  a share picture (card, class, schools, invite), drawn by the bot;
+ *                          every shared link names one as its og:image, so the picture arrives with the link
  *   *    /api/wq/*         forwarded to the bot's /api/internal/wq/* with the internal key
  *   GET  /wq-probe         a capability probe for real phones; posts its result as one event
  *   GET  /wq/*             the page's own JS/CSS/images, long cache (the page links them with ?v=<hash>)
@@ -27,6 +29,15 @@ const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 const BODY_LIMIT = '16kb';
 const BOT_TIMEOUT_MS = 10000;
 const YEAR_S = 31536000;
+// A share picture's signed id (the bot's web-quiz-art.js): kind letter, ref, mac. The edge only checks its shape.
+const ART_ID_RX = /^([cils])\.[A-Za-z0-9_-]{4,24}\.[A-Za-z0-9_-]{12}$/;
+const ART_KIND = { card: 'c', invite: 'i', class: 'l', schools: 's' };
+// A card or an invite never changes once drawn; a class or school picture moves as children play.
+const ART_MAX_AGE = { card: 86400, invite: 86400, class: 600, schools: 600 };
+function artId(v, kind) {
+  const m = typeof v === 'string' ? ART_ID_RX.exec(v) : null;
+  return m && m[1] === ART_KIND[kind] ? v : null;
+}
 
 // Each forwarded path: method, the pattern the edge accepts, and its limiter.
 const API_ROUTES = [
@@ -105,6 +116,14 @@ function ogText(payload, view, brand) {
   const ur = q.lang === 'ur';
   const label = cls.label || (ur ? 'جماعت' : 'Class');
   const n = q.n || (q.questions || []).length || 0;
+  if (payload && payload.challenge && payload.art && payload.art.invite) {
+    const ch = payload.challenge;
+    const score = `${ch.correct}/${ch.total}`;
+    return {
+      title: ur ? `کیا آپ ${ch.first} کے ${score} سے آگے جا سکتے ہیں؟ · ${q.topic || ''}` : `Can you beat ${ch.first}'s ${score}? · ${q.topic || ''}`,
+      desc: ur ? 'وہی کوئز کھیلیں اور دیکھیں!' : 'Play the same quiz and see!',
+    };
+  }
   if (view === 'schools') {
     return {
       title: ur ? 'اس ہفتے اسکولوں کی لیگ' : 'School league this week',
@@ -128,7 +147,7 @@ function ogText(payload, view, brand) {
 // The file name carries a version because /wq is served with a one-year immutable cache.
 const URDU_FONT = '/wq/fonts/wq-nastaliq-1.woff2';
 
-function head({ lang, dir, title, desc, origin, url, assetV, brand }) {
+function head({ lang, dir, title, desc, origin, url, assetV, brand, image }) {
   return `<!doctype html>
 <html lang="${lang}" dir="${dir}">
 <head>
@@ -141,7 +160,7 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand }) {
 <meta property="og:site_name" content="${esc(brand.og.site)}">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(desc)}">
-<meta property="og:image" content="${esc(origin)}${esc(brand.og.image)}">
+<meta property="og:image" content="${esc(image || `${origin}${brand.og.image}`)}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="${esc(url)}">
@@ -156,14 +175,25 @@ function identityV2(payload) {
   return Boolean(id && id.mode === 'v2');
 }
 
-function renderQuizPage({ payload, code, view, origin, assetV, url }) {
+/** The picture a link previews as: the shared card, the invite on a challenge code, the class view's table, else the brand's. */
+function ogImageFor({ payload, code, view, origin, a }) {
+  const art = (payload && payload.art) || {};
+  const pic = (kind, id) => (id ? `${origin}/q/${code}/art/${kind}.jpg?a=${encodeURIComponent(id)}` : null);
+  return pic('card', artId(a, 'card'))
+    || pic('invite', artId(art.invite, 'invite'))
+    || (view === 'class' ? pic('class', artId(art.class, 'class')) : null)
+    || (view === 'schools' ? pic('schools', artId(art.schools, 'schools')) : null);
+}
+
+function renderQuizPage({ payload, code, view, origin, assetV, url, a }) {
   const q = (payload && payload.quiz) || {};
   const lang = q.lang === 'ur' ? 'ur' : 'en';
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
   const brand = brandOf(payload && payload.brand);
   const og = ogText(payload, view, brand);
   const boot = { ...payload, code, view, brand };
-  return `${head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand })}
+  const image = ogImageFor({ payload, code, view, origin, a });
+  return `${head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image })}
 </head>
 <body>
 <main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>
@@ -369,7 +399,7 @@ function createWebQuizRouter(opts = {}) {
     if (out.status === 200 && out.body && out.body.quiz) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       const url = `${origin}/q/${upper}${view === 'class' ? '/class' : view === 'schools' ? '/schools' : ''}`;
-      return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url }));
+      return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url, a: req.query.a }));
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
     // A 404/410 is "closed" only when it is the contract's answer; a bare 404 means the bot
@@ -416,6 +446,24 @@ function createWebQuizRouter(opts = {}) {
     const kind = out.status === 401 ? 'closed' : 'off';
     return res.status(out.status === 401 ? 410 : 503).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind, origin, assetV: version(), brandKey }));
   }
+
+  // The share pictures. The id is the permission (the bot checks its mac); the edge checks its shape and that it
+  // is the kind the path names, so a link can never ask for one picture under another's name or cache life.
+  router.get('/q/:code/art/:kind.jpg', limiters.read, async (req, res) => {
+    const kind = String(req.params.kind || '');
+    const id = Object.prototype.hasOwnProperty.call(ART_KIND, kind) ? artId(req.query.a, kind) : null;
+    if (!id || !CODE_RX.test(String(req.params.code || ''))) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
+    if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
+    try {
+      const out = await callBot('GET', `/api/internal/wq/art/${id}${req.query.f === 'sq' ? '?f=sq' : ''}`, req);
+      if (out.bytes) {
+        return res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}`, 'X-Robots-Tag': 'noindex' }).type(out.contentType).send(out.bytes);
+      }
+      return res.status(out.status === 404 ? 404 : 502).set('Cache-Control', 'no-store').json({ error: out.status === 404 ? 'not_found' : 'upstream_error' });
+    } catch (_) {
+      return res.status(502).set('Cache-Control', 'no-store').json({ error: 'bot_unreachable' });
+    }
+  });
 
   router.get('/wq-probe', (req, res) => {
     pageHeaders(res);
