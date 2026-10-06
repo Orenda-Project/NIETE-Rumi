@@ -11,8 +11,8 @@
  * or no base URL is today's behaviour exactly.
  *
  * The links point at the portal (`WEB_QUIZ_BASE_URL || PORTAL_URL`, the same
- * base the children's /q/<code> page uses): `/t/<token>` is the live report and
- * `/t/<token>/remind` the "Remind the class" share. The token is the report
+ * base the children's /q/<code> page uses): `/r/<token>` is the live report and
+ * `/r/<token>/remind` the "Remind the class" share. The token is the report
  * token (kind `tr`, 30 days), signed for this teacher and this quiz.
  */
 const supabase = require('../../config/supabase');
@@ -20,27 +20,45 @@ const { logToFile } = require('../../utils/logger');
 const { webBaseUrl } = require('./web-quiz-link');
 const { signTeacherReport } = require('./teacher-report-token');
 
+// TODO: take REPORT_PATH from the teacher report route once it lands; '/r' is its value.
+const REPORT_PATH = '/r';
 const KEY = 'teacher_report_teachers';
+// The approved WhatsApp template (URL button) the report link rides on; absent = the link goes as text.
+const TEMPLATE_KEY = 'teacher_report_template';
 const TTL_MS = 30 * 1000;
-let cache = null; // { at, teachers }
+let cache = null; // { at, teachers, template }
 
 function parse(value) {
   if (typeof value !== 'string') return value;
   try { return JSON.parse(value); } catch (_) { return value; }
 }
 
-async function readTeachers(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.teachers;
+async function readSettings(now = Date.now()) {
+  if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, TEMPLATE_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const teachers = parse(((data || [])[0] || {}).value);
-    cache = { at: now, teachers };
-    return teachers;
+    const byKey = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+    const template = parse(byKey[TEMPLATE_KEY]);
+    cache = {
+      at: now,
+      teachers: parse(byKey[KEY]),
+      template: typeof template === 'string' && template.trim() ? template.trim() : null,
+    };
+    return cache;
   } catch (err) {
     logToFile('⚠️ teacher report: settings lookup failed — off for this call', { error: err.message });
-    return null;
+    return { teachers: null, template: null };
   }
+}
+
+async function readTeachers(now = Date.now()) {
+  return (await readSettings(now)).teachers;
+}
+
+/** The approved report template's name, or null (send the link as text). Never throws. */
+async function reportTemplate() {
+  return (await readSettings()).template;
 }
 
 function listed(teachers, teacherId) {
@@ -66,7 +84,7 @@ function reportUrls({ teacherId, quizId = null } = {}) {
   try {
     const token = signTeacherReport({ teacherId, quizId });
     if (!token) return null;
-    const live = `${base}/t/${encodeURIComponent(token)}`;
+    const live = `${base}${REPORT_PATH}/${encodeURIComponent(token)}`;
     return { live, remind: `${live}/remind`, token };
   } catch (err) {
     logToFile('⚠️ teacher report: could not sign a report link', { error: err.message });
@@ -74,4 +92,4 @@ function reportUrls({ teacherId, quizId = null } = {}) {
   }
 }
 
-module.exports = { teacherReportOn, reportUrls, KEY, _resetCache: () => { cache = null; } };
+module.exports = { teacherReportOn, reportUrls, reportTemplate, REPORT_PATH, KEY, TEMPLATE_KEY, _resetCache: () => { cache = null; } };

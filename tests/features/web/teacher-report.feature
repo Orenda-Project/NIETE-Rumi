@@ -15,8 +15,15 @@ Feature: Teacher quiz report on the web and in the class report PDF
   Scenario: The class report PDF lists who has not played yet, greyed, with their list no.
     When the scheduled class report is sent
     Then the PDF has a "Not played yet" section with the 9 children still to play, first names with their list no., in list order
-    And it has a "Remind the class" link to "/t/<token>/remind" and a "See the live report" link to "/t/<token>"
+    And it has a "Remind the class" link to "/r/<token>/remind" and a "See the live report" link to "/r/<token>"
     And the caption carries the live report link in the teacher's own language
+
+  @T358
+  Scenario: The caption counts who has not played and links the reminder
+    When the scheduled class report is sent
+    Then the caption reads "9 of 15 have not played yet · tap to remind the class: <link>" with the "/r/<token>/remind" link
+    And for an Urdu-speaking teacher the same line is Urdu with the numbers isolated
+    And with no class list, or when everyone on it has played, the caption has no count line
 
   @T351
   Scenario: A child who started but did not finish is listed once
@@ -35,7 +42,7 @@ Feature: Teacher quiz report on the web and in the class report PDF
   Scenario: A teacher not on the teacher report list gets today's report
     Given the teacher is not on app_settings.teacher_report_teachers
     When the scheduled class report is sent
-    Then the PDF and its caption carry no "/t/" link and no "Not played yet" section
+    Then the PDF and its caption carry no "/r/" link and no "Not played yet" section
 
   @T354
   Scenario: An Urdu quiz's PDF section is Urdu; the caption follows the teacher
@@ -62,5 +69,5 @@ Feature: Teacher quiz report on the web and in the class report PDF
     When the teacher opens "All my classes" on the report page at 360 px
     Then there is one card per class and subject with its average and how many played
     And an 8-week bar trend of children who played, with each week's average on top
-    And each quiz row opens that quiz's own report "/t/<token>"
+    And each quiz row opens that quiz's own report "/r/<token>"
     And in Urdu every number and date reads in order inside the Urdu text

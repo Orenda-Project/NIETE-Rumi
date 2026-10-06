@@ -57,8 +57,8 @@ describe('renderClassTab — English', () => {
   });
 
   test('each quiz links to its own report with the minted token; no token, no link', () => {
-    expect(html).toContain(`href="/t/${TOKENS[Q1]}"`);
-    expect(html).toContain(`href="/t/${TOKENS[Q2]}"`);
+    expect(html).toContain(`href="/r/${TOKENS[Q1]}"`);
+    expect(html).toContain(`href="/r/${TOKENS[Q2]}"`);
     expect((html.match(/<a class="trc-q"/g) || []).length).toBe(2);
     const t = text(html);
     expect(t).toContain('12 of 31 played · 68%');
@@ -73,7 +73,7 @@ describe('renderClassTab — English', () => {
 
   test('a base url is prefixed for an absolute link (the PDF)', () => {
     const abs = renderClassTab(DATA, { language: 'en', tokens: TOKENS, base: 'https://portal.example.test' });
-    expect(abs).toContain(`href="https://portal.example.test/t/${TOKENS[Q1]}"`);
+    expect(abs).toContain(`href="https://portal.example.test/r/${TOKENS[Q1]}"`);
   });
 
   test('nothing sent: an empty state that says what to do, no cards', () => {
