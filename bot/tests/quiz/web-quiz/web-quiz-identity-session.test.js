@@ -264,6 +264,22 @@ describe('a phone holding one child\'s open session, then "Not X?" and another c
   });
 });
 
+describe('one phone cannot mint a new child per replay (school league farming)', () => {
+  test('the same typed name confirmed again on the same phone and code reuses that provisional child; another phone or another name does not', async () => {
+    const D = T.newDeviceRef();
+    const first = await answer({ new: { name: 'Usman Testwala', force: true }, device_ref: D });
+    expect(first.status).toBe(200);
+    const again = await answer({ new: { name: 'usman  testwala', force: true }, device_ref: D });
+    expect(again.status).toBe(200);
+    expect(again.body.child.chip).toBe(first.body.child.chip);
+    const other = await answer({ new: { name: 'Usman Testwala', force: true }, device_ref: T.newDeviceRef() });
+    expect(other.body.child.chip).not.toBe(first.body.child.chip);
+    const sibling = await answer({ new: { name: 'Waleed Testwala', force: true }, device_ref: D });
+    expect(sibling.body.child.chip).not.toBe(first.body.child.chip);
+    expect(ev('web_quiz.identity_step').filter((e) => e.step === 'provisional_reused')).toHaveLength(1);
+  });
+});
+
 describe('logs: ids and counts only', () => {
   test('every identity step is logged without a name or a typed string', async () => {
     await answer({ new: { name: 'Ali' } });
