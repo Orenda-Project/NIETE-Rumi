@@ -405,11 +405,11 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
   const codes = await classCodes(teacherId, qs.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
   const counted = countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId);
-  const byQuiz = new Map();
+  const sessionsOf = new Map();
   counted.forEach((s) => {
     const q = quizOfCode.get(s.share_code_id);
-    if (!byQuiz.has(q)) byQuiz.set(q, []);
-    byQuiz.get(q).push(pct(s.correct_answers || 0, s.total_questions_answered || 0));
+    if (!sessionsOf.has(q)) sessionsOf.set(q, []);
+    sessionsOf.get(q).push(s);
   });
 
   let roster = null;
@@ -417,9 +417,15 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     logToFile('⚠️ teacher report: class list read failed — no class sizes', { error: err.message });
   }
   const rows = qs.map((q) => {
-    const scores = byQuiz.get(q.id) || [];
+    // One child per quiz across its codes (as the quiz page), and "N of M" counts the
+    // class list only: a typed child who is not on it is never set against the class size.
+    const mine = onePerChildAcrossCodes(sessionsOf.get(q.id) || []);
+    const scores = mine.map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
+    const { roster: view, one } = classOf(roster, q, null);
+    const ids = one ? new Set(one.kids.map((k) => k.id)) : null;
     return {
-      of: classOf(roster, q, null).roster.of,
+      of: view.of,
+      onList: ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)).length : null,
       id: q.id, date: (q.meta && q.meta.lesson_date) || q.created_at, topic: q.topic || '', grade: gradeNum(q.grade) || null,
       subject: q.subject || null, source: q.quiz_source, played: scores.length, avg: mean(scores), scores,
     };
