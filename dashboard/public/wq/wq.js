@@ -25,12 +25,23 @@ var WQI = (function () {
   };
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function opts(q) { return q.options || []; }
+  function hotsFit(q) {
+    var f = q.figure, hs = f && f.hotspots;
+    if (!hs || !hs.length) return false;
+    var vb = f.svg ? viewBox(f.svg) : null;
+    if (f.w && f.h) vb = { x: vb ? vb.x : 0, y: vb ? vb.y : 0, w: +f.w, h: +f.h };
+    if (!vb || !(vb.w > 0) || !(vb.h > 0)) return false;
+    return hs.every(function (h) { return +h.x >= vb.x && +h.x <= vb.x + vb.w && +h.y >= vb.y && +h.y <= vb.y + vb.h; });
+  }
+  function allPics(o) { return o.length > 0 && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')); }); }
   function kind(q) {
     var k = KINDS[String(q.type || '').toLowerCase()];
+    // A label item plays only when every hotspot sits on its drawing; one outside the picture's box was drawn
+    // off the picture (render matrix). Then the parts are offered as words.
+    if (k === 'label' && q.figure && !hotsFit(q)) return 'single';
     if (k) return k;
     if (q.multi) return 'multi';
-    var o = opts(q);
-    if (o.length && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')); })) return 'picture';
+    if (allPics(opts(q))) return 'picture';
     return 'single';
   }
   function slots(v) { return String(v || '').toUpperCase().split(',').map(function (s) { return s.trim(); }).filter(Boolean); }
@@ -42,14 +53,19 @@ var WQI = (function () {
   }
 
   /* ---- maths: $...$ with a small TeX subset -> MathML (native in Chrome/WebView 109+) ---- */
-  var SYM = { times: '×', div: '÷', cdot: '·', pm: '±', le: '≤', ge: '≥', ne: '≠', pi: 'π', degree: '°', circ: '°', approx: '≈', to: '→', rightarrow: '→' };
+  var SYM = { times: '×', div: '÷', cdot: '·', pm: '±', le: '≤', ge: '≥', ne: '≠', pi: 'π', degree: '°', circ: '°', approx: '≈', to: '→', rightarrow: '→',
+    neq: '≠', leq: '≤', geq: '≥', dots: '…', ldots: '…', cdots: '⋯', infty: '∞', leftarrow: '←', Rightarrow: '⇒', longrightarrow: '⟶', rightleftharpoons: '⇌' };
+  // Greek letters seen in prod questions (\Omega in a circuit): upright, as a unit is written.
+  var GREEK = { alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', Delta: 'Δ', theta: 'θ', lambda: 'λ', mu: 'μ', rho: 'ρ', sigma: 'σ', omega: 'ω', Omega: 'Ω' };
   function texTokens(s) {
     var out = [], i = 0;
     while (i < s.length) {
       var c = s[i];
       if (c === '\\') {
         var m = /^\\([a-zA-Z]+|.)/.exec(s.slice(i));
-        out.push({ cmd: m[1] }); i += m[0].length;
+        i += m[0].length;
+        var raw = /^(text|textrm|mathrm)$/.test(m[1]) ? /^\s*\{([^}]*)\}/.exec(s.slice(i)) : null;
+        if (raw) { out.push({ cmd: 'text', raw: raw[1] }); i += raw[0].length; } else out.push({ cmd: m[1] });
       } else if (c === '{' || c === '}' || c === '^' || c === '_') { out.push({ p: c }); i++; }
       else if (/\s/.test(c)) { i++; }
       else if (/[0-9.]/.test(c)) { var n = /^[0-9]+(\.[0-9]+)?/.exec(s.slice(i)) || [c]; out.push({ n: n[0] }); i += n[0].length; }
@@ -74,6 +90,27 @@ var WQI = (function () {
       }
       return t;
     }
+    // \begin{array}{rr} … \end{array} (a column sum): a table, its cells typeset, \hline a rule over the next row.
+    function table() {
+      textArg();
+      var spec = textArg().replace(/[^lcr]/g, '');
+      var rows = [[[]]], ruled = [false];
+      while (st.i < tk.length && !(tk[st.i].cmd === 'end')) {
+        var x = tk[st.i++], row = rows[rows.length - 1];
+        if (x.cmd === '\\') { rows.push([[]]); ruled.push(false); } else if (x.o === '&') row.push([]);
+        else if (x.cmd === 'hline') ruled[rows.length - 1] = true;
+        else row[row.length - 1].push(x);
+      }
+      st.i++; textArg();
+      var al = { l: 'left', c: 'center', r: 'right' };
+      return '<mtable>' + rows.map(function (cells, r) {
+        if (!ruled[r] && cells.length === 1 && !cells[0].length) return '';
+        return '<mtr>' + cells.map(function (cell, k) {
+          var css = 'text-align:' + (al[spec.charAt(k)] || 'right') + (ruled[r] ? ';border-top:2px solid currentColor' : '');
+          return '<mtd style="' + css + '">' + texParse(cell, { i: 0 }) + '</mtd>';
+        }).join('') + '</mtr>';
+      }).join('') + '</mtable>';
+    }
     function atom() {
       var t = tk[st.i++];
       if (!t) return '';
@@ -83,7 +120,11 @@ var WQI = (function () {
       if (t.cmd) {
         if (t.cmd === 'frac') { var a = group(), b = group(); return '<mfrac>' + wrapRow(a) + wrapRow(b) + '</mfrac>'; }
         if (t.cmd === 'sqrt') return '<msqrt>' + group() + '</msqrt>';
+        if (t.raw != null) return '<mtext>' + esc(t.raw.replace(/ /g, '\u00a0')) + '</mtext>';
         if (t.cmd === 'text' || t.cmd === 'mathrm') return '<mtext>' + esc(textArg()) + '</mtext>';
+        if (t.cmd === 'xrightarrow') return '<mover><mo>→</mo>' + wrapRow(group()) + '</mover>';
+        if (t.cmd === 'begin') return table();
+        if (GREEK[t.cmd]) return '<mi mathvariant="normal">' + GREEK[t.cmd] + '</mi>';
         if (t.cmd === ',' || t.cmd === ';' || t.cmd === ' ') return '<mspace width="0.2em"/>';
         if (SYM[t.cmd]) return '<mo>' + SYM[t.cmd] + '</mo>';
         return '<mi>' + esc(t.cmd) + '</mi>';
@@ -105,7 +146,7 @@ var WQI = (function () {
   function tex(s) {
     return String(s == null ? '' : s).split(/(\$[^$]*\$)/).map(function (seg) {
       if (seg.length > 1 && seg[0] === '$' && seg[seg.length - 1] === '$') {
-        return '<math class="wq-m" dir="ltr">' + texParse(texTokens(seg.slice(1, -1)), { i: 0 }) + '</math>';
+        return '<span class="wq-mx"><math class="wq-m" dir="ltr">' + texParse(texTokens(seg.slice(1, -1)), { i: 0 }) + '</math></span>';
       }
       return esc(seg);
     }).join('');
@@ -150,6 +191,8 @@ var WQI = (function () {
   function pct(n) { return Math.round(n * 1000) / 10 + '%'; }
   // A picture file shows a soft pulse until it arrives (slow data), then clears itself.
   var LOADING = ' class="wq-ld" onload="this.className=\'\'" onerror="this.className=\'\'"';
+  // A figure file that never arrives (a missing object) hides its figure: never a broken-picture icon and its alt text.
+  var FIG_LOADING = ' class="wq-ld" onload="this.className=\'\'" onerror="var f=this.closest(\'figure\');if(f)f.style.display=\'none\'"';
   // Every picture file a question needs, so the page can fetch the next question's while the child answers.
   function imageUrls(q) {
     var out = [], f = figureOf(q);
@@ -180,7 +223,7 @@ var WQI = (function () {
     var box = vb ? ' style="aspect-ratio:' + vb.w + '/' + vb.h + ';max-width:calc(46vh * ' + vb.w + ' / ' + vb.h + ')"' : '';
     var draw = f.svg
       ? '<div class="wq-svg" role="img" aria-label="' + esc(f.alt || '') + '"' + (f.dir ? ' dir="' + esc(f.dir) + '"' : '') + '>' + cleanSvg(f.svg) + '</div>'
-      : '<img src="' + esc(f.url) + '" alt="' + esc(f.alt || '') + '"' + LOADING + '>';
+      : '<img src="' + esc(f.url) + '" alt="' + esc(f.alt || '') + '"' + FIG_LOADING + '>';
     return '<figure class="wq-fig' + (hot ? ' wq-labelfig' : '') + (f.type ? ' wq-f-' + esc(String(f.type).replace(/[^a-z0-9_-]/gi, '')) : '') + '"><div class="wq-figbox"' + box + '>' + draw + hot + '</div>' +
       '<button class="wq-zoom" aria-label="' + esc(T.zoom || 'Zoom') + '">' + ZOOM_ICON + '</button></figure>';
   }

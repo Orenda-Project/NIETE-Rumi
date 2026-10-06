@@ -62,11 +62,33 @@ const W = {
     left: ['بلی', 'کتا', 'گائے', 'بطخ'], right: ['میاؤں', 'بھوں بھوں', 'ماں', 'قیں قیں'],
   },
 };
-const MATH = {
-  stem: 'What is $\\frac{3}{4} + \\frac{1}{4}$? And $12 \\times 3$?',
-  opts: ['$1$', '$\\frac{4}{8}$', '$36$', '$x^2 = 16$'],
-  why: 'Add the tops: $3 + 1 = 4$, so $\\frac{4}{4} = 1$; and $12 \\times 3 = 36$.',
+// Maths in each language's own words: an English stem on an Urdu (right-to-left) page reorders its punctuation.
+const MATHS = {
+  en: {
+    stem: 'What is $\\frac{3}{4} + \\frac{1}{4}$? And $12 \\times 3$?',
+    opts: ['$1$', '$\\frac{4}{8}$', '$36$', '$x^2 = 16$'],
+    why: 'Add the tops: $3 + 1 = 4$, so $\\frac{4}{4} = 1$; and $12 \\times 3 = 36$.',
+  },
+  ur: {
+    stem: '$\\frac{3}{4} + \\frac{1}{4}$ کتنا ہے؟ اور $12 \\times 3$ کتنا ہے؟',
+    opts: ['$1$', '$\\frac{4}{8}$', '$36$', '$x^2 = 16$'],
+    why: 'اوپر کے عدد جمع کریں: $3 + 1 = 4$، اس لیے $\\frac{4}{4} = 1$؛ اور $12 \\times 3 = 36$۔',
+  },
 };
+// The TeX commands production rows actually carry beyond the basics (40,000-row prod sample, 27 Jul-6 Oct 2026):
+// \begin{array} column sums 74, \Omega 16, \rightleftharpoons 5, \dots 5, \neq 4, \xrightarrow 3, \text with spaces.
+const PROD_TEX = {
+  en: {
+    stem: 'A lamp has $60\\ \\Omega$. What comes next: $67, 62, 57, 52, \\dots$?',
+    why: '$14, 16 \\xrightarrow{\\div 2} 7, 8$ and $\\text{CuSO}_4\\cdot5\\text{H}_2\\text{O} \\rightleftharpoons \\text{CuSO}_4 + 5\\text{H}_2\\text{O}$.',
+  },
+  ur: {
+    stem: 'ایک بلب میں $60\\ \\Omega$ ہیں۔ آگے کیا آئے گا: $67, 62, 57, 52, \\dots$؟',
+    why: '$14, 16 \\xrightarrow{\\div 2} 7, 8$ اور $\\text{CuSO}_4\\cdot5\\text{H}_2\\text{O} \\rightleftharpoons \\text{CuSO}_4 + 5\\text{H}_2\\text{O}$۔',
+  },
+  opts: ['$9 \\div 3 \\neq 3 \\div 9$', '$\\begin{array}{rr} & 712 \\\\ - & 460 \\\\ \\hline & \\end{array}$', '$25\\,^\\circ\\text{C}$', '$\\text{Rs } 40$'],
+};
+const MATH = MATHS.en;
 
 let seq = 0;
 const uid = () => {
@@ -87,10 +109,27 @@ function row(lang, over = {}) {
 }
 const webItem = (over) => ({ v: 2, wa: { from: 'projected' }, source: { kind: 'transcript', quote: 'x' }, ...over });
 
+const glyphsFor = (lang) => (lang === 'ur' ? ['بّ', 'بِ', 'بُ'] : ['c_t', 'b', 'd']);
+
+/** A wrong answer and the right one for an item, as the page's controls send them. */
+function answers(it) {
+  const slots = (it.options || []).map((o) => o.slot);
+  const key = String(it.correct_slot || '');
+  const keys = key.split(',').filter(Boolean);
+  if (it.type === 'order' || it.type === 'match') {
+    const wrong = [...keys].reverse();
+    if (wrong.join(',') === key) wrong.push(wrong.shift());
+    return { wrong: wrong.join(','), right: key };
+  }
+  if (keys.length > 1) return { wrong: slots.filter((x) => !keys.includes(x)).slice(0, 1).join(','), right: key };
+  return { wrong: slots.find((x) => x !== key) || slots[0], right: key };
+}
+
 function shapes(lang) {
   const w = W[lang];
   const out = [];
-  const add = (id, r, note) => out.push({ id: `${lang}-${id}`, lang, note: note || id, row: r });
+  const add = (id, r, note, extra) => out.push({ id: `${lang}-${id}`, lang, note: note || id, row: r, ...(extra || {}) });
+  const M = MATHS[lang];
 
   add('single-3', row(lang));
   add('single-2', row(lang, { option_c: null }));
@@ -99,8 +138,31 @@ function shapes(lang) {
   add('long-options-4', row(lang, { option_a: w.longOpt[0], option_b: w.longOpt[1], option_c: w.longOpt[2], option_d: w.longOpt[3] }));
   add('long-stem-long-options', row(lang, { question_text: w.long, option_a: w.longOpt[0], option_b: w.longOpt[1], option_c: w.longOpt[2], option_d: w.longOpt[3] }));
   add('maths', row(lang, {
-    question_text: MATH.stem, option_a: MATH.opts[0], option_b: MATH.opts[1], option_c: MATH.opts[2], option_d: MATH.opts[3], explanation: MATH.why,
+    question_text: M.stem, option_a: M.opts[0], option_b: M.opts[1], option_c: M.opts[2], option_d: M.opts[3], explanation: M.why,
   }));
+  add('maths-prod-tex', row(lang, {
+    question_text: PROD_TEX[lang].stem, option_a: PROD_TEX.opts[0], option_b: PROD_TEX.opts[1], option_c: PROD_TEX.opts[2], option_d: PROD_TEX.opts[3], explanation: PROD_TEX[lang].why,
+  }), 'TeX commands prod rows carry');
+  // Options a child reads in the quiz language with a number in them; Latin inside an Urdu stem.
+  add('number-options', row(lang, lang === 'ur'
+    ? { option_a: '۳ سیب', option_b: '12 کرسیاں', option_c: '5 پنسلیں', option_d: '۷ جوتے' }
+    : { option_a: '3 apples', option_b: '12 chairs', option_c: '5 pencils', option_d: '7 shoes' }));
+  if (lang === 'ur') add('latin-in-urdu', row(lang, { question_text: 'ان میں سے Fruit کون سا ہے؟ (CO2 اور H2O بھی دیکھیں)', option_b: 'Chair (کرسی)' }));
+  // Today's WhatsApp picture options (stored option images), a picture file that never arrives, a
+  // WhatsApp match figure (plays as tap-to-match), a video-bank sound item, a web item with a hint.
+  add('option-images', row(lang, { option_a: '1. Table', option_b: '2. Chair', option_c: 'Picture 3', media: { language: lang, option_images: ['a.png', 'b.png', 'c.png'] } }));
+  add('figure-file-missing', row(lang, { question_text: w.fig, media: { language: lang, question_image: 'missing.png' } }), 'picture file 404 → figure hides', { missing: true });
+  [3, 4].forEach((n) => {
+    const codes = n === 3 ? ['A-1, B-2, C-3', 'A-2, B-1, C-3', 'A-3, B-2, C-1'] : ['A-1, B-2, C-3, D-4', 'A-2, B-1, C-4, D-3', 'A-4, B-3, C-2, D-1'];
+    add(`whatsapp-match-${n}`, row(lang, {
+      question_text: w.stem, option_a: codes[0], option_b: codes[1], option_c: codes[2],
+      media: { language: lang, figure: { type: 'match', left: ['cat', 'dog', 'cow', 'duck'].slice(0, n).map((p) => ({ picto: p })), right: w.right.slice(0, n).map((t) => ({ text: t })) } },
+    }), 'WhatsApp match figure → tap-to-match');
+  });
+  add('sound-item', row(lang, { question_text: lang === 'ur' ? 'یہ کس کی آواز ہے؟' : 'Which sound is this?', option_a: glyphsFor(lang)[0], option_b: glyphsFor(lang)[1], option_c: glyphsFor(lang)[2], media: { language: lang, stimulus_audio: 'stim.ogg' } }), 'video-bank listen item', { audio: { stim: '/api/wq/media/stim' } });
+  add('hint', row(lang, {
+    media: { language: lang, web: webItem({ type: 'single', stem: w.stem, wa: { from: 'same' }, key: 'A', why: w.why, options: w.opts.slice(0, 3).map((t, i) => ({ slot: 'ABC'[i], text: t, name: t })), hint: { text: lang === 'ur' ? 'سوچیں، درخت پر کیا اگتا ہے؟' : 'Think about what grows on a tree.' } }) },
+  }), 'web item with a hint (PR #1732 shows it)');
   add('multi', row(lang, { option_d: w.opts[3], correct_option: 'A,C' }));
   add('empty-why', row(lang, { explanation: '' }));
   add('emoji-options', row(lang, { option_a: '🍎', option_b: '🪑', option_c: '✏️', option_d: '👟' }));
@@ -127,7 +189,7 @@ function shapes(lang) {
       }),
     },
   }));
-  const glyphs = lang === 'ur' ? ['بّ', 'بِ', 'بُ'] : ['c_t', 'b', 'd'];
+  const glyphs = glyphsFor(lang);
   add('glyph-tiles', row(lang, {
     option_a: glyphs[0], option_b: glyphs[1], option_c: glyphs[2],
     media: {
@@ -202,7 +264,7 @@ function shapes(lang) {
   add('figure-undrawable-no-image', row(lang, { question_text: w.stem, media: { language: lang, figure: { type: 'no_such_type' } } }), 'figure spec fails, no PNG → text only');
   add('figure-hidden', row(lang, { question_text: w.stem, media: { language: lang, figure: { type: 'count_objects', count: 3, picto: 'apple' }, picture_check: { verdict: 'contradicts' } } }), 'picture_check hides it');
   add('figure-maths-long', row(lang, {
-    question_text: `${w.long} ${MATH.stem}`, option_a: MATH.opts[0], option_b: MATH.opts[1], option_c: MATH.opts[2], option_d: MATH.opts[3], explanation: MATH.why,
+    question_text: `${w.long} ${M.stem}`, option_a: M.opts[0], option_b: M.opts[1], option_c: M.opts[2], option_d: M.opts[3], explanation: M.why,
     media: { language: lang, figure: { type: 'fraction_bar', bars: [{ parts: 4, shaded: 3 }] } },
   }));
   return out;
@@ -217,7 +279,8 @@ function pageFor(shape, extraFigure = null) {
   const first = filler(lang);
   const r = extraFigure ? row(lang, { question_text: W[lang].fig, media: { language: lang, figure: extraFigure } }) : shape.row;
   const code = 'RM' + String(seq).padStart(4, '0').slice(-4);
-  const items = [first, r].map((q, i) => WebQuiz.questionPayload(q, i, code, {}, false));
+  const audio = shape.audio && r ? { [r.id]: shape.audio } : {};
+  const items = [first, r].map((q, i) => WebQuiz.questionPayload(q, i, code, audio, false));
   // A label item's hotspots sit on the drawing: placed inside the box the engine actually drew.
   const f = items[1].figure;
   if (f && Array.isArray(f.hotspots) && f.w && f.h) {
@@ -232,7 +295,7 @@ function pageFor(shape, extraFigure = null) {
     live: null, video: null, preview: false, brand: 'niete',
   };
   const html = renderQuizPage({ payload, code, view: 'quiz', origin: 'http://127.0.0.1', assetV: 'rm', url: `http://127.0.0.1/q/${code}` });
-  return { code, html, item: items[1], fillerQid: items[0].qid };
+  return { code, html, item: items[1], fillerQid: items[0].qid, payload };
 }
 
 function main() {
@@ -252,6 +315,8 @@ function main() {
       has_figure: Boolean(it.figure || it.img),
       figure_type: (it.figure && it.figure.type) || null,
       maths: /\$[^$]+\$/.test([it.text, it.why, ...(it.options || []).map((o) => o.text)].join(' ')),
+      ...answers(it),
+      ...(shape.missing ? { missing_media: it.qid } : {}),
     });
   };
   LANGS.forEach((lang) => shapes(lang).forEach((s) => emit(s)));
@@ -261,4 +326,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { shapes, pageFor, LANGS };
+module.exports = { shapes, pageFor, answers, LANGS };

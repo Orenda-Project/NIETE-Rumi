@@ -45,13 +45,13 @@ describe('render matrix: every item shape the engine can emit renders at 360x740
     expect(new Set(manifest.map((m) => m.lang))).toEqual(new Set(['en', 'ur']));
     expect(manifest.filter((m) => m.figure_type).length).toBeGreaterThan(40);
 
-    execFileSync('python3', [path.join(DIR, 'run_matrix.py'), out, '--no-shots'], { stdio: 'pipe', timeout: 280000 });
+    execFileSync('python3', [path.join(DIR, 'run_matrix.py'), out, '--no-shots', '--fast'], { stdio: 'pipe', timeout: 280000 });
     const results = JSON.parse(fs.readFileSync(path.join(out, 'results.json'), 'utf8'));
     expect(Array.isArray(results)).toBe(true);
     expect(results).toHaveLength(manifest.length);
     const failing = results
-      .filter((r) => r.question.length || r.feedback.length || r.fatal || r.errors.length)
-      .map((r) => `${r.id}: Q=${r.question.join(',')} FB=${r.feedback.join(',')}${r.fatal ? ` FATAL=${r.fatal}` : ''}${r.errors.length ? ` JS=${r.errors[0]}` : ''}`);
+      .filter((r) => r.question.length || r.feedback.length || (r.feedback_wrong || []).length || r.fatal || r.errors.length)
+      .map((r) => `${r.id}: Q=${r.question.join(',')} FBW=${(r.feedback_wrong || []).join(',')} FB=${r.feedback.join(',')}${r.fatal ? ` FATAL=${r.fatal}` : ''}${r.errors.length ? ` JS=${r.errors[0]}` : ''}`);
     expect(failing).toEqual([]);
     fs.rmSync(out, { recursive: true, force: true });
   });

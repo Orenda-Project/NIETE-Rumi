@@ -481,6 +481,38 @@ Feature: Web child quiz page on the portal
     Then nothing scrolls sideways or runs off the screen, no text is cut off or covers other text, and every option shows a word or a picture
     And maths shows as typeset maths, never as "$" or a backslash command
     And Urdu text is set in the Nastaliq face, and every picture is drawn or left out as documented
+
+  @T293
+  Scenario: Maths from real questions is typeset, never spelled out
+    Given a question whose stem, options or reason carry "$60\ \Omega$", "$67, 62, 57, \dots$", "$9 \div 3 \neq 3 \div 9$", "$A \rightleftharpoons B$", "$14 \xrightarrow{\div 2} 7$" or "$\text{Rs } 40$"
+    When a child opens it, in English or in Urdu
+    Then the child sees "60 Ω", "67, 62, 57, …", "9 ÷ 3 ≠ 3 ÷ 9", "A ⇌ B", an arrow with "÷ 2" over it and "Rs 40"
+    And never the words "Omega", "dots", "neq" or "rightleftharpoons"
+    And a long maths line scrolls inside its own box, starting at its beginning, instead of running off the screen
+
+  @T294
+  Scenario: A column sum option is shown as a column sum
+    Given an option written as a column subtraction of 460 from 712 with a rule under it
+    When a child opens the question
+    Then the option shows 712 above "- 460" and a line under them, right-aligned
+
+  @T295
+  Scenario: A picture file that does not arrive never shows a broken picture
+    Given a question whose picture file does not arrive
+    When a child opens it
+    Then the picture box disappears and the question plays on its words, with no broken-picture icon or picture caption
+
+  @T296
+  Scenario: A label question whose answer rings fall outside its picture offers its parts as words
+    Given a label question one of whose answer rings lies outside its drawing, or that has no rings
+    When a child opens it
+    Then the parts are offered as ordinary answer buttons and no ring is drawn off the picture
+
+  @T297
+  Scenario: The render check sees both answers and every real kind of maths
+    Given the render check over every question shape the engine can emit, in English and Urdu
+    When it plays each one on a 360 by 740 phone
+    Then it checks the screen after a wrong pick and after the right pick, and fails on a maths command spelled out in letters
   @T280
   Scenario: Every line a child hears in a quiz is in one voice per language
     Given a teacher's quiz in English (or in Urdu) whose clips were recorded after this change

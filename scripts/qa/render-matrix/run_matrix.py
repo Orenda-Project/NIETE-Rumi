@@ -11,6 +11,7 @@ screen and, after an answer, on the FEEDBACK screen:
   overlap         two text lines from different elements cover each other
   empty_option    an option with no visible text and no visible picture
   raw_dollar / raw_tex   maths left as "$…$" or "\\frac" on screen; no_math: $…$ in, no <math> out
+  tex_letters     a TeX command the page did not know, spelled out inside <math> ("Omega", "begin")
   urdu_font       Urdu text not set in the page's Nastaliq face, or the face never loaded
   figure_missing / figure_empty / figure_img_broken   the item has a picture and it is not drawn
 
@@ -38,7 +39,7 @@ def png(w=480, h=320):
 PNG = png()
 
 
-def server(out_dir):
+def server(out_dir, missing=()):
     pages = os.path.join(out_dir, 'pages')
 
     class H(BaseHTTPRequestHandler):
@@ -60,6 +61,9 @@ def server(out_dir):
                     return self.send(200, open(f, 'rb').read(), 'text/html; charset=utf-8')
                 return self.send(404, b'no page', 'text/plain')
             if p.startswith('/api/wq/media/'):
+                # a case whose picture file never arrives (an object missing from the bucket)
+                if any('/' + q in p for q in missing):
+                    return self.send(404, b'', 'text/plain')
                 return self.send(200, PNG, 'image/png')
             if p.startswith('/api/wq/'):
                 return self.send(200, b'{}', 'application/json')
@@ -91,8 +95,11 @@ CHECK_JS = r"""
   const desc = (e) => (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\s+/)[0] : e.tagName.toLowerCase());
   const vis = (e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0'; };
   if (document.documentElement.scrollWidth > vw + 1) P.push('h_overflow:' + document.documentElement.scrollWidth);
+  // inside a box that scrolls or clips on its own (a long maths line), the overflow is the box's, not the page's
+  const inScroller = (e) => { for (let p = e.parentElement; p && p !== root; p = p.parentElement) if (getComputedStyle(p).overflowX !== 'visible') return true; return false; };
   for (const e of root.querySelectorAll('*')) {
     if (e.closest('svg') && e.tagName.toLowerCase() !== 'svg') continue;
+    if (inScroller(e)) continue;
     const r = e.getBoundingClientRect();
     if (r.width > 0 && r.height > 0 && (r.right > vw + 1 || r.left < -1) && getComputedStyle(e).position !== 'fixed') { P.push('offscreen:' + desc(e) + ':' + Math.round(r.left) + '..' + Math.round(r.right)); break; }
   }
@@ -129,13 +136,15 @@ CHECK_JS = r"""
   if (/\$/.test(txt)) P.push('raw_dollar');
   if (/\\[a-zA-Z]+/.test(txt)) P.push('raw_tex');
   if (maths && !root.querySelector('math')) P.push('no_math');
+  for (const mi of root.querySelectorAll('math mi')) if ([...mi.textContent].length > 1) { P.push('tex_letters:' + mi.textContent); break; }
   if (lang === 'ur') {
     if (!document.fonts.check('20px "WQ Nastaliq"', 'سیب')) P.push('urdu_font:not_loaded');
     for (const e of root.querySelectorAll('.wq-qtext,.wq-lab,.wq-pname,.wq-why,.wq-fb')) {
       if (/[؀-ۿ]/.test(e.innerText || '') && !/Nastaliq/i.test(getComputedStyle(e).fontFamily)) { P.push('urdu_font:' + desc(e)); break; }
     }
   }
-  const fig = root.querySelector('.wq-fig');
+  // A figure that hid itself (its file never arrived) counts as no figure: the documented fallback.
+  const fig = [...root.querySelectorAll('.wq-fig')].find(vis) || null;
   if (expectFig && !fig) P.push('figure_missing');
   if (fig) {
     const s = fig.querySelector('.wq-svg svg, img');
@@ -147,21 +156,20 @@ CHECK_JS = r"""
 }
 """
 
+# Taps a given answer ("B", "A,C", "C,A,B") through the page's own controls, by the kind the PAGE chose.
 ANSWER_JS = r"""
-(kind) => {
+(answer) => {
   const $ = (s) => document.querySelector(s);
-  const all = (s) => [...document.querySelectorAll(s)];
-  if (kind === 'order') { all('.wq-pool .wq-opt').forEach((b) => b.click()); const c = $('#wq-check'); if (c) c.click(); return 'order'; }
-  if (kind === 'match') {
-    const L = all('.wq-ml'), R = all('.wq-mr');
-    L.forEach((l, i) => { l.click(); if (R[i]) R[i].click(); });
-    const c = $('#wq-check'); if (c) c.click(); return 'match';
-  }
-  if (kind === 'label') { const h = $('.wq-hot'); if (h) { h.click(); return 'label'; } return 'none'; }
-  const o = $('.wq-opt'); if (!o) return 'none';
-  o.click();
-  if (kind === 'multi') { const c = $('#wq-check'); if (c) c.click(); }
-  return 'opt';
+  const item = $('.wq-item');
+  const kind = item ? item.getAttribute('data-kind') : '';
+  const slots = String(answer || '').split(',').filter(Boolean);
+  const tap = (s) => { const e = $(s); if (!e) return false; e.click(); return true; };
+  const check = () => tap('#wq-check');
+  if (kind === 'order') { slots.forEach((x) => tap('.wq-pool [data-slot="' + x + '"]')); return check() ? 'order' : 'none'; }
+  if (kind === 'match') { slots.forEach((x, i) => { tap('.wq-ml[data-i="' + i + '"]'); tap('.wq-mr[data-slot="' + x + '"]'); }); return check() ? 'match' : 'none'; }
+  if (kind === 'label') return tap('.wq-hot[data-slot="' + slots[0] + '"]') ? 'label' : 'none';
+  if (kind === 'multi') { slots.forEach((x) => tap('.wq-opt[data-slot="' + x + '"]')); return check() ? 'multi' : 'none'; }
+  return tap('.wq-opt[data-slot="' + slots[0] + '"]') ? 'opt' : 'none';
 }
 """
 
@@ -170,6 +178,7 @@ def main():
     out_dir = os.path.abspath(sys.argv[1])
     only = sys.argv[sys.argv.index('--only') + 1] if '--only' in sys.argv else None
     shots = '--no-shots' not in sys.argv
+    fast = '--fast' in sys.argv
     manifest = json.load(open(os.path.join(out_dir, 'manifest.json')))
     if only:
         manifest = [m for m in manifest if only in m['id']]
@@ -180,7 +189,7 @@ def main():
         print('SKIP: python playwright is not installed')
         return
     os.makedirs(os.path.join(out_dir, 'shots'), exist_ok=True)
-    httpd = server(out_dir)
+    httpd = server(out_dir, [m['missing_media'] for m in manifest if m.get('missing_media')])
     base = 'http://127.0.0.1:%d' % httpd.server_address[1]
     init = ("try{if(window.speechSynthesis){speechSynthesis.speak=function(){};}}catch(e){}"
             "try{HTMLMediaElement.prototype.play=function(){return Promise.resolve();};}catch(e){}")
@@ -195,51 +204,60 @@ def main():
             return
         try:
             for m in manifest:
-                ctx = browser.new_context(viewport={'width': 360, 'height': 740}, user_agent=UA, device_scale_factor=2, is_mobile=True, has_touch=True)
-                ctx.add_init_script(init)
-                state = {'st': 'render-matrix', 'child': {'first': 'Ali', 'animal': 'cat', 'chip': 'rm'}, 'answers': {m['filler']: {'slot': 'A', 'ok': True}},
-                         'queue': [], 'seq': 1, 'wrong': [], 'result': None}
-                ctx.add_init_script("try{localStorage.setItem(%s,%s);localStorage.setItem('wq_sound','false');}catch(e){}" % (json.dumps('wq_s_' + m['code']), json.dumps(json.dumps(state))))
-                page = ctx.new_page()
                 errs = []
-                page.on('pageerror', lambda e: errs.append(str(e)[:200]))
-                r = {'id': m['id'], 'lang': m['lang'], 'kind': m['kind'], 'note': m['note'], 'question': [], 'feedback': [], 'errors': errs}
-                try:
-                    page.goto(base + '/q/' + m['id'], wait_until='load')
-                    page.wait_for_selector('#wq-cont', timeout=8000)
-                    page.click('#wq-cont')
-                    page.wait_for_selector('#wq[data-m="M6"] .wq-item', timeout=8000)
-                    page.evaluate('document.fonts.ready.then(()=>1)')
-                    page.wait_for_timeout(250)
-                    r['question'] = page.evaluate(CHECK_JS, [m['lang'], m['has_figure'], m['maths']])
-                    if shots:
-                        page.screenshot(path=os.path.join(out_dir, 'shots', m['id'] + '.q.png'), full_page=True)
-                    how = page.evaluate(ANSWER_JS, m['kind'])
-                    if how != 'none':
-                        page.wait_for_selector('#wq[data-m="M7"] #wq-next', timeout=6000)
-                        page.wait_for_timeout(200)
-                        r['feedback'] = page.evaluate(CHECK_JS, [m['lang'], False, False])
-                        if shots:
-                            page.screenshot(path=os.path.join(out_dir, 'shots', m['id'] + '.fb.png'), full_page=True)
-                    else:
-                        r['feedback'] = ['no_answer_control']
-                except Exception as e:
-                    r['fatal'] = str(e).split('\n')[0][:240]
+                r = {'id': m['id'], 'lang': m['lang'], 'kind': m['kind'], 'note': m['note'], 'question': [], 'feedback_wrong': [], 'feedback': [], 'errors': errs}
+                # Two passes on a fresh phone each: a wrong pick, then the right one (the feedback differs).
+                # --fast (the jest run): the right pick is replayed only where its screen differs in kind
+                # (order/match/multi/label controls, maths in the reason); the wrong pick always.
+                passes = [('wrong', m.get('wrong'))]
+                if not fast or m['kind'] in ('order', 'match', 'multi', 'label') or m['maths']:
+                    passes.append(('right', m.get('right')))
+                for pas, answer in passes:
+                    ctx = browser.new_context(viewport={'width': 360, 'height': 740}, user_agent=UA, device_scale_factor=2, is_mobile=True, has_touch=True)
+                    ctx.add_init_script(init)
+                    state = {'st': 'render-matrix', 'child': {'first': 'Sana Testwala', 'animal': 'cat', 'chip': 'rm'}, 'answers': {m['filler']: {'slot': 'A', 'ok': True}},
+                             'queue': [], 'seq': 1, 'wrong': [], 'result': None}
+                    ctx.add_init_script("try{localStorage.setItem(%s,%s);localStorage.setItem('wq_sound','false');}catch(e){}" % (json.dumps('wq_s_' + m['code']), json.dumps(json.dumps(state))))
+                    page = ctx.new_page()
+                    page.on('pageerror', lambda e: errs.append(str(e)[:200]))
+                    key = 'feedback' if pas == 'right' else 'feedback_wrong'
                     try:
-                        page.screenshot(path=os.path.join(out_dir, 'shots', m['id'] + '.fatal.png'), full_page=True)
-                    except Exception:
-                        pass
-                finally:
-                    ctx.close()
+                        page.goto(base + '/q/' + m['id'], wait_until='load')
+                        page.wait_for_selector('#wq-cont', timeout=8000)
+                        page.click('#wq-cont')
+                        page.wait_for_selector('#wq[data-m="M6"] .wq-item', timeout=8000)
+                        page.evaluate('document.fonts.ready.then(()=>1)')
+                        page.wait_for_timeout(250)
+                        if pas == 'wrong':
+                            r['question'] = page.evaluate(CHECK_JS, [m['lang'], m['has_figure'] and not m.get('missing_media'), m['maths']])
+                            if shots:
+                                page.screenshot(path=os.path.join(out_dir, 'shots', m['id'] + '.q.png'), full_page=True)
+                        how = page.evaluate(ANSWER_JS, answer or 'A')
+                        if how != 'none':
+                            page.wait_for_selector('#wq[data-m="M7"] #wq-next', timeout=6000)
+                            page.wait_for_timeout(200)
+                            r[key] = page.evaluate(CHECK_JS, [m['lang'], False, False])
+                            if shots:
+                                page.screenshot(path=os.path.join(out_dir, 'shots', m['id'] + ('.fb.png' if pas == 'right' else '.fbw.png')), full_page=True)
+                        else:
+                            r[key] = ['no_answer_control']
+                    except Exception as e:
+                        r['fatal'] = (pas + ': ' + str(e).split('\n')[0])[:240]
+                        try:
+                            page.screenshot(path=os.path.join(out_dir, 'shots', m['id'] + '.fatal.png'), full_page=True)
+                        except Exception:
+                            pass
+                    finally:
+                        ctx.close()
                 results.append(r)
         finally:
             browser.close()
             httpd.shutdown()
     json.dump(results, open(os.path.join(out_dir, 'results.json'), 'w'), indent=1, ensure_ascii=False)
-    bad = [x for x in results if x['question'] or x['feedback'] or x.get('fatal') or x['errors']]
+    bad = [x for x in results if x['question'] or x['feedback'] or x.get('feedback_wrong') or x.get('fatal') or x['errors']]
     print('render matrix: %d pages, %d with findings' % (len(results), len(bad)))
     for x in bad:
-        print(' ', x['id'], 'Q=', x['question'], 'FB=', x['feedback'], 'FATAL=', x.get('fatal', ''), 'JS=', x['errors'][:1])
+        print(' ', x['id'], 'Q=', x['question'], 'FBW=', x.get('feedback_wrong'), 'FB=', x['feedback'], 'FATAL=', x.get('fatal', ''), 'JS=', x['errors'][:1])
 
 
 if __name__ == '__main__':
