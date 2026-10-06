@@ -162,6 +162,19 @@ describe('quizReport', () => {
     expect((await Data.quizReport(TEACHER, QUIZ2, { listId: LIST3B })).roster).toMatchObject({ state: 'known', className: '3-B' });
   });
 
+  test('a grade band ("3-5") matches the teacher\'s only list of grade 4: known', async () => {
+    seed({ lists: [{ id: LIST5A, class_name: '4', section: 'A' }], quizExtra: { grade: '3-5' } });
+    expect((await Data.quizReport(TEACHER, QUIZ)).roster).toMatchObject({ state: 'known', className: '4-A' });
+  });
+
+  test('a grade band two of the teacher\'s lists fall in: ambiguous', async () => {
+    seed({ lists: [{ id: LIST3B, class_name: '3', section: 'B' }, { id: LIST5A, class_name: '5', section: 'A' }], quizExtra: { grade: '3-5' } });
+    expect((await Data.quizReport(TEACHER, QUIZ)).roster.state).toBe('ambiguous');
+    expect(Data.gradesOf('3-5')).toEqual([3, 4, 5]);
+    expect(Data.gradesOf('Class 4')).toEqual([4]);
+    expect(Data.gradesOf(null)).toEqual([]);
+  });
+
   test('no class list: state none, played still shown', async () => {
     seed({ lists: [] });
     const r = await Data.quizReport(TEACHER, QUIZ);
