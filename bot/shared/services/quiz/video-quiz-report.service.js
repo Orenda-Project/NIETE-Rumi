@@ -20,6 +20,7 @@
  */
 
 const supabase = require('../../config/supabase');
+const { modelFor } = require('../../config/model-registry');
 const { LESSON_SOURCES, isLessonQuiz } = require('./quiz-sources');
 const Funnel = require('./quiz-funnel');
 const WhatsAppService = require('../whatsapp.service');
@@ -39,7 +40,7 @@ const { addressForms } = require('./transcript-quiz-address');
 
 // One attempt per child: the rule lives in its own module so /quiz (the list,
 // the Flow's lesson screen, the nudge) counts children exactly as this report does.
-const { oneAttemptPerChild } = require('./one-attempt-per-child');
+const { oneAttemptPerChild, attemptRuleFor } = require('./one-attempt-per-child');
 const { scriptOf } = require('../../templates/niete-brand');
 const crypto = require('crypto');
 const { onUnlessOff } = require('../nudges/flags');
@@ -456,7 +457,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
 async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp }) {
   const { data: sessions } = await supabase
     .from('quiz_sessions')
-    .select('id, user_id, student_id, student_name, student_class, parent_phone, status, '
+    .select('id, user_id, student_id, student_name, student_class, parent_phone, status, device_ref, '
             + 'total_questions_answered, correct_answers, mastery_percentage, completed_at, created_at')
     .eq('share_code_id', shareCodeId)
     .is('invited_by_student_id', null);   // a friend's session is not this teacher's class
@@ -471,8 +472,11 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
       shareCodeId, n: rawAll.length - noSelfTests.length,
     });
   }
-  // bd-2yyry.15 — one attempt per child, before anything is counted.
-  const all = oneAttemptPerChild(noSelfTests);
+  // One attempt per child, before anything is counted. A class code its
+  // children played on the web keeps each child's FIRST finish (a replay on
+  // another phone is practice); every other code keeps the latest, as before.
+  const rule = attemptRuleFor(noSelfTests);
+  const all = oneAttemptPerChild(noSelfTests, { rule });
   if (all.length < noSelfTests.length) {
     logEvent('video_quiz.retakes_collapsed', {
       shareCodeId, rows: noSelfTests.length, children: all.length,
@@ -660,12 +664,15 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // document's content language — the teacher may not read the quiz's language
   // at all, and the caption is the one part of this send they must understand.
   const CAPTION = RTL_LANGS.has(chromeLang) ? {
-    caption: (t, d, a, n) => `📊 کلاس کے نتائج — *${t}*\n\n`
-      + `${a} میں سے ${d} نے مکمل کیا${n ? ` · دوبارہ پڑھانے کے قابل ${n} سوال — اندر` : ''}`,
+    title: (t) => `📊 کلاس کے نتائج — *${t}*`,
+    finished: (d, a) => `${a} میں سے ${d} نے مکمل کیا`,
+    reteach: (n) => `دوبارہ پڑھانے کے قابل ${n} سوال — اندر`,
   } : {
-    caption: (t, d, a, n) => `📊 Class results — *${t}*\n\n`
-      + `${d} of ${a} finished${n ? ` · ${n} question${n > 1 ? 's' : ''} worth reteaching — inside` : ''}`,
+    title: (t) => `📊 Class results — *${t}*`,
+    finished: (d, a) => `${d} of ${a} finished`,
+    reteach: (n) => `${n} question${n > 1 ? 's' : ''} worth reteaching — inside`,
   };
+  CAPTION.caption = (t, d, a, n) => `${CAPTION.title(t)}\n\n${CAPTION.finished(d, a)}${n ? ` · ${CAPTION.reteach(n)}` : ''}`;
 
   const lines = [
     TX.results(sc.topic),
@@ -725,6 +732,38 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     })
     : null;
 
+  // The teacher web report's half of this PDF (behind teacher_report_teachers):
+  // who on the class list has not played, and the links to the live report and
+  // its "Remind the class" share. The roster and the counting are
+  // teacher-report.data.js's — the web page reads the same module, so the two
+  // never disagree about who played. Off, or on any failure, this is null and
+  // the report is exactly what it was.
+  const live = done.length ? await liveReportExtras(sc) : null;
+  // With the quiz's one class list known, ONE class line: "8 of 10 in 3-B
+  // played · 2 still to play" (or "10 of 10 in 3-B played"). Without it the
+  // sessions are all we have, and the caption keeps today's "68 of 87
+  // finished"; children not on the list are the PDF's business, never the
+  // caption's.
+  const classLine = (language) => {
+    if (!live || !live.links || !Array.isArray(live.notPlayed) || !live.of || !live.className) return null;
+    const left = live.notPlayed.length;
+    const params = { cls: live.className, of: live.of, played: live.of - left, left };
+    return resolveUx(left ? 'vqReportClassPlayed' : 'vqReportClassAllPlayed', { language, params });
+  };
+  // The report's links go in a text of their own, sent after the PDF: the
+  // caption travels with every forwarded copy of the document, and a
+  // /r/<token> reaching a class group opens every child's score. With the
+  // whole list played, only the live report; otherwise the reminder too.
+  const linksText = (language) => {
+    if (!live || !live.links) return null;
+    const allPlayed = Boolean(live.className) && Array.isArray(live.notPlayed) && !live.notPlayed.length;
+    return allPlayed
+      ? resolveUx('vqReportLiveLink', { language, params: { url: live.links.live } })
+      : resolveUx('vqReportLinks', { language, params: { remind: live.links.remind, live: live.links.live } });
+  };
+  const summaryClassLine = classLine(contentLang);
+  if (summaryClassLine) lines.push('', summaryClassLine);
+
   // Plain text, laid out on the phone line by line from each line's first
   // strong character — which in an Urdu report is the Latin "quiz" of the title
   // and nothing at all on a Latin-named child's line. Every line opens with the
@@ -738,8 +777,21 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   const sentAsPdf = done.length > 0 && await sendAsPdf({
     phone: teacher.phone_number, shareCode: sc, students: done, hardest,
     guidance, started: all.length, finished: done.length, average: avg,
-    unfinished: unfinished.map((s) => s.student_name || 'Unnamed'),
-    language: contentLang, contentLanguage: contentLang, caption: CAPTION.caption,
+    // With the class list known, "Not played yet" lists every child still to
+    // finish, so the typed-name "not finished" box would name some twice.
+    unfinished: live && live.notPlayed ? [] : unfinished.map((s) => s.student_name || 'Unnamed'),
+    notPlayed: live ? live.notPlayed : null,
+    rosterOf: live ? live.of : null,
+    // Never the links themselves: the PDF gets forwarded (COS ruling 18:09Z).
+    livePointer: Boolean(live && live.links),
+    language: contentLang, contentLanguage: contentLang,
+    // The caption is the teacher's (chromeLang): counts only, never a link.
+    caption: live && live.links
+      ? (t, d, a, n) => {
+        const cls = classLine(chromeLang);
+        return cls ? [CAPTION.title(t), n ? `${CAPTION.reteach(n)}\n${cls}` : cls].join('\n\n') : CAPTION.caption(t, d, a, n);
+      }
+      : CAPTION.caption,
     classes,
     // The report is read BY the teacher, so it names them from their own
     // record. `sc.teacher_name` is the name the CHILDREN are shown and, for a
@@ -760,7 +812,28 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     }
   }
 
-  stamp.stamped = await markReportSent(shareCodeId, sc.quiz_id);
+  // The report's links, in the teacher's language, after the report itself.
+  // A failed send never fails the report (it has gone; /quiz still has them).
+  const links = linksText(chromeLang);
+  if (links) {
+    try {
+      await WhatsAppService.sendMessage(teacher.phone_number, links);
+    } catch (err) {
+      logToFile('⚠️ video-quiz report: links message not sent (report already sent)', { shareCodeId, error: err.message });
+    }
+  }
+
+  // The guidance this PDF printed is kept on the quiz row, so the teacher's web
+  // report shows the same advice without a second model call. It rides the
+  // update that stamps the quiz as reported (no extra round-trip), merged into
+  // the meta read above; quizRow.meta is moved on with it so the class-card
+  // write below, which spreads quizRow.meta, cannot erase it. No guidance
+  // (the model failed) leaves an older stored one where it is.
+  const metaAfter = guidance && quizRow
+    ? { ...(quizRow.meta || {}), report_guidance: guidance, report_guidance_at: new Date().toISOString() }
+    : null;
+  stamp.stamped = await markReportSent(shareCodeId, sc.quiz_id, { meta: metaAfter });
+  if (metaAfter) quizRow.meta = metaAfter;
 
   // bd-2yyry.11 — the children's class cards, at the moment the teacher's
   // report goes out. Never to the teacher; once per child per quiz.
@@ -781,6 +854,38 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
 }
 
 /**
+ * The live-report extras for this share code's PDF, or null. Null when the
+ * teacher is not on app_settings.teacher_report_teachers, when the quiz is not
+ * this teacher's own (a video-bank quiz has no teacher report), or on any
+ * error — never a reason for the report itself to fail.
+ * @returns {Promise<{notPlayed: Array<{first,roll}>|null, of: number|null, className: string|null,
+ *   links: {live: string, remind: string}|null}|null>}
+ */
+async function liveReportExtras(sc) {
+  try {
+    const Gate = require('./teacher-report-gate');
+    if (!(await Gate.teacherReportOn(sc.teacher_user_id))) return null;
+    const r = await require('./teacher-report.data').quizReport(sc.teacher_user_id, sc.quiz_id);
+    if (!r) return null;
+    const urls = Gate.reportUrls({ teacherId: sc.teacher_user_id, quizId: sc.quiz_id });
+    const notPlayed = r.roster.state === 'known' && Array.isArray(r.notPlayed) ? r.notPlayed : null;
+    logEvent('video_quiz.report_live_section', {
+      shareCodeId: sc.id, quizId: sc.quiz_id, roster: r.roster.state,
+      notPlayed: notPlayed ? notPlayed.length : null, links: Boolean(urls),
+    });
+    return {
+      notPlayed, of: r.roster.of, className: r.roster.className || null,
+      links: urls ? { live: urls.live, remind: urls.remind } : null,
+    };
+  } catch (err) {
+    logToFile('⚠️ video-quiz report: live-report section skipped (report still sends)', {
+      shareCodeId: sc.id, error: err.message,
+    });
+    return null;
+  }
+}
+
+/**
  * The class rows for one share code, exactly as the report counts them — self
  * tests and friends' sessions excluded, one attempt per child, finished only.
  * Read by the child's /quiz (student-quiz.service.js) so their card and their
@@ -794,13 +899,16 @@ async function loadClassRows(shareCodeId) {
   if (!sc) return null;
   const [{ data: sessions }, { data: quizRow }] = await Promise.all([
     supabase.from('quiz_sessions')
-      .select('id, user_id, student_id, student_name, student_class, parent_phone, status, '
+      .select('id, user_id, student_id, student_name, student_class, parent_phone, status, device_ref, '
               + 'total_questions_answered, correct_answers, mastery_percentage, completed_at, created_at')
       .eq('share_code_id', shareCodeId)
       .is('invited_by_student_id', null),
     supabase.from('quizzes').select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle(),
   ]);
-  const all = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id));
+  // A class code its children played on the web counts each child's FIRST
+  // finish (a replay on another phone is practice); every other code keeps the latest.
+  const kids = excludeSelfTests(sessions || [], sc.teacher_user_id);
+  const all = oneAttemptPerChild(kids, { rule: attemptRuleFor(kids) });
   const done = all.filter((s) => s.status === 'completed');
   const language = clampLanguage(sc.language || (quizRow && quizRow.language) || 'en');
   const className = classHeading(classesTaught(done), language);
@@ -941,13 +1049,16 @@ async function sendLateClassCards(shareCodeId) {
   if (!sc.report_sent_at) return { sent: 0, skipped: 0, why: 'no_report_yet' };
   const [{ data: sessions }, { data: quizRow }] = await Promise.all([
     supabase.from('quiz_sessions')
-      .select('id, user_id, student_id, student_name, student_class, parent_phone, status, '
+      .select('id, user_id, student_id, student_name, student_class, parent_phone, status, device_ref, '
               + 'total_questions_answered, correct_answers, mastery_percentage, completed_at, created_at')
       .eq('share_code_id', shareCodeId)
       .is('invited_by_student_id', null),
     supabase.from('quizzes').select('quiz_source, meta, language, subject, grade').eq('id', sc.quiz_id).maybeSingle(),
   ]);
-  const all = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id));
+  // A class code its children played on the web counts each child's FIRST
+  // finish (a replay on another phone is practice); every other code keeps the latest.
+  const kids = excludeSelfTests(sessions || [], sc.teacher_user_id);
+  const all = oneAttemptPerChild(kids, { rule: attemptRuleFor(kids) });
   const done = all.filter((s) => s.status === 'completed');
   const language = clampLanguage(sc.language || (quizRow && quizRow.language) || 'en');
   const className = classHeading(classesTaught(done), language);
@@ -979,6 +1090,7 @@ async function renderReportPdf(data) {
  */
 async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
                            started, finished, average, unfinished, classes,
+                           notPlayed = null, rosterOf = null, livePointer = false,
                            language, contentLanguage, caption: captionFor, teacherName = '' }) {
   const fs = require('fs');
   const os = require('os');
@@ -990,6 +1102,7 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
       teacherName,
       started, finished, average,
       students, hardest, guidance, unfinished, classes, language, contentLanguage,
+      notPlayed, rosterOf, livePointer,
       // D1 — the footer stamp is part of the DOCUMENT, so it is written in the
       // document's language. `toLocaleDateString('en-GB')` printed "5 Sep 2026"
       // into an otherwise all-Urdu report; formatLessonDate is the same helper
@@ -1192,7 +1305,7 @@ async function generateGuidance(context) {
         // the better model. gpt-4o-mini produced textbook prose here — "focus
         // on clarifying the misconception that…" — and reached for "categorise
         // various foods" instead of the dal and rice in the questions.
-        model: 'gpt-5.4-mini',
+        model: modelFor('quiz.videoReport'),
         job: 'quiz.videoReport',
         messages: [{ role: 'user', content: p }],
         temperature: 0.4,               // lower than the parent quiz: this is advice
@@ -1292,10 +1405,13 @@ function formatGuidanceText(guidance, labels) {
  * ordering is a possible double-send if the stamp itself fails, which is the
  * better failure — a teacher seeing one report twice beats seeing none.
  *
+ * `meta`, when given, is the quiz's whole meta with the report's guidance merged
+ * in (buildAndSend); it is written in the same quizzes update as the status.
+ *
  * @returns {Promise<boolean>} whether report_sent_at landed. generate() keeps its
  *   send claim when it did not, so a racing call cannot send the report again.
  */
-async function markReportSent(shareCodeId, quizId = null) {
+async function markReportSent(shareCodeId, quizId = null, { meta = null } = {}) {
   let stamped = false;
   try {
     const { error } = await supabase.from('quiz_share_codes')
@@ -1310,7 +1426,7 @@ async function markReportSent(shareCodeId, quizId = null) {
     // state of the quiz, not only of its share code.
     if (quizId) {
       await supabase.from('quizzes')
-        .update({ status: 'report_sent' })
+        .update(meta ? { status: 'report_sent', meta } : { status: 'report_sent' })
         .eq('id', quizId).in('quiz_source', LESSON_SOURCES);
     }
   } catch (err) {

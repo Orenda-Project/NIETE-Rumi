@@ -26,7 +26,7 @@ const { extractJsonFromResponse } = require('./assessment-json.util');
 const PROMPTS = require('./ict-prompts.json');
 
 /** One question, one answer: what this family should run right now. */
-function modelFor(family) {
+function familyModel(family) {
   return resolveModelForJob('assessment.generate', { cfg: configForRequest(), family }).model;
 }
 
@@ -50,8 +50,8 @@ function modelFor(family) {
  * moves Urdu alone with no deploy.
  */
 const MODELS = {
-  get eng() { return modelFor('eng'); },
-  get urdu() { return modelFor('urdu'); },
+  get eng() { return familyModel('eng'); },
+  get urdu() { return familyModel('urdu'); },
 };
 
 // Whatever the caller calls a subject, we answer to one name internally.
@@ -552,7 +552,12 @@ async function generateExam(args) {
           totalMarks = null, seenCount = null } = args;
 
   const key = canonical(subject) || 'eng';
-  const model = modelFor(URDU_MEDIUM.has(key) ? 'urdu' : 'eng');
+  const family = URDU_MEDIUM.has(key) ? 'urdu' : 'eng';
+  const model = familyModel(family);
+  // The model this family runs with no settings at all (bd-gr4fy.7). Named as `fallbackModel` only
+  // when the settings moved the call, so llm-client stands this paper's own model behind the moved
+  // one: Urdu and English papers run different models, and only this call site knows which.
+  const ownModel = resolveModelForJob('assessment.generate', { family }).model;
   const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount });
 
   const messages = [
@@ -574,6 +579,7 @@ async function generateExam(args) {
       // bd-jntcx: names the spender. llm-client records it on api.cost.incurred and strips it
       // before the request goes out, so this job stops being $11.34/day of anonymous spend.
       job: 'assessment.generate',
+      ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
       messages,
       temperature: 0.7,
       response_format: { type: 'json_object' },

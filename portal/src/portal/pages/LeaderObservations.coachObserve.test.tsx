@@ -77,19 +77,24 @@ describe("LeaderObservations — send a lesson", () => {
 // bd-5rz1v.6.6 — the intro told every coach "To schedule or debrief, send
 // /observe to NIETE on WhatsApp". For a coach in the pilot that is no longer
 // true: a lesson sent from here is checked, talked through and sent from here.
+// bd-4yswt — it is an app: one short line under the heading, not a paragraph.
+// The record button right below already explains itself.
 describe("LeaderObservations — what the page says it is for", () => {
-  it("in the pilot: the portal does the whole observation; WhatsApp only for what was recorded there", async () => {
+  it("in the pilot: one short line, no WhatsApp paragraph", async () => {
     P.getConfig.mockResolvedValue({ features: { coachObservation: true } });
     renderPage();
     await screen.findByTestId("coach-observe-entry");
-    expect(screen.getByText(/check the draft, talk with the teacher and send the report — all here/i)).toBeInTheDocument();
+    expect(screen.getByText("Record a lesson, then send the report.")).toBeInTheDocument();
+    expect(screen.queryByText(/all here/i)).toBeNull();
+    expect(screen.queryByText(/debriefed on WhatsApp/i)).toBeNull();
     expect(screen.queryByText(/To schedule or debrief, send \/observe/)).toBeNull();
   });
 
-  it("outside the pilot: the page reads as before", async () => {
+  it("outside the pilot: one short line pointing to /observe", async () => {
     P.getConfig.mockResolvedValue({ features: { coachObservation: false } });
     renderPage();
     await waitFor(() => expect(screen.getByText("Ayesha Bibi")).toBeInTheDocument());
-    expect(screen.getByText(/To schedule or debrief, send \/observe to NIETE on WhatsApp/)).toBeInTheDocument();
+    expect(screen.getByText("Schedule and debrief with /observe on WhatsApp.")).toBeInTheDocument();
+    expect(screen.queryByText(/Your schedule, debriefs waiting/)).toBeNull();
   });
 });

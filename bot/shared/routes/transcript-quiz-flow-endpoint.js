@@ -44,7 +44,7 @@ const {
 } = require('../services/quiz/transcript-quiz-language');
 const { excludeSelfTests } = require('../services/quiz/teacher-self-test');
 const { classLabel, classHeading, normaliseClasses, markLines } = require('../utils/text-format');
-const { oneAttemptPerChild } = require('../services/quiz/one-attempt-per-child');
+const { oneAttemptPerChildPerCode } = require('../services/quiz/one-attempt-per-child');
 const {
   TRANSCRIPT, PLAN_SOURCES, isPlanQuiz, lessonSessionFor, failureReasonOf, lpRemakeableQuiz,
 } = require('../services/quiz/quiz-sources');
@@ -294,7 +294,7 @@ async function loadLesson(teacher, sessionId) {
 
 /**
  * Every child who took this quiz, once each (the attempt the class report
- * counts: the latest completed, else the latest), the teacher's own test run
+ * counts, per class code: a web code's first finish, else the latest completed), the teacher's own test run
  * removed. The started/finished counts, the average, the per-child lines and
  * the still-going list are all read from this.
  */
@@ -302,10 +302,12 @@ async function loadStudents(quizId, teacherUserId) {
   if (!quizId) return [];
   const { data } = await supabase.from('quiz_sessions')
     .select('id, user_id, student_id, student_name, student_class, status, total_questions_answered, '
-            + 'correct_answers, mastery_percentage, completed_at, created_at')
+            + 'correct_answers, mastery_percentage, completed_at, created_at, share_code_id, device_ref')
     .eq('quiz_id', quizId)
     .is('invited_by_student_id', null);
-  return oneAttemptPerChild(excludeSelfTests(data || [], teacherUserId));
+  // Per class code, the report's rule: a web code keeps each child's first
+  // finish, so a replay never moves this screen's average away from the report's.
+  return oneAttemptPerChildPerCode(excludeSelfTests(data || [], teacherUserId));
 }
 
 /**
@@ -953,6 +955,7 @@ module.exports = {
   actionsFor,
   resultsText,
   lessonsScreen,
+  loadStudents,
   PER_PAGE,
   NAV_MAX_ITEMS,
   TITLE_MAX,

@@ -39,6 +39,16 @@ function analysisModelFor({ language, userId } = {}) {
   }).model;
 }
 
+/**
+ * The model this job runs with no settings at all (bd-gr4fy.7). When the settings moved the call,
+ * the request says so by naming this as `fallbackModel`, and llm-client stands it behind the moved
+ * model on any failure. Only this call site knows it exactly; llm-client strips the field before
+ * the request leaves.
+ */
+function ownModelFor() {
+  return resolveModelForJob('vision.analyse', {}).model;
+}
+
 // Configuration - use gpt-4.1-mini for speed + vision + multilingual
 const CONFIG = {
   defaultDetail: 'low',
@@ -170,11 +180,14 @@ async function analyzeImage(imageBuffer, mimeType, options = {}) {
       ? systemPromptOverride
       : buildSystemPrompt(language, context);
 
+    const ownModel = ownModelFor();
     const request = {
       model: analysisModel,
       // bd-27ort: names the spender. llm-client reads this, records it on
       // api.cost.incurred, and strips it before the request goes out.
       job: 'vision.analyse',
+      // Present only when the settings moved this call: the model it runs without them.
+      ...(analysisModel !== ownModel ? { fallbackModel: ownModel } : {}),
       messages: [
         { role: 'system', content: systemPrompt },
         {

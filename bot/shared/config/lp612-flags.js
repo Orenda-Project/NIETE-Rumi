@@ -108,8 +108,11 @@ function previousTemplateVersions(tv) {
 }
 
 /** The operator has not locked the serving model. The flip must be an env
- *  change with no deploy, so nothing anywhere may hardcode a model id. */
-const DEFAULT_AUTHOR_MODEL = 'anthropic/claude-sonnet-5';
+ *  change with no deploy, so nothing anywhere may hardcode a model id.
+ *  bd-gr4fy.8: the id itself lives in the model registry (`lp.author`). */
+const { JOBS: MODEL_JOBS, todaysModel } = require('./model-registry');
+
+const DEFAULT_AUTHOR_MODEL = MODEL_JOBS['lp.author'].default;
 
 /** Revision rounds on the author ladder before we serve what we have. */
 const DEFAULT_AUTHOR_ROUNDS = 3;
@@ -263,12 +266,9 @@ function templateVersion() {
  * @param {'maths'|'sci'|'prose'} [family]
  */
 function resolveAuthorModel(family) {
-  if (family === 'maths') {
-    const pilot = (process.env.LP_AUTHOR_MODEL_MATHS_PHYSICS || '').trim();
-    if (pilot) return pilot;
-  }
-  const m = (process.env.LP_AUTHOR_MODEL || '').trim();
-  return m || DEFAULT_AUTHOR_MODEL;
+  // bd-gr4fy.8: the registry's own resolution, which is exactly this ladder: the maths pilot
+  // variable for a maths family, then LP_AUTHOR_MODEL, then the default.
+  return todaysModel('lp.author', { family });
 }
 
 /** The two author harnesses. `standard` is the v3 brief with no repair pass. */

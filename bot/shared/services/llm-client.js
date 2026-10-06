@@ -28,6 +28,11 @@ const {
   toNativeRequest,
   fromNativeResponse,
   isCreditClassError,
+  jsonShapeFor,
+  hasShape,
+  extractJson,
+  thinksByDefault,
+  alwaysThinks,
 } = require('./anthropic-native-facade');
 // bd-8t362: one place to record what a call cost. No rate table: OpenRouter reports what it
 // actually charged, and the facade prices the direct lane. We record what the vendor says.
@@ -251,10 +256,13 @@ function createLLMClient() {
     // keeps exactly the behaviour it had, minus the two fields that would have broken it.
     const directCreate = direct.chat.completions.create.bind(direct.chat.completions);
     direct.chat.completions.create = (params, options) => {
-      if (params && ('job' in params || 'fallbackModel' in params)) {
+      // `skipJobOverride` too (bd-gr4fy.6): this module adds it to calls it has already routed,
+      // and api.openai.com answers an unknown field with a 400.
+      if (params && ('job' in params || 'fallbackModel' in params || 'skipJobOverride' in params)) {
         params = { ...params };
         delete params.job;
         delete params.fallbackModel;
+        delete params.skipJobOverride;
       }
       return directCreate(params, options);
     };
@@ -282,17 +290,27 @@ function createLLMClient() {
     // The job rides in beside the fallback: spend without it is one undifferentiated total,
     // and "which feature" is the only question worth asking about cost per child. bd-9b58p.
     //
-    // BOTH are stripped on KEY PRESENCE, never on truthiness. A job whose frozen fallback is
-    // null (lp.author, lp.fidelity, hcp.feedback) arrives carrying `fallbackModel: null`, and
+    // ALL THREE are stripped on KEY PRESENCE, never on truthiness. A job whose frozen fallback
+    // is null (lp.author, lp.fidelity, hcp.feedback) arrives carrying `fallbackModel: null`, and
     // a falsy check leaves that on the request -- which would put an unknown field on every
     // lesson-plan authoring call, the largest spender here. NOTHING is added to the request.
+    // `skipJobOverride` marks a call this module makes after it has already resolved the job's
+    // model (bd-gr4fy.1), so the override is never applied twice.
     const fallbackModel = params.fallbackModel || null;
     const job = params.job || null;
-    if ('fallbackModel' in params || 'job' in params) {
+    const skipJobOverride = params.skipJobOverride === true;
+    if ('fallbackModel' in params || 'job' in params || 'skipJobOverride' in params) {
       params = { ...params };
       delete params.fallbackModel;
       delete params.job;
+      delete params.skipJobOverride;
     }
+    const callSite = (p) => sendOnOpenRouter(p, options, fallbackModel, job);
+    if (job && !skipJobOverride) return runWithJobOverride(job, params, options, callSite, fallbackModel);
+    return callSite(params);
+  };
+
+  async function sendOnOpenRouter(params, options, fallbackModel, job) {
     if (params.model && !params.model.includes('/')) {
       params = { ...params, model: `openai/${params.model}` };
     }
@@ -348,9 +366,392 @@ function createLLMClient() {
     }
     recordModelCost(params.model, response, startedAt, { job });
     return response;
-  };
+  }
 
   return client;
+}
+
+/**
+ * WHICH MODEL A LABELLED JOB RUNS, DECIDED IN ONE PLACE. bd-gr4fy.1.
+ *
+ * Every live model call in the bot carries a `job` label, but most call sites still write their
+ * model as a literal, so moving one job meant a code change and a deploy. This is the one place:
+ *
+ *   kill switch (`llm_kill_switch`)  >  settings row `llm_per_job`  >  env `LLM_JOB_MODELS`
+ *
+ * and nothing set means the call site decides, exactly as before. The settings row moves a job
+ * within a minute with no restart; the env var is a JSON map of job -> model for environments
+ * with no settings table to write to. Only a well-formed model id is ever used: this is the one
+ * value from settings that is sent to a third party.
+ *
+ * NOTHING MOVES UNTIL THE KILL SWITCH IS KNOWN (bd-gr4fy.6). Until the settings have been read
+ * once, a process cannot tell "kill switch off" from "not read yet", so the env map waits too and
+ * the call site decides. That is the first second or so of a process's life.
+ */
+let _envMapRaw = null;
+let _envMap = {};
+let _envProblem = null;
+function envJobModels() {
+  const raw = process.env.LLM_JOB_MODELS || '';
+  if (raw !== _envMapRaw) {
+    _envMapRaw = raw;
+    _envProblem = null;
+    let parsed = {};
+    try {
+      parsed = raw.trim() ? JSON.parse(raw) : {};
+    } catch (_) {
+      parsed = {};
+      _envProblem = 'not JSON';
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      parsed = {};
+      _envProblem = 'not a map of job -> model id';
+    }
+    _envMap = parsed;
+  }
+  return _envMap;
+}
+
+/**
+ * The settings as this call sees them. Required at call time: llm-client is required by almost
+ * everything, and the settings module reaches the database client. A settings module that cannot
+ * be read at all moves nothing (`known: false`), and says why once, in the config event.
+ */
+function readSettings() {
+  try {
+    // eslint-disable-next-line global-require
+    const settings = require('../config/model-settings');
+    const cfg = settings.configForRequest() || {};
+    return { cfg, known: settings.hasRead(), rejected: settings.rejectedEntries(), error: null };
+  } catch (err) {
+    return { cfg: {}, known: false, rejected: [], error: String((err && err.message) || err).slice(0, 200) };
+  }
+}
+
+/**
+ * One `llm.job_override_config` event per change of what is in force: the map that is active,
+ * every entry that was dropped and why, and any job name that matches nothing. A malformed value
+ * used to be dropped without a word, so a typo looked exactly like "nothing configured".
+ */
+let _lastConfigKey = null;
+function reportConfig(s) {
+  if (!s.known && !s.error) return;
+  const env = envJobModels();
+  const key = JSON.stringify([s.known, !!s.cfg.killSwitch, s.cfg.perJob || {}, s.rejected, _envMapRaw, s.error]);
+  if (key === _lastConfigKey) return;
+  _lastConfigKey = key;
+
+  // eslint-disable-next-line global-require
+  const { isModel, JOBS, TELEMETRY_ONLY_JOBS } = require('../config/model-registry');
+  const rejected = (s.rejected || []).map((r) => ({
+    source: 'settings', key: r.key, ...(r.entry ? { job: r.entry } : {}), ...(r.value ? { value: r.value } : {}), why: r.why,
+  }));
+  if (_envProblem) rejected.push({ source: 'env', why: _envProblem });
+  const fromEnv = {};
+  for (const [job, model] of Object.entries(env)) {
+    if (isModel(model)) fromEnv[job] = model;
+    else rejected.push({ source: 'env', job, value: String(model).slice(0, 80), why: 'not a model id' });
+  }
+  const active = s.cfg.killSwitch ? {} : { ...fromEnv, ...(s.cfg.perJob || {}) };
+  const unknownJobs = Object.keys(active).filter((j) => !JOBS[j] && !TELEMETRY_ONLY_JOBS.includes(j));
+
+  // eslint-disable-next-line global-require
+  const { logEvent } = require('../utils/structured-logger');
+  logEvent('llm.job_override_config', {
+    killSwitch: !!s.cfg.killSwitch, active, rejected, unknownJobs, ...(s.error ? { settingsError: s.error } : {}),
+  });
+  if (rejected.length || unknownJobs.length || s.error) {
+    // eslint-disable-next-line global-require
+    const { logToFile } = require('../utils/logger');
+    logToFile('llm-client: part of the per-job model configuration is not in force', { rejected, unknownJobs, settingsError: s.error }, 'warn');
+  }
+}
+
+const isDirectModel = (m) => String(m || '').startsWith(ANTHROPIC_DIRECT_PREFIX);
+const withVendor = (m) => (String(m || '').includes('/') ? String(m) : `openai/${m}`);
+const sameModel = (a, b) => withVendor(a) === withVendor(b);
+
+/** The first candidate that is a different model from `first`, or null. */
+function behindFor(first, candidates) {
+  for (const c of candidates) if (c && !sameModel(c, first)) return c;
+  return null;
+}
+
+/**
+ * Which model answers first, and which stands behind it, for one labelled call.
+ *
+ *   { first: null }                 nothing to change: the call site's request goes out as written
+ *   { first, behind: null }         one model only (a direct-lane call site with nothing validated
+ *                                   behind it): sent once, exactly as the call site would have
+ *   { first, behind }               `first` is tried; on any failure `behind` answers
+ *
+ * THE MODEL BEHIND IS NEVER THE ONE IN FRONT (bd-gr4fy.6). A call site that reads the settings
+ * itself (`settingsAtSite`: vision, assessment) arrives already carrying the moved model, so an
+ * "override vs call site" comparison sees one model twice and puts nothing behind it. The row is
+ * never applied a second time on top of a finer choice such a site already made (per language,
+ * rollout).
+ *
+ * SUCH A CALL SITE SAYS WHICH MODEL IS ITS OWN (bd-gr4fy.7), as `fallbackModel`, and only when its
+ * settings moved it. Only the call site knows that model exactly (an Urdu paper runs a different
+ * one from an English paper) and whether the settings moved it at all. Guessing both here put an
+ * Urdu paper behind the English default, and made a call site nobody moved look moved, with its
+ * request changed, whenever any per-language row existed.
+ *
+ * `declared` is that model, or the frozen fallback a getClientForModel caller carries; null when
+ * there is neither.
+ */
+function planForJob(job, siteModel, declared) {
+  const s = readSettings();
+  reportConfig(s);
+  // eslint-disable-next-line global-require
+  const { JOBS, isModel } = require('../config/model-registry');
+  const spec = JOBS[job] || null;
+  const frozen = spec ? resolveJobFallback(job) : null;
+  const live = s.known && !s.cfg.killSwitch;
+  const rowModel = live ? s.cfg.perJob && s.cfg.perJob[job] : null;
+  const envModel = live ? envJobModels()[job] : null;
+
+  if (spec && spec.settingsAtSite) {
+    if (declared && !sameModel(declared, siteModel)) {
+      // Spelled as it goes out (`gpt-4.1-mini` is sent as `openai/gpt-4.1-mini`), so the log
+      // names what was actually asked.
+      return { first: { model: siteModel, source: 'settings' }, behind: isDirectModel(declared) ? declared : withVendor(declared) };
+    }
+    // Not moved by its settings. The registry never reads the env map, so that may still move it,
+    // unless the row names this job (the row outranks the env map, and the site applied the row).
+    if (!rowModel && isModel(envModel) && !sameModel(envModel, siteModel)) {
+      return { first: { model: envModel, source: 'env' }, behind: siteModel };
+    }
+  } else {
+    const override = isModel(rowModel) ? { model: rowModel, source: 'settings' }
+      : (isModel(envModel) ? { model: envModel, source: 'env' } : null);
+    if (override && !sameModel(override.model, siteModel)) return { first: override, behind: siteModel };
+  }
+
+  // No override. A call site on the direct lane is routed there (OpenRouter refuses the prefix),
+  // with the job's validated model behind it when it has one.
+  if (!isDirectModel(siteModel)) return { first: null, behind: null };
+  return { first: { model: siteModel, source: 'call-site' }, behind: behindFor(siteModel, [declared, frozen]) };
+}
+
+/**
+ * Claude models that think by default (Sonnet 5, Opus 5 and up). Under a limit sized for a model
+ * that does not think, the thinking spends the whole budget and the answer comes back empty: Opus
+ * returned nothing on 30 of 44 language-detection calls at 15 tokens. Haiku does not think unless
+ * asked, so it is not touched. Where thinking cannot be switched off at all (Fable 5 / 5.1,
+ * Opus 5.5: a 400), low effort is the only lever and is used instead (bd-gr4fy.6).
+ */
+const SMALL_OUTPUT_LIMIT = 2048;
+
+/**
+ * A moved job's output limit, in Claude's tokens (bd-gr4fy.6). The call site sized its limit for
+ * its own model, and Claude counts the same text in more tokens: the eval measured 1.90x on
+ * coaching input, and live, a Urdu answer at a 120-token limit was cut off mid-sentence on Claude
+ * where the job's own model finished. Twice the limit is the same length of TEXT; an answer that
+ * still reaches it is cut off, and the job's own model answers instead.
+ *
+ * BOUNDED, BECAUSE IT IS NOT FREE (bd-gr4fy.7). A call is billed for what is written, but the limit
+ * is what OpenRouter authorises spend against up front (see roster-extraction.service.js), so a
+ * bigger ask can be refused on a thin balance. A small limit, where a cut-off is likely, is
+ * doubled; a large one, which a normal answer rarely nears, gets at most ALLOWANCE_CAP more.
+ */
+const TOKENIZER_ALLOWANCE = 2;
+const ALLOWANCE_CAP = 4096;
+const MAX_OUTPUT_TOKENS = 64000;  // Haiku 4.5's ceiling, the lowest of the Claude models in use
+const isClaude = (m) => /(^|\/)claude-/.test(String(m || ''));
+
+/**
+ * The request as the new model should receive it. The call site's own request is never edited.
+ * `moved` is false when the model is the call site's own (a direct-lane id routed to the direct
+ * lane): that limit was sized for that model already.
+ */
+function adaptForTarget(model, params, moved = true) {
+  const p = { ...params };
+  const limit = p.max_tokens != null ? p.max_tokens : p.max_completion_tokens;
+  const hinted = p.reasoning !== undefined || p.thinking !== undefined || p.reasoning_effort !== undefined
+    || (p.output_config && p.output_config.effort !== undefined);
+  if (thinksByDefault(model) && limit != null && limit < SMALL_OUTPUT_LIMIT && !hinted) {
+    p.reasoning = alwaysThinks(model) ? { effort: 'low' } : { enabled: false };
+  }
+  // OpenRouter reads `max_tokens` for non-OpenAI models; the facade reads either.
+  if (!String(model).startsWith('openai/') && p.max_tokens == null && p.max_completion_tokens != null) {
+    p.max_tokens = p.max_completion_tokens;
+    delete p.max_completion_tokens;
+  }
+  if (moved && isClaude(model) && Number.isFinite(p.max_tokens) && p.max_tokens > 0) {
+    p.max_tokens = Math.min(Math.ceil(p.max_tokens * TOKENIZER_ALLOWANCE), p.max_tokens + ALLOWANCE_CAP, MAX_OUTPUT_TOKENS);
+  }
+  return p;
+}
+
+/**
+ * Send one call to a model this module chose: the direct lane for `anthropic-direct/`, else the
+ * shared OpenRouter client, marked so the job's override is not applied to it a second time.
+ * `options` are the per-call SDK options (timeout, retries), passed on to whichever lane it is.
+ */
+async function callModel(model, params, options, job, moved = true) {
+  const p = adaptForTarget(model, params, moved);
+  if (isDirectModel(model)) {
+    // Throws on a missing key or an unusable credit fallback, before a token is spent; the
+    // caller treats that like any other failure and puts the job back on its own model.
+    const { client } = getClientForModel(model, { job, routed: true });
+    return client.chat.completions.create(p, options);
+  }
+  return getClient().chat.completions.create({ ...p, model, job, skipJobOverride: true }, options);
+}
+
+/** The model behind: the call site itself when it is the call site's own model. */
+function callBehind(model, params, options, job, callSite) {
+  if (isDirectModel(model)) return callModel(model, params, options, job, !sameModel(model, params.model));
+  if (sameModel(model, params.model)) return callSite(params);
+  return callSite({ ...params, model });
+}
+
+/**
+ * Why an answer cannot be handed to the caller, or null.
+ *
+ *   refused   a refusal, or stopped by a content filter
+ *   cut_off   stopped at the output limit: the limit was sized for the job's own model, whose
+ *             tokenizer counts the same text in fewer tokens, so its model is the right one to ask
+ *   empty     what a thinking model returns under a small limit
+ *   not_json  JSON was asked for (or the job's caller parses JSON) and the answer is not JSON of
+ *             that shape. JSON wrapped in fences or a sentence is unwrapped first, and only a
+ *             complete value of the right shape counts: an inner array of a cut-off object does not.
+ */
+function unusableAnswer(res, params, job) {
+  const choice = res && Array.isArray(res.choices) ? res.choices[0] : null;
+  const message = choice && choice.message;
+  const finishReason = (choice && choice.finish_reason) || null;
+  if ((message && message.refusal) || finishReason === 'content_filter') {
+    return { kind: 'refused', reason: 'refused, or stopped by a content filter', finishReason };
+  }
+  if (finishReason === 'length') return { kind: 'cut_off', reason: 'cut off at the output limit', finishReason };
+  const content = message ? message.content : null;
+  if (typeof content !== 'string' || !content.trim()) return { kind: 'empty', reason: 'empty answer', finishReason };
+  const shape = jsonShapeFor(params) || jsonReplyShape(job);
+  if (shape) {
+    let fits = false;
+    try { fits = hasShape(JSON.parse(content), shape); } catch (_) { fits = false; }
+    if (!fits) {
+      const json = extractJson(content, shape);
+      if (json) message.content = json;
+      else if (!callerRepairsTo(job, content, shape)) {
+        return { kind: 'not_json', reason: `not JSON of the shape asked for (${shape})`, finishReason };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Whether a caller that repairs JSON itself (JSON_REPAIRED_BY_CALLER) would get a value of the
+ * shape it wants from this answer, parsed exactly the way it parses it (bd-gr4fy.7). Such an answer
+ * is handed over untouched: the caller's own repair reaches the same value. Prose its repair turns
+ * into a string, or two objects it turns into an array, still fall back.
+ */
+function callerRepairsTo(job, content, shape) {
+  let mode;
+  let repair;
+  try {
+    // eslint-disable-next-line global-require
+    mode = require('../config/model-registry').JSON_REPAIRED_BY_CALLER[job];
+    if (!mode) return false;
+    // eslint-disable-next-line global-require
+    repair = require('jsonrepair').jsonrepair;
+  } catch (_) {
+    return false;
+  }
+  let text = content;
+  if (mode === 'span') {
+    const m = content.match(/\{[\s\S]*\}/);
+    text = m ? m[0] : content;
+  }
+  try { return hasShape(JSON.parse(text), shape); } catch (_) { /* the caller repairs next */ }
+  try { return hasShape(JSON.parse(repair(text)), shape); } catch (_) { return false; }
+}
+
+/** The JSON shape a job's caller parses out of a reply it never asked JSON mode for, or null. */
+function jsonReplyShape(job) {
+  try {
+    // eslint-disable-next-line global-require
+    const { JSON_REPLY_JOBS } = require('../config/model-registry');
+    return (JSON_REPLY_JOBS && JSON_REPLY_JOBS[job]) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Run one labelled call with the job's override, if it has one.
+ *
+ * THE JOB'S OWN MODEL STAYS BEHIND THE NEW ONE, ON ANY FAILURE. Not only the outages a second
+ * supplier can answer (that is `isSupplierUnusableError`, for the frozen fallbacks), because
+ * here the model behind is the one this job has always run on: an error, a refusal, a cut-off or
+ * empty answer, or not-JSON when JSON was wanted all put the call back on it, and say so on
+ * `llm.job_override_fallback` and in `usage.job_override_fallback`. A move can therefore cost a
+ * teacher a few seconds, never an answer.
+ *
+ * THE ATTEMPT IS NOT RETRIED (bd-gr4fy.6). The model behind IS the retry, so the attempt goes out
+ * with `maxRetries: 0` and the caller's own time budget. With the SDK's retry, a timed-out attempt
+ * waited twice the 180 s budget before the fallback even started.
+ */
+async function runWithJobOverride(job, params, options, callSite, declared = null) {
+  const plan = planForJob(job, params.model, declared);
+  if (!plan.first) return callSite(params);
+  const { first, behind } = plan;
+  // Only an override is a move; the call site's own model routed to the direct lane is not.
+  const moved = first.source !== 'call-site';
+  if (!behind) return callModel(first.model, params, options, job, moved);
+
+  const startedAt = Date.now();
+  let failure;
+  let firstErr = null;
+  try {
+    const res = await callModel(first.model, params, { ...(options || {}), maxRetries: 0 }, job, moved);
+    failure = unusableAnswer(res, params, job);
+    if (!failure) {
+      res.usage = { ...(res.usage || {}), job_override: { from: behind, to: first.model, source: first.source } };
+      return res;
+    }
+  } catch (err) {
+    firstErr = err;
+    failure = {
+      kind: 'error',
+      reason: String((err && err.message) || 'unknown').slice(0, 300),
+      status: err && (err.status != null ? err.status : err.statusCode),
+      errName: (err && err.name) || null,
+    };
+  }
+
+  // eslint-disable-next-line global-require
+  const { logEvent } = require('../utils/structured-logger');
+  // eslint-disable-next-line global-require
+  const { logToFile } = require('../utils/logger');
+  const event = {
+    job, from: first.model, to: behind, source: first.source, kind: failure.kind,
+    status: failure.status == null ? null : failure.status, reason: failure.reason,
+    finishReason: failure.finishReason || null, errName: failure.errName || null,
+    elapsedMs: Date.now() - startedAt,
+  };
+  logEvent('llm.job_override_fallback', event);
+  logToFile(`llm-client: ${job} could not use ${first.model}, answering on ${behind}`, event, 'warn');
+
+  let res;
+  try {
+    res = await callBehind(behind, params, options, job, callSite);
+  } catch (behindErr) {
+    // BOTH FAILED. The second error alone sends whoever reads it at the wrong model; the first
+    // rides along as `cause` and in the message, the way the other two fallbacks here do it.
+    if (behindErr && typeof behindErr === 'object') {
+      behindErr.cause = behindErr.cause || firstErr || new Error(failure.reason);
+      behindErr.message = `${behindErr.message} (after ${first.model} could not answer: ${failure.reason})`;
+    }
+    throw behindErr;
+  }
+  if (res && typeof res === 'object') {
+    res.usage = { ...(res.usage || {}), job_override_fallback: { from: first.model, to: behind, reason: failure.reason } };
+  }
+  return res;
 }
 
 /**
@@ -403,6 +804,36 @@ function getAnthropicDirectClient() {
 }
 
 /**
+ * An override that can never apply, said once (bd-gr4fy.7). A call site that sends its model
+ * straight to the direct lane (getClientForModel with an `anthropic-direct/` id: the lesson-plan
+ * author, the quiz key check) never reaches the per-job override, so an override written for such
+ * a job did nothing and said nothing. Reported once per job and override on
+ * `llm.job_override_ignored`. The override's own attempts on this lane are marked `routed` and are
+ * never reported.
+ */
+const _ignoredReported = new Set();
+function noteIgnoredOverride(job, directId) {
+  if (!job) return;
+  const s = readSettings();
+  if (!s.known || s.cfg.killSwitch) return;
+  // eslint-disable-next-line global-require
+  const { isModel } = require('../config/model-registry');
+  const fromRow = s.cfg.perJob && s.cfg.perJob[job];
+  const fromEnv = envJobModels()[job];
+  const override = isModel(fromRow) ? fromRow : (isModel(fromEnv) ? fromEnv : null);
+  if (!override || sameModel(override, directId)) return;
+  const key = `${job} -> ${override}`;
+  if (_ignoredReported.has(key)) return;
+  _ignoredReported.add(key);
+  // eslint-disable-next-line global-require
+  const { logEvent } = require('../utils/structured-logger');
+  logEvent('llm.job_override_ignored', {
+    job, override, model: directId,
+    why: 'this call site sends its model straight to the direct lane, which the per-job override does not reach',
+  });
+}
+
+/**
  * The direct lane dressed as an OpenAI client, with the credit-exhaustion fallback.
  *
  * Returns `{ chat: { completions: { create } } }` — the ONLY surface any caller in this repo uses
@@ -425,12 +856,20 @@ function getAnthropicDirectClient() {
 function buildDirectLaneClient(directModel, ctx) {
   const context = ctx || {};
 
-  async function create(params) {
+  // `options` are the per-call SDK options (timeout, retries). They used to stop here, so a caller's
+  // 30 s budget with no retries became 180 s twice on this lane (bd-gr4fy.6).
+  async function create(params, options) {
+    if (!context.routed) noteIgnoredOverride(context.job, `${ANTHROPIC_DIRECT_PREFIX}${directModel}`);
     const payload = { ...params, model: directModel };
     try {
       const startedAt = Date.now();
-      const msg = await getAnthropicDirectClient().messages.create(toNativeRequest(payload));
-      const mapped = fromNativeResponse(msg);
+      // Options only when there are some: a caller that passes none (the lesson-plan author) sends
+      // exactly the request it always has.
+      const native = toNativeRequest(payload);
+      const msg = options
+        ? await getAnthropicDirectClient().messages.create(native, options)
+        : await getAnthropicDirectClient().messages.create(native);
+      const mapped = fromNativeResponse(msg, { json: jsonShapeFor(params) });
       // bd-8t362: this lane never touched the OpenRouter wrapper, so lesson-plan authoring,
       // the job with the largest spend here, recorded nothing while its own fallback did.
       // The facade has already worked out a real price, cache multipliers and all.
@@ -452,9 +891,16 @@ function buildDirectLaneClient(directModel, ctx) {
       const { logEvent } = require('../utils/structured-logger');
       // eslint-disable-next-line global-require
       const { logToFile } = require('../utils/logger');
+      // Only what is KNOWN goes on the event (bd-gr4fy.6). `logEvent` spreads the data over the
+      // correlation id it reads from context, so a `correlationId: null` here erased the real one,
+      // and every job moved onto this lane fell back as an anonymous lesson-plan event.
+      const where = {
+        ...(context.correlationId ? { correlationId: context.correlationId } : {}),
+        ...(context.stage ? { stage: context.stage } : {}),
+        ...(context.job ? { job: context.job } : {}),
+      };
       logEvent('lp612.llm.fallback_provider', {
-        correlationId: context.correlationId || null,
-        stage: context.stage || null,
+        ...where,
         from: `${ANTHROPIC_DIRECT_PREFIX}${directModel}`,
         to,
         reason,
@@ -462,14 +908,17 @@ function buildDirectLaneClient(directModel, ctx) {
       });
       logToFile(
         'llm-client: the direct-Anthropic lane could not spend — falling back to OpenRouter',
-        { correlationId: context.correlationId || null, stage: context.stage || null,
-          from: `${ANTHROPIC_DIRECT_PREFIX}${directModel}`, to, status: status == null ? null : status, reason },
+        { ...where, from: `${ANTHROPIC_DIRECT_PREFIX}${directModel}`, to, status: status == null ? null : status, reason },
         'warn'
       );
 
       let res;
       try {
-        res = await getClient().chat.completions.create({ ...params, model: to });
+        // The retry keeps the job's name, so its spend is not recorded anonymously, and is marked
+        // as already resolved, so the job's override cannot send it back here (bd-gr4fy.1).
+        res = await getClient().chat.completions.create({
+          ...params, model: to, ...(context.job ? { job: context.job } : {}), skipJobOverride: true,
+        }, options);
       } catch (fallbackErr) {
         // BOTH PROVIDERS FAILED. Whoever reads this needs the FIRST failure as much as the
         // second: "OpenRouter returned 502" on its own sends the next engineer at OpenRouter,
@@ -597,15 +1046,22 @@ function withSpendRecording(client, { lane } = {}) {
   const create = client.chat.completions.create.bind(client.chat.completions);
   client.chat.completions.create = async (params, options) => {
     const job = (params && params.job) || null;
-    if (params && ('job' in params || 'fallbackModel' in params)) {
+    const skipJobOverride = !!(params && params.skipJobOverride === true);
+    if (params && ('job' in params || 'fallbackModel' in params || 'skipJobOverride' in params)) {
       params = { ...params };
       delete params.job;
       delete params.fallbackModel;
+      delete params.skipJobOverride;
     }
-    const startedAt = Date.now();
-    const response = await create(params, options);
-    recordModelCost(params && params.model, response, startedAt, lane ? { lane, job } : { job });
-    return response;
+    const callSite = async (p) => {
+      const startedAt = Date.now();
+      const response = await create(p, options);
+      recordModelCost(p && p.model, response, startedAt, lane ? { lane, job } : { job });
+      return response;
+    };
+    // bd-gr4fy.3: the job's override applies here too, with this service's own client behind it.
+    if (job && !skipJobOverride) return runWithJobOverride(job, params, options, callSite);
+    return callSite(params);
   };
   return client;
 }

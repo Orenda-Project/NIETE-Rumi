@@ -118,6 +118,7 @@ features:
     - bot/shared/routes/assessment-gen-endpoint.js
     - bot/shared/routes/assessment-gen-callback.routes.js
     - bot/shared/services/assessment-*.service.js
+    - bot/shared/services/assessment/**                     # the generator the assessment routes call (bd-gr4fy.8 map gap)
     - bot/workers/exam-grading.worker.js
     - bot/workers/quiz-job-handler.js
     - bot/shared/templates/quiz-report.template.js
@@ -248,6 +249,8 @@ features:
     - bot/shared/routes/edit-class-endpoint.js
     - bot/shared/services/student-list.service.js
     - bot/workers/attendance-*.worker.js
+    - bot/shared/services/roster/**                         # register photos -> a class roster (bd-gr4fy.8 map gap)
+    - bot/shared/routes/roster-flow-endpoint.js             # the roster Flow that calls it
 
 # ── shared / fan-out ─────────────────────────────────────────────────────────
 # One file, several surfaces. Declared HERE rather than repeated under each
@@ -262,6 +265,10 @@ shared:
   bot/shared/services/whatsapp.service.js: "*"
   bot/shared/services/region-features.service.js: "*"
   bot/shared/config/region-config.js: "*"
+  # bd-gr4fy.8 map gaps, attributed by the real require graph (audit_feature_map.py, 6 Oct 2026).
+  bot/shared/config/lp612-flags.js: [coaching, lesson-plan, menu, observe, status, training]
+  bot/shared/services/lp-vision-ocr.service.js: [coaching, lesson-plan, menu, observe, training]
+  bot/shared/services/voice-attendance.service.js: [attendance, coaching, lesson-plan, menu, training]
   bot/shared/utils/region.js: "*"
 
   # The command/text router: 6 surfaces assert copy that originates here.

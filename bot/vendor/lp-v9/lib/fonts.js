@@ -21,7 +21,7 @@ const path = require("path");
 //   • REPO_ROOT is this repo's root (bot/vendor/lp-v9/lib -> four levels up). It is only
 //     ever used to make report paths relative and to resolve a doc-relative figure `src`,
 //     so pointing it at the deployment repo is the correct meaning, not a hack.
-//   • the four faces are VENDORED into ../fonts and that is the ONLY candidate. A missing
+//   • the five faces are VENDORED into ../fonts and that is the ONLY candidate. A missing
 //     face is a vendoring bug we want to see (tests/lp612/vendor-integrity.test.js asserts
 //     `missing` is empty), not something to paper over with a machine-local path.
 //
@@ -34,6 +34,10 @@ const CANDIDATES = {
   "Inter:600": [[LOCAL_FONTS, "Inter-SemiBold.ttf"]],
   "Inter:700": [[LOCAL_FONTS, "Inter-Bold.ttf"]],
   "Noto Nastaliq Urdu:400": [[LOCAL_FONTS, "NotoNastaliqUrdu.ttf"]],
+  // VENDOR DIVERGENCE (SYNC.md §3.33): the fallback BEHIND Nastaliq for the Quranic annotation
+  // marks it has no glyph for (U+06D6-06ED less 06DD/06DE/06E0/06E1/06E9 — the small high madda
+  // in يٰۤاَيُّهَا among them). Railway has no system Arabic font, so without it they print as boxes.
+  "Scheherazade New:400": [[LOCAL_FONTS, "ScheherazadeNew-Regular.ttf"]],
 };
 
 function findFile(cands) {
@@ -53,12 +57,15 @@ function faceCss(family, weight, file) {
 }
 
 /**
- * @param {{urdu:boolean}} opts
+ * @param {{urdu:boolean, quranic?:boolean}} opts — `quranic` (with `urdu`) also embeds the
+ *   Quranic-marks fallback (SYNC.md §3.33). Opt-in, so the quiz card and figure, whose stacks do
+ *   not name it, stay byte-identical and do not carry the extra face.
  * @returns {{css:string, resolved:string[], missing:string[]}}
  */
-function fontCss({ urdu = false } = {}) {
+function fontCss({ urdu = false, quranic = false } = {}) {
   const want = ["Inter:400", "Inter:600", "Inter:700"];
   if (urdu) want.push("Noto Nastaliq Urdu:400");
+  if (urdu && quranic) want.push("Scheherazade New:400");
 
   const css = [];
   const resolved = [];

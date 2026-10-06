@@ -108,7 +108,7 @@ function botNumber() {
 
 // ─── Minting ────────────────────────────────────────────────────────────────
 
-async function mintCode({ quizId, userId, videoId, language = 'en' }) {
+async function mintCode({ quizId, userId, videoId, language = 'en', classId = null }) {
   const { data: user } = await supabase
     .from('users').select('name').eq('id', userId).maybeSingle();
   // The fallback is read by CHILDREN in the quiz language ("*your teacher* نے…" was
@@ -118,15 +118,38 @@ async function mintCode({ quizId, userId, videoId, language = 'en' }) {
   const { data: quiz } = await supabase
     .from('quizzes').select('topic').eq('id', quizId).maybeSingle();
 
+  const HandoutClass = require('./handout-class.service');
+  // The hand-out's class (web_quiz_v2_identity.sql). Named only when known, and
+  // dropped for good when this environment's table has no such column yet.
+  let bindClass = Boolean(classId) && HandoutClass.classColumnAvailable();
   // Retry on the unique-code collision rather than trusting one draw.
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const code = randomCode();
-    const { data, error } = await supabase.from('quiz_share_codes').insert({
+    const row = {
       code, quiz_id: quizId, teacher_user_id: userId, video_id: videoId,
       teacher_name: teacherName, topic: quiz?.topic || null, language,
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    }).select('id, code').single();
-    if (!error && data) return { ...data, teacherName, topic: quiz?.topic };
+    };
+    if (bindClass) row.class_id = classId;
+    const { data, error } = await supabase.from('quiz_share_codes').insert(row).select('id, code').single();
+    if (!error && data) {
+      if (bindClass) await HandoutClass.fillGradeIfEmpty({ quizId, teacherUserId: userId, classId });
+      return { ...data, teacherName, topic: quiz?.topic, classId: bindClass ? classId : null };
+    }
+    if (bindClass && HandoutClass.isMissingClassColumn(error)) {
+      HandoutClass.markClassColumnMissing({ quizId });
+      bindClass = false;
+      attempt -= 1;   // the column, not the code, was refused: this draw does not count
+      continue;
+    }
+    if (bindClass && error && error.code === '23503') {
+      // Not a classes row (a legacy list standing in for a class): this one
+      // hand-out goes out unbound rather than not at all.
+      logEvent('web_quiz.class_bind_refused', { quizId, reason: 'fk' });
+      bindClass = false;
+      attempt -= 1;
+      continue;
+    }
     if (error && error.code !== '23505') {
       logToFile('❌ share: could not mint code', { error: error.message });
       return null;
@@ -208,16 +231,38 @@ async function handleShareButton(buttonId, phone) {
  * read.
  */
 async function deliverClassLink(ctx, phone) {
+  // Which class is this for? Known → the code is bound at mint. Ambiguous → the
+  // hand-out goes out unbound exactly as before, THEN one question; a tap binds
+  // the code late (handout-class.service.js). None → as before.
+  const HandoutClass = require('./handout-class.service');
+  const resolved = await HandoutClass.resolveClass({ teacherUserId: ctx && ctx.userId, quizId: ctx && ctx.quizId });
+  const minted = await module.exports.sendClassLink(ctx, phone, { classId: HandoutClass.classIdToMint(resolved) });
+  if (minted && resolved.state === 'ambiguous') {
+    await HandoutClass.askAfterHandout(phone, {
+      shareCodeId: minted.id, quizId: ctx.quizId, userId: ctx.userId, language: clampLanguage(ctx.language),
+    }, resolved.classes);
+  }
+  return true;
+}
+
+/**
+ * Mint (bound to `classId` when given) and send the two class messages.
+ * @returns {Promise<{id:string, code:string}|null>} the minted code
+ */
+async function sendClassLink(ctx, phone, { classId = null } = {}) {
   // The forwarded message is read by every child in the class, so it is in the
   // quiz's language; the lines around it follow the same language.
   const lang = clampLanguage(ctx && ctx.language);
-  const minted = await mintCode(ctx);
+  const minted = await mintCode({ ...ctx, classId });
   if (!minted) {
     await WhatsAppService.sendMessage(phone, ux('vqShareLinkFailed', lang));
-    return true;
+    return null;
   }
 
-  const link = `https://wa.me/${botNumber()}?text=QUIZ-${minted.code}`;
+  // The web quiz page when it is switched on for this teacher, else wa.me.
+  const link = await require('./web-quiz-link').quizLink(minted.code, {
+    teacherUserId: ctx.userId, whatsapp: `https://wa.me/${botNumber()}?text=QUIZ-${minted.code}`, quizId: ctx.quizId,
+  });
   await WhatsAppService.sendMessage(phone, ux('vqShareForwardThis', lang));
   // Sent as its own message so forwarding it carries nothing else.
   await WhatsAppService.sendMessage(phone, ux('vqClassMessage', lang, {
@@ -228,9 +273,9 @@ async function deliverClassLink(ctx, phone) {
   await WhatsAppService.sendMessage(phone, ux('vqShareReportPromise', lang));
 
   logEvent('video_quiz.share_code_minted', {
-    userId: ctx.userId, quizId: ctx.quizId, code: minted.code,
+    userId: ctx.userId, quizId: ctx.quizId, code: minted.code, classBound: Boolean(minted.classId),
   });
-  return true;
+  return { id: minted.id, code: minted.code };
 }
 
 // ─── The child's side ───────────────────────────────────────────────────────
@@ -625,7 +670,7 @@ async function consumeJoinReply(phone, text) {
 }
 
 module.exports = {
-  mintCode, offerShare, handleShareButton, deliverClassLink, startForStudent,
+  mintCode, offerShare, handleShareButton, deliverClassLink, sendClassLink, startForStudent,
   parseShareCode, beginFromCode, beginFromCodeLocked, consumeJoinReply, handleJoinFlowReply,
   SHARE_YES, SHARE_NO, JOIN_KEY, JOIN_LOCK_KEY, JOIN_LOCK_SECS, JOIN_FLOW_PREFIX, CODE_RX, randomCode, botNumber,
 };

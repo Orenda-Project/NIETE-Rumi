@@ -48,6 +48,8 @@
 
 const { logEvent } = require('../../utils/structured-logger');
 const { addressForms } = require('./transcript-quiz-address');
+const GatesV2 = require('./quiz-author-gates-v2');
+const { namedAntecedent } = require('./transcript-quiz-named-pronouns');
 
 // ── options that are bare numbers ────────────────────────────────────────────
 // A count question is only ratta when the child is picking a NUMBER. The same
@@ -245,14 +247,25 @@ const UR_AGREEMENT_WINDOW = 40;
 const HAS_URDU = new RegExp(`[${UR_LETTER}]`);
 
 /** Every gendered form in one string, as the words that matched. */
-function genderedTeacherForms(text, language) {
+function genderedTeacherForms(text, language, { authorGates } = {}) {
   const s = String(text ?? '');
   if (!s.trim()) return [];
   const out = [];
   const push = (m) => { if (m) out.push(...m); };
-  push(s.match(EN_PRONOUNS));
-  push(s.match(EN_HE_LOWER));
-  push(s.match(EN_HE_SENTENCE_START) && ['He']);
+  if (GatesV2.enabled(authorGates)) {
+    // quiz_author_gates_v2: a pronoun whose sentence names a person before it is that
+    // character's ("Ahmed was writing his letter"), not the teacher's.
+    const own = (re, group = 0) => [...s.matchAll(re)]
+      .filter((m) => !namedAntecedent(s, m.index + m[0].length - m[group].length, { lookback: 1 }))
+      .map((m) => m[group]);
+    push(own(EN_PRONOUNS));
+    push(own(EN_HE_LOWER));
+    push(own(EN_HE_SENTENCE_START, 1).length ? ['He'] : null);
+  } else {
+    push(s.match(EN_PRONOUNS));
+    push(s.match(EN_HE_LOWER));
+    push(s.match(EN_HE_SENTENCE_START) && ['He']);
+  }
   // A Latin-script pronoun is a hit in an Urdu quiz too (the model mixes
   // scripts), so the English half runs unconditionally and the Urdu half is
   // added whenever there is Urdu in the string at all.
@@ -305,7 +318,9 @@ const HOW_TO_WRITE_IT = 'The teacher has no gender here: the lesson summary is w
  * @returns {{index:number|null, code:string, message:string}[]}
  */
 function genderedTeacherDefects(questions, ctx = {}) {
-  const { language, lessonSummary, quizId = null } = ctx;
+  const {
+    language, lessonSummary, quizId = null, authorGates,
+  } = ctx;
   const out = [];
   const note = (index, field, forms) => {
     const where = index === null ? '"lesson_summary"' : field;
@@ -322,7 +337,7 @@ function genderedTeacherDefects(questions, ctx = {}) {
   };
 
   if (typeof lessonSummary === 'string') {
-    const forms = genderedTeacherForms(lessonSummary, language);
+    const forms = genderedTeacherForms(lessonSummary, language, { authorGates });
     // The summary is written TO the teacher, as آپ. آپ is not an anchor for the
     // third-person forms above, so a verb that speaks to the teacher with a
     // gender — «آپ ٹیسٹ کیسے لیں گی», «آپ … پڑھاتے ہیں» — is found by the same
@@ -335,7 +350,7 @@ function genderedTeacherDefects(questions, ctx = {}) {
     const fields = [];
     const forms = [];
     questionFields(q).forEach(([field, value]) => {
-      const f = genderedTeacherForms(value, language);
+      const f = genderedTeacherForms(value, language, { authorGates });
       if (f.length) { fields.push(field); forms.push(...f); }
     });
     if (forms.length) note(i, fields.join(' + '), forms);
@@ -432,7 +447,7 @@ const RULES = [
  */
 function pedagogyDefects(questions, ctx = {}) {
   const qs = Array.isArray(questions) ? questions : [];
-  const { language, digest, lessonSummary, quizId } = ctx;
+  const { language, digest, lessonSummary, quizId, authorGates } = ctx;
   const out = [];
   const { pupilAsSubject, pupilComplaint } = require('./transcript-quiz-pupils');
   qs.forEach((q, i) => {
@@ -445,7 +460,7 @@ function pedagogyDefects(questions, ctx = {}) {
     const why = pupilAsSubject(q, { language, digest });
     if (why) out.push({ index: i, code: 'PEDAGOGY_PUPIL_AS_SUBJECT', message: pupilComplaint(i, why) });
   });
-  out.push(...genderedTeacherDefects(qs, { language, lessonSummary, quizId }));
+  out.push(...genderedTeacherDefects(qs, { language, lessonSummary, quizId, authorGates }));
   const mix = levelMixDefect(qs, digest);
   if (mix) out.push(mix, ...levelLiftDefects(qs, digest));
   return out;

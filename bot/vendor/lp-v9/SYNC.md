@@ -1177,6 +1177,42 @@ still not a divergence. Verify with §6's diff command.
 
 ---
 
+### 3.31 A scoped painter for pictograms — `lib/pictogram.js` (2026-10-05)
+
+The web child quiz draws the engine's nouns in colour; the WhatsApp PNG and the LP renderer keep the
+OpenMoji line art. `withPainter(painter, fn)` sets a painter for ONE synchronous render and restores
+the previous one in `finally`. While it is set, `drawPictogram` asks `painter(key)` for the noun's
+inner markup (72-unit grid) and draws that instead, except for (a) the locally drawn manipulatives
+(`LOCAL_GLYPHS`: counter, tile, stick, date, samosa, bangle) and (b) a call that passes a colour
+other than the plain ink (a compare row coloured on purpose keeps its colour, because the difference
+is the question). A painter that returns null for a noun leaves the line art. With no painter set
+the output is byte-identical. The painter is supplied by `bot/shared/services/quiz/pictures/`
+(Microsoft Fluent Emoji Flat, MIT). Test: `bot/tests/quiz/web-quiz/web-quiz-pictures.test.js`.
+Upstream has no web page, so this stays local; keep it at the next re-sync.
+
+### 3.32 A narrow base-ten mat — `types/base_ten.js` `stack` (2026-10-06)
+
+`stack: true` puts each hundred and thousand on its own line in its column, so the mat is
+narrow and tall instead of wide. The web quiz page asks for it (web-quiz-figure `forPage`):
+three flats side by side made an 849-unit mat whose tens rods drew 6.5 px wide in a 344 px
+phone box; stacked they draw ~9 px (the mat is then bound by the page's 46% height). A
+stacked column's minimum width is one piece, not two. Absent (the lesson-plan lane, the
+WhatsApp PNG) the output is byte-identical.
+
+### 3.33 A Quranic-marks fallback behind Nastaliq — `lib/fonts.js`, `lib/template.js`, `diagrams/lib/tokens.js`, `fonts/ScheherazadeNew-*` (2026-10-06)
+
+NotoNastaliqUrdu.ttf has no glyph for the Quranic annotation marks U+06D6-06DC, 06DF, 06E2-06E8
+and 06EA-06ED (pause marks, small high/low letters, small waw/yeh). An ayah quoted in mushaf
+orthography printed a box. The clearest case was the U+06E4 small high madda in «يٰۤ», on a G11
+Islamiat plan. Railway's Chromium has no system fonts to fall back to. Urdu pages now also embed
+Scheherazade New (SIL, OFL, `fonts/ScheherazadeNew-OFL.txt`), named directly BEHIND Nastaliq in
+every stack: the RTL body, the LTR `urduScript` tail and the diagram `urdu` token. Chrome falls
+back per grapheme cluster, so only a cluster Nastaliq cannot draw moves to Naskh, and ordinary
+Urdu stays Nastaliq. The text itself is never altered: stripping or normalising the marks would be
+editing an ayah. Cost: about 0.4 MB more base64 on a page that carries Urdu, and nothing on one that does not. The face is opt-in (`fontCss({urdu, quranic:true})`, passed only by `template.js`), so the quiz card and quiz figure, which also call `fontCss({urdu:true})`, stay byte-identical.
+Test: `tests/lp612/quranic-annotation-marks.test.js` (cmap coverage plus a real-Chromium
+`getPlatformFontsForNode` check). Upstream embeds Nastaliq alone, so keep this at the next re-sync.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of

@@ -52,6 +52,10 @@
 const { completeJson } = require('./transcript-quiz-llm');
 const People = require('./transcript-quiz-people');
 const { PUPILS_RULE } = require('./transcript-quiz-pupils');
+const SourceFidelity = require('./transcript-quiz-source-fidelity');
+const GatesV2 = require('./quiz-author-gates-v2');
+/** Set-level complaints that are soft with quiz_author_gates_v2 on (see generate's isSoft). */
+const SOFT_SET_V2 = /^SLOs uncovered: /;
 /**
  * A question rejected for PEDAGOGY_PUPIL_AS_SUBJECT named a child from the
  * class, asked what a child said or did in class, or said something about a
@@ -130,6 +134,27 @@ const ADJACENT_TERMS = /^q\d+: URDU_ADJACENT_TERMS\b/;
 const DUPLICATE_REPAIR = 'ASKED TWICE. A question rejected for DUPLICATE_QUESTION asks what an earlier question — one that is STAYING — already asks, with the same answer, so a child would answer the same question twice. Write a NEW question for its slot: the same SLO and level, but a different example, number, word or case from the lesson, and a correct answer that is not the correct answer of any question that is staying. The same question with its options in another order, other wrong options, or a few words added to its stem is the same question, and is rejected again.';
 const DUPLICATE = /^q\d+: DUPLICATE_QUESTION\b/;
 /**
+ * An English term in Urdu letters, or Roman Urdu (quiz_author_gates_v2 names
+ * the question — URDU_TRANSLITERATED / URDU_ROMAN). The question is sound and
+ * the class may well have said the word that way: only the script of those
+ * words changes, in place.
+ */
+const TERM_SCRIPT_REPAIR = 'A TERM IN URDU LETTERS — REPAIR IN PLACE. A question rejected for URDU_TRANSLITERATED writes an English technical term in Urdu letters («انرجی»); one rejected for URDU_ROMAN writes Urdu words in English letters ("kya hai"). Keep the SAME question: the same idea, the same options in meaning, the same correct answer, the same explanation and feedback in meaning. Change ONLY those words, in every field: the technical term in English letters ("energy"), the Urdu words in Urdu script («کیا ہے»).';
+const TERM_SCRIPT = /^q\d+: URDU_(TRANSLITERATED|ROMAN)\b/;
+/**
+ * A question the checks after the author could neither repair nor drop —
+ * dropping it would take the quiz under its floor (quiz_author_gates_v2). Its
+ * slot gets a NEW question from another moment of the lesson.
+ */
+const REPLACE_RULE = 'A NEW QUESTION FROM THE LESSON. A question rejected for REPLACE_FROM_SOURCE was already repaired once and is still wrong. Do not repair it: write a DIFFERENT question for its slot, on the same SLO and level, about another moment of the lesson — one where the lesson itself states the answer — and copy that moment, word for word, as its "source_quote". Its correct answer must be the one the lesson states.';
+const REPLACE = /^q\d+: REPLACE_FROM_SOURCE\b/;
+/** A later question whose answer an earlier one already states (quiz_author_gates_v2). */
+const LEAK_REPAIR = 'GIVEN AWAY BY ANOTHER QUESTION. A question rejected for ANSWER_LEAK asks for an answer that another question of the quiz already gives the child — its words, an option, its explanation or an option\'s feedback — so the child reads the answer before being asked. The complaint names BOTH questions and quotes the words that give it away. Write a NEW question for the named slot: the same SLO and level, about a different fact or example of the lesson whose answer those words do not state and no other question, option, explanation or feedback in the quiz states. Do not ask the same thing in other words.';
+const LEAK = /^q\d+: ANSWER_LEAK\b/;
+/** "The lesson mentioned…" (quiz_author_gates_v2): the question stays; only its framing changes. */
+const META_REPAIR = 'ABOUT THE IDEA, NOT THE LESSON — REPAIR IN PLACE. A question rejected for META_STEM asks what the lesson, the class or the story said («The lesson mentioned…», «according to the lesson», «کلاس میں بتائی گئی», «سبق میں») instead of asking about the idea. Keep the SAME question: the same idea, options, correct answer, explanation and feedback. Change ONLY the stem\'s framing so it asks about the content itself: «The lesson mentioned that a desert fox has large ears. Which type of adaptation is this?» → «A desert fox has large ears. Which type of adaptation is this?».';
+const META = /^q\d+: META_STEM\b/;
+/**
  * A question rejected for URDU_NAME_LATIN is a GOOD question that writes a
  * person's name from the lesson in English letters («‏Hira کی بوتل»): the Urdu
  * style rule keeps technical TERMS in English letters and the model read the
@@ -147,7 +172,7 @@ const NAME_IN = /^q\d+: URDU_NAME_LATIN — "([^"]+)"/;
  * change. Over the repair's cap, a question with only these is the one left
  * out — a hard fault never loses its place to it.
  */
-const IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN)\b/;
+const IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN|URDU_TRANSLITERATED|URDU_ROMAN|META_STEM)\b/;
 /**
  * A question whose EVERY complaint is one of these is kept: the repair changes
  * the words its complaints name and nothing else. Such a question is shown to
@@ -159,7 +184,7 @@ const IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_
  * rewritten explanation and feedback carried the same masculine verbs again,
  * and every rewritten `selected_because` came back in English.
  */
-const KEEP_IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN|URDU_TEACHER_FIELDS)\b/;
+const KEEP_IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_NAME_LATIN|URDU_TEACHER_FIELDS|URDU_TRANSLITERATED|URDU_ROMAN|META_STEM)\b/;
 /**
  * …and its PICTURE is kept too, when every complaint is one of these. A name in
  * English letters is left out on purpose: it has its own contract (the code
@@ -167,7 +192,7 @@ const KEEP_IN_PLACE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_
  * `swapOnly` in mergeReplacements — and without one the reply is taken as a
  * text question), which this does not change.
  */
-const KEEP_PICTURE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_TEACHER_FIELDS)\b/;
+const KEEP_PICTURE = /^q\d+: (PEDAGOGY_GENDERED_CHILD|URDU_ADJACENT_TERMS|URDU_TEACHER_FIELDS|URDU_TRANSLITERATED|URDU_ROMAN|META_STEM)\b/;
 const TEACHER_FIELDS_RULE ='TEACHER FIELDS. "selected_because" and every "distractor_misconceptions" entry are printed on the TEACHER\'s Urdu page: write them in Urdu script (English technical terms in English letters are fine). For a question rejected ONLY for this, keep the question and rewrite those two fields in Urdu.';
 // The model rewrote a question with two identical options three times in one
 // production run (2026-09-07, quiz f5d625e9) — the complaint was in front of it
@@ -242,7 +267,9 @@ function tierOf(e) {
   if (/^q\d+: KEY_[A-Z_]+\b/.test(e)) return 0;          // a key that is not true
   if (/^q\d+: PEDAGOGY_GENDERED_CHILD\b/.test(e)) return 2;
   if (/^q\d+: URDU_ADJACENT_TERMS\b/.test(e)) return 3;
-  if (/^q\d+: URDU_NAME_LATIN\b/.test(e)) return 4;
+  if (/^q\d+: (URDU_(NAME_LATIN|TRANSLITERATED|ROMAN)|META_STEM)\b/.test(e)) return 4;
+  // A give-away between questions ships if not repaired: it never takes a hard fault's place.
+  if (/^q\d+: ANSWER_LEAK\b/.test(e)) return 5;
   if (SOFT_ONLY.test(e)) return 5;                        // recorded and shipped anyway
   return 1;                                               // a hard fault: it cannot ship as it is
 }
@@ -276,6 +303,9 @@ function rewriteTargets(errors, { partial = false, prefer = [] } = {}) {
       // the quiz-level field this call can rewrite on its own
       if (QUIZ_LEVEL_REPAIRABLE.test(e)) { summary.push(e); continue; }
       if (LEVEL_SUMMARY.test(e)) continue;   // explained by the per-question lines beside it
+      // quiz_author_gates_v2: a set-level complaint that ships and is counted
+      // (SLO coverage) never stops the per-question repairs beside it.
+      if (SOFT_SET_V2.test(e) && GatesV2.enabled()) continue;
       return none;
     }
     const i = Number(m[1]);
@@ -349,6 +379,10 @@ function buildRewritePrompt({
   // An lp_v8 quiz: the lesson was PLANNED, so its summary is rewritten in the
   // plan's voice (LP_SUMMARY_VOICE), never as "what you taught".
   planned = false,
+  // app_settings quiz_author_gates_v2: a replacement carries its source_quote
+  // and teaching_error like an authored question. Off (and no source
+  // complaint), the prompt is exactly what it was.
+  authorGates = false,
 }) {
   const qs = Array.isArray(questions) ? questions : [];
   const { indices, byIndex } = targets;
@@ -402,6 +436,7 @@ ${why}`;
       : 'You are FIXING the LESSON SUMMARY of a short WhatsApp quiz written for the children who sat in ONE real lesson. Every question is good and is staying exactly as it is — do not touch one, do not return one. You are rewriting the summary only.');
 
   const namesAsked = indices.some((i) => (byIndex[i] || []).some((e) => NAME_LATIN.test(e)));
+  const withSource = authorGates || indices.some((i) => (byIndex[i] || []).some((e) => SourceFidelity.SOURCE_FAULT.test(e)));
   const questionSections = nQ ? [
     `REWRITE THESE QUESTIONS: ${label(indices)}`,
     `THE QUESTIONS THAT ARE STAYING. A replacement must not ask one of these again, and must not have the same answer as one of them.\n${staying || '(none)'}`,
@@ -417,6 +452,10 @@ ${why}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => /PEDAGOGY_GENDERED_CHILD/.test(e))) ? [CHILD_ADDRESS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => ADJACENT_TERMS.test(e))) ? [ADJACENT_TERMS_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => DUPLICATE.test(e))) ? [DUPLICATE_REPAIR] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => TERM_SCRIPT.test(e))) ? [TERM_SCRIPT_REPAIR] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => REPLACE.test(e))) ? [REPLACE_RULE] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => LEAK.test(e))) ? [LEAK_REPAIR] : []),
+    ...(indices.some((i) => (byIndex[i] || []).some((e) => META.test(e))) ? [META_REPAIR] : []),
     ...(namesAsked ? [NAME_LATIN_REPAIR] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => PUPIL.test(e))) ? [PUPIL_REPAIR] : []),
     // EVERY replacement in an Urdu quiz writes a "selected_because" and the
@@ -429,6 +468,7 @@ ${why}`;
     ...(indices.some((i) => (byIndex[i] || []).some((e) => MATH_TEX.test(e))) ? [MATH_TEX_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_DISAGREEMENT.test(e))) ? [KEY_DISAGREEMENT_RULE] : []),
     ...(indices.some((i) => (byIndex[i] || []).some((e) => KEY_BY_AUTHORITY.test(e))) ? [KEY_BY_AUTHORITY_RULE] : []),
+    ...(withSource ? [SourceFidelity.sourceFidelityRule({ lessonPlan: planned, gradeBand })] : []),
   ] : [];
 
   const summarySection = summaryErrors.length ? [
@@ -446,7 +486,7 @@ ${planned
     "question": "", "options": ["", "", ""], "correct_index": 0,
     "explanation": "", "selected_because": "", "distractor_misconceptions": { "1": "", "2": "" },
     "option_feedback": { "correct": "", "wrong": { "1": "", "2": "" } },
-    "figure": null, "figure_role": null }`;
+    "figure": null, "figure_role": null${withSource ? ', "source_quote": "", "teaching_error": null' : ''} }`;
 
   const returnBlock = nQ
     ? `Return ONLY this JSON object, with exactly ${nQ} question entr${nQ === 1 ? 'y' : 'ies'}${summaryErrors.length ? ' and the new summary' : ''} and nothing else. "index" is the number after the q above, and must be one of: ${indices.join(', ')}.
@@ -615,6 +655,8 @@ async function rewriteRejected({
   // left out come back as `deferred`, for the caller's second batch, which
   // passes them back as `prefer`.
   partial = false, prefer = [],
+  // app_settings quiz_author_gates_v2, passed by the caller (buildRewritePrompt).
+  authorGates = false,
   // quizId is accepted and ignored here on purpose: the outcome event is emitted
   // by the caller, which is the only place that knows whether the merged set
   // validated.
@@ -627,7 +669,7 @@ async function rewriteRejected({
     };
   }
   const prompt = buildRewritePrompt({
-    digest, language, questions, targets, gradeBand, lessonSummary, planned,
+    digest, language, questions, targets, gradeBand, lessonSummary, planned, authorGates,
   });
   try {
     const { json, model, costUsd, latencyMs } = await completeJson({

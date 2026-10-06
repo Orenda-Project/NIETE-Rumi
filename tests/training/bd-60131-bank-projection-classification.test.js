@@ -88,7 +88,9 @@ describe('bd-60131 — a thin projection is not evidence of open-endedness', () 
     expect(isOpenEndedQuestion({ options: [], correct_option: null })).toBe(true);
   });
 
-  test('null options WITH a key is not open-ended', () => {
-    expect(isOpenEndedQuestion({ options: null, correct_option: '3' })).toBe(false);
+  test('null options WITH a key is still written: there is nothing to pick from', () => {
+    // The page draws a text box for an option-less question, so the server must agree (a key
+    // cannot make it a pick). Superseded rule: this used to be false.
+    expect(isOpenEndedQuestion({ options: null, correct_option: '3' })).toBe(true);
   });
 });

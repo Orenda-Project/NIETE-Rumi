@@ -21,6 +21,7 @@
  */
 
 const GPT5MiniService = require('../../gpt5-mini.service');
+const { modelFor } = require('../../../config/model-registry');
 const { logToFile } = require('../../../utils/logger');
 const { KISWAHILI_STYLE } = require('../kiswahili-style');
 
@@ -281,7 +282,7 @@ async function generateReportNarrative(analysis, opts = {}) {
   try {
     const prompt = buildPrompt(analysis, { transcript, trend, language, teacherName });
     const response = await GPT5MiniService.openai.chat.completions.create({
-      model: 'gpt-5-mini-2025-08-07',
+      model: modelFor('coaching.narrative'),
       job: 'coaching.narrative',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },

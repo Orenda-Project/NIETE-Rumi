@@ -18,7 +18,10 @@ const os = require('os');
 const path = require('path');
 const { logToFile } = require('../utils/logger');
 
-const DEFAULT_VISION_MODEL = 'google/gemini-2.5-flash';
+const { JOBS, modelFor } = require('../config/model-registry');
+
+// bd-gr4fy.8: the registry holds this job's model; the export stays for its readers.
+const DEFAULT_VISION_MODEL = JOBS['lp.extractVision'].default;
 const MAX_PAGES = 12; // an LP is a few pages; cap runaway multi-page uploads
 const RENDER_DPI = 130;
 
@@ -28,7 +31,7 @@ const EXTRACT_PROMPT =
   'English in English. Output ONLY the extracted text — no commentary, no translation.';
 
 function visionModel() {
-  return process.env.LP_EXTRACTION_VISION_MODEL || DEFAULT_VISION_MODEL;
+  return modelFor('lp.extractVision');
 }
 
 function execFileP(cmd, args, opts) {

@@ -69,6 +69,10 @@ const { completeJson } = require('./transcript-quiz-llm');
 const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
 const Multi = require('./transcript-quiz-multi');
 const { todaysModel } = require('../../config/model-registry');
+const GatesV2 = require('./quiz-author-gates-v2');
+// Gates v2: the solver sees the picture as the CHILD sees it, and is pointed at near-duplicate options.
+const { childView } = require('./quiz-figure-child-view');
+const Lexical = require('./quiz-option-lexical');
 
 const LABEL = 'transcript_quiz.key_verify';
 /** The second solve, without the lesson: its own label in the logs, the same job and spend line. */
@@ -166,6 +170,36 @@ function itemFor(q, index, quizId = null) {
 }
 
 /**
+ * The picture line of one item. Gates v2 (`childSees`): what the CHILD sees — a
+ * word_blank's tiles with their blanks and the pictogram's name, any other kind as
+ * its spec without a field that names an answer. A spec can hold what its drawing
+ * hides: `{word:"SKY", blanks:[1]}` draws "S _ Y", and a solver shown "SKY" agreed
+ * with K although SPY fits the tiles as well. Off: today's line, the spec as data.
+ */
+function pictureLine(it, { language, childSees }) {
+  if (!it.figure) return '';
+  if (!childSees) return `\n  the picture the child sees, as data: ${cut(JSON.stringify(it.figure), FIGURE_MAX)}`;
+  const view = childView(it.figure, { stem: it.question, language });
+  if (view && view.type === 'word_blank') {
+    return `\n  the picture the child sees: the letter tiles «${view.shows}» (each _ is a hidden letter), picture of: ${view.picture}`;
+  }
+  return `\n  the picture the child sees, as data: ${cut(JSON.stringify(view), FIGURE_MAX)}`;
+}
+
+/**
+ * Options nearly the same word ("Sky" / "Spy"), named in the SHOWN positions — a
+ * pointer, not a verdict: cat/bat is a fair distractor, so the solver decides.
+ */
+function nearPairLines(it) {
+  const at = (authored) => it.order.indexOf(authored);
+  const how = { one_letter: 'differ by one letter', same_sound: 'sound the same', same_letters: 'differ only by a mark' };
+  return Lexical.nearPairs(it.options).map(({ i, j, why }) => {
+    const [a, b] = [at(i), at(j)].sort((x, y) => x - y);
+    return `\n  check: options [${a}] and [${b}] ${how[why]} — decide whether BOTH answer the question as asked`;
+  }).join('');
+}
+
+/**
  * THE SOLVER PROMPT. The context first (what the lesson was about — never an
  * answer), then the items with their options in the shown order, then the rule.
  * Written in English; the quiz stays in its own language, and the solver is told
@@ -175,6 +209,8 @@ function buildVerifyPrompt({
   items, language, grade = null, subject = null, digest = null, lessonSummary = null, withLesson = true,
   // the full solve with the lesson also names the questions asked twice (verifyKeys decides)
   askSameFact = false,
+  // gates v2: the key must be fully correct as a statement, never the closest option
+  strictKey = false,
 }) {
   const lang = LANG_NAME[language] || 'the quiz\'s own language';
   // Without the lesson, nothing about it reaches the prompt — not the summary,
@@ -191,9 +227,7 @@ function buildVerifyPrompt({
   const blocks = arr(items).map((it) => {
     const shown = it.order.map((authored, pos) => `[${pos}] ${it.options[authored]}`).join(' | ');
     const kind = it.multi ? 'choose ALL that are correct' : 'one answer';
-    const picture = it.figure
-      ? `\n  the picture the child sees, as data: ${cut(JSON.stringify(it.figure), FIGURE_MAX)}` : '';
-    return `q${it.index} (${kind}): ${it.question}\n  options: ${shown}${picture}`;
+    return `q${it.index} (${kind}): ${it.question}\n  options: ${shown}${pictureLine(it, { language, childSees: strictKey })}${strictKey ? nearPairLines(it) : ''}`;
   }).join('\n\n');
 
   return [
@@ -205,6 +239,7 @@ function buildVerifyPrompt({
       : 'You are told NOTHING about the lesson, on purpose. Decide every question from the subject alone — the definition, the rule, the sum, the spelling, the picture\'s data — exactly as a careful teacher who knows the subject would. An option is correct only if it is right by the subject; never pick the least wrong one — a name the subject does not use for the thing asked about, a wrong formula or a wrong meaning is not correct because the other options are worse. If a question can only be answered from what happened in that class (a story read there, the class\'s own example, what was said or done in the room), set "unsure": true for it.',
     `THE QUESTIONS\n\n${blocks}`,
     `For EACH question, list in "correct" EVERY option number that is a correct answer to the question exactly as it is asked — every option a careful teacher would mark right. If two options are both right (for example, the same letters in a different order when the question does not ask about their order), list both. If no option is right, give an empty list. Judge what is written, not what the question-writer probably meant. If you cannot decide without something you were not given (the lesson itself, or a picture you cannot read from its data), set "unsure": true. In "note", say in one short line why — for a wrong or doubled option, name the fact (for example: "قلم is spelled ق ل م, not ک ل م").`,
+    strictKey ? GatesV2.STRICT_KEY_RULE : null,
     askSameFact ? SAME_FACT_RULE : null,
     `Return ONLY this JSON object, one entry per question above, "index" being the number after its q:
 { "answers": [ { "index": ${arr(items)[0] ? items[0].index : 0}, "correct": [0], "unsure": false, "note": "" } ]${askSameFact ? ', "same_fact": []' : ''} }`,
@@ -312,7 +347,7 @@ function disagreementComplaint(verdict, q) {
  */
 async function verifyKeys({
   questions, indices = null, language, grade = null, subject = null, digest = null, lessonSummary = null, quizId = null,
-  withLesson = true, again = false,
+  withLesson = true, again = false, strictKey = GatesV2.enabled(),
 }) {
   const qs = arr(questions);
   const idx = Array.isArray(indices) ? indices.filter((i) => Number.isInteger(i) && qs[i]) : qs.map((_, i) => i);
@@ -323,7 +358,7 @@ async function verifyKeys({
   // solver's slip between an option's position and its text cannot survive.
   const items = idx.map((i) => itemFor(qs[i], i, again ? `${quizId || ''}:again` : quizId));
   const prompt = buildVerifyPrompt({
-    items, language, grade, subject, digest, lessonSummary, withLesson, askSameFact,
+    items, language, grade, subject, digest, lessonSummary, withLesson, askSameFact, strictKey,
   });
   const label = withLesson ? LABEL : BARE_LABEL;
   const requested = verifyModel();

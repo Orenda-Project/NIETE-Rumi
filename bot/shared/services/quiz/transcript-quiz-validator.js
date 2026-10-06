@@ -15,7 +15,8 @@
 const { checkReligiousMarks, cpLen } = require('./religious-marks');
 const { canonicalSubject, fixQuestionTransliterations } = require('./transcript-quiz-language');
 const { peopleSpellings, spellQuestion, logRedactor } = require('./transcript-quiz-people');
-const { renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES, singleThingNotACount, drawsEmptySet } = require('./transcript-quiz-figure');
+const AuthorGates = require('./quiz-author-gates');
+const { svgText, renderFigureSvg, canonicalType, stripStrayLabels, figureLeaksAnswer, figureEmptyReason, svgInkCount, figureIsRedundant, unknownColourToken, figureMismatch, equalAmountOptions, relabelLetterParts, unnamedParts, unnamedBarInNamedSet, expandImproperBar, specStrings, MATHS_ONLY_TYPES, singleThingNotACount, drawsEmptySet } = require('./transcript-quiz-figure');
 
 /** The engine clamps a fraction bar to this many parts (vendor fraction_bar.js). */
 const FRACTION_BAR_MAX_PARTS = 24;
@@ -29,7 +30,10 @@ const { mathToText, texFaults } = require('./quiz-math');
 const { questionAddressForms } = require('./transcript-quiz-address');
 const { lessonLexicon, questionAdjacentTerms } = require('./transcript-quiz-adjacent-terms');
 const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
+const { answerLeakErrors } = require('./transcript-quiz-answer-leaks');
+const { metaStemError } = require('./transcript-quiz-meta-stem');
 const { keyByAuthorityError } = require('./transcript-quiz-key-authority');
+const GatesV2 = require('./quiz-author-gates-v2');
 
 const MIN_QUESTIONS = 6;
 const MAX_QUESTIONS = 10;
@@ -473,6 +477,54 @@ function normaliseFeedback(q) {
   return out;
 }
 
+/**
+ * The Urdu wording rules, question by question (quiz_author_gates_v2 only):
+ * an English technical term written in Urdu letters (URDU_TRANSLITERATED) and
+ * Roman Urdu (URDU_ROMAN, when the quiz carries the three tokens the set rule
+ * has always needed). One complaint per question, so the targeted rewrite can
+ * repair exactly that question in place.
+ */
+function termScriptErrors(textsByQ, { romanTotal = 0 } = {}) {
+  const out = [];
+  textsByQ.forEach((texts, i) => {
+    if (!Array.isArray(texts)) return;
+    const text = texts.join('\n');
+    const tl = TRANSLIT_TERMS.exec(text);
+    if (tl) {
+      out.push(`q${i}: URDU_TRANSLITERATED — "${tl[1].trim()}" is an English term written in Urdu letters; write it in English letters, as the lesson's other technical terms are`);
+    }
+    if (romanTotal >= 3) {
+      const roman = (text.match(/\b[a-zA-Z]{2,}\b/g) || []).filter((w) => ROMAN_URDU.has(w.toLowerCase()));
+      if (roman.length) out.push(`q${i}: URDU_ROMAN — Roman Urdu words (${roman.slice(0, 6).join(' ')}); write them in Urdu script`);
+    }
+  });
+  return out;
+}
+
+/**
+ * The key and a wrong option that name the same number (quiz_author_gates_v2):
+ * 4/8 beside 1/2, 0.5 beside 1/2, 1/4 beside 2/8. On all 12,938 sandbox
+ * questions this shape occurs 5 times: 2 are two right answers, 3 are fair
+ * "lowest form" questions, which is the one exception. Returns the complaint's
+ * tail, or null.
+ */
+const LOWEST_FORM = /\b(?:lowest|simplest|simplif\w*|reduced?)\b|سادہ ترین|مختصر ترین|آسان ترین/i;
+function numericValue(text) {
+  const s = String(text ?? '').replace(/\\[dt]?frac\s*\{\s*(\d+)\s*\}\s*\{\s*(\d+)\s*\}/g, '$1/$2').replace(/\$/g, '').trim();
+  let m = /^(\d+)\s*\/\s*(\d+)$/.exec(s);
+  if (m) return Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
+  m = /^\d+(?:\.\d+)?$/.exec(s);
+  return m ? Number(s) : null;
+}
+function equalValueOption(options, correctIndex, stem) {
+  if (LOWEST_FORM.test(String(stem || ''))) return null;
+  const opts = Array.isArray(options) ? options : [];
+  const key = numericValue(opts[correctIndex]);
+  if (key === null) return null;
+  const twin = opts.find((o, k) => k !== correctIndex && numericValue(o) !== null && Math.abs(numericValue(o) - key) < 1e-9);
+  return twin === undefined ? null : `"${opts[correctIndex]}" and "${twin}" are the same amount, so a child who picks either is right; make every wrong option a different amount`;
+}
+
 function validate(rawQuestions, ctx = {}) {
   const {
     language, subject, digest, nExpected, lessonSummary, quizId,
@@ -521,6 +573,9 @@ function validate(rawQuestions, ctx = {}) {
   const levelGap = [];
   let figured = 0;
   const allText = [];
+  // Each question's child-facing text, by index: with quiz_author_gates_v2 on,
+  // the Urdu wording rules below name the question that carries the fault.
+  const textsByQ = [];
   // bd-mg9c7.95 — the religious-marks scan runs PER QUESTION, so the complaint
   // names the question that carries the fault. It used to run once over every
   // question's text joined together, which made it a quiz-level complaint: the
@@ -551,6 +606,12 @@ function validate(rawQuestions, ctx = {}) {
       if (opts.length !== 3) errs.push(`q${i}: ${opts.length} options`);
       if (opts.some((o) => !o)) errs.push(`q${i}: empty option`);
       if (new Set(opts).size !== opts.length) errs.push(`q${i}: duplicate options`);
+      // quiz_author_gates_v2: the key and a wrong option of the same VALUE are two right answers
+      // ("4/8" beside "1/2"), wherever the picture is — unless the stem asks for the lowest form.
+      else if (GatesV2.enabled(ctx.authorGates)) {
+        const twin = equalValueOption(opts, ci, String(p.question || ""));
+        if (twin) errs.push(`q${i}: duplicate options — ${twin}`);
+      }
       if (![0, 1, 2].includes(ci)) errs.push(`q${i}: bad correct_index ${ci}`);
       const need = [0, 1, 2].filter((k) => k !== ci).map(String).sort();
       const have = Object.keys(fb.wrong || {}).sort();
@@ -644,11 +705,25 @@ function validate(rawQuestions, ctx = {}) {
       }
     }
     allText.push(...texts);
+    textsByQ[i] = texts;
     if (scanReligious) {
       checkReligiousMarks(texts.join('\n'))
         .forEach((d) => errs.push(`q${i}: RELIGIOUS_MARKS — ${d}`));
     }
     if (texts.some((t) => LETTER_REF.test(t))) errs.push(`q${i}: letter reference`);
+
+    // Gates v2 (app_settings quiz_author_gates_v2, off by default): the key and
+    // the why recomputed, the picture a stem points at, the prose rules. Each is
+    // a q-named complaint, so the targeted rewrite repairs it.
+    if (GatesV2.enabled(ctx.authorGates)) {
+      errs.push(...GatesV2.questionErrors({ ...p, figure: q.figure, media: q.media }, i, {
+        language: ctx.language,
+        legacyPictureComplaint: q.figure == null && STEM_PROMISES_PICTURE.test(stem),
+      }));
+      // "The lesson mentioned…": a question about the lesson, not its idea (repaired in place, soft).
+      const meta = metaStemError(q, i);
+      if (meta) errs.push(meta);
+    }
 
     // ── the figure, if this question carries one ────────────────────────────
     // Each check gets its OWN error string: the retry prompt quotes these back
@@ -674,6 +749,23 @@ function validate(rawQuestions, ctx = {}) {
     // lesson-plan lane shares that contract and must still hear about a spec
     // it wrote wrong.
     q.figure = expandImproperBar(normaliseWordBlank(cleanedFigure, { stem, language, quizId, index: i }).spec);
+    // quiz_author_gates_v2 (off by default): what the picture SHOWS. A place-value
+    // question over a mat whose heads name the places, a word_blank that hides
+    // the mark the lesson is about, and pictures a child cannot tell apart.
+    if (AuthorGates.authorGatesOn(ctx)) {
+      q.figure = AuthorGates.placeValueFix(q.figure, { stem })
+        || AuthorGates.markFix(q.figure, { stem, options: opts }) || q.figure;
+      const unmarked = AuthorGates.markMissing(q.figure, stem);
+      if (unmarked) {
+        errs.push(`q${i}: FIGURE_MARK_MISSING — ${unmarked}`);
+        return;
+      }
+      const alike = AuthorGates.indistinctParts(q.figure, stem, opts);
+      if (alike) {
+        errs.push(`q${i}: FIGURE_INDISTINCT — ${alike}; a child cannot tell these pictures apart: draw different things, or make them differ by something drawn that the question names (a colour, a count, a size)`);
+        return;
+      }
+    }
     if (MATHS_ONLY_TYPES.has(String(q.figure.type || '').toLowerCase()) && canonSubj(subject) !== 'maths') {
       errs.push(`q${i}: FIGURE_TYPE — "${q.figure.type}" draws mathematics only; for this subject use flow, timeline, fraction_bar, grid, numberline, or no picture`);
       return;
@@ -776,6 +868,14 @@ function validate(rawQuestions, ctx = {}) {
     if (!modelsTheStem(q, subject, gradeBand) && figureIsRedundant(q.figure, stem)) {
       errs.push(`q${i}: FIGURE_REDUNDANT — the stem already states the numbers the picture shows; ask the child to READ them from the picture instead`);
     }
+    // quiz_author_gates_v2: options that name pictures must name pictures that
+    // are DRAWN, and a picture of one quantity must not be the key.
+    if (AuthorGates.authorGatesOn(ctx)) {
+      const undrawn = AuthorGates.handlesNotDrawn(svgText(svg), opts);
+      if (undrawn) errs.push(`q${i}: FIGURE_HANDLE_UNDRAWN — the options name ${undrawn.join(', ')} but the picture draws no part with that label; draw every part the options name, labelled exactly as the option`);
+      const shows = AuthorGates.drawnCountIsKey(q.figure, stem, opts, ci);
+      if (shows) errs.push(`q${i}: FIGURE_SHOWS_KEY — ${shows}; draw the situation (all the numbers in the options, or the groups), never only the answer`);
+    }
     // The DRAWING is checked, not only the spec: several types compute a label
     // the spec never mentions, and a fraction bar's "3/4" is the whole answer.
     if (figureLeaksAnswer(q.figure, opts, ci, svg)) {
@@ -791,6 +891,10 @@ function validate(rawQuestions, ctx = {}) {
   // stem). Only the quiz as a whole can show it, and the complaint names the
   // LATER copy, so the targeted rewrite replaces that one question.
   errs.push(...duplicateQuestionErrors(qs));
+  // quiz_author_gates_v2: a later question whose answer an earlier one already
+  // states (transcript-quiz-answer-leaks). Named on the LATER question, so the
+  // targeted rewrite gives that slot another fact; soft — never fatal.
+  if (GatesV2.enabled(ctx.authorGates)) errs.push(...answerLeakErrors(qs));
 
   if (figured / qs.length > FIGURE_MAX_SHARE) {
     errs.push(`FIGURE_SHARE — ${figured}/${qs.length} questions carry a picture; at most half may`);
@@ -827,9 +931,19 @@ function validate(rawQuestions, ctx = {}) {
     }
     const latinWords = joined.match(/\b[a-zA-Z]{2,}\b/g) || [];
     const roman = latinWords.filter((w) => ROMAN_URDU.has(w.toLowerCase()));
-    if (roman.length >= 3) errs.push(`roman urdu tokens: ${roman.slice(0, 6).join(' ')}`);
     const tl = TRANSLIT_TERMS.exec(joined);
-    if (tl) errs.push(`transliterated English term in Urdu script: ${tl[1].trim()} — write it in English letters`);
+    if (GatesV2.enabled(ctx.authorGates)) {
+      // quiz_author_gates_v2: the same two rules, each complaint NAMING its
+      // question. As complaints about the whole set they were ones no targeted
+      // rewrite could reach and the salvage refused, so one word the class said
+      // («انرجی», as the transcript wrote it) cost a teacher the whole quiz on
+      // all three attempts (sandbox re-score, 5 Oct 2026). Named, each is a
+      // wording fault repaired in place and shipped whatever that leaves.
+      errs.push(...termScriptErrors(textsByQ, { romanTotal: roman.length }));
+    } else {
+      if (roman.length >= 3) errs.push(`roman urdu tokens: ${roman.slice(0, 6).join(' ')}`);
+      if (tl) errs.push(`transliterated English term in Urdu script: ${tl[1].trim()} — write it in English letters`);
+    }
   }
   // PEDAGOGY (PLAN_R5 D3). Structure says the question is well formed; these
   // say it is worth asking. Each defect keeps its own PEDAGOGY_ code and a
@@ -841,7 +955,7 @@ function validate(rawQuestions, ctx = {}) {
   // it is quiz-level, so it is checked here beside the questions rather than in
   // a second pass a caller could forget.
   pedagogyDefects(qs.map(plainView), {
-    language, digest, quizId, ...(checkD4 ? { lessonSummary } : {}),
+    language, digest, quizId, ...(checkD4 ? { lessonSummary } : {}), authorGates: GatesV2.enabled(ctx.authorGates),
   }).forEach((d) => errs.push(d.message));
 
   return { ok: errs.length === 0, errors: errs, questions: qs };

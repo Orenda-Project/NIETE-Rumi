@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Browser Capability Probe</title>
+<style>
+  :root { --bg:#ffffff; --fg:#14213d; --muted:#5b6475; --ok:#11804a; --bad:#b3261e; --warn:#9a6a00; --card:#f3f5f9; --line:#d9dee8; --accent:#001F3F; --onaccent:#ffffff; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0f1420; --fg:#e8ecf4; --muted:#9aa4b8; --card:#1a2131; --line:#2a3347; --ok:#4cc38a; --bad:#ff8a80; --warn:#f2c14e; --accent:#8fb3ff; --onaccent:#0f1420; } }
+  :root[data-theme="dark"] { --bg:#0f1420; --fg:#e8ecf4; --muted:#9aa4b8; --card:#1a2131; --line:#2a3347; --ok:#4cc38a; --bad:#ff8a80; --warn:#f2c14e; --accent:#8fb3ff; --onaccent:#0f1420; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  h2 { font-size:16px; margin:18px 0 6px; }
+  p.sub { margin:0 0 12px; color:var(--muted); font-size:13px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+  button, a.btn { min-height:48px; padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--fg); font:inherit; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+  button.primary { background:var(--accent); color:var(--onaccent); border-color:var(--accent); font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed; }
+  td { border-top:1px solid var(--line); padding:6px 4px; vertical-align:top; word-break:break-word; }
+  td:first-child { width:34%; color:var(--muted); }
+  .ok { color:var(--ok); font-weight:600; } .bad { color:var(--bad); font-weight:600; } .warn { color:var(--warn); font-weight:600; }
+  video { max-width:100%; border-radius:8px; background:#000; }
+  textarea { width:100%; min-height:140px; font:12px/1.4 ui-monospace, Menlo, monospace; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:8px; }
+  #toast { position:fixed; left:16px; right:16px; bottom:16px; padding:12px; border-radius:10px; background:var(--accent); color:var(--onaccent); display:none; text-align:center; }
+</style>
+</head>
+<body>
+<h1>Browser capability probe</h1>
+<p class="sub">Open this from WhatsApp, run the tests, then tap "Copy results" and paste them back. Close it and open the same link again later to see what the phone remembered. The results are also sent to our test server (no names, no phone numbers) so we can see what this phone supports.</p>
+
+<div class="row">
+  <button class="primary" id="runAll">Run tap tests (sound, vibrate, video)</button>
+  <button id="copy">Copy results</button>
+  <button id="share">Share results (text)</button>
+</div>
+
+<table id="out"><tbody></tbody></table>
+
+<h2>Media and sharing tests</h2>
+<div class="row">
+  <button id="beep">Play beep (WebAudio)</button>
+  <button id="vib">Vibrate</button>
+  <button id="fs">Fullscreen the video</button>
+  <button id="shareFile">Share an image file</button>
+  <a class="btn" id="dl" download="probe-card.png" href="#">Download an image</a>
+  <button id="openWin">window.open test</button>
+  <button id="closeWin">window.close test</button>
+</div>
+<video id="vid" playsinline muted width="320" height="180"></video>
+<canvas id="cv" width="320" height="180" style="display:none"></canvas>
+
+<h2>Raw results</h2>
+<textarea id="raw" readonly></textarea>
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var R = {}, ORDER = [];
+  var KEY = 'wq_probe_v1';
+  var now = new Date().toISOString();
+
+  function set(k, v, cls) {
+    if (!(k in R)) ORDER.push(k);
+    R[k] = { v: String(v), cls: cls || '' };
+    render();
+  }
+  function render() {
+    var tb = document.querySelector('#out tbody');
+    tb.innerHTML = '';
+    ORDER.forEach(function (k) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td'); a.textContent = k;
+      var b = document.createElement('td'); b.textContent = R[k].v; if (R[k].cls) b.className = R[k].cls;
+      tr.appendChild(a); tr.appendChild(b); tb.appendChild(tr);
+    });
+    document.getElementById('raw').value = ORDER.map(function (k) { return k + ': ' + R[k].v; }).join('\n');
+  }
+  function toast(t) { var el = document.getElementById('toast'); el.textContent = t; el.style.display = 'block'; setTimeout(function () { el.style.display = 'none'; }, 2200); }
+  function safe(fn, k) { try { return fn(); } catch (e) { set(k, 'error: ' + (e && e.name) + ' ' + (e && e.message), 'bad'); } }
+
+  // ---------- which browser is this ----------
+  var ua = navigator.userAgent || '';
+  set('probe opened at', now);
+  set('user agent', ua);
+  var guess = [];
+  if (/WhatsApp/i.test(ua)) guess.push('UA contains "WhatsApp"');
+  if (/FBAN|FBAV|FB_IAB|FBIOS/i.test(ua)) guess.push('Meta IAB token (FBAN/FBAV/FB_IAB)');
+  if (/Instagram/i.test(ua)) guess.push('Instagram');
+  if (/; wv\)/.test(ua)) guess.push('Android WebView marker "; wv)"');
+  if (/SamsungBrowser/i.test(ua)) guess.push('Samsung Internet');
+  if (/CriOS/.test(ua)) guess.push('Chrome on iOS');
+  if (/Android/.test(ua) && /Chrome\//.test(ua) && !/; wv\)/.test(ua) && !/SamsungBrowser|FBAN|FBAV|WhatsApp/i.test(ua)) guess.push('Chrome or a Custom Tab (a Custom Tab carries the plain Chrome UA)');
+  if (/iPhone|iPad/.test(ua) && /Safari\//.test(ua) && !/CriOS|FxiOS|FBAN|WhatsApp/i.test(ua)) guess.push('Safari or SFSafariViewController');
+  if (/iPhone|iPad/.test(ua) && !/Safari\//.test(ua)) guess.push('iOS WKWebView (no "Safari/" token)');
+  var inApp = /WhatsApp|Meta IAB|WebView/.test(guess.join(' '));
+  set('in-app browser guess', guess.length ? guess.join('; ') : 'no known marker', inApp ? 'warn' : '');
+  set('referrer', document.referrer || '(none)');
+  set('history.length', history.length);
+  set('display-mode standalone', String(!!(window.matchMedia && matchMedia('(display-mode: standalone)').matches)));
+
+  // ---------- screen and device ----------
+  set('devicePixelRatio', window.devicePixelRatio);
+  set('viewport (inner)', window.innerWidth + ' x ' + window.innerHeight);
+  set('screen', screen.width + ' x ' + screen.height);
+  set('visualViewport', window.visualViewport ? Math.round(visualViewport.width) + ' x ' + Math.round(visualViewport.height) : 'not supported');
+  var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  set('connection.effectiveType', c ? (c.effectiveType + (c.downlink != null ? ', downlink ' + c.downlink + ' Mb/s' : '') + (c.saveData ? ', saveData ON' : '')) : 'not supported');
+  set('deviceMemory (GB)', navigator.deviceMemory != null ? navigator.deviceMemory : 'not supported');
+  set('hardwareConcurrency', navigator.hardwareConcurrency != null ? navigator.hardwareConcurrency : 'not supported');
+  set('language(s)', (navigator.languages || [navigator.language]).join(', '));
+  set('prefers dark', String(!!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)));
+  set('serviceWorker', 'serviceWorker' in navigator ? 'API present' : 'not supported', 'serviceWorker' in navigator ? 'ok' : 'bad');
+  set('isSecureContext', String(window.isSecureContext));
+  var fsOn = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  set('Fullscreen API', fsOn ? 'enabled' : 'not enabled', fsOn ? 'ok' : 'bad');
+  set('navigator.share', typeof navigator.share === 'function' ? 'present' : 'absent', typeof navigator.share === 'function' ? 'ok' : 'bad');
+  set('navigator.vibrate', typeof navigator.vibrate === 'function' ? 'present' : 'absent');
+  set('<a download> attribute', 'download' in document.createElement('a') ? 'supported' : 'not supported');
+  set('speechSynthesis', 'speechSynthesis' in window ? 'present' : 'absent');
+  set('MediaRecorder', typeof MediaRecorder === 'function' ? 'present' : 'absent');
+  set('getUserMedia', navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? 'present' : 'absent');
+
+  // ---------- persistence: cookie, localStorage, IndexedDB ----------
+  safe(function () {
+    var m = document.cookie.match(/(?:^|; )wq_probe=([^;]*)/);
+    var prev = m ? decodeURIComponent(m[1]) : null;
+    set('cookie: previous visit', prev ? prev : 'none (first open, or cookie not kept)', prev ? 'ok' : 'warn');
+    document.cookie = 'wq_probe=' + encodeURIComponent(now) + '; max-age=31536000; path=/; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
+    var w = /wq_probe=/.test(document.cookie);
+    set('cookie: write now', w ? 'written' : 'NOT written (blocked, or opened as file://)', w ? 'ok' : 'bad');
+  }, 'cookie');
+  safe(function () {
+    var raw = localStorage.getItem(KEY);
+    var st = raw ? JSON.parse(raw) : { first: now, opens: 0 };
+    st.opens += 1; st.prev = st.last || null; st.last = now;
+    localStorage.setItem(KEY, JSON.stringify(st));
+    set('localStorage: first open', st.first);
+    set('localStorage: open count', st.opens, st.opens > 1 ? 'ok' : 'warn');
+    set('localStorage: previous open', st.prev || 'none');
+  }, 'localStorage');
+  safe(function () {
+    if (!window.indexedDB) { set('IndexedDB: previous visit', 'not supported', 'bad'); return; }
+    var req = indexedDB.open('wq_probe', 1);
+    req.onupgradeneeded = function () { req.result.createObjectStore('kv'); };
+    req.onerror = function () { set('IndexedDB: previous visit', 'open failed: ' + (req.error && req.error.name), 'bad'); };
+    req.onsuccess = function () {
+      var db = req.result, tx = db.transaction('kv', 'readwrite'), s = tx.objectStore('kv');
+      var g = s.get('visit');
+      g.onsuccess = function () {
+        var v = g.result;
+        set('IndexedDB: previous visit', v ? v.at + ' (opens ' + v.n + ')' : 'none', v ? 'ok' : 'warn');
+        s.put({ at: now, n: v ? v.n + 1 : 1 }, 'visit');
+      };
+    };
+  }, 'IndexedDB: previous visit');
+  if (navigator.storage && navigator.storage.estimate) {
+    navigator.storage.estimate().then(function (e) {
+      set('storage.estimate', 'quota ' + Math.round((e.quota || 0) / 1048576) + ' MB, used ' + Math.round((e.usage || 0) / 1024) + ' KB');
+    }, function (e) { set('storage.estimate', 'error ' + e, 'bad'); });
+  } else set('storage.estimate', 'not supported');
+  if (navigator.storage && navigator.storage.persisted) {
+    navigator.storage.persisted().then(function (p) { set('storage.persisted', String(p)); }, function () {});
+  }
+  safe(function () { var h = localStorage.getItem(KEY + '_lasthide'); set('last pagehide (previous visit)', h || 'none'); }, 'last pagehide (previous visit)');
+
+  // ---------- generated media (no network) ----------
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d'), vid = document.getElementById('vid');
+  var t0 = performance.now();
+  (function draw() {
+    var t = (performance.now() - t0) / 1000;
+    ctx.fillStyle = '#001F3F'; ctx.fillRect(0, 0, 320, 180);
+    ctx.fillStyle = '#F2B134'; ctx.beginPath(); ctx.arc(160 + Math.sin(t * 2) * 100, 90, 24, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '16px sans-serif'; ctx.fillText('canvas stream ' + t.toFixed(1) + 's', 10, 24);
+    requestAnimationFrame(draw);
+  })();
+  if (cv.captureStream) {
+    try { vid.srcObject = cv.captureStream(25); set('video: canvas.captureStream', 'available'); }
+    catch (e) { set('video: canvas.captureStream', 'error ' + e.name, 'bad'); }
+  } else set('video: canvas.captureStream', 'not supported (video test skipped)', 'warn');
+
+  function makeCardBlob(cb) {
+    var c2 = document.createElement('canvas'); c2.width = 600; c2.height = 315;
+    var x = c2.getContext('2d');
+    x.fillStyle = '#001F3F'; x.fillRect(0, 0, 600, 315);
+    x.fillStyle = '#F2B134'; x.font = 'bold 40px sans-serif'; x.fillText('Probe card', 40, 120);
+    x.fillStyle = '#fff'; x.font = '22px sans-serif'; x.fillText('8 / 10  -  test image', 40, 180);
+    if (c2.toBlob) c2.toBlob(cb, 'image/png'); else cb(null);
+  }
+  makeCardBlob(function (b) {
+    if (b) { document.getElementById('dl').href = URL.createObjectURL(b); set('download link', 'blob ready (' + b.size + ' bytes)'); }
+    else set('download link', 'canvas.toBlob missing', 'bad');
+  });
+  makeCardBlob(function (b) {
+    if (!navigator.canShare) { set('canShare({files:[png]})', 'navigator.canShare absent', 'bad'); return; }
+    try {
+      var f = new File([b], 'probe-card.png', { type: 'image/png' });
+      var can = navigator.canShare({ files: [f] });
+      set('canShare({files:[png]})', String(can), can ? 'ok' : 'bad');
+    } catch (e) { set('canShare({files:[png]})', 'error ' + e.name, 'bad'); }
+  });
+
+  // ---------- tap tests ----------
+  var audioCtx = null;
+  function beep() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) { set('WebAudio beep', 'AudioContext absent', 'bad'); return; }
+      audioCtx = audioCtx || new AC();
+      audioCtx.resume().then(function () {
+        var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.frequency.value = 880; g.gain.value = 0.2; o.connect(g); g.connect(audioCtx.destination);
+        o.start(); o.stop(audioCtx.currentTime + 0.25);
+        set('WebAudio beep', 'state ' + audioCtx.state + ' - write whether you HEARD it, and try again with the phone on silent', audioCtx.state === 'running' ? 'ok' : 'bad');
+      });
+    } catch (e) { set('WebAudio beep', 'error ' + e.name + ' ' + e.message, 'bad'); }
+  }
+  function vibrate() {
+    if (!navigator.vibrate) { set('vibrate()', 'absent', 'bad'); return; }
+    var r = navigator.vibrate([120, 60, 120]);
+    set('vibrate()', 'returned ' + r + ' - did the phone buzz?', r ? 'ok' : 'bad');
+  }
+  function playVideo() {
+    if (!vid.srcObject) return;
+    var p = vid.play();
+    if (p && p.then) p.then(function () { set('video: inline play', 'playing (paused=' + vid.paused + ')', 'ok'); },
+      function (e) { set('video: inline play', 'refused: ' + e.name, 'bad'); });
+  }
+  document.getElementById('beep').onclick = beep;
+  document.getElementById('vib').onclick = vibrate;
+  document.getElementById('runAll').onclick = function () { beep(); vibrate(); playVideo(); };
+  document.getElementById('fs').onclick = function () {
+    var el = vid, f = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitEnterFullscreen;
+    if (!f) { set('fullscreen request', 'no method', 'bad'); return; }
+    try {
+      var p = f.call(el);
+      if (p && p.then) p.then(function () { set('fullscreen request', 'entered', 'ok'); }, function (e) { set('fullscreen request', 'refused: ' + e.name, 'bad'); });
+      else set('fullscreen request', 'called (no promise returned)', 'warn');
+    } catch (e) { set('fullscreen request', 'error ' + e.name, 'bad'); }
+  };
+  document.getElementById('shareFile').onclick = function () {
+    if (!navigator.share) { set('share file', 'navigator.share absent', 'bad'); return; }
+    makeCardBlob(function (b) {
+      var f = new File([b], 'probe-card.png', { type: 'image/png' });
+      var data = { files: [f], text: 'Probe card' };
+      if (navigator.canShare && !navigator.canShare(data)) { set('share file', 'canShare said no', 'bad'); return; }
+      navigator.share(data).then(function () { set('share file', 'share sheet completed', 'ok'); },
+        function (e) { set('share file', 'rejected: ' + e.name, e.name === 'AbortError' ? 'warn' : 'bad'); });
+    });
+  };
+  document.getElementById('dl').addEventListener('click', function () { set('download tap', 'tapped at ' + new Date().toISOString() + ' - check Downloads / gallery', 'warn'); });
+  document.getElementById('openWin').onclick = function () {
+    var w = window.open('about:blank', '_blank');
+    set('window.open', w ? 'returned a window' : 'returned null (blocked)', w ? 'ok' : 'bad');
+    if (w) { try { w.close(); } catch (e) {} }
+  };
+  document.getElementById('closeWin').onclick = function () {
+    set('window.close', 'called at ' + new Date().toISOString() + ' - if you can read this, the window did not close', 'warn');
+    window.close();
+  };
+  function fallbackCopy() {
+    var ta = document.getElementById('raw'); ta.removeAttribute('readonly'); ta.select();
+    var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+    ta.setAttribute('readonly', ''); toast(ok ? 'Copied' : 'Select the text below and copy it');
+  }
+  function copyText() {
+    var t = document.getElementById('raw').value;
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast('Copied'); }, fallbackCopy);
+    else fallbackCopy();
+  }
+  document.getElementById('copy').onclick = copyText;
+  document.getElementById('share').onclick = function () {
+    if (!navigator.share) { set('share text', 'navigator.share absent', 'bad'); copyText(); return; }
+    navigator.share({ text: document.getElementById('raw').value }).catch(function (e) { set('share text', 'rejected: ' + e.name, 'warn'); });
+  };
+  document.addEventListener('visibilitychange', function () { set('visibility change', document.visibilityState + ' at ' + new Date().toISOString()); });
+  window.addEventListener('pagehide', function () { try { localStorage.setItem(KEY + '_lasthide', new Date().toISOString()); } catch (e) {} });
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+  /* Send the probe result to the quiz analytics endpoint as one event (n: "probe"). */
+  var sent = 0;
+  function collect() {
+    var out = {}, rows = document.querySelectorAll('#out tbody tr');
+    for (var i = 0; i < rows.length && i < 80; i++) {
+      var td = rows[i].querySelectorAll('td');
+      if (td.length > 1) out[String(td[0].textContent).slice(0, 40)] = String(td[1].textContent).slice(0, 120);
+    }
+    return out;
+  }
+  function send(why) {
+    if (sent >= 3) return;
+    sent++;
+    var probe = collect();
+    var ua = navigator.userAgent || '';
+    var body = JSON.stringify({ events: [{ n: 'probe', t: Date.now(), src: why, ua: ua.slice(0, 300),
+      iab: /WhatsApp|FBAN|FBAV|; wv\)/.test(ua) ? 1 : 0,
+      net: (navigator.connection && navigator.connection.effectiveType) || '', probe: probe }] });
+    try {
+      if (navigator.sendBeacon && navigator.sendBeacon('/api/wq/e', new Blob([body], { type: 'application/json' }))) return;
+    } catch (e) {}
+    try { fetch('/api/wq/e', { method: 'POST', headers: { 'content-type': 'application/json' }, body: body, keepalive: true }); } catch (e) {}
+  }
+  setTimeout(function () { send('auto'); }, 4000);
+  window.addEventListener('pagehide', function () { send('hide'); });
+  var b = document.getElementById('copy');
+  if (b) b.addEventListener('click', function () { send('copy'); });
+})();
+</script>
+</body>
+</html>

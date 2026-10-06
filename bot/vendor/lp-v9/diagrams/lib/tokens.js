@@ -53,7 +53,8 @@ const FONT = {
   // VENDOR DIVERGENCE (SYNC.md §3.16): 'NastaliqUrdu' is the family name the
   // NIETE page templates embed Nastaliq under. Without it a figure's Urdu drew
   // BLANK in the teacher quiz PDF on Linux, where no system Urdu font exists.
-  urdu: "'Noto Nastaliq Urdu', 'NastaliqUrdu', 'Gulzar', 'Noto Naskh Arabic', serif",
+  // §3.33: 'Scheherazade New' draws the Quranic marks Nastaliq lacks, when the page embeds it.
+  urdu: "'Noto Nastaliq Urdu', 'NastaliqUrdu', 'Scheherazade New', 'Gulzar', 'Noto Naskh Arabic', serif",
   mono: "'SF Mono', 'DejaVu Sans Mono', Consolas, monospace",
 };
 

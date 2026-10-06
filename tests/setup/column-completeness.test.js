@@ -62,7 +62,10 @@ const ALLOWLIST = {
   // camelCase key from a nested non-DB object (parser artifact).
   coaching_sessions: ['excerptlength'],
   // Mis-attributed by chain proximity; no quiz_sessions write references updated_at.
-  quiz_sessions: ['updated_at'],
+  // sessionid / sharecodeid / fromlisted: the scanner walks forward from `.update(patch)` (a variable) in the web quiz's
+  // "Who played?" fix and lands on the next object, the logEvent('web_quiz.identity_fixed', { sessionId, shareCodeId,
+  // fromListed }) payload. Not columns: the patch itself only sets student_id / student_name / student_class.
+  quiz_sessions: ['updated_at', 'sessionid', 'sharecodeid', 'fromlisted'],
   // Nested keys inside the users.preferences / screen-data objects (parser artifact);
   // users stores language in preferred_language + preferences, grade in grades_taught.
   users: ['grade', 'language'],
@@ -141,7 +144,9 @@ function schemaColumns(sql) {
     tables[name] = cols;
   }
   // idempotent reconcile section
-  const alterRe = /ALTER TABLE (\w+) ADD COLUMN (?:IF NOT EXISTS )?([a-z_][a-z0-9_]*)/gi;
+  // The reconcile section writes `ALTER TABLE public.x\n    ADD COLUMN IF NOT EXISTS y` — schema-qualified and
+  // over two lines — so the name and the column are matched across whitespace, not on one line.
+  const alterRe = /ALTER TABLE (?:public\.)?(\w+)\s+ADD COLUMN\s+(?:IF NOT EXISTS\s+)?([a-z_][a-z0-9_]*)/gi;
   let a;
   while ((a = alterRe.exec(sql)) !== null) {
     const name = a[1].toLowerCase();

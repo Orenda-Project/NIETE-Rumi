@@ -21,8 +21,15 @@
  * number for one class, wherever it is shown. A reader must select student_id,
  * status, completed_at and created_at for the rule to see the attempts: a row
  * without student_id is counted as its own child.
+ *
+ * RULES. `latest_completed` (the default — every caller above) as described.
+ * `first_completed` keeps the EARLIEST completed attempt instead, else the
+ * latest row: the web quiz's rule, where a replay on a sibling's phone is
+ * practice and must not raise the class score. It is chosen per class code by
+ * attemptRuleFor (that code's own sessions), never globally and never per quiz.
  */
-function oneAttemptPerChild(sessions) {
+function oneAttemptPerChild(sessions, { rule = 'latest_completed' } = {}) {
+  const first = rule === 'first_completed';
   const rank = (s) => [
     s.status === 'completed' ? 1 : 0,
     String(s.completed_at || ''),
@@ -30,9 +37,12 @@ function oneAttemptPerChild(sessions) {
   ];
   const better = (a, b) => {
     const ra = rank(a); const rb = rank(b);
-    for (let i = 0; i < ra.length; i += 1) {
-      if (ra[i] > rb[i]) return true;
-      if (ra[i] < rb[i]) return false;
+    if (ra[0] !== rb[0]) return ra[0] > rb[0];
+    // Two completed attempts: the earlier finish wins under first_completed.
+    const flip = first && ra[0] === 1 ? -1 : 1;
+    for (let i = 1; i < ra.length; i += 1) {
+      if (ra[i] > rb[i]) return flip > 0;
+      if (ra[i] < rb[i]) return flip < 0;
     }
     return false;
   };
@@ -47,4 +57,37 @@ function oneAttemptPerChild(sessions) {
   return [...byChild.values(), ...loose];
 }
 
-module.exports = { oneAttemptPerChild };
+/**
+ * The rule for ONE class code, from that code's own sessions: a code its children
+ * played on the web page (a child session with a device_ref — the web channel
+ * marker, web_quiz_v1.sql) counts each child's first finish; every other code
+ * keeps the latest, as before. Chosen per code, never stored on the quiz row: a
+ * video-bank quiz is one quizzes row shared by every teacher, so a flag there
+ * would switch every teacher's WhatsApp report. The teacher's own preview
+ * (user_id set) does not make a class a web class.
+ */
+function attemptRuleFor(sessions) {
+  const web = Array.isArray(sessions) && sessions.some((s) => s && s.device_ref && !s.user_id);
+  return web ? 'first_completed' : 'latest_completed';
+}
+
+/**
+ * One attempt per child, chosen PER CLASS CODE by that code's own rule — the
+ * class report's exact counting. For a reader that loads a whole quiz's sessions
+ * (several codes): group by share_code_id, apply attemptRuleFor to each group,
+ * return the union. A reader must also select share_code_id and device_ref.
+ */
+function oneAttemptPerChildPerCode(sessions) {
+  const byCode = new Map();
+  (sessions || []).forEach((s) => {
+    if (!s) return;
+    const k = s.share_code_id || '';
+    if (!byCode.has(k)) byCode.set(k, []);
+    byCode.get(k).push(s);
+  });
+  const out = [];
+  byCode.forEach((rows) => out.push(...oneAttemptPerChild(rows, { rule: attemptRuleFor(rows) })));
+  return out;
+}
+
+module.exports = { oneAttemptPerChild, attemptRuleFor, oneAttemptPerChildPerCode };

@@ -1,4 +1,5 @@
 const { CONVERSATION_HISTORY_LIMIT } = require('../utils/constants');
+const { modelFor } = require('../config/model-registry');
 const { logToFile } = require('../utils/logger');
 const { buildLanguagePrompt, hasEnhancedPrompt } = require('../config/language-prompts');
 const { classroomMinimumMinutes } = require('../config/classroom-audio.config');
@@ -559,7 +560,7 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
       const voiceMaxTokens = isRTL ? 400 : 250;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4.1-mini',
+        model: modelFor('chat.respond'),
         job: 'chat.respond',
         messages: messages,
         max_tokens: format === 'voice' ? voiceMaxTokens : 500,
@@ -614,7 +615,7 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
   async detectIntent(message) {
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4.1-mini',
+        model: modelFor('chat.intent'),
         job: 'chat.intent',
         messages: [
           {
@@ -758,7 +759,7 @@ If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY ha
   async extractTopic(message) {
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4.1-mini',
+        model: modelFor('chat.topic'),
         job: 'chat.topic',
         messages: [
           {
@@ -791,7 +792,7 @@ If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY ha
     // A pure passthrough used by video generation and anything with its own prompt, so the
     // label is a DEFAULT rather than a decision: `...options` last means a caller that knows
     // its own job keeps it. Without this the spend lands back in the unattributed bucket.
-    return await this.openai.chat.completions.create({ job: 'chat.completion', ...options });
+    return await this.openai.chat.completions.create({ model: modelFor('chat.completion'), job: 'chat.completion', ...options });
   }
 
   /**

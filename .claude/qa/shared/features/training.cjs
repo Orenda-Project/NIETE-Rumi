@@ -1707,3 +1707,46 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       { reason: APP_REDIRECT_WHY }, 0);
 
 };
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T100', 'With the web quiz switched on for me, the message I forward opens the quiz page instead of a WhatsApp chat', 'BLOCKED',
+      { reason: 'config-gated: needs app_settings web_quiz_enabled + web_quiz_teachers on the lane DB; unit-covered by tests/quiz/web-quiz-link.test.js' }, 0);
+
+  // ══ T400–T406 — which class is this hand-out for (the share code's class, asked once) ═══════════
+  // Driven through the bot's REAL hand-out modules (video-quiz-share deliverClassLink, transcript-quiz-
+  // handoff sendHandoff, handout-class handleTap, the real class resolver) in a child process, with
+  // only supabase / Redis / whatsapp.service / logs / R2 / the queue faked. The mock stack has no lever
+  // for a multi-class roster on the driver or for a lane DB WITHOUT quiz_share_codes.class_id (T406);
+  // see handout-class-drive.cjs for why and what each scenario asserts.
+  {
+    const HC = {
+      T400: 'A teacher with one class matching the quiz gets the class link with no extra question',
+      T401: 'A teacher with two sections gets the link first, then one question about the class',
+      T402: 'Three or more matching classes are offered as a list, and "All / not sure" leaves the link unbound',
+      T403: 'A teacher whose only class is outside the quiz\'s grade is asked rather than bound to the wrong class',
+      T404: 'Two hand-outs in a row each keep their own answer, and an old question binds nothing after a week',
+      T405: 'A lesson or coaching quiz gets its PDF and link first, then the same one question',
+      T406: 'An environment without the class column still hands every quiz out',
+    };
+    s = t();
+    let hc = null, hcErr = null;
+    try {
+      const raw = execFileSync(process.execPath, [path.join(__dirname, '..', 'handout-class-drive.cjs')],
+        { encoding: 'utf8', timeout: 120000, stdio: ['ignore', 'pipe', 'ignore'] });
+      hc = JSON.parse(raw);
+      if (hc._error) { hcErr = hc._error; hc = null; }
+    } catch (e) { hcErr = String((e && e.message) || e).slice(0, 200); }
+    const ms = t() - s;
+    const hcV = (id) => (hc && hc[id]
+      ? V(hc[id].pass, { via: 'handout-class-drive (real modules, faked network boundary)', ...hc[id].ev })
+      : ['BLOCKED', { reason: 'handout-class-drive did not report it' + (hcErr ? ': ' + hcErr : '') }]);
+    rec('T400', HC.T400, ...hcV('T400'), ms);
+    rec('T401', HC.T401, ...hcV('T401'), ms);
+    rec('T402', HC.T402, ...hcV('T402'), ms);
+    rec('T403', HC.T403, ...hcV('T403'), ms);
+    rec('T404', HC.T404, ...hcV('T404'), ms);
+    rec('T405', HC.T405, ...hcV('T405'), ms);
+    rec('T406', HC.T406, ...hcV('T406'), ms);
+  }

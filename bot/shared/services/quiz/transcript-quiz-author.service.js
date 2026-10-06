@@ -20,6 +20,7 @@ const { multiContract, multiFlowId } = require('./transcript-quiz-multi');
 const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
 const { peopleRule } = require('./transcript-quiz-people');
 const { scrubPupils, PUPILS_RULE } = require('./transcript-quiz-pupils');
+const { sourceFidelityRule } = require('./transcript-quiz-source-fidelity');
 const {
   languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, DISTINCT_QUESTIONS_RULE,
   GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, SUMMARY_TRUTH_RULE, summaryTruthEnabled,
@@ -237,6 +238,10 @@ function buildAuthorPrompt({
   // Part B — an lp_v8 lesson's own manipulatives (lp-quiz-digest lessonDrewBlock):
   // the counters, bundles and tiles the class saw, so a picture draws those.
   lessonDrew = '',
+  // app_settings quiz_author_gates_v2 (read once per quiz by the caller): every
+  // question also returns its source_quote and teaching_error. Off, the prompt
+  // is exactly what it was.
+  authorGates = false,
 }) {
   const lp = Boolean(lessonPlan);
   // How many of the n may actually be above bare recall on THIS lesson. A flat
@@ -288,7 +293,7 @@ ${PUPILS_RULE}
 ${peopleRule(digest, language)}
 
 ${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}
-${lessonDrew ? `${lessonDrew}\n` : ''}${multiContract({ allowMulti, n })}${langAgain}${retry}${picturesAgain({ subject: digest && digest.subject, gradeBand, n })}
+${lessonDrew ? `${lessonDrew}\n` : ''}${multiContract({ allowMulti, n })}${langAgain}${retry}${picturesAgain({ subject: digest && digest.subject, gradeBand, n })}${authorGates ? `\n\n${sourceFidelityRule({ lessonPlan: lp, gradeBand })}` : ''}
 
 Return ONLY this JSON object:
 { "lesson_summary": "", "lesson_summary_short": "", "checks_summary": "",
@@ -296,11 +301,11 @@ Return ONLY this JSON object:
   { "slo_id": "S1", "level": "recall|understand|apply", "question": "", "options": ["", "", ""], "correct_index": 0,
     "explanation": "", "selected_because": "", "distractor_misconceptions": { "1": "", "2": "" },
     "option_feedback": { "correct": "", "wrong": { "1": "", "2": "" } },
-    "figure": null, "figure_role": null },
+    "figure": null, "figure_role": null${authorGates ? ', "source_quote": "", "teaching_error": null' : ''} },
   { "slo_id": "S2", "level": "understand", "question": "…تصویر میں…", "options": ["", "", ""], "correct_index": 1,
     "explanation": "", "selected_because": "", "distractor_misconceptions": { "0": "", "2": "" },
     "option_feedback": { "correct": "", "wrong": { "0": "", "2": "" } },
-    "figure": { "type": "fraction_bar", "bars": [ { "parts": 4, "shaded": 3 } ] }, "figure_role": "read_off" } ] }
+    "figure": { "type": "fraction_bar", "bars": [ { "parts": 4, "shaded": 3 } ] }, "figure_role": "read_off"${authorGates ? ', "source_quote": "", "teaching_error": null' : ''} } ] }
 (In this example the correct option is index 0, so the wrong keys are "1" and "2". If correct_index is 1 the keys are "0" and "2"; if it is 2 the keys are "0" and "1".)
 Omit "figure" and "figure_role", or leave them null, on every question that does not need a picture. When a question does carry one, "figure" is a spec object of the form shown in ALLOWED TYPES — e.g. "figure": {"type":"fraction_bar","bars":[{"parts":4,"shaded":3}]}, "figure_role": "read_off".
 
@@ -317,11 +322,11 @@ ${excerpts}`}`;
  */
 async function author({
   digest, transcript, language, n = DEFAULT_QUESTIONS, gradeBand = null, previousErrors = null,
-  quizId = null, allowMulti = Boolean(multiFlowId()), lessonPlan = null, lessonDrew = '',
+  quizId = null, allowMulti = Boolean(multiFlowId()), lessonPlan = null, lessonDrew = '', authorGates = false,
 }) {
   const excerpts = lessonPlan ? '' : excerptsFor(transcript, digest);
   const prompt = buildAuthorPrompt({
-    digest, excerpts, language, n, gradeBand, previousErrors, allowMulti, lessonPlan, lessonDrew,
+    digest, excerpts, language, n, gradeBand, previousErrors, allowMulti, lessonPlan, lessonDrew, authorGates,
   });
   const { json, model, costUsd, latencyMs } = await completeJson({ prompt, label: 'transcript_quiz.author' });
   const questions = Array.isArray(json?.questions) ? json.questions : [];

@@ -1,0 +1,1030 @@
+{
+ "aeroplane": {
+  "fluent": "airplane",
+  "hex": "2708"
+ },
+ "anchor": {
+  "fluent": "anchor",
+  "hex": "2693"
+ },
+ "ant": {
+  "fluent": "ant",
+  "hex": "1F41C"
+ },
+ "apple": {
+  "fluent": "red apple",
+  "hex": "1F34E"
+ },
+ "arm": {
+  "fluent": "flexed biceps",
+  "hex": "1F4AA"
+ },
+ "baby": {
+  "fluent": "baby",
+  "hex": "1F476"
+ },
+ "bag": {
+  "fluent": "backpack",
+  "hex": "1F392"
+ },
+ "bag_school": {
+  "fluent": "backpack",
+  "hex": "1F392"
+ },
+ "ball": {
+  "fluent": "soccer ball",
+  "hex": "26BD"
+ },
+ "balloon": {
+  "fluent": "balloon",
+  "hex": "1F388"
+ },
+ "banana": {
+  "fluent": "banana",
+  "hex": "1F34C"
+ },
+ "basket": {
+  "fluent": "basket",
+  "hex": "1F9FA"
+ },
+ "bat": {
+  "fluent": "bat",
+  "hex": "1F987"
+ },
+ "battery": {
+  "fluent": "battery",
+  "hex": "1F50B"
+ },
+ "bear": {
+  "fluent": "bear",
+  "hex": "1F43B"
+ },
+ "bed": {
+  "fluent": "bed",
+  "hex": "1F6CF"
+ },
+ "bee": {
+  "fluent": "honeybee",
+  "hex": "1F41D"
+ },
+ "bell": {
+  "fluent": "bell",
+  "hex": "1F514"
+ },
+ "bicycle": {
+  "fluent": "bicycle",
+  "hex": "1F6B2"
+ },
+ "bin": {
+  "fluent": "wastebasket",
+  "hex": "1F5D1"
+ },
+ "bird": {
+  "fluent": "bird",
+  "hex": "1F426"
+ },
+ "blanket": {
+  "fluent": "bed",
+  "hex": "1F6CF"
+ },
+ "boat": {
+  "fluent": "sailboat",
+  "hex": "26F5"
+ },
+ "body": {
+  "fluent": "bust in silhouette",
+  "hex": "1F464"
+ },
+ "bone": {
+  "fluent": "bone",
+  "hex": "1F9B4"
+ },
+ "book": {
+  "fluent": "closed book",
+  "hex": "1F4D5"
+ },
+ "boot": {
+  "fluent": "hiking boot",
+  "hex": "1F97E"
+ },
+ "bottle": {
+  "fluent": "bottle with popping cork",
+  "hex": "1F37E"
+ },
+ "bowl": {
+  "fluent": "bowl with spoon",
+  "hex": "1F963"
+ },
+ "box": {
+  "fluent": "package",
+  "hex": "1F4E6"
+ },
+ "brain": {
+  "fluent": "brain",
+  "hex": "1F9E0"
+ },
+ "bread": {
+  "fluent": "bread",
+  "hex": "1F35E"
+ },
+ "brick": {
+  "fluent": "brick",
+  "hex": "1F9F1"
+ },
+ "bridge": {
+  "fluent": "bridge at night",
+  "hex": "1F309"
+ },
+ "broom": {
+  "fluent": "broom",
+  "hex": "1F9F9"
+ },
+ "brush": {
+  "fluent": "paintbrush",
+  "hex": "1F58C"
+ },
+ "bucket": {
+  "fluent": "bucket",
+  "hex": "1FAA3"
+ },
+ "bulb": {
+  "fluent": "light bulb",
+  "hex": "1F4A1"
+ },
+ "bus": {
+  "fluent": "bus",
+  "hex": "1F68C"
+ },
+ "butterfly": {
+  "fluent": "butterfly",
+  "hex": "1F98B"
+ },
+ "button": {
+  "fluent": "radio button",
+  "hex": "1F518"
+ },
+ "cake": {
+  "fluent": "shortcake",
+  "hex": "1F370"
+ },
+ "calendar": {
+  "fluent": "calendar",
+  "hex": "1F4C5"
+ },
+ "camel": {
+  "fluent": "camel",
+  "hex": "1F42A"
+ },
+ "camera": {
+  "fluent": "camera",
+  "hex": "1F4F7"
+ },
+ "candle": {
+  "fluent": "candle",
+  "hex": "1F56F"
+ },
+ "cap": {
+  "fluent": "billed cap",
+  "hex": "1F9E2"
+ },
+ "car": {
+  "fluent": "automobile",
+  "hex": "1F697"
+ },
+ "carrot": {
+  "fluent": "carrot",
+  "hex": "1F955"
+ },
+ "cat": {
+  "fluent": "black cat",
+  "hex": "1F408"
+ },
+ "chair": {
+  "fluent": "chair",
+  "hex": "1FA91"
+ },
+ "chart": {
+  "fluent": "bar chart",
+  "hex": "1F4CA"
+ },
+ "cheese": {
+  "fluent": "cheese wedge",
+  "hex": "1F9C0"
+ },
+ "cherry": {
+  "fluent": "cherries",
+  "hex": "1F352"
+ },
+ "chick": {
+  "fluent": "baby chick",
+  "hex": "1F424"
+ },
+ "child": {
+  "fluent": "child",
+  "hex": "1F9D2"
+ },
+ "chilli": {
+  "fluent": "hot pepper",
+  "hex": "1F336"
+ },
+ "clock": {
+  "fluent": "alarm clock",
+  "hex": "23F0"
+ },
+ "cloud": {
+  "fluent": "cloud",
+  "hex": "2601"
+ },
+ "coconut": {
+  "fluent": "coconut",
+  "hex": "1F965"
+ },
+ "coin": {
+  "fluent": "coin",
+  "hex": "1FA99"
+ },
+ "computer": {
+  "fluent": "laptop",
+  "hex": "1F4BB"
+ },
+ "cookie": {
+  "fluent": "cookie",
+  "hex": "1F36A"
+ },
+ "corn": {
+  "fluent": "ear of corn",
+  "hex": "1F33D"
+ },
+ "cow": {
+  "fluent": "cow",
+  "hex": "1F404"
+ },
+ "crab": {
+  "fluent": "crab",
+  "hex": "1F980"
+ },
+ "crayon": {
+  "fluent": "crayon",
+  "hex": "1F58D"
+ },
+ "cricket": {
+  "fluent": "cricket",
+  "hex": "1F997"
+ },
+ "cricket_bat": {
+  "fluent": "cricket game",
+  "hex": "1F3CF"
+ },
+ "crown": {
+  "fluent": "crown",
+  "hex": "1F451"
+ },
+ "cup": {
+  "fluent": "cup with straw",
+  "hex": "1F964"
+ },
+ "deer": {
+  "fluent": "deer",
+  "hex": "1F98C"
+ },
+ "die": {
+  "fluent": "game die",
+  "hex": "1F3B2"
+ },
+ "dog": {
+  "fluent": "dog",
+  "hex": "1F415"
+ },
+ "doll": {
+  "fluent": "teddy bear",
+  "hex": "1F9F8"
+ },
+ "door": {
+  "fluent": "door",
+  "hex": "1F6AA"
+ },
+ "drum": {
+  "fluent": "drum",
+  "hex": "1F941"
+ },
+ "duck": {
+  "fluent": "duck",
+  "hex": "1F986"
+ },
+ "ear": {
+  "fluent": "ear",
+  "hex": "1F442"
+ },
+ "earth": {
+  "fluent": "globe showing asia-australia",
+  "hex": "1F30F"
+ },
+ "egg": {
+  "fluent": "egg",
+  "hex": "1F95A"
+ },
+ "elephant": {
+  "fluent": "elephant",
+  "hex": "1F418"
+ },
+ "engine": {
+  "fluent": "locomotive",
+  "hex": "1F682"
+ },
+ "envelope": {
+  "fluent": "envelope",
+  "hex": "2709"
+ },
+ "envelope_open": {
+  "fluent": "open mailbox with raised flag",
+  "hex": "1F4EC"
+ },
+ "eye": {
+  "fluent": "eye",
+  "hex": "1F441"
+ },
+ "face": {
+  "fluent": "grinning face",
+  "hex": "1F600"
+ },
+ "fan": {
+  "fluent": "leaf fluttering in wind",
+  "hex": "1F343"
+ },
+ "farm": {
+  "fluent": "tractor",
+  "hex": "1F69C"
+ },
+ "farmer": {
+  "fluent": "farmer",
+  "hex": "1F9D1-200D-1F33E"
+ },
+ "feather": {
+  "fluent": "feather",
+  "hex": "1FAB6"
+ },
+ "field": {
+  "fluent": "sheaf of rice",
+  "hex": "1F33E"
+ },
+ "fire": {
+  "fluent": "fire",
+  "hex": "1F525"
+ },
+ "fish": {
+  "fluent": "fish",
+  "hex": "1F41F"
+ },
+ "flag": {
+  "fluent": "triangular flag",
+  "hex": "1F6A9"
+ },
+ "flower": {
+  "fluent": "cherry blossom",
+  "hex": "1F338"
+ },
+ "foot": {
+  "fluent": "foot",
+  "hex": "1F9B6"
+ },
+ "fork": {
+  "fluent": "fork and knife",
+  "hex": "1F374"
+ },
+ "fox": {
+  "fluent": "fox",
+  "hex": "1F98A"
+ },
+ "frog": {
+  "fluent": "frog",
+  "hex": "1F438"
+ },
+ "fruit": {
+  "fluent": "red apple",
+  "hex": "1F34E"
+ },
+ "garlic": {
+  "fluent": "garlic",
+  "hex": "1F9C4"
+ },
+ "gear": {
+  "fluent": "gear",
+  "hex": "2699"
+ },
+ "gift": {
+  "fluent": "wrapped gift",
+  "hex": "1F381"
+ },
+ "glasses": {
+  "fluent": "glasses",
+  "hex": "1F453"
+ },
+ "globe": {
+  "fluent": "globe with meridians",
+  "hex": "1F310"
+ },
+ "glove": {
+  "fluent": "gloves",
+  "hex": "1F9E4"
+ },
+ "goat": {
+  "fluent": "goat",
+  "hex": "1F410"
+ },
+ "grape": {
+  "fluent": "grapes",
+  "hex": "1F347"
+ },
+ "grapes": {
+  "fluent": "grapes",
+  "hex": "1F347"
+ },
+ "grass": {
+  "fluent": "herb",
+  "hex": "1F33F"
+ },
+ "guitar": {
+  "fluent": "guitar",
+  "hex": "1F3B8"
+ },
+ "ham": {
+  "fluent": "cut of meat",
+  "hex": "1F969"
+ },
+ "hammer": {
+  "fluent": "hammer",
+  "hex": "1F528"
+ },
+ "hand": {
+  "fluent": "raised hand",
+  "hex": "270B"
+ },
+ "hat": {
+  "fluent": "billed cap",
+  "hex": "1F9E2"
+ },
+ "heart": {
+  "fluent": "red heart",
+  "hex": "2764"
+ },
+ "hen": {
+  "fluent": "chicken",
+  "hex": "1F414"
+ },
+ "hill": {
+  "fluent": "mountain",
+  "hex": "26F0"
+ },
+ "horse": {
+  "fluent": "horse",
+  "hex": "1F40E"
+ },
+ "hospital": {
+  "fluent": "hospital",
+  "hex": "1F3E5"
+ },
+ "house": {
+  "fluent": "house",
+  "hex": "1F3E0"
+ },
+ "hut": {
+  "fluent": "hut",
+  "hex": "1F6D6"
+ },
+ "ice": {
+  "fluent": "ice",
+  "hex": "1F9CA"
+ },
+ "island": {
+  "fluent": "desert island",
+  "hex": "1F3DD"
+ },
+ "key": {
+  "fluent": "key",
+  "hex": "1F511"
+ },
+ "kite": {
+  "fluent": "kite",
+  "hex": "1FA81"
+ },
+ "knife": {
+  "fluent": "kitchen knife",
+  "hex": "1F52A"
+ },
+ "ladder": {
+  "fluent": "ladder",
+  "hex": "1FA9C"
+ },
+ "lake": {
+  "fluent": "water wave",
+  "hex": "1F30A"
+ },
+ "lamp": {
+  "fluent": "light bulb",
+  "hex": "1F4A1"
+ },
+ "lantern": {
+  "fluent": "red paper lantern",
+  "hex": "1F3EE"
+ },
+ "leaf": {
+  "fluent": "leaf fluttering in wind",
+  "hex": "1F343"
+ },
+ "leg": {
+  "fluent": "leg",
+  "hex": "1F9B5"
+ },
+ "lemon": {
+  "fluent": "lemon",
+  "hex": "1F34B"
+ },
+ "lily": {
+  "fluent": "lotus",
+  "hex": "1FAB7"
+ },
+ "lion": {
+  "fluent": "lion",
+  "hex": "1F981"
+ },
+ "magnet": {
+  "fluent": "magnet",
+  "hex": "1F9F2"
+ },
+ "mango": {
+  "fluent": "mango",
+  "hex": "1F96D"
+ },
+ "map": {
+  "fluent": "world map",
+  "hex": "1F5FA"
+ },
+ "market": {
+  "fluent": "convenience store",
+  "hex": "1F3EA"
+ },
+ "medal": {
+  "fluent": "sports medal",
+  "hex": "1F3C5"
+ },
+ "milk": {
+  "fluent": "glass of milk",
+  "hex": "1F95B"
+ },
+ "mirror": {
+  "fluent": "mirror",
+  "hex": "1FA9E"
+ },
+ "money": {
+  "fluent": "money bag",
+  "hex": "1F4B0"
+ },
+ "monkey": {
+  "fluent": "monkey",
+  "hex": "1F412"
+ },
+ "moon": {
+  "fluent": "crescent moon",
+  "hex": "1F319"
+ },
+ "mosque": {
+  "fluent": "mosque",
+  "hex": "1F54C"
+ },
+ "mountain": {
+  "fluent": "mountain",
+  "hex": "26F0"
+ },
+ "mouse": {
+  "fluent": "mouse",
+  "hex": "1F401"
+ },
+ "mouth": {
+  "fluent": "mouth",
+  "hex": "1F444"
+ },
+ "nest": {
+  "fluent": "nest with eggs",
+  "hex": "1FABA"
+ },
+ "net": {
+  "fluent": "spider web",
+  "hex": "1F578"
+ },
+ "newspaper": {
+  "fluent": "newspaper",
+  "hex": "1F4F0"
+ },
+ "nose": {
+  "fluent": "nose",
+  "hex": "1F443"
+ },
+ "notebook": {
+  "fluent": "notebook",
+  "hex": "1F4D3"
+ },
+ "onion": {
+  "fluent": "onion",
+  "hex": "1F9C5"
+ },
+ "orange": {
+  "fluent": "tangerine",
+  "hex": "1F34A"
+ },
+ "owl": {
+  "fluent": "owl",
+  "hex": "1F989"
+ },
+ "ox": {
+  "fluent": "ox",
+  "hex": "1F402"
+ },
+ "panda": {
+  "fluent": "panda",
+  "hex": "1F43C"
+ },
+ "paper": {
+  "fluent": "page facing up",
+  "hex": "1F4C4"
+ },
+ "parrot": {
+  "fluent": "parrot",
+  "hex": "1F99C"
+ },
+ "peach": {
+  "fluent": "peach",
+  "hex": "1F351"
+ },
+ "pear": {
+  "fluent": "pear",
+  "hex": "1F350"
+ },
+ "pen": {
+  "fluent": "pen",
+  "hex": "1F58A"
+ },
+ "pencil": {
+  "fluent": "pencil",
+  "hex": "270F"
+ },
+ "penguin": {
+  "fluent": "penguin",
+  "hex": "1F427"
+ },
+ "phone": {
+  "fluent": "mobile phone",
+  "hex": "1F4F1"
+ },
+ "pig": {
+  "fluent": "pig",
+  "hex": "1F416"
+ },
+ "pin": {
+  "fluent": "pushpin",
+  "hex": "1F4CC"
+ },
+ "pineapple": {
+  "fluent": "pineapple",
+  "hex": "1F34D"
+ },
+ "plant": {
+  "fluent": "potted plant",
+  "hex": "1FAB4"
+ },
+ "plate": {
+  "fluent": "fork and knife with plate",
+  "hex": "1F37D"
+ },
+ "potato": {
+  "fluent": "potato",
+  "hex": "1F954"
+ },
+ "puzzle": {
+  "fluent": "puzzle piece",
+  "hex": "1F9E9"
+ },
+ "rabbit": {
+  "fluent": "rabbit",
+  "hex": "1F407"
+ },
+ "rain": {
+  "fluent": "cloud with rain",
+  "hex": "1F327"
+ },
+ "rainbow": {
+  "fluent": "rainbow",
+  "hex": "1F308"
+ },
+ "ram": {
+  "fluent": "ram",
+  "hex": "1F40F"
+ },
+ "rat": {
+  "fluent": "rat",
+  "hex": "1F400"
+ },
+ "ribbon": {
+  "fluent": "ribbon",
+  "hex": "1F380"
+ },
+ "rice": {
+  "fluent": "cooked rice",
+  "hex": "1F35A"
+ },
+ "ring": {
+  "fluent": "ring",
+  "hex": "1F48D"
+ },
+ "river": {
+  "fluent": "water wave",
+  "hex": "1F30A"
+ },
+ "road": {
+  "fluent": "motorway",
+  "hex": "1F6E3"
+ },
+ "rock": {
+  "fluent": "rock",
+  "hex": "1FAA8"
+ },
+ "rocket": {
+  "fluent": "rocket",
+  "hex": "1F680"
+ },
+ "rose": {
+  "fluent": "rose",
+  "hex": "1F339"
+ },
+ "ruler": {
+  "fluent": "straight ruler",
+  "hex": "1F4CF"
+ },
+ "sandal": {
+  "fluent": "thong sandal",
+  "hex": "1FA74"
+ },
+ "scale": {
+  "fluent": "balance scale",
+  "hex": "2696"
+ },
+ "scarf": {
+  "fluent": "scarf",
+  "hex": "1F9E3"
+ },
+ "school": {
+  "fluent": "school",
+  "hex": "1F3EB"
+ },
+ "scissors": {
+  "fluent": "scissors",
+  "hex": "2702"
+ },
+ "sea": {
+  "fluent": "water wave",
+  "hex": "1F30A"
+ },
+ "seed": {
+  "fluent": "beans",
+  "hex": "1FAD8"
+ },
+ "seedling": {
+  "fluent": "seedling",
+  "hex": "1F331"
+ },
+ "shark": {
+  "fluent": "shark",
+  "hex": "1F988"
+ },
+ "sheep": {
+  "fluent": "ewe",
+  "hex": "1F411"
+ },
+ "shell": {
+  "fluent": "spiral shell",
+  "hex": "1F41A"
+ },
+ "ship": {
+  "fluent": "ship",
+  "hex": "1F6A2"
+ },
+ "shirt": {
+  "fluent": "t-shirt",
+  "hex": "1F455"
+ },
+ "shoe": {
+  "fluent": "running shoe",
+  "hex": "1F45F"
+ },
+ "shop": {
+  "fluent": "convenience store",
+  "hex": "1F3EA"
+ },
+ "sky": {
+  "fluent": "cloud",
+  "hex": "2601"
+ },
+ "snail": {
+  "fluent": "snail",
+  "hex": "1F40C"
+ },
+ "snake": {
+  "fluent": "snake",
+  "hex": "1F40D"
+ },
+ "snow": {
+  "fluent": "snowflake",
+  "hex": "2744"
+ },
+ "soap": {
+  "fluent": "soap",
+  "hex": "1F9FC"
+ },
+ "sock": {
+  "fluent": "socks",
+  "hex": "1F9E6"
+ },
+ "spider": {
+  "fluent": "spider",
+  "hex": "1F577"
+ },
+ "spoon": {
+  "fluent": "spoon",
+  "hex": "1F944"
+ },
+ "star": {
+  "fluent": "star",
+  "hex": "2B50"
+ },
+ "stick": {
+  "fluent": "wood",
+  "hex": "1FAB5"
+ },
+ "stone": {
+  "fluent": "rock",
+  "hex": "1FAA8"
+ },
+ "strawberry": {
+  "fluent": "strawberry",
+  "hex": "1F353"
+ },
+ "sun": {
+  "fluent": "sun",
+  "hex": "2600"
+ },
+ "sunflower": {
+  "fluent": "sunflower",
+  "hex": "1F33B"
+ },
+ "sweet": {
+  "fluent": "candy",
+  "hex": "1F36C"
+ },
+ "table": {
+  "fluent": "chair",
+  "hex": "1FA91"
+ },
+ "tap": {
+  "fluent": "potable water",
+  "hex": "1F6B0"
+ },
+ "tea": {
+  "fluent": "teacup without handle",
+  "hex": "1F375"
+ },
+ "teacher": {
+  "fluent": "teacher",
+  "hex": "1F9D1-200D-1F3EB"
+ },
+ "teeth": {
+  "fluent": "tooth",
+  "hex": "1F9B7"
+ },
+ "telephone": {
+  "fluent": "telephone",
+  "hex": "260E"
+ },
+ "television": {
+  "fluent": "television",
+  "hex": "1F4FA"
+ },
+ "tent": {
+  "fluent": "tent",
+  "hex": "26FA"
+ },
+ "thermometer": {
+  "fluent": "thermometer",
+  "hex": "1F321"
+ },
+ "thread": {
+  "fluent": "thread",
+  "hex": "1F9F5"
+ },
+ "ticket": {
+  "fluent": "ticket",
+  "hex": "1F3AB"
+ },
+ "tiger": {
+  "fluent": "tiger",
+  "hex": "1F405"
+ },
+ "tin": {
+  "fluent": "canned food",
+  "hex": "1F96B"
+ },
+ "tomato": {
+  "fluent": "tomato",
+  "hex": "1F345"
+ },
+ "tooth": {
+  "fluent": "tooth",
+  "hex": "1F9B7"
+ },
+ "toothbrush": {
+  "fluent": "toothbrush",
+  "hex": "1FAA5"
+ },
+ "torch": {
+  "fluent": "flashlight",
+  "hex": "1F526"
+ },
+ "towel": {
+  "fluent": "roll of paper",
+  "hex": "1F9FB"
+ },
+ "tractor": {
+  "fluent": "tractor",
+  "hex": "1F69C"
+ },
+ "train": {
+  "fluent": "locomotive",
+  "hex": "1F682"
+ },
+ "tree": {
+  "fluent": "deciduous tree",
+  "hex": "1F333"
+ },
+ "trophy": {
+  "fluent": "trophy",
+  "hex": "1F3C6"
+ },
+ "trousers": {
+  "fluent": "jeans",
+  "hex": "1F456"
+ },
+ "truck": {
+  "fluent": "delivery truck",
+  "hex": "1F69A"
+ },
+ "turtle": {
+  "fluent": "turtle",
+  "hex": "1F422"
+ },
+ "umbrella": {
+  "fluent": "umbrella",
+  "hex": "2602"
+ },
+ "vegetable": {
+  "fluent": "carrot",
+  "hex": "1F955"
+ },
+ "watch": {
+  "fluent": "watch",
+  "hex": "231A"
+ },
+ "water": {
+  "fluent": "potable water",
+  "hex": "1F6B0"
+ },
+ "watermelon": {
+  "fluent": "watermelon",
+  "hex": "1F349"
+ },
+ "wave": {
+  "fluent": "water wave",
+  "hex": "1F30A"
+ },
+ "web": {
+  "fluent": "spider web",
+  "hex": "1F578"
+ },
+ "whale": {
+  "fluent": "whale",
+  "hex": "1F40B"
+ },
+ "wheel": {
+  "fluent": "wheel",
+  "hex": "1F6DE"
+ },
+ "window": {
+  "fluent": "window",
+  "hex": "1FA9F"
+ },
+ "zebra": {
+  "fluent": "zebra",
+  "hex": "1F993"
+ },
+ "chestnut": {
+  "fluent": "chestnut",
+  "hex": "1F330"
+ }
+}
