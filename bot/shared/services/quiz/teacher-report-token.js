@@ -3,11 +3,11 @@
  * The teacher's report link token — kind `tr`.
  *
  * A teacher opens their quiz report at `/r/<token>`: from the /quiz menu, from
- * the post-completion PDF, from a template button. The token says WHOSE report
+ * the report list and the caption message, from a template button. The token says WHOSE report
  * and WHICH quiz (`q`, or '*' for every class), and nothing else; every read
  * behind it filters on that teacher. It is signed with the web quiz's own key
- * (web-quiz-token sign/verify, so one secret and one HMAC rule) and lives 30
- * days, because it rides inside PDFs the teacher keeps.
+ * (web-quiz-token sign/verify, so one secret and one HMAC rule) and lives 7
+ * days; it is never printed in a PDF.
  *
  * A child-page token (session `s`, preview `p`) is never a report token: the
  * kind is part of what is signed.
@@ -16,20 +16,19 @@
 const WQT = require('./web-quiz-token');
 
 const KIND = 'tr';
-const TTL_S = 30 * 24 * 60 * 60;
-// Links PRINTED in a PDF the teacher may forward to a group: short-lived, so a forwarded
-// PDF is not a month-long pass to the class's names and scores. The 30-day token rides
-// only in the teacher's own WhatsApp message.
-const PDF_TTL_S = 48 * 60 * 60;
+// 7 days (COS privacy ruling): the link lives only in the teacher's own WhatsApp messages
+// and "My quiz reports" mints a fresh one on every tap; no report token is ever printed in
+// a PDF (PDFs are forwarded to class groups by design).
+const TTL_S = 7 * 24 * 60 * 60;
 const ALL = '*';
 
 /**
- * @param {{teacherId: string, quizId?: string|null, ttlS?: number, now?: number}} args  ttlS: PDF_TTL_S for printed links
+ * @param {{teacherId: string, quizId?: string|null, ttlS?: number, now?: number}} args  ttlS: shorter only (clamped to TTL_S)
  * @returns {string|null} null when there is no teacher or no secret (fails closed)
  */
 function signTeacherReport({ teacherId, quizId = null, ttlS = TTL_S, now = Date.now() } = {}) {
   if (!teacherId) return null;
-  const life = Math.max(60, Math.min(TTL_S, Number(ttlS) || TTL_S)); // never longer than 30 days
+  const life = Math.max(60, Math.min(TTL_S, Number(ttlS) || TTL_S)); // never longer than TTL_S
   return WQT.sign({ k: KIND, t: String(teacherId), q: quizId ? String(quizId) : ALL, exp: Math.floor(now / 1000) + life });
 }
 
@@ -65,4 +64,4 @@ function explain(token) {
   }
 }
 
-module.exports = { signTeacherReport, verifyTeacherReport, explain, KIND, TTL_S, PDF_TTL_S };
+module.exports = { signTeacherReport, verifyTeacherReport, explain, KIND, TTL_S };
