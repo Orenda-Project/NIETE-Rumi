@@ -44,11 +44,19 @@ function pctOf(s) {
 /**
  * The quizzes taken on this handset, newest first, one entry per share code.
  * @returns {Promise<Array<{shareCodeId, code, active, quizId, topic, subject, language, studentId,
- *   studentName, className, attempts, latest, best, lastAt}>>}
+ *   studentName, className, attempts, latest, best, lastAt, teacherSent, sentAt, teacherUserId, grade, videoId}>>}
  */
 async function quizzesForHandset(phone) {
-  const known = await StudentIdentity.findByPhone(phone);
-  if (!known.length) return [];
+  return quizzesForStudents(await StudentIdentity.findByPhone(phone));
+}
+
+/**
+ * The same list for given students rows ({id, student_name, self_reported_class}) — the
+ * kid hub names its children by id, not by phone. `teacherSent` is a code the teacher
+ * sent (no parent code, no inviter): not a "watch more" code and not a friend's challenge.
+ */
+async function quizzesForStudents(known) {
+  if (!known || !known.length) return [];
   const byStudent = new Map(known.map((s) => [s.id, s]));
 
   const { data: sessions, error } = await supabase
@@ -80,9 +88,10 @@ async function quizzesForHandset(phone) {
   if (!list.length) return [];
 
   const [{ data: codes }, { data: quizzes }] = await Promise.all([
-    supabase.from('quiz_share_codes').select('id, code, active, expires_at, topic, language')
+    supabase.from('quiz_share_codes')
+      .select('id, code, active, expires_at, topic, language, parent_share_code_id, invited_by_student_id, created_at, teacher_user_id')
       .in('id', list.map((g) => g.shareCodeId)),
-    supabase.from('quizzes').select('id, topic, subject, language, grade')
+    supabase.from('quizzes').select('id, topic, subject, language, grade, video_id')
       .in('id', list.map((g) => g.quizId)),
   ]);
   const codeById = new Map((codes || []).map((c) => [c.id, c]));
@@ -101,14 +110,22 @@ async function quizzesForHandset(phone) {
       language: clampLanguage(q.language || c.language || 'en'),
       studentName: st.student_name || '',
       className: g.className || st.self_reported_class || null,
+      teacherSent: Boolean(c.code) && !c.parent_share_code_id && !c.invited_by_student_id,
+      sentAt: c.created_at || null,
+      teacherUserId: c.teacher_user_id || null,
+      grade: q.grade || null,
+      videoId: q.video_id || null,
     };
   });
 }
 
 /** Open the child's /quiz: the Flow when configured, else two buttons for the latest quiz. */
 async function open(phone, { language = 'en' } = {}) {
-  const quizzes = await quizzesForHandset(phone);
+  const known = await StudentIdentity.findByPhone(phone);
+  const quizzes = await quizzesForStudents(known);
   const lang = clampLanguage(quizzes[0]?.language || language);
+  // The kid hub (app_settings web_quiz_hub): ONE link button to this phone's own children's hub.
+  if (known.length && await sendHub(phone, known, lang)) return true;
   if (!quizzes.length) {
     await WhatsAppService.sendMessage(phone, resolveUx('sqNoQuizzes', { language: lang }));
     logEvent('student_quiz.opened', { how: 'none' });
@@ -142,6 +159,20 @@ async function open(phone, { language = 'en' } = {}) {
     ],
   });
   logEvent('student_quiz.opened', { how: 'buttons', quizzes: quizzes.length });
+  return true;
+}
+
+/** The hub's one cta_url message; false (send nothing) when the hub is off or the send failed. */
+async function sendHub(phone, known, lang) {
+  const url = await require('./web-quiz-hub-flags').hubLink(known.map((s) => s.id));
+  if (!url) return false;
+  const sent = await WhatsAppService.sendCtaUrl(phone, {
+    body: resolveUx('sqHubBody', { language: lang }),
+    buttonText: resolveUx('sqHubBtn', { language: lang }), // ≤ 20 code points
+    url,
+  });
+  if (!sent) { logToFile('⚠️ student-quiz: hub link send failed, falling back', {}, 'error'); return false; }
+  logEvent('student_quiz.opened', { how: 'hub', kids: Math.min(known.length, 4) });
   return true;
 }
 
@@ -224,6 +255,6 @@ async function sendCard(phone, { shareCodeId, studentId, language = 'en' }) {
 }
 
 module.exports = {
-  quizzesForHandset, open, handleButton, retry, sendCard, flowId,
+  quizzesForHandset, quizzesForStudents, open, handleButton, retry, sendCard, flowId,
   RETRY_ID, CARD_ID, FALLBACK_KEY, MAX_QUIZZES,
 };

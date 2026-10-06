@@ -81,6 +81,8 @@ describe('"Add to 4-A" gives the typed child the next free list number', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].roll_number).toBe(11);
     expect(studentRow(F.TYPED).roll_number).toBe(11);
+    // the answer carries the number, so the report's notice can say "… as list no. 11"
+    expect(out.row.roll).toBe(11);
   });
 
   test('the next quiz finds the child by list number: the class roster carries 11 and the "list number" question picks them', async () => {

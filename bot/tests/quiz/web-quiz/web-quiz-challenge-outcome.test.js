@@ -180,3 +180,14 @@ describe('E2 on a challenge code ships none of the challenger\'s class context',
     expect(c.live.class_today).toBe(1);
   });
 });
+
+describe('a friend on a challenge code never reaches the challenger\'s class table', () => {
+  test('E6 board on a challenge code is 404; E2 says the run is a friend\'s', async () => {
+    addChallengeCode();
+    await expect(WQ.board('CH12AB')).rejects.toMatchObject({ status: 404 });
+    expect((await WQ.getQuiz('CH12AB')).invited).toBe(true);
+    // the class code is unchanged
+    expect((await WQ.board('AB12CD')).finishers_n).toBeGreaterThanOrEqual(1);
+    expect((await WQ.getQuiz('AB12CD')).invited).toBeUndefined();
+  });
+});

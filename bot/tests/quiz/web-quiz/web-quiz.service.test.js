@@ -112,6 +112,20 @@ describe('fail closed', () => {
 });
 
 describe('E2 GET quiz', () => {
+  test('voice_lang: the language the clips are recorded in — an English quiz quoting an Urdu gloss stays en', async () => {
+    fake.db.quiz_questions[0].question_text = 'What is a circle (سرکل) called when you draw it?';
+    const out = await WQ.getQuiz('AB12CD');
+    expect(out.quiz.voice_lang).toBe('en');
+  });
+
+  test('voice_lang: an Urdu quiz is ur; a quiz with no stored language follows its questions\' script', async () => {
+    fake.db.quizzes[0].language = 'ur';
+    expect((await WQ.getQuiz('AB12CD')).quiz.voice_lang).toBe('ur');
+    fake.db.quizzes[0].language = null;
+    fake.db.quiz_questions.forEach((q) => { q.question_text = 'پودے کا کون سا حصہ پانی لیتا ہے؟'; });
+    expect((await WQ.getQuiz('AB12CD')).quiz.voice_lang).toBe('ur');
+  });
+
   test('a wrong option\'s stored WhatsApp feedback reaches the page cleaned: no letters, no "correct answer", no praise', async () => {
     fake.db.quiz_questions[1].option_feedback = { wrong: { 0: 'A) Good try! Roots hold the plant. The correct answer is B) Leaf, because leaves make food. Keep going!' } };
     const out = await WQ.getQuiz('AB12CD');

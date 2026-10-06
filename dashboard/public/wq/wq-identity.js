@@ -75,7 +75,7 @@ var WQID = function (P) {
           }).join('') + '</div>' + (classPhone ? '' : someone)
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
-      (LIVE.class_today ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
+      (LIVE.class_today && !chLine ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
       // Classmates with a right answer in the last 2 minutes (the bot's peer-pulse memory): a count, from 2 up; never a friend's.
       (LIVE.now >= 2 && !chLine && !ID.invited && T.liveNow ? '<p class="wq-proof">🟢 ' + esc(T.liveNow(LIVE.now)) + '</p>' : '');
     P.render(h, 'M4-who-v2');
