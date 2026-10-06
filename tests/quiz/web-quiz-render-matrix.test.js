@@ -21,3 +21,11 @@ test.each(ALL.map((s) => [s.id, s]))('%s renders: no throw, every option shows s
   const p = pageFor(s);
   expect(renderCase(p.item, p.html, 1, answers(p.item)).faults).toEqual([]);
 });
+
+const { texFaults } = require('../../scripts/qa/render-matrix/vm_page');
+
+test('the TeX check flags a stray & or row break, never an ordinary < or > sign', () => {
+  expect(texFaults('<math><mn>9</mn><mo>&lt;</mo><mn>12</mn><mo>&gt;</mo></math>')).toEqual([]);
+  expect(texFaults('<math><mn>7</mn><mo>&amp;</mo><mn>1</mn></math>')).toHaveLength(1);
+  expect(texFaults('<math><mi>\\</mi></math>')).toHaveLength(1);
+});
