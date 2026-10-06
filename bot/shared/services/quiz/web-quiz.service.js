@@ -578,6 +578,31 @@ function isPreviewFor(p, ctx) {
   return Boolean(tok && tok.sc === ctx.shareCodeId && tok.t === ctx.teacherUserId);
 }
 
+/**
+ * A child's first name, one way on every screen of a page: on an Urdu quiz a child on the
+ * teacher's class list is named with the list's Urdu spelling (Roster.displayName, the rule
+ * "Are you…?" and Who-played use), anyone else by the name the session carries. One read of the
+ * students rows on an Urdu quiz; an English quiz reads nothing.
+ */
+async function shownNames(lang, studentIds) {
+  const ids = [...new Set((studentIds || []).filter(Boolean))];
+  const names = new Map();
+  if (lang === 'ur' && ids.length) {
+    try {
+      const { data } = await supabase.from('students').select('id, student_name, student_name_urdu').in('id', ids);
+      (data || []).forEach((k) => names.set(k.id, Roster.displayName(k, lang)));
+    } catch { /* the session's name, never a failed screen */ }
+  }
+  return (studentId, name) => firstName((studentId && names.get(studentId)) || name);
+}
+
+async function codeLanguage(shareCodeId) {
+  try {
+    const { data } = await supabase.from('quiz_share_codes').select('language').eq('id', shareCodeId).maybeSingle();
+    return clampLanguage(data && data.language);
+  } catch { return clampLanguage(null); }
+}
+
 /** The friend who sent a challenge link: their first counted score on the class code. */
 async function challengeOf(ctx) {
   const { data: rows } = await supabase.from('quiz_sessions')
@@ -585,7 +610,8 @@ async function challengeOf(ctx) {
     .eq('share_code_id', ctx.shareCodeId).eq('student_id', ctx.invitedByStudentId).eq('status', 'completed');
   const [best] = oneAttemptPerChild(rows || [], { rule: 'first_completed' });
   if (!best) return null;
-  return { first: firstName(best.student_name), correct: best.correct_answers || 0, total: best.total_questions_answered || 0 };
+  const nameOf = await shownNames(ctx.lang, [best.student_id]);
+  return { first: nameOf(best.student_id, best.student_name), correct: best.correct_answers || 0, total: best.total_questions_answered || 0 };
 }
 
 // ─── E3 the session ─────────────────────────────────────────────────────────
@@ -645,11 +671,12 @@ async function startSession(body = {}) {
       if (s && s.status === 'in_progress' && (!s.expires_at || new Date(s.expires_at) > new Date())) {
         const answered = await answeredIds(s.id);
         const prior = await priorFinish(ctx.shareCodeId, s.student_id, s.id);
+        const nameOf = await shownNames(ctx.lang, [s.student_id]);
         return {
           st: body.resume_st, device_ref: tok.d || deviceRef,
           ...countedFor(prior, tok.d || deviceRef, Boolean(s.user_id)),
           resume: { answered: answered.map((a) => a.question_id) },
-          child: s.student_id ? { chip: T.chipId(ctx.shareCodeId, s.student_id), first: firstName(s.student_name), animal: T.animalFor(s.student_id) } : null,
+          child: s.student_id ? { chip: T.chipId(ctx.shareCodeId, s.student_id), first: nameOf(s.student_id, s.student_name), animal: T.animalFor(s.student_id) } : null,
         };
       }
     }
@@ -792,12 +819,13 @@ async function startSession(body = {}) {
     // How the page identified the child (roll / name / remembered / chips / new): measures each path.
     via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
   });
+  const nameOf = await shownNames(ctx.lang, [student && student.id]);
   return {
     st: T.signSession({ sessionId: session.id, deviceRef, shareCodeId: ctx.shareCodeId }),
     device_ref: deviceRef,
     ...counted,
     resume: { answered: [] },
-    child: student ? { chip: T.chipId(ctx.shareCodeId, student.id), first: firstName(student.student_name), animal: T.animalFor(student.id) } : null,
+    child: student ? { chip: T.chipId(ctx.shareCodeId, student.id), first: nameOf(student.id, student.student_name), animal: T.animalFor(student.id) } : null,
   };
 }
 
@@ -914,7 +942,8 @@ async function finishSession(body = {}) {
   // Counted when no OTHER attempt finished before this one.
   const earlier = prior && s.completed_at && String(prior.completed_at) > String(s.completed_at) ? null : prior;
   const counted = countedFor(earlier, tok.d, Boolean(s.user_id));
-  const first = firstName(s.student_name);
+  const nameOf = await shownNames(s.student_id ? await codeLanguage(s.share_code_id) : null, [s.student_id]);
+  const first = nameOf(s.student_id, s.student_name);
   return {
     score: { correct, total, pct, level },
     ...counted,
@@ -951,8 +980,9 @@ async function board(code, { st } = {}) {
   // The teacher report's own loader: self-tests and invited friends out, one
   // attempt per child (first finished for a web-arm quiz).
   const cls = await report.loadClassRows(ctx.shareCodeId);
+  const nameOf = await shownNames(ctx.lang, ((cls && cls.rows) || []).map((r) => r.studentId));
   const rows = ((cls && cls.rows) || []).map((r) => ({
-    sessionId: r.sessionId, studentId: r.studentId, first: firstName(r.name),
+    sessionId: r.sessionId, studentId: r.studentId, first: nameOf(r.studentId, r.name),
     animal: T.animalFor(r.studentId || r.sessionId), correct: r.correct, total: r.total, pct: r.pct,
   }));
   const ranked = rankRows(rows);
