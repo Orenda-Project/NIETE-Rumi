@@ -12,6 +12,7 @@ screen and, after an answer, on the FEEDBACK screen:
   empty_option    an option with no visible text and no visible picture
   raw_dollar / raw_tex   maths left as "$…$" or "\\frac" on screen; no_math: $…$ in, no <math> out
   tex_letters     a TeX command the page did not know, spelled out inside <math> ("Omega", "begin")
+  slot_maths_small  an order step's maths shrinks when it is copied into its numbered slot
   urdu_font       Urdu text not set in the page's Nastaliq face, or the face never loaded
   figure_missing / figure_empty / figure_img_broken   the item has a picture and it is not drawn
 
@@ -137,6 +138,9 @@ CHECK_JS = r"""
   if (/\\[a-zA-Z]+/.test(txt)) P.push('raw_tex');
   if (maths && !root.querySelector('math')) P.push('no_math');
   for (const mi of root.querySelectorAll('math mi')) if ([...mi.textContent].length > 1) { P.push('tex_letters:' + mi.textContent); break; }
+  // an order step copied into its numbered slot keeps the size it had in the pool (maths read small there)
+  const pm = root.querySelector('.wq-pool .wq-m'), sm = root.querySelector('.wq-place .wq-m');
+  if (pm && sm && parseFloat(getComputedStyle(sm).fontSize) < 0.85 * parseFloat(getComputedStyle(pm).fontSize)) P.push('slot_maths_small:' + getComputedStyle(sm).fontSize + '<' + getComputedStyle(pm).fontSize);
   if (lang === 'ur') {
     if (!document.fonts.check('20px "WQ Nastaliq"', 'سیب')) P.push('urdu_font:not_loaded');
     for (const e of root.querySelectorAll('.wq-qtext,.wq-lab,.wq-pname,.wq-why,.wq-fb')) {
