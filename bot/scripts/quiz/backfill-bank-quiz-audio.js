@@ -33,7 +33,7 @@ const PAGE = 1000;
 const QUIZ_CONCURRENCY = 2;
 const DEFAULT_MAX_USD = 15;
 const DEFAULT_DAYS = 14;
-// Publishes of one quiz in a run: publish records at most 120 clips a call; the largest bank quiz has 133.
+// Publishes of one quiz in a run: publish records at most 120 clips a call; 54 bank quizzes have more (up to 169).
 const MAX_PASSES = 3;
 
 function parseArgs(argv) {
