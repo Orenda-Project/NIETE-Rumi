@@ -16,6 +16,7 @@ t "slot 3: bot port"             "$(printf '%s\n' "$out" | sed -nE 's/^E2E_BOT_P
 t "slot 3: redis port"           "$(printf '%s\n' "$out" | sed -nE 's/^E2E_REDIS_PORT=//p')"     "6393"
 t "slot 3: local DB API port"    "$(printf '%s\n' "$out" | sed -nE 's/^E2E_SUPABASE_PORT=//p')"  "54403"
 t "slot 3: local DB REST port"   "$(printf '%s\n' "$out" | sed -nE 's/^LOCAL_DB_REST_PORT=//p')" "54503"
+t "slot 3: local file store (R2) port" "$(printf '%s\n' "$out" | sed -nE 's/^LOCAL_R2_PORT=//p')" "54603"
 
 out=$(bash .claude/qa/shared/run-suite.sh menu --method mock --slot 0 --print-ports 2>&1)
 t "slot 0 (no --parallel) keeps the lane's defaults: nothing exported" "$out" ""
@@ -27,7 +28,7 @@ for n in 1 2 3 4 5 6 7 8 9 10 40; do
 done
 dupes=$(printf '%s\n' $all | sort | uniq -d | tr '\n' ' ')
 t "slots 1–10 and 40: no port is shared" "$dupes" ""
-clash=$(printf '%s\n' $all | grep -xE '54321|54329|54330' | tr '\n' ' ')
+clash=$(printf '%s\n' $all | grep -xE '54321|54329|54330|54600' | tr '\n' ' ')
 t "no slot lands on the unslotted local-DB ports" "$clash" ""
 
 echo; if [ "$fails" -eq 0 ]; then echo "run-suite-slots: all passed"; else echo "run-suite-slots: $fails failed"; fi

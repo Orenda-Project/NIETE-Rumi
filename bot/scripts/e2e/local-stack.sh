@@ -24,6 +24,9 @@
 #
 # E2E_LOCAL_DB=1 (bd-z3ze4): the bot runs on a clean per-run local database (local-db.sh) instead of the
 # shared sandbox Supabase; the keys file's SUPABASE_URL/SERVICE_ROLE_KEY are replaced by the run's own.
+# It also gets a per-run FILE store (local-r2.js, bd-z3ze4.1) instead of the staging R2 bucket: every upload
+# lands in <run_dir>/r2; a file the run did not write is read through from staging, read-only. The staging
+# R2 keys go to local-r2.js only; the bot gets dummy local ones.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
@@ -106,14 +109,23 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   local cassette_dir="${E2E_CASSETTE_DIR:-$REPO/.claude/qa/fixtures/cassettes}"; mkdir -p "$cassette_dir"   # committed fixture: recorded once, replayed by every run/clone
   # The database: the sandbox lines from the keys file, or (E2E_LOCAL_DB=1) this run's own local database.
   # dotenv keeps the FIRST value, so the keys file's SUPABASE_* must be REMOVED, not overridden below it.
-  local db_kind=sandbox db_lines
+  local db_kind=sandbox db_lines r2_port=""
   if [ "${E2E_LOCAL_DB:-0}" = 1 ]; then
     bash "$HERE/local-db.sh" up "$run_dir/db" >&2 || { log "local database did not come up — see $run_dir/db/"; exit 18; }
     db_lines=$(grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$run_dir/db/db.env")
     db_kind=local
+    r2_port="${LOCAL_R2_PORT:-54600}"
+    kv() { sed -nE "s/^$1=(.*)$/\1/p" "$keys" | head -1 | tr -d "\"'"; }   # a keys-file value, quotes stripped
+    ( cd "$src" && LOCAL_R2_UPSTREAM_ENDPOINT="$(kv R2_ENDPOINT)" LOCAL_R2_UPSTREAM_BUCKET="$(kv R2_BUCKET_NAME)" \
+        LOCAL_R2_UPSTREAM_KEY_ID="$(kv R2_ACCESS_KEY_ID)" LOCAL_R2_UPSTREAM_SECRET="$(kv R2_SECRET_ACCESS_KEY)" \
+        NODE_PATH="$src/bot/node_modules:$src/node_modules" exec node "$HERE/local-r2.js" "$r2_port" "$run_dir/r2" ) >"$run_dir/r2.log" 2>&1 &
+    echo $! >"$run_dir/r2.pid"
+    for i in $(seq 1 30); do curl -sf -m 2 "http://127.0.0.1:$r2_port/__health" >/dev/null 2>&1 && break; sleep 0.3; done
+    curl -sf -m 2 "http://127.0.0.1:$r2_port/__health" >/dev/null 2>&1 || { log "local file store not healthy on $r2_port (see $run_dir/r2.log)"; down "$run_dir"; exit 18; }
+    db_lines="$db_lines"$'\n'"R2_ENDPOINT=http://127.0.0.1:$r2_port"$'\n'"R2_ACCESS_KEY_ID=local"$'\n'"R2_SECRET_ACCESS_KEY=local"
   fi
   {
-    if [ "$db_kind" = local ]; then grep -vE '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$keys"; echo; echo "$db_lines"; else cat "$keys"; fi
+    if [ "$db_kind" = local ]; then grep -vE '^(SUPABASE_(URL|SERVICE_ROLE_KEY)|R2_(ENDPOINT|ACCESS_KEY_ID|SECRET_ACCESS_KEY))=' "$keys"; echo; echo "$db_lines"; else cat "$keys"; fi
     echo
     echo "# --- set by local-stack.sh for run $(basename "$run_dir") ---"
     echo "PORT=$bot_port"
@@ -202,7 +214,7 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   echo $! >"$run_dir/bot.pid"
   ( cd "$src" && exec node bot/workers/sqs-worker.js ) >"$run_dir/worker.log" 2>&1 &
   echo $! >"$run_dir/worker.pid"
-  echo "$mock_port $bot_port $redis_port $worker_port" >"$run_dir/ports"
+  echo "$mock_port $bot_port $redis_port $worker_port${r2_port:+ $r2_port}" >"$run_dir/ports"
   for i in $(seq 1 30); do redis-cli -p "$redis_port" ping 2>/dev/null | grep -q PONG && break; sleep 0.3; done
   redis-cli -p "$redis_port" ping 2>/dev/null | grep -q PONG || { log "redis not answering on $redis_port (see $run_dir/redis.log)"; down "$run_dir"; exit 16; }
 
@@ -221,7 +233,7 @@ import json, sys, datetime, os
 p, sha, src, bot, mock, phone, lock, nm, cas, pubkey_file, flows_dir = sys.argv[1:]
 json.dump({"commit_sha": sha, "worktree": src, "bot_url": "http://127.0.0.1:%s" % bot, "mock_url": "http://127.0.0.1:%s" % mock, "worker": True, "queue": "bullmq",
            "flow_public_key_file": pubkey_file, "flows_dir": flows_dir, "flows": "emulated",
-           "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": os.environ.get("STACK_CASSETTE_MODE", "replay-strict"), "db": os.environ.get("STACK_DB", "sandbox"),
+           "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": os.environ.get("STACK_CASSETTE_MODE", "replay-strict"), "db": os.environ.get("STACK_DB", "sandbox"), "files": "local" if os.environ.get("STACK_DB") == "local" else "r2:staging",
            "started_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")}, open(p, "w"), indent=1)
 PY
   log "up: bot $full on :$bot_port ← mock :$mock_port · worker :$worker_port · redis :$redis_port (worktree $src)"
@@ -230,7 +242,7 @@ PY
 
 down() {
   local run_dir="$1"
-  for f in worker bot mock redis; do
+  for f in worker bot mock redis r2; do
     if [ -f "$run_dir/$f.pid" ]; then kill "$(cat "$run_dir/$f.pid")" >/dev/null 2>&1 || true; rm -f "$run_dir/$f.pid"; fi
   done
   # Belt and braces: anything still listening on this run's ports goes too.
@@ -255,7 +267,8 @@ down() {
 restart() {
   local proc="$1" run_dir="$2"; shift 2
   local src="$run_dir/src"; [ -d "$src" ] || { log "restart: no $src"; exit 2; }
-  read -r mock_port bot_port redis_port worker_port <"$run_dir/ports"
+  local _more   # a local run appends its file-store port; it must not land in worker_port
+  read -r mock_port bot_port redis_port worker_port _more <"$run_dir/ports"
   export NODE_OPTIONS="--require \"$src/bot/scripts/e2e/dns-pin.js\""   # quoted: the workspace path has spaces
   if [ -f "$run_dir/$proc.pid" ]; then kill "$(cat "$run_dir/$proc.pid")" >/dev/null 2>&1 || true; fi
   case "$proc" in
