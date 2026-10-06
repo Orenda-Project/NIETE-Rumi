@@ -4,8 +4,7 @@ import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
 import { coach, leader } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
 import {
-  CoachPage, Card, SectionLabel, Chip, IconCircle, Initials, RowText, Stats, SearchBox, StepBar, BottomButton,
-  BottomLink, Loading, Failed, useLoad, personMatches, Chevron, formatPhone,
+  CoachPage, Card, SectionLabel, Chip, Initials, RowText, Stats, SearchBox, StepBar, BottomButton, BottomLink, Loading, Failed, useLoad, personMatches, Chevron, formatPhone, IconTile,
 } from "../ui";
 import { DEFAULT_TIME, formatSlot, fromSlot, isAllowedSlot, localDay, pickHour, stepHour, toSlot, type VisitTime } from "../time";
 import type { CoachSchool, CoachTeacher } from "../types";
@@ -64,7 +63,7 @@ function SchoolStep({ schools, onPick }: { schools: CoachSchool[]; onPick: (s: C
       {[...schools].sort(bySince).map((s) => (
         <Link key={s.schoolExtId} to={onPick(s)} data-testid="school-option"
           className="flex min-h-[84px] items-center gap-3.5 rounded-2xl border border-[#e5e7eb] bg-white p-3 pe-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] hover:bg-[#f9fafb]">
-          <IconCircle hue="schools" size={48}><School className="h-6 w-6" /></IconCircle>
+          <IconTile hue="schools" size={48} testId="school-icon"><School className="h-6 w-6" /></IconTile>
           <RowText name={s.name || C.dash} sub={`${C.teachersCount(s.teachers)} · ${C.lastVisitDays(s.daysSinceVisit)}`} />
           <Chevron />
         </Link>
@@ -80,7 +79,7 @@ function TeacherStep({ school, teachers, linkFor }: { school: CoachSchool | unde
     <>
       <StepBar step={2} />
       <Card className="flex min-h-[60px] items-center gap-3 p-1.5 ps-3">
-        <IconCircle hue="schools" size={40}><School className="h-5 w-5" /></IconCircle>
+        <IconTile hue="schools" size={40} testId="school-icon"><School className="h-5 w-5" /></IconTile>
         <RowText name={<span className="text-base">{school?.name || C.dash}</span>} sub={school ? C.teachersCount(school.teachers) : undefined} />
         <Link to="/portal/coach/new-visit" className="flex min-h-[48px] min-w-[88px] items-center justify-center rounded-xl bg-[#f3f4f6] px-3.5 text-sm font-semibold text-[#33374a]">{C.change}</Link>
       </Card>

@@ -3,7 +3,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import { School } from "lucide-react";
 import { coach } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
-import { CoachPage, Tabs, SearchBox, SelectBox, ChoiceChips, Initials, IconCircle, RowText, Stats, Loading, Failed, useLoad, personMatches, Chevron } from "../ui";
+import {
+  CoachPage, Tabs, SearchBox, SelectBox, ChoiceChips, Initials, RowText, Stats, Loading, Failed, useLoad, personMatches, Chevron, IconTile,
+} from "../ui";
 import type { CoachSchool, CoachTeacher } from "../types";
 
 /**
@@ -53,7 +55,7 @@ function SchoolCard({ s }: { s: CoachSchool }) {
     <Link to={`/portal/coach/school/${encodeURIComponent(s.emis || "")}`} className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)] hover:bg-[#f9fafb]">
       <span data-testid="school-card" className="flex flex-col">
         <span className="flex min-h-[68px] items-center gap-3 p-2.5 ps-3.5">
-          <IconCircle hue="schools" size={44}><School className="h-[22px] w-[22px]" /></IconCircle>
+          <IconTile hue="schools" size={44} testId="school-icon"><School className="h-[22px] w-[22px]" /></IconTile>
           <RowText name={s.name || C.dash} />
           <Chevron />
         </span>
