@@ -530,8 +530,12 @@ async function enrollStudent({ classId, studentId, rollNumber = null, enrolledOn
     .single();
 
   if (insErr || !inserted) {
-    logToFile('⚠️ ClassService.enrollStudent: insert failed', { error: insErr && insErr.message });
-    return { error: 'insert_failed' };
+    logToFile('⚠️ ClassService.enrollStudent: insert failed', {
+      classId, studentId, rollNumber, code: insErr && insErr.code, error: insErr && insErr.message,
+    }, 'error');
+    // 23505 = the unique index on (class_id, roll) said another child holds this roll. A caller
+    // that picked the roll itself can re-read the roster and pick again.
+    return { error: 'insert_failed', rollClash: Boolean(insErr && insErr.code === '23505') };
   }
   return { enrollment: inserted, created: true };
 }
@@ -906,7 +910,18 @@ async function addStudent({
     logToFile('⚠️ ClassService.addStudent: enrolled failed after the student row was written', {
       studentId: student.id, error: enrolled.error,
     }, 'error');
-    return { error: enrolled.error, student };
+    // Do not leave the row behind: an ACTIVE student with no enrolment is a same-name twin on the
+    // teacher's legacy list. Soft-deactivate (never DELETE: row history hangs off students).
+    const { error: undoErr } = await supabase
+      .from('students')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', student.id);
+    if (undoErr) {
+      logToFile('⚠️ ClassService.addStudent: could not take back the student row', {
+        studentId: student.id, error: undoErr.message,
+      }, 'error');
+    }
+    return { error: enrolled.error, rollClash: Boolean(enrolled.rollClash) };
   }
 
   return { student, enrollment: enrolled.enrollment };
@@ -995,10 +1010,39 @@ async function addStudents({ classId, teacherUserId, rawText } = {}) {
   const parsed = StudentListService.parseStudentText(typeof rawText === 'string' ? rawText : '');
   if (!parsed.length) return { error: 'no_names' };
 
-  // Who is already on the roster, so a re-paste is not a duplicate.
+  // A paste submitted twice is two callers on one class. Serialise them inside this process so the
+  // common case (same replica) never contends; the roll clash handling below covers replicas.
+  return withClassLock(classId, () => addParsedStudents({ classId, teacherUserId, parsed }));
+}
+
+/** Per-class queue: one bulk add at a time per process. */
+const classLocks = new Map();
+function withClassLock(classId, fn) {
+  const prev = classLocks.get(classId) || Promise.resolve();
+  const run = prev.then(fn, fn);
+  const tail = run.catch(() => {});
+  classLocks.set(classId, tail);
+  tail.then(() => { if (classLocks.get(classId) === tail) classLocks.delete(classId); });
+  return run;
+}
+
+/** One re-read of who is on the class: the names taken and the highest roll in use. */
+async function readRoster({ classId, teacherUserId }) {
   const onRoster = await listStudents({ classId, teacherUserId });
-  const seen = new Set(onRoster.map((s) => String(s.studentName).trim().toLowerCase()));
-  let nextRoll = onRoster.reduce((m, s) => Math.max(m, s.rollNumber || 0), 0);
+  return {
+    seen: new Set(onRoster.map((s) => String(s.studentName).trim().toLowerCase())),
+    maxRoll: onRoster.reduce((m, s) => Math.max(m, s.rollNumber || 0), 0),
+  };
+}
+
+/** How many times one child may re-pick a roll after another writer took it. */
+const ROLL_RETRIES = 5;
+
+async function addParsedStudents({ classId, teacherUserId, parsed }) {
+  // Who is already on the roster, so a re-paste is not a duplicate.
+  const roster = await readRoster({ classId, teacherUserId });
+  const seen = new Set(roster.seen);   // grows with this paste's own names, for the within-paste dedupe
+  let nextRoll = roster.maxRoll;
 
   let duplicates = 0;
   const wanted = [];
@@ -1013,19 +1057,39 @@ async function addStudents({ classId, teacherUserId, rawText } = {}) {
   const dropped = Math.max(0, wanted.length - MAX_PASTE);
   const toAdd = wanted.slice(0, MAX_PASTE);
 
+  // Names on the class as of the LAST read. It starts as the roster we began with and is replaced
+  // after every clash, so a child another writer has since added is skipped, not added twice.
+  let taken = roster.seen;
   const students = [];
   for (const row of toAdd) {
-    nextRoll += 1;
-    const res = await addStudent({
-      classId,
-      teacherUserId,
-      studentName: row.studentName,
-      fatherName: row.fatherName || null,
-      rollNumber: nextRoll,
-    });
+    const key = String(row.studentName).trim().toLowerCase();
+    if (taken.has(key)) { duplicates += 1; continue; }
+    let res = null;
+    let skipped = false;
+    for (let attempt = 0; attempt <= ROLL_RETRIES; attempt += 1) {
+      nextRoll += 1;
+      // eslint-disable-next-line no-await-in-loop
+      res = await addStudent({
+        classId,
+        teacherUserId,
+        studentName: row.studentName,
+        fatherName: row.fatherName || null,
+        rollNumber: nextRoll,
+      });
+      if (!res.error || !res.rollClash) break;
+      // Another writer (a second submit, another replica) took this roll. The unique index is the
+      // arbiter. Re-read the class: the child may be there now (skip, it is theirs), else take
+      // the next free roll and go again.
+      // eslint-disable-next-line no-await-in-loop
+      const fresh = await readRoster({ classId, teacherUserId });
+      nextRoll = Math.max(nextRoll, fresh.maxRoll);
+      taken = fresh.seen;
+      if (fresh.seen.has(key)) { duplicates += 1; skipped = true; break; }
+    }
+    if (skipped) continue;
     if (res.error) {
       logToFile('⚠️ ClassService.addStudents: stopped part-way', {
-        classId, added: students.length, error: res.error,
+        classId, added: students.length, error: res.error, rollClash: Boolean(res.rollClash),
       }, 'error');
       // Report what DID land rather than pretending none of it did — the teacher
       // needs to know what to re-paste.
