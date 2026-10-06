@@ -1378,6 +1378,7 @@ Feature: NIETE (ICT) Teacher Training
     When its quiz page is first opened
     Then its clips are published once in the background, and the page is not kept waiting
     And the feedback for each wrong option is recorded on that option's slot
+    And that feedback is recorded without option letters, "the correct answer is", praise, or a short cheer after the reason
     And a complete publish is stamped with the voice version so it is not redone, while a partial one is retried later
     # ADDED 2026-10-05: web-quiz-publish ensureQuizAudio (in-process dedupe, 15 min retry), PARTS_FB xa..xd, meta.web.audio_v; getQuiz calls it unawaited. @wip.
 
