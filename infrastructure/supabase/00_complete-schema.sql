@@ -557,6 +557,9 @@ CREATE TABLE IF NOT EXISTS students (
     -- deliver quizzes and by the edit-class flow's add/edit-student forms.
     parent_phone TEXT,
     is_active BOOLEAN DEFAULT true,
+    -- bot/database/migrations/student_identity.sql: a typed child merged into a class-list child.
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive','merged')),
+    merged_into UUID REFERENCES students(id),
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
     PRIMARY KEY (id)
