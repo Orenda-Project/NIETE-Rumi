@@ -91,6 +91,18 @@ function since({ shareCodeId, sessionId, sinceMs = 0, max = SINCE_MAX } = {}) {
 }
 
 /**
+ * How many different children of this class code got a question right in the last 2 minutes
+ * (distinct session hashes in the ring) — "3 classmates are playing right now". A count only.
+ * Right answers are what the ring holds, so a child with only wrong answers so far is not counted:
+ * the number can be low, never high.
+ */
+function liveNow(shareCodeId) {
+  const list = rings.get(shareCodeId);
+  if (!list) return 0;
+  return new Set(fresh(list, now()).map((e) => e.h)).size;
+}
+
+/**
  * GET /pulse/:code?st=&since= — the idle poll. The signed session token names the
  * session and its class code, so no session row is read; the code's id is looked
  * up once per process and cached (a challenge code resolves to its class code,
@@ -118,7 +130,7 @@ async function poll(rawCode, { st, since: sinceMs } = {}, WQ) {
 }
 
 module.exports = {
-  push, since, poll, knownName, rememberName,
+  push, since, poll, liveNow, knownName, rememberName,
   RING_MAX, TTL_MS, CODES_MAX,
   // tests
   _reset: () => { rings.clear(); codeIds.clear(); names.clear(); },

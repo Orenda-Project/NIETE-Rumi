@@ -489,7 +489,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       offWait: 'Your results will reach your teacher when you are back online.', offDone: 'All done! Your answers are saved on this phone.', tryNow: 'Send now',
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
-      pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right ✓'; }
+      pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right ✓'; },
+      liveNow: function (n) { return n + ' classmates are playing right now — join them!'; },
+      nth: function (n) {
+        if (n === 1) return "You're the first in your class to finish today!";
+        var t = n % 100, u = n % 10, sfx = t >= 11 && t <= 13 ? 'th' : u === 1 ? 'st' : u === 2 ? 'nd' : u === 3 ? 'rd' : 'th';
+        return ["You're the ", '<bdi>' + n + sfx + '</bdi>', ' in your class to finish today'];
+      }
     },
     ur: {
       quiz: 'کوئز', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, '\u00A0') : ''].filter(Boolean).join(' · '); },
@@ -544,7 +550,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
       friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں',
-      pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + n + ' ٹھیک کیا ✓'; }
+      pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + n + ' ٹھیک کیا ✓'; },
+      liveNow: function (n) { return 'ابھی ' + n + ' ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!'; },
+      nth: function (n) {
+        if (n === 1) return 'آج آپ کی کلاس میں سب سے پہلے آپ نے مکمل کیا!';
+        return ['آج آپ کی کلاس میں مکمل کرنے والوں میں آپ کا نمبر ', '<bdi>' + n + '</bdi>', ' ہے'];
+      }
     }
   }[LANG];
 
@@ -1118,7 +1129,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
-      (LIVE.class_today ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '');
+      (LIVE.class_today ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
+      // Classmates with a right answer in the last 2 minutes (a count from the bot's memory); never on a friend's challenge.
+      (LIVE.now >= 2 && !ch ? '<p class="wq-proof">🟢 ' + esc(T.liveNow(LIVE.now)) + '</p>' : '');
     render(h, 'M3');
     wireBar();
     on('#wq-play', who);
@@ -1887,6 +1900,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   /* ---------------- M10 scorecard ---------------- */
+  // "You're the 6th in your class to finish today": the copy's text escaped, the number isolated (<bdi>).
+  function nthHtml(n) {
+    var t = T.nth(Number(n));
+    return typeof t === 'string' ? esc(t) : esc(t[0]) + t[1] + esc(t[2]);
+  }
   function card() {
     var res = S.result || {};
     var c = res.card || {};
@@ -1903,6 +1921,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
       (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '') +
       vsStrip(res.vs, c, total) + newBest(c, total) +
+      (c.nth ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth) + '</span></p>' : '') +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +

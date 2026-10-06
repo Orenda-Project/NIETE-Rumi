@@ -199,3 +199,61 @@ describe('two children on one class code', () => {
     expect(JSON.stringify(recB.pulse)).not.toMatch(/Friend|Teacher/);
   });
 });
+
+// ─── "class is live" and "you're the Nth today" (built on the pulse ring) ───
+
+describe('live now (distinct classmates with a right answer in the last 2 minutes)', () => {
+  test('the ring counts distinct sessions, and forgets them after 120 s', () => {
+    let t = 5_000_000;
+    Pulse._setClock(() => t);
+    Pulse.push({ shareCodeId: 'c1', sessionId: 's-a', first: 'Sara', qn: 1 });
+    Pulse.push({ shareCodeId: 'c1', sessionId: 's-a', first: 'Sara', qn: 2 });
+    Pulse.push({ shareCodeId: 'c1', sessionId: 's-b', first: 'Ali', qn: 1, invited: true });
+    expect(Pulse.liveNow('c1')).toBe(2);
+    expect(Pulse.liveNow('c2')).toBe(0);
+    t += 121_000;
+    expect(Pulse.liveNow('c1')).toBe(0);
+  });
+
+  test('E2 carries live.now for the class code (a count only)', async () => {
+    const a = await play('Sara Testwala');
+    const b = await play('Ali Testwala');
+    await WQ.recordAnswers({ st: a.st, a: [{ qid: qid(1), slot: 'B' }] });
+    await WQ.recordAnswers({ st: b.st, a: [{ qid: qid(2), slot: 'B' }] });
+    const out = await WQ.getQuiz('PULSE1');
+    expect(out.live.now).toBe(2);
+    expect(JSON.stringify(out.live)).not.toMatch(/Sara|Ali/);
+  });
+});
+
+describe("the card's place among today's class finishers", () => {
+  const finish = async (name, wrongs = 0) => {
+    const k = await play(name);
+    await WQ.recordAnswers({ st: k.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: n <= wrongs ? 'A' : 'B' })) });
+    return { k, fin: await WQ.finishSession({ st: k.st }) };
+  };
+
+  test('the first finisher today is 1st, the next is 2nd', async () => {
+    const one = await finish('Sara Testwala');
+    expect(one.fin.card.nth).toBe(1);
+    const two = await finish('Ali Testwala', 1);
+    expect(two.fin.card.nth).toBe(2);
+  });
+
+  test('a practice round, an invited friend and the teacher preview get no place', async () => {
+    const one = await finish('Sara Testwala');
+    // The same child again (a second session for the same student): practice, no place.
+    const again = await WQ.startSession({ code: 'PULSE1', from_st: one.k.st });
+    await WQ.recordAnswers({ st: again.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
+    const fin2 = await WQ.finishSession({ st: again.st });
+    expect(fin2.counted).toBe(false);
+    expect(fin2.card.nth).toBeUndefined();
+    fake.db.quiz_share_codes.find((c) => c.code === one.fin.challenge_code).active = true;
+    const friend = await WQ.startSession({ code: one.fin.challenge_code, new: { name: 'Friend Testwala', force: true } });
+    await WQ.recordAnswers({ st: friend.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
+    expect((await WQ.finishSession({ st: friend.st })).card.nth).toBeUndefined();
+    const teacher = await WQ.startSession({ code: 'PULSE1', p: T.signPreview({ shareCodeId: SC, teacherUserId: TEACHER }) });
+    await WQ.recordAnswers({ st: teacher.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
+    expect((await WQ.finishSession({ st: teacher.st })).card.nth).toBeUndefined();
+  });
+});
