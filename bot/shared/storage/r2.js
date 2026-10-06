@@ -936,10 +936,10 @@ async function uploadImageWithRetry(imageBuffer, userId, imageId, mimeType) {
  * @param {string} contentType - MIME content type
  * @returns {Promise<string>} Public URL of uploaded file
  */
-async function uploadBuffer(buffer, key, contentType = 'application/octet-stream') {
+async function uploadBuffer(buffer, key, contentType = 'application/octet-stream', { bucket } = {}) {
   try {
     const command = new PutObjectCommand({
-      Bucket: BUCKET_NAME,
+      Bucket: bucket || BUCKET_NAME,
       Key: key,
       Body: buffer,
       ContentType: contentType,
@@ -949,7 +949,7 @@ async function uploadBuffer(buffer, key, contentType = 'application/octet-stream
     });
 
     await getR2Client().send(command);
-    const publicUrl = buildR2PublicUrl(key);
+    const publicUrl = bucket ? `${process.env.R2_ENDPOINT}/${bucket}/${key}` : buildR2PublicUrl(key);
 
     console.log(`✅ Buffer uploaded to R2: ${key} (${buffer.length} bytes)`);
     return publicUrl;
@@ -984,9 +984,9 @@ async function getPresignedUploadUrl(key, contentType, expiresIn = 900) {
  * @param {string} key
  * @returns {Promise<{exists: boolean, sizeBytes?: number, contentType?: string}>}
  */
-async function headObject(key) {
+async function headObject(key, { bucket } = {}) {
   try {
-    const res = await getR2Client().send(new HeadObjectCommand({ Bucket: BUCKET_NAME, Key: key }));
+    const res = await getR2Client().send(new HeadObjectCommand({ Bucket: bucket || BUCKET_NAME, Key: key }));
     return { exists: true, sizeBytes: res.ContentLength, contentType: res.ContentType };
   } catch (error) {
     const status = error && error.$metadata && error.$metadata.httpStatusCode;
@@ -997,8 +997,19 @@ async function headObject(key) {
   }
 }
 
+/**
+ * A short-lived GET link for one object, by key, in a named bucket (default: R2_BUCKET_NAME).
+ * Unlike getPresignedUrl it takes the key itself, so it works for a bucket other than the
+ * default one; it logs nothing per link (a quiz page signs ~50 at once). Throws on failure.
+ */
+async function presignKey(key, expiresIn = 3600, { bucket } = {}) {
+  if (!key) throw new Error('presignKey needs a key');
+  return getSignedUrl(getR2Client(), new GetObjectCommand({ Bucket: bucket || BUCKET_NAME, Key: key }), { expiresIn });
+}
+
 module.exports = {
   getPresignedUploadUrl,
+  presignKey,
   headObject,
   uploadAudio,
   deleteAudio,

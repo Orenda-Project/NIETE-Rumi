@@ -203,16 +203,17 @@ var WQI = (function () {
     var fg = q.figure || {};
     // A stem that already points at the picture does not need the figure's own pointer first.
     var points = /\b(look|picture|diagram|figure|drawing)\b|تصویر|شکل|خاکہ/i.test(String(q.text || ''));
-    if (fg.say && speakable(fg.say) && !points) parts.push({ text: fg.say, url: null });
-    parts.push({ text: rd.stem || say(q.text, lang), url: (au && au.q) || null });
-    if (au && au.stim) parts.push({ text: '', url: au.stim, stim: true });
-    if (kind(q) === 'match') (q.left || []).forEach(function (l) { if (speakable(l.text)) parts.push({ text: say(l.text, lang), url: null }); });
+    // p: the kind of part, logged with audio_missing so misses can be counted per kind.
+    if (fg.say && speakable(fg.say) && !points) parts.push({ text: fg.say, url: null, p: 'fig' });
+    parts.push({ text: rd.stem || say(q.text, lang), url: (au && au.q) || null, p: 'q' });
+    if (au && au.stim) parts.push({ text: '', url: au.stim, stim: true, p: 'stim' });
+    if (kind(q) === 'match') (q.left || []).forEach(function (l) { if (speakable(l.text)) parts.push({ text: say(l.text, lang), url: null, p: 'left' }); });
     if (kind(q) === 'label') return parts;
     opts(q).forEach(function (o, k) {
       var si = 'ABCD'.indexOf(String(o.slot || '').charAt(0));
       var url = au && au.opts && si >= 0 ? au.opts[si] || null : null;
       var t = (rd.opts && rd.opts[k]) || o.name || (o.pic && o.pic.name) || say(o.text, lang);
-      if (url || speakable(t)) parts.push({ text: t, url: url });
+      if (url || speakable(t)) parts.push({ text: t, url: url, p: 'opt' });
     });
     return parts;
   }
@@ -648,12 +649,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   window.addEventListener('online', function () { flushQueue(); });
 
   /* ---------------- the shared feedback voice ----------------
-     Lines recorded ONCE for every quiz (public/wq/voice/<lang>/<set>-<i>.mp3, manifest.json beside them;
-     Urdu: Soniox, English: ElevenLabs v3, chosen by a blind listening bake-off). The words here are
+     Lines recorded ONCE for every quiz (public/wq/voice/<lang>/<set>-<i>.mp3, manifest.json beside them,
+     its `voices` naming the voice: the quiz's ONE voice per language, bot/shared/services/quiz/
+     web-quiz-voice.js, the same voice as every per-quiz clip). VOICE_V is the hash of the recorded
+     files (a test holds it), so a re-record reaches every phone. The words here are
      exactly the recorded words (a test holds them to manifest.json); one is picked at random per
      answer, never the same one twice in a row. Urdu addresses the child only with imperatives or
      noun phrases; a not-yet line never praises. */
-  var VOICE_V = '4c4e3f35';
+  var VOICE_V = 'af23702c';
   var VOICE = {"en": {"right": ["Yes! That's right!", "You got it!", "Correct! Well spotted.", "Yes! That's the one.", "Right answer! Good thinking.", "Yes! You checked carefully.", "That's it! Well done.", "Spot on!", "Yes! Keep it up.", "Brilliant, that's right!"], "notyet": ["Not yet. The answer is", "Not quite. The right answer is", "Not this one. The answer is", "Let's learn it together. The answer is", "That one was tricky. The answer is", "Not this time. The right answer is", "Hmm, not yet. The answer is", "No problem, let's see. The answer is"], "fixed": ["Fixed it!", "Now you've got it!", "Yes! That's it now.", "You worked it out!", "Second try, and it's right!", "That's the one!", "Now it's right. Well done!", "Yes! Fixed it."], "done": ["Quiz complete! Every question done.", "All done! Thank you for playing.", "You finished the whole quiz!", "The end! Let's see your stars.", "That was the last one. All done!", "Finished! Well played.", "Quiz complete! Let's look at your stars.", "Every question answered. Well done!"], "cheer": ["Halfway there! Keep going.", "Keep going!", "Take your time and listen carefully.", "On to the next one!", "Half the quiz done!", "Every question teaches something new.", "Let's keep going!", "Half the questions done!"], "notyetpic": ["Not yet. Look, this one is right."], "tftrue": ["Not yet. This sentence is true."], "tffalse": ["Not yet. This sentence is false."]}, "ur": {"right": ["شاباش! بالکل صحیح!", "جی ہاں! یہی صحیح جواب ہے۔", "واہ! بالکل ٹھیک۔", "زبردست! صحیح جواب۔", "بہت خوب! یہی تو ہے۔", "صحیح! غور سے دیکھنا کام آیا۔", "جی ہاں! بہت عمدہ جواب۔", "کمال! بالکل درست۔", "ہاں! یہی ہے صحیح جواب۔", "شاباش! ایسے ہی آگے چلیں۔"], "notyet": ["ابھی نہیں۔ صحیح جواب ہے:", "یہ والا نہیں۔ صحیح جواب ہے:", "کوئی بات نہیں۔ صحیح جواب ہے:", "آئیں مل کر سیکھیں۔ صحیح جواب ہے:", "یہ سوال مشکل تھا۔ صحیح جواب ہے:", "اس بار نہیں۔ صحیح جواب ہے:", "ابھی نہیں۔ آئیں دیکھیں، صحیح جواب ہے:", "کوشش سے ہی سیکھتے ہیں۔ صحیح جواب ہے:"], "fixed": ["ٹھیک ہو گیا!", "اب بالکل صحیح!", "جی ہاں! اب ٹھیک ہے۔", "شاباش! دوسری کوشش میں صحیح۔", "زبردست! اب بات سمجھ میں آ گئی۔", "واہ! یہی ہے صحیح جواب۔", "کمال! اب درست ہے۔", "بہت خوب! اب جواب ٹھیک ہے۔"], "done": ["کوئز مکمل! سارے سوال ہو گئے۔", "شاباش! پورا کوئز مکمل۔", "کوئز ختم! چلیں، ستارے دیکھیں۔", "واہ! آخری سوال بھی ہو گیا۔", "مکمل! کھیلنے کا شکریہ۔", "زبردست! پورا کوئز حل ہو گیا۔", "کوئز پورا ہو گیا! بہت خوب۔", "سارے سوال مکمل! شاباش۔"], "cheer": ["آدھا کوئز ہو گیا! چلتے رہیں۔", "آدھا راستہ طے، آگے چلیں!", "ہمت نہ ہاریں، اگلا سوال!", "آرام سے، غور سے سنیں۔", "چلیں، اگلا سوال دیکھیں!", "ہر سوال سے کچھ نیا سیکھیں۔", "ایسے ہی چلتے رہیں!", "آدھے سوال ہو گئے!"], "notyetpic": ["ابھی نہیں۔ دیکھیں، یہ والا صحیح ہے۔"], "tftrue": ["ابھی نہیں۔ یہ بات درست ہے۔"], "tffalse": ["ابھی نہیں۔ یہ بات غلط ہے۔"]}};
   var lastPick = {};
   function vline(set) {
@@ -693,6 +696,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
   }
   // Recorded clip when the payload has one, else the phone's own voice. done() runs when it ends.
+  // One voice: a clip that is only SLOW is never swapped for the phone's voice (that is a second
+  // voice in the same sentence). After CLIP_SLOW_MS the words are shown big while it keeps loading;
+  // after CLIP_GIVEUP_MS with no sound the line is let go quietly (logged as stalled). A clip the
+  // browser refused to start (autoplay before a tap) is not spoken by the phone either: the speaker
+  // button pulses ("tap to hear") and a tap plays the clips. Only a clip that cannot play here at all
+  // (an error, a format this phone lacks) falls back to the phone's voice.
+  var CLIP_SLOW_MS = 2000, CLIP_GIVEUP_MS = 8000;
   function speak(text, url, done, meta) {
     stopVoice();
     if (!SOUND) { if (done) done(); return; }
@@ -713,6 +723,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         try { if (player) player.pause(); } catch (e) {}
         player = null;
         ev('audio_fallback', { reason: why });
+        if (why === 'stalled') { end(); return; }
+        if (why === 'reject') { try { ROOT.classList.add('wq-tap'); } catch (e) {} end(); return; }
         speakTts(text, end);
       };
       try {
@@ -724,7 +736,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         a.addEventListener('playing', function () { started = true; });
         a.onended = function () { if (!switched) end(); };
         a.onerror = function () { fallback('error'); };
-        setTimeout(function () { if (!started) fallback('stalled'); }, 2000);
+        setTimeout(function () { if (!started && !switched && !fin && gen === voiceGen) try { ROOT.classList.add('wq-novoice'); } catch (e) {} }, CLIP_SLOW_MS);
+        setTimeout(function () { if (!started) fallback('stalled'); }, CLIP_GIVEUP_MS);
         var pr = a.play();
         if (pr && pr.catch) pr.catch(function (e) { fallback('reject'); });
         return;
@@ -752,6 +765,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function speakTts(text, end) {
     try {
       if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) { setTimeout(end, 4000); return; }
+      // The phone's own voice is a different voice from the quiz's: the speaker button says so (📱).
+      try { ROOT.classList.add('wq-phonevoice'); } catch (e) {}
       var u = new SpeechSynthesisUtterance(text);
       u.lang = LANG === 'ur' ? 'ur-PK' : 'en-US';
       u.rate = 0.9;
@@ -770,7 +785,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function render(html, moment) {
     clearTimers();
     stopVoice();
-    try { ROOT.classList.remove('wq-novoice'); } catch (e) {}
+    try { ROOT.classList.remove('wq-novoice'); ROOT.classList.remove('wq-phonevoice'); ROOT.classList.remove('wq-tap'); } catch (e) {}
     ROOT.innerHTML = '<section class="wq-screen" data-m="' + moment + '">' + (LANG === 'ur' ? latinRuns(html) : html) + '</section>';
     ROOT.setAttribute('data-m', moment);
     try { window.scrollTo(0, 0); } catch (e) {}
@@ -1436,7 +1451,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     (function nextPart() {
       if (i >= parts.length) { if (done) done(); return; }
       var k = i, part = parts[i++];
-      speak(part.text, part.url, nextPart, qid ? { qid: qid, part: k } : null);
+      speak(part.text, part.url, nextPart, qid ? { qid: qid, part: part.p || k } : null);
     })();
   }
 

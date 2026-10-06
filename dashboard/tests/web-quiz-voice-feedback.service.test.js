@@ -30,7 +30,8 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'en', store = {}, noVoice = false } = {}) {
+function page({ lang = 'en', store = {}, noVoice = false, stallClips = false } = {}) {
+  const timers = []; // { fn, ms }: recorded, run only by a test that asks (runTimers)
   const voiced = []; // in order: { url } for a clip, { text } for the phone's voice
   const clips = [];
   const utterances = [];
@@ -39,7 +40,7 @@ function page({ lang = 'en', store = {}, noVoice = false } = {}) {
   class FakeAudio {
     constructor(url) { this.url = url; this.paused = true; this.listeners = {}; clips.push(this); voiced.push({ url }); }
     addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); }
-    play() { this.paused = false; this.plays = (this.plays || 0) + 1; (this.listeners.playing || []).forEach((f) => f()); return Promise.resolve(); }
+    play() { this.paused = false; this.plays = (this.plays || 0) + 1; if (!stallClips) (this.listeners.playing || []).forEach((f) => f()); return Promise.resolve(); }
     pause() { this.paused = true; }
     canPlayType() { return 'probably'; }
   }
@@ -77,7 +78,7 @@ function page({ lang = 'en', store = {}, noVoice = false } = {}) {
     AudioContext: function AudioContext() { return actx; },
     SpeechSynthesisUtterance: function SpeechSynthesisUtterance(text) { this.text = text; },
     speechSynthesis: { speak: (u) => { utterances.push(u); voiced.push({ text: u.text }); }, cancel: () => { cancels += 1; } },
-    setInterval: () => 0, setTimeout: () => 0, clearTimeout() {},
+    setInterval: () => 0, setTimeout: (fn, ms) => { timers.push({ fn, ms: ms || 0 }); return timers.length; }, clearTimeout() {},
     scrollTo() {}, Image: function Image() {},
     addEventListener: (n, fn) => { (winListeners[n] = winListeners[n] || []).push(fn); },
   };
@@ -92,7 +93,9 @@ function page({ lang = 'en', store = {}, noVoice = false } = {}) {
     else if (last && last.text != null) { const u = utterances[utterances.length - 1]; if (u.onend) u.onend(); }
   };
   const fire = (target, n) => ((target === 'doc' ? docListeners : winListeners)[n] || []).forEach((fn) => fn({}));
-  return { ctx, wq: ctx.__wq, voiced, clips, media, actx, advance, fire, cancels: () => cancels, els, rootClasses, store };
+  // Runs (once) every recorded timer due within `ms` of its start, in order of its delay.
+  const runTimers = (ms) => timers.filter((t) => !t.ran && t.ms <= ms).sort((a, b) => a.ms - b.ms).forEach((t) => { t.ran = true; t.fn(); });
+  return { ctx, wq: ctx.__wq, voiced, clips, media, actx, advance, fire, cancels: () => cancels, els, rootClasses, store, runTimers, utterances };
 }
 const flush = () => new Promise((r) => setImmediate(r));
 
@@ -198,7 +201,8 @@ describe('the feedback voice library', () => {
   test('every line the page can say has its recorded clip, and the page holds exactly the recorded words', () => {
     const p = page({ lang: 'en' });
     const lib = JSON.parse(JSON.stringify(p.wq.VOICE || {}));
-    expect(lib).toEqual(MANIFEST);
+    const { voices, ...lines } = MANIFEST; // voices: which voice the clips were recorded in
+    expect(lib).toEqual(lines);
     for (const lang of ['en', 'ur']) {
       for (const set of ['right', 'notyet', 'fixed', 'done', 'cheer']) expect((lib[lang] || {})[set].length).toBeGreaterThanOrEqual(8);
       Object.entries(lib[lang]).forEach(([set, lines]) => lines.forEach((_, i) => {
@@ -323,4 +327,58 @@ describe('a part with no recorded clip', () => {
 test('the not-yet line never doubles the full stop when the answer ends with one', () => {
   const p = page({ lang: 'en' });
   expect(p.wq.T.notyet('Not yet. The answer is', 'Our friends play together.')).toBe('Not yet. The answer is "Our friends play together".');
+});
+
+/* ---------------- one voice: a clip is never swapped for the phone's voice just for being slow ---------------- */
+describe('one voice on a slow connection', () => {
+  test('a clip that has not started after 2 s keeps loading (words shown big) — the phone voice does not speak', () => {
+    const p = page({ lang: 'ur', stallClips: true });
+    p.wq.speak('سوال', 'https://r2.example/q.ogg', null, { qid: 'q1', part: 'q' });
+    p.runTimers(2000);
+    expect(p.utterances.length).toBe(0);
+    expect(p.clips[0].paused).toBe(false);
+    expect(p.rootClasses.has('wq-novoice')).toBe(true);
+  });
+  test('after 8 s with no sound the line is given up quietly and logged as stalled — still no second voice', () => {
+    const p = page({ lang: 'en', stallClips: true });
+    const done = jest.fn();
+    p.wq.speak('Which part?', 'https://r2.example/q.ogg', done, { qid: 'q1', part: 'q' });
+    p.runTimers(8000);
+    expect(p.utterances.length).toBe(0);
+    expect(done).toHaveBeenCalled();
+    const fb = JSON.parse(JSON.stringify(p.wq.evq)).filter((e) => e.n === 'audio_fallback');
+    expect(fb).toEqual([expect.objectContaining({ reason: 'stalled' })]);
+  });
+  test('when the phone voice does speak (a line with no clip), the page marks it', () => {
+    const p = page({ lang: 'en' });
+    p.wq.speak('Which part?', null, null, { qid: 'q1', part: 'q' });
+    expect(p.utterances.length).toBe(1);
+    expect(p.rootClasses.has('wq-phonevoice')).toBe(true);
+  });
+  test('audio_missing names the KIND of part (q, opt, fig, left …), so misses per part can be counted', () => {
+    const p = page({ lang: 'en' });
+    const q = { qid: 'q7', text: 'Pick one', options: [{ slot: 'A', text: 'cat' }, { slot: 'B', text: 'bat' }], correct_slot: 'A', audio: { q: 'https://r2.example/q.ogg', opts: [null, 'https://r2.example/b.ogg'] } };
+    const parts = p.ctx.WQI.readParts(q, 'en');
+    expect(parts.map((x) => x.p)).toEqual(['q', 'opt', 'opt']);
+    p.wq.speakSeq(parts, null, 'q7');
+    p.advance(); // the question clip ends; option A has no clip
+    const miss = JSON.parse(JSON.stringify(p.wq.evq)).filter((e) => e.n === 'audio_missing');
+    expect(miss).toEqual([expect.objectContaining({ qid: 'q7', part: 'opt' })]);
+  });
+});
+
+describe('the shared lines are versioned by their sound, not only their words', () => {
+  test('VOICE_V is the hash of the recorded files, so a re-record reaches every phone', () => {
+    const crypto = require('crypto');
+    const h = crypto.createHash('sha1');
+    for (const lang of ['en', 'ur']) {
+      fs.readdirSync(path.join(VOICE_DIR, lang)).filter((f) => f.endsWith('.mp3')).sort()
+        .forEach((f) => { h.update(`${lang}/${f}\n`); h.update(fs.readFileSync(path.join(VOICE_DIR, lang, f))); });
+    }
+    expect(SRC).toContain(`var VOICE_V = '${h.digest('hex').slice(0, 8)}';`);
+  });
+  test('the manifest names the voice each language was recorded in: the quiz voice', () => {
+    const { QUIZ_VOICE } = require('../../bot/shared/services/quiz/web-quiz-voice');
+    expect(MANIFEST.voices).toEqual({ en: { ...QUIZ_VOICE.en }, ur: { ...QUIZ_VOICE.ur } });
+  });
 });

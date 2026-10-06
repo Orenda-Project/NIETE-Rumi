@@ -69,7 +69,8 @@ test('a clip stopped before it started never reads its old line on the next scre
   h.ctx.speak('Well done!', null, null);
   q1.rejectPlay(new Error('The play() request was interrupted by a call to pause()'));
   await flush();
-  h.runTimers(2000); // the old clip's "stalled" timer
+  h.runTimers(2000); // the old clip's "slow" timer
+  h.runTimers(8000); // and its "stalled" timer
   expect(h.spoken).toEqual(['Well done!']);
   expect(h.events.filter((e) => e.name === 'audio_fallback')).toEqual([]);
 });
@@ -84,20 +85,22 @@ test('a clip superseded by another clip does not fall back either', async () => 
   expect(h.events).toEqual([]);
 });
 
-test('a clip that really fails on the current screen still falls back to the phone voice', async () => {
+test('a clip the browser refuses to start (autoplay before a tap) is not read by the phone voice: the speaker asks for a tap', async () => {
   const h = harness();
   h.ctx.speak('Read me', 'https://media.example/q1.ogg', null);
   h.clips[0].rejectPlay(new Error('NotAllowedError'));
   await flush();
-  expect(h.spoken).toEqual(['Read me']);
+  expect(h.spoken).toEqual([]);
   expect(h.events).toEqual([{ name: 'audio_fallback', data: { reason: 'reject' } }]);
 });
 
-test('a clip that stalls on the current screen still falls back once', async () => {
+test('a clip that stalls on the current screen is given up once, after 8 s, without a second voice', async () => {
   const h = harness();
   h.ctx.speak('Read me', 'https://media.example/q1.ogg', null);
   h.runTimers(2000);
-  expect(h.spoken).toEqual(['Read me']);
+  expect(h.events).toEqual([]); // slow is not missing: still loading at 2 s
+  h.runTimers(8000);
+  expect(h.spoken).toEqual([]); // one voice: the phone does not read a line the clip was meant to say
   expect(h.events.map((e) => e.data.reason)).toEqual(['stalled']);
 });
 

@@ -124,5 +124,15 @@
   "tffalse": [
    "ابھی نہیں۔ یہ بات غلط ہے۔"
   ]
+ },
+ "voices": {
+  "en": {
+   "provider": "soniox",
+   "voice": "Grace"
+  },
+  "ur": {
+   "provider": "soniox",
+   "voice": "Ishita"
+  }
  }
 }

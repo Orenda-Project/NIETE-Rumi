@@ -54,7 +54,7 @@ function createTtsGateway({
   env = process.env,
   cassette = () => require('../e2e-cassette'),
 } = {}) {
-  async function runChain({ chain, text, language, useCase, site, correlationId }) {
+  async function runChain({ chain, text, language, useCase, site, correlationId, voice }) {
     const failures = [];
     for (const name of chain) {
       const provider = providers[name];
@@ -64,7 +64,7 @@ function createTtsGateway({
         continue;
       }
       try {
-        const out = await provider.synthesize({ text, language, useCase, site, correlationId });
+        const out = await provider.synthesize({ text, language, useCase, site, correlationId, ...(voice ? { voice } : {}) });
         const check = checkComplete(out.audio);
         if (!check.ok) {
           const err = new Error(`${name} returned audio that is not a whole Ogg Opus stream (${check.reason})`);
@@ -85,9 +85,9 @@ function createTtsGateway({
   // so the recordings made before this module keep replaying. Any other primary
   // puts its provider and voice in the key: a recording of one voice can never
   // stand in for another.
-  function cassetteKey({ primary, text, language }) {
-    if (primary === 'elevenlabs') return { fn: 'generateSpeechForLanguage', text, languageCode: language };
-    return { fn: 'tts.synthesize', provider: primary, voice: providers[primary].voiceFor(language), text, language };
+  function cassetteKey({ primary, text, language, voice }) {
+    if (primary === 'elevenlabs' && !voice) return { fn: 'generateSpeechForLanguage', text, languageCode: language };
+    return { fn: 'tts.synthesize', provider: primary, voice: voice || providers[primary].voiceFor(language), text, language };
   }
 
   // A caller whose teacher is waiting can bound the whole attempt: past the
@@ -104,8 +104,15 @@ function createTtsGateway({
     return Promise.race([promise, expired]).finally(() => clearTimeout(timer));
   }
 
-  async function synthesize({ text, language, useCase, site, correlationId, deadlineMs } = {}) {
-    const { chain, source, ignored } = resolveChain({ useCase, site, env });
+  // `provider` (+ `voice`) pins ONE voice for this call: no configured primary, no fallback. For a
+  // feature whose lines must all sound alike (the web quiz) a clip in another voice is worse than
+  // none: the call fails and the caller retries later. Every other caller is unchanged.
+  async function synthesize({ text, language, useCase, site, correlationId, deadlineMs, provider: pin, voice } = {}) {
+    const resolved = resolveChain({ useCase, site, env });
+    if (pin && !Object.prototype.hasOwnProperty.call(providers, pin)) throw new TypeError(`tts.synthesize: unknown provider "${pin}"`);
+    const chain = pin ? [pin] : resolved.chain;
+    const source = pin ? 'pinned' : resolved.source;
+    const ignored = pin ? [] : resolved.ignored;
     if (typeof text !== 'string' || !text.trim()) throw new TypeError('tts.synthesize: text is empty');
     // A caller always resolves the teacher's language; a missing one falls to the
     // deployment's emergency floor, never to a hard-coded language.
@@ -121,16 +128,16 @@ function createTtsGateway({
       const tape = cassette();
       if (tape.mode() !== 'off') {
         let live = null;
-        const audio = await tape.wrapBuffer('tts', cassetteKey({ primary, text, language: lang }), async () => {
-          live = await runChain({ chain, text, language: lang, useCase, site, correlationId: corr });
+        const audio = await tape.wrapBuffer('tts', cassetteKey({ primary, text, language: lang, voice }), async () => {
+          live = await runChain({ chain, text, language: lang, useCase, site, correlationId: corr, voice });
           return live.audio;
         });
         result = live || {
-          audio, provider: primary, voice: providers[primary].voiceFor(lang), parts: 1, attempts: 0,
+          audio, provider: primary, voice: voice || providers[primary].voiceFor(lang), parts: 1, attempts: 0,
           durationSec: checkComplete(audio).durationSec || 0, failures: [], dropped: [], cassette: 'replay',
         };
       } else {
-        result = await withDeadline(runChain({ chain, text, language: lang, useCase, site, correlationId: corr }), deadlineMs);
+        result = await withDeadline(runChain({ chain, text, language: lang, useCase, site, correlationId: corr, voice }), deadlineMs);
       }
     } catch (error) {
       logError('tts.synthesize.failed', {

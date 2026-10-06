@@ -5,15 +5,19 @@
  * For one quiz, records one clip per question text, per option text and per
  * "why" line, in the quiz's language, through the bot's own voice gateway
  * (services/tts — the same voices as the teacher voice notes; no new provider).
- * Each clip is stored once in R2 at
+ * Every clip is spoken in the quiz's ONE voice (web-quiz-voice.js), the voice the
+ * shared feedback lines were recorded in, with no fallback provider: a clip the
+ * voice cannot make stays missing and is retried, never recorded in another voice.
+ * Each clip is stored once in R2 (bucket and key: web-quiz-audio-store.js) at
  *
- *   web-quiz/audio/<quiz_id>/<question_id>/<part>-<hash>.ogg   part = q | a | b | c | d | why | xa | xb | xc | xd | hint
+ *   quiz-audio/<env>/<quiz_id>/<lang>/<question_id>/<part>-<voice>-<hash8>.ogg
+ *     part = q | a | b | c | d | why | xa | xb | xc | xd | hint
  *
- * (xa..xd = the feedback said after a WRONG pick of that option; hint = Jugnu's hint, web-quiz-hint).
+ * (xa..xd = the feedback said after a WRONG pick of that option; hint = the item's hint).
  *
- * where <hash> is taken from the language and the exact words, so a question
- * whose words change gets a new clip on the next publish instead of keeping
- * the old one.
+ * where <hash8> is taken from the language, the voice and the exact words, so a
+ * question whose words change, or a new voice, gets a new clip on the next publish
+ * instead of keeping the old one.
  *
  * What is said: a question with a SCHEMA_v2 web item (media.web) is voiced from
  * its read.stem / read.opts (plain words written for the voice; each option on
@@ -25,7 +29,9 @@
  *   { <question_id>: { q, opts: [a, b, c, d], why, fbs: [xa, xb, xc, xd], hint? } }      (null where there is no clip)
  *
  * plus meta.web.audio_v = AUDIO_VERSION once every clip of the quiz is there, so
- * ensureQuizAudio() (called when the page is opened) publishes each quiz once.
+ * ensureQuizAudio() (called when the page is opened) publishes each quiz once;
+ * meta.web.audio_bucket (where the keys are), audio_voice (the voice tag) and
+ * audio_day (the day clips were last recorded, counted by the daily cap).
  *
  * merged into the existing meta, so nothing else in meta is touched.
  *
@@ -38,7 +44,6 @@
  * phase renderer reads media and sends what it finds there.
  */
 
-const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -47,16 +52,18 @@ const tts = require('../tts');
 const { mathToText } = require('./quiz-math');
 const { cleanWrongFeedback } = require('./web-quiz-feedback');
 const r2 = require('../../storage/r2');
+const Voice = require('./web-quiz-voice');
+const Store = require('./web-quiz-audio-store');
 const { logEvent } = require('../../utils/structured-logger');
 const { logError } = require('../../utils/logger');
 
-const PREFIX = 'web-quiz/audio';
 const PARTS_OPTS = ['a', 'b', 'c', 'd'];
 const DEFAULT_MAX_CLIPS = 120;
 const CLIP_WORKERS = 4;
 // Bumped when the clips of every quiz change (2: the why is the reason, wrong-option feedback
-// recorded; 3: stored small), so already-published quizzes are brought up to date on their next open.
-const AUDIO_VERSION = 3;
+// recorded; 3: stored small; 4: one voice per language, new key scheme, configurable bucket), so
+// already-published quizzes are brought up to date on their next open.
+const AUDIO_VERSION = 4;
 const PARTS_FB = ['xa', 'xb', 'xc', 'xd'];
 // Spend estimate for the log line, by the provider that actually spoke:
 // ElevenLabs bills per character, Soniox per second of audio (tts/index.js).
@@ -76,9 +83,13 @@ function clipCostUsd(res, text) {
 const CLIP_KBPS = 24;
 const CLIP_FORMAT = `opus${CLIP_KBPS}m`;
 
-function audioKey(quizId, questionId, part, text, language) {
-  const h = crypto.createHash('sha1').update(`${language || ''}\n${text || ''}\n${CLIP_FORMAT}`).digest('hex').slice(0, 12);
-  return `${PREFIX}/${quizId}/${questionId}/${part}-${h}.ogg`;
+/** A clip's key (web-quiz-audio-store.js), in the quiz voice of `language`, for this deployment. */
+function audioKey(quizId, questionId, part, text, language, { env } = {}) {
+  return clipKey({ env, quizId, lang: language, qid: questionId, part, voice: Voice.voiceTag(language), text });
+}
+
+function clipKey(args) {
+  return Store.clipKey({ format: CLIP_FORMAT, ...args });
 }
 
 /** Text as it should be spoken: no TeX, no Markdown markers, no stored option letters. */
@@ -139,7 +150,8 @@ function partsFor(q) {
       const x = PARTS_FB['ABCD'.indexOf(String((o && o.slot) || '').charAt(0))];
       if (x) add(x, spoken(cleanWrongFeedback(o && o.fb)));
     });
-    if (w.hint && typeof w.hint === 'object') add('hint', spoken(w.hint.read) || spoken(w.hint.text));
+    const hint = w.hint && typeof w.hint === 'object' ? w.hint : null;
+    if (hint) add('hint', spoken(hint.read) || spoken(hint.text));
     return parts;
   }
   add('q', spoken(q.question_text));
@@ -173,9 +185,9 @@ function compactClip(audio) {
   });
 }
 
-async function exists(key) {
+async function exists(key, bucket) {
   try {
-    return (await r2.headObject(key)).exists;
+    return (await r2.headObject(key, { bucket })).exists;
   } catch (_) {
     return false; // cannot tell: record it (an overwrite of the same words is harmless)
   }
@@ -212,17 +224,25 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     if (qsErr) throw qsErr;
 
     const language = quiz.language || undefined;
+    const allowed = await Store.recordingAllowed({ db: client, quizId, logEvent, logError });
+    if (!allowed.ok) return done({ ok: false, reason: allowed.reason });
+    const voice = Voice.quizVoice(language);
+    const voiceTag = Voice.voiceTag(language);
+    const bucket = Store.quizAudioBucket();
+    const env = Store.deployEnv();
     // Every clip of the quiz is one task; CLIP_WORKERS run at once (the vendor caps a process's calls
     // itself), so a 5-question quiz is recorded in a fraction of the one-after-another time.
     const entries = new Map();
     const tasks = [];
     for (const q of questions || []) {
-      entries.set(q.id, { q: null, opts: [null, null, null, null], why: null, fbs: [null, null, null, null] });
-      for (const { part, text } of partsFor(q)) tasks.push({ q, part, text, key: audioKey(quizId, q.id, part, text, language) });
+      entries.set(q.id, { q: null, opts: [null, null, null, null], why: null, fbs: [null, null, null, null], hint: null });
+      for (const { part, text } of partsFor(q)) {
+        tasks.push({ q, part, text, key: clipKey({ env, quizId, lang: language, qid: q.id, part, voice: voiceTag, text }) });
+      }
     }
     let started = 0;
     const record = async ({ q, part, text, key }) => {
-      let have = await exists(key);
+      let have = await exists(key, bucket);
       if (have) {
         stats.skipped += 1;
       } else if (started >= maxClips) {
@@ -230,9 +250,11 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
       } else {
         started += 1;
         try {
-          const res = await tts.synthesize({ text, language, useCase: 'reading', site: 'web_quiz_read_aloud' });
+          const res = await tts.synthesize({
+            text, language, useCase: 'reading', site: 'web_quiz_read_aloud', ...(voice ? { provider: voice.provider, voice: voice.voice } : {}),
+          });
           const clip = await compactClip(res.audio);
-          await r2.uploadBuffer(clip, key, 'audio/ogg');
+          await r2.uploadBuffer(clip, key, 'audio/ogg', { bucket });
           stats.synthesized += 1;
           stats.chars += text.length;
           stats.bytes += clip.length;
@@ -262,8 +284,8 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     }));
     const audio = {};
     for (const [qid, entry] of entries) {
-      if (!entry.hint) delete entry.hint;
-      if (entry.q || entry.why || entry.hint || entry.opts.some(Boolean) || entry.fbs.some(Boolean)) audio[qid] = entry;
+      const { hint, ...rest } = entry;
+      if (entry.q || entry.why || hint || entry.opts.some(Boolean) || entry.fbs.some(Boolean)) audio[qid] = hint ? entry : rest;
     }
 
     // Merge into the freshest meta, so a concurrent write to another key survives.
@@ -271,7 +293,10 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     const meta = (fresh && fresh.meta) || quiz.meta || {};
     const web = meta.web && typeof meta.web === 'object' ? meta.web : {};
     const complete = stats.failed === 0 && !stats.capped;
-    const nextMeta = { ...meta, web: { ...web, audio: { ...(web.audio || {}), ...audio }, ...(complete ? { audio_v: AUDIO_VERSION } : {}) } };
+    const nextMeta = { ...meta, web: {
+      ...web, audio: { ...(web.audio || {}), ...audio }, audio_bucket: bucket, audio_voice: voiceTag,
+      ...(stats.synthesized ? { audio_day: allowed.day } : {}), ...(complete ? { audio_v: AUDIO_VERSION } : {}),
+    } };
     const { error: uErr } = await client.from('quizzes').update({ meta: nextMeta }).eq('id', quizId);
     if (uErr) throw uErr;
 
@@ -362,6 +387,8 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
   if (Number(web.audio_v) >= AUDIO_VERSION) return { skipped: 'current' };
   const out = (await publish(quizId, { db: client })) || {};
   if (out.ok && !out.failed) return out;
+  // Switched off or over today's cap: a retry would only be refused again (the next page open asks anew).
+  if (out.reason === 'disabled' || out.reason === 'capped') return out;
   if (attempt >= RETRY_DELAYS_S.length) {
     logError('web_quiz.publish_audio.gave_up', { event: 'web_quiz.publish_audio.gave_up', quizId, attempt, failed: out.failed, reason: out.reason });
     return out;
@@ -374,5 +401,5 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
 }
 
 module.exports = {
-  publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, partsFor, spoken, whyText, withoutPraise, AUDIO_VERSION,
+  publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, whyText, withoutPraise, AUDIO_VERSION,
 };
