@@ -38,6 +38,19 @@ import LeaderObserveRecord from "./portal/pages/LeaderObserveRecord";
 import LeaderObservation from "./portal/pages/LeaderObservation";
 import LeaderObserveDraft from "./portal/pages/LeaderObserveDraft";
 import LeaderObserveTalk from "./portal/pages/LeaderObserveTalk";
+// bd-o15qnr — the coach app v2 (behind portal_coach_v2; each page gates itself).
+import CoachHome from "./portal/coach/pages/CoachHome";
+import CoachScheduling from "./portal/coach/pages/CoachScheduling";
+import CoachSchedule from "./portal/coach/pages/CoachSchedule";
+import CoachTeam from "./portal/coach/pages/CoachTeam";
+import CoachNewVisit from "./portal/coach/pages/CoachNewVisit";
+import CoachObserve from "./portal/coach/pages/CoachObserve";
+import CoachObservePick from "./portal/coach/pages/CoachObservePick";
+import CoachVisit from "./portal/coach/pages/CoachVisit";
+import CoachReports from "./portal/coach/pages/CoachReports";
+import CoachPeople from "./portal/coach/pages/CoachPeople";
+import CoachSchool from "./portal/coach/pages/CoachSchool";
+import CoachTeacher from "./portal/coach/pages/CoachTeacher";
 // bd-60117 — a principal's school-level Analytics tab.
 import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
@@ -172,6 +185,20 @@ const App = () => {
             <Route path="/portal/leader/observe/:id" element={<LeaderObservation />} />
             <Route path="/portal/leader/observe/:id/draft" element={<LeaderObserveDraft />} />
             <Route path="/portal/leader/observe/:id/talk" element={<LeaderObserveTalk />} />
+            {/* bd-o15qnr — the coach app v2: role=coach + portal_coach_v2 only; anyone
+                else who lands here is sent to My Patch by the page's own gate. */}
+            <Route path="/portal/coach" element={<CoachHome />} />
+            <Route path="/portal/coach/scheduling" element={<CoachScheduling />} />
+            <Route path="/portal/coach/schedule" element={<CoachSchedule />} />
+            <Route path="/portal/coach/team" element={<CoachTeam />} />
+            <Route path="/portal/coach/new-visit" element={<CoachNewVisit />} />
+            <Route path="/portal/coach/observe" element={<CoachObserve />} />
+            <Route path="/portal/coach/observe/pick" element={<CoachObservePick />} />
+            <Route path="/portal/coach/visit/:id" element={<CoachVisit />} />
+            <Route path="/portal/coach/reports" element={<CoachReports />} />
+            <Route path="/portal/coach/people" element={<CoachPeople />} />
+            <Route path="/portal/coach/school/:emis" element={<CoachSchool />} />
+            <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
             {/* bd-60117 — principals only; the endpoint 403s the rest of
                 the leader family and the page says so rather than showing
                 one school's numbers to a multi-school role. */}
