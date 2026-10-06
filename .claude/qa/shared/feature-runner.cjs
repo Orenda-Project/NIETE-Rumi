@@ -645,18 +645,18 @@ function makeApi(c) {
       headers: { apikey: _SB.key, Authorization: `Bearer ${_SB.key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify(snap) }); } catch (_) {}
   };
-  // Roster teardown — the observe suite seeds a DEDICATED E2E school + teachers + leader_schools row
-  // (api.setRoster, keyed E2E-OBS-<driver> / E2EOBS<driver>). Remove them UNCONDITIONALLY in the finally
-  // so nothing is left in the SHARED sandbox DB, even if the feature crashes before it cleans up itself.
-  // Idempotent + driver-scoped (never touches other users' data).
+  // Roster teardown — the observe suite seeds a driver-scoped roster (api.setRoster): the coach→school
+  // assignment (leader_schools, school_ext_id niete:E2EOBS<driver>) over a PERSISTENT fixture school and
+  // two fixture teacher users, which stay because observations reference them. Remove the ASSIGNMENT
+  // UNCONDITIONALLY in the finally, even if the feature crashed, so the coach never keeps a test roster.
+  // Also clears the pre-2026-10-06 seed's rows. Idempotent + driver-scoped (never other users' data).
   const clearRoster = async () => {
     if (!_SB.url || !_SB.key || !_SB.drv) return;
-    const sx = 'E2E-OBS-' + _SB.drv, em = 'E2EOBS' + _SB.drv;
     const H = { apikey: _SB.key, Authorization: `Bearer ${_SB.key}`, Prefer: 'return=minimal' };
     const del = (p) => fetch(`${_SB.url}/rest/v1/${p}`, { method: 'DELETE', headers: H }).catch(() => {});
-    await del(`leader_teachers?school_ext_id=eq.${sx}`);
-    await del(`leader_schools?school_ext_id=eq.${sx}`);
-    await del(`schools?emis=eq.${em}`);
+    await del(`leader_schools?school_ext_id=eq.${encodeURIComponent('niete:E2EOBS' + _SB.drv)}`);
+    await del(`leader_teachers?school_ext_id=eq.E2E-OBS-${_SB.drv}`);
+    await del(`leader_schools?school_ext_id=eq.E2E-OBS-${_SB.drv}`);
   };
   const _identSnap = await snapshotIdentity();
   try {

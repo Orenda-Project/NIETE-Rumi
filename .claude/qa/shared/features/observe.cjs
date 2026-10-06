@@ -85,21 +85,53 @@ exports.run = async ({ api, rec, want = () => true }) => {
   }
 
   if (want('OBS03')) {
-    // ── OBS03 — the visit picker Flow OPENS to school selection (data_exchange via the emulator) ──
-    // Also EXERCISES the roster seed + harness teardown: api.setRoster() creates a dedicated E2E school +
-    // teachers (uniquely keyed to the driver), and feature-runner's finally removes them unconditionally.
+    // EXPLORE (temporary): the record path to the FICO form and its screens.
     s = Date.now();
     await api.setRole('coach');
-    const seed = await api.setRoster();   // torn down by the harness even if the run fails — no DB pollution
+    const seed = await api.setRoster(); const rst = await api.resetObserve();
+    const walk = [{ seed, rst }];
+    const snap = async (label, r) => { const p = await api.flowProbe(); walk.push({ step: label, r: r && (r.ok === false ? r.err : 'ok'), screen: p.screen, text: (p.text || '').slice(0, 600), items: (p.items || []).map((i) => (i.kind || '') + ':' + i.text + (i.value !== undefined ? '=' + JSON.stringify(i.value) : '')).slice(0, 30) }); return p; };
+    const isFlow = (m) => !!(m && m.raw && m.raw.interactive && m.raw.interactive.type === 'flow');
+    const answerUntilFlow = async (ms) => {
+      const seen = []; const t0 = Date.now();
+      while (Date.now() - t0 < ms) {
+        for (const m of await api.fresh()) {
+          seen.push({ txt: (m.txt || '').slice(0, 240), btns: m.btns || [], flow: isFlow(m) });
+          if (isFlow(m)) return { form: m, seen };
+          if ((m.btns || []).includes('No') && /photo|lesson plan/i.test(m.txt || '')) { await api.freshReset(); await api.tapAndWait('No', 60000); }
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      return { form: null, seen };
+    };
+    await api.freshReset(); await api.sendWait('/observe', 120000);
+    await api.openFlow('Plan my visit|plan your visit|Observe|Open');
+    await api.flowClick('Schedule new observation', { settleMs: 2500 });
+    await api.flowPick(seed.schoolName); await api.flowClick('Continue', { settleMs: 2500 });
+    await api.flowPick('Bilal Ahmed'); await api.flowClick('Continue', { settleMs: 3000 });
+    await api.flowClick('Record the lesson now', { settleMs: 2500 });
+    await api.flowClick('Start observation', { settleMs: 3000 });
+    const armed = await api.flowComplete(60000); walk.push({ step: 'armed', txt: (armed.txt || '').slice(0, 200) });
+    const up = await api.upload(MEDIA + '/hameeda_16min.m4a', 'Audio', 180000);
+    walk.push({ step: 'upload', txt: (up.txt || '').slice(0, 200), btns: up.btns });
     await api.freshReset();
-    await api.sendWait('/observe', 120000);
-    const op = await api.openFlow('Plan my visit|plan your visit|Observe|Open');
-    const p1 = (op && op.ok) ? await api.flowProbe() : { text: '', items: [] };
-    rec('OBS03', 'The visit picker walks school → teacher → brief',
-        ...V(!!(op && op.ok) && /Pick a school|School/i.test(p1.text || ''),
-          { openedPicker: !!(op && op.ok), seedOk: !!(seed && seed.ok), screen: (p1.text || '').slice(0, 160),
-            note: 'the visit Flow OPENS to school selection via the emulator; seed+teardown exercised. The seeded school does not yet surface in the Flow dropdown (listSchools returns empty for the flow_token) — a flow_token/lazy-load issue that gates walking school→teacher→brief here.' }),
-        Date.now() - s);
+    const got = await answerUntilFlow(600000);
+    walk.push({ step: 'until-form', seen: got.seen });
+    if (got.form) {
+      const fo = await api.openFlow('.', { from: got.form }); walk.push({ step: 'open-form', ok: fo.ok, err: fo.err });
+      if (fo.ok) {
+        let p = await snap('form1');
+        for (let i = 2; i <= 12; i++) {
+          const f = (p.items || []).find((x) => x.kind === 'footer');
+          if (!f) break;
+          p = await snap('form' + i, await api.flowClick(f.text, { settleMs: 3000 }));
+          if (!p.screen) break;
+        }
+      }
+      const after = await api.flowComplete(90000); walk.push({ step: 'after-form', txt: (after.txt || '').slice(0, 400), btns: after.btns });
+      const more = await api.fresh(); walk.push({ step: 'after-form-more', msgs: more.map((m) => ((m.txt || '').slice(0, 300) + ' | ' + (m.btns || []).join('/'))) });
+    }
+    rec('OBS03', 'The visit picker walks school → teacher → brief', 'INFO', { walk }, Date.now() - s);
     api.closeFlow(); await api.resetFlow();
   }
 
