@@ -2534,14 +2534,24 @@ async function saveModuleExamDraft({
   if (!attempt || attempt.user_id !== userId) return { ok: false, reason: 'not_found' };
   if (attempt.status !== 'in_progress') return { ok: false, reason: 'not_in_progress' };
 
+  // The same "written question" rule as submit: words typed into a question with nothing to pick
+  // from are the written answer, never chosen_option (varchar(32)).
+  const { data: question } = await supabase
+    .from('training_questions')
+    .select('id, options, correct_option, option_images')
+    .eq('id', Number(questionId)).maybeSingle();
+  const written = isOpenEndedQuestion(question);
+  const draftText = written ? (answerText ?? chosenOption) : answerText;
+  const draftPick = written ? null : chosenOption;
+
   const { error } = await supabase
     .from('training_assessment_answers')
     .upsert({
       attempt_id: attemptId,
       question_index: Number(questionIndex),
       question_id: Number(questionId),
-      chosen_option: chosenOption === null ? null : String(chosenOption),
-      answer_text: answerText === null ? null : String(answerText),
+      chosen_option: draftPick === null ? null : String(draftPick),
+      answer_text: draftText === null ? null : String(draftText),
       is_correct: null,
       answer_score: null,
       answered_at: new Date().toISOString(),
@@ -2675,7 +2685,7 @@ async function openModuleExamAttempt({ userId, courseId, programId = null }) {
     total_questions: total,
     questions: ids.map((id, i) => {
       const q = byId.get(id) || {};
-      const open = isOpenEndedQuestion({ options: q.options, correct_option: q.correct_option });
+      const open = isOpenEndedQuestion({ options: q.options, option_images: q.option_images, correct_option: q.correct_option });
       return {
         id,
         index: i,
@@ -2723,7 +2733,7 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
   const ids = answers.map(a => a.question_id).filter(Boolean);
   const { data: qs } = await supabase
     .from('training_questions')
-    .select('id, question_text, options, correct_option')
+    .select('id, question_text, options, correct_option, option_images')
     .in('id', ids.length ? ids : [-1]);
   const byId = new Map((qs || []).map(q => [q.id, q]));
 
@@ -2735,9 +2745,11 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
   answers.forEach((a, i) => {
     const q = byId.get(a.question_id);
     if (!q) return;
-    const open = isOpenEndedQuestion({ options: q.options, correct_option: q.correct_option });
+    const open = isOpenEndedQuestion({ options: q.options, option_images: q.option_images, correct_option: q.correct_option });
     if (open) {
-      crq = { question: q, text: String(a.answer_text || ''), index: i };
+      // A written answer is stored as text, never as chosen_option (varchar(32)). A page that
+      // predates the shared rule sends the words as chosen_option, so take them from there too.
+      crq = { question: q, text: String(a.answer_text || a.chosen_option || ''), index: i };
       rows.push({
         attempt_id: attemptId, question_index: i, question_id: q.id,
         chosen_option: null, is_correct: null, answered_at: now,
@@ -2865,7 +2877,7 @@ async function moduleExamAttempts({ userId, courseId }) {
     .order('question_index', { ascending: true });
   const qIds = [...new Set((answerRows || []).map(r => r.question_id))];
   const { data: qRows } = await supabase
-    .from('training_questions').select('id, question_text, options, correct_option')
+    .from('training_questions').select('id, question_text, options, correct_option, option_images')
     .in('id', qIds.length ? qIds : [-1]);
   const qById = new Map((qRows || []).map(q => [q.id, q]));
 
@@ -2881,7 +2893,7 @@ async function moduleExamAttempts({ userId, courseId }) {
     let mcqCorrect = 0; let mcqServed = 0; let crqRow = null;
     const answers = rows.map((r) => {
       const q = qById.get(r.question_id) || {};
-      const open = isOpenEndedQuestion({ options: q.options, correct_option: q.correct_option });
+      const open = isOpenEndedQuestion({ options: q.options, option_images: q.option_images, correct_option: q.correct_option });
       if (open) crqRow = r;
       else { mcqServed += 1; if (r.is_correct === true) mcqCorrect += 1; }
       return {
