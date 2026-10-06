@@ -688,3 +688,11 @@ Feature: Web child quiz page on the portal
     Given scoring a reading takes more than 5 seconds
     Then the result call answers "pending" and the page asks again every 3 seconds, up to 60 seconds
     And the recording is deleted from storage after scoring, and only the numbers are kept
+  @T491
+  Scenario: A shared phone reopened on a finished child's card lets the next child play
+    Given a phone where "Tooba" finished this quiz and the page reopens on Tooba's card
+    Then the card offers "Someone else's turn" («کسی اور کی باری»)
+    When the next child taps it
+    Then the page shows "Who is playing?" with the remembered cards and "Someone else"
+    And Tooba's finished result is unchanged on the server
+    But while answers are still waiting to be sent the card does not offer it
