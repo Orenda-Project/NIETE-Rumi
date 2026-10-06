@@ -20,6 +20,7 @@
 #
 # Exit codes: 10 modules unavailable for this commit · 11 worktree failed · 12 bot not healthy in time · 13 /health sha
 # mismatch · 14 keys/niete-local.env missing · 15 mock not healthy · 16 redis-server missing/unhealthy ·
+# 19 a port this stack would bind is already in use (another run) — nothing was started ·
 # 17 worker not healthy · 18 local database (E2E_LOCAL_DB=1) did not come up.
 #
 # E2E_LOCAL_DB=1 (bd-z3ze4): the bot runs on a clean per-run local database (local-db.sh) instead of the
@@ -52,6 +53,19 @@ log() { echo "[local-stack] $*" >&2; }
 up() {
   local sha="$1" run_dir="$2"
   [ -n "$sha" ] && [ -n "$run_dir" ] || { echo "usage: local-stack.sh up <sha> <run_dir>" >&2; exit 2; }
+  # 0. Every port this stack will bind must be FREE, checked before anything starts (bd-d2zge). A port that is
+  # already listening belongs to another run: starting anyway made /health answer with THAT run's commit
+  # (exit 13), and this run's down then port-killed the other run's bot and worker mid-scenario. Refusing
+  # here, before run_dir/ports exists, means down can never touch processes this run did not start.
+  local p busy=""
+  for p in "${MOCK_PORT:-4010}" "${E2E_BOT_PORT:-3100}" "${E2E_REDIS_PORT:-6390}" "${E2E_WORKER_HEALTH_PORT:-3201}" \
+           $([ "${E2E_LOCAL_DB:-0}" = 1 ] && echo "${LOCAL_R2_PORT:-54600}" "${E2E_SUPABASE_PORT:-54321}" "${LOCAL_DB_REST_PORT:-54330}"); do
+    lsof -ti tcp:"$p" -sTCP:LISTEN >/dev/null 2>&1 && busy="$busy $p"
+  done
+  if [ -n "$busy" ]; then
+    log "port(s)${busy} already in use — another run holds them (pid $(lsof -ti tcp:"${busy# }" -sTCP:LISTEN 2>/dev/null | head -1)). Refusing; nothing was started."
+    exit 19
+  fi
   mkdir -p "$run_dir"
   local src="$run_dir/src"
   local full; full=$(git -C "$REPO" rev-parse --verify "${sha}^{commit}" 2>/dev/null) || { log "unknown commit $sha"; exit 11; }

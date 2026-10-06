@@ -39,6 +39,9 @@ METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manua
 slot_ports() { local n=$1
   printf '%s\n' "MOCK_PORT=$((4010+n))" "E2E_BOT_PORT=$((3100+n))" "E2E_REDIS_PORT=$((6390+n))" "E2E_WORKER_HEALTH_PORT=$((3201+n))" \
                  "E2E_SUPABASE_PORT=$((54400+n))" "LOCAL_DB_REST_PORT=$((54500+n))" "LOCAL_R2_PORT=$((54600+n))"; }
+# …and just the numbers, for lsof. The names hold digits (E2E_…), so the strip must allow them — `[A-Z_]*=`
+# left every name but MOCK_PORT on, and the free-slot probe checked one port of seven.
+slot_port_numbers() { slot_ports "$1" | sed 's/^[A-Z0-9_]*=//'; }
 while [ $# -gt 0 ]; do case "$1" in
   --driver) DRIVER="$2"; shift 2;; --env) ENV="$2"; shift 2;; --target) TARGET="$2"; shift 2;;
   --port) PORT="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --no-seed) SEED=0; shift;; --reflect) REFLECT="$2"; shift 2;;
@@ -48,6 +51,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --spec-sync) SPEC_SYNC="$2"; shift 2;; --validator-exit) VALIDATOR_EXIT="$2"; shift 2;;
   --print-driver) PRINT_DRIVER=1; shift;;   # resolve the driver exactly as a run would, print it, exit — touches nothing
   --print-ports) PRINT_PORTS=1; shift;;     # the ports this --slot would export, then exit — touches nothing
+  --print-port-numbers) PRINT_PORTS=numbers; shift;;   # …as the bare numbers the free-slot probes check
   *) echo "unknown option $1"; exit 2;; esac; done
 if [ -z "$METHOD" ]; then METHOD=$(python3 "$QA/targets_lite.py" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" --where "env=$ENV" --where 'tenant~NIETE' --get method); METHOD="${METHOD:-chrome}"; fi
 case "$METHOD" in chrome|mock) ;; *) echo "ERROR: --method must be chrome or mock (got '$METHOD')"; exit 2;; esac
@@ -72,7 +76,7 @@ if [ "$METHOD" = mock ]; then
     i=0; PIDS=""; T0=$(date +%s)
     # a slot is free when none of its four ports is listening AND no run holds a lock on its driver — a second
     # parallel run (another commit, another session) takes the next free slots instead of colliding
-    slot_free() { local n=$1 p; for p in $(slot_ports "$n" | sed 's/^[A-Z_]*=//'); do lsof -ti tcp:$p -sTCP:LISTEN >/dev/null 2>&1 && return 1; done
+    slot_free() { local n=$1 p; for p in $(slot_port_numbers "$n"); do lsof -ti tcp:$p -sTCP:LISTEN >/dev/null 2>&1 && return 1; done
                   [ -e "$PDIR/.slot-$n" ] && return 1; return 0; }
     for f in $PFEATS; do
       i=$((i+1)); while ! slot_free "$i"; do i=$((i+1)); [ "$i" -gt 40 ] && { echo "ERROR: no free slot under 40"; exit 3; }; done
@@ -109,7 +113,13 @@ if [ "$METHOD" = mock ]; then
     fi
     [ -n "$RUN_ID" ] || RUN_ID="$(date +%Y%m%d-%H%M)-$MODE-s$SLOT"
   fi
-  if [ -n "$PRINT_PORTS" ]; then [ "${SLOT:-0}" != 0 ] && slot_ports "$SLOT"; exit 0; fi
+  if [ -n "$PRINT_PORTS" ]; then [ "${SLOT:-0}" != 0 ] && { [ "$PRINT_PORTS" = numbers ] && slot_port_numbers "$SLOT" || slot_ports "$SLOT"; }; exit 0; fi
+  # A --slot given directly (not by --parallel, whose parent probes) is checked too: another run on this machine
+  # may hold it (bd-d2zge — a second session's `--slot 1` killed a running slot-1 stack). Refuse before anything.
+  if [ "${SLOT:-0}" != 0 ]; then
+    _busy=""; for _p in $(slot_port_numbers "$SLOT"); do lsof -ti tcp:$_p -sTCP:LISTEN >/dev/null 2>&1 && _busy="$_busy $_p"; done
+    [ -z "$_busy" ] || { echo "BLOCKED: slot $SLOT is in use — port(s)${_busy} already listening (another run on this machine). Pick a free --slot, or use --parallel, which picks one."; exit 3; }
+  fi
   # The mock driver is PER MACHINE (mock_driver.py: hostname|user → 92300XXXXXXX; E2E_MOCK_DRIVER pins it).
   # Two machines used to share the fixed yaml number on the same sandbox DB and interleave (bd-yj4e4).
   # The yaml test_driver stays only as the last-resort fallback if the resolver itself cannot run.

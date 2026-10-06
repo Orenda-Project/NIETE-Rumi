@@ -24,8 +24,10 @@ t "slot 0 (no --parallel) keeps the lane's defaults: nothing exported" "$out" ""
 # Two slots never share a port, and no slot reuses the unslotted defaults (54321 API / 54330 REST / 54329 PG).
 all=""
 for n in 1 2 3 4 5 6 7 8 9 10 40; do
-  all="$all $(bash .claude/qa/shared/run-suite.sh menu --method mock --slot $n --print-ports 2>/dev/null | sed -E 's/^[A-Z_]+=//' | tr '\n' ' ')"
+  all="$all $(bash .claude/qa/shared/run-suite.sh menu --method mock --slot $n --print-port-numbers 2>/dev/null | tr '\n' ' ')"
 done
+notnum=$(printf '%s\n' $all | grep -vxE '[0-9]+' | tr '\n' ' ')
+t "every slot port strips to a bare number (the free-slot probe passes these to lsof)" "$notnum" ""
 dupes=$(printf '%s\n' $all | sort | uniq -d | tr '\n' ' ')
 t "slots 1–10 and 40: no port is shared" "$dupes" ""
 clash=$(printf '%s\n' $all | grep -xE '54321|54329|54330|54600' | tr '\n' ' ')
