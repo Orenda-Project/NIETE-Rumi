@@ -30,6 +30,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const WebItems = require('./web-quiz-items');
 const Figure = require('./web-quiz-figure');
+const PictureZoom = require('./web-quiz-picture-zoom');
 const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
 const { pageTopic } = require('./quiz-child-title');
@@ -231,7 +232,7 @@ function inDisplayOrder(q, options) {
   }
 }
 
-function questionPayload(row, i, code, audio) {
+function questionPayload(row, i, code, audio, zoom) {
   // A figure's own A-D part names become P-S everywhere the page shows them.
   const q = Figure.withPartLetters(row);
   const options = [];
@@ -239,7 +240,8 @@ function questionPayload(row, i, code, audio) {
     if (text == null || String(text).trim() === '') return;
     const o = { slot: SLOTS[idx], text: String(text) };
     if (optionImageOf(q.media, idx)) {
-      o.img = mediaUrl(code, q.id, SLOTS[idx]);
+      // Near-identical pictures are served cropped to where they differ (web-quiz-picture-zoom).
+      o.img = mediaUrl(code, q.id, SLOTS[idx]) + (zoom ? '&z=1' : '');
       const name = Figure.pictureOptionName(text);
       o.text = name || '';
       if (name) o.name = name;
@@ -402,6 +404,7 @@ async function getQuiz(code, { p } = {}) {
     const cls = await require('./video-quiz-report.service').loadClassRows(ctx.moreVideosOf || ctx.shareCodeId);
     label = (cls && cls.className) || null;
   } catch { label = null; }
+  const zooms = await Promise.all(questions.map((q) => PictureZoom.zoomFor(q).catch(() => null)));
   const out = {
     quiz: {
       id: ctx.quizId, code: ctx.code,
@@ -409,7 +412,7 @@ async function getQuiz(code, { p } = {}) {
       lang: ctx.lang, dir: ctx.lang === 'ur' ? 'rtl' : 'ltr',
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
-      questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio)),
+      questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),
     },
     cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip), ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}) },
     live: await liveCounts(ctx),
@@ -1075,7 +1078,7 @@ function events(body = {}) {
  * Where a question's picture lives: a redirect to a presigned R2 URL, or —
  * for the option pictures the generator stored inline as base64 — the bytes.
  */
-async function media(code, qid, { k } = {}) {
+async function media(code, qid, { k, z } = {}) {
   requireOn();
   const ctx = await resolveCode(code);
   if (qid === 'video') {
@@ -1090,6 +1093,12 @@ async function media(code, qid, { k } = {}) {
   const key = String(k || 'q').toUpperCase();
   const item = key === 'Q' ? questionImageOf(q.media) : SLOTS.includes(key) ? optionImageOf(q.media, SLOTS.indexOf(key)) : null;
   if (!item) fail(404, 'not_found');
+  // ?z=1: the option cropped to where the set's pictures differ (questionPayload adds it).
+  if (String(z || '') === '1' && key !== 'Q' && item.b64) {
+    const box = await PictureZoom.zoomFor(q).catch(() => null);
+    const png = box ? await PictureZoom.crop(item.b64, box) : null;
+    if (png) return { bytes: png, contentType: 'image/png' };
+  }
   const url = typeof item === 'string' ? item : item.url || item.r2_url || null;
   if (url) {
     const r2 = require('../../storage/r2');
