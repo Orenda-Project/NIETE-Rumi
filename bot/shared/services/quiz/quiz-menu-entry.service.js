@@ -15,9 +15,11 @@
  *  3. A ROLE WITH NO QUIZ OF ITS OWN (coach, school leader, AEO, supervisor —
  *     `canSelfCoach` false) → that role's own menu. Their menu layout has no
  *     quiz row; "record a lesson for coaching first" was never true for them.
- *  4. EVERYONE ELSE → the teacher's /quiz menu: the Flow when
- *     TRANSCRIPT_QUIZ_FLOW_ID is set and there is something to list, the
- *     interactive list message otherwise (the rollback lever, unchanged).
+ *  4. EVERYONE ELSE → the teacher's /quiz menu: the home's three buttons for a
+ *     teacher `teacher_report_teachers` covers; otherwise (and on "Make a
+ *     quiz") the Flow when TRANSCRIPT_QUIZ_FLOW_ID is set and there is
+ *     something to list, the interactive list message otherwise (the rollback
+ *     lever, unchanged).
  *
  * Every answer logs `quiz_menu.requested {userId, route}` — ids only.
  */
@@ -28,6 +30,8 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { canSelfCoach } = require('../../config/role-features');
 const QuizMenuFlags = require('./quiz-menu-flags');
+// Make a quiz lives in its own module so the /quiz home can call it without a require cycle.
+const { openMakeQuiz } = require('./teacher-quiz-make.service');
 
 const ROUTES = Object.freeze({
   STILL_IN_QUIZ: 'still_in_quiz',
@@ -87,27 +91,18 @@ async function openQuizMenu({ user, from, language = null, sessionId = null, tri
     return ROUTES.ROLE_MENU;
   }
 
-  const List = require('./transcript-quiz-list.service');
-  const teacher = { ...user, preferred_language: language || (user && user.preferred_language) };
-  const flowId = process.env.TRANSCRIPT_QUIZ_FLOW_ID || '';
-  // A NavigationList needs at least one item, so a teacher with nothing to
-  // list is answered in chat by the list path ("no lessons yet").
-  if (flowId && await List.hasEligibleLessons(userId)) {
-    const uxLanguage = teacher.preferred_language;
-    await WhatsAppService.sendFlow(from, {
-      flowId,
-      header: resolveUx('tqFlowChatHeader', { language: uxLanguage }),
-      body: resolveUx('tqFlowChatBody', { language: uxLanguage }),
-      buttonText: resolveUx('tqFlowChatCta', { language: uxLanguage }),
-      flowToken: `${userId}:transcript-quiz:${Date.now()}`,
-    });
-    logToFile('📝 sent transcript quiz flow (/quiz)', { userId });
-    log(ROUTES.TEACHER_MENU, { how: 'flow' });
+  // The teacher's /quiz home (Make a quiz / My quiz reports / Class progress),
+  // for the teachers app_settings `teacher_report_teachers` covers. Everyone
+  // else gets Make a quiz straight away, exactly as before.
+  const Home = require('./teacher-quiz-home.service');
+  if (await Home.homeOn(userId)) {
+    await Home.sendHome(user, from, language);
+    log(ROUTES.TEACHER_MENU, { how: 'home' });
     return ROUTES.TEACHER_MENU;
   }
-  await List.showList(teacher, from, language);
-  log(ROUTES.TEACHER_MENU, { how: 'list' });
+  const how = await openMakeQuiz({ user, from, language });
+  log(ROUTES.TEACHER_MENU, { how });
   return ROUTES.TEACHER_MENU;
 }
 
-module.exports = { openQuizMenu };
+module.exports = { openQuizMenu, openMakeQuiz };
