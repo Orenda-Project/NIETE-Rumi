@@ -732,3 +732,9 @@ Feature: Web child quiz page on the portal
     When the friend opens it on their own phone
     Then the page names only the challenger and their score
     And it shows no teacher name, no class label, no class names to pick from and no "N in your class played today"
+  @T446
+  Scenario: A challenger who scored nothing is not a score to beat
+    Given a child finished a quiz with 0 right answers and sent a friend their challenge link
+    When the friend opens the link
+    Then the landing says "<challenger> challenged you. Can you beat their score?" («… نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!»)
+    And it never says "0/5 stars. Can you beat it?"

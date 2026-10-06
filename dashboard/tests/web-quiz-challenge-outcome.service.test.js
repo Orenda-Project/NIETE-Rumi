@@ -51,3 +51,15 @@ describe('the challenger sees how each friend did', () => {
     expect(p.html()).toContain('Ayan · Plants · you won');
   });
 });
+
+describe('a challenger who scored 0 is never offered as a score to beat', () => {
+  test('the friend\'s landing says the challenger played, not "0/5 stars. Can you beat it?"', () => {
+    const p = page({ lang: 'en', challenge: { first: 'Ali', correct: 0, total: 5 } });
+    expect(p.html()).toContain('Ali challenged you. Can you beat their score?');
+    expect(p.html()).not.toContain('0/5 stars');
+  });
+  test('a real score is still the one to beat', () => {
+    const p = page({ lang: 'en', challenge: { first: 'Ali', correct: 3, total: 5 } });
+    expect(p.html()).toContain('Ali got 3/5 stars. Can you beat it?');
+  });
+});
