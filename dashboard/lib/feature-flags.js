@@ -88,6 +88,14 @@ const PORTAL_COACH_OBSERVATION_KEY = 'portal_coach_observation';
 const PORTAL_NEW_UI_KEY = 'portal_new_ui';
 
 /**
+ * bd-o15qnr — app_settings key for the coach app v2 (the v18 coach design: Home
+ * with today's visits, Scheduling, Observe, Schools & teachers). Same shape and
+ * rule as the keys above: true = everyone, a list of users.id = a pilot,
+ * absent = off. The portal shows it only to role=coach.
+ */
+const PORTAL_COACH_V2_KEY = 'portal_coach_v2';
+
+/**
  * bd-3bvfj — a flag that can be on for EVERYONE or for a PILOT.
  *
  *   true (or "true")            → on for every user
@@ -126,11 +134,28 @@ async function isFlagEnabledForUser(supabase, key, userId) {
   }
 }
 
+/**
+ * bd-o15qnr — the /leader/observe pipeline's gate. Coach v2's Take observation
+ * runs on that pipeline, so a coach in the v2 pilot can use it without also
+ * being in the portal_coach_observation pilot. Either flag opens it; neither,
+ * or no session user, keeps it closed (fail-closed, like each flag alone).
+ *
+ * @param {object} supabase
+ * @param {string|null} userId the SESSION user
+ * @returns {Promise<boolean>}
+ */
+async function isCoachObservationOn(supabase, userId) {
+  if (await isFlagEnabledForUser(supabase, PORTAL_COACH_OBSERVATION_KEY, userId)) return true;
+  return isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId);
+}
+
 module.exports = {
   PORTAL_SELF_OBSERVATION_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
+  PORTAL_COACH_V2_KEY,
   isFlagEnabledForUser,
+  isCoachObservationOn,
   ASSESSMENT_GENERATOR_KEY,
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
   isFlagEnabled,

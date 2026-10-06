@@ -71,6 +71,8 @@ const {
   PORTAL_SELF_OBSERVATION_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
+  PORTAL_COACH_V2_KEY,
+  isCoachObservationOn,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
@@ -6078,7 +6080,9 @@ router.post('/coaching-session/:id/reflection', requirePortalAuth, requireSelfOb
  * ------------------------------------------------------------------------- */
 
 async function requireCoachObservation(req, res, next) {
-  const on = await isFlagEnabledForUser(supabase, PORTAL_COACH_OBSERVATION_KEY, req.session && req.session.portalUserId);
+  // bd-o15qnr: coach v2's Take observation runs on this pipeline, so either
+  // pilot flag opens it (feature-flags.isCoachObservationOn).
+  const on = await isCoachObservationOn(supabase, req.session && req.session.portalUserId);
   if (!on) return res.status(404).json({ success: false, error: 'Not found' });
   return next();
 }
@@ -7042,6 +7046,10 @@ router.get('/config', async (req, res) => {
     const newUi = await isFlagEnabledForUser(
       supabase, PORTAL_NEW_UI_KEY, req.session && req.session.portalUserId,
     );
+    // bd-o15qnr: the coach app v2, per user. The portal shows it to role=coach only.
+    const coachV2 = await isFlagEnabledForUser(
+      supabase, PORTAL_COACH_V2_KEY, req.session && req.session.portalUserId,
+    );
     return res.json({
       success: true,
       features: {
@@ -7050,6 +7058,7 @@ router.get('/config', async (req, res) => {
         selfObservation,
         coachObservation,
         newUi,
+        coachV2,
       },
     });
   } catch (error) {
@@ -7063,6 +7072,7 @@ router.get('/config', async (req, res) => {
         selfObservation: false,
         coachObservation: false,
         newUi: false,
+        coachV2: false,
       },
     });
   }
