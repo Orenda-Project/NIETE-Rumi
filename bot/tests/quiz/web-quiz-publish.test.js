@@ -16,6 +16,7 @@ process.env.R2_ACCESS_KEY_ID = 'test-only';
 process.env.R2_SECRET_ACCESS_KEY = 'test-only';
 process.env.R2_BUCKET_NAME = 'test-bucket';
 process.env.ELEVENLABS_API_KEY = 'test-only';
+process.env.SONIOX_API_KEY = 'test-only'; // the quiz's one voice (web-quiz-voice.js) is Soniox in both languages
 delete process.env.TTS_PROVIDER;
 delete process.env.E2E_CASSETTE;
 
@@ -45,7 +46,8 @@ jest.mock('@aws-sdk/client-s3', () => {
 });
 
 const axios = require('axios');
-const { publishQuizAudio, audioKey } = require('../../shared/services/quiz/web-quiz-publish.service');
+const Publish = require('../../shared/services/quiz/web-quiz-publish.service');
+const { publishQuizAudio, audioKey } = Publish;
 const { presignAudio, presignVideo } = require('../../shared/services/quiz/web-quiz-media');
 
 const QUIZ_ID = '11111111-1111-4111-8111-111111111111';
@@ -130,7 +132,7 @@ describe('publishQuizAudio', () => {
       audioKey(QUIZ_ID, Q1, 'why', 'Roots drink water from the soil.', 'en'),
       audioKey(QUIZ_ID, Q2, 'why', 'Leaves make food from sunlight.', 'en'),
     ]));
-    putKeys().forEach((k) => expect(k).toMatch(new RegExp(`^web-quiz/audio/${QUIZ_ID}/[0-9a-f-]+/(q|a|b|c|d|why)-[0-9a-f]{12}\\.ogg$`)));
+    putKeys().forEach((k) => expect(k).toMatch(new RegExp(`^quiz-audio/[a-z0-9-]+/${QUIZ_ID}/en/[0-9a-f-]+/(q|a|b|c|d|why)-sx-grace-[0-9a-f]{8}\\.ogg$`)));
     // the why line is spoken without the stored letter (the page shuffles options)
     const spoken = axios.post.mock.calls.map((c) => c[1].text);
     expect(spoken).toContain('Roots drink water from the soil.');
@@ -142,9 +144,10 @@ describe('publishQuizAudio', () => {
       q: audioKey(QUIZ_ID, Q1, 'q', 'Which part of a plant takes in water?', 'en'),
       opts: [audioKey(QUIZ_ID, Q1, 'a', 'Roots', 'en'), audioKey(QUIZ_ID, Q1, 'b', 'Leaves', 'en'), audioKey(QUIZ_ID, Q1, 'c', 'Flower', 'en'), null],
       why: audioKey(QUIZ_ID, Q1, 'why', 'Roots drink water from the soil.', 'en'),
+      fbs: [null, null, null, null],
     });
     expect(mockLogEvent).toHaveBeenCalledWith('web_quiz.publish_audio', expect.objectContaining({
-      quizId: QUIZ_ID, synthesized: 9, skipped: 0, failed: 0, providers: { elevenlabs: 9 },
+      quizId: QUIZ_ID, synthesized: 9, skipped: 0, failed: 0, providers: { soniox: 9 },
     }));
     expect(out.estimatedCostUsd).toBeGreaterThan(0);
   });
@@ -225,7 +228,8 @@ describe('publishQuizAudio: what the voice says (SCHEMA_v2 read text, never TeX)
     }];
     const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
     expect(out.ok).toBe(true);
-    expect(said()).toEqual(expect.arrayContaining(['What is three quarters of eight?', 'six', 'two', 'four']));
+    // (the Soniox text step ends a bare option with a full stop, so it is said as a phrase)
+    expect(said()).toEqual(expect.arrayContaining(['What is three quarters of eight?', 'six.', 'two.', 'four.']));
     said().forEach((t) => { expect(t).not.toMatch(/[$\\]|frac/); });
     const a = rows.quiz.meta.web.audio[Q1];
     expect(a.q).toBe(audioKey(QUIZ_ID, Q1, 'q', 'What is three quarters of eight?', 'en'));
@@ -242,7 +246,7 @@ describe('publishQuizAudio: what the voice says (SCHEMA_v2 read text, never TeX)
         read: { stem: 'Put the steps in order.', opts: ['roast the beans', 'harvest the beans', 'temper the chocolate'] } } },
     }];
     await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
-    expect(said()).toEqual(expect.arrayContaining(['Put the steps in order.', 'roast the beans', 'harvest the beans', 'temper the chocolate']));
+    expect(said()).toEqual(expect.arrayContaining(['Put the steps in order.', 'roast the beans.', 'harvest the beans.', 'temper the chocolate.']));
     expect(said()).not.toContain('Stones'); // the row's own option is not on this page
     expect(rows.quiz.meta.web.audio[Q2].opts[2]).toBe(audioKey(QUIZ_ID, Q2, 'c', 'temper the chocolate', 'en'));
   });
@@ -253,7 +257,7 @@ describe('publishQuizAudio: what the voice says (SCHEMA_v2 read text, never TeX)
     rows.questions = [{ ...rows.questions[0], question_text: 'What is $\\frac{1}{2}$ of 8?', option_a: '$4$', option_b: '$\\frac{1}{4}$', option_c: '2',
       option_feedback: { correct: 'Half of $8$ is $4$.' } }];
     await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
-    expect(said()).toEqual(expect.arrayContaining(['What is 1/2 of 8?', '4', '1/4', 'Half of 8 is 4.']));
+    expect(said()).toEqual(expect.arrayContaining(['What is 1/2 of 8?', '4.', '1/4.', 'Half of 8 is 4.']));
     said().forEach((t) => { expect(t).not.toMatch(/[$\\]|frac/); });
   });
 
@@ -321,6 +325,193 @@ describe('publishQuizAudio: the why clip is the reason, never praise (it is play
   });
 });
 
+describe('publishQuizAudio: the feedback for each wrong option is recorded too (the page says it after that pick)', () => {
+  const missing = async (cmd) => {
+    if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+    return {};
+  };
+  const said = () => axios.post.mock.calls.map((c) => c[1].text);
+
+  test('a row\'s option_feedback.wrong lines get clips on their option\'s slot (fbs), praise never', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.questions = [{ ...rows.questions[0], option_feedback: { correct: 'Well done!', wrong: { 1: 'Leaves make food from sunlight.', 2: 'Flowers make seeds.' } },
+      explanation: 'Roots drink water.' }];
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(said()).toEqual(expect.arrayContaining(['Leaves make food from sunlight.', 'Flowers make seeds.']));
+    expect(rows.quiz.meta.web.audio[Q1].fbs).toEqual([null, audioKey(QUIZ_ID, Q1, 'xb', 'Leaves make food from sunlight.', 'en'),
+      audioKey(QUIZ_ID, Q1, 'xc', 'Flowers make seeds.', 'en'), null]);
+  });
+
+  test('a video-bank feedback line is recorded cleaned (no letters, no "correct answer", no praise), as the page shows it', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.questions = [{ ...rows.questions[0], option_feedback: { wrong: { 1: 'B) Good try! Leaves make food. The correct answer is A) Roots, because roots drink water. Keep going!' } }, explanation: 'Roots drink water.' }];
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(said()).toContain('Leaves make food. Roots drink water.');
+    said().forEach((t) => expect(t).not.toMatch(/Good try|Keep going|correct answer|\b[A-D]\)/));
+  });
+
+  test('SCHEMA_v2: each option\'s own fb is recorded on that option\'s slot', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    rows.questions = [{ ...rows.questions[1], media: { web: { v: 2, type: 'order', key: 'B,A', stem: 'Put them in order.', why: 'Seeds come first.',
+      options: [{ slot: 'A', text: 'Plant', fb: 'A plant grows from a seed.' }, { slot: 'B', text: 'Seed' }], read: { stem: 'Put them in order.', opts: ['plant', 'seed'] } } } }];
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(rows.quiz.meta.web.audio[Q2].fbs).toEqual([audioKey(QUIZ_ID, Q2, 'xa', 'A plant grows from a seed.', 'en'), null, null, null]);
+  });
+
+  test('a complete publish stamps the voice version, so it is not redone; a partial one does not', async () => {
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(rows.quiz.meta.web.audio_v).toBe(Publish.AUDIO_VERSION);
+    const rows2 = quizRows();
+    axios.post.mockReset(); axios.post.mockRejectedValue(new Error('vendor down'));
+    await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows2) });
+    expect(rows2.quiz.meta.web.audio_v).toBeUndefined();
+  });
+});
+
+describe('publishQuizAudio: clips are stored small (a child pays for every byte)', () => {
+  const { execFileSync } = require('child_process');
+  const ffmpeg = require('@ffmpeg-installer/ffmpeg').path;
+  // A real 3.5 s voice-like clip at the vendor's rate (~64 kbps Ogg Opus), as the gateway returns it.
+  const os = require('os');
+  const src = path.join(os.tmpdir(), `wq-pub-test-${process.pid}.ogg`);
+  beforeAll(() => {
+    execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=frequency=220:duration=3.5', '-f', 'lavfi', '-i', 'anoisesrc=d=3.5:a=0.05',
+      '-filter_complex', 'amix=inputs=2', '-ac', '2', '-c:a', 'libopus', '-b:a', '64k', src]);
+  });
+  afterAll(() => { try { fs.unlinkSync(src); } catch (_) {} });
+
+  test('each clip is re-encoded to mono Opus at 24 kbps before it is stored, and its key names the format', async () => {
+    const vendor = fs.readFileSync(src);
+    axios.post.mockReset(); axios.post.mockResolvedValue({ data: vendor });
+    const puts = [];
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      if (cmd.constructor.name === 'PutObjectCommand') puts.push(cmd.input);
+      return {};
+    });
+    const rows = quizRows();
+    rows.questions = [rows.questions[1]];
+    const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(out.ok).toBe(true);
+    expect(puts.length).toBeGreaterThan(0);
+    for (const put of puts) {
+      const body = Buffer.from(put.Body);
+      expect(body.slice(0, 4).toString()).toBe('OggS');
+      expect(body.length).toBeLessThan(vendor.length * 0.6);
+      const probe = path.join(os.tmpdir(), `wq-pub-probe-${process.pid}.ogg`);
+      fs.writeFileSync(probe, body);
+      let info = '';
+      try { execFileSync(ffmpeg, ['-hide_banner', '-i', probe], { stdio: 'pipe' }); } catch (e) { info = String(e.stderr); }
+      fs.unlinkSync(probe);
+      expect(info).toMatch(/Audio: opus, 48000 Hz, mono/);
+    }
+    expect(out.bytes).toBe(puts.reduce((n, p) => n + Buffer.from(p.Body).length, 0));
+    // The format is part of the key, so quizzes recorded before this change get new, small clips.
+    const k = Publish.clipKey({ env: 'e', quizId: QUIZ_ID, lang: 'en', qid: Q2, part: 'q', voice: 'sx-grace', text: 'x' });
+    expect(k).toBe(audioKey(QUIZ_ID, Q2, 'q', 'x', 'en', { env: 'e' }));
+    expect(k).not.toBe(require('../../shared/services/quiz/web-quiz-audio-store').clipKey({ env: 'e', quizId: QUIZ_ID, lang: 'en', qid: Q2, part: 'q', voice: 'sx-grace', text: 'x' }));
+  });
+});
+
+describe('requestQuizAudio / runQuizAudioJob: the clips are recorded on the worker, not in the page\'s process', () => {
+  test('asks the quiz queue for a quiz_web_audio job, once per quiz and voice version', async () => {
+    const queue = { queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) };
+    await Publish.requestQuizAudio('quiz-r1', { meta: {}, queue });
+    await Publish.requestQuizAudio('quiz-r1', { meta: {}, queue });
+    expect(queue.queueJob).toHaveBeenCalledTimes(1);
+    expect(queue.queueJob).toHaveBeenCalledWith('quiz-r1', 'quiz_web_audio', { quizId: 'quiz-r1' },
+      expect.objectContaining({ deduplicationId: `quiz-r1-quiz_web_audio-v${Publish.AUDIO_VERSION}` }));
+  });
+
+  test('a quiz already at this voice version is not queued', async () => {
+    const queue = { queueJob: jest.fn() };
+    await Publish.requestQuizAudio('quiz-r2', { meta: { web: { audio_v: Publish.AUDIO_VERSION } }, queue });
+    expect(queue.queueJob).not.toHaveBeenCalled();
+  });
+
+  test('if the queue cannot take it, the clips are made here instead (never silence), and it never throws', async () => {
+    const queue = { queueJob: jest.fn().mockRejectedValue(new Error('no queue')) };
+    const publish = jest.fn().mockResolvedValue({ ok: true });
+    await expect(Publish.requestQuizAudio('quiz-r3', { meta: {}, queue, publish })).resolves.toBeDefined();
+    expect(publish).toHaveBeenCalledWith('quiz-r3', expect.any(Object));
+  });
+
+  test('the job publishes a stale quiz and skips a current one', async () => {
+    const missing = async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      return {};
+    };
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    const out = await Publish.runQuizAudioJob({ quizId: QUIZ_ID }, { db: fakeDb(rows) });
+    expect(out.ok).toBe(true);
+    expect(rows.quiz.meta.web.audio_v).toBe(Publish.AUDIO_VERSION);
+    axios.post.mockClear();
+    const again = await Publish.runQuizAudioJob({ quizId: QUIZ_ID }, { db: fakeDb(rows) });
+    expect(again.skipped).toBe('current');
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  test('a job whose clips failed (e.g. the vendor rate-limits) is tried again later with a growing wait, and gives up after 4 tries', async () => {
+    const rows = quizRows();
+    const queue = { queueJob: jest.fn().mockResolvedValue({}) };
+    const publish = jest.fn().mockResolvedValue({ ok: true, failed: 3, synthesized: 6 });
+    await Publish.runQuizAudioJob({ quizId: QUIZ_ID }, { db: fakeDb(rows), publish, queue });
+    expect(queue.queueJob).toHaveBeenCalledWith(QUIZ_ID, 'quiz_web_audio', { quizId: QUIZ_ID, attempt: 1 },
+      expect.objectContaining({ delaySeconds: 120 }));
+    queue.queueJob.mockClear();
+    await Publish.runQuizAudioJob({ quizId: QUIZ_ID, attempt: 3 }, { db: fakeDb(rows), publish, queue });
+    expect(queue.queueJob).toHaveBeenCalledWith(QUIZ_ID, 'quiz_web_audio', { quizId: QUIZ_ID, attempt: 4 },
+      expect.objectContaining({ delaySeconds: 900 }));
+    queue.queueJob.mockClear();
+    await Publish.runQuizAudioJob({ quizId: QUIZ_ID, attempt: 4 }, { db: fakeDb(rows), publish, queue });
+    expect(queue.queueJob).not.toHaveBeenCalled();
+    expect(rows.quiz.meta.web && rows.quiz.meta.web.audio_v).toBeFalsy(); // nothing is marked recorded
+  });
+
+  test('a quiz\'s clips are recorded several at a time, not one after another', async () => {
+    let inFlight = 0; let most = 0;
+    axios.post.mockReset();
+    axios.post.mockImplementation(async () => { inFlight += 1; most = Math.max(most, inFlight); await new Promise((r) => setTimeout(r, 15)); inFlight -= 1; return { data: OGG }; });
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      return {};
+    });
+    const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb(quizRows()) });
+    expect(out.synthesized).toBe(9);
+    expect(most).toBeGreaterThan(1);
+  });
+});
+
+describe('ensureQuizAudio: a quiz gets its clips the first time its page is opened, once', () => {
+  test('publishes a quiz whose clips are missing or older than this voice version, once even when asked twice at once', async () => {
+    const publish = jest.fn().mockResolvedValue({ ok: true });
+    const a = Publish.ensureQuizAudio('quiz-1', { meta: { web: { audio: {} } }, publish });
+    const b = Publish.ensureQuizAudio('quiz-1', { meta: {}, publish });
+    await Promise.all([a, b]);
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenCalledWith('quiz-1', expect.any(Object));
+  });
+
+  test('a quiz already at this voice version is left alone', async () => {
+    const publish = jest.fn().mockResolvedValue({ ok: true });
+    await Publish.ensureQuizAudio('quiz-2', { meta: { web: { audio_v: Publish.AUDIO_VERSION } }, publish });
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  test('never throws, and does not retry a failing quiz on every page open', async () => {
+    const publish = jest.fn().mockRejectedValue(new Error('boom'));
+    await expect(Publish.ensureQuizAudio('quiz-3', { meta: {}, publish })).resolves.toBeDefined();
+    await Publish.ensureQuizAudio('quiz-3', { meta: {}, publish });
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('presignAudio / presignVideo', () => {
   test('turns stored keys into signed links per question, nulls kept', async () => {
     const meta = { web: { audio: { [Q1]: { q: `web-quiz/audio/${QUIZ_ID}/${Q1}/q.ogg`, opts: [`web-quiz/audio/${QUIZ_ID}/${Q1}/a.ogg`, null], why: null } } } };
@@ -329,6 +520,13 @@ describe('presignAudio / presignVideo', () => {
     expect(out[Q1].opts[0]).toMatch(/X-Amz-Expires=21600/);
     expect(out[Q1].opts[1]).toBeNull();
     expect(out[Q1].why).toBeNull();
+  });
+
+  test('signs the wrong-option feedback clips (fbs) too', async () => {
+    const meta = { web: { audio: { [Q1]: { q: null, opts: [], why: null, fbs: [null, `web-quiz/audio/${QUIZ_ID}/${Q1}/xb-abc.ogg`] } } } };
+    const out = await presignAudio(meta);
+    expect(out[Q1].fbs[0]).toBeNull();
+    expect(out[Q1].fbs[1]).toMatch(/xb-abc\.ogg\?.*X-Amz-Signature=/);
   });
 
   test('no audio in meta -> empty map (page falls back to the phone voice)', async () => {

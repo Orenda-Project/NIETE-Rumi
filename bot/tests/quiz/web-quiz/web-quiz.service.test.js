@@ -24,6 +24,13 @@ jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logErro
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 // The figure engine pulls in openchemlib (ESM); the repo's CJS stand-in lets a figure really draw here.
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
+// E2 asks for the quiz's read-aloud clips in the background; publishing has its own suite
+// (web-quiz-publish.test.js, network mocked at its edge), so here only the ask is observed.
+jest.mock('../../../shared/services/quiz/web-quiz-publish.service', () => ({
+  ...jest.requireActual('../../../shared/services/quiz/web-quiz-publish.service'),
+  ensureQuizAudio: jest.fn(() => Promise.resolve({ skipped: 'test' })),
+  requestQuizAudio: jest.fn(() => Promise.resolve({ skipped: 'test' })),
+}));
 
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
@@ -33,6 +40,7 @@ const WhatsApp = require('../../../shared/services/whatsapp.service');
 const { logEvent } = require('../../../shared/utils/structured-logger');
 const T = require('../../../shared/services/quiz/web-quiz-token');
 const WQ = require('../../../shared/services/quiz/web-quiz.service');
+const Pulse = require('../../../shared/services/quiz/web-quiz-pulse');
 
 const TEACHER = '11111111-1111-4111-8111-111111111111';
 const QUIZ = '22222222-2222-4222-8222-222222222222';
@@ -88,6 +96,7 @@ beforeEach(() => {
   delete process.env.WEB_QUIZ_TOKEN_SECRET;
   redis.__keys.clear();
   jest.clearAllMocks();
+  Pulse._reset(); // the peer-pulse ring is per process: one test's players are not the next test's peers
   seed();
 });
 afterAll(() => { process.env = SAVED; });
@@ -103,6 +112,21 @@ describe('fail closed', () => {
 });
 
 describe('E2 GET quiz', () => {
+  test('a wrong option\'s stored WhatsApp feedback reaches the page cleaned: no letters, no "correct answer", no praise', async () => {
+    fake.db.quiz_questions[1].option_feedback = { wrong: { 0: 'A) Good try! Roots hold the plant. The correct answer is B) Leaf, because leaves make food. Keep going!' } };
+    const out = await WQ.getQuiz('AB12CD');
+    const root = out.quiz.questions[1].options.find((o) => o.slot === 'A');
+    expect(root.fb).toBe('Roots hold the plant. Leaves make food.');
+  });
+
+  test('opening the page asks for the quiz\'s read-aloud clips (published once, in the background, never awaited)', async () => {
+    const Publish = require('../../../shared/services/quiz/web-quiz-publish.service');
+    Publish.requestQuizAudio.mockImplementationOnce(() => new Promise(() => {})); // never settles: E2 must not wait
+    const out = await WQ.getQuiz('AB12CD');
+    expect(out.quiz.id).toBe(QUIZ);
+    expect(Publish.requestQuizAudio).toHaveBeenCalledWith(QUIZ, expect.objectContaining({ meta: { web_arm: 'web' } }));
+  });
+
   test('questions with options, correct slot, why, feedback and media links; chips; live counts', async () => {
     const out = await WQ.getQuiz('ab12cd');
     expect(out.quiz).toMatchObject({ id: QUIZ, code: 'AB12CD', topic: 'Parts of a plant', lang: 'en', dir: 'ltr', n: 4 });
@@ -241,11 +265,81 @@ describe('E4 POST answers + E5 POST finish', () => {
     await expect(WQ.recordAnswers({ st: 'forged', a: [] })).rejects.toMatchObject({ status: 401 });
   });
 
+  test('a catch-up batch (the phone was offline) is written in ONE insert, not one per answer', async () => {
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Bilal Example', force: true } });
+    const before = fake.calls.filter((c) => c.table === 'quiz_answers' && c.op === 'insert').length;
+    const rec = await WQ.recordAnswers({ st: s.st, a: ['B', 'A', 'B', 'B'].map((slot, i) => ({ qid: qid(i + 1), slot, ms: 2000 })) });
+    expect(rec.recorded).toEqual([qid(1), qid(2), qid(3), qid(4)]);
+    expect(fake.calls.filter((c) => c.table === 'quiz_answers' && c.op === 'insert').length - before).toBe(1);
+  });
+
+  test('a batch that races another flush (unique violation) falls back row by row and loses nothing', async () => {
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Nida Example', force: true } });
+    const sid = T.verify(s.st, 's').sid;
+    // The other flush lands q2 between our read of what is answered and our insert.
+    const realFrom = supabase.from;
+    let raced = false;
+    supabase.from = (t) => {
+      const b = realFrom(t);
+      if (t !== 'quiz_answers' || raced) return b;
+      const ins = b.insert.bind(b);
+      b.insert = (rows) => {
+        if (Array.isArray(rows) && rows.length > 1) {
+          raced = true;
+          fake.db.quiz_answers.push({ id: 'race', session_id: sid, question_id: qid(2), selected_option: 'C', is_correct: false });
+        }
+        return ins(rows);
+      };
+      return b;
+    };
+    try {
+      const rec = await WQ.recordAnswers({ st: s.st, a: ['B', 'A', 'B'].map((slot, i) => ({ qid: qid(i + 1), slot, ms: 1000 })) });
+      expect(raced).toBe(true);
+      expect([...rec.recorded].sort()).toEqual([qid(1), qid(3)]);
+      expect(rec.dup).toEqual([qid(2)]);
+      const mine = fake.db.quiz_answers.filter((r) => r.session_id === sid);
+      expect(mine.map((r) => r.question_id).sort()).toEqual([qid(1), qid(2), qid(3)]);
+      expect(mine.find((r) => r.question_id === qid(2)).selected_option).toBe('C');
+    } finally {
+      supabase.from = realFrom;
+    }
+  });
+
+  test('finish hands the page the signed ids of its share pictures: my card, and the invite on my challenge code', async () => {
+    const Art = require('../../../shared/services/quiz/web-quiz-art');
+    const { s } = await play('Sana Example', ['B', 'B', 'A', 'B']);
+    const out = await WQ.finishSession({ st: s.st });
+    expect(Art.parseArtId(out.art.card)).toEqual({ kind: 'c', ref: T.verify(s.st, 's').sid });
+    expect(Art.parseArtId(out.art.invite)).toEqual({ kind: 'i', ref: out.challenge_code });
+    // the class picture the child sends is theirs: their own row named "(me)"
+    expect(Art.parseArtId(out.art.class)).toEqual({ kind: 'l', ref: T.verify(s.st, 's').sid });
+  });
+
+  test("the quiz payload names its link's picture: the class picture, and the invite on a challenge code", async () => {
+    const Art = require('../../../shared/services/quiz/web-quiz-art');
+    const out = await WQ.getQuiz('AB12CD');
+    expect(Art.parseArtId(out.art.class)).toEqual({ kind: 'l', ref: 'AB12CD' });
+    expect(out.art.invite).toBeNull();
+    const { s } = await play('Sana Example', ['B', 'B', 'A', 'B']);
+    const fin = await WQ.finishSession({ st: s.st });
+    fake.db.quiz_share_codes.find((c) => c.code === fin.challenge_code).active = true; // the column's default in the real table
+    const viaFriend = await WQ.getQuiz(fin.challenge_code);
+    expect(Art.parseArtId(viaFriend.art.invite)).toEqual({ kind: 'i', ref: fin.challenge_code });
+    // the friend plays it: their finish offers no class picture (they are not in that class)
+    const f = await WQ.startSession({ code: fin.challenge_code, new: { name: 'Rafi Example', force: true } });
+    for (const [i, slot] of ['B', 'B', 'A', 'B'].entries()) await WQ.recordAnswers({ st: f.st, a: [{ qid: qid(i + 1), slot }] });
+    const ff = await WQ.finishSession({ st: f.st });
+    expect(ff.art.class).toBeNull();
+    expect(Art.parseArtId(ff.art.card)).toEqual({ kind: 'c', ref: T.verify(f.st, 's').sid });
+    expect(Art.parseArtId(viaFriend.art.class)).toEqual({ kind: 'l', ref: 'AB12CD' });
+  });
+
   test('finish scores from the answers table, returns card with one star per right answer, review, challenge code', async () => {
     const { s } = await play('Sana Example', ['B', 'B', 'A', 'B']);
     const out = await WQ.finishSession({ st: s.st });
     expect(out.score).toEqual({ correct: 3, total: 4, pct: 75, level: 'developing' });
-    expect(out.card).toEqual({ first: 'Sana', animal: expect.any(String), correct: 3, total: 4, stars: 3 });
+    // nth: Zara finished earlier today, so Sana is the class's 2nd finisher today.
+    expect(out.card).toEqual({ first: 'Sana', animal: expect.any(String), correct: 3, total: 4, stars: 3, nth: 2 });
     expect(out.counted).toBe(true);
     expect(out.review[2]).toMatchObject({ qid: qid(3), picked: 'A', correct_slot: 'B', ok: false, why: 'Because 3' });
     expect(out.challenge_code).toMatch(/^[A-Z0-9]{6}$/);
@@ -376,7 +470,7 @@ describe('E7 POST me', () => {
       status: 'completed', correct_answers: 2, total_questions_answered: 4, completed_at: ago(1), created_at: ago(1.1), invited_by_student_id: KID_A });
     const out = await WQ.me({ code: 'AB12CD', chips: [chipOf(KID_A)] });
     expect(out.history).toEqual([{ chip: chipOf(KID_A), topic: 'Parts of a plant', date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), correct: 3, total: 4, pct: 75 }]);
-    expect(out.friends_finished).toEqual([{ chip: chipOf(KID_A), first: 'Rida', topic: 'Parts of a plant', correct: 2, total: 4 }]);
+    expect(out.friends_finished).toEqual([{ chip: chipOf(KID_A), first: 'Rida', topic: 'Parts of a plant', correct: 2, total: 4, outcome: 'lose' }]);
     expect(await WQ.me({ code: 'AB12CD', chips: ['0000000000000000'] })).toEqual({ history: [], friends_finished: [] });
   });
 });

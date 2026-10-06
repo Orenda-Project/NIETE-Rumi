@@ -27,15 +27,18 @@ html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-famil
 @font-face{font-family:"WQ Nastaliq";src:url(fonts/wq-nastaliq-1.woff2) format("woff2");font-display:swap;size-adjust:155%;unicode-range:U+0600-06FF,U+00A0,U+00AB,U+00BB,U+200C-200F,U+2066-2069,U+25CC,U+0020}
 html[lang=ur] body{font-family:var(--fu);word-spacing:.2em}
 html[lang=ur] button{word-spacing:inherit}
+html[lang=ur] .wq-lat,html[lang=ur] .wq-input[lang=en]{font-family:var(--f);word-spacing:normal}
+html[lang=ur] .wq-lat{direction:ltr;unicode-bidi:isolate}
 html[lang=ur] .wq-icon,html[lang=ur] .wq-spk,html[lang=ur] .wq-emoji,html[lang=ur] .wq-tfi,html[lang=ur] .wq-let,html[lang=ur] .wq-place b{font-family:var(--f);line-height:1;word-spacing:normal}
 /* Urdu labels the figure engine writes inside a figure carry an inline Noto stack Android does not have. */
 .wq-svg [lang=ur]{font-family:var(--fu)!important;word-spacing:normal}
 button,input{font:inherit;color:inherit}
 img{max-width:100%}
-.wq-app{min-height:100vh;min-height:100dvh;max-width:480px;margin:0 auto;display:flex;flex-direction:column;position:relative;overflow-x:hidden}
+.wq-app{min-height:100vh;min-height:100dvh;max-width:480px;margin:0 auto;display:flex;flex-direction:column;position:relative;overflow-x:hidden;overflow-x:clip}
 /* The brand's ground motif (NIETE: the diamond lattice; Rumi: dots and smiles), whisper-quiet, fading up from the bottom. */
 .wq-app::after{content:"";position:fixed;left:0;right:0;bottom:0;height:150px;background-image:var(--deco);background-size:auto;opacity:.32;-webkit-mask-image:linear-gradient(to top,#000 20%,transparent);mask-image:linear-gradient(to top,#000 20%,transparent);z-index:0;pointer-events:none}
-.wq-boot{flex:1;display:grid;place-items:center}
+.wq-boot{flex:1;display:grid;place-items:center;align-content:center}
+.wq-bootsay{margin:10px 0 0;font-weight:800;font-size:18px;color:var(--muted);text-align:center}
 .wq-screen{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;gap:14px;padding:12px 16px 120px}
 .wq-closed{align-items:center;justify-content:center;text-align:center}
 .wq-closed h1{font-size:26px;color:var(--navy);margin:0}
@@ -76,6 +79,7 @@ html[lang=ur] h1,html[lang=ur] h2{font-weight:700;line-height:2}
 @keyframes wq-bob{50%{transform:translateY(-6px)}}
 .wq-say{position:relative;background:var(--card);border-radius:18px;padding:10px 14px;font-weight:800;font-size:18px;color:var(--navy);box-shadow:0 2px 0 var(--line);margin-bottom:20px;flex:1}
 html[lang=ur] .wq-say{font-weight:600;font-size:17px;line-height:1.95}
+html[lang=ur] .wq-jug.wq-big .wq-say{line-height:2.2}
 .wq-say::after{content:"";position:absolute;bottom:-8px;inset-inline-start:18px;border:9px solid transparent;border-top-color:var(--card);border-bottom:0}
 .wq-card{background:var(--card);border-radius:20px;padding:14px;box-shadow:0 3px 0 var(--line)}
 .wq-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:60px;border-radius:18px;border:0;font-weight:900;font-size:20px;cursor:pointer;padding:8px 18px;text-decoration:none;text-align:center}
@@ -92,6 +96,13 @@ html[lang=ur] .wq-btn{font-weight:700;font-size:19px;line-height:1.9}
 /* The animal badge is an emoji: keep it out of the Nastaliq stack and its tall line box (Urdu pushed it below its circle). */
 .wq-ani{font-family:var(--f);line-height:1;display:inline-block;font-weight:400}
 .wq-kid .wq-ani{font-size:28px;width:40px;height:40px;display:grid;place-items:center;background:var(--paper-2);border-radius:50%;line-height:1}
+/* identity v2: remembered children as big cards on the landing (wq-identity.js) */
+.wq-kids-big{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.wq-kid-big{min-height:72px;font-size:21px;padding:8px 12px 8px 8px;overflow:hidden}
+.wq-kid-big bdi{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wq-nw{white-space:nowrap}
+.wq-kids-small .wq-kid-big{min-height:56px;font-size:18px}
+.wq-undo{position:fixed;left:16px;right:16px;bottom:16px;width:auto;z-index:50;background:#fff;color:var(--navy);border:2px solid var(--navy);box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .wq-input{width:100%;min-height:58px;border-radius:16px;border:2px solid var(--line);background:#fff;padding:8px 14px;font-size:22px;font-weight:800;color:var(--navy)}
 .wq-input:focus{outline:3px solid var(--green);outline-offset:1px}
 /* M4 roll-number pad: big keys, digits in the page's own font (the Nastaliq line box would push digits off-centre). */
@@ -111,7 +122,12 @@ html[lang=ur] .wq-key-go{font-family:var(--fu);line-height:1.6}
 .wq-who-row b{font-size:18px;color:var(--navy)}
 .wq-who .wq-tag{display:inline-block;background:var(--navy);color:#fff;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:800}
 .wq-who .wq-tag-off{background:var(--notyet-bg);color:var(--notyet)}
-.wq-who-fix{width:100%;min-height:44px;font-size:15px}
+.wq-who-row .wq-grow{flex:1}
+.wq-who-score{font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
+.wq-who-h{margin:14px 0 6px;font-size:17px;color:var(--navy)}
+.wq-who-sum h2{margin:0}
+.wq-who-np{padding:6px 0}
+.wq-linkbtn{background:none;border:0;padding:6px 4px;min-height:32px;font:inherit;font-size:14px;font-weight:700;color:var(--brand-d,#23794D);text-decoration:underline;cursor:pointer}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
 .wq-dots{display:flex;gap:6px;flex:1}
 .wq-dot{flex:1;height:12px;border-radius:999px;background:var(--star-off)}
@@ -151,10 +167,26 @@ html[lang=ur] .wq-fb{line-height:2.3}
 html[lang=ur] .wq-why{line-height:2.3}
 .wq-hint{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:16px;padding:8px 10px;box-shadow:0 2px 0 var(--line);font-weight:800;color:var(--navy)}
 .wq-hint img{width:48px;height:48px}
+/* Jugnu's hint: a small thinking Jugnu under the options; a tap shows the hint beside him. */
+.wq-jhelp{display:flex;align-items:center;gap:8px;min-height:var(--tap);margin-top:10px;padding:4px 14px 4px 6px;border:0;border-radius:999px;background:var(--card);box-shadow:0 2px 0 var(--line);font:inherit;font-weight:800;font-size:16px;color:var(--navy);cursor:pointer;max-width:100%}
+.wq-jhelp img{width:44px;height:44px;flex:0 0 auto}
+.wq-jhelp span{min-width:0;text-align:start}
+.wq-jhelp.wq-nudge{animation:wq-nudge 1.2s ease-in-out 2}
+@keyframes wq-nudge{0%,100%{transform:rotate(0)}20%{transform:rotate(-4deg)}40%{transform:rotate(4deg)}60%{transform:rotate(-2deg)}}
+@media (prefers-reduced-motion:reduce){.wq-jhelp.wq-nudge{animation:none}}
+html[lang=ur] .wq-jhelp{font-weight:600;line-height:1.9}
+#wq-hintbox .wq-hintjug{margin-top:10px}
+#wq-hintbox .wq-jimg{width:72px;height:72px}
+#wq-hintbox .wq-say{margin-bottom:12px;font-size:17px}
 .wq-stars{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .wq-star{width:40px;height:40px}
 .wq-star path{fill:var(--star-off)}
 .wq-star.wq-on path{fill:var(--star);stroke:var(--star-d);stroke-width:1}
+/* a league / my-scores row: the score, then its stars small enough for 10 on a 360 px row */
+.wq-rscore{display:block}
+.wq-rstars{gap:1px;justify-content:flex-end;flex-wrap:nowrap}
+.wq-rstars .wq-star{width:11px;height:11px}
+.wq-hist li>span:last-child{text-align:end;white-space:nowrap}
 .wq-big{font-size:64px;font-weight:900;color:var(--navy);text-align:center;line-height:1}
 html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-center{text-align:center}
@@ -177,6 +209,12 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-hist li{display:flex;justify-content:space-between;gap:8px;background:var(--card);border-radius:12px;padding:10px 12px;margin-top:6px;font-weight:800}
 .wq-hist{list-style:none;margin:0;padding:0}
 .wq-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:14px;padding:10px 16px;font-weight:800;z-index:9;max-width:90%}
+/* M17 peer pulse: one quiet line under the progress bar ("Sara got Q4 right ✓"). Fixed, so nothing moves;
+   never takes a tap; fades in and out over its 2.5 s. */
+.wq-pulse{position:fixed;top:64px;left:50%;transform:translateX(-50%);height:26px;line-height:26px;max-width:calc(100% - 32px);box-sizing:border-box;padding:0 12px;border-radius:13px;background:var(--navy);color:#fff;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;z-index:8;animation:wq-pulse 2.5s ease both}
+#wq[dir=rtl] .wq-pulse,[dir=rtl] .wq-pulse{font-size:12px;line-height:26px}
+@keyframes wq-pulse{0%{opacity:0}12%,82%{opacity:.95}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.wq-pulse{animation:none;opacity:.95}}
 .wq-video{width:100%;border-radius:16px;background:#000;aspect-ratio:16/9;display:block}
 .wq-vbox{position:relative;border-radius:16px;overflow:hidden}
 .wq-vcover{position:absolute;inset:0;width:100%;border:0;margin:0;padding:0;border-radius:16px;background:var(--green-l);display:grid;place-items:center;cursor:pointer}
@@ -187,11 +225,15 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-how{display:grid;gap:8px;list-style:none;padding:0;margin:0}
 .wq-how li{display:flex;gap:10px;align-items:center;font-weight:800;background:var(--card);border-radius:14px;padding:10px 12px}
 .wq-proof{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--green-d);font-size:15px}
+/* The card's "You're the 6th in your class to finish today": one centred line (a single flex item, so the isolated number keeps its spaces). */
+.wq-nth{justify-content:center;text-align:center}
 .wq-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 /* ---- item types (WQI): picture grid, true/false, order, match, label, listen; figures; maths ---- */
 .wq-item{display:grid;gap:12px}
 .wq-m{font-size:1.1em;direction:ltr;unicode-bidi:isolate}
+/* A long maths line scrolls inside its own box instead of running past the bubble or the screen. */
+.wq-mx{display:inline-block;max-width:100%;overflow-x:auto;overflow-y:hidden;vertical-align:middle;direction:ltr;unicode-bidi:isolate}
 .wq-m mfrac{padding:0 .1em}
 .wq-fig{position:relative;margin:0;display:flex;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 3px 0 var(--line);padding:8px}
 .wq-figbox{position:relative;line-height:0;margin:0 auto;width:100%}
@@ -225,6 +267,7 @@ html[lang=ur] .wq-zoom{font-family:var(--fu);font-weight:700}
 .wq-mlp .wq-pic{width:64px;height:64px}
 .wq-mlp .wq-mto{flex-basis:100%}
 .wq-opt.wq-ptile img{width:100%;max-width:120px;height:100px;object-fit:contain;background:transparent}
+.wq-opt.wq-ptile img.wq-z{width:100%;max-width:100%;height:auto;max-height:130px;border-radius:12px}
 .wq-emoji{font-size:64px;line-height:1.1}
 .wq-pname{font-size:18px;color:var(--navy)}
 .wq-tf{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -256,7 +299,7 @@ html[lang=ur] .wq-ml,html[lang=ur] .wq-mr,html[lang=ur] .wq-place{font-weight:70
 .wq-spk.wq-spk-big{width:96px;height:96px;font-size:44px}
 .wq-qtext.wq-qsmall{font-size:17px;color:var(--muted)}
 .wq-locked{cursor:default}
-.wq-opt .wq-m,.wq-ml .wq-m,.wq-mr .wq-m{font-size:1.45em}
+.wq-opt .wq-m,.wq-ml .wq-m,.wq-mr .wq-m,.wq-place .wq-m{font-size:1.45em}
 .wq-shp{position:relative}
 .wq-let{position:absolute;bottom:-5px;inset-inline-end:-5px;min-width:18px;height:18px;border-radius:9px;background:#fff;color:var(--navy);font:900 11px/18px var(--f);text-align:center;box-shadow:0 0 0 1px var(--line)}
 .wq-glyph{display:grid;place-items:center;width:100px;min-height:120px;padding:4px 0 22px;box-sizing:border-box;background:#fff;border-radius:16px;font:700 52px/1.7 var(--fu);color:var(--navy)}
@@ -278,8 +321,51 @@ img.wq-ld{min-height:60px;background:var(--paper-2);border-radius:12px;animation
 .wq-vtext b{font-size:17px;line-height:1.3;color:var(--navy);overflow-wrap:anywhere}
 .wq-vtext small{font-size:14px;color:var(--muted);font-weight:700}
 .wq-vdone{flex:0 0 auto;font-size:13px;font-weight:900;color:var(--right);background:var(--right-bg);border-radius:999px;padding:4px 8px}
-html[lang=ur] .wq-vtext b{font-size:16px;line-height:1.9}
+html[lang=ur] .wq-vtext b{font-size:16px;line-height:2.3}
 html[lang=ur] .wq-vtext small{line-height:1.8}
 
 /* The share preview's link: its own left-to-right line, small, breaking anywhere (never wraps backwards in Urdu). */
 .wq-url{font-family:var(--f);font-size:14px;line-height:1.4;color:var(--muted);text-align:left;word-break:break-all;margin:6px 0 0}
+.wq-artprev{display:block;width:100%;aspect-ratio:1200/630;object-fit:cover;border-radius:14px;margin:8px 0;background:var(--tint)}
+
+/* No recorded clip and no phone voice for this language (Android's in-app browser has none): the words are the voice, so show them big. */
+.wq-novoice .wq-qtext,.wq-novoice .wq-qtext.wq-qsmall{font-size:24px;line-height:1.55;color:var(--ink,inherit)}
+/* M16 all schools this week: my school is pinned to the top or bottom edge when scrolled away. */
+.wq-slist{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.wq-srow{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:8px;background:var(--card);border-radius:12px;padding:10px 8px;font-weight:800}
+.wq-splace{text-align:center;color:var(--muted);font-size:17px}
+.wq-sname{min-width:0;overflow-wrap:anywhere;font-size:16px;line-height:1.3}
+.wq-sname small{display:block;font-weight:600;font-size:13px;color:var(--muted)}
+.wq-spts{text-align:end;white-space:nowrap;font-size:15px}
+.wq-srow .wq-tag{display:inline-block;margin-inline-start:6px;background:var(--navy);color:#fff;border-radius:999px;padding:1px 8px;font-size:11px;vertical-align:middle}
+.wq-srow.wq-you{position:sticky;top:0;bottom:0;z-index:2;background:var(--gold-l,#FFE7A8);color:var(--navy);box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.wq-srow.wq-you small{color:var(--navy)}
+.wq-mycard{background:var(--gold-l,#FFE7A8);color:var(--navy)}
+.wq-mycard p{margin:0}
+.wq-mycard b{font-size:18px}
+.wq-mycard .wq-sub{color:var(--navy);margin-top:4px}
+.wq-move{display:block;font-size:12px;font-weight:800;unicode-bidi:isolate}
+.wq-move.wq-up{color:#1a8f4a}
+.wq-move.wq-down{color:#b3412e}
+.wq-move.wq-new{color:var(--navy)}
+html[lang=ur] .wq-srow .wq-tag{display:table;font-family:var(--fu);line-height:1.8;padding:0 8px;margin:2px 0 4px}
+.wq-schips .wq-chip{border:2px solid var(--line);font-size:14px;min-height:40px}
+.wq-schips .wq-chip.wq-on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.wq-mycard .wq-move{display:block;margin-top:4px;font-size:14px}
+.wq-added{margin-top:6px!important;font-weight:800;color:#1a8f4a}
+.wq-zero-list{background:var(--card);border-radius:12px;padding:10px 12px;color:var(--muted);font-weight:700}
+.wq-zero-list summary{cursor:pointer}
+.wq-zero-list ul{margin:8px 0 0;padding-inline-start:18px;font-weight:600;font-size:14px;line-height:1.6}
+/* The phone's own voice is speaking (no recorded clip for that line): a small phone on the speaker button. */
+.wq-phonevoice .wq-spk{position:relative}
+.wq-phonevoice .wq-spk::after{content:"📱";position:absolute;inset-inline-end:-6px;bottom:-6px;font-size:13px;line-height:1}
+/* The browser would not start the voice before a tap: the speaker button pulses until the child taps it. */
+.wq-tap .wq-spk{animation:wq-tap-pulse 1.2s ease-in-out infinite}
+@keyframes wq-tap-pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,0,0,.18)}50%{box-shadow:0 0 0 10px rgba(0,0,0,0)}}
+@media (prefers-reduced-motion:reduce){.wq-tap .wq-spk{animation:none;outline:3px solid var(--green-d,currentColor)}}
+
+/* The video-quiz scorecard (18a): a small chip over the name, and the next video of the chapter as one list row. */
+.wq-vchip{display:inline-block;margin:6px auto 0;padding:2px 10px;border-radius:999px;background:var(--brand-l);color:var(--brand-d);font-size:13px;font-weight:700}
+.wq-nextv{width:100%;margin:10px 0 4px}
+.wq-nextv .wq-vtext small{display:block;color:var(--muted);font-size:12px}
+.wq-chpic{display:block;margin:8px auto;max-width:100%;max-height:160px;border-radius:14px}

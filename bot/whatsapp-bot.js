@@ -74,6 +74,8 @@ app.use('/api/flows', flowEndpointRoutes);
 // The web child quiz (portal -> bot), behind the same x-api-key check. Mounted
 // first so its paths never fall into the general internal router.
 app.use('/api/internal/wq', require('./shared/routes/web-quiz-internal.routes'));
+// The teacher's web quiz report (portal /t/<token> -> bot), same x-api-key check.
+app.use('/api/internal/tr', require('./shared/routes/teacher-report-internal.routes'));
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);
@@ -1323,10 +1325,13 @@ app.post('/webhook', async (req, res) => {
         // after a declined invite. Same LAST-before-handleAnswer placement,
         // same reason.
         const VideoQuizBinge = require('./shared/services/quiz/video-quiz-binge.service');
+        const HandoutClass = require('./shared/services/quiz/handout-class.service');
         const handled = await VideoQuizService.handleOfferButton(buttonId, from)
           || await VideoQuizShare.handleShareButton(buttonId, from)
           || await VideoQuizInvite.handleInviteButton(buttonId, from)
           || await VideoQuizBinge.handleMoreButton(buttonId, from)
+          // "Which class is this quiz for?" (vq_wc_) — before handleAnswer, like every offer.
+          || await HandoutClass.handleTap(buttonId, from)
           || await VideoQuizService.handleAnswer(from, buttonId);
         if (!handled) {
           logToFile('⚠️ unrouted vq_ button', { buttonId, from });
@@ -1347,6 +1352,14 @@ app.post('/webhook', async (req, res) => {
         const LpQuizOffer = require('./shared/services/nudges/lp-quiz-offer.service');
         if (!(await LpQuizOffer.handleButton(buttonId, from, user))) {
           logToFile('⚠️ unrouted lpquiz_ button', { buttonId, from });
+        }
+      }
+      // The teacher's /quiz home (tqh_make / tqh_reports / tqh_class). Its own
+      // branch: `tqh_` does not start with `tq_`, so the one below never sees it.
+      else if (buttonId.startsWith('tqh_')) {
+        const TeacherQuizHome = require('./shared/services/quiz/teacher-quiz-home.service');
+        if (!(await TeacherQuizHome.handleHomeButton(buttonId, from, user))) {
+          logToFile('⚠️ unrouted tqh_ button', { buttonId, from });
         }
       }
       // Transcript quiz: the post-coaching offer (tq_yes_/tq_no_) and the
@@ -1953,6 +1966,22 @@ app.post('/webhook', async (req, res) => {
       if (listId.startsWith('tq_pick_') || listId.startsWith('tq_page_')) {
         const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
         await TranscriptQuizList.handleListPick(listId, from, user);
+        ack();
+        return;
+      }
+
+      // The teacher's class pick from a 3+-class "Which class is this quiz for?" list.
+      if (listId.startsWith('vq_wc_')) {
+        const HandoutClass = require('./shared/services/quiz/handout-class.service');
+        if (await HandoutClass.handleTap(listId, from)) return;
+      }
+
+      // /quiz "My quiz reports": a sent quiz tapped (tqr_<quizId>) or the next page (tqr_page_<n>).
+      if (listId.startsWith('tqr_')) {
+        const TeacherReportList = require('./shared/services/quiz/teacher-report-list.service');
+        if (!(await TeacherReportList.handleReportsPick(listId, from, user))) {
+          logToFile('⚠️ unrouted tqr_ list row', { listId, from });
+        }
         ack();
         return;
       }

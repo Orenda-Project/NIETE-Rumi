@@ -30,6 +30,8 @@ const { mathToText, texFaults } = require('./quiz-math');
 const { questionAddressForms } = require('./transcript-quiz-address');
 const { lessonLexicon, questionAdjacentTerms } = require('./transcript-quiz-adjacent-terms');
 const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
+const { answerLeakErrors } = require('./transcript-quiz-answer-leaks');
+const { metaStemError } = require('./transcript-quiz-meta-stem');
 const { keyByAuthorityError } = require('./transcript-quiz-key-authority');
 const GatesV2 = require('./quiz-author-gates-v2');
 
@@ -499,6 +501,30 @@ function termScriptErrors(textsByQ, { romanTotal = 0 } = {}) {
   return out;
 }
 
+/**
+ * The key and a wrong option that name the same number (quiz_author_gates_v2):
+ * 4/8 beside 1/2, 0.5 beside 1/2, 1/4 beside 2/8. On all 12,938 sandbox
+ * questions this shape occurs 5 times: 2 are two right answers, 3 are fair
+ * "lowest form" questions, which is the one exception. Returns the complaint's
+ * tail, or null.
+ */
+const LOWEST_FORM = /\b(?:lowest|simplest|simplif\w*|reduced?)\b|سادہ ترین|مختصر ترین|آسان ترین/i;
+function numericValue(text) {
+  const s = String(text ?? '').replace(/\\[dt]?frac\s*\{\s*(\d+)\s*\}\s*\{\s*(\d+)\s*\}/g, '$1/$2').replace(/\$/g, '').trim();
+  let m = /^(\d+)\s*\/\s*(\d+)$/.exec(s);
+  if (m) return Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
+  m = /^\d+(?:\.\d+)?$/.exec(s);
+  return m ? Number(s) : null;
+}
+function equalValueOption(options, correctIndex, stem) {
+  if (LOWEST_FORM.test(String(stem || ''))) return null;
+  const opts = Array.isArray(options) ? options : [];
+  const key = numericValue(opts[correctIndex]);
+  if (key === null) return null;
+  const twin = opts.find((o, k) => k !== correctIndex && numericValue(o) !== null && Math.abs(numericValue(o) - key) < 1e-9);
+  return twin === undefined ? null : `"${opts[correctIndex]}" and "${twin}" are the same amount, so a child who picks either is right; make every wrong option a different amount`;
+}
+
 function validate(rawQuestions, ctx = {}) {
   const {
     language, subject, digest, nExpected, lessonSummary, quizId,
@@ -580,6 +606,12 @@ function validate(rawQuestions, ctx = {}) {
       if (opts.length !== 3) errs.push(`q${i}: ${opts.length} options`);
       if (opts.some((o) => !o)) errs.push(`q${i}: empty option`);
       if (new Set(opts).size !== opts.length) errs.push(`q${i}: duplicate options`);
+      // quiz_author_gates_v2: the key and a wrong option of the same VALUE are two right answers
+      // ("4/8" beside "1/2"), wherever the picture is — unless the stem asks for the lowest form.
+      else if (GatesV2.enabled(ctx.authorGates)) {
+        const twin = equalValueOption(opts, ci, String(p.question || ""));
+        if (twin) errs.push(`q${i}: duplicate options — ${twin}`);
+      }
       if (![0, 1, 2].includes(ci)) errs.push(`q${i}: bad correct_index ${ci}`);
       const need = [0, 1, 2].filter((k) => k !== ci).map(String).sort();
       const have = Object.keys(fb.wrong || {}).sort();
@@ -685,8 +717,12 @@ function validate(rawQuestions, ctx = {}) {
     // a q-named complaint, so the targeted rewrite repairs it.
     if (GatesV2.enabled(ctx.authorGates)) {
       errs.push(...GatesV2.questionErrors({ ...p, figure: q.figure, media: q.media }, i, {
+        language: ctx.language,
         legacyPictureComplaint: q.figure == null && STEM_PROMISES_PICTURE.test(stem),
       }));
+      // "The lesson mentioned…": a question about the lesson, not its idea (repaired in place, soft).
+      const meta = metaStemError(q, i);
+      if (meta) errs.push(meta);
     }
 
     // ── the figure, if this question carries one ────────────────────────────
@@ -855,6 +891,10 @@ function validate(rawQuestions, ctx = {}) {
   // stem). Only the quiz as a whole can show it, and the complaint names the
   // LATER copy, so the targeted rewrite replaces that one question.
   errs.push(...duplicateQuestionErrors(qs));
+  // quiz_author_gates_v2: a later question whose answer an earlier one already
+  // states (transcript-quiz-answer-leaks). Named on the LATER question, so the
+  // targeted rewrite gives that slot another fact; soft — never fatal.
+  if (GatesV2.enabled(ctx.authorGates)) errs.push(...answerLeakErrors(qs));
 
   if (figured / qs.length > FIGURE_MAX_SHARE) {
     errs.push(`FIGURE_SHARE — ${figured}/${qs.length} questions carry a picture; at most half may`);
@@ -915,7 +955,7 @@ function validate(rawQuestions, ctx = {}) {
   // it is quiz-level, so it is checked here beside the questions rather than in
   // a second pass a caller could forget.
   pedagogyDefects(qs.map(plainView), {
-    language, digest, quizId, ...(checkD4 ? { lessonSummary } : {}),
+    language, digest, quizId, ...(checkD4 ? { lessonSummary } : {}), authorGates: GatesV2.enabled(ctx.authorGates),
   }).forEach((d) => errs.push(d.message));
 
   return { ok: errs.length === 0, errors: errs, questions: qs };

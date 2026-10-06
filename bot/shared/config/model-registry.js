@@ -105,6 +105,37 @@ const JOBS = {
     env: 'HCP_FEEDBACK_MODEL', default: null,
     site: 'dashboard/routes/hcp.routes.js',
   },
+  // bd-s1oo0.5 — the child test's AI marking (EGRA/EGMA, ICT). The May 2026 study stack,
+  // HARNESS_RESULTS §8: every default here is the model that study measured for that job.
+  'childTest.counts': {
+    env: 'CHILD_TEST_MODEL_COUNTS', default: 'google/gemini-3.8-flash',
+    site: 'shared/services/child-test/scoring/story.js',
+  },
+  'childTest.labeller': {
+    env: 'CHILD_TEST_MODEL_LABELLER', default: 'google/gemini-3-flash-preview',
+    site: 'shared/services/child-test/scoring/labeller.js',
+  },
+  'childTest.comprehension': {
+    env: 'CHILD_TEST_MODEL_COMPREHENSION', default: 'google/gemini-3-flash-preview',
+    site: 'shared/services/child-test/scoring/comprehension.js',
+  },
+  'childTest.phonics': {
+    env: 'CHILD_TEST_MODEL_PHONICS', default: 'google/gemini-3.8-flash',
+    site: 'shared/services/child-test/scoring/phonics.js',
+  },
+  'childTest.wordProblem': {
+    env: 'CHILD_TEST_MODEL_WORD_PROBLEM', default: 'google/gemini-3-flash-preview',
+    site: 'shared/services/child-test/scoring/maths.js',
+  },
+  'childTest.vision': {
+    env: 'CHILD_TEST_MODEL_VISION', default: 'google/gemini-3.1-pro-preview',
+    site: 'shared/services/child-test/scoring/maths-photo.js',
+  },
+  // bd-s1oo0.38 (L20): the child number off a strip photo, read at receipt (bounded, one attempt).
+  'childTest.childNo': {
+    env: 'CHILD_TEST_MODEL_CHILD_NO', default: 'google/gemini-3.8-flash',
+    site: 'shared/services/child-test/scoring/child-no.js',
+  },
 
   // ---- bd-gr4fy.8: every other job in the Anthropic swap's scope, promoted from TELEMETRY_ONLY_JOBS.
   // Each default is EXACTLY what its call site sent before (pinned in tests/llm/single-source-guard),
@@ -213,6 +244,14 @@ const FALLBACK = {
   'quiz.keyVerify':   null,
   'assessment.generate': 'google/gemini-3.1-pro-preview',  // what it already runs
   'hcp.feedback':     null,  // falls through to the platform default, which is the floor
+  // bd-s1oo0.5: no validated alternative for any child-test job. A supplier outage leaves that
+  // section's marks empty with confidence 0 (ai_status 'partial') and the coach marks it.
+  'childTest.counts':        null,
+  'childTest.labeller':      null,
+  'childTest.comprehension': null,
+  'childTest.phonics':       null,
+  'childTest.wordProblem':   null,
+  'childTest.vision':        null,
   'platform.default': null,  // the floor
   // bd-gr4fy.8: the question router's own ladder already retried on this model; it now reads it here.
   'coaching.questionRouter': 'openai/gpt-5.4',

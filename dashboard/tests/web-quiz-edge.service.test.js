@@ -88,9 +88,27 @@ describe('web quiz edge: forwarding /api/wq/* -> bot /api/internal/wq/*', () => 
     expect(calls.map((c) => c.url)).toEqual([`${BOT}/api/internal/wq/who`, `${BOT}/api/internal/wq/who/fix`]);
   });
 
+  it("forwards the teacher's class binding of a hand-out (identity v2)", async () => {
+    await req(srv, 'POST', '/api/wq/who/class', { code: 'AB12CD', p: 'tok', key: 'k1' });
+    expect(calls.map((c) => c.url)).toEqual([`${BOT}/api/internal/wq/who/class`]);
+  });
+
   it('forwards GET with its query string', async () => {
     await req(srv, 'GET', '/api/wq/board/AB12CD?st=abc');
     expect(calls[0].url).toBe(`${BOT}/api/internal/wq/board/AB12CD?st=abc`);
+    expect(calls[0].opts.method).toBe('GET');
+  });
+
+  it('forwards the school leaderboard', async () => {
+    const res = await req(srv, 'GET', '/api/wq/schools/AB12CD');
+    expect(res.status).toBe(200);
+    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/schools/AB12CD`);
+    expect(calls[0].opts.method).toBe('GET');
+  });
+
+  it('forwards the peer pulse poll (GET, session token + since) to the bot', async () => {
+    await req(srv, 'GET', '/api/wq/pulse/AB12CD?st=abc&since=1700000000000');
+    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/pulse/AB12CD?st=abc&since=1700000000000`);
     expect(calls[0].opts.method).toBe('GET');
   });
 
@@ -134,6 +152,26 @@ describe('web quiz edge: forwarding /api/wq/* -> bot /api/internal/wq/*', () => 
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('https://r2.example/x.webp?sig=1');
     expect(calls[0].opts.redirect).toBe('manual');
+  });
+
+  it('passes a picture the bot answers as bytes through as that picture, not JSON', async () => {
+    // A cropped picture option (&z=1) and an option picture stored inline come back from the bot as image bytes.
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 250]);
+    next = {
+      status: 200, ok: true,
+      headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'image/png' : null) },
+      text: async () => png.toString('latin1'),
+      arrayBuffer: async () => png.buffer.slice(png.byteOffset, png.byteOffset + png.length),
+    };
+    const res = await new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port: srv.address().port, path: '/api/wq/media/AB12CD/x1?k=A&z=1' }, (r) => {
+        const chunks = []; r.on('data', (c) => chunks.push(c)); r.on('end', () => resolve({ status: r.statusCode, headers: r.headers, body: Buffer.concat(chunks) }));
+      }).on('error', reject);
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/^image\/png/);
+    expect(Buffer.compare(res.body, png)).toBe(0);
+    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/media/AB12CD/x1?k=A&z=1`);
   });
 
   it('refuses a body over the cap without calling the bot', async () => {
@@ -200,6 +238,16 @@ describe('web quiz edge: GET /q/:code server-side render', () => {
     const res = await req(srv, 'GET', '/q/AB12CD/class');
     const boot = JSON.parse(res.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
     expect(boot.view).toBe('class');
+  });
+
+  it('renders the school league view at /q/:code/schools, with its own link preview', async () => {
+    const res = await req(srv, 'GET', '/q/AB12CD/schools');
+    const boot = JSON.parse(res.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+    expect(boot.view).toBe('schools');
+    // the preview links to the league itself, not to the quiz
+    expect(res.body).toMatch(/<meta property="og:url" content="[^"]*\/q\/AB12CD\/schools"/);
+    expect(res.body).toMatch(/<meta property="og:title" content="School league this week"/);
+    expect(res.body).toMatch(/<meta property="og:description" content="10 points for playing, up to 10 for your score\. Play and push your school up!"/);
   });
 
   it('an expired code gets a friendly page in the quiz language, status 410', async () => {

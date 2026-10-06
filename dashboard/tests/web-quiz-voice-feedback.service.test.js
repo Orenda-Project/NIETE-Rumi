@@ -30,7 +30,8 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'en' } = {}) {
+function page({ lang = 'en', store = {}, noVoice = false, stallClips = false } = {}) {
+  const timers = []; // { fn, ms }: recorded, run only by a test that asks (runTimers)
   const voiced = []; // in order: { url } for a clip, { text } for the phone's voice
   const clips = [];
   const utterances = [];
@@ -39,7 +40,7 @@ function page({ lang = 'en' } = {}) {
   class FakeAudio {
     constructor(url) { this.url = url; this.paused = true; this.listeners = {}; clips.push(this); voiced.push({ url }); }
     addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); }
-    play() { this.paused = false; this.plays = (this.plays || 0) + 1; (this.listeners.playing || []).forEach((f) => f()); return Promise.resolve(); }
+    play() { this.paused = false; this.plays = (this.plays || 0) + 1; if (!stallClips) (this.listeners.playing || []).forEach((f) => f()); return Promise.resolve(); }
     pause() { this.paused = true; }
     canPlayType() { return 'probably'; }
   }
@@ -47,12 +48,14 @@ function page({ lang = 'en' } = {}) {
   const winListeners = {};
   const els = {};
   const root = fakeEl('#wq');
+  const rootClasses = new Set();
+  root.classList = { add: (c) => rootClasses.add(c), remove: (c) => rootClasses.delete(c), toggle() {}, contains: (c) => rootClasses.has(c) };
   root.querySelector = (sel) => { if (!els[sel]) els[sel] = fakeEl(sel); return els[sel]; };
   root.querySelectorAll = () => [];
   const boot = {
     textContent: JSON.stringify({
       code: 'TEST', cls: { label: 'Class 3', teacher: 'Teacher Testwala', chips: [] }, live: {}, video: null,
-      quiz: { code: 'TEST', lang, topic: 'Plants', grade: 3, questions: [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
+      quiz: { code: 'TEST', lang, topic: 'Plants', grade: 3, questions: [{ qid: 'q1', text: lang === 'ur' ? 'کیا؟' : 'a?', options: [{ slot: 'A', text: lang === 'ur' ? 'ہاں' : 'x' }], correct_slot: 'A' }] },
     }),
   };
   const actx = { state: 'running', suspended: 0, suspend() { this.suspended += 1; this.state = 'suspended'; return Promise.resolve(); }, resume() { this.state = 'running'; return Promise.resolve(); } };
@@ -69,19 +72,20 @@ function page({ lang = 'en' } = {}) {
     },
     location: { search: '', origin: 'https://example.test' },
     navigator: { userAgent: 'test' },
-    localStorage: { setItem() {}, getItem() { return null; }, removeItem() {} },
+    localStorage: { setItem: (k, v) => { store[k] = String(v); }, getItem: (k) => (k in store ? store[k] : null), removeItem: (k) => { delete store[k]; } },
     fetch: () => Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve('{}') }),
     Audio: FakeAudio,
     AudioContext: function AudioContext() { return actx; },
     SpeechSynthesisUtterance: function SpeechSynthesisUtterance(text) { this.text = text; },
     speechSynthesis: { speak: (u) => { utterances.push(u); voiced.push({ text: u.text }); }, cancel: () => { cancels += 1; } },
-    setInterval: () => 0, setTimeout: () => 0, clearTimeout() {},
+    setInterval: () => 0, setTimeout: (fn, ms) => { timers.push({ fn, ms: ms || 0 }); return timers.length; }, clearTimeout() {},
     scrollTo() {}, Image: function Image() {},
     addEventListener: (n, fn) => { (winListeners[n] = winListeners[n] || []).push(fn); },
   };
+  if (noVoice) { delete ctx.speechSynthesis; delete ctx.SpeechSynthesisUtterance; }
   ctx.window = ctx;
   vm.createContext(ctx);
-  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { feedback: feedback, speak: speak, speakSeq: speakSeq, sfx: sfx };\n})();'), ctx);
+  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { feedback: feedback, speak: speak, speakSeq: speakSeq, sfx: sfx, results: results, VOICE: typeof VOICE === \'undefined\' ? null : VOICE, T: T, wireBar: wireBar, evq: evq };\n})();'), ctx);
   // Moving the voice on: the current clip or phone-voice line ends by itself.
   const advance = () => {
     const last = voiced[voiced.length - 1];
@@ -89,7 +93,9 @@ function page({ lang = 'en' } = {}) {
     else if (last && last.text != null) { const u = utterances[utterances.length - 1]; if (u.onend) u.onend(); }
   };
   const fire = (target, n) => ((target === 'doc' ? docListeners : winListeners)[n] || []).forEach((fn) => fn({}));
-  return { ctx, wq: ctx.__wq, voiced, clips, media, actx, advance, fire, cancels: () => cancels, els };
+  // Runs (once) every recorded timer due within `ms` of its start, in order of its delay.
+  const runTimers = (ms) => timers.filter((t) => !t.ran && t.ms <= ms).sort((a, b) => a.ms - b.ms).forEach((t) => { t.ran = true; t.fn(); });
+  return { ctx, wq: ctx.__wq, voiced, clips, media, actx, advance, fire, cancels: () => cancels, els, rootClasses, store, runTimers, utterances };
 }
 const flush = () => new Promise((r) => setImmediate(r));
 
@@ -183,5 +189,196 @@ describe('leaving the page silences everything and nothing starts again by itsel
     await flush();
     expect(p.voiced.length).toBe(n);
     expect(done).not.toHaveBeenCalled();
+  });
+});
+
+/* ---------------- the shared feedback voice library (recorded once, used by every quiz) ---------------- */
+const VOICE_DIR = path.join(__dirname, '..', 'public', 'wq', 'voice');
+const MANIFEST = fs.existsSync(path.join(VOICE_DIR, 'manifest.json')) ? JSON.parse(fs.readFileSync(path.join(VOICE_DIR, 'manifest.json'), 'utf8')) : {};
+const shown = (p) => p.els['#wq-fb'].innerHTML;
+
+describe('the feedback voice library', () => {
+  test('every line the page can say has its recorded clip, and the page holds exactly the recorded words', () => {
+    const p = page({ lang: 'en' });
+    const lib = JSON.parse(JSON.stringify(p.wq.VOICE || {}));
+    const { voices, ...lines } = MANIFEST; // voices: which voice the clips were recorded in
+    expect(lib).toEqual(lines);
+    for (const lang of ['en', 'ur']) {
+      for (const set of ['right', 'notyet', 'fixed', 'done', 'cheer']) expect((lib[lang] || {})[set].length).toBeGreaterThanOrEqual(8);
+      Object.entries(lib[lang]).forEach(([set, lines]) => lines.forEach((_, i) => {
+        const f = path.join(VOICE_DIR, lang, `${set}-${i}.mp3`);
+        expect(fs.existsSync(f)).toBe(true);
+        expect(fs.statSync(f).size).toBeLessThan(40000);
+      }));
+    }
+  });
+
+  test('no Urdu line that cannot fit the results bubble at 360 px (measured by the Urdu lane)', () => {
+    expect(((MANIFEST.ur || {}).done || [])).not.toContain('کوئز ختم! آئیں ستارے دیکھیں۔');
+    const p = page({ lang: 'ur' });
+    expect(JSON.parse(JSON.stringify(p.wq.VOICE.ur.done))).not.toContain('کوئز ختم! آئیں ستارے دیکھیں۔');
+  });
+
+  test('Urdu lines address the child without gendered verb stems, and no not-yet line praises', () => {
+    const ur = MANIFEST.ur || {};
+    Object.values(ur).flat().forEach((t) => expect(t).not.toMatch(/سکتے|سکتی|گئیں|آپ نے|کرتے ہو|کرتی ہو/));
+    [...(ur.notyet || []), ...(ur.notyetpic || [])].forEach((t) => expect(t).not.toMatch(/شاباش|بہت خوب|زبردست|کمال/));
+    [...((MANIFEST.en || {}).notyet || []), ...((MANIFEST.en || {}).notyetpic || [])].forEach((t) => expect(t).not.toMatch(/well done|great|brilliant|good job/i));
+    // Encouragement is also played after a WRONG answer (at halfway), so it never praises.
+    ((MANIFEST.ur || {}).cheer || []).forEach((t) => expect(t).not.toMatch(/شاباش|بہت خوب|زبردست|کمال|بہت اچھے/));
+    ((MANIFEST.en || {}).cheer || []).forEach((t) => expect(t).not.toMatch(/well done|great|brilliant|good job|you're doing it|you’re doing it/i));
+  });
+
+  describe.each(['en', 'ur'])('%s', (lang) => {
+    const clip = (set) => new RegExp(`^/wq/voice/${lang}/${set}-\\d+\\.mp3(\\?v=\\w+)?$`);
+    test('a right answer plays a recorded praise line, and the screen shows those same words', () => {
+      const p = page({ lang });
+      p.wq.feedback(plantQ(lang), 0, 'B', true, false);
+      expect(p.voiced[0].url).toMatch(clip('right'));
+      const i = Number(p.voiced[0].url.match(/-(\d+)\.mp3/)[1]);
+      expect(shown(p)).toContain(MANIFEST[lang].right[i].replace(/'/g, '&#39;'));
+    });
+    test('a wrong answer plays a recorded "not yet" lead-in, then the right option\'s own clip, then why', () => {
+      const p = page({ lang });
+      p.wq.feedback(plantQ(lang), 0, 'A', false, false);
+      for (let k = 0; k < 6; k += 1) p.advance();
+      expect(p.voiced.map((v) => v.url || v.text)).toEqual([expect.stringMatching(clip('notyet')), 'https://r2.example/b.ogg', WHY_CLIP]);
+    });
+    test('a second try that is right plays a recorded "fixed it" line', () => {
+      const p = page({ lang });
+      p.wq.feedback(plantQ(lang), 0, 'B', true, true);
+      expect(p.voiced[0].url).toMatch(clip('fixed'));
+    });
+    test('a wrong answer whose right option is only a picture says "this one is right", never empty quotes', () => {
+      const p = page({ lang });
+      const q = plantQ(lang);
+      q.options = [{ slot: 'A', text: '' }, { slot: 'B', text: '' }];
+      q.why = null; q.audio = {};
+      p.wq.feedback(q, 0, 'A', false, false);
+      expect(p.voiced[0].url).toMatch(clip('notyetpic'));
+      expect(shown(p).replace(/alt=""/g, "")).not.toMatch(/""|«»|&quot;&quot;/);
+    });
+    test('the results screen plays a recorded "quiz complete" line', async () => {
+      const p = page({ lang });
+      p.wq.results(0);
+      for (let k = 0; k < 4; k += 1) await flush();
+      expect(p.voiced.some((v) => clip('done').test(v.url || ''))).toBe(true);
+    });
+  });
+});
+
+describe.each(['en', 'ur'])('small copy fixes (%s)', (lang) => {
+  test('a wrong true/false answer says which the sentence is, from a recorded line', () => {
+    const p = page({ lang });
+    const q = { qid: 'q1', i: 1, kind: 'tf', type: 'tf', text: lang === 'en' ? 'Roots take in water.' : 'جڑیں پانی لیتی ہیں۔',
+      options: [{ slot: 'A', text: lang === 'en' ? 'True' : 'درست' }, { slot: 'B', text: lang === 'en' ? 'False' : 'غلط' }], correct_slot: 'A', why: null, audio: {} };
+    p.wq.feedback(q, 0, 'B', false, false);
+    expect(p.voiced[0].url).toMatch(new RegExp(`^/wq/voice/${lang}/tftrue-0\\.mp3`));
+    expect(shown(p)).toContain(MANIFEST[lang].tftrue[0]);
+    const p2 = page({ lang });
+    p2.wq.feedback({ ...q, correct_slot: 'B' }, 0, 'A', false, false);
+    expect(p2.voiced[0].url).toMatch(new RegExp(`^/wq/voice/${lang}/tffalse-0\\.mp3`));
+  });
+  test('the landing line invites to the quiz, and one minute is singular', () => {
+    const p = page({ lang });
+    expect(p.wq.T.hello).not.toMatch(/read it together|مل کر پڑھیں/);
+    if (lang === 'en') { expect(p.wq.T.meta(1)).toBe('1 questions · about 1 minute'.replace('1 questions', '1 question')); expect(p.wq.T.meta(5)).toMatch(/about 3 minutes$/); }
+  });
+});
+
+/* ---------------- the sound button, a missing clip, and the not-yet line's punctuation ---------------- */
+describe('the sound button silences everything, and is remembered on the phone', () => {
+  test('with sound turned off on this phone, an answer plays nothing (no clip, no phone voice)', () => {
+    const p = page({ lang: 'ur', store: { wq_sound: 'false' } });
+    p.wq.feedback(plantQ('ur'), 0, 'A', false, false);
+    expect(p.voiced).toEqual([]);
+  });
+  test('sound is on by default on a new phone', () => {
+    const p = page({ lang: 'en' });
+    p.wq.feedback(plantQ('en'), 0, 'B', true, false);
+    expect(p.voiced.length).toBeGreaterThan(0);
+  });
+  test('tapping the button mid-clip stops the clip at once and remembers "off"', () => {
+    const p = page({ lang: 'en' });
+    p.wq.speak('Which part of a plant takes in water?', 'https://r2.example/q.ogg', null);
+    const clip = p.clips[p.clips.length - 1];
+    if (!(p.els['#wq-snd'] && (p.els['#wq-snd'].listeners.click || []).length)) p.wq.wireBar();
+    const tap = p.els['#wq-snd'].listeners.click;
+    tap[tap.length - 1].call(p.els['#wq-snd'], {});
+    expect(clip.paused).toBe(true);
+    expect(p.store.wq_sound).toBe('false');
+  });
+});
+
+describe('a part with no recorded clip', () => {
+  test('is logged once as audio_missing with the question and the part', () => {
+    const p = page({ lang: 'ur' });
+    p.wq.speakSeq([{ text: 'سوال', url: null }, { text: 'پتا', url: 'https://r2.example/a.ogg' }], null, 'q9');
+    const miss = JSON.parse(JSON.stringify(p.wq.evq)).filter((e) => e.n === 'audio_missing');
+    expect(miss).toEqual([expect.objectContaining({ qid: 'q9', part: 0 })]);
+  });
+  test('on a phone with no voice at all, the words are shown big instead', () => {
+    const p = page({ lang: 'ur', noVoice: true });
+    p.wq.speakSeq([{ text: 'سوال', url: null }], null, 'q9');
+    expect(p.rootClasses.has('wq-novoice')).toBe(true);
+  });
+});
+
+test('the not-yet line never doubles the full stop when the answer ends with one', () => {
+  const p = page({ lang: 'en' });
+  expect(p.wq.T.notyet('Not yet. The answer is', 'Our friends play together.')).toBe('Not yet. The answer is "Our friends play together".');
+});
+
+/* ---------------- one voice: a clip is never swapped for the phone's voice just for being slow ---------------- */
+describe('one voice on a slow connection', () => {
+  test('a clip that has not started after 2 s keeps loading (words shown big) — the phone voice does not speak', () => {
+    const p = page({ lang: 'ur', stallClips: true });
+    p.wq.speak('سوال', 'https://r2.example/q.ogg', null, { qid: 'q1', part: 'q' });
+    p.runTimers(2000);
+    expect(p.utterances.length).toBe(0);
+    expect(p.clips[0].paused).toBe(false);
+    expect(p.rootClasses.has('wq-novoice')).toBe(true);
+  });
+  test('after 8 s with no sound the line is given up quietly and logged as stalled — still no second voice', () => {
+    const p = page({ lang: 'en', stallClips: true });
+    const done = jest.fn();
+    p.wq.speak('Which part?', 'https://r2.example/q.ogg', done, { qid: 'q1', part: 'q' });
+    p.runTimers(8000);
+    expect(p.utterances.length).toBe(0);
+    expect(done).toHaveBeenCalled();
+    const fb = JSON.parse(JSON.stringify(p.wq.evq)).filter((e) => e.n === 'audio_fallback');
+    expect(fb).toEqual([expect.objectContaining({ reason: 'stalled' })]);
+  });
+  test('when the phone voice does speak (a line with no clip), the page marks it', () => {
+    const p = page({ lang: 'en' });
+    p.wq.speak('Which part?', null, null, { qid: 'q1', part: 'q' });
+    expect(p.utterances.length).toBe(1);
+    expect(p.rootClasses.has('wq-phonevoice')).toBe(true);
+  });
+  test('audio_missing names the KIND of part (q, opt, fig, left …), so misses per part can be counted', () => {
+    const p = page({ lang: 'en' });
+    const q = { qid: 'q7', text: 'Pick one', options: [{ slot: 'A', text: 'cat' }, { slot: 'B', text: 'bat' }], correct_slot: 'A', audio: { q: 'https://r2.example/q.ogg', opts: [null, 'https://r2.example/b.ogg'] } };
+    const parts = p.ctx.WQI.readParts(q, 'en');
+    expect(parts.map((x) => x.p)).toEqual(['q', 'opt', 'opt']);
+    p.wq.speakSeq(parts, null, 'q7');
+    p.advance(); // the question clip ends; option A has no clip
+    const miss = JSON.parse(JSON.stringify(p.wq.evq)).filter((e) => e.n === 'audio_missing');
+    expect(miss).toEqual([expect.objectContaining({ qid: 'q7', part: 'opt' })]);
+  });
+});
+
+describe('the shared lines are versioned by their sound, not only their words', () => {
+  test('VOICE_V is the hash of the recorded files, so a re-record reaches every phone', () => {
+    const crypto = require('crypto');
+    const h = crypto.createHash('sha1');
+    for (const lang of ['en', 'ur']) {
+      fs.readdirSync(path.join(VOICE_DIR, lang)).filter((f) => f.endsWith('.mp3')).sort()
+        .forEach((f) => { h.update(`${lang}/${f}\n`); h.update(fs.readFileSync(path.join(VOICE_DIR, lang, f))); });
+    }
+    expect(SRC).toContain(`var VOICE_V = '${h.digest('hex').slice(0, 8)}';`);
+  });
+  test('the manifest names the voice each language was recorded in: the quiz voice', () => {
+    const { QUIZ_VOICE } = require('../../bot/shared/services/quiz/web-quiz-voice');
+    expect(MANIFEST.voices).toEqual({ en: { ...QUIZ_VOICE.en }, ur: { ...QUIZ_VOICE.ur } });
   });
 });

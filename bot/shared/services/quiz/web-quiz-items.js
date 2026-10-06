@@ -31,6 +31,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { texFaults, mathToText } = require('./quiz-math');
 const GatesV2 = require('./quiz-author-gates-v2');
+const Hint = require('./web-quiz-hint');
 const { questionAddressForms } = require('./transcript-quiz-address');
 const { LANG_NAME } = require('./transcript-quiz-language');
 const {
@@ -301,6 +302,8 @@ function normaliseItem(raw, row, index, ctx = {}) {
     let readOpts = Array.isArray(r.read && r.read.opts) ? r.read.opts : [];
     // quiz_author_gates_v2: the voice says the label that is DRAWN (P, Q, R), never "Picture A".
     if (gates) readOpts = readOpts.map((t) => (AuthorGates.PICTURE_N.test(str(t)) ? '' : t));
+    // Gates v2: "A: stone" read for option A is the prompt's own format copied back — cut it, keep the item.
+    if (GatesV2.enabled(ctx.authorGates)) readOpts = readOpts.map((t, i) => (base[i] ? GatesV2.stripOwnSlotPrefix(t, base[i].slot) : t));
     const fbDistinct = distinctFeedback(base.map((_, i) => str(rowWrong[String(i)])));
     item = {
       v: 2, type, stem: String(row.question_text || '').trim(),
@@ -338,7 +341,8 @@ function normaliseItem(raw, row, index, ctx = {}) {
     }
     if (!oneSentence(r.why)) return { item: null, reason: 'no_why' };
     const fb = r.fb && typeof r.fb === 'object' ? r.fb : {};
-    const readOpts = Array.isArray(r.read && r.read.opts) ? r.read.opts : [];
+    let readOpts = Array.isArray(r.read && r.read.opts) ? r.read.opts : [];
+    if (GatesV2.enabled(ctx.authorGates)) readOpts = readOpts.map((t, i) => GatesV2.stripOwnSlotPrefix(t, SLOTS[i]));
     item = {
       v: 2, type, stem: str(r.stem),
       options: opts.map((text, i) => {
@@ -386,6 +390,12 @@ function normaliseItem(raw, row, index, ctx = {}) {
   };
   // A pre-reader's long stem is carried by the voice (read.stem); flagged so the page can lead with the speaker.
   if (band === '1-2' && item.grade_fit.stem_words > PRE_READER_STEM_WORDS) item.grade_fit.long_stem = true;
+  // Gates v2: Jugnu's hint, held to the leak check (web-quiz-hint). A leaking hint is dropped alone.
+  if (GatesV2.enabled(ctx.authorGates) && r.hint) {
+    const h = Hint.hintFor(r.hint, item, spoken);
+    if (h.hint) item.hint = h.hint;
+    else return { item, hintDropped: h.reason };
+  }
   return { item };
 }
 
@@ -445,6 +455,7 @@ function webPayload(q) {
     read: w.read || null,
     source: w.source ? { kind: w.source.kind, at: w.source.at || null, section: w.source.section || null } : null,
     ...(w.type === 'multi' ? { multi: true } : {}),
+    ...(w.hint && w.hint.text ? { hint: { text: w.hint.text } } : {}),
   };
 }
 
@@ -455,6 +466,8 @@ function buildPrompt(rows, ctx) {
   const band = bandOf(ctx.gradeBand);
   const srcKind = (ctx.source && ctx.source.kind) === 'lesson_plan' ? 'lesson_plan' : 'transcript';
   const srcText = String((ctx.source && ctx.source.text) || '').slice(0, SOURCE_TEXT_MAX);
+  // Gates v2: the hint is in the reply template too — a model fills the fields its template shows.
+  const hintTpl = GatesV2.enabled(ctx.authorGates) ? '"hint": "", ' : '';
   const qs = rows.map((r, i) => ({
     q: i,
     question: r.question_text,
@@ -487,7 +500,7 @@ FOR EVERY QUESTION return one item:
 - "why": ONE short sentence a child of this grade understands, saying why the right answer is right BY THE SUBJECT (never "the teacher said").
 - "grade_note": at most 12 words on why this item suits the grade (reading load, picture, voice).
 - For "order"/"match" only: "fb": {"<option index>": one sentence for a likely wrong step/pair, naming the confusion in child words}.
-- NEVER call an option by its letter in any text a child sees. NEVER put the question's words into a picture.
+${GatesV2.enabled(ctx.authorGates) ? `${Hint.HINT_RULE}\n` : ''}- NEVER call an option by its letter in any text a child sees. NEVER put the question's words into a picture.
 ${MATH_NOTATION_RULE}
 ${language === 'ur' ? `${ADJACENT_TERMS_RULE_TEXT}\n${CHILD_ADDRESS_RULE_TEXT}` : ''}
 
@@ -500,9 +513,9 @@ THE ${srcKind === 'lesson_plan' ? 'LESSON PLAN' : 'TRANSCRIPT'}:
 ${srcText}
 
 Return ONLY this JSON object:
-{ "items": [ { "q": 0, "type": "single", "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", "grade_note": "" },
-             { "q": 1, "type": "picture", "pics": ["apple", "banana", "carrot"], "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", "grade_note": "" },
-             { "q": 4, "type": "order", "stem": "", "options": [ { "text": "" }, { "text": "" }, { "text": "" } ], "key": "B,C,A", "fb": { "0": "" }, "fb_right": "", "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", "grade_note": "" } ] }`;
+{ "items": [ { "q": 0, "type": "single", "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", ${hintTpl}"grade_note": "" },
+             { "q": 1, "type": "picture", "pics": ["apple", "banana", "carrot"], "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", ${hintTpl}"grade_note": "" },
+             { "q": 4, "type": "order", "stem": "", "options": [ { "text": "" }, { "text": "" }, { "text": "" } ], "key": "B,C,A", "fb": { "0": "" }, "fb_right": "", "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", ${hintTpl}"grade_note": "" } ] }`;
 }
 
 /**
@@ -512,7 +525,7 @@ Return ONLY this JSON object:
  */
 async function attachWebItems(rows, ctx = {}, { complete = null } = {}) {
   const t0 = Date.now();
-  const stats = { attached: 0, types: {}, dropped: {}, cost_usd: 0, latency_ms: 0, model: null };
+  const stats = { attached: 0, types: {}, dropped: {}, hints: 0, hint_dropped: {}, cost_usd: 0, latency_ms: 0, model: null };
   const list = Array.isArray(rows) ? rows : [];
   if (!list.length) return { rows: list, stats };
   // eslint-disable-next-line global-require
@@ -538,8 +551,9 @@ async function attachWebItems(rows, ctx = {}, { complete = null } = {}) {
   const items = list.map((row, i) => {
     const raw = replies.get(i);
     if (!raw) { drop('no_reply'); return null; }
-    const { item, reason } = normaliseItem(raw, row, i, ctx);
+    const { item, reason, hintDropped } = normaliseItem(raw, row, i, ctx);
     if (!item) drop(reason);
+    if (hintDropped && hintDropped !== 'none') stats.hint_dropped[hintDropped] = (stats.hint_dropped[hintDropped] || 0) + 1;
     return item;
   });
   const capped = capNewTypes(items);
@@ -549,10 +563,11 @@ async function attachWebItems(rows, ctx = {}, { complete = null } = {}) {
     if (!it) return row;
     stats.attached += 1;
     stats.types[it.type] = (stats.types[it.type] || 0) + 1;
+    if (it.hint) stats.hints += 1;
     return { ...row, media: { ...(row.media || {}), web: it } };
   });
   stats.latency_ms = Date.now() - t0;
-  logEvent('web_quiz.items_attached', { quizId: ctx.quizId || null, ...stats, types: JSON.stringify(stats.types), dropped: JSON.stringify(stats.dropped) });
+  logEvent('web_quiz.items_attached', { quizId: ctx.quizId || null, ...stats, types: JSON.stringify(stats.types), dropped: JSON.stringify(stats.dropped), hint_dropped: JSON.stringify(stats.hint_dropped) });
   return { rows: out, stats };
 }
 

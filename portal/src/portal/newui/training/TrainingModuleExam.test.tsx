@@ -157,6 +157,41 @@ describe("a first sitting", () => {
   });
 });
 
+describe("a question with no options is a written question", () => {
+  const LONG = "Saturday morning we walked to the market and counted the mangoes in groups of five.";
+  const BARE = { id: 504, index: 3, question_text: "Saturday Morning", options: [], option_images: null, is_open_ended: false };
+  const bare = () => routes({
+    "/training/module/c-9/exam/questions": { ...MODULE_EXAM_PAPER, questions: [BARE] },
+  });
+
+  it("autosaves the typed words as answer_text, never as chosen_option", async () => {
+    vi.mocked(api.get).mockImplementation(bare() as never);
+    renderAt(EXAM);
+    fireEvent.click(await screen.findByRole("button", { name: "Start exam" }));
+    await screen.findByText("Saturday Morning");
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: LONG } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(800); });
+    expect(api.put).toHaveBeenCalledWith("/training/module/c-9/exam/draft", {
+      attempt_id: "mx-1", question_id: 504, question_index: 0, chosen_option: null, answer_text: LONG,
+    });
+  });
+
+  it("submits the typed words as answer_text, never as chosen_option", async () => {
+    vi.mocked(api.get).mockImplementation(bare() as never);
+    vi.mocked(api.post).mockResolvedValue({ data: { crq_pending: true } } as never);
+    renderAt(EXAM);
+    fireEvent.click(await screen.findByRole("button", { name: "Start exam" }));
+    await screen.findByText("Saturday Morning");
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: LONG } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await act(async () => {});
+    expect(api.post).toHaveBeenCalledWith("/training/module/c-9/exam/attempts", {
+      attempt_id: "mx-1", answers: [{ question_id: 504, answer_text: LONG }],
+    });
+  });
+});
+
 describe("her sittings", () => {
   it("failed: Not passed with the MCQ tally; Try again; her answers in a sheet; earlier sittings as rows", async () => {
     vi.mocked(api.get).mockImplementation(routes({

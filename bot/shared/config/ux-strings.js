@@ -1889,6 +1889,23 @@ const UX_STRINGS = {
     en: '👀 Try the quiz page yourself before you forward it: {link}',
     ur: '\u200F👀 آگے بھیجنے سے پہلے quiz کا صفحہ خود دیکھیں: {link}',
   },
+  // The teacher report's "Remind the class": the text the teacher forwards into
+  // the class group (wa.me share). It names no child; in the QUIZ's language.
+  // Urdu: کریں / کھیلیں are polite imperatives; آپ نے … کھیلا is the ergative, no gendered stem.
+  trReminder: {
+    en: '📣 Our quiz on *{topic}* is still open! If you have not played yet, tap the link and play today: {link}',
+    ur: '\u200F📣 *{topic}* کا کوئز ابھی کھلا ہے! اگر آپ نے ابھی تک نہیں کھیلا تو لنک پر ٹیپ کریں اور آج ہی کھیلیں: {link}',
+  },
+  // Social proof (COS 6 Oct): the class count, never a name. Urdu: نے … کھیل لیا ہے agrees with
+  // کوئز, not with the children (gender-neutral); numbers isolated LTR (U+2066/U+2069).
+  trReminderCount: {
+    en: '📣 {played} of {of} in {cls} have played *{topic}* — your turn! Tap the link and play today: {link}',
+    ur: '\u200F📣 {cls}: \u2066{of}\u2069 میں سے \u2066{played}\u2069 نے *{topic}* کا کوئز کھیل لیا ہے — اب آپ کی باری! لنک پر ٹیپ کریں اور آج ہی کھیلیں: {link}',
+  },
+  trReminderNoTopic: {
+    en: '📣 Our quiz is still open! If you have not played yet, tap the link and play today: {link}',
+    ur: '\u200F📣 کوئز ابھی کھلا ہے! اگر آپ نے ابھی تک نہیں کھیلا تو لنک پر ٹیپ کریں اور آج ہی کھیلیں: {link}',
+  },
   tqListBody: {
     en: 'Your lessons, newest first. Pick one to make a quiz, resend its link, or get its report.',
     ur: 'آپ کے اسباق، نئے سے پرانے۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
@@ -2239,6 +2256,57 @@ const UX_STRINGS = {
   // The lookup itself failed (not an unknown teacher): retry copy, both ≤ 60 code points.
   tqFlowErrLookup: { en: 'Could not load your lessons just now. Please tap again.', ur: 'ابھی آپ کے اسباق نہیں کھل سکے۔ دوبارہ tap کریں۔' },
 
+  // ─── the teacher's /quiz HOME, quiz reports and class ask (W37 M3a) ──────
+  // tqh* = the home's three reply buttons (20 cp each) and its body; tqr* =
+  // "My quiz reports" (list rows: title 24 cp, description 72 cp) and the
+  // report link; tqc* = "Which class is this quiz for?". A teacher is "آپ"
+  // with plural verbs and imperatives — never a gendered stem.
+  tqhBody: {
+    en: '📝 *Quizzes*\n\nWhat would you like to do?\n\n*Make a quiz*: from your recent lesson plans and coaching lessons.\n*My quiz reports*: who played, scores and what to reteach, quiz by quiz.\n*Class progress*: all your quizzes by class and subject.',
+    ur: '‏📝 *کوئز*\n\nایک چنیں:\n\n*کوئز بنائیں*: اپنے حالیہ سبق کے منصوبوں اور کوچنگ کے اسباق سے۔\n*میری کوئز رپورٹس*: کس نے کھیلا، اسکور اور کیا دوبارہ پڑھانا ہے، ہر کوئز کا الگ۔\n*کلاس کی پیش رفت*: آپ کے تمام کوئز، کلاس اور مضمون کے لحاظ سے۔',
+  },
+  tqhMake: { en: 'Make a quiz', ur: 'کوئز بنائیں' },
+  tqhReports: { en: 'My quiz reports', ur: 'میری کوئز رپورٹس' },
+  tqhClass: { en: 'Class progress', ur: 'کلاس کی پیش رفت' },
+  tqrListHeader: { en: 'Quiz reports {from}–{to}', ur: 'کوئز رپورٹس {from}–{to}' },
+  tqrListBody: {
+    en: 'Tap a quiz to open its report: who played, each child\'s score and what to reteach.',
+    ur: 'کسی کوئز پر ٹیپ کریں اور اس کی رپورٹ کھولیں: کس نے کھیلا، ہر بچے کا اسکور اور کیا دوبارہ پڑھانا ہے۔',
+  },
+  tqrListButton: { en: 'Choose quiz', ur: 'کوئز منتخب کریں' },
+  tqrListSection: { en: 'Sent quizzes', ur: 'بھیجے گئے کوئز' },
+  tqrRowPlayedOf: { en: '{played}/{of} played · avg {avg}%', ur: '{played}/{of} نے کھیلا · اوسط \u2066{avg}%\u2069' },
+  tqrRowPlayed: { en: '{played} played · avg {avg}%', ur: '{played} نے کھیلا · اوسط \u2066{avg}%\u2069' },
+  tqrRowNoOne: { en: 'no one yet', ur: 'ابھی کسی نے نہیں کھیلا' },
+  tqrRowOlder: { en: 'Older quizzes…', ur: 'پرانے کوئز…' },
+  tqrRowOlderDesc: { en: 'See the quizzes sent before these', ur: 'ان سے پہلے بھیجے گئے کوئز دیکھیں' },
+  tqrListEmpty: {
+    en: 'No quiz has been sent to a class yet. Send /quiz and tap *Make a quiz* to make one.',
+    ur: 'ابھی تک کسی کلاس کو کوئز نہیں بھیجا گیا۔ \u2066/quiz\u2069 بھیجیں اور *کوئز بنائیں* پر ٹیپ کریں۔',
+  },
+  tqrAllClasses: { en: 'all your classes', ur: 'آپ کی تمام کلاسز' },
+  // The report link message carries the tapped row's counts (M3 review #1749); numbers isolated in Urdu.
+  tqrCountsOf: {
+    en: '{played} of {of} played · {left} still to play',
+    ur: '⁦{of}⁩ میں سے ⁦{played}⁩ نے کھیلا · ⁦{left}⁩ ابھی باقی ہیں',
+  },
+  tqrCountsOfDone: { en: 'all {of} have played', ur: 'تمام ⁦{of}⁩ نے کھیل لیا' },
+  tqrCountsPlayed: { en: '{played} played', ur: '⁦{played}⁩ نے کھیلا' },
+  tqrCountsNone: { en: 'no one has played yet', ur: 'ابھی کسی نے نہیں کھیلا' },
+  tqrCountsClasses: { en: 'every quiz, by class and subject', ur: 'ہر کوئز، کلاس اور مضمون کے لحاظ سے' },
+  tqrLinkText: {
+    en: 'Your report for *{topic}*: {counts}.\nOpen it here: {url}',
+    ur: '*{topic}* کی رپورٹ: {counts}۔\nیہاں کھولیں: {url}',
+  },
+  tqrLinkTextRemind: {
+    en: 'Your report for *{topic}*: {counts} — open it to remind them: {url}',
+    ur: '*{topic}* کی رپورٹ: {counts} — اسے کھولیں اور کلاس کو یاد دہانی بھیجیں: {url}',
+  },
+  tqrLinkFailed: {
+    en: 'I could not make the report link just now. Please try again in a minute.',
+    ur: 'ابھی رپورٹ کا لنک نہیں بن سکا۔ ایک منٹ بعد دوبارہ کوشش کریں۔',
+  },
+
   // ─── quiz chrome read by CHILDREN, in the quiz language ─────────────────
   // The share-link chain was English-only; a child taking an Urdu quiz now
   // reads Urdu around the questions too. A child is "آپ" with respectful
@@ -2476,6 +2544,29 @@ const UX_STRINGS = {
     en: 'Sorry — I couldn\'t create the class link just now. Try again in a moment.',
     ur: 'معذرت — ابھی کلاس کا link نہیں بن سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
+  // The teacher's one question before a hand-out whose class is not certain
+  // (handout-class.service.js). Buttons are the class labels ("4-A") plus Any;
+  // three or more classes go in a list opened by vqWhichClassPick.
+  vqWhichClass: { en: 'Which class is this quiz for?', ur: 'یہ کوئز کس کلاس کے لیے ہے؟' },
+  vqWhichClassAny: { en: 'All / not sure', ur: 'سب / پتا نہیں' },
+  vqWhichClassPick: { en: 'Choose class', ur: 'کلاس چنیں' },
+  // A tap on the class question is always answered (Rule 24d: name the state, never silence).
+  vqWhichClassAnyDone: {
+    en: 'Okay — the report will show everyone who plays.',
+    ur: 'ٹھیک ہے — جو بھی کھیلے، اس کا نتیجہ رپورٹ میں آئے گا۔',
+  },
+  vqWhichClassClosed: {
+    en: 'This question has closed. Your quiz link still works.',
+    ur: 'یہ سوال بند ہو چکا ہے۔ آپ کا کوئز لنک اب بھی چلتا ہے۔',
+  },
+  vqWhichClassNotSaved: {
+    en: 'That could not be saved. Your quiz link still works.',
+    ur: 'یہ محفوظ نہیں ہو سکا۔ آپ کا کوئز لنک اب بھی چلتا ہے۔',
+  },
+  vqWhichClassBound: {
+    en: 'Got it — this quiz is for ⁨{cls}⁩.',
+    ur: 'ٹھیک ہے — یہ کوئز ⁨{cls}⁩ کے لیے ہے۔',
+  },
   vqShareForwardThis: {
     en: 'Here is your class message — forward THIS one to your class group:',
     ur: 'یہ رہا کلاس کا پیغام — یہی پیغام class group میں forward کریں:',
@@ -2618,6 +2709,36 @@ const UX_STRINGS = {
     ur: 'ایک سے زیادہ جواب درست ہیں — جس پر آپ کو سب سے زیادہ یقین ہے وہ دبائیں۔',
   },
 
+  // The class report PDF's caption (and its text fallback): the teacher web
+  // report, which keeps counting after the PDF goes out. The URL sits alone on
+  // its own line, so no Urdu word is reordered around it. «بدلتی رہتی ہے»
+  // agrees with رپورٹ (a noun), never with a person.
+  vqReportLiveLink: {
+    en: '📈 Live report (it updates as more children play):\n{url}',
+    ur: '\u200F📈 تازہ رپورٹ، جو مزید بچوں کے کھیلنے پر بدلتی رہتی ہے:\n{url}',
+  },
+  // With the quiz's one class list known, ONE class line replaces the session
+  // count in the caption (M3 decision): how many on the list played, how many
+  // are still to play, and the "Remind the class" share. The sessions count
+  // ("68 of 87 finished") stays only when the class is unknown. Urdu numbers
+  // are isolated (U+2066…U+2069) and the class name, typed by the teacher in
+  // any script, first-strong isolated (U+2068…U+2069); «نے کھیل لیا» is the
+  // ergative, no person's gender.
+  vqReportClassPlayed: {
+    en: '{played} of {of} in {cls} played · {left} still to play',
+    ur: '\u200F\u2068{cls}\u2069 کے \u2066{of}\u2069 میں سے \u2066{played}\u2069 نے کھیل لیا · \u2066{left}\u2069 ابھی باقی',
+  },
+  // The report's links, sent as a SEPARATE text right after the PDF: a
+  // forwarded document carries its caption, so a /r/<token> there would reach
+  // the class group (COS 18:29Z). Each URL alone on its line. It names no child.
+  vqReportLinks: {
+    en: '📣 Remind the class (the message names no child):\n{remind}\n\n📈 Live report (it updates as more children play):\n{live}',
+    ur: '\u200F📣 کلاس کو یاد دلائیں (پیغام میں کسی بچے کا نام نہیں):\n{remind}\n\n\u200F📈 تازہ رپورٹ، جو مزید بچوں کے کھیلنے پر بدلتی رہتی ہے:\n{live}',
+  },
+  vqReportClassAllPlayed: {
+    en: '{of} of {of} in {cls} played',
+    ur: '\u200F\u2068{cls}\u2069 کے سب \u2066{of}\u2069 بچوں نے کھیل لیا',
+  },
   vqReportNoOne: {
     en: 'No one has opened your quiz on \u201c{topic}\u201d yet. The link stays live for 30 days \u2014 worth a nudge in the class group.',
     ur: '\u200Fآپ کے quiz «{topic}» کو ابھی تک کسی نے نہیں کھولا۔ link 30 دن تک چلتا رہے گا — class group میں ایک بار پھر یاد دہانی کرا دیں۔',
@@ -2729,6 +2850,21 @@ const UX_STRINGS = {
     en: 'Keep at least one question on the paper.',
     ur: 'پرچے پر کم از کم ایک سوال رکھیں۔',
   },
+  // M4c challenge — the kid's Challenge on the web quiz (web-quiz-challenge.js): exercise names and the mascot's
+  // spoken lines (each also recorded once as a clip). Gender-neutral: imperatives, no first-person verbs.
+  wqChBiggerName: { en: 'Which is bigger?', ur: 'کون سا بڑا ہے؟' },
+  wqChReadName: { en: 'Read aloud', ur: 'اونچی آواز میں پڑھیں' },
+  wqChBiggerIntro: { en: 'Two numbers will pop up. Tap the bigger one!', ur: 'دو نمبر آئیں گے۔ بڑے نمبر کو چھوئیں!' },
+  wqChBiggerStart: { en: 'Ready? Go!', ur: 'تیار؟ شروع کریں!' },
+  wqChBiggerStop: { en: 'All done!', ur: 'بس، ہو گیا!' },
+  wqChBiggerDone: { en: 'Well done! You did it!', ur: 'شاباش! بہت خوب!' },
+  wqChReadIntro: {
+    en: 'Here is a short story. Read it out loud, as well as you can. If a word is hard, go on to the next one.',
+    ur: 'یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں پڑھیں۔ کوئی لفظ مشکل لگے تو اگلا لفظ پڑھیں۔',
+  },
+  wqChReadStart: { en: 'Ready? Begin.', ur: 'تیار ہو جائیں۔ شروع کریں!' },
+  wqChReadStop: { en: 'Stop. Thank you!', ur: 'رک جائیں۔ شکریہ!' },
+  wqChReadDone: { en: 'Great reading! Well done.', ur: 'بہت اچھا پڑھا! شاباش!' },
 };
 
 /**
@@ -2965,6 +3101,19 @@ const CLASS_FLOW_STRINGS = {
   classStudentsDropped: {
     en: '{dropped} over the limit were not added.',
     ur: 'حد سے زیادہ {dropped} شامل نہیں ہوئے۔',
+  },
+  // A paste that did not (fully) land. Never "nothing changed": the screen names what is missing.
+  classStudentsNotAddedHeading: {
+    en: 'Not everything was saved',
+    ur: 'سب کچھ محفوظ نہیں ہوا',
+  },
+  classStudentsNotAdded: {
+    en: '{notAdded} could not be added to {class}. Please paste them again.',
+    ur: '{notAdded} کو {class} میں شامل نہیں کیا جا سکا۔ براہِ کرم انہیں دوبارہ پیسٹ کریں۔',
+  },
+  classStudentsAddFailed: {
+    en: 'Your list could not be added to {class}. Please paste it again.',
+    ur: 'آپ کی فہرست {class} میں شامل نہیں ہو سکی۔ براہِ کرم اسے دوبارہ پیسٹ کریں۔',
   },
   classStudentsRemoved: {
     en: '{removed} removed from {class}.',

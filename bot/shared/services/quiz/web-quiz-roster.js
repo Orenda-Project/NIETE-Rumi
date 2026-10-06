@@ -58,7 +58,15 @@ async function rosterOn(now = Date.now()) {
 const digits = (v) => String(v == null ? '' : v).replace(/\D/g, '');
 // A grade or class name's FIRST number: "3-5" -> "3", "Class 4" -> "4", "1-2" -> "1".
 const gradeNum = (v) => (String(v == null ? '' : v).match(/\d+/) || [''])[0];
-const listLabel = (l) => [String(l.class_name || '').trim(), String(l.section || '').trim()].filter(Boolean).join('-');
+// The class service's mirror writes class_name as "Grade 4 - A" AND section "A" (2,297 of 2,816 prod lists), so a
+// name that already ends with the section is the label; only a bare name ("4") gets the section appended ("4-B").
+const listLabel = (l) => {
+  const name = String(l.class_name || '').trim();
+  const sec = String(l.section || '').trim();
+  if (!sec) return name;
+  if (new RegExp(`[\\s-]${sec.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i').test(name)) return name;
+  return [name, sec].filter(Boolean).join('-');
+};
 
 /**
  * The teacher's active class lists and their active children. Null when the
@@ -124,6 +132,39 @@ function narrow(roster, hits, quizGrade) {
   return hits.slice(0, MAX_CANDIDATES).map((k) => ({ kid: k, label: labelOf(k) }));
 }
 
+// ─── one class per quiz ───────────────────────────────────────────────────
+
+/**
+ * The ONE class list a quiz plays against, so a roll number or a typed name can
+ * only ever resolve to a child of that class. In order: the class the child
+ * chose (an opaque key from `keyOf`), the quiz's own list_id, the single list
+ * matching the quiz's grade, the teacher's only list. Otherwise the child is
+ * asked for the class first: { ask: [{ key, label }] } (the grade's lists when
+ * two or more match it, else all). `chosen === 'none'` ("my class is not
+ * here") plays against no list: { list: null }.
+ */
+function pickList(roster, { listId = null, grade = null, chosen = null } = {}, keyOf = (id) => id) {
+  if (!roster) return { list: null };
+  if (chosen === 'none') return { list: null };
+  const byKey = chosen ? roster.lists.find((l) => keyOf(l.id) === String(chosen)) : null;
+  if (byKey) return { list: byKey };
+  const own = listId ? roster.lists.find((l) => l.id === listId) : null;
+  if (own) return { list: own };
+  const g = gradeNum(grade);
+  const inGrade = g ? roster.lists.filter((l) => l.grade === g) : [];
+  if (inGrade.length === 1) return { list: inGrade[0] };
+  if (roster.lists.length === 1) return { list: roster.lists[0] };
+  const ask = (inGrade.length > 1 ? inGrade : roster.lists).map((l) => ({ key: keyOf(l.id), label: l.label || '' }));
+  return { ask };
+}
+
+/** The roster cut down to one list (no list: no children), so byRoll/byName never cross classes. */
+function onlyList(roster, list) {
+  if (!roster) return null;
+  if (!list) return { lists: [], kids: [] };
+  return { lists: [list], kids: roster.kids.filter((k) => k.list_id === list.id) };
+}
+
 // ─── near names ─────────────────────────────────────────────────────────────
 
 const ARABIC = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
@@ -180,6 +221,6 @@ function classOf(roster, kid) {
 
 module.exports = {
   FLAG_KEY, FROM_GRADE_KEY, MAX_CANDIDATES,
-  rosterOn, loadRoster, cleanRoll, byRoll, byName, nearName, classOf, displayName,
+  rosterOn, loadRoster, cleanRoll, byRoll, byName, pickList, onlyList, nearName, classOf, displayName,
   _resetCache: () => { cache = null; },
 };

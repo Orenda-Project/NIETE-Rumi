@@ -193,21 +193,32 @@ const ORIGINAL_135 = (q) => /^Question [135]:/.test(String(q && q.question));
 
 // ── 1. a soft fault never spends the margin ──────────────────────────────────
 
-test('flag on: grade 1-2 stems the rewrite could not shorten are SHIPPED and counted — never dropped', async () => {
+test('flag on: a long grade 1-2 stem is never CUT — no shortening rewrite; it ships whole and is counted', async () => {
+  // Live, 5 Oct: the shortening rewrite turned "Bunty lifts 7 toys onto the shelf. How many stay on the floor?"
+  // into "Bunty has 20 toys. Picks 7 up. How many?" — 7 and 13 both defensible. The web reads a stem aloud;
+  // a spoken long stem beats a cut one.
   wire({ gates: true });
   authorReply = { lesson_summary: 'You taught adding with carrying, ones first.', questions: EIGHT.map((q, i) => ([3, 5, 7].includes(i) ? LONG(q, i + 1) : q)) };
-  rewriteReply = { questions: [] };                     // the rewrite shortens nothing
   const r = await Gen.process(QID, { phone: PHONE });
   expect(r).toEqual(expect.objectContaining({ ok: true }));
-  expect(prompts.rewrite.length).toBeGreaterThan(0);   // the repair was asked for
-  expect(prompts.rewrite[0]).toMatch(/STEM_TOO_LONG_G12/);
+  expect(prompts.rewrite.filter((p) => /STEM_TOO_LONG_G12/.test(p))).toHaveLength(0);   // nobody is asked to cut it
   const rows = inserted();
   expect(rows).toHaveLength(8);                        // nothing dropped for length
+  expect(rows.map((x) => x.question_text)).toContain(LONG(EIGHT[3], 4).question);         // the stem as written
   expect(readyMeta().source_fidelity).toMatchObject({
     refused: 3, dropped: 0, kept_unfixed: 3, kept_soft: 3,
     by_reason: { STEM_TOO_LONG_G12: 3 },
   });
   readyMeta().source_fidelity.items.forEach((it) => expect(it.outcome).toBe('kept_soft'));
+});
+
+test('flag on: beside a real fault on the same question, the rewrite fixes the fault and is not told to shorten', async () => {
+  wire({ gates: true });
+  authorReply = { lesson_summary: 'You taught adding with carrying, ones first.', questions: [EIGHT[0], EIGHT[1], { ...LONG(EIGHT[2], 3), source_quote: 'Which column do we add first?' }, ...EIGHT.slice(3)] };
+  await Gen.process(QID, { phone: PHONE });
+  expect(prompts.rewrite.length).toBeGreaterThan(0);
+  expect(prompts.rewrite[0]).toMatch(/q2: SOURCE_QUOTE_IS_QUESTION/);
+  expect(prompts.rewrite[0]).not.toMatch(/STEM_TOO_LONG_G12/);
 });
 
 test('flag off: long grade 1-2 stems are not looked at (no source check), as today', async () => {
@@ -337,5 +348,33 @@ describe('the key check (a lesson-plan quiz), flag on', () => {
     expect(kc.failed).toBe(true);
     expect(kc.record.refused).toMatch(/under the floor of 6/);
     expect(prompts.rewrite.filter((p) => /REPLACE_FROM_SOURCE/.test(p))).toHaveLength(0);
+  });
+});
+
+// ── 4. the last-chance salvage never drops a question for a SOFT fault ───────
+
+describe('the salvage, flag on: a soft complaint on a question is shipped, never a drop', () => {
+  // Live (5 Oct, a grade 1 maths plan, gates on): the last attempt left q6 PICTURE_MISSING (hard) and
+  // PEDAGOGY_GENDERED_TEACHER on q1, q2, q3, q7 (soft — "He"/"She" for the story's Bilal and Bunty).
+  // The salvage counted all five as drops, 8 - 5 = 3 is under the floor, and the teacher got NO quiz.
+  const errs = [
+    'q6: PICTURE_MISSING — the stem points at a picture (Look at the number line) but the question has none',
+    ...[1, 2, 3, 7].map((i) => `q${i}: PEDAGOGY_GENDERED_TEACHER — question refers to the teacher with a gendered word ("He").`),
+  ];
+  const ctx = { language: 'en', subject: 'maths', digest: DIGEST, quizId: QID, lessonSummary: 'You taught adding with carrying, ones first.' };
+  afterEach(() => GatesV2.setEnabled(false));
+
+  test('flag on: only the hard fault is dropped; seven ship, the soft faults recorded', () => {
+    GatesV2.setEnabled(true);
+    const s = Gen.salvageWithoutBadFigures(EIGHT, errs, ctx);
+    expect(s.refused).toBeUndefined();
+    expect(s.dropped).toEqual([6]);
+    expect(s.questions).toHaveLength(7);
+  });
+
+  test('flag off: today’s salvage (every named question counts as a drop) — refused under the floor', () => {
+    GatesV2.setEnabled(false);
+    const s = Gen.salvageWithoutBadFigures(EIGHT, errs, ctx);
+    expect(s.refused).toMatch(/under the floor of 6/);
   });
 });

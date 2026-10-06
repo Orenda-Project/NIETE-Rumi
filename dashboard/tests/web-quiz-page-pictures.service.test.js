@@ -55,3 +55,28 @@ describe('picture grids', () => {
     expect((h.match(/class="wq-opt wq-ptile[^"]*"[^>]*aria-label="/g) || []).length).toBe(3);
   });
 });
+
+describe('a zoomed picture option (near-identical pictures, cropped to where they differ)', () => {
+  const { page: zpage, rule: zrule } = require('./wq-page-harness');
+  test('the cropped picture fills its tile instead of sitting at the small picture size', () => {
+    expect(zrule('.wq-opt.wq-ptile img.wq-z')).toMatch(/max-width:\s*100%/);
+    expect(zrule('.wq-opt.wq-ptile img.wq-z')).toMatch(/height:\s*auto/);
+  });
+  test('an option whose picture is served zoomed carries the zoom class', () => {
+    const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'wq', 'wq.js'), 'utf8');
+    const vm = require('vm');
+    const ctx = { module: { exports: {} } };
+    vm.createContext(ctx);
+    vm.runInContext(SRC.slice(0, SRC.indexOf('if (typeof module !== \'undefined\' && module.exports) module.exports = WQI;')) + '\nmodule.exports = WQI;', ctx);
+    const WQI = ctx.module.exports;
+    const q = { qid: 'q1', text: 'Which picture goes with this one?', correct_slot: 'B', options: [
+      { slot: 'A', text: '', img: '/api/wq/media/AB12CD/q1?k=A&z=1' }, { slot: 'B', text: '', img: '/api/wq/media/AB12CD/q1?k=B&z=1' }] };
+    const html = WQI.itemHtml(q, { listen: 'Listen' }, 'en');
+    const img = (html.match(/<img[^>]*k=A&amp;z=1[^>]*>/) || [''])[0];
+    expect(img).toMatch(/class="wq-z\b/);
+    // Exactly one class attribute, and loading never strips the zoom class.
+    expect(img.match(/\sclass=/g)).toHaveLength(1);
+    expect(img).not.toMatch(/className=''/);
+    expect(zpage).toBeDefined();
+  });
+});

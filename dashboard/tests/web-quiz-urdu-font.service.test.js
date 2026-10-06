@@ -106,6 +106,10 @@ describe('Urdu spacing rules', () => {
     expect(rule('html[lang=ur] body')).toMatch(/word-spacing:0?\.\d+em/);
   });
 
+  test('a 3-line Urdu video title on "more videos" keeps its lines apart (1.9 overlapped by 0.5 px at 360 and 4 px at 412; 2.3 measured clear)', () => {
+    expect(rule('html[lang=ur] .wq-vtext b')).toMatch(/line-height:2\.3\b/);
+  });
+
   test('buttons keep the word spacing too (the browser resets word-spacing on <button>, so answers, chips and lists glued words)', () => {
     expect(rule('html[lang=ur] button')).toMatch(/word-spacing:inherit/);
   });
@@ -165,6 +169,15 @@ describe('Urdu copy on the after-quiz screens', () => {
     const p = page({ lang: 'ur', cls: { label: 'جماعت 3 (ب)', teacher: 'استاد Testwala', chips: [] } });
     p.ctx.__wq.landing();
     expect(p.html()).toContain('جماعت\u00A03\u00A0(ب)');
+  });
+
+  // The landing bubble sits beside the big mascot, about 170 px wide on a 360 px phone. «…مل کر کوئز
+  // کھیلیں۔» wraps so that «کوئز» on line 2 stacks into «علیکم» on line 1 (−7 px, measured); the
+  // shorter greeting wraps clear of it (+3.5 px at 360, +7.5 px at 412) and says the same thing.
+  test('the landing greeting is the short one, so its two lines never touch', () => {
+    const p = page({ lang: 'ur', cls: { label: 'جماعت 3', teacher: 'استاد', chips: [] } });
+    p.ctx.__wq.landing();
+    expect(p.html()).toContain('<div class="wq-say">السلام علیکم! آئیں، کوئز کھیلیں۔</div>');
   });
 
   test('"today" in Urdu says "today" once, and its home button says where it goes', () => {

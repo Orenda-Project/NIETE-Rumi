@@ -114,3 +114,27 @@ describe('web-quiz-token', () => {
     expect(T.ANIMALS).toContain(T.animalFor('st-1'));
   });
 });
+
+describe('session token life (offline sync)', () => {
+  // A child can finish offline and reconnect days later: the token that carries the answers must still be good,
+  // while the session row's own expires_at (resume window) stays at SESSION_TTL_S.
+  const realNow = Date.now;
+  afterEach(() => { Date.now = realNow; });
+
+  test('a session token is still good after 3 days and dead after 8', () => {
+    const T = load({ WEB_QUIZ_TOKEN_SECRET: 'test-secret' });
+    const t0 = realNow();
+    Date.now = () => t0;
+    const st = T.signSession({ sessionId: 's1', deviceRef: 'd1', shareCodeId: 'sc1' });
+    Date.now = () => t0 + 3 * 86400000;
+    expect(T.verify(st, 's')).toMatchObject({ sid: 's1', sc: 'sc1' });
+    Date.now = () => t0 + 8 * 86400000;
+    expect(T.verify(st, 's')).toBeNull();
+  });
+
+  test('the resume window is unchanged: SESSION_TTL_S is still one day, the sync life is seven', () => {
+    const T = load({ WEB_QUIZ_TOKEN_SECRET: 'test-secret' });
+    expect(T.SESSION_TTL_S).toBe(24 * 60 * 60);
+    expect(T.SYNC_TTL_S).toBe(7 * 24 * 60 * 60);
+  });
+});

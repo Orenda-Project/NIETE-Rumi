@@ -71,4 +71,23 @@ function attemptRuleFor(sessions) {
   return web ? 'first_completed' : 'latest_completed';
 }
 
-module.exports = { oneAttemptPerChild, attemptRuleFor };
+/**
+ * One attempt per child, chosen PER CLASS CODE by that code's own rule — the
+ * class report's exact counting. For a reader that loads a whole quiz's sessions
+ * (several codes): group by share_code_id, apply attemptRuleFor to each group,
+ * return the union. A reader must also select share_code_id and device_ref.
+ */
+function oneAttemptPerChildPerCode(sessions) {
+  const byCode = new Map();
+  (sessions || []).forEach((s) => {
+    if (!s) return;
+    const k = s.share_code_id || '';
+    if (!byCode.has(k)) byCode.set(k, []);
+    byCode.get(k).push(s);
+  });
+  const out = [];
+  byCode.forEach((rows) => out.push(...oneAttemptPerChild(rows, { rule: attemptRuleFor(rows) })));
+  return out;
+}
+
+module.exports = { oneAttemptPerChild, attemptRuleFor, oneAttemptPerChildPerCode };

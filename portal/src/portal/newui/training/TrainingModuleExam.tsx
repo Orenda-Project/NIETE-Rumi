@@ -34,6 +34,13 @@ import { trainingBase, trainingPaths, useGet, type ExamGate } from './trainingAp
  *               failed sitting (canRetake, as before).
  */
 type Question = { id: number; index: number; question_text: string; options: string[]; option_images: string[] | null; is_open_ended: boolean };
+
+/**
+ * ONE rule for "is this a written question": the server says so, or there is nothing to pick from.
+ * The text box, the autosave and the submit all ask this, so a box that was drawn can never have its
+ * words sent as a picked option (chosen_option is varchar(32)).
+ */
+const isWritten = (q: Question) => q.is_open_ended || (!(q.options || []).length && !(q.option_images || []).length);
 type Attempt = {
   id: string;
   status: 'pending_review' | 'failed' | 'passed';
@@ -127,8 +134,8 @@ export default function TrainingModuleExam() {
           attempt_id: attemptId,
           question_id: questionId,
           question_index: qi,
-          chosen_option: q.is_open_ended ? null : value,
-          answer_text: q.is_open_ended ? value : null,
+          chosen_option: isWritten(q) ? null : value,
+          answer_text: isWritten(q) ? value : null,
         });
         setSave(data?.saved ? 'saved' : 'error');
       } catch {
@@ -152,7 +159,7 @@ export default function TrainingModuleExam() {
     setSending(true);
     setProblem(null);
     try {
-      const payload = qs.map((x) => (x.is_open_ended
+      const payload = qs.map((x) => (isWritten(x)
         ? { question_id: x.id, answer_text: answers[x.id] }
         : { question_id: x.id, chosen_option: answers[x.id] }));
       const { data } = await api.post(`/training/module/${id}/exam/attempts`, { attempt_id: attemptId, answers: payload });
@@ -197,7 +204,7 @@ export default function TrainingModuleExam() {
           <p dir="auto" className="whitespace-pre-line text-[19px] font-extrabold leading-[1.35] text-nu-surface-text rtl:font-bold rtl:leading-[2]">
             {q.question_text}
           </p>
-          {q.is_open_ended || (!(q.options || []).length && !(q.option_images || []).length) ? (
+          {isWritten(q) ? (
             <WrittenField value={answers[q.id] || ''} floor={0} onChange={(v) => setAnswer(q.id, v)} disabled={sending} />
           ) : (
             <AnswerChoices

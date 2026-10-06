@@ -229,18 +229,6 @@
   },
   {
     "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 151,
-    "snippet": "logToFile('❌ Internal training API failed', { route: name, error: error?.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 284,
-    "snippet": "logToFile('❌ Internal training API failed', { route: 'module-quiz-verdict', error: error?.message })",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
     "line": 709,
     "snippet": "logToFile('❌ Internal certificates list failed', { userId, error: error?.message });",
     "occurrence": 0

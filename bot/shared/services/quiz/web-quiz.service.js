@@ -28,18 +28,28 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
+const Steps = require('./web-quiz-steps');
 const WebItems = require('./web-quiz-items');
 const Figure = require('./web-quiz-figure');
+const PictureZoom = require('./web-quiz-picture-zoom');
 const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
+const { pageTopic } = require('./quiz-child-title');
+const GatesV2 = require('./quiz-author-gates-v2');
+
+const { presupposesPicture } = GatesV2;
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
 const { clampLanguage } = require('../../config/ux-strings');
 const { teacherLabel } = require('./quiz-teacher-label');
 const Roster = require('./web-quiz-roster');
+const Identity = require('./web-quiz-identity');
+const IdRoster = require('./web-quiz-identity-roster');
+const Pulse = require('./web-quiz-pulse');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
+const Art = require('./web-quiz-art-id');
 
 const QUESTIONS_MAX = 15;          // = video-quiz.service QUESTIONS_PER_SESSION
 const CHIPS_MAX = 40;
@@ -140,7 +150,52 @@ function hasPicture(q) {
 function playable(q) {
   const web = WebItems.webPayload(q);
   const stem = (web && web.text) || (q && q.question_text) || '';
-  return !pointsAtPicture(stem) || hasPicture(q);
+  // A stem that points at a picture ("look at the picture") or supposes one ("if a diagram
+  // shows…", the authoring gate's own rule) is not played without that picture: quizzes written
+  // before the gate still carry such stems.
+  return !(pointsAtPicture(stem) || presupposesPicture(stem)) || hasPicture(q);
+}
+
+/**
+ * A word_blank that is not the question asked (quiz-author-gates-v2 WORD_BLANK_NOT_ASKED /
+ * WORD_BLANK_NOT_A_WORD): 318 of 392 production items hide a letter of a word the question treats
+ * as whole, or hold a sentence. Gates v2, web only: the picture goes; a stem that stands on its own
+ * then plays as text, one that needs the picture is left out by playable(). Never below
+ * WORD_BLANK_FLOOR playable items — then the quiz plays as today, logged.
+ */
+const WORD_BLANK_FLOOR = 3;
+function wrongWordBlank(row) {
+  const fig = row && row.media && row.media.figure;
+  if (!fig || String(fig.type || '').toLowerCase() !== 'word_blank') return false;
+  const options = [row.option_a, row.option_b, row.option_c, row.option_d].filter((o) => o != null && String(o).trim() !== '');
+  const correct = 'ABCD'.indexOf(String(row.correct_option || '').trim().toUpperCase().charAt(0));
+  const q = { question: row.question_text || '', options, correct_index: correct >= 0 ? correct : null, figure: fig };
+  return GatesV2.questionErrors(q, 0, { language: (row.media && row.media.language) || undefined })
+    .some((e) => /WORD_BLANK_NOT_(ASKED|A_WORD)/.test(e));
+}
+function withoutFigure(row) {
+  const media = { ...row.media };
+  delete media.figure;
+  delete media.question_image;
+  if (media.web && typeof media.web === 'object' && media.web.figure) { media.web = { ...media.web }; delete media.web.figure; }
+  return { ...row, media };
+}
+async function withoutWrongWordBlanks(quizId, served, out, { log = false } = {}) {
+  if (!served.some(wrongWordBlank)) return out;
+  if (!(await GatesV2.refreshFlag())) return out;
+  const wrong = new Set(served.filter(wrongWordBlank).map((q) => q.id));
+  const fixed = served.map((q) => (wrong.has(q.id) ? withoutFigure(q) : q)).filter(playable);
+  if (fixed.length < WORD_BLANK_FLOOR) {
+    if (log) logEvent('web_quiz.word_blank_kept', { quizId, n: wrong.size, served: out.length });
+    return out;
+  }
+  if (log) {
+    const kept = new Set(fixed.map((q) => q.id));
+    logEvent('web_quiz.word_blank_hidden', {
+      quizId, hidden: [...wrong].filter((id) => !kept.has(id)), text_only: [...wrong].filter((id) => kept.has(id)),
+    });
+  }
+  return fixed;
 }
 
 /** The quiz's questions in the order a WhatsApp child gets them, capped like a session; only playable ones. */
@@ -153,7 +208,8 @@ async function loadQuestions(quizId, { log = false } = {}) {
   // bank legacy-first) — the WhatsApp engine's own function.
   const { orderForSession } = require('./video-quiz.service');
   const served = orderForSession(rows).slice(0, QUESTIONS_MAX);
-  const out = served.filter(playable);
+  let out = served.filter(playable);
+  out = await withoutWrongWordBlanks(quizId, served, out, { log });
   if (log && out.length < served.length) {
     const qids = served.filter((q) => !playable(q)).map((q) => q.id);
     logEvent('web_quiz.unplayable_skipped', { quizId, n: qids.length, qids, served: out.length });
@@ -204,7 +260,10 @@ function feedbackFor(q, i) {
   const fb = q.option_feedback;
   const wrong = fb && typeof fb === 'object' ? fb.wrong : null;
   const v = wrong ? wrong[String(i)] : null;
-  return typeof v === 'string' && v.trim() ? v.trim() : null;
+  // Stored for WhatsApp ("C) Good try! … The correct answer is B) …"): the page keeps the mix-up
+  // and the reason only — its letters differ, it names the answer itself, and never praises a miss.
+  const clean = typeof v === 'string' ? require('./web-quiz-feedback').cleanWrongFeedback(v) : '';
+  return clean || null;
 }
 
 /**
@@ -227,7 +286,7 @@ function inDisplayOrder(q, options) {
   }
 }
 
-function questionPayload(row, i, code, audio) {
+function questionPayload(row, i, code, audio, zoom) {
   // A figure's own A-D part names become P-S everywhere the page shows them.
   const q = Figure.withPartLetters(row);
   const options = [];
@@ -235,7 +294,8 @@ function questionPayload(row, i, code, audio) {
     if (text == null || String(text).trim() === '') return;
     const o = { slot: SLOTS[idx], text: String(text) };
     if (optionImageOf(q.media, idx)) {
-      o.img = mediaUrl(code, q.id, SLOTS[idx]);
+      // Near-identical pictures are served cropped to where they differ (web-quiz-picture-zoom).
+      o.img = mediaUrl(code, q.id, SLOTS[idx]) + (zoom ? '&z=1' : '');
       const name = Figure.pictureOptionName(text);
       o.text = name || '';
       if (name) o.name = name;
@@ -259,7 +319,15 @@ function questionPayload(row, i, code, audio) {
   if (out.correct_slot.includes(',')) out.multi = true;
   // SCHEMA_v2: a web item (media.web) carries its own type/options/key; absent = today's question.
   const web = WebItems.webPayload(q);
-  if (web) Object.assign(out, web);
+  if (web) {
+    Object.assign(out, web);
+    (out.options || []).forEach((o) => {
+      if (o && typeof o.fb === 'string') {
+        const clean = require('./web-quiz-feedback').cleanWrongFeedback(o.fb);
+        if (clean) o.fb = clean; else delete o.fb;
+      }
+    });
+  }
   if (questionImageOf(q.media)) out.img = mediaUrl(code, q.id, 'q');
   const figure = Figure.figureFor(q);
   if (figure) {
@@ -320,9 +388,12 @@ async function classChips(ctx) {
 const publicChip = (c) => ({ chip: c.chip, first: c.first, animal: c.animal });
 
 /** A roster child as a public chip: first name and animal, the class label only when it tells two classes apart. */
-function rosterChip(ctx, { kid, label }) {
+function rosterChip(ctx, { kid, label }, one = null) {
   const c = { chip: T.chipId(ctx.shareCodeId, kid.id), first: firstName(Roster.displayName(kid, ctx.lang)), animal: T.animalFor(kid.id) };
   if (label) c.cls = label;
+  // Two children of the class share this first name: the roll number tells the child which card is theirs.
+  const twin = one && one.kids.some((k) => k.id !== kid.id && norm(firstName(Roster.displayName(k, ctx.lang))) === norm(c.first));
+  if (twin && kid.roll_number != null) c.roll = Number(kid.roll_number);
   return c;
 }
 
@@ -346,13 +417,20 @@ async function liveCounts(ctx) {
 
 // ─── E2 the quiz ────────────────────────────────────────────────────────────
 
-async function getQuiz(code, { p } = {}) {
+/** E2, timed: one web_quiz.getquiz_timing line per call (steps, total). */
+function getQuiz(code, opts = {}) {
+  return Steps.run('getquiz', {}, (mark) => getQuizTimed(code, opts, mark));
+}
+
+async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   requireOn();
   const ctx = await resolveCode(code);
+  mark('resolve', { shareCodeId: ctx.shareCodeId });
   const [questions, { data: quizRow }] = await Promise.all([
     loadQuestions(ctx.quizId, { log: true }),
-    supabase.from('quizzes').select('id, topic, grade, subject, language, meta, video_id').eq('id', ctx.quizId).maybeSingle(),
+    supabase.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle(),
   ]);
+  mark('questions');
   if (!questions.length) fail(404, 'no_questions');
   const helpers = mediaHelpers();
   let audio = {};
@@ -364,12 +442,27 @@ async function getQuiz(code, { p } = {}) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
     }
   }
+  // A quiz without its read-aloud clips (or with clips of an older voice version) gets them now,
+  // recorded by the worker: the backfill for quizzes authored before clips were made at authoring.
+  try {
+    const Publish = require('./web-quiz-publish.service');
+    Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
+  } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
+  mark('media');
+  // Identity v2: the child types their name and the server matches inside the hand-out's class.
+  const idn = await identityV2(ctx);
   // A teacher with a class list: the child gives a roll number, so no classmates' names ship.
-  const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
-  const chips = roster ? [] : await classChips(ctx);
+  const roster = idn ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
+  // v2 ships no classmates' names at all: only this phone's remembered children (page storage).
+  // An invited friend is not in the class: no classmates' names, ever (a pick would score as a classmate).
+  const invited = Boolean(ctx.invitedByStudentId);
+  const chips = idn || roster || invited ? [] : await classChips(ctx);
+  // A quiz whose class the server cannot tell (two lists, no grade match): the page asks the class first.
+  const pick = roster ? Roster.pickList(roster, { listId: quizRow && quizRow.list_id, grade: quizRow && quizRow.grade }, (id) => classKey(ctx, id)) : null;
   const preview = Boolean(p) && isPreviewFor(p, ctx);
+  mark('roster');
   // The class and the teacher are named exactly as the teacher's own texts
   // name them: the forwarded WhatsApp message's "Teacher <name>", and the
   // report's class heading for this code (null until a child has finished).
@@ -379,23 +472,63 @@ async function getQuiz(code, { p } = {}) {
     const cls = await require('./video-quiz-report.service').loadClassRows(ctx.moreVideosOf || ctx.shareCodeId);
     label = (cls && cls.className) || null;
   } catch { label = null; }
+  const zooms = await Promise.all(questions.map((q) => PictureZoom.zoomFor(q).catch(() => null)));
+  mark('label');
   const out = {
     quiz: {
-      id: ctx.quizId, code: ctx.code, topic: ctx.parent.topic || (quizRow && quizRow.topic) || '',
+      id: ctx.quizId, code: ctx.code,
+      topic: pageTopic({ lang: ctx.lang, meta: quizRow && quizRow.meta, fallback: ctx.parent.topic || (quizRow && quizRow.topic) }),
       lang: ctx.lang, dir: ctx.lang === 'ur' ? 'rtl' : 'ltr',
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
-      questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio)),
+      questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),
     },
-    cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip), ...(roster ? { roster: { lists: roster.lists.length } } : {}) },
-    live: await liveCounts(ctx),
+    cls: {
+      // A friend's challenge names only the challenger: never the challenger's teacher or class.
+      label: invited ? null : label, teacher: invited ? null : teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip),
+      ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}),
+      ...(idn ? { identity: await identityBoot(ctx, idn) } : {}),
+    },
+    // now: classmates with a right answer in the last 2 minutes (peer pulse ring), sent only when there are some.
+    // A friend's challenge gets neither the class count nor who is playing now: the friend is not in the class.
+    live: invited ? { ...(await liveCounts(ctx)), class_today: 0 }
+      : { ...(await liveCounts(ctx)), ...(Pulse.liveNow(ctx.shareCodeId) ? { now: Pulse.liveNow(ctx.shareCodeId) } : {}) },
     video,
     preview,
     // Which brand the page wears: a key only; the edge owns the brand's look.
     brand: await WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName }),
   };
+  mark('live');
   if (ctx.invitedByStudentId) out.challenge = await challengeOf(ctx);
+  // The pictures this link previews as (web-quiz-art.js): the class one, and the invite on a challenge code.
+  out.art = {
+    class: Art.artId('l', ctx.parent.code || ctx.code), schools: Art.artId('s', ctx.parent.code || ctx.code),
+    invite: ctx.invitedByStudentId ? Art.artId('i', ctx.code) : null,
+  };
   return out;
+}
+
+async function quizInfo(quizId) {
+  try {
+    const { data } = await supabase.from('quizzes').select('grade, list_id').eq('id', quizId).maybeSingle();
+    return { grade: (data && data.grade) || null, listId: (data && data.list_id) || null };
+  } catch { return { grade: null, listId: null }; }
+}
+
+/** An opaque per-code key for one of the teacher's class lists (the page never sees a list id). */
+const classKey = (ctx, listId) => T.chipId(ctx.shareCodeId, `list:${listId}`);
+
+/**
+ * The teacher's roster and the ONE class this quiz plays against (the child's
+ * chosen class key, else the quiz's list, else its grade's list). `one` is the
+ * roster cut to that class; `ask` lists the classes when the child must choose.
+ */
+async function oneClass(ctx, chosen) {
+  const q = await quizInfo(ctx.quizId);
+  const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: q.grade });
+  if (!roster) return { roster: null, grade: q.grade };
+  const pick = Roster.pickList(roster, { listId: q.listId, grade: q.grade, chosen: chosen == null ? null : String(chosen) }, (id) => classKey(ctx, id));
+  return { roster, grade: q.grade, ask: pick.ask || null, one: pick.ask ? null : Roster.onlyList(roster, pick.list) };
 }
 
 async function gradeOf(quizId) {
@@ -433,6 +566,7 @@ async function whoPlayed(body = {}) {
   requireOn();
   const ctx = await resolveCode(body.code);
   requireTeacher(body, ctx);
+  if ((await IdRoster.identityMode()) === 'v2') return whoPlayedV2(ctx);
   const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
   const { data } = await supabase.from('quiz_sessions')
     .select('id, student_id, student_name, user_id, status, correct_answers, total_questions_answered, completed_at, created_at')
@@ -441,7 +575,48 @@ async function whoPlayed(body = {}) {
     .filter((s) => s.student_id);
   const rows = counted.map((s) => whoRow(s, roster, ctx.lang))
     .sort((a, b) => (a.on_list - b.on_list) || ((a.roll || 0) - (b.roll || 0)) || a.first.localeCompare(b.first));
-  return { roster: Boolean(roster), rows };
+  // The class this quiz is for (its list, else its grade's): who of it has not played yet.
+  const { one } = await oneClass(ctx, null);
+  const done = new Set(counted.map((s) => s.student_id));
+  const notPlayed = one && one.lists.length
+    ? one.kids.filter((k) => !done.has(k.id))
+      .map((k) => ({ first: firstName(Roster.displayName(k, ctx.lang)), roll: k.roll_number != null ? Number(k.roll_number) : null }))
+      .sort((a, b) => ((a.roll || 0) - (b.roll || 0)) || a.first.localeCompare(b.first))
+    : null;
+  const total = (await loadQuestions(ctx.quizId)).length || Math.max(0, ...rows.map((r) => r.total));
+  const avg = rows.length ? Math.round((rows.reduce((n, r) => n + r.correct, 0) / rows.length) * 10) / 10 : null;
+  return {
+    roster: Boolean(roster),
+    summary: {
+      played: rows.length,
+      on_list: rows.filter((r) => r.on_list).length,
+      of: one && one.lists.length ? one.kids.length : null,
+      avg, total,
+      hardest: await hardestQuestion(ctx.quizId, counted.map((s) => s.id)),
+    },
+    not_played: notPlayed,
+    rows,
+  };
+}
+
+/**
+ * The question most counted children missed: { n (its place in the quiz, 1-based), missed }.
+ * Null with fewer than two finishers or when nobody missed anything (nothing to point at).
+ */
+async function hardestQuestion(quizId, sessionIds) {
+  if (sessionIds.length < 2) return null;
+  try {
+    const [questions, { data }] = await Promise.all([
+      loadQuestions(quizId),
+      supabase.from('quiz_answers').select('session_id, question_id, is_correct').in('session_id', sessionIds),
+    ]);
+    let best = null;
+    questions.forEach((q, i) => {
+      const missed = (data || []).filter((a) => a.question_id === q.id && a.is_correct === false).length;
+      if (missed && (!best || missed > best.missed)) best = { n: i + 1, missed };
+    });
+    return best;
+  } catch { return null; }
 }
 
 /**
@@ -453,6 +628,10 @@ async function whoPlayed(body = {}) {
 async function fixWho(body = {}) {
   requireOn();
   const ctx = await resolveCode(body.code);
+  if ((body.studentId || body.add === true) && (await IdRoster.identityMode()) === 'v2') {
+    requireTeacherOf(body, ctx);
+    return fixWhoV2(ctx, body);
+  }
   requireTeacher(body, ctx);
   const quizGrade = await gradeOf(ctx.quizId);
   const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
@@ -483,6 +662,43 @@ function isPreviewFor(p, ctx) {
   return Boolean(tok && tok.sc === ctx.shareCodeId && tok.t === ctx.teacherUserId);
 }
 
+/**
+ * A child's first name, one way on every screen of a page: on an Urdu quiz a child on the
+ * teacher's class list is named with the list's Urdu spelling (Roster.displayName, the rule
+ * "Are you…?" and Who-played use), anyone else by the name the session carries. One read of the
+ * students rows on an Urdu quiz; an English quiz reads nothing.
+ */
+async function shownNames(lang, studentIds) {
+  const ids = [...new Set((studentIds || []).filter(Boolean))];
+  const names = new Map();
+  if (lang === 'ur' && ids.length) {
+    try {
+      const { data } = await supabase.from('students').select('id, student_name, student_name_urdu').in('id', ids);
+      (data || []).forEach((k) => names.set(k.id, Roster.displayName(k, lang)));
+    } catch { /* the session's name, never a failed screen */ }
+  }
+  return (studentId, name) => firstName((studentId && names.get(studentId)) || name);
+}
+
+async function codeLanguage(shareCodeId) {
+  try {
+    const { data } = await supabase.from('quiz_share_codes').select('language').eq('id', shareCodeId).maybeSingle();
+    return clampLanguage(data && data.language);
+  } catch { return clampLanguage(null); }
+}
+
+/**
+ * A challenge's outcome from the side of `mine`: compares the two scores as
+ * shares (6/8 ties 3/4). An empty score never wins. Pure.
+ */
+function challengeOutcome(mine, theirs) {
+  const a = (Number(mine && mine.correct) || 0) * (Number(theirs && theirs.total) || 0);
+  const b = (Number(theirs && theirs.correct) || 0) * (Number(mine && mine.total) || 0);
+  if (!(Number(mine && mine.total) > 0)) return 'lose';
+  if (a > b) return 'win';
+  return a === b ? 'tie' : 'lose';
+}
+
 /** The friend who sent a challenge link: their first counted score on the class code. */
 async function challengeOf(ctx) {
   const { data: rows } = await supabase.from('quiz_sessions')
@@ -490,7 +706,8 @@ async function challengeOf(ctx) {
     .eq('share_code_id', ctx.shareCodeId).eq('student_id', ctx.invitedByStudentId).eq('status', 'completed');
   const [best] = oneAttemptPerChild(rows || [], { rule: 'first_completed' });
   if (!best) return null;
-  return { first: firstName(best.student_name), correct: best.correct_answers || 0, total: best.total_questions_answered || 0 };
+  const nameOf = await shownNames(ctx.lang, [best.student_id]);
+  return { first: nameOf(best.student_id, best.student_name), correct: best.correct_answers || 0, total: best.total_questions_answered || 0 };
 }
 
 // ─── E3 the session ─────────────────────────────────────────────────────────
@@ -528,6 +745,22 @@ async function priorFinish(shareCodeId, studentId, excludeId = null) {
   return first || null;
 }
 
+/** The best of this child's OTHER finishes on a class code (share of right answers, then more right), or null. */
+async function bestBefore(shareCodeId, studentId, excludeId) {
+  if (!studentId) return null;
+  try {
+    const { data } = await supabase.from('quiz_sessions').select('id, correct_answers, total_questions_answered')
+      .eq('share_code_id', shareCodeId).eq('student_id', studentId).eq('status', 'completed');
+    const rows = (data || []).filter((r) => r.id !== excludeId && (r.total_questions_answered || 0) > 0);
+    if (!rows.length) return null;
+    const share = (r) => (r.correct_answers || 0) / r.total_questions_answered;
+    rows.sort((x, y) => (share(y) - share(x)) || ((y.correct_answers || 0) - (x.correct_answers || 0)));
+    return { correct: rows[0].correct_answers || 0, total: rows[0].total_questions_answered };
+  } catch {
+    return null;
+  }
+}
+
 async function countJoin(shareCodeId) {
   try {
     const { error } = await supabase.rpc('increment_share_code_uses', { code_id: shareCodeId });
@@ -537,9 +770,16 @@ async function countJoin(shareCodeId) {
   }
 }
 
-async function startSession(body = {}) {
+/** E3, timed: one web_quiz.session_timing line per call (path, steps, total). */
+function startSession(body = {}) {
+  const path = body.p ? 'preview' : body.roll != null ? 'roll' : body.chip ? 'chip' : body.from_st ? 'from_st' : body.new ? 'new' : 'other';
+  return Steps.run('session', { path, ...(body.resume_st ? { resume: 1 } : {}) }, (mark) => startSessionTimed(body, mark));
+}
+
+async function startSessionTimed(body = {}, mark = () => {}) {
   requireOn();
   const ctx = await resolveCode(body.code);
+  mark('resolve', { shareCodeId: ctx.shareCodeId });
   const deviceRef = T.cleanDeviceRef(body.device_ref) || T.newDeviceRef();
 
   // A returning page resumes its own open session instead of starting another.
@@ -547,14 +787,20 @@ async function startSession(body = {}) {
     const tok = T.verify(body.resume_st, 's');
     if (tok && tok.sc === ctx.shareCodeId) {
       const { data: s } = await supabase.from('quiz_sessions').select(SESSION_COLS).eq('id', tok.sid).maybeSingle();
-      if (s && s.status === 'in_progress' && (!s.expires_at || new Date(s.expires_at) > new Date())) {
+      // A token resumes only ITS child: a body that names someone else (a typed name, a roll number, another
+      // child's chip) starts that child's own session, never continues this one with their answers.
+      const other = body.new || body.roll != null
+        || (body.chip && !(s && s.student_id && String(body.chip) === T.chipId(ctx.shareCodeId, s.student_id)));
+      if (other && s) logEvent('web_quiz.resume_skipped', { shareCodeId: ctx.shareCodeId, sessionId: s.id });
+      if (s && !other && s.status === 'in_progress' && (!s.expires_at || new Date(s.expires_at) > new Date())) {
         const answered = await answeredIds(s.id);
         const prior = await priorFinish(ctx.shareCodeId, s.student_id, s.id);
+        const nameOf = await shownNames(ctx.lang, [s.student_id]);
         return {
           st: body.resume_st, device_ref: tok.d || deviceRef,
           ...countedFor(prior, tok.d || deviceRef, Boolean(s.user_id)),
           resume: { answered: answered.map((a) => a.question_id) },
-          child: s.student_id ? { chip: T.chipId(ctx.shareCodeId, s.student_id), first: firstName(s.student_name), animal: T.animalFor(s.student_id) } : null,
+          child: s.student_id ? { chip: T.chipId(ctx.shareCodeId, s.student_id), first: nameOf(s.student_id, s.student_name), animal: T.animalFor(s.student_id) } : null,
         };
       }
     }
@@ -564,21 +810,30 @@ async function startSession(body = {}) {
   let userId = null;
   let takerName = null;
   let takerClass = null;
+  // Identity v2 (app_settings web_quiz_identity = 'v2'); null = today's path, untouched.
+  const idn = body.p ? null : await identityV2(ctx);
+  let found = null;
+  let resolved = null;
   if (body.p) {
     if (!isPreviewFor(body.p, ctx)) fail(401, 'bad_token');
     userId = ctx.teacherUserId;           // the self-test marker: never a child
     takerName = ctx.parent.teacher_name || null;
   } else if (body.roll != null) {
     // "What is your roll number?" -> "Are you <first name>?": the page confirms with the chip.
-    const quizGrade = await gradeOf(ctx.quizId);
-    const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
+    // A roll number resolves only within this quiz's one class list.
+    const { roster, grade: quizGrade, ask, one } = await oneClass(ctx, body.list);
     if (!roster) fail(400, 'bad_request', { why: 'who' });
     const roll = Roster.cleanRoll(body.roll);
     if (!roll) fail(400, 'bad_request', { why: 'roll' });
-    const found = Roster.byRoll(roster, roll, quizGrade);
+    if (ask) fail(409, 'which_class', { classes: ask });
+    const found = Roster.byRoll(one, roll, quizGrade);
     logEvent('web_quiz.roll_lookup', { shareCodeId: ctx.shareCodeId, matches: found.length });
     if (!found.length) fail(404, 'roll_unknown');
     fail(409, 'is_this_you', { candidates: found.map((f) => rosterChip(ctx, f)) });
+  } else if (body.chip && idn && (found = await chipInClass(ctx, idn, String(body.chip), body.list))) {
+    // v2: "Yes, it's me" on the one card, or a remembered child of the hand-out's class.
+    student = { id: found.kid.id, student_name: found.kid.student_name, self_reported_class: found.cls.label || null };
+    resolved = { via: viaOf(body.via, 'remembered'), classBound: found.bound, provisional: false };
   } else if (body.chip) {
     const want = String(body.chip);
     const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
@@ -611,20 +866,26 @@ async function startSession(body = {}) {
     const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
     const listed = roster ? roster.kids.find((k) => k.id === st.id) : null;
     if (listed) student = { ...student, self_reported_class: Roster.classOf(roster, listed) };
+  } else if (body.new && typeof body.new === 'object' && idn) {
+    ({ student, resolved } = await newChildV2(ctx, body, idn));
   } else if (body.new && typeof body.new === 'object') {
     const name = cleanName(body.new.name);
     if (!name) fail(400, 'bad_request', { why: 'name' });
     const cls = body.new.cls == null ? null : String(body.new.cls).replace(/[^\p{L}\p{N} -]/gu, '').slice(0, 20) || null;
     if (!body.new.force) {
-      const chips = await classChips(ctx);
       const mine = norm(firstName(name));
-      const quizGrade = await gradeOf(ctx.quizId);
-      const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
-      // With a class list, a typo still finds the child ("Aysha" -> Ayesha); without one, today's exact match.
-      const fromRoster = roster ? Roster.byName(roster, firstName(name), quizGrade).map((f) => rosterChip(ctx, f)) : [];
-      const fromChips = chips.filter((c) => (roster ? Roster.nearName(c.first, firstName(name)) : norm(c.first) === mine))
-        .filter((c) => !fromRoster.some((r) => r.chip === c.chip)).map(publicChip);
-      const candidates = fromRoster.concat(fromChips).slice(0, Roster.MAX_CANDIDATES);
+      const { roster, grade: quizGrade, ask, one } = await oneClass(ctx, body.list);
+      let candidates;
+      if (roster) {
+        // With a class list, a typo still finds the child ("Aysha" -> Ayesha) — but only in this
+        // quiz's class: a name that class does not have is a new child, never another class's child.
+        if (ask) fail(409, 'which_class', { classes: ask });
+        candidates = Roster.byName(one, firstName(name), quizGrade).map((f) => rosterChip(ctx, f, one));
+      } else {
+        const chips = await classChips(ctx);
+        candidates = chips.filter((c) => norm(c.first) === mine).map(publicChip);
+      }
+      candidates = candidates.slice(0, Roster.MAX_CANDIDATES);
       if (candidates.length) fail(409, 'maybe_you', { candidates });
     }
     const { data: created, error } = await supabase.from('students').insert({
@@ -639,7 +900,17 @@ async function startSession(body = {}) {
   } else {
     fail(400, 'bad_request', { why: 'who' });
   }
+  mark('identity');
 
+  // A hub/library link carries the child's chip in its URL (?k=), and a link can be forwarded:
+  // it plays straight through only on a phone that has played as that child before; anywhere
+  // else the child sees the ONE "Are you <first>?" card first (confirm:true is the "Yes").
+  if (student && body.chip && body.via === 'hub' && body.confirm !== true
+    && !(await deviceKnows(found ? found.kid.ids : [student.id], T.cleanDeviceRef(body.device_ref)))) {
+    logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'hub_confirm', hits: 1 });
+    const nameOf = await shownNames(ctx.lang, [student.id]);
+    fail(409, 'is_this_you', { candidates: [{ chip: String(body.chip), first: nameOf(student.id, student.student_name), animal: T.animalFor(student.id) }] });
+  }
   if (student) {
     takerName = student.student_name;
     takerClass = student.self_reported_class || null;
@@ -650,7 +921,8 @@ async function startSession(body = {}) {
     quiz_id: ctx.quizId,
     user_id: userId,
     student_id: student ? student.id : null,
-    invited_by_student_id: ctx.invitedByStudentId,
+    // A child opening their OWN challenge link (v2) plays for their class, not as their own guest.
+    invited_by_student_id: idn && student && student.id === ctx.invitedByStudentId ? null : ctx.invitedByStudentId,
     student_name: takerName,
     student_class: takerClass,
     share_code_id: ctx.shareCodeId,
@@ -664,6 +936,7 @@ async function startSession(body = {}) {
     logToFile('❌ web-quiz: could not create session', { quizId: ctx.quizId, error: sErr && sErr.message }, 'error');
     fail(502, 'db_unavailable');
   }
+  mark('insert');
 
   await countJoin(ctx.shareCodeId);
   let quizSource = null;
@@ -685,6 +958,7 @@ async function startSession(body = {}) {
     logToFile('⚠️ web-quiz: report scheduling failed (the quiz still runs)', { shareCodeId: ctx.shareCodeId, error: e.message });
   }
   const counted = countedFor(prior, deviceRef, Boolean(userId));
+  if (resolved) logEvent('web_quiz.identity_resolved', { shareCodeId: ctx.shareCodeId, sessionId: session.id, ...resolved });
   logEvent('web_quiz.session_started', {
     sessionId: session.id, shareCodeId: ctx.shareCodeId, quizId: ctx.quizId,
     preview: Boolean(userId), returning: Boolean(body.chip || body.from_st), counted: counted.counted,
@@ -692,12 +966,13 @@ async function startSession(body = {}) {
     // How the page identified the child (roll / name / remembered / chips / new): measures each path.
     via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
   });
+  const nameOf = await shownNames(ctx.lang, [student && student.id]);
   return {
     st: T.signSession({ sessionId: session.id, deviceRef, shareCodeId: ctx.shareCodeId }),
     device_ref: deviceRef,
     ...counted,
     resume: { answered: [] },
-    child: student ? { chip: T.chipId(ctx.shareCodeId, student.id), first: firstName(student.student_name), animal: T.animalFor(student.id) } : null,
+    child: student ? { chip: T.chipId(ctx.shareCodeId, student.id), first: nameOf(student.id, student.student_name), animal: T.animalFor(student.id) } : null,
   };
 }
 
@@ -707,7 +982,324 @@ function countedFor(prior, deviceRef, preview) {
   return { counted: false, reason: prior.device_ref && prior.device_ref === deviceRef ? 'already_finished' : 'finished_elsewhere' };
 }
 
+// ─── identity v2: name first, inside the hand-out's one class ──────────────
+
+const NONE_CLASS = { state: 'none', class: null, classes: [], bound: null };
+const VIA = ['remembered', 'hub', 'name', 'full_name', 'father', 'number', 'new', 'preview'];
+const BOUND = ['code', 'quiz', 'single', 'grade', 'teacher_ask', 'child_ask', 'none'];
+const viaOf = (v, dflt) => (VIA.includes(String(v || '')) ? String(v) : dflt);
+const boundOf = (b) => (BOUND.includes(String(b || '')) ? String(b) : 'none');
+const ARABIC_SCRIPT = /[؀-ۿݐ-ݿ]/;
+
+/**
+ * The v2 identity context of a code, or null when the setting is not 'v2'. An
+ * invited friend (a challenge code) never meets the class roster: no class, no
+ * matching, a provisional child (their class is not the inviter's).
+ */
+async function identityV2(ctx) {
+  if ((await IdRoster.identityMode()) !== 'v2') return null;
+  if (ctx.invitedByStudentId) return { invited: true, resolved: NONE_CLASS };
+  try {
+    const resolved = await Identity.resolveQuizClass({
+      teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId,
+    });
+    return { invited: false, resolved: resolved || NONE_CLASS };
+  } catch (e) {
+    logToFile('⚠️ web-quiz: class resolution failed — no roster for this start', { shareCodeId: ctx.shareCodeId, error: e.message });
+    return { invited: false, resolved: NONE_CLASS };
+  }
+}
+
+const askOf = (ctx, classes) => (classes || []).map((c) => ({ key: IdRoster.classKeyV2(ctx.shareCodeId, c), label: c.label || '' }));
+
+/** E2's `cls.identity`: how the page should ask. Never a name, never a class id. */
+async function identityBoot(ctx, idn) {
+  const r = idn.resolved;
+  let roster = !idn.invited && r.state === 'ambiguous';
+  if (!idn.invited && r.state === 'known') roster = Boolean(((await IdRoster.rosterOf(r.class)) || []).length);
+  return {
+    mode: 'v2',
+    class: {
+      state: r.state,
+      label: r.state === 'known' && r.class ? r.class.label || null : null,
+      ask: r.state === 'ambiguous' ? askOf(ctx, r.classes) : null,
+    },
+    roster,
+    invited: Boolean(idn.invited),
+  };
+}
+
+/** The class a v2 start plays against: the resolved one, or the one the child chose (S1). Throws which_class. */
+function classForStart(ctx, idn, list, { ask = true } = {}) {
+  const r = idn.resolved;
+  if (r.state === 'known') return { cls: r.class, chosen: false, bound: boundOf(r.bound), only: r.bound === 'single' };
+  if (r.state !== 'ambiguous') return { cls: null, chosen: false, bound: 'none' };
+  const key = list == null ? '' : String(list);
+  if (key === 'none') return { cls: null, chosen: true, bound: 'none' };
+  const cls = key ? r.classes.find((c) => IdRoster.classKeyV2(ctx.shareCodeId, c) === key) : null;
+  if (cls) return { cls, chosen: true, bound: 'child_ask' };
+  if (!ask) return null;
+  logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'class', hits: r.classes.length });
+  return fail(409, 'which_class', { classes: askOf(ctx, r.classes) });
+}
+
+/** A chip (a card the child tapped, or a remembered one) that is a child of the hand-out's class. */
+async function chipInClass(ctx, idn, want, list) {
+  if (idn.invited) return null;
+  const r = idn.resolved;
+  const pick = r.state === 'ambiguous' && list != null ? classForStart(ctx, idn, list, { ask: false }) : null;
+  const pool = pick && pick.cls ? [pick] : r.state === 'known' ? [classForStart(ctx, idn, null)]
+    : r.state === 'ambiguous' ? r.classes.map((c) => ({ cls: c, bound: 'child_ask' })) : [];
+  for (const p of pool) {
+    const kids = (await IdRoster.rosterOf(p.cls)) || [];
+    const kid = kids.find((k) => k.ids.some((id) => T.chipId(ctx.shareCodeId, id) === want));
+    if (kid) return { kid, cls: p.cls, bound: p.bound };
+  }
+  return null;
+}
+
+/**
+ * A provisional child (no class list) this phone already played as on this code under the same name
+ * (Identity.canon: case, spaces and spelling variants folded), or null. One read of the code's sessions on
+ * this device, one of their students; ids and names never leave the server.
+ */
+async function provisionalOnDevice(shareCodeId, deviceRef, name) {
+  if (!deviceRef || !shareCodeId) return null;
+  const want = Identity.canon(name);
+  if (!want) return null;
+  try {
+    const { data: rows } = await supabase.from('quiz_sessions').select('student_id, student_name')
+      .eq('share_code_id', shareCodeId).eq('device_ref', deviceRef).is('user_id', null).limit(50);
+    const ids = [...new Set((rows || []).filter((r) => r.student_id && Identity.canon(r.student_name) === want).map((r) => r.student_id))];
+    if (!ids.length) return null;
+    const { data: kids } = await supabase.from('students').select('id, student_name, self_reported_class, list_id').in('id', ids);
+    const kid = (kids || []).find((k) => !k.list_id && Identity.canon(k.student_name) === want);
+    return kid ? { id: kid.id, student_name: kid.student_name, self_reported_class: kid.self_reported_class || null } : null;
+  } catch { return null; }
+}
+
+/** Has this phone (device_ref) ever played as this child (any of their ids, any code)? */
+async function deviceKnows(studentIds, deviceRef) {
+  if (!deviceRef || !studentIds || !studentIds.length) return false;
+  try {
+    const { data } = await supabase.from('quiz_sessions').select('id')
+      .in('student_id', studentIds).eq('device_ref', deviceRef).limit(1);
+    return Boolean(data && data.length);
+  } catch { return false; }
+}
+
+/** The first name a card or a question shows: as the child typed it in Urdu script, else as the list spells it. */
+function shownFirstV2(ctx, kid, typed) {
+  if (ctx.lang === 'ur' && kid.nameUrdu) return firstName(kid.nameUrdu);
+  const t = firstName(typed);
+  return ARABIC_SCRIPT.test(t) ? t : kid.first;
+}
+
+/** An "I don't know" (explicit null), an answer, or not asked (absent). */
+function tiebreakers(n) {
+  const out = {};
+  const has = (k) => Object.prototype.hasOwnProperty.call(n, k);
+  ['full_name', 'father'].forEach((k) => {
+    if (!has(k)) return;
+    if (n[k] == null) { out[k] = null; return; }
+    out[k] = cleanName(n[k]);
+    if (!out[k]) fail(400, 'bad_request', { why: 'name' });
+  });
+  if (has('number')) {
+    if (n.number == null) out.number = null;
+    else if (/^\d{1,3}$/.test(String(n.number).trim())) out.number = Number(String(n.number).trim());
+    else fail(400, 'bad_request', { why: 'number' });
+  }
+  return out;
+}
+
+/**
+ * "What is your name?" → one of: which_class, ask_more (the child's own full
+ * name / father's name / list number), is_this_you (exactly ONE card), not_found
+ * — or a provisional child of the hand-out, created here. Never a list of children.
+ */
+async function newChildV2(ctx, body, idn) {
+  const n = body.new;
+  const name = cleanName(n.name);
+  if (!name) fail(400, 'bad_request', { why: 'name' });
+  const answers = tiebreakers(n);
+  const step = (s, hits) => logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: s, hits });
+  const provisional = async (label, bound) => {
+    // The same phone confirming the same name again on this code is the same child (a replay, never a new
+    // child: the school league counts children, so a fresh row per replay would let one phone farm it).
+    const again = await provisionalOnDevice(ctx.shareCodeId, T.cleanDeviceRef(body.device_ref), name);
+    if (again) {
+      step('provisional_reused', 1);
+      return { student: again, resolved: { via: 'new', classBound: bound, provisional: true } };
+    }
+    step('provisional', 0);
+    const { data: created, error } = await supabase.from('students').insert({
+      student_name: name, self_reported_class: label || null, enrolled_by_user_id: ctx.teacherUserId || null, phone: null, list_id: null,
+    }).select('id, student_name, self_reported_class').single();
+    if (error || !created) {
+      logToFile('❌ web-quiz: could not create student', { error: error && error.message }, 'error');
+      fail(502, 'db_unavailable');
+    }
+    return { student: created, resolved: { via: 'new', classBound: bound, provisional: true } };
+  };
+  if (idn.invited) return provisional(null, 'none');
+  const { cls, chosen, bound, only } = classForStart(ctx, idn, body.list);
+  const label = cls ? cls.label || null : null;
+  const kids = cls ? await IdRoster.rosterOf(cls) : null;
+  if (!kids || !kids.length || n.force) return provisional(label, bound);
+  // The class is named back to the child only when it tells something: not for a teacher's only class.
+  const clsLine = label && (chosen || !only) ? { cls: label } : {};
+  const m = Identity.match(kids, name, answers);
+  if (m.outcome === 'one') {
+    step('confirm', 1);
+    const card = { chip: T.chipId(ctx.shareCodeId, m.kid.id), first: shownFirstV2(ctx, m.kid, name), animal: T.animalFor(m.kid.id) };
+    fail(409, 'is_this_you', { candidates: [chosen && label ? { ...card, cls: label } : card] });
+  }
+  if (m.outcome === 'ask') {
+    step(m.need, m.hits.length);
+    fail(409, 'ask_more', { need: m.need, first: shownFirstV2(ctx, m.hits[0], name), ...clsLine });
+  }
+  if (m.same) {
+    step('not_sure', m.same);
+    return fail(409, 'not_found', { typed: name, ...clsLine, same: m.same });
+  }
+  step('name', 0);
+  return fail(409, 'not_found', { typed: name, ...clsLine });
+}
+
+/** whoPlayed under v2: today's rows / not_played / summary, from the hand-out's class, plus provisional. */
+async function whoPlayedV2(ctx) {
+  const na = await IdRoster.nonAttempters({ shareCodeId: ctx.shareCodeId });
+  const provisional = na.provisional.map((p) => ({ ref: p.sessionId, first: firstName(p.typed), correct: p.correct, total: p.total, ...(p.suggest ? { suggest: p.suggest } : {}) }));
+  const rows = [
+    ...provisional.map((p) => ({ ref: p.ref, first: p.first, roll: null, on_list: false, correct: p.correct, total: p.total })),
+    ...na.played.map((p) => ({ ref: p.sessionId, first: p.first, roll: p.number, on_list: p.onList, correct: p.correct, total: p.total })),
+  ].sort((a, b) => (a.on_list - b.on_list) || ((a.roll || 0) - (b.roll || 0)) || a.first.localeCompare(b.first));
+  const total = (await loadQuestions(ctx.quizId)).length || Math.max(0, ...rows.map((r) => r.total));
+  const avg = rows.length ? Math.round((rows.reduce((x, r) => x + r.correct, 0) / rows.length) * 10) / 10 : null;
+  return {
+    roster: na.class.state === 'known',
+    class: { state: na.class.state, label: na.class.label, classes: na.class.classes },
+    summary: {
+      played: rows.length, on_list: rows.filter((r) => r.on_list).length, of: na.class.of, avg, total,
+      hardest: await hardestQuestion(ctx.quizId, rows.map((r) => r.ref)),
+    },
+    not_played: na.notPlayed ? na.notPlayed.map((k) => ({ studentId: k.studentId, first: k.first, roll: k.number })) : null,
+    rows,
+    provisional,
+  };
+}
+
+/**
+ * "This is <child>": the typed (provisional) students row the finish was on is the chosen
+ * child, so it is closed the way a merged duplicate is — status 'merged', merged_into the
+ * survivor, not active — and no list or roster reads it as a child again. Only a typed row:
+ * one with no class list and no active enrolment anywhere (a listed child is a real child,
+ * never merged by this action). Best effort: the finish has already moved. → merged or not.
+ */
+async function mergeTypedInto(typedId, targetId) {
+  if (!typedId || !targetId || typedId === targetId) return false;
+  try {
+    const { data: enr, error: eErr } = await supabase.from('class_enrollments').select('id').eq('student_id', typedId).eq('is_active', true);
+    if (eErr || (enr && enr.length)) return false;
+    const { data, error } = await supabase.from('students')
+      .update({ status: 'merged', merged_into: targetId, is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', typedId).is('list_id', null).eq('status', 'active')
+      .select('id');
+    if (error) {
+      logToFile('⚠️ web-quiz: typed child not marked merged', { studentId: typedId, error: error.message });
+      return false;
+    }
+    return Boolean(data && data.length);
+  } catch (err) {
+    logToFile('⚠️ web-quiz: typed child not marked merged', { studentId: typedId, error: err.message });
+    return false;
+  }
+}
+
+/** The teacher's reconcile under v2: { ref, studentId } moves a finish onto a class child; { ref, add } enrols the typed child. */
+async function fixWhoV2(ctx, body) {
+  const r = await Identity.resolveQuizClass({ teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.shareCodeId });
+  if (!r || r.state !== 'known') fail(409, 'which_class', { classes: askOf(ctx, (r && r.classes) || []) });
+  const kids = (await IdRoster.rosterOf(r.class)) || [];
+  const { data: s } = await supabase.from('quiz_sessions')
+    .select('id, student_id, student_name, user_id, share_code_id, invited_by_student_id, status, correct_answers, total_questions_answered')
+    .eq('id', String(body.ref || '')).eq('share_code_id', ctx.shareCodeId).maybeSingle();
+  if (!s || s.user_id || s.invited_by_student_id || !s.student_id) fail(404, 'not_found');
+  const label = r.class.label || null;
+  const row = (patch, kid) => ({ ref: s.id, first: kid ? kid.first : firstName(patch.student_name || s.student_name), roll: kid ? kid.number : null,
+    on_list: Boolean(kid), correct: s.correct_answers || 0, total: s.total_questions_answered || 0 });
+  if (body.studentId) {
+    const target = IdRoster.findKid(kids, String(body.studentId));
+    if (!target) fail(404, 'student_unknown');
+    const patch = { student_id: target.id, student_name: target.student_name, student_class: label };
+    const { error } = await supabase.from('quiz_sessions').update(patch).eq('id', s.id).eq('share_code_id', ctx.shareCodeId);
+    if (error) fail(502, 'db_unavailable');
+    const fromListed = Boolean(IdRoster.findKid(kids, s.student_id));
+    const merged = fromListed ? false : await mergeTypedInto(s.student_id, target.id);
+    logEvent('web_quiz.identity_fixed', { sessionId: s.id, shareCodeId: ctx.shareCodeId, fromListed, merged });
+    return { ok: true, row: row(patch, target) };
+  }
+  // { add: true }: the typed child joins the class list (ClassService, the same enrolment /roster makes).
+  if (IdRoster.findKid(kids, s.student_id)) return { ok: true, already: true, row: row({}, IdRoster.findKid(kids, s.student_id)) };
+  if (!r.class.id) fail(400, 'bad_request', { why: 'no_class' });
+  const ClassService = require('../classes/class.service');
+  const out = await ClassService.enrollExistingStudent({ classId: r.class.id, teacherUserId: ctx.teacherUserId, studentId: s.student_id });
+  if (out.error === 'not_assigned') fail(403, 'not_your_class');
+  if (out.error) fail(502, 'db_unavailable');
+  await supabase.from('quiz_sessions').update({ student_class: label }).eq('id', s.id).eq('share_code_id', ctx.shareCodeId);
+  IdRoster._forgetClass(r.class.id);
+  logEvent('web_quiz.identity_enrolled', { sessionId: s.id, shareCodeId: ctx.shareCodeId });
+  return { ok: true, row: { ...row({}, null), on_list: true } };
+}
+
+/**
+ * The teacher's report token (`tr`) for this code: same teacher, and a token for this quiz or
+ * for all of the teacher's quizzes (signed kind 'tr'; a child's or preview token is refused).
+ */
+const { verifyTeacherReport } = require('./teacher-report-token');
+function teacherReportOk(tr, ctx) {
+  const tok = verifyTeacherReport(tr);
+  return Boolean(tok && tok.teacherId === ctx.teacherUserId && (tok.quizId == null || tok.quizId === ctx.quizId));
+}
+
+/** The teacher of this code: their preview link (`p`) or their report token (`tr`). */
+function requireTeacherOf(body, ctx) {
+  if (body.p && isPreviewFor(body.p, ctx)) return;
+  if (body.tr && teacherReportOk(body.tr, ctx)) return;
+  fail(401, 'bad_token');
+}
+
+/**
+ * POST /who/class — the teacher says which class an unbound hand-out was for
+ * (the report's "Which class was this for?"). Writes quiz_share_codes.class_id,
+ * so the children's page is bound from then on.
+ */
+async function whoClass(body = {}) {
+  requireOn();
+  const ctx = await resolveCode(body.code);
+  requireTeacherOf(body, ctx);
+  const all = await Identity.resolveQuizClass({ teacherUserId: ctx.teacherUserId });
+  const cls = ((all && all.classes) || []).find((c) => IdRoster.classKeyV2(ctx.shareCodeId, c) === String(body.key || ''));
+  if (!cls) fail(404, 'class_unknown');
+  if (!cls.id) fail(400, 'bad_request', { why: 'no_class' });
+  const { error } = await supabase.from('quiz_share_codes').update({ class_id: cls.id }).eq('id', ctx.shareCodeId);
+  // The migration not applied here: a write naming the column fails PGRST204 (a read, 42703).
+  if (error && (error.code === 'PGRST204' || error.code === '42703')) fail(503, 'not_ready');
+  if (error) fail(502, 'db_unavailable');
+  logEvent('web_quiz.identity_class_bound', { shareCodeId: ctx.shareCodeId, by: body.p ? 'preview' : 'report' });
+  return { ok: true, class: { label: cls.label || '' } };
+}
+
 // ─── E4 answers ─────────────────────────────────────────────────────────────
+
+/** The name the page shows for this child (an Urdu quiz: the class list's Urdu spelling), looked up once per session. */
+async function pulseName(s) {
+  const known = Pulse.knownName(s.id);
+  if (known !== undefined) return known;
+  const nameOf = await shownNames(await codeLanguage(s.share_code_id), [s.student_id]);
+  return Pulse.rememberName(s.id, nameOf(s.student_id, s.student_name));
+}
 
 async function recordAnswers(body = {}) {
   requireOn();
@@ -723,29 +1315,66 @@ async function recordAnswers(body = {}) {
   const questions = await loadQuestions(s.quiz_id);
   const byId = new Map(questions.map((q) => [q.id, q]));
   const already = new Set((await answeredIds(s.id)).map((r) => r.question_id));
+  const fresh = [];
   for (const a of list) {
     const qid = a && typeof a.qid === 'string' ? a.qid : null;
     const q = qid ? byId.get(qid) : null;
     const slot = a && typeof a.slot === 'string' ? a.slot.toUpperCase() : '';
     if (!q || !SLOT_RX.test(slot)) { out.unknown.push(String(qid)); continue; }
-    if (already.has(qid)) { out.dup.push(qid); continue; }
+    if (already.has(qid) || fresh.some((r) => r.question_id === qid)) { out.dup.push(qid); continue; }
     const ms = Number(a.ms);
-    const { error } = await supabase.from('quiz_answers').insert({
+    fresh.push({
       session_id: s.id, question_id: qid, selected_option: slot,
       is_correct: WebItems.isCorrect(q, slot),
       response_time_seconds: Number.isFinite(ms) && ms >= 0 ? Math.min(3600, Math.round(ms / 1000)) : null,
     });
-    // The unique (session, question) index makes a retried flush a duplicate,
-    // and a duplicate is an answer already recorded — the first one is the score.
-    if (error && error.code === '23505') { out.dup.push(qid); already.add(qid); continue; }
-    if (error) {
-      logToFile('❌ web-quiz: answer insert failed', { sessionId: s.id, error: error.message }, 'error');
+  }
+  if (!fresh.length) return withPulse(s, body, out, fresh, questions);
+  // A phone back from offline sends its whole queue at once: one insert, not one per answer.
+  const { error } = await supabase.from('quiz_answers').insert(fresh.length === 1 ? fresh[0] : fresh);
+  if (!error) {
+    fresh.forEach((r) => out.recorded.push(r.question_id));
+    return withPulse(s, body, out, fresh, questions);
+  }
+  if (error.code !== '23505') {
+    logToFile('❌ web-quiz: answer insert failed', { sessionId: s.id, error: error.message }, 'error');
+    fail(502, 'db_unavailable');
+  }
+  // The unique (session, question) index refused the batch: another flush landed some of it
+  // first (a duplicate is an answer already recorded — the first one is the score). Re-read
+  // and write the rest one row at a time.
+  const landed = new Set((await answeredIds(s.id)).map((r) => r.question_id));
+  for (const r of fresh) {
+    if (landed.has(r.question_id)) { out.dup.push(r.question_id); continue; }
+    const { error: e1 } = await supabase.from('quiz_answers').insert(r);
+    if (e1 && e1.code === '23505') { out.dup.push(r.question_id); continue; }
+    if (e1) {
+      logToFile('❌ web-quiz: answer insert failed', { sessionId: s.id, error: e1.message }, 'error');
       fail(502, 'db_unavailable');
     }
-    already.add(qid);
-    out.recorded.push(qid);
+    out.recorded.push(r.question_id);
   }
-  return out;
+  return withPulse(s, body, out, fresh, questions);
+}
+
+/**
+ * Peer pulse (web-quiz-pulse.js): this child's newly recorded RIGHT answers go into the class's ring
+ * (never the teacher's preview), with the number the child saw; the response carries classmates'
+ * right answers since the page's `since`, only when there are some.
+ */
+async function withPulse(s, body, out, rows, questions) {
+  const right = s.user_id ? [] : rows.filter((r) => r.is_correct && out.recorded.includes(r.question_id));
+  if (right.length) {
+    // The name the page shows (an Urdu quiz: the class list's Urdu spelling), once per session; a friend has none.
+    const first = s.invited_by_student_id ? null : await pulseName(s);
+    right.forEach((r) => Pulse.push({
+      shareCodeId: s.share_code_id, sessionId: s.id, first,
+      qn: questions.findIndex((q) => q.id === r.question_id) + 1, invited: Boolean(s.invited_by_student_id),
+    }));
+  }
+  // An invited friend is not in the class: they never see classmates (their own right answers still reach the class as "a friend").
+  const pulse = s.invited_by_student_id ? [] : Pulse.since({ shareCodeId: s.share_code_id, sessionId: s.id, sinceMs: body.since });
+  return pulse.length ? { ...out, pulse } : out;
 }
 
 // ─── E5 finish ──────────────────────────────────────────────────────────────
@@ -814,7 +1443,11 @@ async function finishSession(body = {}) {
   // Counted when no OTHER attempt finished before this one.
   const earlier = prior && s.completed_at && String(prior.completed_at) > String(s.completed_at) ? null : prior;
   const counted = countedFor(earlier, tok.d, Boolean(s.user_id));
-  const first = firstName(s.student_name);
+  const nameOf = await shownNames(s.student_id ? await codeLanguage(s.share_code_id) : null, [s.student_id]);
+  const first = nameOf(s.student_id, s.student_name);
+  const challengeCode = await challengeCodeFor(s);
+  const { data: scRow } = await supabase.from('quiz_share_codes').select('code').eq('id', s.share_code_id).maybeSingle();
+  const classCode = (scRow && scRow.code) || null;
   return {
     score: { correct, total, pct, level },
     ...counted,
@@ -826,9 +1459,50 @@ async function finishSession(body = {}) {
       first, animal: T.animalFor(s.student_id || s.id), correct, total, stars: correct,
       // A practice round: the card says so and carries the kept first-try score the league shows.
       ...(earlier && !s.user_id ? { practice: true, kept: { correct: earlier.correct_answers || 0, total: earlier.total_questions_answered || 0 } } : {}),
+      // A practice round's goal: the best earlier score on this code, so the card can say "New best!".
+      ...(earlier && !s.user_id ? await bestField(s) : {}),
+      ...(counted.counted && !s.user_id && !s.invited_by_student_id ? placeToday(await classFinishersToday(s.share_code_id), s.id) : {}),
     },
-    challenge_code: await challengeCodeFor(s),
+    challenge_code: challengeCode,
+    // A friend's challenge: who won against the score the landing showed them.
+    // (Never against themselves: a child who opens their own challenge link is not their own challenger.)
+    ...(s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {}),
+    // The signed ids of the pictures this child can share (web-quiz-art.js).
+    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode && !s.invited_by_student_id ? Art.artId('l', s.id) : null },
   };
+}
+
+async function bestField(s) {
+  const best = await bestBefore(s.share_code_id, s.student_id, s.id);
+  return best ? { best } : {};
+}
+
+async function versus(s, mine) {
+  try {
+    const ch = await challengeOf({ shareCodeId: s.share_code_id, invitedByStudentId: s.invited_by_student_id, lang: await codeLanguage(s.share_code_id) });
+    return ch ? { vs: { ...ch, outcome: challengeOutcome(mine, ch) } } : {};
+  } catch (e) {
+    logToFile('⚠️ web-quiz: challenge outcome unavailable', { sessionId: s.id, error: e.message });
+    return {};
+  }
+}
+
+/** Today's (PKT) counted class finishers of one class code: first finish per child, no teacher, no invited friend. */
+async function classFinishersToday(shareCodeId) {
+  try {
+    const { data } = await supabase.from('quiz_sessions').select('id, student_id, user_id, status, completed_at, created_at')
+      .eq('share_code_id', shareCodeId).is('invited_by_student_id', null).eq('status', 'completed').gte('completed_at', pktMidnightIso());
+    return oneAttemptPerChild((data || []).filter((r) => !r.user_id), { rule: 'first_completed' });
+  } catch (e) {
+    logToFile('⚠️ web-quiz: class finishers unavailable', { error: e.message });
+    return [];
+  }
+}
+
+/** "You're the 6th in your class to finish today": this session's place among them ({} when it is not one). Pure. */
+function placeToday(rows, sessionId) {
+  const mine = rows.find((r) => r.id === sessionId);
+  return mine ? { nth: rows.filter((r) => String(r.completed_at) <= String(mine.completed_at)).length } : {};
 }
 
 // ─── E6 the class league table ─────────────────────────────────────────────
@@ -851,8 +1525,9 @@ async function board(code, { st } = {}) {
   // The teacher report's own loader: self-tests and invited friends out, one
   // attempt per child (first finished for a web-arm quiz).
   const cls = await report.loadClassRows(ctx.shareCodeId);
+  const nameOf = await shownNames(ctx.lang, ((cls && cls.rows) || []).map((r) => r.studentId));
   const rows = ((cls && cls.rows) || []).map((r) => ({
-    sessionId: r.sessionId, studentId: r.studentId, first: firstName(r.name),
+    sessionId: r.sessionId, studentId: r.studentId, first: nameOf(r.studentId, r.name),
     animal: T.animalFor(r.studentId || r.sessionId), correct: r.correct, total: r.total, pct: r.pct,
   }));
   const ranked = rankRows(rows);
@@ -902,10 +1577,18 @@ async function me(body = {}) {
     date: String(r.completed_at || '').slice(0, 10), correct: r.correct_answers || 0,
     total: r.total_questions_answered || 0, pct: r.mastery_percentage || 0,
   }));
-  out.friends_finished = (friends || []).map((r) => ({
-    chip: chipOf.get(r.invited_by_student_id), first: firstName(r.student_name), topic: topics.get(r.share_code_id) || '',
-    correct: r.correct_answers || 0, total: r.total_questions_answered || 0,
-  }));
+  // The challenger's score a friend was shown: their FIRST finish on that class code.
+  const firstOf = (studentId, codeId) => (mine || []).filter((m) => m.student_id === studentId && m.share_code_id === codeId)
+    .sort((a, b) => String(a.completed_at).localeCompare(String(b.completed_at)))[0];
+  out.friends_finished = (friends || []).map((r) => {
+    const theirs = firstOf(r.invited_by_student_id, r.share_code_id);
+    const friend = { correct: r.correct_answers || 0, total: r.total_questions_answered || 0 };
+    return {
+      chip: chipOf.get(r.invited_by_student_id), first: firstName(r.student_name), topic: topics.get(r.share_code_id) || '',
+      ...friend,
+      ...(theirs ? { outcome: challengeOutcome(friend, { correct: theirs.correct_answers || 0, total: theirs.total_questions_answered || 0 }) } : {}),
+    };
+  });
   return out;
 }
 
@@ -915,10 +1598,11 @@ const EVENT_NAME_RX = /^[a-z][a-z0-9_]{0,39}$/;
 const EVENT_PROPS = Object.freeze({
   code: /^[A-Z0-9]{4,12}$/i, qid: /^[0-9a-f-]{8,64}$/i, slot: /^[A-D]$/i, step: /^[a-z0-9_]{1,32}$/,
   src: /^[a-z0-9_]{1,32}$/, reason: /^[a-z0-9_]{1,40}$/, lang: /^(en|ur)$/, net: /^[a-z0-9_]{1,16}$/, err: /^[a-z0-9_]{1,40}$/,
+  part: /^[a-z]{1,4}$/, // which spoken part had no clip (audio_missing): q, opt, stim, fig, left, why, fb, hint
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't'];
 const EVENT_BOOLS = ['ok'];
-const SHARE_PATHS = ['native', 'wa', 'copy'];
+const SHARE_PATHS = ['native', 'wa', 'copy', 'file', 'save'];
 const UA_MAX = 300;
 const PROBE_MAX = 4096;
 
@@ -982,7 +1666,7 @@ function events(body = {}) {
  * Where a question's picture lives: a redirect to a presigned R2 URL, or —
  * for the option pictures the generator stored inline as base64 — the bytes.
  */
-async function media(code, qid, { k } = {}) {
+async function media(code, qid, { k, z } = {}) {
   requireOn();
   const ctx = await resolveCode(code);
   if (qid === 'video') {
@@ -997,6 +1681,12 @@ async function media(code, qid, { k } = {}) {
   const key = String(k || 'q').toUpperCase();
   const item = key === 'Q' ? questionImageOf(q.media) : SLOTS.includes(key) ? optionImageOf(q.media, SLOTS.indexOf(key)) : null;
   if (!item) fail(404, 'not_found');
+  // ?z=1: the option cropped to where the set's pictures differ (questionPayload adds it).
+  if (String(z || '') === '1' && key !== 'Q' && item.b64) {
+    const box = await PictureZoom.zoomFor(q).catch(() => null);
+    const png = box ? await PictureZoom.crop(item.b64, box) : null;
+    if (png) return { bytes: png, contentType: 'image/png' };
+  }
   const url = typeof item === 'string' ? item : item.url || item.r2_url || null;
   if (url) {
     const r2 = require('../../storage/r2');
@@ -1014,6 +1704,10 @@ async function media(code, qid, { k } = {}) {
 module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media,
   // exported for tests and the router
-  WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho,
+  WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
+  // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it
+  questionPayload,
+  // the share pictures (web-quiz-art.js) name the child and the challenger exactly as the page does
+  shownNames, challengeOf,
   BOARD_TOP, QUESTIONS_MAX,
 };

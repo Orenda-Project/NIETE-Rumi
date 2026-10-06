@@ -556,6 +556,9 @@ CREATE TABLE IF NOT EXISTS students (
     -- deliver quizzes and by the edit-class flow's add/edit-student forms.
     parent_phone TEXT,
     is_active BOOLEAN DEFAULT true,
+    -- bot/database/migrations/student_identity.sql: a typed child merged into a class-list child.
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive','merged')),
+    merged_into UUID REFERENCES students(id),
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
     PRIMARY KEY (id)
@@ -6172,6 +6175,35 @@ ALTER TABLE quiz_sessions ADD CONSTRAINT quiz_sessions_source_check
 ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS device_ref TEXT;
 ALTER TABLE quiz_sessions ALTER COLUMN parent_phone DROP NOT NULL;
 
+-- ── quiz_share_codes — the class link a teacher hands out (from bot/database/migrations/
+-- create_video_quiz_tables.sql), with class_id from web_quiz_v2_identity.sql: the class a
+-- hand-out was for (NULL = resolved at read time). A child's challenge code is a row whose
+-- parent_share_code_id is the teacher's code. ──
+CREATE TABLE IF NOT EXISTS quiz_share_codes (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code            TEXT NOT NULL UNIQUE,
+  quiz_id         UUID NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
+  teacher_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  video_id        UUID REFERENCES student_videos(id) ON DELETE SET NULL,
+  teacher_name    TEXT,
+  topic           TEXT,
+  language        TEXT NOT NULL DEFAULT 'en',
+  active          BOOLEAN NOT NULL DEFAULT TRUE,
+  uses_count      INTEGER NOT NULL DEFAULT 0,
+  expires_at      TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  report_sent_at  TIMESTAMPTZ,
+  invited_by_student_id UUID REFERENCES students(id),
+  parent_share_code_id  UUID REFERENCES quiz_share_codes(id),
+  class_id        uuid REFERENCES classes(id)
+);
+ALTER TABLE quiz_share_codes ADD COLUMN IF NOT EXISTS class_id uuid REFERENCES classes(id);
+CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_teacher ON quiz_share_codes(teacher_user_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_quiz    ON quiz_share_codes(quiz_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_report_pending
+  ON quiz_share_codes (created_at) WHERE report_sent_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_class ON quiz_share_codes (class_id) WHERE class_id IS NOT NULL;
+
 -- =============================================================================
 -- Tables and columns that migrations create and this file had not declared. A clone is
 -- bootstrapped from this file alone, so each is mirrored from its migration here;
@@ -6513,4 +6545,35 @@ COMMENT ON COLUMN niete_lp_opens.lang IS
   'Internal. The 6-12 document language (en | ur); NULL for K-5.';
 COMMENT ON COLUMN niete_lp_opens.source IS
   'Internal. viewer = the portal''s own PDF viewer; external = handed to another app by a presigned link.';
+
+-- ─── web quiz Challenge runs (bot/database/migrations/web_quiz_challenge.sql) ──
+-- One row per finished self-run Challenge exercise (bigger, read, …) a child played on the web quiz.
+-- Numbers only: a child's read-aloud recording is scored and deleted; no key to it is ever stored.
+
+CREATE TABLE IF NOT EXISTS web_quiz_challenge_runs (
+  id            uuid PRIMARY KEY,
+  student_id    uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  exercise      text NOT NULL CHECK (exercise IN ('listen', 'sounds', 'read', 'numbers', 'bigger', 'missing', 'sums')),
+  grade         smallint CHECK (grade BETWEEN 1 AND 12),
+  lang          text CHECK (lang IN ('en', 'ur')),
+  status        text NOT NULL CHECK (status IN ('scoring', 'scored', 'failed')),
+  score         jsonb,
+  wcpm          numeric,
+  meta          jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  scored_at     timestamptz
+);
+CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_student_idx
+  ON web_quiz_challenge_runs (student_id, exercise, created_at DESC);
+ALTER TABLE web_quiz_challenge_runs ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE web_quiz_challenge_runs IS
+  'Internal. Web quiz Challenge: one row per finished self-run exercise of a child (bigger, read aloud). Numbers only — the read-aloud recording is deleted after scoring and never referenced. Written only by the bot. Owner: Digital Coach team.';
+COMMENT ON COLUMN web_quiz_challenge_runs.score IS
+  'Internal. bigger: {correct, n, stopped}; read: {correct, attempted, stopped, finished_early, time_left}.';
+COMMENT ON COLUMN web_quiz_challenge_runs.wcpm IS
+  'Internal. Read aloud: words correct per minute (EGRA Toolkit 10.3); 0 when stopped on the first line.';
+
+-- Columns live on every deployment that the consolidated snapshot above had lost (read by the Challenge's grade lookup).
+ALTER TABLE students ADD COLUMN IF NOT EXISTS self_reported_class text;
+ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS student_class text;
 

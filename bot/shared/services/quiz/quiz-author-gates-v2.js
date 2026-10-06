@@ -16,6 +16,11 @@
  *   ABOUT_TEACHER      the question asks about the teacher, not the lesson
  *   THROWAWAY_OPTION   a digit or a Latin letter among Urdu letter options
  *   READ_LETTER_PREFIX "A: …" in the text the voice reads (web items)
+ *   WORD_BLANK_NOT_A_WORD a word_blank holding a sentence (50 of 392 prod items):
+ *                      a row of tiles too small to read on a phone
+ *   WORD_BLANK_NOT_ASKED a word_blank picture hides a letter, and the key is not
+ *                      that letter: the picture is not the question asked (a
+ *                      syllable count over «ک _ ا ب»; 316 of 392 prod items)
  *
  * Whether the key is fully correct as a STATEMENT (not just the best of the
  * options: "drunk" when "drank" is missing) is a judgement code cannot make;
@@ -27,6 +32,7 @@
  */
 
 const { logToFile } = require('../../utils/logger');
+const { hiddenLetters } = require('./quiz-figure-child-view');
 
 const TTL_MS = 60 * 1000;
 let cache = null;
@@ -217,8 +223,36 @@ const POINTS_AT_PICTURE = new RegExp([
   '(?:تصویر|تصویریں|تصویروں|خاکے|خاکہ)\\s*(?:میں|کو\\s+دیکھ|دیکھ)',
   'خالی\\s+خان[ےہ]',
 ].join('|'), 'i');
+// A picture the stem SUPPOSES ("If a diagram shows…"), DESCRIBES ("The image
+// shows 2/6"), reads FROM ("according to the chart") or a part only a drawing
+// has ("the shaded part", "labelled B"). A child on the web met "If a diagram
+// shows four concentric circles…" with no diagram. Measured on 12,601
+// picture-less sandbox stems: 12 more, every one a picture the child cannot
+// see. Urdu nouns need a space before them: «پیراگراف» holds «گراف».
+const VIS_NOUN = '(?:picture|image|diagram|figure|drawing|chart|graph|map|photo|illustration)s?';
+const SUPPOSES_PICTURE = new RegExp([
+  `\\b(?:if|when|suppose)\\s+(?:a|an|the|this|your)\\s+${VIS_NOUN}\\b`,
+  `\\b(?:a|an|the)\\s+${VIS_NOUN}(?:\\s+of(?:\\s+[\\p{L}'’-]+){1,4}?)?\\s+(?:shows|showing|below|above|labell?ed)\\b`,
+  `\\baccording\\s+to\\s+(?:the|this|a)\\s+${VIS_NOUN}`,
+  `\\bas\\s+(?:shown|seen|drawn)\\s+(?:in|on)\\s+(?:the|this)\\s+${VIS_NOUN}`,
+  '\\bshown\\s+in\\s+(?:red|blue|green|yellow|orange|purple|black|grey|gray|brown|pink)\\b',
+  '\\bthe\\s+shaded\\s+(?:part|region|area|portion|section)\\b',
+  '(?:^|\\s)(?:نقشے|نقشہ|گراف|چارٹ|ڈایاگرام|ڈائیگرام|ڈائگرام)\\s*(?:میں|پر|کے\\s+مطابق|کو\\s+دیکھ)',
+  '(?:^|\\s)(?:تصویر|خاکے|خاکہ)\\s*(?:پر|کے\\s+مطابق|سے\\s+پتا)',
+  '(?:اوپر|نیچے)\\s+(?:دی|دکھائی|بنی)\\s+(?:گئی|گئے|ہوئی)',
+  'اگر\\s+(?:کسی\\s+|ایک\\s+)?(?:تصویر|خاکے|خاکہ|نقشے|گراف|شکل)',
+].join('|'), 'iu');
+/** "the part labelled B": a letter only a drawing can carry (case-sensitive on purpose). */
+const LABEL_LETTER = /\b(?:[Ll]abell?ed|[Mm]arked)\s+(?:as\s+)?['"“‘]?[A-Z]['"”’]?(?=[\s.,?;:)]|$)/u;
 const QUOTED = /[“"«][^”"»]*[”"»]/g;
-const pointsAtPicture = (stem) => POINTS_AT_PICTURE.test(String(stem || '').replace(QUOTED, ' '));
+const unquoted = (stem) => String(stem || '').replace(QUOTED, ' ');
+const pointsAtPicture = (stem) => POINTS_AT_PICTURE.test(unquoted(stem));
+/** Every phrasing that presupposes a picture: the measured list, plus (gates v2) a supposed or described one. */
+const presupposesPicture = (stem) => pointsAtPicture(stem) || SUPPOSES_PICTURE.test(unquoted(stem)) || LABEL_LETTER.test(unquoted(stem));
+const pictureWords = (stem) => {
+  const s = unquoted(stem);
+  return ((POINTS_AT_PICTURE.exec(s) || SUPPOSES_PICTURE.exec(s) || LABEL_LETTER.exec(s) || [''])[0]).trim();
+};
 
 // A question ABOUT the teacher (T23) asks what the teacher said, did or thought
 // in class ("Why did the teacher predict…", «استاد نے کیا کہا؟»). A word problem
@@ -343,8 +377,8 @@ function questionErrors(q, i, ctx = {}) {
   }
   // 5. the picture the stem points at
   const figured = hasFigure(q);
-  if (!figured && pointsAtPicture(stem) && !ctx.legacyPictureComplaint) {
-    errs.push(`q${i}: PICTURE_MISSING — the stem points at a picture (${(POINTS_AT_PICTURE.exec(stem.replace(QUOTED, ' ')) || [''])[0].trim()}) but the question has none; add the "figure" or ask without it`);
+  if (!figured && presupposesPicture(stem) && !ctx.legacyPictureComplaint) {
+    errs.push(`q${i}: PICTURE_MISSING — the stem points at a picture (${pictureWords(stem)}) but the question has none; add the "figure" or ask without it, so the question stands alone`);
   }
   // 6. the picture carries the stem's numbers
   if (figured && q.figure && typeof q.figure === 'object') {
@@ -375,7 +409,36 @@ function questionErrors(q, i, ctx = {}) {
       errs.push(`q${i}: THROWAWAY_OPTION — "${odd.join('", "')}" cannot be a letter answer; every wrong option must be a letter a child could confuse with "${key}"`);
     }
   }
+  // 9. a word_blank is ONE word (a sentence draws as a row of unreadable tiles), and hides
+  //    a letter the question must ask for
+  const wbWord = q.figure && String(q.figure.type || '').toLowerCase() === 'word_blank' ? String(q.figure.word || '').trim() : '';
+  if (/\s/.test(wbWord)) {
+    errs.push(`q${i}: WORD_BLANK_NOT_A_WORD — the word_blank picture holds "${wbWord}", more than one word; a word_blank is one word with a letter hidden: use one word, or remove the figure`);
+  }
+  const blank = hiddenLetters(q.figure, { stem, language: ctx.language });
+  if (blank && key && !blank.forms.some((f) => sameLetters(f, key))) {
+    errs.push(`q${i}: WORD_BLANK_NOT_ASKED — the picture hides «${blank.hidden}» in «${String(q.figure.word)}», but the key is "${key}"; a word_blank asks which letter fills the blank: make the options letters and the key «${blank.hidden}», or remove the figure and ask without it`);
+  }
   return errs;
+}
+
+/** Two spellings of one letter answer: case, marks, quotes and spacing aside. */
+const KEY_MARKS = /[\u064B-\u065F\u0670\u06D6-\u06ED\u0610-\u061A\u200C-\u200F]/g;
+const bareLetters = (t) => plain(t).normalize('NFC').toLowerCase().replace(KEY_MARKS, '').replace(/[^\p{L}\p{N}]/gu, '');
+const sameLetters = (a, b) => bareLetters(a) !== '' && bareLetters(a) === bareLetters(b);
+
+/**
+ * "A: stone" read for option A → "stone". The web item prompt lists options as "A: stone", and a model
+ * that copies the format does it for every option of every item: refused, a whole quiz lost its web items
+ * (2 of 10 lessons on a real run). A prefix naming the option's OWN slot is only noise and is cut; one naming
+ * another slot means the spoken options are out of order, and is left for readTextFaults to refuse.
+ */
+function stripOwnSlotPrefix(text, slot) {
+  const t = String(text == null ? '' : text);
+  const m = /^\s*[(\[]?([A-Da-d])[)\].:：]\s*/.exec(t);
+  if (!m || String(m[1]).toUpperCase() !== String(slot || '').toUpperCase()) return text;
+  const rest = t.slice(m[0].length);
+  return /\S/.test(rest) ? rest : text;
 }
 
 /** Faults in the text the voice reads for a web item: a letter prefix ("A: …"). */
@@ -392,6 +455,7 @@ function readTextFaults(read) {
 const STRICT_KEY_RULE = 'FULLY CORRECT, NEVER THE CLOSEST. An option is correct only if it is a fully correct answer to the question exactly as asked — the right word form, tense, spelling, unit and number. If the true answer is not among the options (for example the past tense of "drink" is asked and only "drinking", "drinked", "drunk" are offered — "drunk" is the past participle, not the past tense), give an empty list. Never list the option that is merely closest.';
 
 module.exports = {
+  stripOwnSlotPrefix,
   refreshFlag,
   setEnabled,
   enabled,
@@ -407,4 +471,5 @@ module.exports = {
   figureNumbers,
   POINTS_AT_PICTURE,
   pointsAtPicture,
+  presupposesPicture,
 };

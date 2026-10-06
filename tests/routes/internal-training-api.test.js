@@ -96,7 +96,7 @@ const LEVEL_STATES = [
 beforeEach(() => {
   jest.resetModules();
   process.env.INTERNAL_API_KEY = KEY;
-  jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+  jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
   jest.doMock('../../bot/shared/services/lesson-plan-queue.service', () => ({
     createAndQueueGrounded: jest.fn().mockResolvedValue('req-1'),
   }));
@@ -140,7 +140,7 @@ describe('bd-2479 — auth applies to the whole training surface', () => {
   it('refuses every caller when the bot has no INTERNAL_API_KEY set', async () => {
     jest.resetModules();
     delete process.env.INTERNAL_API_KEY;
-    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
     jest.doMock('../../bot/shared/routes/teacher-training-endpoint', () => training);
     router = require('../../bot/shared/routes/internal-api.routes');
 
@@ -279,6 +279,9 @@ describe('bd-2479 — validation and failure reporting', () => {
 
     expect(statusCode).toBeGreaterThanOrEqual(500);
     expect(payload.success).toBe(false);
+    // The failure reaches the error monitor, not just the info log.
+    const { logError } = require('../../bot/shared/utils/logger');
+    expect(logError).toHaveBeenCalledWith('Internal training API failed', expect.objectContaining({ error: 'supabase down' }));
   });
 
   it('a gate that throws must NOT read as unlocked', async () => {
@@ -292,5 +295,7 @@ describe('bd-2479 — validation and failure reporting', () => {
 
     expect(statusCode).toBeGreaterThanOrEqual(500);
     expect(payload.ok).not.toBe(true);
+    const { logError } = require('../../bot/shared/utils/logger');
+    expect(logError).toHaveBeenCalledWith('Internal training API failed', expect.objectContaining({ error: 'supabase down' }));
   });
 });
