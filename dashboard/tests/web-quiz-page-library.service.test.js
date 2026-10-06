@@ -46,7 +46,7 @@ describe('prefetch while the child looks at the result', () => {
     const p = page({ lang: 'en', store: finished(), lib: true, api: api() });
     await flush(); await flush();
     expect(libFetches(p)).toEqual(['/api/wq/lib/TEST?st=s1', '/api/wq/lib/TEST?st=s1&s=Science']);
-    expect(p.sess.get('wql:TEST::Science')).toBeTruthy();
+    expect([...p.sess.keys()].some((k) => /^wql:TEST:[a-z0-9]+::Science$/.test(k))).toBe(true);
   });
 });
 
@@ -153,12 +153,12 @@ describe('the subjects (L1)', () => {
     const p = page({ lang: 'ur', store: finished(), lib: true, api: api() });
     await flush(); await flush();
     p.els['#wq-more'].fire('click');
-    expect(p.html()).toContain('سائنس · جماعت 3');
+    expect(p.html()).toContain('سائنس · جماعت <bdi dir="ltr">3</bdi>');
     expect(p.html()).toContain('<span>⬇ ڈاؤن لوڈ</span>');
     expect(p.html()).toContain('مکمل ✓');
     p.els['#wql-up'].fire('click');
     expect(p.html()).toContain('ریاضی');
-    expect(p.html()).toContain('2 ویڈیوز');
+    expect(p.html()).toContain('<bdi dir="ltr">2</bdi> ویڈیوز');
   });
 });
 
@@ -188,5 +188,82 @@ describe('the lesson page', () => {
       video: { url: 'https://r2.example/v.mp4', bytes: 12400000 }, api: api() });
     p.wq.video();
     expect(p.html()).not.toContain('Download');
+  });
+});
+
+describe('review fixes', () => {
+  test('the cached lists belong to one child: a new session token fetches its own, never the last child\'s ticks', async () => {
+    const p = page({ lang: 'en', store: finished(), lib: true, api: api({ '/lib/TEST?st=s2&s=Science': { ...L2, chapters: [] }, '/lib/TEST?st=s2': L1 }) });
+    await flush(); await flush();
+    const keys = [...p.sess.keys()];
+    expect(keys.length).toBeGreaterThan(0);
+    expect(keys.every((k) => !k.endsWith('TEST::') && !k.endsWith('TEST::Science'))).toBe(true);
+    p.wq.S.st = 's2';
+    p.els['#wq-more'].fire('click');
+    await flush(); await flush();
+    expect(libFetches(p)).toContain('/api/wq/lib/TEST?st=s2');
+    expect(p.html()).not.toContain('Done ✓');
+  });
+
+  test('Data saver or 2G: no prefetch at all; 3G: the list is prefetched but no lesson pages', async () => {
+    const saver = page({ lang: 'en', store: finished(), lib: true, api: api(), connection: { saveData: true } });
+    await flush(); await flush();
+    expect(libFetches(saver)).toEqual([]);
+    const slow = page({ lang: 'en', store: finished(), lib: true, api: api(), connection: { effectiveType: '2g' } });
+    await flush(); await flush();
+    expect(libFetches(slow)).toEqual([]);
+    const g3 = page({ lang: 'en', store: finished(), lib: true, api: api(), connection: { effectiveType: '3g' } });
+    await flush(); await flush();
+    expect(libFetches(g3)).toEqual(['/api/wq/lib/TEST?st=s1', '/api/wq/lib/TEST?st=s1&s=Science']);
+    g3.els['#wq-more'].fire('click');
+    expect(g3.head).toEqual([]);
+  });
+
+  test('lesson pages are prefetched once, however often the chapters repaint', async () => {
+    const p = page({ lang: 'en', store: finished(), lib: true, api: api() });
+    await flush(); await flush();
+    p.els['#wq-more'].fire('click');
+    p.els['#wql-up'].fire('click');
+    p.els['[data-s="Science"]'].fire('click');
+    await flush();
+    expect(p.head.map((l) => l.href)).toEqual(['/q/VID003', '/q/VID001']);
+  });
+
+  test('Urdu: counts, minutes and grade numbers are isolated left-to-right', async () => {
+    const p = page({ lang: 'ur', store: finished(), lib: true, api: api() });
+    await flush(); await flush();
+    p.els['#wq-more'].fire('click');
+    expect(p.html()).toContain('سائنس · جماعت <bdi dir="ltr">3</bdi>');
+    expect(p.html()).toContain('<bdi dir="ltr">2</bdi> منٹ');
+    p.els['#wql-up'].fire('click');
+    expect(p.html()).toContain('<bdi dir="ltr">2</bdi> ویڈیوز');
+  });
+
+  test('a late answer never paints over the screen the child moved to (Back mid-fetch; two quick grade taps)', async () => {
+    const later = {};
+    const defer = (name, value) => () => new Promise((res) => { later[name] = () => res(value); });
+    const G4 = { ...KG, grade: '4', subjects: [{ key: 'Maths', n: 9, art: '/wq/art/subject-maths-1.webp' }] };
+    const p = page({ lang: 'en', store: finished(), lib: true, connection: { saveData: true }, api: {
+      '/lib/TEST?st=s1&g=KG': defer('kg', KG), '/lib/TEST?st=s1&g=4': defer('g4', G4),
+      '/lib/TEST?st=s1&s=Science': defer('l2', L2), '/lib/TEST?st=s1': { ...L1, grades: L1.grades.concat([{ g: '4', n: 9, art: '/wq/art/grade-4-1.webp' }]) } } });
+    p.tap();
+    p.els['#wq-more'].fire('click');
+    await flush(); await flush();
+    expect(p.moment()).toBe('M15-wait');             // the chapters are on their way
+    p.back();
+    expect(p.moment()).toBe('M10');
+    later.l2(); await flush(); await flush();
+    expect(p.moment()).toBe('M10');                  // the late chapters did not paint over the card
+
+    p.els['#wq-more'].fire('click');
+    await flush(); await flush();
+    p.els['#wql-up'].fire('click');                  // subjects (cached L1)
+    await flush();
+    p.els['[data-g="KG"]'].fire('click');
+    p.els['[data-g="4"]'].fire('click');
+    later.g4(); await flush(); await flush();
+    later.kg(); await flush(); await flush();
+    expect(p.html()).toContain('data-s="Maths"');     // grade 4's subjects, not KG's
+    expect(p.html()).not.toContain('data-s="English"');
   });
 });

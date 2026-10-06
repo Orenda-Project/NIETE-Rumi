@@ -18,6 +18,8 @@
   var mem = {};
   var OFF = false;
   var inflight = {};
+  var seq = 0;            // every show() takes a number; only the newest may paint
+  var docs = {};          // lesson pages already prefetched
 
   var SUBJ_UR = { English: 'انگریزی', Maths: 'ریاضی', Urdu: 'اردو', Science: 'سائنس', Geography: 'جغرافیہ', 'General Knowledge': 'معلوماتِ عامہ', History: 'تاریخ', 'Islamic Studies': 'اسلامیات' };
   var T = {
@@ -39,7 +41,26 @@
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function now() { return Date.now(); }
-  function key(code, g, s) { return 'wql:' + code + ':' + (g || '') + ':' + (s || ''); }
+  // A list carries one child's data (their grade, their Done ticks): its key names the child's session.
+  function hash(x) {
+    var h = 2166136261;
+    for (var i = 0; i < String(x || '').length; i++) { h ^= String(x).charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h.toString(36);
+  }
+  var lastSt = null;
+  function key(code, st, g, s) { return 'wql:' + code + ':' + hash(st) + ':' + (g || '') + ':' + (s || ''); }
+  // The network the phone says it has: no prefetch on Data saver or 2G; on 3G the small lists only.
+  function net() {
+    var c = (typeof navigator !== 'undefined' && navigator.connection) || {};
+    if (c.saveData || /2g$/.test(c.effectiveType || '')) return 'off';
+    return c.effectiveType === '3g' ? 'lists' : 'all';
+  }
+  // Urdu runs: digits isolated left-to-right (counts, minutes, grade numbers).
+  function nb(o, text) {
+    var h = esc(text);
+    return o.lang === 'ur' ? h.replace(/\d+/g, function (m) { return '<bdi dir="ltr">' + m + '</bdi>'; }) : h;
+  }
+  function attr(v) { return String(v).replace(/["\\]/g, '\\$&'); }
   function ss() { try { return window.sessionStorage || null; } catch (e) { return null; } }
   function cached(k) {
     var hit = mem[k];
@@ -63,7 +84,7 @@
   }
   // Resolves with the data, or {off:true}; rejects on a network or server failure. One request per key at a time.
   function load(code, st, g, s) {
-    var k = key(code, g, s);
+    var k = key(code, st, g, s);
     if (inflight[k]) return inflight[k];
     var p = fetch(url(code, st, g, s), { headers: { accept: 'application/json' } }).then(function (r) {
       return r.text().then(function (t) {
@@ -86,12 +107,12 @@
 
   /** In idle time: the subjects, then the quiz's own subject's chapters (what "Watch another video" opens). */
   function prefetch(o) {
-    if (OFF || !o || !o.code) return;
+    if (OFF || !o || !o.code || net() === 'off') return;
     idle(function () {
-      var l1 = cached(key(o.code, '', ''));
+      var l1 = cached(key(o.code, o.st, '', ''));
       var p = l1 ? Promise.resolve(l1) : load(o.code, o.st, '', '');
       p.then(function (d) {
-        if (d && !d.off && d.mine && !cached(key(o.code, '', d.mine))) return load(o.code, o.st, '', d.mine);
+        if (d && !d.off && d.mine && !cached(key(o.code, o.st, '', d.mine))) return load(o.code, o.st, '', d.mine);
         return null;
       }).catch(function () {});
     });
@@ -135,12 +156,12 @@
     var grades = (d.grades || []).map(function (x) {
       var on = x.g === d.grade;
       return '<button class="wql-g' + (on ? ' wql-on' : '') + '" data-g="' + esc(x.g) + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
-        (x.art ? '<img src="' + esc(x.art) + '" alt="" width="36" height="36">' : '') + '<span>' + esc(t.grade(x.g)) + '</span></button>';
+        (x.art ? '<img src="' + esc(x.art) + '" alt="" width="36" height="36">' : '') + '<span>' + nb(o, t.grade(x.g)) + '</span></button>';
     }).join('');
     var tiles = (d.subjects || []).map(function (x) {
       return '<button class="wql-sub" data-s="' + esc(x.key) + '">' +
         (x.art ? '<img src="' + esc(x.art) + '" alt="" width="160" height="120">' : '<span class="wql-noart" aria-hidden="true">▶</span>') +
-        '<b>' + esc(t.subj(x.key)) + '</b><small>' + esc(t.vids(x.n)) + '</small></button>';
+        '<b>' + esc(t.subj(x.key)) + '</b><small>' + nb(o, t.vids(x.n)) + '</small></button>';
     }).join('');
     return '<h2>' + esc(t.libT) + '</h2>' +
       '<div class="wql-grades" role="group">' + grades + '</div>' +
@@ -150,7 +171,7 @@
 
   function cardHtml(o, d, v, art, row) {
     var t = T[o.lang] || T.en;
-    var meta = [v.secs ? esc(t.mins(Math.max(1, Math.round(v.secs / 60)))) : '', mb(v.mb)].filter(Boolean).join(' · ');
+    var meta = [v.secs ? nb(o, t.mins(Math.max(1, Math.round(v.secs / 60)))) : '', mb(v.mb)].filter(Boolean).join(' · ');
     var w = row ? 120 : 160, h = row ? 68 : 90;
     return '<div class="wql-card' + (row ? ' wql-row' : '') + '"><button class="wql-pick" data-v="' + esc(v.vid) + '">' +
       '<span class="wql-thumb"' + (art ? ' style="background-image:url(' + esc(art) + ')"' : '') + '>' +
@@ -165,25 +186,28 @@
     var t = T[o.lang] || T.en;
     var art = d.art || null;
     var body = (d.chapters || []).map(function (c) {
-      var one = c.videos.length === 1;
-      var title = c.name && (!one || c.name.toLowerCase() !== String(c.videos[0].title || '').toLowerCase()) ? '<h3 class="wql-ch" dir="auto">' + esc(c.name) + '</h3>' : '';
+      var vids = c.videos || [];
+      var one = vids.length === 1;
+      var title = c.name && (!one || c.name.toLowerCase() !== String(vids[0].title || '').toLowerCase()) ? '<h3 class="wql-ch" dir="auto">' + esc(c.name) + '</h3>' : '';
       return '<section class="wql-chap">' + title + '<div class="' + (one ? 'wql-one' : 'wql-strip') + '">' +
-        c.videos.map(function (v) { return cardHtml(o, d, v, art, one); }).join('') + '</div></section>';
+        vids.map(function (v) { return cardHtml(o, d, v, art, one); }).join('') + '</div></section>';
     }).join('');
-    return '<div class="wql-head"><button class="wql-up" id="wql-up">' + esc(t.subjects) + '</button><h2>' + esc(t.subj(d.subject)) + ' · ' + esc(t.grade(d.grade)) + '</h2></div>' +
+    return '<div class="wql-head"><button class="wql-up" id="wql-up">' + esc(t.subjects) + '</button><h2>' + esc(t.subj(d.subject)) + ' · ' + nb(o, t.grade(d.grade)) + '</h2></div>' +
       (body || '<p class="wq-sub">' + esc(t.none) + '</p>') + helpHtml(o) +
       '<button class="wq-btn wq-ghost" id="wql-back">' + esc(t.back) + '</button>';
   }
 
   function allVideos(d) {
     var out = [];
-    (d.chapters || []).forEach(function (c) { c.videos.forEach(function (v) { out.push(v); }); });
+    (d.chapters || []).forEach(function (c) { (c.videos || []).forEach(function (v) { out.push(v); }); });
     return out;
   }
 
   function prefetchDocs(vids) {
-    if (!document.head || !document.createElement) return;
+    if (!document.head || !document.createElement || net() !== 'all') return;
     vids.filter(function (v) { return v.code; }).slice(0, 2).forEach(function (v) {
+      if (docs[v.code]) return;
+      docs[v.code] = 1;
       try {
         var l = document.createElement('link');
         l.rel = 'prefetch';
@@ -201,17 +225,20 @@
     var t = T[o.lang] || T.en;
     return '<div class="wq-boot"><img src="/wq/jugnu/thinking.webp" alt="" width="96" height="96"><p class="wq-sub">' + esc(t.wait) + '</p></div>';
   }
+  // Leaving the library: nothing still on its way may paint afterwards.
+  function leave(o) { seq++; cur = null; o.onBack(); }
   function failed(o, again) {
     var t = T[o.lang] || T.en;
     o.paint('<p class="wq-sub wq-center">' + esc(t.oops) + '</p><button class="wq-btn wq-go" id="wql-retry">' + esc(t.retry) + '</button>' +
       '<button class="wq-btn wq-ghost" id="wql-back">' + esc(t.back) + '</button>', 'M15-error');
     o.on('#wql-retry', again);
-    o.on('#wql-back', o.onBack);
+    o.on('#wql-back', function () { leave(o); });
     if (o.ev) o.ev('error', { err: 'lib_net' });
   }
   // Paint from the cache when it has the list (0 round trips), else wait for the bot; refetch quietly after.
   function show(o, g, s, draw) {
-    var k = key(o.code, g, s);
+    var my = ++seq;
+    var k = key(o.code, o.st, g, s);
     var hit = cached(k);
     if (hit) {
       draw(hit, 'mem');
@@ -220,9 +247,10 @@
     }
     o.paint(waitHtml(o), 'M15-wait');
     load(o.code, o.st, g, s).then(function (d) {
+      if (my !== seq) return;               // the child has moved on (Back, another grade)
       if (d.off) return o.fallback();
-      if (cur && cur.o === o) draw(d, 'net');
-    }, function () { failed(o, function () { show(o, g, s, draw); }); });
+      draw(d, 'net');
+    }, function () { if (my === seq) failed(o, function () { show(o, g, s, draw); }); });
   }
 
   function subjects(o, g) {
@@ -231,9 +259,9 @@
       if (!o.grade0) o.grade0 = d.grade;
       o.paint(subjectsHtml(o, d), 'M15');
       if (o.ev) o.ev('lib_view', { g: d.grade || undefined, n: (d.subjects || []).length });
-      (d.grades || []).forEach(function (x) { o.on('[data-g="' + x.g + '"]', function () { subjects(o, x.g === o.grade0 ? '' : x.g); }); });
-      (d.subjects || []).forEach(function (x) { o.on('[data-s="' + x.key + '"]', function () { chapters(o, cur.g, x.key); }); });
-      o.on('#wql-back', o.onBack);
+      (d.grades || []).forEach(function (x) { o.on('[data-g="' + attr(x.g) + '"]', function () { subjects(o, x.g === o.grade0 ? '' : x.g); }); });
+      (d.subjects || []).forEach(function (x) { o.on('[data-s="' + attr(x.key) + '"]', function () { chapters(o, cur.g, x.key); }); });
+      o.on('#wql-back', function () { leave(o); });
       // The child's own grade may sit past the screen's edge in the strip: bring it into view.
       try {
         var on = document.querySelector && document.querySelector('.wql-g.wql-on');
@@ -246,6 +274,7 @@
     cur = { o: o, g: g || '', s: s };
     show(o, g || '', s, function (d, src) {
       o.paint(chaptersHtml(o, d), 'M15-ch');
+      if (cur) cur.shown = true;
       var vids = allVideos(d);
       if (o.t0) {
         if (o.ev) o.ev('more_timing', { list_ms: now() - o.t0, src: src });
@@ -254,17 +283,17 @@
       if (o.ev) o.ev('lib_view', { g: d.grade || undefined, s: d.subject, n: vids.length });
       var i = 0;
       (d.chapters || []).forEach(function (c, ci) {
-        c.videos.forEach(function (v) {
+        (c.videos || []).forEach(function (v) {
           var at = i++;
-          o.on('[data-v="' + v.vid + '"]', function () {
+          o.on('[data-v="' + attr(v.vid) + '"]', function () {
             if (o.ev) o.ev('lib_pick', { vid: v.vid, ch_i: ci });
             o.onPick({ vid: v.vid, title: v.title, code: v.code || null, done: Boolean(v.done) }, at);
           });
         });
       });
       wireDl(o, vids);
-      o.on('#wql-up', function () { subjects(o, cur.g); });
-      o.on('#wql-back', o.onBack);
+      o.on('#wql-up', function () { subjects(o, cur ? cur.g : ''); });
+      o.on('#wql-back', function () { leave(o); });
       prefetchDocs(vids);
     });
   }
@@ -273,7 +302,10 @@
   function open(o) {
     o.lang = o.lang === 'ur' ? 'ur' : 'en';
     o.t0 = now();
-    var l1 = cached(key(o.code, '', ''));
+    // Another child in this tab: the last child's lists are not theirs.
+    if (lastSt !== null && lastSt !== o.st) mem = {};
+    lastSt = o.st;
+    var l1 = cached(key(o.code, o.st, '', ''));
     var s = o.subject || (l1 && l1.mine) || '';
     if (l1) o.grade0 = l1.grade;
     if (s) return chapters(o, '', s);
@@ -281,24 +313,25 @@
     // Nothing cached: ask for the subjects, then go straight on to the quiz's own subject.
     o.paint(waitHtml(o), 'M15-wait');
     cur = { o: o, g: '', s: '' };
+    var my = ++seq;
     load(o.code, o.st, '', '').then(function (d) {
+      if (my !== seq) return;
       if (d.off) return o.fallback();
-      if (!cur || cur.o !== o) return;
       o.grade0 = d.grade;
       if (d.mine) chapters(o, '', d.mine); else subjects(o, '');
-    }, function () { failed(o, function () { open(o); }); });
+    }, function () { if (my === seq) failed(o, function () { open(o); }); });
   }
 
   /** Back from the chapters goes to the subjects; from the subjects, out of the library. */
   function up() {
-    if (cur && cur.s) return subjects(cur.o, cur.g);
-    if (cur) return cur.o.onBack();
+    if (cur && cur.s && cur.shown) return subjects(cur.o, cur.g);
+    if (cur) return leave(cur.o);
     return null;
   }
 
   window.WQL = {
     open: open, prefetch: prefetch, up: up, dlHtml: dlHtml, helpHtml: helpHtml, wireDl: wireDl,
-    off: function () { return OFF; }, T: T,
-    _reset: function () { mem = {}; OFF = false; inflight = {}; cur = null; },
+    off: function () { return OFF; }, active: function () { return Boolean(cur); }, T: T,
+    _reset: function () { mem = {}; OFF = false; inflight = {}; cur = null; seq = 0; docs = {}; lastSt = null; },
   };
 })();

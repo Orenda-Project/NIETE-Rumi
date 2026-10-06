@@ -141,7 +141,9 @@ async function signPoster(r2Url, { expiresIn = DEFAULT_EXPIRES } = {}) {
   try { key = videoKey(r2Url).key.replace(/\.[a-z0-9]+$/i, '_poster.jpg'); } catch (_) { return null; }
   const hit = posterCache.get(key);
   if (hit && Date.now() - hit.at < (expiresIn * 1000) / 2) return hit.url;
-  const url = await sign(key, expiresIn);
+  let url = null;
+  try { url = await r2.getPresignedGetUrl(key, expiresIn); } catch (_) { url = null; }
+  if (url && !url.includes('X-Amz-Signature')) url = null;
   if (url) {
     if (posterCache.size >= POSTER_CACHE_MAX) posterCache.clear();
     posterCache.set(key, { at: Date.now(), url });

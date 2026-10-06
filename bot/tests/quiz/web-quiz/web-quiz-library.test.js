@@ -285,3 +285,24 @@ describe('download: GET /videos/dl/:code -> 302 to an attachment link', () => {
     expect([401, 503]).toContain(h.status);
   });
 });
+
+describe('review fixes', () => {
+  test('a quiz for a grade band opens on the child\'s own grade inside the band', async () => {
+    fake.db.quizzes[0].grade = '3-5';
+    fake.db.quiz_sessions[0].student_class = '4';
+    expect((await Lib.lib('AB12CD', { st: st() })).grade).toBe('4');
+    fake.db.quiz_sessions[0].student_class = '9';      // outside the band: the band's first grade
+    Lib._reset();
+    expect((await Lib.lib('AB12CD', { st: st() })).grade).toBe('3');
+    expect((await Lib.lib('AB12CD', {})).grade).toBe('3'); // nothing known about the child
+  });
+
+  test('posters are signed quietly (no log line per poster)', async () => {
+    require('../../../shared/services/quiz/web-quiz-media')._posterCache.clear();
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await Lib.lib('AB12CD', { st: st(), s: 'Science' });
+      expect(log).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
+  });
+});
