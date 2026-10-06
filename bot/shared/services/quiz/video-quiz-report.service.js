@@ -740,19 +740,29 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // the report is exactly what it was.
   const live = done.length ? await liveReportExtras(sc) : null;
   // With the quiz's one class list known, ONE class line: "8 of 10 in 3-B
-  // played · 2 still to play — tap to remind: <link>" (or "10 of 10 in 3-B
-  // played"). Without it the sessions are all we have, and the caption keeps
-  // today's "68 of 87 finished"; children not on the list are the PDF's
-  // business, never the caption's.
+  // played · 2 still to play" (or "10 of 10 in 3-B played"). Without it the
+  // sessions are all we have, and the caption keeps today's "68 of 87
+  // finished"; children not on the list are the PDF's business, never the
+  // caption's.
   const classLine = (language) => {
     if (!live || !live.links || !Array.isArray(live.notPlayed) || !live.of || !live.className) return null;
     const left = live.notPlayed.length;
-    const params = { cls: live.className, of: live.of, played: live.of - left, left, url: live.links.remind };
+    const params = { cls: live.className, of: live.of, played: live.of - left, left };
     return resolveUx(left ? 'vqReportClassPlayed' : 'vqReportClassAllPlayed', { language, params });
   };
-  const liveLink = (language) => resolveUx('vqReportLiveLink', { language, params: { url: live.links.live } });
-  const liveLines = (language) => (live && live.links ? [classLine(language), liveLink(language)].filter(Boolean) : []);
-  liveLines(contentLang).forEach((l) => lines.push('', l));
+  // The report's links go in a text of their own, sent after the PDF: the
+  // caption travels with every forwarded copy of the document, and a
+  // /r/<token> reaching a class group opens every child's score. With the
+  // whole list played, only the live report; otherwise the reminder too.
+  const linksText = (language) => {
+    if (!live || !live.links) return null;
+    const allPlayed = Boolean(live.className) && Array.isArray(live.notPlayed) && !live.notPlayed.length;
+    return allPlayed
+      ? resolveUx('vqReportLiveLink', { language, params: { url: live.links.live } })
+      : resolveUx('vqReportLinks', { language, params: { remind: live.links.remind, live: live.links.live } });
+  };
+  const summaryClassLine = classLine(contentLang);
+  if (summaryClassLine) lines.push('', summaryClassLine);
 
   // Plain text, laid out on the phone line by line from each line's first
   // strong character — which in an Urdu report is the Latin "quiz" of the title
@@ -775,13 +785,11 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     // Never the links themselves: the PDF gets forwarded (COS ruling 18:09Z).
     livePointer: Boolean(live && live.links),
     language: contentLang, contentLanguage: contentLang,
-    // The caption is the teacher's (chromeLang); the count and live-report lines join it.
+    // The caption is the teacher's (chromeLang): counts only, never a link.
     caption: live && live.links
       ? (t, d, a, n) => {
         const cls = classLine(chromeLang);
-        // The class line ends with its link, so the reteach pointer goes on the line above it.
-        const counts = cls ? [CAPTION.title(t), n ? `${CAPTION.reteach(n)}\n${cls}` : cls] : [CAPTION.caption(t, d, a, n)];
-        return [...counts, liveLink(chromeLang)].join('\n\n');
+        return cls ? [CAPTION.title(t), n ? `${CAPTION.reteach(n)}\n${cls}` : cls].join('\n\n') : CAPTION.caption(t, d, a, n);
       }
       : CAPTION.caption,
     classes,
@@ -801,6 +809,17 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     if (guidance) {
       await WhatsAppService.sendMessage(teacher.phone_number,
         markLines(`${TX.forTomorrow}\n\n${formatGuidanceText(guidance, TX)}`, lineMark));
+    }
+  }
+
+  // The report's links, in the teacher's language, after the report itself.
+  // A failed send never fails the report (it has gone; /quiz still has them).
+  const links = linksText(chromeLang);
+  if (links) {
+    try {
+      await WhatsAppService.sendMessage(teacher.phone_number, links);
+    } catch (err) {
+      logToFile('⚠️ video-quiz report: links message not sent (report already sent)', { shareCodeId, error: err.message });
     }
   }
 
