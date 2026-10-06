@@ -1170,7 +1170,8 @@ async function whoClass(body = {}) {
   if (!cls) fail(404, 'class_unknown');
   if (!cls.id) fail(400, 'bad_request', { why: 'no_class' });
   const { error } = await supabase.from('quiz_share_codes').update({ class_id: cls.id }).eq('id', ctx.shareCodeId);
-  if (error && error.code === '42703') fail(503, 'not_ready');
+  // The migration not applied here: a write naming the column fails PGRST204 (a read, 42703).
+  if (error && (error.code === 'PGRST204' || error.code === '42703')) fail(503, 'not_ready');
   if (error) fail(502, 'db_unavailable');
   logEvent('web_quiz.identity_class_bound', { shareCodeId: ctx.shareCodeId, by: body.p ? 'preview' : 'report' });
   return { ok: true, class: { label: cls.label || '' } };
