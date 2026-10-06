@@ -1876,3 +1876,14 @@ Feature: NIETE (ICT) Teacher Training
     And with the setting absent or false, the quiz is made exactly as before
     # transcript-quiz-generate salvageWithoutBadFigures (isSoft skip, v2); transcript-quiz-named-pronouns lookback in
     # transcript-quiz-pedagogy. Unit: tests/quiz/quiz-author-gates-fail-soft.test.js, quiz-author-gates-named-pronouns.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P2 @T242 @no-mock-driver
+  Scenario: With the author gates on, a question never points at a picture my class cannot see
+    Given app_settings "quiz_author_gates_v2" is true
+    And a question supposes or describes a picture ("If a diagram shows…", "The image shows…", "according to the chart", "the shaded part") but carries none
+    When my class quiz is made from my lesson
+    Then that question is asked again without the picture, or left out while the quiz keeps at least six questions
+    And a question that only uses a picture word ("What can a map show?") is left alone
+    And with the setting absent or false, the quiz is made exactly as before
+    # quiz-author-gates-v2 presupposesPicture (PICTURE_MISSING), wired in transcript-quiz-validator validate().
+    # Unit: tests/quiz/quiz-author-gates-picture-phrasings.test.js. @wip.
