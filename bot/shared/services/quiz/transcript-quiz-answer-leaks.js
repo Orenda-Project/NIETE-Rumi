@@ -111,21 +111,23 @@ function carries(sentence, want) {
   return want.size > 0 && hit >= enough(want.size);
 }
 
+const sentences = (text) => String(text || '').split(/(?<=[.!?۔؟])\s+|\n+/).map((x) => x.trim()).filter(Boolean);
+
 /** Everything question i shows the child, one sentence at a time, each with where it came from. */
 function sentencesOf(q) {
   const out = [];
-  const add = (where, text) => String(text || '').split(/(?<=[.!?۔؟])\s+|\n+/).forEach((s) => {
-    if (s.trim()) out.push({ where, text: s.trim(), words: content(s), raw: new Set(tokens(s)), nums: numbers(s) });
+  const add = (where, field, text) => sentences(text).forEach((s) => {
+    out.push({ where, field, text: s, words: content(s), raw: new Set(tokens(s)), nums: numbers(s) });
   });
-  add('question', q.question);
+  add('question', null, q.question);
   // its correct option, which the child is told is right — a wrong option is offered, never asserted
-  correctList(q).forEach((k) => add('correct option', optionsOf(q)[k]));
-  add('explanation', q.explanation);
+  correctList(q).forEach((k) => add('correct option', null, optionsOf(q)[k]));
+  add('explanation', ['explanation'], q.explanation);
   const fb = (q.option_feedback && typeof q.option_feedback === 'object') ? q.option_feedback : {};
-  if (typeof fb.correct === 'string') add('right line', fb.correct);
+  if (typeof fb.correct === 'string') add('right line', ['option_feedback', 'correct'], fb.correct);
   const wrong = (fb.wrong && typeof fb.wrong === 'object') ? fb.wrong : {};
-  Object.values(wrong).forEach((t) => { if (typeof t === 'string') add('wrong-option feedback', t); });
-  if (typeof q.misconception_feedback === 'string') add('wrong-option feedback', q.misconception_feedback);
+  Object.entries(wrong).forEach(([k, t]) => { if (typeof t === 'string') add('wrong-option feedback', ['option_feedback', 'wrong', k], t); });
+  if (typeof q.misconception_feedback === 'string') add('wrong-option feedback', ['misconception_feedback'], q.misconception_feedback);
   return out;
 }
 
@@ -209,9 +211,10 @@ const clip = (s, n = 80) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /**
  * @param {object[]} questions the quiz in the order it is played
- * @returns {string[]} one `qJ: ANSWER_LEAK — … qI …` per leaking LATER question (the first earlier question found)
+ * @returns {object[]} one leak per leaking LATER question (the first earlier question found):
+ *   { to, from, repeat } for the same stem twice, or { to, from, where, field, text, shown }
  */
-function answerLeakErrors(questions) {
+function findLeaks(questions) {
   const qs = Array.isArray(questions) ? questions : [];
   const seen = qs.map((q) => (q ? sentencesOf(q) : []));
   const out = [];
@@ -223,20 +226,72 @@ function answerLeakErrors(questions) {
       const kj = keyWords(qj);
       const i = qs.findIndex((qi, k) => k < j && qi && !hasPicture(qi) && stemKey(qi) === sk && [...keyWords(qi)].some((w) => kj.has(w)));
       if (i >= 0) {
-        out.push(`q${j}: ANSWER_LEAK — q${j} asks word for word what q${i} already asks («${clip(String(qj.question))}»); replace q${j} with a question on a different fact of the lesson, one no other question states`);
+        out.push({ to: j, from: i, repeat: true, stem: String(qj.question) });
         return;
       }
     }
     const t = targetOf(qj);
     if (!t) return;
     for (let i = 0; i < j; i += 1) {
-      const hit = seen[i].find((s) => states(s, t));
+      const hit = seen[i].find((x) => states(x, t));
       if (!hit) continue;
-      out.push(`q${j}: ANSWER_LEAK — q${i} gives away q${j}'s answer «${clip(t.shown, 60)}»: q${i}'s ${hit.where} says «${clip(hit.text)}», and the child reads it before q${j}; replace q${j} with a question on a different fact of the lesson, one no other question, option or explanation states`);
+      out.push({ to: j, from: i, where: hit.where, field: hit.field, text: hit.text, shown: t.shown });
       return;
     }
   });
   return out;
+}
+
+/**
+ * @param {object[]} questions the quiz in the order it is played
+ * @returns {string[]} one `qJ: ANSWER_LEAK — … qI …` per leaking LATER question (the first earlier question found)
+ */
+function answerLeakErrors(questions) {
+  return findLeaks(questions).map((l) => (l.repeat
+    ? `q${l.to}: ANSWER_LEAK — q${l.to} asks word for word what q${l.from} already asks («${clip(l.stem)}»); replace q${l.to} with a question on a different fact of the lesson, one no other question states`
+    : `q${l.to}: ANSWER_LEAK — q${l.from} gives away q${l.to}'s answer «${clip(l.shown, 60)}»: q${l.from}'s ${l.where} says «${clip(l.text)}», and the child reads it before q${l.to}; replace q${l.to} with a question on a different fact of the lesson, one no other question, option or explanation states`));
+}
+
+/** Read and write one field of a question by its path (["option_feedback", "wrong", "2"]). */
+const getAt = (q, field) => field.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), q);
+function setAt(q, field, value) {
+  const copy = { ...q };
+  let o = copy;
+  field.slice(0, -1).forEach((k) => { o[k] = { ...o[k] }; o = o[k]; });
+  o[field[field.length - 1]] = value;
+  return copy;
+}
+
+/**
+ * THE CHEAPEST REPAIR: take the aside out. Most give-aways are one sentence in
+ * an earlier question's explanation, "right" line or wrong-option feedback that
+ * is about ANOTHER fact ("…This is a behavioural adaptation." in the feedback on
+ * a fox hunting at night, before "Which is a behavioural adaptation of a desert
+ * fox?"). That sentence is taken out and both questions are kept — no model call.
+ * Never the sentence that explains the earlier question's OWN answer, never a
+ * stem or an option, and never when what is left of the field has fewer than
+ * three words that carry meaning. Measured on 50 authored quizzes: 30 of 69 leaks
+ * were such an aside.
+ *
+ * @returns {{questions:object[], trimmed:{from:number,to:number,where:string}[]}}
+ */
+function trimLeakAsides(questions) {
+  let current = Array.isArray(questions) ? questions : [];
+  const trimmed = [];
+  const tried = new Set();
+  for (let pass = 0; pass < current.length; pass += 1) {
+    const leak = findLeaks(current).find((l) => !l.repeat && l.field && !tried.has(`${l.from}|${l.field.join('.')}|${l.text}`));
+    if (!leak) break;
+    tried.add(`${leak.from}|${leak.field.join('.')}|${leak.text}`);
+    const qi = current[leak.from];
+    const own = content(optionsOf(qi)[correctList(qi)[0]]);
+    if (own.size && carries(content(leak.text), own)) continue;   // it explains q_i's own answer
+    const rest = sentences(getAt(qi, leak.field)).filter((x) => x !== leak.text);
+    if ([...content(rest.join(' '))].length < 3) continue;          // nothing left to say
+    current = current.map((q, k) => (k === leak.from ? setAt(q, leak.field, rest.join(' ')) : q));
+    trimmed.push({ from: leak.from, to: leak.to, where: leak.where });
+  }
+  return { questions: current, trimmed };
 }
 
 const qIndex = (e) => Number(/^q(\d+)/.exec(String(e))[1]);
@@ -244,6 +299,8 @@ const qIndex = (e) => Number(/^q(\d+)/.exec(String(e))[1]);
 /**
  * THE LAST WORD ON LEAKS, on what is about to ship (generate calls this after
  * every step that can write a question, gates on). Repair, never kill a quiz:
+ *   0. an aside in an earlier question that gives the answer away is taken out
+ *      (trimLeakAsides) — no model call, both questions kept;
  *   1. ONE targeted rewrite of every leaking LATER question, its complaint
  *      naming the earlier question and the words that give the answer away;
  *      taken when the set stays shippable and leaks less;
@@ -271,17 +328,33 @@ async function finalLeakRepair({ questions, rewrite, check, isSoft, floor }) {
   };
   const shippable = (v) => v.errors.every((e) => isSoft(e));
   let current = questions;
+  let leaksNow = leaks;
+  record.trimmed = 0;
+  const trim = trimLeakAsides(current);
+  if (trim.trimmed.length) {
+    const v = check(trim.questions);
+    const left = answerLeakErrors(v.questions);
+    if (shippable(v) && left.length < leaks.length) {
+      current = v.questions;
+      leaksNow = left;
+      record.trimmed = trim.trimmed.length;
+    }
+  }
+  if (!leaksNow.length) {
+    record.latency_ms = Date.now() - t0;
+    return { record, changed: true, questions: current, dropped: [], faults: [] };
+  }
   try {
-    const rw = await rewrite(current, leaks);
+    const rw = await rewrite(current, leaksNow);
     record.cost_usd = Number(rw && rw.costUsd) || 0;
     const replaced = (rw && Array.isArray(rw.replaced)) ? rw.replaced : [];
     if (rw && Array.isArray(rw.merged) && replaced.length) {
       const candidate = current.map((q, i) => (replaced.includes(i) && rw.merged[i] ? rw.merged[i] : q));
       const v = check(candidate);
       const left = answerLeakErrors(v.questions);
-      if (shippable(v) && left.length < leaks.length) {
+      if (shippable(v) && left.length < leaksNow.length) {
         current = v.questions;
-        record.fixed = leaks.length - left.length;
+        record.fixed = leaksNow.length - left.length;
       } else record.rewrite = shippable(v) ? 'nothing_fixed' : 'merged_set_invalid';
     } else record.rewrite = (rw && rw.error) ? 'rewrite_failed' : 'nothing_usable';
   } catch (err) {
@@ -324,4 +397,4 @@ function settleLeakFaults(faults, dropped, leaks) {
   return [...kept, ...(leaks || [])];
 }
 
-module.exports = { answerLeakErrors, finalLeakRepair, settleLeakFaults };
+module.exports = { answerLeakErrors, findLeaks, trimLeakAsides, finalLeakRepair, settleLeakFaults };

@@ -1671,12 +1671,13 @@ Feature: NIETE (ICT) Teacher Training
     Then the later question is rewritten to ask about a different fact of my lesson, and the request names both questions
     And a number or a fraction counts when it is stated with the later question's own numbers ("19 - 7 = 12" before "Subtract 7 from 19")
     And the same question asked twice with the answer in other words counts too
-    And once every step has written its questions, a give-away still left gets one more rewrite, else the later question is left out while the quiz keeps at least six
+    And once every step has written its questions, a give-away that is an aside in the earlier question's explanation or feedback is taken out, keeping both questions
+    And a give-away still left gets one more rewrite, else the later question is left out while the quiz keeps at least six
     And at six questions it is still sent, with the give-away counted; the quiz is never refused for it
     And a wrong option, a word for a kind of thing named in passing ("a structural adaptation"), or a line that lists every option is not treated as a give-away
     And with the setting absent or false, the quiz is made exactly as before
     # transcript-quiz-answer-leaks answerLeakErrors (ANSWER_LEAK), wired in transcript-quiz-validator validate();
-    # generate LEAK_FAULT (soft, re-asked in place) and finalLeakRepair after the last repair (meta.answer_leaks);
+    # generate LEAK_FAULT (soft, re-asked in place) and finalLeakRepair (trimLeakAsides first) after the last repair (meta.answer_leaks);
     # LEAK_REPAIR in transcript-quiz-rewrite.
     # Unit: tests/quiz/quiz-author-gates-answer-leak.test.js, tests/quiz/quiz-author-gates-cross-item-leaks.test.js. @wip.
 
