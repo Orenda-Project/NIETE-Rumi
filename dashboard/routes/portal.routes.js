@@ -1887,6 +1887,21 @@ router.post('/coach/teacher/:teacherExtId/move', ...coachV2, async (req, res) =>
   } catch (error) { return coachFail(res, 'teacher-move', error); }
 });
 
+/**
+ * POST /api/portal/coach/teacher/:teacherExtId/edit   Body { edit, value }
+ * bd-o15qnr.13 — name | level (bands[]) | role | phone_check | phone, saved by
+ * main's /observe edit path ported to the bot. The patch names who changes.
+ */
+router.post('/coach/teacher/:teacherExtId/edit', ...coachV2, async (req, res) => {
+  const ext = String(req.params.teacherExtId || '');
+  if (!/^\d{6,15}$/.test(ext)) return res.status(404).json({ success: false, reason: 'not_found' });
+  try {
+    const { edit, value } = req.body || {};
+    const out = await CoachTeacherAdmin.editTeacher(pgQuery, ObserveTeacherAdmin, req.session.portalUserId, ext, String(edit || ''), value);
+    return res.status(out.status).json(out.data);
+  } catch (error) { return coachFail(res, 'teacher-edit', error); }
+});
+
 router.post('/coach/teacher/:teacherExtId/remove', ...coachV2, async (req, res) => {
   const ext = String(req.params.teacherExtId || '');
   if (!/^\d{6,15}$/.test(ext)) return res.status(404).json({ success: false, reason: 'not_found' });

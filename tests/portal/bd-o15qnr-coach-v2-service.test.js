@@ -96,6 +96,7 @@ function fakeQuery(overrides = {}) {
       return { rows: up.slice(0, 1) };
     }
     if (sql === S.TEACHER_HISTORY) return { rows: overrides.history || [] };
+    if (sql === S.TEACHER_LEVELS) return { rows: [] }; // bd-o15qnr.13
     if (sql === S.TEAM_TOTALS) return { rows: [{ today: 46, week: 212, month: 840 }] };
     if (sql === S.TEAM_DAYS) return { rows: [{ day: '2026-10-05', n: 41 }, { day: '2026-10-06', n: 46 }] };
     if (sql === S.TEAM_VISITS) return { rows: overrides.team || [] };

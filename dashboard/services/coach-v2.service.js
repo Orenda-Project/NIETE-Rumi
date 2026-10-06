@@ -24,6 +24,8 @@ const { getOverall } = require('./coaching-frameworks.service');
 const { getPatchTeachers } = require('./leader-patch.service');
 
 const TERMINAL_STATUSES = ['completed', 'observer_review_complete'];
+/** The teaching levels a coach may set, in canonical order (bot: utils/teacher-level VALID_LEVELS). */
+const TEACHING_LEVELS = ['PRIMARY', 'MIDDLE', 'HIGH'];
 const DEAD_STATUSES = ['failed', 'cancelled'];
 const SCHOOL_VISIT_WINDOW_DAYS = 90;
 
@@ -181,6 +183,12 @@ const SQL = {
     FROM coaching_sessions
     WHERE id = $1::uuid AND observation_type = 'leader_observation'
     LIMIT 1
+  `,
+
+  // bd-o15qnr.13 — her teaching levels for Edit teacher's multi-select. Sandbox's
+  // code keeps them in training_bands (main renamed it teacher_level, bd-60095).
+  TEACHER_LEVELS: `
+    SELECT training_bands FROM users WHERE id = $1::uuid LIMIT 1
   `,
 
   USER_NAME: `
@@ -440,8 +448,16 @@ async function getCoachTeacher(query, leaderUserId, teacherExtId, opts = {}) {
   const history = (historyRes.rows || []).map((r) => historyRow(r, leaderUserId));
   const next = (schedRes.rows || []).find((r) => r.status === 'upcoming' && r.teacher_ext_id === teacherExtId
     && isoDay(r.scheduled_for) >= today);
+  // Primary / Middle / High only — early years is not a teacher level (operator).
+  let levels = [];
+  if (teacher.rumiUserId) {
+    const lv = await query(SQL.TEACHER_LEVELS, [teacher.rumiUserId]);
+    const raw = ((lv.rows || [])[0] || {}).training_bands;
+    const have = new Set((Array.isArray(raw) ? raw : []).map((b) => String(b || '').trim().toUpperCase()));
+    levels = TEACHING_LEVELS.filter((b) => have.has(b));
+  }
   return {
-    teacher: publicTeacher(teacher),
+    teacher: { ...publicTeacher(teacher), levels },
     history,
     nextVisit: next ? shapeVisit(next, today) : null,
   };
