@@ -2027,3 +2027,27 @@ Feature: NIETE (ICT) Teacher Training
     Then no portal session is started
     And the page says, in English and Urdu, that the link has expired and to open Training again in WhatsApp
     And when my session from a link runs out mid-way, I land on that same page, never on a password login
+
+  @api @quiz @wip @draft @P1 @T270 @no-mock-driver
+  Scenario: A quiz from a v9 lesson plan is written from that lesson plan, the version I was given
+    Given I was sent a K-5 lesson plan from the v9 renders (a version stamped after v8, such as "ch37_2Oct")
+    And the HTML of that exact version has been ingested as its quiz source
+    When my class quiz is made from that lesson, from /quiz or from the 3 pm offer
+    Then the lesson is offered as a quiz, and its questions come from that lesson plan's outcome, explanation, worked example and practice
+    And no answer from the plan's practice, warm-up or exit ticket is handed to the question writer
+    And it is never written from an older version of the same lesson
+    # lp-v9-html-source toSlideScript (answers and .exit dropped before any text is read); stored by
+    # bot/scripts/ingest-lp-v9-html.js under the served (lesson_id, version_stamp, content_hash), verified 'v9_html',
+    # proven by sha1(shipped PDF) == niete_lp_assets.source_sha1. Read unchanged by resolveSlideScript / resolvableVersions.
+    # Unit: tests/quiz/lp-v9-html-source.test.js, tests/quiz/lp-quiz-generate-v9-source.test.js,
+    # bot/tests/lp-v8/ingest-lp-v9-html.test.js. @wip — needs a v9 delivery on the driver number.
+
+  @api @quiz @negative @wip @draft @P2 @T271 @no-mock-driver
+  Scenario: A lesson-plan quiz whose source is missing says which source, and never borrows another version
+    Given a quiz for one of my lessons is being made and no source is stored for the version I was given
+    When the quiz cannot be made
+    Then it fails as "source_missing" exactly as before, with the teacher message unchanged
+    And the quiz row and the log name which source was missing: "v9_html_missing" for a v9 version, "v8_script_missing" for a v8 one
+    And no quiz is written from a different version of that lesson
+    # transcript-quiz-generate sourceMissing → logEvent lp_quiz.source_missing (ids only) + meta.source_reason.
+    # Unit: tests/quiz/lp-quiz-generate-v9-source.test.js. @wip.
