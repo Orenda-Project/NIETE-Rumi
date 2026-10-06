@@ -1189,7 +1189,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var last = here.filter(function (k) { return classChips[k.chip]; })[0] || here[0];
     var ch = B.challenge;
     // The challenger comes from the server (the challenge code), never from a name in the URL.
-    var chLine = ch ? T.challenged(ch.first, ch.correct, ch.total) : '';
+    // A challenger who scored 0 is never a score to beat (the card shares a zero as "played"): the friend is just challenged.
+    var chLine = ch ? (ch.correct > 0 ? T.challenged(ch.first, ch.correct, ch.total) : T.challengedBy(ch.first)) : '';
     if (B.preview && params.p) return teacherLanding();
     if (ID && !B.preview) { ID.landing(chLine, chPic(chLine)); wireChPic(); return; }
     var h = bar() +
