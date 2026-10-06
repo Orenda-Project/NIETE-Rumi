@@ -111,7 +111,7 @@
     if (!o.st || !v || !v.vid) return '';
     var t = T[o.lang] || T.en;
     var size = v.mb ? ' (' + mb(v.mb) + ')' : '';
-    return '<a class="' + (big ? 'wq-btn wq-soft wql-dlbig' : 'wql-dl') + '" data-dl="' + esc(v.vid) + '" href="' + esc(dlHref(o, v.vid)) + '" download>⬇ ' + esc(t.dl) + size + '</a>';
+    return '<a class="' + (big ? 'wq-btn wq-soft wql-dlbig' : 'wql-dl') + '" data-dl="' + esc(v.vid) + '" href="' + esc(dlHref(o, v.vid)) + '" download><span>⬇ ' + esc(t.dl) + size + '</span></a>';
   }
   function helpHtml(o) {
     var t = T[o.lang] || T.en;
@@ -157,7 +157,8 @@
       (v.poster ? '<img src="' + esc(v.poster) + '" alt="" loading="lazy" width="' + w + '" height="' + h + '" onerror="this.style.display=\'none\'">' : '') +
       (v.done ? '<span class="wql-done">' + esc(t.done) + '</span>' : '') + '</span>' +
       '<span class="wql-txt"><b dir="auto">' + esc(v.title) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</span></button>' +
-      dlHtml(o, v, false) + '</div>';
+      // The size is on the line above: the card's link stays short enough for a 168px card.
+      dlHtml(o, { vid: v.vid }, false) + '</div>';
   }
 
   function chaptersHtml(o, d) {
@@ -233,6 +234,11 @@
       (d.grades || []).forEach(function (x) { o.on('[data-g="' + x.g + '"]', function () { subjects(o, x.g === o.grade0 ? '' : x.g); }); });
       (d.subjects || []).forEach(function (x) { o.on('[data-s="' + x.key + '"]', function () { chapters(o, cur.g, x.key); }); });
       o.on('#wql-back', o.onBack);
+      // The child's own grade may sit past the screen's edge in the strip: bring it into view.
+      try {
+        var on = document.querySelector && document.querySelector('.wql-g.wql-on');
+        if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'center' });
+      } catch (e) {}
     });
   }
 
