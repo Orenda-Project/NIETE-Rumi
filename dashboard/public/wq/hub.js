@@ -35,9 +35,9 @@
       wait: 'Opening…', noClass: 'Play a quiz from your teacher first.', gone: 'No quizzes here yet. Ask your teacher for a quiz link.', mins: function (m) { return m + ' min'; },
     },
     ur: {
-      who: 'کون کھیل رہا ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', hi: function (n) { return 'السلام علیکم ' + n + '! آج کیا کریں؟'; },
+      who: 'کس کی باری ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', hi: function (n) { return 'السلام علیکم ' + n + '! آج کیا کریں؟'; },
       fromT: 'آپ کے استاد کی طرف سے', play: 'کھیلیں',
-      sent: function (d) { return d <= 0 ? 'آج بھیجا گیا' : d === 1 ? 'کل بھیجا گیا' : d + ' دن پہلے بھیجا گیا'; },
+      sent: function (d) { return d <= 0 ? 'آج بھیجا گیا' : d === 1 ? 'کل بھیجا گیا' : '<bdi>' + d + '</bdi> دن پہلے بھیجا گیا'; },
       none: 'ابھی استاد کی طرف سے کوئی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کریں!',
       againT: 'دوبارہ کھیلیں', againRow: function (score, n) { return 'بہترین ' + score + ' · <bdi>' + n + ' بار</bdi>'; },
       practice: 'مشق: استاد کو آپ کا پہلا اسکور ہی نظر آتا ہے۔',
@@ -90,6 +90,12 @@
     var t = Date.parse(iso || '');
     return isFinite(t) ? Math.max(0, Math.floor((Date.now() - t) / 86400000)) : 0;
   }
+  // A quiz link: every part URL-encoded (a chip or code from the server is never trusted to be URL-safe).
+  function quizHref(code, q) {
+    var parts = [];
+    for (var k in q) if (q[k]) parts.push(k + '=' + encodeURIComponent(q[k]));
+    return '/q/' + encodeURIComponent(code) + (parts.length ? '?' + parts.join('&') : '');
+  }
   function api(method, path, body) {
     var init = { method: method, headers: { accept: 'application/json' } };
     if (body) { init.headers['content-type'] = 'application/json'; init.body = JSON.stringify(body); }
@@ -123,12 +129,14 @@
   function pick(chip) {
     render(bar() + '<div class="wq-boot"><img src="' + JUG_DIR + 'thinking.webp" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H1-wait');
     api('GET', 'hub/' + encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(chip)).then(function (r) {
+      // An expired or forged link: the server's closed page says what to do (never "No internet").
+      if (r.status === 401) { location.reload(); return; }
       if (!r.ok || !r.body || !r.body.kid) throw new Error('hub_' + r.status);
       var kids = B.kids;
       B = r.body; B.token = TOKEN; B.brand = BR; B.kids = B.kids && B.kids.length ? B.kids : kids;
       try { history.replaceState(null, '', '/h/' + TOKEN + '?kid=' + encodeURIComponent(chip)); } catch (e) {}
       hub();
-    }).catch(function () { toast(T.offline); picker(); });
+    }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); picker(); });
   }
 
   /* ---------------- H2 the hub ---------------- */
@@ -138,15 +146,15 @@
         (B.lib ? '<a class="wq-btn wq-go" id="wq-h-lib2" href="' + esc(B.lib.href) + '">📚 ' + esc(T.libT) + '</a>' : '') + '</div>';
     }
     return '<div class="wq-card wq-hcard"><p class="wq-hlabel">' + esc(T.fromT) + '</p>' +
-      '<h2 dir="auto">' + esc(t.topic) + '</h2><p class="wq-sub">' + esc([subjectName(t.subject), T.sent(daysSince(t.sent_at))].filter(Boolean).join(' · ')) + '</p>' +
-      '<a class="wq-btn wq-go" id="wq-h-teacher" href="/q/' + esc(t.code) + '?k=' + esc(t.k) + '">▶ ' + esc(T.play) + '</a></div>';
+      '<h2 dir="auto">' + esc(t.topic) + '</h2><p class="wq-sub">' + [esc(subjectName(t.subject)), T.sent(daysSince(t.sent_at))].filter(Boolean).join(' · ') + '</p>' +
+      '<a class="wq-btn wq-go" id="wq-h-teacher" href="' + esc(quizHref(t.code, { k: t.k })) + '">▶ ' + esc(T.play) + '</a></div>';
   }
   function tile(subject, i) { return '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[subjectKey(subject)] || '▶') + '</span>'; }
   function againList(list) {
     if (!list.length) return '';
     return '<p class="wq-hlabel">' + esc(T.againT) + '</p><ul class="wq-vlist">' + list.map(function (a, i) {
-      return '<li><a class="wq-vitem" data-again="' + i + '" href="/q/' + esc(a.code) + '?again=1&amp;k=' + esc(a.k) + '">' + tile(a.subject, i) +
-        '<span class="wq-vtext"><b dir="auto">' + esc(a.topic) + '</b><small>' + T.againRow('<bdi dir="ltr">' + esc(a.best.c + '/' + a.best.t) + '</bdi>', a.tries) + '</small></span></a></li>';
+      return '<li><a class="wq-vitem" data-again="' + i + '" href="' + esc(quizHref(a.code, { again: '1', k: a.k })) + '">' + tile(a.subject, i) +
+        '<span class="wq-vtext"><b dir="auto">' + esc(a.topic) + '</b><small>' + T.againRow(a.best && a.best.t ? '<bdi dir="ltr">' + esc(a.best.c + '/' + a.best.t) + '</bdi>' : '–', Number(a.tries) || 1) + '</small></span></a></li>';
     }).join('') + '</ul><p class="wq-small">' + esc(T.practice) + '</p>';
   }
   function recList(list) {
@@ -163,7 +171,7 @@
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     // With no teacher quiz the empty card already holds the library button: no second library tile.
     var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(B.lib.href) + '"><span class="wq-htic" aria-hidden="true">📚</span><b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(TOKEN) + '?kid=' + esc(B.kid) + '&amp;lang=' + LANG + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
     render(bar() + jug('hello', T.hi(me.first || '')) + teacherCard(B.teacher) +
       (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '') +
       againList(B.again || []) + recList(B.recs || []) +
@@ -189,9 +197,16 @@
     api('POST', 'videos/start', { hub: TOKEN, kid: B.kid, vid: v.vid }).then(function (r) {
       if (r.status === 409) { starting = false; hub(); toast(T.noClass); return; }
       if (!r.ok || !r.body || !r.body.code) throw new Error('rec_' + r.status);
-      location.assign('/q/' + encodeURIComponent(r.body.code) + (r.body.k ? '?k=' + encodeURIComponent(r.body.k) : ''));
+      location.assign(quizHref(r.body.code, { k: r.body.k }));
     }).catch(function () { starting = false; hub(); toast(T.oops); });
   }
+
+  // Back from a quiz restores this page from the back/forward cache, mid "Opening…": make it live again.
+  window.addEventListener('pageshow', function (e) {
+    if (!e || !e.persisted) return;
+    starting = false;
+    if (B.kid) hub(); else if ((B.kids || []).length) picker();
+  });
 
   /* ---------------- boot ---------------- */
   ev('hub_view', { src: B.kid ? 'hub' : 'who', i: (B.kids || []).length });

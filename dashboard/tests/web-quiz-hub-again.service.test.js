@@ -39,3 +39,8 @@ test('?again=1 with a hub chip: the old attempt is cleared before the identity c
   expect(s.st).toBeNull();
   expect(p.moment()).not.toBe('M10');
 });
+
+test('?again=1 never clears an attempt whose finish is still waiting to reach the server (S.pending)', () => {
+  const p = page({ lang: 'en', store: finished({ pending: { at: 1 } }), search: '?again=1' });
+  expect(store(p, 'wq_s_TEST').result).not.toBeNull();
+});
