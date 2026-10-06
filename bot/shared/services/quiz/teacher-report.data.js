@@ -75,8 +75,16 @@ function classOf(roster, quiz, listId) {
   const lists = roster.lists.map((l) => ({ id: l.id, label: l.label }));
   // A list the teacher picked on the page counts only when it is theirs.
   const picked = listId && roster.lists.some((l) => l.id === listId) ? listId : null;
-  const pick = Roster.pickList(roster, { listId: picked || quiz.list_id || null, grade: quiz.grade });
-  if (pick.ask || !pick.list) return { roster: { state: 'ambiguous', className: null, of: null, lists }, one: null };
+  const bound = picked || quiz.list_id || null;
+  const pick = Roster.pickList(roster, { listId: bound, grade: quiz.grade });
+  const ambiguous = { roster: { state: 'ambiguous', className: null, of: null, lists }, one: null };
+  if (pick.ask || !pick.list) return ambiguous;
+  // pickList's last resort is "the teacher's only list". The child page may play
+  // against it, but the teacher's not-played list must not: a grade-5 quiz is not
+  // the teacher's grade-3 class. Unless the list was bound or picked, a list whose
+  // grade contradicts the quiz's grade is not assumed — the teacher picks.
+  const qg = gradeNum(quiz.grade);
+  if (!bound && qg && pick.list.grade && pick.list.grade !== qg) return ambiguous;
   const one = Roster.onlyList(roster, pick.list);
   return { roster: { state: 'known', className: pick.list.label, of: one.kids.length, lists }, one };
 }
@@ -253,9 +261,14 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     byQuiz.get(q).push(pct(s.correct_answers || 0, s.total_questions_answered || 0));
   });
 
+  let roster = null;
+  try { roster = await readRoster(teacherId); } catch (err) {
+    logToFile('⚠️ teacher report: class list read failed — no class sizes', { error: err.message });
+  }
   const rows = qs.map((q) => {
     const scores = byQuiz.get(q.id) || [];
     return {
+      of: classOf(roster, q, null).roster.of,
       id: q.id, date: (q.meta && q.meta.lesson_date) || q.created_at, topic: q.topic || '', grade: gradeNum(q.grade) || null,
       subject: q.subject || null, source: q.quiz_source, played: scores.length, avg: mean(scores), scores,
     };

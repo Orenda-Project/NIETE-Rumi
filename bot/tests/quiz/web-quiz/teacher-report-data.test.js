@@ -152,6 +152,16 @@ describe('quizReport', () => {
     expect(r.roster.state).toBe('ambiguous');
   });
 
+  test('the teacher\'s only list is a different grade: not assumed — ambiguous, no not-played list', async () => {
+    seed();
+    // QUIZ2 is grade 5; the teacher keeps only 3-B
+    const r = await Data.quizReport(TEACHER, QUIZ2);
+    expect(r.roster.state).toBe('ambiguous');
+    expect(r.notPlayed).toBeNull();
+    // the teacher can still say it was 3-B on the page
+    expect((await Data.quizReport(TEACHER, QUIZ2, { listId: LIST3B })).roster).toMatchObject({ state: 'known', className: '3-B' });
+  });
+
   test('no class list: state none, played still shown', async () => {
     seed({ lists: [] });
     const r = await Data.quizReport(TEACHER, QUIZ);
@@ -189,6 +199,9 @@ describe('classReport', () => {
     expect(cells['3|science']).toMatchObject({ quizzes: 1, played: 2, avg: 63 });
     expect(cells['5|maths']).toMatchObject({ quizzes: 1, played: 1, avg: 50 });
     expect(r.quizzes.some((q) => q.topic === 'Secret')).toBe(false);
+    // each quiz row says how many children its ONE class has (grade 3 → the 3-B list); unknown class → null
+    expect(r.quizzes[0].of).toBe(4);
+    expect(r.quizzes[1].of).toBeNull();
     expect(r.weeks.length).toBeGreaterThanOrEqual(1);
     expect(r.weeks.reduce((n, w) => n + w.quizzes, 0)).toBe(2);
   });
