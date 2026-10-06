@@ -957,7 +957,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rollT: 'What is your roll number?', rollSay: 'Tap your roll number, then Go.', go: 'Go', del: 'Delete',
       noRoll: "I don't know my number", onPhoneOr: 'Or tap your name',
       unknown: function (n) { return 'No one in this class has number ' + n + '. Try again!'; },
-      isYouSub: 'Is this you?', tryAgain: 'No, try again', none: 'None of these is me',
+      isYouSub: 'Is this you?', tryAgain: 'No, try again', none: 'None of these is me', no: 'No',
+      classT: 'Which class are you in?', classSay: 'Tap your class.', notHere: 'My class is not here',
       whoBtn: 'Who played?', whoT: 'Who played', whoSub: 'Children not on your class list come first. Tap one to give their roll number.',
       whoNone: 'No child has finished yet.', offList: 'Not on your class list', roll: function (n) { return 'Roll ' + n; },
       setRoll: 'Set roll no.', noList: 'This quiz is not linked to a class list, so names stay as the children typed them.',
@@ -969,7 +970,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
       noRoll: 'مجھے اپنا نمبر نہیں پتا', onPhoneOr: 'یا اپنے نام پر ٹیپ کریں',
       unknown: function (n) { return 'اس کلاس میں نمبر ' + n + ' کسی کا نہیں۔ دوبارہ کوشش کریں!'; },
-      isYouSub: 'کیا یہ آپ ہیں؟', tryAgain: 'نہیں، دوبارہ', none: 'ان میں سے کوئی نہیں',
+      isYouSub: 'کیا یہ آپ ہیں؟', tryAgain: 'نہیں، دوبارہ', none: 'ان میں سے کوئی نہیں', no: 'نہیں',
+      classT: 'آپ کس کلاس میں ہیں؟', classSay: 'اپنی کلاس پر ٹیپ کریں۔', notHere: 'میری کلاس یہاں نہیں',
       whoBtn: 'کس نے کھیلا؟', whoT: 'کس نے کھیلا', whoSub: 'جو بچے آپ کی کلاس لسٹ میں نہیں، وہ اوپر ہیں۔ رول نمبر دینے کے لیے نام پر ٹیپ کریں۔',
       whoNone: 'ابھی کسی بچے نے کوئز مکمل نہیں کیا۔', offList: 'کلاس لسٹ میں نہیں', roll: function (n) { return 'رول نمبر ' + n; },
       setRoll: 'رول نمبر دیں', noList: 'یہ کوئز کسی کلاس لسٹ سے جڑا نہیں، اس لیے نام ویسے ہی ہیں جیسے بچوں نے لکھے۔',
@@ -997,7 +999,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     });
   }
 
+  // The one class this quiz plays against, when the server could not tell (two lists, no grade match):
+  // the child taps their class first; 'none' = "my class is not here" (a new child, no list).
+  var CLS_PICK = null;
   function who() {
+    if (CLS.roster && CLS.roster.classes && CLS.roster.classes.length && !CLS_PICK) return whichClass(CLS.roster.classes);
+    if (CLS_PICK === 'none') return newKid();
     if (CLS.roster) return rollPad('', '');
     var here = kids();
     var chips = (CLS.chips || []).filter(function (c) { return !here.some(function (k) { return k.chip === c.chip; }); });
@@ -1010,6 +1017,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     wireBar();
     wireKids(here.concat(CLS.chips || []));
     on('#wq-new', newKid);
+    on('#wq-back', landing);
+  }
+
+  function whichClass(classes) {
+    var h = bar() + jug('idle', TW.classSay) + '<h2>' + esc(TW.classT) + '</h2>' +
+      '<div class="wq-chips">' + classes.map(function (c) {
+        return '<button class="wq-kid wq-cls" data-cls="' + esc(c.key) + '"><bdi dir="ltr">' + esc(c.label) + '</bdi></button>';
+      }).join('') + '</div>' +
+      '<button class="wq-btn wq-soft" id="wq-notmine">' + esc(TW.notHere) + '</button>' +
+      '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
+    render(h, 'M4-class');
+    wireBar();
+    Array.prototype.forEach.call(ROOT.querySelectorAll('[data-cls]'), function (b) {
+      b.addEventListener('click', function () {
+        CLS_PICK = b.getAttribute('data-cls');
+        ev('identity_pick', { src: 'class' });
+        rollPad('', '');
+      });
+    });
+    on('#wq-notmine', function () { CLS_PICK = 'none'; ev('identity_pick', { src: 'class_none' }); newKid(); });
     on('#wq-back', landing);
   }
 
@@ -1044,7 +1071,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       });
     });
     on('#wq-noroll', function () { ev('identity_pick', { src: 'no_roll' }); newKid(); });
-    on('#wq-back', opts.back || landing);
+    on('#wq-back', opts.back || (CLS_PICK ? function () { CLS_PICK = null; who(); } : landing));
   }
 
   /* The teacher's "Who played?" (their own preview link): first names and roll numbers only; a child who
@@ -1078,29 +1105,33 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var padOpts = { teacher: true, screen: 'M4-who-fix', title: TW.fixT(row.first), say: TW.fixSay, back: whoPlayed, onGo: goFix };
     rollPad('', '', padOpts);
     function goFix(roll) {
-        api('POST', 'who/fix', { code: CODE, p: params.p, ref: row.ref, roll: roll }).then(function (r) {
-          if (r.status === 404 && r.body && r.body.error === 'roll_unknown') return rollPad('', TW.unknown(digitsFor(roll)), padOpts);
-          if (r.status !== 409 || !r.body || r.body.error !== 'is_this_you') { toast(T.oops); return; }
-          var cands = r.body.candidates || [];
-          var h = bar() + cands.map(function (c) {
-            return '<div class="wq-card wq-stack"><h2>' + esc(TW.isKid(c.first)) + ' ' + ani(c.animal) + '</h2>' +
-              (c.cls ? '<p class="wq-sub"><bdi dir="ltr">' + esc(c.cls) + '</bdi></p>' : '') +
-              '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(TW.yes) + '</button></div>';
-          }).join('') + '<button class="wq-btn wq-soft" id="wq-diff">' + esc(TW.tryAgain) + '</button>';
-          render(h, 'M4-who-confirm');
-          wireBar();
-          Array.prototype.forEach.call(ROOT.querySelectorAll('[data-chip]'), function (b) {
-            b.addEventListener('click', function () {
-              api('POST', 'who/fix', { code: CODE, p: params.p, ref: row.ref, chip: b.getAttribute('data-chip') }).then(function (r2) {
-                if (!r2.ok) { toast(T.oops); return; }
-                ev('identity_fixed', {});
-                toast(TW.fixed);
-                whoPlayed();
-              }, function () { toast(T.offline); });
-            });
-          });
-          on('#wq-diff', function () { fixRow(row); });
-        }, function () { toast(T.offline); });
+      api('POST', 'who/fix', { code: CODE, p: params.p, ref: row.ref, roll: roll }).then(function (r) {
+        if (r.status === 404 && r.body && r.body.error === 'roll_unknown') return rollPad('', TW.unknown(digitsFor(roll)), padOpts);
+        if (r.status !== 409 || !r.body || r.body.error !== 'is_this_you') { toast(T.oops); return; }
+        confirmFix(r.body.candidates || [], 0);
+      }, function () { toast(T.offline); });
+    }
+    // One candidate at a time, as the child's own "is this you?".
+    function confirmFix(cands, i) {
+      var c = cands[i];
+      if (!c) return fixRow(row);
+      var h = bar() + '<div class="wq-card wq-stack"><h2>' + esc(TW.isKid(c.first)) + ' ' + ani(c.animal) + '</h2>' +
+          (c.cls ? '<p class="wq-sub"><bdi dir="ltr">' + esc(c.cls) + '</bdi></p>' : '') +
+          '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(TW.yes) + '</button></div>' +
+        '<button class="wq-btn wq-soft" id="wq-diff">' + esc(i < cands.length - 1 ? TW.no : TW.tryAgain) + '</button>';
+      render(h, 'M4-who-confirm');
+      wireBar();
+      Array.prototype.forEach.call(ROOT.querySelectorAll('[data-chip]'), function (b) {
+        b.addEventListener('click', function () {
+          api('POST', 'who/fix', { code: CODE, p: params.p, ref: row.ref, chip: b.getAttribute('data-chip') }).then(function (r2) {
+            if (!r2.ok) { toast(T.oops); return; }
+            ev('identity_fixed', {});
+            toast(TW.fixed);
+            whoPlayed();
+          }, function () { toast(T.offline); });
+        });
+      });
+      on('#wq-diff', function () { confirmFix(cands, i + 1); });
     }
   }
 
@@ -1125,26 +1156,28 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     newKid.force = function () { go(true); };
   }
 
-  /* "Are you Ayesha?" — after a roll number (roll set) or a typed name that is near a known child. */
-  function isThisYou(cands, typed, roll) {
+  /* "Are you Ayesha?" — after a roll number (roll set) or a typed name that is near a known child.
+     ONE candidate at a time, so there is never a second green Yes for a child to tap by mistake. */
+  function isThisYou(cands, typed, roll, i) {
+    i = i || 0;
+    var c = cands[i];
+    if (!c) return;
+    var last = i >= cands.length - 1;
     var h = bar() + jug('thinking', roll ? TW.isYouSub : T.isYouSub) +
-      cands.map(function (c) {
-        return '<div class="wq-card wq-stack"><h2>' + esc(T.isYou(c.first)) + ' ' + ani(c.animal) + '</h2>' +
-          (c.cls ? '<p class="wq-sub"><bdi dir="ltr">' + esc(c.cls) + '</bdi></p>' : '') +
-          '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(T.yesMe) + '</button></div>';
-      }).join('') +
-      (roll ? '<button class="wq-btn wq-soft" id="wq-diff">' + esc(cands.length > 1 ? TW.none : TW.tryAgain) + '</button>'
-        : '<button class="wq-btn wq-soft" id="wq-diff">' + esc(T.diff(typed.split(' ')[0])) + '</button>');
+      '<div class="wq-card wq-stack"><h2>' + esc(T.isYou(c.first)) + ' ' + ani(c.animal) + '</h2>' +
+      (c.cls ? '<p class="wq-sub"><bdi dir="ltr">' + esc(c.cls) + '</bdi></p>' : '') +
+      '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(T.yesMe) + '</button></div>' +
+      '<button class="wq-btn wq-soft" id="wq-diff">' + esc(roll && last ? TW.tryAgain : TW.no) + '</button>';
     render(h, 'M4-isyou');
     wireBar();
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-chip]'), function (b) {
       b.addEventListener('click', function () {
-        var c = cands.filter(function (x) { return x.chip === b.getAttribute('data-chip'); })[0];
         ev('identity_pick', { src: roll ? 'roll' : 'is_this_you' });
         startSession({ chip: c.chip, via: roll ? 'roll' : 'name' }, c);
       });
     });
     on('#wq-diff', function () {
+      if (!last) return isThisYou(cands, typed, roll, i + 1);
       if (roll) { ev('identity_pick', { src: 'roll_not_me' }); return rollPad('', ''); }
       startSession({ new: { name: typed, cls: String(Q.grade || ''), force: true } }, null, typed);
     });
@@ -1161,8 +1194,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (dref) body.device_ref = dref;
     if (params.p) body.p = params.p;
     if (S.st) body.resume_st = S.st;
+    if (CLS_PICK && (who.roll != null || who.new)) body.list = CLS_PICK;
     api('POST', 'session', body).then(function (r) {
       busy = false;
+      if (r.status === 409 && r.body.error === 'which_class') { CLS_PICK = null; ev('identity_pick', { src: 'which_class' }); return whichClass(r.body.classes || []); }
       if (r.status === 409 && r.body.error === 'maybe_you') return isThisYou(r.body.candidates || [], typed || '');
       if (r.status === 409 && r.body.error === 'is_this_you') return isThisYou(r.body.candidates || [], '', roll);
       if (r.status === 404 && r.body.error === 'roll_unknown') { ev('identity_pick', { src: 'roll_unknown' }); return rollPad('', TW.unknown(digitsFor(roll))); }

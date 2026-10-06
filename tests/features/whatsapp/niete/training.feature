@@ -1737,6 +1737,16 @@ Feature: NIETE (ICT) Teacher Training
     But with the switch off, or without a class list, children pick or type their names as before
     # ADDED 2026-10-05: web-quiz-roster.js (rosterOn, loadRoster, byRoll, byName, nearName); web-quiz.service getQuiz cls.roster + startSession body.roll / roster chips. Unit: tests/quiz/web-quiz/web-quiz-roster.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T212 @no-mock-driver
+  Scenario: A child of one of my classes is never offered as a child of my other class
+    Given app_settings "web_quiz_roster_id" is true and I keep class lists "3-B" and "5-A"
+    When I send a grade 3 quiz and a child types a roll number or a name only "5-A" has
+    Then no "5-A" child is offered: the roll number is unknown and the typed name is a new child
+    When I send a grade 2 quiz (no list matches the grade)
+    Then the child first taps their class, or "My class is not here", and only that class is searched
+    And "Is this you?" asks about one child at a time with "Yes, it's me" and "No", never two "Yes" buttons
+    # ADDED 2026-10-06: web-quiz-roster.js pickList / onlyList; web-quiz.service oneClass (quizzes.list_id, grade), which_class 409, body.list; wq.js whichClass + one-at-a-time isThisYou. Unit: tests/quiz/web-quiz/web-quiz-roster.test.js, dashboard/tests/web-quiz-roll.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T210 @no-mock-driver
   Scenario: On my own preview link I see who played and can fix a child who typed a name not on my list
     Given app_settings "web_quiz_roster_id" is true, I keep a class list, and a child typed "Dansh" instead of giving a roll number

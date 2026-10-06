@@ -362,7 +362,7 @@ async function getQuiz(code, { p } = {}) {
   const ctx = await resolveCode(code);
   const [questions, { data: quizRow }] = await Promise.all([
     loadQuestions(ctx.quizId, { log: true }),
-    supabase.from('quizzes').select('id, topic, grade, subject, language, meta, video_id').eq('id', ctx.quizId).maybeSingle(),
+    supabase.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle(),
   ]);
   if (!questions.length) fail(404, 'no_questions');
   const helpers = mediaHelpers();
@@ -386,6 +386,8 @@ async function getQuiz(code, { p } = {}) {
   // A teacher with a class list: the child gives a roll number, so no classmates' names ship.
   const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
   const chips = roster ? [] : await classChips(ctx);
+  // A quiz whose class the server cannot tell (two lists, no grade match): the page asks the class first.
+  const pick = roster ? Roster.pickList(roster, { listId: quizRow && quizRow.list_id, grade: quizRow && quizRow.grade }, (id) => classKey(ctx, id)) : null;
   const preview = Boolean(p) && isPreviewFor(p, ctx);
   // The class and the teacher are named exactly as the teacher's own texts
   // name them: the forwarded WhatsApp message's "Teacher <name>", and the
@@ -404,7 +406,7 @@ async function getQuiz(code, { p } = {}) {
       n: questions.length,
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio)),
     },
-    cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip), ...(roster ? { roster: { lists: roster.lists.length } } : {}) },
+    cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip), ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}) },
     live: await liveCounts(ctx),
     video,
     preview,
@@ -413,6 +415,29 @@ async function getQuiz(code, { p } = {}) {
   };
   if (ctx.invitedByStudentId) out.challenge = await challengeOf(ctx);
   return out;
+}
+
+async function quizInfo(quizId) {
+  try {
+    const { data } = await supabase.from('quizzes').select('grade, list_id').eq('id', quizId).maybeSingle();
+    return { grade: (data && data.grade) || null, listId: (data && data.list_id) || null };
+  } catch { return { grade: null, listId: null }; }
+}
+
+/** An opaque per-code key for one of the teacher's class lists (the page never sees a list id). */
+const classKey = (ctx, listId) => T.chipId(ctx.shareCodeId, `list:${listId}`);
+
+/**
+ * The teacher's roster and the ONE class this quiz plays against (the child's
+ * chosen class key, else the quiz's list, else its grade's list). `one` is the
+ * roster cut to that class; `ask` lists the classes when the child must choose.
+ */
+async function oneClass(ctx, chosen) {
+  const q = await quizInfo(ctx.quizId);
+  const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: q.grade });
+  if (!roster) return { roster: null, grade: q.grade };
+  const pick = Roster.pickList(roster, { listId: q.listId, grade: q.grade, chosen: chosen == null ? null : String(chosen) }, (id) => classKey(ctx, id));
+  return { roster, grade: q.grade, ask: pick.ask || null, one: pick.ask ? null : Roster.onlyList(roster, pick.list) };
 }
 
 async function gradeOf(quizId) {
@@ -587,12 +612,13 @@ async function startSession(body = {}) {
     takerName = ctx.parent.teacher_name || null;
   } else if (body.roll != null) {
     // "What is your roll number?" -> "Are you <first name>?": the page confirms with the chip.
-    const quizGrade = await gradeOf(ctx.quizId);
-    const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
+    // A roll number resolves only within this quiz's one class list.
+    const { roster, grade: quizGrade, ask, one } = await oneClass(ctx, body.list);
     if (!roster) fail(400, 'bad_request', { why: 'who' });
     const roll = Roster.cleanRoll(body.roll);
     if (!roll) fail(400, 'bad_request', { why: 'roll' });
-    const found = Roster.byRoll(roster, roll, quizGrade);
+    if (ask) fail(409, 'which_class', { classes: ask });
+    const found = Roster.byRoll(one, roll, quizGrade);
     logEvent('web_quiz.roll_lookup', { shareCodeId: ctx.shareCodeId, matches: found.length });
     if (!found.length) fail(404, 'roll_unknown');
     fail(409, 'is_this_you', { candidates: found.map((f) => rosterChip(ctx, f)) });
@@ -633,15 +659,19 @@ async function startSession(body = {}) {
     if (!name) fail(400, 'bad_request', { why: 'name' });
     const cls = body.new.cls == null ? null : String(body.new.cls).replace(/[^\p{L}\p{N} -]/gu, '').slice(0, 20) || null;
     if (!body.new.force) {
-      const chips = await classChips(ctx);
       const mine = norm(firstName(name));
-      const quizGrade = await gradeOf(ctx.quizId);
-      const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
-      // With a class list, a typo still finds the child ("Aysha" -> Ayesha); without one, today's exact match.
-      const fromRoster = roster ? Roster.byName(roster, firstName(name), quizGrade).map((f) => rosterChip(ctx, f)) : [];
-      const fromChips = chips.filter((c) => (roster ? Roster.nearName(c.first, firstName(name)) : norm(c.first) === mine))
-        .filter((c) => !fromRoster.some((r) => r.chip === c.chip)).map(publicChip);
-      const candidates = fromRoster.concat(fromChips).slice(0, Roster.MAX_CANDIDATES);
+      const { roster, grade: quizGrade, ask, one } = await oneClass(ctx, body.list);
+      let candidates;
+      if (roster) {
+        // With a class list, a typo still finds the child ("Aysha" -> Ayesha) — but only in this
+        // quiz's class: a name that class does not have is a new child, never another class's child.
+        if (ask) fail(409, 'which_class', { classes: ask });
+        candidates = Roster.byName(one, firstName(name), quizGrade).map((f) => rosterChip(ctx, f));
+      } else {
+        const chips = await classChips(ctx);
+        candidates = chips.filter((c) => norm(c.first) === mine).map(publicChip);
+      }
+      candidates = candidates.slice(0, Roster.MAX_CANDIDATES);
       if (candidates.length) fail(409, 'maybe_you', { candidates });
     }
     const { data: created, error } = await supabase.from('students').insert({
