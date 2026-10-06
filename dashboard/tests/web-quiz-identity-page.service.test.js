@@ -108,6 +108,24 @@ describe('S0 landing', () => {
     expect(p.calls[0].body).toMatchObject({ code: 'AB12CD', chip: 'c2', via: 'remembered' });
     expect(srcs(p)).toEqual(['remembered']);
   });
+  test('classmates playing right now (E2 live.now, from 2 up): the v2 landing says so, a friend\'s challenge never', () => {
+    const live = (over = {}, challenge = null) => {
+      const p = page(over);
+      p.ctx.LIVE.now = 3;
+      p.ctx.T.liveNow = (n) => `${n} classmates are playing right now — join them!`;
+      if (challenge) { p.ctx.B.challenge = challenge; p.ctx.T.challenged = (n, c, t) => `${n} got ${c}/${t} stars. Can you beat it?`; }
+      p.ctx.landing();
+      return p.last().h;
+    };
+    expect(live()).toContain('3 classmates are playing right now — join them!');
+    expect(live({ kids: [{ chip: 'c1', first: 'Ayesha', animal: 'lion' }] })).toContain('3 classmates are playing right now');
+    const friend = live({}, { first: 'Ali', correct: 4, total: 5 });
+    expect(friend).toContain('Ali got 4/5 stars'); // the challenge landing really rendered
+    expect(friend).not.toContain('playing right now');
+    expect(live({ cls: V2({ invited: true }) })).not.toContain('playing right now');
+    const one = page(); one.ctx.LIVE.now = 1; one.ctx.T.liveNow = (n) => `${n} classmates are playing right now`; one.ctx.landing();
+    expect(one.last().h).not.toContain('playing right now');
+  });
   test('"Someone else" goes to "What is your name?" (no roll pad)', () => {
     const p = page({ kids: [{ chip: 'c1', first: 'Ayesha', animal: 'lion' }] });
     p.ctx.landing();
