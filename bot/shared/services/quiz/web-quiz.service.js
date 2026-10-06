@@ -1447,7 +1447,7 @@ async function finishSession(body = {}) {
     // (Never against themselves: a child who opens their own challenge link is not their own challenger.)
     ...(s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {}),
     // The signed ids of the pictures this child can share (web-quiz-art.js).
-    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode ? Art.artId('l', s.id) : null },
+    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode && !s.invited_by_student_id ? Art.artId('l', s.id) : null },
   };
 }
 

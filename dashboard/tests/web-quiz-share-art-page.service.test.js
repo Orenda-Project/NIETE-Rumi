@@ -100,3 +100,53 @@ describe('where the browser can share a file (Web Share Level 2)', () => {
     expect(shared[0].url).toBe(`https://example.test/q/TEST?a=${CARD}`);
   });
 });
+
+describe('the class link changes as the class plays', () => {
+  test('the shared /class link carries ?v=<finishers>, so WhatsApp re-fetches the preview instead of an old table', async () => {
+    const p = page({ lang: 'en', store: finished(), board: { finishers_n: 14, class_avg_pct: 70, rows: [], more_n: 0 } });
+    p.wq.board();
+    await flush(); await flush(); await flush();
+    p.els['#wq-share-t'].fire('click');
+    expect(waHref(p)).toContain('https://example.test/q/TEST/class?v=14');
+  });
+});
+
+describe("the invited friend's landing shows the picture the link previewed as", () => {
+  const CH = { first: 'Amal', correct: 7, total: 8 };
+  test('the invite picture sits above the challenge line, its alt the same words', () => {
+    const p = page({ lang: 'en', art: { invite: INVITE }, challenge: CH });
+    const h = p.html();
+    expect(h).toMatch(new RegExp(`<img class="wq-chpic" src="/q/TEST/art/invite\\.jpg\\?a=${encodeURIComponent(INVITE)}" alt="[^"]*Amal[^"]*7[^"]*">`));
+    expect(h.indexOf('wq-chpic')).toBeLessThan(h.indexOf('class="wq-banner"'));
+  });
+
+  test('a picture that cannot load is removed, never a broken image', () => {
+    const p = page({ lang: 'en', art: { invite: INVITE }, challenge: CH });
+    const img = p.els['.wq-chpic'];
+    expect(img.listeners.error).toHaveLength(1);
+  });
+
+  test('the class code (no challenge) shows no picture', () => {
+    const p = page({ lang: 'en', art: { class: 'l.TEST.abcdefghijkl' } });
+    expect(p.html()).not.toContain('wq-chpic');
+  });
+});
+
+describe('the school league share', () => {
+  const SCH = 's.TEST.qrstuvwxyzab';
+  test('carries the school picture and ?v=<the hour in Pakistan>, so the preview is this hour\'s board', async () => {
+    const p = page({
+      lang: 'en', store: finished(), art: { schools: SCH },
+      board: { finishers_n: 2, class_avg_pct: 70, rows: [], more_n: 0 },
+      api: { 'schools/': { rows: [{ place: 1, name: 'School Alpha', sector: 'B.K', points: 40, kids: 3, move: 0, mine: true }], mine: { place: 1, name: 'School Alpha', sector: 'B.K', points: 40, kids: 3, move: 0 }, ranked_n: 1, zero_n: 0 } },
+    });
+    p.wq.board();
+    await flush(); await flush(); await flush();
+    p.els['#wq-schools'].fire('click');
+    await flush(); await flush(); await flush();
+    p.els['#wq-share-s'].fire('click');
+    const hour = new Date(Date.now() + 5 * 3600000).toISOString().slice(0, 13).replace(/[-T]/g, '');
+    expect(waHref(p)).toContain(`https://example.test/q/TEST/schools?v=${hour}`);
+    expect(p.html()).toContain(`<img class="wq-artprev" src="/q/TEST/art/schools.jpg?a=${encodeURIComponent(SCH)}" alt="">`);
+  });
+});

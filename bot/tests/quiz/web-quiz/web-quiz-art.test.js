@@ -38,6 +38,12 @@ function seed() {
       { id: 's-2', quiz_id: 'qz-1', student_id: 'st-2', student_name: CLASSMATE, share_code_id: 'sc-1', status: 'completed', correct_answers: 8, total_questions_answered: 8, mastery_percentage: 100, completed_at: new Date(now - 30000).toISOString(), created_at: new Date(now - 200000).toISOString() },
     ],
     app_settings: [],
+    // the school league (web-quiz-schools.js) reads these
+    users: [{ id: 't-1', school_id: 'SA' }, { id: 't-2', school_id: 'SB' }],
+    schools: [
+      { id: 'SA', name: 'School Alpha', region: 'Sector One', is_active: true, is_probable_test: false },
+      { id: 'SB', name: 'School Bravo', region: 'Sector Two', is_active: true, is_probable_test: false },
+    ],
   };
 }
 
@@ -48,6 +54,7 @@ beforeEach(() => {
   fake = makeFake(seed());
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
   Art._resetCache();
+  require('../../../shared/services/quiz/web-quiz-schools')._reset();
   r2.downloadFromR2.mockReset().mockRejectedValue(Object.assign(new Error('NoSuchKey'), { name: 'NoSuchKey' }));
   r2.uploadBuffer.mockReset().mockResolvedValue('https://r2/x');
   htmlToImage.mockReset().mockImplementation(async (html, o) => sharp({ create: { width: o.width, height: o.height || o.width, channels: 3, background: '#333748' } }).png().toBuffer());
@@ -159,6 +166,39 @@ describe('render + cache', () => {
     expect(two.bytes.equals(one.bytes)).toBe(true);
     expect(htmlToImage).toHaveBeenCalledTimes(1);
     expect(r2.downloadFromR2).toHaveBeenLastCalledWith(r2.uploadBuffer.mock.calls[0][1]);
+  });
+
+  test("the card names the child's school and the points this play added to it", async () => {
+    await Art.artImage(Art.artId('c', SID), { size: 'og' });
+    expect(htmlToImage.mock.calls[0][0]).toMatch(/<p class="pts"><span class="num">\+\d+<\/span> points for <bdi dir="ltr">School Alpha<\/bdi><\/p>/);
+  });
+
+  test("the school picture: my school among its neighbours, highlighted; schools only, no child or teacher", async () => {
+    await Art.artImage(Art.artId('s', 'CLS001'), { size: 'og' });
+    const html = htmlToImage.mock.calls[0][0];
+    expect(html).toMatch(/<li class="row you">[\s\S]*School Alpha/);
+    expect(html).not.toMatch(/Amal|Zarvish|Teacher A/);
+  });
+
+  test("a school with no points yet still gets its picture: the leaders and its own row", async () => {
+    fake.db.users[0].school_id = 'SB';
+    fake.db.users.push({ id: 't-3', school_id: 'SA' });
+    fake.db.quiz_share_codes.push({ id: 'sc-2', code: 'CLS002', quiz_id: 'qz-1', teacher_user_id: 't-3', topic: 'Fractions', language: 'en', active: true });
+    await Art.artImage(Art.artId('s', 'CLS002'), { size: 'og' });
+    const html = htmlToImage.mock.calls[0][0];
+    expect(html).toMatch(/<li class="row">[\s\S]*School Bravo/);
+    expect(html).toMatch(/<li class="row you">[\s\S]*School Alpha/);
+  });
+
+  test("an invited friend's card names neither the challenger's class nor their school", async () => {
+    const FRIEND = '2b3c4d5e-0000-4000-8000-00000000f00d';
+    fake.db.students.push({ id: 'st-f', student_name: 'Rafi Testwala' });
+    fake.db.quiz_sessions.push({ id: FRIEND, quiz_id: 'qz-1', student_id: 'st-f', student_name: 'Rafi Testwala', share_code_id: 'sc-1', invited_by_student_id: 'st-1', status: 'completed', correct_answers: 6, total_questions_answered: 8, mastery_percentage: 75, completed_at: new Date().toISOString(), created_at: new Date().toISOString() });
+    await Art.artImage(Art.artId('c', FRIEND), { size: 'og' });
+    const html = htmlToImage.mock.calls[0][0];
+    expect(html).toContain('>Rafi<');
+    expect(html).not.toContain('School Alpha');
+    expect(html).not.toMatch(/My score<span class="dot">/);
   });
 
   test("a practice round's card shows the kept first-try score, the one the league shows", async () => {
