@@ -182,6 +182,53 @@ function renderClosedPage({ lang, kind, origin, assetV, brandKey }) {
 </html>`;
 }
 
+function clientIp(req) {
+  return req.ip || (req.socket && req.socket.remoteAddress) || '';
+}
+
+/**
+ * The edge's one way to call the bot: x-api-key, x-forwarded-for, the phone's UA, a
+ * timeout, redirects never followed. Shared by the child quiz and the teacher report.
+ * Returns { status, body, location } (JSON parsed), or { status, bytes, contentType,
+ * location } for a 2xx picture — or for ANY answer when `raw` is set (an HTML page, a
+ * PDF). Throws { unreachable: true } when the bot cannot be reached.
+ */
+function createBotClient({ botUrl, apiKey, fetchImpl }) {
+  return async function callBot(method, pathname, req, body, { raw = false } = {}) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), BOT_TIMEOUT_MS) : null;
+    try {
+      const headers = { 'x-api-key': apiKey, 'x-forwarded-for': clientIp(req), accept: raw ? '*/*' : 'application/json' };
+      const ua = req.get('user-agent');
+      if (ua) headers['user-agent'] = ua.slice(0, 300);
+      const init = { method, headers, redirect: 'manual' };
+      if (controller) init.signal = controller.signal;
+      if (method !== 'GET') {
+        headers['content-type'] = 'application/json';
+        init.body = JSON.stringify(body || {});
+      }
+      const res = await fetchImpl(`${botUrl}${pathname}`, init);
+      const location = res.headers && res.headers.get ? res.headers.get('location') : null;
+      // A picture the bot answers as bytes (a cropped option, an inline option picture) is passed
+      // through as that picture: parsing it as JSON turned every one into "{}" (a blank tile).
+      const type = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
+      if ((raw || (res.status >= 200 && res.status < 300 && /^image\//i.test(type))) && res.arrayBuffer) {
+        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location };
+      }
+      const text = await res.text();
+      let json = null;
+      try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
+      return { status: res.status, body: json, location };
+    } catch (err) {
+      const e = new Error('bot_unreachable');
+      e.unreachable = true;
+      throw e;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+}
+
 function createWebQuizRouter(opts = {}) {
   const botUrl = String(opts.botUrl != null ? opts.botUrl : (process.env.MAIN_BOT_URL || '')).replace(/\/$/, '');
   const apiKey = opts.apiKey != null ? opts.apiKey : (process.env.INTERNAL_API_KEY || '');
@@ -192,43 +239,7 @@ function createWebQuizRouter(opts = {}) {
   // The brand the bot last named: a closed or unreachable quiz still wears this deployment's brand.
   let lastBrand = null;
 
-  function clientIp(req) {
-    return req.ip || (req.socket && req.socket.remoteAddress) || '';
-  }
-
-  // Returns { status, body, location } or throws { unreachable: true }.
-  async function callBot(method, pathname, req, body) {
-    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = controller ? setTimeout(() => controller.abort(), BOT_TIMEOUT_MS) : null;
-    try {
-      const headers = { 'x-api-key': apiKey, 'x-forwarded-for': clientIp(req), accept: 'application/json' };
-      const ua = req.get('user-agent');
-      if (ua) headers['user-agent'] = ua.slice(0, 300);
-      const init = { method, headers, redirect: 'manual' };
-      if (controller) init.signal = controller.signal;
-      if (method !== 'GET') {
-        headers['content-type'] = 'application/json';
-        init.body = JSON.stringify(body || {});
-      }
-      const res = await fetchImpl(`${botUrl}${pathname}`, init);
-      // A picture the bot answers as bytes (a cropped option, an inline option picture) is passed
-      // through as that picture: parsing it as JSON turned every one into "{}" (a blank tile).
-      const type = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
-      if (res.status >= 200 && res.status < 300 && /^image\//i.test(type) && res.arrayBuffer) {
-        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location: null };
-      }
-      const text = await res.text();
-      let json = null;
-      try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
-      return { status: res.status, body: json, location: res.headers && res.headers.get ? res.headers.get('location') : null };
-    } catch (err) {
-      const e = new Error('bot_unreachable');
-      e.unreachable = true;
-      throw e;
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
-  }
+  const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
 
   // ---- rate limits (BUILD_SPEC 3.3). Carriers put many phones behind one IP, so
   // the per-IP ceilings are generous and the tight ones are keyed on the token.
@@ -330,4 +341,4 @@ function createWebQuizRouter(opts = {}) {
   return router;
 }
 
-module.exports = { createWebQuizRouter, renderQuizPage, renderClosedPage, bootJson };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderClosedPage, bootJson };
