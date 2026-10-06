@@ -464,6 +464,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' league table'; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
       finN: function (n) { return n + ' finished'; }, yourScore: 'Your score', avg: 'Class average', firstOnly: 'First names only. Ties share a place.',
       shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!',
+      schoolsBtn: '🏫 School league', schoolsT: 'School league', schoolsRule: 'This week · 10 points for playing, up to 10 for your score',
+      pts: function (n) { return fmtN(n) + (n === 1 ? ' point' : ' points'); }, kidsN: function (n) { return fmtN(n) + (n === 1 ? ' child played' : ' children played'); },
+      yourSchool: 'YOUR SCHOOL', moveNew: 'NEW', schoolPlace: function (s, p) { return s + ' is #' + p + ' this week'; },
+      sinceY: function (m) { return (m > 0 ? '▲' : '▼') + Math.abs(m) + ' since yesterday'; },
+      added: function (n, s) { return '+' + n + ' points for ' + s + '!'; },
+      ghost: function (s) { return 'No one from ' + s + ' has played yet this week. Be the first!'; },
+      zeroN: function (n) { return fmtN(n) + (n === 1 ? ' school still to start' : ' schools still to start'); },
+      allSchools: 'All', mySector: 'My sector',
+      noSchools: 'No school has played yet this week. Yours can be first!', shareSchools: 'Share the school league', inviteSchool: 'Invite my school to play',
+      schoolsLine: function (s, p) { return p ? s + ' is #' + p + ' of all schools this week. Play and help us climb:' : 'No one from ' + s + ' has played yet this week. Be the first:'; },
       histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', todayMore: 'Great work today! Want to watch another video?', back: 'Back', sounds: 'Sounds',
       cont: function (i, n) { return 'Go on: question ' + i + ' of ' + n; }, contSay: function (n) { return 'Welcome back, ' + n + '! Your answers are saved.'; }, restart: 'Start again', months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       fbT: 'Send it on WhatsApp', fbSub: 'Tap the WhatsApp button, then pick the chat.', fbWa: 'Send on WhatsApp', fbCopy: 'Copy the message', copied: 'Message copied',
@@ -506,6 +516,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + n + ' اور'; },
       finN: function (n) { return n + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!',
+      schoolsBtn: '🏫 اسکولوں کی لیگ', schoolsT: 'اسکولوں کی لیگ', schoolsRule: 'اس ہفتے · کھیلنے کے 10 پوائنٹس، اسکور کے 10 تک',
+      pts: function (n) { return fmtN(n) + ' پوائنٹس'; }, kidsN: function (n) { return fmtN(n) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا'); },
+      yourSchool: 'آپ کا اسکول', moveNew: 'نیا', schoolPlace: function (s, p) { return s + ' اس ہفتے نمبر ' + p + ' پر'; },
+      sinceY: function (m) { return 'کل سے ' + Math.abs(m) + (m > 0 ? ' درجے اوپر' : ' درجے نیچے'); },
+      added: function (n, s) { return s + ' کے لیے ' + n + '+ پوائنٹس!'; },
+      ghost: function (s) { return 'اس ہفتے ' + s + ' سے ابھی کسی نے نہیں کھیلا۔ سب سے پہلے کھیلیں!'; },
+      zeroN: function (n) { return fmtN(n) + ' اسکول ابھی شروع نہیں ہوئے'; },
+      allSchools: 'سب', mySector: 'میرا سیکٹر',
+      noSchools: 'اس ہفتے ابھی کسی اسکول نے نہیں کھیلا۔ آپ کا اسکول پہلا ہو سکتا ہے!', shareSchools: 'اسکول لیگ بھیجیں', inviteSchool: 'اسکول کو کھیلنے کی دعوت دیں',
+      schoolsLine: function (s, p) { return p ? s + ' اس ہفتے سب اسکولوں میں نمبر ' + p + ' پر ہے۔ کھیلیں اور اسے اوپر لے جائیں:' : 'اس ہفتے ' + s + ' سے ابھی کسی نے نہیں کھیلا۔ سب سے پہلے کھیلیں:'; },
       histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', todayMore: 'آج بہت اچھا کام کیا! ایک اور ویڈیو دیکھیں؟', back: 'واپس', sounds: 'آوازیں',
       cont: function (i, n) { return 'جاری رکھیں: سوال ' + i + ' از ' + n; }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں', months: ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'],
       fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'واٹس ایپ والا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا',
@@ -1618,7 +1638,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<a class="wq-btn wq-go" id="wq-wa" href="https://wa.me/?text=' + encodeURIComponent(full) + '">' + esc(T.fbWa) + '</a>' +
       '<button class="wq-btn wq-soft" id="wq-copy">' + esc(T.fbCopy) + '</button>' +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
-    var back = ROOT.getAttribute('data-m') === 'M11' ? board : card;
+    var at = ROOT.getAttribute('data-m');
+    var back = at === 'M11' ? board : at === 'M16' ? drawSchools : card;
     NAV.shareBack = back;
     render(h, 'M12-fallback');
     wireBar();
@@ -1654,7 +1675,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
-      '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' + moreBtn();
+      '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' +
+      '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>' + moreBtn();
     render(h, 'M10');
     wireBar();
     ev('card_view', {});
@@ -1668,6 +1690,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-share', function () { share(line, classUrl, 'card'); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge'); });
     on('#wq-class', board);
+    on('#wq-schools', function () { schools(card); });
     on('#wq-more', moreVideos);
   }
 
@@ -1772,11 +1795,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<span>' + esc(T.avg) + '</span><span>' + esc(b.class_avg_pct || 0) + '%</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (b.class_avg_pct || 0) + '%"></b></div></div>' +
         '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
         '<button class="wq-btn wq-go" id="wq-share-t">' + esc(T.shareTable) + '</button>' +
+        '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>' +
         (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.myScores) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
       render(h, 'M11');
       wireBar();
       ev('board_view', { src: B.view === 'class' ? 'class_link' : 'page', i: b.finishers_n });
       on('#wq-share-t', function () { share(T.tableLine(Q.topic, CLASS_LABEL), link('/q/' + CODE + '/class'), 'table'); });
+      on('#wq-schools', function () { schools(board); });
       on('#wq-next', history);
       on('#wq-play', landing);
     }).catch(function (e) {
@@ -1785,6 +1810,80 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       wireBar();
       on('#wq-retry', board);
     });
+  }
+
+  /* ---------------- M16 school league ---------------- */
+  // Every school's points this week (10 for playing + up to 10 for the score). The child's own school is a
+  // card on top (its place, its move since yesterday, what this finish added) and its row is pinned (CSS
+  // sticky) when scrolled away; a school with nothing yet gets "be the first" on top and is never given a
+  // rank. The schools still to start are names behind a fold, never numbers. "My sector" filters here.
+  var SCH = { back: null, data: null, sector: false };
+  function schoolMove(m) {
+    if (m === 'new') return '<span class="wq-move wq-new">' + esc(T.moveNew) + '</span>';
+    if (typeof m !== 'number' || !m) return '';
+    return m > 0 ? '<span class="wq-move wq-up" dir="ltr">▲' + m + '</span>' : '<span class="wq-move wq-down" dir="ltr">▼' + (-m) + '</span>';
+  }
+  function schoolRow(r) {
+    return '<li class="wq-srow' + (r.mine ? ' wq-you' : '') + '"' + (r.mine ? ' id="wq-mine"' : '') + '>' +
+      '<span class="wq-splace">' + esc(r.place) + '</span>' +
+      '<span class="wq-sname"><bdi>' + esc(r.name) + '</bdi>' + (r.mine ? '<span class="wq-tag">' + esc(T.yourSchool) + '</span>' : '') +
+      '<small>' + esc(T.kidsN(r.kids || 0)) + '</small></span>' +
+      '<span class="wq-spts">' + esc(T.pts(r.points || 0)) + schoolMove(r.move) + '</span></li>';
+  }
+  function schoolsSrc(back) { return B.view === 'schools' && !SCH.opened ? 'link' : back === card ? 'card' : back === today ? 'today' : 'class'; }
+  function schools(from) {
+    SCH.back = typeof from === 'function' ? from : afterResult;
+    NAV.schoolsBack = SCH.back;
+    render(bar() + '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>', 'M16-wait');
+    wireBar();
+    api('GET', 'schools/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : '')).then(function (r) {
+      if (!r.ok) throw new Error('schools_' + r.status);
+      SCH.data = r.body || {};
+      SCH.sector = false;
+      var mine = SCH.data.mine || null;
+      ev('leaderboard_view', { src: schoolsSrc(SCH.back), i: (mine && mine.place) || 0, seq: SCH.data.ranked_n || 0 });
+      SCH.opened = true;
+      drawSchools();
+    }).catch(function (e) {
+      ev('error', { err: (e && e.message) || 'schools' });
+      render(bar() + jug('notyet', T.offline) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M16-error');
+      wireBar();
+      on('#wq-retry', function () { schools(SCH.back); });
+    });
+  }
+  function drawSchools() {
+    var b = SCH.data || {};
+    var mine = b.mine || null;
+    var rows = b.rows || [];
+    if (SCH.sector && mine && mine.sector) rows = rows.filter(function (x) { return x.sector === mine.sector; });
+    var list = rows.map(schoolRow).join('');
+    var nm = mine ? '<bdi>' + esc(mine.name) + '</bdi>' : '';
+    var top = !mine ? '' : mine.ghost
+      ? '<div class="wq-card wq-mycard wq-zero" id="wq-mine"><p>' + T.ghost(nm) + '</p></div>'
+      : '<div class="wq-card wq-mycard" id="wq-mycard"><p><b>' + T.schoolPlace(nm, esc(mine.place)) + '</b></p>' +
+        (typeof mine.move === 'number' && mine.move ? '<p class="wq-move ' + (mine.move > 0 ? 'wq-up' : 'wq-down') + '">' + esc(T.sinceY(mine.move)) + '</p>' : '') +
+        '<p class="wq-sub">' + esc(T.pts(mine.points || 0)) + ' · ' + esc(T.kidsN(mine.kids || 0)) + '</p>' +
+        (b.added ? '<p class="wq-added">' + T.added(esc(b.added), nm) + '</p>' : '') + '</div>';
+    var chips = mine && mine.sector
+      ? '<div class="wq-chips wq-schips"><button class="wq-chip' + (SCH.sector ? '' : ' wq-on') + '" id="wq-all">' + esc(T.allSchools) + '</button>' +
+        '<button class="wq-chip' + (SCH.sector ? ' wq-on' : '') + '" id="wq-sector">' + esc(T.mySector) + ' · <bdi>' + esc(mine.sector) + '</bdi></button></div>' : '';
+    var zn = b.zero_names || [];
+    var zero = b.zero_n && (b.rows || []).length && !SCH.sector
+      ? '<details class="wq-zero-list"><summary>' + esc(T.zeroN(b.zero_n)) + '</summary>' +
+        (zn.length ? '<ul>' + zn.map(function (n) { return '<li><bdi>' + esc(n) + '</bdi></li>'; }).join('') + '</ul>' : '') + '</details>' : '';
+    var h = bar() + '<h2>' + esc(T.schoolsT) + '</h2><p class="wq-sub">' + esc(T.schoolsRule) + '</p>' + top + chips +
+      (list ? '<ol class="wq-slist">' + list + '</ol>' : mine ? '' : '<div class="wq-card">' + esc(T.noSchools) + '</div>') + zero +
+      (mine ? '<button class="wq-btn wq-go" id="wq-share-s">' + esc(mine.ghost ? T.inviteSchool : T.shareSchools) + '</button>' : '') +
+      '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
+    render(h, 'M16');
+    wireBar();
+    on('#wq-all', function () { SCH.sector = false; drawSchools(); });
+    on('#wq-sector', function () { SCH.sector = true; drawSchools(); });
+    on('#wq-share-s', function () {
+      ev('leaderboard_share', { src: 'schools', i: (mine && mine.place) || 0 });
+      share(T.schoolsLine(mine.name, mine.ghost ? null : mine.place), link('/q/' + CODE + '/schools'), 'schools');
+    });
+    on('#wq-back', SCH.back);
   }
 
   /* ---------------- M13 history (when the API has it) -> M14 today ---------------- */
@@ -1831,9 +1930,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.todayT) + '</p>' +
       '<div class="wq-big">' + esc(fmtN(LIVE.ict_today_floor || 0)) + '</div>' +
       '<p class="wq-sub">' + esc(T.todaySub) + '</p></div>' +
-      (more ? moreBtn() : '') + '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
+      (more ? moreBtn() : '') + '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>' +
+      '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
     render(h, 'M14');
     wireBar();
+    on('#wq-schools', function () { schools(today); });
     on('#wq-home', function () { if (S.result) card(); else landing(); });
     on('#wq-more', moreVideos);
   }
@@ -1856,13 +1957,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // pressed it on a question lost the page. The page keeps ONE entry, added on a tap (Chrome skips entries
   // a page adds without one): Back on a side screen goes to the screen it came from; during the quiz the
   // first Back only warns (the answers are saved) and a second one leaves; on the end screens it leaves.
-  var NAV = { armed: false, warnAt: 0, leaving: false, shareBack: null };
+  var NAV = { armed: false, warnAt: 0, leaving: false, shareBack: null, schoolsBack: null };
   var PLAYING = { M5: 1, M6: 1, M7: 1, 'M9-fix': 1, 'M9-tricky': 1 };
   function afterResult() { if (S.result) card(); else landing(); }
   function backTo(m) {
     if (m === 'M4') return landing;
     if (m === 'M4-new' || m === 'M4-isyou') return who;
     if (m === 'M12-fallback') return NAV.shareBack || afterResult;
+    if (/^M16/.test(m)) return NAV.schoolsBack || afterResult;
     if (m === 'M11' || m === 'M13' || m === 'M14' || /^M15/.test(m)) return afterResult;
     return null;
   }
@@ -1895,8 +1997,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var conn = navigator.connection || {};
   ev('page_open', { ua: String(navigator.userAgent || '').slice(0, 300), iab: IAB, store: STORE_OK ? 1 : 0, net: conn.effectiveType || '', src: B.view || 'quiz', reason: params.from ? 'challenge' : undefined });
   if (S.queue.length) flushQueue();
-  var FROM = B.view === 'class' || S.st ? null : handover();
-  if (B.view === 'class') board();
+  var FROM = B.view === 'class' || B.view === 'schools' || S.st ? null : handover();
+  if (B.view === 'schools') schools(afterResult);
+  else if (B.view === 'class') board();
   else if (FROM) { ev('more_arrive', {}); startSession({ from_st: FROM.st }, null, ''); }
   else if (S.result && S.st) card();
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();
