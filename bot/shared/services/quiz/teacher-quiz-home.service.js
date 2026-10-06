@@ -3,7 +3,7 @@
  * The teacher's /quiz HOME (W37, M3 SPEC §1): one message, three reply buttons.
  *
  *   tqh_make     Make a quiz      → /quiz as it has always been (the Flow, or
- *                                   the lesson list) — quiz-menu-entry openMakeQuiz
+ *                                   the lesson list) — teacher-quiz-make openMakeQuiz
  *   tqh_reports  My quiz reports  → the sent quizzes, each with who played and
  *                                   the average; a tap sends that quiz's report link
  *   tqh_class    Class progress   → the report link for all the teacher's classes
@@ -64,7 +64,7 @@ async function handleHomeButton(buttonId, from, user) {
   logEvent('quiz_menu.choice', { userId, choice });
   const lang = langOf(user);
   if (choice === 'make' || !(await homeOn(userId))) {
-    const { openMakeQuiz } = require('./quiz-menu-entry.service');
+    const { openMakeQuiz } = require('./teacher-quiz-make.service');
     await openMakeQuiz({ user, from, language: lang });
     return true;
   }
