@@ -1550,7 +1550,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         ev('identity_pick', { src: 'remembered_gone' });
         return who();
       }
-      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub') landing(); return; }
+      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st) landing(); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
@@ -1563,7 +1563,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (ID) ID.started(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
       if (wantsVideo()) video(); else nextQuestion();
-    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub') landing(); });
+    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st) landing(); });
   }
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
@@ -2427,16 +2427,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var conn = navigator.connection || {};
   ev('page_open', { ua: String(navigator.userAgent || '').slice(0, 300), iab: IAB, store: STORE_OK ? 1 : 0, net: conn.effectiveType || '', src: B.view || 'quiz', reason: B.challenge ? 'challenge' : undefined });
   if (S.queue.length) flushQueue();
-  // M4a hub: "Play again" (?again=1) starts a fresh attempt on this phone (a finished one only, never unsent
-  // answers); ?k=<chip> is this quiz's chip for the child the hub named: start as them, like a tapped card.
+  // M4a hub: "Play again" (?again=1) starts a fresh attempt on this phone: a finished one only, never unsent
+  // answers. (?k=<chip> is the identity code's: it confirms the child before playing.)
   if (params.again === '1' && S.result && !S.queue.length) { S = { st: null, child: null, answers: {}, queue: [], seq: 0, wrong: [], result: null }; save(); ev('again', {}); }
-  var HUBK = B.view !== 'class' && !params.p && /^[0-9a-f]{16}$/.test(params.k || '') ? params.k : null;
-  if (params.again || params.k) { try { window.history.replaceState(window.history.state, '', location.pathname); } catch (e) {} }
   var FROM = B.view === 'class' || B.view === 'schools' || S.st ? null : handover();
   if (B.view === 'schools') schools(afterResult);
   else if (B.view === 'class') board();
   else if (FROM) { ev('more_arrive', {}); startSession({ from_st: FROM.st }, null, ''); }
-  else if (HUBK && !S.result && !(S.st && S.child && S.child.chip === HUBK && answeredCount() > 0)) startSession({ chip: HUBK, via: 'hub' }, null);
   else if (S.result && S.st) card();
   else if (S.pending && S.st) results(S.fixed || 0);
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();
