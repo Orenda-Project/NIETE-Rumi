@@ -811,6 +811,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // rows in one language, and an English quiz opened from an Urdu class page must not say "not yet"
   // in the Urdu voice and the answer in the English one. The page's own copy stays in LANG.
   var VLANG = (function () {
+    // The server names the language the quiz's clips are recorded in (quiz.voice_lang); an English
+    // quiz that quotes an Urdu word stays English. The script guess below is only for a page served
+    // by a bot that does not send it yet.
+    var v = Q && Q.voice_lang;
+    if (v === 'en' || v === 'ur') return v;
     var t = (QS || []).map(function (q) { return (q.text || '') + ' ' + ((q.options || [])[0] || {}).text; }).join(' ');
     if (!t.replace(/\s|undefined/g, '')) return LANG;
     return /[\u0600-\u06FF]/.test(t) ? 'ur' : 'en';

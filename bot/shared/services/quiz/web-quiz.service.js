@@ -479,6 +479,9 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
       id: ctx.quizId, code: ctx.code,
       topic: pageTopic({ lang: ctx.lang, meta: quizRow && quizRow.meta, fallback: ctx.parent.topic || (quizRow && quizRow.topic) }),
       lang: ctx.lang, dir: ctx.lang === 'ur' ? 'rtl' : 'ltr',
+      // The language the quiz's clips are recorded in (the row's, else its questions' script): the page's
+      // shared feedback lines follow it, so one quiz is never two voices (an English quiz quoting an Urdu word).
+      voice_lang: clampLanguage(require('./web-quiz-publish.service').quizLanguage(quizRow, questions)),
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),
