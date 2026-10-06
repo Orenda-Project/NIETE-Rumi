@@ -1759,6 +1759,17 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-generate salvageWithoutBadFigures (isSoft skip, v2); transcript-quiz-named-pronouns lookback in
     # transcript-quiz-pedagogy. Unit: tests/quiz/quiz-author-gates-fail-soft.test.js, quiz-author-gates-named-pronouns.test.js. @wip.
 
+  @api @quiz @wip @draft @config-gated @P2 @T244 @no-mock-driver
+  Scenario: With the author gates on, a question re-asked because another gave its answer away is built on a line of my lesson
+    Given app_settings "quiz_author_gates_v2" is true
+    And one question of my quiz gives away the answer of a later one
+    When the later question is written again
+    Then it is shown lines of my lesson that no question uses yet, and quotes one of them
+    So the source check keeps it instead of dropping it, and my class keeps more of its questions
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-generate withLessonMoments, applied to every rewrite call with the gates on.
+    # Unit: tests/quiz/quiz-author-gates-leak-moments.test.js. @wip.
+
   @api @quiz @wip @draft @config-gated @P2 @T241 @no-mock-driver
   Scenario: With the author gates on, a young child hears reasons short enough to follow
     Given app_settings "quiz_author_gates_v2" is true
