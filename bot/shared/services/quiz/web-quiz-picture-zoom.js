@@ -11,7 +11,14 @@
  * milliseconds of decoding per question, cached per question. A picture that cannot be decoded,
  * or a set whose pictures differ as wholes, gets no zoom (null) — the plain picture is shown.
  */
-const sharp = require('sharp');
+// `sharp` is a native module installed with the bot's dependencies. It is required lazily so this
+// module (reached from whatsapp-bot.js through web-quiz.service) still loads where it is absent —
+// the root CI job's webhook suites — and simply gives no zoom there.
+let sharpLib = null; let sharpTried = false;
+function getSharp() {
+  if (!sharpTried) { sharpTried = true; try { sharpLib = require('sharp'); } catch { sharpLib = null; } }
+  return sharpLib;
+}
 
 const N = 96; // the grid the pictures are compared on
 const STRONG = 200; // |dR|+|dG|+|dB| above this is a real difference, not shading or JPEG noise
@@ -27,6 +34,8 @@ const cache = new Map();
 const CACHE_MAX = 500;
 
 async function rgb(b64) {
+  const sharp = getSharp();
+  if (!sharp) throw new Error('sharp unavailable');
   const { data } = await sharp(Buffer.from(String(b64), 'base64'))
     .flatten({ background: '#ffffff' }).resize(N, N, { fit: 'fill' }).removeAlpha().raw()
     .toBuffer({ resolveWithObject: true });
@@ -106,6 +115,8 @@ async function zoomFor(q) {
 /** The picture cropped to the box, as a PNG about 240 px wide; null if it cannot be made. */
 async function crop(b64, box) {
   try {
+    const sharp = getSharp();
+    if (!sharp) return null;
     const img = sharp(Buffer.from(String(b64), 'base64'));
     const { width, height } = await img.metadata();
     const left = Math.round(box.x * width); const top = Math.round(box.y * height);
