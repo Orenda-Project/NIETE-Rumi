@@ -29,6 +29,7 @@
       subj: function (s) { return s; }, subjects: 'Subjects', back: 'Back', done: 'Done ✓', mins: function (n) { return n + ' min'; },
       dl: 'Download', dlHelp: 'Download not starting?', chrome: 'Open in Chrome', none: 'No videos here yet.',
       oops: 'The videos did not load.', retry: 'Try again', wait: 'Opening the library…',
+      noClass: 'Play a quiz from your teacher first, then this video opens here.', opening: 'Opening the video…',
     },
     ur: {
       libT: 'ویڈیو لائبریری', pick: 'ایک مضمون چنیں', vids: function (n) { return n + ' ویڈیوز'; },
@@ -36,6 +37,7 @@
       subj: function (s) { return SUBJ_UR[s] || s; }, subjects: 'مضامین', back: 'واپس', done: 'مکمل ✓', mins: function (n) { return n + ' منٹ'; },
       dl: 'ڈاؤن لوڈ', dlHelp: 'ڈاؤن لوڈ شروع نہیں ہوا؟', chrome: 'Chrome میں کھولیں', none: 'یہاں ابھی کوئی ویڈیو نہیں۔',
       oops: 'ویڈیوز نہیں کھلیں۔', retry: 'دوبارہ کوشش کریں', wait: 'لائبریری کھل رہی ہے…',
+      noClass: 'پہلے اپنے استاد کا کوئی کوئز کھیلیں، پھر یہ ویڈیو یہاں کھلے گی۔', opening: 'ویڈیو کھل رہی ہے…',
     },
   };
 
@@ -48,7 +50,9 @@
     return h.toString(36);
   }
   var lastSt = null;
-  function key(code, st, g, s) { return 'wql:' + code + ':' + hash(st) + ':' + (g || '') + ':' + (s || ''); }
+  // A list's source: a quiz the child is in ({code, st}) or the kid's hub ({hub, kid}).
+  function srcId(o) { return o.hub ? 'h:' + o.hub + ':' + hash(o.kid) : o.code + ':' + hash(o.st); }
+  function key(o, g, s) { return 'wql:' + srcId(o) + ':' + (g || '') + ':' + (s || ''); }
   // The network the phone says it has: no prefetch on Data saver or 2G; on 3G the small lists only.
   function net() {
     var c = (typeof navigator !== 'undefined' && navigator.connection) || {};
@@ -75,18 +79,20 @@
     mem[k] = v;
     try { if (ss()) ss().setItem(k, JSON.stringify(v)); } catch (e) {}
   }
-  function url(code, st, g, s) {
+  function url(o, g, s) {
     var q = [];
-    if (st) q.push('st=' + encodeURIComponent(st));
+    if (o.hub) q.push('kid=' + encodeURIComponent(o.kid || ''));
+    else if (o.st) q.push('st=' + encodeURIComponent(o.st));
     if (g) q.push('g=' + encodeURIComponent(g));
     if (s) q.push('s=' + encodeURIComponent(s));
-    return '/api/wq/lib/' + encodeURIComponent(code) + (q.length ? '?' + q.join('&') : '');
+    var base = o.hub ? '/api/wq/lib/h/' + encodeURIComponent(o.hub) : '/api/wq/lib/' + encodeURIComponent(o.code);
+    return base + (q.length ? '?' + q.join('&') : '');
   }
   // Resolves with the data, or {off:true}; rejects on a network or server failure. One request per key at a time.
-  function load(code, st, g, s) {
-    var k = key(code, st, g, s);
+  function load(o, g, s) {
+    var k = key(o, g, s);
     if (inflight[k]) return inflight[k];
-    var p = fetch(url(code, st, g, s), { headers: { accept: 'application/json' } }).then(function (r) {
+    var p = fetch(url(o, g, s), { headers: { accept: 'application/json' } }).then(function (r) {
       return r.text().then(function (t) {
         var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) {}
         if (r.status === 404 && j && j.error === 'library_off') { OFF = true; return { off: true }; }
@@ -107,12 +113,12 @@
 
   /** In idle time: the subjects, then the quiz's own subject's chapters (what "Watch another video" opens). */
   function prefetch(o) {
-    if (OFF || !o || !o.code || net() === 'off') return;
+    if (OFF || !o || !(o.code || o.hub) || net() === 'off') return;
     idle(function () {
-      var l1 = cached(key(o.code, o.st, '', ''));
-      var p = l1 ? Promise.resolve(l1) : load(o.code, o.st, '', '');
+      var l1 = cached(key(o, '', ''));
+      var p = l1 ? Promise.resolve(l1) : load(o, '', '');
       p.then(function (d) {
-        if (d && !d.off && d.mine && !cached(key(o.code, o.st, '', d.mine))) return load(o.code, o.st, '', d.mine);
+        if (d && !d.off && d.mine && !cached(key(o, '', d.mine))) return load(o, '', d.mine);
         return null;
       }).catch(function () {});
     });
@@ -192,7 +198,9 @@
       return '<section class="wql-chap">' + title + '<div class="' + (one ? 'wql-one' : 'wql-strip') + '">' +
         vids.map(function (v) { return cardHtml(o, d, v, art, one); }).join('') + '</div></section>';
     }).join('');
-    return '<div class="wql-head"><button class="wql-up" id="wql-up">' + esc(t.subjects) + '</button><h2>' + esc(t.subj(d.subject)) + ' · ' + nb(o, t.grade(d.grade)) + '</h2></div>' +
+    var note = o.note ? '<p class="wq-banner wql-note">' + esc(o.note) + '</p>' : '';
+    o.note = null;
+    return '<div class="wql-head"><button class="wql-up" id="wql-up">' + esc(t.subjects) + '</button><h2>' + esc(t.subj(d.subject)) + ' · ' + nb(o, t.grade(d.grade)) + '</h2></div>' + note +
       (body || '<p class="wq-sub">' + esc(t.none) + '</p>') + helpHtml(o) +
       '<button class="wq-btn wq-ghost" id="wql-back">' + esc(t.back) + '</button>';
   }
@@ -238,15 +246,15 @@
   // Paint from the cache when it has the list (0 round trips), else wait for the bot; refetch quietly after.
   function show(o, g, s, draw) {
     var my = ++seq;
-    var k = key(o.code, o.st, g, s);
+    var k = key(o, g, s);
     var hit = cached(k);
     if (hit) {
       draw(hit, 'mem');
-      load(o.code, o.st, g, s).catch(function () {});
+      load(o, g, s).catch(function () {});
       return;
     }
     o.paint(waitHtml(o), 'M15-wait');
-    load(o.code, o.st, g, s).then(function (d) {
+    load(o, g, s).then(function (d) {
       if (my !== seq) return;               // the child has moved on (Back, another grade)
       if (d.off) return o.fallback();
       draw(d, 'net');
@@ -287,7 +295,7 @@
           var at = i++;
           o.on('[data-v="' + attr(v.vid) + '"]', function () {
             if (o.ev) o.ev('lib_pick', { vid: v.vid, ch_i: ci });
-            o.onPick({ vid: v.vid, title: v.title, code: v.code || null, done: Boolean(v.done) }, at);
+            o.onPick({ vid: v.vid, title: v.title, code: v.code || null, k: v.k || null, done: Boolean(v.done) }, at);
           });
         });
       });
@@ -305,7 +313,7 @@
     // Another child in this tab: the last child's lists are not theirs.
     if (lastSt !== null && lastSt !== o.st) mem = {};
     lastSt = o.st;
-    var l1 = cached(key(o.code, o.st, '', ''));
+    var l1 = cached(key(o, '', ''));
     var s = o.subject || (l1 && l1.mine) || '';
     if (l1) o.grade0 = l1.grade;
     if (s) return chapters(o, '', s);
@@ -314,7 +322,7 @@
     o.paint(waitHtml(o), 'M15-wait');
     cur = { o: o, g: '', s: '' };
     var my = ++seq;
-    load(o.code, o.st, '', '').then(function (d) {
+    load(o, '', '').then(function (d) {
       if (my !== seq) return;
       if (d.off) return o.fallback();
       o.grade0 = d.grade;
@@ -329,9 +337,61 @@
     return null;
   }
 
+  /* ---------------- the library page from the kid's hub (/lib/<hub token>) ---------------- */
+  // The edge serves a shell with {view:'lib', hub, kid, lang} and no quiz: this file runs the page.
+  function standalone() {
+    var bootEl = document.getElementById && document.getElementById('boot');
+    var root = document.getElementById && document.getElementById('wql-root');
+    var b = null;
+    try { b = bootEl ? JSON.parse(bootEl.textContent) : null; } catch (e) { b = null; }
+    if (!b || b.view !== 'lib' || !root || !b.hub) return;
+    var lang = b.lang === 'ur' ? 'ur' : 'en';
+    var t = T[lang];
+    var hubUrl = '/h/' + encodeURIComponent(b.hub) + (b.kid ? '?kid=' + encodeURIComponent(b.kid) : '');
+    var evs = [];
+    function ev(n, p) {
+      var e = { t: Date.now(), lang: lang, n: n };
+      for (var k in p) if (p[k] !== undefined) e[k] = p[k];
+      evs.push(e);
+    }
+    function flushEv() {
+      if (!evs.length) return;
+      try { fetch('/api/wq/e', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ events: evs.splice(0, 20) }), keepalive: true }).catch(function () {}); } catch (e) {}
+    }
+    var going = false;
+    var o = {
+      hub: b.hub, kid: b.kid || '', lang: lang, iab: /WhatsApp|FBAN|FBAV|Instagram|; wv\)/.test(navigator.userAgent || ''),
+      paint: function (h, m) { root.innerHTML = '<section class="wq-screen" data-m="' + m + '">' + h + '</section>'; },
+      on: function (sel, fn) { var x = root.querySelector(sel); if (x) x.addEventListener('click', fn); return x; },
+      ev: ev,
+      onBack: function () { flushEv(); location.assign(hubUrl); },
+      fallback: function () { location.assign(hubUrl); },
+      onPick: function (v) {
+        if (going) return;
+        if (v.code && v.k) { going = true; flushEv(); location.assign('/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k)); return; }
+        going = true;
+        fetch('/api/wq/videos/start', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify({ hub: o.hub, kid: o.kid, vid: v.vid }) }).then(function (r) {
+          return r.text().then(function (x) {
+            var j = null; try { j = x ? JSON.parse(x) : null; } catch (e) {}
+            if (r.ok && j && j.code) { flushEv(); location.assign('/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : '')); return; }
+            going = false;
+            ev('error', { err: r.status === 409 ? 'lib_no_class' : 'lib_start_' + r.status });
+            o.note = r.status === 409 ? t.noClass : t.oops;
+            if (cur && cur.s) chapters(o, cur.g, cur.s);
+          });
+        }, function () { going = false; o.note = t.oops; if (cur && cur.s) chapters(o, cur.g, cur.s); });
+      },
+    };
+    subjects(o, '');
+    if (window.addEventListener) window.addEventListener('pagehide', flushEv);
+    setTimeout(flushEv, 4000);
+  }
+
   window.WQL = {
     open: open, prefetch: prefetch, up: up, dlHtml: dlHtml, helpHtml: helpHtml, wireDl: wireDl,
     off: function () { return OFF; }, active: function () { return Boolean(cur); }, T: T,
     _reset: function () { mem = {}; OFF = false; inflight = {}; cur = null; seq = 0; docs = {}; lastSt = null; },
   };
+  standalone();
 })();

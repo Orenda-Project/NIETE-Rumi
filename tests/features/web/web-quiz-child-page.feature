@@ -928,3 +928,20 @@ Feature: Web child quiz page on the portal
     Given an Urdu quiz
     When the child opens the library
     Then subject and grade names, counts, "Done" and "Download" are in Urdu, and sizes read left to right
+
+  @T382
+  Scenario: The library from the kid's hub
+    Given a child opened their hub from WhatsApp and the video library is on
+    When the child taps the Library tile
+    Then the subjects of the child's grade are shown, with no names of other children anywhere
+    When the child taps a lesson the class already has a code for
+    Then that lesson's page opens and starts as the same child, with no picking
+    And a lesson the class has never played gets its code first, from the newest quiz the child played from their teacher
+    And a child who has not played any quiz from their teacher yet is told to play one first, and stays in the library
+
+  @T383
+  Scenario: The scorecard of a video quiz names the next lesson
+    Given the video library is on and a child finishes a video quiz
+    Then the result names the next lesson of the same grade and subject in the WhatsApp Flow's order that the child has not finished
+    And the rest of the same chapter comes first, then the next chapters
+    And nothing is named when every lesson of that subject and grade is finished, or for a lesson quiz

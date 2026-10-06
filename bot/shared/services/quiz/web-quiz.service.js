@@ -1501,12 +1501,21 @@ async function finishSession(body = {}) {
     ...(s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {}),
     // The signed ids of the pictures this child can share (web-quiz-art.js).
     art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode && !s.invited_by_student_id ? Art.artId('l', s.id) : null },
+    // M4b library: a video quiz's scorecard offers the next lesson ("Next in this chapter").
+    ...(await nextLesson(s)),
   };
 }
 
 async function bestField(s) {
   const best = await bestBefore(s.share_code_id, s.student_id, s.id);
   return best ? { best } : {};
+}
+
+/** {next} for a video quiz with the library on, else nothing (the payload stays today's). */
+async function nextLesson(s) {
+  if (!(await require('./web-quiz-library-flag').libraryOn())) return {};
+  const next = await require('./web-quiz-bank').nextInChapter({ quizId: s.quiz_id, studentId: s.student_id, shareCodeId: s.share_code_id });
+  return next ? { next } : {};
 }
 
 async function versus(s, mine) {

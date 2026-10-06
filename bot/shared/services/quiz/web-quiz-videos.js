@@ -206,50 +206,39 @@ function classRootId(ctx) {
   return r.parent_share_code_id && !r.invited_by_student_id ? r.parent_share_code_id : ctx.shareCodeId;
 }
 
-async function start(body = {}) {
-  const WebQuiz = require('./web-quiz.service');
-  requireOn(WebQuiz);
-  const fail = (status, error) => { throw new WebQuiz.WqError(status, { error }); };
-  const ctx = await WebQuiz.resolveCode(body.code);
-  const tok = T.verify(body.st, 's');
-  if (!tok || tok.sc !== ctx.shareCodeId) fail(401, 'bad_token');
-  const vid = String(body.vid || '');
-  if (!VID_RX.test(vid)) fail(400, 'bad_request');
+/** The kid's hub (M4a's module, optional here: loaded by path so a deployment without it answers 503). */
+function hubModule() {
+  try { return require(require('path').join(__dirname, 'web-quiz-hub')); } catch (_) { return null; }
+}
 
-  const [{ data: video }, { data: vq }] = await Promise.all([
-    supabase.from('student_videos').select('id, clean_title, migration_status, superseded_by').eq('id', vid).maybeSingle(),
-    supabase.from('quizzes').select('id, topic, status').eq('video_id', vid).eq('quiz_source', 'video').maybeSingle(),
-  ]);
-  if (!video || video.migration_status !== 'done' || !vq || vq.status !== 'ready') fail(404, 'not_found');
-
-  const rootId = classRootId(ctx);
-  const { data: have } = await supabase.from('quiz_share_codes').select('code, active, expires_at')
+/** One code per (class code, video quiz): the live one, else minted with the class code's teacher. -> {id, code} */
+async function codeFor({ rootId, root, vq, video, vid, lang, fail }) {
+  const { data: have } = await supabase.from('quiz_share_codes').select('id, code, active, expires_at')
     .eq('parent_share_code_id', rootId).eq('quiz_id', vq.id).is('invited_by_student_id', null).limit(5);
   const live = (have || []).find((c) => c.active !== false && (!c.expires_at || new Date(c.expires_at) > new Date()));
   if (live) {
     logEvent('web_quiz.more_video_code', { shareCodeId: rootId, videoId: vid, quizId: vq.id, reused: true });
-    return { code: live.code };
+    return live;
   }
-
-  let root = ctx.parent;
-  if (!root || root.id !== rootId) {
-    const { data: r } = await supabase.from('quiz_share_codes')
+  let r = root;
+  if (!r || r.id !== rootId) {
+    const { data } = await supabase.from('quiz_share_codes')
       .select('id, teacher_user_id, teacher_name, language').eq('id', rootId).maybeSingle();
-    root = r;
+    r = data;
   }
-  if (!root) fail(404, 'not_found');
+  if (!r) fail(404, 'not_found');
   const { randomCode } = require('./video-quiz-share.service');
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const { data, error } = await supabase.from('quiz_share_codes').insert({
       code: randomCode(), quiz_id: vq.id, video_id: vid,
-      teacher_user_id: root.teacher_user_id, teacher_name: root.teacher_name,
-      topic: video.clean_title || vq.topic || null, language: root.language || ctx.lang,
+      teacher_user_id: r.teacher_user_id, teacher_name: r.teacher_name,
+      topic: video.clean_title || vq.topic || null, language: r.language || lang,
       parent_share_code_id: rootId, invited_by_student_id: null, active: true,
       expires_at: new Date(Date.now() + CODE_DAYS * 86400000).toISOString(),
     }).select('id, code').single();
     if (!error && data) {
       logEvent('web_quiz.more_video_code', { shareCodeId: rootId, videoId: vid, quizId: vq.id, reused: false, newShareCodeId: data.id });
-      return { code: data.code };
+      return data;
     }
     if (error && error.code !== '23505') {
       logToFile('❌ web-quiz videos: could not mint a code', { error: error.message }, 'error');
@@ -257,6 +246,45 @@ async function start(body = {}) {
     }
   }
   return fail(502, 'db_unavailable');
+}
+
+async function lessonOf(vid, fail) {
+  const [{ data: video }, { data: vq }] = await Promise.all([
+    supabase.from('student_videos').select('id, clean_title, migration_status, superseded_by').eq('id', vid).maybeSingle(),
+    supabase.from('quizzes').select('id, topic, status').eq('video_id', vid).eq('quiz_source', 'video').maybeSingle(),
+  ]);
+  if (!video || video.migration_status !== 'done' || !vq || vq.status !== 'ready') fail(404, 'not_found');
+  return { video, vq };
+}
+
+/**
+ * From a quiz page: {code, st, vid} -> {code}. From the kid's hub: {hub, kid, vid} -> {code, k},
+ * rooted at the newest teacher-sent code the child played (kidFromHub().rootId; none -> 409 no_class),
+ * with k = the child's chip on that code so the page starts as them with no picking.
+ */
+async function start(body = {}) {
+  const WebQuiz = require('./web-quiz.service');
+  requireOn(WebQuiz);
+  const fail = (status, error) => { throw new WebQuiz.WqError(status, { error }); };
+  const vid = String(body.vid || '');
+  if (body.hub) {
+    const Hub = hubModule();
+    if (!Hub || typeof Hub.kidFromHub !== 'function') fail(503, 'hub_off');
+    const who = await Hub.kidFromHub(String(body.hub), body.kid == null ? null : String(body.kid));
+    if (!who || !who.studentId) fail(401, 'bad_token');
+    if (!who.rootId) fail(409, 'no_class');
+    if (!VID_RX.test(vid)) fail(400, 'bad_request');
+    const { video, vq } = await lessonOf(vid, fail);
+    const c = await codeFor({ rootId: who.rootId, root: null, vq, video, vid, lang: 'en', fail });
+    return { code: c.code, k: T.chipId(c.id, who.studentId) };
+  }
+  const ctx = await WebQuiz.resolveCode(body.code);
+  const tok = T.verify(body.st, 's');
+  if (!tok || tok.sc !== ctx.shareCodeId) fail(401, 'bad_token');
+  if (!VID_RX.test(vid)) fail(400, 'bad_request');
+  const { video, vq } = await lessonOf(vid, fail);
+  const c = await codeFor({ rootId: classRootId(ctx), root: ctx.parent, vq, video, vid, lang: ctx.lang, fail });
+  return { code: c.code };
 }
 
 module.exports = { list, start, gradesFor, subjectFor, pick, mp4Seconds, classRootId, peekMeta, warmMeta, LIST_MAX, VID_RX, _metaCache: metaCache };
