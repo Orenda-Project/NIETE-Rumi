@@ -113,7 +113,7 @@ router.get('/page/:token', handle(async (req, res) => {
   });
   noStore(res);
   res.status(200).type('html').send(renderPage(b.data, {
-    lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, notice: NOTICES[req.query.e] || null,
+    lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, notice: NOTICES[req.query.e] || null, ok: okOf(req.query),
   }));
 }));
 
@@ -183,12 +183,21 @@ async function postedQuiz(req, res, v) {
 // hand-out has closed, e=1 anything else ("did not save, try again").
 const NOTICE_OF = { not_ready: '2', expired: '3' };
 const NOTICES = { 1: 'failed', 2: 'notReady', 3: 'closed' };
+/** ?ok=added|moved[&no=<list no.>] — allow-listed; anything else is ignored. */
+function okOf(query) {
+  if (query.ok !== 'added' && query.ok !== 'moved') return null;
+  const no = /^\d{1,4}$/.test(String(query.no || '')) ? Number(query.no) : null;
+  return { kind: query.ok, no };
+}
 
 /** Back to the report the form was on. */
-function back(req, res, out) {
+function back(req, res, out, done = null) {
   noStore(res);
-  const e = out.ok ? '' : `?e=${NOTICE_OF[out.reason] || '1'}`;
-  res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(req.params.token)}${e}`);
+  let q = out.ok ? '' : `?e=${NOTICE_OF[out.reason] || '1'}`;
+  // A saved fix says what happened: the kind and the child's list number only —
+  // never a name in a URL; the page finds the name in its own rows.
+  if (out.ok && done) q = `?ok=${done.kind}${done.no != null ? `&no=${done.no}` : ''}`;
+  res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(req.params.token)}${q}`);
 }
 
 /** Calls an identity v2 writer on web-quiz.service, which may not be deployed yet. */
@@ -197,8 +206,8 @@ async function identityWrite(fnName, args) {
   const WebQuiz = require('../services/quiz/web-quiz.service');
   if (typeof WebQuiz[fnName] !== 'function') return { ok: false, reason: 'not_ready' };
   try {
-    await WebQuiz[fnName](args);
-    return { ok: true };
+    const value = await WebQuiz[fnName](args);
+    return { ok: true, value };
   } catch (err) {
     if (err instanceof WebQuiz.WqError) return { ok: false, reason: String((err.body && err.body.error) || err.status) };
     throw err;
@@ -231,7 +240,9 @@ router.post('/fix/:token', handle(async (req, res) => {
     out = await identityWrite('fixWho', add ? { code: q.code, tr: req.params.token, ref, add: true } : { code: q.code, tr: req.params.token, ref, studentId });
   }
   logEvent('teacher_report.fixed', { teacherId: v.teacherId, quizId: q.quizId, how: add ? 'add' : 'student', ok: out.ok, ...(out.ok ? {} : { reason: out.reason }) });
-  back(req, res, out);
+  const row = out.value && out.value.row;
+  const no = row && Number.isInteger(Number(row.roll)) && row.roll !== null ? Number(row.roll) : null;
+  back(req, res, out, { kind: add ? 'added' : 'moved', no });
 }));
 
 module.exports = router;

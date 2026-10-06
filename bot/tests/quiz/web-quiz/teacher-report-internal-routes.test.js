@@ -290,6 +290,20 @@ describe('POST /class/:token and /fix/:token (identity v2 writers)', () => {
     expect(WebQuiz.whoClass).not.toHaveBeenCalled();
   });
 
+  test('fix: a saved fix comes back with ?ok=added|moved and the list number only (no name in the URL)', async () => {
+    const tok = quizTok();
+    WebQuiz.fixWho = jest.fn(async (b) => ({ ok: true, row: { ref: 's1', first: 'Kid2', roll: b.add ? 11 : 2, on_list: true } }));
+    const add = await post(`/fix/${tok}`, { quiz: QUIZ, ref: 's1', add: '1' });
+    expect(add.headers.get('location')).toBe(`/r/${tok}?ok=added&no=11`);
+    const mv = await post(`/fix/${tok}`, { quiz: QUIZ, ref: 's1', studentId: kid(2) });
+    expect(mv.headers.get('location')).toBe(`/r/${tok}?ok=moved&no=2`);
+    WebQuiz.fixWho = jest.fn(async () => ({ ok: true, row: { first: 'Gulnaz', roll: null } }));
+    const bare = await post(`/fix/${tok}`, { quiz: QUIZ, ref: 's1', add: '1' });
+    expect(bare.headers.get('location')).toBe(`/r/${tok}?ok=added`);
+    const html = await (await get(`/page/${tok}?ok=added&no=1`)).text();
+    expect(html.replace(/<[^>]+>/g, '')).toMatch(/Kid1 added to 3-B as list no\. 1\./);
+  });
+
   test('fix: add / studentId go to fixWho with the code and the report token', async () => {
     const tok = quizTok();
     WebQuiz.fixWho = jest.fn(async () => ({ ok: true }));
