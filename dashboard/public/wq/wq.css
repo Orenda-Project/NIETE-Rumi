@@ -225,6 +225,7 @@ html[lang=ur] .wq-zoom{font-family:var(--fu);font-weight:700}
 .wq-mlp .wq-pic{width:64px;height:64px}
 .wq-mlp .wq-mto{flex-basis:100%}
 .wq-opt.wq-ptile img{width:100%;max-width:120px;height:100px;object-fit:contain;background:transparent}
+.wq-opt.wq-ptile img.wq-z{width:100%;max-width:100%;height:auto;max-height:130px;border-radius:12px}
 .wq-emoji{font-size:64px;line-height:1.1}
 .wq-pname{font-size:18px;color:var(--navy)}
 .wq-tf{display:grid;grid-template-columns:1fr 1fr;gap:10px}

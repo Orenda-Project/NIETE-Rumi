@@ -233,6 +233,8 @@ var WQI = (function () {
       var al = o.pic.alt != null ? o.pic.alt : nm;
       return '<span class="wq-pic"' + (al ? ' role="img" aria-label="' + esc(al) + '"' : ' aria-hidden="true"') + '>' + cleanSvg(o.pic.svg) + '</span>';
     }
+    // ?z=1: the server cropped near-identical pictures to where they differ; the crop fills the tile.
+    if (o.img && /[?&]z=1\b/.test(o.img)) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '" class="wq-z wq-ld" onload="this.className=\'wq-z\'" onerror="this.className=\'wq-z\'">';
     if (o.img) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '"' + LOADING + '>';
     return '';
   }
