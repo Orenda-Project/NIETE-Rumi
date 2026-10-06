@@ -32,6 +32,7 @@ const WebItems = require('./web-quiz-items');
 const Figure = require('./web-quiz-figure');
 const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
+const { pageTopic } = require('./quiz-child-title');
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
@@ -400,7 +401,8 @@ async function getQuiz(code, { p } = {}) {
   } catch { label = null; }
   const out = {
     quiz: {
-      id: ctx.quizId, code: ctx.code, topic: ctx.parent.topic || (quizRow && quizRow.topic) || '',
+      id: ctx.quizId, code: ctx.code,
+      topic: pageTopic({ lang: ctx.lang, meta: quizRow && quizRow.meta, fallback: ctx.parent.topic || (quizRow && quizRow.topic) }),
       lang: ctx.lang, dir: ctx.lang === 'ur' ? 'rtl' : 'ltr',
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
