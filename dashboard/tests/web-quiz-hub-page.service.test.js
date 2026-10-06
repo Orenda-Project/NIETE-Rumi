@@ -15,9 +15,9 @@ const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlM
 function jsonRes(status, body) {
   return { status, ok: status >= 200 && status < 300, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(body) };
 }
-function req(srv, path) {
+function req(srv, path, headers = {}) {
   return new Promise((resolve, reject) => {
-    http.get({ host: '127.0.0.1', port: srv.address().port, path }, (res) => {
+    http.get({ host: '127.0.0.1', port: srv.address().port, path, headers }, (res) => {
       let out = '';
       res.on('data', (c) => { out += c; });
       res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: out }));
@@ -84,4 +84,14 @@ test('GET /api/wq/hub/:token is forwarded to the bot', async () => {
   expect(r.status).toBe(200);
   expect(calls[0].url).toBe(`${BOT}/api/internal/wq/hub/${TOKEN}?kid=0123456789abcdef`);
   expect(JSON.parse(r.body).kid).toBe('0123456789abcdef');
+});
+
+test('an expired link on an Urdu phone (Accept-Language ur): the closed page in Urdu', async () => {
+  next = jsonRes(401, { error: 'bad_token' });
+  const r = await req(srv, `/h/${TOKEN}`, { 'accept-language': 'ur-PK,ur;q=0.9,en;q=0.8' });
+  expect(r.status).toBe(401);
+  expect(r.body).toMatch(/<html lang="ur" dir="rtl">/);
+  expect(r.body).toContain('یہ لنک پرانا ہو چکا ہے');
+  const en = await req(srv, `/h/${TOKEN}`, { 'accept-language': 'en-GB,en;q=0.9' });
+  expect(en.body).toContain('This link has expired');
 });

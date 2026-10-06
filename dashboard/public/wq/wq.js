@@ -2429,7 +2429,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   if (S.queue.length) flushQueue();
   // M4a hub: "Play again" (?again=1) starts a fresh attempt on this phone: a finished one only, never unsent
   // answers. (?k=<chip> is the identity code's: it confirms the child before playing.)
-  if (params.again === '1' && S.result && !S.queue.length) { S = { st: null, child: null, answers: {}, queue: [], seq: 0, wrong: [], result: null }; save(); ev('again', {}); }
+  if (params.again === '1' && S.result && !S.queue.length && !S.pending) { S = { st: null, child: null, answers: {}, queue: [], seq: 0, wrong: [], result: null }; save(); ev('again', {}); }
+  if (params.again) { try { var u = new URLSearchParams(location.search); u.delete('again'); window.history.replaceState(window.history.state, '', location.pathname + (String(u) ? '?' + u : '')); } catch (e) {} }
   var FROM = B.view === 'class' || B.view === 'schools' || S.st ? null : handover();
   if (B.view === 'schools') schools(afterResult);
   else if (B.view === 'class') board();

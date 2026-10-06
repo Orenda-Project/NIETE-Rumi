@@ -815,7 +815,7 @@ Feature: Web child quiz page on the portal
   Scenario: A phone with siblings asks "Who is playing?" with only its own children
     Given a phone with two registered children
     When the hub link is opened
-    Then the first screen is "Who is playing?" («کون کھیل رہا ہے؟») with the two children's first names and animals
+    Then the first screen is "Who is playing?" («کس کی باری ہے؟», gender-neutral) with the two children's first names and animals
     And no classmate or other child is ever offered
     And tapping a name opens that child's hub, with "Switch player" to go back
 

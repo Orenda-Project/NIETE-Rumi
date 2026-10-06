@@ -447,7 +447,9 @@ function createWebQuizRouter(opts = {}) {
     pageHeaders(res);
     const origin = originOf(req);
     const token = String(req.params.token || '');
-    const closed = (status, kind, lang = 'en') => res.status(status).type('html').send(renderClosedPage({ lang, kind, origin, assetV: version(), brandKey: lastBrand }));
+    // No hub JSON on a closed link, so the phone's own language picks the page's (an Urdu phone reads Urdu).
+    const phoneLang = /^\s*ur\b/i.test(String(req.get('accept-language') || '')) ? 'ur' : 'en';
+    const closed = (status, kind) => res.status(status).type('html').send(renderClosedPage({ lang: phoneLang, kind, origin, assetV: version(), brandKey: lastBrand }));
     if (!HUB_TOKEN_RX.test(token)) return closed(401, 'hub');
     if (!botUrl || !apiKey) return closed(503, 'off');
     const kid = typeof req.query.kid === 'string' && /^[0-9a-f]{16}$/.test(req.query.kid) ? `?kid=${req.query.kid}` : '';
