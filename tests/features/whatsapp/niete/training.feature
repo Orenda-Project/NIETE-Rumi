@@ -1994,3 +1994,36 @@ Feature: NIETE (ICT) Teacher Training
     And with the setting absent or false, the quiz is made exactly as before
     # transcript-quiz-generate runTopUp (replaceFromSource on appended slots), after the final leak step; meta.top_up.
     # Unit: tests/quiz/quiz-author-gates-top-up.test.js. @wip.
+
+  # ─────────────── Training on the web, opened from WhatsApp (app_settings web_training_*) ───────────────
+  # A template's link button is what WhatsApp opens in its own browser, so with the switch on,
+  # Training is sent as the training_open_v1 template whose button logs THIS teacher into the
+  # portal's training pages. The Flow is the kill switch: anything else is today's Flow.
+
+  @web @config-gated @wip @draft @P1 @T248
+  Scenario: With web training on for me, Training opens the portal's training pages inside WhatsApp
+    Given app_settings "web_training_enabled" is true and "web_training_teachers" lists me or is "all"
+    When I open Teacher Training from the menu or with /training
+    Then I get the "training_open_v1" template in my language, with an "Open training" button, instead of the Flow
+    When I tap "Open training"
+    Then the portal's training page opens signed in as me, with no navigation to any other part of the portal
+    And any other portal page I reach sends me back to training
+    And the link works for 24 hours, and only as a way into training: my coaching, lesson plans, classes and school stay closed to it
+    # training-entry.service -> training-web-link (app_settings switch, template send) + training-link-token (24 h, own key).
+    # Portal: dashboard/routes/training-link.routes.js (/t/:token, trainingLinkScope); PortalLayout link-only mode.
+    # Unit: tests/training/web-training-link.test.js, tests/training/web-training-portal-link.test.js,
+    # portal PortalLayout.trainingLink.test.tsx. Log: training.web_link_open (ua, x-requested-with, iab). @wip.
+
+  @web @config-gated @negative @wip @draft @P1 @T249
+  Scenario: With web training off, not listed, or the template failing, Training is the Flow as before
+    Given "web_training_enabled" is false or absent, or "web_training_teachers" does not include me, or the template send fails
+    When I open Teacher Training
+    Then I get the Teacher Training Flow exactly as before, and no template
+
+  @web @negative @wip @draft @P2 @T250
+  Scenario: An expired or altered training link starts nothing and tells me how to get a new one
+    Given a training link older than 24 hours, or one that was altered
+    When I open it
+    Then no portal session is started
+    And the page says, in English and Urdu, that the link has expired and to open Training again in WhatsApp
+    And when my session from a link runs out mid-way, I land on that same page, never on a password login
