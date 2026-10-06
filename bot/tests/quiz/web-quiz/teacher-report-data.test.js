@@ -279,6 +279,15 @@ describe('classReport', () => {
   });
 });
 
+describe('classReport rows count the class list for "N of M"', () => {
+  test('a child not on the list played: of stays the class size, onList counts only the class', async () => {
+    const fake = seed();
+    fake.db.quiz_sessions.push(session('s7', 'b0000000-0000-4000-8000-0000000000ee', 'Typed Testwala', 3, 6));
+    const r = await Data.classReport(TEACHER, { days: 60 });
+    expect(r.quizzes[0]).toMatchObject({ played: 3, onList: 2, of: 4 });
+  });
+});
+
 describe('teacher report token (kind tr)', () => {
   test('round-trips a quiz scope and an all-classes scope', () => {
     const t = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ });
