@@ -229,9 +229,20 @@ Feature: Web child quiz page on the portal
   Scenario: The teacher fixes a child who typed a name instead of a roll number
     Given the teacher opens their own preview link of a quiz with a class list
     When the teacher taps "Who played?"
-    Then children not on the class list come first, each with "Set roll no."
+    Then children not on the class list come first, each with a small "Set roll" link on its one-line row
     When the teacher sets roll number 12 and confirms "Is this Danish?"
     Then the list reloads with Danish at "Roll 12"
+
+  Scenario: The teacher's own link is a page for the teacher
+    Given the teacher opens their own preview link
+    Then the header says "FOR TEACHERS", no mascot greets them like a child, and "Who played?" is the main button
+
+  Scenario: "Who played?" opens with what the teacher needs first
+    Given 12 children of a 30-child class list finished the quiz
+    When the teacher taps "Who played?"
+    Then the top line says "12 of 30 played", the average score, and which question most children missed
+    And a "Not played yet" list shows the other 18 children by first name and roll number only
+    And each child who played is one compact line: name, roll or "Not on your class list", score
 
   Scenario: A practice round's card says so
     Given a child already finished the quiz
