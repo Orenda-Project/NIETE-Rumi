@@ -19,6 +19,7 @@
  *     fewer pulses, never a wrong one.
  */
 const crypto = require('crypto');
+const supabase = require('../../config/supabase');
 const T = require('./web-quiz-token');
 
 const RING_MAX = 30;
@@ -33,6 +34,7 @@ const NAMES_MAX = 5000;
 const rings = new Map();   // shareCodeId -> [{h, first, invited, qn, at}], Map order = least recently active first
 const codeIds = new Map(); // code -> {id, until}: the idle poll's one lookup per code per process
 const names = new Map();   // sha8(session id) -> the first name the page shows for that child (once per session)
+const invitedOf = new Map(); // sha8(session id) -> true when the session is an invited friend's (read once per session)
 let clock = null;
 const now = () => (clock ? clock() : Date.now());
 
@@ -104,7 +106,8 @@ function liveNow(shareCodeId) {
 
 /**
  * GET /pulse/:code?st=&since= — the idle poll. The signed session token names the
- * session and its class code, so no session row is read; the code's id is looked
+ * session and its class code; the session row is read once per session (is it an invited
+ * friend's? then nothing), and the code's id is looked
  * up once per process and cached (a challenge code resolves to its class code,
  * exactly as resolveCode does for every other endpoint).
  */
@@ -126,6 +129,17 @@ async function poll(rawCode, { st, since: sinceMs } = {}, WQ) {
     while (codeIds.size > CODES_MAX) codeIds.delete(codeIds.keys().next().value);
   }
   if (hit.id !== tok.sc) throw new WQ.WqError(401, { error: 'bad_token' });
+  // An invited friend is not in the class and never sees classmates. The token does not say, so the
+  // session row is read once per session and remembered (bounded like the names).
+  const h = hashOf(tok.sid);
+  if (!invitedOf.has(h)) {
+    const { data: row, error } = await supabase.from('quiz_sessions').select('invited_by_student_id').eq('id', tok.sid).maybeSingle();
+    if (error) throw new WQ.WqError(502, { error: 'db_unavailable' });
+    if (!row) throw new WQ.WqError(401, { error: 'bad_token' });
+    invitedOf.set(h, Boolean(row.invited_by_student_id));
+    while (invitedOf.size > NAMES_MAX) invitedOf.delete(invitedOf.keys().next().value);
+  }
+  if (invitedOf.get(h)) return { pulse: [] };
   return { pulse: since({ shareCodeId: tok.sc, sessionId: tok.sid, sinceMs }) };
 }
 
@@ -133,7 +147,7 @@ module.exports = {
   push, since, poll, liveNow, knownName, rememberName,
   RING_MAX, TTL_MS, CODES_MAX,
   // tests
-  _reset: () => { rings.clear(); codeIds.clear(); names.clear(); },
+  _reset: () => { rings.clear(); codeIds.clear(); names.clear(); invitedOf.clear(); },
   _setClock: (fn) => { clock = fn || null; },
   _size: () => rings.size,
 };

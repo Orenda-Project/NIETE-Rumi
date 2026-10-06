@@ -257,3 +257,45 @@ describe("the card's place among today's class finishers", () => {
     expect((await WQ.finishSession({ st: teacher.st })).card.nth).toBeUndefined();
   });
 });
+
+// ─── privacy: an invited friend is not in the class (M1 §2.9, M2 §4) ────────
+
+describe('an invited friend never sees classmates through the pulse', () => {
+  async function classWithFriend() {
+    const a = await play('Sara Testwala');
+    await WQ.recordAnswers({ st: a.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
+    const fin = await WQ.finishSession({ st: a.st });
+    fake.db.quiz_share_codes.find((c) => c.code === fin.challenge_code).active = true;
+    const friend = await WQ.startSession({ code: fin.challenge_code, new: { name: 'Friend Testwala', force: true } });
+    const b = await play('Ali Testwala');
+    return { a, b, friend, chal: fin.challenge_code };
+  }
+
+  test("a friend's /answers after a classmate's right answer carries no classmate", async () => {
+    const { b, friend } = await classWithFriend();
+    await WQ.recordAnswers({ st: b.st, a: [{ qid: qid(2), slot: 'B' }] });
+    const rec = await WQ.recordAnswers({ st: friend.st, a: [{ qid: qid(1), slot: 'B' }], since: 0 });
+    expect(rec.pulse).toBeUndefined();
+    expect(JSON.stringify(rec)).not.toMatch(/Ali|Sara/);
+    // The class still sees the friend's right answer, as "a friend".
+    const recB = await WQ.recordAnswers({ st: b.st, a: [{ qid: qid(3), slot: 'B' }], since: 0 });
+    expect(recB.pulse).toEqual(expect.arrayContaining([{ first: null, invited: true, qn: 1, at: expect.any(Number) }]));
+  });
+
+  test("a friend's idle poll returns no names, on the class code and on the challenge code", async () => {
+    const { b, friend, chal } = await classWithFriend();
+    await WQ.recordAnswers({ st: b.st, a: [{ qid: qid(2), slot: 'B' }] });
+    expect(await Pulse.poll('PULSE1', { st: friend.st, since: 0 }, WQ)).toEqual({ pulse: [] });
+    expect(await Pulse.poll(chal, { st: friend.st, since: 0 }, WQ)).toEqual({ pulse: [] });
+    // A classmate's poll still works.
+    const out = await Pulse.poll('PULSE1', { st: (await play('Hina Testwala')).st, since: 0 }, WQ);
+    expect(out.pulse.map((e) => e.first)).toContain('Ali');
+  });
+
+  test("the challenge code's boot carries no live.now (the class's own boot does)", async () => {
+    const { b, chal } = await classWithFriend();
+    await WQ.recordAnswers({ st: b.st, a: [{ qid: qid(2), slot: 'B' }] });
+    expect((await WQ.getQuiz('PULSE1')).live.now).toBe(2);
+    expect((await WQ.getQuiz(chal)).live.now).toBeUndefined();
+  });
+});
