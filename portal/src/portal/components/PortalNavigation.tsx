@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, BookOpen, ClipboardCheck, CircleUserRound, ChevronRight } from 'lucide-react';
+import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, BookOpen, ClipboardCheck, CircleUserRound, ChevronRight, Eye } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader, resolveRole } from '../lib/leaderRole';
@@ -8,6 +8,7 @@ import { useChildTest } from '../lib/useChildTest';
 import { useLogoutGuard } from '../lib/recordingSession';
 import { useNewUi } from '../lib/useNewUi';
 import NewUiNavigation from '../newui/NewUiNavigation';
+import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
 
@@ -28,6 +29,11 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   // bd-5rz1v.12 — the new UI's indigo menu bar, only while portal_new_ui is on
   // for her. Off, loading or unreadable: the markup below, unchanged.
   const newUiOn = useNewUi(user?.phoneNumber || null) === true;
+  // bd-o15qnr — the coach app v2, for a coach with portal_coach_v2 only. It keeps
+  // the live look below (white bottom bar, green active item) with its own
+  // items, and it wins over the new UI for a coach. Off, loading, unreadable,
+  // or not a coach: the markup below, unchanged.
+  const coachV2 = isCoachV2For(user, useCoachV2(user?.phoneNumber || null));
   const currentPath = location.pathname;
 
   // bd-2434 (Leader Portal): the school-leader family gets the leader nav
@@ -86,13 +92,26 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
     { title: 'Analytics', path: '/portal/coaching/analytics', icon: TrendingUp },
   ];
 
-  const navItems = isLeader(user) ? leaderNav : teacherNav;
+  // bd-o15qnr — v2: Home · Schedule · Observe · Schools on the bar; Training
+  // (bd-60160: a coach must keep reaching it) and the child test in Other.
+  const coachNav = [
+    { title: 'Home', path: '/portal/coach', icon: Home },
+    { title: 'Schedule', path: '/portal/coach/scheduling', icon: CalendarDays },
+    { title: 'Observe', path: '/portal/coach/observe', icon: Eye },
+    { title: 'Schools', path: '/portal/coach/people', icon: School },
+    { title: 'Training', path: '/portal/training', icon: GraduationCap },
+    ...(childTestOn ? [{ title: 'Child test', path: '/portal/leader/child-test', icon: ClipboardCheck }] : []),
+  ];
+
+  const navItems = coachV2 ? coachNav : (isLeader(user) ? leaderNav : teacherNav);
 
   // bd-2466 — the mobile bar rendered every nav item plus Logout in one flex
   // row: seven cells for teachers, each ~52px wide on a 360px screen, so the
   // labels cropped. Keep the four the operator named as primary and put the
   // rest behind a tray. Desktop is unaffected — it has the width.
-  const MOBILE_PRIMARY = ['Dashboard', 'Curriculum', 'Training', 'Coaching'];
+  const MOBILE_PRIMARY = coachV2
+    ? ['Home', 'Schedule', 'Observe', 'Schools']
+    : ['Dashboard', 'Curriculum', 'Training', 'Coaching'];
   const primaryNav = navItems.filter((i) => MOBILE_PRIMARY.includes(i.title));
   // Anything not named primary overflows — including leader nav, whose titles
   // don't appear in the list above, so it degrades to "all in the tray" rather
@@ -103,9 +122,17 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   const mobileNav = primaryNav.length > 0 ? primaryNav : navItems.slice(0, 4);
   const mobileOverflow = primaryNav.length > 0 ? overflowNav : navItems.slice(4);
 
-  const isActive = (path: string) => currentPath === path;
+  // bd-o15qnr — in v2 a feature stays active on every page inside it.
+  const COACH_SECTIONS: Record<string, string[]> = {
+    '/portal/coach/scheduling': ['/portal/coach/scheduling', '/portal/coach/schedule', '/portal/coach/team', '/portal/coach/new-visit'],
+    '/portal/coach/observe': ['/portal/coach/observe', '/portal/coach/visit', '/portal/coach/reports'],
+    '/portal/coach/people': ['/portal/coach/people', '/portal/coach/school', '/portal/coach/teacher'],
+  };
+  const isActive = (path: string) => (coachV2 && COACH_SECTIONS[path]
+    ? COACH_SECTIONS[path].some((p) => currentPath === p || currentPath.startsWith(`${p}/`))
+    : currentPath === path);
 
-  if (newUiOn) {
+  if (newUiOn && !coachV2) {
     return (
       <NewUiNavigation
         leader={isLeader(user)}

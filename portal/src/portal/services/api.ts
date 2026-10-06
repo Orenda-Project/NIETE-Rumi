@@ -365,6 +365,7 @@ export const portal = {
           coachObservation: false,
           newUi: false,
           assessmentEditing: false,
+          coachV2: false,
         },
       };
     }
@@ -533,6 +534,8 @@ export type PortalConfig = {
     newUi?: boolean;
     /** bd-hb8qs — she can edit a finished paper into a new version (fail-closed). */
     assessmentEditing?: boolean;
+    /** bd-o15qnr — the coach app v2 is on for THIS user (fail-closed; shown to role=coach only). */
+    coachV2?: boolean;
   };
 };
 

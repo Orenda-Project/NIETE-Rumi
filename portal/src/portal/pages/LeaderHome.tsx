@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Users, MessageSquare, BookOpen, TrendingUp, ChevronRight, UserCheck, GraduationCap } from "lucide-react";
 import { leader } from "../services/api";
 import { useAuth } from "../hooks/useAuth";
@@ -7,6 +7,7 @@ import PortalLayout from "../components/PortalLayout";
 import StatCard from "../components/StatCard";
 import LoadingState from "../components/LoadingState";
 import type { LeaderOverview } from "../types/portal";
+import { useCoachV2, isCoachV2For } from "../coach/useCoachV2";
 
 /**
  * Leader Portal — "My Patch" home (bd-2434, NIETE port of upstream bd-2391).
@@ -18,6 +19,8 @@ import type { LeaderOverview } from "../types/portal";
  */
 const LeaderHome = () => {
   const { user } = useAuth();
+  // bd-o15qnr — a coach in the v2 pilot lands on the v2 Home instead.
+  const coachV2 = isCoachV2For(user, useCoachV2(user?.phoneNumber || null, !!user));
   const name = user?.firstName?.trim();
   const [overview, setOverview] = useState<LeaderOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,6 +34,8 @@ const LeaderHome = () => {
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, []);
+
+  if (coachV2) return <Navigate to="/portal/coach" replace />;
 
   return (
     <PortalLayout>
