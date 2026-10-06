@@ -355,3 +355,21 @@ describe('fuzzy first names', () => {
     expect(Roster.nearName(a, b)).toBe(want);
   });
 });
+
+describe('two children of one class share a first name', () => {
+  test('a typed name: each card carries its roll number, so the child can tell which one is them', async () => {
+    fake.db.students.push({ id: kid(5), list_id: LIST_3B, roll_number: 7, student_name: 'Ayesha Khan Testwala', is_active: true });
+    let err;
+    try { await WQ.startSession({ code: 'AB12CD', new: { name: 'Ayesha' } }); } catch (e) { err = e; }
+    expect(err.body.candidates).toEqual([
+      { chip: chipOf(kid(1)), first: 'Ayesha', animal: T.animalFor(kid(1)), roll: 1 },
+      { chip: chipOf(kid(5)), first: 'Ayesha', animal: T.animalFor(kid(5)), roll: 7 },
+    ]);
+  });
+
+  test('a unique first name carries no roll number (nothing beyond what is needed)', async () => {
+    let err;
+    try { await WQ.startSession({ code: 'AB12CD', new: { name: 'Bilal' } }); } catch (e) { err = e; }
+    expect(err.body.candidates[0].roll).toBeUndefined();
+  });
+});
