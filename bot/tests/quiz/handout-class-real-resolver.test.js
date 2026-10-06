@@ -107,7 +107,7 @@ test('one class in the quiz grade: bound silently, no question', async () => {
   expect(codes()).toHaveLength(1);
   expect(codes()[0].class_id).toBe(K4A);
   expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
-  expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+  expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(3); // staging: forward-this, class message, report promise
 });
 
 test('two sections of the quiz grade: the hand-out goes out unbound, then "4-A / 4-B / All / not sure", and the tap binds it', async () => {
@@ -115,7 +115,7 @@ test('two sections of the quiz grade: the hand-out goes out unbound, then "4-A /
   await share.deliverClassLink(CTX, PHONE);
   expect(codes()).toHaveLength(1);
   expect(codes()[0].class_id).toBeUndefined();
-  expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+  expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(3); // staging: forward-this, class message, report promise
   const [, body] = WhatsAppService.sendInteractiveButtons.mock.calls[0];
   expect(body.buttons.map((b) => b.title)).toEqual(['4-A', '4-B', 'All / not sure']);
 

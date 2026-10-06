@@ -120,7 +120,7 @@ describe('deliverClassLink — the class is known', () => {
     expect(shareInserts()[0].payload.class_id).toBe(C4A.id);
     expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
     expect(WhatsAppService.sendInteractiveMessage).not.toHaveBeenCalled();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(3); // staging: forward-this, class message, report promise
   });
 
   test('no class (none) is today exactly: unbound, no question', async () => {
@@ -129,14 +129,14 @@ describe('deliverClassLink — the class is known', () => {
     expect(shareInserts()).toHaveLength(1);
     expect(shareInserts()[0].payload.class_id).toBeUndefined();
     expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(3); // staging: forward-this, class message, report promise
   });
 
   test('a resolver that throws fails open to today: unbound link, logged', async () => {
     Identity.resolveQuizClass.mockRejectedValue(new Error('db down'));
     await share.deliverClassLink(CTX, PHONE);
     expect(shareInserts()[0].payload.class_id).toBeUndefined();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(3); // staging: forward-this, class message, report promise
     expect(logEvent).toHaveBeenCalledWith('web_quiz.class_resolve_failed', expect.objectContaining({ quizId: QUIZ }));
   });
 });
@@ -149,7 +149,7 @@ describe('deliverClassLink — the class is ambiguous: hand-out first, question 
 
     expect(shareInserts()).toHaveLength(1);
     expect(shareInserts()[0].payload.class_id).toBeUndefined();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(3); // staging: forward-this, class message, report promise
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
     const lastText = Math.max(...WhatsAppService.sendMessage.mock.invocationCallOrder);
     expect(WhatsAppService.sendInteractiveButtons.mock.invocationCallOrder[0]).toBeGreaterThan(lastText);
@@ -168,7 +168,7 @@ describe('deliverClassLink — the class is ambiguous: hand-out first, question 
     const [, body] = WhatsAppService.sendInteractiveButtons.mock.calls[0];
     expect(body.buttons.map((b) => b.title)).toEqual(['4-A', 'All / not sure']);
     expect(shareInserts()).toHaveLength(1);
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(3); // staging: forward-this, class message, report promise
   });
 
   test('three or more classes: a list (Meta caps buttons at 3), rows within 24 code points, "All / not sure" last', async () => {
@@ -186,7 +186,7 @@ describe('deliverClassLink — the class is ambiguous: hand-out first, question 
     expect(rows[3].title).toBe(resolveUx('vqWhichClassAny', { language: 'ur' }));
     rows.forEach((r) => expect(cp(r.title)).toBeLessThanOrEqual(24));
     expect(cp(list.action.button)).toBeLessThanOrEqual(20);
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(3); // staging: forward-this, class message, report promise
   });
 
   test('more than 9 classes: 9 class rows + "All / not sure" (the 10-row cap)', async () => {
@@ -209,14 +209,14 @@ describe('deliverClassLink — the class is ambiguous: hand-out first, question 
     Identity.resolveQuizClass.mockResolvedValue({ state: 'ambiguous', class: null, classes: [legacy, { ...legacy, listId: 'list-2' }] });
     await share.deliverClassLink(CTX, PHONE);
     expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(3); // staging: forward-this, class message, report promise
   });
 
   test('a question that cannot be delivered leaves the hand-out as it is (already out) and keeps nothing', async () => {
     Identity.resolveQuizClass.mockResolvedValue({ state: 'ambiguous', class: null, classes: [C4A, C4B] });
     WhatsAppService.sendInteractiveButtons.mockResolvedValueOnce(false);
     await expect(share.deliverClassLink(CTX, PHONE)).resolves.toBe(true);
-    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(3); // staging: forward-this, class message, report promise
     expect(store.has(HandoutClass.ASK_KEY(codeId(1)))).toBe(false);
   });
 
