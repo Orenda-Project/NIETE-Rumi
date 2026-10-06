@@ -116,3 +116,10 @@ test('lookahead: while Q1 is on screen the next two questions\' pictures and cli
     expect(clip(u).init).toMatchObject({ mode: 'no-cors' });
   });
 });
+
+test('lookahead: the results mascot is fetched while Q1 is on screen, so an offline finish still shows Jugnu', async () => {
+  const p = page({ lang: 'en', questions: Q3, store: { wq_s_TEST: played({ answers: {}, queue: [], wrong: [], seq: 0 }) } });
+  p.wq.question(0, false);
+  await settle();
+  expect(p.images.map((im) => im.src)).toEqual(expect.arrayContaining([expect.stringMatching(/celebrate\.webp$/)]));
+});

@@ -1601,6 +1601,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   function ahead(i) {
     warmPics(QS[i + 1]); warmPics(QS[i + 2]);
+    // The results screen's Jugnu too: a child who finishes offline still sees them celebrate.
+    if (i === 0) { try { new Image().src = JUG_DIR + 'celebrate.webp'; } catch (e) {} }
     setTimeout(function () {
       warmClips(QS[i + 1]); warmClips(QS[i + 2]);
       var c = navigator.connection || {};
