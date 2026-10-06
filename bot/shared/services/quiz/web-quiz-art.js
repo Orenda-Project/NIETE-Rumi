@@ -31,6 +31,7 @@ const { pageTopic } = require('./quiz-child-title');
 const { renderArt, SIZES } = require('../../templates/web-quiz-art.template');
 const { clampLanguage } = require('../../config/ux-strings');
 const { artId, parseArtId, UUID_RX } = require('./web-quiz-art-id');
+const Schools = require('./web-quiz-schools');
 
 const ART_V = 1;               // bump when the template's look changes: every picture is drawn afresh
 const MEM_MAX = 64;
@@ -76,18 +77,29 @@ async function cardFacts(sessionId) {
   const lang = clampLanguage(sc.language);
   const nameOf = await WebQuiz.shownNames(lang, [s.student_id]);
   const cls = await require('./video-quiz-report.service').loadClassRows(sc.id).catch(() => null);
+  const school = await schoolLine(sc.code, s);
   return {
     lang,
     d: {
       first: nameOf(s.student_id, s.student_name), animal: T.animalFor(s.student_id || s.id),
       correct: kept.correct_answers || 0, total: kept.total_questions_answered || 0, topic: await topicOf(sc), cls: (cls && cls.className) || '',
+      ...school,
     },
   };
 }
 
-/** A session token for this child, minted here only to ask the page's own board "where do I stand". */
+/** A session token for this child, minted here only to ask the page's own boards "where do I stand". */
 function stFor(s) {
   return T.signSession({ sessionId: s.id, deviceRef: null, shareCodeId: s.share_code_id });
+}
+
+/** The child's school and the points this play added to it (the school league's own count), else nothing. */
+async function schoolLine(code, s) {
+  try {
+    const b = await Schools.board(code, { st: stFor(s) });
+    if (!b || !b.mine || !b.mine.name) return {};
+    return { school: b.mine.name, added: b.added || null };
+  } catch { return {}; }
 }
 
 async function inviteFacts(code) {
@@ -133,9 +145,20 @@ async function classFacts(ref) {
   };
 }
 
-// The school board picture is drawn by the template already; its facts come from lane Wd's
-// web-quiz-schools board, wired when that module is on sandbox.
-async function schoolFacts() { notFound(); }
+/**
+ * The school board around this class's school: the league's own crop (my school and up to 3 either side),
+ * so the picture and the page agree. A school with no points yet sits under the leaders as its own row.
+ */
+async function schoolFacts(code) {
+  if (!CODE_RX.test(code)) notFound();
+  const ctx = await require('./web-quiz.service').resolveCode(code).catch(() => notFound());
+  const near = Schools.neighbours(await Schools.board(code), 3);
+  const row = (r, you) => ({ rank: r.place == null ? '–' : r.place, name: r.name, sector: r.sector, points: r.points || 0, kids: r.kids || 0, move: typeof r.move === 'number' ? r.move : 0, you });
+  const rows = (near.rows || []).map((r) => row(r, Boolean(r.mine)));
+  if (near.mine && !rows.some((r) => r.you)) rows.push(row(near.mine, true));
+  if (!rows.length) notFound();
+  return { lang: ctx.lang, d: { rows } };
+}
 
 async function facts(kind, ref) {
   if (kind === 'c') return cardFacts(ref);

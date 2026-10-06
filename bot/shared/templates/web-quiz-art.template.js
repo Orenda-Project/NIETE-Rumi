@@ -48,7 +48,7 @@ const COPY = {
     played: 'played',
     playedOf: (n, of) => `${n} of ${of} played`,
     me: 'me',
-    added: (n, sc) => `+${n} points for ${sc}`,
+    added: (n, sc) => `${n} points for ${sc}`,
     avg: 'Class average',
     avgLine: (p) => `Class average ${p}`,
     top: 'Top score',
@@ -68,7 +68,7 @@ const COPY = {
     played: 'بچوں نے کھیلا',
     playedOf: (n, of) => `${of} میں سے ${n} بچوں نے کھیلا`,
     me: 'میں',
-    added: (n, sc) => `${sc} کے لیے +${n} پوائنٹس`,
+    added: (n, sc) => `${sc} کے لیے ${n} پوائنٹس`,
     avg: 'کلاس کی اوسط',
     avgLine: (p) => `کلاس کی اوسط ${p}`,
     top: 'سب سے زیادہ',
@@ -147,7 +147,7 @@ function body(kind, d, C, pics, size) {
         + `<h1 class="name">${d.animal ? animal(d.animal, pics) : ''}${own(d.first)}</h1>`
         + `<p class="big">${num(`${d.correct}/${d.total}`)}</p>${starsHtml(d.correct, d.total)}`
         + `<p class="sub">${own(d.topic)}</p>`
-        + (d.school && d.added ? `<p class="pts">${C.added(num(d.added), own(d.school))}</p>` : (d.school ? `<p class="pts">${own(d.school)}</p>` : '')),
+        + (d.school && d.added ? `<p class="pts">${C.added(num(`+${d.added}`), own(d.school))}</p>` : (d.school ? `<p class="pts">${own(d.school)}</p>` : '')),
       cta: d.school ? '' : C.playSame,
     };
   }

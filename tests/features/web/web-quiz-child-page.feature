@@ -771,3 +771,25 @@ Feature: Web child quiz page on the portal
     Then that video shows between the score and the share buttons under "Next in this chapter"
     And tapping it opens that video and its quiz, the child still remembered
     And nothing is shown when the chapter and the subject have nothing left
+
+  @T261
+  Scenario: The school league share arrives as this hour's board
+    Given a child's school is on the school league this week
+    When the child shares the school league
+    Then the group's preview shows the school among its neighbours, highlighted, with points, children and moves, and no child or teacher named
+    And the link carries the hour, so a group that shared it earlier sees the board as it is now
+    And the child's card says how many points this play added to the school ("+17 points for <School>")
+
+  @T262
+  Scenario: A link a teacher forwards to remind the class previews as the class filling up
+    Given a teacher sends "/q/<CODE>?v=<number played>" to the class group
+    Then the group's preview shows the live class picture (places, animals, scores, no names)
+    And the plain "/q/<CODE>" link keeps the quiz's own picture
+    And a league table shared from the page carries "?v=<number finished>" for the same reason
+
+  @T263
+  Scenario: The invited friend's page shows the picture their link previewed as
+    Given a friend opens a challenge link whose preview read "Can you beat Amal's 7/8?"
+    When the page opens
+    Then the same picture sits above the challenge line, its alt text the same words
+    And if the picture cannot load it is removed, never shown broken
