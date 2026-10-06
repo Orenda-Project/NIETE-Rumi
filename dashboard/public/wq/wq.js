@@ -480,7 +480,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     ur: {
       quiz: 'کوئز', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, '\u00A0') : ''].filter(Boolean).join(' · '); },
       meta: function (n) { return n + ' سوال · تقریباً ' + Math.max(1, Math.round(n * 0.6)) + ' منٹ'; },
-      hello: 'السلام علیکم! آئیں، مل کر کوئز کھیلیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
+      hello: 'السلام علیکم! آئیں، کوئز کھیلیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
       play: 'کھیلیں', playAs: function (n) { return n + '، شروع کریں'; }, notMe: function (n) { return n + ' نہیں؟'; },
       proof: function (n) { return 'آج ' + (PLACE ? PLACE.ur + ' میں ' : '') + n.toLocaleString('en') + ' بچوں نے کھیلا'; },
       classToday: function (n) { return 'آج آپ کی کلاس میں ' + n + ' نے کھیلا'; },
@@ -749,10 +749,41 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     clearTimers();
     stopVoice();
     try { ROOT.classList.remove('wq-novoice'); } catch (e) {}
-    ROOT.innerHTML = '<section class="wq-screen" data-m="' + moment + '">' + html + '</section>';
+    ROOT.innerHTML = '<section class="wq-screen" data-m="' + moment + '">' + (LANG === 'ur' ? latinRuns(html) : html) + '</section>';
     ROOT.setAttribute('data-m', moment);
     try { window.scrollTo(0, 0); } catch (e) {}
   }
+  // Urdu: the page widens word gaps for Nastaliq. A run of two or more Latin words inside it (an
+  // English video title, a teacher's Latin name, "3.2 MB"), and a single atom that mixes digits and
+  // Latin letters (a class label like "3-B", which right-to-left would paint as "B-3"), is marked
+  // lang="en": wq.css draws it with the sans face at normal spacing, isolated left-to-right.
+  // Text only: tags, attributes, SVG and MathML are left alone.
+  var LAT_RUN = /[A-Za-z0-9&("'\u201C\u2018][^\s<>\u0600-\u06FF]*(?:[ \u00A0]+[A-Za-z0-9&("'\u201C\u2018][^\s<>\u0600-\u06FF]*)*/g;
+  var LAT_SKIP = /^<(\/?)(svg|math|script|style|textarea)\b/i;
+  function latinRuns(html) {
+    var skip = 0;
+    return String(html).split(/(<[^>]*>)/).map(function (part) {
+      if (part.charAt(0) === '<') {
+        var m = LAT_SKIP.exec(part);
+        if (m && !/\/>$/.test(part)) skip = Math.max(0, skip + (m[1] ? -1 : 1));
+        return part;
+      }
+      if (skip || !/[A-Za-z]/.test(part)) return part;
+      return part.replace(LAT_RUN, function (run) {
+        // A link is already its own left-to-right line (.wq-url), never part of a sentence.
+        var mark = /[A-Za-z]/.test(run) && (/[ \u00A0]/.test(run) || /[0-9]/.test(run)) && run.indexOf('://') < 0;
+        return mark ? '<span class="wq-lat" lang="en">' + run + '</span>' : run;
+      });
+    }).join('');
+  }
+  // The same for a name typed in Latin letters into the Urdu name box.
+  function latinBox(e) {
+    var t = e && e.target;
+    if (!t || !/(^|\s)wq-input(\s|$)/.test(t.className || '')) return;
+    var v = String(t.value || '');
+    if (/[A-Za-z]/.test(v) && !/[\u0600-\u06FF]/.test(v)) t.setAttribute('lang', 'en'); else t.removeAttribute('lang');
+  }
+  if (LANG === 'ur' && ROOT) ROOT.addEventListener('input', latinBox);
   // The brand mark (trusted inline SVG from the server's brand table) on its tile, or bare when it is a wide mark.
   function markHtml() {
     return BR ? '<span class="wq-mark ' + (BR.mark.tile ? 'wq-tile' : 'wq-bare') + '" aria-hidden="true">' + BR.mark.svg + '</span>' : '';
@@ -1034,8 +1065,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       playedT: function (n) { return 'کھیل لیا (' + n + ')'; }, setRollLink: 'رول نمبر دیں'
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
-  var UDIG = '۰۱۲۳۴۵۶۷۸۹';
-  function digitsFor(n) { return LANG === 'ur' ? String(n).replace(/[0-9]/g, function (d) { return UDIG[+d]; }) : String(n); }
+  // One digit rule for the whole page, Urdu included: 0-9. The roll number is matched to the
+  // teacher's register, which prints it 0-9 like every other surface (scores, counters, maths).
+  function digitsFor(n) { return String(n); }
   function padNext(cur, key) {
     if (key === 'del') return cur.slice(0, -1);
     if (!/^[0-9]$/.test(key) || cur.length >= 3 || (cur === '' && key === '0')) return cur;

@@ -1456,6 +1456,30 @@ Feature: NIETE (ICT) Teacher Training
     And the WhatsApp quiz still asks it with the lettered picture and the coded answers
     # web-quiz-figure matchItem (decodes the coded options + key from media.figure match); web-quiz-items webOf fallback (E2 + grader); figureFor null for it; wq.js left tile picture. Unit: bot/tests/quiz/web-quiz/web-quiz-match-codes.test.js, dashboard/tests/web-quiz-page-match-pictures.service.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P2 @T240 @no-mock-driver
+  Scenario: English words inside my Urdu web quiz keep normal spacing
+    Given an Urdu quiz whose "more videos" list has an English lesson title like "Life Cycle of a Hen"
+    When a child opens the list, or types their name in English letters in the Urdu name box
+    Then the English words sit at their usual distance apart, with no wide gaps between them
+    And the Urdu words around them keep the wider Urdu spacing
+    And a class label like "3-B" inside an Urdu line never shows as "B-3"
+    # wq.js render() latinRuns (Urdu pages: a run of 2+ Latin words -> span.wq-lat lang=en) + latinBox (name box lang=en while Latin); wq.css html[lang=ur] .wq-lat / .wq-input[lang=en] sans + word-spacing normal; a digit+Latin atom (3-B) is marked too and .wq-lat is isolated ltr. Unit: dashboard/tests/web-quiz-urdu-latin.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T241 @no-mock-driver
+  Scenario: Numbers on my Urdu web quiz are written one way, as on the class register
+    Given an Urdu quiz for a class whose register lists roll numbers
+    When a child types a roll number, and later sees question counters and the score
+    Then the roll number keys, the typed number and every count and score use the digits 0-9, as the register does
+    # wq.js digitsFor() returns 0-9 on every page (it was the only screen with Urdu digits). Unit: dashboard/tests/web-quiz-roll.service.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P1 @T242 @no-mock-driver
+  Scenario: My Urdu web quiz names a child the same way on every screen
+    Given an Urdu quiz for a class whose list has the child's name in Urdu as well as in English letters
+    When the child confirms who they are, finishes, and opens the class league
+    Then "Are you...?", the scorecard, the league and a friend's challenge all show the Urdu spelling from the list
+    And an English quiz still shows the name in English letters
+    # web-quiz.service shownNames (Roster.displayName: student_name_urdu on an Urdu quiz) on the session child (start + resume), E5 card, E6 rows, challengeOf. Unit: bot/tests/quiz/web-quiz/web-quiz-urdu-name.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T170 @no-mock-driver
   Scenario: The recorded "why" of a web quiz question is its reason, never praise
     Given a quiz question whose correct-answer feedback is only "Well done!" and whose explanation gives the reason
