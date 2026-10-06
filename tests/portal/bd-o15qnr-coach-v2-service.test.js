@@ -339,3 +339,15 @@ describe('dates come back as text, never as a JS Date', () => {
     expect(SVC.SQL.TEAM_DAYS).toMatch(/scheduled_for::text AS day/);
   });
 });
+
+describe('Class R — no bare analysis_data: only the slices the numbers need', () => {
+  // analysis_data is the big per-session JSONB (the 24/25-Aug NIETE wedge was
+  // full analysis_data pulls). Scores come from analysis_data->'scores' and a
+  // report's name from ->'teacher_delivery'; nothing else is read.
+  test.each(['TEACHER_FACTS', 'COACH_SESSIONS', 'TEACHER_HISTORY'])('%s selects slices only', (key) => {
+    const sql = SVC.SQL[key];
+    expect(sql).toMatch(/analysis_data->'scores'/);
+    const bare = sql.replace(/analysis_data->'[a-z_]+'/g, '').replace(/AS analysis_data/g, '');
+    expect(bare).not.toMatch(/analysis_data/);
+  });
+});

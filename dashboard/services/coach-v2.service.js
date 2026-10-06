@@ -37,6 +37,10 @@ const PORTAL_KEY_RX = /\/classroom_audio\/[^/]+\/\d{4}-\d{2}\/portal_[A-Za-z0-9-
 
 // ── SQL ──────────────────────────────────────────────────────────────────────
 //
+// analysis_data is never pulled whole (Class R: the 24/25-Aug wedge was full
+// analysis_data pulls): only ->'scores' (what getOverall reads) and, for a
+// report's name, ->'teacher_delivery', rebuilt into the same shape.
+//
 // DATE columns come back ::text. node-pg turns a DATE into a JS Date at LOCAL
 // midnight, and toISOString() then moves it a day back on any server east of
 // UTC (found live on a PKT machine: two 2026-10-05 visits counted on 10-04).
@@ -51,7 +55,8 @@ const SQL = {
 
   // Every HITL visit of these teachers, by any coach; failed/cancelled never count.
   TEACHER_FACTS: `
-    SELECT user_id, created_at, status, analysis_data
+    SELECT user_id, created_at, status,
+           jsonb_build_object('scores', analysis_data->'scores') AS analysis_data
     FROM coaching_sessions
     WHERE user_id = ANY($1::uuid[])
       AND observation_type = 'leader_observation'
@@ -69,7 +74,9 @@ const SQL = {
   // leader-observations.service (bd-2670): LATERAL + LIMIT 1 because markDone
   // stamps session_id on every matching upcoming row.
   COACH_SESSIONS: `
-    SELECT c.id, c.user_id, c.created_at, c.status, c.debrief_status, c.analysis_data, c.audio_url,
+    SELECT c.id, c.user_id, c.created_at, c.status, c.debrief_status, c.audio_url,
+           jsonb_build_object('scores', c.analysis_data->'scores',
+                              'teacher_delivery', c.analysis_data->'teacher_delivery') AS analysis_data,
            u.name           AS teacher_name,
            u.phone_number   AS teacher_phone,
            os.teacher_name  AS sched_teacher_name,
@@ -109,7 +116,8 @@ const SQL = {
   `,
 
   TEACHER_HISTORY: `
-    SELECT id, created_at, status, observation_type, analysis_data
+    SELECT id, created_at, status, observation_type,
+           jsonb_build_object('scores', analysis_data->'scores') AS analysis_data
     FROM coaching_sessions
     WHERE user_id = $1::uuid AND status NOT IN ('failed', 'cancelled')
     ORDER BY created_at DESC
