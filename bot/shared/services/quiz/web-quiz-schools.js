@@ -21,6 +21,9 @@
  * school with no points is not ranked: the viewer's own school appears as a
  * ghost row ("no one has played yet"), the rest are a count.
  *
+ * On Monday and Tuesday the child's school card also carries last week's
+ * place (`mine.last_week`), only when the school was ranked last week.
+ *
  * With the child's session token the board also says how many points that
  * finish `added` (absent when it did not count), for "+14 points for <School>".
  *
@@ -182,16 +185,18 @@ let codeSchool = new Map();
 let teacherSchool = new Map();
 let mapsAt = 0;
 
-function _reset() { snap = null; codeSchool = new Map(); teacherSchool = new Map(); mapsAt = 0; weekRows = null; schoolsCache = null; }
+function _reset() { snap = null; prevSnap = null; codeSchool = new Map(); teacherSchool = new Map(); mapsAt = 0; weekRows = null; schoolsCache = null; }
 
-/** Finished sessions from `since` on, appended to `acc` (ids in `seen` are skipped); returns the new cursor. */
-async function finishedSince(since, acc, seen) {
+/** Finished sessions from `since` on (before `until` when given), appended to `acc` (ids in `seen` are skipped); returns the new cursor. */
+async function finishedSince(since, acc, seen, until = null) {
   let cursor = since;
   for (;;) {
-    const { data, error } = await supabase.from('quiz_sessions')
+    let query = supabase.from('quiz_sessions')
       .select(SESSION_COLS)
       .eq('status', 'completed').is('user_id', null).not('share_code_id', 'is', null)
-      .gte('completed_at', cursor).order('completed_at', { ascending: true }).limit(PAGE);
+      .gte('completed_at', cursor);
+    if (until) query = query.lt('completed_at', until);
+    const { data, error } = await query.order('completed_at', { ascending: true }).limit(PAGE);
     if (error) throw new WebQuiz.WqError(502, { error: 'db_unavailable' });
     const page = data || [];
     for (const r of page) if (!seen.has(r.id)) { seen.add(r.id); acc.push(r); }
@@ -263,6 +268,35 @@ async function load(week, now) {
   return { plays, schools };
 }
 
+// Last week's final board, read once an hour and only on Monday and Tuesday (the days a reset hides a win).
+let prevSnap = null; // { week, at, promise }
+const LAST_WEEK_DAYS = 2;
+const PREV_TTL_MS = 60 * 60 * 1000;
+
+function showsLastWeek(now) {
+  return now - Date.parse(weekStartIso(now)) < LAST_WEEK_DAYS * DAY_MS;
+}
+
+async function loadPrev(prevWeek, week, now) {
+  const sessions = [];
+  await finishedSince(prevWeek, sessions, new Set(), week);
+  const map = await schoolsOfCodes([...new Set(sessions.map((s) => s.share_code_id))], now);
+  const { schools } = await snapshot(now);
+  logEvent('web_quiz.school_board_last_week_loaded', { sessions: sessions.length });
+  return { plays: sessions.map((s) => playOf(s, map.get(s.share_code_id))).filter(Boolean), schools };
+}
+
+function lastWeekData(now) {
+  const week = weekStartIso(now);
+  const prevWeek = new Date(Date.parse(week) - 7 * DAY_MS).toISOString();
+  if (!prevSnap || prevSnap.week !== week || now - prevSnap.at >= PREV_TTL_MS) {
+    const promise = loadPrev(prevWeek, week, now);
+    prevSnap = { at: now, week, promise };
+    promise.catch(() => { if (prevSnap && prevSnap.promise === promise) prevSnap = null; });
+  }
+  return prevSnap.promise;
+}
+
 function snapshot(now) {
   const week = weekStartIso(now);
   if (!snap || snap.week !== week || now - snap.at >= CACHE_MS) {
@@ -310,6 +344,12 @@ async function board(code, { now = Date.now(), st } = {}) {
     }
   }
   const out = scoreSchools({ plays: data.plays, schools: data.schools, mySchoolId, splitAt: dayStartIso(now) });
+  // Monday and Tuesday: last week's place, only for a school that was ranked (never "not ranked").
+  if (out.mine && showsLastWeek(now)) {
+    const prev = await lastWeekData(now);
+    const last = scoreSchools({ plays: prev.plays, schools: prev.schools, mySchoolId, splitAt: weekStartIso(now) });
+    if (last.mine && last.mine.place) out.mine.last_week = { place: last.mine.place, of: last.ranked_n };
+  }
   const week = new Date(Date.parse(weekStartIso(now)) + PKT_OFFSET_MS).toISOString().slice(0, 10);
   const added = st ? await addedBy(st, data, weekStartIso(now), now) : undefined;
   return { week_start: week, ...out, ...(added ? { added } : {}) };

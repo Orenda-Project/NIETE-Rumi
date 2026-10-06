@@ -327,3 +327,4 @@ html[lang=ur] .wq-srow .wq-tag{display:table;font-family:var(--fu);line-height:1
 .wq-zero-list{background:var(--card);border-radius:12px;padding:10px 12px;color:var(--muted);font-weight:700}
 .wq-zero-list summary{cursor:pointer}
 .wq-zero-list ul{margin:8px 0 0;padding-inline-start:18px;font-weight:600;font-size:14px;line-height:1.6}
+.wq-lastw{margin:2px 0 4px!important;font-size:14px;font-weight:800;color:var(--navy);opacity:.8}

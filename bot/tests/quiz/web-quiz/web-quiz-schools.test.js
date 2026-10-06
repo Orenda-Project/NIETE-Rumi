@@ -233,6 +233,23 @@ describe('the board (loaded through Supabase)', () => {
     expect((await S.board('ALPHA1', { now: NOW + 3000, st: 'forged.token' })).added).toBeUndefined();
   });
 
+  test("Monday and Tuesday: last week's place for a school that was ranked; never on other days, never for an unranked school", async () => {
+    // last week (Mon 28 Sep - Sun 4 Oct PKT): Charlie 2 kids, Alpha 1 kid -> Charlie #1, Alpha #2 of 2
+    fake.db.quiz_sessions.push(
+      sess('p1', 'c3', 'kc1', 100, '2026-09-29T05:00:00Z'), sess('p2', 'c3', 'kc2', 100, '2026-09-29T05:00:00Z'),
+      sess('p3', 'c1', 'ka7', 100, '2026-10-04T18:59:00Z'), // Sun 23:59 PKT: still last week
+    );
+    const tue = Date.parse('2026-10-06T05:00:00Z');
+    const a = await S.board('ALPHA1', { now: tue });
+    expect(a.mine.last_week).toEqual({ place: 2, of: 2 });
+    const charlie = await S.board('CHARL1', { now: tue });
+    expect(charlie.mine).toEqual(expect.objectContaining({ ghost: true, last_week: { place: 1, of: 2 } }));
+    const bravo = await S.board('BRAVO1', { now: tue });
+    expect(bravo.mine.last_week).toBeUndefined(); // not ranked last week: nothing, never "not ranked"
+    const wed = await S.board('ALPHA1', { now: NOW });
+    expect(wed.mine.last_week).toBeUndefined();
+  });
+
   test('a school with nothing yet sees its own ghost row', async () => {
     const b = await S.board('CHARL1', { now: NOW });
     expect(b.mine).toEqual(expect.objectContaining({ ghost: true, name: 'School Charlie', points: 0 }));
@@ -270,7 +287,7 @@ describe('the board (loaded through Supabase)', () => {
     expect(schoolsCalls()).toBe(before + 1);
     // a new week starts from Monday again
     await S.board('ALPHA1', { now: Date.parse('2026-10-12T05:00:00Z') });
-    expect(seen[seen.length - 1]).toBe('2026-10-11T19:00:00.000Z');
+    expect(seen).toContain('2026-10-11T19:00:00.000Z');
   });
 
   test('more finished sessions than one page: every page is read', async () => {

@@ -471,7 +471,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       added: function (n, s) { return '+' + n + ' points for ' + s + '!'; },
       ghost: function (s) { return 'No one from ' + s + ' has played yet this week. Be the first!'; },
       zeroN: function (n) { return fmtN(n) + (n === 1 ? ' school still to start' : ' schools still to start'); },
-      allSchools: 'All', mySector: 'My sector',
+      allSchools: 'All', mySector: 'My sector', lastWeek: function (p, n) { return 'Last week: #' + p + ' of ' + n; },
       noSchools: 'No school has played yet this week. Yours can be first!', shareSchools: 'Share the school league', inviteSchool: 'Invite my school to play',
       schoolsLine: function (s, p) { return p ? s + ' is #' + p + ' of all schools this week. Play and help us climb:' : 'No one from ' + s + ' has played yet this week. Be the first:'; },
       histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', todayMore: 'Great work today! Want to watch another video?', back: 'Back', sounds: 'Sounds',
@@ -523,7 +523,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       added: function (n, s) { return s + ' کے لیے ' + n + '+ پوائنٹس!'; },
       ghost: function (s) { return 'اس ہفتے ' + s + ' سے ابھی کسی نے نہیں کھیلا۔ سب سے پہلے کھیلیں!'; },
       zeroN: function (n) { return fmtN(n) + ' اسکول ابھی شروع نہیں ہوئے'; },
-      allSchools: 'سب', mySector: 'میرا سیکٹر',
+      allSchools: 'سب', mySector: 'میرا سیکٹر', lastWeek: function (p, n) { return 'پچھلے ہفتے: ' + n + ' میں سے نمبر ' + p; },
       noSchools: 'اس ہفتے ابھی کسی اسکول نے نہیں کھیلا۔ آپ کا اسکول پہلا ہو سکتا ہے!', shareSchools: 'اسکول لیگ بھیجیں', inviteSchool: 'اسکول کو کھیلنے کی دعوت دیں',
       schoolsLine: function (s, p) { return p ? s + ' اس ہفتے سب اسکولوں میں نمبر ' + p + ' پر ہے۔ کھیلیں اور اسے اوپر لے جائیں:' : 'اس ہفتے ' + s + ' سے ابھی کسی نے نہیں کھیلا۔ سب سے پہلے کھیلیں:'; },
       histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', todayMore: 'آج بہت اچھا کام کیا! ایک اور ویڈیو دیکھیں؟', back: 'واپس', sounds: 'آوازیں',
@@ -1858,9 +1858,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (SCH.sector && mine && mine.sector) rows = rows.filter(function (x) { return x.sector === mine.sector; });
     var list = rows.map(schoolRow).join('');
     var nm = mine ? '<bdi>' + esc(mine.name) + '</bdi>' : '';
+    var lw = mine && mine.last_week && mine.last_week.place ? '<p class="wq-lastw">' + esc(T.lastWeek(mine.last_week.place, mine.last_week.of)) + '</p>' : '';
     var top = !mine ? '' : mine.ghost
-      ? '<div class="wq-card wq-mycard wq-zero" id="wq-mine"><p>' + T.ghost(nm) + '</p></div>'
-      : '<div class="wq-card wq-mycard" id="wq-mycard"><p><b>' + T.schoolPlace(nm, esc(mine.place)) + '</b></p>' +
+      ? '<div class="wq-card wq-mycard wq-zero" id="wq-mine">' + lw + '<p>' + T.ghost(nm) + '</p></div>'
+      : '<div class="wq-card wq-mycard" id="wq-mycard"><p><b>' + T.schoolPlace(nm, esc(mine.place)) + '</b></p>' + lw +
         (typeof mine.move === 'number' && mine.move ? '<p class="wq-move ' + (mine.move > 0 ? 'wq-up' : 'wq-down') + '">' + esc(T.sinceY(mine.move)) + '</p>' : '') +
         '<p class="wq-sub">' + esc(T.pts(mine.points || 0)) + ' · ' + esc(T.kidsN(mine.kids || 0)) + '</p>' +
         (b.added ? '<p class="wq-added">' + T.added(esc(b.added), nm) + '</p>' : '') + '</div>';
