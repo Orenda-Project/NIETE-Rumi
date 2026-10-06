@@ -16,6 +16,7 @@ import { ClipboardList, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '../hooks/useAuth';
 import PortalLayout from '../components/PortalLayout';
 import { portal } from '../services/api';
 import type { AssessmentSpec } from '../services/api';
@@ -47,6 +48,8 @@ const ClassicAssessment = () => {
   const searchRef = useRef(location.search);
   searchRef.current = location.search;
   const goToTab = useCallback((next: Tab) => {
+    // Already there (View on a toast while on My papers): no duplicate history entry.
+    if (tabFrom(searchRef.current) === next) return;
     const params = new URLSearchParams(searchRef.current);
     if (next === 'papers') params.set('tab', 'papers'); else params.delete('tab');
     const search = params.toString();
@@ -60,7 +63,11 @@ const ClassicAssessment = () => {
   const [newIds, setNewIds] = useState<string[]>([]);
   const [papersTotal, setPapersTotal] = useState<number | null>(null);
 
-  const { jobs, start, retry, dismiss } = usePaperJobs({
+  // Her jobs are stored under her own phone number: a shared school computer must not show
+  // one teacher another's papers.
+  const { user } = useAuth();
+  const { jobs, start, retry, dismiss, retrying } = usePaperJobs({
+    userKey: user?.phoneNumber || null,
     onReady: (job: PaperJob) => {
       setPapersRefreshKey((k) => k + 1);
       if (job.paperId) setNewIds((ids) => (ids.includes(job.paperId!) ? ids : [...ids, job.paperId!]));
@@ -95,7 +102,8 @@ const ClassicAssessment = () => {
 
   const onRetry = useCallback(async (requestId: string) => {
     const res = await retry(requestId);
-    if (res.ok === false) {
+    // null: a Try again for this job was already in flight, so nothing was sent.
+    if (res && res.ok === false) {
       toast({ title: 'Could not start your paper', description: res.error, variant: 'destructive' });
     }
   }, [retry, toast]);
@@ -175,12 +183,13 @@ const ClassicAssessment = () => {
                   <p className="text-sm text-muted-foreground">
                     Everything you have made. Download it again any time.
                   </p>
-                  <BeingMade jobs={jobs} onRetry={onRetry} onDismiss={dismiss} />
+                  <BeingMade jobs={jobs} retrying={retrying} onRetry={onRetry} onDismiss={dismiss} />
                   <AssessmentPapersPanel
                     refreshKey={papersRefreshKey}
                     editing={assessmentEditing}
                     highlightIds={tab === 'papers' ? newIds : []}
                     onTotal={setPapersTotal}
+                    onCreate={() => goToTab('create')}
                   />
                 </TabsContent>
               </Tabs>

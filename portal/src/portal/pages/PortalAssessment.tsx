@@ -23,7 +23,11 @@ const PortalAssessment = ({ view }: { view: AssessmentView }) => {
   if (newUi === null && (loading || user)) return <LoadingState type="full" />;
   if (newUi !== true || !user || isLeader(user)) {
     // The home route IS the classic page; the inner routes land on it, so there is no loop.
-    return view === 'home' ? <ClassicAssessment /> : <Navigate to={ASSESSMENT_PATH} replace />;
+    // bd-t5tow — handed the user this page already loaded, so ClassicAssessment (which keys its
+    // stored paper jobs by her phone number) does not fetch /dashboard a second time.
+    return view === 'home'
+      ? <AuthContext.Provider value={auth}><ClassicAssessment /></AuthContext.Provider>
+      : <Navigate to={ASSESSMENT_PATH} replace />;
   }
   return (
     <AuthContext.Provider value={auth}>

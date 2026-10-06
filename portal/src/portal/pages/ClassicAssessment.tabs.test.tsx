@@ -30,9 +30,14 @@ vi.mock("@/hooks/use-toast", async (importOriginal) => {
   return { ...real, toast, useToast: () => ({ ...real.useToast(), toast }) };
 });
 
+// M1 — the jobs are stored per teacher (her phone number).
+vi.mock("../hooks/useAuth", () => ({
+  useAuth: () => ({ user: { id: "t-1", phoneNumber: "923001234567", role: "teacher" }, loading: false }),
+}));
+
 import { portal } from "../services/api";
 import ClassicAssessment from "./ClassicAssessment";
-import { JOBS_STORAGE_KEY } from "../components/assessment-jobs/usePaperJobs";
+import { jobsStorageKey } from "../components/assessment-jobs/usePaperJobs";
 
 const api = vi.mocked(portal);
 const LABEL = "Grade 4 Science · Plants · 15 questions";
@@ -337,7 +342,7 @@ describe("ClassicAssessment tabs", () => {
   });
 
   it("after a refresh a still-writing paper shows in Being made, not as a Create card", async () => {
-    sessionStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify([{
+    sessionStorage.setItem(jobsStorageKey("923001234567"), JSON.stringify([{
       requestId: "r9", spec: { grade: 4, subject: "science", questionCount: 15 }, label: LABEL,
       startedAt: Date.now(), status: "writing",
     }]));
@@ -348,6 +353,72 @@ describe("ClassicAssessment tabs", () => {
     await user.click(papersTab());
     expect(within(screen.getByRole("region", { name: "Being made" })).getByText(LABEL)).toBeInTheDocument();
     expect(api.getAssessmentStatus).toHaveBeenCalledWith("r9");
+  });
+
+  it("Try again double-clicked starts exactly one new paper (I1)", async () => {
+    const user = renderPage();
+    await makePaper(user);
+    api.getAssessmentStatus.mockResolvedValue({ success: true, status: "failed", errorCode: "MODEL_UNAVAILABLE" });
+    await advance(4000);
+    await user.click(papersTab());
+    let release: (v: { success: boolean; requestId: string }) => void = () => {};
+    api.generateAssessment.mockImplementation(() => new Promise((r) => { release = r; }));
+    api.getAssessmentStatus.mockResolvedValue({ success: true, status: "generating" });
+    await user.dblClick(screen.getByRole("button", { name: "Try again" }));
+    expect(api.generateAssessment).toHaveBeenCalledTimes(2); // the original + one
+    expect(screen.getByRole("button", { name: "Try again" })).toBeDisabled();
+    await act(async () => { release({ success: true, requestId: "r2" }); });
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Try again" })).toBeNull());
+    expect(api.generateAssessment).toHaveBeenCalledTimes(2);
+  });
+
+  it("Generate double-clicked sends one request (M3)", async () => {
+    const user = renderPage();
+    await user.click(await screen.findByRole("combobox", { name: "Class" }));
+    await user.click(await screen.findByRole("option", { name: "Grade 4" }));
+    await user.click(screen.getByRole("combobox", { name: "Subject" }));
+    await user.click(await screen.findByRole("option", { name: "Science" }));
+    await waitFor(() => expect(api.getAssessmentChapters).toHaveBeenCalled());
+    await user.click(screen.getByRole("combobox", { name: "Chapter" }));
+    await user.click(await screen.findByRole("option", { name: "2 · Plants" }));
+    let release: (v: { success: boolean; requestId: string }) => void = () => {};
+    api.generateAssessment.mockImplementation(() => new Promise((r) => { release = r; }));
+    await user.dblClick(screen.getByRole("button", { name: "Generate" }));
+    expect(api.generateAssessment).toHaveBeenCalledTimes(1);
+    await act(async () => { release({ success: true, requestId: "r1" }); });
+    await screen.findByRole("heading", { name: "Writing your paper" });
+    expect(api.generateAssessment).toHaveBeenCalledTimes(1);
+  });
+
+  it("empty My papers: the Create paper button opens the Create tab (I2)", async () => {
+    papers = [];
+    const user = renderPage("/portal/assessment?tab=papers");
+    expect(await screen.findByText("No papers yet.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Create paper" }));
+    expect(where()).toBe("");
+    expect(createTab()).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("View while already on My papers adds no history entry (M2)", async () => {
+    const user = renderPage("/portal/assessment?x=1");
+    await makePaper(user);
+    await user.click(screen.getByRole("button", { name: "Go to My papers" }));
+    expect(where()).toBe("?x=1&tab=papers");
+    await becomesReady();
+    await user.click(await screen.findByRole("button", { name: "View" }));
+    expect(where()).toBe("?x=1&tab=papers");
+    act(() => go(-1));
+    await waitFor(() => expect(where()).toBe("?x=1")); // straight back to Create, no duplicate
+    expect(createTab()).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("switching tabs keeps other query parameters (M2)", async () => {
+    const user = renderPage("/portal/assessment?tab=papers&x=1");
+    await screen.findByText(/Grade 4 Science · Chapter 1/);
+    await user.click(createTab());
+    expect(where()).toBe("?x=1");
+    await user.click(papersTab());
+    expect(where()).toBe("?x=1&tab=papers");
   });
 
   it("generator off: the coming-soon message and no tabs", async () => {

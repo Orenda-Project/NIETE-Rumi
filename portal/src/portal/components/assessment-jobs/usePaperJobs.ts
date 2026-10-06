@@ -25,6 +25,10 @@
  * browser tab's session and picked up again on mount; a ready one is dropped once delivered,
  * since My papers holds it for good. Every read and write is in try/catch: storage can be
  * blocked, full or hand-edited, and none of that may break the page.
+ *
+ * The key carries her phone number (`assessment-jobs:v1:<phone>`): two teachers can share one
+ * school computer, and one must never see — or Try again — the other's papers. Until the user
+ * is known nothing is read or written.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -32,7 +36,8 @@ import { portal } from '../../services/api';
 import type { AssessmentSpec } from '../../services/api';
 import { FAILURE_FALLBACK } from './failureMessages';
 
-export const JOBS_STORAGE_KEY = 'assessment-jobs:v1';
+const JOBS_STORAGE_PREFIX = 'assessment-jobs:v1';
+export const jobsStorageKey = (userKey: string) => `${JOBS_STORAGE_PREFIX}:${userKey}`;
 export const FAST_POLL_MS = 4000;
 export const SLOW_POLL_MS = 30_000;
 /** The job extends its own SQS visibility to 300s; past that it is slow, not lost. */
@@ -56,13 +61,16 @@ export type PaperJob = {
 export type StartResult = { ok: true; job: PaperJob } | { ok: false; error: string };
 
 type Options = {
+  /** Whose jobs these are (her phone number); null until known, and then storage is untouched. */
+  userKey?: string | null;
   onReady?: (job: PaperJob) => void;
   onFailed?: (job: PaperJob) => void;
 };
 
-function readStored(): PaperJob[] {
+function readStored(userKey: string | null): PaperJob[] {
+  if (!userKey) return [];
   try {
-    const raw = sessionStorage.getItem(JOBS_STORAGE_KEY);
+    const raw = sessionStorage.getItem(jobsStorageKey(userKey));
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -77,10 +85,11 @@ function readStored(): PaperJob[] {
   }
 }
 
-function writeStored(jobs: PaperJob[]) {
+function writeStored(userKey: string | null, jobs: PaperJob[]) {
+  if (!userKey) return;
   try {
     sessionStorage.setItem(
-      JOBS_STORAGE_KEY,
+      jobsStorageKey(userKey),
       JSON.stringify(jobs.filter((j) => j.status !== 'ready')),
     );
   } catch {
@@ -88,9 +97,13 @@ function writeStored(jobs: PaperJob[]) {
   }
 }
 
-export function usePaperJobs({ onReady, onFailed }: Options = {}) {
-  const [jobs, setJobs] = useState<PaperJob[]>(readStored);
+export function usePaperJobs({ userKey = null, onReady, onFailed }: Options = {}) {
+  const [jobs, setJobs] = useState<PaperJob[]>(() => readStored(userKey));
   const jobsRef = useRef(jobs);
+  const userKeyRef = useRef(userKey);
+  // Failed jobs whose Try again is in flight — a second press must not make a second paper.
+  const [retrying, setRetrying] = useState<ReadonlySet<string>>(() => new Set());
+  const retryingRef = useRef(new Set<string>());
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   // Bumped on every mount/unmount, so a poll that resolves after an unmount is ignored.
   const generation = useRef(0);
@@ -103,7 +116,7 @@ export function usePaperJobs({ onReady, onFailed }: Options = {}) {
   const commit = useCallback((next: PaperJob[]) => {
     jobsRef.current = next;
     setJobs(next);
-    writeStored(next);
+    writeStored(userKeyRef.current, next);
   }, []);
 
   const patch = useCallback((requestId: string, change: Partial<PaperJob>) => {
@@ -168,6 +181,20 @@ export function usePaperJobs({ onReady, onFailed }: Options = {}) {
   }, [patch, schedule]);
   pollRef.current = poll;
 
+  // A different teacher (or the first time we learn who she is): her own stored jobs, not the
+  // last one's. Jobs started before she was known are kept and saved under her key.
+  useEffect(() => {
+    if (userKeyRef.current === userKey) return;
+    const carried = userKeyRef.current === null ? jobsRef.current : [];
+    userKeyRef.current = userKey;
+    timers.current.forEach((t) => clearTimeout(t));
+    timers.current.clear();
+    generation.current += 1;
+    const stored = readStored(userKey).filter((j) => !carried.some((c) => c.requestId === j.requestId));
+    commit([...stored, ...carried]);
+    jobsRef.current.filter((j) => j.status === 'writing').forEach((j) => { poll(j.requestId); });
+  }, [userKey, commit, poll]);
+
   // Resume the writing jobs restored from storage; stop everything on unmount.
   useEffect(() => {
     generation.current += 1;
@@ -205,14 +232,25 @@ export function usePaperJobs({ onReady, onFailed }: Options = {}) {
     commit(jobsRef.current.filter((j) => j.requestId !== requestId));
   }, [clearTimer, commit]);
 
-  /** Re-send a failed job's exact request; the failed row is replaced only once it starts. */
-  const retry = useCallback(async (requestId: string): Promise<StartResult> => {
+  /**
+   * Re-send a failed job's exact request; the failed row is replaced only once it starts.
+   * A retry already in flight for this job returns `null` and sends nothing.
+   */
+  const retry = useCallback(async (requestId: string): Promise<StartResult | null> => {
+    if (retryingRef.current.has(requestId)) return null;
     const job = jobsRef.current.find((j) => j.requestId === requestId);
     if (!job) return { ok: false, error: FAILURE_FALLBACK };
-    const result = await start(job.spec, job.label);
-    if (result.ok) dismiss(requestId);
-    return result;
+    retryingRef.current.add(requestId);
+    setRetrying(new Set(retryingRef.current));
+    try {
+      const result = await start(job.spec, job.label);
+      if (result.ok) dismiss(requestId);
+      return result;
+    } finally {
+      retryingRef.current.delete(requestId);
+      setRetrying(new Set(retryingRef.current));
+    }
   }, [dismiss, start]);
 
-  return { jobs, start, retry, dismiss };
+  return { jobs, start, retry, dismiss, retrying };
 }

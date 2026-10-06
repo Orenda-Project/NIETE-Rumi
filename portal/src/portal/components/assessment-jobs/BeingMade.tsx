@@ -21,11 +21,13 @@ function clock(ms: number): string {
 
 type Props = {
   jobs: PaperJob[];
+  /** Jobs whose Try again is in flight: the button is disabled so it cannot fire twice. */
+  retrying?: ReadonlySet<string>;
   onRetry: (requestId: string) => void;
   onDismiss: (requestId: string) => void;
 };
 
-const BeingMade = ({ jobs, onRetry, onDismiss }: Props) => {
+const BeingMade = ({ jobs, retrying, onRetry, onDismiss }: Props) => {
   const shown = jobs.filter((j) => j.status === 'writing' || j.status === 'failed');
   if (shown.length === 0) return null;
 
@@ -58,7 +60,14 @@ const BeingMade = ({ jobs, onRetry, onDismiss }: Props) => {
               <p className="text-xs text-muted-foreground">{failureMessage(job.errorCode)}</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => onRetry(job.requestId)}>Try again</Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!!retrying?.has(job.requestId)}
+                onClick={() => onRetry(job.requestId)}
+              >
+                Try again
+              </Button>
               <Button size="sm" variant="ghost" onClick={() => onDismiss(job.requestId)}>Dismiss</Button>
             </div>
           </li>

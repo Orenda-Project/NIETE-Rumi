@@ -43,7 +43,7 @@ function madeOn(iso: string | null): string {
 }
 
 type Props = {
-  /** Bumped by the generator when a paper finishes, so the list refetches. */
+  /** Bumped by the page when a paper becomes ready (bd-t5tow), so the list refetches. */
   refreshKey?: number;
   /** Server flag features.assessmentEditing — shows Edit and Versions. */
   editing?: boolean;
@@ -54,10 +54,15 @@ type Props = {
   highlightIds?: string[];
   /** bd-t5tow — the list's total after each load, for the My papers tab badge. */
   onTotal?: (total: number) => void;
+  /**
+   * bd-t5tow — the generator is in the other tab now, so the empty list offers
+   * a way there instead of pointing "above".
+   */
+  onCreate?: () => void;
 };
 
 const AssessmentPapersPanel = ({
-  refreshKey = 0, editing = false, highlightIds = [], onTotal,
+  refreshKey = 0, editing = false, highlightIds = [], onTotal, onCreate,
 }: Props) => {
   const { toast } = useToast();
   // A ref, so a parent passing a fresh callback each render does not refetch the list.
@@ -200,9 +205,12 @@ const AssessmentPapersPanel = ({
           <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">
             {gradeFilter === ALL && subjectFilter === ALL
-              ? 'No papers yet. Make one above.'
+              ? 'No papers yet.'
               : 'No papers match these filters.'}
           </p>
+          {onCreate && gradeFilter === ALL && subjectFilter === ALL && (
+            <Button size="sm" onClick={onCreate}>Create paper</Button>
+          )}
         </div>
       ) : (
         <ul className="divide-y rounded-lg border">
