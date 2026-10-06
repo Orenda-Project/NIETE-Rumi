@@ -1896,6 +1896,12 @@ const UX_STRINGS = {
     en: '📣 Our quiz on *{topic}* is still open! If you have not played yet, tap the link and play today: {link}',
     ur: '\u200F📣 *{topic}* کا کوئز ابھی کھلا ہے! اگر آپ نے ابھی تک نہیں کھیلا تو لنک پر ٹیپ کریں اور آج ہی کھیلیں: {link}',
   },
+  // Social proof (COS 6 Oct): the class count, never a name. Urdu: نے … کھیل لیا ہے agrees with
+  // کوئز, not with the children (gender-neutral); numbers isolated LTR (U+2066/U+2069).
+  trReminderCount: {
+    en: '📣 {played} of {of} in {cls} have played *{topic}* — your turn! Tap the link and play today: {link}',
+    ur: '\u200F📣 {cls}: \u2066{of}\u2069 میں سے \u2066{played}\u2069 نے *{topic}* کا کوئز کھیل لیا ہے — اب آپ کی باری! لنک پر ٹیپ کریں اور آج ہی کھیلیں: {link}',
+  },
   trReminderNoTopic: {
     en: '📣 Our quiz is still open! If you have not played yet, tap the link and play today: {link}',
     ur: '\u200F📣 کوئز ابھی کھلا ہے! اگر آپ نے ابھی تک نہیں کھیلا تو لنک پر ٹیپ کریں اور آج ہی کھیلیں: {link}',
