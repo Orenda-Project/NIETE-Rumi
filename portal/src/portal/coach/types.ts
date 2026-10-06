@@ -98,7 +98,8 @@ export type PeopleData = { teachers: CoachTeacher[]; schools: CoachSchool[] };
 export type SchoolData = { school: CoachSchool; teachers: CoachTeacher[] };
 export type TeacherData = {
   teacher: CoachTeacher;
-  history: { id: string; date: string | null; kind: "HITL" | "DC"; score: number | null }[];
+  /** bd-o15qnr.10 — `open`: 'observe' = her own portal observation's page, 'report' = the v2 report, null = nothing to open. */
+  history: { id: string; date: string | null; kind: "HITL" | "DC"; score: number | null; step?: string | null; open?: "observe" | "report" | null }[];
   nextVisit: CoachVisit | null;
 };
 /** bd-o15qnr.9 — her latest HITL visit, for the Visit page's Last visit row. */
@@ -113,3 +114,16 @@ export type LastVisit = {
   portal?: boolean;
 };
 export type VisitData = { visit: CoachVisit; teacher: CoachTeacher | null; lastVisit: LastVisit | null };
+
+/** bd-o15qnr.10 — one sent HITL report, read-only (GET /coach/observation/:id). */
+export type ObservationReport = {
+  id: string;
+  date: string | null;
+  score: number | null;
+  summary: string | null;
+  teacher: { name: string; teacherExtId: string | null; schoolName: string | null };
+  observer: { self: boolean; name: string | null };
+  sentAt: string | null;
+  caption: string | null;
+  imageUrl: string | null;
+};
