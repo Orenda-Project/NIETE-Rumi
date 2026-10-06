@@ -221,6 +221,75 @@ Feature: Web child quiz page on the portal
     When the child taps "I don't know my number" and types "Aysha"
     Then the page asks "Are you Ayesha?" before starting
 
+  # Who is playing, name first (app_settings web_quiz_identity = "v2"; off = the roll-number screens above, unchanged)
+  @T360
+  Scenario: Name first: the child types the name they are called by and confirms ONE card
+    Given identity v2 is on and the quiz's class "4-A" has one child called "Hina Testwala"
+    When the child taps "Play"
+    Then the page asks "What is your name?" («آپ کا نام کیا ہے؟») and no number pad is shown
+    When the child types "Hina" and taps "Start"
+    Then the page asks "Are you Hina?" with Hina's animal on ONE card and nothing else about the child
+    When the child taps "Yes, it's me"
+    Then the quiz starts as the class-list child
+
+  @T361
+  Scenario: Two children share the typed name: the page asks, it never shows them
+    Given identity v2 is on and class "4-A" has "Ali Testwala" and "Ali Raza Testwala"
+    When the child types "Ali"
+    Then the page asks "There is more than one Ali in 4-A. What is your full name?" with "Ali" already typed
+    And no classmate's name, surname, father's name or number is on the screen
+    When the child types the full name
+    Then exactly one "Are you Ali?" card is shown
+
+  @T362
+  Scenario: A child who does not know the answers still plays, as a new child of this class
+    Given identity v2 is on and two children of the class share the typed name and a father's name
+    When the child taps "I don't know" for the father's name and for the class-list number
+    Then the page says "I can't find <name> in 4-A. Is that how your name is written?"
+    When the child taps "Yes, that's my name"
+    Then the quiz starts as a new child the teacher can add to the class later
+
+  @T363
+  Scenario: A link from the child's quiz hub plays as that child with no picking
+    Given identity v2 is on and the hub opens "/q/<code>?k=<chip>" for a child of this class
+    When the page opens
+    Then the quiz starts as that child
+    But when the server does not know that chip, the phone forgets it and asks "What is your name?"
+
+  @T364
+  Scenario: An invited friend only types a name
+    Given identity v2 is on and a friend opens a challenge link from a child of class "4-A"
+    When the friend taps "Play"
+    Then the page asks only "What is your name?": no class question, no class names, no number pad
+    And the friend plays as a new child who never counts in the class report
+
+  @T365
+  Scenario: The class is asked only when the hand-out could not tell
+    Given identity v2 is on and the teacher has classes "4-A" and "4-B" and did not say which one the quiz is for
+    When the child taps "Play"
+    Then the page asks "Which class are you in?" with "4-A", "4-B" and "My class is not here"
+    When the child taps "4-B" and types their name
+    Then only "4-B" is searched, and the "Are you …?" card shows "4-B"
+    But when the hand-out has one class, the page goes straight to "What is your name?"
+
+  @T366
+  Scenario: Remembered children are big cards on this phone, with "Someone else"
+    Given identity v2 is on and this phone remembers "Hina Testwala" and "Omar Testwala"
+    When the quiz link is opened
+    Then the landing shows Hina and Omar as cards with their animals and a "Someone else" («کوئی اور») button
+    When the child taps "Omar"
+    Then the quiz starts as Omar with no typing
+
+  @T367
+  Scenario: A phone passed around a class puts "Someone else" first and lets a wrong card be undone
+    Given identity v2 is on and this phone remembers 4 children
+    When the quiz link is opened
+    Then "Someone else" comes before the children's cards, and the cards are smaller
+    When a child taps "Hina" and the first question opens
+    Then a "Not Hina?" button floats over the question for a few seconds
+    When the child taps it
+    Then the page asks "What is your name?" and logs the wrong card with how long it took
+
   Scenario: The first finish of a class-list child counts once, on any phone
     Given a class-list child finished the quiz on one phone
     When the same child confirms their roll number on another phone and plays again

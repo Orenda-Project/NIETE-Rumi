@@ -96,6 +96,12 @@ html[lang=ur] .wq-btn{font-weight:700;font-size:19px;line-height:1.9}
 /* The animal badge is an emoji: keep it out of the Nastaliq stack and its tall line box (Urdu pushed it below its circle). */
 .wq-ani{font-family:var(--f);line-height:1;display:inline-block;font-weight:400}
 .wq-kid .wq-ani{font-size:28px;width:40px;height:40px;display:grid;place-items:center;background:var(--paper-2);border-radius:50%;line-height:1}
+/* identity v2: remembered children as big cards on the landing (wq-identity.js) */
+.wq-kids-big{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.wq-kid-big{min-height:72px;font-size:21px;padding:8px 12px 8px 8px;overflow:hidden}
+.wq-kid-big bdi{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wq-kids-small .wq-kid-big{min-height:56px;font-size:18px}
+.wq-undo{position:fixed;left:16px;right:16px;bottom:16px;width:auto;z-index:50;background:#fff;color:var(--navy);border:2px solid var(--navy);box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .wq-input{width:100%;min-height:58px;border-radius:16px;border:2px solid var(--line);background:#fff;padding:8px 14px;font-size:22px;font-weight:800;color:var(--navy)}
 .wq-input:focus{outline:3px solid var(--green);outline-offset:1px}
 /* M4 roll-number pad: big keys, digits in the page's own font (the Nastaliq line box would push digits off-centre). */
