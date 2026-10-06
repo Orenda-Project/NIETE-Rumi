@@ -601,6 +601,15 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
         parts.push(resolveUx('classStudentsDropped', { user: who, params: { dropped: added.dropped } }));
       }
     }
+    // A paste that did not land is said out loud, with how much of it. Folding it into
+    // "nothing changed" told a teacher whose children were dropped that all was well.
+    // An unparseable paste ('no_names') added nothing and lost nothing, so it is not a failure.
+    const addFailed = Boolean(added && added.error && added.error !== 'no_names');
+    if (addFailed) {
+      parts.push(added.notAdded > 0
+        ? resolveUx('classStudentsNotAdded', { user: who, params: { notAdded: added.notAdded, class: ctx.display } })
+        : resolveUx('classStudentsAddFailed', { user: who, params: { class: ctx.display } }));
+    }
     if (!parts.length) {
       parts.push(resolveUx('classNoChanges', { user: who, params: { class: ctx.display } }));
     }
@@ -609,7 +618,7 @@ async function handleClassManagerDataExchange(userId, screen, screenData) {
     return {
       screen: 'SAVED',
       data: {
-        heading: resolveUx('classSavedHeading', { user: who }),
+        heading: resolveUx(addFailed ? 'classStudentsNotAddedHeading' : 'classSavedHeading', { user: who }),
         detail: parts.join(' '),
         done_label: resolveUx('classDone', { user: who }),
       },
