@@ -732,34 +732,6 @@ Feature: Web child quiz page on the portal
     When the friend opens it on their own phone
     Then the page names only the challenger and their score
     And it shows no teacher name, no class label, no class names to pick from and no "N in your class played today"
-  @T446
-  Scenario: A challenger who scored nothing is not a score to beat
-    Given a child finished a quiz with 0 right answers and sent a friend their challenge link
-    When the friend opens the link
-    Then the landing says "<challenger> challenged you. Can you beat their score?" («… نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!»)
-    And it never says "0/5 stars. Can you beat it?"
-    And the friend's landing never says how many of the class played today (the friend is not in that class)
-  @T445b
-  Scenario: The invite picture and its link title never guess the friend's gender, and never dare a zero
-    Given a child sent a challenge link
-    When the link previews in Urdu
-    Then it reads «<name> کے 4/6 سے آگے نکلیں!» (an imperative), never «کیا آپ … سکتے ہیں؟»
-    And when the challenger scored 0 the picture and the title say "<name> challenged you!" («<name> نے آپ کو چیلنج کیا ہے!») with no score
-
-
-
-  @T395
-  Scenario: An English quiz that quotes an Urdu word keeps one voice
-    Given an English quiz whose questions quote the teacher's Urdu glosses (for example «سرکل»)
-    When a child answers a question and when the quiz ends
-    Then the feedback lines ("Yes! That's right!", "Quiz complete!") are English, in the same voice as the question clips
-    And an Urdu quiz keeps its Urdu feedback lines even when its page is opened from an English class
-  @T449
-  Scenario: A friend who played a challenge never reaches the challenger's class table
-    Given a friend finished a quiz through a classmate's challenge link
-    Then the friend's scorecard offers "Challenge a friend" and "School league" but not "See my class" or "Share to class group"
-    And the "Quiz complete" screen offers no "See my class"
-    And the class table of a challenge code answers "not found", both as /q/<challenge code>/class and through the page's API
 
   @T255
   Scenario: A child's shared card arrives in the group as a picture, even from WhatsApp's own browser
@@ -880,3 +852,31 @@ Feature: Web child quiz page on the portal
     When it is opened
     Then the page says "This link has expired" and "Send /quiz on WhatsApp to get a new one." in the child's language
     And no child's name or quiz is shown
+  @T446
+  Scenario: A challenger who scored nothing is not a score to beat
+    Given a child finished a quiz with 0 right answers and sent a friend their challenge link
+    When the friend opens the link
+    Then the landing says "<challenger> challenged you. Can you beat their score?" («… نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!»)
+    And it never says "0/5 stars. Can you beat it?"
+    And the friend's landing never says how many of the class played today (the friend is not in that class)
+  @T449
+  Scenario: A friend who played a challenge never reaches the challenger's class table
+    Given a friend finished a quiz through a classmate's challenge link
+    Then the friend's scorecard offers "Challenge a friend" and "School league" but not "See my class" or "Share to class group"
+    And the "Quiz complete" screen offers no "See my class"
+    And the class table of a challenge code answers "not found", both as /q/<challenge code>/class and through the page's API
+  @T445b
+  Scenario: The invite picture and its link title never guess the friend's gender, and never dare a zero
+    Given a child sent a challenge link
+    When the link previews in Urdu
+    Then it reads «<name> کے 4/6 سے آگے نکلیں!» (an imperative), never «کیا آپ … سکتے ہیں؟»
+    And when the challenger scored 0 the picture and the title say "<name> challenged you!" («<name> نے آپ کو چیلنج کیا ہے!») with no score
+
+
+
+  @T395
+  Scenario: An English quiz that quotes an Urdu word keeps one voice
+    Given an English quiz whose questions quote the teacher's Urdu glosses (for example «سرکل»)
+    When a child answers a question and when the quiz ends
+    Then the feedback lines ("Yes! That's right!", "Quiz complete!") are English, in the same voice as the question clips
+    And an Urdu quiz keeps its Urdu feedback lines even when its page is opened from an English class
