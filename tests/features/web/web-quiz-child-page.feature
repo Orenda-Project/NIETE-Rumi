@@ -290,6 +290,14 @@ Feature: Web child quiz page on the portal
     When the child taps it
     Then the page asks "What is your name?" and logs the wrong card with how long it took
 
+  @T492
+  Scenario: Siblings on one phone can undo a wrong card on the first question
+    Given identity v2 is on and this phone remembers 2 children, "Tooba" and "Yusra"
+    When Yusra taps "Tooba" by mistake and the first question opens
+    Then a "Not Tooba?" button floats over the question for a few seconds
+    When Yusra taps it
+    Then the page asks "What is your name?" and Yusra's answers never go on Tooba's quiz
+
   Scenario: The first finish of a class-list child counts once, on any phone
     Given a class-list child finished the quiz on one phone
     When the same child confirms their roll number on another phone and plays again
