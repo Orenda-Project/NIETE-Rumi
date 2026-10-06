@@ -31,11 +31,15 @@ const WebQuizSchools = require('../services/quiz/web-quiz-schools');
 const WebQuizPulse = require('../services/quiz/web-quiz-pulse');
 const WebQuizChallenge = require('../services/quiz/web-quiz-challenge');
 const WebQuizArt = require('../services/quiz/web-quiz-art');
+const Timing = require('../services/quiz/web-quiz-timing');
 
 const router = express.Router();
 router.use(requireInternalKey);
+// Every route logs its time and database round trips (web_quiz.timing; slow always, fast sampled).
+Timing.patch(require('../config/supabase'));
 
-const handle = (fn) => async (req, res) => {
+const handle = (fn) => (req, res) => Timing.run(() => (req.route && req.route.path) || 'other', () => serve(fn, req, res), () => res.statusCode);
+const serve = async (fn, req, res) => {
   try {
     const out = await fn(req, res);
     if (res.headersSent) return undefined;
