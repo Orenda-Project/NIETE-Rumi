@@ -3,6 +3,7 @@
  *
  *   GET  /q/:code          the child page, server-rendered with the quiz payload as boot JSON
  *   GET  /q/:code/class    the same page opened on the class league table (own URL, own link preview)
+ *   GET  /q/:code/schools  the same page opened on the school league (own URL, own link preview)
  *   *    /api/wq/*         forwarded to the bot's /api/internal/wq/* with the internal key
  *   GET  /wq-probe         a capability probe for real phones; posts its result as one event
  *   GET  /wq/*             the page's own JS/CSS/images, long cache (the page links them with ?v=<hash>)
@@ -31,6 +32,7 @@ const YEAR_S = 31536000;
 const API_ROUTES = [
   { method: 'get', path: '/api/wq/quiz/:code', limiter: 'read', unknownCode: true },
   { method: 'get', path: '/api/wq/board/:code', limiter: 'read' },
+  { method: 'get', path: '/api/wq/schools/:code', limiter: 'read' },
   { method: 'get', path: '/api/wq/media/:code/:qid', limiter: 'read' },
   { method: 'post', path: '/api/wq/session', limiter: 'session' },
   { method: 'post', path: '/api/wq/answers', limiter: 'answers' },
@@ -93,6 +95,12 @@ function ogText(payload, view, brand) {
   const ur = q.lang === 'ur';
   const label = cls.label || (ur ? 'جماعت' : 'Class');
   const n = q.n || (q.questions || []).length || 0;
+  if (view === 'schools') {
+    return {
+      title: ur ? 'اس ہفتے اسکولوں کی لیگ' : 'School league this week',
+      desc: ur ? 'کھیلنے کے 10 پوائنٹس، اسکور کے 10 تک۔ کھیلیں اور اپنے اسکول کو اوپر لے جائیں!' : '10 points for playing, up to 10 for your score. Play and push your school up!',
+    };
+  }
   if (view === 'class') {
     return {
       title: ur ? `${q.topic || ''} · ${label} کی لیگ ٹیبل` : `${q.topic || ''} · ${label} league table`,
@@ -303,6 +311,7 @@ function createWebQuizRouter(opts = {}) {
 
   router.get('/q/:code', limiters.read, unknownCode, (req, res) => page(req, res, 'quiz'));
   router.get('/q/:code/class', limiters.read, unknownCode, (req, res) => page(req, res, 'class'));
+  router.get('/q/:code/schools', limiters.read, unknownCode, (req, res) => page(req, res, 'schools'));
 
   router.get('/wq-probe', (req, res) => {
     pageHeaders(res);

@@ -29,7 +29,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false } = {}) {
+function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view } = {}) {
   const els = {};
   const root = fakeEl('#wq');
   root.innerHTML = '';
@@ -40,7 +40,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   root.querySelectorAll = () => [];
   const boot = {
     textContent: JSON.stringify({
-      code: 'TEST', cls, live, video, brand, preview,
+      code: 'TEST', cls, live, video, brand, preview, view,
       quiz: { code: 'TEST', lang, topic, grade, questions: [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
     }),
   };
@@ -90,7 +90,8 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const back = () => { if (hist.i > 0) hist.i -= 1; (wl.popstate || []).forEach((fn) => fn({ state: hist.stack[hist.i].state })); };
   const moment = () => root.attrs['data-m'];
   const toasts = () => created.filter((e) => e.className === 'wq-toast').map((e) => e.textContent);
-  return { ctx, root, els, fetches, wq: ctx.__wq, html: () => root.innerHTML, hist, tap, back, moment, toasts };
+  const fireDoc = (n) => (dl[n] || []).forEach((fn) => fn({}));
+  return { ctx, root, els, fetches, wq: ctx.__wq, html: () => root.innerHTML, hist, tap, back, moment, toasts, fireDoc };
 }
 const flush = () => new Promise((r) => setImmediate(r));
 module.exports = { page, rule, flush, SRC, CSS, TAIL };
