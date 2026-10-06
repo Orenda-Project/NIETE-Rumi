@@ -1128,8 +1128,8 @@ const PROPHET_ALT_HONORIFIC_RE = /^[\s،۔:'"’”)(‏]{0,3}(علیہ\s*الص
 // every other entry in PROPHET_TOKENS is either Muhammad's own name (محمد) or a conventional
 // epithet of him specifically — سرورِ کائنات, پیغمبر اسلام, رسولِ اکرم, رسول اللہ, رسول کریم,
 // نبی کریم, نبی اکرم, نبی پاک, آں حضرت, آنحضرت, حضور اکرم, حضور — and those keep demanding ﷺ.
-// A NAMED prophet (حضرت ابراہیم علیہ السلام) is not this lane at all; it goes through check 3,
-// whose COMPANION_HON has always accepted علیہ السلام.
+// A NAMED prophet (حضرت ابراہیم علیہ السلام) is not this lane at all, and since bd-96hng
+// (2026-10-06) nothing demands a salutation after his name.
 const GENERIC_PROPHET_TOKENS = new Set(["نبی"]);
 // G5c RULING Q3 (operator, 2026-09-17, on the bd-zipoe native-speaker review packet): "For
 // English keep the name as shown in the page truth Hazrat Muhammad (salutation) ... it should stay
@@ -1218,10 +1218,6 @@ function clearedByReview(s, idx) {
   }
   return best !== null && !best.blocks;
 }
-// A companion's name as the books print it. Bare "علی"/"عمر" would match ordinary words, so the
-// unit is the HONORIFIC-BEARING NAME PHRASE: "حضرت <name>".
-const COMPANION_RE = /حضرت\s+([^\s،۔:'"’”)(]+(?:\s+[^\s،۔:'"’”)(]+)?)/g;
-const COMPANION_HON = /^[\s،۔]{0,2}(رضی\s*اللہ\s*(?:تعالیٰ|تعالى|تعالی)?\s*عنہ(?:م|ا|ما|من)?|رضوان\s*اللہ|کرم\s*اللہ\s*وجہہ|علیہ[مان]?\s*السلام|رحمۃ\s*اللہ\s*علیہ|رحمہ\s*اللہ|صدیق|فاروق|المرتضیٰ|ﷺ)/;
 // §4c.5 bans four things and only one of them is about script: "never de-pointed, ABBREVIATED,
 // transliterated or dropped". An ABBREVIATION throws away the honorific itself, so it is refused
 // in any medium — the salutation is written as "ﷺ", never as "(PBUH)" and never spelled out in
@@ -1388,23 +1384,21 @@ function clearedByReviewEn(s, idx) {
 // SALUTATION is the ligature — and this carries the same split to companions: "Khadijah رضی اللہ
 // عنہا", never "Khadijah radiallahu anha" and never "Khadijah (may Allah be pleased with her)".
 //
-// This is a ban on the WRITTEN-OUT-IN-LATIN salutation, not a demand that a name carry one. Rule 3
-// deliberately refuses to keep a corpus of companion names — bare "علی"/"عمر" are ordinary words —
-// and a Latin list would be worse, so a bare "Khadijah" is still the native-speaker reviewer's
-// call. What IS decidable without a name list is that a salutation was typed in the wrong script.
+// This is a ban on the WRITTEN-OUT-IN-LATIN salutation, not a demand that a name carry one. Since
+// bd-96hng (operator, 2026-10-06) only the Prophet ﷺ needs a salutation at all, so a bare
+// "Khadijah" is fine. What IS decidable is that a salutation the book prints was typed in the
+// wrong script.
 //
 // AMENDED (bd-zipoe, 2026-09-17). Rule 1 now DOES carry a name corpus — `g5c_cleared_names.json`.
 // The position above has not changed; the corpus is a different kind of thing. It is not a guess
 // about which names are ordinary, assembled by this file. It is the G5c native-speaker review
 // itself: 298 phrases, each one decided by Amena Ahmed on 2026-09-17, carried in as data with its
 // provenance. It only ever CLEARS, and only the exact phrases she saw; an unreviewed name still
-// fails. Rule 3 keeps no corpus because no such review exists for companion names — nobody has
-// sat down and decided the bare "علی"s of the Grades 6-12 corpus one by one. When someone does,
-// rule 3 may carry that review the same way. Until then a bare "Khadijah" remains her call.
+// fails. Companion names need no corpus: since bd-96hng nothing demands their honorific.
 //
 // Transliterations vary more than the Urdu does: radi/radhi/razi/radiya, alayhi/alaihi,
-// rahmat/rahimah. The Urdu forms these should have been are COMPANION_HON's set, quoted back to
-// the author in the message.
+// rahmat/rahimah. The Urdu forms these should have been are quoted back to the author in the
+// message.
 const COMPANION_SALUT_LATIN_RE = new RegExp([
   "r[ae][dz]h?i(?:y|ya)?\\s*-?\\s*all?ah[ui]?\\s*-?\\s*['’]?anh(?:uma|um|un|u|a)",  // رضی اللہ عنہ
   "r[ae]h(?:mat|imah)u?ll?ah(?:i)?(?:\\s*-?\\s*(?:alay|alai)h[ie]?)?",                   // رحمہ اللہ
@@ -1961,42 +1955,9 @@ function religiousMarks(doc, ctx) {
     }
   }
 
-  // 3 — companion honorifics, checked for INTERNAL CONSISTENCY. This is the version with no false
-  //     positives: if the same document honorifies "حضرت عمر" in one line and leaves it bare in
-  //     the next, the bare one is a slip, and it is decidable without a corpus of names.
-  const honorified = new Set();
-  const bare = [];
-  for (const { at, s } of strings) {
-    COMPANION_RE.lastIndex = 0;
-    let m;
-    while ((m = COMPANION_RE.exec(s))) {
-      // The capture may have swallowed the first word of the honorific ("عمر رضی"), so the NAME
-      // is the words before the honorific starts, and the honorific is looked for from the end of
-      // "حضرت " onwards rather than from the end of a guessed name.
-      const from = m.index + "حضرت".length;
-      const rest = s.slice(from).replace(/^\s+/, "");
-      const words = rest.split(/(\s+)/);
-      let name = "", tail = rest, consumed = 0;
-      for (let i = 0; i < Math.min(words.length, 5); i += 2) {
-        const cand = rest.slice(consumed).replace(/^\s+/, "");
-        if (name && COMPANION_HON.test(cand)) { tail = cand; break; }
-        name += (name ? " " : "") + words[i];
-        consumed += words[i].length + (words[i + 1] || "").length;
-        tail = rest.slice(consumed).replace(/^\s+/, "");
-        if (COMPANION_HON.test(tail)) break;
-        if (i >= 4) break;                        // a name is at most three words
-      }
-      name = name.replace(/[،۔:'"’”)(]+$/, "").trim();
-      if (!name) continue;
-      const first = name.split(/\s+/)[0];
-      if (COMPANION_HON.test(tail)) { honorified.add(first); continue; }
-      bare.push({ at, s, name, first, idx: m.index });
-    }
-  }
-  for (const b of bare) {
-    if (!honorified.has(b.first)) continue;      // never honorified anywhere — not a slip, review it
-    fail("RELIGIOUS_MARKS", `${b.at || "/"} names a companion ("حضرت ${b.name}") with no honorific, but this same document honorifies "حضرت ${b.first}" elsewhere: "${b.s.slice(Math.max(0, b.idx - 15), b.idx + 45)}". Carry the honorific the book prints — رضی اللہ عنہ / عنہا / عنہم (brief §4c.5). ${HOLD}`);
-  }
+  // 3 — REMOVED (bd-96hng, operator ruling 2026-10-06): only the Prophet ﷺ needs a salutation.
+  //     A companion's honorific the book prints is kept, never demanded, so a document that
+  //     honorifies "حضرت عمر" once and leaves him bare elsewhere is no longer refused.
 
   // 4 — no impersonation: the Prophet does not "speak" outside quoted, sourced hadith text.
   for (const { at, s } of strings) {

@@ -1482,8 +1482,7 @@ another subject (a سیرت chapter in an Urdu book, for instance).
 
 > **`RELIGIOUS_MARKS` now enforces the mechanical half of this section, and only that half.**
 > It blocks on: a mention of the Prophet with no `ﷺ` after it · a sacred name or honorific written
-> in Latin script (`Allah`, `Muhammad`, `PBUH`, `RA`) · a companion honorified in one line and
-> left bare in another · quoted prophetic speech with no hadith or printed page behind it · and
+> in Latin script (`Allah`, `Muhammad`, `PBUH`, `RA`) · quoted prophetic speech with no hadith or printed page behind it · and
 > religious content that does not set `needs_human_review`. It warns on a religious quotation with
 > no source in the same string.
 >

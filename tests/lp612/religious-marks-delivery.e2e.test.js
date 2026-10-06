@@ -177,20 +177,17 @@ describe('E — a correctly-honorified companion is not reported as a slip', () 
     expect(out.lintClean).toBe(true);
   });
 
-  test('a genuinely bare companion is STILL not delivered clean', async () => {
-    // The consistency rule's whole point. If this goes green the fix has gone too far.
-    //
-    // Recovered from 065766b7, where this asserted on a RETURNED document. It cannot here: the
-    // P0 that shipped to sandbox made an exhausted ladder THROW (lp612-author.service.js:2511),
-    // so there is no dirty document to inspect — which is the protection working. The assertion
-    // moves onto the raised message via the `refusal` helper; what is being asserted is unchanged.
+  test('a companion honorified once and bare once is delivered clean (bd-96hng)', async () => {
+    // Operator ruling 2026-10-06: only the Prophet ﷺ needs a salutation. The consistency rule
+    // that used to refuse this line is gone; a companion's honorific is kept, never demanded.
     create.mockResolvedValue(reply(religiousDoc(
       'حضرت خدیجۃ الکبریٰ کا لقب کیا تھا؟ حضرت خدیجۃ رضی اللہ عنہا کا ذکر')));
 
-    const message = await refusal(1);
+    const out = await run();
 
-    expect(message).toMatch(/RELIGIOUS_MARKS/);
-    expect(message).toMatch(/names a companion/);
+    expect(religiousFails(out)).toEqual([]);
+    expect(out.lintClean).toBe(true);
+    expect(out.rounds).toBe(0);
   });
 });
 
