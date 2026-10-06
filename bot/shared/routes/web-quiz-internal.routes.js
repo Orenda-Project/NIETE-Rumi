@@ -53,7 +53,7 @@ router.post('/me', handle((req) => WebQuiz.me(req.body || {})));
 router.post('/who', handle((req) => WebQuiz.whoPlayed(req.body || {})));
 router.post('/who/fix', handle((req) => WebQuiz.fixWho(req.body || {})));
 router.post('/e', handle(async (req, res) => { WebQuiz.events(req.body || {}); res.status(204).end(); }));
-router.get('/media/:code/:qid', handle((req) => WebQuiz.media(req.params.code, req.params.qid, { k: req.query.k })));
+router.get('/media/:code/:qid', handle((req) => WebQuiz.media(req.params.code, req.params.qid, { k: req.query.k, z: req.query.z })));
 router.get('/videos/:code', handle((req) => WebQuizVideos.list(req.params.code, { st: req.query.st })));
 router.post('/videos/start', handle((req) => WebQuizVideos.start(req.body || {})));
 
