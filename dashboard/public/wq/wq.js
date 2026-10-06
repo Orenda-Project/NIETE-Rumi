@@ -1108,7 +1108,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var ID = CLS.identity && CLS.identity.mode === 'v2' && typeof WQID === 'function' ? WQID({
     T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
     on: on, $: $, kids: kids, ev: ev, startSession: startSession, rollPad: rollPad, landing: landing,
-    pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }
+    pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null
   }) : null;
   function who() {
     if (ID) return ID.who();
@@ -1343,6 +1343,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       ((b.resume && b.resume.answered) || []).forEach(function (q) { if (!S.answers[q]) S.answers[q] = { slot: '?', ok: null }; });
       save();
       rememberKid(child);
+      if (ID) ID.started(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
       if (wantsVideo()) video(); else nextQuestion();
     }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st) landing(); });

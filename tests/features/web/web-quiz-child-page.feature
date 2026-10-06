@@ -280,6 +280,16 @@ Feature: Web child quiz page on the portal
     When the child taps "Omar"
     Then the quiz starts as Omar with no typing
 
+  @T367
+  Scenario: A phone passed around a class puts "Someone else" first and lets a wrong card be undone
+    Given identity v2 is on and this phone remembers 4 children
+    When the quiz link is opened
+    Then "Someone else" comes before the children's cards, and the cards are smaller
+    When a child taps "Hina" and the first question opens
+    Then a "Not Hina?" button floats over the question for a few seconds
+    When the child taps it
+    Then the page asks "What is your name?" and logs the wrong card with how long it took
+
   Scenario: The first finish of a class-list child counts once, on any phone
     Given a class-list child finished the quiz on one phone
     When the same child confirms their roll number on another phone and plays again
