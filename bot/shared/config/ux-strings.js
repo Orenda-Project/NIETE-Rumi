@@ -2223,6 +2223,17 @@ const UX_STRINGS = {
     en: '👀 Try the quiz page yourself before you forward it: {link}',
     ur: '\u200F👀 آگے بھیجنے سے پہلے quiz کا صفحہ خود دیکھیں: {link}',
   },
+  // The teacher report's "Remind the class": the text the teacher forwards into
+  // the class group (wa.me share). It names no child; in the QUIZ's language.
+  // Urdu: کریں / کھیلیں are polite imperatives; آپ نے … کھیلا is the ergative, no gendered stem.
+  trReminder: {
+    en: '📣 Our quiz on *{topic}* is still open! If you have not played yet, tap the link and play today: {link}',
+    ur: '\u200F📣 *{topic}* کا کوئز ابھی کھلا ہے! اگر آپ نے ابھی تک نہیں کھیلا تو لنک پر ٹیپ کریں اور آج ہی کھیلیں: {link}',
+  },
+  trReminderNoTopic: {
+    en: '📣 Our quiz is still open! If you have not played yet, tap the link and play today: {link}',
+    ur: '\u200F📣 کوئز ابھی کھلا ہے! اگر آپ نے ابھی تک نہیں کھیلا تو لنک پر ٹیپ کریں اور آج ہی کھیلیں: {link}',
+  },
   tqListBody: {
     en: 'Your lessons, newest first. Pick one to make a quiz, resend its link, or get its report.',
     ur: 'آپ کے اسباق، نئے سے پرانے۔ کوئی ایک چنیں — quiz بنانے، link دوبارہ بھیجنے یا رپورٹ لینے کے لیے۔',
