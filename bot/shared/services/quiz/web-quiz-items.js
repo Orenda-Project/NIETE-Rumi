@@ -302,6 +302,8 @@ function normaliseItem(raw, row, index, ctx = {}) {
     let readOpts = Array.isArray(r.read && r.read.opts) ? r.read.opts : [];
     // quiz_author_gates_v2: the voice says the label that is DRAWN (P, Q, R), never "Picture A".
     if (gates) readOpts = readOpts.map((t) => (AuthorGates.PICTURE_N.test(str(t)) ? '' : t));
+    // Gates v2: "A: stone" read for option A is the prompt's own format copied back — cut it, keep the item.
+    if (GatesV2.enabled(ctx.authorGates)) readOpts = readOpts.map((t, i) => (base[i] ? GatesV2.stripOwnSlotPrefix(t, base[i].slot) : t));
     const fbDistinct = distinctFeedback(base.map((_, i) => str(rowWrong[String(i)])));
     item = {
       v: 2, type, stem: String(row.question_text || '').trim(),
@@ -339,7 +341,8 @@ function normaliseItem(raw, row, index, ctx = {}) {
     }
     if (!oneSentence(r.why)) return { item: null, reason: 'no_why' };
     const fb = r.fb && typeof r.fb === 'object' ? r.fb : {};
-    const readOpts = Array.isArray(r.read && r.read.opts) ? r.read.opts : [];
+    let readOpts = Array.isArray(r.read && r.read.opts) ? r.read.opts : [];
+    if (GatesV2.enabled(ctx.authorGates)) readOpts = readOpts.map((t, i) => GatesV2.stripOwnSlotPrefix(t, SLOTS[i]));
     item = {
       v: 2, type, stem: str(r.stem),
       options: opts.map((text, i) => {
