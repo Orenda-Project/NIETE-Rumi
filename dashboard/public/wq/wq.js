@@ -462,7 +462,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' league table'; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
       finN: function (n) { return n + ' finished'; }, yourScore: 'Your score', avg: 'Class average', firstOnly: 'First names only. Ties share a place.',
       shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!',
-      histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', back: 'Back', sounds: 'Sounds',
+      histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', todayMore: 'Great work today! Want to watch another video?', back: 'Back', sounds: 'Sounds',
       cont: function (i, n) { return 'Go on: question ' + i + ' of ' + n; }, contSay: function (n) { return 'Welcome back, ' + n + '! Your answers are saved.'; }, restart: 'Start again', months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       fbT: 'Send it on WhatsApp', fbSub: 'Tap the WhatsApp button, then pick the chat.', fbWa: 'Send on WhatsApp', fbCopy: 'Copy the message', copied: 'Message copied',
       backAgain: 'Your answers are saved. Press back again to leave.',
@@ -504,7 +504,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + n + ' اور'; },
       finN: function (n) { return n + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!',
-      histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', back: 'واپس', sounds: 'آوازیں',
+      histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', todayMore: 'آج بہت اچھا کام کیا! ایک اور ویڈیو دیکھیں؟', back: 'واپس', sounds: 'آوازیں',
       cont: function (i, n) { return 'جاری رکھیں: سوال ' + i + ' از ' + n; }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں', months: ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'],
       fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'واٹس ایپ والا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا',
       backAgain: 'آپ کے جواب محفوظ ہیں۔ باہر جانے کے لیے دوبارہ بیک دبائیں۔',
@@ -1627,7 +1627,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function pickVideo(v, i) {
     if (picking) return;
     picking = true;
-    toast(T.moreWait);
+    // Jugnu waits on screen at once: the bot call and the next page's load take seconds on slow 4G.
+    render(bar() + jug('thinking', T.moreWait, true, true) + '<p class="wq-sub wq-center" dir="auto">' + esc(v.title) + '</p>', 'M15-go');
+    wireBar();
     ev('more_pick', { i: i, ok: !v.done });
     api('POST', 'videos/start', { code: CODE, st: S.st, vid: v.vid }).then(function (r) {
       if (!r.ok || !r.body || !r.body.code) throw new Error('more_start_' + r.status);
@@ -1637,6 +1639,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }).catch(function (e) {
       picking = false;
       toast(T.oops);
+      moreVideos();
       ev('error', { err: String((e && e.message) || 'more_start').replace(/[^a-z0-9_]/gi, '_').toLowerCase().slice(0, 40) });
     });
   }
@@ -1650,6 +1653,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   /* ---------------- M11 league table ---------------- */
+  // A row's stars are its score, the card's rule (one lit star per right answer), never one ⭐ for every child.
+  function rowScore(c, t) {
+    var n = Number(c) || 0, tot = Number(t) || 0;
+    var s = tot > 0 && tot <= 12 ? stars(Math.min(n, tot), tot).replace('class="wq-stars"', 'class="wq-stars wq-rstars"') : '';
+    return '<span class="wq-rscore">' + esc(c) + '/' + esc(t) + '</span>' + s;
+  }
   function board() {
     render(bar() + '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>', 'M11-wait');
     wireBar();
@@ -1663,10 +1672,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         var isYou = you && x.place === you.place && x.first === me && x.correct === you.correct && !youShown;
         if (isYou) youShown = true;
         return '<tr' + (isYou ? ' class="wq-you"' : '') + '><td>' + esc(x.place) + '</td><td>' + ani(x.animal) + ' ' + esc(x.first) +
-          (isYou ? '<span class="wq-tag">' + esc(T.you) + '</span>' : '') + '</td><td>' + esc(x.correct) + '/' + esc(x.total) + ' ⭐</td></tr>';
+          (isYou ? '<span class="wq-tag">' + esc(T.you) + '</span>' : '') + '</td><td>' + rowScore(x.correct, x.total) + '</td></tr>';
       }).join('');
       if (you && !youShown) {
-        rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + esc(you.correct) + '/' + esc(you.total) + ' ⭐</td></tr>';
+        rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + rowScore(you.correct, you.total) + '</td></tr>';
       }
       var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
       var h = bar() + '<h2>' + esc(T.leagueT(CLASS_LABEL)) + '</h2><p class="wq-sub">' + dotJoin(Q.topic, T.finN(b.finishers_n || 0)) + '</p>' +
@@ -1707,7 +1716,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       var fr = (r.ok && r.body.friends_finished) || [];
       if (!hist.length && !fr.length) return today();
       var h = bar() + '<h2>' + esc(T.histT) + '</h2><ul class="wq-hist">' + hist.slice(0, 10).map(function (x) {
-        return '<li><span>' + esc(x.topic) + '<br><small class="wq-small">' + esc(dayMonth(x.date)) + '</small></span><span>' + esc(x.correct) + '/' + esc(x.total) + ' ⭐</span></li>';
+        return '<li><span>' + esc(x.topic) + '<br><small class="wq-small">' + esc(dayMonth(x.date)) + '</small></span><span>' + rowScore(x.correct, x.total) + '</span></li>';
       }).join('') + '</ul>' +
         (fr.length ? '<p class="wq-sub">' + esc(T.friends) + '</p><ul class="wq-hist">' + fr.slice(0, 6).map(function (x) {
           return '<li><span>' + dotJoin(x.first, x.topic) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
@@ -1719,15 +1728,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       on('#wq-next', today);
     }, today);
   }
+  // "Time to rest" only when nothing is left to play today: with an unplayed lesson in the class's
+  // list the screen offers it instead. The list is asked for once the screen is up; no grade, no list.
   function today() {
-    var h = bar() + jug('sleep', T.rest, true) +
+    todayView(!!Q.grade);
+    ev('today_view', {});
+    if (!Q.grade) return;
+    api('GET', 'videos/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : '')).then(function (r) {
+      var vids = (r.ok && r.body && r.body.videos) || [];
+      var left = vids.some(function (v) { return !v.done; });
+      if (!left && ROOT.getAttribute('data-m') === 'M14') todayView(false);
+    }, function () {});
+  }
+  function todayView(more) {
+    var h = bar() + (more ? jug('hello', T.todayMore, true) : jug('sleep', T.rest, true)) +
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.todayT) + '</p>' +
       '<div class="wq-big">' + esc(fmtN(LIVE.ict_today_floor || 0)) + '</div>' +
       '<p class="wq-sub">' + esc(T.todaySub) + '</p></div>' +
-      moreBtn() + '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
+      (more ? moreBtn() : '') + '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
     render(h, 'M14');
     wireBar();
-    ev('today_view', {});
     on('#wq-home', function () { if (S.result) card(); else landing(); });
     on('#wq-more', moreVideos);
   }
