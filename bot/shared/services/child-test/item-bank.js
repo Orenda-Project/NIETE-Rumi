@@ -1,0 +1,185 @@
+/**
+ * Child test item bank accessor (bd-s1oo0.1, CONTRACT §2).
+ *
+ * Pure, read-only access to bot/shared/data/child-test/item-bank.v1.json: the stories, questions
+ * (with answer keys), first sounds, made-up words, fallback rows and maths items for Grades 3 and 5,
+ * Forms A (new children) and B (returning children). The bank is loaded once and deep-frozen, so a
+ * caller that mutates what it gets back throws instead of corrupting the bank for the next caller.
+ *
+ * v2 (child-test-items-v2, bd-s1oo0.46.3, CONTRACT §19), additive: `<block>.script` (the coach's words to
+ * the child), `maths.oral` (May EGMA set: compare A–D, sums 1–4, two word problems read aloud; Form A =
+ * Set A, Form B = Set B) and a third English question. In the v2 design a form letter is the term's card
+ * set, not new-vs-returning.
+ */
+const BANK = require('../../data/child-test/item-bank.v1.json');
+
+const GRADES = ['3', '5'];
+const FORMS = ['A', 'B'];
+const BLOCKS = ['urdu', 'english', 'maths'];
+const ORAL_KINDS = ['compare', 'sums', 'word_problems'];
+
+function deepFreeze(x) {
+  if (x && typeof x === 'object' && !Object.isFrozen(x)) {
+    Object.values(x).forEach(deepFreeze);
+    Object.freeze(x);
+  }
+  return x;
+}
+deepFreeze(BANK);
+
+// id -> { grade, form, block, kind, item }. Built once; every id in the bank is unique (validator-enforced).
+const INDEX = new Map();
+for (const grade of GRADES) {
+  for (const form of FORMS) {
+    for (const block of BLOCKS) {
+      for (const [kind, v] of Object.entries(BANK.grades[grade].forms[form][block])) {
+        const list = Array.isArray(v) ? v : [v];
+        for (const item of list) {
+          if (item && typeof item === 'object' && typeof item.id === 'string') {
+            INDEX.set(item.id, Object.freeze({ grade, form, block, kind, item }));
+          }
+        }
+      }
+    }
+    // v2 oral maths: maths.oral.{compare,sums,word_problems} → kind 'oral.compare' etc.
+    const oral = BANK.grades[grade].forms[form].maths.oral || {};
+    for (const kind of ORAL_KINDS) {
+      for (const item of oral[kind] || []) INDEX.set(item.id, Object.freeze({ grade, form, block: 'maths', kind: `oral.${kind}`, item }));
+    }
+  }
+}
+
+function normGrade(grade) {
+  const g = String(grade);
+  if (!GRADES.includes(g)) throw new Error(`child-test item bank: unknown grade "${grade}" (expected 3 or 5)`);
+  return g;
+}
+
+function normForm(form) {
+  const f = String(form || '').toUpperCase();
+  if (!FORMS.includes(f)) throw new Error(`child-test item bank: unknown form "${form}" (expected A or B)`);
+  return f;
+}
+
+/** The whole form: { urdu, english, maths }. */
+function getForm(grade, form) {
+  return BANK.grades[normGrade(grade)].forms[normForm(form)];
+}
+
+/** One block of a form: 'urdu' | 'english' | 'maths'. */
+function getBlock(grade, form, block) {
+  if (!BLOCKS.includes(block)) throw new Error(`child-test item bank: unknown block "${block}" (expected urdu, english or maths)`);
+  return getForm(grade, form)[block];
+}
+
+/** v2: the oral maths set of a form: { compare[4], sums[4], word_problems[2], script, equated, … }. */
+function getOral(grade, form) {
+  return getBlock(grade, form, 'maths').oral || null;
+}
+
+/** v2: the exact words the coach says to the child in one block (maths: the oral set's script). */
+function getScript(grade, form, block) {
+  const b = getBlock(grade, form, block);
+  return (block === 'maths' ? b.oral && b.oral.script : b.script) || null;
+}
+
+// ------------------------------------------------------------------ the v2 switches (CONTRACT §19)
+// v2 is the default; v1 is reached only by setting the switch to exactly its v1 value.
+/** CHILD_TEST_BATTERY: 'v2' (story + questions + fallback) unless set to 'v1' (adds first sounds, made-up words). */
+function batteryVersion(env = process.env) {
+  return String(env.CHILD_TEST_BATTERY || '').trim().toLowerCase() === 'v1' ? 'v1' : 'v2';
+}
+
+/** CHILD_TEST_MATHS_MODE: 'oral' (May set, one voice note) unless set to 'strip' (v1: numbers, quick sums, photo). */
+function mathsMode(env = process.env) {
+  return String(env.CHILD_TEST_MATHS_MODE || '').trim().toLowerCase() === 'strip' ? 'strip' : 'oral';
+}
+
+/** Any item by id (e.g. 'u3A-q1', 'e5B-story', 'm3A-qs12') → { grade, form, block, kind, item } or null. */
+function getItem(id) {
+  return INDEX.get(id) || null;
+}
+
+// ------------------------------------------------------------------ quick sums: one setting
+// `maths.quick_sums_seconds` in the bank governs the copy, the coach sheet and the scorer's timed
+// window. CHILD_TEST_QUICK_SUMS_SECONDS (30 or 60) overrides it on SANDBOX only, so a pilot can time
+// both settings without a bank change. Everything that needs the number reads quickSumsSeconds().
+const QS_ALLOWED = new Set([30, 60]);
+const QS_DEFAULT = 60;
+
+function isSandbox(env = process.env) {
+  const names = [env.CHILD_TEST_R2_ENV, env.RAILWAY_ENVIRONMENT, env.RAILWAY_ENVIRONMENT_NAME].map((x) => String(x || '').toLowerCase());
+  return names.includes('sandbox') || /-sandbox$/i.test(String(env.DEFAULT_REGION || ''));
+}
+
+function sandboxQuickSumsOverride(env = process.env) {
+  const raw = env.CHILD_TEST_QUICK_SUMS_SECONDS;
+  if (raw == null || raw === '' || !isSandbox(env)) return null;
+  const n = Number(raw);
+  if (!QS_ALLOWED.has(n)) {
+    // logger is required lazily: this module is otherwise pure data access.
+    require('../../utils/logger').logError('child_test.quick_sums_override_invalid', { value: String(raw) });
+    return null;
+  }
+  return n;
+}
+
+/** Seconds of quick sums for a form (default Grade 3 Form A): sandbox override, else the bank, else 60. */
+function quickSumsSeconds(grade = 3, form = 'A') {
+  const o = sandboxQuickSumsOverride();
+  if (o != null) return o;
+  const v = Number(getBlock(grade, form, 'maths').quick_sums_seconds);
+  return Number.isFinite(v) && v > 0 ? v : QS_DEFAULT;
+}
+
+// ------------------------------------------------------------------ battery v3 (CONTRACT §21.3)
+// item-bank.v3.json: the full EGRA/EGMA battery, one task spec per task id (tasks.js TASKS_V3).
+// Reading is ONE form for Grades 3 and 5 (as RWP); maths has a form per grade. Every item cites a key
+// in `sources`; a slot with no official or RWP source is `{ gap: true, reason }` and is never filled.
+const BANK_V3 = deepFreeze(require('../../data/child-test/item-bank.v3.json'));
+const { TASKS_V3, isTask, blockOf, kindOf } = require('./tasks');
+
+const V3_LANG = { urdu: 'ur', english: 'en' };
+
+/** The whole v3 bank (deep-frozen). */
+function bankV3() {
+  return BANK_V3;
+}
+
+/** The 18 task ids in visit order. The battery is the same for both grades; only the maths items differ. */
+function tasksFor({ grade } = {}) {
+  normGrade(grade);
+  return [...TASKS_V3];
+}
+
+/** One task's spec: { task, title, timed_s, items, practice, stop, script, source, quality, … } or { gap, reason }. */
+function getTaskSpec({ grade, set = 'A', task } = {}) {
+  const g = normGrade(grade);
+  if (!isTask(task)) throw new Error(`child-test item bank v3: unknown task "${task}"`);
+  const s = BANK_V3.sets[String(set || '').toUpperCase()];
+  if (!s) throw new Error(`child-test item bank v3: unknown set "${set}"`);
+  const block = blockOf(task);
+  return block === 'maths' ? s.maths[g][kindOf(task)] : s.reading[V3_LANG[block]][kindOf(task)];
+}
+
+module.exports = {
+  version: BANK.version,
+  cue: BANK.cue,
+  GRADES,
+  FORMS,
+  BLOCKS,
+  getForm,
+  getBlock,
+  getItem,
+  getOral,
+  getScript,
+  batteryVersion,
+  mathsMode,
+  quickSumsSeconds,
+  sandboxQuickSumsOverride,
+  isSandbox,
+  versionV3: BANK_V3.version,
+  bankV3,
+  tasksFor,
+  getTaskSpec,
+};
