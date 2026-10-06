@@ -332,8 +332,11 @@ html,body{
      family on any host whose Arial carries Arabic (macOS does). On the Linux container Arial
      resolves to LiberationSerif, which has no Arabic and draws .notdef — the operator's boxes.
      Second place keeps Latin on Inter (Inter has every Latin glyph, so it never falls through)
-     and sends Arabic script to Nastaliq on every host, which is what "only nastaliq" means. */
-  font-family:${rtl ? `'Noto Nastaliq Urdu',` : ""}'Inter'${!rtl && urduScript ? `,'Noto Nastaliq Urdu'` : ""},'Helvetica Neue',Arial,sans-serif;
+     and sends Arabic script to Nastaliq on every host, which is what "only nastaliq" means.
+     'Scheherazade New' sits directly behind Nastaliq for the Quranic annotation marks Nastaliq
+     has no glyph for (bd-ihole, SYNC.md §3.33). Fallback is per cluster, so ordinary Urdu never
+     reaches it. */
+  font-family:${rtl ? `'Noto Nastaliq Urdu','Scheherazade New',` : ""}'Inter'${!rtl && urduScript ? `,'Noto Nastaliq Urdu','Scheherazade New'` : ""},'Helvetica Neue',Arial,sans-serif;
   color:var(--ink);
   /* unitless: scales with font-size. A px line-height clips Nastaliq descenders. */
   line-height:${rtl ? "2.05" : "1.55"};
@@ -2482,7 +2485,7 @@ function buildHtml(input, opts = {}) {
     vectorFigure: false,
   };
 
-  const fonts = fontCss({ urdu: rtl || urduScript });
+  const fonts = fontCss({ urdu: rtl || urduScript, quranic: true });
   if (fonts.missing.length) warnings.push(`font file(s) not embedded, falling back to system: ${fonts.missing.join(", ")}`);
 
   const secIndex = {};
