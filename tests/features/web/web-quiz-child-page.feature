@@ -198,7 +198,7 @@ Feature: Web child quiz page on the portal
 
   Scenario: Never two green "Yes" buttons on one screen
     Given a typed name is near two children of the class
-    Then the page asks about ONE child at a time with "Yes, it's me" and "No"
+    Then the page asks about ONE child at a time with "Yes, it's me" and "No, I'm someone else"
     And "No" on the last one plays as a new child
 
   Scenario: Two children of the class share a first name
