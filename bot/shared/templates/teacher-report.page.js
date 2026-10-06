@@ -8,7 +8,7 @@
  *            (greyed, when the quiz's one class is known), scores, every
  *            question's difficulty, the stored reteach guidance, the reminder
  *     class  teacher-report.data classReport(): grade × subject, 8 weeks, quizzes
- *   renderMessagePage({ kind: 'expired'|'missing'|'error', lang })
+ *   renderMessagePage({ kind: 'expired'|'incomplete'|'missing'|'error', lang })
  *
  * NO JAVASCRIPT. Every action is a link the server answers: Export PDF, Remind
  * the class (logged, then a 302 to wa.me with the reminder), each tab, the
@@ -86,6 +86,12 @@ const SUBJECTS = {
   'general knowledge': { en: 'General Knowledge', ur: 'معلومات عامہ' },
   general_knowledge: { en: 'General Knowledge', ur: 'معلومات عامہ' },
   computer: { en: 'Computer', ur: 'کمپیوٹر' },
+  // Short codes the quiz rows carry (sst, gk) and other spellings of the same subjects.
+  sst: { en: 'Social Studies', ur: 'معاشرتی علوم' },
+  gk: { en: 'General Knowledge', ur: 'معلومات عامہ' },
+  islamiyat: { en: 'Islamiat', ur: 'اسلامیات' },
+  'general science': { en: 'General Science', ur: 'جنرل سائنس' },
+  general_science: { en: 'General Science', ur: 'جنرل سائنس' },
 };
 
 // A slash command is one left-to-right atom: in Urdu prose a bare "/" would
@@ -150,6 +156,8 @@ const CHROME = {
     emptyClass: 'No quizzes sent in the last 60 days. Send /quiz on WhatsApp to make one.',
     expiredTitle: 'This link has expired',
     expiredBody: 'Send /quiz on WhatsApp for a fresh one.',
+    incompleteTitle: 'This link is not complete',
+    incompleteBody: 'Open it again from WhatsApp, or send /quiz for a fresh one.',
     missingTitle: 'We could not find this report',
     missingBody: 'Send /quiz on WhatsApp to see your quiz reports.',
     errorTitle: 'The report could not open right now',
@@ -210,6 +218,8 @@ const CHROME = {
     emptyClass: `پچھلے 60 دن میں کوئی کوئز نہیں بھیجا گیا۔ نیا بنانے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
     expiredTitle: 'اس لنک کی مدت ختم ہو گئی ہے',
     expiredBody: `نئے لنک کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
+    incompleteTitle: 'یہ لنک مکمل نہیں',
+    incompleteBody: `اسے WhatsApp سے دوبارہ کھولیں، یا نئے لنک کے لیے ${CMD('/quiz')} بھیجیں۔`,
     missingTitle: 'یہ رپورٹ نہیں ملی',
     missingBody: `اپنی کوئز رپورٹس دیکھنے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
     errorTitle: 'رپورٹ ابھی نہیں کھل سکی',
@@ -631,7 +641,7 @@ function renderPage(data, opts = {}) {
  * about the teacher) it says it in both languages.
  */
 function renderMessagePage({ kind = 'missing', lang = null } = {}) {
-  const k = ['expired', 'missing', 'error'].includes(kind) ? kind : 'missing';
+  const k = ['expired', 'incomplete', 'missing', 'error'].includes(kind) ? kind : 'missing';
   const langs = lang === 'ur' || lang === 'en' ? [lang] : ['en', 'ur'];
   const blocks = langs.map((l) => {
     const C = CHROME[l];

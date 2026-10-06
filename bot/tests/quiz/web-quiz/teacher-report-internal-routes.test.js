@@ -94,10 +94,12 @@ describe('auth', () => {
     expect(events('teacher_report.denied')).toEqual([expect.objectContaining({ reason: 'expired' })]);
   });
 
-  test('a forged token: 401 and the same page, reason bad', async () => {
+  test('a forged or cut-off token: 401 and a page that says the link is not complete, reason bad', async () => {
     const res = await get(`/page/${quizTok().slice(0, -3)}xyz`);
     expect(res.status).toBe(401);
-    expect(await res.text()).toMatch(/This link has expired/);
+    const html = await res.text();
+    expect(html).toMatch(/This link is not complete/);
+    expect(html).not.toMatch(/has expired/);
     expect(events('teacher_report.denied')).toEqual([expect.objectContaining({ reason: 'bad' })]);
   });
 

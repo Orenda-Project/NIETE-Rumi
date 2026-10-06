@@ -51,7 +51,8 @@ function authorise(req, res) {
   if (v) return v;
   const reason = Token.explain(req.params.token) === 'expired' ? 'expired' : 'bad';
   logEvent('teacher_report.denied', { reason, route: req.path.split('/')[1] || '' });
-  page(res, reason === 'expired' ? 410 : 401, 'expired', queryLang(req));
+  // An expired link and a cut-off / tampered one are different states (Rule 24d).
+  page(res, reason === 'expired' ? 410 : 401, reason === 'expired' ? 'expired' : 'incomplete', queryLang(req));
   return null;
 }
 
