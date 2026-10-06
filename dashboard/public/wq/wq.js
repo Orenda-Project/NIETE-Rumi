@@ -1349,6 +1349,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // Not yet: the feedback for the option the child picked, else the reason. Never praise.
     var why = WQI.letters(q, ok ? (q.why || q.fb_right || '') : (picked.fb || q.why || ''));
     var named = speakable(optText(right));
+    // A picture question cannot name its answer aloud, so after the picked tile's own line ("That is
+    // a seed.") the reason the right picture is right still follows.
+    var reason = !ok && !named && picked.fb && q.why ? WQI.letters(q, q.why) : '';
+    if (reason === why) reason = '';
     // A true/false item says which the sentence is ("Not yet. This sentence is true."): the true
     // button is always shown first.
     var tf = !ok && WQI.kind(q) === 'tf';
@@ -1364,12 +1368,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (ok) jugRightDone = true;
     fb.innerHTML = '<div class="wq-jug">' + jugImg(ok ? 'correct' : 'notyet', loopIt) + '<div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + esc(line) +
       (why ? '<div class="wq-why">' + WQI.tex(why) + '</div>' : '') +
+      (reason ? '<div class="wq-why">' + WQI.tex(reason) + '</div>' : '') +
       (!ok && !retry ? '<div class="wq-why">' + esc(T.again) + '</div>' : '') + '</div></div>' +
       (cheer ? '<p class="wq-proof">🎉 ' + esc(cheer.text) + '</p>' : '') +
       '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
     ROOT.setAttribute('data-m', 'M7');
     ev('feedback_view', { qid: q.qid, ok: ok ? 1 : 0 });
-    speakSeq(feedbackParts(q, ok, lead, why, picked, named).concat(cheer ? [cheer] : []), null);
+    var reasonPart = reason && speakable(WQI.say(reason, LANG)) ? [{ text: WQI.say(reason, LANG), url: (q.audio && q.audio.why) || null }] : [];
+    speakSeq(feedbackParts(q, ok, lead, why, picked, named).concat(reasonPart, cheer ? [cheer] : []), null);
     var nx = $('#wq-next');
     try { nx.scrollIntoView({ block: 'nearest' }); } catch (e) {}
     nx.addEventListener('click', function () {
