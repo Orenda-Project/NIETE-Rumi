@@ -406,6 +406,24 @@ describe('teacher report page — all my classes, M3c\'s content gains', () => {
   });
 });
 
+describe('teacher report page — a long "not on your list" block folds', () => {
+  const many = (n) => Array.from({ length: n }, (_, i) => ({ sessionId: `s${i}`, typed: `Kid${i} Testwala`, correct: 3, total: 4 }));
+  test('more than 5 typed children: the first 5 show, the rest sit behind a no-JS "Show all N"', () => {
+    const html = page(quizData({ provisional: many(12) }));
+    const sec = html.slice(html.indexOf('id="provisional"'), html.indexOf('id="scores"'));
+    const before = sec.slice(0, sec.indexOf('<details'));
+    expect((before.match(/Kid\d+ Testwala/g) || []).length).toBe(5);
+    const summary = (sec.match(/<details[^>]*><summary[^>]*>([\s\S]*?)<\/summary>/) || [])[1] || '';
+    expect(text(summary)).toBe('Show all 12');
+    expect((sec.match(/Kid\d+ Testwala/g) || []).length).toBe(12);
+    expect(html).not.toMatch(/<script/i);
+  });
+  test('5 or fewer: no fold; the PDF never folds', () => {
+    expect(page(quizData({ provisional: many(5) }))).not.toMatch(/Show all/);
+    expect(page(quizData({ provisional: many(12) }), { print: true })).not.toMatch(/<details/);
+  });
+});
+
 describe('message pages', () => {
   test('expired: EN and UR copy telling the teacher to send /quiz', () => {
     expect(renderMessagePage({ kind: 'expired', lang: 'en' })).toMatch(/This link has expired/);

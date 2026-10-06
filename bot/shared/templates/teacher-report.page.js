@@ -131,6 +131,7 @@ const CHROME = {
     provisionalTitle: 'Not on your class list',
     provisionalBody: 'These children typed their own name. Add each one to the class, or say who it really is.',
     addTo: (c) => `Add to ${c}`, thisIs: 'This is…', save: 'Save',
+    showAll: (n) => `Show all <span class="num">${n}</span>`,
     noticeFailed: 'That did not save. Please try again.',
     noticeNotReady: 'This cannot be saved yet: choosing a class switches on with the next update. Your report is not affected.',
     noticeClosed: 'This quiz link has closed, so its class can no longer be changed.',
@@ -194,6 +195,7 @@ const CHROME = {
     provisionalTitle: 'کلاس کی فہرست میں نہیں',
     provisionalBody: 'ان بچوں نے اپنا نام خود لکھا۔ ہر ایک کو کلاس میں شامل کریں، یا بتائیں کہ یہ اصل میں کون ہے۔',
     addTo: (c) => `${c} میں شامل کریں`, thisIs: 'یہ دراصل…', save: 'محفوظ کریں',
+    showAll: (n) => `سب <span class="num">${n}</span> دیکھیں`,
     noticeFailed: 'محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔',
     noticeNotReady: 'ابھی محفوظ نہیں ہو سکتا: کلاس چننے کی سہولت اگلی اپ ڈیٹ کے ساتھ شروع ہوگی۔ آپ کی رپورٹ پر کوئی اثر نہیں۔',
     noticeClosed: 'اس کوئز کا لنک بند ہو چکا ہے، اس لیے اب اس کی کلاس نہیں بدلی جا سکتی۔',
@@ -232,6 +234,8 @@ const CHROME = {
 const MONTHS_UR = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'];
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const PKT_MS = 5 * 3600 * 1000;
+// Typed children shown before the rest fold away ("Show all N").
+const PV_SHOWN = 5;
 
 const urduDigits = (str) => String(str).replace(/[0-9]/g, (c) => String.fromCharCode(0x06F0 + Number(c)));
 
@@ -390,6 +394,7 @@ details textarea{width:100%;min-height:120px;margin-top:8px;border:1px solid var
 .pv-a{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .pv-a form{display:flex;gap:6px;margin:0}
 .pv-a button,.pv-a select{font:inherit;font-size:.85rem;border-radius:10px;border:1.5px solid var(--line);background:var(--card);padding:6px 12px;line-height:var(--lead-ui);color:var(--ink)}
+.pv-more summary{margin-top:10px}
 .pv-a .pv-add{border-color:var(--green);color:var(--green-deep);font-weight:700}
 .notice{margin:12px 0 0;background:#FDECEA;color:#8A1F1B;border-radius:12px;padding:10px 14px;line-height:var(--lead-ui)}
 .reminder-print{white-space:pre-wrap;background:var(--paper);border-radius:10px;padding:10px 12px;font-size:.9rem}
@@ -536,8 +541,13 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
       const pick = choices.length
         ? `<form method="post" action="${base}/fix" class="pv-pick">${hidden}<select name="studentId" aria-label="${esc(C.thisIs)}"><option value="">${esc(C.thisIs)}</option>${choices.map((k) => `<option value="${esc(k.studentId)}"${pv.suggest && pv.suggest.studentId === k.studentId ? ' selected' : ''}>${esc(k.first)}${num(listNumber(k)) != null ? ` (${num(listNumber(k))})` : ''}</option>`).join('')}</select><button type="submit">${L(C.save)}</button></form>` : '';
       return `<li><div class="pv-h">${K(who)}${score}</div><div class="pv-a act">${add}${pick}</div></li>`;
-    }).join('');
-    provisional = `<section class="card" id="provisional"><h2>${L(C.provisionalTitle)} <span class="num muted">(${prov.length})</span></h2><p class="small muted">${L(C.provisionalBody)}</p><ul class="pv">${rows}</ul></section>`;
+    });
+    // A long block would push the scores off the phone: the first few show, the
+    // rest fold behind a no-JS <details>. Paper shows them all.
+    const head = print ? rows : rows.slice(0, PV_SHOWN);
+    const rest = print ? [] : rows.slice(PV_SHOWN);
+    const more = rest.length ? `<details class="pv-more act"><summary>${L(C.showAll(prov.length))}</summary><ul class="pv">${rest.join('')}</ul></details>` : '';
+    provisional = `<section class="card" id="provisional"><h2>${L(C.provisionalTitle)} <span class="num muted">(${prov.length})</span></h2><p class="small muted">${L(C.provisionalBody)}</p><ul class="pv">${head.join('')}</ul>${more}</section>`;
   }
 
   // 4. scores
