@@ -152,6 +152,29 @@ describe('quizReport', () => {
     expect(r.roster.state).toBe('ambiguous');
   });
 
+  test('the teacher\'s only list is a different grade: not assumed — ambiguous, no not-played list', async () => {
+    seed();
+    // QUIZ2 is grade 5; the teacher keeps only 3-B
+    const r = await Data.quizReport(TEACHER, QUIZ2);
+    expect(r.roster.state).toBe('ambiguous');
+    expect(r.notPlayed).toBeNull();
+    // the teacher can still say it was 3-B on the page
+    expect((await Data.quizReport(TEACHER, QUIZ2, { listId: LIST3B })).roster).toMatchObject({ state: 'known', className: '3-B' });
+  });
+
+  test('a grade band ("3-5") matches the teacher\'s only list of grade 4: known', async () => {
+    seed({ lists: [{ id: LIST5A, class_name: '4', section: 'A' }], quizExtra: { grade: '3-5' } });
+    expect((await Data.quizReport(TEACHER, QUIZ)).roster).toMatchObject({ state: 'known', className: '4-A' });
+  });
+
+  test('a grade band two of the teacher\'s lists fall in: ambiguous', async () => {
+    seed({ lists: [{ id: LIST3B, class_name: '3', section: 'B' }, { id: LIST5A, class_name: '5', section: 'A' }], quizExtra: { grade: '3-5' } });
+    expect((await Data.quizReport(TEACHER, QUIZ)).roster.state).toBe('ambiguous');
+    expect(Data.gradesOf('3-5')).toEqual([3, 4, 5]);
+    expect(Data.gradesOf('Class 4')).toEqual([4]);
+    expect(Data.gradesOf(null)).toEqual([]);
+  });
+
   test('no class list: state none, played still shown', async () => {
     seed({ lists: [] });
     const r = await Data.quizReport(TEACHER, QUIZ);
@@ -189,6 +212,9 @@ describe('classReport', () => {
     expect(cells['3|science']).toMatchObject({ quizzes: 1, played: 2, avg: 63 });
     expect(cells['5|maths']).toMatchObject({ quizzes: 1, played: 1, avg: 50 });
     expect(r.quizzes.some((q) => q.topic === 'Secret')).toBe(false);
+    // each quiz row says how many children its ONE class has (grade 3 → the 3-B list); unknown class → null
+    expect(r.quizzes[0].of).toBe(4);
+    expect(r.quizzes[1].of).toBeNull();
     expect(r.weeks.length).toBeGreaterThanOrEqual(1);
     expect(r.weeks.reduce((n, w) => n + w.quizzes, 0)).toBe(2);
   });

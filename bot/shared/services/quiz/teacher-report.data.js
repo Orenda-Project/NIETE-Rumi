@@ -17,11 +17,10 @@
  * "Played" = that attempt is completed.
  *
  * NOT PLAYED is shown only when the quiz's ONE class is known (`roster.state`):
- *   known      the quiz's own list_id, else the list the teacher picked on the
- *              page, else the single list of the quiz's grade, else the
- *              teacher's only list (web-quiz-roster pickList — the child page's
- *              rule, so a child and the teacher see the same class);
- *   ambiguous  2+ lists could be this quiz's — the page asks the teacher;
+ *   known      the list the teacher picked on the page or the quiz's own list_id,
+ *              else the single list whose grade the quiz's grade or BAND ("3-5")
+ *              covers, else (a quiz with no grade) the teacher's only list;
+ *   ambiguous  none or several lists fit — the page asks the teacher;
  *   none       the teacher keeps no class list.
  * The teacher's roster is read here whatever the child page's roll-number
  * switch says: the teacher is looking at their own class list.
@@ -69,16 +68,45 @@ async function readRoster(teacherId) {
   };
 }
 
-/** The ONE class of this quiz, as `roster` for the page. */
+/**
+ * The grades a quiz's grade covers: "3" → [3], "3-5" / "3 – 5" → [3,4,5] (38% of
+ * quizzes carry a band), "" → []. Band-aware on purpose: the first digit alone
+ * would read "3-5" as grade 3.
+ */
+function gradesOf(v) {
+  const nums = (String(v == null ? '' : v).match(/\d+/g) || []).map(Number);
+  if (!nums.length) return [];
+  if (nums.length >= 2 && /\d\s*[-–—]\s*\d/.test(String(v)) && nums[1] >= nums[0] && nums[1] - nums[0] <= 12) {
+    return Array.from({ length: nums[1] - nums[0] + 1 }, (_, i) => nums[0] + i);
+  }
+  return [nums[0]];
+}
+
+/**
+ * The ONE class of this quiz, as `roster` for the page. In order: the list the
+ * teacher picked on the page or the quiz's own list_id (when it is theirs); else
+ * the single list whose grade the quiz's grade (or band) covers; else, for a quiz
+ * with no grade, the teacher's only list. Anything else is `ambiguous` and the
+ * teacher picks — never "the teacher's only list" when its grade contradicts the
+ * quiz's (a grade-5 quiz is not the grade-3 class).
+ */
 function classOf(roster, quiz, listId) {
   if (!roster) return { roster: { state: 'none', className: null, of: null, lists: [] }, one: null };
   const lists = roster.lists.map((l) => ({ id: l.id, label: l.label }));
-  // A list the teacher picked on the page counts only when it is theirs.
-  const picked = listId && roster.lists.some((l) => l.id === listId) ? listId : null;
-  const pick = Roster.pickList(roster, { listId: picked || quiz.list_id || null, grade: quiz.grade });
-  if (pick.ask || !pick.list) return { roster: { state: 'ambiguous', className: null, of: null, lists }, one: null };
-  const one = Roster.onlyList(roster, pick.list);
-  return { roster: { state: 'known', className: pick.list.label, of: one.kids.length, lists }, one };
+  const mine = (id) => (id ? roster.lists.find((l) => l.id === id) || null : null);
+  const grades = gradesOf(quiz.grade);
+  let list = mine(listId) || mine(quiz.list_id);
+  if (!list) {
+    if (grades.length) {
+      const fit = roster.lists.filter((l) => l.grade && grades.includes(Number(l.grade)));
+      list = fit.length === 1 ? fit[0] : null;
+    } else if (roster.lists.length === 1) {
+      list = roster.lists[0];
+    }
+  }
+  if (!list) return { roster: { state: 'ambiguous', className: null, of: null, lists }, one: null };
+  const one = Roster.onlyList(roster, list);
+  return { roster: { state: 'known', className: list.label, of: one.kids.length, lists }, one };
 }
 
 /** The sessions that count, per class code (the class report's rule). */
@@ -253,9 +281,14 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     byQuiz.get(q).push(pct(s.correct_answers || 0, s.total_questions_answered || 0));
   });
 
+  let roster = null;
+  try { roster = await readRoster(teacherId); } catch (err) {
+    logToFile('⚠️ teacher report: class list read failed — no class sizes', { error: err.message });
+  }
   const rows = qs.map((q) => {
     const scores = byQuiz.get(q.id) || [];
     return {
+      of: classOf(roster, q, null).roster.of,
       id: q.id, date: (q.meta && q.meta.lesson_date) || q.created_at, topic: q.topic || '', grade: gradeNum(q.grade) || null,
       subject: q.subject || null, source: q.quiz_source, played: scores.length, avg: mean(scores), scores,
     };
@@ -282,4 +315,4 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
   };
 }
 
-module.exports = { quizReport, classReport, reminderText, weekStart };
+module.exports = { quizReport, classReport, reminderText, weekStart, gradesOf };
