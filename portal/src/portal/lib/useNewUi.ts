@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { portal } from '../services/api';
+import type { PortalConfig } from '../services/api';
 import { forgetNewUi, rememberedNewUiFor, rememberNewUi } from './newUiMemory';
 
 /**
@@ -25,16 +26,24 @@ import { forgetNewUi, rememberedNewUiFor, rememberNewUi } from './newUiMemory';
  * read while it is in flight. Fail-closed: a client that throws synchronously,
  * or a failed read, is "off".
  */
-let inflight: Promise<boolean> | null = null;
-function readNewUi(): Promise<boolean> {
+let inflight: Promise<PortalConfig | null> | null = null;
+
+/**
+ * One /config read shared by every caller while it is in flight (the layout,
+ * the navigation, and bd-o15qnr's useCoachV2). A failed read is null.
+ */
+export function readConfigShared(): Promise<PortalConfig | null> {
   if (!inflight) {
     inflight = Promise.resolve()
       .then(() => portal.getConfig())
-      .then((cfg) => cfg?.features?.newUi === true)
-      .catch(() => false)
+      .catch(() => null)
       .finally(() => { inflight = null; });
   }
   return inflight;
+}
+
+function readNewUi(): Promise<boolean> {
+  return readConfigShared().then((cfg) => cfg?.features?.newUi === true).catch(() => false);
 }
 
 /**

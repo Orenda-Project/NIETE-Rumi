@@ -362,6 +362,7 @@ export const portal = {
           selfObservation: false,
           coachObservation: false,
           newUi: false,
+          coachV2: false,
         },
       };
     }
@@ -487,6 +488,8 @@ export type PortalConfig = {
     coachObservation?: boolean;
     /** bd-5rz1v.12 — the new UI (Direction B) is on for THIS user (fail-closed). */
     newUi?: boolean;
+    /** bd-o15qnr — the coach app v2 is on for THIS user (fail-closed; shown to role=coach only). */
+    coachV2?: boolean;
   };
 };
 
