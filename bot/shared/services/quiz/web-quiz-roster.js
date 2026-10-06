@@ -58,7 +58,15 @@ async function rosterOn(now = Date.now()) {
 const digits = (v) => String(v == null ? '' : v).replace(/\D/g, '');
 // A grade or class name's FIRST number: "3-5" -> "3", "Class 4" -> "4", "1-2" -> "1".
 const gradeNum = (v) => (String(v == null ? '' : v).match(/\d+/) || [''])[0];
-const listLabel = (l) => [String(l.class_name || '').trim(), String(l.section || '').trim()].filter(Boolean).join('-');
+// The class service's mirror writes class_name as "Grade 4 - A" AND section "A" (2,297 of 2,816 prod lists), so a
+// name that already ends with the section is the label; only a bare name ("4") gets the section appended ("4-B").
+const listLabel = (l) => {
+  const name = String(l.class_name || '').trim();
+  const sec = String(l.section || '').trim();
+  if (!sec) return name;
+  if (new RegExp(`[\\s-]${sec.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i').test(name)) return name;
+  return [name, sec].filter(Boolean).join('-');
+};
 
 /**
  * The teacher's active class lists and their active children. Null when the

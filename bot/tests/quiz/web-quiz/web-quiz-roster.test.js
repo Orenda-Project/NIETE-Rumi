@@ -92,6 +92,16 @@ afterAll(() => { process.env = SAVED; });
 
 const chipOf = (studentId) => T.chipId(SC, studentId);
 
+describe('the class label of a legacy list', () => {
+  test('a list whose class_name already carries the section ("Grade 4 - A", section A — the mirror the class service writes) is not doubled', async () => {
+    seed({ lists: 'two' });
+    await fake.from('student_lists').update({ class_name: 'Grade 4 - A' }).eq('id', LIST_4A);
+    const roster = await Roster.loadRoster(TEACHER, { grade: '4' });
+    expect(roster.lists.find((l) => l.id === LIST_4A).label).toBe('Grade 4 - A');
+    expect(roster.lists.find((l) => l.id === LIST_3B).label).toBe('3-B');
+  });
+});
+
 describe('E2 with a roster', () => {
   test('roster mode: the page learns a roster exists and gets NO class names', async () => {
     const out = await WQ.getQuiz('AB12CD');
