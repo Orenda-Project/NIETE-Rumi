@@ -1,4 +1,5 @@
 const { getClient } = require('./llm-client');
+const { modelFor } = require('../config/model-registry');
 const { jsonrepair } = require('jsonrepair');
 const { OPENAI_API_KEY } = require('../utils/constants');
 const { logToFile, logWarn } = require('../utils/logger');
@@ -417,7 +418,7 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
       const startTime = Date.now();
 
       const scoringRequest = {
-        model: 'gpt-5-mini-2025-08-07',
+        model: modelFor('coaching.pedagogy'),
         // The photo-less retry below is `{ ...scoringRequest, messages }`, so it inherits this
         // and both attempts land on the same line of spend -- which is right: it is one
         // teacher's scoring either way, not two features.
@@ -712,7 +713,7 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
     const { maxTokens = 4000, label = 'completeJson' } = options;
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-5-mini-2025-08-07',
+        model: modelFor('coaching.completeJson'),
         // One job for every consumer of this helper today (observe debrief/feedback, remark
         // narrative). `options.job` is the seam for splitting them apart later WITHOUT
         // touching this method again -- the existing `label` is for logs, not for spend.
@@ -1145,7 +1146,7 @@ Rules:
 `;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('coaching.fidelityFallback'),
         job: 'coaching.fidelityFallback',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 1200,
@@ -1299,7 +1300,7 @@ GUIDELINES:
 - Recommendations should build on teacher's expressed intentions/concerns`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-5-mini-2025-08-07',
+        model: modelFor('coaching.enhance'),
         job: 'coaching.enhance',
         messages: [
           { role: 'system', content: this.getCachedFrameworkPrompt() },
@@ -1548,7 +1549,7 @@ ${avoidBlock}
 Return ONLY the question text (no preamble, formatting, or explanation).`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o',  // Using GPT-4o for more reliable question generation
+        model: modelFor('coaching.reflectiveQuestion'),
         job: 'coaching.reflectiveQuestion',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 1500,
@@ -1599,7 +1600,7 @@ Examples: "Multiplication Tables", "Photosynthesis Process", "Urdu Poetry Analys
 Return ONLY the topic text, nothing else.`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('coaching.inferTopic'),
         job: 'coaching.inferTopic',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 20,
@@ -1649,7 +1650,7 @@ Examples: "Mathematics", "English", "Urdu", "Science", "Social Studies", "Islami
 Return ONLY the subject name, nothing else.`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('coaching.inferSubject'),
         job: 'coaching.inferSubject',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 10,
@@ -1713,7 +1714,7 @@ Recommendations: ${JSON.stringify(recommendations)}
 }).join('\n')}`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('coaching.priorFeedback'),
         job: 'coaching.priorFeedback',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 500,
@@ -1797,7 +1798,7 @@ AVOID:
 Generate ONLY the script text (no stage directions, just what will be spoken).`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o',  // Using GPT-4o for reliable voice script generation
+        model: modelFor('coaching.voiceDebrief'),
         job: 'coaching.voiceDebrief',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: 1500,

@@ -4,6 +4,7 @@
 // (existing Puppeteer engine; Playwright migration swaps transparently)
 
 const fs = require('fs');
+const { modelFor } = require('../../config/model-registry');
 const path = require('path');
 const os = require('os');
 const { logToFile } = require('../../utils/logger');
@@ -263,7 +264,7 @@ Results: Average score ${stats.avgScore}%, ${stats.masteredCount} mastered, ${st
 Give ONE specific, actionable teaching tip based on these results. Keep it under 2 sentences. Be encouraging.`;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('quiz.insight'),
         job: 'quiz.insight',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,

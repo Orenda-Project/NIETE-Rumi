@@ -172,12 +172,18 @@ const createSites = (src) =>
   [...src.matchAll(/completions\s*\.\s*create\s*\(/g)].length;
 
 describe('the coaching cluster attributes its spend (bd-jntcx)', () => {
-  test('the registry publishes the telemetry-only job names', () => {
+  test('the registry knows every one of these job names', () => {
+    // Each is either routed (JOBS: the registry holds its model, bd-gr4fy.8 promoted the swap's
+    // whole scope there) or labelled-but-not-routed (TELEMETRY_ONLY_JOBS). Never both, never neither.
     const reg = require('../../bot/shared/config/model-registry');
     expect(Array.isArray(reg.TELEMETRY_ONLY_JOBS)).toBe(true);
 
     const every = Object.values(EXPECTED).flatMap((e) => e.jobs);
-    for (const job of every) expect(reg.TELEMETRY_ONLY_JOBS).toContain(job);
+    for (const job of every) {
+      const routed = !!(reg.JOBS && reg.JOBS[job]);
+      const labelled = reg.TELEMETRY_ONLY_JOBS.includes(job);
+      expect(routed !== labelled ? job : `${job}: routed=${routed} telemetry-only=${labelled}`).toBe(job);
+    }
   });
 
   test.each(Object.entries(EXPECTED))('%s labels every create() site', (rel, expected) => {

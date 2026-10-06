@@ -20,11 +20,14 @@ const { getClientForModel } = require('../llm-client');
 const { logToFile } = require('../../utils/logger');
 const { repairBackslashes } = require('../../utils/json-tex-backslashes');
 
-const DEFAULT_MODEL = 'google/gemini-2.5-flash';
+const { JOBS, modelFor } = require('../../config/model-registry');
+
+// bd-gr4fy.8: the registry holds this job's model; the export stays for its readers.
+const DEFAULT_MODEL = JOBS['quiz.transcript'].default;
 const REASONING_RE = /(^|\/)(gpt-5|o[1-9]|gemini-3\.5-flash$|gemini-3-flash|claude|deepseek)/i;
 
 function modelId() {
-  return (process.env.TRANSCRIPT_QUIZ_MODEL || '').trim() || DEFAULT_MODEL;
+  return modelFor('quiz.transcript');
 }
 
 /**

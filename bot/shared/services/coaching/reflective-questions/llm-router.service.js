@@ -84,8 +84,11 @@ const getOpenRouter = () => {
   return client;
 };
 
-const PRIMARY_MODEL = 'deepseek/deepseek-v3.2';
-const FALLBACK_MODEL = 'openai/gpt-5.4';
+// bd-gr4fy.8: both models live in the registry: the job's model, and its frozen fallback, which
+// this ladder fails over to. Read per call, so a changed default needs no restart of this module.
+const { modelFor, fallbackForJob } = require('../../../config/model-registry');
+const primaryModel = () => modelFor('coaching.questionRouter');
+const retryModel = () => fallbackForJob('coaching.questionRouter');
 
 const tag = (r, model_used) => ({
   content: r.choices[0].message.content,
@@ -120,24 +123,30 @@ async function callReflective(messages, { maxTokens = 2000, temperature = 0.7, t
 
   // 1) Primary: DeepSeek V3.2
   try {
-    return tag(await attempt(PRIMARY_MODEL, { temperature }), PRIMARY_MODEL);
+    return tag(await attempt(primaryModel(), { temperature }), primaryModel());
   } catch (e1) {
     // Our deadline fired → the routed provider is too slow; retrying V3.2 risks another
     // slow provider, so go straight to the (fast) GPT-5.4 failover.
     if (isOurTimeout(e1)) {
       logToFile('[refl-q] V3.2 timed out → straight to GPT-5.4 (skip V3.2 retry)', { err: e1.message, timeoutMs });
-      return tag(await attempt(FALLBACK_MODEL), 'gpt-5.4-fallback');
+      return tag(await attempt(retryModel()), 'gpt-5.4-fallback');
     }
     logToFile('[refl-q] V3.2 error, retrying once', { err: e1.message });
     // 2) One transient retry on V3.2 (rate-limit / 5xx / socket blip)
     try {
-      return tag(await attempt(PRIMARY_MODEL, { temperature }), `${PRIMARY_MODEL}-retry`);
+      return tag(await attempt(primaryModel(), { temperature }), `${primaryModel()}-retry`);
     } catch (e2) {
       logToFile('[refl-q] V3.2 failed twice → failover GPT-5.4', { err: e2.message });
       // 3) Failover: GPT-5.4 (omit temperature — gpt-5.x rejects it)
-      return tag(await attempt(FALLBACK_MODEL), 'gpt-5.4-fallback');
+      return tag(await attempt(retryModel()), 'gpt-5.4-fallback');
     }
   }
 }
 
-module.exports = { callReflective, PRIMARY_MODEL, FALLBACK_MODEL, DEFAULT_TIMEOUT_MS, PROVIDER_ROUTING };
+module.exports = {
+  callReflective,
+  get PRIMARY_MODEL() { return primaryModel(); },
+  get FALLBACK_MODEL() { return retryModel(); },
+  DEFAULT_TIMEOUT_MS,
+  PROVIDER_ROUTING,
+};
