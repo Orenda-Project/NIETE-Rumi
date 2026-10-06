@@ -95,7 +95,8 @@ function texFaults(html) {
     for (const mi of m[0].matchAll(/<mi>([^<]*)<\/mi>/g)) {
       if ([...decode(mi[1])].length > 1) out.push(`TeX command shown as letters: ${decode(mi[1])}`);
     }
-    if (/<mo>[&\\]|<mi>\\<\/mi>|<mo>&amp;<\/mo>/.test(m[0])) out.push('TeX layout characters shown (& or \\\\)');
+    // A column separator (&) or a row break (\\) that reached the page as a character; an escaped < or > is fine.
+    if (/<m[io]>&amp;<\/m[io]>|<m[io]>\\<\/m[io]>/.test(m[0])) out.push('TeX layout characters shown (& or \\\\)');
   }
   return out;
 }
