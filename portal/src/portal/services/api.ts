@@ -4,6 +4,7 @@ import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, 
   AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
+import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData } from '../coach/types';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
 // CORS and third-party cookies entirely. In the Capacitor app there is no
@@ -867,6 +868,60 @@ export const leader = {
 // The backend proxies these to the bot, so the grade/subject labels below are
 // already resolved for this teacher's language. The page renders them as given
 // rather than keeping its own copy of the vocabulary.
+// ── bd-o15qnr: the coach app v2 (behind portal_coach_v2) ─────────────────
+// Every call sends the coach's own day (?today=); the server uses it only when
+// it is within a day of its own UTC date (Pakistan is UTC+5).
+const coachDay = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+export const coach = {
+  getHome: async (): Promise<{ success: boolean; home: CoachHomeData }> => {
+    const response = await api.get('/coach/home', { params: { today: coachDay() } });
+    return response.data;
+  },
+  getSchedule: async (range: { from?: string; to?: string } = {}): Promise<{ success: boolean } & CoachScheduleData> => {
+    const response = await api.get('/coach/schedule', { params: { ...range, today: coachDay() } });
+    return response.data;
+  },
+  getTeam: async (args: { date?: string; coach?: string } = {}): Promise<{ success: boolean } & TeamData> => {
+    const params: Record<string, string> = { today: coachDay() };
+    if (args.date) params.date = args.date;
+    if (args.coach) params.coach = args.coach;
+    const response = await api.get('/coach/team', { params });
+    return response.data;
+  },
+  getPeople: async (): Promise<{ success: boolean } & PeopleData> => {
+    const response = await api.get('/coach/people', { params: { today: coachDay() } });
+    return response.data;
+  },
+  getSchool: async (emis: string): Promise<{ success: boolean } & SchoolData> => {
+    const response = await api.get(`/coach/school/${encodeURIComponent(emis)}`, { params: { today: coachDay() } });
+    return response.data;
+  },
+  getTeacher: async (teacherExtId: string): Promise<{ success: boolean } & TeacherData> => {
+    const response = await api.get(`/coach/teacher/${encodeURIComponent(teacherExtId)}`, { params: { today: coachDay() } });
+    return response.data;
+  },
+  getVisit: async (id: string): Promise<{ success: boolean } & VisitData> => {
+    const response = await api.get(`/coach/visit/${encodeURIComponent(id)}`, { params: { today: coachDay() } });
+    return response.data;
+  },
+  getReports: async (args: { page?: number; q?: string } = {}): Promise<{ success: boolean } & ReportsData> => {
+    const params: Record<string, string> = {};
+    if (args.page) params.page = String(args.page);
+    if (args.q) params.q = args.q;
+    const response = await api.get('/coach/reports', { params });
+    return response.data;
+  },
+  /** Reschedule — the existing edit route (bd-88krt); same time rule as booking. */
+  editSchedule: async (id: string, input: { date: string; slot: string }): Promise<{ success: boolean; id?: string }> => {
+    const response = await api.post(`/leader/schedules/${encodeURIComponent(id)}/edit`, input);
+    return response.data;
+  },
+};
+
 export const classes = {
   list: async (): Promise<ClassesResponse> => {
     const response = await api.get('/classes');
