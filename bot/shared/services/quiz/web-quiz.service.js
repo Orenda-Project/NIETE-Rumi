@@ -603,6 +603,18 @@ async function codeLanguage(shareCodeId) {
   } catch { return clampLanguage(null); }
 }
 
+/**
+ * A challenge's outcome from the side of `mine`: compares the two scores as
+ * shares (6/8 ties 3/4). An empty score never wins. Pure.
+ */
+function challengeOutcome(mine, theirs) {
+  const a = (Number(mine && mine.correct) || 0) * (Number(theirs && theirs.total) || 0);
+  const b = (Number(theirs && theirs.correct) || 0) * (Number(mine && mine.total) || 0);
+  if (!(Number(mine && mine.total) > 0)) return 'lose';
+  if (a > b) return 'win';
+  return a === b ? 'tie' : 'lose';
+}
+
 /** The friend who sent a challenge link: their first counted score on the class code. */
 async function challengeOf(ctx) {
   const { data: rows } = await supabase.from('quiz_sessions')
@@ -957,7 +969,19 @@ async function finishSession(body = {}) {
       ...(earlier && !s.user_id ? { practice: true, kept: { correct: earlier.correct_answers || 0, total: earlier.total_questions_answered || 0 } } : {}),
     },
     challenge_code: await challengeCodeFor(s),
+    // A friend's challenge: who won against the score the landing showed them.
+    ...(s.invited_by_student_id ? await versus(s, { correct, total }) : {}),
   };
+}
+
+async function versus(s, mine) {
+  try {
+    const ch = await challengeOf({ shareCodeId: s.share_code_id, invitedByStudentId: s.invited_by_student_id, lang: await codeLanguage(s.share_code_id) });
+    return ch ? { vs: { ...ch, outcome: challengeOutcome(mine, ch) } } : {};
+  } catch (e) {
+    logToFile('⚠️ web-quiz: challenge outcome unavailable', { sessionId: s.id, error: e.message });
+    return {};
+  }
 }
 
 // ─── E6 the class league table ─────────────────────────────────────────────
@@ -1032,10 +1056,18 @@ async function me(body = {}) {
     date: String(r.completed_at || '').slice(0, 10), correct: r.correct_answers || 0,
     total: r.total_questions_answered || 0, pct: r.mastery_percentage || 0,
   }));
-  out.friends_finished = (friends || []).map((r) => ({
-    chip: chipOf.get(r.invited_by_student_id), first: firstName(r.student_name), topic: topics.get(r.share_code_id) || '',
-    correct: r.correct_answers || 0, total: r.total_questions_answered || 0,
-  }));
+  // The challenger's score a friend was shown: their FIRST finish on that class code.
+  const firstOf = (studentId, codeId) => (mine || []).filter((m) => m.student_id === studentId && m.share_code_id === codeId)
+    .sort((a, b) => String(a.completed_at).localeCompare(String(b.completed_at)))[0];
+  out.friends_finished = (friends || []).map((r) => {
+    const theirs = firstOf(r.invited_by_student_id, r.share_code_id);
+    const friend = { correct: r.correct_answers || 0, total: r.total_questions_answered || 0 };
+    return {
+      chip: chipOf.get(r.invited_by_student_id), first: firstName(r.student_name), topic: topics.get(r.share_code_id) || '',
+      ...friend,
+      ...(theirs ? { outcome: challengeOutcome(friend, { correct: theirs.correct_answers || 0, total: theirs.total_questions_answered || 0 }) } : {}),
+    };
+  });
   return out;
 }
 
@@ -1150,6 +1182,6 @@ async function media(code, qid, { k, z } = {}) {
 module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media,
   // exported for tests and the router
-  WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho,
+  WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, challengeOutcome,
   BOARD_TOP, QUESTIONS_MAX,
 };

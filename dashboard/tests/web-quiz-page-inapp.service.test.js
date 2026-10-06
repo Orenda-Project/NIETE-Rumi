@@ -83,8 +83,8 @@ describe('sharing from the card without a share sheet', () => {
   test('the message preview keeps the link on its own left-to-right line (an Urdu message never scrambles it)', () => {
     const p = page({ lang: 'ur', store: finished() });
     p.els['#wq-chal'].fire('click');
-    expect(p.html()).toMatch(/<p class="wq-url" dir="ltr">https:\/\/example\.test\/q\/CHAL12\?from=Zara<\/p>/);
-    expect(waHref(p)).toContain('https://example.test/q/CHAL12?from=Zara');
+    expect(p.html()).toMatch(/<p class="wq-url" dir="ltr">https:\/\/example\.test\/q\/CHAL12<\/p>/);
+    expect(waHref(p)).toContain('https://example.test/q/CHAL12');
   });
 
   test('the WhatsApp button opens in the same view (no new tab: popups are unreliable in the in-app browser)', () => {

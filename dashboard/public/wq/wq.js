@@ -474,6 +474,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       moreNone: 'No more videos for your class yet.', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done ✓',
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
+      vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child'
     },
@@ -516,6 +517,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return n + ' منٹ'; }, doneTag: 'مکمل ✓',
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + t + ' میں سے ' + s + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
+      vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
       friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں'
     }
@@ -984,7 +986,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     (CLS.chips || []).forEach(function (c) { classChips[c.chip] = 1; });
     var last = here.filter(function (k) { return classChips[k.chip]; })[0] || here[0];
     var ch = B.challenge;
-    var chLine = ch ? T.challenged(ch.first, ch.correct, ch.total) : (params.from ? T.challengedBy(String(params.from).slice(0, 20)) : '');
+    // The challenger comes from the server (the challenge code), never from a name in the URL.
+    var chLine = ch ? T.challenged(ch.first, ch.correct, ch.total) : '';
     if (B.preview && params.p) return teacherLanding();
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
@@ -1651,6 +1654,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
       (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '') +
+      vsStrip(res.vs, c, total) +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
@@ -1658,7 +1662,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     render(h, 'M10');
     wireBar();
     ev('card_view', {});
-    var chalUrl = link('/q/' + (res.challenge_code || CODE) + '?from=' + encodeURIComponent(c.first || ''));
+    if (res.vs && T.vs[res.vs.outcome]) ev('challenge_result', { reason: res.vs.outcome });
+    // The challenge code names the challenger on the server: no child's name rides in the link.
+    var chalUrl = link('/q/' + (res.challenge_code || CODE));
     // The class group gets the CLASS link: a classmate who joined through a friend's challenge code would
     // count as that child's friend and drop out of the teacher's class report.
     var classUrl = link('/q/' + CODE);
@@ -1669,6 +1675,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-chal', function () { share(line, chalUrl, 'challenge'); });
     on('#wq-class', board);
     on('#wq-more', moreVideos);
+  }
+
+  // A friend's challenge: who won, with both scores (each score isolated so it reads left to right in Urdu).
+  function vsStrip(vs, c, total) {
+    if (!vs || !T.vs[vs.outcome]) return '';
+    function sc(a, b) { return '<bdi dir="ltr">' + esc(a) + '/' + esc(b) + '</bdi>'; }
+    return '<div class="wq-banner wq-vs"><b>' + esc(T.vs[vs.outcome]) + '</b><br>' + esc(T.vsYou) + ' ' + sc(c.correct, total) +
+      ' · ' + esc(vs.first) + ' ' + sc(vs.correct, vs.total) + '</div>';
   }
 
   /* ---------------- M15 watch another video -> its quiz ---------------- */
@@ -1805,7 +1819,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         return '<li><span>' + esc(x.topic) + '<br><small class="wq-small">' + esc(dayMonth(x.date)) + '</small></span><span>' + rowScore(x.correct, x.total) + '</span></li>';
       }).join('') + '</ul>' +
         (fr.length ? '<p class="wq-sub">' + esc(T.friends) + '</p><ul class="wq-hist">' + fr.slice(0, 6).map(function (x) {
-          return '<li><span>' + dotJoin(x.first, x.topic) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
+          return '<li><span>' + dotJoin(x.first, x.topic, T.frOut[x.outcome]) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
         }).join('') + '</ul>' : '') +
         '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
       render(h, 'M13');
@@ -1893,7 +1907,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   /* ---------------- boot ---------------- */
   var conn = navigator.connection || {};
-  ev('page_open', { ua: String(navigator.userAgent || '').slice(0, 300), iab: IAB, store: STORE_OK ? 1 : 0, net: conn.effectiveType || '', src: B.view || 'quiz', reason: params.from ? 'challenge' : undefined });
+  ev('page_open', { ua: String(navigator.userAgent || '').slice(0, 300), iab: IAB, store: STORE_OK ? 1 : 0, net: conn.effectiveType || '', src: B.view || 'quiz', reason: B.challenge ? 'challenge' : undefined });
   if (S.queue.length) flushQueue();
   var FROM = B.view === 'class' || S.st ? null : handover();
   if (B.view === 'class') board();
