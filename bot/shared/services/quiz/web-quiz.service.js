@@ -43,6 +43,8 @@ const { excludeSelfTests } = require('./teacher-self-test');
 const { clampLanguage } = require('../../config/ux-strings');
 const { teacherLabel } = require('./quiz-teacher-label');
 const Roster = require('./web-quiz-roster');
+const Identity = require('./web-quiz-identity');
+const IdRoster = require('./web-quiz-identity-roster');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
 
@@ -438,9 +440,12 @@ async function getQuiz(code, { p } = {}) {
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
+  // Identity v2: the child types their name and the server matches inside the hand-out's class.
+  const idn = await identityV2(ctx);
   // A teacher with a class list: the child gives a roll number, so no classmates' names ship.
-  const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
-  const chips = roster ? [] : await classChips(ctx);
+  const roster = idn ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
+  // v2 ships no classmates' names at all: only this phone's remembered children (page storage).
+  const chips = idn || roster ? [] : await classChips(ctx);
   // A quiz whose class the server cannot tell (two lists, no grade match): the page asks the class first.
   const pick = roster ? Roster.pickList(roster, { listId: quizRow && quizRow.list_id, grade: quizRow && quizRow.grade }, (id) => classKey(ctx, id)) : null;
   const preview = Boolean(p) && isPreviewFor(p, ctx);
@@ -463,7 +468,11 @@ async function getQuiz(code, { p } = {}) {
       n: questions.length,
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),
     },
-    cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip), ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}) },
+    cls: {
+      label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip),
+      ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}),
+      ...(idn ? { identity: await identityBoot(ctx, idn) } : {}),
+    },
     live: await liveCounts(ctx),
     video,
     preview,
@@ -532,6 +541,7 @@ async function whoPlayed(body = {}) {
   requireOn();
   const ctx = await resolveCode(body.code);
   requireTeacher(body, ctx);
+  if ((await IdRoster.identityMode()) === 'v2') return whoPlayedV2(ctx);
   const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
   const { data } = await supabase.from('quiz_sessions')
     .select('id, student_id, student_name, user_id, status, correct_answers, total_questions_answered, completed_at, created_at')
@@ -594,6 +604,7 @@ async function fixWho(body = {}) {
   requireOn();
   const ctx = await resolveCode(body.code);
   requireTeacher(body, ctx);
+  if ((body.studentId || body.add === true) && (await IdRoster.identityMode()) === 'v2') return fixWhoV2(ctx, body);
   const quizGrade = await gradeOf(ctx.quizId);
   const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
   if (!roster) fail(400, 'bad_request', { why: 'no_class_list' });
@@ -743,6 +754,10 @@ async function startSession(body = {}) {
   let userId = null;
   let takerName = null;
   let takerClass = null;
+  // Identity v2 (app_settings web_quiz_identity = 'v2'); null = today's path, untouched.
+  const idn = body.p ? null : await identityV2(ctx);
+  let found = null;
+  let resolved = null;
   if (body.p) {
     if (!isPreviewFor(body.p, ctx)) fail(401, 'bad_token');
     userId = ctx.teacherUserId;           // the self-test marker: never a child
@@ -759,6 +774,10 @@ async function startSession(body = {}) {
     logEvent('web_quiz.roll_lookup', { shareCodeId: ctx.shareCodeId, matches: found.length });
     if (!found.length) fail(404, 'roll_unknown');
     fail(409, 'is_this_you', { candidates: found.map((f) => rosterChip(ctx, f)) });
+  } else if (body.chip && idn && (found = await chipInClass(ctx, idn, String(body.chip), body.list))) {
+    // v2: "Yes, it's me" on the one card, or a remembered child of the hand-out's class.
+    student = { id: found.kid.id, student_name: found.kid.student_name, self_reported_class: found.cls.label || null };
+    resolved = { via: viaOf(body.via, 'remembered'), classBound: found.bound, provisional: false };
   } else if (body.chip) {
     const want = String(body.chip);
     const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
@@ -791,6 +810,8 @@ async function startSession(body = {}) {
     const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
     const listed = roster ? roster.kids.find((k) => k.id === st.id) : null;
     if (listed) student = { ...student, self_reported_class: Roster.classOf(roster, listed) };
+  } else if (body.new && typeof body.new === 'object' && idn) {
+    ({ student, resolved } = await newChildV2(ctx, body, idn));
   } else if (body.new && typeof body.new === 'object') {
     const name = cleanName(body.new.name);
     if (!name) fail(400, 'bad_request', { why: 'name' });
@@ -869,6 +890,7 @@ async function startSession(body = {}) {
     logToFile('⚠️ web-quiz: report scheduling failed (the quiz still runs)', { shareCodeId: ctx.shareCodeId, error: e.message });
   }
   const counted = countedFor(prior, deviceRef, Boolean(userId));
+  if (resolved) logEvent('web_quiz.identity_resolved', { shareCodeId: ctx.shareCodeId, sessionId: session.id, ...resolved });
   logEvent('web_quiz.session_started', {
     sessionId: session.id, shareCodeId: ctx.shareCodeId, quizId: ctx.quizId,
     preview: Boolean(userId), returning: Boolean(body.chip || body.from_st), counted: counted.counted,
@@ -890,6 +912,235 @@ function countedFor(prior, deviceRef, preview) {
   if (preview) return { counted: false, reason: 'preview' };
   if (!prior) return { counted: true };
   return { counted: false, reason: prior.device_ref && prior.device_ref === deviceRef ? 'already_finished' : 'finished_elsewhere' };
+}
+
+// ─── identity v2: name first, inside the hand-out's one class ──────────────
+
+const NONE_CLASS = { state: 'none', class: null, classes: [], bound: null };
+const VIA = ['remembered', 'hub', 'name', 'full_name', 'father', 'number', 'new', 'preview'];
+const BOUND = ['code', 'quiz', 'single', 'grade', 'teacher_ask', 'child_ask', 'none'];
+const viaOf = (v, dflt) => (VIA.includes(String(v || '')) ? String(v) : dflt);
+const boundOf = (b) => (BOUND.includes(String(b || '')) ? String(b) : 'none');
+const ARABIC_SCRIPT = /[؀-ۿݐ-ݿ]/;
+
+/**
+ * The v2 identity context of a code, or null when the setting is not 'v2'. An
+ * invited friend (a challenge code) never meets the class roster: no class, no
+ * matching, a provisional child (their class is not the inviter's).
+ */
+async function identityV2(ctx) {
+  if ((await IdRoster.identityMode()) !== 'v2') return null;
+  if (ctx.invitedByStudentId) return { invited: true, resolved: NONE_CLASS };
+  try {
+    const resolved = await Identity.resolveQuizClass({
+      teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId,
+    });
+    return { invited: false, resolved: resolved || NONE_CLASS };
+  } catch (e) {
+    logToFile('⚠️ web-quiz: class resolution failed — no roster for this start', { shareCodeId: ctx.shareCodeId, error: e.message });
+    return { invited: false, resolved: NONE_CLASS };
+  }
+}
+
+const askOf = (ctx, classes) => (classes || []).map((c) => ({ key: IdRoster.classKeyV2(ctx.shareCodeId, c), label: c.label || '' }));
+
+/** E2's `cls.identity`: how the page should ask. Never a name, never a class id. */
+async function identityBoot(ctx, idn) {
+  const r = idn.resolved;
+  let roster = !idn.invited && r.state === 'ambiguous';
+  if (!idn.invited && r.state === 'known') roster = Boolean(((await IdRoster.rosterOf(r.class)) || []).length);
+  return {
+    mode: 'v2',
+    class: {
+      state: r.state,
+      label: r.state === 'known' && r.class ? r.class.label || null : null,
+      ask: r.state === 'ambiguous' ? askOf(ctx, r.classes) : null,
+    },
+    roster,
+    invited: Boolean(idn.invited),
+  };
+}
+
+/** The class a v2 start plays against: the resolved one, or the one the child chose (S1). Throws which_class. */
+function classForStart(ctx, idn, list, { ask = true } = {}) {
+  const r = idn.resolved;
+  if (r.state === 'known') return { cls: r.class, chosen: false, bound: boundOf(r.bound), only: r.bound === 'single' };
+  if (r.state !== 'ambiguous') return { cls: null, chosen: false, bound: 'none' };
+  const key = list == null ? '' : String(list);
+  if (key === 'none') return { cls: null, chosen: true, bound: 'none' };
+  const cls = key ? r.classes.find((c) => IdRoster.classKeyV2(ctx.shareCodeId, c) === key) : null;
+  if (cls) return { cls, chosen: true, bound: 'child_ask' };
+  if (!ask) return null;
+  logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'class', hits: r.classes.length });
+  return fail(409, 'which_class', { classes: askOf(ctx, r.classes) });
+}
+
+/** A chip (a card the child tapped, or a remembered one) that is a child of the hand-out's class. */
+async function chipInClass(ctx, idn, want, list) {
+  if (idn.invited) return null;
+  const r = idn.resolved;
+  const pick = r.state === 'ambiguous' && list != null ? classForStart(ctx, idn, list, { ask: false }) : null;
+  const pool = pick && pick.cls ? [pick] : r.state === 'known' ? [classForStart(ctx, idn, null)]
+    : r.state === 'ambiguous' ? r.classes.map((c) => ({ cls: c, bound: 'child_ask' })) : [];
+  for (const p of pool) {
+    const kids = (await IdRoster.rosterOf(p.cls)) || [];
+    const kid = kids.find((k) => k.ids.some((id) => T.chipId(ctx.shareCodeId, id) === want));
+    if (kid) return { kid, cls: p.cls, bound: p.bound };
+  }
+  return null;
+}
+
+/** The first name a card or a question shows: as the child typed it in Urdu script, else as the list spells it. */
+function shownFirstV2(ctx, kid, typed) {
+  if (ctx.lang === 'ur' && kid.nameUrdu) return firstName(kid.nameUrdu);
+  const t = firstName(typed);
+  return ARABIC_SCRIPT.test(t) ? t : kid.first;
+}
+
+/** An "I don't know" (explicit null), an answer, or not asked (absent). */
+function tiebreakers(n) {
+  const out = {};
+  const has = (k) => Object.prototype.hasOwnProperty.call(n, k);
+  ['full_name', 'father'].forEach((k) => {
+    if (!has(k)) return;
+    if (n[k] == null) { out[k] = null; return; }
+    out[k] = cleanName(n[k]);
+    if (!out[k]) fail(400, 'bad_request', { why: 'name' });
+  });
+  if (has('number')) {
+    if (n.number == null) out.number = null;
+    else if (/^\d{1,3}$/.test(String(n.number).trim())) out.number = Number(String(n.number).trim());
+    else fail(400, 'bad_request', { why: 'number' });
+  }
+  return out;
+}
+
+/**
+ * "What is your name?" → one of: which_class, ask_more (the child's own full
+ * name / father's name / list number), is_this_you (exactly ONE card), not_found
+ * — or a provisional child of the hand-out, created here. Never a list of children.
+ */
+async function newChildV2(ctx, body, idn) {
+  const n = body.new;
+  const name = cleanName(n.name);
+  if (!name) fail(400, 'bad_request', { why: 'name' });
+  const answers = tiebreakers(n);
+  const step = (s, hits) => logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: s, hits });
+  const provisional = async (label, bound) => {
+    step('provisional', 0);
+    const { data: created, error } = await supabase.from('students').insert({
+      student_name: name, self_reported_class: label || null, enrolled_by_user_id: ctx.teacherUserId || null, phone: null, list_id: null,
+    }).select('id, student_name, self_reported_class').single();
+    if (error || !created) {
+      logToFile('❌ web-quiz: could not create student', { error: error && error.message }, 'error');
+      fail(502, 'db_unavailable');
+    }
+    return { student: created, resolved: { via: 'new', classBound: bound, provisional: true } };
+  };
+  if (idn.invited) return provisional(null, 'none');
+  const { cls, chosen, bound, only } = classForStart(ctx, idn, body.list);
+  const label = cls ? cls.label || null : null;
+  const kids = cls ? await IdRoster.rosterOf(cls) : null;
+  if (!kids || !kids.length || n.force) return provisional(label, bound);
+  // The class is named back to the child only when it tells something: not for a teacher's only class.
+  const clsLine = label && (chosen || !only) ? { cls: label } : {};
+  const m = Identity.match(kids, name, answers);
+  if (m.outcome === 'one') {
+    step('confirm', 1);
+    const card = { chip: T.chipId(ctx.shareCodeId, m.kid.id), first: shownFirstV2(ctx, m.kid, name), animal: T.animalFor(m.kid.id) };
+    fail(409, 'is_this_you', { candidates: [chosen && label ? { ...card, cls: label } : card] });
+  }
+  if (m.outcome === 'ask') {
+    step(m.need, m.hits.length);
+    fail(409, 'ask_more', { need: m.need, first: shownFirstV2(ctx, m.hits[0], name), ...clsLine });
+  }
+  step('name', 0);
+  return fail(409, 'not_found', { typed: name, ...clsLine });
+}
+
+/** whoPlayed under v2: today's rows / not_played / summary, from the hand-out's class, plus provisional. */
+async function whoPlayedV2(ctx) {
+  const na = await IdRoster.nonAttempters({ shareCodeId: ctx.shareCodeId });
+  const provisional = na.provisional.map((p) => ({ ref: p.sessionId, first: firstName(p.typed), correct: p.correct, total: p.total }));
+  const rows = [
+    ...provisional.map((p) => ({ ref: p.ref, first: p.first, roll: null, on_list: false, correct: p.correct, total: p.total })),
+    ...na.played.map((p) => ({ ref: p.sessionId, first: p.first, roll: p.number, on_list: p.onList, correct: p.correct, total: p.total })),
+  ].sort((a, b) => (a.on_list - b.on_list) || ((a.roll || 0) - (b.roll || 0)) || a.first.localeCompare(b.first));
+  const total = (await loadQuestions(ctx.quizId)).length || Math.max(0, ...rows.map((r) => r.total));
+  const avg = rows.length ? Math.round((rows.reduce((x, r) => x + r.correct, 0) / rows.length) * 10) / 10 : null;
+  return {
+    roster: na.class.state === 'known',
+    class: { state: na.class.state, label: na.class.label, classes: na.class.classes },
+    summary: {
+      played: rows.length, on_list: rows.filter((r) => r.on_list).length, of: na.class.of, avg, total,
+      hardest: await hardestQuestion(ctx.quizId, rows.map((r) => r.ref)),
+    },
+    not_played: na.notPlayed ? na.notPlayed.map((k) => ({ studentId: k.studentId, first: k.first, roll: k.number })) : null,
+    rows,
+    provisional,
+  };
+}
+
+/** The teacher's reconcile under v2: { ref, studentId } moves a finish onto a class child; { ref, add } enrols the typed child. */
+async function fixWhoV2(ctx, body) {
+  const r = await Identity.resolveQuizClass({ teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.shareCodeId });
+  if (!r || r.state !== 'known') fail(409, 'which_class', { classes: askOf(ctx, (r && r.classes) || []) });
+  const kids = (await IdRoster.rosterOf(r.class)) || [];
+  const { data: s } = await supabase.from('quiz_sessions')
+    .select('id, student_id, student_name, user_id, share_code_id, invited_by_student_id, status, correct_answers, total_questions_answered')
+    .eq('id', String(body.ref || '')).eq('share_code_id', ctx.shareCodeId).maybeSingle();
+  if (!s || s.user_id || s.invited_by_student_id || !s.student_id) fail(404, 'not_found');
+  const label = r.class.label || null;
+  const row = (patch, kid) => ({ ref: s.id, first: kid ? kid.first : firstName(patch.student_name || s.student_name), roll: kid ? kid.number : null,
+    on_list: Boolean(kid), correct: s.correct_answers || 0, total: s.total_questions_answered || 0 });
+  if (body.studentId) {
+    const target = IdRoster.findKid(kids, String(body.studentId));
+    if (!target) fail(404, 'student_unknown');
+    const patch = { student_id: target.id, student_name: target.student_name, student_class: label };
+    const { error } = await supabase.from('quiz_sessions').update(patch).eq('id', s.id).eq('share_code_id', ctx.shareCodeId);
+    if (error) fail(502, 'db_unavailable');
+    logEvent('web_quiz.identity_fixed', { sessionId: s.id, shareCodeId: ctx.shareCodeId, fromListed: Boolean(IdRoster.findKid(kids, s.student_id)) });
+    return { ok: true, row: row(patch, target) };
+  }
+  // { add: true }: the typed child joins the class list (ClassService, the same enrolment /roster makes).
+  if (IdRoster.findKid(kids, s.student_id)) return { ok: true, already: true, row: row({}, IdRoster.findKid(kids, s.student_id)) };
+  if (!r.class.id) fail(400, 'bad_request', { why: 'no_class' });
+  const ClassService = require('../classes/class.service');
+  const out = await ClassService.enrollExistingStudent({ classId: r.class.id, teacherUserId: ctx.teacherUserId, studentId: s.student_id });
+  if (out.error === 'not_assigned') fail(403, 'not_your_class');
+  if (out.error) fail(502, 'db_unavailable');
+  await supabase.from('quiz_sessions').update({ student_class: label }).eq('id', s.id).eq('share_code_id', ctx.shareCodeId);
+  IdRoster._forgetClass(r.class.id);
+  logEvent('web_quiz.identity_enrolled', { sessionId: s.id, shareCodeId: ctx.shareCodeId });
+  return { ok: true, row: { ...row({}, null), on_list: true } };
+}
+
+/** The teacher (preview `p`, or the report token `tr` once M3's verifier lands) of this code. */
+function requireTeacherOf(body, ctx) {
+  if (body.p && isPreviewFor(body.p, ctx)) return;
+  const tr = body.tr ? T.verify(body.tr, 'tr') : null; // M3's teacher-report token: same teacher, any of their codes
+  if (tr && tr.t === ctx.teacherUserId) return;
+  fail(401, 'bad_token');
+}
+
+/**
+ * POST /who/class — the teacher says which class an unbound hand-out was for
+ * (the report's "Which class was this for?"). Writes quiz_share_codes.class_id,
+ * so the children's page is bound from then on.
+ */
+async function whoClass(body = {}) {
+  requireOn();
+  const ctx = await resolveCode(body.code);
+  requireTeacherOf(body, ctx);
+  const all = await Identity.resolveQuizClass({ teacherUserId: ctx.teacherUserId });
+  const cls = ((all && all.classes) || []).find((c) => IdRoster.classKeyV2(ctx.shareCodeId, c) === String(body.key || ''));
+  if (!cls) fail(404, 'class_unknown');
+  if (!cls.id) fail(400, 'bad_request', { why: 'no_class' });
+  const { error } = await supabase.from('quiz_share_codes').update({ class_id: cls.id }).eq('id', ctx.shareCodeId);
+  if (error && error.code === '42703') fail(503, 'not_ready');
+  if (error) fail(502, 'db_unavailable');
+  logEvent('web_quiz.identity_class_bound', { shareCodeId: ctx.shareCodeId, by: body.p ? 'preview' : 'report' });
+  return { ok: true, class: { label: cls.label || '' } };
 }
 
 // ─── E4 answers ─────────────────────────────────────────────────────────────
@@ -1246,6 +1497,6 @@ async function media(code, qid, { k, z } = {}) {
 module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media,
   // exported for tests and the router
-  WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, challengeOutcome,
+  WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   BOARD_TOP, QUESTIONS_MAX,
 };
