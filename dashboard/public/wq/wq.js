@@ -1171,6 +1171,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function link(path) { return location.origin + path; }
 
   /* ---------------- M3 landing ---------------- */
+  // The invited friend's landing shows the picture their link previewed as (already drawn and cached), so the
+  // hand-off from the chat to the page is one picture, not two different things. Gone if it cannot load.
+  function chPic(chLine) {
+    var id = chLine && B.art && B.art.invite;
+    return id ? '<img class="wq-chpic" src="' + esc('/q/' + encodeURIComponent(CODE) + '/art/invite.jpg?a=' + encodeURIComponent(id)) + '" alt="' + esc(chLine) + '">' : '';
+  }
+  function wireChPic() {
+    var im = ROOT.querySelector && ROOT.querySelector('.wq-chpic');
+    if (im && im.addEventListener) im.addEventListener('error', function () { if (im.parentNode) im.parentNode.removeChild(im); });
+  }
+
   function landing() {
     var here = kids();
     var classChips = {};
@@ -1180,13 +1191,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The challenger comes from the server (the challenge code), never from a name in the URL.
     var chLine = ch ? T.challenged(ch.first, ch.correct, ch.total) : '';
     if (B.preview && params.p) return teacherLanding();
-    if (ID && !B.preview) return ID.landing(chLine);
+    if (ID && !B.preview) { ID.landing(chLine, chPic(chLine)); wireChPic(); return; }
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
       '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
+      chPic(chLine) +
       (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
       (B.preview && params.p ? '<button class="wq-btn wq-go" id="wq-preview">' + esc(T.previewPlay) + '</button><button class="wq-btn wq-navy" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' :
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
@@ -1197,6 +1209,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (LIVE.now >= 2 && !ch ? '<p class="wq-proof">🟢 ' + esc(T.liveNow(LIVE.now)) + '</p>' : '');
     render(h, 'M3');
     wireBar();
+    wireChPic();
     on('#wq-play', who);
     on('#wq-notme', who);
     on('#wq-preview', function () { ev('identity_pick', { src: 'preview' }); startSession({}, null, ''); });
@@ -2204,10 +2217,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       render(h, 'M11');
       wireBar();
       ev('board_view', { src: B.view === 'class' ? 'class_link' : 'page', i: b.finishers_n });
-      // The child's own class picture ("me" named) when they have finished; else the class's.
+      // The child's own class picture ("me" named) when they have finished; else the class's. The link carries
+      // ?v=<finishers>: WhatsApp caches a preview per URL, so a group that shared the table earlier would see an old one.
       var tArt = (S.result && S.result.art && S.result.art.class) || (B.art && B.art.class) || null;
       warmArt('class', tArt);
-      on('#wq-share-t', function () { share(T.tableLine(Q.topic, CLASS_LABEL), link('/q/' + CODE + '/class'), 'table', tArt); });
+      on('#wq-share-t', function () { share(T.tableLine(Q.topic, CLASS_LABEL), link('/q/' + CODE + '/class' + (b.finishers_n ? '?v=' + b.finishers_n : '')), 'table', tArt); });
       on('#wq-schools', function () { schools(board); });
       on('#wq-next', history);
       on('#wq-play', landing);
@@ -2288,9 +2302,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     wireBar();
     on('#wq-all', function () { SCH.sector = false; drawSchools(); });
     on('#wq-sector', function () { SCH.sector = true; drawSchools(); });
+    // The board's own picture travels with the link; ?v=<the hour in Pakistan> because WhatsApp caches a
+    // preview per URL and the board moves every hour.
+    var sArt = (B.art && B.art.schools) || null;
+    warmArt('schools', sArt);
     on('#wq-share-s', function () {
       ev('leaderboard_share', { src: 'schools', i: (mine && mine.place) || 0 });
-      share(T.schoolsLine(mine.name, mine.ghost ? null : mine.place), link('/q/' + CODE + '/schools'), 'schools');
+      var hour = new Date(Date.now() + 5 * 3600000).toISOString().slice(0, 13).replace(/[-T]/g, '');
+      share(T.schoolsLine(mine.name, mine.ghost ? null : mine.place), link('/q/' + CODE + '/schools?v=' + hour), 'schools', sArt);
     });
     on('#wq-play-s', landing);
     on('#wq-back', SCH.back);

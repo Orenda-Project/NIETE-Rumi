@@ -175,24 +175,29 @@ function identityV2(payload) {
   return Boolean(id && id.mode === 'v2');
 }
 
-/** The picture a link previews as: the shared card, the invite on a challenge code, the class view's table, else the brand's. */
-function ogImageFor({ payload, code, view, origin, a }) {
+/**
+ * The picture a link previews as: the shared card, the invite on a challenge code, the class view's table,
+ * the plain class link with ?v=<played> (the teacher's reminder: the live class picture), else the brand's.
+ * WhatsApp caches a preview per URL, so ?v rides into the picture URL too.
+ */
+function ogImageFor({ payload, code, view, origin, a, v }) {
   const art = (payload && payload.art) || {};
-  const pic = (kind, id) => (id ? `${origin}/q/${code}/art/${kind}.jpg?a=${encodeURIComponent(id)}` : null);
+  const ver = typeof v === 'string' && /^[0-9]{1,10}$/.test(v) ? v : null;
+  const pic = (kind, id) => (id ? `${origin}/q/${code}/art/${kind}.jpg?a=${encodeURIComponent(id)}${ver ? `&v=${ver}` : ''}` : null);
   return pic('card', artId(a, 'card'))
     || pic('invite', artId(art.invite, 'invite'))
-    || (view === 'class' ? pic('class', artId(art.class, 'class')) : null)
+    || (view === 'class' || (ver && view === 'quiz') ? pic('class', artId(art.class, 'class')) : null)
     || (view === 'schools' ? pic('schools', artId(art.schools, 'schools')) : null);
 }
 
-function renderQuizPage({ payload, code, view, origin, assetV, url, a }) {
+function renderQuizPage({ payload, code, view, origin, assetV, url, a, v }) {
   const q = (payload && payload.quiz) || {};
   const lang = q.lang === 'ur' ? 'ur' : 'en';
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
   const brand = brandOf(payload && payload.brand);
   const og = ogText(payload, view, brand);
   const boot = { ...payload, code, view, brand };
-  const image = ogImageFor({ payload, code, view, origin, a });
+  const image = ogImageFor({ payload, code, view, origin, a, v });
   return `${head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image })}
 </head>
 <body>
@@ -399,7 +404,7 @@ function createWebQuizRouter(opts = {}) {
     if (out.status === 200 && out.body && out.body.quiz) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       const url = `${origin}/q/${upper}${view === 'class' ? '/class' : view === 'schools' ? '/schools' : ''}`;
-      return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url, a: req.query.a }));
+      return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
     // A 404/410 is "closed" only when it is the contract's answer; a bare 404 means the bot

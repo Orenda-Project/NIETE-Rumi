@@ -56,7 +56,8 @@ var WQID = function (P) {
   }
 
   /* S0 */
-  function landing(chLine) {
+  // pic: the invited friend's picture (wq.js chPic), shown above the challenge line.
+  function landing(chLine, pic) {
     var here = P.kids();
     var Q = P.Q, CLS = P.CLS, LIVE = P.LIVE || {};
     var classPhone = here.length >= CLASS_PHONE;
@@ -66,7 +67,7 @@ var WQID = function (P) {
       '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(P.N)) + '</p></div>' +
-      (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
+      (pic || '') + (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
       (here.length
         ? '<h2>' + esc(T.whoT) + '</h2>' + (classPhone ? someone : '') +
           '<div class="wq-kids-big' + (classPhone ? ' wq-kids-small' : '') + '">' + here.map(function (k, i) {

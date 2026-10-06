@@ -48,7 +48,7 @@ beforeEach(async () => {
 });
 afterEach(() => new Promise((r) => srv.close(r)));
 
-const ogImage = (html) => (/<meta property="og:image" content="([^"]+)"/.exec(String(html)) || [])[1];
+const ogImage = (html) => ((/<meta property="og:image" content="([^"]+)"/.exec(String(html)) || [])[1] || '').replace(/&amp;/g, '&') || undefined;
 
 describe('og:image per shared link', () => {
   test('a card link (?a=<card id>) previews as that card', async () => {
@@ -62,6 +62,16 @@ describe('og:image per shared link', () => {
   test('the class view previews as the class picture; the plain link keeps the brand picture', async () => {
     expect(ogImage((await get(srv, '/q/AB12CD/class')).body)).toBe(`http://portal.example/q/AB12CD/art/class.jpg?a=${CLASS}`);
     expect(ogImage((await get(srv, '/q/AB12CD')).body)).toBe('http://portal.example/wq/og.jpg');
+  });
+
+  test("the teacher's reminder link (/q/<CODE>?v=<played>) previews as the live class picture; with no v the brand one", async () => {
+    expect(ogImage((await get(srv, '/q/AB12CD?v=18')).body)).toBe(`http://portal.example/q/AB12CD/art/class.jpg?a=${CLASS}&v=18`);
+    expect(ogImage((await get(srv, '/q/AB12CD?v=x1')).body)).toBe('http://portal.example/wq/og.jpg');
+    expect(ogImage((await get(srv, '/q/AB12CD')).body)).toBe('http://portal.example/wq/og.jpg');
+  });
+
+  test('the school league link previews as the school board, with its hour in the picture URL', async () => {
+    expect(ogImage((await get(srv, '/q/AB12CD/schools?v=2026100622')).body)).toBe(`http://portal.example/q/AB12CD/art/schools.jpg?a=${SCHOOLS}&v=2026100622`);
   });
 
   test('a challenge code previews as the invite, titled with the challenge', async () => {
