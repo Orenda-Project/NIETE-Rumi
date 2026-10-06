@@ -739,6 +739,12 @@ Feature: Web child quiz page on the portal
     Then the landing says "<challenger> challenged you. Can you beat their score?" («… نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!»)
     And it never says "0/5 stars. Can you beat it?"
     And the friend's landing never says how many of the class played today (the friend is not in that class)
+  @T449
+  Scenario: A friend who played a challenge never reaches the challenger's class table
+    Given a friend finished a quiz through a classmate's challenge link
+    Then the friend's scorecard offers "Challenge a friend" and "School league" but not "See my class" or "Share to class group"
+    And the "Quiz complete" screen offers no "See my class"
+    And the class table of a challenge code answers "not found", both as /q/<challenge code>/class and through the page's API
 
   @T255
   Scenario: A child's shared card arrives in the group as a picture, even from WhatsApp's own browser
