@@ -2613,9 +2613,22 @@ const UX_STRINGS = {
     ur: 'ابھی تک کسی کلاس کو کوئز نہیں بھیجا گیا۔ \u2066/quiz\u2069 بھیجیں اور *کوئز بنائیں* پر ٹیپ کریں۔',
   },
   tqrAllClasses: { en: 'all your classes', ur: 'آپ کی تمام کلاسز' },
+  // The report link message carries the tapped row's counts (M3 review #1749); numbers isolated in Urdu.
+  tqrCountsOf: {
+    en: '{played} of {of} played · {left} still to play',
+    ur: '⁦{of}⁩ میں سے ⁦{played}⁩ نے کھیلا · ⁦{left}⁩ ابھی باقی ہیں',
+  },
+  tqrCountsOfDone: { en: 'all {of} have played', ur: 'تمام ⁦{of}⁩ نے کھیل لیا' },
+  tqrCountsPlayed: { en: '{played} played', ur: '⁦{played}⁩ نے کھیلا' },
+  tqrCountsNone: { en: 'no one has played yet', ur: 'ابھی کسی نے نہیں کھیلا' },
+  tqrCountsClasses: { en: 'every quiz, by class and subject', ur: 'ہر کوئز، کلاس اور مضمون کے لحاظ سے' },
   tqrLinkText: {
-    en: 'Your report for *{topic}*: {url}\nIt opens in your browser.',
-    ur: '*{topic}* کی رپورٹ: {url}\nیہ آپ کے براؤزر میں کھلے گی۔',
+    en: 'Your report for *{topic}*: {counts}.\nOpen it here: {url}',
+    ur: '*{topic}* کی رپورٹ: {counts}۔\nیہاں کھولیں: {url}',
+  },
+  tqrLinkTextRemind: {
+    en: 'Your report for *{topic}*: {counts} — open it to remind them: {url}',
+    ur: '*{topic}* کی رپورٹ: {counts} — اسے کھولیں اور کلاس کو یاد دہانی بھیجیں: {url}',
   },
   tqrLinkFailed: {
     en: 'I could not make the report link just now. Please try again in a minute.',

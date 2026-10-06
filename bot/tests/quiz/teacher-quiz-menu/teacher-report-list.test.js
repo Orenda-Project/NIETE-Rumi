@@ -168,6 +168,46 @@ describe('a tapped report row sends that quiz\'s report link', () => {
     expect(ev.props).toEqual({ userId: T.id, quizId: 'qA', scope: 'q', how: 'text' });
   });
 
+  const counted = () => ({
+    quizzes: [quiz('qA', 3)],
+    codes: [{ id: 'cA', code: 'AAAAAA', quiz_id: 'qA', teacher_user_id: T.id, invited_by_student_id: null }],
+    sessions: [session('s1', 'cA', 'k1', 8, 8)],
+    lists: [{ id: 'L5', user_id: T.id, is_active: true, class_name: '5', section: 'A' }],
+    kids: [1, 2, 3, 4].map((i) => ({ id: `k${i}`, list_id: 'L5', is_active: true, roll_number: i, student_name: `K${i}` })),
+  });
+
+  test('the link message carries the row\'s counts: "1 of 4 played · 3 still to play — open it to remind them"', async () => {
+    world(counted());
+    await ReportList.handleReportsPick('tqr_qA', FROM, T);
+    const msg = mockSent.find((s) => s.kind === 'text');
+    expect(msg.text).toMatch(/1 of 4 played · 3 still to play — open it to remind them: https:\/\/portal\.example\//);
+  });
+
+  test('no class list: "1 played", and no "still to play"', async () => {
+    world({ ...counted(), lists: [], kids: [] });
+    await ReportList.handleReportsPick('tqr_qA', FROM, T);
+    const msg = mockSent.find((s) => s.kind === 'text');
+    expect(msg.text).toMatch(/: 1 played\./);
+    expect(msg.text).not.toMatch(/still to play/);
+  });
+
+  test('Urdu: the counts\' numbers are isolated (U+2066…U+2069)', async () => {
+    world(counted());
+    await ReportList.handleReportsPick('tqr_qA', FROM, { ...T, preferred_language: 'ur' });
+    const msg = mockSent.find((s) => s.kind === 'text');
+    expect(msg.text).toContain('\u20664\u2069');
+    expect(msg.text).toContain('\u20661\u2069');
+    expect(msg.text).toContain('\u20663\u2069');
+  });
+
+  test('template: body params [topic, counts line] ({{1}}/{{2}}), URL button = the token', async () => {
+    world({ ...counted(), settings: { teacher_report_teachers: 'all', teacher_report_template: 'quiz_teacher_report_v1' } });
+    await ReportList.handleReportsPick('tqr_qA', FROM, T);
+    const t = mockSent.find((s) => s.kind === 'template');
+    expect(t.components.find((c) => c.type === 'body').parameters)
+      .toEqual([{ type: 'text', text: 'Topic qA' }, { type: 'text', text: '1 of 4 played · 3 still to play' }]);
+  });
+
   test('template transport: body {{1}} = topic, URL button index 0 = the token', async () => {
     world({ quizzes: [quiz('qA', 3)], settings: { teacher_report_teachers: 'all', teacher_report_template: 'quiz_teacher_report_v1' } });
     await ReportList.handleReportsPick('tqr_qA', FROM, T);
@@ -175,7 +215,7 @@ describe('a tapped report row sends that quiz\'s report link', () => {
     expect(t.name).toBe('quiz_teacher_report_v1');
     expect(t.lang).toBe('en');
     const body = t.components.find((c) => c.type === 'body');
-    expect(body.parameters).toEqual([{ type: 'text', text: 'Topic qA' }]);
+    expect(body.parameters).toEqual([{ type: 'text', text: 'Topic qA' }, { type: 'text', text: 'no one has played yet' }]);
     const btn = t.components.find((c) => c.type === 'button');
     expect(btn).toMatchObject({ sub_type: 'url', index: '0' });
     expect(Token.verifyTeacherReport(btn.parameters[0].text)).toEqual({ teacherId: T.id, quizId: 'qA' });
