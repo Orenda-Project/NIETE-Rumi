@@ -344,3 +344,10 @@ html[lang=ur] .wq-srow .wq-tag{display:table;font-family:var(--fu);line-height:1
 .wq-zero-list{background:var(--card);border-radius:12px;padding:10px 12px;color:var(--muted);font-weight:700}
 .wq-zero-list summary{cursor:pointer}
 .wq-zero-list ul{margin:8px 0 0;padding-inline-start:18px;font-weight:600;font-size:14px;line-height:1.6}
+/* The phone's own voice is speaking (no recorded clip for that line): a small phone on the speaker button. */
+.wq-phonevoice .wq-spk{position:relative}
+.wq-phonevoice .wq-spk::after{content:"📱";position:absolute;inset-inline-end:-6px;bottom:-6px;font-size:13px;line-height:1}
+/* The browser would not start the voice before a tap: the speaker button pulses until the child taps it. */
+.wq-tap .wq-spk{animation:wq-tap-pulse 1.2s ease-in-out infinite}
+@keyframes wq-tap-pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,0,0,.18)}50%{box-shadow:0 0 0 10px rgba(0,0,0,0)}}
+@media (prefers-reduced-motion:reduce){.wq-tap .wq-spk{animation:none;outline:3px solid var(--green-d,currentColor)}}

@@ -373,6 +373,41 @@ Feature: Web child quiz page on the portal
     Then a question that makes sense without the picture plays as text, with no picture
     And a question that needs the picture is left out, and the quiz still has at least three questions
     And a question that asks which letter fills the gap keeps its picture
+  @T280
+  Scenario: Every line a child hears in a quiz is in one voice per language
+    Given a teacher's quiz in English (or in Urdu) whose clips were recorded after this change
+    When a child answers a question wrongly
+    Then the recorded "Not yet. The answer is" line, the right option's clip and the reason are all in the same voice (Soniox Grace in English, Soniox Ishita in Urdu)
+    And the shared feedback library names that same voice for its language
+
+  @T281
+  Scenario: A clip the voice could not record is never recorded in another voice
+    Given the quiz voice is unavailable while a quiz's clips are being recorded
+    When the recording job runs
+    Then no clip is recorded by another voice provider
+    And the quiz is left unstamped so the job tries again later, and the page shows the words big meanwhile
+
+  @T282
+  Scenario: A slow clip is waited for, not swapped for the phone's voice
+    Given a child on a slow connection opens a question whose clip takes more than 2 seconds to start
+    Then the words are shown big while the clip keeps loading, and the phone's own voice does not speak
+    And a clip that has not started after 8 seconds is let go quietly and logged as stalled
+    And a clip the browser refuses to start before a tap makes the speaker button pulse, and a tap plays it
+
+  @T283
+  Scenario: Quiz audio is stored in the configured bucket under a name that says what it is
+    Given WEB_QUIZ_AUDIO_BUCKET names a bucket on the bot and the worker
+    When a new quiz's clips are recorded
+    Then each clip is stored in that bucket as quiz-audio/<env>/<quiz>/<lang>/<question>/<part>-<voice>-<hash>.ogg
+    And the quiz remembers the bucket, so its clips keep playing after the variable changes
+    And a quiz recorded before this change keeps playing from the bucket it was recorded in
+
+  @T284
+  Scenario: Recording quiz audio can be switched off and is capped per day
+    Given app_settings web_quiz_audio_enabled is false, or today's recorded quizzes have reached web_quiz_audio_daily_cap
+    When a quiz's page is opened
+    Then no clip is recorded and the job does not retry, and the page reads with the words big
+    And reaching the cap is logged as web_quiz_audio.capped
 
   @T250
   Scenario: The school league ranks every school that played this week by points that reward taking part

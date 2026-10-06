@@ -154,9 +154,9 @@ describe('WQI.readParts: what the voice says', () => {
     const q = { text: 'Which is $\\frac{1}{2}$?', options: [{ slot: 'A', text: '', img: '/a', name: 'Half a roti' }, { slot: 'B', text: '🌸' }],
       audio: { q: '/clip/q', opts: [null, '/clip/b'] } };
     const p = WQI.readParts(q, 'en');
-    expect(p[0]).toEqual({ text: 'Which is 1 over 2?', url: '/clip/q' });
-    expect(p[1]).toEqual({ text: 'Half a roti', url: null });
-    expect(p[2]).toEqual({ text: '🌸', url: '/clip/b' });
+    expect(p[0]).toEqual({ text: 'Which is 1 over 2?', url: '/clip/q', p: 'q' });
+    expect(p[1]).toEqual({ text: 'Half a roti', url: null, p: 'opt' });
+    expect(p[2]).toEqual({ text: '🌸', url: '/clip/b', p: 'opt' });
   });
   it('an emoji-only option with no clip and no name is not spoken', () => {
     const p = WQI.readParts({ text: 'Q', options: [{ slot: 'A', text: '🌸' }] }, 'en');
@@ -247,8 +247,8 @@ describe('board round 2 (W32b, W32a)', () => {
   it('a sound item plays its stimulus clip after the stem and shows a "play the sound" button', () => {
     const q = { type: 'listen', text: 'Whose sound is this?', audio: { q: '/c/q', stim: '/c/s', opts: [] }, options: opts(['نُ', 'پَ']) };
     const p = WQI.readParts(q, 'ur');
-    expect(p[0]).toEqual({ text: 'Whose sound is this?', url: '/c/q' });
-    expect(p[1]).toEqual({ text: '', url: '/c/s', stim: true });
+    expect(p[0]).toEqual({ text: 'Whose sound is this?', url: '/c/q', p: 'q' });
+    expect(p[1]).toEqual({ text: '', url: '/c/s', stim: true, p: 'stim' });
     expect(WQI.itemHtml(q, Object.assign({ playSound: 'Play the sound' }, T), 'en')).toContain('id="wq-stim"');
   });
 });

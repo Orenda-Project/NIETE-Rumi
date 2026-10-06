@@ -1123,6 +1123,7 @@ const EVENT_NAME_RX = /^[a-z][a-z0-9_]{0,39}$/;
 const EVENT_PROPS = Object.freeze({
   code: /^[A-Z0-9]{4,12}$/i, qid: /^[0-9a-f-]{8,64}$/i, slot: /^[A-D]$/i, step: /^[a-z0-9_]{1,32}$/,
   src: /^[a-z0-9_]{1,32}$/, reason: /^[a-z0-9_]{1,40}$/, lang: /^(en|ur)$/, net: /^[a-z0-9_]{1,16}$/, err: /^[a-z0-9_]{1,40}$/,
+  part: /^[a-z]{1,4}$/, // which spoken part had no clip (audio_missing): q, opt, stim, fig, left, why, fb, hint
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't'];
 const EVENT_BOOLS = ['ok'];
