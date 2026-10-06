@@ -88,10 +88,18 @@ async function previewLink(code, { shareCodeId, teacherUserId } = {}) {
 /**
  * The link for a share code: the web page, or `whatsapp` — today's wa.me link,
  * which the caller builds exactly as before (so this module needs nothing from
- * the share service). Never throws.
+ * the share service). With `quizId`, a web link also asks the worker to record
+ * that quiz's read-aloud clips. Never throws.
  */
-async function quizLink(code, { teacherUserId, whatsapp } = {}) {
-  if (await webQuizOn(teacherUserId)) return `${webBaseUrl()}/q/${code}`;
+async function quizLink(code, { teacherUserId, whatsapp, quizId } = {}) {
+  if (await webQuizOn(teacherUserId)) {
+    // The quiz's read-aloud clips are recorded now, before the first child opens the page
+    // (Android's in-app browser has no phone voice: a missing clip is silence).
+    if (quizId) {
+      try { require('./web-quiz-publish.service').requestQuizAudio(quizId).catch(() => {}); } catch (_) { /* the page backfills */ }
+    }
+    return `${webBaseUrl()}/q/${code}`;
+  }
   return whatsapp;
 }
 

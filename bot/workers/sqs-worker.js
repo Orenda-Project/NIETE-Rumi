@@ -655,6 +655,16 @@ class SQSCoachingWorker {
         await QuizJobHandler.handleQuizReport(this._buildQuizBody(body));
         break;
       }
+      // A web quiz's read-aloud clips (question, options, why, wrong-option feedback), recorded
+      // when the teacher is handed the web link and when the page is opened. Re-reads the quiz
+      // and skips one already recorded, so a redelivery is harmless.
+      case 'quiz_web_audio': {
+        if (sourceQueue === 'quiz') await SQSQueueService.extendQuizJobTimeout(receiptHandle, 600);
+        else await SQSQueueService.extendJobTimeout(receiptHandle, 600);
+        const jobPayload = (body && body.payload) ? body.payload : (payload || {});
+        await require('../shared/services/quiz/web-quiz-publish.service').runQuizAudioJob(jobPayload);
+        break;
+      }
       case 'quiz_expire': {
         const QuizJobHandler = require('./quiz-job-handler');
         await QuizJobHandler.handleQuizExpire(this._buildQuizBody(body));

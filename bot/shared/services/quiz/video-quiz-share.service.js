@@ -219,7 +219,7 @@ async function deliverClassLink(ctx, phone) {
 
   // The web quiz page when it is switched on for this teacher, else wa.me.
   const link = await require('./web-quiz-link').quizLink(minted.code, {
-    teacherUserId: ctx.userId, whatsapp: `https://wa.me/${botNumber()}?text=QUIZ-${minted.code}`,
+    teacherUserId: ctx.userId, whatsapp: `https://wa.me/${botNumber()}?text=QUIZ-${minted.code}`, quizId: ctx.quizId,
   });
   await WhatsAppService.sendMessage(phone, ux('vqShareForwardThis', lang));
   // Sent as its own message so forwarding it carries nothing else.

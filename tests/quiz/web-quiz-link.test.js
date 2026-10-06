@@ -83,6 +83,24 @@ const WA_LINK = (code) => `https://wa.me/${BOT}?text=QUIZ-${code}`;
 const WEB_LINK = (code) => `${BASE}/q/${code}`;
 
 describe('quizLink — who gets the web page', () => {
+  test('handing out a web link asks the worker to record that quiz\'s clips before the first child opens it', async () => {
+    const SQS = require('../../bot/shared/services/queue/sqs-queue.service');
+    SQS.queueJob.mockClear();
+    installFrom(supabase.from, { app_settings: settings({ enabled: true, teachers: 'all' }) });
+    expect(await WebLink.quizLink('ABC234', { teacherUserId: TEACHER, whatsapp: WA_LINK('ABC234'), quizId: 'quiz-link-1' })).toBe(WEB_LINK('ABC234'));
+    await new Promise((r) => setImmediate(r));
+    expect(SQS.queueJob).toHaveBeenCalledWith('quiz-link-1', 'quiz_web_audio', { quizId: 'quiz-link-1' }, expect.any(Object));
+  });
+
+  test('a WhatsApp link records nothing', async () => {
+    const SQS = require('../../bot/shared/services/queue/sqs-queue.service');
+    SQS.queueJob.mockClear();
+    installFrom(supabase.from, { app_settings: settings({ enabled: false, teachers: 'all' }) });
+    await WebLink.quizLink('ABC235', { teacherUserId: TEACHER, whatsapp: WA_LINK('ABC235'), quizId: 'quiz-link-2' });
+    await new Promise((r) => setImmediate(r));
+    expect(SQS.queueJob.mock.calls.filter((c) => c[1] === 'quiz_web_audio')).toEqual([]);
+  });
+
   test('flag off: the wa.me link', async () => {
     installFrom(supabase.from, { app_settings: settings({ enabled: false, teachers: 'all' }) });
     expect(await WebLink.quizLink('ABC234', { teacherUserId: TEACHER, whatsapp: WA_LINK('ABC234') })).toBe(WA_LINK('ABC234'));
