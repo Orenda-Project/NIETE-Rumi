@@ -478,7 +478,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     ur: {
       quiz: 'کوئز', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, '\u00A0') : ''].filter(Boolean).join(' · '); },
       meta: function (n) { return n + ' سوال · تقریباً ' + Math.max(1, Math.round(n * 0.6)) + ' منٹ'; },
-      hello: 'السلام علیکم! آئیں، مل کر کوئز کھیلیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
+      hello: 'السلام علیکم! آئیں، کوئز کھیلیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
       play: 'کھیلیں', playAs: function (n) { return n + '، شروع کریں'; }, notMe: function (n) { return n + ' نہیں؟'; },
       proof: function (n) { return 'آج ' + (PLACE ? PLACE.ur + ' میں ' : '') + n.toLocaleString('en') + ' بچوں نے کھیلا'; },
       classToday: function (n) { return 'آج آپ کی کلاس میں ' + n + ' نے کھیلا'; },
@@ -731,9 +731,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     try { window.scrollTo(0, 0); } catch (e) {}
   }
   // Urdu: the page widens word gaps for Nastaliq. A run of two or more Latin words inside it (an
-  // English video title, a teacher's Latin name, "3.2 MB") is marked lang="en" so wq.css draws it
-  // with the sans face at normal spacing. Text only: tags, attributes, SVG and MathML are left alone.
-  var LAT_RUN = /[A-Za-z0-9&("'“‘][^\s<>؀-ۿ]*(?:[  ]+[A-Za-z0-9&("'“‘][^\s<>؀-ۿ]*)+/g;
+  // English video title, a teacher's Latin name, "3.2 MB"), and a single atom that mixes digits and
+  // Latin letters (a class label like "3-B", which right-to-left would paint as "B-3"), is marked
+  // lang="en": wq.css draws it with the sans face at normal spacing, isolated left-to-right.
+  // Text only: tags, attributes, SVG and MathML are left alone.
+  var LAT_RUN = /[A-Za-z0-9&("'\u201C\u2018][^\s<>\u0600-\u06FF]*(?:[ \u00A0]+[A-Za-z0-9&("'\u201C\u2018][^\s<>\u0600-\u06FF]*)*/g;
   var LAT_SKIP = /^<(\/?)(svg|math|script|style|textarea)\b/i;
   function latinRuns(html) {
     var skip = 0;
@@ -744,7 +746,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         return part;
       }
       if (skip || !/[A-Za-z]/.test(part)) return part;
-      return part.replace(LAT_RUN, function (run) { return /[A-Za-z]/.test(run) ? '<span class="wq-lat" lang="en">' + run + '</span>' : run; });
+      return part.replace(LAT_RUN, function (run) {
+        var mark = /[A-Za-z]/.test(run) && (/[ \u00A0]/.test(run) || /[0-9]/.test(run));
+        return mark ? '<span class="wq-lat" lang="en">' + run + '</span>' : run;
+      });
     }).join('');
   }
   // The same for a name typed in Latin letters into the Urdu name box.
@@ -752,7 +757,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var t = e && e.target;
     if (!t || !/(^|\s)wq-input(\s|$)/.test(t.className || '')) return;
     var v = String(t.value || '');
-    if (/[A-Za-z]/.test(v) && !/[؀-ۿ]/.test(v)) t.setAttribute('lang', 'en'); else t.removeAttribute('lang');
+    if (/[A-Za-z]/.test(v) && !/[\u0600-\u06FF]/.test(v)) t.setAttribute('lang', 'en'); else t.removeAttribute('lang');
   }
   if (LANG === 'ur' && ROOT) ROOT.addEventListener('input', latinBox);
   // The brand mark (trusted inline SVG from the server's brand table) on its tile, or bare when it is a wide mark.
