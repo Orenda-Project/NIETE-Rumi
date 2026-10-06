@@ -195,11 +195,21 @@ async function bindCode(phone, { shareCodeId, quizId, userId, language }, chosen
   if (error) {
     if (isMissingClassColumn(error)) markClassColumnMissing({ quizId });
     else logToFile('⚠️ hand-out class: bind failed', { quizId, error: error.message }, 'warn');
+    // A tap is always answered: the teacher must not read silence as "it did not register".
+    await WhatsAppService.sendMessage(phone, ux('vqWhichClassNotSaved', clampLanguage(language)));
     return false;
   }
   await fillGradeIfEmpty({ quizId, teacherUserId: userId, classId: chosen.id });
   await WhatsAppService.sendMessage(phone, ux('vqWhichClassBound', clampLanguage(language), { cls: chosen.label }));
   return true;
+}
+
+/** The teacher's stored language for a reply that has no ask to carry it, or null. */
+async function languageOf(phone) {
+  try {
+    const { data } = await supabase.from('users').select('preferred_language').eq('phone_number', phone).maybeSingle();
+    return (data && data.preferred_language) || null;
+  } catch { return null; }
 }
 
 /**
@@ -216,8 +226,10 @@ async function handleTap(id, phone) {
   const [, shareCodeId, pick] = m;
   const ask = await redisService.get(ASK_KEY(shareCodeId));
   if (!ask) {
-    // A week has passed, or it was already answered: the code stays as it is.
+    // A week has passed, or it was already answered: the code stays as it is, and the tap is answered
+    // in the teacher's own language (the ask that carried it is gone).
     logEvent('web_quiz.class_ask_expired', { shareCodeId, reason: 'tap_after_ttl' });
+    await WhatsAppService.sendMessage(phone, ux('vqWhichClassClosed', clampLanguage(await languageOf(phone))));
     return true;
   }
   if (ask.phone !== stripPlus(phone)) {
@@ -227,6 +239,7 @@ async function handleTap(id, phone) {
   if (pick.toLowerCase() === ANY) {
     await redisService.delete(ASK_KEY(shareCodeId));
     logEvent('web_quiz.class_ask_answered', { quizId: ask.quizId, shareCodeId, via: 'any', bound: false });
+    await WhatsAppService.sendMessage(phone, ux('vqWhichClassAnyDone', clampLanguage(ask.language)));
     return true;
   }
   const chosen = (ask.classes || []).find((c) => String(c.id).toLowerCase() === pick.toLowerCase());

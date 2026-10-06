@@ -65,10 +65,11 @@ function fakeFrom(table) {
     }
     if (q.op === 'update') {
       db.updates.push({ table, payload: q.payload, filters: q.filters });
+      if (table === 'quiz_share_codes' && db.bindError) return { data: null, error: { code: '57014', message: 'canceling statement due to statement timeout' } };
       return { data: null, error: null };
     }
     const id = (q.filters.find((f) => f[1] === 'id') || [])[2];
-    if (table === 'users') return { data: { name: 'Teacher Testwala' }, error: null };
+    if (table === 'users') return { data: { name: 'Teacher Testwala', preferred_language: db.userLang || null }, error: null };
     if (table === 'quizzes') return { data: { topic: 'Fractions', ...db.quiz }, error: null };
     if (table === 'classes') return { data: db.classes[id] || null, error: null };
     if (table === 'app_settings') return { data: [], error: null };
@@ -253,12 +254,26 @@ describe('the teacher answers — the code is bound late', () => {
     expect(store.has(HandoutClass.ASK_KEY(code))).toBe(false);
   });
 
-  test('"All / not sure" leaves the code unbound, says nothing more, and clears the question', async () => {
+  test('"All / not sure" leaves the code unbound, clears the question, and answers the tap in one line', async () => {
     const code = await asked();
     expect(await HandoutClass.handleTap(`vq_wc_${code}_any`, PHONE)).toBe(true);
     expect(binds()).toHaveLength(0);
-    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+    expect(sentTexts()).toEqual([resolveUx('vqWhichClassAnyDone', { language: 'en' })]);
     expect(store.has(HandoutClass.ASK_KEY(code))).toBe(false);
+  });
+
+  test('a tap after the question closed is answered (in the teacher\'s language), never silence', async () => {
+    db.userLang = 'ur';
+    expect(await HandoutClass.handleTap(`vq_wc_${codeId(9)}_${C4A.id}`, PHONE)).toBe(true);
+    expect(binds()).toHaveLength(0);
+    expect(sentTexts()).toEqual([resolveUx('vqWhichClassClosed', { language: 'ur' })]);
+  });
+
+  test('a bind that fails says so, never "Got it"', async () => {
+    const code = await asked();
+    db.bindError = true;
+    expect(await HandoutClass.handleTap(`vq_wc_${code}_${C4B.id}`, PHONE)).toBe(true);
+    expect(sentTexts()).toEqual([resolveUx('vqWhichClassNotSaved', { language: 'en' })]);
   });
 
   test('a second tap after the answer binds nothing more', async () => {
