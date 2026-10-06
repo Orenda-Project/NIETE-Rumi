@@ -21,7 +21,14 @@
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
-const NAME_MAP = require('./first-name-map.json');
+// The map's keys are normalised exactly like a typed token (NFKC, letters only — a key spelled with a
+// combining mark such as U+0670 in یحییٰ would otherwise never be hit), and its values to a-z.
+const NAME_MAP = Object.freeze(Object.entries(require('./first-name-map.json')).reduce((m, [k, v]) => {
+  if (k.startsWith('_')) return m;
+  const key = k.split(/\s+/).map((t) => t.normalize('NFKC').toLowerCase().replace(/[^\p{L}]/gu, '')).filter(Boolean).join(' ');
+  if (key) m[key] = String(v).toLowerCase().replace(/[^a-z]/g, '');
+  return m;
+}, {}));
 
 const MUHAMMAD = /^(m|md|mohd|muhammad|mohammad|mohammed|muhammed|mohamed|muhamad|mohamad|mhd)$/;
 const SEP = /[\s.\-_,/]+/;
@@ -35,7 +42,7 @@ function canonToken(tok) {
   if (!s) return '';
   if (ARABIC.test(s)) {
     const hit = NAME_MAP[s];
-    return hit ? hit.replace(/[^a-z]/g, '') : s;
+    return hit || s;
   }
   return s;
 }
@@ -47,7 +54,8 @@ function tokens(name) {
   const parts = raw.split(SEP).filter(Boolean);
   const out = [];
   for (let i = 0; i < parts.length; i += 1) {
-    const pair = i + 1 < parts.length ? `${parts[i]} ${parts[i + 1]}`.toLowerCase() : null;
+    const strip = (t) => t.normalize('NFKC').toLowerCase().replace(/[^\p{L}]/gu, '');
+    const pair = i + 1 < parts.length ? `${strip(parts[i])} ${strip(parts[i + 1])}` : null;
     if (pair && ARABIC.test(pair) && NAME_MAP[pair]) { out.push(NAME_MAP[pair]); i += 1; continue; }
     const t = canonToken(parts[i]);
     if (t) out.push(MUHAMMAD.test(t) ? 'muhammad' : t);
