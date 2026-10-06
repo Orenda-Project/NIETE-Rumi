@@ -1236,7 +1236,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       fatherT: "What is your father's name?", numT: 'What number does your teacher call you by?', numSay: 'The number on the class list.',
       dontKnow: "I don't know",
       nfT: function (t, c) { return "I can't find " + t + (c ? ' in ' + c : '') + '. Is that how your name is written?'; },
-      nfYes: "Yes, that's my name", nfFix: 'Let me fix it'
+      nfYes: "Yes, that's my name", nfFix: 'Let me fix it',
+      nsT: function (t, c, n) { return 'There are ' + n + ' children called ' + t + (c ? ' in ' + c : '') + '.'; },
+      nsSay: 'Tap Yes to play. Your teacher will check which one you are.'
     },
     ur: {
       rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
@@ -1261,8 +1263,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       moreFull: function (f, c) { return (c ? c + ' میں' : 'یہاں') + ' ایک سے زیادہ ' + f + ' ہیں۔ آپ کا پورا نام کیا ہے؟'; },
       fatherT: 'آپ کے والد کا نام کیا ہے؟', numT: 'کلاس لسٹ میں آپ کا نمبر کیا ہے؟', numSay: 'جو نمبر کلاس میں پکارا جاتا ہے۔',
       dontKnow: 'مجھے نہیں پتا',
-      nfT: function (t, c) { return (c ? c + ' میں ' : '') + t + ' نہیں ملا۔ کیا آپ کا نام ایسے ہی لکھا جاتا ہے؟'; },
-      nfYes: 'جی ہاں، یہی میرا نام ہے', nfFix: 'دوبارہ لکھیں'
+      nfT: function (t, c) { return (c ? c + ' میں ' : '') + t + ' کا نام نہیں ملا۔ کیا آپ کا نام ایسے ہی لکھا جاتا ہے؟'; },
+      nfYes: 'جی ہاں، یہی میرا نام ہے', nfFix: 'دوبارہ لکھیں',
+      nsT: function (t, c, n) { return (c ? c + ' میں ' : '') + t + ' نام کے ' + n + ' بچے ہیں۔'; },
+      nsSay: 'کھیلنے کے لیے جی ہاں دبائیں۔ استاد خود دیکھ لیں گے کہ آپ کون ہیں۔'
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
   // One digit rule for the whole page, Urdu included: 0-9. The roll number is matched to the

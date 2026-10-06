@@ -177,7 +177,8 @@ function allTokensNear(typedTokens, kidName) {
  * The typed name inside ONE class.
  *   → { outcome: 'one',  kid, hits }                  exactly one child; the page asks "Are you <first>?"
  *   → { outcome: 'ask',  need, hits, first }          2+ children; ask the child for THEIR OWN `need`
- *   → { outcome: 'none', hits: [] }                   nobody near (or a tiebreaker ruled everyone out): provisional
+ *   → { outcome: 'none', hits: [] }                   nobody near: provisional
+ *   → { outcome: 'none', hits: [], same }             2+ share the name and the answers could not pick one: provisional
  * `answers` = { full_name?, father?, number? } — a string/number answers, `null` means "I don't know"
  * (skip that question), undefined means not asked yet. The hits never leave the server.
  */
@@ -199,6 +200,9 @@ function match(deduped, typed, answers = {}) {
   }
   if (!hits.length) return { outcome: 'none', hits: [] };
   if (hits.length === 1) return { outcome: 'one', kid: hits[0], hits };
+  // From here the name WAS found, more than once: a 'none' means "could not tell which", never "not found".
+  const same = hits.length;
+  const unsure = { outcome: 'none', hits: [], same };
 
   // ── tiebreakers, about the child's OWN data, in the order the roster can answer them ──
   // 1. full name
@@ -207,7 +211,7 @@ function match(deduped, typed, answers = {}) {
     const ft = tokens(answers.full_name);
     const narrowed = hits.filter((k) => allTokensNear(ft, k.student_name));
     if (narrowed.length === 1) return { outcome: 'one', kid: narrowed[0], hits: narrowed };
-    if (!narrowed.length) return { outcome: 'none', hits: [] };
+    if (!narrowed.length) return unsure;
     hits = narrowed;
   } else if (fullDistinct && !rest.length && answers.full_name === undefined) {
     return { outcome: 'ask', need: 'full_name', hits, first };
@@ -218,7 +222,7 @@ function match(deduped, typed, answers = {}) {
     const f = tokens(answers.father)[0] || '';
     const narrowed = hits.filter((k) => fatherFirst(k) && nearName(fatherFirst(k), f));
     if (narrowed.length === 1) return { outcome: 'one', kid: narrowed[0], hits: narrowed };
-    if (!narrowed.length) return { outcome: 'none', hits: [] };
+    if (!narrowed.length) return unsure;
     hits = narrowed;
   } else if (fathers.every(Boolean) && distinct(fathers) && answers.father === undefined) {
     return { outcome: 'ask', need: 'father', hits, first };
@@ -228,12 +232,12 @@ function match(deduped, typed, answers = {}) {
   if (answers.number !== undefined && answers.number !== null) {
     const n = Number(answers.number);
     const narrowed = hits.filter((k) => numberOf(k) === n);
-    return narrowed.length === 1 ? { outcome: 'one', kid: narrowed[0], hits: narrowed } : { outcome: 'none', hits: [] };
+    return narrowed.length === 1 ? { outcome: 'one', kid: narrowed[0], hits: narrowed } : unsure;
   }
   if (numbers.every((n) => n != null) && distinct(numbers) && answers.number === undefined) {
     return { outcome: 'ask', need: 'number', hits, first };
   }
-  return { outcome: 'none', hits: [] };
+  return unsure;
 }
 
 // ─── which class is this quiz for ───────────────────────────────────────────

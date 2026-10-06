@@ -142,6 +142,12 @@ describe('match: the typed name inside one class', () => {
   test('an Urdu-typed name finds the Latin roster child', () => {
     expect(Id.match(CLASS, 'عائشہ')).toMatchObject({ outcome: 'one', kid: { id: kid(1).id } });
   });
+  test('several children matched the name but the answers could not pick one: none, carrying how many share it (not "not found")', () => {
+    expect(Id.match(CLASS, 'Hina', { number: null })).toMatchObject({ outcome: 'none', same: 2 });
+    expect(Id.match(CLASS, 'Hina', { number: 42 })).toMatchObject({ outcome: 'none', same: 2 });
+    expect(Id.match(CLASS, 'Ali', { full_name: 'Ali Zafar' })).toMatchObject({ outcome: 'none', same: 2 });
+    expect(Id.match(CLASS, 'Zara').same).toBeUndefined();
+  });
   test('a wrong tiebreaker answer never widens to another child: it is none', () => {
     expect(Id.match(CLASS, 'Ali', { full_name: 'Ali Zafar' })).toMatchObject({ outcome: 'none' });
   });

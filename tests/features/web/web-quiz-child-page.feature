@@ -245,8 +245,9 @@ Feature: Web child quiz page on the portal
   Scenario: A child who does not know the answers still plays, as a new child of this class
     Given identity v2 is on and two children of the class share the typed name and a father's name
     When the child taps "I don't know" for the father's name and for the class-list number
-    Then the page says "I can't find <name> in 4-A. Is that how your name is written?"
-    When the child taps "Yes, that's my name"
+    Then the page says "There are 2 children called <name> in 4-A." and "Tap Yes to play. Your teacher will check which one you are."
+    And it never says "I can't find" for a name the class list has
+    When the child taps "Yes"
     Then the quiz starts as a new child the teacher can add to the class later
 
   @T490

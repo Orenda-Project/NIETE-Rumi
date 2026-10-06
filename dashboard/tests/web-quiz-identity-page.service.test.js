@@ -300,6 +300,39 @@ describe('S2 -> S3 -> S4 -> S5', () => {
     expect(p.last().name).toBe('Q');
     expect(srcs(p)).toEqual(['name', 'dont_know', 'dont_know', 'new_force']);
   });
+  test('S5 after a same-name collision the child could not settle: names the real state (several Hinas), never "I can\'t find"', async () => {
+    const p = page({ replies: [
+      { status: 409, ok: false, body: { error: 'ask_more', need: 'number', first: 'Hina' } },
+      { status: 409, ok: false, body: { error: 'not_found', typed: 'Hina', cls: '4-A', same: 3 } },
+    ] });
+    await named(p, 'Hina');
+    p.tap('wq-noroll');
+    await flush();
+    const h = p.last().h;
+    expect(h).toContain('There are 3 children called <bdi>Hina</bdi> in <bdi dir="ltr" class="wq-nw">4-A</bdi>.');
+    expect(h).not.toContain("I can't find");
+    expect(h).not.toContain('wq-fix');
+    // the bubble is plain text: the class is an LTR isolate with a no-break hyphen (never "4-" / "A")
+    expect(h).toContain('<p class="jug">There are 3 children called Hina in \u20664\u2011A\u2069. Tap Yes to play.');
+    p.tap('wq-force');
+    await flush();
+    expect(p.calls[2].body.new).toEqual(expect.objectContaining({ name: 'Hina', force: true }));
+    expect(p.last().name).toBe('Q');
+  });
+  test('S5 Urdu: the same-name state and the true not-found are gender-neutral (no verb on the child\'s name)', async () => {
+    const p = page({ lang: 'ur', replies: [
+      { status: 409, ok: false, body: { error: 'not_found', typed: 'Hina', cls: '4-A', same: 3 } },
+      { status: 409, ok: false, body: { error: 'not_found', typed: 'Hina', cls: '4-A' } },
+    ] });
+    await named(p, 'Hina');
+    expect(p.last().h).toContain('Hina</bdi> نام کے 3 بچے ہیں');
+    p.tap('wq-back');
+    p.type('wq-name', 'Hina');
+    p.tap('wq-start');
+    await flush();
+    expect(p.last().h).toContain('Hina</bdi> کا نام نہیں ملا');
+    expect(p.last().h).not.toMatch(/Hina<\/bdi> نہیں ملا/);
+  });
   test('S5 "Let me fix it" goes back to the name, prefilled', async () => {
     const p = page({ replies: [{ status: 409, ok: false, body: { error: 'not_found', typed: 'Aleena' } }] });
     await named(p, 'Aleena');

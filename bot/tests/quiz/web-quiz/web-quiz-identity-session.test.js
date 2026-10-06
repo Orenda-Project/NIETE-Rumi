@@ -135,7 +135,7 @@ describe('E3 name first, inside the hand-out\'s one class', () => {
 
   test('two Hinas and the child does not know the number → not_found (the child may still play, provisional)', async () => {
     expect((await answer({ new: { name: 'Hina' } })).body).toMatchObject({ error: 'ask_more', need: 'number' });
-    expect(await answer({ new: { name: 'Hina', number: null } })).toEqual({ status: 409, body: { error: 'not_found', typed: 'Hina', cls: '4-A' } });
+    expect(await answer({ new: { name: 'Hina', number: null } })).toEqual({ status: 409, body: { error: 'not_found', typed: 'Hina', cls: '4-A', same: 2 } });
   });
 
   test('Bilal pasted twice is ONE child: one card, the canonical (older) row', async () => {
@@ -145,6 +145,7 @@ describe('E3 name first, inside the hand-out\'s one class', () => {
 
   test('a child of ANOTHER class (Zara of 4-B) is never offered on a 4-A hand-out; a merged row is never offered', async () => {
     expect((await answer({ new: { name: 'Zara' } })).body).toMatchObject({ error: 'not_found', typed: 'Zara' });
+    expect((await answer({ new: { name: 'Zara' } })).body.same).toBeUndefined();
     expect((await answer({ new: { name: 'Nadia' } })).body).toMatchObject({ error: 'not_found' });
     expect((await answer({ chip: chipOf(kid(10)) })).status).toBe(404);
   });
@@ -269,7 +270,7 @@ describe('logs: ids and counts only', () => {
     await answer({ new: { name: 'Ali', full_name: 'Ali Hamza' } });
     await answer({ new: { name: 'Hina', number: null } });
     await answer({ chip: chipOf(kid(3)), via: 'full_name' });
-    expect(ev('web_quiz.identity_step').map((e) => e.step)).toEqual(['full_name', 'confirm', 'name']);
+    expect(ev('web_quiz.identity_step').map((e) => e.step)).toEqual(['full_name', 'confirm', 'not_sure']);
     ev('web_quiz.identity_step').forEach((e) => expect(Object.keys(e).sort()).toEqual(['hits', 'shareCodeId', 'step']));
     expect(logged()).not.toMatch(/Ali|Hamza|Hina|Testwala/);
   });
