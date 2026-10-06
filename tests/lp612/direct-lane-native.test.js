@@ -217,16 +217,36 @@ describe('the OpenAI-shaped payload is translated for /v1/messages', () => {
     const mod = freshLlmClient();
 
     const { client, model } = mod.getClientForModel('anthropic-direct/claude-sonnet-5');
-    // `quiz/transcript-quiz-llm.js` is the live second consumer of `getClientForModel`, and it
-    // sends exactly this. Dropping it would remove JSON-mode enforcement from a path whose next
-    // line is `JSON.parse` — a bad-JSON bug with no error to read, appearing only once someone
-    // points that model id at this lane.
+    // A tool call changes what the caller gets back; dropping `tools` would hand a tool-calling
+    // caller plain text with no error to read. It must throw before anything is sent.
+    //
+    // This example used to be `response_format: {type:'json_object'}`. bd-gr4fy.2 made JSON mode
+    // translatable on purpose (an instruction in the system prompt, the JSON extracted on the way
+    // back, and the job's own model behind an answer that still does not parse), so it moved to
+    // the next test, which asserts it is carried rather than dropped.
     await expect(client.chat.completions.create({
-      model, max_tokens: 1000, response_format: { type: 'json_object' },
+      model, max_tokens: 1000, tools: [{ type: 'function', function: { name: 'f' } }],
       messages: [{ role: 'user', content: 'hi' }],
-    })).rejects.toThrow(/response_format/);
+    })).rejects.toThrow(/tools/);
 
     expect(net.seen).toHaveLength(0);
+  });
+
+  test('JSON mode is carried, not silently dropped: the instruction reaches Anthropic and the JSON comes back bare', async () => {
+    const net = installFetch(() => [200, nativeReply('```json\n{"ok":true}\n```')]);
+    restoreFetch = net.restore;
+    const mod = freshLlmClient();
+
+    const { client, model } = mod.getClientForModel('anthropic-direct/claude-sonnet-5');
+    const res = await client.chat.completions.create({
+      model, max_tokens: 1000, response_format: { type: 'json_object' },
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+
+    const body = net.seen[0].body;
+    expect(body).not.toHaveProperty('response_format');
+    expect(String(body.system)).toMatch(/single valid JSON object/i);
+    expect(JSON.parse(res.choices[0].message.content)).toEqual({ ok: true });
   });
 
 // ── 2. the reply: cache telemetry and cost survive the mapping ──────────────
@@ -472,10 +492,13 @@ describe('the direct lane refuses to run without a usable fallback', () => {
     // OpenRouter wrapper's per-job vendor fallback, which is an optimisation, not a net. The
     // direct lane's fallback is mandatory and stays unconditional. A file-wide env scan cannot
     // tell the two apart, so the behavioural test below carries the real invariant. bd-jbhya.
+    //
+    // LLM_JOB_MODELS (bd-gr4fy.1) chooses which model a labelled job runs; it switches nothing
+    // off, and a job it moves keeps its own model behind it, so it does not touch this net.
     const envVars = [...src.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]);
     expect(new Set(envVars)).toEqual(new Set([
       'ANTHROPIC_API_KEY', 'APP_URL', 'LLM_DIRECT_FALLBACK_MODEL', 'LLM_FALLBACK_OFF',
-      'LLM_MAX_RETRIES', 'LLM_MODEL', 'LLM_PROVIDER', 'LLM_REQUEST_TIMEOUT_MS',
+      'LLM_JOB_MODELS', 'LLM_MAX_RETRIES', 'LLM_MODEL', 'LLM_PROVIDER', 'LLM_REQUEST_TIMEOUT_MS',
       'OPENAI_API_KEY', 'OPENROUTER_API_KEY',
     ]));
   });
