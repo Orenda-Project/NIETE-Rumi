@@ -1014,8 +1014,14 @@ async function runSourceFidelity(api, {
   let softFaults = null;
   // Five per call (rewriteTargets); what the first call left is the second batch.
   let prefer = [];
+  // quiz_author_gates_v2: a grade 1-2 stem is never sent to be CUT. Measured 5 Oct: the shortening
+  // rewrite turned "Bunty lifts 7 onto the shelf. How many stay on the floor?" into "Bunty has 20
+  // toys. Picks 7 up. How many?" — two defensible answers. The web reads a stem aloud, so a long
+  // stem ships whole (kept_soft, below); the rewrite only fixes what is actually wrong.
+  const v2Gates = GatesV2.enabled();
+  const notToCut = (e) => v2Gates && String(e).includes(`: ${SF.CODES.STEM_LONG}`);
   for (let batch = 0; batch < 2; batch += 1) {
-    const { errors } = SF.sourceFaults(current, sourceText, { gradeBand });
+    const errors = SF.sourceFaults(current, sourceText, { gradeBand }).errors.filter((e) => !notToCut(e));
     if (!errors.length) break;
     // eslint-disable-next-line no-await-in-loop
     // What the set already carried before this call (accepted by the loop) is not the replacement's fault.
