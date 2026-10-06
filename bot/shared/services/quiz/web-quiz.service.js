@@ -720,6 +720,22 @@ async function priorFinish(shareCodeId, studentId, excludeId = null) {
   return first || null;
 }
 
+/** The best of this child's OTHER finishes on a class code (share of right answers, then more right), or null. */
+async function bestBefore(shareCodeId, studentId, excludeId) {
+  if (!studentId) return null;
+  try {
+    const { data } = await supabase.from('quiz_sessions').select('id, correct_answers, total_questions_answered')
+      .eq('share_code_id', shareCodeId).eq('student_id', studentId).eq('status', 'completed');
+    const rows = (data || []).filter((r) => r.id !== excludeId && (r.total_questions_answered || 0) > 0);
+    if (!rows.length) return null;
+    const share = (r) => (r.correct_answers || 0) / r.total_questions_answered;
+    rows.sort((x, y) => (share(y) - share(x)) || ((y.correct_answers || 0) - (x.correct_answers || 0)));
+    return { correct: rows[0].correct_answers || 0, total: rows[0].total_questions_answered };
+  } catch {
+    return null;
+  }
+}
+
 async function countJoin(shareCodeId) {
   try {
     const { error } = await supabase.rpc('increment_share_code_uses', { code_id: shareCodeId });
@@ -1314,12 +1330,19 @@ async function finishSession(body = {}) {
       first, animal: T.animalFor(s.student_id || s.id), correct, total, stars: correct,
       // A practice round: the card says so and carries the kept first-try score the league shows.
       ...(earlier && !s.user_id ? { practice: true, kept: { correct: earlier.correct_answers || 0, total: earlier.total_questions_answered || 0 } } : {}),
+      // A practice round's goal: the best earlier score on this code, so the card can say "New best!".
+      ...(earlier && !s.user_id ? await bestField(s) : {}),
     },
     challenge_code: await challengeCodeFor(s),
     // A friend's challenge: who won against the score the landing showed them.
     // (Never against themselves: a child who opens their own challenge link is not their own challenger.)
     ...(s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {}),
   };
+}
+
+async function bestField(s) {
+  const best = await bestBefore(s.share_code_id, s.student_id, s.id);
+  return best ? { best } : {};
 }
 
 async function versus(s, mine) {

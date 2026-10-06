@@ -1081,6 +1081,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       fixT: function (n) { return 'Roll number for ' + n + '?'; }, fixSay: 'Type the roll number from your class list.',
       isKid: function (n) { return 'Is this ' + n + '?'; }, yes: 'Yes', fixed: 'Fixed.',
       practice: function (c, t) { return 'Practice round · your first score ' + c + '/' + t + ' is the one that counts'; },
+      newBest: 'New best!', wasBest: 'was',
       tFor: 'For you, the teacher', tLead: 'Your class plays this from the link you forwarded. See who has played, or try it yourself.',
       sumOf: function (p, of) { return p + ' of ' + of + ' played'; }, sumN: function (p) { return p + ' played'; },
       avg: 'Average', hard: function (n, m) { return 'Q' + n + ' was the hardest (' + m + ' missed it)'; },
@@ -1107,6 +1108,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       fixT: function (n) { return n + ' کا رول نمبر؟'; }, fixSay: 'کلاس لسٹ سے رول نمبر لکھیں۔',
       isKid: function (n) { return 'کیا یہ ' + n + ' ہے؟'; }, yes: 'جی ہاں', fixed: 'درست ہو گیا۔',
       practice: function (c, t) { return 'مشق کا راؤنڈ · پہلی بار کا اسکور ' + c + '/' + t + ' شمار ہوتا ہے'; },
+      newBest: 'نیا ریکارڈ!', wasBest: 'پہلے',
       tFor: 'استاد کے لیے', tLead: 'آپ کی کلاس یہ کوئز آپ کے بھیجے ہوئے لنک سے کھیلتی ہے۔ دیکھیں کس نے کھیلا، یا خود آزمائیں۔',
       sumOf: function (p, of) { return of + ' میں سے ' + p + ' نے کھیلا'; }, sumN: function (p) { return p + ' نے کھیلا'; },
       avg: 'اوسط', hard: function (n, m) { return 'سوال ' + n + ' سب سے مشکل رہا (' + m + ' نے غلط کیا)'; },
@@ -1819,7 +1821,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
       (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '') +
-      vsStrip(res.vs, c, total) +
+      vsStrip(res.vs, c, total) + newBest(c, total) +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
@@ -1842,6 +1844,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-class', board);
     on('#wq-schools', function () { schools(card); });
     on('#wq-more', moreVideos);
+  }
+
+  // A practice round that beats the child's best earlier score on this code (finish's card.best).
+  function newBest(c, total) {
+    var b = c.practice && c.best;
+    if (!b || !(b.total > 0) || !(total > 0) || c.correct * b.total <= b.correct * total) return '';
+    function sc(x, y) { return '<bdi dir="ltr">' + esc(x) + '/' + esc(y) + '</bdi>'; }
+    return '<div class="wq-banner wq-best">' + esc(TW.newBest) + ' ' + sc(c.correct, total) + ' · ' + esc(TW.wasBest) + ' ' + sc(b.correct, b.total) + ' ⭐</div>';
   }
 
   // A friend's challenge: who won, with both scores (each score isolated so it reads left to right in Urdu).

@@ -516,3 +516,11 @@ Feature: Web child quiz page on the portal
     When the question has been on screen for a moment
     Then the pictures and recorded clips of questions 2 and 3 are already being fetched
     And question 1's own voice is never kept waiting for them
+
+  @T445
+  Scenario: A practice round that beats the child's best says so
+    Given a child finished a quiz with 3 of 5 and later practised it with 4 of 5
+    When the child practises again and gets 5 of 5
+    Then the scorecard still says the first score 3/5 is the one that counts
+    And it adds "New best! 5/5 · was 4/5 ⭐" («نیا ریکارڈ! 5/5 · پہلے 4/5 ⭐»)
+    And a practice round equal to or below the best adds nothing
