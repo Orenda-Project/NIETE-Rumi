@@ -11,7 +11,9 @@
  */
 const { UPLOAD_EXTRACTION_BRIEF, buildUploadPrompt } = require('./upload-extractor-prompt');
 
-const FIDELITY_MODEL = process.env.LP_FIDELITY_MODEL || 'openai/gpt-5.6-luna';
+const { modelFor } = require('../../../config/model-registry');
+// bd-gr4fy.8: the registry holds this job's model (LP_FIDELITY_MODEL, else its default).
+const FIDELITY_MODEL = modelFor('lp.extractUpload');
 const PHASES = new Set(['warm_up', 'hook', 'recall', 'announce', 'explain', 'guided', 'independent', 'peer_review', 'exit', 'homework']);
 const BUCKETS = new Set(['must_happen', 'adaptive_set', 'optional_extension']);
 const SELECTIONS = new Set(['none', 'choose_one', 'per_group']);
@@ -53,7 +55,7 @@ async function extractUploadedLp(lpText, opts = {}) {
     err.code = 'lp_unparseable';
     throw err;
   }
-  const model = opts.model || FIDELITY_MODEL;
+  const model = opts.model || modelFor('lp.extractUpload');
   const client = opts.client || require('../../llm-client').getClient();
   const user = buildUploadPrompt(lpText, opts.lessonId);
 

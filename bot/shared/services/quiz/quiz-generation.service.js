@@ -2,6 +2,7 @@
 // QuizGenerationService — generate MCQ questions via LLM, store in DB
 
 const { logToFile } = require('../../utils/logger');
+const { modelFor } = require('../../config/model-registry');
 const supabase = require('../../config/supabase');
 
 // Question count by difficulty
@@ -159,7 +160,7 @@ as keys; never include the correct option as a key).`;
     while (attempts < 2) {
       try {
         const response = await openai.chat.completions.create({
-          model: 'gpt-4o',
+          model: modelFor('quiz.generate'),
           job: 'quiz.generate',
           messages: [{ role: 'user', content: systemPrompt }],
           temperature: attempts === 0 ? 0.7 : 0.9,

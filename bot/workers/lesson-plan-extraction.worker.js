@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const pdf = require('pdf-parse');
+const { modelFor } = require('../shared/config/model-registry');
 const mammoth = require('mammoth');
 const { getClient } = require('../shared/services/llm-client');
 const { jsonrepair } = require('jsonrepair');
@@ -458,7 +459,7 @@ Return JSON with these fields:
 }`;
 
       const response = await client.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('lp.extractText'),
         job: 'lp.extractText',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,

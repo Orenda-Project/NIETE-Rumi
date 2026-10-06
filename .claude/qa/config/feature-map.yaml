@@ -119,6 +119,7 @@ features:
     - bot/shared/routes/assessment-gen-endpoint.js
     - bot/shared/routes/assessment-gen-callback.routes.js
     - bot/shared/services/assessment-*.service.js
+    - bot/shared/services/assessment/**                     # the generator the assessment routes call (bd-gr4fy.8 map gap)
     - bot/workers/exam-grading.worker.js
     - bot/workers/quiz-job-handler.js
     - bot/shared/templates/quiz-report.template.js
@@ -256,6 +257,8 @@ features:
     - bot/shared/routes/edit-class-endpoint.js
     - bot/shared/services/student-list.service.js
     - bot/workers/attendance-*.worker.js
+    - bot/shared/services/roster/**                         # register photos -> a class roster (bd-gr4fy.8 map gap)
+    - bot/shared/routes/roster-flow-endpoint.js             # the roster Flow that calls it
 
   # The coach's five-minute child test (/egra), epic bd-s1oo0, sandbox only, all @wip until driven.
   # Module layout: golive CONTRACT.md §1 (06_Logs & Misc/Reports/Active/EGRA Student Assessment - Sep 2026).
@@ -285,6 +288,10 @@ shared:
   bot/shared/config/region-config.js: "*"
   # Every LLM job's model id (lesson plans, coaching, quiz, child-test scoring, …).
   bot/shared/config/model-registry.js: "*"
+  # bd-gr4fy.8 map gaps, attributed by the real require graph (audit_feature_map.py, 6 Oct 2026).
+  bot/shared/config/lp612-flags.js: [child-test, coaching, lesson-plan, menu, observe, status, training]
+  bot/shared/services/lp-vision-ocr.service.js: [child-test, coaching, lesson-plan, menu, observe, training]
+  bot/shared/services/voice-attendance.service.js: [attendance, child-test, coaching, lesson-plan, menu, training]
   # Opt-in sandbox echo of outbound WhatsApp payloads (WA_OUTBOUND_ECHO_TO); called from whatsapp.service.js.
   bot/shared/services/outbound-echo.js: "*"
   bot/shared/utils/region.js: "*"

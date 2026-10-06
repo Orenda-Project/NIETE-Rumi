@@ -26,6 +26,7 @@ vi.mock("../services/api", () => ({
 }));
 import api from "../services/api";
 import ModuleQuizPanel from "./ModuleQuizPanel";
+import { mockOneQuestionQuiz, takeOneQuestionQuiz } from "./__testing__/oneQuestionQuiz";
 
 const mockedApi = api as unknown as { get: Mock; post: Mock };
 
@@ -35,19 +36,12 @@ const QUESTIONS = [
 
 async function submitScoring(score: number, maxScore: number, isPassed: boolean, passPct?: number) {
   mockedApi.get.mockResolvedValue({ data: { questions: QUESTIONS } });
-  mockedApi.post.mockResolvedValue({
-    data: {
-      attempt: {
-        id: "a1", score, max_score: maxScore, is_passed: isPassed, completed_at: "",
-        ...(passPct === undefined ? {} : { pass_pct: passPct }),
-      },
-    },
+  mockOneQuestionQuiz(mockedApi.post, {
+    score, max_score: maxScore, is_passed: isPassed, completed_at: "",
+    ...(passPct === undefined ? {} : { pass_pct: passPct }),
   });
   render(<ModuleQuizPanel moduleId="m1" hasAttempts={false} hasQuestions />);
-  await userEvent.click(await screen.findByTestId("quiz-take-button"));
-  await userEvent.click(await screen.findByLabelText(/A\./));
-  await userEvent.click(screen.getByTestId("quiz-submit-button"));
-  return screen.findByTestId("quiz-panel-result");
+  return takeOneQuestionQuiz();
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -84,7 +78,9 @@ describe("bd-zgme6 — the quiz copy tells the truth about completion", () => {
     const idle = await screen.findByTestId("quiz-panel-idle");
     expect(idle.textContent).not.toMatch(/self-check/i);
     expect(idle.textContent).not.toMatch(/not graded/i);
-    expect(idle.textContent).toContain("1 question · pass this quiz to complete this module");
+    expect(idle.textContent).toContain("Pass this quiz to complete this module");
+    // bd-klecr.6 — no question count: the bank is not the paper the attempt serves.
+    expect(idle.textContent).not.toMatch(/\d+ questions?/);
   });
 
   it("a NIETE fail (bar 100%) says not passed and asks for every answer right", async () => {

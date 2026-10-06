@@ -20,6 +20,7 @@
  */
 
 const supabase = require('../../config/supabase');
+const { modelFor } = require('../../config/model-registry');
 const { LESSON_SOURCES, isLessonQuiz } = require('./quiz-sources');
 const Funnel = require('./quiz-funnel');
 const WhatsAppService = require('../whatsapp.service');
@@ -1201,7 +1202,7 @@ async function generateGuidance(context) {
         // the better model. gpt-4o-mini produced textbook prose here — "focus
         // on clarifying the misconception that…" — and reached for "categorise
         // various foods" instead of the dal and rice in the questions.
-        model: 'gpt-5.4-mini',
+        model: modelFor('quiz.videoReport'),
         job: 'quiz.videoReport',
         messages: [{ role: 'user', content: p }],
         temperature: 0.4,               // lower than the parent quiz: this is advice

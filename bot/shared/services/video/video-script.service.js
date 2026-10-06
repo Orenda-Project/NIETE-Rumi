@@ -328,7 +328,6 @@ Respond in JSON format:
 }`;
 
     const response = await OpenAIService.createChatCompletion({
-      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You are an expert educational content creator. Create engaging, accurate educational content suitable for K-12 students. Your image prompts should describe SCENE CONTENT ONLY (elements, positions, composition) - the visual style is applied separately by the system.' },
         { role: 'user', content: prompt }

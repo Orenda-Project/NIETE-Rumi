@@ -11,6 +11,7 @@
  */
 
 const { getClient } = require('./llm-client');
+const { modelFor } = require('../config/model-registry');
 const { OPENAI_API_KEY } = require('../utils/constants');
 const { logToFile } = require('../utils/logger');
 
@@ -181,7 +182,7 @@ ${PLATFORM_KNOWLEDGE}
 - Be empathetic to teachers' busy schedules`;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: modelFor('helper.guidance'),
         job: 'helper.guidance',
         messages: [
           { role: 'system', content: systemPrompt },
@@ -255,7 +256,7 @@ Determine their intent and respond with ONLY ONE of these exact words:
 Respond with just one word, nothing else.`;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('helper.stuckRecovery'),
         job: 'helper.stuckRecovery',
         messages: [
           { role: 'system', content: systemPrompt },
@@ -445,7 +446,7 @@ Response format:
 - If not capability question: Just "NO"`;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('helper.capabilityDetect'),
         job: 'helper.capabilityDetect',
         messages: [
           { role: 'system', content: systemPrompt },
@@ -562,7 +563,7 @@ IMPORTANT:
 - NO meta-commentary or markdown headers`;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('helper.capabilityGuidance'),
         job: 'helper.capabilityGuidance',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
@@ -602,7 +603,7 @@ Create a message that:
 Keep it concise and friendly.`;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('helper.capabilityDefault'),
         job: 'helper.capabilityDefault',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
