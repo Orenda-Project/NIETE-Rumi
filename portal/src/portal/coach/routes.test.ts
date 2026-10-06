@@ -26,6 +26,7 @@ describe("coach v2 routes", () => {
     ["/portal/coach/school/:emis", "CoachSchool"],
     ["/portal/coach/teacher/:ext", "CoachTeacher"],
     ["/portal/coach/observation/:id", "CoachObservation"],
+    ["/portal/coach/teacher/:ext/edit", "CoachEditTeacher"],
   ])("%s → %s", (path, component) => {
     expect(app).toContain(`<Route path="${path}" element={<${component} />} />`);
     expect(app).toMatch(new RegExp(`import ${component} from "\\./portal/coach/pages/${component}";`));
