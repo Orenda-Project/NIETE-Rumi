@@ -120,6 +120,15 @@ describe('teacher report page — list numbers and children not on the list', ()
     expect(html).not.toMatch(/<script/i);
   });
 
+  test('identity v2\'s suggestion (a near match on the list) is preselected in This is…', () => {
+    const html = page(quizData({
+      notPlayed: [{ studentId: 's-1', first: 'Hina', number: 1 }, { studentId: 's-4', first: 'Omar', number: 4 }],
+      provisional: [{ sessionId: 'sess-7', typed: 'Omer', correct: 3, total: 4, suggest: { studentId: 's-4', first: 'Omar', number: 4 } }],
+    }));
+    expect(html).toMatch(/<option value="s-4" selected>Omar/);
+    expect(html).not.toMatch(/<option value="s-1" selected/);
+  });
+
   test('no provisional rows, no section; the PDF never prints the forms', () => {
     expect(page(quizData())).not.toMatch(/id="provisional"/);
     const pdf = page(quizData({ provisional: [{ sessionId: 'sess-7', typed: 'Alee', correct: 3, total: 4 }] }), { print: true });

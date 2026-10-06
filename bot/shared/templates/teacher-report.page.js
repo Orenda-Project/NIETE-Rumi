@@ -497,7 +497,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
       const hidden = `<input type="hidden" name="quiz" value="${esc(quiz.id)}"><input type="hidden" name="ref" value="${esc(pv.sessionId)}">`;
       const add = label ? `<form method="post" action="${base}/fix">${hidden}<button type="submit" class="pv-add" name="add" value="1">${L(C.addTo(esc(label)))}</button></form>` : '';
       const pick = choices.length
-        ? `<form method="post" action="${base}/fix" class="pv-pick">${hidden}<select name="studentId" aria-label="${esc(C.thisIs)}"><option value="">${esc(C.thisIs)}</option>${choices.map((k) => `<option value="${esc(k.studentId)}">${esc(k.first)}${num(listNumber(k)) != null ? ` (${num(listNumber(k))})` : ''}</option>`).join('')}</select><button type="submit">${L(C.save)}</button></form>` : '';
+        ? `<form method="post" action="${base}/fix" class="pv-pick">${hidden}<select name="studentId" aria-label="${esc(C.thisIs)}"><option value="">${esc(C.thisIs)}</option>${choices.map((k) => `<option value="${esc(k.studentId)}"${pv.suggest && pv.suggest.studentId === k.studentId ? ' selected' : ''}>${esc(k.first)}${num(listNumber(k)) != null ? ` (${num(listNumber(k))})` : ''}</option>`).join('')}</select><button type="submit">${L(C.save)}</button></form>` : '';
       return `<li><div class="pv-h">${K(who)}${score}</div><div class="pv-a act">${add}${pick}</div></li>`;
     }).join('');
     provisional = `<section class="card" id="provisional"><h2>${L(C.provisionalTitle)} <span class="num muted">(${prov.length})</span></h2><p class="small muted">${L(C.provisionalBody)}</p><ul class="pv">${rows}</ul></section>`;
