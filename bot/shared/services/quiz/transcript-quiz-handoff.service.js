@@ -123,7 +123,7 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     shareCodeId = minted.id;
     // The web quiz page when it is switched on for this teacher, else wa.me.
     const waLink = `https://wa.me/${share.botNumber()}?text=QUIZ-${code}`;
-    link = await require('./web-quiz-link').quizLink(code, { teacherUserId: quiz.teacher_id, whatsapp: waLink });
+    link = await require('./web-quiz-link').quizLink(code, { teacherUserId: quiz.teacher_id, whatsapp: waLink, quizId });
     const lessonDate = formatLessonDate(session.created_at, language);
     const Gen = require('./transcript-quiz-generate.service');
     forwardable = Gen.studentMessage({

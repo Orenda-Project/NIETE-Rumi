@@ -219,7 +219,7 @@ async function deliverClassLink(ctx, phone) {
 
   // The web quiz page when it is switched on for this teacher, else wa.me.
   const link = await require('./web-quiz-link').quizLink(minted.code, {
-    teacherUserId: ctx.userId, whatsapp: `https://wa.me/${botNumber()}?text=QUIZ-${minted.code}`,
+    teacherUserId: ctx.userId, whatsapp: `https://wa.me/${botNumber()}?text=QUIZ-${minted.code}`, quizId: ctx.quizId,
   });
   // The report promise rides on the "forward THIS one" line, ahead of it —
   // it used to be a third message after the class message. The class message

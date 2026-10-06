@@ -29,6 +29,7 @@ jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.
 jest.mock('../../../shared/services/quiz/web-quiz-publish.service', () => ({
   ...jest.requireActual('../../../shared/services/quiz/web-quiz-publish.service'),
   ensureQuizAudio: jest.fn(() => Promise.resolve({ skipped: 'test' })),
+  requestQuizAudio: jest.fn(() => Promise.resolve({ skipped: 'test' })),
 }));
 
 const { makeFake } = require('./fake-supabase');
@@ -118,10 +119,10 @@ describe('E2 GET quiz', () => {
 
   test('opening the page asks for the quiz\'s read-aloud clips (published once, in the background, never awaited)', async () => {
     const Publish = require('../../../shared/services/quiz/web-quiz-publish.service');
-    Publish.ensureQuizAudio.mockImplementationOnce(() => new Promise(() => {})); // never settles: E2 must not wait
+    Publish.requestQuizAudio.mockImplementationOnce(() => new Promise(() => {})); // never settles: E2 must not wait
     const out = await WQ.getQuiz('AB12CD');
     expect(out.quiz.id).toBe(QUIZ);
-    expect(Publish.ensureQuizAudio).toHaveBeenCalledWith(QUIZ, expect.objectContaining({ meta: { web_arm: 'web' } }));
+    expect(Publish.requestQuizAudio).toHaveBeenCalledWith(QUIZ, expect.objectContaining({ meta: { web_arm: 'web' } }));
   });
 
   test('questions with options, correct slot, why, feedback and media links; chips; live counts', async () => {
