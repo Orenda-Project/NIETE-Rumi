@@ -736,9 +736,21 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // never disagree about who played. Off, or on any failure, this is null and
   // the report is exactly what it was.
   const live = done.length ? await liveReportExtras(sc) : null;
-  if (live && live.links) {
-    lines.push('', resolveUx('vqReportLiveLink', { language: contentLang, params: { url: live.links.live } }));
-  }
+  // "9 of 31 have not played yet · tap to remind the class: <link>" — only
+  // with the class list known and someone still to play; otherwise the count
+  // would be a guess and the caption stays today's (plus the live link).
+  const liveLines = (language) => {
+    if (!live || !live.links) return [];
+    const out = [];
+    if (live.notPlayed && live.notPlayed.length && live.of) {
+      out.push(resolveUx('vqReportNotPlayedRemind', {
+        language, params: { n: live.notPlayed.length, of: live.of, url: live.links.remind },
+      }));
+    }
+    out.push(resolveUx('vqReportLiveLink', { language, params: { url: live.links.live } }));
+    return out;
+  };
+  liveLines(contentLang).forEach((l) => lines.push('', l));
 
   // Plain text, laid out on the phone line by line from each line's first
   // strong character — which in an Urdu report is the Latin "quiz" of the title
@@ -760,9 +772,9 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     rosterOf: live ? live.of : null,
     reportLinks: live ? live.links : null,
     language: contentLang, contentLanguage: contentLang,
-    // The caption is the teacher's (chromeLang); the live-report line joins it.
+    // The caption is the teacher's (chromeLang); the count and live-report lines join it.
     caption: live && live.links
-      ? (...a) => `${CAPTION.caption(...a)}\n\n${resolveUx('vqReportLiveLink', { language: chromeLang, params: { url: live.links.live } })}`
+      ? (...a) => [CAPTION.caption(...a), ...liveLines(chromeLang)].join('\n\n')
       : CAPTION.caption,
     classes,
     // The report is read BY the teacher, so it names them from their own
