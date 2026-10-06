@@ -1231,6 +1231,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar() + jug('thinking', roll ? TW.isYouSub : T.isYouSub) +
       '<div class="wq-card wq-stack"><h2>' + esc(T.isYou(c.first)) + ' ' + ani(c.animal) + '</h2>' +
       (c.cls ? '<p class="wq-sub"><bdi dir="ltr">' + esc(c.cls) + '</bdi></p>' : '') +
+      (c.roll != null ? '<p class="wq-sub">' + esc(TW.roll(digitsFor(c.roll))) + '</p>' : '') +
       '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(T.yesMe) + '</button></div>' +
       '<button class="wq-btn wq-soft" id="wq-diff">' + esc(roll && last ? TW.tryAgain : TW.no) + '</button>';
     render(h, 'M4-isyou');

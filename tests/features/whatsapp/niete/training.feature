@@ -1774,6 +1774,7 @@ Feature: NIETE (ICT) Teacher Training
     When I send a grade 2 quiz (no list matches the grade)
     Then the child first taps their class, or "My class is not here", and only that class is searched
     And "Is this you?" asks about one child at a time with "Yes, it's me" and "No", never two "Yes" buttons
+    And when two children of the class share a first name, each card shows that child's roll number
     # ADDED 2026-10-06: web-quiz-roster.js pickList / onlyList; web-quiz.service oneClass (quizzes.list_id, grade), which_class 409, body.list; wq.js whichClass + one-at-a-time isThisYou. Unit: tests/quiz/web-quiz/web-quiz-roster.test.js, dashboard/tests/web-quiz-roll.service.test.js. @wip.
 
   @api @quiz @web @wip @draft @P1 @T210 @no-mock-driver

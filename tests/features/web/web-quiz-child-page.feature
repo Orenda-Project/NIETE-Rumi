@@ -211,6 +211,11 @@ Feature: Web child quiz page on the portal
     Then the page asks about ONE child at a time with "Yes, it's me" and "No"
     And "No" on the last one plays as a new child
 
+  Scenario: Two children of the class share a first name
+    Given the class list has two children named "Ayesha", roll numbers 1 and 7
+    When a child types "Ayesha"
+    Then each "Are you Ayesha?" card shows its roll number, one card at a time
+
   Scenario: A child who does not know their roll number types a name, and a near name is found
     Given the roster switch is on and the class list has "Ayesha Testwala"
     When the child taps "I don't know my number" and types "Aysha"
