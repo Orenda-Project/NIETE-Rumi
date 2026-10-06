@@ -12,6 +12,9 @@ import { FOCUS, PRESS, radioKeyDown } from './styles';
  * `images`: answers that ARE pictures (one in the bank today) — the picture under its letter.
  * `value` holds the picked answers' 0-based positions; the caller turns them into the server's
  * 1-based keys.
+ * `verdict` (bd-klecr.6): once her answer is checked, her picked answers turn green (correct) or
+ * red (wrong) — DONE and ERROR, per the colour rule — and carry data-verdict. Only her own picks:
+ * the right answer is never shown. Pass `disabled` with it; a checked answer is locked.
  *
  * QuestionDots: where she is, one bar per question, indigo up to the current one. It is
  * information (a progressbar), never a button — Back and Next move between questions.
@@ -28,9 +31,10 @@ export interface AnswerChoicesProps {
   value: readonly number[];
   onChange: (value: number[]) => void;
   disabled?: boolean;
+  verdict?: 'correct' | 'wrong';
 }
 
-export function AnswerChoices({ label, options, images, mode = 'single', value, onChange, disabled }: AnswerChoicesProps) {
+export function AnswerChoices({ label, options, images, mode = 'single', value, onChange, disabled, verdict }: AnswerChoicesProps) {
   const pics = (images || []).filter((x): x is string => Boolean(x));
   const count = pics.length ? pics.length : options.length;
   const keys = Array.from({ length: count }, (_, i) => i);
@@ -48,6 +52,7 @@ export function AnswerChoices({ label, options, images, mode = 'single', value, 
       {keys.map((i) => {
         const on = value.includes(i);
         const pic = pics[i];
+        const mark = on ? verdict : undefined;
         return (
           <button
             key={i}
@@ -57,13 +62,18 @@ export function AnswerChoices({ label, options, images, mode = 'single', value, 
             disabled={disabled}
             tabIndex={multi || on || (current === null && i === 0) ? 0 : -1}
             data-radio-key={i}
+            data-verdict={mark}
             onClick={() => choose(i)}
             onKeyDown={multi ? undefined : (e) => radioKeyDown(e, keys, current, (k) => choose(k))}
             className={cn(
               'flex min-h-[58px] w-full items-center gap-3 rounded-2xl border-2 px-3 py-2.5 text-start text-[15px] font-bold text-nu-surface-text',
               'rtl:font-semibold rtl:leading-[1.9]',
-              on ? 'border-nu-select bg-nu-select-tint' : cn('border-nu-surface-line bg-nu-surface-card', PRESS),
-              disabled && 'opacity-55',
+              mark === 'correct'
+                ? 'border-nu-done bg-nu-done-bg'
+                : mark === 'wrong'
+                  ? 'border-nu-chip-error bg-nu-chip-error-bg'
+                  : on ? 'border-nu-select bg-nu-select-tint' : cn('border-nu-surface-line bg-nu-surface-card', PRESS),
+              disabled && !mark && 'opacity-55',
               FOCUS,
             )}
           >
@@ -72,7 +82,9 @@ export function AnswerChoices({ label, options, images, mode = 'single', value, 
               aria-hidden="true"
               className={cn(
                 'flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] text-[15px] font-extrabold',
-                on ? 'bg-nu-select text-white' : 'bg-nu-ink-light text-nu-ink',
+                mark === 'correct' ? 'bg-nu-done text-white'
+                  : mark === 'wrong' ? 'bg-nu-chip-error text-white'
+                    : on ? 'bg-nu-select text-white' : 'bg-nu-ink-light text-nu-ink',
               )}
             >
               {LETTERS[i] ?? String(i + 1)}
