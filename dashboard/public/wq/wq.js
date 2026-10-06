@@ -735,12 +735,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return BR ? '<span class="wq-mark ' + (BR.mark.tile ? 'wq-tile' : 'wq-bare') + '" aria-hidden="true">' + BR.mark.svg + '</span>' : '';
   }
   // The lockup: mark, name over the product line (the server always sends a brand; without one, just the product word).
-  function lockup() {
+  // teacher: the teacher's own pages (preview link) wear the brand's teacher line ("FOR TEACHERS") when it has one.
+  function lockup(teacher) {
     if (!BR) return '<span class="wq-brand"><span class="wq-lock"><b>' + esc(T.quiz) + '</b></span></span>';
-    return '<span class="wq-brand" aria-label="' + esc(BR.name) + '">' + markHtml() + '<span class="wq-lock"><b>' + esc(BR.label[LANG]) + '</b><small>' + esc(BR.sub[LANG]) + '</small></span></span>';
+    var sub = teacher && BR.subTeacher ? BR.subTeacher : BR.sub;
+    return '<span class="wq-brand" aria-label="' + esc(BR.name) + '">' + markHtml() + '<span class="wq-lock"><b>' + esc(BR.label[LANG]) + '</b><small>' + esc(sub[LANG]) + '</small></span></span>';
   }
-  function bar(extra) {
-    return '<div class="wq-bar">' + lockup() + (extra || '<span class="wq-grow"></span>') +
+  function bar(extra, teacher) {
+    return '<div class="wq-bar">' + lockup(teacher) + (extra || '<span class="wq-grow"></span>') +
       '<button class="wq-icon" id="wq-snd" aria-label="' + esc(T.sounds) + '" aria-pressed="' + SOUND + '">' + (SOUND ? '🔔' : '🔕') + '</button></div>';
   }
   function wireBar() {
@@ -928,6 +930,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var last = here.filter(function (k) { return classChips[k.chip]; })[0] || here[0];
     var ch = B.challenge;
     var chLine = ch ? T.challenged(ch.first, ch.correct, ch.total) : (params.from ? T.challengedBy(String(params.from).slice(0, 20)) : '');
+    if (B.preview && params.p) return teacherLanding();
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
@@ -949,6 +952,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-play-as', function () { ev('identity_pick', { src: 'remembered' }); startSession({ chip: last.chip, via: 'remembered' }, last); });
   }
 
+  /* The teacher's own preview link: a page for the teacher (no mascot greeting them like a child),
+     "Who played?" first, and a test run as a child second. */
+  function teacherLanding() {
+    var h = bar('', true) +
+      '<div class="wq-card wq-stack wq-teach"><p class="wq-small">' + esc(TW.tFor) + '</p><h1>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
+      '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
+      '<p class="wq-sub">' + esc(TW.tLead) + '</p>' +
+      '<button class="wq-btn wq-go" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' +
+      '<button class="wq-btn wq-soft" id="wq-preview">' + esc(T.previewPlay) + '</button>' +
+      '<p class="wq-small">' + esc(T.selfT) + '</p>';
+    render(h, 'M3-teacher');
+    wireBar();
+    on('#wq-preview', function () { ev('identity_pick', { src: 'preview' }); startSession({}, null, ''); });
+    on('#wq-whoplayed', whoPlayed);
+  }
+
   /* ---------------- M4 who's playing ---------------- */
   // A teacher with a class list (CLS.roster): the child gives a roll number on a big pad and confirms
   // "Are you <name>?"; no classmates' names are shown. Without one, today's name chips.
@@ -964,7 +984,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       setRoll: 'Set roll no.', noList: 'This quiz is not linked to a class list, so names stay as the children typed them.',
       fixT: function (n) { return 'Roll number for ' + n + '?'; }, fixSay: 'Type the roll number from your class list.',
       isKid: function (n) { return 'Is this ' + n + '?'; }, yes: 'Yes', fixed: 'Fixed.',
-      practice: function (c, t) { return 'Practice round · your first score ' + c + '/' + t + ' is the one that counts'; }
+      practice: function (c, t) { return 'Practice round · your first score ' + c + '/' + t + ' is the one that counts'; },
+      tFor: 'For you, the teacher', tLead: 'Your class plays this from the link you forwarded. See who has played, or try it yourself.',
+      sumOf: function (p, of) { return p + ' of ' + of + ' played'; }, sumN: function (p) { return p + ' played'; },
+      avg: 'Average', hard: function (n, m) { return 'Q' + n + ' was the hardest (' + m + ' missed it)'; },
+      notYet: function (n) { return 'Not played yet (' + n + ')'; }, allPlayed: 'Everyone on your class list has played.',
+      playedT: function (n) { return 'Played (' + n + ')'; }, setRollLink: 'Set roll'
     },
     ur: {
       rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
@@ -977,7 +1002,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       setRoll: 'رول نمبر دیں', noList: 'یہ کوئز کسی کلاس لسٹ سے جڑا نہیں، اس لیے نام ویسے ہی ہیں جیسے بچوں نے لکھے۔',
       fixT: function (n) { return n + ' کا رول نمبر؟'; }, fixSay: 'کلاس لسٹ سے رول نمبر لکھیں۔',
       isKid: function (n) { return 'کیا یہ ' + n + ' ہے؟'; }, yes: 'جی ہاں', fixed: 'درست ہو گیا۔',
-      practice: function (c, t) { return 'مشق کا راؤنڈ · پہلی بار کا اسکور ' + c + '/' + t + ' شمار ہوتا ہے'; }
+      practice: function (c, t) { return 'مشق کا راؤنڈ · پہلی بار کا اسکور ' + c + '/' + t + ' شمار ہوتا ہے'; },
+      tFor: 'استاد کے لیے', tLead: 'آپ کی کلاس یہ کوئز آپ کے بھیجے ہوئے لنک سے کھیلتی ہے۔ دیکھیں کس نے کھیلا، یا خود آزمائیں۔',
+      sumOf: function (p, of) { return of + ' میں سے ' + p + ' نے کھیلا'; }, sumN: function (p) { return p + ' نے کھیلا'; },
+      avg: 'اوسط', hard: function (n, m) { return 'سوال ' + n + ' سب سے مشکل رہا (' + m + ' نے غلط کیا)'; },
+      notYet: function (n) { return 'ابھی نہیں کھیلا (' + n + ')'; }, allPlayed: 'آپ کی کلاس لسٹ کے سب بچوں نے کھیل لیا۔',
+      playedT: function (n) { return 'کھیل لیا (' + n + ')'; }, setRollLink: 'رول نمبر دیں'
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
   var UDIG = '۰۱۲۳۴۵۶۷۸۹';
@@ -1045,7 +1075,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     opts = opts || {};
     var here = opts.teacher ? [] : kids();
     var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'go'];
-    var h = bar() + jug('idle', note || opts.say || TW.rollSay) + '<h2>' + esc(opts.title || TW.rollT) + '</h2>' +
+    var h = bar('', opts.teacher) + (opts.teacher ? '<p class="wq-sub">' + esc(opts.say) + '</p>' : jug('idle', note || opts.say || TW.rollSay)) + (opts.teacher && note ? '<p class="wq-small">' + esc(note) + '</p>' : '') + '<h2>' + esc(opts.title || TW.rollT) + '</h2>' +
       '<div class="wq-roll" aria-live="polite">' + (cur ? esc(digitsFor(cur)) : '<span class="wq-roll-ph">–</span>') + '</div>' +
       '<div class="wq-pad">' + keys.map(function (k) {
         if (k === 'del') return '<button class="wq-key wq-key-del" data-k="del" aria-label="' + esc(TW.del) + '">⌫</button>';
@@ -1081,13 +1111,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (!r.ok) { toast(T.oops); return; }
       var b = r.body || {};
       var rows = b.rows || [];
-      var h = bar() + '<h2>' + esc(TW.whoT) + '</h2>' +
-        (b.roster ? '<p class="wq-sub">' + esc(TW.whoSub) + '</p>' : '<p class="wq-sub">' + esc(TW.noList) + '</p>') +
-        (rows.length ? '<div class="wq-card wq-stack wq-who">' + rows.map(function (x) {
-          var tag = x.on_list ? '<span class="wq-tag">' + esc(TW.roll(digitsFor(x.roll))) + '</span>' : '<span class="wq-tag wq-tag-off">' + esc(TW.offList) + '</span>';
-          return '<div class="wq-who-row"><b>' + esc(x.first) + '</b> ' + tag + ' <span class="wq-small">' + esc(digitsFor(x.correct)) + '/' + esc(digitsFor(x.total)) + '</span>' +
-            (b.roster && !x.on_list ? '<button class="wq-btn wq-soft wq-who-fix" data-ref="' + esc(x.ref) + '">' + esc(TW.setRoll) + '</button>' : '') + '</div>';
-        }).join('') + '</div>' : '<p class="wq-small">' + esc(TW.whoNone) + '</p>') +
+      var sm = b.summary || null;
+      var np = b.not_played || null;
+      var score = function (c, t) { return '<bdi dir="ltr">' + esc(digitsFor(c)) + '/' + esc(digitsFor(t)) + '</bdi>'; };
+      var top = sm ? '<div class="wq-card wq-stack wq-who-sum">' +
+          '<h2>' + esc(sm.of ? TW.sumOf(digitsFor(sm.played), digitsFor(sm.of)) : TW.sumN(digitsFor(sm.played))) + '</h2>' +
+          (sm.played && sm.avg != null ? '<p class="wq-sub">' + esc(TW.avg) + ' ' + score(sm.avg, sm.total) + '</p>' : '') +
+          (sm.hardest ? '<p class="wq-sub">' + esc(TW.hard(digitsFor(sm.hardest.n), digitsFor(sm.hardest.missed))) + '</p>' : '') +
+        '</div>' : '';
+      var rowHtml = function (x) {
+        var tag = x.on_list ? '<span class="wq-tag">' + esc(TW.roll(digitsFor(x.roll))) + '</span>' : '<span class="wq-tag wq-tag-off">' + esc(TW.offList) + '</span>';
+        return '<div class="wq-who-row"><b>' + esc(x.first) + '</b> ' + tag + '<span class="wq-grow"></span><span class="wq-who-score">' + score(x.correct, x.total) + '</span>' +
+          (b.roster && !x.on_list ? '<button class="wq-linkbtn wq-who-fix" data-ref="' + esc(x.ref) + '">' + esc(TW.setRollLink) + '</button>' : '') + '</div>';
+      };
+      var h = bar('', true) + '<h2>' + esc(TW.whoT) + '</h2>' + top +
+        (np ? (np.length ? '<h3 class="wq-who-h">' + esc(TW.notYet(digitsFor(np.length))) + '</h3><div class="wq-card wq-stack wq-who wq-who-not">' + np.map(function (k) {
+          return '<div class="wq-who-row wq-who-np"><b>' + esc(k.first) + '</b> <span class="wq-tag">' + esc(TW.roll(digitsFor(k.roll))) + '</span></div>';
+        }).join('') + '</div>' : '<p class="wq-small">' + esc(TW.allPlayed) + '</p>') : '') +
+        (rows.length ? '<h3 class="wq-who-h">' + esc(TW.playedT(digitsFor(rows.length))) + '</h3>' +
+          (b.roster ? '<p class="wq-small">' + esc(TW.whoSub) + '</p>' : '<p class="wq-small">' + esc(TW.noList) + '</p>') +
+          '<div class="wq-card wq-stack wq-who">' + rows.map(rowHtml).join('') + '</div>' : '<p class="wq-small">' + esc(TW.whoNone) + '</p>') +
         '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
       render(h, 'M4-who-played');
       wireBar();
@@ -1115,7 +1158,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     function confirmFix(cands, i) {
       var c = cands[i];
       if (!c) return fixRow(row);
-      var h = bar() + '<div class="wq-card wq-stack"><h2>' + esc(TW.isKid(c.first)) + ' ' + ani(c.animal) + '</h2>' +
+      var h = bar('', true) + '<div class="wq-card wq-stack"><h2>' + esc(TW.isKid(c.first)) + ' ' + ani(c.animal) + '</h2>' +
           (c.cls ? '<p class="wq-sub"><bdi dir="ltr">' + esc(c.cls) + '</bdi></p>' : '') +
           '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(TW.yes) + '</button></div>' +
         '<button class="wq-btn wq-soft" id="wq-diff">' + esc(i < cands.length - 1 ? TW.no : TW.tryAgain) + '</button>';

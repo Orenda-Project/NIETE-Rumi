@@ -483,7 +483,48 @@ async function whoPlayed(body = {}) {
     .filter((s) => s.student_id);
   const rows = counted.map((s) => whoRow(s, roster, ctx.lang))
     .sort((a, b) => (a.on_list - b.on_list) || ((a.roll || 0) - (b.roll || 0)) || a.first.localeCompare(b.first));
-  return { roster: Boolean(roster), rows };
+  // The class this quiz is for (its list, else its grade's): who of it has not played yet.
+  const { one } = await oneClass(ctx, null);
+  const done = new Set(counted.map((s) => s.student_id));
+  const notPlayed = one && one.lists.length
+    ? one.kids.filter((k) => !done.has(k.id))
+      .map((k) => ({ first: firstName(Roster.displayName(k, ctx.lang)), roll: k.roll_number != null ? Number(k.roll_number) : null }))
+      .sort((a, b) => ((a.roll || 0) - (b.roll || 0)) || a.first.localeCompare(b.first))
+    : null;
+  const total = (await loadQuestions(ctx.quizId)).length || Math.max(0, ...rows.map((r) => r.total));
+  const avg = rows.length ? Math.round((rows.reduce((n, r) => n + r.correct, 0) / rows.length) * 10) / 10 : null;
+  return {
+    roster: Boolean(roster),
+    summary: {
+      played: rows.length,
+      on_list: rows.filter((r) => r.on_list).length,
+      of: one && one.lists.length ? one.kids.length : null,
+      avg, total,
+      hardest: await hardestQuestion(ctx.quizId, counted.map((s) => s.id)),
+    },
+    not_played: notPlayed,
+    rows,
+  };
+}
+
+/**
+ * The question most counted children missed: { n (its place in the quiz, 1-based), missed }.
+ * Null with fewer than two finishers or when nobody missed anything (nothing to point at).
+ */
+async function hardestQuestion(quizId, sessionIds) {
+  if (sessionIds.length < 2) return null;
+  try {
+    const [questions, { data }] = await Promise.all([
+      loadQuestions(quizId),
+      supabase.from('quiz_answers').select('session_id, question_id, is_correct').in('session_id', sessionIds),
+    ]);
+    let best = null;
+    questions.forEach((q, i) => {
+      const missed = (data || []).filter((a) => a.question_id === q.id && a.is_correct === false).length;
+      if (missed && (!best || missed > best.missed)) best = { n: i + 1, missed };
+    });
+    return best;
+  } catch { return null; }
 }
 
 /**

@@ -55,6 +55,8 @@ const BRANDS = {
     // The book's product-offering lockup: the name over "FOR STUDENTS".
     label: { en: 'NIETE', ur: 'NIETE' },
     sub: { en: 'FOR STUDENTS', ur: 'FOR STUDENTS' },
+    // The teacher's own pages (the preview link): the book's teacher lockup.
+    subTeacher: { en: 'FOR TEACHERS', ur: 'FOR TEACHERS' },
     mascot: { en: 'Jugnu', ur: 'جگنو' },
     place: { en: 'Islamabad', ur: 'اسلام آباد' },
     og: { image: '/wq/og.jpg', site: 'NIETE' },
