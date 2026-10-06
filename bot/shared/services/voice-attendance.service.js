@@ -20,6 +20,7 @@
  */
 
 const { logToFile } = require('../utils/logger');
+const { modelFor } = require('../config/model-registry');
 const ConversationState = require('./conversation-state.service');
 
 /** The register's vocabulary. Anything else is not a status. */
@@ -358,9 +359,9 @@ async function extract(transcript, roster) {
   if (!transcript || !String(transcript).trim()) return [];
 
   try {
-    const { getClient, getDefaultModel } = require('./llm-client');
+    const { getClient } = require('./llm-client');
     const response = await getClient().chat.completions.create({
-      model: getDefaultModel(),
+      model: modelFor('attendance.voiceExtract'),
       job: 'attendance.voiceExtract',
       temperature: 0,
       messages: [{ role: 'user', content: buildExtractionPrompt(transcript, roster) }],

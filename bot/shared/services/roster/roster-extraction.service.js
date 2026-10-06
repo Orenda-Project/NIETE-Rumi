@@ -32,7 +32,10 @@
 
 const { logToFile } = require('../../utils/logger');
 
-const DEFAULT_MODEL = 'google/gemini-3.1-flash-lite-preview';
+const { JOBS, modelFor } = require('../../config/model-registry');
+
+// bd-gr4fy.8: the registry holds this job's model; the export stays for its readers.
+const DEFAULT_MODEL = JOBS['roster.extract'].default;
 const MAX_PAGES = 10;
 
 const PROMPT = `You are reading a photograph of a school attendance register from Pakistan so that
@@ -261,7 +264,7 @@ function sanitizeRows(rows) {
 }
 
 function visionModel() {
-  return process.env.ROSTER_VISION_MODEL || DEFAULT_MODEL;
+  return modelFor('roster.extract');
 }
 
 function parseModelJson(text) {

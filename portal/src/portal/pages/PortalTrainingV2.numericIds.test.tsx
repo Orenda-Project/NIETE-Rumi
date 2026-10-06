@@ -30,6 +30,7 @@ vi.mock("../components/PortalLayout", () => ({
 }));
 
 import PortalTrainingV2 from "./PortalTrainingV2";
+import { mockOneQuestionQuiz, takeOneQuestionQuiz } from "../components/__testing__/oneQuestionQuiz";
 import { TRAINING_V2_PATHS } from "../lib/trainingRoutes";
 
 const VENDORS = [
@@ -107,14 +108,11 @@ describe("bd-66wui — the unit page with numeric module ids", () => {
   });
 
   async function submitQuiz(attempt: Record<string, unknown>) {
-    mockedApi.post.mockResolvedValue({ data: { attempt: { id: "a1", completed_at: "2026-10-05T10:00:00Z", ...attempt } } });
+    mockOneQuestionQuiz(mockedApi.post, attempt);
     renderAt("/portal/training/unit/302");
     const detail = await screen.findByTestId("module-detail");
     expect(headerOf(detail)).toHaveTextContent("Not yet");
-    await userEvent.click(await screen.findByTestId("quiz-take-button"));
-    await userEvent.click(await screen.findByLabelText(/A\./));
-    await userEvent.click(screen.getByTestId("quiz-submit-button"));
-    await screen.findByTestId("quiz-panel-result");
+    await takeOneQuestionQuiz();
     return detail;
   }
 

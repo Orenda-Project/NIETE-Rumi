@@ -60,8 +60,6 @@ export default function TrainingPart() {
   const levels = useGet<Level[]>('/training/levels', undefined, (x) => (x as { levels?: Level[] })?.levels || []);
   const attempts = useGet<QuizAttempt[]>(`/training/module/${encodeURIComponent(moduleId)}/attempts`, undefined,
     (x) => (x as { attempts?: QuizAttempt[] })?.attempts || []);
-  const questions = useGet<unknown[]>(d?.has_questions ? `/training/module/${encodeURIComponent(moduleId)}/questions` : null, undefined,
-    (x) => (x as { questions?: unknown[] })?.questions || []);
 
   const [completedAt, setCompletedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -132,7 +130,7 @@ export default function TrainingPart() {
                   title={TRAINING_COPY.quickCheck}
                   chips={(
                     <>
-                      {questions.data ? <Chip>{TRAINING_COPY.questions(questions.data.length)}</Chip> : null}
+                      {/* No count (bd-klecr.6): the bank is not the paper an attempt serves. */}
                       {best ? <Chip icon={Star}>{TRAINING_COPY.of(best.score, best.max_score)}</Chip> : null}
                     </>
                   )}

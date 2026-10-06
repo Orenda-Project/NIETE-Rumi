@@ -63,6 +63,7 @@ const KIND_CAPSTONE = 'capstone';
 // per-vendor override, so the portal can read the scale without pulling this
 // file's I/O in. Re-exported below, unchanged at 5, for existing importers.
 const { POINTS_PER_QUESTION, pointsPerQuestionFor } = require('./capstone-points.rules');
+const { modelFor } = require('../../config/model-registry');
 const PASS_PCT = 0.7; // NIETE team rule (21 Jul): 70% required for certification
 
 const BUTTON_PREFIX = 'capstone_start_';
@@ -420,7 +421,7 @@ function renderRubric(rubric) {
  */
 async function scoreAnswer(question, answerText, maxPoints = POINTS_PER_QUESTION) {
   const { logToFile } = deps();
-  const { getClient, getDefaultModel } = deps().llm;
+  const { getClient } = deps().llm;
   const client = getClient();
   const top = Number.isInteger(maxPoints) && maxPoints > 0 ? maxPoints : POINTS_PER_QUESTION;
   const rubricText = renderRubric(question && question.rubric);
@@ -451,7 +452,7 @@ async function scoreAnswer(question, answerText, maxPoints = POINTS_PER_QUESTION
     : `Question: ${question.question_text}\n\nTeacher's answer: ${answerText}`;
 
   const response = await client.chat.completions.create({
-    model: getDefaultModel(),
+    model: modelFor('training.capstoneScore'),
     job: 'training.capstoneScore',
     temperature: 0,
     // A rubric reply carries per-criterion marks, so it needs more room than

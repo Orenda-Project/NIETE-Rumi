@@ -2,6 +2,7 @@
 // QuizSessionService — handle student answers, track state, adaptive difficulty
 
 const { logToFile } = require('../../utils/logger');
+const { modelFor } = require('../../config/model-registry');
 const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const redisService = require('../cache/railway-redis.service');
@@ -761,7 +762,7 @@ class QuizSessionService {
       const history = Array.isArray(postQuizState.messages) ? postQuizState.messages : [];
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('quiz.session'),
         job: 'quiz.session',
         messages: [
           { role: 'system', content: systemPrompt },

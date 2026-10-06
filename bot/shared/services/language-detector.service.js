@@ -1,4 +1,5 @@
 const { logToFile } = require('../utils/logger');
+const { modelFor } = require('../config/model-registry');
 const { getClient } = require('./llm-client');
 const { DEFAULT_LANGUAGE } = require('../utils/language-cache');
 
@@ -267,7 +268,7 @@ Language code:`;
 
     try {
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: modelFor('lang.detect'),
         job: 'lang.detect',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 15,
