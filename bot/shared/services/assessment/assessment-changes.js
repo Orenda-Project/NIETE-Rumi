@@ -107,7 +107,8 @@ function _buildOptions(type, e, d) {
   if (type === 'MSQs') {
     const many = Array.isArray(e.correctMany) ? e.correctMany : [];
     if (!many.length) _fail('Mark the correct option — it goes in the answer key.');
-    const texts = many.map(textAt);
+    const indexes = [...new Set(many.map((i) => Number(i)))].sort((x, y) => x - y);
+    const texts = indexes.map(textAt);
     if (texts.some((t) => !t)) _fail('The option you marked correct is empty.');
     answer = texts.join(', ');
   } else {
@@ -163,7 +164,7 @@ function _buildComprehension(e) {
     const question = String(s?.question ?? '').trim();
     const answer = String(s?.answer ?? '').trim();
     if (!question || !answer) _fail(`Question ${i + 1} needs its question and its answer.`);
-    const sub = { question, answer, marks: _marks(s.marks, 1) };
+    const sub = { question, answer: _answer(answer, true), marks: _marks(s.marks, 1) };
     const lines = _lines(s.lines, null);
     if (lines !== null) sub.lines = lines;
     return sub;
@@ -193,8 +194,26 @@ function buildAdded(kind, edit, { subject, grade } = {}) {
   return { ...built, source: 'teacher' };
 }
 
+const _ALIAS_GROUPS = [
+  ['short questions', 'short answer'],
+  ['long question', 'long questions', 'long answers', 'detailed answers'],
+].map((g) => new Set(g.map((k) => _norm(k))));
+
+function _norm(key) {
+  return String(key ?? '').toLowerCase().trim().replace(/\s+/g, ' ').replace(/s$/, '');
+}
+
+/** The same heading under another spelling (MCQ / MCQs, Short questions / Short Questions). */
+function _sameHeading(a, b) {
+  const x = _norm(a);
+  const y = _norm(b);
+  if (x === y) return true;
+  return _ALIAS_GROUPS.some((g) => g.has(x) && g.has(y));
+}
+
 /** Put a question under its own heading, joining the heading if the paper has it. */
-function placeTyped(tree, { type, subject, grade } = {}, question) {
+function placeTyped(tree, { type: wanted, subject, grade } = {}, question) {
+  let type = wanted;
   const next = JSON.parse(JSON.stringify(tree || {}));
   let found = null;
   for (const section of ['seen', 'unseen']) {
@@ -205,6 +224,19 @@ function placeTyped(tree, { type, subject, grade } = {}, question) {
         found = { section, category };
       }
     }
+  }
+  if (!found) {
+    let key = null;
+    for (const section of ['seen', 'unseen']) {
+      const branch = next[section];
+      if (!branch || typeof branch !== 'object') continue;
+      for (const [category, types] of Object.entries(branch)) {
+        if (!types || typeof types !== 'object' || found) continue;
+        const hit = Object.keys(types).find((k) => _sameHeading(k, type));
+        if (hit) { found = { section, category }; key = hit; }
+      }
+    }
+    if (key) type = key;
   }
   if (!found) {
     found = {

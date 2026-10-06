@@ -97,6 +97,18 @@ describe('buildAdded per layout', () => {
   });
 });
 
+describe('review fixes', () => {
+  test('MSQ correctMany is de-duplicated and ordered by index', () => {
+    const out = buildAdded('MSQs', { question: 'q', slots: ['a', 'b', 'c', '', '', ''], correctMany: ['2', '0', '0'] }, EN3);
+    expect(out.answer).toBe('a, c');
+  });
+  test('a comprehension sub answer over the cap is refused', () => {
+    const long = 'x'.repeat(601);
+    expect(rejects(() => buildAdded('Comprehension Passage', { passage: 'p', subs: [{ question: 'q', answer: long }] }, EN3)))
+      .toBe('An answer can be at most 600 characters.');
+  });
+});
+
 describe('refusals', () => {
   test.each([
     ['Essay Writing', { question: '', answer: 'a' }, 'The question cannot be empty.'],
@@ -139,6 +151,7 @@ describe('placeTyped', () => {
     tree.unseen.objective['Match the Column'] = { A: [{ question: 'x', column_a: ['1'], column_b: ['2'] }], B: [{ question: 'y', column_a: ['1'], column_b: ['2'] }] };
     const out = placeTyped(tree, { type: 'Match the Column', ...EN3 }, { question: 'z', column_a: ['1'], column_b: ['2'] });
     expect(out.id).toBe('unseen.objective.Match the Column.B.1');
+    expect(ids(out.tree)).toContain(out.id);
   });
 
   test('creates a new heading under the right section and category when absent', () => {
@@ -147,6 +160,45 @@ describe('placeTyped', () => {
     const seenOnly = { seen: { objective: { MCQs: [{ question: 'q', options: ['a', 'b'], answer: 'a' }] } } };
     const o2 = placeTyped(seenOnly, { type: 'Essay Writing', ...EN3 }, { question: 'q', answer: 'a' });
     expect(o2.id).toBe('seen.subjective.Essay Writing.0');
+  });
+
+  test.each([
+    ['MCQ', 'MCQs', 'objective'],
+    ['Short questions', 'Short Questions', 'subjective'],
+    ['Long Answers', 'Long Question', 'subjective'],
+    ['Short Answer', 'Short Questions', 'subjective'],
+    ['Detailed Answers', 'Long Questions', 'subjective'],
+    ['Fill in the blanks', 'Fill in the Blanks', 'objective'],
+    ['Brief answers', 'Brief Answers', 'subjective'],
+    ['Circle the correct answer', 'Circle the Correct Answer', 'objective'],
+    ['Rewrite sentences', 'Rewrite Sentences', 'objective'],
+  ])('a paper keyed %s is joined by %s, not given a second heading', (key, type, cat) => {
+    const tree = { unseen: { [cat]: { [key]: [{ question: 'x', answer: 'y', marks: 1, main_question: 'Do.' }] } } };
+    const out = placeTyped(tree, { type, ...EN3 }, { question: 'z', answer: 'w', marks: 1 });
+    expect(Object.keys(out.tree.unseen[cat])).toEqual([key]);
+    expect(out.tree.unseen[cat][key]).toHaveLength(2);
+    expect(out.id).toBe(`unseen.${cat}.${key}.1`);
+  });
+
+  test('unrelated variants are not fuzzy-matched', () => {
+    const tree = { unseen: { objective: { 'Rewrite sentences/words': [{ question: 'x', answer: 'y' }] } } };
+    const out = placeTyped(tree, { type: 'Rewrite Sentences', ...EN3 }, { question: 'z', answer: 'w' });
+    expect(Object.keys(out.tree.unseen.objective)).toEqual(['Rewrite sentences/words', 'Rewrite Sentences']);
+  });
+
+  test('Brief Answers is not aliased with Short Questions', () => {
+    const tree = { unseen: { subjective: { 'Brief Answers': [{ question: 'x', answer: 'y' }] } } };
+    const out = placeTyped(tree, { type: 'Short Questions', ...EN3 }, { question: 'z', answer: 'w' });
+    expect(Object.keys(out.tree.unseen.subjective)).toEqual(['Brief Answers', 'Short Questions']);
+  });
+
+  test('seen and unseen both present, type absent: one new heading, under unseen', () => {
+    const tree = { seen: { objective: { MCQs: [{ question: 'a', options: ['x', 'y'], answer: 'x' }] } },
+      unseen: { objective: { MCQs: [{ question: 'b', options: ['x', 'y'], answer: 'x' }] } } };
+    const out = placeTyped(tree, { type: 'Word Meanings', ...EN3 }, { question: 'q', words: ['a'] });
+    expect(out.id).toBe('unseen.subjective.Word Meanings.0');
+    expect(out.tree.seen.subjective).toBeUndefined();
+    expect(ids(out.tree).filter((i) => i.includes('Word Meanings'))).toHaveLength(1);
   });
 
   test('existing ids never move', () => {
