@@ -195,6 +195,9 @@ to, so its feature always runs whole. Every spec with a mock driver is now tagge
 in `check-scenario-coverage.py`. A selected scenario a
 driver did not reach is recorded `BLOCKED` with that reason, never silently missing. The ledger row
 carries `scenario_scope.only`, so the PR's "E2E run recorded" column still fills for the feature.
+That column also says why a run has its status, from the row's own counts (`status_reason`): a run is
+CRITICAL whenever any scenario is BLOCKED, so "❌ CRITICAL — 4 of 9 blocked (not drivable on this lane)"
+with no failure is the usual case, not a break. Real breaks show on the line below it as a NEW REGRESSION.
 Two or more features still run side by side (`--parallel`). By hand: `run-suite.sh <feature> --only
 '<feature>=ID,ID'`. Off: `E2E_SCENARIO_SELECT=0` (whole features, as before).
 

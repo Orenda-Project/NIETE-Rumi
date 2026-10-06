@@ -259,6 +259,7 @@ def main(argv=None):
     except FileNotFoundError as e:
         print("    ledger: no result json for %s (%s) — no row appended" % (a.feature, e))
         return 0
+    row["status_reason"] = ledger.status_reason(row)
     path = os.path.join(a.root, ".claude", "qa", "ledgers", "runs.jsonl")
     if a.dry_run:
         print(json.dumps(row, ensure_ascii=False))
