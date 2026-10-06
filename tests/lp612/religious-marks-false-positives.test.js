@@ -202,9 +202,11 @@ describe('D — a companion honorific that IS there, rejected by the matcher', (
     expect(blocked(d)).toBe(false);
   });
 
-  it('STILL blocks a genuinely bare companion the document honorifies elsewhere', () => {
+  it('a bare companion the document honorifies elsewhere is NOT blocked (bd-96hng)', () => {
+    // Operator ruling 2026-10-06: only the Prophet ﷺ needs a salutation. A companion's honorific
+    // the book prints is kept, never demanded, so a bare mention is no longer a defect.
     const d = honorifiedElsewhere(withProse('حضرت خدیجۃ الکبریٰ کا لقب کیا تھا؟'), 'خدیجۃ');
-    expect(blocked(d)).toBe(true);
+    expect(blocked(d)).toBe(false);
   });
 
   it('a name never honorified anywhere is left to the reviewer, not blocked', () => {
