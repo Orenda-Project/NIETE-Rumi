@@ -33,6 +33,11 @@ describe('canon + smartFirst: one spelling for a name typed in either script', (
     expect(Id.canon('محمد بلال')).toBe('muhammadbilal');
     expect(Id.tokens('محمد بلال')).toEqual(['muhammad', 'bilal']);
   });
+  test('a map key spelled with a combining mark (یحییٰ, U+0670) still hits — keys are normalised like typed tokens', () => {
+    expect(Id.canon('یحییٰ')).toBe('yahya');
+    expect(Id.canon('مصطفیٰ')).toBe('mustafa');
+    expect(Id.tokens('ماہ نور')).toEqual(['mahnoor']);
+  });
   test('an Urdu name the map does not know stays Urdu (never a wrong Latin guess)', () => {
     expect(Id.canon('زڑقمپ')).toBe('زڑقمپ');
   });
