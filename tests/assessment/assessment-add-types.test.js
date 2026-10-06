@@ -123,7 +123,7 @@ describe('refusals', () => {
     ['Word Meanings', { slots: ['', ''] }, 'Add at least one word.'],
     ['Comprehension Passage', { passage: ' ', subs: [{ question: 'q', answer: 'a' }] }, 'The passage cannot be empty.'],
     ['Comprehension Passage', { passage: 'p', subs: [] }, 'Add at least one question about the passage.'],
-    ['Comprehension Passage', { passage: 'p', subs: [{ question: 'q', answer: 'a' }, { question: 'q', answer: '' }] }, 'Question 2 needs its question and its answer.'],
+    ['Comprehension Passage', { passage: 'p', subs: [{ question: 'q', answer: 'a' }, { question: 'q', answer: '' }] }, 'Part 2 needs its question and its answer.'],
   ])('%s %j -> %s', (kind, edit, message) => {
     expect(rejects(() => buildAdded(kind, edit, EN3))).toBe(message);
   });

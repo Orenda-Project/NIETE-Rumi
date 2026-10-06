@@ -163,7 +163,7 @@ function _buildComprehension(e) {
   const questions = subs.map((s, i) => {
     const question = String(s?.question ?? '').trim();
     const answer = String(s?.answer ?? '').trim();
-    if (!question || !answer) _fail(`Question ${i + 1} needs its question and its answer.`);
+    if (!question || !answer) _fail(`Part ${i + 1} needs its question and its answer.`);
     const sub = { question, answer: _answer(answer, true), marks: _marks(s.marks, 1) };
     const lines = _lines(s.lines, null);
     if (lines !== null) sub.lines = lines;

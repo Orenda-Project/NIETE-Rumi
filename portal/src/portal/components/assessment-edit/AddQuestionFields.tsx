@@ -105,7 +105,7 @@ const AddQuestionFields = ({ kind, slotCap, rtl, error, busy, onDone, onCancel }
               <Input aria-label={`Part ${i + 1} question`} placeholder={`Part ${i + 1} question`} value={s.question} onChange={(e) => setSub(i, 'question', e.target.value)} />
               <Input aria-label={`Part ${i + 1} answer`} placeholder="Answer" value={s.answer} onChange={(e) => setSub(i, 'answer', e.target.value)} />
               <div className="flex items-center gap-2">
-                <Input className="w-24" aria-label={`Part ${i + 1} marks`} placeholder="Marks" inputMode="numeric" value={s.marks} onChange={(e) => setSub(i, 'marks', e.target.value)} />
+                <Input className="w-24" aria-label={`Part ${i + 1} marks`} placeholder="1" inputMode="numeric" value={s.marks} onChange={(e) => setSub(i, 'marks', e.target.value)} />
                 {subs.length > 1 && (
                   <Button type="button" size="sm" variant="ghost" aria-label="Remove part" onClick={() => setSubs(subs.filter((_, j) => j !== i))}>Remove part</Button>
                 )}
@@ -119,7 +119,7 @@ const AddQuestionFields = ({ kind, slotCap, rtl, error, busy, onDone, onCancel }
       )}
 
       {(layout === 'standard' || layout === 'words') && (
-        <div><Label>Answer</Label>
+        <div><Label>{layout === 'words' ? 'Answer (optional)' : 'Answer'}</Label>
           <Textarea aria-label="Answer" value={answer} onChange={(e) => setAnswer(e.target.value)} rows={2} /></div>
       )}
 

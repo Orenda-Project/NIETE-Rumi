@@ -206,6 +206,7 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
             <Button key={k.kind} size="sm" variant="outline"
               onClick={() => { setPicking(null); setFieldError(null); setEditing({ key: `new-${name}`, kind: k.kind, section: name }); }}>{k.label}</Button>
           ))}
+          <Button size="sm" variant="ghost" onClick={() => setPicking(null)}>Cancel</Button>
         </div>
       ) : (
         <Button size="sm" variant="ghost" disabled={!!editing || locked} onClick={() => setPicking(name)}><Plus className="mr-1 h-4 w-4" />Add a question</Button>

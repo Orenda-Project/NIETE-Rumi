@@ -82,7 +82,7 @@ it('words: 6 word boxes, sends slots and answer', () => {
 });
 
 it('comprehension: add and remove parts, sends passage and subs', () => {
-  const { onDone } = setup(mk({ kind: 'Comprehension', layout: 'comprehension' }));
+  const { onDone } = setup(mk({ kind: 'Comprehension Passage', layout: 'comprehension' }));
   expect(screen.queryByRole('button', { name: 'Remove part' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Add part' }));
   fireEvent.click(screen.getByRole('button', { name: 'Add part' }));
@@ -100,4 +100,12 @@ it('shows the bot error and rtl direction, with the buttons row ltr', () => {
   expect(screen.getByText('The question cannot be empty.')).toBeTruthy();
   expect(container.querySelector('form, div[dir="rtl"]')?.getAttribute('dir')).toBe('rtl');
   expect(screen.getByRole('button', { name: 'Done' }).parentElement?.getAttribute('dir')).toBe('ltr');
+});
+
+it('comprehension part marks placeholder is 1; words answer is labelled optional', () => {
+  const { unmount } = setup(mk({ kind: 'Comprehension Passage', layout: 'comprehension' }));
+  expect(screen.getByLabelText('Part 1 marks').getAttribute('placeholder')).toBe('1');
+  unmount();
+  setup(mk({ kind: 'Jumbled Words', layout: 'words' }));
+  expect(screen.getByText('Answer (optional)')).toBeTruthy();
 });

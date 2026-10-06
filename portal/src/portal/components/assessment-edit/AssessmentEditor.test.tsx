@@ -280,3 +280,16 @@ it('a legacy stored draft entry without a section still renders under Subjective
   const old = await screen.findByText('Old one');
   expect(screen.getByText('Subjective').closest('section')!.contains(old)).toBe(true);
 });
+
+it('the open type picker can be cancelled', async () => {
+  vi.mocked(portal.getAssessmentAddKinds).mockResolvedValue({ kinds: KINDS, slotCap: 6 } as never);
+  render(<AssessmentEditor paperId="v1" open onClose={() => {}} onSaved={() => {}} />);
+  await screen.findByText('What is a noun?');
+  const btns = screen.getAllByRole('button', { name: /Add a question/ });
+  fireEvent.click(btns[btns.length - 1]);
+  await screen.findByRole('button', { name: 'Essay Writing' });
+  const cancel = screen.getAllByRole('button', { name: 'Cancel' }).find((b) => b.closest('section'))!;
+  fireEvent.click(cancel);
+  expect(screen.queryByRole('button', { name: 'Essay Writing' })).toBeNull();
+  expect(screen.getAllByRole('button', { name: /Add a question/ }).length).toBe(2);
+});
