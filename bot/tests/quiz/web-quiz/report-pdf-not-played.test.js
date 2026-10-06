@@ -84,8 +84,10 @@ beforeEach(() => {
 const pdfHtml = () => htmlToPdf.mock.calls[0][0];
 const caption = () => WhatsAppService.sendDocument.mock.calls[0][3];
 const hrefs = (html) => [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+// The document without its <style> (embedded font data is base64 and can hold any byte run).
+const body = (html) => html.replace(/<style[\s\S]*?<\/style>/g, '');
 
-test('class known: the children still to play, greyed, name first then the list no., and the two links', async () => {
+test('class known: the children still to play, greyed, name first then the list no.; the PDF carries no report link', async () => {
   seed();
   expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
   const html = pdfHtml();
@@ -98,14 +100,18 @@ test('class known: the children still to play, greyed, name first then the list 
   expect(visible).not.toMatch(/\broll\b/i);   // never called a roll
   expect(np).not.toMatch(/Kid1|Kid2|Testwala/);   // first names only, and only who has not played
 
-  const links = hrefs(html);
-  const remind = links.find((h) => h.endsWith('/remind'));
-  const live = links.find((h) => /\/r\/[^/]+$/.test(h));
-  expect(remind).toBe(`${live}/remind`);
-  expect(live.startsWith(`${BASE}/r/`)).toBe(true);
-  expect(Token.verifyTeacherReport(live.slice(`${BASE}/r/`.length))).toEqual({ teacherId: TEACHER, quizId: QUIZ });
+  // NO report token in the PDF (COS ruling 18:09Z): the PDF is forwarded to
+  // class groups, and a /r/<token> in it would open every child's name and
+  // score to whoever receives the file. It points at /quiz instead.
+  expect(hrefs(html)).toEqual([]);
+  expect(body(html)).not.toMatch(/\/r\/|\/remind/);
+  expect(html).not.toContain(BASE);
+  expect(visible).toContain('send /quiz, then tap “My quiz reports”');
 
-  expect(caption()).toContain(live);
+  // The live report and the reminder ride the teacher's own caption only.
+  const live = (caption().match(new RegExp(`${BASE}/r/[^/\\s]+(?=\\s|$)`)) || [])[0];
+  expect(Token.verifyTeacherReport(live.slice(`${BASE}/r/`.length))).toEqual({ teacherId: TEACHER, quizId: QUIZ });
+  expect(caption()).toContain(`${live}/remind`);
 });
 
 test('the old "not finished" box does not repeat a child the class list already shows', async () => {
@@ -117,12 +123,14 @@ test('the old "not finished" box does not repeat a child the class list already 
   expect((html.match(/Kid3/g) || []).length).toBe(1);
 });
 
-test('no class list: no not-played section, the live-report links still ride', async () => {
+test('no class list: no not-played section; the /quiz pointer, never a link', async () => {
   seed({ lists: false });
   await report.generate(SC, { reason: 'scheduled' });
   const html = pdfHtml();
   expect(html).not.toContain('Not played yet');
-  expect(hrefs(html).some((h) => h.startsWith(`${BASE}/r/`))).toBe(true);
+  expect(body(html)).not.toContain('/r/');
+  expect(html).not.toContain(BASE);
+  expect(html).toContain('My quiz reports');
 });
 
 test('teacher not on the list (or no setting): the PDF and caption are today\'s', async () => {
@@ -144,7 +152,8 @@ test('an Urdu quiz: the section in Urdu; the caption line in the teacher\'s own 
   await report.generate(SC, { reason: 'scheduled' });
   const html = pdfHtml();
   expect(html).toContain('ابھی نہیں کھیلا');
-  expect(html).toContain('کلاس کو یاد دلائیں');
+  expect(html).toContain('میری کوئز رپورٹس');
+  expect(html).not.toContain(BASE);
   expect(html).not.toContain('Not played yet');
   expect(caption()).toMatch(/live report/i);
 });
@@ -159,12 +168,12 @@ test('no portal base URL: no section and no links (a link to nowhere is worse th
 });
 
 describe('the caption carries the count and the reminder (M3 decision 5)', () => {
-  const remindOf = (html) => hrefs(html).find((h) => h.endsWith('/remind'));
+  const remindOf = () => (caption().match(new RegExp(`${BASE}/r/[^/\\s]+/remind`)) || [])[0];
 
   test('class known: "2 of 4 have not played yet · tap to remind the class: <remind link>"', async () => {
     seed();
     await report.generate(SC, { reason: 'scheduled' });
-    const remind = remindOf(pdfHtml());
+    const remind = remindOf();
     expect(remind.startsWith(`${BASE}/r/`)).toBe(true);
     expect(caption()).toContain(`2 of 4 have not played yet · tap to remind the class: ${remind}`);
   });
@@ -176,7 +185,7 @@ describe('the caption carries the count and the reminder (M3 decision 5)', () =>
     expect(cap).toContain('⁦4⁩');
     expect(cap).toContain('⁦2⁩');
     expect(cap).toContain('ابھی نہیں کھیلا');
-    expect(cap).toContain(remindOf(pdfHtml()));
+    expect(cap).toContain(remindOf());
     expect(cap).not.toContain('have not played yet');
   });
 
@@ -193,4 +202,10 @@ describe('the caption carries the count and the reminder (M3 decision 5)', () =>
     await report.generate(SC, { reason: 'scheduled' });
     expect(caption()).not.toMatch(/have not played yet|\/remind/);
   });
+});
+
+test('Urdu: the /quiz in the pointer is an isolated LTR atom (bare, it renders "quiz/")', async () => {
+  seed({ language: 'ur' });
+  await report.generate(SC, { reason: 'scheduled' });
+  expect(body(pdfHtml())).toMatch(/\u2066(<[^>]+>)*\/(<[^>]+>)*quiz(<\/[^>]+>)*\u2069/);
 });
