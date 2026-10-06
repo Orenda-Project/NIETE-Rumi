@@ -859,3 +859,9 @@ Feature: Web child quiz page on the portal
     Then the landing says "<challenger> challenged you. Can you beat their score?" («… نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!»)
     And it never says "0/5 stars. Can you beat it?"
     And the friend's landing never says how many of the class played today (the friend is not in that class)
+  @T445b
+  Scenario: The invite picture and its link title never guess the friend's gender, and never dare a zero
+    Given a child sent a challenge link
+    When the link previews in Urdu
+    Then it reads «<name> کے 4/6 سے آگے نکلیں!» (an imperative), never «کیا آپ … سکتے ہیں؟»
+    And when the challenger scored 0 the picture and the title say "<name> challenged you!" («<name> نے آپ کو چیلنج کیا ہے!») with no score
