@@ -367,6 +367,20 @@ describe('teacher report page — the played tile counts the class list only', (
   });
 });
 
+describe('teacher report page — QA follow-ups', () => {
+  test('short subject codes read as names: sst, gk, islamiyat, general science', () => {
+    const cells = ['sst', 'gk', 'islamiyat', 'general_science'].map((subject) => ({ grade: '3', subject, quizzes: 1, played: 1, avg: 50 }));
+    const en = text(renderPage({ class: { cells, weeks: [], quizzes: [] } }, { lang: 'en', tab: 'class', tokens: { self: TOKEN } }));
+    expect(en).toMatch(/Social Studies/);
+    expect(en).toMatch(/General Knowledge/);
+    expect(en).toMatch(/Islamiat/);
+    expect(en).toMatch(/General Science/);
+    expect(en).not.toMatch(/\bSst\b|\bGk\b/);
+    const ur = text(renderPage({ class: { cells, weeks: [], quizzes: [] } }, { lang: 'ur', tab: 'class', tokens: { self: TOKEN } }));
+    expect(ur).toMatch(/معاشرتی علوم/);
+  });
+});
+
 describe('message pages', () => {
   test('expired: EN and UR copy telling the teacher to send /quiz', () => {
     expect(renderMessagePage({ kind: 'expired', lang: 'en' })).toMatch(/This link has expired/);
@@ -377,6 +391,13 @@ describe('message pages', () => {
     expect(ur).toMatch(/<span class="ltr">\/(<span class="ltr">)?quiz/);
     expect(ur).not.toMatch(/<script/i);
   });
+  test('incomplete: a cut-off or tampered link says so, not "expired"', () => {
+    const en = text(renderMessagePage({ kind: 'incomplete', lang: 'en' }));
+    expect(en).toMatch(/This link is not complete/);
+    expect(en).not.toMatch(/expired/);
+    expect(text(renderMessagePage({ kind: 'incomplete', lang: 'ur' }))).toMatch(/مکمل نہیں/);
+  });
+
   test('missing: a not-found page that says nothing about whose quiz it is', () => {
     expect(renderMessagePage({ kind: 'missing', lang: 'en' })).toMatch(/could not find this report/i);
   });
