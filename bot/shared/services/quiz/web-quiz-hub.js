@@ -239,7 +239,7 @@ async function hub(token, { kid } = {}) {
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
   const ctx = chosen ? await kidContext(chosen.id) : null;
   const history = ctx ? ctx.history : [];
-  const lang = clampLanguage((history[0] && history[0].language) || 'en');
+  const lang = clampLanguage(history[0] && history[0].language);
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
     lang,
