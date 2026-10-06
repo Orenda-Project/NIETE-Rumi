@@ -70,6 +70,9 @@ const { LANG_NAME, sloStatement } = require('./transcript-quiz-language');
 const Multi = require('./transcript-quiz-multi');
 const { todaysModel } = require('../../config/model-registry');
 const GatesV2 = require('./quiz-author-gates-v2');
+// Gates v2: the solver sees the picture as the CHILD sees it, and is pointed at near-duplicate options.
+const { childView } = require('./quiz-figure-child-view');
+const Lexical = require('./quiz-option-lexical');
 
 const LABEL = 'transcript_quiz.key_verify';
 /** The second solve, without the lesson: its own label in the logs, the same job and spend line. */
@@ -167,6 +170,36 @@ function itemFor(q, index, quizId = null) {
 }
 
 /**
+ * The picture line of one item. Gates v2 (`childSees`): what the CHILD sees — a
+ * word_blank's tiles with their blanks and the pictogram's name, any other kind as
+ * its spec without a field that names an answer. A spec can hold what its drawing
+ * hides: `{word:"SKY", blanks:[1]}` draws "S _ Y", and a solver shown "SKY" agreed
+ * with K although SPY fits the tiles as well. Off: today's line, the spec as data.
+ */
+function pictureLine(it, { language, childSees }) {
+  if (!it.figure) return '';
+  if (!childSees) return `\n  the picture the child sees, as data: ${cut(JSON.stringify(it.figure), FIGURE_MAX)}`;
+  const view = childView(it.figure, { stem: it.question, language });
+  if (view && view.type === 'word_blank') {
+    return `\n  the picture the child sees: the letter tiles «${view.shows}» (each _ is a hidden letter), picture of: ${view.picture}`;
+  }
+  return `\n  the picture the child sees, as data: ${cut(JSON.stringify(view), FIGURE_MAX)}`;
+}
+
+/**
+ * Options nearly the same word ("Sky" / "Spy"), named in the SHOWN positions — a
+ * pointer, not a verdict: cat/bat is a fair distractor, so the solver decides.
+ */
+function nearPairLines(it) {
+  const at = (authored) => it.order.indexOf(authored);
+  const how = { one_letter: 'differ by one letter', same_sound: 'sound the same', same_letters: 'differ only by a mark' };
+  return Lexical.nearPairs(it.options).map(({ i, j, why }) => {
+    const [a, b] = [at(i), at(j)].sort((x, y) => x - y);
+    return `\n  check: options [${a}] and [${b}] ${how[why]} — decide whether BOTH answer the question as asked`;
+  }).join('');
+}
+
+/**
  * THE SOLVER PROMPT. The context first (what the lesson was about — never an
  * answer), then the items with their options in the shown order, then the rule.
  * Written in English; the quiz stays in its own language, and the solver is told
@@ -194,9 +227,7 @@ function buildVerifyPrompt({
   const blocks = arr(items).map((it) => {
     const shown = it.order.map((authored, pos) => `[${pos}] ${it.options[authored]}`).join(' | ');
     const kind = it.multi ? 'choose ALL that are correct' : 'one answer';
-    const picture = it.figure
-      ? `\n  the picture the child sees, as data: ${cut(JSON.stringify(it.figure), FIGURE_MAX)}` : '';
-    return `q${it.index} (${kind}): ${it.question}\n  options: ${shown}${picture}`;
+    return `q${it.index} (${kind}): ${it.question}\n  options: ${shown}${pictureLine(it, { language, childSees: strictKey })}${strictKey ? nearPairLines(it) : ''}`;
   }).join('\n\n');
 
   return [
