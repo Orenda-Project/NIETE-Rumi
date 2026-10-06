@@ -154,6 +154,36 @@ describe('the recorded faults once leaks are settled', () => {
   });
 });
 
+describe('an aside that gives the answer away is taken out of the earlier question, not the later question', () => {
+  const { trimLeakAsides } = require('../../bot/shared/services/quiz/transcript-quiz-answer-leaks');
+  test('a wrong option\'s feedback loses only the sentence that states the later answer', () => {
+    const qs = [
+      mcq('Which of these is a structural adaptation?', ['Cactus stores water in its thick stem.', 'Birds migrate in winter.', 'A desert fox hunts at night.'], {
+        wrong: { 1: 'Birds migrating is something they DO, not a body part they HAVE. Remember, structural adaptations are about the body.', 2: 'A desert fox hunting at night is an action, a behaviour. It is not a part of its body, so it is not structural.' },
+      }),
+      mcq('Which of these is a behavioural adaptation of a desert fox?', ['Hunting only at night', 'Thick fur', 'Sharp teeth']),
+    ];
+    const out = trimLeakAsides(qs);
+    expect(out.trimmed).toEqual([expect.objectContaining({ from: 0, to: 1, where: 'wrong-option feedback' })]);
+    expect(out.questions[0].option_feedback.wrong[2]).toBe('It is not a part of its body, so it is not structural.');
+    expect(out.questions[1]).toBe(qs[1]);
+    expect(answerLeakErrors(out.questions)).toEqual([]);
+  });
+
+  test('never the sentence that explains the earlier question\'s OWN answer, never a field left with nothing to say', () => {
+    const own = [
+      mcq('Which of these is a layer of the Earth?', ['crust', 'sky', 'ocean'], { explanation: 'The Earth has four main layers. The crust is the outermost layer.' }),
+      mcq('What is the outermost layer of the Earth called?', ['crust', 'core', 'mantle']),
+    ];
+    expect(trimLeakAsides(own).trimmed).toEqual([]);
+    const only = [
+      mcq('ایک fraction میں اوپر والے نمبر کو کیا کہتے ہیں؟', ['numerator', 'denominator', 'whole'], { wrong: { 1: 'نہیں، denominator نیچے والے نمبر کو کہتے ہیں۔' } }),
+      mcq('ایک fraction میں نیچے والے نمبر کو کیا کہتے ہیں؟', ['Denominator', 'Whole', 'Numerator']),
+    ];
+    expect(trimLeakAsides(only).trimmed).toEqual([]);
+  });
+});
+
 // ── the generate path ────────────────────────────────────────────────────────
 const QID = '66666666-6666-4666-8666-666666666666';
 const SID = '55555555-5555-4555-8555-555555555555';
@@ -249,6 +279,23 @@ describe('on the generate path, flag on: repair, else drop within the floor, nev
     const rw = mockCreate.mock.calls.map(promptOf).filter((p) => /REWRITE THESE QUESTIONS/.test(p));
     expect(rw[rw.length - 1]).toMatch(/q0 gives away q2's answer/);
     expect(logEvent.mock.calls.map((c) => c[0])).toContain('transcript_quiz.answer_leaks');
+  });
+
+  test('an aside in an earlier explanation is taken out: all eight questions kept, no extra rewrite', async () => {
+    const bad = grammar();
+    bad[0] = { ...bad[0], explanation: 'ہر masculine noun کا ایک feminine noun ہوتا ہے۔ جیسے Father کا feminine noun Mother ہے۔' };
+    mockCreate.mockImplementation((call) => (isRewrite(call)
+      ? Promise.resolve(reply({ questions: [{ index: 2, ...bad[2] }] }))   // the loop's repair changes nothing
+      : Promise.resolve(reply({ lesson_summary: EN_SUMMARY, questions: bad }))));
+    wire({ gates: true });
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    const rows = storedRows();
+    expect(rows).toHaveLength(8);
+    expect(rows.some((x) => String(x.explanation).includes('Father کا feminine noun Mother'))).toBe(false);
+    expect(lastMeta().answer_leaks).toEqual(expect.objectContaining({ found: 1, trimmed: 1, dropped: [], remaining: 0 }));
+    // the loop asked once; the last step needed no model call
+    expect(mockCreate.mock.calls.map(promptOf).filter((p) => /REWRITE THESE QUESTIONS/.test(p))).toHaveLength(1);
   });
 
   test('a leak the LAST rewrite fixes keeps all eight questions', async () => {
