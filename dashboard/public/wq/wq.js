@@ -448,7 +448,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       qof: function (i, n) { return 'Question ' + i + ' of ' + n; }, listen: 'Listen again', helpAgain: 'Shall we listen again?',
       orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap one, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
       zoom: 'Make the picture bigger', close: 'Close', playSound: 'Play the sound', yes: 'True', no: 'False',
-      notyet: function (lead, r) { return lead + ' "' + r + '".'; }, next: 'Next', again: 'This one comes back at the end, to fix together.',
+      notyet: function (lead, r) { return lead + ' "' + String(r).replace(/[.!۔]+\s*$/, '') + '".'; }, next: 'Next', again: 'This one comes back at the end, to fix together.',
       half: 'Halfway there!',
       tricky: function (n) { return n === 1 ? '1 tricky one' : n + ' tricky ones'; }, trickySay: "Before we celebrate, let's fix it together.", fixGo: 'Fix it with ' + MASC.en, later: 'Maybe later',
       second: 'Second try · with ' + MASC.en, tryAgain: 'Look again. You can do it.',
@@ -490,7 +490,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       qof: function (i, n) { return 'سوال ' + i + ' از ' + n; }, listen: 'دوبارہ سنیں', helpAgain: 'کیا دوبارہ سنیں؟',
       orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
       zoom: 'تصویر بڑی کریں', close: 'بند کریں', playSound: 'آواز سنیں', yes: 'درست', no: 'غلط',
-      notyet: function (lead, r) { return lead + ' ' + r; }, next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
+      notyet: function (lead, r) { return lead + ' ' + String(r).replace(/[.!۔]+\s*$/, ''); }, next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
       half: 'آدھا راستہ طے!',
       tricky: function (n) { return n + ' مشکل سوال'; }, trickySay: 'جشن سے پہلے، آئیں اسے مل کر ٹھیک کریں۔', fixGo: MASC.ur + ' کے ساتھ ٹھیک کریں', later: 'بعد میں',
       second: 'دوسری کوشش · ' + MASC.ur + ' کے ساتھ', tryAgain: 'دوبارہ دیکھیں۔ آپ کر سکتے ہیں۔',
@@ -550,7 +550,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     list.unshift({ chip: c.chip, first: c.first, animal: c.animal });
     sset('wq_kids', list.slice(0, 6));
   }
-  var SOUND = !!sget('wq_sound', false);
+  // One switch for every sound on the page (the voice and the tap tones), remembered on this phone; on by default.
+  var SOUND = sget('wq_sound', true) !== false;
 
   /* ---------------- analytics (E8) ---------------- */
   var evq = [];
@@ -668,8 +669,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
   }
   // Recorded clip when the payload has one, else the phone's own voice. done() runs when it ends.
-  function speak(text, url, done) {
+  function speak(text, url, done, meta) {
     stopVoice();
+    if (!SOUND) { if (done) done(); return; }
+    if (!url && meta) noteMissing(meta, text);
     var gen = voiceGen;
     var fin = false;
     // A stopped line (cancel fires the utterance's onerror; its safety timer still runs) never calls done().
@@ -705,6 +708,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }
     speakTts(text, end);
   }
+  // A part with no recorded clip: logged once (audio_missing), and on a phone with no voice for this
+  // language (Android's in-app browser has none) the words are shown big instead of silence.
+  var missing = {};
+  function hasVoice() {
+    try {
+      if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
+      var vs = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+      if (!vs || !vs.length) return true; // not loaded yet: try the phone voice
+      return vs.some(function (v) { return String(v.lang || '').toLowerCase().indexOf(LANG) === 0; });
+    } catch (e) { return false; }
+  }
+  function noteMissing(meta, text) {
+    if (!speakable(text)) return;
+    var k = meta.qid + ':' + meta.part;
+    if (!missing[k]) { missing[k] = 1; ev('audio_missing', { qid: meta.qid, part: meta.part }); }
+    if (!hasVoice()) try { ROOT.classList.add('wq-novoice'); } catch (e) {}
+  }
   function speakTts(text, end) {
     try {
       if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) { setTimeout(end, 4000); return; }
@@ -726,6 +746,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function render(html, moment) {
     clearTimers();
     stopVoice();
+    try { ROOT.classList.remove('wq-novoice'); } catch (e) {}
     ROOT.innerHTML = '<section class="wq-screen" data-m="' + moment + '">' + html + '</section>';
     ROOT.setAttribute('data-m', moment);
     try { window.scrollTo(0, 0); } catch (e) {}
@@ -747,6 +768,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-snd', function () {
       SOUND = !SOUND; sset('wq_sound', SOUND);
       this.setAttribute('aria-pressed', SOUND); this.textContent = SOUND ? '🔔' : '🔕';
+      if (!SOUND) stopAll(); // silent at once; nothing starts again until the next screen with sound on
     });
   }
   /* ---------------- mascot (Jugnu): a still pose that comes alive ----------------
@@ -1240,12 +1262,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function speakable(t) { return /[A-Za-z0-9\u0600-\u06FF]/.test(String(t || '')); }
   // The question, then each option: the recorded clip when there is one, else the phone's voice.
   function readParts(q) { return WQI.readParts(q, LANG); }
-  function speakSeq(parts, done) {
+  function speakSeq(parts, done, qid) {
     var i = 0;
     (function nextPart() {
       if (i >= parts.length) { if (done) done(); return; }
-      var part = parts[i++];
-      speak(part.text, part.url, nextPart);
+      var k = i, part = parts[i++];
+      speak(part.text, part.url, nextPart, qid ? { qid: qid, part: k } : null);
     })();
   }
 
@@ -1310,7 +1332,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // Help waits until the voice has finished, then gives the child time of their own.
     function read() {
       var b = $('#wq-spk'); if (b) b.classList.add('wq-speaking');
-      speakSeq(readParts(q), function () { var b2 = $('#wq-spk'); if (b2) b2.classList.remove('wq-speaking'); armHelp(); });
+      speakSeq(readParts(q), function () { var b2 = $('#wq-spk'); if (b2) b2.classList.remove('wq-speaking'); armHelp(); }, q.qid);
     }
     on('#wq-spk', function () { ev('listen', { qid: q.qid }); read(); });
     on('#wq-stim', function () { ev('listen', { qid: q.qid, stim: 1 }); var au = q.audio || {}; if (au.stim) speak('', au.stim, null); });
