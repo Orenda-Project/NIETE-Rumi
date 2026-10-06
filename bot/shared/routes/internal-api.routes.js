@@ -124,8 +124,10 @@ function trainingRoute(name, handler) {
       const Training = require('./teacher-training-endpoint');
       return await handler(Training, req, res);
     } catch (error) {
+      // Answer the failure first: a logger fault must never turn it into a 200.
+      res.status(500).json({ success: false, error: 'Training lookup failed' });
       logError('Internal training API failed', { route: name, error: error?.message });
-      return res.status(500).json({ success: false, error: 'Training lookup failed' });
+      return undefined;
     }
   };
 }
@@ -257,8 +259,10 @@ router.post('/training/module-quiz-verdict', requireInternalKey, async (req, res
     return res.json({ success: true, ...verdict });
   } catch (error) {
     // Fail CLOSED: never let a lookup failure read as a pass.
+    // Answer the failure first: a logger fault must never turn it into a 200.
+    res.status(500).json({ success: false, error: 'Grading lookup failed' });
     logError('Internal training API failed', { route: 'module-quiz-verdict', error: error?.message });
-    return res.status(500).json({ success: false, error: 'Grading lookup failed' });
+    return undefined;
   }
 });
 
@@ -284,8 +288,10 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
     return res.json({ success: true, ...verdict });
   } catch (error) {
     // Fail CLOSED: never let a lookup failure read as a pass.
+    // Answer the failure first: a logger fault must never turn it into a 200.
+    res.status(500).json({ success: false, error: 'Grading lookup failed' });
     logError('Internal training API failed', { route: 'exam-verdict', error: error?.message });
-    return res.status(500).json({ success: false, error: 'Grading lookup failed' });
+    return undefined;
   }
 });
 
@@ -631,8 +637,10 @@ router.post('/training/mark-paper', requireInternalKey, async (req, res) => {
     return res.json({ success: true, ...markPaper({ questions, answers }) });
   } catch (error) {
     // Fail CLOSED: an unmarked paper must never read as a scored one.
+    // Answer the failure first: a logger fault must never turn it into a 200.
+    res.status(500).json({ success: false, error: 'Marking failed' });
     logError('Internal training API failed', { route: 'mark-paper', error: error?.message });
-    return res.status(500).json({ success: false, error: 'Marking failed' });
+    return undefined;
   }
 });
 
@@ -676,8 +684,10 @@ router.post('/training/serve-paper', requireInternalKey, async (req, res) => {
     }));
     return res.json({ success: true, questions: out, total_served: out.length });
   } catch (error) {
+    // Answer the failure first: a logger fault must never turn it into a 200.
+    res.status(500).json({ success: false, error: 'Serving failed' });
     logError('Internal training API failed', { route: 'serve-paper', error: error?.message });
-    return res.status(500).json({ success: false, error: 'Serving failed' });
+    return undefined;
   }
 });
 
