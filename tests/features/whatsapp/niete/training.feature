@@ -1378,7 +1378,8 @@ Feature: NIETE (ICT) Teacher Training
     When a child opens the list, or types their name in English letters in the Urdu name box
     Then the English words sit at their usual distance apart, with no wide gaps between them
     And the Urdu words around them keep the wider Urdu spacing
-    # wq.js render() latinRuns (Urdu pages: a run of 2+ Latin words -> span.wq-lat lang=en) + latinBox (name box lang=en while Latin); wq.css html[lang=ur] .wq-lat / .wq-input[lang=en] sans + word-spacing normal. Unit: dashboard/tests/web-quiz-urdu-latin.service.test.js. @wip.
+    And a class label like "3-B" inside an Urdu line never shows as "B-3"
+    # wq.js render() latinRuns (Urdu pages: a run of 2+ Latin words -> span.wq-lat lang=en) + latinBox (name box lang=en while Latin); wq.css html[lang=ur] .wq-lat / .wq-input[lang=en] sans + word-spacing normal; a digit+Latin atom (3-B) is marked too and .wq-lat is isolated ltr. Unit: dashboard/tests/web-quiz-urdu-latin.service.test.js. @wip.
 
   @api @quiz @web @wip @draft @P2 @T241 @no-mock-driver
   Scenario: Numbers on my Urdu web quiz are written one way, as on the class register
