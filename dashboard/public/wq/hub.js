@@ -27,7 +27,7 @@
       fromT: 'From your teacher', play: 'Play',
       sent: function (d) { return d <= 0 ? 'Sent today' : d === 1 ? 'Sent yesterday' : 'Sent ' + d + ' days ago'; },
       none: 'No new quiz from your teacher right now. Watch a video and try its quiz!',
-      againT: 'Play again', againRow: function (c, t, n) { return 'Best ' + c + '/' + t + ' · ' + n + (n === 1 ? ' try' : ' tries'); },
+      againT: 'Play again', againRow: function (score, n) { return 'Best ' + score + ' · ' + n + (n === 1 ? ' try' : ' tries'); },
       practice: 'Practice: your first score is the one your teacher sees.',
       libT: 'Video library', libSub: 'Pick a subject and a chapter',
       recT: 'Try these next', chT: function (m) { return m + '\'s Challenge'; }, chSub: 'Short games for reading and numbers',
@@ -39,7 +39,7 @@
       fromT: 'آپ کے استاد کی طرف سے', play: 'کھیلیں',
       sent: function (d) { return d <= 0 ? 'آج بھیجا گیا' : d === 1 ? 'کل بھیجا گیا' : d + ' دن پہلے بھیجا گیا'; },
       none: 'ابھی استاد کی طرف سے کوئی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کریں!',
-      againT: 'دوبارہ کھیلیں', againRow: function (c, t, n) { return 'بہترین ' + c + '/' + t + ' · ' + n + ' بار'; },
+      againT: 'دوبارہ کھیلیں', againRow: function (score, n) { return 'بہترین ' + score + ' · <bdi>' + n + ' بار</bdi>'; },
       practice: 'مشق: استاد کو آپ کا پہلا اسکور ہی نظر آتا ہے۔',
       libT: 'ویڈیو لائبریری', libSub: 'مضمون اور باب چنیں',
       recT: 'یہ بھی کریں', chT: function (m) { return m + ' کا چیلنج'; }, chSub: 'پڑھنے اور گنتی کے چھوٹے کھیل',
@@ -134,7 +134,7 @@
   /* ---------------- H2 the hub ---------------- */
   function teacherCard(t) {
     if (!t) {
-      return '<div class="wq-card wq-hcard wq-hnone">' + jug('idle', T.none) +
+      return '<div class="wq-card wq-hcard wq-hnone"><p class="wq-hnonesay">' + esc(T.none) + '</p>' +
         (B.lib ? '<a class="wq-btn wq-go" id="wq-h-lib2" href="' + esc(B.lib.href) + '">📚 ' + esc(T.libT) + '</a>' : '') + '</div>';
     }
     return '<div class="wq-card wq-hcard"><p class="wq-hlabel">' + esc(T.fromT) + '</p>' +
@@ -146,20 +146,23 @@
     if (!list.length) return '';
     return '<p class="wq-hlabel">' + esc(T.againT) + '</p><ul class="wq-vlist">' + list.map(function (a, i) {
       return '<li><a class="wq-vitem" data-again="' + i + '" href="/q/' + esc(a.code) + '?again=1&amp;k=' + esc(a.k) + '">' + tile(a.subject, i) +
-        '<span class="wq-vtext"><b dir="auto">' + esc(a.topic) + '</b><small>' + esc(T.againRow(a.best.c, a.best.t, a.tries)) + '</small></span></a></li>';
+        '<span class="wq-vtext"><b dir="auto">' + esc(a.topic) + '</b><small>' + T.againRow('<bdi dir="ltr">' + esc(a.best.c + '/' + a.best.t) + '</bdi>', a.tries) + '</small></span></a></li>';
     }).join('') + '</ul><p class="wq-small">' + esc(T.practice) + '</p>';
   }
   function recList(list) {
     if (!list.length) return '';
     return '<p class="wq-hlabel">' + esc(T.recT) + '</p><ul class="wq-vlist">' + list.map(function (v, i) {
       var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy" width="96" height="60" onerror="this.style.visibility=\'hidden\'">' : tile(v.subject, i);
-      var meta = [subjectName(v.subject), v.chapter, v.secs ? T.mins(Math.max(1, Math.round(v.secs / 60))) : ''].filter(Boolean).join(' · ');
-      return '<li><button class="wq-vitem" data-rec="' + i + '">' + pic + '<span class="wq-vtext"><b dir="auto">' + esc(v.title) + '</b><small dir="auto">' + esc(meta) + '</small></span></button></li>';
+      // Each atom isolated, so a Latin chapter or "3 min" keeps its order inside an Urdu line.
+      var meta = [subjectName(v.subject), v.chapter, v.secs ? T.mins(Math.max(1, Math.round(v.secs / 60))) : ''].filter(Boolean)
+        .map(function (x) { return '<bdi>' + esc(x) + '</bdi>'; }).join(' · ');
+      return '<li><button class="wq-vitem" data-rec="' + i + '">' + pic + '<span class="wq-vtext"><b dir="auto">' + esc(v.title) + '</b><small>' + meta + '</small></span></button></li>';
     }).join('') + '</ul>';
   }
   function hub() {
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
-    var tiles = (B.lib ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(B.lib.href) + '"><span class="wq-htic" aria-hidden="true">📚</span><b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
+    // With no teacher quiz the empty card already holds the library button: no second library tile.
+    var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(B.lib.href) + '"><span class="wq-htic" aria-hidden="true">📚</span><b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
       (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(TOKEN) + '?kid=' + esc(B.kid) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
     render(bar() + jug('hello', T.hi(me.first || '')) + teacherCard(B.teacher) +
       (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '') +
