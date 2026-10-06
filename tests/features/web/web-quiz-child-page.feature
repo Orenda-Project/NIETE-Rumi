@@ -160,6 +160,16 @@ Feature: Web child quiz page on the portal
     When the page is hidden, frozen or closed (the in-app browser is closed, the child switches app or locks the phone)
     Then the recorded clip, the phone's voice, the sound effects and any playing video stop at once
     And when the child comes back nothing starts again until the child taps
+
+  Scenario: The sound button silences every sound, and a missing clip never means silence without words
+    Given a phone that has never changed the sound setting
+    Then the voice and the tap tones are on
+    When the child taps the sound button while a line is playing
+    Then everything stops at once, the button shows sound off, and this phone remembers it
+    And with sound off no answer plays a clip or the phone's voice
+    But when a line has no recorded clip, the page logs "audio_missing" with the question and the part
+    And on a phone with no voice for the quiz language, the question's words are shown big
+    And the not-yet line never ends with a doubled full stop
   # Who is playing, by roll number (app_settings web_quiz_roster_id; off = the name chips above, unchanged)
   Scenario: A teacher with a class list: the child gives a roll number, not a name from a list
     Given the roster switch is on and the teacher keeps a class list with roll numbers
@@ -198,8 +208,13 @@ Feature: Web child quiz page on the portal
 
   Scenario: Never two green "Yes" buttons on one screen
     Given a typed name is near two children of the class
-    Then the page asks about ONE child at a time with "Yes, it's me" and "No"
+    Then the page asks about ONE child at a time with "Yes, it's me" and "No, I'm someone else"
     And "No" on the last one plays as a new child
+
+  Scenario: Two children of the class share a first name
+    Given the class list has two children named "Ayesha", roll numbers 1 and 7
+    When a child types "Ayesha"
+    Then each "Are you Ayesha?" card shows its roll number, one card at a time
 
   Scenario: A child who does not know their roll number types a name, and a near name is found
     Given the roster switch is on and the class list has "Ayesha Testwala"
@@ -219,9 +234,20 @@ Feature: Web child quiz page on the portal
   Scenario: The teacher fixes a child who typed a name instead of a roll number
     Given the teacher opens their own preview link of a quiz with a class list
     When the teacher taps "Who played?"
-    Then children not on the class list come first, each with "Set roll no."
+    Then children not on the class list come first, each with a small "Set roll" link on its one-line row
     When the teacher sets roll number 12 and confirms "Is this Danish?"
     Then the list reloads with Danish at "Roll 12"
+
+  Scenario: The teacher's own link is a page for the teacher
+    Given the teacher opens their own preview link
+    Then the header says "FOR TEACHERS", no mascot greets them like a child, and "Who played?" is the main button
+
+  Scenario: "Who played?" opens with what the teacher needs first
+    Given 12 children of a 30-child class list finished the quiz
+    When the teacher taps "Who played?"
+    Then the top line says "12 of 30 played", the average score, and which question most children missed
+    And a "Not played yet" list shows the other 18 children by first name and roll number only
+    And each child who played is one compact line: name, roll or "Not on your class list", score
 
   Scenario: A practice round's card says so
     Given a child already finished the quiz
@@ -236,6 +262,7 @@ Feature: Web child quiz page on the portal
     And the screen shows exactly the words the voice says
     And a wrong answer whose right option is only a picture says "Not yet. Look, this one is right." with no empty quotes
     And Urdu lines speak to the child only with imperatives or noun phrases, and no not-yet line praises
+    And every Urdu line fits the results bubble beside the big mascot at 360 px without lines touching
 
   Scenario: A quiz gets its own read-aloud clips the first time its page is opened
     Given a quiz with no read-aloud clips, or with clips of an older voice version

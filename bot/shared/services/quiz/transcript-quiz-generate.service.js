@@ -47,6 +47,8 @@ const DailyCap = require('./quiz-daily-cap');
 const AuthorGates = require('./quiz-author-gates');
 const Lp612Source = require('./lp612-quiz-source');
 const GatesV2 = require('./quiz-author-gates-v2');
+const ChildReasons = require('./transcript-quiz-child-reasons');
+const { completeJson } = require('./transcript-quiz-llm');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
 const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taught, subjects_taught';
@@ -1430,6 +1432,35 @@ function textOnlyRepair(orig, repl, fields, { namesOnly = false } = {}) {
   return out;
 }
 
+
+/**
+ * A leak rewrite is shown the lesson (quiz_author_gates_v2). An ANSWER_LEAK
+ * complaint names the two questions and the words that give the answer away,
+ * but no line of the lesson; the rewrite wrote "a different fact" from the
+ * digest and quoted a summary ("Transport means moving people or goods…"),
+ * which the source check then dropped — 5 of 14 of its drops on one 10-source
+ * run. Each such complaint now carries a few of the lesson's own lines no
+ * question quotes yet, as REPLACE_FROM_SOURCE already does. Once per complaint.
+ */
+function withLessonMoments(errors, questions, sourceText) {
+  if (!Array.isArray(errors) || !sourceText) return errors;
+  const leaks = errors.filter((e) => /^q\d+: ANSWER_LEAK\b/.test(String(e)) && !/not used yet:/.test(String(e)));
+  if (!leaks.length) return errors;
+  const SFm = require('./transcript-quiz-source-fidelity');
+  const used = (questions || []).map((q) => q && q.source_quote).filter(Boolean);
+  const moments = SFm.freshMoments(sourceText, used, leaks.length * 3);
+  if (!moments.length) return errors;
+  let k = -1;
+  return errors.map((e) => {
+    if (!leaks.includes(e)) return e;
+    k += 1;
+    const mine = moments.filter((_, j) => j % leaks.length === k);
+    return mine.length
+      ? `${e}; write the new question from a moment of the lesson and copy it word for word as its "source_quote" — these moments are not used yet: ${mine.map((m) => `«${m}»`).join(' / ')}`
+      : e;
+  });
+}
+
 async function runFinalSoftRepair(api, {
   questions, settled, digest, language, quizId, teacherId, lessonSummary, gradeBand, planned, attempts, knownNames = null,
 }) {
@@ -2284,7 +2315,16 @@ async function processQuiz(quizId, payload, flight) {
     GatesV2.setEnabled(authorGates);
     if (authorGates) {
       const base = module.exports;
-      api = { ...base, rewriteRejected: (args) => base.rewriteRejected({ ...args, authorGates: true }) };
+      // A leak rewrite is shown the lesson: the ANSWER_LEAK complaint names two questions
+      // and no lesson text, so its replacement quoted a summary that source fidelity then
+      // dropped (withLessonMoments). Every rewrite call goes through here.
+      const leakSource = isLp ? (slideScript ? LpDigest.lessonExcerpts(slideScript, { authorGates: true }) : '') : ((session && session.transcript_text) || '');
+      api = {
+        ...base,
+        rewriteRejected: (args) => base.rewriteRejected({
+          ...args, errors: withLessonMoments(args.errors, args.questions, leakSource), authorGates: true,
+        }),
+      };
     }
     // quiz_author_gates_v2 adds a 6-12 lesson's own diagram specs (lessonDrewFor).
     const lessonDrew = !isLp ? ''
@@ -2907,6 +2947,48 @@ async function processQuiz(quizId, payload, flight) {
         indices: shippedRepeats.map((e) => Number(/^q(\d+)/.exec(e)[1])),
       });
     }
+    // ── REASONS A CHILD CAN FOLLOW (gates v2, grades 1-5) ────────────────────
+    // On the set that ships: an explanation or feedback line over its grade's
+    // cap gets ONE small call that rewrites only those texts
+    // (transcript-quiz-child-reasons); the stem, options and key never move.
+    // Never costs a question; a failed call ships the reasons as authored.
+    if (authorGates) {
+      // A grade 1-2 stem over eight words is rewritten to fit (never cut); a changed
+      // stem redraws its card. Shipped whole, counted, when it cannot fit.
+      const sf = await ChildReasons.fitStems({
+        questions, gradeBand: digest.grade_band || meta.grade, language, complete: completeJson,
+      });
+      if (sf.record) {
+        if (sf.changed) {
+          try {
+            const rows = toRows(quizId, sf.questions);
+            ({ figureUrls, cardUrls } = await renderFor(api, {
+              questions: sf.questions, rows, language, teacherId: quiz.teacher_id, quizId,
+            }));
+            draftedRows = rows;
+            questions = sf.questions;
+          } catch (err) {
+            sf.record.status = 'render_failed';
+            sf.record.kept_long = sf.record.targets;
+          }
+        }
+        meta.stem_fit = sf.record;
+        meta.cost_usd = (meta.cost_usd || 0) + (sf.record.cost_usd || 0);
+        logEvent('transcript_quiz.stem_fit', { quizId, quiz_source: quizSource, ...sf.record });
+      }
+      const cr = await ChildReasons.shortenReasons({
+        questions, gradeBand: digest.grade_band || meta.grade, language, complete: completeJson,
+      });
+      if (cr.record) {
+        meta.child_reasons = cr.record;
+        meta.cost_usd = (meta.cost_usd || 0) + (cr.record.cost_usd || 0);
+        logEvent('transcript_quiz.child_reasons', { quizId, quiz_source: quizSource, ...cr.record });
+      }
+      if (cr.changed) {
+        questions = cr.questions;
+        if (draftedRows) draftedRows = toRows(quizId, questions);
+      }
+    }
     const drafted = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
     // SCHEMA_v2 — the web arm's items ride BESIDE the rows (media.web), written by one
     // call after the quiz is final; the row's own columns are untouched. Off unless the
@@ -2964,6 +3046,7 @@ async function processQuiz(quizId, payload, flight) {
 }
 
 module.exports = {
+  withLessonMoments,
   salvageWithoutBadFigures,
   failureCopyKey, tellTeacherFailed,
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),

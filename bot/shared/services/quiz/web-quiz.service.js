@@ -30,8 +30,11 @@ const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const WebItems = require('./web-quiz-items');
 const Figure = require('./web-quiz-figure');
+const PictureZoom = require('./web-quiz-picture-zoom');
 const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
+const { pageTopic } = require('./quiz-child-title');
+const { presupposesPicture } = require('./quiz-author-gates-v2');
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
@@ -140,7 +143,10 @@ function hasPicture(q) {
 function playable(q) {
   const web = WebItems.webPayload(q);
   const stem = (web && web.text) || (q && q.question_text) || '';
-  return !pointsAtPicture(stem) || hasPicture(q);
+  // A stem that points at a picture ("look at the picture") or supposes one ("if a diagram
+  // shows…", the authoring gate's own rule) is not played without that picture: quizzes written
+  // before the gate still carry such stems.
+  return !(pointsAtPicture(stem) || presupposesPicture(stem)) || hasPicture(q);
 }
 
 /** The quiz's questions in the order a WhatsApp child gets them, capped like a session; only playable ones. */
@@ -230,7 +236,7 @@ function inDisplayOrder(q, options) {
   }
 }
 
-function questionPayload(row, i, code, audio) {
+function questionPayload(row, i, code, audio, zoom) {
   // A figure's own A-D part names become P-S everywhere the page shows them.
   const q = Figure.withPartLetters(row);
   const options = [];
@@ -238,7 +244,8 @@ function questionPayload(row, i, code, audio) {
     if (text == null || String(text).trim() === '') return;
     const o = { slot: SLOTS[idx], text: String(text) };
     if (optionImageOf(q.media, idx)) {
-      o.img = mediaUrl(code, q.id, SLOTS[idx]);
+      // Near-identical pictures are served cropped to where they differ (web-quiz-picture-zoom).
+      o.img = mediaUrl(code, q.id, SLOTS[idx]) + (zoom ? '&z=1' : '');
       const name = Figure.pictureOptionName(text);
       o.text = name || '';
       if (name) o.name = name;
@@ -331,9 +338,12 @@ async function classChips(ctx) {
 const publicChip = (c) => ({ chip: c.chip, first: c.first, animal: c.animal });
 
 /** A roster child as a public chip: first name and animal, the class label only when it tells two classes apart. */
-function rosterChip(ctx, { kid, label }) {
+function rosterChip(ctx, { kid, label }, one = null) {
   const c = { chip: T.chipId(ctx.shareCodeId, kid.id), first: firstName(Roster.displayName(kid, ctx.lang)), animal: T.animalFor(kid.id) };
   if (label) c.cls = label;
+  // Two children of the class share this first name: the roll number tells the child which card is theirs.
+  const twin = one && one.kids.some((k) => k.id !== kid.id && norm(firstName(Roster.displayName(k, ctx.lang))) === norm(c.first));
+  if (twin && kid.roll_number != null) c.roll = Number(kid.roll_number);
   return c;
 }
 
@@ -376,10 +386,10 @@ async function getQuiz(code, { p } = {}) {
     }
   }
   // A quiz without its read-aloud clips (or with clips of an older voice version) gets them now,
-  // in the background: this child may hear the phone's voice, the next ones hear the clips.
+  // recorded by the worker: the backfill for quizzes authored before clips were made at authoring.
   try {
     const Publish = require('./web-quiz-publish.service');
-    Publish.ensureQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
+    Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
@@ -398,13 +408,15 @@ async function getQuiz(code, { p } = {}) {
     const cls = await require('./video-quiz-report.service').loadClassRows(ctx.moreVideosOf || ctx.shareCodeId);
     label = (cls && cls.className) || null;
   } catch { label = null; }
+  const zooms = await Promise.all(questions.map((q) => PictureZoom.zoomFor(q).catch(() => null)));
   const out = {
     quiz: {
-      id: ctx.quizId, code: ctx.code, topic: ctx.parent.topic || (quizRow && quizRow.topic) || '',
+      id: ctx.quizId, code: ctx.code,
+      topic: pageTopic({ lang: ctx.lang, meta: quizRow && quizRow.meta, fallback: ctx.parent.topic || (quizRow && quizRow.topic) }),
       lang: ctx.lang, dir: ctx.lang === 'ur' ? 'rtl' : 'ltr',
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
-      questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio)),
+      questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),
     },
     cls: { label, teacher: teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip), ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}) },
     live: await liveCounts(ctx),
@@ -483,7 +495,48 @@ async function whoPlayed(body = {}) {
     .filter((s) => s.student_id);
   const rows = counted.map((s) => whoRow(s, roster, ctx.lang))
     .sort((a, b) => (a.on_list - b.on_list) || ((a.roll || 0) - (b.roll || 0)) || a.first.localeCompare(b.first));
-  return { roster: Boolean(roster), rows };
+  // The class this quiz is for (its list, else its grade's): who of it has not played yet.
+  const { one } = await oneClass(ctx, null);
+  const done = new Set(counted.map((s) => s.student_id));
+  const notPlayed = one && one.lists.length
+    ? one.kids.filter((k) => !done.has(k.id))
+      .map((k) => ({ first: firstName(Roster.displayName(k, ctx.lang)), roll: k.roll_number != null ? Number(k.roll_number) : null }))
+      .sort((a, b) => ((a.roll || 0) - (b.roll || 0)) || a.first.localeCompare(b.first))
+    : null;
+  const total = (await loadQuestions(ctx.quizId)).length || Math.max(0, ...rows.map((r) => r.total));
+  const avg = rows.length ? Math.round((rows.reduce((n, r) => n + r.correct, 0) / rows.length) * 10) / 10 : null;
+  return {
+    roster: Boolean(roster),
+    summary: {
+      played: rows.length,
+      on_list: rows.filter((r) => r.on_list).length,
+      of: one && one.lists.length ? one.kids.length : null,
+      avg, total,
+      hardest: await hardestQuestion(ctx.quizId, counted.map((s) => s.id)),
+    },
+    not_played: notPlayed,
+    rows,
+  };
+}
+
+/**
+ * The question most counted children missed: { n (its place in the quiz, 1-based), missed }.
+ * Null with fewer than two finishers or when nobody missed anything (nothing to point at).
+ */
+async function hardestQuestion(quizId, sessionIds) {
+  if (sessionIds.length < 2) return null;
+  try {
+    const [questions, { data }] = await Promise.all([
+      loadQuestions(quizId),
+      supabase.from('quiz_answers').select('session_id, question_id, is_correct').in('session_id', sessionIds),
+    ]);
+    let best = null;
+    questions.forEach((q, i) => {
+      const missed = (data || []).filter((a) => a.question_id === q.id && a.is_correct === false).length;
+      if (missed && (!best || missed > best.missed)) best = { n: i + 1, missed };
+    });
+    return best;
+  } catch { return null; }
 }
 
 /**
@@ -693,7 +746,7 @@ async function startSession(body = {}) {
         // With a class list, a typo still finds the child ("Aysha" -> Ayesha) — but only in this
         // quiz's class: a name that class does not have is a new child, never another class's child.
         if (ask) fail(409, 'which_class', { classes: ask });
-        candidates = Roster.byName(one, firstName(name), quizGrade).map((f) => rosterChip(ctx, f));
+        candidates = Roster.byName(one, firstName(name), quizGrade).map((f) => rosterChip(ctx, f, one));
       } else {
         const chips = await classChips(ctx);
         candidates = chips.filter((c) => norm(c.first) === mine).map(publicChip);
@@ -1059,7 +1112,7 @@ function events(body = {}) {
  * Where a question's picture lives: a redirect to a presigned R2 URL, or —
  * for the option pictures the generator stored inline as base64 — the bytes.
  */
-async function media(code, qid, { k } = {}) {
+async function media(code, qid, { k, z } = {}) {
   requireOn();
   const ctx = await resolveCode(code);
   if (qid === 'video') {
@@ -1074,6 +1127,12 @@ async function media(code, qid, { k } = {}) {
   const key = String(k || 'q').toUpperCase();
   const item = key === 'Q' ? questionImageOf(q.media) : SLOTS.includes(key) ? optionImageOf(q.media, SLOTS.indexOf(key)) : null;
   if (!item) fail(404, 'not_found');
+  // ?z=1: the option cropped to where the set's pictures differ (questionPayload adds it).
+  if (String(z || '') === '1' && key !== 'Q' && item.b64) {
+    const box = await PictureZoom.zoomFor(q).catch(() => null);
+    const png = box ? await PictureZoom.crop(item.b64, box) : null;
+    if (png) return { bytes: png, contentType: 'image/png' };
+  }
   const url = typeof item === 'string' ? item : item.url || item.r2_url || null;
   if (url) {
     const r2 = require('../../storage/r2');

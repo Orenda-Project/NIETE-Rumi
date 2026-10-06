@@ -150,7 +150,7 @@ test('never two green Yes buttons: several candidates are asked about ONE at a t
   expect((p.last().h.match(/wq-go/g) || []).length).toBe(1);
   expect(p.last().h).toContain('Are you Ali?');
   expect(p.last().h).not.toContain('Aly');
-  expect(p.last().h).toContain('>No<');
+  expect(p.last().h).toContain(">No, I'm someone else<");
   p.byId['#wq-diff']();
   expect(p.last().h).toContain('Are you Aly?');
   expect((p.last().h.match(/wq-go/g) || []).length).toBe(1);
@@ -244,4 +244,23 @@ test("the pad's Go key reads at AA contrast: the same text colour as the page's 
   const goColor = (rule('.wq-go').match(/(?:^|;)color:([^;]+)/) || [])[1];
   expect(goColor).toBeTruthy();
   expect((rule('.wq-key-go').match(/(?:^|;)color:([^;]+)/) || [])[1]).toBe(goColor);
+});
+
+test('two children of the class share a name: the card shows the roll number under the name', async () => {
+  const p = page({ replies: [{ status: 409, ok: false, body: { error: 'maybe_you', candidates: [
+    { chip: 'a', first: 'Ayesha', animal: 'owl', roll: 1 }, { chip: 'b', first: 'Ayesha', animal: 'cat', roll: 7 }] } }] });
+  p.ctx.who();
+  p.ctx.startSession({ new: { name: 'Ayesha', cls: '3', force: false } }, null, 'Ayesha');
+  await flush();
+  expect(p.last().h).toContain('Roll 1');
+  p.byId['#wq-diff']();
+  expect(p.last().h).toContain('Roll 7');
+});
+
+test('Urdu: the refusal says where it leads, in a neutral form', async () => {
+  const p = page({ lang: 'ur', replies: [{ status: 409, ok: false, body: { error: 'maybe_you', candidates: [{ chip: 'a', first: 'x', animal: 'owl' }] } }] });
+  p.ctx.who();
+  p.ctx.startSession({ new: { name: 'x', cls: '3', force: false } }, null, 'x');
+  await flush();
+  expect(p.last().h).toContain('نہیں، میں کوئی اور ہوں');
 });

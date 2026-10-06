@@ -136,6 +136,26 @@ describe('web quiz edge: forwarding /api/wq/* -> bot /api/internal/wq/*', () => 
     expect(calls[0].opts.redirect).toBe('manual');
   });
 
+  it('passes a picture the bot answers as bytes through as that picture, not JSON', async () => {
+    // A cropped picture option (&z=1) and an option picture stored inline come back from the bot as image bytes.
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 250]);
+    next = {
+      status: 200, ok: true,
+      headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'image/png' : null) },
+      text: async () => png.toString('latin1'),
+      arrayBuffer: async () => png.buffer.slice(png.byteOffset, png.byteOffset + png.length),
+    };
+    const res = await new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port: srv.address().port, path: '/api/wq/media/AB12CD/x1?k=A&z=1' }, (r) => {
+        const chunks = []; r.on('data', (c) => chunks.push(c)); r.on('end', () => resolve({ status: r.statusCode, headers: r.headers, body: Buffer.concat(chunks) }));
+      }).on('error', reject);
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/^image\/png/);
+    expect(Buffer.compare(res.body, png)).toBe(0);
+    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/media/AB12CD/x1?k=A&z=1`);
+  });
+
   it('refuses a body over the cap without calling the bot', async () => {
     const big = { events: [{ n: 'x', pad: 'a'.repeat(40000) }] };
     const res = await req(srv, 'POST', '/api/wq/e', big);

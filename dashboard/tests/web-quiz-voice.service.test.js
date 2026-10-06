@@ -37,6 +37,9 @@ function harness() {
   }
   const ctx = {
     LANG: 'en',
+    SOUND: true,
+    ROOT: { classList: { add() {}, remove() {} } },
+    speakable: (t) => /[A-Za-z0-9\u0600-\u06FF]/.test(String(t || '')),
     ev: (name, data) => events.push({ name, data }),
     document: { createElement: () => ({ canPlayType: () => 'probably' }) },
     Audio: FakeAudio,

@@ -53,6 +53,7 @@ const { logError } = require('../../utils/logger');
 const PREFIX = 'web-quiz/audio';
 const PARTS_OPTS = ['a', 'b', 'c', 'd'];
 const DEFAULT_MAX_CLIPS = 120;
+const CLIP_WORKERS = 4;
 // Bumped when the clips of every quiz change (2: the why is the reason, wrong-option feedback
 // recorded; 3: stored small), so already-published quizzes are brought up to date on their next open.
 const AUDIO_VERSION = 3;
@@ -210,43 +211,56 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     if (qsErr) throw qsErr;
 
     const language = quiz.language || undefined;
-    const audio = {};
+    // Every clip of the quiz is one task; CLIP_WORKERS run at once (the vendor caps a process's calls
+    // itself), so a 5-question quiz is recorded in a fraction of the one-after-another time.
+    const entries = new Map();
+    const tasks = [];
     for (const q of questions || []) {
-      const entry = { q: null, opts: [null, null, null, null], why: null, fbs: [null, null, null, null] };
-      for (const { part, text } of partsFor(q)) {
-        const key = audioKey(quizId, q.id, part, text, language);
-        let have = await exists(key);
-        if (have) {
-          stats.skipped += 1;
-        } else if (stats.synthesized + stats.failed >= maxClips) {
-          stats.capped = true;
-        } else {
-          try {
-            const res = await tts.synthesize({ text, language, useCase: 'reading', site: 'web_quiz_read_aloud' });
-            const clip = await compactClip(res.audio);
-            await r2.uploadBuffer(clip, key, 'audio/ogg');
-            stats.synthesized += 1;
-            stats.chars += text.length;
-            stats.bytes += clip.length;
-            stats.audioSec += res.durationSec || 0;
-            stats.providers[res.provider] = (stats.providers[res.provider] || 0) + 1;
-            costUsd += clipCostUsd(res, text);
-            have = true;
-          } catch (error) {
-            stats.failed += 1;
-            logError('web_quiz.publish_audio.clip_failed', {
-              event: 'web_quiz.publish_audio.clip_failed', quizId, questionId: q.id, part,
-              error: String(error.message || error).slice(0, 200),
-            });
-          }
+      entries.set(q.id, { q: null, opts: [null, null, null, null], why: null, fbs: [null, null, null, null] });
+      for (const { part, text } of partsFor(q)) tasks.push({ q, part, text, key: audioKey(quizId, q.id, part, text, language) });
+    }
+    let started = 0;
+    const record = async ({ q, part, text, key }) => {
+      let have = await exists(key);
+      if (have) {
+        stats.skipped += 1;
+      } else if (started >= maxClips) {
+        stats.capped = true;
+      } else {
+        started += 1;
+        try {
+          const res = await tts.synthesize({ text, language, useCase: 'reading', site: 'web_quiz_read_aloud' });
+          const clip = await compactClip(res.audio);
+          await r2.uploadBuffer(clip, key, 'audio/ogg');
+          stats.synthesized += 1;
+          stats.chars += text.length;
+          stats.bytes += clip.length;
+          stats.audioSec += res.durationSec || 0;
+          stats.providers[res.provider] = (stats.providers[res.provider] || 0) + 1;
+          costUsd += clipCostUsd(res, text);
+          have = true;
+        } catch (error) {
+          stats.failed += 1;
+          logError('web_quiz.publish_audio.clip_failed', {
+            event: 'web_quiz.publish_audio.clip_failed', quizId, questionId: q.id, part,
+            error: String(error.message || error).slice(0, 200),
+          });
         }
-        if (!have) continue;
-        if (part === 'q') entry.q = key;
-        else if (part === 'why') entry.why = key;
-        else if (PARTS_FB.includes(part)) entry.fbs[PARTS_FB.indexOf(part)] = key;
-        else entry.opts[PARTS_OPTS.indexOf(part)] = key;
       }
-      if (entry.q || entry.why || entry.opts.some(Boolean) || entry.fbs.some(Boolean)) audio[q.id] = entry;
+      if (!have) return;
+      const entry = entries.get(q.id);
+      if (part === 'q') entry.q = key;
+      else if (part === 'why') entry.why = key;
+      else if (PARTS_FB.includes(part)) entry.fbs[PARTS_FB.indexOf(part)] = key;
+      else entry.opts[PARTS_OPTS.indexOf(part)] = key;
+    };
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(CLIP_WORKERS, tasks.length) }, async () => {
+      while (next < tasks.length) await record(tasks[next++]);
+    }));
+    const audio = {};
+    for (const [qid, entry] of entries) {
+      if (entry.q || entry.why || entry.opts.some(Boolean) || entry.fbs.some(Boolean)) audio[qid] = entry;
     }
 
     // Merge into the freshest meta, so a concurrent write to another key survives.
@@ -301,4 +315,61 @@ function ensureQuizAudio(quizId, { meta, db, publish = module.exports.publishQui
   return run;
 }
 
-module.exports = { publishQuizAudio, ensureQuizAudio, audioKey, partsFor, spoken, whyText, withoutPraise, AUDIO_VERSION };
+// ─── record on the worker ────────────────────────────────────────────────────
+
+const JOB = 'quiz_web_audio';
+const requested = new Map(); // quizId -> ms: one request per quiz per process every REQUEST_AGAIN_MS
+const REQUEST_AGAIN_MS = 10 * 60 * 1000;
+
+/**
+ * Ask the worker to record a quiz's clips (job quiz_web_audio on the quiz queue): called when a
+ * teacher is handed the quiz's web link, and when its page is opened. A quiz already at
+ * AUDIO_VERSION is not queued. If the queue cannot take the job, the clips are made here instead
+ * (ensureQuizAudio), so a child is never left without them. Never throws.
+ */
+async function requestQuizAudio(quizId, { meta, queue, publish, db } = {}) {
+  const web = (meta && meta.web) || {};
+  if (!quizId || Number(web.audio_v) >= AUDIO_VERSION) return { skipped: 'current' };
+  const at = requested.get(quizId);
+  if (at && Date.now() - at < REQUEST_AGAIN_MS) return { skipped: 'requested' };
+  requested.set(quizId, Date.now());
+  try {
+    const q = queue || require('../queue');
+    await q.queueJob(quizId, JOB, { quizId }, { deduplicationId: `${quizId}-${JOB}-v${AUDIO_VERSION}` });
+    return { queued: true };
+  } catch (error) {
+    logError('web_quiz.publish_audio.queue_failed', { event: 'web_quiz.publish_audio.queue_failed', quizId, error: String(error.message || error).slice(0, 200) });
+    return ensureQuizAudio(quizId, { meta, db, ...(publish ? { publish } : {}) });
+  }
+}
+
+// A job whose clips failed (the vendor rate-limits, or every voice in the chain failed) comes
+// back later with a growing wait; after the last try the quiz stays unstamped, so its page keeps
+// asking for it (and shows the words big where there is no voice).
+const RETRY_DELAYS_S = [120, 240, 480, 900];
+
+/** The worker's job: record the quiz's clips unless they are already current. */
+async function runQuizAudioJob(payload, { db, publish = module.exports.publishQuizAudio, queue } = {}) {
+  const quizId = payload && payload.quizId;
+  if (!quizId) return { ok: false, reason: 'no_quiz' };
+  const attempt = Number(payload.attempt) || 0;
+  const client = db || require('../../config/supabase');
+  const { data } = await client.from('quizzes').select('meta').eq('id', quizId).maybeSingle();
+  const web = (data && data.meta && data.meta.web) || {};
+  if (Number(web.audio_v) >= AUDIO_VERSION) return { skipped: 'current' };
+  const out = (await publish(quizId, { db: client })) || {};
+  if (out.ok && !out.failed) return out;
+  if (attempt >= RETRY_DELAYS_S.length) {
+    logError('web_quiz.publish_audio.gave_up', { event: 'web_quiz.publish_audio.gave_up', quizId, attempt, failed: out.failed, reason: out.reason });
+    return out;
+  }
+  const q = queue || require('../queue');
+  await q.queueJob(quizId, JOB, { quizId, attempt: attempt + 1 }, {
+    delaySeconds: RETRY_DELAYS_S[attempt], deduplicationId: `${quizId}-${JOB}-retry-${attempt + 1}-${Date.now()}`,
+  });
+  return { ...out, retry: attempt + 1 };
+}
+
+module.exports = {
+  publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, partsFor, spoken, whyText, withoutPraise, AUDIO_VERSION,
+};

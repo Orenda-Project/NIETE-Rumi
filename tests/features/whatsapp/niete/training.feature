@@ -1413,6 +1413,15 @@ Feature: NIETE (ICT) Teacher Training
     And the button that makes a picture bigger is a small icon at the side of the picture, never covering it
     # web-quiz-figure forPage (fraction_bar barHeight); wq.js figureHtml zoom icon, wq.css .wq-pgrid odd tile. Unit: web-quiz-pictures.test.js, dashboard/tests/web-quiz-page-pictures.service.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T228 @no-mock-driver
+  Scenario: Picture options that look almost the same are shown close up on my web quiz
+    Given my video quiz asks "Which picture goes with this one?" with three pictures of the same grey bin
+    And the bins differ only in what is piled on top: glass, food scraps, plastic bags
+    When a child plays it on a phone 360 pixels wide
+    Then each picture option shows only the part where the pictures differ, filling its tile
+    And pictures that differ as wholes, and a question about size or how many, are shown whole
+    # web-quiz-picture-zoom differenceBox/zoomFor/crop; web-quiz.service questionPayload (&z=1) + media(z); wq.js picHtml img.wq-z. Unit: bot/tests/quiz/web-quiz/web-quiz-picture-zoom.test.js, dashboard/tests/web-quiz-page-pictures.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T200 @no-mock-driver
   Scenario: A child on the web quiz never sees a question picture that contradicts or ignores the answer
     Given a quiz question whose picture was reviewed against its question and answer and judged to contradict it or to show nothing the question asks about
@@ -1496,6 +1505,18 @@ Feature: NIETE (ICT) Teacher Training
     When the read-aloud clips are published
     Then each clip is stored as mono Opus at 24 kbps (about 10 KB for a 3.5-second line), with the same words heard
     And a quiz recorded in the older format gets the small clips on its next open
+
+  @api @quiz @web @wip @draft @P1 @T173 @no-mock-driver
+  Scenario: A web quiz's clips are recorded by the worker when the teacher is handed the web link
+    Given the web quiz is on for a teacher
+    When the teacher is handed a quiz's web link (after a lesson, or "send to my class" for a video quiz)
+    Then a quiz_web_audio job is put on the quiz queue for that quiz, once per voice version
+    And the worker records the quiz's clips several at a time and skips a quiz already recorded
+    And opening the page asks for the same job (the backfill for older quizzes), never recording in the page's own process
+    But if the queue cannot take the job, the clips are recorded where it was asked
+    And at most 2 clip jobs run at once on a worker replica, so a teacher's quiz generation always has quiz slots free
+    And a job whose clips failed is tried again after 2, 4, 8 and 15 minutes, and the quiz is never marked recorded while clips are missing
+    # ADDED 2026-10-06: web-quiz-publish requestQuizAudio/runQuizAudioJob, CLIP_WORKERS 4; web-quiz-link quizLink({quizId}); sqs-worker case quiz_web_audio. @wip.
     # ADDED 2026-10-06: web-quiz-publish compactClip (bundled ffmpeg; original kept if it fails), CLIP_FORMAT in the key, AUDIO_VERSION 3. @wip.
 
   @e2e @quiz @wip @draft @config-gated @P1 @T100
@@ -1768,7 +1789,8 @@ Feature: NIETE (ICT) Teacher Training
     Then no "5-A" child is offered: the roll number is unknown and the typed name is a new child
     When I send a grade 2 quiz (no list matches the grade)
     Then the child first taps their class, or "My class is not here", and only that class is searched
-    And "Is this you?" asks about one child at a time with "Yes, it's me" and "No", never two "Yes" buttons
+    And "Is this you?" asks about one child at a time with "Yes, it's me" and "No, I'm someone else", never two "Yes" buttons
+    And when two children of the class share a first name, each card shows that child's roll number
     # ADDED 2026-10-06: web-quiz-roster.js pickList / onlyList; web-quiz.service oneClass (quizzes.list_id, grade), which_class 409, body.list; wq.js whichClass + one-at-a-time isThisYou. Unit: tests/quiz/web-quiz/web-quiz-roster.test.js, dashboard/tests/web-quiz-roll.service.test.js. @wip.
 
   @api @quiz @web @wip @draft @P1 @T210 @no-mock-driver
@@ -1781,6 +1803,15 @@ Feature: NIETE (ICT) Teacher Training
     And if Danish had already finished, my report keeps Danish's first finish
     But nobody without my preview link can see or change the list
     # ADDED 2026-10-05: web-quiz.service whoPlayed / fixWho (E11, signed p token), routes /api/internal/wq/who + /who/fix. Unit: tests/quiz/web-quiz/web-quiz-who-played.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T213 @no-mock-driver
+  Scenario: My "Who played?" tells me first how my class did and who has not played
+    Given app_settings "web_quiz_roster_id" is true and the quiz is for my class list of 30
+    When 12 children have finished and I open "Who played?" on my preview link
+    Then I see "12 of 30 played", the class average, and the question most children missed
+    And I see who on my list has not played yet, by first name and roll number only
+    And my preview link's pages say "FOR TEACHERS" and do not greet me like a child
+    # ADDED 2026-10-06: web-quiz.service whoPlayed summary / not_played / hardestQuestion; wq.js teacherLanding + whoPlayed; web-quiz-brand subTeacher. Unit: tests/quiz/web-quiz/web-quiz-who-played.test.js, dashboard/tests/web-quiz-who-played-page.service.test.js, dashboard/tests/web-quiz-teacher-landing.service.test.js. @wip.
 
   @api @quiz @web @wip @draft @P2 @T211 @no-mock-driver
   Scenario: A child's practice round never shows a score the class league does not keep
@@ -1835,12 +1866,13 @@ Feature: NIETE (ICT) Teacher Training
     Then the later question is rewritten to ask about a different fact of my lesson, and the request names both questions
     And a number or a fraction counts when it is stated with the later question's own numbers ("19 - 7 = 12" before "Subtract 7 from 19")
     And the same question asked twice with the answer in other words counts too
-    And once every step has written its questions, a give-away still left gets one more rewrite, else the later question is left out while the quiz keeps at least six
+    And once every step has written its questions, a give-away that is an aside in the earlier question's explanation or feedback is taken out, keeping both questions
+    And a give-away still left gets one more rewrite, else the later question is left out while the quiz keeps at least six
     And at six questions it is still sent, with the give-away counted; the quiz is never refused for it
     And a wrong option, a word for a kind of thing named in passing ("a structural adaptation"), or a line that lists every option is not treated as a give-away
     And with the setting absent or false, the quiz is made exactly as before
     # transcript-quiz-answer-leaks answerLeakErrors (ANSWER_LEAK), wired in transcript-quiz-validator validate();
-    # generate LEAK_FAULT (soft, re-asked in place) and finalLeakRepair after the last repair (meta.answer_leaks);
+    # generate LEAK_FAULT (soft, re-asked in place) and finalLeakRepair (trimLeakAsides first) after the last repair (meta.answer_leaks);
     # LEAK_REPAIR in transcript-quiz-rewrite.
     # Unit: tests/quiz/quiz-author-gates-answer-leak.test.js, tests/quiz/quiz-author-gates-cross-item-leaks.test.js. @wip.
 
@@ -1900,3 +1932,53 @@ Feature: NIETE (ICT) Teacher Training
     And with the setting absent or false, the quiz is made exactly as before
     # transcript-quiz-generate salvageWithoutBadFigures (isSoft skip, v2); transcript-quiz-named-pronouns lookback in
     # transcript-quiz-pedagogy. Unit: tests/quiz/quiz-author-gates-fail-soft.test.js, quiz-author-gates-named-pronouns.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P2 @T242 @no-mock-driver
+  Scenario: With the author gates on, a question never points at a picture my class cannot see
+    Given app_settings "quiz_author_gates_v2" is true
+    And a question supposes or describes a picture ("If a diagram shows…", "The image shows…", "according to the chart", "the shaded part") but carries none
+    When my class quiz is made from my lesson
+    Then that question is asked again without the picture, or left out while the quiz keeps at least six questions
+    And a question that only uses a picture word ("What can a map show?") is left alone
+    And with the setting absent or false, the quiz is made exactly as before
+    # quiz-author-gates-v2 presupposesPicture (PICTURE_MISSING), wired in transcript-quiz-validator validate().
+    # Unit: tests/quiz/quiz-author-gates-picture-phrasings.test.js. @wip.
+  @api @quiz @wip @draft @config-gated @P2 @T243 @no-mock-driver
+  Scenario: With the author gates on, my Urdu quiz page shows its title in Urdu
+    Given app_settings "quiz_author_gates_v2" is true
+    And I ask for my class quiz in Urdu from a lesson plan
+    When a child opens the quiz link
+    Then the first screen shows the lesson title in Urdu script, not the English or Roman catalog name
+    And a quiz made before this, an English quiz, and my own messages keep the title they had
+    # lp-quiz-digest title_ur (quiz-child-title cleanUrduTitle); web-quiz.service getQuiz pageTopic.
+    # Unit: bot/tests/quiz/web-quiz/web-quiz-urdu-title.test.js, tests/quiz/lp-quiz-digest.test.js. @wip.
+  @api @quiz @wip @draft @config-gated @P2 @T241 @no-mock-driver
+  Scenario: With the author gates on, a young child hears reasons short enough to follow
+    Given app_settings "quiz_author_gates_v2" is true
+    And my class is in grade 1 to 5
+    When my class quiz is made from my lesson
+    Then each explanation and wrong-answer reason my class hears is short: one sentence of at most 12 words in grades 1-2, at most two sentences and 18 words in grades 3-5
+    And the questions, the options and the right answers are exactly as they were written
+    And if a reason cannot be made shorter the quiz is still sent, with the long reason counted
+    And with the setting absent or false, or in grade 6 and above, the reasons are as before
+    # transcript-quiz-child-reasons shortenReasons, called in transcript-quiz-generate before the rows are stored.
+    # Unit: tests/quiz/quiz-author-gates-child-reasons.test.js. @wip.
+  @api @quiz @wip @draft @config-gated @P2 @T244 @no-mock-driver
+  Scenario: With the author gates on, a question re-asked because another gave its answer away is built on a line of my lesson
+    Given app_settings "quiz_author_gates_v2" is true
+    And one question of my quiz gives away the answer of a later one
+    When the later question is written again
+    Then it is shown lines of my lesson that no question uses yet, and quotes one of them
+    So the source check keeps it instead of dropping it, and my class keeps more of its questions
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-generate withLessonMoments, applied to every rewrite call with the gates on.
+    # Unit: tests/quiz/quiz-author-gates-leak-moments.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T245 @no-mock-driver
+  Scenario: An old question that supposes a missing picture is left out of my web quiz
+    Given my quiz was made before the picture rule and has "If a diagram shows four concentric circles…, which circle is the mantle?" with no diagram
+    When a child plays it on the web page
+    Then that question is not asked, and the rest of the quiz plays
+    And the same question with its picture, or a question that names no picture, is asked as before
+    And the WhatsApp quiz is unchanged
+    # web-quiz.service playable() uses quiz-author-gates-v2 presupposesPicture. Unit: bot/tests/quiz/web-quiz/web-quiz-picture-supposed.test.js. @wip.

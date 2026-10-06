@@ -43,6 +43,9 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/e', limiter: 'events' },
 ];
 
+// The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
+const BOOT_COPY = { en: 'Opening the quiz…', ur: 'کوئز کھل رہا ہے…' };
+
 const CLOSED_COPY = {
   en: { title: 'This quiz has closed', say: 'Ask your teacher for a new link.', off: 'The quiz is not open right now', offSay: 'Please try again in a little while.' },
   ur: { title: 'یہ کوئز بند ہو چکا ہے', say: 'اپنے استاد سے نیا لنک لیں۔', off: 'کوئز ابھی کھلا نہیں ہے', offSay: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔' },
@@ -139,7 +142,7 @@ function renderQuizPage({ payload, code, view, origin, assetV, url }) {
   return `${head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand })}
 </head>
 <body>
-<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"></div></main>
+<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
@@ -193,6 +196,12 @@ function createWebQuizRouter(opts = {}) {
         init.body = JSON.stringify(body || {});
       }
       const res = await fetchImpl(`${botUrl}${pathname}`, init);
+      // A picture the bot answers as bytes (a cropped option, an inline option picture) is passed
+      // through as that picture: parsing it as JSON turned every one into "{}" (a blank tile).
+      const type = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
+      if (res.status >= 200 && res.status < 300 && /^image\//i.test(type) && res.arrayBuffer) {
+        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location: null };
+      }
       const text = await res.text();
       let json = null;
       try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
@@ -243,6 +252,7 @@ function createWebQuizRouter(opts = {}) {
         const out = await callBot(r.method.toUpperCase(), pathname, req, req.body);
         if (out.status >= 300 && out.status < 400 && out.location) return res.redirect(out.status, out.location);
         if (out.status === 204) return res.status(204).end();
+        if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
         return res.status(out.status).json(out.body == null ? {} : out.body);
       } catch (err) {

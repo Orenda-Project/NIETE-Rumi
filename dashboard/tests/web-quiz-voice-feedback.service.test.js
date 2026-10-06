@@ -30,7 +30,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'en' } = {}) {
+function page({ lang = 'en', store = {}, noVoice = false } = {}) {
   const voiced = []; // in order: { url } for a clip, { text } for the phone's voice
   const clips = [];
   const utterances = [];
@@ -47,6 +47,8 @@ function page({ lang = 'en' } = {}) {
   const winListeners = {};
   const els = {};
   const root = fakeEl('#wq');
+  const rootClasses = new Set();
+  root.classList = { add: (c) => rootClasses.add(c), remove: (c) => rootClasses.delete(c), toggle() {}, contains: (c) => rootClasses.has(c) };
   root.querySelector = (sel) => { if (!els[sel]) els[sel] = fakeEl(sel); return els[sel]; };
   root.querySelectorAll = () => [];
   const boot = {
@@ -69,7 +71,7 @@ function page({ lang = 'en' } = {}) {
     },
     location: { search: '', origin: 'https://example.test' },
     navigator: { userAgent: 'test' },
-    localStorage: { setItem() {}, getItem() { return null; }, removeItem() {} },
+    localStorage: { setItem: (k, v) => { store[k] = String(v); }, getItem: (k) => (k in store ? store[k] : null), removeItem: (k) => { delete store[k]; } },
     fetch: () => Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve('{}') }),
     Audio: FakeAudio,
     AudioContext: function AudioContext() { return actx; },
@@ -79,9 +81,10 @@ function page({ lang = 'en' } = {}) {
     scrollTo() {}, Image: function Image() {},
     addEventListener: (n, fn) => { (winListeners[n] = winListeners[n] || []).push(fn); },
   };
+  if (noVoice) { delete ctx.speechSynthesis; delete ctx.SpeechSynthesisUtterance; }
   ctx.window = ctx;
   vm.createContext(ctx);
-  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { feedback: feedback, speak: speak, speakSeq: speakSeq, sfx: sfx, results: results, VOICE: typeof VOICE === \'undefined\' ? null : VOICE, T: T };\n})();'), ctx);
+  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { feedback: feedback, speak: speak, speakSeq: speakSeq, sfx: sfx, results: results, VOICE: typeof VOICE === \'undefined\' ? null : VOICE, T: T, wireBar: wireBar, evq: evq };\n})();'), ctx);
   // Moving the voice on: the current clip or phone-voice line ends by itself.
   const advance = () => {
     const last = voiced[voiced.length - 1];
@@ -89,7 +92,7 @@ function page({ lang = 'en' } = {}) {
     else if (last && last.text != null) { const u = utterances[utterances.length - 1]; if (u.onend) u.onend(); }
   };
   const fire = (target, n) => ((target === 'doc' ? docListeners : winListeners)[n] || []).forEach((fn) => fn({}));
-  return { ctx, wq: ctx.__wq, voiced, clips, media, actx, advance, fire, cancels: () => cancels, els };
+  return { ctx, wq: ctx.__wq, voiced, clips, media, actx, advance, fire, cancels: () => cancels, els, rootClasses, store };
 }
 const flush = () => new Promise((r) => setImmediate(r));
 
@@ -206,6 +209,12 @@ describe('the feedback voice library', () => {
     }
   });
 
+  test('no Urdu line that cannot fit the results bubble at 360 px (measured by the Urdu lane)', () => {
+    expect(((MANIFEST.ur || {}).done || [])).not.toContain('کوئز ختم! آئیں ستارے دیکھیں۔');
+    const p = page({ lang: 'ur' });
+    expect(JSON.parse(JSON.stringify(p.wq.VOICE.ur.done))).not.toContain('کوئز ختم! آئیں ستارے دیکھیں۔');
+  });
+
   test('Urdu lines address the child without gendered verb stems, and no not-yet line praises', () => {
     const ur = MANIFEST.ur || {};
     Object.values(ur).flat().forEach((t) => expect(t).not.toMatch(/سکتے|سکتی|گئیں|آپ نے|کرتے ہو|کرتی ہو/));
@@ -271,4 +280,47 @@ describe.each(['en', 'ur'])('small copy fixes (%s)', (lang) => {
     expect(p.wq.T.hello).not.toMatch(/read it together|مل کر پڑھیں/);
     if (lang === 'en') { expect(p.wq.T.meta(1)).toBe('1 questions · about 1 minute'.replace('1 questions', '1 question')); expect(p.wq.T.meta(5)).toMatch(/about 3 minutes$/); }
   });
+});
+
+/* ---------------- the sound button, a missing clip, and the not-yet line's punctuation ---------------- */
+describe('the sound button silences everything, and is remembered on the phone', () => {
+  test('with sound turned off on this phone, an answer plays nothing (no clip, no phone voice)', () => {
+    const p = page({ lang: 'ur', store: { wq_sound: 'false' } });
+    p.wq.feedback(plantQ('ur'), 0, 'A', false, false);
+    expect(p.voiced).toEqual([]);
+  });
+  test('sound is on by default on a new phone', () => {
+    const p = page({ lang: 'en' });
+    p.wq.feedback(plantQ('en'), 0, 'B', true, false);
+    expect(p.voiced.length).toBeGreaterThan(0);
+  });
+  test('tapping the button mid-clip stops the clip at once and remembers "off"', () => {
+    const p = page({ lang: 'en' });
+    p.wq.speak('Which part of a plant takes in water?', 'https://r2.example/q.ogg', null);
+    const clip = p.clips[p.clips.length - 1];
+    if (!(p.els['#wq-snd'] && (p.els['#wq-snd'].listeners.click || []).length)) p.wq.wireBar();
+    const tap = p.els['#wq-snd'].listeners.click;
+    tap[tap.length - 1].call(p.els['#wq-snd'], {});
+    expect(clip.paused).toBe(true);
+    expect(p.store.wq_sound).toBe('false');
+  });
+});
+
+describe('a part with no recorded clip', () => {
+  test('is logged once as audio_missing with the question and the part', () => {
+    const p = page({ lang: 'ur' });
+    p.wq.speakSeq([{ text: 'سوال', url: null }, { text: 'پتا', url: 'https://r2.example/a.ogg' }], null, 'q9');
+    const miss = JSON.parse(JSON.stringify(p.wq.evq)).filter((e) => e.n === 'audio_missing');
+    expect(miss).toEqual([expect.objectContaining({ qid: 'q9', part: 0 })]);
+  });
+  test('on a phone with no voice at all, the words are shown big instead', () => {
+    const p = page({ lang: 'ur', noVoice: true });
+    p.wq.speakSeq([{ text: 'سوال', url: null }], null, 'q9');
+    expect(p.rootClasses.has('wq-novoice')).toBe(true);
+  });
+});
+
+test('the not-yet line never doubles the full stop when the answer ends with one', () => {
+  const p = page({ lang: 'en' });
+  expect(p.wq.T.notyet('Not yet. The answer is', 'Our friends play together.')).toBe('Not yet. The answer is "Our friends play together".');
 });

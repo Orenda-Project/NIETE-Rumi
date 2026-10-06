@@ -233,6 +233,8 @@ var WQI = (function () {
       var al = o.pic.alt != null ? o.pic.alt : nm;
       return '<span class="wq-pic"' + (al ? ' role="img" aria-label="' + esc(al) + '"' : ' aria-hidden="true"') + '>' + cleanSvg(o.pic.svg) + '</span>';
     }
+    // ?z=1: the server cropped near-identical pictures to where they differ; the crop fills the tile.
+    if (o.img && /[?&]z=1\b/.test(o.img)) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '" class="wq-z wq-ld" onload="this.className=\'wq-z\'" onerror="this.className=\'wq-z\'">';
     if (o.img) return '<img src="' + esc(o.img) + '" alt="' + esc(nm || '') + '"' + LOADING + '>';
     return '';
   }
@@ -448,7 +450,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       qof: function (i, n) { return 'Question ' + i + ' of ' + n; }, listen: 'Listen again', helpAgain: 'Shall we listen again?',
       orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap one, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
       zoom: 'Make the picture bigger', close: 'Close', playSound: 'Play the sound', yes: 'True', no: 'False',
-      notyet: function (lead, r) { return lead + ' "' + r + '".'; }, next: 'Next', again: 'This one comes back at the end, to fix together.',
+      notyet: function (lead, r) { return lead + ' "' + String(r).replace(/[.!۔]+\s*$/, '') + '".'; }, next: 'Next', again: 'This one comes back at the end, to fix together.',
       half: 'Halfway there!',
       tricky: function (n) { return n === 1 ? '1 tricky one' : n + ' tricky ones'; }, trickySay: "Before we celebrate, let's fix it together.", fixGo: 'Fix it with ' + MASC.en, later: 'Maybe later',
       second: 'Second try · with ' + MASC.en, tryAgain: 'Look again. You can do it.',
@@ -462,7 +464,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' league table'; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
       finN: function (n) { return n + ' finished'; }, yourScore: 'Your score', avg: 'Class average', firstOnly: 'First names only. Ties share a place.',
       shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!',
-      histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', back: 'Back', sounds: 'Sounds',
+      histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', todayMore: 'Great work today! Want to watch another video?', back: 'Back', sounds: 'Sounds',
       cont: function (i, n) { return 'Go on: question ' + i + ' of ' + n; }, contSay: function (n) { return 'Welcome back, ' + n + '! Your answers are saved.'; }, restart: 'Start again', months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       fbT: 'Send it on WhatsApp', fbSub: 'Tap the WhatsApp button, then pick the chat.', fbWa: 'Send on WhatsApp', fbCopy: 'Copy the message', copied: 'Message copied',
       backAgain: 'Your answers are saved. Press back again to leave.',
@@ -490,7 +492,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       qof: function (i, n) { return 'سوال ' + i + ' از ' + n; }, listen: 'دوبارہ سنیں', helpAgain: 'کیا دوبارہ سنیں؟',
       orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
       zoom: 'تصویر بڑی کریں', close: 'بند کریں', playSound: 'آواز سنیں', yes: 'درست', no: 'غلط',
-      notyet: function (lead, r) { return lead + ' ' + r; }, next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
+      notyet: function (lead, r) { return lead + ' ' + String(r).replace(/[.!۔]+\s*$/, ''); }, next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
       half: 'آدھا راستہ طے!',
       tricky: function (n) { return n + ' مشکل سوال'; }, trickySay: 'جشن سے پہلے، آئیں اسے مل کر ٹھیک کریں۔', fixGo: MASC.ur + ' کے ساتھ ٹھیک کریں', later: 'بعد میں',
       second: 'دوسری کوشش · ' + MASC.ur + ' کے ساتھ', tryAgain: 'دوبارہ دیکھیں۔ آپ کر سکتے ہیں۔',
@@ -504,7 +506,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + n + ' اور'; },
       finN: function (n) { return n + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!',
-      histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', back: 'واپس', sounds: 'آوازیں',
+      histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', todayMore: 'آج بہت اچھا کام کیا! ایک اور ویڈیو دیکھیں؟', back: 'واپس', sounds: 'آوازیں',
       cont: function (i, n) { return 'جاری رکھیں: سوال ' + i + ' از ' + n; }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں', months: ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'],
       fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'واٹس ایپ والا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا',
       backAgain: 'آپ کے جواب محفوظ ہیں۔ باہر جانے کے لیے دوبارہ بیک دبائیں۔',
@@ -550,7 +552,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     list.unshift({ chip: c.chip, first: c.first, animal: c.animal });
     sset('wq_kids', list.slice(0, 6));
   }
-  var SOUND = !!sget('wq_sound', false);
+  // One switch for every sound on the page (the voice and the tap tones), remembered on this phone; on by default.
+  var SOUND = sget('wq_sound', true) !== false;
 
   /* ---------------- analytics (E8) ---------------- */
   var evq = [];
@@ -628,8 +631,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
      exactly the recorded words (a test holds them to manifest.json); one is picked at random per
      answer, never the same one twice in a row. Urdu addresses the child only with imperatives or
      noun phrases; a not-yet line never praises. */
-  var VOICE_V = '3cec2980';
-  var VOICE = {"en": {"right": ["Yes! That's right!", "You got it!", "Correct! Well spotted.", "Yes! That's the one.", "Right answer! Good thinking.", "Yes! You checked carefully.", "That's it! Well done.", "Spot on!", "Yes! Keep it up.", "Brilliant, that's right!"], "notyet": ["Not yet. The answer is", "Not quite. The right answer is", "Not this one. The answer is", "Let's learn it together. The answer is", "That one was tricky. The answer is", "Not this time. The right answer is", "Hmm, not yet. The answer is", "No problem, let's see. The answer is"], "fixed": ["Fixed it!", "Now you've got it!", "Yes! That's it now.", "You worked it out!", "Second try, and it's right!", "That's the one!", "Now it's right. Well done!", "Yes! Fixed it."], "done": ["Quiz complete! Every question done.", "All done! Thank you for playing.", "You finished the whole quiz!", "The end! Let's see your stars.", "That was the last one. All done!", "Finished! Well played.", "Quiz complete! Let's look at your stars.", "Every question answered. Well done!"], "cheer": ["Halfway there! Keep going.", "Keep going!", "Take your time and listen carefully.", "On to the next one!", "Half the quiz done!", "Every question teaches something new.", "Let's keep going!", "Half the questions done!"], "notyetpic": ["Not yet. Look, this one is right."], "tftrue": ["Not yet. This sentence is true."], "tffalse": ["Not yet. This sentence is false."]}, "ur": {"right": ["شاباش! بالکل صحیح!", "جی ہاں! یہی صحیح جواب ہے۔", "واہ! بالکل ٹھیک۔", "زبردست! صحیح جواب۔", "بہت خوب! یہی تو ہے۔", "صحیح! غور سے دیکھنا کام آیا۔", "جی ہاں! بہت عمدہ جواب۔", "کمال! بالکل درست۔", "ہاں! یہی ہے صحیح جواب۔", "شاباش! ایسے ہی آگے چلیں۔"], "notyet": ["ابھی نہیں۔ صحیح جواب ہے:", "یہ والا نہیں۔ صحیح جواب ہے:", "کوئی بات نہیں۔ صحیح جواب ہے:", "آئیں مل کر سیکھیں۔ صحیح جواب ہے:", "یہ سوال مشکل تھا۔ صحیح جواب ہے:", "اس بار نہیں۔ صحیح جواب ہے:", "ابھی نہیں۔ آئیں دیکھیں، صحیح جواب ہے:", "کوشش سے ہی سیکھتے ہیں۔ صحیح جواب ہے:"], "fixed": ["ٹھیک ہو گیا!", "اب بالکل صحیح!", "جی ہاں! اب ٹھیک ہے۔", "شاباش! دوسری کوشش میں صحیح۔", "زبردست! اب بات سمجھ میں آ گئی۔", "واہ! یہی ہے صحیح جواب۔", "کمال! اب درست ہے۔", "بہت خوب! اب جواب ٹھیک ہے۔"], "done": ["کوئز مکمل! سارے سوال ہو گئے۔", "شاباش! پورا کوئز مکمل۔", "کوئز ختم! آئیں ستارے دیکھیں۔", "واہ! آخری سوال بھی ہو گیا۔", "مکمل! کھیلنے کا شکریہ۔", "زبردست! پورا کوئز حل ہو گیا۔", "کوئز پورا ہو گیا! بہت خوب۔", "سارے سوال مکمل! شاباش۔"], "cheer": ["آدھا کوئز ہو گیا! چلتے رہیں۔", "آدھا راستہ طے، آگے چلیں!", "ہمت نہ ہاریں، اگلا سوال!", "آرام سے، غور سے سنیں۔", "چلیں، اگلا سوال دیکھیں!", "ہر سوال سے کچھ نیا سیکھیں۔", "ایسے ہی چلتے رہیں!", "آدھے سوال ہو گئے!"], "notyetpic": ["ابھی نہیں۔ دیکھیں، یہ والا صحیح ہے۔"], "tftrue": ["ابھی نہیں۔ یہ بات درست ہے۔"], "tffalse": ["ابھی نہیں۔ یہ بات غلط ہے۔"]}};
+  var VOICE_V = '4c4e3f35';
+  var VOICE = {"en": {"right": ["Yes! That's right!", "You got it!", "Correct! Well spotted.", "Yes! That's the one.", "Right answer! Good thinking.", "Yes! You checked carefully.", "That's it! Well done.", "Spot on!", "Yes! Keep it up.", "Brilliant, that's right!"], "notyet": ["Not yet. The answer is", "Not quite. The right answer is", "Not this one. The answer is", "Let's learn it together. The answer is", "That one was tricky. The answer is", "Not this time. The right answer is", "Hmm, not yet. The answer is", "No problem, let's see. The answer is"], "fixed": ["Fixed it!", "Now you've got it!", "Yes! That's it now.", "You worked it out!", "Second try, and it's right!", "That's the one!", "Now it's right. Well done!", "Yes! Fixed it."], "done": ["Quiz complete! Every question done.", "All done! Thank you for playing.", "You finished the whole quiz!", "The end! Let's see your stars.", "That was the last one. All done!", "Finished! Well played.", "Quiz complete! Let's look at your stars.", "Every question answered. Well done!"], "cheer": ["Halfway there! Keep going.", "Keep going!", "Take your time and listen carefully.", "On to the next one!", "Half the quiz done!", "Every question teaches something new.", "Let's keep going!", "Half the questions done!"], "notyetpic": ["Not yet. Look, this one is right."], "tftrue": ["Not yet. This sentence is true."], "tffalse": ["Not yet. This sentence is false."]}, "ur": {"right": ["شاباش! بالکل صحیح!", "جی ہاں! یہی صحیح جواب ہے۔", "واہ! بالکل ٹھیک۔", "زبردست! صحیح جواب۔", "بہت خوب! یہی تو ہے۔", "صحیح! غور سے دیکھنا کام آیا۔", "جی ہاں! بہت عمدہ جواب۔", "کمال! بالکل درست۔", "ہاں! یہی ہے صحیح جواب۔", "شاباش! ایسے ہی آگے چلیں۔"], "notyet": ["ابھی نہیں۔ صحیح جواب ہے:", "یہ والا نہیں۔ صحیح جواب ہے:", "کوئی بات نہیں۔ صحیح جواب ہے:", "آئیں مل کر سیکھیں۔ صحیح جواب ہے:", "یہ سوال مشکل تھا۔ صحیح جواب ہے:", "اس بار نہیں۔ صحیح جواب ہے:", "ابھی نہیں۔ آئیں دیکھیں، صحیح جواب ہے:", "کوشش سے ہی سیکھتے ہیں۔ صحیح جواب ہے:"], "fixed": ["ٹھیک ہو گیا!", "اب بالکل صحیح!", "جی ہاں! اب ٹھیک ہے۔", "شاباش! دوسری کوشش میں صحیح۔", "زبردست! اب بات سمجھ میں آ گئی۔", "واہ! یہی ہے صحیح جواب۔", "کمال! اب درست ہے۔", "بہت خوب! اب جواب ٹھیک ہے۔"], "done": ["کوئز مکمل! سارے سوال ہو گئے۔", "شاباش! پورا کوئز مکمل۔", "کوئز ختم! چلیں، ستارے دیکھیں۔", "واہ! آخری سوال بھی ہو گیا۔", "مکمل! کھیلنے کا شکریہ۔", "زبردست! پورا کوئز حل ہو گیا۔", "کوئز پورا ہو گیا! بہت خوب۔", "سارے سوال مکمل! شاباش۔"], "cheer": ["آدھا کوئز ہو گیا! چلتے رہیں۔", "آدھا راستہ طے، آگے چلیں!", "ہمت نہ ہاریں، اگلا سوال!", "آرام سے، غور سے سنیں۔", "چلیں، اگلا سوال دیکھیں!", "ہر سوال سے کچھ نیا سیکھیں۔", "ایسے ہی چلتے رہیں!", "آدھے سوال ہو گئے!"], "notyetpic": ["ابھی نہیں۔ دیکھیں، یہ والا صحیح ہے۔"], "tftrue": ["ابھی نہیں۔ یہ بات درست ہے۔"], "tffalse": ["ابھی نہیں۔ یہ بات غلط ہے۔"]}};
   var lastPick = {};
   function vline(set) {
     var lang = VOICE[LANG] ? LANG : 'en';
@@ -668,8 +671,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
   }
   // Recorded clip when the payload has one, else the phone's own voice. done() runs when it ends.
-  function speak(text, url, done) {
+  function speak(text, url, done, meta) {
     stopVoice();
+    if (!SOUND) { if (done) done(); return; }
+    if (!url && meta) noteMissing(meta, text);
     var gen = voiceGen;
     var fin = false;
     // A stopped line (cancel fires the utterance's onerror; its safety timer still runs) never calls done().
@@ -705,6 +710,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }
     speakTts(text, end);
   }
+  // A part with no recorded clip: logged once (audio_missing), and on a phone with no voice for this
+  // language (Android's in-app browser has none) the words are shown big instead of silence.
+  var missing = {};
+  function hasVoice() {
+    try {
+      if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
+      var vs = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+      if (!vs || !vs.length) return true; // not loaded yet: try the phone voice
+      return vs.some(function (v) { return String(v.lang || '').toLowerCase().indexOf(LANG) === 0; });
+    } catch (e) { return false; }
+  }
+  function noteMissing(meta, text) {
+    if (!speakable(text)) return;
+    var k = meta.qid + ':' + meta.part;
+    if (!missing[k]) { missing[k] = 1; ev('audio_missing', { qid: meta.qid, part: meta.part }); }
+    if (!hasVoice()) try { ROOT.classList.add('wq-novoice'); } catch (e) {}
+  }
   function speakTts(text, end) {
     try {
       if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) { setTimeout(end, 4000); return; }
@@ -726,6 +748,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function render(html, moment) {
     clearTimers();
     stopVoice();
+    try { ROOT.classList.remove('wq-novoice'); } catch (e) {}
     ROOT.innerHTML = '<section class="wq-screen" data-m="' + moment + '">' + (LANG === 'ur' ? latinRuns(html) : html) + '</section>';
     ROOT.setAttribute('data-m', moment);
     try { window.scrollTo(0, 0); } catch (e) {}
@@ -766,18 +789,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return BR ? '<span class="wq-mark ' + (BR.mark.tile ? 'wq-tile' : 'wq-bare') + '" aria-hidden="true">' + BR.mark.svg + '</span>' : '';
   }
   // The lockup: mark, name over the product line (the server always sends a brand; without one, just the product word).
-  function lockup() {
+  // teacher: the teacher's own pages (preview link) wear the brand's teacher line ("FOR TEACHERS") when it has one.
+  function lockup(teacher) {
     if (!BR) return '<span class="wq-brand"><span class="wq-lock"><b>' + esc(T.quiz) + '</b></span></span>';
-    return '<span class="wq-brand" aria-label="' + esc(BR.name) + '">' + markHtml() + '<span class="wq-lock"><b>' + esc(BR.label[LANG]) + '</b><small>' + esc(BR.sub[LANG]) + '</small></span></span>';
+    var sub = teacher && BR.subTeacher ? BR.subTeacher : BR.sub;
+    return '<span class="wq-brand" aria-label="' + esc(BR.name) + '">' + markHtml() + '<span class="wq-lock"><b>' + esc(BR.label[LANG]) + '</b><small>' + esc(sub[LANG]) + '</small></span></span>';
   }
-  function bar(extra) {
-    return '<div class="wq-bar">' + lockup() + (extra || '<span class="wq-grow"></span>') +
+  function bar(extra, teacher) {
+    return '<div class="wq-bar">' + lockup(teacher) + (extra || '<span class="wq-grow"></span>') +
       '<button class="wq-icon" id="wq-snd" aria-label="' + esc(T.sounds) + '" aria-pressed="' + SOUND + '">' + (SOUND ? '🔔' : '🔕') + '</button></div>';
   }
   function wireBar() {
     on('#wq-snd', function () {
       SOUND = !SOUND; sset('wq_sound', SOUND);
       this.setAttribute('aria-pressed', SOUND); this.textContent = SOUND ? '🔔' : '🔕';
+      if (!SOUND) stopAll(); // silent at once; nothing starts again until the next screen with sound on
     });
   }
   /* ---------------- mascot (Jugnu): a still pose that comes alive ----------------
@@ -959,6 +985,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var last = here.filter(function (k) { return classChips[k.chip]; })[0] || here[0];
     var ch = B.challenge;
     var chLine = ch ? T.challenged(ch.first, ch.correct, ch.total) : (params.from ? T.challengedBy(String(params.from).slice(0, 20)) : '');
+    if (B.preview && params.p) return teacherLanding();
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
@@ -980,6 +1007,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-play-as', function () { ev('identity_pick', { src: 'remembered' }); startSession({ chip: last.chip, via: 'remembered' }, last); });
   }
 
+  /* The teacher's own preview link: a page for the teacher (no mascot greeting them like a child),
+     "Who played?" first, and a test run as a child second. */
+  function teacherLanding() {
+    var h = bar('', true) +
+      '<div class="wq-card wq-stack wq-teach"><p class="wq-small">' + esc(TW.tFor) + '</p><h1>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
+      '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
+      '<p class="wq-sub">' + esc(TW.tLead) + '</p>' +
+      '<button class="wq-btn wq-go" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' +
+      '<button class="wq-btn wq-soft" id="wq-preview">' + esc(T.previewPlay) + '</button>' +
+      '<p class="wq-small">' + esc(T.selfT) + '</p>';
+    render(h, 'M3-teacher');
+    wireBar();
+    on('#wq-preview', function () { ev('identity_pick', { src: 'preview' }); startSession({}, null, ''); });
+    on('#wq-whoplayed', whoPlayed);
+  }
+
   /* ---------------- M4 who's playing ---------------- */
   // A teacher with a class list (CLS.roster): the child gives a roll number on a big pad and confirms
   // "Are you <name>?"; no classmates' names are shown. Without one, today's name chips.
@@ -988,27 +1032,37 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rollT: 'What is your roll number?', rollSay: 'Tap your roll number, then Go.', go: 'Go', del: 'Delete',
       noRoll: "I don't know my number", onPhoneOr: 'Or tap your name',
       unknown: function (n) { return 'No one in this class has number ' + n + '. Try again!'; },
-      isYouSub: 'Is this you?', tryAgain: 'No, try again', none: 'None of these is me', no: 'No',
+      isYouSub: 'Is this you?', tryAgain: 'No, try again', none: 'None of these is me', no: 'No', notMe: "No, I'm someone else",
       classT: 'Which class are you in?', classSay: 'Tap your class.', notHere: 'My class is not here',
       whoBtn: 'Who played?', whoT: 'Who played', whoSub: 'Children not on your class list come first. Tap one to give their roll number.',
       whoNone: 'No child has finished yet.', offList: 'Not on your class list', roll: function (n) { return 'Roll ' + n; },
       setRoll: 'Set roll no.', noList: 'This quiz is not linked to a class list, so names stay as the children typed them.',
       fixT: function (n) { return 'Roll number for ' + n + '?'; }, fixSay: 'Type the roll number from your class list.',
       isKid: function (n) { return 'Is this ' + n + '?'; }, yes: 'Yes', fixed: 'Fixed.',
-      practice: function (c, t) { return 'Practice round · your first score ' + c + '/' + t + ' is the one that counts'; }
+      practice: function (c, t) { return 'Practice round · your first score ' + c + '/' + t + ' is the one that counts'; },
+      tFor: 'For you, the teacher', tLead: 'Your class plays this from the link you forwarded. See who has played, or try it yourself.',
+      sumOf: function (p, of) { return p + ' of ' + of + ' played'; }, sumN: function (p) { return p + ' played'; },
+      avg: 'Average', hard: function (n, m) { return 'Q' + n + ' was the hardest (' + m + ' missed it)'; },
+      notYet: function (n) { return 'Not played yet (' + n + ')'; }, allPlayed: 'Everyone on your class list has played.',
+      playedT: function (n) { return 'Played (' + n + ')'; }, setRollLink: 'Set roll'
     },
     ur: {
       rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
       noRoll: 'مجھے اپنا نمبر نہیں پتا', onPhoneOr: 'یا اپنے نام پر ٹیپ کریں',
       unknown: function (n) { return 'اس کلاس میں نمبر ' + n + ' کسی کا نہیں۔ دوبارہ کوشش کریں!'; },
-      isYouSub: 'کیا یہ آپ ہیں؟', tryAgain: 'نہیں، دوبارہ', none: 'ان میں سے کوئی نہیں', no: 'نہیں',
+      isYouSub: 'کیا یہ آپ ہیں؟', tryAgain: 'نہیں، دوبارہ', none: 'ان میں سے کوئی نہیں', no: 'نہیں', notMe: 'نہیں، میں کوئی اور ہوں',
       classT: 'آپ کس کلاس میں ہیں؟', classSay: 'اپنی کلاس پر ٹیپ کریں۔', notHere: 'میری کلاس یہاں نہیں',
       whoBtn: 'کس نے کھیلا؟', whoT: 'کس نے کھیلا', whoSub: 'جو بچے آپ کی کلاس لسٹ میں نہیں، وہ اوپر ہیں۔ رول نمبر دینے کے لیے نام پر ٹیپ کریں۔',
       whoNone: 'ابھی کسی بچے نے کوئز مکمل نہیں کیا۔', offList: 'کلاس لسٹ میں نہیں', roll: function (n) { return 'رول نمبر ' + n; },
       setRoll: 'رول نمبر دیں', noList: 'یہ کوئز کسی کلاس لسٹ سے جڑا نہیں، اس لیے نام ویسے ہی ہیں جیسے بچوں نے لکھے۔',
       fixT: function (n) { return n + ' کا رول نمبر؟'; }, fixSay: 'کلاس لسٹ سے رول نمبر لکھیں۔',
       isKid: function (n) { return 'کیا یہ ' + n + ' ہے؟'; }, yes: 'جی ہاں', fixed: 'درست ہو گیا۔',
-      practice: function (c, t) { return 'مشق کا راؤنڈ · پہلی بار کا اسکور ' + c + '/' + t + ' شمار ہوتا ہے'; }
+      practice: function (c, t) { return 'مشق کا راؤنڈ · پہلی بار کا اسکور ' + c + '/' + t + ' شمار ہوتا ہے'; },
+      tFor: 'استاد کے لیے', tLead: 'آپ کی کلاس یہ کوئز آپ کے بھیجے ہوئے لنک سے کھیلتی ہے۔ دیکھیں کس نے کھیلا، یا خود آزمائیں۔',
+      sumOf: function (p, of) { return of + ' میں سے ' + p + ' نے کھیلا'; }, sumN: function (p) { return p + ' نے کھیلا'; },
+      avg: 'اوسط', hard: function (n, m) { return 'سوال ' + n + ' سب سے مشکل رہا (' + m + ' نے غلط کیا)'; },
+      notYet: function (n) { return 'ابھی نہیں کھیلا (' + n + ')'; }, allPlayed: 'آپ کی کلاس لسٹ کے سب بچوں نے کھیل لیا۔',
+      playedT: function (n) { return 'کھیل لیا (' + n + ')'; }, setRollLink: 'رول نمبر دیں'
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
   // One digit rule for the whole page, Urdu included: 0-9. The roll number is matched to the
@@ -1077,7 +1131,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     opts = opts || {};
     var here = opts.teacher ? [] : kids();
     var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'go'];
-    var h = bar() + jug('idle', note || opts.say || TW.rollSay) + '<h2>' + esc(opts.title || TW.rollT) + '</h2>' +
+    var h = bar('', opts.teacher) + (opts.teacher ? '<p class="wq-sub">' + esc(opts.say) + '</p>' : jug('idle', note || opts.say || TW.rollSay)) + (opts.teacher && note ? '<p class="wq-small">' + esc(note) + '</p>' : '') + '<h2>' + esc(opts.title || TW.rollT) + '</h2>' +
       '<div class="wq-roll" aria-live="polite">' + (cur ? esc(digitsFor(cur)) : '<span class="wq-roll-ph">–</span>') + '</div>' +
       '<div class="wq-pad">' + keys.map(function (k) {
         if (k === 'del') return '<button class="wq-key wq-key-del" data-k="del" aria-label="' + esc(TW.del) + '">⌫</button>';
@@ -1113,13 +1167,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (!r.ok) { toast(T.oops); return; }
       var b = r.body || {};
       var rows = b.rows || [];
-      var h = bar() + '<h2>' + esc(TW.whoT) + '</h2>' +
-        (b.roster ? '<p class="wq-sub">' + esc(TW.whoSub) + '</p>' : '<p class="wq-sub">' + esc(TW.noList) + '</p>') +
-        (rows.length ? '<div class="wq-card wq-stack wq-who">' + rows.map(function (x) {
-          var tag = x.on_list ? '<span class="wq-tag">' + esc(TW.roll(digitsFor(x.roll))) + '</span>' : '<span class="wq-tag wq-tag-off">' + esc(TW.offList) + '</span>';
-          return '<div class="wq-who-row"><b>' + esc(x.first) + '</b> ' + tag + ' <span class="wq-small">' + esc(digitsFor(x.correct)) + '/' + esc(digitsFor(x.total)) + '</span>' +
-            (b.roster && !x.on_list ? '<button class="wq-btn wq-soft wq-who-fix" data-ref="' + esc(x.ref) + '">' + esc(TW.setRoll) + '</button>' : '') + '</div>';
-        }).join('') + '</div>' : '<p class="wq-small">' + esc(TW.whoNone) + '</p>') +
+      var sm = b.summary || null;
+      var np = b.not_played || null;
+      var score = function (c, t) { return '<bdi dir="ltr">' + esc(digitsFor(c)) + '/' + esc(digitsFor(t)) + '</bdi>'; };
+      var top = sm ? '<div class="wq-card wq-stack wq-who-sum">' +
+          '<h2>' + esc(sm.of ? TW.sumOf(digitsFor(sm.played), digitsFor(sm.of)) : TW.sumN(digitsFor(sm.played))) + '</h2>' +
+          (sm.played && sm.avg != null ? '<p class="wq-sub">' + esc(TW.avg) + ' ' + score(sm.avg, sm.total) + '</p>' : '') +
+          (sm.hardest ? '<p class="wq-sub">' + esc(TW.hard(digitsFor(sm.hardest.n), digitsFor(sm.hardest.missed))) + '</p>' : '') +
+        '</div>' : '';
+      var rowHtml = function (x) {
+        var tag = x.on_list ? '<span class="wq-tag">' + esc(TW.roll(digitsFor(x.roll))) + '</span>' : '<span class="wq-tag wq-tag-off">' + esc(TW.offList) + '</span>';
+        return '<div class="wq-who-row"><b>' + esc(x.first) + '</b> ' + tag + '<span class="wq-grow"></span><span class="wq-who-score">' + score(x.correct, x.total) + '</span>' +
+          (b.roster && !x.on_list ? '<button class="wq-linkbtn wq-who-fix" data-ref="' + esc(x.ref) + '">' + esc(TW.setRollLink) + '</button>' : '') + '</div>';
+      };
+      var h = bar('', true) + '<h2>' + esc(TW.whoT) + '</h2>' + top +
+        (np ? (np.length ? '<h3 class="wq-who-h">' + esc(TW.notYet(digitsFor(np.length))) + '</h3><div class="wq-card wq-stack wq-who wq-who-not">' + np.map(function (k) {
+          return '<div class="wq-who-row wq-who-np"><b>' + esc(k.first) + '</b> <span class="wq-tag">' + esc(TW.roll(digitsFor(k.roll))) + '</span></div>';
+        }).join('') + '</div>' : '<p class="wq-small">' + esc(TW.allPlayed) + '</p>') : '') +
+        (rows.length ? '<h3 class="wq-who-h">' + esc(TW.playedT(digitsFor(rows.length))) + '</h3>' +
+          (b.roster ? '<p class="wq-small">' + esc(TW.whoSub) + '</p>' : '<p class="wq-small">' + esc(TW.noList) + '</p>') +
+          '<div class="wq-card wq-stack wq-who">' + rows.map(rowHtml).join('') + '</div>' : '<p class="wq-small">' + esc(TW.whoNone) + '</p>') +
         '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
       render(h, 'M4-who-played');
       wireBar();
@@ -1147,7 +1214,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     function confirmFix(cands, i) {
       var c = cands[i];
       if (!c) return fixRow(row);
-      var h = bar() + '<div class="wq-card wq-stack"><h2>' + esc(TW.isKid(c.first)) + ' ' + ani(c.animal) + '</h2>' +
+      var h = bar('', true) + '<div class="wq-card wq-stack"><h2>' + esc(TW.isKid(c.first)) + ' ' + ani(c.animal) + '</h2>' +
           (c.cls ? '<p class="wq-sub"><bdi dir="ltr">' + esc(c.cls) + '</bdi></p>' : '') +
           '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(TW.yes) + '</button></div>' +
         '<button class="wq-btn wq-soft" id="wq-diff">' + esc(i < cands.length - 1 ? TW.no : TW.tryAgain) + '</button>';
@@ -1198,8 +1265,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar() + jug('thinking', roll ? TW.isYouSub : T.isYouSub) +
       '<div class="wq-card wq-stack"><h2>' + esc(T.isYou(c.first)) + ' ' + ani(c.animal) + '</h2>' +
       (c.cls ? '<p class="wq-sub"><bdi dir="ltr">' + esc(c.cls) + '</bdi></p>' : '') +
+      (c.roll != null ? '<p class="wq-sub">' + esc(TW.roll(digitsFor(c.roll))) + '</p>' : '') +
       '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(T.yesMe) + '</button></div>' +
-      '<button class="wq-btn wq-soft" id="wq-diff">' + esc(roll && last ? TW.tryAgain : TW.no) + '</button>';
+      '<button class="wq-btn wq-soft" id="wq-diff">' + esc(roll && last ? TW.tryAgain : TW.notMe) + '</button>';
     render(h, 'M4-isyou');
     wireBar();
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-chip]'), function (b) {
@@ -1307,12 +1375,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function speakable(t) { return /[A-Za-z0-9\u0600-\u06FF]/.test(String(t || '')); }
   // The question, then each option: the recorded clip when there is one, else the phone's voice.
   function readParts(q) { return WQI.readParts(q, LANG); }
-  function speakSeq(parts, done) {
+  function speakSeq(parts, done, qid) {
     var i = 0;
     (function nextPart() {
       if (i >= parts.length) { if (done) done(); return; }
-      var part = parts[i++];
-      speak(part.text, part.url, nextPart);
+      var k = i, part = parts[i++];
+      speak(part.text, part.url, nextPart, qid ? { qid: qid, part: k } : null);
     })();
   }
 
@@ -1377,7 +1445,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // Help waits until the voice has finished, then gives the child time of their own.
     function read() {
       var b = $('#wq-spk'); if (b) b.classList.add('wq-speaking');
-      speakSeq(readParts(q), function () { var b2 = $('#wq-spk'); if (b2) b2.classList.remove('wq-speaking'); armHelp(); });
+      speakSeq(readParts(q), function () { var b2 = $('#wq-spk'); if (b2) b2.classList.remove('wq-speaking'); armHelp(); }, q.qid);
     }
     on('#wq-spk', function () { ev('listen', { qid: q.qid }); read(); });
     on('#wq-stim', function () { ev('listen', { qid: q.qid, stim: 1 }); var au = q.audio || {}; if (au.stim) speak('', au.stim, null); });
@@ -1416,6 +1484,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // Not yet: the feedback for the option the child picked, else the reason. Never praise.
     var why = WQI.letters(q, ok ? (q.why || q.fb_right || '') : (picked.fb || q.why || ''));
     var named = speakable(optText(right));
+    // A picture question cannot name its answer aloud, so after the picked tile's own line ("That is
+    // a seed.") the reason the right picture is right still follows.
+    var reason = !ok && !named && picked.fb && q.why ? WQI.letters(q, q.why) : '';
+    if (reason === why) reason = '';
     // A true/false item says which the sentence is ("Not yet. This sentence is true."): the true
     // button is always shown first.
     var tf = !ok && WQI.kind(q) === 'tf';
@@ -1431,12 +1503,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (ok) jugRightDone = true;
     fb.innerHTML = '<div class="wq-jug">' + jugImg(ok ? 'correct' : 'notyet', loopIt) + '<div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + esc(line) +
       (why ? '<div class="wq-why">' + WQI.tex(why) + '</div>' : '') +
+      (reason ? '<div class="wq-why">' + WQI.tex(reason) + '</div>' : '') +
       (!ok && !retry ? '<div class="wq-why">' + esc(T.again) + '</div>' : '') + '</div></div>' +
       (cheer ? '<p class="wq-proof">🎉 ' + esc(cheer.text) + '</p>' : '') +
       '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
     ROOT.setAttribute('data-m', 'M7');
     ev('feedback_view', { qid: q.qid, ok: ok ? 1 : 0 });
-    speakSeq(feedbackParts(q, ok, lead, why, picked, named).concat(cheer ? [cheer] : []), null);
+    var reasonPart = reason && speakable(WQI.say(reason, LANG)) ? [{ text: WQI.say(reason, LANG), url: (q.audio && q.audio.why) || null }] : [];
+    speakSeq(feedbackParts(q, ok, lead, why, picked, named).concat(reasonPart, cheer ? [cheer] : []), null);
     var nx = $('#wq-next');
     try { nx.scrollIntoView({ block: 'nearest' }); } catch (e) {}
     nx.addEventListener('click', function () {
@@ -1631,7 +1705,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function pickVideo(v, i) {
     if (picking) return;
     picking = true;
-    toast(T.moreWait);
+    // Jugnu waits on screen at once: the bot call and the next page's load take seconds on slow 4G.
+    render(bar() + jug('thinking', T.moreWait, true, true) + '<p class="wq-sub wq-center" dir="auto">' + esc(v.title) + '</p>', 'M15-go');
+    wireBar();
     ev('more_pick', { i: i, ok: !v.done });
     api('POST', 'videos/start', { code: CODE, st: S.st, vid: v.vid }).then(function (r) {
       if (!r.ok || !r.body || !r.body.code) throw new Error('more_start_' + r.status);
@@ -1641,6 +1717,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }).catch(function (e) {
       picking = false;
       toast(T.oops);
+      moreVideos();
       ev('error', { err: String((e && e.message) || 'more_start').replace(/[^a-z0-9_]/gi, '_').toLowerCase().slice(0, 40) });
     });
   }
@@ -1654,6 +1731,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   /* ---------------- M11 league table ---------------- */
+  // A row's stars are its score, the card's rule (one lit star per right answer), never one ⭐ for every child.
+  function rowScore(c, t) {
+    var n = Number(c) || 0, tot = Number(t) || 0;
+    var s = tot > 0 && tot <= 12 ? stars(Math.min(n, tot), tot).replace('class="wq-stars"', 'class="wq-stars wq-rstars"') : '';
+    return '<span class="wq-rscore">' + esc(c) + '/' + esc(t) + '</span>' + s;
+  }
   function board() {
     render(bar() + '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>', 'M11-wait');
     wireBar();
@@ -1667,10 +1750,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         var isYou = you && x.place === you.place && x.first === me && x.correct === you.correct && !youShown;
         if (isYou) youShown = true;
         return '<tr' + (isYou ? ' class="wq-you"' : '') + '><td>' + esc(x.place) + '</td><td>' + ani(x.animal) + ' ' + esc(x.first) +
-          (isYou ? '<span class="wq-tag">' + esc(T.you) + '</span>' : '') + '</td><td>' + esc(x.correct) + '/' + esc(x.total) + ' ⭐</td></tr>';
+          (isYou ? '<span class="wq-tag">' + esc(T.you) + '</span>' : '') + '</td><td>' + rowScore(x.correct, x.total) + '</td></tr>';
       }).join('');
       if (you && !youShown) {
-        rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + esc(you.correct) + '/' + esc(you.total) + ' ⭐</td></tr>';
+        rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + rowScore(you.correct, you.total) + '</td></tr>';
       }
       var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
       var h = bar() + '<h2>' + esc(T.leagueT(CLASS_LABEL)) + '</h2><p class="wq-sub">' + dotJoin(Q.topic, T.finN(b.finishers_n || 0)) + '</p>' +
@@ -1711,7 +1794,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       var fr = (r.ok && r.body.friends_finished) || [];
       if (!hist.length && !fr.length) return today();
       var h = bar() + '<h2>' + esc(T.histT) + '</h2><ul class="wq-hist">' + hist.slice(0, 10).map(function (x) {
-        return '<li><span>' + esc(x.topic) + '<br><small class="wq-small">' + esc(dayMonth(x.date)) + '</small></span><span>' + esc(x.correct) + '/' + esc(x.total) + ' ⭐</span></li>';
+        return '<li><span>' + esc(x.topic) + '<br><small class="wq-small">' + esc(dayMonth(x.date)) + '</small></span><span>' + rowScore(x.correct, x.total) + '</span></li>';
       }).join('') + '</ul>' +
         (fr.length ? '<p class="wq-sub">' + esc(T.friends) + '</p><ul class="wq-hist">' + fr.slice(0, 6).map(function (x) {
           return '<li><span>' + dotJoin(x.first, x.topic) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
@@ -1723,15 +1806,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       on('#wq-next', today);
     }, today);
   }
+  // "Time to rest" only when nothing is left to play today: with an unplayed lesson in the class's
+  // list the screen offers it instead. The list is asked for once the screen is up; no grade, no list.
   function today() {
-    var h = bar() + jug('sleep', T.rest, true) +
+    todayView(!!Q.grade);
+    ev('today_view', {});
+    if (!Q.grade) return;
+    api('GET', 'videos/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : '')).then(function (r) {
+      var vids = (r.ok && r.body && r.body.videos) || [];
+      var left = vids.some(function (v) { return !v.done; });
+      if (!left && ROOT.getAttribute('data-m') === 'M14') todayView(false);
+    }, function () {});
+  }
+  function todayView(more) {
+    var h = bar() + (more ? jug('hello', T.todayMore, true) : jug('sleep', T.rest, true)) +
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.todayT) + '</p>' +
       '<div class="wq-big">' + esc(fmtN(LIVE.ict_today_floor || 0)) + '</div>' +
       '<p class="wq-sub">' + esc(T.todaySub) + '</p></div>' +
-      moreBtn() + '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
+      (more ? moreBtn() : '') + '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
     render(h, 'M14');
     wireBar();
-    ev('today_view', {});
     on('#wq-home', function () { if (S.result) card(); else landing(); });
     on('#wq-more', moreVideos);
   }
