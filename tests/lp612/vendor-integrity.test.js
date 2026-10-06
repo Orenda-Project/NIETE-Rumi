@@ -119,8 +119,10 @@ describe('lp-v9 vendored pipeline', () => {
     expect(typeof r.renderDoc).toBe('function');
   });
 
-  it('the four embeddable fonts are vendored beside the pipeline', () => {
-    for (const f of ['Inter-Regular.ttf', 'Inter-SemiBold.ttf', 'Inter-Bold.ttf', 'NotoNastaliqUrdu.ttf']) {
+  it('the five embeddable fonts are vendored beside the pipeline', () => {
+    // ScheherazadeNew is the Quranic-marks fallback behind Nastaliq (bd-ihole, SYNC.md §3.33).
+    for (const f of ['Inter-Regular.ttf', 'Inter-SemiBold.ttf', 'Inter-Bold.ttf', 'NotoNastaliqUrdu.ttf',
+      'ScheherazadeNew-Regular.ttf']) {
       const p = path.join(VENDOR, 'fonts', f);
       expect(fs.existsSync(p)).toBe(true);
       expect(fs.statSync(p).size).toBeGreaterThan(10000);
@@ -129,8 +131,15 @@ describe('lp-v9 vendored pipeline', () => {
 
   it('font resolution finds every vendored face (no silent tofu fallback)', () => {
     const { fontCss } = require('../../bot/vendor/lp-v9/lib/fonts.js');
-    const r = fontCss({ urdu: true });
+    const r = fontCss({ urdu: true, quranic: true });
     expect(r.missing).toEqual([]);
+    expect(r.resolved).toHaveLength(5);
+  });
+
+  it('the Quranic-marks fallback is opt-in — the quiz card and figure do not carry it', () => {
+    const { fontCss } = require('../../bot/vendor/lp-v9/lib/fonts.js');
+    const r = fontCss({ urdu: true });
     expect(r.resolved).toHaveLength(4);
+    expect(r.css).not.toContain("'Scheherazade New'");
   });
 });
