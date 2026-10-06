@@ -232,6 +232,14 @@ def main():
                             r['question'] = page.evaluate(CHECK_JS, [m['lang'], m['has_figure'] and not m.get('missing_media'), m['maths']])
                             if shots:
                                 page.screenshot(path=os.path.join(out_dir, 'shots', m['id'] + '.q.png'), full_page=True)
+                        # Jugnu's hint bubble opened (PR #1732's button; absent → skipped)
+                        if pas == 'wrong' and page.query_selector('#wq-jhelp'):
+                            page.click('#wq-jhelp')
+                            page.wait_for_timeout(400)
+                            r['hint'] = page.evaluate(CHECK_JS, [m['lang'], False, False])
+                            r['hint_text'] = page.evaluate("(document.querySelector('#wq-hintbox')||{}).innerText||''")[:80]
+                            if shots:
+                                page.screenshot(path=os.path.join(out_dir, 'shots', m['id'] + '.hint.png'), full_page=True)
                         how = page.evaluate(ANSWER_JS, answer or 'A')
                         if how != 'none':
                             page.wait_for_selector('#wq[data-m="M7"] #wq-next', timeout=6000)
@@ -254,10 +262,11 @@ def main():
             browser.close()
             httpd.shutdown()
     json.dump(results, open(os.path.join(out_dir, 'results.json'), 'w'), indent=1, ensure_ascii=False)
-    bad = [x for x in results if x['question'] or x['feedback'] or x.get('feedback_wrong') or x.get('fatal') or x['errors']]
+    bad = [x for x in results if x['question'] or x['feedback'] or x.get('feedback_wrong') or x.get('hint') or x.get('fatal') or x['errors']]
+    print('hint opened on', sum(1 for x in results if 'hint' in x), 'pages; with text:', sum(1 for x in results if x.get('hint_text')))
     print('render matrix: %d pages, %d with findings' % (len(results), len(bad)))
     for x in bad:
-        print(' ', x['id'], 'Q=', x['question'], 'FBW=', x.get('feedback_wrong'), 'FB=', x['feedback'], 'FATAL=', x.get('fatal', ''), 'JS=', x['errors'][:1])
+        print(' ', x['id'], 'Q=', x['question'], 'FBW=', x.get('feedback_wrong'), 'FB=', x['feedback'], 'HINT=', x.get('hint'), 'FATAL=', x.get('fatal', ''), 'JS=', x['errors'][:1])
 
 
 if __name__ == '__main__':
