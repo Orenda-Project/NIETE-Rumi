@@ -112,6 +112,37 @@ g("commit", "-qam", "delete COA20")
 r = ss.select(sel("coaching", spec_rel), tmp, "HEAD~1...HEAD", {}, spec_reader=reader)["features"]["coaching"]
 assert r["scope"] == "none", r   # a deleted scenario drives nothing
 
+# 8. a scenario phase 1 adds AFTER the code commit is still driven (spec_base → the working tree).
+#    The code commit narrows coaching to COA09; phase 1 then writes COA21 for the new behaviour, which
+#    names no changed file. Diffing only the code commit never sees it, so it was silently left out.
+tmp2 = tempfile.mkdtemp()
+os.makedirs(os.path.join(tmp2, ss.SPEC_DIR))
+os.makedirs(os.path.join(tmp2, "bot"))
+sp2 = os.path.join(tmp2, ss.SPEC_DIR, "coaching.feature")
+g2 = lambda *a: subprocess.run(["git", "-C", tmp2, *a], capture_output=True, text=True, check=True)  # noqa: E731
+g2("init", "-q"); g2("config", "user.email", "t@t"); g2("config", "user.name", "t")
+g2("config", "core.hooksPath", "/dev/null")
+open(sp2, "w").write(SPEC); open(os.path.join(tmp2, "bot", "coaching-inflight-guard.js"), "w").write("a\n")
+g2("add", "-A"); g2("commit", "-qm", "base")
+open(os.path.join(tmp2, "bot", "coaching-inflight-guard.js"), "w").write("b\n")
+g2("commit", "-qam", "code change")
+NEW = ("\n  @e2e @COA21\n  Scenario: A recording sent while the guard is down is analysed\n"
+       "    Given the guard is down\n")
+open(sp2, "a").write(NEW)                                   # phase 1, not yet committed
+reader2 = lambda f: open(sp2).read()  # noqa: E731
+code_only = sel("coaching", "bot/coaching-inflight-guard.js")
+r = ss.select(code_only, tmp2, "HEAD~1...HEAD", {}, spec_reader=reader2)["features"]["coaching"]
+assert r["ids"] == ["COA09"], r                             # without spec_base: the old blind spot
+r = ss.select(code_only, tmp2, "HEAD~1...HEAD", {}, spec_reader=reader2, spec_base="HEAD~1")["features"]["coaching"]
+assert r["scope"] == "subset" and r["ids"] == ["COA09", "COA21"], r
+g2("add", "-A"); g2("commit", "-qm", "test(gherkin): sync coaching")   # phase 1 committed separately
+r = ss.select(code_only, tmp2, "HEAD~2...HEAD~1", {}, spec_reader=reader2, spec_base="HEAD~2")["features"]["coaching"]
+assert r["ids"] == ["COA09", "COA21"], r
+# a feature that runs whole stays whole; one with nothing to drive gains the new scenario
+r = ss.select(sel("coaching", "bot/shared/services/whatsapp.service.js"), tmp2, "HEAD~2...HEAD~1", {},
+              spec_reader=reader2, spec_base="HEAD~2")["features"]["coaching"]
+assert r["scope"] == "all", r
+
 # 7. the only string: subset features only
 two = {"features": ["coaching", "menu"],
        "reasons": {"coaching": [{"path": "bot/x/coaching-inflight-guard.js"}],

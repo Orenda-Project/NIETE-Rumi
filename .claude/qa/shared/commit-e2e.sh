@@ -112,7 +112,7 @@ echo "│ validate_specs: exit 0 for $RUN"
 # that touched no live scenario drives nothing. E2E_SCENARIO_SELECT=0 runs whole features, as before.
 ONLY=""
 if [ "${E2E_SCENARIO_SELECT:-1}" != 0 ] && [ -f "$QA/select_scenarios.py" ]; then
-  SCEN=$(printf '%s' "$SEL" | python3 "$QA/select_scenarios.py" --selection - --repo "$ROOT" --range "$SHA~1...$SHA" --json 2>/dev/null) || SCEN=""
+  SCEN=$(printf '%s' "$SEL" | python3 "$QA/select_scenarios.py" --selection - --repo "$ROOT" --range "$SHA~1...$SHA" --spec-base "$SHA~1" --json 2>/dev/null) || SCEN=""
   if [ -n "$SCEN" ]; then
     ONLY=$(printf '%s' "$SCEN" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("only",""))')
     printf '%s' "$SCEN" | RUN="$RUN" python3 -c '

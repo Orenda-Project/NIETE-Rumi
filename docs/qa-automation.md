@@ -174,6 +174,10 @@ Tests for all of it: `npm run qa:test`.
 | named in a scenario's text (`coaching-inflight-guard.js`, its stem, or a distinctive core name) | the scenarios that name it |
 | none of the above | **the whole feature**, and the run says which path forced it — pin that path to narrow it next time |
 
+A scenario phase 1 adds or edits always runs too, even though phase 1 writes it after the code commit and
+it may name none of the changed files: `commit-e2e.sh` compares each selected feature's spec between the
+code commit's parent and the working tree (`--spec-base`), so it counts whether the spec edit is committed or not.
+
 ```
 │ scenarios: training     5 of 98 — T46, T47, T29, T83, T84
 │ scenarios: coaching     ALL — bot/shared/services/llm-client.js: no coaching scenario names it — pin it under scenarios: to narrow

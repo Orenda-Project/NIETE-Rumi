@@ -17,6 +17,9 @@ HOW A SCENARIO IS SELECTED, per feature, per changed path:
      that mentions `coaching-inflight-guard.js`, `coaching-inflight-guard` or
      `coaching-inflight-guard.service`-style stems is about that file.
 
+PHASE 1's SCENARIOS ALWAYS RUN. With --spec-base <code commit's parent>, any scenario added or edited in
+the feature's spec since then, committed or not, is driven too: phase 1 writes it after the code commit.
+
 NEVER UNDER-SELECT SILENTLY. A path that selected the feature but maps to NO scenario by any of the
 three rules makes the whole feature run, and the output says which path forced it — the same rule
 select_e2e applies to an unmapped file. Pin such a path in `scenarios:` to narrow it next time.
@@ -137,8 +140,13 @@ def load_scenario_pins(map_path):
     return pins
 
 
-def select(selection, repo, rev_range, pins, spec_reader=None):
-    """selection = select_e2e's JSON dict. Returns the output dict described in the module doc."""
+def select(selection, repo, rev_range, pins, spec_reader=None, spec_base=None):
+    """selection = select_e2e's JSON dict. Returns the output dict described in the module doc.
+
+    spec_base: a revision (the code commit's parent). Scenarios added or edited in the feature's spec
+    between it and the WORKING TREE are always driven. Phase 1 writes the scenario for the commit's new
+    behaviour after that commit, often uncommitted or in its own commit, so the code commit's diff never
+    shows it, and a feature narrowed to older scenarios would leave the new one out."""
     spec_reader = spec_reader or (lambda f: open(os.path.join(repo, SPEC_DIR, f + ".feature"), encoding="utf-8").read())
     result = {}
     for feature in selection.get("features") or []:
@@ -186,6 +194,11 @@ def select(selection, repo, rev_range, pins, spec_reader=None):
                     pick(s["id"], "%s named (%s)" % (path, hits[0]))
             if len(chosen) == hit_before:
                 whole.append("%s: no %s scenario names it — pin it under scenarios: to narrow" % (path, feature))
+        if spec_base:
+            lines = changed_new_lines(repo, spec_base, spec_rel)
+            for s in scen:
+                if lines and any(s["start"] <= n <= s["end"] for n in lines):
+                    pick(s["id"], "added or edited in the spec since %s (phase 1)" % spec_base)
         order = [s["id"] for s in scen]
         chosen.sort(key=lambda x: order.index(x))
         if whole:
@@ -206,6 +219,8 @@ def main(argv):
     ap.add_argument("--selection", help="select_e2e --json output (a file, or - for stdin)")
     ap.add_argument("--repo", default=os.path.abspath(os.path.join(HERE, "..", "..", "..")))
     ap.add_argument("--range", dest="rev_range")
+    ap.add_argument("--spec-base", help="also drive scenarios added/edited in the spec between this revision "
+                    "and the working tree (what phase 1 wrote after the code commit)")
     ap.add_argument("--map", default=os.environ.get("E2E_SELECT_MAP")
                     or os.path.join(HERE, "..", "config", "feature-map.yaml"))
     ap.add_argument("--json", action="store_true")
@@ -220,7 +235,7 @@ def main(argv):
                                  capture_output=True, text=True, timeout=60).stdout
             selection = json.loads(out or "{}")
         pins = load_scenario_pins(a.map) if os.path.isfile(a.map) else {}
-        res = select(selection, a.repo, a.rev_range, pins)
+        res = select(selection, a.repo, a.rev_range, pins, spec_base=a.spec_base)
     except Exception as e:  # never block a commit for its own reasons
         sys.stderr.write("select_scenarios: could not decide (%s) — run whole features\n" % e)
         return CANNOT_DECIDE
