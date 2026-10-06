@@ -63,6 +63,8 @@ function boot(language) {
     students: [],
   });
   ep = require('../../bot/shared/routes/class-manager-endpoint');
+  // The time seam: the clash retries' jittered waits run instantly here.
+  require('../../bot/shared/services/classes/class.service')._timing.sleep = async () => {};
   ux = require('../../bot/shared/config/ux-strings');
 }
 
