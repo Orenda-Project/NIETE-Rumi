@@ -1406,6 +1406,8 @@ Feature: NIETE (ICT) Teacher Training
     And the worker records the quiz's clips several at a time and skips a quiz already recorded
     And opening the page asks for the same job (the backfill for older quizzes), never recording in the page's own process
     But if the queue cannot take the job, the clips are recorded where it was asked
+    And at most 2 clip jobs run at once on a worker replica, so a teacher's quiz generation always has quiz slots free
+    And a job whose clips failed is tried again after 2, 4, 8 and 15 minutes, and the quiz is never marked recorded while clips are missing
     # ADDED 2026-10-06: web-quiz-publish requestQuizAudio/runQuizAudioJob, CLIP_WORKERS 4; web-quiz-link quizLink({quizId}); sqs-worker case quiz_web_audio. @wip.
     # ADDED 2026-10-06: web-quiz-publish compactClip (bundled ffmpeg; original kept if it fails), CLIP_FORMAT in the key, AUDIO_VERSION 3. @wip.
 
