@@ -21,6 +21,9 @@
  *   GET  /ch/...  POST /ch/...  the kid's Challenge (web-quiz-challenge.js); GET /challenge/results?list=
  *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
  *   GET  /hub/:token            the kid hub (web-quiz-hub.js): teacher card, play again, recs
+ *   GET  /lib/:code             the video library from a quiz: subjects (grade strip), then chapters
+ *   GET  /lib/h/:token          the same from the kid's hub
+ *   GET  /videos/dl/:code       302 to a 1-hour link that saves a bank video
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
@@ -32,6 +35,7 @@ const WebQuizPulse = require('../services/quiz/web-quiz-pulse');
 const WebQuizChallenge = require('../services/quiz/web-quiz-challenge');
 const WebQuizArt = require('../services/quiz/web-quiz-art');
 const Timing = require('../services/quiz/web-quiz-timing');
+const WebQuizLibrary = require('../services/quiz/web-quiz-library');
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -96,5 +100,10 @@ router.get('/art/:id', async (req, res) => {
 });
 // M4a hub — the kid hub's boot JSON (a WhatsApp /quiz link names this phone's own children)
 router.get('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: req.query.kid })));
+// M4b library
+const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
+router.get('/lib/h/:token', handle((req) => WebQuizLibrary.libHub(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), s: q1(req.query.s) })));
+router.get('/lib/:code', handle((req) => WebQuizLibrary.lib(req.params.code, { st: q1(req.query.st), g: q1(req.query.g), s: q1(req.query.s) })));
+router.get('/videos/dl/:code', handle((req) => WebQuizLibrary.download(req.params.code, { st: q1(req.query.st), vid: q1(req.query.vid) })));
 
 module.exports = router;
