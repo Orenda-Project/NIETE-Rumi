@@ -453,6 +453,23 @@ describe('requestQuizAudio / runQuizAudioJob: the clips are recorded on the work
     expect(axios.post).not.toHaveBeenCalled();
   });
 
+  test('a job whose clips failed (e.g. the vendor rate-limits) is tried again later with a growing wait, and gives up after 4 tries', async () => {
+    const rows = quizRows();
+    const queue = { queueJob: jest.fn().mockResolvedValue({}) };
+    const publish = jest.fn().mockResolvedValue({ ok: true, failed: 3, synthesized: 6 });
+    await Publish.runQuizAudioJob({ quizId: QUIZ_ID }, { db: fakeDb(rows), publish, queue });
+    expect(queue.queueJob).toHaveBeenCalledWith(QUIZ_ID, 'quiz_web_audio', { quizId: QUIZ_ID, attempt: 1 },
+      expect.objectContaining({ delaySeconds: 120 }));
+    queue.queueJob.mockClear();
+    await Publish.runQuizAudioJob({ quizId: QUIZ_ID, attempt: 3 }, { db: fakeDb(rows), publish, queue });
+    expect(queue.queueJob).toHaveBeenCalledWith(QUIZ_ID, 'quiz_web_audio', { quizId: QUIZ_ID, attempt: 4 },
+      expect.objectContaining({ delaySeconds: 900 }));
+    queue.queueJob.mockClear();
+    await Publish.runQuizAudioJob({ quizId: QUIZ_ID, attempt: 4 }, { db: fakeDb(rows), publish, queue });
+    expect(queue.queueJob).not.toHaveBeenCalled();
+    expect(rows.quiz.meta.web && rows.quiz.meta.web.audio_v).toBeFalsy(); // nothing is marked recorded
+  });
+
   test('a quiz\'s clips are recorded several at a time, not one after another', async () => {
     let inFlight = 0; let most = 0;
     axios.post.mockReset();
