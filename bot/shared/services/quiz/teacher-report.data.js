@@ -161,8 +161,9 @@ async function sessionsFor(codeIds) {
 function reminderText({ topic, link, language, played = null, of = null, className = null }) {
   const t = String(topic || '').trim();
   const lang = clampLanguage(language);
-  // Social proof when the class is known: "12 of 31 in 5-A have played" — a count, never a name.
-  if (t && className && Number.isFinite(of) && of > 0 && Number.isFinite(played)) {
+  // Social proof when the class is known and someone on it has played: "12 of 31 in 5-A have
+  // played" — a count, never a name. At zero it would be an anti-signal: the plain reminder.
+  if (t && className && Number.isFinite(of) && of > 0 && Number.isFinite(played) && played > 0) {
     return resolveUx('trReminderCount', { language: lang, params: { topic: t, link, played, of, cls: className } });
   }
   return resolveUx(t ? 'trReminder' : 'trReminderNoTopic', { language: lang, params: { topic: t, link } });
