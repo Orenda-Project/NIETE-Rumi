@@ -20,7 +20,16 @@
  * answers repeat fetches (a group's previews arrive together) without R2.
  */
 const crypto = require('crypto');
-const sharp = require('sharp');
+// `sharp` is a native module installed with the bot's dependencies. It is required lazily (as in
+// web-quiz-picture-zoom.js) so this module, reached from whatsapp-bot.js through the internal
+// routes, still loads where it is absent: the root CI job's webhook suites. There a picture
+// fails as that picture, never the whole module.
+let sharpLib = null; let sharpTried = false;
+function getSharp() {
+  if (!sharpTried) { sharpTried = true; try { sharpLib = require('sharp'); } catch { sharpLib = null; } }
+  if (!sharpLib) throw new Error('web-quiz-art: sharp is not installed here');
+  return sharpLib;
+}
 const supabase = require('../../config/supabase');
 const r2 = require('../../storage/r2');
 const { logToFile } = require('../../utils/logger');
@@ -172,6 +181,7 @@ async function facts(kind, ref) {
 // ─── draw + cache ───────────────────────────────────────────────────────────
 
 async function draw(input) {
+  const sharp = getSharp();
   const { htmlToImage } = require('../../utils/html-to-pdf');
   const [w, h] = SIZES[input.size];
   const png = await htmlToImage(renderArt(input), { width: w, height: h, deviceScaleFactor: 1, selector: '.art' });
@@ -209,4 +219,4 @@ async function artImage(id, { size = 'og' } = {}) {
 
 function _resetCache() { mem.clear(); }
 
-module.exports = { artId, parseArtId, artImage, ArtError, ART_V, _resetCache };
+module.exports = { artId, parseArtId, artImage, ArtError, ART_V, _resetCache, _drawForTests: draw };
