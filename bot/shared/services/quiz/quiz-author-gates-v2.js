@@ -217,8 +217,36 @@ const POINTS_AT_PICTURE = new RegExp([
   '(?:تصویر|تصویریں|تصویروں|خاکے|خاکہ)\\s*(?:میں|کو\\s+دیکھ|دیکھ)',
   'خالی\\s+خان[ےہ]',
 ].join('|'), 'i');
+// A picture the stem SUPPOSES ("If a diagram shows…"), DESCRIBES ("The image
+// shows 2/6"), reads FROM ("according to the chart") or a part only a drawing
+// has ("the shaded part", "labelled B"). A child on the web met "If a diagram
+// shows four concentric circles…" with no diagram. Measured on 12,601
+// picture-less sandbox stems: 12 more, every one a picture the child cannot
+// see. Urdu nouns need a space before them: «پیراگراف» holds «گراف».
+const VIS_NOUN = '(?:picture|image|diagram|figure|drawing|chart|graph|map|photo|illustration)s?';
+const SUPPOSES_PICTURE = new RegExp([
+  `\\b(?:if|when|suppose)\\s+(?:a|an|the|this|your)\\s+${VIS_NOUN}\\b`,
+  `\\b(?:a|an|the)\\s+${VIS_NOUN}(?:\\s+of(?:\\s+[\\p{L}'’-]+){1,4}?)?\\s+(?:shows|showing|below|above|labell?ed)\\b`,
+  `\\baccording\\s+to\\s+(?:the|this|a)\\s+${VIS_NOUN}`,
+  `\\bas\\s+(?:shown|seen|drawn)\\s+(?:in|on)\\s+(?:the|this)\\s+${VIS_NOUN}`,
+  '\\bshown\\s+in\\s+(?:red|blue|green|yellow|orange|purple|black|grey|gray|brown|pink)\\b',
+  '\\bthe\\s+shaded\\s+(?:part|region|area|portion|section)\\b',
+  '(?:^|\\s)(?:نقشے|نقشہ|گراف|چارٹ|ڈایاگرام|ڈائیگرام|ڈائگرام)\\s*(?:میں|پر|کے\\s+مطابق|کو\\s+دیکھ)',
+  '(?:^|\\s)(?:تصویر|خاکے|خاکہ)\\s*(?:پر|کے\\s+مطابق|سے\\s+پتا)',
+  '(?:اوپر|نیچے)\\s+(?:دی|دکھائی|بنی)\\s+(?:گئی|گئے|ہوئی)',
+  'اگر\\s+(?:کسی\\s+|ایک\\s+)?(?:تصویر|خاکے|خاکہ|نقشے|گراف|شکل)',
+].join('|'), 'iu');
+/** "the part labelled B": a letter only a drawing can carry (case-sensitive on purpose). */
+const LABEL_LETTER = /\b(?:[Ll]abell?ed|[Mm]arked)\s+(?:as\s+)?['"“‘]?[A-Z]['"”’]?(?=[\s.,?;:)]|$)/u;
 const QUOTED = /[“"«][^”"»]*[”"»]/g;
-const pointsAtPicture = (stem) => POINTS_AT_PICTURE.test(String(stem || '').replace(QUOTED, ' '));
+const unquoted = (stem) => String(stem || '').replace(QUOTED, ' ');
+const pointsAtPicture = (stem) => POINTS_AT_PICTURE.test(unquoted(stem));
+/** Every phrasing that presupposes a picture: the measured list, plus (gates v2) a supposed or described one. */
+const presupposesPicture = (stem) => pointsAtPicture(stem) || SUPPOSES_PICTURE.test(unquoted(stem)) || LABEL_LETTER.test(unquoted(stem));
+const pictureWords = (stem) => {
+  const s = unquoted(stem);
+  return ((POINTS_AT_PICTURE.exec(s) || SUPPOSES_PICTURE.exec(s) || LABEL_LETTER.exec(s) || [''])[0]).trim();
+};
 
 // A question ABOUT the teacher (T23) asks what the teacher said, did or thought
 // in class ("Why did the teacher predict…", «استاد نے کیا کہا؟»). A word problem
@@ -343,8 +371,8 @@ function questionErrors(q, i, ctx = {}) {
   }
   // 5. the picture the stem points at
   const figured = hasFigure(q);
-  if (!figured && pointsAtPicture(stem) && !ctx.legacyPictureComplaint) {
-    errs.push(`q${i}: PICTURE_MISSING — the stem points at a picture (${(POINTS_AT_PICTURE.exec(stem.replace(QUOTED, ' ')) || [''])[0].trim()}) but the question has none; add the "figure" or ask without it`);
+  if (!figured && presupposesPicture(stem) && !ctx.legacyPictureComplaint) {
+    errs.push(`q${i}: PICTURE_MISSING — the stem points at a picture (${pictureWords(stem)}) but the question has none; add the "figure" or ask without it, so the question stands alone`);
   }
   // 6. the picture carries the stem's numbers
   if (figured && q.figure && typeof q.figure === 'object') {
@@ -407,4 +435,5 @@ module.exports = {
   figureNumbers,
   POINTS_AT_PICTURE,
   pointsAtPicture,
+  presupposesPicture,
 };
