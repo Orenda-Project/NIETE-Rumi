@@ -905,15 +905,18 @@ async function enrollExistingStudent({ classId, teacherUserId, studentId } = {})
   return { enrollment: enrolled.enrollment, created: enrolled.created, listId, rollNumber };
 }
 
+// "Add to class" (one child): its own retry budget, so it never depends on the paste path's constants.
+const ENROL_RETRIES = 5;
+
 /**
  * enrollStudent at the class's next free list number: highest in use + 1, and on a roll clash
  * (another writer took it — the partial unique index is the arbiter) a re-read and the next
- * number, up to ROLL_RETRIES times. A child already enrolled comes back as they are.
+ * number, up to ENROL_RETRIES times. A child already enrolled comes back as they are.
  */
 async function enrolAtNextRoll({ classId, teacherUserId, studentId, enrolledOn }) {
   let nextRoll = (await readRoster({ classId, teacherUserId })).maxRoll;
   let res = null;
-  for (let attempt = 0; attempt <= ROLL_RETRIES; attempt += 1) {
+  for (let attempt = 0; attempt <= ENROL_RETRIES; attempt += 1) {
     nextRoll += 1;
     // eslint-disable-next-line no-await-in-loop
     res = await enrollStudent({ classId, studentId, rollNumber: nextRoll, enrolledOn });
