@@ -46,7 +46,13 @@ const PKT_OFFSET_MS = 5 * 3600 * 1000;
 
 const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
 const gradeNum = (v) => (String(v == null ? '' : v).match(/\d+/) || [''])[0];
-const listLabel = (l) => [String(l.class_name || '').trim(), String(l.section || '').trim()].filter(Boolean).join('-');
+// A mirrored list is already named "Grade 4 - A" with section 'A' (82% of prod lists): never "Grade 4 - A-A".
+const listLabel = (l) => {
+  const name = String(l.class_name || '').trim();
+  const section = String(l.section || '').trim();
+  if (!section || new RegExp(`(^|[\\s\\-–])${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i').test(name)) return name;
+  return [name, section].filter(Boolean).join('-');
+};
 const pct = (correct, total) => (total > 0 ? Math.round((100 * correct) / total) : 0);
 const mean = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 const LINK_RX = /https?:\/\/\S+/;
@@ -140,9 +146,14 @@ async function sessionsFor(codeIds) {
  * The message the teacher forwards into the class group: the quiz is still
  * open, here is the link. It names no child. Gender-neutral in both languages.
  */
-function reminderText({ topic, link, language }) {
+function reminderText({ topic, link, language, played = null, of = null, className = null }) {
   const t = String(topic || '').trim();
-  return resolveUx(t ? 'trReminder' : 'trReminderNoTopic', { language: clampLanguage(language), params: { topic: t, link } });
+  const lang = clampLanguage(language);
+  // Social proof when the class is known: "12 of 31 in 5-A have played" — a count, never a name.
+  if (t && className && Number.isFinite(of) && of > 0 && Number.isFinite(played)) {
+    return resolveUx('trReminderCount', { language: lang, params: { topic: t, link, played, of, cls: className } });
+  }
+  return resolveUx(t ? 'trReminder' : 'trReminderNoTopic', { language: lang, params: { topic: t, link } });
 }
 
 /** Every question with how many counted children got it right, and the most-chosen wrong answer. */
@@ -304,7 +315,13 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     provisional,
     questions,
     guidance: meta.report_guidance && typeof meta.report_guidance === 'object' ? meta.report_guidance : null,
-    reminder: link ? { language: lang, text: reminderText({ topic: quiz.topic, link, language: lang }) } : null,
+    reminder: link ? {
+      language: lang,
+      text: reminderText({
+        topic: quiz.topic, link, language: lang,
+        ...(rosterView.state === 'known' ? { played: played.filter((p) => p.onList).length, of: rosterView.of, className: rosterView.className } : {}),
+      }),
+    } : null,
   };
 }
 
@@ -372,4 +389,4 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
   };
 }
 
-module.exports = { quizReport, classReport, reminderText, weekStart, gradesOf };
+module.exports = { quizReport, classReport, reminderText, weekStart, gradesOf, listLabel };
