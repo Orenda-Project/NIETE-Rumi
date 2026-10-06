@@ -75,3 +75,10 @@ test('peer pulse: GET /pulse/:code is mounted behind the key and refuses a forge
   // A genuine token reaches the code lookup: this code is closed, so 410 like every other endpoint.
   expect((await fetch(`${base}/pulse/EXPD01?st=${encodeURIComponent(st)}&since=0`, { headers: KEY })).status).toBe(410);
 });
+
+test('the kid hub route is mounted behind the key; a forged hub token is 401', async () => {
+  expect((await fetch(`${base}/hub/abc.def`)).status).toBe(401);
+  const r = await fetch(`${base}/hub/abc.def`, { headers: KEY });
+  expect(r.status).toBe(401);
+  expect(await r.json()).toEqual({ error: 'bad_token' });
+});

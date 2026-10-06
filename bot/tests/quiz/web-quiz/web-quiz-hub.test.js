@@ -1,0 +1,312 @@
+'use strict';
+/**
+ * The kid hub (web-quiz-hub.js) and the WhatsApp /quiz that links to it
+ * (student-quiz.service open()). Supabase, Redis and WhatsApp are the boundaries
+ * and are faked; every first-party module on the path runs for real.
+ */
+jest.mock('../../../shared/config/supabase', () => ({}));
+jest.mock('../../../shared/services/cache/railway-redis.service', () => ({
+  get: jest.fn().mockResolvedValue(null), set: jest.fn().mockResolvedValue(true), delete: jest.fn().mockResolvedValue(true),
+}));
+jest.mock('../../../shared/services/whatsapp.service', () => ({
+  sendMessage: jest.fn().mockResolvedValue(true),
+  sendInteractiveButtons: jest.fn().mockResolvedValue(true),
+  sendFlow: jest.fn().mockResolvedValue(true),
+  sendCtaUrl: jest.fn().mockResolvedValue(true),
+}));
+jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
+jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
+
+const { makeFake } = require('./fake-supabase');
+const supabase = require('../../../shared/config/supabase');
+const WhatsAppService = require('../../../shared/services/whatsapp.service');
+const { logEvent } = require('../../../shared/utils/structured-logger');
+const { resolveUx } = require('../../../shared/config/ux-strings');
+const T = require('../../../shared/services/quiz/web-quiz-token');
+const Hub = require('../../../shared/services/quiz/web-quiz-hub');
+const SQ = require('../../../shared/services/quiz/student-quiz.service');
+
+const PHONE = '923001112223';
+const PORTAL = 'https://portal.example.test';
+const KID = '44444444-4444-4444-8444-000000000001';
+const SIB = '44444444-4444-4444-8444-000000000002';
+const OTHER = '44444444-4444-4444-8444-000000000009';
+const TEACHER = '11111111-1111-4111-8111-000000000001';
+const LIST = '55555555-5555-4555-8555-000000000001';
+const V = (n) => `aaaaaaaa-aaaa-4aaa-8aaa-0000000000${String(n).padStart(2, '0')}`;
+const VQ = (n) => `bbbbbbbb-bbbb-4bbb-8bbb-0000000000${String(n).padStart(2, '0')}`;
+const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
+const future = new Date(Date.now() + 10 * 86400000).toISOString();
+
+let fake;
+let db;
+
+function code(id, c, quizId, extra = {}) {
+  return { id, code: c, quiz_id: quizId, active: true, expires_at: future, topic: `Topic ${c}`, language: 'en',
+    teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(48), ...extra };
+}
+function sess(id, sc, quizId, status, c, t, at, extra = {}) {
+  return { id, share_code_id: sc, quiz_id: quizId, student_id: KID, status, correct_answers: c, total_questions_answered: t,
+    mastery_percentage: t ? Math.round((100 * c) / t) : 0, completed_at: status === 'completed' ? at : null, created_at: at, student_class: '3', ...extra };
+}
+function video(n, subject, chapter, title) {
+  return { id: V(n), grade: '3', subject, clean_chapter: chapter, clean_title: title, migration_status: 'done', superseded_by: null, r2_url: null };
+}
+
+function seed(over = {}) {
+  db = {
+    app_settings: [{ key: 'web_quiz_hub', value: 'true' }],
+    students: [
+      { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, phone: PHONE, created_at: ago(500) },
+      { id: SIB, student_name: 'Bilal Testwala', student_name_urdu: null, self_reported_class: '5', list_id: null, is_active: true, phone: PHONE, created_at: ago(400) },
+      { id: OTHER, student_name: 'Other Testwala', self_reported_class: '3', list_id: LIST, is_active: true, phone: '923009999999', created_at: ago(300) },
+    ],
+    student_lists: [{ id: LIST, user_id: TEACHER, class_name: '3', section: 'A', is_active: true }],
+    quizzes: [
+      { id: 'q-maths', topic: 'Fractions quiz', subject: 'Maths', language: 'en', grade: '3', video_id: V(2), quiz_source: 'video', status: 'ready' },
+      { id: 'q-eng', topic: 'Nouns', subject: 'english', language: 'en', grade: '3', video_id: null },
+      { id: 'q-sci', topic: 'Plants', subject: 'science', language: 'en', grade: '3', video_id: null },
+      { id: 'q-new', topic: 'Shapes', subject: 'maths', language: 'en', grade: '3', video_id: null },
+      { id: 'q-g5', topic: 'Decimals', subject: 'maths', language: 'en', grade: '5', video_id: null },
+      ...[1, 3, 4, 5, 6, 7, 8].map((n) => ({ id: VQ(n), video_id: V(n), quiz_source: 'video', status: 'ready', topic: `V${n}`, subject: 'x', grade: '3' })),
+    ],
+    quiz_share_codes: [
+      code('sc-maths', 'MATH01', 'q-maths', { created_at: ago(30) }),
+      code('sc-eng', 'ENGL01', 'q-eng', { created_at: ago(60) }),
+      code('sc-sci', 'SCIE01', 'q-sci', { created_at: ago(90), active: false }),
+      code('sc-new', 'NEWQ01', 'q-new', { created_at: ago(5) }),
+      code('sc-g5', 'GRD501', 'q-g5', { created_at: ago(2) }),
+      code('sc-old', 'OLDQ01', 'q-new', { created_at: ago(24 * 9) }),
+    ],
+    quiz_sessions: [
+      sess('s1', 'sc-maths', 'q-maths', 'completed', 4, 10, ago(30)),
+      sess('s2', 'sc-maths', 'q-maths', 'completed', 8, 10, ago(20)),
+      sess('s3', 'sc-eng', 'q-eng', 'completed', 6, 8, ago(50)),
+      sess('s4', 'sc-sci', 'q-sci', 'completed', 5, 5, ago(80)),
+    ],
+    student_videos: [
+      video(1, 'Maths', 'Addition', 'Adding tens'),
+      video(2, 'Maths', 'Fractions', 'Halves'),
+      video(3, 'Maths', 'Fractions', 'Quarters'),
+      video(4, 'Maths', 'Measurement', 'Length'),
+      video(5, 'English', 'Nouns', 'Naming words'),
+      video(6, 'English', 'Verbs', 'Doing words'),
+      video(7, 'Science', 'Plants', 'Leaves'),
+      video(8, 'Maths', 'Fractions', 'Thirds'),
+    ],
+    ...over,
+  };
+  fake = makeFake(db);
+  Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  process.env.WEB_QUIZ_TOKEN_SECRET = 'hub-test-secret';
+  process.env.PORTAL_URL = PORTAL;
+  delete process.env.WEB_QUIZ_BASE_URL;
+  delete process.env.STUDENT_QUIZ_FLOW_ID;
+  Hub._resetCache();
+  seed();
+});
+
+const chipH = (id) => T.chipId('h', id);
+
+describe('hub(): who the hub is for', () => {
+  test('a forged or wrong-kind token is 401; the hub switch off is 503', async () => {
+    await expect(Hub.hub('abc.def')).rejects.toMatchObject({ status: 401, body: { error: 'bad_token' } });
+    const st = T.signSession({ sessionId: 's', deviceRef: 'd', shareCodeId: 'sc' });
+    await expect(Hub.hub(st)).rejects.toMatchObject({ status: 401 });
+    seed({ app_settings: [{ key: 'web_quiz_hub', value: 'false' }] });
+    await expect(Hub.hub(T.signHub([KID]))).rejects.toMatchObject({ status: 503, body: { error: 'web_quiz_off' } });
+  });
+
+  test('0 children: the token names nobody still active -> an empty hub, no reads beyond the students', async () => {
+    seed({ students: [] });
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out).toMatchObject({ kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null });
+  });
+
+  test('1 child: chosen at once; the payload has no student id, no surname, no phone', async () => {
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.kids).toEqual([{ chip: chipH(KID), first: 'Sana', animal: T.animalFor(KID), grade: '3' }]);
+    expect(out.kid).toBe(chipH(KID));
+    const text = JSON.stringify(out);
+    expect(text).not.toContain(KID);
+    expect(text).not.toContain('Testwala');
+    expect(text).not.toContain(PHONE);
+  });
+
+  test('2 children and no pick: ONLY the token\'s children, nothing else loaded; a pick chooses one', async () => {
+    const token = T.signHub([KID, SIB]);
+    const out = await Hub.hub(token);
+    expect(out.kids.map((k) => k.first)).toEqual(['Sana', 'Bilal']);
+    expect(out.kid).toBeNull();
+    expect(out.teacher).toBeNull();
+    expect(out.again).toEqual([]);
+    expect(JSON.stringify(out)).not.toContain('Other');
+    const picked = await Hub.hub(token, { kid: chipH(SIB) });
+    expect(picked.kid).toBe(chipH(SIB));
+    // A chip of a child the token does not name picks nobody.
+    expect((await Hub.hub(token, { kid: chipH(OTHER) })).kid).toBeNull();
+    expect(Hub.kidOf(token, chipH(SIB))).toBe(SIB);
+    expect(Hub.kidOf(token, chipH(OTHER))).toBeNull();
+  });
+});
+
+describe('hub(): from your teacher', () => {
+  test('(a) a teacher-sent code this child opened and has not finished comes first', async () => {
+    db.quiz_sessions.push(sess('s5', 'sc-g5', 'q-g5', 'in_progress', 1, 1, ago(1)));
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.teacher).toMatchObject({ code: 'GRD501', src: 'opened', k: T.chipId('sc-g5', KID) });
+  });
+
+  test('(b) else the class teacher\'s open code from the last 7 days for the list\'s grade (not grade 5, not 9 days old)', async () => {
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.teacher).toMatchObject({ code: 'NEWQ01', topic: 'Shapes', src: 'class', k: T.chipId('sc-new', KID) });
+  });
+
+  test('none: no open, unfinished code for the grade -> null (the page shows the warm empty state)', async () => {
+    db.quiz_share_codes.find((c) => c.id === 'sc-new').active = false;
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.teacher).toBeNull();
+    // A child with no class list and nothing opened has no teacher card either.
+    expect((await Hub.hub(T.signHub([SIB]))).teacher).toBeNull();
+  });
+
+  test('a code the child already finished is never the teacher card', async () => {
+    db.quiz_sessions.push(sess('s6', 'sc-new', 'q-new', 'completed', 3, 5, ago(3)));
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.teacher).toBeNull();
+  });
+});
+
+describe('hub(): play again', () => {
+  test('finished, still-open codes, newest first, with the BEST score, the tries and the code\'s own chip', async () => {
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.again.map((a) => a.code)).toEqual(['MATH01', 'ENGL01']); // SCIE01 is closed
+    expect(out.again[0]).toMatchObject({ best: { c: 8, t: 10 }, tries: 2, k: T.chipId('sc-maths', KID) });
+    expect(out.again[1]).toMatchObject({ best: { c: 6, t: 8 }, tries: 1 });
+  });
+
+  test('at most 6', async () => {
+    for (let i = 0; i < 8; i += 1) {
+      db.quiz_share_codes.push(code(`sc-x${i}`, `XQ00${i}`, 'q-eng', { created_at: ago(100 + i) }));
+      db.quiz_sessions.push(sess(`sx${i}`, `sc-x${i}`, 'q-eng', 'completed', 1, 2, ago(100 + i)));
+    }
+    expect((await Hub.hub(T.signHub([KID]))).again).toHaveLength(6);
+  });
+});
+
+describe('hub(): recommended for you', () => {
+  test('the last finished quiz\'s chapter first, then the next chapters, then the rest; finished videos never', async () => {
+    // Last finished = the Maths video quiz (V2, chapter Fractions). V2's quiz is finished.
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.recs.map((r) => r.vid)).toEqual([V(3), V(8), V(4)]); // Quarters, Thirds (same chapter), Measurement (next)
+    expect(out.recs[0]).toMatchObject({ title: 'Quarters', chapter: 'Fractions', subject: 'Maths', grade: '3' });
+  });
+
+  test('fill to 3: earlier chapters of the subject, then the grade\'s other subjects in the Flow\'s order', async () => {
+    db.quiz_sessions.push(sess('s7', 'sc-v3', VQ(3), 'completed', 2, 2, ago(19)));
+    db.quiz_sessions.push(sess('s8', 'sc-v8', VQ(8), 'completed', 2, 2, ago(19)));
+    db.quiz_sessions.push(sess('s9', 'sc-v4', VQ(4), 'completed', 2, 2, ago(19)));
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.recs.map((r) => r.vid)).toEqual([V(1), V(5), V(6)]); // Addition (rest of Maths), then English
+  });
+
+  test('no history: the first chapter of each subject of the child\'s grade', async () => {
+    seed({ quiz_sessions: [] });
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.recs.map((r) => r.vid)).toEqual([V(5), V(1), V(7)]); // English, Maths, Science
+  });
+
+  test('a lesson quiz (no video) points the recs at its subject and grade', async () => {
+    db.quiz_sessions = [sess('s1', 'sc-eng', 'q-eng', 'completed', 6, 8, ago(5))];
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.recs[0].subject).toBe('English');
+  });
+
+  test('the hub_open event carries counts only', async () => {
+    await Hub.hub(T.signHub([KID]));
+    const call = logEvent.mock.calls.find((c) => c[0] === 'web_quiz.hub_open');
+    expect(call[1]).toMatchObject({ kids: 1, has_teacher: true, again_n: 2, recs_n: 3 });
+    expect(JSON.stringify(call[1])).not.toMatch(/Sana|Testwala|4444/);
+  });
+});
+
+describe('hub(): challenge and library', () => {
+  test('challenge only with web_quiz_challenge on and grade 2-5; library to M4b\'s page when it is on', async () => {
+    expect((await Hub.hub(T.signHub([KID]))).challenge).toBeNull();
+    seed({ app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: 'true' }, { key: 'web_quiz_library', value: 'true' }] });
+    Hub._resetCache();
+    const token = T.signHub([KID]);
+    const out = await Hub.hub(token);
+    expect(out.challenge).toMatchObject({ on: true });
+    expect(out.lib.href).toBe(`/lib/${token}?kid=${chipH(KID)}`);
+  });
+
+  test('library off: the child\'s newest open quiz, under that code\'s chip', async () => {
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.lib.href).toBe(`/q/MATH01?k=${T.chipId('sc-maths', KID)}`);
+  });
+});
+
+describe('WhatsApp /quiz (student-quiz open)', () => {
+  test('hub on: ONE cta_url message to <portal>/h/<token> naming this phone\'s own children; nothing else', async () => {
+    expect(await SQ.open(PHONE)).toBe(true);
+    expect(WhatsAppService.sendCtaUrl).toHaveBeenCalledTimes(1);
+    const [to, msg] = WhatsAppService.sendCtaUrl.mock.calls[0];
+    expect(to).toBe(PHONE);
+    expect(msg.body).toBe(resolveUx('sqHubBody', { language: 'en' }));
+    expect(msg.buttonText).toBe(resolveUx('sqHubBtn', { language: 'en' }));
+    expect([...msg.buttonText].length).toBeLessThanOrEqual(20);
+    const m = /^https:\/\/portal\.example\.test\/h\/([^/?#]+)$/.exec(msg.url);
+    expect(m).not.toBeNull();
+    expect(T.verify(m[1], 'h').ids.sort()).toEqual([KID, SIB].sort());
+    expect(WhatsAppService.sendFlow).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('hub on, Urdu quizzes: the Urdu copy, button within 20 code points', async () => {
+    db.quizzes.forEach((q) => { q.language = 'ur'; });
+    await SQ.open(PHONE);
+    const [, msg] = WhatsAppService.sendCtaUrl.mock.calls[0];
+    expect(msg.body).toBe(resolveUx('sqHubBody', { language: 'ur' }));
+    expect([...msg.buttonText].length).toBeLessThanOrEqual(20);
+  });
+
+  test('hub off (row false, or no row): today\'s two buttons exactly, no link message', async () => {
+    for (const settings of [[{ key: 'web_quiz_hub', value: 'false' }], []]) {
+      jest.clearAllMocks();
+      Hub._resetCache();
+      seed({ app_settings: settings });
+      await SQ.open(PHONE);
+      expect(WhatsAppService.sendCtaUrl).not.toHaveBeenCalled();
+      const [, opts] = WhatsAppService.sendInteractiveButtons.mock.calls[0];
+      expect(opts.buttons.map((b) => b.id)).toEqual([SQ.RETRY_ID, SQ.CARD_ID]);
+      expect(opts.body).toBe(resolveUx('sqFallbackBody', { language: 'en', params: { topic: 'Fractions quiz', score: '8/10' } }));
+    }
+  });
+
+  test('hub off with the Flow configured: today\'s Flow exactly', async () => {
+    seed({ app_settings: [] });
+    process.env.STUDENT_QUIZ_FLOW_ID = 'flow-sq';
+    await SQ.open(PHONE);
+    expect(WhatsAppService.sendCtaUrl).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendFlow).toHaveBeenCalledTimes(1);
+  });
+
+  test('hub on but the link send fails: falls back to today\'s message, never silence', async () => {
+    WhatsAppService.sendCtaUrl.mockResolvedValueOnce(false);
+    await SQ.open(PHONE);
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+  });
+
+  test('hub on but no portal URL: today\'s message', async () => {
+    delete process.env.PORTAL_URL;
+    await SQ.open(PHONE);
+    expect(WhatsAppService.sendCtaUrl).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+  });
+});
