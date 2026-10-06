@@ -463,6 +463,8 @@ function buildPrompt(rows, ctx) {
   const band = bandOf(ctx.gradeBand);
   const srcKind = (ctx.source && ctx.source.kind) === 'lesson_plan' ? 'lesson_plan' : 'transcript';
   const srcText = String((ctx.source && ctx.source.text) || '').slice(0, SOURCE_TEXT_MAX);
+  // Gates v2: the hint is in the reply template too — a model fills the fields its template shows.
+  const hintTpl = GatesV2.enabled(ctx.authorGates) ? '"hint": "", ' : '';
   const qs = rows.map((r, i) => ({
     q: i,
     question: r.question_text,
@@ -508,9 +510,9 @@ THE ${srcKind === 'lesson_plan' ? 'LESSON PLAN' : 'TRANSCRIPT'}:
 ${srcText}
 
 Return ONLY this JSON object:
-{ "items": [ { "q": 0, "type": "single", "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", "grade_note": "" },
-             { "q": 1, "type": "picture", "pics": ["apple", "banana", "carrot"], "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", "grade_note": "" },
-             { "q": 4, "type": "order", "stem": "", "options": [ { "text": "" }, { "text": "" }, { "text": "" } ], "key": "B,C,A", "fb": { "0": "" }, "fb_right": "", "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", "grade_note": "" } ] }`;
+{ "items": [ { "q": 0, "type": "single", "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", ${hintTpl}"grade_note": "" },
+             { "q": 1, "type": "picture", "pics": ["apple", "banana", "carrot"], "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", ${hintTpl}"grade_note": "" },
+             { "q": 4, "type": "order", "stem": "", "options": [ { "text": "" }, { "text": "" }, { "text": "" } ], "key": "B,C,A", "fb": { "0": "" }, "fb_right": "", "source_quote": "", "read": { "stem": "", "opts": ["", "", ""] }, "why": "", ${hintTpl}"grade_note": "" } ] }`;
 }
 
 /**
